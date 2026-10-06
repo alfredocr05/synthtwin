@@ -520,11 +520,11 @@ def test_no_ceiling_stopped_the_packing_walk_the_review_measured(
     200,000 trips. That same grid, over these groups, entered more than
     200,000 states before it answered under every walk up to stage 4's,
     measured here on the walk as 493f6f8 shipped it, frozen in
-    `tests/stage4_as_built.py` -- and it does answer. Stage 4's cell
-    conditions (plan P4-D389) give today's walk the same answer in
-    fewer states, about two thousand, so the guard that no ceiling
-    comes back is the next test, on a grid today's walk still needs more
-    than the withdrawn number for.
+    `tests/stage4_as_built.py` -- and it does answer. Stage 4's reading
+    of the counts (plan P4-D389) gives today's walk the same answer in
+    574 states, so the guard that no ceiling comes back is the next
+    test, on a question today's walk still needs more than the withdrawn
+    number for.
     """
     facts = _facts(ceiling_case)
     groups = generation._groups_of(facts.n_distinct_by_occurrences)
@@ -561,58 +561,52 @@ def test_no_ceiling_stopped_the_packing_walk_the_review_measured(
     assert fewer < entered[0], (fewer, entered[0])
 
 
-# THE GUARD ON TODAY'S WALK (plan P4-D389): the review's 38 groups, each
-# placed in one cell of the same six-by-three grid that `_spread_pairs`
-# permits -- drawn by `random.Random(385)` and written out here, so the
-# case cannot move with a library's draws -- and the row and sign totals
-# that placement gives. The question therefore has an answer, the
-# placement's own.
-_PLACED_CELLS = (
-    3, 12, 10, 13, 7, 2, 10, 6, 17, 10, 9, 13, 4, 6, 10, 3, 4, 2, 6,
-    4, 10, 7, 2, 4, 3, 7, 4, 2, 7, 3, 17, 3, 3, 7, 12, 4, 10, 6,
+# THE GUARD ON TODAY'S WALK (plan P4-D389): a packing question of the
+# kind every role asks -- 28 groups of 1 to 5 rows against three row
+# counts and three column counts over a grid of nine cells, each group
+# permitted the whole grid, its middle row or its last -- drawn from the
+# lane's seeded battery (seed 2, question 2,886) and written out here,
+# so the case cannot move with a library's draws. It has an answer, the
+# one asserted below.
+_HARD_GROUPS = (
+    2, 5, 1, 2, 3, 4, 3, 4, 5, 3, 4, 1, 5, 3, 1, 4, 4, 5, 3, 1, 5, 3, 5,
+    4, 4, 1, 1, 4,
 )
-_PLACED_ROWS = [516, 317, 1082, 264, 456, 75]
-_PLACED_SIGNS = [774, 1345, 591]
+_HARD_ROWS = [28, 35, 27]
+_HARD_COLUMNS = [31, 20, 39]
+_HARD_PERMITTED = (
+    511, 511, 511, 60, 60, 448, 448, 511, 511, 448, 60, 511, 60, 60, 511,
+    448, 511, 448, 511, 511, 448, 448, 511, 60, 511, 60, 511, 60,
+)
 
 
 def test_no_ceiling_stops_today_s_walk_on_a_grid_with_an_answer() -> None:
     """Defect 2's guard on the walk stage 4 left: past the withdrawn number, and an answer.
 
-    Stage 4's cell conditions answer the review's own grid in about two
-    thousand states, so that grid no longer shows a ceiling coming back.
-    This one does. The same groups in the same grid, placed so that an
-    answer exists, take today's walk more than 200,000 states to answer
-    -- 228,283 when this was written, where the walk as 493f6f8 shipped
-    it took 809,349 to give the same answer. So a ceiling at or below the
-    withdrawn one, put back in any form, stops this walk before its
-    answer and fails here. It is not a description the producer wrote:
-    it is a packing question of the kind every role asks, whole groups
-    against two families of exact counts, built around an answer.
-    Mutation, run: a walk that gives up after 200,000 states returns no
-    answer here.
+    Stage 4's reading of the counts answers the review's own grid in a
+    few thousand states, and the grids built around an answer from the
+    review's 38 groups mostly in under 200,000, so neither shows a
+    ceiling coming back cheaply. This question does: today's walk
+    enters more than 200,000 states before it answers it -- 243,155 when
+    this was written, about five seconds -- and the answer meets every
+    count. So a ceiling at or below the withdrawn one, put back in any
+    form, stops this walk before its answer and fails here. Mutation,
+    run: a walk that gives up after 200,000 states returns no answer.
     """
-    groups = tuple(size for _shape, size in _CEILING_PLAN)
-    mask = generation._spread_pairs(6, 3)
-    rows = [0 for _each in _PLACED_ROWS]
-    signs = [0 for _each in _PLACED_SIGNS]
-    for place in range(len(groups)):
-        cell = _PLACED_CELLS[place]
-        assert (mask >> cell) & 1, cell
-        rows[cell // 3] += groups[place]
-        signs[cell % 3] += groups[place]
-    assert (rows, signs) == (_PLACED_ROWS, _PLACED_SIGNS)
+    permitted = list(_HARD_PERMITTED)
     answer, entered = _states(
         lambda: generation._allotted_pairs(
-            groups, _PLACED_ROWS, _PLACED_SIGNS, [mask for _each in groups]
+            _HARD_GROUPS, _HARD_ROWS, _HARD_COLUMNS, permitted
         )
     )
-    assert answer is not None, "a question built around an answer was refused"
-    met_rows = [0 for _each in _PLACED_ROWS]
-    met_signs = [0 for _each in _PLACED_SIGNS]
-    for place in range(len(groups)):
-        met_rows[answer[place] // 3] += groups[place]
-        met_signs[answer[place] % 3] += groups[place]
-    assert (met_rows, met_signs) == (_PLACED_ROWS, _PLACED_SIGNS)
+    assert answer is not None, "a question with an answer was refused"
+    met_rows = [0 for _each in _HARD_ROWS]
+    met_columns = [0 for _each in _HARD_COLUMNS]
+    for place in range(len(_HARD_GROUPS)):
+        assert (permitted[place] >> answer[place]) & 1, place
+        met_rows[answer[place] // 3] += _HARD_GROUPS[place]
+        met_columns[answer[place] % 3] += _HARD_GROUPS[place]
+    assert (met_rows, met_columns) == (_HARD_ROWS, _HARD_COLUMNS)
     assert entered > 200000, (
         f"today's walk answered in {entered} states, so this question no "
         "longer shows that a ceiling at the withdrawn number would stop it"

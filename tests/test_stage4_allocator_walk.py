@@ -10,15 +10,28 @@ at ``k = 60``, 826,616 and 1.26 GB at ``k = 80``, and the ``k = 100``
 witness, 10,301 rows the producer and the loader accept, past 1.8 GB.
 Each ten more groups cost about 3.5 times the time.
 
-The walk now reads three necessary conditions on entering a cell
-(`generation._cell_entry`): where each size can still go, whether every
-count still owed can be made, and which totals the cells after this
-one can complete. A fill any of them refuses held no answer, so the
-answer is the walk's old answer, fill for fill in the same order, and
-what changed is how many fills are tried. The states a walk writes down
-are held as one number each (`generation._walk_mark`) and bounded
-(`generation._WALK_MEMORY`), and forgetting one costs time and never an
-answer.
+The lane's identity battery then found a description those three
+facts could not answer either: a declared identifier of 300 values
+written in four forms, each value held by a different number of rows
+from 1 to 300 -- 45,150 rows the producer and the loader accept --
+whose twin 493f6f8 could not build within 1.6 GB, and the walk with
+the first three conditions below was still walking after twenty
+minutes. A count of lengths only one cell can answer for fixes that
+cell's total, and the rest of its class is then nought, which no fact
+about one count says.
+
+The walk now reads five necessary conditions on entering a cell
+(`generation._cell_entry`): what each cell from this one on may hold,
+read off every count it answers for together (`_bounds_settled`); where
+each size can still go; whether every count still owed can be made;
+which totals the cells after this one can complete; and what those
+cells must still find among the groups this one leaves (`_reserves_met`,
+read again inside `_cell_next` as each size is decided). A fill any of
+them refuses held no answer, so the answer is the walk's old answer,
+fill for fill in the same order, and what changed is how many fills
+are tried. The states a walk writes down are held as one number each
+(`generation._walk_mark`) and bounded (`generation._WALK_MEMORY`), and
+forgetting one costs time and never an answer.
 
 THE ORACLE IS THE WALK AS 493f6f8 SHIPPED IT, frozen as text in
 `tests/stage4_as_built.py` (`ALLOTTED_OVER`), so a change of meaning
@@ -183,11 +196,13 @@ def test_a_walk_that_remembers_nothing_answers_the_same(
     """Forgetting a state costs time and never an answer: the memory is a cache.
 
     With room for no state at all, every seeded question is answered as
-    the walk with its full memory answers it -- and some of them, which
-    meet a state twice, walk more states to get there, so the memory
-    being left out is seen.
+    the walk with its full memory answers it -- and one of them, which
+    meets a state twice, walks more states to get there (6,098 against
+    5,843 over the 800), so the memory being left out is seen. The
+    conditions of `generation._cell_entry` leave the walk few states to
+    meet twice: over the 800 questions of seed 3891 it met none.
     """
-    draw = random.Random(3891)
+    draw = random.Random(2)
     questions = [_question(draw) for _each in range(800)]
     full = [generation._allotted_over(*question) for question in questions]
     seen = [0]
@@ -266,15 +281,15 @@ def test_the_walk_writes_down_no_more_states_than_its_memory_holds(
 ) -> None:
     """The states written down never pass the number `_WALK_MEMORY` holds.
 
-    `_NO_PACKING` makes the walk fail 93 different states on its way to
+    `_NO_PACKING` makes the walk fail 31 different states on its way to
     saying no packing exists, and it is watched writing each of them
     down. With its memory cut to room for five states it holds five at
     the most, and still says no packing exists. Mutation, run: writing
-    down every failed state whatever the room holds 93 again.
+    down every failed state whatever the room holds 31 again.
     """
     memories, spans = _watched_walk(monkeypatch)
     assert generation._allotted_over(*_NO_PACKING) is None
-    assert memories[0].held == 93, memories[0].held
+    assert memories[0].held == 31, memories[0].held
     monkeypatch.setattr(
         generation, "_WALK_MEMORY", generation._state_bytes(spans[0]) * 5
     )
@@ -411,10 +426,11 @@ def test_the_walk_on_codex_s_identifier_grows_with_its_groups_and_not_past_them(
     carry the shortest value; the walk now refuses all but one of them
     in the state it enters first, and answers the one that packs in a
     state per cell, ``k + 12`` states in all: 32, 52 and 92. Mutation,
-    run: with condition 1's forced copies and condition 3 both taken
-    out, the cell that must take the odd group is offered every set of
-    even sizes again, 402 states to 8,748, 21.8 times. Either one alone
-    answers this question, so each has a question of its own below.
+    run: with condition 1, condition 2's forced copies, condition 4 and
+    condition 5's reserve for a count all taken out, the cell that must
+    take the odd group is offered every set of even sizes again, 402
+    states to 8,748, 21.8 times. Any one of the four alone answers this
+    question, so the questions below hold them apart.
     """
     states = {k: walk_states(codex_identifiers[k]) for k in (20, 40)}
     assert states[40] / states[20] <= DOUBLED_AT_MOST, states
@@ -490,17 +506,20 @@ def test_the_odd_group_s_cell_is_offered_only_the_odd_group() -> None:
 
 
 def test_a_size_only_this_cell_can_hold_is_taken_whole() -> None:
-    """Condition 1's forced copies: two groups only one cell can hold are both taken there, at once.
+    """Two groups only one cell can hold are both taken there, at once.
 
     Codex's question at 40 groups with a second odd group, 83, held to
     the shortest beside the first, 81. The cell of ordinary numbers in
     figures alone must total the figures count, 164: the two odd groups
     make it, and so do many sets of the even sizes. But no cell after
     this one is open to either odd group -- the other shortest cells
-    answer for a count of nought -- so each is taken here whole, and
-    the cell is offered that one fill. Mutation, run: with no size taken
-    whole, every set of even sizes totalling 164 is offered first,
-    82,920 fills where this takes 12.
+    answer for a count of nought -- so condition 2 takes each here
+    whole, condition 1 holds the cell to 164 and the even groups to the
+    one cell of their class, and condition 5 keeps that cell its count:
+    the cell is offered one fill. Mutation, run: with those three all
+    taken out, every set of even sizes totalling 164 is offered first,
+    82,920 fills where this takes 12; any one alone answers it, and the
+    forced copies are held alone by a question of `_LESSER_READINGS`.
     """
     k = 40
     answer, fills = packing_question_fills(k, (2 * k + 1, 2 * k + 3))
@@ -509,25 +528,346 @@ def test_a_size_only_this_cell_can_hold_is_taken_whole() -> None:
 
 
 def test_a_cell_takes_only_a_total_the_cells_after_it_can_finish() -> None:
-    """Condition 3 alone: the odd group may stand later too, so nothing takes it whole, and the cell still takes only it.
+    """The odd group may stand later too, so nothing takes it whole, and the cell still takes only it.
 
     Codex's question at 40 groups with the odd group, 81, allowed in the
     cell of numbers too large to hold written in the code alphabet as
     well as in the shortest window. That cell has room for it, so
-    condition 1 no longer takes it whole in the cell of ordinary numbers
+    condition 2 no longer takes it whole in the cell of ordinary numbers
     in figures alone. But no cell after that one can take a figure, so
     it may total only the whole figures count, 81, which no set of even
     sizes makes: it is offered the odd group alone. On Codex's own
     question either condition is enough, which is why each has a
-    question of its own here. Mutation, run: with the third condition
+    question of its own here. Mutation, run: with condition 4, and
+    conditions 1 and 5's reserve for a count which see the same thing,
     taken out, every set of even sizes up to 81 is offered first, 8,708
     fills -- the count the walk as 493f6f8 shipped it tries on Codex's
-    own question at 40 groups.
+    own question at 40 groups; any one of the three alone answers it.
     """
     k = 40
     answer, fills = packing_question_fills(k, held_to=(0, 4, 10, 11))
     assert answer == [4 for _each in range(k)] + [0]
     assert fills <= 12, fills
+
+
+# -- the counts read together ----------------------------------------------
+#
+# Each question below is one the generator asked of the walk for a
+# declared identifier the real producer described, its groups, counts
+# and permitted cells written out: the identity battery's 300 values of
+# 1 to 300 rows in four forms, and two seeded identifiers of 122 and 104
+# values in mixed forms (`_mixed_identifier`). Neither 493f6f8's walk
+# nor the walk of the first three conditions answered any of them within
+# 20,000 states.
+
+
+class _Walked(Exception):
+    """The walk passed the states a test allows it."""
+
+
+def _grid_question(
+    sizes: "list[int]", quotas: "list[list[int]]", allowed: "list[int]"
+) -> "tuple[tuple[int, ...], list[tuple[list[int], list[int]]], list[int]]":
+    """A packing question over the grid the counts of ``quotas`` span, as `_grid` lays one out."""
+    _cells, part_of = _grid([len(family) for family in quotas])
+    return (
+        tuple(sizes),
+        [(quotas[margin], part_of[margin]) for margin in range(len(quotas))],
+        allowed,
+    )
+
+
+def _of_sizes(copies: "dict[int, int]") -> "list[int]":
+    """``copies[s]`` groups of size ``s``, the smallest first, as the generator hands them over."""
+    sizes: "list[int]" = []
+    for size in sorted(copies):
+        sizes += [size for _each in range(copies[size])]
+    return sizes
+
+
+def _work(
+    question: "tuple[tuple[int, ...], list[tuple[list[int], list[int]]], list[int]]",
+    limit: int = 20000,
+) -> "tuple[list[int] | None, int, int]":
+    """The walk's answer to ``question``, and the states it entered and the fills it was asked for.
+
+    A walk past ``limit`` states fails the test that asked at once,
+    rather than leaving the suite waiting on a walk that would not end.
+    """
+    states = [0]
+    fills = [0]
+    room = generation._cell_room
+    offered = generation._cell_next
+
+    def entering(*given):  # type: ignore[no-untyped-def]
+        states[0] += 1
+        if states[0] > limit:
+            raise _Walked(f"the walk passed {limit} states")
+        return room(*given)
+
+    def offering(*given):  # type: ignore[no-untyped-def]
+        fills[0] += 1
+        return offered(*given)
+
+    with pytest.MonkeyPatch.context() as patch:
+        patch.setattr(generation, "_cell_room", entering)
+        patch.setattr(generation, "_cell_next", offering)
+        try:
+            answer = generation._allotted_over(*question)
+        except _Walked as stopped:
+            pytest.fail(str(stopped))
+    return answer, states[0], fills[0]
+
+
+def _meets(
+    question: "tuple[tuple[int, ...], list[tuple[list[int], list[int]]], list[int]]",
+    answer: "list[int] | None",
+) -> bool:
+    """Whether ``answer`` puts every group in a cell it may take and meets every count exactly."""
+    if answer is None:
+        return False
+    groups, margins, allowed = question
+    for place in range(len(groups)):
+        if (allowed[place] >> answer[place]) & 1 == 0:
+            return False
+    for quotas, part_of in margins:
+        met = [0 for _each in quotas]
+        for place in range(len(groups)):
+            met[part_of[answer[place]]] += groups[place]
+        if met != list(quotas):
+            return False
+    return True
+
+
+# The identity battery's 300-value identifier: its second question,
+# over classes, alphabets and five counts of lengths.
+_LENGTHS_FIX_A_CELL = _grid_question(
+    list(range(1, 301)),
+    [[23058, 11314, 0, 10778], [23058, 22092, 0], [11790, 10107, 11314, 10778, 1161]],
+    [608003542438920851 for _each in range(300)],
+)
+
+# The seeded identifier of 122 values: its second question.
+_ONE_LEFT_FOR_A_CELL = _grid_question(
+    _of_sizes({1: 14, 2: 10, 3: 15, 4: 8, 5: 9, 6: 9, 7: 12, 8: 14, 9: 22, 10: 9}),
+    [[362, 134, 0, 198], [238, 332, 124], [150, 134, 20, 124, 20, 54, 192]],
+    [9801276246884183809728833 for _each in range(122)],
+)
+
+# The seeded identifier of 104 values: its second question.
+_THREE_LEFT_FOR_A_COUNT = _grid_question(
+    _of_sizes({1: 12, 2: 12, 3: 8, 4: 16, 5: 10, 6: 7, 7: 9, 8: 15, 9: 6, 10: 9}),
+    [[383, 160, 0, 0], [212, 160, 171], [17, 160, 168, 198]],
+    [151766973418665 for _each in range(104)],
+)
+
+
+def test_a_count_only_one_cell_can_answer_for_fixes_that_cell() -> None:
+    """Condition 1: the 300-value identifier's lengths are answered in a state per cell.
+
+    One count of lengths, 10,778, can be met by only one cell the groups
+    may stand in, which is in the class of numbers too large to hold, and
+    that class owes 10,778 too: so that cell holds all of it and the
+    class's other cells hold nought. Read together, the counts say so on
+    entering the first of those other cells, and the walk answers in 60
+    states, one per cell, every count met. Mutation, run: with the
+    counts read one at a time, as the first three conditions read them,
+    that cell is offered every set of the 300 sizes up to 1,161 first,
+    past 20,000 states -- and so is the walk that never closes a cell no
+    unplaced group may stand in.
+    """
+    answer, states, _fills = _work(_LENGTHS_FIX_A_CELL)
+    assert _meets(_LENGTHS_FIX_A_CELL, answer)
+    assert states <= 60, states
+
+
+def test_a_cell_that_must_hold_one_row_keeps_a_group_of_one() -> None:
+    """Condition 5, a cell's own reserve: a later cell that must hold exactly 1 keeps a group of size 1.
+
+    In the 122-value identifier's question the counts fix a later cell
+    of the code alphabet at exactly one row, so it needs a group of size
+    1, and the first cell of that alphabet would take all fourteen. The
+    walk passes over every fill that takes the last of them the moment
+    it decides the size, and answers in 85 states. Mutation, run: with
+    no reserve for a single cell it enters 87, and with the counts read
+    one at a time, past 20,000.
+    """
+    answer, states, _fills = _work(_ONE_LEFT_FOR_A_CELL)
+    assert _meets(_ONE_LEFT_FOR_A_CELL, answer)
+    assert states <= 85, states
+
+
+def test_a_count_s_loose_cells_keep_what_they_must_make_together() -> None:
+    """Condition 5, a count's reserve: the cells of a class whose totals are not fixed keep the 3 rows they owe together.
+
+    In the 104-value identifier's question the counts fix three cells of
+    the class of ordinary numbers -- 17, 195 and 168 rows -- and its
+    other three cells then owe 3 rows between them, which only groups of
+    1 to 3 rows can make, while the first cell of the second class would
+    take every such group. The walk answers in 56 states. Mutation, run:
+    with no reserve for a count it passes 20,000 states, with the reserve
+    read only on entering a cell and never while a fill is decided it
+    passes 20,000, and with no reserve for a single cell it enters
+    2,475.
+    """
+    answer, states, _fills = _work(_THREE_LEFT_FOR_A_COUNT)
+    assert _meets(_THREE_LEFT_FOR_A_COUNT, answer)
+    assert states <= 56, states
+
+
+# Five seeded questions of `_question` and of the lane's wider battery,
+# each one on which one reading below passes over work no other does.
+_LESSER_READINGS = (
+    (
+        "a size only this cell can hold is taken whole, and past its room ends the branch (condition 2)",
+        (
+            (2, 3, 1, 2, 3, 2, 3, 2, 3, 3, 8, 2, 3, 8, 2, 2),
+            [([5, 15, 29], [0, 1, 2])],
+            [1, 5, 5, 7, 1, 1, 1, 7, 7, 7, 7, 7, 1, 5, 5, 1],
+        ),
+        "states",
+        1,
+    ),
+    (
+        "a size with nowhere left to go ends the branch (condition 2)",
+        _grid_question(
+            [9, 3, 1, 9, 1, 1, 9],
+            [[0, 13, 11, 9], [10, 9, 14]],
+            [2827, 2989, 2989, 3041, 3041, 2989, 2827],
+        ),
+        "states",
+        13,
+    ),
+    (
+        "condition 2 reads the room condition 1 left each cell",
+        _grid_question(
+            [4, 9, 6, 1, 1, 8, 6],
+            [[28, 7], [2, 10, 23], [24, 2, 9]],
+            [46697 for _each in range(7)],
+        ),
+        "states",
+        2,
+    ),
+    (
+        "condition 3 reads where each size can still go, not every cell it may take",
+        _grid_question(
+            [2, 3, 3, 1, 6, 2, 5, 6, 3, 2, 2, 2, 2],
+            [[25, 14], [14, 12, 13], [12, 11, 16]],
+            [
+                254013, 254013, 122542, 122542, 254013, 254013, 254013,
+                122542, 254013, 122542, 122542, 122542, 254013,
+            ],
+        ),
+        "states",
+        192,
+    ),
+    (
+        "a reserve no fill can meet refuses the state on entering it (condition 5)",
+        _grid_question(
+            [1, 1, 1, 1, 7, 7, 7, 3, 7],
+            [[7, 25, 3], [27, 8], [21, 6, 8]],
+            [115817, 223648, 223648, 142713, 115817, 223648, 115817, 223648, 115817],
+        ),
+        "fills",
+        62,
+    ),
+)
+
+
+def test_each_lesser_reading_passes_over_work_on_a_question_of_its_own() -> None:
+    """Five readings no question above holds apart, each held to a question on which it alone saves work.
+
+    Every answer is the walk's as 493f6f8 shipped it, and each question
+    takes no more states, or fills, than the bound beside it. Mutations,
+    run, one row each: no size taken whole, 14 states where the first
+    refuses on entering; a size with nowhere to go passed over rather
+    than ending the branch, 14; condition 2's room read from what each
+    count owes alone, 4; condition 3 read over every cell a size may
+    take, 202; and the reserves read only while a fill is decided, never
+    on entering a cell, 63 fills.
+    """
+    built, _names = _as_built()
+    for reading, question, measure, most in _LESSER_READINGS:
+        answer, states, fills = _work(question)
+        assert answer == built(*question), reading  # type: ignore[operator]
+        spent = states if measure == "states" else fills
+        assert spent <= most, (reading, spent)
+
+
+def _mixed_identifier(seed: int) -> "list[str]":
+    """A declared identifier of 100 to 160 values written in two to five forms, each held by 1 to 10, 40 or 120 rows.
+
+    Plain numbers, numbers padded to seven figures, codes of two letters
+    and four figures, numbers too large to hold, codes with a hyphen,
+    numbers in brackets, numbers with a half and negative numbers --
+    drawn from `random.Random(7000 + seed)`, so the column is fixed by
+    the seed and the standard library's own draws.
+    """
+    forms = (
+        lambda index: f"{index}",
+        lambda index: f"{index:07d}",
+        lambda index: f"AB{index:04d}",
+        lambda index: f"{index:04d}e999",
+        lambda index: f"x-{index}",
+        lambda index: f"({index})",
+        lambda index: f"{index}.5",
+        lambda index: f"-{index}",
+    )
+    draw = random.Random(7000 + seed)
+    groups = draw.randint(100, 160)
+    largest = draw.choice((10, 40, 120))
+    mix = draw.sample(range(len(forms)), draw.randint(2, 5))
+    values: "list[str]" = []
+    for index in range(groups):
+        values += [forms[draw.choice(mix)](index + 1)] * draw.randint(1, largest)
+    draw.shuffle(values)
+    return values
+
+
+def mixed_identifier_states(seed: int, limit: int = 20000) -> "int | None":
+    """The states the packing walk enters building the twin of `_mixed_identifier(seed)`, or None past ``limit``.
+
+    The column is described by the real producer with `value` declared
+    and loaded by the real loader, and its twin built at seed 0; a walk
+    past ``limit`` states is stopped there and reads as None, so a
+    measure never waits on a walk that would not end.
+    """
+    with tempfile.TemporaryDirectory() as home:
+        loaded = linear._described(
+            pathlib.Path(home), _mixed_identifier(seed), declared=["value"]
+        )
+    assert isinstance(loaded.columns[0].facts, contract.IdentifierFacts)
+    states = [0]
+    room = generation._cell_room
+
+    def entering(*given):  # type: ignore[no-untyped-def]
+        states[0] += 1
+        if states[0] > limit:
+            raise _Walked(f"the walk passed {limit} states")
+        return room(*given)
+
+    with pytest.MonkeyPatch.context() as patch:
+        patch.setattr(generation, "_cell_room", entering)
+        try:
+            generation.generate(loaded, 0)
+        except _Walked:
+            return None
+    return states[0]
+
+
+def test_a_mixed_identifier_the_producer_describes_is_packed_in_few_states() -> None:
+    """End to end: two seeded mixed-form identifiers, described by the real producer, build their twins in a few states.
+
+    Seed 20 is 543 rows of 104 values and seed 6 694 rows of 122 -- each
+    over the 100 people `synthtwin profile` asks of a declared identifier
+    -- and every packing question their twins ask is answered in 70 and
+    100 states in all. The walk as 493f6f8 shipped it, and the walk of
+    the first three conditions, each passed 20,000 states on both.
+    """
+    for seed, most in ((20, 70), (6, 100)):
+        states = mixed_identifier_states(seed)
+        assert states is not None, f"seed {seed}: the walk passed 20,000 states"
+        assert states <= most, (seed, states)
 
 
 def test_a_total_s_binary_figures_are_read_as_bit_length_reads_them() -> None:

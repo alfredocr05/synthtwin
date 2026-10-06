@@ -1160,7 +1160,10 @@ def _first_meeting(alphabet: "tuple[str, ...]", first: bool) -> str:
 # every fill that fitted it, and on a description whose real answer is
 # a lone odd group in the first cell that counts, the walk tried every
 # set of the even sizes first: 826,616 fills and 1.26 GB on 6,641 rows,
-# its time about 3.5 times longer for every ten more groups.
+# its time about 3.5 times longer for every ten more groups. And with
+# the counts read one at a time, a declared identifier written in two
+# to five forms and holding 100 to 160 values took the walk past 100,000
+# states on 27 of sixty seeded ones; read together (plan P4-D389), on 2.
 #
 # THE FALLBACK BELOW IS THEREFORE UNREACHABLE FROM A PRODUCER
 # DESCRIPTION. `_share_out` runs only where NO packing of whole groups
@@ -1191,11 +1194,17 @@ def _first_meeting(alphabet: "tuple[str, ...]", first: bool) -> str:
 # accepts a description too large for the machine failing on the
 # memory-exhaustion path rather than being refused by a cap: a bound
 # that keeps the run short by writing a number the description did not
-# publish is the worse of the two. What keeps genuine descriptions quick
-# is stated above -- their own values are an answer, and the walk is
-# handed only the relationships the description actually publishes, so
-# it is never asked to solve a harder question than the real column
-# already answered.
+# publish is the worse of the two. A genuine description is usually
+# quick -- its own values are an answer, and the walk is handed only the
+# relationships the description publishes -- but not always: the two
+# seeded identifiers above, of 6,705 and 8,098 rows the producer and the
+# loader accept, still take the walk past 100,000 states, one of them
+# past 3,000,000 in ten minutes, because the totals of the cells that
+# remain fix which of their many sizes may be left over only once a
+# fill of an earlier cell has spent them. The memory such a walk holds
+# stays bounded (`_WALK_MEMORY`); its time does not, and `K-S4-04`
+# holds the count of such identifiers until a stronger reading of the
+# counts answers them.
 
 
 def _spread(mask: int, rows: int, width: int) -> int:
@@ -1576,16 +1585,117 @@ def _reach_any(
     return (reach >> target) & 1 == 1
 
 
+def _bounds_settled(
+    owed: "list[list[int]]",
+    families: "list[tuple[int, int, list[int]]]",
+    cell: int,
+    low: "list[int]",
+    high: "list[int]",
+) -> bool:
+    """Narrow the least and the most each cell from ``cell`` on may hold until every count agrees.
+
+    ``families`` names, for each count of each margin, the cells that
+    answer for it, as their places in the order they fill; a count is
+    met by those of its cells still to be filled, so what they hold
+    together is exactly what it still owes. ``low[s]`` and ``high[s]``
+    come in as the least and the most cell ``s`` may hold and go out
+    narrowed: a cell holds at least what its count still owes less the
+    most every other cell of that count may hold, and at most what it
+    owes less the least they must. A narrowed end can narrow another
+    count's cells, so the counts are read again while anything moves --
+    no more than once more than there are cells, after which what is
+    left is still true, only less narrow.
+
+    Every narrowing is a necessary condition on the cells' totals, read
+    as whole numbers and nothing else, so a filling that meets every
+    count is never ruled out. Returns False where the ends cross, or a
+    count cannot be met by its cells' ends, so that no filling meets
+    them all; True otherwise.
+
+    Guarantees: a fixed function of its arguments, with no randomness
+    and no I/O; it changes ``low`` and ``high`` and nothing else, and
+    only at the places from ``cell`` on.
+    """
+    rounds = 0
+    moved = True
+    while moved and rounds <= len(low):
+        moved = False
+        rounds = rounds + 1
+        for margin, part, steps in families:
+            due = owed[margin][part]
+            below = 0
+            above = 0
+            for step in steps:
+                below = below + low[step]
+                above = above + high[step]
+            if below > due or above < due:
+                return False
+            for step in steps:
+                if step < cell:
+                    continue
+                least = due - (above - high[step])
+                most = due - (below - low[step])
+                if least > low[step]:
+                    below = below + (least - low[step])
+                    low[step] = least
+                    moved = True
+                if most < high[step]:
+                    above = above - (high[step] - most)
+                    high[step] = most
+                    moved = True
+                if low[step] > high[step]:
+                    return False
+    return True
+
+
+def _reserves_met(
+    keys: "list[tuple[int, int]]",
+    left: "list[int]",
+    walk: "list[int]",
+    reserves: "list[tuple[int, int, list[int]]]",
+) -> bool:
+    """Whether the groups a cell leaves can still make every total the cells after it must find.
+
+    Each reserve is ``(least, most, places)``: some cells after this one
+    must together hold a total from ``least`` to ``most`` out of the
+    sizes at ``places`` (`_cell_entry`, condition 5). ``walk`` is how
+    many copies of each size this cell takes, as far as it has decided:
+    every place a reserve reads is one it has decided, so the copies it
+    leaves are known exactly. The totals those copies can make are built
+    by the halving rule of `_reach_bits`.
+
+    Guarantees: a fixed function of its arguments; it changes none of
+    them.
+    """
+    for least, most, places in reserves:
+        limit = (1 << (most + 1)) - 1
+        reach = 1
+        for place in places:
+            copies = left[place]
+            if place < len(walk):
+                copies = copies - walk[place]
+            step = 1
+            while copies > 0:
+                take = min(step, copies)
+                reach = (reach | (reach << (take * keys[place][0]))) & limit
+                copies = copies - take
+                step = step * 2
+        if reach >> least == 0:
+            return False
+    return True
+
+
 def _cell_entry(
     keys: "list[tuple[int, int]]",
     left: "list[int]",
     owed: "list[list[int]]",
     part_at: "list[list[int]]",
     part_cells: "list[list[int]]",
+    families: "list[tuple[int, int, list[int]]]",
     cell: int,
     room: "tuple[int, int]",
-) -> "tuple[int, list[int], int] | None":
-    """What one cell may total, and what it must take, read off the cells after it.
+) -> "tuple[int, list[int], int, list[list[tuple[int, int, list[int]]]]] | None":
+    """What one cell may total, what it must take and what it must leave, read off the cells after it.
 
     THE WALK TRIED EVERY FILL OF ONE CELL BEFORE IT LEARNED THAT ONLY ONE
     COULD BE FINISHED (stage 4, plan P4-D389; the wave-1 critic of
@@ -1597,55 +1707,99 @@ def _cell_entry(
     figures count. The walk asked only whether a fill fitted the cell,
     so it tried every set of the even sizes that fits before the one
     fill that finishes: 101,994 fills at ``k = 60``, 826,616 and 1.26 GB
-    at ``k = 80``, and Codex's ``k = 100`` past 1.8 GB. Three necessary
-    conditions are now read on entering a cell, each a fact about the
-    counts still owed and the groups still unplaced, so a fill any of
-    them refuses held no answer and the answer the walk returns is the
-    one it returned before:
+    at ``k = 80``, and Codex's ``k = 100`` past 1.8 GB. And where a
+    declared identifier is written in several forms and its values hold
+    many different numbers of rows -- 300 values of 1 to 300 rows in four
+    forms, 45,150 rows the producer and the loader accept -- one count of
+    lengths only ONE cell can answer for fixes that cell's total, which
+    in turn fixes another cell of its class at nought; no fact about one
+    count says so, and the walk offered that other cell every fill it
+    could before learning it, past 1.6 GB before stage 4 and past twenty
+    minutes after its first three conditions. Five necessary conditions
+    are now read on entering a cell, each a fact about the counts still
+    owed and the groups still unplaced, so a fill any of them refuses
+    held no answer and the answer the walk returns is the one it
+    returned before:
 
-    1. **Where each size can still go.** A group can stand only in a
-       cell from this one on that permits it and whose every count still
-       owes at least its size, since what a count owes only falls as the
-       walk goes on. A size with copies left and no such cell ends the
-       branch here; a size whose only such cell is this one is taken
-       here, every copy, so the fills offered are only those taking it.
-    2. **Every count still owed can be made** (review items P2-C2-F1
+    1. **What each cell from this one on may hold.** At most what every
+       count it answers for still owes, and nothing where no unplaced
+       group may stand; then each count's cells are held to what it owes
+       together, narrowing the least and the most of each until every
+       count agrees (`_bounds_settled`). A count only one cell can still
+       answer for fixes that cell's total this way, and what that leaves
+       its other counts fixes theirs.
+    2. **Where each size can still go.** A group can stand only in a
+       cell from this one on that permits it and may hold at least its
+       size. A size with copies left and no such cell ends the branch
+       here; a size whose only such cell is this one is taken here,
+       every copy, so the fills offered are only those taking it.
+    3. **Every count still owed can be made** (review items P2-C2-F1
        and P2-C3-F1), from the sizes that can still reach one of its
        cells. It says nothing about whether the counts can be met
        TOGETHER -- that is the question the walk itself answers.
-    3. **What this cell may total.** For each count it answers for, the
-       cells after it answering for the same count must make up the
-       rest exactly, out of the sizes that can still reach them, so the
-       cell takes only a total the rest can complete. Where no such cell
-       is left this is G9.5's "last cell" rule, read over the groups
-       that can still stand there rather than over the order of the
-       cells alone -- the reference implementation reads it over the
-       groups still permitted there, which this narrows by the room
-       each cell has left.
+    4. **What this cell may total.** Something from its least to its
+       most under 1, and for each count it answers for, a total the
+       cells after it answering for the same count can complete exactly,
+       out of the sizes that can still reach them. Where no such cell is
+       left this is G9.5's "last cell" rule, read over the groups that
+       can still stand there rather than over the order of the cells
+       alone -- the reference implementation reads it over the groups
+       still permitted there, which this narrows by the room each cell
+       has left.
+    5. **What the cells after it must still find.** Each cell after this
+       one that 1 holds to at least one row must still be able to make
+       a total between its least and its most out of the groups this
+       cell leaves that may stand there; and each count this cell does
+       not answer for must still be able to make, out of the groups that
+       may stand in them, what its cells whose total 1 has not fixed
+       still owe together. Each is filed as a reserve under the last
+       size it reads, so `_cell_next` passes over a fill that has taken
+       what a reserve needs as soon as it has decided that size, rather
+       than offering every fill after it; and a reserve not even the
+       groups at hand can meet refuses the cell on entering it.
 
     ``part_cells[m][p]`` names the cells, as their places in the order
-    they fill, that answer for count ``p`` of margin ``m``. Returns the
-    totals the cell may take -- a whole number whose bit ``t`` is set
-    when ``t`` is allowed, all of them inside ``room`` -- how many
-    copies of each size it must take, and the largest total it may
-    take; or None where no fill of it can lead to an answer.
+    they fill, that answer for count ``p`` of margin ``m``, and
+    ``families`` names the same cells as lists (`_bounds_settled`).
+    Returns the totals the cell may take -- a whole number whose bit
+    ``t`` is set when ``t`` is allowed, all of them inside ``room`` -- how
+    many copies of each size it must take, the largest total it may take,
+    and its reserves, one list per size, each reserve
+    ``(least, most, places)``; or None where no fill of it can lead to
+    an answer.
 
     Guarantees: a fixed function of its arguments, with no randomness
     and no I/O; it changes none of them.
     """
     cells = len(part_at[0])
     lowest, highest = room
-    # THE ROOM EACH CELL FROM THIS ONE ON STILL HAS: the least that any
-    # count it answers for still owes. A cell with none takes no group.
-    roomy: list[tuple[int, int]] = []
+    standing = 0
+    for place in range(len(keys)):
+        if left[place] > 0:
+            standing = standing | keys[place][1]
+    low = [0 for _each in range(cells)]
+    high = [0 for _each in range(cells)]
     for step in range(cell, cells):
+        if (standing >> step) & 1 == 0:
+            continue
         least = owed[0][part_at[0][step]]
         for margin in range(1, len(owed)):
             due = owed[margin][part_at[margin][step]]
             if due < least:
                 least = due
-        if least > 0:
-            roomy += [(least, step)]
+        high[step] = least
+    if not _bounds_settled(owed, families, cell, low, high):
+        return None
+    if low[cell] > lowest:
+        lowest = low[cell]
+    if high[cell] < highest:
+        highest = high[cell]
+    if lowest > highest:
+        return None
+    roomy: list[tuple[int, int]] = []
+    for step in range(cell, cells):
+        if high[step] > 0:
+            roomy += [(high[step], step)]
     roomy = sorted(roomy)
     open_cells = 0
     for pair in roomy:
@@ -1708,7 +1862,37 @@ def _cell_entry(
         accept = accept & rest
         if accept == 0:
             return None
-    return accept, need, _binary_length(accept) - 1
+    reserves: list[list[tuple[int, int, list[int]]]] = [[] for _each in keys]
+    for step in range(cell + 1, cells):
+        if low[step] < 1:
+            continue
+        places = [place for place in range(len(keys)) if (where[place] >> step) & 1]
+        if not places:
+            return None
+        reserves[places[len(places) - 1]] += [(low[step], high[step], places)]
+    for margin, part, steps in families:
+        if part_at[margin][cell] == part:
+            continue
+        fixed = 0
+        loose = 0
+        for step in steps:
+            if step <= cell:
+                continue
+            if low[step] == high[step]:
+                fixed = fixed + low[step]
+            else:
+                loose = loose | (1 << step)
+        due = owed[margin][part] - fixed
+        if due < 1 or loose == 0:
+            continue
+        places = [place for place in range(len(keys)) if where[place] & loose]
+        if not places:
+            return None
+        reserves[places[len(places) - 1]] += [(due, due, places)]
+    for place in range(len(keys)):
+        if reserves[place] and not _reserves_met(keys, left, [], reserves[place]):
+            return None
+    return accept, need, _binary_length(accept) - 1, reserves
 
 
 def _cell_next(
@@ -1720,6 +1904,7 @@ def _cell_next(
     top: int,
     need: "list[int]",
     cell: int,
+    reserves: "list[list[tuple[int, int, list[int]]]]",
 ) -> "tuple[list[int], list[int] | None]":
     """The next fill of one cell in the fixed order, and the walk after it.
 
@@ -1730,10 +1915,13 @@ def _cell_next(
     in ascending order and each offers as many copies as the cell can
     still hold, falling back to fewer -- the order method G9.5 fixes.
     ``accept`` names the totals the cell may take, ``top`` the largest
-    of them, and ``need`` the copies it must take (`_cell_entry`): a
-    fill outside either is one the cells after it cannot finish, so it
-    is passed over in its place in that order, and the fills offered
-    are the order's own, less those.
+    of them, ``need`` the copies it must take, and ``reserves`` what the
+    cells after it must still find among the copies it leaves, filed
+    under the last size each reads (`_cell_entry`): a fill outside any
+    of them is one the cells after it cannot finish, so it is passed
+    over in its place in that order -- a reserve the moment the size it
+    is filed under is decided, with every fill that shares that much --
+    and the fills offered are the order's own, less those.
 
     Returns the walk to hand back on the next call and the fill, or None
     for the fill where this cell's walk is spent.
@@ -1776,6 +1964,12 @@ def _cell_next(
             used = used - keys[place - 1][0]
             continue
         if place >= 0 and reach[place + 1] & (accept >> used) == 0:
+            walk[place] = walk[place] - 1
+            used = used - keys[place][0]
+            continue
+        if place >= 0 and reserves[place] and not _reserves_met(
+            keys, left, walk, reserves[place]
+        ):
             walk[place] = walk[place] - 1
             used = used - keys[place][0]
             continue
@@ -1954,7 +2148,9 @@ def _cell_walk(
     state the walk enters first, and the one that packs is answered in a
     state per cell -- ``k + 12`` states over the twin of ``k`` groups,
     where the walk before stage 4 entered 8,748 at ``k = 40`` (plan
-    P4-D389).
+    P4-D389); and the identity battery's identifier of 300 values in
+    four forms is answered in a state per cell of its question, where
+    the walk with only the first three conditions passed 200,000.
     """
     cells = len(part_at[0])
     left = [count for count in counts]
@@ -1963,6 +2159,7 @@ def _cell_walk(
     accepts: list[int] = []
     tops: list[int] = []
     needs: list[list[int]] = []
+    kept_back: list[list[list[tuple[int, int, list[int]]]]] = []
     placed: list[list[int]] = []
     marks: list[int] = []
     if failed is None:
@@ -1977,6 +2174,11 @@ def _cell_walk(
         for step in range(cells):
             part = part_at[margin][step]
             part_cells[margin][part] = part_cells[margin][part] | (1 << step)
+    families: list[tuple[int, int, list[int]]] = []
+    for margin in range(len(owed)):
+        for part in range(len(owed[margin])):
+            steps = [step for step in range(cells) if part_at[margin][step] == part]
+            families += [(margin, part, steps)]
     cell = 0
     while True:
         if cell == cells:
@@ -1987,7 +2189,7 @@ def _cell_walk(
             entry = None
             if mark not in failed and room[0] <= room[1]:
                 entry = _cell_entry(
-                    keys, left, owed, part_at, part_cells, cell, room
+                    keys, left, owed, part_at, part_cells, families, cell, room
                 )
             if entry is None:
                 if len(failed) < kept:
@@ -2000,6 +2202,7 @@ def _cell_walk(
             accepts += [entry[0]]
             needs += [entry[1]]
             tops += [entry[2]]
+            kept_back += [entry[3]]
             reaches += [_reach_bits(keys, left, cell, entry[2], entry[1])]
             walks += [[]]
             placed += [[]]
@@ -2009,7 +2212,7 @@ def _cell_walk(
             )
         walk, found = _cell_next(
             keys, left, walks[cell], reaches[cell], accepts[cell],
-            tops[cell], needs[cell], cell,
+            tops[cell], needs[cell], cell, kept_back[cell],
         )
         walks[cell] = walk
         if found is None:
@@ -2020,6 +2223,7 @@ def _cell_walk(
             accepts = accepts[:cell]
             tops = tops[:cell]
             needs = needs[:cell]
+            kept_back = kept_back[:cell]
             placed = placed[:cell]
             marks = marks[:cell]
             cell = cell - 1
