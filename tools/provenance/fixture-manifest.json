@@ -114,10 +114,10 @@
     },
     {
       "generator": "tools/reference/make_generation_branch_vectors_25.py",
-      "justification": "The twin cells synthtwin's generation method requires for the nine cases docs/spec/generation-method-v1.md section G14.3 adds with landing R2a's layout member (plan P4-D383): G7.5's writer of a layout of the closed grammar of dates, each case beside its own mutant -- SAS's month word, HL7's fraction and `+HHMM` offset, an offset after one space, a whole-hour offset, the zulu word `UTC`, an offset some cells omit, two flexible fields in the layout's order, a weekday lead and a two-figure year read in the century the person chose. Computed from that specification alone by the same oracle as every other generation vectors file, in a file of its own so no other file's case set moves.",
+      "justification": "The twin cells synthtwin's generation method requires for the ten cases docs/spec/generation-method-v1.md section G14.3 adds with landing R2a's layout member (plan P4-D383): G7.5's writer of a layout of the closed grammar of dates, each case beside its own mutant -- SAS's month word, HL7's fraction and `+HHMM` offset, an offset after one space, a whole-hour offset, the zulu word `UTC`, an offset some cells omit, two flexible fields in the layout's order, a weekday lead and a two-figure year read in the century the person chose -- and G7.9b's offsets written on a column of figure runs whose count of cells that are not numbers still holds the offsets its census counted into `(none)`. Computed from that specification alone by the same oracle as every other generation vectors file, in a file of its own so no other file's case set moves.",
       "path": "tests/reference/generation-branch-vectors-25.json",
       "seed": 0,
-      "sha256": "730f1085b4579e31552474da570019c226c1323b6fddc9821fe664bf5d2369fc"
+      "sha256": "70d9cf495f57c3c0ff307654f8fd4bf59b35047172d49f62137b219bbbbe50a4"
     },
     {
       "generator": "tools/reference/make_generation_document_vectors.py",

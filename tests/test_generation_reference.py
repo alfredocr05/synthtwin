@@ -825,6 +825,7 @@ TWENTY_FIFTH_BRANCH_CASES = (
     "layout_flexible_widths",
     "layout_hl7_fraction_offset",
     "layout_hour_offset",
+    "layout_offsets_owed",
     "layout_optional_offset",
     "layout_sas_date9",
     "layout_spaced_offset",
@@ -869,6 +870,8 @@ SEEDS = {
     "layout_spaced_offset": 427,
     "layout_utc_word": 428,
     "layout_weekday_long_date": 429,
+    # ...and its repair round's G7.9b (item 2), the next seed.
+    "layout_offsets_owed": 430,
     # Landing T1's written clocks take the next seeds after the highest in
     # use below 34041 (plan P4-D370).
     "stamp_unpadded_hour": 416,
@@ -1769,10 +1772,11 @@ FOURTEENTH_BRANCH_NAMED_COUNTS = 53
 # its five cases publish no binary64 at all.
 TWENTY_SECOND_BRANCH_PUBLISHED_NUMBERS = 0
 TWENTY_SECOND_BRANCH_NAMED_COUNTS = 122
-# The twenty-fifth, at its own generator's line ("proved 8 ... beside 224"):
-# its one case with two tails publishes their four distances.
-TWENTY_FIFTH_BRANCH_PUBLISHED_NUMBERS = 8
-TWENTY_FIFTH_BRANCH_NAMED_COUNTS = 224
+# The twenty-fifth, at its own generator's line ("proved 12 ... beside 250"):
+# its two cases with two tails publish their eight distances (the second,
+# G7.9b's of its repair round, thirty-six rows).
+TWENTY_FIFTH_BRANCH_PUBLISHED_NUMBERS = 12
+TWENTY_FIFTH_BRANCH_NAMED_COUNTS = 250
 # The document file publishes NO binary64 at all, and that is a fact
 # about its transforms rather than a gap in its proof: the written form,
 # the arrangement, the workbook writer, the shape of a line before a
@@ -3520,6 +3524,14 @@ CASE_MUTANTS = {
         "wears one; the mutant writes it on every rank",
         attribute="layout_written",
         replacement=_layout_rewritten("?}", "}"),
+        outcome=CHANGES_THE_CELLS,
+    ),
+    "layout_offsets_owed": Mutant(
+        branch="G7.9b's offsets a column of figure runs owes its count of "
+        "cells that are not numbers, each below the census line; the mutant "
+        "withdraws the pass, so the twin's cells are numbers alone",
+        attribute="offsets_paid_to_the_classes",
+        replacement=lambda column, cells, holes, floor=11: cells,
         outcome=CHANGES_THE_CELLS,
     ),
     "layout_flexible_widths": Mutant(

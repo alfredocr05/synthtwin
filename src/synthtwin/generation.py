@@ -21622,6 +21622,12 @@ def _datetime_content(
     cells = _spellings_short_of_the_count(
         column, facts, cells, holes, plan.small_cell_floor
     )
+    # ...AND THE OFFSETS THE CLASS CENSUS OWES (G7.9b, landing R2a): a run
+    # of figures whose rare offsets the census counted into `(none)` still
+    # holds the cells a reader of numbers refuses.
+    cells = _offsets_owed_by_the_classes(
+        column, facts, cells, holes, plan.small_cell_floor
+    )
     notes = notes + _worn_hole_notes(column, cells, holes)
     notes = notes + _tail_notes(column, facts, cells[0:parsed], holes)
     notes = notes + _midnight_notes(column, facts, cells)
@@ -22452,6 +22458,110 @@ def _spend_leaves_a_name(wearing: int, floor: int) -> bool:
     nothing. No I/O of any kind.
     """
     return wearing - 1 >= parsing.census_floor(floor)
+
+
+# THE OFFSETS G7.9b MAY WRITE, in the order it writes them: the shared
+# clock's, then each whole hour east of it, the largest an offset field
+# reads (`parsing.layout_reading`'s fourteen hours). A zulu field writes
+# its own word alone.
+_OWED_OFFSETS = tuple(f"+{hours:02d}:00" for hours in range(15))
+
+
+def _offsets_owed_by_the_classes(
+    column: contract.ColumnBlock,
+    facts: contract.DatetimeFacts,
+    cells: "list[str]",
+    holes: "tuple[str, ...]",
+    floor: int,
+) -> "list[str]":
+    """Write an offset on as many cells as the column's class census owes (G7.9b).
+
+    A RUN OF FIGURES WHOSE OFFSET SOME CELLS OMIT (skeptic 1 of landing
+    R2a, item 2). An HL7 feed of fourteen-figure stamps, seven of 1,000
+    of which append `-0400` or `-0500`, reads under
+    `{YYYY}{MM}{DD}{HH}{MI}{SS}{+HHMM?}`; each offset stands on fewer cells
+    than the census line, so `utc_offsets` counts all seven into `(none)`
+    (plan P4-D222) and every rank is allocated no offset. But the
+    universal census publishes the seven cells a reader of numbers refuses
+    (`n_not_numeric`), and a twin of bare stamps holds none: it missed
+    `counts.n_numeric` and `counts.n_not_numeric`, and code reading the
+    twin's column as numbers ran there and stopped on the real table's
+    seven. The same column read the seven as stand-ins before the repair
+    of item 2, and so did no twin with eleven or more such cells.
+
+    THE DEBT IS THE ONE THE DESCRIPTION PUBLISHES, and nothing else: the
+    present cells that are not numbers, less the cells in hand that wear
+    an offset, less the `n_unparsed` stand-ins written after this pass,
+    each a text. It is paid on interior ranks whose cell is a number that
+    no other rank wears -- the ends are spellings the description prints,
+    and a respelled copy of a shared text would add a value the published
+    count of different values does not hold -- spread evenly over them,
+    the k-th of n payments on the open rank at k times their count over
+    n; each payment writes the cell again wearing an offset its field can
+    write (`parsing.layout_offset_added`), the shared clock's first and
+    then each whole hour east, the zulu word alone on a zulu field, on one
+    cell fewer than the census line apiece, so the twin's own description
+    counts each back into `(none)` and publishes the census exactly as it
+    stands -- and never so many that the cells left with none fall below
+    the line, which is the count that absorbs them.
+
+    ONLY WHERE `(none)` IS THE CENSUS'S COMMONEST NAMED COUNT and nothing
+    is pooled, so the offsets the census counted into `(none)` are the
+    whole debt and an offset the twin's description counts back into it
+    is read at no offset (`taxonomy._offsets_as_published`): no instant
+    moves, on the local clock or the shared one. And only under a layout
+    whose cells with no offset are numbers (`parsing.layout_writes_numbers`):
+    every other layout's cells are text with an offset or without one, and
+    owe nothing here. No offset written is the real column's; none is
+    published.
+
+    Guarantees: accepts the column, its datetime facts, the parsed cells
+    as written, every absent spelling and the settings floor; returns the
+    cells. Determinism: a function of the five; draws no word. No I/O of
+    any kind.
+    """
+    family = facts.parser_family
+    census = facts.utc_offsets
+    if (
+        not parsing.layout_offset_optional(family)
+        or not parsing.layout_writes_numbers(family)
+        or contract.WITHHELD in census
+        or contract.NO_OFFSET not in census
+    ):
+        return cells
+    for key in census:
+        if census[key] > census[contract.NO_OFFSET]:
+            return cells
+    offered: "tuple[str, ...]" = _OWED_OFFSETS
+    if parsing.layout_offset_field(family) in ("Z", "z", "UTC", "GMT"):
+        offered = ("Z",)
+    copies: "dict[str, int]" = {}
+    for cell in cells:
+        copies[cell] = (copies[cell] if cell in copies else 0) + 1
+    worn = 0
+    bare: "list[int]" = []
+    for rank in range(len(cells)):
+        if parsing.classify_number(cells[rank]) != parsing.NUMBER:
+            worn = worn + 1
+        elif 0 < rank < len(cells) - 1 and copies[cells[rank]] == 1:
+            changed = parsing.layout_offset_added(cells[rank], family, offered[0])
+            if changed is not None and not _is_a_hole_spelling(changed, holes):
+                bare += [rank]
+    line = parsing.census_floor(floor)
+    owed = min(
+        column.n_not_numeric - worn - facts.n_unparsed,
+        len(bare),
+        len(cells) - worn - line,
+        (line - 1) * len(offered),
+    )
+    for payment in range(max(owed, 0)):
+        rank = bare[(payment * len(bare)) // owed]
+        changed = parsing.layout_offset_added(
+            cells[rank], family, offered[payment // (line - 1)]
+        )
+        if changed is not None and not _is_a_hole_spelling(changed, holes):
+            cells[rank] = changed
+    return cells
 
 
 def _named_marks(facts: contract.DatetimeFacts) -> "tuple[str, ...]":

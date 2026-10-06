@@ -9776,6 +9776,9 @@ def _datetime_content(column):
         content.append(written)
     content = rebalance_marks(marks, content, holes, column["format"])
     content = marks_bought_for_the_shortfall(column, content, holes)
+    # ...and the offsets a column of figure runs owes its count of cells
+    # that are not numbers (G7.9b, landing R2a's repair round).
+    content = offsets_paid_to_the_classes(column, content, holes)
     content.extend(text_stand_ins(content, column["n_unparsed"]))
     return content
 
@@ -9923,6 +9926,101 @@ def marks_bought_for_the_shortfall(column, cells, holes, floor=CASE_SMALL_CELL_F
         worn[taken] -= 1
         worn[mark] = worn.get(mark, 0) + 1
     return written
+
+
+def offsets_paid_to_the_classes(column, cells, holes, floor=CASE_SMALL_CELL_FLOOR):
+    """G7.9b: the offsets a column of figure runs still owes its class count.
+
+    WRITTEN FROM G7.9b'S STATEMENT ALONE (landing R2a's repair round, item
+    2).  A layout whose last field is an offset some cells leave out, and
+    whose cells without it are figures -- `YYYY MM DD HH MI SS` fields and
+    at most a point and a fraction after them -- writes a NUMBER on every
+    rank the census of offsets gave no offset.  Where `(none)` is that
+    census's commonest key and nothing in it is pooled, every offset below
+    the census line was counted into `(none)`, and the published count of
+    cells that are not numbers is the one fact that still holds them.  So:
+
+    * the debt is `n_not_numeric`, less the cells in hand that are not
+      numbers, less the `n_unparsed` stand-ins that follow this pass;
+    * a payment goes to a rank between the two ends whose cell is a
+      number and is worn by that rank alone; payment k of n goes to the
+      eligible rank at position k * (eligible ranks) // n;
+    * payment k writes the cell again with the marks before the offset
+      field and the offset numbered k // (line - 1) of `+00:00`, `+01:00`,
+      ..., `+14:00`, spelled as the field spells it -- or the zulu field's
+      own word, the one offset it has;
+    * n is the smallest of the debt, the eligible ranks, the number cells
+      less the census line, and (line - 1) times the offsets on offer;
+    * a payment whose cell would be a spelling the column holds absent is
+      not made.
+    """
+    member = column["format"]
+    if not is_layout(member):
+        return cells
+    parts = layout_parts(member)
+    kind, field = parts[-1]
+    if kind != "f" or not field.endswith("?"):
+        return cells
+    field = field[:-1]
+    start = len(parts) - 1
+    while start and parts[start - 1][0] == "l":
+        start -= 1
+    joint = "".join(text for _kind, text in parts[start:-1])
+    figures = parts[:start]
+    if figures[-2:] == [("l", "."), ("f", "F")]:
+        figures = figures[:-2]
+    if not figures or any(
+        kind != "f" or text not in ("YYYY", "MM", "DD", "HH", "MI", "SS")
+        for kind, text in figures
+    ):
+        return cells
+    census = column["utc_offsets"]
+    if WITHHELD in census or "(none)" not in census:
+        return cells
+    if max(census.values()) > census["(none)"]:
+        return cells
+
+    def a_number(text):
+        whole, _point, fraction = text.partition(".")
+        return whole.isdigit() and whole.isascii() and (
+            not _point or (fraction.isdigit() and fraction.isascii())
+        )
+
+    if field in LAYOUT_ZULU_FIELDS:
+        offer = [field]
+    else:
+        offer = []
+        for hours in range(15):
+            sign_hours = f"+{hours:02d}"
+            offer.append(
+                {"+HH:MM": sign_hours + ":00", "+HHMM": sign_hours + "00", "+HH": sign_hours}[field]
+            )
+    absent = {hole.strip().lower() for hole in holes}
+    worn_by = {}
+    for text in cells:
+        worn_by[text] = worn_by.get(text, 0) + 1
+    not_numbers = sum(1 for text in cells if not a_number(text))
+    eligible = [
+        rank
+        for rank in range(1, len(cells) - 1)
+        if a_number(cells[rank])
+        and worn_by[cells[rank]] == 1
+        and (cells[rank] + joint + offer[0]).strip().lower() not in absent
+    ]
+    line = census_line(floor)
+    payments = min(
+        column["n_not_numeric"] - not_numbers - column["n_unparsed"],
+        len(eligible),
+        len(cells) - not_numbers - line,
+        (line - 1) * len(offer),
+    )
+    paid = list(cells)
+    for payment in range(max(payments, 0)):
+        rank = eligible[payment * len(eligible) // payments]
+        candidate = cells[rank] + joint + offer[payment // (line - 1)]
+        if candidate.strip().lower() not in absent:
+            paid[rank] = candidate
+    return paid
 
 
 # ------------------------------------- the tails of a date or clock column
@@ -22780,6 +22878,26 @@ def _layout_optional_offset():
     )
 
 
+def _layout_offsets_owed():
+    return _r2a_layout(
+        "layout {YYYY}{MM}{DD}{HH}{MI}{SS}{+HHMM?}", "datetime", "second", 0, 24,
+        {"(none)": 24}, "local",
+        why="G7.9b, the offsets a column of figure runs owes its count of "
+        "cells that are not numbers (landing R2a's repair round, item 2): an "
+        "HL7 feed of twenty-four stamps whose twelve offsets each stood below "
+        "the census line, so the census counted all of them into `(none)` and "
+        "every rank is allocated no offset, while `n_not_numeric` still "
+        "publishes twelve cells a reader of numbers refuses. The pass writes "
+        "twelve interior cells again wearing an offset in the field's own "
+        "spelling, ten at `+0000` and two at `+0100`, one cell fewer than the "
+        "line apiece, spread evenly over the ranks no other rank's text "
+        "repeats, and twelve numbers left at the line or above it. The mutant "
+        "withdraws the pass, and the twin is twenty-four numbers.",
+        earliest="1970-01-01 00:00:00", latest="1970-01-24 21:45:00",
+        numeric=12,
+    )
+
+
 def _layout_flexible_widths():
     return _r2a_layout(
         "layout {D}-{M}-{YYYY}", "date", "date", 0, 12, {"(none)": 12}, "local",
@@ -22821,6 +22939,7 @@ R2A_BRANCH_CASE_BUILDERS = {
     "layout_flexible_widths": _layout_flexible_widths,
     "layout_hl7_fraction_offset": _layout_hl7_fraction_offset,
     "layout_hour_offset": _layout_hour_offset,
+    "layout_offsets_owed": _layout_offsets_owed,
     "layout_optional_offset": _layout_optional_offset,
     "layout_sas_date9": _layout_sas_date9,
     "layout_spaced_offset": _layout_spaced_offset,
@@ -32332,7 +32451,10 @@ _TWENTY_FIFTH_BRANCH_ACCOUNT = (
     "SAS's month word, HL7's fraction and `+HHMM` offset, an offset after "
     "one space, a whole-hour offset, the zulu word `UTC`, an offset some "
     "cells omit, two flexible fields in the layout's own order, a weekday "
-    "lead, and a two-figure year read in a century the person chose. They "
+    "lead, and a two-figure year read in a century the person chose; and, "
+    "from its repair round, G7.9b's offsets written on a column of figure "
+    "runs whose count of cells that are not numbers still holds the "
+    "offsets its census counted into `(none)`. They "
     "are computed by the same oracle and the same proof layer "
     "as tests/reference/generation-reference-vectors.json, "
     "tests/reference/generation-branch-vectors.json, "
@@ -32705,6 +32827,24 @@ GIVEN_WORDS = {
         7609219415722435193, 6579155870647759716, 17903394595808729213,
         17962135594040956092, 17978759308218332494, 709684702087866971,
         12816864415994026216, 15291644610626560099, 16043293344561764211,
+    ),
+    # ...and its repair round's G7.9b (item 2), at seed 430.
+    "layout_offsets_owed": (
+        13800651201635915000, 13166916639877564699, 18004037565452384483,
+        14575393466601618202, 1419480097204021138, 1687611729604783455,
+        2637787296097238598, 15046915938256934423, 4464442293307134507,
+        17814126704136494870, 13992233307320695075, 10767857163021221509,
+        17292521242609402530, 15270872523084238871, 15624981456649867244,
+        5249266553078510740, 10529475797292317823, 16816460496471513907,
+        684786360963354092, 15213229133987349170, 14097861754407032151,
+        2814057960188934367, 5633416184573914916, 15040444844185602091,
+        10540552452743123208, 750696399857077614, 8612056725201698731,
+        11790356825346456601, 15671064963787661526, 8562255136343645730,
+        15010239778246706157, 11417804836611515897, 6485997671667086480,
+        7340167562011965109, 18171704405878388742, 17262503304095860805,
+        12752694595508762000, 16493153706493959540, 2136136501835624260,
+        4429365169814360070, 2134826145581754533, 3034933503596956875,
+        6007134993793927254, 10094324261136200959, 5990829916535891984,
     ),
     "layout_weekday_long_date": (
         10183437742050129068, 802209090374143181, 12754890606951740415,

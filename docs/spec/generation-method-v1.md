@@ -7476,6 +7476,58 @@ recorded here rather than taken back. The entry K-2B-51 carries the
 same measurement, so its rule is not read as a claim about every column
 of dates.
 
+### G7.9b The offsets a column of figure runs owes its count of cells that are not numbers
+
+**The defect this closes** (landing R2a's repair round, item 2; plan
+P4-D383). A layout whose cells with no offset are figures -- HL7's
+`{YYYY}{MM}{DD}{HH}{MI}{SS}`, with at most a point and a fraction after
+the run -- and whose last field is an offset some cells omit
+(`{+HHMM?}`) writes a NUMBER on every rank G7.4 gives no offset, and a
+cell WEARING an offset is text to every reader of numbers. Where each
+offset the real column wore stood on fewer cells than the census line,
+contract D3 counts them all into `(none)` (plan P4-D222), every rank is
+allocated no offset, and the twin was all numbers -- while the universal
+count `n_not_numeric` still published the cells that were not, so it
+missed `counts.n_numeric` and `counts.n_not_numeric`, and code that read
+the twin's column as numbers stopped on the real table's offsets.
+
+**The pass**, after G7.9 and before the stand-ins are written, on a
+column of that layout whose census of offsets pools nothing and names
+`(none)` as its commonest count (ties to `(none)`):
+
+1. The DEBT is `n_not_numeric`, less the cells in hand that are not
+   numbers, less the `n_unparsed` stand-ins written after the pass,
+   each a text. Nothing the real column held and the description does
+   not publish is read.
+2. The OPEN ranks are those between the two ends -- the ends are
+   spellings the description prints -- whose cell is a number that no
+   other rank's cell repeats, so a respelled cell replaces one value
+   with one and the published counts of different values stand.
+3. The OFFSETS on offer are `+00:00`, `+01:00`, ... `+14:00`, in that
+   order, each written in the field's own spelling (`+0000` under
+   `{+HHMM?}`, `+00` under `{+HH?}`), or the zulu field's own word, the
+   one offset it has.
+4. The payments are the fewest of: the debt, the open ranks, the
+   number cells less `census_floor`, and `census_floor - 1` times the
+   offsets on offer. Payment `k` of `n` goes to the open rank at
+   position `k * open // n`, and writes that cell again with the marks
+   before the offset field and offset number `k // (census_floor - 1)`
+   after them; a payment whose cell would be a spelling the column
+   holds absent is not made.
+
+**Why it moves no published fact.** Each offset stands on one cell
+fewer than the line, so the twin described again counts each into the
+commonest named count, `(none)`, and reads that cell at no offset
+(`taxonomy._offsets_as_published`): the census, the clock the column is
+read on, every instant and every count of different values come back as
+published, and the class count comes back exact. No offset written is
+the real column's; none is published. Measured: HL7 stamps with 1, 7,
+10, 11, 12 and 25 of 1,000 cells wearing an offset, at floors 11 and 36
+and seeds 0 to 2, all exit 0 in `validate`, where 11 and 12 missed both
+counts before and 1 to 10 read as stand-ins. Frozen case
+`layout_offsets_owed`, the oracle's `offsets_paid_to_the_classes`
+against the shipped `_offsets_owed_by_the_classes`.
+
 ## G7A. Clock columns (`time_of_day`)
 
 This role was added by Phase 4 and this section was written after its
@@ -13444,7 +13496,7 @@ that happens -- and the clause beside it, `--missing-value`'s "CAN be
 published as the column's smallest value", is exactly right under the
 new rule.
 
-**All one hundred and sixty-three are required.** The count is taken off the committed
+**All one hundred and sixty-four are required.** The count is taken off the committed
 case sets and not carried forward: this sentence said fifty-two and a
 split of nine, twenty, sixteen and seven while the six files held
 seventy-three, because each repair that added a case added a clause to
@@ -13478,8 +13530,9 @@ TWENTY-SECOND, `tests/reference/generation-branch-vectors-22.json`,
 holds five -- landing T1's written clocks and G7.5 step 5, in the file
 plan P4-D364's table gives that landing (G14.2); and the
 TWENTY-FIFTH, `tests/reference/generation-branch-vectors-25.json`,
-holds nine -- landing R2a's layouts and the century a person chose
-(plan P4-D383) --
+holds ten -- landing R2a's layouts, the century a person chose and
+the offsets a column of figure runs owes its class count (plan
+P4-D383) --
 and a test holds this sentence to those files. The tenth grew by the
 two cases the GOVERNANCE PASS of stage 3's review added and the
 eleventh by the two the dates pass added; each number here is read off
@@ -13641,6 +13694,7 @@ case passed, which is the failure the count exists to prevent:
 | `layout_optional_offset` | G7.5's offset some cells omit (landing R2a; the R2 design skeptic, M2): twenty-four HL7 stamps, half their ranks allocated `(none)` and half `-05:00`, the first written as fourteen figures and nothing after, the second with `-0500`, each on its own wall clock; a cell with no offset also reads as a number, so twelve are published numeric. Its mutant writes the offset on every rank |
 | `layout_flexible_widths` | G7.5's width census spent over a layout's two flexible fields (landing R2a, contract LY5): a Dutch `d-m-yyyy`, twelve dates of January 1970 published `{"unpadded": 12}` and written `1-1-1970`, the day's field first. Its mutant flips the padding, `01-01-1970` |
 | `layout_weekday_long_date` | G7.5's weekday lead (landing R2a): Excel's long date, `Thursday, January 1, 1970`, the weekday the date's own and the one flexible field, the day, unpadded. Its mutant drops the weekday and its comma |
+| `layout_offsets_owed` | G7.9b's offsets a column of figure runs owes (landing R2a's repair round, item 2): twenty-four HL7 stamps whose census counted twelve offsets, each below the line, into `(none)`, so every rank is allocated none, beside a published twelve cells that are not numbers. Twelve interior cells no other rank repeats are written again wearing an offset, ten `+0000` and two `+0100`, spread over the ranks, and twelve numbers stay at the line. Its mutant withdraws the pass, and the twin is twenty-four numbers |
 | `layout_century_window` | G7.3e's window a person chose (landing R2a, question Q5): twenty-four `mm/dd/yy` birth dates of January 1940 read under `{YY1930}`, a tail at either end, the days a tail may reach bounded by 1930 to 2029. Its mutant reads every two-figure year in the POSIX window, 1969 to 2068, and the column's own days fall outside what its spelling writes back |
 | `date_remainder_one_joint` | G7.5 step 5 (landing T1; plan l.17955's carried case (a)): twenty-two month-first dates over twelve days publishing `{"padded": 11}`, eleven values' widths left out. The step writes those eleven ranks on whole days, the days holding the fewest of the class's ranks first, in widths the census does not name -- nine `unpadded` and two `first-padded`, each fewer than the line and than the named word -- and the named word keeps its eleven. Its mutant withdraws the step |
 | `weekday_whole_runs` | G7.3f step 5 (plan P4-D355): 100 whole dates over three weeks with no weekend, published `[Mon-Fri] 77, [Sat-Sun] 0`, whose ranks of one day move whole onto a free day of a group with room for all of them before any single rank moves. Its mutant withdraws the step |
