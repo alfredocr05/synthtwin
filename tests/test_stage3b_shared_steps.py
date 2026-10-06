@@ -116,10 +116,10 @@ The cases and their clauses:
   `test_a_chain_spends_a_value_only_where_the_census_is_then_met`, a
   strict xfail owned by landing D2, the first to publish a weekday
   census of moments: on a day of moments the second verification of
-  that item found, where no placement meets both facts, step 7b's
-  chain, made whole through the mover its link was asked of, halves
-  the census's miss and keeps 12 different minutes where 9cb2eb5 kept
-  the 13 asked (P4-D366's third stated limit);
+  that item found, where no placement keeping every clock meets both
+  facts, step 7b's chain, made whole through the mover its link was
+  asked of, halves the census's miss and keeps 12 different minutes
+  where 9cb2eb5 kept the 13 asked (P4-D366's third stated limit);
 * `test_the_body_is_full_only_where_every_unit_the_census_counts_holds_a_rank`
   -- the test the short cause asks (the review's M65), and
   `test_the_body_counts_a_unit_a_move_empties` -- the review's M09 and
@@ -1776,9 +1776,10 @@ def _a_chain_made_whole_on_a_held_minute() -> dict:
     raises=AssertionError,
     reason=(
         "plan P4-D366's third stated limit, owned by landing D2, the first to publish a weekday "
-        "census of moments: no placement of this state meets both the census and the count, and "
-        "step 7b's chain, made whole through the mover its link was asked of, halves 9cb2eb5's "
-        "miss of the census at the cost of one of the 13 minutes asked, the census still missed"
+        "census of moments: no placement of this state keeping every moment's clock meets both "
+        "the census and the count, and step 7b's chain, made whole through the mover its link "
+        "was asked of, halves 9cb2eb5's miss of the census at the cost of one of the 13 minutes "
+        "asked, the census still missed"
     ),
 )
 def test_a_chain_spends_a_value_only_where_the_census_is_then_met() -> None:
@@ -1790,11 +1791,14 @@ def test_a_chain_spends_a_value_only_where_the_census_is_then_met() -> None:
     of, the lone Sunday 21 April 13:33:04, onto Friday 19 April 13:33:04, which six ranks hold:
     the census is missed by one rank each way, and 12 different minutes are kept. 9cb2eb5 found
     no chain and the repairs before ba15cc3 left it half made, the census missed by two ranks each
-    way and the 13 minutes asked kept. No placement inside the gaps and off the holes meets both
-    facts -- with the census met at most 11 different minutes, with one rank each way 12 -- so the
-    chain trades a minute for half the miss of the method's first fact, and the census, reachable,
-    is missed on every commit. D2's battery turns this into a passing test, the census met or the
-    count kept where it is missed, or restates it."""
+    way and the 13 minutes asked kept. No placement inside the gaps and off the holes that keeps
+    every moment's clock, as each move of the pass does, meets both facts -- with the census met
+    at most 11 different minutes, with one rank each way 12 -- so the chain trades a minute for
+    half the miss of the method's first fact, and the census, reachable so, is missed on every
+    commit. A moment taking another clock on its gap's first day meets both, Monday 02:08 at
+    Friday 04:37, the move landing D2's step 7c is reserved for (P4-D367). D2's battery turns
+    this into a passing test, the census met or the count kept where it is missed, or restates
+    it."""
     case = _a_chain_made_whole_on_a_held_minute()
     moved = _answer(case)
     met = _holding(case, moved, range(len(moved))) == case["counts"]
