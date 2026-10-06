@@ -161,9 +161,10 @@ MEAN_REAL_HALF_DATES = 15
 # count of different values leaves the body (`count_room_short`). At
 # this floor and below the rule is not asked: over the 26 date batteries
 # measured no published census left a twin holding more different values
-# than its column there, and asked there the rule would withhold 27 of
-# the 2,380 censuses published at 11 and one of the 2,148 at 5, every
-# twin of which met them.
+# than its column there, and asked there the rule would withhold 15 of
+# the 2,379 censuses published at 11, every twin of which met them, and
+# none of the 2,148 at 5. At 12 a published census already left its
+# twins long (`_hunt(690)` of tests/test_stage3b_count_room.py).
 COUNT_ROOM_ABOVE_FLOOR = 11
 
 # THE DAYS A TAIL'S SPREAD BOUND ALLOWS BESIDE ITSELF (`tails_most`, plan
@@ -1224,12 +1225,12 @@ def count_room_short(
     day and, inside each gap, one more day for each group holding rows
     that has a day strictly inside the gap and stands on neither of its
     two pin days (at most one a rank of the gap). True where the census
-    needs a day past the pin days and the room is no more than the need:
-    below it a twin meeting the census holds more different values than
-    the column, and AT it the day pass must find the fewest days the
-    census allows, which it does not always. Where the census needs no
-    day past the pin days, the body holds every pin day with or without
-    it, so it is no cause of a count left long.
+    needs a day past the pin days and the room is less than the need: a
+    twin whose tails hold their most cannot meet the census then without
+    holding more different values than the column. A room equal to the
+    need publishes the census. Where the census needs no day past the pin
+    days, the body holds every pin day with or without it, so it is no
+    cause of a count left long.
 
     A CONSERVATIVE rule, both halves erring towards withholding: the
     tails' most is the floor's number their construction can hold, or
@@ -1261,7 +1262,7 @@ def count_room_short(
             if groups[index][2] > 0 and index not in ends and index not in found:
                 found += [index]
         need = need + min(len(found), inner)
-    return need > len(held) and days - tails <= need
+    return need > len(held) and days - tails < need
 
 
 def room_short(
