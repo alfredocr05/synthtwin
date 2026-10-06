@@ -1234,7 +1234,7 @@ def _may_be_asked(
     """The members a column's own published median and residues leave open.
 
     THE CHEAP HALF, asked before anything is sorted, so an ordinary column
-    pays a lookup: a column that satisfies rule A has nine tenths of its
+    costs one lookup: a column that satisfies rule A has nine tenths of its
     numbers inside the member's narrow band, so its median is inside it;
     rule B reads whole numbers only, every one beside the set-aside ones
     at midnight UTC, which the walk refuses at the first that is not; and

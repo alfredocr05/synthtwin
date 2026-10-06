@@ -1823,7 +1823,12 @@ def profile_version_is_older(found: int, reads: int) -> str:
     value" the person named -- and what to do, which is to describe the
     table again UNDER THE SAME OPTIONS.
 
-    IT NAMES FOURTEEN OPTIONS. `--twelve-hour` joined with landing T1
+    IT NAMES FIFTEEN OPTIONS. `--date-count` joined with landing R4 (plan
+    P4-D384): left out, a column whose dates are written as counts is
+    described as numbers, so its twin keeps how they spread and loses the
+    day of the week and the time of day each date falls on; question Q3
+    answers it, so the `--answers` clause names it too. Before it named
+    fourteen. `--twelve-hour` joined with landing T1
     (plan P4-D370): left out, the hour from twelve o'clock is read as
     noon, and the published times move. Before it named thirteen.
     `--metadata-rows` (plan P4-D81) and

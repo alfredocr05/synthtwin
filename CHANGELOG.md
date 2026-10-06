@@ -6,6 +6,26 @@ exists).
 
 ## [Unreleased]
 
+### Numbers that are dates are read as dates and written back as the same numbers (2026-10-06)
+
+**Landing R4** (plan P4-D384). Excel serials, SAS and Stata days,
+seconds and milliseconds, Unix seconds and milliseconds, Epic day
+numbers and the other counting systems of a closed table of twelve were
+described as numbers: the twin kept each number's spelling and lost the
+calendar, its weekdays 0.13 to 0.16 away from the source's, and the
+remark NF51 read SAS and Stata counts a decade late and said nothing
+about the twin changed. A column named with `--date-count NAME SYSTEM`,
+or by an answer to the new question Q3 in the questions file, is now
+read exactly as the dates its counts name, described as dates, and
+twinned as the same counts written the way the column writes them
+(`count_form`); `validate` holds every count of the checked file to that
+form, and a source whose rarest Epic contact number falls below the line
+meets it. Q3 asks 13 of the 14 shapes of `K-S3-60`, still asks 12 or 13
+with a stray `0`, `-1`, placeholder day or keying slip among the cells,
+offers every system of the column's unit whose years fit, and raises no
+question the fixed-width question did not already raise on the chance
+battery's ordinary columns. NF51 is no longer written.
+
 ### A description written before the published pairs loads again (2026-10-03)
 
 **The review of landing 3b.G1, its four items** (plan P4-D375). A

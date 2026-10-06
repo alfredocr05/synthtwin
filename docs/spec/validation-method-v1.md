@@ -1325,10 +1325,13 @@ absent spellings aside -- is one the published form writes
 (`date_counts.form_holds`): exactly `places` figures after the mark, or
 at most that many with no trailing zero where the form is trimmed, at
 most the form's significant figures where it names them, and in
-exponent form only where the form writes one. A twin written as ISO
-dates or with other figures after the point, and a file not read as
-such dates at all, MISS it; a twin written in another system misses the
-dates it then names. On a `days-since-1840` column the census of
+exponent form only where the form writes one; on a `days-since-1840`
+column, a day count and no contact number or one of at most `places`
+figures, since a contact number fewer cells than the disclosure line
+wrote is counted into the commonest and named nowhere. A twin written
+as ISO dates or with other figures after the point, and a file not read
+as such dates at all, MISS it; a twin written in another system misses
+the dates it then names. On a `days-since-1840` column the census of
 contact numbers is held exactly against the file's own description
 (`form.contacts`). Neither line prints a value of the file: the
 measured side is the form in words, that a cell is written another way,

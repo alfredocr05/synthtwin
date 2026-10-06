@@ -325,7 +325,7 @@ def test_c2_variable_width_identifiers_are_not_asked() -> None:
             ) is None, (name, draw)
 
 
-def test_c2_dates_kept_at_local_midnight_are_not_read_as_utc_midnights(tmp_path: pathlib.Path) -> None:
+def test_c2_dates_kept_at_local_midnight_are_not_asked_as_dates_at_utc_midnight(tmp_path: pathlib.Path) -> None:
     """Item 3: rule B reads ONE residue, midnight UTC; New York's two are a stated limit."""
     draw = random.Random(384)
     cells: "list[str]" = []
@@ -335,8 +335,8 @@ def test_c2_dates_kept_at_local_midnight_are_not_read_as_utc_midnights(tmp_path:
         moment = datetime.datetime(day.year, day.month, day.day, shift)
         cells += [f"{int((moment - datetime.datetime(1970, 1, 1)).total_seconds())}"]
     assert _q3(_block_of(tmp_path, cells)) is None
-    midnights = [f"{int(cell) - int(cell) % 86400}" for cell in cells]
-    said = _q3(_block_of(tmp_path / "utc", midnights))
+    at_utc = [f"{int(cell) - int(cell) % 86400}" for cell in cells]
+    said = _q3(_block_of(tmp_path / "utc", at_utc))
     assert said is not None and said.rule == date_counts.RULE_MIDNIGHT
 
 
