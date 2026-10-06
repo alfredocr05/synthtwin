@@ -15,17 +15,20 @@ of the column's count, and a published weekday census then asked the
 body for more days than that: D0's repair found twins at the floor of
 36 holding more different values than their column. Above the floor of
 11 the producer now withholds the census where the column's different
-days, less the most the twin's tails can hold, leave the body no more
-room than the census needs between its pins
+days, less the most the twin's tails can hold, leave the body less room
+than the census needs between its pins
 (`calendar_rules.count_room_short`, with `body_pins` and `tails_most`),
 said in NF74's one sentence. On the 26 date batteries of D0's identity
 run (4,781 tables, seeds 0 to 4) the twins left long by their census
 fall from 86, 87 and 158 at the floors of 20, 36 and 50 to none, no
 twin misses a check its 493f6f8 twin met, and nothing moves at 11 and
-below. The price: 208, 84 and 111 censuses withheld, 185, 65 and 77 of
+below. The price: 189, 84 and 110 censuses withheld, 166, 65 and 76 of
 them met by their twins, where thresholds scaled with the census line
-withheld 618, 509 and 553. `tests/test_stage3b_count_room.py` holds
-the rule.
+withheld 618, 509 and 553. At its review a room equal to the need
+publishes the census again: 19 at the floor of 20 and one at 50, every
+twin of which met it. `tests/test_stage3b_count_room.py` holds the
+rule, its scope at the floors of 11 and 12, and its pins against the
+generator's own.
 
 ### A description written before the published pairs loads again (2026-10-03)
 
