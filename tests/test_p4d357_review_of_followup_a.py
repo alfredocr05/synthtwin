@@ -1632,6 +1632,7 @@ _STAND_IN_REFUSALS = (
     ("_apart_on_the_representable_grid", "A stratum between the two ends whose"),
     ("_figured_inside", "Guarantees:"),
     ("_cleared_value", "Guarantees:"),
+    ("_pulled_under_the_width", "Where that end is not under the width"),
 )
 
 

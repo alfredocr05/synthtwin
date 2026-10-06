@@ -15281,10 +15281,13 @@ def _pulled_under_the_width(
     limit; and the outermost, which find none, take the end the width
     held on 110cb46 where the caller hands it -- a side rule 1 moved --
     sharing that value as 110cb46's end did, the count of different
-    values falling by those strata's own. Handed none, they stay where
-    they stood and the caller gives the side's walk up. On readings 1 to
-    9 beside one `11`, every value under the width held and the end's
-    stratum holding 49 rows, the end goes back to `9`.
+    values falling by those strata's own. Where that end is not under the
+    width, they take the outermost value under it, stepped off a stand-in
+    the column does not keep as the width hold chose it: beside
+    four-figure numbers that do not hold `9999`, `9998`. Handed none,
+    they stay where they stood and the caller gives the side's walk up.
+    On readings 1 to 9 beside one `11`, every value under the width held
+    and the end's stratum holding 49 rows, the end goes back to `9`.
 
     Guarantees: accepts the column's facts, its layout, the values as
     they stand, the side's tail strata, the strata to move outermost
