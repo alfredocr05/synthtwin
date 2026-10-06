@@ -351,6 +351,43 @@ def significant_figures(written: Written) -> int:
     return len(figures)
 
 
+def integer_figures(written: Written) -> int:
+    """How many figures the whole part of a cell's number has: `45386.5` five, `1.6e+12` thirteen."""
+    if written.exponent_form:
+        return max(1, len(written.whole) + written.exponent)
+    return len(written.whole)
+
+
+@dataclasses.dataclass(frozen=True)
+class Tally:
+    """What a column's counts show of how they are written, cell by cell, held as five numbers.
+
+    `places` the most figures after the mark a cell's number carries and
+    `least` the fewest; `significant` the most significant figures a cell
+    writes; `whole` the most figures a cell's whole part has; `exponent`
+    whether a cell writes an exponent form. Taken in one walk and nothing
+    kept per cell, so a million counts cost five numbers.
+    """
+
+    places: int = 0
+    least: int = -1
+    significant: int = 0
+    whole: int = 0
+    exponent: bool = False
+
+
+def tallied(tally: Tally, written: Written) -> Tally:
+    """One more cell's figures, taken into a tally."""
+    figures = figures_after_the_mark(written)
+    return Tally(
+        max(tally.places, figures),
+        figures if tally.least < 0 else min(tally.least, figures),
+        max(tally.significant, significant_figures(written)),
+        max(tally.whole, integer_figures(written)),
+        tally.exponent or written.exponent_form,
+    )
+
+
 # ------------------------------------------------------------- reading
 
 
@@ -687,9 +724,23 @@ def spelled_count(numerator: int, denominator: int, form: CountForm) -> str:
       exponent form where that is SHORTER than written in full, and in
       full where the two are as long.
 
+    A COUNT THAT IS NOT WHOLE IS WRITTEN AS AN EXPORTER WRITES IT: the
+    binary64 nearest it, formatted to the form's places or significant
+    figures -- `%.6f`, `%.15g`, `repr`, R's fifteen figures -- which is
+    the text a spreadsheet, Python or R writes for that moment. Rounding
+    the exact count instead differs from those writers in the last figure
+    where the exact count stands within a binary64 step of a rounding
+    boundary, which a source written by any of them does on about one
+    cell in seventy (measured on `%.15g` serials at whole seconds over
+    1920 to 2025). A whole count is written from its figures, so a count
+    past 2**53 keeps every one.
+
     Guarantees: accepts the exact count and the form; returns its text.
-    Determinism: whole-number arithmetic. Raises nothing. No I/O.
+    Determinism: correctly rounded binary64 arithmetic and formatting,
+    the same on every platform. Raises nothing. No I/O.
     """
+    if numerator % denominator:
+        return _spelled_inexact(numerator / denominator, form)
     if form.significant is not None or form.exponent:
         figures = form.significant if form.significant is not None else 15
         negative, digits, exponent = _significant_figures(
@@ -724,6 +775,67 @@ def spelled_count(numerator: int, denominator: int, form: CountForm) -> str:
     if form.trimmed:
         fraction = _trimmed_fraction(fraction)
     return _spelled_number(negative, whole, fraction, form.mark)
+
+
+def _spelled_inexact(value: float, form: CountForm) -> str:
+    """A count that is not whole, as the binary64 nearest it is written by the form."""
+    if form.significant is not None or form.exponent:
+        figures = form.significant if form.significant is not None else 15
+        if figures == 17 and not form.exponent:
+            # `repr`: the fewest figures that read back as this binary64.
+            text = repr(value)
+            if "e" not in text and "E" not in text:
+                return _with_mark(text, form.mark)
+        scientific = f"{value:.{figures - 1}e}"
+        cut = _place_of(scientific, "e")
+        mantissa = scientific[:cut]
+        exponent = int(scientific[cut + 1 :])
+        negative = mantissa[:1] == "-"
+        digits = ""
+        for letter in mantissa:
+            if "0" <= letter <= "9":
+                digits = digits + letter
+        while len(digits) > 1 and digits[len(digits) - 1 :] == "0":
+            digits = digits[: len(digits) - 1]
+        sign = "-" if negative else ""
+        if exponent >= len(digits) - 1:
+            full = f"{sign}{digits}{'0' * (exponent - len(digits) + 1)}"
+        elif exponent >= 0:
+            full = f"{sign}{digits[: exponent + 1]}{form.mark}{digits[exponent + 1 :]}"
+        else:
+            full = f"{sign}0{form.mark}{'0' * (-exponent - 1)}{digits}"
+        if not form.exponent:
+            return full
+        shown = digits[:1]
+        if len(digits) > 1:
+            shown = f"{shown}{form.mark}{digits[1:]}"
+        direction = "+" if exponent >= 0 else "-"
+        short = f"{sign}{shown}e{direction}{abs(exponent):02d}"
+        return short if len(short) < len(full) else full
+    text = f"{value:.{form.places}f}"
+    if form.trimmed and form.places:
+        text = _trimmed_number(text)
+    return _with_mark(text, form.mark)
+
+
+def _trimmed_number(text: str) -> str:
+    """A fixed spelling with the zeros after its point, and then a bare point, taken off."""
+    if not isinstance(text, str):
+        raise TypeError("internal check: a number was not text")
+    if _place_of(text, ".") < 0:
+        return text
+    return text.rstrip("0").rstrip(".")
+
+
+def _with_mark(text: str, mark: str) -> str:
+    """A spelling written with a point, written with the column's own mark."""
+    if not isinstance(text, str):
+        raise TypeError("internal check: a number was not text")
+    if not isinstance(mark, str):
+        raise TypeError("internal check: a mark was not text")
+    if mark == POINT:
+        return text
+    return text.replace(POINT, mark)
 
 
 def count_of(member: str, moment: int, unit: int) -> "tuple[int, int] | None":
@@ -784,10 +896,10 @@ def written_for(
 # ------------------------------------------------- the column's form
 
 
-def form_of(
-    cells: "list[Written]", mark: str, contacts: "dict[str, int] | None"
+def form_from(
+    tally: Tally, mark: str, contacts: "dict[str, int] | None"
 ) -> CountForm:
-    """The `count_form` a column's written counts publish.
+    """The `count_form` a column's written counts publish, from their tally.
 
     `places` is the most figures after the mark any cell's number
     carries. A column is FIXED where every cell writes exactly that many
@@ -797,39 +909,56 @@ def form_of(
     significance, not by places, so a column crossing a power of ten
     writes one figure fewer after the point beyond it (the R4 design
     review, item 7). A column holding an exponent form is written by R's
-    own rule, at fifteen significant figures.
+    own rule, at fifteen significant figures. A `days-since-1840` column
+    publishes its census of contact numbers, and its places are the
+    longest contact number's.
 
-    Guarantees: accepts every counted cell of the column, read; returns
-    the form. Determinism: a function of the cells. Raises nothing. No
-    I/O of any kind.
+    Guarantees: a function of the three. Raises nothing. No I/O.
     """
-    places = 0
-    exponent = False
-    most_significant = 0
-    exact_everywhere = True
-    for written in cells:
-        figures = figures_after_the_mark(written)
-        places = max(places, figures)
-        most_significant = max(most_significant, significant_figures(written))
-        if written.exponent_form:
-            exponent = True
     if contacts is not None:
         places = 0
         for word in contacts:
             if word != NO_CONTACT:
                 places = max(places, len(word))
         return CountForm(places, False, None, False, mark, contacts)
-    if exponent:
+    places = min(tally.places, 17)
+    if tally.exponent:
         return CountForm(places, True, 15, True, mark, None)
-    for written in cells:
-        if written.exponent_form or len(written.fraction) != places:
-            exact_everywhere = False
-            break
-    fixed = exact_everywhere and places > 0
+    fixed = tally.places > 0 and tally.least == tally.places
     significant: "int | None" = None
-    if not fixed and places > 0 and 15 <= most_significant <= 17:
-        significant = 15 if most_significant == 15 else 17
-    return CountForm(min(places, 17), not fixed and places > 0, significant, False, mark, None)
+    if not fixed and tally.places > 0 and 15 <= tally.significant <= 17:
+        significant = 15 if tally.significant == 15 else 17
+    return CountForm(places, not fixed and tally.places > 0, significant, False, mark, None)
+
+
+def form_of(
+    cells: "list[Written]", mark: str, contacts: "dict[str, int] | None"
+) -> CountForm:
+    """`form_from` over every counted cell of a column, read."""
+    tally = Tally()
+    for written in cells:
+        tally = tallied(tally, written)
+    return form_from(tally, mark, contacts)
+
+
+def reading_unit(member: str, form: CountForm, tally: Tally) -> int:
+    """The unit a column's counts are settled to, from how they are written (the design's unit U).
+
+    `settled_unit` at the figures after the point the LEAST precise cell
+    can write: a form by places writes `places` of them everywhere, and a
+    form by significant figures writes fewer where the whole part is
+    longer -- `%.15g` writes ten after the point on a serial of five
+    figures and eleven on one of four, so a column crossing serial 10,000
+    is settled at ten, to the millisecond, and its four-figure cells' last
+    figure is not read as a microsecond nobody wrote.
+
+    Guarantees: a function of the three. Raises KeyError for a word
+    outside `MEMBERS`. No I/O of any kind.
+    """
+    places = form.places
+    if form.significant is not None:
+        places = max(0, form.significant - tally.whole)
+    return settled_unit(member, places)
 
 
 def form_holds(form: CountForm, written: Written) -> bool:

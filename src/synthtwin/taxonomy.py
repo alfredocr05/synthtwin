@@ -16807,15 +16807,22 @@ def _counts_read_as_dates(
             aside[number] = 1
     found = date_counts.TABLE[member]
     # THE FIGURES FIRST: the unit a moment is settled to is a fact about
-    # the whole column, so it is worked out before any cell is read.
-    places = 0
-    every: "list[date_counts.Written]" = []
+    # the whole column, so how its counts are written is tallied before any
+    # cell is read -- every count but the set-aside numbers, which are
+    # written back as written and say nothing of the column's form.
+    tally = date_counts.Tally()
     for cell in classified:
         written = date_counts.written_count(cell.text, mark)
         if written is None:
             continue
-        places = max(places, date_counts.figures_after_the_mark(written))
-    settled = published if published else date_counts.settled_unit(member, places)
+        if _set_aside_here(written, found.contacts, aside):
+            continue
+        tally = date_counts.tallied(tally, written)
+    settled = published
+    if not settled:
+        settled = date_counts.reading_unit(
+            member, date_counts.form_from(tally, mark, None), tally
+        )
     fates: "list[int]" = []
     moments: "list[int]" = []
     contacts: "dict[int, dict[str, int]]" = {}
@@ -16826,14 +16833,8 @@ def _counts_read_as_dates(
             fates += [_COUNT_KEPT]
             continue
         numerator, denominator = date_counts.exact_value(written)
-        aside_number: "int | None" = None
-        if numerator % denominator == 0:
-            aside_number = numerator // denominator
-        if found.contacts:
-            whole = abs(numerator) // denominator
-            aside_number = -whole if numerator < 0 else whole
         moment: "int | None" = None
-        if aside_number is None or aside_number not in aside:
+        if not _set_aside_here(written, found.contacts, aside):
             moment = date_counts.moment_of(member, numerator, denominator, settled)
         if moment is None:
             fates += [_COUNT_SET_ASIDE]
@@ -16841,7 +16842,6 @@ def _counts_read_as_dates(
             continue
         fates += [_COUNT_READ]
         moments += [moment]
-        every += [written]
         if found.contacts:
             word = date_counts.contact_word(written)
             held = contacts[moment] if moment in contacts else {}
@@ -16881,8 +16881,25 @@ def _counts_read_as_dates(
                 raw[word] = (raw[word] if word in raw else 0) + words[word]
         if sorted(raw) == [date_counts.NO_CONTACT]:
             raw = None
-    form = date_counts.form_of(every, mark, raw)
+    form = date_counts.form_from(tally, mark, raw)
     return read, missing, CountedReading(member, form, settled, unit, by_text)
+
+
+def _set_aside_here(
+    written: "date_counts.Written", contacts: bool, aside: "dict[int, int]"
+) -> bool:
+    """Whether a count is one of the member's set-aside numbers the person did not keep.
+
+    Exactly: `0.0` is nought and `60.5` is not sixty. A member with contacts
+    asks the figures before the point alone, the day they name.
+    """
+    numerator, denominator = date_counts.exact_value(written)
+    if contacts:
+        whole = abs(numerator) // denominator
+        return (-whole if numerator < 0 else whole) in aside
+    if numerator % denominator:
+        return False
+    return numerator // denominator in aside
 
 
 def _contacts_floored(
@@ -22960,10 +22977,44 @@ def present_spellings_after_the_rules(
 
 
 def _standing_of(kept: HeldReading) -> "dict[str, int]":
-    """The spellings a census reading leaves present, each mapped to 1."""
+    """The spellings a census reading leaves present, each mapped to 1.
+
+    -- 3b.R4 (P4-D384): A COLUMN READ AS COUNTED DATES holds the dates its
+    counts name, as ISO text, where the census asks after the spellings the
+    file holds: each count of the column is present where the date it names
+    is (`_counts_read_as_dates`), and a cell left as it was where that cell
+    is. Reading the column's own counts again here, rather than keeping a
+    map from each date to the counts that named it, holds no more than the
+    column's spellings: a map would hold one entry per count of a column of
+    moments.
+    """
     standing: "dict[str, int]" = {}
-    for value in kept.reading.present:
-        standing[value] = 1
+    counted = kept.reading.counted
+    if counted is None:
+        for value in kept.reading.present:
+            standing[value] = 1
+        return standing
+    held: "dict[str, int]" = {}
+    for text in kept.reading.present:
+        held[text] = 1
+    mark = date_counts.COMMA if kept.forced_decimal_comma else date_counts.POINT
+    for value in kept.values:
+        if value in standing:
+            continue
+        if value in held:
+            standing[value] = 1
+            continue
+        written = date_counts.written_count(value, mark)
+        if written is None:
+            continue
+        numerator, denominator = date_counts.exact_value(written)
+        moment = date_counts.moment_of(
+            counted.member, numerator, denominator, counted.settled
+        )
+        if moment is None:
+            continue
+        if date_counts.iso_text(moment, counted.settled, counted.unit) in held:
+            standing[value] = 1
     return standing
 
 

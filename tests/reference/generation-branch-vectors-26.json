@@ -192,6 +192,21 @@
       "member": "excel-1900",
       "why": "fifteen significant figures, eleven after the point"
     },
+    "excel_15g_binary64": {
+      "answer": "45386.0021643518",
+      "contact": "(none)",
+      "form": {
+        "contacts": null,
+        "exponent": false,
+        "mark": ".",
+        "places": 10,
+        "significant": 15,
+        "trimmed": true
+      },
+      "iso": "2024-04-04 00:03:07",
+      "member": "excel-1900",
+      "why": "%.15g of the binary64, where rounding the exact count gives a last figure one more"
+    },
     "excel_one_place_half_even": {
       "answer": "45386.2",
       "contact": "(none)",

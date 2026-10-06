@@ -13329,8 +13329,46 @@ def _counted_significant(value, figures):
     return sign, str(digits).rstrip("0") or "0", exponent
 
 
+def _counted_binary64(value, form):
+    """G7.10's writing of a count that is not whole: the binary64 nearest it, as an exporter writes it.
+
+    `%.Nf` for a form by places, trimmed where the form trims; `%.15g`'s
+    figures for fifteen significant ones and `repr` for seventeen; and R's
+    fifteen, in exponent form where that is the shorter.
+    """
+    near = float(value)
+    mark = form["mark"]
+    if form["significant"] is None and not form["exponent"]:
+        text = f"{near:.{form['places']}f}"
+        if form["trimmed"] and "." in text:
+            text = text.rstrip("0").rstrip(".")
+        return text.replace(".", mark)
+    if form["significant"] == 17 and not form["exponent"] and "e" not in repr(near):
+        return repr(near).replace(".", mark)
+    figures = form["significant"] or 15
+    mantissa, _e, power = f"{near:.{figures - 1}e}".partition("e")
+    sign = "-" if mantissa.startswith("-") else ""
+    digits = mantissa.lstrip("-").replace(".", "").rstrip("0") or "0"
+    exponent = int(power)
+    if exponent >= len(digits) - 1:
+        full = f"{sign}{digits}{'0' * (exponent - len(digits) + 1)}"
+    elif exponent >= 0:
+        full = f"{sign}{digits[: exponent + 1]}{mark}{digits[exponent + 1:]}"
+    else:
+        full = f"{sign}0{mark}{'0' * (-exponent - 1)}{digits}"
+    if not form["exponent"]:
+        return full
+    shown = digits[0] + (f"{mark}{digits[1:]}" if len(digits) > 1 else "")
+    short = f"{sign}{shown}e{'+' if exponent >= 0 else '-'}{abs(exponent):02d}"
+    return short if len(short) < len(full) else full
+
+
 def counted_spelling(member, iso, form, contact="(none)"):
-    """G7.10's writing: a moment, as its system's count spelled by `count_form`."""
+    """G7.10's writing: a moment, as its system's count spelled by `count_form`.
+
+    A whole count is written from its figures; one that is not is written
+    as the binary64 nearest it is written by the form (`_counted_binary64`).
+    """
     value = _counted_value(member, iso)
     if value is None:
         return None
@@ -13338,6 +13376,8 @@ def counted_spelling(member, iso, form, contact="(none)"):
     if COUNTED_SYSTEMS[member][3]:
         day = str(int(value))
         return day if contact == "(none)" else f"{day}{mark}{contact}"
+    if value.denominator != 1:
+        return _counted_binary64(value, form)
     if form["significant"] is None and not form["exponent"]:
         return _counted_fixed(value, form["places"], mark, form["trimmed"])
     sign, digits, exponent = _counted_significant(value, form["significant"] or 15)
@@ -13412,6 +13452,8 @@ COUNTED_SPELLINGS = {
                                "(none)", "fifteen significant figures, eleven after the point"),
     "excel_15g_after_10000": ("excel-1900", "1927-05-19 08:30", _counted_form(11, True, 15),
                               "(none)", "fifteen significant figures, ten after the point past serial 10,000"),
+    "excel_15g_binary64": ("excel-1900", "2024-04-04 00:03:07", _counted_form(10, True, 15),
+                           "(none)", "%.15g of the binary64, where rounding the exact count gives a last figure one more"),
     "excel_one_place_half_even": ("excel-1900", "2024-04-04 06:00", _counted_form(1, True),
                                   "(none)", "a quarter of a day to one figure: the half goes to the even 2"),
     "excel_six_places_fixed": ("excel-1900", "2024-04-04 12:00", _counted_form(6, False),
