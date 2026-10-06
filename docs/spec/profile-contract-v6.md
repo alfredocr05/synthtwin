@@ -5537,11 +5537,12 @@ in `n_unparsed` as a straggler under the line is. Measured before: 950
 stored dates beside 50 of the same dates typed in as text fell to free
 text, and the twin of the person's own table missed its own description.
 
-**Added keys: twenty-seven** (stage 3: `earliest`, `latest`,
+**Added keys: twenty-eight** (stage 3: `earliest`, `latest`,
 `earliest_utc_offset` and `latest_utc_offset` are gone, and `tail_unit`,
 `low_tail` and `high_tail` stand in their place; landing 3b.1 adds
-`weekday_census`; plan P4-D364 reserves seven more, stated after the
-closed vocabularies below).
+`weekday_census`; plan P4-D364 reserves seven more and the second key
+cut, plan P4-D386, one, `count_form`, all eight stated after the closed
+vocabularies below).
 
 | key | JSON type | permitted values | meaning |
 |---|---|---|---|

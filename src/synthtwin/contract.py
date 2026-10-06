@@ -6182,16 +6182,23 @@ def _settings(value: object) -> SettingsBlock:
     counted = _declared_pairs(
         mapping["forced_date_counts"], "forced_date_counts", where
     )
-    # S8d, which stands whatever each landing fills.
+    # S8d, which stands whatever each landing fills. Each other reading's
+    # names are gathered into a set once, so a counted column is looked
+    # up in each in one step: searching every list again for every
+    # counted column did work in the square of the entries before a
+    # description this version refuses was refused (review of landing
+    # R2K, item 1). The counted columns are taken in the order written
+    # and the readings in this order, so the pair named is the same.
+    readings = (
+        (set(date_columns), "a column of dates read another way"),
+        ({column for column, _year in windows}, "writing two-figure years"),
+        (set(declared_twelve), "a 12-hour clock"),
+        (set(declared_codes), "holding codes"),
+        (set(declared), "holding record numbers"),
+        (set(declared_measurements), "holding measurements"),
+    )
     for name, _system in counted:
-        for others, what in (
-            (date_columns, "a column of dates read another way"),
-            ([column for column, _year in windows], "writing two-figure years"),
-            (declared_twelve, "a 12-hour clock"),
-            (declared_codes, "holding codes"),
-            (declared, "holding record numbers"),
-            (declared_measurements, "holding measurements"),
-        ):
+        for others, what in readings:
             if name in others:
                 raise _broken(
                     "S8d",
@@ -6345,10 +6352,15 @@ def _declared_pairs(
 
     Guarantees: returns the pairs in the order written. Raises
     ProfileError for an entry that is not such a pair (R15, R16) and for
-    a column named twice (R16). No I/O of any kind.
+    a column named twice (R16), naming the first entry, in the order
+    written, that breaks its rule. The work grows with the entries and
+    no faster: each name is looked up once in a set of the names read
+    before it, where searching a list of them took 4.5 s at 40,000
+    entries before the refusal (review of landing R2K, item 1). No I/O
+    of any kind.
     """
     pairs: "list[tuple[str, object]]" = []
-    names: "list[str]" = []
+    names: "set[str]" = set()
     place = 0
     for entry in _listing(value, key, where):
         found = _listing(entry, f"{key}[{place}]", where)
@@ -6368,7 +6380,7 @@ def _declared_pairs(
             raise _out_of_range(
                 key, where, f"'{name}'", "each column named once"
             )
-        names += [name]
+        names |= {name}
         pairs += [(name, other)]
         place = place + 1
     return pairs
