@@ -1791,6 +1791,84 @@ def counted_units(description: contract.Profile) -> "dict[str, int]":
     return units
 
 
+def _form_of_counts_said(form: "date_counts.CountForm") -> str:
+    """A form of counts in words, naming no value: how its figures are written."""
+    if form.exponent:
+        said = "fifteen significant figures, in exponent form where shorter"
+    elif form.significant is not None:
+        said = f"{form.significant} significant figures, trailing zeros dropped"
+    elif form.trimmed:
+        said = f"at most {form.places} figures after the mark, trailing zeros dropped"
+    else:
+        said = f"exactly {form.places} figures after the mark"
+    mark = "a point" if form.mark == date_counts.POINT else "a comma"
+    return f"{said}, the mark {mark}"
+
+
+def _census_said(census: "dict[str, int]") -> str:
+    """A census of contact numbers in words: each word and its count, in sorted order."""
+    said = ""
+    for word in sorted(census):
+        here = f"{word} {census[word]}"
+        said = here if not said else f"{said}, {here}"
+    return said
+
+
+def _count_form_checks(
+    column: contract.ColumnBlock,
+    facts: contract.DatetimeFacts,
+    block: "dict[str, object]",
+    cells: "list[str]",
+) -> "list[Check]":
+    """How a column of counted dates writes its counts, held (landing R4, V5-CF).
+
+    `form.count_form` is HELD where the file was read as counted dates at
+    all and every cell of it written as a count is one the published form
+    can write (`date_counts.form_holds`): a twin written as ISO dates, or
+    with other figures after the mark, MISSES it, and a twin in another
+    member misses the dates it then names. A cell spelled as one of the
+    column's published absent spellings is not a count of a date, and is
+    not asked. `form.contacts` holds the census of contact numbers of a
+    `days-since-1840` column exactly, as the file's own description counts
+    it. No value of the file is printed: the measured side is the form's
+    own words, or that a cell is written another way.
+
+    Guarantees: accepts the column, its facts, the file's own block and
+    its cells; returns the checks, none where the column publishes no form
+    of counts. Raises nothing. No I/O of any kind.
+    """
+    form = facts.count_form
+    if form is None:
+        return []
+    name = column.name
+    published = _form_of_counts_said(form)
+    found_form = block["count_form"] if "count_form" in block else None
+    holes: "dict[str, int]" = {}
+    for spelling in column.missing_by_source:
+        holes[spelling] = 1
+    measured = published
+    if not isinstance(found_form, dict):
+        measured = "no form of counts: the file's cells were not read as such dates"
+    else:
+        for cell in cells:
+            if not cell or cell in holes:
+                continue
+            written = date_counts.written_count(cell, form.mark)
+            if written is None:
+                continue
+            if not date_counts.form_holds(form, written):
+                measured = "a cell written another way"
+                break
+    checks = [_exact(name, "datetime.count_form", "form.count_form", published, measured)]
+    if form.contacts is not None:
+        wanted = _census_said(form.contacts)
+        seen = "none counted"
+        if isinstance(found_form, dict) and isinstance(found_form["contacts"], dict):
+            seen = _census_said(found_form["contacts"])
+        checks += [_exact(name, "datetime.count_form", "form.contacts", wanted, seen)]
+    return checks
+
+
 def settings_over_the_split(
     description: contract.Profile,
 ) -> taxonomy.Settings:
@@ -17217,84 +17295,6 @@ def _datetime_checks(
     checks = checks + _heavy_checks(
         column, facts, block, floor, cells, declared_days
     )
-    return checks
-
-
-def _form_of_counts_said(form: "date_counts.CountForm") -> str:
-    """A form of counts in words, naming no value: how its figures are written."""
-    if form.exponent:
-        said = "fifteen significant figures, in exponent form where shorter"
-    elif form.significant is not None:
-        said = f"{form.significant} significant figures, trailing zeros dropped"
-    elif form.trimmed:
-        said = f"at most {form.places} figures after the mark, trailing zeros dropped"
-    else:
-        said = f"exactly {form.places} figures after the mark"
-    mark = "a point" if form.mark == date_counts.POINT else "a comma"
-    return f"{said}, the mark {mark}"
-
-
-def _census_said(census: "dict[str, int]") -> str:
-    """A census of contact numbers in words: each word and its count, in sorted order."""
-    said = ""
-    for word in sorted(census):
-        here = f"{word} {census[word]}"
-        said = here if not said else f"{said}, {here}"
-    return said
-
-
-def _count_form_checks(
-    column: contract.ColumnBlock,
-    facts: contract.DatetimeFacts,
-    block: "dict[str, object]",
-    cells: "list[str]",
-) -> "list[Check]":
-    """How a column of counted dates writes its counts, held (landing R4, V5-CF).
-
-    `form.count_form` is HELD where the file was read as counted dates at
-    all and every cell of it written as a count is one the published form
-    can write (`date_counts.form_holds`): a twin written as ISO dates, or
-    with other figures after the mark, MISSES it, and a twin in another
-    member misses the dates it then names. A cell spelled as one of the
-    column's published absent spellings is not a count of a date, and is
-    not asked. `form.contacts` holds the census of contact numbers of a
-    `days-since-1840` column exactly, as the file's own description counts
-    it. No value of the file is printed: the measured side is the form's
-    own words, or that a cell is written another way.
-
-    Guarantees: accepts the column, its facts, the file's own block and
-    its cells; returns the checks, none where the column publishes no form
-    of counts. Raises nothing. No I/O of any kind.
-    """
-    form = facts.count_form
-    if form is None:
-        return []
-    name = column.name
-    published = _form_of_counts_said(form)
-    found_form = block["count_form"] if "count_form" in block else None
-    holes: "dict[str, int]" = {}
-    for spelling in column.missing_by_source:
-        holes[spelling] = 1
-    measured = published
-    if not isinstance(found_form, dict):
-        measured = "no form of counts: the file's cells were not read as such dates"
-    else:
-        for cell in cells:
-            if not cell or cell in holes:
-                continue
-            written = date_counts.written_count(cell, form.mark)
-            if written is None:
-                continue
-            if not date_counts.form_holds(form, written):
-                measured = "a cell written another way"
-                break
-    checks = [_exact(name, "datetime.count_form", "form.count_form", published, measured)]
-    if form.contacts is not None:
-        wanted = _census_said(form.contacts)
-        seen = "none counted"
-        if isinstance(found_form, dict) and isinstance(found_form["contacts"], dict):
-            seen = _census_said(found_form["contacts"])
-        checks += [_exact(name, "datetime.count_form", "form.contacts", wanted, seen)]
     return checks
 
 

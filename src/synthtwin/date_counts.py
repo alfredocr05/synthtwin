@@ -975,13 +975,17 @@ def form_holds(form: CountForm, written: Written) -> bool:
     significant one at most `significant` significant figures, trimmed;
     an exponent form fifteen significant figures, either written in full
     or in exponent form. A member with contacts writes its day count and
-    a contact word the census names.
+    no contact number, or one of at most `places` figures: NOT ONLY ONE
+    THE CENSUS NAMES, because a contact number fewer cells than the
+    disclosure line wrote is counted into the commonest (`places` is the
+    longest any cell writes), so a source holding five `.03` cells beside
+    a census of `(none)`, `01` and `02` missed its own description; the
+    census itself is held exactly beside this check.
     """
     if form.contacts is not None:
         if written.exponent_form:
             return False
-        word = contact_word(written)
-        return word in form.contacts
+        return len(written.fraction) <= form.places
     if written.exponent_form and not form.exponent:
         return False
     if form.exponent:

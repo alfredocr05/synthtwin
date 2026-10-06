@@ -12178,7 +12178,7 @@ a document, so no document can violate it.
 | S5 | `source.used_fallback_encoding` is true exactly when `source.encoding == "latin-1"` | yes |
 | S6 | `source.header_by_convention` true implies `source.header_source == "file"`; generated names are not a convention about somebody's first record | yes |
 | S7 | `values_recorded` is `false` in both declaration records — neither carries the text the person typed; `true` is refused, naming an older profile that recorded spellings under this key | yes |
-| S8 | every name in each of the four declaration arrays — `forced_identifiers`, `forced_codes`, `forced_measurements`, `forced_decimal_commas` — is some column's `name`; a name matching no column means the profile and the schema disagree | yes |
+| S8 | every name in each of the four declaration arrays — `forced_identifiers`, `forced_codes`, `forced_measurements`, `forced_decimal_commas` — and every name `forced_date_counts` pairs with a counting system (landing R4) is some column's `name`; a name matching no column means the profile and the schema disagree | yes |
 | S8a | no name is in `forced_decimal_commas` and also in `forced_codes` or `forced_identifiers`; those two silence the numeric reading, so the comma declaration could never be used and would be recorded and ignored | yes |
 | S9 | `settings.categorical_floor <= settings.categorical_ceiling` | yes |
 | S10 | every `publication_notes[i].column` is some column's `name`, or is EMPTY and the note is about the whole table | yes |

@@ -2205,18 +2205,6 @@ def _offered_here(answer: str, question: asking.Question) -> bool:
     return answer == asking.ANSWER_MEASUREMENT and asking.ANSWER_KEEP in offered
 
 
-def _counted_settings(
-    counted: "dict[str, str]",
-) -> "tuple[tuple[str, str], ...]":
-    """The columns whose dates are written as counts, as the settings hold them (landing R4).
-
-    `(column, system)` in the columns' rising order: the one shape the
-    settings block records, the questions file's answers and the typed
-    options agree in.
-    """
-    return tuple((name, counted[name]) for name in sorted(counted))
-
-
 def _put_the_questions(
     questions: "list[asking.Question]",
 ) -> "tuple[list[str], list[str], list[str], list[str], list[str], list[tuple[str, str]]] | None":
@@ -2348,6 +2336,18 @@ def _how_to_repeat(
         f"Those answers are also recorded inside the profile itself. "
         f"Each value is {_shell_named()}."
     )
+
+
+def _counted_settings(
+    counted: "dict[str, str]",
+) -> "tuple[tuple[str, str], ...]":
+    """The columns whose dates are written as counts, as the settings hold them (landing R4).
+
+    `(column, system)` in the columns' rising order: the one shape the
+    settings block records, the questions file's answers and the typed
+    options agree in.
+    """
+    return tuple((name, counted[name]) for name in sorted(counted))
 
 
 def _lowered_floor_warning(given: int) -> str:

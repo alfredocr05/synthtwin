@@ -1309,6 +1309,33 @@ floor, so the real table meets its description by construction:
   value there, and one holding all but a single value there, the three
   being one state on purpose (landing 2b.6).
 
+**V5-CF. Amended 2026-10-06 (landing R4, plan P4-D384): how a column of
+counted dates writes its counts is an obligation.** A column the
+description reads as dates written as counts -- named under
+`settings.forced_date_counts`, carrying a `count_form` (contract 6.6.2)
+-- is described again in the checked file under the same declaration:
+each cell written as a count is read exactly as the moment its system
+names, at the unit the description PUBLISHED rather than one worked out
+from the file's own figures (`validation.counted_units`), so the
+description's own source reads cell for cell as the profiler read it,
+and every obligation of a column of dates then applies as on any other.
+Beside them, `count_form` is HELD (`form.count_form`) where the file was
+read as such dates and every cell it writes as a count -- its published
+absent spellings aside -- is one the published form writes
+(`date_counts.form_holds`): exactly `places` figures after the mark, or
+at most that many with no trailing zero where the form is trimmed, at
+most the form's significant figures where it names them, and in
+exponent form only where the form writes one. A twin written as ISO
+dates or with other figures after the point, and a file not read as
+such dates at all, MISS it; a twin written in another system misses the
+dates it then names. On a `days-since-1840` column the census of
+contact numbers is held exactly against the file's own description
+(`form.contacts`). Neither line prints a value of the file: the
+measured side is the form in words, that a cell is written another way,
+or the census, whose counts stand at the disclosure line. The
+`tests/test_stage3b_counted.py` clause C5 turns red on a check of the
+form that asks nothing.
+
 **Amended 2026-09-17 (plan P4-D191): a count withheld for its size is
 checked on its side.** Where `n_at_midnight` is absent because too few
 values stood at midnight or too few did not

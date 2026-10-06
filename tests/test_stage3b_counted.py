@@ -42,7 +42,6 @@ import io
 import json
 import pathlib
 import random
-import sys
 
 import pytest
 
@@ -633,6 +632,34 @@ def test_c5_a_declaration_whose_cells_are_no_dates_decides_nothing(tmp_path: pat
     assert any(contract.COUNTED_NOT_READ_MARK in remark for remark in block["remarks"])
     rendered = taxonomy.rendered(taxonomy.REMARK_COUNTED_DATES_NOT_READ, ("excel-1900",))
     assert contract.COUNTED_NOT_READ_MARK in rendered
+
+
+def test_c5_a_contact_number_rarer_than_the_line_leaves_the_source_whole(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Five `.03` cells are counted into the commonest contact number, and the source still meets its form.
+
+    THE MUTANT: the form holding each cell to a contact number the census
+    names, which the source's five cells are not, so the real table
+    missed its own description.
+    """
+    draw = random.Random(3)
+    cells: "list[str]" = []
+    for row in range(1000):
+        contact = "" if row < 850 else ".01" if row < 970 else ".02" if row < 995 else ".03"
+        cells += [f"{65000 + draw.randrange(3000)}{contact}"]
+    draw.shuffle(cells)
+    trip = _trip(tmp_path, cells, "days-since-1840")
+    assert trip["block"]["count_form"]["contacts"] == {"(none)": 855, "01": 120, "02": 25}
+    assert trip["twin_exit"] == 0 and trip["real_exit"] == 0
+
+    def named_only(form: "date_counts.CountForm", written: "date_counts.Written") -> bool:
+        return date_counts.contact_word(written) in (form.contacts or {})
+
+    monkeypatch.setattr(date_counts, "form_holds", named_only)
+    out = tmp_path / "mutated"
+    out.mkdir()
+    assert _exit_of(["validate", str(trip["described"]), "--twin", str(trip["path"]), "--out-dir", str(out), "--replace"])[0] == 3
 
 
 def test_c5_a_table_of_one_counted_column_is_counted_in_rows(tmp_path: pathlib.Path) -> None:

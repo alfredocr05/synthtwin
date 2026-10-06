@@ -1723,6 +1723,10 @@ def battery() -> list[Mutation]:
             edit("recorded_on", count_form=_count_form_of(exponent=True)),
         ),
         Mutation(
+            "S8", "dates written as counts in a column this table does not have",
+            edit_in("settings", forced_date_counts=[["no_such_column", "excel-1900"]]),
+        ),
+        Mutation(
             "S8d", "a column of counted dates also said to be dates read another way",
             edit_in(
                 "settings",
