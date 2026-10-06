@@ -2047,10 +2047,12 @@ contract:
    widening it to arbitrary strings would be exactly the hole that lets
    a source-derived value into a sentence and be rebuilt successfully.
 
-**The census.** The table holds 85 forms and 104 argument positions.
-Of those, 77 are whole numbers, 5 are package words, 17 are nested
+**The census.** The table holds 90 forms and 106 argument positions.
+Of those, 79 are whole numbers, 5 are package words, 17 are nested
 forms, and 5 are bound affix strings. No position is a string of any
-other kind. The weekday census (landing 3b.1, plan P4-D355) added the
+other kind. The hour census (landing 3b.2-H, plan P4-D371) added the
+five forms NF88 to NF92 and two whole-number positions, each the census
+line. The weekday census (landing 3b.1, plan P4-D355) added the
 eleven forms NF68 to NF78 and seven whole-number positions, each the
 census line, and its review retired three of the forms with one of
 those positions (plan P4-D359), and the weekday guard drop a fourth,
@@ -2097,8 +2099,8 @@ shipped. `tests/test_p4d334_sentence_arguments.py` re-measures the
 class over a committed battery, so it is a number a reader can run.
 
 So every argument position of every form is bound to WHAT IT IS, and
-the table below is closed over all 104 of them exactly as the form table
-is closed over the 85 forms. A position nobody bound is a number a
+the table below is closed over all 106 of them exactly as the form table
+is closed over the 90 forms. A position nobody bound is a number a
 sentence may print that no rule governs, and a producer that adds one
 is a producer this contract does not describe. The bindings are these:
 
@@ -2273,6 +2275,8 @@ and why the sentence that cannot be withdrawn now has NF61 to say.
 | `weekday_census_counts_the_weekend_together` | 1 | setting (census line) |
 | `weekday_census_shows_no_count_below_the_line` | 1 | setting (census line) |
 | `weekday_census_withheld_could_be_narrowed` | 1 | setting (census line) |
+| `hour_census_counts_hours` | 1 | setting (census line) |
+| `hour_census_withheld_no_grouping` | 1 | setting (census line) |
 | `said_read_as_dates` | 1 | floored against `n_present` |
 | `said_read_as_dates` | 2 | package word |
 | `said_written_as_numbers` | 1 | sum `n_numeric` + `n_out_of_range` + `n_contradictory` |
@@ -3659,7 +3663,7 @@ names:
 
 | id | statement |
 |---|---|
-| NG14 | the form is one of the 85 in section 4.5.1 |
+| NG14 | the form is one of the 90 in section 4.5.1 |
 | NG15 | the argument count equals that form's arity |
 | NG16 | every argument is of one of C6-119's four classes |
 | NG17 | re-rendering the form with those arguments writes the leaf's text character for character |
@@ -4014,6 +4018,37 @@ back-solve beside the sentence correctly assumed they did not.
 <!-- anchor 3b-D4 (P4-D369) -->
 <!-- anchor 3b-T1 (P4-D370) -->
 <!-- anchor 3b-T2 (P4-D371) -->
+
+**NF88 to NF92 — the hour census of a column of moments** (landing
+3b.2-H, plan P4-D371). A census PUBLISHED says what its groups are in
+one remark, NF88; a census WITHHELD says why in one publication note of
+its own for each reason -- under the owner's principle of 2026-10-01 no
+reason is pooled into a sentence that keeps it back, as NF74 pools the
+weekday's. A column the census cannot stand on at all -- not of moments,
+on the shared clock, in the joint member or wholly at midnight -- says
+nothing. NF88 and NF92 take one argument, the census line; the others
+none.
+
+**NF88. `hour_census_counts_hours` — the census of a column of moments counted by the hour** — arity 1. A remark, carried by every block publishing an hour census.
+
+> which hours of the day this column's values fall on is counted over the values between its two tail boundaries, each hour alone or, where that would name fewer than «1» rows, together with its neighbours, never across midnight; every count is nought or at least «1» rows, and a count of several hours does not say how its rows fall among them
+
+**NF89. `hour_census_withheld_no_tails`** — arity 0 (HC3).
+
+> the hours of the day this column's values fall on are not counted: the column has no tails, so it has no values between them to count
+
+**NF90. `hour_census_withheld_short_span`** — arity 0 (HC4).
+
+> the hours of the day this column's values fall on are not counted: the middle half of its values spans fewer than four days, so the counts would be the hours of a few dates
+
+**NF91. `hour_census_withheld_two_storages`** — arity 0 (HC6).
+
+> the hours of the day this column's values fall on are not counted: the workbook stores its values in more than one way, so they are read back differently cell by cell
+
+**NF92. `hour_census_withheld_no_grouping`** — arity 1. Where the one merge rule leaves no grouping of the hours short of the whole day.
+
+> the hours of the day this column's values fall on are not counted: no grouping of neighbouring hours short of the whole day leaves every count nought or at least «1» rows
+
 <!-- anchor 3b-T3 (P4-D372) -->
 <!-- anchor 3b-C1 (P4-D373) -->
 <!-- anchor 3b-C2 (P4-D374) -->
@@ -5609,9 +5644,12 @@ landing restates its own rows below its own line.
 <!-- anchor 3b-T1 (P4-D370) -->
 <!-- anchor 3b-T2 (P4-D371) -->
 
+FILLED by landing 3b.2-H (plan P4-D371). A description written before it
+carries `[]`, which still loads.
+
 | key | JSON type | permitted values | meaning |
 |---|---|---|---|
-| `hour_census` | array | `[]` | reserved for how many cells between the two tail boundaries fall on each group of hours of the written clock; landing 3b.2-H fills it |
+| `hour_census` | array of `{first, last, count}` | `[]`, or groups of whole hours 0 to 23 in order, each count nought or at least the census line (HC1 to HC6) | how many cells between the two tail boundaries, both included, fall on each group of hours of the written wall clock (`canonical[11:13]`); the groups are merged from the twenty-four hours by the one merge rule every census shares, on a line -- no group runs past midnight -- and a census with one non-empty group is published; `[]` where none is, its reason in one publication note (NF89 to NF92) |
 
 <!-- anchor 3b-T3 (P4-D372) -->
 
@@ -12372,6 +12410,16 @@ it answers to.
 <!-- anchor 3b-D4 (P4-D369) -->
 <!-- anchor 3b-T1 (P4-D370) -->
 <!-- anchor 3b-T2 (P4-D371) -->
+
+| id | statement | loader? |
+|---|---|---|
+| HC1 | the groups of `hour_census` cover hour 0 to hour 23 in order, each exactly once, and no group runs past midnight | yes |
+| HC2 | every group counts nought or at least `max(2, small_cell_floor)` | yes |
+| HC3 | a non-empty census stands only on a column of moments read on the local clock, not in the joint member, not wholly at midnight, with both tails, and adds up to `P - low_tail.rows - high_tail.rows` | yes |
+| HC4 | a non-empty census stands only where the published `p25` and `p75` lie at least four days apart | yes |
+| HC5 | every group holds at least its SURE cells -- each tail boundary and published rung in its hour, every rank between two rungs of one instant, and in hour 0, in place of the published instants at 00:00:00 where it is more, `n_at_midnight` less the rows of every tail whose listed values all stand at midnight (rule 4) -- and what is left of it is nought or at least `max(2, small_cell_floor)` | yes |
+| HC6 | a workbook's published cell classes show at most one value class holding cells | yes |
+
 <!-- anchor 3b-T3 (P4-D372) -->
 <!-- anchor 3b-C1 (P4-D373) -->
 <!-- anchor 3b-C2 (P4-D374) -->
@@ -12542,7 +12590,7 @@ month-first parsed.
 | NG11 | on `remark_affixed_numbers_may_be_codes`: argument 3 equals the named block's `n_affixed` |
 | NG12 | argument 1 is character-for-character that block's `affix_prefix` and argument 2 its `affix_suffix`, AT THOSE POSITIONS, not merely as members of the pair |
 | NG13 | on `remark_a_label_is_a_built_in_stand_in`: argument 1 is 1, 2 or 3 |
-| NG14 | for every form: one of the 85 the note grammar enumerates |
+| NG14 | for every form: one of the 90 the note grammar enumerates |
 | NG15 | the argument count equals that form's arity |
 | NG16 | every argument is of one of the four argument classes |
 | NG17 | re-rendering the form with those arguments writes the leaf's text character for character |
@@ -12946,7 +12994,7 @@ form, the stand-in is written in it (7.9.1).
 <!-- anchor 3b-T1 (P4-D370) -->
 <!-- anchor 3b-T2 (P4-D371) -->
 
-| `hour_census` | LOADER-ONLY (plan P4-D364): `[]` on every block, refused as anything else, and no output obligation until landing 3b.2-H fills it |
+| `hour_census` | EXACT-OBSERVABLE (landing 3b.2-H, plan P4-D371): the file's own moments between the two PUBLISHED boundaries, both included, hold every group's published count exactly, each read on the column's own face. A MISSED line keeps its verdict and prints a group the file holds one to the line less one of as fewer than the line (plan P4-D347). The validator counts the file's body against the published groups and never produces a census of its own |
 
 <!-- anchor 3b-T3 (P4-D372) -->
 
@@ -13831,7 +13879,7 @@ this document, and the battery the plan requires turns red on it.
 | nothing-class blocks (`numeric_unrepresentable`, `identifier`, `free_text`) | lengths, word statistics, digit and code-alphabet counts, the whole-number test, the repetition multiset, on `numeric_unrepresentable` the whole-number and sign counts, on `free_text` the census of WRITTEN FORMS its cells wore (`shape_forms`), and on `identifier` the census of LAYOUTS (`layout_forms`, 7.12) and, by the owner's ruling of 2026-09-17, the literal PREFIX every cell of the column or of one named layout opens with (`layout_prefixes`, 7.12a, row 22) | no value, no spelling, no fragment of one but the prefix of row 22 — the form census included, whose every key is built from `%`, `@` and thirteen named marks -- characters no cell that has a form may contain, so a key can carry no letter and no figure of any cell; the multiplicity map publishes SIZES of unnamed groups under no floor, the form census under the floor with a `(withheld)` pool |
 | `empty` columns nobody declared | the absent SPELLINGS their cells wore and the two absence counts, exactly as any column that is not nothing-publishing | floor-governed |
 | `settings` | the rules the run applied, the floor's own value, how many values each declaration named, and which of THIS package's published words were among them | carries no cell, no column and no count of the table; a person's own spelling never enters |
-| `source.header_evidence`, `publication_notes[].note`, `detection_evidence`, `remarks` | sentences of the 85 closed forms: 104 argument positions, of which 77 are whole numbers, 5 package words, 17 nested forms and 5 bound affix strings | the whole numbers are counts the block beside them already publishes, EXCEPT the positions priced at rows 16 and 18 |
+| `source.header_evidence`, `publication_notes[].note`, `detection_evidence`, `remarks` | sentences of the 90 closed forms: 106 argument positions, of which 79 are whole numbers, 5 package words, 17 nested forms and 5 bound affix strings | the whole numbers are counts the block beside them already publishes, EXCEPT the positions priced at rows 16 and 18 |
 | `relationships` | nothing: eight nulls | — |
 
 ### 12.3 The rows, each priced
@@ -14895,10 +14943,10 @@ width at least ONE (`1`, `2`, `10`), a cell written as a whole number
 writing at least one figure (C6-29c). `(withheld)` is again the only
 non-numeric key permitted.
 
-### 14.8 The note grammar — 85 forms
+### 14.8 The note grammar — 90 forms
 
 Defined in 4.5.1, which is the authority on every rendering and every
-argument. 104 argument positions: 77 whole numbers, 5 package words, 17
+argument. 106 argument positions: 79 whole numbers, 5 package words, 17
 nested forms, 5 bound affix strings.
 
 > **THE CENSUS IS RECOMPUTED FROM THE CODE, NOT TAKEN FROM EITHER
@@ -15009,6 +15057,15 @@ nested forms, 5 bound affix strings.
 <!-- anchor 3b-D4 (P4-D369) -->
 <!-- anchor 3b-T1 (P4-D370) -->
 <!-- anchor 3b-T2 (P4-D371) -->
+
+| # | form | arity |
+|---|---|---|
+| NG88 | `hour_census_counts_hours` | 1 |
+| NG89 | `hour_census_withheld_no_tails` | 0 |
+| NG90 | `hour_census_withheld_short_span` | 0 |
+| NG91 | `hour_census_withheld_two_storages` | 0 |
+| NG92 | `hour_census_withheld_no_grouping` | 1 |
+
 <!-- anchor 3b-T3 (P4-D372) -->
 <!-- anchor 3b-C1 (P4-D373) -->
 <!-- anchor 3b-C2 (P4-D374) -->

@@ -1427,6 +1427,23 @@ rather than in ISO:
   by a folded cell; read for every column, it missed it by an unparsed
   one (the review of P4-D365, item 2). A description publishing `[]`
   obliges nothing and lists nothing.
+- `hour_census` is compared GROUP FOR GROUP (`hour_census.groups`,
+  V5-H1, landing 3b.2-H, plan P4-D371): the file's own moments between
+  the two PUBLISHED tail boundaries, both included, less the days its own
+  description reads as holes, are counted per hour of the written wall
+  clock and summed per published group, and the obligation is HELD where
+  every group holds its published count and MISSED otherwise. Each cell
+  is read under the member that read the real column and, on a slashed
+  stamp, on the face its description publishes -- a declared 12-hour
+  clock's `12` as the first hour -- and a stamp written on another face
+  is no moment here, as the producer counts it unread (contract NF108).
+  It prints through the one census line every census check shares: a
+  group the file holds one to the line less one of is printed as fewer
+  than the line, and where even naming the short groups would give a
+  count back beside the file's own body no group is named (plan
+  P4-D347). The file's census is counted here, never PRODUCED: both
+  re-descriptions of the file skip the census producer. A description
+  publishing `[]` obliges nothing and lists nothing.
 - each of the four is LISTED where the column's member cannot show that
   convention at all: the widths on a member of fixed field width, the
   name styles outside the two textual members, the marker outside
