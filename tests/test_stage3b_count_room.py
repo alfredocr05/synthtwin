@@ -499,29 +499,38 @@ def test_the_producer_hands_both_rules_the_block_s_pins_and_tails(
 ) -> None:
     """What `taxonomy.weekday_decision` hands the two count rules, at every floor (P4-D388 and its review, items 1 and 2).
 
-    `_weekly_schedule(0)` at the floor of 36: both tails publish their
-    distances, so their most is the floor each, 36 and 36 though they
-    hold 59 and 40 rows; the pins are the two boundaries, at ranks 59
-    and 229, and the rungs published between them, p25, p50 and p75 at
-    ranks 67, 134 and 201. At the floor of 20 its low tail lists two
-    values and its high tail's 23 rows give 20, and the pins are the
-    boundaries at 21 and 246 with p10 to p95 between; at 11 its low tail
-    lists one value and its high tail's 14 rows give 11, the boundaries
-    at 14 and 255 with p05 to p95 between. At every floor the pins are
-    the body pins the generator lays from the description
-    (`generation._date_layout`), rank for rank and day for day, so a pin
-    the generator gains or loses there -- landing 3b.D4 pins each listed
-    date in `_heavy_layout` (plan P4-D369) -- parts them. Both rules are
-    handed the column's own 35 different days. The reach rule, asked
-    where the room rule publishes, is handed the same pins and the fewest
-    and most days the generator's own layout lets the twin's tails hold,
-    8 and 12 at 11 and 13 and 22 at 20, from the member's own edges, the
-    column's values not all different, and no hole. Red when the rungs
-    are not handed over, the column's rows stand for its days, the
-    settings floor is not read, a listed tail is handed over as one
-    publishing its distances, the rules' pins part from the generator's
-    body pins, the tails' fewest or most part from the generator's
-    layout, or either rule is not asked at the floor of 11.
+    `_weekly_schedule(0)` with one cell written `unknown`, which no date
+    member reads: the column still holds 35 different days, and its
+    published count of different values is 36. At the floor of 36 both
+    tails publish their distances, so their most is the floor each, 36
+    and 36 though they hold 59 and 40 rows; the pins are the two
+    boundaries, at ranks 59 and 229, and the rungs published between
+    them, p25, p50 and p75 at ranks 67, 134 and 201. At the floor of 20
+    its low tail lists two values and its high tail's 23 rows give 20,
+    and the pins are the boundaries at 21 and 246 with p10 to p95
+    between; at 11 its low tail lists one value and its high tail's 14
+    rows give 11, the boundaries at 14 and 255 with p05 to p95 between.
+    At every floor the pins are the body pins the generator lays from the
+    description (`generation._date_layout`), rank for rank and day for
+    day, so a pin the generator gains or loses there -- landing 3b.D4
+    pins each listed date in `_heavy_layout` (plan P4-D369) -- parts
+    them. Both rules are handed the column's 35 different days, never the
+    published 36. The reach rule, asked where the room rule publishes, is
+    handed the same pins and the fewest and most days the generator's own
+    layout lets the twin's tails hold, 8 and 12 at 11 and 13 and 22 at
+    20, from the member's own edges, the column's values not all
+    different, and no hole. `_weekly_schedule(49)` at the floor of 20
+    holds tails that differ: its low tail's 49 rows publish their
+    distances and its high tail's 34 list two values, so the room rule's
+    most is 20 and 2, 22, where the two tails' rows handed the other way
+    round give 18, and the reach rule's fewest and most are 10 and 10,
+    where handed the other way round they give 13 and 13. Red when the
+    rungs are not handed over, the column's rows or its published count
+    stand for its days, the settings floor is not read, a listed tail is
+    handed over as one publishing its distances, the two tails' rows are
+    handed over the other way round, the rules' pins part from the
+    generator's body pins, the tails' fewest or most part from the
+    generator's layout, or either rule is not asked at the floor of 11.
     """
     seen: "list[tuple[object, ...]]" = []
     reached: "list[tuple[object, ...]]" = []
@@ -574,8 +583,9 @@ def test_the_producer_hands_both_rules_the_block_s_pins_and_tails(
         reached.clear()
         fewest.clear()
         widest.clear()
-        described = _described(tmp_path, f"floor{floor}", cells, floor)
+        described = _described(tmp_path, f"floor{floor}", cells + ["unknown"], floor)
         block = described.block("visit")
+        assert (block["n_distinct"], block["n_unparsed"]) == (36, 1), (floor, block["n_distinct"])
         assert len(seen) == 1, seen
         pins, days, counted = seen[0]
         assert (days, counted) == (35, tails), (floor, days, counted)
@@ -606,6 +616,27 @@ def test_the_producer_hands_both_rules_the_block_s_pins_and_tails(
         assert block["format"] == "iso-date", block["format"]
         edges = taxonomy.tail_edges(block["format"], parsing.TAIL_UNIT_DAY, "local", {})
         assert handed[4:] == (floor, edges, False, frozenset()), (floor, handed[4:])
+    seen.clear()
+    reached.clear()
+    differing = _weekly_schedule(49)
+    described = _described(tmp_path, "differing", differing, 20)
+    block = described.block("visit")
+    ordered_differing = tuple(sorted(_day(cell) for cell in differing))
+    low, high = block["low_tail"]["rows"], block["high_tail"]["rows"]
+    listed = (None, len(block["high_tail"]["values"]))
+    assert block["low_tail"]["values"] is None and (low, high, listed[1]) == (49, 34, 2), (low, high, listed)
+    assert block["weekday_census"], block["weekday_census"]
+    assert len(seen) == 1 and len(reached) == 1, (seen, reached)
+    assert seen[0][2] == calendar_rules.tails_most(ordered_differing, low, high, listed, 20) == 22, seen[0]
+    assert calendar_rules.tails_most(ordered_differing, high, low, listed, 20) == 18
+    assert reached[0][2:4] == (10, 10) == (_layout_fewest(described, 20), _layout_most(described, 20)), reached[0]
+    sides = (
+        (None, float(block["low_tail"]["mean_distance"]), float(block["low_tail"]["rms_distance"])),
+        (2, None if block["high_tail"]["mean_distance"] is None else float(block["high_tail"]["mean_distance"]), None),
+    )
+    edges = taxonomy.tail_edges(block["format"], parsing.TAIL_UNIT_DAY, "local", {})
+    assert calendar_rules.tails_fewest(ordered_differing, high, low, sides, 20, edges, False) == 13
+    assert calendar_rules.tails_most_rebuilt(ordered_differing, high, low, sides, 20, edges, False) == 13
 
 
 def test_at_the_floor_of_11_the_rule_is_asked_and_withholds_a_census_its_twins_met(tmp_path: pathlib.Path) -> None:
