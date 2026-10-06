@@ -928,8 +928,8 @@ def _date_count_shape(
     named = date_counts.aside_listed(said.aside)
     if named:
         aside = (
-            f"; some cells hold {named}, which such a system writes where "
-            f"no date was given"
+            f"; some cells hold {named}: numbers such a system writes where "
+            f"no date was given, or that name no real day"
         )
     return f"{opening}; {readings}{aside}"
 

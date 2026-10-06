@@ -7448,6 +7448,67 @@ recorded here rather than taken back. The entry K-2B-51 carries the
 same measurement, so its rule is not read as a claim about every column
 of dates.
 
+### G7.10 Dates written as counts: read exactly, written back as counts
+
+Landing R4 (plan P4-D384; contract 6.6.2, dates written as counts). A
+column named under `settings.forced_date_counts` was described as the
+dates its counts name, so the twin draws it as dates by every rule of
+G7 above, in the ISO text the description was made from; this section
+says how that text is written back as the system's counts, and how a
+count is read, which the validator's re-description repeats.
+
+**Reading a count.** A cell the grammar of contract 6.6.2 takes as a
+count is its exact value: the whole figures and the figures after the
+mark as one integer over a power of ten, times ten to the exponent R's
+form writes. Its moment is the system's first day plus that many units,
+in whole nanoseconds; Excel's 1900 system counts serial 60 as no day,
+reads 1 to 59 from 31 December 1899 and 61 onward from 30 December
+1899, and reads no serial below 1. A `days-since-1840` count reads its
+whole part alone, its figures after the point being a contact number.
+The moment is settled to the unit U -- the finest of the nanosecond,
+microsecond, millisecond, second, minute and day that is at least the
+system's unit over ten to the most figures after the mark any cell
+writes, and never coarser than the minute where that step is under a
+day -- by rounding half to even, so Excel's `%.15g` serials, ten
+figures after the point and a step of 8.64 microseconds, settle to the
+millisecond, and `45386.3541666667` reads as 08:30 exactly. A column of
+`%.15g` or `repr` figures settles from the least precise cell, which
+writes the fewest figures after the point past serial 10,000.
+
+**Writing a moment.** Each cell G7 wrote as a date or moment is
+written as its system's count of that moment: a whole count exactly,
+from its integer; a count that is not whole through the binary64 value
+nearest the exact one, formatted as the exporter the form names writes
+it -- `places` figures after the mark, rounded half to even and kept
+(`%.Nf`, pandas' `45000.0`) or trimmed (`%g`, R), fifteen or seventeen
+significant figures trimmed (`%.15g`, `repr`), and R's exponent form
+where it is shorter -- with the column's mark, a point or a comma. A
+`days-since-1840` column writes its day count and, after the point, the
+contact number the census gives the cell: the census's words in rank
+order, the commonest first and ties in sorted order, each as many times
+as the census counts it, over the dated cells in the order the
+arrangement put them, so each contact number is spread over the dates
+as the census is and independently of them. A cell written in a
+spelling the column publishes as absent -- a count that names no date,
+a placeholder day -- and an unparsed stand-in are left as they are.
+
+**What is frozen.** Generation reference vectors file 26 holds both
+halves on cells either side of Excel's leap day, SAS and Stata days,
+seconds and milliseconds before and after 1960, R's exponent form,
+nanoseconds past 2**53, an Epic day with its contact number, a comma for
+the point, fifteen significant figures either side of serial 10,000, one
+figure rounded half to even, six figures fixed and trimmed, R's shorter
+form, a contact number and a comma; `tests/test_stage3b_counted.py`
+holds the product to every answer and turns each case red on its
+mutant (float arithmetic, a 1970 epoch for 1960, halves rounded up,
+untrimmed figures, no leap day, the exact value where binary64 is
+written).
+
+**Stated limits.** A date kept at local midnight is read as the instant
+its count names, not as the day; contact numbers are not kept with
+their dates; and a workbook's clock cells keep their binary64 reading,
+which moves 94 of them by a millisecond, rather than this one.
+
 ## G7A. Clock columns (`time_of_day`)
 
 This role was added by Phase 4 and this section was written after its

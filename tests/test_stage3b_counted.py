@@ -362,6 +362,53 @@ def test_c2_the_question_names_no_value_and_says_the_set_aside_numbers(tmp_path:
             assert cell not in shown
 
 
+def _offered_of(folder: pathlib.Path) -> "list[str]":
+    """The answers the questions file offers about `seen`, or none where it is not asked."""
+    questions = json.loads((folder / "table-questions.json").read_text(encoding="utf-8"))
+    offered: "list[str]" = []
+    for entry in questions["asked"]:
+        if entry["column"] == "seen":
+            offered += [choice["answer"] for choice in entry["answers_you_can_give"]]
+    return offered
+
+
+def test_c2_a_declared_decimal_comma_is_read_with_the_comma(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Item 8: clinic date-times exported with a comma for the point.
+
+    Under `--decimal-comma` the column is numbers, and Q3 reads its counts
+    with the comma, so it is asked with the 1900 system among its answers.
+    Undeclared, the cells are text and nothing asks about dates (a stated
+    limit). THE MUTANT: Q3 reading the declared column with the point.
+    """
+    shape = battery.BY_NAME["xl_dt15g"]
+    cells, _truth = battery.cells(shape, battery.ROWS, 0)
+    commas = [cell.replace(".", ",") for cell in cells]
+    assert sum("," in cell for cell in commas) > 900
+    path = _table(tmp_path, commas)
+    runs = {}
+    for name, extra in (("declared", ["--decimal-comma", "seen"]), ("plain", [])):
+        folder = tmp_path / name
+        folder.mkdir()
+        code, said = _exit_of(["profile", str(path), *extra, "--out-dir", str(folder), "--replace"])
+        assert code == 0, said[-500:]
+        runs[name] = _offered_of(folder)
+    assert "excel-1900" in runs["declared"]
+    assert not [word for word in runs["plain"] if word in date_counts.MEMBERS]
+    original = date_counts.asked_of
+
+    def pointed(*arguments: object) -> "date_counts.Asked | None":
+        return original(*arguments[:5])  # type: ignore[arg-type]
+
+    monkeypatch.setattr(date_counts, "asked_of", pointed)
+    mutated = tmp_path / "mutated"
+    mutated.mkdir()
+    code, said = _exit_of(["profile", str(path), "--decimal-comma", "seen", "--out-dir", str(mutated), "--replace"])
+    assert code == 0, said[-500:]
+    assert "excel-1900" not in _offered_of(mutated)
+
+
 # -- C3: the answer and the option ---------------------------------------
 
 

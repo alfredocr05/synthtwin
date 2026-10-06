@@ -46,7 +46,7 @@ wrote down, which is exactly the state four roles were in.
 
 import re
 
-from synthtwin import parsing, taxonomy
+from synthtwin import date_counts, parsing, taxonomy
 
 import fixtures
 
@@ -442,6 +442,10 @@ def test_the_package_word_vocabulary_is_the_one_the_contract_states() -> None:
         # of them, so a producer written to a contract that omitted
         # them would refuse the sentence the tool writes.
         | set(taxonomy.NOTE_UNIT_WORDS)
+        # THE TWENTY-ONE WORDS OF DATES WRITTEN AS COUNTS (landing R4, plan
+        # P4-D384): the twelve systems, question Q3's three rules and the
+        # set-aside words NF113 to NF116 name, for the clock words' reason.
+        | set(date_counts.NOTE_WORDS)
     )
     stated = re.search(r"\*\*The package-word vocabulary — (\d+)\*\*", _contract())
     assert stated is not None, "the contract no longer states the count"
@@ -453,7 +457,9 @@ def test_the_package_word_vocabulary_is_the_one_the_contract_states() -> None:
     # a reader who took them for `format` values would write them into
     # a key the loader refuses. The two units are held to the same two
     # things, for the same reason.
-    for word in taxonomy.NOTE_CLOCK_WORDS + taxonomy.NOTE_UNIT_WORDS:
+    for word in (
+        taxonomy.NOTE_CLOCK_WORDS + taxonomy.NOTE_UNIT_WORDS + date_counts.NOTE_WORDS
+    ):
         assert f"`{word}`" in _contract(), f"the contract never names {word}"
         assert word not in parsing.DATE_FORMATS
 

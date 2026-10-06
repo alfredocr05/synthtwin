@@ -1278,6 +1278,7 @@ def asked_of(
     needed: int,
     median: "float | None" = None,
     whole: bool = False,
+    mark: str = POINT,
 ) -> "Asked | None":
     """Whether a column of numbers is worth asking about as dates (question Q3).
 
@@ -1309,6 +1310,9 @@ def asked_of(
     grammar asks the text. ``median`` is the block's own published median
     and ``whole`` whether every number is whole, which let an ordinary
     column be answered before anything is sorted (`_may_be_asked`).
+    ``mark`` is the column's decimal mark: a column declared
+    `--decimal-comma` writes its counts `45386,5`, and the grammar reads
+    them with the comma (the R4 design review, item 8).
 
     THE ANSWERS (item 2 of that review): every member counting in the
     unit of a member a rule fired on and reading the column inside 1900
@@ -1370,7 +1374,7 @@ def asked_of(
     rule = held[0][1]
     kept: "list[str]" = []
     for member, fired in held:
-        if _text_holds(present, member, fired, needed):
+        if _text_holds(present, member, fired, needed, mark):
             kept += [member]
     if not kept:
         return None
@@ -1397,7 +1401,9 @@ def _aside_inside(
     return found
 
 
-def _text_holds(present: "list[str]", member: str, rule: str, needed: int) -> bool:
+def _text_holds(
+    present: "list[str]", member: str, rule: str, needed: int, mark: str = POINT
+) -> bool:
     """The written half of a rule: the grammar, the width, and midnight.
 
     At least ``needed`` present cells are counts by the grammar (text
@@ -1423,7 +1429,7 @@ def _text_holds(present: "list[str]", member: str, rule: str, needed: int) -> bo
     for number in set_aside(member):
         aside[number] = 1
     for text in present:
-        written = written_count(text)
+        written = written_count(text, mark)
         if written is None:
             continue
         counted = counted + 1
@@ -1543,12 +1549,23 @@ def aside_slots(words: "tuple[str, ...]") -> "tuple[str, ...]":
     return slots
 
 
+# How a sentence names each set-aside number: a placeholder day by the
+# count a system writes for it, since no cell holds the day's own text.
+_ASIDE_SAID = {
+    "0": "0",
+    "-1": "-1",
+    "1900-01-01": "the count for 1 January 1900",
+    "9999-12-31": "the count for 31 December 9999",
+    "60": "60",
+}
+
+
 def aside_listed(slots: "tuple[str, ...]") -> str:
     """The set-aside numbers NF113's places name, said as a list, or ""."""
     named: "tuple[str, ...]" = ()
     for word in slots:
         if word in _ASIDE_WORDS:
-            named = named + (word,)
+            named = named + (_ASIDE_SAID[word],)
     return listed(named)
 
 
@@ -1592,8 +1609,9 @@ def aside_said(slots: "tuple[str, ...]") -> str:
     if not named:
         return ""
     return (
-        f" Some cells hold {named}, which such a system writes where no "
-        f"date was given. Read as dates, a cell naming no date -- a "
+        f" Some cells hold {named}: numbers such a system writes where no "
+        f"date was given, or that name no real day. Read as dates, a cell "
+        f"naming no date -- a "
         f"spreadsheet's 0, 60 or a number below nought -- or the "
         f"system's own count for 1 January 1900 or 31 December 9999 is "
         f"counted as no value and written back as it is; 0 and -1 name "

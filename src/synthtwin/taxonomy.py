@@ -1425,20 +1425,21 @@ ARGUMENT_BINDINGS: "dict[tuple[str, int], tuple[object, ...]]" = {
     # anchor 3b-R2b (P4-D383)
     # anchor 3b-R2c (P4-D383)
     # anchor 3b-R4 (P4-D384)
-    # THE WORDS ARE THIS PACKAGE'S OWN, and the years are the block's two
+    # THE WORDS ARE THIS PACKAGE'S OWN -- package words of the second
+    # class, `date_counts.NOTE_WORDS` -- and the years are the block's two
     # published edges said a second way -- `BIND_VALUE`, asked together
     # one level up (`profile`), as NF51's days were.
-    (REMARK_NUMBERS_COULD_BE_DATES, 0): (BIND_VOCABULARY,),
-    (REMARK_NUMBERS_COULD_BE_DATES, 1): (BIND_VOCABULARY,),
-    (REMARK_NUMBERS_COULD_BE_DATES, 2): (BIND_VOCABULARY,),
-    (REMARK_NUMBERS_COULD_BE_DATES, 3): (BIND_VOCABULARY,),
-    (REMARK_NUMBERS_COULD_BE_DATES, 4): (BIND_VOCABULARY,),
-    (REMARK_NUMBERS_COULD_BE_DATES, 5): (BIND_VOCABULARY,),
-    (REMARK_READ_AS_COUNTED_DATES, 0): (BIND_VOCABULARY,),
+    (REMARK_NUMBERS_COULD_BE_DATES, 0): (BIND_WORD,),
+    (REMARK_NUMBERS_COULD_BE_DATES, 1): (BIND_WORD,),
+    (REMARK_NUMBERS_COULD_BE_DATES, 2): (BIND_WORD,),
+    (REMARK_NUMBERS_COULD_BE_DATES, 3): (BIND_WORD,),
+    (REMARK_NUMBERS_COULD_BE_DATES, 4): (BIND_WORD,),
+    (REMARK_NUMBERS_COULD_BE_DATES, 5): (BIND_WORD,),
+    (REMARK_READ_AS_COUNTED_DATES, 0): (BIND_WORD,),
     (REMARK_READ_AS_COUNTED_DATES, 1): (BIND_VALUE,),
     (REMARK_READ_AS_COUNTED_DATES, 2): (BIND_VALUE,),
-    (REMARK_DATES_WRITTEN_AS_COUNTS, 0): (BIND_VOCABULARY,),
-    (REMARK_COUNTED_DATES_NOT_READ, 0): (BIND_VOCABULARY,),
+    (REMARK_DATES_WRITTEN_AS_COUNTS, 0): (BIND_WORD,),
+    (REMARK_COUNTED_DATES_NOT_READ, 0): (BIND_WORD,),
     (REMARK_OUT_OF_RANGE, 0): (BIND_KEY, "n_out_of_range"),
     (EVIDENCE_CLOCK, 0): (BIND_DIFFERENCE, "n_present", "n_unparsed"),
     (EVIDENCE_CLOCK, 1): (BIND_WORD,),
@@ -16733,6 +16734,7 @@ def _date_count_remarks(
         _needed(settings.minimum_parse_rate, len(present)),
         median,
         whole,
+        date_counts.COMMA if cells.decimal_comma else date_counts.POINT,
     )
     if asked is None:
         return []
