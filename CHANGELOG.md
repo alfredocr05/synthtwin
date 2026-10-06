@@ -6,54 +6,46 @@ exists).
 
 ## [Unreleased]
 
-### A tail pair that proves a wider cell lets the end past the width (2026-10-02, repaired 2026-10-05)
+### A tail pair that proves a wider cell lets the end past the width (2026-10-02, repaired 2026-10-06)
 
 **The width census no longer caps a tail its own pair proves wider**
 (plan P4-D377, method G6.6.8, lane G2 of stage 3b). The census counts a
 width fewer than the floor's worth wrote into its commonest, so `1000`
-to `1398` beside one `99999` published one width of four figures and the
-twin's furthest cell stopped at `9998`. A published tail pair puts the
-furthest row at least `rms**2 / d1` from its boundary; where a width
-hold lowers the end inside that reach (and at or past the mean
-distance), the hold stands aside and the end is the first whole number
-at or past the reach, never further than the fitted end and never off a
-stand-in the column holds. The width walk leaves past every named width
+to `1398` beside one `99999` published one width of four figures, the
+twin's furthest cell stopped at `9998`, and its mean and spread were
+missed. A published tail pair puts the furthest row at least
+`rms**2 / d1` from its boundary; where a width hold lowers the end
+inside that reach, the hold stands aside and the end is the first whole
+number at or past it. The width walk then leaves past every named width
 only the tail's outermost strata that fit the floor's line less one and
-the pair's own totals -- its squares after those the tail's rows under
-the width hold -- and moves every other stratum of the tail past the
-width under it before serving any demand, the one holding the end among
-them: beside its inner neighbour where the end stays, where the pair's
-squares put it where the end moves too, and onto the end the width held
-where no value under the width is free. Where the end already
-stood past the width before this rule, the walk stands only where it
-serves the width census strictly better and leaves neither the mean nor
-the spread further off, and a side counts as proven only where the width
-census counts every number of the column. A far cell the pair proves
-past every named pad is written plain where the column publishes no
-other point-free form, so a column of five-character codes stays five
+what the pair's totals leave, and moves every other stratum of that
+tail under the width before serving any demand, the end's own among
+them; the cells it leaves there stand only where they read the
+published mean and spread, together, no further off than none. And the
+values are read a second time with the rule withdrawn -- 110cb46's twin
+-- and the column keeps whichever reads the published mean and spread
+nearer, together. A far cell the pair proves past every named pad is
+written plain, so a column of five-character codes stays five
 characters wide. Nothing new is published.
 
-The repair round fixed four faults the first form had and no check saw
--- a stratum holding a whole tail written on the far value (40 cells at
-`99900` for one in the table), `99999` written twice on a tie, a moved
-row left at `09998`, and a far code written `012280` -- and two its own
-first form kept: strata finding no free value under the width left past
-it (49 cells on `10` beside one `11`), and the pair's squares read
-without those the rows under the width hold (24 rows on the reach
-beside one `185`). Twin by twin against 110cb46, at seeds 0, 4 and 9
-over eight batteries: `K-S3-22`'s 36 column-floors miss 12 mean and
-spread checks where 111 were missed, the six shapes of codes beside
-plain numbers miss 205 where 605 were missed, and the skeptics' shapes
-nothing where 222 were missed; of the 349 twins the rule changes, none
-newly misses a check, writes its own width census further from the
-source's or a wider cell, 334 stand nearer the real mean and 331 nearer
-the real spread. Where the reach stands barely past the width beside one
-far reading, the rule still costs something: readings 10 to 99 beside
-one or two far readings come back with up to 23 cells on the reach where
-the source holds one, and, beside one `237`, a spread 1.17 to 1.20
-times the real one where 110cb46 wrote 1.02 to 1.06. `K-S3-22` counts
-that comparison itself, two such shapes among it. The walk is pinned by
-`tests/test_stage3b_width.py`; one frozen case opens
+Twin by twin against 110cb46 over 3,333 twins of ten batteries, at
+seeds 0, 4 and 9: `K-S3-22`'s column-floors miss 12 mean and spread
+checks where 111 were missed, codes beside plain numbers 205 where 605,
+the skeptics' shapes none where 222, and 1,500 random shapes 4 where
+52; the rule changes 683 twins, and none newly misses a check, writes a
+cell wider than the source's, writes its own width census further from
+the source's or stands further from the real mean and spread taken
+together. What it still costs, measured where the reach stands barely
+past the width: 97 twins stand further from the real mean alone and 21
+from the real spread alone, each nearer on the other by more, and 186
+write more cells past the width than the source holds -- up to 15 where
+it holds one -- because the reach is the nearest the furthest row can
+stand and the pair's squares are carried from there. `K-S3-22` counts
+each of these, so none may grow. The repair round fixed the four faults
+the first skeptic measured -- 40 cells written on a single far value, a
+far value written twice, a row left at `09998`, a code padded to
+`012280` -- and five more of its own. The walk and the second reading
+are pinned by `tests/test_stage3b_width.py`; one frozen case opens
 `tests/reference/generation-branch-vectors-23.json` for the end rule.
 
 ### The weekday guards dropped (2026-10-02)
