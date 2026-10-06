@@ -627,6 +627,14 @@ def runs(
             None,
             reading.FIRST_ROW_DATA,
         ),
+        # THE HOUR CENSUS (landing 3b.2-H, plan P4-D371): moments on their
+        # own clock, the one place `hour_census.groups` is filed.
+        (
+            "hours",
+            _hour_table(),
+            None,
+            reading.FIRST_ROW_AUTOMATIC,
+        ),
     ):
         described = _described(
             folder,
@@ -668,12 +676,12 @@ def green(
 ) -> "list[tuple[str, contract.Profile, str, validation.Outcome]]":
     """Every fixture with its own unperturbed twin, MEASURED ONCE.
 
-    Eight cases below walked the same eleven files -- one of them
+    Eight cases below walked the same twelve files -- one of them
     twice -- and each walk wrote every twin out again and ran a whole
     `validate` over it, which is 99 measured files where there are
-    eleven. The measurement is a function of the description and the
+    twelve. The measurement is a function of the description and the
     file's characters, both of which `runs` already holds, so it is the
-    same eleven outcomes every time and it is built here.
+    same twelve outcomes every time and it is built here.
 
     WHAT MAKES SHARING THIS SAFE, and it is two things. `Outcome` is a
     frozen dataclass of tuples, so no case can leave a mark on it for
@@ -694,7 +702,7 @@ def _green_runs(
     folder: pathlib.Path,
     runs: "list[tuple[str, contract.Profile, str]]",
 ) -> "list[tuple[str, contract.Profile, str, validation.Outcome]]":
-    """The eleven unperturbed runs, measured. Named so a mutant can take it."""
+    """The twelve unperturbed runs, measured. Named so a mutant can take it."""
     return [
         (name, described, twin, _measured(folder, described, twin, f"{name}.csv"))
         for name, described, twin in runs
@@ -787,6 +795,67 @@ def _registry_key(fact: str) -> str:
         field = _PART_ENDS.get(field, field)
         return f"numeric.{field}"
     return bare
+
+
+def _hour_table() -> str:
+    """240 moments of 2024 on their own clock, so an hour census stands (3b.2-H).
+
+    THE FIXTURE OF THE HOUR CENSUS (landing 3b.2-H, plan P4-D371). Every
+    other fixture here writes its moments in two offsets, which the
+    shared clock reads, and an hour census stands only on a column read
+    on its own clock, so no run reached `hour_census.groups`, nor the
+    withheld count at midnight and the space between the day and the time
+    that a column of moments files beside it. Clinic hours, so the night
+    hours are a group of nought.
+
+    TWO COLUMNS for the quarter fixture's reason: a column of a
+    one-column table cannot be emptied -- the file left is no table at
+    all and the reader refuses it -- so `axes.quality_state` would have
+    no edit that moves it. The second column is the quarter fixture's
+    four regions, row by row.
+    """
+    import random
+
+    draw = random.Random(371)
+    lines = ["seen_at,region"]
+    for row in range(240):
+        lines += [
+            f"2024-{draw.randrange(12) + 1:02d}-{1 + draw.randrange(28):02d} "
+            f"{draw.choice((8, 9, 10, 11, 13, 14, 15, 16)):02d}:{draw.randrange(60):02d}:"
+            f"{draw.randrange(1, 60):02d},{fixtures.REGIONS[row % 4]}"
+        ]
+    return "\n".join(lines) + "\n"
+
+
+def _midnighted(described: contract.Profile, text: str, index: int) -> str:
+    """The floor's worth of a column of moments moved to midnight of their own day.
+
+    THE EDIT A WITHHELD COUNT AT MIDNIGHT ANSWERS FOR (landing 3b.2-H). A
+    count at midnight withheld for its size says fewer than the line
+    stood there (plan P4-D191), so a file the line's worth of whose cells
+    stand at 00:00:00 has a count its own description publishes, and
+    `midnight.withheld` misses. Each cell keeps its day and its written
+    form; only its time of day is set to nought. A cell written in a form
+    with no plain trailing clock is left alone, and a column with fewer
+    such cells than the line has no edit.
+    """
+    rows = _rows_of(text)
+    wanted = described.settings.small_cell_floor
+    written = 0
+    for row in range(_first_record(described), len(rows)):
+        if written >= wanted:
+            break
+        cell = rows[row][index]
+        if not _holds_a_value(described, index, cell):
+            continue
+        found = re.fullmatch(r"(.*[ T])(\d{2}):(\d{2})(:\d{2})?", cell)
+        if found is None or (found.group(2), found.group(3)) == ("00", "00"):
+            continue
+        rows[row][index] = found.group(1) + ("00:00:00" if found.group(4) else "00:00")
+        written = written + 1
+    if written < wanted:
+        return ""
+    return _rebuilt(rows)
 
 
 # What a joined position calls the two ladder ends, against the names
@@ -3522,6 +3591,16 @@ def _column_perturbations(
                 _dated(described, twin, index, "subsecond"),
             ),
         ]
+        # THE COUNT AT MIDNIGHT OF A COLUMN OF MOMENTS (landing 3b.2-H):
+        # the line's worth of cells moved onto midnight of their own day.
+        if column.facts.resolution == taxonomy.RESOLUTION_DATETIME:
+            built = built + [
+                (
+                    f"midnighted-{name}",
+                    CLASS_DATE,
+                    _midnighted(described, twin, index),
+                )
+            ]
     if column.role in ("datetime", "time_of_day"):
         # THE THREE EDITS THE TWO TAILS ANSWER FOR (stage 3, plan
         # P4-D328), and they belong to both roles that carry tails. A
@@ -6016,6 +6095,119 @@ COVERING_RED_CASES: "dict[str, dict[str, tuple[tuple[str, str], ...]]]" = {
             ("pushed-reading", "number 2 tails.low.rms_distance"),
         ),
     },
+    # THE HOUR CENSUS'S FIXTURE (landing 3b.2-H, plan P4-D371), each site
+    # against the edit measured to make it miss on 2026-10-06. Its
+    # document and its regions answer as the quarter fixture's do; its
+    # moments answer as a column of dates does, but for three sites no
+    # column of dates files: the hour census, which any edit moving the
+    # body's cells onto other hours misses (`crushed`), the count at
+    # midnight withheld for its size (`midnighted`, the line's worth of
+    # cells moved onto midnight), and the space between the day and the
+    # time, which a pile written in another form misses.
+    "hours": {
+        "": (
+            ("byte-order-mark", "bytes.byte-order-mark"),
+            ("carriage-returns", "bytes.line-endings"),
+            ("no-terminal-newline", "bytes.terminal-newline"),
+            ("not-utf8", "bytes.encoding"),
+            ("added-column", "columns.n_columns"),
+            ("added-column", "columns.order"),
+            ("added-column", "header.names"),
+            ("added-column", "header.presence"),
+            ("added-row", "rows.n_rows"),
+            ("blank-line", "bytes.blank-lines"),
+            ("semicolons", "bytes.delimiter"),
+            ("empty-record", "bytes.empty-rows"),
+            ("end-of-file-mark", "bytes.end-of-file-mark"),
+            ("backslashed-quote", "bytes.escape"),
+            ("quoted-header", "bytes.header-quoting"),
+            ("spaced-delimiters", "bytes.initial-space"),
+            ("preamble-line", "bytes.preamble"),
+            ("separator-line", "bytes.separator-line"),
+            ("short-rows", "bytes.short-rows"),
+            ("trailing-delimiters", "bytes.trailing-delimiter"),
+            ("blank-name", "bytes.written-names"),
+        ),
+        "region": (
+            ("emptied-region", "axes.quality_state"),
+            ("emptied-region", "axes.role"),
+            ("emptied-region", "axes.statistical_type"),
+            ("one-contradicted-region", "counts.n_contradictory"),
+            ("blanked-region", "counts.n_not_numeric"),
+            ("one-bracketed-region", "counts.n_numeric"),
+            ("one-overflowed-region", "counts.n_out_of_range"),
+            ("one-worded-region", "distinct.n_distinct"),
+            ("one-worded-region", "distinct.n_distinct_folded"),
+            ("marked-region", "levels.east.count"),
+            ("rewritten-region", "levels.east.label"),
+            ("reshaped-region", "levels.east.shape_form_cells"),
+            ("recased-region", "levels.east.variants"),
+            ("reshaped-region", "levels.east.variants_withheld"),
+            ("marked-region", "levels.north.count"),
+            ("rewritten-region", "levels.north.label"),
+            ("reshaped-region", "levels.north.shape_form_cells"),
+            ("recased-region", "levels.north.variants"),
+            ("reshaped-region", "levels.north.variants_withheld"),
+            ("marked-region", "levels.set"),
+            ("marked-region", "levels.south.count"),
+            ("rewritten-region", "levels.south.label"),
+            ("reshaped-region", "levels.south.shape_form_cells"),
+            ("recased-region", "levels.south.variants"),
+            ("reshaped-region", "levels.south.variants_withheld"),
+            ("marked-region", "levels.west.count"),
+            ("rewritten-region", "levels.west.label"),
+            ("reshaped-region", "levels.west.shape_form_cells"),
+            ("recased-region", "levels.west.variants"),
+            ("reshaped-region", "levels.west.variants_withheld"),
+            ("renamed-region", "position.at"),
+            ("blanked-region", "presence.n_missing"),
+            ("blanked-region", "presence.n_present"),
+            ("one-worded-region", "suppressed.suppressed_levels"),
+            ("one-worded-region", "suppressed.suppressed_rows"),
+            ("quoted-region", "bytes.quoting"),
+        ),
+        "seen_at": (
+            ("emptied-seen_at", "axes.quality_state"),
+            ("rewritten-seen_at", "axes.role"),
+            ("rewritten-seen_at", "axes.statistical_type"),
+            ("one-contradicted-seen_at", "counts.n_contradictory"),
+            ("blanked-seen_at", "counts.n_not_numeric"),
+            ("one-bracketed-seen_at", "counts.n_numeric"),
+            ("one-overflowed-seen_at", "counts.n_out_of_range"),
+            ("one-worded-seen_at", "counts.n_unparsed"),
+            ("subsecond-seen_at", "counts.subsecond_digits"),
+            ("flattened-seen_at", "distinct.n_distinct"),
+            ("flattened-seen_at", "distinct.n_distinct_folded"),
+            ("tail-shifted-seen_at", "date-ladder.p05"),
+            ("crushed-seen_at", "date-ladder.p10"),
+            ("crushed-seen_at", "date-ladder.p25"),
+            ("crushed-seen_at", "date-ladder.p50"),
+            ("crushed-seen_at", "date-ladder.p75"),
+            ("crushed-seen_at", "date-ladder.p90"),
+            ("crushed-seen_at", "date-ladder.p95"),
+            ("tail-shifted-seen_at", "tails.low.boundary"),
+            ("tail-shifted-seen_at", "tails.high.boundary"),
+            ("tail-drawn-seen_at", "tails.low.rows"),
+            ("tail-drawn-seen_at", "tails.high.rows"),
+            ("tail-piled-seen_at", "tails.low.mean_distance"),
+            ("tail-piled-seen_at", "tails.low.rms_distance"),
+            ("tail-piled-seen_at", "tails.high.mean_distance"),
+            ("tail-piled-seen_at", "tails.high.rms_distance"),
+            ("moved-seen_at", "precision.resolution"),
+            ("subsecond-seen_at", "precision.time_precision"),
+            ("moved-seen_at", "format.member"),
+            ("offset-seen_at", "offsets.(none)"),
+            ("mixed-seen_at", "offsets.read-at"),
+            ("crushed-seen_at", "marks.space"),
+            ("crushed-seen_at", "marks.unnamed"),
+            ("midnighted-seen_at", "midnight.withheld"),
+            ("crushed-seen_at", "hour_census.groups"),
+            ("renamed-seen_at", "position.at"),
+            ("blanked-seen_at", "presence.n_missing"),
+            ("blanked-seen_at", "presence.n_present"),
+            ("quoted-seen_at", "bytes.quoting"),
+        ),
+    },
 }
 
 # ---------------------------------------------------------------------
@@ -6160,6 +6352,11 @@ FIXTURE_ROLES: "dict[str, dict[str, str]]" = {
     },
     "spelled": {"reading": "continuous"},
     "unrepresentable": {"overflow": "numeric_unrepresentable"},
+    # The hour census's fixture (landing 3b.2-H, plan P4-D371).
+    "hours": {
+        "region": "categorical",
+        "seen_at": "datetime",
+    },
 }
 
 # THE FOUR PROFILE PREDICATES V3.1 NAMES, and the fixture each one is
@@ -6557,6 +6754,14 @@ SUBCHECK_FACTS: "dict[tuple[str, str], str]" = {
     # anchor 3b-D4 (P4-D369)
     # anchor 3b-T1 (P4-D370)
     # anchor 3b-T2 (P4-D371)
+    # THE HOUR CENSUS (landing 3b.2-H, plan P4-D371): the body's moments
+    # counted against every published group of hours at once.
+    ("datetime", "hour_census.groups"): "datetime.hour_census",
+    # ...and two sites its fixture is the first run here to file: the
+    # count at midnight withheld for its size, and the space written
+    # between the day and the time.
+    ("datetime", "midnight.withheld"): "datetime.n_at_midnight",
+    ("datetime", "marks.space"): "datetime.datetime_separators",
     # anchor 3b-T3 (P4-D372)
     # anchor 3b-C1 (P4-D373)
     # anchor 3b-C2 (P4-D374)
@@ -7627,7 +7832,7 @@ def walked_ordinary(
     tmp_path_factory: pytest.TempPathFactory,
     runs: "list[tuple[str, contract.Profile, str]]",
 ) -> "list[tuple[str, str, list[Site]]]":
-    """The walk over the eleven fixtures and the four predicates, ONCE.
+    """The walk over the twelve fixtures and the four predicates, ONCE.
 
     The walk was built four times over the same runs -- three cases,
     one of them twice -- and each build wrote and measured every file
