@@ -3291,13 +3291,6 @@ class Settings:
     # `counted_for_the_column`'s view of these settings, which narrows
     # this to `COUNTED_HERE` and the member, or to nothing.
     forced_date_counts: "tuple[tuple[str, str], ...]" = ()
-    # ...AND THE UNIT EACH WAS PUBLISHED AT, which the VALIDATOR alone
-    # sets (`validation.settings_for`), so a checked file's counts are
-    # read at the precision the description published rather than at
-    # one worked out from its own figures: `(column, unit)` in whole
-    # nanoseconds, one of `date_counts.WRITTEN_UNITS`. Empty for the
-    # profiler, which works the unit out from the column's figures.
-    counted_units: "tuple[tuple[str, int], ...]" = ()
 
 
 # What `for_the_column` leaves in `forced_twelve_hour_clocks` for a column
@@ -16646,27 +16639,21 @@ COUNTED_NOT_READ = "(this column's counts were not read as dates)"
 def counted_for_the_column(settings: Settings, name: str) -> Settings:
     """The settings one column is read under, for its counted dates (landing R4).
 
-    `for_the_column`'s view for `forced_date_counts` and `counted_units`:
-    narrowed to `(COUNTED_HERE, member)` and the column's own unit where
-    the column is declared, and to nothing otherwise, so the rules reading
-    one column ask `counted_member` and never need its name. Every column
-    of a table declaring none is read under the settings it is handed.
+    `for_the_column`'s view for `forced_date_counts`: narrowed to
+    `(COUNTED_HERE, member)` where the column is declared, and to nothing
+    otherwise, so the rules reading one column ask `counted_member` and
+    never need its name. Every column of a table declaring none is read
+    under the settings it is handed.
 
     Guarantees: a function of the two. Raises nothing. No I/O.
     """
-    if not settings.forced_date_counts and not settings.counted_units:
+    if not settings.forced_date_counts:
         return settings
     counted: "tuple[tuple[str, str], ...]" = ()
     for column, member in settings.forced_date_counts:
         if column == name:
             counted = ((COUNTED_HERE, member),)
-    units: "tuple[tuple[str, int], ...]" = ()
-    for column, unit in settings.counted_units:
-        if column == name:
-            units = ((COUNTED_HERE, unit),)
-    return dataclasses.replace(
-        settings, forced_date_counts=counted, counted_units=units
-    )
+    return dataclasses.replace(settings, forced_date_counts=counted)
 
 
 def counted_member(settings: Settings) -> str:
@@ -16683,14 +16670,6 @@ def counted_declared(settings: Settings) -> str:
         if column in (COUNTED_HERE, COUNTED_NOT_READ):
             return member
     return ""
-
-
-def _counted_unit(settings: Settings) -> int:
-    """The unit a validator reads the column at, or 0 to work it out."""
-    for column, unit in settings.counted_units:
-        if column == COUNTED_HERE:
-            return unit
-    return 0
 
 
 @dataclasses.dataclass(frozen=True)
@@ -16789,6 +16768,7 @@ def _counts_read_as_dates(
     member: str,
     settings: Settings,
     decimal_comma: bool,
+    published: int = 0,
 ) -> "tuple[list[_Cell], list[tuple[str, str]], CountedReading | None]":
     """A declared column's counts, read as the dates they name (landing R4).
 
@@ -16812,8 +16792,9 @@ def _counts_read_as_dates(
       own line to take or leave.
 
     Guarantees: accepts the classified present cells, the member, the
-    column's settings and whether it is declared `--decimal-comma`;
-    returns the cells to read on, the cells counted as no value with
+    column's settings, whether it is declared `--decimal-comma` and the
+    unit its description published (``published``, the validator's alone;
+    nought works it out from the figures); returns the cells to read on, the cells counted as no value with
     their class, and how the counts were written -- None where no cell
     is a count. Determinism: whole-number arithmetic over the text.
     Raises nothing for any cell. No I/O of any kind.
@@ -16834,7 +16815,6 @@ def _counts_read_as_dates(
         if written is None:
             continue
         places = max(places, date_counts.figures_after_the_mark(written))
-    published = _counted_unit(settings)
     settled = published if published else date_counts.settled_unit(member, places)
     fates: "list[int]" = []
     moments: "list[int]" = []
@@ -22358,6 +22338,7 @@ def _read_the_column(
     kept_placeholder_days: "tuple[str, ...]" = (),
     judged_candidates: "tuple[str, ...]" = (),
     stored_as: str = "",
+    counted_unit: int = 0,
 ) -> _ColumnReading:
     """Apply every declaration and every judgement, and stop there.
 
@@ -22408,7 +22389,8 @@ def _read_the_column(
     counted_reading: "CountedReading | None" = None
     if counted_member(settings):
         classified, set_aside_cells, counted_reading = _counts_read_as_dates(
-            classified, counted_member(settings), settings, forced_decimal_comma
+            classified, counted_member(settings), settings, forced_decimal_comma,
+            counted_unit,
         )
         missing = missing + set_aside_cells
     # WHICH JUDGED PASS TOOK WHICH SPELLING (repair pass of landing
@@ -22721,6 +22703,7 @@ def _read_the_column(
                 kept_placeholder_days=kept_placeholder_days,
                 judged_candidates=judged_candidates,
                 stored_as=stored_as,
+                counted_unit=counted_unit,
             )
     return _ColumnReading(
         cells=cells,
@@ -22780,6 +22763,9 @@ class HeldReading:
     # reads it under, so the reading is handed over as any other is; a
     # reading taken under another word is read again.
     stored_as: str = ""
+    # -- 3b.R4 (P4-D384): the unit a column of counted dates is read at
+    # (`_read_the_column`'s ``counted_unit``), nought where worked out.
+    counted_unit: int = 0
 
 
 def _same_reading(
@@ -22795,6 +22781,7 @@ def _same_reading(
     kept_placeholder_days: "tuple[str, ...]",
     judged_candidates: "tuple[str, ...]",
     stored_as: str = "",
+    counted_unit: int = 0,
 ) -> bool:
     """Whether ``held`` is the reading `_read_the_column` would return here.
 
@@ -22828,6 +22815,7 @@ def _same_reading(
         or held.forced_decimal_comma != forced_decimal_comma
         or held.described_as_pair != described_as_pair
         or held.stored_as != stored_as
+        or held.counted_unit != counted_unit
     ):
         return False
     if tuple(held.kept_placeholder_days) != tuple(kept_placeholder_days):
@@ -22996,6 +22984,7 @@ def profile_column(
     calendar_census: bool = True,
     stored_one_way: bool = True,
     stored_as: str = "",
+    counted_unit: int = 0,
 ) -> ColumnProfile:
     """Describe one column: its role, its statistics, what was withheld.
 
@@ -23049,6 +23038,11 @@ def profile_column(
       text cells no date format reads, or every present one as a clock
       time (`STORED_AS_CLOCKS`), which keeps the column from a list of
       labels it could not write back (`_decide`, plan P4-D382).
+    - ``counted_unit`` is not a declaration either, and no person sets it:
+      the validator hands over the unit a column of counted dates was
+      published at (landing R4), so a checked file's counts are read at
+      that precision; nought, the profiler's, works it out from the
+      column's figures.
     - ``handed_over`` is the population census's reading of this column
       (`HeldReading`), passed on so the column is not read a second
       time. It is taken only where `_same_reading` finds every argument
@@ -23095,6 +23089,7 @@ def profile_column(
         kept_placeholder_days,
         judged_candidates,
         stored_as,
+        counted_unit,
     ):
         # The kept reading's tally carries the settings it was read
         # under, which differ from these in `person_columns` alone; the
@@ -23120,6 +23115,7 @@ def profile_column(
             kept_placeholder_days=kept_placeholder_days,
             judged_candidates=judged_candidates,
             stored_as=stored_as,
+            counted_unit=counted_unit,
         )
     cells = read.cells
     present = read.present

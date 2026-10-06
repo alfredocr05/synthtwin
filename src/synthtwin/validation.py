@@ -1762,17 +1762,17 @@ def settings_for(description: contract.Profile) -> taxonomy.Settings:
         # -- 3b.R2c (P4-D383)
         # -- 3b.R4 (P4-D384)
         # THE COLUMNS WHOSE DATES ARE WRITTEN AS COUNTS (question Q3), each
-        # read in its system at the precision its description published.
+        # read in its system -- at the precision its description published,
+        # which `counted_units` hands the re-description.
         forced_date_counts=block.forced_date_counts,
-        counted_units=_counted_units(description),
     )
 
 
-def _counted_units(description: contract.Profile) -> "tuple[tuple[str, int], ...]":
+def counted_units(description: contract.Profile) -> "dict[str, int]":
     """The unit each column of counted dates was published at (landing R4).
 
-    `(column, unit)` for each column the settings declare whose block
-    carries its form of counts, so a checked file's counts are read at the
+    Each column the settings declare whose block carries its form of
+    counts, mapped to that unit, so a checked file's counts are read at the
     precision the description published rather than at one worked out
     from its own figures -- the validator's reading of a description's
     own source is then the profiler's, cell for cell.
@@ -1780,15 +1780,15 @@ def _counted_units(description: contract.Profile) -> "tuple[tuple[str, int], ...
     declared: "dict[str, int]" = {}
     for name, _member in description.settings.forced_date_counts:
         declared[name] = 1
-    units: "list[tuple[str, int]]" = []
+    units: "dict[str, int]" = {}
     for column in description.columns:
         facts = column.facts
         if column.name not in declared:
             continue
         if not isinstance(facts, contract.DatetimeFacts) or facts.count_form is None:
             continue
-        units += [(column.name, contract.counted_unit(facts))]
-    return tuple(units)
+        units[column.name] = contract.counted_unit(facts)
+    return units
 
 
 def settings_over_the_split(
@@ -4821,6 +4821,9 @@ def measure(
             # PUBLISHED groups, so producing one would be paid for a
             # census nothing reads.
             calendar_censuses=False,
+            # -- 3b.R4 (P4-D384): a column of counted dates read at the
+            # precision its description published.
+            counted_units=counted_units(description),
         )
         over_the_split = profile.build_document(
             table,
@@ -4838,6 +4841,9 @@ def measure(
             # PUBLISHED groups, so producing one would be paid for a
             # census nothing reads.
             calendar_censuses=False,
+            # -- 3b.R4 (P4-D384): a column of counted dates read at the
+            # precision its description published.
+            counted_units=counted_units(description),
         )
     except MemoryError as error:
         raise errors.ProfileError(

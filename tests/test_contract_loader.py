@@ -184,6 +184,35 @@ def edit(_column: str, **changes: object) -> Change:
     return change
 
 
+def _count_form_of(**changes: object) -> "dict[str, object]":
+    """A form of counts (landing R4), whole days written plainly, with ``changes``."""
+    form: "dict[str, object]" = {
+        "places": 0,
+        "trimmed": False,
+        "significant": None,
+        "exponent": False,
+        "mark": ".",
+        "contacts": None,
+    }
+    form.update(changes)
+    return form
+
+
+def _counted_with_contacts(member: str) -> Change:
+    """`recorded_on` named as counts in ``member``, its form carrying a census of contacts.
+
+    The census counts every date the column reads, at the disclosure
+    line, so the form itself is sound and the rule refused is the one
+    about which member may carry it (CD3).
+    """
+    def change(document: Document) -> None:
+        block = at(document, "recorded_on")
+        dates = int(block["n_present"]) - int(block["n_unparsed"])
+        block.update(count_form=_count_form_of(contacts={"(none)": dates}))
+        document["settings"]["forced_date_counts"] = [["recorded_on", member]]
+    return change
+
+
 def a_form_one_row_wore(_column: str) -> Change:
     """Read a column of stamps jointly, one value of it a whole date (RM3).
 
@@ -1644,15 +1673,54 @@ def battery() -> list[Mutation]:
             names="forced_date_columns[0]",
         ),
         # -- 3b.R4 (P4-D384)
+        # LANDING R4 FILLED BOTH KEYS: a system outside the twelve and names
+        # out of order are refused for their range, a column of dates named
+        # as counts must carry a form of counts (CD1) and only such a column
+        # may (CD2), contacts stand on the 1840 member alone (CD3), a census
+        # of contacts counts every date at the disclosure line (CD4), and an
+        # exponent form writes fifteen significant figures (CD5).
         Mutation(
-            "R16", "dates written as counts this version of synthtwin takes none of",
-            edit_in("settings", forced_date_counts=[["visits", "excel-1900"]]),
-            names="forced_date_counts",
+            "R16", "dates written as counts in a system synthtwin reads none of",
+            edit_in("settings", forced_date_counts=[["recorded_on", "excel-2000"]]),
+            names="forced_date_counts[0][1]",
         ),
         Mutation(
-            "R16", "a count_form this version of synthtwin publishes none of",
-            edit("recorded_on", count_form={"places": 0, "trimmed": False, "contacts": None}),
-            names="count_form",
+            "R16", "counted columns out of order",
+            edit_in(
+                "settings",
+                forced_date_counts=[["visits", "excel-1900"], ["recorded_on", "excel-1900"]],
+            ),
+            names="names in rising order, each of them once",
+        ),
+        Mutation(
+            "R16", "a form of counts writing eighteen figures after the point",
+            edit("recorded_on", count_form=_count_form_of(places=18)),
+            names="count_form -> places",
+        ),
+        Mutation(
+            "R13", "a form of counts with a key no form has",
+            edit("recorded_on", count_form=dict(_count_form_of(), width=5)),
+            names="an entry called 'width'",
+        ),
+        Mutation(
+            "CD1", "a column of dates named as counts with no form of counts",
+            edit_in("settings", forced_date_counts=[["recorded_on", "excel-1900"]]),
+        ),
+        Mutation(
+            "CD2", "a form of counts on a column nobody named as counts",
+            edit("recorded_on", count_form=_count_form_of()),
+        ),
+        Mutation(
+            "CD3", "a census of contact numbers on a column of Excel serials",
+            _counted_with_contacts("excel-1900"),
+        ),
+        Mutation(
+            "CD4", "a census of contact numbers counting one date",
+            edit("recorded_on", count_form=_count_form_of(contacts={"01": 1})),
+        ),
+        Mutation(
+            "CD5", "an exponent form written to no number of significant figures",
+            edit("recorded_on", count_form=_count_form_of(exponent=True)),
         ),
         Mutation(
             "S8d", "a column of counted dates also said to be dates read another way",
@@ -1715,16 +1783,16 @@ def battery() -> list[Mutation]:
             names="forced_date_counts[0][0]",
         ),
         # A DECIMAL COMMA MAY STAND BESIDE A COUNTED COLUMN: S8d names no
-        # such pair, so this description is refused only for holding a
-        # count at all. R4, deleting that refusal, makes it one that loads.
+        # such pair, so this description is refused for its column of
+        # numbers carrying no form of counts and saying nothing of it (CD1),
+        # and not for the pair.
         Mutation(
-            "R16", "a counted column with a decimal comma, refused only as not empty",
+            "CD1", "a counted column of numbers beside a decimal comma, saying nothing",
             edit_in(
                 "settings",
                 forced_date_counts=[["visits", "excel-1900"]],
                 forced_decimal_commas=["visits"],
             ),
-            names="an empty list: this version of synthtwin takes no such",
         ),
         # THE LANDINGS' ANCHORS (plan P4-D364): each landing of stage 3b adds
         # its mutations below its own line.

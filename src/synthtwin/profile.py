@@ -3284,6 +3284,38 @@ def _epoch_band_quotes_the_published_edges(
         raise _refuse(path)
 
 
+def _counted_years_quote_the_published_edges(
+    arguments: "tuple[object, ...]", block: object
+) -> None:
+    """NF114's two years are the two edges the block beside it publishes (landing R4).
+
+    NF51'S RULE FOR ITS DAYS, kept for the remark that replaced it: an
+    advisory remark may not outlive the facts it quotes (plan P4-D345).
+    Each year is the one `date_counts.years_of` reads in the member at
+    argument 1 from the block's own published edge (`taxonomy.published_ends`)
+    -- a boundary rung or a heaped end, never an outermost value -- and the
+    document is refused where either differs, or where the block publishes
+    no edge on one side.
+
+    Guarantees: accepts NF114's three arguments and the block; returns
+    where they agree. Errors raised: the loader's own refusal otherwise. No
+    I/O of any kind.
+    """
+    path = ("columns", _EACH, "sentence argument")
+    if not isinstance(block, dict) or len(arguments) != 3:
+        raise _refuse(path)
+    member = arguments[0]
+    if not isinstance(member, str) or member not in date_counts.MEMBERS:
+        raise _refuse(path)
+    edges = taxonomy.published_ends(block)
+    if edges is None:
+        raise _refuse(path)
+    first = date_counts.years_of(member, edges[0])
+    last = date_counts.years_of(member, edges[1])
+    if first is None or last is None or (first, last) != (arguments[1], arguments[2]):
+        raise _refuse(path)
+
+
 def _arguments_of_one_form_are_bound(
     form: str,
     arguments: "tuple[object, ...]",
@@ -3335,6 +3367,10 @@ def _arguments_of_one_form_are_bound(
         # the day at each of them is decided by the BAND at argument 1
         # and by the block, not by that position on its own.
         _epoch_band_quotes_the_published_edges(arguments, block)
+    # -- 3b.R4 (P4-D384): ...AND NF114'S TWO YEARS, for the same reason:
+    # each is decided by the member at argument 1 and the block's edge.
+    if form == taxonomy.REMARK_READ_AS_COUNTED_DATES:
+        _counted_years_quote_the_published_edges(arguments, block)
 
 
 def _arguments_are_bound(document: "dict[str, object]") -> None:
@@ -3836,6 +3872,7 @@ def build_document(
     readings: "tuple[object, ...]" = (),
     calendar_censuses: bool = True,
     stored_as: "tuple[str, ...] | None" = None,
+    counted_units: "dict[str, int] | None" = None,
 ) -> dict[str, object]:
     """Describe a whole table: the profile document, ready to serialize.
 
@@ -4015,6 +4052,13 @@ def build_document(
             calendar_censuses,
             stored_one_way,
             storage[position - 1] if position - 1 < len(storage) else "",
+            # -- 3b.R4 (P4-D384): the unit a validator reads a column of
+            # counted dates at, the one its description published.
+            counted_unit=(
+                counted_units[name]
+                if counted_units is not None and name in counted_units
+                else 0
+            ),
         )
         columns += [_column_block(described)]
         absent_spellings += [described.absent_spellings]

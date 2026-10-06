@@ -80,6 +80,8 @@ import sys
 import pytest
 
 from synthtwin import asking, contract, errors, generation, parsing, taxonomy, validation
+# -- 3b.R4 (P4-D384)
+from synthtwin import date_counts
 from tests import clock_spellings as spellings
 from tests import fixtures
 
@@ -822,6 +824,12 @@ def _offered_by_each_builder(skipped: "set[str]") -> "dict[str, set[str]]":
             assert inner.args and isinstance(inner.args[0], ast.Name), (
                 f"a Choice in {node.name} names its answer by a constant of asking"
             )
+            # -- 3b.R4 (P4-D384): QUESTION Q3 OFFERS EACH COUNTING SYSTEM it
+            # read the column in, by the system's own word, so every member
+            # of `date_counts.MEMBERS` must have a key at the terminal.
+            if node.name == "_date_count_choices" and inner.args[0].id == "member":
+                found.setdefault(node.name, set()).update(date_counts.MEMBERS)
+                continue
             found.setdefault(node.name, set()).add(getattr(asking, inner.args[0].id))
     return found
 
