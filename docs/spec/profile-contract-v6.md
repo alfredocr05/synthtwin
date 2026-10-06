@@ -13592,7 +13592,7 @@ version 5 document reads "version 5":
 > so this file cannot be read back exactly. Please make the
 > description again by running 'synthtwin profile' on your table,
 > giving it every option you gave the first time: --keep-value,
-> --missing-value, --identifier, --code, --measurement,
+> --missing-value, --identifier, --code, --date-count, --measurement,
 > --decimal-comma, --smallest-group, --first-row, --day-first,
 > --twelve-hour, --metadata-rows, --sheet, --delimiter and --answers.
 > Every one of them changes what the description PUBLISHES about your
@@ -13611,7 +13611,11 @@ version 5 document reads "version 5":
 > comma where the decimal point goes is read by the ordinary rules, so
 > a column of quantities is described as text and every number in it
 > is lost, or a value such as 1,234 is published as one thousand two
-> hundred and thirty-four; without the --missing-value you gave, a
+> hundred and thirty-four; without the --date-count you gave, a column
+> whose dates are written as counts -- days, seconds or milliseconds
+> from a fixed day -- is described as numbers, so the twin loses the
+> weekdays, the times of day and the spread of its dates over the
+> years; without the --missing-value you gave, a
 > stand-in is read as a real reading, and the stand-in itself can be
 > published as the column's smallest value; without the --keep-value
 > you gave, a word you had counted as an ordinary value becomes a gap,
@@ -13636,7 +13640,8 @@ version 5 document reads "version 5":
 > delimiters can be split the other way, which changes every column
 > name the description publishes and every value it describes; and
 > without the --answers you gave, every answer you wrote in the
-> questions file is gone — each of them was a --code, an --identifier,
+> questions file is gone — each of them was a --code, an --identifier, a
+> --date-count,
 > a --measurement, a --decimal-comma, a --metadata-rows, a
 > --delimiter, a --twelve-hour, a --day-first, a --missing-value or a
 > --keep-value, so leaving the file out costs whichever of those you
@@ -13654,6 +13659,13 @@ and the published times move with it. A questions file can now answer
 `--twelve-hour` and `--day-first` too, and since lane R1 (plan P4-D381)
 an answer about a column's codes stands for `--missing-value` or
 `--keep-value`, so the `--answers` clause names all four.
+
+**Why it names `--date-count` and prices it.** `--date-count` joined
+them with landing R4 (plan P4-D384): a re-run without it describes a
+column whose dates are written as counts as numbers, so the twin keeps
+every number and loses the weekdays, the times of day and the spread of
+the dates over the years. Question Q3 answers it in a questions file,
+so the `--answers` clause names it too.
 
 **Why it names thirteen options and prices each.** `--metadata-rows`
 (plan P4-D81) and `--sheet` (plan P4-D77) each reached the command

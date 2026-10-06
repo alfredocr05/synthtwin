@@ -1336,34 +1336,45 @@ def years_of(member: str, value: float) -> "int | None":
 # ------------------------------------------------- the words of Q3
 
 
-def _aside_vocabulary() -> "tuple[str, ...]":
-    """Every word NF113 may name the set-aside numbers by: none, or a rising set of them."""
-    found: "list[str]" = [ASIDE_NONE]
-    for mask in range(1, 2 ** len(_ASIDE_WORDS)):
-        chosen: "list[str]" = []
-        for place in range(len(_ASIDE_WORDS)):
-            if mask & (1 << place):
-                chosen += [_ASIDE_WORDS[place]]
-        found += [" ".join(chosen)]
-    return tuple(found)
+def listed(words: "tuple[str, ...]") -> str:
+    """Words said as one list: `a`, `a or b`, `a, b or c`."""
+    said = ""
+    for place in range(len(words)):
+        if place == 0:
+            said = words[place]
+        elif place == len(words) - 1:
+            said = f"{said} or {words[place]}"
+        else:
+            said = f"{said}, {words[place]}"
+    return said
 
 
-# WHERE A COLUMN HOLDS NONE OF THE SET-ASIDE NUMBERS.
+# WHERE A COLUMN HOLDS NOT ONE OF A SET-ASIDE NUMBER'S KIND: the word NF113
+# writes in that number's place.
 ASIDE_NONE = "(none set aside)"
-ASIDE_WORDS_SAID = _aside_vocabulary()
 
 
-def aside_word(words: "tuple[str, ...]") -> str:
-    """The one word NF113 names a column's set-aside numbers by."""
-    chosen = [word for word in _ASIDE_WORDS if word in words]
-    if not chosen:
-        return ASIDE_NONE
-    return " ".join(chosen)
+def aside_slots(words: "tuple[str, ...]") -> "tuple[str, ...]":
+    """NF113's five set-aside places: each number's word where the column holds it, or `ASIDE_NONE`."""
+    slots: "tuple[str, ...]" = ()
+    for word in _ASIDE_WORDS:
+        slots = slots + ((word if word in words else ASIDE_NONE),)
+    return slots
 
 
-# The words a sentence of question Q3 may carry: the members, the rules
-# and the set-aside words, all this package's own (contract 4.5.1).
-NOTE_WORDS = MEMBERS + RULES + ASIDE_WORDS_SAID
+def aside_listed(slots: "tuple[str, ...]") -> str:
+    """The set-aside numbers NF113's places name, said as a list, or ""."""
+    named: "tuple[str, ...]" = ()
+    for word in slots:
+        if word in _ASIDE_WORDS:
+            named = named + (word,)
+    return listed(named)
+
+
+# The words a sentence of question Q3 may carry: the members, the rules,
+# the set-aside numbers and the word for none of them, all this package's
+# own (contract 4.5.1).
+NOTE_WORDS = MEMBERS + RULES + _ASIDE_WORDS + (ASIDE_NONE,)
 
 
 def rule_said(rule: str) -> str:
@@ -1388,16 +1399,11 @@ def rule_said(rule: str) -> str:
     )
 
 
-def aside_said(word: str) -> str:
+def aside_said(slots: "tuple[str, ...]") -> str:
     """What NF113 says of the set-aside numbers a column holds, or nothing."""
-    if word == ASIDE_NONE or word not in ASIDE_WORDS_SAID:
+    named = aside_listed(slots)
+    if not named:
         return ""
-    if not isinstance(word, str):
-        raise TypeError("internal check: a word was not text")
-    parts = word.split(" ")
-    named = parts[0]
-    if len(parts) > 1:
-        named = ", ".join(parts[: len(parts) - 1]) + " or " + parts[len(parts) - 1]
     return (
         f" Some cells hold {named}, which such a system writes where no "
         f"date was given; read as dates, those cells are counted as no "

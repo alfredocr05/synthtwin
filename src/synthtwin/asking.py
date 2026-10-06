@@ -77,6 +77,8 @@ from synthtwin import dialect
 from synthtwin import errors
 from synthtwin import parsing
 from synthtwin import taxonomy
+# -- 3b.R4 (P4-D384): the twelve systems that write dates as counts.
+from synthtwin import date_counts
 
 # The roles that publish a ladder of real values. A column here that is
 # really a coding system publishes real codes as its endpoints.
@@ -228,6 +230,14 @@ BECAUSE_POINT_THOUSANDS = "three-figures-after-the-point"
 # different values over how many cells -- rather than restating the
 # route that found it. `asking._names_people` holds both routes.
 BECAUSE_REPEATS_AND_MANY = "repeats-and-many-different-values"
+# QUESTION Q3, "NUMBER OR DATE?" (landing R4, plan P4-D384): a column of
+# numbers whose values lie where a counting system writes dates -- Excel's
+# serials, SAS's and Stata's days and seconds, Unix seconds -- read as
+# numbers, and asked whether they are dates. Its answers are the
+# members that read the column inside 1900 to 2050, each named by the word
+# `--date-count` takes; Enter keeps the numbers. Where the column is also
+# asked as figures all one width, the two are one question.
+BECAUSE_DATE_COUNTS = "inside-a-date-counting-band"
 
 # A fixed-width all-digit column is asked about from three digits up.
 # Below that the shape is too common to mean anything: a column of `1`
@@ -845,6 +855,141 @@ def _joined_choices(role: str, floor: int) -> "list[Choice]":
     ]
 
 
+# -- 3b.R4 (P4-D384): question Q3 --------------------------------------
+
+
+@dataclasses.dataclass(frozen=True)
+class DateCountsSaid:
+    """What a column's own remarks say about it as dates written as counts.
+
+    The rule that asked and the set-aside numbers it holds (NF113), as
+    words of this package's own, and each member offered with the years
+    the block's published edges name in it (NF114), in the description's
+    own order.
+    """
+
+    rule: str
+    aside: "tuple[str, ...]"
+    readings: "tuple[tuple[str, int, int], ...]"
+
+
+def _date_counts_said(block: "dict[str, object]") -> "DateCountsSaid | None":
+    """Question Q3's evidence, read off the remarks the description carries.
+
+    ONE RULE, ONE PLACE: the producer decides whether a column of numbers
+    lies where a counting system writes dates (`date_counts.asked_of`) and
+    says so in NF113 and NF114, and the question is asked exactly where
+    those remarks stand, from their own arguments. None where they do not.
+    """
+    remarks = block["remarks"] if "remarks" in block else []
+    if not isinstance(remarks, list):
+        return None
+    rule = ""
+    aside: "tuple[str, ...]" = ()
+    readings: "list[tuple[str, int, int]]" = []
+    for remark in remarks:
+        if not isinstance(remark, taxonomy.Note):
+            continue
+        arguments = remark.arguments
+        if remark.form == taxonomy.REMARK_NUMBERS_COULD_BE_DATES:
+            rule = f"{arguments[0]}"
+            aside = tuple(f"{word}" for word in arguments[1:6])
+        elif remark.form == taxonomy.REMARK_READ_AS_COUNTED_DATES:
+            first = arguments[1]
+            last = arguments[2]
+            if isinstance(first, int) and isinstance(last, int):
+                readings += [(f"{arguments[0]}", first, last)]
+    if not rule or not readings:
+        return None
+    return DateCountsSaid(rule, aside, tuple(readings))
+
+
+def _date_count_shape(
+    fixed: str, said: DateCountsSaid
+) -> str:
+    """What synthtwin saw of a column of numbers in a counting band, in the question's own words.
+
+    The years each member names are those of the block's published edges,
+    which the description carries already; the set-aside numbers are this
+    package's own words; no value of the column appears.
+    """
+    readings = ""
+    for member, first, last in said.readings:
+        if readings:
+            readings = readings + "; "
+        readings = readings + (
+            f"read as {date_counts.TABLE[member].means}, they run from "
+            f"{first} to {last}"
+        )
+    opening = "every value is a number"
+    if fixed:
+        opening = fixed
+    aside = ""
+    named = date_counts.aside_listed(said.aside)
+    if named:
+        aside = (
+            f"; some cells hold {named}, which such a system writes where "
+            f"no date was given"
+        )
+    return f"{opening}; {readings}{aside}"
+
+
+def _date_count_choices(
+    role: str, floor: int, said: DateCountsSaid
+) -> "list[Choice]":
+    """Question Q3's answers: the numbers first, then each member, then code and identifier.
+
+    Enter keeps the numbers, which is the reading the run took. Each
+    member's answer is the word `--date-count` takes, and what it means
+    names the system and the years the column then runs over; what it
+    publishes is the column's dates, written back as the same counts.
+    """
+    every = _numeric_choices(ANSWER_MEASUREMENT, role, floor)
+    dated: "list[Choice]" = []
+    aside = ""
+    if date_counts.aside_listed(said.aside):
+        aside = (
+            ", and a cell holding one of the numbers such a system writes "
+            "where no date was given is counted as no value and written "
+            "back as it is"
+        )
+    for member, first, last in said.readings:
+        dated += [
+            Choice(
+                member,
+                f"dates, kept as {date_counts.TABLE[member].means} -- the "
+                f"column then runs from {first} to {last}",
+                f"{_clock_publishes(floor, taxonomy.ROLE_DATETIME)}; how its "
+                f"dates spread over the days of the week where it holds whole "
+                f"dates; and the twin writes each date back as the same count, "
+                f"spelled as this column spells it{aside}",
+            )
+        ]
+    return every[:1] + dated + every[1:]
+
+
+def _date_count_question(
+    name: str,
+    role: str,
+    reason: "str | None",
+    present: "list[str]",
+    said: DateCountsSaid,
+    floor: int,
+) -> Question:
+    """Question Q3 for one column, merged with the fixed-width question where it is asked too."""
+    fixed = ""
+    if reason == BECAUSE_FIXED_WIDTH:
+        fixed = _shape_of(reason, present, floor)
+    return Question(
+        name,
+        role,
+        BECAUSE_DATE_COUNTS,
+        _date_count_shape(fixed, said),
+        _date_count_choices(role, floor, said),
+        ANSWER_MEASUREMENT,
+    )
+
+
 @dataclasses.dataclass(frozen=True, eq=False)
 class SplitColumns:
     """The present cells `questions_for` split out of the columns it read.
@@ -1093,6 +1238,20 @@ def questions_and_splits_for(
             reason = why_worth_asking(present)
         if reason == BECAUSE_POINT_THOUSANDS and name in decimal_commas:
             reason = None
+        # -- 3b.R4 (P4-D384): QUESTION Q3, where the description's own
+        # remarks say the column's numbers lie where a counting system
+        # writes dates (NF113) -- one question with the fixed-width one
+        # where both are asked, and Enter keeps the numbers either way.
+        counted_asked = _date_counts_said(block)
+        if counted_asked is not None and role in NUMERIC_ROLES:
+            asked += [
+                _date_count_question(
+                    name, role, reason, present, counted_asked,
+                    settings.small_cell_floor,
+                )
+            ]
+            position = position + 1
+            continue
         if reason is not None:
             # THE READING RECORDED HERE IS THE ONE THE TOOL TAKES, and
             # never the one it ought to take. A questions file that
@@ -3621,6 +3780,10 @@ class Answers:
     # may not put the question back to a person who has just answered
     # it.
     month_first: bool = False
+    # ...and the columns whose dates the person said are written as counts
+    # (landing R4, question Q3): `(column, member)` for each, which is
+    # `--date-count COLUMN MEMBER`.
+    date_counts: "tuple[tuple[str, str], ...]" = ()
     # ...and the ninth (plan P4-D381): the columns whose few repeated
     # codes the person said stand for a missing date or time, and those
     # whose codes they said are values of their own. NAMES, not codes:
@@ -3784,6 +3947,8 @@ def answers_in(document: object, shown: str) -> Answers:
     twelve_hours: list[str] = []
     day_first = False
     month_first = False
+    # -- 3b.R4 (P4-D384): the columns answered with a counting system.
+    counted: "list[tuple[str, str]]" = []
     missing_dates: "list[str]" = []
     real_values: "list[str]" = []
     code_shapes: "list[tuple[str, str]]" = []
@@ -3822,6 +3987,9 @@ def answers_in(document: object, shown: str) -> Answers:
             metadata_rows_answered = True
         elif written == ANSWER_TWELVE_HOUR:
             twelve_hours += [name]
+        elif written in date_counts.MEMBERS:
+            # Question Q3 (landing R4): `--date-count COLUMN MEMBER`.
+            counted += [(name, written)]
         elif written == ANSWER_FIRST_ROW_NAMES:
             first_row = ANSWER_FIRST_ROW_NAMES
         elif written == ANSWER_FIRST_ROW_DATA:
@@ -3879,6 +4047,7 @@ def answers_in(document: object, shown: str) -> Answers:
         tuple(twelve_hours),
         day_first=day_first,
         month_first=month_first,
+        date_counts=tuple(counted),
         missing_date_columns=tuple(missing_dates),
         real_value_columns=tuple(real_values),
         date_code_shapes=tuple(code_shapes),

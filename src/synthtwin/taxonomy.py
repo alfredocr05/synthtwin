@@ -1208,11 +1208,12 @@ NOTE_ARITY: "dict[str, int]" = {
     # anchor 3b-R2b (P4-D383)
     # anchor 3b-R2c (P4-D383)
     # anchor 3b-R4 (P4-D384)
-    # Which rule asked and which of the set-aside numbers the column
-    # holds, each one word of this package's own (NF113); a member and
-    # the years of the block's two published edges read in it (NF114);
-    # and the member a declaration named (NF115, NF116).
-    REMARK_NUMBERS_COULD_BE_DATES: 2,
+    # Which rule asked, and in each of five places one of the set-aside
+    # numbers where the column holds it or the word for none, each one word
+    # of this package's own (NF113); a member and the years of the block's
+    # two published edges read in it (NF114); and the member a declaration
+    # named (NF115, NF116).
+    REMARK_NUMBERS_COULD_BE_DATES: 6,
     REMARK_READ_AS_COUNTED_DATES: 3,
     REMARK_DATES_WRITTEN_AS_COUNTS: 1,
     REMARK_COUNTED_DATES_NOT_READ: 1,
@@ -1444,6 +1445,10 @@ ARGUMENT_BINDINGS: "dict[tuple[str, int], tuple[object, ...]]" = {
     # one level up (`profile`), as NF51's days were.
     (REMARK_NUMBERS_COULD_BE_DATES, 0): (BIND_VOCABULARY,),
     (REMARK_NUMBERS_COULD_BE_DATES, 1): (BIND_VOCABULARY,),
+    (REMARK_NUMBERS_COULD_BE_DATES, 2): (BIND_VOCABULARY,),
+    (REMARK_NUMBERS_COULD_BE_DATES, 3): (BIND_VOCABULARY,),
+    (REMARK_NUMBERS_COULD_BE_DATES, 4): (BIND_VOCABULARY,),
+    (REMARK_NUMBERS_COULD_BE_DATES, 5): (BIND_VOCABULARY,),
     (REMARK_READ_AS_COUNTED_DATES, 0): (BIND_VOCABULARY,),
     (REMARK_READ_AS_COUNTED_DATES, 1): (BIND_VALUE,),
     (REMARK_READ_AS_COUNTED_DATES, 2): (BIND_VALUE,),
@@ -2124,7 +2129,8 @@ def rendered(form: str, arguments: "tuple[object, ...]") -> str:
         # read are NF114's, beside it.
         return (
             f"{date_counts.rule_said(_word(arguments, 0))}"
-            f"{date_counts.aside_said(_word(arguments, 1))} synthtwin read "
+            f"{date_counts.aside_said(tuple(_word(arguments, place) for place in range(1, 6)))}"
+            f" synthtwin read "
             f"them as numbers, so the twin keeps every number and the way "
             f"it is written, but not the calendar behind them: the "
             f"weekday, the time of day and how the dates spread over the "
@@ -16763,7 +16769,7 @@ def _date_count_remarks(
     said = [
         note(
             REMARK_NUMBERS_COULD_BE_DATES,
-            (asked.rule, date_counts.aside_word(asked.set_aside)),
+            (asked.rule,) + date_counts.aside_slots(asked.set_aside),
         )
     ]
     edges = published_ends(details)
@@ -16840,12 +16846,14 @@ def _counts_read_as_dates(
             fates += [_COUNT_KEPT]
             continue
         numerator, denominator = date_counts.exact_value(written)
-        number = numerator // denominator if numerator % denominator == 0 else None
+        aside_number: "int | None" = None
+        if numerator % denominator == 0:
+            aside_number = numerator // denominator
         if found.contacts:
             whole = abs(numerator) // denominator
-            number = -whole if numerator < 0 else whole
+            aside_number = -whole if numerator < 0 else whole
         moment: "int | None" = None
-        if number is None or number not in aside:
+        if aside_number is None or aside_number not in aside:
             moment = date_counts.moment_of(member, numerator, denominator, settled)
         if moment is None:
             fates += [_COUNT_SET_ASIDE]

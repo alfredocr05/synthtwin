@@ -17228,6 +17228,15 @@ def _form_of_counts_said(form: "date_counts.CountForm") -> str:
     return f"{said}, the mark {mark}"
 
 
+def _census_said(census: "dict[str, int]") -> str:
+    """A census of contact numbers in words: each word and its count, in sorted order."""
+    said = ""
+    for word in sorted(census):
+        here = f"{word} {census[word]}"
+        said = here if not said else f"{said}, {here}"
+    return said
+
+
 def _count_form_checks(
     column: contract.ColumnBlock,
     facts: contract.DatetimeFacts,
@@ -17275,15 +17284,10 @@ def _count_form_checks(
                 break
     checks = [_exact(name, "datetime.count_form", "form.count_form", published, measured)]
     if form.contacts is not None:
-        wanted = ", ".join(
-            f"{word} {form.contacts[word]}" for word in sorted(form.contacts)
-        )
-        seen: "str | None" = "none counted"
+        wanted = _census_said(form.contacts)
+        seen = "none counted"
         if isinstance(found_form, dict) and isinstance(found_form["contacts"], dict):
-            found_census = found_form["contacts"]
-            seen = ", ".join(
-                f"{word} {found_census[word]}" for word in sorted(found_census)
-            )
+            seen = _census_said(found_form["contacts"])
         checks += [_exact(name, "datetime.count_form", "form.contacts", wanted, seen)]
     return checks
 
