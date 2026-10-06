@@ -13469,6 +13469,38 @@ def _seat_given(
         held[value] = 1
 
 
+def _taken_again(
+    taken: "dict[float, int]",
+    held: "dict[float, int]",
+    left: "list[float]",
+    moves: "list[tuple[int, float]]",
+) -> None:
+    """Make the numbers taken the numbers held again, after a chain has moved strata (G6.4).
+
+    THE NUMBERS 110cb46 TOOK AFTER A CHAIN BY ASKING EVERY STRATUM AGAIN,
+    KEPT AS THE STRATA MOVE (plan P4-D387). Every number a stratum holds
+    is taken, and a number taken that no stratum holds was given up since
+    the last chain (`_seat_given` keeps it in ``left``), so taking the
+    numbers the chain gave out and then letting go of each number given
+    up that no stratum holds any more leaves exactly the numbers held --
+    in that order, so a number the chain gave out and took back again is
+    let go too. ``left`` is emptied for the next chain.
+
+    Guarantees: where every number ``taken`` holds and no stratum does
+    is in ``left`` -- which `_seat_given` and the walk keep true -- and
+    every number a stratum holds is in ``taken`` or among ``moves``,
+    ``taken`` holds exactly the keys of ``held`` afterwards, and ``left``
+    is empty. Determinism: a fixed function of the arguments. Raises
+    nothing. No I/O.
+    """
+    for step in range(len(moves)):
+        taken[moves[step][1]] = 1
+    for value in left:
+        if value not in held and value in taken:
+            del taken[value]
+    del left[:]
+
+
 def _rehomed(
     place: int,
     moved: "list[float]",
@@ -13899,13 +13931,8 @@ def _whole_enough(
                     # into or out of the point-free forms on a stratum this
                     # walk reaches, and the numbers taken become exactly
                     # the numbers held once every value given up that no
-                    # stratum holds any more is let go.
-                    for value in left:
-                        if value not in held and value in taken:
-                            del taken[value]
-                    left = []
-                    for step in range(len(moves)):
-                        taken[moves[step][1]] = 1
+                    # stratum holds any more is let go (`_taken_again`).
+                    _taken_again(taken, held, left, moves)
                     continue
                 taken[want] = 1
                 _seat_given(moved, held, left, place, want)

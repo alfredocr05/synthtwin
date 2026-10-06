@@ -18,8 +18,10 @@ so the measure is known to see the defect rather than assumed to.
    5.6, 23.2 and 89.8 s to generate at 1,000, 2,000 and 4,000 rows. The
    shares are worked out once per walk and the strata still to be walked
    are asked of an index (`_walk_shares`, `_held_after`); `_whole_inside`
-   stops at the first step past the half unit; one holder is counted and
-   not searched for; the numbers taken are kept as the strata move.
+   stops at the first step past the half unit, which on a column crowded
+   onto fewer whole numbers than strata was most of the walk; one holder
+   is counted and not searched for; the numbers taken are kept as the
+   strata move (`_seat_given`, `_taken_again`).
 2. **The reach step's free whole number** (`_free_whole`,
    `_reach_window`, `_reach_held`, method G5.2). Each question listed
    every candidate out to the column's strata before asking the first,
@@ -35,7 +37,9 @@ so the measure is known to see the defect rather than assumed to.
    cut the file's first megabyte into lines 29 times.
 5. **The checking pass** (`reading._check_against_pandas`) held the
    second reading whole beside the first: 4.8 KB a row at the peak where
-   the first reading holds 2.7. It reads and compares a piece at a time.
+   the first reading holds 2.7. It reads and compares a piece at a time,
+   each piece the rows pandas' own reader parses at a time, and reads the
+   whole frame only where a piece differs, to refuse in its words.
 """
 
 from __future__ import annotations
@@ -49,7 +53,9 @@ import random
 import sys
 import tempfile
 import tracemalloc
+import warnings
 
+import pandas
 import pytest
 
 import fixtures
@@ -916,6 +922,95 @@ def test_a_free_whole_number_is_the_one_the_listed_candidates_gave() -> None:
         )
 
 
+def test_the_window_search_gives_the_window_it_gave() -> None:
+    """`_reach_window`, resuming past each answer and stopping at a window one cell wide, gives 110cb46's window.
+
+    Over 12,000 made-up rung sets -- flat at whole numbers and halves in
+    places, or rising smoothly -- with every band, held numbers from none
+    to most, any floor, ceiling and reach. A search that skipped a
+    candidate when it resumed, or stopped at a window two cells wide,
+    gives another window on about one ladder in two hundred here.
+    """
+    draw = random.Random(3879)
+    for _case in range(12_000):
+        numbers = draw.randrange(2, 80)
+        if draw.random() < 0.5:
+            values = [draw.choice((float(draw.randrange(-5, 30)), draw.randrange(-10, 60) / 2.0))
+                      for _rung in range(101)]
+        else:
+            low = draw.uniform(-10.0, 10.0)
+            values = [low + draw.uniform(0.0, 30.0) for _rung in range(101)]
+        rungs = tuple(sorted(values))
+        band = draw.choice(("positive", "negative", "zero", "positive"))
+        share = draw.choice((0.0, 0.3, 0.7))
+        held = {float(number): 1 for number in range(-12, 40) if draw.random() < share}
+        floor = draw.randrange(0, numbers)
+        ceiling = draw.randrange(floor, numbers + 1)
+        reach = draw.randrange(0, 40)
+        ours = generation._reach_window(rungs, numbers, band, held, floor, ceiling, reach)
+        theirs = _reach_window_as_built(rungs, numbers, band, held, floor, ceiling, reach)
+        assert ours == theirs, (rungs, numbers, band, held, floor, ceiling, reach)
+
+
+def test_a_stratum_with_no_whole_number_near_its_share_stops_asking() -> None:
+    """`_whole_inside` refusing a stratum runs the same lines at any reach, where 110cb46 walked to the reach.
+
+    Every whole number from 0 to 20 is taken and the share holds none, so
+    past the half unit around it no step can answer: the walk stops there,
+    and as built it stepped on to the column's reach, one more than its
+    strata, for every stratum so refused.
+    """
+    taken = {float(number): 1 for number in range(0, 21)}
+
+    def lines(function: "object", reach: int) -> int:
+        return _lines_run(function, 10.5, "positive", (10.2, 10.8), None, reach, taken, ())
+
+    ours = [lines(generation._whole_inside, reach) for reach in (500, 1000, 2000)]
+    theirs = [lines(_whole_inside_as_built, reach) for reach in (500, 1000, 2000)]
+    assert generation._whole_inside(10.5, "positive", (10.2, 10.8), None, 2000, taken, ()) is None
+    assert ours[0] == ours[1] == ours[2] and ours[0] < 300, ours
+    assert theirs[2] >= 1.9 * theirs[1] and theirs[1] >= 1.9 * theirs[0], theirs
+
+
+def test_the_counts_kept_as_strata_move_are_the_counts_worked_out_again() -> None:
+    """`_seat_given` and `_taken_again` keep what 110cb46 worked out again from every stratum.
+
+    Over 3,000 made-up walks of single takes and of chains moving up to
+    five strata at once: the holders of each value are the strata holding
+    it, counted, and after each chain the numbers taken are the numbers
+    held -- the dictionary 110cb46 built again from every stratum.
+    """
+    draw = random.Random(3880)
+    chains = 0
+    for _walk in range(3000):
+        strata = draw.randrange(2, 30)
+        moved = [float(draw.randrange(0, 12)) + draw.choice((0.0, 0.5)) for _stratum in range(strata)]
+        held: "dict[float, int]" = {}
+        for value in moved:
+            held[value] = (held[value] if value in held else 0) + 1
+        taken = {value: 1 for value in moved}
+        left: "list[float]" = []
+        for _move in range(draw.randrange(1, 40)):
+            if draw.random() < 0.6:
+                seat = draw.randrange(strata)
+                want = float(draw.randrange(0, 14))
+                taken[want] = 1
+                generation._seat_given(moved, held, left, seat, want)
+            else:
+                moves = [(draw.randrange(strata), float(draw.randrange(0, 14)) + draw.choice((0.0, 0.25)))
+                         for _step in range(draw.randrange(1, 6))]
+                for seat, value in moves:
+                    generation._seat_given(moved, held, left, seat, value)
+                generation._taken_again(taken, held, left, moves)
+                assert sorted(taken) == sorted({value: 1 for value in moved}) and not left
+                chains += 1
+            counted: "dict[float, int]" = {}
+            for value in moved:
+                counted[value] = (counted[value] if value in counted else 0) + 1
+            assert held == counted
+    assert chains > 10_000, chains
+
+
 def whole_walk_lines(rows: int, as_built: bool = False) -> int:
     """The lines run walking one mostly whole column of ``rows`` different values to its whole numbers.
 
@@ -951,6 +1046,42 @@ def test_the_walk_for_whole_numbers_grows_with_the_rows() -> None:
     old_small = whole_walk_lines(200, as_built=True)
     old_large = whole_walk_lines(400, as_built=True)
     assert old_large / old_small >= SQUARE_AT_LEAST, (old_small, old_large)
+
+
+def crowded_walk_lines(rows: int) -> int:
+    """The lines run walking a column of day counts crowded onto a day for every two rows to its whole numbers.
+
+    As `whole_walk_lines`, on a column with more strata than whole numbers
+    free for them, so most strata ask `_whole_inside` for a number it does
+    not have.
+    """
+    handed: "list[tuple[object, ...]]" = []
+    walked = generation._whole_enough
+
+    def captured(*arguments: object) -> object:
+        nonlocal handed
+        handed += [arguments]
+        return walked(*arguments)  # type: ignore[arg-type]
+
+    with tempfile.TemporaryDirectory() as home:
+        loaded = _described(pathlib.Path(home), _day_counts(rows, rows, rows // 2))
+    with pytest.MonkeyPatch.context() as patch:
+        patch.setattr(generation, "_whole_enough", captured)
+        generation.generate(loaded, 0)
+    assert len(handed) == 1, len(handed)
+    column, facts, layout, rungs, values = handed[0]
+    return _lines_run(generation._whole_enough, column, facts, layout, rungs, list(values))  # type: ignore[arg-type]
+
+
+def test_the_walk_over_a_crowded_column_grows_with_the_rows() -> None:
+    """Lines run at 1,200 rows of crowded day counts against 600: about one and a half now.
+
+    As built the walk ran 67.5 and 237.5 million lines there, 3.5 times
+    for twice the rows, and with `_whole_inside` walking on to the reach
+    past the half unit 2.8 times (plan P4-D387).
+    """
+    small, large = crowded_walk_lines(600), crowded_walk_lines(1200)
+    assert large / small < LINEAR_AT_MOST, (small, large)
 
 
 def _spread_ladder(low: float, high: float) -> "tuple[float, ...]":
@@ -989,6 +1120,35 @@ def test_the_reach_step_s_questions_grow_with_the_strata() -> None:
     for question in (0, 1):
         assert large[question] / small[question] < LINEAR_AT_MOST, (question, small, large)
         assert old_large[question] / old_small[question] >= SQUARE_AT_LEAST, (question, old_small, old_large)
+
+
+def _staircase(steps: int) -> "tuple[float, ...]":
+    """A hundred and one rungs climbing one whole number at a time, each step three rungs wide."""
+    return tuple(float(min(steps, 1 + rung // 3)) for rung in range(101))
+
+
+def window_lines(steps: int, as_built: bool = False) -> int:
+    """The lines run offering whole numbers to one window search over a staircase of ``steps`` whole numbers.
+
+    Every whole number on the staircase is flat over many cells, so no
+    window is one cell wide and the search takes every number it is
+    offered, as many as its reach.
+    """
+    window = _reach_window_as_built if as_built else generation._reach_window
+    return _lines_run(window, _staircase(steps), 1000, "positive", {}, 0, 1000, steps + 1, inside="_free_whole")
+
+
+def test_a_window_search_over_a_staircase_grows_with_its_steps() -> None:
+    """Lines run at 32 steps against 16: about two now, and three and a half as built.
+
+    Each asking of a search resumes past its last answer; asked from the
+    first number again every time, the search runs about 3.5 times the
+    lines for twice the steps, as 110cb46's did.
+    """
+    small, large = window_lines(16), window_lines(32)
+    assert large / small < LINEAR_AT_MOST, (small, large)
+    old_small, old_large = window_lines(16, as_built=True), window_lines(32, as_built=True)
+    assert old_large / old_small >= SQUARE_AT_LEAST, (old_small, old_large)
 
 
 def _crowded() -> "list[tuple[str, list[str]]]":
@@ -1456,29 +1616,140 @@ def _check_cases(folder: pathlib.Path) -> "list[tuple[str, reading._Reading, pat
     return cases
 
 
+def _counted_reads(monkeypatch: pytest.MonkeyPatch) -> "dict[str, int]":
+    """Count the checking pass's readings by pandas: in pieces, and as one whole frame."""
+    reads = {"pieces": 0, "whole": 0}
+    shipped = reading.pandas.read_csv
+
+    def counted(*arguments: object, **named: object) -> object:
+        reads["pieces" if named.get("chunksize") else "whole"] += 1
+        return shipped(*arguments, **named)
+
+    monkeypatch.setattr(reading.pandas, "read_csv", counted)
+    return reads
+
+
 def test_the_checking_pass_read_in_pieces_says_what_the_whole_frame_said(
     tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """Agreement, and each refusal word for word, as 110cb46's pass that held the whole frame.
 
-    Pieces of 64 cells, so every file is read in many; changed values in
+    Pieces of 7 rows, so every file is read in many; changed values in
     the first and the last pieces, two at once, a row short, an
     end-of-file mark glued to the last value and that value changed, a
     row of descriptions under the names and one of them changed, lines
     above a table with no names, whose first record pandas takes as
     names, with values changed in its first, second and last rows, and
     such a table of one record with a mark glued on, which pandas is
-    asked for no rows of -- under both kinds of refusal.
+    asked for no rows of -- under both kinds of refusal. A file the
+    pieces agree on is never read whole; every other file is, once, and
+    its refusal is the whole frame's.
     """
-    monkeypatch.setattr(reading, "_CHECK_CELLS", 64)
+    monkeypatch.setattr(reading, "_pandas_rows_a_piece", lambda width: 7)
     said = []
+    whole = {"agrees": 0, "refused": 0}
     for name, found, path in _check_cases(tmp_path):
         for refusals in (reading.REFUSALS_MAY_QUOTE, reading.REFUSALS_NAME_POSITIONS):
-            ours = _checked(reading._check_against_pandas, found, path, refusals)
             theirs = _checked(_check_against_pandas_as_built, found, path, refusals)
+            with pytest.MonkeyPatch.context() as patch:
+                reads = _counted_reads(patch)
+                ours = _checked(reading._check_against_pandas, found, path, refusals)
             assert ours == theirs, (name, refusals, ours, theirs)
+            if name == "no rows asked for":
+                assert reads == {"pieces": 0, "whole": 1}, (name, reads)
+            elif ours == "agrees":
+                assert reads == {"pieces": 1, "whole": 0}, (name, reads)
+                whole["agrees"] += 1
+            else:
+                assert reads == {"pieces": 1, "whole": 1}, (name, reads)
+                whole["refused"] += 1
             said += [ours]
     assert said.count("agrees") >= 8 and len(set(said)) >= 8, said
+    assert whole["agrees"] >= 8 and whole["refused"] >= 20, whole
+
+
+# Made-up files whose lines end in carriage returns alone and hold quoted
+# line breaks, on which pandas' own reader goes wrong: read whole it
+# fails with a buffer overflow or hands back hundreds of thousands of rows
+# that are not in the file, and read in pieces of another size than its
+# own it fails elsewhere, or reads the file right. Cases 208, 670, 1712 and
+# 1949 of the skeptic's fuzz of plan P4-D387.
+_DAMAGED = (
+    'h0\r10\r3\r4.5\r2.5\r1\rx\r"cr\r\nlf"\r2.5\r\\"\r 7\r"s;t"\r2\r12:30\r<0.3\r<0.3\rN/A\r5 mg\r3\ra b\r5 mg\r',
+    'A title line of a made-up export\r\r1,5,12:30,"q,r",N/A\r3,12,12,4.5\r<0.3,-3,\\",2\r1,12,12,12\r\rx,"s;t",,'
+    '"two\nlines"\r 7,\\","cr\r\nlf","q,r"\r2,1,4.5,12\r12,4.5,12,2\r12:30,03/01/2024,-3,2\r"cr\r\nlf",é,N/A,"s;t"'
+    '\r\r1,5,N/A,2024-01-03,"s;t"\r12:30,"cr\r\nlf",2024-01-03,10\r"s;t",<0.3,é, 7,N/A\r2,12,12,12\r3,3,3,3\rx,'
+    '"say ""hi""",12:30,"say ""hi"""\rx,<0.3,x,"s;t"\r12,2,2,1\r"two\nlines","q,r",\\",-3\r-3,N/A,2024-01-03\r'
+    '"s;t",,"q,r",2.5\r"q,r","two\nlines","two\nlines",é\r03/01/2024,"cr\r\nlf",2024-01-03,\\"\rx,2.5,x,"s;t"\r'
+    '"cr\r\nlf",<0.3,"cr\r\nlf",1,5\r\r',
+    'h0|h1|h2|h3\r-3|"q,r"|x|<0.3\r3|3|4.5|12\r10|2024-01-03|5 mg|03/01/2024\r1|1|2|3\r2024-01-03| 7|03/01/2024|x\r'
+    '10|2.5|03/01/2024|x\r3|3|4.5|12\r2024-01-03|2024-01-03|é|2.5\r"say ""hi"""|2.5|N/A|1,5\r3|3|1|3\r4.5|12|1|3\r'
+    '2.5|10|<0.3|"cr\r\nlf"\r 7|2|10|10\r4.5|2|1|12\r10|é|N/A|"say ""hi"""\r1|2|4.5|2\r',
+    'h0|\r1|2.5\r3|2\r10|-3\r"two\nlines"|x\r1|é\rx|\r|<0.3\r|5 mg\ra b|N/A\rx|"two\nlines"\r 7|2024-01-03\r'
+    '"two\nlines"|"say ""hi"""\r"two\nlines"|-3\r2|2\r1|2\r|5 mg\r 7|-3\r2|2024-01-03\rN/A|é\r',
+)
+
+
+def test_a_damaged_file_is_refused_as_the_whole_frame_refused_it(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Four files pandas misreads, under every first-row setting and both kinds of refusal: 110cb46's words.
+
+    Read in pandas' own steps, a piece fails where the whole frame fails
+    and the whole frame then says why. Read in pieces of one row, the
+    same files are read right and accepted where 110cb46 refused them, so
+    the piece's size is what this test holds.
+    """
+    checked = 0
+    misread = 0
+    for number, text in enumerate(_DAMAGED):
+        path = tmp_path / f"damaged-{number}.csv"
+        with open(path, "w", encoding="utf-8", newline="\n") as handle:
+            handle.write(text)
+        for first in (reading.FIRST_ROW_AUTOMATIC, reading.FIRST_ROW_NAMES, reading.FIRST_ROW_DATA):
+            found = reading._read_authoritatively(path, "table.csv", first)
+            for refusals in (reading.REFUSALS_MAY_QUOTE, reading.REFUSALS_NAME_POSITIONS):
+                theirs = _checked(_check_against_pandas_as_built, found, path, refusals)
+                assert theirs != "agrees", (number, first)
+                assert _checked(reading._check_against_pandas, found, path, refusals) == theirs, (
+                    number, first, refusals,
+                )
+                checked += 1
+                with pytest.MonkeyPatch.context() as patch:
+                    patch.setattr(reading, "_pandas_rows_a_piece", lambda width: 1)
+                    if _checked(reading._check_against_pandas, found, path, refusals) != theirs:
+                        misread += 1
+    assert checked == 24 and misread == 24, (checked, misread)
+
+
+def _splits_at(width: int, rows_before: int) -> bool:
+    """Whether pandas read a column's whole numbers and the letters after ``rows_before`` of them in two steps.
+
+    Pandas works out a column's type one step of rows at a time and warns
+    where two steps came out of different types, so the warning says
+    whether row ``rows_before`` began a step of its own.
+    """
+    filler = ",1" * (width - 1)
+    lines = [",".join(f"c{index}" for index in range(width))]
+    lines += ["1" + filler] * rows_before
+    lines += ["x" + filler] * 10
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always")
+        pandas.read_csv(io.StringIO("\n".join(lines) + "\n"))
+    return any(issubclass(warning.category, pandas.errors.DtypeWarning) for warning in caught)
+
+
+def test_a_piece_is_the_rows_pandas_own_reader_parses_at_a_time() -> None:
+    """`_pandas_rows_a_piece` is the step of rows the installed pandas takes, at five widths.
+
+    That step is the library's own and not this package's, so it is found
+    in the library: a column whose whole numbers give way to letters is
+    read as one type where the letters begin inside the first step, and
+    as two where they begin the second.
+    """
+    for width in (1, 3, 50, 64, 333):
+        rows = reading._pandas_rows_a_piece(width)
+        assert not _splits_at(width, rows - 1) and _splits_at(width, rows), (width, rows)
 
 
 def check_peak(rows: int, as_built: bool = False) -> int:
@@ -1502,10 +1773,11 @@ def check_peak(rows: int, as_built: bool = False) -> int:
 def test_the_checking_pass_holds_a_piece_and_not_a_second_table(monkeypatch: pytest.MonkeyPatch) -> None:
     """Over a reading, the pass holds about what one piece needs, where 110cb46 held the whole frame.
 
-    The piece is set whether or not the module names one, so on 110cb46,
-    which reads the whole frame, the test fails by its own measure.
+    The piece is set to 819 rows of the five columns whether or not the
+    module names a piece, so on 110cb46, which reads the whole frame, the
+    test fails by its own measure.
     """
-    monkeypatch.setattr(reading, "_CHECK_CELLS", 4096, raising=False)
+    monkeypatch.setattr(reading, "_pandas_rows_a_piece", lambda width: 4096 // width, raising=False)
     ours = check_peak(40_000)
     theirs = check_peak(40_000, as_built=True)
     assert ours * 4 < theirs, (ours, theirs)
