@@ -141,6 +141,8 @@ structure arrives in a later phase (Phase 5).
 import dataclasses
 import math
 from synthtwin import calendar_rules, contract, dialect, errors, parsing, taxonomy
+# -- 3b.R4 (P4-D384): the twelve systems that write dates as counts.
+from synthtwin import date_counts
 
 import numpy.random
 
@@ -9463,7 +9465,14 @@ def _read_as_described(
     Guarantees: accepts one column's block, the loaded description and
     the cells as they leave; returns as many cells in the same order.
     Determinism: a fixed function of the three. Raises nothing. No I/O.
+
+    AND ON A COLUMN OF DATES WRITTEN AS COUNTS (landing R4, plan P4-D384)
+    every count is read back as the date it names, at the precision the
+    description published (`_counts_read_back`), which is the reading the
+    profiler made of the real file.
     """
+    if _counted_member(column, profile):
+        return _counts_read_back(column, profile, spelled)
     if not _declared_a_decimal_comma(column, profile):
         return spelled
     # A HOLE IS NOT A NUMBER AND IS LEFT ALONE (review item
@@ -9630,6 +9639,111 @@ def _spelled_with_a_decimal_comma(
                 swapped = swapped + letter
         spelled += [f"{ahead}{swapped}{behind}"]
     return spelled
+
+
+# -- 3b.R4 (P4-D384): numbers that are dates ---------------------------
+
+
+def _counted_member(
+    column: contract.ColumnBlock, profile: contract.Profile
+) -> str:
+    """The system this column's dates are written as counts in, or "".
+
+    Only a column of dates carrying its form of counts (CD1, CD2): a
+    declared column whose counts did not read as dates was described as
+    what it reads, and its twin is written as that.
+    """
+    facts = column.facts
+    if not isinstance(facts, contract.DatetimeFacts) or facts.count_form is None:
+        return ""
+    for name, member in profile.settings.forced_date_counts:
+        if name == column.name:
+            return member
+    return ""
+
+
+def _spelled_as_counts(
+    column: contract.ColumnBlock,
+    profile: contract.Profile,
+    content: "list[str]",
+    dated: "list[bool]",
+) -> "list[str]":
+    """Write a column of counted dates back as the counts the column writes.
+
+    METHOD G7.10 (landing R4, plan P4-D384). The twin's dates were drawn
+    as dates, in the ISO text the description was made from; each cell the
+    date machinery wrote (``dated``, one flag per cell) is written here as
+    the declared system's count of that moment, spelled as `count_form`
+    says the column spells its counts (`date_counts.written_for`): rounded,
+    halves to even, to its figures after the mark, trimmed or not, by
+    significant figures or in R's exponent form where that is shorter, with
+    its decimal mark. Every other cell -- an absent one, written in a
+    spelling the column published, and an unparsed stand-in -- is left as
+    it is. It is the other half of the declaration, as the comma's
+    exchange is (`_spelled_with_a_decimal_comma`), and is applied to the
+    cells handed out and to nothing this method measures.
+
+    A `days-since-1840` column writes its day count and the contact number
+    the census gives each cell: the census's words in rank order, the
+    commonest first and ties in sorted order, each as many times as the
+    census counts it, over the dated cells in the order the arrangement
+    put them -- an order drawn at random, so each contact number is spread
+    over the dates as the census is, independently of them (a stated
+    limit: a patient's contacts on one day are not kept together).
+
+    Guarantees: accepts the column, the description, the cells as
+    arranged and one flag per cell; returns as many cells. Determinism: a
+    function of the four; it draws nothing. Raises nothing. No I/O.
+    """
+    member = _counted_member(column, profile)
+    facts = column.facts
+    if not member or not isinstance(facts, contract.DatetimeFacts):
+        return content
+    form = facts.count_form
+    if form is None:
+        return content
+    unit = contract.counted_unit(facts)
+    words: "list[str]" = []
+    if form.contacts is not None:
+        census = form.contacts
+        for _rank, word in sorted((-census[each], each) for each in census):
+            words += [word] * census[word]
+    spelled: "list[str]" = []
+    used = 0
+    for place in range(len(content)):
+        cell = content[place]
+        if place >= len(dated) or not dated[place]:
+            spelled += [cell]
+            continue
+        moment = date_counts.moment_of_iso(cell, unit)
+        if moment is None:
+            spelled += [cell]
+            continue
+        word = date_counts.NO_CONTACT
+        if used < len(words):
+            word = words[used]
+        used = used + 1
+        written = date_counts.written_for(member, moment, unit, form, word)
+        spelled += [written if written is not None else cell]
+    return spelled
+
+
+def _counts_read_back(
+    column: contract.ColumnBlock,
+    profile: contract.Profile,
+    spelled: "list[str]",
+) -> "list[str]":
+    """A column of counted dates' cells, read back as the dates they name.
+
+    The inverse of `_spelled_as_counts`, by the reading the validator
+    makes too (`contract.counts_read_back`), at the precision the
+    description published.
+    """
+    member = _counted_member(column, profile)
+    facts = column.facts
+    if not member or not isinstance(facts, contract.DatetimeFacts):
+        return spelled
+    return contract.counts_read_back(member, facts, _hole_spellings(column), spelled)
 
 
 def _labels_beside_numbers(column: "contract.ColumnBlock") -> bool:
@@ -40728,6 +40842,21 @@ def generate(profile: contract.Profile, seed: int) -> Twin:
             written,
             [order[place] < numbers_written for place in range(profile.n_rows)],
         )
+        # -- 3b.R4 (P4-D384): AND A COLUMN OF DATES WRITTEN AS COUNTS is
+        # written back as those counts (method G7.10), on the cells the date
+        # machinery wrote -- every present one but the unparsed stand-ins
+        # `_datetime_content` puts last -- and measured below in the
+        # reading its description was made from, as the comma's is.
+        if _counted_member(column, profile) and isinstance(
+            column.facts, contract.DatetimeFacts
+        ):
+            dates_written = column.n_present - column.facts.n_unparsed
+            spelled = _spelled_as_counts(
+                column,
+                profile,
+                spelled,
+                [order[place] < dates_written for place in range(profile.n_rows)],
+            )
         columns += [tuple(spelled)]
         # THE CELLS IN THE READING THE DESCRIPTION WAS MADE FROM, which
         # is what every measurement below owes (review item

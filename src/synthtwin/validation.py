@@ -162,6 +162,8 @@ from synthtwin.paths import validate_local_path
 import pathlib
 
 from synthtwin import calendar_rules, contract, dialect, errors, parsing, profile, reading, taxonomy, workbook
+# -- 3b.R4 (P4-D384): the twelve systems that write dates as counts.
+from synthtwin import date_counts
 
 
 # THE G12.3 WINDOWS ARE WRITTEN ONCE, IN `taxonomy` (plan P4-D353). The
@@ -490,7 +492,6 @@ INPUT_SIDE_ENTRIES = (
     # -- 3b.C2 (P4-D374)
     ("clock", "minute_census"),
     # -- 3b.R4 (P4-D384), reserved by the second cut (P4-D386)
-    ("datetime", "count_form"),
 )
 
 # -- what a listing entry says, in one fixed sentence each ------------
@@ -1760,7 +1761,34 @@ def settings_for(description: contract.Profile) -> taxonomy.Settings:
         # -- 3b.R2a (P4-D383)
         # -- 3b.R2c (P4-D383)
         # -- 3b.R4 (P4-D384)
+        # THE COLUMNS WHOSE DATES ARE WRITTEN AS COUNTS (question Q3), each
+        # read in its system at the precision its description published.
+        forced_date_counts=block.forced_date_counts,
+        counted_units=_counted_units(description),
     )
+
+
+def _counted_units(description: contract.Profile) -> "tuple[tuple[str, int], ...]":
+    """The unit each column of counted dates was published at (landing R4).
+
+    `(column, unit)` for each column the settings declare whose block
+    carries its form of counts, so a checked file's counts are read at the
+    precision the description published rather than at one worked out
+    from its own figures -- the validator's reading of a description's
+    own source is then the profiler's, cell for cell.
+    """
+    declared: "dict[str, int]" = {}
+    for name, _member in description.settings.forced_date_counts:
+        declared[name] = 1
+    units: "list[tuple[str, int]]" = []
+    for column in description.columns:
+        facts = column.facts
+        if column.name not in declared:
+            continue
+        if not isinstance(facts, contract.DatetimeFacts) or facts.count_form is None:
+            continue
+        units += [(column.name, contract.counted_unit(facts))]
+    return tuple(units)
 
 
 def settings_over_the_split(
@@ -7567,6 +7595,11 @@ def _obligations(
         column, split, split_cells, floor, mine, pairs, writable, system,
         declared,
     )
+    # -- 3b.R4 (P4-D384): HOW A COLUMN OF COUNTED DATES WRITES ITS COUNTS,
+    # asked of the cells as the file holds them -- every other check of the
+    # column reads them as the dates they name.
+    if isinstance(column.facts, contract.DatetimeFacts):
+        checks = checks + _count_form_checks(column, column.facts, block, cells)
     return checks + _governed(gated, measured, split_published)
 
 
@@ -8315,7 +8348,17 @@ def _cells_read_as_declared(
     Guarantees: accepts the description, one column's block and its
     cells; returns cells of the same length in the same order.
     Determinism: a fixed function of the three. Raises nothing. No I/O.
+
+    AND A COLUMN OF DATES WRITTEN AS COUNTS (landing R4, plan P4-D384) is
+    read as the dates its counts name, at the precision its description
+    published (`contract.counts_read_back`), which is the reading the
+    profiler and the twin's own report make.
     """
+    if isinstance(column.facts, contract.DatetimeFacts) and column.facts.count_form is not None:
+        for name, member in description.settings.forced_date_counts:
+            if name == column.name:
+                holes = tuple(sorted(column.missing_by_source))
+                return contract.counts_read_back(member, column.facts, holes, cells)
     named = False
     for name in description.settings.forced_decimal_commas:
         if name == column.name:
@@ -17168,6 +17211,80 @@ def _datetime_checks(
     checks = checks + _heavy_checks(
         column, facts, block, floor, cells, declared_days
     )
+    return checks
+
+
+def _form_of_counts_said(form: "date_counts.CountForm") -> str:
+    """A form of counts in words, naming no value: how its figures are written."""
+    if form.exponent:
+        said = "fifteen significant figures, in exponent form where shorter"
+    elif form.significant is not None:
+        said = f"{form.significant} significant figures, trailing zeros dropped"
+    elif form.trimmed:
+        said = f"at most {form.places} figures after the mark, trailing zeros dropped"
+    else:
+        said = f"exactly {form.places} figures after the mark"
+    mark = "a point" if form.mark == date_counts.POINT else "a comma"
+    return f"{said}, the mark {mark}"
+
+
+def _count_form_checks(
+    column: contract.ColumnBlock,
+    facts: contract.DatetimeFacts,
+    block: "dict[str, object]",
+    cells: "list[str]",
+) -> "list[Check]":
+    """How a column of counted dates writes its counts, held (landing R4, V5-CF).
+
+    `form.count_form` is HELD where the file was read as counted dates at
+    all and every cell of it written as a count is one the published form
+    can write (`date_counts.form_holds`): a twin written as ISO dates, or
+    with other figures after the mark, MISSES it, and a twin in another
+    member misses the dates it then names. A cell spelled as one of the
+    column's published absent spellings is not a count of a date, and is
+    not asked. `form.contacts` holds the census of contact numbers of a
+    `days-since-1840` column exactly, as the file's own description counts
+    it. No value of the file is printed: the measured side is the form's
+    own words, or that a cell is written another way.
+
+    Guarantees: accepts the column, its facts, the file's own block and
+    its cells; returns the checks, none where the column publishes no form
+    of counts. Raises nothing. No I/O of any kind.
+    """
+    form = facts.count_form
+    if form is None:
+        return []
+    name = column.name
+    published = _form_of_counts_said(form)
+    found_form = block["count_form"] if "count_form" in block else None
+    holes: "dict[str, int]" = {}
+    for spelling in column.missing_by_source:
+        holes[spelling] = 1
+    measured = published
+    if not isinstance(found_form, dict):
+        measured = "no form of counts: the file's cells were not read as such dates"
+    else:
+        for cell in cells:
+            if not cell or cell in holes:
+                continue
+            written = date_counts.written_count(cell, form.mark)
+            if written is None:
+                continue
+            if not date_counts.form_holds(form, written):
+                measured = "a cell written another way"
+                break
+    checks = [_exact(name, "datetime.count_form", "form.count_form", published, measured)]
+    if form.contacts is not None:
+        wanted = ", ".join(
+            f"{word} {form.contacts[word]}" for word in sorted(form.contacts)
+        )
+        seen: "str | None" = "none counted"
+        if isinstance(found_form, dict) and isinstance(found_form["contacts"], dict):
+            found_census = found_form["contacts"]
+            seen = ", ".join(
+                f"{word} {found_census[word]}" for word in sorted(found_census)
+            )
+        checks += [_exact(name, "datetime.count_form", "form.contacts", wanted, seen)]
     return checks
 
 

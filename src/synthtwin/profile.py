@@ -47,6 +47,7 @@ import pathlib
 from synthtwin import (
     calendar_rules,
     canonical,
+    date_counts,
     dialect,
     errors,
     parsing,
@@ -573,7 +574,14 @@ def _settings_block(
         # -- 3b.R2c (P4-D383)
         "forced_date_columns": [],
         # -- 3b.R4 (P4-D384)
-        "forced_date_counts": [],
+        # THE COLUMNS WHOSE DATES ARE WRITTEN AS COUNTS (question Q3,
+        # `--date-count`): `[column, member]` in the columns' rising order.
+        # Recorded because the validator reads a checked file's counts in
+        # the same member, and the generator writes the twin's dates back
+        # as that member's counts.
+        "forced_date_counts": [
+            [name, member] for name, member in sorted(settings.forced_date_counts)
+        ],
     }
 
 
@@ -897,6 +905,17 @@ _WEEKDAY_COUNT = "a-weekday-group-count-zero-or-at-the-census-line"
 # anchor 3b-R2b (P4-D383)
 # anchor 3b-R2c (P4-D383)
 # anchor 3b-R4 (P4-D384)
+# ONE HALF OF A DECLARED COUNTING SYSTEM (question Q3): a column of this
+# table, or one of the twelve members (`date_counts.MEMBERS`). No value of
+# anybody's table is either.
+_COUNTED_PART = "a-name-of-this-table-or-a-counting-system"
+# HOW A COLUMN OF COUNTED DATES WRITES ITS COUNTS (`count_form`): the
+# decimal mark, a point or a comma; the significant figures it writes to,
+# fifteen or seventeen, or nothing; and a contact number of a
+# `days-since-1840` column as its figures are written, or `(none)`.
+_COUNT_MARK = "a-decimal-mark-of-a-count"
+_COUNT_SIGNIFICANT = "fifteen-or-seventeen-significant-figures-or-nothing"
+_CONTACT_WORD = "a-contact-number-in-figures-or-none"
 _SHAPE_FORM = "a-written-form-a-cell-could-not-be-spelled-with"
 _LAYOUT_FORM = "a-layout-a-record-number-could-not-be-spelled-with"
 # The two kinds `layout_prefixes` carries (owner ruling 2026-09-17,
@@ -1031,6 +1050,8 @@ _STATED_RULES: "dict[tuple[str, ...], str]" = {
     ("settings", "forced_date_columns"): _ARRAY,
     # -- 3b.R4 (P4-D384)
     ("settings", "forced_date_counts"): _ARRAY,
+    ("settings", "forced_date_counts", _EACH): _ARRAY,
+    ("settings", "forced_date_counts", _EACH, _EACH): _COUNTED_PART,
     # How the table was read.
     ("source",): _OBJECT,
     ("source", "encoding"): _WORD,
@@ -1719,9 +1740,18 @@ _STATED_RULES: "dict[tuple[str, ...], str]" = {
     ("columns", _EACH, "clock_heaps"): _ARRAY,
     ("columns", _EACH, "clock_step"): _NOTHING,
     ("columns", _EACH, "clock_codes"): _ARRAY,
-    # ...and the key the second cut reserves (plan P4-D386), nothing at
-    # all until landing R4 fills it.
-    ("columns", _EACH, "count_form"): _NOTHING,
+    # ...and the key the second cut reserved (plan P4-D386), which landing
+    # R4 fills on a column of counted dates and leaves `null` on every
+    # other: how the column writes its counts (`date_counts.CountForm`).
+    ("columns", _EACH, "count_form"): _MAYBE_OBJECT,
+    ("columns", _EACH, "count_form", "places"): _COUNT,
+    ("columns", _EACH, "count_form", "trimmed"): _FLAG,
+    ("columns", _EACH, "count_form", "significant"): _COUNT_SIGNIFICANT,
+    ("columns", _EACH, "count_form", "exponent"): _FLAG,
+    ("columns", _EACH, "count_form", "mark"): _COUNT_MARK,
+    ("columns", _EACH, "count_form", "contacts"): _MAYBE_OBJECT,
+    ("columns", _EACH, "count_form", "contacts", _KEY_OF): _CONTACT_WORD,
+    ("columns", _EACH, "count_form", "contacts", _ANY_KEY): _DISCLOSED_ENTRY,
     # THE LANDINGS' ANCHORS (plan P4-D364): each landing of stage 3b adds
     # its rows below its own line.
     # anchor 3b-D1 (P4-D365)
@@ -2636,6 +2666,24 @@ def _leaf_is_published(
     # anchor 3b-R2b (P4-D383)
     # anchor 3b-R2c (P4-D383)
     # anchor 3b-R4 (P4-D384)
+    if kind == _COUNTED_PART:
+        if not isinstance(value, str):
+            return False
+        return value in context.names or value in date_counts.MEMBERS
+    if kind == _COUNT_MARK:
+        return isinstance(value, str) and value in date_counts.MARKS
+    if kind == _COUNT_SIGNIFICANT:
+        return value is None or (
+            not isinstance(value, bool) and isinstance(value, int) and value in (15, 17)
+        )
+    if kind == _CONTACT_WORD:
+        # FIGURES AFTER THE POINT OF AN EPIC DAY, AS WRITTEN, or the word for
+        # none: a contact number, which the census beside it counts.
+        if not isinstance(value, str):
+            return False
+        if value == date_counts.NO_CONTACT:
+            return True
+        return 0 < len(value) <= 9 and parsing.is_digit_text(value)
     if kind == _TAIL_PERCENT:
         if isinstance(value, bool) or not isinstance(value, int):
             return False

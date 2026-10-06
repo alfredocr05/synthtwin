@@ -92,6 +92,9 @@ import math
 import pathlib
 
 from synthtwin import calendar_rules, canonical, dialect, errors, parsing
+# -- 3b.R4 (P4-D384): the twelve systems that write dates as counts, a
+# module that imports `parsing` alone.
+from synthtwin import date_counts
 from synthtwin.paths import validate_local_path
 
 # The one version this loader reads. `profile_version` must be exactly
@@ -609,6 +612,17 @@ DATETIME_KEYS = (
     # it, and the loader refuses anything else.
     "count_form",
 )
+
+# THE KEYS OF A FORM OF COUNTS (landing R4, plan P4-D384), each always
+# present: `date_counts.CountForm`'s six fields.
+COUNT_FORM_KEYS = ("contacts", "exponent", "mark", "places", "significant", "trimmed")
+
+# WHAT NF115 SAYS, in the one clause of it the loader reads (CD1): a
+# declared column of counts that is not on the datetime role says its
+# cells did not read as such dates. A second spelling of one sentence, for
+# the reason `AFFIXED_REMARK_MARK` is one; `tests/test_stage3b_counted.py`
+# renders the real form and asserts this phrase is in it.
+COUNTED_NOT_READ_MARK = "did not read as such dates"
 
 # THE KEYS A DESCRIPTION WRITTEN BEFORE THEM DOES NOT CARRY (review of
 # landing 3b.G1, item 1; plan P4-D375). Plan P4-D375 keeps the readers of
@@ -1731,6 +1745,31 @@ INVARIANTS = {
     # anchor 3b-R2b (P4-D383)
     # anchor 3b-R2c (P4-D383)
     # anchor 3b-R4 (P4-D384)
+    # NUMBERS THAT ARE DATES (landing R4, plan P4-D384): a column declared
+    # to write its dates as counts, and the form of its counts.
+    "CD1": (
+        "a column named as writing its dates as counts is a column of "
+        "dates with a form of counts, or says its cells did not read as "
+        "such dates"
+    ),
+    "CD2": (
+        "only a column of dates named as writing its dates as counts "
+        "carries a form of counts"
+    ),
+    "CD3": (
+        "a census of contact numbers stands only on a column counted in "
+        "days from 31 December 1840, whose form writes no significant "
+        "figures and no exponent"
+    ),
+    "CD4": (
+        "a census of contact numbers counts every date the column reads, "
+        "each count at the disclosure line"
+    ),
+    "CD5": (
+        "a form of counts written in exponent form writes fifteen "
+        "significant figures, and one written by significant figures drops "
+        "its trailing zeros"
+    ),
     "Q1": (
         "the row count a column of numbers repeats is the row count of "
         "the table"
@@ -2724,10 +2763,10 @@ class DatetimeFacts:
     second_heaps: "tuple[tuple[int, int], ...]" = ()
     day_of_month_census: "tuple[tuple[int, int, int], ...]" = ()
     heavy_dates: "tuple[tuple[int, int], ...]" = ()
-    # THE KEY THE SECOND CUT RESERVES (plan P4-D386), `None` on every
-    # column until landing R4 (plan P4-D384) fills it: how the counts a
-    # column writes its dates as are spelled.
-    count_form: "dict[str, object] | None" = None
+    # THE KEY THE SECOND CUT RESERVED (plan P4-D386), filled by landing R4
+    # (plan P4-D384): how a column whose dates are written as counts spells
+    # them, and `None` on every other column.
+    count_form: "date_counts.CountForm | None" = None
 
 
 @dataclasses.dataclass(frozen=True)
@@ -6223,15 +6262,27 @@ def _settings(value: object) -> SettingsBlock:
             "newer synthtwin",
         )
     # -- 3b.R4 (P4-D384)
-    if counted:
-        raise _out_of_range(
-            "forced_date_counts",
-            where,
-            "a list that is not empty",
-            "an empty list: this version of synthtwin takes no such "
-            "declaration, so a description holding one was written by a "
-            "newer synthtwin",
-        )
+    # THE SYSTEM IS ONE OF THE TWELVE (`date_counts.MEMBERS`), and the
+    # names stand in rising order, as every declaration of names does.
+    systems: "list[tuple[str, str]]" = []
+    place = 0
+    for name, system in counted:
+        if not isinstance(system, str) or system not in date_counts.MEMBERS:
+            raise _out_of_range(
+                f"forced_date_counts[{place}][1]",
+                where,
+                f"'{system}'",
+                _listed(date_counts.MEMBERS),
+            )
+        if systems and name <= systems[len(systems) - 1][0]:
+            raise _out_of_range(
+                "forced_date_counts",
+                where,
+                f"'{name}'",
+                "names in rising order, each of them once",
+            )
+        systems += [(name, system)]
+        place = place + 1
     block = SettingsBlock(
         small_cell_floor=floor,
         identifier_uniqueness=_share(
@@ -6322,7 +6373,7 @@ def _settings(value: object) -> SettingsBlock:
         # -- 3b.R2c (P4-D383)
         forced_date_columns=tuple(date_columns),
         # -- 3b.R4 (P4-D384)
-        forced_date_counts=(),
+        forced_date_counts=tuple(systems),
     )
     # C5-K4 LAST, because it is the one rule here that needs BOTH
     # records: every other check is about one entry and is raised where
@@ -9242,25 +9293,89 @@ def _count_form(
     judged: "tuple[str, ...]",
     absent: "tuple[str, ...]",
     facts: DatetimeFacts,
-) -> "dict[str, object] | None":
-    """A column's `count_form`, reserved: `null` and nothing else (plan P4-D386).
+) -> "date_counts.CountForm | None":
+    """A column's `count_form`: how its dates written as counts are spelled (landing R4).
 
-    THE STUB OF LANDING R4 (plan P4-D384, numbers that are dates), which
-    fills this reader and nothing beside it. Handed what `_hour_census`
-    is handed.
+    `null`, or exactly the six keys `date_counts.CountForm` names: `places`
+    a whole number from 0 to 17, `trimmed` and `exponent` truth values,
+    `significant` nothing, 15 or 17, `mark` a point or a comma, and
+    `contacts` nothing or a census of contact numbers -- each word figures
+    alone or `(none)`, each count at the disclosure line, the counts
+    summing to the dates the column reads (CD4). An exponent form writes
+    fifteen significant figures, trimmed, and a significant form is
+    trimmed (CD5). Whether the column is one the settings declare, and
+    whether contacts stand on the one member that writes them, needs the
+    settings and is asked with the cross-checks (CD1 to CD3).
 
-    Guarantees: returns `None`. Raises ProfileError for any other value
-    (R16). No I/O of any kind.
+    Guarantees: returns the form or None. Raises ProfileError for any
+    other shape (R15, R16) and for CD4 and CD5. No I/O of any kind.
     """
-    if mapping["count_form"] is not None:
+    found = mapping["count_form"]
+    if found is None:
+        return None
+    form = _mapping(found, "count_form", where)
+    _keys(form, where, COUNT_FORM_KEYS, "every form of counts")
+    places = _whole(form["places"], "count_form -> places", where, 0)
+    if places > 17:
         raise _out_of_range(
-            "count_form",
-            where,
-            "a form of counts",
-            "nothing (null): this version of synthtwin reads no column of "
-            "dates written as counts",
+            "count_form -> places", where, f"{places}", "a whole number from 0 to 17"
         )
-    return None
+    trimmed = _truth(form["trimmed"], "count_form -> trimmed", where)
+    exponent = _truth(form["exponent"], "count_form -> exponent", where)
+    significant: "int | None" = None
+    if form["significant"] is not None:
+        significant = _whole(form["significant"], "count_form -> significant", where, 0)
+        if significant not in (15, 17):
+            raise _out_of_range(
+                "count_form -> significant", where, f"{significant}", "15, 17 or nothing"
+            )
+    mark = _one_of(form["mark"], "count_form -> mark", where, date_counts.MARKS)
+    contacts: "dict[str, int] | None" = None
+    if form["contacts"] is not None:
+        census = _mapping(form["contacts"], "count_form -> contacts", where)
+        contacts = {}
+        line = parsing.census_floor(floor)
+        for word in sorted(census):
+            if word != date_counts.NO_CONTACT and not (
+                0 < len(word) <= 9 and parsing.is_digit_text(word)
+            ):
+                raise _out_of_range(
+                    "count_form -> contacts", where, f"'{word}'",
+                    "a contact number written in figures, or '(none)'",
+                )
+            count = _whole(census[word], f"count_form -> contacts -> {word}", where, 1)
+            if count < line:
+                raise _broken(
+                    "CD4",
+                    where,
+                    f"a contact number is counted {count} times",
+                    f"every count of the census is at least {line}",
+                )
+            contacts[word] = count
+        dates = n_present - facts.n_unparsed
+        if sum(contacts[word] for word in contacts) != dates:
+            raise _broken(
+                "CD4",
+                where,
+                "the census of contact numbers counts "
+                f"{sum(contacts[word] for word in contacts)} dates",
+                f"the column reads {dates} of its cells as dates",
+            )
+    if exponent and (significant != 15 or not trimmed):
+        raise _broken(
+            "CD5",
+            where,
+            "the counts are written in exponent form where it is shorter",
+            "that form writes fifteen significant figures, trimmed",
+        )
+    if significant is not None and not trimmed:
+        raise _broken(
+            "CD5",
+            where,
+            f"the counts are written to {significant} significant figures",
+            "a form written by significant figures drops its trailing zeros",
+        )
+    return date_counts.CountForm(places, trimmed, significant, exponent, mark, contacts)
 
 
 def _weekday_census(
@@ -17616,6 +17731,157 @@ def _written_clock_style(column: ColumnBlock) -> "str | None":
     return None
 
 
+def counted_unit(facts: DatetimeFacts) -> int:
+    """The unit a column of counted dates was published at, in nanoseconds (landing R4).
+
+    A whole date where the column is of dates, and otherwise the clock's
+    published precision: the minute, the second, or three, six or nine
+    figures of a second (`date_counts.WRITTEN_UNITS`). The generator
+    writes the twin's dates back as counts from it and the validator reads
+    a checked file's counts at it, so the profiler's reading, the twin's
+    and the checker's agree.
+
+    Guarantees: a function of the facts. Raises nothing. No I/O.
+    """
+    if facts.resolution != "datetime":
+        return date_counts.DAY
+    if facts.time_precision == "minute":
+        return date_counts.MINUTE
+    if facts.time_precision == "second":
+        return date_counts.SECOND
+    if facts.subsecond_digits <= 3:
+        return date_counts.MILLISECOND
+    if facts.subsecond_digits <= 6:
+        return date_counts.MICROSECOND
+    return date_counts.NANOSECOND
+
+
+def counts_read_back(
+    member: str,
+    facts: DatetimeFacts,
+    holes: "tuple[str, ...]",
+    cells: "list[str]",
+) -> "list[str]":
+    """A column of counted dates' cells, read as the dates they name (landing R4).
+
+    THE ONE READING THE GENERATOR AND THE VALIDATOR SHARE: each cell that
+    is a count by the grammar (`date_counts.written_count`, in the
+    published mark) and names a date in ``member`` is written as that
+    date's ISO text at the precision the description published
+    (`counted_unit`) -- the text the profiler described the real column
+    in. A cell wearing one of ``holes``, the column's published absent
+    spellings, is left as it is, as is one that is no count or names no
+    date.
+
+    Guarantees: accepts the member, the column's facts, its absent
+    spellings and its cells; returns as many cells in the same order.
+    Determinism: whole-number arithmetic. Raises KeyError for a member
+    outside `date_counts.MEMBERS`. No I/O of any kind.
+    """
+    form = facts.count_form
+    if form is None:
+        return cells
+    unit = counted_unit(facts)
+    absent: "dict[str, int]" = {}
+    for spelling in holes:
+        absent[spelling] = 1
+    texts: "dict[str, str]" = {}
+    read: "list[str]" = []
+    for cell in cells:
+        if not cell or cell in absent:
+            read += [cell]
+            continue
+        if cell in texts:
+            read += [texts[cell]]
+            continue
+        written = date_counts.written_count(cell, form.mark)
+        if written is None:
+            read += [cell]
+            continue
+        numerator, denominator = date_counts.exact_value(written)
+        moment = date_counts.moment_of(member, numerator, denominator, unit)
+        if moment is None:
+            read += [cell]
+            continue
+        text = date_counts.iso_text(moment, unit, unit)
+        if unit >= date_counts.DAY:
+            texts[cell] = text
+        read += [text]
+    return read
+
+
+def _counted_columns_agree(
+    columns: "tuple[ColumnBlock, ...]",
+    settings: SettingsBlock,
+    places: "dict[str, int]",
+) -> None:
+    """S8, CD1, CD2 and CD3: a declared column of counts and its block (landing R4).
+
+    Every column named in `forced_date_counts` is a column of this table
+    (S8); one on the datetime role carries a form of counts, and one on
+    any other role says in NF115 that its cells did not read as such
+    dates (CD1); a form of counts stands only on a column so named (CD2);
+    and a census of contact numbers only on a `days-since-1840` column,
+    whose form then writes no significant figures and no exponent (CD3).
+    Raises ProfileError naming the rule. No I/O of any kind.
+    """
+    members: "dict[str, str]" = {}
+    for name, member in settings.forced_date_counts:
+        if name not in places:
+            raise _broken(
+                "S8",
+                "in the block of rules that produced the description",
+                f"'{name}' is named as writing its dates as counts",
+                "this table has no column of that name",
+            )
+        members[name] = member
+    for column in columns:
+        facts = column.facts
+        form = facts.count_form if isinstance(facts, (DatetimeFacts,)) else None
+        where = f"in the block for the column named '{column.name}'"
+        if column.name not in members:
+            if form is not None:
+                raise _broken(
+                    "CD2",
+                    where,
+                    "the column carries a form of counts",
+                    "the block of rules that produced the description does "
+                    "not name it as writing its dates as counts",
+                )
+            continue
+        if form is None:
+            said = False
+            for remark in column.remarks:
+                if COUNTED_NOT_READ_MARK in remark:
+                    said = True
+            if isinstance(facts, (DatetimeFacts,)) or not said:
+                raise _broken(
+                    "CD1",
+                    where,
+                    "the column is named as writing its dates as counts",
+                    "it carries no form of counts and does not say its cells "
+                    "did not read as such dates",
+                )
+            continue
+        contacts_member = date_counts.TABLE[members[column.name]].contacts
+        if form.contacts is not None and not contacts_member:
+            raise _broken(
+                "CD3",
+                where,
+                "the column carries a census of contact numbers",
+                f"its dates are counted as {members[column.name]}, which "
+                f"writes none",
+            )
+        if contacts_member and (form.significant is not None or form.exponent):
+            raise _broken(
+                "CD3",
+                where,
+                "its form writes significant figures or an exponent",
+                "a column counted in days from 31 December 1840 writes its "
+                "day and its contact number",
+            )
+
+
 def _cross_checks(
     columns: "tuple[ColumnBlock, ...]",
     settings: SettingsBlock,
@@ -17762,6 +18028,9 @@ def _cross_checks(
                 "read as numbers at all, so the comma reading could "
                 "never be used",
             )
+    # -- 3b.R4 (P4-D384): S8, CD1, CD2 and CD3 for the columns whose dates
+    # are written as counts.
+    _counted_columns_agree(columns, settings, places)
     previous = 0
     place = 0
     for note in notes:
