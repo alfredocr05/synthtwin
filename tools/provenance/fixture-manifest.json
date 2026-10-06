@@ -106,6 +106,13 @@
       "sha256": "6aa322f88341d5171f969b4f1916d02fa5cc1c00116e2a41310b7a5a8c6be8a7"
     },
     {
+      "generator": "tools/reference/make_generation_branch_vectors_16.py",
+      "justification": "The states synthtwin's generation method freezes its hour pass's own steps on (landing 3b.2-H, plan P4-D371, method section G7.3g): SAMEDAY on a rung's day, the escape keeping a weekday census's groups, SPLIT of a tied unit no group has room for, PUT BACK where the count of different values is long and where it is short, the proportional order of the units that leave, the step off a written midnight, the dial's half day for a declared 12-hour stamp's tail ranks, and the whole pass; and the tails G7.3b step 10 takes onto the dial's half day, on a low tail of minutes, a high tail of seconds and a tail whose ranks must all differ -- each with the answer computed from that specification alone. It is not a file of columns: each step is frozen on ranks or distances stated by hand, so a mutant of one step turns its own case red, and tests/test_stage3b_hour.py holds the product to every answer and turns each case red on its mutant. Whole numbers only; the oracle imports neither synthtwin, nor numpy, nor pandas.",
+      "path": "tests/reference/generation-branch-vectors-16.json",
+      "seed": 0,
+      "sha256": "8df639e15ba7a751e91102281c21537b4c5e26e9e1de2d56ac2f3e4ab532e1d8"
+    },
+    {
       "generator": "tools/reference/make_generation_branch_vectors_22.py",
       "justification": "The twin cells synthtwin's generation method requires for the five cases docs/spec/generation-method-v1.md section G14.3 adds with landing T1's written clocks (plan P4-D370): stamp_unpadded_hour, G7.5's clock of a slashed stamp with the hour in one figure; stamp_twelve_hour_top, the 12-hour face with its marker after a space, midnight written 12:00 AM; stamp_dotted_seconds, a dotted marker after one space at the second on a day-first stamp; clock_unpadded_twelve_hour, G7A.1's 12-hour form of a column of clock times; and date_remainder_one_joint, G7.5 step 5, the width census's unnamed remainder written on whole days. Plan P4-D364's numbering table gives the landing this file of its own. Computed from that specification alone by the same oracle and the same proof layer as every other vector file here, which imports neither synthtwin nor numpy nor pandas; no value in it comes from any table, and every number it publishes carries the exact value it was proved against.",
       "path": "tests/reference/generation-branch-vectors-22.json",
