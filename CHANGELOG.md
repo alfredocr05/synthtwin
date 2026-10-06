@@ -38,6 +38,16 @@ description made before this landing that published SAS dates as
 categories misses `axes.role` against its own twin, which is now read as
 dates: describe the table again.
 
+**Its second skeptic.** An HL7 column whose census names an offset --
+300 of 1,000 stamps at `+0000` -- beside a few rarer ones no longer has
+the rare ones written at the named offset, which had cost its twin the
+offsets census at every seed. Where no offset is owed the pass now looks
+at each cell once and stops. Fourteen- and twelve-figure identifiers a
+few of which end in a suffix read as an offset (`-0001`, `-01`) are
+asked again whether they hold dates, codes or record numbers. Every rule
+of the repair round that no test turned red now has one, red on its own
+mutant.
+
 ### A description written before the published pairs loads again (2026-10-03)
 
 **The review of landing 3b.G1, its four items** (plan P4-D375). A
