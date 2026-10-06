@@ -264,7 +264,12 @@ def _k322_battery():
 
 
 def _width_battery():
-    """Lane G2's own shapes (plan P4-D377): far cells past the one width a census names, each seeded."""
+    """Lane G2's own shapes (plan P4-D377): far cells past the one width a census names, each seeded.
+
+    The last two are the repair round's two-figure readings beside one far
+    reading, where the reach stands barely past `99`: what the rule costs
+    there is counted, not hidden.
+    """
     import random
 
     for floor in (11, 20, 36):
@@ -280,6 +285,10 @@ def _width_battery():
         yield "plus_mixed", plus + ["99999"], floor
     for floor in (11, 20):
         yield "pressures_beside_1300", heaped + ["1300"], floor
+    evenly = random.Random("g2/uniform/150/188")
+    yield "two_figures_beside_188", [str(evenly.randint(10, 99)) for _ in range(150)] + ["188"], 50
+    bell = random.Random("g2/bell/150/237")
+    yield "bell_beside_237", [str(max(10, min(99, int(round(bell.gauss(54.5, 89 / 6)))))) for _ in range(150)] + ["237"], 36
 
 
 def _figures(cell):

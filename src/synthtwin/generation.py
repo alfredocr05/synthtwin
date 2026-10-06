@@ -14560,7 +14560,7 @@ def _wide_enough(
     # numbers and two far cells a walk it counted no worse wrote two more
     # two-figure cells than 110cb46.
     sides = _proven_sides(facts, _widest_demanded(demands))
-    reached: "list[tuple[bool, float, float, float, bool]]" = []
+    reached: "list[tuple[bool, float, float, float, bool, float]]" = []
     for side in sides:
         if side[4]:
             reached += [side]
@@ -14583,7 +14583,7 @@ def _width_walk(
     rungs: "tuple[float, ...] | None",
     values: "list[float]",
     census: "tuple[list[tuple[int, int, int]], int]",
-    sides: "list[tuple[bool, float, float, float, bool]]",
+    sides: "list[tuple[bool, float, float, float, bool, float]]",
 ) -> "list[float]":
     """One width walk over the values, rule 2 of G6.6.8 on the sides handed in (G6.6).
 
@@ -14868,7 +14868,7 @@ def _walked_past_the_width(
     values: "list[float]",
     demands: "list[tuple[int, int, int]]",
     floor: int,
-    sides: "list[tuple[bool, float, float, float, bool]]",
+    sides: "list[tuple[bool, float, float, float, bool, float]]",
 ) -> "tuple[list[float], int]":
     """Which of a tail's cells stand past every named width, and the rest moved under it (G6.6.8 rule 2).
 
@@ -14887,13 +14887,28 @@ def _walked_past_the_width(
     end comes before a staircase row standing on its value -- and whole
     strata stay while the cells left past the width number at most the
     line less one over both tails AND their distances and squared
-    distances fit inside what the pair's totals have left. The first
-    stratum that does not fit stops the walk, so the cells left are
-    always the outermost. EVERY OTHER STRATUM OF THE TAIL PAST THE WIDTH
-    IS MOVED UNDER IT (`_pulled_under_the_width`), the one holding the
-    derived end among them: no rung is published beyond a boundary
-    (contract 6.7a), so a twin's end elsewhere contradicts no published
-    fact.
+    distances fit inside what the pair's totals have left -- the squares
+    after those the side's own tail strata under the width already hold,
+    each at its own distance from the boundary. The first stratum that
+    does not fit stops the walk, so the cells left are always the
+    outermost. EVERY OTHER STRATUM OF THE TAIL PAST THE WIDTH IS MOVED
+    UNDER IT (`_pulled_under_the_width`), the one holding the derived end
+    among them: no rung is published beyond a boundary (contract 6.7a),
+    so a twin's end elsewhere contradicts no published fact.
+
+    THE SQUARES THE ROWS UNDER THE WIDTH HOLD COME OFF FIRST, because
+    those rows hold their share of `m rms**2` wherever the far cells
+    stand: 150 two-figure readings beside one `185`, at a floor of
+    fifty, stack 24 of the tail's rows on the reach, `103`, and inside
+    the pair's totals alone all 24 fit -- the source's one far value
+    written 24 times; with the squares the tail's other strata hold
+    taken off, none does. The first total is not lowered the same way:
+    a far cell carries the tail's squares far more than its distance,
+    and those strata stand where the staircase stretched them toward the
+    reach; lowered by their distance too, it took every far cell off 14
+    of 1,500 random shapes of one to four figures beside far cells where
+    this rule keeps one, and left 50 means further from the real one
+    than 110cb46's where this leaves 44.
 
     Two faults of the first form are why. It would not move the end's
     stratum and took its cells off a demand instead, so where one stratum
@@ -14907,6 +14922,18 @@ def _walked_past_the_width(
     `99999` left the inner row past the width and wrote `99999` twice at
     every seed, the spread 1.41 times the real one.
 
+    AND WHERE A STRATUM THAT DOES NOT FIT FINDS NO ROOM UNDER THE WIDTH,
+    THE SIDE FALLS BACK TO 110cb46's END. On a side rule 1 moved, the
+    strata without room take the end the width held there
+    (`_pulled_under_the_width`), as 110cb46 wrote it. On another side
+    the walk is given up whole -- its end stood past the width on
+    110cb46 already -- and that side is left as it was drawn. Measured
+    on readings 1 to 9 beside one `11`, 400 rows at a floor of fifty:
+    every value under the width was held, so the end's stratum of 49
+    rows stayed past it on 71a7b31, which wrote 49 cells on `10`, the
+    mean 0.054 of the real spread off; 110cb46 wrote them on `9`, the
+    mean 0.007 off, and so does this.
+
     Only the cells left past the width serve no demand, and only they
     come off the demand the census counted them into
     (`_demands_less_the_freed`).
@@ -14914,9 +14941,10 @@ def _walked_past_the_width(
     Guarantees: accepts the column's facts, its layout, the values as
     they stand, its demands, the settings floor and the proven sides to
     walk; returns the values with each moved stratum's new value, and how
-    many cells are left past the width, nought to the line less one.
-    Both are unchanged where no side is handed in. Determinism: a
-    function of those. Raises nothing. No I/O of any kind.
+    many cells are left past the width, nought to the line less one --
+    every cell of a walked side past the width being one of them. Both
+    are unchanged where no side is handed in. Determinism: a function of
+    those. Raises nothing. No I/O of any kind.
     """
     moved = [value for value in values]
     if not sides:
@@ -14924,7 +14952,8 @@ def _walked_past_the_width(
     widest, exact = _width_of(demands)
     room = parsing.census_floor(floor) - 1
     freed = 0
-    for high, boundary, first_total, second_total, _moved in sides:
+    for high, boundary, first_total, second_total, reached, held in sides:
+        before = freed
         places = _side_strata(facts, layout, high)
         past: "list[tuple[float, int, int]]" = []
         for place in places:
@@ -14936,6 +14965,17 @@ def _walked_past_the_width(
             past += [(-abs(value - boundary), -place if high else place, place)]
         left_first = first_total
         left_second = second_total
+        # THE SQUARES THE SIDE'S STRATA UNDER THE WIDTH HOLD come off the
+        # pair's second total before any stratum past it is weighed (see
+        # above); the first total is left whole.
+        beyond: "dict[int, int]" = {}
+        for _distance, _order, place in past:
+            beyond[place] = 1
+        for place in places:
+            if place in beyond:
+                continue
+            far = abs(moved[place] - boundary)
+            left_second = left_second - layout.sizes[place] * far * far
         stopped = False
         pulled: "list[int]" = []
         for distance, _order, place in sorted(past):
@@ -14952,29 +14992,43 @@ def _walked_past_the_width(
                 continue
             stopped = True
             pulled += [place]
-        if pulled:
-            moved = _pulled_under_the_width(
-                facts,
-                layout,
-                moved,
-                places,
-                pulled,
-                (high, boundary, second_total),
-                (widest, exact),
-            )
+        if not pulled:
+            continue
+        walked = _pulled_under_the_width(
+            facts,
+            layout,
+            moved,
+            places,
+            pulled,
+            (high, boundary, second_total, held if reached else None),
+            (widest, exact),
+        )
+        stood = False
+        for place in pulled:
+            value = walked[place]
+            if not _carries_plainly(value, facts.integer_valued):
+                continue
+            if _figure_count(value, facts.integer_valued) > widest:
+                stood = True
+        if stood:
+            freed = before
+            continue
+        moved = walked
     return moved, freed
 
 
 def _proven_sides(
     facts: contract.NumericFacts, widest: int
-) -> "list[tuple[bool, float, float, float, bool]]":
+) -> "list[tuple[bool, float, float, float, bool, float]]":
     """The tails whose published pair proves a cell past every named width (G6.6.8).
 
     One entry a side, low first: whether it is the high tail, its
     boundary rung on the ladder every consumer reads, the pair's two
-    totals `m d1` and `m rms**2`, and whether G5.3b step 4's reach rule
+    totals `m d1` and `m rms**2`, whether G5.3b step 4's reach rule
     (G6.6.8 rule 1) moved that side's derived end -- the ladder read
-    with the rule withdrawn holds it elsewhere. A side is proven where
+    with the rule withdrawn holds it elsewhere -- and that end, the one
+    110cb46 wrote, where a stratum without room falls back to on a side
+    the rule moved (`_pulled_under_the_width`). A side is proven where
     its reach, `contract.pair_reach`, carries the boundary past the widest
     value any demand lets a cell hold, `10**widest - 1`, on that tail's
     own side of nought. Empty where no tail publishes a pair, where no
@@ -15013,7 +15067,7 @@ def _proven_sides(
     if held is None or held.low is None or held.high is None:
         return []
     ceiling = _width_ceiling(widest)
-    found: "list[tuple[bool, float, float, float, bool]]" = []
+    found: "list[tuple[bool, float, float, float, bool, float]]" = []
     for side, reader, before, high in (
         (tails.low, ladder.low, held.low, False),
         (tails.high, ladder.high, held.high, True),
@@ -15035,6 +15089,7 @@ def _proven_sides(
                 side.rows * mean,
                 side.rows * root * root,
                 reader.end != before.end,
+                before.end,
             )
         ]
     return found
@@ -15185,7 +15240,7 @@ def _pulled_under_the_width(
     values: "list[float]",
     places: "list[int]",
     pulled: "list[int]",
-    side: "tuple[bool, float, float]",
+    side: "tuple[bool, float, float, float | None]",
     width: "tuple[int, bool]",
 ) -> "list[float]":
     """A tail's strata the pair leaves no room past the width for, moved under it (G6.6.8 rule 2).
@@ -15218,22 +15273,30 @@ def _pulled_under_the_width(
     `K-S3-22`'s 400 whole-number Pareto(2.5) readings of seed 9, at a floor
     of 36: ten strata past `999` had seven free values between the stratum
     at `992` and the width, and a pass that did not widen left three of
-    them past it.
-    Only where the side's own tail strata, every one of them taken in,
-    still find too few free values do the outermost stay where they
-    stood, their cells serving no demand; a stratum is never taken in
-    from the column's body, the zero band or another sign's band.
+    them past it. A stratum is never taken in from the column's body.
+
+    WHERE THE SIDE'S OWN TAIL STRATA, EVERY ONE OF THEM TAKEN IN, STILL
+    FIND TOO FEW FREE VALUES, the pulled strata alone are moved, the
+    innermost of them onto the outermost free values, each aimed at its
+    limit; and the outermost, which find none, take the end the width
+    held on 110cb46 where the caller hands it -- a side rule 1 moved --
+    sharing that value as 110cb46's end did, the count of different
+    values falling by those strata's own. Handed none, they stay where
+    they stood and the caller gives the side's walk up. On readings 1 to
+    9 beside one `11`, every value under the width held and the end's
+    stratum holding 49 rows, the end goes back to `9`.
 
     Guarantees: accepts the column's facts, its layout, the values as
     they stand, the side's tail strata, the strata to move outermost
-    first, the side (high or low, its boundary, `m rms**2`) and the widest
+    first, the side (high or low, its boundary, `m rms**2`, and the end
+    the width held where rule 1 moved it, else None) and the widest
     demanded figure count with whether a demand asks for exactly it;
     returns the values with those strata -- and any taken in beside them
-    -- under the width, their order by rank kept and the count of
-    different values with it. Determinism: a function of those. Raises
-    nothing. No I/O of any kind.
+    -- under the width, their order by rank kept, and the count of
+    different values with it except where strata take the held end.
+    Determinism: a function of those. Raises nothing. No I/O of any kind.
     """
-    high, boundary, second_total = side
+    high, boundary, second_total, held = side
     widest, exact = width
     moved = [value for value in values]
     total = len(moved)
@@ -15267,12 +15330,14 @@ def _pulled_under_the_width(
         )
         if len(tops) >= len(block):
             break
-        if (
-            inner_place not in inside
-            or layout.bands[inner_place] != band
-            or inner_place == 0
-            or inner_place == total - 1
-        ):
+        # NEVER PAST THE SIDE'S OWN TAIL. Nothing else need be asked of
+        # the stratum taken in, because a stratum that cannot add room
+        # sends the run to the last resort below, which moves the pulled
+        # strata alone: no value outside the run's band is free to the
+        # run, so one of the zero band or the other sign adds a stratum to
+        # place and no value to place it on; and once the column's own
+        # pinned stratum is taken in there is no stratum inside the run.
+        if inner_place not in inside:
             break
         block += [inner_place]
         aims += [inner]
@@ -15282,21 +15347,25 @@ def _pulled_under_the_width(
     if len(tops) < len(block):
         # THE SIDE'S WHOLE TAIL WAS TAKEN IN AND STILL FINDS TOO FEW: the
         # pulled strata alone are moved, the innermost of them onto the
-        # outermost free values, and the rest stand where they stood.
+        # outermost free values, and the rest go to the held end below.
         block = [place for place in pulled]
         aims = [target for target in targets]
         innermost = block[len(block) - 1]
         inner_place = innermost - 1 if high else innermost + 1
+        tops = []
         if inner_place < 0 or inner_place >= total:
-            return moved
-        inner = moved[inner_place]
-        tops = _tops_under_the_width(
-            _released(holders, moved, block),
-            (inner, end, len(block)),
-            band,
-            width,
-            facts,
-        )
+            if held is None:
+                return moved
+            inner = held
+        else:
+            inner = moved[inner_place]
+            tops = _tops_under_the_width(
+                _released(holders, moved, block),
+                (inner, end, len(block)),
+                band,
+                width,
+                facts,
+            )
     count = len(block)
     first = count - len(tops)
     for index in range(count - 1, first - 1, -1):
@@ -15320,6 +15389,22 @@ def _pulled_under_the_width(
         holders[found] = (holders[found] if found in holders else 0) + 1
         moved[place] = found
         inner = found
+    if first < 1 or held is None:
+        return moved
+    # ...AND THE STRATA THAT FIND NONE TAKE THE END THE WIDTH HELD -- or,
+    # were that end not under the width, the outermost value under it
+    # that is no stand-in, which is how the width hold chose it -- never
+    # inside the stratum beside them, so the order by rank stands.
+    given = held
+    if not _carries_plainly(given, facts.integer_valued) or _figure_count(
+        given, facts.integer_valued
+    ) > widest:
+        given = end
+        if _is_a_stand_in(given, facts.kept_stand_ins):
+            given = given - 1.0 if high else given + 1.0
+    given = max(given, inner) if high else min(given, inner)
+    for index in range(first):
+        moved[block[index]] = given
     return moved
 
 

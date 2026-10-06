@@ -12,28 +12,26 @@ the reach (rule 1).
 
 The width walk (rule 2) then leaves past every named width only the
 tail's outermost strata that fit the line less one and the pair's own
-totals, and moves every other stratum of the tail past the width under
-it before any demand is served -- the end's own among them, beside its
-inner neighbour where the end stays past the width and where the pair's
-squares put it where the end moves too -- and takes the cells left past
-it off the demand the census counted them into. On a side rule 1 moved
-it always walks; on another proven side, where 110cb46's end already
-stood past the width, its walk stands only where it is no worse on the
-census and on either published moment and better on one. A far cell no
-named pad can hold is written plain (method G6.3).
+totals -- its squares after those the tail's strata under the width
+already hold -- and moves every other stratum of the tail past the width
+under it before any demand is served: the end's own among them, beside
+its inner neighbour where the end stays past the width, where the pair's
+squares put it where the end moves too, and onto the end the width held
+on 110cb46 where no value under the width is free. It takes the cells
+left past it off the demand the census counted them into. On a side
+rule 1 moved it always walks; on another proven side, where 110cb46's
+end already stood past the width, its walk stands only where it serves
+the census strictly better and leaves neither published moment further
+off, and is given up where a stratum finds no room. A side is proven
+only where the width census counts every number of the column, and a
+far cell a pair proves past every named pad is written plain (method
+G6.3).
 
 Each clause is held up by a test here and, where a mutant is cheap to
 write, by the mutant that withdraws it turning the test's own
 measurement the other way. The repair round ran a source mutant of each
-of 48 clauses against this file: 45 turn it red, and the other three
-change no twin of any battery the round measured. The widening's stop at
-another band cannot: no value outside the run's band is free to the run,
-so taking such a stratum in never adds room. Nor can the aim of the
-last-resort run, where every free value between a moved stratum's
-neighbour and its limit is that limit. The rule for a moved stratum
-whose own value another stratum also holds differs only where such a
-value lands beside a run that is still moving.
-The end rule is also frozen in
+of 64 clauses of the two rules and of G6.3's give-up against this file,
+and every one turns it red. The end rule is also frozen in
 `tail_width_past_the_reach` (tests/reference/generation-branch-vectors-23.json);
 the walk has no frozen case, because the oracle does not run G6.6's
 walk, so it is pinned here. The mean and spread 110cb46 wrote on the
@@ -158,7 +156,7 @@ def _walk_calls(described: kpi_shapes.Described, seed: int = 0) -> "list[tuple]"
 
 
 def _with_totals(sides: "list[tuple]", first: float, second: float) -> "list[tuple]":
-    return [(high, boundary, first, second, moved) for high, boundary, _first, _second, moved in sides]
+    return [(high, boundary, first, second, moved, held) for high, boundary, _first, _second, moved, held in sides]
 
 
 def _left_past(facts: contract.NumericFacts, values: "list[float]", widest: int) -> "list[int]":
@@ -247,6 +245,29 @@ def _bulk(rows: int) -> "list[str]":
     return [str(1000 + (step * 7919) % 1000) for step in range(rows - len(far))] + far
 
 
+def _ones_beside_eleven() -> "list[str]":
+    """Readings 1 to 9 in turn, 400 of them, beside one `11`: every value under the width is held."""
+    return [str(1 + step % 9) for step in range(400)] + ["11"]
+
+
+def _ones_bell() -> "list[str]":
+    """A thousand one-figure readings shaped like a bell around 5, beside `15` and `18`."""
+    draw = random.Random("g2/bell/1000")
+    return [str(max(1, min(9, int(round(draw.gauss(5, 4 / 3)))))) for _row in range(1000)] + ["15", "18"]
+
+
+def _ones_low_heavy() -> "list[str]":
+    """150 one-figure readings crowded towards 1, beside `12`, `39` and `72`."""
+    draw = random.Random("g2/low/150")
+    return [str(max(1, min(9, int(1 + 8 * draw.random() ** 3)))) for _row in range(150)] + ["12", "39", "72"]
+
+
+def _two_figures_beside_185() -> "list[str]":
+    """150 two-figure readings 10 to 99 drawn evenly, beside one `185`: a reading with a figure typed twice."""
+    draw = random.Random("g2/uniform/150/185")
+    return [str(draw.randint(10, 99)) for _row in range(150)] + ["185"]
+
+
 _PAST_THE_REACH = (
     ("cfh99999_150", reader.shape("cfh99999", 150, 1), 11),
     ("pad99999_150", reader.shape("pad99999", 150, 1), 11),
@@ -268,6 +289,9 @@ _ON_110CB46 = {
     ("codes", 400, 11): (0.0296, 0.1349),
     ("codes", 400, 36): (0.0323, 0.1369),
     ("bulk", 100000, 11): (0.0023, 0.5752),
+    ("ones", 401, 50): (0.0067, 0.0064),
+    ("bell", 1002, 36): (0.0083, 0.0105),
+    ("low", 153, 50): (0.1369, 0.4951),
 }
 _SLACK = 1e-4
 
@@ -526,14 +550,63 @@ def test_the_cells_left_stop_at_the_pair_s_own_totals(
         assert _past(written, 9999.0) == 2 and _errors(cells, written)[1] > 0.1, f"seed {seed}"
 
 
+def _squares_under_the_width(facts, layout, values, demands, side) -> float:  # type: ignore[no-untyped-def]
+    """What the side's tail strata under the width hold of `m rms**2`, each at its own distance from the boundary."""
+    past = _left_past(facts, values, generation._widest_demanded(demands))
+    held = 0.0
+    for place in generation._side_strata(facts, layout, side[0]):
+        if place in past:
+            continue
+        far = abs(values[place] - side[1])
+        held += layout.sizes[place] * far * far
+    return held
+
+
+def test_the_squares_the_rows_under_the_width_hold_come_off_the_pair_s_total_first(tmp_path: pathlib.Path) -> None:
+    """150 two-figure readings beside one `185`, at a floor of fifty: no stratum of the tail stays past `99`.
+
+    The high tail's 51 rows are fifty readings beside its boundary and the
+    one far cell, which holds most of the pair's squares. The reach puts
+    the end at `103`, and the staircase stacks 24 of the tail's rows on it:
+    inside the pair's two totals alone they fit, 24 rows at the reach
+    holding no more than `m d1` and `m rms**2`. But the tail's strata under
+    the width already hold their share of `m rms**2` wherever the far
+    cells stand, and what they leave holds none of the 24, so the end's
+    stratum goes under the width with the rest: the twin writes no cell
+    past `99`, where the source holds one, its own census is the source's
+    and it misses nothing. Its mutant reads the squares as the whole pair's
+    -- the total raised by what the strata under the width hold -- and the
+    walk leaves all 24 past the width, the source's one far value written
+    24 times at the reach.
+    """
+    described = _described(tmp_path, "two_figures_185", _two_figures_beside_185(), 50)
+    for seed in SEEDS:
+        assert _past(_twin_numbers(described, seed), 99.0) == 0, f"seed {seed}"
+        assert _own_census(tmp_path, described, seed, 50) == _census(described), f"seed {seed}"
+        assert _missed(described, seed) == [], f"seed {seed}"
+    ladder = contract.tail_ladder(_facts(described))
+    assert ladder is not None and ladder.high is not None and ladder.high.end == 103.0, "premise: the end at the reach"
+    facts, layout, values, demands, floor, sides = [call for call in _walk_calls(described) if call[5]][0]
+    assert [(side[0], side[4]) for side in sides] == [(True, True)], "premise: the side rule 1 moved"
+    widest = generation._widest_demanded(demands)
+    stacked = _left_past(facts, values, widest)
+    assert sum(layout.sizes[place] for place in stacked) == 24, "premise: 24 rows past the width by the staircase"
+    moved, freed = generation._walked_past_the_width(facts, layout, values, demands, floor, sides)
+    assert freed == 0 and _left_past(facts, moved, widest) == []
+    raised = _with_totals(sides, sides[0][2], sides[0][3] + _squares_under_the_width(facts, layout, values, demands, sides[0]))
+    moved, freed = generation._walked_past_the_width(facts, layout, values, demands, floor, raised)
+    assert freed == 24 and _left_past(facts, moved, widest) == stacked
+
+
 def test_the_line_and_each_total_bind_on_their_own(tmp_path: pathlib.Path) -> None:
     """The walk's own three bounds, each asked alone of the ten-wide column's first step.
 
     Five strata stand past `9999` after the staircase, one cell each. A
     floor of four leaves room for three; a first total of exactly the
     outermost stratum's distance, or a total of squares of exactly its
-    square, leaves that one alone; and every stratum the walk does not
-    leave is moved under the width, so no other cell stays past it.
+    square beside the squares the tail's strata under the width hold,
+    leaves that one alone; and every stratum the walk does not leave is
+    moved under the width, so no other cell stays past it.
     """
     described = _described(tmp_path, "ten_wide", _ten_wide(), 11)
     facts, layout, values, demands, floor, sides = _walk_calls(described)[0]
@@ -547,7 +620,11 @@ def test_the_line_and_each_total_bind_on_their_own(tmp_path: pathlib.Path) -> No
     assert freed == 3 and _left_past(facts, moved, widest) == before[2:]
     boundary = sides[0][1]
     outermost = values[before[-1]] - boundary
-    for first, second in ((outermost, math.inf), (math.inf, outermost * outermost)):
+    # The squares the strata under the width hold come off the total first,
+    # summed in another order here, so the total is raised by a part in
+    # 10**12 to stand clear of that rounding.
+    under = _squares_under_the_width(facts, layout, values, demands, sides[0])
+    for first, second in ((outermost, math.inf), (math.inf, (outermost * outermost + under) * (1.0 + 1e-12))):
         moved, freed = generation._walked_past_the_width(
             facts, layout, values, demands, floor, _with_totals(sides, first, second)
         )
@@ -557,9 +634,10 @@ def test_the_line_and_each_total_bind_on_their_own(tmp_path: pathlib.Path) -> No
 def test_the_walk_stops_at_the_first_stratum_that_does_not_fit(tmp_path: pathlib.Path) -> None:
     """Whole strata stay outermost first, and the first that does not fit sends every one inside it under.
 
-    A total of squares that holds the outermost stratum and the third but
-    not the second leaves the outermost alone: the cells left past the
-    width are always the outermost, never a gap with a stratum beyond it.
+    A total of squares that holds -- beside what the tail's strata under
+    the width hold -- the outermost stratum and the third but not the
+    second leaves the outermost alone: the cells left past the width are
+    always the outermost, never a gap with a stratum beyond it.
     """
     described = _described(tmp_path, "ten_wide", _ten_wide(), 11)
     facts, layout, values, demands, floor, sides = _walk_calls(described)[0]
@@ -569,6 +647,7 @@ def test_the_walk_stops_at_the_first_stratum_that_does_not_fit(tmp_path: pathlib
     outermost, second, third = (values[place] - boundary for place in before[-1:-4:-1])
     assert outermost > second > third, "premise: three strata at three distances"
     squares = outermost * outermost + third * third + (second * second - third * third) / 2.0
+    squares += _squares_under_the_width(facts, layout, values, demands, sides[0])
     moved, freed = generation._walked_past_the_width(
         facts, layout, values, demands, floor, _with_totals(sides, math.inf, squares)
     )
@@ -603,6 +682,10 @@ def test_on_a_tie_the_outermost_by_rank_stays(tmp_path: pathlib.Path) -> None:
         assert moved[last] == values[last], f"floor {floor}"
         tail = [moved[place] for place in generation._side_strata(facts, layout, True)]
         assert tail == sorted(tail), f"floor {floor}"
+        # ...and the count of different values stands: the row's own value
+        # is the end's too, so moving it gives no value up, and it may land
+        # on a value another stratum holds -- its inner neighbour's.
+        assert len(set(moved)) == len(set(values)), f"floor {floor}"
         for seed in SEEDS:
             written = _twin_numbers(described, seed)
             assert _past(written, 9999.0) == 1, f"floor {floor} seed {seed}"
@@ -687,8 +770,9 @@ def test_a_row_moved_under_the_width_stands_beside_its_inner_neighbour(
     the first free value past its inner neighbour, any figure count up to
     four, the padded ceiling being what the census asks -- and the twin's
     spread is no further from the real one than 110cb46's. Its mutant aims
-    the row at the width's end: it lands on `09998`, and the spread stands
-    0.23 to 0.28 off the real one, where 110cb46 stood 0.14 off.
+    the row at the width's end, and the walk puts it on `09998`: the first
+    form's fault, which left the spread 0.23 to 0.28 off the real one where
+    110cb46 stood 0.14 off.
     """
     cells = _beside_one_far(rows)
     described = _described(tmp_path, f"codes{rows}", cells, floor)
@@ -710,8 +794,8 @@ def test_a_row_moved_under_the_width_stands_beside_its_inner_neighbour(
         "_targets_under_the_width",
         lambda _layout, _values, _places, pulled, _side, end: [end for _place in pulled],
     )
-    written = _twin_numbers(described, 0)
-    assert 9998.0 in written and _errors(cells, written)[1] > spread_most + 0.05
+    aimed, _freed = generation._walked_past_the_width(facts, layout, values, demands, walk_floor, sides)
+    assert [aimed[place] for place in pulled] == [9998.0 for _place in pulled]
 
 
 def test_the_targets_spread_the_squares_left_outermost_first_and_never_past_the_width() -> None:
@@ -878,6 +962,161 @@ def test_a_run_with_too_little_room_under_the_width_widens_inward(
     assert short, "premise: some run found too few free values beside it on its own"
 
 
+_HELD_SHAPES = (
+    ("ones", _ones_beside_eleven, 50),
+    ("bell", _ones_bell, 36),
+    ("low", _ones_low_heavy, 50),
+)
+
+
+def _without_the_held_end(facts, layout, values, places, pulled, side, width):  # type: ignore[no-untyped-def]
+    """The fallback withdrawn: the pull is handed no end the width held."""
+    return _REAL_PULLED(facts, layout, values, places, pulled, (side[0], side[1], side[2], None), width)
+
+
+@pytest.mark.parametrize("label,shape,floor", _HELD_SHAPES, ids=[f"{one[0]}_f{one[2]}" for one in _HELD_SHAPES])
+def test_a_stratum_with_no_room_under_the_width_takes_the_end_the_width_held(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch, label: str, shape, floor: int  # type: ignore[no-untyped-def]
+) -> None:
+    """One-figure readings beside far cells, every value under the width held: the end goes back to 110cb46's `9`.
+
+    Rule 1 moved the high end past `9`, and the stratum holding it -- most
+    of the tail's rows -- does not fit the line less one and the pair's
+    totals, so the walk moves it under the width; but every whole value
+    from 1 to 9 is held by another stratum, and the side's whole tail
+    taken in finds too few free values. The strata that find none take
+    the end the width held on 110cb46, `9`, beside the stratum holding it.
+    No cell stands past the width, the twin's own census is the source's,
+    its mean and spread are no further off than 110cb46's and it misses
+    nothing. Its mutant hands the pull no end: the walk gives the side up,
+    and the end's stratum stays past the width with most of the tail --
+    the first skeptic's first fault, on a column of one figure. 71a7b31
+    wrote 49 of the 401 cells on `10` this way, its mean 0.054 of the
+    real spread off where 110cb46 stood 0.007 off.
+    """
+    cells = shape()
+    described = _described(tmp_path, f"{label}{floor}", cells, floor)
+    sides = generation._proven_sides(_facts(described), 1)
+    assert [(side[0], side[4], side[5]) for side in sides] == [(True, True, 9.0)], "premise: rule 1 moved the end off 9"
+    mean_most, spread_most = _ON_110CB46[(label, len(cells), floor)]
+    for seed in SEEDS:
+        written = _twin_numbers(described, seed)
+        assert _past(written, 9.0) == 0 and max(written) == 9.0, f"seed {seed}"
+        assert _own_census(tmp_path, described, seed, floor) == _census(described), f"seed {seed}"
+        mean, spread = _errors(cells, written)
+        assert mean <= mean_most + _SLACK and spread <= spread_most + _SLACK, f"seed {seed}: {mean} {spread}"
+        assert _missed(described, seed) == [], f"seed {seed}"
+    monkeypatch.setattr(generation, "_pulled_under_the_width", _without_the_held_end)
+    assert _past(_twin_numbers(described, 0), 9.0) > parsing.census_floor(floor) // 2
+
+
+def _heap_far3() -> "list[str]":
+    """400 readings 9000 to 9500, `9999` fifteen times and `10500`, `50000` and `99999` (the first skeptic's attack shape)."""
+    draw = random.Random("g2skep/heap/400/15/3")
+    return [str(draw.randint(9000, 9500)) for _row in range(400)] + ["9999"] * 15 + ["10500", "50000", "99999"]
+
+
+def test_a_side_the_rule_left_gives_its_walk_up_where_a_stratum_finds_no_room(tmp_path: pathlib.Path) -> None:
+    """Readings 9000 to 9500 beside a heap of `9999` and three far cells, at a floor of eleven: no room under the width.
+
+    Rule 1 moved nothing on this side -- the end stood past the width on
+    110cb46 -- so its walk is weighed against 110cb46's. The end's stratum
+    fits and would stay; the six inside it do not, and the tail's boundary
+    is the heap of `9999` itself, so no value under the width lies past
+    the stratum inside the tail. With no end the width held to fall back
+    to, the side's walk is given up whole: the first step hands the values
+    back as they stood and counts no cell left past the width, so the
+    walk weighed is 110cb46's. Its mutant keeps the end's cell counted,
+    beside six strata the rule does not allow past the width.
+    """
+    described = _described(tmp_path, "heap_far3", _heap_far3(), 11)
+    calls = [call for call in _walk_calls(described) if call[5]]
+    assert calls, "premise: the side is weighed"
+    facts, layout, values, demands, floor, sides = calls[0]
+    assert [(side[0], side[4]) for side in sides] == [(True, False)], "premise: a side the rule did not move"
+    widest = generation._widest_demanded(demands)
+    assert len(_left_past(facts, values, widest)) > 1, "premise: strata past the width"
+    moved, freed = generation._walked_past_the_width(facts, layout, values, demands, floor, sides)
+    assert moved == values and freed == 0
+
+
+def _run_layout(values: "list[float]") -> "generation._NumericLayout":
+    """One cell a stratum, every stratum positive: the layout the direct tests of the pull hand it."""
+    count = len(values)
+    return generation._NumericLayout(
+        sizes=(1,) * count,
+        starts=tuple(range(count)),
+        bands=("positive",) * count,
+        raw_budgets=(),
+        folded_budgets=(),
+    )
+
+
+def test_the_last_resort_places_what_it_can_on_the_outermost_free_values_and_the_rest_on_the_held_end(
+    tmp_path: pathlib.Path,
+) -> None:
+    """`_pulled_under_the_width` asked directly, on one-figure strata where the side's tail cannot make room.
+
+    Strata 1, 7 and 8 under the width and 15, 15 and 20 past it, the tail
+    the last four. The run of the three past it finds one free value, `9`,
+    takes the stratum at 8 in, finds two, and stops at the body's 7; so
+    the pulled strata alone are moved, the innermost onto `9` -- aimed at
+    the limit, though its own value is shared and every value is open to
+    it -- and the two outermost take the held end. The body is untouched,
+    the order stands, nothing stays past the width. Handed no held end,
+    the two outermost stay where they stood. A held end inside the
+    stratum beside them is lifted to it, and one past the width gives way
+    to the width's own end. A run reaching the column's own edge has no
+    stratum inside it and takes the held end whole.
+    """
+    facts = _facts(_described(tmp_path, "ones50", _ones_beside_eleven(), 50))
+    values = [1.0, 7.0, 8.0, 15.0, 15.0, 20.0]
+    layout = _run_layout(values)
+    places = [2, 3, 4, 5]
+    pulled = [5, 4, 3]
+    width = (1, False)
+    moved = generation._pulled_under_the_width(facts, layout, values, places, pulled, (True, 5.0, 0.0, 9.0), width)
+    assert moved == [1.0, 7.0, 8.0, 9.0, 9.0, 9.0]
+    stood = generation._pulled_under_the_width(facts, layout, values, places, pulled, (True, 5.0, 0.0, None), width)
+    assert stood == [1.0, 7.0, 8.0, 9.0, 15.0, 20.0]
+    lifted = generation._pulled_under_the_width(facts, layout, values, places, pulled, (True, 5.0, 0.0, 8.0), width)
+    assert lifted == [1.0, 7.0, 8.0, 9.0, 9.0, 9.0]
+    beyond = generation._pulled_under_the_width(facts, layout, values, places, pulled, (True, 5.0, 0.0, 12.0), width)
+    assert beyond == [1.0, 7.0, 8.0, 9.0, 9.0, 9.0]
+    # A run reaching the column's own edge has no stratum inside it to find
+    # room beside, and takes the held end whole; handed none, it stands.
+    edge = [15.0, 20.0]
+    held = generation._pulled_under_the_width(facts, _run_layout(edge), edge, [0, 1], [1, 0], (True, 5.0, 0.0, 9.0), width)
+    assert held == [9.0, 9.0]
+    stands = generation._pulled_under_the_width(facts, _run_layout(edge), edge, [0, 1], [1, 0], (True, 5.0, 0.0, None), width)
+    assert stands == edge
+    # A width whose own end is a stand-in the block does not hold: `9999`
+    # is refused there as everywhere, and the held end is `9998`.
+    four = [9995.0, 9996.0, 9997.0, 9998.0, 15000.0, 20000.0]
+    moved = generation._pulled_under_the_width(
+        facts, _run_layout(four), four, [1, 2, 3, 4, 5], [5, 4], (True, 9000.0, 0.0, 15000.0), (4, True)
+    )
+    assert moved == [9995.0, 9996.0, 9997.0, 9998.0, 9998.0, 9998.0]
+
+
+def test_a_run_never_takes_in_a_stratum_past_the_side_s_own_tail(tmp_path: pathlib.Path) -> None:
+    """`_pulled_under_the_width` asked directly: the widening stops at the body however much room lies inside it.
+
+    Strata 1, 7, 8, 15 and 20, the tail the last three. The run of the two
+    past the width takes the stratum at 8 in and finds two free values for
+    three strata; the stratum at 7 belongs to the body, so the run stops
+    there and the last resort places the stratum at 15 on `9` and the
+    held end takes the one at 20. Taking 7 in would have found room enough
+    -- `2` to `9` -- and moved a stratum of the body.
+    """
+    facts = _facts(_described(tmp_path, "ones50", _ones_beside_eleven(), 50))
+    values = [1.0, 7.0, 8.0, 15.0, 20.0]
+    moved = generation._pulled_under_the_width(
+        facts, _run_layout(values), values, [2, 3, 4], [4, 3], (True, 5.0, 0.0, 9.0), (1, False)
+    )
+    assert moved == [1.0, 7.0, 8.0, 9.0, 9.0]
+
+
 # -- 4. the demands, and which walk a side keeps -------------------------------
 
 
@@ -918,6 +1157,10 @@ def test_the_cells_left_come_off_the_demand_the_census_counted_them_into(
     facts = _facts(described)
     assert generation._field_demands(facts) == [(3, 0, 200), (4, 1, 102)], "premise: the padded demand is the larger"
     assert generation._counted_into(facts) == (4, 1)
+    # A tie for the commonest width goes to the first in sorted order, as
+    # the census itself breaks it (`parsing.absorbed_census`).
+    tied = dataclasses.replace(facts, field_widths={"3": 151, "4": 151}, pad_widths={})
+    assert generation._counted_into(tied) == (3, 1)
     assert generation._demands_less_the_freed([(3, 0, 200), (4, 1, 102)], 2, facts) == [(3, 0, 200), (4, 1, 100)]
     plus = _facts(_described(tmp_path, "plus_mixed", _plus_mixed(), 11))
     assert generation._counted_into(plus) == (3, 0)
