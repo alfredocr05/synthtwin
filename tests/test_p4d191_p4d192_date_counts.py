@@ -116,6 +116,14 @@ def test_a_withdrawn_pass_is_named_and_missed(
         generation, "_units_settled",
         lambda column, facts, ordinals, *rest: list(ordinals),
     )
+    # ...AND THE HOUR PASS (landing 3b.2-H, plan P4-D371): the discharge
+    # column publishes its hours, and that pass moves the cells forced
+    # onto midnight back into the hours the census counts, which would
+    # meet the withheld count this test breaks on purpose.
+    monkeypatch.setattr(
+        generation, "_hour_settled",
+        lambda column, facts, ordinals, *rest, **named: (ordinals, []),
+    )
     real_off = generation._kept_off_midnight
 
     def onto_midnight(
