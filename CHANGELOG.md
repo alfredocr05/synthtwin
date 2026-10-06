@@ -39,9 +39,31 @@ times, so its twin reads back the same way: 32 of 48 columns beside 2.2
 to 10 % one-off notes, past one cell in fifty, and 23 of 64 beside a
 minority of `HH:MM:SS` or `h:mm AM` failed their own check before, and
 none does now; where that would leave one time on every row but one,
-the pass counts out what it always did. The clock-or-labels question is
-asked only of columns whose shared times hold every cell. `K-S3-48` and
-`K-S3-49` are new; vectors file 21 freezes fifteen cases.
+the pass counts out what it always did. The clock-or-labels question was
+asked only of columns whose shared times hold every cell; its review,
+below, widens that. `K-S3-48` and `K-S3-49` are new; vectors file 21
+freezes fifteen cases.
+
+**Its one review** (Codex at 90466b2, every item fixed, nothing sent
+back). A published rung of a column whose values all differ stays at its
+rank: the run's pins were left out of its knots and stepped over, so the
+median of 100 different minutes, `09:43`, came back `09:49`, and vectors
+file 21 froze the same error; every pin is now a knot and a wall,
+product and oracle alike, and that one frozen case is rebuilt. Where the
+12-hour question fits a column the clock-or-labels question also fits,
+it offers `code` too, and the clock-or-labels question is asked wherever
+every time inside the column's range is written by at least the line's
+rows, so twelve neighbouring minutes on 20 rows each, which publish a
+census and no heap, are asked about. The generation report counts a code
+once, as validation does, where beside 100 `UNK` it called both the
+table's and the twin's count of different values outside its range. The
+loader refuses a block with no census whose body cell on no heap has no
+step to stand on, and a listing tail its heap leaves without a row for
+another value or its mean, where generation stopped on an internal error
+or lost the value; and it looks heaps up through a set, where a list
+grew with their square. NF107 no longer calls a time written another
+way no time of day, and `K-S3-49` names G8.3's clock line, past which a
+label column's stand-in stays text.
 
 ### The weekday guards dropped (2026-10-02)
 
