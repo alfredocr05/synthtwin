@@ -694,6 +694,9 @@ class _Options:
     replace: bool
     # The columns named with `--twelve-hour` (landing T1, plan P4-D370).
     twelve_hours: "list[str]" = dataclasses.field(default_factory=list)
+    # The `--century COLUMN=YEAR` options as typed (landing R2a, plan
+    # P4-D383), read in words a person can act on by `_run_profile`.
+    centuries: "list[str]" = dataclasses.field(default_factory=list)
 
 
 def _parse_arguments(argv: "list[str] | None") -> _Options:
@@ -927,6 +930,21 @@ def _parse_arguments(argv: "list[str] | None") -> _Options:
         ),
     )
     parser.add_argument(
+        "--century",
+        action="append",
+        default=None,
+        metavar="COLUMN=YEAR",
+        help=(
+            "name a column of dates whose years are written with TWO "
+            "FIGURES, and the first year of the century they lie in: 1930 "
+            "(years 1930 to 2029), 1940 (1940 to 2039) or 1900 (1900 to "
+            "1999), as in --century birth_date=1930. Two figures do not say "
+            "which century they are in, so synthtwin asks; without this it "
+            "reads them as 1969 to 2068, and a birth date of 1925 written "
+            "25 is then read as 2025. May be given more than once"
+        ),
+    )
+    parser.add_argument(
         "--twelve-hour",
         action="append",
         default=None,
@@ -1139,6 +1157,7 @@ def _parse_arguments(argv: "list[str] | None") -> _Options:
         args.decimal_comma if args.decimal_comma is not None else []
     )
     twelve_named = args.twelve_hour if args.twelve_hour is not None else []
+    century_named = args.century if args.century is not None else []
     kept = args.keep_value if args.keep_value is not None else []
     declared_missing = (
         args.missing_value if args.missing_value is not None else []
@@ -1172,6 +1191,7 @@ def _parse_arguments(argv: "list[str] | None") -> _Options:
         seed=f"{args.seed}",
         replace=bool(args.replace),
         twelve_hours=list(twelve_named),
+        centuries=list(century_named),
     )
 
 
@@ -1736,6 +1756,30 @@ def _date_codes_notice(questions: "list[asking.Question]") -> str:
     )
 
 
+def _century_notice(questions: "list[asking.Question]") -> str:
+    """What is said about columns of dates whose years are two figures (landing R2a).
+
+    Question Q5's own words, put in the questions file and said here, as
+    the date questions of plan P4-D381 are: each column, what synthtwin saw
+    and the two ways to place its years in another century.
+    """
+    rows = ""
+    for question in questions:
+        rows = rows + f"\n  '{_shown(question.name)}'"
+    return (
+        f"{'=' * 66}\n"
+        f"THESE COLUMNS WRITE THEIR YEARS WITH TWO FIGURES\n"
+        f"{'=' * 66}{rows}\n\n"
+        f"Two figures do not say which century a year is in, so synthtwin "
+        f"has read them as 1969 to 2068: 24 is 2024 and 75 is 1975. If a "
+        f"column's years lie elsewhere -- birth dates before 1969 are the "
+        f"commonest case -- answer '1930-2029', '1940-2039' or '1900-1999' "
+        f"for it under 'asked' in the questions file this run writes and "
+        f"describe the table again with --answers, or describe it again "
+        f"with --century, as in --century birth_date=1930."
+    )
+
+
 def _day_or_month_notice(found: "tuple[asking.DayOrMonth, ...]") -> str:
     """What is said where no value of a column of dates says which comes first (plan P4-D381).
 
@@ -2121,6 +2165,33 @@ def _offered_here(answer: str, question: asking.Question) -> bool:
     return answer == asking.ANSWER_MEASUREMENT and asking.ANSWER_KEEP in offered
 
 
+def _century_given(typed: str) -> "tuple[str, int] | None":
+    """One `--century COLUMN=YEAR` read, or None where it is not that (landing R2a).
+
+    Split at the LAST equals sign, since a column's name may hold one; the
+    year is one of the three a description may declare or the 1969 that
+    stands where nothing is declared.
+    """
+    if not isinstance(typed, str):
+        raise TypeError("a typed option reached the reader as something else")
+    cut = len(typed) - 1
+    while cut >= 0 and typed[cut] != "=":
+        cut = cut - 1
+    if cut < 1:
+        return None
+    name = typed[0:cut]
+    year = typed[cut + 1 :]
+    if not parsing.is_digit_text(year):
+        return None
+    first_year = int(year)
+    if (
+        first_year not in parsing.CENTURY_WINDOW_YEARS
+        and first_year != parsing.CENTURY_DEFAULT_FIRST_YEAR
+    ):
+        return None
+    return name, first_year
+
+
 def _put_the_questions(
     questions: "list[asking.Question]",
 ) -> "tuple[list[str], list[str], list[str], list[str], list[str]] | None":
@@ -2191,6 +2262,7 @@ def _how_to_repeat(
     answered_kept: "tuple[str, ...]" = (),
     answered_day_first: bool = False,
     taken_out: "tuple[str, ...]" = (),
+    centuries: "tuple[tuple[str, int], ...]" = (),
 ) -> str:
     """The options that repeat this run without asking anything.
 
@@ -2217,6 +2289,9 @@ def _how_to_repeat(
         parts += ["--day-first"]
     for name in sorted(twelve_hours):
         parts += [_typed_option("--twelve-hour", name)]
+    # The centuries of two-figure years (landing R2a), typed or answered.
+    for name, first_year in sorted(centuries):
+        parts += [_typed_option("--century", f"{name}={first_year}")]
     for spelling in answered_missing:
         parts += [_typed_option("--missing-value", spelling)]
     for spelling in answered_kept:
@@ -2549,6 +2624,7 @@ def _run_profile(
     metadata_rows_given: str = "",
     delimiter_given: str = "",
     forced_twelve_hours: "list[str] | None" = None,
+    centuries_given: "list[str] | None" = None,
 ) -> int:
     """Do the work of `synthtwin profile`; return the exit code.
 
@@ -2598,6 +2674,20 @@ def _run_profile(
     twelve_hours = sorted(
         {one: 1 for one in (forced_twelve_hours or [])}
     )
+    # THE CENTURIES OF TWO-FIGURE YEARS (landing R2a, question Q5): each
+    # `--century COLUMN=YEAR`, refused before the table is opened where it
+    # is not that, and the window that stands where nothing was said
+    # (1969) taken as no declaration at all.
+    centuries: "dict[str, int]" = {}
+    for typed_century in centuries_given or []:
+        found_century = _century_given(typed_century)
+        if found_century is None:
+            _warn(errors.century_not_supported(_shown(typed_century)))
+            return 2
+        if found_century[1] in parsing.CENTURY_WINDOW_YEARS:
+            centuries[found_century[0]] = found_century[1]
+        elif found_century[0] in centuries:
+            del centuries[found_century[0]]
 
     # HOW MANY ROWS UNDER THE NAMES DESCRIBE THE COLUMNS (plan P4-D81).
     # Refused here, before the table is opened, like every other
@@ -2653,6 +2743,8 @@ def _run_profile(
     # ...and what each of those questions said it saw, by column, which
     # tells the run which codes the answer was about.
     answered_code_shapes: "dict[str, str]" = {}
+    # ...and the columns whose centuries the file answered (landing R2a).
+    answered_centuries: "list[str]" = []
     if answers_path is not None:
         try:
             written = asking.answers_in(
@@ -2708,6 +2800,9 @@ def _run_profile(
             + list(written.measurements)
             + list(written.decimal_commas)
             + list(written.twelve_hours)
+            # ...and the columns whose centuries were answered (landing R2a).
+            + [one_century for one_century, _year in written.century_windows]
+            + list(written.centuries_kept)
             # ...and the columns whose codes were answered (plan P4-D381):
             # each is found again by its name in the table, so a changed
             # reading would find them in a different column.
@@ -2785,6 +2880,18 @@ def _run_profile(
         twelve_hours = sorted(
             {one: 1 for one in twelve_hours + list(written.twelve_hours)}
         )
+        # ...AND THE CENTURIES OF TWO-FIGURE YEARS (landing R2a, question
+        # Q5): an answer is the newer statement and replaces a typed
+        # `--century` for its column; the window that stands declares
+        # nothing, and is carried so the question is not put again.
+        for one_century, first_year in written.century_windows:
+            centuries[one_century] = first_year
+        for one_century in written.centuries_kept:
+            if one_century in centuries:
+                del centuries[one_century]
+        answered_centuries = [
+            one_century for one_century, _year in written.century_windows
+        ] + list(written.centuries_kept)
         # ...AND THE ORDER OF DAY AND MONTH (plan P4-D381): an answer of
         # `day-first` is `--day-first`, and it is applied before the read
         # because it decides how the columns of dates are read. It goes
@@ -2812,6 +2919,7 @@ def _run_profile(
             or written.day_first
             or bool(answered_missing_dates)
             or bool(answered_real_values)
+            or bool(written.century_windows)
         )
     # UNDER BOTH READINGS WHERE EITHER IS IN PLAY (review item
     # P4-G3-R6-F2). `--decimal-comma` names columns and these two name
@@ -2861,6 +2969,10 @@ def _run_profile(
         # The second cut's three declarations (plan P4-D386): the landing
         # that fills each passes it here, below its own line.
         # -- 3b.R2a (P4-D383)
+        century_windows=tuple(
+            (one_century, centuries[one_century])
+            for one_century in sorted(centuries)
+        ),
         # -- 3b.R2c (P4-D383)
         # -- 3b.R4 (P4-D384)
     )
@@ -2991,6 +3103,19 @@ def _run_profile(
         _warn(
             errors.unknown_column_named(
                 "as a 12-hour clock", unknown_twelve[0], read.column_names
+            )
+        )
+        return 2
+    # -- 3b.R2a (P4-D383)
+    unknown_centuries = [
+        name for name in sorted(centuries) if name not in read.column_names
+    ]
+    if unknown_centuries:
+        _warn(
+            errors.unknown_column_named(
+                "writing two-figure years in a century of its own",
+                unknown_centuries[0],
+                read.column_names,
             )
         )
         return 2
@@ -3271,6 +3396,28 @@ def _run_profile(
                 continue
             _warn(
                 errors.the_twelve_hour_declaration_did_not_reach(
+                    name, f"{described_column['role']}"
+                )
+            )
+
+    # ...AND THE CENTURY, WHICH REACHES ONLY A COLUMN OF DATES WITH A
+    # TWO-FIGURE YEAR (landing R2a, question Q5), said where it reached
+    # nothing.
+    for name in sorted(centuries):
+        for described_column in _described_columns(document):
+            if described_column["name"] != name:
+                continue
+            if (
+                described_column["role"] == "datetime"
+                and "format" in described_column
+                and parsing.layout_two_figure_year(
+                    f"{described_column['format']}"
+                )
+                == centuries[name]
+            ):
+                continue
+            _warn(
+                errors.the_century_declaration_did_not_reach(
                     name, f"{described_column['role']}"
                 )
             )
@@ -3560,6 +3707,12 @@ def _run_profile(
         )
     if codes_seen.questions:
         _say(f"\n{_date_codes_notice(list(codes_seen.questions))}\n")
+    # -- 3b.R2a (P4-D383): question Q5, said as the date questions are.
+    century_asked = asking.century_questions(
+        document, tuple(sorted(centuries)) + tuple(answered_centuries)
+    )
+    if century_asked:
+        _say(f"\n{_century_notice(century_asked)}\n")
     # A column of dates beside codes whose other cells read either way
     # is asked the order too, in the same file (review of lane R1, item
     # 4): answered `missing` alone, it would be read month first and
@@ -3740,6 +3893,7 @@ def _run_profile(
         or added_kept
         or answered_day_first
         or taken_out
+        or centuries
     ):
         _say(
             _how_to_repeat(
@@ -3752,6 +3906,10 @@ def _run_profile(
                 answered_kept=tuple(added_kept),
                 answered_day_first=answered_day_first,
                 taken_out=tuple(taken_out),
+                centuries=tuple(
+                    (one_century, centuries[one_century])
+                    for one_century in sorted(centuries)
+                ),
             )
         )
     kept_of_yours = summary.words_of_your_own(document)
@@ -3886,6 +4044,11 @@ def _run_profile(
         asked_about + coded_about, codes_seen.answered,
     )
     asked_about = asked_about + coded_about
+    # ...AND QUESTION Q5, of every column of dates whose years are two
+    # figures and whose century nobody gave (landing R2a).
+    asked_about = asked_about + asking.century_questions(
+        document, tuple(sorted(centuries)) + tuple(answered_centuries)
+    )
     # AND ITS DESTINATION IS GUARDED LIKE ANY OTHER (review item
     # L17b-R1-1). On POSIX a link left at this name resolves to a
     # permitted local path, so the locality gate cannot catch it: what
@@ -4751,6 +4914,7 @@ def main(argv: "list[str] | None" = None) -> int:
             options.metadata_rows,
             options.delimiter,
             options.twelve_hours,
+            options.centuries,
         )
     except PathValidationError as error:
         # The message is treated as a VALUE, not as something synthtwin

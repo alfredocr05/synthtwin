@@ -848,14 +848,20 @@ def test_every_answer_a_column_question_offers_has_a_key() -> None:
     plan P4-D381): `_date_code_choices` builds a column question, but
     `synthtwin profile` takes every such column out of what the terminal
     asks (`asking.without_columns_of`) and puts it in the questions file
-    alone, so its answers `missing` and `real-value` need no key.
+    alone, so its answers `missing` and `real-value` need no key. AND SO IS
+    QUESTION Q5 OF LANE R2a (plan P4-D383): `century_questions` puts each
+    column whose years are two figures in the questions file alone, so its
+    four answers need no key either.
     """
     from synthtwin import cli
 
     to_the_file = _file_question_builders()
     assert {"_day_first_questions", "_first_row_questions", "_delimiter_questions"} <= to_the_file
     assert callable(asking._date_code_choices)
-    offered = _offered_by_each_builder(to_the_file | {"_date_code_choices"})
+    assert callable(asking._century_choices)
+    offered = _offered_by_each_builder(
+        to_the_file | {"_date_code_choices", "_century_choices"}
+    )
     assert "_clock_question" in offered and "_person_choices" in offered
     column_answers: "set[str]" = set()
     for builder in offered:

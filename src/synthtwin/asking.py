@@ -202,6 +202,26 @@ ANSWER_REAL_VALUE = "real-value"
 
 # Why a column was worth asking about. Each is shown to the person, so
 # each says what was SEEN and not what it was taken to mean.
+# QUESTION Q5, THE CENTURY OF A TWO-FIGURE YEAR (landing R2a, plan
+# P4-D383). Each answer is named by the years it reads, never by a product
+# that may or may not use the window: the first, Enter's, is the POSIX
+# window every two-figure member reads, and the others are the three a
+# description may declare (`parsing.CENTURY_WINDOW_YEARS`).
+BECAUSE_TWO_FIGURE_YEARS = "years-written-with-two-figures"
+ANSWER_CENTURY_POSIX = "1969-2068"
+ANSWER_CENTURY_1930 = "1930-2029"
+ANSWER_CENTURY_1940 = "1940-2039"
+ANSWER_CENTURY_1900 = "1900-1999"
+CENTURY_ANSWERS = {
+    ANSWER_CENTURY_1930: 1930,
+    ANSWER_CENTURY_1940: 1940,
+    ANSWER_CENTURY_1900: 1900,
+}
+# THE LAYOUTS NOTHING IN THE CELLS CAN TELL FROM A CODE (landing R2a; the R2
+# design skeptic, m4): three numbers joined by a mark no named member reads
+# with a two-figure year, and a run of 12 or 14 figures. Read as dates, and
+# asked; Enter keeps the dates.
+BECAUSE_DATES_LIKE_CODES = "dates-written-like-codes"
 BECAUSE_PADDED = "padded"
 BECAUSE_FIXED_WIDTH = "fixed-width"
 BECAUSE_JOINED = "two-numbers"
@@ -1069,6 +1089,12 @@ def questions_and_splits_for(
             asked += [clock]
             position = position + 1
             continue
+        # -- 3b.R2a (P4-D383): a layout nothing in its cells tells from a code.
+        dates = _layout_question(block, present, settings.small_cell_floor)
+        if dates is not None:
+            asked += [dates]
+            position = position + 1
+            continue
         if role not in NUMERIC_ROLES and role not in JOINED_ROLES:
             position = position + 1
             continue
@@ -1222,6 +1248,12 @@ def day_or_month_seen(
     for candidate in taxonomy.SLASHED_PAIRS:
         if candidate[0] == format_name:
             pair = candidate
+    # -- 3b.R2a (P4-D383): A LAYOUT WHOSE MONTH AND DAY ARE FIGURES JOINS
+    # THE QUESTION (the R2 design, section 3), month first and its twin
+    # with the two changed round; so a hyphenated `03-04-2024` column is
+    # asked as a slashed one is.
+    if _month_first_layout(format_name):
+        pair = (format_name, parsing.layout_swapped(format_name))
     if pair is None or not present:
         return None
     seen: "dict[str, int]" = {}
@@ -1299,7 +1331,9 @@ def day_or_month_columns(
             continue
         if "format" not in block:
             continue
-        if f"{block['format']}" not in _MONTH_FIRST_MEMBERS:
+        if f"{block['format']}" not in _MONTH_FIRST_MEMBERS and (
+            not _month_first_layout(f"{block['format']}")
+        ):
             continue
         if (
             split is not None
@@ -1319,8 +1353,19 @@ def day_or_month_columns(
 
 
 # The month-first member of each of the classifier's slashed pairs: the
-# only readings the day-or-month question is asked of.
+# readings the day-or-month question is asked of, beside the layouts
+# `_month_first_layout` names.
 _MONTH_FIRST_MEMBERS = tuple(pair[0] for pair in taxonomy.SLASHED_PAIRS)
+
+
+def _month_first_layout(format_name: str) -> bool:
+    """Whether a format is a layout whose figures read month first (landing R2a)."""
+    if not isinstance(format_name, str):
+        raise TypeError("a format reached the question as something else")
+    return (
+        parsing.is_layout_name(format_name)
+        and parsing.layout_day_order(format_name) == "month-first"
+    )
 
 
 def _day_first_questions(
@@ -1810,7 +1855,174 @@ def _shape_of(
             f"every value is two or more numbers with '{mark}' between "
             f"them"
         )
+    if reason == BECAUSE_TWO_FIGURE_YEARS:
+        # THE SHAPE AND NOTHING ELSE: no count of where the years fall,
+        # since the latest or the earliest of them is a value of one row.
+        return (
+            "every date writes its year with two figures, which do not say "
+            "which century it is in"
+        )
+    if reason == BECAUSE_DATES_LIKE_CODES:
+        if mark:
+            return (
+                f"every value is three numbers joined by '{mark}', the last "
+                f"of two figures, and every one reads as a date with a "
+                f"two-figure year; codes are written the same way"
+            )
+        widths = {len(value) for value in present}
+        only = 0
+        for width in sorted(widths):
+            only = width
+        return (
+            f"every value is written in figures alone, all {only} "
+            f"characters wide, and every one reads as a date and time "
+            f"written without marks; identifiers are written the same way"
+        )
     return "this column could be read more than one way"
+
+
+def _century_choices(role: str, floor: int) -> "list[Choice]":
+    """Question Q5's four answers, each named by its years (landing R2a).
+
+    The first is the reading that stands where nobody answers, the POSIX
+    window; each other is `--century COLUMN=YEAR` with its first year.
+    """
+    def windowed(first: int) -> str:
+        """What a description publishes with the years read from ``first``."""
+        return (
+            f"{_clock_publishes(floor, role)}, with every two-figure year "
+            f"read as one of {first} to {first + 99}, and the twin writes "
+            f"its dates the same way"
+        )
+
+    return [
+        Choice(
+            ANSWER_CENTURY_POSIX,
+            "the years lie in 1969 to 2068 -- 24 is 2024 and 75 is 1975",
+            f"what it publishes now: {_clock_publishes(floor, role)}, with "
+            f"00 to 68 read as 2000 to 2068 and 69 to 99 as 1969 to 1999",
+        ),
+        Choice(
+            ANSWER_CENTURY_1930,
+            "the years lie in 1930 to 2029 -- 24 is 2024 and 45 is 1945",
+            windowed(1930),
+        ),
+        Choice(
+            ANSWER_CENTURY_1940,
+            "the years lie in 1940 to 2039 -- 35 is 2035 and 45 is 1945",
+            windowed(1940),
+        ),
+        Choice(
+            ANSWER_CENTURY_1900,
+            "the years lie in 1900 to 1999 -- 24 is 1924 and 75 is 1975",
+            windowed(1900),
+        ),
+    ]
+
+
+def century_questions(
+    document: "dict[str, object]",
+    answered: "tuple[str, ...]" = (),
+) -> "list[Question]":
+    """Question Q5, of every column of dates whose years are two figures.
+
+    ASKED OF EVERY SUCH COLUMN (landing R2a; the R2 design skeptic, m5):
+    the windows disagree about 00 to 29 as well as about 30 to 68, so no
+    test of where the years fall settles that two answers would read the
+    column alike, and a birth date of 1925 written `25` is read as 2025 by
+    the default. Asked of a column read under a two-figure member or a
+    layout with a two-figure year, unless its century was declared or
+    answered (``answered``). Enter keeps 1969 to 2068.
+
+    Guarantees: a function of the two; opens nothing; no cell of any
+    column appears in what it returns.
+    """
+    blocks = document["columns"]
+    found: "list[Question]" = []
+    if not isinstance(blocks, list):
+        return found
+    floor = 11
+    if "settings" in document and isinstance(document["settings"], dict):
+        given = document["settings"]["small_cell_floor"]
+        if isinstance(given, int) and not isinstance(given, bool):
+            floor = given
+    for block in blocks:
+        if not isinstance(block, dict):
+            continue
+        if f"{block['role']}" != taxonomy.ROLE_DATETIME or "format" not in block:
+            continue
+        name = f"{block['name']}"
+        if name in answered:
+            continue
+        member = f"{block['format']}"
+        two = member in parsing.TWO_FIGURE_MEMBERS or (
+            parsing.layout_two_figure_year(member)
+            == parsing.CENTURY_DEFAULT_FIRST_YEAR
+        )
+        if not two:
+            continue
+        found += [
+            Question(
+                name,
+                taxonomy.ROLE_DATETIME,
+                BECAUSE_TWO_FIGURE_YEARS,
+                _shape_of(BECAUSE_TWO_FIGURE_YEARS, [], floor),
+                _century_choices(taxonomy.ROLE_DATETIME, floor),
+                ANSWER_CENTURY_POSIX,
+            )
+        ]
+    return found
+
+
+def _layout_question(
+    block: "dict[str, object]", present: "list[str]", floor: int
+) -> "Question | None":
+    """Whether a column read under a layout nothing in its cells can tell from a code holds dates.
+
+    THE LOW-EVIDENCE LAYOUTS (landing R2a; the R2 design skeptic, m4, under
+    the owner's rule of the evening of 2026-10-01: infer, and ask where the
+    data cannot settle it). Three numbers on `-` with a two-figure year --
+    `9-14-29` is a unit, a room and a bed as readily as a day -- and a run
+    of 12 or 14 figures, which an order number or an identifier with a date
+    inside writes alike (`parsing.layout_low_evidence`). Such a column is
+    READ AS DATES, which is what its cells say, and the question offers the
+    two other readings; Enter keeps the dates. For a run this is the
+    fixed-width question a column of figures is asked, with the dates
+    answer standing first because it is the reading taken.
+
+    Guarantees: a function of the three; opens nothing; no cell of the
+    column appears in what it returns.
+    """
+    if f"{block['role']}" != taxonomy.ROLE_DATETIME or "format" not in block:
+        return None
+    mark = parsing.layout_low_evidence(f"{block['format']}")
+    if mark is None:
+        return None
+    return Question(
+        f"{block['name']}",
+        taxonomy.ROLE_DATETIME,
+        BECAUSE_DATES_LIKE_CODES,
+        _shape_of(BECAUSE_DATES_LIKE_CODES, present, floor, mark),
+        [
+            Choice(
+                ANSWER_KEEP,
+                "leave it as it is -- synthtwin reads these cells as dates",
+                _publishes_under(ANSWER_KEEP, taxonomy.ROLE_DATETIME, floor),
+            ),
+            Choice(
+                ANSWER_CODE,
+                "codes -- a coding system that writes its codes in parts "
+                "or in figures",
+                _publishes_under(ANSWER_CODE, taxonomy.ROLE_DATETIME, floor),
+            ),
+            Choice(
+                ANSWER_IDENTIFIER,
+                "record numbers -- a key nothing should publish",
+                _publishes_under(ANSWER_IDENTIFIER, taxonomy.ROLE_DATETIME, floor),
+            ),
+        ],
+        ANSWER_KEEP,
+    )
 
 
 # A COLUMN NAMED ON THE CHECKLIST RATHER THAN ASKED ABOUT (owner
@@ -3367,7 +3579,9 @@ def date_codes_seen(
             continue
         codes = confirmed
         pending += [(name, role, position - 1, codes)]
-        if codes.reading in _MONTH_FIRST_MEMBERS:
+        if codes.reading in _MONTH_FIRST_MEMBERS or _month_first_layout(
+            codes.reading
+        ):
             either = day_or_month_seen(list(rest), codes.reading)
             if either is not None:
                 order += [DayOrMonth(name, either.months, either.days)]
@@ -3634,6 +3848,13 @@ class Answers:
     # answer which codes it was about (`date_codes_answered`). Empty
     # words where an edited file carries none.
     date_code_shapes: "tuple[tuple[str, str], ...]" = ()
+    # ...and the tenth (landing R2a, question Q5): the columns whose
+    # two-figure years the person placed in a century of their own, each
+    # with its first year, which is `--century COLUMN=YEAR`; and those
+    # answered with the window that stands, which declare nothing and are
+    # carried so the file the same run writes does not ask them again.
+    century_windows: "tuple[tuple[str, int], ...]" = ()
+    centuries_kept: "tuple[str, ...]" = ()
 
 
 def _entry_answer(
@@ -3787,6 +4008,8 @@ def answers_in(document: object, shown: str) -> Answers:
     missing_dates: "list[str]" = []
     real_values: "list[str]" = []
     code_shapes: "list[tuple[str, str]]" = []
+    centuries: "list[tuple[str, int]]" = []
+    centuries_kept: "list[str]" = []
     for entry, place in _entries_of(document, shown):
         read = _entry_answer(entry, place)
         if read is None:
@@ -3850,6 +4073,11 @@ def answers_in(document: object, shown: str) -> Answers:
             # The one answer that decides how the file is SPLIT (plan
             # P4-D110), which is `--delimiter`.
             delimiter = ANSWER_DELIMITERS[written]
+        elif written in CENTURY_ANSWERS:
+            # Question Q5 (landing R2a): `--century COLUMN=YEAR`.
+            centuries += [(name, CENTURY_ANSWERS[written])]
+        elif written == ANSWER_CENTURY_POSIX:
+            centuries_kept += [name]
         elif written != ANSWER_KEEP:
             # Offered by the file but not a word this module acts on,
             # which a questions file synthtwin wrote cannot contain and
@@ -3882,4 +4110,6 @@ def answers_in(document: object, shown: str) -> Answers:
         missing_date_columns=tuple(missing_dates),
         real_value_columns=tuple(real_values),
         date_code_shapes=tuple(code_shapes),
+        century_windows=tuple(centuries),
+        centuries_kept=tuple(centuries_kept),
     )

@@ -295,14 +295,31 @@ def test_a_version_identifier_is_not_a_dotted_date() -> None:
 
 
 def test_a_column_of_versions_stays_a_column_of_versions() -> None:
-    """The same finding, as the column a person would actually hold."""
-    values = [
+    """The same finding, as the column a person would actually hold.
+
+    NARROWED BY LANDING R2a (plan P4-D383; the R2 design skeptic, M3). The
+    dotted MEMBERS still read padded cells alone, so the finding above
+    stands for them. The layout member reads an unpadded dotted date with
+    a four-figure year -- `15.4.2023` is the de-DE short date and the
+    Finnish default -- but only where that year lies in its band, 1800 to
+    2299: a column of versions whose last part is a build number past it
+    stays a column of versions, and one whose builds are years of the band
+    reads as the dates it spells, the residual P4-D383 names.
+    """
+    builds = [
+        f"{major}.{minor}.4024"
+        for major in range(1, 4)
+        for minor in range(1, 13)
+    ] * 3
+    document, _loaded, _folder = _described(builds)
+    assert document["columns"][0]["role"] != "datetime"
+    years = [
         f"{major}.{minor}.2024"
         for major in range(1, 4)
         for minor in range(1, 13)
     ] * 3
-    document, _loaded, _folder = _described(values)
-    assert document["columns"][0]["role"] != "datetime"
+    document, _loaded, _folder = _described(years)
+    assert document["columns"][0]["format"] == "layout {M}.{D}.{YYYY}"
 
 
 def test_the_pivot_remark_states_a_range_and_not_a_distance() -> None:

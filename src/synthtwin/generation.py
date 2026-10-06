@@ -4201,7 +4201,10 @@ def _date_width_places(
     both: "list[int]" = []
     first: "list[int]" = []
     second: "list[int]" = []
-    textual = facts.parser_family in parsing.TEXTUAL_MEMBERS
+    # ONE FIELD OR TWO, AND WHICH LEADS (landing R2a): a layout's flexible
+    # fields are read as a textual member's day or a slashed member's pair.
+    textual = parsing.width_field_count(facts.parser_family) == 1
+    day_first = parsing.width_first_field(facts.parser_family) == "day"
     for rank in range(len(fields)):
         month, day = fields[rank]
         if textual:
@@ -4210,7 +4213,7 @@ def _date_width_places(
             continue
         low_first = month < 10
         low_second = day < 10
-        if facts.parser_family in parsing.DAY_FIRST_MEMBERS:
+        if day_first:
             low_first = day < 10
             low_second = month < 10
         if low_first and low_second:
@@ -4345,7 +4348,7 @@ def _width_allocation(
     if not census:
         return styles, True
     both, first, second = _date_width_places(facts, fields)
-    if facts.parser_family in parsing.TEXTUAL_MEMBERS:
+    if parsing.width_field_count(facts.parser_family) == 1:
         weights = _census_weights(census, parsing.FIELD_WIDTH_STYLES_ONE_FIELD)
         spread = _reserved(weights if weights else {fallback: 1}, len(first), floor)
         for index in range(len(first)):
@@ -4814,6 +4817,7 @@ def _cell_of_ordinal(
     figures: int,
     mark: str,
     style: "_DateStyle" = _DateStyle("iso-datetime"),
+    offset: str = "",
 ) -> str:
     """One instant written AS ITS SOURCE WROTE IT (G7.5, landing 2b.6).
 
@@ -4839,11 +4843,34 @@ def _cell_of_ordinal(
     part of decision 5's reasoning is untouched, and DT-8 of the
     spelling audit is named as still open rather than quietly closed.
 
+    A LAYOUT WRITES THE WHOLE CELL (landing R2a, G7.5): its date, its
+    joint, its clock, its fraction and its OFFSET, in the layout's own
+    fields, so ``offset`` is handed in here for a layout column and no
+    mark is used and nothing is appended after.
+
     Guarantees: accepts an ordinal in the resolution's own unit, the
     resolution, precision and fraction width the description records, the
-    mark this rank was allocated and its spelling; returns the cell text.
-    Whole-number arithmetic only. No I/O of any kind.
+    mark this rank was allocated, its spelling and -- for a layout -- its
+    offset; returns the cell text. Whole-number arithmetic only. No I/O of
+    any kind.
     """
+    if parsing.is_layout_name(style.family) and (
+        resolution == "date" or resolution == "datetime"
+    ):
+        if resolution == "date":
+            year, month, day = parsing.civil_from_days(ordinal)
+            canonical = f"{year:04d}-{month:02d}-{day:02d}"
+        else:
+            days = ordinal // 86400
+            rest = ordinal - days * 86400
+            year, month, day = parsing.civil_from_days(days)
+            canonical = (
+                f"{year:04d}-{month:02d}-{day:02d} {rest // 3600:02d}:"
+                f"{(rest % 3600) // 60:02d}:{rest % 60:02d}"
+            )
+        return parsing.written_layout_date(
+            style.family, canonical, offset, style.width, figures
+        )
     if resolution == "quarter":
         year = 1970 + (ordinal // 4)
         return parsing.written_quarter(year, (ordinal % 4) + 1, style.marker)
@@ -4913,6 +4940,7 @@ def _space_cell(
     facts: contract.DatetimeFacts,
     mark: str,
     style: "_DateStyle | None" = None,
+    offset: str = "",
 ) -> str:
     """One cell from an ordinal in the column's own space (`_ordinal_space`).
 
@@ -4935,6 +4963,7 @@ def _space_cell(
             facts.subsecond_digits,
             mark,
             spelling,
+            offset,
         )
     return _cell_of_ordinal(
         ordinal,
@@ -4943,6 +4972,7 @@ def _space_cell(
         facts.subsecond_digits,
         mark,
         spelling,
+        offset,
     )
 
 
@@ -21103,8 +21133,7 @@ def _weekday_settled(
     word = ""
     widths = False
     if len(facts.date_field_widths) == 1 and (
-        facts.parser_family in parsing.VARIABLE_WIDTH_MEMBERS
-        or facts.parser_family in parsing.TEXTUAL_MEMBERS
+        parsing.width_field_count(facts.parser_family) > 0
     ):
         widths = True
         for key in facts.date_field_widths:
@@ -21673,6 +21702,19 @@ def _interior_cell(
             day = local // 86400
         return _kept_datetime_cell(
             _cell_of_ordinal(day, "date", "date", 0, mark, spelling),
+            holes,
+            _offered_marks(facts),
+            facts.parser_family,
+        )
+    if parsing.is_layout_name(facts.parser_family):
+        # A LAYOUT WRITES ITS OWN OFFSET, in its own field's spelling
+        # (landing R2a): `+0100`, `+01`, ` UTC`, or nothing where the field
+        # is one some cells omit and this rank wears none.
+        return _kept_datetime_cell(
+            _space_cell(
+                local, facts, mark, spelling,
+                offset if _is_real_offset(offset) else "",
+            ),
             holes,
             _offered_marks(facts),
             facts.parser_family,
@@ -24273,7 +24315,7 @@ def _shows_a_width(
     _year, month, day = parsing.civil_from_days(day_number)
     if word:
         return parsing.day_shows_width(word, facts.parser_family, month, day)
-    if facts.parser_family in parsing.TEXTUAL_MEMBERS:
+    if parsing.width_field_count(facts.parser_family) == 1:
         return day < 10
     return month < 10 or day < 10
 
@@ -24429,10 +24471,7 @@ def _units_settled(
     census = facts.date_field_widths
     if (
         len(census) == 1
-        and (
-            facts.parser_family in parsing.VARIABLE_WIDTH_MEMBERS
-            or facts.parser_family in parsing.TEXTUAL_MEMBERS
-        )
+        and parsing.width_field_count(facts.parser_family) > 0
     ):
         for key in census:
             widths = census[key]

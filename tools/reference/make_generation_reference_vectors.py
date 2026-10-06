@@ -5801,6 +5801,261 @@ DEFAULT_WIDTH = "padded"
 DEFAULT_NAME_STYLE = "title-abbreviated-space-no-comma"
 
 
+# -- THE LAYOUT MEMBER (method G7.5's token table, landing R2a, plan P4-D383)
+#
+# A column no named member reads may be read under a LAYOUT, published as
+# `format: "layout <text>"`: fields in braces and single literal marks. The
+# twin writes every cell through the layout, field by field, from the
+# rank's instant, the width word it was allocated and its offset; written
+# here from the method's own table of fields and nothing else.
+
+LAYOUT_PREFIX = "layout "
+LAYOUT_MONTHS = ("jan", "feb", "mar", "apr", "may", "jun",
+                 "jul", "aug", "sep", "oct", "nov", "dec")
+LAYOUT_MONTHS_GB = LAYOUT_MONTHS[:8] + ("sept",) + LAYOUT_MONTHS[9:]
+LAYOUT_MONTHS_AU = LAYOUT_MONTHS[:5] + ("june", "july", "aug", "sept") + LAYOUT_MONTHS[9:]
+LAYOUT_DAYS = ("mon", "tue", "wed", "thu", "fri", "sat", "sun")
+LAYOUT_DAYS_FULL = ("monday", "tuesday", "wednesday", "thursday", "friday",
+                    "saturday", "sunday")
+
+
+def _cased(words, case):
+    if case == "upper":
+        return tuple(word.upper() for word in words)
+    if case == "title":
+        return tuple(word[:1].upper() + word[1:] for word in words)
+    return tuple(words)
+
+
+LAYOUT_NAME_WORDS = {}
+for _stems, _words in (
+    (("MON", "Mon", "mon"), LAYOUT_MONTHS),
+    (("MONTH", "Month", "month"), tuple(whole for _short, whole in MONTH_NAMES)),
+    (("MONGB", "MonGB", "monGB"), LAYOUT_MONTHS_GB),
+    (("MONAU", "MonAU", "monAU"), LAYOUT_MONTHS_AU),
+    (("DY", "Dy", "dy"), LAYOUT_DAYS),
+    (("DAY", "Day", "day"), LAYOUT_DAYS_FULL),
+):
+    for _stem, _case in zip(_stems, ("upper", "title", "lower")):
+        LAYOUT_NAME_WORDS[_stem] = _cased(_words, _case)
+LAYOUT_WEEKDAY_FIELDS = ("DY", "Dy", "dy", "DAY", "Day", "day")
+LAYOUT_WINDOWS = {"YY": 1969, "YY1900": 1900, "YY1930": 1930, "YY1940": 1940}
+LAYOUT_ZULU_FIELDS = ("Z", "z", "UTC", "GMT")
+
+
+def is_layout(member):
+    """Whether a format names the layout member."""
+    return isinstance(member, str) and member.startswith(LAYOUT_PREFIX)
+
+
+def layout_parts(member):
+    """A layout's items in order: ("f", field) or ("l", one literal mark)."""
+    text = member[len(LAYOUT_PREFIX):]
+    items = []
+    place = 0
+    while place < len(text):
+        if text[place] == "{":
+            end = text.index("}", place)
+            items.append(("f", text[place + 1:end]))
+            place = end + 1
+        else:
+            items.append(("l", text[place]))
+            place += 1
+    return items
+
+
+def layout_flexible(member):
+    """The flexible numeric fields of a layout, `M` and `D`, in its order."""
+    return [field for kind, field in layout_parts(member) if kind == "f" and field in ("M", "D")]
+
+
+def layout_window(member):
+    """The first year a layout's two-figure year is read from, or None."""
+    for kind, field in layout_parts(member):
+        if kind == "f" and field in LAYOUT_WINDOWS:
+            return LAYOUT_WINDOWS[field]
+    return None
+
+
+def layout_written(member, year, month, day, second, offset, width, figures):
+    """One instant written under a layout (G7.5): every field from the instant.
+
+    ``second`` is the second of the day, or None for a layout writing no
+    clock. ``width`` is the width word allocated to the rank, a padding
+    decision per flexible field in the layout's order (one field reads
+    every word but `unpadded` as padded). The fraction is ``figures``
+    zeros. An offset field writes the rank's offset in its own spelling;
+    one some cells omit writes nothing where the rank wears none, not even
+    the marks before it; one every cell writes, handed none, writes the
+    shared clock's.
+    """
+    items = layout_parts(member)
+    if items and items[-1][1].endswith("?") and not offset:
+        items = items[:-1]
+        while items and items[-1][0] == "l":
+            items = items[:-1]
+    flexible = layout_flexible(member)
+    padding = [width != "unpadded"] if len(flexible) == 1 else list(pair_widths(width))
+    hours, rest = divmod(second or 0, 3600)
+    minutes, seconds = divmod(rest, 60)
+    shown = offset if offset and offset != "Z" else "+00:00"
+    out = []
+    shown_flexible = 0
+    for kind, field in items:
+        if kind == "l":
+            out.append(field)
+            continue
+        field = field.rstrip("?")
+        if field == "YYYY":
+            out.append(f"{year:04d}")
+        elif field in LAYOUT_WINDOWS:
+            out.append(f"{year % 100:02d}")
+        elif field == "MM":
+            out.append(f"{month:02d}")
+        elif field == "DD":
+            out.append(f"{day:02d}")
+        elif field in ("M", "D"):
+            value = month if field == "M" else day
+            out.append(field_text(value, padding[shown_flexible]))
+            shown_flexible += 1
+        elif field == "_D":
+            out.append(f"{day:>2d}")
+        elif field == "HH":
+            out.append(f"{hours:02d}")
+        elif field == "MI":
+            out.append(f"{minutes:02d}")
+        elif field == "SS":
+            out.append(f"{seconds:02d}")
+        elif field == "F":
+            out.append("0" * figures)
+        elif field in LAYOUT_WEEKDAY_FIELDS:
+            out.append(LAYOUT_NAME_WORDS[field][(days_from_civil(year, month, day) + 3) % 7])
+        elif field in LAYOUT_NAME_WORDS:
+            out.append(LAYOUT_NAME_WORDS[field][month - 1])
+        elif field in LAYOUT_ZULU_FIELDS:
+            out.append(field)
+        elif field == "+HH:MM":
+            out.append(shown)
+        elif field == "+HHMM":
+            out.append(shown[:3] + shown[4:])
+        elif field == "+HH":
+            out.append(shown[:3])
+        else:
+            raise AssertionError(f"{field!r} is no field of the layout table")
+    return "".join(out)
+
+
+def layout_day(member, text):
+    """The day one spelling names under a layout, or None (G7.5's table, read).
+
+    Field by field, nothing trimmed: figures at each field's width, a name
+    from its own word list, a weekday that is the day's own, a four-figure
+    year in 1800 to 2299 and a two-figure one in its window; the clock's
+    fields only for their shape.
+    """
+    items = layout_parts(member)
+    at = 0
+    year = month = day = weekday = None
+    optional = items and items[-1][1].endswith("?")
+    tail = len(items)
+    if optional:
+        tail -= 1
+        while tail > 0 and items[tail - 1][0] == "l":
+            tail -= 1
+    for index, (kind, field) in enumerate(items):
+        if index == tail and at == len(text):
+            break
+        if kind == "l":
+            if text[at:at + 1] != field:
+                return None
+            at += 1
+            continue
+        field = field.rstrip("?")
+        sizes = {"YYYY": (4, 4), "MM": (2, 2), "DD": (2, 2), "HH": (2, 2), "MI": (2, 2),
+                 "SS": (2, 2), "M": (1, 2), "D": (1, 2), "F": (1, 9)}
+        for window in LAYOUT_WINDOWS:
+            sizes[window] = (2, 2)
+        if field in sizes:
+            least, most = sizes[field]
+            end = at
+            while end < len(text) and end - at < most and text[end].isdigit() and text[end].isascii():
+                end += 1
+            if end - at < least:
+                return None
+            value = int(text[at:end])
+            at = end
+            if field == "YYYY":
+                year = value
+            elif field in LAYOUT_WINDOWS:
+                first = LAYOUT_WINDOWS[field]
+                year = first // 100 * 100 + value
+                if year < first:
+                    year += 100
+            elif field in ("MM", "M"):
+                month = value
+            elif field in ("DD", "D"):
+                day = value
+            continue
+        if field == "_D":
+            pair = text[at:at + 2]
+            if len(pair) != 2 or not pair[1].isdigit() or not (pair[0] == " " or pair[0] in "123456789"):
+                return None
+            day = int(pair.strip())
+            at += 2
+            continue
+        if field in LAYOUT_NAME_WORDS:
+            end = at
+            while end < len(text) and text[end].isascii() and text[end].isalpha():
+                end += 1
+            word = text[at:end]
+            if word not in LAYOUT_NAME_WORDS[field]:
+                return None
+            if field in LAYOUT_WEEKDAY_FIELDS:
+                weekday = LAYOUT_NAME_WORDS[field].index(word)
+            else:
+                month = LAYOUT_NAME_WORDS[field].index(word) + 1
+            at = end
+            continue
+        if field in LAYOUT_ZULU_FIELDS:
+            if text[at:at + len(field)] != field:
+                return None
+            at += len(field)
+            continue
+        size = {"+HH:MM": 6, "+HHMM": 5, "+HH": 3}[field]
+        if len(text) - at < size or text[at] not in "+-":
+            return None
+        at += size
+    if at != len(text) or year is None or not 1800 <= year <= 2299:
+        return None
+    found = calendar_day(year, month, day)
+    if found is None or (weekday is not None and (found + 3) % 7 != weekday):
+        return None
+    return found
+
+
+def width_fields(member):
+    """How many numeric fields of a member's cells show a width (G7.5).
+
+    Two for the slashed and two-figure families, one for the textual pair,
+    a layout's count of flexible fields, none for every other member.
+    """
+    if member in VARIABLE_WIDTH_MEMBERS:
+        return 2
+    if member in TEXTUAL_MEMBERS:
+        return 1
+    if is_layout(member):
+        return len(layout_flexible(member))
+    return 0
+
+
+def width_leads_with_the_day(member):
+    """Whether the first width-showing field of a member is its day."""
+    if is_layout(member):
+        flexible = layout_flexible(member)
+        return bool(flexible) and flexible[0] == "D"
+    return member in DAY_FIRST_MEMBERS or member in TEXTUAL_MEMBERS
+
+
 def month_spelling(month, length, case):
     """One month written as a NAME: the inverse of the reader's own."""
     short, whole = MONTH_NAMES[month - 1]
@@ -5848,6 +6103,10 @@ def name_parts(style):
 def written_date(year, month, day, member, width=DEFAULT_WIDTH,
                  name_style=DEFAULT_NAME_STYLE):
     """One day written the way its member's own source wrote it (G7.5)."""
+    if is_layout(member):
+        # A layout writes the day in its own fields, a clock at midnight
+        # and an optional offset as nothing (landing R2a).
+        return layout_written(member, year, month, day, None, "", width, 0)
     if member == "compact-date":
         return f"{year:04d}{month:02d}{day:02d}"
     if member in ("slashed-iso-date", "slashed-iso-datetime"):
@@ -5886,7 +6145,7 @@ def written_date(year, month, day, member, width=DEFAULT_WIDTH,
 def precision_form(ordinal, resolution, time_precision, subsecond_digits,
                    mark="T", member="iso-datetime", width=DEFAULT_WIDTH,
                    name_style=DEFAULT_NAME_STYLE, marker="upper",
-                   clock=("hh", "")):
+                   clock=("hh", ""), offset=""):
     """The cell text of method section G7.5, before the offset suffix.
 
     ``mark`` is the character between the day and the clock that the
@@ -5897,7 +6156,16 @@ def precision_form(ordinal, resolution, time_precision, subsecond_digits,
     written in the member that read the real column, at the conventions
     that rank was allocated. Their defaults are the ISO member's own
     spelling, which is what every case frozen before the reversal used.
+    A LAYOUT writes the whole cell, its ``offset`` inside it (landing R2a),
+    so for a layout there is no suffix after.
     """
+    if is_layout(member) and resolution in ("date", "datetime"):
+        if resolution == "date":
+            year, month, day = civil_from_days(ordinal)
+            return layout_written(member, year, month, day, None, offset, width, 0)
+        days, rest = divmod(ordinal, 86400)
+        year, month, day = civil_from_days(days)
+        return layout_written(member, year, month, day, rest, offset, width, subsecond_digits)
     if resolution == "quarter":
         year = 1970 + ordinal // 4
         quarter = ordinal % 4 + 1
@@ -6396,13 +6664,16 @@ def written_styles(column, fields, parsed, resolution, offsets, floor=CASE_SMALL
     widths = [width_fallback] * parsed
     if widths_census:
         both, first, second = [], [], []
+        # One field or two, and which leads: a layout's flexible fields
+        # read as a textual member's day or a slashed member's pair (R2a).
+        one_field = width_fields(member) == 1
         for rank, (month, day) in enumerate(fields):
-            if member in TEXTUAL_MEMBERS:
+            if one_field:
                 if day < 10:
                     first.append(rank)
                 continue
             low = (month < 10, day < 10)
-            if member in DAY_FIRST_MEMBERS:
+            if width_leads_with_the_day(member):
                 low = (day < 10, month < 10)
             if low == (True, True):
                 both.append(rank)
@@ -6410,7 +6681,7 @@ def written_styles(column, fields, parsed, resolution, offsets, floor=CASE_SMALL
                 first.append(rank)
             elif low[1]:
                 second.append(rank)
-        if member in TEXTUAL_MEMBERS:
+        if one_field:
             weights = census_weights(widths_census, FIELD_WIDTH_STYLES_ONE_FIELD) or {width_fallback: 1}
             for rank, form in zip(first, reserved(weights, len(first), floor)):
                 widths[rank] = form
@@ -9403,6 +9674,12 @@ def _datetime_content(column):
             # The offset spelled as the source spelled it (landing 2b.6):
             # the reading folds `z` onto `Z`, and the census says which.
             suffix = "z"
+        # A LAYOUT writes the offset inside the cell, in its own field's
+        # spelling, and nothing after it (landing R2a, G7.5).
+        inner = ""
+        if is_layout(member):
+            inner = "" if offsets[rank] in ("(none)", "(withheld)") else offsets[rank]
+            suffix = ""
         if endpoint is not None:
             if whole[rank]:
                 text = endpoint[:10]
@@ -9425,7 +9702,7 @@ def _datetime_content(column):
 
         def spell(unit, mark=marks[rank], suffix=suffix, moved=moved, bare=whole[rank],
                   member=member, width=width, name_style=name_style, marker=marker,
-                  clock=clock):
+                  clock=clock, inner=inner):
             if bare:
                 # A bare date: the day alone, with no mark, clock or offset.
                 # Counted in seconds, the rank already stands at a midnight
@@ -9450,6 +9727,7 @@ def _datetime_content(column):
                     name_style=name_style,
                     marker=marker,
                     clock=clock,
+                    offset=inner,
                 )
             else:
                 body = precision_form(
@@ -9463,6 +9741,7 @@ def _datetime_content(column):
                     name_style=name_style,
                     marker=marker,
                     clock=clock,
+                    offset=inner,
                 )
             return kept_cell(body + suffix, holes, named, member)
 
@@ -9683,6 +9962,13 @@ def readable_days(member, system=""):
     first, last = CALENDAR_FIRST, CALENDAR_LAST
     if member in TWO_FIGURE_MEMBERS:
         first, last = TWO_FIGURE_FIRST, TWO_FIGURE_LAST
+    elif is_layout(member):
+        # A layout reads its own band (landing R2a): a four-figure year in
+        # 1800 to 2299, a two-figure one in its window.
+        window = layout_window(member)
+        first, last = (1800, 1, 1), (2299, 12, 31)
+        if window is not None:
+            first, last = (window, 1, 1), (window + 99, 12, 31)
     elif system in WORKBOOK_FIRST:
         first = WORKBOOK_FIRST[system]
     return days_from_civil(*first), days_from_civil(*last)
@@ -10798,12 +11084,12 @@ def shows_a_width(column, day_number, word=""):
     several conventions asks: does the day show a width at all.
     """
     _year, month, day = civil_from_days(day_number)
-    if column["format"] in TEXTUAL_MEMBERS:
+    if width_fields(column["format"]) == 1:
         return day < 10
     if not word:
         return month < 10 or day < 10
     first, second = month, day
-    if column["format"] in DAY_FIRST_MEMBERS:
+    if width_leads_with_the_day(column["format"]):
         first, second = day, month
     if word in FIELD_WIDTH_FIRST:
         return first < 10 and second >= 10
@@ -10975,13 +11261,18 @@ def day_read(member, text):
     C6-22 widens it, two on the dotted and year-first families, a
     two-figure year at the C6-D8P pivot, a month NAME from C6-D8N -- past
     the spaces around the spelling, a stamp's clock in its member's own
-    forms, and a day the calendar has (``calendar_day``).
+    forms, and a day the calendar has (``calendar_day``). A layout trims
+    nothing (landing R2a).
     """
+    if is_layout(member):
+        return layout_day(member, text)
     return day_of(member, text.strip())
 
 
 def day_of(member, text):
     """``day_read`` of a spelling with nothing around it."""
+    if is_layout(member):
+        return layout_day(member, text)
     if member == "iso-mixed":
         return day_of("iso-date", text) if len(text) == 10 else day_of("iso-datetime", text)
     if member == "iso-datetime":
@@ -11153,7 +11444,7 @@ def units_settled(column, ordinals, parsed, whole, lows, highs):
     census = column.get("date_field_widths", {})
     widths = None
     if len(census) == 1 and (
-        column["format"] in VARIABLE_WIDTH_MEMBERS or column["format"] in TEXTUAL_MEMBERS
+        width_fields(column["format"]) > 0
     ):
         widths = next(iter(census.values()))
     distinct = None
@@ -11260,7 +11551,7 @@ def group_gives_way(column, ordinals, parsed, whole):
     unit = step if space == "datetime" else 1
     census = column.get("date_field_widths", {})
     widths = len(census) == 1 and (
-        column["format"] in VARIABLE_WIDTH_MEMBERS or column["format"] in TEXTUAL_MEMBERS
+        width_fields(column["format"]) > 0
     )
     word = next(iter(census)) if widths else ""
     owed = column["n_distinct"] - column["n_unparsed"] - len({v // unit for v in ordinals})
@@ -11448,7 +11739,7 @@ def weekday_walk_of(column, ordinals, lows, highs, hole_days):
     widths = column.get("date_field_widths", {})
     word = None
     if len(widths) == 1 and (
-        column["format"] in VARIABLE_WIDTH_MEMBERS or column["format"] in TEXTUAL_MEMBERS
+        width_fields(column["format"]) > 0
     ):
         word = next(iter(widths))
     seams = {"keeps_always": not date_counts_reachable(column)}
@@ -11949,12 +12240,12 @@ def weekday_hole_days(column, holes):
     for day in range(low, high + 1):
         year, month, date = civil_from_days(day)
         text = written_date(year, month, date, member, width, style)
-        first, second = (month, date) if member in MONTH_FIRST_MEMBERS else (date, month)
+        first, second = (date, month) if width_leads_with_the_day(member) else (month, date)
         emptied = (
             folded(text) in absent
             or f"{year:04d}-{month:02d}-{date:02d}" in judged
-            or (member in VARIABLE_WIDTH_MEMBERS and width.startswith("first-field-") and second < 10)
-            or (member in VARIABLE_WIDTH_MEMBERS and width.startswith("second-field-") and first < 10)
+            or (width_fields(member) == 2 and width.startswith("first-field-") and second < 10)
+            or (width_fields(member) == 2 and width.startswith("second-field-") and first < 10)
             or (member in TEXTUAL_MEMBERS and name_parts(style)[1] == "either" and month != 5)
         )
         if emptied:
@@ -22265,6 +22556,8 @@ THIRTEENTH_BRANCH_PART = "branches-13"
 FOURTEENTH_BRANCH_PART = "branches-14"
 # The written clocks of landing T1 (plan P4-D370), the twenty-second file.
 TWENTY_SECOND_BRANCH_PART = "branches-22"
+# Landing R2a's layout member (plan P4-D383): the twenty-fifth file.
+TWENTY_FIFTH_BRANCH_PART = "branches-25"
 # G7.3f's shared steps (landing 3b.D0, plan P4-D366), the fifteenth file:
 # not a file of columns but of the pass itself, each case a state of
 # ranks and the steps' answer (`shared_step_document`).
@@ -22383,6 +22676,157 @@ def _date_remainder_one_joint():
         "rows": 22,
         "identifier_declared": False,
     }
+
+
+def _r2a_layout(member, resolution, precision, digits, rows, offsets, read_at,
+                widths=None, earliest=None, latest=None, why="", numeric=0):
+    """A column read under one layout of the closed grammar (G7.5, landing R2a)."""
+    if earliest is None:
+        earliest = "1970-01-01" if resolution == "date" else "1970-01-01 00:00:00"
+    if latest is None:
+        latest = "1970-01-12" if resolution == "date" else "1970-01-12 21:45:00"
+    named = [key for key in offsets if key not in ("(none)", "(withheld)")]
+    end_offset = named[0] if len(named) == 1 and len(offsets) == 1 else "(none)"
+    facts = dict(
+        n_present=rows, n_missing=0, n_distinct=rows, n_distinct_folded=rows,
+        n_numeric=numeric, n_not_numeric=rows - numeric, n_out_of_range=0,
+        n_contradictory=0,
+        format=member, resolution=resolution, time_precision=precision,
+        subsecond_digits=digits, datetimes_read_at=read_at,
+        earliest=earliest, latest=latest,
+        earliest_utc_offset=end_offset, latest_utc_offset=end_offset,
+        date_percentiles={key: None for key in LADDER_KEYS},
+        n_unparsed=0, utc_offsets=dict(offsets),
+        resolution_mix={member: rows},
+        datetime_separators={},
+        all_at_midnight=False, n_at_midnight=None,
+    )
+    if widths is not None:
+        facts["date_field_widths"] = widths
+    column = _universal("column_1", "datetime", "datetime", "data", "ok", **facts)
+    return {"why": why, "column": column, "rows": rows, "identifier_declared": False}
+
+
+def _layout_sas_date9():
+    return _r2a_layout(
+        "layout {DD}{MON}{YYYY}", "date", "date", 0, 12, {"(none)": 12}, "local",
+        why="G7.5's layout member (landing R2a, plan P4-D383): SAS DATE9., "
+        "`17MAR2024`, every cell written field by field through the layout "
+        "the real column was read under -- two figures of day, the month's "
+        "abbreviation in capitals, four of year. Twelve dates of the ramp "
+        "from 1970-01-01. The mutant drops the month field, so every cell "
+        "loses its month word.",
+    )
+
+
+def _layout_hl7_fraction_offset():
+    return _r2a_layout(
+        "layout {YYYY}{MM}{DD}{HH}{MI}{SS}.{F}{+HHMM}", "datetime", "subsecond",
+        4, 12, {"+01:00": 12}, "local",
+        why="G7.5's layout member (landing R2a): an HL7 timestamp with a "
+        "fraction of four figures and an offset written `+HHMM`, as "
+        "`20240317140500.0000+0100`; the fraction is zeros at the published "
+        "count of figures, and the offset the rank wears is written in the "
+        "field's own spelling, inside the cell. The mutant spells the offset "
+        "as ISO does, with its colon.",
+    )
+
+
+def _layout_spaced_offset():
+    return _r2a_layout(
+        "layout {YYYY}-{MM}-{DD} {HH}:{MI}:{SS}.{F} {+HH:MM}", "datetime",
+        "subsecond", 7, 12, {"+00:00": 12}, "local",
+        why="G7.5's layout member (landing R2a): SQL Server's datetimeoffset, "
+        "seven figures of fraction and the offset after ONE SPACE, as "
+        "`2024-03-17 14:05:00.0000000 +00:00`. The space is a literal of the "
+        "layout and stands before the offset field. The mutant drops the "
+        "space, which ISO writes and this column does not.",
+    )
+
+
+def _layout_hour_offset():
+    return _r2a_layout(
+        "layout {YYYY}-{MM}-{DD} {HH}:{MI}:{SS}{+HH}", "datetime", "second",
+        0, 12, {"-05:00": 12}, "local",
+        why="G7.5's layout member (landing R2a): PostgreSQL's timestamptz text "
+        "at a whole-hour offset, `2024-03-17 14:05:00-05`, the offset written "
+        "as its sign and hour alone. The mutant writes the minutes too, "
+        "`-05:00`, which this column does not.",
+    )
+
+
+def _layout_utc_word():
+    return _r2a_layout(
+        "layout {YYYY}-{MM}-{DD} {HH}:{MI}:{SS} {UTC}", "datetime", "second",
+        0, 12, {"Z": 12}, "local",
+        why="G7.5's layout member (landing R2a): R's `usetz` at UTC, "
+        "`2024-03-17 14:05:00 UTC`, the shared clock written as the word the "
+        "field names after one space. The mutant writes ISO's `Z` instead.",
+    )
+
+
+def _layout_optional_offset():
+    return _r2a_layout(
+        "layout {YYYY}{MM}{DD}{HH}{MI}{SS}{+HHMM?}", "datetime", "second", 0, 24,
+        {"(none)": 12, "-05:00": 12}, "utc",
+        why="G7.5's layout member with an offset some cells omit (landing R2a; "
+        "the R2 design skeptic, M2): an HL7 feed half of whose senders append "
+        "`-0500`. A rank allocated `(none)` writes no offset at all, and one "
+        "allocated `-05:00` writes it in the field's spelling, each on its "
+        "own wall clock; a cell with none is fourteen figures, which also "
+        "read as a number. The mutant writes the offset on every rank.",
+        earliest="1970-01-01 00:00:00", latest="1970-01-24 21:45:00",
+        numeric=12,
+    )
+
+
+def _layout_flexible_widths():
+    return _r2a_layout(
+        "layout {D}-{M}-{YYYY}", "date", "date", 0, 12, {"(none)": 12}, "local",
+        widths={"unpadded": 12},
+        why="G7.5's layout member with two flexible fields (landing R2a, rule "
+        "LY5): a Dutch `d-m-yyyy`, `1-3-1970`, whose width census is "
+        "published over its two flexible fields in the layout's own order, "
+        "the day first. Twelve dates of January 1970, every one written "
+        "unpadded. The mutant flips the padding, `01-01-1970`.",
+    )
+
+
+def _layout_weekday_long_date():
+    return _r2a_layout(
+        "layout {Day}, {Month} {D}, {YYYY}", "date", "date", 0, 12,
+        {"(none)": 12}, "local", widths={"unpadded": 12},
+        why="G7.5's layout member with a weekday lead (landing R2a): Excel's "
+        "long date, `Thursday, January 1, 1970`, the weekday the date's own "
+        "and the one flexible field, the day, unpadded. The mutant drops the "
+        "weekday and its comma.",
+    )
+
+
+def _layout_century_window():
+    return _r2a_layout(
+        "layout {MM}/{DD}/{YY1930}", "date", "date", 0, 24, {"(none)": 24},
+        "local", earliest="1940-01-01", latest="1940-01-24",
+        why="G7.5's layout member read in a century the person chose (landing "
+        "R2a, question Q5): `mm/dd/yy` birth dates of January 1940 with a "
+        "tail at either end, the two-figure years read as 1930 to 2029 and "
+        "the days a tail may reach bounded by that window. The mutant reads "
+        "every two-figure year in the POSIX window, 1969 to 2068, so the "
+        "column's own days lie outside what its spelling writes back.",
+    )
+
+
+R2A_BRANCH_CASE_BUILDERS = {
+    "layout_century_window": _layout_century_window,
+    "layout_flexible_widths": _layout_flexible_widths,
+    "layout_hl7_fraction_offset": _layout_hl7_fraction_offset,
+    "layout_hour_offset": _layout_hour_offset,
+    "layout_optional_offset": _layout_optional_offset,
+    "layout_sas_date9": _layout_sas_date9,
+    "layout_spaced_offset": _layout_spaced_offset,
+    "layout_utc_word": _layout_utc_word,
+    "layout_weekday_long_date": _layout_weekday_long_date,
+}
 
 
 NAMED_CASE_BUILDERS = {
@@ -29355,6 +29799,8 @@ _DOCUMENT_ACCOUNT = (
     " because every branch file then stood past that line."
     " Landing T1's written clocks (plan P4-D370) opened the twenty-second,"
     " tests/reference/generation-branch-vectors-22.json."
+    " Landing R2a's layout member (plan P4-D383) opened the twenty-fifth,"
+    " tests/reference/generation-branch-vectors-25.json."
 )
 
 # The transforms this file's own cases name, stated the way every other
@@ -31184,6 +31630,7 @@ TWENTY_SECOND_BRANCH_CASE_BUILDERS = {
 CASE_SETS = {
     FOURTEENTH_BRANCH_PART: FOURTEENTH_BRANCH_CASE_BUILDERS,
     TWENTY_SECOND_BRANCH_PART: TWENTY_SECOND_BRANCH_CASE_BUILDERS,
+    TWENTY_FIFTH_BRANCH_PART: R2A_BRANCH_CASE_BUILDERS,
     EIGHTH_BRANCH_PART: EIGHTH_BRANCH_CASE_BUILDERS,
     NINTH_BRANCH_PART: NINTH_BRANCH_CASE_BUILDERS,
     TENTH_BRANCH_PART: TENTH_BRANCH_CASE_BUILDERS,
@@ -31219,6 +31666,7 @@ CASE_BUILDERS = {
     **THIRTEENTH_BRANCH_CASE_BUILDERS,
     **FOURTEENTH_BRANCH_CASE_BUILDERS,
     **TWENTY_SECOND_BRANCH_CASE_BUILDERS,
+    **R2A_BRANCH_CASE_BUILDERS,
 }
 
 # What each file says about itself, so that neither can be read as the
@@ -31259,6 +31707,8 @@ _NAMED_ACCOUNT = (
     " because every branch file then stood past that line."
     " Landing T1's written clocks (plan P4-D370) opened the twenty-second,"
     " tests/reference/generation-branch-vectors-22.json."
+    " Landing R2a's layout member (plan P4-D383) opened the twenty-fifth,"
+    " tests/reference/generation-branch-vectors-25.json."
 )
 _BRANCH_ACCOUNT = (
     "cases method section G14.3 adds for the branches its first nine "
@@ -31302,6 +31752,8 @@ _BRANCH_ACCOUNT = (
     " because every branch file then stood past that line."
     " Landing T1's written clocks (plan P4-D370) opened the twenty-second,"
     " tests/reference/generation-branch-vectors-22.json."
+    " Landing R2a's layout member (plan P4-D383) opened the twenty-fifth,"
+    " tests/reference/generation-branch-vectors-25.json."
 )
 _SECOND_BRANCH_ACCOUNT = (
     "cases method section G14.3 adds with the carried landings 2b.2, 2b.3 "
@@ -31336,6 +31788,8 @@ _SECOND_BRANCH_ACCOUNT = (
     " because every branch file then stood past that line."
     " Landing T1's written clocks (plan P4-D370) opened the twenty-second,"
     " tests/reference/generation-branch-vectors-22.json."
+    " Landing R2a's layout member (plan P4-D383) opened the twenty-fifth,"
+    " tests/reference/generation-branch-vectors-25.json."
 )
 
 _THIRD_BRANCH_ACCOUNT = (
@@ -31370,6 +31824,8 @@ _THIRD_BRANCH_ACCOUNT = (
     " because every branch file then stood past that line."
     " Landing T1's written clocks (plan P4-D370) opened the twenty-second,"
     " tests/reference/generation-branch-vectors-22.json."
+    " Landing R2a's layout member (plan P4-D383) opened the twenty-fifth,"
+    " tests/reference/generation-branch-vectors-25.json."
 )
 
 _FOURTH_BRANCH_ACCOUNT = (
@@ -31405,6 +31861,8 @@ _FOURTH_BRANCH_ACCOUNT = (
     " because every branch file then stood past that line."
     " Landing T1's written clocks (plan P4-D370) opened the twenty-second,"
     " tests/reference/generation-branch-vectors-22.json."
+    " Landing R2a's layout member (plan P4-D383) opened the twenty-fifth,"
+    " tests/reference/generation-branch-vectors-25.json."
 )
 
 _FIFTH_BRANCH_ACCOUNT = (
@@ -31438,6 +31896,8 @@ _FIFTH_BRANCH_ACCOUNT = (
     " because every branch file then stood past that line."
     " Landing T1's written clocks (plan P4-D370) opened the twenty-second,"
     " tests/reference/generation-branch-vectors-22.json."
+    " Landing R2a's layout member (plan P4-D383) opened the twenty-fifth,"
+    " tests/reference/generation-branch-vectors-25.json."
 )
 
 _SIXTH_BRANCH_ACCOUNT = (
@@ -31488,6 +31948,8 @@ _SIXTH_BRANCH_ACCOUNT = (
     " because every branch file then stood past that line."
     " Landing T1's written clocks (plan P4-D370) opened the twenty-second,"
     " tests/reference/generation-branch-vectors-22.json."
+    " Landing R2a's layout member (plan P4-D383) opened the twenty-fifth,"
+    " tests/reference/generation-branch-vectors-25.json."
 )
 
 
@@ -31526,6 +31988,8 @@ _SEVENTH_BRANCH_ACCOUNT = (
     " because every branch file then stood past that line."
     " Landing T1's written clocks (plan P4-D370) opened the twenty-second,"
     " tests/reference/generation-branch-vectors-22.json."
+    " Landing R2a's layout member (plan P4-D383) opened the twenty-fifth,"
+    " tests/reference/generation-branch-vectors-25.json."
 )
 
 _EIGHTH_BRANCH_ACCOUNT = (
@@ -31574,6 +32038,8 @@ _EIGHTH_BRANCH_ACCOUNT = (
     " because every branch file then stood past that line."
     " Landing T1's written clocks (plan P4-D370) opened the twenty-second,"
     " tests/reference/generation-branch-vectors-22.json."
+    " Landing R2a's layout member (plan P4-D383) opened the twenty-fifth,"
+    " tests/reference/generation-branch-vectors-25.json."
 )
 _NINTH_BRANCH_ACCOUNT = (
     "cases method section G14.3 adds for the TAIL RULE of stage 3 "
@@ -31626,6 +32092,8 @@ _NINTH_BRANCH_ACCOUNT = (
     " because every branch file then stood past that line."
     " Landing T1's written clocks (plan P4-D370) opened the twenty-second,"
     " tests/reference/generation-branch-vectors-22.json."
+    " Landing R2a's layout member (plan P4-D383) opened the twenty-fifth,"
+    " tests/reference/generation-branch-vectors-25.json."
 )
 
 _TENTH_BRANCH_ACCOUNT = (
@@ -31670,6 +32138,8 @@ _TENTH_BRANCH_ACCOUNT = (
     " because every branch file then stood past that line."
     " Landing T1's written clocks (plan P4-D370) opened the twenty-second,"
     " tests/reference/generation-branch-vectors-22.json."
+    " Landing R2a's layout member (plan P4-D383) opened the twenty-fifth,"
+    " tests/reference/generation-branch-vectors-25.json."
 )
 
 _ELEVENTH_BRANCH_ACCOUNT = (
@@ -31710,6 +32180,8 @@ _ELEVENTH_BRANCH_ACCOUNT = (
     " because every branch file then stood past that line."
     " Landing T1's written clocks (plan P4-D370) opened the twenty-second,"
     " tests/reference/generation-branch-vectors-22.json."
+    " Landing R2a's layout member (plan P4-D383) opened the twenty-fifth,"
+    " tests/reference/generation-branch-vectors-25.json."
 )
 
 _TWELFTH_BRANCH_ACCOUNT = (
@@ -31747,6 +32219,8 @@ _TWELFTH_BRANCH_ACCOUNT = (
     " because every branch file then stood past that line."
     " Landing T1's written clocks (plan P4-D370) opened the twenty-second,"
     " tests/reference/generation-branch-vectors-22.json."
+    " Landing R2a's layout member (plan P4-D383) opened the twenty-fifth,"
+    " tests/reference/generation-branch-vectors-25.json."
 )
 
 _THIRTEENTH_BRANCH_ACCOUNT = (
@@ -31781,6 +32255,8 @@ _THIRTEENTH_BRANCH_ACCOUNT = (
     " because every branch file then stood past that line."
     " Landing T1's written clocks (plan P4-D370) opened the twenty-second,"
     " tests/reference/generation-branch-vectors-22.json."
+    " Landing R2a's layout member (plan P4-D383) opened the twenty-fifth,"
+    " tests/reference/generation-branch-vectors-25.json."
 )
 
 
@@ -31813,6 +32289,8 @@ _FOURTEENTH_BRANCH_ACCOUNT = (
     "200000-byte line: no cap is raised and no case is dropped."
     " Landing T1's written clocks (plan P4-D370) opened the twenty-second,"
     " tests/reference/generation-branch-vectors-22.json."
+    " Landing R2a's layout member (plan P4-D383) opened the twenty-fifth,"
+    " tests/reference/generation-branch-vectors-25.json."
 )
 
 
@@ -31843,10 +32321,45 @@ _TWENTY_SECOND_BRANCH_ACCOUNT = (
     "landing: no cap is raised and no case is dropped."
     " The end floor of a date or clock tail (plan P4-D375) opened the"
     " sixteenth beside it, tests/reference/generation-branch-vectors-14.json."
+    " Landing R2a's layout member (plan P4-D383) opened the twenty-fifth,"
+    " tests/reference/generation-branch-vectors-25.json."
+)
+
+
+_TWENTY_FIFTH_BRANCH_ACCOUNT = (
+    "cases method section G14.3 adds with landing R2a's layout member "
+    "(plan P4-D383): G7.5's writer of a layout of the closed grammar -- "
+    "SAS's month word, HL7's fraction and `+HHMM` offset, an offset after "
+    "one space, a whole-hour offset, the zulu word `UTC`, an offset some "
+    "cells omit, two flexible fields in the layout's own order, a weekday "
+    "lead, and a two-figure year read in a century the person chose. They "
+    "are computed by the same oracle and the same proof layer "
+    "as tests/reference/generation-reference-vectors.json, "
+    "tests/reference/generation-branch-vectors.json, "
+    "tests/reference/generation-branch-vectors-2.json, "
+    "tests/reference/generation-branch-vectors-3.json, "
+    "tests/reference/generation-branch-vectors-4.json, "
+    "tests/reference/generation-branch-vectors-5.json, "
+    "tests/reference/generation-branch-vectors-6.json, "
+    "tests/reference/generation-branch-vectors-7.json, "
+    "tests/reference/generation-branch-vectors-8.json, "
+    "tests/reference/generation-branch-vectors-9.json, "
+    "tests/reference/generation-branch-vectors-10.json, "
+    "tests/reference/generation-branch-vectors-11.json, "
+    "tests/reference/generation-branch-vectors-12.json, "
+    "tests/reference/generation-branch-vectors-13.json, "
+    "tests/reference/generation-branch-vectors-14.json, "
+    "tests/reference/generation-branch-vectors-22.json and "
+    "tests/reference/generation-document-vectors.json, and live in a "
+    "file of their own, the number the integrator gives this landing: no "
+    "cap is raised and no case is dropped."
 )
 
 
 CASE_SET_ACCOUNTS = {
+    TWENTY_FIFTH_BRANCH_PART: (
+        f"The {len(R2A_BRANCH_CASE_BUILDERS)} {_TWENTY_FIFTH_BRANCH_ACCOUNT}"
+    ),
     FOURTEENTH_BRANCH_PART: (
         f"The {len(FOURTEENTH_BRANCH_CASE_BUILDERS)} {_FOURTEENTH_BRANCH_ACCOUNT}"
     ),
@@ -32103,6 +32616,104 @@ GIVEN_WORDS = {
         7316934629970693498, 10815272845975857735, 11724442494808074560,
         732964018571111932, 3069408795062890501, 7526098571977256581,
         3854671723266432770, 11205342780862372950,
+    ),
+    # LANDING R2a'S LAYOUT MEMBER (plan P4-D383), at seeds 421 to 429.
+    "layout_century_window": (
+        3362089061208469715, 3757161486771403443, 4985089933647016394,
+        15450378437928355400, 1435263905940470554, 1708772456172949558,
+        16371792130894272836, 16849112491979767462, 6628804301481035744,
+        11603172487684291669, 16909070320102286764, 6230894401920974024,
+        1226123839107436959, 7788638448811833397, 7279455783208052169,
+        6952875878690697930, 11967572855703337531, 5375924949203904124,
+        16141593158981601790, 7770721771931493566, 1315722703699040412,
+        16915711120943043094, 901799404617118871, 7957960418093248312,
+        12353991135834221681, 12251895772264671354, 17400495786251990839,
+        12873069571222267233, 3546130979459365618, 6465230945508962629,
+        1600068049137886694, 11760700592861970086, 13172834151121134964,
+        12045153734150979615, 17198895805851076211, 9080870642551484583,
+        5215203863938256275, 11067164624001493516, 15598788579987101079,
+        15704062452627140584, 13835364899066661143, 12588935833648803663,
+        8386925571894564723, 8724407393936218615, 15197159594116431684,
+    ),
+    "layout_flexible_widths": (
+        11416032767607098569, 12683253509083616314, 7669285204978396353,
+        4477560390230990761, 2915360870997699881, 9981733249264835318,
+        1879594589733630265, 14293258041902608262, 14090425967577775256,
+        16993568190268996715, 14765102244609144423, 17935983271742915669,
+        14909485024541593406, 8459056048181573743, 9549344779272566177,
+        17428613747473568462, 1546301800710471509, 13651751551263420109,
+        1048097391912889734, 4009598028622595424, 18216517663999166679,
+    ),
+    "layout_hl7_fraction_offset": (
+        11053331327550872132, 10091589009302369306, 17785885620186153364,
+        9739634365722408632, 9020014179273549843, 6770561645708915809,
+        13264875051786856684, 17158207011845337211, 8961629978208828781,
+        7539935514868133778, 9937924746811397436, 11758594740659919701,
+        5521867994508614843, 4655398856554125364, 13649407343810443639,
+        8192965600708991880, 6156920402304932331, 17621679748799388112,
+        18106497932026460299, 1045779054349370634, 9852987931251584165,
+    ),
+    "layout_hour_offset": (
+        13732442019408779709, 4687650727038507657, 5053389756854296723,
+        14616595427964334315, 11671659627475393987, 5020736060934684672,
+        15104292671849500270, 6976066338388156377, 14172504984760657948,
+        11200072267517180048, 1101417795034955469, 13461411577500886759,
+        6253324684192821157, 15426573784613699627, 12147982575570174288,
+        10720625361320539290, 15944785159054352224, 16248409174033659557,
+        16711093561374080983, 2585350022719363695, 7704638994220883931,
+    ),
+    "layout_optional_offset": (
+        1637988227124846309, 3263535263611397490, 1815916003347147316,
+        13434492237170182967, 15749037167345527133, 5481489091870858405,
+        13393356879754847588, 12711887528289830440, 11445862336640874030,
+        13611369368739188885, 4279128976560069507, 6117148833160809146,
+        946797032815654786, 3869706742480540326, 13037649070270416327,
+        13993220102914136085, 13343909761018953060, 16284481282124243577,
+        5126381535041437882, 7425140352954084273, 4614705969486178003,
+        3198559286253694087, 380332974879665810, 17131985520557662986,
+        10724566048738894019, 12327175712887024048, 13268578165255218300,
+        435142232049470818, 14600668690505717774, 9430514074517005918,
+        9313196696414753093, 1014608803225530602, 18318818438163161980,
+        18318867587244386635, 627894986472589100, 12701941395027498584,
+        10028751773777104785, 2987045252566165142, 12726335595459401545,
+        4064744725985085723, 6175442461631870673, 11380771526170714439,
+        11840429483160683039, 8091833761810286945, 2919229027990204607,
+    ),
+    "layout_sas_date9": (
+        9977739947029179921, 2952682199021953711, 1920396543319677514,
+        6591389164541416718, 9326445398014051405, 14649549887746095110,
+        10454228223209853473, 14590749342322093265, 12441952228021548345,
+        5856636746657378012, 3120771036588064205, 13953774041405820380,
+        3389775416850944542, 12897953735170177902, 7201998160110118102,
+        11434660262556021745, 2788886318800256655, 13380789800439884765,
+        7641152503472580399, 6751630228233007711, 11916922104909224660,
+    ),
+    "layout_spaced_offset": (
+        10075480981289334843, 17779891449970014719, 14508519480598089918,
+        12227069643318732948, 6472950837810407911, 7835671150730203065,
+        8691838963361215063, 14942814347018945557, 16410083380903025887,
+        598770371536982392, 12864007297854802760, 3951630751293081563,
+        6080800674612275743, 2056384368944523261, 17691958996777320660,
+        11919925975632533719, 5032289580380214515, 2956245221540388566,
+        16190553223569597822, 15812231759178748222, 1781190123252570372,
+    ),
+    "layout_utc_word": (
+        11773457085632936067, 11053225601551305519, 11413767058729086434,
+        5816847813636188726, 13763278238056437057, 10598376609661429190,
+        16340759111576822953, 1960298475543984490, 11876386754296805967,
+        16081114559875322416, 2259358318463627488, 2460025609380970453,
+        7609219415722435193, 6579155870647759716, 17903394595808729213,
+        17962135594040956092, 17978759308218332494, 709684702087866971,
+        12816864415994026216, 15291644610626560099, 16043293344561764211,
+    ),
+    "layout_weekday_long_date": (
+        10183437742050129068, 802209090374143181, 12754890606951740415,
+        16436939532281199822, 8464301922994792604, 5518006602230159252,
+        17488993143798275015, 128330082855528405, 7895988616155993710,
+        10392444726275241154, 15364319650444750931, 1562789138635024894,
+        14199191132797650784, 6903692579631444836, 9919851293581453294,
+        7792427045620656903, 315760335251673178, 3076659594509475690,
+        9165903265594221296, 12006267649774466727, 13069253373330099480,
     ),
     # LANDING T1'S WRITTEN CLOCKS (plan P4-D370), at seeds 416 to 420.
     "stamp_unpadded_hour": (

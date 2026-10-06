@@ -83,7 +83,7 @@ _RESERVED: "dict[tuple[str, str], object]" = {
 # landing fills it.
 _RESERVED_SETTINGS: "dict[str, object]" = {
     # -- 3b.R2a (P4-D383)
-    "century_windows": [],
+    # Filled by its landing (question Q5): no longer reserved.
     # -- 3b.R2b (P4-D383)
     # No key of its own: the clock half reads layouts under 3b.T1's key.
     # -- 3b.R2c (P4-D383)
@@ -123,7 +123,7 @@ _GUARDED = (
 # value it may not hold until its landing.
 _GUARDED_SETTINGS = (
     # -- 3b.R2a (P4-D383)
-    ("century_windows", [["seen_on", 1930]]),
+    # Filled by its landing (question Q5): its rows admit a declared window.
     # -- 3b.R2c (P4-D383)
     ("forced_date_columns", ["seen_on"]),
     # -- 3b.R4 (P4-D384)

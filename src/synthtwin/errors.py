@@ -1461,6 +1461,37 @@ def the_twelve_hour_declaration_did_not_reach(name: str, role: str) -> str:
     )
 
 
+def century_not_supported(given: str) -> str:
+    """Message for a --century value that is not COLUMN=YEAR with a window it offers (landing R2a)."""
+    return (
+        f"--century takes a column's name, an equals sign and the first "
+        f"year of the century its two-figure years lie in, but {given} was "
+        f"given. The years it can take are 1930 (years 1930 to 2029), 1940 "
+        f"(1940 to 2039) and 1900 (1900 to 1999); without the option a "
+        f"two-figure year is read in 1969 to 2068. Please run the command "
+        f"again with, for example, --century birth_date=1930. Nothing was "
+        f"read and nothing was written."
+    )
+
+
+def the_century_declaration_did_not_reach(name: str, role: str) -> str:
+    """Message when `--century` names a column it cannot change (landing R2a).
+
+    NOT A REFUSAL, for the comma declaration's reason: which columns write
+    their dates with two-figure years is known only once the table is read.
+    """
+    return (
+        f"The column '{_shown(name)}' was named with --century, but "
+        f"synthtwin read it as {role} with no two-figure year, and that "
+        f"declaration only changes a column of dates whose years are "
+        f"written with two figures. Nothing about this column was read in "
+        f"the century you gave. The description that was written is "
+        f"correct about everything else, and says which columns were "
+        f"declared. Check that the name is the column you meant, and run "
+        f"the command again without --century for this one."
+    )
+
+
 def the_twelve_hour_style_was_held_back(name: str) -> str:
     """Message when `--twelve-hour` was honoured but its written clock is pooled (the T1 review's item 9).
 

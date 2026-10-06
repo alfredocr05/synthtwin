@@ -1311,6 +1311,13 @@ INVARIANTS = {
         "every column named as holding the people the rows belong to is "
         "also declared as holding record numbers"
     ),
+    # Landing R2a (plan P4-D383): question Q5's declaration and the
+    # reading it makes.
+    "S8e": (
+        "a column's two-figure years are read in a century of the "
+        "person's own exactly where the block of rules names that century "
+        "for it"
+    ),
     # The T1 review's item 7 (plan P4-D370, contract C6-10a).
     "S8c": (
         "a column whose clock writes no AM or PM is written on the 12-hour "
@@ -1728,6 +1735,38 @@ INVARIANTS = {
     # anchor 3b-7 (P4-D378)
     # anchor 3b-J (P4-D379)
     # anchor 3b-R2a (P4-D383)
+    # THE CLOSED-GRAMMAR LAYOUT MEMBER (landing R2a, plan P4-D383). A
+    # column no named member reads may be read under a layout, published
+    # as its `format`, and these six rules hold it to what its own cells
+    # can be.
+    "LY1": (
+        "a layout is a text the closed grammar of dates makes -- fields "
+        "and marks from its own tables, at most eighty characters, one of "
+        "the layouts its own productions give for a date written in it"
+    ),
+    "LY2": (
+        "a column written in a layout is a column of moments exactly "
+        "where the layout writes a time of day"
+    ),
+    "LY3": (
+        "the finest detail a column written in a layout writes is the "
+        "finest its layout writes: a fraction of a second, a second, a "
+        "minute or a whole date"
+    ),
+    "LY4": (
+        "a column written in a layout counts no mark before its clock and "
+        "no case of a zulu marker, and names an offset only where its "
+        "layout's own offset field can write it -- 'none' only where it "
+        "has no offset field or one some cells leave out"
+    ),
+    "LY5": (
+        "a column written in a layout counts the widths of its flexible "
+        "month and day fields and of nothing else"
+    ),
+    "LY6": (
+        "a column written in a layout counts its values by form under the "
+        "layout's own name"
+    ),
     # anchor 3b-R2b (P4-D383)
     # anchor 3b-R2c (P4-D383)
     # anchor 3b-R4 (P4-D384)
@@ -6203,15 +6242,33 @@ def _settings(value: object) -> SettingsBlock:
                 )
     # The refusals, one to a lane: each landing deletes its own.
     # -- 3b.R2a (P4-D383)
-    if windows:
-        raise _out_of_range(
-            "century_windows",
-            where,
-            "a list that is not empty",
-            "an empty list: this version of synthtwin takes no such "
-            "declaration, so a description holding one was written by a "
-            "newer synthtwin",
-        )
+    # THE WINDOW IS ONE OF THE THREE QUESTION Q5 OFFERS BESIDE THE POSIX
+    # ONE, which no declaration names because it is the reading where
+    # nobody said anything; and the names stand in rising order, as every
+    # declaration of names does.
+    centuries: "list[tuple[str, int]]" = []
+    place = 0
+    for name, first_year in windows:
+        if (
+            isinstance(first_year, bool)
+            or not isinstance(first_year, int)
+            or first_year not in parsing.CENTURY_WINDOW_YEARS
+        ):
+            raise _out_of_range(
+                f"century_windows[{place}][1]",
+                where,
+                f"'{first_year}'",
+                _listed(tuple(f"{year}" for year in parsing.CENTURY_WINDOW_YEARS)),
+            )
+        if centuries and name <= centuries[len(centuries) - 1][0]:
+            raise _out_of_range(
+                "century_windows",
+                where,
+                f"'{name}'",
+                "names in rising order, each of them once",
+            )
+        centuries += [(name, first_year)]
+        place = place + 1
     # -- 3b.R2c (P4-D383)
     if date_columns:
         raise _out_of_range(
@@ -6318,7 +6375,7 @@ def _settings(value: object) -> SettingsBlock:
         # The second cut's three (plan P4-D386): empty here, since each is
         # refused above unless empty, and each landing fills its own line.
         # -- 3b.R2a (P4-D383)
-        century_windows=(),
+        century_windows=tuple(centuries),
         # -- 3b.R2c (P4-D383)
         forced_date_columns=tuple(date_columns),
         # -- 3b.R4 (P4-D384)
@@ -6331,6 +6388,52 @@ def _settings(value: object) -> SettingsBlock:
         block.kept_values, block.declared_missing_values, where
     )
     return block
+
+
+def _centuries_declared(
+    columns: "tuple[ColumnBlock, ...]", settings: SettingsBlock
+) -> None:
+    """S8e: a two-figure year read in a window of the person's is theirs (landing R2a).
+
+    S8c's rule for the 12-hour face, for the century. No cell says which
+    century `24` is in, so a description publishing a layout read in a
+    window of its own (`{YY1930}`) without the declaration beside it is
+    read by everything that rebuilds the reading from the settings -- the
+    validator above all -- in the POSIX window, and the unchanged source
+    would miss its checks. And the other way round: a column declared in
+    a window and read with a two-figure year is read in THAT window, by a
+    layout, since the two-figure members read the POSIX one alone.
+    """
+    declared: "dict[str, int]" = {}
+    for name, first_year in settings.century_windows:
+        declared[name] = first_year
+    for column in columns:
+        facts = column.facts
+        if not isinstance(facts, (DatetimeFacts,)):
+            continue
+        family = facts.parser_family
+        window = parsing.layout_two_figure_year(family)
+        here = column.name in declared
+        if here and family in parsing.TWO_FIGURE_MEMBERS:
+            window = parsing.CENTURY_DEFAULT_FIRST_YEAR
+        if not here:
+            if window and window != parsing.CENTURY_DEFAULT_FIRST_YEAR:
+                raise _broken(
+                    "S8e",
+                    f"in the block for the column named '{column.name}'",
+                    f"the column's two-figure years are read from {window}",
+                    "the block of rules that produced the description "
+                    "names no century for it",
+                )
+            continue
+        if window and window != declared[column.name]:
+            raise _broken(
+                "S8e",
+                f"in the block for the column named '{column.name}'",
+                f"the column's two-figure years are read from {window}",
+                f"the block of rules that produced the description names "
+                f"{declared[column.name]} for it",
+            )
 
 
 def _declared_pairs(
@@ -8636,6 +8739,16 @@ def _resolution_mix(
     wanted: "tuple[str, ...]" = ISO_MEMBERS
     if parser_family != FORMAT_ISO_MIXED:
         wanted = (parser_family,)
+    if parsing.is_layout_name(parser_family) and sorted(mix) != sorted(wanted):
+        # LY6 (landing R2a): one key, the layout's own name; the leading
+        # truncations of a partial-date column are landing R2c's.
+        raise _broken(
+            "LY6",
+            where,
+            f"the forms it counts are {_listed(tuple(sorted(mix)))}",
+            f"a column written as '{parser_family}' counts its values "
+            f"under that name alone",
+        )
     if sorted(mix) != sorted(wanted):
         raise _broken(
             "RM1",
@@ -8705,7 +8818,7 @@ def _datetime_facts(
     which is exactly why the clock is published as its own fact and a
     consumer never has to combine two fields to know what it holds.
     """
-    parser_family = _one_of(mapping["format"], "format", where, DATE_FORMATS)
+    parser_family = _date_format(mapping["format"], where)
     resolution = _one_of(
         mapping["resolution"], "resolution", where, RESOLUTIONS
     )
@@ -8741,9 +8854,13 @@ def _datetime_facts(
         wanted = "quarter"
     elif parser_family == "iso-month":
         wanted = "month"
+    elif parsing.is_layout_name(parser_family):
+        # LY2 (landing R2a): a layout is a column of moments exactly where
+        # it writes a clock.
+        wanted = "datetime" if parsing.layout_has_clock(parser_family) else "date"
     if resolution != wanted:
         raise _broken(
-            "D1",
+            "LY2" if parsing.is_layout_name(parser_family) else "D1",
             where,
             f"the dates were read as '{parser_family}'",
             f"they are published as '{resolution}' rather than '{wanted}'",
@@ -8805,6 +8922,19 @@ def _datetime_facts(
             f"the finest detail the column writes is '{precision}'",
             f"its dates are published as '{resolution}'",
         )
+    if (
+        parsing.is_layout_name(parser_family)
+        and precision != parsing.layout_precision(parser_family)
+    ):
+        # LY3 (landing R2a): a layout writes every cell to one detail, the
+        # finest of its fields -- a fraction, a second, a minute or none.
+        raise _broken(
+            "LY3",
+            where,
+            f"the finest detail the column writes is given as '{precision}'",
+            f"its cells are written as '{parser_family}', which writes "
+            f"'{parsing.layout_precision(parser_family)}'",
+        )
     if (digits > 0) != (precision == "subsecond"):
         raise _broken(
             "D7",
@@ -8865,6 +8995,19 @@ def _datetime_facts(
             ),
         )
     _joint_offsets_name_no_row(where, floor, mix, offsets)
+    if parsing.is_layout_name(parser_family):
+        # LY4 (landing R2a): a layout names an offset only where its own
+        # field can write it, and `(none)` only where it has no offset
+        # field or one some cells omit.
+        for key in sorted(offsets):
+            if not parsing.layout_offset_writable(parser_family, key):
+                raise _broken(
+                    "LY4",
+                    where,
+                    f"the offset '{key}' is counted",
+                    f"its cells are written as '{parser_family}', which "
+                    f"cannot write it",
+                )
     separators = _separator_census(
         mapping, where, floor, resolution, parser_family, mix,
         n_present - unparsed,
@@ -8979,10 +9122,14 @@ def _datetime_facts(
         where,
         floor,
         _width_vocabulary(parser_family),
-        parser_family in parsing.VARIABLE_WIDTH_MEMBERS
-        or parser_family in parsing.TEXTUAL_MEMBERS,
+        # LY5 (landing R2a): a layout's widths only where it has a flexible
+        # field, one field's words for one.
+        parsing.width_field_count(parser_family) > 0,
         n_present - unparsed,
-        "D17",
+        "LY5"
+        if parsing.is_layout_name(parser_family)
+        and parsing.width_field_count(parser_family) == 0
+        else "D17",
     )
     name_styles = _written_census(
         mapping,
@@ -9014,6 +9161,16 @@ def _datetime_facts(
         offsets["Z"] if "Z" in offsets else 0,
         "D20",
     )
+    if parsing.is_layout_name(parser_family) and zulu:
+        # LY4 (landing R2a): a layout's own field fixes how its zulu offset
+        # is written, so it publishes no census of the case.
+        raise _broken(
+            "LY4",
+            where,
+            "the case of the zulu offsets is counted",
+            f"its cells are written as '{parser_family}', whose own field "
+            f"fixes it",
+        )
     if parser_family == FORMAT_ISO_MIXED:
         # D16: A WHOLE DATE CARRIES NO OFFSET (landing 2b.3). Every
         # whole-date cell is counted under `(none)`, or pooled with it
@@ -9541,9 +9698,33 @@ def _width_vocabulary(parser_family: str) -> "tuple[str, ...]":
     field is the day and there is no second field for `first-padded` or
     `second-padded` to be about.
     """
-    if parser_family in parsing.TEXTUAL_MEMBERS:
+    if parsing.width_field_count(parser_family) == 1:
         return parsing.FIELD_WIDTH_STYLES_ONE_FIELD
     return parsing.FIELD_WIDTH_STYLES
+
+
+def _date_format(value: object, where: str) -> str:
+    """A date block's `format`: a member of `DATE_FORMATS`, or a layout (LY1).
+
+    LY1 (landing R2a, plan P4-D383): a layout is accepted only where it is
+    one the closed grammar's own productions make (`parsing.is_layout_format`),
+    so a description can name no layout the producer could not have
+    published.
+    """
+    found = _text(value, "format", where)
+    if parsing.is_layout_name(found):
+        if not parsing.is_layout_format(found):
+            raise _broken(
+                "LY1",
+                where,
+                f"the dates are said to be written as '{found}'",
+                "a layout is a text the closed grammar of dates makes, of "
+                f"at most {parsing.LAYOUT_TEXT_LIMIT} characters",
+            )
+        return found
+    if found not in DATE_FORMATS:
+        raise _out_of_range("format", where, f"'{found}'", _listed(DATE_FORMATS))
+    return found
 
 
 def _name_vocabulary(parser_family: str) -> "tuple[str, ...]":
@@ -10102,6 +10283,17 @@ def _separator_census(
     owed = parsed
     if parser_family == FORMAT_ISO_MIXED:
         owed = mix["iso-datetime"]
+    if parsing.is_layout_name(parser_family) and total != 0:
+        # LY4 (landing R2a): a layout fixes its own joint, so it owes no
+        # mark, and the census of marks is empty.
+        raise _broken(
+            "LY4",
+            where,
+            f"{total} values are counted by the mark before their clock",
+            f"its cells are written as '{parser_family}', which fixes it",
+        )
+    if parsing.is_layout_name(parser_family):
+        owed = 0
     if total != owed:
         raise _broken(
             "D13",
@@ -17674,6 +17866,17 @@ def _cross_checks(
                 f"'{name}' is named as a 12-hour clock",
                 "this table has no column of that name",
             )
+    # -- 3b.R2a (P4-D383)
+    for name, _first_year in settings.century_windows:
+        if name not in places:
+            raise _broken(
+                "S8",
+                "in the block of rules that produced the description",
+                f"'{name}' is named as writing two-figure years in a "
+                f"century of its own",
+                "this table has no column of that name",
+            )
+    _centuries_declared(columns, settings)
     # S8c (the T1 review's item 7): THE 12-HOUR FACE WITH NO MARKER IS A
     # DECLARATION'S, and nothing else's (C6-10a). No cell says which clock
     # wrote `12:15`, so a description publishing that face without the

@@ -1758,6 +1758,9 @@ def settings_for(description: contract.Profile) -> taxonomy.Settings:
         # The second cut's three declarations (plan P4-D386): the landing
         # that fills each carries it here, below its own line.
         # -- 3b.R2a (P4-D383)
+        # THE CENTURIES THE PERSON CHOSE (question Q5), so a checked file's
+        # two-figure years are read in the windows the description's were.
+        century_windows=block.century_windows,
         # -- 3b.R2c (P4-D383)
         # -- 3b.R4 (P4-D384)
     )
@@ -17119,12 +17122,8 @@ def _datetime_checks(
     # check that turns red on a writer that quietly goes back to ISO.
     if not _mixed_forms_unwritten(facts):
         checks += [
-            _exact(
-                name,
-                "datetime.format",
-                "format.member",
-                facts.parser_family,
-                _text_at(block, "format"),
+            _format_check(
+                name, facts.parser_family, _text_at(block, "format"), cells
             )
         ]
     # `resolution_mix` IS NOT CHECKED, AND THAT IS A REASONED NARROWING
@@ -17169,6 +17168,46 @@ def _datetime_checks(
         column, facts, block, floor, cells, declared_days
     )
     return checks
+
+
+def _format_check(
+    name: str, published: str, found: "str | None", cells: "list[str]"
+) -> Check:
+    """The member the dates were written in; a layout HELD BY FIT (landing R2a).
+
+    A named member is held exactly, as it has been since landing 2b.6. A
+    LAYOUT is held where the published layout reads every cell of the file
+    that the member the file was described under reads (the R2 design,
+    section 5; T1's rule for the clock form): a faithful twin of a column
+    written `{D}-{M}-{YYYY}` that drew no day below ten is described again
+    as `{DD}-{MM}-{YYYY}`, and a twin of `2022-8-9` whose every cell came
+    out padded as `iso-date`, and neither is accused of missing its
+    layout. A file read under another member that writes even one cell
+    the layout does not read, or read as no date at all, is MISSED. Both
+    sides are words of this package's own, so both print.
+    """
+    if found is None or not parsing.is_layout_name(published) or found == published:
+        return _exact(name, "datetime.format", "format.member", published, found)
+    held = parsing.is_layout_format(found) or found in contract.DATE_FORMATS
+    seen: "dict[str, int]" = {}
+    for cell in cells:
+        if not held:
+            break
+        if cell in seen:
+            continue
+        seen[cell] = 1
+        if parsing.parse_datetime(cell, found) is None:
+            continue
+        if parsing.parse_datetime(cell, published) is None:
+            held = False
+    return Check(
+        name,
+        "datetime.format",
+        "format.member",
+        HELD if held else MISSED,
+        published,
+        found,
+    )
 
 
 def _hour_checks(
@@ -17668,15 +17707,15 @@ def _written_form_reachable(facts: contract.DatetimeFacts, key: str) -> bool:
     """
     family = facts.parser_family
     if key == "date_field_widths":
-        return (
-            family in parsing.VARIABLE_WIDTH_MEMBERS
-            or family in parsing.TEXTUAL_MEMBERS
-        )
+        # A layout's flexible fields too (landing R2a, contract LY5).
+        return parsing.width_field_count(family) > 0
     if key == "month_name_styles":
         return family in parsing.TEXTUAL_MEMBERS
     if key == "quarter_marker_case":
         return family == "year-quarter"
-    return "Z" in facts.utc_offsets
+    # A layout's own offset field fixes how its zulu offset is written
+    # (contract LY4), so its cells show no case to count.
+    return "Z" in facts.utc_offsets and not parsing.is_layout_name(family)
 
 
 def _written_form_checks(
