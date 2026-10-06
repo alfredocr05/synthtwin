@@ -1547,10 +1547,10 @@ ASIDE_NONE = "(none set aside)"
 
 def aside_slots(words: "tuple[str, ...]") -> "tuple[str, ...]":
     """NF113's five set-aside places: each number's word where the column holds it, or `ASIDE_NONE`."""
-    slots: "tuple[str, ...]" = ()
+    slots: "list[str]" = []
     for word in _ASIDE_WORDS:
-        slots = slots + ((word if word in words else ASIDE_NONE),)
-    return slots
+        slots += [word if word in words else ASIDE_NONE]
+    return tuple(slots)
 
 
 # How a sentence names each set-aside number: a placeholder day by the
@@ -1566,11 +1566,11 @@ _ASIDE_SAID = {
 
 def aside_listed(slots: "tuple[str, ...]") -> str:
     """The set-aside numbers NF113's places name, said as a list, or ""."""
-    named: "tuple[str, ...]" = ()
+    named: "list[str]" = []
     for word in slots:
         if word in _ASIDE_WORDS:
-            named = named + (_ASIDE_SAID[word],)
-    return listed(named)
+            named += [_ASIDE_SAID[word]]
+    return listed(tuple(named))
 
 
 # The words a sentence of question Q3 may carry: the members, the rules,

@@ -840,9 +840,32 @@ def test_every_registry_fact_is_bound_to_one_of_the_three_kinds(
             )
         )
     )
+    # ...AND SO IS THE FORM OF COUNTED DATES (landing R4, plan P4-D384):
+    # only a column named under `settings.forced_date_counts` carries a
+    # `count_form`, and no fixture of this battery declares one, so
+    # `datetime.count_form` was bound by nothing here. One declared column
+    # of spreadsheet serials is measured beside the others; the binding
+    # asked is only that the fact is filed.
+    serials = "seen\n" + "".join(f"{45000 + (day * 37) % 700}\n" for day in range(300))
+    counted_table = reading.read_table(str(fixtures.write(tmp_path, "counted.csv", serials)))
+    counted = contract.load_profile(
+        str(
+            fixtures.write_profile(
+                tmp_path,
+                "counted-profile.json",
+                profile.build_document(
+                    counted_table,
+                    dataclasses.replace(SETTINGS, forced_date_counts=(("seen", "excel-1900"),)),
+                    [],
+                ),
+            )
+        )
+    )
+    counted_twin = rendering.twin_csv(generation.generate(counted, SEED))
     for name, described, twin in runs + [
         ("spelled-codes", spelled, spelled_twin),
         ("workbook", booked, book.read_bytes()),
+        ("counted-dates", counted, counted_twin),
     ]:
         outcome = _measured(tmp_path, described, twin, f"{name}.csv")
         for check in outcome.checks:

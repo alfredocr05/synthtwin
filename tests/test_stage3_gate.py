@@ -339,6 +339,9 @@ _place(
         "columns.[].pad_widths.<key>",
         "columns.[].number_spellings.<key>",
         "source.dialect.columns.[].pad.width",
+        # -- 3b.R4 (P4-D384): the most figures after the mark a column of
+        # dates written as counts writes, a width of its spelling.
+        "columns.[].count_form.places",
     ),
     WRITTEN_FORM,
 )
@@ -562,6 +565,9 @@ GATE_POPULATIONS: "dict[tuple[str, ...], tuple[str, ...]]" = {
     _path("columns.[].month_name_styles.{}"): ("PARSED",),
     _path("columns.[].quarter_marker_case.{}"): ("PARSED",),
     _path("columns.[].zulu_case.{}"): ("PARSED",),
+    # -- 3b.R4 (P4-D384): how many of a column's counted dates write each
+    # contact number, a census of every date the column reads (CD4).
+    _path("columns.[].count_form.contacts.{}"): ("PARSED",),
     _path("columns.[].layout_forms.{}"): ("n_present",),
     _path("columns.[].shape_forms.{}"): (),
     _path("columns.[].value_histogram.{}"): ("n_used_in_statistics",),

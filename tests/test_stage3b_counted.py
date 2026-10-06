@@ -425,7 +425,7 @@ def test_c3_an_answered_file_and_the_typed_option_give_one_description(
         if entry["column"] == "seen":
             entry["your_answer"] = "days-since-1960"
     answers = tmp_path / "answers.json"
-    answers.write_text(json.dumps(questions), encoding="utf-8")
+    answers.write_text(json.dumps(questions), encoding="utf-8", newline="\n")
     answered = tmp_path / "answered"
     typed = tmp_path / "typed"
     answered.mkdir()
