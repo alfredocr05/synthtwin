@@ -825,17 +825,20 @@ def _answer(case: dict, module=generation) -> list:
     first, last = case["body"]
     pinned = list(case["pinned"])
     standing = tuple(case["standing"])
+    anyday = case.get("anyday", False)
     step = case["step"]
     if step == "pass":
-        module._hour_pass(state, list(case["counts"]), first, last, pinned, case["wanted"], standing, case["half_day"])
+        module._hour_pass(
+            state, list(case["counts"]), first, last, pinned, case["wanted"], standing, case["half_day"], anyday
+        )
     elif step == "left":
         have = module._hour_found(state, len(case["counts"]), first, last)
-        module._hour_left_their_groups(state, list(case["counts"]), have, first, last, pinned, standing)
+        module._hour_left_their_groups(state, list(case["counts"]), have, first, last, pinned, standing, anyday)
     elif step == "relief":
         have = module._hour_found(state, len(case["counts"]), first, last)
         module._hour_relieved(state, list(case["counts"]), have, first, last, pinned)
     elif step == "put_back":
-        module._hour_count_put_back(state, first, last, pinned, case["wanted"], standing)
+        module._hour_count_put_back(state, first, last, pinned, case["wanted"], standing, anyday)
     elif step == "midnight":
         module._hour_off_midnight(state, list(case["before"]), first, last, pinned)
     elif step == "tails":
@@ -884,8 +887,18 @@ STEP_MUTANTS = {
     ),
     "the escape keeps no day standing": (
         "hour_escape_weekday",
-        "            if standing[calendar_rules.weekday_of(other)] != own:\n                continue\n            if _weekday_width_kind(state, other * calendar_clock.DAY_SECONDS) != width:\n                continue\n            target = _hour_target_on(",
-        "            if False:\n                continue\n            if _weekday_width_kind(state, other * calendar_clock.DAY_SECONDS) != width:\n                continue\n            target = _hour_target_on(",
+        "                if (standing[calendar_rules.weekday_of(other)] == own) != kept:\n                    continue\n                if _weekday_width_kind(state, other * calendar_clock.DAY_SECONDS) != width:\n                    continue\n                target = _hour_target_on(",
+        "                if False:\n                    continue\n                if _weekday_width_kind(state, other * calendar_clock.DAY_SECONDS) != width:\n                    continue\n                target = _hour_target_on(",
+    ),
+    "the escape takes no day of another weekday": (
+        "hour_escape_any_day",
+        "    for kept in [True, False] if anyday else [True]:\n        for away in range(1, max(day - first, last - day) + 1):\n            for other in (day - away, day + away):\n                if other < first or other > last or other in state.holes:\n                    continue\n                if (standing[calendar_rules.weekday_of(other)] == own) != kept:",
+        "    for kept in [True]:\n        for away in range(1, max(day - first, last - day) + 1):\n            for other in (day - away, day + away):\n                if other < first or other > last or other in state.holes:\n                    continue\n                if (standing[calendar_rules.weekday_of(other)] == own) != kept:",
+    ),
+    "PUT BACK takes no day of another weekday": (
+        "hour_put_back_any_day",
+        "    for kept in [True, False] if anyday else [True]:\n        for away in range(1, max(day - first, last - day) + 1):\n            for other in (day - away, day + away):\n                if other < first or other > last or other in state.holes:\n                    continue\n                if (standing[calendar_rules.weekday_of(other)] == mine) != kept:",
+        "    for kept in [True]:\n        for away in range(1, max(day - first, last - day) + 1):\n            for other in (day - away, day + away):\n                if other < first or other > last or other in state.holes:\n                    continue\n                if (standing[calendar_rules.weekday_of(other)] == mine) != kept:",
     ),
     "no SPLIT": (
         "hour_split",
@@ -959,9 +972,9 @@ DISTANCE_MUTANTS = {
 }
 
 CASES = [
-    "half_day_apart", "half_day_high", "half_day_low", "hour_escape_weekday",
+    "half_day_apart", "half_day_high", "half_day_low", "hour_escape_any_day", "hour_escape_weekday",
     "hour_half_day_tails", "hour_off_midnight", "hour_proportional", "hour_put_back",
-    "hour_put_back_short", "hour_relief", "hour_same_day_clock", "hour_split", "hour_whole_pass",
+    "hour_put_back_any_day", "hour_put_back_short", "hour_relief", "hour_same_day_clock", "hour_split", "hour_whole_pass",
 ]
 
 

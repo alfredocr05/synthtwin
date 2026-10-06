@@ -6721,8 +6721,10 @@ written wall clock, `(o div 3,600) mod 24`; its GROUP the census group
 holding that hour. A rank is written AT MIDNIGHT where its cell, cut to
 the column's precision, reads 00:00:00. Its DAY STANDING is its
 weekday's group in the column's `weekday_census` where one stands, and
-its weekday itself where none does, so no step below changes a twin's
-weekday unless a published census allows it.
+its weekday itself where none does. No step below moves a rank to a day
+of another standing, but for two LAST RESORTS where no weekday census
+stands (steps 3 and 6), each taken only once every move keeping the
+standing has been made: nothing published then counts a weekday.
 
 1. **Pinned.** No rank the layout pins moves (G7.3), nor one whose gap is
    a single place, nor -- where `n_at_midnight` is published -- one
@@ -6764,9 +6766,18 @@ weekday unless a published census allows it.
    its gap -- asked of that group alone -- once a RELIEF unit has left that
    group: the first, in rank order, of that group's units as they stood
    when RELIEF first asked that group, of as many ranks, that has
-   SAMEDAY's place on its own day in a group with room. Where the unit then has none, the relief unit goes back and
-   the next is asked; one that finds no place is not asked again, since
-   no move of RELIEF gives a group room.
+   SAMEDAY's place on its own day in a group with room. Where the unit
+   then has none, the relief unit goes back and the next is asked; one
+   that finds no place is not asked again, since no move of RELIEF gives
+   a group room.
+
+   Last, where no weekday census stands and a group is still over its
+   count, the rounds above once more, the ESCAPE free at last to take,
+   where no day of the unit's standing has a place, the nearest day of
+   another weekday on the same terms (the LAST RESORT; plan P4-D371's
+   measured baseline: a cell on a rung's day may move to the nearest
+   other day inside its gap where same-day moves cannot meet the
+   census).
 4. **Off midnight.** A movable rank the steps above left written at
    midnight that was not there when the pass began, with every such rank
    of its written unit, takes the free place of hour 0 nearest midnight
@@ -6787,10 +6798,13 @@ weekday unless a published census allows it.
    nearest written unit another rank holds of its own hour group inside
    its gap, at no written midnight: on its own day first, else on the
    nearest other day of its gap, of its day standing and width kind, no
-   hole, the earlier first. Where it is SHORT: in rank order, a movable
-   body rank sharing its written unit takes the free place of its own
-   hour, day and gap nearest it. Each move keeps every group's count; the
-   step stops once the count is back.
+   hole, the earlier first. Where no weekday census stands and the count
+   is still long once every such merge is made, the same once more, a
+   run free at last to merge onto the nearest day of another weekday on
+   the same terms (the LAST RESORT). Where it is SHORT: in rank order, a
+   movable body rank sharing its written unit takes the free place of its
+   own hour, day and gap nearest it. Each move keeps every group's count;
+   the step stops once the count is back.
 7. Each run of ranks the layout does not pin is sorted.
 
 Where the census still does not hold, the report names `hour_census` as
@@ -6812,13 +6826,20 @@ hour, which on a column of seconds almost never holds another rank.
 OR starts -- ten rooms at 07:30 on 100 weekdays, cases from 09:00 --
 left the ranks before the 07:30 rung on the last day of their gap in the
 empty hours 0 to 6 at every seed, hour 7 full and no day of their
-standing in the gap; RELIEF meets the census at 10 of 10 seeds.
+standing in the gap; RELIEF meets the census at 10 of 10 seeds. Where
+no weekday census stands, the strict escape and PUT BACK left three older
+columns unmet -- 400 noon moments at a floor of one, a rank on a rung's
+day with no other day of its weekday in its gap; 400 moments on 60
+values written at 78; visits a minute either side of midnight at 21 and
+22 values for 20 -- and the last resorts meet them; on the lane's
+battery neither fires, every twin's statistics as before.
 
 **Its frozen cases** are states of ranks, as G7.3f's are: the sixteenth
 vectors file, `tests/reference/generation-branch-vectors-16.json`, holds
-ten -- SAMEDAY, the escape with a weekday census's groups, SPLIT, RELIEF,
-PUT BACK long and short, the proportional order, the step off midnight, the
-half day's tail ranks and the whole pass -- and three of G7.3b step 10's
+twelve -- SAMEDAY, the escape with a weekday census's groups and its last
+resort, SPLIT, RELIEF, PUT BACK long and short and its last resort, the
+proportional order, the step off midnight, the half day's tail ranks and
+the whole pass -- and three of G7.3b step 10's
 distances, on a low tail of minutes, a high tail of seconds and a tail
 whose ranks must all differ, each with the answer this section gives it
 and no G14.3 case.

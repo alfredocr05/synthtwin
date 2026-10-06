@@ -69,6 +69,89 @@
       "unit": 60,
       "why": "G7.3b step 10 on a low tail of minutes, the boundary at 03:40: 300 minutes out is 22:40 the day before, nearer 00:01 than 11:59, so 219; 700 out is 16:00, nearer 11:59, so 941; 3,000 out stands on a morning and stays."
     },
+    "hour_escape_any_day": {
+      "answer": [
+        1709460000,
+        1709462460,
+        1709539200
+      ],
+      "anyday": true,
+      "before": [
+        false,
+        false,
+        false
+      ],
+      "body": [
+        0,
+        2
+      ],
+      "counts": [
+        0,
+        3
+      ],
+      "half_day": false,
+      "highs": [
+        1709460000,
+        1709539200,
+        1709539200
+      ],
+      "holes": [],
+      "lows": [
+        1709460000,
+        1709460000,
+        1709539200
+      ],
+      "ordinals": [
+        1709460000,
+        1709530860,
+        1709539200
+      ],
+      "pinned": [
+        true,
+        false,
+        true
+      ],
+      "reachable": true,
+      "standing": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6
+      ],
+      "step": "left",
+      "wanted": 3,
+      "where": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1
+      ],
+      "why": "The ESCAPE's last resort (step 3): a Monday rank at 05:41 before a rung at 08:00, the gap opening on Sunday at 10:00, hours 0 to 7 counted empty and no weekday census standing. No Monday of the gap has a place, so it takes the nearest day of another weekday, Sunday, at 10:41.",
+      "written_unit": 60
+    },
     "hour_escape_weekday": {
       "answer": [
         1709200800,
@@ -549,6 +632,102 @@
         2
       ],
       "why": "PUT BACK (step 6), the count three long: three ranks alone on their minute join one another rank holds in their own hour group -- 09:05 and 14:20 on their own day, and Tuesday's 10:30, whose day holds no other of its group, Monday's 09:40.",
+      "written_unit": 60
+    },
+    "hour_put_back_any_day": {
+      "answer": [
+        1709445600,
+        1709458800,
+        1709458800,
+        1709458800,
+        1709668800
+      ],
+      "anyday": true,
+      "before": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "body": [
+        0,
+        4
+      ],
+      "counts": [
+        1,
+        3,
+        1
+      ],
+      "half_day": false,
+      "highs": [
+        1709445600,
+        1709668800,
+        1709668800,
+        1709668800,
+        1709668800
+      ],
+      "holes": [],
+      "lows": [
+        1709445600,
+        1709445600,
+        1709445600,
+        1709445600,
+        1709668800
+      ],
+      "ordinals": [
+        1709445600,
+        1709458800,
+        1709458800,
+        1709543100,
+        1709668800
+      ],
+      "pinned": [
+        true,
+        false,
+        false,
+        false,
+        true
+      ],
+      "reachable": true,
+      "standing": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6
+      ],
+      "step": "put_back",
+      "wanted": 3,
+      "where": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        1,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2
+      ],
+      "why": "PUT BACK's last resort (step 6), the count one long and no weekday census standing: Monday's 09:05 is alone on its minute and no Monday of its gap holds another of its hour group, so it joins the nearest such unit on a day of another weekday, Sunday's 09:40.",
       "written_unit": 60
     },
     "hour_put_back_short": {

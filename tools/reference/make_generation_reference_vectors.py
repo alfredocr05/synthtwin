@@ -9341,27 +9341,35 @@ def hour_settled(column, ordinals, parsed, whole, lows, highs, holes):
         or (counted and written_at_midnight(ordinals[rank], 0, step))
         for rank in range(parsed)
     ]
-    standing = [0] * 7
-    for index, group in enumerate(column.get("weekday_census") or []):
+    # THE DAY STANDING: each weekday's group in the weekday census, or,
+    # where none stands, the weekday itself -- and then, as the last
+    # resort of the escape and of PUT BACK, any other day of the gap.
+    census_of_days = column.get("weekday_census") or []
+    standing = list(range(7))
+    for index, group in enumerate(census_of_days):
         for weekday in range(group["first"], group["last"] + 1):
             standing[weekday] = index
     return hour_pass(
         walk, first, last, pinned, walk.different(), standing, half,
-        date_counts_reachable(column),
+        date_counts_reachable(column), not census_of_days,
     )
 
 
-def hour_pass(walk, first, last, pinned, wanted, standing, half, reachable):
+def hour_pass(walk, first, last, pinned, wanted, standing, half, reachable, anyday=False):
     """G7.3g steps 2 to 7 over a walk whose bins are the hours.
 
     2. G7.3f's shared steps at a unit of an hour with the day kept;
     3. while a group is over its count: SAMEDAY, the ESCAPE, and a SPLIT
        where a unit has no place whole; then RELIEF, a place in a full
-       group another unit of it leaves;
+       group another unit of it leaves; then, where no weekday census
+       stands (``anyday``), the same again with an escape free to take a
+       day of another weekday;
     4. off a written midnight, for each rank the pass put there;
     5. on the half day, each tail rank past noon or at midnight back on
        it inside its stratum;
-    6. PUT BACK, where the count of different written units is off;
+    6. PUT BACK, where the count of different written units is off, and
+       once more, where no weekday census stands, free to merge onto a
+       day of another weekday;
     7. each run of unpinned ranks sorted.
     """
     before = [written_at_midnight(ordinal, 0, walk.step) for ordinal in walk.days]
@@ -9371,11 +9379,15 @@ def hour_pass(walk, first, last, pinned, wanted, standing, half, reachable):
         hour_groups_left(walk, have, first, last, pinned, standing)
     if have != walk.counts:
         hour_relieved(walk, have, first, last, pinned)
+    if have != walk.counts and anyday:
+        hour_groups_left(walk, have, first, last, pinned, standing, True)
     hour_off_midnight(walk, before, first, last, pinned)
     if half:
         hour_tails_on_the_half_day(walk, first, last)
     if reachable and walk.different() != wanted:
         hour_put_back(walk, first, last, pinned, wanted, standing)
+        if anyday and walk.different() != wanted:
+            hour_put_back(walk, first, last, pinned, wanted, standing, True)
     sort_unpinned_runs(walk.days, pinned)
     return walk.days
 
@@ -9436,20 +9448,25 @@ def hour_place_on(walk, day, ordinal, low, high, size, have):
     return None if best is None else best[1]
 
 
-def hour_escape(walk, ordinal, low, high, size, have, standing):
+def hour_escape(walk, ordinal, low, high, size, have, standing, anyday=False):
     """THE ESCAPE: the nearest other day of the gap of the unit's standing,
-    on no hole and of its width kind, the earlier first, and its place there."""
+    on no hole and of its width kind, the earlier first, and its place there;
+    where no weekday census stands (``anyday``) and no such day has one, the
+    nearest day of another weekday on the same terms."""
     day = ordinal // HOUR_DAY
     width = walk.width_of(day)
-    for away in range(1, max(day - low // HOUR_DAY, high // HOUR_DAY - day) + 1):
-        for other in (day - away, day + away):
-            if not low // HOUR_DAY <= other <= high // HOUR_DAY or other in walk.holes:
-                continue
-            if standing[(other + 3) % 7] != standing[(day + 3) % 7] or walk.width_of(other) != width:
-                continue
-            target = hour_place_on(walk, other, ordinal, low, high, size, have)
-            if target is not None:
-                return target
+    for same in ([True, False] if anyday else [True]):
+        for away in range(1, max(day - low // HOUR_DAY, high // HOUR_DAY - day) + 1):
+            for other in (day - away, day + away):
+                if not low // HOUR_DAY <= other <= high // HOUR_DAY or other in walk.holes:
+                    continue
+                if (standing[(other + 3) % 7] == standing[(day + 3) % 7]) != same:
+                    continue
+                if walk.width_of(other) != width:
+                    continue
+                target = hour_place_on(walk, other, ordinal, low, high, size, have)
+                if target is not None:
+                    return target
     return None
 
 
@@ -9487,7 +9504,7 @@ def hour_rotated(units, leaving):
     return chosen + rest
 
 
-def hour_groups_left(walk, have, first, last, pinned, standing):
+def hour_groups_left(walk, have, first, last, pinned, standing, anyday=False):
     """G7.3g step 3: the units of each group still over its count, in
     proportional order, take SAMEDAY's place, else the escape's; a unit with
     neither whole leaves a rank at a time."""
@@ -9511,7 +9528,7 @@ def hour_groups_left(walk, have, first, last, pinned, standing):
                         continue
                     target = hour_place_on(walk, here // HOUR_DAY, here, low, high, len(members), have)
                     if target is None:
-                        target = hour_escape(walk, here, low, high, len(members), have, standing)
+                        target = hour_escape(walk, here, low, high, len(members), have, standing, anyday)
                     if target is None:
                         continue
                     for rank in members:
@@ -9607,11 +9624,12 @@ def hour_relieved(walk, have, first, last, pinned):
                     break
 
 
-def hour_merge_place(walk, rank, held, standing):
+def hour_merge_place(walk, rank, held, standing, anyday=False):
     """PUT BACK's place: the nearest written unit another rank holds, of the
     rank's own hour group, inside its gap and at no written midnight -- on
     its own day first, then on the nearest other day of its standing and
-    width kind, the earlier first."""
+    width kind, the earlier first, and last, where no weekday census stands
+    (``anyday``), on the nearest day of another weekday on the same terms."""
     ordinal = walk.days[rank]
     group = walk.group(ordinal)
     low, high = walk.lows[rank], walk.highs[rank]
@@ -9634,21 +9652,22 @@ def hour_merge_place(walk, rank, held, standing):
     found = nearest_on(day)
     if found is not None:
         return found
-    for away in range(1, max(day - low // HOUR_DAY, high // HOUR_DAY - day) + 1):
-        for other in (day - away, day + away):
-            if not low // HOUR_DAY <= other <= high // HOUR_DAY or other in walk.holes:
-                continue
-            if standing[(other + 3) % 7] != standing[(day + 3) % 7]:
-                continue
-            if walk.width_of(other) != walk.width_of(day):
-                continue
-            found = nearest_on(other)
-            if found is not None:
-                return found
+    for same in ([True, False] if anyday else [True]):
+        for away in range(1, max(day - low // HOUR_DAY, high // HOUR_DAY - day) + 1):
+            for other in (day - away, day + away):
+                if not low // HOUR_DAY <= other <= high // HOUR_DAY or other in walk.holes:
+                    continue
+                if (standing[(other + 3) % 7] == standing[(day + 3) % 7]) != same:
+                    continue
+                if walk.width_of(other) != walk.width_of(day):
+                    continue
+                found = nearest_on(other)
+                if found is not None:
+                    return found
     return None
 
 
-def hour_put_back(walk, first, last, pinned, wanted, standing):
+def hour_put_back(walk, first, last, pinned, wanted, standing, anyday=False):
     """G7.3g step 6: where the count is long, whole runs -- smallest first,
     proportional order within a size -- join a unit another rank holds in
     their own hour group; where it is short, a rank sharing its unit takes
@@ -9676,7 +9695,7 @@ def hour_put_back(walk, first, last, pinned, wanted, standing):
                 return
             if walk.holding(walk.days[members[0]]) != len(members):
                 continue
-            target = hour_merge_place(walk, members[0], held, standing)
+            target = hour_merge_place(walk, members[0], held, standing, anyday)
             if target is None:
                 continue
             for rank in members:
@@ -14032,6 +14051,37 @@ def hour_escape_case():
     )
 
 
+def hour_escape_any_day_case():
+    m = HOUR_MONDAY
+    ordinals = [hour_at(m - 1, 10), hour_at(m, 5, 41), hour_at(m, 8)]
+    return hour_case(
+        "The ESCAPE's last resort (step 3): a Monday rank at 05:41 before a rung at 08:00, "
+        "the gap opening on Sunday at 10:00, hours 0 to 7 counted empty and no weekday "
+        "census standing. No Monday of the gap has a place, so it takes the nearest day of "
+        "another weekday, Sunday, at 10:41.",
+        "left", ordinals, {0, 2}, [0, 3], HOUR_NIGHT_DAY,
+        standing=list(range(7)), anyday=True,
+    )
+
+
+def hour_put_back_any_day_case():
+    m = HOUR_MONDAY
+    ordinals = [
+        hour_at(m - 1, 6), hour_at(m - 1, 9, 40), hour_at(m - 1, 9, 40),
+        hour_at(m, 9, 5), hour_at(m + 1, 20),
+    ]
+    where = [0] * 9 + [1] * 3 + [2] * 12
+    return hour_case(
+        "PUT BACK's last resort (step 6), the count one long and no weekday census "
+        "standing: Monday's 09:05 is alone on its minute and no Monday of its gap holds "
+        "another of its hour group, so it joins the nearest such unit on a day of another "
+        "weekday, Sunday's 09:40.",
+        "put_back", ordinals, {0, 4}, [1, 3, 1], where,
+        standing=list(range(7)), anyday=True,
+        wanted=len({o // 60 for o in ordinals}) - 1,
+    )
+
+
 def hour_split_case():
     m = HOUR_MONDAY
     ordinals = [hour_at(m - 3, 10)] + [hour_at(m, 2, 15)] * 3 + [hour_at(m, 3, 0, 30)]
@@ -14153,6 +14203,8 @@ def hour_distances_case(why, found, anchor, unit, low_side, apart, edge):
 HOUR_STEP_CASES = {
     "hour_same_day_clock": hour_same_day_case,
     "hour_escape_weekday": hour_escape_case,
+    "hour_escape_any_day": hour_escape_any_day_case,
+    "hour_put_back_any_day": hour_put_back_any_day_case,
     "hour_split": hour_split_case,
     "hour_relief": hour_relief_case,
     "hour_put_back": hour_put_back_case,
@@ -14203,17 +14255,20 @@ def hour_step_answer(case):
     first, last = case["body"]
     pinned = list(case["pinned"])
     step = case["step"]
+    anyday = case.get("anyday", False)
     if step == "pass":
         return hour_pass(
             walk, first, last, pinned, case["wanted"], case["standing"], case["half_day"],
-            case["reachable"],
+            case["reachable"], anyday,
         )
     if step == "left":
-        hour_groups_left(walk, hour_have(walk, first, last), first, last, pinned, case["standing"])
+        hour_groups_left(
+            walk, hour_have(walk, first, last), first, last, pinned, case["standing"], anyday
+        )
     elif step == "relief":
         hour_relieved(walk, hour_have(walk, first, last), first, last, pinned)
     elif step == "put_back":
-        hour_put_back(walk, first, last, pinned, case["wanted"], case["standing"])
+        hour_put_back(walk, first, last, pinned, case["wanted"], case["standing"], anyday)
     elif step == "midnight":
         hour_off_midnight(walk, list(case["before"]), first, last, pinned)
     elif step == "tails":

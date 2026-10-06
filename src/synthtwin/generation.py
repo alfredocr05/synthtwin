@@ -21749,7 +21749,7 @@ def _hour_settled(
     counts = [count for _first, _last, count in census]
     _hour_pass(
         state, counts, body_low, body_high, pinned, wanted,
-        _hour_day_standing(facts), half_day,
+        _hour_day_standing(facts), half_day, not facts.weekday_census,
     )
     notes: "list[Deviation]" = []
     if _hour_found(state, len(counts), body_low, body_high) != counts:
@@ -21793,6 +21793,7 @@ def _hour_pass(
     wanted: int,
     standing: "tuple[int, ...]",
     half_day: bool,
+    anyday: bool = False,
 ) -> None:
     """G7.3g's steps 2 to 7 over a state of ranks (landing 3b.2-H).
 
@@ -21807,7 +21808,11 @@ def _hour_pass(
     (`_hour_count_put_back`), last of the moves, so it repays every move
     before it; step 7, each run of unpinned ranks sorted. The state's own
     seams name the census: its bins the hours, `where` each hour's group,
-    a unit of an hour and the day kept.
+    a unit of an hour and the day kept. `anyday` says no weekday census
+    stands, so, once RELIEF has had its turn, step 3 runs once more with
+    an escape free to take a day of another weekday (`_hour_escape`), and,
+    once PUT BACK has made every merge keeping the day standing, it runs
+    once more free to merge onto such a day (`_hour_merge_target`).
 
     Draws no word. Guarantees: moves body ranks the layout does not pin
     inside their own gaps, and on the half day tail ranks inside their
@@ -21822,11 +21827,25 @@ def _hour_pass(
         )
     if found != counts:
         _hour_relieved(state, counts, found, body_low, body_high, pinned)
+    if found != counts and anyday:
+        # THE LAST RESORT, where no weekday census stands: step 3 once more,
+        # its escape free at last to take a day of another weekday, once
+        # RELIEF, which keeps every day, has had its turn.
+        _hour_left_their_groups(
+            state, counts, found, body_low, body_high, pinned, standing, True
+        )
     _hour_off_midnight(state, before, body_low, body_high, pinned)
     if half_day:
         _hour_tails_on_the_half_day(state, body_low, body_high, state.step)
     if state.keep_units and _weekday_count(state) != wanted:
         _hour_count_put_back(state, body_low, body_high, pinned, wanted, standing)
+        if anyday and _weekday_count(state) != wanted:
+            # ...AND ITS LAST RESORT, where no weekday census stands: once
+            # every merge keeping the day standing is made, a day of another
+            # weekday.
+            _hour_count_put_back(
+                state, body_low, body_high, pinned, wanted, standing, True
+            )
     _runs_sorted(state.moved, pinned)
 
 
@@ -21836,8 +21855,9 @@ def _hour_day_standing(facts: contract.DatetimeFacts) -> "tuple[int, ...]":
     THE DAY STANDING: each weekday's group in the column's weekday census
     (`calendar_rules.where_of`), so a move keeps every published count per
     weekday; where none stands, the weekday itself, so the twin's weekdays
-    are the ones G7.3 drew. A later census of days adds its own groups
-    here.
+    are the ones G7.3 drew wherever a day of its weekday has a place, and
+    a day of another is taken only where none has (`anyday`). A later
+    census of days adds its own groups here.
     """
     if facts.weekday_census:
         return calendar_rules.where_of(facts.weekday_census)
@@ -21990,27 +22010,31 @@ def _hour_escape(
     have: "list[int]",
     want: "list[int]",
     standing: "tuple[int, ...]",
+    anyday: bool = False,
 ) -> "int | None":
     """THE ESCAPE (G7.3g step 3): the nearest other day of the unit's gap
     keeping its day standing (`_hour_day_standing`), no hole and of its
     width kind, the earlier on a tie, and its place there
-    (`_hour_target_on`); None where no day of the gap has one."""
+    (`_hour_target_on`); then, where no weekday census stands (`anyday`)
+    and no day of its standing has a place, the nearest day of another
+    weekday on the same terms; None where no day of the gap has one."""
     day = ordinal // calendar_clock.DAY_SECONDS
     own = standing[calendar_rules.weekday_of(day)]
     width = _weekday_width_kind(state, ordinal)
     first = low // calendar_clock.DAY_SECONDS
     last = high // calendar_clock.DAY_SECONDS
-    for away in range(1, max(day - first, last - day) + 1):
-        for other in (day - away, day + away):
-            if other < first or other > last or other in state.holes:
-                continue
-            if standing[calendar_rules.weekday_of(other)] != own:
-                continue
-            if _weekday_width_kind(state, other * calendar_clock.DAY_SECONDS) != width:
-                continue
-            target = _hour_target_on(state, other, ordinal, low, high, size, have, want)
-            if target is not None:
-                return target
+    for kept in [True, False] if anyday else [True]:
+        for away in range(1, max(day - first, last - day) + 1):
+            for other in (day - away, day + away):
+                if other < first or other > last or other in state.holes:
+                    continue
+                if (standing[calendar_rules.weekday_of(other)] == own) != kept:
+                    continue
+                if _weekday_width_kind(state, other * calendar_clock.DAY_SECONDS) != width:
+                    continue
+                target = _hour_target_on(state, other, ordinal, low, high, size, have, want)
+                if target is not None:
+                    return target
     return None
 
 
@@ -22022,6 +22046,7 @@ def _hour_left_their_groups(
     body_high: int,
     pinned: "list[bool]",
     standing: "tuple[int, ...]",
+    anyday: bool = False,
 ) -> None:
     """G7.3g steps 2 and 3: what the shared pass left over, moved off.
 
@@ -22063,7 +22088,8 @@ def _hour_left_their_groups(
                     )
                     if target is None:
                         target = _hour_escape(
-                            state, here, low, high, len(members), have, counts, standing
+                            state, here, low, high, len(members), have, counts, standing,
+                            anyday,
                         )
                     if target is None:
                         continue
@@ -22226,13 +22252,16 @@ def _hour_merge_target(
     rank: int,
     by_day: "dict[int, list[int]]",
     standing: "tuple[int, ...]",
+    anyday: bool = False,
 ) -> "int | None":
     """PUT BACK's place for a rank alone on its written unit (G7.3g step 6).
 
     The nearest written unit another rank holds, in the rank's own hour
     group, inside its gap, at no written midnight: on its own day first,
     nearest in time, the earlier on a tie; else on the nearest other day
-    of the gap with its day standing and width kind, the earlier first.
+    of the gap with its day standing and width kind, the earlier first;
+    else, where no weekday census stands (`anyday`), on the nearest day of
+    another weekday on the same terms.
     """
     ordinal = state.moved[rank]
     own = ordinal // state.step
@@ -22267,17 +22296,18 @@ def _hour_merge_target(
     mine = standing[calendar_rules.weekday_of(day)]
     first = low // calendar_clock.DAY_SECONDS
     last = high // calendar_clock.DAY_SECONDS
-    for away in range(1, max(day - first, last - day) + 1):
-        for other in (day - away, day + away):
-            if other < first or other > last or other in state.holes:
-                continue
-            if standing[calendar_rules.weekday_of(other)] != mine:
-                continue
-            if _weekday_width_kind(state, other * calendar_clock.DAY_SECONDS) != width:
-                continue
-            target = nearest_on(other)
-            if target is not None:
-                return target
+    for kept in [True, False] if anyday else [True]:
+        for away in range(1, max(day - first, last - day) + 1):
+            for other in (day - away, day + away):
+                if other < first or other > last or other in state.holes:
+                    continue
+                if (standing[calendar_rules.weekday_of(other)] == mine) != kept:
+                    continue
+                if _weekday_width_kind(state, other * calendar_clock.DAY_SECONDS) != width:
+                    continue
+                target = nearest_on(other)
+                if target is not None:
+                    return target
     return None
 
 
@@ -22288,6 +22318,7 @@ def _hour_count_put_back(
     pinned: "list[bool]",
     wanted: int,
     standing: "tuple[int, ...]",
+    anyday: bool = False,
 ) -> None:
     """G7.3g step 6, PUT BACK: the count of different values the moves cost.
 
@@ -22340,7 +22371,7 @@ def _hour_count_put_back(
             first = members[0]
             if _weekday_there(state, state.moved[first]) != len(members):
                 continue
-            target = _hour_merge_target(state, first, by_day, standing)
+            target = _hour_merge_target(state, first, by_day, standing, anyday)
             if target is None:
                 continue
             for rank in members:

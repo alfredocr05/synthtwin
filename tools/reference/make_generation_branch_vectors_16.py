@@ -3,8 +3,9 @@
 This is the SIXTEENTH entry point of one oracle, not a sixteenth oracle.
 It asks `make_generation_reference_vectors.py` for the states landing
 3b.2-H (plan P4-D371) freezes method section G7.3g's own steps on --
-SAMEDAY, the escape and its day standing, SPLIT, RELIEF, PUT BACK when
-the count is long and when it is short, the proportional order, the step off
+SAMEDAY, the escape and its day standing and its last resort, SPLIT,
+RELIEF, PUT BACK when the count is long and when it is short and its last
+resort, the proportional order, the step off
 midnight, the dial's half day for the tail ranks, and the whole pass --
 and the tails G7.3b step 10 takes onto the dial's half day, on a low
 tail, a high tail and one whose ranks must all differ: each with what the
