@@ -30,20 +30,24 @@ about the twin and the census's own shape, never by what a reader could
 work out from it (the owner's principle of 2026-10-01: the threat is a
 HIPAA exposure, never a reader rebuilding counts; plan P4-D365 dropped
 the full-fill certificate, its bands, its cap, its ties refusal and
-WC5, WC7, WC8 and WC9). The producer withholds a census by three
+WC5, WC7, WC8 and WC9). The producer withholds a census by four
 CONSERVATIVE rules, set on the cases where a twin was measured to miss
 the column's count of different values: too few different dates in a
 group (`few_dates`); too few of the column's different days left to the
 body, once the most its rebuilt tails can hold is set aside, for the
-days the census needs between the body's pins, asked at every floor
-(`count_room_short`, plan P4-D388 and its Codex review, item 1); and,
+days the census needs between the body's pins (`count_room_short`, plan
+P4-D388), which errs towards a count left LONG; too few days the census
+lets the body reach for what the column's count asks of it -- its
+rebuilt tails at their most, or, where the twin's count pass merges, no
+fewer than their fewest beside a body that keeps no more than its draw
+(`count_reach_short`, the Codex review of P4-D388, item 2) -- which
+errs towards a count left SHORT, the two asked at every floor; and,
 beside May's holes, placeholder days or declared days (never width
 holes alone), a group with no free day that holds a date of one row
-(`room_short`). They are
-rules, not proofs that no twin can meet the census: each also withholds
-some censuses a twin meets (1 to 21 January 2024, a hundred rows a date;
-the 50 columns plan P4-D365 counts, and those P4-D388 counts). Both the
-producer and the loader hold a published
+(`room_short`). They are rules, not proofs that no twin can meet the
+census: each also withholds some censuses a twin meets (1 to 21 January
+2024, a hundred rows a date; the 50 columns plan P4-D365 counts, and
+those P4-D388 counts). Both the producer and the loader hold a published
 census to its shape (`shape_breach`): WC1 the cover, WC2 the floor, WC3
 the total, WC4 the menu and WC6 one spelling per day
 (`one_spelling_published`) -- the published censuses of written forms
@@ -63,6 +67,8 @@ to its groups' cover, floor, total and sure cells by one checker
 Nothing here reads a table: every function is a function of the
 numbers handed to it. No I/O of any kind.
 """
+
+import math
 
 from synthtwin import parsing
 
@@ -110,6 +116,12 @@ REASON_ROOM = "room"
 # body's gaps, by the conservative rule `count_room_short` (plan
 # P4-D388): a raised floor widens the tails a twin rebuilds.
 REASON_COUNT_ROOM = "count_room"
+# Too few days the census lets the body reach for what the column's count
+# asks of it once the twin's count pass has spread or merged its rebuilt
+# tails, by the conservative rule `count_reach_short` (the Codex review of
+# plan P4-D388, item 2): a rebuilt tail can hold fewer days than the real
+# one.
+REASON_COUNT_REACH = "count_reach"
 # The producer's own census broke a rule the loader asks (`shape_breach`).
 REASON_NARROWED = "narrowed"
 # A day written in two texts by the table's own cells, or standing on a
@@ -124,6 +136,7 @@ REASONS = (
     REASON_FEW_DATES,
     REASON_ROOM,
     REASON_COUNT_ROOM,
+    REASON_COUNT_REACH,
     REASON_NARROWED,
     REASON_TEXTS,
 )
@@ -1254,6 +1267,581 @@ def count_room_short(
                 found += [index]
         need = need + min(len(found), inner)
     return need > len(held) and days - tails < need
+
+
+# THE TWIN'S REBUILT TAIL, AS METHOD G7.3b LAYS IT (the Codex review of
+# plan P4-D388, item 2), for `tails_fewest` and `tails_most_rebuilt`. The
+# producer may not import the generator -- the validator describes a file
+# with the producer and never imports the generator -- so the steps the
+# generator takes from a tail's published rows, distances and floor to
+# every rank's nearest and
+# furthest whole distance are written here a second time, operation for
+# operation in the same order, and tests/test_stage3b_count_room.py holds
+# them equal to `generation._tail_distance_bounds` on a seeded grid of
+# tails and to the layout the generator lays on described columns.
+# `_REBUILT_WORDS` is the generator's word scale, 2**64, and the two
+# slacks are its own: how far a root of the weight's quadratic may fall
+# outside [0, 1], and the share of the Bhatia-Davis reach given up to the
+# rounding of the two published distances.
+_REBUILT_WORDS = 18446744073709551616
+_REBUILT_WEIGHT_SLACK = 1e-12
+_REBUILT_END_SLACK = 1.0 / 16777216.0
+
+
+def _half_up(value: float) -> int:
+    """The whole number nearest a non-negative binary64 value, halves up, exactly."""
+    if value <= 0.0:
+        return 0
+    fraction, exponent = math.frexp(value)
+    significand = int(math.ldexp(fraction, 53))
+    shift = exponent - 53
+    if shift >= 0:
+        return significand << shift
+    below = 1 << (-shift)
+    return (2 * significand + below) // (2 * below)
+
+
+def _power_of(base: float, power: int) -> float:
+    """base**power by squaring and multiplying over the bits of `power`,
+    the most significant first, each step rounded to binary64."""
+    result = 1.0
+    bit = 1
+    while bit * 2 <= power:
+        bit = bit * 2
+    while bit >= 1:
+        result = result * result
+        if power & bit:
+            result = result * base
+        bit = bit // 2
+    return result
+
+
+def _mixture_power(ratio: float) -> int:
+    """The largest n with (n + 1)**2 <= ratio * (2n + 1), decided exactly."""
+    fraction, exponent = math.frexp(ratio)
+    top = int(math.ldexp(fraction, 53))
+    shift = exponent - 53
+    bottom = 1
+    if shift >= 0:
+        top = top << shift
+    else:
+        bottom = 1 << (-shift)
+    power = 0
+    while (power + 2) * (power + 2) * bottom <= top * (2 * power + 3):
+        power = power + 1
+    return power
+
+
+def _mixture_weight(power: int, ratio: float) -> float:
+    """The weight of the lower power in the mixture, the root in [0, 1]."""
+    a2 = 1.0 / (power + 2)
+    de = 1.0 / ((power + 1) * (power + 2))
+    b1 = 1.0 / (2 * power + 1)
+    c = 1.0 / (power + 1)
+    b2 = 1.0 / (2 * power + 3)
+    qa = ((b1 - c) + b2) - ((ratio * de) * de)
+    qb = (c - (2.0 * b2)) - (((2.0 * ratio) * a2) * de)
+    qc = b2 - ((ratio * a2) * a2)
+    if qc <= 0.0:
+        return 0.0
+    disc = (qb * qb) - ((4.0 * qa) * qc)
+    if disc < 0.0:
+        disc = 0.0
+    root = math.sqrt(disc)
+    if qb >= 0.0:
+        half = -0.5 * (qb + root)
+    else:
+        half = -0.5 * (qb - root)
+    best = 2.0
+    for candidate_top, candidate_bottom in ((half, qa), (qc, half)):
+        if candidate_bottom == 0.0:
+            continue
+        candidate = candidate_top / candidate_bottom
+        if (
+            -_REBUILT_WEIGHT_SLACK <= candidate <= 1.0 + _REBUILT_WEIGHT_SLACK
+            and candidate < best
+        ):
+            best = candidate
+    if best > 1.0 + _REBUILT_WEIGHT_SLACK:
+        return 1.0
+    return min(max(best, 0.0), 1.0)
+
+
+def _mixture_at(mixture: "tuple[float, int, float]", s: float) -> float:
+    """a(s) = scale * (s**power * (weight + (1 - weight) * s))."""
+    scale, power, weight = mixture
+    return scale * (_power_of(s, power) * (weight + ((1.0 - weight) * s)))
+
+
+def _mixture_mean_to(mixture: "tuple[float, int, float]", s: float) -> float:
+    """The integral of a from 0 to s."""
+    scale, power, weight = mixture
+    lifted = _power_of(s, power + 1)
+    return scale * (
+        ((weight * lifted) / (power + 1))
+        + (((1.0 - weight) * (lifted * s)) / (power + 2))
+    )
+
+
+def _mixture_square_to(mixture: "tuple[float, int, float]", s: float) -> float:
+    """The integral of a**2 from 0 to s."""
+    scale, power, w = mixture
+    rest = 1.0 - w
+    lifted = _power_of(s, 2 * power + 1)
+    first = ((w * w) * lifted) / (2 * power + 1)
+    second = (((2.0 * w) * rest) * (lifted * s)) / (2 * power + 2)
+    third = ((rest * rest) * ((lifted * s) * s)) / (2 * power + 3)
+    return (scale * scale) * ((first + second) + third)
+
+
+def _least_end(mean: float, root: float, edge: int) -> int:
+    """The nearest the outermost rank may stand: the Bhatia-Davis reach."""
+    if not mean > 1.0:
+        return 0
+    reach = ((root * root) - mean) / (mean - 1.0)
+    lowered = reach - ((1.0 + reach) * _REBUILT_END_SLACK)
+    if not lowered < edge:
+        return edge
+    above = int(lowered)
+    if float(above) < lowered:
+        above = above + 1
+    return min(max(above, 0), edge)
+
+
+def rebuilt_tail(
+    rows: int, mean: float, root: float, floor: int, edge: int, apart: bool
+) -> "tuple[tuple[float, int, float], float, int, int, int]":
+    """The shape one tail of dates is rebuilt through (method G7.3b steps 1 to 5).
+
+    `(mixture, stretch, end, group, grouped)`: the mixture
+    `(scale, power, weight)`, the stretch of every rank but the outermost,
+    the outermost rank's whole distance, the one whole distance the
+    innermost ranks share where the tail holds more rows than the floor,
+    and the first outer index of that group (`rows` where there is none),
+    exactly as `generation._tail_shape` takes them from the published rows,
+    mean and root-mean-square distances, the settings floor, the furthest
+    distance the member can write and whether the column's values all
+    differ, a tail of dates always grouped.
+
+    Guarantees: accepts a tail of one row or more; returns the five.
+    Determinism: a function of the six, in binary64 operation for
+    operation as the generator takes it. Raises nothing. No I/O.
+    """
+    ratio = 1.0
+    if mean > 0.0:
+        quotient = root / mean
+        ratio = quotient * quotient
+    if ratio < 1.0:
+        ratio = 1.0
+    power = _mixture_power(ratio)
+    weight = _mixture_weight(power, ratio)
+    scale = mean / (
+        (1.0 / (power + 2)) + (weight * (1.0 / ((power + 1) * (power + 2))))
+    )
+    mixture = (scale, power, weight)
+    total = rows * mean
+    squares = rows * (root * root)
+    inner = (rows - 1) / rows
+    lower = rows * _mixture_mean_to(mixture, inner)
+    lower_squares = rows * _mixture_square_to(mixture, inner)
+    reach = _mixture_at(mixture, inner)
+    qa = (lower * lower) + lower_squares
+    qb = -2.0 * (total * lower)
+    qc = (total * total) - squares
+    stretch = 1.0
+    end = -1.0
+    if qa > 0.0:
+        disc = (qb * qb) - ((4.0 * qa) * qc)
+        if disc >= 0.0:
+            spread = math.sqrt(disc)
+            for candidate in ((-qb - spread) / (2.0 * qa), (-qb + spread) / (2.0 * qa)):
+                far = total - (candidate * lower)
+                if candidate <= 0.0 or far < candidate * reach:
+                    continue
+                if end < 0.0 or abs(candidate - 1.0) < abs(stretch - 1.0):
+                    stretch = candidate
+                    end = far
+    if end < 0.0:
+        stretch = 1.0
+        outer = rows * (
+            _mixture_square_to(mixture, 1.0) - _mixture_square_to(mixture, inner)
+        )
+        end = math.sqrt(max(outer, 0.0))
+    if end > edge:
+        end = float(edge)
+        if lower > 0.0:
+            stretch = (total - end) / lower
+    end_units = min(max(1, _half_up(end)), edge)
+    grouped = rows
+    group = 0
+    if not apart and rows > floor >= 1:
+        grouped = floor - 1
+        share = (rows - grouped) / rows
+        mean_of_group = (rows * _mixture_mean_to(mixture, share)) / (rows - grouped)
+        group = min(max(1, _half_up(stretch * mean_of_group)), edge)
+        if grouped == 0:
+            end_units = group
+    end_units = max(end_units, _least_end(mean, root, edge))
+    return mixture, stretch, end_units, group, grouped
+
+
+def rebuilt_distances(
+    rows: int,
+    rebuilt: "tuple[tuple[float, int, float], float, int, int, int]",
+    edge: int,
+    apart: bool,
+    word: int,
+) -> "list[int]":
+    """Every rank's whole distance, outermost first, every rank reading `word` (G7.3b).
+
+    `generation._tail_distances` with every rank's word the same, the
+    shape `rebuilt` as `rebuilt_tail` gives it with its end and group as
+    the generator steps them off the holes: nought gives every rank's
+    nearest distance and `2**64 - 1` its furthest
+    (`generation._tail_distance_bounds`), which bound every word between
+    them because each step is monotone in every word.
+
+    Guarantees: returns `rows` whole distances. Determinism: a function
+    of the five. Raises nothing. No I/O of any kind.
+    """
+    mixture, stretch, end, group, grouped = rebuilt
+    found = [0 for _index in range(rows)]
+    if rows == 0:
+        return found
+    found[0] = end
+    for index in range(1, rows):
+        if index >= grouped:
+            found[index] = group
+            continue
+        s = ((rows - 1 - index) * _REBUILT_WORDS + word) / (rows * _REBUILT_WORDS)
+        found[index] = max(1, _half_up(stretch * _mixture_at(mixture, s)))
+    for index in range(rows - 2, -1, -1):
+        if found[index] < found[index + 1]:
+            found[index] = found[index + 1]
+    if apart:
+        for index in range(rows - 2, -1, -1):
+            if found[index] <= found[index + 1]:
+                found[index] = found[index + 1] + 1
+            found[index] = min(found[index], edge)
+        for index in range(1, rows):
+            if found[index] >= found[index - 1]:
+                found[index] = max(1, found[index - 1] - 1)
+    for index in range(rows):
+        found[index] = min(found[index], edge)
+    return found
+
+
+def _off_the_holes(
+    distance: int, boundary: int, low_side: bool, holes: "frozenset[int]"
+) -> int:
+    """A point rank's whole distance, stepped inward off every hole's day
+    (G7.3b step 7, `generation._off_the_holes`)."""
+    while distance > 1:
+        unit = boundary - distance if low_side else boundary + distance
+        if unit not in holes:
+            break
+        distance = distance - 1
+    return distance
+
+
+def _fewest_spots(near: "list[int]", far: "list[int]") -> int:
+    """The fewest whole distances that leave one inside every rank's span
+    `[near, far]`: the spans by their furthest end, a distance taken at
+    the furthest end of each span no distance taken so far reaches."""
+    spans = sorted((far[index], near[index]) for index in range(len(near)))
+    taken = 0
+    last = -1
+    for furthest, nearest in spans:
+        if taken == 0 or nearest > last:
+            taken = taken + 1
+            last = furthest
+    return taken
+
+
+def _untaken(taken: "dict[int, int]", point: int) -> int:
+    """The least whole distance at `point` or past it that no span has
+    taken: each taken distance points past itself, and the path walked is
+    pointed at the answer."""
+    walked: "list[int]" = []
+    while point in taken:
+        walked += [point]
+        point = taken[point]
+    for step in walked:
+        taken[step] = point
+    return point
+
+
+def _most_spots(near: "list[int]", far: "list[int]") -> int:
+    """The most different whole distances the ranks can take, one inside
+    each rank's span `[near, far]`: the spans by their furthest end, each
+    given the nearest distance inside it no span before it took."""
+    spans = sorted((far[index], near[index]) for index in range(len(near)))
+    taken: "dict[int, int]" = {}
+    found = 0
+    for furthest, nearest in spans:
+        point = _untaken(taken, nearest)
+        if point <= furthest:
+            taken[point] = point + 1
+            found = found + 1
+    return found
+
+
+def _tails_counted(
+    days: "tuple[int, ...]",
+    rows_low: int,
+    rows_high: int,
+    published: "tuple[tuple[int | None, float | None, float | None], tuple[int | None, float | None, float | None]]",
+    floor: int,
+    edges: "tuple[int, int]",
+    apart: bool,
+    holes: "frozenset[int]",
+    most: bool,
+) -> int:
+    """The fewest (or, with `most`, the most) different days the two
+    rebuilt tails can hold, as `tails_fewest` and `tails_most_rebuilt`
+    say."""
+    parsed = len(days)
+    counted = 0
+    for low_side, rows, facts in (
+        (True, rows_low, published[0]),
+        (False, rows_high, published[1]),
+    ):
+        listed, mean_distance, rms_distance = facts
+        if listed is not None:
+            counted = counted + listed
+            continue
+        if rows <= 0:
+            continue
+        at = days[rows_low] if low_side else days[parsed - 1 - rows_high]
+        edge = max(1, at - edges[0] if low_side else edges[1] - at)
+        if apart:
+            counted = counted + min(rows, edge)
+            continue
+        mean = 1.0 if mean_distance is None else mean_distance
+        root = mean if rms_distance is None else rms_distance
+        mixture, stretch, end, group, grouped = rebuilt_tail(
+            rows, mean, root, floor, edge, apart
+        )
+        end = _off_the_holes(end, at, low_side, holes)
+        if grouped < rows:
+            group = _off_the_holes(group, at, low_side, holes)
+        rebuilt = (mixture, stretch, max(end, group), group, grouped)
+        near = rebuilt_distances(rows, rebuilt, edge, apart, 0)
+        far = rebuilt_distances(rows, rebuilt, edge, apart, _REBUILT_WORDS - 1)
+        if most:
+            counted = counted + _most_spots(near, far)
+        else:
+            counted = counted + _fewest_spots(near, far)
+    return counted
+
+
+def tails_fewest(
+    days: "tuple[int, ...]",
+    rows_low: int,
+    rows_high: int,
+    published: "tuple[tuple[int | None, float | None, float | None], tuple[int | None, float | None, float | None]]",
+    floor: int,
+    edges: "tuple[int, int]",
+    apart: bool,
+    holes: "frozenset[int]" = frozenset(),
+) -> int:
+    """The fewest different days the twin's two tails can hold (method G7.3b).
+
+    `days` is the day of every parsed cell ascending, `rows_low` and
+    `rows_high` the two tails' rows, and `published` each tail's count of
+    listed values, or None where it publishes its two distances instead,
+    with its published mean and root-mean-square distances; `edges` the
+    first and last day the column's member can write
+    (`taxonomy.tail_edges`), `apart` whether the column's values all
+    differ, and `holes` the days the column's published absent spellings
+    name (`generation._hole_units`).
+
+    A tail that lists its values is written on every one of them, each on
+    a rank at least, so on exactly as many days as it lists. A tail that
+    publishes its two distances is rebuilt by G7.3b (`rebuilt_tail`), its
+    end and group stepped inward off the holes (step 7), and each rank's
+    distance lies between its distances at the least and the largest word
+    (`rebuilt_distances`), its SPAN, which the count pass moves it inside
+    and no further: the twin's tail holds at least the fewest whole
+    distances that leave one inside every rank's span (`_fewest_spots`),
+    whatever its draws and its passes. Where the column's values all
+    differ the ranks are made all different, as far as the member's edge
+    allows.
+
+    Guarantees: accepts the days, the two tails' rows (each less than the
+    days' count), their published facts, the settings floor, the edges,
+    the flag and the holes; returns the sum. Determinism: a function of
+    the eight. Raises nothing. No I/O of any kind.
+    """
+    return _tails_counted(
+        days, rows_low, rows_high, published, floor, edges, apart, holes, False
+    )
+
+
+def tails_most_rebuilt(
+    days: "tuple[int, ...]",
+    rows_low: int,
+    rows_high: int,
+    published: "tuple[tuple[int | None, float | None, float | None], tuple[int | None, float | None, float | None]]",
+    floor: int,
+    edges: "tuple[int, int]",
+    apart: bool,
+    holes: "frozenset[int]" = frozenset(),
+) -> int:
+    """The most different days the twin's two tails can hold as G7.3b rebuilds them.
+
+    The arguments are `tails_fewest`'s, and so are the spans: a tail that
+    lists its values holds exactly as many days as it lists, one whose
+    column's values all differ as many as its rows the member's edge
+    allows, and any other at most the most whole distances that can stand
+    one inside each rank's span, each a distance of its own
+    (`_most_spots`): the days the count pass can spread it onto, moving
+    ranks that share a day onto free days of their own spans. Never fewer
+    than `tails_fewest`, and never more than `tails_most`, which counts
+    a tail's floor and spread rather than its spans.
+
+    Guarantees: accepts what `tails_fewest` accepts; returns the sum.
+    Determinism: a function of the eight. Raises nothing. No I/O.
+    """
+    return _tails_counted(
+        days, rows_low, rows_high, published, floor, edges, apart, holes, True
+    )
+
+
+def _weekday_days(first: int, last: int) -> "list[int]":
+    """How many days of each weekday lie from `first` to `last`, both
+    included, counted without a walk: none where `last` is before
+    `first`."""
+    found = [0 for _weekday in range(WEEKDAYS)]
+    total = last - first + 1
+    if total <= 0:
+        return found
+    start = weekday_of(first)
+    for step in range(WEEKDAYS):
+        extra = 1 if step < total % WEEKDAYS else 0
+        found[(start + step) % WEEKDAYS] = total // WEEKDAYS + extra
+    return found
+
+
+def count_reach_short(
+    groups: "tuple[tuple[int, int, int], ...]",
+    pins: "tuple[tuple[int, int], ...]",
+    days: int,
+    fewest: int,
+    most: int,
+    holes: "frozenset[int]" = frozenset(),
+) -> bool:
+    """Whether the census leaves the body too few days for the count (the Codex review of plan P4-D388, item 2).
+
+    THE COUNT-ROOM RULE'S OTHER DIRECTION, asked at every floor. `pins`
+    are the body's pinned ranks with their days, ascending (`body_pins`);
+    `days` is how many different days the column holds; `fewest` and
+    `most` the fewest and the most different days the twin's two tails
+    can hold as G7.3b rebuilds them (`tails_fewest`,
+    `tails_most_rebuilt`); `holes` the days the description publishes as
+    holding no body cell (`public_holes`).
+
+    WHERE THE CENSUS LETS THE BODY REACH. The twin's day pass moves a
+    body rank only inside its gap, both pin days included, and onto no
+    day of a group the census leaves empty and no hole, and each group
+    holds no more different days than its count: so the body can REACH
+    the distinct pin days and, inside each gap, as many of the days
+    strictly inside it the census allows as the gap has ranks, and no
+    more different days of a group than the group's count. Without the
+    census it would reach every day inside each gap that is no hole, as
+    many as the gap has ranks.
+
+    WHAT THE COUNT ASKS OF IT. Before the day pass, the count pass meets
+    the column's count of different days on the drawn twin, knowing
+    nothing of the census. The body's ranks are drawn independently
+    inside their gaps and land, in expectation, on `n * (1 - (1 -
+    1/n)**r)` of a gap's `n` days that are no hole, `r` its ranks; with
+    the pin days, the body's DRAW. Where the draw and the tails' most
+    fall short of the count, the pass only SPLITS, moving ranks that
+    share a day onto days no rank holds -- a tail's ranks onto free days
+    of their own spans -- and the tails reach their most: one row a
+    business day over four and a half years draws about 830 of its 1,180
+    days and comes back holding every one. Otherwise it MERGES, and
+    merging only takes days away: the body keeps no more than its draw,
+    and the tails, whose ranks alone on a day are the shortest runs it
+    merges, no fewer than their fewest -- `_hunt(2291)` of
+    tests/test_stage3b_count_room.py draws 20 or 21 days of its 17, and
+    its high tail is merged from four days to three at every seed. So the
+    body's NEED is what the tails at their most leave it, and, where its
+    draw passes that, as much of the draw as the tails at their fewest
+    leave room for.
+
+    True where the need is more than the reach and the census narrows it
+    -- without the census the body would reach further -- so the twin
+    can lose a value to the census: a 14-day column whose high tail of 31
+    rows the twin rebuilds on three days where the real tail held four,
+    its body every weekday between the boundaries and the weekend empty,
+    came back with 11 for 12 at every seed, and 12 with the census
+    withheld. A need equal to the reach publishes the census.
+
+    A CONSERVATIVE rule where the count pass merges: it reads every merge
+    as taken from the tails, where most are taken from the body. It
+    withholds censuses a twin would meet, and that is its price; the
+    draw is its expectation, and a twin whose body draws more than that
+    is a recorded limit. No day of the body's span is walked: the days of
+    each weekday in a gap are counted, and the holes inside it set aside
+    one by one.
+
+    Guarantees: accepts the census, the pins, the count, the tails'
+    fewest and most and the holes; returns the answer. Determinism: a
+    function of the six, in binary64 where the draw is reckoned. Raises
+    nothing. No I/O of any kind.
+    """
+    if not pins:
+        return False
+    where = where_of(groups)
+    held: "list[int]" = []
+    for _rank, day in pins:
+        if day not in held:
+            held += [day]
+    first_day = pins[0][1]
+    last_day = pins[len(pins) - 1][1]
+    inside = sorted(day for day in holes if first_day <= day <= last_day)
+    reach = len(held)
+    free = len(held)
+    draw = float(len(held))
+    at = 0
+    for place in range(len(pins) - 1):
+        rank, first = pins[place]
+        following, last = pins[place + 1]
+        while at < len(inside) and inside[at] <= first:
+            at = at + 1
+        inner = following - rank - 1
+        if inner < 1 or last - first < 2:
+            continue
+        counts = _weekday_days(first + 1, last - 1)
+        while at < len(inside) and inside[at] < last:
+            weekday = weekday_of(inside[at])
+            counts[weekday] = counts[weekday] - 1
+            at = at + 1
+        every = 0
+        allowed = 0
+        for weekday in range(WEEKDAYS):
+            every = every + counts[weekday]
+            if groups[where[weekday]][2] > 0:
+                allowed = allowed + counts[weekday]
+        reach = reach + min(inner, allowed)
+        free = free + min(inner, every)
+        if every > 0:
+            draw = draw + every * (1.0 - _power_of(1.0 - 1.0 / every, inner))
+    spans = _weekday_days(first_day, last_day)
+    for day in inside:
+        weekday = weekday_of(day)
+        spans[weekday] = spans[weekday] - 1
+    capped = [0 for _group in groups]
+    for weekday in range(WEEKDAYS):
+        capped[where[weekday]] = capped[where[weekday]] + spans[weekday]
+    room = 0
+    for index in range(len(groups)):
+        room = room + min(groups[index][2], capped[index])
+    reach = min(reach, room)
+    need = max(float(days - most), min(float(days - fewest), draw))
+    return reach < free and need > reach
 
 
 def room_short(
