@@ -6,6 +6,38 @@ exists).
 
 ## [Unreleased]
 
+### The weekday census on timestamp columns (2026-10-06)
+
+**A column of dates and times publishes its weekday census** (stage 3b
+landing D2, plan P4-D367). Read on the local clock, not in the joint
+member, with both tails, a column of moments now publishes the census a
+column of whole dates does, its body cut by instant and each cell
+counted on the weekday of its day; before, it published `[]` and its
+twin drew each gap evenly, so clinic visits on weekdays alone came back
+24 to 31 per cent on weekends. The loader widens WC3 to moments and asks
+WC10, the middle half spanning four weeks; the producer asks the
+few-dates rule of the moments' days, the few-units rule beside it (eight
+different written units a non-empty group on average) and, above a
+floor of 11, the unit-room rule (lane D1b's count-room rule in written
+units), and every withholding but one without tails says NF74's
+sentence. The generator moves a moment by whole days, keeping its
+clock, through G7.3f's shared pass; its new step 7c lets a moment whose
+clock stands outside its gap on the gap's end day take another clock
+there, through a group at its total where step 7b leads on from it, and
+its new step 8.7 puts a count of different values left short back at
+another clock on each moment's own day, neither ever onto or off a
+midnight. The validator counts a file of moments by instant. On the lane's battery of 1,258 tables against 9cb2eb5, 994 censuses
+publish at a floor of 11 and 862 at 36 where none did, no twin
+misses a check its base twin met, every source table meets its own
+description, and the published columns' bodies come back on the real
+weekend share exactly (0.238 and 0.205 from it before); columns of
+whole dates are byte-identical to the base on 9,030 twins, and a
+million arrivals spend 5.1 s describing and 6.9 s generating on it.
+`tests/reference/generation-branch-vectors-17.json` freezes steps 7c and
+8.7, one state of the fifteenth file now ends with step 8.7's move, and
+`tests/test_stage3b_weekday_moments.py` holds the landing's clauses.
+KPIs `K-S3-36` (new) and `K-S3-37` (new, an accepted limit, status only).
+
 ### The second key cut repaired at its review (2026-10-05)
 
 **A long reserved declaration is refused in step with its length** (plan
