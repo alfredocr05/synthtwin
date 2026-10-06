@@ -63,7 +63,14 @@ another value or its mean, where generation stopped on an internal error
 or lost the value; and it looks heaps up through a set, where a list
 grew with their square. NF107 no longer calls a time written another
 way no time of day, and `K-S3-49` names G8.3's clock line, past which a
-label column's stand-in stays text.
+label column's stand-in stays text. And one more, found by lane R2a's
+reach battery: a SQL Server `time(7)` column, every cell a time and seven
+figures of fraction, is free text, and its twin wrote `44:40:00.0023504`
+and 855 more cells that are no time of day; a form whose seconds a point
+and figures follow is now a clock's form, filled with times at whole
+seconds first, and its walks no longer stop at 4,096 different values, so
+every cell of such a twin is a time in its own spelling, at 1,000 rows
+and at 100,000, and no other twin of the battery moves.
 
 ### The weekday guards dropped (2026-10-02)
 
