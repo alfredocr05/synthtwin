@@ -108,6 +108,22 @@ has four groups keep four values where eight are reachable. The method
 and its docstrings no longer say that finding no cycle shows the count
 is the most it can be; the bound stays.
 
+**Each move of a cycle takes the value its gain was asked of** (its
+Codex review, item 1, as verified). Step 8.3 asked each group's gain of
+the value it would move, then moved whichever value led that group once
+the moves before had been made, and a move can make the value it puts on
+a group that group's leader: on a day holding 00:14 three times and
+01:07 once, the cycle hour 0 to hour 1 and back moved a value from 00:14
+to 01:14 and straight back, and the count stayed one short where moving
+01:07 to 00:07 met it. Each move now takes the value its gain was asked
+of, so every move finds its place and no cycle is undone; the
+verification's two states, of hours and of moments, meet the census and
+the count, and the fifteenth vectors file holds 49 states. No date
+moves: every twin of the date batteries is the one before. Where a
+second census is kept, which no column publishes yet, a cycle can now
+leave the trade of step 8.6 no way back on rare states; the landing
+that first publishes one decides what to do about it.
+
 ### Stage 4's first tier repaired at its review (2026-10-02)
 
 **A twin of a description the producer writes today moves no byte**

@@ -6475,10 +6475,11 @@ written unit's.
    once and a group over its total never, each group's links asked in
    order of `h`, the first group under its total reached ends the search;
    each link of the path from the group over to the group under then
-   makes, in turn, one move of step 8.3 in its cell, from `g` to `h`, so
-   every group between keeps its holding and one rank goes from the
-   first group to the last. The step ends where no path is found or a
-   move cannot be made.
+   makes, in turn, one move in its cell, from `g` to `h`: the mover of
+   `g` there AS THE RANKS THEN STAND onto the place of `h` a move of
+   step 8.3 takes, so every group between keeps its holding and one rank
+   goes from the first group to the last. The step ends where no path is
+   found or a move cannot be made.
 8. **The count of different days**, where the column's distinct count
    is reachable, put back to what it was before step 2, by moves that
    keep every group's count:
@@ -6522,20 +6523,25 @@ written unit's.
       `(gk, g1)`; of the cycles gaining more than nought, the one whose
       gain is the largest not past what is short, else the smallest,
       then the fewest groups, then the earliest. Each pair in turn
-      moves, in its cell, the mover of `g` as the ranks then stand onto
-      the place of `h` of the cell's kind nearest it inside its gap, the
-      whole gap asked and the earlier on a tie, whose written unit no
-      rank holds and that is no hole, else the nearest one whose written
-      unit a rank holds. A CYCLE IS MADE WHOLE OR NOT AT ALL (plan
-      P4-D366, the landing's review; restated at its Codex review, item
-      1): the takes are asked of each group's mover as the ranks stand
-      before the cycle, and a move can change the mover of the group it
-      puts a rank on -- the rank moved stands on that group's written
-      unit holding the most ranks, or ties it lower in rank order -- whose
-      own place inside its unit may give it no place of the next group
-      inside the gap. Where a move finds no place, the moves of its cycle
-      made before it are undone, last first, and the step ends; on a
-      date's day every move finds its place. Where a unit is one written
+      moves, in its cell, the mover its gain was asked of -- the mover of
+      `g` as the ranks stood before the cycle -- onto the place of `h` of
+      the cell's kind nearest it inside its gap, the whole gap asked and
+      the earlier on a tie, whose written unit no rank holds and that is
+      no hole, else the nearest one whose written unit a rank holds.
+      EVERY MOVE FINDS ITS PLACE AND A CYCLE IS MADE WHOLE (plan P4-D366,
+      the landing's review; restated where its Codex review's item 1 was
+      verified): each group gives once in a cycle, so no move before a
+      pair's moves its mover, and the place its take found still stands;
+      every group keeps its count, and the count gains at least the
+      cycle's gain. The mover of `g` as the ranks then stand lost gains:
+      a move can put its rank on the next group's written unit holding
+      the most ranks, or tie it lower in rank order, and that rank was
+      moved straight back -- a unit of an hour, minutes written, the day
+      kept, a day holding 00:14 three times and 01:07 alone, and the
+      cycle hour 0 to hour 1 and back moved one 00:14 rank to 01:14 and
+      back again, the count left one short where that move and 01:07,
+      hour 1's mover, onto 00:07 meet it -- or found no place of the next
+      group for it, and the cycle was undone. Where a unit is one written
       unit and every cycle is asked, the count, as a function of how many
       ranks each cell puts on each group, is a sum of `min(ranks, free
       days)` -- concave -- so where no cycle gains it is the most the
@@ -6638,19 +6644,20 @@ column of whole dates reaches them there through the whole generator;
 at a floor of 36 eight twins of 15,152 move, steps 8.4 and 8.5 merging a
 count already left long one or two values nearer the published one. The
 fifteenth vectors file, `tests/reference/generation-branch-vectors-15.json`,
-holds forty-seven such states -- the landing's ten (an hour inside its
+holds forty-nine such states -- the landing's ten (an hour inside its
 day, a day of moments, the index of steps 5 and 6, a chain, step 8.4 at
 its own clock and at another, a long pair, a two-census trade, and the
 cycles of seven and of ten groups), its review's twenty-four (each new
 step once through the whole pass, and a state for every clause a
 reviewer's mutant changed), its second review's six (a state for
-every line of that review's repair whose mutant changed an answer) and
-its Codex review's seven (step 8.3's take in written units on its own
-state of forty ranks each at 00:15, 01:15 and 02:30 and on a day of
-moments, a place past the gap twice, a link past its gap, and each
-step's mover; and its two cycles undone restated, a move changing the
-next group's mover) -- with the answer this section gives each, and no
-G14.3 case.
+every line of that review's repair whose mutant changed an answer), its
+Codex review's seven (step 8.3's take in written units on its own state
+of forty ranks each at 00:15, 01:15 and 02:30 and on a day of moments,
+a place past the gap twice, a link past its gap, and each step's mover;
+and two cycles restated, where a move puts its rank in the next group's
+mover's place) and the two that review's verification found one short
+there too, of hours and of moments -- with the answer this section
+gives each, and no G14.3 case.
 
 ### G7.4 Offsets: only where recorded
 

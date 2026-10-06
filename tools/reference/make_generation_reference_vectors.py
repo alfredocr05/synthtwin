@@ -11751,12 +11751,12 @@ def weekday_exchanged(walk, movable, wanted):
         cycle = weekday_best_cycle(walk, movable, wanted - before)
         if cycle is None:
             break
-        # The cycle whole or not at all (P4-D366): where any of its moves
-        # finds no place, every one of them is undone and the step ends.
-        saved = list(walk.days)
-        if not all([weekday_exchange_move(walk, movable, cell, giving, taking) for cell, giving, taking in cycle]):
-            walk.days[:] = saved
-            break
+        # Each move takes the mover its gain was asked of (the verification of
+        # the Codex review of landing 3b.D0, item 1): each group gives once, so
+        # no move before it moves that rank, its place still stands, and the
+        # cycle is made whole.
+        for cell, _giving, taking, rank in cycle:
+            weekday_exchange_move(walk, cell, taking, rank)
         if walk.different() <= before:
             break
     if walk.different() > wanted:
@@ -11815,7 +11815,8 @@ def weekday_take(walk, movable, cell, giving, taking):
 
 
 def weekday_best_cycle(walk, movable, short):
-    """The cycle of step 8.3, as (cell, from group, to group) moves, or None."""
+    """The cycle of step 8.3, as (cell, from group, to group, mover) moves, or
+    None: each pair's mover, its gain asked of it, as the ranks stand now."""
     groups = len(walk.counts)
     cells = sorted({weekday_cell_of(walk, rank) for rank in movable})
     pairs = {}
@@ -11844,17 +11845,16 @@ def weekday_best_cycle(walk, movable, short):
                 key = ((0, -gain) if gain <= short else (1, gain), size, order)
                 if chosen is None or key < chosen[0]:
                     chosen = (key, [(pairs[step][1], step[0], step[1]) for step in steps])
-    return None if chosen is None else chosen[1]
+    if chosen is None:
+        return None
+    return [(cell, giving, taking, weekday_mover(walk, movable, cell, giving)) for cell, giving, taking in chosen[1]]
 
 
-def weekday_exchange_move(walk, movable, cell, giving, taking):
-    """One move of a cycle: the giving group's mover as the ranks now stand
-    (its rank on the written unit holding the most ranks, the lower rank on
-    a tie) onto the taking group's nearest place of the cell's kind, no hole,
-    whose written unit is free, else its nearest held one."""
-    rank = weekday_mover(walk, movable, cell, giving)
-    if rank is None:
-        return False
+def weekday_exchange_move(walk, cell, taking, rank):
+    """One move of a cycle, or of step 7b's chain: this rank onto the taking
+    group's nearest place of the cell's kind, inside the cell's gap, no hole,
+    whose written unit is free, else its nearest held one; whether it had
+    one."""
     low, high, kind = cell
     fitting = [
         other for other in walk.candidates_whole(walk.days[rank], low, high)
@@ -12079,7 +12079,9 @@ def weekday_chain(walk, movable, owed):
             path += [came[path[-1]]]
         path.reverse()
         for g, h in zip(path, path[1:]):
-            if not weekday_exchange_move(walk, movable, links[(g, h)], g, h):
+            # Step 7b's move takes the giving group's mover as the ranks now stand.
+            rank = weekday_mover(walk, movable, links[(g, h)], g)
+            if rank is None or not weekday_exchange_move(walk, links[(g, h)], h, rank):
                 return
 
 
@@ -12888,20 +12890,22 @@ def shared_cycle_past_its_gap_case():
     )
 
 
-def shared_cycle_undone_case():
+def shared_three_movers_case():
     m = SHARED_MONDAY
     gap = (shared_moment(m - 1, 6), shared_moment(m + 3, 10, 0, 40))
     rows = [(shared_moment(m + 1, 10, 1, 5), *gap, False)] * 2
     rows += [(shared_moment(m - 1, 10, 0, 30), *gap, False)] + [(shared_moment(m + 3, 10), *gap, False)] * 2
     ordinals, lows, highs, pinned = shared_listed(rows)
     return shared_case(
-        "Step 8.3's cycle undone, a day of moments, each weekday its own group, the count three "
-        "short: a gap from Sunday 06:00:00 to Thursday 10:00:40 holds Tuesday 10:01:05 twice, "
-        "stated first, Sunday 10:00:30 alone and Thursday 10:00:00 twice. The cycle Tuesday to "
-        "Sunday to Thursday and back moves a Tuesday moment to Sunday 10:01:05, free; both "
-        "Sunday moments alone, the lower rank -- the one just moved -- is Sunday's mover now, and "
-        "Thursday 10:01:05 stands past the gap's close: the moment goes back, and every group "
-        "keeps its count.",
+        "Step 8.3 moves the movers its cycle's gain was asked of (the verification of the Codex "
+        "review of landing 3b.D0, item 1), a day of moments, each weekday its own group, the "
+        "count three short: a gap from Sunday 06:00:00 to Thursday 10:00:40 holds Tuesday "
+        "10:01:05 twice, stated first, Sunday 10:00:30 alone and Thursday 10:00:00 twice. The "
+        "cycle Tuesday to Sunday to Thursday and back moves a Tuesday moment to Sunday 10:01:05, "
+        "free, where it is the lower rank of Sunday's two lone moments; Sunday's move still takes "
+        "10:00:30 to Thursday 10:00:30, and a Thursday moment goes to Tuesday 10:00:00: the count "
+        "gains two. Taken as the ranks then stood, Sunday's mover was the moment just moved, and "
+        "Thursday 10:01:05 stands past the gap's close.",
         "exchanged", ordinals, lows, highs, pinned, [0, 2, 0, 2, 0, 0, 1], list(range(7)),
         unit=SHARED_DAY, written_unit=1, day=SHARED_DAY, wanted=len(set(ordinals)) + 3,
     )
@@ -13070,7 +13074,7 @@ def shared_third_place_past_its_gap_case():
     )
 
 
-def shared_cycle_undone_twice_case():
+def shared_four_movers_case():
     m = SHARED_MONDAY
     gap = (shared_moment(m - 1, 10, 0, 15), shared_moment(m + 4, 10, 0, 40))
     rows = [(shared_moment(m + 1, 10, 0, 10), *gap, False), (shared_moment(m + 1, 10, 0, 20), *gap, False)]
@@ -13078,14 +13082,17 @@ def shared_cycle_undone_twice_case():
     rows += [(shared_moment(m - 1, 10, 1, 30), *gap, False)] * 3
     ordinals, lows, highs, pinned = shared_listed(rows)
     return shared_case(
-        "Step 8.3's cycle undone last move first, a day of moments, minutes written, each weekday "
-        "its own group, the count three short: a gap from Sunday 10:00:15 to Friday 10:00:40 holds "
-        "Tuesday 10:00:10 and 10:00:20, stated first, Wednesday 10:00:20, Thursday 10:01:30 and "
-        "Sunday 10:01:30 three times. The cycle Tuesday to Thursday to Wednesday to Sunday and back "
-        "moves Tuesday 10:00:10 to Thursday 10:00:10, free, where the lower rank of Thursday's two "
-        "lone minutes is now it; then to Wednesday 10:00:10, on the minute Wednesday's moment holds, "
-        "where it is the lower rank again; and Sunday 10:00:10 stands before the gap opens. It goes "
-        "back to Thursday and then to Tuesday, and nothing has moved.",
+        "Step 8.3 moves the movers its cycle's gain was asked of on every move (the verification "
+        "of the Codex review of landing 3b.D0, item 1), a day of moments, minutes written, each "
+        "weekday its own group, the count three short: a gap from Sunday 10:00:15 to Friday "
+        "10:00:40 holds Tuesday 10:00:10 and 10:00:20, stated first, Wednesday 10:00:20, Thursday "
+        "10:01:30 and Sunday 10:01:30 three times. The cycle Tuesday to Thursday to Wednesday to "
+        "Sunday and back moves Tuesday 10:00:10 to Thursday 10:00:10, free, where it is the lower "
+        "rank of Thursday's two lone minutes; Thursday's move still takes 10:01:30 to Wednesday "
+        "10:01:30, Wednesday 10:00:20 goes to Sunday 10:00:20 and a Sunday moment to Tuesday "
+        "10:01:30: the count gains two. Taken as the ranks then stood, each mover was the moment "
+        "just moved, carried on to Wednesday 10:00:10, and Sunday 10:00:10 stands before the gap "
+        "opens.",
         "exchanged", ordinals, lows, highs, pinned, [0, 2, 1, 1, 0, 0, 3], list(range(7)),
         unit=SHARED_DAY, written_unit=60, day=SHARED_DAY, wanted=len({o // 60 for o in ordinals}) + 3,
     )
@@ -13184,6 +13191,60 @@ def shared_chain_mover_case():
     )
 
 
+# ...and the two states the verification of that item found one short, each
+# move of a cycle having taken the mover as the ranks then stood: random
+# states of its own battery, as it drew them, each through the whole pass.
+
+
+def shared_hour_movers_case():
+    day = days_from_civil(2024, 3, 13)  # a Wednesday
+    clocks = [
+        (0, 15, 14), (1, 0, 14), (1, 0, 14), (1, 0, 14), (1, 1, 7), (1, 10, 7), (1, 15, 7), (1, 15, 7),
+        (2, 8, 14), (2, 15, 38), (2, 15, 38), (2, 15, 38), (2, 22, 38), (2, 22, 38), (3, 8, 38),
+        (3, 10, 7), (3, 10, 7), (3, 13, 7), (3, 14, 14), (3, 14, 14), (3, 16, 38), (3, 23, 38),
+    ]
+    ordinals = [shared_moment(day + days, hours, minutes) for days, hours, minutes in clocks]
+    pinned, lows, highs = shared_layout(ordinals, {0, 12, 16, 21})
+    return shared_case(
+        "Step 8.3 moves the movers its cycle's gain was asked of on a unit of an hour (the "
+        "verification of the Codex review of landing 3b.D0, item 1, its state A), minutes written, "
+        "the day kept, the groups hour 0, hour 1, hour 2, hours 3 to 5, 6 to 13, 14 and 15, 16 to "
+        "21 and 22 and 23, the count one short once step 8.1 is done: a gap from Wednesday 15:14 "
+        "to Friday 22:38 holds, on Thursday, 00:14 three times and 01:07 alone. The cycle hour 0 "
+        "to hour 1 and back moves a 00:14 rank to 01:14, free, where it ties 01:07 lower in rank "
+        "order; hour 1's move still takes 01:07 to 00:07, and the count is met. Taken as the ranks "
+        "then stood, hour 1's mover was the rank just moved, and it went straight back to 00:14.",
+        "settled", ordinals, lows, highs, pinned, [3, 1, 0, 0, 6, 8, 1, 3],
+        [0, 1, 2, 3, 3, 3] + [4] * 8 + [5, 5] + [6] * 6 + [7, 7], unit=SHARED_HOUR,
+        written_unit=60, day=SHARED_DAY, bin="hour", period=24, keep="day", wanted=20,
+    )
+
+
+def shared_moment_movers_case():
+    day = days_from_civil(2024, 2, 4)  # a Sunday
+    clocks = [
+        (0, 8, 3, 0), (0, 8, 3, 0), (1, 9, 49, 0), (1, 9, 49, 0), (1, 11, 33, 0), (3, 1, 0, 0),
+        (5, 5, 13, 17), (5, 5, 13, 17), (5, 23, 54, 0), (5, 23, 54, 0), (6, 19, 19, 9), (6, 19, 19, 9),
+        (8, 17, 49, 0), (9, 16, 45, 47), (10, 14, 59, 0), (10, 17, 35, 0), (13, 22, 5, 2),
+    ]
+    ordinals = [shared_moment(day + days, hours, minutes, seconds) for days, hours, minutes, seconds in clocks]
+    pinned, lows, highs = shared_layout(ordinals, {0, 6, 16})
+    return shared_case(
+        "Step 8.3 moves the movers its cycle's gain was asked of on a day of moments (the "
+        "verification of the Codex review of landing 3b.D0, item 1, its state B), minutes written, "
+        "each weekday its own group and the half of the month a second census, the count one "
+        "short once step 6 is done: a gap from Sunday 08:03:00 to Friday 05:13:17 holds Monday "
+        "09:49:00 twice and, step 6 having moved it there, Tuesday 11:33:00. The cycle Monday to "
+        "Tuesday and back moves a Monday moment to Tuesday 09:49:00, free, where it ties 11:33:00 "
+        "lower in rank order; Tuesday's move still takes 11:33:00 to Monday 11:33:00, and the count "
+        "is met. Taken as the ranks then stood, Tuesday's mover was the moment just moved, and it "
+        "went straight back to Monday 09:49:00.",
+        "settled", ordinals, lows, highs, pinned, [3, 3, 3, 1, 3, 2, 2], list(range(7)),
+        unit=SHARED_DAY, written_unit=60, day=SHARED_DAY, pair="day_of_month",
+        pair_where=[0] * 15 + [1] * 16, wanted=15,
+    )
+
+
 SHARED_STEP_CASES = {
     "an_hour_inside_its_day": shared_hour_case,
     "a_moments_day": shared_moment_case,
@@ -13216,7 +13277,7 @@ SHARED_STEP_CASES = {
     "merged_in_the_pass": shared_settled_merge_case,
     "a_long_pair_in_the_pass": shared_settled_pair_case,
     "a_trade_in_the_pass": shared_settled_trade_case,
-    "a_cycle_undone": shared_cycle_undone_case,
+    "a_cycle_of_three_moves_its_asked_movers": shared_three_movers_case,
     "a_day_freed_for_a_cycle": shared_unit_freed_case,
     "runs_merged_until_the_count_is_back": shared_runs_merged_case,
     "runs_merged_in_one_round": shared_runs_one_round_case,
@@ -13224,7 +13285,7 @@ SHARED_STEP_CASES = {
     "long_pairs_move_a_joined_rank_again": shared_pair_joined_case,
     "long_pairs_count_the_pinned_rank": shared_pair_beside_a_pin_case,
     "a_long_pair_by_first_places": shared_pair_first_places_case,
-    "a_cycle_undone_last_move_first": shared_cycle_undone_twice_case,
+    "a_cycle_of_four_moves_its_asked_movers": shared_four_movers_case,
     # the Codex review's (its item 1)
     "written_units_free_in_held_hours": shared_written_units_case,
     "a_free_second_on_a_held_day": shared_free_second_case,
@@ -13233,6 +13294,9 @@ SHARED_STEP_CASES = {
     "a_link_past_its_gap": shared_link_past_its_gap_case,
     "a_cycles_mover_holds_the_most": shared_cycle_mover_case,
     "a_chains_mover_holds_the_most": shared_chain_mover_case,
+    # its verification's (item 1)
+    "an_hour_cycle_moves_its_asked_movers": shared_hour_movers_case,
+    "a_moments_cycle_moves_its_asked_movers": shared_moment_movers_case,
 }
 
 
@@ -13271,7 +13335,7 @@ def shared_answer(case):
         weekday_traded(walk, movable, case["want"])
     elif step == "cycle":
         cycle = weekday_best_cycle(walk, movable, case["short"]) or []
-        return [[giving, taking] for _cell, giving, taking in cycle]
+        return [[giving, taking] for _cell, giving, taking, _rank in cycle]
     elif step == "singles":
         # Steps 5 and 6 on one gap, its share of every group stated.
         have = weekday_holdings(walk, movable, len(case["counts"]))

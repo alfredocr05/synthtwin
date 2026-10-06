@@ -20144,9 +20144,10 @@ def _weekday_exchanged(
     unit wider than its written unit the count is no such sum and the
     take is the mover's alone. There a count left short may be below
     that most. Each round takes the cycle whose gain is the largest not
-    past what is short, else the smallest, and moves its ranks
-    (`_weekday_exchange_moves`), the whole cycle or none of it; a long
-    count left behind is step 8.1 and 8.2's again.
+    past what is short, else the smallest, and moves the movers its gain
+    was asked of (`_weekday_exchange_moves`), the whole cycle, as every
+    one finds its place; a long count left behind is step 8.1 and 8.2's
+    again.
 
     Guarantees: moves body ranks the layout does not pin, inside their
     own gaps and width kinds and never onto a hole; keeps every group's
@@ -20162,8 +20163,7 @@ def _weekday_exchanged(
         )
         if not cycle:
             break
-        if not _weekday_exchange_moves(state, cycle, body_low, body_high, pinned):
-            break
+        _weekday_exchange_moves(state, cycle)
         if _weekday_count(state) <= count:
             break
     if _weekday_count(state) > wanted:
@@ -20200,9 +20200,11 @@ def _weekday_cells_of(
 
 
 def _weekday_mover(state: _WeekdayPass, members: "list[int]") -> int:
-    """Of a cell's ranks of one group, in rank order, the one steps 7b and
-    8.3 move (`_weekday_cell_moved`): on the written unit holding the most
-    ranks, the lower rank on a tie."""
+    """Of a cell's ranks of one group, in rank order, the MOVER: on the
+    written unit holding the most ranks, the lower rank on a tie. Step
+    8.3's gain is asked of it and its move takes it (`_weekday_cycle`,
+    `_weekday_exchange_moves`); step 7b's link is asked of it, and its move
+    takes the mover as the ranks then stand (`_weekday_cell_move`)."""
     chosen = members[0]
     most = 0
     for rank in members:
@@ -20251,7 +20253,7 @@ def _weekday_cycle(
     state: _WeekdayPass,
     cells: "dict[tuple[int, int, _WeekdayKind], dict[int, list[int]]]",
     short: int,
-) -> "list[tuple[tuple[int, int, _WeekdayKind], int, int]]":
+) -> "list[tuple[tuple[int, int, _WeekdayKind], int, int, int]]":
     """The cycle of moves step 8.3 takes, or an empty list (method G7.3f).
 
     Each ordered pair of groups `(g, h)` -- `g` and `h` the same too --
@@ -20263,7 +20265,9 @@ def _weekday_cycle(
     every cycle of groups, each group at most once, whose gain is above
     nought, the one with the largest gain not past `short`, else the
     smallest gain, then the fewest moves, then the earliest groups.
-    Returns its moves as (cell, from group, to group).
+    Returns its moves as (cell, from group, to group, mover): the mover
+    each pair's gain was asked of, as the ranks stand before the cycle, is
+    the rank its move takes (`_weekday_exchange_moves`).
 
     BOUNDED (landing 3b.D0, plan P4-D366; the 3b.3 skeptic's major 5):
     every cycle is asked of a census of up to `_WEEKDAY_CYCLE_GROUPS`
@@ -20277,6 +20281,7 @@ def _weekday_cycle(
     groups = max(state.where) + 1
     longest = groups if groups <= _WEEKDAY_CYCLE_GROUPS else _WEEKDAY_CYCLE_LONGEST
     give: "dict[tuple[tuple[int, int, _WeekdayKind], int], int]" = {}
+    movers: "dict[tuple[tuple[int, int, _WeekdayKind], int], int]" = {}
     take: "dict[tuple[tuple[int, int, _WeekdayKind], int, int], int]" = {}
     for key in sorted(cells):
         members = cells[key]
@@ -20286,6 +20291,7 @@ def _weekday_cycle(
             # The group's MOVER, the rank its moves take: give and take are
             # both asked of it, so the gain is what that move makes.
             mover = _weekday_mover(state, members[giving])
+            movers[(key, giving)] = mover
             give[(key, giving)] = 0 if _weekday_there(state, state.moved[mover]) >= 2 else -1
             for taking in range(groups):
                 gained = _weekday_take(state, key, taking, mover)
@@ -20323,42 +20329,39 @@ def _weekday_cycle(
     if "cycle" not in chosen:
         return []
     path = chosen["cycle"][1]
-    moves: "list[tuple[tuple[int, int, _WeekdayKind], int, int]]" = []
+    moves: "list[tuple[tuple[int, int, _WeekdayKind], int, int, int]]" = []
     for place in range(len(path)):
         giving = path[place]
         taking = path[(place + 1) % len(path)]
-        moves += [(best[(giving, taking)][1], giving, taking)]
+        key = best[(giving, taking)][1]
+        moves += [(key, giving, taking, movers[(key, giving)])]
     return moves
 
 
 def _weekday_exchange_moves(
     state: _WeekdayPass,
-    cycle: "list[tuple[tuple[int, int, _WeekdayKind], int, int]]",
-    body_low: int,
-    body_high: int,
-    pinned: "list[bool]",
-) -> bool:
-    """Make one cycle of step 8.3's moves, in its order (`_weekday_cell_moved`),
-    WHOLE OR NOT AT ALL; whether it was made.
+    cycle: "list[tuple[tuple[int, int, _WeekdayKind], int, int, int]]",
+) -> None:
+    """Make one cycle of step 8.3's moves, in its order: each moves the
+    MOVER ITS GAIN WAS ASKED OF (`_weekday_cycle`) onto the place of the
+    taking group nearest it (`_weekday_moved_near`).
 
-    On a unit of more than one ordinal a cell's units run to the units of
-    its gap's first and last ordinals, and a rank whose place inside its
-    unit lies outside the gap on such an end unit cannot stand there: a
-    move of the cycle can then find no place. The moves made before it
-    are undone, last first, so every group keeps its count (a cycle left
-    half made moved one rank across groups and none back, the census
-    broken where the twin had held it). On a date's day a move always
-    finds its place."""
-    ranks = [rank for rank in range(body_low, body_high + 1) if not pinned[rank]]
-    made: "list[tuple[int, int]]" = []
-    for key, giving, taking in cycle:
-        moved = _weekday_cell_moved(state, ranks, key, giving, taking)
-        if moved[0] < 0:
-            for place in range(len(made) - 1, -1, -1):
-                _weekday_step(state, made[place][0], made[place][1])
-            return False
-        made += [moved]
-    return True
+    THE MOVER ASKED, NOT THE MOVER AS THE RANKS THEN STAND (the
+    verification of the Codex review of landing 3b.D0, item 1). A move can
+    put its rank on the next group's written unit holding the most ranks,
+    or tie it lower in rank order, and taking that group's mover as the
+    ranks then stood moved the same rank straight back: a unit of an hour,
+    minutes written, the day kept, a day holding 00:14 three times and
+    01:07 alone, and the cycle hour 0 to hour 1 and back moved one 00:14
+    rank to 01:14 and back again, the count left one short where moving it
+    there and 01:07, hour 1's mover, to 00:07 meets it. Each group gives
+    once in a cycle, so no move before a pair's moves its mover, and the
+    place its take found still stands: every move finds its place, the
+    cycle is made whole and every group keeps its count. Where the mover
+    was taken as the ranks then stood, a move could find none, and the
+    moves made before it were undone."""
+    for key, _giving, taking, mover in cycle:
+        _weekday_moved_near(state, mover, taking, key[2])
 
 
 def _weekday_cell_move(
@@ -20368,25 +20371,11 @@ def _weekday_cell_move(
     giving: int,
     taking: int,
 ) -> bool:
-    """One move of a cell from `giving` to `taking` (`_weekday_cell_moved`);
-    whether it moved."""
-    return _weekday_cell_moved(state, ranks, key, giving, taking)[0] >= 0
-
-
-def _weekday_cell_moved(
-    state: _WeekdayPass,
-    ranks: "list[int]",
-    key: "tuple[int, int, _WeekdayKind]",
-    giving: int,
-    taking: int,
-) -> "tuple[int, int]":
-    """One move of a cell from `giving` to `taking` (steps 7b and 8.3): of
+    """One move of step 7b's chain, from `giving` to `taking` in a cell: of
     these ranks, the one of the giving group in the cell on the written
-    unit holding the most ranks (the lower rank on a tie) moves to the
-    place of the taking group nearest it that no rank holds and is no
-    hole, else the nearest one a rank holds; its own kind, inside its own
-    gap. The rank moved and the ordinal it left, (-1, 0) where none
-    moved."""
+    unit holding the most ranks AS THEY THEN STAND (the lower rank on a
+    tie) moves onto the place of the taking group nearest it
+    (`_weekday_moved_near`); whether one moved."""
     low, high, kind = key
     chosen = -1
     most = 0
@@ -20404,15 +20393,24 @@ def _weekday_cell_moved(
             most = there
             chosen = rank
     if chosen < 0:
-        return (-1, 0)
-    target = _weekday_day_near(state, chosen, taking, kind, False)
+        return False
+    return _weekday_moved_near(state, chosen, taking, kind)
+
+
+def _weekday_moved_near(
+    state: _WeekdayPass, rank: int, group: int, kind: _WeekdayKind
+) -> bool:
+    """Move a rank onto the place of this group and kind nearest it inside
+    its gap, the earlier on a tie, that is no hole and whose written unit no
+    rank holds, else the nearest one whose written unit a rank holds
+    (`_weekday_day_near`); whether it found one (steps 7b and 8.3)."""
+    target = _weekday_day_near(state, rank, group, kind, False)
     if target is None:
-        target = _weekday_day_near(state, chosen, taking, kind, True)
+        target = _weekday_day_near(state, rank, group, kind, True)
     if target is None:
-        return (-1, 0)
-    before = state.moved[chosen]
-    _weekday_step(state, chosen, target)
-    return (chosen, before)
+        return False
+    _weekday_step(state, rank, target)
+    return True
 
 
 def _weekday_day_near(
