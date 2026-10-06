@@ -1098,6 +1098,33 @@ def test_the_second_reading_is_divided_by_its_own_ladder_and_the_report_s_bound_
     assert mine[0] + mine[1] > before[0] + before[1] + _SLACK, f"{mine} {before}"
 
 
+def test_the_report_s_bound_is_the_widest_of_the_cap_and_of_either_division(tmp_path: pathlib.Path) -> None:
+    """`_report_widest` asked directly: the description's cap, widened to the plan's widest stratum and to the second reading's.
+
+    On 150 two-figure readings beside one `188`, at 20, the cap is 11, the
+    plan divides no stratum past it and the second reading's division holds
+    15, so the bound is 15. A plan holding a wider stratum -- G5.2b's
+    carrier and reach steps can move one past the cap -- widens it again:
+    a plan of 20 rows in one stratum gives 20. And with no second reading,
+    the tail rule read off, the plan's widest alone widens the cap. Its
+    mutants drop the plan's division or the second one from the bound.
+    """
+    described = _described(tmp_path, "two_188_bound", _two_figures_beside_188(), 20)
+    facts = _facts(described)
+    column = described.loaded.columns[0]
+    layout, _notes, _words = generation._numeric_layout(column, facts, None, 20)
+    found = generation._width_rule_withdrawn(column, facts, None, 20)
+    cap = generation._window_stratum(column, facts, 20)
+    assert found is not None and (cap, max(layout.sizes), max(found[0].sizes)) == (11, 11, 15), "premise"
+    assert generation._report_widest(column, facts, (layout, None), 20) == 15
+    wider = dataclasses.replace(layout, sizes=(20,) + tuple(layout.sizes[1:]))
+    assert generation._report_widest(column, facts, (wider, None), 20) == 20
+    plain = dataclasses.replace(facts, tail_rule=False)
+    assert generation._width_rule_withdrawn(column, plain, None, 20) is None
+    assert generation._report_widest(column, plain, (wider, None), 20) == max(20, generation._window_stratum(column, plain, 20))
+    assert generation._report_widest(column, facts, (None, None), 20) == cap
+
+
 def _joined_battery_column() -> "list[str]":
     """The stage-3 battery's joined column, `a/b` pairs with one reversed."""
     cells, _flags = stage3_battery.SHAPES["joined_one_reversed"](random.Random(stage3_battery.BATTERY_SEED))
@@ -1719,6 +1746,31 @@ def test_the_full_walk_stands_only_on_a_census_strictly_better_and_no_moment_fur
     assert asked(trial_mean, trial_spread, (trial, held))
     level_mean, level_spread = generation._strata_moments(layout, level)
     assert not asked(level_mean, level_spread, (level, trial))
+
+
+def test_a_moment_level_between_the_two_walks_is_no_further_off() -> None:
+    """`_serves_better` on a tie: a published moment as far from the trial's as from the held walk's lets the trial stand.
+
+    Four one-cell strata and a demand for four cells of exactly four
+    figures: `1000` to `1003` owe nothing, while `999`, `1001`, `1002` and
+    `1004` owe one cell and hold the same mean, 1001.5. With only the mean
+    published, the census decides wherever that mean is: a moment no
+    further off is not a moment worse. Its mutant refuses the trial on the
+    level mean.
+    """
+    layout = generation._NumericLayout(
+        sizes=(1, 1, 1, 1), starts=(0, 1, 2, 3), bands=("positive",) * 4, raw_budgets=(), folded_budgets=()
+    )
+    trial = [1000.0, 1001.0, 1002.0, 1003.0]
+    held = [999.0, 1001.0, 1002.0, 1004.0]
+    demands = [(4, 1, 4)]
+    facts = types.SimpleNamespace(integer_valued=True, mean=1001.5, std=None)
+    assert generation._census_owed(facts, layout, trial, demands, 11) == 0  # type: ignore[arg-type]
+    assert generation._census_owed(facts, layout, held, demands, 11) == 1  # type: ignore[arg-type]
+    assert generation._strata_moments(layout, trial)[0] == generation._strata_moments(layout, held)[0] == 1001.5
+    for mean in (1001.5, 1200.0, 900.0):
+        published = types.SimpleNamespace(integer_valued=True, mean=mean, std=None)
+        assert generation._serves_better(published, layout, (trial, held), demands, 11), mean  # type: ignore[arg-type]
 
 
 def test_where_the_full_walk_serves_the_census_no_better_the_side_keeps_110cb46_s_walk(
