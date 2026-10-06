@@ -3934,9 +3934,9 @@ back-solve beside the sentence correctly assumed they did not.
 
 > how many of this column's times fall in each ten-minute stretch of the day is not counted: beside the times many rows share, fewer than «1» of the values it would count are left, and no count below «1» is printed
 
-**NF107. `clock_codes_written_back` — codes among clock times, written back** — arity 1 (landing 3b.5). A remark, carried by a column of clock times that publishes `clock_codes`. Argument 1: the census line.
+**NF107. `clock_codes_written_back` — codes among clock times, written back** — arity 1 (landing 3b.5). A remark, carried by a column of clock times that publishes `clock_codes`, the spellings its `clock_form` does not read: a code, or a time written another way, such as `14:00:00` among times written to the minute (the review of landing 3b.5, item 7: the remark called such a cell text that is not a time of day). Argument 1: the census line.
 
-> some cells of this column hold text that is not a time of day; each such text that at least «1» rows wrote is published with how many rows wrote it, and the twin writes it exactly that many times, as the table writes it
+> some cells of this column are not read as times of day in the form its times are written in -- a code, or a time written another way; each such text that at least «1» rows wrote is published with how many rows wrote it, and the twin writes it exactly that many times, as the table writes it
 
 <!-- anchor 3b-C2 (P4-D374) -->
 <!-- anchor 3b-G1 (P4-D375) -->

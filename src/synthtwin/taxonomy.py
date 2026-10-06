@@ -2074,11 +2074,16 @@ def rendered(form: str, arguments: "tuple[object, ...]") -> str:
             f"{_whole(arguments, 0)} is printed"
         )
     if form == REMARK_CLOCK_CODES_WRITTEN:
+        # NOT "TEXT THAT IS NOT A TIME OF DAY" (the review of landing 3b.5,
+        # item 7): `14:00:00` among times written to the minute is a time,
+        # one this column's form does not read, and is published here too.
         return (
-            f"some cells of this column hold text that is not a time of day; "
-            f"each such text that at least {_whole(arguments, 0)} rows wrote "
-            f"is published with how many rows wrote it, and the twin writes "
-            f"it exactly that many times, as the table writes it"
+            f"some cells of this column are not read as times of day in the "
+            f"form its times are written in -- a code, or a time written "
+            f"another way; each such text that at least "
+            f"{_whole(arguments, 0)} rows wrote is published with how many "
+            f"rows wrote it, and the twin writes it exactly that many times, "
+            f"as the table writes it"
         )
     # anchor 3b-C2 (P4-D374)
     # anchor 3b-G1 (P4-D375)

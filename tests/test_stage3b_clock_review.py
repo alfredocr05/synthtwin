@@ -42,7 +42,10 @@ rather than a sentence has a mutant that turns its clause red again:
 * item 6 `test_item_6_the_heaps_are_looked_up_in_work_that_grows_with_them`
   -- every published value asked the LIST of heaps whether it was one,
   so the loader's work grew with the square of the heaps (mutant: the
-  list again).
+  list again);
+* item 7 `test_item_7_a_time_of_another_precision_is_not_called_no_time`
+  -- NF107 called `14:00:00` among times written to the minute "text
+  that is not a time of day".
 """
 
 from __future__ import annotations
@@ -684,3 +687,24 @@ def test_item_6_red_when_the_heaps_are_a_list_again(
     monkeypatch.setattr(contract, "set", list, raising=False)
     small, large = _comparisons(_heaped[0]), _comparisons(_heaped[1])
     assert large / small >= _SQUARE_AT_LEAST, (small, large)
+
+
+# -- item 7: a time of another precision is not called no time -----------
+
+
+def test_item_7_a_time_of_another_precision_is_not_called_no_time(tmp_path: pathlib.Path) -> None:
+    """NF107 beside `14:00:00` among times to the minute says what its form does not read.
+
+    At 90466b2 the remark said "some cells of this column hold text that
+    is not a time of day", of twelve cells that are times at the second.
+    """
+    cells = ["14:00"] * 700 + ["15:00"] * 700 + ["14:00:00"] * 12
+    random.Random(7).shuffle(cells)
+    document, _loaded = _described(tmp_path, cells)
+    block = _block(document)
+    assert block["clock_form"] == "hh-mm" and block["clock_codes"] == [{"count": 12, "spelling": "14:00:00"}]
+    said = taxonomy.rendered(taxonomy.REMARK_CLOCK_CODES_WRITTEN, (11,))
+    assert said in block["remarks"]
+    assert "not a time of day" not in said
+    assert "not read as times of day in the form its times are written in" in said
+    assert "a time written another way" in said
