@@ -84,6 +84,12 @@ The cases and their clauses:
   reviews above froze undone, made whole now
   (`a_cycle_of_three_moves_its_asked_movers` and
   `a_cycle_of_four_moves_its_asked_movers`): C1e in the mutant table;
+  and, as the repair of that verification extended it to step 7b, each
+  move of a chain takes the mover as the ranks then stand, or, where
+  that rank has no place of the next group, the mover its link was asked
+  of, so no chain is left half made -- a chain of hours and one of
+  moments through the whole pass (`a_chain_moves_its_asked_mover` and
+  `a_chain_moves_its_asked_mover_in_the_pass`): C1f in the mutant table;
 * the Codex review's growth tests (its items 2 to 5), machine-free, on
   the review's own states at its own sizes and at 40,000 rows:
   `test_step_8_3_asks_only_the_retained_day` (item 2),
@@ -100,7 +106,13 @@ The cases and their clauses:
   second-census state the verification of the Codex review's item 1
   noted, a cycle of step 8.3 and a merge of step 8.4 leave step 8.6 no
   way back, and the census is missed where 9cb2eb5 met it (P4-D366's
-  stated limit);
+  stated limit); and
+  `test_a_chain_reaches_a_group_through_the_rank_beside_its_mover`, a
+  strict xfail owned by D3 the same way: on a second-census state of
+  that item's repair's own battery, step 7b's link, asked of each
+  cell's mover alone, finds no chain where the rank beside the mover
+  has the place, and the census is missed where 9cb2eb5's chain, moved
+  half way, was finished by step 8.6;
 * `test_the_body_is_full_only_where_every_unit_the_census_counts_holds_a_rank`
   -- the test the short cause asks (the review's M65), and
   `test_the_body_counts_a_unit_a_move_empties` -- the review's M09 and
@@ -258,6 +270,8 @@ CASES = [
     "a_third_place_past_its_gap_offers_no_cycle", "written_units_free_in_held_hours",
     # its verification's (item 1)
     "a_moments_cycle_moves_its_asked_movers", "an_hour_cycle_moves_its_asked_movers",
+    # ...and its repair's, on step 7b
+    "a_chain_moves_its_asked_mover", "a_chain_moves_its_asked_mover_in_the_pass",
 ]
 
 
@@ -622,6 +636,43 @@ def test_a_cycle_whose_move_has_no_place_is_not_asked(monkeypatch: pytest.Monkey
         monkeypatch.undo()
 
 
+# Step 7b's move taking the mover as the ranks then stand and no other, as it stood until the
+# repair of the verification of the Codex review's item 1: no move onto the mover its link was
+# asked of where that rank has no place.
+CHAIN_AS_THE_RANKS_THEN_STAND = (
+    "            ) and not _weekday_moved_near(\n"
+    "                state, asked[(giving, taking)], taking, key[2]\n"
+    "            ):\n",
+    "            ):\n",
+)
+
+
+def test_a_chain_moves_the_mover_its_link_was_asked_of(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Step 7b moves the mover as the ranks then stand, or, where that rank has no place of the
+    next group, the mover the link was asked of (the repair of the verification of the Codex
+    review's item 1, on step 7b), so every move finds its place and the chain is made whole. Hours,
+    minutes written, the day kept: 00:47 goes to 01:47, where it is the lower rank of two lone
+    minutes, and its hour 10 place stands past the gap's close, so 08:37, the mover asked, goes to
+    10:37. A day of moments, through the whole pass: a Friday moment goes to Saturday 23:20:20,
+    whose Monday stands past the gap's close, so Saturday 05:59:12, the mover asked, goes to
+    Monday, and the census is met with the count kept. Moved as the ranks then stand alone, each
+    chain is left half made, one group over, and the census is missed."""
+    for case, movers, over in (
+        (_case("a_chain_moves_its_asked_mover"), [1, -1, 2], [1, 2, 1, 0]),
+        (_case("a_chain_moves_its_asked_mover_in_the_pass"), [1, -1, 4], [1, 0, 0, 3, 3, 3]),
+    ):
+        answer, made = _made(monkeypatch, case)
+        assert answer == case["answer"], case["why"]
+        assert made == movers, case["why"]
+        assert _holding(case, answer, range(len(answer))) == case["counts"], case["why"]
+        if case["step"] == "settled":
+            assert len({ordinal // case["written_unit"] for ordinal in answer}) == case["wanted"], case["why"]
+        answer, made = _made(monkeypatch, case, _mutant(monkeypatch, *CHAIN_AS_THE_RANKS_THEN_STAND))
+        assert made == movers[:2], case["why"]
+        assert _holding(case, answer, range(len(answer))) == over, case["why"]
+        monkeypatch.undo()
+
+
 def test_step_8_3_counts_the_written_units_its_mover_can_take() -> None:
     """Step 8.3's gain is asked of written units at its mover's place (the Codex review, item 1).
     Codex's own state: forty ranks each at 00:15, 01:15 and 02:30, asked for eighty in hour 1,
@@ -905,8 +956,9 @@ def test_step_8_5_measures_two_gaps_apart_from_their_first_places() -> None:
 
 # THE REVIEW'S MUTANTS (review of landing 3b.D0, items 3 to 5, by the reviewer's ids; M70 on are
 # the repair's own lines, N01, N04, N06, N10 and N13 the second review's, item 1, on the repair's
-# own lines too, and C1a to C1e its Codex review's, item 1, on the lines of the take that counts
-# written units and of the move that takes the mover its gain was asked of), each a source edit of
+# own lines too, and C1a to C1f its Codex review's, item 1, on the lines of the take that counts
+# written units, of the cycle's move that takes the mover its gain was asked of, and of the
+# chain's move onto the mover its link was asked of), each a source edit of
 # the product, each red on the case beside it. The review's M09 and M10 are `BODY_MUTANTS`' now:
 # since the Codex review step 8.3 asks written units, and the count of each unit's ranks has one
 # reader, the short cause's test of a full body. The repair's M83 and the second review's N14 are
@@ -943,6 +995,12 @@ REVIEW_MUTANTS: "dict[str, tuple[str, str, str]]" = {
     ),
     "C1e_cycle_moves_the_mover_as_the_ranks_stand_moments": (
         "a_moments_cycle_moves_its_asked_movers", *AS_THE_RANKS_THEN_STAND,
+    ),
+    "C1f_chain_moves_the_mover_as_the_ranks_stand": (
+        "a_chain_moves_its_asked_mover", *CHAIN_AS_THE_RANKS_THEN_STAND,
+    ),
+    "C1f_chain_moves_the_mover_as_the_ranks_stand_in_the_pass": (
+        "a_chain_moves_its_asked_mover_in_the_pass", *CHAIN_AS_THE_RANKS_THEN_STAND,
     ),
     "M12_prior_hole_ends": (
         "the_prior_of_hours",
@@ -1162,9 +1220,11 @@ def test_each_clause_is_red_on_its_mutant(name: str, monkeypatch: pytest.MonkeyP
     (review of landing 3b.D0, items 3 to 5), every line the repair added that its own mutants
     (M70 on) needed a case for, every line of the repair a mutant of the second review changed
     while all those cases still held (its item 1: N01, N04, N06, N10 and N13), and every line
-    of the take its Codex review asked for (item 1: C1a to C1e, the written unit, the gap, each
-    step's mover, and the cycle's move taking the mover its gain was asked of, as that item's
-    verification asked): under its source edit the case beside it answers otherwise, or its
+    of the take its Codex review asked for (item 1: C1a to C1f, the written unit, the gap, each
+    step's mover, the cycle's move taking the mover its gain was asked of, as that item's
+    verification asked, and the chain's move onto the mover its link was asked of where the
+    mover as the ranks then stand has no place, as the repair of that verification extended
+    it): under its source edit the case beside it answers otherwise, or its
     tables raise (M73). Every other mutant of the repair's lines, its own or the second review's,
     is red on this file's other tests, but two that change no answer: the second review's N07, a
     unit's status kept in its first cell alone, is the same pass, a unit two cells hold having
@@ -1626,4 +1686,52 @@ def test_a_trade_keeps_a_way_back_once_the_count_is_put_back() -> None:
     case = _a_trade_left_no_way_back()
     moved = _answer(case)
     assert len(set(moved)) == case["wanted"]
+    assert _holding(case, moved, range(len(moved))) == case["counts"]
+
+
+def _a_chain_asked_of_its_mover_alone() -> dict:
+    """A second-census state the repair of the verification of the Codex review's item 1 found in
+    its own battery of states keeping the half of the month: a day of moments, the groups Monday
+    to Wednesday, Thursday and Friday, and Saturday and Sunday, a gap from Sunday 28 April 2024
+    20:11:04 to Thursday 2 May 04:11:48 holding Monday 29 April 12:41:51 twice and 20:25:45 twice
+    and Thursday 2 May 04:11:48, and a gap of that Thursday to 11:06:36. The census asks one
+    Thursday moment on a Saturday or a Sunday, as the battery drew it."""
+    day = (datetime.date(2024, 4, 28) - datetime.date(1970, 1, 1)).days
+    clocks = [(0, 20, 11, 4)] + [(1, 12, 41, 51)] * 2 + [(1, 20, 25, 45)] * 2 + [(4, 4, 11, 48)] * 5
+    clocks += [(4, 11, 6, 36)] * 2
+    ordinals = [(day + days) * DAY + hours * HOUR + minutes * 60 + seconds for days, hours, minutes, seconds in clocks]
+    return {
+        "ordinals": ordinals, "lows": [ordinals[0]] * 6 + [ordinals[5]] * 5 + [ordinals[11]],
+        "highs": [ordinals[0]] + [ordinals[5]] * 8 + [ordinals[11]] * 3,
+        "pinned": [rank in (0, 6, 8, 11) for rank in range(12)], "counts": [4, 6, 2],
+        "where": [0, 0, 0, 1, 1, 2, 2], "unit": DAY, "written_unit": 1, "day": DAY,
+        "bin": "weekday", "period": 7, "keep": "", "pair": "day_of_month",
+        "pair_where": [0] * 15 + [1] * 16, "holes": [], "reachable": True, "body": [0, 11],
+        "wanted": 20, "step": "settled",
+    }
+
+
+@pytest.mark.xfail(
+    strict=True,
+    raises=AssertionError,
+    reason=(
+        "plan P4-D366's stated limit, owned by landing D3, the first to keep a second census: "
+        "step 7b's link is asked of each cell's mover alone, and where the rank beside the mover "
+        "has the place the mover lacks, no chain reaches that group and the census is missed "
+        "where 9cb2eb5's chain, asked by unit, moved half way and step 8.6 traded the rest"
+    ),
+)
+def test_a_chain_reaches_a_group_through_the_rank_beside_its_mover() -> None:
+    """Strict, and owned by landing D3 (P4-D366's limit). Since the Codex review's item 1, step
+    7b asks the link from Monday to Wednesday to Saturday and Sunday of the cell's mover alone:
+    Monday 12:41:51, the lower rank where two seconds are held twice each, whose Sunday, 28 April
+    12:41:51, stands before the gap opens. Monday 20:25:45 has Sunday 20:25:45 but is not asked,
+    and the Thursday moment's own Sunday, 04:11:48, stands before the gap too, so no chain is
+    found, step 8.6 has no trade from Thursday, and the census is missed. 9cb2eb5 asked the link
+    of the unit, moved the Thursday moment to Wednesday 1 May and found no Sunday place for the
+    Monday mover; its step 8.6 then traded Tuesday 30 April 20:25:45, where step 8.1 had put it,
+    to Sunday 28 April, inside the same half of the month. D3's battery turns this into a passing
+    test, or restates it."""
+    case = _a_chain_asked_of_its_mover_alone()
+    moved = _answer(case)
     assert _holding(case, moved, range(len(moved))) == case["counts"]

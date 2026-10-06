@@ -6477,9 +6477,21 @@ written unit's.
    each link of the path from the group over to the group under then
    makes, in turn, one move in its cell, from `g` to `h`: the mover of
    `g` there AS THE RANKS THEN STAND onto the place of `h` a move of
-   step 8.3 takes, so every group between keeps its holding and one rank
-   goes from the first group to the last. The step ends where no path is
-   found or a move cannot be made.
+   step 8.3 takes, or, where that rank has no place of `h`, the mover
+   the link was asked of (the repair of the verification of the Codex
+   review of landing 3b.D0, item 1). A move of the path can put its rank
+   on the next link's cell as that group's mover, at a place inside its
+   unit the link was not asked of -- a unit of an hour, minutes written,
+   the day kept, a gap from 00:47 to 10:39 holding 00:47 and 08:37, and
+   the chain hour 0 to hours 1 to 9 to hour 10 moved 00:47 to 01:47,
+   whose hour 10 place stands past the gap's close, and the chain was
+   left half made where 08:37, the mover asked, has 10:37. Each group
+   gives once in a path, so the mover asked is still there and its place
+   still stands: every move finds its place, every group between keeps
+   its holding and one rank goes from the first group to the last. On a
+   date's day every rank of a cell has the same places, so the mover as
+   the ranks then stand always has one. The step ends where no path is
+   found.
 8. **The count of different days**, where the column's distinct count
    is reachable, put back to what it was before step 2, by moves that
    keep every group's count:
@@ -6644,7 +6656,7 @@ column of whole dates reaches them there through the whole generator;
 at a floor of 36 eight twins of 15,152 move, steps 8.4 and 8.5 merging a
 count already left long one or two values nearer the published one. The
 fifteenth vectors file, `tests/reference/generation-branch-vectors-15.json`,
-holds forty-nine such states -- the landing's ten (an hour inside its
+holds fifty-one such states -- the landing's ten (an hour inside its
 day, a day of moments, the index of steps 5 and 6, a chain, step 8.4 at
 its own clock and at another, a long pair, a two-census trade, and the
 cycles of seven and of ten groups), its review's twenty-four (each new
@@ -6655,9 +6667,11 @@ Codex review's seven (step 8.3's take in written units on its own state
 of forty ranks each at 00:15, 01:15 and 02:30 and on a day of moments,
 a place past the gap twice, a link past its gap, and each step's mover;
 and two cycles restated, where a move puts its rank in the next group's
-mover's place) and the two that review's verification found one short
-there too, of hours and of moments -- with the answer this section
-gives each, and no G14.3 case.
+mover's place), the two that review's verification found one short
+there too, of hours and of moments, and two chains of step 7b whose
+mover as the ranks then stand has no place, of hours and, through the
+whole pass, of moments -- with the answer this section gives each, and
+no G14.3 case.
 
 ### G7.4 Offsets: only where recorded
 

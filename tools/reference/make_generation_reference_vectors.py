@@ -12055,9 +12055,10 @@ def weekday_chain(walk, movable, owed):
                     continue
                 for cell in cells:
                     # A cell holding a rank of the giving group whose mover has
-                    # a place of the taking group (step 8.3's take, asked).
+                    # a place of the taking group (step 8.3's take, asked); the
+                    # link keeps the mover it was asked of.
                     if weekday_take(walk, movable, cell, giving, taking) is not None:
-                        links[(giving, taking)] = cell
+                        links[(giving, taking)] = (cell, weekday_mover(walk, movable, cell, giving))
                         break
         came = {g: None for g in over}
         queue = list(over)
@@ -12079,9 +12080,14 @@ def weekday_chain(walk, movable, owed):
             path += [came[path[-1]]]
         path.reverse()
         for g, h in zip(path, path[1:]):
-            # Step 7b's move takes the giving group's mover as the ranks now stand.
-            rank = weekday_mover(walk, movable, links[(g, h)], g)
-            if rank is None or not weekday_exchange_move(walk, links[(g, h)], h, rank):
+            # Step 7b's move takes the giving group's mover as the ranks now
+            # stand, or, where that rank has no place of h, the mover the link
+            # was asked of, which has one (the repair of the verification of the
+            # Codex review of landing 3b.D0, item 1, on step 7b).
+            cell, asked = links[(g, h)]
+            rank = weekday_mover(walk, movable, cell, g)
+            moved = rank is not None and weekday_exchange_move(walk, cell, h, rank)
+            if not moved and not weekday_exchange_move(walk, cell, h, asked):
                 return
 
 
@@ -13245,6 +13251,55 @@ def shared_moment_movers_case():
     )
 
 
+# ...and step 7b's move, whose link is asked of the mover as the ranks stand
+# before the chain while its move took the mover as the ranks then stood: the
+# chain is made whole, where a move of the path makes the rank it put on a
+# group that group's mover at a place inside its unit with no place of the next.
+
+
+def shared_chain_asked_mover_case():
+    day = SHARED_MONDAY + 2  # a Wednesday
+    first, last = shared_moment(day, 0, 47), shared_moment(day, 10, 39)
+    ordinals = [first, first, shared_moment(day, 8, 37), last]
+    pinned, lows, highs = shared_layout(ordinals, {0, 3})
+    return shared_case(
+        "Step 7b moves the mover its link was asked of where the mover as the ranks then stand "
+        "has no place (the repair of the verification of the Codex review of landing 3b.D0, item "
+        "1, on step 7b), a unit of an hour, minutes written, the day kept, the groups hour 0, "
+        "hours 1 to 9, hour 10 and hours 11 to 23: a gap from Wednesday 00:47 to 10:39 holds "
+        "00:47 and 08:37, and hour 0 owes one to hour 10, which no hour 0 rank's place reaches. "
+        "The chain hour 0 to hours 1 to 9 to hour 10 moves 00:47 to 01:47, free, where it is the "
+        "lower rank of two lone minutes; its hour 10 place, 10:47, stands past the gap's close, "
+        "so 08:37, the mover the link was asked of, goes to 10:37, and the chain is made whole. "
+        "Moved as the ranks then stand, it was left half made, hours 1 to 9 one over.",
+        "chain", ordinals, lows, highs, pinned, [1, 1, 2, 0], [0] + [1] * 9 + [2] + [3] * 13,
+        unit=SHARED_HOUR, written_unit=60, day=SHARED_DAY, bin="hour", period=24, keep="day",
+        reachable=False, want=[0, 1, 1, 0],
+    )
+
+
+def shared_settled_chain_asked_case():
+    day = days_from_civil(2024, 2, 16)  # a Friday
+    clocks = [(0, 23, 20, 20)] * 4 + [(1, 5, 59, 12), (1, 11, 28, 56)] + [(2, 3, 36, 41)] * 2
+    clocks += [(2, 11, 42, 21), (3, 16, 44, 11)]
+    ordinals = [shared_moment(day + days, hours, minutes, seconds) for days, hours, minutes, seconds in clocks]
+    pinned, lows, highs = shared_layout(ordinals, {0, 9})
+    return shared_case(
+        "Step 7b moves the mover its link was asked of through the whole pass, a day of moments, "
+        "seconds written, the groups Monday, Tuesday, Wednesday and Thursday, Friday, Saturday "
+        "and Sunday: a gap from Friday 23:20:20 to Monday 16:44:11 holds Friday 23:20:20 three "
+        "times, Saturday 05:59:12 and 11:28:56, Sunday 03:36:41 twice and 11:42:21, and the "
+        "census asks one Friday moment on a Monday, which no Friday moment's place reaches. The "
+        "chain Friday to Saturday to Monday moves a Friday moment to Saturday 23:20:20, free, "
+        "where it is the lower rank of Saturday's three lone seconds; its Monday stands past the "
+        "gap's close, so Saturday 05:59:12, the mover the link was asked of, goes to Monday "
+        "05:59:12, and the census is met. Moved as the ranks then stand, the chain was left half "
+        "made, Saturday one over, and the census was missed.",
+        "settled", ordinals, lows, highs, pinned, [2, 0, 0, 3, 2, 3], [0, 1, 2, 2, 3, 4, 5],
+        unit=SHARED_DAY, written_unit=1, day=SHARED_DAY,
+    )
+
+
 SHARED_STEP_CASES = {
     "an_hour_inside_its_day": shared_hour_case,
     "a_moments_day": shared_moment_case,
@@ -13297,6 +13352,9 @@ SHARED_STEP_CASES = {
     # its verification's (item 1)
     "an_hour_cycle_moves_its_asked_movers": shared_hour_movers_case,
     "a_moments_cycle_moves_its_asked_movers": shared_moment_movers_case,
+    # ...and its repair's, on step 7b
+    "a_chain_moves_its_asked_mover": shared_chain_asked_mover_case,
+    "a_chain_moves_its_asked_mover_in_the_pass": shared_settled_chain_asked_case,
 }
 
 

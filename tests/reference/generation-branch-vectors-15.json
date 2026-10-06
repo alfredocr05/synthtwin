@@ -254,6 +254,189 @@
       "why": "Step 7b through the whole pass, a unit of an hour with the day kept: a gap from Tuesday 12:00 to Wednesday 12:00, the census [00-11] [12-17] [18-23] owing one rank fewer in the first group and one more in the last. Wednesday's 08:00 reaches no hour of the last group on its own day, so it goes to Wednesday's 12:00 and Tuesday's 13:00 to 18:00.",
       "written_unit": 60
     },
+    "a_chain_moves_its_asked_mover": {
+      "answer": [
+        1709686020,
+        1709689620,
+        1709721420,
+        1709721540
+      ],
+      "bin": "hour",
+      "body": [
+        0,
+        3
+      ],
+      "counts": [
+        1,
+        1,
+        2,
+        0
+      ],
+      "day": 86400,
+      "highs": [
+        1709686020,
+        1709721540,
+        1709721540,
+        1709721540
+      ],
+      "holes": [],
+      "keep": "day",
+      "lows": [
+        1709686020,
+        1709686020,
+        1709686020,
+        1709721540
+      ],
+      "ordinals": [
+        1709686020,
+        1709686020,
+        1709714220,
+        1709721540
+      ],
+      "pair": "",
+      "pair_where": [],
+      "period": 24,
+      "pinned": [
+        true,
+        false,
+        false,
+        true
+      ],
+      "reachable": false,
+      "step": "chain",
+      "unit": 3600,
+      "want": [
+        0,
+        1,
+        1,
+        0
+      ],
+      "wanted": 3,
+      "where": [
+        0,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        2,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3
+      ],
+      "why": "Step 7b moves the mover its link was asked of where the mover as the ranks then stand has no place (the repair of the verification of the Codex review of landing 3b.D0, item 1, on step 7b), a unit of an hour, minutes written, the day kept, the groups hour 0, hours 1 to 9, hour 10 and hours 11 to 23: a gap from Wednesday 00:47 to 10:39 holds 00:47 and 08:37, and hour 0 owes one to hour 10, which no hour 0 rank's place reaches. The chain hour 0 to hours 1 to 9 to hour 10 moves 00:47 to 01:47, free, where it is the lower rank of two lone minutes; its hour 10 place, 10:47, stands past the gap's close, so 08:37, the mover the link was asked of, goes to 10:37, and the chain is made whole. Moved as the ranks then stand, it was left half made, hours 1 to 9 one over.",
+      "written_unit": 60
+    },
+    "a_chain_moves_its_asked_mover_in_the_pass": {
+      "answer": [
+        1708125620,
+        1708125620,
+        1708125620,
+        1708212020,
+        1708212020,
+        1708227401,
+        1708227401,
+        1708256541,
+        1708322352,
+        1708361051
+      ],
+      "bin": "weekday",
+      "body": [
+        0,
+        9
+      ],
+      "counts": [
+        2,
+        0,
+        0,
+        3,
+        2,
+        3
+      ],
+      "day": 86400,
+      "highs": [
+        1708125620,
+        1708361051,
+        1708361051,
+        1708361051,
+        1708361051,
+        1708361051,
+        1708361051,
+        1708361051,
+        1708361051,
+        1708361051
+      ],
+      "holes": [],
+      "keep": "",
+      "lows": [
+        1708125620,
+        1708125620,
+        1708125620,
+        1708125620,
+        1708125620,
+        1708125620,
+        1708125620,
+        1708125620,
+        1708125620,
+        1708361051
+      ],
+      "ordinals": [
+        1708125620,
+        1708125620,
+        1708125620,
+        1708125620,
+        1708149552,
+        1708169336,
+        1708227401,
+        1708227401,
+        1708256541,
+        1708361051
+      ],
+      "pair": "",
+      "pair_where": [],
+      "period": 7,
+      "pinned": [
+        true,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        true
+      ],
+      "reachable": true,
+      "step": "settled",
+      "unit": 86400,
+      "wanted": 6,
+      "where": [
+        0,
+        1,
+        2,
+        2,
+        3,
+        4,
+        5
+      ],
+      "why": "Step 7b moves the mover its link was asked of through the whole pass, a day of moments, seconds written, the groups Monday, Tuesday, Wednesday and Thursday, Friday, Saturday and Sunday: a gap from Friday 23:20:20 to Monday 16:44:11 holds Friday 23:20:20 three times, Saturday 05:59:12 and 11:28:56, Sunday 03:36:41 twice and 11:42:21, and the census asks one Friday moment on a Monday, which no Friday moment's place reaches. The chain Friday to Saturday to Monday moves a Friday moment to Saturday 23:20:20, free, where it is the lower rank of Saturday's three lone seconds; its Monday stands past the gap's close, so Saturday 05:59:12, the mover the link was asked of, goes to Monday 05:59:12, and the census is met. Moved as the ranks then stand, the chain was left half made, Saturday one over, and the census was missed.",
+      "written_unit": 1
+    },
     "a_chains_mover_holds_the_most": {
       "answer": [
         1709719200,

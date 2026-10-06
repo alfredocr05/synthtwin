@@ -124,6 +124,22 @@ second census is kept, which no column publishes yet, a cycle can now
 leave the trade of step 8.6 no way back on rare states; the landing
 that first publishes one decides what to do about it.
 
+**A chain of step 7b is made whole as well** (its Codex review, item 1,
+as verified, carried to step 7b). A chain links two groups by the value
+its move would take, but moved whichever value led that group once the
+moves before it had been made, and on hours and moments a move can make
+the value it puts on a group that group's leader at a place with no
+room in the next: in a gap closing at 10:39, the chain hour 0 to hours
+1 to 9 to hour 10 moved 00:47 to 01:47 and stopped there, its hour 10
+place past the close, while 08:37 had 10:37. Where the leader has no
+place, the move now takes the value the link was asked of, so no chain
+is left half made: on 100,000 random states 13 more meet their census
+and none fewer. No date moves. Where a second census is kept, a chain
+asked of each cell's leader alone can still miss a group the value
+beside the leader reaches, on one state of those 100,000; the landing
+that first publishes such a census decides on it with the other. The
+fifteenth vectors file holds 51 states.
+
 ### Stage 4's first tier repaired at its review (2026-10-02)
 
 **A twin of a description the producer writes today moves no byte**

@@ -20204,7 +20204,8 @@ def _weekday_mover(state: _WeekdayPass, members: "list[int]") -> int:
     written unit holding the most ranks, the lower rank on a tie. Step
     8.3's gain is asked of it and its move takes it (`_weekday_cycle`,
     `_weekday_exchange_moves`); step 7b's link is asked of it, and its move
-    takes the mover as the ranks then stand (`_weekday_cell_move`)."""
+    takes the mover as the ranks then stand (`_weekday_cell_move`), or it
+    where that rank has no place (`_weekday_chained`)."""
     chosen = members[0]
     most = 0
     for rank in members:
@@ -20375,7 +20376,9 @@ def _weekday_cell_move(
     these ranks, the one of the giving group in the cell on the written
     unit holding the most ranks AS THEY THEN STAND (the lower rank on a
     tie) moves onto the place of the taking group nearest it
-    (`_weekday_moved_near`); whether one moved."""
+    (`_weekday_moved_near`); whether one moved. Where it has no such
+    place, the chain moves the mover its link was asked of
+    (`_weekday_chained`)."""
     low, high, kind = key
     chosen = -1
     most = 0
@@ -20449,11 +20452,28 @@ def _weekday_chained(
     `h` (`_weekday_take`, not None: a place of its kind, no hole, inside
     its gap at its own place in its unit); finds, breadth first from the groups over their
     totals, groups ascending, the shortest path to a group under its
-    total; and makes the path's moves in turn, each one rank of one cell
-    (`_weekday_cell_move`), so every group between keeps its holding and
-    one rank goes from the first group to the last. At most
-    `_WEEKDAY_CHAINS` paths; it stops where none is found or a move
-    cannot be made.
+    total; and makes the path's moves in turn, each one rank of one cell:
+    the mover as the ranks then stand (`_weekday_cell_move`), or, where
+    that rank has no place of `h`, the mover the link was asked of
+    (`_weekday_moved_near`). So every move finds its place, every group
+    between keeps its holding and one rank goes from the first group to
+    the last. At most `_WEEKDAY_CHAINS` paths; it stops where none is
+    found.
+
+    THE MOVER ASKED WHERE THE MOVER AS THE RANKS THEN STAND HAS NO PLACE
+    (the repair of the verification of the Codex review of landing
+    3b.D0, item 1, on this step). A move of the path can put its rank on
+    the next link's cell as that group's mover, at a place inside its
+    unit the link was not asked of: a unit of an hour, minutes written,
+    the day kept, groups hour 0, hours 1 to 9, hour 10 and the rest, a
+    gap from 00:47 to 10:39 holding 00:47 and 08:37, and the chain hour 0
+    to hours 1 to 9 to hour 10 moved 00:47 to 01:47, the lower rank of two
+    lone minutes, whose hour 10 place, 10:47, stands past the gap's
+    close: the chain was left half made, where 08:37, the mover the link
+    was asked of, has 10:37. Each group gives once in a path, so the
+    mover asked is still there and its place still stands. On a date's
+    day every rank of a cell has the same places, so the mover as the
+    ranks then stand always has one, and no date's answer changes.
 
     Draws no word. Guarantees: moves only the given ranks, inside their
     own gaps and kinds and never onto a hole; keeps `have` true. Raises
@@ -20467,6 +20487,7 @@ def _weekday_chained(
             return
         cells = _weekday_cells_of(state, ranks)
         link: "dict[tuple[int, int], tuple[int, int, _WeekdayKind]]" = {}
+        asked: "dict[tuple[int, int], int]" = {}
         for key in sorted(cells):
             for giving in sorted(cells[key]):
                 mover = _weekday_mover(state, cells[key][giving])
@@ -20475,6 +20496,7 @@ def _weekday_chained(
                         continue
                     if _weekday_take(state, key, taking, mover) is not None:
                         link[(giving, taking)] = key
+                        asked[(giving, taking)] = mover
         came: "dict[int, int]" = {}
         for group in over:
             came[group] = -1
@@ -20499,8 +20521,11 @@ def _weekday_chained(
         path = [path[place] for place in range(len(path) - 1, -1, -1)]
         for place in range(len(path) - 1):
             giving, taking = path[place], path[place + 1]
+            key = link[(giving, taking)]
             if not _weekday_cell_move(
-                state, ranks, link[(giving, taking)], giving, taking
+                state, ranks, key, giving, taking
+            ) and not _weekday_moved_near(
+                state, asked[(giving, taking)], taking, key[2]
             ):
                 return
             have[giving] = have[giving] - 1
