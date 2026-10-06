@@ -17858,10 +17858,13 @@ def _clock_census_content(
 
     between the run's pins, which never goes down as the rank rises, so
     every group, heap and boundary is met by construction. On a column
-    whose values were all different a run's ranks are stepped apart inside
-    it. A rank of a run on a spelling the table calls absent moves to the
-    nearest step of its run that is not one. Then the codes, each as many
-    times as it counts, and the other stand-ins of G7A.5.
+    whose values were all different a run's ranks are stepped apart
+    between its pins, and every pinned rank stays on its value
+    (`_clock_kept_apart`). A rank of a run on a spelling the table calls
+    absent moves to the nearest step of its run that is not one -- where
+    the values all differ, between the pins either side of it. Then the
+    codes, each as many times as it counts, and the other stand-ins of
+    G7A.5.
     """
     column = plan.column
     facts = column.facts
@@ -17921,9 +17924,11 @@ def _clock_census_content(
             continue
         units = (block.high - block.low) // stride + 1
         knots: "list[tuple[int, int]]" = [(start * _WORD_SCALE, 0)]
+        fixed: "list[int]" = []
         for rank in range(start, start + block.cells):
-            if rank in pinned and not layout.apart:
+            if rank in pinned:
                 knots += [(rank * _WORD_SCALE, (pinned[rank] - block.low) // stride)]
+                fixed += [rank - start]
         knots += [((start + block.cells) * _WORD_SCALE, units)]
         places: "list[int]" = []
         for rank in range(start, start + block.cells):
@@ -17933,13 +17938,7 @@ def _clock_census_content(
             position = rank * _WORD_SCALE + word_of[rank]
             places += [min(units - 1, _clock_run_at(knots, position))]
         if layout.apart:
-            for index in range(1, len(places)):
-                places[index] = max(places[index], places[index - 1] + 1)
-            for index in range(len(places) - 1, -1, -1):
-                ceiling = units - (len(places) - index)
-                if index + 1 < len(places):
-                    ceiling = min(ceiling, places[index + 1] - 1)
-                places[index] = max(0, min(places[index], ceiling))
+            places = _clock_kept_apart(places, fixed, units)
         taken: "dict[int, int]" = {}
         for place in places:
             taken[place] = (taken[place] if place in taken else 0) + 1
@@ -17949,8 +17948,11 @@ def _clock_census_content(
             if rank not in pinned and holes and _is_a_hole_spelling(
                 parsing.clock_spelling(block.low + place * stride, form), holes
             ):
+                least, most = 0, units - 1
+                if layout.apart:
+                    least, most = _clock_between_pins(index, fixed, places, units)
                 place = _clock_off_a_hole(
-                    place, units, block.low, stride, form, holes,
+                    place, least, most, block.low, stride, form, holes,
                     taken if layout.apart else {},
                 )
                 taken[places[index]] = taken[places[index]] - 1
@@ -17990,22 +17992,77 @@ def _clock_run_at(knots: "list[tuple[int, int]]", position: int) -> int:
     return knots[0][1]
 
 
+def _clock_kept_apart(
+    places: "list[int]", fixed: "list[int]", units: int
+) -> "list[int]":
+    """A run's steps on a column whose values all differ (method G7A.4b).
+
+    Between two pinned ranks -- or a pinned rank and an end of the run --
+    each rank is stepped past the one before it, then kept below the one
+    after it with room left for those after, so the ranks of each stretch
+    stand on different steps strictly between its pins' steps and A
+    PINNED RANK NEVER MOVES (the landing's review, item 1: stepped apart
+    over the whole run, the median of 100 different minutes moved from
+    09:43 to 09:49). With no pin this is the run-wide step and clamp it
+    always was. A stretch holding more ranks than steps between its pins,
+    which no description the producer writes has, stands from the step
+    above its lower pin up, two ranks to a step where they must, and never
+    past either pin. `fixed` are the pinned indexes, ascending; `places`
+    is changed in place and handed back. Raises nothing. No I/O.
+    """
+    walls = [-1] + fixed + [len(places)]
+    for wall in range(len(walls) - 1):
+        first = walls[wall] + 1
+        stop = walls[wall + 1]
+        below = places[walls[wall]] if walls[wall] >= 0 else -1
+        above = places[stop] if stop < len(places) else units
+        top = above if stop < len(places) else units - 1
+        last = below
+        for index in range(first, stop):
+            places[index] = max(places[index], last + 1)
+            last = places[index]
+        ceiling = above
+        for index in range(stop - 1, first - 1, -1):
+            places[index] = min(max(below + 1, min(places[index], ceiling - 1)), top)
+            ceiling = places[index]
+    return places
+
+
+def _clock_between_pins(
+    index: int, fixed: "list[int]", places: "list[int]", units: int
+) -> "tuple[int, int]":
+    """The first and last step a run's unpinned rank may move to on a
+    column whose values all differ: strictly between the pinned ranks
+    either side of it, or the run's own end (method G7A.4b)."""
+    least = 0
+    most = units - 1
+    for pin in fixed:
+        if pin < index:
+            least = places[pin] + 1
+        elif pin > index:
+            most = places[pin] - 1
+            break
+    return least, most
+
+
 def _clock_off_a_hole(
     place: int,
-    units: int,
+    least: int,
+    most: int,
     low: int,
     stride: int,
     form: str,
     holes: "tuple[str, ...]",
     taken: "dict[int, int]",
 ) -> int:
-    """The nearest step of a run whose spelling the table does not call
-    absent -- the earlier first at one distance, and on a column whose
-    values all differ one no other rank stands on -- or the same step
-    where the run holds none (method G7A.4b)."""
-    for away in range(1, units + 1):
+    """The nearest step of a run from `least` to `most` whose spelling the
+    table does not call absent -- the earlier first at one distance, and
+    on a column whose values all differ one no other rank stands on,
+    between the pins either side of it -- or the same step where there is
+    none (method G7A.4b)."""
+    for away in range(1, max(place - least, most - place) + 1):
         for other in (place - away, place + away):
-            if other < 0 or other >= units:
+            if other < least or other > most:
                 continue
             if other in taken and taken[other] > 0:
                 continue

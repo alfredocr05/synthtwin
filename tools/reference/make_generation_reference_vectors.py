@@ -18830,27 +18830,53 @@ def clock_rung_pins(column, parsed, stretches, stride):
     return pins
 
 
-def clock_kept_apart(places, size):
-    """A run's steps on a column whose values all differ: each one past the
-    one before, and each leaving room for those after (G7A.4b)."""
+def clock_pin_walls(index, pinned, places, size):
+    """The first and last step an unpinned rank of a run may take on a
+    column whose values all differ: strictly between the pinned ranks
+    either side of it, or the run's own end (G7A.4b)."""
+    before = [places[pin] + 1 for pin in pinned if pin < index]
+    after = [places[pin] - 1 for pin in pinned if pin > index]
+    return (before[-1] if before else 0), (after[0] if after else size - 1)
+
+
+def clock_kept_apart(places, size, pinned=()):
+    """A run's steps on a column whose values all differ (G7A.4b).
+
+    Between two pinned ranks, or a pinned rank and an end of the run: each
+    rank past the one before, then each leaving room for those after,
+    strictly between the pins' steps, so a pinned rank never moves.  A
+    stretch holding more ranks than steps between its pins stands from
+    the step above its lower pin up, never past either pin.
+    """
     places = list(places)
-    for index in range(1, len(places)):
-        places[index] = max(places[index], places[index - 1] + 1)
-    for index in range(len(places) - 1, -1, -1):
-        ceiling = size - (len(places) - index)
-        if index + 1 < len(places):
-            ceiling = min(ceiling, places[index + 1] - 1)
-        places[index] = max(0, min(places[index], ceiling))
+    edges = [None] + sorted(pinned) + [None]
+    for left, right in zip(edges, edges[1:]):
+        start = 0 if left is None else left + 1
+        stop = len(places) if right is None else right
+        lowest = 0 if left is None else places[left] + 1
+        cap = size - 1 if right is None else places[right]
+        for index in range(start, stop):
+            if index > start:
+                lowest = places[index - 1] + 1
+            places[index] = max(places[index], lowest)
+        roof = cap if right is None else cap - 1
+        floor_at = 0 if left is None else places[left] + 1
+        for index in range(stop - 1, start - 1, -1):
+            places[index] = min(max(floor_at, min(places[index], roof)), cap)
+            roof = places[index] - 1
     return places
 
 
-def clock_off_absent(place, size, low_at, stride, form, absent, taken, apart):
-    """The nearest step of a run whose spelling the column does not call
-    absent, the earlier first, on no other rank's step where the values
-    all differ; the same step where there is none (G7A.4b)."""
+def clock_off_absent(place, size, low_at, stride, form, absent, taken, apart,
+                     lowest=0, highest=None):
+    """The nearest step of a run, from ``lowest`` to ``highest``, whose
+    spelling the column does not call absent, the earlier first, on no
+    other rank's step where the values all differ; the same step where
+    there is none (G7A.4b)."""
+    highest = size - 1 if highest is None else highest
     for away in range(1, size + 1):
         for other in (place - away, place + away):
-            if (0 <= other < size and not (apart and taken.get(other))
+            if (lowest <= other <= highest and not (apart and taken.get(other))
                     and not _clock_reads_absent(low_at + other * stride, form, absent)):
                 return other
     return place
@@ -18926,9 +18952,11 @@ def clock_census_content(column):
         steps[((r - a) 2**64 + w) |steps| // (n 2**64)]
 
     between the run's pins (its boundary, and each published rung whose
-    rank and value lie in the run), stepped apart inside the run where
-    the column's values are all different, and off a spelling the column
-    calls absent to the nearest step of its run.  Then every code as many
+    rank and value lie in the run), stepped apart between those pins where
+    the column's values are all different, every pin left where it stands,
+    and off a spelling the column calls absent to the nearest step of its
+    run -- between the pins either side where the values all differ.
+    Then every code as many
     times as it counts, then ``text-N``.  Every rank between the ends
     reads one word, in rank order.
     """
@@ -19046,10 +19074,14 @@ def clock_census_content(column):
                 ordinals[rank] = low_at
             continue
         size = (high_at - low_at) // stride + 1
+        # Every pin is a knot, and on a column whose values all differ a
+        # wall the step apart does not cross (the review of landing 3b.5,
+        # item 1).
+        pinned = [rank - first for rank in range(first, first + cells) if rank in pins]
         knots = [(first * TWO64, 0)]
         knots += [((rank * TWO64), (pins[rank] - low_at) // stride)
                   for rank in range(first, first + cells)
-                  if rank in pins and not apart]
+                  if rank in pins]
         knots += [((first + cells) * TWO64, size)]
         places = []
         for rank in range(first, first + cells):
@@ -19065,7 +19097,7 @@ def clock_census_content(column):
             index = below if stop <= start else below + (share * (above - below)) // (stop - start)
             places += [min(size - 1, index)]
         if apart:
-            places = clock_kept_apart(places, size)
+            places = clock_kept_apart(places, size, pinned)
         taken = {}
         for place in places:
             taken[place] = taken.get(place, 0) + 1
@@ -19073,8 +19105,12 @@ def clock_census_content(column):
             rank = first + index
             if (rank not in pins and absent
                     and _clock_reads_absent(low_at + place * stride, form, absent)):
+                lowest, highest = 0, size - 1
+                if apart:
+                    lowest, highest = clock_pin_walls(index, pinned, places, size)
                 moved = clock_off_absent(
-                    place, size, low_at, stride, form, absent, taken, apart
+                    place, size, low_at, stride, form, absent, taken, apart,
+                    lowest, highest,
                 )
                 taken[place] -= 1
                 taken[moved] = taken.get(moved, 0) + 1
@@ -21839,7 +21875,7 @@ def _clock_census_all_different():
         **tails,
     )
     return {
-        "why": "G7A.4b on a column whose 60 values all differ: each run's ranks are stepped apart inside it, each past the one before and each leaving room for those after, so the twin's values all differ too and stay inside their groups. The mutant withdraws the step apart, and two ranks share a minute.",
+        "why": "G7A.4b on a column whose 60 values all differ: each run's ranks are read between its pins and stepped apart between them, each past the one before and each leaving room for those after, so the twin's values all differ too, stay inside their groups, and every pin -- the two boundaries and the three quartiles -- stands at its rank. Re-derived at the review of landing 3b.5 (item 1), where it had frozen 07:39 at the rank of its first quartile, published 07:30. The mutant withdraws the step apart, and two ranks share a minute.",
         "column": column,
         "rows": 60,
         "identifier_declared": False,
