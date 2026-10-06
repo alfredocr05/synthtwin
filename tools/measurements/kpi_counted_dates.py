@@ -134,12 +134,13 @@ def asked(home: pathlib.Path, notes: "list[str]") -> "dict[str, int]":
     }
 
     def offered_right(shape: "battery.Shape", cells: "list[str]", where: str) -> bool:
+        nonlocal notes
         members = _offered(home, cells)
         if members is None:
             return False
         if shape.system not in members:
             totals["right_member_missing"] += 1
-            notes.append(f"{where}: asked without {shape.system}")
+            notes += [f"{where}: asked without {shape.system}"]
             return False
         return True
 
@@ -173,7 +174,7 @@ def asked(home: pathlib.Path, notes: "list[str]") -> "dict[str, int]":
             )
             if found is not None and asking.why_worth_asking(texts) is None:
                 totals["new_questions"] += 1
-                notes.append(f"{name} draw {draw}: a new question")
+                notes += [f"{name} draw {draw}: a new question"]
     return totals
 
 
@@ -221,8 +222,9 @@ def _declared_one(
     system = shape.system
 
     def count(key: str, said: str) -> None:
+        nonlocal notes
         totals[key] = int(f"{totals[key]}") + 1
-        notes.append(f"{where}: {said}")
+        notes += [f"{where}: {said}"]
 
     if _quiet(["profile", str(table), "--date-count", "seen", system, "--out-dir", str(folder), "--replace"]) != 0:
         count("not_read_as_dates", "not described")
@@ -263,7 +265,7 @@ def _declared_one(
             off += 1
     if off:
         totals["twin_cells_off_form"] = int(f"{totals['twin_cells_off_form']}") + off
-        notes.append(f"{where}: {off} twin cells off the form")
+        notes += [f"{where}: {off} twin cells off the form"]
     moved = 0
     contacts = date_counts.TABLE[system].contacts
     for cell in cells:
@@ -279,7 +281,7 @@ def _declared_one(
             moved += 1
     if moved:
         totals["cells_not_round_tripped"] = int(f"{totals['cells_not_round_tripped']}") + moved
-        notes.append(f"{where}: {moved} source cells not written back as themselves")
+        notes += [f"{where}: {moved} source cells not written back as themselves"]
     if shape.kind != "date":
         return None
     real = [moment for moment in (battery.decode(system, cell) for cell in cells) if moment is not None]
