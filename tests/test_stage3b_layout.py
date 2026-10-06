@@ -55,6 +55,7 @@ with Q1, the per-column century and the readable band.
 """
 
 import csv
+import datetime
 import io
 import json
 import pathlib
@@ -935,3 +936,31 @@ def test_band_a_layout_writes_back_only_the_years_it_reads(tmp_path: pathlib.Pat
     assert block["format"] == "layout {DD}-{MON}-{YY1930}"
     twin, _written = _twin(profile, 0)
     assert _validated(profile, twin)[0] == 0
+
+
+def test_item2_a_repeated_text_is_never_paid_on(tmp_path: pathlib.Path) -> None:
+    """G7.9b makes a payment only on a rank whose text no other rank repeats.
+
+    1,000 HL7 stamps to the minute over three days -- many minutes repeat
+    -- fifteen of them ending in an offset the census counts into
+    `(none)`. Mutant, run: a repeated text paid on, and the twin holds
+    more different values than its description publishes, missing
+    `distinct.n_distinct` at every seed.
+    """
+    draw = random.Random(81)
+    start = datetime.datetime(2023, 1, 1)
+    cells = [
+        (start + datetime.timedelta(seconds=draw.randrange(3 * 86400))).strftime("%Y%m%d%H%M")
+        for _row in range(1000)
+    ]
+    places = list(range(1000))
+    draw.shuffle(places)
+    for place in places[0:15]:
+        cells[place] = cells[place] + draw.choice(("-0400", "-0500", "+0100"))
+    block, profile, _questions = _described(tmp_path, cells)
+    assert block["format"] == "layout {YYYY}{MM}{DD}{HH}{MI}{+HHMM?}"
+    assert block["utc_offsets"] == {"(none)": 1000}
+    for seed in SEEDS:
+        twin, written = _twin(profile, seed)
+        assert sum(1 for cell in written if not cell.isdigit()) == 15, seed
+        assert _validated(profile, twin)[0] == 0, seed

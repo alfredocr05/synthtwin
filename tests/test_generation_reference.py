@@ -826,6 +826,7 @@ TWENTY_FIFTH_BRANCH_CASES = (
     "layout_hl7_fraction_offset",
     "layout_hour_offset",
     "layout_offsets_owed",
+    "layout_offsets_owed_repeats",
     "layout_optional_offset",
     "layout_sas_date9",
     "layout_space_padded_day",
@@ -875,6 +876,7 @@ SEEDS = {
     # 6), the next seeds.
     "layout_offsets_owed": 430,
     "layout_space_padded_day": 431,
+    "layout_offsets_owed_repeats": 432,
     # Landing T1's written clocks take the next seeds after the highest in
     # use below 34041 (plan P4-D370).
     "stamp_unpadded_hour": 416,
@@ -1775,11 +1777,11 @@ FOURTEENTH_BRANCH_NAMED_COUNTS = 53
 # its five cases publish no binary64 at all.
 TWENTY_SECOND_BRANCH_PUBLISHED_NUMBERS = 0
 TWENTY_SECOND_BRANCH_NAMED_COUNTS = 122
-# The twenty-fifth, at its own generator's line ("proved 12 ... beside 274"):
-# its two cases with two tails publish their eight distances (the second,
-# G7.9b's of its repair round, thirty-six rows).
-TWENTY_FIFTH_BRANCH_PUBLISHED_NUMBERS = 12
-TWENTY_FIFTH_BRANCH_NAMED_COUNTS = 274
+# The twenty-fifth, at its own generator's line ("proved 16 ... beside 300"):
+# the distances its cases with two tails publish, G7.9b's two cases of the
+# repair round adding eight of them.
+TWENTY_FIFTH_BRANCH_PUBLISHED_NUMBERS = 16
+TWENTY_FIFTH_BRANCH_NAMED_COUNTS = 300
 # The document file publishes NO binary64 at all, and that is a fact
 # about its transforms rather than a gap in its proof: the written form,
 # the arrangement, the workbook writer, the shape of a line before a
@@ -3535,6 +3537,13 @@ CASE_MUTANTS = {
         "withdraws the pass, so the twin's cells are numbers alone",
         attribute="offsets_paid_to_the_classes",
         replacement=lambda column, cells, holes, floor=11: cells,
+        outcome=CHANGES_THE_CELLS,
+    ),
+    "layout_offsets_owed_repeats": Mutant(
+        branch="G7.9b's payment on a rank whose text no other rank repeats; "
+        "the mutant makes a payment on a repeated text too",
+        attribute="a_text_worn_once",
+        replacement=lambda cells, rank: True,
         outcome=CHANGES_THE_CELLS,
     ),
     "layout_space_padded_day": Mutant(

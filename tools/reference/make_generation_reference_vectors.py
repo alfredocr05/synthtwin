@@ -9928,6 +9928,11 @@ def marks_bought_for_the_shortfall(column, cells, holes, floor=CASE_SMALL_CELL_F
     return written
 
 
+def a_text_worn_once(cells, rank):
+    """G7.9b's last clause of eligibility: no other rank's cell is this rank's text."""
+    return cells.count(cells[rank]) == 1
+
+
 def offsets_paid_to_the_classes(column, cells, holes, floor=CASE_SMALL_CELL_FLOOR):
     """G7.9b: the offsets a column of figure runs still owes its class count.
 
@@ -9996,15 +10001,12 @@ def offsets_paid_to_the_classes(column, cells, holes, floor=CASE_SMALL_CELL_FLOO
                 {"+HH:MM": sign_hours + ":00", "+HHMM": sign_hours + "00", "+HH": sign_hours}[field]
             )
     absent = {hole.strip().lower() for hole in holes}
-    worn_by = {}
-    for text in cells:
-        worn_by[text] = worn_by.get(text, 0) + 1
     not_numbers = sum(1 for text in cells if not a_number(text))
     eligible = [
         rank
         for rank in range(1, len(cells) - 1)
         if a_number(cells[rank])
-        and worn_by[cells[rank]] == 1
+        and a_text_worn_once(cells, rank)
         and (cells[rank] + joint + offer[0]).strip().lower() not in absent
     ]
     line = census_line(floor)
@@ -22777,8 +22779,11 @@ def _date_remainder_one_joint():
 
 
 def _r2a_layout(member, resolution, precision, digits, rows, offsets, read_at,
-                widths=None, earliest=None, latest=None, why="", numeric=0):
+                widths=None, earliest=None, latest=None, why="", numeric=0,
+                distinct=None):
     """A column read under one layout of the closed grammar (G7.5, landing R2a)."""
+    if distinct is None:
+        distinct = rows
     if earliest is None:
         earliest = "1970-01-01" if resolution == "date" else "1970-01-01 00:00:00"
     if latest is None:
@@ -22786,7 +22791,7 @@ def _r2a_layout(member, resolution, precision, digits, rows, offsets, read_at,
     named = [key for key in offsets if key not in ("(none)", "(withheld)")]
     end_offset = named[0] if len(named) == 1 and len(offsets) == 1 else "(none)"
     facts = dict(
-        n_present=rows, n_missing=0, n_distinct=rows, n_distinct_folded=rows,
+        n_present=rows, n_missing=0, n_distinct=distinct, n_distinct_folded=distinct,
         n_numeric=numeric, n_not_numeric=rows - numeric, n_out_of_range=0,
         n_contradictory=0,
         format=member, resolution=resolution, time_precision=precision,
@@ -22898,6 +22903,23 @@ def _layout_offsets_owed():
     )
 
 
+def _layout_offsets_owed_repeats():
+    return _r2a_layout(
+        "layout {YYYY}{MM}{DD}{HH}{MI}{+HHMM?}", "datetime", "minute", 0, 24,
+        {"(none)": 24}, "local",
+        why="G7.9b's payment on a text no other rank repeats (landing R2a's "
+        "repair round, item 2): twenty-four HL7 stamps to the minute over "
+        "eighteen different values, four of whose offsets the census counted "
+        "into `(none)`. A respelled copy of a text another rank wears would add "
+        "a value the published count of different values does not hold, so "
+        "the four payments go to ranks whose text stands alone. The mutant "
+        "makes a payment on every rank between the ends, a repeated text "
+        "among them.",
+        earliest="1970-01-01 00:00:00", latest="1970-01-24 21:45:00",
+        numeric=20, distinct=18,
+    )
+
+
 def _layout_space_padded_day():
     return _r2a_layout(
         "layout {Mon} {_D} {YYYY}", "date", "date", 0, 12, {"(none)": 12}, "local",
@@ -22952,6 +22974,7 @@ R2A_BRANCH_CASE_BUILDERS = {
     "layout_hl7_fraction_offset": _layout_hl7_fraction_offset,
     "layout_hour_offset": _layout_hour_offset,
     "layout_offsets_owed": _layout_offsets_owed,
+    "layout_offsets_owed_repeats": _layout_offsets_owed_repeats,
     "layout_optional_offset": _layout_optional_offset,
     "layout_sas_date9": _layout_sas_date9,
     "layout_space_padded_day": _layout_space_padded_day,
@@ -32465,8 +32488,8 @@ _TWENTY_FIFTH_BRANCH_ACCOUNT = (
     "one space, a whole-hour offset, the zulu word `UTC`, an offset some "
     "cells omit, two flexible fields in the layout's own order, a weekday "
     "lead, and a two-figure year read in a century the person chose; and, "
-    "from its repair round, a day padded with a space and G7.9b's offsets "
-    "written on a column of figure "
+    "from its repair round, a day padded with a space and G7.9b's offsets, "
+    "paid on texts no other rank repeats, written on a column of figure "
     "runs whose count of cells that are not numbers still holds the "
     "offsets its census counted into `(none)`. They "
     "are computed by the same oracle and the same proof layer "
@@ -32859,6 +32882,24 @@ GIVEN_WORDS = {
         12752694595508762000, 16493153706493959540, 2136136501835624260,
         4429365169814360070, 2134826145581754533, 3034933503596956875,
         6007134993793927254, 10094324261136200959, 5990829916535891984,
+    ),
+    # ...and G7.9b's payments beside repeated texts (item 2), at seed 432.
+    "layout_offsets_owed_repeats": (
+        12143729692894313710, 10872524536672682407, 2075953342638439291,
+        13888757622966420978, 4747793491428004468, 7726914505492834194,
+        3592125844141770685, 12784373771256620550, 9633492534457436657,
+        4159201866723229909, 17399465708016708401, 4558512428260685249,
+        13687911343447913175, 6796949080251282740, 18140458766032328492,
+        5385170043120900668, 9808941137418907712, 12419272716911041727,
+        8046315533911228024, 15726652638077068236, 16489000937662673499,
+        17240726622691873796, 10363322103890706976, 2403514987413316645,
+        15970562086965328192, 5236237678801155052, 11706505644801197063,
+        4403195386043396504, 4240202955800017581, 14554324347313320676,
+        5294612392451664604, 15820749258349047883, 17194762056253306786,
+        17242095807319382837, 10478728101532772353, 4272796120708466162,
+        18069702245401843034, 6335616562914469182, 12384629232222688895,
+        17648630171009772129, 7255128612912000851, 258969191686089756,
+        8389684766110654885, 14177414840016457100, 5233216453694197285,
     ),
     # ...and the space-padded day of its repair round (item 6), at seed 431.
     "layout_space_padded_day": (

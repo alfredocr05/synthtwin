@@ -114,10 +114,10 @@
     },
     {
       "generator": "tools/reference/make_generation_branch_vectors_25.py",
-      "justification": "The twin cells synthtwin's generation method requires for the eleven cases docs/spec/generation-method-v1.md section G14.3 adds with landing R2a's layout member (plan P4-D383): G7.5's writer of a layout of the closed grammar of dates, each case beside its own mutant -- SAS's month word, HL7's fraction and `+HHMM` offset, an offset after one space, a whole-hour offset, the zulu word `UTC`, an offset some cells omit, two flexible fields in the layout's order, a weekday lead and a two-figure year read in the century the person chose -- and, from its repair round, a day padded with a space and G7.9b's offsets written on a column of figure runs whose count of cells that are not numbers still holds the offsets its census counted into `(none)`. Computed from that specification alone by the same oracle as every other generation vectors file, in a file of its own so no other file's case set moves.",
+      "justification": "The twin cells synthtwin's generation method requires for the twelve cases docs/spec/generation-method-v1.md section G14.3 adds with landing R2a's layout member (plan P4-D383): G7.5's writer of a layout of the closed grammar of dates, each case beside its own mutant -- SAS's month word, HL7's fraction and `+HHMM` offset, an offset after one space, a whole-hour offset, the zulu word `UTC`, an offset some cells omit, two flexible fields in the layout's order, a weekday lead and a two-figure year read in the century the person chose -- and, from its repair round, a day padded with a space and G7.9b's offsets, paid on texts no other rank repeats, written on a column of figure runs whose count of cells that are not numbers still holds the offsets its census counted into `(none)`. Computed from that specification alone by the same oracle as every other generation vectors file, in a file of its own so no other file's case set moves.",
       "path": "tests/reference/generation-branch-vectors-25.json",
       "seed": 0,
-      "sha256": "b83b9a5914b182838bf56cd41a99fcd864727f9bfaf8a34b18b32f889f7f2753"
+      "sha256": "1f8a707a346f8b59a0a065a65750e122cda0d08afa2e6be7a975af5c6d3d5c32"
     },
     {
       "generator": "tools/reference/make_generation_document_vectors.py",
