@@ -347,7 +347,16 @@ RUNNING_NAMES = ("exec", "eval", "compile", "runpy.run_path", "runpy.run_module"
 # 30 AT PLAN P4-D375, not 31: `tests/test_p4d349_tail_reconstruction.py`
 # loaded the tail-leak driver to ask its back-solve of the tails P4-D349
 # withheld, and its two tests went with the withholding.
-FILES_LOADED_AS_MODULES = 30
+#
+# 31 AT PLAN P4-D373'S REVIEW (2026-10-06), not 30:
+# `tests/test_stage3b_clock_review.py` loads
+# `tools/reference/make_generation_reference_vectors.py` through
+# `_oracle_module`, to hold the oracle's clock supply of a time written
+# to a fraction of the second to the product's, call by call, since no
+# frozen case holds such a form. What it loads is the committed oracle,
+# unedited, a file under tools/ this guard reads directly, so the floor
+# holds for it as it does for the other thirty.
+FILES_LOADED_AS_MODULES = 31
 
 
 def _files() -> "list[pathlib.Path]":

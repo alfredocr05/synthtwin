@@ -67,6 +67,7 @@ from __future__ import annotations
 import collections
 import copy
 import csv
+import importlib.util
 import io
 import json
 import pathlib
@@ -893,11 +894,17 @@ def test_time7_red_when_the_label_walk_stops_at_its_bound(
 
 
 def _oracle_module() -> types.ModuleType:
-    """The generation oracle, run from its source as a module of its own."""
+    """The generation oracle, loaded from its committed file as a module of its own.
+
+    Unedited, so it is loaded as the file it is -- as every test that
+    asks the oracle unchanged loads it -- and no string of source is run
+    (`tests/test_version_reach.py` counts this loader among its thirty-one).
+    """
     path = _HERE.parent / "tools" / "reference" / "make_generation_reference_vectors.py"
-    module = types.ModuleType("oracle_of_the_time7_fix")
-    module.__dict__["__file__"] = str(path)
-    exec(compile(path.read_text(encoding="utf-8"), str(path), "exec"), module.__dict__)
+    spec = importlib.util.spec_from_file_location("oracle_of_the_time7_fix", path)
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
     return module
 
 
