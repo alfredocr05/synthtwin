@@ -13159,6 +13159,351 @@ def shared_step_document():
     }
 
 
+# -- landing R4's numbers that are dates (plan P4-D384) ------------------
+#
+# Method section G7.10 and contract 6.6.2's `count_form`, implemented from
+# their text with `datetime` and `Fraction` alone: a cell written as a
+# count is read as the moment its system names, settled to a unit, and a
+# moment is written back as its system's count, spelled as the column's
+# form says. Nothing here is the product's whole-number arithmetic: the
+# reading goes through `datetime.timedelta` and the rounding through
+# `Fraction.__round__`, which rounds a half to the even neighbour.
+
+_COUNTED_DAY = fractions.Fraction(86400)
+COUNTED_SYSTEMS = {
+    # member: (the day its count of nought names, seconds one count holds,
+    # whether it reads a count below nought, whether the figures after
+    # the point are a contact number)
+    "excel-1900": (datetime.date(1899, 12, 30), _COUNTED_DAY, False, False),
+    "excel-1904": (datetime.date(1904, 1, 1), _COUNTED_DAY, False, False),
+    "days-since-1960": (datetime.date(1960, 1, 1), _COUNTED_DAY, True, False),
+    "seconds-since-1960": (datetime.date(1960, 1, 1), fractions.Fraction(1), True, False),
+    "milliseconds-since-1960": (
+        datetime.date(1960, 1, 1), fractions.Fraction(1, 1000), True, False,
+    ),
+    "days-since-1970": (datetime.date(1970, 1, 1), _COUNTED_DAY, True, False),
+    "seconds-since-1970": (datetime.date(1970, 1, 1), fractions.Fraction(1), True, False),
+    "milliseconds-since-1970": (
+        datetime.date(1970, 1, 1), fractions.Fraction(1, 1000), True, False,
+    ),
+    "microseconds-since-1970": (
+        datetime.date(1970, 1, 1), fractions.Fraction(1, 10**6), True, False,
+    ),
+    "nanoseconds-since-1970": (
+        datetime.date(1970, 1, 1), fractions.Fraction(1, 10**9), True, False,
+    ),
+    "days-since-1840": (datetime.date(1840, 12, 31), _COUNTED_DAY, True, True),
+    "seconds-since-1582": (datetime.date(1582, 10, 14), fractions.Fraction(1), True, False),
+}
+_COUNTED_UNIX_DAY = datetime.date(1970, 1, 1)
+
+
+def _counted_number(text, mark):
+    """A cell as the exact number it writes, or None where it is no count."""
+    body = text[1:] if text.startswith("-") else text
+    if not body or body.startswith("+"):
+        return None
+    mantissa, _e, power = body.lower().partition("e")
+    if _e and (mark != "." or not power.lstrip("+-").isdigit()):
+        return None
+    whole, _point, fraction = mantissa.partition(mark)
+    if not whole.isdigit() or (len(whole) > 1 and whole.startswith("0")):
+        return None
+    if _point and not fraction.isdigit():
+        return None
+    if not whole.isascii() or not fraction.isascii():
+        return None
+    value = fractions.Fraction(int(whole + fraction), 10 ** len(fraction))
+    if _e:
+        value = value * fractions.Fraction(10) ** int(power)
+    return -value if text.startswith("-") else value
+
+
+def counted_reading(member, text, mark, unit_seconds):
+    """G7.10's reading: a count, the moment it names, settled to the unit, as ISO text.
+
+    ``unit_seconds`` is the unit the moment is written at, as a Fraction
+    of a second: a day, a minute, a second or a thousandth, millionth or
+    billionth of one. None where the text is no count or names no date.
+    """
+    value = _counted_number(text, mark)
+    if value is None:
+        return None
+    epoch, unit, signed, contacts = COUNTED_SYSTEMS[member]
+    if value < 0 and not signed:
+        return None
+    if contacts:
+        whole = int(value)
+        moment = datetime.datetime.combine(epoch, datetime.time()) + datetime.timedelta(days=whole)
+        return _counted_iso(moment, fractions.Fraction(0), _COUNTED_DAY)
+    if member == "excel-1900":
+        whole = math.floor(value)
+        if whole < 1 or whole == 60:
+            return None
+        start = datetime.date(1899, 12, 31) if whole < 60 else epoch
+        day = start + datetime.timedelta(days=whole)
+        seconds = (value - whole) * _COUNTED_DAY
+    else:
+        total = value * unit
+        days = math.floor(total / _COUNTED_DAY)
+        try:
+            day = epoch + datetime.timedelta(days=days)
+        except OverflowError:
+            return None
+        seconds = total - days * _COUNTED_DAY
+    steps = round(seconds / unit_seconds)
+    seconds = steps * unit_seconds
+    if seconds >= _COUNTED_DAY:
+        day = day + datetime.timedelta(days=1)
+        seconds = seconds - _COUNTED_DAY
+    if not (datetime.date(1, 1, 1) <= day <= datetime.date(9999, 12, 31)):
+        return None
+    return _counted_iso(datetime.datetime.combine(day, datetime.time()), seconds, unit_seconds)
+
+
+def _counted_iso(midnight, seconds, unit_seconds):
+    """A day and seconds into it, as the ISO text written at the unit."""
+    date = midnight.date().isoformat()
+    if unit_seconds >= _COUNTED_DAY:
+        return date
+    whole = int(seconds)
+    clock = f"{whole // 3600:02d}:{whole // 60 % 60:02d}"
+    if unit_seconds >= 60:
+        return f"{date} {clock}"
+    clock = f"{clock}:{whole % 60:02d}"
+    if unit_seconds >= 1:
+        return f"{date} {clock}"
+    figures = {fractions.Fraction(1, 1000): 3, fractions.Fraction(1, 10**6): 6,
+               fractions.Fraction(1, 10**9): 9}[unit_seconds]
+    part = int((seconds - whole) * 10**figures)
+    return f"{date} {clock}.{part:0{figures}d}"
+
+
+def _counted_value(member, iso):
+    """G7.10's writing, first half: the exact count a system writes for an ISO moment."""
+    date_text, _space, clock = iso.partition(" ")
+    day = datetime.date.fromisoformat(date_text)
+    seconds = fractions.Fraction(0)
+    if clock:
+        hours, minutes, rest = (clock.split(":") + ["0"])[:3]
+        seconds = int(hours) * 3600 + int(minutes) * 60 + fractions.Fraction(rest)
+    epoch, unit, signed, contacts = COUNTED_SYSTEMS[member]
+    if member == "excel-1900":
+        if day < datetime.date(1900, 1, 1):
+            return None
+        start = datetime.date(1899, 12, 31) if day < datetime.date(1900, 3, 1) else epoch
+        return (day - start).days + seconds / _COUNTED_DAY
+    value = ((day - epoch).days * _COUNTED_DAY + seconds) / unit
+    if value < 0 and not signed:
+        return None
+    return value
+
+
+def _counted_fixed(value, places, mark, trimmed):
+    """A count rounded, halves to even, to ``places`` figures after the mark."""
+    scaled = round(value * 10**places)
+    sign = "-" if scaled < 0 else ""
+    figures = str(abs(scaled)).rjust(places + 1, "0")
+    whole = figures[: len(figures) - places] if places else figures
+    fraction = figures[len(figures) - places:] if places else ""
+    if trimmed:
+        fraction = fraction.rstrip("0")
+    return f"{sign}{whole}{mark}{fraction}" if fraction else f"{sign}{whole}"
+
+
+def _counted_significant(value, figures):
+    """A count rounded, halves to even, to ``figures`` significant figures: (sign, digits, exponent)."""
+    if value == 0:
+        return "", "0", 0
+    sign = "-" if value < 0 else ""
+    magnitude = abs(value)
+    exponent = 0
+    while fractions.Fraction(10) ** exponent > magnitude:
+        exponent -= 1
+    while fractions.Fraction(10) ** (exponent + 1) <= magnitude:
+        exponent += 1
+    digits = round(magnitude / fractions.Fraction(10) ** (exponent - figures + 1))
+    if digits == 10**figures:
+        exponent += 1
+        digits //= 10
+    return sign, str(digits).rstrip("0") or "0", exponent
+
+
+def counted_spelling(member, iso, form, contact="(none)"):
+    """G7.10's writing: a moment, as its system's count spelled by `count_form`."""
+    value = _counted_value(member, iso)
+    if value is None:
+        return None
+    mark = form["mark"]
+    if COUNTED_SYSTEMS[member][3]:
+        day = str(int(value))
+        return day if contact == "(none)" else f"{day}{mark}{contact}"
+    if form["significant"] is None and not form["exponent"]:
+        return _counted_fixed(value, form["places"], mark, form["trimmed"])
+    sign, digits, exponent = _counted_significant(value, form["significant"] or 15)
+    if exponent >= len(digits) - 1:
+        full = f"{sign}{digits}{'0' * (exponent - len(digits) + 1)}"
+    elif exponent >= 0:
+        full = f"{sign}{digits[: exponent + 1]}{mark}{digits[exponent + 1:]}"
+    else:
+        full = f"{sign}0{mark}{'0' * (-exponent - 1)}{digits}"
+    if not form["exponent"]:
+        return full
+    mantissa = digits[0] + (f"{mark}{digits[1:]}" if len(digits) > 1 else "")
+    scientific = f"{sign}{mantissa}e{'+' if exponent >= 0 else '-'}{abs(exponent):02d}"
+    return scientific if len(scientific) < len(full) else full
+
+
+def _counted_form(places=0, trimmed=False, significant=None, exponent=False, mark=".", contacts=None):
+    """One `count_form`, written out as the contract names its six keys."""
+    return {
+        "contacts": contacts,
+        "exponent": exponent,
+        "mark": mark,
+        "places": places,
+        "significant": significant,
+        "trimmed": trimmed,
+    }
+
+
+# THE UNITS a case writes its moment at, by the word the contract's
+# precisions use.
+_COUNTED_UNITS = {
+    "day": _COUNTED_DAY,
+    "minute": fractions.Fraction(60),
+    "second": fractions.Fraction(1),
+    "millisecond": fractions.Fraction(1, 1000),
+    "microsecond": fractions.Fraction(1, 10**6),
+    "nanosecond": fractions.Fraction(1, 10**9),
+}
+
+# EVERY CASE, each turning red on the mutant it names (`why`): float
+# arithmetic, the 1970 epoch read for 1960, halves rounded up, figures not
+# trimmed, Excel's leap day ignored, and R's exponent rule read as places.
+COUNTED_READINGS = {
+    "excel_serial_59": ("excel-1900", "59", ".", "day",
+                        "the last day before Excel's leap day: 28 February 1900"),
+    "excel_serial_60": ("excel-1900", "60", ".", "day",
+                        "Excel's 29 February 1900, which no calendar has: no date"),
+    "excel_serial_61": ("excel-1900", "61", ".", "day",
+                        "the first day after it, counted from 30 December 1899"),
+    "excel_1904_day_0": ("excel-1904", "0", ".", "day", "the 1904 system's first day"),
+    "excel_15g_clinic_slot": ("excel-1900", "45386.3541666667", ".", "minute",
+                              "%.15g of 08:30, settled through the millisecond to the minute"),
+    "sas_days_negative": ("days-since-1960", "-3653", ".", "day",
+                          "a SAS date before 1960, read with the 1960 epoch"),
+    "sas_seconds": ("seconds-since-1960", "1956528000", ".", "second",
+                    "a SAS date-time, read with the 1960 epoch"),
+    "stata_milliseconds": ("milliseconds-since-1960", "1956528000123", ".", "millisecond",
+                           "Stata's %tc, a thousandth of a second kept"),
+    "unix_milliseconds": ("milliseconds-since-1970", "1700000000123", ".", "millisecond",
+                          "a JavaScript moment, a thousandth of a second kept"),
+    "r_exponent_milliseconds": ("milliseconds-since-1970", "1.6e+12", ".", "second",
+                                "R's exponent form, read exactly by shifting the figures"),
+    "nanoseconds_past_2_53": ("nanoseconds-since-1970", "1700000000123456789", ".", "nanosecond",
+                              "a count binary64 cannot hold, read from its figures"),
+    "epic_contact": ("days-since-1840", "66303.01", ".", "day",
+                     "an Epic day with its contact number, which is no time"),
+    "decimal_comma": ("excel-1900", "45386,5", ",", "minute",
+                      "a count written with a comma for its point"),
+}
+COUNTED_SPELLINGS = {
+    "excel_15g_before_10000": ("excel-1900", "1927-05-17 08:30", _counted_form(11, True, 15),
+                               "(none)", "fifteen significant figures, eleven after the point"),
+    "excel_15g_after_10000": ("excel-1900", "1927-05-19 08:30", _counted_form(11, True, 15),
+                              "(none)", "fifteen significant figures, ten after the point past serial 10,000"),
+    "excel_one_place_half_even": ("excel-1900", "2024-04-04 06:00", _counted_form(1, True),
+                                  "(none)", "a quarter of a day to one figure: the half goes to the even 2"),
+    "excel_six_places_fixed": ("excel-1900", "2024-04-04 12:00", _counted_form(6, False),
+                               "(none)", "six figures, every one written"),
+    "excel_six_places_trimmed": ("excel-1900", "2024-04-04 12:00", _counted_form(6, True),
+                                 "(none)", "six figures at most, the zeros at the end dropped"),
+    "excel_serial_leap_neighbour": ("excel-1900", "1900-03-01", _counted_form(),
+                                    "(none)", "1 March 1900 is serial 61"),
+    "sas_days_before_1960": ("days-since-1960", "1950-01-01", _counted_form(),
+                             "(none)", "a date before the epoch, written signed"),
+    "stata_milliseconds_spelled": ("milliseconds-since-1960", "2021-12-31 23:59:59.999",
+                                   _counted_form(), "(none)", "a thousandth of a second kept"),
+    "nanoseconds_spelled": ("nanoseconds-since-1970", "2023-11-14 22:13:20.123456789",
+                            _counted_form(), "(none)", "nineteen figures, written from the integer"),
+    "r_exponent_shorter": ("milliseconds-since-1970", "2020-09-13 12:26:40", _counted_form(0, True, 15, True),
+                           "(none)", "R writes 1.6e+12 where it is shorter than the thirteen figures"),
+    "r_exponent_longer": ("milliseconds-since-1970", "2020-09-28 09:04:05.123", _counted_form(0, True, 15, True),
+                          "(none)", "and the thirteen figures where they are shorter"),
+    "epic_contact_spelled": ("days-since-1840", "2022-07-13", _counted_form(contacts={"01": 11}),
+                             "01", "the day count, the point and the contact number"),
+    "epic_no_contact_spelled": ("days-since-1840", "2022-07-13", _counted_form(contacts={"01": 11}),
+                                "(none)", "the day count alone where the census gives none"),
+    "comma_spelled": ("excel-1900", "2024-04-04 08:30", _counted_form(6, True, mark=","),
+                      "(none)", "the comma written where the column writes it"),
+}
+
+
+def counted_cells(cells, column, member):
+    """G7.10 over a placed column: every cell the date machinery wrote, respelled as its count.
+
+    A cell the date machinery wrote is one that reads as an ISO date or
+    moment; an absent cell is written in a spelling the column publishes,
+    and an unparsed stand-in in text no date reader takes, and both are
+    left as they are. A `days-since-1840` column's contact words go to the
+    dated cells in the order they stand, the census's words in rank order
+    -- the commonest first, ties in sorted order -- each as many times as
+    the census counts it.
+    """
+    form = column["count_form"]
+    words = []
+    census = form["contacts"] or {}
+    for word in sorted(census, key=lambda each: (-census[each], each)):
+        words += [word] * census[word]
+    spelled = []
+    used = 0
+    for cell in cells:
+        moment = None
+        try:
+            date_text, _space, clock = cell.partition(" ")
+            datetime.date.fromisoformat(date_text)
+            moment = cell if len(date_text) == 10 else None
+        except ValueError:
+            moment = None
+        if moment is None:
+            spelled.append(cell)
+            continue
+        contact = words[used] if used < len(words) else "(none)"
+        used += 1
+        written = counted_spelling(member, cell, form, contact)
+        spelled.append(written if written is not None else cell)
+    return spelled
+
+
+def counted_case_document():
+    """The twenty-sixth file: landing R4's readings and spellings, each with its answer."""
+    readings = {}
+    for name in sorted(COUNTED_READINGS):
+        member, text, mark, unit, why = COUNTED_READINGS[name]
+        readings[name] = {
+            "member": member, "text": text, "mark": mark, "unit": unit, "why": why,
+            "answer": counted_reading(member, text, mark, _COUNTED_UNITS[unit]),
+        }
+    spellings = {}
+    for name in sorted(COUNTED_SPELLINGS):
+        member, iso, form, contact, why = COUNTED_SPELLINGS[name]
+        spellings[name] = {
+            "member": member, "iso": iso, "form": form, "contact": contact, "why": why,
+            "answer": counted_spelling(member, iso, form, contact),
+        }
+    return {
+        "what": "Method section G7.10's two halves (landing R4, plan P4-D384), each case with "
+        "its answer computed from the method's text with datetime and Fraction: a count read "
+        "as the moment its system names, written as ISO text at a unit, and a moment written "
+        "back as its system's count, spelled as a `count_form` says.",
+        "generated_by": "tools/reference/make_generation_reference_vectors.py",
+        "method": "docs/spec/generation-method-v1.md",
+        "never_imports": ["synthtwin", "numpy", "pandas"],
+        "readings": readings,
+        "spellings": spellings,
+    }
+
+
 def sort_unpinned_runs(ordinals, pinned):
     """Sort, in place, each run of ranks the published tail does not pin."""
     start = 0
@@ -22269,6 +22614,10 @@ TWENTY_SECOND_BRANCH_PART = "branches-22"
 # not a file of columns but of the pass itself, each case a state of
 # ranks and the steps' answer (`shared_step_document`).
 FIFTEENTH_BRANCH_PART = "branches-15"
+# Landing R4's numbers that are dates (plan P4-D384), the twenty-sixth
+# file: not a file of columns but of method section G7.10's two halves,
+# each case a cell or a moment and its answer (`counted_case_document`).
+TWENTY_SIXTH_BRANCH_PART = "branches-26"
 
 
 # -- landing T1's written clocks and G7.5 step 5 (plan P4-D370) ---------
@@ -36451,6 +36800,11 @@ def build_case(name):
             column.get("affix_suffix", ""),
         )
     cells = place(content, absent_cells(column), rows, words[content_words:])
+    # A COLUMN OF DATES WRITTEN AS COUNTS (landing R4, plan P4-D384) is
+    # written back as those counts once its cells stand in their rows
+    # (method G7.10), as the generator's own post-pass writes them.
+    if column["role"] == "datetime" and column.get("count_form") is not None:
+        cells = counted_cells(cells, column, spec["date_count_member"])
     one_column = True
     csv_bytes = "".join(
         csv_field(cell, one_column, cell == "") + "\n" for cell in cells
@@ -36935,6 +37289,14 @@ def main(argv=None, part=None):
         # Whole numbers only, read by the pass and written by it: there is
         # no binary64 here for the proof layer to certify.
         text = json.dumps(shared_step_document(), indent=2, sort_keys=True, allow_nan=False)
+        with open(args.out, "w", encoding="utf-8", newline="\n") as handle:
+            handle.write(text + "\n")
+        print(f"wrote {args.out}", file=sys.stderr)
+        return 0
+    if part == TWENTY_SIXTH_BRANCH_PART:
+        # Text only, read and written by G7.10's two halves: there is no
+        # binary64 here for the proof layer to certify either.
+        text = json.dumps(counted_case_document(), indent=2, sort_keys=True, allow_nan=False)
         with open(args.out, "w", encoding="utf-8", newline="\n") as handle:
             handle.write(text + "\n")
         print(f"wrote {args.out}", file=sys.stderr)

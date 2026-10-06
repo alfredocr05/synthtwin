@@ -1,0 +1,332 @@
+{
+  "generated_by": "tools/reference/make_generation_reference_vectors.py",
+  "method": "docs/spec/generation-method-v1.md",
+  "never_imports": [
+    "synthtwin",
+    "numpy",
+    "pandas"
+  ],
+  "readings": {
+    "decimal_comma": {
+      "answer": "2024-04-04 12:00",
+      "mark": ",",
+      "member": "excel-1900",
+      "text": "45386,5",
+      "unit": "minute",
+      "why": "a count written with a comma for its point"
+    },
+    "epic_contact": {
+      "answer": "2022-07-13",
+      "mark": ".",
+      "member": "days-since-1840",
+      "text": "66303.01",
+      "unit": "day",
+      "why": "an Epic day with its contact number, which is no time"
+    },
+    "excel_15g_clinic_slot": {
+      "answer": "2024-04-04 08:30",
+      "mark": ".",
+      "member": "excel-1900",
+      "text": "45386.3541666667",
+      "unit": "minute",
+      "why": "%.15g of 08:30, settled through the millisecond to the minute"
+    },
+    "excel_1904_day_0": {
+      "answer": "1904-01-01",
+      "mark": ".",
+      "member": "excel-1904",
+      "text": "0",
+      "unit": "day",
+      "why": "the 1904 system's first day"
+    },
+    "excel_serial_59": {
+      "answer": "1900-02-28",
+      "mark": ".",
+      "member": "excel-1900",
+      "text": "59",
+      "unit": "day",
+      "why": "the last day before Excel's leap day: 28 February 1900"
+    },
+    "excel_serial_60": {
+      "answer": null,
+      "mark": ".",
+      "member": "excel-1900",
+      "text": "60",
+      "unit": "day",
+      "why": "Excel's 29 February 1900, which no calendar has: no date"
+    },
+    "excel_serial_61": {
+      "answer": "1900-03-01",
+      "mark": ".",
+      "member": "excel-1900",
+      "text": "61",
+      "unit": "day",
+      "why": "the first day after it, counted from 30 December 1899"
+    },
+    "nanoseconds_past_2_53": {
+      "answer": "2023-11-14 22:13:20.123456789",
+      "mark": ".",
+      "member": "nanoseconds-since-1970",
+      "text": "1700000000123456789",
+      "unit": "nanosecond",
+      "why": "a count binary64 cannot hold, read from its figures"
+    },
+    "r_exponent_milliseconds": {
+      "answer": "2020-09-13 12:26:40",
+      "mark": ".",
+      "member": "milliseconds-since-1970",
+      "text": "1.6e+12",
+      "unit": "second",
+      "why": "R's exponent form, read exactly by shifting the figures"
+    },
+    "sas_days_negative": {
+      "answer": "1949-12-31",
+      "mark": ".",
+      "member": "days-since-1960",
+      "text": "-3653",
+      "unit": "day",
+      "why": "a SAS date before 1960, read with the 1960 epoch"
+    },
+    "sas_seconds": {
+      "answer": "2021-12-31 00:00:00",
+      "mark": ".",
+      "member": "seconds-since-1960",
+      "text": "1956528000",
+      "unit": "second",
+      "why": "a SAS date-time, read with the 1960 epoch"
+    },
+    "stata_milliseconds": {
+      "answer": "2021-12-31 00:00:00.123",
+      "mark": ".",
+      "member": "milliseconds-since-1960",
+      "text": "1956528000123",
+      "unit": "millisecond",
+      "why": "Stata's %tc, a thousandth of a second kept"
+    },
+    "unix_milliseconds": {
+      "answer": "2023-11-14 22:13:20.123",
+      "mark": ".",
+      "member": "milliseconds-since-1970",
+      "text": "1700000000123",
+      "unit": "millisecond",
+      "why": "a JavaScript moment, a thousandth of a second kept"
+    }
+  },
+  "spellings": {
+    "comma_spelled": {
+      "answer": "45386,354167",
+      "contact": "(none)",
+      "form": {
+        "contacts": null,
+        "exponent": false,
+        "mark": ",",
+        "places": 6,
+        "significant": null,
+        "trimmed": true
+      },
+      "iso": "2024-04-04 08:30",
+      "member": "excel-1900",
+      "why": "the comma written where the column writes it"
+    },
+    "epic_contact_spelled": {
+      "answer": "66303.01",
+      "contact": "01",
+      "form": {
+        "contacts": {
+          "01": 11
+        },
+        "exponent": false,
+        "mark": ".",
+        "places": 0,
+        "significant": null,
+        "trimmed": false
+      },
+      "iso": "2022-07-13",
+      "member": "days-since-1840",
+      "why": "the day count, the point and the contact number"
+    },
+    "epic_no_contact_spelled": {
+      "answer": "66303",
+      "contact": "(none)",
+      "form": {
+        "contacts": {
+          "01": 11
+        },
+        "exponent": false,
+        "mark": ".",
+        "places": 0,
+        "significant": null,
+        "trimmed": false
+      },
+      "iso": "2022-07-13",
+      "member": "days-since-1840",
+      "why": "the day count alone where the census gives none"
+    },
+    "excel_15g_after_10000": {
+      "answer": "10001.3541666667",
+      "contact": "(none)",
+      "form": {
+        "contacts": null,
+        "exponent": false,
+        "mark": ".",
+        "places": 11,
+        "significant": 15,
+        "trimmed": true
+      },
+      "iso": "1927-05-19 08:30",
+      "member": "excel-1900",
+      "why": "fifteen significant figures, ten after the point past serial 10,000"
+    },
+    "excel_15g_before_10000": {
+      "answer": "9999.35416666667",
+      "contact": "(none)",
+      "form": {
+        "contacts": null,
+        "exponent": false,
+        "mark": ".",
+        "places": 11,
+        "significant": 15,
+        "trimmed": true
+      },
+      "iso": "1927-05-17 08:30",
+      "member": "excel-1900",
+      "why": "fifteen significant figures, eleven after the point"
+    },
+    "excel_one_place_half_even": {
+      "answer": "45386.2",
+      "contact": "(none)",
+      "form": {
+        "contacts": null,
+        "exponent": false,
+        "mark": ".",
+        "places": 1,
+        "significant": null,
+        "trimmed": true
+      },
+      "iso": "2024-04-04 06:00",
+      "member": "excel-1900",
+      "why": "a quarter of a day to one figure: the half goes to the even 2"
+    },
+    "excel_serial_leap_neighbour": {
+      "answer": "61",
+      "contact": "(none)",
+      "form": {
+        "contacts": null,
+        "exponent": false,
+        "mark": ".",
+        "places": 0,
+        "significant": null,
+        "trimmed": false
+      },
+      "iso": "1900-03-01",
+      "member": "excel-1900",
+      "why": "1 March 1900 is serial 61"
+    },
+    "excel_six_places_fixed": {
+      "answer": "45386.500000",
+      "contact": "(none)",
+      "form": {
+        "contacts": null,
+        "exponent": false,
+        "mark": ".",
+        "places": 6,
+        "significant": null,
+        "trimmed": false
+      },
+      "iso": "2024-04-04 12:00",
+      "member": "excel-1900",
+      "why": "six figures, every one written"
+    },
+    "excel_six_places_trimmed": {
+      "answer": "45386.5",
+      "contact": "(none)",
+      "form": {
+        "contacts": null,
+        "exponent": false,
+        "mark": ".",
+        "places": 6,
+        "significant": null,
+        "trimmed": true
+      },
+      "iso": "2024-04-04 12:00",
+      "member": "excel-1900",
+      "why": "six figures at most, the zeros at the end dropped"
+    },
+    "nanoseconds_spelled": {
+      "answer": "1700000000123456789",
+      "contact": "(none)",
+      "form": {
+        "contacts": null,
+        "exponent": false,
+        "mark": ".",
+        "places": 0,
+        "significant": null,
+        "trimmed": false
+      },
+      "iso": "2023-11-14 22:13:20.123456789",
+      "member": "nanoseconds-since-1970",
+      "why": "nineteen figures, written from the integer"
+    },
+    "r_exponent_longer": {
+      "answer": "1601283845123",
+      "contact": "(none)",
+      "form": {
+        "contacts": null,
+        "exponent": true,
+        "mark": ".",
+        "places": 0,
+        "significant": 15,
+        "trimmed": true
+      },
+      "iso": "2020-09-28 09:04:05.123",
+      "member": "milliseconds-since-1970",
+      "why": "and the thirteen figures where they are shorter"
+    },
+    "r_exponent_shorter": {
+      "answer": "1.6e+12",
+      "contact": "(none)",
+      "form": {
+        "contacts": null,
+        "exponent": true,
+        "mark": ".",
+        "places": 0,
+        "significant": 15,
+        "trimmed": true
+      },
+      "iso": "2020-09-13 12:26:40",
+      "member": "milliseconds-since-1970",
+      "why": "R writes 1.6e+12 where it is shorter than the thirteen figures"
+    },
+    "sas_days_before_1960": {
+      "answer": "-3652",
+      "contact": "(none)",
+      "form": {
+        "contacts": null,
+        "exponent": false,
+        "mark": ".",
+        "places": 0,
+        "significant": null,
+        "trimmed": false
+      },
+      "iso": "1950-01-01",
+      "member": "days-since-1960",
+      "why": "a date before the epoch, written signed"
+    },
+    "stata_milliseconds_spelled": {
+      "answer": "1956614399999",
+      "contact": "(none)",
+      "form": {
+        "contacts": null,
+        "exponent": false,
+        "mark": ".",
+        "places": 0,
+        "significant": null,
+        "trimmed": false
+      },
+      "iso": "2021-12-31 23:59:59.999",
+      "member": "milliseconds-since-1960",
+      "why": "a thousandth of a second kept"
+    }
+  },
+  "what": "Method section G7.10's two halves (landing R4, plan P4-D384), each case with its answer computed from the method's text with datetime and Fraction: a count read as the moment its system names, written as ISO text at a unit, and a moment written back as its system's count, spelled as a `count_form` says."
+}

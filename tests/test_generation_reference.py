@@ -288,6 +288,12 @@ FOURTEENTH_BRANCH_VECTORS = (
 # anchor 3b-R2b (P4-D383)
 # anchor 3b-R2c (P4-D383)
 # anchor 3b-R4 (P4-D384)
+# THE TWENTY-SIXTH FILE (landing R4's numbers that are dates, plan P4-D384):
+# not a file of columns but of method section G7.10's two halves, held by
+# `tests/test_stage3b_counted.py`.
+TWENTY_SIXTH_BRANCH_GENERATOR = (
+    REPOSITORY / "tools" / "reference" / "make_generation_branch_vectors_26.py"
+)
 # THE FOURTH FILE (landing 2b.17): the cases for the transforms that
 # produce a whole DOCUMENT rather than one column's cells.
 DOCUMENT_GENERATOR = (
@@ -1418,6 +1424,7 @@ def test_the_branch_file_is_the_same_oracle_and_says_which_half_it_is() -> None:
         FOURTEENTH_BRANCH_GENERATOR,
         TWENTY_SECOND_BRANCH_GENERATOR,
         FIFTEENTH_BRANCH_GENERATOR,
+        TWENTY_SIXTH_BRANCH_GENERATOR,
         DOCUMENT_GENERATOR,
     ],
 )

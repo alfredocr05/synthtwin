@@ -329,6 +329,9 @@ ROUTES_THAT_RUN_SOURCE = {
     # anchor 3b-R2b (P4-D383)
     # anchor 3b-R2c (P4-D383)
     # anchor 3b-R4 (P4-D384)
+    # The twenty-sixth file, landing R4's numbers that are dates (plan
+    # P4-D384): it runs the same oracle by path, as every file above does.
+    ("tools/reference/make_generation_branch_vectors_26.py", "runpy.run_path"): 1,
     ("tools/reference/make_generation_document_vectors.py", "runpy.run_path"): 1,
 }
 RUNNING_NAMES = ("exec", "eval", "compile", "runpy.run_path", "runpy.run_module")
