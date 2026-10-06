@@ -128,6 +128,17 @@ def _emergency(rows: int = 1000, seed: int = 672) -> "list[str]":
     return found
 
 
+def _laboratory(rows: int = 1000, seed: int = 679) -> "list[str]":
+    """Draws every day of a year, fewer at weekends, month first with unpadded fields
+    (`3/7/2023 6:42`), so a day's width kind is the pass's to keep."""
+    draw = random.Random(seed)
+    found: "list[str]" = []
+    for day in _weighted_days(draw, _YEAR, (1.1, 1.05, 1.05, 1.05, 1.05, 0.7, 0.65), rows):
+        moment = _at(day, draw.choice((6, 7, 7, 8, 9, 10, 13, 15)), draw.randrange(60))
+        found += [f"{moment.month}/{moment.day}/{moment.year} {moment.hour:02d}:{moment.minute:02d}"]
+    return found
+
+
 def _admissions(rows: int = 1000, seed: int = 673, midnight: bool = False) -> "list[str]":
     """Admissions over two years, Monday heaviest, to the second -- or every one at midnight."""
     draw = random.Random(seed)
@@ -219,6 +230,7 @@ def _three_weeks() -> "list[str]":
 PUBLISHED = {
     "clinic": _clinic,
     "emergency": _emergency,
+    "laboratory": _laboratory,
     "admissions": _admissions,
     "sessions": _sessions,
     "midnight": lambda: _admissions(midnight=True),
@@ -268,14 +280,16 @@ def _weekend(counts: "list[int]") -> float:
 
 @pytest.mark.parametrize("name", sorted(PUBLISHED))
 def test_moments_publish_their_census_where_the_rules_allow(name: str) -> None:
-    """Each shape of the battery publishes its census, with its two remarks, no sentence of
-    withholding, and the groups of its own body by instant."""
+    """Each shape of the battery publishes its census: one of the menu's groupings, every count
+    nought or at least the census line, and the groups of its own body by instant."""
     cells = PUBLISHED[name]()
     described = _block(name, cells)
     census = described.details["weekday_census"]
     assert census, name
     groups = tuple((group["first"], group["last"], group["count"]) for group in census)
     assert calendar_rules.entry_of(groups) != calendar_rules.ENTRY_NONE
+    line = parsing.census_floor(FLOOR)
+    assert all(calendar_rules.calendar_floor_ok(count, line) for _first, _last, count in groups)
     found = calendar_rules.group_counts(groups, _weekdays(described.details, cells))
     assert found == [group["count"] for group in census], name
 
@@ -624,7 +638,7 @@ def test_an_escape_never_puts_a_clock_on_midnight_or_takes_one_off_it() -> None:
 # -- the product against the oracle, on whole columns -----------------------------
 
 
-@pytest.mark.parametrize("name", ("clinic", "sessions", "midnight", "emergency"))
+@pytest.mark.parametrize("name", ("clinic", "sessions", "midnight", "emergency", "laboratory"))
 def test_the_pass_moves_whole_columns_as_the_oracle_does(tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch, name: str) -> None:
     """The ranks the generator hands the weekday pass, through the oracle's own pass, stated from
     the method's text: the same instants come back, through step 7c on the sessions."""

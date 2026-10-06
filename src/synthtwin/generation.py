@@ -21594,9 +21594,12 @@ def _weekday_settled(
         cause = _WEEKDAY_DAYS_GIVEN_WAY
         if _weekday_count(state) > wanted:
             cause = _WEEKDAY_DAYS_LEFT_LONG
-        elif _weekday_body_full(
+        elif space == "date" and _weekday_body_full(
             state, layout.low.boundary, layout.high.boundary, census
         ):
+            # ...the tails' cause only where a day is one written unit: on
+            # a column of moments a full day still has instants free, so a
+            # short count there is no count of the tails' days.
             cause = _WEEKDAY_DAYS_IN_THE_TAILS
         # ...counted in values on a column of moments, whose written unit
         # is an instant (the 3b.2-W skeptic, minor 1).
