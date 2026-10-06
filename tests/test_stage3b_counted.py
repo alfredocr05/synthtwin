@@ -530,6 +530,37 @@ def test_c4_every_twin_cell_keeps_the_columns_spelling_and_names_a_date(
             assert words.count(word) == count
 
 
+def test_c4_the_counted_route_never_calls_the_whole_share_pass(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The R4 design review, item 4: `_whole_enough` is stage 4 lane S2's, and quadratic.
+
+    An Epic `*_DATE_REAL` column read as numbers takes that pass, which
+    grows as the square of its rows; declared, it is drawn as dates and
+    never reaches it. The undeclared run calling it is what keeps the
+    count from being nought by accident.
+    """
+    shape = battery.BY_NAME["epic_real"]
+    cells, _truth = battery.cells(shape, 300, 0)
+    calls = [0]
+    original = generation._whole_enough
+
+    def counted(*arguments: object, **named: object) -> object:
+        calls[0] += 1
+        return original(*arguments, **named)  # type: ignore[arg-type]
+
+    monkeypatch.setattr(generation, "_whole_enough", counted)
+    _trip(tmp_path / "declared", cells, shape.system)
+    assert calls[0] == 0
+    path = _table(tmp_path / "plain", cells)
+    folder = tmp_path / "plain"
+    assert _exit_of(["profile", str(path), "--out-dir", str(folder), "--replace"])[0] == 0
+    described = folder / "table-profile.json"
+    assert json.loads(described.read_text(encoding="utf-8"))["columns"][0]["role"] == "continuous"
+    assert _exit_of(["generate", str(described), "--seed", "0", "--out-dir", str(folder), "--replace"])[0] == 0
+    assert calls[0] > 0
+
+
 def test_c4_the_twin_written_with_the_1970_epoch_is_missed(
     tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
