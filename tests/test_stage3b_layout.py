@@ -990,20 +990,20 @@ _ORACLE_PATH = (
     / "reference"
     / "make_generation_reference_vectors.py"
 )
-_ORACLE: "list[object]" = []
+_ORACLE: "dict[str, object]" = {}
 
 
 def _oracle() -> object:
     """The generation oracle, loaded once from its path (it is not a package)."""
-    if not _ORACLE:
+    if "module" not in _ORACLE:
         spec = importlib.util.spec_from_file_location(
             "make_generation_reference_vectors", _ORACLE_PATH
         )
         assert spec is not None and spec.loader is not None
         module = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(module)
-        _ORACLE.extend([module])
-    return _ORACLE[0]
+        _ORACLE["module"] = module
+    return _ORACLE["module"]
 
 
 def _stamps_wearing(
