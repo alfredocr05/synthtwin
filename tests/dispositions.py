@@ -460,6 +460,12 @@ PLAN4_REGIONS = {
     # anchor 3b-D4 (P4-D369)
     # anchor 3b-T1 (P4-D370)
     # anchor 3b-T2 (P4-D371)
+    # The hour census (landing 3b.2-H), disposed in the decision that
+    # published it.
+    "hour-census": (
+        "## Decision P4-D371 — the hour of the day on moments, counted and "
+        "met (landing 3b.2-H, 2026-10-06)"
+    ),
     # anchor 3b-T3 (P4-D372)
     # anchor 3b-C1 (P4-D373)
     # anchor 3b-C2 (P4-D374)
@@ -1123,9 +1129,12 @@ REGISTRY += (
     Fact(
         "datetime",
         "hour_census",
-        LOADER_ONLY,
-        plan_words="LOADER-ONLY until the landing that fills each",
-        plan_region="stage-3b-reserves",
+        EXACT_OBSERVABLE,
+        plan_words=(
+            "the file's own moments between the two published boundaries "
+            "hold every group's published count exactly"
+        ),
+        plan_region="hour-census",
         aliases=(),
     ),
     # -- 3b.T3 (P4-D372)

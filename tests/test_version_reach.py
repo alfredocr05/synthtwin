@@ -65,13 +65,13 @@ with no newline in it, which is most of this file's samples.)
 THE LIMIT THAT WOULD MATTER is a string of source that IS RUN --
 handed to `exec`, `eval` or `compile`, or to `runpy` -- because that
 spelling reaches the 3.10 cells while this file says nothing about it.
-The tree holds THIRTY-TWO such calls (counted again at the review of
-landing 3b.D0, 2026-10-03: the figure here had stood one short since
-the fifteenth vectors file's route arrived, and that review's mutants
-add two). They are listed in
+The tree holds THIRTY-SEVEN such calls (counted again at landing
+3b.2-H, 2026-10-06: the sixteenth vectors file's route adds one and its
+test's mutants four; at the review of landing 3b.D0 it held thirty-two).
+They are listed in
 `ROUTES_THAT_RUN_SOURCE` below and
 `test_the_routes_that_run_a_string_of_source_are_the_ones_named_here`
-holds the tree to that list, so a thirty-third cannot arrive unread.
+holds the tree to that list, so a thirty-eighth cannot arrive unread.
 The `runpy` calls run a COMMITTED FILE of `tools/` or of `tests/`,
 which the folders below already read, and the `exec` and `compile`
 calls are held by what they are handed or by where they run:
@@ -124,14 +124,14 @@ calls are held by what they are handed or by where they run:
   an addition, which every Python spells alike, so it adds no spelling
   the floor could miss.
 - `runpy.run_path` runs the same kind of committed file: twice in
-  `tests/`, in the two stage-2 oracle tests, and eighteen times in
+  `tests/`, in the two stage-2 oracle tests, and nineteen times in
   `tools/` -- one for the provenance guard's own runner and one for
-  each of the seventeen entry points of the generation vectors, among
+  each of the eighteen entry points of the generation vectors, among
   them the tenth and eleventh, which stage 3's two tail landings
   added (the date and clock tails, landing 3.4, opened the tenth and
-  the numeric tails, landing 3.3, the eleventh), and the sixteenth,
-  fifteenth and twenty-second files of stage 3b (plans P4-D375,
-  P4-D366 and P4-D370). Each
+  the numeric tails, landing 3.3, the eleventh), and the fourteenth,
+  fifteenth, sixteenth and twenty-second files of stage 3b (plans
+  P4-D375, P4-D366, P4-D371 and P4-D370). Each
   runs the committed oracle
   `tools/reference/make_generation_reference_vectors.py` exactly as
   its siblings do, and the floor holds for them for the same reason:
@@ -145,6 +145,13 @@ calls are held by what they are handed or by where they run:
   a constant or a condition, or leaves a line out -- names, numbers and
   operators every Python spells alike -- so it adds no spelling the
   floor could miss, and the test runs in every cell of the matrix.
+- `tests/test_stage3b_hour.py` builds a module the same way twice (plan
+  P4-D371): `src/synthtwin/generation.py` carrying ONE edit from
+  `STEP_MUTANTS` or a half-day mutant, and `src/synthtwin/calendar_clock.py`
+  carrying ONE edit from `DISTANCE_MUTANTS` -- files this guard reads,
+  each edit a string constant of `tests/` that changes a comparison or
+  a condition, or leaves a step out, so it adds no spelling the floor
+  could miss, and the test runs in every cell of the matrix.
 
 A FILE loaded as a module is NOT this limit. The 26
 `importlib.util.spec_from_file_location` calls in the folders load
@@ -316,6 +323,13 @@ ROUTES_THAT_RUN_SOURCE = {
     # runs the same oracle by path, as every file above does.
     ("tools/reference/make_generation_branch_vectors_22.py", "runpy.run_path"): 1,
     # anchor 3b-T2 (P4-D371)
+    # The sixteenth file, landing 3b.2-H's own steps of G7.3g (plan
+    # P4-D371): it runs the same oracle by path, as every file above does.
+    ("tools/reference/make_generation_branch_vectors_16.py", "runpy.run_path"): 1,
+    # Its test's mutants: the product's generation module, and
+    # `calendar_clock`, each with one edit, as the module docstring says.
+    ("tests/test_stage3b_hour.py", "compile"): 2,
+    ("tests/test_stage3b_hour.py", "exec"): 2,
     # anchor 3b-T3 (P4-D372)
     # anchor 3b-C1 (P4-D373)
     # anchor 3b-C2 (P4-D374)
@@ -392,7 +406,13 @@ RUNNING_NAMES = ("exec", "eval", "compile", "runpy.run_path", "runpy.run_module"
 # floor holds for it as it does for the other thirty-one. (The landing
 # counted 31 from 30 on its own branch; the review of lane R1 had
 # counted 31 from 30 beside it, and the merge counts both.)
-FILES_LOADED_AS_MODULES = 32
+#
+# 33 AT LANDING 3b.2-H (plan P4-D371), not 32:
+# `tests/test_stage3b_hour.py` loads the generation oracle the same way, to
+# ask it again for every answer the sixteenth vectors file carries. What it
+# loads is a committed file under tools/, which this guard reads directly,
+# so the floor holds for it as it does for the other thirty-two.
+FILES_LOADED_AS_MODULES = 33
 
 
 def _files() -> "list[pathlib.Path]":

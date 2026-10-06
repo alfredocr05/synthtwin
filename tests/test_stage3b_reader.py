@@ -39,15 +39,17 @@ red on its own mutant (named beside it):
   `test_r8_a_twelve_hour_declaration_names_columns_of_the_table` (S8, and
   the list's own order);
 * R9 `test_r9_a_declared_twelve_hour_stamp_says_what_it_cannot_hold` --
-  P4-D370's stated limit, pinned: a stamp declared a 12-hour clock with no
-  AM or PM writes every cell in its table's own format, and its twin
-  report measures what it holds on the column's face and names each fact
-  it missed instead of saying the ladder is met (red when the report
-  reads the twin back on the 24-hour face). Its other half,
-  `test_r9_a_declared_twelve_hour_stamp_validates_clean`, is a strict
-  xfail EXCEPTED from this gate and owned by landing T2 (P4-D370): the half-day
-  draw belongs to T2's hour census, whose gate turns it into a passing
-  test.
+  named for P4-D370's stated limit, which it pinned until landing 3b.2-H:
+  a stamp declared a 12-hour clock with no AM or PM writes every cell in
+  its table's own format, and its twin report measures what it holds on
+  the column's face, so it names exactly the facts validation misses --
+  none, since landing 3b.2-H draws such a stamp on the dial's half day
+  -- and says where its time of day is drawn (red when the report reads
+  the twin back on the 24-hour face). Its other half,
+  `test_r9_a_declared_twelve_hour_stamp_validates_clean`, was a strict
+  xfail excepted from this gate and owned by landing T2 (P4-D370); T2's
+  half-day draw (G7.3b step 10, G7.3g, plan P4-D371) turned it into a
+  passing test, and P4-D370's stated limit is gone.
 
 And the T1 design skeptic's items: the 12-hour question and its answer
 (item 1), the colon question kept (item 3), the day-first question
@@ -651,21 +653,26 @@ def _twin_report_outside(report: str) -> "set[str]":
 
 
 def test_r9_a_declared_twelve_hour_stamp_says_what_it_cannot_hold(tmp_path: pathlib.Path) -> None:
-    """THE STATED LIMIT (P4-D370): every cell in the table's own format, every miss named."""
+    """Every cell in the table's own format, the report's misses validation's (none since 3b.2-H).
+
+    Named for P4-D370's stated limit, which it pinned until landing 3b.2-H
+    drew such a stamp on the dial's half day: what the twin cannot hold
+    is now nothing, and the report says so.
+    """
     name = "unmarked_twelve_hour_stamp"
     block, profile, _questions = _described(tmp_path, spellings.cells(name, DECLARED_ROWS), "--twelve-hour", "seen_at")
     assert parsing.clock_face(_style_of(block)) == parsing.CLOCK_TWELVE_HOUR
     twin, written = _twin(profile, 0)
     assert all(spellings.parses(cell, spellings.format_of(name)) for cell in written)
     report = (twin.parent / "real-twin-report.txt").read_text(encoding="utf-8")
-    # The plain held clause, as plan P4-D364's builder writes it where no
-    # census is published (it was the constant `_SPREAD_HELD` before).
-    assert generation._spread_written(generation._SPREAD_NOTHING_MET)[0] not in report
-    assert generation._SPREAD_TWELVE_HOUR_HELD in report
+    # The column's own held clause, its hour census's among it, and the
+    # sentence saying where the time of day is drawn (landing 3b.2-H).
+    assert generation._SPREAD_HOUR_MET in report
+    assert generation._SPREAD_HALF_DAY in report
     _code, quality = _validated(profile, twin)
     # The rungs validation misses are the rungs the twin report names:
-    # both read the twin on the column's own face.
-    assert _outside(quality, "date-ladder.") == _twin_report_outside(report)
+    # both read the twin on the column's own face, and there are none.
+    assert _outside(quality, "date-ladder.") == _twin_report_outside(report) == set()
 
 
 def test_r9_red_when_the_report_reads_the_24_hour_face(
@@ -681,22 +688,15 @@ def test_r9_red_when_the_report_reads_the_24_hour_face(
     assert _outside(quality, "date-ladder.") != _twin_report_outside(report)
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason=(
-        "P4-D370's stated limit, excepted from T1's gate and owned by landing T2: a "
-        "stamp declared a 12-hour clock draws its time of day over the whole "
-        "day, and a time after noon reads twelve hours earlier on the dial; "
-        "the half-day draw belongs to T2's hour census, which must close it"
-    ),
-)
 def test_r9_a_declared_twelve_hour_stamp_validates_clean(tmp_path: pathlib.Path) -> None:
-    """Strict, and owned by landing T2 (P4-D370's carve-out).
+    """P4-D370's carve-out, closed by landing 3b.2-H (plan P4-D371).
 
-    T1's gate holds every other clause; this one is excepted and owned by T2,
-    whose hour census confines a declared 12-hour stamp's draws to the
-    half day. T2's gate turns this into a passing test, and the day it
-    passes the stated limit is gone and P4-D370 says so.
+    It was a strict xfail excepted from T1's gate and owned by T2: a stamp
+    declared a 12-hour clock drew its time of day over the whole day, and
+    a time after noon read twelve hours earlier on the dial. T2 draws such
+    a stamp on the dial's half day -- its tails by G7.3b step 10, its body
+    by its hour census or the half day's own (G7.3g) -- and its twin
+    validates with nothing missed.
     """
     name = "unmarked_twelve_hour_stamp"
     _block, profile, _questions = _described(tmp_path, spellings.cells(name, DECLARED_ROWS), "--twelve-hour", "seen_at")
