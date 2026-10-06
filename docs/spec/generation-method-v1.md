@@ -6345,15 +6345,15 @@ published groups. No word is drawn.
 
 A COLUMN OF MOMENTS (landing 3b.D2, plan P4-D367; contract WC3 and WC10)
 is moved by the same pass over its instants: its unit and its day are
-86,400 seconds, so every move keeps the moment's clock; its written unit
-is the minute where it is written to the minute and the second
-otherwise; its bin is the weekday of the day an instant falls on; and
-its holes are the days the description publishes empty -- an absent
+86,400 seconds, so a move of whole units keeps the moment's clock; its
+written unit is the minute where it is written to the minute and the
+second otherwise; its bin is the weekday of the day an instant falls on;
+and its holes are the days the description publishes empty -- an absent
 spelling of the run names one instant of a day there, never every
 spelling of it, so it makes no day a hole. A column of moments every
 value of which stands at midnight on its own clock is counted in days
-(G7.1) and moved as a column of dates is. Step 7c below is asked of
-moments alone.
+(G7.1) and moved as a column of dates is. Steps 7c and 8.7 below are
+asked of moments alone.
 
 A day `d`, counted from 1970-01-01, falls on weekday `(d + 3) mod 7`,
 Monday nought; its GROUP is the census group holding that weekday. Its
@@ -6530,8 +6530,10 @@ written unit's.
    the nearer to the rank's own ordinal, then the lower. A round takes
    only the offers that keep the count until a round moves nothing, and
    every offer from then on; a round that moves nothing after that ends
-   the step. It is the one step of the pass that changes a clock, and it
-   changes only the clocks of the ranks it moves.
+   the step. It changes only the clocks of the ranks it moves; beside it
+   only step 8.4's merge at another clock, step 8.5's pairs and step 8.7
+   change a written clock, each on the ranks it moves, and every other
+   step keeps each rank's written clock.
 8. **The count of different days**, where the column's distinct count
    is reachable, put back to what it was before step 2, by moves that
    keep every group's count:
@@ -6669,14 +6671,32 @@ written unit's.
       first rank that offers a trade scoring nought. The step asks
       whether the count is reachable no more than step 7b does; where a
       trade was made and it is, steps 8.1 to 8.5 run again.
+   7. **The count put back on a moment's own day** (landing 3b.D2, plan
+      P4-D367), where the unit is the day and spans more than one
+      written unit -- a day of moments -- and the count is still SHORT
+      once step 6 is done. Steps 1 to 6 move a rank by whole units, so
+      each keeps its clock, and where the census sends many moments onto
+      few days their kept clocks meet: 2,400 visits on seven Wednesdays,
+      minutes from 07:00 to 19:59, came out of the pass 1,882 different
+      minutes for 1,933. The movable ranks in rank order: a rank sharing
+      its written unit, on a day no hole and not at the start of its day,
+      moves onto the first of the 64 places of its own day inside its gap
+      nearest its own place -- a whole number of written units from it,
+      the earlier on a tie, never the day's start -- whose written unit
+      no rank holds, until the count is back. On its own day the rank
+      keeps its group and kind, so every group's count holds, and no
+      clock is put on midnight or taken off it.
 
    What the steps leave off is reported as the column's count of
    different values, and where the census holds, as the count that gave
    way to it: SHORT in the twin's own tails where every day the census
-   allows between the boundaries, no hole, holds a date, short
-   elsewhere, or LONG -- each in the recount's own sentence's place only
-   where the twin's recounted values went the same way, and the long
-   one for the folded count beside it too.
+   allows between the boundaries, no hole, holds a date -- on a column
+   counted in days alone, as a full day of moments still has instants
+   free -- short elsewhere, or LONG -- each in the recount's own
+   sentence's place only where the twin's recounted values went the same
+   way, and the long one for the folded count beside it too; on a column
+   of moments counted in different values, never days (the 3b.2-W
+   skeptic, minor 1).
 9. Each run of ranks the layout does not pin is sorted.
 
 Where the census still does not hold, the report names `weekday_census`
@@ -6713,13 +6733,15 @@ mover as the ranks then stand has no place, of hours and, through the
 whole pass, of moments -- with the answer this section gives each, and
 no G14.3 case.
 
-**Step 7c's frozen cases** (plan P4-D367) are states of ranks too, on a
-day of moments written to the minute, in the seventeenth vectors file,
-`tests/reference/generation-branch-vectors-17.json`: three Wednesday
-sessions through the whole pass, and step 7c alone keeping the count of
-different values, keeping the midnight, taking the nearer end day and
-keeping off a hole -- each with the answer this section gives it, and no
-G14.3 case.
+**Steps 7c's and 8.7's frozen cases** (plan P4-D367) are states of ranks
+too, on a day of moments written to the minute, in the seventeenth
+vectors file, `tests/reference/generation-branch-vectors-17.json`: three
+Wednesday sessions through the whole pass, and step 7c alone keeping the
+count of different values, keeping the midnight, taking the nearer end
+day and keeping off a hole; and step 8.7 through the whole pass on
+crowded Wednesdays, and alone taking the nearest free minute of a rank's
+own day, the earlier on a tie, inside its gap and off midnight -- each
+with the answer this section gives it, and no G14.3 case.
 
 ### G7.4 Offsets: only where recorded
 

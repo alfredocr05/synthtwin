@@ -20639,8 +20639,10 @@ def _weekday_escaped(
     keeps the count, then the nearer, then the lower. Up to
     `_WEEKDAY_ESCAPE_ROUNDS` rounds, ranks in rank order, offers that keep
     the count first: a round that moves nothing allows the others, and a
-    round that moves nothing after that ends the step. The only step of
-    the pass that changes a clock, and only on the ranks it moves.
+    round that moves nothing after that ends the step. It changes the
+    clocks of the ranks it moves, and only theirs; beside it only step 8.4's
+    merge at another clock, step 8.5's pairs and step 8.7
+    (`_weekday_day_spread`) change a written clock.
 
     Draws no word. Guarantees: moves only the given ranks, inside their own
     gaps and kinds, never onto a hole and never onto or off a midnight;
@@ -20668,6 +20670,85 @@ def _weekday_escaped(
             if allow:
                 return
             allow = True
+
+
+# STEP 8.7'S FIXED NUMBER (landing 3b.D2, plan P4-D367): how many places of
+# a moment's own day it asks for a written unit no rank holds.
+_WEEKDAY_DAY_PROBES = 64
+
+
+def _weekday_day_places(state: _WeekdayPass, rank: int) -> "list[int]":
+    """The places a rank may take on its own day (step 8.7): the ordinals of
+    that day inside its gap a whole number of written units from its own,
+    nearest first, the earlier on a tie, at most `_WEEKDAY_DAY_PROBES` of
+    them, never the start of the day; none for a rank standing there, so no
+    move puts a clock on midnight or takes one off it."""
+    ordinal = state.moved[rank]
+    start = ordinal // state.unit * state.unit
+    if ordinal == start:
+        return []
+    first = max(state.lows[rank], start + 1)
+    last = min(state.highs[rank], start + state.unit - 1)
+    found: "list[int]" = []
+    away = state.step
+    while len(found) < _WEEKDAY_DAY_PROBES:
+        reached = False
+        for place in (ordinal - away, ordinal + away):
+            if first <= place <= last:
+                reached = True
+                found += [place]
+        if not reached:
+            break
+        away = away + state.step
+    return found[0:_WEEKDAY_DAY_PROBES]
+
+
+def _weekday_day_spread(
+    state: _WeekdayPass,
+    body_low: int,
+    body_high: int,
+    pinned: "list[bool]",
+    wanted: int,
+) -> None:
+    """Step 8.7, THE COUNT PUT BACK ON A MOMENT'S OWN DAY (landing 3b.D2, plan P4-D367).
+
+    Steps 8.1 to 8.6 move a rank by whole units, so on a day of moments
+    each keeps the rank's clock, and where the census sends many ranks
+    onto few days their kept clocks meet: 2,400 visits on seven
+    Wednesdays, minutes from 07:00 to 19:59, came back 1,882 different
+    minutes for 1,933 out of the pass, and the twin missed its count of
+    different values where, with no census, it had met it. Where the
+    unit is the day and spans more than one written unit, the column's
+    count is reachable and still SHORT once those steps are done: ranks
+    in rank order, a movable body rank sharing its written unit with
+    another rank, on a day no hole, moves onto the first place of its own
+    day inside its gap whose written unit no rank holds
+    (`_weekday_day_places`: nearest its own place first, a whole
+    number of written units away, never the day's start). On its own day
+    it keeps its group, its kind and every census total; each move puts
+    the count up by exactly one, and the step ends where the count is
+    reached or every rank has been asked.
+
+    Draws no word. Guarantees: moves body ranks the layout does not pin,
+    inside their own gaps and days, never onto or off a midnight; never
+    takes the count above `wanted`. Raises nothing. No I/O of any kind.
+    """
+    count = _weekday_count(state)
+    for rank in range(body_low, body_high + 1):
+        if count >= wanted:
+            return
+        ordinal = state.moved[rank]
+        if (
+            pinned[rank]
+            or _weekday_hole(state, ordinal)
+            or _weekday_there(state, ordinal) < 2
+        ):
+            continue
+        for place in _weekday_day_places(state, rank):
+            if _weekday_there(state, place) == 0:
+                _weekday_step(state, rank, place)
+                count = count + 1
+                break
 
 
 def _weekday_units_merged(
@@ -21386,8 +21467,9 @@ def _bins_settled(
     3b.D2, plan P4-D367); the count of different values put back, inside each group
     and across them (steps 8.1 to 8.5, where the column's count is
     reachable); the two-census exchange where the totals are still off
-    (step 8.6), the count put back again after it; each run of unpinned
-    ranks sorted.
+    (step 8.6), the count put back again after it; on a day of moments, a
+    count still short put back at another clock on each rank's own day
+    (step 8.7, landing 3b.D2); each run of unpinned ranks sorted.
 
     Draws no word. Guarantees: moves body ranks the layout does not pin,
     inside their own gaps and kinds and never onto a hole. Raises
@@ -21445,6 +21527,9 @@ def _bins_settled(
     if have != target and _weekday_traded(state, everything, have, target):
         if state.keep_units:
             _weekday_count_kept(state, body_low, body_high, pinned, wanted)
+    # -- step 8.7, the count put back on a moment's own day (3b.D2, P4-D367)
+    if state.keep_units and state.unit == state.day and state.unit != state.step:
+        _weekday_day_spread(state, body_low, body_high, pinned, wanted)
     _runs_sorted(state.moved, pinned)
 
 
@@ -21478,15 +21563,17 @@ def _weekday_settled(
 
     A COLUMN OF MOMENTS (landing 3b.D2, plan P4-D367) is moved by the
     same pass over its instants: its unit a day of 86,400 seconds, so a
-    move keeps the rank's clock, its written unit the minute or the
-    second it is written to, and its holes the days the description
-    publishes empty -- an absent spelling of the run names one instant
-    of a day there, never every spelling of it, so it makes no day a
-    hole. Where a rank's clock stands outside its gap on the gap's first
-    or last day, step 7c lets it take another clock there
-    (`_weekday_escaped`). A column of moments every value of which
-    stands at midnight is counted in days (`_ordinal_space`) and moved
-    as a column of dates is.
+    move of whole units keeps the rank's clock, its written unit the
+    minute or the second it is written to, and its holes the days the
+    description publishes empty -- an absent spelling of the run names
+    one instant of a day there, never every spelling of it, so it makes
+    no day a hole. Where a rank's clock stands outside its gap on the
+    gap's first or last day, step 7c lets it take another clock there
+    (`_weekday_escaped`); where the kept clocks of few days meet and the
+    count is left short, step 8.7 puts it back at another clock on each
+    rank's own day (`_weekday_day_spread`). A column of moments every
+    value of which stands at midnight is counted in days
+    (`_ordinal_space`) and moved as a column of dates is.
 
     Draws no word. Where the census still does not hold, the returned
     deviation names it; where it holds and the count of different days

@@ -12034,6 +12034,8 @@ def bins_settled(walk, first, last, pinned, wanted, reachable):
         weekday_count_kept(walk, movable, wanted)
     if weekday_traded(walk, movable, owed) and reachable:
         weekday_count_kept(walk, movable, wanted)
+    if reachable:
+        weekday_day_spread(walk, movable, wanted)
     sort_unpinned_runs(walk.days, pinned)
     return walk.days
 
@@ -12185,6 +12187,48 @@ def weekday_end_places(walk, rank, end):
     lattice = range(centre - (centre - first) // walk.step * walk.step, last + 1, walk.step)
     places = sorted((abs(place - wished), place) for place in lattice if place != start)
     return [place for _distance, place in places][:WEEKDAY_ESCAPE_PROBES]
+
+
+# STEP 8.7, THE COUNT PUT BACK ON A MOMENT'S OWN DAY (landing 3b.D2, plan
+# P4-D367), from the method's text: the moves of steps 8.1 to 8.6 keep a
+# moment's clock, so where the census sends many moments onto few days and
+# their clocks meet, a count left short is put back on each one's own day.
+WEEKDAY_DAY_PROBES = 64
+
+
+def weekday_day_spread(walk, movable, wanted):
+    """G7.3f step 8.7: where a unit is a day spanning more than one written
+    unit and the count is short, the movable ranks in rank order: one sharing
+    its written unit, on a day no hole and not at the day's start, moves onto
+    the first of the 64 places of its own day inside its gap nearest its own
+    place -- a whole number of written units from it, the earlier on a tie,
+    never the day's start -- whose written unit no rank holds; until the
+    count is reached."""
+    if walk.unit != walk.day or walk.unit == walk.step:
+        return
+    held = {}
+    for other in walk.days:
+        held[other // walk.step] = held.get(other // walk.step, 0) + 1
+    count = len(held)
+    reach = WEEKDAY_DAY_PROBES * walk.step
+    for rank in movable:
+        if count >= wanted:
+            return
+        ordinal = walk.days[rank]
+        start = ordinal - ordinal % walk.unit
+        if ordinal == start or walk.hole(ordinal) or held[ordinal // walk.step] < 2:
+            continue
+        first = max(walk.lows[rank], start + 1, ordinal - reach)
+        last = min(walk.highs[rank], start + walk.unit - 1, ordinal + reach)
+        lattice = range(ordinal - (ordinal - first) // walk.step * walk.step, last + 1, walk.step)
+        places = sorted((abs(place - ordinal), place) for place in lattice if place != ordinal)
+        for _distance, place in places[:WEEKDAY_DAY_PROBES]:
+            if held.get(place // walk.step, 0) == 0:
+                held[ordinal // walk.step] -= 1
+                held[place // walk.step] = 1
+                walk.move(rank, place)
+                count += 1
+                break
 
 
 WEEKDAY_MERGE_ROUNDS = 4
@@ -12986,7 +13030,9 @@ def shared_cycle_past_its_gap_case():
         "Saturday 10:00:00 twice and Sunday 10:00:00, and a gap of the week after next a lone "
         "Wednesday 12:00:00. A weekday at 10:00:00 stands outside the first gap -- Friday's before "
         "it opens and Monday's after it closes -- so the weekend's mover has no weekday place, the "
-        "cycle weekday to weekend and back is not asked, and nothing moves.",
+        "cycle weekday to weekend and back is not asked, and steps 1 to 8.6 move nothing. Step 8.7 "
+        "(landing 3b.D2, plan P4-D367) then puts the count back on a moment's own day: the first "
+        "Saturday 10:00:00 takes 09:59:59.",
         "settled", ordinals, lows, highs, pinned, [3, 3], SHARED_WEEKEND,
         unit=SHARED_DAY, written_unit=1, day=SHARED_DAY, wanted=len(set(ordinals)) + 1,
     )
@@ -13662,22 +13708,117 @@ def moment_hole_case():
     )
 
 
+def moment_crowded_case():
+    """Step 8.7 through the whole pass: three moments at one clock, two Wednesdays to stand on."""
+    w0, w1 = moment_at(2, 8, 0), moment_at(9, 18, 0)
+    rows = (
+        [(w0, w0, w0, True)]
+        + [(moment_at(day, 10, 0), w0, w1, False) for day in (3, 4, 7)]
+        + [(w1, w1, w1, True)]
+    )
+    return moment_case(
+        "Step 8.7 through the whole pass: a gap from Wednesday 08:00 to the next Wednesday "
+        "18:00, three moments at 10:00 on Thursday, Friday and Monday, and the census asking "
+        "every one on a Wednesday. Each move keeps its clock, so the three share two places, "
+        "10:00 on either Wednesday, and no step before 8.7 can put the fifth different minute "
+        "back: step 8.7 moves the first of the two sharing one minute to 09:59 on its own day.",
+        "settled", rows, [0, 5, 0], wanted=5,
+    )
+
+
+def moment_spread_nearer_case():
+    """Step 8.7 alone: the nearest free minute, the earlier on a tie."""
+    w0, w1 = moment_at(2, 9, 0), moment_at(9, 17, 0)
+    sharing = moment_at(9, 10, 0)
+    rows = [(w0, w0, w0, True)] + [(sharing, w0, w1, False)] * 3 + [(w1, w1, w1, True)]
+    return moment_case(
+        "Step 8.7 takes the nearest minute of a rank's own day no rank holds, the earlier on "
+        "a tie: three moments share Wednesday 10:00 and the count is two short; the first "
+        "takes 09:59, before 10:01, and the second, 09:59 then held, takes 10:01.",
+        "day_spread", rows, [0, 5, 0], wanted=5,
+    )
+
+
+def moment_spread_onto_midnight_case():
+    """Step 8.7 alone never puts a clock on midnight."""
+    w0, w1 = moment_at(2, 9, 0), moment_at(9, 17, 0)
+    sharing = moment_at(9, 0, 1)
+    rows = [(w0, w0, w0, True)] + [(sharing, w0, w1, False)] * 2 + [(w1, w1, w1, True)]
+    return moment_case(
+        "Step 8.7 puts no clock on midnight: two moments share Wednesday 00:01, the nearest "
+        "minute of that day is its start, 00:00, which no rank holds and which the step may "
+        "not take, so the first takes 00:02.",
+        "day_spread", rows, [0, 4, 0], wanted=4,
+    )
+
+
+def moment_spread_off_midnight_case():
+    """Step 8.7 alone never takes a clock off midnight."""
+    w0, w1 = moment_at(2, 9, 0), moment_at(9, 17, 0)
+    midnight, sharing = moment_at(8, 0, 0), moment_at(9, 10, 0)
+    rows = (
+        [(w0, w0, w0, True)] + [(midnight, w0, w1, False)] * 2 + [(sharing, w0, w1, False)] * 2
+        + [(w1, w1, w1, True)]
+    )
+    return moment_case(
+        "Step 8.7 takes no clock off midnight: two moments share Tuesday 00:00 and two "
+        "Wednesday 10:00, the count one short; the two at midnight stay, and the first at "
+        "10:00 takes 09:59.",
+        "day_spread", rows, [2, 4, 0], wanted=5,
+    )
+
+
+def moment_spread_gap_case():
+    """Step 8.7 alone keeps a rank inside its gap."""
+    w0, w1 = moment_at(9, 10, 1), moment_at(9, 12, 0)
+    rows = [(w0, w0, w0, True), (w0, w0, w1, False), (w1, w1, w1, True)]
+    return moment_case(
+        "Step 8.7 keeps a rank inside its gap: a moment shares Wednesday 10:01 with the pinned "
+        "rank its gap opens at; 10:00, nearer by the earlier on a tie, stands before the gap, "
+        "so it takes 10:02.",
+        "day_spread", rows, [0, 3, 0], wanted=3,
+    )
+
+
+def moment_spread_hole_case():
+    """Step 8.7 alone leaves a rank on a hole's day where it stands."""
+    w0, w1 = moment_at(2, 9, 0), moment_at(9, 17, 0)
+    sharing = moment_at(8, 10, 0)
+    rows = [(w0, w0, w0, True)] + [(sharing, w0, w1, False)] * 2 + [(w1, w1, w1, True)]
+    return moment_case(
+        "Step 8.7 moves no rank on a hole's day: two moments share 10:00 on a Tuesday the "
+        "description holds empty, and the count is left one short rather than a third minute "
+        "put on that day.",
+        "day_spread", rows, [2, 2, 0], wanted=4, holes=[SHARED_MONDAY + 8],
+    )
+
+
 MOMENT_STEP_CASES = {
     "wednesdays_at_another_clock": moment_sessions_case,
     "an_escape_keeps_the_count": moment_count_case,
     "an_escape_keeps_the_midnight": moment_midnight_case,
     "an_escape_takes_the_nearer_end": moment_nearer_case,
     "an_escape_keeps_off_a_hole": moment_hole_case,
+    "crowded_wednesdays_spread_on_their_day": moment_crowded_case,
+    "a_day_spread_takes_the_nearer_minute": moment_spread_nearer_case,
+    "a_day_spread_puts_no_clock_on_midnight": moment_spread_onto_midnight_case,
+    "a_day_spread_takes_no_clock_off_midnight": moment_spread_off_midnight_case,
+    "a_day_spread_keeps_inside_its_gap": moment_spread_gap_case,
+    "a_day_spread_leaves_a_hole_day_alone": moment_spread_hole_case,
 }
 
 
 def moment_answer(case):
     """What G7.3f's text makes of one moments case: every rank's ordinal
-    after step 7c alone ("escaped") or after the whole pass."""
-    if case["step"] != "escaped":
+    after step 7c alone ("escaped"), after step 8.7 alone ("day_spread")
+    or after the whole pass."""
+    if case["step"] not in ("escaped", "day_spread"):
         return shared_answer(case)
     walk = shared_walk(case)
     movable = [rank for rank in range(case["body"][0], case["body"][1] + 1) if not case["pinned"][rank]]
+    if case["step"] == "day_spread":
+        weekday_day_spread(walk, movable, case["wanted"])
+        return walk.days
     weekday_escape(walk, movable, list(case["want"]))
     return walk.days
 
@@ -13690,11 +13831,12 @@ def moment_step_document():
         case["answer"] = moment_answer(case)
         cases[name] = case
     return {
-        "what": "The states of ranks on a day of moments method section G7.3f's step 7c (landing "
-        "3b.D2, plan P4-D367) is frozen on, each with the answer computed from the method's "
-        "text: every rank's ordinal after step 7c alone, its movable ranks asked against the "
-        "totals `want`, or after the whole pass. A case names its seams as the fifteenth file's "
-        "do: a unit and a day of 86,400 seconds and a written unit of a minute.",
+        "what": "The states of ranks on a day of moments method section G7.3f's steps 7c and 8.7 "
+        "(landing 3b.D2, plan P4-D367) are frozen on, each with the answer computed from the "
+        "method's text: every rank's ordinal after step 7c alone, its movable ranks asked "
+        "against the totals `want`, after step 8.7 alone, asked to reach the count `wanted`, or "
+        "after the whole pass. A case names its seams as the fifteenth file's do: a unit and a "
+        "day of 86,400 seconds and a written unit of a minute.",
         "generated_by": "tools/reference/make_generation_reference_vectors.py",
         "method": "docs/spec/generation-method-v1.md",
         "never_imports": ["synthtwin", "numpy", "pandas"],

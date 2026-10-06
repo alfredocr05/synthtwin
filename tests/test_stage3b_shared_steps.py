@@ -599,7 +599,9 @@ def test_a_cycle_of_hours_or_moments_meets_the_count_its_movers_reach(monkeypatc
     A day of moments, minutes written: a Monday 09:49:00 moment goes to Tuesday, and Tuesday's move
     takes 11:33:00, its gain's mover, to Monday. Each meets the census and the count. Taken as the
     ranks then stand, the next group's mover is the rank just moved, which goes straight back, and
-    the count stays one short (9cb2eb5 met both facts on each through another cycle)."""
+    the count stays one short (9cb2eb5 met both facts on each through another cycle) -- with step
+    8.7 withdrawn beside the mutant, which since landing 3b.D2 (plan P4-D367) puts a count left
+    short on a day of moments back at another clock on a moment's own day."""
     for case, movers in (
         (_case("an_hour_cycle_moves_its_asked_movers"), [1, 4]),
         (_case("a_moments_cycle_moves_its_asked_movers"), [2, 4]),
@@ -609,7 +611,9 @@ def test_a_cycle_of_hours_or_moments_meets_the_count_its_movers_reach(monkeypatc
         assert made == movers, case["why"]
         assert _holding(case, answer, range(len(answer))) == case["counts"], case["why"]
         assert len({ordinal // case["written_unit"] for ordinal in answer}) == case["wanted"], case["why"]
-        answer, made = _made(monkeypatch, case, _mutant(monkeypatch, *AS_THE_RANKS_THEN_STAND))
+        mutant = _mutant(monkeypatch, *AS_THE_RANKS_THEN_STAND)
+        monkeypatch.setattr(mutant, "_weekday_day_spread", _withdrawn)
+        answer, made = _made(monkeypatch, case, mutant)
         assert made == [movers[0], movers[0]], case["why"]
         assert _holding(case, answer, range(len(answer))) == case["counts"], case["why"]
         assert len({ordinal // case["written_unit"] for ordinal in answer}) == case["wanted"] - 1, case["why"]
@@ -621,13 +625,25 @@ def test_a_cycle_whose_move_has_no_place_is_not_asked(monkeypatch: pytest.Monkey
     item 1): the two states the landing's reviews froze a cycle undone on offer no cycle, a
     weekday at 10:00:00 standing outside the first gap of one and Monday 22:00:00 past the second
     gap's close of the other, and no move is tried. Mutant: the take counts places past its gap,
-    a cycle is chosen whose move finds no place, and it is left half made, the census broken."""
+    a cycle is chosen whose move finds no place, and it is left half made, the census broken.
+    Since landing 3b.D2 (plan P4-D367) the whole pass on the first, a day of moments whose count
+    is one short, ends with step 8.7 putting the count back on a moment's own day, one Saturday
+    10:00:00 at 09:59:59: with that step withdrawn, steps 1 to 8.6 move nothing."""
     for case, half in (
         (_case("a_place_past_the_gap_offers_no_cycle"), [4, -1]),
         (_case("a_third_place_past_its_gap_offers_no_cycle"), [1, 2, -1]),
     ):
         answer, made = _made(monkeypatch, case)
-        assert answer == case["answer"] == case["ordinals"], case["why"]
+        assert answer == case["answer"], case["why"]
+        assert made == [], case["why"]
+        if case["step"] == "settled":
+            moved = [rank for rank in range(len(answer)) if answer[rank] != case["ordinals"][rank]]
+            assert len(moved) == 1 and answer[moved[0]] == case["ordinals"][moved[0]] - 1, case["why"]
+            assert len({ordinal // case["written_unit"] for ordinal in answer}) == case["wanted"], case["why"]
+            monkeypatch.setattr(generation, "_weekday_day_spread", _withdrawn)
+            answer, made = _made(monkeypatch, case)
+            monkeypatch.undo()
+        assert answer == case["ordinals"], case["why"]
         assert made == [], case["why"]
         mutant = _mutant(monkeypatch, *REVIEW_MUTANTS["C1b_take_ignores_the_gap"][1:])
         answer, made = _made(monkeypatch, case, mutant)

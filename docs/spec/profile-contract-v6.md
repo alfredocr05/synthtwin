@@ -12394,6 +12394,11 @@ it answers to.
 <!-- anchor 3b-D1 (P4-D365) -->
 <!-- anchor 3b-D0 (P4-D366) -->
 <!-- anchor 3b-D2 (P4-D367) -->
+
+| id | statement | loader? |
+|---|---|---|
+| WC10 | a non-empty census on a column of moments stands only where its published `p25` and `p75` are both named and the `p75` stands at least 28 days after the `p25`, so the column's middle half spans at least four weeks (landing 3b.D2, plan P4-D367); WC6's half on written forms is not asked of moments, its half on a workbook's cell classes is | yes |
+
 <!-- anchor 3b-D3 (P4-D368) -->
 <!-- anchor 3b-D4 (P4-D369) -->
 <!-- anchor 3b-T1 (P4-D370) -->

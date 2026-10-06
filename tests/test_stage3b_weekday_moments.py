@@ -14,10 +14,12 @@ are non-empty (the few-units rule, producer-only, the 3b.2-W skeptic's
 blocker 1), and WC6's half on written forms is not asked -- the count of
 different values counts instants there. Every withholding but one
 without tails is said in NF74's sentence. The generator moves a moment
-by whole days, keeping its clock (G7.3f over a unit of 86,400 seconds),
-and where its clock stands outside its gap on the gap's end day, step
-7c lets it take another clock there. The validator counts the file's
-moments by instant (V5-W1).
+by whole days, keeping its clock (G7.3f over a unit of 86,400 seconds);
+where its clock stands outside its gap on the gap's end day, step 7c
+lets it take another clock there, and where the kept clocks of few days
+meet and leave the count of different values short, step 8.7 puts it
+back at another clock on each moment's own day. The validator counts the
+file's moments by instant (V5-W1).
 
 The gate's clauses, each beside the mutant that turns it red:
 
@@ -35,14 +37,17 @@ The gate's clauses, each beside the mutant that turns it red:
   its own description. Mutant: the validator counting by day, where a
   boundary's day holds tail cells before its instant
   (`test_the_validator_counts_moments_by_instant`);
-* G-D3, a clock changes only where step 7c or 8.4 moved it
-  (`test_a_clock_changes_only_where_step_7c_or_8_4_moved_it`), the
-  3b.2-W skeptic's minor 2: the bound is the cells those two steps
+* G-D3, a clock changes only where step 7c, 8.4 at another clock, 8.5
+  or 8.7 moved it (`test_a_clock_changes_only_on_ranks_steps_7c_8_4_8_5_or_8_7_moved`),
+  the 3b.2-W skeptic's minor 2: the bound is the cells those steps
   moved, never a share of the body;
 * G-D4, the mutants: the few-units rule keyed to `all_at_midnight`
   (`test_the_few_units_rule_is_asked_off_midnight_too`), step 7c
-  withdrawn (`test_wednesday_sessions_need_step_7c`), and each clause
-  of step 7c on the seventeenth vectors file's states;
+  withdrawn (`test_wednesday_sessions_need_step_7c`), step 8.7 withdrawn
+  (`test_a_short_count_is_put_back_on_each_moments_own_day`: 2,400
+  visits on seven Wednesdays, minutes from 07:00 to 19:59, miss their
+  count of different values), and each clause of steps 7c and 8.7 on
+  the seventeenth vectors file's states;
 * the seventeenth file (`tests/reference/generation-branch-vectors-17.json`):
   `test_every_case_is_asked` and one test a case, each red on its own
   source edit of the product;
@@ -400,20 +405,21 @@ def test_the_validator_counts_moments_by_instant(tmp_path: pathlib.Path, monkeyp
     assert "clinic:weekday_census.groups" in kpi_shapes.missed(kpi_shapes.measure(described, source, "by-day.csv"))
 
 
-# -- G-D3: a clock changes only where step 7c or 8.4 moved it ----------------------
+# -- G-D3: a clock changes only where step 7c, 8.4, 8.5 or 8.7 moved it ----------
 
 
 def _clocks_watched(monkeypatch: pytest.MonkeyPatch) -> "dict[str, int]":
-    """How many clocks each step changed, as a multiset of times of day: step 9 sorts each run,
-    so a rank's own clock may change where the column's clocks do not."""
+    """How many clocks each step changed, as a multiset of times of day AS WRITTEN: step 9 sorts
+    each run, so a rank's own clock may change where the column's clocks do not, and a run of
+    one minute moved whole takes one place, the seconds under the minute never written."""
     changed: "dict[str, int]" = collections.defaultdict(int)
-    for name in ("_bins_settled", "_weekday_escaped", "_weekday_units_merged"):
+    for name in ("_bins_settled", "_weekday_escaped", "_weekday_units_merged", "_weekday_long_paired", "_weekday_day_spread"):
         original = getattr(generation, name)
 
         def watched(state, *arguments, _original=original, _name=name):
-            before = collections.Counter(ordinal % DAY for ordinal in state.moved)
+            before = collections.Counter(ordinal % DAY // state.step for ordinal in state.moved)
             answer = _original(state, *arguments)
-            after = collections.Counter(ordinal % DAY for ordinal in state.moved)
+            after = collections.Counter(ordinal % DAY // state.step for ordinal in state.moved)
             if state.day == DAY and state.unit == DAY:
                 changed[_name] += sum((before - after).values())
             return answer
@@ -422,22 +428,28 @@ def _clocks_watched(monkeypatch: pytest.MonkeyPatch) -> "dict[str, int]":
     return changed
 
 
-@pytest.mark.parametrize("name", ("sessions", "clinic", "nightly"))
-def test_a_clock_changes_only_where_step_7c_or_8_4_moved_it(tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch, name: str) -> None:
-    """The times of day the pass hands on are the drawn ones, but for the clocks step 7c and
-    step 8.4 gave the ranks they moved (the 3b.2-W skeptic, minor 2: on ties those steps alone
-    rewrite 2.5 to 38.5 per cent of a body, so the bound is the cells they moved). Wednesday
-    sessions reach step 7c, nightly batches at one clock step 8.4."""
-    cells = _nightly() if name == "nightly" else PUBLISHED[name]()
+@pytest.mark.parametrize("name", ("sessions", "clinic", "nightly", "crowded"))
+def test_a_clock_changes_only_on_ranks_steps_7c_8_4_8_5_or_8_7_moved(tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch, name: str) -> None:
+    """The times of day the pass hands on are the drawn ones, but for the clocks steps 7c, 8.4
+    at another clock, 8.5 and 8.7 gave the ranks they moved (the 3b.2-W skeptic, minor 2: on
+    ties those steps alone rewrite 2.5 to 38.5 per cent of a body, so the bound is the cells
+    they moved). Wednesday sessions reach step 7c, nightly batches at one clock step 8.4, and
+    crowded Wednesdays step 8.7."""
+    cells = {"nightly": _nightly, "crowded": _crowded_wednesdays}.get(name, PUBLISHED.get(name))()
     described = _described(tmp_path, name, cells)
     changed = _clocks_watched(monkeypatch)
     for seed in (0, 1):
         kpi_shapes.twin_text(described, seed)
-    assert changed["_bins_settled"] <= changed["_weekday_escaped"] + changed["_weekday_units_merged"], dict(changed)
+    assert changed["_bins_settled"] <= (
+        changed["_weekday_escaped"] + changed["_weekday_units_merged"] + changed["_weekday_long_paired"]
+        + changed["_weekday_day_spread"]
+    ), dict(changed)
     if name == "sessions":
         assert changed["_weekday_escaped"] > 0
     if name == "nightly":
         assert changed["_weekday_units_merged"] > 0
+    if name == "crowded":
+        assert changed["_weekday_day_spread"] > 0
 
 
 def _nightly(rows: int = 1000, seed: int = 81001) -> "list[str]":
@@ -445,6 +457,18 @@ def _nightly(rows: int = 1000, seed: int = 81001) -> "list[str]":
     draw = random.Random(seed)
     weekdays = [day for day in _TWO_YEARS if day.weekday() < 5]
     return [f"{draw.choice(weekdays).isoformat()} 02:00:00" for _row in range(rows)]
+
+
+def _crowded_wednesdays(rows: int = 2400, seed: int = 81002) -> "list[str]":
+    """Visits on seven Wednesdays a week apart, each at a minute from 07:00 to 19:59
+    (`2024-03-06 07:46`): one non-empty group, so no few-dates or few-units rule asks it, and
+    a body dense enough that the clocks the day pass keeps meet."""
+    draw = random.Random(seed)
+    days = [datetime.date(2024, 3, 6) + datetime.timedelta(days=7 * step) for step in range(7)]
+    return [
+        _at(draw.choice(days), draw.randrange(7, 20), draw.randrange(60)).strftime("%Y-%m-%d %H:%M")
+        for _row in range(rows)
+    ]
 
 
 # -- G-D4: the mutants -----------------------------------------------------------
@@ -500,7 +524,28 @@ def test_wednesday_sessions_need_step_7c(tmp_path: pathlib.Path, monkeypatch: py
     assert "session_at:weekday_census.groups" in missed, sorted(missed)
 
 
-# -- the seventeenth vectors file: step 7c on stated ranks ------------------------
+def test_a_short_count_is_put_back_on_each_moments_own_day(tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Crowded Wednesdays publish their census, and three twins meet it and the count of
+    different values: the pass moves each moment by whole days, so on seven Wednesdays the
+    clocks it keeps meet, and step 8.7 puts the count back at another clock on each moment's
+    own day, never on or off midnight. Mutant: the step withdrawn, and a twin holds fewer
+    different values than the column (2,400 visits came back 1,882 to 1,887 minutes for 1,933
+    at seeds 0 to 2 on the proof's battery)."""
+    described = _described(tmp_path, "visit", _crowded_wednesdays())
+    census = described.block("visit")["weekday_census"]
+    assert [group["count"] > 0 for group in census].count(True) == 1, census
+    for seed in (0, 1, 2):
+        text = kpi_shapes.twin_text(described, seed)
+        assert kpi_shapes.missed(kpi_shapes.measure(described, text, f"twin-{seed}.csv")) == [], seed
+    monkeypatch.setattr(generation, "_weekday_day_spread", lambda *arguments: None)
+    missed = set()
+    for seed in (0, 1, 2):
+        text = kpi_shapes.twin_text(described, seed)
+        missed |= set(kpi_shapes.missed(kpi_shapes.measure(described, text, f"bare-{seed}.csv")))
+    assert "visit:distinct.n_distinct" in missed, sorted(missed)
+
+
+# -- the seventeenth vectors file: steps 7c and 8.7 on stated ranks -----------------
 
 
 def _oracle() -> "dict[str, object]":
@@ -527,11 +572,14 @@ def _state(case: dict, module: types.ModuleType = generation):
 
 
 def _answer(case: dict, module: types.ModuleType = generation) -> "list[int]":
-    """What the product makes of a case: the whole pass, or step 7c alone."""
+    """What the product makes of a case: the whole pass, step 7c alone or step 8.7 alone."""
     state = _state(case, module)
     low, high, pinned = case["body"][0], case["body"][1], list(case["pinned"])
     if case["step"] == "settled":
         module._bins_settled(state, list(case["counts"]), low, high, pinned, case["wanted"])
+        return state.moved
+    if case["step"] == "day_spread":
+        module._weekday_day_spread(state, low, high, pinned, case["wanted"])
         return state.moved
     ranks = [rank for rank in range(low, high + 1) if not pinned[rank]]
     have = [0] * len(case["want"])
@@ -554,10 +602,16 @@ def _mutant(monkeypatch: pytest.MonkeyPatch, before: str, after: str) -> types.M
 
 
 CASES = (
+    "a_day_spread_keeps_inside_its_gap",
+    "a_day_spread_leaves_a_hole_day_alone",
+    "a_day_spread_puts_no_clock_on_midnight",
+    "a_day_spread_takes_no_clock_off_midnight",
+    "a_day_spread_takes_the_nearer_minute",
     "an_escape_keeps_off_a_hole",
     "an_escape_keeps_the_count",
     "an_escape_keeps_the_midnight",
     "an_escape_takes_the_nearer_end",
+    "crowded_wednesdays_spread_on_their_day",
     "wednesdays_at_another_clock",
 )
 
@@ -583,6 +637,31 @@ MUTANTS = {
     "an_escape_keeps_off_a_hole": (
         "            or _weekday_hole(state, spot)\n            or _weekday_kind(state, spot) != kind\n        ):\n            continue\n        chosen",
         "            or _weekday_kind(state, spot) != kind\n        ):\n            continue\n        chosen",
+    ),
+    "crowded_wednesdays_spread_on_their_day": (
+        "    if state.keep_units and state.unit == state.day and state.unit != state.step:\n"
+        "        _weekday_day_spread(state, body_low, body_high, pinned, wanted)\n",
+        "",
+    ),
+    "a_day_spread_takes_the_nearer_minute": (
+        "        for place in (ordinal - away, ordinal + away):\n",
+        "        for place in (ordinal + away, ordinal - away):\n",
+    ),
+    "a_day_spread_puts_no_clock_on_midnight": (
+        "    first = max(state.lows[rank], start + 1)\n",
+        "    first = max(state.lows[rank], start)\n",
+    ),
+    "a_day_spread_takes_no_clock_off_midnight": (
+        "    if ordinal == start:\n        return []\n    first = max(state.lows[rank], start + 1)\n",
+        "    first = max(state.lows[rank], start + 1)\n",
+    ),
+    "a_day_spread_keeps_inside_its_gap": (
+        "    first = max(state.lows[rank], start + 1)\n",
+        "    first = start + 1\n",
+    ),
+    "a_day_spread_leaves_a_hole_day_alone": (
+        "            pinned[rank]\n            or _weekday_hole(state, ordinal)\n            or _weekday_there(state, ordinal) < 2\n",
+        "            pinned[rank]\n            or _weekday_there(state, ordinal) < 2\n",
     ),
 }
 
@@ -635,14 +714,46 @@ def test_an_escape_never_puts_a_clock_on_midnight_or_takes_one_off_it() -> None:
     assert case["answer"][1] == case["ordinals"][1], "a clock is never put on midnight"
 
 
+def test_crowded_wednesdays_take_one_more_minute_on_their_own_day() -> None:
+    """The whole pass on the crowded state: every rank on a Wednesday, the count of different
+    minutes back at its own, and one clock changed, by one minute on the day it stood on."""
+    case = _case("crowded_wednesdays_spread_on_their_day")
+    moved = _answer(case)
+    assert all((ordinal // DAY + 3) % 7 == 2 for ordinal in moved)
+    assert len({ordinal // 60 for ordinal in moved}) == case["wanted"]
+    before = collections.Counter(ordinal % DAY for ordinal in case["ordinals"])
+    after = collections.Counter(ordinal % DAY for ordinal in moved)
+    assert sum((before - after).values()) == 1
+    assert sorted((after - before).elements()) == [9 * 3600 + 59 * 60]
+
+
+def test_a_day_spread_moves_a_moment_only_on_its_own_day_and_off_midnight() -> None:
+    """Step 8.7 alone, on every one of its states: each rank keeps its day, a rank at midnight
+    stays there and none is put on it, every rank stays inside its gap, and the count rises by
+    one a moved rank, never above what is asked."""
+    for name in CASES:
+        case = _case(name)
+        if case["step"] != "day_spread":
+            continue
+        moved = 0
+        for rank, (before, after) in enumerate(zip(case["ordinals"], case["answer"])):
+            assert before // DAY == after // DAY, name
+            assert (before % DAY == 0) == (after % DAY == 0), name
+            assert case["lows"][rank] <= after <= case["highs"][rank], name
+            moved += before != after
+        count = len({ordinal // 60 for ordinal in case["answer"]})
+        assert count == len({ordinal // 60 for ordinal in case["ordinals"]}) + moved <= case["wanted"], name
+
+
 # -- the product against the oracle, on whole columns -----------------------------
 
 
-@pytest.mark.parametrize("name", ("clinic", "sessions", "midnight", "emergency", "laboratory"))
+@pytest.mark.parametrize("name", ("clinic", "sessions", "midnight", "emergency", "laboratory", "crowded"))
 def test_the_pass_moves_whole_columns_as_the_oracle_does(tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch, name: str) -> None:
     """The ranks the generator hands the weekday pass, through the oracle's own pass, stated from
-    the method's text: the same instants come back, through step 7c on the sessions."""
-    described = _described(tmp_path, name, PUBLISHED[name]())
+    the method's text: the same instants come back, through step 7c on the sessions and step 8.7
+    on the crowded Wednesdays."""
+    described = _described(tmp_path, name, PUBLISHED[name]() if name in PUBLISHED else _crowded_wednesdays())
     seen: "list[tuple[tuple, list[int]]]" = []
     settled = generation._weekday_settled
 

@@ -142,7 +142,7 @@ calls are held by what they are handed or by where they run:
   guard reads, carrying ONE edit: a reviewer's mutant from
   `REVIEW_MUTANTS`, or one of the three the long cause's test makes;
   and `tests/test_stage3b_weekday_moments.py` does the same with one
-  edit of step 7c a case (`MUTANTS`, plan P4-D367), and runs the
+  edit of step 7c or 8.7 a case (`MUTANTS`, plan P4-D367), and runs the
   committed oracle by path, as the seventeenth entry point does.
   Each edit is a string constant of `tests/` that changes a comparison,
   a constant or a condition, or leaves a line out -- names, numbers and
@@ -312,7 +312,7 @@ ROUTES_THAT_RUN_SOURCE = {
     ("tests/test_stage3b_shared_steps.py", "compile"): 1,
     ("tests/test_stage3b_shared_steps.py", "exec"): 1,
     # anchor 3b-D2 (P4-D367)
-    # The seventeenth file, landing 3b.D2's step 7c (plan P4-D367): it runs
+    # The seventeenth file, landing 3b.D2's steps 7c and 8.7 (plan P4-D367): it runs
     # the same oracle by path, as every file above does; and its test runs
     # that oracle by path too, and builds the product's module with one
     # source edit for each case's mutant, as the shared steps' test does.

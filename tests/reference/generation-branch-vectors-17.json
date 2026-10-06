@@ -1,5 +1,332 @@
 {
   "cases": {
+    "a_day_spread_keeps_inside_its_gap": {
+      "answer": [
+        1710324060,
+        1710324120,
+        1710331200
+      ],
+      "bin": "weekday",
+      "body": [
+        0,
+        2
+      ],
+      "counts": [
+        0,
+        3,
+        0
+      ],
+      "day": 86400,
+      "highs": [
+        1710324060,
+        1710331200,
+        1710331200
+      ],
+      "holes": [],
+      "keep": "",
+      "lows": [
+        1710324060,
+        1710324060,
+        1710331200
+      ],
+      "ordinals": [
+        1710324060,
+        1710324060,
+        1710331200
+      ],
+      "pair": "",
+      "pair_where": [],
+      "period": 7,
+      "pinned": [
+        true,
+        false,
+        true
+      ],
+      "reachable": true,
+      "step": "day_spread",
+      "unit": 86400,
+      "wanted": 3,
+      "where": [
+        0,
+        0,
+        1,
+        2,
+        2,
+        2,
+        2
+      ],
+      "why": "Step 8.7 keeps a rank inside its gap: a moment shares Wednesday 10:01 with the pinned rank its gap opens at; 10:00, nearer by the earlier on a tie, stands before the gap, so it takes 10:02.",
+      "written_unit": 60
+    },
+    "a_day_spread_leaves_a_hole_day_alone": {
+      "answer": [
+        1709715600,
+        1710237600,
+        1710237600,
+        1710349200
+      ],
+      "bin": "weekday",
+      "body": [
+        0,
+        3
+      ],
+      "counts": [
+        2,
+        2,
+        0
+      ],
+      "day": 86400,
+      "highs": [
+        1709715600,
+        1710349200,
+        1710349200,
+        1710349200
+      ],
+      "holes": [
+        19794
+      ],
+      "keep": "",
+      "lows": [
+        1709715600,
+        1709715600,
+        1709715600,
+        1710349200
+      ],
+      "ordinals": [
+        1709715600,
+        1710237600,
+        1710237600,
+        1710349200
+      ],
+      "pair": "",
+      "pair_where": [],
+      "period": 7,
+      "pinned": [
+        true,
+        false,
+        false,
+        true
+      ],
+      "reachable": true,
+      "step": "day_spread",
+      "unit": 86400,
+      "wanted": 4,
+      "where": [
+        0,
+        0,
+        1,
+        2,
+        2,
+        2,
+        2
+      ],
+      "why": "Step 8.7 moves no rank on a hole's day: two moments share 10:00 on a Tuesday the description holds empty, and the count is left one short rather than a third minute put on that day.",
+      "written_unit": 60
+    },
+    "a_day_spread_puts_no_clock_on_midnight": {
+      "answer": [
+        1709715600,
+        1710288120,
+        1710288060,
+        1710349200
+      ],
+      "bin": "weekday",
+      "body": [
+        0,
+        3
+      ],
+      "counts": [
+        0,
+        4,
+        0
+      ],
+      "day": 86400,
+      "highs": [
+        1709715600,
+        1710349200,
+        1710349200,
+        1710349200
+      ],
+      "holes": [],
+      "keep": "",
+      "lows": [
+        1709715600,
+        1709715600,
+        1709715600,
+        1710349200
+      ],
+      "ordinals": [
+        1709715600,
+        1710288060,
+        1710288060,
+        1710349200
+      ],
+      "pair": "",
+      "pair_where": [],
+      "period": 7,
+      "pinned": [
+        true,
+        false,
+        false,
+        true
+      ],
+      "reachable": true,
+      "step": "day_spread",
+      "unit": 86400,
+      "wanted": 4,
+      "where": [
+        0,
+        0,
+        1,
+        2,
+        2,
+        2,
+        2
+      ],
+      "why": "Step 8.7 puts no clock on midnight: two moments share Wednesday 00:01, the nearest minute of that day is its start, 00:00, which no rank holds and which the step may not take, so the first takes 00:02.",
+      "written_unit": 60
+    },
+    "a_day_spread_takes_no_clock_off_midnight": {
+      "answer": [
+        1709715600,
+        1710201600,
+        1710201600,
+        1710323940,
+        1710324000,
+        1710349200
+      ],
+      "bin": "weekday",
+      "body": [
+        0,
+        5
+      ],
+      "counts": [
+        2,
+        4,
+        0
+      ],
+      "day": 86400,
+      "highs": [
+        1709715600,
+        1710349200,
+        1710349200,
+        1710349200,
+        1710349200,
+        1710349200
+      ],
+      "holes": [],
+      "keep": "",
+      "lows": [
+        1709715600,
+        1709715600,
+        1709715600,
+        1709715600,
+        1709715600,
+        1710349200
+      ],
+      "ordinals": [
+        1709715600,
+        1710201600,
+        1710201600,
+        1710324000,
+        1710324000,
+        1710349200
+      ],
+      "pair": "",
+      "pair_where": [],
+      "period": 7,
+      "pinned": [
+        true,
+        false,
+        false,
+        false,
+        false,
+        true
+      ],
+      "reachable": true,
+      "step": "day_spread",
+      "unit": 86400,
+      "wanted": 5,
+      "where": [
+        0,
+        0,
+        1,
+        2,
+        2,
+        2,
+        2
+      ],
+      "why": "Step 8.7 takes no clock off midnight: two moments share Tuesday 00:00 and two Wednesday 10:00, the count one short; the two at midnight stay, and the first at 10:00 takes 09:59.",
+      "written_unit": 60
+    },
+    "a_day_spread_takes_the_nearer_minute": {
+      "answer": [
+        1709715600,
+        1710323940,
+        1710324060,
+        1710324000,
+        1710349200
+      ],
+      "bin": "weekday",
+      "body": [
+        0,
+        4
+      ],
+      "counts": [
+        0,
+        5,
+        0
+      ],
+      "day": 86400,
+      "highs": [
+        1709715600,
+        1710349200,
+        1710349200,
+        1710349200,
+        1710349200
+      ],
+      "holes": [],
+      "keep": "",
+      "lows": [
+        1709715600,
+        1709715600,
+        1709715600,
+        1709715600,
+        1710349200
+      ],
+      "ordinals": [
+        1709715600,
+        1710324000,
+        1710324000,
+        1710324000,
+        1710349200
+      ],
+      "pair": "",
+      "pair_where": [],
+      "period": 7,
+      "pinned": [
+        true,
+        false,
+        false,
+        false,
+        true
+      ],
+      "reachable": true,
+      "step": "day_spread",
+      "unit": 86400,
+      "wanted": 5,
+      "where": [
+        0,
+        0,
+        1,
+        2,
+        2,
+        2,
+        2
+      ],
+      "why": "Step 8.7 takes the nearest minute of a rank's own day no rank holds, the earlier on a tie: three moments share Wednesday 10:00 and the count is two short; the first takes 09:59, before 10:01, and the second, 09:59 then held, takes 10:01.",
+      "written_unit": 60
+    },
     "an_escape_keeps_off_a_hole": {
       "answer": [
         1709722800,
@@ -284,6 +611,74 @@
       "why": "Step 7c takes the nearer of the two end days: in a gap from Wednesday 11:00 to the next Wednesday 09:15, a moment at Thursday 10:00 goes back to the first Wednesday, at 11:01, and one at Monday 10:00 on to the second, at 09:14 -- each the minute of its end day nearest its own clock that no rank holds.",
       "written_unit": 60
     },
+    "crowded_wednesdays_spread_on_their_day": {
+      "answer": [
+        1709712000,
+        1709719200,
+        1710323940,
+        1710324000,
+        1710352800
+      ],
+      "bin": "weekday",
+      "body": [
+        0,
+        4
+      ],
+      "counts": [
+        0,
+        5,
+        0
+      ],
+      "day": 86400,
+      "highs": [
+        1709712000,
+        1710352800,
+        1710352800,
+        1710352800,
+        1710352800
+      ],
+      "holes": [],
+      "keep": "",
+      "lows": [
+        1709712000,
+        1709712000,
+        1709712000,
+        1709712000,
+        1710352800
+      ],
+      "ordinals": [
+        1709712000,
+        1709805600,
+        1709892000,
+        1710151200,
+        1710352800
+      ],
+      "pair": "",
+      "pair_where": [],
+      "period": 7,
+      "pinned": [
+        true,
+        false,
+        false,
+        false,
+        true
+      ],
+      "reachable": true,
+      "step": "settled",
+      "unit": 86400,
+      "wanted": 5,
+      "where": [
+        0,
+        0,
+        1,
+        2,
+        2,
+        2,
+        2
+      ],
+      "why": "Step 8.7 through the whole pass: a gap from Wednesday 08:00 to the next Wednesday 18:00, three moments at 10:00 on Thursday, Friday and Monday, and the census asking every one on a Wednesday. Each move keeps its clock, so the three share two places, 10:00 on either Wednesday, and no step before 8.7 can put the fifth different minute back: step 8.7 moves the first of the two sharing one minute to 09:59 on its own day.",
+      "written_unit": 60
+    },
     "wednesdays_at_another_clock": {
       "answer": [
         1709722800,
@@ -410,5 +805,5 @@
     "numpy",
     "pandas"
   ],
-  "what": "The states of ranks on a day of moments method section G7.3f's step 7c (landing 3b.D2, plan P4-D367) is frozen on, each with the answer computed from the method's text: every rank's ordinal after step 7c alone, its movable ranks asked against the totals `want`, or after the whole pass. A case names its seams as the fifteenth file's do: a unit and a day of 86,400 seconds and a written unit of a minute."
+  "what": "The states of ranks on a day of moments method section G7.3f's steps 7c and 8.7 (landing 3b.D2, plan P4-D367) are frozen on, each with the answer computed from the method's text: every rank's ordinal after step 7c alone, its movable ranks asked against the totals `want`, after step 8.7 alone, asked to reach the count `wanted`, or after the whole pass. A case names its seams as the fifteenth file's do: a unit and a day of 86,400 seconds and a written unit of a minute."
 }

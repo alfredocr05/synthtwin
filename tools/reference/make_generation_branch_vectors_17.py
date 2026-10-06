@@ -2,16 +2,20 @@
 
 This is the SEVENTEENTH entry point of one oracle, not a seventeenth
 oracle. It asks `make_generation_reference_vectors.py` for the states of
-ranks landing 3b.D2 (plan P4-D367) freezes method section G7.3f's step 7c
-on -- the escape of a moment to an end day of its gap at another clock,
-where its own clock stands outside the gap there: three Wednesday
-sessions through the whole pass, the count of different values kept, a
-midnight kept, the nearer end day taken and a hole kept off -- each with
+ranks landing 3b.D2 (plan P4-D367) freezes method section G7.3f's steps
+7c and 8.7 on. Step 7c is the escape of a moment to an end day of its gap
+at another clock, where its own clock stands outside the gap there:
+three Wednesday sessions through the whole pass, the count of different
+values kept, a midnight kept, the nearer end day taken and a hole kept
+off. Step 8.7 puts a count left short back at another clock on a
+moment's own day: crowded Wednesdays through the whole pass, the nearer
+minute taken, the earlier on a tie, no clock put on midnight or taken off
+it, a rank kept inside its gap and a hole's day left alone -- each with
 what the method's text makes of it.
 
 **Why it is not a file of columns.**  As the fifteenth file's states, a
-case is the pass's own input, stated by hand so that step 7c's every
-clause stands beside its mutant: `tests/test_stage3b_weekday_moments.py`
+case is the pass's own input, stated by hand so that every clause of
+steps 7c and 8.7 stands beside its mutant: `tests/test_stage3b_weekday_moments.py`
 holds the product to the answers and turns each red on its mutant, and
 holds whole columns of moments, through the whole generator, against the
 oracle's own pass beside them. Plan P4-D364's numbering table gives
