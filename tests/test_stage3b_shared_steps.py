@@ -916,9 +916,11 @@ REVIEW_MUTANTS: "dict[str, tuple[str, str, str]]" = {
         "for other in (here + away, here - away):",
     ),
     "M26_merge_any_clock_no_opens": (
+        # Restated at the Codex review's item 3: step 8.4's second place files every ordinal once a
+        # round (`_weekday_merge_look`), so the mutant files each as starting a day.
         "merged_ties",
-        "and (ordinal % state.day == 0) == opens",
-        "and True",
+        "        _weekday_kind(state, ordinal),\n        ordinal % state.day == 0,\n    )",
+        "        _weekday_kind(state, ordinal),\n        True,\n    )",
     ),
     "M27_merge_any_clock_later_tie": (
         "merged_ties",
@@ -1326,3 +1328,106 @@ def test_step_8_3_asks_only_the_retained_day(monkeypatch: pytest.MonkeyPatch) ->
         assert built[0] == 24 * days, (days, built[0])
         assert _holding(case, moved, range(len(moved))) == case["counts"], days
         assert len({ordinal // 60 for ordinal in moved}) == days, days
+
+
+def _counting_in(monkeypatch: pytest.MonkeyPatch, step: str, name: str) -> "list[int]":
+    """While `generation.<step>` runs, count the calls of `generation.<name>`."""
+    tally = [0]
+    inside = [False]
+    original_step = getattr(generation, step)
+    original = getattr(generation, name)
+
+    def stepped(*arguments):
+        inside[0] = True
+        try:
+            return original_step(*arguments)
+        finally:
+            inside[0] = False
+
+    def counted(*arguments):
+        if inside[0]:
+            tally[0] += 1
+        return original(*arguments)
+
+    monkeypatch.setattr(generation, step, stepped)
+    monkeypatch.setattr(generation, name, counted)
+    return tally
+
+
+def _every_hour(days: int) -> dict:
+    """The Codex review's items 3 and 4 state: one rank at every hour's :01 over `days` days, but day
+    zero's 01:01 standing on 00:01, `days` ranks asked in each hour, N - 1 values kept (N, the
+    ranks, 24 a day)."""
+    ordinals = [(MONDAY_DAY + day) * DAY + hour * HOUR + 60 for day in range(days) for hour in range(24)]
+    ordinals[1] = ordinals[0]
+    return _hours_case(ordinals, [days] * 24, len(ordinals) - 1, days)
+
+
+def _every_hour_settled(monkeypatch: pytest.MonkeyPatch, step: str, name: str, per_row: int) -> None:
+    """At the review's 120, 240 and 480 rows and at 40,008, in turn: the calls of `name` made inside
+    `step` are `per_row` a row, the census holds and the count of different values is left one
+    long. Each size is asserted before the next is asked."""
+    for days in (5, 10, 20, 1667):
+        case = _every_hour(days)
+        calls = _counting_in(monkeypatch, step, name)
+        moved = _answer(case)
+        monkeypatch.undo()
+        rows = len(moved)
+        assert calls[0] == per_row * rows, (rows, calls[0])
+        assert _holding(case, moved, range(rows)) == case["counts"], rows
+        assert len({ordinal // 60 for ordinal in moved}) == rows == case["wanted"] + 1, rows
+
+
+def test_step_8_4_asks_the_retained_day_and_builds_its_places_once(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Step 8.4 where every move keeps the day grows with the rows (the Codex review, item 3). One
+    rank at every hour's :01 over D days, day zero's 01:01 on 00:01, D asked in each hour and N - 1
+    values kept: step 6 moves a 00:01 rank to 01:01, and step 8.4 is asked one value long, with no
+    merge to make -- every hour of every day holds one written unit. Its same-clock search walked
+    every day of the gap for each unit, and its other-clock places were read again from the whole
+    column for each group and day: 28,920, 115,440 and 461,280 reads of a group at 120, 240 and 480
+    rows, 2 N squared + N. It asks the unit's own day and builds the places once a round: 26 reads a
+    row, the unit's own and its day's 23 other hours in the same-clock search, its own in the
+    other-clock search, and one to build its places."""
+    _every_hour_settled(monkeypatch, "_weekday_units_merged", "_weekday_group", 26)
+
+
+def _alternate_days(days: int) -> dict:
+    """Days in turn holding 00:01 and 01:01 alone, and 01:01 and 02:01 twice each: the census as
+    they stand and one value fewer kept. A pair from the first kind of day sends its 00:01 onto
+    01:01 and needs a day holding 01:01 twice beside an hour 0, and none holds one; the second
+    kind holds no unit alone."""
+    ordinals: "list[int]" = []
+    for day in range(days):
+        start = (MONDAY_DAY + day) * DAY
+        if day % 2 == 0:
+            ordinals += [start + 60, start + HOUR + 60]
+        else:
+            ordinals += [start + HOUR + 60] * 2 + [start + 2 * HOUR + 60] * 2
+    counts = [0] * 24
+    for ordinal in ordinals:
+        counts[ordinal % DAY // HOUR] += 1
+    return _hours_case(ordinals, counts, days * 2 - 1, days)
+
+
+def test_step_8_5_asks_only_the_cells_holding_a_source(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Step 8.5 grows with the rows where no pair exists (the Codex review, item 4). On the same
+    state, one value long, every written unit is held alone, so a pair needs a written unit two
+    ranks hold in its second cell, and none does: still every ordered pair of day cells was asked,
+    36,000, 154,800 and 640,800 reads of its tables at 120, 240 and 480 rows, 2.875 N squared - 45
+    N. The cells holding a lone or a shared unit of each group are indexed before a pair is asked,
+    and only those are asked as the second cell, and only where a cell other than the first holds
+    such a unit beside a place of the first's group (`lone_with`, `shared_with`): 27 reads a row,
+    each day's cell asking its 24 groups for a lone unit and each of those the 23 other groups for
+    a place, and its tables read 72 times as it is counted in. Where cells hold sources but none
+    beside the place a pair needs, indexing the sources alone still asked every two cells: on days
+    holding 00:01 and 01:01 alone in turn with days holding 01:01 and 02:01 twice each, 144, 244
+    and 444 reads a day at 40, 80 and 160 days on 9cb2eb5. 119 a day now, to 13,334 days (40,002
+    rows), the state left as it stood."""
+    _every_hour_settled(monkeypatch, "_weekday_long_paired", "_weekday_first_of", 27)
+    for days in (40, 80, 160, 13334):
+        case = _alternate_days(days)
+        calls = _counting_in(monkeypatch, "_weekday_long_paired", "_weekday_first_of")
+        moved = _answer(case)
+        monkeypatch.undo()
+        assert calls[0] == 119 * days, (days, calls[0])
+        assert moved == case["ordinals"], days

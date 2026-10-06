@@ -19266,7 +19266,7 @@ def _weekday_hole(state: _WeekdayPass, ordinal: int) -> bool:
 def _weekday_span(state: _WeekdayPass, ordinal: int, low: int, high: int) -> "tuple[int, int]":
     """The part of [low, high] a move of the rank at `ordinal` may reach:
     all of it, or, where every move keeps the day (`keeps`), the part on
-    the rank's own day. The searches of steps 2 to 8.3 ask only this part,
+    the rank's own day. The searches of steps 2 to 8.4 ask only this part,
     so none asks a unit of another day, whose kind it would refuse, and
     each answer is the one the whole gap gives (the Codex review of landing
     3b.D0, item 2: asked over the whole gap, step 8.3's take built every
@@ -20526,6 +20526,17 @@ def _weekday_units_merged(
         if state.unit != state.step:
             for ordinal in state.moved:
                 _weekday_tally(standing, ordinal, 1)
+            # BUILT ONCE A ROUND, in one pass over the ordinals ranks stand
+            # on (the Codex review of landing 3b.D0, item 3): built for each
+            # look when first asked, it read the whole column again for each
+            # group and day, 2 N squared reads where the day is kept.
+            for ordinal in sorted(standing):
+                look = _weekday_merge_look(state, ordinal)
+                if look in spots:
+                    found = spots[look]
+                    found += [ordinal]
+                else:
+                    spots[look] = [ordinal]
         changed = False
         for _size, key in sorted(units):
             if count <= wanted:
@@ -20544,15 +20555,14 @@ def _weekday_units_merged(
                     _weekday_tally(standing, state.moved[rank], -1)
                     _weekday_tally(standing, target, 1)
                 _weekday_step(state, rank, target)
-            look = (
-                _weekday_group(state, target),
-                _weekday_kind(state, target),
-                target % state.day == 0,
-            )
-            if look in spots and target not in spots[look]:
+            if state.unit != state.step:
+                look = _weekday_merge_look(state, target)
+                if look not in spots:
+                    spots[look] = []
                 found = spots[look]
                 spot = _weekday_first_from(found, target)
-                spots[look] = found[:spot] + [target] + found[spot:]
+                if spot == len(found) or found[spot] != target:
+                    found[spot:spot] = [target]
             count = count - 1
             changed = True
         if not changed:
@@ -20572,7 +20582,8 @@ def _weekday_merge_target(
     the start of a day exactly where it is (`_weekday_merge_any_clock`).
 
     `spots` keeps, by group, kind and whether it starts a day, every
-    ordinal a rank has stood on this round, ascending, and `standing` how
+    ordinal a rank has stood on this round, ascending -- built once at the
+    round's start, each place a merge fills put in -- and `standing` how
     many ranks stand on each now, so an ordinal no rank stands on any
     more is passed over: the nearest each side that fits is found
     without asking every rank."""
@@ -20587,7 +20598,11 @@ def _weekday_merge_same_clock(
 ) -> "int | None":
     """Step 8.4's first place: the nearest ordinal a whole number of units
     from `here` inside [low, high], the earlier on a tie, of its group
-    and kind, no hole, whose written unit a rank holds."""
+    and kind, no hole, whose written unit a rank holds. Where the day is
+    kept, only the unit's own day is asked (`_weekday_span`): asked over
+    the gap, every unit merged walked every day of it (the Codex review of
+    landing 3b.D0, item 3)."""
+    low, high = _weekday_span(state, here, low, high)
     group = _weekday_group(state, here)
     kind = _weekday_kind(state, here)
     away = state.unit
@@ -20617,17 +20632,9 @@ def _weekday_merge_any_clock(
     unit: the nearest ordinal a rank stands on inside [low, high], the
     earlier on a tie, of its group and kind, no hole, on another written
     unit, that starts a day exactly where `here` does."""
-    group = _weekday_group(state, here)
-    kind = _weekday_kind(state, here)
-    opens = here % state.day == 0
-    look = (group, kind, opens)
+    look = _weekday_merge_look(state, here)
     if look not in spots:
-        spots[look] = sorted({
-            ordinal for ordinal in state.moved
-            if _weekday_group(state, ordinal) == group
-            and _weekday_kind(state, ordinal) == kind
-            and (ordinal % state.day == 0) == opens
-        })
+        return None
     found = spots[look]
     best: "tuple[int, int] | None" = None
     middle = _weekday_first_from(found, here)
@@ -20645,6 +20652,18 @@ def _weekday_merge_any_clock(
                 break
             spot = spot + way
     return None if best is None else best[1]
+
+
+def _weekday_merge_look(
+    state: _WeekdayPass, ordinal: int
+) -> "tuple[int, _WeekdayKind, bool]":
+    """Where step 8.4's second place files an ordinal (`spots`): its group,
+    its kind and whether it starts a day."""
+    return (
+        _weekday_group(state, ordinal),
+        _weekday_kind(state, ordinal),
+        ordinal % state.day == 0,
+    )
 
 
 def _weekday_long_paired(
@@ -20711,6 +20730,18 @@ class _WeekdayPairs:
     group, ascending: the written units that are no hole (`onto`), those
     one rank of the column holds alone (`lone`) and those two or more
     hold (`shared`).
+
+    THE SECOND CELLS, INDEXED BEFORE ANY PAIR IS ASKED (the Codex review of
+    landing 3b.D0, item 4: where no pair could be made, every ordered two
+    cells were still asked, 2.875 N squared reads on N lone hours kept by
+    their day). By group, ascending, the cells holding a written unit of
+    it alone (`lone_in`) and one two or more hold (`shared_in`): the only
+    cells a pair's second cell can be. And by two groups `s` and `p`, at
+    `s * groups + p` of `groups` groups, how many cells hold a unit of `s`
+    alone (`lone_with`), or one two or more hold (`shared_with`), beside a
+    unit of `p` that is no hole: a pair whose first cell sends a rank of
+    `p` onto `s` asks a second cell only where one other than its first
+    can raise it above the pair already found.
     """
 
     keys: "list[tuple[int, int, _WeekdayKind]]"
@@ -20721,6 +20752,11 @@ class _WeekdayPairs:
     onto: "dict[tuple[int, int], list[int]]"
     lone: "dict[tuple[int, int], list[int]]"
     shared: "dict[tuple[int, int], list[int]]"
+    lone_in: "dict[int, list[int]]"
+    shared_in: "dict[int, list[int]]"
+    groups: int
+    lone_with: "list[int]"
+    shared_with: "list[int]"
 
 
 def _weekday_listed(
@@ -20741,6 +20777,52 @@ def _weekday_listed(
         del values[place]
 
 
+def _weekday_pair_listed(
+    pairs: _WeekdayPairs, shared: bool, spot: "tuple[int, int]", value: int, wanted: bool
+) -> None:
+    """`_weekday_listed` on the lone table, or the shared one, keeping with
+    it the cells of the group that hold any (`lone_in`, `shared_in`)."""
+    table = pairs.shared if shared else pairs.lone
+    cells = pairs.shared_in if shared else pairs.lone_in
+    _weekday_listed(table, spot, value, wanted)
+    place, group = spot
+    if group not in cells:
+        cells[group] = []
+    found = cells[group]
+    at = _weekday_first_from(found, place)
+    there = at < len(found) and found[at] == place
+    if table[spot] and not there:
+        found[at:at] = [place]
+    elif there and not table[spot]:
+        del found[at]
+
+
+def _weekday_pair_sources(pairs: _WeekdayPairs, group: int, both: bool) -> "list[int]":
+    """The cells, ascending, that can be a pair's second cell for a source
+    of `group`: those holding a written unit of it two or more ranks hold,
+    and, where `both`, those holding one a rank holds alone."""
+    shared = pairs.shared_in[group] if group in pairs.shared_in else []
+    lone = pairs.lone_in[group] if both and group in pairs.lone_in else []
+    if not lone:
+        return shared
+    if not shared:
+        return lone
+    merged: "list[int]" = []
+    left = right = 0
+    while left < len(lone) or right < len(shared):
+        if right >= len(shared) or (left < len(lone) and lone[left] < shared[right]):
+            merged += [lone[left]]
+            left = left + 1
+        elif left >= len(lone) or shared[right] < lone[left]:
+            merged += [shared[right]]
+            right = right + 1
+        else:
+            merged += [lone[left]]
+            left = left + 1
+            right = right + 1
+    return merged
+
+
 def _weekday_first_of(
     table: "dict[tuple[int, int], list[int]]", spot: "tuple[int, int]"
 ) -> "int | None":
@@ -20748,6 +20830,50 @@ def _weekday_first_of(
     if spot in table and table[spot]:
         return table[spot][0]
     return None
+
+
+def _weekday_pair_counted(pairs: _WeekdayPairs, place: int, step: int) -> None:
+    """Add cell `place`'s part to `lone_with` and `shared_with` (`step` one),
+    or take it away (minus one): one at `s * groups + p` for each group `s`
+    it holds a unit of alone, or one two or more hold, and each group `p`
+    it holds a unit of that is no hole."""
+    width = pairs.groups
+    onto = [
+        group for group in range(width)
+        if _weekday_first_of(pairs.onto, (place, group)) is not None
+    ]
+    if not onto:
+        return
+    for source in range(width):
+        for table, counts in ((pairs.lone, pairs.lone_with), (pairs.shared, pairs.shared_with)):
+            if _weekday_first_of(table, (place, source)) is None:
+                continue
+            for group in onto:
+                counts[source * width + group] = counts[source * width + group] + step
+
+
+def _weekday_pair_most(
+    pairs: _WeekdayPairs, first: int, own: int, other: int, long: int
+) -> int:
+    """The most a pair can make the count fall whose first cell `first`
+    sends its rank of group `own` onto `other`: two where the count is long
+    by two or more and a cell other than `first` holds a unit of `other`
+    alone beside a unit of `own` that is no hole, else one where one holds
+    a unit of `other` two or more ranks hold beside such a unit, else
+    nought (`lone_with`, `shared_with`)."""
+    spot = other * pairs.groups + own
+    for gain, table, counts in ((2, pairs.lone, pairs.lone_with), (1, pairs.shared, pairs.shared_with)):
+        if gain == 2 and long < 2:
+            continue
+        cells = counts[spot]
+        if cells == 1 and (
+            _weekday_first_of(table, (first, other)) is not None
+            and _weekday_first_of(pairs.onto, (first, own)) is not None
+        ):
+            cells = 0
+        if cells > 0:
+            return gain
+    return 0
 
 
 def _weekday_pairs_of(
@@ -20770,7 +20896,11 @@ def _weekday_pairs_of(
         else:
             units[written] = [rank]
     keys = sorted(cells)
-    pairs = _WeekdayPairs(keys, [cells[key] for key in keys], {}, {}, {}, {}, {}, {})
+    groups = max(state.where) + 1
+    pairs = _WeekdayPairs(
+        keys, [cells[key] for key in keys], {}, {}, {}, {}, {}, {}, {}, {}, groups,
+        [0 for _ in range(groups * groups)], [0 for _ in range(groups * groups)],
+    )
     for place in range(len(keys)):
         units = pairs.ranks[place]
         for written in sorted(units):
@@ -20785,7 +20915,8 @@ def _weekday_pairs_of(
             if not pairs.hole[written]:
                 _weekday_listed(pairs.onto, spot, written, True)
             held = _weekday_there(state, written * state.step)
-            _weekday_listed(pairs.lone if held == 1 else pairs.shared, spot, written, True)
+            _weekday_pair_listed(pairs, held != 1, spot, written, True)
+        _weekday_pair_counted(pairs, place, 1)
     return pairs
 
 
@@ -20805,7 +20936,13 @@ def _weekday_pair_best(
             for other in range(groups):
                 if other == own or _weekday_first_of(pairs.onto, (first, other)) is None:
                     continue
-                for second in range(len(pairs.keys)):
+                # No second cell is asked that cannot raise the pair found
+                # past the one already found: every pair it offers falls no
+                # more than `most`, at a distance of nought or more.
+                most = _weekday_pair_most(pairs, first, own, other, long)
+                if most == 0 or (best is not None and (-most, 0) >= best[0]):
+                    continue
+                for second in _weekday_pair_sources(pairs, other, long >= 2):
                     if second == first or _weekday_first_of(pairs.onto, (second, own)) is None:
                         continue
                     alone = _weekday_first_of(pairs.lone, (second, other))
@@ -20840,6 +20977,11 @@ def _weekday_pair_made(
     returned = state.moved[pairs.ranks[second][back][0]]
     touched = sorted({written, onto, source, back})
     before = len([unit for unit in touched if _weekday_there(state, unit * state.step) > 0])
+    # Every cell holding a unit the pair touches is counted again, its
+    # part taken away before and put back after (`_weekday_pair_counted`).
+    holders = sorted({place for unit in touched for place in pairs.places[unit]})
+    for place in holders:
+        _weekday_pair_counted(pairs, place, -1)
     _weekday_step(state, mover, target)
     _weekday_step(state, partner, returned)
     _weekday_pair_moved(pairs, first, mover, written, onto)
@@ -20848,8 +20990,10 @@ def _weekday_pair_made(
         held = _weekday_there(state, unit * state.step)
         for place in pairs.places[unit]:
             spot = (place, pairs.group[unit])
-            _weekday_listed(pairs.lone, spot, unit, held == 1)
-            _weekday_listed(pairs.shared, spot, unit, held >= 2)
+            _weekday_pair_listed(pairs, False, spot, unit, held == 1)
+            _weekday_pair_listed(pairs, True, spot, unit, held >= 2)
+    for place in holders:
+        _weekday_pair_counted(pairs, place, 1)
     after = len([unit for unit in touched if _weekday_there(state, unit * state.step) > 0])
     return after - before
 
@@ -20867,8 +21011,8 @@ def _weekday_pair_moved(
         del units[left]
         spot = (place, pairs.group[left])
         _weekday_listed(pairs.onto, spot, left, False)
-        _weekday_listed(pairs.lone, spot, left, False)
-        _weekday_listed(pairs.shared, spot, left, False)
+        _weekday_pair_listed(pairs, False, spot, left, False)
+        _weekday_pair_listed(pairs, True, spot, left, False)
         places = pairs.places[left]
         del places[_weekday_first_from(places, place)]
     found = units[joined]
