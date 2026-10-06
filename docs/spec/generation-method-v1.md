@@ -7526,7 +7526,7 @@ below on that step:
    those pins' steps, so A PINNED RANK NEVER MOVES; a stretch holding
    more ranks than steps between its pins, which no description the
    producer writes has, stands from the step above its lower pin up,
-   two ranks to a step where they must, never past either pin. A rank on
+   its ranks sharing steps where they must, never past either pin. A rank on
    a spelling the table calls absent moves to the nearest step of its
    run that is not one, the earlier first -- where the values differ, on
    no other rank's step and strictly between the pins either side of

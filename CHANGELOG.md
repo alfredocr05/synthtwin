@@ -51,10 +51,10 @@ median of 100 different minutes, `09:43`, came back `09:49`, and vectors
 file 21 froze the same error; every pin is now a knot and a wall,
 product and oracle alike, and that one frozen case is rebuilt. Where the
 12-hour question fits a column the clock-or-labels question also fits,
-it offers `code` too, and the clock-or-labels question is asked wherever
-every time inside the column's range is written by at least the line's
-rows, so twelve neighbouring minutes on 20 rows each, which publish a
-census and no heap, are asked about. The generation report counts a code
+it offers `code` too, and the clock-or-labels question is asked of a
+column few enough for labels wherever every time inside its range is
+written by at least the line's rows, so twelve neighbouring minutes on
+20 rows each, which publish a census and no heap, are asked about. The generation report counts a code
 once, as validation does, where beside 100 `UNK` it called both the
 table's and the twin's count of different values outside its range. The
 loader refuses a block with no census whose body cell on no heap has no

@@ -1693,9 +1693,9 @@ INVARIANTS = {
         "beyond a tail boundary fit inside that tail's rows and are among "
         "its values where it lists them, where every other value it lists "
         "keeps at least one row, the heaps and those values hold every row, "
-        "and the rest of the sum its mean fixes is one those values' rows "
-        "can add; and those between the boundaries are no more than the "
-        "values there"
+        "and the rest of the sum its mean fixes lies within what those "
+        "values' rows can add; and those between the boundaries are no more "
+        "than the values there"
     ),
     "CH2": (
         "the codes of a column of clock times are spellings its form does "
@@ -15570,8 +15570,8 @@ def _clock_census(
       fit inside that tail's rows, and where the tail lists its values
       each is one of them, every listed value on no heap keeps at least
       one row, the heaps and those values hold every row of the tail,
-      and the sum of distances its mean fixes less the heaps' is one
-      those values' rows can add to (the landing's review, item 5: a
+      and the sum of distances its mean fixes less the heaps' lies
+      within what those values' rows can add (the landing's review, item 5: a
       heap of 100 on `07:00` in a tail of 100 rows listing `07:00` and
       `07:30` at a mean of 45 loaded, and the twin wrote no `07:30` and
       a mean of 60);

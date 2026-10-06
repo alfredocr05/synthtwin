@@ -18006,8 +18006,8 @@ def _clock_kept_apart(
     09:43 to 09:49). With no pin this is the run-wide step and clamp it
     always was. A stretch holding more ranks than steps between its pins,
     which no description the producer writes has, stands from the step
-    above its lower pin up, two ranks to a step where they must, and never
-    past either pin. `fixed` are the pinned indexes, ascending; `places`
+    above its lower pin up, its ranks sharing steps where they must, and
+    never past either pin. `fixed` are the pinned indexes, ascending; `places`
     is changed in place and handed back. Raises nothing. No I/O.
     """
     walls = [-1] + fixed + [len(places)]
