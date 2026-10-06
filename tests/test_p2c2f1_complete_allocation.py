@@ -479,8 +479,10 @@ def test_nothing_counts_the_walk_s_trips_and_stops_it(
     every shape of the wide battery, the 132-size declared column that
     reached the first withdrawn ceiling, the free-text shapes and the
     whole shared table -- and the guard that a ceiling cannot come back
-    is in `tests/test_p2c3f1_published_margins.py`, where a producer
-    description walks past the withdrawn number and still answers.
+    is in `tests/test_p2c3f1_published_margins.py`, where a packing
+    question built around an answer walks past the withdrawn number and
+    still answers (plan P4-D389: the producer description that did so
+    walks far less since stage 4's cell conditions).
     """
     assert not hasattr(generation, "_ALLOCATION_STATES")
     worst = [0]

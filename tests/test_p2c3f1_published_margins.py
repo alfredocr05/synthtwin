@@ -36,6 +36,7 @@ import random
 import pytest
 
 import fixtures
+import stage4_as_built
 from synthtwin import (
     contract,
     generation,
@@ -497,38 +498,124 @@ def test_the_ceiling_case_carries_the_counts_the_review_reported(
     assert len(generation._groups_of(facts.n_distinct_by_occurrences)) == 38
 
 
-def test_no_ceiling_stops_the_packing_walk_on_that_description(
+def _two_margins(
+    rows: "list[int]", columns: "list[int]"
+) -> "list[tuple[list[int], list[int]]]":
+    """The two margins `_allotted_pairs` hands the walk for a grid of ``rows`` by ``columns``."""
+    width = len(columns)
+    cells = len(rows) * width
+    return [
+        (rows, [cell // width for cell in range(cells)]),
+        (columns, [cell - (cell // width) * width for cell in range(cells)]),
+    ]
+
+
+def test_no_ceiling_stopped_the_packing_walk_the_review_measured(
     ceiling_case: contract.Profile,
 ) -> None:
-    """Defect 2, MEASURED: the walk runs past the withdrawn ceiling.
+    """Defect 2, MEASURED: the walk of that time ran past the withdrawn ceiling.
 
     The earlier revision packed this description over a grid of six
     invented classes against the three sign counts and stopped after
-    200,000 trips. That same grid, over these groups, enters more than
-    200,000 states before it answers -- and it does answer. So a ceiling
-    anywhere near the withdrawn one is not a bound on cost, it is a
-    published count traded away, and reinstating one of any size at or
-    below the number measured here fails this test.
+    200,000 trips. That same grid, over these groups, entered more than
+    200,000 states before it answered under every walk up to stage 4's,
+    measured here on the walk as 493f6f8 shipped it, frozen in
+    `tests/stage4_as_built.py` -- and it does answer. Stage 4's cell
+    conditions (plan P4-D389) give today's walk the same answer in
+    fewer states, about two thousand, so the guard that no ceiling
+    comes back is the next test, on a grid today's walk still needs more
+    than the withdrawn number for.
     """
     facts = _facts(ceiling_case)
     groups = generation._groups_of(facts.n_distinct_by_occurrences)
     invented = [592, 879, 0, 424, 815, 0]
     signs = [facts.n_negative, facts.n_positive, facts.n_sign_unknown]
     permitted = [generation._spread_pairs(6, 3) for _each in groups]
+    built, names = stage4_as_built.compiled(
+        generation, stage4_as_built.ALLOTTED_OVER, "_allotted_over"
+    )
+    entered = [0]
+    room = names["_cell_room"]
 
-    answer, entered = _states(
-        lambda: generation._allotted_pairs(
-            groups, invented, signs, permitted
-        )
+    def counting(*given):  # type: ignore[no-untyped-def]
+        entered[0] = entered[0] + 1
+        return room(*given)
+
+    names["_cell_room"] = counting
+    answer = built(  # type: ignore[operator]
+        groups, _two_margins(invented, signs), permitted
     )
     assert answer is not None, (
         "the walk found no answer at all on the description the review "
         "built, which is a different defect from the one measured here"
     )
-    assert entered > 200000, (
-        f"this description entered only {entered} states, so it no "
-        "longer demonstrates that a producer description reaches the "
+    assert entered[0] > 200000, (
+        f"this description entered only {entered[0]} states, so it no "
+        "longer demonstrates that a producer description reached the "
         "withdrawn ceiling"
+    )
+    today, fewer = _states(
+        lambda: generation._allotted_pairs(groups, invented, signs, permitted)
+    )
+    assert today == answer
+    assert fewer < entered[0], (fewer, entered[0])
+
+
+# THE GUARD ON TODAY'S WALK (plan P4-D389): the review's 38 groups, each
+# placed in one cell of the same six-by-three grid that `_spread_pairs`
+# permits -- drawn by `random.Random(385)` and written out here, so the
+# case cannot move with a library's draws -- and the row and sign totals
+# that placement gives. The question therefore has an answer, the
+# placement's own.
+_PLACED_CELLS = (
+    3, 12, 10, 13, 7, 2, 10, 6, 17, 10, 9, 13, 4, 6, 10, 3, 4, 2, 6,
+    4, 10, 7, 2, 4, 3, 7, 4, 2, 7, 3, 17, 3, 3, 7, 12, 4, 10, 6,
+)
+_PLACED_ROWS = [516, 317, 1082, 264, 456, 75]
+_PLACED_SIGNS = [774, 1345, 591]
+
+
+def test_no_ceiling_stops_today_s_walk_on_a_grid_with_an_answer() -> None:
+    """Defect 2's guard on the walk stage 4 left: past the withdrawn number, and an answer.
+
+    Stage 4's cell conditions answer the review's own grid in about two
+    thousand states, so that grid no longer shows a ceiling coming back.
+    This one does. The same groups in the same grid, placed so that an
+    answer exists, take today's walk more than 200,000 states to answer
+    -- 228,283 when this was written, where the walk as 493f6f8 shipped
+    it took 809,349 to give the same answer. So a ceiling at or below the
+    withdrawn one, put back in any form, stops this walk before its
+    answer and fails here. It is not a description the producer wrote:
+    it is a packing question of the kind every role asks, whole groups
+    against two families of exact counts, built around an answer.
+    Mutation, run: a walk that gives up after 200,000 states returns no
+    answer here.
+    """
+    groups = tuple(size for _shape, size in _CEILING_PLAN)
+    mask = generation._spread_pairs(6, 3)
+    rows = [0 for _each in _PLACED_ROWS]
+    signs = [0 for _each in _PLACED_SIGNS]
+    for place in range(len(groups)):
+        cell = _PLACED_CELLS[place]
+        assert (mask >> cell) & 1, cell
+        rows[cell // 3] += groups[place]
+        signs[cell % 3] += groups[place]
+    assert (rows, signs) == (_PLACED_ROWS, _PLACED_SIGNS)
+    answer, entered = _states(
+        lambda: generation._allotted_pairs(
+            groups, _PLACED_ROWS, _PLACED_SIGNS, [mask for _each in groups]
+        )
+    )
+    assert answer is not None, "a question built around an answer was refused"
+    met_rows = [0 for _each in _PLACED_ROWS]
+    met_signs = [0 for _each in _PLACED_SIGNS]
+    for place in range(len(groups)):
+        met_rows[answer[place] // 3] += groups[place]
+        met_signs[answer[place] % 3] += groups[place]
+    assert (met_rows, met_signs) == (_PLACED_ROWS, _PLACED_SIGNS)
+    assert entered > 200000, (
+        f"today's walk answered in {entered} states, so this question no "
+        "longer shows that a ceiling at the withdrawn number would stop it"
     )
 
 

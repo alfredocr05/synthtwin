@@ -103,16 +103,19 @@ calls are held by what they are handed or by where they run:
   history built by the test; that block uses `os` and `sys` and
   imports `tools/hooks/check_messages.py`, a file this guard reads.
 - `tests/stage4_as_built.py` runs `exec(compile(source, ...))` on its
-  own two string constants, `LABEL_CONTENT` and `READ_THE_COLUMN`:
-  `generation._label_content` and `taxonomy._read_the_column` as
-  668f276 shipped them, the second with the one argument plan P4-D382
-  added, frozen as text to serve as the oracle of stage 4's first tier
-  (the review of landing S1, item 5, found the earlier oracle rebuilt
-  from the product's own source and so following any change made
-  there). Those strings are not a file this guard reads as code, so
-  both readings below were run over each of them on 2026-10-03 and
-  found no post-floor spelling: they are the product's own functions
-  of 668f276, which this guard read when they were the product.
+  own three string constants, `LABEL_CONTENT`, `READ_THE_COLUMN` and
+  `ALLOTTED_OVER`: `generation._label_content` and
+  `taxonomy._read_the_column` as 668f276 shipped them, the second with
+  the one argument plan P4-D382 added, frozen as text to serve as the
+  oracle of stage 4's first tier (the review of landing S1, item 5,
+  found the earlier oracle rebuilt from the product's own source and so
+  following any change made there); and `generation._allotted_over`
+  with the packing walk under it as 493f6f8 shipped them, the oracle of
+  plan P4-D389. Those strings are not a file this guard reads as code,
+  so both readings below were run over the first two on 2026-10-03 and
+  over the third on 2026-10-06, and found no post-floor spelling: they
+  are the product's own functions of 668f276 and 493f6f8, which this
+  guard read when they were the product.
 - `tests/test_stage4_linear_work.py` runs `exec(compile(tree, ...))`
   once, in `_mutated` (plan P4-D385), where `tree` is the syntax tree of
   a shipped function -- `taxonomy._read_the_column` or
