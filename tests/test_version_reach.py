@@ -104,14 +104,17 @@ calls are held by what they are handed or by where they run:
   imports `tools/hooks/check_messages.py`, a file this guard reads.
 - `tests/test_stage4_linear_work.py` builds two functions with
   `exec(compile(tree, ...))` (plan P4-D385), where `tree` is the syntax
-  tree of a shipped function -- `taxonomy._read_the_column` and
+  tree of a shipped function -- `taxonomy._levels_counted_out` and
   `generation._label_content`, read by `inspect.getsource` from files
   this guard reads -- rewritten back to the form 668f276 shipped, to
   serve as the oracle of stage 4's first tier. The rewrite renames one
   operand of one `in` comparison, turns each `cells += [...]` into
   `cells = cells + [...]` and drops one `cells = list(...)`: a name, an
   assignment and an addition, which every Python spells alike, so it
-  adds no spelling the floor could miss.
+  adds no spelling the floor could miss. The shipped
+  `taxonomy._read_the_column`, which calls the first, is not rebuilt
+  but bound, its compiled code unchanged, to the names the rebuilt one
+  runs in: no string of source is run for it.
 - `runpy.run_path` runs the same kind of committed file: twice in
   `tests/`, in the two stage-2 oracle tests, and seventeen times in
   `tools/` -- one for the provenance guard's own runner and one for

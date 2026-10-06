@@ -52,6 +52,7 @@ import sys
 import tempfile
 import textwrap
 import tracemalloc
+import types
 import weakref
 
 import pytest
@@ -389,13 +390,18 @@ def _levels_read_by_form_as_built(
 def _read_the_column_as_built() -> "tuple[object, dict]":
     """`taxonomy._read_the_column` with its level pass walking the sorted list again.
 
-    Rebuilt from the shipped function's own source rather than copied
-    beside it: the one lookup of the level pass asks the sorted tuple
-    `counted_out` again, as 668f276 asked it, and nothing else moves --
-    which the rewrite counts. Returns the function and the copy of the
+    The pass's one lookup has lived in `_levels_counted_out` since the
+    second repair round of landing 3b.5 (plan P4-D373), whose clock
+    routes count their levels out through it too. That function is
+    rebuilt from its shipped source rather than copied beside it: the
+    lookup asks the sorted tuple `counted_out` again, as 668f276 asked
+    it, and nothing else moves -- which the rewrite counts. The shipped
+    `_read_the_column` is then bound, its code unchanged, to the same
+    copy of the module's names, so each call it makes to the pass
+    reaches the rebuilt one. Returns that reader and the copy of the
     module's names it runs in, so a measure can replace one of them.
     """
-    tree = ast.parse(textwrap.dedent(inspect.getsource(taxonomy._read_the_column)))
+    tree = ast.parse(textwrap.dedent(inspect.getsource(taxonomy._levels_counted_out)))
     walked = [0]
 
     class Walked(ast.NodeTransformer):
@@ -414,8 +420,22 @@ def _read_the_column_as_built() -> "tuple[object, dict]":
     tree = ast.fix_missing_locations(Walked().visit(tree))
     assert walked[0] == 1, "the level pass's one lookup was not found"
     names = dict(vars(taxonomy))
-    exec(compile(tree, "<_read_the_column as built>", "exec"), names)
-    return names["_read_the_column"], names
+    exec(compile(tree, "<_levels_counted_out as built>", "exec"), names)
+    shipped = taxonomy._read_the_column
+    assert "_levels_counted_out" in shipped.__code__.co_names, (
+        "the reader no longer calls the level pass by name, so binding it "
+        "to the rebuilt pass would leave the list walk out"
+    )
+    reader = types.FunctionType(
+        shipped.__code__,
+        names,
+        shipped.__name__,
+        shipped.__defaults__,
+        shipped.__closure__,
+    )
+    reader.__kwdefaults__ = shipped.__kwdefaults__
+    names["_read_the_column"] = reader
+    return reader, names
 
 
 def _register(rows: int, seed: int, codes: int, held_rows: "tuple[int, ...]") -> "list[str]":
@@ -527,7 +547,7 @@ def _counted_out_register(rows: int) -> "list[str]":
     return values
 
 
-def held_back_lookups(rows: int, as_built: bool = False) -> int:
+def held_back_lookups(rows: int, as_built: bool = False, form_pass: bool = True) -> int:
     """How many times a held-back level is compared with a cell's while one register is read.
 
     A register of ``rows`` rows -- a quarter of them codes written once,
@@ -535,7 +555,8 @@ def held_back_lookups(rows: int, as_built: bool = False) -> int:
     the form pass and then read whole; every held-back level is a
     `_Counted`, so each equality test against one is counted, whatever
     asks it. With ``as_built`` the form pass and the level pass walk
-    their lists as 668f276 walked them.
+    their lists as 668f276 walked them. With ``form_pass`` false the
+    form pass is not asked, so the count is the reading's alone.
     """
     values = _counted_out_register(rows)
     settings = taxonomy.Settings()
@@ -556,7 +577,8 @@ def held_back_lookups(rows: int, as_built: bool = False) -> int:
         return tuple(_Counted(label) for label in shipped(cells, asked))
 
     _COMPARED[0] = 0
-    by_form(tally, role, rare)
+    if form_pass:
+        by_form(tally, role, rare)
     with pytest.MonkeyPatch.context() as patch:
         if names is None:
             patch.setattr(taxonomy, "_levels_read_by_subtraction", counted)
@@ -574,6 +596,13 @@ def test_the_held_back_lookups_grow_with_the_rows_and_not_their_square() -> None
     old_small = held_back_lookups(1000, as_built=True)
     old_large = held_back_lookups(2000, as_built=True)
     assert old_large / old_small >= SQUARE_AT_LEAST, (old_small, old_large)
+    # THE READING ON ITS OWN, AS BUILT. The form pass as built grows as
+    # the square by itself, so it is this count that shows the reader
+    # `_read_the_column_as_built` returns reaches the rebuilt level pass.
+    pass_small = held_back_lookups(1000, as_built=True, form_pass=False)
+    pass_large = held_back_lookups(2000, as_built=True, form_pass=False)
+    assert pass_small, "the reading as built compared no held-back level"
+    assert pass_large / pass_small >= SQUARE_AT_LEAST, (pass_small, pass_large)
 
 
 # -- 3. the label column -------------------------------------------------
