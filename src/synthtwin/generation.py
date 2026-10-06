@@ -1715,7 +1715,7 @@ def _cell_entry(
     in turn fixes another cell of its class at nought; no fact about one
     count says so, and the walk offered that other cell every fill it
     could before learning it, past 1.6 GB before stage 4 and past twenty
-    minutes after its first three conditions. Five necessary conditions
+    minutes with conditions 2, 3 and 4 alone. Five necessary conditions
     are now read on entering a cell, each a fact about the counts still
     owed and the groups still unplaced, so a fill any of them refuses
     held no answer and the answer the walk returns is the one it
@@ -2150,7 +2150,7 @@ def _cell_walk(
     where the walk before stage 4 entered 8,748 at ``k = 40`` (plan
     P4-D389); and the identity battery's identifier of 300 values in
     four forms is answered in a state per cell of its question, where
-    the walk with only the first three conditions passed 200,000.
+    the walk with conditions 2, 3 and 4 alone passed 200,000.
     """
     cells = len(part_at[0])
     left = [count for count in counts]

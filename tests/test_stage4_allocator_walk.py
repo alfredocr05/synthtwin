@@ -10,13 +10,13 @@ at ``k = 60``, 826,616 and 1.26 GB at ``k = 80``, and the ``k = 100``
 witness, 10,301 rows the producer and the loader accept, past 1.8 GB.
 Each ten more groups cost about 3.5 times the time.
 
-The lane's identity battery then found a description those three
-facts could not answer either: a declared identifier of 300 values
-written in four forms, each value held by a different number of rows
-from 1 to 300 -- 45,150 rows the producer and the loader accept --
-whose twin 493f6f8 could not build within 1.6 GB, and the walk with
-the first three conditions below was still walking after twenty
-minutes. A count of lengths only one cell can answer for fixes that
+The lane's identity battery then found a description the three
+conditions 45f85b0 added -- 2, 3 and 4 below -- could not answer
+either: a declared identifier of 300 values written in four forms, each
+value held by a different number of rows from 1 to 300 -- 45,150 rows
+the producer and the loader accept -- whose twin 493f6f8 could not
+build within 1.6 GB, and which the walk with only those three was still
+walking after twenty minutes. A count of lengths only one cell can answer for fixes that
 cell's total, and the rest of its class is then nought, which no fact
 about one count says.
 
@@ -514,12 +514,16 @@ def test_a_size_only_this_cell_can_hold_is_taken_whole() -> None:
     make it, and so do many sets of the even sizes. But no cell after
     this one is open to either odd group -- the other shortest cells
     answer for a count of nought -- so condition 2 takes each here
-    whole, condition 1 holds the cell to 164 and the even groups to the
-    one cell of their class, and condition 5 keeps that cell its count:
-    the cell is offered one fill. Mutation, run: with those three all
-    taken out, every set of even sizes totalling 164 is offered first,
-    82,920 fills where this takes 12; any one alone answers it, and the
-    forced copies are held alone by a question of `_LESSER_READINGS`.
+    whole, and the cell is offered that one fill. Condition 5 sees the
+    same thing from the other side: the count of numbers too large to
+    hold, which this cell does not answer for, must keep every even
+    group, and so must the one cell condition 1 fixes at that whole
+    count. Mutation, run: with condition 2's forced copies, condition 1
+    and condition 5's reserve for a count all taken out, every set of
+    even sizes totalling 164 is offered first, 82,920 fills where this
+    takes 12; any one of the three alone answers it, condition 1 through
+    the reserve it gives that cell, and the forced copies are held alone
+    by a question of `_LESSER_READINGS`.
     """
     k = 40
     answer, fills = packing_question_fills(k, (2 * k + 1, 2 * k + 3))
@@ -557,7 +561,7 @@ def test_a_cell_takes_only_a_total_the_cells_after_it_can_finish() -> None:
 # and permitted cells written out: the identity battery's 300 values of
 # 1 to 300 rows in four forms, and two seeded identifiers of 122 and 104
 # values in mixed forms (`_mixed_identifier`). Neither 493f6f8's walk
-# nor the walk of the first three conditions answered any of them within
+# nor the walk of 45f85b0's three conditions answered any of them within
 # 20,000 states.
 
 
@@ -671,7 +675,7 @@ def test_a_count_only_one_cell_can_answer_for_fixes_that_cell() -> None:
     class's other cells hold nought. Read together, the counts say so on
     entering the first of those other cells, and the walk answers in 60
     states, one per cell, every count met. Mutation, run: with the
-    counts read one at a time, as the first three conditions read them,
+    counts read one at a time, as 45f85b0's three conditions read them,
     that cell is offered every set of the 300 sizes up to 1,161 first,
     past 20,000 states -- and so is the walk that never closes a cell no
     unplaced group may stand in.
@@ -862,7 +866,7 @@ def test_a_mixed_identifier_the_producer_describes_is_packed_in_few_states() -> 
     over the 100 people `synthtwin profile` asks of a declared identifier
     -- and every packing question their twins ask is answered in 70 and
     100 states in all. The walk as 493f6f8 shipped it, and the walk of
-    the first three conditions, each passed 20,000 states on both.
+    45f85b0's three conditions, each passed 20,000 states on both.
     """
     for seed, most in ((20, 70), (6, 100)):
         states = mixed_identifier_states(seed)

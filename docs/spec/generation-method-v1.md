@@ -9697,15 +9697,36 @@ pruning, which costs no exactness at all:
 
 Before the walk descends past one group size it asks, in one
 whole-number test, whether the sizes it has not yet decided can still
-reach a total the cell accepts; and on entering a cell it asks whether
-every count still owed, on every margin, can be made at all from what
-is unplaced. Both are necessary conditions, so a branch either of them
-cuts held no answer. A state the walk has already found no answer for —
-which cell is being filled, which sizes are unplaced, what every count
-of every margin still owes — is never entered twice, and the number of
-different states is finite and fixed by the description before the walk
-begins, so **the walk ends on every input the loader accepts and no
-count is traded to make it end**.
+reach a total the cell accepts. On entering a cell it reads five facts
+off the counts still owed and the groups still unplaced (plan P4-D389):
+the least and the most each cell from this one on may hold — at most
+what every count it answers for still owes and nothing where no
+unplaced group may stand, and then each count's cells held to what that
+count still owes together, a cell's least raised and its most lowered
+until no end moves; where each size can still stand — a cell from this
+one on that permits it and may hold at least its size — so that a size
+with no such cell ends the branch and a size whose only such cell is
+this one is taken here, every copy; whether every count still owed, on
+every margin, can be made from the sizes that can still stand in one of
+its cells; which totals this cell may hold, between its own least and
+most, that the cells after it answering for the same counts can
+complete; and what the cells after it must still find among the groups
+this cell leaves — a total between its ends for each cell held to at
+least one row, and for each count this cell does not answer for, what
+its cells whose total is not yet fixed owe together. The cell is
+offered only the fills that take what it must, hold a total it may and
+leave what the cells after it must find, in the order above, and a fill
+is passed over as soon as the sizes it has decided leave too little.
+Every one of these is a necessary condition, so a branch any of them
+cuts held no answer, and the walk returns the answer it returns without
+them. A state the walk has found no answer for — which cell is
+being filled, which sizes are unplaced, what every count of every margin
+still owes — is written down so it is not walked again, in a memory
+whose size is bounded; a state the memory could not hold is walked
+again and fails again, which costs time and never an answer. The walk
+goes depth first through a fixed number of cells, and a cell offers
+each of its finitely many fills once, so **the walk ends on every input
+the loader accepts and no count is traded to make it end**.
 
 **What that costs, stated rather than hidden.** The packing question is
 the classic partition one and has no known quick answer, so a
@@ -9716,11 +9737,13 @@ being refused by a cap: a bound that keeps the run short by writing a
 number the description did not publish is the worse of the two, and it
 is the exact shape of failure the section-9 head of the contract names
 — "the published facts cannot all hold" must mean no assignment
-satisfies them, PROVED, not that the search was stopped. What keeps
-genuine descriptions quick is that their own values are an answer and
-that the walk is handed only the relationships the description
-publishes, so it is never asked to settle a cross-tabulation the real
-column never fixed.
+satisfies them, PROVED, not that the search was stopped. A genuine
+description is usually quick — its own values are an answer, and the
+walk is handed only the relationships the description publishes, so it
+is never asked to settle a cross-tabulation the real column never fixed
+— but not always: plan P4-D389 measures declared identifiers written in
+several forms on which the walk still takes a long time, with the
+memory it holds bounded and its time not.
 
 **The packing is COMPLETE, and that is the whole of what steps 3 and 4
 owe.** Every count of both margins is met exactly whenever any
