@@ -4983,20 +4983,18 @@ away (repair pass of 2026-09-17): every held-back label covers at least
 one row, so where `suppressed_rows` is less than twice
 `suppressed_levels` at least `2 * suppressed_levels - suppressed_rows`
 of them are provably single rows, and where `suppressed_levels` is 1
-that one label's size is the pool itself. **THAT WHOLE BAND IS CLOSED**
-(owner ruling of 2026-09-17, item 5; plan P4-D231, widened by P4-D239
-after the final review of 2026-09-18; invariant B4b): where the rows
-come to fewer than twice the levels a count of one is FORCED, and no
-description carries such a pool any more — the cells of every held-back
-level are counted as missing instead. Three one-patient sites among
-2,000 rows published three levels over three rows, which can only be one
-and one and one; the first writing of the ruling closed only one label
-on one row and left that shape standing. A pool whose rows reach twice
-its levels forces nothing about any one of them — four labels over ten
-rows leaves every one of them free to cover two or more — and that pool
-still stands. Its remainder is a count about unnamed groups of the kind
-`n_distinct_by_occurrences` publishes for the columns that carry it
-(U3, I2 and F2), and P4-D231 puts the wider readings to the owner.
+that one label's size is the pool itself. **THAT BAND IS PUBLISHED**
+(plan P4-D390). From 2026-09-18 the owner's ruling of 2026-09-17, item 5
+(plans P4-D231, P4-D239, P4-D261 and P4-D271) counted every cell of such
+a pool as missing, and invariants B4b and B4c refused it; plan P4-D390
+retired both under the owner's principle of 2026-10-01, because a count
+worked out within one column is accepted (P4-D363) and the blanks cost
+the twin what it is for: measured at a floor of eleven, 22 to 32 per
+cent of a code register's cells, its long tail read as categories, and
+code written on the twin that ran there and crashed on the real table.
+Three one-patient sites among 2,000 rows publish three levels over three
+rows, which can only be one and one and one; no label of them is named,
+and the twin writes three made-up labels of one row each.
 
 #### 6.3.1 A level entry
 
@@ -5153,9 +5151,8 @@ What protects the values is ROOM, and the room is what is counted.
 omission: how many of the held-back levels hold numbers, what grid they
 stand on and how wide they were written are not published facts, and
 publishing them so the loader could check them would be further numbers
-about the pool — a worse trade than leaving the rule to the producer,
-which is the trade invariants B4b and B4c already make for the level
-pass. **What the loader LOST with the spread is named rather than
+about the pool — a worse trade than leaving the rule to the producer.
+**What the loader LOST with the spread is named rather than
 left**: invariant B4d used to re-ask that a published spread stood above
 nought, which stopped a HAND-WRITTEN description carrying a pool of one
 value. Nothing here stops one now. The producer refuses to write one and
@@ -5221,116 +5218,40 @@ the published counts reads it whether or not `suppressed_rows` is
 printed, so no key can hide it; the first writing of the ruling held
 the smallest published label back beside such a pool, and that was
 withdrawn because the label it held back had cleared the floor and the
-twin then wrote none of it. **That limit is closed by invariant B4b
-below** (owner ruling of 2026-09-17, item 5; plan P4-D231): the pool of
-one is no longer written at all, because the cells that would leave it
-are counted as missing.
+twin then wrote none of it. From 2026-09-18 such a pool was not written
+at all -- the owner's ruling of 2026-09-17, item 5 (plan P4-D231) counted
+the cells that would leave it as missing, and invariant B4b refused it --
+until plan P4-D390 retired that ruling's pass and B4b with it: a pool of
+one row is published like any other pool.
 
-**Invariant B4b (a pool that forces a count of one).** The labels held
-back never come to fewer rows than twice their number, and never come to
-exactly their number while covering fewer rows than the published levels
-do: `not parsing.pool_names_a_level(suppressed_levels, suppressed_rows,
-the rows the published levels cover)` (owner ruling of 2026-09-17, item
-5; plan P4-D231, widened by P4-D239, bounded by P4-D271 and pinned by
-its amendment of the repair pass of 2026-09-18).
-Such a pool forces a count of one -- and B3 above makes that subtraction
-available to every reader whether or not `suppressed_rows` is printed,
-which is why no key left out could hide it. 480 `F`, 519 `M` and one `U`
-at a floor of eleven said one row holds a third value, and its twin wrote
-an invented label in exactly that person's row; three one-patient sites
-among 2,000 rows published (3, 3), which can only be one and one and one,
-and its twin wrote three single-row labels. Such a document is refused
-here. The producer does not write one: every cell of the held-back level
-is counted as MISSING, spelled as nothing, so the description is that of
-the table with those cells blank, the twin writes a blank in those rows,
-and no label that clears the floor is ever held back to hide one.
+**Invariant B4b (retired by plan P4-D390, 2026-10-06).** It refused a
+pool that forces a count of one: held-back labels covering fewer rows
+than twice their number and fewer than half the rows the published
+levels cover, or exactly one row each and fewer rows than the published
+levels cover (plans P4-D231, P4-D239 and P4-D271).
 
-**Invariant B4c (a sibling total that leaves one row).** The four totals
-of 6.2 that say what a column's present cells READ AS -- `n_numeric`,
-`n_not_numeric`, `n_out_of_range` and `n_contradictory` -- are
-subtractable exactly as `n_present` is, one class at a time, and B4b
-cannot see them: **no such total, less the published levels that read
-that way, is exactly one** (Codex blocker 2 of the extra round,
-2026-09-18; plan P4-D261). The question is
-`parsing.census_names_one_row`, asked of the class's own held-back rows
-as a POOL and of the pair together -- one call, both of the rule's
-readings, no second copy of it. **A class NO published level counts into
-is read too**, and this clause said the opposite until the skeptic's pass
-of 2026-09-18 measured it. The pair alone answers nothing there, on the
-reasoning C6-131b gives: a census that covers none of a total leaves a
-reader nothing to subtract. But a class whose every level the floor held
-back is exactly that shape, and the count of one survived in all three of
-the classes a column of words has no published level for. **Measured
-then**, at a floor of eleven: `alpha` and `beta` a hundred rows each,
-`gamma` six, `delta` five and ONE further cell. With `77` the block
-published `n_numeric` 1 beside two published WORDS and `n_missing` 0, so
-exactly one row of the column reads as a number and its value is
-withheld; with `1e999` the same of `n_out_of_range`; with `(+5)` the same
-of `n_contradictory`, which names the accounting notation ONE
-individual's cell was written in. A pool of one is the rule's FIRST
-reading and needs no census beside it, so the class's own held-back rows
-are handed in as that pool. **Measured before this clause:** `alpha` and `beta` a hundred rows
-each, `1` five rows, `2` six rows and `gamma` one row, at a floor of
-eleven. The pool was three levels over twelve rows -- far outside B4b's
-forced band, and every printed count cleared the floor -- while
-`n_not_numeric` 201 less the two published words' 200 said the withheld
-WORD level occurs once. The twin wrote one `group-1` and both files
-passed every executable check. The producer counts the cells of every
-held-back level of that class as MISSING instead, by the same pass that
-serves B4b, so it writes no document this refuses; one pass suffices,
-because a class that fires gives up fewer rows than twice its levels and
-so cannot pull the whole pool into B4b's band. **A label whose class the
-plain and the decimal-comma grammars disagree about takes the check off
-that column altogether**, because a loader that guessed the declaration
-wrong would refuse a description nobody had edited.
+**Invariant B4c (retired by plan P4-D390, 2026-10-06).** It refused a
+total of 6.2 saying what the cells READ AS (`n_numeric`,
+`n_not_numeric`, `n_out_of_range`, `n_contradictory`), or a form of the
+`shape_forms` census, that less the published levels reading or written
+that way left exactly one row (plan P4-D261 and round 2 of the review,
+item 3).
 
-**What B4b deliberately does NOT refuse**, and plan P4-D231 puts both to
-the owner with what each was measured to cost on the full suite. (a) One
-level over MORE than one row: the pool is still that level's own count,
-and the number is below the floor by construction, so a `region` column
-of four places beside seven `outlying` rows says seven people share a
-value it will not name. Refusing it moves 53 witnesses and turns a
-`constant` column whose one value is below the floor into an EMPTY
-column. (b) A pool that does not reach `parsing.census_floor`: that is
-the one disclosure rule asked of the subtraction, and it empties the
-held-back machinery P4-D201 built wherever the floor is high -- 66
-witnesses, three frozen cases unwritable, and the rare VALUES of every
-small column at a raised floor turned into holes. A pool of ten rows
-over four levels says nothing about any one of them. The standing limit
-of 6.3 above -- that where `suppressed_rows` is less than twice
-`suppressed_levels` some of them are provably single rows -- stays a
-stated limit for the same reason: it is true of every ordinary long
-tail, and the demonstration's `note` holds back 182 levels over 217
-rows.
-
-**What the width does NOT let through** (plan P4-D271 as amended by the
-repair pass of 2026-09-18). The exception above is a width, and a width
-would otherwise let the band's sharpest point through wherever the pool
-is wide enough. `suppressed_levels` equal to `suppressed_rows` says
-every held-back level covers exactly ONE row -- a count of one for each
-of them, read off two published numbers -- so such a pool is refused
-whenever it covers fewer rows than the published levels do, whatever the
-width says. Measured at a floor of eleven: 100 `NORTH` and 100 `SOUTH`
-beside 120 site codes written once each published (120, 120) and no
-missing cell, and 600 and 600 beside 700 such codes published (700, 700);
-both cleared the width and both are refused now. A pool that is the
-column rather than an exception beside it is still not refused: 780
-unique codes over 780 rows beside one published value of twenty are
-pinned too and still stand, because the pool covers more rows than the
-published levels do.
-
-**AND `n_present`/`n_missing`, WHICH IS WHERE THIS RULE SENDS THE CELLS,
-IS ITSELF FLOOR-FREE.** Section 11 lists the presence split among the
-universal counts that are floor-free on every role, and it is not asked
-`parsing.census_nameable` anywhere. So a column of 1,977 `NORTH`, 11
-`SOUTH` and ONE one-row site at a floor of eleven publishes `n_present
-1988` and `n_missing 1` against `n_rows 1989`, and its twin holds one
-blank cell -- naming the one record whose site stands outside the
-published labels. That is the exception this format carries knowingly:
-publishing that a row is MISSING is ruling 5's own consequence, and
-asking the disclosure rule of the presence split would change every
-column block this format writes rather than repair this one. Plan
-P4-D271 records the measurement and puts the question to the owner.
+Both backed the producer's level pass, which counted every cell of such
+a level as MISSING, spelled as nothing, under the owner's ruling of
+2026-09-17, item 5. The orchestrator set that ruling aside under the
+owner's principle of 2026-10-01 -- HIPAA is the only privacy concern, and a count worked out
+within one column is accepted (P4-D363) -- on its measured price: at a
+floor of eleven the pass fired on 44 of 319 seeded column readings of
+10,000 to 200,000 rows, blanked 22 to 32 per cent of the cells of every
+code register it reached (289,025 cells), turned long-tail code columns
+into categories, and let code written on the twin crash on the real
+table (a 0/1 coding of a column whose third value it blanked, integer
+parsing of procedure codes whose one coded exception it blanked, and
+`dropna` keeping 68 to 78 per cent of the rows). So a held-back level is
+counted into the pool whatever its size, a class or form total may
+leave one row, and a description written before the retirement, which
+carries no such pool, loads as it did.
 
 **Invariant B4d (a pooled scale is taken over a group).** The block of
 6.3.3 speaks only of a group: `suppressed_numbers.n_cells` is nought,
@@ -9214,8 +9135,8 @@ B1 through B8 are stated in section 6.3.2 over a block that carries
 `levels`, not over a list of roles, so each binds a `long_tail_labels`
 block identically and none needs widening or restating here: B1
 (published identity is normalized), B2 (level completeness), B3 (row
-completeness), B4 (the held-back pool), B4b (the pool a reader subtracts), B5 (the floor), B6 (label order), B7 (labels are distinct) and B8 (levels may
-be empty).
+completeness), B4 (the held-back pool), B5 (the floor), B6 (label
+order), B7 (labels are distinct) and B8 (levels may be empty).
 
 **What B8 comes to on this role, which is not what it comes to on the
 others.** B8 admits `levels == []` for a block carrying levels. On
@@ -12115,8 +12036,6 @@ list of roles, so each binds `constant`, `binary`, `categorical` and
 | B2 | `len(levels) + suppressed_levels == n_distinct_folded` | yes |
 | B3 | `sum(entry.count for entry in levels) + suppressed_rows == n_present` | yes |
 | B4 | `suppressed_levels <= suppressed_rows <= suppressed_levels * (floor - 1)` — owner ruling of 2026-09-17, plan P4-D201 | yes |
-| B4b | `not parsing.pool_names_a_level(suppressed_levels, suppressed_rows, the rows the published levels cover)`: the labels held back never come to fewer rows than twice their number, because that pool forces a count of one — owner ruling of 2026-09-17 item 5, plan P4-D231, widened by P4-D239, and bounded against HALF the rows the published levels cover, rather than against the smallest published level, by P4-D271 — whose amendment of 2026-09-18 refuses a pool of exactly one row per level outright wherever it covers fewer rows than the published levels do | yes |
-| B4c | `parsing.census_names_one_row` over each of `n_numeric`, `n_not_numeric`, `n_out_of_range` and `n_contradictory` against the published levels that read that way, with the class's own held-back rows handed in as a pool so a class no published level counts into is read too: no such difference is exactly one — plan P4-D261 | yes |
 | B5 | every `entry.count` is at least the floor | yes |
 | B6 | `levels` is ordered by descending `count`, then ascending `label`; with B7 a total order, so one set of levels has exactly one conforming sequence | yes |
 | B7 | no two entries share a `label` | yes |
@@ -13736,7 +13655,7 @@ this document, and the battery the plan requires turns red on it.
 | `missing_by_class` | six counts of absent cells by reason | each non-`(withheld)` value 0 or at least the floor |
 | `missing_by_source` | the EXACT absent-value SPELLINGS the cells wore, with counts | floor-governed; on a nothing-publishing column confined to members of the published vocabulary (C6-126), which are synthtwin's own words and no table's |
 | `sentinel_verdicts` | the candidate as text — a stand-in number, or a calendar placeholder's ISO day — with occurrence count, verdict and reason | `(withheld)` on a nothing-publishing column |
-| labels-class blocks (`constant`, `binary`, `categorical`, `long_tail_labels`) | folded label spellings with row counts; each label's exact spellings under `variants`; how many levels were held back and how many rows they cover together (`suppressed_levels`, `suppressed_rows`) and, since the owner's ruling of 2026-09-17 (plan P4-D201), no size of any one of them; and the census of WRITTEN FORMS its cells wore (`shape_forms`), and for each PUBLISHED label how many of its rows wrote it in that label's own form (`shape_form_cells`, 7.4.8) | every named spelling floor-governed; the two held-back facts publish the COUNT and the POOLED ROWS of unnamed groups, floor-free, and never one label on one row, which `n_present` less the published counts reads as a count of one anyway (B4 and B4b; the owner's ruling of 2026-09-17 item 5, plan P4-D231, which counts that cell as missing instead); the form census floor-governed with a `(withheld)` pool, and every key of it built only from `%`, `@` and thirteen named marks -- characters no cell that HAS a form may contain; `shape_form_cells` names no spelling and no form KEY -- the form it counts is the shape of the level's own published `label`, which the reader already holds -- and it is NOT floor-governed, because it is a count of the rows of a label the floor has already admitted. What a reader can take from it is which held-back group of that level was written in the label's shape: presence and shape attached to an unnamed group, which is a widening of the two held-back facts beside it and is the owner's ruling of 2026-08-31 (plan amendment A-P4-47), on the ground that a code's SHAPE identifies nobody while category columns are what analysis code is written against |
+| labels-class blocks (`constant`, `binary`, `categorical`, `long_tail_labels`) | folded label spellings with row counts; each label's exact spellings under `variants`; how many levels were held back and how many rows they cover together (`suppressed_levels`, `suppressed_rows`) and, since the owner's ruling of 2026-09-17 (plan P4-D201), no size of any one of them; and the census of WRITTEN FORMS its cells wore (`shape_forms`), and for each PUBLISHED label how many of its rows wrote it in that label's own form (`shape_form_cells`, 7.4.8) | every named spelling floor-governed; the two held-back facts publish the COUNT and the POOLED ROWS of unnamed groups, floor-free, one label on one row among them, which `n_present` less the published counts reads as a count of one: a count within one column, which the owner accepted (B4; plan P4-D363, and P4-D390, which retired the owner's ruling of 2026-09-17 item 5 that counted such a cell as missing); the form census floor-governed with a `(withheld)` pool, and every key of it built only from `%`, `@` and thirteen named marks -- characters no cell that HAS a form may contain; `shape_form_cells` names no spelling and no form KEY -- the form it counts is the shape of the level's own published `label`, which the reader already holds -- and it is NOT floor-governed, because it is a count of the rows of a label the floor has already admitted. What a reader can take from it is which held-back group of that level was written in the label's shape: presence and shape attached to an unnamed group, which is a widening of the two held-back facts beside it and is the owner's ruling of 2026-08-31 (plan amendment A-P4-47), on the ground that a code's SHAPE identifies nobody while category columns are what analysis code is written against |
 | `level_ceiling`, on `categorical` | the effective category cap the run applied, computed from `categorical_ceiling`, `categorical_share`, `categorical_floor` and `n_rows` | publishes nothing the settings block and `n_rows` do not already publish |
 | ranges-class blocks (`count`, `continuous`, `datetime`, `time_of_day`, `affixed_number`, `joined_numbers`) | endpoints and the eleven ladder rungs — the two ENDPOINTS are exact values of real cells on every role, and so are the nine interior rungs of a DATE ladder and of a CLOCK ladder; a NUMERIC ladder's nine interior rungs are INTERPOLATED between the order statistics either side and are usually numbers no cell holds (corrected 2026-09-04, measured on columns of 17 to 250 drawn values); moments and shape statistics; sign and zero counts; the style census, the fraction-width census, the padded-field-width census, the WHOLE-NUMBER field-width census, the bins of the range that hold NO value (`empty_bins`), the two values each run of those bins really lies between (`empty_edges`) and the offset map; `resolution_mix`; the separator census `datetime_separators` and the flag `all_at_midnight`; the affix pair; and on `joined_numbers` the separator, the part and split counts, each position's written-width bounds, and the two pairing aggregates | endpoints and rungs FLOOR-FREE under the ranges-class endpoint policy; the style, fraction-width, padded-width, whole-number-width, offset and separator maps floor-governed with a `(withheld)` pool; `all_at_midnight` `true` only where the parsed cells reach the floor; `empty_bins` and `empty_edges` under NO floor at all — the first being the one published fact of this format that names only where nobody is (row 20), the second naming two values a stretch lies between and no group at all (row 21); the affix pair floor-governed by its own detection rule; the separator floor-governed by the role's own detection rule, and the pairing aggregates FLOOR-FREE — they are computed over every row and name no cell |
 | nothing-class blocks (`numeric_unrepresentable`, `identifier`, `free_text`) | lengths, word statistics, digit and code-alphabet counts, the whole-number test, the repetition multiset, on `numeric_unrepresentable` the whole-number and sign counts, on `free_text` the census of WRITTEN FORMS its cells wore (`shape_forms`), and on `identifier` the census of LAYOUTS (`layout_forms`, 7.12) and, by the owner's ruling of 2026-09-17, the literal PREFIX every cell of the column or of one named layout opens with (`layout_prefixes`, 7.12a, row 22) | no value, no spelling, no fragment of one but the prefix of row 22 — the form census included, whose every key is built from `%`, `@` and thirteen named marks -- characters no cell that has a form may contain, so a key can carry no letter and no figure of any cell; the multiplicity map publishes SIZES of unnamed groups under no floor, the form census under the floor with a `(withheld)` pool |

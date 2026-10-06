@@ -6,6 +6,40 @@ exists).
 
 ## [Unreleased]
 
+### A rare label is pooled, never blanked, and every held-back code is written in its form (2026-10-06)
+
+**The subtraction guard is dropped** (plan P4-D390, under the owner's
+principle of 2026-10-01; the orchestrator sets aside the owner's ruling
+of 2026-09-17, item 5). The producer no longer counts as missing the
+cells of a held-back level whose pool a reader could read a count of one
+off by subtraction: its level pass, with its pool, class and form
+readings and `parsing.pool_names_a_level`, is deleted, and the loader's
+B4b and B4c are retired (contract 6.3). A held-back level is pooled
+whatever its size, and every description written before still loads.
+On the measurement's seeded tables at a floor of eleven the 30,000-code
+register at 100,000 rows came back with 22,220 blank cells and 729
+distinct codes for the real 12,196, read as categories; it now comes
+back with none and 12,196, its entropy and every top code's prevalence
+the real file's, read as the long tail it is. A 0/1 coding of a column
+the guard had cut to two values, and procedure codes read as integers,
+now fail on the twin, where the code is written, instead of on the real
+file, and `dropna` keeps every row where it kept 68 to 78 per cent. `K-S3-12` falls from 65 to 61, P4-D334's restating
+sentences rise from 20 to 22, `K-2B-28` reads the pooled label's one
+row off the pool, `K-2B-20` is retired, and `K-2B-26`, `K-2B-52` and
+`K-S4-03` lose what measured the pass.
+
+**Every held-back code of a register is written in its form** (method
+G8.3). The form walk gave a form up after 4,096 spellings in all, so a
+register holding back more codes of one form wrote the rest `group-N`
+and its twin missed that form's census count, which the guard had hidden
+inside its own window. A walk now goes on while it has refused fewer
+spellings than it has taken plus 4,096, never past the form's room, and
+the oracle mirrors it; no frozen vector or fixture moves. The same
+register now has every twin cell in the code's form where 89,908 of
+100,000 were, and validates at exit 0 where it missed; 300,000 codes
+held back over 600,000 rows have every cell in the form where 112,288
+were, generated in 57 s and 197 MB where it took 34 s and 245 MB.
+
 ### A description written before the published pairs loads again (2026-10-03)
 
 **The review of landing 3b.G1, its four items** (plan P4-D375). A
