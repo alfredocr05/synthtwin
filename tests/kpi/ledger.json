@@ -6687,7 +6687,7 @@
     "tests/test_stage3b_clock.py::test_w_red_when_a_route_stands_on_labels",
     "tests/test_stage3b_clock.py::test_q_a_few_shared_times_are_asked_about",
     "tests/test_stage3b_clock.py::test_q_red_without_the_question",
-    "tests/test_stage3b_clock.py::test_q_red_when_asked_beside_a_census",
+    "tests/test_stage3b_clock.py::test_q_red_when_asked_beside_rare_times",
     "tests/test_stage3b_clock.py::test_q_shift_starts_beside_stray_times_are_asked_about",
     "tests/test_stage3b_clock.py::test_q_red_when_the_tails_are_ignored",
     "tests/test_stage3b_clock.py::test_the_description_says_so_where_the_census_is_left_out",

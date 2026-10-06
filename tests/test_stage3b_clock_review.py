@@ -19,11 +19,21 @@ rather than a sentence has a mutant that turns its clause red again:
   step apart off a pin it crowds, which the step as built moved; and
   `test_item_1_a_rank_off_a_hole_stays_between_its_pins` the hole step,
   which crossed a pin where the free step nearest a declared absence lay
-  past it (mutant: a rank off a hole free to cross a pin).
+  past it (mutant: a rank off a hole free to cross a pin);
+* item 2 `test_item_2_the_twelve_hour_question_offers_the_labels_answer`
+  -- 100 rows each of `07:00`, `08:00` and `09:00` were asked the 12-hour
+  question alone, `keep` or `twelve-hour`, and the questions file refused
+  `code` (mutant: the 12-hour question asked without the labels answer);
+* item 3 `test_item_3_neighbouring_times_on_many_rows_are_asked_about` --
+  twenty rows each of `14:00` to `14:11` stand out from nothing, so they
+  publish a census, and nobody was asked; read as clock times the seed-0
+  twin wrote `14:01` 39 times and `14:08` 10, where each label had 20
+  (mutant: asked only where heaps hold the body, as before).
 """
 
 from __future__ import annotations
 
+import collections
 import csv
 import io
 import json
@@ -36,6 +46,7 @@ import pytest
 import fixtures
 
 from synthtwin import (
+    asking,
     calendar_clock,
     contract,
     generation,
@@ -305,3 +316,113 @@ def test_item_1_every_frozen_case_holds_its_rungs() -> None:
         off += [f"{name}: {line}" for line in missed]
     assert off == []
     assert pinned >= 20, pinned
+
+
+# -- item 2: the clock-face question offers every answer that fits ------
+
+
+def _three_hours() -> "list[str]":
+    cells = ["07:00"] * 100 + ["08:00"] * 100 + ["09:00"] * 100
+    random.Random(2).shuffle(cells)
+    return cells
+
+
+def _questions(document: "dict[str, typing.Any]", cells: "list[str]") -> "list[asking.Question]":
+    return asking.questions_for(document, [cells], taxonomy.Settings(), [])
+
+
+def test_item_2_the_twelve_hour_question_offers_the_labels_answer(tmp_path: pathlib.Path) -> None:
+    """`keep`, `twelve-hour` and `code`, and the questions file takes `code` as `--code`.
+
+    At 90466b2 the column was asked the 12-hour question alone, so the
+    clock-or-labels question never ran, and the questions file refused
+    `code` as an answer the entry did not offer.
+    """
+    cells = _three_hours()
+    document, _loaded = _described(tmp_path, cells)
+    assert _block(document)["role"] == taxonomy.ROLE_CLOCK
+    asked = _questions(document, cells)
+    assert [question.name for question in asked] == ["t"]
+    question = asked[0]
+    assert question.reason == asking.BECAUSE_TWELVE_HOUR
+    assert [choice.answer for choice in question.choices] == [
+        asking.ANSWER_KEEP, asking.ANSWER_TWELVE_HOUR, asking.ANSWER_CODE,
+    ]
+    assert question.taken == asking.ANSWER_KEEP
+    assert "a list of labels written as times also holds" in question.shape
+    written = asking.questions_document("table.csv", asked, [])
+    written["asked"][0]["your_answer"] = asking.ANSWER_CODE  # type: ignore[index]
+    assert asking.answers_in(written, "questions.json").codes == ("t",)
+    declared, _loaded = _described(tmp_path / "answered", cells, codes=("t",))
+    assert _block(declared)["role"] == taxonomy.ROLE_CATEGORICAL
+    # ...and a clock in one figure, whose colon question offers `code`
+    # already, offers it once.
+    figures = [cell.lstrip("0") for cell in cells]
+    document, _loaded = _described(tmp_path / "figures", figures)
+    answers = [choice.answer for choice in _questions(document, figures)[0].choices]
+    assert answers.count(asking.ANSWER_CODE) == 1 and asking.ANSWER_TWELVE_HOUR in answers
+
+
+def test_item_2_red_without_the_labels_answer(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(asking, "_with_the_labels_answer", lambda question, _labels: question)
+    cells = _three_hours()
+    document, _loaded = _described(tmp_path, cells)
+    assert asking.ANSWER_CODE not in [choice.answer for choice in _questions(document, cells)[0].choices]
+
+
+# -- item 3: neighbouring times on many rows are asked about -------------
+
+
+def _twelve_minutes() -> "list[str]":
+    """Codex's column: twenty rows each of `14:00` to `14:11`."""
+    cells: "list[str]" = []
+    for minute in range(12):
+        cells += [f"14:{minute:02d}"] * 20
+    random.Random(3).shuffle(cells)
+    return cells
+
+
+def test_item_3_neighbouring_times_on_many_rows_are_asked_about(tmp_path: pathlib.Path) -> None:
+    """Twelve minutes twenty rows each publish a census and are asked about; `code` keeps each count.
+
+    At 90466b2 nobody was asked: the question waited for heaps to hold
+    the body, and neighbouring values on as many rows as each other stand
+    out from nothing. Enter keeps the clock reading; `code` reads them as
+    labels, and the twin then holds each one's twenty rows exactly, where
+    read as times its seed-0 twin wrote `14:01` 39 times and `14:08` 10.
+    """
+    cells = _twelve_minutes()
+    document, _loaded = _described(tmp_path, cells)
+    block = _block(document)
+    assert block["role"] == taxonomy.ROLE_CLOCK
+    assert block["clock_heaps"] == [] and block["clock_census"] != []
+    asked = _questions(document, cells)
+    assert [question.reason for question in asked] == [asking.BECAUSE_FEW_CLOCK_TIMES]
+    assert [choice.answer for choice in asked[0].choices] == [asking.ANSWER_KEEP, asking.ANSWER_CODE]
+    assert asked[0].taken == asking.ANSWER_KEEP
+    assert "written by at least 11 rows" in asked[0].shape
+    declared, loaded = _described(tmp_path / "answered", cells, codes=("t",))
+    assert _block(declared)["role"] == taxonomy.ROLE_CATEGORICAL
+    twin, _path = _twin(loaded, 0, tmp_path / "answered")
+    assert collections.Counter(twin) == collections.Counter(cells)
+    # ...and one of those minutes on fewer rows than the line is times, as
+    # a list of labels the floor publishes holds no such value: not asked.
+    fewer = [cell for cell in cells if cell != "14:05"] + ["14:05"] * 5
+    document, _loaded = _described(tmp_path / "fewer", fewer)
+    assert _questions(document, fewer) == []
+
+
+def test_item_3_red_when_asked_only_where_heaps_hold_the_body(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    built = asking._times_each_shared
+
+    def heaps_alone(block: "dict[str, object]", present: "list[str]", line: int) -> bool:
+        return block["clock_census"] == [] and built(block, present, line)
+
+    monkeypatch.setattr(asking, "_times_each_shared", heaps_alone)
+    cells = _twelve_minutes()
+    document, _loaded = _described(tmp_path, cells)
+    assert _questions(document, cells) == []

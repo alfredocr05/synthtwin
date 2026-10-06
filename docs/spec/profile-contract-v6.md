@@ -4196,11 +4196,18 @@ values many rows share are published as heaps with their counts
 (`clock_heaps`, section 6.13), so the list a categorical reading gave is
 not lost; `--code` still reads the column as labels, and the questions
 file asks where both readings fit and the data does not settle which --
-where the times many rows share hold every cell of the column's body, so
-its census is empty and nothing was left out of it
-(`few-times-of-day-each-shared-by-many-rows`, answers `keep` and `code`):
-three shift starts are asked about, walk-ins at 10,000 rows, 700 times
-spread over the day, are not. AND THE LEVEL PASS KEEPS A CLOCK COLUMN A
+where every time inside the column's range, between its two tail
+boundaries or anywhere where it has none, is written by at least the
+census line's rows, as every value of a list of labels the floor
+publishes is (`few-times-of-day-each-shared-by-many-rows`, answers `keep`
+and `code`): three shift starts are asked about, and so, since the
+landing's review (item 3), are twelve neighbouring minutes twenty rows
+each, which stand out from nothing and publish a census -- values side
+by side do not say they are times; walk-ins at 10,000 rows, 700 times
+spread over the day most of them on a few rows, are not. Where the
+12-hour question or the colon question a clock in one figure raises
+fits the same column, that one question is asked and offers `code` too
+(the review, item 2). AND THE LEVEL PASS KEEPS A CLOCK COLUMN A
 CLOCK COLUMN: where the levels below the floor no spelling of which a
 clock reader takes hold at most one present cell in fifty, and the
 column without exactly those cells reads as clock times, only those are

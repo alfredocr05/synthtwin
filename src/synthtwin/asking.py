@@ -1011,17 +1011,25 @@ def _clock_or_labels_question(
     rows share is published with its count and the rest counted together.
     Enter keeps the times; `code` is `--code` on this column.
 
-    ASKED ONLY WHERE THE DATA DOES NOT SETTLE IT (the repair round of
-    landing 3b.5): where the values many rows share hold every cell of
-    the body -- between the two tail boundaries, or every parsed cell of
-    a column with no tails -- so its census is empty and nothing was left
-    out of it. Three shift starts are such a column; walk-ins at 10,000
-    rows, 713 different times spread over the day, are times, and asking
-    whether they were labels was asking what the data already said.
+    ASKED WHERE THE DATA DOES NOT SETTLE IT: where the column holds few
+    enough different values for a set of labels and EVERY TIME inside its
+    range -- between the two tail boundaries, both included, or every
+    time of a column with no tails -- is written by at least the census
+    line's rows, as every value of a list of labels the floor publishes
+    is (`_times_each_shared`). Three shift starts are such a column, and
+    so are twelve neighbouring minutes written twenty rows each: they
+    stand out from nothing, so they publish a census and no heap, and the
+    repair round asked only where heaps held the body -- but that the
+    values sit side by side does not say they are times (the landing's
+    review, item 3: the seed-0 twin of those 240 rows wrote `14:01` 39
+    times and `14:08` 10 where each label had 20). Walk-ins at 10,000
+    rows, 713 different times most of them on a few rows, are times, and
+    nobody is asked.
 
     Guarantees: accepts the column's block, its present cells, the
     settings and the table's rows; returns the question or None. No cell
-    of the column appears in it. Raises nothing. No I/O.
+    of the column appears in it. Determinism: a function of the four.
+    Raises nothing. No I/O.
     """
     if f"{block['role']}" != taxonomy.ROLE_CLOCK:
         return None
@@ -1030,9 +1038,9 @@ def _clock_or_labels_question(
         return None
     if different > taxonomy.categories_ceiling(n_rows, settings):
         return None
-    if not _heaps_hold_the_body(block):
-        return None
     floor = settings.small_cell_floor
+    if not _times_each_shared(block, present, parsing.census_floor(floor)):
+        return None
     role = taxonomy.ROLE_CLOCK
     return Question(
         f"{block['name']}",
@@ -1057,31 +1065,25 @@ def _clock_or_labels_question(
     )
 
 
-def _heaps_hold_the_body(block: "dict[str, object]") -> bool:
-    """Whether a clock block's heaps hold every cell of its body (P4-D373).
+def _times_each_shared(
+    block: "dict[str, object]", present: "list[str]", line: int
+) -> bool:
+    """Whether every time inside a clock column's range is written by at
+    least `line` rows (P4-D373; the landing's review, item 3).
 
-    The census is empty and nothing was left out of it: the heaps between
-    the two tail boundaries, both included, count exactly the parsed
-    cells the tails leave -- every parsed cell, where there are no tails.
+    Inside its range: between the two tail boundaries, both included, or
+    anywhere on a column with no tails, so a few stray times beyond the
+    boundaries do not settle it. Each spelling is read once, in the
+    column's form, and its rows added to the time it reads as; a cell the
+    form leaves unread is no time and is not asked about.
 
-    Guarantees: a function of the block; False for anything it cannot
-    read. Raises nothing. No I/O of any kind.
+    Guarantees: accepts the column's block, its present cells and the
+    line; returns False where the block cannot be read or no time is
+    inside. Determinism: a function of the three. Raises nothing. No I/O.
     """
-    census = block["clock_census"] if "clock_census" in block else None
-    heaps = block["clock_heaps"] if "clock_heaps" in block else None
     form = block["clock_form"] if "clock_form" in block else None
-    present = block["n_present"] if "n_present" in block else None
-    unread = block["n_unparsed"] if "n_unparsed" in block else None
-    if (
-        census != []
-        or not isinstance(heaps, list)
-        or not heaps
-        or not isinstance(form, str)
-        or not isinstance(present, int)
-        or not isinstance(unread, int)
-    ):
+    if not isinstance(form, str) or form not in parsing.CLOCK_FORMS:
         return False
-    body = present - unread
     lowest: "int | None" = None
     highest: "int | None" = None
     low = block["low_tail"] if "low_tail" in block else None
@@ -1091,18 +1093,57 @@ def _heaps_hold_the_body(block: "dict[str, object]") -> bool:
         highest = parsing.clock_ordinal(f"{high['boundary']}", form)
         if lowest is None or highest is None:
             return False
-        body = body - int(f"{low['rows']}") - int(f"{high['rows']}")
-    held = 0
-    for heap in heaps:
-        if not isinstance(heap, dict):
-            return False
-        at = parsing.clock_ordinal(f"{heap['value']}", form)
+    spelled: "dict[str, int]" = {}
+    for value in present:
+        spelled[value] = (spelled[value] if value in spelled else 0) + 1
+    rows_at: "dict[int, int]" = {}
+    for spelling in spelled:
+        at = parsing.clock_ordinal(spelling, form)
         if at is None:
-            return False
+            continue
         if lowest is not None and highest is not None and not lowest <= at <= highest:
             continue
-        held = held + int(f"{heap['count']}")
-    return held == body
+        rows_at[at] = (rows_at[at] if at in rows_at else 0) + spelled[spelling]
+    if not rows_at:
+        return False
+    for at in rows_at:
+        if rows_at[at] < line:
+            return False
+    return True
+
+
+def _with_the_labels_answer(question: Question, labels: Question) -> Question:
+    """A clock column's question offering the labels answer too (P4-D373).
+
+    THE LANDING'S REVIEW, ITEM 2: where the 12-hour question, or the colon
+    question a clock in one figure raises, and the clock-or-labels
+    question both fit one column, the first was asked alone and the second
+    never was -- 100 rows each of `07:00`, `08:00` and `09:00` were
+    offered `keep` and `twelve-hour`, so a person whose values name groups
+    could not answer `code` in the questions file. One question per
+    column, so the first is asked with every answer either offers: `code`
+    joins it where it does not offer it already, and what was seen says
+    why labels fit too.
+
+    Guarantees: a function of the two questions; raises nothing; no I/O.
+    """
+    choices: "list[Choice]" = []
+    offered = False
+    for choice in question.choices:
+        choices += [choice]
+        if choice.answer == ANSWER_CODE:
+            offered = True
+    for choice in labels.choices:
+        if choice.answer == ANSWER_CODE and not offered:
+            choices += [choice]
+    return Question(
+        question.name,
+        question.role,
+        question.reason,
+        f"{question.shape}; and {labels.shape}",
+        choices,
+        question.taken,
+    )
 
 
 def questions_and_splits_for(
@@ -1164,12 +1205,16 @@ def questions_and_splits_for(
             block, present, settings.small_cell_floor,
             settings.forced_twelve_hour_clocks,
         )
+        # ...or, where both readings fit, whether the times are labels
+        # (landing 3b.5, plan P4-D373) -- and where both questions fit, the
+        # first asked with every answer either offers (the review, item 2).
+        labels = _clock_or_labels_question(
+            block, present, settings, len(table_columns[position])
+        )
         if clock is None:
-            # ...or, where both readings fit, whether the times are labels
-            # (landing 3b.5, plan P4-D373).
-            clock = _clock_or_labels_question(
-                block, present, settings, len(table_columns[position])
-            )
+            clock = labels
+        elif labels is not None:
+            clock = _with_the_labels_answer(clock, labels)
         if clock is not None:
             asked += [clock]
             position = position + 1
@@ -1877,15 +1922,16 @@ def _shape_of(
         )
     if reason == BECAUSE_FEW_CLOCK_TIMES:
         # HOW MANY DIFFERENT TIMES, which the description publishes as
-        # `n_distinct_folded`, and nothing else.
+        # `n_distinct_folded`, and the line every time inside the range
+        # reaches (`_times_each_shared`), a setting; nothing else.
         times: "dict[str, int]" = {}
         for value in present:
             times[parsing.folded(value)] = 1
         return (
-            f"its values are times of day, every one inside its range shared "
-            f"by many rows, and the column holds only {len(times)} different "
-            f"value(s) over {len(present)} cell(s), which a list of labels "
-            f"written as times also holds"
+            f"its values are times of day, every one inside its range written "
+            f"by at least {parsing.census_floor(floor)} rows, and the column "
+            f"holds only {len(times)} different value(s) over {len(present)} "
+            f"cell(s), which a list of labels written as times also holds"
         )
     if reason == BECAUSE_POINT_THOUSANDS:
         return (
