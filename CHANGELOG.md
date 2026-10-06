@@ -38,10 +38,12 @@ out only what the clock's form does not read and the column is clock
 times, so its twin reads back the same way: 32 of 48 columns beside 2.2
 to 10 % one-off notes, past one cell in fifty, and 23 of 64 beside a
 minority of `HH:MM:SS` or `h:mm AM` failed their own check before, and
-none does now; where that would leave one time on every row but one,
-the pass counts out what it always did. The clock-or-labels question is
-asked only of columns whose shared times hold every cell. `K-S3-48` and
-`K-S3-49` are new; vectors file 21 freezes fifteen cases.
+none does now; where every rule would not then read what is left as
+clock times -- one time on every row, or on every row but one, or two
+times beside the notes -- the pass counts out what it always did. The
+clock-or-labels question is asked only of columns whose shared times
+hold every cell. `K-S3-48` and `K-S3-49` are new; vectors file 21
+freezes fifteen cases.
 
 ### The weekday guards dropped (2026-10-02)
 
