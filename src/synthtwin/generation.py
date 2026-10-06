@@ -27514,12 +27514,19 @@ def _usable_room(
     the places it has to fill, so a form of many letters costs this the
     number of stand-ins and not four thousand candidates -- which is
     what made it a cost on a wide table (round 3 finding 8).
+
+    It counts as far as the walk spends (`_form_walk_bounds`): 4,096
+    spellings of a form, or a clock's form written to a fraction of the
+    second to the end of its clock supply, stopping after 4,096 refused
+    in a row.
     """
-    room = min(_form_room(form), _STAND_IN_STEPS)
+    room, tries = _form_walk_bounds(form)
     usable = 0
+    refused = 0
     for step in range(room):
-        if usable >= wanted:
+        if usable >= wanted or refused >= tries:
             return usable
+        refused = refused + 1
         candidate = _filled_form(form, step)
         if candidate in used or parsing.folded(candidate) in owners:
             continue
@@ -27535,6 +27542,7 @@ def _usable_room(
         ):
             continue
         usable = usable + 1
+        refused = 0
     return usable
 
 
@@ -27625,24 +27633,41 @@ _CLOCK_FORM_MARKS = (
 )
 
 
-def _clock_filled_form(form: str, step: int) -> "str | None":
-    """One clock time of a form a clock time can wear, or None (G8.3).
+@dataclasses.dataclass(frozen=True)
+class _ClockShape:
+    """How one form a clock time can wear writes it (method G8.3).
 
-    Contract 7.9.1's clock supply (landing 3b.5, plan P4-D373).
+    `figures` are the hour's, one or two; `seconds` says whether it writes
+    them; `places` are the figures of its fraction of the second, nought
+    where it writes none; `marked` is the marker pair's two words, or two
+    empty words where it ends in none, and `space` what stands before the
+    marker. `first` is the first hour it writes, `hours` how many hours it
+    writes, `times` how many times of the day, its fraction aside, and
+    `parts` how many fractions its figures hold: ten to the `places`.
+    """
 
-    A form is a clock's where it is an hour of one or two figures, a colon
-    and two figures, optionally a colon and two more, and optionally a
-    marker after one space or none (`_CLOCK_FORM_MARKS`). Its CLOCK
-    SUPPLY is every time it writes: hours 0 to 23 (one figure: 0 to 9), or
-    1 to 12 behind a marker (one figure: 1 to 9), each minute, each second
-    where it writes them, and both halves of the day where it is marked.
-    The step is moved around the form's whole room as `_filled_form` moves
-    it, and where it lands inside the supply -- the first steps always do
-    -- the time it names is written, stepped around the supply by the same
-    stride; past it, None, and the form's other spellings follow as before.
+    figures: int
+    seconds: bool
+    places: int
+    marked: "tuple[str, str]"
+    space: str
+    first: int
+    hours: int
+    times: int
+    parts: int
 
-    Guarantees: a function of the two; every spelling returned is read by
-    `parsing.clock_parts`. Raises nothing. No I/O of any kind.
+
+def _clock_shape(form: str) -> "_ClockShape | None":
+    """How a form a clock time can wear writes it, or None where none can (G8.3).
+
+    An hour of one or two figures, a colon and two figures, optionally a
+    colon and two more, optionally after those a point and a fraction of
+    the second in one figure or more, and optionally a marker after one
+    space or none (`_CLOCK_FORM_MARKS`): hours 0 to 23 (one figure: 0 to
+    9), or 1 to 12 behind a marker (one figure: 1 to 9). A fraction after
+    the minutes is no clock's: `%%:%%.%` is how a stopwatch writes minutes
+    and seconds. Guarantees: a function of the form. Raises nothing. No
+    I/O of any kind.
     """
     body = form
     marked = ("", "")
@@ -27656,6 +27681,14 @@ def _clock_filled_form(form: str, step: int) -> "str | None":
                 space = " "
             break
     digit = parsing.SHAPE_DIGIT
+    # A fraction of the second, read off the end: a point and its figures.
+    places = 0
+    cut = len(body)
+    while cut > 0 and body[cut - 1 : cut] == digit:
+        cut = cut - 1
+    if cut < len(body) and body[cut - 1 : cut] == ".":
+        places = len(body) - cut
+        body = body[: cut - 1]
     shapes = {
         digit + digit + ":" + digit + digit: (2, False),
         digit + ":" + digit + digit: (1, False),
@@ -27665,27 +27698,121 @@ def _clock_filled_form(form: str, step: int) -> "str | None":
     if body not in shapes:
         return None
     figures, seconds = shapes[body]
+    if places and not seconds:
+        return None
     first = 1 if marked[0] else 0
     last = 12 if marked[0] else 23
     if figures == 1:
         last = 9
     hours = last - first + 1
-    supply = hours * 60 * (60 if seconds else 1) * (2 if marked[0] else 1)
-    index = step % _form_room(form)
-    if index >= supply:
+    times = hours * 60 * (60 if seconds else 1) * (2 if marked[0] else 1)
+    parts = 1
+    for _place in range(places):
+        parts = parts * 10
+    return _ClockShape(
+        figures, seconds, places, marked, space, first, hours, times, parts
+    )
+
+
+def _clock_filled_form(form: str, step: int) -> "str | None":
+    """One clock time of a form a clock time can wear, or None (G8.3).
+
+    Contract 7.9.1's clock supply (landing 3b.5, plan P4-D373).
+
+    A form is a clock's where `_clock_shape` reads it. Its CLOCK SUPPLY is
+    every time it writes: each hour it writes, each minute, each second
+    where it writes them, and both halves of the day where it is marked --
+    and, where it writes a fraction of the second, each of those times at
+    every fraction its figures hold. The step is moved around the form's
+    whole room as `_filled_form` moves it, and where it lands inside the
+    supply -- the first steps always do -- the time it names is written,
+    stepped around the times of the day by the same stride; past it, None,
+    and the form's other spellings follow as before.
+
+    A FRACTION OF THE SECOND (the fixes of the clock census's review, a
+    battery's SQL Server `time(7)` column). No clock reader takes a
+    fraction, so a column whose every cell is written `14:40:05.1234567`
+    is labels or free text, and its cells are stand-ins of the form
+    `%%:%%:%%.%%%%%%%`; filled figure by figure, 856 of 1,000 were no time
+    of day, `44:40:00.0023504` the first, and code reading the real
+    column's times stopped on its twin. The step is now parted in two:
+    its remainder by the times of the day names the time, exactly as on a
+    form without a fraction, and its quotient the fraction, stepped round
+    the fraction's own figures by the same rule -- so the first steps
+    write each time at a fraction of nought, `.0000000`, as an export of
+    whole seconds writes it, and only past every time of the day does a
+    fraction move. A form without a fraction is filled as it was before.
+
+    Guarantees: a function of the two; every spelling returned is a time
+    of day: read by `parsing.clock_parts` where it writes no fraction, and
+    so read once its point and fraction are taken off where it writes
+    one. Raises nothing. No I/O of any kind.
+    """
+    shape = _clock_shape(form)
+    if shape is None:
         return None
-    place = _stepped_around(index, supply)
-    hour = first + place % hours
-    place = place // hours
+    index = step % _form_room(form)
+    if index >= shape.times * shape.parts:
+        return None
+    place = _stepped_around(index % shape.times, shape.times)
+    hour = shape.first + place % shape.hours
+    place = place // shape.hours
     minute = place % 60
     place = place // 60
-    text = (f"{hour:02d}" if figures == 2 else f"{hour}") + f":{minute:02d}"
-    if seconds:
+    text = (f"{hour:02d}" if shape.figures == 2 else f"{hour}") + f":{minute:02d}"
+    if shape.seconds:
         text = text + f":{place % 60:02d}"
         place = place // 60
-    if marked[0]:
-        text = text + space + marked[place % 2]
+    if shape.places:
+        fraction = _stepped_around(index // shape.times, shape.parts)
+        text = text + f".{fraction:0{shape.places}d}"
+    if shape.marked[0]:
+        text = text + shape.space + shape.marked[place % 2]
     return text
+
+
+def _fraction_clock_supply(form: str) -> int:
+    """How many times a clock's form written to a fraction of the second
+    writes, or nought for any other form (G8.3, G9.5).
+
+    THE WALK OF SUCH A FORM IS NOT STOPPED AT 4,096 SPELLINGS (the fixes
+    of the clock census's review). `_STAND_IN_STEPS` bounds how many
+    spellings of one form a walk tries in all, because a form can refuse
+    every spelling it has; its clock supply cannot, since each step of it
+    is another time and no clock reader takes a fraction, so no clock
+    line holds it. Bounded at 4,096, a free-text `time(7)` column of
+    10,000 different times wrote 5,904 cells in no time's spelling, one of
+    100,000 wrote 95,904, and a long tail of 100,000 rows with 5,863
+    held-back times wrote 7,294 cells `group-N` and missed its own census
+    of forms. So both walks of such a form, the free text's and the
+    held-back labels', run to the end of this supply, and a pass of either
+    still gives up after 4,096 spellings tried (`_form_walk_bounds`).
+
+    Guarantees: a function of the form. Raises nothing. No I/O.
+    """
+    shape = _clock_shape(form)
+    if shape is None or not shape.places:
+        return 0
+    return shape.times * shape.parts
+
+
+def _form_walk_bounds(form: str, figured: bool = False) -> "tuple[int, int]":
+    """How many steps a walk of one form's spellings may take in all, and
+    how many one pass of it may try (G8.3, G9.5).
+
+    Every form: its room, and never more than `_STAND_IN_STEPS`, for
+    both. A clock's form written to a fraction of the second, unless it
+    is filled figure by figure: its whole clock supply in all, and
+    `_STAND_IN_STEPS` a pass (`_fraction_clock_supply`).
+
+    Guarantees: a function of the two; both numbers at least one where the
+    form holds a spelling. Raises nothing. No I/O of any kind.
+    """
+    supply = 0 if figured else _fraction_clock_supply(form)
+    if supply:
+        return supply, _STAND_IN_STEPS
+    room = min(_form_room(form), _STAND_IN_STEPS)
+    return room, room
 
 
 def _clock_line_room(
@@ -28753,17 +28880,22 @@ def _made_up_label(
         # column advanced it twenty thousand times without a single
         # collision and its twin held `group-20101`. A shaped walk now
         # leaves `number` exactly where it found it.
-        room = min(_form_room(form), _STAND_IN_STEPS)
         # PAST THE CLOCK LINE A CLOCK'S FORM IS FILLED FIGURE BY FIGURE
         # (the repair round of landing 3b.5), on a cursor of its own, and
         # a spelling a clock reader takes is stepped past.
         figured = figures is not None and _clock_filled_form(form, 0) is not None
+        # A form's walk stops at 4,096 spellings; a clock's form written to
+        # a fraction of the second runs to the end of its clock supply, a
+        # pass giving up after 4,096 tried (`_form_walk_bounds`).
+        room, tries = _form_walk_bounds(form, figured)
         cursor = walked
         if figured and figures is not None:
             cursor = figures
         if form not in cursor:
             cursor[form] = 0
-        while cursor[form] < room:
+        tried = 0
+        while cursor[form] < room and tried < tries:
+            tried = tried + 1
             candidate = _filled_form(form, cursor[form], not figured)
             cursor[form] = cursor[form] + 1
             if figured and parsing.clock_parts(candidate) is not None:
@@ -38006,8 +38138,14 @@ def _walked_cell(
     DO WITH WHAT THIS COLUMN HAS WRITTEN, so the number of indices one
     value costs is bounded by the family's own size and by the ask
     ceiling, and by nothing smaller (review item P2-C2-F8).
+
+    A clock's form written to a fraction of the second is walked to the
+    end of its clock supply, a pass of it giving up after
+    `_STAND_IN_STEPS` spellings refused in a row
+    (`_fraction_clock_supply`).
     """
     room = _family_room(kind, band, length, words)
+    tries = room
     if form:
         # A FORM'S SUPPLY IS ITS OWN AND IS USUALLY MUCH SMALLER THAN
         # THE FAMILY'S (review round 1 finding 3, found again on this
@@ -38018,9 +38156,12 @@ def _walked_cell(
         # before the walk gives up. Bounded by the form's own supply it
         # gives up at once, and the caller then takes the walk again
         # without the form.
-        room = min(room, _form_room(form), _STAND_IN_STEPS)
+        reach, tries = _form_walk_bounds(form, figures)
+        room = min(room, reach)
     asked = 0
-    while state[0] < room:
+    tried = 0
+    while state[0] < room and tried < tries:
+        tried = tried + 1
         index = state[0]
         state[0] = state[0] + 1
         candidate: "str | None" = None

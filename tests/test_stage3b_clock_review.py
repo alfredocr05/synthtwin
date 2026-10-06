@@ -48,6 +48,18 @@ rather than a sentence has a mutant that turns its clause red again:
 * item 8 `test_item_8_the_clock_kpi_says_where_a_clock_shaped_cell_is_no_time`
   -- K-S3-49 promised every clock-shaped twin cell a time, while file 21's
   `labels_clock_line` writes ten `26:32` to keep its label column labels.
+
+And one more, not Codex's, found by lane R2a's reach battery and fixed in
+the same stream: `test_time7_every_twin_cell_is_a_time_in_the_columns_spelling`
+-- a SQL Server `time(7)` column, every cell `HH:MM:SS` and seven figures
+of fraction, is free text, and its twin wrote `44:40:00.0023504` and 855
+more cells that are no time of day, because G8.3's clock supply did not
+know a fraction (mutant: the supply blind to it again); past 4,096
+different times a walk of the form stopped and wrote the rest in no
+time's spelling, in free text and in a long tail's held-back labels
+alike (mutants: each walk bounded as every other form's); and the oracle
+states the same supply and bounds, call by call, since no frozen case
+holds such a form. Each failed at cc50fd7.
 """
 
 from __future__ import annotations
@@ -59,6 +71,8 @@ import io
 import json
 import pathlib
 import random
+import re
+import types
 import typing
 
 import pytest
@@ -734,3 +748,183 @@ def test_item_8_the_clock_kpi_says_where_a_clock_shaped_cell_is_no_time() -> Non
     assert "every clock-shaped twin cell is a time" not in entry["name"]
     assert "labels" in entry["name"] and "clock line" in entry["name"]
     assert "labels_clock_line" in entry["rule"] and "26:32" in entry["rule"]
+
+
+# -- one more, not Codex's: a SQL Server `time(7)` column -----------------
+#
+# Lane R2a's reach battery (its build report, item 7) wrote a SQL Server
+# `time(7)` column -- every cell a time of day and seven figures of a
+# fraction, `14:40:05.1234567` -- and its twin held `44:40:00.0023504`:
+# no clock reader takes a fraction, so the column is free text and its
+# cells are stand-ins of the form `%%:%%:%%.%%%%%%%`, which G8.3's clock
+# supply did not know, so the form was filled figure by figure and 856 of
+# the 1,000 cells were no time of day. The battery's own reader stopped on
+# the first of them, as code reading the real column's times would.
+
+
+_TIME7 = re.compile(r"\d\d:\d\d:\d\d\.\d{7}")
+
+
+def _time7(rows: int, seed: int = 0) -> "list[str]":
+    """A made-up `time(7)` column: a time of day and seven figures of fraction a cell, all different."""
+    draw = random.Random(7 + seed)
+    made: "list[str]" = []
+    for _row in range(rows):
+        at = draw.randrange(86400)
+        made += [f"{at // 3600:02d}:{at % 3600 // 60:02d}:{at % 60:02d}.{draw.randrange(10**7):07d}"]
+    return made
+
+
+def _off_its_spelling(cells: "list[str]") -> "list[str]":
+    """The cells that are not a time of day written `HH:MM:SS` and seven figures."""
+    return [cell for cell in cells if not _TIME7.fullmatch(cell) or parsing.clock_parts(cell[:8]) is None]
+
+
+def _time7_twins(
+    folder: pathlib.Path, cells: "list[str]", seeds: "tuple[int, ...]"
+) -> "tuple[str, list[list[str]], list[str]]":
+    """The column's role, its twins at the seeds, and what validation missed on them."""
+    document, loaded = _described(folder, cells)
+    twins: "list[list[str]]" = []
+    missed: "list[str]" = []
+    for seed in seeds:
+        twin, path = _twin(loaded, seed, folder)
+        twins += [twin]
+        missed += [f"seed {seed} {line}" for line in _missed(loaded, path)]
+    return f"{_block(document)['role']}", twins, missed
+
+
+def test_time7_every_twin_cell_is_a_time_in_the_columns_spelling(tmp_path: pathlib.Path) -> None:
+    """The battery's own size: 1,000 rows, free text, every stand-in a time of its form.
+
+    At cc50fd7 seed 0's twin held 856 cells that were no time of day here,
+    `44:40:00.0023504` among them, where the table holds none.
+    """
+    role, twins, missed = _time7_twins(tmp_path / "t7", _time7(1000), (0, 1, 2))
+    assert role == taxonomy.ROLE_TEXT
+    for twin in twins:
+        assert len(twin) == 1000 and len(set(twin)) == 1000
+        assert _off_its_spelling(twin) == []
+    assert missed == []
+
+
+def test_time7_red_when_the_fraction_is_filled_figure_by_figure(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """MUTATION: the clock supply blind to a fraction, as at cc50fd7, writes hours past 23."""
+    built = generation._clock_shape
+    monkeypatch.setattr(generation, "_clock_shape", lambda form: None if "." in form else built(form))
+    _role, twins, _missed_now = _time7_twins(tmp_path / "t7", _time7(1000), (0,))
+    assert len(_off_its_spelling(twins[0])) > 500
+
+
+def test_time7_a_column_past_the_walks_bound_is_a_time_in_every_cell(tmp_path: pathlib.Path) -> None:
+    """4,200 different times: the walk of the form runs past 4,096 spellings.
+
+    A walk stops at `_STAND_IN_STEPS` spellings of one form. Bounded so,
+    with the fraction filled as a clock, a twin needing more wrote the
+    rest as text in no time's spelling -- 104 cells here (the mutant
+    below), 5,904 of 10,000 rows and 95,904 of 100,000 -- and missed its
+    own census of forms; at cc50fd7, blind to the fraction as well, 3,600
+    of these 4,200 cells were no time. A clock's form written to a
+    fraction of the second is walked to the end of its clock supply.
+    """
+    role, twins, missed = _time7_twins(tmp_path / "t7", _time7(4200, 1), (0,))
+    assert role == taxonomy.ROLE_TEXT
+    assert len(set(twins[0])) == 4200 and _off_its_spelling(twins[0]) == []
+    assert missed == []
+
+
+def test_time7_red_when_the_walk_stops_at_its_bound(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """MUTATION: the fraction clock's walk bounded like every other form's."""
+    monkeypatch.setattr(generation, "_fraction_clock_supply", lambda _form: 0)
+    _role, twins, missed = _time7_twins(tmp_path / "t7", _time7(4200, 1), (0,))
+    assert len(_off_its_spelling(twins[0])) == 4200 - generation._STAND_IN_STEPS
+    assert "t:forms.published.%%:%%:%%.%%%%%%%" in missed[0]
+
+
+def _time7_long_tail(rows: int) -> "list[str]":
+    """Times at the second over `rows / 10` seconds from 08:00, fraction nought: labels, many held back."""
+    draw = random.Random(rows)
+    made: "list[str]" = []
+    for _row in range(rows):
+        at = 8 * 3600 + draw.randrange(rows // 10)
+        made += [f"{at // 3600:02d}:{at % 3600 // 60:02d}:{at % 60:02d}.0000000"]
+    return made
+
+
+def _long_tail_twin(folder: pathlib.Path) -> "tuple[dict[str, typing.Any], list[str], list[str]]":
+    document, loaded = _described(folder, _time7_long_tail(2000))
+    twin, path = _twin(loaded, 0, folder)
+    return _block(document), twin, _missed(loaded, path)
+
+
+def test_time7_held_back_labels_past_the_walks_bound_are_times(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A long tail's held-back times, more than the walk's bound, every one a time.
+
+    The label walk of G8.3 is bounded as the free text's is. Measured with
+    the bound as shipped, a long tail of 100,000 rows holds back 5,863
+    times: at cc50fd7 its twin wrote 5,244 cells `group-N` and 34,960
+    that were no time, and missed its own census of forms; with the
+    fraction filled as a clock and the walk still bounded, 7,294 `group-N`;
+    now none, and nothing missed. The bound is set at 32 here, so a table
+    of 2,000 rows crosses it.
+    """
+    monkeypatch.setattr(generation, "_STAND_IN_STEPS", 32)
+    block, twin, missed = _long_tail_twin(tmp_path / "tail")
+    assert block["role"] in (taxonomy.ROLE_LONG_TAIL, taxonomy.ROLE_CATEGORICAL)
+    assert block["suppressed_levels"] > 32
+    assert _off_its_spelling(twin) == [] and missed == []
+
+
+def test_time7_red_when_the_label_walk_stops_at_its_bound(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """MUTATION: the held-back labels' walk bounded like every other form's."""
+    monkeypatch.setattr(generation, "_STAND_IN_STEPS", 32)
+    monkeypatch.setattr(generation, "_fraction_clock_supply", lambda _form: 0)
+    _block_now, twin, missed = _long_tail_twin(tmp_path / "tail")
+    assert any(cell.startswith("group-") for cell in _off_its_spelling(twin))
+    assert "t:forms.published.%%:%%:%%.%%%%%%%" in missed
+
+
+def _oracle_module() -> types.ModuleType:
+    """The generation oracle, run from its source as a module of its own."""
+    path = _HERE.parent / "tools" / "reference" / "make_generation_reference_vectors.py"
+    module = types.ModuleType("oracle_of_the_time7_fix")
+    module.__dict__["__file__"] = str(path)
+    exec(compile(path.read_text(encoding="utf-8"), str(path), "exec"), module.__dict__)
+    return module
+
+
+def test_time7_the_oracle_states_the_same_supply_and_bounds() -> None:
+    """No frozen case holds a fraction's form, so its rule is witnessed call by call (A-P4-59).
+
+    The oracle's clock supply, walk bounds and stand-in test read the
+    method's text, and give what the product gives: on forms written to
+    a fraction, and on the forms beside them that are no clock's.
+    """
+    oracle = _oracle_module()
+    forms = (
+        "%%:%%:%%.%%%%%%%", "%:%%:%%.%%%", "%%:%%:%%.%", "%:%%:%%.%%@@", "%%:%%:%%.%%%%%% &&",
+        "%%:%%", "%%:%%:%%", "%:%%@.@.", "%%:%%.%", "%%.%%", ".%%", "%%:%%:%%.", "@%%%%-%%%%",
+    )
+    steps = tuple(range(300)) + (4095, 4096, 4097, 86399, 86400, 86401, 10**6, 10**9)
+    for form in forms:
+        assert oracle.fraction_clock_supply(form) == generation._fraction_clock_supply(form), form
+        assert oracle.form_walk_bounds(form) == generation._form_walk_bounds(form), form
+        assert oracle.form_walk_bounds(form, True) == generation._form_walk_bounds(form, True), form
+        for step in steps:
+            made = generation._clock_filled_form(form, step)
+            assert oracle.clock_filled_form(form, step) == made, (form, step)
+            if made is not None and generation._fraction_clock_supply(form):
+                assert oracle.fraction_clock(made) and oracle.usable_stand_in(made), made
+    assert generation._clock_filled_form("%%:%%:%%.%%%%%%%", 0) == "00:00:00.0000000"
+    supply = generation._fraction_clock_supply("%%:%%:%%.%%%%%%%")
+    assert supply == 86400 * 10**7
+    firsts = {generation._clock_filled_form("%%:%%:%%.%%%%%%%", step) for step in range(86400)}
+    assert len(firsts) == 86400 and all(cell[8:] == ".0000000" for cell in firsts)

@@ -7783,6 +7783,31 @@ their own. Measured: a label column of 10,000 rows half `HH:MM` and half
 holds none, one of 100,000 rows beside 5 % `HH:MM:SS` wrote 2,003, and a
 free-text column of 1,000 rows beside 5 % wrote 32; after, none.
 
+*And by the fixes of its review* (a reach battery's SQL Server `time(7)`
+column): **A FRACTION OF THE SECOND.** A form whose seconds are followed
+by a point and a fraction in one figure or more is a clock's form too --
+`time(7)` writes `14:40:05.1234567`, `%%:%%:%%.%%%%%%%` -- and a fraction
+after the minutes alone is not. No clock reader takes a fraction, so
+such a column is labels or free text. Its clock supply is each time of
+day the form writes without the fraction, at every fraction its figures
+hold, and the step taken round the form's room is parted in two: its
+remainder by the times of the day names the time, stepped round them as
+on a form without a fraction, and its quotient names the fraction,
+stepped round the fraction's own room by the same rule -- so the first
+steps write whole seconds, `.0000000`, and a fraction moves only past
+every time of the day. No clock line holds such a form, so none of it is
+filled figure by figure; and since every step of its supply is another
+time, A WALK OF SUCH A FORM RUNS TO THE END OF ITS SUPPLY, here and in
+free text's forms (G9.5), where every other form's walk stops at 4,096
+spellings: a pass of it still gives up after 4,096 tried, and the supply
+this section counts for settling is counted as far, stopping after
+4,096 refused in a row. Measured before: a free-text `time(7)` column of
+1,000 different times wrote 856 cells that are no time of day,
+`44:40:00.0023504` the first, one of 10,000 wrote 9,400, and a long tail
+of 100,000 rows holding back 5,863 times wrote 40,204, missing its own
+census of forms; after, none, and over 169 columns of the reach battery
+and nine columns beside these forms no other twin moves by a byte.
+
 `suppressed_levels` says how many levels were withheld and
 `suppressed_rows` how many rows they covered together. No size of any
 one of them is published (owner ruling of 2026-09-17, item 2, option A;

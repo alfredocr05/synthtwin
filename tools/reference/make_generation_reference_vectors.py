@@ -6736,6 +6736,11 @@ def usable_stand_in(candidate):
     # alone is a clock's, which `clock_reads` has just refused.
     if figure_filled_clock(candidate):
         return candidate[0] not in "=+-@"
+    # ...AND NEITHER IS A TIME WRITTEN TO A FRACTION OF THE SECOND (the
+    # fixes of the clock census's review): no number grammar reads a
+    # colon, and no date form this file states is a time of day alone.
+    if fraction_clock(candidate):
+        return candidate[0] not in "=+-@"
     for character in candidate:
         if character == "," or character == '"':
             return False
@@ -6836,18 +6841,18 @@ def stepped_around(step, room):
     return (step * stride) % room
 
 
-def clock_filled_form(form, step):
-    """One time of a form a clock time can wear, or None (G8.3, P4-D373).
+def clock_shape(form):
+    """How a form a clock time can wear writes it, or None (G8.3, P4-D373).
 
     An hour of one or two figures, a colon and two, optionally a colon and
-    two more, optionally a marker -- AM/PM as ``@@``, am/pm as ``&&``,
-    A.M./P.M. as ``@.@.``, a.m./p.m. as ``&.&.`` -- after one space or
-    none.  Its supply is every time it writes: hours 0 to 23 (one figure:
-    0 to 9), or 1 to 12 behind a marker (one figure: 1 to 9), each minute,
-    each second it writes, both halves of a marked day.  The step taken
-    round the form's room lands in the supply or past it; in it, the
-    time it names stepped round the supply, hour first, then the minute,
-    the second and the half of the day.
+    two more, optionally after the seconds a point and a fraction of the
+    second in one figure or more, optionally a marker -- AM/PM as ``@@``,
+    am/pm as ``&&``, A.M./P.M. as ``@.@.``, a.m./p.m. as ``&.&.`` -- after
+    one space or none.  Answered as (the hour's figures, whether it writes
+    seconds, the fraction's figures or 0, the marker pair or None, the
+    space before it, the first hour, how many hours, how many times of the
+    day it writes with no fraction).  A fraction after the minutes alone
+    is no clock's.
     """
     body, words, space = form, None, ""
     for mark, pair in (("@@", ("AM", "PM")), ("&&", ("am", "pm")),
@@ -6858,29 +6863,107 @@ def clock_filled_form(form, step):
                 body, space = body[:-1], " "
             break
     d = SHAPE_DIGIT
+    places = 0
+    head, point, tail = body.rpartition(".")
+    if point and tail and tail == d * len(tail):
+        body, places = head, len(tail)
     shapes = {d + d + ":" + d + d: (2, False), d + ":" + d + d: (1, False),
               d + d + ":" + d + d + ":" + d + d: (2, True),
               d + ":" + d + d + ":" + d + d: (1, True)}
     if body not in shapes:
         return None
     figures, seconds = shapes[body]
+    if places and not seconds:
+        return None
     first, last = (1, 12) if words else (0, 23)
     if figures == 1:
         last = 9
     hours = last - first + 1
-    supply = hours * 60 * (60 if seconds else 1) * (2 if words else 1)
-    index = step % form_room(form)
-    if index >= supply:
+    times = hours * 60 * (60 if seconds else 1) * (2 if words else 1)
+    return figures, seconds, places, words, space, first, hours, times
+
+
+def clock_filled_form(form, step):
+    """One time of a form a clock time can wear, or None (G8.3, P4-D373).
+
+    Its supply is every time it writes: hours 0 to 23 (one figure: 0 to
+    9), or 1 to 12 behind a marker (one figure: 1 to 9), each minute, each
+    second it writes, both halves of a marked day -- and, where it writes
+    a fraction of the second, each of those at every fraction its figures
+    hold.  The step taken round the form's room lands in the supply or
+    past it; in it, its remainder by the times of the day names the time,
+    stepped round them, hour first, then the minute, the second and the
+    half of the day; and its quotient the fraction, stepped round the
+    fraction's own room (the fixes of the clock census's review: a
+    `time(7)` column's first stand-ins are whole seconds, `.0000000`).
+    """
+    shape = clock_shape(form)
+    if shape is None:
         return None
-    place = stepped_around(index, supply)
+    figures, seconds, places, words, space, first, hours, times = shape
+    index = step % form_room(form)
+    if index >= times * 10 ** places:
+        return None
+    place = stepped_around(index % times, times)
     hour, place = first + place % hours, place // hours
     minute, place = place % 60, place // 60
     text = ("%02d" % hour if figures == 2 else str(hour)) + ":%02d" % minute
     if seconds:
         text, place = text + ":%02d" % (place % 60), place // 60
+    if places:
+        text += "." + str(stepped_around(index // times, 10 ** places)).zfill(places)
     if words:
         text += space + words[place % 2]
     return text
+
+
+def fraction_clock_supply(form):
+    """How many times a clock's form written to a fraction of the second
+    writes, or 0 for any other form -- the fixes of the clock census's
+    review.  No clock reader takes such a time, so no clock line holds it,
+    and every step of its supply is another time: a walk of the form runs
+    to the supply's end rather than stopping at STAND_IN_STEPS spellings,
+    and a pass of it gives up after STAND_IN_STEPS tried.
+    """
+    shape = clock_shape(form)
+    if shape is None or not shape[2]:
+        return 0
+    return shape[7] * 10 ** shape[2]
+
+
+def form_walk_bounds(form, figured=False):
+    """(how many steps a walk of one form may take in all, how many one
+    pass may try): the form's room up to STAND_IN_STEPS for both, or, for
+    a clock's form written to a fraction of the second and not filled
+    figure by figure, its whole supply and STAND_IN_STEPS."""
+    supply = 0 if figured else fraction_clock_supply(form)
+    if supply:
+        return supply, STAND_IN_STEPS
+    room = min(form_room(form), STAND_IN_STEPS)
+    return room, room
+
+
+def fraction_clock(text):
+    """Whether ``text`` is a time of day written to a fraction of the
+    second: a clock this file reads with its seconds written, a point and
+    one figure or more after them, and its marker word, if any, last --
+    the spellings `clock_filled_form` gives a clock's form with a fraction
+    (the fixes of the clock census's review)."""
+    body, marker = text, ""
+    for morning, evening in CLOCK_PAIRS.values():
+        for word in (morning, evening):
+            if len(body) > len(word) and body.endswith(word):
+                body, marker = body[: -len(word)], word
+                if body.endswith(" "):
+                    body, marker = body[:-1], " " + word
+                break
+        if marker:
+            break
+    head, point, tail = body.rpartition(".")
+    if not point or figures_of(tail, 1, len(tail)) is None:
+        return False
+    whole = head + marker
+    return clock_reads(whole, False) and clock_key(whole)[0]
 
 
 def filled_form(form, step, clocks=True):
@@ -7097,11 +7180,12 @@ def usable_room(form, wanted, seen, folds, reads=None, ladder=None):
     where given, holds the count to the published ends (P4-D92), so the
     supply is counted under the bound the walk spends under.
     """
-    room = min(form_room(form), STAND_IN_STEPS)
-    usable = 0
+    room, tries = form_walk_bounds(form)
+    usable = refused = 0
     for step in range(room):
-        if usable >= wanted:
+        if usable >= wanted or refused >= tries:
             return usable
+        refused += 1
         candidate = filled_form(form, step)
         if candidate in seen or folded(candidate) in folds:
             continue
@@ -7113,6 +7197,7 @@ def usable_room(form, wanted, seen, folds, reads=None, ladder=None):
         if ladder is not None and not within_the_published_ends(candidate, ladder):
             continue
         usable += 1
+        refused = 0
     return usable
 
 
@@ -7365,7 +7450,7 @@ def invented_levels(
         if not form and place in covered:
             form = level_shape
         time = clock_filled_form(form, 0) if form else None
-        if time is not None:
+        if time is not None and clock_key(time) is not None:
             keys[place] = clock_key(time)
     held, room = set(), None
     if line is not None:
@@ -7403,9 +7488,11 @@ def invented_levels(
         if form:
             figured = figures is not None and holding
             cursor = figures if figured else walked
-            steps = min(form_room(form), STAND_IN_STEPS)
+            steps, tries = form_walk_bounds(form, figured)
             cursor.setdefault(form, 0)
-            while cursor[form] < steps:
+            tried = 0
+            while cursor[form] < steps and tried < tries:
+                tried += 1
                 trial = filled_form(form, cursor[form], not figured)
                 cursor[form] += 1
                 if figured and clock_reads(trial, False):

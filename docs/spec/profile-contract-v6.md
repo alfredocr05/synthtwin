@@ -11323,7 +11323,17 @@ repair round of landing 3b.5 the SHAPE such a level is written in where
 the census owes it none (below) keeps the space and the marker's marks,
 `%:%% @@`, and this supply fills it with times of its face -- measured,
 a column of `7:30 AM` read as labels beside 2 % `UNK` wrote 587 of 3,000
-twin cells `group-N`, and now none.
+twin cells `group-N`, and now none. Since the fixes of the landing's
+review, a form whose seconds a point and a fraction in one figure or more
+follow is a clock's form too -- SQL Server's `time(7)`,
+`%%:%%:%%.%%%%%%%` -- whose supply is each time at every fraction its
+figures hold, whole seconds first; no clock reader takes such a time, so
+no clock line holds it, and a walk of it runs to the end of its supply
+where any other form's stops at 4,096 spellings. Measured before: a
+free-text `time(7)` column of 1,000 different times wrote 856 twin cells
+that are no time of day, `44:40:00.0023504` the first, and a long tail of
+100,000 rows 40,204, missing its census of forms; after, none (method
+G8.3).
 
 **AND ONLY BELOW THE CLOCK LINE** (the repair round of landing 3b.5;
 generation method G8.3). The twin of a column of labels is described
