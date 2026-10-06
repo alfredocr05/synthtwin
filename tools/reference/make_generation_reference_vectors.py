@@ -13438,6 +13438,8 @@ COUNTED_READINGS = {
                            "Stata's %tc, a thousandth of a second kept"),
     "unix_milliseconds": ("milliseconds-since-1970", "1700000000123", ".", "millisecond",
                           "a JavaScript moment, a thousandth of a second kept"),
+    "unix_half_second": ("milliseconds-since-1970", "1700000002500", ".", "second",
+                         "half a second settled to the second: the half goes to the even one"),
     "r_exponent_milliseconds": ("milliseconds-since-1970", "1.6e+12", ".", "second",
                                 "R's exponent form, read exactly by shifting the figures"),
     "nanoseconds_past_2_53": ("nanoseconds-since-1970", "1700000000123456789", ".", "nanosecond",

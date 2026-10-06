@@ -103,6 +103,14 @@
       "unit": "millisecond",
       "why": "Stata's %tc, a thousandth of a second kept"
     },
+    "unix_half_second": {
+      "answer": "2023-11-14 22:13:22",
+      "mark": ".",
+      "member": "milliseconds-since-1970",
+      "text": "1700000002500",
+      "unit": "second",
+      "why": "half a second settled to the second: the half goes to the even one"
+    },
     "unix_milliseconds": {
       "answer": "2023-11-14 22:13:20.123",
       "mark": ".",

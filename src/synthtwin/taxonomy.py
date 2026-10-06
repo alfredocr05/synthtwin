@@ -16775,14 +16775,15 @@ def _counts_read_as_dates(
     THREE KINDS OF CELL, read in this order, after every declaration of
     the person's own has taken its cells out:
 
-    * a cell written as a count (`date_counts.written_count`) that is
-      one of the member's SET-ASIDE numbers -- nought, minus one, its
-      counts for 1 January 1900 and 31 December 9999, Excel's 0, 1 and
-      60 (`date_counts.set_aside_named`) -- or that names no date, is
-      counted as no value and keeps its spelling, so the twin writes it
-      back as written (the R4 design review, item 1: one such cell
-      voided the declaration before). A number named with `--keep-value`
-      is never set aside;
+    * a cell written as a count (`date_counts.written_count`) that names
+      no date -- Excel's 0 and 60, a count below its first day or past
+      9999-12-31 -- or that is the member's count for 1 January 1900 or
+      31 December 9999 (`date_counts.declared_aside`) is counted as no
+      value and keeps its spelling, so the twin writes it back as written
+      (the R4 design review, item 1: one such cell voided the declaration
+      before). A number named with `--keep-value` is never set aside, and
+      nought and minus one, which name dates in the members that read
+      them, are read as those dates;
     * every other count is read EXACTLY as the moment it names, settled
       to the unit its figures carry (`date_counts.settled_unit`) and
       written as ISO text at the coarsest unit every one of them stands
@@ -16802,7 +16803,7 @@ def _counts_read_as_dates(
     mark = date_counts.COMMA if decimal_comma else date_counts.POINT
     kept = _kept_whole_numbers(settings)
     aside: "dict[int, int]" = {}
-    for number in date_counts.set_aside(member):
+    for number in date_counts.declared_aside(member):
         if number not in kept:
             aside[number] = 1
     found = date_counts.TABLE[member]

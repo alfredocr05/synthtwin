@@ -740,7 +740,12 @@ def spelled_count(numerator: int, denominator: int, form: CountForm) -> str:
     the same on every platform. Raises nothing. No I/O.
     """
     if numerator % denominator:
-        return _spelled_inexact(numerator / denominator, form)
+        return _spelled_inexact(numerator, denominator, form)
+    return _spelled_exact(numerator, denominator, form)
+
+
+def _spelled_exact(numerator: int, denominator: int, form: CountForm) -> str:
+    """A count written from its exact value, rounded halves to even: a whole count's own path."""
     if form.significant is not None or form.exponent:
         figures = form.significant if form.significant is not None else 15
         negative, digits, exponent = _significant_figures(
@@ -777,8 +782,9 @@ def spelled_count(numerator: int, denominator: int, form: CountForm) -> str:
     return _spelled_number(negative, whole, fraction, form.mark)
 
 
-def _spelled_inexact(value: float, form: CountForm) -> str:
+def _spelled_inexact(numerator: int, denominator: int, form: CountForm) -> str:
     """A count that is not whole, as the binary64 nearest it is written by the form."""
+    value = numerator / denominator
     if form.significant is not None or form.exponent:
         figures = form.significant if form.significant is not None else 15
         if figures == 17 and not form.exponent:
@@ -1041,6 +1047,34 @@ def set_aside_named(member: str) -> "tuple[tuple[int, str], ...]":
 def set_aside(member: str) -> "tuple[int, ...]":
     """The whole counts a member's column sets aside, in rising order (`set_aside_named`)."""
     return tuple(number for number, _word in set_aside_named(member))
+
+
+def declared_aside(member: str) -> "tuple[int, ...]":
+    """The set-aside counts a DECLARED column reads as no value: its placeholder days alone.
+
+    Under a declaration a count that names no date -- Excel's 0 and 60, a
+    count below a spreadsheet's first day, one past 9999-12-31 -- is no
+    value whatever it is, and so is the member's count for 1 January 1900
+    or 31 December 9999, by its own rule or by plain epoch arithmetic. But
+    nought and minus one NAME DATES in every member that reads them -- 1
+    January 1960 and 1970 and the days before -- and a column of births
+    holds those days as births: they are read as the dates they name, and
+    a person who means "not set" by them says so with `--missing-value`.
+    Asked about, the column sets them aside as well (`set_aside`), so one
+    stray placeholder silences no question.
+
+    Guarantees: a function of the word, in rising order. Raises KeyError
+    for a word outside `MEMBERS`. No I/O of any kind.
+    """
+    placeholders = (_word_of_day(1900, 1, 1), _word_of_day(9999, 12, 31))
+    return tuple(
+        number for number, word in set_aside_named(member) if word in placeholders
+    )
+
+
+def _word_of_day(year: int, month: int, date: int) -> str:
+    """A day's ISO word, as `set_aside_named` names it."""
+    return f"{year:04d}-{month:02d}-{date:02d}"
 
 
 def is_set_aside(member: str, written: Written, kept: "tuple[int, ...]" = ()) -> bool:
@@ -1553,6 +1587,10 @@ def aside_said(slots: "tuple[str, ...]") -> str:
         return ""
     return (
         f" Some cells hold {named}, which such a system writes where no "
-        f"date was given; read as dates, those cells are counted as no "
-        f"value and written back as they are."
+        f"date was given. Read as dates, a cell naming no date -- a "
+        f"spreadsheet's 0, 60 or a number below nought -- or the "
+        f"system's own count for 1 January 1900 or 31 December 9999 is "
+        f"counted as no value and written back as it is; 0 and -1 name "
+        f"a day of 1960 or 1970 in the other systems, and are read as "
+        f"that day unless you name them with --missing-value."
     )

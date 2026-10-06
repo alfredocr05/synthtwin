@@ -949,9 +949,9 @@ def _date_count_choices(
     aside = ""
     if date_counts.aside_listed(said.aside):
         aside = (
-            ", and a cell holding one of the numbers such a system writes "
-            "where no date was given is counted as no value and written "
-            "back as it is"
+            ", and a cell holding a number that names no date in it, or its "
+            "count for 1 January 1900 or 31 December 9999, is counted as no "
+            "value and written back as it is"
         )
     for member, first, last in said.readings:
         dated += [
