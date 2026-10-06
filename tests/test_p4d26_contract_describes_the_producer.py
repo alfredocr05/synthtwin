@@ -48,6 +48,7 @@ _WORDS = {
     25: "twenty-five",
     26: "twenty-six",
     27: "twenty-seven",
+    28: "twenty-eight",
 }
 
 
@@ -102,6 +103,34 @@ def test_the_key_list_names_every_settings_key() -> None:
         key for key in contract.SETTINGS_KEYS if f"`{key}`" not in listing
     )
     assert absent == [], f"the key list omits {absent}"
+
+
+def test_the_datetime_section_counts_the_keys_the_producer_writes() -> None:
+    """Section 6.6.2 states the datetime block's added keys in words, and names each addition.
+
+    The second key cut (plan P4-D386) added `count_form`, the
+    twenty-eighth, and the section still said twenty-seven with no word
+    of it, so a consumer holding a datetime block to the stated count
+    refused every one the producer writes (review of landing R2K, item
+    2). The account of the additions beside the count names
+    `weekday_census` and `count_form`, the two keys added one at a time,
+    and every key the block carries is named in the section.
+    """
+    said = _said()
+    start = said.index("#### 6.6.2 `datetime`")
+    section = said[start : said.index("\n### 6.7 ", start)]
+    total = len(contract.DATETIME_KEYS)
+    found = re.findall(r"\*\*Added keys: ([a-z]+(?:-[a-z]+)?)\*\* \(([^)]*)\)", section)
+    assert len(found) == 1, f"section 6.6.2 states its added keys {len(found)} times"
+    word, account = found[0]
+    assert word == _WORDS[total], (
+        f"section 6.6.2 says {word} added keys and the producer writes "
+        f"{total} ({_WORDS[total]})"
+    )
+    for key in ("weekday_census", "count_form"):
+        assert f"`{key}`" in account, f"the account of the additions omits {key}"
+    absent = sorted(key for key in contract.DATETIME_KEYS if f"`{key}`" not in section)
+    assert absent == [], f"section 6.6.2 never names {absent}"
 
 
 def test_every_role_the_producer_can_give_is_in_the_contract() -> None:
