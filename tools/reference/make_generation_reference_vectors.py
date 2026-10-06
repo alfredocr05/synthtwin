@@ -9356,7 +9356,8 @@ def hour_pass(walk, first, last, pinned, wanted, standing, half, reachable):
 
     2. G7.3f's shared steps at a unit of an hour with the day kept;
     3. while a group is over its count: SAMEDAY, the ESCAPE, and a SPLIT
-       where a unit has no place whole;
+       where a unit has no place whole; then RELIEF, a place in a full
+       group another unit of it leaves;
     4. off a written midnight, for each rank the pass put there;
     5. on the half day, each tail rank past noon or at midnight back on
        it inside its stratum;
@@ -9368,6 +9369,8 @@ def hour_pass(walk, first, last, pinned, wanted, standing, half, reachable):
     have = hour_have(walk, first, last)
     if have != walk.counts:
         hour_groups_left(walk, have, first, last, pinned, standing)
+    if have != walk.counts:
+        hour_relieved(walk, have, first, last, pinned)
     hour_off_midnight(walk, before, first, last, pinned)
     if half:
         hour_tails_on_the_half_day(walk, first, last)
@@ -9520,6 +9523,88 @@ def hour_groups_left(walk, have, first, last, pinned, standing):
                         break
         if not changed:
             return
+
+
+def hour_relieved(walk, have, first, last, pinned):
+    """G7.3g step 3's RELIEF, from the method's sentence (landing 3b.2-H).
+
+    Each group still over its count, in group order, asks its units as
+    step 3 does -- in proportional order, whole and then rank by rank --
+    and a unit takes, in the first group with a count of its own and no
+    room for it, SAMEDAY's place there on its own day inside its gap,
+    asked of that group alone, once a RELIEF unit has left that group:
+    the first, in rank order, of the group's units as the step began, of
+    as many ranks, with SAMEDAY's place on its own day in a group with
+    room. Where the unit then has none, the relief goes back and the next
+    is asked; a relief unit that finds no place is not asked again.
+    """
+    counts = walk.counts
+    pools, spent = {}, {}
+
+    def taken(group, members):
+        here = walk.days[members[0]]
+        day = here // HOUR_DAY
+        low, high = walk.lows[members[0]], walk.highs[members[0]]
+        size = len(members)
+        for middle in range(len(counts)):
+            if middle == group or counts[middle] == 0 or have[middle] + size <= counts[middle]:
+                continue
+            alone = list(counts)
+            alone[middle] = counts[middle] - size
+            if hour_place_on(walk, day, here, low, high, size, alone) is None:
+                continue
+            if middle not in pools:
+                pools[middle] = hour_units(walk, middle, first, last, pinned)
+                spent[middle] = set()
+            for index, relief in enumerate(pools[middle]):
+                if index in spent[middle] or len(relief) != size or members[0] in relief:
+                    continue
+                start = walk.days[relief[0]]
+                if walk.group(start) != middle:
+                    spent[middle].add(index)
+                    continue
+                out = hour_place_on(
+                    walk, start // HOUR_DAY, start, walk.lows[relief[0]], walk.highs[relief[0]], size, have
+                )
+                if out is None:
+                    spent[middle].add(index)
+                    continue
+                into = walk.group(out)
+                for rank in relief:
+                    walk.move(rank, out)
+                have[middle] -= size
+                have[into] += size
+                target = hour_place_on(walk, day, here, low, high, size, have)
+                if target is None:
+                    for rank in relief:
+                        walk.move(rank, start)
+                    have[middle] += size
+                    have[into] -= size
+                    continue
+                spent[middle].add(index)
+                for rank in members:
+                    walk.move(rank, target)
+                have[group] -= size
+                have[walk.group(target)] += size
+                return True
+        return False
+
+    for group in range(len(counts)):
+        if have[group] <= counts[group]:
+            continue
+        units = hour_units(walk, group, first, last, pinned)
+        for unit in hour_rotated(units, have[group] - counts[group]):
+            if have[group] <= counts[group]:
+                break
+            ordinal = walk.days[unit[0]]
+            tries = [unit] + ([[rank] for rank in unit] if len(unit) > 1 else [])
+            for members in tries:
+                if have[group] <= counts[group]:
+                    break
+                if walk.days[members[0]] // walk.step != ordinal // walk.step:
+                    continue
+                if taken(group, members) and len(members) == len(unit):
+                    break
 
 
 def hour_merge_place(walk, rank, held, standing):
@@ -13958,6 +14043,24 @@ def hour_split_case():
     )
 
 
+HOUR_SEVEN = [0] * 7 + [1] + [2] * 16
+
+
+def hour_relief_case():
+    m = HOUR_MONDAY
+    ordinals = [
+        hour_at(m - 4, 7, 30), hour_at(m - 3, 7, 5), hour_at(m - 3, 7, 5),
+        hour_at(m - 2, 7, 15), hour_at(m, 3, 40), hour_at(m, 7, 30),
+    ]
+    return hour_case(
+        "RELIEF (step 3): a rank at 03:40 before a rung at 07:30 on the last day of its "
+        "gap, hours 0 to 6 counted empty and hour 7 full. It takes 07:29 once a unit of "
+        "hour 7 of as many ranks has left: the pair at 07:05 is two, so the rank at 07:15 "
+        "goes, to 08:15 on its own day.",
+        "relief", ordinals, {0, 5}, [0, 5, 1], HOUR_SEVEN,
+    )
+
+
 def hour_put_back_case():
     m = HOUR_MONDAY
     ordinals = sorted([
@@ -14051,6 +14154,7 @@ HOUR_STEP_CASES = {
     "hour_same_day_clock": hour_same_day_case,
     "hour_escape_weekday": hour_escape_case,
     "hour_split": hour_split_case,
+    "hour_relief": hour_relief_case,
     "hour_put_back": hour_put_back_case,
     "hour_put_back_short": hour_put_back_short_case,
     "hour_proportional": hour_proportional_case,
@@ -14106,6 +14210,8 @@ def hour_step_answer(case):
         )
     if step == "left":
         hour_groups_left(walk, hour_have(walk, first, last), first, last, pinned, case["standing"])
+    elif step == "relief":
+        hour_relieved(walk, hour_have(walk, first, last), first, last, pinned)
     elif step == "put_back":
         hour_put_back(walk, first, last, pinned, case["wanted"], case["standing"])
     elif step == "midnight":

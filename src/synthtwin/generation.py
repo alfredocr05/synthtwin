@@ -21799,7 +21799,8 @@ def _hour_pass(
     Step 2, G7.3f's shared pass at a unit of an hour with the day kept
     (`_bins_settled`); step 3, SAMEDAY and the ESCAPE, a unit SPLIT where
     no group has room for it whole (`_hour_left_their_groups`), where a
-    group is still over its count; step 4, no rank the pass moved left
+    group is still over its count, and then RELIEF, a place in a full
+    group another of its units leaves (`_hour_relieved`); step 4, no rank the pass moved left
     at a written midnight (`_hour_off_midnight`); step 5, on the dial's
     half day, every tail rank back on it (`_hour_tails_on_the_half_day`);
     step 6, PUT BACK, where the count of different written units is off
@@ -21819,6 +21820,8 @@ def _hour_pass(
         _hour_left_their_groups(
             state, counts, found, body_low, body_high, pinned, standing
         )
+    if found != counts:
+        _hour_relieved(state, counts, found, body_low, body_high, pinned)
     _hour_off_midnight(state, before, body_low, body_high, pinned)
     if half_day:
         _hour_tails_on_the_half_day(state, body_low, body_high, state.step)
@@ -22074,6 +22077,131 @@ def _hour_left_their_groups(
                         break
         if not changed:
             return
+
+
+def _hour_relieved(
+    state: _WeekdayPass,
+    counts: "list[int]",
+    have: "list[int]",
+    body_low: int,
+    body_high: int,
+    pinned: "list[bool]",
+) -> None:
+    """G7.3g step 3's RELIEF: a unit no group with room can take takes a
+    place in a FULL group, which a unit of that group leaves for it.
+
+    After SAMEDAY, the escape and SPLIT a unit may still have no place:
+    a rank before a rung at 07:30 on the last day of its gap, hours 0 to 6
+    counted empty and hour 7 full, its gap holding no other day of its day
+    standing -- OR starts, ten rooms at 07:30 on weekdays alone, missed
+    their census at every seed. So, in group order, each group still over
+    its count asks its units as step 3 does -- in proportional order,
+    whole and then rank by rank -- and each takes, in the first group
+    with a count of its own that has no room for it, the place SAMEDAY
+    gives it there on its own day inside its gap, once a RELIEF unit has
+    left that group: the first, in rank order, of the group's units as
+    the step began, of as many ranks, that has SAMEDAY's place on its own
+    day in a group with room. Where the unit then has no place, the
+    relief goes back and the next is asked. A relief unit that finds no
+    place is not asked again, since no move of this step gives a group
+    room. Every move keeps its ranks' day and gap and lands on a written
+    unit no rank holds, so the count of different values moves only
+    where a rank leaves a written unit others hold, as in SPLIT.
+
+    Guarantees: moves body ranks the layout does not pin, each inside its
+    own gap and on its own day; updates `have`. Raises nothing. No I/O.
+    """
+    groups = len(counts)
+    pools: "dict[int, list[list[int]]]" = {}
+    spent: "dict[int, set[int]]" = {}
+    for group in range(groups):
+        if have[group] <= counts[group]:
+            continue
+        units = _hour_units(state, group, body_low, body_high, pinned)
+        for unit in _hour_rotated(units, have[group] - counts[group]):
+            if have[group] <= counts[group]:
+                break
+            ordinal = state.moved[unit[0]]
+            size = len(unit)
+            for members in [unit] + ([[rank] for rank in unit] if size > 1 else []):
+                if have[group] <= counts[group]:
+                    break
+                first = members[0]
+                here = state.moved[first]
+                if here // state.step != ordinal // state.step:
+                    continue
+                if _hour_relief_taken(
+                    state, counts, have, group, members, pools, spent,
+                    body_low, body_high, pinned,
+                ) and len(members) == size:
+                    break
+
+
+def _hour_relief_taken(
+    state: _WeekdayPass,
+    counts: "list[int]",
+    have: "list[int]",
+    group: int,
+    members: "list[int]",
+    pools: "dict[int, list[list[int]]]",
+    spent: "dict[int, set[int]]",
+    body_low: int,
+    body_high: int,
+    pinned: "list[bool]",
+) -> bool:
+    """One unit's RELIEF (`_hour_relieved`): whether it moved."""
+    first = members[0]
+    here = state.moved[first]
+    day = here // calendar_clock.DAY_SECONDS
+    low, high = state.lows[first], state.highs[first]
+    size = len(members)
+    for middle in range(len(counts)):
+        if middle == group or counts[middle] == 0 or have[middle] + size <= counts[middle]:
+            continue
+        # SAMEDAY's place in this group alone, as though it had room.
+        alone = [counts[other] for other in range(len(counts))]
+        alone[middle] = counts[middle] - size
+        if _hour_target_on(state, day, here, low, high, size, alone, counts) is None:
+            continue
+        if middle not in pools:
+            pools[middle] = _hour_units(state, middle, body_low, body_high, pinned)
+            spent[middle] = set()
+        pool = pools[middle]
+        for index in range(len(pool)):
+            relief = pool[index]
+            if index in spent[middle] or len(relief) != size or first in relief:
+                continue
+            start = state.moved[relief[0]]
+            if state.where[calendar_clock.hour_of(start)] != middle:
+                spent[middle] |= {index}
+                continue
+            out = _hour_target_on(
+                state, start // calendar_clock.DAY_SECONDS, start,
+                state.lows[relief[0]], state.highs[relief[0]], size, have, counts,
+            )
+            if out is None:
+                spent[middle] |= {index}
+                continue
+            into = state.where[calendar_clock.hour_of(out)]
+            for rank in relief:
+                _weekday_step(state, rank, out)
+            have[middle] = have[middle] - size
+            have[into] = have[into] + size
+            target = _hour_target_on(state, day, here, low, high, size, have, counts)
+            if target is None:
+                for rank in relief:
+                    _weekday_step(state, rank, start)
+                have[middle] = have[middle] + size
+                have[into] = have[into] - size
+                continue
+            spent[middle] |= {index}
+            for rank in members:
+                _weekday_step(state, rank, target)
+            have[group] = have[group] - size
+            moved_into = state.where[calendar_clock.hour_of(target)]
+            have[moved_into] = have[moved_into] + size
+            return True
+    return False
 
 
 def _hour_held_by_day(

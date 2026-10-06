@@ -6734,7 +6734,7 @@ weekday unless a published census allows it.
    precision, the day 86,400 seconds, a period of 24 bins, and every
    move keeping the rank's day (THE SEAMS of G7.3f), so a move shifts a
    rank by whole hours on its own day and keeps its minute and second.
-3. **SAMEDAY, the ESCAPE and SPLIT** (the design skeptic's B1 and B2),
+3. **SAMEDAY, the ESCAPE, SPLIT and RELIEF** (the design skeptic's B1 and B2),
    where a group is still over its count, up to four rounds, a round
    that moves nothing ending the step. In group order, each group over
    its count asks its movable units in PROPORTIONAL ORDER (the 3b.4
@@ -6756,6 +6756,17 @@ weekday unless a published census allows it.
      and there SAMEDAY's place;
    - else SPLIT: where `k` is more than one, each rank of it alone, in
      rank order, as above, while its group is over.
+
+   Then RELIEF, where a group is still over its count: in group order,
+   each such group asks its units again, in proportional order, whole and
+   then rank by rank, and a unit takes, in the first group with a count of
+   its own and no room for it, SAMEDAY's place there on its own day inside
+   its gap -- asked of that group alone -- once a RELIEF unit has left that
+   group: the first, in rank order, of that group's units as RELIEF began,
+   of as many ranks, that has SAMEDAY's place on its own day in a group
+   with room. Where the unit then has none, the relief unit goes back and
+   the next is asked; one that finds no place is not asked again, since
+   no move of RELIEF gives a group room.
 4. **Off midnight.** A movable rank the steps above left written at
    midnight that was not there when the pass began, with every such rank
    of its written unit, takes the free place of hour 0 nearest midnight
@@ -6798,11 +6809,15 @@ and a lab panel of 2,000 results on 1 to 25 rows an instant came back
 62 values long until step 6 merged the split runs back; the shared steps'
 own count steps (G7.3f step 8) look only at a unit's place inside an
 hour, which on a column of seconds almost never holds another rank.
+OR starts -- ten rooms at 07:30 on 100 weekdays, cases from 09:00 --
+left the ranks before the 07:30 rung on the last day of their gap in the
+empty hours 0 to 6 at every seed, hour 7 full and no day of their
+standing in the gap; RELIEF meets the census at 10 of 10 seeds.
 
 **Its frozen cases** are states of ranks, as G7.3f's are: the sixteenth
 vectors file, `tests/reference/generation-branch-vectors-16.json`, holds
-nine -- SAMEDAY, the escape with a weekday census's groups, SPLIT, PUT
-BACK long and short, the proportional order, the step off midnight, the
+ten -- SAMEDAY, the escape with a weekday census's groups, SPLIT, RELIEF,
+PUT BACK long and short, the proportional order, the step off midnight, the
 half day's tail ranks and the whole pass -- and three of G7.3b step 10's
 distances, on a low tail of minutes, a high tail of seconds and a tail
 whose ranks must all differ, each with the answer this section gives it

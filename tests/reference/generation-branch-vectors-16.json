@@ -646,6 +646,107 @@
       "why": "PUT BACK (step 6), the count one short: the first rank sharing 10:20 takes the free minute of its own hour nearest it, 10:19.",
       "written_unit": 60
     },
+    "hour_relief": {
+      "answer": [
+        1709191800,
+        1709276700,
+        1709276700,
+        1709367300,
+        1709537340,
+        1709537400
+      ],
+      "before": [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "body": [
+        0,
+        5
+      ],
+      "counts": [
+        0,
+        5,
+        1
+      ],
+      "half_day": false,
+      "highs": [
+        1709191800,
+        1709537400,
+        1709537400,
+        1709537400,
+        1709537400,
+        1709537400
+      ],
+      "holes": [],
+      "lows": [
+        1709191800,
+        1709191800,
+        1709191800,
+        1709191800,
+        1709191800,
+        1709537400
+      ],
+      "ordinals": [
+        1709191800,
+        1709276700,
+        1709276700,
+        1709363700,
+        1709523600,
+        1709537400
+      ],
+      "pinned": [
+        true,
+        false,
+        false,
+        false,
+        false,
+        true
+      ],
+      "reachable": true,
+      "standing": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "step": "relief",
+      "wanted": 5,
+      "where": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2
+      ],
+      "why": "RELIEF (step 3): a rank at 03:40 before a rung at 07:30 on the last day of its gap, hours 0 to 6 counted empty and hour 7 full. It takes 07:29 once a unit of hour 7 of as many ranks has left: the pair at 07:05 is two, so the rank at 07:15 goes, to 08:15 on its own day.",
+      "written_unit": 60
+    },
     "hour_same_day_clock": {
       "answer": [
         1709457000,

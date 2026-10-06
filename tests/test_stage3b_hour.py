@@ -31,6 +31,9 @@ The clauses, each red on its own mutant (named beside it):
   on the hour, a half-hour grid -- and the lab panel, where whole units
   cannot meet the census: met, nothing missed, the count kept (mutants:
   G7.3g's own steps withdrawn; PUT BACK withdrawn);
+* OR starts, ten rooms at 07:30 on weekdays alone, whose ranks before
+  the rung on the last day of their gap have no place but in a full hour:
+  met through RELIEF (mutant: RELIEF withdrawn, the census missed);
 * rule 4 and its amendment: the cells at midnight a description counts
   are the body's, but for those of a tail listing only midnight values (the 1970
   clinic: mutant, every midnight charged to the body, so the night
@@ -239,6 +242,20 @@ def _the_1970_clinic(tied: bool = False) -> "tuple[list[str], str]":
         latest = sorted(range(len(cells)), key=lambda place: cells[place], reverse=True)
         cells[latest[35]] = cells[latest[36]]
     return cells, _ISO_M
+
+
+def _or_starts() -> "dict[str, tuple[list[str], str]]":
+    """Operating-room starts: ten rooms at 07:30 on each of 100 weekdays, and one
+    to three cases a room from 09:00 on five-minute slots (the design skeptic's B2)."""
+    draw = random.Random(71005)
+    found: "list[str]" = []
+    for day in [day for day in _TWO_YEARS if day.weekday() < 5][:100]:
+        for _room in range(10):
+            found += [_at(day, 7, 30).strftime(_US)]
+            for _case in range(draw.randint(1, 3)):
+                minutes = 9 * 60 + 5 * draw.randrange(96)
+                found += [_at(day, minutes // 60, minutes % 60).strftime(_US)]
+    return {"or_start": (found, _US)}
 
 
 def _table_text(columns: "dict[str, tuple[list[str], str]]") -> str:
@@ -604,6 +621,30 @@ def test_red_without_put_back(panel, monkeypatch: pytest.MonkeyPatch) -> None:
     assert "drawn_at:distinct.n_distinct" in missed, missed
 
 
+def test_or_starts_meet_their_census_through_relief(tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """OR starts: ten rooms at 07:30 on 100 weekdays alone (the design skeptic's B2).
+
+    A rank before the 07:30 rung on the last day of its gap has hours 0
+    to 6, counted empty, and hour 7, full, on its own day, and no other
+    day of its weekday inside the gap, so SAMEDAY and the escape leave it
+    where it is; RELIEF moves a unit of hour 7 to a later hour of its own
+    day and the rank into hour 7 (G7.3g step 3). Seeds 0 and 1 at a floor
+    of 11, nothing missed. Mutant: RELIEF withdrawn, the census missed.
+    """
+    columns = _or_starts()
+    cells, form = columns["or_start"]
+    described = kpi_shapes.describe(tmp_path, "or", _table_text(columns), LINE)
+    assert described.block("or_start")["hour_census"], "the OR starts publish no census"
+    for seed in (0, 1):
+        written = kpi_shapes.twin_text(described, seed)
+        assert kpi_shapes.missed(kpi_shapes.measure(described, written, f"twin-{seed}.csv")) == [], seed
+        assert _statistics_failures(described.block("or_start"), cells, _cells(written, "or_start"), form) == [], seed
+    monkeypatch.setattr(generation, "_hour_relieved", lambda *_arguments: None)
+    written = kpi_shapes.twin_text(described, 0)
+    missed = kpi_shapes.missed(kpi_shapes.measure(described, written, "mutant.csv"))
+    assert "or_start:hour_census.groups" in missed, missed
+
+
 # -- rule 4 and its amendment ---------------------------------------------------
 
 
@@ -790,6 +831,9 @@ def _answer(case: dict, module=generation) -> list:
     elif step == "left":
         have = module._hour_found(state, len(case["counts"]), first, last)
         module._hour_left_their_groups(state, list(case["counts"]), have, first, last, pinned, standing)
+    elif step == "relief":
+        have = module._hour_found(state, len(case["counts"]), first, last)
+        module._hour_relieved(state, list(case["counts"]), have, first, last, pinned)
     elif step == "put_back":
         module._hour_count_put_back(state, first, last, pinned, case["wanted"], standing)
     elif step == "midnight":
@@ -845,8 +889,18 @@ STEP_MUTANTS = {
     ),
     "no SPLIT": (
         "hour_split",
-        "for members in [unit] + ([[rank] for rank in unit] if size > 1 else []):",
-        "for members in [unit]:",
+        "for members in [unit] + ([[rank] for rank in unit] if size > 1 else []):\n                    if have[group] <= counts[group]:\n                        break\n                    here",
+        "for members in [unit]:\n                    if have[group] <= counts[group]:\n                        break\n                    here",
+    ),
+    "RELIEF asks no full group": (
+        "hour_relief",
+        "        if _hour_target_on(state, day, here, low, high, size, alone, counts) is None:\n            continue",
+        "        if True:\n            continue",
+    ),
+    "RELIEF takes a unit of any size": (
+        "hour_relief",
+        "            if index in spent[middle] or len(relief) != size or first in relief:",
+        "            if index in spent[middle] or len(relief) < size or first in relief:",
     ),
     "PUT BACK withdrawn": (
         "hour_put_back",
@@ -880,8 +934,8 @@ STEP_MUTANTS = {
     ),
     "the whole pass without its own steps": (
         "hour_whole_pass",
-        "    if found != counts:\n        _hour_left_their_groups(\n            state, counts, found, body_low, body_high, pinned, standing\n        )\n    _hour_off_midnight",
-        "    if found != counts and False:\n        _hour_left_their_groups(\n            state, counts, found, body_low, body_high, pinned, standing\n        )\n    _hour_off_midnight",
+        "    if found != counts:\n        _hour_left_their_groups(\n            state, counts, found, body_low, body_high, pinned, standing\n        )\n    if found != counts:\n        _hour_relieved(",
+        "    if found != counts and False:\n        _hour_left_their_groups(\n            state, counts, found, body_low, body_high, pinned, standing\n        )\n    if found != counts and False:\n        _hour_relieved(",
     ),
 }
 
@@ -907,7 +961,7 @@ DISTANCE_MUTANTS = {
 CASES = [
     "half_day_apart", "half_day_high", "half_day_low", "hour_escape_weekday",
     "hour_half_day_tails", "hour_off_midnight", "hour_proportional", "hour_put_back",
-    "hour_put_back_short", "hour_same_day_clock", "hour_split", "hour_whole_pass",
+    "hour_put_back_short", "hour_relief", "hour_same_day_clock", "hour_split", "hour_whole_pass",
 ]
 
 
