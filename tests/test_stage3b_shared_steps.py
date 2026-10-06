@@ -106,13 +106,20 @@ The cases and their clauses:
   second-census state the verification of the Codex review's item 1
   noted, a cycle of step 8.3 and a merge of step 8.4 leave step 8.6 no
   way back, and the census is missed where 9cb2eb5 met it (P4-D366's
-  stated limit); and
+  stated limit);
   `test_a_chain_reaches_a_group_through_the_rank_beside_its_mover`, a
   strict xfail owned by D3 the same way: on a second-census state of
   that item's repair's own battery, step 7b's link, asked of each
   cell's mover alone, finds no chain where the rank beside the mover
   has the place, and the census is missed where 9cb2eb5's chain, moved
-  half way, was finished by step 8.6;
+  half way, was finished by step 8.6; and
+  `test_a_chain_spends_a_value_only_where_the_census_is_then_met`, a
+  strict xfail owned by landing D2, the first to publish a weekday
+  census of moments: on a day of moments the second verification of
+  that item found, where no placement meets both facts, step 7b's
+  chain, made whole through the mover its link was asked of, halves
+  the census's miss and keeps 12 different minutes where 9cb2eb5 kept
+  the 13 asked (P4-D366's third stated limit);
 * `test_the_body_is_full_only_where_every_unit_the_census_counts_holds_a_rank`
   -- the test the short cause asks (the review's M65), and
   `test_the_body_counts_a_unit_a_move_empties` -- the review's M09 and
@@ -1735,3 +1742,60 @@ def test_a_chain_reaches_a_group_through_the_rank_beside_its_mover() -> None:
     case = _a_chain_asked_of_its_mover_alone()
     moved = _answer(case)
     assert _holding(case, moved, range(len(moved))) == case["counts"]
+
+
+def _a_chain_made_whole_on_a_held_minute() -> dict:
+    """The state the second verification of the Codex review's item 1 found among 140,000 random
+    states (its 11902): a day of moments, minutes written, no second census, the groups Monday,
+    Tuesday, Wednesday to Friday, Saturday and Sunday, and Tuesday 23 to Thursday 25 April 2024
+    holes. A gap from Friday 19 April 04:36 to Thursday 25 April 12:30 holds Friday 04:36 three
+    times, 09:52, 12:30 twice and 13:33:04 three times, Saturday 02:08 twice and 12:30, Sunday
+    09:52 twice, Monday 02:08 and 13:33:04 twice, Tuesday 13:33:04 twice, Wednesday 02:08 twice
+    and 13:33:04, and Thursday 02:08 three times; Friday 04:36 once more, Thursday 12:30 and
+    Thursday 13:33:04 are pinned, and Thursday 12:30 and 13:33:04 stand once more in a gap of that
+    Thursday alone. The census asks 3, 0, 20, 5 and 2, and 13 different minutes are asked."""
+    day = (datetime.date(2024, 4, 19) - datetime.date(1970, 1, 1)).days
+    clocks = [(0, 4, 36, 0)] * 4 + [(0, 9, 52, 0)] + [(0, 12, 30, 0)] * 2 + [(0, 13, 33, 4)] * 3
+    clocks += [(1, 2, 8, 0)] * 2 + [(1, 12, 30, 0)] + [(2, 9, 52, 0)] * 2 + [(3, 2, 8, 0)]
+    clocks += [(3, 13, 33, 4)] * 2 + [(4, 13, 33, 4)] * 2 + [(5, 2, 8, 0)] * 2 + [(5, 13, 33, 4)]
+    clocks += [(6, 2, 8, 0)] * 3 + [(6, 12, 30, 0)] * 2 + [(6, 13, 33, 4)] * 2
+    ordinals = [(day + days) * DAY + hours * HOUR + minutes * 60 + seconds for days, hours, minutes, seconds in clocks]
+    return {
+        "ordinals": ordinals, "lows": [ordinals[0]] * 26 + [ordinals[26]] * 3 + [ordinals[29]],
+        "highs": [ordinals[0]] + [ordinals[26]] * 26 + [ordinals[29]] * 3,
+        "pinned": [rank in (0, 26, 29) for rank in range(30)], "counts": [3, 0, 20, 5, 2],
+        "where": [0, 1, 2, 2, 2, 3, 4], "unit": DAY, "written_unit": 60, "day": DAY,
+        "bin": "weekday", "period": 7, "keep": "", "pair": "", "pair_where": [],
+        "holes": [day + 4, day + 5, day + 6], "reachable": True, "body": [0, 29], "wanted": 13,
+        "step": "settled",
+    }
+
+
+@pytest.mark.xfail(
+    strict=True,
+    raises=AssertionError,
+    reason=(
+        "plan P4-D366's third stated limit, owned by landing D2, the first to publish a weekday "
+        "census of moments: no placement of this state meets both the census and the count, and "
+        "step 7b's chain, made whole through the mover its link was asked of, halves 9cb2eb5's "
+        "miss of the census at the cost of one of the 13 minutes asked, the census still missed"
+    ),
+)
+def test_a_chain_spends_a_value_only_where_the_census_is_then_met() -> None:
+    """Strict, and owned by landing D2 (P4-D366's third limit). Steps 1 to 7 leave Monday two over
+    and Wednesday to Friday two under, and no Monday rank has a place from Wednesday to Friday:
+    each stands at 02:08, before the gap opens on Friday 19 April, and Wednesday and Thursday are
+    holes. Step 7b's chain moves Monday 22 April 02:08 to Sunday, where 02:08, held twice now, is
+    Sunday's mover and has no such place either, so the move takes the mover the link was asked
+    of, the lone Sunday 21 April 13:33:04, onto Friday 19 April 13:33:04, which six ranks hold:
+    the census is missed by one rank each way, and 12 different minutes are kept. 9cb2eb5 found
+    no chain and the repairs before ba15cc3 left it half made, the census missed by two ranks each
+    way and the 13 minutes asked kept. No placement inside the gaps and off the holes meets both
+    facts -- with the census met at most 11 different minutes, with one rank each way 12 -- so the
+    chain trades a minute for half the miss of the method's first fact, and the census, reachable,
+    is missed on every commit. D2's battery turns this into a passing test, the census met or the
+    count kept where it is missed, or restates it."""
+    case = _a_chain_made_whole_on_a_held_minute()
+    moved = _answer(case)
+    met = _holding(case, moved, range(len(moved))) == case["counts"]
+    assert met or len({ordinal // case["written_unit"] for ordinal in moved}) == case["wanted"]
