@@ -22505,6 +22505,14 @@ def _offsets_owed_by_the_classes(
     stands -- and never so many that the cells left with none fall below
     the line, which is the count that absorbs them.
 
+    NEVER AN OFFSET THE CENSUS NAMES (skeptic 2 of landing R2a, item 1). A
+    cell written at a named offset is counted into that offset and read at
+    it, not into `(none)`: 1,000 HL7 stamps, 300 ending `+0000` and 5
+    `-0500`, were paid at `+0000`, and their twin missed `utc_offsets` on
+    `(none)` and on `+00:00` at every seed, where the column had validated
+    as free text before the landing. An offset the census names is left
+    off the offer, and where none is left nothing is paid.
+
     ONLY WHERE `(none)` IS THE CENSUS'S COMMONEST NAMED COUNT and nothing
     is pooled, so the offsets the census counted into `(none)` are the
     whole debt and an offset the twin's description counts back into it
@@ -22514,6 +22522,14 @@ def _offsets_owed_by_the_classes(
     every other layout's cells are text with an offset or without one, and
     owe nothing here. No offset written is the real column's; none is
     published.
+
+    WHAT IT COSTS (skeptic 2, item 2): one reading of each cell's class,
+    and nothing more where nothing is owed or nothing is on offer. It wrote
+    the offset on every open rank before it knew the debt, 4.6 to 5.0 CPU
+    seconds of a 33-second generate at 300,000 rows that owed nothing.
+    Where offsets are owed it counts the copies of each text and writes
+    the offset only on the ranks it settles; a payment the field cannot write
+    is skipped, as one that would be an absent spelling is.
 
     Guarantees: accepts the column, its datetime facts, the parsed cells
     as written, every absent spelling and the settings floor; returns the
@@ -22535,29 +22551,38 @@ def _offsets_owed_by_the_classes(
     offered: "tuple[str, ...]" = _OWED_OFFSETS
     if parsing.layout_offset_field(family) in ("Z", "z", "UTC", "GMT"):
         offered = ("Z",)
+    on_offer: "list[str]" = []
+    for one in offered:
+        if one not in census:
+            on_offer += [one]
+    worn = 0
+    for cell in cells:
+        if parsing.classify_number(cell) != parsing.NUMBER:
+            worn = worn + 1
+    debt = column.n_not_numeric - worn - facts.n_unparsed
+    if not on_offer or debt <= 0:
+        return cells
     copies: "dict[str, int]" = {}
     for cell in cells:
         copies[cell] = (copies[cell] if cell in copies else 0) + 1
-    worn = 0
-    bare: "list[int]" = []
-    for rank in range(len(cells)):
-        if parsing.classify_number(cells[rank]) != parsing.NUMBER:
-            worn = worn + 1
-        elif 0 < rank < len(cells) - 1 and copies[cells[rank]] == 1:
-            changed = parsing.layout_offset_added(cells[rank], family, offered[0])
-            if changed is not None and not _is_a_hole_spelling(changed, holes):
-                bare += [rank]
+    open_ranks: "list[int]" = []
+    for rank in range(1, len(cells) - 1):
+        if (
+            copies[cells[rank]] == 1
+            and parsing.classify_number(cells[rank]) == parsing.NUMBER
+        ):
+            open_ranks += [rank]
     line = parsing.census_floor(floor)
     owed = min(
-        column.n_not_numeric - worn - facts.n_unparsed,
-        len(bare),
+        debt,
+        len(open_ranks),
         len(cells) - worn - line,
-        (line - 1) * len(offered),
+        (line - 1) * len(on_offer),
     )
     for payment in range(max(owed, 0)):
-        rank = bare[(payment * len(bare)) // owed]
+        rank = open_ranks[(payment * len(open_ranks)) // owed]
         changed = parsing.layout_offset_added(
-            cells[rank], family, offered[payment // (line - 1)]
+            cells[rank], family, on_offer[payment // (line - 1)]
         )
         if changed is not None and not _is_a_hole_spelling(changed, holes):
             cells[rank] = changed

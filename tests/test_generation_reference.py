@@ -826,6 +826,7 @@ TWENTY_FIFTH_BRANCH_CASES = (
     "layout_hl7_fraction_offset",
     "layout_hour_offset",
     "layout_offsets_owed",
+    "layout_offsets_owed_beside_named",
     "layout_offsets_owed_repeats",
     "layout_optional_offset",
     "layout_sas_date9",
@@ -877,6 +878,9 @@ SEEDS = {
     "layout_offsets_owed": 430,
     "layout_space_padded_day": 431,
     "layout_offsets_owed_repeats": 432,
+    # ...and its second skeptic's offer beside a named offset (item 1),
+    # after the highest seed another lane of the wave had taken, 435.
+    "layout_offsets_owed_beside_named": 436,
     # Landing T1's written clocks take the next seeds after the highest in
     # use below 34041 (plan P4-D370).
     "stamp_unpadded_hour": 416,
@@ -1777,11 +1781,12 @@ FOURTEENTH_BRANCH_NAMED_COUNTS = 53
 # its five cases publish no binary64 at all.
 TWENTY_SECOND_BRANCH_PUBLISHED_NUMBERS = 0
 TWENTY_SECOND_BRANCH_NAMED_COUNTS = 122
-# The twenty-fifth, at its own generator's line ("proved 16 ... beside 300"):
+# The twenty-fifth, at its own generator's line ("proved 20 ... beside 327"):
 # the distances its cases with two tails publish, G7.9b's two cases of the
-# repair round adding eight of them.
-TWENTY_FIFTH_BRANCH_PUBLISHED_NUMBERS = 16
-TWENTY_FIFTH_BRANCH_NAMED_COUNTS = 300
+# repair round adding eight of them and the one of its second skeptic four
+# more.
+TWENTY_FIFTH_BRANCH_PUBLISHED_NUMBERS = 20
+TWENTY_FIFTH_BRANCH_NAMED_COUNTS = 327
 # The document file publishes NO binary64 at all, and that is a fact
 # about its transforms rather than a gap in its proof: the written form,
 # the arrangement, the workbook writer, the shape of a line before a
@@ -2461,6 +2466,8 @@ _WRITTEN_CLOCK_OF = gen.written_clock_of
 # Landing R2a's two rules, bound before any mutant replaces them.
 _LAYOUT_WRITTEN = gen.layout_written
 _READABLE_DAYS = gen.readable_days
+# ...and G7.9b's offer, bound the same way (skeptic 2 of landing R2a).
+_OFFSETS_ON_OFFER = gen.offsets_on_offer
 
 
 def _layout_rewritten(old: str, new: str):
@@ -3544,6 +3551,14 @@ CASE_MUTANTS = {
         "the mutant makes a payment on a repeated text too",
         attribute="a_text_worn_once",
         replacement=lambda cells, rank: True,
+        outcome=CHANGES_THE_CELLS,
+    ),
+    "layout_offsets_owed_beside_named": Mutant(
+        branch="G7.9b's offer, every offset the census names left off it "
+        "(skeptic 2 of landing R2a, item 1); the mutant offers a named "
+        "offset too, and the payments wear it",
+        attribute="offsets_on_offer",
+        replacement=lambda field, census: _OFFSETS_ON_OFFER(field, {}),
         outcome=CHANGES_THE_CELLS,
     ),
     "layout_space_padded_day": Mutant(

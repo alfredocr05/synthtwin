@@ -9933,6 +9933,34 @@ def a_text_worn_once(cells, rank):
     return cells.count(cells[rank]) == 1
 
 
+def offsets_on_offer(field, census):
+    """G7.9b step 3: the offsets the pass may write, as the field spells them.
+
+    `+00:00`, `+01:00`, ..., `+14:00` in that order -- or the zulu field's
+    own word, the one offset it has, whose census key is `Z` -- less every
+    offset the census names (skeptic 2 of landing R2a, item 1): a cell
+    written at a named offset is counted into that offset and read at it.
+    """
+    if field in LAYOUT_ZULU_FIELDS:
+        keyed = [("Z", field)]
+    else:
+        keyed = []
+        for hours in range(15):
+            sign_hours = f"+{hours:02d}"
+            keyed.append(
+                (
+                    sign_hours + ":00",
+                    {"+HH:MM": sign_hours + ":00", "+HHMM": sign_hours + "00", "+HH": sign_hours}[field],
+                )
+            )
+    return [spelling for key, spelling in keyed if key not in census]
+
+
+def payments_owed(debt, open_ranks, number_cells, line, offers):
+    """G7.9b step 4: how many payments the pass makes, the fewest of four."""
+    return min(debt, open_ranks, number_cells - line, (line - 1) * offers)
+
+
 def offsets_paid_to_the_classes(column, cells, holes, floor=CASE_SMALL_CELL_FLOOR):
     """G7.9b: the offsets a column of figure runs still owes its class count.
 
@@ -9951,11 +9979,13 @@ def offsets_paid_to_the_classes(column, cells, holes, floor=CASE_SMALL_CELL_FLOO
       number and is worn by that rank alone; payment k of n goes to the
       eligible rank at position k * (eligible ranks) // n;
     * payment k writes the cell again with the marks before the offset
-      field and the offset numbered k // (line - 1) of `+00:00`, `+01:00`,
-      ..., `+14:00`, spelled as the field spells it -- or the zulu field's
-      own word, the one offset it has;
+      field and the offset numbered k // (line - 1) of those on offer
+      (`offsets_on_offer`: `+00:00`, `+01:00`, ..., `+14:00` spelled as the
+      field spells it, or the zulu field's own word, less every offset the
+      census names);
     * n is the smallest of the debt, the eligible ranks, the number cells
-      less the census line, and (line - 1) times the offsets on offer;
+      less the census line, and (line - 1) times the offsets on offer
+      (`payments_owed`);
     * a payment whose cell would be a spelling the column holds absent is
       not made.
     """
@@ -9991,30 +10021,21 @@ def offsets_paid_to_the_classes(column, cells, holes, floor=CASE_SMALL_CELL_FLOO
             not _point or (fraction.isdigit() and fraction.isascii())
         )
 
-    if field in LAYOUT_ZULU_FIELDS:
-        offer = [field]
-    else:
-        offer = []
-        for hours in range(15):
-            sign_hours = f"+{hours:02d}"
-            offer.append(
-                {"+HH:MM": sign_hours + ":00", "+HHMM": sign_hours + "00", "+HH": sign_hours}[field]
-            )
+    offer = offsets_on_offer(field, census)
     absent = {hole.strip().lower() for hole in holes}
     not_numbers = sum(1 for text in cells if not a_number(text))
     eligible = [
         rank
         for rank in range(1, len(cells) - 1)
-        if a_number(cells[rank])
-        and a_text_worn_once(cells, rank)
-        and (cells[rank] + joint + offer[0]).strip().lower() not in absent
+        if a_number(cells[rank]) and a_text_worn_once(cells, rank)
     ]
     line = census_line(floor)
-    payments = min(
+    payments = payments_owed(
         column["n_not_numeric"] - not_numbers - column["n_unparsed"],
         len(eligible),
-        len(cells) - not_numbers - line,
-        (line - 1) * len(offer),
+        len(cells) - not_numbers,
+        line,
+        len(offer),
     )
     paid = list(cells)
     for payment in range(max(payments, 0)):
@@ -22920,6 +22941,25 @@ def _layout_offsets_owed_repeats():
     )
 
 
+def _layout_offsets_owed_beside_named():
+    return _r2a_layout(
+        "layout {YYYY}{MM}{DD}{HH}{MI}{SS}{+HHMM?}", "datetime", "second", 0, 24,
+        {"(none)": 13, "+00:00": 11}, "utc",
+        why="G7.9b's offer, every offset the census names left off it (skeptic "
+        "2 of landing R2a, item 1): an HL7 feed of twenty-four stamps, eleven "
+        "at the named `+00:00` and two whose offsets each stood below the "
+        "census line, counted into `(none)`, so `n_not_numeric` publishes "
+        "thirteen cells a reader of numbers refuses where the census gives "
+        "eleven ranks an offset. A cell written at `+0000` would be counted "
+        "into the named offset and read at it, so the two payments wear "
+        "`+0100`, the first offset on offer the census does not name. The "
+        "mutant offers the named offset too, and the twin wears `+0000` on "
+        "thirteen cells.",
+        earliest="1970-01-01 00:00:00", latest="1970-01-24 21:45:00",
+        numeric=11,
+    )
+
+
 def _layout_space_padded_day():
     return _r2a_layout(
         "layout {Mon} {_D} {YYYY}", "date", "date", 0, 12, {"(none)": 12}, "local",
@@ -22974,6 +23014,7 @@ R2A_BRANCH_CASE_BUILDERS = {
     "layout_hl7_fraction_offset": _layout_hl7_fraction_offset,
     "layout_hour_offset": _layout_hour_offset,
     "layout_offsets_owed": _layout_offsets_owed,
+    "layout_offsets_owed_beside_named": _layout_offsets_owed_beside_named,
     "layout_offsets_owed_repeats": _layout_offsets_owed_repeats,
     "layout_optional_offset": _layout_optional_offset,
     "layout_sas_date9": _layout_sas_date9,
@@ -32491,7 +32532,9 @@ _TWENTY_FIFTH_BRANCH_ACCOUNT = (
     "from its repair round, a day padded with a space and G7.9b's offsets, "
     "paid on texts no other rank repeats, written on a column of figure "
     "runs whose count of cells that are not numbers still holds the "
-    "offsets its census counted into `(none)`. They "
+    "offsets its census counted into `(none)`; and, from its second "
+    "skeptic, those offsets beside an offset the census names, which is "
+    "never written for them. They "
     "are computed by the same oracle and the same proof layer "
     "as tests/reference/generation-reference-vectors.json, "
     "tests/reference/generation-branch-vectors.json, "
@@ -32900,6 +32943,25 @@ GIVEN_WORDS = {
         18069702245401843034, 6335616562914469182, 12384629232222688895,
         17648630171009772129, 7255128612912000851, 258969191686089756,
         8389684766110654885, 14177414840016457100, 5233216453694197285,
+    ),
+    # ...and skeptic 2's round of it: G7.9b's offer beside an offset the
+    # census names (item 1), at seed 436.
+    "layout_offsets_owed_beside_named": (
+        4716367783806765390, 7884643201287912641, 2297083141838519310,
+        16953759435448617280, 17500889345654752306, 18172332741079724202,
+        6285098686735134646, 9802688290517549930, 140800883194953627,
+        15936980391107248753, 12080164295672989798, 17612284552788816386,
+        17344515288307770772, 9703631682277609459, 14684705860684466270,
+        5933445289531377841, 12801192950643549267, 10385244282613427710,
+        1345758328881018689, 15515320943409964108, 14155866716004913877,
+        9373835948504433549, 8523709485270373613, 14243597506006158546,
+        6193814487132956387, 14800499195232701618, 2480322347135689672,
+        3983243532031220009, 2467735324207503820, 10702446183421247832,
+        2231650917681622309, 4145314616686227114, 93216801533390599,
+        7831263025823995604, 41265574803876257, 1531141591779210239,
+        205796669871881458, 7989721165120253828, 3755740244614251843,
+        5595582438671437075, 15317152902321133127, 16415137625249378943,
+        3767219378542190651, 16820870707325869515, 6803819411126845134,
     ),
     # ...and the space-padded day of its repair round (item 6), at seed 431.
     "layout_space_padded_day": (
