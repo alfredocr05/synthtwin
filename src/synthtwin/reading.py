@@ -2496,23 +2496,20 @@ def _check_against_pandas(
                 # leaves it open.
                 continue
             if keys is None:
+                # The columns pandas read are the ones the piece's size
+                # was worked out for, or nothing more is compared; the
+                # one a header's trailing delimiter adds is never asked.
                 keys = list(piece.columns)
-                agrees = len(keys) == read_width
-                if form.header_trailing_delimiter and len(keys) == width + 1:
-                    keys = keys[:width]
                 names = [f"{key}" for key in keys]
-                agrees = agrees and len(keys) == width
+                agrees = len(keys) == read_width
                 agrees = agrees and _names_agree(named_cells, names)
-                if agrees and first_as_names:
-                    # The record pandas took as names stands first in
-                    # the frame, as the survey read it.
-                    for index in range(width):
-                        if not _piece_agrees(
-                            found, form, index, 0, [found.columns[index][0]]
-                        ):
-                            agrees = False
-                            break
             if agrees and keys is not None:
+                # The record pandas took as names stands first in the
+                # frame, as the survey read it, and is held to the names
+                # it read above: a file with no names has no rows of
+                # descriptions (the survey reads them under a header
+                # alone), so that record is the survey's own first value
+                # and nothing else, and the pieces start one place on.
                 start = found_rows + (1 if first_as_names else 0)
                 for index in range(width):
                     # One column of this piece is turned into text at a
@@ -2701,9 +2698,9 @@ def _piece_agrees(
     under the names first, then the data. A row above the data is
     compared as pandas read it; the frame's last value, where an
     end-of-file mark is glued to it, without the mark, which the survey
-    took off the text; and the values a run at a time. A place past the
-    survey's last value differs. Nothing is refused here: a piece that
-    differs sends the check to the whole frame, which says what.
+    took off the text; and the values a run at a time, so a place past
+    the survey's last value differs. Nothing is refused here: a piece
+    that differs sends the check to the whole frame, which says what.
     """
     count = len(theirs)
     offset = len(form.header_rows)
@@ -2715,8 +2712,6 @@ def _piece_agrees(
     if step == count:
         return True
     position = start + step - offset
-    if position + count - step > found.n_rows:
-        return False
     last = found.n_rows + offset - 1
     if form.end_of_file_mark and not form.final_line_ending:
         if start + step <= last < start + count:

@@ -46,6 +46,7 @@ from __future__ import annotations
 
 import csv
 import dataclasses
+import gc
 import io
 import math
 import pathlib
@@ -1580,6 +1581,24 @@ def _check_cases(folder: pathlib.Path) -> "list[tuple[str, reading._Reading, pat
     cases += [("two values", _with_columns(found, both, found.n_rows), plain)]
     short = [list(cells[:-1]) for cells in found.columns]
     cases += [("a row short", _with_columns(found, short, found.n_rows - 1), plain)]
+    # A reading a row longer than the file, every value pandas reads
+    # agreeing with it: only the count of rows tells them apart.
+    long = [list(cells) + [cells[-1]] for cells in found.columns]
+    cases += [("a row long", _with_columns(found, long, found.n_rows + 1), plain)]
+    # A reading a column wider than the file: only the columns pandas
+    # reads tell them apart.
+    wider = dataclasses.replace(
+        found,
+        column_names=list(found.column_names) + ["extra"],
+        columns=[list(cells) for cells in found.columns] + [list(found.columns[0])],
+    )
+    cases += [("a column more", wider, plain)]
+    narrower = dataclasses.replace(
+        found,
+        column_names=list(found.column_names[:-1]),
+        columns=[list(cells) for cells in found.columns[:-1]],
+    )
+    cases += [("a column fewer", narrower, plain)]
     marked = fixtures.write(folder, "marked.csv", "\n".join(body) + "\x1a")
     glued = reading._read_authoritatively(marked, "marked.csv", reading.FIRST_ROW_NAMES)
     cases += [("end-of-file mark", glued, marked)]
@@ -1635,26 +1654,33 @@ def test_the_checking_pass_read_in_pieces_says_what_the_whole_frame_said(
     """Agreement, and each refusal word for word, as 110cb46's pass that held the whole frame.
 
     Pieces of 7 rows, so every file is read in many; changed values in
-    the first and the last pieces, two at once, a row short, an
-    end-of-file mark glued to the last value and that value changed, a
-    row of descriptions under the names and one of them changed, lines
-    above a table with no names, whose first record pandas takes as
-    names, with values changed in its first, second and last rows, and
-    such a table of one record with a mark glued on, which pandas is
-    asked for no rows of -- under both kinds of refusal. A file the
-    pieces agree on is never read whole; every other file is, once, and
-    its refusal is the whole frame's.
+    the first and the last pieces, two at once, a row short, a row long,
+    a column more and one fewer, an end-of-file mark glued to the last
+    value and that value changed, a row of descriptions under the names
+    and one of them changed, lines above a table with no names, whose
+    first record pandas takes as names, with values changed in its first,
+    second and last rows, and such a table of one record with a mark
+    glued on, which pandas is asked for no rows of -- under both kinds of
+    refusal. A file the pieces agree on is never read whole; every other
+    file is, once, and its refusal is the whole frame's; and pandas is
+    read to its end each time, so no file is left open. The piece is set
+    whether or not the module names one, so on 110cb46, which reads every
+    file whole, the test fails by its own measure.
     """
-    monkeypatch.setattr(reading, "_pandas_rows_a_piece", lambda width: 7)
+    monkeypatch.setattr(reading, "_pandas_rows_a_piece", lambda width: 7, raising=False)
     said = []
     whole = {"agrees": 0, "refused": 0}
     for name, found, path in _check_cases(tmp_path):
         for refusals in (reading.REFUSALS_MAY_QUOTE, reading.REFUSALS_NAME_POSITIONS):
             theirs = _checked(_check_against_pandas_as_built, found, path, refusals)
-            with pytest.MonkeyPatch.context() as patch:
+            with pytest.MonkeyPatch.context() as patch, warnings.catch_warnings(record=True) as caught:
+                warnings.simplefilter("always")
                 reads = _counted_reads(patch)
                 ours = _checked(reading._check_against_pandas, found, path, refusals)
+                gc.collect()
             assert ours == theirs, (name, refusals, ours, theirs)
+            left_open = [f"{warning.message}" for warning in caught if issubclass(warning.category, ResourceWarning)]
+            assert not left_open, (name, left_open)
             if name == "no rows asked for":
                 assert reads == {"pieces": 0, "whole": 1}, (name, reads)
             elif ours == "agrees":
@@ -1666,6 +1692,42 @@ def test_the_checking_pass_read_in_pieces_says_what_the_whole_frame_said(
             said += [ours]
     assert said.count("agrees") >= 8 and len(set(said)) >= 8, said
     assert whole["agrees"] >= 8 and whole["refused"] >= 20, whole
+
+
+def test_a_reader_that_fails_sends_the_check_to_the_whole_frame(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Pandas failing before the first piece or after the last decides nothing: the whole frame does.
+
+    Pandas is made to fail where it hands over pieces and nowhere else, so
+    the whole frame agrees and the file is accepted -- by the whole frame,
+    read once, and not by pieces that never came or never finished. On
+    110cb46, which reads no piece, the test fails by its own measure.
+    """
+    monkeypatch.setattr(reading, "_pandas_rows_a_piece", lambda width: 7, raising=False)
+    _name, found, path = _check_cases(tmp_path)[0]
+    shipped = reading.pandas.read_csv
+    for where in ("before the first piece", "after the last piece"):
+        reads = {"pieces": 0, "whole": 0}
+
+        def failing(*arguments: object, _where: str = where, **named: object) -> object:
+            if not named.get("chunksize"):
+                reads["whole"] += 1
+                return shipped(*arguments, **named)
+            reads["pieces"] += 1
+            if _where == "before the first piece":
+                raise ValueError(f"a made-up failure {_where}")
+
+            def handed() -> object:
+                yield from shipped(*arguments, **named)
+                raise ValueError(f"a made-up failure {_where}")
+
+            return handed()
+
+        with pytest.MonkeyPatch.context() as patch:
+            patch.setattr(reading.pandas, "read_csv", failing)
+            said = _checked(reading._check_against_pandas, found, path, reading.REFUSALS_MAY_QUOTE)
+        assert said == "agrees" and reads == {"pieces": 1, "whole": 1}, (where, said, reads)
 
 
 # Made-up files whose lines end in carriage returns alone and hold quoted
@@ -1698,7 +1760,8 @@ def test_a_damaged_file_is_refused_as_the_whole_frame_refused_it(
     Read in pandas' own steps, a piece fails where the whole frame fails
     and the whole frame then says why. Read in pieces of one row, the
     same files are read right and accepted where 110cb46 refused them, so
-    the piece's size is what this test holds.
+    the piece's size is what this test holds; on 110cb46, which reads no
+    piece, none is misread and the test fails by its own measure.
     """
     checked = 0
     misread = 0
@@ -1716,7 +1779,7 @@ def test_a_damaged_file_is_refused_as_the_whole_frame_refused_it(
                 )
                 checked += 1
                 with pytest.MonkeyPatch.context() as patch:
-                    patch.setattr(reading, "_pandas_rows_a_piece", lambda width: 1)
+                    patch.setattr(reading, "_pandas_rows_a_piece", lambda width: 1, raising=False)
                     if _checked(reading._check_against_pandas, found, path, refusals) != theirs:
                         misread += 1
     assert checked == 24 and misread == 24, (checked, misread)
