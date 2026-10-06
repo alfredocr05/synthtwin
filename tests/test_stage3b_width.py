@@ -994,8 +994,7 @@ def test_the_second_reading_is_asked_only_where_the_rule_has_anything_to_do(
     described = _described(tmp_path, "pad99999", reader.shape("pad99999", 150, 1), 11)
     facts = _facts(described)
     column = described.loaded.columns[0]
-    layout, _notes, _words = generation._numeric_layout(column, facts, None, 11)
-    found = generation._width_rule_withdrawn(column, facts, (layout, None), 11)
+    found = generation._width_rule_withdrawn(column, facts, None, 11)
     held = contract.tail_ladder(facts, reach_rule=False)
     assert found is not None and held is not None and held.high is not None
     ruled = contract.tail_ladder(facts)
@@ -1004,20 +1003,18 @@ def test_the_second_reading_is_asked_only_where_the_rule_has_anything_to_do(
     assert found[0] == generation._ladder_layout(column, facts, None, 11, held)[0]
     with monkeypatch.context() as patch:
         patch.setattr(generation, "_proven_sides", lambda *_arguments: [])
-        assert generation._width_rule_withdrawn(column, facts, (layout, None), 11) is not None
+        assert generation._width_rule_withdrawn(column, facts, None, 11) is not None
     plain = dataclasses.replace(facts, tail_rule=False)
-    assert generation._width_rule_withdrawn(column, plain, (layout, None), 11) is None
+    assert generation._width_rule_withdrawn(column, plain, None, 11) is None
     decimals = _described(tmp_path, "decimals", _codes_beside_decimals(), 11)
     decimal_facts = _facts(decimals)
     decimal_column = decimals.loaded.columns[0]
-    decimal_layout, _notes, _words = generation._numeric_layout(decimal_column, decimal_facts, None, 11)
-    assert generation._width_rule_withdrawn(decimal_column, decimal_facts, (decimal_layout, None), 11) is None
+    assert generation._width_rule_withdrawn(decimal_column, decimal_facts, None, 11) is None
     left = _described(tmp_path, "mixed_60_90", _mixed(60, 90, ["99999"], 2), 11)
     left_facts = _facts(left)
     left_column = left.loaded.columns[0]
     assert [side[4] for side in generation._proven_sides(left_facts, 4)] == [False], "premise: a side the rule left"
-    left_layout, _notes, _words = generation._numeric_layout(left_column, left_facts, None, 11)
-    assert generation._width_rule_withdrawn(left_column, left_facts, (left_layout, None), 11) is not None
+    assert generation._width_rule_withdrawn(left_column, left_facts, None, 11) is not None
 
 
 def test_both_readings_are_divided_into_the_same_strata_and_draw_the_same_words(tmp_path: pathlib.Path) -> None:
@@ -1045,28 +1042,60 @@ def test_both_readings_are_divided_into_the_same_strata_and_draw_the_same_words(
             assert other[0].sizes != plan[0].sizes, "premise: the two divisions differ"
 
 
-def test_a_division_wider_than_the_report_allows_is_not_taken(
+def _two_figures_beside_188() -> "list[str]":
+    """150 two-figure readings 10 to 99 drawn evenly, beside one `188` (one of `K-S3-22`'s width shapes, there at fifty)."""
+    draw = random.Random("g2/uniform/150/188")
+    return [str(draw.randint(10, 99)) for _row in range(150)] + ["188"]
+
+
+def _read_on_the_plan_s_division(real):  # type: ignore[no-untyped-def]
+    """The repair round's earlier form: the withdrawn ladder read on the plan's division wherever its own is wider than the plan's bound."""
+
+    def withdrawn(column, facts, grain_values, floor):  # type: ignore[no-untyped-def]
+        found = real(column, facts, grain_values, floor)
+        plan = generation._numeric_layout(column, facts, grain_values, floor)[0]
+        bound = max(generation._window_stratum(column, facts, floor), max(plan.sizes))
+        if found is not None and max(found[0].sizes) > bound:
+            return plan, found[1]
+        return found
+
+    return withdrawn
+
+
+def test_the_second_reading_is_divided_by_its_own_ladder_and_the_report_s_bound_holds_it(
     tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """The withdrawn reading is divided by its own ladder only where no stratum is wider than the report's windows allow.
+    """150 two-figure readings beside one `188`, at 20: the second reading is 110cb46's twin, on a division wider than the plan's.
 
-    `_report_widest` is the generation report's own bound -- the
-    description's cap, widened to the plan's widest stratum -- and the
-    bell beside `237` at 36 divides within it, so the withdrawn reading
-    takes its own division. Where that division would hold a stratum wider
-    than the bound, the withdrawn ladder is read on the plan's division.
+    The width-held end, `99`, makes a run of equal rungs at the top of the
+    tail, so the ladder rule 1 is withdrawn from divides the column into a
+    stratum of 15 rows where the plan's divides none past 11, the
+    description's cap. The second reading is divided by that ladder all
+    the same, so at seed 0, where the rule's reading stands further from
+    the real mean and spread, the twin is 110cb46's cell for cell; and the
+    generation report's bound widens to the 15 (`_report_widest`), so it
+    holds of whichever reading was written. Its mutant is the repair
+    round's own earlier form, which read the withdrawn ladder on the plan's
+    division wherever its own was wider than the plan's bound: that second
+    reading was not 110cb46's twin, and the twin stood further from the
+    real mean and spread, together, than 110cb46's -- one of ten such
+    twins over the 3,333 measured.
     """
-    described = _described(tmp_path, "bell_237", _bell_beside_237(), 36)
+    cells = _two_figures_beside_188()
+    described = _described(tmp_path, "two_188", cells, 20)
     facts = _facts(described)
     column = described.loaded.columns[0]
-    layout, _notes, _words = generation._numeric_layout(column, facts, None, 36)
-    widest = generation._report_widest(column, facts, layout, 36)
-    assert widest == max(generation._window_stratum(column, facts, 36), max(layout.sizes))
-    found = generation._width_rule_withdrawn(column, facts, (layout, None), 36)
-    assert found is not None and found[0] != layout and max(found[0].sizes) <= widest
-    monkeypatch.setattr(generation, "_report_widest", lambda *_arguments: max(found[0].sizes) - 1)
-    narrowed = generation._width_rule_withdrawn(column, facts, (layout, None), 36)
-    assert narrowed is not None and narrowed[0] == layout and narrowed[1] == found[1]
+    layout, _notes, _words = generation._numeric_layout(column, facts, None, 20)
+    found = generation._width_rule_withdrawn(column, facts, None, 20)
+    cap = generation._window_stratum(column, facts, 20)
+    assert found is not None and max(found[0].sizes) > max(cap, max(layout.sizes)), "premise: the second division is wider"
+    assert generation._report_widest(column, facts, (layout, None), 20) == max(found[0].sizes)
+    theirs = _withdrawn_numbers(described, 0)
+    assert _twin_numbers(described, 0) == theirs
+    monkeypatch.setattr(generation, "_width_rule_withdrawn", _read_on_the_plan_s_division(generation._width_rule_withdrawn))
+    mine = _errors(cells, _twin_numbers(described, 0))
+    before = _errors(cells, theirs)
+    assert mine[0] + mine[1] > before[0] + before[1] + _SLACK, f"{mine} {before}"
 
 
 def test_a_position_is_divided_again_by_its_own_count(tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -1085,10 +1114,10 @@ def test_a_position_is_divided_again_by_its_own_count(tmp_path: pathlib.Path, mo
     asked: "list[object]" = []
     real_withdrawn = generation._width_rule_withdrawn
 
-    def watched(column, facts, division, floor):  # type: ignore[no-untyped-def]
-        found = real_withdrawn(column, facts, division, floor)
+    def watched(column, facts, grain_values, floor):  # type: ignore[no-untyped-def]
+        found = real_withdrawn(column, facts, grain_values, floor)
         if found is not None:
-            asked.append(division[1])
+            asked.append(grain_values)
         return found
 
     monkeypatch.setattr(generation, "_width_rule_withdrawn", watched)

@@ -807,7 +807,7 @@ def test_the_twin_report_can_say_outside(tmp_path: pathlib.Path) -> None:
     for seed in (5, 17):
         twin = generation.generate(loaded, seed)
         written = list(twin.columns[0])
-        own = generation._numeric_approximations(column, facts, plan, written)
+        own = generation._numeric_approximations(column, facts, plan, written, None)
         assert own and all(entry.inside for entry in own), [
             entry.fact for entry in own if not entry.inside
         ]
@@ -818,7 +818,7 @@ def test_the_twin_report_can_say_outside(tmp_path: pathlib.Path) -> None:
         missed = {check.fact for check in outcome.checks if check.verdict == validation.MISSED}
         assert missed == set(), missed
         scaled = [f"{float(cell) * 1.03:.2f}" for cell in written]
-        moved = generation._numeric_approximations(column, facts, plan, scaled)
+        moved = generation._numeric_approximations(column, facts, plan, scaled, None)
         assert any(not entry.inside for entry in moved), [
             (entry.fact, entry.lowest, entry.highest, entry.achieved)
             for entry in moved
@@ -873,7 +873,7 @@ def test_a_heavy_tail_window_is_no_longer_vacuous(tmp_path: pathlib.Path) -> Non
         own = {
             entry.fact: entry
             for entry in generation._numeric_approximations(
-                column, facts, plan, list(twin.columns[0])
+                column, facts, plan, list(twin.columns[0]), None
             )
         }
         assert float(own["std"].lowest) <= facts.std

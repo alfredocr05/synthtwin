@@ -10035,12 +10035,14 @@ def _numeric_content(
     # their spread 1.06 to 1.08 times the real one where 110cb46 read 1.02
     # to 1.06. So the values are read a second time from the same words,
     # with the rule withdrawn -- each end where the width held it, the
-    # strata divided by that ladder, and 110cb46's walk -- and the first
-    # reading stands only where its distances from the published mean and
-    # spread, added, are no larger than the second's (`_reads_no_further`).
-    withdrawn = _width_rule_withdrawn(
-        column, facts, (layout, grain_values), floor
-    )
+    # strata divided by that ladder, and 110cb46's walk, which is 110cb46's
+    # twin -- and the first reading stands only where its distances from
+    # the published mean and spread, added, are no larger than the
+    # second's (`_reads_no_further`). The second is divided by its own
+    # ladder always: read on the plan's division instead, ten of 3,333
+    # twins measured stood further from the real moments than 110cb46's,
+    # and the generation report's bound widens to it (`_report_widest`).
+    withdrawn = _width_rule_withdrawn(column, facts, grain_values, floor)
     if withdrawn is not None:
         held = _values_drawn(
             column, facts, withdrawn[0], withdrawn[1], words, floor, False
@@ -15333,7 +15335,7 @@ def _proven_sides(
 def _width_rule_withdrawn(
     column: contract.ColumnBlock,
     facts: contract.NumericFacts,
-    division: "tuple[_NumericLayout, int | None]",
+    grain_values: "int | None",
     floor: int,
 ) -> "tuple[_NumericLayout, tuple[float, ...]] | None":
     """The division and the ladder a column takes with method G6.6.8 withdrawn, where that rule has anything to do (rule 3).
@@ -15344,20 +15346,16 @@ def _width_rule_withdrawn(
     end where the width clamp left it (`contract.tail_ladder` with the
     reach rule withdrawn) and the strata divided by that ladder
     (`_ladder_layout`): the division 110cb46 planned, which draws the
-    plan's own words.
+    plan's own words. That division can hold a wider stratum than the
+    plan's -- the width-held end makes a run of equal rungs at the top of
+    the tail, `99` written fifteen times beside readings 10 to 99 where
+    the reach rule's ladder divides no stratum past eleven -- so the
+    generation report widens its windows to it (`_report_widest`).
 
-    EXCEPT WHERE THAT DIVISION HOLDS A STRATUM WIDER THAN THE GENERATION
-    REPORT'S WINDOWS ALLOW FOR THE PLAN'S. The report widens its windows
-    by the plan's widest stratum and no further (`_report_widest`), so a
-    reading written on a division holding a wider one could stand outside
-    a window the report draws for it; there the withdrawn ladder is read
-    on the plan's own division instead.
-
-    Guarantees: accepts the column, its numeric facts, the plan's division
-    with the count its strata were divided by (`_numeric_layout`'s
-    ``grain_values``) and the settings floor; returns the division and the
-    ladder, or None. Determinism: a function of those. Raises nothing. No
-    I/O of any kind.
+    Guarantees: accepts the column, its numeric facts, the count the
+    plan's strata were divided by (`_numeric_layout`'s ``grain_values``)
+    and the settings floor; returns the division and the ladder, or None.
+    Determinism: a function of those. Raises nothing. No I/O of any kind.
     """
     if not facts.tail_rule:
         return None
@@ -15373,15 +15371,9 @@ def _width_rule_withdrawn(
         facts, _widest_demanded(_field_demands(facts))
     ):
         return None
-    layout, grain_values = division
     divided, _notes, _words = _ladder_layout(
         column, facts, grain_values, floor, held
     )
-    widest = 0
-    for size in divided.sizes:
-        widest = max(widest, size)
-    if widest > _report_widest(column, facts, layout, floor):
-        divided = layout
     return divided, held
 
 
@@ -42790,24 +42782,33 @@ def _window_stratum(
 def _report_widest(
     column: contract.ColumnBlock,
     facts: contract.NumericFacts,
-    layout: "_NumericLayout | None",
+    division: "tuple[_NumericLayout | None, int | None]",
     floor: int,
 ) -> int:
-    """The widest stratum the generation report's rung windows allow a column built on ``layout`` (G5.6, G12.2).
+    """The widest stratum the generation report's rung windows allow a column of numbers (G5.6, G12.2).
 
-    `_window_stratum`'s cap, widened to the layout's own widest stratum
-    where G5.2b's carrier and reach steps moved one past it -- the bound
-    `_numeric_approximations` draws, and the one a reading G6.6.8's rule 3
-    writes on another division must stay inside (`_width_rule_withdrawn`).
+    `_window_stratum`'s cap, widened to the plan's own widest stratum
+    where G5.2b's carrier and reach steps moved one past it -- AND, where
+    method G6.6.8's rule 3 may write the column on the division its width
+    rule withdrawn gives (`_width_rule_withdrawn`), to that division's
+    widest too, so the bound holds of whichever reading was written.
 
     Guarantees: accepts a column or the view of one, its numeric block,
-    the layout or None and the settings floor; returns a whole number of
-    at least one. Determinism: a function of those. Raises nothing. No
-    I/O of any kind.
+    the plan's layout or None with the count its strata were divided by
+    (`_numeric_layout`'s ``grain_values``), and the settings floor;
+    returns a whole number of at least one. Determinism: a function of
+    those. Raises nothing. No I/O of any kind.
     """
+    layout, grain_values = division
     widest = _window_stratum(column, facts, floor)
-    if layout is not None:
-        for size in layout.sizes:
+    if layout is None:
+        return widest
+    readings = [layout]
+    withdrawn = _width_rule_withdrawn(column, facts, grain_values, floor)
+    if withdrawn is not None:
+        readings += [withdrawn[0]]
+    for reading in readings:
+        for size in reading.sizes:
             widest = max(widest, size)
     return widest
 
@@ -43224,7 +43225,13 @@ def _joined_approximations(
         mine = _joined_position_numbers(written, facts, place)
         named = _position_words(place)
         for one in _numeric_approximations(
-            view, facts.parts[place], part_plan, mine, named, False
+            view,
+            facts.parts[place],
+            part_plan,
+            mine,
+            facts.parts[place].n_distinct_values,
+            named,
+            False,
         ):
             found += [
                 dataclasses.replace(
@@ -43481,6 +43488,7 @@ def _numeric_approximations(
     facts: contract.NumericFacts,
     plan: "_ColumnPlan",
     written: "list[str]",
+    grain_values: "int | None",
     subject: str = "this column",
     cardinalities: bool = True,
 ) -> "list[Approximation]":
@@ -43501,6 +43509,12 @@ def _numeric_approximations(
     larger fact than any bound would have been. A rung that is null
     while others hold numbers is filled by `_filled_rungs` and bounded
     like any other.
+
+    ``grain_values`` is the count the plan divided the column's strata by
+    (`_numeric_layout`), None for a plain column of numbers: where method
+    G6.6.8's rule 3 may write the column on the division its width rule
+    withdrawn gives, the bound is widened to that division's widest
+    stratum too (`_report_widest`), so it holds of whichever was written.
     """
     values = sorted(
         [
@@ -43536,8 +43550,12 @@ def _numeric_approximations(
     # moved its first percentile from 1.5 to 30.91, and a window read off
     # the cap alone called that construction outside its own method. The
     # quality report cannot read this layout, so on such a column it
-    # draws the narrower window (G5.6 names the exception).
-    widest = _report_widest(column, facts, plan.layout, plan.small_cell_floor)
+    # draws the narrower window (G5.6 names the exception). AND WHERE
+    # G6.6.8's RULE 3 MAY WRITE THE COLUMN ON THE DIVISION ITS WIDTH RULE
+    # WITHDRAWN GIVES -- 110cb46's twin -- the bound holds of that one too.
+    widest = _report_widest(
+        column, facts, (plan.layout, grain_values), plan.small_cell_floor
+    )
     # THE HALF UNIT, AND THE TWO RULES THAT CAN SPEND IT. The
     # whole-number rule of G5.4 moves a value by at most half a unit on
     # a column publishing `integer_valued: true`. On a column publishing
@@ -45187,7 +45205,7 @@ def _approximations(
             )
             mine = dataclasses.replace(plan, column=view, layout=layout)
             for record in _numeric_approximations(
-                view, numbers, mine, held[pair_view[0]]
+                view, numbers, mine, held[pair_view[0]], numbers.n_distinct_values
             ):
                 records += [
                     dataclasses.replace(record, fact=_affixed_key(step, record.fact))
@@ -45232,6 +45250,7 @@ def _approximations(
             facts.numbers,
             plan,
             numeric,
+            facts.numbers.n_distinct_values,
             subject="the numbers in this column",
             # THE HALF'S DISTINCTNESS IS NOT PRINTED UNDER THE COLUMN'S
             # NAME, which is the fault that withdrew the joined role's
@@ -45248,7 +45267,7 @@ def _approximations(
             column, facts, plan, numeric, written
         )
     if isinstance(facts, contract.NumericFacts):
-        return _numeric_approximations(column, facts, plan, written)
+        return _numeric_approximations(column, facts, plan, written, None)
     if isinstance(facts, contract.ClockFacts):
         return _clock_approximations(
             column, facts, written, plan.small_cell_floor
