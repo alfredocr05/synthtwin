@@ -78,7 +78,15 @@ The cases and their clauses:
   table, and M83 and N14 on the restated states;
 * the Codex review's growth tests (its items 2 to 5), machine-free, on
   the review's own states at its own sizes and at 40,000 rows:
-  `test_step_8_3_asks_only_the_retained_day` (item 2);
+  `test_step_8_3_asks_only_the_retained_day` (item 2),
+  `test_step_8_4_asks_the_retained_day_and_builds_its_places_once`
+  (item 3), `test_step_8_5_asks_only_the_cells_holding_a_source` (item
+  4, and a state whose cells hold sources but none beside the place a
+  pair needs) and `test_the_index_holds_few_units_for_each_rank` (item
+  5, at the review's 102,528 units); and its item 6,
+  `test_a_cycle_of_four_groups_is_not_asked_above_seven`, the bound on
+  step 8.3's cycles kept and its limit stated on the review's ten groups
+  of days of the month;
 * `test_the_body_is_full_only_where_every_unit_the_census_counts_holds_a_rank`
   -- the test the short cause asks (the review's M65), and
   `test_the_body_counts_a_unit_a_move_empties` -- the review's M09 and
@@ -1266,11 +1274,13 @@ def test_a_cause_stands_only_where_the_recount_went_its_way(tmp_path: pathlib.Pa
                 assert said[0].startswith("The twin holds fewer different spellings"), (cause[-40:], counted)
 
 
-# -- the Codex review's growth tests (its items 2 to 5) -------------------------------------
+# -- the Codex review's growth tests (its items 2 to 5) and its item 6 ----------------------
 #
 # Machine-free: each counts the work one step does -- the entries it builds, the reads it makes --
 # on the review's own state at the review's own sizes, red on 9cb2eb5 there, and again at 40,000
-# rows, where the count must stay a fixed multiple of the rows.
+# rows, where the count must stay a fixed multiple of the rows; item 5's counts the units the
+# index holds and the kinds kept, and item 6's states the bound on step 8.3's cycles and its limit,
+# each red on 9cb2eb5 too.
 
 MONDAY_DAY = (datetime.date(2024, 3, 4) - datetime.date(1970, 1, 1)).days
 
@@ -1470,3 +1480,53 @@ def test_the_index_holds_few_units_for_each_rank() -> None:
         assert len(state.kinds) <= ranks * apart // 1440 + 1, (ranks, len(state.kinds))
         assert _holding(case, state.moved, range(ranks)) == case["counts"], ranks
         assert len(set(case["ordinals"]) - set(state.moved)) == len(set(state.moved) - set(case["ordinals"])) == 1, ranks
+
+
+def _days_of_the_month_in_a_ring() -> dict:
+    """The Codex review's item 6 state: ten groups of days of the month -- the first to the ninth
+    each alone, the tenth to the thirty-first together -- two ranks each on 1 January, 2 February,
+    3 March and 4 April 2024, their gaps ending on 2 January, 3 February, 4 March and 1 May, the
+    census as they stand and eight different days asked."""
+    firsts = [datetime.date(2024, month, month) for month in (1, 2, 3, 4)]
+    lasts = [datetime.date(2024, 1, 2), datetime.date(2024, 2, 3), datetime.date(2024, 3, 4), datetime.date(2024, 5, 1)]
+    epoch = datetime.date(1970, 1, 1)
+    ordinals = [(first - epoch).days for first in firsts for _twice in (0, 1)]
+    highs = [(last - epoch).days for last in lasts for _twice in (0, 1)]
+    return {
+        "ordinals": ordinals, "lows": list(ordinals), "highs": highs, "pinned": [False] * 8,
+        "counts": [2, 2, 2, 2, 0, 0, 0, 0, 0, 0], "where": [min(day, 9) for day in range(31)], "unit": 1,
+        "written_unit": 1, "day": 1, "bin": "day_of_month", "period": 0, "keep": "", "pair": "",
+        "pair_where": [], "holes": [], "reachable": True, "body": [0, 7], "wanted": 8, "step": "settled",
+    }
+
+
+def test_a_cycle_of_four_groups_is_not_asked_above_seven(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The bound on step 8.3's cycles, kept and stated (the Codex review, item 6). On ten groups of
+    days of the month, two ranks each on 1 January, 2 February, 3 March and 4 April, their gaps
+    ending on 2 January, 3 February, 4 March and 1 May, and eight different days asked, only a
+    cycle of four groups gains -- one rank of each day onto its gap's last day, which keeps every
+    group's count and reaches eight -- and above seven groups none of more than three is asked: the
+    search offers no cycle and the pass keeps four days. Asked with cycles of four, it reaches
+    eight. The method's text and step 8.3's own docstring say no gaining cycle makes the count the
+    most the census allows only where every cycle is asked and a unit is one written unit; on
+    9cb2eb5 they said it of every census."""
+    case = _days_of_the_month_in_a_ring()
+    state = _state(case)
+    assert generation._weekday_cycle(state, generation._weekday_cells(state, 0, 7, [False] * 8), 4) == []
+    moved = _answer(case)
+    assert _holding(case, moved, range(8)) == case["counts"]
+    assert len(set(moved)) == 4
+    reached = [case["highs"][rank] if rank % 2 else case["ordinals"][rank] for rank in range(8)]
+    assert _holding(case, reached, range(8)) == case["counts"] and len(set(reached)) == 8
+    four = _mutant(monkeypatch, "_WEEKDAY_CYCLE_LONGEST = 3", "_WEEKDAY_CYCLE_LONGEST = 4")
+    assert len(set(_answer(case, four))) == 8
+    method = (REPOSITORY / "docs" / "spec" / "generation-method-v1.md").read_text(encoding="utf-8")
+    section = method[method.index("#### G7.3f "):method.index("### G7.4 ")]
+    said = " ".join(section.split())
+    assert "Where a unit is one written unit and every cycle is asked, the count" in said
+    assert "SO A COUNT LEFT SHORT MAY BE BELOW THE MOST THE CENSUS ALLOWS where it has more than seven groups" in said
+    assert "4 April, their gaps ending on 2 January, 3 February, 4 March and 1 May" in said
+    docstring = " ".join(generation._weekday_exchanged.__doc__.split())
+    assert "Where a unit is one written unit and every cycle is asked" in docstring
+    assert "There a count left short may be below that most." in docstring
+    assert "a gaining cycle of four groups or more is never asked" in " ".join(generation._weekday_cycle.__doc__.split())

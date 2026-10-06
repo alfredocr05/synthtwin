@@ -6535,7 +6535,8 @@ written unit's.
       own place inside its unit may give it no place of the next group
       inside the gap. Where a move finds no place, the moves of its cycle
       made before it are undone, last first, and the step ends; on a
-      date's day every move finds its place. The count, as a function of how many
+      date's day every move finds its place. Where a unit is one written
+      unit and every cycle is asked, the count, as a function of how many
       ranks each cell puts on each group, is a sum of `min(ranks, free
       days)` -- concave -- so where no cycle gains it is the most the
       census allows the body around the tail dates the twin wrote, which
@@ -6544,7 +6545,18 @@ written unit's.
       P4-D366): every cycle where the census has at most seven groups,
       and only cycles of at most three groups where it has more, as
       every cycle of thirty-one groups of days of the month is too many
-      to ask.
+      to ask. SO A COUNT LEFT SHORT MAY BE BELOW THE MOST THE CENSUS
+      ALLOWS where it has more than seven groups, or where a unit spans
+      more than one written unit (the Codex review of landing 3b.D0,
+      item 6). Ten groups of days of the month -- the first to the ninth
+      each alone, the tenth to the thirty-first together -- with two
+      ranks each on 1 January, 2 February, 3 March and 4 April, their
+      gaps ending on 2 January, 3 February, 4 March and 1 May, asked for
+      eight different days, keep four: only a cycle of four groups, one
+      rank of each day onto its gap's last day, reaches eight. And on a
+      unit wider than its written unit a group's ranks in a cell stand
+      at different places inside their units, so the count is no such
+      sum, and the take is asked of the mover alone.
    4. **Units merged** (plan P4-D366), where the count is still LONG, up
       to four rounds, a round that merges nothing ending the step: every
       written unit whose every rank is movable, the fewest ranks first

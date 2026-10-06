@@ -100,6 +100,14 @@ place, 102,528 of each for 128 values; it is built now only where it
 holds at most 801 places or four a value, and a kind is kept once a
 day. No twin moves.
 
+**Step 8.3's search of cycles is bounded, and says so** (its Codex
+review, item 6). Above seven groups only cycles of three groups or
+fewer are asked, so a count left short there may be below what the
+census allows: ten groups of days of the month whose one gaining cycle
+has four groups keep four values where eight are reachable. The method
+and its docstrings no longer say that finding no cycle shows the count
+is the most it can be; the bound stays.
+
 ### Stage 4's first tier repaired at its review (2026-10-02)
 
 **A twin of a description the producer writes today moves no byte**

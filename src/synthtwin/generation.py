@@ -20125,20 +20125,28 @@ def _weekday_exchanged(
     4 while a twin with the pass bypassed held 39 (review of landing
     3b.1, item 5, its second probe). A CELL is a gap and a width kind.
     Moving one rank of a cell from a day of group `g` to a day of group
-    `h` gives `give(g) + take(h)`: `give` is nought where a rank of `g`
-    in the cell shares its day and minus one where each is alone, `take`
-    one where a day of `h` in the cell is free and no hole, and nought
-    where only held ones stand. A CYCLE of such moves, `g1` to `g2` to
-    ... back to `g1`, each group once, keeps every group's count and
-    every cell's size, and its gain is the sum. The count of different
-    days, as a function of how many ranks each cell puts on each group,
-    is `sum min(ranks, free days)` over cells and groups -- concave --
-    so while a cycle of positive gain exists the count is below the most
-    the census allows, and where none exists it is that most
-    (`_weekday_cycle`). Each round takes the cycle whose gain is the
-    largest not past what is short, else the smallest, and moves its
-    ranks (`_weekday_exchange_moves`), the whole cycle or none of it; a
-    long count left behind is step 8.1 and 8.2's again.
+    `h` gives `give(g) + take(h)`, both asked of the group's mover in the
+    cell (`_weekday_mover`): `give` is nought where it shares its written
+    unit and minus one where it is alone, `take` one where a place of `h`
+    it may take is no hole and stands on a written unit no rank holds,
+    and nought where only held ones stand (`_weekday_take`). A CYCLE of
+    such moves, `g1` to `g2` to ... back to `g1`, each group once, keeps
+    every group's count and every cell's size, and its gain is the sum.
+    While a cycle of positive gain exists the count is below the most
+    the census allows. Where a unit is one written unit and every cycle
+    is asked, the count, as a function of how many ranks each cell puts
+    on each group, is `sum min(ranks, free days)` over cells and groups
+    -- concave -- so where none exists it is that most
+    (`_weekday_cycle`). NOT BEYOND THAT (the Codex review of landing
+    3b.D0, item 6): above seven groups only cycles of at most three are
+    asked, and ten groups of days of the month whose one gaining cycle
+    has four keep four different days where eight are reachable; on a
+    unit wider than its written unit the count is no such sum and the
+    take is the mover's alone. There a count left short may be below
+    that most. Each round takes the cycle whose gain is the largest not
+    past what is short, else the smallest, and moves its ranks
+    (`_weekday_exchange_moves`), the whole cycle or none of it; a long
+    count left behind is step 8.1 and 8.2's again.
 
     Guarantees: moves body ranks the layout does not pin, inside their
     own gaps and width kinds and never onto a hole; keeps every group's
@@ -20261,7 +20269,10 @@ def _weekday_cycle(
     every cycle is asked of a census of up to `_WEEKDAY_CYCLE_GROUPS`
     groups, the weekday's seven; above, only cycles of at most
     `_WEEKDAY_CYCLE_LONGEST` groups, as every cycle of 31 day-of-month
-    groups is too many to ask.
+    groups is too many to ask. So above seven groups an empty list does
+    not say no cycle gains: a gaining cycle of four groups or more is
+    never asked (the Codex review of landing 3b.D0, item 6, its ten
+    groups of days of the month).
     """
     groups = max(state.where) + 1
     longest = groups if groups <= _WEEKDAY_CYCLE_GROUPS else _WEEKDAY_CYCLE_LONGEST
