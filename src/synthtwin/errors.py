@@ -1479,14 +1479,22 @@ def the_century_declaration_did_not_reach(name: str, role: str) -> str:
 
     NOT A REFUSAL, for the comma declaration's reason: which columns write
     their dates with two-figure years is known only once the table is read.
+
+    IT SAYS WHAT THE RUN TOOK AND NOTHING IT DID NOT MEASURE (skeptic 1 of
+    landing R2a, item 1): the column was not read as dates written with
+    two-figure years, and it was read as ``role``. It said "with no
+    two-figure year" before, which was false of a column of such dates the
+    declaration had moved off the member that read them; since that repair
+    a declared century reads every cell the member read, and this is said
+    only of a column the run did not read as such dates at all.
     """
     return (
         f"The column '{_shown(name)}' was named with --century, but "
-        f"synthtwin read it as {role} with no two-figure year, and that "
-        f"declaration only changes a column of dates whose years are "
-        f"written with two figures. Nothing about this column was read in "
-        f"the century you gave. The description that was written is "
-        f"correct about everything else, and says which columns were "
+        f"synthtwin did not read it as dates whose years are written with "
+        f"two figures: it read it as {role}, and that declaration only "
+        f"changes a column of such dates. Nothing about this column was "
+        f"read in the century you gave. The description that was written "
+        f"is correct about everything else, and says which columns were "
         f"declared. Check that the name is the column you meant, and run "
         f"the command again without --century for this one."
     )

@@ -15796,10 +15796,11 @@ def _layout_reads(
 ) -> "tuple[int, int, list[str]]":
     """How many cells one layout reads, weighed by rows, stopping past ``room``.
 
-    Returns the rows read, the rows missed and, where it stopped short, the
-    texts it missed on the way -- every one of them, which together stand
-    on more rows than the line leaves room for. Determinism: a function of
-    the three, in the texts' own order. Raises nothing. No I/O.
+    Returns the rows read, the rows missed and the texts it missed: where
+    it stopped short, every one it met on the way, which together stand on
+    more rows than the line leaves room for, and otherwise every one in the
+    column, at most ``room`` of them. Determinism: a function of the three,
+    in the texts' own order. Raises nothing. No I/O.
     """
     read = 0
     missed = 0
@@ -15813,7 +15814,7 @@ def _layout_reads(
         failing += [text]
         if missed > room:
             return read, missed, failing
-    return read, missed, []
+    return read, missed, failing
 
 
 def _layout_guarded(layout: str, contradicted: bool) -> bool:
@@ -15848,6 +15849,13 @@ def _layout_candidates(
     win. A layout with an offset brings its optional twin (`{+HHMM?}`), a
     two-figure year takes the column's declared window, and the member
     walk's guards hold.
+
+    IN A DECLARED CENTURY A TEXT IS READ WITH ITS SURROUNDING WHITESPACE SET
+    ASIDE (skeptic 1 of landing R2a, item 1): there the layouts standing in
+    for the two-figure members read as the members do
+    (`parsing.layout_sets_spaces_aside`), so the exactness above holds for
+    them too; every other layout reads only a text with nothing to set
+    aside, whose productions are its own.
     """
     found: "list[str]" = []
     seen: "dict[str, int]" = {}
@@ -15856,7 +15864,7 @@ def _layout_candidates(
         if rows > room:
             break
         rows = rows + counted[text]
-        for layout in parsing.layouts_of(text):
+        for layout in parsing.layouts_of(text.strip() if window else text):
             if window:
                 layout = parsing.layout_in_window(layout, window)
             if _layout_guarded(layout, contradicted):
@@ -15879,6 +15887,11 @@ def _layout_extended(
     fails, more cells than the line leaves room for failed it, so a layout
     reaching the line with an optional offset reads at least one of them
     WITH its offset: its offset field is among those the failed cells show.
+    AND WHERE ``layout`` REACHES THE LINE (skeptic 1 of landing R2a, item
+    2), an optional-offset layout reads more than it only by reading a
+    cell it missed WITH its offset, so the texts it missed hold every such
+    layout too: 7 of 1,000 HL7 stamps ending `-0400` or `-0500` were the
+    seven stand-ins of a twin read 993 under the offset-free layout.
     """
     if not isinstance(layout, str):
         raise TypeError(_LAYOUT_NOT_TEXT)
@@ -15928,10 +15941,14 @@ def _chosen_layout(
         if items is None:
             continue
         read, missed, failing = _layout_reads(items, counted, room)
+        # Grown from the texts it missed, whether or not it reached the
+        # line (skeptic 1 of landing R2a, item 2): a layout that reaches it
+        # missing a few cells that write an offset reads fewer than its
+        # optional-offset twin, which wins only by reading strictly more.
+        for one in _layout_extended(layout, failing, window, contradicted):
+            if one not in later and one not in reached:
+                later += [one]
         if missed > room:
-            for one in _layout_extended(layout, failing, window, contradicted):
-                if one not in later and one not in reached:
-                    later += [one]
             continue
         reached[layout] = read
         if read > best_rows:

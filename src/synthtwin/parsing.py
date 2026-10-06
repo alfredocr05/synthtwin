@@ -4646,7 +4646,9 @@ def parse_datetime(text: str, format_name: str) -> "tuple[str, str] | None":
         raise TypeError(_NOT_TEXT)
     if format_name[0:7] == LAYOUT_PREFIX:
         # THE LAYOUT MEMBER (landing R2a, plan P4-D383), read whole: a
-        # layout trims nothing, so a cell is its own text or no date.
+        # layout trims nothing, so a cell is its own text or no date --
+        # but for one standing in for a two-figure member in a declared
+        # century, which reads as that member does (`layout_reading`).
         items = layout_items(format_name)
         if items is None:
             return None
@@ -8433,6 +8435,58 @@ def _layout_tail(items: "tuple[tuple[str, str], ...]") -> int:
     return start
 
 
+# THE LAYOUTS THAT STAND IN FOR A TWO-FIGURE MEMBER, AND SET SPACES ASIDE
+# AS IT DOES (skeptic 1 of landing R2a, item 1). A column whose century the
+# person declared (question Q5, `--century`) is read by the layout alone,
+# in that window, since the four two-figure members read the POSIX window
+# only; and every member reads a cell with its surrounding whitespace set
+# aside (`parse_datetime`'s `text.strip()`). So where the layout stands in
+# for one -- three fields on `/`, or padded on `.`, the year last and read
+# in a declared window -- it sets that whitespace aside too, and the answer
+# reads every cell the member read: 1,000 `MM/DD/YY` births, 3 per cent with
+# a trailing space, answered 1930, fell to 970 read, under the line, and the
+# column became free text. Nowhere else: a layout no member reads trims
+# nothing under every answer, so an answer changes the century and nothing
+# else.
+_LAYOUT_MEMBER_SHAPES = (
+    "{M}/{D}/{YY}",
+    "{D}/{M}/{YY}",
+    "{MM}/{DD}/{YY}",
+    "{DD}/{MM}/{YY}",
+    "{MM}.{DD}.{YY}",
+    "{DD}.{MM}.{YY}",
+)
+
+
+def _layouts_read_as_members() -> "dict[tuple[tuple[str, str], ...], int]":
+    """The compiled items of every layout that reads a cell as a two-figure member does (built once)."""
+    found: "dict[tuple[tuple[str, str], ...], int]" = {}
+    for shape in _LAYOUT_MEMBER_SHAPES:
+        for first_year in CENTURY_WINDOW_YEARS:
+            items = compiled_layout(shape.replace("{YY}", f"{{YY{first_year}}}"))
+            if items is not None:
+                found[items] = 1
+    return found
+
+
+_LAYOUTS_READ_AS_MEMBERS = _layouts_read_as_members()
+
+
+def layout_sets_spaces_aside(name: str) -> bool:
+    """Whether a layout reads its cells with their surrounding whitespace set aside.
+
+    True only for a layout standing in for a two-figure member in a
+    declared century (`_LAYOUTS_READ_AS_MEMBERS`); every other layout reads
+    a cell whole. Guarantees: accepts a format name or a bare layout text;
+    returns a bool. Raises TypeError for anything that is not text. No I/O
+    of any kind.
+    """
+    if not isinstance(name, str):
+        raise TypeError(_NOT_TEXT)
+    items = layout_items(name)
+    return items is not None and items in _LAYOUTS_READ_AS_MEMBERS
+
+
 def layout_reading(
     text: str, items: "tuple[tuple[str, str], ...]"
 ) -> "tuple[str, str, tuple[str, ...], str] | None":
@@ -8443,7 +8497,10 @@ def layout_reading(
     (`''`, `Z` or a signed `+HH:MM`), what each FLEXIBLE field showed in
     layout order (`p` written padded, `u` written in one figure, `''` two
     figures either way), and the fraction's figures as written. NOTHING IS
-    TRIMMED: a cell is read whole or not at all. The calendar is checked, a
+    TRIMMED: a cell is read whole or not at all -- but by a layout standing
+    in for a two-figure member in a declared century, which sets the
+    cell's surrounding whitespace aside as that member does
+    (`_LAYOUTS_READ_AS_MEMBERS`). The calendar is checked, a
     four-figure year outside `LAYOUT_FIRST_YEAR` to `LAYOUT_LAST_YEAR` is
     unread, a weekday must be the date's own, an hour runs 0 to 23 and a
     minute or second 0 to 59, and an offset is at most 14 hours.
@@ -8454,6 +8511,8 @@ def layout_reading(
     """
     if not isinstance(text, str):
         raise TypeError(_NOT_TEXT)
+    if len(items) == 5 and items in _LAYOUTS_READ_AS_MEMBERS:
+        text = text.strip()
     size = len(text)
     tail = _layout_tail(items)
     at = 0
@@ -9219,6 +9278,91 @@ def layout_offset_writable(name: str, offset: str) -> bool:
     if field == "+HH":
         return offset[4:6] == "00"
     return True
+
+
+# THE FIELDS A LAYOUT WRITING NUMBERS IS MADE OF (method G7.9b; skeptic 1
+# of landing R2a, item 2): a run of figures, the compact stamps HL7 writes.
+_LAYOUT_FIGURE_FIELDS = ("YYYY", "MM", "DD", "HH", "MI", "SS")
+
+
+def layout_writes_numbers(name: str) -> bool:
+    """Whether a layout's cells with no offset are numbers (method G7.9b).
+
+    A run of fixed figure fields, `{YYYY}{MM}{DD}{HH}{MI}{SS}`, with at most
+    a point and a fraction after it: `20230317140509` and
+    `20230317140509.0000` are numbers to every reader of numbers, and the
+    same cell with an offset after it is not. False for every other layout
+    and every name that is not one. Guarantees: a function of the name.
+    Raises TypeError for anything that is not text. No I/O of any kind.
+    """
+    if not isinstance(name, str):
+        raise TypeError(_NOT_TEXT)
+    items = layout_items(name)
+    if items is None:
+        return False
+    body = items[0 : _layout_tail(items)]
+    if body and body[len(body) - 1][1] in _LAYOUT_OFFSET_FIELDS:
+        return False
+    size = len(body)
+    if size >= 2 and body[size - 2] == ("l", ".") and body[size - 1] == ("f", "F"):
+        size = size - 2
+    if size < 1:
+        return False
+    for kind, field in body[0:size]:
+        if kind != "f" or field not in _LAYOUT_FIGURE_FIELDS:
+            return False
+    return True
+
+
+def layout_offset_added(cell: str, name: str, offset: str) -> "str | None":
+    """A cell a layout wrote with no offset, written again wearing one (method G7.9b).
+
+    Only under a layout whose offset some cells omit (`{+HHMM?}`): the cell
+    must read under it with no offset, and comes back with the marks before
+    the offset field and ``offset`` -- `Z`, or a signed `+HH:MM` -- in that
+    field's own spelling, which is what `layout_cell` writes for the same
+    instant at that offset. None where the layout has no such field, the
+    cell does not read with none, or the field cannot write the offset.
+
+    Guarantees: accepts text; returns the cell or None, and a cell it
+    returns reads back under the layout at ``offset``. Raises TypeError for
+    anything that is not text. No I/O of any kind.
+    """
+    if not isinstance(cell, str) or not isinstance(offset, str):
+        raise TypeError(_NOT_TEXT)
+    items = layout_items(name)
+    if items is None:
+        return None
+    tail = _layout_tail(items)
+    if tail >= len(items):
+        return None
+    read = layout_reading(cell, items)
+    if read is None or read[1]:
+        return None
+    written = cell
+    for kind, field in items[tail:]:
+        if kind == "l":
+            written = f"{written}{field}"
+            continue
+        bare = field[0 : len(field) - 1]
+        if bare in _LAYOUT_ZULU_FIELDS:
+            if offset != "Z":
+                return None
+            written = f"{written}{bare}"
+        elif len(offset) != 6:
+            return None
+        elif bare == "+HH:MM":
+            written = f"{written}{offset}"
+        elif bare == "+HHMM":
+            written = f"{written}{offset[0:3]}{offset[4:6]}"
+        elif offset[4:6] == "00":
+            written = f"{written}{offset[0:3]}"
+        else:
+            return None
+    back = layout_reading(written, items)
+    if back is None or back[1] != offset:
+        return None
+    return written
 
 
 def layout_two_figure_year(name: str) -> int:
