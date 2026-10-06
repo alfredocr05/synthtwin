@@ -43920,7 +43920,14 @@ def _clock_approximations(
             column.name, side, tail, ordinals, side.boundary,
             "minute" if parsing.clock_step(form) == 60 else "second",
         )
+    # A PUBLISHED CODE IS ONE SPELLING however many cells hold it, and every
+    # other stand-in a spelling of its own (G12.11, landing 3b.5): counted
+    # once a cell, 100 `UNK` beside 102 different times drew 113 to 405
+    # where validation drew 14 to 306, and the report said both the table's
+    # count and the twin's were outside (the landing's review, item 4).
     stand_ins = len(present) - held
+    for _spelling, count in facts.clock_codes:
+        stand_ins = stand_ins - count + 1
     lowest_count = _forced_apart(lows, highs) + stand_ins
     reachable = held
     if layout.low is not None and layout.high is not None:

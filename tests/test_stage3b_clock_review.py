@@ -28,7 +28,11 @@ rather than a sentence has a mutant that turns its clause red again:
   twenty rows each of `14:00` to `14:11` stand out from nothing, so they
   publish a census, and nobody was asked; read as clock times the seed-0
   twin wrote `14:01` 39 times and `14:08` 10, where each label had 20
-  (mutant: asked only where heaps hold the body, as before).
+  (mutant: asked only where heaps hold the body, as before);
+* item 4 `test_item_4_the_report_counts_a_code_once` -- the generation
+  report counted every cell of a code as a different value, drew 113 to
+  405 against validation's 14 to 306 and called both the table's 102 and
+  the twin's 111 outside (mutant: a code counted once a cell).
 """
 
 from __future__ import annotations
@@ -426,3 +430,64 @@ def test_item_3_red_when_asked_only_where_heaps_hold_the_body(
     cells = _twelve_minutes()
     document, _loaded = _described(tmp_path, cells)
     assert _questions(document, cells) == []
+
+
+# -- item 4: the generation report counts a code once --------------------
+
+
+def _beside_a_code() -> "list[str]":
+    """Codex's column: 9,900 times over 102 minutes, and 100 `UNK`."""
+    cells = _minutes(480 + (place % 101) + (place % 101) // 10 for place in range(9900))
+    return cells + ["UNK"] * 100
+
+
+def _distinct_windows(tmp_path: pathlib.Path) -> "tuple[list[tuple[str, str, str, str, bool]], list[tuple[str, str]]]":
+    document, loaded = _described(tmp_path, _beside_a_code())
+    block = _block(document)
+    assert block["clock_codes"] == [{"count": 100, "spelling": "UNK"}] and block["n_distinct"] == 102
+    twin = generation.generate(loaded, 0)
+    reported = [
+        (found.fact, found.achieved, found.lowest, found.highest, found.inside)
+        for found in twin.approximations
+        if found.fact in ("n_distinct", "n_distinct_folded")
+    ]
+    path = fixtures.write(tmp_path, "twin.csv", rendering.twin_csv(twin))
+    checked = [
+        (check.subcheck, check.verdict)
+        for check in validation.measure(loaded, str(path)).checks
+        if check.subcheck in ("distinct.n_distinct", "distinct.n_distinct_folded")
+    ]
+    return reported, checked
+
+
+def test_item_4_the_report_counts_a_code_once(tmp_path: pathlib.Path) -> None:
+    """The report's window for the different values is validation's, 14 to 306, and holds 111.
+
+    At 90466b2 it counted each of the 100 `UNK` cells as a value of its
+    own, drew 113 to 405, and said the twin's 111 -- and the table's 102
+    -- lay outside, where validation held the twin inside its 14 to 306.
+    """
+    reported, checked = _distinct_windows(tmp_path)
+    assert reported == [
+        ("n_distinct", "111", "14", "306", True),
+        ("n_distinct_folded", "111", "14", "306", True),
+    ]
+    assert checked == [
+        ("distinct.n_distinct", validation.WITHIN_BOUND),
+        ("distinct.n_distinct_folded", validation.WITHIN_BOUND),
+    ]
+
+
+def test_item_4_red_when_a_code_counts_once_a_cell(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    built = generation._clock_approximations
+
+    def every_cell(column: contract.ColumnBlock, facts: contract.ClockFacts, written: "list[str]", floor: int) -> "list[generation.Approximation]":
+        import dataclasses
+
+        return built(column, dataclasses.replace(facts, clock_codes=()), written, floor)
+
+    monkeypatch.setattr(generation, "_clock_approximations", every_cell)
+    reported, _checked = _distinct_windows(tmp_path)
+    assert [inside for *_rest, inside in reported] == [False, False]
