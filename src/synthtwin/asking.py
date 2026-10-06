@@ -1863,19 +1863,29 @@ def _shape_of(
             "which century it is in"
         )
     if reason == BECAUSE_DATES_LIKE_CODES:
-        if mark:
+        # THE VALUES THE LAYOUT READS, AT THE LAYOUT'S OWN WIDTH (skeptic 1
+        # of landing R2a, item 5). A column read on the date rule's line
+        # holds cells the layout does not read: "every one reads as a
+        # date" was said of room-bed codes that read 996 of 1,000, and the
+        # widest cell of an HL7 column of 14 figures, seven of which wore
+        # an offset, was named as all of them, 19. ``remainder`` carries
+        # the run's own width.
+        if mark == "-":
             return (
-                f"every value is three numbers joined by '{mark}', the last "
-                f"of two figures, and every one reads as a date with a "
-                f"two-figure year; codes are written the same way"
+                "the values that read as dates are three numbers joined by "
+                "'-', the last of two figures, each read as a date with a "
+                "two-figure year; codes are written the same way"
             )
-        widths = {len(value) for value in present}
-        only = 0
-        for width in sorted(widths):
-            only = width
+        if mark == ".":
+            return (
+                "the values that read as dates are three numbers joined by "
+                "'.', the first two of one or two figures and the last of "
+                "four, each read as a date; version numbers and codes are "
+                "written the same way"
+            )
         return (
-            f"every value is written in figures alone, all {only} "
-            f"characters wide, and every one reads as a date and time "
+            f"the values that read as dates are written in figures alone, "
+            f"{remainder} characters wide, each read as a date and time "
             f"written without marks; identifiers are written the same way"
         )
     return "this column could be read more than one way"
@@ -1982,9 +1992,11 @@ def _layout_question(
     THE LOW-EVIDENCE LAYOUTS (landing R2a; the R2 design skeptic, m4, under
     the owner's rule of the evening of 2026-10-01: infer, and ask where the
     data cannot settle it). Three numbers on `-` with a two-figure year --
-    `9-14-29` is a unit, a room and a bed as readily as a day -- and a run
-    of 12 or 14 figures, which an order number or an identifier with a date
-    inside writes alike (`parsing.layout_low_evidence`). Such a column is
+    `9-14-29` is a unit, a room and a bed as readily as a day -- three on
+    `.` with a four-figure year, a version's spelling (skeptic 1 of landing
+    R2a, item 3), and a run of 12 or 14 figures, which an order number or
+    an identifier with a date inside writes alike
+    (`parsing.layout_low_evidence`). Such a column is
     READ AS DATES, which is what its cells say, and the question offers the
     two other readings; Enter keeps the dates. For a run this is the
     fixed-width question a column of figures is asked, with the dates
@@ -1998,11 +2010,14 @@ def _layout_question(
     mark = parsing.layout_low_evidence(f"{block['format']}")
     if mark is None:
         return None
+    # A run's width is the layout's own, 12 or 14 figures, whatever its
+    # cells beside it are.
+    width = len(parsing.layout_example(f"{block['format']}"))
     return Question(
         f"{block['name']}",
         taxonomy.ROLE_DATETIME,
         BECAUSE_DATES_LIKE_CODES,
-        _shape_of(BECAUSE_DATES_LIKE_CODES, present, floor, mark),
+        _shape_of(BECAUSE_DATES_LIKE_CODES, present, floor, mark, width),
         [
             Choice(
                 ANSWER_KEEP,

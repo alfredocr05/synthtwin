@@ -1,5 +1,5 @@
 {
-  "case_set": "The 10 cases method section G14.3 adds with landing R2a's layout member (plan P4-D383): G7.5's writer of a layout of the closed grammar -- SAS's month word, HL7's fraction and `+HHMM` offset, an offset after one space, a whole-hour offset, the zulu word `UTC`, an offset some cells omit, two flexible fields in the layout's own order, a weekday lead, and a two-figure year read in a century the person chose; and, from its repair round, G7.9b's offsets written on a column of figure runs whose count of cells that are not numbers still holds the offsets its census counted into `(none)`. They are computed by the same oracle and the same proof layer as tests/reference/generation-reference-vectors.json, tests/reference/generation-branch-vectors.json, tests/reference/generation-branch-vectors-2.json, tests/reference/generation-branch-vectors-3.json, tests/reference/generation-branch-vectors-4.json, tests/reference/generation-branch-vectors-5.json, tests/reference/generation-branch-vectors-6.json, tests/reference/generation-branch-vectors-7.json, tests/reference/generation-branch-vectors-8.json, tests/reference/generation-branch-vectors-9.json, tests/reference/generation-branch-vectors-10.json, tests/reference/generation-branch-vectors-11.json, tests/reference/generation-branch-vectors-12.json, tests/reference/generation-branch-vectors-13.json, tests/reference/generation-branch-vectors-14.json, tests/reference/generation-branch-vectors-22.json and tests/reference/generation-document-vectors.json, and live in a file of their own, the number the integrator gives this landing: no cap is raised and no case is dropped.",
+  "case_set": "The 11 cases method section G14.3 adds with landing R2a's layout member (plan P4-D383): G7.5's writer of a layout of the closed grammar -- SAS's month word, HL7's fraction and `+HHMM` offset, an offset after one space, a whole-hour offset, the zulu word `UTC`, an offset some cells omit, two flexible fields in the layout's own order, a weekday lead, and a two-figure year read in a century the person chose; and, from its repair round, a day padded with a space and G7.9b's offsets written on a column of figure runs whose count of cells that are not numbers still holds the offsets its census counted into `(none)`. They are computed by the same oracle and the same proof layer as tests/reference/generation-reference-vectors.json, tests/reference/generation-branch-vectors.json, tests/reference/generation-branch-vectors-2.json, tests/reference/generation-branch-vectors-3.json, tests/reference/generation-branch-vectors-4.json, tests/reference/generation-branch-vectors-5.json, tests/reference/generation-branch-vectors-6.json, tests/reference/generation-branch-vectors-7.json, tests/reference/generation-branch-vectors-8.json, tests/reference/generation-branch-vectors-9.json, tests/reference/generation-branch-vectors-10.json, tests/reference/generation-branch-vectors-11.json, tests/reference/generation-branch-vectors-12.json, tests/reference/generation-branch-vectors-13.json, tests/reference/generation-branch-vectors-14.json, tests/reference/generation-branch-vectors-22.json and tests/reference/generation-document-vectors.json, and live in a file of their own, the number the integrator gives this landing: no cap is raised and no case is dropped.",
   "cases": {
     "layout_century_window": {
       "cells": [
@@ -1187,6 +1187,141 @@
         "7641152503472580399",
         "6751630228233007711",
         "11916922104909224660"
+      ]
+    },
+    "layout_space_padded_day": {
+      "cells": [
+        "Jan  7 1970",
+        "Jan 11 1970",
+        "Jan  5 1970",
+        "Jan  8 1970",
+        "Jan  4 1970",
+        "Jan  1 1970",
+        "Jan 12 1970",
+        "Jan  3 1970",
+        "Jan  9 1970",
+        "Jan  6 1970",
+        "Jan  2 1970",
+        "Jan 10 1970"
+      ],
+      "column": {
+        "all_at_midnight": false,
+        "count_form": null,
+        "date_field_widths": {},
+        "date_percentiles": {
+          "max": null,
+          "min": null,
+          "p01": null,
+          "p05": null,
+          "p10": null,
+          "p25": null,
+          "p50": null,
+          "p75": null,
+          "p90": null,
+          "p95": null,
+          "p99": null
+        },
+        "datetime_separators": {},
+        "datetimes_read_at": "local",
+        "day_of_month_census": [],
+        "detection_evidence": "written by hand in this method specification's own neutral vocabulary; no value here comes from any table.",
+        "format": "layout {Mon} {_D} {YYYY}",
+        "heavy_dates": [],
+        "high_tail": null,
+        "hour_census": [],
+        "low_tail": null,
+        "minute_census": [],
+        "minute_heaps": [],
+        "missing_by_class": {
+          "(blank)": 0,
+          "(date-sentinel)": 0,
+          "(declared-missing)": 0,
+          "(numeric-sentinel)": 0,
+          "(text-code)": 0,
+          "(withheld)": 0
+        },
+        "missing_by_source": {},
+        "month_name_styles": {},
+        "n_at_midnight": null,
+        "n_contradictory": 0,
+        "n_distinct": 12,
+        "n_distinct_folded": 12,
+        "n_missing": 0,
+        "n_missing_blank": 0,
+        "n_missing_withheld": 0,
+        "n_not_numeric": 12,
+        "n_numeric": 0,
+        "n_out_of_range": 0,
+        "n_present": 12,
+        "n_sentinel_candidates_unpublished": 0,
+        "n_unparsed": 0,
+        "name": "column_1",
+        "position": 1,
+        "quality_state": "ok",
+        "quarter_marker_case": {},
+        "remarks": [],
+        "resolution": "date",
+        "resolution_mix": {
+          "layout {Mon} {_D} {YYYY}": 12
+        },
+        "role": "datetime",
+        "second_census": [],
+        "second_heaps": [],
+        "sentinel_verdicts": [],
+        "statistical_type": "datetime",
+        "structural_role": "data",
+        "subsecond_digits": 0,
+        "tail_unit": "day",
+        "time_precision": "date",
+        "utc_offsets": {
+          "(none)": 12
+        },
+        "weekday_census": [],
+        "zulu_case": {}
+      },
+      "content": [
+        "Jan  1 1970",
+        "Jan  2 1970",
+        "Jan  3 1970",
+        "Jan  4 1970",
+        "Jan  5 1970",
+        "Jan  6 1970",
+        "Jan  7 1970",
+        "Jan  8 1970",
+        "Jan  9 1970",
+        "Jan 10 1970",
+        "Jan 11 1970",
+        "Jan 12 1970"
+      ],
+      "csv_bytes": "Jan  7 1970\nJan 11 1970\nJan  5 1970\nJan  8 1970\nJan  4 1970\nJan  1 1970\nJan 12 1970\nJan  3 1970\nJan  9 1970\nJan  6 1970\nJan  2 1970\nJan 10 1970\n",
+      "float64": [],
+      "why": "G7.5's space-padded day (landing R2a's repair round, item 6): SQL Server's `Mon dd yyyy` style, `Jan  1 1970`, a day below ten written after a space in place of its first figure and a day from ten on in two figures, so every cell keeps the width the column writes. Twelve dates of January 1970. The mutant writes the day zero-padded, `Jan 01 1970`, which this column does not.",
+      "word_budget": {
+        "content": 10,
+        "placement": 11
+      },
+      "words": [
+        "1067159076979164768",
+        "15468843723390121724",
+        "10265763857346022961",
+        "10351681091877607303",
+        "2120289531653354811",
+        "16349880332005335296",
+        "7666670977968717197",
+        "3427053300283787367",
+        "5489163173622109394",
+        "16536760867033200329",
+        "14857399325095436318",
+        "3266013553304516113",
+        "9851756333174006805",
+        "18307941327553402120",
+        "6801484169333105937",
+        "13573021135003287469",
+        "388300122013088672",
+        "13797779099512901099",
+        "11571614973083086094",
+        "17300842502461193001",
+        "16124672687941890329"
       ]
     },
     "layout_spaced_offset": {

@@ -1648,6 +1648,21 @@ def battery() -> list[Mutation]:
                 resolution_mix={"layout {YYYY}-{MM}-{DD} {HH}:{MI}:{SS}{+HH:MM}": 240},
             ),
         ),
+        # ...and the case of a zulu offset, which a layout's own field
+        # fixes (skeptic 1 of landing R2a, item 6): the offsets every
+        # field can write, no mark counted, so LY4's zulu clause alone
+        # refuses it.
+        Mutation(
+            "LY4", "the case of the zulu offsets counted on a layout",
+            edit(
+                "logged_at",
+                format="layout {YYYY}-{MM}-{DD} {HH}:{MI}:{SS}{+HH:MM}",
+                resolution_mix={"layout {YYYY}-{MM}-{DD} {HH}:{MI}:{SS}{+HH:MM}": 240},
+                datetime_separators={},
+                utc_offsets={"+02:00": 120, "Z": 120},
+                zulu_case={"upper": 120},
+            ),
+        ),
         Mutation(
             "LY5", "widths counted on a layout with no flexible field",
             edit(

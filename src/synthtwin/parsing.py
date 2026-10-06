@@ -9487,7 +9487,12 @@ def layout_example(name: str) -> str:
 
     The text the evidence sentence shows in place of the layout's own
     (`17MAR2024:14:05:00`), so a person reads a date and not a grammar.
-    Empty for a name that is not a layout.
+    A FLEXIBLE FIELD IS SHOWN IN AS FEW FIGURES AS IT TAKES (skeptic 1 of
+    landing R2a, item 5): `{D}.{M}.{YYYY}` is shown `17.3.2024`, as such a
+    column writes, and not `17.03.2024`, which is the padded member's; and
+    `{YYYY}-{M}-{D}` not as ISO's own `2024-03-17`. Rule LY1's sample, in
+    `is_layout_format`, keeps its padding. Empty for a name that is not a
+    layout.
     """
     if not isinstance(name, str):
         raise TypeError(_NOT_TEXT)
@@ -9497,7 +9502,7 @@ def layout_example(name: str) -> str:
     offset = "Z" if layout_offset_field(name) in _LAYOUT_ZULU_FIELDS else "+01:00"
     if not layout_offset_field(name):
         offset = ""
-    return layout_cell(items, _LAYOUT_SAMPLE, offset, (), 3)
+    return layout_cell(items, _LAYOUT_SAMPLE, offset, (False, False), 3)
 
 
 def is_layout_format(name: str) -> bool:
@@ -9728,10 +9733,14 @@ def layout_low_evidence(name: str) -> "str | None":
 
     `-` for three numbers on `-` with a two-figure year -- no named member
     reads a two-figure year on that mark, and `9-14-29` is a unit, a room
-    and a bed as readily as a date -- and `''` for a run of 12 or 14
-    figures, which an order number writes alike. None for every other
-    layout and every name that is not one (landing R2a; the R2 design
-    skeptic, m4).
+    and a bed as readily as a date -- `.` for one or two figures, a dot,
+    one or two figures, a dot and a four-figure year, which is how a
+    version is written (`1.12.2024`; the dotted members read padded cells
+    alone for that reason, C6-22, and skeptic 1 of landing R2a, item 3,
+    found P4-D15's column of versions read as dates and asked nothing
+    else), and `''` for a run of 12 or 14 figures, which an order number
+    writes alike. None for every other layout and every name that is not
+    one (landing R2a; the R2 design skeptic, m4).
     """
     if not isinstance(name, str):
         raise TypeError(_NOT_TEXT)
@@ -9742,4 +9751,6 @@ def layout_low_evidence(name: str) -> "str | None":
         return ""
     if plain in ("{M}-{D}-{YY}", "{D}-{M}-{YY}", "{MM}-{DD}-{YY}", "{DD}-{MM}-{YY}"):
         return "-"
+    if plain in ("{M}.{D}.{YYYY}", "{D}.{M}.{YYYY}"):
+        return "."
     return None

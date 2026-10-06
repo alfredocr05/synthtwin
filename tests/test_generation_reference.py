@@ -828,6 +828,7 @@ TWENTY_FIFTH_BRANCH_CASES = (
     "layout_offsets_owed",
     "layout_optional_offset",
     "layout_sas_date9",
+    "layout_space_padded_day",
     "layout_spaced_offset",
     "layout_utc_word",
     "layout_weekday_long_date",
@@ -870,8 +871,10 @@ SEEDS = {
     "layout_spaced_offset": 427,
     "layout_utc_word": 428,
     "layout_weekday_long_date": 429,
-    # ...and its repair round's G7.9b (item 2), the next seed.
+    # ...and its repair round's G7.9b (item 2) and space-padded day (item
+    # 6), the next seeds.
     "layout_offsets_owed": 430,
+    "layout_space_padded_day": 431,
     # Landing T1's written clocks take the next seeds after the highest in
     # use below 34041 (plan P4-D370).
     "stamp_unpadded_hour": 416,
@@ -1772,11 +1775,11 @@ FOURTEENTH_BRANCH_NAMED_COUNTS = 53
 # its five cases publish no binary64 at all.
 TWENTY_SECOND_BRANCH_PUBLISHED_NUMBERS = 0
 TWENTY_SECOND_BRANCH_NAMED_COUNTS = 122
-# The twenty-fifth, at its own generator's line ("proved 12 ... beside 250"):
+# The twenty-fifth, at its own generator's line ("proved 12 ... beside 274"):
 # its two cases with two tails publish their eight distances (the second,
 # G7.9b's of its repair round, thirty-six rows).
 TWENTY_FIFTH_BRANCH_PUBLISHED_NUMBERS = 12
-TWENTY_FIFTH_BRANCH_NAMED_COUNTS = 250
+TWENTY_FIFTH_BRANCH_NAMED_COUNTS = 274
 # The document file publishes NO binary64 at all, and that is a fact
 # about its transforms rather than a gap in its proof: the written form,
 # the arrangement, the workbook writer, the shape of a line before a
@@ -3532,6 +3535,13 @@ CASE_MUTANTS = {
         "withdraws the pass, so the twin's cells are numbers alone",
         attribute="offsets_paid_to_the_classes",
         replacement=lambda column, cells, holes, floor=11: cells,
+        outcome=CHANGES_THE_CELLS,
+    ),
+    "layout_space_padded_day": Mutant(
+        branch="G7.5's space-padded day `{_D}`, a day below ten written after "
+        "a space; the mutant writes it zero-padded",
+        attribute="layout_written",
+        replacement=_layout_rewritten("{_D}", "{DD}"),
         outcome=CHANGES_THE_CELLS,
     ),
     "layout_flexible_widths": Mutant(

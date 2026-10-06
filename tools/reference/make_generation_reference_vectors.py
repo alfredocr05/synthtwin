@@ -22898,6 +22898,18 @@ def _layout_offsets_owed():
     )
 
 
+def _layout_space_padded_day():
+    return _r2a_layout(
+        "layout {Mon} {_D} {YYYY}", "date", "date", 0, 12, {"(none)": 12}, "local",
+        why="G7.5's space-padded day (landing R2a's repair round, item 6): SQL "
+        "Server's `Mon dd yyyy` style, `Jan  1 1970`, a day below ten written "
+        "after a space in place of its first figure and a day from ten on in "
+        "two figures, so every cell keeps the width the column writes. Twelve "
+        "dates of January 1970. The mutant writes the day zero-padded, "
+        "`Jan 01 1970`, which this column does not.",
+    )
+
+
 def _layout_flexible_widths():
     return _r2a_layout(
         "layout {D}-{M}-{YYYY}", "date", "date", 0, 12, {"(none)": 12}, "local",
@@ -22942,6 +22954,7 @@ R2A_BRANCH_CASE_BUILDERS = {
     "layout_offsets_owed": _layout_offsets_owed,
     "layout_optional_offset": _layout_optional_offset,
     "layout_sas_date9": _layout_sas_date9,
+    "layout_space_padded_day": _layout_space_padded_day,
     "layout_spaced_offset": _layout_spaced_offset,
     "layout_utc_word": _layout_utc_word,
     "layout_weekday_long_date": _layout_weekday_long_date,
@@ -32452,7 +32465,8 @@ _TWENTY_FIFTH_BRANCH_ACCOUNT = (
     "one space, a whole-hour offset, the zulu word `UTC`, an offset some "
     "cells omit, two flexible fields in the layout's own order, a weekday "
     "lead, and a two-figure year read in a century the person chose; and, "
-    "from its repair round, G7.9b's offsets written on a column of figure "
+    "from its repair round, a day padded with a space and G7.9b's offsets "
+    "written on a column of figure "
     "runs whose count of cells that are not numbers still holds the "
     "offsets its census counted into `(none)`. They "
     "are computed by the same oracle and the same proof layer "
@@ -32845,6 +32859,16 @@ GIVEN_WORDS = {
         12752694595508762000, 16493153706493959540, 2136136501835624260,
         4429365169814360070, 2134826145581754533, 3034933503596956875,
         6007134993793927254, 10094324261136200959, 5990829916535891984,
+    ),
+    # ...and the space-padded day of its repair round (item 6), at seed 431.
+    "layout_space_padded_day": (
+        1067159076979164768, 15468843723390121724, 10265763857346022961,
+        10351681091877607303, 2120289531653354811, 16349880332005335296,
+        7666670977968717197, 3427053300283787367, 5489163173622109394,
+        16536760867033200329, 14857399325095436318, 3266013553304516113,
+        9851756333174006805, 18307941327553402120, 6801484169333105937,
+        13573021135003287469, 388300122013088672, 13797779099512901099,
+        11571614973083086094, 17300842502461193001, 16124672687941890329,
     ),
     "layout_weekday_long_date": (
         10183437742050129068, 802209090374143181, 12754890606951740415,

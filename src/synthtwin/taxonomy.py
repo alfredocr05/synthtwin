@@ -15771,6 +15771,15 @@ def _matching_date_format(
 # this bound, the same for 99,986 different texts, past which a column
 # reads the rest cell by cell, at the reader's own cost. Each is one dict
 # made for one column and dropped with it.
+#
+# AND A THIRD DICT, WHICH IS NOT BOUNDED (skeptic 1 of landing R2a, item
+# 5): `_spelling_rows`, the column's count of each different text, which
+# the exact choice reads -- the rows a text stands on are what the line is
+# counted in, so it holds every text. Its keys are the column's own cells,
+# which the column holds anyway, so it costs the dict alone: 38.4 bytes a
+# text at 100,000 different texts and 30.8 at 1,000,000 (tracemalloc, up
+# to 58 while the dict grows), about 31 MB for a column of a million
+# different texts, made for the column and dropped with it.
 LAYOUT_MEMO_TEXTS = 65536
 
 # What the layout member's helpers say when handed something that is not
@@ -15779,7 +15788,11 @@ _LAYOUT_NOT_TEXT = "a layout was asked of something that is not text"
 
 
 def _spelling_rows(present: "list[str]") -> "dict[str, int]":
-    """Each different text of a column with the rows it stands on, first seen first."""
+    """Each different text of a column with the rows it stands on, first seen first.
+
+    Not bounded: the exact choice counts the line in rows, so it needs
+    every text's (its price is stated at `LAYOUT_MEMO_TEXTS`).
+    """
     counted: "dict[str, int]" = {}
     for value in present:
         if value in counted:
