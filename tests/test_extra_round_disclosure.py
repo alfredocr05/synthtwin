@@ -24,7 +24,9 @@ The three the review called blocking are first, in its order:
    was measured against the SMALLEST published level, which is a
    function of the floor rather than of the column, so a pool of twelve
    cleared a published level of eleven and twelve forced singletons
-   stood.
+   stood. Plan P4-D390 set the whole of ruling 5 aside under the
+   owner's principle of 2026-10-01, so those singletons are a pool
+   again and its tests pin what the pool publishes.
 
 Then the six the review called major: the temporal censuses (P4-D278,
 P4-D279, superseded at the integration by the date pass's P4-D250,
@@ -37,8 +39,8 @@ THE RED CHECKS, each measured by withdrawing the rule in place:
 
 * `parsing.prefix_leaves_room` forced True -- the prefix test here;
 * `_holds_a_figure_as_a_value` forced False -- the header tests here;
-* `pool_names_a_level`'s exception restored to the smallest published
-  level -- the forced-singleton test here;
+* the level pass restored (this file run on `493f6f8`) -- the two
+  pool tests of item 3 and of the repair pass;
 * `_joint_reading_names_a_group` forced True -- the joint-reading test;
 * `absorbed_width_tally` returning its tally unchanged -- the width test;
 * `_absorb_lone_spellings`' line back at one, and `_published_distinct`
@@ -56,8 +58,9 @@ the foot of this file, and their red checks are:
 
 * `_holds_a_figure_as_a_value` without its opening test -- the ordinary
   header that carries a figure loses its own names again;
-* `pool_names_a_level` without its pinned-pool branch -- 120 lone sites
-  beside 200 published rows publish a pool of one row a level again;
+* the pinned-pool branch of ruling 5 (retired with it by plan
+  P4-D390) -- 120 lone sites beside 200 published rows publish a pool
+  of one row a level, which is what they publish now;
 * `endings_disclosed` without its run loop -- a lone CRLF run stands
   again where the ending has companions elsewhere;
 * the three `dialect` rules without their `floor <= 1` gate -- the
@@ -305,14 +308,15 @@ def test_a_column_name_that_is_not_a_number_still_speaks(
 # ----------------------------------------- 3, the pool that forces singletons
 
 
-def test_a_pool_beside_a_level_at_the_floor_is_counted_as_missing(
+def test_a_pool_beside_a_level_at_the_floor_is_published(
     tmp_path: pathlib.Path,
 ) -> None:
     """1,977 `NORTH`, 11 `SOUTH` and twelve one-row sites, at a floor of eleven.
 
-    Twelve levels over twelve rows can only be twelve single rows. The
-    old exception let the pool escape because twelve reaches the
-    SMALLEST published level, which the floor had set to eleven.
+    Twelve levels over twelve rows can only be twelve single rows. Ruling
+    5 counted them as missing; since plan P4-D390 they are the pool
+    (12, 12), and the twin writes twelve made-up sites of one row each
+    where the table held twelve real ones, none of them named.
     """
     cells = (
         ["NORTH"] * 1977 + ["SOUTH"] * 11 + [f"SITE{index}" for index in range(12)]
@@ -320,30 +324,14 @@ def test_a_pool_beside_a_level_at_the_floor_is_counted_as_missing(
     random.Random(3).shuffle(cells)
     result = _round_trip(tmp_path, {"value": cells}, FLOOR)
     block = _column(result)
-    assert (block["suppressed_levels"], block["suppressed_rows"]) == (0, 0)
-    assert (block["n_present"], block["n_missing"]) == (1988, 12)
+    assert (block["suppressed_levels"], block["suppressed_rows"]) == (12, 12)
+    assert (block["n_present"], block["n_missing"]) == (2000, 0)
     written = collections.Counter(result["twin"]["value"])
-    assert written[""] == 12
-    assert [label for label in written if written[label] == 1] == []
+    assert written[""] == 0
+    lone = [label for label in written if written[label] == 1]
+    assert len(lone) == 12
+    assert not [label for label in lone if label.startswith("SITE")]
     _both_pass(result)
-
-
-def test_the_long_tail_keeps_its_exception() -> None:
-    """The pool that IS the column is still no exception beside it.
-
-    The line is half of what the column publishes: a pool covering a
-    third of the column or more is the column's own shape, and that
-    width is what keeps a code register with a long tail whole.
-    """
-    # 780 codes written once beside one value of twenty rows.
-    assert not parsing.pool_names_a_level(780, 780, 20)
-    # 100 codes written once beside two codes of a hundred rows each.
-    assert not parsing.pool_names_a_level(99, 100, 200)
-    # Three one-patient sites beside 1,997 published rows are exceptions.
-    assert parsing.pool_names_a_level(3, 3, 1997)
-    assert parsing.pool_names_a_level(12, 12, 1988)
-    # ...and the band is still the band.
-    assert not parsing.pool_names_a_level(182, 400, 1600)
 
 
 # -------------------------------------------- 4, the two temporal censuses
@@ -752,8 +740,8 @@ def test_the_file_rules_are_asked_of_the_shared_line() -> None:
 #
 # * `_holds_a_figure_as_a_value` without its opening test -- the two
 #   header tests below;
-# * `pool_names_a_level` without its pinned-pool branch -- the two pool
-#   tests below;
+# * the pinned-pool branch of ruling 5, retired with it by plan P4-D390
+#   -- the pool test below pins what that pool publishes now;
 # * `endings_disclosed` without its run loop -- the ending test below;
 # * the three `dialect` rules without their `floor <= 1` gate -- the
 #   default-floor test below;
@@ -853,16 +841,16 @@ def _sites(published: int, held: int) -> "list[str]":
     return cells
 
 
-def test_a_pool_of_one_row_a_level_is_read_at_every_width(
+def test_a_pool_of_one_row_a_level_is_published_at_every_width(
     tmp_path: pathlib.Path,
 ) -> None:
     """120 lone sites beside 200 published rows, and 700 beside 1,200.
 
     `suppressed_levels` equal to `suppressed_rows` is a count of ONE for
-    every held-back level, read off two published numbers. The width
-    P4-D271 set let both through, because 240 is not below 200 and 1,400
-    is not below 1,200; the pinned pool is read by subtraction whatever
-    the width says.
+    every held-back level, read off two published numbers. The repair of
+    P4-D271 counted such a pool as missing whatever its width; since
+    plan P4-D390 it is published, and the twin writes as many lone
+    made-up sites as the table held, every row present.
     """
     for folder, published, held in (
         ("small", 200, 120), ("large", 1200, 700),
@@ -871,17 +859,18 @@ def test_a_pool_of_one_row_a_level_is_read_at_every_width(
             tmp_path / folder, {"value": _sites(published, held)}, FLOOR
         )
         block = _column(result)
-        assert block["suppressed_levels"] == 0
-        assert block["suppressed_rows"] == 0
-        assert block["n_present"] == published
-        assert block["n_missing"] == held
+        assert (block["suppressed_levels"], block["suppressed_rows"]) == (
+            held, held,
+        )
+        assert block["n_present"] == published + held
+        assert block["n_missing"] == 0
         blanks = [cell for cell in result["twin"]["value"] if cell == ""]
-        assert len(blanks) == held
+        assert blanks == []
         lone = [
             cell for cell in result["twin"]["value"]
             if cell and cell not in ("north", "south", "NORTH", "SOUTH")
         ]
-        assert lone == []
+        assert len(lone) == held == len(set(lone))
         _both_pass(result)
 
 
@@ -904,20 +893,6 @@ def test_a_long_tail_that_is_the_column_still_keeps_its_pool(
     assert block["n_missing"] == 0
     assert [cell for cell in result["twin"]["value"] if cell == ""] == []
     _both_pass(result)
-
-
-def test_the_pinned_pool_is_asked_before_the_width() -> None:
-    """The rule, stated: pinned and below the published rows, or the band."""
-    # Pinned, and smaller than what the column publishes.
-    assert parsing.pool_names_a_level(120, 120, 200)
-    assert parsing.pool_names_a_level(700, 700, 1200)
-    assert parsing.pool_names_a_level(12, 12, 1988)
-    # Pinned, and the column's own shape: the exception stands.
-    assert not parsing.pool_names_a_level(780, 780, 20)
-    assert not parsing.pool_names_a_level(3, 3, 3)
-    # Not pinned at all: the width decides, exactly as before.
-    assert not parsing.pool_names_a_level(99, 100, 200)
-    assert not parsing.pool_names_a_level(182, 400, 500)
 
 
 def test_a_rare_ending_s_run_names_no_record_among_its_companions(
@@ -1432,11 +1407,11 @@ def test_a_record_opening_on_a_mark_outside_ascii_is_no_schema(
         assert names == ["column_1", "column_2"], (spelling, names)
         # The first row is one of the records, so the file's own 240
         # records are all counted. (`North Unit` stands once, so the
-        # label column counts it as absent under the floor -- ruling 4
-        # of 2026-09-17 -- which is why its `n_present` is 239 here and
-        # on 05e7d89 alike.)
+        # label column holds it back in its pool, unnamed, and its
+        # `n_present` is 240. It was 239 here and on 05e7d89 while ruling
+        # 5's level pass counted that cell as absent, until plan P4-D390.)
         assert document["n_rows"] == 240, spelling
-        assert document["columns"][0]["n_present"] == 239, spelling
+        assert document["columns"][0]["n_present"] == 240, spelling
         asked = (folder / "real-questions.json").read_text(encoding="utf-8")
         assert "first row" in asked.lower(), spelling
         assert _exit_of(

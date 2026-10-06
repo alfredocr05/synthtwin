@@ -4255,40 +4255,6 @@
    "status_note": "ACCEPTED by the owner, 2026-09-18: \"Rare values: ok. Fine\" (plan P4-D268). Widened 2026-09-21 by the pooled-scale landing and put back by the repair pass of the same day: the value stands where the owner accepted it. MOVED AGAIN 2026-09-21 by the owner's decision (plan P4-D302): 55 to 63 of 251, one column of nineteen. ACCEPTED AT 63 by the owner on 2026-09-22: \"it's ok. What matters is not show the relation in a descriptive file, just showing that the value exist is not an issue\""
   },
   {
-   "id": "K-2B-20",
-   "phase_stage": "Stage 2b, ruling 5 (P4-D231, P4-D239), extra round #3",
-   "category": "PRIVACY",
-   "headline": false,
-   "name": "A lone label, or a pool that forces single rows, is counted as missing: no twin label written once",
-   "status": "GREEN",
-   "rule": "pool (0,0), n_missing == lone rows, no twin label other than blank appears once",
-   "rule_kind": "exact",
-   "expected": {
-    "pinned_nodes_failing": 0
-   },
-   "tier": "FAST",
-   "source": "pytest",
-   "nodes": [
-    "tests/test_ruling_levels_counted_by_subtraction.py::test_a_pool_of_one_is_counted_as_missing",
-    "tests/test_p4d239_forced_counts_of_one.py::test_three_one_patient_sites_are_counted_as_missing",
-    "tests/test_extra_round_disclosure.py::test_a_pool_of_one_row_a_level_is_read_at_every_width"
-   ],
-   "test": null,
-   "driver": null,
-   "pin_strength": "EXACT",
-   "measured_on": "shapes at floor 11, seeds 4 and 11",
-   "evidence": "F480/M519/U1: n_missing 1, twin 1 blank (was an invented label); 3 one-patient sites among 2,000: 3 blanks, 0 single labels; 120 and 700 lone sites: pool 0",
-   "value_at": {
-    "commit": "caf3079",
-    "date": "2026-09-19",
-    "measured_by": "tools/measurements/kpi_run.py --slow --print-values",
-    "value": {
-     "pinned_nodes_failing": 0
-    }
-   },
-   "nodes_min_collected": 4
-  },
-  {
    "id": "K-2B-21",
    "phase_stage": "Stage 2b, rulings 2 and 5 (P4-D201, P4-D231)",
    "category": "STATS",
@@ -4508,10 +4474,10 @@
   },
   {
    "id": "K-2B-26",
-   "phase_stage": "Stage 2b (LF7, B4c, P4-D124, P4-D260, P4-D175, P4-D250, P4-D277)",
+   "phase_stage": "Stage 2b (LF7, P4-D124, P4-D260, P4-D175, P4-D250, P4-D277)",
    "category": "PRIVACY",
    "headline": false,
-   "name": "No class total, layout census, form census or date form names one row",
+   "name": "No layout census, form census or date form names one row",
    "status": "GREEN",
    "rule": "no published count of 1 and no remainder of 1; the loader refuses such descriptions",
    "rule_kind": "exact",
@@ -4521,7 +4487,6 @@
    "tier": "FAST",
    "source": "pytest",
    "nodes": [
-    "tests/test_extra_round_numbers.py::test_a_class_total_never_leaves_one_held_back_row",
     "tests/test_extra_round_numbers.py::test_a_layout_is_not_named_when_its_own_supply_is_the_column",
     "tests/test_landing_2b18_layout_disclosure.py::test_one_odd_row_is_never_counted_or_left_over",
     "tests/test_final_skeptic_repairs.py::test_a_text_cell_of_another_shape_is_not_left_over_beside_numbers",
@@ -4532,7 +4497,7 @@
    "driver": null,
    "pin_strength": "EXACT",
    "measured_on": "the tests' reproductions, floors 1 and 11",
-   "evidence": "class totals never leave 1 held-back row; one odd id among 800: layout_forms {}; 900 ids 100-999 no longer publish '%%%': 900; 400 figures + 399 codes + 1 word: shape_forms {}; {'iso-date': 396} not 395 + 1; declared identifier reading counts 0 or n_present",
+   "evidence": "one odd id among 800: layout_forms {}; 900 ids 100-999 no longer publish '%%%': 900; 400 figures + 399 codes + 1 word: shape_forms {}; {'iso-date': 396} not 395 + 1; declared identifier reading counts 0 or n_present. The class totals (B4c) left this entry with ruling 5, plan P4-D390",
    "value_at": {
     "commit": "caf3079",
     "date": "2026-09-19",
@@ -4541,7 +4506,7 @@
      "pinned_nodes_failing": 0
     }
    },
-   "nodes_min_collected": 8
+   "nodes_min_collected": 7
   },
   {
    "id": "K-2B-27",
@@ -4583,9 +4548,9 @@
    "phase_stage": "Stage 2b, owner items 2026-09-18 (P4-D277, P4-D271)",
    "category": "PRIVACY",
    "headline": false,
-   "name": "Two counts of one LEFT AS IS: free text's n_numeric and a pooled label's n_missing, none new",
+   "name": "Two counts of one LEFT AS IS: free text's n_numeric and a pooled label's pool of one, none new",
    "status": "OPEN",
-   "rule": "on each of the two shapes the named count (n_numeric, n_missing) is <= 1, and no other key of the block carries a 1 beyond today's (free text: words/min, the shortest note's one word; its position is structural and not counted); target 0",
+   "rule": "on each of the two shapes the named count (n_numeric; the pool's suppressed_rows, suppressed_levels its mirror) is <= 1, and no other key of the block carries a 1 beyond today's (free text: words/min, the shortest note's one word; its position is structural and not counted); target 0",
    "rule_kind": "at_most",
    "expected": {
     "free_text_named_count": 1,
@@ -4600,7 +4565,7 @@
    "driver": null,
    "pin_strength": "NONE",
    "measured_on": "999 notes + '42'; 1,977 NORTH/11 SOUTH/1 SITE_X; floor 11, seed 4",
-   "evidence": "free text: n_numeric 1 of 1,000 (one note is '42'); pooled labels 1,977/11/1: n_missing 1. None changes how code runs or any statistic; each is a count a reader could also get by subtraction. Split on 2026-09-19: the date shape's n_unparsed, which the owner accepted, is K-2B-48; these two are not owner-accepted limits, so the entry is OPEN",
+   "evidence": "free text: n_numeric 1 of 1,000 (one note is '42'); pooled labels 1,977/11/1: the pool (1, 1), which read n_missing 1 until plan P4-D390 retired ruling 5's level pass. None changes how code runs or any statistic; each is a count a reader could also get by subtraction. Split on 2026-09-19: the date shape's n_unparsed, which the owner accepted, is K-2B-48; these two are not owner-accepted limits, so the entry is OPEN",
    "value_at": {
     "commit": "caf3079",
     "date": "2026-09-19",
@@ -4617,7 +4582,7 @@
     "pooled_labels_named_count": 0
    },
    "target_stage": "none set: LEFT AS IS on 2026-09-18 after the owner's questions were answered; reopened only by the owner",
-   "status_note": "LEFT AS IS, 2026-09-18. Free text's n_numeric of one: the owner asked how it affects code and statistics; the answer given was neither, and that closing it would move every numeric column's description (plan P4-D277). A pooled label's n_missing of one: answered that closing it would withhold missing counts on every column (plan P4-D271). Neither is an owner acceptance."
+   "status_note": "LEFT AS IS, 2026-09-18. Free text's n_numeric of one: the owner asked how it affects code and statistics; the answer given was neither, and that closing it would move every numeric column's description (plan P4-D277). A pooled label's count of one, then n_missing: answered that closing it would withhold missing counts on every column (plan P4-D271); since plan P4-D390 it is the pool's. Neither is an owner acceptance."
   },
   {
    "id": "K-2B-29",
@@ -5642,7 +5607,7 @@
    "headline": false,
    "name": "No published census, count or column name lets a reader subtract one person out",
    "status": "GREEN",
-   "rule": "every reproduction round 2's disclosure reviewer and its skeptic wrote is described, generated and validated, and none of the seven subtractions names a row: the first record is never published as the column names; a judged stand-in number's occurrences less its named spellings is nought or reaches the census floor; a form census covers no held-back label; a joint date/timestamp column's midnight count and offset census leave no timestamp residual under the line; n_numeric less n_negative less the plus census is nought or a group; a formula count clears the line inside the published present cells; a line-ending run clears it with the file's furniture taken off. Every round trip validates the twin AND the real table at exit 0",
+   "rule": "every reproduction round 2's disclosure reviewer and its skeptic wrote is described, generated and validated, and none of the seven subtractions names a row: the first record is never published as the column names; a judged stand-in number's occurrences less its named spellings is nought or reaches the census floor; a joint date/timestamp column's midnight count and offset census leave no timestamp residual under the line; n_numeric less n_negative less the plus census is nought or a group; a formula count clears the line inside the published present cells; a line-ending run clears it with the file's furniture taken off. Every round trip validates the twin AND the real table at exit 0",
    "rule_kind": "exact",
    "expected": {
     "pinned_nodes_failing": 0
@@ -5654,7 +5619,6 @@
     "tests/test_round2_disclosure.py::test_the_same_workbook_publishes_no_record_either",
     "tests/test_round2_disclosure.py::test_a_judged_candidate_leaves_no_spelling_of_one",
     "tests/test_round2_disclosure.py::test_a_judged_candidate_leaves_no_group_under_the_floor",
-    "tests/test_round2_disclosure.py::test_a_form_census_names_no_held_back_label",
     "tests/test_round2_disclosure.py::test_a_joint_column_names_no_lone_midnight_timestamp",
     "tests/test_round2_disclosure.py::test_a_joint_column_names_no_lone_unzoned_timestamp",
     "tests/test_round2_disclosure.py::test_the_plus_census_leaves_no_unsigned_cell_of_one",
@@ -5667,8 +5631,8 @@
    "test": null,
    "driver": null,
    "pin_strength": "EXACT",
-   "measured_on": "the reviewer's and the skeptic's own inputs: 240 headerless records at floors 1 and 11; 400 readings with twenty -999 and a second spelling of 1, 2, 5, 10 and 11; 212 labels of five levels; 400 joint ISO cells at four floors and three seeds; 500 signed decimals; a 400-row workbook of twenty formulas; a 131-line file under ten title lines; 320 headed records under seven realistic column names, three cell kinds and two floors",
-   "evidence": "on 05e7d89 every one of the seven reproductions published the subtraction: the first record as three column names over 239 rows; 21-20=1; 201-200=1; n_at_midnight 101 beside 100 whole dates; utc_offsets (none) 101 beside 100; 500-99-400=1; 21-20=1; [{lf: 12}, {crlf: 119}] over ten title lines. The repair pass then measured two costs the disclosure pass had not: a joint column's twin failed its own description at the default floor (validate exit 3 on midnight.withheld, all seeds), and an ordinary headed export whose header carries a figure lost its real column names (site,2024 total over 320 records with NA every 29th row became column_1/column_2 over 321). Both are pinned here, because both are what a repair of a disclosure leak costs when nobody measures it",
+   "measured_on": "the reviewer's and the skeptic's own inputs: 240 headerless records at floors 1 and 11; 400 readings with twenty -999 and a second spelling of 1, 2, 5, 10 and 11; 400 joint ISO cells at four floors and three seeds; 500 signed decimals; a 400-row workbook of twenty formulas; a 131-line file under ten title lines; 320 headed records under seven realistic column names, three cell kinds and two floors",
+   "evidence": "on 05e7d89 every one of the seven reproductions published the subtraction (item 3's form census, 201-200=1, is published again since plan P4-D390 set ruling 5 aside, and its node left this entry): the first record as three column names over 239 rows; 21-20=1; 201-200=1; n_at_midnight 101 beside 100 whole dates; utc_offsets (none) 101 beside 100; 500-99-400=1; 21-20=1; [{lf: 12}, {crlf: 119}] over ten title lines. The repair pass then measured two costs the disclosure pass had not: a joint column's twin failed its own description at the default floor (validate exit 3 on midnight.withheld, all seeds), and an ordinary headed export whose header carries a figure lost its real column names (site,2024 total over 320 records with NA every 29th row became column_1/column_2 over 321). Both are pinned here, because both are what a repair of a disclosure leak costs when nobody measures it",
    "value_at": {
     "commit": "caf3079",
     "date": "2026-09-19",
@@ -5677,7 +5641,7 @@
      "pinned_nodes_failing": 0
     }
    },
-   "nodes_min_collected": 78
+   "nodes_min_collected": 77
   },
   {
    "id": "K-S3-12",
@@ -5689,7 +5653,7 @@
    "rule": "over the 46 seeded shapes of tests/stage3_battery.py at floor 11: the unfloored `count` leaves holding 1..10 (settings and structural counts excluded) must not rise; the FLOORED sentence arguments -- the thirteen positions no key of the block covers -- holding 1..10 must stay nought; and the floored arguments whose COMPLEMENT against the block's published n_present holds 1..10 must stay nought, asked of all thirteen positions and not only of the four whose binding names that population; target 0 for all three",
    "rule_kind": "at_most",
    "expected": {
-    "count_leaves_1_to_10": 65,
+    "count_leaves_1_to_10": 61,
     "floored_sentence_arguments_1_to_10": 0,
     "floored_sentence_complements_1_to_10": 0
    },
@@ -5700,7 +5664,7 @@
    "driver": null,
    "pin_strength": "NONE",
    "measured_on": "tests/stage3_battery.py, 46 seeded shapes, seed 20260922, floor 11",
-   "evidence": "65 unfloored `count` leaves holding 1 to 10 over the 46 seeded shapes at a floor of eleven (settings and structural counts excluded), and NOUGHT floored sentence arguments below the line, nought whose complement against the population their binding names falls below it. The second and third numbers are the landing's own claim asked both ways; the first is the class P4-D332 leaves published, held at a ceiling so it cannot widen unseen. The battery grew three shapes at the repair pass because the other forty-three plant one to ten cells OF the counted kind and never of the kind the count does not count, so the complement walk reported nought over them while a sixty-row affixed column reached the exposure in one call.",
+   "evidence": "61 unfloored `count` leaves holding 1 to 10 (65 until plan P4-D390: ruling 5's level pass reprinted four pooled counts as n_missing) over the 46 seeded shapes at a floor of eleven (settings and structural counts excluded), and NOUGHT floored sentence arguments below the line, nought whose complement against the population their binding names falls below it. The second and third numbers are the landing's own claim asked both ways; the first is the class P4-D332 leaves published, held at a ceiling so it cannot widen unseen. The battery grew three shapes at the repair pass because the other forty-three plant one to ten cells OF the counted kind and never of the kind the count does not count, so the complement walk reported nought over them while a sixty-row affixed column reached the exposure in one call.",
    "value_at": {
     "commit": "3587709",
     "date": "2026-09-22",
@@ -5715,7 +5679,7 @@
     "count_leaves_1_to_10": 0
    },
    "target_stage": "none set: P4-D332 is the orchestrator's call of 2026-09-22, reversible, and goes to the owner on the board. Flooring these counts broke goal 1 in 7 of 7 probed shapes and the count still reached the reader through n_missing",
-   "status_note": "LEFT AS IS by P4-D332, extending K-2B-28 (left as is after the owner's questions, not an acceptance) and the owner's K-2B-48 acceptance under the owner's own principle: 'What matters is not show the relation in a descriptive file, just showing that the value exist is not an issue'. The ceiling is 65 so that a later landing cannot widen the exposure without moving this number and saying why. THE THIRD NUMBER IS ASKED OF ALL THIRTEEN FLOORED POSITIONS while the rule arms four, so a battery shape whose complement is a competing reading's count -- the class P4-D332 leaves published in a key beside the sentence -- would raise it. That is a decision to record here, not automatically a defect: what the ceiling forbids is the number moving while nobody is looking.",
+   "status_note": "LEFT AS IS by P4-D332, extending K-2B-28 (left as is after the owner's questions, not an acceptance) and the owner's K-2B-48 acceptance under the owner's own principle: 'What matters is not show the relation in a descriptive file, just showing that the value exist is not an issue'. The ceiling is 61 (65 until plan P4-D390 retired ruling 5's level pass, which printed four of them as n_missing) so that a later landing cannot widen the exposure without moving this number and saying why. THE THIRD NUMBER IS ASKED OF ALL THIRTEEN FLOORED POSITIONS while the rule arms four, so a battery shape whose complement is a competing reading's count -- the class P4-D332 leaves published in a key beside the sentence -- would raise it. That is a decision to record here, not automatically a defect: what the ceiling forbids is the number moving while nobody is looking.",
    "nodes_min_collected": 0
   },
   {
@@ -7402,13 +7366,11 @@
    "phase_stage": "Stage 4 tier 1 (plan P4-D385)",
    "category": "SPEED",
    "headline": true,
-   "name": "Four paths of the largest tables grow with the rows, not their square",
+   "name": "Three paths of the largest tables grow with the rows, not their square",
    "status": "GREEN",
-   "rule": "machine-free, rows doubled: the lines run choosing end-carrier pairs (all-different text and record numbers, 250 to 500 rows), comparisons with held-back levels (1,000 to 2,000), the class pass's bytes (4,000 to 8,000) and a label column's bytes (3,000 to 6,000) each grow under 2.5 times, and the role ladder is walked once per question",
+   "rule": "machine-free, rows doubled: the lines run choosing end-carrier pairs (all-different text and record numbers, 250 to 500 rows) and a label column's bytes (3,000 to 6,000) each grow under 2.5 times, and the role ladder is walked once per question; the held-back level lookups and the class pass left with the level pass (plan P4-D390)",
    "rule_kind": "ratio_below",
    "expected": {
-    "class_pass_bytes_growth_2x_rows": 2.5,
-    "held_back_lookups_growth_2x_rows": 2.5,
     "label_bytes_growth_2x_rows": 2.5,
     "role_walks_per_question": 1.0,
     "shape_search_lines_growth_2x_rows": 2.5
@@ -7420,7 +7382,7 @@
    "driver": null,
    "pin_strength": "NONE",
    "measured_on": "tests/test_stage4_linear_work.py's measures, whose growth tests require each replaced function, and the two regressions the review of landing S1 named, to grow at least three times",
-   "evidence": "As built (668f276), same shapes: 4.05 times the comparisons, 3.35 the class pass's bytes and 3.56 a label column's, three walks per question; the pair search listing every pair, 3.99 times, and the review's probe keeping one pair per shape of that list, 4.0 where the pairs it hands grow 1.0; a made-up 50-column health table of 10,000 rows reached 5.8 GB before a guard stopped it.",
+   "evidence": "As built (668f276), same shapes: 3.56 times a label column's bytes, three walks per question (and 4.05 times the comparisons with held-back levels and 3.35 the class pass's bytes, both deleted by plan P4-D390); the pair search listing every pair, 3.99 times, and the review's probe keeping one pair per shape of that list, 4.0 where the pairs it hands grow 1.0; a made-up 50-column health table of 10,000 rows reached 5.8 GB before a guard stopped it.",
    "value_at": {
     "commit": "256a3bc",
     "date": "2026-10-02",

@@ -2404,7 +2404,7 @@ def _leaf_is_published(
         # Nought, or a group at the disclosure line. Whether the cells
         # LEFT OVER once this pool is taken off the column's numbers
         # are a group too needs that total beside it, so that half is
-        # invariant B4c and is checked with the invariants.
+        # invariant B4d and is checked with the invariants.
         if isinstance(value, bool) or not isinstance(value, int):
             return False
         return value == 0 or value >= parsing.census_floor(context.floor)
@@ -3596,20 +3596,22 @@ def _pooled_absence_withheld(
     """A column's class census withheld where the twin cannot be held to it.
 
     A CENSUS OF THE SHEET'S CELLS BESIDE A COLUMN THAT CALLS SOME OF
-    THEM ABSENT (the owner's ruling of 2026-09-17, item 5; plan P4-D231).
-    `cell_classes` counts every cell of the column as the SHEET stored it
-    -- text, number, date -- and the column beside it says how many cells
-    are absent under a spelling the floor would not let it name
-    (`n_missing_withheld`). The twin writes those cells EMPTY, because
-    nothing published says what they held, so its own census counts an
-    empty cell where this one counts a text or a number, and the twin
-    misses a census it was never able to meet.
+    THEM ABSENT. `cell_classes` counts every cell of the column as the
+    SHEET stored it -- text, number, date -- and the column beside it
+    says how many cells are absent under a spelling the floor would not
+    let it name (`n_missing_withheld`). The twin writes those cells
+    EMPTY, because nothing published says what they held, so its own
+    census counts an empty cell where this one counts a text or a
+    number, and the twin misses a census it was never able to meet.
 
-    MEASURED: forty-one records of three texts at a floor of five, whose
-    first record holds a lone `amber` and a lone `Northfield`, published
-    `text: 41` on each column and wrote a twin whose census was withheld
-    -- `workbook.cell-classes` MISSED on both, with the real workbook
-    holding every obligation.
+    MEASURED while the owner's ruling of 2026-09-17, item 5 counted a
+    lone label's cells as absent (plan P4-D231; set aside by P4-D390,
+    which leaves those cells present): forty-one records of three texts
+    at a floor of five, whose first record holds a lone `amber` and a
+    lone `Northfield`, published `text: 41` on each column and wrote a
+    twin whose census was withheld -- `workbook.cell-classes` MISSED on
+    both, with the real workbook holding every obligation. A spelling of
+    "no value" the floor will not name is the same cell today.
 
     So the census is withheld for such a column, exactly as
     `_stored_as_text_withheld` withholds one whose difference a reader

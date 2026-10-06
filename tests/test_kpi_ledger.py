@@ -806,7 +806,7 @@ def _lone_counts(tmp_path: pathlib.Path, names: "tuple[str, ...]") -> "dict":
         ones = [path for path in S.ones_in(block) if path != "/position"]
         mirrors = {f"/{key}"} | (
             {"/n_missing_withheld", "/missing_by_class/(withheld)"} if key == "n_missing" else set()
-        )
+        ) | ({"/suppressed_levels"} if key == "suppressed_rows" else set())
         value[f"{name}_named_count"] = block.get(key)
         value[f"{name}_other_ones"] = len([p for p in ones if p not in mirrors])
     return value
@@ -815,9 +815,12 @@ def _lone_counts(tmp_path: pathlib.Path, names: "tuple[str, ...]") -> "dict":
 def test_k_2b_28(record_property, tmp_path: pathlib.Path) -> None:
     """Two counts of one LEFT AS IS on 2026-09-18, and none new beside them.
 
-    Free text's `n_numeric` and a pooled label's `n_missing`: the owner
+    Free text's `n_numeric` and a pooled label's count of one: the owner
     asked, the answers were given, and neither was closed. They are not
-    owner-accepted limits, so the entry is OPEN with its note.
+    owner-accepted limits, so the entry is OPEN with its note. The pooled
+    label's one row is the pool (`suppressed_rows` 1, `suppressed_levels`
+    its mirror) since plan P4-D390 retired ruling 5's level pass, which
+    printed it as `n_missing` 1.
     """
     _kpi(record_property, "K-2B-28", _lone_counts(tmp_path, ("free_text", "pooled_labels")))
 
@@ -1707,32 +1710,27 @@ def test_k_s3_55(record_property, tmp_path: pathlib.Path, monkeypatch: pytest.Mo
 
 
 def test_k_s4_03(record_property) -> None:
-    """Four paths of describing and generating grow with the rows and not their square.
+    """Three paths of describing and generating grow with the rows and not their square.
 
     Each measure is a count of work, never a time: the lines run choosing
-    the end-carrier pairs, the comparisons made with held-back levels and
-    the bytes the class pass allocates beside them, the bytes a label
-    column is built with, and the walks of the role ladder per question.
+    the end-carrier pairs, the bytes a label column is built with, and
+    the walks of the role ladder per question.
     `tests/test_stage4_linear_work.py` owns the measures, and its growth
-    tests require each replaced function -- and, for the pair search and
-    the class pass, the two regressions the review of landing S1 named
-    (item 4) -- to grow as the square on the same shapes, so these
-    ratios can fail.
+    tests require each replaced function -- and, for the pair search, the
+    regression the review of landing S1 named (item 4) -- to grow as the
+    square on the same shapes, so these ratios can fail. The fourth path,
+    the held-back level lookups and the class pass beside them, went with
+    the level pass of ruling 5 (plan P4-D390).
     """
     import test_stage4_linear_work as linear
 
     lines = (linear.shape_search_lines(250), linear.shape_search_lines(500))
-    lookups = (linear.held_back_lookups(1000), linear.held_back_lookups(2000))
-    classed = (linear.class_pass_bytes(4000), linear.class_pass_bytes(8000))
     built = (linear.label_bytes(3000), linear.label_bytes(6000))
     walks, questions, _columns = linear.role_walks(500)
     _kpi(record_property, "K-S4-03", {
         "shape_search_lines_growth_2x_rows": round(lines[1] / lines[0], 2),
-        "held_back_lookups_growth_2x_rows": round(lookups[1] / lookups[0], 2),
-        "class_pass_bytes_growth_2x_rows": round(classed[1] / classed[0], 2),
         "label_bytes_growth_2x_rows": round(built[1] / built[0], 2),
         "role_walks_per_question": round(walks / questions, 2),
         "shape_search_lines_500": lines[1],
-        "held_back_lookups_2000": lookups[1],
         "role_walks_500": walks,
     })

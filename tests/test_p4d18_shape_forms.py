@@ -84,18 +84,19 @@ def _long_tail(
     return values
 
 
-# COMMON COUNTS UNDER WHICH `_long_tail`'s TAIL STANDS (owner ruling 5,
-# plan P4-D271). The tail writes its codes alternately twice and once,
+# COMMON COUNTS UNDER WHICH `_long_tail`'s TAIL STOOD UNDER RULING 5
+# (plan P4-D271). The tail writes its codes alternately twice and once,
 # so 2k codes cover 3k rows -- fewer than twice their number, and at
-# least k of them are provably single rows. Such a pool stands only
-# where twice its rows reach what the column publishes; below that the
-# floor counts every tail cell as MISSING, the twin writes a blank there
-# and there is no stand-in left for a case about stand-ins to look at.
-# At the default counts, 62 + 45 + 34 + 28 + 22 = 191 published rows,
-# neither tail this file uses stands: 2 x 39 = 78 and 2 x 60 = 120 are
-# both short of 191. At 22 + 18 + 15 + 12 + 11 = 78 both stand (78 is
-# at least 78, and 120 is at least 78), and every one of the five still
-# clears the floor of eleven, so all five are published.
+# least k of them are provably single rows. Ruling 5 let such a pool
+# stand only where twice its rows reached what the column publishes;
+# below that it counted every tail cell as MISSING, the twin wrote a
+# blank there and there was no stand-in left for a case about stand-ins
+# to look at. At the default counts, 62 + 45 + 34 + 28 + 22 = 191
+# published rows, neither tail this file uses stood: 2 x 39 = 78 and
+# 2 x 60 = 120 are both short of 191. At 22 + 18 + 15 + 12 + 11 = 78 both
+# stood, and every one of the five still clears the floor of eleven.
+# Plan P4-D390 retired ruling 5, so every tail stands at either count;
+# the cases keep these counts as they were armed.
 A_TAIL_THAT_STANDS = (22, 18, 15, 12, 11)
 
 
@@ -320,9 +321,10 @@ def test_the_twin_of_a_code_column_is_code_shaped_throughout() -> None:
     Before this landing the stand-ins among these cells were `group-14`
     and the like; now every one of them is shaped like a diagnosis code.
 
-    RE-ARMED UNDER RULING 5 (plan P4-D271). Beside 191 published rows the
-    tail of 39 rows is counted as missing, so the twin wrote no stand-in
-    and a twin writing `group-N` for every one of them passed here. At
+    RE-ARMED UNDER RULING 5 (plan P4-D271, retired by P4-D390). Beside
+    191 published rows the ruling counted the tail of 39 rows as missing,
+    so the twin wrote no stand-in and a twin writing `group-N` for every
+    one of them passed here. At
     `A_TAIL_THAT_STANDS` the 26 rare codes stand as 26 held-back levels
     over 13 x 2 + 13 = 39 rows, and each of those rows is a stand-in.
     """
@@ -356,9 +358,10 @@ def test_a_hyphenated_code_still_splits_into_its_parts() -> None:
     while a three-part drug code split into two and crashed the frame
     that expected three.
 
-    RE-ARMED UNDER RULING 5 (plan P4-D271). Each tail is forty codes
-    over 20 x 2 + 20 = 60 rows, and beside 191 published rows it was
-    counted as missing, so neither twin held a stand-in to split. At
+    RE-ARMED UNDER RULING 5 (plan P4-D271, retired by P4-D390). Each
+    tail is forty codes over 20 x 2 + 20 = 60 rows, and beside 191
+    published rows it was counted as missing, so neither twin held a
+    stand-in to split. At
     `A_TAIL_THAT_STANDS` (78 published rows, 2 x 60 = 120 >= 78) both
     tails stand as forty held-back levels over sixty rows.
     """
@@ -401,9 +404,10 @@ def test_the_published_levels_pay_their_forms_first() -> None:
     whole census would write each form twice over and miss every count
     it was built to meet.
 
-    RE-ARMED UNDER RULING 5 (plan P4-D271): at the default counts the
-    tail is counted as missing and there is no walk to pay anything
-    first. At `A_TAIL_THAT_STANDS` its 39 rows are stand-ins again.
+    RE-ARMED UNDER RULING 5 (plan P4-D271, retired by P4-D390): at the
+    default counts the ruling counted the tail as missing and there was
+    no walk to pay anything first. At `A_TAIL_THAT_STANDS` its 39 rows
+    are stand-ins again.
     """
     document, described, folder = _described(
         _long_tail(
@@ -533,7 +537,10 @@ def _level_with_held_back_spellings() -> "list[str]":
     do not, so they are held back as a multiplicity map and the twin
     makes up two spellings in their place. All five rows of the first
     two wear the form `A99.9`; the two trailing-space rows wear
-    `A99.9 `, which no cell shares, so the floor pools them.
+    `A99.9 `, which no cell shares, so the floor pools them. Beside them
+    stand twenty-six rare `Q` codes over thirty-nine rows, also `A99.9`,
+    held back in the column's pool (ruling 5 counted them as missing
+    until plan P4-D390).
     """
     values: list[str] = []
     for code, count in zip(
@@ -563,9 +570,10 @@ def _level_held_back_by_hand() -> (
     drives G8.2, and it is built by hand from the rule statement: the
     level names its 62-row spelling and holds back one spelling of three
     rows and one of two; its form count is the 62 and the three held-back
-    rows that wore the form; the column holds the five named spellings
-    and the two held back; and `@%%.%` counts 62 + 3 cells of the level
-    and the 45 of `I10.0`, the two trailing-space rows having no form.
+    rows that wore the form; the column holds the five named spellings,
+    the two held back and the twenty-six pooled `Q` codes; and `@%%.%`
+    counts 62 + 3 cells of the level, the 45 of `I10.0` and the 39 of
+    the `Q` codes, the two trailing-space rows having no form.
     """
     document, _loaded, folder = _described(
         _level_with_held_back_spellings(), "dx"
@@ -577,8 +585,8 @@ def _level_held_back_by_hand() -> (
             level["variants"] = {"E11.9": 62}
             level["variants_withheld"] = {"2": 1, "3": 1}
             level["shape_form_cells"] = 62 + 3
-    column["n_distinct"] = 5 + 2
-    column["shape_forms"]["@%%.%"] = 62 + 3 + 45
+    column["n_distinct"] = 5 + 2 + 26
+    column["shape_forms"]["@%%.%"] = 62 + 3 + 45 + 39
     written = fixtures.write_profile(folder, "held.json", edited)
     return edited, contract.load_profile(f"{written}"), folder
 
@@ -605,9 +613,9 @@ def test_a_made_up_variant_keeps_the_form_where_one_spelling_is_left() -> None:
     describes the twin under ruling 6 as it describes any file, so it
     counts the twin's three `e11.9` and two spaced stand-ins into
     `E11.9` and misses exactly the five facts that respelling moves --
-    `n_distinct` 7 against 5, the level's named and held-back spellings,
-    its form count 65 against 67, and `@%%.%` 110 against 112 -- and
-    nothing else, which is pinned as the whole list.
+    `n_distinct` 33 against 31, the level's named and held-back
+    spellings, its form count 65 against 67, and `@%%.%` 149 against 151
+    -- and nothing else, which is pinned as the whole list.
     """
     document, described, folder = _level_held_back_by_hand()
     twin = generation.generate(described, 7)
@@ -647,13 +655,14 @@ def test_the_form_keeping_spelling_goes_to_the_largest_held_back_group() -> None
     RE-ARMED ON THE DESCRIPTION THE PRODUCER NO LONGER WRITES
     (`_level_held_back_by_hand`). The source itself now publishes its
     level as 67 rows of `E11.9` -- 62 + 3 + 2, ruling 6 -- and its census
-    counts those same cells, 67 + 45 = 112 in `@%%.%` (plan P4-D275.1;
-    it said 110 beside a twin that wrote 112 before that repair).
+    counts those same cells, 67 + 45 + 39 = 151 in `@%%.%` with the
+    pooled `Q` codes (plan P4-D275.1; it said 110 beside a twin that
+    wrote 112 before that repair, the `Q` codes then counted missing).
     """
     source, _loaded, _folder = _described(
         _level_with_held_back_spellings(), "dx"
     )
-    assert source["columns"][0]["shape_forms"]["@%%.%"] == 62 + 3 + 2 + 45
+    assert source["columns"][0]["shape_forms"]["@%%.%"] == 62 + 3 + 2 + 45 + 39
     document, described, _folder = _level_held_back_by_hand()
     published = document["columns"][0]["shape_forms"]
     twin = generation.generate(described, 7)
@@ -704,8 +713,9 @@ def test_a_stand_in_that_collides_still_owes_its_form() -> None:
     Here the first spellings the stepper reaches are exactly what the
     column already published, so every early candidate collides.
 
-    RE-ARMED UNDER RULING 5 (plan P4-D271): beside 191 published rows the
-    39-row tail was counted as missing and no stand-in was walked at all.
+    RE-ARMED UNDER RULING 5 (plan P4-D271, retired by P4-D390): beside
+    191 published rows the 39-row tail was counted as missing and no
+    stand-in was walked at all.
     At `A_TAIL_THAT_STANDS` all 26 rare codes are stand-ins again.
     """
     values: list[str] = []
@@ -984,10 +994,10 @@ def test_every_named_code_system_survives_both_shapes() -> None:
         ("scheme09", "long tail"): 8,
     }
     # THE THIRD SHAPE IS THE ONE WITH STAND-INS IN IT (owner ruling 5,
-    # plan P4-D271). At the default counts every scheme that takes a
-    # label role counts its tail as MISSING -- 39 rows beside 191
-    # published ones -- so the "long tail" twin holds only published
-    # codes written byte for byte and a stand-in of any shape passes.
+    # plan P4-D271, retired by P4-D390). At the default counts ruling 5
+    # counted every label-role scheme's tail as MISSING -- 39 rows beside
+    # 191 published ones -- so the "long tail" twin held only published
+    # codes written byte for byte and a stand-in of any shape passed.
     # The long tail is kept as it was, because the numeric schemes and
     # the residual above are measured on it; the standing tail is added
     # beside it, and on it every label-role scheme must hold exactly the
@@ -1043,14 +1053,14 @@ def test_the_report_says_which_stand_ins_wore_a_published_form() -> None:
     sentence names how many rather than leaving a reader to guess which
     happened.
 
-    THE COMMON CODES COVER 78 ROWS AND NOT 191, and that is ruling 5 as
-    plan P4-D271 measures its exception. The twenty-six rare codes cover
-    39 rows, fewer than twice their number, so at least thirteen of them
-    are single rows; the pool stands only where it covers at least half
-    of what the column publishes. Beside 191 published rows 2 x 39 = 78
-    falls short, the tail is counted as missing and there is no stand-in
-    to describe. Beside 22 + 18 + 15 + 12 + 11 = 78 it is exactly half,
-    and the tail stands.
+    THE COMMON CODES COVER 78 ROWS AND NOT 191, and that was ruling 5 as
+    plan P4-D271 measured its exception (retired by P4-D390). The
+    twenty-six rare codes cover 39 rows, fewer than twice their number,
+    so at least thirteen of them are single rows; the ruling let the pool
+    stand only where it covered at least half of what the column
+    publishes. Beside 191 published rows 2 x 39 = 78 fell short, and the
+    tail was counted as missing. Beside 22 + 18 + 15 + 12 + 11 = 78 it is
+    exactly half, and the tail stood.
     """
     document, described, _folder = _described(
         _long_tail(

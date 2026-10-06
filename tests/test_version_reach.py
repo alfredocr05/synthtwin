@@ -103,25 +103,24 @@ calls are held by what they are handed or by where they run:
   history built by the test; that block uses `os` and `sys` and
   imports `tools/hooks/check_messages.py`, a file this guard reads.
 - `tests/stage4_as_built.py` runs `exec(compile(source, ...))` on its
-  own two string constants, `LABEL_CONTENT` and `READ_THE_COLUMN`:
-  `generation._label_content` and `taxonomy._read_the_column` as
-  668f276 shipped them, the second with the one argument plan P4-D382
-  added, frozen as text to serve as the oracle of stage 4's first tier
-  (the review of landing S1, item 5, found the earlier oracle rebuilt
-  from the product's own source and so following any change made
-  there). Those strings are not a file this guard reads as code, so
-  both readings below were run over each of them on 2026-10-03 and
-  found no post-floor spelling: they are the product's own functions
-  of 668f276, which this guard read when they were the product.
+  own string constant `LABEL_CONTENT`: `generation._label_content` as
+  668f276 shipped it, frozen as text to serve as the oracle of stage
+  4's first tier (the review of landing S1, item 5, found the earlier
+  oracle rebuilt from the product's own source and so following any
+  change made there). That string is not a file this guard reads as
+  code, so both readings below were run over it on 2026-10-03 and found
+  no post-floor spelling: it is the product's own function of 668f276,
+  which this guard read when it was the product. `READ_THE_COLUMN`,
+  `taxonomy._read_the_column` as 668f276 shipped it, stood beside it
+  until plan P4-D390 deleted the level pass it was the oracle of.
 - `tests/test_stage4_linear_work.py` runs `exec(compile(tree, ...))`
   once, in `_mutated` (plan P4-D385), where `tree` is the syntax tree of
-  a shipped function -- `taxonomy._read_the_column` or
-  `generation._label_content`, read by `inspect.getsource` from files
-  this guard reads -- with one change of meaning made to it, to show
-  that the comparison with the frozen texts breaks: a loop over
-  `counted_out[1:]`, or a size written `sizes[place] + 1`. A slice and
-  an addition, which every Python spells alike, so it adds no spelling
-  the floor could miss.
+  a shipped function -- `generation._label_content`, read by
+  `inspect.getsource` from a file this guard reads -- with one change
+  of meaning made to it, to show that the comparison with the frozen
+  text breaks: a size written `sizes[place] + 1`. An addition, which
+  every Python spells alike, so it adds no spelling the floor could
+  miss.
 - `runpy.run_path` runs the same kind of committed file: twice in
   `tests/`, in the two stage-2 oracle tests, and seventeen times in
   `tools/` -- one for the provenance guard's own runner and one for
