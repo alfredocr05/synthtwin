@@ -1559,24 +1559,30 @@ NOTE_WORDS = MEMBERS + RULES + _ASIDE_WORDS + (ASIDE_NONE,)
 
 
 def rule_said(rule: str) -> str:
-    """What NF113 says a rule saw, opening its sentence."""
+    """What NF113 says a rule saw, opening its sentence.
+
+    "NEARLY EVERY", NEVER "EVERY": each rule lets text cells stand to the
+    date role's own line, the set-aside numbers stand beside the rest and
+    one cell in a thousand stray outside the band, so a sentence saying
+    "every" would be false on a column it fires on.
+    """
     if rule == RULE_MIDNIGHT:
         return (
-            "every value in this column is a whole number, and nearly every "
-            "one stands at the very start of a day counted in seconds or a "
-            "finer unit from a fixed moment, which is how a date is kept as "
+            "nearly every value in this column is a whole number standing at "
+            "the very start of a day counted in seconds or a finer unit from "
+            "a fixed moment, which is how a date from 1900 to 2050 is kept as "
             "an instant at midnight UTC."
         )
     if rule == RULE_FIXED_WIDTH:
         return (
-            "every value in this column is written in figures alone, all "
-            "one width, and every one lies where a system counting days "
-            "from a fixed day writes a date from 1900 to 2050."
+            "nearly every value in this column is written in figures alone, "
+            "all one width, and lies where a system counting days from a "
+            "fixed day writes a date from 1900 to 2050."
         )
     return (
-        "every value in this column is a number, and nearly every one lies "
-        "where a system counting days, seconds or a finer unit from a fixed "
-        "day writes a date from 1990 to 2050."
+        "nearly every value in this column is a number, and nearly every one "
+        "lies where a system counting days, seconds or a finer unit from a "
+        "fixed day writes a date from 1990 to 2050."
     )
 
 

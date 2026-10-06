@@ -921,7 +921,7 @@ def _date_count_shape(
             f"read as {date_counts.TABLE[member].means}, they run from "
             f"{first} to {last}"
         )
-    opening = "every value is a number"
+    opening = "nearly every value is a number"
     if fixed:
         opening = fixed
     aside = ""

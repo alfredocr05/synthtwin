@@ -932,36 +932,21 @@ REMARK_MINUS_AFTER_THE_FIGURES = "remark_a_minus_after_the_figures"
 REMARK_LABEL_IS_A_STAND_IN = "remark_a_label_is_a_built_in_stand_in"
 # A COLUMN OF WHOLE NUMBERS WHOSE EVERY VALUE LIES IN THE BAND A
 # MOMENT IN TIME IS COUNTED INTO (residual R-P4-9, contract NF51).
-# Such a column is read as a count and stays one -- no rule of this
-# package reads a number as a time and no declaration makes one -- so
-# the remark exists for the one thing that WAS missing: being told.
+# RETIRED FROM THE PRODUCER by landing R4 (plan P4-D384): question Q3's
+# own words, NF113 and NF114, stand in its place, and `--date-count`
+# reads such a column as the dates it counts. The form stays in the
+# grammar with its two bands, so a description written before that
+# landing still loads and its days are still held to the block's
+# published edges (`epoch_band_days`).
 REMARK_EPOCH_BAND = "remark_whole_numbers_could_be_times"
 
-# THE TWO BANDS, and there is no third. A moment in time is counted
-# into a whole number in one of two units a person meets: seconds from
-# the 1st of January 1970, or milliseconds from the same instant. The
-# argument NAMES the band by its place in that pair, so the remark's
-# rendering is a lookup rather than a spelling.
+# THE TWO BANDS NF51 NAMES: seconds from the 1st of January 1970, or
+# milliseconds from the same instant. The argument NAMES the band by its
+# place in that pair, so the remark's rendering is a lookup rather than a
+# spelling. (The twelve counting systems landing R4 reads are
+# `date_counts.MEMBERS`.)
 EPOCH_BAND_SECONDS = 1
 EPOCH_BAND_MILLISECONDS = 2
-
-# HOW WIDE EACH BAND IS, STATED AS TWO CALENDAR YEARS AND NOT AS TWO
-# LARGE NUMBERS. The band runs from the first day of `EPOCH_BAND_FROM`
-# up to, and not including, the first day of `EPOCH_BAND_UNTIL`; the
-# whole numbers themselves are worked out from those days by
-# `parsing.days_from_civil`, so nothing here is a constant somebody
-# would have to check against a calendar.
-#
-# WHY THE BAND HAS A LOWER END AT ALL, and why it is this one. Zero is
-# the 1st of January 1970, so a band that started there would cover
-# every ordinary count a table holds -- ages, tallies, row counts -- and
-# the remark would fire on almost every column of whole numbers, which
-# is the noise a routing-nothing sentence can least afford. Starting
-# at the year 2000 puts the band's floor at 946,684,800 in seconds:
-# a count column reaching that is already unusual, and one whose
-# EVERY value does is the shape this remark exists for.
-EPOCH_BAND_FROM = 2000
-EPOCH_BAND_UNTIL = 2051
 
 # The header verdict, which the reader settles and the profile
 # publishes. The sentences live in this table with every other
@@ -2130,11 +2115,10 @@ def rendered(form: str, arguments: "tuple[object, ...]") -> str:
         return (
             f"{date_counts.rule_said(_word(arguments, 0))}"
             f"{date_counts.aside_said(tuple(_word(arguments, place) for place in range(1, 6)))}"
-            f" synthtwin read "
-            f"them as numbers, so the twin keeps every number and the way "
-            f"it is written, but not the calendar behind them: the "
-            f"weekday, the time of day and how the dates spread over the "
-            f"years come back only if the column is read as dates. If "
+            f" synthtwin described them as numbers, so the twin keeps "
+            f"their spread as numbers but not the calendar behind them: "
+            f"which day of the week and which time of day each falls on "
+            f"comes back only if the column is read as dates. If "
             f"they are dates, answer the question about this column in "
             f"the questions file, or run the command again with "
             f"--date-count NAME SYSTEM, where NAME is this column's name "
@@ -16722,6 +16706,13 @@ def _date_count_remarks(
     boundary rungs the tail rule leaves standing, never the outermost
     values (`published_ends`) -- where both read as dates.
 
+    NO NF113 WITHOUT AN NF114 BESIDE IT. NF113 tells the person to name
+    "one of the systems named beside this sentence", and the question is
+    put from NF114's members; a block publishing neither an end nor a
+    boundary on one side -- a column too small for a tail -- names no
+    year, so nothing is said and nothing asked, as NF51 said nothing
+    there (plan P4-D345).
+
     Guarantees: accepts the tally and the block built from it; returns the
     remarks. Determinism: a function of the two. Raises nothing. No I/O.
     """
@@ -16745,21 +16736,25 @@ def _date_count_remarks(
     )
     if asked is None:
         return []
+    edges = published_ends(details)
+    if edges is None:
+        return []
+    readings: "list[Note]" = []
+    for member in asked.members:
+        first = date_counts.years_of(member, edges[0])
+        last = date_counts.years_of(member, edges[1])
+        if first is None or last is None:
+            continue
+        readings += [note(REMARK_READ_AS_COUNTED_DATES, (member, first, last))]
+    if not readings:
+        return []
     said = [
         note(
             REMARK_NUMBERS_COULD_BE_DATES,
             (asked.rule,) + date_counts.aside_slots(asked.set_aside),
         )
     ]
-    edges = published_ends(details)
-    if edges is None:
-        return said
-    for member in asked.members:
-        first = date_counts.years_of(member, edges[0])
-        last = date_counts.years_of(member, edges[1])
-        if first is None or last is None:
-            continue
-        said += [note(REMARK_READ_AS_COUNTED_DATES, (member, first, last))]
+    said += readings
     return said
 
 
@@ -21846,94 +21841,6 @@ def epoch_band_days(
     smallest = parsing.civil_from_days(int(low) // each_day)
     largest = parsing.civil_from_days(int(high) // each_day)
     return (band,) + smallest + largest
-
-
-def _epoch_band_reading(
-    cells: _Cells, details: "dict[str, object]"
-) -> "tuple[object, ...] | None":
-    """This column read as moments in time, or None if it cannot be.
-
-    Residual R-P4-9, contract NF51. Returns the arguments NF51 takes --
-    which band, then the year, month and day of the LOW published edge
-    of `details` and of its HIGH one, read in that band -- or None
-    where the column is not in either band, or where the block
-    publishes nothing at one of its two edges.
-
-    **THE TWO DAYS ARE THE BLOCK'S OWN PUBLISHED EDGES, AND THAT IS A
-    RULE AND NOT AN OPTIMISATION** (stage 3, plan P4-D345, contract
-    NF51). They were `min(numbers)` and `max(numbers)`: the column's
-    exact outermost values, said a second way, which was sound while
-    the block published them. The tail rule withdraws them (contract
-    6.7a), and an advisory remark may not outlive the facts it quotes,
-    so each end is now whatever the block publishes in its place --
-    the end itself where a group of `tail_units` rows holds it, and the
-    side's boundary rung otherwise (`published_ends`). Where a block
-    publishes NEITHER an end nor a boundary on one side, the remark is
-    not written at all: both of its days would then be values nothing
-    else in the description holds.
-
-    THE BAND ITSELF IS STILL DECIDED OVER EVERY VALUE, which is the
-    walk below and not the two edges. A published edge is a rung, not a
-    cell, so asking the band of the edges alone would ask it of two
-    numbers the column may not hold -- and on a tail block the rung
-    between two cells can sit outside a band both of them are inside.
-    The band is a property of the COLUMN; the days are a property of
-    the DESCRIPTION; the two questions are asked separately.
-
-    THE WALK IS OVER EVERY VALUE, AND WHAT THAT DOES AND DOES NOT BUY
-    IS MEASURED RATHER THAN CLAIMED. A band is one interval, so on the
-    role this is asked of -- where every value is a whole number by the
-    role's own rule -- asking `min` and `max` answers the same question
-    as asking every value. Rewriting the walk that way was run as a
-    mutation and turned nothing red, which is the honest result: it is
-    an equivalent rewrite and not an escaped defect. The walk stays
-    because it makes this function right on ITS OWN terms rather than
-    on its caller's -- a band ever written as two intervals, or a
-    caller that ever asks this of a role admitting a value whose text
-    does not settle it as whole, breaks the equivalence and not the
-    walk. What the walk DOES rule out, on any role, is a column holding
-    a number this format cannot hold: `len(numbers) != numeric_looking`
-    above refuses it, because a cell too large to hold has no place in
-    a band at all.
-
-    WHY THE BAND STARTS IN THE YEAR 2000 rather than at zero is written
-    where `EPOCH_BAND_FROM` is set: zero is the 1st of January 1970, so
-    a band beginning there covers every ordinary count.
-
-    Guarantees: accepts the tally of one column; returns NF51's
-    arguments or None. Determinism: a function of the tallied numbers
-    alone, and the bands are worked out from two calendar years by
-    `parsing.days_from_civil`. Raises nothing. No I/O of any kind.
-    """
-    numbers = cells.numbers
-    if not numbers or len(numbers) != _numeric_looking(cells):
-        return None
-    first_day = parsing.days_from_civil(EPOCH_BAND_FROM, 1, 1)
-    last_day = parsing.days_from_civil(EPOCH_BAND_UNTIL, 1, 1)
-    for band in (EPOCH_BAND_SECONDS, EPOCH_BAND_MILLISECONDS):
-        each_day = _EPOCH_BAND_UNITS_IN_A_DAY[band]
-        low = first_day * each_day
-        high = last_day * each_day
-        inside = True
-        for value in numbers:
-            # WHOLENESS BY ARITHMETIC, NOT BY `is_integer`, which is a
-            # method call the offline audit refuses on a value it
-            # cannot trace. The remainder is also the safer test at the
-            # ends of the format: anything that is not a finite whole
-            # number leaves a remainder that is not zero, so the same
-            # line refuses it.
-            if value % 1 != 0:
-                inside = False
-                break
-            if value < low or value >= high:
-                inside = False
-                break
-        if inside:
-            edges = published_ends(details)
-            if edges is None:
-                return None
-            return epoch_band_days(band, edges)
-    return None
 
 
 def _numeric_verdict(

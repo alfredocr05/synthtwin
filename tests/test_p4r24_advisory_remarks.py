@@ -8,12 +8,13 @@ Residual R-P4-24 held them. They are built here.
 
 WHAT EACH ONE IS, and what "routes nothing" means for it:
 
-* **NF51, the time-band remark** (residual R-P4-9). A `count` column
-  whose every value falls in the band a moment in time is counted into
-  is told so, with its two ends said as calendar dates. There is no
-  declaration to name -- no rule of this package reads a number as a
-  time and none can be made to -- so the sentence says the shape, says
-  the twin is unaffected, and stops.
+* **NF51, the time-band remark** (residual R-P4-9), RETIRED FROM THE
+  PRODUCER by landing R4 (plan P4-D384). A column of numbers lying
+  where a counting system writes dates is now told so in question Q3's
+  own words (NF113, NF114) and asked, and `--date-count` reads it as
+  the dates it counts; the tests below hold those words to the same
+  two claims NF51 was held to -- the years are the published edges,
+  and the sentences move nothing.
 * **NF29 argument 9, the recoverable-distribution advice** (amendment
   A-P4-1 item 4) under the TIGHTENED trigger of residual R-P4-16. The
   plan's arithmetic promised a distribution on three column shapes that
@@ -44,25 +45,18 @@ import tempfile
 
 import fixtures
 import tail_rule
-from synthtwin import parsing, profile, reading, taxonomy
+from synthtwin import date_counts, parsing, profile, reading, taxonomy
 
 # Each sentence's own fixed opening. Every test finds its remark by one
 # of these rather than by a position in the list: the order remarks are
 # raised in is not what this file is about, and an assertion on the
 # order would go red for a reason nobody meant.
-BAND_OPENING = "every value in this column is a whole number, and every one"
 BOTH_COUNTS_OPENING = "the values in this column read both as dates"
 STAND_IN_OPENING = "one of the values this column publishes is"
 ADVICE_CLAUSE = "run the command again with --missing-value and this"
 CLOCK_CLAUSE = "read as a clock time, in a shape synthtwin does not describe"
 
-# The two bands, in the units the column is written in. Worked out the
-# way the producer works them out, from the two calendar years, so a
-# test that disagreed with the rule would disagree about the years and
-# not about a large number somebody typed twice.
 _DAY = 24 * 60 * 60
-FIRST_SECOND = parsing.days_from_civil(taxonomy.EPOCH_BAND_FROM, 1, 1) * _DAY
-LAST_SECOND = parsing.days_from_civil(taxonomy.EPOCH_BAND_UNTIL, 1, 1) * _DAY
 
 
 def _described(
@@ -98,222 +92,252 @@ def _every(block: dict, opening: str) -> "list[str]":
     return [remark for remark in block["remarks"] if opening in remark]
 
 
-# -- NF51: the time band ----------------------------------------------
+# -- NF113 and NF114: question Q3's own words, in NF51's place ----------
+#
+# NF51 told a column of whole numbers in two bands from 1970 that it
+# looked like moments, and that nothing about its twin changed. Landing
+# R4 (plan P4-D384) retired it from the producer: it read every band
+# from 1970, so SAS seconds of 2016 to 2025 were said to run from 2026
+# to 2035, and the twin DOES lose the calendar -- the weekday and the
+# time of day -- a column of numbers keeps. What stands in its place is
+# the question's own words, NF113, and one NF114 per counting system
+# offered with the years the block's own published edges name in it.
 
 
 def _epoch_seconds(count: int = 200, seed: int = 5) -> "list[str]":
-    """Whole seconds inside the band, spread over about three years."""
+    """Whole seconds from 1970, spread over about three years of one decade."""
     rng = random.Random(seed)
     low = parsing.days_from_civil(2020, 1, 1) * _DAY
     high = parsing.days_from_civil(2023, 1, 1) * _DAY
     return [str(rng.randint(low, high)) for _each in range(count)]
 
 
-def test_a_column_of_epoch_seconds_is_told_what_it_looks_like() -> None:
-    """THE WHOLE OF WHAT R-P4-9 BUYS, on the column it was opened for."""
+def _of_form(block: dict, form: str) -> list:
+    return [remark for remark in block["remarks"] if remark.form == form]
+
+
+def _members(block: dict) -> "list[str]":
+    return [
+        remark.arguments[0]
+        for remark in _of_form(block, taxonomy.REMARK_READ_AS_COUNTED_DATES)
+    ]
+
+
+def test_a_column_of_epoch_seconds_is_told_what_it_may_be() -> None:
+    """THE WHOLE OF WHAT R-P4-9 BOUGHT, said as the question Q3 asks it.
+
+    Both systems counting seconds read this column inside the band, so
+    both are offered: from 1970 it runs over 2020 to 2022, and from 1960
+    -- SAS's and Stata's day -- over 2030 to 2032. Telling them apart is
+    the person's to do; NF51 named one and was wrong about the other.
+    """
     block = _described(_epoch_seconds(), name="event_at")["columns"][0]
     assert block["role"] == taxonomy.ROLE_COUNT
-    said = _said(block, BAND_OPENING)
-    assert said is not None, block["remarks"]
-    assert "seconds from the 1st of January 1970" in said
-    assert "read them as plain numbers" in said
+    forms = [remark.form for remark in block["remarks"]]
+    assert taxonomy.REMARK_EPOCH_BAND not in forms
+    asked = _of_form(block, taxonomy.REMARK_NUMBERS_COULD_BE_DATES)
+    assert len(asked) == 1, block["remarks"]
+    assert asked[0].arguments[0] == date_counts.RULE_BAND
+    assert _members(block) == ["seconds-since-1960", "seconds-since-1970"]
+    assert "--date-count NAME SYSTEM" in asked[0]
 
 
-def test_the_sentence_says_the_range_as_dates() -> None:
-    """The two ends, converted, are what makes the column recognizable.
+def test_each_reading_says_the_years_of_the_published_edges() -> None:
+    """The two years are the two edges the BLOCK publishes, read in each system.
 
-    A reader holding `1600000000` cannot tell what it is; a reader told
-    the column runs from one calendar day to another can.
-
-    THE TWO DAYS ARE THE TWO EDGES THE BLOCK PUBLISHES, and that is plan
-    P4-D345's rule rather than a convenience. They used to be
-    `percentiles.min` and `percentiles.max` said a second way; on a
-    column of two hundred numbers both of those rungs are now null,
-    because the tail rule of contract 6.7a withholds every rung whose
-    reading touches the outermost values (landing 3.3). An advisory
-    remark may not outlive the facts it quotes, so each end is now
-    whatever stands in its place -- the end itself where a group of
-    `tail_units` rows holds it, and the side's BOUNDARY RUNG otherwise.
-    The rungs are read here through `tests/tail_rule.py`, from the
-    boundary percent the rule gives the column's own count, so this
-    passes by working the rule out and not by agreeing with the
-    producer.
+    Plan P4-D345's rule, carried over from NF51: an advisory remark may
+    not outlive the facts it quotes, and the tail rule withholds the
+    column's own smallest and largest number (contract 6.7a), so each
+    end is the boundary rung that stands in its place. The rungs are
+    read here through `tests/tail_rule.py` and the years worked out from
+    each system's own first day with `parsing`, so this holds by working
+    the rule out and not by agreeing with the producer.
     """
     values = _epoch_seconds()
     block = _described(values, name="event_at")["columns"][0]
-    said = _said(block, BAND_OPENING)
-    assert said is not None
     assert block["percentiles"]["min"] is None
     assert block["percentiles"]["max"] is None
     percent = tail_rule.percent_of(len(values), 11)
     assert percent is not None
-    for edge in (
+    edges = (
         tail_rule.rung_of(block, percent),
         tail_rule.rung_of(block, 100 - percent),
-    ):
-        year, month, day = parsing.civil_from_days(int(edge) // _DAY)
-        assert f"{year:04d}-{month:02d}-{day:02d}" in said, edge
-    # ...AND NEITHER OF THE COLUMN'S OWN ENDS IS NAMED, which is what
-    # the rule buys: the days a reader is given are the description's,
-    # not two cells the description no longer holds.
-    numbers = [int(value) for value in values]
-    for end in (min(numbers), max(numbers)):
-        year, month, day = parsing.civil_from_days(end // _DAY)
-        assert f"{year:04d}-{month:02d}-{day:02d}" not in said, end
+    )
+    first_days = {
+        "seconds-since-1960": parsing.days_from_civil(1960, 1, 1),
+        "seconds-since-1970": parsing.days_from_civil(1970, 1, 1),
+    }
+    readings = _of_form(block, taxonomy.REMARK_READ_AS_COUNTED_DATES)
+    assert len(readings) == 2
+    for remark in readings:
+        member, first, last = remark.arguments
+        owed = tuple(
+            parsing.civil_from_days(first_days[member] + int(edge) // _DAY)[0]
+            for edge in edges
+        )
+        assert (first, last) == owed, (member, first, last, owed)
+        assert f"this column runs from {first} to {last}" in remark
 
 
-def test_a_column_of_epoch_milliseconds_says_milliseconds() -> None:
-    """The second band, and the word that tells the two apart.
-
-    The whole use of the sentence is that somebody can convert the
-    column, and converting it with the wrong unit is off by a factor of
-    a thousand -- so the band the column is in has to be named, not
-    implied.
-    """
+def test_a_column_of_epoch_milliseconds_is_offered_milliseconds() -> None:
+    """The unit, named: converting with the wrong one is off a thousandfold."""
     values = [f"{int(value) * 1000}" for value in _epoch_seconds()]
     block = _described(values, name="event_at")["columns"][0]
-    said = _said(block, BAND_OPENING)
-    assert said is not None, block["remarks"]
-    assert "milliseconds from the 1st of January 1970" in said
-    assert "counts seconds from" not in said
+    assert _members(block) == [
+        "milliseconds-since-1960",
+        "milliseconds-since-1970",
+    ]
+    said = " ".join(_of_form(block, taxonomy.REMARK_READ_AS_COUNTED_DATES))
+    assert "milliseconds from the start of 1 January 1970" in said
+    assert "read as seconds from" not in said
 
 
-def test_the_sentence_says_the_twin_is_unaffected() -> None:
-    """The question a reader of a fidelity report asks next.
+def test_the_sentence_says_what_the_twin_loses_and_how_to_keep_it() -> None:
+    """NF51's "it changes nothing about your twin" was false, and is gone.
 
-    Being told the column may be times invites the reader to think the
-    twin lost something. It did not: the numeric reading keeps the
-    range and the spacing, so the same conversion gives the same span.
-    The sentence has to say so or it creates the doubt it exists to
-    remove.
+    A column of numbers keeps the numbers' spread; the day of the week
+    and the time of day each value falls on come back only when the
+    column is read as dates, which the sentence says, with the two ways
+    to ask for it.
     """
-    said = _said(_described(_epoch_seconds())["columns"][0], BAND_OPENING)
-    assert said is not None
-    assert "THIS SENTENCE DECIDES NOTHING" in said
-    assert "It changes nothing about your twin either" in said
-    assert "over the same span" in said
+    block = _described(_epoch_seconds())["columns"][0]
+    said = " ".join(block["remarks"])
+    assert "changes nothing about your twin" not in said
+    assert "THIS SENTENCE DECIDES NOTHING" not in said
+    (asked,) = _of_form(block, taxonomy.REMARK_NUMBERS_COULD_BE_DATES)
+    assert "which day of the week and which time of day" in asked
+    assert "answer the question about this column in the questions file" in asked
+    assert "--date-count NAME SYSTEM" in asked
 
 
-def test_the_time_band_sentence_moves_no_role_and_no_fact(monkeypatch) -> None:
-    """WITH THE SENTENCE AND WITHOUT IT, ONE BLOCK.
+def test_the_question_moves_no_role_and_no_fact(monkeypatch) -> None:
+    """WITH THE SENTENCES AND WITHOUT THEM, ONE BLOCK.
 
-    `_epoch_band_reading` is consulted for exactly one purpose, so
-    answering it None rebuilds the description as it was before this
-    landing. Everything but `remarks` must be identical, and `remarks`
-    must differ by this one sentence and nothing else.
+    `_date_count_remarks` is consulted for exactly one purpose, so
+    answering it with nothing rebuilds the description without question
+    Q3's words. Everything but `remarks` must be identical, and `remarks`
+    must differ by those sentences and nothing else: asking is not
+    reading, and the column stays numbers until the person answers.
     """
     values = _epoch_seconds()
     with_it = _described(values, name="event_at")["columns"][0]
     monkeypatch.setattr(
-        taxonomy, "_epoch_band_reading", lambda _cells, _details: None
+        taxonomy, "_date_count_remarks", lambda _cells, _details: []
     )
     without = _described(values, name="event_at")["columns"][0]
 
-    said = _said(with_it, BAND_OPENING)
-    assert said is not None
-    assert _said(without, BAND_OPENING) is None
+    q3_forms = (
+        taxonomy.REMARK_NUMBERS_COULD_BE_DATES,
+        taxonomy.REMARK_READ_AS_COUNTED_DATES,
+    )
+    assert _of_form(with_it, q3_forms[0])
+    assert not _of_form(without, q3_forms[0])
+    assert not _of_form(without, q3_forms[1])
     assert with_it["role"] == without["role"]
     for key in sorted(set(with_it) | set(without)):
         if key == "remarks":
             continue
         assert with_it[key] == without[key], key
-    kept = [line for line in with_it["remarks"] if line != said]
+    kept = [line for line in with_it["remarks"] if line.form not in q3_forms]
     assert kept == list(without["remarks"])
 
 
-def test_the_sentence_is_exactly_the_form_and_carries_no_cell() -> None:
-    """Seven whole numbers, and not one spelling of the column.
+def test_the_sentences_are_exactly_their_forms_and_carry_no_cell() -> None:
+    """Six words of this package's own, then a system and two years.
 
-    The two ends are the two edges the BLOCK publishes, not the
-    column's own smallest and largest number: the tail rule withholds
-    those on a column this size (landing 3.3) and an advisory remark
-    may not outlive the facts it quotes (plan P4-D345). The days are
-    worked out here from the boundary percent the rule gives this
-    column's count, through `tests/tail_rule.py`.
+    NF113's arguments are the rule's word and five set-aside slots, each
+    a word of a closed list; NF114's are a system's word and two years.
+    No spelling of the column reaches either.
     """
     values = _epoch_seconds()
     block = _described(values)["columns"][0]
-    said = _said(block, BAND_OPENING)
-    assert said is not None
-    assert taxonomy.NOTE_ARITY[taxonomy.REMARK_EPOCH_BAND] == 7
-    percent = tail_rule.percent_of(len(values), 11)
-    assert percent is not None
-    first = parsing.civil_from_days(
-        int(tail_rule.rung_of(block, percent)) // _DAY
-    )
-    last = parsing.civil_from_days(
-        int(tail_rule.rung_of(block, 100 - percent)) // _DAY
-    )
-    assert said == taxonomy.rendered(
-        taxonomy.REMARK_EPOCH_BAND,
-        (taxonomy.EPOCH_BAND_SECONDS,) + first + last,
-    )
-    for value in set(values):
-        assert value not in said, value
+    assert taxonomy.NOTE_ARITY[taxonomy.REMARK_NUMBERS_COULD_BE_DATES] == 6
+    assert taxonomy.NOTE_ARITY[taxonomy.REMARK_READ_AS_COUNTED_DATES] == 3
+    said = _of_form(block, taxonomy.REMARK_NUMBERS_COULD_BE_DATES)
+    said += _of_form(block, taxonomy.REMARK_READ_AS_COUNTED_DATES)
+    assert len(said) == 3
+    for remark in said:
+        assert remark == taxonomy.rendered(remark.form, remark.arguments)
+        for word in remark.arguments:
+            if isinstance(word, str):
+                assert word in taxonomy.NOTE_ARGUMENT_WORDS, word
+        for value in set(values):
+            assert value not in remark, value
+    assert said[0].arguments[1:] == (date_counts.ASIDE_NONE,) * 5
 
 
 def test_an_ordinary_count_column_hears_nothing() -> None:
     """Ages, tallies and row counts must stay quiet.
 
-    This is the test the band's lower end exists for. Zero is the 1st
-    of January 1970, so a band starting there would put this sentence
-    on nearly every column of whole numbers a table holds.
+    This is the test the band's lower end exists for. Nought is the 1st
+    of January 1970, so a band starting there would put this question on
+    nearly every column of whole numbers a table holds.
     """
     ages = fixtures.numbers(seed=3, count=200, low=18, high=95)
     block = _described(ages, name="age")["columns"][0]
     assert block["role"] == taxonomy.ROLE_COUNT
-    assert _said(block, BAND_OPENING) is None
+    assert not _of_form(block, taxonomy.REMARK_NUMBERS_COULD_BE_DATES)
+    assert not _of_form(block, taxonomy.REMARK_READ_AS_COUNTED_DATES)
 
 
 def test_a_column_holding_A_FEW_epoch_shaped_values_hears_nothing() -> None:
-    """Two epoch-shaped values among ordinary counts say nothing.
+    """Two epoch-shaped values among ordinary counts ask nothing.
 
-    THIS TEST DOES NOT PIN THE WALK OVER EVERY VALUE, AND SAYING SO IS
-    the point. It was written to, under the name "a column whose ENDS
-    are in the band", and the mutation that reads `min` and `max`
-    instead of walking survived it -- because a band is one interval,
-    so on an all-whole role the two ends answer the same question. The
-    shape the old name described cannot be built. What this really
-    pins is the band's LOWER end doing its job: the smallest value here
-    is an ordinary count, so the column is out of the band and quiet.
+    The rest beside the set-aside numbers must lie in the band but for
+    one cell in a thousand (one at least), so two strays among two
+    hundred ordinary counts are far from enough -- and the published
+    median, asked before anything is sorted, already says so.
     """
     values = _epoch_seconds(count=2) + fixtures.numbers(
         seed=4, count=198, low=1, high=500
     )
     block = _described(values, name="event_at")["columns"][0]
     assert block["role"] == taxonomy.ROLE_COUNT
-    assert _said(block, BAND_OPENING) is None
+    assert not _of_form(block, taxonomy.REMARK_NUMBERS_COULD_BE_DATES)
 
 
-def test_a_column_of_fractions_in_the_band_hears_nothing() -> None:
-    """`continuous` is not this remark's role, and the reason is real.
+def test_a_column_of_fractions_in_one_decade_of_the_band_is_asked() -> None:
+    """A count with a fraction is a moment too, so NF51's exclusion is gone.
 
-    A moment in time counted into a whole number is a whole number. A
-    column of fractions that happen to sit in the band is a column of
-    measurements, and telling its owner it might be times would be the
-    guess this package refuses to make from values.
+    `45386.5` is noon in Excel's count of days and `1600000000.25` a
+    quarter of a second in Unix's; a column of such numbers read as
+    measurements keeps them as measurements, which is the answer Enter
+    gives. Whole figures of one width, inside the band, ask.
     """
     rng = random.Random(6)
-    values = [
-        f"{rng.randint(FIRST_SECOND, LAST_SECOND - 1)}.5" for _each in range(200)
-    ]
+    low = parsing.days_from_civil(2016, 1, 1) * _DAY
+    high = parsing.days_from_civil(2025, 1, 1) * _DAY
+    values = [f"{rng.randint(low, high - 1)}.5" for _each in range(200)]
     block = _described(values, name="reading")["columns"][0]
     assert block["role"] == taxonomy.ROLE_CONTINUOUS
-    assert _said(block, BAND_OPENING) is None
+    (asked,) = _of_form(block, taxonomy.REMARK_NUMBERS_COULD_BE_DATES)
+    assert asked.arguments[0] == date_counts.RULE_BAND
+    assert _members(block) == ["seconds-since-1960", "seconds-since-1970"]
 
 
-def test_a_column_just_below_the_band_hears_nothing() -> None:
+def test_one_value_outside_the_band_is_let_stand_and_two_are_not() -> None:
     """The band's own edge, walked from the outside.
 
-    One value one below the band's first number is enough, which is
-    what "every value" means. Asserted at the edge rather than far from
-    it, because an off-by-one in the comparison is exactly what a test
-    far from the edge would miss.
+    One cell in a thousand -- one at least -- may stray outside the band
+    (the R4 design review, item 1: one keying slip silences no
+    question), so on two hundred cells one value just below the band's
+    first second is let stand and two are not. The band's first second
+    is inside it: swapping one of the two strays for that very number
+    asks again. Asserted at the edge rather than far from it, because an
+    off-by-one in the comparison is what a test far from it would miss.
     """
-    inside = [str(FIRST_SECOND + index) for index in range(200)]
-    assert _said(_described(inside)["columns"][0], BAND_OPENING) is not None
-    outside = [str(FIRST_SECOND - 1)] + inside[1:]
-    assert _said(_described(outside)["columns"][0], BAND_OPENING) is None
+    low, _high = date_counts.band("seconds-since-1970", date_counts.NARROW_FROM)
+    first = int(low)
+    assert first == parsing.days_from_civil(1990, 1, 1) * _DAY
+    inside = [str(first + index * 7919) for index in range(199)]
+
+    def asked(values: "list[str]") -> bool:
+        block = _described(values, name="event_at")["columns"][0]
+        return bool(_of_form(block, taxonomy.REMARK_NUMBERS_COULD_BE_DATES))
+
+    assert asked(inside + [str(first - 1)])
+    assert not asked(inside[1:] + [str(first - 1), str(first - 2)])
+    assert asked(inside[1:] + [str(first), str(first - 1)])
 
 
 # -- NF25: both counts ------------------------------------------------
