@@ -32,7 +32,10 @@ to 0.0020 at 10,000 rows. The pass takes 0.4 s at 40,000 arrivals and
 13 s of a 180 s generate at 1,000,000. A census is withheld, each reason
 said in a sentence of its own, where the column has no tails, its middle
 half spans fewer than four days, a workbook stores it two ways, or no
-grouping short of the whole day holds. A stamp declared a 12-hour clock
+grouping short of the whole day holds. Where no weekday census stands, a
+cell whose own day and weekday leave it no place in its gap, or a value
+no merge keeping the weekday can put back, may at last take the nearest
+day of another weekday. A stamp declared a 12-hour clock
 with no AM or PM is drawn on the dial's half day, tails and body, so its
 twin validates clean (T1's carve-out, P4-D370), and a tail's tie group no
 longer stands at a midnight the tails listing only midnight values
