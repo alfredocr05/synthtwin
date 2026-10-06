@@ -15144,8 +15144,9 @@ def _walked_past_the_width(
     and those strata stand where the staircase stretched them toward the
     reach; lowered by their distance too, it took every far cell off 14
     of 1,500 random shapes of one to four figures beside far cells where
-    this rule keeps one, and left 50 means further from the real one
-    than 110cb46's where this leaves 44.
+    this rule kept one, and left 50 means further from the real one
+    than 110cb46's where this left 44 -- both measured before the guard
+    in `_wide_enough` and rule 3 of G6.6.8 stood.
 
     Two faults of the first form are why. It would not move the end's
     stratum and took its cells off a demand instead, so where one stratum

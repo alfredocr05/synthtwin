@@ -33,15 +33,16 @@ seeds 0, 4 and 9: `K-S3-22`'s column-floors miss 12 mean and spread
 checks where 111 were missed, codes beside plain numbers 205 where 605,
 the skeptics' shapes none where 222, and 1,500 random shapes 4 where
 52; the rule changes 683 twins, and none newly misses a check, writes a
-cell wider than the source's, writes its own width census further from
-the source's or stands further from the real mean and spread taken
-together. What it still costs, measured where the reach stands barely
-past the width: 97 twins stand further from the real mean alone and 21
-from the real spread alone, each nearer on the other by more, and 186
-write more cells past the width than the source holds -- up to 15 where
-it holds one -- because the reach is the nearest the furthest row can
-stand and the pair's squares are carried from there. `K-S3-22` counts
-each of these, so none may grow. The repair round fixed the four faults
+cell wider than both the source's and 110cb46's, writes its own width
+census further from the source's or stands further from the real mean
+and spread taken together. What it still costs: 97 twins stand further
+from the real mean alone and 21 from the real spread alone, all where
+the reach stands barely past the width, each nearer on the other by
+more; and 186 write cells past the width where 110cb46 wrote none,
+further from the source's count than none -- up to 15 where it holds
+one -- because the reach is the nearest the furthest row can stand and
+the pair's squares are carried from there. `K-S3-22` counts each of
+these, so none may grow. The repair round fixed the four faults
 the first skeptic measured -- 40 cells written on a single far value, a
 far value written twice, a row left at `09998`, a code padded to
 `012280` -- and five more of its own. The walk and the second reading

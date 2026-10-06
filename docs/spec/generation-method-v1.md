@@ -4315,10 +4315,11 @@ rows hold. Three rules follow, and none publishes anything new:
    two-figure readings, at a floor of fifty, holds 14,641 of the tail's
    34,855 squares and 121 of its 1,019 distance -- and the rows under
    the width stand where the staircase stretched them toward the reach.
-   Measured and not taken: over 1,500 random shapes, lowering the
-   distance too took every far cell off 14 twins where this rule keeps
-   one, and left 50 means further from the real one than 110cb46's where
-   this leaves 44 (and 28 spreads where this leaves 30).
+   Measured and not taken, on the walk as it stood before the guard and
+   rule 3 below: over 1,500 random shapes, lowering the distance too
+   took every far cell off 14 twins where this rule kept one, and left 50
+   means further from the real one than 110cb46's where this left 44
+   (and 28 spreads where this left 30).
 
    EVERY OTHER STRATUM OF THE TAIL PAST THE WIDTH IS MOVED UNDER IT
    before any demand is served, the one holding the end among them: no
@@ -4457,7 +4458,7 @@ rows hold. Three rules follow, and none publishes anything new:
    wrote `99999` twice beside 100 codes and 40 plus-signed numbers; it
    moved a staircase row to `09998` rather than beside its neighbour, the
    spread 1.21 to 1.28 times the real one on follow-up A's codes beside
-   one far value where 110cb46 read 1.14 and these rules read 0.995 to
+   one far value where 110cb46 read 1.14 and these rules read 0.980 to
    1.004; and it padded that far cell to `012280` (G6.3). The repair's
    own first form (71a7b31) kept two more, which 1,500 random shapes
    found: the strata with no room under the width stayed past it, and
@@ -4495,13 +4496,16 @@ one by one, the hundred thousand rows above would go back to the spread
 a published check missed. And 186 twins write cells past the widest
 named width where 110cb46 wrote none, further from the source's count
 than none is -- up to 15 where the source holds one -- every one inside
-the line less one and the pair's totals and with its own census the
-source's: that count is not published, the census pooling it under the
-line, and the reach is the nearest the furthest row can stand, so the
-pair's squares are carried from there by more rows than the source held
-far out; 185 of the 186 stand nearer the real mean and spread together
-and 46 meet a check 110cb46 missed. `K-S3-22` counts all of it on its
-own battery and lane G2's width shapes, so none of it may grow.
+the line less one and the pair's totals, and all but one with its own
+census the source's (the other, 90 codes beside 59 of four figures and
+`99999` at 36 and seed 0, writes the census 110cb46 wrote there, 89
+padded cells where the source holds 90). The count of cells past the
+width is not published, the census pooling it under the line, and the
+reach is the nearest the furthest row can stand, so the pair's squares
+are carried from there by more rows than the source held far out; 185
+of the 186 stand nearer the real mean and spread together and 46 meet a
+check 110cb46 missed. `K-S3-22` counts all of it on its own battery and
+lane G2's width shapes, so none of it may grow.
 
 The end rule is frozen in `tail_width_past_the_reach` (G14.3). THE
 WALK HAS NO FROZEN CASE, because the oracle does not run G6.6's walk at
