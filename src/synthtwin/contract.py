@@ -5073,7 +5073,7 @@ def _hour_storage(
         return
     for place in range(min(len(columns), len(form.columns))):
         facts = columns[place].facts
-        if not isinstance(facts, DatetimeFacts) or not facts.hour_census:
+        if not isinstance(facts, (DatetimeFacts,)) or not facts.hour_census:
             continue
         if not calendar_rules.published_one_way(form.columns[place].cell_classes):
             raise _broken(
