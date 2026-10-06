@@ -7087,6 +7087,41 @@ def _numeric_layout(
     counts on the block it is handed answer for the CELLS around it: a
     36-row column of `N/M` publishes 36 different cells while its first
     position holds 11 different numbers, and a stratum holds a value.
+
+    The ladder the strata are divided by is the one every consumer
+    reads (`_merged_rungs`); `_ladder_layout` makes the same division by
+    another, which method G6.6.8's rule 3 asks with that rule withdrawn.
+    """
+    return _ladder_layout(
+        column, facts, grain_values, floor, _merged_rungs(facts)
+    )
+
+
+def _ladder_layout(
+    column: contract.ColumnBlock,
+    facts: contract.NumericFacts,
+    grain_values: "int | None",
+    floor: int,
+    ladder: "tuple[float, ...] | None",
+) -> "tuple[_NumericLayout, list[Deviation], int]":
+    """`_numeric_layout`'s division, made by the ladder handed in (G5.2, G6.6.8 rule 3).
+
+    THE LADDER DECIDES THE SIZES AND NEVER THE COUNT. How many strata
+    the column divides into and whether the zero stratum stands between
+    two bands follow from the published counts alone, and so do the
+    spelling budgets and the one deviation the division can name; the
+    ladder decides how the strata are shared between the two signs and
+    how many cells each holds -- the cap, the share and the sizes. So a
+    division by any ladder spends the one word budget, and a value stage
+    run on either division draws the same words.
+
+    Guarantees: accepts what `_numeric_layout` accepts and the
+    hundred-and-one-rung ladder to divide by, or None; returns the
+    layout, the deviations and the word budget, `_numeric_layout`'s
+    exactly where ``ladder`` is `_merged_rungs(facts)`. Determinism: a
+    function of its arguments. Raises `errors.ProfileError` where the
+    published sign counts contradict the cell count, as
+    `_numeric_layout` does. No I/O of any kind.
     """
     numbers = column.n_numeric
     counts = (
@@ -7140,7 +7175,7 @@ def _numeric_layout(
     # width every numeric cell is written at, if there is one, and the
     # most cells one stratum may hold.
     grid = _written_grid(column, facts)
-    ceiling = _stratum_cap(facts, _merged_rungs(facts), numbers, floor)
+    ceiling = _stratum_cap(facts, ladder, numbers, floor)
     values = min(numbers, max(divided, 1))
     zero_strata = 1 if zeros > 0 else 0
     rest = values - zero_strata
@@ -7178,7 +7213,7 @@ def _numeric_layout(
         # `_band_plateaus` carries the reasoning). Two bands holding
         # the same number of cells need not hold the same number of
         # values, and it is the values a stratum count is about.
-        shape = _filled_rungs(_merged_rungs(facts))
+        shape = _filled_rungs(ladder)
         negative_share = negatives
         share = negatives + positives
         if shape is not None:
@@ -7299,7 +7334,7 @@ def _numeric_layout(
     # independent oracle read the hundred and one, and the frozen
     # vectors agreed only because no committed case separates them.
     # One ladder cannot be got wrong in two places.
-    rungs = _filled_rungs(_merged_rungs(facts))
+    rungs = _filled_rungs(ladder)
     if rungs is None:
         rungs = _filled_rungs(facts.percentiles.rungs)
     if demand > 0:
@@ -7319,7 +7354,7 @@ def _numeric_layout(
     # which is the line P4-D4.10 draws and this keeps; the SHAPE comes
     # from the hundred and one, because that is what knows how many
     # cells sit on each of a column's values.
-    fine = _merged_rungs(facts)
+    fine = ladder
     sizes, bands = _band_sizes(
         negatives,
         zeros,
@@ -8833,7 +8868,9 @@ def _joined_content(
             step = step + 1
         at = at + part_content
         part_plan = dataclasses.replace(plan, column=view, layout=layout)
-        values, part_notes = _numeric_content(part_plan, part_words)
+        values, part_notes = _numeric_content(
+            part_plan, part_words, facts.parts[place].n_distinct_values
+        )
         # AND A POSITION'S NOTE NAMES THE POSITION (round 3, item 4).
         # `Deviation.fact` is the description's own key, and a joined
         # column publishes `parts[0].integer_valued`, not
@@ -8972,7 +9009,9 @@ def _affixed_content(
         # shipped, to the line: the plan carries the layout, the cores
         # are built from it, and the pair goes on afterwards.
         core_plan = dataclasses.replace(plan, column=_core_view(column))
-        cores, notes = _numeric_content(core_plan, words)
+        cores, notes = _numeric_content(
+            core_plan, words, facts.numbers.n_distinct_values
+        )
         for step in range(len(cores)):
             cells += [
                 f"{facts.affix_prefix}{cores[step]}{facts.affix_suffix}"
@@ -9009,7 +9048,9 @@ def _affixed_content(
             wrapper_plan = dataclasses.replace(
                 plan, column=pair_view[1], layout=wrapper_layout
             )
-            drawn, drawn_notes = _numeric_content(wrapper_plan, mine)
+            drawn, drawn_notes = _numeric_content(
+                wrapper_plan, mine, pair_view[2].n_distinct_values
+            )
             # AND A WRAPPER'S NOTE NAMES ITS WRAPPER (review round 2,
             # item 7), on the joined role's precedent in
             # `_position_notes`. `Deviation.fact` is the description's
@@ -9925,7 +9966,7 @@ def _wears_a_published_hole(text: str, holes: "tuple[str, ...]") -> bool:
 
 
 def _numeric_content(
-    plan: "_ColumnPlan", words: "list[int]"
+    plan: "_ColumnPlan", words: "list[int]", grain_values: "int | None"
 ) -> "tuple[list[str], list[Deviation]]":
     """Every present cell of a column of numbers (method G5, G6, G10.3).
 
@@ -9934,6 +9975,16 @@ def _numeric_content(
     ones, then the ordinary text -- so that two implementations build
     the same list. The rows are made random by the arrangement of G4.2,
     not by this order.
+
+    ``grain_values`` is the count the plan divided this column's strata
+    by (`_numeric_layout`): None for a plain column of numbers, and a
+    position's, a wrapper's or a numeric half's own count of different
+    numbers where the column is one of those. Where method G6.6.8 has
+    anything to do, the values are read twice from the same words and
+    the reading its rules give stands only where it reads the published
+    mean and spread, together, no further off than the one with them
+    withdrawn (`_width_rule_withdrawn`, `_reads_no_further`), which is
+    why the division has to be made again here.
     """
     column = plan.column
     facts = column.facts
@@ -9972,8 +10023,78 @@ def _numeric_content(
                 "number, so the twin's values follow the steps that do.",
             )
         ]
-    values, endpoint_notes = _stratum_values(column, facts, layout, rungs, words)
-    notes = notes + endpoint_notes
+    floor = plan.small_cell_floor
+    drawn = _values_drawn(column, facts, layout, rungs, words, floor, True)
+    # AND THE WIDTH RULE STANDS ONLY WHERE IT READS THE PUBLISHED MEAN AND
+    # SPREAD, TOGETHER, NO FURTHER OFF THAN THE TWIN WITHOUT IT (method
+    # G6.6.8 rule 3, plan P4-D377). Rule 1 reads the tail toward a further end, and the
+    # strata are divided by that reading before any value is drawn, so a
+    # column whose walk then takes every far cell back under the width is
+    # still divided as though they stood past it: 150 two-figure readings
+    # shaped like a bell beside one `237`, at a floor of 36, came back with
+    # their spread 1.06 to 1.08 times the real one where 110cb46 read 1.02
+    # to 1.06. So the values are read a second time from the same words,
+    # with the rule withdrawn -- each end where the width held it, the
+    # strata divided by that ladder, and 110cb46's walk -- and the first
+    # reading stands only where its distances from the published mean and
+    # spread, added, are no larger than the second's (`_reads_no_further`).
+    withdrawn = _width_rule_withdrawn(
+        column, facts, (layout, grain_values), floor
+    )
+    if withdrawn is not None:
+        held = _values_drawn(
+            column, facts, withdrawn[0], withdrawn[1], words, floor, False
+        )
+        if not _reads_no_further(
+            facts, (drawn[0], drawn[1]), (held[0], held[1])
+        ):
+            drawn = held
+    layout, values, drawn_notes = drawn
+    notes = notes + drawn_notes
+    # AND THE SHORTFALL NEEDS NO NOTE OF ITS OWN (residual R-P4-69). A
+    # second report was written here and withdrawn on measurement: the
+    # style recount already names exactly this, as "at least 34 cell(s)
+    # written in the plain form" against the 31 a run wrote, so the twin
+    # was never silent about it and a note beside that one would be the
+    # same fact said twice.
+    cells, style_notes = _number_cells(column, facts, layout, values, floor)
+    notes = notes + style_notes
+    # ...AND THE STRETCHES, RECOUNTED FROM THOSE CELLS. It is asked
+    # here because it is a fact about the finished TEXT: which width a
+    # cell is written at is decided inside `_number_cells`, and a
+    # value a thousandth outside a stretch is written back inside it
+    # at one width and not at another.
+    notes = notes + _gap_notes(column, facts, cells)
+    return _numeric_tail(column, facts, layout, cells, notes)
+
+
+def _values_drawn(
+    column: contract.ColumnBlock,
+    facts: contract.NumericFacts,
+    layout: "_NumericLayout",
+    rungs: "tuple[float, ...] | None",
+    words: "list[int]",
+    floor: int,
+    sided: bool,
+) -> "tuple[_NumericLayout, list[float], list[Deviation]]":
+    """Every value pass of a column of numbers, in order, on one division and one ladder (G5, G6).
+
+    `_numeric_content`'s value stage, which it runs once, or twice where
+    method G6.6.8 has anything to do (rule 3): once on the plan's division
+    and ladder with the width walk taking the sides a tail's pair proves,
+    and once with that rule withdrawn.
+
+    Guarantees: accepts the column, its numeric facts, the division its
+    strata take, the ladder its values are read from, the words G4.3
+    budgets for it, the settings floor and ``sided`` -- whether G6.6.8's
+    width walk takes the proven sides (`_wide_enough`); returns the
+    division as the held-back pool leaves it, one value a stratum, and
+    the deviations the passes name. ``words`` is read and never changed,
+    so a second reading draws nothing from the stream. Determinism: a
+    function of its arguments. Raises nothing of its own. No I/O of any
+    kind.
+    """
+    values, notes = _stratum_values(column, facts, layout, rungs, words)
     values = _whole_enough(column, facts, layout, rungs, values)
     # AND TWO STRATA ARE NOT WRITTEN AS ONE CELL (residual R-P4-56).
     # After the carrier walk, because that walk moves values onto whole
@@ -9999,7 +10120,7 @@ def _numeric_content(
     # comes through it untouched, and none of them has to be re-argued
     # against a value this pass chose.
     values = _wide_enough(
-        column, facts, layout, rungs, values, plan.small_cell_floor
+        column, facts, layout, rungs, values, floor, sided
     )
     # AND NO VALUE STANDS WHERE THE DESCRIPTION SAYS THERE IS NONE
     # (plan P4-D32, residual R-P4-136). LAST, and it takes that place
@@ -10025,7 +10146,7 @@ def _numeric_content(
     # a value only between its two neighbours and onto a text no other
     # stratum holds, so it undoes none of the passes above.
     values = _grouped_enough(
-        column, facts, layout, values, plan.small_cell_floor
+        column, facts, layout, values, floor
     )
     # AND THE PUBLISHED MODE IS HELD BY THE STRATUM THE PUBLISHED COUNT
     # SIZES (Codex item 4 of the extra round, 2026-09-18; plan P4-D267):
@@ -10034,23 +10155,7 @@ def _numeric_content(
     # refuses every move the passes above would have to redo.
     values, mode_notes = _mode_held(column, facts, layout, values)
     notes = notes + mode_notes
-    # AND THE SHORTFALL NEEDS NO NOTE OF ITS OWN (residual R-P4-69). A
-    # second report was written here and withdrawn on measurement: the
-    # style recount already names exactly this, as "at least 34 cell(s)
-    # written in the plain form" against the 31 a run wrote, so the twin
-    # was never silent about it and a note beside that one would be the
-    # same fact said twice.
-    cells, style_notes = _number_cells(
-        column, facts, layout, values, plan.small_cell_floor
-    )
-    notes = notes + style_notes
-    # ...AND THE STRETCHES, RECOUNTED FROM THOSE CELLS. It is asked
-    # here because it is a fact about the finished TEXT: which width a
-    # cell is written at is decided inside `_number_cells`, and a
-    # value a thousandth outside a stretch is written back inside it
-    # at one width and not at another.
-    notes = notes + _gap_notes(column, facts, cells)
-    return _numeric_tail(column, facts, layout, cells, notes)
+    return layout, values, notes
 
 
 # The styles a cell of which a thousand is always grouped where it is a
@@ -14487,6 +14592,7 @@ def _wide_enough(
     rungs: "tuple[float, ...] | None",
     values: "list[float]",
     floor: int,
+    sided: bool,
 ) -> "list[float]":
     """Draw values the published field widths can be worn by (G6.6).
 
@@ -14531,6 +14637,10 @@ def _wide_enough(
     covers, and a description asking for a width no stratum's stretch
     holds is one the twin reports rather than buys with a value the
     windows would then miss.
+
+    ``sided`` False runs the walk as 110cb46 ran it, no tail side
+    taken (method G6.6.8 withdrawn), which is the reading rule 3 of
+    G6.6.8 weighs the rule's own against (`_numeric_content`).
     """
     demands = _field_demands(facts)
     if not demands:
@@ -14573,7 +14683,9 @@ def _wide_enough(
     # of 20, with a spread 0.053 of the real one off where 110cb46 stood
     # 0.047 off. The pair proves a cell past the width; it does not prove
     # that the twin's cells there, at the reach, read the column better.
-    sides = _proven_sides(facts, _widest_demanded(demands))
+    sides: "list[tuple[bool, float, float, float, bool, float]]" = []
+    if sided:
+        sides = _proven_sides(facts, _widest_demanded(demands))
     reached: "list[tuple[bool, float, float, float, bool, float]]" = []
     for side in sides:
         if side[4]:
@@ -14592,7 +14704,7 @@ def _wide_enough(
             (demands, floor),
             _moved_under(reached),
         )
-        if not _reads_no_further(facts, layout, (best, under)):
+        if not _reads_no_further(facts, (layout, best), (layout, under)):
             best = under
             spent = True
     if len(reached) < len(sides):
@@ -14728,33 +14840,39 @@ def _serves_better(
 
 def _reads_no_further(
     facts: contract.NumericFacts,
-    layout: "_NumericLayout",
-    walks: "tuple[list[float], list[float]]",
+    reading: "tuple[_NumericLayout, list[float]]",
+    other: "tuple[_NumericLayout, list[float]]",
 ) -> bool:
-    """Whether the first walk reads the published mean and spread, together, no further off than the second (G6.6.8).
+    """Whether the first reading reads the published mean and spread, together, no further off than the second (G6.6.8).
 
-    The mean and the spread each walk's strata hold, weighted by their
-    cells (`_strata_moments`): the first stands where its distance from
-    the published `mean` added to its distance from the published `std`
-    is no larger than the second's -- each moment counted only where it
-    is published, finite and measurable on both, and the first standing
-    where neither is.
+    The mean and the spread each reading's strata hold over its own
+    division, weighted by their cells (`_strata_moments`): the first
+    stands where its distance from the published `mean` added to its
+    distance from the published `std` is no larger than the second's --
+    each moment counted only where it is published, finite and measurable
+    on both, and the first standing where neither is. It weighs the walk
+    leaving cells past the width against the same walk leaving none (rule
+    2), and the rule's reading against the one with the rule withdrawn
+    (rule 3).
 
-    TOGETHER AND NOT ONE BY ONE, because the second walk is not 110cb46's
-    twin but the same one with no cell past the width, and a spread a
-    few thousandths nearer is no reason to give up the mean: on `00001`
-    to `00149` beside one `12345`, at a floor of eleven, moving the end
-    under the width took the spread from 0.995 of the real one to 0.999
-    and the mean from 0.0003 of the real spread off to 0.033, and wrote
-    the codes `07333` and `09998`.
+    TOGETHER AND NOT ONE BY ONE, because a moment a few thousandths
+    nearer is no reason to give up the other by far more. On `00001` to
+    `00149` beside one `12345`, at a floor of eleven, moving the end under
+    the width took the spread from 0.995 of the real one to 0.999 and the
+    mean from 0.0003 of the real spread off to 0.033, and wrote the codes
+    `07333` and `09998`. And on a hundred thousand rows of `1000` to `1999`
+    beside five far cells, at eleven, the rule's reading holds the spread
+    at 0.91 of the real one where 110cb46 held it at 0.42, its mean 0.007
+    of the real spread off where 110cb46's stood 0.002 off: weighed one by
+    one, the block would have gone back to the spread a published check
+    missed.
 
-    Guarantees: accepts the column's facts, its layout and the two walks'
-    values; returns True or False as stated. Determinism: a function of
-    those. Raises nothing. No I/O of any kind.
+    Guarantees: accepts the column's facts and two readings, each a
+    division and one value a stratum; returns True or False as stated.
+    Determinism: a function of those. Raises nothing. No I/O of any kind.
     """
-    trial, held = walks
-    tried = _strata_moments(layout, trial)
-    kept = _strata_moments(layout, held)
+    tried = _strata_moments(reading[0], reading[1])
+    kept = _strata_moments(other[0], other[1])
     mine = 0.0
     theirs = 0.0
     for published, first, second in (
@@ -15210,6 +15328,61 @@ def _proven_sides(
             )
         ]
     return found
+
+
+def _width_rule_withdrawn(
+    column: contract.ColumnBlock,
+    facts: contract.NumericFacts,
+    division: "tuple[_NumericLayout, int | None]",
+    floor: int,
+) -> "tuple[_NumericLayout, tuple[float, ...]] | None":
+    """The division and the ladder a column takes with method G6.6.8 withdrawn, where that rule has anything to do (rule 3).
+
+    None where the block is no tail block, or where rule 1 moved neither
+    derived end and no side is proven for rule 2 (`_proven_sides`): there
+    the rule changes nothing. Otherwise the ladder with each width-held
+    end where the width clamp left it (`contract.tail_ladder` with the
+    reach rule withdrawn) and the strata divided by that ladder
+    (`_ladder_layout`): the division 110cb46 planned, which draws the
+    plan's own words.
+
+    EXCEPT WHERE THAT DIVISION HOLDS A STRATUM WIDER THAN THE GENERATION
+    REPORT'S WINDOWS ALLOW FOR THE PLAN'S. The report widens its windows
+    by the plan's widest stratum and no further (`_report_widest`), so a
+    reading written on a division holding a wider one could stand outside
+    a window the report draws for it; there the withdrawn ladder is read
+    on the plan's own division instead.
+
+    Guarantees: accepts the column, its numeric facts, the plan's division
+    with the count its strata were divided by (`_numeric_layout`'s
+    ``grain_values``) and the settings floor; returns the division and the
+    ladder, or None. Determinism: a function of those. Raises nothing. No
+    I/O of any kind.
+    """
+    if not facts.tail_rule:
+        return None
+    ruled = contract.tail_ladder(facts)
+    held = contract.tail_ladder(facts, reach_rule=False)
+    if ruled is None or held is None:
+        return None
+    moved = False
+    for mine, theirs in ((ruled.low, held.low), (ruled.high, held.high)):
+        if mine is not None and theirs is not None and mine.end != theirs.end:
+            moved = True
+    if not moved and not _proven_sides(
+        facts, _widest_demanded(_field_demands(facts))
+    ):
+        return None
+    layout, grain_values = division
+    divided, _notes, _words = _ladder_layout(
+        column, facts, grain_values, floor, held
+    )
+    widest = 0
+    for size in divided.sizes:
+        widest = max(widest, size)
+    if widest > _report_widest(column, facts, layout, floor):
+        divided = layout
+    return divided, held
 
 
 def _width_ceiling(widest: int) -> float:
@@ -40032,7 +40205,9 @@ def _compound_content(
     numbers_plan = dataclasses.replace(
         plan, column=contract.compound_numbers_view(column)
     )
-    made, half_notes = _numeric_content(numbers_plan, words)
+    made, half_notes = _numeric_content(
+        numbers_plan, words, facts.numbers.n_distinct_values
+    )
     # THE NUMERIC HALF'S NOTES NAME THE HALF THEY ARE ABOUT (review
     # round 8 item 2). This role publishes its quantitative facts under
     # `numbers.<key>`, and the numeric stages are handed that half as a
@@ -40086,7 +40261,7 @@ def _content_of(
     if kind == "long_tail_labels":
         return _label_content(plan, short)
     if kind == "count" or kind == "continuous":
-        return _numeric_content(plan, words)
+        return _numeric_content(plan, words, None)
     if kind == "affixed_number":
         return _affixed_content(plan, words)
     if kind == "joined_numbers":
@@ -42612,6 +42787,31 @@ def _window_stratum(
     return max(numbers, 1)
 
 
+def _report_widest(
+    column: contract.ColumnBlock,
+    facts: contract.NumericFacts,
+    layout: "_NumericLayout | None",
+    floor: int,
+) -> int:
+    """The widest stratum the generation report's rung windows allow a column built on ``layout`` (G5.6, G12.2).
+
+    `_window_stratum`'s cap, widened to the layout's own widest stratum
+    where G5.2b's carrier and reach steps moved one past it -- the bound
+    `_numeric_approximations` draws, and the one a reading G6.6.8's rule 3
+    writes on another division must stay inside (`_width_rule_withdrawn`).
+
+    Guarantees: accepts a column or the view of one, its numeric block,
+    the layout or None and the settings floor; returns a whole number of
+    at least one. Determinism: a function of those. Raises nothing. No
+    I/O of any kind.
+    """
+    widest = _window_stratum(column, facts, floor)
+    if layout is not None:
+        for size in layout.sizes:
+            widest = max(widest, size)
+    return widest
+
+
 def _average(values: "list[float]") -> float:
     """The mean of a non-empty list, correctly rounded (G12.3).
 
@@ -43328,7 +43528,6 @@ def _numeric_approximations(
     # G5.2a's cap is the one both can read, and the layout holds no
     # stratum above it wherever G5.2b's carrier and reach steps moved no
     # cell.
-    widest = _window_stratum(column, facts, plan.small_cell_floor)
     # ...AND WHERE THOSE STEPS DID MOVE A STRATUM PAST THE CAP, THIS
     # REPORT'S BOUND STILL HOLDS OF WHAT WAS BUILT (review items
     # P2-C4-F3 and P2-C5-F3). The published style count wins over the
@@ -43338,9 +43537,7 @@ def _numeric_approximations(
     # the cap alone called that construction outside its own method. The
     # quality report cannot read this layout, so on such a column it
     # draws the narrower window (G5.6 names the exception).
-    layout = plan.layout
-    if layout is not None and layout.sizes:
-        widest = max(widest, max(layout.sizes))
+    widest = _report_widest(column, facts, plan.layout, plan.small_cell_floor)
     # THE HALF UNIT, AND THE TWO RULES THAT CAN SPEND IT. The
     # whole-number rule of G5.4 moves a value by at most half a unit on
     # a column publishing `integer_valued: true`. On a column publishing

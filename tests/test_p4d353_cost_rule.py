@@ -544,8 +544,8 @@ def test_no_stratum_read_between_the_tails_is_a_stand_in(
         drawn.extend([list(found[0])])
         return found
 
-    def cells_of(plan, words):
-        found = content(plan, words)
+    def cells_of(plan, words, grain_values):
+        found = content(plan, words, grain_values)
         built.extend([(list(words), list(found[0]))])
         return found
 

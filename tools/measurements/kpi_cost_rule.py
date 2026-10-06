@@ -26,10 +26,11 @@ producer, and -- where a twin is asked -- the real generator and checker:
   shapes (plan P4-D377), what no check sees of a cell past every named
   width, each twin beside the twin the same generator writes with method
   G6.6.8 and its G6.3 clause withdrawn -- 110cb46's on these shapes: the
-  twins whose mean or spread stands further from the real column's, whose
-  count of cells past the widest named width stands further from the
-  source's, whose widest cell is wider than both, and whose own width
-  census stands further from the source's;
+  twins whose mean and spread, taken together, stand further from the
+  real column's, which G6.6.8's rule 3 refuses, the twins whose mean or
+  whose spread alone does, whose count of cells past the widest named
+  width stands further from the source's, whose widest cell is wider than
+  both, and whose own width census stands further from the source's;
 * `K-S3-50`: how far twins write past the real column's own range, which
   no check sees because no end is published -- over `K-S3-20`'s 37 shapes
   at floors 11, 20, 36 and 50, the numeric twins holding a cell outside
@@ -361,6 +362,7 @@ def _beside_the_rule_withdrawn(home, name, cells, floor, described, value):
         theirs = _as_written(home / f"{name}-f{floor}-s{seed}", "without", cells, block, before, floor)
         value["twins_compared"] += 1
         value["twins_changed_by_the_rule"] += int(text != before)
+        value["twins_moments_further"] += int(mine["mean"] + mine["spread"] > theirs["mean"] + theirs["spread"] + 1e-4)
         value["twins_mean_further"] += int(mine["mean"] > theirs["mean"] + 1e-4)
         value["twins_spread_further"] += int(mine["spread"] > theirs["spread"] + 1e-4)
         value["twins_past_the_width_further"] += int(abs(mine["past"] - real_past) > abs(theirs["past"] - real_past))
@@ -380,6 +382,7 @@ def residual(home):
         "width_shapes": 0,
         "twins_compared": 0,
         "twins_changed_by_the_rule": 0,
+        "twins_moments_further": 0,
         "twins_mean_further": 0,
         "twins_spread_further": 0,
         "twins_past_the_width_further": 0,

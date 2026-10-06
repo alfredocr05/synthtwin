@@ -28,16 +28,21 @@ the census strictly better and leaves neither published moment further
 off, and is given up where a stratum finds no room. A side is proven
 only where the width census counts every number of the column, and a
 far cell a pair proves past every named pad is written plain (method
-G6.3).
+G6.3). And the rules stand only where they read the published mean and
+spread, together, no further off than the twin without them (rule 3):
+the values are read again from the same words with both withdrawn --
+each end where the width held it, the strata divided by that ladder,
+110cb46's walk -- and the block keeps that reading wherever it reads
+them nearer. Rule 3 can hide a fault of the walk from the finished twin, so
+a test pinning a clause of rules 1 and 2 reads the walk's own output, a
+twin nearer than 110cb46's, or the twin with rule 3 withdrawn.
 
 Each clause is held up by a test here and, where a mutant is cheap to
 write, by the mutant that withdraws it turning the test's own
 measurement the other way. The repair round ran a source mutant of each
-of 75 clauses of the two rules, of the guard on the cells left past the
-width and of G6.3's give-up against this file: 74 turn it red, and the
-one that does not drops the check that asks the second walk only where
-a cell stands past the width -- with none there the two walks are one,
-so it changes no twin. The end rule is also frozen in
+clause of the three rules, of the guard on the cells left past the width
+and of G6.3's give-up against this file; method section G6.6.8 states
+how many turn it red. The end rule is also frozen in
 `tail_width_past_the_reach` (tests/reference/generation-branch-vectors-23.json);
 the walk has no frozen case, because the oracle does not run G6.6's
 walk, so it is pinned here. The mean and spread 110cb46 wrote on the
@@ -62,6 +67,7 @@ import pytest
 
 import complement_reader as reader
 import kpi_shapes
+import stage3_battery
 from synthtwin import contract, generation, parsing
 
 SEEDS = (0, 4, 9)
@@ -535,9 +541,10 @@ def test_the_cells_left_stop_at_the_pair_s_own_totals(
 
     The ladder puts a second row past it, by the end; the end's own
     distance already spends the pair's total of squares, so the walk moves
-    that row under the width. Its mutant reads no totals, and the twin
-    writes two cells past `9999` where the table holds one, its spread
-    0.41 off the real one where the walk leaves it 0.001 off.
+    that row under the width. Its mutant, read with rule 3 withdrawn,
+    reads no totals, and the twin writes two cells past `9999` where the
+    table holds one, its spread 0.41 off the real one where the walk
+    leaves it 0.001 off.
     """
     cells = reader.shape("cfh99999", 400, 1)
     described = _described(tmp_path, "cfh99999_400", cells, 11)
@@ -545,6 +552,7 @@ def test_the_cells_left_stop_at_the_pair_s_own_totals(
         written = _twin_numbers(described, seed)
         assert _past(written, 9999.0) == 1, f"seed {seed}"
         assert _errors(cells, written)[1] < 0.01, f"seed {seed}"
+    _rule_three_withdrawn(monkeypatch)
     monkeypatch.setattr(
         generation,
         "_walked_past_the_width",
@@ -733,6 +741,11 @@ def _pressures_beside_1300() -> "list[str]":
     return [str(min(190, max(90, 10 * round(draw.gauss(130, 15) / 10)))) for _row in range(500)] + ["1300"]
 
 
+def _rule_three_withdrawn(patch: pytest.MonkeyPatch) -> None:
+    """Method G6.6.8's rule 3 withdrawn: no second reading, so a clause of rules 1 and 2 is seen in the twin on its own."""
+    patch.setattr(generation, "_width_rule_withdrawn", lambda *_arguments: None)
+
+
 def _withdrawn_numbers(described: kpi_shapes.Described, seed: int) -> "list[float]":
     """110cb46's twin: method G6.6.8 and its G6.3 clause withdrawn through the lane's own seams, as `K-S3-22` withdraws them."""
     ladder = contract.tail_ladder
@@ -759,12 +772,14 @@ def test_strata_at_the_reach_that_read_the_moments_further_off_go_under_the_widt
     the second reads the published mean and spread better, so it stands:
     no cell past `99`, the spread inside a tenth of the real one. Its
     mutant keeps the walk that leaves the cells, and the spread is 1.17 to
-    1.20 again.
+    1.20 again. Both are read with rule 3 withdrawn, which on this column
+    takes 110cb46's twin back either way (see the rule 3 tests below).
     """
     cells = _bell_beside_237()
     described = _described(tmp_path, "bell_237", cells, 36)
     ladder = contract.tail_ladder(_facts(described))
     assert ladder is not None and ladder.high is not None and ladder.high.end > 99.0, "premise: the end past the width"
+    _rule_three_withdrawn(monkeypatch)
     for seed in SEEDS:
         written = _twin_numbers(described, seed)
         assert _past(written, 99.0) == 0, f"seed {seed}"
@@ -787,7 +802,9 @@ def test_where_the_guard_takes_the_cells_under_the_width_the_twin_reads_both_mom
     repair round's first count found further from the real spread than
     110cb46's. With nothing past the width the twin reads both moments
     better than either: its mean and its spread each stand nearer the real
-    ones than 110cb46's. Its mutant keeps the walk that leaves the cells.
+    ones than 110cb46's. Its mutant weighs every reading as no further
+    off, so the walk keeps the cells at the reach and rule 3 keeps that
+    walk, and the spread stands further off than 110cb46's.
     """
     cells = _pressures_beside_1300()
     described = _described(tmp_path, "pressures", cells, 20)
@@ -822,7 +839,7 @@ def test_the_walks_are_weighed_on_both_moments_together() -> None:
 
     def weighed(mean, spread, walks):  # type: ignore[no-untyped-def]
         facts = types.SimpleNamespace(mean=mean, std=spread)
-        return generation._reads_no_further(facts, layout, walks)  # type: ignore[arg-type]
+        return generation._reads_no_further(facts, (layout, walks[0]), (layout, walks[1]))  # type: ignore[arg-type]
 
     assert (mean_1, mean_2) == (4.0, 2.5) and spread_1 > spread_2 + 2.7, "premise: the first wider and further up"
     assert weighed(mean_1, spread_1, (first, second)) and not weighed(mean_1, spread_1, (second, first))
@@ -892,6 +909,194 @@ def test_where_the_guard_spends_a_side_the_trial_walks_it_spent_too(
     assert trial[0][2] > 0.0 and trial[1] == under[0]
 
 
+# -- 2c. the rule weighed against the twin without it (rule 3) -----------------
+
+
+def _bell_thousand_beside_185() -> "list[str]":
+    """A thousand two-figure readings shaped like a bell around 54.5, beside one `185`."""
+    draw = random.Random("g2/bell/1000/185")
+    return [str(max(10, min(99, int(round(draw.gauss(54.5, 89 / 6)))))) for _row in range(1000)] + ["185"]
+
+
+_FURTHER_SHAPES = (
+    ("bell_237", _bell_beside_237, 36),
+    ("bell_185", _bell_thousand_beside_185, 11),
+)
+
+
+@pytest.mark.parametrize("label,shape,floor", _FURTHER_SHAPES, ids=[f"{one[0]}_f{one[2]}" for one in _FURTHER_SHAPES])
+def test_where_the_rule_reads_the_moments_further_off_the_twin_is_110cb46_s(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch, label: str, shape, floor: int  # type: ignore[no-untyped-def]
+) -> None:
+    """Two-figure readings shaped like a bell beside one far reading: the twin is 110cb46's, cell for cell, at seeds 0, 4 and 9.
+
+    Rule 1 reads the tail toward the reach, and the strata are divided by
+    that reading before any value is drawn; where the walk then takes the
+    far cells back under `99`, the column is still divided as though they
+    stood past it. Read with the rule, 150 readings beside one `237` at 36
+    stand 0.075 to 0.083 of the real spread off on the mean and the spread
+    together, where 110cb46's stand 0.069 to 0.073; a thousand beside one
+    `185` at eleven, 0.008 to 0.023 where 110cb46's stand 0.005 to 0.006.
+    Rule 3 reads the values again with the rule withdrawn and keeps that
+    reading. Its mutant withdraws rule 3, and at every seed the twin stands
+    further from the real mean and spread, together, than 110cb46's.
+    """
+    cells = shape()
+    described = _described(tmp_path, label, cells, floor)
+    ladder = contract.tail_ladder(_facts(described))
+    assert ladder is not None and ladder.high is not None and ladder.high.end > 99.0, "premise: rule 1 moved the end"
+    for seed in SEEDS:
+        assert _twin_numbers(described, seed) == _withdrawn_numbers(described, seed), f"seed {seed}"
+        assert _missed(described, seed) == [], f"seed {seed}"
+    _rule_three_withdrawn(monkeypatch)
+    for seed in SEEDS:
+        mine = _errors(cells, _twin_numbers(described, seed))
+        theirs = _errors(cells, _withdrawn_numbers(described, seed))
+        assert mine[0] + mine[1] > theirs[0] + theirs[1], f"seed {seed}: {mine} {theirs}"
+
+
+def test_where_the_rule_reads_both_moments_nearer_the_twin_keeps_it(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """`K-S3-22`'s `00001` to `00149` beside `99999`, at eleven: the rule's reading stands, nearer on both moments.
+
+    110cb46 held the end at `9998`, its mean 0.066 of the real spread off
+    and its spread 0.14 of the real one; with the rule the mean is under a
+    thousandth off and the spread within a thousandth of the real one, so
+    rule 3 keeps the rule's reading. Its mutant always takes the second
+    reading, and the twin is 110cb46's.
+    """
+    cells = reader.shape("pad99999", 150, 1)
+    described = _described(tmp_path, "pad99999", cells, 11)
+    for seed in SEEDS:
+        mine = _errors(cells, _twin_numbers(described, seed))
+        theirs = _errors(cells, _withdrawn_numbers(described, seed))
+        assert mine[0] < theirs[0] and mine[1] < theirs[1], f"seed {seed}: {mine} {theirs}"
+    monkeypatch.setattr(generation, "_reads_no_further", lambda *_arguments: False)
+    for seed in SEEDS:
+        assert _twin_numbers(described, seed) == _withdrawn_numbers(described, seed), f"seed {seed}"
+
+
+def test_the_second_reading_is_asked_only_where_the_rule_has_anything_to_do(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """`_width_rule_withdrawn` asked directly: the ladder with each width-held end, where rule 1 moved one or a side is proven.
+
+    `00001` to `00149` beside `99999` at eleven: rule 1 moved the high end,
+    and the ladder handed back holds the end the width held, under
+    `10000`, with the strata divided by it. With no side proven it is still asked, since
+    the end moved; a block that is no tail block, and codes beside
+    decimals, where the census counts the codes alone, ask none. A side the
+    rule left -- 60 codes beside 90 plain numbers and `99999` -- is asked
+    because its side is proven, the ladder read either way holding one
+    end there.
+    """
+    described = _described(tmp_path, "pad99999", reader.shape("pad99999", 150, 1), 11)
+    facts = _facts(described)
+    column = described.loaded.columns[0]
+    layout, _notes, _words = generation._numeric_layout(column, facts, None, 11)
+    found = generation._width_rule_withdrawn(column, facts, (layout, None), 11)
+    held = contract.tail_ladder(facts, reach_rule=False)
+    assert found is not None and held is not None and held.high is not None
+    ruled = contract.tail_ladder(facts)
+    assert ruled is not None and ruled.high is not None and ruled.high.end != held.high.end, "premise: rule 1 moved the end"
+    assert found[1].high is not None and found[1].high.end == held.high.end < 10000.0
+    assert found[0] == generation._ladder_layout(column, facts, None, 11, held)[0]
+    with monkeypatch.context() as patch:
+        patch.setattr(generation, "_proven_sides", lambda *_arguments: [])
+        assert generation._width_rule_withdrawn(column, facts, (layout, None), 11) is not None
+    plain = dataclasses.replace(facts, tail_rule=False)
+    assert generation._width_rule_withdrawn(column, plain, (layout, None), 11) is None
+    decimals = _described(tmp_path, "decimals", _codes_beside_decimals(), 11)
+    decimal_facts = _facts(decimals)
+    decimal_column = decimals.loaded.columns[0]
+    decimal_layout, _notes, _words = generation._numeric_layout(decimal_column, decimal_facts, None, 11)
+    assert generation._width_rule_withdrawn(decimal_column, decimal_facts, (decimal_layout, None), 11) is None
+    left = _described(tmp_path, "mixed_60_90", _mixed(60, 90, ["99999"], 2), 11)
+    left_facts = _facts(left)
+    left_column = left.loaded.columns[0]
+    assert [side[4] for side in generation._proven_sides(left_facts, 4)] == [False], "premise: a side the rule left"
+    left_layout, _notes, _words = generation._numeric_layout(left_column, left_facts, None, 11)
+    assert generation._width_rule_withdrawn(left_column, left_facts, (left_layout, None), 11) is not None
+
+
+def test_both_readings_are_divided_into_the_same_strata_and_draw_the_same_words(tmp_path: pathlib.Path) -> None:
+    """The withdrawn ladder divides the column into as many strata, with the same words and note, as the plan's.
+
+    How many strata a column divides into and where its zero stratum
+    stands are counts, not readings of the ladder; the ladder moves only
+    the share between the signs and the sizes. Measured on the bell beside
+    `237`, where the sizes differ, on far cells either side of nought,
+    where the share is read off the ladder, and on `K-S3-22`'s codes.
+    """
+    for label, cells, floor in (
+        ("bell_237", _bell_beside_237(), 36),
+        ("both", _both_sides(), 11),
+        ("pad99999", reader.shape("pad99999", 150, 1), 11),
+    ):
+        described = _described(tmp_path, label, cells, floor)
+        facts = _facts(described)
+        column = described.loaded.columns[0]
+        plan = generation._numeric_layout(column, facts, None, floor)
+        held = contract.tail_ladder(facts, reach_rule=False)
+        other = generation._ladder_layout(column, facts, None, floor, held)
+        assert len(other[0].sizes) == len(plan[0].sizes) and other[1:] == plan[1:], label
+        if label == "bell_237":
+            assert other[0].sizes != plan[0].sizes, "premise: the two divisions differ"
+
+
+def test_a_division_wider_than_the_report_allows_is_not_taken(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The withdrawn reading is divided by its own ladder only where no stratum is wider than the report's windows allow.
+
+    `_report_widest` is the generation report's own bound -- the
+    description's cap, widened to the plan's widest stratum -- and the
+    bell beside `237` at 36 divides within it, so the withdrawn reading
+    takes its own division. Where that division would hold a stratum wider
+    than the bound, the withdrawn ladder is read on the plan's division.
+    """
+    described = _described(tmp_path, "bell_237", _bell_beside_237(), 36)
+    facts = _facts(described)
+    column = described.loaded.columns[0]
+    layout, _notes, _words = generation._numeric_layout(column, facts, None, 36)
+    widest = generation._report_widest(column, facts, layout, 36)
+    assert widest == max(generation._window_stratum(column, facts, 36), max(layout.sizes))
+    found = generation._width_rule_withdrawn(column, facts, (layout, None), 36)
+    assert found is not None and found[0] != layout and max(found[0].sizes) <= widest
+    monkeypatch.setattr(generation, "_report_widest", lambda *_arguments: max(found[0].sizes) - 1)
+    narrowed = generation._width_rule_withdrawn(column, facts, (layout, None), 36)
+    assert narrowed is not None and narrowed[0] == layout and narrowed[1] == found[1]
+
+
+def test_a_position_is_divided_again_by_its_own_count(tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """The stage-3 battery's joined column: each position's second reading is divided by that position's own count.
+
+    A joined column's positions are columns of their own to the value
+    stage, each divided by its own count of different numbers rather than
+    the column's count of cells (residual R-P4-112); the second reading
+    must be divided the same way, or its words would not be the plan's.
+    """
+    cells, _flags = stage3_battery.SHAPES["joined_one_reversed"](random.Random(stage3_battery.BATTERY_SEED))
+    described = kpi_shapes.describe(tmp_path / "joined", "joined", stage3_battery.rows_text(["value"], [[cell] for cell in cells]), 11)
+    block = described.loaded.columns[0].facts
+    assert isinstance(block, contract.JoinedFacts), "premise: a joined column"
+    counts = {part.n_distinct_values for part in block.parts}
+    asked: "list[object]" = []
+    real_withdrawn = generation._width_rule_withdrawn
+
+    def watched(column, facts, division, floor):  # type: ignore[no-untyped-def]
+        found = real_withdrawn(column, facts, division, floor)
+        if found is not None:
+            asked.append(division[1])
+        return found
+
+    monkeypatch.setattr(generation, "_width_rule_withdrawn", watched)
+    kpi_shapes.twin_text(described, 0)
+    assert asked, "premise: a position reaches the second reading"
+    assert set(asked) <= counts and None not in asked
+
+
 # -- 3. where the strata moved under the width go ----------------------------
 
 
@@ -917,10 +1122,11 @@ def test_an_end_whose_stratum_does_not_fit_goes_under_the_width(
     totals, so it is moved under the width with the rest -- to `9998`,
     where the pair's squares put it and where 110cb46 wrote it. The twin's
     own census is the source's, and its mean and spread are 110cb46's. Its
-    mutant never moves the end's stratum: every one of its rows lands on
-    `99900`, the source's single maximum, the mean and spread many times
-    further off and, at a floor of eleven, the twin's own census naming a
-    width of five.
+    mutant, read with rule 3 withdrawn so the walk is seen on its own, never
+    moves the end's stratum: every one of its rows lands on `99900`, the
+    source's single maximum, the mean and spread many times further off
+    and, at a floor of eleven, the twin's own census naming a width of
+    five.
     """
     cells = _grid(rows)
     described = _described(tmp_path, f"grid{rows}", cells, floor)
@@ -931,6 +1137,7 @@ def test_an_end_whose_stratum_does_not_fit_goes_under_the_width(
         assert _own_census(tmp_path, described, seed, floor) == _census(described), f"seed {seed}"
         mean, spread = _errors(cells, written)
         assert mean <= mean_most + _SLACK and spread <= spread_most + _SLACK, f"seed {seed}: {mean} {spread}"
+    _rule_three_withdrawn(monkeypatch)
     monkeypatch.setattr(generation, "_pulled_under_the_width", _keep_the_pinned_past)
     written = _twin_numbers(described, 0)
     assert _past(written, 9999.0) > parsing.census_floor(floor) // 2 and max(written) == 99900.0
@@ -1050,13 +1257,15 @@ def test_where_the_end_moves_too_the_moved_strata_carry_the_pair_s_squares(
     carry what the total of squares has left, outermost first, each at
     `sqrt(left / size)` from the boundary and never past the width: here
     the width's end, `9998` (`9999` is a stand-in the block does not
-    hold). Its mutant puts it beside the boundary instead, on `1901`, and
-    the spread falls from 0.57 to 0.18 of the real one.
+    hold). Its mutant, read with rule 3 withdrawn, puts it beside the
+    boundary instead, on `1901`, and the spread falls from 0.57 to 0.18 of
+    the real one.
     """
     cells = _grid(4000)
     described = _described(tmp_path, "grid4000", cells, 11)
     written = _twin_numbers(described, 0)
     assert written.count(9998.0) == 40 and 9999.0 not in written
+    _rule_three_withdrawn(monkeypatch)
     monkeypatch.setattr(
         generation,
         "_targets_under_the_width",
@@ -1179,8 +1388,9 @@ def test_a_stratum_with_no_room_under_the_width_takes_the_end_the_width_held(
     the end the width held on 110cb46, `9`, beside the stratum holding it.
     No cell stands past the width, the twin's own census is the source's,
     its mean and spread are no further off than 110cb46's and it misses
-    nothing. Its mutant hands the pull no end: the walk gives the side up,
-    and the end's stratum stays past the width with most of the tail --
+    nothing. Its mutant, read with rule 3 withdrawn, hands the pull no end:
+    the walk gives the side up, and the end's stratum stays past the width
+    with most of the tail --
     the first skeptic's first fault, on a column of one figure. 71a7b31
     wrote 49 of the 401 cells on `10` this way, its mean 0.054 of the
     real spread off where 110cb46 stood 0.007 off.
@@ -1197,6 +1407,7 @@ def test_a_stratum_with_no_room_under_the_width_takes_the_end_the_width_held(
         mean, spread = _errors(cells, written)
         assert mean <= mean_most + _SLACK and spread <= spread_most + _SLACK, f"seed {seed}: {mean} {spread}"
         assert _missed(described, seed) == [], f"seed {seed}"
+    _rule_three_withdrawn(monkeypatch)
     monkeypatch.setattr(generation, "_pulled_under_the_width", _without_the_held_end)
     assert _past(_twin_numbers(described, 0), 9.0) > parsing.census_floor(floor) // 2
 
@@ -1396,11 +1607,13 @@ def test_where_the_full_walk_would_cost_a_moment_the_twin_is_110cb46_s(
     The side's end stood past the width on 110cb46, and there the walk
     stands only where neither published moment is worse: the full walk
     takes the twin's mean from 0.019 to 0.036 real standard deviations
-    off, so the twin is 110cb46's. Its mutant takes the full walk always.
+    off, so the twin is 110cb46's. Its mutant, read with rule 3 withdrawn,
+    takes the full walk always.
     """
     cells = _staircase_far(300, 9, 20000)
     described = _described(tmp_path, "stair", cells, 11)
     kept = {seed: _errors(cells, _twin_numbers(described, seed))[0] for seed in SEEDS}
+    _rule_three_withdrawn(monkeypatch)
     monkeypatch.setattr(generation, "_serves_better", lambda *_arguments: True)
     for seed in SEEDS:
         assert _errors(cells, _twin_numbers(described, seed))[0] > kept[seed] + 0.01, f"seed {seed}"
@@ -1447,8 +1660,8 @@ def test_where_the_full_walk_serves_the_census_no_better_the_side_keeps_110cb46_
     The side's end stood past the width before the reach rule, and its
     census is served on 110cb46's walk with every wide cell pooled; the
     full walk would leave the census no better served and only moves the
-    tail's spread, so the side keeps 110cb46's walk. Its mutant takes the
-    full walk wherever the census is no worse.
+    tail's spread, so the side keeps 110cb46's walk. Its mutant, read with
+    rule 3 withdrawn, takes the full walk wherever the census is no worse.
     """
     described = _described(tmp_path, "pareto_0_36", reader.pareto(400, 0), 36)
     sides = generation._proven_sides(_facts(described), 3)
@@ -1460,6 +1673,7 @@ def test_where_the_full_walk_serves_the_census_no_better_the_side_keeps_110cb46_
     def no_worse(facts, layout, walks, demands, floor):  # type: ignore[no-untyped-def]
         return real(facts, layout, walks[0], demands, floor) <= real(facts, layout, walks[1], demands, floor)
 
+    _rule_three_withdrawn(monkeypatch)
     monkeypatch.setattr(generation, "_serves_better", no_worse)
     assert _past(_twin_numbers(described, 0), 999.0) < 10
 
@@ -1511,7 +1725,11 @@ def test_a_hundred_thousand_rows_keep_their_census_and_their_moments(tmp_path: p
     off than 110cb46's and it misses nothing -- 110cb46's twin held every
     cell under the width, read 0.42 of the real spread and missed
     `moments.std`; on a million rows the first form wrote a thousand
-    cells on one five-figure value.
+    cells on one five-figure value. The rule's reading stands under rule 3
+    because the mean and the spread are weighed together: its mean stands
+    0.007 of the real spread off where 110cb46's stood 0.002 off, and its
+    spread 0.91 of the real one where 110cb46's stood 0.42; weighed one by
+    one, the block would go back to 110cb46's.
     """
     cells = _bulk(100000)
     described = _described(tmp_path, "bulk", cells, 11)
