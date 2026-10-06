@@ -148,11 +148,14 @@ def test_the_count_room_rule_needs_every_pin_day_and_each_gap_s_other_groups() -
     ranks between the pins need at most two days besides them, and one
     rank one. A gap whose two pins stand on one day is no gap. Only
     groups that hold rows are counted, the gap's own end groups are not
-    (a pin day stands for them), a gap three days wide holds only the
-    weekdays strictly inside it, a merged group is one group, and a day
-    two pins stand on is counted once. Where the census needs no day
-    past the pin days the rule is silent whatever the room. Red when the
-    pin days are not counted or are counted twice, a gap's end groups or
+    (a pin day stands for them), the last pin's as well as the first's
+    -- a gap from a Monday to the Wednesday of the next week needs a
+    Tuesday, a Thursday, a Friday, a Saturday and a Sunday, 7 with its
+    pin days -- a gap three days wide holds only the weekdays strictly
+    inside it, a merged group is one group, and a day two pins stand on
+    is counted once. Where the census needs no day past the pin days the
+    rule is silent whatever the room. Red when the pin days are not
+    counted or are counted twice, a gap's end groups, either of them, or
     an empty group are counted, the ranks between the pins do not cap a
     gap, a gap of one rank is passed over, a one-day gap counts, a gap
     is scanned a day deep, the rule withholds at the need too, leaves
@@ -174,6 +177,9 @@ def test_the_count_room_rule_needs_every_pin_day_and_each_gap_s_other_groups() -
     thursdays = _seven((40, 0, 0, 40, 0, 0, 0))
     assert calendar_rules.count_room_short(thursdays, fortnight, 2, 0)
     assert not calendar_rules.count_room_short(thursdays, fortnight, 3, 0)
+    wednesday = ((10, _MONDAY), (30, _MONDAY + 9))
+    assert calendar_rules.count_room_short(every, wednesday, 6, 0)
+    assert not calendar_rules.count_room_short(every, wednesday, 7, 0)
     shared = ((0, _MONDAY), (10, _MONDAY + 7), (20, _MONDAY + 14))
     assert calendar_rules.count_room_short(every, shared, 14, 0)
     assert not calendar_rules.count_room_short(every, shared, 15, 0)
@@ -421,6 +427,40 @@ def test_at_the_floor_of_12_the_rule_is_asked_and_withholds_a_census_whose_twins
     assert block["weekday_census"] == [], block["weekday_census"]
     assert _decided(block, cells, 12).reason == calendar_rules.REASON_COUNT_ROOM
     _restored_twins_long(tmp_path, "hunt690", described, cells, 12)
+
+
+def test_at_the_floor_of_20_a_census_whose_room_equals_its_need_is_published_and_met(tmp_path: pathlib.Path) -> None:
+    """A room equal to the need publishes the census (plan P4-D388, its review's item 1).
+
+    `_hunt(169)`, 122 visits over 27 days (D0's hunt batteries), at the
+    floor of 20: both tails publish their distances, 23 and 24 rows, so
+    their most is 10 and 11 by their spread and leaves the body 6 of its
+    27 days, exactly what its census, Monday to Friday against the
+    weekend, needs; a day fewer would withhold it. Published, and its
+    twins at seeds 0 to 4 meet every check, their tails holding 11 days.
+    Every census of the 26 batteries standing at its need was met so, 19
+    at the floor of 20 and one at 50. Red when the rule withholds at the
+    need too.
+    """
+    cells = _hunt(169)
+    described = _described(tmp_path, "hunt169", cells, 20)
+    block = described.block("visit")
+    groups = tuple((group["first"], group["last"], group["count"]) for group in block["weekday_census"])
+    assert groups == ((0, 4, 43), (5, 6, 32)), groups
+    assert _decided(block, cells, 20).reason == ""
+    ordered = tuple(sorted(_day(cell) for cell in cells))
+    rungs = block["date_percentiles"]
+    percents = [(100 * num) // den for label, num, den in taxonomy.LADDER if rungs[label] is not None]
+    assert block["low_tail"]["values"] is None and block["high_tail"]["values"] is None
+    low, high = block["low_tail"]["rows"], block["high_tail"]["rows"]
+    pins = calendar_rules.body_pins(ordered, low, high, percents)
+    most = calendar_rules.tails_most(ordered, low, high, (None, None), 20)
+    assert (low, high, most, len(set(ordered))) == (23, 24, 21, 27)
+    assert not calendar_rules.count_room_short(groups, pins, 27, most)
+    assert calendar_rules.count_room_short(groups, pins, 26, most)
+    for seed in (0, 1, 2, 3, 4):
+        twin = kpi_shapes.twin_text(described, seed)
+        assert kpi_shapes.missed(kpi_shapes.measure(described, twin, f"hunt169-{seed}.csv")) == [], seed
 
 
 # The mini battery: (builder, shape) -> the decision at the floors 11, 20, 36 and 50, "" where published.
