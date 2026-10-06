@@ -147,20 +147,24 @@ def test_the_count_room_rule_needs_every_pin_day_and_each_gap_s_other_groups() -
     need, and is withheld; 20 leaves it the need and is published. Two
     ranks between the pins need at most two days besides them, and one
     rank one. A gap whose two pins stand on one day is no gap. Only
-    groups that hold rows are counted, the gap's own end groups are not
-    (a pin day stands for them), the last pin's as well as the first's
-    -- a gap from a Monday to the Wednesday of the next week needs a
+    groups that hold rows are counted, and the gap's own end groups are
+    not (a pin day stands for them), the first pin's and the last pin's
+    alike. A gap from a Monday to the Wednesday of the next week needs a
     Tuesday, a Thursday, a Friday, a Saturday and a Sunday, 7 with its
-    pin days -- a gap three days wide holds only the weekdays strictly
-    inside it, a merged group is one group, and a day two pins stand on
-    is counted once. Where the census needs no day past the pin days the
-    rule is silent whatever the room. Red when the pin days are not
-    counted or are counted twice, a gap's end groups, either of them, or
-    an empty group are counted, the ranks between the pins do not cap a
-    gap, a gap of one rank is passed over, a one-day gap counts, a gap
-    is scanned a day deep, the rule withholds at the need too, leaves
-    the tails out of the room, or speaks where the census needs nothing
-    past the pins.
+    pin days. Under groups of Monday to Friday, Saturday and Sunday, a
+    gap from a Monday to the next week's Saturday needs only its two pin
+    days and a Sunday, 3 in all: Tuesday to Friday stand in the first
+    pin's group, and the Saturday between the pins in the last pin's. A
+    gap three days wide holds only the weekdays strictly inside it, a
+    merged group is one group, and a day two pins stand on is counted
+    once. Where the census needs no day past the pin days the rule is
+    silent whatever the room. Red when the pin days are not counted or
+    are counted twice, a gap's end groups, either of them, or an empty
+    group are counted, the ranks between the pins do not cap a gap, a
+    gap of one rank is passed over, a one-day gap counts, a gap is
+    scanned a day deep, the rule withholds at the need too, leaves the
+    tails out of the room, or speaks where the census needs nothing past
+    the pins.
     """
     every = _seven((40, 40, 40, 40, 40, 40, 40))
     fortnight = ((10, _MONDAY), (40, _MONDAY + 14))
@@ -192,6 +196,10 @@ def test_the_count_room_rule_needs_every_pin_day_and_each_gap_s_other_groups() -
     merged = ((0, 4, 200), (5, 6, 80))
     assert calendar_rules.count_room_short(merged, fortnight, 2, 0)
     assert not calendar_rules.count_room_short(merged, fortnight, 3, 0)
+    three = ((0, 4, 200), (5, 5, 40), (6, 6, 40))
+    to_saturday = ((10, _MONDAY), (30, _MONDAY + 12))
+    assert calendar_rules.count_room_short(three, to_saturday, 2, 0)
+    assert not calendar_rules.count_room_short(three, to_saturday, 3, 0)
     mondays = _seven((40, 0, 0, 0, 0, 0, 0))
     assert not calendar_rules.count_room_short(mondays, fortnight, 0, 30)
 
