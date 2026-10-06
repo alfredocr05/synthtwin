@@ -21,12 +21,22 @@ written back and validate, where none read before. Two-figure years are
 asked their century in the questions file (Q5, `--century`,
 `century_windows`), an option the refusal of an older description now
 names and prices, and a layout nothing in its cells tells from a code
-is asked whether it is one. The reach battery's 120 other columns are
-byte for byte as they were but for three questions files. Describing a
-column written in a layout costs what ISO's spelling of the same moments
-costs: `K-S3-58`'s two scale nodes put the slowest of four layouts at
-1.02 times ISO's time at 100,000 rows and 1.06 at 300,000, under bounds
-of 1.3 and 1.6.
+-- a version's dotted spelling among them -- is asked whether it is one.
+The reach battery's 120 other columns are byte for byte as they were but
+for three questions files. Describing a column written in a layout costs
+what ISO's spelling of the same moments costs: `K-S3-58`'s two scale
+nodes put the slowest of four layouts at 1.00 times ISO's time at
+100,000 rows and 1.11 at 300,000, under bounds of 1.3 and 1.6.
+
+**Its repair round** (skeptic 1). Answering Q5 on a column a two-figure
+member read no longer loses the cells written with a space round them,
+which had dropped 1,000 births to free text. An HL7 column a few of
+whose stamps end in an offset reads every stamp, and its twin writes the
+offsets its count of cells that are not numbers owes, each below the
+line, where it had missed `counts.n_numeric` (method G7.9b). A
+description made before this landing that published SAS dates as
+categories misses `axes.role` against its own twin, which is now read as
+dates: describe the table again.
 
 ### A description written before the published pairs loads again (2026-10-03)
 
