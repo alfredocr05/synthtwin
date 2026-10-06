@@ -1144,11 +1144,11 @@ def test_two_rows_a_business_day_are_withheld_though_their_twins_meet_their_cens
     more days than the census, Monday to Friday against the weekend 0,
     lets it reach, and the census is withheld, `count_reach`, at the
     floors of 11, 20, 36 and 50 alike. Restored at 11, its twins at seeds
-    0 to 2 hold all 520 days and miss no check. That is the price the
-    rule pays on logs of one and a half to two rows a business day, for
-    `_hunt(2291)` and the short logs it keeps. Red when the merge stops
-    being read at the tails' fewest -- a change that must be measured
-    again on the columns this file holds short.
+    0 to 2 hold all 520 days and miss no check. That is the rule's price
+    on logs of one and a half to two rows a business day, where the same
+    reading withholds `_hunt(2291)` and the short logs. Red when the merge
+    stops being read at the tails' fewest -- a change that must be
+    measured again on the columns this file holds short.
     """
     cells = _two_rows_a_business_day()
     assert (len(cells), len(set(cells))) == (1063, 520)
