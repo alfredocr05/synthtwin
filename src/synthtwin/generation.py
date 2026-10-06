@@ -21649,8 +21649,21 @@ def _hour_settled(
 ) -> "tuple[list[int], list[Deviation]]":
     """Meet the published hour census of a column of moments (method G7.3g).
 
-    Landing 3b.2-H (lane T2, plan P4-D371). PROTOTYPE: G7.3f's shared
-    pass over the hours, a unit of an hour with the day kept.
+    Landing 3b.2-H (lane T2, plan P4-D371). Where the column publishes a
+    non-empty `hour_census` -- or stands on the dial's half day
+    (`_on_the_half_day`), whose census is then hours 0 to 11 holding the
+    body and 12 to 23 none -- with both tails, at least three parsed
+    cells, counted in seconds and with no rank a bare date, the ranks
+    move once G7.3f's day pass is done (`_hour_pass`), until the cells
+    between the two boundary ranks fall on the published groups. No word
+    is drawn. Where the census still does not hold, one deviation names
+    `hour_census`.
+
+    Guarantees: accepts what `_weekday_settled` accepts; returns the
+    ordinals -- each body rank the layout does not pin moved only inside
+    its own gap, a tail rank on the half day only inside its stratum,
+    none onto a hole -- and the deviations. Determinism: a function of
+    the arguments. Raises nothing. No I/O of any kind.
     """
     census = facts.hour_census
     half_day = _on_the_half_day(facts)
@@ -21676,10 +21689,10 @@ def _hour_settled(
         )
     moved = [value for value in ordinals]
     step = 60 if facts.time_precision == "minute" else 1
-    units: "set[int]" = set()
-    for value in moved:
-        units = units | {value // step}
-    wanted = len(units)
+    # The count of different written units the pass keeps, built once:
+    # a union taken value by value copied the set each time, which on
+    # 10,000 moments was most of the pass.
+    wanted = len({value // step for value in moved})
     word = ""
     widths = False
     if len(facts.date_field_widths) == 1 and (
