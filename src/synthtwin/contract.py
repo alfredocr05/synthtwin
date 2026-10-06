@@ -1683,14 +1683,19 @@ INVARIANTS = {
         "every group of a clock census that counts cells holds a step "
         "between the two boundaries that is no heap -- as many as it counts "
         "where the column's values are all different -- and every boundary "
-        "and rung stands on a heap or in a group that counts cells"
+        "and rung stands on a heap or in a group that counts cells; with no "
+        "census, the values between the boundaries on no heap are one such "
+        "group over the dial"
     ),
     "CH1": (
         "the heaps of a column of clock times are times written in its form, "
         "in ascending order, each counting at least the census line; those "
         "beyond a tail boundary fit inside that tail's rows and are among "
-        "its values where it lists them, and those between the boundaries "
-        "are no more than the values there"
+        "its values where it lists them, where every other value it lists "
+        "keeps at least one row, the heaps and those values hold every row, "
+        "and the rest of the sum its mean fixes is one those values' rows "
+        "can add; and those between the boundaries are no more than the "
+        "values there"
     ),
     "CH2": (
         "the codes of a column of clock times are spellings its form does "
@@ -15563,7 +15568,13 @@ def _clock_census(
     - CH1, the heaps: each a time in the column's form, in ascending
       order, counting at least the census line; those beyond a boundary
       fit inside that tail's rows, and where the tail lists its values
-      each is one of them;
+      each is one of them, every listed value on no heap keeps at least
+      one row, the heaps and those values hold every row of the tail,
+      and the sum of distances its mean fixes less the heaps' is one
+      those values' rows can add to (the landing's review, item 5: a
+      heap of 100 on `07:00` in a tail of 100 rows listing `07:00` and
+      `07:30` at a mean of 45 loaded, and the twin wrote no `07:30` and
+      a mean of 60);
     - CH2, the codes: each a spelling the column's form does not read,
       in text order, counting at least the census line, together no more
       than the cells left unread;
@@ -15577,7 +15588,17 @@ def _clock_census(
       step inside the body that is no heap -- at least as many as it
       counts on a column whose values are all different -- and each
       boundary and each published rung stands on a heap or in a group
-      that counts cells.
+      that counts cells. A block publishing no census is asked the same
+      of the one group over the dial its body's cells on no heap make
+      (method G7A.4b), so where those cells have no step to stand on it
+      is refused here and not inside the generator (the review, item 5:
+      `08:00`'s heap one row short of a body of 100 cells all at
+      `08:00` loaded, and generation stopped on an internal error).
+
+    The heaps are looked up through a set, in the order they stand, so
+    the work grows with the heaps and not with their square (the
+    review, item 6: about 28,800 heaps of a million rows took some 414
+    million comparisons).
 
     Guarantees: returns the census `(first, last, count)`, the heaps
     `(value, count)`, the step and the codes `(spelling, count)`. Raises
@@ -15692,6 +15713,9 @@ def _clock_census(
                 f"the heap at {value} lies in a tail that does not list it",
                 "a heap in a tail that lists its values is one of them",
             )
+    _listed_tails_hold_their_heaps(
+        where, form, (low, high), (lowest, highest), heaps, heap_at
+    )
     if inside > body:
         raise _broken(
             "CH1",
@@ -15740,42 +15764,60 @@ def _clock_census(
                 _whole(group["count"], "clock_census -> count", where, 0),
             )
         ]
-    if not groups:
-        return (), tuple(heaps), step, tuple(codes)
-    broken = calendar_rules.census_breach(
-        tuple(groups),
-        calendar_clock.clock_bin_count(form),
-        line,
-        body - inside,
-        unit="ten-minute bin",
-        rules=("CC1", "CC2", "CC3", "CC2"),
+    # A BLOCK PUBLISHING NO CENSUS is laid as ONE group over the dial
+    # counting its body's cells on no heap (method G7A.4b), and that group
+    # is asked what every published one is (CC5; the review, item 5).
+    laid: "tuple[tuple[int, int, int], ...]" = (
+        (0, calendar_clock.clock_bin_count(form) - 1, body - inside),
     )
-    if broken is not None:
-        raise _broken(broken[0], where, broken[1], broken[2])
+    if groups:
+        broken = calendar_rules.census_breach(
+            tuple(groups),
+            calendar_clock.clock_bin_count(form),
+            line,
+            body - inside,
+            unit="ten-minute bin",
+            rules=("CC1", "CC2", "CC3", "CC2"),
+        )
+        if broken is not None:
+            raise _broken(broken[0], where, broken[1], broken[2])
+        laid = tuple(groups)
     distinct = mapping["n_distinct"] if "n_distinct" in mapping else None
     apart = isinstance(distinct, int) and distinct - facts.n_unparsed >= parsed
     reach = calendar_clock.clock_group_reach(
-        groups, form, stride, (lowest, highest), heap_at
+        laid, form, stride, (lowest, highest), heap_at
     )
-    for (first, last, count), units in zip(groups, reach):
+    for (first, last, count), units in zip(laid, reach):
         if count > 0 and (units < 1 or (apart and units < count)):
+            found = (
+                f"the group from ten-minute bin {first} to bin {last} counts "
+                f"{count}"
+            )
+            if not groups:
+                found = (
+                    f"no census is published, and {count} cells between the "
+                    f"two boundaries stand on no heap"
+                )
             raise _broken(
                 "CC5",
                 where,
-                f"the group from ten-minute bin {first} to bin {last} counts "
-                f"{count}",
+                found,
                 f"it holds {units} steps between the two boundaries that "
                 f"stand on no heap, and must hold "
                 f"{'as many as it counts' if apart else 'at least one'}",
             )
+    # MEMBERSHIP THROUGH A SET, the heaps kept in their order above (the
+    # review, item 6): every published value asked the list again, which
+    # grew with the square of the heaps.
+    on_a_heap: "set[int]" = set(heap_at)
     for value, said, listed in placed:
         at = _clock_at(value, form)[0]
         if not lowest <= at <= highest or listed:
             continue
-        if at in heap_at:
+        if at in on_a_heap:
             continue
         place = calendar_clock.clock_bin_of(at, form)
-        held = [count for first, last, count in groups if first <= place <= last]
+        held = [count for first, last, count in laid if first <= place <= last]
         if not held or held[0] == 0:
             raise _broken(
                 "CC5",
@@ -15786,6 +15828,87 @@ def _clock_census(
                 "counts cells",
             )
     return tuple(groups), tuple(heaps), step, tuple(codes)
+
+
+def _listed_tails_hold_their_heaps(
+    where: str,
+    form: str,
+    tails: "tuple[TailFacts | None, TailFacts | None]",
+    ends: "tuple[int, int]",
+    heaps: "list[tuple[str, int]]",
+    heap_at: "list[int]",
+) -> None:
+    """CH1 for a tail that lists its values and holds heaps (P4-D373).
+
+    The generator stands each such heap's rows on its value and shares the
+    rows left over the tail's other listed values by G7.3c, against the
+    sum of distances its mean fixes less the heaps' (method G7A.4b). So
+    every listed value on no heap keeps at least one row, the heaps and
+    those values hold every row of the tail, and the sum left lies where
+    those values' rows can reach -- from each once and the rest on the
+    nearest, to each once and the rest on the furthest, half a unit either
+    side for the rounding of the mean. A description the producer writes
+    holds all three, its counts and mean being the column's own; one
+    breaking any loaded and the twin lost a listed value and its mean
+    (the landing's review, item 5).
+
+    Guarantees: accepts the two tails, the two boundaries' ordinals and
+    the heaps with their ordinals; returns nothing. Raises ProfileError
+    (CH1) for the first rule broken. Determinism: a function of the
+    arguments. No I/O of any kind.
+    """
+    for tail, edge, side in ((tails[0], ends[0], "low"), (tails[1], ends[1], "high")):
+        if tail is None or tail.values is None:
+            continue
+        mine: "list[tuple[int, int]]" = []
+        for (_value, count), at in zip(heaps, heap_at):
+            if at < edge if side == "low" else at > edge:
+                mine += [(edge - at if side == "low" else at - edge, count)]
+        if not mine:
+            continue
+        heaped: "dict[int, bool]" = {}
+        rows_left = tail.rows
+        on_heaps = 0
+        for distance, count in mine:
+            heaped[distance] = True
+            rows_left = rows_left - count
+            on_heaps = on_heaps + distance * count
+        free: "list[int]" = []
+        for value in tail.values:
+            here = _clock_at(value, form)[0]
+            distance = edge - here if side == "low" else here - edge
+            if distance not in heaped:
+                free += [distance]
+        if rows_left < len(free) or (rows_left > 0 and not free):
+            raise _broken(
+                "CH1",
+                where,
+                f"the heaps beyond the {side} boundary hold "
+                f"{tail.rows - rows_left} of that tail's {tail.rows} rows, "
+                f"beside {len(free)} value(s) it lists on no heap",
+                "every value a tail lists holds at least one of its rows, "
+                "and its heaps and those values hold all of them",
+            )
+        if tail.mean_distance is None:
+            continue
+        total = tail.rows * tail.mean_distance
+        least = 0
+        most = 0
+        if free:
+            for distance in free:
+                least = least + distance
+                most = most + distance
+            least = least + (rows_left - len(free)) * min(free)
+            most = most + (rows_left - len(free)) * max(free)
+        if not least - 0.5 <= total - on_heaps < most + 0.5:
+            raise _broken(
+                "CH1",
+                where,
+                f"the {side} tail's mean puts the sum of its distances at "
+                f"{total}, {on_heaps} of it on its heaps",
+                f"the rest is what the rows of the values it lists on no "
+                f"heap can add, from {least} to {most}",
+            )
 
 
 def _clock_minute_census(

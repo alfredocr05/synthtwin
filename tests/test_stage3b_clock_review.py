@@ -32,12 +32,23 @@ rather than a sentence has a mutant that turns its clause red again:
 * item 4 `test_item_4_the_report_counts_a_code_once` -- the generation
   report counted every cell of a code as a different value, drew 113 to
   405 against validation's 14 to 306 and called both the table's 102 and
-  the twin's 111 outside (mutant: a code counted once a cell).
+  the twin's 111 outside (mutant: a code counted once a cell);
+* item 5 `test_item_5_the_loader_refuses_what_generation_cannot_lay` --
+  a heap of a body all at one time one row short loaded and generation
+  stopped on an internal error, and a heap holding all of a listing
+  tail's rows beside a second listed value loaded and the twin lost the
+  value and the mean (mutants: no room asked without a census; a listed
+  tail's heaps not reconciled);
+* item 6 `test_item_6_the_heaps_are_looked_up_in_work_that_grows_with_them`
+  -- every published value asked the LIST of heaps whether it was one,
+  so the loader's work grew with the square of the heaps (mutant: the
+  list again).
 """
 
 from __future__ import annotations
 
 import collections
+import copy
 import csv
 import io
 import json
@@ -53,6 +64,7 @@ from synthtwin import (
     asking,
     calendar_clock,
     contract,
+    errors,
     generation,
     parsing,
     profile,
@@ -491,3 +503,184 @@ def test_item_4_red_when_a_code_counts_once_a_cell(
     monkeypatch.setattr(generation, "_clock_approximations", every_cell)
     reported, _checked = _distinct_windows(tmp_path)
     assert [inside for *_rest, inside in reported] == [False, False]
+
+
+# -- item 5: the loader refuses what generation cannot lay ---------------
+
+
+def _three_heaps(tmp_path: pathlib.Path) -> "tuple[dict[str, typing.Any], pathlib.Path]":
+    document, _loaded = _described(tmp_path, _three_hours())
+    block = _block(document)
+    assert block["clock_census"] == [] and [heap["count"] for heap in block["clock_heaps"]] == [100, 100, 100]
+    assert block["low_tail"]["boundary"] == block["high_tail"]["boundary"] == "08:00"
+    return document, tmp_path
+
+
+def _loads(folder: pathlib.Path, document: "dict[str, typing.Any]", name: str) -> "contract.Profile | str":
+    path = fixtures.write_profile(folder, f"{name}.json", document)
+    try:
+        return contract.load_profile(str(path))
+    except errors.ProfileError as refused:
+        return f"{refused}"
+
+
+def _one_row_short(document: "dict[str, typing.Any]") -> "dict[str, typing.Any]":
+    """`08:00`'s heap 99 of the body's 100 cells, all of them at `08:00`."""
+    changed = copy.deepcopy(document)
+    for heap in _block(changed)["clock_heaps"]:
+        if heap["value"] == "08:00":
+            heap["count"] = 99
+    return changed
+
+
+def _listed_beside_a_full_heap(document: "dict[str, typing.Any]") -> "dict[str, typing.Any]":
+    """The low tail's 100 rows listing `07:00` and `07:30` at a mean of 45, its heap on `07:00` 100."""
+    changed = copy.deepcopy(document)
+    block = _block(changed)
+    block["clock_step"] = 1800
+    block["low_tail"]["values"] = ["07:00", "07:30"]
+    block["low_tail"]["mean_distance"] = 45.0
+    return changed
+
+
+def test_item_5_the_loader_refuses_what_generation_cannot_lay(tmp_path: pathlib.Path) -> None:
+    """CC5 asks a block with no census for room; CH1 holds a listing tail to its heaps.
+
+    At 90466b2 both loaded: the first stopped generation on an internal
+    error, a body cell on no heap with no step to stand on, and the
+    second's twin wrote no `07:30` and a low tail 60 minutes out on
+    average against a published 45. The unchanged description loads,
+    generates and validates.
+    """
+    document, folder = _three_heaps(tmp_path)
+    loaded = _loads(folder, document, "unchanged")
+    assert isinstance(loaded, contract.Profile)
+    _twin_cells, path = _twin(loaded, 0, folder)
+    assert _missed(loaded, path) == []
+    short = _loads(folder, _one_row_short(document), "short")
+    assert isinstance(short, str) and "no census is published, and 1 cells" in short, short
+    listed = _loads(folder, _listed_beside_a_full_heap(document), "listed")
+    assert isinstance(listed, str) and "beside 1 value(s) it lists on no heap" in listed, listed
+    # ...and the mean on its own: 99 rows of the heap leave the one row of
+    # `07:30` 30 minutes out where the mean wants 1,500 more.
+    meant = _listed_beside_a_full_heap(document)
+    for heap in _block(meant)["clock_heaps"]:
+        if heap["value"] == "07:00":
+            heap["count"] = 99
+    refused = _loads(folder, meant, "meant")
+    assert isinstance(refused, str) and "the low tail's mean puts the sum of its distances" in refused, refused
+
+
+def test_item_5_red_without_the_room_asked_beside_no_census(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    built = calendar_clock.clock_group_reach
+    monkeypatch.setattr(
+        calendar_clock, "clock_group_reach",
+        lambda groups, form, stride, body, heaps: [max(1, units) for units in built(groups, form, stride, body, heaps)],
+    )
+    document, folder = _three_heaps(tmp_path)
+    loaded = _loads(folder, _one_row_short(document), "short")
+    assert isinstance(loaded, contract.Profile)
+    with pytest.raises(errors.ProfileError):
+        generation.generate(loaded, 0)
+
+
+def test_item_5_red_without_the_listed_tails_reconciled(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(contract, "_listed_tails_hold_their_heaps", lambda *_a: None)
+    document, folder = _three_heaps(tmp_path)
+    loaded = _loads(folder, _listed_beside_a_full_heap(document), "listed")
+    assert isinstance(loaded, contract.Profile)
+    twin, path = _twin(loaded, 0, folder)
+    assert "07:30" not in twin
+    assert "t:tails.low.values" in _missed(loaded, path)
+
+
+# -- item 6: the heaps are looked up in work that grows with them --------
+
+# What work that grows with the heaps may grow by when they double, and
+# what the list lookup reaches, so the measure is known to see it.
+_LINEAR_AT_MOST = 2.5
+_SQUARE_AT_LEAST = 3.0
+
+
+class _Counted(int):
+    """A clock ordinal whose every equality test is counted."""
+
+    __hash__ = int.__hash__
+
+    def __eq__(self, other: object) -> bool:
+        _COMPARED[0] += 1
+        return int.__eq__(self, other)
+
+
+_COMPARED = [0]
+
+
+def _heaped_description(folder: pathlib.Path, heaps: int) -> pathlib.Path:
+    """Codex's shape, smaller: every third second from 08:00:00 on twelve rows, and twenty between.
+
+    Each third second stands out from the empty seconds beside it, so the
+    column publishes one heap a value; the twenty single seconds between
+    two of them leave a census to count.
+    """
+    start = 8 * 3600
+    cells: "list[str]" = []
+    for place in range(heaps):
+        at = start + 3 * place
+        cells += [f"{at // 3600:02d}:{at // 60 % 60:02d}:{at % 60:02d}"] * 12
+    middle = start + 3 * (heaps // 2)
+    for place in range(20):
+        at = middle + 3 * place + 1
+        cells += [f"{at // 3600:02d}:{at // 60 % 60:02d}:{at % 60:02d}"]
+    random.Random(heaps).shuffle(cells)
+    document, _loaded = _described(folder, cells)
+    block = _block(document)
+    assert len(block["clock_heaps"]) >= heaps - 2 and block["clock_census"] != []
+    return folder / "table.json"
+
+
+def _comparisons(path: pathlib.Path) -> int:
+    """How many times a clock ordinal is compared for equality while the loader reads one description."""
+    built = contract._clock_at
+
+    def counted(text: str, form: str) -> "tuple[int, str]":
+        at, said = built(text, form)
+        return _Counted(at), said
+
+    with pytest.MonkeyPatch.context() as patch:
+        patch.setattr(contract, "_clock_at", counted)
+        _COMPARED[0] = 0
+        contract.load_profile(str(path))
+    return _COMPARED[0]
+
+
+@pytest.fixture(scope="module")
+def _heaped(tmp_path_factory: pytest.TempPathFactory) -> "tuple[pathlib.Path, pathlib.Path]":
+    folder = tmp_path_factory.mktemp("heaped")
+    return _heaped_description(folder / "small", 300), _heaped_description(folder / "large", 600)
+
+
+def test_item_6_the_heaps_are_looked_up_in_work_that_grows_with_them(
+    _heaped: "tuple[pathlib.Path, pathlib.Path]",
+) -> None:
+    """Comparisons at 600 heaps against 300: about two now, and about four at 90466b2.
+
+    At 90466b2 every published heap, rung and boundary asked the list of
+    heaps whether it was one, so the comparisons grew with the square of
+    the heaps -- about 414 million at the 28,800 heaps of Codex's million
+    rows. A set answers each with one.
+    """
+    small, large = _comparisons(_heaped[0]), _comparisons(_heaped[1])
+    assert small > 0
+    assert large / small < _LINEAR_AT_MOST, (small, large)
+
+
+def test_item_6_red_when_the_heaps_are_a_list_again(
+    _heaped: "tuple[pathlib.Path, pathlib.Path]", monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(contract, "set", list, raising=False)
+    small, large = _comparisons(_heaped[0]), _comparisons(_heaped[1])
+    assert large / small >= _SQUARE_AT_LEAST, (small, large)

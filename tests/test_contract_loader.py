@@ -1671,6 +1671,45 @@ def battery() -> list[Mutation]:
                 ],
             ),
         ),
+        # ...AND THE LANDING'S REVIEW, item 5: a block publishing no census
+        # is asked of the one group its body's cells on no heap make, and a
+        # tail listing its values of the rows and the sum its heaps leave.
+        Mutation(
+            "CC5", "no clock census, every body cell on a heap the boundaries are not on",
+            edit(
+                "seen_at",
+                clock_census=[],
+                clock_heaps=[{"value": "07:30", "count": 214}],
+            ),
+        ),
+        Mutation(
+            "CH1", "a listing clock tail whose heap leaves its other value no row",
+            edit(
+                "seen_at",
+                low_tail={
+                    "boundary": "07:06",
+                    "rows": 12,
+                    "mean_distance": 3.5,
+                    "rms_distance": None,
+                    "values": ["07:00", "07:05"],
+                },
+                clock_heaps=[{"value": "07:00", "count": 12}],
+            ),
+        ),
+        Mutation(
+            "CH1", "a listing clock tail whose mean its heap and other value cannot add",
+            edit(
+                "seen_at",
+                low_tail={
+                    "boundary": "07:06",
+                    "rows": 12,
+                    "mean_distance": 3.5,
+                    "rms_distance": None,
+                    "values": ["07:00", "07:05"],
+                },
+                clock_heaps=[{"value": "07:00", "count": 11}],
+            ),
+        ),
         # -- 3b.C2 (P4-D374)
         Mutation(
             "R16", "a minute_census of clock times this version of synthtwin publishes none of",
