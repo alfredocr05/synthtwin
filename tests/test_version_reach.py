@@ -360,7 +360,14 @@ RUNNING_NAMES = ("exec", "eval", "compile", "runpy.run_path", "runpy.run_module"
 # review's item 10). What it loads is a committed file under tools/,
 # which this guard reads directly, so the floor holds for it as it does
 # for the other thirty.
-FILES_LOADED_AS_MODULES = 31
+#
+# 32 AT PLAN P4-D390, not 31: `tests/test_p4d18_shape_forms.py` loads
+# `tools/reference/make_generation_reference_vectors.py` through
+# `_reference_oracle`, so the oracle's bound on a form's stand-in walk is
+# asked beside the product's. What it loads is a committed file under
+# tools/, which this guard reads directly, so the floor holds for it as
+# it does for the other thirty-one.
+FILES_LOADED_AS_MODULES = 32
 
 
 def _files() -> "list[pathlib.Path]":
