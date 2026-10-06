@@ -1,8 +1,7 @@
 """The clock census's one review (stage 3b landing 3b.5, lane C1, plan P4-D373): each item it raised, pinned.
 
-Codex read landing 3b.5 at 90466b2 and raised eight items, each fixed in
-this stream and none sent back (the owner, 2026-09-28); the items fixed
-so far stand below. Each clause below
+Codex read landing 3b.5 at 90466b2 and raised eight items, every one
+fixed here and none sent back (the owner, 2026-09-28). Each clause below
 failed at 90466b2 and passes with its fix, and each fix that is a rule
 rather than a sentence has a mutant that turns its clause red again:
 
@@ -45,7 +44,10 @@ rather than a sentence has a mutant that turns its clause red again:
   list again);
 * item 7 `test_item_7_a_time_of_another_precision_is_not_called_no_time`
   -- NF107 called `14:00:00` among times written to the minute "text
-  that is not a time of day".
+  that is not a time of day";
+* item 8 `test_item_8_the_clock_kpi_says_where_a_clock_shaped_cell_is_no_time`
+  -- K-S3-49 promised every clock-shaped twin cell a time, while file 21's
+  `labels_clock_line` writes ten `26:32` to keep its label column labels.
 """
 
 from __future__ import annotations
@@ -708,3 +710,27 @@ def test_item_7_a_time_of_another_precision_is_not_called_no_time(tmp_path: path
     assert "not a time of day" not in said
     assert "not read as times of day in the form its times are written in" in said
     assert "a time written another way" in said
+
+
+# -- item 8: the clock KPI says where a clock-shaped cell is no time -----
+
+
+def test_item_8_the_clock_kpi_says_where_a_clock_shaped_cell_is_no_time() -> None:
+    """K-S3-49 names G8.3's clock line, past which a label column's stand-in is no time.
+
+    File 21's `labels_clock_line` writes ten `26:32` so its column stays
+    labels, as G8.3 means it to; at 90466b2 the KPI's name said "every
+    clock-shaped twin cell is a time" and its rule said nothing of them.
+    """
+    cases = json.loads(_VECTORS_21.read_text(encoding="utf-8"))["cases"]
+    shaped = [
+        cell
+        for cell in cases["labels_clock_line"]["cells"]
+        if len(cell) == 5 and cell[2] == ":" and parsing.clock_ordinal(cell, "hh-mm") is None
+    ]
+    assert shaped == ["26:32"] * 10
+    entries = json.loads(_LEDGER.read_text(encoding="utf-8"))["entries"]
+    entry = next(one for one in entries if one["id"] == "K-S3-49")
+    assert "every clock-shaped twin cell is a time" not in entry["name"]
+    assert "labels" in entry["name"] and "clock line" in entry["name"]
+    assert "labels_clock_line" in entry["rule"] and "26:32" in entry["rule"]
