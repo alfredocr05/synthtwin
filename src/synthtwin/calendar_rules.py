@@ -35,10 +35,11 @@ CONSERVATIVE rules, set on the cases where a twin was measured to miss
 the column's count of different values: too few different dates in a
 group (`few_dates`); too few of the column's different days left to the
 body, once the most its rebuilt tails can hold is set aside, for the
-days the census needs between the body's pins, which a raised floor
-narrows (`count_room_short`, plan P4-D388); and, beside May's holes,
-placeholder days or declared days (never width holes alone), a group
-with no free day that holds a date of one row (`room_short`). They are
+days the census needs between the body's pins, asked at every floor
+(`count_room_short`, plan P4-D388 and its Codex review, item 1); and,
+beside May's holes, placeholder days or declared days (never width
+holes alone), a group with no free day that holds a date of one row
+(`room_short`). They are
 rules, not proofs that no twin can meet the census: each also withholds
 some censuses a twin meets (1 to 21 January 2024, a hundred rows a date;
 the 50 columns plan P4-D365 counts, and those P4-D388 counts). Both the
@@ -153,19 +154,6 @@ REASON_UNSAID = "unsaid"
 # P4-D365, item 2). The thresholds stay; that is their price.
 FEWEST_REAL_DATES = 3
 MEAN_REAL_HALF_DATES = 15
-
-# THE COUNT-ROOM RULE IS ASKED ABOVE THIS FLOOR (plan P4-D388): the
-# floor the few-dates rule was set and measured at. A twin rebuilds a
-# tail publishing its two distances with up to the floor's number of
-# different days, so it is a raised floor that narrows the room the
-# count of different values leaves the body (`count_room_short`). At
-# this floor and below the rule is not asked: over the 26 date batteries
-# measured no published census left a twin holding more different values
-# than its column there, and asked there the rule would withhold 15 of
-# the 2,379 censuses published at 11, every twin of which met them, and
-# none of the 2,148 at 5. At 12 a published census already left its
-# twins long (`_hunt(690)` of tests/test_stage3b_count_room.py).
-COUNT_ROOM_ABOVE_FLOOR = 11
 
 # THE DAYS A TAIL'S SPREAD BOUND ALLOWS BESIDE ITSELF (`tails_most`, plan
 # P4-D388). The twin's tail is drawn to its published sum of squares in
@@ -1212,11 +1200,14 @@ def count_room_short(
 ) -> bool:
     """Whether the body is left too few different days for the census (plan P4-D388).
 
-    THE PRODUCER'S COUNT-ROOM RULE, the few-dates rule's companion where
-    the floor is raised. `pins` are the body's pinned ranks with their
-    days, ascending (`body_pins`); `days` is how many different days the
-    column holds; `tails` the most different days the twin's two tails
-    can hold (`tails_most`).
+    THE PRODUCER'S COUNT-ROOM RULE, the few-dates rule's companion, asked
+    at every floor: it was asked above the floor of 11 alone until the
+    Codex review of P4-D388 (item 1) moved one cell of a column the rule
+    withholds at 12 and found its census at 11 leaving a twin long, 27
+    different values for 24 at seed 17. `pins` are the body's pinned
+    ranks with their days, ascending (`body_pins`); `days` is how many
+    different days the column holds; `tails` the most different days the
+    twin's two tails can hold (`tails_most`).
 
     The twin's count pass leaves the body the column's different days
     less those its tails hold -- at least `days - tails`, its ROOM. Its

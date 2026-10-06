@@ -7028,12 +7028,12 @@
   },
   {
    "id": "K-S3-59",
-   "phase_stage": "Stage 3b landing 3b.D1b, the count's room at a raised floor (plan P4-D388)",
+   "phase_stage": "Stage 3b landing 3b.D1b, the count's room at every floor (plan P4-D388)",
    "category": "STATS",
    "headline": false,
-   "name": "Above the floor of 11 a weekday census is withheld where the count of different values leaves its body too little room, and every one published keeps its twins' count",
+   "name": "At every floor a weekday census is withheld where the count of different values leaves its body too little room, and every one published keeps its twins' count",
    "status": "GREEN",
-   "rule": "the ten pinned nodes pass: on hand-made pins the count-room rule needs every pin day and, inside each gap, a day of every other group holding rows, at most one a rank, withholds only where the room is less than that need, and speaks only where the census needs a day past the pins; the pins are the two boundaries and the rungs published strictly between them, the generator's own body pins; a tail's most is its listed values, or the floor's number and no more than two days past what its spread allows; two weekly schedules at the floor of 36 and one date a month over 60 months at the floor of 50 are withheld, and restored their twins come back holding more different values than the column; the producer hands the rule the block's pins and tails at 20 and 36 and does not ask it at 11, where a 95-row column over 24 days keeps its census, met by its twins; at 12 a 131-row column over 24 days is withheld, and restored its twins come back long; at 20 a 122-row column whose room equals its need keeps its census, met by its twins; and nine schedules at the floors of 11, 20, 36 and 50 take their stated decisions, every twin of a published census missing nothing",
+   "rule": "the eleven pinned nodes pass: on hand-made pins the count-room rule needs every pin day and, inside each gap, a day of every other group holding rows, at most one a rank, withholds only where the room is less than that need, and speaks only where the census needs a day past the pins; the pins are the two boundaries and the rungs published strictly between them, the generator's own body pins; a tail's most is its listed values, or the floor's number and no more than two days past what its spread allows; two weekly schedules at the floor of 36 and one date a month over 60 months at the floor of 50 are withheld, and restored their twins come back holding more different values than the column; the producer hands the rule the block's pins and tails at 11, 20 and 36; at 11 a 95-row column over 24 days is withheld though its twins met it, and the Codex review's 131-row column whose twin at seed 17 went long is withheld; at 12 a 131-row column over 24 days is withheld, and restored its twins come back long; at 20 a 122-row column whose room equals its need keeps its census, met by its twins; and nine schedules at the floors of 11, 20, 36 and 50 take their stated decisions, every twin of a published census missing nothing",
    "rule_kind": "exact",
    "expected": {
     "pinned_nodes_failing": 0
@@ -7047,7 +7047,8 @@
     "tests/test_stage3b_count_room.py::test_a_raised_floor_withholds_a_schedule_whose_twin_would_go_long",
     "tests/test_stage3b_count_room.py::test_one_date_a_month_at_the_floor_of_50_is_withheld_and_restored_comes_back_long",
     "tests/test_stage3b_count_room.py::test_the_producer_hands_the_rule_the_block_s_pins_and_tails",
-    "tests/test_stage3b_count_room.py::test_at_the_floor_of_11_the_rule_is_not_asked_and_a_small_column_keeps_its_census",
+    "tests/test_stage3b_count_room.py::test_at_the_floor_of_11_the_rule_is_asked_and_withholds_a_census_its_twins_met",
+    "tests/test_stage3b_count_room.py::test_at_the_floor_of_11_a_census_whose_twin_at_seed_17_went_long_is_withheld",
     "tests/test_stage3b_count_room.py::test_at_the_floor_of_12_the_rule_is_asked_and_withholds_a_census_whose_twins_would_go_long",
     "tests/test_stage3b_count_room.py::test_at_the_floor_of_20_a_census_whose_room_equals_its_need_is_published_and_met",
     "tests/test_stage3b_count_room.py::test_no_published_census_costs_its_twins_their_count_at_any_floor"
@@ -7057,7 +7058,7 @@
    "pin_strength": "EXACT",
    "measured_on": "tests/test_stage3b_count_room.py: hand-made pins and tails, the review's weekly schedules and clinics, one date a month over 60 months, and two small columns of D0's hunt batteries",
    "evidence": "Measured on the 26 date batteries of D0's identity run (4,781 tables), seeds 0 to 4, 493f6f8 against the landing's code after its review, over the twins of every table whose document holds, is offered or changes a census: censuses published 2,379 and 2,379 at the floor of 11, where no document changes, 2,135 and 1,946 at 20, 1,208 and 1,124 at 36, 978 and 868 at 50; twins with a MISSED check 35 and 35 of 17,950, 146 and 60 of 14,860, 147 and 60 of 7,735, 253 and 95 of 6,375, none missing a check its 493f6f8 twin met; twins long by their census (more different values than the column beside a published census whose withheld twin meets the count) 86, 87 and 158 at 20, 36 and 50 before, none after. The price: of the 189, 84 and 110 censuses newly withheld, 166, 65 and 76 were met by their twins. At the floor of 12, on the eight batteries the review measured there (4,037 tables), 1,931 and 1,901 published and the 5 twins long by their census none, of the 30 withheld one long and 29 met. Withholding at the need too, as the landing first did, withheld 19 more at 20 and one more at 50, every twin of which met them. Scored on 493f6f8's records, thresholds scaled with the census line withheld 618, 509 and 553, and by its square root 367, 303 and 306 with 1, 5 and 5 columns left long by the census; the floor's number alone as each tail's most withheld 297, 115 and 141, and the twins' own tail days would withhold 23, 19 and 71. Asked at the floor of 11 the rule would withhold 15 censuses, every twin meeting them, and none at 5. Fifteen twins at 36 and fifty at 50 stay long beside a published census whose withheld twin is long too, their tails rebuilt with more days than the column holds; none of the 36,835 tail sides of the batteries' published twins held more than one day past its spread bound. Of 43 mutants of the rule, its pins, its tails' most, its scope, its call and the generator's body pins, 41 turn a pinned node red; the other 2 change no answer.",
-   "nodes_min_collected": 19,
+   "nodes_min_collected": 20,
    "value_at": {
     "commit": "47cd73c",
     "date": "2026-10-06",

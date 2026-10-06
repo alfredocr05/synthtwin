@@ -1,4 +1,4 @@
-"""Landing 3b.D1b (plan P4-D388): above the floor of 11 no published weekday census leaves a twin holding too many values.
+"""Landing 3b.D1b (plan P4-D388) and its Codex review's item 1: at every floor a weekday census is withheld where the count of different values leaves its body too little room.
 
 The few-dates rule of landing 3b.G (plan P4-D365) was measured at the
 floor of 11 alone. Raised to 36, 59 twins of the date batteries published
@@ -13,11 +13,14 @@ table's own numbers decide shares. Its two halves are what the
 construction can do at most -- the tails' most (`tails_most`), the
 census's need between the body's pins (`body_pins`) -- so it is
 conservative, and its price is the censuses it withholds that a twin
-would have met. It is asked above the floor of 11, the floor the
-few-dates rule was measured at (`COUNT_ROOM_ABOVE_FLOOR`): there no
-published census was measured to leave a twin long, and the rule asked
-there withheld only censuses whose twins met them, while at 12 one
-census already left its twins long.
+would have met.
+
+ITS CODEX REVIEW, ITEM 1. The rule was asked above the floor of 11
+alone, the floor the few-dates rule was measured at, and a column it
+withholds at 12 with one cell moved published its census at 11 and
+left a twin long, 27 different values for 24 at seed 17: it is asked
+at every floor now, and at 11 it also withholds censuses whose twins
+met them, its price there.
 
 Each test names the mutation that turns it red.
 """
@@ -93,6 +96,13 @@ def _hunt(seed: int) -> "list[str]":
     return [draw.choices(days, weights)[0].isoformat() for _ in range(rows)]
 
 
+def _moved_hunt_690() -> "list[str]":
+    """`_hunt(690)` with one `2024-07-02` cell written `2024-05-16` (the Codex review of P4-D388, item 1)."""
+    cells = list(_hunt(690))
+    cells[cells.index("2024-07-02")] = "2024-05-16"
+    return cells
+
+
 def _day(cell: str) -> int:
     """An ISO date as a day number counted from 1970-01-01."""
     return parsing.days_from_civil(int(cell[0:4]), int(cell[5:7]), int(cell[8:10]))
@@ -117,10 +127,10 @@ def _seven(counts: "tuple[int, ...]") -> "tuple[tuple[int, int, int], ...]":
     return tuple((weekday, weekday, counts[weekday]) for weekday in range(7))
 
 
-def _restored_twins_long(
+def _restored(
     tmp_path: pathlib.Path, name: str, described: kpi_shapes.Described, cells: "list[str]", floor: int
-) -> None:
-    """The census the menu offers, written back into the description: every twin of seeds 0 to 2 long, both counts MISSED."""
+) -> contract.Profile:
+    """The description with the census the menu offers written back into it, loaded."""
     block = described.block("visit")
     body = sorted(_day(cell) for cell in cells)[block["low_tail"]["rows"] : len(cells) - block["high_tail"]["rows"]]
     groups, _entry = calendar_rules.menu_groups(calendar_rules.body_bins(body), parsing.census_floor(floor))
@@ -128,13 +138,39 @@ def _restored_twins_long(
     document["columns"] = [
         dict(block, weekday_census=[{"first": first, "last": last, "count": count} for first, last, count in groups])
     ]
-    restored = contract.load_profile(str(fixtures.write_profile(tmp_path, f"{name}-restored.json", document)))
-    for seed in (0, 1, 2):
-        twin = generation.generate(restored, seed)
-        assert len(set(twin.columns[0])) > block["n_distinct"], (name, seed)
-        written = fixtures.write(tmp_path, f"{name}-restored-{seed}.csv", rendering.twin_csv(twin))
-        missed = kpi_shapes.missed(validation.measure(restored, str(written)))
+    return contract.load_profile(str(fixtures.write_profile(tmp_path, f"{name}-restored.json", document)))
+
+
+def _twins_off(
+    tmp_path: pathlib.Path, name: str, profile: contract.Profile, seeds: "tuple[int, ...]", wanted: int, longer: bool
+) -> None:
+    """Every twin of `profile` at `seeds` holds more (or fewer) different values than `wanted`, both counts MISSED."""
+    for seed in seeds:
+        twin = generation.generate(profile, seed)
+        held = len(set(twin.columns[0]))
+        assert (held > wanted) if longer else (held < wanted), (name, seed, held, wanted)
+        written = fixtures.write(tmp_path, f"{name}-off-{seed}.csv", rendering.twin_csv(twin))
+        missed = kpi_shapes.missed(validation.measure(profile, str(written)))
         assert "visit:distinct.n_distinct" in missed and "visit:distinct.n_distinct_folded" in missed, (name, seed, missed)
+
+
+def _twins_meet(
+    tmp_path: pathlib.Path, name: str, profile: contract.Profile, seeds: "tuple[int, ...]"
+) -> None:
+    """Every twin of `profile` at `seeds` misses no check."""
+    for seed in seeds:
+        written = fixtures.write(tmp_path, f"{name}-met-{seed}.csv", rendering.twin_csv(generation.generate(profile, seed)))
+        assert kpi_shapes.missed(validation.measure(profile, str(written))) == [], (name, seed)
+
+
+def _restored_twins_long(
+    tmp_path: pathlib.Path, name: str, described: kpi_shapes.Described, cells: "list[str]", floor: int
+) -> None:
+    """The census the menu offers, written back into the description: every twin of seeds 0 to 2 long, both counts MISSED."""
+    _twins_off(
+        tmp_path, name, _restored(tmp_path, name, described, cells, floor), (0, 1, 2),
+        described.block("visit")["n_distinct"], True,
+    )
 
 
 def test_the_count_room_rule_needs_every_pin_day_and_each_gap_s_other_groups() -> None:
@@ -326,7 +362,7 @@ def test_one_date_a_month_at_the_floor_of_50_is_withheld_and_restored_comes_back
 def test_the_producer_hands_the_rule_the_block_s_pins_and_tails(
     tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """What `taxonomy.weekday_decision` hands the rule, and only above the floor of 11 (plan P4-D388).
+    """What `taxonomy.weekday_decision` hands the rule, at every floor (plan P4-D388 and its Codex review, item 1).
 
     `_weekly_schedule(0)` at the floor of 36: both tails publish their
     distances, so their most is the floor each, 36 and 36 though they
@@ -334,29 +370,35 @@ def test_the_producer_hands_the_rule_the_block_s_pins_and_tails(
     and 229, and the rungs published between them, p25, p50 and p75 at
     ranks 67, 134 and 201. At the floor of 20 its low tail lists two
     values and its high tail's 23 rows give 20, and the pins are the
-    boundaries at 21 and 246 with p10 to p95 between. At both floors the
-    pins are the body pins the generator lays from the description
+    boundaries at 21 and 246 with p10 to p95 between; at 11 its low tail
+    lists one value and its high tail's 14 rows give 11, the boundaries
+    at 14 and 255 with p05 to p95 between. At every floor the pins are
+    the body pins the generator lays from the description
     (`generation._date_layout`), rank for rank and day for day, so a pin
     the generator gains or loses there -- landing 3b.D4 pins each listed
     date in `_heavy_layout` (plan P4-D369) -- parts them. The column's
-    different days are its own 35. At the floor of 11 the rule is not
-    asked at all (`calendar_rules.COUNT_ROOM_ABOVE_FLOOR`). Red when the
-    rungs are not handed over, the column's rows stand for its days, the
-    settings floor is not read, a listed tail is handed over as one
-    publishing its distances, the rule's pins part from the generator's
-    body pins, or the rule is asked at the floor of 11.
+    different days are its own 35. Red when the rungs are not handed
+    over, the column's rows stand for its days, the settings floor is not
+    read, a listed tail is handed over as one publishing its distances,
+    the rule's pins part from the generator's body pins, or the rule is
+    not asked at the floor of 11.
     """
     seen: "list[tuple[object, ...]]" = []
     asked = calendar_rules.count_room_short
 
     def recorded(groups: object, pins: "tuple[tuple[int, int], ...]", days: int, tails: int) -> bool:
-        seen.append((pins, days, tails))
+        nonlocal seen
+        seen += [(pins, days, tails)]
         return asked(groups, pins, days, tails)  # type: ignore[arg-type]
 
     monkeypatch.setattr(calendar_rules, "count_room_short", recorded)
     cells = _weekly_schedule(0)
     ordered = sorted(_day(cell) for cell in cells)
-    for floor, tails, ranks in ((36, 72, [59, 67, 134, 201, 229]), (20, 22, [21, 26, 67, 134, 201, 242, 246])):
+    for floor, tails, ranks in (
+        (36, 72, [59, 67, 134, 201, 229]),
+        (20, 22, [21, 26, 67, 134, 201, 242, 246]),
+        (11, 12, [14, 26, 67, 134, 201, 242, 255]),
+    ):
         seen.clear()
         described = _described(tmp_path, f"floor{floor}", cells, floor)
         block = described.block("visit")
@@ -378,33 +420,26 @@ def test_the_producer_hands_the_rule_the_block_s_pins_and_tails(
         assert isinstance(column.facts, contract.DatetimeFacts)
         layout = generation._date_layout(column, column.facts, column.n_present - column.facts.n_unparsed, floor)
         assert list(pins) == [(rank, layout.body[rank]) for rank in sorted(layout.body)], (floor, layout.body)
-    seen.clear()
-    assert _described(tmp_path, "floor11", cells, 11).block("visit")["weekday_census"]
-    assert seen == [], seen
 
 
-def test_at_the_floor_of_11_the_rule_is_not_asked_and_a_small_column_keeps_its_census(tmp_path: pathlib.Path) -> None:
-    """The rule's scope (plan P4-D388): asked above the floor of 11, the floor the few-dates rule was measured at.
+def test_at_the_floor_of_11_the_rule_is_asked_and_withholds_a_census_its_twins_met(tmp_path: pathlib.Path) -> None:
+    """The rule's scope since its Codex review (item 1): asked at every floor, and its price at 11.
 
     `_hunt(1084)`, 95 visits over 24 days (D0's hunt batteries), at the
-    floor of 11 publishes Monday to Friday against the weekend and its
-    twins meet it at seeds 0 to 4. Asked here the rule would withhold it:
-    both tails publish their distances, 17 and 13 rows, so their most is
-    11 and 11 and leaves the body 2 of its 24 days, where its twins'
-    tails held 15 or 16 and left 8 or 9; the census needs 6. At the floor
-    of 11 the 26 batteries measured hold 15 such censuses, every twin of
-    which met them, and no published census whose twin went long. Red
-    when the rule is asked at the floor of 11 or below.
+    floor of 11: both tails publish their distances, 17 and 13 rows, so
+    their most is 11 and 11 and leaves the body 2 of its 24 days where
+    the census the menu offers, Monday to Friday against the weekend,
+    needs 6: withheld, `count_room`. Asked above the floor of 11 alone,
+    as P4-D388 first did, the rule published it, and its twins at seeds 0
+    to 4 met it with every check -- the rule's price, one of the 15
+    censuses of the 26 batteries asking it at 11 withholds, every twin of
+    which met them there. Red when the rule is not asked at the floor of 11.
     """
     cells = _hunt(1084)
     described = _described(tmp_path, "hunt1084", cells, 11)
     block = described.block("visit")
-    groups = tuple((group["first"], group["last"], group["count"]) for group in block["weekday_census"])
-    assert groups == ((0, 4, 29), (5, 6, 36)), groups
-    assert _decided(block, cells, 11).reason == ""
-    for seed in (0, 1, 2, 3, 4):
-        twin = kpi_shapes.twin_text(described, seed)
-        assert kpi_shapes.missed(kpi_shapes.measure(described, twin, f"hunt1084-{seed}.csv")) == [], seed
+    assert block["weekday_census"] == [], block["weekday_census"]
+    assert _decided(block, cells, 11).reason == calendar_rules.REASON_COUNT_ROOM
     ordered = tuple(sorted(_day(cell) for cell in cells))
     rungs = block["date_percentiles"]
     percents = [(100 * num) // den for label, num, den in taxonomy.LADDER if rungs[label] is not None]
@@ -412,13 +447,47 @@ def test_at_the_floor_of_11_the_rule_is_not_asked_and_a_small_column_keeps_its_c
     pins = calendar_rules.body_pins(ordered, block["low_tail"]["rows"], block["high_tail"]["rows"], percents)
     most = calendar_rules.tails_most(ordered, block["low_tail"]["rows"], block["high_tail"]["rows"], (None, None), 11)
     assert (block["low_tail"]["rows"], block["high_tail"]["rows"], most, len(set(ordered))) == (17, 13, 22, 24)
+    body = list(ordered[17 : len(ordered) - 13])
+    groups = calendar_rules.menu_groups(calendar_rules.body_bins(body), parsing.census_floor(11))[0]
+    assert groups == ((0, 4, 29), (5, 6, 36)), groups
     assert calendar_rules.count_room_short(groups, pins, len(set(ordered)), most)
+    _twins_meet(tmp_path, "hunt1084", _restored(tmp_path, "hunt1084", described, cells, 11), (0, 1, 2, 3, 4))
+
+
+def test_at_the_floor_of_11_a_census_whose_twin_at_seed_17_went_long_is_withheld(tmp_path: pathlib.Path) -> None:
+    """The Codex review of P4-D388, item 1: the floor-11 exemption admitted a census that broke the count.
+
+    `_hunt(690)` with one `2024-07-02` cell written `2024-05-16`: 131 rows
+    over 24 dates. At the floor of 11 both its tails publish their
+    distances, 16 and 11 rows, and 4a4b901 published the census the menu
+    offers, Monday to Friday 73 against the weekend 31, without asking the
+    count-room rule, which answers that the body is left too little room:
+    its twins at seeds 2, 3 and 17 came back with 25, 27 and 27 different
+    values for 24, both counts MISSED, and with 24 where the census was
+    emptied. Withheld now, `count_room`: its twins at those seeds meet
+    every check, and restored they come back long again. Red when the
+    count-room rule is not asked at the floor of 11.
+    """
+    cells = _moved_hunt_690()
+    assert (len(cells), len(set(cells))) == (131, 24)
+    described = _described(tmp_path, "moved690", cells, 11)
+    block = described.block("visit")
+    assert (block["low_tail"]["rows"], block["high_tail"]["rows"]) == (16, 11)
+    assert block["low_tail"]["values"] is None and block["high_tail"]["values"] is None
+    assert block["weekday_census"] == [], block["weekday_census"]
+    assert _decided(block, cells, 11).reason == calendar_rules.REASON_COUNT_ROOM
+    _twins_meet(tmp_path, "moved690", described.loaded, (2, 3, 17))
+    restored = _restored(tmp_path, "moved690", described, cells, 11)
+    column = restored.columns[0]
+    assert isinstance(column.facts, contract.DatetimeFacts)
+    assert column.facts.weekday_census == ((0, 4, 73), (5, 6, 31)), column.facts.weekday_census
+    _twins_off(tmp_path, "moved690", restored, (2, 3, 17), 24, True)
 
 
 def test_at_the_floor_of_12_the_rule_is_asked_and_withholds_a_census_whose_twins_would_go_long(
     tmp_path: pathlib.Path,
 ) -> None:
-    """The rule's scope at its lowest floor (plan P4-D388): at 12 a census 493f6f8 published left its twins long.
+    """The rule at the floor of 12 (plan P4-D388): a census 493f6f8 published there left its twins long.
 
     `_hunt(690)`, 131 visits over 24 days (D0's hunt batteries), at the
     floor of 12: both tails publish their distances, 16 and 12 rows, so
@@ -427,7 +496,7 @@ def test_at_the_floor_of_12_the_rule_is_asked_and_withholds_a_census_whose_twins
     weekend, needs 9. Withheld, `count_room`; restored, its twins at
     seeds 0 to 2 hold more different values than the column, both counts
     MISSED, as 493f6f8's twins did at seeds 0 to 4 (25 to 27 for 24).
-    Red when the rule is asked only from a floor above 12.
+    Red when the rule is not asked at the floor of 12.
     """
     cells = _hunt(690)
     described = _described(tmp_path, "hunt690", cells, 12)
