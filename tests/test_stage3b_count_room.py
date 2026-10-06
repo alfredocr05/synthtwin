@@ -15,7 +15,7 @@ census's need between the body's pins (`body_pins`) -- so it is
 conservative, and its price is the censuses it withholds that a twin
 would have met.
 
-ITS CODEX REVIEW, ITEMS 1 AND 2. (1) The rule was asked above the floor of
+ITS CODEX REVIEW, THREE ITEMS. (1) The rule was asked above the floor of
 11 alone, and a column it withholds at 12 with one cell moved published
 its census at 11 and left a twin long, 27 different values for 24 at
 seed 17: it is asked at every floor now. (2) A count is lost the other
@@ -31,6 +31,13 @@ draw falls short of the count the count pass only splits and the tails
 reach their most, and where it merges the body keeps no more than its
 draw. Read so, it withholds some censuses a twin meets -- two rows a
 business day over two years among them -- and that is its price.
+(3) What is claimed is what was measured: on the review's columns,
+the 26 batteries at seeds 0 to 4, 2,000 short spans, 25 weekday logs
+and six business-day logs, no census these rules publish left a twin a
+value long or short where
+its census withheld kept the count, and the tails' own limit stands
+beside them -- fifteen Mondays at the floor of 36 come back with 33
+different values for 15 with or without their census.
 
 Each test names the mutation that turns it red.
 """
@@ -39,6 +46,7 @@ from __future__ import annotations
 
 import dataclasses
 import datetime
+import json
 import math
 import pathlib
 import random
@@ -51,6 +59,7 @@ from synthtwin import calendar_rules, contract, generation, parsing, profile, re
 
 # Monday 1 January 2024 as a day number counted from 1970-01-01.
 _MONDAY = 19723
+_ROOT = pathlib.Path(__file__).resolve().parent.parent
 
 
 def _weekly_schedule(shape: int) -> "list[str]":
@@ -166,6 +175,12 @@ def _two_rows_a_business_day() -> "list[str]":
         cells += [day.isoformat()] * max(1, int(round(draw.gauss(2, 2 / 3))))
     draw.shuffle(cells)
     return cells
+
+
+def _mondays() -> "list[str]":
+    """Fifteen consecutive Mondays from 1 January 2024, ten rows each (the Codex review of P4-D388, item 3)."""
+    first = datetime.date(2024, 1, 1)
+    return [(first + datetime.timedelta(days=7 * week)).isoformat() for week in range(15) for _copy in range(10)]
 
 
 def _day(cell: str) -> int:
@@ -1256,10 +1271,10 @@ _BATTERY = {
 
 
 @pytest.mark.parametrize("builder,shape", sorted(_BATTERY))
-def test_no_published_census_costs_its_twins_their_count_at_any_floor(
+def test_nine_schedules_take_their_measured_decisions_and_their_published_censuses_are_met(
     tmp_path: pathlib.Path, builder: str, shape: int
 ) -> None:
-    """Nine schedules at the floors of 11, 20, 36 and 50: each decision, and every published census met (plan P4-D388).
+    """Nine schedules at the floors of 11, 20, 36 and 50: each decision, and every census published met at seeds 0 and 1.
 
     Weekly schedules and clinics of the review's batteries. At 493f6f8
     the census of `schedule` 0 at the floor of 36, and of `schedule` 1
@@ -1270,10 +1285,11 @@ def test_no_published_census_costs_its_twins_their_count_at_any_floor(
     held fewer days. `schedule` 4 and 17 and `clinic` 61, their tails
     listing their values, publish at every floor, and `schedule` 0 again
     at 50, where its census is Monday to Friday against the weekend and
-    needs no day past the pin days. Every twin of a published census, at
-    seeds 0 and 1, misses no check. Red when the rule stops withholding
-    a long schedule, withholds a census whose tails list their values,
-    or speaks where the census needs no day past the pins.
+    needs no day past the pin days. Every twin of a census published here,
+    at seeds 0 and 1, misses no check; that is what these nine measure,
+    not a promise about every column. Red when the rule stops withholding
+    a long schedule, withholds a census whose tails list their values, or
+    speaks where the census needs no day past the pins.
     """
     cells = _weekly_schedule(shape) if builder == "schedule" else _weekly_clinic(shape)
     for floor, reason in zip((11, 20, 36, 50), _BATTERY[(builder, shape)]):
@@ -1289,3 +1305,68 @@ def test_no_published_census_costs_its_twins_their_count_at_any_floor(
             assert kpi_shapes.missed(kpi_shapes.measure(described, twin, f"twin-{floor}-{seed}.csv")) == [], (
                 builder, shape, floor, seed,
             )
+
+
+def test_fifteen_mondays_at_the_floor_of_36_come_back_long_with_or_without_their_census(tmp_path: pathlib.Path) -> None:
+    """The stated limit beside the rules (the Codex review of P4-D388, item 3): tails rebuilt long whatever the census.
+
+    Fifteen consecutive Mondays from 1 January 2024, ten rows each, at the
+    floor of 36: both tails publish their two distances over 40 rows, and
+    the twin rebuilds them on at least 30 different days whatever its
+    draws (`tails_fewest`), twice the column's 15. Its census, Monday 70
+    against Tuesday to Sunday 0, needs no day past the pins and asks the
+    body for nothing its tails take away, so neither count rule withholds
+    it, and its twins at seeds 0 to 2 hold 33 different values for 15 --
+    and 33 with the census emptied. The census is not the cause, and the
+    count rules do not claim this column: the twin's report names the
+    deviation and the validator reads both distinct counts as WITHIN-BOUND,
+    the window the tails' construction allows, as P4-D388 records. Red when
+    the limit changes and nothing records it.
+    """
+    cells = _mondays()
+    described = _described(tmp_path, "mondays", cells, 36)
+    block = described.block("visit")
+    assert (block["low_tail"]["rows"], block["high_tail"]["rows"]) == (40, 40)
+    assert block["low_tail"]["values"] is None and block["high_tail"]["values"] is None
+    groups = tuple((group["first"], group["last"], group["count"]) for group in block["weekday_census"])
+    assert groups == ((0, 0, 70), (1, 6, 0)), groups
+    assert _layout_fewest(described, 36) == 30
+    document = dict(described.document)
+    document["columns"] = [dict(block, weekday_census=[])]
+    emptied = contract.load_profile(str(fixtures.write_profile(tmp_path, "mondays-emptied.json", document)))
+    for name, loaded in (("published", described.loaded), ("emptied", emptied)):
+        for seed in (0, 1, 2):
+            twin = generation.generate(loaded, seed)
+            assert len(set(twin.columns[0])) == 33, (name, seed)
+            written = fixtures.write(tmp_path, f"mondays-{name}-{seed}.csv", rendering.twin_csv(twin))
+            verdicts = {
+                check.subcheck: check.verdict
+                for check in validation.measure(loaded, str(written)).checks
+                if check.column == "visit" and check.subcheck in ("distinct.n_distinct", "distinct.n_distinct_folded")
+            }
+            assert verdicts == {
+                "distinct.n_distinct": validation.WITHIN_BOUND,
+                "distinct.n_distinct_folded": validation.WITHIN_BOUND,
+            }, (name, seed, verdicts)
+
+
+def test_k_s3_59_claims_what_was_measured_and_states_the_limit_beside_it() -> None:
+    """K-S3-59 and the landing's changelog entry say what was measured, never that every census keeps its count (item 3).
+
+    The ledger entry's name said that every census published keeps its
+    twins' count, which fifteen Mondays at the floor of 36 disprove, the
+    census not their cause. Its name now claims what its nodes and the
+    batteries measured, its evidence and the changelog name the limit,
+    and neither says the rules repair it. Red when the name claims every
+    published census again, or the limit goes unnamed.
+    """
+    ledger = json.loads((_ROOT / "tests" / "kpi" / "ledger.json").read_text(encoding="utf-8"))
+    entry = [item for item in ledger["entries"] if item["id"] == "K-S3-59"][0]
+    assert "every one published keeps" not in entry["name"], entry["name"]
+    assert "measured" in entry["name"] and "fifteen Mondays" in entry["name"], entry["name"]
+    assert "fifteen Mondays" in entry["evidence"], entry["evidence"]
+    changelog = (_ROOT / "CHANGELOG.md").read_text(encoding="utf-8")
+    start = changelog.index("**Landing 3b.D1b**")
+    section = changelog[start : changelog.index("\n### ", start)]
+    assert "fifteen Mondays" in section, section
+    assert "no longer leaves a twin with too many different days" not in changelog
