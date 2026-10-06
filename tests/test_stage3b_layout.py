@@ -1049,7 +1049,8 @@ def test_sk2_item1_no_offset_the_census_names_is_written_for_its_class_count(
     on exactly the 300 the census gives it and the five it owes at
     `+0100`, and validates at floors 11 and 36 and seeds 0 to 2. Mutant,
     run: the named offsets left on the offer, and the twin wears `+0000` on
-    305 cells and misses `utc_offsets` at every seed and floor.
+    305 cells -- the twin skeptic 2 measured missing `utc_offsets` at every
+    seed and both floors.
     """
     cells = _stamps_wearing(1000, 101, [("+0000", 300), ("-0500", 5)])
     for floor in (11, 36):
@@ -1188,8 +1189,9 @@ def test_sk2_item4_every_member_layout_sets_the_spaces_round_a_cell_aside() -> N
     Each reads a cell with a space, a tab or a no-break space before or
     after it as the member it stands in for does, and no other layout is
     among them. Mutants, run: `{D}/{M}/`, `{MM}.{DD}.` or `{DD}/{MM}/` left
-    out of the member shapes, or the 1940 window left out of the set --
-    each turned an answered column of births back into free text.
+    out of the member shapes, or the 1940 window left out of the set. Three
+    of the four turned an answered column of births back into free text
+    (skeptic 2); the fourth was stood in for by `{D}/{M}/`.
     """
     for name in _MEMBER_LAYOUTS:
         assert parsing.layout_sets_spaces_aside(name), name
