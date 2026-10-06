@@ -16083,16 +16083,17 @@ def _census_days(
     details: "dict[str, object]", pairs: "list[tuple[str, str]]"
 ) -> "tuple[int, ...]":
     """The day of every parsed (canonical, offset) pair, ascending, where
-    a weekday census may stand: a column of whole dates read on the local clock, in any member
-    but the joint one (landing 3b.1, plan P4-D355). Empty elsewhere --
-    a column of moments publishes `weekday_census: []` until landing 3b.2.
+    a weekday census may stand: a column of whole dates or of moments
+    read on the local clock, in any member but the joint one (landing
+    3b.1, plan P4-D355; moments since landing 3b.D2, plan P4-D367, whose
+    instants `_census_moments` gives beside). Empty elsewhere.
 
     Guarantees: accepts the published details and the parsed pairs;
     returns the days. Determinism: a function of the two. Raises nothing.
     No I/O of any kind.
     """
     if (
-        details["resolution"] != RESOLUTION_DATE
+        details["resolution"] not in (RESOLUTION_DATE, RESOLUTION_DATETIME)
         or details["datetimes_read_at"] != READ_AT_LOCAL
         or details["format"] == FORMAT_ISO_MIXED
     ):
@@ -16105,6 +16106,39 @@ def _census_days(
             )
         ]
     return tuple(sorted(days))
+
+
+def _census_moments(
+    details: "dict[str, object]", pairs: "list[tuple[str, str]]"
+) -> "tuple[int, ...]":
+    """The instant of every parsed pair, in whole seconds of the local clock,
+    ascending, where a weekday census of MOMENTS may stand (landing 3b.D2,
+    plan P4-D367): what `_census_days` asks of a column of moments, read
+    as the wall clock its canonical text names. Empty on a column of
+    whole dates and wherever no census stands. Never published.
+
+    The body is cut from these by the published tails' rows, as the
+    census counts it, so a cell sharing a boundary's day but standing
+    before its instant is a tail cell, never a body cell (contract WC3).
+
+    Guarantees: accepts the published details and the parsed pairs;
+    returns the instants. Determinism: a function of the two. Raises
+    nothing. No I/O of any kind.
+    """
+    if (
+        details["resolution"] != RESOLUTION_DATETIME
+        or details["datetimes_read_at"] != READ_AT_LOCAL
+        or details["format"] == FORMAT_ISO_MIXED
+    ):
+        return ()
+    moments: "list[int]" = []
+    for canonical, _offset in pairs:
+        instant = parsing.instant_key(canonical, "")
+        if instant is None:
+            # A text naming no instant leaves no body to cut: no census.
+            return ()
+        moments += [instant]
+    return tuple(sorted(moments))
 
 
 _WITHHELD_WEEKDAY_NOTES = {
@@ -16165,6 +16199,7 @@ def weekday_decision(
     stored_one_way: bool = True,
     *,
     texts: int,
+    moments: "tuple[int, ...]" = (),
 ) -> WeekdayDecision:
     """The weekday census of one column of whole dates (plans P4-D355, P4-D365).
 
@@ -16202,10 +16237,14 @@ def weekday_decision(
     cases where a twin missed, and each withholding some censuses a twin
     would meet (the Codex review of P4-D365, item 2).
 
+    A COLUMN OF MOMENTS is decided by its own rules
+    (`moments_weekday_decision`, landing 3b.D2, plan P4-D367), handed
+    `moments`, the instant of every parsed cell (`_census_moments`).
+
     Guarantees: accepts the published block, the days, the published
-    count, the settings, the storage flag and the texts; returns the
-    decision. Determinism: a function of the arguments. Raises nothing.
-    No I/O.
+    count, the settings, the storage flag, the texts and the instants;
+    returns the decision. Determinism: a function of the arguments.
+    Raises nothing. No I/O.
     """
     empty: "tuple[tuple[int, int, int], ...]" = ()
 
@@ -16214,6 +16253,10 @@ def weekday_decision(
 
     if not days:
         return WeekdayDecision(empty, "", 0)
+    if details["resolution"] == RESOLUTION_DATETIME:
+        return moments_weekday_decision(
+            details, moments, settings, stored_one_way
+        )
     line = parsing.census_floor(settings.small_cell_floor)
     low_tail = details["low_tail"]
     high_tail = details["high_tail"]
@@ -16293,6 +16336,142 @@ def weekday_decision(
     return WeekdayDecision(groups, "", entry)
 
 
+def _rung_day(ladder: object, name: str) -> "int | None":
+    """The day of one published rung of `date_percentiles`, or None where
+    it is withheld."""
+    if not isinstance(ladder, dict) or name not in ladder:
+        return None
+    text = ladder[name]
+    if not isinstance(text, str) or len(text) < 10:
+        return None
+    return parsing.days_from_civil(int(text[0:4]), int(text[5:7]), int(text[8:10]))
+
+
+def moments_weekday_decision(
+    details: "dict[str, object]",
+    moments: "tuple[int, ...]",
+    settings: Settings,
+    stored_one_way: bool = True,
+) -> WeekdayDecision:
+    """The weekday census of one column of moments (landing 3b.D2, plan P4-D367).
+
+    THE PRODUCER on a column of dates and times read on the local clock,
+    `moments` the instant of every parsed cell ascending, in seconds
+    (`_census_moments`). Its BODY is cut BY INSTANT: the cells between
+    the two tail boundaries, both included, so a cell on a boundary's
+    day but before its instant is a tail cell (contract WC3). Each body
+    cell counts on the weekday of its day, and the census is the menu's
+    (`calendar_rules.menu_groups`), published unless:
+
+    * the column has no two tails (its own sentence, NF78);
+    * a workbook stores its values two ways (WC6's storage half); a
+      body day stands on a published hole (`calendar_rules.public_holes`);
+    * its middle half spans fewer than four weeks (WC10,
+      `calendar_rules.span_short`), the published `p25` and `p75` read;
+    * the menu offers no grouping; a non-empty group holds fewer than
+      three different days, or the groups fewer than seven and a half
+      each on average (`calendar_rules.few_dates`, the rule of a column
+      of dates); or they hold fewer than eight different WRITTEN units
+      each on average -- instants at the column's precision, days where
+      every value stands at midnight (`calendar_rules.few_units`, the
+      3b.2-W skeptic's blocker 1: seven sessions at 09:00 came back 17
+      different values for 9 where FEW DAYS, keyed to midnight, let
+      them through);
+    * where every value stands at midnight, so the twin moves days as
+      on a column of dates, the room rule beside the same holes
+      (`calendar_rules.room_short`);
+    * or the loader's own check refuses it
+      (`calendar_rules.moments_breach`).
+
+    WC6's half on written forms is not asked: the count of different
+    values counts instants here, never days. Every withholding but the
+    first is said in NF74's one sentence. Producer-only, like the rules
+    of a column of dates: no rule here asks what a reader could work
+    out from the census.
+
+    Guarantees: accepts the published block, the instants, the settings
+    and the storage flag; returns the decision. Determinism: a function
+    of the four. Raises nothing. No I/O of any kind.
+    """
+    empty: "tuple[tuple[int, int, int], ...]" = ()
+
+    def withheld(reason: str, entry: int = 0) -> WeekdayDecision:
+        return WeekdayDecision(empty, reason, entry, _weekday_said(reason))
+
+    if not moments:
+        return WeekdayDecision(empty, "", 0)
+    line = parsing.census_floor(settings.small_cell_floor)
+    low_tail = details["low_tail"]
+    high_tail = details["high_tail"]
+    if not isinstance(low_tail, dict) or not isinstance(high_tail, dict):
+        return withheld(calendar_rules.REASON_NO_TAILS)
+    rows_low = low_tail["rows"]
+    rows_high = high_tail["rows"]
+    format_name = details["format"]
+    if (
+        not isinstance(rows_low, int)
+        or not isinstance(rows_high, int)
+        or not isinstance(format_name, str)
+    ):
+        return withheld(calendar_rules.REASON_NO_TAILS)
+    parsed = len(moments)
+    instants = moments[rows_low : parsed - rows_high]
+    if not instants:
+        return withheld(calendar_rules.REASON_NO_TAILS)
+    body = [instant // 86400 for instant in instants]
+    step = 1
+    if details["all_at_midnight"] is True:
+        step = 86400
+    elif details["time_precision"] == "minute":
+        step = 60
+    units = [instant // step for instant in instants]
+    forms: "dict[str, dict[str, int]]" = {}
+    for name in calendar_rules.FORM_CENSUSES:
+        census = details[name]
+        forms[name] = {}
+        if isinstance(census, dict):
+            forms[name] = {
+                str(key): census[key]
+                for key in census
+                if isinstance(census[key], int)
+            }
+    if not stored_one_way:
+        return withheld(calendar_rules.REASON_WORKBOOK)
+    low, high = body[0], body[len(body) - 1]
+    judged: "tuple[str, ...]" = ()
+    if "sentinel_verdicts" in details:
+        judged = _read_as_missing(details["sentinel_verdicts"])
+    holes = calendar_rules.public_holes(
+        forms, format_name, low, high, judged, published_absent(details, settings),
+    )
+    if set(holes) & set(body):
+        return withheld(calendar_rules.REASON_TEXTS)
+    ladder = details["date_percentiles"]
+    p25 = _rung_day(ladder, "p25")
+    p75 = _rung_day(ladder, "p75")
+    if calendar_rules.span_short(p25, p75):
+        return withheld(calendar_rules.REASON_SPAN)
+    groups, entry = calendar_rules.menu_groups(calendar_rules.body_bins(body), line)
+    if not groups:
+        return withheld(calendar_rules.REASON_MENU)
+    if calendar_rules.few_dates(groups, body):
+        return withheld(calendar_rules.REASON_FEW_DATES, entry)
+    if calendar_rules.few_units(groups, body, units):
+        return withheld(calendar_rules.REASON_FEW_UNITS, entry)
+    beside = calendar_rules.may_only_published(forms, format_name) or bool(
+        set(holes) - set(calendar_rules.form_holes(forms, format_name, low, high))
+    )
+    if (
+        step == 86400
+        and beside
+        and calendar_rules.room_short(groups, body, holes)
+    ):
+        return withheld(calendar_rules.REASON_ROOM, entry)
+    if calendar_rules.moments_breach(groups, len(body), line, p25, p75):
+        return withheld(calendar_rules.REASON_NARROWED, entry)
+    return WeekdayDecision(groups, "", entry)
+
+
 def published_absent(
     details: "dict[str, object]", settings: Settings
 ) -> "tuple[str, ...]":
@@ -16349,6 +16528,7 @@ def _weekday_published(
     verdicts: "list[dict[str, object]]",
     texts: int,
     absent: "dict[str, int]",
+    moments: "tuple[int, ...]" = (),
 ) -> "tuple[dict[str, object], list[Note], list[Note]]":
     """A column block of dates with its `weekday_census`, and its sentences.
 
@@ -16363,10 +16543,12 @@ def _weekday_published(
     which the decision reads its placeholder holes from, `texts` the
     different texts the parsed cells were written in, and `absent` the
     block's published `missing_by_source`, whose keys name holes too.
+    `moments` are the instants of a column of moments (landing 3b.D2,
+    plan P4-D367), empty on a column of whole dates.
 
     Guarantees: accepts the block, the days, the published count, the
-    settings, the two flags and the decisions; returns a new block, the
-    notes and the remarks to add. Determinism: a function of the
+    settings, the two flags, the decisions and the instants; returns a
+    new block, the notes and the remarks to add. Determinism: a function of the
     arguments. Raises nothing. No I/O of any kind.
     """
     block = dict(details)
@@ -16380,6 +16562,7 @@ def _weekday_published(
         settings,
         stored_one_way,
         texts=texts,
+        moments=moments,
     )
     line = parsing.census_floor(settings.small_cell_floor)
     if not decided.groups:
@@ -17204,6 +17387,12 @@ class _Verdict:
     # ROWS, which ten copies of one impossible date made nine texts too
     # few. Never published.
     texts: int = 0
+    # THE INSTANT OF EVERY PARSED CELL, ascending, in whole seconds of the
+    # local clock, on a column of moments where a weekday census may stand
+    # (landing 3b.D2, plan P4-D367): the body its census counts, cut by
+    # instant, and the written units its few-units rule counts. Never
+    # published.
+    moments: "tuple[int, ...]" = ()
 
 
 def _all_different(cells: _Cells) -> bool:
@@ -20245,6 +20434,7 @@ def _decide(
                 details=details,
                 days=_census_days(details, pairs),
                 texts=len(set(sources)),
+                moments=_census_moments(details, pairs),
             )
 
         # RULE 6 -- numbers, at the one parse rate there is. A column that
@@ -22720,6 +22910,7 @@ def profile_column(
             entries,
             verdict.texts,
             by_source,
+            verdict.moments,
         )
         publication_notes = verdict.notes + weekday_notes
     # THE CENSUSES STAGE 3B RESERVES (plan P4-D364), one producer per

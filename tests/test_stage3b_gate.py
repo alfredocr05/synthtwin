@@ -215,6 +215,7 @@ anchor 3b-D1 (P4-D365)
 anchor 3b-D0 (P4-D366)
 3b.D0: tests/test_stage3b_shared_steps.py, G7.3f's shared steps on stated ranks.
 anchor 3b-D2 (P4-D367)
+3b.D2: tests/test_stage3b_weekday_moments.py, the weekday census of a column of moments.
 anchor 3b-D3 (P4-D368)
 anchor 3b-D4 (P4-D369)
 anchor 3b-T1 (P4-D370)

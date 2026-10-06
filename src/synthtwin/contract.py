@@ -1686,9 +1686,11 @@ INVARIANTS = {
         "census line, the smallest group size and never fewer than two"
     ),
     "WC3": (
-        "a weekday census stands only on a column of whole dates read on "
-        "the local clock, not in the joint member, with both tails, and "
-        "its groups add up to the values between the two tail boundaries"
+        "a weekday census stands only on a column of whole dates or of "
+        "moments read on the local clock, not in the joint member, with "
+        "both tails, and its groups add up to the values between the two "
+        "tail boundaries, both included, compared as instants on a column "
+        "of moments"
     ),
     "WC4": (
         "a weekday census is one of three groupings -- each weekday on its "
@@ -1709,6 +1711,14 @@ INVARIANTS = {
     # anchor 3b-D1 (P4-D365)
     # anchor 3b-D0 (P4-D366)
     # anchor 3b-D2 (P4-D367)
+    # Landing 3b.D2 (plan P4-D367): the weekday census of a column of
+    # moments, beside WC3's widening above.
+    "WC10": (
+        "a weekday census on a column of moments stands only where its "
+        "published p25 and p75 are both named and the p75 stands at least "
+        "28 days after the p25, so the middle half of the column spans at "
+        "least four weeks"
+    ),
     # anchor 3b-D3 (P4-D368)
     # anchor 3b-D4 (P4-D369)
     # anchor 3b-T1 (P4-D370)
@@ -9058,6 +9068,7 @@ def _datetime_facts(
             "quarter_marker_case": markers,
             "zulu_case": zulu,
         },
+        (ladder.p25, ladder.p75),
     )
     facts = DatetimeFacts(
         parser_family=parser_family,
@@ -9284,19 +9295,24 @@ def _weekday_census(
     low: "TailFacts | None",
     high: "TailFacts | None",
     forms: "dict[str, dict[str, int]]",
+    middle: "tuple[str | None, str | None]" = (None, None),
 ) -> "tuple[tuple[int, int, int], ...]":
-    """A column's `weekday_census`, read and held to WC1 to WC4 and WC6.
+    """A column's `weekday_census`, read and held to WC1 to WC4, WC6 and WC10.
 
-    Landing 3b.1, as plan P4-D365 left it. `reading` is the column's
-    parser family, resolution and clock. An empty census is always legal.
-    A published one must stand on a column of whole dates read on the
-    local clock, not in the joint member, with both tails (WC3); then
-    `calendar_rules.shape_breach` asks the groups' cover (WC1), the floor
-    (WC2), their total against the body (WC3), the menu (WC4) and one
-    spelling per day (WC6), and the first broken rule is refused by
-    name. Nothing here walks a day: since plan P4-D365 the loader asks no
-    rule of what a reader could work out from the census (WC5, WC7, WC8
-    and WC9 are retired).
+    Landing 3b.1, as plan P4-D365 left it, and landing 3b.D2 (plan
+    P4-D367). `reading` is the column's parser family, resolution and
+    clock, and `middle` its published `p25` and `p75` (None where
+    withheld). An empty census is always legal. A published one must
+    stand on a column of whole dates or of moments read on the local
+    clock, not in the joint member, with both tails (WC3). On whole dates
+    `calendar_rules.shape_breach` then asks the groups' cover (WC1), the
+    floor (WC2), their total against the body (WC3), the menu (WC4) and
+    one spelling per day (WC6); on moments
+    `calendar_rules.moments_breach` asks the first four and the middle
+    half's span (WC10) in place of WC6's half on written forms. The
+    first broken rule is refused by name. Nothing here walks a day:
+    since plan P4-D365 the loader asks no rule of what a reader could
+    work out from the census (WC5, WC7, WC8 and WC9 are retired).
 
     Guarantees: accepts the value and the facts beside it; returns the
     groups as `(first, last, count)`. Raises ProfileError for a wrong
@@ -9318,7 +9334,7 @@ def _weekday_census(
         return ()
     parser_family, resolution, clock = reading
     if (
-        resolution != "date"
+        resolution not in ("date", "datetime")
         or clock != "local"
         or parser_family == FORMAT_ISO_MIXED
         or low is None
@@ -9328,9 +9344,22 @@ def _weekday_census(
             "WC3",
             where,
             "a weekday census is published",
-            "only a column of whole dates read on the local clock, not in "
-            "the joint member, and with both tails publishes one",
+            "only a column of whole dates or of moments read on the local "
+            "clock, not in the joint member, and with both tails publishes "
+            "one",
         )
+    if resolution == "datetime":
+        first, last = middle
+        broken = calendar_rules.moments_breach(
+            tuple(found),
+            parsed - low.rows - high.rows,
+            parsing.census_floor(floor),
+            _day_number(first) if first is not None else None,
+            _day_number(last) if last is not None else None,
+        )
+        if broken is not None:
+            raise _broken(broken[0], where, broken[1], broken[2])
+        return tuple(found)
     broken = calendar_rules.shape_breach(
         tuple(found),
         parsed - low.rows - high.rows,

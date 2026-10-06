@@ -1426,7 +1426,15 @@ rather than in ISO:
   the check. Before the fold was read, the source missed its own census
   by a folded cell; read for every column, it missed it by an unparsed
   one (the review of P4-D365, item 2). A description publishing `[]`
-  obliges nothing and lists nothing.
+  obliges nothing and lists nothing. ON A COLUMN OF MOMENTS (landing
+  3b.D2, plan P4-D367) the file's cells are counted BY INSTANT: each is
+  read as the tails read it -- under the column's member, its clock face
+  and its offsets, in tail units -- and one between the two published
+  boundaries, both included, counts on the weekday of its day, so a
+  cell on a boundary's day but before its instant is a tail cell, as
+  the census counted it. Counted by day, the source table of a clinic
+  whose low boundary's day held earlier tail cells missed its own
+  census.
 - each of the four is LISTED where the column's member cannot show that
   convention at all: the widths on a member of fixed field width, the
   name styles outside the two textual members, the marker outside

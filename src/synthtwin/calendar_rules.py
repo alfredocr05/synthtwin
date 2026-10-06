@@ -1146,6 +1146,134 @@ def room_short(
 
 # anchor 3b-D0 (P4-D366)
 # anchor 3b-D2 (P4-D367)
+
+
+# THE WEEKDAY CENSUS OF A COLUMN OF MOMENTS (landing 3b.D2, plan
+# P4-D367). A column of dates and times read on the local clock
+# publishes the same census as a column of whole dates: its BODY's cells
+# counted on the weekday of the day each falls on, the body being the
+# cells between the two tail boundaries, both included, compared as
+# instants (WC3). Two rules more than a column of dates asks, and one
+# fewer: the middle half of the column spans at least four weeks (WC10),
+# so a census of weekdays is never a census of a few dates; the body
+# holds at least `FEWEST_MEAN_UNITS` different WRITTEN units a non-empty
+# group on average wherever two or more groups are non-empty (the
+# few-units rule, the producer's alone); and WC6's half on written forms
+# is not asked, as the count of different values on a column of moments
+# is a count of instants, never of days -- its half on a workbook's
+# storage is.
+
+# WC10: the days the middle half of a column of moments spans at least,
+# from its published `p25` to its published `p75` (four cycles of the
+# week, the build plan's call (e), CA4).
+SPAN_DAYS = 28
+# THE FEW-UNITS RULE (the 3b.2-W skeptic's blocker 1, measured on the
+# design's tie batteries): where two or more groups are non-empty, the
+# body holds fewer than eight different written units a non-empty group
+# on average -- instants at the column's precision, or days where every
+# value stands at midnight -- and the census is withheld. Below it the
+# day pass meets the census by splitting a written unit's rows across
+# two days, and the twins measured that did held more different values
+# than the column (seven sessions at 09:00, 17 for 9; payroll on the
+# 15th and the last day at 18:00, 53 for 48). A CONSERVATIVE rule, like
+# the few-dates rule beside it: it withholds some censuses a twin meets.
+FEWEST_MEAN_UNITS = 8
+
+# WHY A COLUMN OF MOMENTS PUBLISHES NO WEEKDAY CENSUS, besides the
+# reasons of a column of dates: its middle half spans fewer than
+# `SPAN_DAYS` days, or its groups hold too few different written units.
+# Each is said in the one sentence of every rule the table's own numbers
+# decide (NF74, `REASON_UNSAID`).
+REASON_SPAN = "span"
+REASON_FEW_UNITS = "few_units"
+MOMENTS_REASONS = (REASON_SPAN, REASON_FEW_UNITS)
+
+
+def span_short(p25: "int | None", p75: "int | None") -> bool:
+    """WC10: whether a column's middle half spans fewer than four weeks.
+
+    `p25` and `p75` are the days of the column's published rungs of
+    those names, None where a rung is withheld: a middle half no reader
+    can measure is held short, so no census stands beside it.
+
+    Guarantees: accepts two day numbers or None; returns the answer.
+    Determinism: a function of the two. Raises nothing. No I/O of any
+    kind.
+    """
+    if p25 is None or p75 is None:
+        return True
+    return p75 - p25 < SPAN_DAYS
+
+
+def few_units(
+    groups: "tuple[tuple[int, int, int], ...]",
+    body: "list[int]",
+    units: "list[int]",
+) -> bool:
+    """Whether the census's groups hold too few different written units (P4-D367).
+
+    THE PRODUCER'S FEW-UNITS RULE, on the REAL body: `body` is the day
+    of every body cell and `units` its written unit (its instant in
+    whole units of the column's precision, or its day where every value
+    stands at midnight), in the same order. True where at least two
+    groups are non-empty and they hold fewer than `FEWEST_MEAN_UNITS`
+    different written units each on average. A CONSERVATIVE rule, set on
+    the measured cases where a twin missed its count of different values
+    (module text above), not a proof that no twin can meet the census;
+    a rule of what the twin is sure to meet, never of what a reader
+    could work out, so the loader cannot ask it, and need not.
+
+    Guarantees: accepts the census, the body's days and its written
+    units, one each a cell; returns the answer. Determinism: a function
+    of the three. Raises nothing. No I/O of any kind.
+    """
+    where = where_of(groups)
+    held = [0 for _group in groups]
+    for index, _unit in {
+        (where[weekday_of(day)], unit) for day, unit in zip(body, units)
+    }:
+        held[index] = held[index] + 1
+    filled = [held[index] for index in range(len(groups)) if groups[index][2] > 0]
+    return len(filled) >= 2 and sum(filled) < FEWEST_MEAN_UNITS * len(filled)
+
+
+def moments_breach(
+    groups: "tuple[tuple[int, int, int], ...]",
+    body: int,
+    line: int,
+    p25: "int | None",
+    p75: "int | None",
+) -> "tuple[str, str, str] | None":
+    """The loader's check of a weekday census on a column of moments (P4-D367).
+
+    WC1 to WC4 as on a column of dates (`shape_breach`), with WC6's half
+    on written forms not asked -- the count of different values counts
+    instants there, never days -- and then WC10, the middle half
+    spanning at least `SPAN_DAYS` days (`span_short`). The first broken
+    rule is returned as (rule, what the census says, what the rule
+    asks); an empty census breaks nothing.
+
+    Guarantees: accepts the census, the body, the census line and the
+    days of the published `p25` and `p75` (None where withheld);
+    returns None or the broken rule. Determinism: a function of the
+    five. Raises nothing. No I/O of any kind.
+    """
+    if not groups:
+        return None
+    broken = shape_breach(groups, body, line, True)
+    if broken is not None:
+        return broken
+    if span_short(p25, p75):
+        return (
+            "WC10",
+            "a weekday census is published on a column of moments whose "
+            "middle half spans fewer than four weeks",
+            f"the column's p75 stands at least {SPAN_DAYS} days after its "
+            f"p25, both published",
+        )
+    return None
+
+
 # anchor 3b-D3 (P4-D368)
 # anchor 3b-D4 (P4-D369)
 # anchor 3b-T1 (P4-D370)

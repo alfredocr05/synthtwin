@@ -656,7 +656,9 @@ def test_a_chain_moves_the_mover_its_link_was_asked_of(monkeypatch: pytest.Monke
     10:37. A day of moments, through the whole pass: a Friday moment goes to Saturday 23:20:20,
     whose Monday stands past the gap's close, so Saturday 05:59:12, the mover asked, goes to
     Monday, and the census is met with the count kept. Moved as the ranks then stand alone, each
-    chain is left half made, one group over, and the census is missed."""
+    chain is left half made, one group over, and the census is missed -- through the whole pass
+    with step 7c withdrawn, which since landing 3b.D2 (plan P4-D367) lets a moment of the group
+    left over take another clock on its gap's end day and would meet the census after it."""
     for case, movers, over in (
         (_case("a_chain_moves_its_asked_mover"), [1, -1, 2], [1, 2, 1, 0]),
         (_case("a_chain_moves_its_asked_mover_in_the_pass"), [1, -1, 4], [1, 0, 0, 3, 3, 3]),
@@ -667,7 +669,9 @@ def test_a_chain_moves_the_mover_its_link_was_asked_of(monkeypatch: pytest.Monke
         assert _holding(case, answer, range(len(answer))) == case["counts"], case["why"]
         if case["step"] == "settled":
             assert len({ordinal // case["written_unit"] for ordinal in answer}) == case["wanted"], case["why"]
-        answer, made = _made(monkeypatch, case, _mutant(monkeypatch, *CHAIN_AS_THE_RANKS_THEN_STAND))
+        mutant = _mutant(monkeypatch, *CHAIN_AS_THE_RANKS_THEN_STAND)
+        monkeypatch.setattr(mutant, "_weekday_escaped", _withdrawn)
+        answer, made = _made(monkeypatch, case, mutant)
         assert made == movers[:2], case["why"]
         assert _holding(case, answer, range(len(answer))) == over, case["why"]
         monkeypatch.undo()

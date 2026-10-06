@@ -17333,20 +17333,31 @@ def _weekday_checks(
     bins = [0 for _ in range(calendar_rules.WEEKDAYS)]
     failing: "list[str]" = []
     days: "list[int]" = []
-    for cell in _dates_the_file_reads(block, facts, cells):
-        read = parsing.parse_datetime(cell, facts.parser_family)
-        if read is None:
-            failing += [cell]
-            continue
-        days = [_weekday_day(read[0])]
-        on_holes = on_holes + _tallied(days, low, high, holes, bins)
-    if _folded_by_the_file(block, facts.parser_family, failing):
-        days = []
-        for cell in failing:
-            folded_day = _day_as_counted(cell)
-            if folded_day is not None:
-                days += [folded_day]
-        on_holes = on_holes + _tallied(days, low, high, holes, bins)
+    if facts.resolution == taxonomy.RESOLUTION_DATETIME:
+        # A COLUMN OF MOMENTS IS COUNTED BY INSTANT (landing 3b.D2, plan
+        # P4-D367): its body is the cells between the two boundaries as
+        # the tails count them, in tail units, so a cell on a boundary's
+        # day but before its instant is a tail cell, as the census
+        # counted it. No moment the census counts is folded: no census
+        # stands on the joint member.
+        on_holes = _moments_tallied(
+            facts, _dates_the_file_reads(block, facts, cells), holes, bins
+        )
+    else:
+        for cell in _dates_the_file_reads(block, facts, cells):
+            read = parsing.parse_datetime(cell, facts.parser_family)
+            if read is None:
+                failing += [cell]
+                continue
+            days = [_weekday_day(read[0])]
+            on_holes = on_holes + _tallied(days, low, high, holes, bins)
+        if _folded_by_the_file(block, facts.parser_family, failing):
+            days = []
+            for cell in failing:
+                folded_day = _day_as_counted(cell)
+                if folded_day is not None:
+                    days += [folded_day]
+            on_holes = on_holes + _tallied(days, low, high, holes, bins)
     found = calendar_rules.group_counts(census, bins)
     line = parsing.census_floor(floor)
     asked, shown, lines = _census_lines(
@@ -17380,6 +17391,48 @@ def _weekday_checks(
             note,
         )
     ]
+
+
+def _moments_tallied(
+    facts: contract.DatetimeFacts,
+    cells: "list[str]",
+    holes: "set[int]",
+    bins: "list[int]",
+) -> int:
+    """Count a file's moments between the two boundaries into their weekdays.
+
+    V5-W1 BY INSTANT (landing 3b.D2, plan P4-D367). Each cell is read as
+    the tails read it (`_tail_units_of`: the column's own member, its
+    clock face and its offsets), in tail units; one between the two
+    published boundaries, both included, counts on the weekday of its
+    day. Returns how many of those stand on a hole. `bins` is grown in
+    place.
+    """
+    low = taxonomy.tail_ordinal(
+        facts.low_tail.boundary if facts.low_tail is not None else "",
+        facts.tail_unit,
+        facts.datetimes_read_at,
+    )
+    high = taxonomy.tail_ordinal(
+        facts.high_tail.boundary if facts.high_tail is not None else "",
+        facts.tail_unit,
+        facts.datetimes_read_at,
+    )
+    per_day = 1
+    if facts.tail_unit == parsing.TAIL_UNIT_MINUTE:
+        per_day = 1440
+    elif facts.tail_unit == parsing.TAIL_UNIT_SECOND:
+        per_day = 86400
+    on_holes = 0
+    for unit in _tail_units_of(facts, cells):
+        if unit is None or unit < low or unit > high:
+            continue
+        day = unit // per_day
+        weekday = calendar_rules.weekday_of(day)
+        bins[weekday] = bins[weekday] + 1
+        if day in holes:
+            on_holes = on_holes + 1
+    return on_holes
 
 
 def _census_lines(

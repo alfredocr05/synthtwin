@@ -20532,6 +20532,144 @@ def _weekday_chained(
             have[taking] = have[taking] + 1
 
 
+# STEP 7C'S FIXED NUMBERS (landing 3b.D2, plan P4-D367): its rounds, and
+# how many places of one end day it asks for one that keeps the count of
+# different values.
+_WEEKDAY_ESCAPE_ROUNDS = 8
+_WEEKDAY_ESCAPE_PROBES = 64
+
+
+def _weekday_end_places(
+    state: _WeekdayPass, rank: int, end: int
+) -> "list[int]":
+    """The places a rank may escape to on one end day of its gap (step 7c):
+    the ordinals of that day inside the gap, a written unit apart, nearest
+    the rank's own place in its unit moved to that day first, the earlier
+    on a tie, at most `_WEEKDAY_ESCAPE_PROBES` of them. A place stands at
+    the start of a day exactly where the rank's own does, so no move puts
+    a clock on midnight or takes one off it."""
+    ordinal = state.moved[rank]
+    own = ordinal - ordinal // state.unit * state.unit
+    start = end * state.unit
+    first = max(state.lows[rank], start)
+    last = min(state.highs[rank], start + state.unit - 1)
+    if first > last:
+        return []
+    if own == 0:
+        return [start] if first <= start <= last else []
+    wished = start + own
+    centre = min(max(wished, first), last)
+    found: "list[int]" = []
+    away = 0
+    while len(found) < _WEEKDAY_ESCAPE_PROBES:
+        sides = (centre,) if away == 0 else (centre - away, centre + away)
+        reached = False
+        for _distance, place in sorted((abs(spot - wished), spot) for spot in sides):
+            if place < first or place > last:
+                continue
+            reached = True
+            if place != start:
+                found += [place]
+        if not reached:
+            break
+        away = away + state.step
+    return found[0:_WEEKDAY_ESCAPE_PROBES]
+
+
+def _weekday_escape(
+    state: _WeekdayPass, rank: int, have: "list[int]", want: "list[int]"
+) -> "tuple[int, int, int] | None":
+    """A rank's escape (step 7c): whether it changes the count of different
+    values (1) or not (0), its distance, and the place; None where neither
+    end day of its gap offers one."""
+    ordinal = state.moved[rank]
+    low, high = state.lows[rank], state.highs[rank]
+    day = ordinal // state.unit
+    kind = _weekday_kind(state, ordinal)
+    alone = _weekday_there(state, ordinal) <= 1
+    best: "tuple[int, int, int] | None" = None
+    for end in (low // state.unit, high // state.unit):
+        if end == day:
+            continue
+        spot = end * state.unit
+        group = _weekday_group(state, spot)
+        if (
+            have[group] >= want[group]
+            or _weekday_hole(state, spot)
+            or _weekday_kind(state, spot) != kind
+        ):
+            continue
+        chosen: "tuple[int, int, int] | None" = None
+        for place in _weekday_end_places(state, rank, end):
+            there = _weekday_there(state, place)
+            keeps = (
+                not state.keep_units
+                or (alone and there == 0)
+                or (not alone and there > 0)
+            )
+            offer = (0 if keeps else 1, abs(place - ordinal), place)
+            if chosen is None or (keeps and chosen[0]):
+                chosen = offer
+            if keeps:
+                break
+        if chosen is not None and (best is None or chosen < best):
+            best = chosen
+    return best
+
+
+def _weekday_escaped(
+    state: _WeekdayPass, ranks: "list[int]", have: "list[int]", want: "list[int]"
+) -> None:
+    """Step 7c, THE ESCAPE OF A MOMENT TO AN END DAY (landing 3b.D2, plan P4-D367).
+
+    On a day of moments a rank's candidates keep its clock, so on the
+    first and last day of its gap -- its END DAYS, where the gap opens
+    after the day's start or closes before its end -- only the ranks whose
+    clocks stand inside the gap may move. A census that needs a day the
+    rank's clock cannot reach goes unmet: a Wednesday session's gap from
+    11:00 on one Wednesday to 09:15 on the next holds no Wednesday for a
+    rank drawn at 10:00. Here, where the movable ranks still do not hold
+    the owed totals once step 7b is done, a rank of a group over its total
+    takes ANOTHER CLOCK on an end day of its gap whose group is under its
+    total, no hole and of its kind: of that day's places inside the gap,
+    nearest its own clock first (`_weekday_end_places`), the first whose
+    written unit no rank holds where the rank stands alone on its own,
+    or one a rank holds where it shares -- so the count of different
+    values is kept -- else the first. Of its two end days, the offer that
+    keeps the count, then the nearer, then the lower. Up to
+    `_WEEKDAY_ESCAPE_ROUNDS` rounds, ranks in rank order, offers that keep
+    the count first: a round that moves nothing allows the others, and a
+    round that moves nothing after that ends the step. The only step of
+    the pass that changes a clock, and only on the ranks it moves.
+
+    Draws no word. Guarantees: moves only the given ranks, inside their own
+    gaps and kinds, never onto a hole and never onto or off a midnight;
+    keeps `have` true. Raises nothing. No I/O of any kind.
+    """
+    allow = False
+    for _round in range(_WEEKDAY_ESCAPE_ROUNDS):
+        if have == want:
+            return
+        changed = False
+        for rank in ranks:
+            source = _weekday_group(state, state.moved[rank])
+            if have[source] <= want[source]:
+                continue
+            offer = _weekday_escape(state, rank, have, want)
+            if offer is None or (offer[0] and not allow):
+                continue
+            target = offer[2]
+            _weekday_step(state, rank, target)
+            have[source] = have[source] - 1
+            group = _weekday_group(state, target)
+            have[group] = have[group] + 1
+            changed = True
+        if not changed:
+            if allow:
+                return
+            allow = True
+
+
 def _weekday_units_merged(
     state: _WeekdayPass,
     body_low: int,
@@ -21243,7 +21381,9 @@ def _bins_settled(
     each gap's SHARE of every group (`_weekday_shares`); the moves, gap by
     gap -- whole runs, then single ranks, count-keeping moves first; the
     leftover, over the whole body; CHAIN where the totals are still off
-    (step 7b); the count of different values put back, inside each group
+    (step 7b); on a day of moments, the ESCAPE of a rank to an end day of
+    its gap at another clock where they are still off (step 7c, landing
+    3b.D2, plan P4-D367); the count of different values put back, inside each group
     and across them (steps 8.1 to 8.5, where the column's count is
     reachable); the two-census exchange where the totals are still off
     (step 8.6), the count put back again after it; each run of unpinned
@@ -21298,6 +21438,8 @@ def _bins_settled(
     if have != target:
         _weekday_chained(state, everything, have, target)
     # -- step 7c, the escape of a moment to an end day (3b.D2, P4-D367)
+    if have != target and state.unit == state.day and state.unit != state.step:
+        _weekday_escaped(state, everything, have, target)
     if state.keep_units:
         _weekday_count_kept(state, body_low, body_high, pinned, wanted)
     if have != target and _weekday_traded(state, everything, have, target):
@@ -21334,6 +21476,18 @@ def _weekday_settled(
     of landing 3b.1, item 4: a column of May dates had ranks moved to
     April and June).
 
+    A COLUMN OF MOMENTS (landing 3b.D2, plan P4-D367) is moved by the
+    same pass over its instants: its unit a day of 86,400 seconds, so a
+    move keeps the rank's clock, its written unit the minute or the
+    second it is written to, and its holes the days the description
+    publishes empty -- an absent spelling of the run names one instant
+    of a day there, never every spelling of it, so it makes no day a
+    hole. Where a rank's clock stands outside its gap on the gap's first
+    or last day, step 7c lets it take another clock there
+    (`_weekday_escaped`). A column of moments every value of which
+    stands at midnight is counted in days (`_ordinal_space`) and moved
+    as a column of dates is.
+
     Draws no word. Where the census still does not hold, the returned
     deviation names it; where it holds and the count of different days
     the pass found does not, the returned deviation says the count gave
@@ -21341,17 +21495,18 @@ def _weekday_settled(
     where every day the census allows between the boundaries holds a
     date, or `_WEEKDAY_DAYS_LEFT_LONG` where the count is long), the
     cause the column's recount prints wherever its own count went the
-    same way.
+    same way -- in different values, on a column of moments.
 
     Guarantees: accepts the column and its ranks' days and gaps; returns
     the new days and at most one deviation. Determinism: a function of
     the arguments. Raises nothing. No I/O of any kind.
     """
     census = facts.weekday_census
+    space = _ordinal_space(facts)
     if (
         not census
         or parsed < 3
-        or _ordinal_space(facts) != "date"
+        or space not in ("date", "datetime")
         or layout.low is None
         or layout.high is None
     ):
@@ -21359,10 +21514,15 @@ def _weekday_settled(
     for flag in whole:
         if flag:
             return ordinals, []
+    unit = 1
+    step = 1
+    if space == "datetime":
+        unit = 86400
+        step = 60 if facts.time_precision == "minute" else 1
     moved = [value for value in ordinals]
     held: "dict[int, int]" = {}
     for value in moved:
-        held[value] = (held[value] + 1) if value in held else 1
+        _weekday_tally(held, value // step, 1)
     wanted = len(held)
     word = ""
     widths = False
@@ -21374,7 +21534,7 @@ def _weekday_settled(
         for key in facts.date_field_widths:
             word = key
     hole_days: "set[int]" = set()
-    for text in holes:
+    for text in (holes if space == "date" else ()):
         read = parsing.parse_datetime(text, facts.parser_family)
         if read is None:
             continue
@@ -21399,6 +21559,9 @@ def _weekday_settled(
         lows=gap_lows,
         highs=gap_highs,
         keep_units=contract.datetime_counts_reachable(column),
+        unit=unit,
+        step=step,
+        day=unit,
     )
     pinned = _ranks_the_tail_pins(layout)
     for rank in range(parsed):
@@ -21435,12 +21598,15 @@ def _weekday_settled(
             state, layout.low.boundary, layout.high.boundary, census
         ):
             cause = _WEEKDAY_DAYS_IN_THE_TAILS
+        # ...counted in values on a column of moments, whose written unit
+        # is an instant (the 3b.2-W skeptic, minor 1).
+        counted = "different days" if space == "date" else "different values"
         notes += [
             _deviation(
                 column.name,
                 "n_distinct",
-                f"{wanted} different days",
-                f"{_weekday_count(state)} different days",
+                f"{wanted} {counted}",
+                f"{_weekday_count(state)} {counted}",
                 cause,
             )
         ]

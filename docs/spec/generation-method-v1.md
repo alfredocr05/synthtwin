@@ -6343,6 +6343,18 @@ once G7.3's count passes and G7.3b step 9 are done and before any cell
 is spelled, until the cells between the two boundary ranks fall on the
 published groups. No word is drawn.
 
+A COLUMN OF MOMENTS (landing 3b.D2, plan P4-D367; contract WC3 and WC10)
+is moved by the same pass over its instants: its unit and its day are
+86,400 seconds, so every move keeps the moment's clock; its written unit
+is the minute where it is written to the minute and the second
+otherwise; its bin is the weekday of the day an instant falls on; and
+its holes are the days the description publishes empty -- an absent
+spelling of the run names one instant of a day there, never every
+spelling of it, so it makes no day a hole. A column of moments every
+value of which stands at midnight on its own clock is counted in days
+(G7.1) and moved as a column of dates is. Step 7c below is asked of
+moments alone.
+
 A day `d`, counted from 1970-01-01, falls on weekday `(d + 3) mod 7`,
 Monday nought; its GROUP is the census group holding that weekday. Its
 KIND is whether a date on it counts into the width census's one word,
@@ -6492,6 +6504,34 @@ written unit's.
    date's day every rank of a cell has the same places, so the mover as
    the ranks then stand always has one. The step ends where no path is
    found.
+
+   **7c. The escape to an end day** (landing 3b.D2, plan P4-D367). Where
+   the unit is the day and spans more than one written unit -- a day of
+   moments -- and the movable ranks still do not hold the owed totals,
+   taken at nought or above, once step 7b is done. A rank's candidates
+   keep its clock, so on the first and the last day of its gap, its END
+   DAYS, only the ranks whose clocks stand inside the gap may move: a
+   gap from a Wednesday at 11:00 to the next at 09:15 holds no Wednesday
+   for a rank drawn at 10:00, and a census of Wednesday sessions is
+   missed. Up to eight rounds, the movable ranks asked in rank order: a
+   rank whose group holds more than its total is offered, on each end
+   day of its gap other than its own day whose group holds less than its
+   total, that is no hole and of the rank's kind, a PLACE -- an ordinal of
+   that day inside the gap, a whole number of written units from the one
+   nearest the rank's own place in its unit moved to that day, asked
+   nearest that wished place first and then the earlier, at most 64 of
+   them, and standing at the start of the day exactly where the rank's
+   own place does, so no clock is put on midnight or taken off it. Of
+   those places, the first that keeps the count of different values --
+   onto a written unit no rank holds where the rank stands alone on its
+   own, onto one a rank holds where it shares -- or, failing any, the
+   first, which changes it; where the column's count is not reachable,
+   the first. Of its two end days, the offer that keeps the count, then
+   the nearer to the rank's own ordinal, then the lower. A round takes
+   only the offers that keep the count until a round moves nothing, and
+   every offer from then on; a round that moves nothing after that ends
+   the step. It is the one step of the pass that changes a clock, and it
+   changes only the clocks of the ranks it moves.
 8. **The count of different days**, where the column's distinct count
    is reachable, put back to what it was before step 2, by moves that
    keep every group's count:
@@ -6672,6 +6712,14 @@ there too, of hours and of moments, and two chains of step 7b whose
 mover as the ranks then stand has no place, of hours and, through the
 whole pass, of moments -- with the answer this section gives each, and
 no G14.3 case.
+
+**Step 7c's frozen cases** (plan P4-D367) are states of ranks too, on a
+day of moments written to the minute, in the seventeenth vectors file,
+`tests/reference/generation-branch-vectors-17.json`: three Wednesday
+sessions through the whole pass, and step 7c alone keeping the count of
+different values, keeping the midnight, taking the nearer end day and
+keeping off a hole -- each with the answer this section gives it, and no
+G14.3 case.
 
 ### G7.4 Offsets: only where recorded
 

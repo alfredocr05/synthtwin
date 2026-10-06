@@ -6627,6 +6627,32 @@ spent 1,159 s describing what takes 67 s. A published census carries two
 remarks: how its days are grouped, and that its counts are of days of
 the week and never of one date (NF71).
 
+**The weekday census of a column of moments, WC3 widened and WC10
+(landing 3b.D2, plan P4-D367).** A column of dates AND TIMES read on the
+local clock, not in the joint member, with both tails, publishes the
+same census: its BODY is the cells between the two boundaries, both
+included, COMPARED AS INSTANTS -- so a cell on a boundary's day but
+before its instant is a tail cell -- each counted on the weekday of its
+day, in the menu's groups (WC1 to WC4). Two rules more than a column of
+dates asks, and one fewer. WC10: the published `p75` stands at least 28
+days after the published `p25`, both named, so the middle half of the
+column spans at least four weeks and a census of weekdays is never a
+census of a few dates; the loader refuses a census beside a shorter
+middle half. The FEW-UNITS rule, the producer's alone: where two or
+more groups are non-empty, the body holds at least eight different
+WRITTEN units a non-empty group on average -- instants at the column's
+precision, or days where every value stands at midnight -- else the
+census is withheld, as below it the day pass meets the census by
+splitting a written unit's rows across days and the twins measured that
+did held more different values than the column (seven sessions at
+09:00, 17 for 9; payroll at 18:00, 53 for 48). The few-dates rule above
+is asked of the moments' days as of dates, and the room rule beside the
+same holes where every value stands at midnight. WC6's half on written
+forms is NOT asked: the count of different values counts instants on a
+column of moments, never days, so two ways of writing an instant cost
+the day pass no day; its half on a workbook's storage is. Every
+withholding but a column without tails is said in NF74's one sentence.
+
 **A consequence, stated rather than left to be discovered.** The
 canonical `datetime` form carries seconds and no fractional part, so
 every tail boundary, every value a tail lists and every published rung
@@ -12361,7 +12387,7 @@ it answers to.
 | D20 | every key of `zulu_case` is `upper` or `lower`; the census is held to D18's disclosure rule over `utc_offsets["Z"]`; the census is `{}` unless `utc_offsets` names `Z`; and its values sum to at most `utc_offsets["Z"]` (landing 2b.6) | yes |
 | WC1 | the groups of `weekday_census` cover weekdays 0 to 6 in order, each exactly once | yes |
 | WC2 | every group counts nought or at least `max(2, small_cell_floor)` | yes |
-| WC3 | a non-empty census stands only on a column of whole dates read on the local clock, not in the joint member, with both tails, and adds up to `P - low_tail.rows - high_tail.rows` | yes |
+| WC3 | a non-empty census stands only on a column of whole dates or of moments read on the local clock, not in the joint member, with both tails, and adds up to `P - low_tail.rows - high_tail.rows`, the body cut by instant on a column of moments (plan P4-D367) | yes |
 | WC4 | the grouping is one of the menu's three: each weekday alone; Monday to Friday alone with `[Sat-Sun]` non-zero; `[Mon-Fri]` non-zero with `[Sat-Sun]` | yes |
 | WC6 | the five censuses of written forms give every date one text: each names at most one form holding every parsed cell, and a member that can show a width or a month name names its one form; and a workbook's published cell classes show at most one value class holding cells | yes |
 
