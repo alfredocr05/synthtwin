@@ -6522,6 +6522,52 @@
    }
   },
   {
+   "id": "K-S3-38",
+   "phase_stage": "Stage 3b landing 3b.2-H, the hour of the day (plan P4-D371)",
+   "category": "STATS",
+   "headline": true,
+   "name": "Time of day comes back: the hour census of a column of moments is met",
+   "status": "GREEN",
+   "rule": "over the hour gate's battery (tests/test_stage3b_hour.py) -- eleven columns of moments at 1,000 rows (vitals on four-hourly rounds with their count at midnight published, weekday appointments, admissions, arrivals, a clinic, discharges, rule 4's witness and four spans, the 1-, 3- and 7-day spans withholding their census), four at 10,000 rows (the 10-week clinic, a burst, every cell on the hour, a half-hour grid), a lab panel of 2,000 results on 1 to 25 rows an instant and 3,021 OR starts, ten rooms at 07:30 on 100 weekdays -- at a floor of eleven and seeds 0 to 4: every published census met, no twin or real table missing a checkable obligation, and no statistics clause failing: BOUND, the twin's hour TVD within (the rows of a tail listing no values + the cells of groups counting several hours) / parsed; CAP, that TVD at most 0.10 below 10,000 rows and 0.02 from them; SHAPE, the twin's gap at most a quarter of the real column's distance from flat wherever that distance is three times its sampling scale; and no twin's weekdays or count of different values moved against the same seed with the hour pass withdrawn. `censuses` and `cases` may not shrink, and the pinned nodes pass",
+   "rule_kind": "at_most",
+   "expected": {
+    "censuses": 14,
+    "missed": 0,
+    "over_bound": 0,
+    "over_cap": 0,
+    "shape": 0,
+    "weekday_changed": 0,
+    "distinct_changed": 0,
+    "cases": 70,
+    "pinned_nodes_failing": 0
+   },
+   "key_kinds": {
+    "censuses": "at_least",
+    "cases": "at_least",
+    "pinned_nodes_failing": "exact"
+   },
+   "tier": "SLOW",
+   "source": "driver",
+   "nodes": [
+    "tests/test_stage3b_hour.py::test_the_hour_battery_publishes_its_census",
+    "tests/test_stage3b_hour.py::test_the_hour_battery_twins_meet_their_census",
+    "tests/test_stage3b_hour.py::test_whole_units_the_census_cannot_hold_are_split_and_put_back",
+    "tests/test_stage3b_hour.py::test_a_lab_panel_keeps_its_census_and_its_count"
+   ],
+   "test": null,
+   "driver": "tools/measurements/kpi_hour_census.py --kpi",
+   "pin_strength": "WEAKER",
+   "measured_on": "the hour gate's battery, seventeen columns of moments at 1,000 to 10,000 rows, floor 11, seeds 0 to 4, through the real producer, generator and checker",
+   "evidence": "Before (1e8c91f, the lane's base), no column of moments published an hour census and the twin drew its clock evenly over the day: lab draws heaped from 06:00 to 08:00 came back at 8 per cent of the twin against 43 of the real column, discharges between 10:00 and 14:00 at 17 against 63, hour TVD 0.18 to 0.65. After, every census in scope is met.",
+   "nodes_min_collected": 5,
+   "value_at": {
+    "commit": "",
+    "date": "",
+    "measured_by": "",
+    "value": {}
+   }
+  },
+  {
    "id": "K-S3-39",
    "phase_stage": "Stage 3b landing 3b.0, its fix pass (plan P4-D354)",
    "category": "STATS",
@@ -6571,6 +6617,96 @@
     "value": {
      "pinned_nodes_failing": 0
     }
+   }
+  },
+  {
+   "id": "K-S3-40",
+   "phase_stage": "Stage 3b landing 3b.2-H, the hour of the day (plan P4-D371)",
+   "category": "CODE",
+   "headline": false,
+   "name": "The hour census's rules, G7.3g's own steps and the dial's half day hold, each red on its mutant",
+   "status": "GREEN",
+   "rule": "the pinned nodes pass: the loader refuses each of HC1 to HC6 by name; the 1-, 3- and 7-day spans publish no census and HC4's mutant publishes one; rule 4 holds the body's cells at midnight in hour 0 and a producer without it is refused HC5; the 1970 clinic's epoch tail is not charged to its body, which a mutant charging it merges into the night, and where that tail holds every published midnight no tie group of the other stands at one (a mutant standing it there misses the count at midnight); the product gives every state of the sixteenth vectors file the oracle's answer and each is red on its own mutant (SAMEDAY, the escape's day standing, SPLIT, RELIEF, PUT BACK long and short, the proportional order, the step off midnight, the half day's tail ranks, the whole pass, and G7.3b step 10's tie, nearest and all-different pass); the shared steps alone miss the 10-week clinic, the lab panel without PUT BACK misses its count, and OR starts without RELIEF miss their census; a stamp declared a 12-hour clock with no marker validates with nothing missed, its census published or withheld, and is missed with G7.3b step 10 or the half day's own census withdrawn; a flat twin misses every census and prints no count below the line; and a validate run produces no census",
+   "rule_kind": "exact",
+   "expected": {
+    "pinned_nodes_failing": 0
+   },
+   "tier": "FAST",
+   "source": "pytest",
+   "nodes": [
+    "tests/test_stage3b_hour.py::test_red_when_the_span_rule_is_withdrawn",
+    "tests/test_stage3b_hour.py::test_a_flat_twin_misses_the_hour_census",
+    "tests/test_stage3b_hour.py::test_validating_never_produces_an_hour_census",
+    "tests/test_stage3b_hour.py::test_red_without_the_hour_steps",
+    "tests/test_stage3b_hour.py::test_red_without_put_back",
+    "tests/test_stage3b_hour.py::test_or_starts_meet_their_census_through_relief",
+    "tests/test_stage3b_hour.py::test_rule_4_holds_the_midnight_group",
+    "tests/test_stage3b_hour.py::test_a_sentinel_tail_is_not_charged_to_the_body",
+    "tests/test_stage3b_hour.py::test_no_tie_group_stands_at_a_midnight_the_listed_tails_hold",
+    "tests/test_stage3b_hour.py::test_hc1_the_groups_cover_the_hours_in_order",
+    "tests/test_stage3b_hour.py::test_hc2_every_count_is_nought_or_at_the_line",
+    "tests/test_stage3b_hour.py::test_hc3_the_scope_and_the_total",
+    "tests/test_stage3b_hour.py::test_hc4_the_middle_half_spans_four_days",
+    "tests/test_stage3b_hour.py::test_hc5_a_group_holds_its_sure_cells",
+    "tests/test_stage3b_hour.py::test_hc6_one_storage_per_workbook_column",
+    "tests/test_stage3b_hour.py::test_every_case_is_asked_and_the_oracle_agrees",
+    "tests/test_stage3b_hour.py::test_the_product_gives_every_case_its_answer",
+    "tests/test_stage3b_hour.py::test_each_step_case_is_red_on_its_mutant",
+    "tests/test_stage3b_hour.py::test_each_distance_case_is_red_on_its_mutant",
+    "tests/test_stage3b_hour.py::test_a_declared_twelve_hour_stamp_writes_what_it_reads_back",
+    "tests/test_stage3b_hour.py::test_a_twelve_hour_stamp_with_its_census_withheld_keeps_the_half_day",
+    "tests/test_stage3b_hour.py::test_red_without_the_half_day_tails",
+    "tests/test_stage3b_hour.py::test_red_without_the_half_days_own_census",
+    "tests/test_stage3b_hour.py::test_the_sure_cells_and_rule_4_by_hand",
+    "tests/test_stage3b_hour.py::test_the_merge_never_runs_past_midnight",
+    "tests/test_stage3b_hour.py::test_the_half_day_by_hand",
+    "tests/test_stage3b_reader.py::test_r9_a_declared_twelve_hour_stamp_validates_clean"
+   ],
+   "test": null,
+   "driver": null,
+   "pin_strength": "WEAKER",
+   "measured_on": "tests/test_stage3b_hour.py and R9's second half in tests/test_stage3b_reader.py",
+   "evidence": "Before, the hour census was reserved and empty, a declared 12-hour stamp's twin missed 10, 11 and 5 obligations at seeds 0 to 2 (R9 a strict expected failure, P4-D370), and no state of G7.3g's own steps was frozen.",
+   "nodes_min_collected": 52,
+   "value_at": {
+    "commit": "",
+    "date": "",
+    "measured_by": "",
+    "value": {}
+   }
+  },
+  {
+   "id": "K-S3-41",
+   "phase_stage": "Stage 3b landing 3b.2-H, the orchestrator's reading of the owner's accepted class of 2026-09-30 (plan P4-D363)",
+   "category": "PRIVACY",
+   "headline": false,
+   "name": "A group of several hours may say one of its hours holds 1 to 10 rows",
+   "status": "ACCEPTED_LIMIT",
+   "rule": "over the hour gate's 1,000-row table at a floor of eleven (tests/test_stage3b_hour.py::_thousand): the columns publishing a census, the groups counting several hours among them -- each says that one of its hours holds one to ten rows, a range -- and the counts printed below the line, which stay nought. It may not widen",
+   "rule_kind": "at_most",
+   "expected": {
+    "censuses": 8,
+    "merged_groups": 9,
+    "counts_below_the_line": 0
+   },
+   "key_kinds": {
+    "censuses": "at_least"
+   },
+   "tier": "FAST",
+   "source": "pytest",
+   "nodes": [],
+   "test": "tests/test_kpi_ledger.py::test_k_s3_41",
+   "driver": null,
+   "pin_strength": "NONE",
+   "measured_on": "the eleven columns of the hour gate's 1,000-row table, described at floor 11",
+   "evidence": "Merged by the one merge rule: an hour alone that would name one to ten rows, directly or beside the cells the rest of the description places in it, joins its smaller neighbour, never across midnight. A fixed menu was measured instead and cost the 1,000-row discharges an hour TVD of 0.33 against 0.02 merged (the design of 3b.2-H).",
+   "status_note": "THE ORCHESTRATOR'S READING OF THE OWNER'S CLASS OF 2026-09-30 ('Accept the class', plan P4-D363), NOT a new ruling and NOT to be re-asked: a count below 11 worked out within one column -- here, that one hour of a merged group holds 1 to 10 rows -- is accepted; it is a range, never a value, a date or a row, and never about another column.",
+   "nodes_min_collected": 0,
+   "value_at": {
+    "commit": "",
+    "date": "",
+    "measured_by": "",
+    "value": {}
    }
   },
   {
