@@ -25882,8 +25882,10 @@ def _label_content(
             sizes, shared, level_shape, written_as, used, owners, holes
         )
     # Each form's place in its own supply, carried across the whole
-    # column so no spelling is walked twice.
+    # column so no spelling is walked twice, and how many of its
+    # spellings the column has taken (`_walk_goes_on`).
     walked: "dict[str, int]" = {}
+    taken: "dict[str, int]" = {}
     shaped = 0
     kept = 0
     # THE COLUMN GROWS IN PLACE (stage 4, plan P4-D385). It was copied
@@ -25902,7 +25904,7 @@ def _label_content(
         else:
             number, label = _made_up_label(
                 number, used, owners, form, plan.all_holes, walked,
-                level_shape if place in shaped_places else "",
+                level_shape if place in shaped_places else "", taken,
             )
             if not form and level_shape and _level_key(label) == level_shape:
                 kept = kept + 1
@@ -26212,6 +26214,7 @@ def _class_stand_ins_walked(
     cursor: "dict[str, int]" = {}
     counters: "dict[str, int]" = {}
     walked: "dict[str, int]" = {}
+    taken: "dict[str, int]" = {}
     numbers_made = 0
     scaled = 0
     for name in _OWED_CLASSES:
@@ -26328,7 +26331,7 @@ def _class_stand_ins_walked(
                         # `_HELD_BACK_UNSPELLED_REASON` already says.
                         found = _class_form_stand_in(
                             form, parsing.NUMBER, walked, used, owners,
-                            holes, decimal_comma, ladder,
+                            holes, decimal_comma, ladder, taken,
                         )
                     if not found:
                         # AND LAST, THE LADDER AT THE FORM'S OWN SCALE
@@ -26360,7 +26363,7 @@ def _class_stand_ins_walked(
                 if form:
                     found = _class_form_stand_in(
                         form, reads_as, walked, used, owners, holes,
-                        decimal_comma,
+                        decimal_comma, None, taken,
                     )
                 if not found:
                     found = _straggler_stand_in(
@@ -27243,13 +27246,19 @@ def _usable_room(
     the places it has to fill, so a form of many letters costs this the
     number of stand-ins and not four thousand candidates -- which is
     what made it a cost on a wide table (round 3 finding 8).
+
+    AND IT GIVES THE FORM UP WHERE THE WALK THAT SPENDS IT DOES
+    (`_walk_goes_on`, plan P4-D390), so the supply counted here is the
+    supply that walk can write.
     """
-    room = min(_form_room(form), _STAND_IN_STEPS)
+    room = _form_room(form)
     usable = 0
-    for step in range(room):
+    step = 0
+    while _walk_goes_on(step, usable, room):
         if usable >= wanted:
             return usable
         candidate = _filled_form(form, step)
+        step = step + 1
         if candidate in used or parsing.folded(candidate) in owners:
             continue
         if not _is_a_usable_stand_in(candidate, holes, reads_as, decimal_comma):
@@ -27330,12 +27339,36 @@ def _filled_form(form: str, step: int) -> str:
     return spelling
 
 
-# How many spellings of one form a stand-in walk will try before it
-# gives the form up and writes the neutral spelling instead. A form of
-# many letters holds more spellings than any run needs, and a walk that
-# insisted on finding a usable one could spend an unbounded time on a
-# document the loader accepted.
+# How many spellings of one form a stand-in walk may refuse beyond the
+# ones it takes before it gives the form up and writes the neutral
+# spelling instead (`_walk_goes_on`). A form of many letters holds more
+# spellings than any run needs, and a walk that insisted on finding a
+# usable one could spend an unbounded time on a document the loader
+# accepted.
 _STAND_IN_STEPS = 4096
+
+
+def _walk_goes_on(steps: int, taken: int, room: int) -> bool:
+    """Whether a walk of one form's spellings may try one spelling more.
+
+    THE BOUND IS ON WHAT THE WALK REFUSES, NOT ON WHAT IT TAKES (plan
+    P4-D390). It was 4,096 steps in all, so a code register holding back
+    more codes of one form than that wrote the rest `group-N`: measured
+    at a floor of eleven, a register of 30,000 codes over 100,000 rows
+    held back 11,467 of them in the form `@%%%.%%`, 7,371 came out
+    `group-N`, and the twin MISSED the census count of that form, which
+    its source met. A walk now goes on while the spellings it has
+    refused number fewer than those it has taken plus `_STAND_IN_STEPS`
+    -- ``steps < 2 * taken + _STAND_IN_STEPS`` -- and never past the
+    form's own room. So a walk spends at most twice what it writes plus
+    4,096 steps, a form none of whose spellings is usable still costs
+    4,096 steps and no more, and every walk whose first 4,096 steps held
+    what it needed writes exactly what it wrote before.
+
+    Guarantees: a fixed function of the three counts. Raises nothing.
+    No I/O of any kind.
+    """
+    return steps < room and steps < 2 * taken + _STAND_IN_STEPS
 
 
 def _form_room(form: str) -> int:
@@ -28121,6 +28154,7 @@ def _made_up_label(
     holes: "tuple[str, ...]",
     walked: "dict[str, int]",
     level_shape: str = "",
+    taken: "dict[str, int] | None" = None,
 ) -> "tuple[int, str]":
     """One label standing in for one that was held back (G8.3, P4-D18).
 
@@ -28173,16 +28207,26 @@ def _made_up_label(
         # column advanced it twenty thousand times without a single
         # collision and its twin held `group-20101`. A shaped walk now
         # leaves `number` exactly where it found it.
-        room = min(_form_room(form), _STAND_IN_STEPS)
+        #
+        # HOW MANY IT HAS TAKEN IS CARRIED BESIDE WHERE IT STANDS (plan
+        # P4-D390), because the walk's bound is on what it refuses. A
+        # caller that carries no ``taken`` counts none, so its walk stops
+        # at 4,096 steps in all, the bound before P4-D390.
+        if taken is None:
+            taken = {}
+        room = _form_room(form)
         if form not in walked:
             walked[form] = 0
-        while walked[form] < room:
+        if form not in taken:
+            taken[form] = 0
+        while _walk_goes_on(walked[form], taken[form], room):
             candidate = _filled_form(form, walked[form])
             walked[form] = walked[form] + 1
             if candidate in used or parsing.folded(candidate) in owners:
                 continue
             if not _is_a_usable_stand_in(candidate, holes):
                 continue
+            taken[form] = taken[form] + 1
             used[candidate] = 1
             owners[parsing.folded(candidate)] = candidate
             return number, candidate
@@ -30735,6 +30779,7 @@ def _class_form_stand_in(
     holes: "tuple[str, ...]",
     decimal_comma: bool,
     ladder: "_Ladder | None" = None,
+    taken: "dict[str, int] | None" = None,
 ) -> str:
     """A spelling of one published form that reads as one numeric class.
 
@@ -30748,11 +30793,19 @@ def _class_form_stand_in(
     so this walk can never buy a census count with a number the column
     is not known to hold. The out-of-range and contradictory classes
     pass no ladder and are unbounded, which is what those classes mean.
+
+    It gives the form up where `_walk_goes_on` says, as `_made_up_label`
+    does, with ``taken`` counting what this walk has taken of each form;
+    a caller that carries none walks under 4,096 steps in all.
     """
-    room = min(_form_room(form), _STAND_IN_STEPS)
+    if taken is None:
+        taken = {}
+    room = _form_room(form)
     if form not in walked:
         walked[form] = 0
-    while walked[form] < room:
+    if form not in taken:
+        taken[form] = 0
+    while _walk_goes_on(walked[form], taken[form], room):
         candidate = _filled_form(form, walked[form])
         walked[form] = walked[form] + 1
         if candidate in used or parsing.folded(candidate) in owners:
@@ -30763,6 +30816,7 @@ def _class_form_stand_in(
             candidate, ladder, decimal_comma
         ):
             continue
+        taken[form] = taken[form] + 1
         return candidate
     return ""
 

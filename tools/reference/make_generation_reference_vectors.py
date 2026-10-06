@@ -6984,14 +6984,17 @@ def usable_room(form, wanted, seen, folds, reads=None, ladder=None):
     one the neutrality tests refuse.  ``reads`` is the numeric class the
     spelling must read as (G8.3a); None is ordinary text.  ``ladder``,
     where given, holds the count to the published ends (P4-D92), so the
-    supply is counted under the bound the walk spends under.
+    supply is counted under the bound the walk spends under.  It gives
+    the form up where the walk that spends it does (`walk_goes_on`).
     """
-    room = min(form_room(form), STAND_IN_STEPS)
+    room = form_room(form)
     usable = 0
-    for step in range(room):
+    step = 0
+    while walk_goes_on(step, usable, room):
         if usable >= wanted:
             return usable
         candidate = filled_form(form, step)
+        step += 1
         if candidate in seen or folded(candidate) in folds:
             continue
         if reads is None:
@@ -7010,6 +7013,16 @@ def usable_room(form, wanted, seen, folds, reads=None, ladder=None):
 SHARE_OUT_PLACES = 256
 SHARE_OUT_NODES = 20000
 STAND_IN_STEPS = 4096
+
+
+def walk_goes_on(steps, taken, room):
+    """Whether a walk of one form's spellings may try one spelling more --
+    method section G8.3 (plan P4-D390): never past the form's own room,
+    and while the spellings it has refused number fewer than those it has
+    taken plus STAND_IN_STEPS.  Until P4-D390 the walk stopped at
+    STAND_IN_STEPS steps in all.
+    """
+    return steps < room and steps < 2 * taken + STAND_IN_STEPS
 
 # How many different exact class arrangements G8.3a step 1 tries before
 # the first one stands (landing 2b.13).  Each pass forbids one more of
@@ -7234,6 +7247,7 @@ def invented_levels(
         )
     produced = []
     walked = {}
+    taken = {}
     number = 0
     for place, size in enumerate(sizes):
         if placed is not None and place in placed:
@@ -7244,15 +7258,17 @@ def invented_levels(
             form = level_shape
         candidate = None
         if form:
-            room = min(form_room(form), STAND_IN_STEPS)
+            room = form_room(form)
             walked.setdefault(form, 0)
-            while walked[form] < room:
+            taken.setdefault(form, 0)
+            while walk_goes_on(walked[form], taken[form], room):
                 trial = filled_form(form, walked[form])
                 walked[form] += 1
                 if trial in seen or folded(trial) in folds:
                     continue
                 if not usable_stand_in(trial):
                     continue
+                taken[form] += 1
                 candidate = trial
                 break
         if candidate is None:
@@ -8598,6 +8614,7 @@ def class_stand_ins_walked(
     cursor = {}
     counters = {}
     walked = {}
+    taken = {}
     for name in OWED_CLASSES:
         reads = owed_reading(name)
         mine = [place for place in range(len(sizes)) if classes.get(place) == name]
@@ -8683,9 +8700,10 @@ def class_stand_ins_walked(
                         # bought with a magnitude the column is not known
                         # to hold.  Where no plain number was published
                         # there are no ends and the debt simply stands.
-                        room_left = min(form_room(form), STAND_IN_STEPS)
+                        room_left = form_room(form)
                         walked.setdefault(form, 0)
-                        while walked[form] < room_left:
+                        taken.setdefault(form, 0)
+                        while walk_goes_on(walked[form], taken[form], room_left):
                             trial = filled_form(form, walked[form])
                             walked[form] += 1
                             if trial in seen or folded(trial) in folds:
@@ -8693,6 +8711,7 @@ def class_stand_ins_walked(
                             if usable_of_class(trial, reads) and (
                                 within_the_published_ends(trial, ladder)
                             ):
+                                taken[form] += 1
                                 found = trial
                                 break
                     if not found:
@@ -8716,14 +8735,16 @@ def class_stand_ins_walked(
                     )
             else:
                 if form:
-                    room_left = min(form_room(form), STAND_IN_STEPS)
+                    room_left = form_room(form)
                     walked.setdefault(form, 0)
-                    while walked[form] < room_left:
+                    taken.setdefault(form, 0)
+                    while walk_goes_on(walked[form], taken[form], room_left):
                         trial = filled_form(form, walked[form])
                         walked[form] += 1
                         if trial in seen or folded(trial) in folds:
                             continue
                         if usable_of_class(trial, reads):
+                            taken[form] += 1
                             found = trial
                             break
                 if not found:

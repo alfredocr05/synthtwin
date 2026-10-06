@@ -27,6 +27,7 @@ WHAT IS PINNED HERE:
 """
 
 import copy
+import importlib.util
 import pathlib
 import random
 import re
@@ -1833,3 +1834,145 @@ def test_a_stand_in_avoids_a_hole_declared_on_another_column() -> None:
         for check in outcome.checks
         if check.verdict == validation.MISSED
     ] == []
+
+
+# -- plan P4-D390: the walk's bound is on what it refuses ----------------
+
+_ORACLE_PATH = (
+    pathlib.Path(__file__).resolve().parents[1]
+    / "tools" / "reference" / "make_generation_reference_vectors.py"
+)
+_REGISTER_FORM = re.compile(r"[A-Z][0-9]{3}\.[0-9]{2}")
+
+
+def _reference_oracle() -> object:
+    """The generation oracle, loaded from its path (it is not a package)."""
+    spec = importlib.util.spec_from_file_location("oracle_p4d390", _ORACLE_PATH)
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def _register_past_the_old_bound(
+    held: int, figures: bool = True
+) -> "tuple[list[str], list[str]]":
+    """A hundred published codes of twelve rows and ``held`` codes written once.
+
+    Every code wears `@%%%.%%`, or `@@-@@@` where ``figures`` is false;
+    returns the column and its published codes.
+    """
+    draw = random.Random(390)
+    letters = "ABCDEFGHJKLMNPRSTVWXYZ"
+    codes: "list[str]" = []
+    seen: "dict[str, int]" = {}
+    while len(codes) < held + 100:
+        code = f"{draw.choice(letters)}{draw.randrange(1000):03d}.{draw.randrange(100):02d}"
+        if not figures:
+            code = "".join(draw.choice(letters) for _each in range(5))
+            code = f"{code[:2]}-{code[2:]}"
+        if code not in seen:
+            seen[code] = 1
+            codes += [code]
+    values: "list[str]" = []
+    for code in codes[:100]:
+        values += [code] * 12
+    values += codes[100:]
+    draw.shuffle(values)
+    return values, codes[:100]
+
+
+def test_a_register_holding_back_more_codes_than_the_old_bound_writes_them_all() -> None:
+    """THE WALK GAVE A FORM UP AT 4,096 SPELLINGS IN ALL (plan P4-D390).
+
+    Every held-back code past the 4,096th spelling of its form was
+    written `group-N`, so the twin of a code register MISSED the census
+    count of the code's own form wherever more codes than that were held
+    back: measured on a register of 30,000 codes over 100,000 rows at a
+    floor of eleven, 11,467 codes held back in `@%%%.%%`, 89,908 twin
+    cells of 100,000 in that form, and validate exit 3. Dropping ruling
+    5's level pass, which had counted those cells as missing, laid it
+    bare. The bound is on what the walk refuses now
+    (`generation._walk_goes_on`), so 5,000 codes held back beside a
+    hundred published ones are 5,000 stand-ins in the form, no group is
+    neutral, and the twin meets every count its description sets.
+    """
+    values, published = _register_past_the_old_bound(5000)
+    document, described, folder = _described(values, "dx")
+    block = document["columns"][0]
+    assert block["role"] == "long_tail_labels", block["role"]
+    assert (block["suppressed_levels"], block["suppressed_rows"]) == (5000, 5000)
+    assert block["shape_forms"] == {"@%%%.%%": 6200}
+    twin = generation.generate(described, 7)
+    cells = twin.columns[0]
+    assert [cell for cell in cells if cell.startswith("group-")] == []
+    assert len([cell for cell in cells if _REGISTER_FORM.fullmatch(cell)]) == 6200
+    made_up = {cell for cell in cells} - set(published)
+    assert len(made_up) == 5000
+    twin_file = fixtures.write(folder, "twin.csv", rendering.twin_csv(twin))
+    outcome = validation.measure(described, f"{twin_file}")
+    assert [
+        check.subcheck
+        for check in outcome.checks
+        if check.verdict == validation.MISSED
+    ] == []
+
+
+def test_the_walk_bound_is_on_what_it_refuses_not_on_what_it_takes() -> None:
+    """`_walk_goes_on` at its edges, and the supply counted under it.
+
+    A walk may try one spelling more while it has refused fewer than it
+    has taken plus 4,096, never past the form's own room: a form none of
+    whose spellings is usable still costs 4,096 steps, and a dense one
+    supplies what is wanted past the 4,096 the old bound stopped at.
+    """
+    steps = generation._STAND_IN_STEPS
+    room = generation._form_room("@%%%.%%")
+    assert room == 26 * 10 ** 5
+    assert generation._walk_goes_on(steps - 1, 0, room)
+    assert not generation._walk_goes_on(steps, 0, room)
+    assert generation._walk_goes_on(steps, 1, room)
+    assert generation._walk_goes_on(2 * 9000 + steps - 1, 9000, room)
+    assert not generation._walk_goes_on(2 * 9000 + steps, 9000, room)
+    assert generation._walk_goes_on(259, 200, 260)
+    assert not generation._walk_goes_on(260, 200, 260)
+    assert generation._usable_room("@%%%.%%", 9000, {}, {}, ()) == 9000
+    began = time.monotonic()
+    assert generation._usable_room("-@@@@@", 50, {}, {}, ()) == 0
+    assert time.monotonic() - began < 2.0
+
+
+def test_the_oracle_bounds_the_walk_as_the_product_does() -> None:
+    """The reference oracle mirrors the bound (A-P4-59), case for case.
+
+    Its `walk_goes_on` answers as `generation._walk_goes_on` over a grid
+    reaching past the old bound, its supply is the product's on a dense
+    form, a refused one and a small one, and its stand-ins for a
+    register holding 5,000 codes back are the twin's own made-up codes,
+    spelling for spelling. The oracle reasons only about spellings with
+    no figure in them, so its forms and its register are of letters and
+    a hyphen.
+    """
+    oracle = _reference_oracle()
+    for taken in (0, 1, 7, 4096, 9000):
+        for steps in (0, 4095, 4096, 2 * taken + 4095, 2 * taken + 4096):
+            for room in (260, 4096, 26 * 10 ** 5):
+                assert oracle.walk_goes_on(steps, taken, room) == (
+                    generation._walk_goes_on(steps, taken, room)
+                ), (steps, taken, room)
+    for form, wanted in (("@@-@@@", 9000), ("-@@", 50), ("@-@@", 20000)):
+        assert oracle.usable_room(form, wanted, set(), set()) == (
+            generation._usable_room(form, wanted, {}, {}, ())
+        ), form
+    values, published = _register_past_the_old_bound(5000, figures=False)
+    document, described, _folder = _described(values, "dx")
+    assert document["columns"][0]["shape_forms"] == {"@@-@@@": 6200}
+    twin = generation.generate(described, 7)
+    assert [cell for cell in twin.columns[0] if cell.startswith("group-")] == []
+    written = [cell for cell in values if cell in set(published)]
+    produced = oracle.invented_levels(
+        set(published), [1] * 5000, {"@@-@@@": 6200}, written
+    )
+    assert {label for label, _size in produced} == (
+        set(twin.columns[0]) - set(published)
+    )

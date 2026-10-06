@@ -7871,6 +7871,21 @@ leading segment answer plausibly and wrongly.
   stride sharing no factor with the form's own supply — so consecutive
   labels differ in every fillable position, and no two steps below that
   supply collide. Every other character of the form stands as itself.
+- **A form is given up only where its walk refuses far more than it
+  takes** (plan P4-D390). The walk of one form carries its place across
+  the column and tries one spelling more while the spellings it has
+  refused number fewer than those it has taken plus 4,096 -- `steps <
+  2 * taken + 4096` -- and never past the form's own supply. A label
+  the form cannot then supply is `group-N`, as where the census names
+  no form, and the supply the arrangement above counts is counted under
+  the same bound. Until P4-D390 the walk stopped at 4,096 spellings of
+  one form in all, so a register holding back more codes of one form
+  than that wrote the rest `group-N` and its twin missed that form's
+  census count: a register of 30,000 codes over 100,000 rows at a floor
+  of eleven held 11,467 codes back, and its twin held 89,908 of 100,000
+  cells in the code's form. A form none of whose spellings is usable
+  still costs 4,096 steps, and a walk whose first 4,096 steps held what
+  it needed writes what it wrote before.
 - **The four neutrality properties are ASKED rather than had.** A
   spelling built to look like a code no longer has them by
   construction, so each candidate is tested against all four and
