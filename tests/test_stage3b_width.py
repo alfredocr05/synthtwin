@@ -1098,32 +1098,72 @@ def test_the_second_reading_is_divided_by_its_own_ladder_and_the_report_s_bound_
     assert mine[0] + mine[1] > before[0] + before[1] + _SLACK, f"{mine} {before}"
 
 
-def test_a_position_is_divided_again_by_its_own_count(tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """The stage-3 battery's joined column: each position's second reading is divided by that position's own count.
-
-    A joined column's positions are columns of their own to the value
-    stage, each divided by its own count of different numbers rather than
-    the column's count of cells (residual R-P4-112); the second reading
-    must be divided the same way, or its words would not be the plan's.
-    """
+def _joined_battery_column() -> "list[str]":
+    """The stage-3 battery's joined column, `a/b` pairs with one reversed."""
     cells, _flags = stage3_battery.SHAPES["joined_one_reversed"](random.Random(stage3_battery.BATTERY_SEED))
-    described = kpi_shapes.describe(tmp_path / "joined", "joined", stage3_battery.rows_text(["value"], [[cell] for cell in cells]), 11)
-    block = described.loaded.columns[0].facts
-    assert isinstance(block, contract.JoinedFacts), "premise: a joined column"
-    counts = {part.n_distinct_values for part in block.parts}
-    asked: "list[object]" = []
+    return cells
+
+
+def _affixed_beside_one_far() -> "list[str]":
+    """400 cores 1000 to 1999 wearing ` mg`, beside one `99999 mg`."""
+    draw = random.Random("g2/roles/affixed")
+    return [f"{draw.randint(1000, 1999)} mg" for _row in range(400)] + ["99999 mg"]
+
+
+def _two_wrappers_beside_far() -> "list[str]":
+    """Cores 1000 to 1999 in two wrappers, ` mg` and ` kg`, each beside one far core."""
+    draw = random.Random("g2/roles/set")
+    cells = [f"{draw.randint(1000, 1999)} mg" for _row in range(300)] + ["99999 mg"]
+    return cells + [f"{draw.randint(1000, 1999)} kg" for _row in range(100)] + ["88888 kg"]
+
+
+def _numbers_beside_labels_and_far() -> "list[str]":
+    """400 numbers 1000 to 1999 and one `99999`, beside twelve cells of one label."""
+    draw = random.Random("g2/roles/compound")
+    return [str(draw.randint(1000, 1999)) for _row in range(400)] + ["99999"] + ["NOT DETECTED"] * 12
+
+
+_ROLE_SHAPES = (
+    ("joined", _joined_battery_column, contract.JoinedFacts),
+    ("affixed", _affixed_beside_one_far, contract.AffixedFacts),
+    ("affixed_set", _two_wrappers_beside_far, contract.AffixedFacts),
+    ("numbers_beside_labels", _numbers_beside_labels_and_far, contract.CompoundFacts),
+)
+
+
+@pytest.mark.parametrize("label,shape,kind", _ROLE_SHAPES, ids=[one[0] for one in _ROLE_SHAPES])
+def test_each_block_is_read_again_and_bounded_by_its_own_count(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch, label: str, shape, kind  # type: ignore[no-untyped-def]
+) -> None:
+    """A position, a core, each wrapper and a numeric half: the second reading and the report's bound are divided by that block's own count.
+
+    These are columns of numbers of their own to the value stage, each
+    divided by its own count of different numbers rather than the column's
+    count of cells (residual R-P4-112), so rule 3's second reading must be
+    divided the same way or its words would not be the plan's -- and the
+    generation report's bound (`_report_widest`) asks the same division
+    again. Each block a far cell reaches is asked twice, once where its
+    values are drawn and once where its report is measured, and both times
+    with its own count. A mutant handing either call no count divides by
+    the column's cells and turns this red.
+    """
+    cells = shape()
+    described = kpi_shapes.describe(tmp_path / label, label, stage3_battery.rows_text(["value"], [[cell] for cell in cells]), 11)
+    assert isinstance(described.loaded.columns[0].facts, kind), f"premise: a {label} column"
+    asked: "list[tuple[object, int]]" = []
     real_withdrawn = generation._width_rule_withdrawn
 
     def watched(column, facts, grain_values, floor):  # type: ignore[no-untyped-def]
         found = real_withdrawn(column, facts, grain_values, floor)
         if found is not None:
-            asked.append(grain_values)
+            asked.append((grain_values, facts.n_distinct_values))
         return found
 
     monkeypatch.setattr(generation, "_width_rule_withdrawn", watched)
     kpi_shapes.twin_text(described, 0)
-    assert asked, "premise: a position reaches the second reading"
-    assert set(asked) <= counts and None not in asked
+    assert asked, "premise: a block reaches the second reading"
+    assert all(grain == count for grain, count in asked), asked
+    assert len(asked) == 2 * len({count for _grain, count in asked}), asked
 
 
 # -- 3. where the strata moved under the width go ----------------------------
