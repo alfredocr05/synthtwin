@@ -6520,8 +6520,9 @@ day.
 WHAT THE PRODUCER WITHHOLDS BESIDE THEM (plans P4-D365 and P4-D388,
 under the owner's principle of 2026-10-01 that the threat is a HIPAA
 exposure and never a reader rebuilding counts from a description) are
-four rules, set on the cases measured where a twin missed, decided on
-the table's own dates and so not checkable on load. None proves a census
+four CONSERVATIVE rules, set on the cases measured where a twin missed,
+decided on the table's own dates and so not checkable on load. None
+proves a census
 impossible to meet: each withholds some a twin would meet, and that is
 its price -- the column loses its weekday statistic -- against a twin
 that would otherwise miss its own count of different values. The two
