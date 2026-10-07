@@ -143,8 +143,13 @@ now meet a census they missed with one value more or fewer, and on one
 day of moments, whose census and count no placement keeping every clock
 meets together, a chain made whole halves the census's miss and keeps
 12 different minutes where 13 were asked and kept; the landing that
-first publishes a weekday census of moments decides on it. The
-fifteenth vectors file holds 51 states.
+first publishes a weekday census of moments decides on it. Of 200,000
+later random states, every one that loses a fact the pass met before,
+unless it meets or nears a census the pass missed, keeps a second
+census, which no column publishes yet: the census is lost on four, the
+count on three, and four of the seven met both before; the landing
+that first publishes such a census decides on them with the others.
+The fifteenth vectors file holds 51 states.
 
 ### Stage 4's first tier repaired at its review (2026-10-02)
 
