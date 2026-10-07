@@ -48,15 +48,20 @@ left its twins a value short and no other; over 2,000 short spans 0, 2,
 4 and 2 at 11, 21, 36 and 50, every one short; over 25 weekday-only
 logs 6 of 83, one short and five met; and a log of about two rows a
 business day over two years at every floor, its twins meeting it. That
-is its price, and it falls on logs of one and a half to two rows a
-business day, where it reads every merge the twin's count pass may make
-as taken from the tails. One row a business day keeps its census at
-every floor, as the gate requires: reading the tails at their fewest
-whatever the draw, as the repair first did, withheld it. At a million
-rows the description takes what it took (54.5 s against 59.7 s), and a
-column whose two tails tie 200,000 rows on a day each, whose twin held
-524 different values for 541 beside its census, keeps all 541 without
-it.
+is its price, and it falls on columns holding a row on every day their
+census allows, where it reads every merge the twin's count pass may
+make as taken from the tails: it withholds 21 censuses 4a4b901
+published over 56 Monday-to-Friday logs holding every business day, 18
+of them met by their twins, and 10 over 48 clinics holding every
+Monday, Wednesday and Friday, 9 of them met, but 2 over 72 such
+business-day logs with the federal holidays closed and none over 51
+whose days are drawn. One row a business
+day keeps its census at every floor, as the gate requires: reading the
+tails at their fewest whatever the draw, as the repair first did,
+withheld it. At a million rows the description takes what it took
+(54.5 s against 59.7 s), and a column whose two tails tie 200,000 rows
+on a day each, whose twin held 524 different values for 541 beside its
+census, keeps all 541 without it.
 
 **What is claimed is what was measured** (its Codex review, item 3).
 `K-S3-59`'s name, this entry's heading and the tests' opening lines said

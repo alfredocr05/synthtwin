@@ -29,8 +29,10 @@ tails can hold as the generator rebuilds them (`tails_fewest`,
 generator's own here) and the days the body's draw lands on: where the
 draw falls short of the count the count pass only splits and the tails
 reach their most, and where it merges the body keeps no more than its
-draw. Read so, it withholds some censuses a twin meets -- two rows a
-business day over two years among them -- and that is its price.
+draw. Read so, it withholds some censuses a twin meets -- on columns
+holding a row on every day their census allows, two rows a business
+day over two years and three clinic days a week among them -- and that
+is its price; close a few of those days and the census is published.
 (3) What is claimed is what was measured: on the review's columns,
 the 26 batteries at seeds 0 to 4, 2,000 short spans, 25 weekday logs
 and six business-day logs, no census these rules publish left a twin a
@@ -163,8 +165,23 @@ def _one_row_a_business_day() -> "list[str]":
     return cells
 
 
-def _two_rows_a_business_day() -> "list[str]":
-    """About two rows a business day for 104 weeks from Monday 3 January 2022, `Random(304)`: 1,063 rows over 520 days."""
+# The US federal holidays of 2022 and 2023 on the business day each was kept: 21 days.
+_FEDERAL_HOLIDAYS = frozenset(
+    datetime.date.fromisoformat(each)
+    for each in (
+        "2022-01-17 2022-02-21 2022-05-30 2022-06-20 2022-07-04 2022-09-05 2022-10-10 2022-11-11 2022-11-24"
+        " 2022-12-26 2023-01-02 2023-01-16 2023-02-20 2023-05-29 2023-06-19 2023-07-04 2023-09-04 2023-10-09"
+        " 2023-11-10 2023-11-23 2023-12-25"
+    ).split()
+)
+
+
+def _two_rows_a_business_day(closed: "frozenset[datetime.date]" = frozenset()) -> "list[str]":
+    """About two rows a business day for 104 weeks from Monday 3 January 2022, `Random(304)`: 1,063 rows over 520 days.
+
+    A day in `closed` holds none of the rows it draws; every other day
+    holds the rows it draws either way.
+    """
     draw = random.Random(304)
     first = datetime.date(2022, 1, 3)
     cells: "list[str]" = []
@@ -172,7 +189,25 @@ def _two_rows_a_business_day() -> "list[str]":
         day = first + datetime.timedelta(days=step)
         if day.weekday() >= 5:
             continue
-        cells += [day.isoformat()] * max(1, int(round(draw.gauss(2, 2 / 3))))
+        rows = max(1, int(round(draw.gauss(2, 2 / 3))))
+        if day not in closed:
+            cells += [day.isoformat()] * rows
+    draw.shuffle(cells)
+    return cells
+
+
+def _three_clinic_days_a_week() -> "list[str]":
+    """About one and a half rows every Monday, Wednesday and Friday for 52 weeks from 3 January 2022, `Random(9202)`.
+
+    242 rows over 156 days, every clinic day holding at least one.
+    """
+    draw = random.Random(9202)
+    first = datetime.date(2022, 1, 3)
+    cells: "list[str]" = []
+    for step in range(52 * 7):
+        day = first + datetime.timedelta(days=step)
+        if day.weekday() in (0, 2, 4):
+            cells += [day.isoformat()] * max(1, int(round(draw.gauss(1.5, 0.5))))
     draw.shuffle(cells)
     return cells
 
@@ -1141,14 +1176,17 @@ def test_two_rows_a_business_day_are_withheld_though_their_twins_meet_their_cens
     most. Its body's ranks draw more days than the count leaves the body,
     so the count pass merges, and the rule reads every merge it may make
     as taken from the tails, down to their fewest: the body then needs
-    more days than the census, Monday to Friday against the weekend 0,
-    lets it reach, and the census is withheld, `count_reach`, at the
-    floors of 11, 20, 36 and 50 alike. Restored at 11, its twins at seeds
-    0 to 2 hold all 520 days and miss no check. That is the rule's price
-    on logs of one and a half to two rows a business day, where the same
-    reading withholds `_hunt(2291)` and the short logs. Red when the merge
-    stops being read at the tails' fewest -- a change that must be
-    measured again on the columns this file holds short.
+    more days than the census, each weekday its own group and the
+    weekend 0, lets it reach -- every business day holds a row, so it
+    reaches the body's own days and no more -- and the census is
+    withheld, `count_reach`, at the floors of 11, 20, 36 and 50 alike.
+    Restored at 11, its twins at seeds 0 to 2 hold all 520 days and miss
+    no check. That is the rule's price, and it falls on columns holding a
+    row on every day their census allows, where the count pass merges
+    (the next test holds both sides of that); the same reading withholds
+    `_hunt(2291)` and the short logs. Red when the merge stops being read
+    at the tails' fewest -- a change that must be measured again on the
+    columns this file holds short.
     """
     cells = _two_rows_a_business_day()
     assert (len(cells), len(set(cells))) == (1063, 520)
@@ -1166,6 +1204,65 @@ def test_two_rows_a_business_day_are_withheld_though_their_twins_meet_their_cens
         assert isinstance(column.facts, contract.DatetimeFacts)
         assert column.facts.weekday_census[len(column.facts.weekday_census) - 1] == (5, 6, 0)
         _twins_meet(tmp_path, "two11", restored, (0, 1, 2))
+
+
+def test_the_reach_rule_s_price_falls_where_every_day_the_census_allows_holds_a_row(tmp_path: pathlib.Path) -> None:
+    """The columns the count-reach rule's price falls on (the verification of P4-D388's Codex review).
+
+    The price was recorded on logs of one and a half to two rows a
+    business day. Measured again, it falls on columns holding a row on
+    EVERY day their census allows, where the count pass merges: the body
+    can then reach its own days and no more, and a need read at the
+    tails' fewest passes them. Close a few of those days and the census
+    is published: `_two_rows_a_business_day()` with the 21 federal
+    holidays of 2022 and 2023 closed, every other day as it was, 1,017
+    rows over 499 days, keeps its census at the floors of 11, 20, 36 and
+    50, each weekday its own group and the weekend 0 -- a closed day
+    inside the body is a day the census allows that no row holds, and
+    the body reaches it -- and its twins at seeds 0 to 2 meet it at 11.
+    And the price is no business-day log's alone: three clinic days a
+    week, `_three_clinic_days_a_week()`, 242 rows over 156 days, its
+    census Monday, Wednesday and Friday each its own group and Tuesday,
+    Thursday and the weekend 0, is withheld at 11, 20 and 36,
+    `count_reach`, though its twins at seeds 0 to 2 meet it restored at
+    11; at 50 the census joins Monday to Friday against the weekend,
+    allowing the empty Tuesdays and Thursdays, and is published. Red when
+    the rule withholds a column with an allowed day left empty, or
+    publishes a full clinic week: either moves the price that P4-D388,
+    K-S3-59 and the changelog record.
+    """
+    closed = _two_rows_a_business_day(_FEDERAL_HOLIDAYS)
+    assert (len(closed), len(set(closed))) == (1017, 499)
+    assert len(_FEDERAL_HOLIDAYS) == 21 and not _FEDERAL_HOLIDAYS & {datetime.date.fromisoformat(cell) for cell in closed}
+    for floor in (11, 20, 36, 50):
+        described = _described(tmp_path, f"closed{floor}", closed, floor)
+        block = described.block("visit")
+        assert _decided(block, closed, floor).reason == "", floor
+        groups = tuple((group["first"], group["last"], group["count"]) for group in block["weekday_census"])
+        assert [(first, last) for first, last, _count in groups] == [(0, 0), (1, 1), (2, 2), (3, 3), (4, 4), (5, 6)], groups
+        assert groups[len(groups) - 1] == (5, 6, 0), groups
+        if floor == 11:
+            _twins_meet(tmp_path, "closed11", described.loaded, (0, 1, 2))
+    clinic = _three_clinic_days_a_week()
+    assert (len(clinic), len(set(clinic))) == (242, 156)
+    assert {datetime.date.fromisoformat(cell).weekday() for cell in clinic} == {0, 2, 4}
+    for floor in (11, 20, 36):
+        described = _described(tmp_path, f"clinic{floor}", clinic, floor)
+        block = described.block("visit")
+        assert block["weekday_census"] == [], (floor, block["weekday_census"])
+        assert _decided(block, clinic, floor).reason == calendar_rules.REASON_COUNT_REACH, floor
+        if floor != 11:
+            continue
+        restored = _restored(tmp_path, "clinic11", described, clinic, 11)
+        column = restored.columns[0]
+        assert isinstance(column.facts, contract.DatetimeFacts)
+        assert column.facts.weekday_census == ((0, 0, 73), (1, 1, 0), (2, 2, 72), (3, 3, 0), (4, 4, 75), (5, 6, 0))
+        _twins_meet(tmp_path, "clinic11", restored, (0, 1, 2))
+    described = _described(tmp_path, "clinic50", clinic, 50)
+    block = described.block("visit")
+    assert _decided(block, clinic, 50).reason == ""
+    groups = tuple((group["first"], group["last"], group["count"]) for group in block["weekday_census"])
+    assert groups == ((0, 4, 142), (5, 6, 0)), groups
 
 
 @pytest.mark.parametrize(
@@ -1357,8 +1454,14 @@ def test_k_s3_59_claims_what_was_measured_and_states_the_limit_beside_it() -> No
     twins' count, which fifteen Mondays at the floor of 36 disprove, the
     census not their cause. Its name now claims what its nodes and the
     batteries measured, its evidence and the changelog name the limit,
-    and neither says the rules repair it. Red when the name claims every
-    published census again, or the limit goes unnamed.
+    and neither says the rules repair it. And the verification of the
+    review found the count-reach rule's price recorded on the wrong
+    columns, logs of one and a half to two rows a business day: P4-D388,
+    the entry's evidence and the changelog now name the columns it falls
+    on, those holding a row on every day their census allows, as
+    `test_the_reach_rule_s_price_falls_where_every_day_the_census_allows_holds_a_row`
+    holds. Red when the name claims every published census again, the
+    limit goes unnamed, or the price is put back on rows a business day.
     """
     ledger = json.loads((_ROOT / "tests" / "kpi" / "ledger.json").read_text(encoding="utf-8"))
     entry = [item for item in ledger["entries"] if item["id"] == "K-S3-59"][0]
@@ -1370,3 +1473,11 @@ def test_k_s3_59_claims_what_was_measured_and_states_the_limit_beside_it() -> No
     section = changelog[start : changelog.index("\n### ", start)]
     assert "fifteen Mondays" in section, section
     assert "no longer leaves a twin with too many different days" not in changelog
+    plan = (_ROOT / "docs" / "plans" / "phase-4-columns.md").read_text(encoding="utf-8")
+    begin = plan.index("## Decision P4-D388")
+    end = plan.find("\n## ", begin)
+    decision = plan[begin:] if end < 0 else plan[begin:end]
+    for name, text in (("P4-D388", decision), ("K-S3-59", entry["evidence"]), ("the changelog", section)):
+        flat = " ".join(text.split())
+        assert "every day their census allows" in flat, name
+        assert "one and a half to two rows a business day" not in flat, name
