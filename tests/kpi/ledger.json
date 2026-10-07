@@ -6636,7 +6636,7 @@
    "headline": false,
    "name": "The hour census's rules, G7.3g's own steps and the dial's half day hold, each red on its mutant",
    "status": "GREEN",
-   "rule": "the pinned nodes pass: the loader refuses each of HC1 to HC6 by name; the 1-, 3- and 7-day spans publish no census and HC4's mutant publishes one; rule 4 holds the body's cells at midnight in hour 0 and a producer without it is refused HC5; the 1970 clinic's epoch tail is not charged to its body, which a mutant charging it merges into the night, and where that tail holds every published midnight no tie group of the other stands at one (a mutant standing it there misses the count at midnight); the product gives every state of the sixteenth vectors file the oracle's answer and each is red on its own mutant (SAMEDAY, the escape's day standing, SPLIT, RELIEF, PUT BACK long and short, the proportional order, the step off midnight, the half day's tail ranks, the whole pass, and G7.3b step 10's tie, nearest and all-different pass); the shared steps alone miss the 10-week clinic, the lab panel without PUT BACK misses its count, and OR starts without RELIEF miss their census; a stamp declared a 12-hour clock with no marker validates with nothing missed, its census published or withheld, and is missed with G7.3b step 10 or the half day's own census withdrawn; a flat twin misses every census and prints no count below the line; and a validate run produces no census",
+   "rule": "the pinned nodes pass: the loader refuses each of HC1 to HC6 by name; the 1-, 3- and 7-day spans publish no census and HC4's mutant publishes one; rule 4 holds the body's cells at midnight in hour 0 and a producer without it is refused HC5; the 1970 clinic's epoch tail is not charged to its body, which a mutant charging it merges into the night, and where that tail holds every published midnight no tie group of the other stands at one (a mutant standing it there misses the count at midnight); the product gives every state of the sixteenth vectors file the oracle's answer and each is red on its own mutant (SAMEDAY, the escape's day standing, SPLIT, RELIEF, PUT BACK long and short, the proportional order, the step off midnight, the half day's tail ranks, the whole pass, the one clock pass's tier in its kin group on a field of minutes whose parent is the hour -- the escape's and PUT BACK's, and the escape kept to its group -- and G7.3b step 10's tie, nearest and all-different pass); the shared steps alone miss the 10-week clinic, the lab panel without PUT BACK misses its count, and OR starts without RELIEF miss their census; a stamp declared a 12-hour clock with no marker validates with nothing missed, its census published or withheld, and is missed with G7.3b step 10 or the half day's own census withdrawn; a flat twin misses every census and prints no count below the line; and a validate run produces no census",
    "rule_kind": "exact",
    "expected": {
     "pinned_nodes_failing": 0
@@ -6677,7 +6677,7 @@
    "pin_strength": "WEAKER",
    "measured_on": "tests/test_stage3b_hour.py and R9's second half in tests/test_stage3b_reader.py",
    "evidence": "Before, the hour census was reserved and empty, a declared 12-hour stamp's twin missed 10, 11 and 5 obligations at seeds 0 to 2 (R9 a strict expected failure, P4-D370), and no state of G7.3g's own steps was frozen.",
-   "nodes_min_collected": 56,
+   "nodes_min_collected": 62,
    "value_at": {
     "commit": "1debcf7",
     "date": "2026-10-06",
