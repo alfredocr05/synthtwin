@@ -6527,9 +6527,12 @@ its price -- the column loses its weekday statistic -- against a twin
 that would otherwise miss its own count of different values. The two
 count rules are held to the orchestrator's ruling of 2026-10-07 on that
 price: a census its twins meet at nine seeds in ten or more stands, so
-they withhold only where a twin would miss with a chance above one in
-ten, and a census they publish may still be missed at that share of
-seeds, a miss the twin's report and validation name. A census is withheld where a non-empty group holds fewer than
+they withhold only where, read off the description, a twin would miss
+with a chance above one in ten -- and since how far the count pass
+merges is not read, some they withhold are met, a price P4-D388
+measures -- and a census they publish may still be missed at that share
+of seeds, a miss the twin's report and validation name. A census is
+withheld where a non-empty group holds fewer than
 three different dates of the body, or where two or more groups are
 non-empty and they hold fewer than seven and a half different dates
 each on average: there the day pass can meet the census by splitting a

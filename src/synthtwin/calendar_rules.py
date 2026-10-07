@@ -1170,11 +1170,13 @@ def count_room_short(
     is no cause of a count left long.
 
     Its price and its risk are both measured (plan P4-D388): a group with
-    a day in a gap is counted whether or not the twin puts rows there, so
-    it withholds some censuses a twin would meet; and the tails are read
-    at the share of seeds the ruling allows, so a twin of a census it
-    publishes can still be left long at that share of seeds, a miss the
-    twin's report and validation name.
+    a day in a gap is counted whether or not the twin puts rows there, and
+    the tails' most counts no merge, so where the count pass merges a body
+    down to a few days and takes days from the tails as well it withholds
+    censuses their twins meet; and the tails are read at the share of
+    seeds the ruling allows, so a twin of a census it publishes can still
+    be left long at that share of seeds, a miss the twin's report and
+    validation name.
 
     Guarantees: accepts the census, the pins, the count and the tails'
     days; returns the answer. Determinism: a function of the four. Raises
@@ -1933,15 +1935,19 @@ def tails_kept(
     low tail's fewest and the least count the high tail draws with a
     chance above `KEPT_MISS` of drawing no more; and the MOST counts no
     merge at all -- the least count the two tails draw together with a
-    chance of at least `1 - KEPT_MISS` of drawing no more -- because how
-    far a merge takes the low tail is not read here, and a day it keeps is
-    a day the body loses. Measured (plan P4-D388): the low tail kept two
-    days above its fewest on the median of the twins measured and ten on
-    a column of monthly dates whose low tail's days stand apart, whose
-    census a most read at that fewest published, its twins long at every
-    seed; and the high tail gave up days where the pass took more than a
-    quarter of the body's drawn days, which neither end counts.
-    Splitting, both are the two tails' most.
+    chance of at least `1 - KEPT_MISS` of drawing no more. A merge only
+    takes days away, so where the pass merges, the days the tails draw
+    bound the days they keep; how far a merge takes the low tail is not
+    read here, and a day it keeps is a day the body loses. Measured (plan
+    P4-D388): the low tail kept a day or two above its fewest on the
+    median of the twins measured and up to ten on a column of monthly
+    dates whose low tail's days stand apart, whose census a most read at
+    that fewest published, its twins long at every seed; it fell below
+    its fewest only where the column's count leaves the body a few days
+    or none beside the two tails' fewest, and the pass moves tail ranks
+    out of their strata to meet it; and the high tail gave up days where
+    the pass took more than a quarter of the body's drawn days, which the
+    fewest does not count. Splitting, both are the two tails' most.
 
     Guarantees: accepts what `tails_fewest` accepts, the pins and the
     holes; returns the fewest and the most, the fewest never above the
@@ -2021,10 +2027,13 @@ def count_reach_short(
     came back with 11 for 12 at every seed, and 12 with the census
     withheld. A need equal to the reach publishes the census.
 
-    Its risk is measured (plan P4-D388): the tails are read at the share
-    of seeds the ruling allows, and the draw at its expectation, so a
-    twin of a census it publishes can still come back a value short at
-    that share of seeds, a miss the twin's report and validation name.
+    Its price and its risk are both measured (plan P4-D388): the low tail
+    is read at its fewest, where a twin's low tail keeps a day or two more
+    on the median, so where the margin is that narrow it withholds
+    censuses their twins meet; and the tails are read at the share of
+    seeds the ruling allows, and the draw at its expectation, so a twin of
+    a census it publishes can still come back a value short at that share
+    of seeds, a miss the twin's report and validation name.
     No day of the body's span is walked: the days of each weekday in a
     gap are counted, and the holes inside it set aside one by one.
 

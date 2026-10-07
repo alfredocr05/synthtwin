@@ -1468,14 +1468,17 @@ def test_clinic_weeks_holding_every_clinic_day_keep_their_census_and_its_twins_m
 def test_the_rules_price_is_a_census_its_twins_meet_whose_low_tail_keeps_more_than_its_fewest(tmp_path: pathlib.Path) -> None:
     """The count rules' price under the ruling of 2026-10-07, measured: a census its twins meet, still withheld.
 
-    The rules read the low tail merged down to its fewest days, and on the
-    twins measured it keeps two more on the median, so where the margin is
-    that narrow a census its twins meet is withheld. Two clinic days a week
-    at about one and a quarter rows a clinic day for two years,
-    `_every_open_day(1.25, 104, 72, Tuesday and Thursday)`, 255 rows over
-    208 days, at the floor of 20: its low tail's fewest, 11, and the 19 or
-    20 days the high tail draws leave the body more than the census, Tuesday
-    103 and Thursday 112, lets it reach, so the census is withheld,
+    The reach rule reads the low tail merged down to its fewest days, and
+    on the twins measured it keeps a day or two more on the median, so
+    where the margin is that narrow a census its twins meet is withheld.
+    (The room rule's side of the price, merges it does not count, is
+    pinned by `_hunt(1084)` at 11 above and two schedules at 50 below.)
+    Two clinic days a week at about one and a quarter rows a clinic day
+    for two years, `_every_open_day(1.25, 104, 72, Tuesday and Thursday)`,
+    255 rows over 208 days, at the floor of 20: its low tail's fewest, 11,
+    and the 19 or 20 days the high tail draws leave the body more than the
+    census, Tuesday 103 and Thursday 112, lets it reach, so the census is
+    withheld,
     `count_reach`; restored, its twins at seeds 0 to 9 meet every check,
     their low tails keeping 16 to 19 days. Without it they write 63 to 74
     per cent of their rows on days the clinic never opens. P4-D388 counts
