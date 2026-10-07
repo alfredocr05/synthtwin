@@ -63,6 +63,7 @@ import copy
 import dataclasses
 import datetime
 import importlib.util
+import io
 import json
 import pathlib
 import random
@@ -71,6 +72,7 @@ import types
 
 import pytest
 
+import crosscheck
 import fixtures
 import kpi_shapes
 from synthtwin import (
@@ -589,13 +591,51 @@ def test_whole_units_the_census_cannot_hold_are_split_and_put_back(ten_thousand)
         assert _statistics_failures(described.block(name), cells, _cells(written, name), form) == [], name
 
 
+def _spread_of(twin: "generation.Twin", name: str) -> "generation.Remark":
+    """The twin's one sentence on how a column's dates are spread across the calendar."""
+    return next(
+        remark for remark in twin.remarks
+        if remark.column == name and "published ladder is met" in remark.held
+    )
+
+
 def test_red_without_the_hour_steps(ten_thousand, monkeypatch: pytest.MonkeyPatch) -> None:
-    """Mutant: G7.3g's own steps withdrawn -- the shared steps alone miss the 10-week clinic."""
+    """Mutant: G7.3g's own steps withdrawn -- the shared steps alone miss the 10-week clinic.
+
+    And the twin SAYS so (the lane's skeptic, finding 3 (g)): one deviation names
+    `hour_census` on that column, and its sentence on how the dates are spread says the counts
+    per hour are not met, never that they are.
+    """
     described, _columns, _text = ten_thousand
     monkeypatch.setattr(generation, "_clock_left_their_groups", lambda *_arguments: None)
-    written = kpi_shapes.twin_text(described, 0)
+    twin = generation.generate(described.loaded, 0)
+    written = rendering.twin_csv(twin)
     missed = kpi_shapes.missed(kpi_shapes.measure(described, written, "twin.csv"))
     assert "ten_week_clinic:hour_census.groups" in missed, missed
+    named = [entry for entry in twin.deviations if entry.column == "ten_week_clinic"]
+    assert [entry.fact for entry in named] == [calendar_clock.HOUR_CENSUS], named
+    spread = _spread_of(twin, "ten_week_clinic")
+    assert generation._SPREAD_HOUR_MISSED in spread.note
+    assert generation._SPREAD_HOUR_MET not in spread.held
+
+
+def test_a_census_counting_hours_together_says_so(thousand) -> None:
+    """Where a published group counts several hours, the twin's sentence says its split among
+    them is its own; where every group is one hour, it says nothing of the kind, and every
+    published census is said to be met (the lane's skeptic, finding 3 (g))."""
+    described, columns, _text = thousand
+    twin = generation.generate(described.loaded, 0)
+    together = 0
+    for name in columns:
+        census = described.block(name)["hour_census"]
+        if not census:
+            continue
+        spread = _spread_of(twin, name)
+        assert generation._SPREAD_HOUR_MET in spread.held, name
+        merged = any(group["first"] != group["last"] and group["count"] > 0 for group in census)
+        assert (generation._SPREAD_HOURS_TOGETHER in spread.note) == merged, name
+        together += merged
+    assert together >= 1
 
 
 @pytest.fixture(scope="module")
@@ -710,6 +750,17 @@ def test_no_tie_group_stands_at_a_midnight_the_listed_tails_hold(tmp_path: pathl
     monkeypatch.setattr(generation, "_midnight_past_the_listed", lambda facts: True)
     written = kpi_shapes.twin_text(described, 0)
     assert "seen_at:midnight.count" in kpi_shapes.missed(kpi_shapes.measure(described, written, "mutant.csv"))
+    monkeypatch.undo()
+    # ...and the CHECKER draws each tail's strata from the construction the generator runs:
+    # the high tail's tie group stands at its own distance in both (the lane's skeptic,
+    # finding 3 (d)). With the amendment withdrawn from the validator alone, its window put
+    # the group at the nearest midnight, 558 minutes in where the generator stands it at 474.
+    column = next(column for column in described.loaded.columns if column.name == "seen_at")
+    facts = column.facts
+    assert isinstance(facts, contract.DatetimeFacts)
+    layout = generation._date_layout(column, facts, column.n_present - facts.n_unparsed, 36)
+    assert layout.high is not None
+    assert validation._date_tail_windows(column, facts, 36, "")["high"] == (list(layout.high.near), list(layout.high.far))
 
 
 def _refusal(folder: pathlib.Path, document: dict) -> str:
@@ -794,6 +845,100 @@ def test_hc6_one_storage_per_workbook_column() -> None:
     assert "HC6" in contract.INVARIANTS
 
 
+# -- the producer's scope and its sentences (the lane's skeptic, finding 3 (a) and (b)) ---
+
+_HOURS_SAID = "hours of the day this column's values fall on"
+
+
+def _hour_sentences(document: dict, name: str) -> "list[str]":
+    """Every sentence of a description that speaks of one column's hours of the day."""
+    return [
+        entry["note"] for entry in document["publication_notes"]
+        if entry["column"] == name and _HOURS_SAID in entry["note"]
+    ]
+
+
+def test_a_column_wholly_at_midnight_publishes_no_census_and_says_nothing(tmp_path: pathlib.Path) -> None:
+    """HC3's scope in the producer: moments every one written at 00:00:00 count no hour.
+
+    Two years of moments, each at midnight: the column is read wholly at midnight, publishes
+    `[]`, says nothing of its hours of the day, and its description loads. Mutant: the producer
+    asking such a column, which publishes a census its own loader refuses (HC3).
+    """
+    draw = random.Random(40005)
+    cells = [f"{draw.choice(_TWO_YEARS).isoformat()} 00:00:00" for _row in range(1000)]
+    described = kpi_shapes.describe(tmp_path, "at_midnight", "seen_at\n" + "\n".join(cells) + "\n", LINE)
+    block = described.block("seen_at")
+    assert block["all_at_midnight"] is True
+    assert block["hour_census"] == []
+    assert _hour_sentences(described.document, "seen_at") == []
+
+
+def test_a_census_withheld_says_why(tmp_path: pathlib.Path) -> None:
+    """NF89 and NF92 said, each in its own sentence, and no census published.
+
+    A hundred moments over two years at a floor of 50: the two tails of fifty rows each leave
+    no value between them to count (NF89). Two hundred and fifty at a floor of 60: the
+    hundred-odd values between the tails cannot be grouped short of the whole day with every
+    count nought or at least 60 (NF92).
+    """
+    draw = random.Random(40006)
+    cells = [
+        _at(draw.choice(_TWO_YEARS), draw.choices(range(24), weights=_ED)[0], draw.randrange(60)).strftime(_ISO_M)
+        for _row in range(250)
+    ]
+    for rows, floor, said in ((100, 50, "the column has no tails"), (250, 60, "no grouping of neighbouring hours")):
+        text = "seen_at\n" + "\n".join(cells[:rows]) + "\n"
+        described = kpi_shapes.describe(tmp_path / f"floor-{floor}", "few", text, floor)
+        assert described.block("seen_at")["hour_census"] == [], floor
+        sentences = _hour_sentences(described.document, "seen_at")
+        assert len(sentences) == 1 and said in sentences[0], (floor, sentences)
+
+
+def _book_of_moments(rows: int, seed: int, typed: int) -> bytes:
+    """One sheet, one column `seen_at` of moments stored as moments, but every `typed`-th cell
+    typed in as text, written as the stored ones are shown."""
+    openpyxl = crosscheck.fixture_writer()
+    book = openpyxl.Workbook()
+    sheet = book.active
+    sheet.title = "Data"
+    sheet.cell(row=1, column=1, value="seen_at")
+    draw = random.Random(seed)
+    for row in range(rows):
+        moment = _at(draw.choice(_YEAR), draw.choices(range(24), weights=_ED)[0], draw.randrange(60))
+        if typed and row % typed == 0:
+            sheet.cell(row=row + 2, column=1, value=moment.strftime(_ISO_M + ":00"))
+        else:
+            cell = sheet.cell(row=row + 2, column=1, value=moment)
+            cell.number_format = "yyyy-mm-dd hh:mm:ss"
+    held = io.BytesIO()
+    book.save(held)
+    return held.getvalue()
+
+
+def test_a_workbook_storing_its_moments_two_ways_publishes_no_census(tmp_path: pathlib.Path) -> None:
+    """HC6 in the producer (NF91): the workbook reads such a column back differently cell by cell.
+
+    A thousand moments stored as moments, every twentieth typed in as text: no census, and the
+    sentence says the workbook stores its values in more than one way; stored one way, the
+    same moments publish theirs. Mutant: the producer not asking how the column is stored.
+    """
+    descriptions = {}
+    for typed in (0, 20):
+        table = tmp_path / f"typed-{typed}.xlsx"
+        table.write_bytes(_book_of_moments(1000, 40007, typed))
+        document = profile.build_document(
+            reading.read_table(str(table), small_cell_floor=LINE), taxonomy.Settings(small_cell_floor=LINE), [], [], []
+        )
+        descriptions[typed] = document
+    one_way = next(block for block in descriptions[0]["columns"] if block["name"] == "seen_at")
+    two_ways = next(block for block in descriptions[20]["columns"] if block["name"] == "seen_at")
+    assert one_way["hour_census"], "stored one way, the moments publish their census"
+    assert two_ways["hour_census"] == []
+    sentences = _hour_sentences(descriptions[20], "seen_at")
+    assert len(sentences) == 1 and "stores its values in more than one way" in sentences[0], sentences
+
+
 # -- the sixteenth vectors file -----------------------------------------------------
 
 _FILE = json.loads(VECTORS.read_text(encoding="utf-8"))
@@ -871,6 +1016,18 @@ def _mutant(monkeypatch: pytest.MonkeyPatch, before: str, after: str):
     module.__file__ = generation.__file__
     monkeypatch.setitem(sys.modules, name, module)
     exec(compile(SOURCE.replace(before, after), generation.__file__, "exec"), module.__dict__)
+    return module
+
+
+def _validation_mutant(monkeypatch: pytest.MonkeyPatch, before: str, after: str):
+    """The product's validation module with ONE source edit, built beside it."""
+    source = pathlib.Path(validation.__file__).read_text(encoding="utf-8")
+    assert source.count(before) == 1, before
+    name = "synthtwin._validation_hour_mutant"
+    module = types.ModuleType(name)
+    module.__file__ = validation.__file__
+    monkeypatch.setitem(sys.modules, name, module)
+    exec(compile(source.replace(before, after), validation.__file__, "exec"), module.__dict__)
     return module
 
 
