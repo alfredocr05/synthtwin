@@ -39,7 +39,9 @@ so the measure is known to see the defect rather than assumed to.
    second reading whole beside the first: 4.8 KB a row at the peak where
    the first reading holds 2.7. It reads and compares a piece at a time,
    each piece the rows pandas' own reader parses at a time, and reads the
-   whole frame only where a piece differs, to refuse in its words.
+   whole frame only where a piece differs, to refuse in its words -- at
+   the line the pieces are read at, so a warning pandas gives about the
+   file is shown once, as it was.
 """
 
 from __future__ import annotations
@@ -1697,13 +1699,18 @@ def _check_cases(folder: pathlib.Path) -> "list[tuple[str, reading._Reading, pat
     return cases
 
 
+def _asks_the_whole_frame(named: "dict[str, object]") -> bool:
+    """Whether a call of pandas asks for the whole frame: no piece at all, or one piece holding every row."""
+    return named.get("chunksize") in (None, getattr(reading, "_EVERY_ROW", None))
+
+
 def _counted_reads(monkeypatch: pytest.MonkeyPatch) -> "dict[str, int]":
     """Count the checking pass's readings by pandas: in pieces, and as one whole frame."""
     reads = {"pieces": 0, "whole": 0}
     shipped = reading.pandas.read_csv
 
     def counted(*arguments: object, **named: object) -> object:
-        reads["pieces" if named.get("chunksize") else "whole"] += 1
+        reads["whole" if _asks_the_whole_frame(named) else "pieces"] += 1
         return shipped(*arguments, **named)
 
     monkeypatch.setattr(reading.pandas, "read_csv", counted)
@@ -1786,7 +1793,7 @@ def test_a_reader_that_fails_sends_the_check_to_the_whole_frame(
         reads = {"pieces": 0, "whole": 0}
 
         def failing(*arguments: object, _where: str = where, **named: object) -> object:
-            if not named.get("chunksize"):
+            if _asks_the_whole_frame(named):
                 reads["whole"] += 1
                 return shipped(*arguments, **named)
             reads["pieces"] += 1
@@ -1803,6 +1810,47 @@ def test_a_reader_that_fails_sends_the_check_to_the_whole_frame(
             patch.setattr(reading.pandas, "read_csv", failing)
             said = _checked(reading._check_against_pandas, found, path, reading.REFUSALS_MAY_QUOTE)
         assert said == "agrees" and reads == {"pieces": 1, "whole": 1}, (where, said, reads)
+
+
+def test_a_file_refused_after_its_pieces_shows_pandas_warning_as_often_as_before(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A warning pandas gives about a file is shown as often as 110cb46 showed it, once at most.
+
+    Rows ending in a delimiter their header does not end in make pandas 3
+    warn on every piece it hands over and on the whole frame. Python
+    shows a warning once for each line of code it comes from, so the
+    pieces and the whole frame are read at one line: read at two, a file
+    the pieces could not agree on and the whole frame then refused showed
+    the warning twice, where 110cb46, which read it once, showed it once.
+    Whether the installed pandas warns about the file at all is asked of
+    it first, read once, since a pandas that takes the empty column for
+    the one set of trailing delimiters it allows warns about nothing.
+    Pieces of 7 rows, under Python's own filter, for the file as written
+    and with one value changed.
+    """
+    monkeypatch.setattr(reading, "_pandas_rows_a_piece", lambda width: 7, raising=False)
+    lines = ["id,amount,label"] + [f"{row},{row * 3},L{row % 11}," for row in range(300)]
+    path = fixtures.write(tmp_path, "rows-end-in-a-delimiter.csv", "\n".join(lines) + "\n")
+    found = reading._read_authoritatively(path, "table.csv", reading.FIRST_ROW_NAMES)
+    changed = [list(cells) for cells in found.columns]
+    changed[1][150] = changed[1][150] + "?"
+    # Whether the installed pandas warns about this file at all, read once.
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always")
+        pandas.read_csv(path, dtype=str, keep_default_na=False, na_filter=False, index_col=False)
+    once = min(1, sum(1 for warning in caught if issubclass(warning.category, pandas.errors.ParserWarning)))
+    for name, checked in (("as written", found), ("a value changed", _with_columns(found, changed, found.n_rows))):
+        for refusals in (reading.REFUSALS_MAY_QUOTE, reading.REFUSALS_NAME_POSITIONS):
+            shown = []
+            for check in (_check_against_pandas_as_built, reading._check_against_pandas):
+                with warnings.catch_warnings(record=True) as caught:
+                    warnings.simplefilter("default")
+                    said = _checked(check, checked, path, refusals)
+                warned = [warning for warning in caught if issubclass(warning.category, pandas.errors.ParserWarning)]
+                shown += [(said, len(warned))]
+            assert shown[1] == shown[0] and shown[0][1] == once, (name, refusals, once, shown)
+            assert (shown[0][0] == "agrees") == (name == "as written"), (name, refusals, shown)
 
 
 # Made-up files whose lines end in carriage returns alone and hold quoted

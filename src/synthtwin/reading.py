@@ -325,6 +325,13 @@ _NEARBY_SHARE_OF_THE_RANGE = 0.5
 # How many wrong-length rows are named in a refusal message.
 _MAX_REPORTED_OFFENDERS = 3
 
+# The rows of the one piece the pandas check reads its whole frame as
+# (`_check_against_pandas`, plan P4-D387): more than any file can hold,
+# so the piece is every row the file has, parsed in the steps pandas
+# parses a frame read at once and handed over at the line the check's
+# other pieces are.
+_EVERY_ROW = 1 << 62
+
 # What the caller may say about the first row. AUTOMATIC is the default
 # and is the only one that can end in the ambiguity refusal.
 FIRST_ROW_AUTOMATIC = "auto"
@@ -2403,6 +2410,10 @@ def _check_against_pandas(
     decided from the pieces: the file is read again as one frame and
     checked as before, so every refusal is the whole frame's, word for
     word, and only a file that is going to be refused is ever held twice.
+    Both readings are made by one call and handed over at one line, the
+    whole frame as one piece holding every row, so a warning pandas
+    gives about the file is shown once, as it was when the file was
+    read once.
     """
     validated = validate_local_path(raw_path, purpose="input")
     file_path = pathlib.Path(validated)
@@ -2441,12 +2452,28 @@ def _check_against_pandas(
     agrees = False
     keys: "list[object] | None" = None
     found_rows = 0
-    if wanted != 0:
-        # Asked for no rows at all, pandas hands over no piece, where the
-        # whole frame of no rows still names the columns it read: that
-        # file is read as the one frame below.
+    # THE PIECES, AND THEN THE WHOLE FRAME WHERE THEY COULD NOT AGREE, ARE
+    # BOTH READ BY THE ONE CALL BELOW AND HANDED OVER AT ITS ONE LINE
+    # (plan P4-D387). Pandas warns about a file -- rows ending in a
+    # delimiter that their header does not end in, say -- from the line of
+    # this module that asked it to parse, and Python shows a warning once
+    # for each line it comes from: read at two lines, a file refused after
+    # its pieces showed the warning twice, where 110cb46, which read it
+    # once, showed it once. The whole frame is therefore one piece holding
+    # every row (`_EVERY_ROW`), which pandas parses in the very steps it
+    # parses a frame read at once.
+    for whole in (False, True):
+        if not whole and wanted == 0:
+            # Asked for no rows at all, pandas hands over no piece, where
+            # the whole frame of no rows still names the columns it read:
+            # that file is read as the one frame, which pandas hands over
+            # itself.
+            continue
+        rows_a_piece: "int | None" = _pandas_rows_a_piece(read_width)
+        if whole:
+            rows_a_piece = None if wanted == 0 else _EVERY_ROW
         try:
-            pieces = pandas.read_csv(
+            handed = pandas.read_csv(
                 file_path,
                 encoding=dialect.READING_CODECS[found.encoding],
                 encoding_errors="strict",
@@ -2464,32 +2491,43 @@ def _check_against_pandas(
                 skipinitialspace=form.initial_space,
                 comment=None,
                 nrows=wanted,
-                chunksize=_pandas_rows_a_piece(read_width),
+                chunksize=rows_a_piece,
             )
         except MemoryError as error:
             raise errors.ProfileError(
                 errors.out_of_memory(shown, _file_size(file_path))
             ) from error
-        except Exception:
-            # Pandas could not begin, and the whole frame below meets the
-            # same failure and refuses in its words; the catch is broad
-            # for the reason given there.
-            pieces = None
-        agrees = pieces is not None
-        while pieces is not None:
+        except Exception as error:
+            if whole:
+                raise _unreadable_in_the_check(shown, refusals, error) from error
+            # Pandas could not begin, and the whole frame meets the same
+            # failure and refuses in its words.
+            continue
+        if rows_a_piece is None:
+            frame = handed
+            break
+        agrees = not whole
+        while True:
             try:
-                piece = next(pieces, None)
+                piece = next(handed, None)
             except MemoryError as error:
                 raise errors.ProfileError(
                     errors.out_of_memory(shown, _file_size(file_path))
                 ) from error
-            except Exception:
+            except Exception as error:
+                if whole:
+                    raise _unreadable_in_the_check(shown, refusals, error) from error
                 # Pandas closed the file before raising; the whole frame
-                # below says what failed.
+                # says what failed.
                 agrees = False
                 break
             if piece is None:
                 break
+            if whole:
+                # The one piece holding every row. Pandas is asked once
+                # more, past it, and closes the file itself.
+                frame = piece
+                continue
             if not agrees:
                 # Read to the end without comparing, so that pandas
                 # closes the file itself: a reader dropped part way
@@ -2519,49 +2557,11 @@ def _check_against_pandas(
                         agrees = False
                         break
             found_rows = found_rows + len(piece)
-    if agrees and keys is not None and found_rows == expected_rows:
-        return
-    # THE WHOLE FRAME, read and checked as it always was, for a file the
-    # pieces could not agree on: whatever it refuses is refused in its
-    # words, and a file it accepts is accepted.
-    try:
-        frame = pandas.read_csv(
-            file_path,
-            encoding=dialect.READING_CODECS[found.encoding],
-            encoding_errors="strict",
-            header=header_row,
-            index_col=False,
-            dtype=str,
-            keep_default_na=False,
-            na_filter=False,
-            skip_blank_lines=True,
-            engine="c",
-            sep=form.delimiter,
-            quotechar='"',
-            doublequote=not backslash,
-            escapechar="\\" if backslash else None,
-            skipinitialspace=form.initial_space,
-            comment=None,
-            nrows=wanted,
-        )
-    except MemoryError as error:
-        raise errors.ProfileError(
-            errors.out_of_memory(shown, _file_size(file_path))
-        ) from error
-    except Exception as error:
-        # Every failure of the checking pass becomes one plain-language
-        # refusal. The catch is deliberately broad: the offline import
-        # policy (plan D6.2) permits only pandas.read_csv from pandas,
-        # so the library's own exception classes cannot be named here,
-        # and nothing is swallowed -- the original is chained on.
-        if refusals == REFUSALS_NAME_POSITIONS:
-            raise errors.ProfileError(
-                errors.checked_file_unreadable_as_csv(shown)
-            ) from error
-        raise errors.ProfileError(
-            errors.unreadable_as_csv(shown, f"{error}")
-        ) from error
-
+        if not whole and agrees and keys is not None and found_rows == expected_rows:
+            return
+    # THE WHOLE FRAME, checked as it always was, for a file the pieces
+    # could not agree on: whatever it refuses is refused in its words,
+    # and a file it accepts is accepted.
     found_rows = len(frame)
     keys = list(frame.columns)
     if form.header_trailing_delimiter and len(keys) == width + 1:
@@ -2666,6 +2666,27 @@ def _pandas_rows_a_piece(width: int) -> int:
     while rows * 2 < target:
         rows = rows * 2
     return rows
+
+
+def _unreadable_in_the_check(
+    shown: str, refusals: str, error: Exception
+) -> errors.ProfileError:
+    """The refusal of a file pandas could not read in the checking pass, in the words it always had.
+
+    Every failure of the checking pass becomes one plain-language
+    refusal. The catch that hands the failure here is deliberately
+    broad: the offline import policy (plan D6.2) permits only
+    pandas.read_csv from pandas, so the library's own exception classes
+    cannot be named, and nothing is swallowed -- the caller chains the
+    original on. Under ``REFUSALS_NAME_POSITIONS`` the library's words,
+    which may quote the file, are left out.
+
+    Guarantees: returns the refusal and raises nothing. Determinism: a
+    fixed function of its arguments. No I/O.
+    """
+    if refusals == REFUSALS_NAME_POSITIONS:
+        return errors.ProfileError(errors.checked_file_unreadable_as_csv(shown))
+    return errors.ProfileError(errors.unreadable_as_csv(shown, f"{error}"))
 
 
 def _names_agree(named_cells: "list[str]", names: "list[str]") -> bool:
