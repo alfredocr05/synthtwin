@@ -48,7 +48,7 @@ from synthtwin import (
 
 
 def _described(
-    values: "list[str]", name: str = "code"
+    values: "list[str]", name: str = "code", codes: "list[str] | None" = None
 ) -> "tuple[dict, contract.Profile, pathlib.Path]":
     folder = pathlib.Path(tempfile.mkdtemp())
     rows = [[value, "x"] for value in values]
@@ -65,6 +65,7 @@ def _described(
         reading.read_table(f"{table}", small_cell_floor=11),
         taxonomy.Settings(small_cell_floor=11),
         [],
+        forced_codes=codes,
     )
     written = fixtures.write_profile(folder, "thing.json", document)
     return document, contract.load_profile(f"{written}"), folder
@@ -2037,3 +2038,97 @@ def test_each_form_s_supply_is_counted_only_up_to_what_it_owes() -> None:
         generation._filled_form = original
     assert len(twin.columns[0]) == len(values)
     assert calls[0] < 10 * 4992, calls[0]
+
+
+def test_a_register_holding_back_more_numbers_than_the_ladder_bound_writes_them_all() -> None:
+    """THE LADDER GAVE A DEBT UP AT 32,768 POSITIONS IN ALL (review of plan
+    P4-D390, item 2).
+
+    The made-up numbers of G8.3a step 3 walked at most `2 *
+    _LADDER_STEPS` positions of each tier, so a register holding back
+    more numbers than that wrote the rest as words: ten-figure codes over
+    1,000,000 rows at a floor of eleven held 95,424 back, 32,768 were
+    written as numbers, and the twin's `n_numeric` was 914,448 against
+    the table's 1,000,000. Ruling 5's level pass had counted most of them
+    as missing, which hid the bound as it hid G8.3's 4,096. The bound is
+    on what the walk refuses now (`generation._ladder_goes_on`), so a
+    register holding 33,000 codes back writes every one as a number and
+    meets every count: da7a6f9 wrote 597 of them as words and missed
+    `n_numeric` and `n_not_numeric`.
+    """
+    draw = random.Random(390)
+    codes: "list[str]" = []
+    seen: "dict[str, int]" = {}
+    while len(codes) < 33020:
+        code = f"{draw.randrange(10 ** 10):010d}"
+        if code not in seen:
+            seen[code] = 1
+            codes += [code]
+    values: "list[str]" = []
+    for code in codes[:20]:
+        values += [code] * 40
+    values += codes[20:]
+    draw.shuffle(values)
+    document, described, folder = _described(values, "lot", ["lot"])
+    block = document["columns"][0]
+    assert (block["suppressed_levels"], block["suppressed_rows"]) == (33000, 33000)
+    assert block["n_numeric"] == 33800
+    twin = generation.generate(described, 7)
+    cells = twin.columns[0]
+    assert len(
+        [cell for cell in cells if parsing.classify_number(cell) == parsing.NUMBER]
+    ) == 33800
+    twin_file = fixtures.write(folder, "twin.csv", rendering.twin_csv(twin))
+    outcome = validation.measure(described, f"{twin_file}")
+    assert [
+        check.subcheck
+        for check in outcome.checks
+        if check.verdict == validation.MISSED
+    ] == []
+
+
+def test_the_ladder_bound_is_on_what_it_refuses_and_the_oracle_walks_alike() -> None:
+    """`_ladder_goes_on` at its edges, the supply counted under it, and the
+    oracle's walk number for number past the old bound (A-P4-59).
+
+    A walk that takes nothing still stops at 32,768 positions; one that
+    takes may step twice what it has taken past them. Two published
+    numbers, 1,000 and 9,000,000, leave nearly nine million values
+    between them, so the walk of a number wearing no named form takes
+    40,000 numbers where the old bound stopped short of 32,768. The
+    oracle reasons only about plain decimals of seven characters at most,
+    which every one of them is.
+    """
+    bound = 2 * generation._LADDER_STEPS
+    assert bound == 32768
+    assert generation._ladder_goes_on(bound - 1, 0)
+    assert not generation._ladder_goes_on(bound, 0)
+    assert generation._ladder_goes_on(bound, 1)
+    assert generation._ladder_goes_on(2 * 9000 + bound - 1, 9000)
+    assert not generation._ladder_goes_on(2 * 9000 + bound, 9000)
+    oracle = _reference_oracle()
+    for taken in (0, 1, 9000):
+        for position in (0, bound - 1, bound, 2 * taken + bound - 1, 2 * taken + bound):
+            assert oracle.ladder_goes_on(position, taken) == (
+                generation._ladder_goes_on(position, taken)
+            ), (position, taken)
+    written = ["1000", "9000000"]
+    ladder = generation._number_ladder(written, False, [])
+    reference = oracle.number_ladder(written, [])
+    number = generation._OWED_NUMBER
+    assert generation._ladder_room(ladder, number, 40000, {}, {}, {}, (), False) == 40000
+    assert oracle.ladder_room(reference, oracle.OWED_NUMBER, 40000, set(), set(), set()) == 40000
+    cursor: "dict[str, int]" = {}
+    walked: "dict[str, int]" = {}
+    product: "list[str]" = []
+    mirrored: "list[str]" = []
+    for _each in range(40000):
+        product += [
+            generation._next_on_ladder(ladder, number, cursor, {}, {}, {}, (), False)
+        ]
+        mirrored += [
+            oracle.next_on_ladder(reference, oracle.OWED_NUMBER, walked, set(), set(), set())
+        ]
+    assert "" not in product
+    assert len(set(product)) == 40000
+    assert product == mirrored

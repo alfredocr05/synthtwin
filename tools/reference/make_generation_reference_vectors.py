@@ -7319,6 +7319,16 @@ def owed_reading(name):
 
 LADDER_STEPS = 1 << 14
 
+
+def ladder_goes_on(position, taken):
+    """Whether one debt's walk of one tier may take one position more --
+    method section G8.3a step 3 (the review of plan P4-D390, item 2):
+    while its position is below twice the numbers it has taken plus
+    2 * LADDER_STEPS.  Until that review it stopped at 2 * LADDER_STEPS
+    positions in all.
+    """
+    return position < 2 * taken + 2 * LADDER_STEPS
+
 # The settings every frozen case is described at: the reference test
 # builds each case's description with a smallest group size of eleven and
 # a long-tail line of eleven, and the rules below that read them read
@@ -7940,13 +7950,18 @@ def next_on_ladder(ladder, name, cursor, named, seen, folds, needed=0, pool=None
     for places in tiers:
         key = f"{name}/{places}"
         low, high = f"{key}/low", f"{key}/high"
+        # How many numbers this tier has given, and whether it has ended:
+        # the bound is on what the walk refuses, so an ended tier is
+        # marked ended rather than stood at the bound.
+        given, ended = f"{key}/taken", f"{key}/ended"
         cursor.setdefault(key, 0)
-        while cursor[key] < 2 * LADDER_STEPS:
+        cursor.setdefault(given, 0)
+        while ended not in cursor and ladder_goes_on(cursor[key], cursor[given]):
             state, units, side = outward_at(
                 ladder, places, cursor[key], low in cursor, high in cursor
             )
             if state == "end":
-                cursor[key] = 2 * LADDER_STEPS
+                cursor[ended] = 1
                 break
             cursor[key] += 1
             if state == "skip":
@@ -7983,6 +7998,7 @@ def next_on_ladder(ladder, name, cursor, named, seen, folds, needed=0, pool=None
                 continue
             if not usable_of_class(candidate, NOTATION_NUMBER, wearing):
                 continue
+            cursor[given] += 1
             return candidate
     return ""
 

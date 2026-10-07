@@ -8234,6 +8234,21 @@ number when it is one under that reading.
    it has -- no leading zero invented -- and exactly its places after
    the point, with the column's own decimal mark.
 
+   **A debt's walk of one count of places is given up only where it
+   refuses far more than it takes** (the review of plan P4-D390, item
+   2). Each position of the walk holds one value of one side, the two
+   sides taking turns, and the walk takes one position more while its
+   position is below twice the numbers it has taken there plus 2^15
+   (`2 * 2^14`); a walk that has ended is never taken up again. Until
+   that review the walk stopped at 2^15 positions in all, so a register
+   holding back more numbers than that wrote the rest as words: ten-figure
+   codes over 1,000,000 rows at a floor of eleven held 95,424 back,
+   32,768 were written as numbers, and the twin's `n_numeric` was 914,448
+   against the table's 1,000,000. A walk that takes nothing still stops
+   at 2^15 positions, and a walk whose first 2^15 positions held what it
+   needed takes exactly what it took before. The supply steps 1 and 2
+   count is counted by the same walk under the same bound.
+
    **THE DRESSING, and an exponent form's own SCALE** (plan P4-D268;
    the scale added by item 3 of the numbers pass of the second Codex
    round, 2026-09-19). A step of the walk is written as a plain decimal,
