@@ -1910,26 +1910,34 @@ def _shape_of(
     return "this column could be read more than one way"
 
 
-def _century_choices(role: str, floor: int) -> "list[Choice]":
+def _century_choices(role: str, floor: int, coded: bool = False) -> "list[Choice]":
     """Question Q5's four answers, each named by its years (landing R2a).
 
     The first is the reading that stands where nobody answers, the POSIX
     window; each other is `--century COLUMN=YEAR` with its first year.
+    ``coded`` is a column read as dates only once its codes are answered
+    `missing` (the Codex review of landing R2a, item 5), and every choice
+    says so: what it publishes now is labels, not dates.
     """
+    once = "once its codes are answered 'missing', " if coded else ""
+
     def windowed(first: int) -> str:
         """What a description publishes with the years read from ``first``."""
         return (
-            f"{_clock_publishes(floor, role)}, with every two-figure year "
-            f"read as one of {first} to {first + 99}, and the twin writes "
-            f"its dates the same way"
+            f"{once}{_clock_publishes(floor, role)}, with every two-figure "
+            f"year read as one of {first} to {first + 99}, and the twin "
+            f"writes its dates the same way"
         )
 
+    kept = f"{once}{_clock_publishes(floor, role)}"
+    if not coded:
+        kept = f"what it publishes now: {_clock_publishes(floor, role)}"
     return [
         Choice(
             ANSWER_CENTURY_POSIX,
             "the years lie in 1969 to 2068 -- 24 is 2024 and 75 is 1975",
-            f"what it publishes now: {_clock_publishes(floor, role)}, with "
-            f"00 to 68 read as 2000 to 2068 and 69 to 99 as 1969 to 1999",
+            f"{kept}, with 00 to 68 read as 2000 to 2068 and 69 to 99 as "
+            f"1969 to 1999",
         ),
         Choice(
             ANSWER_CENTURY_1930,
@@ -1952,6 +1960,7 @@ def _century_choices(role: str, floor: int) -> "list[Choice]":
 def century_questions(
     document: "dict[str, object]",
     answered: "tuple[str, ...]" = (),
+    also: "tuple[str, ...]" = (),
 ) -> "list[Question]":
     """Question Q5, of every column of dates whose years are two figures.
 
@@ -1963,8 +1972,19 @@ def century_questions(
     layout with a two-figure year, unless its century was declared or
     answered (``answered``). Enter keeps 1969 to 2068.
 
-    Guarantees: a function of the two; opens nothing; no cell of any
-    column appears in what it returns.
+    AND OF A COLUMN THE CODES QUESTION WOULD READ SO (the Codex review of
+    landing R2a, item 5): ``also`` names the columns of dates beside a few
+    codes whose answer `missing` reads them with a two-figure year
+    (`DateCodesSeen.century`), each read as labels until then, so its
+    block names no such format. 970 births of 1931 to 1933 written
+    `01JAN31` beside 30 `UNK` were asked about the code alone, and the run
+    answering it read them as 2031 to 2033 and only then asked their
+    century: a second round to read one column right. They are asked in
+    the same file now, as the day-or-month question already was, each
+    choice saying it holds once the codes are answered `missing`.
+
+    Guarantees: a function of the three, in the table's own column order;
+    opens nothing; no cell of any column appears in what it returns.
     """
     blocks = document["columns"]
     found: "list[Question]" = []
@@ -1978,17 +1998,15 @@ def century_questions(
     for block in blocks:
         if not isinstance(block, dict):
             continue
-        if f"{block['role']}" != taxonomy.ROLE_DATETIME or "format" not in block:
-            continue
         name = f"{block['name']}"
         if name in answered:
             continue
-        member = f"{block['format']}"
-        two = member in parsing.TWO_FIGURE_MEMBERS or (
-            parsing.layout_two_figure_year(member)
-            == parsing.CENTURY_DEFAULT_FIRST_YEAR
-        )
-        if not two:
+        coded = name in also
+        if not coded and (
+            f"{block['role']}" != taxonomy.ROLE_DATETIME or "format" not in block
+        ):
+            continue
+        if not coded and not reads_two_figure_years(f"{block['format']}"):
             continue
         found += [
             Question(
@@ -1996,11 +2014,27 @@ def century_questions(
                 taxonomy.ROLE_DATETIME,
                 BECAUSE_TWO_FIGURE_YEARS,
                 _shape_of(BECAUSE_TWO_FIGURE_YEARS, [], floor),
-                _century_choices(taxonomy.ROLE_DATETIME, floor),
+                _century_choices(taxonomy.ROLE_DATETIME, floor, coded),
                 ANSWER_CENTURY_POSIX,
             )
         ]
     return found
+
+
+def reads_two_figure_years(format_name: str) -> bool:
+    """Whether a reading takes a two-figure year in the POSIX window: Q5's subject.
+
+    A two-figure member, or a layout whose year is `{YY}`; a layout read in
+    a window the person chose (`{YY1930}`) has had its question answered.
+    Guarantees: a function of the name. Raises TypeError for anything that
+    is not text. No I/O of any kind.
+    """
+    if not isinstance(format_name, str):
+        raise TypeError("a format reached the question as something else")
+    return format_name in parsing.TWO_FIGURE_MEMBERS or (
+        parsing.layout_two_figure_year(format_name)
+        == parsing.CENTURY_DEFAULT_FIRST_YEAR
+    )
 
 
 def _layout_question(
@@ -3436,12 +3470,15 @@ class DateCodesSeen:
     its checklist line, owner decision D14's (second review, item 3).
     `day_or_month` are the columns asked about whose other
     cells read both ways under a slashed pair (item 4), for the file's
-    day-or-month question.
+    day-or-month question; and `century` the names of those whose answer
+    `missing` reads them with a two-figure year (the Codex review of
+    landing R2a, item 5), for question Q5 in the same file.
     """
 
     questions: "tuple[Question, ...]" = ()
     answered: "tuple[Question, ...]" = ()
     day_or_month: "tuple[DayOrMonth, ...]" = ()
+    century: "tuple[str, ...]" = ()
 
 
 def date_code_questions(
@@ -3582,6 +3619,7 @@ def date_codes_seen(
     found: "list[Question]" = []
     answered: "list[Question]" = []
     order: "list[DayOrMonth]" = []
+    centuries: "list[str]" = []
     pending: "list[tuple[str, str, int, DateCodes]]" = []
     position = 0
     for block in blocks:
@@ -3652,6 +3690,10 @@ def date_codes_seen(
             either = day_or_month_seen(list(rest), codes.reading)
             if either is not None:
                 order += [DayOrMonth(name, either.months, either.days)]
+        # ...and its century, where that reading's year is two figures
+        # (the Codex review of landing R2a, item 5), for the same reason.
+        if reads_two_figure_years(codes.reading):
+            centuries += [name]
     # Where else each column's codes stand, for every question at once.
     elsewhere_of = codes_elsewhere(
         document,
@@ -3674,7 +3716,9 @@ def date_codes_seen(
                 ANSWER_KEEP,
             )
         ]
-    return DateCodesSeen(tuple(found), tuple(answered), tuple(order))
+    return DateCodesSeen(
+        tuple(found), tuple(answered), tuple(order), tuple(centuries)
+    )
 
 
 # THE QUESTIONS A COLUMN OF DATES BESIDE CODES IS NOT ASKED (plan

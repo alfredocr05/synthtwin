@@ -3707,9 +3707,14 @@ def _run_profile(
         )
     if codes_seen.questions:
         _say(f"\n{_date_codes_notice(list(codes_seen.questions))}\n")
-    # -- 3b.R2a (P4-D383): question Q5, said as the date questions are.
+    # -- 3b.R2a (P4-D383): question Q5, said as the date questions are --
+    # and of a column of dates beside codes whose answer `missing` reads
+    # its years as two figures, in the same file (the Codex review of
+    # landing R2a, item 5).
     century_asked = asking.century_questions(
-        document, tuple(sorted(centuries)) + tuple(answered_centuries)
+        document,
+        tuple(sorted(centuries)) + tuple(answered_centuries),
+        also=codes_seen.century,
     )
     if century_asked:
         _say(f"\n{_century_notice(century_asked)}\n")
@@ -4045,9 +4050,13 @@ def _run_profile(
     )
     asked_about = asked_about + coded_about
     # ...AND QUESTION Q5, of every column of dates whose years are two
-    # figures and whose century nobody gave (landing R2a).
+    # figures and whose century nobody gave (landing R2a), and of every
+    # column the codes question would read so (the Codex review of
+    # landing R2a, item 5).
     asked_about = asked_about + asking.century_questions(
-        document, tuple(sorted(centuries)) + tuple(answered_centuries)
+        document,
+        tuple(sorted(centuries)) + tuple(answered_centuries),
+        also=codes_seen.century,
     )
     # AND ITS DESTINATION IS GUARDED LIKE ANY OTHER (review item
     # L17b-R1-1). On POSIX a link left at this name resolves to a

@@ -1590,3 +1590,46 @@ def test_codex_item3_a_run_every_cell_of_which_ends_in_a_suffix_is_asked(
     assert block["role"] == taxonomy.ROLE_IDENTIFIER
     twin, _written = _twin(profile, 0)
     assert _validated(profile, twin)[0] == 0
+
+
+def test_codex_item5_q5_is_asked_beside_the_codes_question(tmp_path: pathlib.Path) -> None:
+    """Item 5: a column read as dates only once its codes are answered is asked its century too.
+
+    970 consecutive births from the 1st of January 1931, written `01JAN31`,
+    beside 30 `UNK`: the column is labels, and its first questions file
+    asked about the code alone, so the run answering it read the births as
+    2031 to 2033 and only then asked their century -- a second round to
+    read one column right. Q5 stands beside the codes question in the first
+    file now, each choice saying it holds once the codes are answered
+    `missing`, and one answering run reads the births in 1931 to 1933,
+    asks nothing more of the column and its twin validates. Mutants, run:
+    the codes question's columns not handed to Q5, as before; the choices
+    saying what the column publishes now, which is labels.
+    """
+    start = datetime.date(1931, 1, 1)
+    cells = [
+        (start + datetime.timedelta(days=day)).strftime("%d%b%y").upper() for day in range(970)
+    ] + ["UNK"] * 30
+    block, _profile, questions = _described(tmp_path / "asked", cells)
+    assert block["role"] == taxonomy.ROLE_LONG_TAIL
+    entries = questions["asked"]
+    assert isinstance(entries, list)
+    codes = [entry for entry in entries if entry["read_as_now"] == asking.ANSWER_KEEP]
+    centuries = [entry for entry in entries if entry["read_as_now"] == asking.ANSWER_CENTURY_POSIX]
+    assert len(codes) == 1 and len(centuries) == 1
+    for choice in centuries[0]["answers_you_can_give"]:
+        assert choice["then_the_description_publishes"].startswith(
+            "once its codes are answered 'missing', "
+        ), choice
+    codes[0]["your_answer"] = asking.ANSWER_NO_DATE
+    centuries[0]["your_answer"] = asking.ANSWER_CENTURY_1930
+    answers = tmp_path / "answers.json"
+    answers.write_text(json.dumps(questions), encoding="utf-8", newline="\n")
+    block, profile, questions = _described(tmp_path / "answered", cells, "--answers", str(answers))
+    assert block["format"] == "layout {DD}{MON}{YY1930}"
+    assert block["n_unparsed"] == 0
+    read = [parsing.parse_datetime(cell, f"{block['format']}") for cell in cells[0:970]]
+    assert all(found is not None and "1931" <= found[0][0:4] <= "1933" for found in read)
+    assert [entry for entry in questions["asked"] if entry["column"] == "seen_at"] == []
+    twin, _written = _twin(profile, 0)
+    assert _validated(profile, twin)[0] == 0
