@@ -1642,9 +1642,10 @@ def _text_holds(
     For rule C, every count beside the set-aside numbers is whole, and
     those inside the wide band all have one width of at least five
     figures. NO CELL OF ANOTHER WIDTH IS LET STAND, where a stray outside
-    the band is: measured on the chance battery, letting one in a thousand
-    stand asked two measurement columns that are no fixed width -- the
-    kind of question nothing asked before -- and costs one keying slip
+    the band is: measured on the chance battery, letting one cell of
+    another width in a thousand stand asked two measurement columns that
+    are no fixed width -- the kind of question nothing asked before --
+    and costs one keying slip
     that lands inside the band at another width (`xl_birth` a century
     early, one seed of three). For rule B, every count beside the
     set-aside numbers is whole and stands at midnight UTC, with at least
@@ -1877,7 +1878,7 @@ def rule_said(rule: str) -> str:
 
     "NEARLY EVERY", NEVER "EVERY": each rule lets text cells stand to the
     date role's own line, the set-aside numbers stand beside the rest and
-    one cell in a thousand stray outside the band, so a sentence saying
+    one cell in a hundred stray outside the band, so a sentence saying
     "every" would be false on a column it fires on.
     """
     if rule == RULE_MIDNIGHT:

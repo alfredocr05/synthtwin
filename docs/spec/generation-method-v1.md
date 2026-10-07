@@ -7464,16 +7464,30 @@ form writes. Its moment is the system's first day plus that many units,
 in whole nanoseconds; Excel's 1900 system counts serial 60 as no day,
 reads 1 to 59 from 31 December 1899 and 61 onward from 30 December
 1899, and reads no serial below 1. A `days-since-1840` count reads its
-whole part alone, its figures after the point being a contact number.
-The moment is settled to the unit U -- the finest of the nanosecond,
-microsecond, millisecond, second, minute and day that is at least the
-system's unit over ten to the most figures after the mark any cell
-writes, and never coarser than the minute where that step is under a
-day -- by rounding half to even, so Excel's `%.15g` serials, ten
-figures after the point and a step of 8.64 microseconds, settle to the
-millisecond, and `45386.3541666667` reads as 08:30 exactly. A column of
-`%.15g` or `repr` figures settles from the least precise cell, which
-writes the fewest figures after the point past serial 10,000.
+whole part alone, its figures after the point being a contact number,
+and a cell of that system writing an exponent or more than nine figures
+after the point is no count. The moment is settled to the unit U -- the
+finest of the nanosecond, microsecond, millisecond, second, minute and
+day that is at least the system's unit over ten to the most figures
+after the mark any cell writes -- by rounding half to even, so Excel's
+`%.15g` serials, ten figures after the point and a step of 8.64
+microseconds, settle to the millisecond, and `45386.3541666667` reads
+as 08:30 exactly. A column of `%.15g` or `repr` figures settles from
+the least precise cell, which writes the fewest figures after the point
+past serial 10,000; `repr`'s seventeen figures, whose last two are the
+double's tail, are tried first at fifteen figures' step and then at
+each finer unit down to U. A unit at least the step is what lets the
+twin's own cells read back as the moments it drew. Every count must
+then be its column's own writing of the moment it was read as -- within
+half the form's last figure and four binary64 steps of that moment's
+exact count -- or the column is not read as counted dates at all
+(contract NF115): one to three figures of a day, tenths of a second and
+four figures of a day of moments off the whole minute keep a figure no
+unit holds, and the first build, which settled them to the minute or
+the second, lost those figures or wrote a twin that missed its own
+description (the review of landing R4, item 2). A count naming 1
+January 1900 or 31 December 9999, or its system's plain count for
+either, is no value.
 
 **Writing a moment.** Each cell G7 wrote as a date or moment is
 written as its system's count of that moment: a whole count exactly,
@@ -7481,14 +7495,22 @@ from its integer; a count that is not whole through the binary64 value
 nearest the exact one, formatted as the exporter the form names writes
 it -- `places` figures after the mark, rounded half to even and kept
 (`%.Nf`, pandas' `45000.0`) or trimmed (`%g`, R), fifteen or seventeen
-significant figures trimmed (`%.15g`, `repr`), and R's exponent form
-where it is shorter -- with the column's mark, a point or a comma. A
-`days-since-1840` column writes its day count and, after the point, the
-contact number the census gives the cell: the census's words in rank
-order, the commonest first and ties in sorted order, each as many times
-as the census counts it, over the dated cells in the order the
-arrangement put them, so each contact number is spread over the dates
-as the census is and independently of them. A cell written in a
+significant figures trimmed (`%.15g`, `repr`, a whole count at
+seventeen written as `repr` writes a whole double, `45123.0`), and R's
+exponent form where it is shorter -- with the column's mark, a point or
+a comma. A `days-since-1840` column writes its day count and, after the
+point, the contact number the census gives the cell, EVENLY SPACED:
+each word the census counts c times stands at the c keys (2j + 1) / (2c)
+for j from nought -- the middles of c equal shares of the cells -- and
+the dated cells, in the order they stand, take the words in the order
+of their keys, compared exactly, a tie to the word ranked first (the
+commonest, ties in sorted order), a cell past the census's last word
+writing none. Each word is written exactly as often as the census
+counts it, every stretch of the rows holds it within about one cell of
+its share, and it is independent of the dates, which the arrangement
+put in an order drawn at random; dealt in rank order down the rows, as
+the first build did, the first half of a twin of 100,000 rows held no
+contact number (the review of landing R4, item 8). A cell written in a
 spelling the column publishes as absent -- a count that names no date,
 a placeholder day -- and an unparsed stand-in are left as they are.
 
@@ -7498,16 +7520,22 @@ seconds and milliseconds before and after 1960, R's exponent form,
 nanoseconds past 2**53, an Epic day with its contact number, a comma for
 the point, fifteen significant figures either side of serial 10,000, one
 figure rounded half to even, six figures fixed and trimmed, R's shorter
-form, a contact number and a comma; `tests/test_stage3b_counted.py`
-holds the product to every answer and turns each case red on its
-mutant (float arithmetic, a 1970 epoch for 1960, halves rounded up,
-untrimmed figures, no leap day, the exact value where binary64 is
-written).
+form, a contact number, a comma, `repr`'s shortest figures and its
+`45123.0`, and four censuses of contact numbers dealt over the dated
+cells; `tests/test_stage3b_counted.py` holds the product to every
+answer and turns each case red on its mutant (float arithmetic, a 1970
+epoch for 1960, halves rounded up, untrimmed figures, no leap day, the
+exact value where binary64 is written, the contact numbers dealt down
+the rows, `%.17g` where `repr` is written).
 
 **Stated limits.** A date kept at local midnight is read as the instant
 its count names, not as the day; contact numbers are not kept with
-their dates; and a workbook's clock cells keep their binary64 reading,
-which moves 94 of them by a millisecond, rather than this one.
+their dates; a column whose figures no unit keeps is not read as dates;
+an unparsed cell of a column of counted dates is a text stand-in, as on
+every column of dates, so a twin whose source holds numbers the date
+role could not read misses `n_numeric`; and a workbook's clock cells
+keep their binary64 reading, which moves 94 of them by a millisecond,
+rather than this one.
 
 ## G7A. Clock columns (`time_of_day`)
 

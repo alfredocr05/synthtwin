@@ -1320,12 +1320,16 @@ from the file's own figures (`validation.counted_units`), so the
 description's own source reads cell for cell as the profiler read it,
 and every obligation of a column of dates then applies as on any other.
 Beside them, `count_form` is HELD (`form.count_form`) where the file was
-read as such dates and every cell it writes as a count -- its published
-absent spellings aside -- is one the published form writes
+read as such dates and every cell it writes as a count of the declared
+system (`date_counts.counted`: on `days-since-1840`, no exponent and at
+most nine figures after the point, a longer cell being text the date
+role's own line took) -- its published absent spellings aside -- is one
+the published form writes
 (`date_counts.form_holds`): exactly `places` figures after the mark, or
 at most that many with no trailing zero where the form is trimmed, at
-most the form's significant figures where it names them, and in
-exponent form only where the form writes one; on a `days-since-1840`
+most the form's significant figures where it names them, `repr`'s
+`45123.0` at seventeen, and in exponent form only where the form writes
+one; on a `days-since-1840`
 column, a day count and no contact number or one of at most `places`
 figures, since a contact number fewer cells than the disclosure line
 wrote is counted into the commonest and named nowhere. A twin written

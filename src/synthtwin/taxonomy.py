@@ -2148,8 +2148,9 @@ def rendered(form: str, arguments: "tuple[object, ...]") -> str:
             f"the twin writes each date back as the same count, spelled as "
             f"this column spells its counts (`count_form`); a number that "
             f"counts no date -- or one of the numbers such a count writes "
-            f"where no date was given -- is counted as no value and "
-            f"written back as it was written"
+            f"where no date was given, 1 January 1900 or 31 December 9999 "
+            f"-- is counted as no value and written back as it was written, "
+            f"whatever --keep-value names"
         )
     if form == REMARK_COUNTED_DATES_NOT_READ:
         member = _word(arguments, 0)

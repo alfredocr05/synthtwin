@@ -315,14 +315,15 @@ def test_a_column_of_fractions_in_one_decade_of_the_band_is_asked() -> None:
     assert _members(block) == ["seconds-since-1960", "seconds-since-1970"]
 
 
-def test_one_value_outside_the_band_is_let_stand_and_two_are_not() -> None:
+def test_two_values_outside_the_band_are_let_stand_and_three_are_not() -> None:
     """The band's own edge, walked from the outside.
 
-    One cell in a thousand -- one at least -- may stray outside the band
-    (the R4 design review, item 1: one keying slip silences no
-    question), so on two hundred cells one value just below the band's
-    first second is let stand and two are not. The band's first second
-    is inside it: swapping one of the two strays for that very number
+    One cell in a hundred -- one at least -- may stray outside the band
+    (the R4 design review, item 1, and the review of landing R4, item 6:
+    two keying slips in a thousand silenced the question again at one in
+    a thousand), so on two hundred cells two values just below the band's
+    first second are let stand and three are not. The band's first second
+    is inside it: swapping one of the three strays for that very number
     asks again. Asserted at the edge rather than far from it, because an
     off-by-one in the comparison is what a test far from it would miss.
     """
@@ -336,8 +337,9 @@ def test_one_value_outside_the_band_is_let_stand_and_two_are_not() -> None:
         return bool(_of_form(block, taxonomy.REMARK_NUMBERS_COULD_BE_DATES))
 
     assert asked(inside + [str(first - 1)])
-    assert not asked(inside[1:] + [str(first - 1), str(first - 2)])
-    assert asked(inside[1:] + [str(first), str(first - 1)])
+    assert asked(inside[1:] + [str(first - 1), str(first - 2)])
+    assert not asked(inside[2:] + [str(first - 1), str(first - 2), str(first - 3)])
+    assert asked(inside[2:] + [str(first), str(first - 1), str(first - 2)])
 
 
 # -- NF25: both counts ------------------------------------------------
