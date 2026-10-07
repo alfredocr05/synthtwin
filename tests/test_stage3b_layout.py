@@ -1684,3 +1684,66 @@ def test_codex_item6_a_signed_field_takes_no_zulu_key(tmp_path: pathlib.Path) ->
                 layout, 2024, 3, 17, 14 * 3600 + 5 * 60 + 9, offset, "padded", 0
             ), (layout, key)
             assert parsing.layout_reading(written, items) is not None, (layout, key, written)
+
+
+def _edited_moments(block: "dict[str, object]", old: str, new: str) -> None:
+    """Every published moment of a block of dates with ``old`` written ``new``."""
+    ladder = block["date_percentiles"]
+    assert isinstance(ladder, dict)
+    for rung in sorted(ladder):
+        if isinstance(ladder[rung], str):
+            ladder[rung] = ladder[rung].replace(old, new)
+    for side in ("low_tail", "high_tail"):
+        tail = block[side]
+        if not isinstance(tail, dict):
+            continue
+        tail["boundary"] = f"{tail['boundary']}".replace(old, new)
+        if isinstance(tail["values"], list):
+            tail["values"] = [f"{value}".replace(old, new) for value in tail["values"]]
+
+
+def test_codex_item7_a_layout_admits_only_values_its_reader_reads_back(
+    tmp_path: pathlib.Path,
+) -> None:
+    """Item 7: the loader holds a layout's fraction and moments to what it reads.
+
+    Three hundred compact stamps with `.123` after the second, the
+    description changed in one fact each time: ten figures after the
+    second, which `{F}` cannot read (the twin wrote ten zeros and every
+    cell was unreadable); every published moment moved to 1724, before the
+    layout's band; a sixtieth second on the high tail's boundary; and a
+    two-figure year's moments moved to 1951, outside the window `{YY}`
+    reads, where the twin's `51` would be read as 2051. Each is refused
+    under LY3 now, and the description as written loads and validates.
+    Mutants, run: no limit on the figures; no limit on the moments.
+    """
+    start = datetime.datetime(2024, 3, 17, 14, 5, 0)
+    cells = [
+        (start + datetime.timedelta(seconds=step)).strftime("%Y%m%d%H%M%S") + ".123"
+        for step in range(ROWS)
+    ]
+    _block, profile, _questions = _described(tmp_path / "stamps", cells)
+    twin, _written = _twin(profile, 0)
+    assert _validated(profile, twin)[0] == 0
+    oracle_cells = spellings.cells("oracle_dd_mon_rr", ROWS)
+    _block, two_figure, _questions = _described(tmp_path / "oracle", oracle_cells)
+    for name, source, edit in (
+        ("figures", profile, lambda block: block.update(subsecond_digits=10)),
+        ("1724", profile, lambda block: _edited_moments(block, "2024-", "1724-")),
+        (
+            "sixtieth",
+            profile,
+            lambda block: block["high_tail"].update(  # type: ignore[union-attr]
+                boundary=f"{block['high_tail']['boundary'][0:17]}60"  # type: ignore[index]
+            ),
+        ),
+        ("window", two_figure, lambda block: [
+            _edited_moments(block, f"{year}-", f"{year - 70}-") for year in (2021, 2022, 2023)
+        ]),
+    ):
+        document = json.loads(source.read_text(encoding="utf-8"))
+        edit(document["columns"][0])
+        edited = fixtures.write_profile(tmp_path, f"{name}-profile.json", document)
+        with pytest.raises(errors.ProfileError) as refused:
+            contract.load_profile(str(edited))
+        assert "LY3" in str(refused.value), name

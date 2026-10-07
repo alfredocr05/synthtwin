@@ -1750,8 +1750,10 @@ INVARIANTS = {
     ),
     "LY3": (
         "the finest detail a column written in a layout writes is the "
-        "finest its layout writes: a fraction of a second, a second, a "
-        "minute or a whole date"
+        "finest its layout writes: a fraction of a second, of at most nine "
+        "figures, a second, a minute or a whole date; and every value it "
+        "publishes is one its layout reads back, a year in the layout's "
+        "own band or window and no sixtieth second"
     ),
     "LY4": (
         "a column written in a layout counts no mark before its clock and "
@@ -8942,6 +8944,19 @@ def _datetime_facts(
             f"the column writes {digits} figures after the second",
             f"the finest detail it writes is given as '{precision}'",
         )
+    if (
+        parsing.is_layout_name(parser_family)
+        and digits > parsing.LAYOUT_FRACTION_FIGURES
+    ):
+        # LY3 (the Codex review of landing R2a, item 7): `{F}` reads one
+        # to nine figures, and a twin written to ten read none of them.
+        raise _broken(
+            "LY3",
+            where,
+            f"the column writes {digits} figures after the second",
+            f"its cells are written as '{parser_family}', whose fraction "
+            f"holds at most {parsing.LAYOUT_FRACTION_FIGURES}",
+        )
     if unparsed >= n_present:
         raise _broken(
             "D8",
@@ -9103,6 +9118,8 @@ def _datetime_facts(
         "date_percentiles", "D11",
     )
     _boundaries_a_cell_can_show(where, resolution, precision, clock, low, high)
+    if parsing.is_layout_name(parser_family):
+        _moments_a_layout_writes_back(where, parser_family, ladder, low, high)
     if midnight:
         _stands_at_midnight(
             where, floor, resolution, clock, n_present - unparsed,
@@ -10511,6 +10528,61 @@ def _boundaries_a_cell_can_show(
                         "which no value reads back as a sixtieth second"
                     ),
                 )
+
+
+def _moments_a_layout_writes_back(
+    where: str,
+    parser_family: str,
+    ladder: DateLadder,
+    low: "TailFacts | None",
+    high: "TailFacts | None",
+) -> None:
+    """LY3: every moment a column written in a layout publishes is one its layout reads back.
+
+    THE READER'S OWN LIMITS, ASKED BEFORE GENERATION (the Codex review of
+    landing R2a, item 7). A layout reads a four-figure year from
+    `parsing.LAYOUT_FIRST_YEAR` to `parsing.LAYOUT_LAST_YEAR`, a two-figure
+    one only inside its window, and no sixtieth second
+    (`parsing.layout_reading`), so a rung, a tail's boundary or a listed
+    value outside them asks the twin for cells its own layout refuses: a
+    description of HL7 stamps edited to rungs in 1700 loaded and wrote
+    years the layout does not read. The producer publishes none, since
+    each is a value the layout read or lies between two it read.
+
+    Guarantees: accepts the block's place, its layout, ladder and tails;
+    returns nothing. Raises ProfileError for LY3. No I/O of any kind.
+    """
+    first, last = parsing.readable_days(parser_family)
+    moments = [rung for rung in ladder.rungs if rung is not None]
+    for tail in (low, high):
+        if tail is None:
+            continue
+        moments += [tail.boundary]
+        if tail.values is not None:
+            for value in tail.values:
+                moments += [value]
+    for published in moments:
+        day = parsing.days_from_civil(
+            int(published[0:4]), int(published[5:7]), int(published[8:10])
+        )
+        if day < first or day > last:
+            first_year = parsing.civil_from_days(first)[0]
+            last_year = parsing.civil_from_days(last)[0]
+            raise _broken(
+                "LY3",
+                where,
+                f"the column publishes the value {published}",
+                f"its cells are written as '{parser_family}', which reads "
+                f"the years {first_year} to {last_year} alone",
+            )
+        if published[17:19] == "60":
+            raise _broken(
+                "LY3",
+                where,
+                f"the column publishes the value {published}",
+                f"its cells are written as '{parser_family}', which reads "
+                f"no sixtieth second",
+            )
 
 
 def _tail_unit_of(resolution: str, precision: str, midnight: bool) -> str:

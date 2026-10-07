@@ -8161,6 +8161,11 @@ LAYOUT_TEXT_LIMIT = 80
 LAYOUT_FIRST_YEAR = 1800
 LAYOUT_LAST_YEAR = 2299
 
+# THE MOST FIGURES A LAYOUT'S FRACTION `{F}` READS: nanoseconds, the finest
+# any export of the reach audit wrote. Contract LY3 holds a description's
+# `subsecond_digits` to it (the Codex review of landing R2a, item 7).
+LAYOUT_FRACTION_FIGURES = 9
+
 # THE CENTURY OF A TWO-FIGURE YEAR (question Q5). `{YY}` reads 69 to 99 as
 # the 1900s and 00 to 68 as the 2000s, the POSIX window every two-figure
 # member reads; a column the person answered about reads in the window
@@ -8601,7 +8606,7 @@ def layout_reading(
             at = at + 2
             continue
         if name == "F":
-            end = _layout_digits(text, at, 1, 9)
+            end = _layout_digits(text, at, 1, LAYOUT_FRACTION_FIGURES)
             if end < 0:
                 return None
             fraction = text[at:end]
