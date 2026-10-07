@@ -559,10 +559,16 @@ def test_item_4_red_when_a_code_counts_once_a_cell(
 ) -> None:
     built = generation._clock_approximations
 
-    def every_cell(column: contract.ColumnBlock, facts: contract.ClockFacts, written: "list[str]", floor: int) -> "list[generation.Approximation]":
+    def every_cell(
+        column: contract.ColumnBlock,
+        facts: contract.ClockFacts,
+        written: "list[str]",
+        floor: int,
+        holes: "tuple[str, ...]" = (),
+    ) -> "list[generation.Approximation]":
         import dataclasses
 
-        return built(column, dataclasses.replace(facts, clock_codes=()), written, floor)
+        return built(column, dataclasses.replace(facts, clock_codes=()), written, floor, holes)
 
     monkeypatch.setattr(generation, "_clock_approximations", every_cell)
     reported, _checked = _distinct_windows(tmp_path)

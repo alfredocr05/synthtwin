@@ -15806,7 +15806,7 @@ def _clock_census(
     # of landing 3b.5), so they are no room here either: a group left
     # with none is refused, not laid.
     absent = calendar_clock.absent_places(
-        _absent_spellings(mapping, ()) + frame.table_holes, form
+        _table_holes([mapping]) + frame.table_holes, form
     )
     reach = calendar_clock.clock_group_reach(
         laid, form, stride, (lowest, highest), heap_at, absent
@@ -15868,14 +15868,18 @@ def _table_holes(columns: object) -> "tuple[str, ...]":
     Guarantees: a sorted tuple, each spelling once. Determinism: a
     function of the value. Raises nothing. No I/O of any kind.
     """
-    found: "set[str]" = set()
+    # A mapping rather than a set, as the validator keeps its declared
+    # spellings (plan D6.2): the values are never read.
+    found: "dict[str, int]" = {}
     if isinstance(columns, list):
         for column in columns:
             if not isinstance(column, dict):
                 continue
             keys = column["missing_by_source"] if "missing_by_source" in column else None
             if isinstance(keys, dict):
-                found = found | {key for key in keys if isinstance(key, str)}
+                for key in keys:
+                    if isinstance(key, str):
+                        found[key] = 1
     return tuple(sorted(found))
 
 

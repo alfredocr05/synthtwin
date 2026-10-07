@@ -13368,7 +13368,7 @@ that happens -- and the clause beside it, `--missing-value`'s "CAN be
 published as the column's smallest value", is exactly right under the
 new rule.
 
-**All one hundred and sixty-nine are required.** The count is taken off the committed
+**All one hundred and seventy are required.** The count is taken off the committed
 case sets and not carried forward: this sentence said fifty-two and a
 split of nine, twenty, sixteen and seven while the six files held
 seventy-three, because each repair that added a case added a clause to
@@ -13401,10 +13401,11 @@ thirteen; the SIXTEENTH,
 TWENTY-SECOND, `tests/reference/generation-branch-vectors-22.json`,
 holds five -- landing T1's written clocks and G7.5 step 5, in the file
 plan P4-D364's table gives that landing (G14.2); and the TWENTY-FIRST,
-`tests/reference/generation-branch-vectors-21.json`, holds fifteen --
+`tests/reference/generation-branch-vectors-21.json`, holds sixteen --
 landing 3b.5's census of a column of clock times, G7A.4b and G8.3's
 clock supply and clock line, held key by key since its second repair
-round, in the file that table gives that landing,
+round, and the absent places of its second verification's fix, in the
+file that table gives that landing,
 and a test holds this sentence to those files. The tenth grew by the
 two cases the GOVERNANCE PASS of stage 3's review added and the
 eleventh by the two the dates pass added; each number here is read off
