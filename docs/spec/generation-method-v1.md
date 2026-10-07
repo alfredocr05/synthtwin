@@ -985,7 +985,13 @@ G5.2b's shares, G5.2a's cap, G5.3's values, G5.6's windows and the snap
 bounds that read them, G6.7's scale, and both reports' windows. It is
 built once from the published facts, by the rules below, and written
 once in the shipped code (`contract.tail_ladder`), where the generator
-and the validator both read it.
+and the validator both read it. **One exception, named** (lane G2 of
+stage 3b, plan P4-D377): where G6.6.8's rule 1 moved a derived end
+(`contract.reach_moved_an_end`), the generator also divides and reads
+the column on the ladder with that rule withdrawn and may write that
+reading (G6.6.8 rule 3), so the validator draws the `mean` and `std`
+windows through that second ladder as well and holds the file to
+V6.1-A2's half-width test with both (validation method V6.1-A2).
 
 A tail block whose `tails` is null publishes no rung and no moment (the
 block floor, TL2), and its ladder is G5.3d's ramp; one whose two sides
@@ -2729,6 +2735,20 @@ and its `d = (g_max + 2) / K` stand unchanged over the tail ladder of
 G5.1a, so G12.2's and G12.3's windows are drawn through it. A rung the
 tail rule withholds carries no window and is LISTED.
 
+**Where G6.6.8's rule 1 reads a tail toward a further end, the `skew`
+and `kurtosis` windows drawn through it can cover the statistic's whole
+range, and are then LISTED, not checked** (lane G2 of stage 3b, plan
+P4-D377; the second skeptic of its repair, item 2). Measured over 3,459
+twins of eleven batteries, 175 lose a `skew` or `kurtosis` check that
+110cb46 gave and that held -- 23 at a floor of 11, 39 at 20, 62 at 36 and
+51 at 50, on 82 column-floors, among them a thousand two-figure readings
+shaped like a bell beside one `188`, and P4-D377's million rows. The
+listing is the
+honest answer on the rule's reading; drawn with the rule withdrawn
+instead, those windows would fail 13 twins the rule improved, a
+kurtosis of 352.1 against a published 356.6 outside a window of 1 to 250
+among them, where 110cb46's twin held 7.9 inside it.
+
 ## G6. Numeric spelling
 
 ### G6.1 The permitted family
@@ -4414,15 +4434,30 @@ rows hold. Three rules follow, and none publishes anything new:
    two-figure readings shaped like a bell beside one `237`, at a floor of
    36, came back with the mean and the spread, together, 0.075 to 0.083 of
    the real spread off where 110cb46's stood 0.069 to 0.073 off. So
-   wherever rule 1 moved a derived end or rule 2 proves a side, the value
-   stage -- every pass that sets a stratum's value, from G5.3's draw to
-   the published mode's -- runs twice from the same words: once as rules
-   1 and 2 give it, and once with both withdrawn, each derived end where
-   the width held it, the strata divided by that ladder and G6.6's walk
-   taking no side, which is the twin 110cb46 wrote. The first reading
-   stands only where its distance from the published `mean` added to its
-   distance from the published `std`, each over its own strata, is no
-   larger than the second's; otherwise the column takes the second.
+   wherever rule 1 moved a derived end, the value stage -- every pass
+   that sets a stratum's value, from G5.3's draw to the published mode's
+   -- runs twice from the same words: once as rules 1 and 2 give it, and
+   once with both withdrawn, each derived end where the width held it,
+   the strata divided by that ladder and G6.6's walk taking no side,
+   which is the twin 110cb46 wrote. The first reading stands only where
+   its distance from the published `mean` added to its distance from the
+   published `std`, each over its own strata, is no larger than the
+   second's; otherwise the column takes the second. WHERE RULE 1 MOVED NO
+   END the ladder read either way is one, and so is the division, and the
+   readings could differ only by rule 2's walk on a proven side, which
+   stands only where it leaves neither moment further off than 110cb46's
+   walk; so the second reading is not asked there (the second skeptic of
+   the repair, item 4). Asked there too, it changed none of 3,636 twins
+   of eleven batteries, and took generating 200,000 six-figure numbers
+   beside five of eight figures -- 179,308 different values, a proven
+   side and no moved end -- from 18.4 to 18.5 s on 110cb46 to 24.2 to
+   24.4 s; not asked, it takes 19.1 s (two runs each, at a load average
+   near 14). The column is divided with the rule withdrawn ONCE, where its
+   plan divides its strata, and the value stage and the generation
+   report's bound both read that division: made in each, generating
+   200,000 rows of `1000` to `1999` beside five far cells, where the rule
+   moves the end, took 19.7 to 19.9 s, and made once 18.3 to 19.5 s,
+   against 17.3 to 17.4 s on 110cb46.
    TOGETHER AND NOT ONE BY ONE: on a hundred thousand rows of 1000 to
    1999 beside five far cells, at eleven, the rule's reading holds the
    spread at 0.91 of the real one where 110cb46's holds it at 0.42, its
@@ -4465,28 +4500,39 @@ rows hold. Three rules follow, and none publishes anything new:
    the squares the rows under the width hold were read as the far
    cells' own.
 
-Measured on ten batteries -- seeds 0, 4 and 9, the codes beside plain
-numbers at 0 to 19 and the random shapes at 0 -- 110cb46 against this
-rule, through the real producer, generator and checker: `K-S3-22`'s 36
-column-floors miss 12 moment checks where 111 were missed, the two
-moments-only columns; follow-up A's 37 shapes miss nothing on either;
-the stage-3 battery misses its 61 on both; six shapes of codes beside
-plain numbers and far cells miss 205 where 605 were missed; the
-skeptics' grid, pressure, code, bulk and attack shapes miss nothing
-where 222 were missed; 1,500 random shapes of one to four figures beside
-one to five far cells, at floors 11 to 50, miss 4 where 52 were missed;
-and 288 twins of readings 10 to 99 beside one or two far readings of
-three figures miss nothing on either. Twin by twin, each of the 3,333
-counted once: the rules change 683 and leave 2,650 as 110cb46 wrote
-them, byte for byte; none of the 683 misses a check 110cb46 met, writes
-a cell wider than the source's widest and 110cb46's, writes its own
-width census further from the source's, writes further past the real
-column's range, or stands further from the real mean and spread taken
-together; 669 stand nearer on them together and 543 nearer on each.
+Measured on eleven batteries -- seeds 0, 4 and 9, the codes beside
+plain numbers at 0 to 19 and the random shapes at 0 -- 110cb46's twins
+against this rule's, BOTH READ BY ONE CHECKER, this one, which holds the
+mean and the spread to the window drawn with rule 1 withdrawn as well
+wherever rule 1 moved an end (validation method V6.1-A2): read by each
+tree's own checker, as the repair round first measured, most of the fall
+was the checker's. `K-S3-22`'s 36 column-floors miss 21 checks where
+110cb46's twins miss 144; the 21 are the mean or the spread of the two
+moments-only columns and of three Pareto(2.5) columns at fifty whose
+spread reads 0.90 to 0.94 of the real one; follow-up A's 37 shapes miss
+nothing on either; the stage-3 battery misses its 61 on both; six shapes
+of codes beside plain numbers and far cells miss 205 where 605 were
+missed; the skeptics' grid, pressure, code, bulk and attack shapes miss
+27 where 222 were missed -- the grid twins rule 3 writes as 110cb46
+wrote them, their spread 0.37 to 0.50 of the real one, and 399 numbers
+from 1000 beside `99999` and `88888` at a floor of 20; 1,500 random
+shapes of one to four figures beside one to five far cells, at floors 11
+to 50, miss 4 where 57 were missed; 288 twins of readings 10 to 99
+beside one or two far readings of three figures miss nothing on either;
+and the second skeptic's 21 shapes beside far cells miss 6 where 15 were
+missed. Twin by twin, each of the 3,459 counted once: the rules change
+716 and leave 2,743 as 110cb46 wrote them, byte for byte; none of the
+716 misses a check 110cb46's twin met, writes a cell wider than the
+source's widest and 110cb46's, writes its own width census further from
+the source's, writes further past the real column's range, or stands
+further from the real mean and spread taken together; 691 stand nearer
+on them together and 566 nearer on each. Read off the real column and
+no window, 1,500 of the 3,459 stand more than 0.05 of the real spread
+off its mean or a tenth off its spread, where 1,875 of 110cb46's did.
 
 WHAT THE RULES STILL COST IS MEASURED AND NOT HIDDEN. Weighed together,
 one moment can stand further off where the other stands nearer by more:
-97 twins stand further from the real mean and 21 from the real spread,
+99 twins stand further from the real mean and 22 from the real spread,
 every one of them among the random shapes or the readings 10 to 99,
 where the reach stands barely past the width -- at worst 0.072 of the
 real spread further on the mean, 150 bell-shaped readings beside one
@@ -4502,19 +4548,25 @@ census the source's (the other, 90 codes beside 59 of four figures and
 padded cells where the source holds 90). The count of cells past the
 width is not published, the census pooling it under the line, and the
 reach is the nearest the furthest row can stand, so the pair's squares
-are carried from there by more rows than the source held far out; 185
-of the 186 stand nearer the real mean and spread together and 46 meet a
-check 110cb46 missed. `K-S3-22` counts all of it on its own battery and
-lane G2's width shapes, so none of it may grow.
+are carried from there by more rows than the source held far out; all
+186 stand nearer the real mean and spread together and 46 meet a check
+110cb46's twin misses. `K-S3-22` counts all of it on its own battery and
+lane G2's width shapes, and the twins off the real moments, so none of it
+may grow. And where the rule reads a tail toward a further end, a `skew`
+or `kurtosis` window can cover the whole range and is listed (G5.6a).
 
 The end rule is frozen in `tail_width_past_the_reach` (G14.3). THE
 WALK HAS NO FROZEN CASE, because the oracle does not run G6.6's walk at
 all (criterion 8 of the Phase 4 plan): it is pinned by
-`tests/test_stage3b_width.py`, where a source mutant of each of 96
+`tests/test_stage3b_width.py`, where a source mutant of each of 106
 clauses of the three rules, of the guard on the cells left past the
-width and of G6.3's give-up turns a test red but one, which drops the
-check asking the second walk only where a cell stands past the width:
-with none there the two walks are one, so it changes no twin.
+width, of G6.3's give-up, of where rule 3 is asked and its one division
+a block, and of the checker's second window (V6.1-A2) turns a test red
+but one, which drops the check asking the second walk only where a cell
+stands past the width: with none there the two walks are one, so it
+changes no twin. Of the second skeptic's eighteen more, eleven turn it
+red; the seven that do not changed no twin of 1,584 over nine batteries
+on 9c79ece, where that skeptic ran them.
 
 ### G6.7 No value stands where the description says there is none
 

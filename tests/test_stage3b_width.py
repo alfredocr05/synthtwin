@@ -1033,8 +1033,8 @@ def test_the_second_reading_is_asked_only_where_rule_1_moved_an_end(
     item 4): the ladder read either way is one there, and rule 2's walk on that side
     stands only where it leaves neither published moment further off than
     110cb46's (`_serves_better`), so a second reading changed none of 3,636
-    twins and cost generating 200,000 six-figure numbers seven seconds of
-    nineteen. Its mutant, the repair round's form, asks it wherever a side
+    twins and cost generating 200,000 six-figure numbers 5.8 s over
+    110cb46's 18.5. Its mutant, the repair round's form, asks it wherever a side
     is proven too, and hands this column a division.
     """
     described = _described(tmp_path, "pad99999", reader.shape("pad99999", 150, 1), 11)

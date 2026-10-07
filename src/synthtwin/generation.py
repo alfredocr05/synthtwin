@@ -15354,8 +15354,8 @@ def _width_rule_withdrawn(
     moment further off than 110cb46's walk (`_serves_better`): measured,
     asking the second reading there too changed none of 3,636 twins over
     eleven batteries, and on 200,000 six-figure numbers -- a proven side
-    and no moved end -- it took generating from 19.9 s on 110cb46 to
-    27.0 s. Otherwise the ladder with each width-held end where the width
+    and no moved end -- it took generating from 18.5 s on 110cb46 to
+    24.3 s, where not asking it takes 19.1 s. Otherwise the ladder with each width-held end where the width
     clamp left it (`contract.tail_ladder` with the reach rule withdrawn)
     and the strata divided by that ladder (`_ladder_layout`): the
     division 110cb46 planned, which draws the plan's own words. That

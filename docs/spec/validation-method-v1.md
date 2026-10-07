@@ -2687,6 +2687,31 @@ the first two moments. The twin's own report passes no verdict and is
 unchanged; it already prints both values and says where its range does
 not cover the published one.
 
+**AND WHERE METHOD G6.6.8'S RULE 1 MOVED A DERIVED END, THE WINDOW
+DRAWN WITH THAT RULE WITHDRAWN ASKS THE SAME** (the second skeptic of
+plan P4-D377's repair, item 1). Rule 1 reads a tail's end, and with it
+every window of G12.3, through the reach the tail's published pair
+proves, which widens the `mean` and `std` windows until they reach the
+published values -- so the clause above stopped applying where it had
+applied -- while the generator may still write such a column on the
+ladder with the rule withdrawn (G6.6.8 rule 3). MEASURED: 1,001
+readings 1000 to 1900 beside one `99900`, at a floor of eleven, written
+byte for byte as 110cb46 wrote them, their spread 0.38 of the real one,
+were MISSED by 110cb46's report on a `std` window of 0 to 3,090.8
+against a published 3,124.9, and passed on the rule's window of 0 to
+36,011.8. So on a tail block where the rule moved an end
+(`contract.reach_moved_an_end`), the `mean` and `std` windows are drawn
+a second time through the ladder read with the rule withdrawn -- the
+windows 110cb46 drew, to the last digit -- and where that window does
+not reach the published value, a file not holding it exactly must also
+stand within half that window's width of it, or the obligation is
+MISSED, the note printing that window. The line still prints the first
+window, and the WITHIN-BOUND test is the first window's alone: the
+rule's own twin of `00001` to `00149` beside one `99999`, at eleven,
+holds a spread of 8,153.5 against a published 8,158.9, outside the
+second window, 0 to 2,945.5, and well within half its width of the
+value. `skew` and `kurtosis` are not held to it.
+
 **V6.1-A1 Where the first two definitions both fit, HELD is the one
 taken: a file holding the description's own value has met the exact
 obligation, whatever its window says. THIS RAISES; nothing moves to a

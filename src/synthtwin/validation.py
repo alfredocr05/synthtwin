@@ -4376,18 +4376,19 @@ def _within(
     AND ``held`` IS THE SAME WINDOW DRAWN WITH METHOD G6.6.8'S RULE 1
     WITHDRAWN, handed in only where that rule moved a derived end
     (`_moment_checks`; the second skeptic of plan P4-D377's repair, item
-    1). The rule draws the window through a further end, which widens it
-    until it reaches the published value, and the generator may still
-    write the column on the ladder with the rule withdrawn (its rule 3),
-    so the half-width test above stopped applying where it had always
-    applied: 1,001 readings 1000 to 1900 beside one `99900`, at a floor
-    of eleven, written byte for byte as 110cb46 wrote them, their spread
-    0.38 of the real one, were MISSED by 110cb46's report and passed by
-    this one, the standard deviation's window having gone from 0 to
-    3,090.8 to 0 to 36,011.8 against a published 3,124.9. So where
-    ``held`` does not reach the value, the file must also stand within
-    half of ``held``'s width of it, or the obligation is MISSED. The
-    window printed and the WITHIN-BOUND test stay the first one's.
+    1) and asked only where ``anchored`` is set. The rule draws the
+    window through a further end, which widens it until it reaches the
+    published value, and the generator may still write the column on the
+    ladder with the rule withdrawn (its rule 3), so the half-width test
+    above stopped applying where it had always applied: 1,001 readings
+    1000 to 1900 beside one `99900`, at a floor of eleven, written byte
+    for byte as 110cb46 wrote them, their spread 0.38 of the real one,
+    were MISSED by 110cb46's report and passed by the repair round's, the
+    standard deviation's window having gone from 0 to 3,090.8 to 0 to
+    36,011.8 against a published 3,124.9. So where ``held`` does not reach
+    the value, the file must also stand within half of ``held``'s width
+    of it, or the obligation is MISSED. The window printed and the
+    WITHIN-BOUND test stay the first one's.
 
     ``why`` NAMES WHICH SILENCE THIS IS, where the caller knows and the
     gate's general sentence would be less than the truth (plan P4-D349).
