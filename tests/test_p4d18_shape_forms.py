@@ -2194,18 +2194,37 @@ def test_a_ladder_tier_that_ended_is_never_walked_again() -> None:
 
     The ladder's bound is on what the walk refuses now, so a tier that
     ended after taking numbers would, stood at 32,768 positions as the
-    walk stood it, be walked again from there by the next call -- and
-    `_ladder_room`, which marks nothing as written, would count its
-    numbers twice. `%.%%%%` between the published 0.0001 and 9.9999 ends
-    after 99,997 numbers, past 32,768 positions: the room is those
-    99,997, in the product and in the oracle, however many are wanted.
+    walk stood it, be walked again from there by the next call and give
+    numbers it had given already -- and `_ladder_room`, which marks
+    nothing as written, would count them twice. Published 0.0001, 9.9999
+    and 7, a number wearing no named form walks four places and then
+    none; with the census pooling nothing and counting forms of 200,000
+    spellings, the first tier takes every one of its 99,996 values and
+    ends past 32,768 positions, where `%%.%%%%` is refused above and
+    nought below, and whole numbers follow. Stood at the old bound, the
+    walk gave `1.6386` again after `1`.
     """
     oracle = _reference_oracle()
-    form = "%.%%%%"
-    written = ["0.0001", "9.9999"]
-    ladder = generation._number_ladder(written, False, [form])
-    assert generation._ladder_room(
-        ladder, form, 200000, {form: 1}, {}, {}, (), False
-    ) == 99997
-    reference = oracle.number_ladder(written, [form])
-    assert oracle.ladder_room(reference, form, 200000, {form}, set(), set()) == 99997
+    written = ["0.0001", "9.9999", "7"]
+    ladder = generation._number_ladder(written, False, [])
+    reference = oracle.number_ladder(written, [])
+    assert ladder.tiers == (4, 0) and reference["tiers"] == (4, 0)
+    number = generation._OWED_NUMBER
+    cursor: "dict[str, int]" = {}
+    walked: "dict[str, int]" = {}
+    product: "list[str]" = []
+    mirrored: "list[str]" = []
+    for _each in range(100010):
+        product += [
+            generation._next_on_ladder(
+                ladder, number, cursor, {}, {}, {}, (), False, 200000, [0]
+            )
+        ]
+        mirrored += [
+            oracle.next_on_ladder(
+                reference, oracle.OWED_NUMBER, walked, set(), set(), set(), 200000, 0
+            )
+        ]
+    assert len(set(product)) == 100010
+    assert len([value for value in product if "." in value]) == 99996
+    assert product == mirrored
