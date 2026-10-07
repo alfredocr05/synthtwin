@@ -1706,6 +1706,75 @@ def test_k_s3_55(record_property, tmp_path: pathlib.Path, monkeypatch: pytest.Mo
     )
 
 
+# -- Stage 3b lane G4 (plan P4-D390) ------------------------------------------
+
+
+def _letter_among_figures(place: int) -> "list[str]":
+    """Seven-character codes with one letter at ``place`` among six figures,
+    beside seven-figure numbers: per kind a few published on twelve rows,
+    twenty codes and five numbers held back, so the column owes five cells
+    of numbers and the code's form owes twenty of words."""
+    draw = random.Random(61 + place)
+    letters = "ABCGHJKLMNPRSTUVWXYZ"
+    seen: "dict[str, int]" = {}
+    values: "list[str]" = []
+
+    def fresh(coded: bool) -> str:
+        while True:
+            figures = f"{draw.randrange(10 ** 6):06d}"
+            code = figures[:place] + draw.choice(letters) + figures[place:]
+            if not coded:
+                code = f"{draw.randrange(10 ** 7):07d}"
+            if code not in seen:
+                seen[code] = 1
+                return code
+
+    for coded, published, held in ((True, 3, 20), (False, 2, 5)):
+        for _each in range(published):
+            values += [fresh(coded)] * 12
+        for _each in range(held):
+            values += [fresh(coded)]
+    draw.shuffle(values)
+    return values
+
+
+def test_k_s3_61(record_property, tmp_path: pathlib.Path) -> None:
+    """A form with one letter among figures, owed words beside a number debt.
+
+    `_form_reading` reads such a form by its exponent filling as well,
+    `0E00000` to `00000E0`, so G8.3a counts it a NUMBER form and takes
+    it out of the word debt: where the column also owes numbers, the
+    words held back in that form are written in none, and the twin misses
+    the form's count the table meets (the review of plan P4-D390, item
+    5). Measured over the five places a letter can stand between figures
+    at a floor of eleven, the table and its twin each validated.
+    """
+    missed_twin = missed_table = 0
+    for place in range(1, 6):
+        form = "%" * place + "@" + "%" * (6 - place)
+        values = _letter_among_figures(place)
+        described = S.describe(
+            tmp_path / f"at{place}", "codes",
+            fixtures.rows_to_csv(["proc", "other"], [[value, "x"] for value in values]),
+            floor=11,
+        )
+        twin = generation.generate(described.loaded, 7)
+        subcheck = f"proc:forms.published.{form}"
+        missed_twin += subcheck in S.missed(
+            S.measure(described, rendering.twin_csv(twin), "twin.csv")
+        )
+        missed_table += subcheck in S.missed(
+            S.measure(described, fixtures.rows_to_csv(
+                ["proc", "other"], [[value, "x"] for value in values]
+            ), "table.csv")
+        )
+    _kpi(record_property, "K-S3-61", {
+        "forms": 5,
+        "forms_the_twin_misses": missed_twin,
+        "forms_the_table_misses": missed_table,
+    })
+
+
 # -- Stage 4 (tier 1, plan P4-D385) -------------------------------------------
 
 
