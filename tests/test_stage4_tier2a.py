@@ -1784,7 +1784,10 @@ def test_a_reader_that_fails_sends_the_check_to_the_whole_frame(
     Pandas is made to fail where it hands over pieces and nowhere else, so
     the whole frame agrees and the file is accepted -- by the whole frame,
     read once, and not by pieces that never came or never finished. On
-    110cb46, which reads no piece, the test fails by its own measure.
+    110cb46, which reads no piece, the test fails by its own measure. And
+    pandas failing everywhere, the whole frame before it hands anything
+    over too, with an error or out of memory, is refused in 110cb46's
+    words.
     """
     monkeypatch.setattr(reading, "_pandas_rows_a_piece", lambda width: 7, raising=False)
     _name, found, path = _check_cases(tmp_path)[0]
@@ -1810,6 +1813,20 @@ def test_a_reader_that_fails_sends_the_check_to_the_whole_frame(
             patch.setattr(reading.pandas, "read_csv", failing)
             said = _checked(reading._check_against_pandas, found, path, reading.REFUSALS_MAY_QUOTE)
         assert said == "agrees" and reads == {"pieces": 1, "whole": 1}, (where, said, reads)
+    # Pandas failing before anything is handed over, the whole frame too,
+    # and running out of memory there: the refusal is 110cb46's, word for
+    # word, under both kinds of refusal.
+    for failure in (ValueError("a made-up failure everywhere"), MemoryError()):
+
+        def failing_everywhere(*arguments: object, _failure: BaseException = failure, **named: object) -> object:
+            raise _failure
+
+        for refusals in (reading.REFUSALS_MAY_QUOTE, reading.REFUSALS_NAME_POSITIONS):
+            with pytest.MonkeyPatch.context() as patch:
+                patch.setattr(reading.pandas, "read_csv", failing_everywhere)
+                theirs = _checked(_check_against_pandas_as_built, found, path, refusals)
+                ours = _checked(reading._check_against_pandas, found, path, refusals)
+            assert ours == theirs and ours.startswith("ProfileError: "), (failure, refusals, ours, theirs)
 
 
 def test_a_file_refused_after_its_pieces_shows_pandas_warning_as_often_as_before(
