@@ -15953,9 +15953,19 @@ def _chosen_layout(
     """The layout reading the most cells at the line, its rows, and every candidate's.
 
     Ties go to `parsing.layout_order_key`. Returns the layout text, the
-    rows it reads, and the rows each candidate that reached the line read,
-    or None where none did. Determinism: a function of the arguments.
-    Raises nothing. No I/O of any kind.
+    rows it reads, and the rows each candidate that reached the line read
+    -- up to the first that read every row -- or None where none did.
+
+    THE WALK STOPS AT A LAYOUT READING EVERY ROW (the Codex review of
+    landing R2a, item 1). The candidates are walked in key order, so every
+    later one can at most tie it, which the key settles for the earlier;
+    and a layout grown from a later one's misses adds an offset some cells
+    omit, which only raises the key. Nothing chosen changes, and a column
+    of SAS stamps, which item 1's flexible day gives three candidates
+    more, reads one of its six.
+
+    Determinism: a function of the arguments. Raises nothing. No I/O of
+    any kind.
     """
     room = total - needed
     candidates = _layout_candidates(counted, room, contradicted, window)
@@ -15984,6 +15994,8 @@ def _chosen_layout(
         if read > best_rows:
             best = layout
             best_rows = read
+        if best_rows >= total:
+            break
     for layout in later:
         items = parsing.compiled_layout(layout)
         if items is None or layout in reached:

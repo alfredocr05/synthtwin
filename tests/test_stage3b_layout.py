@@ -1360,3 +1360,136 @@ def test_sk2_item4_no_offset_is_written_beside_a_pool(tmp_path: pathlib.Path) ->
     assert _not_numbers(paid) == 10
     whole_block = dict(block, n_numeric=ROWS - 10, n_not_numeric=10, utc_offsets=whole)
     assert oracle.offsets_paid_to_the_classes(whole_block, list(bare), (), 11) == paid  # type: ignore[attr-defined]
+
+
+# -- the Codex review of the landing (the review's item numbers) ------------
+
+
+def _march_days(first: int) -> "list[str]":
+    """1,000 SAS dates cycling the 1st to the 28th of March 2023, from the ``first``-th."""
+    days = [f"{day}MAR2023" for day in range(1, 29)]
+    turned = days[first - 1 :] + days[0 : first - 1]
+    return [turned[place % 28] for place in range(1000)]
+
+
+def test_codex_item1_a_compact_month_word_date_reads_whichever_day_comes_first(
+    tmp_path: pathlib.Path,
+) -> None:
+    """Item 1: `1MAR2023` to `28MAR2023` read under `{D}{MON}{YYYY}` in either order.
+
+    Starting on a one-figure day the column chose `{D}{MON}{YYYY}`, which
+    LY1 refused, and the describe stopped on an internal error; starting
+    on a two-figure day it was categorical, since no first cell offered
+    the flexible layout. Both read 1,000 now, and the twin is written in
+    the source's spelling and validates. Mutant, run: a two-figure day
+    read padded alone, as before, and both orders fail again.
+    """
+    for first in (1, 10):
+        cells = _march_days(first)
+        described = taxonomy.profile_column("seen_at", 1, cells, 1000, taxonomy.Settings())
+        details = described.details or {}
+        assert described.role == taxonomy.ROLE_DATETIME, first
+        assert details["format"] == "layout {D}{MON}{YYYY}", first
+        assert details["n_unparsed"] == 0, first
+    block, profile, _questions = _described(tmp_path, _march_days(10))
+    assert block["format"] == "layout {D}{MON}{YYYY}"
+    pattern = r"(?:[1-9]|[12]\d|3[01])(?:JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)\d{4}"
+    for seed in SEEDS:
+        twin, written = _twin(profile, seed)
+        assert all(re.fullmatch(pattern, cell) for cell in written), seed
+        assert all(spellings.parses(cell, "%d%b%Y") for cell in written), seed
+        assert _validated(profile, twin)[0] == 0, seed
+
+
+def _agreement_corpus() -> "list[str]":
+    """Cells of every production: the gate's spellings and one of each shape by hand."""
+    corpus: "list[str]" = []
+    for name in sorted(spellings.SPELLINGS):
+        corpus += spellings.cells(name, 12)
+    corpus += [
+        "1MAR2023", "17MAR2023", "1MAR23", "17mar2023", "1-MAR-2023", "17-Mar-23",
+        "1 Mar 2023", "17/Mar/2023", "1.Mar.2023", "2023-Mar-1", "2023 Mar 17",
+        "Mar 1, 2023", "Mar 17 2023", "Mar  1 2023", "Mar  1 23", "Mar 17 23",
+        "Mar-1-2023", "Sun 17 Mar 2024", "Sunday, March 17, 2024",
+        "3/4/2024", "03/04/24", "3-4-24", "3.4.2024", "03.04.24", "2024-3-4",
+        "2024/03/04", "2024.03.04", "202403041405", "20240304140500.123",
+        "20240304140500-05", "20240304T140500Z", "2024-03-04 14.05.00",
+        "2024-03-04 14:05:00 UTC", "2024-03-04 14:05:00 +01:00", "2024-03-04 14:05:00:123",
+    ]
+    return corpus
+
+
+def test_codex_item1_discovery_and_ly1_agree() -> None:
+    """Item 1: what candidate discovery offers, LY1 admits, and the reverse.
+
+    Every layout the grammar's productions give for a cell of the corpus is
+    one LY1 admits, so no column can choose a layout its own description
+    then refuses; and every cell such a layout writes -- days 1, 9, 10 and
+    17, each flexible field padded or not, every offset its field writes --
+    is a cell discovery offers that layout for, which is the exactness the
+    choice rests on (`taxonomy._layout_candidates`). Mutants, run: a
+    two-figure day read padded alone before a month word (both halves
+    fail), and a space-padded day before a two-figure year left unread
+    (`Mar  1 23`, the second half).
+    """
+    produced: "dict[str, int]" = {}
+    for cell in _agreement_corpus():
+        for one in parsing.layouts_of(cell):
+            produced[one] = 1
+    refused = [one for one in produced if not parsing.is_layout_format(parsing.layout_format(one))]
+    assert refused == []
+    instants = [
+        f"{year}-{month:02d}-{day:02d}{clock}"
+        for year in (1969, 2024, 2068)
+        for month in (1, 10)
+        for day in (1, 9, 10, 17)
+        for clock in ("", " 00:00:00", " 23:59:59")
+    ]
+    unoffered: "dict[str, str]" = {}
+    for one in sorted(produced):
+        name = parsing.layout_format(one)
+        items = parsing.compiled_layout(one)
+        assert items is not None, one
+        field = parsing.layout_offset_field(name)
+        offsets = [""]
+        if field:
+            offsets = ["Z"] if field in ("Z", "z", "UTC", "GMT") else ["+01:00", "-05:00"]
+        for canonical in instants:
+            if (len(canonical) > 10) != parsing.layout_has_clock(name):
+                continue
+            for offset in offsets:
+                for widths in ((True, True), (True, False), (False, True), (False, False)):
+                    cell = parsing.layout_cell(items, canonical, offset, widths, 3)
+                    if parsing.layout_reading(cell, items) is None:
+                        continue
+                    if one not in parsing.layouts_of(cell):
+                        unoffered[one] = cell
+    assert unoffered == {}
+
+
+def test_codex_item1_the_choice_stops_at_a_layout_reading_every_row(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Item 1's price: a column the first candidate reads whole is read once.
+
+    SAS stamps offer six candidates since item 1 -- a padded and a flexible
+    day under each of three month-word sets -- and the first in key order,
+    `{DD}{MON}{YYYY}:...`, reads every row, so no other can win: the walk
+    stops there and the layout chosen is the one it chose before. Mutant,
+    run: the stop withdrawn, and the column is read six times.
+    """
+    cells = spellings.cells("sas_datetime20", ROWS)
+    reads = 0
+    shipped = taxonomy._layout_reads
+
+    def counted_reads(
+        items: "tuple[tuple[str, str], ...]", counted: "dict[str, int]", room: int
+    ) -> "tuple[int, int, list[str]]":
+        nonlocal reads
+        reads = reads + 1
+        return shipped(items, counted, room)
+
+    monkeypatch.setattr(taxonomy, "_layout_reads", counted_reads)
+    described = taxonomy.profile_column("seen_at", 1, cells, ROWS, taxonomy.Settings())
+    assert (described.details or {})["format"] == "layout {DD}{MON}{YYYY}:{HH}:{MI}:{SS}"
+    assert reads == 1

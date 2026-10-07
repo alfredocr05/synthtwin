@@ -8896,13 +8896,18 @@ def _layout_date_core(
         if size == 14:
             found += [("{YYYY}{MM}{DD}{HH}{MI}{SS}", place + 1, True)]
         # A DAY, A MONTH NAME AND A YEAR, with no mark (SAS, Stata) or one.
+        # A two-figure day is read padded AND flexible, as every other
+        # production reads one (the Codex review of landing R2a, item 1):
+        # `{D}{MON}{YYYY}` reads `17MAR2023` too, so a column cycling
+        # `1MAR2023` to `28MAR2023` was offered it only by a one-figure
+        # day, and LY1, which writes its sample on the 17th, refused it.
         if size in (1, 2):
             second_kind, word = _run(runs, place + 1)
             if second_kind == "a" and _figures(runs, place + 2, (2, 4)):
                 year = "YYYY" if len(runs[place + 2][1]) == 4 else "YY"
-                lead = "DD" if size == 2 else "D"
                 for name in _names_of(word, _LAYOUT_MONTH_FIELDS):
-                    found += [(f"{{{lead}}}{{{name}}}{{{year}}}", place + 3, False)]
+                    for lead in ("DD", "D") if size == 2 else ("D",):
+                        found += [(f"{{{lead}}}{{{name}}}{{{year}}}", place + 3, False)]
             if (
                 _mark(runs, place + 1, "- ./")
                 and _run(runs, place + 2)[0] == "a"
@@ -8957,14 +8962,18 @@ def _layout_date_core(
                         ]
                     if len(runs[place + 2][1]) == 2 and not comma:
                         found += [(f"{{{name}}} {{_D}} {{{year}}}", after + 2, False)]
+            # ...and a one-figure day padded with a space, before a year of
+            # either width, as a two-figure `{_D}` stands before either
+            # (the Codex review of landing R2a, item 1).
             if (
                 _mark(runs, place + 1, " ")
                 and _mark(runs, place + 2, " ")
                 and _figures(runs, place + 3, (1,))
                 and _mark(runs, place + 4, " ")
-                and _figures(runs, place + 5, (4,))
+                and _figures(runs, place + 5, (2, 4))
             ):
-                found += [(f"{{{name}}} {{_D}} {{YYYY}}", place + 6, False)]
+                year = "YYYY" if len(runs[place + 5][1]) == 4 else "YY"
+                found += [(f"{{{name}}} {{_D}} {{{year}}}", place + 6, False)]
             if (
                 _mark(runs, place + 1, "-")
                 and _figures(runs, place + 2, (1, 2))
