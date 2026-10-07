@@ -24,7 +24,14 @@ floor of eleven and seeds 0 to 4:
 * `weekday_changed`, `distinct_changed`: twins whose weekdays, or whose
   count of different values, differ from the same seed's with the hour
   pass withdrawn;
-* `cases`: how many statistics were judged, one a twin a column.
+* `cases`: how many statistics were judged, one a twin a column;
+* `daytime_100k_hour_seconds`, a budget judged only on the quiet
+  reference machine, and `daytime_100k_missed`: 100,000 moments of a
+  year of daytime visits, 07:00 to 18:59 every day, to the second (the
+  lane's skeptic, finding 1: the shared steps' CHAIN and exchange then
+  filed every rank again each round, 30 seconds of the pass at 100,000
+  rows and 397 at a million), described at floor 11 and generated at
+  seed 0: the seconds of the hour pass, and the obligations MISSED.
 
     .venv/bin/python tools/measurements/kpi_hour_census.py --kpi
 """
@@ -34,6 +41,7 @@ import pathlib
 import random
 import sys
 import tempfile
+import time
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "src"))
@@ -109,10 +117,52 @@ def battery(home: pathlib.Path) -> "tuple[dict[str, int], list[str]]":
     return totals, notes
 
 
+# The daytime node's visits by hour, 07:00 to 18:59: a clinic open every day.
+_DAYTIME = (0.6, 1.2, 1.5, 1.6, 1.5, 1.2, 1.3, 1.4, 1.3, 1.1, 0.9, 0.5)
+
+
+def daytime(home: pathlib.Path, rows: int = 100000) -> "tuple[dict[str, float], list[str]]":
+    """The timed node: `rows` daytime moments of a year, the hour pass's seconds at seed 0."""
+    draw = random.Random(71005)
+    cells = [
+        gate._at(draw.choice(gate._YEAR), 7 + draw.choices(range(12), weights=_DAYTIME)[0],
+                 draw.randrange(60), draw.randrange(60)).strftime(gate._ISO_S)
+        for _row in range(rows)
+    ]
+    text = "seen_at\n" + "\n".join(cells) + "\n"
+    described = kpi_shapes.describe(home / "daytime", "daytime", text, gate.LINE)
+    assert described.block("seen_at")["hour_census"], "the daytime node publishes no census"
+    spent = [0.0]
+    keep = generation._hour_settled
+
+    def timed(*arguments: object, **named: object) -> object:
+        began = time.perf_counter()
+        try:
+            return keep(*arguments, **named)
+        finally:
+            spent[0] = spent[0] + time.perf_counter() - began
+
+    generation._hour_settled = timed
+    try:
+        written = kpi_shapes.twin_text(described, 0)
+    finally:
+        generation._hour_settled = keep
+    missed = kpi_shapes.missed(kpi_shapes.measure(described, written, "daytime-twin.csv"))
+    found = {
+        "daytime_100k_hour_seconds": round(spent[0], 2),
+        "daytime_100k_missed": len(missed),
+    }
+    return found, [f"daytime seed 0: {line}" for line in missed]
+
+
 def main() -> int:
     with tempfile.TemporaryDirectory() as folder:
         totals, notes = battery(pathlib.Path(folder))
-        kpi_rules.emit("K-S3-38", totals, "; ".join(notes) if notes else "every twin and table held, no clause failed")
+        timed, said = daytime(pathlib.Path(folder))
+        value: "dict[str, float]" = dict(totals)
+        value.update(timed)
+        notes = notes + said
+        kpi_rules.emit("K-S3-38", value, "; ".join(notes) if notes else "every twin and table held, no clause failed")
     return 0
 
 

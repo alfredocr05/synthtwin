@@ -31,7 +31,11 @@ unit of that hour leaves it), lab draws come back at 43.3 per cent
 between 06:00 and 08:00 against 43.3 real and discharges at 62.6
 against 62.6 between 10:00 and 14:00, and the hour TVD falls to 0.0002
 to 0.0020 at 10,000 rows. The pass takes 0.4 s at 40,000 arrivals and
-13 s of a 180 s generate at 1,000,000. A census is withheld, each reason
+13 s of a 180 s generate at 1,000,000; a million daytime visits, most
+of whose draws land in hours the census counts empty, take 38 s of a
+248 s generate, since the shared steps' CHAIN and exchange file their
+cells once a call and the shares ask each gap once, every answer the
+same -- before, 397 s of 546 (210 s with no hour census). A census is withheld, each reason
 said in a sentence of its own, where the column has no tails, its middle
 half spans fewer than four days, a workbook stores it two ways, or no
 grouping short of the whole day holds. Where no weekday census stands, a
@@ -39,9 +43,14 @@ cell whose own day and weekday leave it no place in its gap, or a value
 no merge keeping the weekday can put back, may at last take the nearest
 day of another weekday. A stamp declared a 12-hour clock
 with no AM or PM is drawn on the dial's half day, tails and body, so its
-twin validates clean (T1's carve-out, P4-D370), and a tail's tie group no
+twin validates clean (T1's carve-out, P4-D370), its count at midnight
+held by the body alone, and a tail's tie group no
 longer stands at a midnight the tails listing only midnight values
-already hold. `K-S3-38` (a headline), `K-S3-40` and `K-S3-41` are new.
+already hold. A tie the pass makes is split even where the column's
+count is out of the construction's reach. A 12-hour stamp whose census
+is withheld comes back with its dial's late morning heavier than the
+real one, a stated limit. `K-S3-38` (a headline, with a timed node of
+100,000 daytime moments), `K-S3-40` and `K-S3-41` are new.
 
 ### The second key cut repaired at its review (2026-10-05)
 

@@ -6874,14 +6874,39 @@ of hours and every twin of the lane's battery its statistics, and the
 product and the oracle answer alike on 1,500 random states of hours and
 1,500 of a field of minutes whose parent is the hour.
 
+**Cost** (the lane's skeptic, finding 1). At a unit of an hour the
+shared steps' CHAIN and exchange (G7.3f steps 7b and 8.3) filed every
+movable rank by cell again each round, up to 256 and 64 rounds, and step
+3's shares made their totals exact asking every pair of groups over
+every gap: a million moments of daytime visits spent 397 seconds in this
+pass, and fifteen in a hundred moments at midnight over two years -- a
+gap between every day's cells at midnight, which step 1 pins -- spent 5.7
+seconds of 10,000 rows' pass in the shares. Filed once a call and kept
+as each move changes them, and the shares asked gap by gap, every answer
+of those steps is the same and the million moments take 38 seconds (a
+generate of 248 against 546), the shares 0.47.
+
+**A stated limit** (the lane's skeptic, finding 5). A 12-hour stamp
+whose census is withheld -- three days of stamps, HC4 -- holds its body
+on the half day by the half day's own census, each afternoon draw taking
+the nearest morning place of its own day inside its gap; the gaps of a
+column of a few days are hours wide, so the place twelve hours earlier
+is rarely inside one, and the dial's hours 10 and 11 come back heavier
+than the real (a dial-hour TVD of 0.145 to 0.185, against 0.056 to 0.085
+with the pass withdrawn, whose twin, written on the dial, reads its
+afternoon cells back twelve hours early and misses published facts).
+
 **Its frozen cases** are states of ranks, as G7.3f's are: the sixteenth
 vectors file, `tests/reference/generation-branch-vectors-16.json`, holds
-fifteen -- SAMEDAY, the escape with a weekday census's groups and its last
-resort, SPLIT, RELIEF, PUT BACK long and short and its last resort, the
-proportional order, the step off midnight, the half day's tail ranks and
-the whole pass, and, on a field of minutes whose parent is the hour, the
-escape's and PUT BACK's tier in their kin group and the escape kept to
-it -- and three of G7.3b step 10's
+twenty -- SAMEDAY, the escape with a weekday census's groups and its last
+resort, SPLIT, RELIEF and its give-back where the room it made is not
+enough, PUT BACK long and short and its last resort, PUT BACK never onto
+a written midnight and its short count moving only a rank that shares
+its written unit, the proportional order, the step off midnight, the half
+day's tail ranks and a tail rank kept inside its stratum, SAMEPARENT
+asking no place of a hole, and the whole pass, and, on a field of minutes
+whose parent is the hour, the escape's and PUT BACK's tier in their kin
+group and the escape kept to it -- and three of G7.3b step 10's
 distances, on a low tail of minutes, a high tail of seconds and a tail
 whose ranks must all differ, each with the answer this section gives it
 and no G14.3 case.
