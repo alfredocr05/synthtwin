@@ -8605,6 +8605,31 @@ def numbers_paid(sizes, classes, placed):
     )
 
 
+def class_form_stand_in(form, reads, walked, taken, seen, folds, ladder=None):
+    """A spelling of one census form that reads as one numeric class, or ""
+    -- method section G8.3a, the form's own walk.  Each form carries its
+    place (``walked``) and what it has given (``taken``) across the column,
+    and gives up where walk_goes_on says (plan P4-D390); a spelling already
+    written, raw or folded, is stepped past, and with ``ladder`` given --
+    the number class -- so is one whose value lies outside the published
+    numbers' own ends (P4-D92).
+    """
+    room_left = form_room(form)
+    walked.setdefault(form, 0)
+    taken.setdefault(form, 0)
+    while walk_goes_on(walked[form], taken[form], room_left):
+        trial = filled_form(form, walked[form])
+        walked[form] += 1
+        if trial in seen or folded(trial) in folds:
+            continue
+        if usable_of_class(trial, reads) and (
+            ladder is None or within_the_published_ends(trial, ladder)
+        ):
+            taken[form] += 1
+            return trial
+    return ""
+
+
 def class_stand_ins_walked(
     column, written, used, sizes, census, bounded, whole_tier=False
 ):
@@ -8730,20 +8755,9 @@ def class_stand_ins_walked(
                         # bought with a magnitude the column is not known
                         # to hold.  Where no plain number was published
                         # there are no ends and the debt simply stands.
-                        room_left = form_room(form)
-                        walked.setdefault(form, 0)
-                        taken.setdefault(form, 0)
-                        while walk_goes_on(walked[form], taken[form], room_left):
-                            trial = filled_form(form, walked[form])
-                            walked[form] += 1
-                            if trial in seen or folded(trial) in folds:
-                                continue
-                            if usable_of_class(trial, reads) and (
-                                within_the_published_ends(trial, ladder)
-                            ):
-                                taken[form] += 1
-                                found = trial
-                                break
+                        found = class_form_stand_in(
+                            form, reads, walked, taken, seen, folds, ladder
+                        )
                     if not found:
                         # AND LAST, THE LADDER AT THE FORM'S OWN SCALE.
                         # An exponent form walked at its mantissa's bare
@@ -8765,18 +8779,9 @@ def class_stand_ins_walked(
                     )
             else:
                 if form:
-                    room_left = form_room(form)
-                    walked.setdefault(form, 0)
-                    taken.setdefault(form, 0)
-                    while walk_goes_on(walked[form], taken[form], room_left):
-                        trial = filled_form(form, walked[form])
-                        walked[form] += 1
-                        if trial in seen or folded(trial) in folds:
-                            continue
-                        if usable_of_class(trial, reads):
-                            taken[form] += 1
-                            found = trial
-                            break
+                    found = class_form_stand_in(
+                        form, reads, walked, taken, seen, folds
+                    )
                 if not found:
                     counters.setdefault(name, 0)
                     while counters[name] < STAND_IN_STEPS:

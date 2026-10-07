@@ -2132,3 +2132,80 @@ def test_the_ladder_bound_is_on_what_it_refuses_and_the_oracle_walks_alike() -> 
     assert "" not in product
     assert len(set(product)) == 40000
     assert product == mirrored
+
+
+def test_the_class_walk_takes_a_form_past_the_old_bound_as_the_oracle_does() -> None:
+    """G8.3a's own walk of a form goes past 4,096 spellings, stand-in for
+    stand-in with the oracle (review of plan P4-D390, item 3).
+
+    `_class_form_stand_in` asks `_walk_goes_on` as `_made_up_label` does,
+    so a column owing one numeric class in one form more than 4,096
+    times is written in that form throughout; nothing pinned it, and with
+    the old bound restored in the product or in the oracle every test
+    passed. Here each walk takes 5,000 spellings: a number class held to
+    the published ends of 0.001 and 999.999 in `%%%.%%%`, and the
+    contradictory class in `(-%%%%)`, which no ladder holds. The oracle's
+    walk is `class_form_stand_in`, the one both its branches call.
+    """
+    oracle = _reference_oracle()
+    written = ["0.001", "999.999"]
+    for form, reads, held, ladder, reference in (
+        (
+            "%%%.%%%", parsing.NUMBER, oracle.NOTATION_NUMBER,
+            generation._number_ladder(written, False, ["%%%.%%%"]),
+            oracle.number_ladder(written, ["%%%.%%%"]),
+        ),
+        (
+            "(-%%%%)", generation._owed_reading(generation._OWED_CONTRADICTORY),
+            oracle.owed_reading(oracle.OWED_CONTRADICTORY), None, None,
+        ),
+    ):
+        walked: "dict[str, int]" = {}
+        taken: "dict[str, int]" = {}
+        used: "dict[str, int]" = {}
+        owners: "dict[str, str]" = {}
+        mirror_walked: "dict[str, int]" = {}
+        mirror_taken: "dict[str, int]" = {}
+        seen: "set[str]" = set()
+        folds: "set[str]" = set()
+        product: "list[str]" = []
+        mirrored: "list[str]" = []
+        for _each in range(5000):
+            found = generation._class_form_stand_in(
+                form, reads, walked, used, owners, (), False, ladder, taken
+            )
+            product += [found]
+            used[found] = 1
+            owners[parsing.folded(found)] = found
+            echo = oracle.class_form_stand_in(
+                form, held, mirror_walked, mirror_taken, seen, folds, reference
+            )
+            mirrored += [echo]
+            seen.add(echo)
+            folds.add(oracle.folded(echo))
+        assert "" not in product, form
+        assert taken[form] == 5000, form
+        assert product == mirrored, form
+
+
+def test_a_ladder_tier_that_ended_is_never_walked_again() -> None:
+    """An ended tier is marked ended, not stood at the old bound (review of
+    plan P4-D390, item 2).
+
+    The ladder's bound is on what the walk refuses now, so a tier that
+    ended after taking numbers would, stood at 32,768 positions as the
+    walk stood it, be walked again from there by the next call -- and
+    `_ladder_room`, which marks nothing as written, would count its
+    numbers twice. `%.%%%%` between the published 0.0001 and 9.9999 ends
+    after 99,997 numbers, past 32,768 positions: the room is those
+    99,997, in the product and in the oracle, however many are wanted.
+    """
+    oracle = _reference_oracle()
+    form = "%.%%%%"
+    written = ["0.0001", "9.9999"]
+    ladder = generation._number_ladder(written, False, [form])
+    assert generation._ladder_room(
+        ladder, form, 200000, {form: 1}, {}, {}, (), False
+    ) == 99997
+    reference = oracle.number_ladder(written, [form])
+    assert oracle.ladder_room(reference, form, 200000, {form}, set(), set()) == 99997
