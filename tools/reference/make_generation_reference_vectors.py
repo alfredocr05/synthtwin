@@ -10074,74 +10074,127 @@ def whole_texts_paid(paid, cells, joint, offer, made_at, rest, line, absent, a_n
     """G7.9b step 5: the rest owed, paid with whole repeated texts.
 
     WRITTEN FROM STEP 5'S STATEMENT ALONE (the Codex review of landing R2a,
-    item 4).  The rest is step 4's bound less the payments step 4 made.
-    Where it is two or more:
+    item 4, and the verification of its repair, open item 1).  The rest is
+    step 4's bound less the payments step 4 made.  Where it is two or more:
 
+    * each offset's room is `line - 1` cells less the payments step 4
+      wrote at it;
     * a text is on offer when it is a number worn by at least two ranks
-      and fewer than the census line, none of them an end, and it was not
-      paid at an earlier offset;
-    * the offsets are taken in step 3's order, each holding `line - 1`
-      cells less the payments step 4 wrote at it; a text goes to one
-      offset whole, every rank wearing it written again with the marks
-      and that offset, and only where its ranks number at most that room
-      and at most the rest and its respelling is no spelling the column
-      holds absent;
-    * at each offset the texts chosen reach the largest total of ranks at
-      most the smaller of the room and the rest that any choice reaches;
-      the sizes are taken largest first, each as many times as fits while
-      what is left stays a total the smaller sizes reach, and of the n
-      texts of one size, in the order of their first rank, choice j of k
-      is the text at position j * n // k;
-    * the rest falls by each offset's total, and the walk stops where it
-      is under two.
+      and fewer than the census line, none of them an end, and by no more
+      ranks than the largest room or the rest;
+    * the step aims at the largest total of ranks, at most the rest and at
+      most the rooms together, that the texts on offer reach, and walks
+      the offsets in step 3's order (`offsets_walked`), each text taken
+      written again whole, every rank with the marks and that offset;
+    * a text taken whose respelling at its offset is a spelling the column
+      holds absent is set aside, the first such in the walk's order, and
+      the walk made again without it.
     """
-    if rest < 2:
+    rooms = [line - 1 - made for made in made_at]
+    most = min(rest, sum(rooms))
+    if most < 2:
         return paid
     worn_by = {}
     for rank, text in enumerate(cells):
         worn_by.setdefault(text, []).append(rank)
-    texts = [
-        text
-        for text, ranks in worn_by.items()
-        if 2 <= len(ranks) < line
-        and ranks[0] > 0
-        and ranks[-1] < len(cells) - 1
-        and a_number(text)
-    ]
-    texts.sort(key=lambda text: worn_by[text][0])
-    taken_already = set()
-    for place, spelled in enumerate(offer):
-        cap = min(line - 1 - made_at[place], rest)
-        if rest < 2:
-            break
-        if cap < 2:
+    on_offer = sorted(
+        (
+            text
+            for text, ranks in worn_by.items()
+            if 2 <= len(ranks) < line
+            and len(ranks) <= max(rooms)
+            and len(ranks) <= most
+            and ranks[0] > 0
+            and ranks[-1] < len(cells) - 1
+            and a_number(text)
+        ),
+        key=lambda text: worn_by[text][0],
+    )
+    while on_offer:
+        walked = offsets_walked(on_offer, worn_by, rooms, most)
+        refused = [
+            text
+            for text, place in walked
+            if (text + joint + offer[place]).strip().lower() in absent
+        ]
+        if refused:
+            on_offer.remove(refused[0])
             continue
-        by_size = {}
-        for text in texts:
-            if text in taken_already or len(worn_by[text]) > cap:
-                continue
-            if (text + joint + spelled).strip().lower() in absent:
-                continue
-            by_size.setdefault(len(worn_by[text]), []).append(text)
-        sizes = sorted(by_size)
-        best = max(sums_of_sizes([(size, len(by_size[size])) for size in sizes], cap))
-        left = best
-        for at in range(len(sizes) - 1, -1, -1):
-            size = sizes[at]
-            smaller = sums_of_sizes([(one, len(by_size[one])) for one in sizes[:at]], cap)
-            count = max(
-                taken
-                for taken in range(min(len(by_size[size]), left // size) + 1)
-                if left - size * taken in smaller
-            )
-            for choice in range(count):
-                text = by_size[size][choice * len(by_size[size]) // count]
-                taken_already.add(text)
-                for rank in worn_by[text]:
-                    paid[rank] = text + joint + spelled
-            left -= size * count
-        rest -= best
+        for text, place in walked:
+            for rank in worn_by[text]:
+                paid[rank] = text + joint + offer[place]
+        return paid
     return paid
+
+
+def offsets_walked(on_offer, worn_by, rooms, most):
+    """G7.9b step 5's walk, from its statement: (text, offset) for each text taken.
+
+    The aim is the largest total of ranks at most ``most`` the texts on
+    offer reach.  The offsets are taken in order; at each, ``amount_taken``
+    says how many texts of each size it takes of the texts not yet taken,
+    and of the ``n`` such texts of one size in the order of their first
+    rank, choice ``j`` of ``k`` is the text at position ``j * n // k``.  The
+    walk stops where what is left of the aim is under two or the offsets
+    run out.
+    """
+    by_size = {}
+    for text in on_offer:
+        by_size.setdefault(len(worn_by[text]), []).append(text)
+    left = max(sums_of_sizes(sorted((size, len(texts)) for size, texts in by_size.items()), most))
+    walked = []
+    for place, room in enumerate(rooms):
+        if left < 2:
+            break
+        taking = amount_taken(by_size, min(room, left), left, sum(rooms[place + 1:]))
+        for size in sorted(taking, reverse=True):
+            texts = by_size[size]
+            picks = [texts[j * len(texts) // taking[size]] for j in range(taking[size])]
+            walked += [(text, place) for text in picks]
+            by_size[size] = [text for text in texts if text not in picks]
+            left -= size * taking[size]
+    return walked
+
+
+def amount_taken(by_size, cap, left, later):
+    """G7.9b step 5 at one offset: how many texts of each size it takes.
+
+    The largest amount at most ``cap`` the texts reach that leaves what is
+    left of the aim less it both a total the texts not taken reach and no
+    more than the ``later`` cells the offsets after this one hold; none,
+    where only none does that; and where not even none does, the largest
+    amount at most ``cap`` they reach.  An amount's texts are counted by
+    ``amount_counted``.
+    """
+    counts = sorted((size, len(texts)) for size, texts in by_size.items())
+    amounts = sorted((total for total in sums_of_sizes(counts, cap) if total >= 2), reverse=True)
+    for amount in amounts:
+        taking = amount_counted(counts, amount)
+        after = [(size, texts - taking.get(size, 0)) for size, texts in counts]
+        if left - amount <= later and left - amount in sums_of_sizes(after, left - amount):
+            return taking
+    if left <= later and left in sums_of_sizes(counts, left):
+        return {}
+    return amount_counted(counts, amounts[0]) if amounts else {}
+
+
+def amount_counted(counts, amount):
+    """The texts of each size an amount is made of, from the most ranks down.
+
+    At each size, from the largest, as many texts as there are, at most
+    what is left of the amount, while what is then left stays a total the
+    texts of fewer ranks reach.
+    """
+    taking = {}
+    left = amount
+    for at in range(len(counts) - 1, -1, -1):
+        size, texts = counts[at]
+        smaller = sums_of_sizes(counts[:at], amount)
+        count = max(n for n in range(min(texts, left // size) + 1) if left - size * n in smaller)
+        if count:
+            taking[size] = count
+        left -= size * count
+    return taking
 
 
 # ------------------------------------- the tails of a date or clock column

@@ -7524,29 +7524,46 @@ column of that layout whose census of offsets pools nothing and names
    after them; a payment whose cell would be a spelling the column
    holds absent, or that its field cannot write, is not made.
 5. **WHOLE TEXTS, WHERE THE OPEN RANKS FALL SHORT** (the Codex review
-   of landing R2a, item 4). The REST is the fewest of the debt, the
-   number cells less `census_floor` and `census_floor - 1` times the
-   offsets on offer, less the payments step 4 made. Where it is two or
-   more it is paid with whole texts: a number worn by at least two ranks
-   and by fewer than `census_floor`, none of them an end, every rank
-   wearing it written again at ONE offset, so the column holds as many
-   different texts as before and no text wears two spellings. The
-   offsets are taken in step 3's order, each holding `census_floor - 1`
-   cells less the payments step 4 wrote at it; a text not yet paid goes
-   to an offset only where its ranks number at most that room and at
-   most the rest, and its respelling there is neither a spelling the
-   column holds absent nor one its field cannot write. At each offset the
-   texts chosen reach the largest total of ranks, at most the smaller of
-   the room and the rest, that any choice of them reaches: the sizes are
-   taken from the most ranks down, at each as many texts as fit while
-   what is left stays a total the texts of fewer ranks reach, and of the
-   `n` texts of one size, in the order of their first rank, choice `j`
-   of `k` is the text at position `j * n // k`. The rest falls by each
-   offset's total, and the walk stops where it is under two. 1,000 cells,
-   100 stamps ten times each and seven of them ending `-0500`, publish
-   107 different texts and seven cells that are not numbers: the twin's
-   texts all repeated, step 4 found no rank to pay, and seeds 1 and 2
-   held no offset at all and missed both class counts.
+   of landing R2a, item 4, and the verification of its repair). The REST
+   is the fewest of the debt, the number cells less `census_floor` and
+   `census_floor - 1` times the offsets on offer, less the payments step
+   4 made. Where it is two or more it is paid with whole texts: a number
+   worn by at least two ranks and by fewer than `census_floor`, none of
+   them an end, every rank wearing it written again at ONE offset, so
+   the column holds as many different texts as before and no text wears
+   two spellings. Each offset's ROOM is `census_floor - 1` cells less the
+   payments step 4 wrote at it, and the texts on offer are those whose
+   ranks number at most the largest room and at most the rest. The step
+   AIMS at the largest total of ranks, at most the rest and at most the
+   rooms together, that the texts on offer reach, and walks the offsets
+   in step 3's order. At each it takes the largest amount, at most its
+   room and at most what is left of the aim, that the texts not yet
+   taken reach and that leaves what is then left of the aim both a total
+   the texts left after them still reach and no more than the rooms of
+   the offsets after it hold; it takes none where only none does that,
+   and where not even none does, the largest amount at most its room and
+   what is left of the aim that they reach. An amount's texts are
+   counted from the most ranks down, at each size as many as there are,
+   at most what is left of the amount, while what is then left stays a
+   total the texts of fewer ranks reach; of the `n` texts of one size
+   not yet taken, in the order of their first rank, choice `j` of `k` is
+   the text at position `j * n // k`. The walk stops where what is left
+   of the aim is under two or the offsets run out. A text taken whose
+   respelling at its offset is a spelling the column holds absent, or
+   one its field cannot write -- the first such in the walk's order, by
+   offset and then from the most ranks down -- is set aside, and the walk
+   is made again without it. 1,000 cells, 100 stamps ten times each and
+   seven of them ending `-0500`, publish 107 different texts and seven
+   cells that are not numbers: the twin's texts all repeated, step 4
+   found no rank to pay, and seeds 1 and 2 held no offset at all and
+   missed both class counts. And with eleven of them wearing an offset,
+   step 5 chose offset by offset, each offset taking the most it held,
+   and every seed from 0 to 5 wrote ten and missed both class counts: at
+   seed 0 step 4 wrote the one text standing alone at `+0000`, a text of
+   nine copies filled the nine cells left there, and the one cell over
+   fitted no text. The aim and the look ahead write a text of six copies
+   at `+0000` and one of four at `+0100` there, and the eleven at every
+   seed.
 
 **Why it moves no published fact.** Each offset stands on one cell
 fewer than the line and is one the census does not name, so the twin
