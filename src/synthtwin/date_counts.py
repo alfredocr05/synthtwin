@@ -11,9 +11,11 @@ This module holds the closed table of the twelve counting systems
 it names, how a moment is written back as the same count in the
 column's own spelling (`count_form`), and the rule that says where a
 column of numbers is worth asking about (question Q3, "number or
-date?"). Every rule here is whole-number arithmetic: no float stands on
-either side of a reading, so a count past 2**53 -- nanoseconds since
-1970 -- is read from its figures and written back from them.
+date?"). A count is READ EXACTLY, by whole-number arithmetic, so a count
+past 2**53 -- nanoseconds since 1970 -- is read from its figures and a
+whole one is written back from them; a count that is not whole is
+written as the exporter writes it, through the binary64 nearest it
+(`spelled_count`).
 
 Nothing here reads a table or decides a reading on its own: a column is
 read as counted dates only where the person said so (`--date-count`, or
@@ -43,11 +45,16 @@ DAY = 24 * HOUR
 # the finest of these that is at least that step, so no figure is read
 # finer than it was written: Excel's `%.15g` writes ten figures after
 # the point, a step of 8.64 microseconds, and is settled to the
-# millisecond, which takes away what binary64 added. AND NEVER COARSER
-# THAN A MINUTE where the step is under a day: a column writing one
-# figure after the point steps by 2.4 hours, and the design's own rule
-# settled `45386.5`, a noon, to midnight, where a minute keeps every
-# step the figures can tell apart.
+# millisecond, which takes away what binary64 added. A unit at least the
+# step is what lets the twin's own cells read back as the moments it
+# drew: a column settled finer than its step -- the minute the first
+# build kept for one or two figures of a day -- has its twin's moments
+# rounded onto the column's coarser grid as they are written, and the
+# twin missed its own description (the review of landing R4, item 2).
+# WHERE THE UNIT LOSES A FIGURE THE COLUMN WROTE -- the step falls
+# between two units, as four figures of a day or one figure of a second
+# do, or is coarser than any unit the figures stand on -- the column is
+# not read as counted dates at all (`held_by_its_moment`).
 SETTLED_UNITS = (NANOSECOND, MICROSECOND, MILLISECOND, SECOND, MINUTE, DAY)
 
 # THE UNITS A MOMENT IS WRITTEN AT, coarsest first: a whole date, a clock
@@ -313,6 +320,37 @@ def written_count(text: str, mark: str = POINT) -> "Written | None":
     return Written(negative, whole, fraction, exponent, exponent_form)
 
 
+# THE MOST FIGURES A CONTACT NUMBER WRITES after the point of an Epic day
+# (`days-since-1840`): the census of contact numbers names words of one to
+# nine figures (contract 6.6.2), and the description's own publication
+# rules take no longer word.
+CONTACT_FIGURES = 9
+
+
+def counted(member: str, text: str, mark: str = POINT) -> "Written | None":
+    """A cell read as a count OF ``member``, or None where it is none.
+
+    `written_count`, and on a member whose figures after the point are a
+    contact number (`days-since-1840`) also no exponent form and at most
+    `CONTACT_FIGURES` figures after the point: an Epic `*_DATE_REAL`
+    exported with seventeen significant figures writes `65053.010000000002`,
+    which is a day and a binary64's tail, not a day and a contact number,
+    and such a cell stands to the date role's own line as text (the review
+    of landing R4, item 3). Every reading of a column under a declaration
+    and question Q3's walk ask this, so the producer, the generator and
+    the checker read the same cells as counts.
+
+    Guarantees: a function of the three. Raises KeyError for a word
+    outside `MEMBERS` and TypeError where the text is not text. No I/O.
+    """
+    written = written_count(text, mark)
+    if written is None or not TABLE[member].contacts:
+        return written
+    if written.exponent_form or len(written.fraction) > CONTACT_FIGURES:
+        return None
+    return written
+
+
 def exact_value(written: Written) -> "tuple[int, int]":
     """The number a written count denotes, as a whole numerator over a power of ten.
 
@@ -472,9 +510,12 @@ def settled_unit(member: str, places: int) -> int:
     carry: the member's unit over ten to the ``places`` figures its cells
     write after the point. Whole counts settle to the member's own unit;
     Excel's `%.15g`, ten figures after the point, to the millisecond;
-    six figures to the second; four to the minute. A member with
-    contacts settles to the day, since its figures after the point are
-    no time.
+    six figures to the second; four to the minute; one to three figures
+    of a day, whose step is coarser than a minute, to the day -- so such
+    a column keeps its figures only where every count is a whole day, and
+    is otherwise not read as counted dates (`held_by_its_moment`). A
+    member with contacts settles to the day, since its figures after the
+    point are no time.
 
     Guarantees: a function of the two. Raises KeyError for a word outside
     `MEMBERS`. No I/O of any kind.
@@ -483,9 +524,6 @@ def settled_unit(member: str, places: int) -> int:
     if found.contacts:
         return DAY
     scale = 10 ** max(0, places)
-    if scale > 1 and found.unit >= DAY and DAY > MINUTE * scale:
-        # A step past a minute and under a day: settled to the minute.
-        return MINUTE
     for unit in SETTLED_UNITS:
         if unit * scale >= found.unit:
             return unit
@@ -719,7 +757,8 @@ def spelled_count(numerator: int, denominator: int, form: CountForm) -> str:
       taken off;
     * significant -- rounded to `significant` figures and trimmed, the
       number written in full (Excel's `%.15g` and `repr` write no
-      exponent below 10**15);
+      exponent below 10**15), and a whole count at seventeen written as
+      `repr` writes a whole double, `45123.0`;
     * exponent -- R's own rule: fifteen significant figures, written in
       exponent form where that is SHORTER than written in full, and in
       full where the two are as long.
@@ -744,8 +783,22 @@ def spelled_count(numerator: int, denominator: int, form: CountForm) -> str:
     return _spelled_exact(numerator, denominator, form)
 
 
+# `repr` WRITES A WHOLE DOUBLE WITH ITS POINT AND A NOUGHT, `45123.0`, up to
+# ten to the sixteenth, where it turns to an exponent.
+_REPR_WHOLE_BELOW = 10**16
+
+
 def _spelled_exact(numerator: int, denominator: int, form: CountForm) -> str:
     """A count written from its exact value, rounded halves to even: a whole count's own path."""
+    if (
+        form.significant == 17
+        and not form.exponent
+        and numerator % denominator == 0
+        and abs(numerator // denominator) < _REPR_WHOLE_BELOW
+    ):
+        # A WHOLE COUNT IN `repr`'S SEVENTEEN FIGURES -- a date-time at
+        # midnight that pandas writes -- keeps `repr`'s `.0`.
+        return f"{numerator // denominator}{form.mark}0"
     if form.significant is not None or form.exponent:
         figures = form.significant if form.significant is not None else 15
         negative, digits, exponent = _significant_figures(
@@ -967,12 +1020,108 @@ def reading_unit(member: str, form: CountForm, tally: Tally) -> int:
     return settled_unit(member, places)
 
 
+# THE FIGURES A BINARY64 HOLDS FAITHFULLY: any decimal of fifteen
+# significant figures reads back as itself through one. `repr` writes
+# seventeen where it must, and its last two are the double's own tail.
+FAITHFUL_FIGURES = 15
+
+
+def reading_units(member: str, form: CountForm, tally: Tally) -> "tuple[int, ...]":
+    """The units a column's counts may be settled to, coarsest first.
+
+    One, `reading_unit`, for every form but `repr`'s seventeen significant
+    figures, whose last two figures are the double's tail and not the
+    exporter's step: such a column is tried first at the unit fifteen
+    figures carry (`FAITHFUL_FIGURES`) and then at each finer one down to
+    `reading_unit`'s, and is settled at the first that holds every figure
+    (`held_by_its_moment`) -- a pandas column of Excel serials at whole
+    seconds at the second, where the double's tail moved some cells by a
+    microsecond, and Unix seconds Python wrote to the microsecond at the
+    microsecond.
+
+    Guarantees: a function of the three, each a member of
+    `SETTLED_UNITS`. Raises KeyError for a word outside `MEMBERS`. No I/O.
+    """
+    finest = reading_unit(member, form, tally)
+    if form.significant != 17:
+        return (finest,)
+    coarsest = settled_unit(member, max(0, FAITHFUL_FIGURES - tally.whole))
+    units: "list[int]" = []
+    for unit in SETTLED_UNITS:
+        if finest <= unit <= coarsest:
+            units = [unit] + units
+    return tuple(units)
+
+
+# HOW FAR AN EXPORTER'S OWN ARITHMETIC MAY MOVE A COUNT, in binary64 steps
+# of the count: a spreadsheet adds a day and a time of day, and pandas
+# divides two large integers, each rounding once or twice, so the figures
+# an exporter wrote may stand a few such steps from the exact count of
+# the moment it meant.
+EXPORTER_STEPS = 4
+
+
+def _last_figure(form: CountForm, numerator: int, denominator: int) -> "tuple[int, int]":
+    """The value of one unit in the last figure a form rounds a count to, as a fraction."""
+    if form.significant is not None or form.exponent:
+        figures = form.significant if form.significant is not None else 15
+        if numerator == 0:
+            return 1, 10**figures
+        shift = _pow10_exponent(abs(numerator), denominator) - figures + 1
+        if shift >= 0:
+            return 10**shift, 1
+        return 1, 10 ** (-shift)
+    return 1, 10**form.places
+
+
+def held_by_its_moment(
+    member: str, form: CountForm, numerator: int, denominator: int, moment: int, unit: int
+) -> bool:
+    """Whether a count is its column's own writing of the moment it was read as.
+
+    THE FIGURES A COLUMN WROTE ARE KEPT (the review of landing R4, item
+    2): the moment a count is settled to -- ``moment``, in whole ``unit``
+    -- is the one its exporter meant only where the count stands within
+    half of the form's last figure of that moment's exact count, and a
+    few binary64 steps more (`EXPORTER_STEPS`), which is what rounding to
+    the form's figures and the exporter's own arithmetic leave. A column
+    of Unix seconds written with tenths, settled to the second, has
+    counts half a second from their moments; four figures of a day of
+    moments off the whole minute, settled to the minute, have counts
+    thirty seconds from theirs; neither is held, and such a column is not
+    read as counted dates. A member with contacts holds the day alone,
+    its figures after the point being no time.
+
+    Guarantees: accepts the member, the column's form, the exact count
+    and the moment it was settled to; returns whether it holds.
+    Determinism: whole-number arithmetic. Raises KeyError for a word
+    outside `MEMBERS`. No I/O of any kind.
+    """
+    found = count_of(member, moment, unit)
+    if found is None:
+        return False
+    top, bottom = found
+    if TABLE[member].contacts:
+        whole = abs(numerator) // denominator
+        return (-whole if numerator < 0 else whole) * bottom == top
+    step_top, step_bottom = _last_figure(form, numerator, denominator)
+    gap = abs(numerator * bottom - top * denominator)
+    # |count - exact| <= step / 2 + EXPORTER_STEPS * |exact| / 2**52, every
+    # side multiplied out by 2 * step_bottom * denominator * bottom * 2**52.
+    room = (
+        step_top * denominator * bottom * 2**52
+        + 2 * EXPORTER_STEPS * abs(top) * step_bottom * denominator
+    )
+    return gap * 2 * step_bottom * 2**52 <= room
+
+
 def form_holds(form: CountForm, written: Written) -> bool:
     """Whether a cell is one the published form can write (validation, CD).
 
     A fixed form writes exactly `places` figures after the mark; a
     trimmed one at most `places`, none of them a trailing zero; a
-    significant one at most `significant` significant figures, trimmed;
+    significant one at most `significant` significant figures, trimmed --
+    and at seventeen, `repr`'s `45123.0` for a whole count;
     an exponent form fifteen significant figures, either written in full
     or in exponent form. A member with contacts writes its day count and
     no contact number, or one of at most `places` figures: NOT ONLY ONE
@@ -991,9 +1140,9 @@ def form_holds(form: CountForm, written: Written) -> bool:
     if form.exponent:
         return significant_figures(written) <= 15 and written.fraction[-1:] != "0"
     if form.significant is not None:
-        return (
-            significant_figures(written) <= form.significant
-            and written.fraction[-1:] != "0"
+        return significant_figures(written) <= form.significant and (
+            written.fraction[-1:] != "0"
+            or (form.significant == 17 and written.fraction == "0" and not written.exponent_form)
         )
     if form.trimmed:
         return len(written.fraction) <= form.places and written.fraction[-1:] != "0"
@@ -1076,30 +1225,56 @@ def declared_aside(member: str) -> "tuple[int, ...]":
     )
 
 
+def stands_aside(
+    numerator: int, denominator: int, contacts: bool, aside: "dict[int, int]"
+) -> bool:
+    """Whether an exact count is one of the set-aside numbers in ``aside``.
+
+    Exactly: `0.0` is nought and `60.5` is not sixty. A member with
+    contacts asks the figures before the point alone, the day they name.
+    The one test the profiler's reading, the generator's and the
+    checker's share (`declared_aside` gives the numbers, once per column).
+
+    Guarantees: a function of the four. Raises nothing. No I/O.
+    """
+    if contacts:
+        whole = abs(numerator) // denominator
+        return (-whole if numerator < 0 else whole) in aside
+    if numerator % denominator:
+        return False
+    return numerator // denominator in aside
+
+
 def _word_of_day(year: int, month: int, date: int) -> str:
     """A day's ISO word, as `set_aside_named` names it."""
     return f"{year:04d}-{month:02d}-{date:02d}"
 
 
-def is_set_aside(member: str, written: Written, kept: "tuple[int, ...]" = ()) -> bool:
-    """Whether a cell holds one of the member's set-aside numbers.
+# THE PLACEHOLDER DAYS, as whole days from 1970: a declared column's count
+# naming one of them -- whole or not, `2958465` or `2958465.5` -- is read as
+# no value unless the person kept it (`placeholder_day_named`).
+PLACEHOLDER_DAYS = (_day(1900, 1, 1), _day(9999, 12, 31))
 
-    Exactly: `0.0` is nought and `60.5` is not sixty. A member with
-    contacts asks the figures before the point alone, the day they name.
-    A number the person named with `--keep-value` (``kept``) is never set
-    aside.
+
+def placeholder_day_named(moment: int, unit: int) -> str:
+    """The placeholder day a moment falls on, as its ISO word, or "".
+
+    1 January 1900 and 31 December 9999 (`parsing.CALENDAR_PLACEHOLDERS`),
+    at any time of day: under a declaration, every count naming one of
+    them is set aside before the date role reads the column, so no cell
+    of a counted column reaches the date role's own judgement of
+    placeholder days -- which would record it under the ISO text it was
+    read as, and the twin would write that text into a column of numbers
+    (the review of landing R4, item 5, mutant M12).
+
+    Guarantees: a function of the two. Raises nothing. No I/O.
     """
-    numerator, denominator = exact_value(written)
-    if TABLE[member].contacts:
-        whole = abs(numerator) // denominator
-        numerator = -whole if numerator < 0 else whole
-        denominator = 1
-    if numerator % denominator:
-        return False
-    number = numerator // denominator
-    if number in kept:
-        return False
-    return number in set_aside(member)
+    day = (moment * unit) // DAY
+    for placeholder in PLACEHOLDER_DAYS:
+        if day == placeholder:
+            year, month, date = parsing.civil_from_days(day)
+            return _word_of_day(year, month, date)
+    return ""
 
 
 # -------------------------------------------- question Q3, the bands
@@ -1116,13 +1291,40 @@ BAND_UNTIL = 2051
 
 # How much of a column may stand outside the question's rules: the rest
 # beside the set-aside numbers must be at least nine tenths of the
-# present cells and at least eleven, and at most one cell in a thousand
+# present cells and at least eleven, and at most one cell in a hundred
 # -- one at least -- may lie outside the band (the R4 design review,
-# item 1). Text cells may stand to the date role's own line.
+# item 1). One in a thousand let two keying slips in a thousand cells
+# silence the question again on 2 to 3 of 13 shapes; one in a hundred
+# asks 12 or 13 of them under five, and raises no new question on the
+# chance battery (the review of landing R4, item 6). Text cells may
+# stand to the date role's own line.
 REST_SHARE_NUM = 9
 REST_SHARE_DEN = 10
 REST_LEAST = 11
-STRAY_PER = 1000
+STRAY_PER = 100
+
+# RULE A ON COUNTS OF DAYS THAT ARE NOT WHOLE (the review of landing R4,
+# item 7): a spreadsheet's date-times write four figures after the point
+# or more -- a minute is 0.000694 of a day -- or fifteen significant
+# figures and more, where a salary in cents or a dose to one decimal in
+# Excel's five-figure band writes one or two. Epic's figures after the
+# point are contact numbers, and its days are mostly the first contact of
+# their day, written whole: at least half of a column asked as Epic days
+# writes no contact number, where cents of a room rate write one nearly
+# everywhere.
+DAY_TIME_PLACES = 4
+DAY_TIME_SIGNIFICANT = 15
+
+# RULE B ON A COLUMN NEAR ITS EPOCH (the same item): a length of stay
+# kept as whole days of seconds names days of January and February 1970,
+# so a column more than half of whose rest lies within a year of its
+# system's first day is a column of durations, and is not asked. AND ON A
+# UNIT A THOUSAND TIMES TOO COARSE: whole days of milliseconds, read as
+# seconds, stand at midnight every thousand days -- 1972, 1975, ... 2049
+# -- which no column of dates does, so a column whose every day count is
+# a multiple of a thousand is not asked either.
+EPOCH_YEAR_DAYS = 365
+UNIT_STEP_DAYS = 1000
 
 RULE_BAND = "inside-a-band"
 RULE_MIDNIGHT = "at-midnight"
@@ -1206,7 +1408,7 @@ def _rest_is_enough(rest: int, present: int) -> bool:
 
 
 def _strays_allowed(present: int) -> int:
-    """How many of the rest may lie outside the band: one in a thousand, one at least."""
+    """How many of the rest may lie outside the band: one in a hundred, one at least."""
     return max(1, present // STRAY_PER)
 
 
@@ -1283,6 +1485,8 @@ def asked_of(
     median: "float | None" = None,
     whole: bool = False,
     mark: str = POINT,
+    *,
+    floor: int,
 ) -> "Asked | None":
     """Whether a column of numbers is worth asking about as dates (question Q3).
 
@@ -1291,18 +1495,24 @@ def asked_of(
     nine tenths of the present cells and at least eleven:
 
     * A -- every one of the rest is a count written by the grammar
-      (`written_count`), at most one in a thousand of them (one at
-      least) lies outside the member's band from 1990, and the whole
-      figures of those inside it are all written with one number of
-      figures: a column of record numbers spread over two widths is not
-      asked about, where a column of moments in one decade is (the R4
-      design review, item 5);
+      (`counted`), at most one in a hundred of them (one at least) lies
+      outside the member's band from 1990, and the whole figures of those
+      inside it are all written with one number of figures: a column of
+      record numbers spread over two widths is not asked about, where a
+      column of moments in one decade is (the R4 design review, item 5).
+      Counts of days that are not whole write four figures after the
+      point or fifteen significant ones, as a spreadsheet's date-times
+      do, and at least half of a column of Epic days writes no contact
+      number (the review of landing R4, item 7);
     * B -- whole counts of a member finer than the day, every one of the
       rest at midnight UTC, at least eleven different, inside the band
-      from 1900, one in a thousand at most outside it: a date kept as an
-      instant (narrowed to midnight UTC, item 3 of that review: a date
-      kept at LOCAL midnight comes back as instants and is a stated
-      limit);
+      from 1900, one in a hundred at most outside it, more than half of
+      them a year or more from the member's first day, and not every one
+      a whole thousand days from it: a date kept as an instant (narrowed
+      to midnight UTC, item 3 of that review: a date kept at LOCAL
+      midnight comes back as instants and is a stated limit), and not a
+      length of stay kept as whole days of seconds, or of milliseconds
+      read as seconds;
     * C -- the column is asked already as a column of figures all one
       width, at least five (`fixed_width`), and a member counting days
       reads every value inside 1900 to 2050: the question offers dates
@@ -1316,7 +1526,11 @@ def asked_of(
     column be answered before anything is sorted (`_may_be_asked`).
     ``mark`` is the column's decimal mark: a column declared
     `--decimal-comma` writes its counts `45386,5`, and the grammar reads
-    them with the comma (the R4 design review, item 8).
+    them with the comma (the R4 design review, item 8). ``floor`` is the
+    settings' disclosure floor: a set-aside number is NAMED only where
+    `parsing.census_floor` cells or more hold it, since a count of one
+    names an individual -- one `0` among births in Unix seconds is a
+    birth on 1 January 1970 (the review of landing R4, item 4).
 
     THE ANSWERS (item 2 of that review): every member counting in the
     unit of a member a rule fired on and reading the column inside 1900
@@ -1324,9 +1538,10 @@ def asked_of(
     member it is written in beside the 1970 one.
 
     Guarantees: accepts the present cells as text, their numbers, the
-    cells the date role's line needs, the median and whether every number
-    is whole; returns `Asked` or None. Determinism: a function of the
-    five. Raises nothing. No I/O of any kind.
+    cells the date role's line needs, the median, whether every number
+    is whole, the mark and the floor; returns `Asked` or None.
+    Determinism: a function of the seven. Raises nothing. No I/O of any
+    kind.
     """
     total = len(present)
     if total < REST_LEAST or len(numbers) < needed:
@@ -1357,7 +1572,15 @@ def asked_of(
             inside = _in_band(ordered, low, high) - _aside_inside(
                 ordered, member, low, high
             )
-            if rest - inside <= _strays_allowed(total):
+            if rest - inside > _strays_allowed(total):
+                continue
+            # A LENGTH OF TIME IS NO DATE: more than half the rest must lie a
+            # year or more from the member's first day.
+            year = float(EPOCH_YEAR_DAYS * (DAY // TABLE[member].unit))
+            near = _in_band(ordered, -year, year) - _aside_inside(
+                ordered, member, -year, year
+            )
+            if 2 * near < rest:
                 held += [(member, RULE_MIDNIGHT)]
     if not held:
         for member, rule in open_to:
@@ -1382,8 +1605,8 @@ def asked_of(
             kept += [member]
     if not kept:
         return None
-    offered = _offered(ordered, kept, total)
-    return Asked(rule, offered, _set_aside_words(ordered, kept))
+    offered = _offered(ordered, kept, total, present, needed, mark)
+    return Asked(rule, offered, _set_aside_words(ordered, kept, floor))
 
 
 def _aside_in(ordered: "list[float]", member: str) -> int:
@@ -1410,33 +1633,44 @@ def _text_holds(
 ) -> bool:
     """The written half of a rule: the grammar, the width, and midnight.
 
-    At least ``needed`` present cells are counts by the grammar (text
-    cells stand to the date role's line). For rule A, the whole figures of
-    the counts inside the narrow band all have one width; for rule C, every
-    count beside the set-aside numbers is whole, and those inside the wide
-    band all have one width of at least five figures. NO CELL OF ANOTHER
-    WIDTH IS LET STAND, where a stray outside the band is: measured on the
-    chance battery, letting one in a thousand stand asked two measurement
-    columns that are no fixed width -- the kind of question nothing asked
-    before -- and costs one keying slip that lands inside the band at
-    another width (`xl_birth` a century early, one seed of three). For
-    rule B, every count beside the set-aside numbers is whole and stands
-    at midnight UTC, with at least eleven different values.
+    At least ``needed`` present cells are counts of the member
+    (`counted`; text cells stand to the date role's line). For rule A, the
+    whole figures of the counts inside the narrow band all have one width;
+    counts of days that are not whole write `DAY_TIME_PLACES` figures after
+    the point or `DAY_TIME_SIGNIFICANT` significant ones; and a member
+    with contacts has at least half its counts write no contact number.
+    For rule C, every count beside the set-aside numbers is whole, and
+    those inside the wide band all have one width of at least five
+    figures. NO CELL OF ANOTHER WIDTH IS LET STAND, where a stray outside
+    the band is: measured on the chance battery, letting one in a thousand
+    stand asked two measurement columns that are no fixed width -- the
+    kind of question nothing asked before -- and costs one keying slip
+    that lands inside the band at another width (`xl_birth` a century
+    early, one seed of three). For rule B, every count beside the
+    set-aside numbers is whole and stands at midnight UTC, with at least
+    eleven different values, and not every one a whole thousand days from
+    the member's first day (`UNIT_STEP_DAYS`).
     """
     found = TABLE[member]
-    counted = 0
+    tally = 0
+    rest = 0
+    not_whole = 0
+    with_contact = 0
+    most_places = 0
+    most_significant = 0
     widths: "dict[int, int]" = {}
     different: "dict[int, int]" = {}
+    off_the_step = False
     low, high = band(member, WIDE_FROM if rule == RULE_FIXED_WIDTH else NARROW_FROM)
     per_day = DAY // found.unit if found.unit < DAY else 1
     aside: "dict[int, int]" = {}
     for number in set_aside(member):
         aside[number] = 1
     for text in present:
-        written = written_count(text, mark)
+        written = counted(member, text, mark)
         if written is None:
             continue
-        counted = counted + 1
+        tally = tally + 1
         numerator, denominator = exact_value(written)
         if found.contacts:
             day_part = abs(numerator) // denominator
@@ -1444,34 +1678,80 @@ def _text_holds(
                 continue
         elif numerator % denominator == 0 and numerator // denominator in aside:
             continue
+        rest = rest + 1
         if rule == RULE_MIDNIGHT:
             if denominator != 1 or numerator % per_day:
                 return False
             if len(different) < REST_LEAST:
                 different[numerator] = 1
+            if (numerator // per_day) % UNIT_STEP_DAYS:
+                off_the_step = True
             continue
         if rule == RULE_FIXED_WIDTH and (written.fraction or written.exponent_form):
             return False
+        if numerator % denominator:
+            not_whole = not_whole + 1
+            if found.contacts:
+                with_contact = with_contact + 1
+            most_places = max(most_places, figures_after_the_mark(written))
+            most_significant = max(most_significant, significant_figures(written))
         whole = abs(numerator) // denominator
         if low <= numerator / denominator < high:
             width = len(f"{whole}")
             widths[width] = (widths[width] if width in widths else 0) + 1
-    if counted < needed:
+    if tally < needed:
         return False
     if rule == RULE_MIDNIGHT:
-        return len(different) >= REST_LEAST
+        return len(different) >= REST_LEAST and off_the_step
     if len(widths) > 1:
         return False
     for width in widths:
         if rule == RULE_FIXED_WIDTH and width < 5:
             return False
+    if rule == RULE_BAND and found.contacts and 2 * with_contact > rest:
+        return False
+    if (
+        rule == RULE_BAND
+        and not found.contacts
+        and found.unit >= DAY
+        and not_whole
+        and most_places < DAY_TIME_PLACES
+        and most_significant < DAY_TIME_SIGNIFICANT
+    ):
+        return False
     return True
 
 
+def _contacts_fit(present: "list[str]", member: str, needed: int, mark: str) -> bool:
+    """Whether a column is counts of a member with contacts: enough of them, mostly with none."""
+    tally = 0
+    with_contact = 0
+    for text in present:
+        written = counted(member, text, mark)
+        if written is None:
+            continue
+        tally = tally + 1
+        numerator, denominator = exact_value(written)
+        if numerator % denominator:
+            with_contact = with_contact + 1
+    return tally >= needed and 2 * with_contact <= tally
+
+
 def _offered(
-    ordered: "list[float]", hits: "list[str]", total: int
+    ordered: "list[float]",
+    hits: "list[str]",
+    total: int,
+    present: "list[str]",
+    needed: int,
+    mark: str = POINT,
 ) -> "tuple[str, ...]":
-    """Every member counting in a hit's unit that reads the column inside 1900 to 2050."""
+    """Every member counting in a hit's unit that reads the column inside 1900 to 2050.
+
+    A member with contacts (`days-since-1840`) is offered beside a hit only
+    where the cells are its counts and at least half write no contact
+    number, as rule A asks of it: an Excel column of date-times writes a
+    time after the point, which that member would read as contact numbers.
+    """
     units = {TABLE[member].unit: 1 for member in hits}
     offered: "list[str]" = []
     for member in MEMBERS:
@@ -1486,8 +1766,11 @@ def _offered(
             continue
         low, high = band(member, WIDE_FROM)
         inside = _in_band(ordered, low, high) - _aside_inside(ordered, member, low, high)
-        if rest - inside <= _strays_allowed(total):
-            offered += [member]
+        if rest - inside > _strays_allowed(total):
+            continue
+        if found.contacts and not _contacts_fit(present, member, needed, mark):
+            continue
+        offered += [member]
     return tuple(offered)
 
 
@@ -1496,12 +1779,22 @@ def _offered(
 _ASIDE_WORDS = ("0", "-1", "1900-01-01", "9999-12-31", "60")
 
 
-def _set_aside_words(ordered: "list[float]", members: "list[str]") -> "tuple[str, ...]":
-    """Which of the set-aside numbers the column holds, as this package's own words."""
+def _set_aside_words(
+    ordered: "list[float]", members: "list[str]", floor: int
+) -> "tuple[str, ...]":
+    """Which of the set-aside numbers the column holds, as this package's own words.
+
+    A NUMBER IS NAMED ONLY WHERE THE CENSUS LINE OF CELLS HOLDS IT
+    (`parsing.census_floor`, plan P4-D65.1): fewer, and the word would say
+    that a value one row holds -- a birth on 1 January 1970 in Unix
+    seconds -- is in the table; it is still set aside, and the place
+    reads `ASIDE_NONE`.
+    """
+    line = parsing.census_floor(floor)
     seen: "dict[str, int]" = {}
     for member in members:
         for number, word in set_aside_named(member):
-            if _count_of_value(ordered, float(number)):
+            if _count_of_value(ordered, float(number)) >= line:
                 seen[word] = 1
     return tuple(word for word in _ASIDE_WORDS if word in seen)
 

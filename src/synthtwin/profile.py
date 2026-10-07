@@ -3287,15 +3287,16 @@ def _epoch_band_quotes_the_published_edges(
 def _counted_years_quote_the_published_edges(
     arguments: "tuple[object, ...]", block: object
 ) -> None:
-    """NF114's two years are the two edges the block beside it publishes (landing R4).
+    """NF114's two years are those the block beside it publishes (landing R4).
 
     NF51'S RULE FOR ITS DAYS, kept for the remark that replaced it: an
     advisory remark may not outlive the facts it quotes (plan P4-D345).
-    Each year is the one `date_counts.years_of` reads in the member at
-    argument 1 from the block's own published edge (`taxonomy.published_ends`)
-    -- a boundary rung or a heaped end, never an outermost value -- and the
-    document is refused where either differs, or where the block publishes
-    no edge on one side.
+    Each year is the one the producer's own walk of the block's published
+    rungs reads in the member at argument 1 (`taxonomy.counted_edge_years`)
+    -- from the heaped end or the boundary rung inward, past the member's
+    set-aside numbers and the rung beside them, never an outermost value
+    -- and the document is refused where either differs, or where the
+    block publishes no such rung on one side.
 
     Guarantees: accepts NF114's three arguments and the block; returns
     where they agree. Errors raised: the loader's own refusal otherwise. No
@@ -3307,12 +3308,8 @@ def _counted_years_quote_the_published_edges(
     member = arguments[0]
     if not isinstance(member, str) or member not in date_counts.MEMBERS:
         raise _refuse(path)
-    edges = taxonomy.published_ends(block)
-    if edges is None:
-        raise _refuse(path)
-    first = date_counts.years_of(member, edges[0])
-    last = date_counts.years_of(member, edges[1])
-    if first is None or last is None or (first, last) != (arguments[1], arguments[2]):
+    years = taxonomy.counted_edge_years(block, member)
+    if years is None or years != (arguments[1], arguments[2]):
         raise _refuse(path)
 
 

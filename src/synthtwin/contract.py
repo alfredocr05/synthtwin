@@ -17765,13 +17765,14 @@ def counts_read_back(
     """A column of counted dates' cells, read as the dates they name (landing R4).
 
     THE ONE READING THE GENERATOR AND THE VALIDATOR SHARE: each cell that
-    is a count by the grammar (`date_counts.written_count`, in the
-    published mark) and names a date in ``member`` is written as that
+    is a count of ``member`` (`date_counts.counted`, in the published
+    mark) and names a date in it is written as that
     date's ISO text at the precision the description published
     (`counted_unit`) -- the text the profiler described the real column
     in. A cell wearing one of ``holes``, the column's published absent
-    spellings, is left as it is, as is one that is no count or names no
-    date.
+    spellings, is left as it is, as is one that is no count, names no
+    date or is a number the profiler sets aside (`date_counts.declared_aside`,
+    a moment of a placeholder day).
 
     Guarantees: accepts the member, the column's facts, its absent
     spellings and its cells; returns as many cells in the same order.
@@ -17785,6 +17786,10 @@ def counts_read_back(
     absent: "dict[str, int]" = {}
     for spelling in holes:
         absent[spelling] = 1
+    aside: "dict[int, int]" = {}
+    for number in date_counts.declared_aside(member):
+        aside[number] = 1
+    contacts = date_counts.TABLE[member].contacts
     texts: "dict[str, str]" = {}
     read: "list[str]" = []
     for cell in cells:
@@ -17794,13 +17799,16 @@ def counts_read_back(
         if cell in texts:
             read += [texts[cell]]
             continue
-        written = date_counts.written_count(cell, form.mark)
+        written = date_counts.counted(member, cell, form.mark)
         if written is None:
             read += [cell]
             continue
         numerator, denominator = date_counts.exact_value(written)
-        moment = date_counts.moment_of(member, numerator, denominator, unit)
-        if moment is None:
+        moment: "int | None" = None
+        if not date_counts.stands_aside(numerator, denominator, contacts, aside):
+            moment = date_counts.moment_of(member, numerator, denominator, unit)
+        if moment is None or date_counts.placeholder_day_named(moment, unit):
+            # A COUNT THE PROFILER SET ASIDE IS NO DATE HERE EITHER.
             read += [cell]
             continue
         text = date_counts.iso_text(moment, unit, unit)

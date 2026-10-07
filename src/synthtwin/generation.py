@@ -9684,12 +9684,16 @@ def _spelled_as_counts(
     cells handed out and to nothing this method measures.
 
     A `days-since-1840` column writes its day count and the contact number
-    the census gives each cell: the census's words in rank order, the
-    commonest first and ties in sorted order, each as many times as the
-    census counts it, over the dated cells in the order the arrangement
-    put them -- an order drawn at random, so each contact number is spread
-    over the dates as the census is, independently of them (a stated
-    limit: a patient's contacts on one day are not kept together).
+    the census gives each cell (`_contacts_dealt`): the census's words in
+    rank order, the commonest first and ties in sorted order, each as many
+    times as the census counts it, dealt over the dated cells in the
+    order they stand by a stride, so every stretch of rows holds each
+    contact number in the census's share, and independently of the dates,
+    which the arrangement put in an order drawn at random (a stated
+    limit: a patient's contacts on one day are not kept together). Dealt
+    in rank order down the rows, as the first build did, the first half of
+    a twin of 100,000 rows held no contact number at all (the review of
+    landing R4, item 8).
 
     Guarantees: accepts the column, the description, the cells as
     arranged and one flag per cell; returns as many cells. Determinism: a
@@ -9703,29 +9707,121 @@ def _spelled_as_counts(
     if form is None:
         return content
     unit = contract.counted_unit(facts)
+    moments: "list[int | None]" = []
+    dates = 0
+    for place in range(len(content)):
+        moment: "int | None" = None
+        if place < len(dated) and dated[place]:
+            moment = date_counts.moment_of_iso(content[place], unit)
+        if moment is not None:
+            dates = dates + 1
+        moments += [moment]
     words: "list[str]" = []
     if form.contacts is not None:
-        census = form.contacts
-        for _rank, word in sorted((-census[each], each) for each in census):
-            words += [word] * census[word]
+        words = _contacts_dealt(form.contacts, dates)
     spelled: "list[str]" = []
-    used = 0
+    rank = 0
     for place in range(len(content)):
-        cell = content[place]
-        if place >= len(dated) or not dated[place]:
-            spelled += [cell]
-            continue
-        moment = date_counts.moment_of_iso(cell, unit)
+        moment = moments[place]
         if moment is None:
-            spelled += [cell]
+            spelled += [content[place]]
             continue
-        word = date_counts.NO_CONTACT
-        if used < len(words):
-            word = words[used]
-        used = used + 1
+        word = words[rank] if rank < len(words) else date_counts.NO_CONTACT
+        rank = rank + 1
         written = date_counts.written_for(member, moment, unit, form, word)
-        spelled += [written if written is not None else cell]
+        spelled += [written if written is not None else content[place]]
     return spelled
+
+
+def _whole_gcd(left: int, right: int) -> int:
+    """The greatest common divisor of two whole numbers, by Euclid's rule."""
+    while right:
+        left, right = right, left % right
+    return abs(left)
+
+
+def _contacts_dealt(census: "dict[str, int]", dated: int) -> "list[str]":
+    """The contact word each of ``dated`` cells writes, in the order the cells stand (G7.10).
+
+    EVEN SPACING, AND NOTHING DRAWN. Each word the census counts `c`
+    times stands at `c` keys, `(2j + 1) / (2c)` for `j` from nought: the
+    middle of each of `c` equal shares of the cells. The cells, in the
+    order they stand, take the words in the order of their keys, a tie
+    to the word ranked first -- the commonest, ties in sorted order --
+    and a cell past the census's last word writes `(none)`. So each word
+    is written exactly as often as the census counts it, and every
+    stretch of the cells holds it within about one cell of its share:
+    dealt down the rows in rank order, as the first build did, the first
+    half of a twin of 100,000 rows held no contact number at all (the
+    review of landing R4, item 8). The keys are compared exactly, as
+    whole numbers over their common denominator, and merged one word at
+    a time from a heap of the words' next keys.
+
+    Guarantees: a function of the two. Raises nothing. No I/O.
+    """
+    order: "list[str]" = []
+    for _rank, word in sorted((-census[each], each) for each in census):
+        if census[word] > 0:
+            order += [word]
+    common = 1
+    for word in order:
+        common = common * 2 * census[word] // _whole_gcd(common, 2 * census[word])
+    # The heap of each word's next key -- (key over `common`, rank, j) --
+    # kept in a list whose first ``size`` places are the heap.
+    heap: "list[tuple[int, int, int]]" = []
+    size = 0
+    for rank in range(len(order)):
+        size = _heap_pushed(heap, size, (common // (2 * census[order[rank]]), rank, 0))
+    dealt: "list[str]" = []
+    while size and len(dealt) < dated:
+        _key, rank, step = heap[0]
+        size = _heap_popped(heap, size)
+        word = order[rank]
+        dealt += [word]
+        if step + 1 < census[word]:
+            key = (2 * step + 3) * (common // (2 * census[word]))
+            size = _heap_pushed(heap, size, (key, rank, step + 1))
+    while len(dealt) < dated:
+        dealt += [date_counts.NO_CONTACT]
+    return dealt
+
+
+def _heap_pushed(
+    heap: "list[tuple[int, int, int]]", size: int, item: "tuple[int, int, int]"
+) -> int:
+    """Add ``item`` to the binary heap in ``heap``'s first ``size`` places, least first; the new size."""
+    if size < len(heap):
+        heap[size] = item
+    else:
+        heap += [item]
+    place = size
+    while place > 0:
+        parent = (place - 1) // 2
+        if heap[parent] <= heap[place]:
+            break
+        heap[parent], heap[place] = heap[place], heap[parent]
+        place = parent
+    return size + 1
+
+
+def _heap_popped(heap: "list[tuple[int, int, int]]", size: int) -> int:
+    """Take the least item off the binary heap in ``heap``'s first ``size`` places; the new size."""
+    size = size - 1
+    heap[0] = heap[size]
+    place = 0
+    while True:
+        left = 2 * place + 1
+        right = left + 1
+        smallest = place
+        if left < size and heap[left] < heap[smallest]:
+            smallest = left
+        if right < size and heap[right] < heap[smallest]:
+            smallest = right
+        if smallest == place:
+            break
+        heap[place], heap[smallest] = heap[smallest], heap[place]
+        place = smallest
+    return size
 
 
 def _counts_read_back(

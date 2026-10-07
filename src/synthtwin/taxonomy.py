@@ -2157,9 +2157,13 @@ def rendered(form: str, arguments: "tuple[object, ...]") -> str:
             f"you said this column writes its dates as "
             f"{date_counts.TABLE[member].means} ({member}), but its cells "
             f"did not read as such dates -- too few of them are counts "
-            f"that name a date, or the dates they name are too few to be "
-            f"described as dates -- so it is described as it reads without "
-            f"that, and the declaration decided nothing about it"
+            f"that name a date, the dates they name are too few to be "
+            f"described as dates, or the figures after the point step "
+            f"between the units a date is written to -- the day, the minute, "
+            f"the second and its thousandths -- as one to three figures of a "
+            f"day or tenths of a second do, so no unit keeps them all -- so "
+            f"it is described as it reads without that, and the declaration "
+            f"decided nothing about it"
         )
     if form == NOTE_SMALL_POPULATION:
         # THE TWO FLOORS ARE COUNTED IN DIFFERENT UNITS, AND THIS NOTICE
@@ -16676,19 +16680,6 @@ class CountedReading:
     contacts: "dict[str, dict[str, int]]"
 
 
-def _kept_whole_numbers(settings: Settings) -> "tuple[int, ...]":
-    """The whole numbers the person named with `--keep-value`, which nothing sets aside."""
-    found: "list[int]" = []
-    for spelling in settings.kept_values:
-        written = date_counts.written_count(parsing.trimmed(spelling))
-        if written is None:
-            continue
-        numerator, denominator = date_counts.exact_value(written)
-        if numerator % denominator == 0:
-            found += [numerator // denominator]
-    return tuple(found)
-
-
 _COUNT_KEPT = 0
 _COUNT_READ = 1
 _COUNT_SET_ASIDE = 2
@@ -16702,10 +16693,12 @@ def _date_count_remarks(
     Nothing for a column declared (`--date-count`, read as dates or not),
     and nothing for a column `date_counts.asked_of` does not ask about.
     Otherwise NF113, naming the rule that asked and the set-aside numbers
-    the column holds, and one NF114 per member offered, with the years the
-    block's own two published edges name read in that member -- the
-    boundary rungs the tail rule leaves standing, never the outermost
-    values (`published_ends`) -- where both read as dates.
+    the column holds -- each where the census line of cells holds it --
+    and one NF114 per member offered, with the years the block's own
+    published rungs name in that member (`counted_edge_years`): the
+    outermost published rung on each side that is none of the member's
+    set-aside numbers and names a date, never the column's outermost
+    values.
 
     NO NF113 WITHOUT AN NF114 BESIDE IT. NF113 tells the person to name
     "one of the systems named beside this sentence", and the question is
@@ -16735,19 +16728,16 @@ def _date_count_remarks(
         median,
         whole,
         date_counts.COMMA if cells.decimal_comma else date_counts.POINT,
+        floor=settings.small_cell_floor,
     )
     if asked is None:
         return []
-    edges = published_ends(details)
-    if edges is None:
-        return []
     readings: "list[Note]" = []
     for member in asked.members:
-        first = date_counts.years_of(member, edges[0])
-        last = date_counts.years_of(member, edges[1])
-        if first is None or last is None:
+        years = counted_edge_years(details, member)
+        if years is None:
             continue
-        readings += [note(REMARK_READ_AS_COUNTED_DATES, (member, first, last))]
+        readings += [note(REMARK_READ_AS_COUNTED_DATES, (member, years[0], years[1]))]
     if not readings:
         return []
     said = [
@@ -16758,6 +16748,97 @@ def _date_count_remarks(
     ]
     said += readings
     return said
+
+
+def _rung_values(details: "dict[str, object]") -> "list[object]":
+    """The block's hundred and one rungs, nought to a hundred, as published (None where withheld)."""
+    ladder = details["percentiles"] if "percentiles" in details else None
+    finer = details["percentiles_between"] if "percentiles_between" in details else None
+    rungs: "list[object]" = []
+    for percent in range(101):
+        # Nought and a hundred are `percentiles`' own `min` and `max`.
+        where, name = _rung_name(percent)
+        half = ladder if where == "percentiles" else finer
+        held: object = None
+        if isinstance(half, dict) and name in half:
+            held = half[name]
+        rungs += [held]
+    return rungs
+
+
+def counted_edge_years(
+    details: "dict[str, object]", member: str
+) -> "tuple[int, int] | None":
+    """The years NF114 says a column runs over, read in one member (landing R4).
+
+    THE OUTERMOST PUBLISHED RUNG ON EACH SIDE THAT IS A DATE OF THE
+    COLUMN. The walk starts where `published_ends` stands -- the end the
+    block publishes where a group of rows holds it, the boundary rung of
+    the side's tail otherwise -- and moves inward rung by rung over the
+    published ladder, passing over a rung that is one of the member's
+    set-aside numbers (`date_counts.set_aside`) or names no date in it
+    (`date_counts.years_of`), AND THE ONE RUNG INSIDE SUCH A RUNG: a rung
+    is read between two sorted cells, and the first beside a heap of
+    placeholders can be read between the last placeholder and the first
+    date -- one percent of `0` among ten thousand Excel serials from 2016
+    puts the 1st percentile at 0.99 of the first date, in 2014. A heaped
+    `0` was the published low end, which names no Excel date, and the
+    member was dropped from the question it was written in (the review of
+    landing R4, item 1).
+
+    The years are those of published rungs, so the remark quotes nothing
+    the block does not publish; the loader asks the same walk of the
+    block (`profile._counted_years_quote_the_published_edges`). None where
+    the block publishes no edge on a side, or where the walk finds no
+    rung that is a date.
+
+    Guarantees: accepts one numeric block and a member word; returns two
+    years or None. Determinism: a function of the two. Raises KeyError for
+    a word outside `date_counts.MEMBERS`. No I/O of any kind.
+    """
+    if published_ends(details) is None:
+        return None
+    rungs = _rung_values(details)
+    tails = details["tails"] if "tails" in details else None
+    years: "list[int]" = []
+    for side, end, step in (("low", 0, 1), ("high", 100, -1)):
+        start = end
+        if not isinstance(rungs[end], float):
+            own = tails[side] if isinstance(tails, dict) and side in tails else None
+            percent = own["percent"] if isinstance(own, dict) and "percent" in own else None
+            if isinstance(percent, bool) or not isinstance(percent, int):
+                return None
+            start = percent
+        found = _first_dated_rung(rungs, start, step, member)
+        if found is None:
+            return None
+        years += [found]
+    return years[0], years[1]
+
+
+def _first_dated_rung(
+    rungs: "list[object]", start: int, step: int, member: str
+) -> "int | None":
+    """The year of the first rung from ``start`` that is a date and stands clear of a set-aside rung."""
+    aside: "dict[float, int]" = {}
+    for number in date_counts.set_aside(member):
+        aside[float(number)] = 1
+    passed = False
+    place = start
+    while 0 <= place <= 100:
+        value = rungs[place]
+        place = place + step
+        if not isinstance(value, float):
+            continue
+        year = None if value in aside else date_counts.years_of(member, value)
+        if year is None:
+            passed = True
+            continue
+        if passed:
+            passed = False
+            continue
+        return year
+    return None
 
 
 def _counts_read_as_dates(
@@ -16772,83 +16853,130 @@ def _counts_read_as_dates(
     THREE KINDS OF CELL, read in this order, after every declaration of
     the person's own has taken its cells out:
 
-    * a cell written as a count (`date_counts.written_count`) that names
-      no date -- Excel's 0 and 60, a count below its first day or past
-      9999-12-31 -- or that is the member's count for 1 January 1900 or
-      31 December 9999 (`date_counts.declared_aside`) is counted as no
-      value and keeps its spelling, so the twin writes it back as written
-      (the R4 design review, item 1: one such cell voided the declaration
-      before). A number named with `--keep-value` is never set aside, and
-      nought and minus one, which name dates in the members that read
-      them, are read as those dates;
+    * a cell written as a count of the member (`date_counts.counted`)
+      that names no date -- Excel's 0 and 60, a count below its first day
+      or past 9999-12-31 -- or that is the member's count for 1 January
+      1900 or 31 December 9999 (`date_counts.declared_aside`), or names a
+      moment of either day (`date_counts.placeholder_day_named`), is
+      counted as no value and keeps its spelling, so the twin writes it
+      back as written (the R4 design review, item 1: one such cell voided
+      the declaration before). Nought and minus one, which name dates in
+      the members that read them, are read as those dates. `--keep-value`
+      does NOT reach these: a number kept that way is no word of the
+      closed vocabulary the settings block records (contract C5-19), so a
+      checked file read again could not keep it too, and the first build's
+      rescue left the source missing its own description (the review of
+      landing R4, item 5, mutant M40);
     * every other count is read EXACTLY as the moment it names, settled
-      to the unit its figures carry (`date_counts.settled_unit`) and
+      to the unit its figures carry (`date_counts.reading_unit`) and
       written as ISO text at the coarsest unit every one of them stands
       on (`date_counts.written_unit`) -- or, in the validator, at the
       unit the description published -- and reclassified as that text;
     * a cell written any other way stays as it is, for the date role's
       own line to take or leave.
 
+    WHERE THE UNIT LOSES A FIGURE THE COLUMN WROTE, the column is not
+    read as counted dates (the review of landing R4, item 2): the
+    profiler asks of every count that it is its column's own writing of
+    the moment it was read as (`date_counts.held_by_its_moment`), and
+    one that is not -- Unix seconds written with tenths, four figures of
+    a day of moments off the whole minute, one figure of a day -- means
+    no unit a twin could be drawn at keeps the column's figures, and
+    nothing is read: the caller then says so in NF115.
+
     Guarantees: accepts the classified present cells, the member, the
     column's settings, whether it is declared `--decimal-comma` and the
-    unit its description published (``published``, the validator's alone;
-    nought works it out from the figures); returns the cells to read on, the cells counted as no value with
-    their class, and how the counts were written -- None where no cell
-    is a count. Determinism: whole-number arithmetic over the text.
-    Raises nothing for any cell. No I/O of any kind.
+    unit its description published (``published``, the validator's
+    alone; nought works it out from the figures); returns the cells to
+    read on, the cells counted as no value with their class, and how the
+    counts were written -- None where no cell is a count, or where a
+    count's figures are not held. Determinism: whole-number arithmetic
+    over the text. Raises nothing for any cell. No I/O of any kind.
     """
     mark = date_counts.COMMA if decimal_comma else date_counts.POINT
-    kept = _kept_whole_numbers(settings)
     aside: "dict[int, int]" = {}
     for number in date_counts.declared_aside(member):
-        if number not in kept:
-            aside[number] = 1
+        aside[number] = 1
     found = date_counts.TABLE[member]
+    # EACH CELL PARSED ONCE: a count of the member, its exact value and
+    # contact word, and whether it stands aside -- or no count at all.
+    parsed: "list[tuple[int, int, int, str]]" = []
     # THE FIGURES FIRST: the unit a moment is settled to is a fact about
     # the whole column, so how its counts are written is tallied before any
     # cell is read -- every count but the set-aside numbers, which are
     # written back as written and say nothing of the column's form.
     tally = date_counts.Tally()
     for cell in classified:
-        written = date_counts.written_count(cell.text, mark)
+        written = date_counts.counted(member, cell.text, mark)
         if written is None:
+            parsed += [(_COUNT_KEPT, 0, 1, "")]
             continue
-        if _set_aside_here(written, found.contacts, aside):
+        numerator, denominator = date_counts.exact_value(written)
+        word = date_counts.contact_word(written) if found.contacts else ""
+        if date_counts.stands_aside(numerator, denominator, found.contacts, aside):
+            parsed += [(_COUNT_SET_ASIDE, numerator, denominator, word)]
             continue
+        parsed += [(_COUNT_READ, numerator, denominator, word)]
         tally = date_counts.tallied(tally, written)
-    settled = published
-    if not settled:
-        settled = date_counts.reading_unit(
-            member, date_counts.form_from(tally, mark, None), tally
-        )
+    plain = date_counts.form_from(tally, mark, None)
+    candidates: "tuple[int, ...]" = (published,)
+    if not published:
+        candidates = date_counts.reading_units(member, plain, tally)
+    settled = candidates[0]
+    unit = settled
     fates: "list[int]" = []
     moments: "list[int]" = []
     contacts: "dict[int, dict[str, int]]" = {}
     missing: "list[tuple[str, str]]" = []
-    for cell in classified:
-        written = date_counts.written_count(cell.text, mark)
-        if written is None:
-            fates += [_COUNT_KEPT]
-            continue
-        numerator, denominator = date_counts.exact_value(written)
-        moment: "int | None" = None
-        if not _set_aside_here(written, found.contacts, aside):
-            moment = date_counts.moment_of(member, numerator, denominator, settled)
-        if moment is None:
-            fates += [_COUNT_SET_ASIDE]
-            missing += [(cell.text, parsing.MISSING_DECLARED)]
-            continue
-        fates += [_COUNT_READ]
-        moments += [moment]
-        if found.contacts:
-            word = date_counts.contact_word(written)
-            held = contacts[moment] if moment in contacts else {}
-            held[word] = (held[word] if word in held else 0) + 1
-            contacts[moment] = held
-    if not moments:
-        if not missing:
+    held_everywhere = False
+    for settled in candidates:
+        fates = []
+        moments = []
+        exact: "list[tuple[int, int]]" = []
+        contacts = {}
+        missing = []
+        for index in range(len(classified)):
+            kind, numerator, denominator, word = parsed[index]
+            if kind == _COUNT_KEPT:
+                fates += [_COUNT_KEPT]
+                continue
+            moment: "int | None" = None
+            if kind == _COUNT_READ:
+                moment = date_counts.moment_of(member, numerator, denominator, settled)
+            if moment is not None and date_counts.placeholder_day_named(moment, settled):
+                moment = None
+            if moment is None:
+                fates += [_COUNT_SET_ASIDE]
+                missing += [(classified[index].text, parsing.MISSING_DECLARED)]
+                continue
+            fates += [_COUNT_READ]
+            moments += [moment]
+            exact += [(numerator, denominator)]
+            if found.contacts:
+                held = contacts[moment] if moment in contacts else {}
+                held[word] = (held[word] if word in held else 0) + 1
+                contacts[moment] = held
+        if not moments and not missing:
             return classified, [], None
-    unit = published if published else date_counts.written_unit(moments, settled)
+        unit = published if published else date_counts.written_unit(moments, settled)
+        if published or tally.places == 0 or found.contacts:
+            held_everywhere = True
+            break
+        # EVERY FIGURE THE COLUMN WROTE IS HELD at this unit, or the next is
+        # tried, and past the last nothing is read.
+        held_everywhere = True
+        for place in range(len(moments)):
+            numerator, denominator = exact[place]
+            if not date_counts.held_by_its_moment(
+                member, plain, numerator, denominator,
+                moments[place] * settled // unit, unit,
+            ):
+                held_everywhere = False
+                break
+        if held_everywhere:
+            break
+    if not held_everywhere:
+        return classified, [], None
     texts: "dict[int, str]" = {}
     read: "list[_Cell]" = []
     place = 0
@@ -16881,23 +17009,6 @@ def _counts_read_as_dates(
             raw = None
     form = date_counts.form_from(tally, mark, raw)
     return read, missing, CountedReading(member, form, settled, unit, by_text)
-
-
-def _set_aside_here(
-    written: "date_counts.Written", contacts: bool, aside: "dict[int, int]"
-) -> bool:
-    """Whether a count is one of the member's set-aside numbers the person did not keep.
-
-    Exactly: `0.0` is nought and `60.5` is not sixty. A member with contacts
-    asks the figures before the point alone, the day they name.
-    """
-    numerator, denominator = date_counts.exact_value(written)
-    if contacts:
-        whole = abs(numerator) // denominator
-        return (-whole if numerator < 0 else whole) in aside
-    if numerator % denominator:
-        return False
-    return numerator // denominator in aside
 
 
 def _contacts_floored(
@@ -22914,7 +23025,7 @@ def _standing_of(kept: HeldReading) -> "dict[str, int]":
         if value in held:
             standing[value] = 1
             continue
-        written = date_counts.written_count(value, mark)
+        written = date_counts.counted(counted.member, value, mark)
         if written is None:
             continue
         numerator, denominator = date_counts.exact_value(written)

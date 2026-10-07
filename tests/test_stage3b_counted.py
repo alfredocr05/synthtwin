@@ -255,7 +255,10 @@ def test_c2_one_stray_value_does_not_silence_q3(tmp_path: pathlib.Path, scenario
             members = [member for member, _first, _last in said.readings]
             assert shape.system in members, (shape.name, scenario)
             asked += 1
-    assert asked >= (12 if scenario == "typo_past_1" else 13), scenario
+    # A KEYING SLIP A CENTURY EARLY CAN LAND INSIDE THE BAND AT ANOTHER WIDTH,
+    # which no rule lets stand (`date_counts._text_holds`): Excel birth dates
+    # from 1930 keyed in the 1830s read as four figures.
+    assert asked >= (12 if scenario in ("typo_past_1", "typos_2", "typos_5") else 13), scenario
 
 
 @pytest.mark.parametrize("name,least", (("events_1985", 6), ("births_1920", 3)))
@@ -291,7 +294,7 @@ def _new_questions(draws: int) -> "tuple[int, int, list[str]]":
             whole = all(value == int(value) for value in numbers)
             found = date_counts.asked_of(
                 texts, numbers, taxonomy._needed(0.99, len(texts)),
-                _median(sorted(numbers)), whole,
+                _median(sorted(numbers)), whole, floor=11,
             )
             if found is None:
                 continue
@@ -304,7 +307,7 @@ def _new_questions(draws: int) -> "tuple[int, int, list[str]]":
 def test_c2_no_ordinary_column_gets_a_new_question() -> None:
     """Items 1 and 5: 0 new questions over the chance battery and the review's identifiers."""
     asked, draws, new = _new_questions(10)
-    assert draws == 670 and asked > 0
+    assert draws == 750 and asked > 0
     assert new == []
 
 
@@ -321,7 +324,8 @@ def test_c2_variable_width_identifiers_are_not_asked() -> None:
             texts = battery.ordinary(name, 1000, draw)
             numbers = [float(text) for text in texts]
             assert date_counts.asked_of(
-                texts, numbers, taxonomy._needed(0.99, len(texts)), _median(sorted(numbers)), True
+                texts, numbers, taxonomy._needed(0.99, len(texts)), _median(sorted(numbers)), True,
+                floor=11,
             ) is None, (name, draw)
 
 
@@ -341,9 +345,16 @@ def test_c2_dates_kept_at_local_midnight_are_not_asked_as_dates_at_utc_midnight(
 
 
 def test_c2_the_question_names_no_value_and_says_the_set_aside_numbers(tmp_path: pathlib.Path) -> None:
+    """Twenty `0` cells in a thousand: a heap the ladder publishes as the low end.
+
+    The question still offers the 1900 system, its years read past the
+    heap (the review of landing R4, item 1: the first build read them off
+    the heaped `0`, which names no Excel date, and dropped the system),
+    and names `0` among the numbers set aside, which twenty cells hold.
+    """
     shape = battery.BY_NAME["xl_date"]
-    cells, truth = battery.cells(shape, battery.ROWS, 0)
-    cells = battery.dirty(shape, cells, truth, "zero_1pct", 0)
+    cells, _truth = battery.cells(shape, battery.ROWS, 0)
+    cells = battery.heaped(shape, cells, "zero", 0.02)
     path = _table(tmp_path, cells)
     code, said = _exit_of(["profile", str(path), "--out-dir", str(tmp_path), "--replace"])
     assert code == 0, said[-500:]
@@ -397,8 +408,8 @@ def test_c2_a_declared_decimal_comma_is_read_with_the_comma(
     assert not [word for word in runs["plain"] if word in date_counts.MEMBERS]
     original = date_counts.asked_of
 
-    def pointed(*arguments: object) -> "date_counts.Asked | None":
-        return original(*arguments[:5])  # type: ignore[arg-type]
+    def pointed(*arguments: object, **named: object) -> "date_counts.Asked | None":
+        return original(*arguments[:5], **named)  # type: ignore[arg-type]
 
     monkeypatch.setattr(date_counts, "asked_of", pointed)
     mutated = tmp_path / "mutated"
@@ -693,7 +704,10 @@ def test_c5_r_exponent_form_and_a_decimal_comma_round_trip(tmp_path: pathlib.Pat
     assert trip["block"]["count_form"]["exponent"] is True
     assert any("e+" in cell for cell in trip["twin"])
     assert trip["twin_exit"] == 0 and trip["real_exit"] == 0
-    commas = [f"{45000 + draw.randrange(3000)},{draw.randrange(10**6):06d}".rstrip("0").rstrip(",") for _row in range(400)]
+    commas = [
+        f"{45000 + draw.randrange(3000) + draw.randrange(86400) / 86400:.6f}".rstrip("0").rstrip(".").replace(".", ",")
+        for _row in range(400)
+    ]
     trip = _trip(tmp_path / "comma", commas, "excel-1900", "--decimal-comma", "seen")
     assert trip["block"]["count_form"]["mark"] == ","
     assert all("," in cell or cell.isdigit() for cell in trip["twin"])

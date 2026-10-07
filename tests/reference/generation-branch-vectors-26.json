@@ -1,4 +1,143 @@
 {
+  "dealings": {
+    "one_word": {
+      "answer": [
+        "07",
+        "07",
+        "07",
+        "07",
+        "07",
+        "07",
+        "07",
+        "07",
+        "07",
+        "07",
+        "07",
+        "07",
+        "07"
+      ],
+      "census": {
+        "07": 13
+      },
+      "dated": 13,
+      "why": "one contact number on every dated cell"
+    },
+    "rarer_than_the_census": {
+      "answer": [
+        "(none)",
+        "(none)",
+        "01",
+        "(none)",
+        "(none)",
+        "(none)",
+        "(none)",
+        "01",
+        "(none)",
+        "(none)",
+        "(none)",
+        "(none)",
+        "(none)",
+        "01",
+        "(none)",
+        "(none)",
+        "(none)",
+        "(none)",
+        "01",
+        "(none)",
+        "(none)",
+        "(none)",
+        "(none)",
+        "01",
+        "(none)",
+        "(none)",
+        "(none)",
+        "(none)",
+        "(none)",
+        "01",
+        "(none)",
+        "(none)",
+        "(none)",
+        "(none)",
+        "01",
+        "(none)",
+        "(none)",
+        "(none)",
+        "(none)",
+        "(none)"
+      ],
+      "census": {
+        "(none)": 30,
+        "01": 7
+      },
+      "dated": 40,
+      "why": "three dated cells more than the census counts: they write none"
+    },
+    "three_words_twenty_cells": {
+      "answer": [
+        "(none)",
+        "(none)",
+        "01",
+        "(none)",
+        "(none)",
+        "02",
+        "(none)",
+        "01",
+        "(none)",
+        "(none)",
+        "(none)",
+        "(none)",
+        "01",
+        "(none)",
+        "(none)",
+        "02",
+        "(none)",
+        "01",
+        "(none)",
+        "(none)"
+      ],
+      "census": {
+        "(none)": 14,
+        "01": 4,
+        "02": 2
+      },
+      "dated": 20,
+      "why": "a census of three words over twenty dated cells"
+    },
+    "tied_counts": {
+      "answer": [
+        "(none)",
+        "01",
+        "02",
+        "(none)",
+        "(none)",
+        "01",
+        "02",
+        "(none)",
+        "(none)",
+        "01",
+        "02",
+        "(none)",
+        "01",
+        "02",
+        "(none)",
+        "(none)",
+        "01",
+        "02",
+        "(none)",
+        "(none)",
+        "01",
+        "02",
+        "(none)"
+      ],
+      "census": {
+        "(none)": 11,
+        "01": 6,
+        "02": 6
+      },
+      "dated": 23,
+      "why": "two words of one count, in sorted order after the commonest"
+    }
+  },
   "generated_by": "tools/reference/make_generation_reference_vectors.py",
   "method": "docs/spec/generation-method-v1.md",
   "never_imports": [
@@ -320,6 +459,36 @@
       "member": "milliseconds-since-1970",
       "why": "R writes 1.6e+12 where it is shorter than the thirteen figures"
     },
+    "repr_seventeen": {
+      "answer": "44730.10555555556",
+      "contact": "(none)",
+      "form": {
+        "contacts": null,
+        "exponent": false,
+        "mark": ".",
+        "places": 12,
+        "significant": 17,
+        "trimmed": true
+      },
+      "iso": "2022-06-18 02:32:00",
+      "member": "excel-1900",
+      "why": "repr's shortest figures of the double, not %.17g's seventeen"
+    },
+    "repr_whole_point_zero": {
+      "answer": "44730.0",
+      "contact": "(none)",
+      "form": {
+        "contacts": null,
+        "exponent": false,
+        "mark": ".",
+        "places": 12,
+        "significant": 17,
+        "trimmed": true
+      },
+      "iso": "2022-06-18",
+      "member": "excel-1900",
+      "why": "repr of a whole double at midnight keeps its point and nought"
+    },
     "sas_days_before_1960": {
       "answer": "-3652",
       "contact": "(none)",
@@ -351,5 +520,5 @@
       "why": "a thousandth of a second kept"
     }
   },
-  "what": "Method section G7.10's two halves (landing R4, plan P4-D384), each case with its answer computed from the method's text with datetime and Fraction: a count read as the moment its system names, written as ISO text at a unit, and a moment written back as its system's count, spelled as a `count_form` says."
+  "what": "Method section G7.10's two halves (landing R4, plan P4-D384), each case with its answer computed from the method's text with datetime and Fraction: a count read as the moment its system names, written as ISO text at a unit, and a moment written back as its system's count, spelled as a `count_form` says; and the contact numbers a census deals over the dated cells of an Epic column."
 }

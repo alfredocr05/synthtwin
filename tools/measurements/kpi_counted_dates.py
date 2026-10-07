@@ -170,7 +170,8 @@ def asked(home: pathlib.Path, notes: "list[str]") -> "dict[str, int]":
             numbers = [float(text) for text in texts]
             whole = all(value == int(value) for value in numbers)
             found = date_counts.asked_of(
-                texts, numbers, taxonomy._needed(0.99, len(texts)), _median(sorted(numbers)), whole
+                texts, numbers, taxonomy._needed(0.99, len(texts)), _median(sorted(numbers)), whole,
+                floor=11,
             )
             if found is not None and asking.why_worth_asking(texts) is None:
                 totals["new_questions"] += 1

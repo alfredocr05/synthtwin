@@ -13378,6 +13378,9 @@ def counted_spelling(member, iso, form, contact="(none)"):
         return day if contact == "(none)" else f"{day}{mark}{contact}"
     if value.denominator != 1:
         return _counted_binary64(value, form)
+    if form["significant"] == 17 and not form["exponent"] and abs(value) < 10**16:
+        # `repr` of a whole double: its figures, the point and a nought.
+        return f"{int(value)}{mark}0"
     if form["significant"] is None and not form["exponent"]:
         return _counted_fixed(value, form["places"], mark, form["trimmed"])
     sign, digits, exponent = _counted_significant(value, form["significant"] or 15)
@@ -13480,7 +13483,31 @@ COUNTED_SPELLINGS = {
                                 "(none)", "the day count alone where the census gives none"),
     "comma_spelled": ("excel-1900", "2024-04-04 08:30", _counted_form(6, True, mark=","),
                       "(none)", "the comma written where the column writes it"),
+    "repr_seventeen": ("excel-1900", "2022-06-18 02:32:00", _counted_form(12, True, 17),
+                       "(none)", "repr's shortest figures of the double, not %.17g's seventeen"),
+    "repr_whole_point_zero": ("excel-1900", "2022-06-18", _counted_form(12, True, 17),
+                              "(none)", "repr of a whole double at midnight keeps its point and nought"),
 }
+
+
+def counted_contacts(census, dated):
+    """G7.10's contact numbers: the word each of ``dated`` cells writes, in the order they stand.
+
+    Each word the census counts c times stands at the c keys
+    (2j + 1) / (2c), j from nought -- the middles of c equal shares of the
+    cells -- and the cells take the words in the order of their keys,
+    compared exactly as fractions, a tie to the word ranked first (the
+    commonest, ties in sorted order); a cell past the census's last word
+    writes "(none)".
+    """
+    order = [word for word in sorted(census, key=lambda each: (-census[each], each)) if census[word] > 0]
+    keys = sorted(
+        (fractions.Fraction(2 * j + 1, 2 * census[word]), rank)
+        for rank, word in enumerate(order)
+        for j in range(census[word])
+    )
+    dealt = [order[rank] for _key, rank in keys][:dated]
+    return dealt + ["(none)"] * (dated - len(dealt))
 
 
 def counted_cells(cells, column, member):
@@ -13490,33 +13517,43 @@ def counted_cells(cells, column, member):
     moment; an absent cell is written in a spelling the column publishes,
     and an unparsed stand-in in text no date reader takes, and both are
     left as they are. A `days-since-1840` column's contact words go to the
-    dated cells in the order they stand, the census's words in rank order
-    -- the commonest first, ties in sorted order -- each as many times as
-    the census counts it.
+    dated cells in the order they stand, dealt by `counted_contacts`.
     """
     form = column["count_form"]
-    words = []
-    census = form["contacts"] or {}
-    for word in sorted(census, key=lambda each: (-census[each], each)):
-        words += [word] * census[word]
-    spelled = []
-    used = 0
-    for cell in cells:
-        moment = None
+    dated = []
+    for place, cell in enumerate(cells):
         try:
             date_text, _space, clock = cell.partition(" ")
             datetime.date.fromisoformat(date_text)
-            moment = cell if len(date_text) == 10 else None
+            if len(date_text) == 10:
+                dated += [place]
         except ValueError:
-            moment = None
-        if moment is None:
-            spelled.append(cell)
-            continue
-        contact = words[used] if used < len(words) else "(none)"
-        used += 1
-        written = counted_spelling(member, cell, form, contact)
-        spelled.append(written if written is not None else cell)
+            pass
+    contacts = counted_contacts(form["contacts"] or {}, len(dated))
+    rank_of = {place: rank for rank, place in enumerate(dated)}
+    spelled = []
+    for place, cell in enumerate(cells):
+        written = None
+        if place in rank_of:
+            written = counted_spelling(member, cell, form, contacts[rank_of[place]])
+        spelled += [written if written is not None else cell]
     return spelled
+
+
+# THE CONTACT NUMBERS, DEALT (the review of landing R4, item 8): a census
+# and a count of dated cells, the answer the word each cell writes in the
+# order the cells stand, each word spaced evenly over them. Dealt down the
+# rows in rank order, as the first build did, every one of these would
+# hold its rare words at the end.
+COUNTED_DEALINGS = {
+    "three_words_twenty_cells": ({"(none)": 14, "01": 4, "02": 2}, 20,
+                                 "a census of three words over twenty dated cells"),
+    "rarer_than_the_census": ({"(none)": 30, "01": 7}, 40,
+                              "three dated cells more than the census counts: they write none"),
+    "one_word": ({"07": 13}, 13, "one contact number on every dated cell"),
+    "tied_counts": ({"02": 6, "01": 6, "(none)": 11}, 23,
+                    "two words of one count, in sorted order after the commonest"),
+}
 
 
 def counted_case_document():
@@ -13535,11 +13572,20 @@ def counted_case_document():
             "member": member, "iso": iso, "form": form, "contact": contact, "why": why,
             "answer": counted_spelling(member, iso, form, contact),
         }
+    dealings = {}
+    for name in sorted(COUNTED_DEALINGS):
+        census, dated, why = COUNTED_DEALINGS[name]
+        dealings[name] = {
+            "census": census, "dated": dated, "why": why,
+            "answer": counted_contacts(census, dated),
+        }
     return {
         "what": "Method section G7.10's two halves (landing R4, plan P4-D384), each case with "
         "its answer computed from the method's text with datetime and Fraction: a count read "
         "as the moment its system names, written as ISO text at a unit, and a moment written "
-        "back as its system's count, spelled as a `count_form` says.",
+        "back as its system's count, spelled as a `count_form` says; and the contact numbers "
+        "a census deals over the dated cells of an Epic column.",
+        "dealings": dealings,
         "generated_by": "tools/reference/make_generation_reference_vectors.py",
         "method": "docs/spec/generation-method-v1.md",
         "never_imports": ["synthtwin", "numpy", "pandas"],

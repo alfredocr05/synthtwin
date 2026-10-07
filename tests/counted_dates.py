@@ -4,7 +4,7 @@ Seeded, made-up cells and nothing else: every value is drawn from a
 `random.Random` seeded by the shape's own name and the seed, so the same
 name gives the same cells on every platform and every supported Python.
 
-FOUR FAMILIES.
+SIX FAMILIES.
 
 * `SHAPES` -- the fourteen columns of the R4 design's battery, each a
   counting system, the dates its counts name and the way an export spells
@@ -16,14 +16,28 @@ FOUR FAMILIES.
 * `RANGES` -- the same writers over events from 1985 to 2025 and births
   from 1920 to 2005 (the R4 design review, item 2).
 * `SCENARIOS` -- the same columns carrying what real columns carry: one
-  cell keyed a century late or early, and one in a hundred written `0`,
-  `-1`, or the system's own count for 9999-12-31 or 1900-01-01 (item 1).
+  cell keyed a century late or early, two and five keyed a century out
+  either way (the review of landing R4, item 6), and one in a hundred
+  written `0`, `-1`, or the system's own count for 9999-12-31 or
+  1900-01-01 (item 1); and `heaped`, a share of one placeholder large
+  enough that the ladder publishes it as the column's end (the review of
+  landing R4, item 1).
 * `ORDINARY` -- the chance battery: forty-eight generators of
   measurements and thirteen of codes written as numbers, each drawn with
   its location and scale jittered, and six more the review added -- two
   variable-width identifiers, two clocks counted in seconds and two more
-  wide numbers (items 5 and 7). A question one of them raises that the
-  fixed-width question did not raise already is a NEW question.
+  wide numbers (items 5 and 7) -- and eight the review of landing R4
+  added (its item 7): five money and dose columns written to one or two
+  figures in Excel's five-figure band, and two lengths of time kept as
+  whole days of seconds and milliseconds. A question one of them raises
+  that the fixed-width question did not raise already is a NEW question.
+* `COARSE` -- dates written as counts with figures no unit of time keeps
+  whole: one or two figures of a day, tenths and hundredths of a second,
+  and four figures of a day of moments off the minute (the review of
+  landing R4, item 2), beside two whose figures a unit does keep.
+* `WRITERS` -- the shapes an exporter writes beside the battery's: pandas'
+  `45000.0` and `repr`, and an Epic day exported to seventeen significant
+  figures (the review of landing R4, items 3 and 5).
 
 What a person reads a column with is `decode`, the counting system's own
 rule, written here with `datetime` alone.
@@ -229,7 +243,13 @@ SCENARIOS = (
     "hi_sentinel_1pct",
     "lo_sentinel_1pct",
     "minus1_1pct",
+    "typos_2",
+    "typos_5",
 )
+
+# THE PLACEHOLDERS A HEAP IS MADE OF (`heaped`), each a cell a system writes
+# where no date was given.
+PLACEHOLDERS = ("zero", "minus1", "hi_sentinel", "lo_sentinel")
 
 
 def _shifted(moment: dt.datetime, years: int) -> dt.datetime:
@@ -255,6 +275,9 @@ def dirty(shape: Shape, written: "list[str]", truth: "list[dt.datetime]", scenar
     elif scenario == "typo_past_1":
         place = draw.randrange(len(out))
         out[place] = spelled(_shifted(truth[place], -100))
+    elif scenario in ("typos_2", "typos_5"):
+        for place in draw.sample(range(len(out)), int(scenario[-1])):
+            out[place] = spelled(_shifted(truth[place], 100 if draw.random() < 0.5 else -100))
     elif scenario != "clean":
         for place in draw.sample(range(len(out)), max(1, len(out) // 100)):
             if scenario == "zero_1pct":
@@ -265,6 +288,27 @@ def dirty(shape: Shape, written: "list[str]", truth: "list[dt.datetime]", scenar
                 out[place] = spelled(dt.datetime(9999, 12, 31))
             elif scenario == "lo_sentinel_1pct":
                 out[place] = spelled(dt.datetime(1900, 1, 1))
+    return out
+
+
+def placeholder(shape: Shape, kind: str) -> str:
+    """The cell a shape's system writes for one of `PLACEHOLDERS`."""
+    if kind == "zero":
+        return "0"
+    if kind == "minus1":
+        return "-1"
+    moment = dt.datetime(9999, 12, 31) if kind == "hi_sentinel" else dt.datetime(1900, 1, 1)
+    if shape.name == "epic_real":
+        return str(int(count_of(shape.system, moment)))
+    return shape.write(moment)
+
+
+def heaped(shape: Shape, written: "list[str]", kind: str, share: float, seed: int = 0) -> "list[str]":
+    """The shape's cells with ``share`` of them one placeholder: a heap the ladder publishes as an end."""
+    out = list(written)
+    draw = random.Random(2000 + seed)
+    for place in draw.sample(range(len(out)), int(round(len(out) * share))):
+        out[place] = placeholder(shape, kind)
     return out
 
 
@@ -351,6 +395,17 @@ ORDINARY = {
     "sas_time_or_start_s": ("measure", lambda r, j: r.randrange(7 * 3600, 16 * 3600), 0),
     "accession_10to11": ("code", lambda r, j: r.randrange(2_000_000_000, 12_000_000_000), 0),
     "epoch_like_counter": ("measure", lambda r, j: int(r.gauss(1.2e9 * j, 1e8)), 0),
+    # ...and the eight the review of landing R4 added (its item 7): money in
+    # cents and a drug's total to one figure inside Excel's five-figure band, and
+    # lengths of time kept as whole days of seconds and of milliseconds.
+    "salary_cents_45k": ("measure", lambda r, j: r.gauss(45000, 2500), 2),
+    "payment_cents_20k": ("measure", lambda r, j: r.gauss(20000, 2000), 2),
+    "room_charge_cents_62k": ("measure", lambda r, j: r.gauss(62000, 3000), 2),
+    "glucose_area_1dp": ("measure", lambda r, j: r.gauss(16000, 1500), 1),
+    "dose_total_1dp": ("measure", lambda r, j: r.gauss(42000, 3000), 1),
+    "stay_seconds_whole_days": ("measure", lambda r, j: 86400 * r.randrange(1, 60), 0),
+    "gap_milliseconds_whole_days": ("measure", lambda r, j: 86400000 * r.randrange(1, 30), 0),
+    "followup_seconds_whole_days": ("measure", lambda r, j: 86400 * r.randrange(1, 300), 0),
 }
 
 
@@ -368,6 +423,55 @@ def ordinary(name: str, rows: int, draw_number: int) -> "list[str]":
         value = maker(draw, scale)
         out += [str(int(round(value))) if places == 0 else f"{value:.{places}f}"]
     return out
+
+
+# -- figures no unit keeps, and other writers ---------------------------
+
+
+def _fraction(draw: random.Random) -> float:
+    """An Excel serial of 2023 to 2031 with any time of day."""
+    return 45000 + draw.randrange(3000) + draw.random()
+
+
+COARSE = {
+    # name: (system, the cell written for each row, whether a unit keeps
+    # every figure). The first five are the review's (item 2).
+    "excel_1dp": ("excel-1900", lambda r: f"{_fraction(r):.1f}", False),
+    "excel_2dp": ("excel-1900", lambda r: f"{_fraction(r):.2f}", False),
+    "unix_s_1dp": ("seconds-since-1970", lambda r: f"{1600000000 + r.randrange(200000000) + r.randrange(10) / 10:.1f}", False),
+    "unix_s_2dp": ("seconds-since-1970", lambda r: f"{1600000000 + r.randrange(200000000) + r.randrange(100) / 100:.2f}", False),
+    "excel_4dp_off_minute": ("excel-1900", lambda r: f"{_fraction(r):.4f}", False),
+    # ...and two a unit keeps: four figures of a day at whole minutes, and
+    # five at whole seconds.
+    "excel_4dp_minutes": ("excel-1900", lambda r: f"{45000 + r.randrange(3000) + r.randrange(1440) / 1440:.4f}", True),
+    "excel_5dp_seconds": ("excel-1900", lambda r: f"{45000 + r.randrange(3000) + r.randrange(86400) / 86400:.5f}", True),
+}
+
+
+def coarse(name: str, rows: int = ROWS, seed: int = 0) -> "list[str]":
+    """One `COARSE` column's cells."""
+    _system, write, _kept = COARSE[name]
+    draw = random.Random(zlib.crc32(f"coarse:{name}".encode("utf-8")) + seed)
+    return [write(draw) for _ in range(rows)]
+
+
+def written_by(writer: str, shape: Shape, rows: int = ROWS, seed: int = 0) -> "list[str]":
+    """A shape's moments as another exporter writes them (`WRITERS`)."""
+    _cells, truth = cells(shape, rows, seed)
+    out: "list[str]" = []
+    for moment in truth:
+        exact = count_of(shape.system, moment)
+        if writer == "pandas_point_zero":
+            out += [f"{int(round(exact))}.0"]
+        elif writer == "repr":
+            out += [repr(exact)]
+        else:
+            day = int(exact)
+            out += [f"{day + 0.01:.17g}" if moment.day % 7 == 0 else f"{day}"]
+    return out
+
+
+WRITERS = ("pandas_point_zero", "repr", "seventeen_significant")
 
 
 def decode(system: str, text: str) -> "dt.datetime | None":

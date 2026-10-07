@@ -1600,8 +1600,11 @@ def the_date_count_declaration_did_not_reach(
     return (
         f"The column '{_shown(name)}' was named with --date-count as "
         f"dates counted as {member}, but its cells did not read as such "
-        f"dates -- too few of them are counts that name a date, or the "
-        f"dates they name are too few to describe as dates -- so it was "
+        f"dates -- too few of them are counts that name a date, the "
+        f"dates they name are too few to describe as dates, or the "
+        f"figures after the point step between the units a date is "
+        f"written to, as one to three figures of a day or tenths of a "
+        f"second do -- so it was "
         f"described as {role}, as it reads without the declaration. The "
         f"description that was written is correct about everything else, "
         f"and says which columns were declared. Check the column's name "

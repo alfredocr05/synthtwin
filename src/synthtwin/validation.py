@@ -1819,6 +1819,7 @@ def _count_form_checks(
     facts: contract.DatetimeFacts,
     block: "dict[str, object]",
     cells: "list[str]",
+    member: str = "",
 ) -> "list[Check]":
     """How a column of counted dates writes its counts, held (landing R4, V5-CF).
 
@@ -1831,7 +1832,10 @@ def _count_form_checks(
     not asked. `form.contacts` holds the census of contact numbers of a
     `days-since-1840` column exactly, as the file's own description counts
     it. No value of the file is printed: the measured side is the form's
-    own words, or that a cell is written another way.
+    own words, or that a cell is written another way. A cell that is no
+    count OF ``member`` (`date_counts.counted`) -- an Epic day written with
+    a binary64's tail of more than nine figures -- is text the date role's
+    own line took, and is not asked, as the profiler did not read it.
 
     Guarantees: accepts the column, its facts, the file's own block and
     its cells; returns the checks, none where the column publishes no form
@@ -1853,7 +1857,11 @@ def _count_form_checks(
         for cell in cells:
             if not cell or cell in holes:
                 continue
-            written = date_counts.written_count(cell, form.mark)
+            written = (
+                date_counts.counted(member, cell, form.mark)
+                if member
+                else date_counts.written_count(cell, form.mark)
+            )
             if written is None:
                 continue
             if not date_counts.form_holds(form, written):
@@ -7683,7 +7691,11 @@ def _obligations(
     # asked of the cells as the file holds them -- every other check of the
     # column reads them as the dates they name.
     if isinstance(column.facts, contract.DatetimeFacts):
-        checks = checks + _count_form_checks(column, column.facts, block, cells)
+        member = ""
+        for named, system in description.settings.forced_date_counts:
+            if named == name:
+                member = system
+        checks = checks + _count_form_checks(column, column.facts, block, cells, member)
     return checks + _governed(gated, measured, split_published)
 
 
