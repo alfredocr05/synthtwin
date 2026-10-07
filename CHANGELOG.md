@@ -97,6 +97,84 @@ than one ordinal; and steps 8.2, 8.4 and 8.5 no longer count the column
 again for every unit or pair (step 8.5 on 20,000 lone moments 400 too
 long: 0.09 s where it took 16).
 
+**Step 8.3 counts the written values a move can reach** (its Codex
+review, item 1). The gain of an exchange asked whether a whole unit of a
+group stood free, while a move keeps a rank's place inside its unit and
+the count is of written values: forty values each at 00:15, 01:15 and
+02:30, asked for eighty in hour 1, forty in hour 2 and three values,
+came back as two, though 01:30 and 02:15 stood free. The gain now asks
+the rank its move takes for the places it can reach; that state keeps
+three values and the census, and the fifteenth vectors file holds it
+among 47 states. A date's day is one written value, so no date moves:
+every twin of the date batteries is the one before.
+
+**Where every move keeps the day, a search asks that day alone** (its
+Codex review, item 2). Step 8.3 built every hour of a gap for each of
+its days, 24 entries a day squared: 393,216 over 128 days. It builds 24
+a day now, and the other searches of the pass ask the same day only.
+
+**Steps 8.4 and 8.5 and the index grow with the rows, not their square**
+(its Codex review, items 3 to 5). Where every move keeps the day, step
+8.4 walked every day of a gap for each value it might merge, and step
+8.5, where no pair could be made, asked every two days: 461,280 and
+640,800 reads at 480 rows. They ask the value's own day and only the
+days that can serve a pair now, 26 and 27 reads a row. The index of
+steps 5 and 6 could hold 801 places for each value and a kind for each
+place, 102,528 of each for 128 values; it is built now only where it
+holds at most 801 places or four a value, and a kind is kept once a
+day. No twin moves.
+
+**Step 8.3's search of cycles is bounded, and says so** (its Codex
+review, item 6). Above seven groups only cycles of three groups or
+fewer are asked, so a count left short there may be below what the
+census allows: ten groups of days of the month whose one gaining cycle
+has four groups keep four values where eight are reachable. The method
+and its docstrings no longer say that finding no cycle shows the count
+is the most it can be; the bound stays.
+
+**Each move of a cycle takes the value its gain was asked of** (its
+Codex review, item 1, as verified). Step 8.3 asked each group's gain of
+the value it would move, then moved whichever value led that group once
+the moves before had been made, and a move can make the value it puts on
+a group that group's leader: on a day holding 00:14 three times and
+01:07 once, the cycle hour 0 to hour 1 and back moved a value from 00:14
+to 01:14 and straight back, and the count stayed one short where moving
+01:07 to 00:07 met it. Each move now takes the value its gain was asked
+of, so every move finds its place and no cycle is undone; the
+verification's two states, of hours and of moments, meet the census and
+the count, and the fifteenth vectors file holds 49 states. No date
+moves: every twin of the date batteries is the one before. Where a
+second census is kept, which no column publishes yet, a cycle can now
+leave the trade of step 8.6 no way back on rare states; the landing
+that first publishes one decides what to do about it.
+
+**A chain of step 7b is made whole as well** (its Codex review, item 1,
+as verified, carried to step 7b). A chain links two groups by the value
+its move would take, but moved whichever value led that group once the
+moves before it had been made, and on hours and moments a move can make
+the value it puts on a group that group's leader at a place with no
+room in the next: in a gap closing at 10:39, the chain hour 0 to hours
+1 to 9 to hour 10 moved 00:47 to 01:47 and stopped there, its hour 10
+place past the close, while 08:37 had 10:37. Where the leader has no
+place, the move now takes the value the link was asked of, so no chain
+is left half made: on 100,000 random states 13 more meet their census
+and none fewer. No date moves. Where a second census is kept, a chain
+asked of each cell's leader alone can still miss a group the value
+beside the leader reaches, on one state of those 100,000; the landing
+that first publishes such a census decides on it with the other. A
+census met or nearer can cost a value: of 140,000 random states, seven
+now meet a census they missed with one value more or fewer, and on one
+day of moments, whose census and count no placement keeping every clock
+meets together, a chain made whole halves the census's miss and keeps
+12 different minutes where 13 were asked and kept; the landing that
+first publishes a weekday census of moments decides on it. Of 200,000
+later random states, every one that loses a fact the pass met before,
+unless it meets or nears a census the pass missed, keeps a second
+census, which no column publishes yet: the census is lost on four, the
+count on three, and four of the seven met both before; the landing
+that first publishes such a census decides on them with the others.
+The fifteenth vectors file holds 51 states.
+
 ### Stage 4's first tier repaired at its review (2026-10-02)
 
 **A twin of a description the producer writes today moves no byte**
