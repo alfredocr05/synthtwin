@@ -3903,7 +3903,9 @@ decide says why in its own sentence: NF76
 `weekday_census_withheld_two_spellings` (the published forms may write a
 date two ways) and NF78 `weekday_census_withheld_no_tails`. Every
 withholding the table's own numbers decide -- among them the producer's
-few-dates and room rules (plan P4-D365) -- is said in ONE sentence,
+few-dates and room rules (plan P4-D365) and its count-room and
+count-reach rules (plan P4-D388 and its Codex review) -- is said in ONE
+sentence,
 NF74 `weekday_census_withheld_could_be_narrowed`, kept by plan P4-D365
 under the owner's rule that a guard goes only at a high price. NF74
 takes one argument, the census line; NF76 and NF78 take none. The forms
@@ -6574,11 +6576,11 @@ published census to these rules and to no other: it is a function of
 the census, the body, the line and the published forms, and walks no
 day.
 
-WHAT THE PRODUCER WITHHOLDS BESIDE THEM (plan P4-D365, under the
-owner's principle of 2026-10-01 that the threat is a HIPAA exposure and
-never a reader rebuilding counts from a description) are two
-CONSERVATIVE rules, set on the cases measured where a twin missed,
-decided on the table's own dates and so not checkable on load. Neither
+WHAT THE PRODUCER WITHHOLDS BESIDE THEM (plans P4-D365 and P4-D388,
+under the owner's principle of 2026-10-01 that the threat is a HIPAA
+exposure and never a reader rebuilding counts from a description) are
+four CONSERVATIVE rules, set on the cases measured where a twin missed,
+decided on the table's own dates and so not checkable on load. None
 proves a census impossible to meet: each withholds some a twin would
 meet, and that is its price -- the column loses its weekday statistic
 -- against a twin that would otherwise miss its own count of different
@@ -6591,10 +6593,65 @@ values than the column, as the measured weekly sessions, payroll days
 and monthly dates did. 1 to 21 January 2024, a hundred rows a date, is
 withheld by it too, and its census restored is met at seeds 0 to 2 with
 all 21 dates and no deviation (the Codex review of P4-D365, item 2).
+The count-room rule (plan P4-D388), asked at every floor -- above 11
+alone until its Codex review (item 1) found a census at the floor of 11
+leaving a twin 27 different values for 24 at seed 17 --
+reads the room the count of different values leaves the body. A tail
+that lists its values is written on them; one that publishes its two
+distances is rebuilt with at most the floor's number of different days,
+never more than its rows, and no more than two past what its own spread
+allows (k different whole distances of one or more hold at least the
+squares of 1 to k, and one for each other row); the count pass leaves the
+body the column's different days less those its tails hold. The day
+pass moves a body rank only between the two pins either side of it --
+the body's boundaries and the rungs published between them -- so the
+census needs every pin day and, inside each gap, a day of every group
+that holds rows, has a day strictly inside the gap and is the group of
+neither of its two pin days. Where the census needs a day past the pin
+days and the room is less than that need, the census is withheld --
+at the floor of 36, schedules whose tails held 59 and 40 rows on a few
+days came back with 32 and more different days in their twins' tails
+and more different values than the column -- and a room equal to the
+need publishes it. Its other direction, the count-reach rule (the same
+review, item 2), reads the FEWEST and the MOST different days the twin's
+two tails can hold: a listed tail its values; a tail whose column's
+values all differ its rows, as far as the member's edge allows; any
+other tail rebuilt as G7.3b rebuilds it from its published rows,
+distances and the floor, its end and group stepped off the days the
+column's absent spellings name, each rank's SPAN running between its
+distances at the least and the largest word, and counted at the fewest
+whole distances that leave one inside every span and the most that can
+stand one inside each, each its own. The day pass keeps each body rank
+inside its gap, off every day of a group the census leaves empty and off
+every published hole, and no group holds more different days than its
+count: that is what the body can REACH. Before it, the count pass meets
+the column's count of different days, knowing nothing of the census,
+on a body whose ranks are drawn independently inside their gaps and
+land, in expectation, on n(1 - (1 - 1/n)^r) of a gap's n days that are
+no hole, r its ranks -- with the pin days, the body's DRAW. Where the
+draw and the tails' most fall short of the count the pass only splits,
+spreading the tails' ranks over their own spans, and the body NEEDS
+what the tails at their most leave it; otherwise it merges, which only
+takes days away, so the body keeps no more than its draw and the tails
+no fewer than their fewest, and the need is the draw, no more than what
+the tails at their fewest leave and no less than what their most
+leaves. Where the need is more than the reach, and the reach less than
+the body would reach without the census, the census is withheld --
+fourteen days from Monday 29 January 2024 whose high tail of 31 rows the
+twin rebuilds on at most three days where the real tail held four, its
+body every weekday between the boundaries and its weekend empty, came
+back with 11 different values for 12 at every seed, and 12 with the
+census emptied -- and a need equal to the reach publishes it. One row a
+business day over four and a half years draws about 830 of its 1,180
+days, its tails reach their most, and its census is published.
+Neither rule speaks of a twin whose tails alone hold more different
+days than its column, the census or no census: fifteen consecutive
+Mondays at the floor of 36 come back with 33 different values for 15
+either way (P4-D388 records it).
 And beside every published hole other than a width hole -- where the
 month-name census's one word has the length `either`, so every day
-outside May is a HOLE, and beside a placeholder or declared hole -- it
-is withheld where a non-empty group has no free day between the body's
+outside May is a HOLE, and beside a placeholder or declared hole -- a
+census is withheld where a non-empty group has no free day between the body's
 first and last day -- every one of its days that is no hole holds a
 date -- while one of its dates holds a single row: a one-row date the
 day pass moves can be left empty, and with no free day a twin that
@@ -6602,8 +6659,10 @@ leaves one holds fewer different values than the column, as every day
 of three Mays did. That rule is not asked beside width holes alone,
 where no twin was measured to miss (the review of P4-D365, item 3);
 beside declared days a twin was (its second review, item 1), and a
-twin must pass its own checks. P4-D365 counts what the two rules cost:
-50 columns whose twins all met their census are withheld. A FORM HOLE is a day no cell can be written on under
+twin must pass its own checks. P4-D365 counts what the first and the
+last cost: 50 columns whose twins all met their census are withheld;
+P4-D388 counts what its two count rules cost at each floor.
+A FORM HOLE is a day no cell can be written on under
 the forms WC6 lets stand: where the width census's one word shows one
 field alone (`first-field-*`, `second-field-*`), every day whose other
 field is below ten, and where the month-name census's one word has the

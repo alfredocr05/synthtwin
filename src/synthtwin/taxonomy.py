@@ -16224,7 +16224,16 @@ def weekday_decision(
     a published absent spelling names, `published_absent`), no menu
     entry, too few different dates by the conservative rule that keeps
     the twin's count of different values (`calendar_rules.few_dates`),
-    too little room by its companion between the published holes other
+    too few of the column's different days left to the body's gaps once
+    the most its rebuilt tails can hold is set aside
+    (`calendar_rules.count_room_short`, plan P4-D388), too few days the
+    census lets the body reach for what the count asks of it once the
+    twin's count pass has spread its rebuilt tails to their most, or
+    merged them no lower than their fewest beside a body that keeps no
+    more than its draw (`calendar_rules.count_reach_short`), both asked
+    at every floor (the
+    Codex review of P4-D388, items 1 and 2), too
+    little room by its companion between the published holes other
     than width holes -- May's holes, placeholder days and declared days
     (`calendar_rules.room_short`) --
     and last the
@@ -16233,7 +16242,7 @@ def weekday_decision(
     here asks what a reader could work out from the census: the
     full-fill certificate, its bands, its cap and its ties refusal are
     gone, and the census the menu offers is published unless one of the
-    two conservative rules above withholds it -- each set on measured
+    four conservative rules above withholds it -- each set on measured
     cases where a twin missed, and each withholding some censuses a twin
     would meet (the Codex review of P4-D365, item 2).
 
@@ -16318,6 +16327,83 @@ def weekday_decision(
         return withheld(calendar_rules.REASON_MENU)
     if calendar_rules.few_dates(groups, list(body)):
         return withheld(calendar_rules.REASON_FEW_DATES, entry)
+    # THE COUNT'S ROOM (plan P4-D388), asked at every floor since its Codex
+    # review (item 1): the most different days the twin's two tails can
+    # hold -- a listed tail's values, or for one publishing its two
+    # distances up to the floor's number and what its spread allows --
+    # and the body's pins, its two boundaries and the rungs published
+    # between them.
+    listed: "list[int | None]" = []
+    published: "list[tuple[int | None, float | None, float | None]]" = []
+    for tail in (low_tail, high_tail):
+        values = tail["values"] if "values" in tail else None
+        count = len(values) if isinstance(values, list) else None
+        listed += [count]
+        pair: "list[float | None]" = []
+        for key in ("mean_distance", "rms_distance"):
+            figure = tail[key] if key in tail else None
+            pair += [
+                float(figure)
+                if isinstance(figure, (int, float)) and not isinstance(figure, bool)
+                else None
+            ]
+        published += [(count, pair[0], pair[1])]
+    rungs = details["date_percentiles"] if "date_percentiles" in details else None
+    percents: "list[int]" = []
+    if isinstance(rungs, dict):
+        for label, num, den in LADDER:
+            if label in rungs and rungs[label] is not None:
+                percents += [(100 * num) // den]
+    pins = calendar_rules.body_pins(days, rows_low, rows_high, percents)
+    if calendar_rules.count_room_short(
+        groups,
+        pins,
+        len(set(days)),
+        calendar_rules.tails_most(
+            days,
+            rows_low,
+            rows_high,
+            (listed[0], listed[1]),
+            settings.small_cell_floor,
+        ),
+    ):
+        return withheld(calendar_rules.REASON_COUNT_ROOM, entry)
+    # AND ITS OTHER DIRECTION (the Codex review of P4-D388, item 2): the
+    # fewest and the most different days the twin's two tails can hold,
+    # rebuilt as the generator rebuilds them (method G7.3b) from their
+    # published facts, the member's own edges -- a workbook's date system
+    # is not asked, so a low tail rebuilt back to 1900 is read as the
+    # member's -- and the days the column's published absent spellings
+    # name, which the generator steps a tail's end and group off.
+    unread = details["n_unparsed"] if "n_unparsed" in details else 0
+    absent: "set[int]" = set()
+    named = details["missing_by_source"] if "missing_by_source" in details else None
+    if isinstance(named, dict):
+        for spelling in named:
+            read = parsing.parse_datetime(str(spelling), format_name)
+            if read is not None:
+                absent = absent | {
+                    tail_ordinal(read[0], parsing.TAIL_UNIT_DAY, READ_AT_LOCAL)
+                }
+    rebuilt = (
+        days,
+        rows_low,
+        rows_high,
+        (published[0], published[1]),
+        settings.small_cell_floor,
+        tail_edges(format_name, parsing.TAIL_UNIT_DAY, READ_AT_LOCAL, {}),
+        isinstance(unread, int) and n_distinct - unread >= parsed,
+        frozenset(absent),
+    )
+    if calendar_rules.count_reach_short(
+        groups,
+        pins,
+        len(set(days)),
+        calendar_rules.tails_fewest(*rebuilt),
+        calendar_rules.tails_most_rebuilt(*rebuilt),
+        frozenset(holes),
+    ):
+        return withheld(calendar_rules.REASON_COUNT_REACH, entry)
     # THE ROOM RULE BESIDE EVERY PUBLISHED HOLE BUT A WIDTH HOLE (second
     # review of landing 3b.G, item 1): May's holes, placeholder days and
     # declared days. No column between width holes was measured to miss
