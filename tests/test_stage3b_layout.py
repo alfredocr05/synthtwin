@@ -1493,3 +1493,53 @@ def test_codex_item1_the_choice_stops_at_a_layout_reading_every_row(
     described = taxonomy.profile_column("seen_at", 1, cells, ROWS, taxonomy.Settings())
     assert (described.details or {})["format"] == "layout {DD}{MON}{YYYY}:{HH}:{MI}:{SS}"
     assert reads == 1
+
+
+# Five dates beside 995 blank cells, in each kind of offset field a layout
+# has: (the five, the layout read).
+_SPARSE_SHAPES = {
+    "no_field": ([f"{day}MAR2023" for day in range(17, 22)], "layout {DD}{MON}{YYYY}"),
+    "two_figure_year": ([f"{day}-MAR-23" for day in range(17, 22)], "layout {DD}-{MON}-{YY}"),
+    "every_cell": (
+        [f"202303{day}140500+0100" for day in range(17, 22)],
+        "layout {YYYY}{MM}{DD}{HH}{MI}{SS}{+HHMM}",
+    ),
+    "zulu": ([f"202303{day}T140500Z" for day in range(17, 22)], "layout {YYYY}{MM}{DD}T{HH}{MI}{SS}{Z}"),
+    "some_cells": (
+        [f"202303{day}140500" + ("-0500" if day % 2 else "") for day in range(17, 22)],
+        "layout {YYYY}{MM}{DD}{HH}{MI}{SS}{+HHMM?}",
+    ),
+}
+
+
+@pytest.mark.parametrize("name", sorted(_SPARSE_SHAPES))
+def test_codex_item2_a_sparse_layout_column_loads_as_it_was_written(
+    tmp_path: pathlib.Path, name: str
+) -> None:
+    """Item 2: five dates beside 995 blank cells, at floor 11, load and are checked.
+
+    Each census pools its five, `{"(withheld)": 5}` -- on a layout with no
+    offset field a pool of `(none)` -- and LY4 refused the pool wherever
+    the layout had no offset field, blaming an edited description that
+    `synthtwin profile` had written, as it would again. Every one loads
+    now, as the same five in ISO's spelling do; the twins validate, but
+    the run some of whose cells write an offset, whose pooled census
+    leaves the twin no offset to write: it misses its two class counts
+    and nothing else, the limit plan P4-D383 states. Mutant, run: the
+    pool admitted only beside an offset field, and the first two shapes
+    fail to load.
+    """
+    five, layout = _SPARSE_SHAPES[name]
+    block, profile, _questions = _described(tmp_path, five + [""] * 995)
+    assert block["format"] == layout
+    assert block["utc_offsets"] == {"(withheld)": 5}
+    contract.load_profile(str(profile))
+    twin, written = _twin(profile, 0)
+    assert len(written) == 5
+    code, report = _validated(profile, twin)
+    if name != "some_cells":
+        assert code == 0
+        return
+    assert code == 3
+    missed = {line.split(" [")[0].strip() for line in report.splitlines() if line.rstrip().endswith(": MISSED")}
+    assert missed == {"counts.n_numeric", "counts.n_not_numeric"}

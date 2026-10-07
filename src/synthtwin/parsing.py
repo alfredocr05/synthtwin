@@ -9267,8 +9267,13 @@ def layout_offset_writable(name: str, offset: str) -> bool:
 
     `(none)` only where the field is optional or there is none; `Z` only on
     a zulu field or a signed one; a signed offset only on a signed field,
-    and on `{+HH}` only a whole hour. `(withheld)` on any field that writes
-    one. Rule LY4 asks this of every key of `utc_offsets`.
+    and on `{+HH}` only a whole hour. `(withheld)` on every layout, with an
+    offset field or none (the Codex review of landing R2a, item 2): the
+    pool is the census's one count where no key reaches the line, and on a
+    layout with no field it pools `(none)` -- five SAS dates beside 995
+    blank cells published `{"(withheld)": 5}`, which the loader refused,
+    as the same five written in ISO's spelling are not. Rule LY4 asks this
+    of every key of `utc_offsets`.
     """
     if not isinstance(name, str):
         raise TypeError(_NOT_TEXT)
@@ -9276,7 +9281,7 @@ def layout_offset_writable(name: str, offset: str) -> bool:
         raise TypeError(_NOT_TEXT)
     field = layout_offset_field(name)
     if offset == MISSING_WITHHELD:
-        return bool(field)
+        return True
     if offset == "(none)":
         return not field or layout_offset_optional(name)
     if not field:
