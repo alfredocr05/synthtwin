@@ -6520,12 +6520,16 @@ day.
 WHAT THE PRODUCER WITHHOLDS BESIDE THEM (plans P4-D365 and P4-D388,
 under the owner's principle of 2026-10-01 that the threat is a HIPAA
 exposure and never a reader rebuilding counts from a description) are
-four CONSERVATIVE rules, set on the cases measured where a twin missed,
-decided on the table's own dates and so not checkable on load. None
-proves a census impossible to meet: each withholds some a twin would
-meet, and that is its price -- the column loses its weekday statistic
--- against a twin that would otherwise miss its own count of different
-values. A census is withheld where a non-empty group holds fewer than
+four rules, set on the cases measured where a twin missed, decided on
+the table's own dates and so not checkable on load. None proves a census
+impossible to meet: each withholds some a twin would meet, and that is
+its price -- the column loses its weekday statistic -- against a twin
+that would otherwise miss its own count of different values. The two
+count rules are held to the orchestrator's ruling of 2026-10-07 on that
+price: a census its twins meet at nine seeds in ten or more stands, so
+they withhold only where a twin would miss with a chance above one in
+ten, and a census they publish may still be missed at that share of
+seeds, a miss the twin's report and validation name. A census is withheld where a non-empty group holds fewer than
 three different dates of the body, or where two or more groups are
 non-empty and they hold fewer than seven and a half different dates
 each on average: there the day pass can meet the census by splitting a
@@ -6537,13 +6541,29 @@ all 21 dates and no deviation (the Codex review of P4-D365, item 2).
 The count-room rule (plan P4-D388), asked at every floor -- above 11
 alone until its Codex review (item 1) found a census at the floor of 11
 leaving a twin 27 different values for 24 at seed 17 --
-reads the room the count of different values leaves the body. A tail
-that lists its values is written on them; one that publishes its two
-distances is rebuilt with at most the floor's number of different days,
-never more than its rows, and no more than two past what its own spread
-allows (k different whole distances of one or more hold at least the
-squares of 1 to k, and one for each other row); the count pass leaves the
-body the column's different days less those its tails hold. The day
+reads the room the count of different values leaves the body: the
+column's different days less the different days the twin's two tails
+KEEP once its count pass has run. A tail that lists its values is
+written on them, and one whose column's values all differ on its rows,
+as far as the member's edge allows; any other is rebuilt as G7.3b
+rebuilds it from its published rows, distances and the floor, its end
+and group stepped off the days the column's absent spellings name, each
+drawn rank reading its own uniform word inside its own stratum, so the
+chance of every count of different days it DRAWS follows exactly from
+its shape; each rank's SPAN runs between its distances at the least and
+the largest word, and a tail's FEWEST and MOST are the fewest whole
+distances that leave one inside every span and the most that can stand
+one inside each, each its own. The count pass knows nothing of the
+census. Where the body's draw (below) and the days the tails draw pass
+the column's count it MERGES runs onto held days, nearest first, then
+the shorter run, then the lower rank: the low tail first, at most down
+to its fewest, while the high tail keeps the days it drew. Where they
+fall short it SPLITS ranks onto free days, and both tails reach their
+most. Each count rule reads the tails at all but a tenth of seeds: the
+reach rule the FEWEST they keep, the low tail at its fewest beside the
+days the high tail draws, and the room rule the MOST, the days the two
+tails draw with no merge counted, since how far a merge takes the low
+tail is not read and a day it keeps is a day the body loses. The day
 pass moves a body rank only between the two pins either side of it --
 the body's boundaries and the rungs published between them -- so the
 census needs every pin day and, inside each gap, a day of every group
@@ -6554,15 +6574,8 @@ at the floor of 36, schedules whose tails held 59 and 40 rows on a few
 days came back with 32 and more different days in their twins' tails
 and more different values than the column -- and a room equal to the
 need publishes it. Its other direction, the count-reach rule (the same
-review, item 2), reads the FEWEST and the MOST different days the twin's
-two tails can hold: a listed tail its values; a tail whose column's
-values all differ its rows, as far as the member's edge allows; any
-other tail rebuilt as G7.3b rebuilds it from its published rows,
-distances and the floor, its end and group stepped off the days the
-column's absent spellings name, each rank's SPAN running between its
-distances at the least and the largest word, and counted at the fewest
-whole distances that leave one inside every span and the most that can
-stand one inside each, each its own. The day pass keeps each body rank
+review, item 2), reads the fewest days the tails keep and the most their
+spans can hold. The day pass keeps each body rank
 inside its gap, off every day of a group the census leaves empty and off
 every published hole, and no group holds more different days than its
 count: that is what the body can REACH. Before it, the count pass meets
@@ -6574,8 +6587,8 @@ draw and the tails' most fall short of the count the pass only splits,
 spreading the tails' ranks over their own spans, and the body NEEDS
 what the tails at their most leave it; otherwise it merges, which only
 takes days away, so the body keeps no more than its draw and the tails
-no fewer than their fewest, and the need is the draw, no more than what
-the tails at their fewest leave and no less than what their most
+no fewer than the fewest they keep, and the need is the draw, no more
+than what the tails' fewest kept leave and no less than what their most
 leaves. Where the need is more than the reach, and the reach less than
 the body would reach without the census, the census is withheld --
 fourteen days from Monday 29 January 2024 whose high tail of 31 rows the

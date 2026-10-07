@@ -32,17 +32,20 @@ seed in ten. Read at the most and the fewest the twin's tails could hold,
 the two rules withheld censuses their twins met -- clinics holding every
 clinic day among them, whose twins without the census wrote most of their
 rows on days the clinic never opens. Both rules now read the tails as the
-twin's count pass leaves them (`calendar_rules.tails_kept`): it merges the
-low tail first, down to its fewest, and leaves the high tail the days it
-drew, whose law is worked out exactly from method G7.3b
-(`tail_days_law`, held to the generator's own words here); where it splits,
-both tails reach their most; and each rule reads them at all but a tenth
-of seeds (`KEPT_MISS`). The price left and the risk accepted are both
-measured and stated: a census its twins meet is still withheld where the
-low tail keeps more than its fewest and the margin is narrow, a census
-published can miss at one seed in ten, reported, and seven-day logs
-holding every day come back short with or without their census, a limit
-named for lane D4.
+twin's count pass leaves them (`calendar_rules.tails_kept`), each at all
+but a tenth of seeds (`KEPT_MISS`): the pass merges the low tail first,
+at most down to its fewest, and leaves the high tail the days it drew,
+whose law is worked out exactly from method G7.3b (`tail_days_law`, held
+to the generator's own words here), so the reach rule reads the fewest the
+tails keep -- the low tail at its fewest beside the days the high tail
+draws -- and the room rule the most, the days the two tails draw with no
+merge counted; where the pass splits, both tails reach their most. The
+price left and the risk accepted are both measured and stated: a census
+its twins meet is still withheld where the low tail keeps more days than
+its fewest and the margin is narrow, or where a merge the room rule does
+not count takes days from the tails; a census published can miss at one
+seed in ten, reported; and seven-day logs holding every day come back
+short with or without their census, a limit named for lane D4.
 
 Each test names the mutation that turns it red.
 """
@@ -98,6 +101,18 @@ def _monthly(day: int, start: int, months: int, seed: int) -> "list[str]":
     draw = random.Random(seed)
     days = [datetime.date(start + step // 12, 1 + step % 12, day) for step in range(months)]
     return [draw.choice(days).isoformat() for _row in range(1000)]
+
+
+def _monthly_spread(day: int, year: int, months: int, seed: int) -> "list[str]":
+    """One date a month, the `day`th, over `months` months from January of `year`: every date once and the rest of
+    1,000 rows drawn by weight, `Random(seed)` (D0's `monthly3` battery, its `spread`)."""
+    draw = random.Random(seed)
+    dates = [datetime.date(year + step // 12, 1 + step % 12, day) for step in range(months)]
+    weights = [draw.uniform(0.5, 1.5) for _date in dates]
+    cells = [date.isoformat() for date in dates]
+    cells += [date.isoformat() for date in draw.choices(dates, weights, k=1000 - len(dates))]
+    draw.shuffle(cells)
+    return cells
 
 
 def _hunt(seed: int) -> "list[str]":
@@ -507,18 +522,19 @@ def test_the_days_a_rebuilt_tail_draws_are_the_generator_s_own() -> None:
     The producer may not draw: it works the law out from the tail's shape.
     Over 150 tails drawn with `Random(1007)` -- rows 2 to 60, mean distances
     1 to 30, the square of the root-mean-square 1 to 6 times the mean's,
-    floors 2 to 51, edges 3 to a million -- each drawn rank's chances
-    (`_rank_law`) are shares of the generator's own words: at a word inside
-    each distance's share, near both its ends, `generation._tail_shape` and
-    the generator's own rounding put the rank at that distance. And for
-    every tail whose drawn ranks have at most 4,096 combinations of
-    distances (142 of them), each combination is handed to
-    `generation._tail_distances` through one word inside each rank's share,
-    and the different days the generator lays, weighted by the
-    combination's chance, give `_drawn_law` to within 1e-12. Red when a
-    rank's shares part from the generator's words, the law forgets the
-    group, the end or a rank raised to the group, or counts one distance
-    twice.
+    floors 2 to 51, edges 3 to a million -- each drawn rank's words
+    (`_rank_words`) are the generator's own, word for word: the first and
+    the last word of each distance's run put the rank, through
+    `generation._tail_shape` and the generator's own rounding, at that
+    distance, the runs follow one another and fill the word scale, and the
+    chances (`_rank_law`) are their shares. And for every tail whose drawn
+    ranks have at most 4,096 combinations of distances (142 of them), each
+    combination is handed to `generation._tail_distances` through the first
+    word of each rank's run, and the different days the generator lays,
+    weighted by the combination's chance, give `_drawn_law` to within
+    1e-12. Red when a rank's runs part from the generator's words by one
+    word, the law forgets the group, the end or a rank raised to the group,
+    or counts one distance twice.
     """
     scale = 2**64
     draw = random.Random(1007)
@@ -537,20 +553,19 @@ def test_the_days_a_rebuilt_tail_draws_are_the_generator_s_own() -> None:
         drawn = list(range(1, min(shape.grouped, rows)))
         choices: "list[list[tuple[int, float, int]]]" = []
         for index in drawn:
+            runs = calendar_rules._rank_words(rows, rebuilt, edge, index)
             ranked = calendar_rules._rank_law(rows, rebuilt, edge, index)
             options: "list[tuple[int, float, int]]" = []
-            below = 0.0
-            for distance in sorted(ranked):
-                share = ranked[distance]
-                inside = [int((below + share / 2.0) * scale)]
-                if share > 2.0**-30:
-                    inside += [int(below * scale) + 2**34, int((below + share) * scale) - 2**34]
-                for word in inside:
+            first = 0
+            for distance, words in runs:
+                assert words > 0 and ranked[distance] == words / scale, (case, index, distance)
+                for word in (first, first + words - 1):
                     s = ((rows - 1 - index) * scale + word) / (rows * scale)
                     placed = max(1, generation._half_up(shape.stretch * generation._mixture_at(shape, s)))
                     assert min(placed, edge) == distance, (case, index, distance, word)
-                options += [(distance, share, inside[0])]
-                below = below + share
+                options += [(distance, words / scale, first)]
+                first = first + words
+            assert first == scale and [distance for distance, _words in runs] == sorted(ranked), (case, index)
             choices += [options]
         combinations = 1
         for options in choices:
@@ -571,28 +586,29 @@ def test_the_days_a_rebuilt_tail_draws_are_the_generator_s_own() -> None:
     assert enumerated == 142, enumerated
 
 
-def test_the_tails_kept_are_the_low_tail_merged_to_its_fewest_and_the_high_tail_as_drawn(tmp_path: pathlib.Path) -> None:
+def test_the_tails_kept_are_the_low_tail_merged_to_its_fewest_and_both_tails_as_drawn(tmp_path: pathlib.Path) -> None:
     """`calendar_rules.tails_kept`: what the twin's count pass leaves its two tails, read at all but a tenth of seeds.
 
     The count pass merges runs nearest first, then the shorter, then the
-    LOWER rank, so it merges the low tail first and the high tail last.
-    `_two_rows_a_business_day()` at the floor of 11 draws more days than
-    its count (`body_draw` 549.6 and the tails' draws past 520): the pass
-    merges, the low tail goes down to its fewest, 5, and the high tail
-    keeps the 5 to 8 days it draws, 7 or fewer at a chance of 0.62 and 6 or
-    fewer at 0.08 -- so the tails keep 12 days at the least and 13 at the
-    most, where the high tail's fewest would read 12 and 12 and the two
-    tails' roles swapped 14. `_hunt(1084)` draws far more days than its
-    count too: 7 and the high tail's 11, kept 18 and 18. And
-    `_one_row_a_business_day()` draws about 833 of its 1,180 days: the pass
-    splits and both tails spread to their most, 22, so kept is 22 and 22.
-    Red when the low tail is read at its draw or the high tail at its
-    fewest or its most, the two tails' roles are swapped, the share of
-    seeds is not `KEPT_MISS`, or a split is read as a merge.
+    LOWER rank, so it merges the low tail first, at most down to its
+    fewest, and the high tail last. `_two_rows_a_business_day()` at the
+    floor of 11 draws more days than its count (`body_draw` 549.6 and the
+    tails' draws past 520): the pass merges, so the FEWEST the tails keep
+    is the low tail's fewest, 5, beside the 5 to 8 days the high tail
+    draws, 7 or fewer at a chance of 0.62 and 6 or fewer at 0.08 -- 12 --
+    and the MOST counts no merge: the two tails draw 16 days or fewer at a
+    chance of at least 0.9 -- 16. `_hunt(1084)` draws far more days than its
+    count too: 7 and the high tail's 11 at the fewest, 18, and 22 at the
+    most. And `_one_row_a_business_day()` draws about 833 of its 1,180 days:
+    the pass splits and both tails spread to their most, 22, so kept is 22
+    and 22. Red when the fewest reads the low tail at its draw or the high
+    tail at its fewest or its most, the two tails' roles are swapped, the
+    most counts a merge, the share of seeds is not `KEPT_MISS`, or a split
+    is read as a merge.
     """
     for name, cells, kept, fewest_low in (
-        ("two", _two_rows_a_business_day(), (12, 13), 5),
-        ("hunt", _hunt(1084), (18, 18), 7),
+        ("two", _two_rows_a_business_day(), (12, 16), 5),
+        ("hunt", _hunt(1084), (18, 22), 7),
         ("one", _one_row_a_business_day(), (22, 22), None),
     ):
         described = _described(tmp_path, f"kept-{name}", cells, 11)
@@ -604,14 +620,20 @@ def test_the_tails_kept_are_the_low_tail_merged_to_its_fewest_and_the_high_tail_
         )
         edges = taxonomy.tail_edges(block["format"], parsing.TAIL_UNIT_DAY, "local", {})
         handed = (ordered, block["low_tail"]["rows"], block["high_tail"]["rows"], (sides[0], sides[1]), 11, edges, False, frozenset())
-        high = calendar_rules.tail_days_law(*handed, False)
         if fewest_low is None:
             assert kept == (calendar_rules.tails_most_rebuilt(*handed),) * 2, name
             continue
+        low = calendar_rules.tail_days_law(*handed, True)
+        high = calendar_rules.tail_days_law(*handed, False)
+        together: "dict[int, float]" = {}
+        for low_days in low:
+            for high_days in high:
+                both = low_days + high_days
+                together[both] = (together[both] if both in together else 0.0) + low[low_days] * high[high_days]
         assert calendar_rules._side_counted(*handed[:3], sides[0], 11, edges, False, frozenset(), True, False) == fewest_low
         assert kept == (
             fewest_low + calendar_rules._law_reached(high, calendar_rules.KEPT_MISS, True),
-            fewest_low + calendar_rules._law_reached(high, 1.0 - calendar_rules.KEPT_MISS, False),
+            calendar_rules._law_reached(together, 1.0 - calendar_rules.KEPT_MISS, False),
         ), name
     assert calendar_rules.KEPT_MISS == 0.1
 
@@ -627,7 +649,7 @@ def test_a_raised_floor_withholds_a_schedule_whose_twin_would_go_long(
     floor of 11, met by their twins at seeds 0 to 2. At 36 their tails
     hold 59 and 40, and 57 and 36, rows over a handful of days, publish
     their two distances and are rebuilt over many more: the twin keeps 52
-    to 55, and 50 to 53, days in them (`calendar_rules.tails_kept`), more
+    to 67, and 50 to 56, days in them (`calendar_rules.tails_kept`), more
     than the column's own 35 and 46, so the count pass leaves the body no
     room where the census needs 5 and 13: withheld, `count_room`, in the
     sentence every rule the table's own numbers decide shares. Restored,
@@ -648,7 +670,7 @@ def test_a_raised_floor_withholds_a_schedule_whose_twin_would_go_long(
     assert (block["low_tail"]["rows"], block["high_tail"]["rows"]) == (low, high)
     assert block["low_tail"]["values"] is None and block["high_tail"]["values"] is None
     assert block["weekday_census"] == [], block["weekday_census"]
-    assert _kept(block, cells, 36) == {0: (52, 55), 92: (50, 53)}[shape]
+    assert _kept(block, cells, 36) == {0: (52, 67), 92: (50, 56)}[shape]
     decided = _decided(block, cells, 36)
     assert decided.reason == calendar_rules.REASON_COUNT_ROOM, decided.reason
     said = [entry["note"] for entry in described.document["publication_notes"] if entry["column"] == "visit"]
@@ -663,8 +685,8 @@ def test_one_date_a_month_at_the_floor_of_50_is_withheld_and_restored_comes_back
     day of every group in every gap. Up to the floor of 36 both tails
     list their values and the body keeps room: the census is published
     and its twins at seeds 0 to 2 miss nothing. At 50 the low tail's 61
-    rows publish their two distances, and the twin keeps 29 days in its
-    tails, which leaves the body too few for its census: withheld,
+    rows publish their two distances, and the twin keeps 29 to 52 days in
+    its tails, which leaves the body too few for its census: withheld,
     `count_room`, and restored its twins at seeds 0 to 2 hold 75 to 77
     different values for 60. Red when the rule is not asked or a listed
     tail is read as distances.
@@ -682,7 +704,7 @@ def test_one_date_a_month_at_the_floor_of_50_is_withheld_and_restored_comes_back
     block = described.block("visit")
     assert block["low_tail"]["values"] is None and block["low_tail"]["rows"] == 61, block["low_tail"]
     assert block["weekday_census"] == [], block["weekday_census"]
-    assert _kept(block, cells, 50) == (29, 29)
+    assert _kept(block, cells, 50) == (29, 52)
     assert _decided(block, cells, 50).reason == calendar_rules.REASON_COUNT_ROOM
     _restored_twins_long(tmp_path, "monthly50", described, cells, 50)
 
@@ -708,21 +730,24 @@ def test_the_producer_hands_both_rules_the_block_s_pins_and_tails(
     the block's tails -- their rows, listed values and two distances, the
     settings floor, the member's own edges, the column's values not all
     different and no absent day -- and from the same pins and no published
-    hole: the room rule the most, 55 at 36, 22 at 20 and 12 at 11, and the
+    hole: the room rule the most, 67 at 36, 22 at 20 and 12 at 11, and the
     reach rule the fewest, 20 at 20 and 11 at 11, beside the most the
     generator's own layout lets the tails hold, 22 and 12. At 36 the room
     rule withholds and the reach rule is not asked. `_weekly_schedule(49)`
     at the floor of 20 holds tails that differ: its low tail's 49 rows
     publish their distances and its high tail's 34 list two values, so the
     tails it keeps are 10 and 10, where the two tails' rows handed the other
-    way round keep 13 and 13. Red when the rungs are not handed over, the
+    way round keep 13 and 13. And `_hunt(1220)` at 11, whose tails keep 13
+    and 13 days where their spans can hold 14, hands the reach rule the 14
+    as its most, the hard bound its need is never below. Red when the rungs
+    are not handed over, the
     column's rows or its published count stand for its days, the settings
     floor is not read, a listed tail is handed over as one publishing its
     distances, the two tails' rows are handed over the other way round, the
     rules' pins part from the generator's body pins, the reach rule's most
     parts from the generator's layout, the room rule is handed anything but
-    the tails' kept most or the reach rule anything but their kept fewest,
-    or either rule is not asked at the floor of 11.
+    the tails' kept most, the reach rule anything but their kept fewest and
+    their spans' most, or either rule is not asked at the floor of 11.
     """
     seen: "list[tuple[object, ...]]" = []
     reached: "list[tuple[object, ...]]" = []
@@ -760,7 +785,7 @@ def test_the_producer_hands_both_rules_the_block_s_pins_and_tails(
     cells = _weekly_schedule(0)
     ordered = sorted(_day(cell) for cell in cells)
     for floor, ranks, least, most, widest in (
-        (36, [59, 67, 134, 201, 229], 52, 55, None),
+        (36, [59, 67, 134, 201, 229], 52, 67, None),
         (20, [21, 26, 67, 134, 201, 242, 246], 20, 22, 22),
         (11, [14, 26, 67, 134, 201, 242, 255], 11, 12, 12),
     ):
@@ -823,42 +848,56 @@ def test_the_producer_hands_both_rules_the_block_s_pins_and_tails(
     pins = seen[0][0]
     assert calendar_rules.tails_kept(ordered_differing, low, high, sides, 20, edges, False, frozenset(), pins) == (10, 10)
     assert calendar_rules.tails_kept(ordered_differing, high, low, sides, 20, edges, False, frozenset(), pins) == (13, 13)
+    seen.clear()
+    reached.clear()
+    kept.clear()
+    described = _described(tmp_path, "hunt1220", _hunt(1220), 11)
+    assert len(kept) == 1 and kept[0][10] == (13, 13), kept
+    assert len(reached) == 1 and reached[0][2:4] == (13, 14) == (13, _layout_most(described, 11)), reached
 
 
 def test_at_the_floor_of_11_a_census_its_twins_meet_at_every_seed_is_published(tmp_path: pathlib.Path) -> None:
-    """The count-room rule's price at 11, ruled away (the orchestrator's ruling of 2026-10-07): a census its twins meet stands.
+    """The count-room rule's price at 11, ruled (the orchestrator's ruling of 2026-10-07): a census its twins meet stands.
 
-    `_hunt(1084)`, 95 visits over 24 days (D0's hunt batteries), at the
-    floor of 11: both tails publish their distances, 17 and 13 rows. Read
-    at their most, the floor's number each, 22, they leave the body 2 of
-    its 24 days where the census the menu offers, Monday to Friday against
-    the weekend, needs 6, and 3841dd8 withheld it -- one of the 15 censuses
+    `_hunt(1220)`, 124 visits over 22 days (D0's hunt batteries), at the
+    floor of 11: both tails publish their distances, 13 and 18 rows. Read
+    at the floor's number each, 22 days, they leave the body none of its
+    22 where the census the menu offers, Monday to Friday 81 against the
+    weekend 12, needs 8, and 3841dd8 withheld it -- one of the 15 censuses
     of the 26 batteries the rule withheld at 11, every one met by its
-    twins. The twin's count pass merges the low tail first, down to its
-    fewest, 7, and the high tail keeps the days it draws, 11 at a chance of
-    0.93: the tails keep 18 at all but a tenth of seeds, which leaves the
-    body the 6 its census needs, and the census is published. Its twins at
-    seeds 0 to 9 meet every check. Red when the room rule reads the tails
-    at their most again, the low tail at the days it draws, or the high
-    tail at its most where its draw is the law.
+    twins. The twin's two tails draw 13 days at most at all but a tenth of
+    seeds (`calendar_rules.tails_kept`; their spans could hold 14), which
+    leaves the body 9, past the 8 its census needs: published, and its
+    twins at seeds 0 to 9 meet every check. Of the 15, 11 are published
+    now; four -- `_hunt(1084)` among them, its tails drawing 22 days -- stay
+    withheld though their twins meet them, the price of reading the room
+    at the days the tails draw, no merge counted (P4-D388). Red when the
+    room rule reads the tails at their most again or counts a merge it
+    cannot be sure of.
     """
-    cells = _hunt(1084)
-    described = _described(tmp_path, "hunt1084", cells, 11)
+    cells = _hunt(1220)
+    assert (len(cells), len(set(cells))) == (124, 22)
+    described = _described(tmp_path, "hunt1220", cells, 11)
     block = described.block("visit")
-    assert (block["low_tail"]["rows"], block["high_tail"]["rows"]) == (17, 13)
+    assert (block["low_tail"]["rows"], block["high_tail"]["rows"]) == (13, 18)
     assert block["low_tail"]["values"] is None and block["high_tail"]["values"] is None
     groups = tuple((group["first"], group["last"], group["count"]) for group in block["weekday_census"])
-    assert groups == ((0, 4, 29), (5, 6, 36)), groups
+    assert groups == ((0, 4, 81), (5, 6, 12)), groups
     assert _decided(block, cells, 11).reason == ""
-    assert _kept(block, cells, 11) == (18, 18)
+    assert _kept(block, cells, 11) == (13, 13)
     ordered = tuple(sorted(_day(cell) for cell in cells))
     rungs = block["date_percentiles"]
     percents = [(100 * num) // den for label, num, den in taxonomy.LADDER if rungs[label] is not None]
-    pins = calendar_rules.body_pins(ordered, 17, 13, percents)
-    assert not calendar_rules.count_room_short(groups, pins, 24, 18)
-    assert calendar_rules.count_room_short(groups, pins, 24, 19)
-    assert calendar_rules.count_room_short(groups, pins, 24, 22)
-    _twins_meet(tmp_path, "hunt1084", described.loaded, tuple(range(10)))
+    pins = calendar_rules.body_pins(ordered, 13, 18, percents)
+    assert not calendar_rules.count_room_short(groups, pins, 22, 13)
+    assert not calendar_rules.count_room_short(groups, pins, 22, 14)
+    assert calendar_rules.count_room_short(groups, pins, 22, 15)
+    assert calendar_rules.count_room_short(groups, pins, 22, 22)
+    _twins_meet(tmp_path, "hunt1220", described.loaded, tuple(range(10)))
+    held = _hunt(1084)
+    withheld = _described(tmp_path, "hunt1084", held, 11).block("visit")
+    assert _decided(withheld, held, 11).reason == calendar_rules.REASON_COUNT_ROOM
+    assert _kept(withheld, held, 11) == (18, 22)
 
 
 def test_at_the_floor_of_11_a_census_whose_twin_at_seed_17_went_long_is_withheld(tmp_path: pathlib.Path) -> None:
@@ -873,12 +912,11 @@ def test_at_the_floor_of_11_a_census_whose_twin_at_seed_17_went_long_is_withheld
     lets a published census miss -- and at Codex's seed 17, 25 to 27
     different values for 24, each reported by validation's MISSED lines on
     both distinct counts, where with the census emptied they hold 24. The
-    twin's count pass merges the low tail down to its fewest, 7, and the
-    high tail keeps the 10 or 11 days it draws: the tails keep 17 to 18,
-    the body is left 6 or 7 where the census needs 9, and the census is
-    withheld, `count_room`; its twins at seeds 0 to 9 and 17 meet every
-    check. Red when the count-room rule is not asked at the floor of 11, or
-    reads the high tail at its fewest.
+    twin's two tails draw 22 days at most at all but a tenth of seeds
+    (`calendar_rules.tails_kept`), which leave the body 2 where the census
+    needs 9, and the census is withheld, `count_room`; its twins at seeds 0
+    to 9 and 17 meet every check. Red when the count-room rule is not asked
+    at the floor of 11.
     """
     cells = _moved_hunt_690()
     assert (len(cells), len(set(cells))) == (131, 24)
@@ -888,7 +926,7 @@ def test_at_the_floor_of_11_a_census_whose_twin_at_seed_17_went_long_is_withheld
     assert block["low_tail"]["values"] is None and block["high_tail"]["values"] is None
     assert block["weekday_census"] == [], block["weekday_census"]
     assert _decided(block, cells, 11).reason == calendar_rules.REASON_COUNT_ROOM
-    assert _kept(block, cells, 11) == (17, 18)
+    assert _kept(block, cells, 11) == (17, 22)
     _twins_meet(tmp_path, "moved690", described.loaded, tuple(range(10)) + (17,))
     restored = _restored(tmp_path, "moved690", described, cells, 11)
     column = restored.columns[0]
@@ -896,6 +934,37 @@ def test_at_the_floor_of_11_a_census_whose_twin_at_seed_17_went_long_is_withheld
     assert column.facts.weekday_census == ((0, 4, 73), (5, 6, 31)), column.facts.weekday_census
     _twins_off(tmp_path, "moved690", restored, (2, 3, 6, 7, 9, 17), 24, True)
     _twins_meet(tmp_path, "moved690-met", restored, (0, 1, 4, 5, 8))
+
+
+def test_a_low_tail_whose_days_stand_apart_keeps_them_and_its_census_is_withheld(tmp_path: pathlib.Path) -> None:
+    """Why the room rule counts no merge (the ruling of 2026-10-07, measured): the low tail is not merged to its fewest.
+
+    The 15th of every month from January 2018, 60 months over 1,000 rows
+    (D0's `monthly3:fifteenth_2018_60m`), at the floor of 36: the low
+    tail's 42 rows publish their two distances, rebuilt over 33 to 36
+    days that stand weeks apart, and the high tail lists its two dates.
+    The census the menu offers, every weekday its own group, needs 39 days
+    of the body. Read with the low tail merged down to its fewest, 19, the
+    tails would keep 21 and leave the body exactly 39, and the census would
+    be published -- but the count pass merges few of those days, the twins'
+    low tails keep 26 to 29, and the census restored sends every twin at
+    seeds 0 to 9 back with 67 to 70 different values for 60, both counts
+    MISSED. The room rule reads the most the tails keep with no merge
+    counted, 38, and withholds it, `count_room`. Red when the room rule
+    reads the low tail at its fewest.
+    """
+    cells = _monthly_spread(15, 2018, 60, 7144)
+    assert (len(cells), len(set(cells))) == (1000, 60)
+    described = _described(tmp_path, "fifteenth", cells, 36)
+    block = described.block("visit")
+    assert (block["low_tail"]["rows"], block["high_tail"]["rows"]) == (42, 41)
+    assert block["low_tail"]["values"] is None and block["high_tail"]["values"] == ["2022-11-15", "2022-12-15"]
+    assert block["weekday_census"] == [], block["weekday_census"]
+    assert _decided(block, cells, 36).reason == calendar_rules.REASON_COUNT_ROOM
+    assert _kept(block, cells, 36) == (21, 38)
+    restored = _restored(tmp_path, "fifteenth", described, cells, 36)
+    _twins_off(tmp_path, "fifteenth", restored, tuple(range(10)), 60, True)
+    _twins_meet(tmp_path, "fifteenth", described.loaded, (0, 1, 2))
 
 
 def test_the_count_reach_rule_reads_what_the_census_lets_the_body_reach() -> None:
@@ -1328,10 +1397,11 @@ def test_two_rows_a_business_day_keep_their_census_and_its_twins_meet_it(tmp_pat
     holds a row, so it reaches the body's own days, 508 -- and the census
     was withheld at the floors of 11, 20, 36 and 50, though its twins met
     it, writing 26 to 32 per cent of their rows on weekends without it.
-    The pass merges the low tail first, its ranks the column's lowest,
-    down to its fewest, 5, and the high tail keeps the 7 or 8 days it
-    draws: the tails keep 12 at all but a tenth of seeds, the body needs
-    508, the reach, and the census is published at all four floors. Its
+    The pass merges the low tail first, its ranks the column's lowest, at
+    most down to its fewest, 5, and the high tail keeps the 7 or 8 days it
+    draws: the tails keep 12 at the fewest at all but a tenth of seeds, the
+    body needs 508, the reach, and the census is published at all four
+    floors. Its
     twins at seeds 0 to 9 at the floor of 11 meet every check. Red when
     the reach rule reads the tails at their fewest again, or the high
     tail at its fewest.
@@ -1348,7 +1418,7 @@ def test_two_rows_a_business_day_keep_their_census_and_its_twins_meet_it(tmp_pat
             continue
         assert block["low_tail"]["values"] is None and block["high_tail"]["values"] is None
         assert (_layout_fewest(described, 11), _layout_most(described, 11)) == (10, 16)
-        assert _kept(block, cells, 11) == (12, 13)
+        assert _kept(block, cells, 11) == (12, 16)
         _twins_meet(tmp_path, "two11", described.loaded, tuple(range(10)))
 
 
@@ -1577,7 +1647,7 @@ _BATTERY = {
     ("schedule", 1): ("", "", _ROOM, _ROOM),
     ("schedule", 92): ("", "", _ROOM, _ROOM),
     ("clinic", 45): ("", "", _ROOM, _ROOM),
-    ("schedule", 5): ("", "", "", ""),
+    ("schedule", 5): ("", "", "", _ROOM),
     ("schedule", 6): ("", "", "", _ROOM),
     ("schedule", 4): ("", "", "", ""),
     ("schedule", 17): ("", "", "", ""),
@@ -1594,13 +1664,14 @@ def test_nine_schedules_take_their_measured_decisions_and_their_published_census
     Weekly schedules and clinics of the review's batteries. At 493f6f8
     the census of `schedule` 0 at the floor of 36, and of `schedule` 1
     and 92 and `clinic` 45 at 36 and 50, left their twins long: each is
-    withheld now. `schedule` 5 at 36 and 50, which 3841dd8 withheld by
-    reading its rebuilt tails at the most the floor allows, is published
-    since the ruling of 2026-10-07, the tails read as the twin keeps them,
-    its twins at seeds 0 to 9 meeting it; `schedule` 6 at 50 is withheld
-    still though its twins meet it -- the rules' price, its high tail read
-    at the days it draws where a body merged down to a few days takes some
-    of them. `schedule` 4 and 17 and `clinic` 61, their tails listing their
+    withheld now. `schedule` 5 at 36, which 3841dd8 withheld by reading its
+    rebuilt tails at the most the floor allows, is published since the
+    ruling of 2026-10-07, the tails read as the twin keeps them, its twins
+    at seeds 0 to 9 meeting it; at 50 it is withheld still, and `schedule` 6
+    at 50 too, though their twins meet them -- the rules' price, the room
+    read at the days the tails draw, no merge counted, where a body merged
+    down to a few days takes some of them. `schedule` 4 and 17 and `clinic`
+    61, their tails listing their
     values, publish at every floor, and `schedule` 0 again at 50, where its
     census is Monday to Friday against the weekend and needs no day past
     the pin days. Every twin of a census published here, at seeds 0 and
@@ -1670,20 +1741,24 @@ def test_fifteen_mondays_at_the_floor_of_36_come_back_long_with_or_without_their
 
 
 def test_k_s3_59_claims_what_was_measured_and_states_the_limit_beside_it() -> None:
-    """K-S3-59 and the landing's changelog entry say what was measured, never that every census keeps its count (item 3).
+    """K-S3-59, P4-D388 and the landing's changelog entry say what was measured, and name the price on its columns.
 
     The ledger entry's name said that every census published keeps its
     twins' count, which fifteen Mondays at the floor of 36 disprove, the
-    census not their cause. Its name now claims what its nodes and the
-    batteries measured, its evidence and the changelog name the limit,
-    and neither says the rules repair it. And the verification of the
-    review found the count-reach rule's price recorded on the wrong
-    columns, logs of one and a half to two rows a business day: P4-D388,
-    the entry's evidence and the changelog now name the columns it falls
-    on, those holding a row on every day their census allows, as
-    `test_the_reach_rule_s_price_falls_where_every_day_the_census_allows_holds_a_row`
+    census not their cause (the Codex review, item 3). Its name claims
+    what its nodes and the batteries measured, and its evidence and the
+    changelog name the limit. Its verification found the count-reach
+    rule's price recorded on the wrong columns, logs of one and a half to
+    two rows a business day; the second found the class still too sharp
+    (a column with one to three allowed days empty paid it too). Since the
+    ruling of 2026-10-07 -- a census its twins meet at nine seeds in ten or
+    more stands -- P4-D388, the entry's evidence and the changelog name the
+    price the rules leave where it falls, where the twin's low tail keeps
+    more days than its fewest, as
+    `test_the_rules_price_is_a_census_its_twins_meet_whose_low_tail_keeps_more_than_its_fewest`
     holds. Red when the name claims every published census again, the
-    limit goes unnamed, or the price is put back on rows a business day.
+    limit goes unnamed, the ruling or the price's columns go unnamed, or the
+    price is put back on rows a business day.
     """
     ledger = json.loads((_ROOT / "tests" / "kpi" / "ledger.json").read_text(encoding="utf-8"))
     entry = [item for item in ledger["entries"] if item["id"] == "K-S3-59"][0]
@@ -1701,5 +1776,6 @@ def test_k_s3_59_claims_what_was_measured_and_states_the_limit_beside_it() -> No
     decision = plan[begin:] if end < 0 else plan[begin:end]
     for name, text in (("P4-D388", decision), ("K-S3-59", entry["evidence"]), ("the changelog", section)):
         flat = " ".join(text.split())
-        assert "every day their census allows" in flat, name
+        assert "nine seeds in ten" in flat, name
+        assert "low tail keeps more days than its fewest" in flat, name
         assert "one and a half to two rows a business day" not in flat, name

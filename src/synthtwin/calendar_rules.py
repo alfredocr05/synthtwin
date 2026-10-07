@@ -1673,8 +1673,8 @@ def tails_most_rebuilt(
     one inside each rank's span, each a distance of its own
     (`_most_spots`): the days the count pass can spread it onto, moving
     ranks that share a day onto free days of their own spans. Never fewer
-    than `tails_fewest`, and never more than `tails_most`, which counts
-    a tail's floor and spread rather than its spans.
+    than `tails_fewest`; a tail of distances holds no more than the
+    floor's number of days, its ranks past it sharing one distance.
 
     Guarantees: accepts what `tails_fewest` accepts; returns the sum.
     Determinism: a function of the eight. Raises nothing. No I/O.
@@ -1699,17 +1699,18 @@ def _weekday_days(first: int, last: int) -> "list[int]":
     return found
 
 
-def _rank_law(
+def _rank_words(
     rows: int,
     rebuilt: "tuple[tuple[float, int, float], float, int, int, int]",
     edge: int,
     index: int,
-) -> "dict[int, float]":
-    """The chance of each whole distance drawn rank `index` of a rebuilt
-    tail stands at (G7.3b): its word is uniform over the generator's word
-    scale and its distance never falls as the word rises, so the largest
-    word giving each distance is found by halving the words, and the
-    distance's chance is the share of words giving it."""
+) -> "list[tuple[int, int]]":
+    """How many of the generator's words put drawn rank `index` of a
+    rebuilt tail at each whole distance (G7.3b), nearest first: its word
+    is uniform over the word scale and its distance never falls as the
+    word rises, so the largest word giving each distance is found by
+    halving the words. Exact: whole numbers of words, summing to the
+    scale."""
     mixture, stretch, _end, _group, _grouped = rebuilt
 
     def drawn(word: int) -> int:
@@ -1718,7 +1719,7 @@ def _rank_law(
 
     near = drawn(0)
     far = drawn(_REBUILT_WORDS - 1)
-    law: "dict[int, float]" = {}
+    found: "list[tuple[int, int]]" = []
     below = 0
     for distance in range(near, far):
         low, high = 0, _REBUILT_WORDS - 1
@@ -1729,9 +1730,24 @@ def _rank_law(
             else:
                 high = middle
         if low + 1 > below:
-            law[distance] = (low + 1 - below) / _REBUILT_WORDS
+            found += [(distance, low + 1 - below)]
             below = low + 1
-    law[far] = (_REBUILT_WORDS - below) / _REBUILT_WORDS
+    found += [(far, _REBUILT_WORDS - below)]
+    return found
+
+
+def _rank_law(
+    rows: int,
+    rebuilt: "tuple[tuple[float, int, float], float, int, int, int]",
+    edge: int,
+    index: int,
+) -> "dict[int, float]":
+    """The chance of each whole distance drawn rank `index` of a rebuilt
+    tail stands at (G7.3b): the share of the generator's words giving it
+    (`_rank_words`)."""
+    law: "dict[int, float]" = {}
+    for distance, words in _rank_words(rows, rebuilt, edge, index):
+        law[distance] = words / _REBUILT_WORDS
     return law
 
 
@@ -1909,18 +1925,23 @@ def tails_kept(
     days the two tails draw in expectation (`tail_days_law`) pass the
     column's count of different days, it MERGES runs onto held days,
     nearest first, then the shorter run, then the LOWER rank: the low
-    tail's ranks are the column's lowest, so it is merged first, down to
-    its fewest days (`_side_counted`), and the high tail's are the
-    highest, so it keeps the days it drew -- measured on the twins of the
-    batteries and logs plan P4-D388 names, where a high tail lost a day
-    only beside a body merged down to a few days. Where they fall short
-    it SPLITS ranks onto free days, the low tail first again, and both
-    tails spread to their most (`tails_most_rebuilt`). So, merging, the
-    fewest is the low tail's fewest and the least count the high tail
-    draws with a chance above `KEPT_MISS` of drawing no more, and the most
-    the low tail's fewest and the least count the high tail draws with a
-    chance of at least `1 - KEPT_MISS` of drawing no more; splitting, both
-    are the two tails' most.
+    tail's ranks are the column's lowest, so it is merged first, at most
+    down to its fewest days (`_side_counted`), and the high tail's are the
+    highest, so it keeps the days it drew. Where they fall short it SPLITS
+    ranks onto free days, the low tail first again, and both tails spread
+    to their most (`tails_most_rebuilt`). So, merging, the FEWEST is the
+    low tail's fewest and the least count the high tail draws with a
+    chance above `KEPT_MISS` of drawing no more; and the MOST counts no
+    merge at all -- the least count the two tails draw together with a
+    chance of at least `1 - KEPT_MISS` of drawing no more -- because how
+    far a merge takes the low tail is not read here, and a day it keeps is
+    a day the body loses. Measured (plan P4-D388): the low tail kept two
+    days above its fewest on the median of the twins measured and ten on
+    a column of monthly dates whose low tail's days stand apart, whose
+    census a most read at that fewest published, its twins long at every
+    seed; and the high tail gave up days where the pass took more than a
+    quarter of the body's drawn days, which neither end counts.
+    Splitting, both are the two tails' most.
 
     Guarantees: accepts what `tails_fewest` accepts, the pins and the
     holes; returns the fewest and the most, the fewest never above the
@@ -1939,7 +1960,13 @@ def tails_kept(
         True, False,
     )
     fewest = merged + _law_reached(high, KEPT_MISS, True)
-    return fewest, max(fewest, merged + _law_reached(high, 1.0 - KEPT_MISS, False))
+    together: "dict[int, float]" = {}
+    for low_days in sorted(low):
+        for high_days in sorted(high):
+            both = low_days + high_days
+            chance = low[low_days] * high[high_days]
+            together[both] = (together[both] if both in together else 0.0) + chance
+    return fewest, max(fewest, _law_reached(together, 1.0 - KEPT_MISS, False))
 
 
 def count_reach_short(
