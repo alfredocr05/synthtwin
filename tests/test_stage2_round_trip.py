@@ -482,13 +482,25 @@ def _only_the_marks_missed(folder: pathlib.Path) -> "list[str]":
     )
 
 
+def _days_around_a_declared_day(count: int, seed: int) -> "list[str]":
+    """Midnight moments over the three weeks around 1 June 2025, none on it."""
+    draw = random.Random(seed)
+    declared = datetime.date(2025, 6, 1)
+    days = [
+        declared + datetime.timedelta(days=offset)
+        for offset in range(-10, 11)
+        if offset != 0
+    ]
+    return [draw.choice(days).isoformat() + " 00:00:00" for _ in range(count)]
+
+
 def test_a_value_on_a_day_declared_absent_is_given_another_mark_and_named(
     tmp_path: pathlib.Path,
 ) -> None:
     """The source's own spelling of that day reads as absent, so it cannot be kept.
 
-    At seed 4 the twin places values on that day: they are written with
-    another mark, the census falls short, and the report names it.
+    At seed 2 the twin places values on that day: they are written with
+    another mark, and the report names it.
 
     THE SEED MOVED FROM 0 TO 4 AT LANDING 2b.6, and which seed exercises
     this is now a property of the construction rather than an accident.
@@ -509,8 +521,24 @@ def test_a_value_on_a_day_declared_absent_is_given_another_mark_and_named(
     -- 0, 2, 3, 6, 7, 9, 11, 13, 14, 15, 16, 19, 20, 23, 26, 27, 31, 35,
     36, 38 and 39 -- and at every one of the 21 the twin exits 3 with the
     mark census and nothing else missed. Seed 4 is not among them.
+
+    AND THE COLUMN MOVED FROM TEN MONTHS TO THREE WEEKS AT LANDING 3b.D2
+    (plan P4-D367). The ten months publish a weekday census since, and a
+    census keeps every twin value off a day declared absent (contract
+    WC3: no twin date stands on a hole), so the repair this test is about
+    was asked at none of seeds 0 to 39, where 55c1099 asked it at 18;
+    that column is the next test's. A column whose middle half spans
+    fewer than four weeks publishes no census (WC10), its description
+    saying so in NF74's one sentence, and its twin is 55c1099's byte for
+    byte at all 40 seeds: a present rank lands on the declared day at 36
+    of them, 5 to 14 at a time, and the report names the move at every
+    one. The twin described again
+    counts a mark fewer values than the line wrote into the commonest
+    (plan P4-D222), so at the 24 seeds moving 5 to 10 values it exits 0
+    with nothing missed, and at the 12 moving 11 or more it exits 3 with
+    the mark census alone missed. Seed 2 moves 9.
     """
-    cells = _days(220, " 00:00:00", 51) + ["2025-06-01 00:00:00"] * 20
+    cells = _days_around_a_declared_day(220, 51) + ["2025-06-01 00:00:00"] * 20
     first, second, written, twin_exit, _real = _round_trip(
         tmp_path / "declared",
         cells,
@@ -518,6 +546,7 @@ def test_a_value_on_a_day_declared_absent_is_given_another_mark_and_named(
         False,
         seed="2",
     )
+    assert first["weekday_census"] == []
     # The twenty absent cells are written in their declared spelling, and
     # no present value wears it: described again, the twin holds exactly
     # as many values as the real table did.
@@ -532,7 +561,7 @@ def test_a_value_on_a_day_declared_absent_is_given_another_mark_and_named(
     # the commonest, so the twin described again counts its moved values
     # as spaces -- as the real table's own description would -- and the
     # census is met; the report still names the move.
-    if moved < 2:
+    if moved < 11:
         assert twin_exit == 0
         assert _only_the_marks_missed(tmp_path / "declared") == []
     else:
@@ -540,6 +569,35 @@ def test_a_value_on_a_day_declared_absent_is_given_another_mark_and_named(
         assert _only_the_marks_missed(tmp_path / "declared") == [
             "datetime.datetime_separators"
         ]
+
+
+def test_a_weekday_census_keeps_every_value_off_a_day_declared_absent(
+    tmp_path: pathlib.Path,
+) -> None:
+    """Ten months of midnight moments: no twin value lands on the declared day.
+
+    The previous test's column until landing 3b.D2 (plan P4-D367). Its
+    moments publish a weekday census since, and the census pass moves a
+    rank drawn onto a day declared absent off it before anything else
+    moves (method G7.3f, step 2), so no present value needs another mark:
+    measured over seeds 0 to 39, none wears one at any seed, where
+    55c1099 gave one or two values another mark at 18 of them, and every
+    twin exits 0 with nothing missed.
+    """
+    cells = _days(220, " 00:00:00", 51) + ["2025-06-01 00:00:00"] * 20
+    first, second, written, twin_exit, _real = _round_trip(
+        tmp_path / "declared",
+        cells,
+        ("--missing-value", "2025-06-01 00:00:00"),
+        False,
+        seed="2",
+    )
+    assert first["weekday_census"] != []
+    assert written.count("2025-06-01 00:00:00") == 20
+    assert second["n_present"] == first["n_present"]
+    assert sum(1 for cell in written if cell and cell[10] == "T") == 0
+    assert twin_exit == 0
+    assert _only_the_marks_missed(tmp_path / "declared") == []
 
 
 def test_a_repair_never_turns_a_column_of_dates_into_two_values(

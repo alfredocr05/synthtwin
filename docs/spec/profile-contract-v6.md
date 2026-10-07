@@ -6654,9 +6654,8 @@ between its pins (each pin's own, and inside each gap one for each
 non-empty group with a day strictly between the pin days and on
 neither), else the census is withheld: a raised floor widens the tails
 a twin rebuilds, and at a floor of 36 schedules written at noon came
-back holding more different values than the column (lane D1b's
-count-room rule for whole dates, plan P4-D388, restated in written
-units). The few-dates rule above is asked of the moments' days as of
+back holding more different values than the column (the count-room
+rule for whole dates of plan P4-D388, restated in written units). The few-dates rule above is asked of the moments' days as of
 dates, and the room rule beside the same holes where every value stands
 at midnight. WC6's half on written
 forms is NOT asked: the count of different values counts instants on a

@@ -6513,7 +6513,7 @@ written unit's.
    DAYS, only the ranks whose clocks stand inside the gap may move: a
    gap from a Wednesday at 11:00 to the next at 09:15 holds no Wednesday
    for a rank drawn at 10:00, and a census of Wednesday sessions is
-   missed. Up to eight rounds, the movable ranks asked in rank order: a
+   left short. Up to eight rounds, the movable ranks asked in rank order: a
    rank whose group holds more than its total is offered, on each end
    day of its gap other than its own day whose group holds less than its
    total, that is no hole and of the rank's kind, a PLACE -- an ordinal of
@@ -6541,8 +6541,8 @@ written unit's.
    round with no such group or no such offer. A Wednesday schedule at a
    floor of 36 had ranks at 15:16 to 17:58 in a gap from Tuesday 18:04 to
    Thursday 11:24, both of those groups at their totals and the group
-   under them, Saturday, outside the gap, and missed its census by five
-   before the shift. It changes only the clocks of the ranks it moves;
+   under them, Saturday, outside the gap, and fell five short of its
+   census before the shift. It changes only the clocks of the ranks it moves;
    beside it only step 8.4's merge at another clock, step 8.5's pairs and
    step 8.7 change a written clock, each on the ranks it moves, and every
    other step keeps each rank's written clock.

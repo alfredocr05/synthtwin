@@ -35,7 +35,12 @@ whole dates are byte-identical to the base on 9,030 twins, and a
 million arrivals spend 5.1 s describing and 6.9 s generating on it.
 `tests/reference/generation-branch-vectors-17.json` freezes steps 7c and
 8.7, one state of the fifteenth file now ends with step 8.7's move, and
-`tests/test_stage3b_weekday_moments.py` holds the landing's clauses.
+`tests/test_stage3b_weekday_moments.py` holds the landing's clauses. The
+two strict xfails the shared pass left to this landing and to D3 on
+states steps 7c and 8.7 now meet are tests, and a census keeps every
+twin value off a day declared absent, so a column of moments at
+midnight publishing one no longer gives such a day's values another
+mark.
 KPIs `K-S3-36` (new) and `K-S3-37` (new, an accepted limit, status only).
 
 ### The second key cut repaired at its review (2026-10-05)
