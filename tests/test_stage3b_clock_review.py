@@ -68,6 +68,17 @@ a one-figure hour and the declared half-day face the loader refused the
 producer's own description under DT3, and `synthtwin generate` told the
 person it had been changed since it was written (mutant: the values
 sorted as text again). It failed at 90466b2 and at 0138325.
+
+And one its second verification found, at d4f5ee4:
+`test_round_2_an_absence_declared_on_a_laid_column_stays_absent` -- a
+time declared missing on a column laid on its census came back as
+present cells, a run holding nothing but the absence taking a share of
+its group and a tail's draw landing on it (mutants: a run's share over
+its absent steps again; a tail drawn without skipping them, at the
+minute placed as G7A.4 places it); the oracle lays the minute column as
+the product does; and CC5 refuses a hand-edited group, or a drawn tail,
+left no step to stand on (mutants: each refusal withdrawn). Each clause
+failed at d4f5ee4.
 """
 
 from __future__ import annotations
@@ -313,11 +324,12 @@ def _frozen_rungs_off(case: "dict[str, typing.Any]") -> "tuple[int, list[str]]":
     body = (parsing.clock_ordinal(low["boundary"], form), parsing.clock_ordinal(high["boundary"], form))
     groups = tuple((group["first"], group["last"], group["count"]) for group in column["clock_census"])
     heaps = tuple((parsing.clock_ordinal(heap["value"], form), heap["count"]) for heap in column["clock_heaps"])
+    absent = tuple(column.get("missing_by_source") or {})
     blocks = calendar_clock.clock_body_blocks(
-        parsed, (low["rows"], high["rows"]), body, groups, heaps, form, stride  # type: ignore[arg-type]
+        parsed, (low["rows"], high["rows"]), body, groups, heaps, form, stride,  # type: ignore[arg-type]
+        calendar_clock.absent_places(absent, form),
     )
     assert blocks is not None
-    absent = tuple(column.get("missing_by_source") or {})
     ordered = sorted(
         found
         for found in (parsing.clock_ordinal(cell, form) for cell in case["content"] if cell not in absent)
@@ -624,7 +636,9 @@ def test_item_5_red_without_the_room_asked_beside_no_census(
     built = calendar_clock.clock_group_reach
     monkeypatch.setattr(
         calendar_clock, "clock_group_reach",
-        lambda groups, form, stride, body, heaps: [max(1, units) for units in built(groups, form, stride, body, heaps)],
+        lambda groups, form, stride, body, heaps, absent=(): [
+            max(1, units) for units in built(groups, form, stride, body, heaps, absent)
+        ],
     )
     document, folder = _three_heaps(tmp_path)
     loaded = _loads(folder, _one_row_short(document), "short")
@@ -1082,3 +1096,247 @@ def test_tail_order_red_when_the_values_are_sorted_as_text(
     assert block["high_tail"]["values"] == ["02:30:00 PM", "11:30:00 AM"]
     assert [(command, code) for command, code, _said in ran] == [("profile", 0), ("generate", 1)]
     assert "changed since it was written" in ran[1][2]
+
+
+# -- round 2 of the verification: an absence declared on a laid column ---
+#
+# The second verification of this stream (at d4f5ee4) declared missing the
+# time a column writes for an unknown one -- `00:00`, `12:00` -- beside
+# times on a five- to sixty-minute grid, and 16 of its 150 such columns
+# MISSED at every seed: the twin wrote present cells on the absence. A
+# census group's count was shared over runs by every step, the absent one
+# too, so a run holding nothing but the absence took cells that no rank
+# could move off it; and a tail drawn through its shape skipped its heaps'
+# distances but not the absence's, so a draw could land on it -- `00:00`
+# is the low tail's own edge. At the minute, where a heap-free tail was
+# placed as G7A.4 places it, the same edge took one cell (method G7A.4b,
+# steps 1 and 2, amended).
+#
+# The verification's five columns and one at the minute, each as a
+# minute of the day and how many rows wrote it, beside the absence.
+_ABSENCES: "dict[str, tuple[str, tuple[tuple[int, int], ...]]]" = {
+    # A run of the body holding nothing but the absence: a 30-minute grid
+    # whose `22:30` stands between the heaps at `22:00` and `23:00`...
+    "slots": ("22:30", ((0, 1), (1230, 100), (1290, 6), (1320, 16), (1350, 43), (1380, 38), (1410, 23))),
+    # ...a 30-minute grid whose `14:00` stands between two heaps...
+    "afternoon": (
+        "14:00",
+        ((630, 11), (720, 4), (750, 82), (780, 336), (810, 809), (840, 811), (870, 323), (900, 50), (930, 45), (1050, 22)),
+    ),
+    # ...and an hourly grid whose `12:00` stands between `11:00` and `13:00`.
+    "hourly": (
+        "12:00",
+        (
+            (0, 7), (60, 7), (120, 12), (180, 5), (240, 6), (300, 4), (360, 6), (420, 8), (480, 59), (540, 71),
+            (600, 308), (660, 105), (720, 279), (780, 57), (840, 10), (900, 14), (960, 6), (1020, 7), (1080, 8),
+            (1140, 2), (1200, 8), (1260, 6), (1320, 3), (1380, 2),
+        ),
+    ),
+    # Beyond a tail's boundary: `17:30` inside the high tail of a 30-minute grid...
+    "evening": (
+        "17:30",
+        ((720, 6), (750, 12), (870, 4), (900, 15), (930, 47), (960, 37), (990, 21), (1020, 3), (1050, 60), (1110, 1),
+         (1170, 3), (1200, 3)),
+    ),
+    # ...and `00:00`, the low tail's edge, on a ten-minute grid.
+    "ten-minute": (
+        "00:00",
+        (
+            (0, 20), (20, 1), (40, 1), (50, 1), (70, 1), (90, 1), (110, 1), (120, 1), (140, 1), (190, 2), (200, 3),
+            (210, 3), (220, 1), (260, 2), (280, 1), (290, 1), (300, 2), (320, 1), (340, 3), (350, 1), (370, 20),
+            (380, 2), (390, 21), (400, 18), (410, 9), (420, 8), (430, 8), (440, 14), (450, 24), (460, 8), (470, 5),
+            (480, 6), (490, 17), (500, 10), (510, 8), (520, 5), (530, 7), (540, 15), (550, 2), (560, 3), (570, 21),
+            (580, 2), (590, 8), (600, 5), (610, 6), (620, 6), (630, 3), (640, 22), (650, 20), (660, 5), (670, 6),
+            (680, 7), (690, 2), (700, 6), (710, 18), (720, 15), (730, 2), (740, 14), (750, 4), (760, 16), (770, 14),
+            (780, 3), (790, 9), (800, 13), (810, 6), (820, 21), (830, 5), (840, 3), (850, 7), (860, 4), (870, 5),
+            (880, 6), (890, 5), (900, 29), (920, 1), (930, 1), (960, 1), (980, 1), (990, 1), (1010, 1), (1040, 1),
+            (1060, 1), (1080, 1), (1100, 1), (1110, 1), (1120, 1), (1130, 1), (1150, 1), (1160, 1), (1200, 1),
+            (1230, 1), (1240, 1), (1270, 1), (1290, 1), (1310, 1), (1340, 1), (1350, 1), (1380, 1),
+        ),
+    ),
+}
+
+
+def _minute_column(seed: int = 5) -> "list[str]":
+    """277 times to the minute, nine in ten after 14:00, beside 23 `00:00` written for an unknown time."""
+    draw = random.Random(seed)
+    cells: "list[str]" = []
+    for _row in range(277):
+        cells += _minutes([draw.randrange(840, 1440) if draw.random() < 0.9 else draw.randrange(1, 1440)])
+    cells += ["00:00"] * 23
+    draw.shuffle(cells)
+    return cells
+
+
+def _absence_column(name: str) -> "tuple[list[str], str]":
+    """One of the round's columns and the time it writes for an unknown one."""
+    if name == "minute":
+        return _minute_column(), "00:00"
+    hole, pairs = _ABSENCES[name]
+    cells: "list[str]" = []
+    for minute, rows in pairs:
+        cells += _minutes([minute]) * rows
+    random.Random(len(cells)).shuffle(cells)
+    return cells, hole
+
+
+def _absence_twins(
+    folder: pathlib.Path, name: str, seeds: "tuple[int, ...]" = (0, 1, 2)
+) -> "tuple[dict[str, typing.Any], int, list[tuple[int, int, list[str]]], list[str]]":
+    """One column, its absence declared, through the producer, the generator and the checker.
+
+    Returns the published block, the table's rows on the absence, each
+    seed's twin's rows on it with what the checker MISSED of that twin,
+    and what it MISSED of the table itself.
+    """
+    cells, hole = _absence_column(name)
+    document, loaded = _described(folder / name, cells, declared=(hole,))
+    twins: "list[tuple[int, int, list[str]]]" = []
+    for seed in seeds:
+        twin, path = _twin(loaded, seed, folder / name)
+        twins += [(seed, twin.count(hole), _missed(loaded, path))]
+    return _block(document), cells.count(hole), twins, _missed(loaded, folder / name / "table.csv")
+
+
+def test_round_2_an_absence_declared_on_a_laid_column_stays_absent(tmp_path: pathlib.Path) -> None:
+    """Six columns laid on their census beside a declared absence: every twin writes it on the table's rows, nothing MISSED.
+
+    At d4f5ee4 the twins of `slots` wrote 46 `22:30` against 43, of
+    `afternoon` 829 `14:00` against 811 and of `hourly` 285 `12:00`
+    against 279 -- a run holding only the absence took its share -- and
+    of `evening` 61 or 62 `17:30` against 60, of `ten-minute` 21 `00:00`
+    against 20 and of `minute` 24 against 23 -- a tail's draw landing on
+    it -- each twin MISSING the presence counts and, beyond a tail, that
+    tail's distances; at seed 2 `evening`'s draw missed the absence.
+    """
+    for name in tuple(_ABSENCES) + ("minute",):
+        block, real, twins, table = _absence_twins(tmp_path, name)
+        assert block["role"] == taxonomy.ROLE_CLOCK and block["clock_step"] is not None, name
+        assert real >= 11 and table == [], (name, real, table)
+        assert twins == [(seed, real, []) for seed in (0, 1, 2)], (name, real, twins)
+
+
+def test_round_2_red_when_a_run_counts_its_absent_steps(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """MUTATION: a run's share counted over every step, the absent one too, as at d4f5ee4."""
+    built = calendar_clock.clock_body_blocks
+
+    def every_step(parsed, tails, body, groups, heaps, form, stride, absent=()):  # type: ignore[no-untyped-def]
+        return built(parsed, tails, body, groups, heaps, form, stride)
+
+    monkeypatch.setattr(calendar_clock, "clock_body_blocks", every_step)
+    for name in ("slots", "afternoon", "hourly"):
+        _block_of, real, twins, _table = _absence_twins(tmp_path, name, (0,))
+        assert twins[0][1] > real and twins[0][2] != [], (name, real, twins)
+
+
+def test_round_2_red_when_a_tail_draws_onto_an_absence(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """MUTATION: a tail drawn without skipping the absence, as at d4f5ee4 -- at the minute, placed as G7A.4 places it."""
+    monkeypatch.setattr(calendar_clock, "absent_beyond", lambda *_a: [])
+    for name in ("evening", "ten-minute", "minute"):
+        _block_of, real, twins, _table = _absence_twins(tmp_path, name, (0,))
+        assert twins[0][1] > real and twins[0][2] != [], (name, real, twins)
+
+
+def _absent_only_group(document: "dict[str, typing.Any]") -> "dict[str, typing.Any]":
+    """`hourly`'s description, its absent spelling moved by hand to `15:00`, the only step of a group counting 14."""
+    edited = copy.deepcopy(document)
+    block = edited["columns"][0]
+    assert {"count": 14, "first": 90, "last": 90} in [dict(group) for group in block["clock_census"]]
+    block["missing_by_source"] = {"15:00": block["missing_by_source"]["12:00"]}
+    return typing.cast("dict[str, typing.Any]", edited)
+
+
+def test_round_2_the_loader_refuses_a_group_with_no_step_left(tmp_path: pathlib.Path) -> None:
+    """CC5 leaves out the steps the column calls absent, as the runs do, so such a group is refused at load."""
+    cells, hole = _absence_column("hourly")
+    document, _loaded = _described(tmp_path, cells, declared=(hole,))
+    refused = _loads(tmp_path, _absent_only_group(document), "absent-only")
+    assert isinstance(refused, str) and "CC5" in refused and "bin 90 to bin 90 counts 14" in refused, refused
+    assert "on no spelling the column calls absent" in refused, refused
+
+
+def test_round_2_red_when_the_loader_counts_absent_steps_as_room(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """MUTATION: CC5 counting the absent steps as room again -- it loads, and generation stops on an internal error."""
+    built = calendar_clock.clock_group_reach
+    monkeypatch.setattr(
+        calendar_clock, "clock_group_reach",
+        lambda groups, form, stride, body, heaps, absent=(): built(groups, form, stride, body, heaps),
+    )
+    cells, hole = _absence_column("hourly")
+    document, _loaded = _described(tmp_path, cells, declared=(hole,))
+    loaded = _loads(tmp_path, _absent_only_group(document), "absent-only")
+    assert isinstance(loaded, contract.Profile)
+    with pytest.raises(errors.ProfileError):
+        generation.generate(loaded, 0)
+
+
+def test_round_2_the_oracle_lays_the_minute_column_as_the_product(tmp_path: pathlib.Path) -> None:
+    """No frozen case holds a tail at the minute beside an absence, so the oracle is held to the product on one (A-P4-59).
+
+    The oracle's content list for the `minute` column, from the opening
+    words of the stream the product draws at seed 0, holds the cells the
+    product's twin holds; at the minute the tail is drawn past `00:00`.
+    """
+    numpy = pytest.importorskip("numpy")
+    oracle = _oracle_module()
+    cells, hole = _absence_column("minute")
+    document, loaded = _described(tmp_path, cells, declared=(hole,))
+    column = dict(_block(document))
+    content_words, _placement = oracle.word_budget(column, len(cells))
+    stream = numpy.random.default_rng(0)
+    words = stream.integers(0, 18446744073709551615, size=content_words, dtype="uint64", endpoint=True)
+    column["_content_words"] = [int(word) for word in words]
+    laid = oracle.clock_census_content(column)
+    twin, _path = _twin(loaded, 0, tmp_path)
+    present = [cell for cell in twin if cell and cell != hole]
+    assert collections.Counter(laid) == collections.Counter(present)
+    assert hole not in laid
+
+
+def _no_room_beyond(document: "dict[str, typing.Any]") -> "dict[str, typing.Any]":
+    """`hourly`'s description, its low tail drawn by hand beside a heap of 11 on `01:00` and `00:00` declared missing.
+
+    The tail keeps 14 rows beyond `02:00`, and its heap leaves three that
+    no step beyond the boundary can hold: `01:00` is the heap's and
+    `00:00` the absence's.
+    """
+    edited = copy.deepcopy(document)
+    block = edited["columns"][0]
+    assert block["low_tail"]["boundary"] == "02:00" and block["low_tail"]["rows"] == 14
+    block["low_tail"] = {
+        "boundary": "02:00",
+        "rows": 14,
+        "mean_distance": 72.85714285714286,
+        "rms_distance": 76.9043933353987,
+        "values": None,
+    }
+    block["clock_heaps"] = [{"count": 11, "value": "01:00"}] + list(block["clock_heaps"])
+    block["missing_by_source"] = {"00:00": block["missing_by_source"]["12:00"]}
+    return typing.cast("dict[str, typing.Any]", edited)
+
+
+def test_round_2_the_loader_refuses_a_drawn_tail_with_no_step_left(tmp_path: pathlib.Path) -> None:
+    """CC5 asks a tail drawn through its shape for a step beyond its boundary on no heap and no absent place."""
+    cells, hole = _absence_column("hourly")
+    document, _loaded = _described(tmp_path, cells, declared=(hole,))
+    refused = _loads(tmp_path, _no_room_beyond(document), "no-room")
+    assert isinstance(refused, str) and "CC5" in refused and "the low tail draws 3 of its rows" in refused, refused
+
+
+def test_round_2_red_without_the_room_beyond_a_drawn_tail(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """MUTATION: no room asked beyond a drawn tail -- it loads, and its draw stands past the dial."""
+    monkeypatch.setattr(contract, "_drawn_tails_have_room", lambda *_a: None)
+    cells, hole = _absence_column("hourly")
+    document, _loaded = _described(tmp_path, cells, declared=(hole,))
+    loaded = _loads(tmp_path, _no_room_beyond(document), "no-room")
+    assert isinstance(loaded, contract.Profile)
+    with pytest.raises((ValueError, errors.ProfileError)):
+        generation.generate(loaded, 0)

@@ -1681,11 +1681,13 @@ INVARIANTS = {
     ),
     "CC5": (
         "every group of a clock census that counts cells holds a step "
-        "between the two boundaries that is no heap -- as many as it counts "
-        "where the column's values are all different -- and every boundary "
-        "and rung stands on a heap or in a group that counts cells; with no "
-        "census, the values between the boundaries on no heap are one such "
-        "group over the dial"
+        "between the two boundaries that is no heap and no spelling the "
+        "column calls absent -- as many as it counts where the column's "
+        "values are all different -- and every boundary and rung stands on "
+        "a heap or in a group that counts cells; with no census, the values "
+        "between the boundaries on no heap are one such group over the "
+        "dial; and a tail drawn through its shape keeps a step beyond its "
+        "boundary that is neither for the rows its heaps leave"
     ),
     "CH1": (
         "the heaps of a column of clock times are times written in its form, "
@@ -15585,15 +15587,21 @@ def _clock_census(
       body being the cells between the two boundaries, or every parsed
       cell of a column with no tails;
     - CC5, reachability: each group that counts cells holds at least one
-      step inside the body that is no heap -- at least as many as it
-      counts on a column whose values are all different -- and each
-      boundary and each published rung stands on a heap or in a group
-      that counts cells. A block publishing no census is asked the same
-      of the one group over the dial its body's cells on no heap make
-      (method G7A.4b), so where those cells have no step to stand on it
-      is refused here and not inside the generator (the review, item 5:
-      `08:00`'s heap one row short of a body of 100 cells all at
-      `08:00` loaded, and generation stopped on an internal error).
+      step inside the body that is no heap and no place the column's own
+      absent spellings name (`calendar_clock.absent_places`) -- at least
+      as many as it counts on a column whose values are all different --
+      and each boundary and each published rung stands on a heap or in a
+      group that counts cells. A block publishing no census is asked the
+      same of the one group over the dial its body's cells on no heap
+      make (method G7A.4b), so where those cells have no step to stand on
+      it is refused here and not inside the generator (the review, item
+      5: `08:00`'s heap one row short of a body of 100 cells all at
+      `08:00` loaded, and generation stopped on an internal error; and
+      the round-2 fix: a group whose only steps are absent spellings,
+      which the generator's runs no longer count). And each tail drawn
+      through its shape whose heaps leave it rows keeps a step beyond its
+      boundary that is no heap and no absent place, where its draw can
+      stand (`_drawn_tails_have_room`).
 
     The heaps are looked up through a set, in the order they stand, so
     the work grows with the heaps and not with their square (the
@@ -15784,8 +15792,12 @@ def _clock_census(
         laid = tuple(groups)
     distinct = mapping["n_distinct"] if "n_distinct" in mapping else None
     apart = isinstance(distinct, int) and distinct - facts.n_unparsed >= parsed
+    # The steps the column's own absent spellings name hold no cell of a
+    # run (method G7A.4b, the round-2 fix of landing 3b.5), so they are no
+    # room here either: a group left with none is refused, not laid.
+    absent = calendar_clock.absent_places(_absent_spellings(mapping, ()), form)
     reach = calendar_clock.clock_group_reach(
-        laid, form, stride, (lowest, highest), heap_at
+        laid, form, stride, (lowest, highest), heap_at, absent
     )
     for (first, last, count), units in zip(laid, reach):
         if count > 0 and (units < 1 or (apart and units < count)):
@@ -15803,9 +15815,13 @@ def _clock_census(
                 where,
                 found,
                 f"it holds {units} steps between the two boundaries that "
-                f"stand on no heap, and must hold "
+                f"stand on no heap and on no spelling the column calls "
+                f"absent, and must hold "
                 f"{'as many as it counts' if apart else 'at least one'}",
             )
+    _drawn_tails_have_room(
+        where, form, stride, (low, high), (lowest, highest), heaps, heap_at, absent
+    )
     # MEMBERSHIP THROUGH A SET, the heaps kept in their order above (the
     # review, item 6): every published value asked the list again, which
     # grew with the square of the heaps.
@@ -15828,6 +15844,64 @@ def _clock_census(
                 "counts cells",
             )
     return tuple(groups), tuple(heaps), step, tuple(codes)
+
+
+def _drawn_tails_have_room(
+    where: str,
+    form: str,
+    stride: int,
+    tails: "tuple[TailFacts | None, TailFacts | None]",
+    ends: "tuple[int, int]",
+    heaps: "list[tuple[str, int]]",
+    heap_at: "list[int]",
+    absent: "tuple[int, ...]",
+) -> None:
+    """CC5 for a tail drawn through its shape (the round-2 fix of landing 3b.5).
+
+    The generator draws such a tail's rows its heaps leave in steps that
+    skip the heaps' distances and the absent places' (method G7A.4b,
+    step 1), out to the end of the dial, so at least one step beyond the
+    boundary must be neither, or a draw would land past the dial. A
+    description the producer writes always has one -- those rows were
+    written on such steps -- and one a hand broke is refused here, as a
+    census group with no step left is, and not inside the generator.
+
+    Guarantees: accepts the form, the step in the form's unit, the two
+    tails, the two boundaries' ordinals, the heaps with their ordinals
+    and the absent places; returns nothing. Raises ProfileError (CC5)
+    for the first tail with no such step. Determinism: a function of the
+    arguments. No I/O of any kind.
+    """
+    top = parsing.CLOCK_CAPACITY[form] - 1
+    for tail, at, low_side, side in (
+        (tails[0], ends[0], True, "low"),
+        (tails[1], ends[1], False, "high"),
+    ):
+        if tail is None or tail.values is not None:
+            continue
+        beyond = [
+            (at - here if low_side else here - at, count)
+            for (_value, count), here in zip(heaps, heap_at)
+            if (here < at if low_side else here > at)
+        ]
+        left = tail.rows - sum(count for _distance, count in beyond)
+        if left <= 0:
+            continue
+        edge = max(1, at if low_side else top - at) // stride
+        taken = {distance // stride for distance, _count in beyond} | {
+            distance // stride
+            for distance in calendar_clock.absent_beyond(absent, at, low_side, stride)
+        }
+        if edge - len([distance for distance in taken if distance <= edge]) < 1:
+            raise _broken(
+                "CC5",
+                where,
+                f"the {side} tail draws {left} of its rows through its shape, "
+                f"and every step beyond its boundary is a heap or a spelling "
+                f"the column calls absent",
+                "a tail drawn through its shape keeps a step beyond its "
+                "boundary for the rows its heaps leave",
+            )
 
 
 def _listed_tails_hold_their_heaps(

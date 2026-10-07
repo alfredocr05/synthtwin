@@ -8,9 +8,10 @@ column of clock times publishing a census, heaps, a step and codes --
 `clock_census_night`, `clock_census_seconds`, `clock_census_all_different`,
 `clock_census_absent_inside`, `clock_census_boundary_below_heap`,
 `clock_census_tail_heaps`, `clock_census_on_a_step`, `clock_census_codes`,
-`clock_census_no_tails` and `clock_census_listed_tail_heap` -- and
-G8.3's clock supply, `labels_clock_shaped`, its clock line,
-`labels_clock_line`, and that line held key by key, `labels_clock_forms`.
+`clock_census_no_tails`, `clock_census_listed_tail_heap` and, since the
+round-2 fix, `clock_census_absent_places` -- and G8.3's clock supply,
+`labels_clock_shaped`, its clock line, `labels_clock_line`, and that line
+held key by key, `labels_clock_forms`.
 
 **Why a twenty-first file.**  Plan P4-D364's numbering table gives each
 landing of stage 3b its own file, so lanes building at once never add to

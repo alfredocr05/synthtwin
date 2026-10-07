@@ -7455,7 +7455,12 @@ prints and the second at a distance the published shape fixes, and a
 twin that moved either would miss a published fact to keep a count. Nor
 does a body rank whose window is one unit, which is a body with no slack
 left in it. The search passes at most one unit per absent spelling and,
-where the ranks must differ, one per rank.
+where the ranks must differ, one per rank. *On a column laid by G7A.4b
+(the round-2 fix of landing 3b.5)* no rank needs the move to reach a
+place the column's own absent spellings name: a run's share counts only
+its other steps and a tail drawn through its shape skips their distances
+(G7A.4b, steps 1 and 2), so a tail rank still never moves and none lands
+there.
 
 *Added by the dates pass of the stage-3 review, item 5.* The stand-ins
 of G7A.5 were stepped past the absent spellings from the day the role
@@ -7474,19 +7479,26 @@ description written before it -- by G7A.4, byte for byte as before.
 With `k` the step in the form's own unit and every distance and place
 below on that step:
 
-1. **The tails.** A tail holding no heap, on a step of one unit or
-   listing its values, is placed as G7A.4 places it (G7.3b, G7.3c). A
+1. **The tails.** An ABSENT PLACE is a time the column's own absent
+   spellings (`missing_by_source`) name in its form: one that reads as a
+   time there and is, trimmed and case-folded, the form's own spelling of
+   that time (`calendar_clock.absent_places`). A tail listing its values
+   and holding no heap, or holding no heap on a step of one unit with no
+   absent place beyond its boundary, is placed as G7A.4 places it (G7.3b,
+   G7.3c). A
    tail LISTING its values gives each heap's value its count and the rows
    left to the other values by G7.3c, against the sum its mean fixes less
    the heaps'. A tail drawn through its shape keeps its heaps' cells on
    their values and draws the rest by G7.3b IN STEPS: its rows, mean and
    root-mean-square less the heaps' (`calendar_clock.tail_less_heaps`),
    each distance divided by `k`, its edge in steps less the heaps'
-   distances inside it; each drawn distance `d` is read back past the
-   heaps' (`calendar_clock.off_the_heaps`: one step further for each heap
-   at or before it) and times `k`. So no drawn cell stands off the step
-   or on a heap, and every heap keeps its count. The tail's cells, heaps
-   and drawn ones together, stand at its ranks in order.
+   distances and the absent places' on the step inside it
+   (`calendar_clock.absent_beyond`); each drawn distance `d` is read back
+   past both (`calendar_clock.off_the_heaps`: one step further for each
+   at or before it) and times `k`. So no drawn cell stands off the step,
+   on a heap or on a spelling the column calls absent, and every heap
+   keeps its count. The tail's cells, heaps and drawn ones together,
+   stand at its ranks in order.
 2. **The body's stretches** (`calendar_clock.clock_body_blocks`). From
    rank `m_lo` (nought with no tails), in ordinal order: each heap
    between the boundaries is a stretch of its count on its value; each
@@ -7497,10 +7509,11 @@ below on that step:
    f_j + floor(r * U<=j / U) - floor(r * U<j / U)
    ```
 
-   of them (`calendar_clock.run_shares`), `U` the group's steps, `U<=j`
-   and `U<j` those through and before run `j`, `f_j` one for each tail
-   boundary standing in run `j` on no heap, and `r = n - sum(f)`; where
-   the `f_j` outnumber `n`, none is taken first. The boundary's ONE CELL
+   of them (`calendar_clock.run_shares`), `U` the group's steps on no
+   absent place, `U<=j` and `U<j` those through and before run `j` -- so
+   a run whose every step is an absent place takes no cell -- `f_j` one
+   for each tail boundary standing in run `j` on no heap, and
+   `r = n - sum(f)`; where the `f_j` outnumber `n`, none is taken first. The boundary's ONE CELL
    FIRST is the 3b.5 skeptic's MAJOR 1: a first run of two steps in
    forty-one took none of twenty cells by steps alone, and the pinned
    boundary took a cell of the heap beside it. A body publishing no
@@ -7530,7 +7543,7 @@ below on that step:
    a spelling the table calls absent moves to the nearest step of its
    run that is not one, the earlier first -- where the values differ, on
    no other rank's step and strictly between the pins either side of
-   it.
+   it. A run whose every step is an absent place holds no rank (step 2).
 
    *Amended by the review of landing 3b.5, item 1.* The code read an
    all-different column's ranks WITHOUT the pins as knots and then stepped
@@ -7546,6 +7559,20 @@ below on that step:
    could cross a pin too, where the nearest free step lay past it. Every
    pin is now a knot, and a wall the step apart and the step off an
    absent spelling do not cross.
+
+   *Amended by the round-2 fix of landing 3b.5 (steps 1 and 2).* A
+   group's count was shared over its runs by every step, the absent
+   place too, and a tail drawn through its shape skipped its heaps'
+   distances but not the absent places', so the twin wrote present cells
+   on a spelling its own reader counts as no value. Measured on 150
+   columns on a five- to sixty-minute grid beside `00:00` or `12:00`
+   written for an unknown time and declared missing, 16 MISSED at every
+   seed: an hourly grid's run holding nothing but `12:00` took six cells
+   no rank could move off it (285 against 279), and a ten-minute grid's
+   low tail drew a cell onto `00:00`, its own edge (21 against 20). At
+   the minute a heap-free tail was placed as G7A.4 places it and 14 of
+   100 such columns wrote one `00:00` too many at its outer end. Every
+   one of them now writes the absence on exactly the table's rows.
 5. **The words** are G7A.4's: `P - 2` content words, one per rank
    between the two ends in rank order, a heap's, a pin's or a
    boundary's read and set aside, a tail's handed to its draw from the
@@ -12464,10 +12491,12 @@ is its census GROUP's steps inside the body -- the group's, not its
 run's, so a real column whose rung stands on the far side of a heap
 from where the twin's share put it is still inside -- a heap's rank its
 value, a boundary rank its boundary, and a tail rank anywhere beyond its
-boundary (`calendar_clock.clock_rank_windows`). A tail holding heaps or
-drawn on a step of more than one unit has its two distances' window
-(G12.14) summed over its heaps' distances and its drawn cells' strata,
-read back past the heaps and times the step, as G7A.4b draws them.
+boundary (`calendar_clock.clock_rank_windows`), the runs shared as
+G7A.4b step 2 shares them, over their steps on no absent place. A tail
+holding heaps, drawn on a step of more than one unit or beside an absent
+place beyond its boundary has its two distances' window (G12.14) summed
+over its heaps' distances and its drawn cells' strata, read back past the
+heaps and the absent places and times the step, as G7A.4b draws them.
 
 ### G12.11 The envelope on a clock column's two distinctness counts
 
@@ -13533,6 +13562,7 @@ case passed, which is the failure the count exists to prevent:
 | `clock_census_seconds` | G7A.4b at the second (`hh-mm-ss`), a step of one second: 72 times from 09:00:00 with 12 at 09:00:00, a heap that is the low tail's one listed value, and the census over the rest. Its mutant lays the body on a step of a minute, and every cell moves onto a whole minute |
 | `clock_census_all_different` | G7A.4b on a column whose 60 values all differ: each run's ranks are read between its pins and stepped apart between them, each past the one before and each leaving room for those after, so the twin's values all differ too, stay inside their groups, and every pin -- the two boundaries and the three quartiles -- stands at its rank. Re-derived at the review of landing 3b.5 (item 1), where it had frozen `07:39` at the rank of its first quartile, published `07:30`. Its mutant withdraws the step apart, and two ranks share a minute |
 | `clock_census_absent_inside` | G7A.4b's step off an absent spelling: 08:30 is declared missing and 13 cells wrote it, and it lies inside the census group 08:20 to 08:39. A run's rank on that spelling moves to the nearest step of its run that is not one, the earlier first. Its mutant leaves it there, and the twin writes 08:30 as a present cell its own reader counts absent |
+| `clock_census_absent_places` | G7A.4b's absent places (the round-2 fix of landing 3b.5): 58 times on a ten-minute grid beside 22 cells declared missing, 11 of `00:00` written for an unknown time and 11 of `14:30`. `14:30` is the only step of a run the heaps at `14:20` and `14:40` cut from the census group 12:20 to 16:49, so the run takes none of the group's 12 cells; `00:00` is the low tail's own edge, so the tail is drawn past it. Its mutant shares the group over every step again and the twin writes a present `14:30`; withdrawing the tail's skip, a clause of its own, writes one on `00:00` |
 | `clock_census_boundary_below_heap` | G7A.4b's first cell for a boundary (the 3b.5 skeptic's MAJOR 1): the low boundary 06:58 stands two steps below a heap of 25 at 07:00, both in the group 06:50 to 07:39, so the run holding the boundary holds 2 of the group's 41 steps and a share by steps gives it none of 19 cells. The run takes one cell first. Its mutant shares by steps alone, the boundary's rank lands on the heap, and the twin holds no 06:58 |
 | `clock_census_tail_heaps` | G7A.4b's heaps in the tails: 06:00 holds 14 of the low tail's 16 cells and 22:00 13 of the high tail's 15. Each tail's heap cells stand on their value, and its other cells are drawn through the shape its rows, mean and root-mean-square less the heap's give, in steps that skip the heap's distance. Its mutant draws each tail whole through its shape, and the heaps are gone |
 | `clock_census_on_a_step` | G7A.4b on a five-minute grid, a published step of 300 seconds: the body's runs, the tails' draws and the stand-out rule are laid on the step, so every twin value is a multiple of five minutes. Its mutant lays them on the form's own minute, and values leave the grid |

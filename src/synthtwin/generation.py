@@ -17558,7 +17558,10 @@ class _ClockCensus:
     `low_drawn` and `high_drawn` are the plans its other cells are drawn
     through, and `low_heaped` and `high_heaped` the heaps' ordinals, one
     per cell. `lows` and `highs` are every rank's window (G12.10), and
-    `codes` the codes with their counts.
+    `codes` the codes with their counts. `low_skipped` and `high_skipped`
+    are the distances, in steps, a drawn tail's cells are read back past:
+    its heaps' and those of the places the column calls absent beyond its
+    boundary (the round-2 fix of landing 3b.5).
     """
 
     stride: int
@@ -17571,6 +17574,8 @@ class _ClockCensus:
     lows: "tuple[int, ...]"
     highs: "tuple[int, ...]"
     codes: "tuple[tuple[str, int], ...]"
+    low_skipped: "tuple[int, ...]" = ()
+    high_skipped: "tuple[int, ...]" = ()
 
 
 def _clock_census_laid(
@@ -17591,11 +17596,19 @@ def _clock_census_laid(
       the rows and the two distances left once the heaps are out
       (`calendar_clock.tail_less_heaps`); a tail listing its values keeps
       each heap's count and shares the rest by G7.3c over the values left;
+      a tail drawn through its shape skips the distances of the places
+      the column calls absent beyond its boundary beside its heaps',
+      even on a step of one unit (the round-2 fix of landing 3b.5);
     - the body is laid by the rank rule (`calendar_clock.clock_body_blocks`):
       every heap's ranks on its value, every group's count over its runs
-      by their steps, a run holding a boundary taking one cell first;
+      by their steps less those the column calls absent, a run holding a
+      boundary taking one cell first;
     - the two boundaries and every published rung whose rank and value
       lie in one run are pinned there.
+
+    The absent places are the column's OWN published absent spellings
+    read in its form (`calendar_clock.absent_places`), the ones the
+    validator reads off the same block to draw the same windows.
 
     Guarantees: accepts the column, its facts, the floor and the layout;
     returns the layout, carrying its `census` where a step is published.
@@ -17612,12 +17625,14 @@ def _clock_census_laid(
     heaps = tuple(
         (_clock_ordinal_of(value, form), count) for value, count in facts.clock_heaps
     )
+    absent = calendar_clock.absent_places(_hole_spellings(column), form)
     tails: "tuple[int, int] | None" = None
     body = (0, ((capacity - 1) // stride) * stride)
     low_plan = layout.low
     high_plan = layout.high
     drawn: "list[_TailPlan | None]" = [None, None]
     heaped: "list[tuple[int, ...] | None]" = [None, None]
+    skips: "list[tuple[int, ...]]" = [(), ()]
     if (
         facts.low_tail is not None
         and facts.high_tail is not None
@@ -17636,21 +17651,29 @@ def _clock_census_laid(
                 for at, count in heaps
                 if (at < body[0] if low_side else at > body[1])
             ]
-            if not mine and (stride == 1 or tail.values is not None):
+            beyond = calendar_clock.absent_beyond(
+                absent, side.boundary, low_side, stride
+            )
+            if tail.values is not None and not mine:
                 plans += [side]
                 continue
-            whole, kept, spots = _clock_tail_with_heaps(
-                side, tail, mine, floor, capacity, form, layout.apart, stride
+            if not mine and stride == 1 and not beyond:
+                plans += [side]
+                continue
+            whole, kept, spots, skipped = _clock_tail_with_heaps(
+                side, tail, mine, floor, capacity, form, layout.apart, stride,
+                beyond,
             )
             plans += [whole]
             drawn[place] = kept
             heaped[place] = spots
+            skips[place] = skipped
         low_plan, high_plan = plans[0], plans[1]
     blocks = calendar_clock.clock_body_blocks(
-        parsed, tails, body, facts.clock_census, heaps, form, stride
+        parsed, tails, body, facts.clock_census, heaps, form, stride, absent
     )
     windows = calendar_clock.clock_rank_windows(
-        parsed, tails, body, facts.clock_census, heaps, form, stride
+        parsed, tails, body, facts.clock_census, heaps, form, stride, absent
     )
     if blocks is None or windows is None:
         raise errors.ProfileError(_INTERNAL_CLOCK)
@@ -17669,6 +17692,8 @@ def _clock_census_laid(
         lows=tuple(windows[0]),
         highs=tuple(windows[1]),
         codes=facts.clock_codes,
+        low_skipped=skips[0],
+        high_skipped=skips[1],
     )
     return _ClockLayout(
         parsed, low_plan, high_plan, layout.knots, layout.apart, layout.ramp,
@@ -17722,11 +17747,13 @@ def _clock_tail_with_heaps(
     form: str,
     apart: bool,
     stride: int,
-) -> "tuple[_TailPlan, _TailPlan | None, tuple[int, ...] | None]":
-    """One tail holding heaps, or on a step of more than one unit: its whole
-    plan, the plan its other cells are drawn through, and the heaps'
-    ordinals, one per cell (method G7A.4b) -- None where the whole plan is
-    fixed and nothing is drawn.
+    beyond: "list[int]",
+) -> "tuple[_TailPlan, _TailPlan | None, tuple[int, ...] | None, tuple[int, ...]]":
+    """One tail holding heaps, on a step of more than one unit, or beside
+    a place the column calls absent: its whole plan, the plan its other
+    cells are drawn through, the heaps' ordinals, one per cell, and the
+    distances in steps its draw is read back past (method G7A.4b) -- None
+    and nothing where the whole plan is fixed and nothing is drawn.
 
     A tail LISTING its values gives each heap's value its count and the
     rows left to the values left by G7.3c, against the sum its mean fixes
@@ -17734,11 +17761,12 @@ def _clock_tail_with_heaps(
     A tail drawn through its shape keeps the heaps' cells on their values
     and draws the rest through the shape the rows, mean and root-mean-
     square left give (`calendar_clock.tail_less_heaps`), IN STEPS: every
-    distance in units of the published step, the heaps' distances taken
-    out (`calendar_clock.off_the_heaps`), so each drawn cell stands on the
-    step and on no heap. Its whole plan's strata, in the form's own unit,
-    are the heaps' distances beside the drawn plan's, which is what the
-    report and the windows sum.
+    distance in units of the published step, the heaps' distances and the
+    absent places' (`beyond`, `calendar_clock.absent_beyond`) taken out
+    (`calendar_clock.off_the_heaps`), so each drawn cell stands on the
+    step, on no heap and on no spelling the column calls absent. Its whole
+    plan's strata, in the form's own unit, are the heaps' distances
+    beside the drawn plan's, which is what the report and the windows sum.
     """
     boundary = side.boundary
     low_side = side.low_side
@@ -17787,7 +17815,7 @@ def _clock_tail_with_heaps(
             tuple(fixed), tuple(places), tuple(labels), tuple(fixed),
             tuple(fixed),
         )
-        return whole, None, None
+        return whole, None, None, ()
     heaped: "list[tuple[int, int]]" = []
     for distance in sorted(distance_of):
         heaped += [(distance, distance_of[distance])]
@@ -17797,11 +17825,15 @@ def _clock_tail_with_heaps(
     kept: "_TailPlan | None" = None
     near: "list[int]" = []
     far: "list[int]" = []
-    skipped = [distance // stride for distance, _count in heaped]
+    skipped = sorted(
+        {distance // stride for distance, _count in heaped}
+        | {distance // stride for distance in beyond}
+    )
     if rows_left > 0:
-        # DRAWN IN STEPS WITH THE HEAPS' DISTANCES TAKEN OUT, so no drawn
-        # cell lands off the step or on a heap: the shape's two distances
-        # and its edge are counted in steps, the edge less the heaps
+        # DRAWN IN STEPS WITH THE HEAPS' DISTANCES AND THE ABSENT PLACES'
+        # TAKEN OUT, so no drawn cell lands off the step, on a heap or on
+        # a spelling the column calls absent: the shape's two distances and
+        # its edge are counted in steps, the edge less the distances
         # inside it, and every distance it draws is read back past them.
         edge = max(1, boundary if low_side else capacity - 1 - boundary) // stride
         inside = len([distance for distance in skipped if distance <= edge])
@@ -17835,7 +17867,7 @@ def _clock_tail_with_heaps(
         side.rows, low_side, boundary, boundary, 1, 0, None,
         (), (), (), tuple(near), tuple(far),
     )
-    return whole, kept, tuple(spots)
+    return whole, kept, tuple(spots), tuple(skipped)
 
 
 def _clock_census_content(
@@ -17851,8 +17883,10 @@ def _clock_census_content(
     exactly. A tail without heaps is drawn as G7.3b draws it; a tail with
     heaps stands its heaps' cells on their values and draws the rest
     through its kept plan, the words of its ranks read from the outside
-    in. A body rank of a heap stands on it; a pinned rank on its value;
-    any other rank of a run stands at
+    in, each distance read back past the heaps' and the absent places'
+    (the layout's `low_skipped` and `high_skipped`), and so does a tail
+    on a step, or beside an absent place. A body rank of a heap stands
+    on it; a pinned rank on its value; any other rank of a run stands at
 
         steps[((r - a) * 2**64 + w) * |steps| // (n * 2**64)]
 
@@ -17878,9 +17912,9 @@ def _clock_census_content(
         word_of[rank] = words[rank - 1]
     ordinals = [0 for _rank in range(parsed)]
     if layout.low is not None and layout.high is not None:
-        for whole, kept, heaped in (
-            (layout.low, census.low_drawn, census.low_heaped),
-            (layout.high, census.high_drawn, census.high_heaped),
+        for whole, kept, heaped, skipped in (
+            (layout.low, census.low_drawn, census.low_heaped, census.low_skipped),
+            (layout.high, census.high_drawn, census.high_heaped, census.high_skipped),
         ):
             mine: "dict[int, int]" = {}
             if heaped is None:
@@ -17895,13 +17929,8 @@ def _clock_census_content(
             if kept is not None and kept.shape is not None:
                 for index in range(1, min(kept.shape.grouped, kept.rows)):
                     mine[index] = word_of[_tail_rank_of(whole, parsed, index)]
-                skipped = sorted(
-                    {
-                        (whole.boundary - at if whole.low_side else at - whole.boundary)
-                        // kept.unit
-                        for at in heaped
-                    }
-                )
+                # Read back past the heaps' distances and the absent
+                # places' beyond the boundary, the layout's own list.
                 for distance in _tail_distances(kept.shape, mine):
                     stood += [
                         _tail_place(

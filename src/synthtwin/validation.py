@@ -15754,7 +15754,11 @@ def _clock_tail_windows(
         # G7A.4b): its heaps' cells stand on their values and the rest
         # are drawn through the shape the rows and the two distances left
         # give, so its window is the heaps' distances beside that shape's.
+        # The draw skips the places the column calls absent beyond the
+        # boundary beside the heaps', on any step (the round-2 fix of
+        # landing 3b.5), read off the block as the generator reads them.
         heaped: "list[tuple[int, int]]" = []
+        beyond: "list[int]" = []
         stride = 1
         if facts.clock_step is not None:
             stride = max(1, facts.clock_step // parsing.clock_step(facts.clock_form))
@@ -15763,13 +15767,19 @@ def _clock_tail_windows(
                 distance = at - here if low_side else here - at
                 if distance > 0:
                     heaped += [(distance, count)]
-        if heaped or stride > 1:
+            beyond = calendar_clock.absent_beyond(
+                _clock_absent_places(column, facts), at, low_side, stride
+            )
+        if heaped or stride > 1 or beyond:
             rows, mean, root = calendar_clock.tail_less_heaps(
                 tail.rows, tail.mean_distance, tail.rms_distance, sorted(heaped)
             )
             near: "list[int]" = []
             far: "list[int]" = []
-            skipped = [distance // stride for distance, _count in sorted(heaped)]
+            skipped = sorted(
+                {distance // stride for distance, _count in heaped}
+                | {distance // stride for distance in beyond}
+            )
             if rows > 0:
                 steps = edge // stride
                 inside = len([d for d in skipped if d <= steps])
@@ -16852,7 +16862,7 @@ def _clock_rank_windows(
     # P4-D373; method G12.10 as G7A.4b leaves it): every body rank inside
     # its census group's steps, read by the generator's own rule
     # (`calendar_clock.clock_rank_windows`), in seconds.
-    census = _clock_census_windows(facts, parsed)
+    census = _clock_census_windows(facts, parsed, _clock_absent_places(column, facts))
     if census is not None:
         return census
     if low is None or high is None:
@@ -16934,14 +16944,31 @@ def _clock_rank_windows(
     return (lows, highs)
 
 
+def _clock_absent_places(
+    column: contract.ColumnBlock, facts: contract.ClockFacts
+) -> "tuple[int, ...]":
+    """The places of a clock column's dial its own absent spellings name.
+
+    The generator's reading, off the same block (`calendar_clock.
+    absent_places` over the keys of `missing_by_source`): a census-laid
+    body's runs share their counts over their other steps and a drawn
+    tail skips them (method G7A.4b, the round-2 fix of landing 3b.5), so
+    the windows here are drawn over the same runs and the same draws.
+    """
+    return calendar_clock.absent_places(
+        tuple(sorted(column.missing_by_source)), facts.clock_form
+    )
+
+
 def _clock_census_windows(
-    facts: contract.ClockFacts, parsed: int
+    facts: contract.ClockFacts, parsed: int, absent: "tuple[int, ...]" = ()
 ) -> "tuple[list[int], list[int]] | None":
     """Every rank's window on a column publishing a step, in seconds, or None.
 
     None where no step is published, which is every column laid as G7A.4
     lays it. Otherwise G7A.4b's windows (`calendar_clock.clock_rank_windows`)
-    over the published tails, census and heaps.
+    over the published tails, census and heaps, a run's share counted
+    over its steps less the places the column calls absent (`absent`).
     """
     if facts.clock_step is None:
         return None
@@ -16962,7 +16989,7 @@ def _clock_census_windows(
         for value, count in facts.clock_heaps
     )
     windows = calendar_clock.clock_rank_windows(
-        parsed, tails, body, facts.clock_census, heaps, form, stride
+        parsed, tails, body, facts.clock_census, heaps, form, stride, absent
     )
     if windows is None:
         return None
