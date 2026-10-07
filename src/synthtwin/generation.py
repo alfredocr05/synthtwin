@@ -19569,32 +19569,97 @@ def _weekday_shares(
         sum(quota[index][group] for index in range(len(gaps))) - max(owed[group], 0)
         for group in range(groups)
     ]
+    # THE TOTALS MADE EXACT, ONE SHARE AT A TIME: each step moves one share
+    # of one gap from a group over its total to one under it, the move whose
+    # ROOM -- the taking group's unrounded share less its quota, less the
+    # same of the giving group -- is the largest, the earliest giving group,
+    # then taking group, then gap on a tie, a gap giving only where it has a
+    # share and taking only where it has a day. ASKED GAP BY GAP (the lane
+    # T2 skeptic's finding 1): in one gap the room is largest for the taking
+    # group of the largest unrounded share left over and the giving group of
+    # the smallest, each the earliest on a tie, so each gap is asked once
+    # for its own best move and asked again only where a step changed it, or
+    # a group reached its total. Asked pair by pair over every gap, fifteen
+    # in a hundred moments at midnight over two years -- 733 gaps between
+    # the cells at midnight the hour pass holds -- took 785 steps of 35
+    # million rooms and 7 seconds at 10,000 rows; the steps and their order
+    # are the same.
+    over = [group for group in range(groups) if error[group] > 0]
+    under = [group for group in range(groups) if error[group] < 0]
+    sides = [
+        _weekday_share_side(shares[index], quota[index], prior[index], over, under)
+        for index in range(len(gaps))
+    ]
     for _step in range(20000):
-        over = [group for group in range(groups) if error[group] > 0]
-        under = [group for group in range(groups) if error[group] < 0]
         if not over or not under:
             break
         best: "tuple[int, int, int, int] | None" = None
-        for giving in over:
-            for taking in under:
-                for index in range(len(gaps)):
-                    if quota[index][giving] <= 0 or prior[index][taking] <= 0:
-                        continue
-                    room = (
-                        shares[index][taking] - quota[index][taking] * _WEEKDAY_SCALE
-                    ) - (
-                        shares[index][giving] - quota[index][giving] * _WEEKDAY_SCALE
-                    )
-                    if best is None or room > best[0]:
-                        best = (room, index, giving, taking)
+        for index in range(len(gaps)):
+            side = sides[index]
+            if side is None:
+                continue
+            if (
+                best is None
+                or side[0] > best[0]
+                or (side[0] == best[0] and (side[1], side[2]) < (best[1], best[2]))
+            ):
+                best = (side[0], side[1], side[2], index)
         if best is None:
             break
-        _room, index, giving, taking = best
+        _room, giving, taking, index = best
         quota[index][giving] = quota[index][giving] - 1
         quota[index][taking] = quota[index][taking] + 1
         error[giving] = error[giving] - 1
         error[taking] = error[taking] + 1
+        if error[giving] == 0 or error[taking] == 0:
+            over = [group for group in range(groups) if error[group] > 0]
+            under = [group for group in range(groups) if error[group] < 0]
+            sides = [
+                _weekday_share_side(shares[place], quota[place], prior[place], over, under)
+                for place in range(len(gaps))
+            ]
+        else:
+            sides[index] = _weekday_share_side(
+                shares[index], quota[index], prior[index], over, under
+            )
     return quota
+
+
+def _weekday_share_side(
+    shares: "list[int]",
+    quota: "list[int]",
+    prior: "list[int]",
+    over: "list[int]",
+    under: "list[int]",
+) -> "tuple[int, int, int] | None":
+    """One gap's best step of `_weekday_shares`' last pass: its room, the
+    giving group and the taking group; None where it can make none. The
+    room of giving `g` and taking `h` is `left(h) - left(g)`, `left` a
+    group's unrounded share less its quota at the share scale, so it is
+    largest where `h` has the most left of the groups under their totals
+    with a day of the gap and `g` the least of those over them with a share
+    of it, the earliest of each on a tie."""
+    giving = -1
+    least = 0
+    for group in over:
+        if quota[group] <= 0:
+            continue
+        left = shares[group] - quota[group] * _WEEKDAY_SCALE
+        if giving < 0 or left < least:
+            giving = group
+            least = left
+    taking = -1
+    most = 0
+    for group in under:
+        if prior[group] <= 0:
+            continue
+        left = shares[group] - quota[group] * _WEEKDAY_SCALE
+        if taking < 0 or left > most:
+            taking = group
+            most = left
+    if giving < 0 or taking < 0:
+        return None
+    return (most - least, giving, taking)
 
 
 def _weekday_free(
