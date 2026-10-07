@@ -26,7 +26,8 @@ read off every count it answers for together (`_bounds_settled`); where
 each size can still go; whether every count still owed can be made;
 which totals the cells after this one can complete; and what those
 cells must still find among the groups this one leaves (`_reserves_met`,
-read again inside `_cell_next` as each size is decided). A fill any of
+read again inside `_cell_next` wherever the cell takes a copy of a size
+it reads). A fill any of
 them refuses held no answer, so the answer is the walk's old answer,
 fill for fill in the same order, and what changed is how many fills
 are tried. The states a walk writes down are held as one number each
@@ -872,6 +873,68 @@ def test_a_mixed_identifier_the_producer_describes_is_packed_in_few_states() -> 
         states = mixed_identifier_states(seed)
         assert states is not None, f"seed {seed}: the walk passed 20,000 states"
         assert states <= most, (seed, states)
+
+
+class _Enough(Exception):
+    """The packing questions a test reads have all been answered."""
+
+
+def test_a_reserve_is_read_at_every_size_it_reads_so_one_cell_never_tries_every_way() -> None:
+    """Inside one state: a reserve filed under every size it reads stops one cell's fills early.
+
+    Seed 105 of `_mixed_identifier` -- 7,404 rows of 132 values written
+    as codes, negative numbers, numbers in brackets, numbers too large
+    to hold and numbers padded to seven figures, described by the real
+    producer -- has its twin ask the packing walk 33 questions. On the
+    second, of 82 sizes over 72 cells, a reserve filed under only the
+    last size it reads let the walk try every way of taking the smaller
+    sizes into one cell before it read the reserve at all: more than
+    2,000,000 readings without leaving the 70th state, and the twin
+    still unbuilt after eighteen minutes, which no count of states sees.
+    Filed under every size it reads and read wherever the cell takes a
+    copy, the first two questions take 27 and 89 states and 282
+    readings. Mutations, run: filing each reserve under its last size
+    alone passes 2,000 readings on the second question, and reading
+    every reserve at every size the cell decides, a copy taken or not,
+    passes them over the two -- the answers and the states the same.
+    """
+    with tempfile.TemporaryDirectory() as home:
+        loaded = linear._described(
+            pathlib.Path(home), _mixed_identifier(105), declared=["value"]
+        )
+    assert isinstance(loaded.columns[0].facts, contract.IdentifierFacts)
+    readings = [0]
+    states = [0]
+    answers: "list[object]" = []
+    met = generation._reserves_met
+    room = generation._cell_room
+    packed = generation._allotted_over
+
+    def reading(*given):  # type: ignore[no-untyped-def]
+        readings[0] += 1
+        if readings[0] > 2000:
+            raise _Walked("the walk read its reserves more than 2,000 times")
+        return met(*given)
+
+    def entering(*given):  # type: ignore[no-untyped-def]
+        states[0] += 1
+        return room(*given)
+
+    def asked(*given):  # type: ignore[no-untyped-def]
+        nonlocal answers
+        answers += [packed(*given)]
+        if len(answers) == 2:
+            raise _Enough()
+        return answers[len(answers) - 1]
+
+    with pytest.MonkeyPatch.context() as patch:
+        patch.setattr(generation, "_reserves_met", reading)
+        patch.setattr(generation, "_cell_room", entering)
+        patch.setattr(generation, "_allotted_over", asked)
+        with pytest.raises(_Enough):
+            generation.generate(loaded, 0)
+    assert answers[0] is not None and answers[1] is not None
+    assert states[0] <= 150, states[0]
 
 
 def test_a_total_s_binary_figures_are_read_as_bit_length_reads_them() -> None:
