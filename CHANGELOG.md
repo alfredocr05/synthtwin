@@ -128,6 +128,30 @@ limit, and, since an extra review of the lane, the producer's call on
 columns whose two tails, and whose days and published count, tell them
 apart.
 
+### A timestamp column's count pass stops rebuilding on every attempt (2026-10-03)
+
+**No published fact and no twin byte moves** (plan P4-D376, stage 3b
+lane G3). Where a timestamp twin holds more different instants than its
+description publishes, the count pass's paid merge rebuilt its offers
+from every row on each attempt and walked every row again for each
+payment. It now keeps them between attempts, looks for a payment only
+among the rows that can give one, stops asking a row that has nowhere to
+go, and keeps its offers sorted in blocks of at most a few hundred, so that
+putting one in or taking one out no longer moves every offer after it. A
+made-up column of 40,000 clinic appointments took 119 s of CPU to
+generate and now takes about 4, one of 80,000 took 298 s and takes 10,
+and a quarter-hour grid of 40,000 took 126 s and takes 4; 20,000
+appointments of which one in fifty is booked by the day alone, at
+midnight, took 40 s and take 2, and 160,000 of them take 23. Every twin
+and report compared is byte-identical, and a new test keeps the old pass
+as its reference. `K-S3-51` holds the rows the pass reads at two to four
+per row where it read 159 to 1,922, its searches on the day-booked
+appointments at five or six per row where it made 197, and the offers it
+moves there at 762 and 1,352 per row at 40,000 and 160,000 rows. On such
+a column the pass still grows faster than the rows, and the plan says by
+how much: a little over two minutes of it at a million rows. What it
+holds in memory comes to half a kilobyte or two thirds of one a row.
+
 ### A description written before the published pairs loads again (2026-10-03)
 
 **The review of landing 3b.G1, its four items** (plan P4-D375). A
@@ -265,8 +289,13 @@ now meet a census they missed with one value more or fewer, and on one
 day of moments, whose census and count no placement keeping every clock
 meets together, a chain made whole halves the census's miss and keeps
 12 different minutes where 13 were asked and kept; the landing that
-first publishes a weekday census of moments decides on it. The
-fifteenth vectors file holds 51 states.
+first publishes a weekday census of moments decides on it. Of 200,000
+later random states, every one that loses a fact the pass met before,
+unless it meets or nears a census the pass missed, keeps a second
+census, which no column publishes yet: the census is lost on four, the
+count on three, and four of the seven met both before; the landing
+that first publishes such a census decides on them with the others.
+The fifteenth vectors file holds 51 states.
 
 ### Stage 4's first tier repaired at its review (2026-10-02)
 
