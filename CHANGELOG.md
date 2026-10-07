@@ -60,7 +60,8 @@ until its codes are answered is asked its century in the same file, so
 one answering run reads 1931 rather than 2031. The loader refuses a
 zulu offset on a signed field, a fraction past nine figures, and dates
 outside the years or the seconds the layout reads. G7.9b says that an
-offset it writes may be one some real cells wore.
+offset it writes may be one some real cells wore. `K-S3-58` pins the
+round's eleven clauses and is stamped again.
 
 ### A description written before the published pairs loads again (2026-10-03)
 
