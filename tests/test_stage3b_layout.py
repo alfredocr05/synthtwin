@@ -1040,6 +1040,17 @@ def test_sk2_item1_no_offset_the_census_names_is_written_for_its_class_count(
     run: the named offsets left on the offer, and the twin wears `+0000` on
     305 cells -- the twin skeptic 2 measured missing `utc_offsets` at every
     seed and both floors.
+
+    And a named offset after the first one on offer, skeptic 2's spill:
+    1,000 stamps, 100 ending `+0100` and fifty `-0300` to `-0800`, nine or
+    eight each. The twin wears `+0100` on exactly its 100, holds the 150
+    cells that are not numbers and validates at both floors and seeds 0 to
+    2; and handed the stamps with the fifty bare, the pass writes `+0100`
+    on none of them and the oracle writes the same cells. Mutants, run
+    (the leftover round): only a named `+00:00` left off the offer, a
+    named `+01:00` kept on it, and the twin wears `+0100` on 110 cells at
+    floor 11; the same in the oracle alone, and its cells are not the
+    pass's.
     """
     cells = _stamps_wearing(1000, 101, [("+0000", 300), ("-0500", 5)])
     for floor in (11, 36):
@@ -1052,6 +1063,25 @@ def test_sk2_item1_no_offset_the_census_names_is_written_for_its_class_count(
             assert sum(1 for cell in written if cell.endswith("+0000")) == 300, (floor, seed)
             assert sum(1 for cell in written if cell.endswith("+0100")) == 5, (floor, seed)
             assert _validated(profile, twin)[0] == 0, (floor, seed)
+    rare = [("-0300", 9), ("-0400", 9), ("-0500", 8), ("-0600", 8), ("-0700", 8), ("-0800", 8)]
+    spill = _stamps_wearing(1000, 3, [("+0100", 100)] + rare)
+    bare = [cell if cell.endswith("+0100") else cell[0:14] for cell in spill]
+    for floor in (11, 36):
+        block, profile, _questions = _described(tmp_path / f"spill-{floor}", spill, floor=floor)
+        assert block["format"] == "layout {YYYY}{MM}{DD}{HH}{MI}{SS}{+HHMM?}"
+        assert block["utc_offsets"] == {"(none)": 900, "+01:00": 100}
+        assert block["n_not_numeric"] == 150
+        for seed in SEEDS:
+            twin, written = _twin(profile, seed)
+            assert sum(1 for cell in written if cell.endswith("+0100")) == 100, (floor, seed)
+            assert _not_numbers(written) == 150, (floor, seed)
+            assert _validated(profile, twin)[0] == 0, (floor, seed)
+        column, facts = _loaded(profile)
+        paid = generation._offsets_owed_by_the_classes(column, facts, list(bare), (), floor)
+        assert sum(1 for cell in paid if cell.endswith("+0100")) == 100, floor
+        assert _not_numbers(paid) == 150, floor
+        oracle = _oracle()
+        assert oracle.offsets_paid_to_the_classes(block, list(bare), (), floor) == paid, floor  # type: ignore[attr-defined]
 
 
 def _loaded(profile: pathlib.Path) -> "tuple[contract.ColumnBlock, contract.DatetimeFacts]":
