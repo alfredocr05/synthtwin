@@ -27300,11 +27300,13 @@ def _supply_wanted(sizes: "tuple[int, ...]", owed: int) -> int:
     form owing less than the size, and `_greedily` stops a form at a
     debt of nought. So a supply counted past the debt changes no
     arrangement -- and counted to the number of places, as it was, it
-    walked every held-back group once for EVERY form owing a cell.
-    Measured on a register of seven-character codes in 126 forms, 22,946
-    of them held back over 200,000 rows: generate took 108.7 s, 627 of
-    them in `_usable_room`, and takes 12.4 s counted to the debt, the
-    twin byte for byte the same.
+    walked every held-back group once for EVERY form owing a cell, and
+    twice where `_greedily` counted it again. Measured on a register of
+    seven-character codes in 126 forms, 24,610 of them held back over
+    200,000 rows at a floor of eleven: generate took 131.1 s of processor
+    time on da7a6f9 (93 per cent of it in `_usable_room` under a
+    profiler, skeptic 1 found on a like register) and takes 11.4 s
+    counted to the debt, the twin byte for byte the same.
 
     Guarantees: a fixed function of the two. Raises nothing. No I/O.
     """

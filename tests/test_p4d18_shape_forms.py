@@ -48,7 +48,10 @@ from synthtwin import (
 
 
 def _described(
-    values: "list[str]", name: str = "code", codes: "list[str] | None" = None
+    values: "list[str]",
+    name: str = "code",
+    codes: "list[str] | None" = None,
+    floor: int = 11,
 ) -> "tuple[dict, contract.Profile, pathlib.Path]":
     folder = pathlib.Path(tempfile.mkdtemp())
     rows = [[value, "x"] for value in values]
@@ -62,8 +65,8 @@ def _described(
     # (contract C5-S13) -- so a case about pooling has to say the floor
     # it means. Eleven is the floor these cases were written against.
     document = profile.build_document(
-        reading.read_table(f"{table}", small_cell_floor=11),
-        taxonomy.Settings(small_cell_floor=11),
+        reading.read_table(f"{table}", small_cell_floor=floor),
+        taxonomy.Settings(small_cell_floor=floor),
         [],
         forced_codes=codes,
     )
@@ -2039,6 +2042,100 @@ def test_each_form_s_supply_is_counted_only_up_to_what_it_owes() -> None:
     assert len(twin.columns[0]) == len(values)
     assert calls[0] < 10 * 4992, calls[0]
 
+
+
+def _decimal_codes() -> "list[str]":
+    """Decimals declared a code: two words, three published numbers, and 300
+    numbers held back in each of nine forms of two to four figures before
+    the point and one to three after it."""
+    draw = random.Random(390)
+    values: "list[str]" = []
+    seen: "dict[str, int]" = {}
+    for word in ("awaiting", "review"):
+        values += [word] * 40
+    for spelling in ("1.5", "22.75", "333.125"):
+        values += [spelling] * 12
+        seen[spelling] = 1
+    for whole in (2, 3, 4):
+        for places in (1, 2, 3):
+            made = 0
+            while made < 300:
+                figures = draw.randrange(10 ** (whole - 1), 10 ** whole)
+                spelling = f"{figures}.{draw.randrange(10 ** places):0{places}d}"
+                if spelling in seen:
+                    continue
+                seen[spelling] = 1
+                values += [spelling]
+                made = made + 1
+    draw.shuffle(values)
+    return values
+
+
+def _wide_codes(seed: int, rows: int = 2000) -> "list[str]":
+    """Landing 2b.12's carried column, as `tests/test_landing_2b18_forms_and_spellings.py`
+    builds it: figures, a hyphen, capitals."""
+    draw = random.Random(seed)
+    built: "list[str]" = []
+    for _row in range(rows):
+        size = draw.choice((1, 1, 1, 2, 4, 9))
+        left = "".join(draw.choice("0123456789") for _c in range(size))
+        right = "".join(draw.choice("ABCDEFGH") for _c in range(size))
+        built += [f"{left}-{right}"]
+    return built
+
+
+def test_no_form_s_supply_is_counted_past_what_it_can_be_paid() -> None:
+    """Every supply count of a named form, in the three places it is taken
+    (review of plan P4-D390, item 1).
+
+    G8.3's arrangement, G8.3a's class walk and G8.3b's trade each count a
+    form's supply to spend it on the cells that form owes, so none needs
+    more spellings than the form's census count and the floor: a form is
+    paid at most what it owes and one label's rows past it. Counted to the
+    number of held-back labels instead, a supply walked every one of them
+    for every form: 64 forms holding 4,992 codes back, decimals held back
+    300 to a form in nine forms beside 2,700 labels, and the carried column
+    of figures, a hyphen and capitals at a floor of twenty, where the trade
+    asked for 1,082 spellings of forms of 356, 350 and 306 cells. No byte
+    of any twin moves either way.
+    """
+    recorded: "list[tuple[str, int]]" = []
+    usable = generation._usable_room
+    ladder_room = generation._ladder_room
+
+    def usable_counted(form: str, wanted: int, *rest: object) -> int:
+        nonlocal recorded
+        recorded += [(form, wanted)]
+        return usable(form, wanted, *rest)  # type: ignore[arg-type]
+
+    def ladder_counted(ladder: object, form: str, wanted: int, *rest: object) -> int:
+        nonlocal recorded
+        recorded += [(form, wanted)]
+        return ladder_room(ladder, form, wanted, *rest)  # type: ignore[arg-type]
+
+    for values, codes, floor in (
+        (_register_of_many_forms(), None, 11),
+        (_decimal_codes(), ["proc"], 11),
+        (_wide_codes(401), None, 20),
+    ):
+        document, described, _folder = _described(values, "proc", codes, floor)
+        census = document["columns"][0]["shape_forms"]
+        recorded = []
+        generation._usable_room = usable_counted  # type: ignore[assignment]
+        generation._ladder_room = ladder_counted  # type: ignore[assignment]
+        try:
+            generation.generate(described, 7)
+        finally:
+            generation._usable_room = usable
+            generation._ladder_room = ladder_room
+        named = [
+            (form, wanted) for form, wanted in recorded
+            if form in census and form != contract.WITHHELD
+        ]
+        assert named, codes
+        assert [
+            (form, wanted) for form, wanted in named if wanted >= census[form] + floor
+        ] == [], codes
 
 def test_a_register_holding_back_more_numbers_than_the_ladder_bound_writes_them_all() -> None:
     """THE LADDER GAVE A DEBT UP AT 32,768 POSITIONS IN ALL (review of plan
