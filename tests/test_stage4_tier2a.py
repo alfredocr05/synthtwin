@@ -1452,6 +1452,47 @@ def test_detection_cuts_the_opening_lines_once() -> None:
     assert splits_reading(300, as_built=True) >= 20
 
 
+def _hinted_texts() -> "list[str]":
+    """Tables under a separator line: spaced after the delimiter or not, quoted, every delimiter and line ending."""
+    return [
+        "sep=,\na, b, c\n1, 2, 3\n4, 5, 6\n",
+        "sep=;\na; b; c\n1; 2; 3\n4; 5; 6\n",
+        "sep=|\r\nid| v\r\n1| 2\r\n3| 4\r\n",
+        "sep=\t\nid\t v\n1\t 2\n3\t 4\n",
+        "sep=,\na,b,c\n1,2,3\n4,5,6\n",
+        "sep=,\na, b,c\n1, 2,3\n4, 5,6\n",
+        'sep=;\n"a"; "b"\n"1"; "2"\n"3"; "4"\n',
+        "sep=,\r\na, b\r\n1, 2\r\n",
+    ]
+
+
+def test_detection_under_a_separator_line_reads_from_where_the_table_begins() -> None:
+    """A table under a `sep=` line is spaced as its records are, and its names are read as 110cb46 read them.
+
+    The opening lines detection reads are cut once, from where the table
+    begins, past the separator line. Cut from the text's start instead,
+    `sep=,` is read as a record of two fields, the second not spaced, so
+    a table written comma-space is read with its spaces kept and names
+    the columns 'a', ' b' and ' c'. Every text is settled as shipped and
+    again with detection as 110cb46 cut it, each question its own lines.
+    """
+    for text, delimiter in (("sep=,\na, b, c\n1, 2, 3\n4, 5, 6\n", ","), ("sep=;\na; b; c\n1; 2; 3\n4; 5; 6\n", ";")):
+        found = dialect.settle(text, "utf-8", False, False, "table.csv")
+        assert found.form.separator_line and found.form.delimiter == delimiter, text
+        assert found.form.initial_space is True and found.header == ("a", "b", "c"), (
+            text, found.form.initial_space, found.header,
+        )
+    for text in _hinted_texts():
+        ours = _settled(text)
+        with pytest.MonkeyPatch.context() as patch:
+            patch.setattr(dialect, "delimiter_reading", lambda text, at, opening=None: (
+                delimiter_reading_as_built(text, at)))
+            patch.setattr(dialect, "detected_initial_space", lambda text, at, delimiter, opening=None: (
+                detected_initial_space_as_built(text, at, delimiter)))
+            theirs = _settled(text)
+        assert ours == theirs, text
+
+
 def _listed_cursor(monkeypatch: pytest.MonkeyPatch) -> None:
     """Make every walk cut its whole text into a list before the first record, as 110cb46 walked.
 
@@ -1632,6 +1673,27 @@ def _check_cases(folder: pathlib.Path) -> "list[tuple[str, reading._Reading, pat
     single = fixtures.write(folder, "single.csv", "Export of 3 October\n\n1,2\x1a")
     one = reading._read_authoritatively(single, "single.csv", reading.FIRST_ROW_DATA)
     cases += [("no rows asked for", one, single)]
+    # A header ending in a delimiter, with rows that do not or that do:
+    # pandas reads a column more, named and holding nothing, which the
+    # piece's size is worked out for and which is never compared. And rows
+    # ending in a delimiter under a header that does not, which pandas 3
+    # warns about. Each is read as written and with one value changed.
+    for name, header, ending, trails in (
+        ("header ends in a delimiter", "id,amount,label,", "", (True, False)),
+        ("every row ends in a delimiter", "id,amount,label,", ",", (True, True)),
+        ("rows end in a delimiter", "id,amount,label", ",", (False, True)),
+    ):
+        lines = [header] + [f"{row},{row * 3},L{row % 11}{ending}" for row in range(300)]
+        written = fixtures.write(folder, name.replace(" ", "-") + ".csv", "\n".join(lines) + "\n")
+        trailing = reading._read_authoritatively(written, "table.csv", reading.FIRST_ROW_NAMES)
+        assert trailing.survey is not None, name
+        written_form = trailing.survey.form
+        assert (written_form.header_trailing_delimiter, written_form.rows_trailing_delimiter) == trails, name
+        assert len(trailing.column_names) == 3, (name, trailing.column_names)
+        cases += [(name, trailing, written)]
+        changed = [list(cells) for cells in trailing.columns]
+        changed[1][299] = changed[1][299] + "?"
+        cases += [(f"{name}, last value changed", _with_columns(trailing, changed, trailing.n_rows), written)]
     return cases
 
 
@@ -1659,20 +1721,30 @@ def test_the_checking_pass_read_in_pieces_says_what_the_whole_frame_said(
     value and that value changed, a row of descriptions under the names
     and one of them changed, lines above a table with no names, whose
     first record pandas takes as names, with values changed in its first,
-    second and last rows, and such a table of one record with a mark
-    glued on, which pandas is asked for no rows of -- under both kinds of
-    refusal. A file the pieces agree on is never read whole; every other
-    file is, once, and its refusal is the whole frame's; and pandas is
-    read to its end each time, so no file is left open. The piece is set
-    whether or not the module names one, so on 110cb46, which reads every
-    file whole, the test fails by its own measure.
+    second and last rows, such a table of one record with a mark glued
+    on, which pandas is asked for no rows of, and a header ending in a
+    delimiter, every row ending in one, and rows ending in one under a
+    header that does not, each with its last value changed -- under both
+    kinds of refusal. A file the pieces agree on is never read whole,
+    the column a header's trailing delimiter adds counted among the ones
+    a piece is read for; every other file is, once, and its refusal is
+    the whole frame's; and pandas is read to its end each time, so no
+    file is left open. The piece is set whether or not the module names
+    one, so on 110cb46, which reads every file whole, the test fails by
+    its own measure.
     """
     monkeypatch.setattr(reading, "_pandas_rows_a_piece", lambda width: 7, raising=False)
     said = []
     whole = {"agrees": 0, "refused": 0}
+    agreed = set()
     for name, found, path in _check_cases(tmp_path):
         for refusals in (reading.REFUSALS_MAY_QUOTE, reading.REFUSALS_NAME_POSITIONS):
-            theirs = _checked(_check_against_pandas_as_built, found, path, refusals)
+            with warnings.catch_warnings(record=True):
+                # Pandas may warn about a file it reads -- rows ending in
+                # a delimiter their header does not end in -- and that is
+                # kept out of this test's report.
+                warnings.simplefilter("always")
+                theirs = _checked(_check_against_pandas_as_built, found, path, refusals)
             with pytest.MonkeyPatch.context() as patch, warnings.catch_warnings(record=True) as caught:
                 warnings.simplefilter("always")
                 reads = _counted_reads(patch)
@@ -1686,10 +1758,13 @@ def test_the_checking_pass_read_in_pieces_says_what_the_whole_frame_said(
             elif ours == "agrees":
                 assert reads == {"pieces": 1, "whole": 0}, (name, reads)
                 whole["agrees"] += 1
+                agreed |= {name}
             else:
                 assert reads == {"pieces": 1, "whole": 1}, (name, reads)
                 whole["refused"] += 1
             said += [ours]
+    trailing = {"header ends in a delimiter", "every row ends in a delimiter", "rows end in a delimiter"}
+    assert trailing <= agreed, agreed
     assert said.count("agrees") >= 8 and len(set(said)) >= 8, said
     assert whole["agrees"] >= 8 and whole["refused"] >= 20, whole
 
