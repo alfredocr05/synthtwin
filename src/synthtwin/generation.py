@@ -20215,25 +20215,62 @@ def _weekday_exchanged(
     one finds its place; a long count left behind is step 8.1 and 8.2's
     again.
 
+    THE CELLS ARE FILED ONCE A CALL, and the count counted once
+    (`_WeekdayAsked`; the lane T2 skeptic's finding 1): each round's moves
+    re-file their ranks and change the count by the written units they
+    leave empty and the ones they fill, so a round costs what its moves
+    touch rather than the whole body twice, and every round asks and
+    answers exactly what filing and counting it all again would.
+
     Guarantees: moves body ranks the layout does not pin, inside their
     own gaps and width kinds and never onto a hole; keeps every group's
     count. Draws no word. Raises nothing. No I/O of any kind.
     """
+    kept = _weekday_asked_of(_weekday_cells(state, body_low, body_high, pinned))
+    count = _weekday_count(state)
     for _round in range(_WEEKDAY_EXCHANGES):
-        count = _weekday_count(state)
         if count >= wanted:
             break
-        cycle = _weekday_cycle(
-            state, _weekday_cells(state, body_low, body_high, pinned),
-            wanted - count,
-        )
+        cycle = _weekday_cycle(state, kept.cells, wanted - count, kept)
         if not cycle:
             break
+        starts = [state.moved[mover] for _key, _giving, _taking, mover in cycle]
         _weekday_exchange_moves(state, cycle)
-        if _weekday_count(state) <= count:
+        gained = _weekday_cycle_refiled(state, kept, cycle, starts)
+        if gained <= 0:
             break
+        count = count + gained
     if _weekday_count(state) > wanted:
         _weekday_repaired(state, body_low, body_high, pinned, wanted)
+
+
+def _weekday_cycle_refiled(
+    state: _WeekdayPass,
+    kept: "_WeekdayAsked",
+    cycle: "list[tuple[tuple[int, int, _WeekdayKind], int, int, int]]",
+    starts: "list[int]",
+) -> int:
+    """Re-file every mover of a cycle that moved (`_weekday_refiled`), and
+    return how far the count of different written units moved: each
+    written unit a mover left or took counted as it stands, less as it
+    stood, which is what it stands at less the movers that came and plus
+    the ones that went."""
+    came: "dict[int, int]" = {}
+    went: "dict[int, int]" = {}
+    for place in range(len(cycle)):
+        key, giving, taking, mover = cycle[place]
+        start = starts[place]
+        if state.moved[mover] == start:
+            continue
+        _weekday_tally(went, start // state.step, 1)
+        _weekday_tally(came, state.moved[mover] // state.step, 1)
+        _weekday_refiled(state, kept, key, mover, giving, taking, start)
+    change = 0
+    for unit in sorted(set(came) | set(went)):
+        now = _weekday_there(state, unit * state.step)
+        was = now - (came[unit] if unit in came else 0) + (went[unit] if unit in went else 0)
+        change = change + (1 if now > 0 else 0) - (1 if was > 0 else 0)
+    return change
 
 
 def _weekday_cells(
@@ -20263,6 +20300,86 @@ def _weekday_cells_of(
         else:
             members[group] = [rank]
     return cells
+
+
+@dataclasses.dataclass(frozen=True)
+class _WeekdayAsked:
+    """Step 7b's or step 8.3's cells, filed once a call and kept as its moves change them.
+
+    FILED ONCE, NOT EACH ROUND (the lane T2 skeptic's finding 1). Each
+    round of steps 7b and 8.3 filed every movable rank by cell again and
+    asked every cell's mover again: up to 256 and 64 rounds over the whole
+    body, so a million moments of daytime visits spent 397 seconds in the
+    hour pass, nearly all of it there. Here `cells` files them once
+    (`_weekday_cells_of`) and each move re-files its rank (`_weekday_refiled`);
+    `asked` keeps what a round asked of a cell's group -- its mover, its
+    `give` and each group its `take` reaches -- until a move touches a
+    written unit inside that cell's gap and of its kind
+    (`_weekday_touched`), which is everything those answers read: the
+    mover is read off the counts of its group's written units, and each
+    take off the places of the cell's kind inside its gap. `kinds` lists
+    each kind's cells. Every round therefore asks what filing every rank
+    again would ask, and every answer is the same.
+    """
+
+    cells: "dict[tuple[int, int, _WeekdayKind], dict[int, list[int]]]"
+    kinds: "dict[_WeekdayKind, list[tuple[int, int, _WeekdayKind]]]"
+    asked: "dict[tuple[tuple[int, int, _WeekdayKind], int], tuple[int, int, tuple[tuple[int, int], ...]]]"
+
+
+def _weekday_asked_of(
+    cells: "dict[tuple[int, int, _WeekdayKind], dict[int, list[int]]]",
+) -> _WeekdayAsked:
+    """The kept filing of these cells, nothing yet asked (`_WeekdayAsked`)."""
+    kinds: "dict[_WeekdayKind, list[tuple[int, int, _WeekdayKind]]]" = {}
+    for key in sorted(cells):
+        if key[2] in kinds:
+            found = kinds[key[2]]
+            found += [key]
+        else:
+            kinds[key[2]] = [key]
+    return _WeekdayAsked(cells, kinds, {})
+
+
+def _weekday_touched(state: _WeekdayPass, kept: _WeekdayAsked, ordinal: int) -> None:
+    """Forget what was asked of every cell of this ordinal's kind whose gap
+    reaches the written unit it stands on: a rank left or took it."""
+    start = ordinal // state.step * state.step
+    end = start + state.step - 1
+    kind = _weekday_kind(state, ordinal)
+    if kind not in kept.kinds:
+        return
+    for key in kept.kinds[kind]:
+        if key[0] > end or key[1] < start:
+            continue
+        for group in kept.cells[key]:
+            if (key, group) in kept.asked:
+                del kept.asked[(key, group)]
+
+
+def _weekday_refiled(
+    state: _WeekdayPass,
+    kept: _WeekdayAsked,
+    key: "tuple[int, int, _WeekdayKind]",
+    rank: int,
+    giving: int,
+    taking: int,
+    start: int,
+) -> None:
+    """A rank of a cell moved from `start`, in `giving`, to where it now
+    stands, in `taking`: re-filed in rank order, and what was asked of the
+    cells its two written units reach forgotten (`_WeekdayAsked`)."""
+    members = kept.cells[key]
+    found = members[giving]
+    del found[_weekday_first_from(found, rank)]
+    if taking in members:
+        found = members[taking]
+        at = _weekday_first_from(found, rank)
+        found[at:at] = [rank]
+    else:
+        members[taking] = [rank]
+    _weekday_touched(state, kept, start)
+    _weekday_touched(state, kept, state.moved[rank])
 
 
 def _weekday_mover(state: _WeekdayPass, members: "list[int]") -> int:
@@ -20320,6 +20437,7 @@ def _weekday_cycle(
     state: _WeekdayPass,
     cells: "dict[tuple[int, int, _WeekdayKind], dict[int, list[int]]]",
     short: int,
+    kept: "_WeekdayAsked | None" = None,
 ) -> "list[tuple[tuple[int, int, _WeekdayKind], int, int, int]]":
     """The cycle of moves step 8.3 takes, or an empty list (method G7.3f).
 
@@ -20344,35 +20462,44 @@ def _weekday_cycle(
     not say no cycle gains: a gaining cycle of four groups or more is
     never asked (the Codex review of landing 3b.D0, item 6, its ten
     groups of days of the month).
+
+    `kept` is step 8.3's filing kept across its rounds (`_WeekdayAsked`):
+    what it asked of a cell's group in an earlier round is read back
+    where no move has touched it since, and what it asks now is kept.
     """
     groups = max(state.where) + 1
     longest = groups if groups <= _WEEKDAY_CYCLE_GROUPS else _WEEKDAY_CYCLE_LONGEST
     give: "dict[tuple[tuple[int, int, _WeekdayKind], int], int]" = {}
     movers: "dict[tuple[tuple[int, int, _WeekdayKind], int], int]" = {}
-    take: "dict[tuple[tuple[int, int, _WeekdayKind], int, int], int]" = {}
+    take: "dict[tuple[tuple[int, int, _WeekdayKind], int], tuple[tuple[int, int], ...]]" = {}
     for key in sorted(cells):
         members = cells[key]
         for giving in range(groups):
-            if giving not in members:
+            if giving not in members or not members[giving]:
+                continue
+            if kept is not None and (key, giving) in kept.asked:
+                movers[(key, giving)], give[(key, giving)], take[(key, giving)] = kept.asked[(key, giving)]
                 continue
             # The group's MOVER, the rank its moves take: give and take are
             # both asked of it, so the gain is what that move makes.
             mover = _weekday_mover(state, members[giving])
             movers[(key, giving)] = mover
             give[(key, giving)] = 0 if _weekday_there(state, state.moved[mover]) >= 2 else -1
+            reaches: "list[tuple[int, int]]" = []
             for taking in range(groups):
                 gained = _weekday_take(state, key, taking, mover)
                 if gained is not None:
-                    take[(key, giving, taking)] = gained
+                    reaches += [(taking, gained)]
+            take[(key, giving)] = tuple(reaches)
+            if kept is not None:
+                kept.asked[(key, giving)] = (mover, give[(key, giving)], take[(key, giving)])
     best: "dict[tuple[int, int], tuple[int, tuple[int, int, _WeekdayKind]]]" = {}
     for key in sorted(cells):
         for giving in range(groups):
             if (key, giving) not in give:
                 continue
-            for taking in range(groups):
-                if (key, giving, taking) not in take:
-                    continue
-                gain = give[(key, giving)] + take[(key, giving, taking)]
+            for taking, gained in take[(key, giving)]:
+                gain = give[(key, giving)] + gained
                 if (giving, taking) not in best or gain > best[(giving, taking)][0]:
                     best[(giving, taking)] = (gain, key)
     chosen: "dict[str, tuple[tuple[int, int, int], tuple[int, ...]]]" = {}
@@ -20541,28 +20668,49 @@ def _weekday_chained(
     day every rank of a cell has the same places, so the mover as the
     ranks then stand always has one, and no date's answer changes.
 
+    THE CELLS ARE FILED ONCE A CALL (`_WeekdayAsked`; the lane T2
+    skeptic's finding 1): each move re-files its rank, and what a round
+    asked of a cell's group -- its mover, and the groups it has a place
+    of -- is read back until a move touches that cell, so a round costs
+    what its moves touch rather than the whole body. Every link, path and
+    move is the one filing and asking every cell each round makes.
+
     Draws no word. Guarantees: moves only the given ranks, inside their
     own gaps and kinds and never onto a hole; keeps `have` true. Raises
     nothing. No I/O of any kind.
     """
     groups = len(want)
+    kept: "_WeekdayAsked | None" = None
     for _round in range(_WEEKDAY_CHAINS):
         over = [group for group in range(groups) if have[group] > want[group]]
         under = [group for group in range(groups) if have[group] < want[group]]
         if not over or not under:
             return
-        cells = _weekday_cells_of(state, ranks)
+        if kept is None:
+            kept = _weekday_asked_of(_weekday_cells_of(state, ranks))
+        cells = kept.cells
+        for key in sorted(cells):
+            for giving in sorted(cells[key]):
+                if (key, giving) in kept.asked or not cells[key][giving]:
+                    continue
+                mover = _weekday_mover(state, cells[key][giving])
+                reaches: "list[tuple[int, int]]" = []
+                for taking in range(groups):
+                    if taking != giving and _weekday_take(state, key, taking, mover) is not None:
+                        reaches += [(taking, 0)]
+                kept.asked[(key, giving)] = (mover, 0, tuple(reaches))
         link: "dict[tuple[int, int], tuple[int, int, _WeekdayKind]]" = {}
         asked: "dict[tuple[int, int], int]" = {}
         for key in sorted(cells):
             for giving in sorted(cells[key]):
-                mover = _weekday_mover(state, cells[key][giving])
-                for taking in range(groups):
+                if not cells[key][giving]:
+                    continue
+                linked, _give, places = kept.asked[(key, giving)]
+                for taking, _gained in places:
                     if taking == giving or (giving, taking) in link:
                         continue
-                    if _weekday_take(state, key, taking, mover) is not None:
-                        link[(giving, taking)] = key
-                        asked[(giving, taking)] = mover
+                    link[(giving, taking)] = key
+                    asked[(giving, taking)] = linked
         came: "dict[int, int]" = {}
         for group in over:
             came[group] = -1
@@ -20588,12 +20736,20 @@ def _weekday_chained(
         for place in range(len(path) - 1):
             giving, taking = path[place], path[place + 1]
             key = link[(giving, taking)]
+            members = cells[key][giving]
+            stood = [state.moved[rank] for rank in members]
             if not _weekday_cell_move(
-                state, ranks, key, giving, taking
+                state, members, key, giving, taking
             ) and not _weekday_moved_near(
                 state, asked[(giving, taking)], taking, key[2]
             ):
                 return
+            for index in range(len(members)):
+                if state.moved[members[index]] != stood[index]:
+                    _weekday_refiled(
+                        state, kept, key, members[index], giving, taking, stood[index]
+                    )
+                    break
             have[giving] = have[giving] - 1
             have[taking] = have[taking] + 1
 
