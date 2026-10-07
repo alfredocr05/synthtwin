@@ -18970,7 +18970,8 @@ def clock_off_absent(place, size, low_at, stride, form, absent, taken, apart,
 
 
 def clock_absent_of(column):
-    """The column's own absent spellings, trimmed and lower-cased (G7A.4)."""
+    """The spellings the table calls absent, trimmed and lower-cased (G7A.4,
+    G7A.4b): every case is one column, so they are its own."""
     return {text.strip().lower() for text in column.get("missing_by_source") or {}}
 
 

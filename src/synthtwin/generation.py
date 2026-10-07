@@ -17528,17 +17528,22 @@ def _clock_tail_plan(
 
 
 def _clock_layout(
-    column: contract.ColumnBlock, facts: contract.ClockFacts, floor: int
+    column: contract.ColumnBlock,
+    facts: contract.ClockFacts,
+    floor: int,
+    holes: "tuple[str, ...]" = (),
 ) -> "_ClockLayout":
     """The two tails and the body's knots of a column of clock times.
 
     And then the clock censuses stage 3b reserves (plan P4-D364), one
     step per landing, each handed the layout and returning it -- unchanged
-    until its landing fills it.
+    until its landing fills it. `holes` are the spellings the whole table
+    calls absent beside the column's own (`_all_holes_of`), which a
+    census-laid column keeps its cells off (method G7A.4b).
     """
     layout = _clock_knots_laid(column, facts, floor)
     # -- the census of ten-minute bins and the heaps (3b.C1, P4-D373)
-    layout = _clock_census_laid(column, facts, floor, layout)
+    layout = _clock_census_laid(column, facts, floor, layout, holes)
     # -- the minute census of a column of clock times (3b.C2, P4-D374)
     layout = _clock_minutes_laid(column, facts, floor, layout)
     return layout
@@ -17583,6 +17588,7 @@ def _clock_census_laid(
     facts: contract.ClockFacts,
     floor: int,
     layout: "_ClockLayout",
+    holes: "tuple[str, ...]" = (),
 ) -> "_ClockLayout":
     """The layout of a column of clock times, laid on its census and heaps.
 
@@ -17606,9 +17612,13 @@ def _clock_census_laid(
     - the two boundaries and every published rung whose rank and value
       lie in one run are pinned there.
 
-    The absent places are the column's OWN published absent spellings
-    read in its form (`calendar_clock.absent_places`), the ones the
-    validator reads off the same block to draw the same windows.
+    The absent places are the times the spellings the TABLE calls absent
+    name in the column's form (`calendar_clock.absent_places`): its own
+    published absent spellings and every other column's, `holes`,
+    because a declaration reaches the whole table and the checker reads
+    a cell of this column wearing another column's declared spelling as
+    no value too. The validator reads the same spellings off the same
+    description to draw the same windows.
 
     Guarantees: accepts the column, its facts, the floor and the layout;
     returns the layout, carrying its `census` where a step is published.
@@ -17625,7 +17635,7 @@ def _clock_census_laid(
     heaps = tuple(
         (_clock_ordinal_of(value, form), count) for value, count in facts.clock_heaps
     )
-    absent = calendar_clock.absent_places(_hole_spellings(column), form)
+    absent = calendar_clock.absent_places(_hole_spellings(column) + holes, form)
     tails: "tuple[int, int] | None" = None
     body = (0, ((capacity - 1) // stride) * stride)
     low_plan = layout.low
@@ -18201,7 +18211,7 @@ def _clock_content(
     if not isinstance(facts, contract.ClockFacts):
         raise _wrong_facts(column.name)
     form = facts.clock_form
-    layout = _clock_layout(column, facts, plan.small_cell_floor)
+    layout = _clock_layout(column, facts, plan.small_cell_floor, _all_holes_of(plan))
     # A column laid on its census, heaps and step (3b.C1, P4-D373).
     if layout.census is not None:
         return _clock_census_content(plan, layout, layout.census, words)
@@ -44034,6 +44044,7 @@ def _clock_approximations(
     facts: contract.ClockFacts,
     written: "list[str]",
     floor: int,
+    holes: "tuple[str, ...]" = (),
 ) -> "list[Approximation]":
     """The approximated families of a column of clock times.
 
@@ -44042,7 +44053,9 @@ def _clock_approximations(
     rank it would be read from is one of a tail's (stage 3) -- each tail's
     two distances against their construction window (G12.14), and the two
     distinctness counts against the envelope amendment A-P4-20 fixes. All
-    are measured off the FINISHED cells.
+    are measured off the FINISHED cells. The windows are the layout's,
+    drawn beside `holes`, the spellings the whole table calls absent
+    (`_all_holes_of`), as the twin was.
     """
     present = _present_of(written, _hole_spellings(column))
     form = facts.clock_form
@@ -44054,7 +44067,7 @@ def _clock_approximations(
         ]
     )
     held = len(ordinals)
-    layout = _clock_layout(column, facts, floor)
+    layout = _clock_layout(column, facts, floor, holes)
     lows, highs = _clock_windows(layout, held)
     found_facts: "list[Approximation]" = []
     for step in range(1, len(_PCT) - 1):
@@ -45053,7 +45066,7 @@ def _approximations(
         return _numeric_approximations(column, facts, plan, written)
     if isinstance(facts, contract.ClockFacts):
         return _clock_approximations(
-            column, facts, written, plan.small_cell_floor
+            column, facts, written, plan.small_cell_floor, _all_holes_of(plan)
         )
     if isinstance(facts, contract.DatetimeFacts):
         return _datetime_approximations(

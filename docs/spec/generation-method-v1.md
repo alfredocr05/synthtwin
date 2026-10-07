@@ -7456,11 +7456,11 @@ twin that moved either would miss a published fact to keep a count. Nor
 does a body rank whose window is one unit, which is a body with no slack
 left in it. The search passes at most one unit per absent spelling and,
 where the ranks must differ, one per rank. *On a column laid by G7A.4b
-(the round-2 fix of landing 3b.5)* no rank needs the move to reach a
-place the column's own absent spellings name: a run's share counts only
-its other steps and a tail drawn through its shape skips their distances
-(G7A.4b, steps 1 and 2), so a tail rank still never moves and none lands
-there.
+(the round-2 fix of landing 3b.5)* no rank is left on a place a
+spelling the table calls absent names: a run whose every step is one takes
+no cell (G7A.4b step 2), a rank of another run moves off it (step 4),
+and a tail drawn through its shape skips their distances (step 1), so a
+tail rank still never moves and none lands there.
 
 *Added by the dates pass of the stage-3 review, item 5.* The stand-ins
 of G7A.5 were stepped past the absent spellings from the day the role
@@ -7479,10 +7479,12 @@ description written before it -- by G7A.4, byte for byte as before.
 With `k` the step in the form's own unit and every distance and place
 below on that step:
 
-1. **The tails.** An ABSENT PLACE is a time the column's own absent
-   spellings (`missing_by_source`) name in its form: one that reads as a
-   time there and is, trimmed and case-folded, the form's own spelling of
-   that time (`calendar_clock.absent_places`). A tail listing its values
+1. **The tails.** An ABSENT PLACE is a time a spelling the table calls
+   absent names in the column's form -- a key of its own
+   `missing_by_source` or of any other column's, since a declaration
+   reaches the whole table and the checker reads it so: one that reads
+   as a time there and is, trimmed and case-folded, the form's own
+   spelling of that time (`calendar_clock.absent_places`). A tail listing its values
    and holding no heap, or holding no heap on a step of one unit with no
    absent place beyond its boundary, is placed as G7A.4 places it (G7.3b,
    G7.3c). A
@@ -7513,7 +7515,8 @@ below on that step:
    absent place, `U<=j` and `U<j` those through and before run `j` -- so
    a run whose every step is an absent place takes no cell -- `f_j` one
    for each tail boundary standing in run `j` on no heap, and
-   `r = n - sum(f)`; where the `f_j` outnumber `n`, none is taken first. The boundary's ONE CELL
+   `r = n - sum(f)`; where the `f_j` outnumber `n`, none is taken
+   first. The boundary's ONE CELL
    FIRST is the 3b.5 skeptic's MAJOR 1: a first run of two steps in
    forty-one took none of twenty cells by steps alone, and the pinned
    boundary took a cell of the heap beside it. A body publishing no

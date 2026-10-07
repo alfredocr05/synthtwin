@@ -1682,7 +1682,7 @@ INVARIANTS = {
     "CC5": (
         "every group of a clock census that counts cells holds a step "
         "between the two boundaries that is no heap and no spelling the "
-        "column calls absent -- as many as it counts where the column's "
+        "table calls absent -- as many as it counts where the column's "
         "values are all different -- and every boundary and rung stands on "
         "a heap or in a group that counts cells; with no census, the values "
         "between the boundaries on no heap are one such group over the "
@@ -3391,6 +3391,12 @@ class _Frame:
     # `missing_by_source` keys, the absent spellings whose days a weekday
     # census holds as holes (review of landing 3b.1, finding 6).
     declared_days: "tuple[str, ...]" = ()
+    # Every key of every column's `missing_by_source`, read before the
+    # columns are: a declaration reaches the whole table, so a clock
+    # column's twin keeps its cells off the places any of them names in
+    # its form, and CC5 asks for room beside them (the round-2 fix of
+    # landing 3b.5, method G7A.4b).
+    table_holes: "tuple[str, ...]" = ()
 
 
 def _category_ceiling(frame: _Frame) -> int:
@@ -15587,8 +15593,10 @@ def _clock_census(
       body being the cells between the two boundaries, or every parsed
       cell of a column with no tails;
     - CC5, reachability: each group that counts cells holds at least one
-      step inside the body that is no heap and no place the column's own
-      absent spellings name (`calendar_clock.absent_places`) -- at least
+      step inside the body that is no heap and no place a spelling the
+      table calls absent names in this column's form -- a key of its own
+      `missing_by_source` or of any other column's
+      (`calendar_clock.absent_places`) -- at least
       as many as it counts on a column whose values are all different --
       and each boundary and each published rung stands on a heap or in a
       group that counts cells. A block publishing no census is asked the
@@ -15792,10 +15800,14 @@ def _clock_census(
         laid = tuple(groups)
     distinct = mapping["n_distinct"] if "n_distinct" in mapping else None
     apart = isinstance(distinct, int) and distinct - facts.n_unparsed >= parsed
-    # The steps the column's own absent spellings name hold no cell of a
-    # run (method G7A.4b, the round-2 fix of landing 3b.5), so they are no
-    # room here either: a group left with none is refused, not laid.
-    absent = calendar_clock.absent_places(_absent_spellings(mapping, ()), form)
+    # The steps the spellings the table calls absent name -- this
+    # column's own and every other column's, a declaration reaching the
+    # whole table -- hold no cell of a run (method G7A.4b, the round-2 fix
+    # of landing 3b.5), so they are no room here either: a group left
+    # with none is refused, not laid.
+    absent = calendar_clock.absent_places(
+        _absent_spellings(mapping, ()) + frame.table_holes, form
+    )
     reach = calendar_clock.clock_group_reach(
         laid, form, stride, (lowest, highest), heap_at, absent
     )
@@ -15815,7 +15827,7 @@ def _clock_census(
                 where,
                 found,
                 f"it holds {units} steps between the two boundaries that "
-                f"stand on no heap and on no spelling the column calls "
+                f"stand on no heap and on no spelling the table calls "
                 f"absent, and must hold "
                 f"{'as many as it counts' if apart else 'at least one'}",
             )
@@ -15844,6 +15856,27 @@ def _clock_census(
                 "counts cells",
             )
     return tuple(groups), tuple(heaps), step, tuple(codes)
+
+
+def _table_holes(columns: object) -> "tuple[str, ...]":
+    """Every spelling any column block publishes among its absent cells.
+
+    Read off the raw blocks before any of them is checked, so a value
+    that is not a list of blocks, or a map whose keys are not text, names
+    nothing here; its own rule refuses it when its block is read.
+
+    Guarantees: a sorted tuple, each spelling once. Determinism: a
+    function of the value. Raises nothing. No I/O of any kind.
+    """
+    found: "set[str]" = set()
+    if isinstance(columns, list):
+        for column in columns:
+            if not isinstance(column, dict):
+                continue
+            keys = column["missing_by_source"] if "missing_by_source" in column else None
+            if isinstance(keys, dict):
+                found = found | {key for key in keys if isinstance(key, str)}
+    return tuple(sorted(found))
 
 
 def _drawn_tails_have_room(
@@ -15898,7 +15931,7 @@ def _drawn_tails_have_room(
                 where,
                 f"the {side} tail draws {left} of its rows through its shape, "
                 f"and every step beyond its boundary is a heap or a spelling "
-                f"the column calls absent",
+                f"the table calls absent",
                 "a tail drawn through its shape keeps a step beyond its "
                 "boundary for the rows its heaps leave",
             )
@@ -18171,6 +18204,7 @@ def _validated(document: "dict[str, object]") -> Profile:
     columns = _columns(
         document["columns"],
         _Frame(
+            table_holes=_table_holes(document["columns"]),
             floor=settings.small_cell_floor,
             n_rows=n_rows,
             n_columns=n_columns,

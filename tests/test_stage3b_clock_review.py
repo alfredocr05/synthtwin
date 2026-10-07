@@ -78,7 +78,12 @@ its absent steps again; a tail drawn without skipping them, at the
 minute placed as G7A.4 places it); the oracle lays the minute column as
 the product does; and CC5 refuses a hand-edited group, or a drawn tail,
 left no step to stand on (mutants: each refusal withdrawn). Each clause
-failed at d4f5ee4.
+failed at d4f5ee4. And `test_round_2_an_absence_another_column_publishes_stays_absent`
+-- a declaration reaches the whole table, so the places are those any
+column's absent spellings name: one column writing `00:00` for unknown
+times and another pressed against midnight wrote it in the second
+column's twin at d4f5ee4 and at d0ae8f7 (mutant: the column's own
+spellings alone).
 """
 
 from __future__ import annotations
@@ -1256,7 +1261,7 @@ def test_round_2_the_loader_refuses_a_group_with_no_step_left(tmp_path: pathlib.
     document, _loaded = _described(tmp_path, cells, declared=(hole,))
     refused = _loads(tmp_path, _absent_only_group(document), "absent-only")
     assert isinstance(refused, str) and "CC5" in refused and "bin 90 to bin 90 counts 14" in refused, refused
-    assert "on no spelling the column calls absent" in refused, refused
+    assert "on no spelling the table calls absent" in refused, refused
 
 
 def test_round_2_red_when_the_loader_counts_absent_steps_as_room(
@@ -1340,3 +1345,88 @@ def test_round_2_red_without_the_room_beyond_a_drawn_tail(
     assert isinstance(loaded, contract.Profile)
     with pytest.raises((ValueError, errors.ProfileError)):
         generation.generate(loaded, 0)
+
+
+def _two_columns(seed: int = 0) -> "tuple[list[str], list[str]]":
+    """Two clock columns of 300 rows on a five-minute grid beside `00:00` declared missing.
+
+    `a` writes `00:00` for 17 unknown times; `b` never writes it, and its
+    low tail is pressed against midnight, eleven rows from `00:05` to
+    `00:15` beyond a boundary at `00:20`.
+    """
+    draw = random.Random(seed)
+
+    def body(rows: int) -> "list[str]":
+        return _minutes([draw.randrange(72, 240) * 5 for _row in range(rows)])
+
+    b = ["00:05"] * 7 + ["00:10"] * 3 + ["00:15", "00:20"] + body(288)
+    a = ["00:00"] * 17 + body(283)
+    draw.shuffle(a)
+    draw.shuffle(b)
+    return a, b
+
+
+def _two_column_twins(
+    folder: pathlib.Path, seeds: "tuple[int, ...]" = (0, 1, 2)
+) -> "tuple[dict[str, typing.Any], list[tuple[int, int, list[str]]], list[str]]":
+    """The two columns through the producer, the generator and the checker.
+
+    Returns the description, each seed's twin's `b` cells on `00:00` with
+    what the checker MISSED of that twin, and what it MISSED of the table.
+    """
+    a, b = _two_columns()
+    folder.mkdir(parents=True, exist_ok=True)
+    table = fixtures.write(folder, "table.csv", "\n".join(["a,b"] + [f"{x},{y}" for x, y in zip(a, b)]) + "\n")
+    settings = taxonomy.Settings(small_cell_floor=11, declared_missing_values=("00:00",))
+    document = profile.build_document(reading.read_table(str(table), small_cell_floor=11), settings, [], [])
+    loaded = contract.load_profile(str(fixtures.write_profile(folder, "table.json", document)))
+    twins: "list[tuple[int, int, list[str]]]" = []
+    for seed in seeds:
+        text = rendering.twin_csv(generation.generate(loaded, seed))
+        path = fixtures.write(folder, f"twin-{seed}.csv", text)
+        rows = list(csv.reader(io.StringIO(text)))[1:]
+        twins += [(seed, len([row for row in rows if row and row[1] == "00:00"]), _missed(loaded, path))]
+    return document, twins, _missed(loaded, table)
+
+
+def test_round_2_an_absence_another_column_publishes_stays_absent(tmp_path: pathlib.Path) -> None:
+    """`b` publishes no absence, but `a` publishes `00:00`, so the checker reads a `00:00` of `b` as no value too.
+
+    A declaration reaches the whole table, so the places a census-laid
+    column keeps its cells off are those any column's absent spellings
+    name in its form. Read off `b`'s own spellings alone (at d0ae8f7 and
+    at d4f5ee4), `b`'s low tail drew one cell onto `00:00`, its edge, at
+    every seed, and the twin MISSED `b`'s presence counts and tail.
+    """
+    document, twins, table = _two_column_twins(tmp_path)
+    a, b = document["columns"]
+    assert a["missing_by_source"] == {"00:00": 17} and b["missing_by_source"] == {}
+    assert b["role"] == taxonomy.ROLE_CLOCK and b["clock_step"] == 300
+    assert b["low_tail"]["boundary"] == "00:20" and b["low_tail"]["values"] is None
+    assert table == [], table
+    assert twins == [(seed, 0, []) for seed in (0, 1, 2)], twins
+
+
+def test_round_2_red_when_a_column_reads_its_own_absences_alone(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """MUTATION: the layout handed the column's own absent spellings alone, as at d0ae8f7."""
+    built = generation._clock_layout
+    monkeypatch.setattr(
+        generation, "_clock_layout",
+        lambda column, facts, floor, holes=(): built(column, facts, floor),
+    )
+    _document, twins, _table = _two_column_twins(tmp_path, (0,))
+    assert twins[0][1] == 1 and twins[0][2] != [], twins
+
+
+def test_round_2_the_loader_asks_room_beside_every_columns_absence(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """CC5 counts out the places any column's absent spellings name: beside another column's `15:00`, `hourly`'s group of 14 on `15:00` alone is refused."""
+    cells, hole = _absence_column("hourly")
+    document, _loaded = _described(tmp_path, cells, declared=(hole,))
+    assert contract._table_holes(document["columns"]) == ("12:00",)
+    monkeypatch.setattr(contract, "_table_holes", lambda _columns: ("12:00", "15:00"))
+    refused = _loads(tmp_path, document, "beside-another")
+    assert isinstance(refused, str) and "CC5" in refused and "bin 90 to bin 90 counts 14" in refused, refused

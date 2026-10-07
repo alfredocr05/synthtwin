@@ -247,16 +247,18 @@ def group_span(
 
 
 def absent_places(spellings: "tuple[str, ...] | list[str]", form: str) -> "tuple[int, ...]":
-    """The places of a form's dial a column calls absent (method G7A.4b).
+    """The places of a form's dial the table calls absent (method G7A.4b).
 
-    Every spelling the column publishes among its absent cells
-    (`missing_by_source`) that reads as a time in its form, at the place
-    it reads at, where the one spelling the form writes for that place is
-    that absent spelling once both are trimmed and case-folded -- so a
-    twin cell written there is one the column's own reader counts as no
-    value. A body run's steps and a tail's distances leave these places
-    out (the round-2 fix of landing 3b.5: `00:00` written for an unknown
-    time beside a ten-minute grid came back on 21 rows of 20, and `12:00`
+    Every spelling the table publishes among its absent cells -- a key of
+    the column's own `missing_by_source` or of any other column's, since
+    a declaration reaches the whole table and the checker reads it so --
+    that reads as a time in the column's form, at the place it reads at,
+    where the one spelling the form writes for that place is that absent
+    spelling once both are trimmed and case-folded: a twin cell written
+    there is one the column's own reader counts as no value. A body
+    run's steps and a tail's distances leave these places out (the
+    round-2 fix of landing 3b.5: `00:00` written for an unknown time
+    beside a ten-minute grid came back on 21 rows of 20, and `12:00`
     beside an hourly one on 285 of 279).
 
     Guarantees: accepts the spellings and one of `parsing.CLOCK_FORMS`;

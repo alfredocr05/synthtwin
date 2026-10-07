@@ -7456,7 +7456,12 @@ def _obligations(
         comma,
     ))
     system = _tail_date_system(description, column)
-    gated = _universal_checks(column, block, mine, floor, system)
+    # THE SPELLINGS THE TABLE CALLS ABSENT, every column's (the round-2
+    # fix of landing 3b.5): a census-laid clock column's twin keeps its
+    # cells off the places they name in its form (method G7A.4b), so its
+    # windows are drawn beside the same ones.
+    holes = tuple(own_settings.declared_missing_values)
+    gated = _universal_checks(column, block, mine, floor, system, holes)
     # A JOINED COLUMN READ FROM ITS VALUES counts a position's cells by
     # rule 9c's own admission (integration repair of landing 2b.5).
     pairs = (
@@ -7467,12 +7472,12 @@ def _obligations(
     declared = description.settings.declared_missing_values.built_in_dates
     gated = gated + _role_checks(
         column, block, own_cells, floor, mine, pairs, writable, system,
-        declared,
+        declared, holes,
     )
-    measured = _universal_checks(column, split, mine, floor, system)
+    measured = _universal_checks(column, split, mine, floor, system, holes)
     measured = measured + _role_checks(
         column, split, split_cells, floor, mine, pairs, writable, system,
-        declared,
+        declared, holes,
     )
     return checks + _governed(gated, measured, split_published)
 
@@ -8851,11 +8856,14 @@ def _universal_checks(
     mine: "tuple[str, ...]",
     floor: int,
     date_system: str = "",
+    holes: "tuple[str, ...]" = (),
 ) -> "list[Check]":
     """The counts every role publishes, whatever its role is.
 
     `floor` and `date_system` reach the distinctness envelope of a column
-    of dates or clock times, whose tail strata depend on them (G12.14).
+    of dates or clock times, whose tail strata depend on them (G12.14),
+    and `holes`, the spellings the table calls absent, a clock column's
+    (method G7A.4b).
     """
     name = column.name
     checks: list[Check] = []
@@ -8876,7 +8884,7 @@ def _universal_checks(
             )
         ]
     checks = checks + _distinctness_checks(
-        column, block, mine, floor, date_system
+        column, block, mine, floor, date_system, holes
     )
     return checks
 
@@ -8887,6 +8895,7 @@ def _distinctness_checks(
     mine: "tuple[str, ...]",
     floor: int,
     date_system: str = "",
+    holes: "tuple[str, ...]" = (),
 ) -> "list[Check]":
     """The two distinctness counts, at whatever bar this profile sets.
 
@@ -8925,7 +8934,7 @@ def _distinctness_checks(
             # that on every description a profiler wrote. The envelope
             # stood here in the obligation's place, so a file holding 99
             # of a published 100 passed with nothing said.
-            window = _clock_distinct_window(column, facts, floor)
+            window = _clock_distinct_window(column, facts, floor, holes)
             if (
                 contract.all_different_binds(column, published)
                 and window[0] <= published <= window[1]
@@ -9749,6 +9758,7 @@ def _role_checks(
     figures_writable: bool = True,
     date_system: str = "",
     declared_days: "tuple[str, ...]" = (),
+    holes: "tuple[str, ...]" = (),
 ) -> "list[Check]":
     """Everything the column's own role adds.
 
@@ -9757,7 +9767,8 @@ def _role_checks(
     ``figures_writable`` is false where no workbook wearing this
     column's published format code can write its subsecond figures
     (`subsecond_figures_unwritable`), and it reaches the datetime role
-    alone.
+    alone. ``holes`` are the spellings the table calls absent, which a
+    census-laid clock column's windows are drawn beside (method G7A.4b).
     """
     facts = column.facts
     if isinstance(facts, contract.CompoundFacts):
@@ -9765,7 +9776,7 @@ def _role_checks(
     if isinstance(facts, contract.JoinedFacts):
         return _joined_checks(column, facts, block, cells, floor, plain_pairs)
     if isinstance(facts, contract.ClockFacts):
-        return _clock_checks(column, facts, block, cells, floor)
+        return _clock_checks(column, facts, block, cells, floor, holes)
     if isinstance(facts, contract.AffixedFacts):
         return _affixed_checks(column, facts, block, cells, floor, mine)
     if isinstance(facts, contract.NumericFacts):
@@ -15731,9 +15742,16 @@ def _date_tail_windows(
 
 
 def _clock_tail_windows(
-    column: contract.ColumnBlock, facts: contract.ClockFacts, floor: int
+    column: contract.ColumnBlock,
+    facts: contract.ClockFacts,
+    floor: int,
+    holes: "tuple[str, ...]" = (),
 ) -> "dict[str, tuple[list[int], list[int]]]":
-    """Each shape-drawn clock tail's nearest and furthest distances (G12.14)."""
+    """Each shape-drawn clock tail's nearest and furthest distances (G12.14).
+
+    `holes` are the spellings the table calls absent beside the column's
+    own, whose places a census-laid tail's draw skips (method G7A.4b).
+    """
     found: "dict[str, tuple[list[int], list[int]]]" = {}
     if facts.low_tail is None or facts.high_tail is None:
         return found
@@ -15768,7 +15786,7 @@ def _clock_tail_windows(
                 if distance > 0:
                     heaped += [(distance, count)]
             beyond = calendar_clock.absent_beyond(
-                _clock_absent_places(column, facts), at, low_side, stride
+                _clock_absent_places(column, facts, holes), at, low_side, stride
             )
         if heaped or stride > 1 or beyond:
             rows, mean, root = calendar_clock.tail_less_heaps(
@@ -16357,6 +16375,7 @@ def _clock_checks(
     block: "dict[str, object]",
     cells: "list[str] | None" = None,
     floor: int = parsing.DEFAULT_SMALL_CELL_FLOOR,
+    holes: "tuple[str, ...]" = (),
 ) -> "list[Check]":
     """A column of clock times.
 
@@ -16367,7 +16386,10 @@ def _clock_checks(
     and its two distances inside the construction window of G12.14
     (`_tail_side_checks`). The published interior rungs are approximated
     inside the window this role's own construction leaves them; a rung
-    the tail rule withholds is listed, never checked.
+    the tail rule withholds is listed, never checked. `holes` are the
+    spellings the table calls absent, which a census-laid column's
+    construction keeps off (method G7A.4b), so its windows are drawn
+    beside them.
     """
     name = column.name
     checks: "list[Check]" = []
@@ -16411,12 +16433,12 @@ def _clock_checks(
                 _clock_ordinal_or_zero(facts.low_tail.boundary, form),
                 _clock_ordinal_or_zero(facts.high_tail.boundary, form),
             ),
-            _clock_tail_windows(column, facts, floor),
+            _clock_tail_windows(column, facts, floor, holes),
             values_of,
             _clock_units(form),
             floor,
         )
-    checks = checks + _clock_ladder_checks(column, facts, block, floor)
+    checks = checks + _clock_ladder_checks(column, facts, block, floor, holes)
     # -- the census, heaps, step and codes stage 3b reserved (3b.C1,
     # P4-D373; plan P4-D364), checked where a step is published: V5-C1
     # and V5-C2.
@@ -16604,6 +16626,7 @@ def _clock_ladder_checks(
     facts: contract.ClockFacts,
     block: "dict[str, object]",
     floor: int,
+    holes: "tuple[str, ...]" = (),
 ) -> "list[Check]":
     """The clock ladder: each PUBLISHED interior rung inside its window.
 
@@ -16618,7 +16641,7 @@ def _clock_ladder_checks(
     measured = _inner_at(block, "clock_percentiles")
     checks: "list[Check]" = []
     parsed = max(1, column.n_present - facts.n_unparsed)
-    lows, highs = _clock_rank_windows(column, facts, parsed, floor)
+    lows, highs = _clock_rank_windows(column, facts, parsed, floor, holes)
     for index in range(1, len(_LADDER_KEYS) - 1):
         key = _LADDER_KEYS[index]
         published = facts.clock_percentiles[key]
@@ -16818,6 +16841,7 @@ def _clock_rank_windows(
     facts: contract.ClockFacts,
     parsed: int,
     floor: int,
+    holes: "tuple[str, ...]" = (),
 ) -> "tuple[list[int], list[int]]":
     """The window every rank of a column of clock times sits in (stage 3).
 
@@ -16862,7 +16886,9 @@ def _clock_rank_windows(
     # P4-D373; method G12.10 as G7A.4b leaves it): every body rank inside
     # its census group's steps, read by the generator's own rule
     # (`calendar_clock.clock_rank_windows`), in seconds.
-    census = _clock_census_windows(facts, parsed, _clock_absent_places(column, facts))
+    census = _clock_census_windows(
+        facts, parsed, _clock_absent_places(column, facts, holes)
+    )
     if census is not None:
         return census
     if low is None or high is None:
@@ -16891,7 +16917,7 @@ def _clock_rank_windows(
                 )
             ]
     knots += [(100 * (high_rank + 1) * word, high_at)]
-    windows = _clock_tail_windows(column, facts, floor)
+    windows = _clock_tail_windows(column, facts, floor, holes)
     apart = column.n_distinct - facts.n_unparsed >= parsed
     stepped: "dict[int, tuple[int, int]]" = {}
     if apart:
@@ -16945,18 +16971,22 @@ def _clock_rank_windows(
 
 
 def _clock_absent_places(
-    column: contract.ColumnBlock, facts: contract.ClockFacts
+    column: contract.ColumnBlock,
+    facts: contract.ClockFacts,
+    holes: "tuple[str, ...]" = (),
 ) -> "tuple[int, ...]":
-    """The places of a clock column's dial its own absent spellings name.
+    """The places of a clock column's dial the table's absent spellings name.
 
-    The generator's reading, off the same block (`calendar_clock.
-    absent_places` over the keys of `missing_by_source`): a census-laid
-    body's runs share their counts over their other steps and a drawn
-    tail skips them (method G7A.4b, the round-2 fix of landing 3b.5), so
-    the windows here are drawn over the same runs and the same draws.
+    The generator's reading, off the same description
+    (`calendar_clock.absent_places` over the keys of the column's own
+    `missing_by_source` and `holes`, the spellings the table calls absent
+    by declaration, every column's): a census-laid body's runs share
+    their counts over their other steps and a drawn tail skips them
+    (method G7A.4b, the round-2 fix of landing 3b.5), so the windows here
+    are drawn over the same runs and the same draws.
     """
     return calendar_clock.absent_places(
-        tuple(sorted(column.missing_by_source)), facts.clock_form
+        tuple(sorted(set(column.missing_by_source) | set(holes))), facts.clock_form
     )
 
 
@@ -18664,7 +18694,10 @@ def _within_instant(
 
 
 def _clock_distinct_window(
-    column: contract.ColumnBlock, facts: contract.ClockFacts, floor: int
+    column: contract.ColumnBlock,
+    facts: contract.ClockFacts,
+    floor: int,
+    holes: "tuple[str, ...]" = (),
 ) -> "tuple[float, float]":
     """How many different values a column of clock times may hold (G12.11).
 
@@ -18681,7 +18714,7 @@ def _clock_distinct_window(
     does not: the construction writes a value per rank.
     """
     parsed = max(1, column.n_present - facts.n_unparsed)
-    lows, highs = _clock_rank_windows(column, facts, parsed, floor)
+    lows, highs = _clock_rank_windows(column, facts, parsed, floor, holes)
     separate = _ranks_forced_apart(lows, highs)
     # THE CODES ARE WRITTEN AS THEY COUNT (landing 3b.5, plan P4-D373): a
     # published code is one spelling however many cells hold it, and every
