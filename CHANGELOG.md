@@ -19,14 +19,19 @@ failed state down. On entering a cell the walk now reads five necessary
 conditions -- what each later cell may hold with every count read
 together, where each size can still stand, whether every count can be
 made, which totals the cell may take, and what the later cells must
-still find among the groups it leaves -- and holds each failed state as
-one number in a memory bounded at 64 MB. Every answer is the old walk's,
-which `tests/stage4_as_built.py` keeps frozen as the oracle, and every
-twin it finished is byte-identical; k = 100 builds in about a second and
-k = 200 in under four, and an identifier of 300 values in four forms
-that 493f6f8 could not build within 1.6 GB in about three. `K-S4-04`,
-new and open: two of sixty seeded identifiers written in mixed forms
-still take the walk a long time, which STATE's broken list now says.
+still find among the groups it leaves, read again wherever the cell
+takes a size they read -- and holds each failed state as one number in a
+memory bounded at 64 MB. Every answer is the old walk's, which
+`tests/stage4_as_built.py` keeps frozen as the oracle, and every twin it
+finished is byte-identical; k = 100 builds in about a second and k = 200
+in under four, and an identifier of 300 values in four forms that
+493f6f8 could not build within 1.6 GB in about three. A seeded
+identifier on which one cell tried every way of taking the smaller
+sizes, past 2,000,000 readings of what the later cells must find without
+leaving one state, builds in 34 s. `K-S4-04`, new and open: two of sixty
+seeded identifiers written in mixed forms, and seven of sixty more drawn
+after the walk was written, still take it a long time, which STATE's
+broken list now says.
 
 ### A description written before the published pairs loads again (2026-10-03)
 

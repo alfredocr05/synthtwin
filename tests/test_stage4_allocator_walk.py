@@ -876,7 +876,61 @@ def test_a_mixed_identifier_the_producer_describes_is_packed_in_few_states() -> 
 
 
 class _Enough(Exception):
-    """The packing questions a test reads have all been answered."""
+    """The packing questions a measure reads have all been answered."""
+
+
+def seed_105_reserve_readings(limit: int = 2000) -> "tuple[int | None, int, bool]":
+    """The reserve readings and the states of the first two packing questions seed 105's twin asks.
+
+    `_mixed_identifier(105)` is described by the real producer with
+    `value` declared and loaded by the real loader, and its twin built
+    at seed 0 until the walk has answered two packing questions.
+    Returns how many times the walk read its reserves
+    (`generation._reserves_met`) -- None past ``limit``, where the build
+    is stopped, so a measure never waits on a cell that would not end --
+    the states it entered, and whether both questions were answered.
+    """
+    with tempfile.TemporaryDirectory() as home:
+        loaded = linear._described(
+            pathlib.Path(home), _mixed_identifier(105), declared=["value"]
+        )
+    assert isinstance(loaded.columns[0].facts, contract.IdentifierFacts)
+    readings = [0]
+    states = [0]
+    answers: "list[object]" = []
+    met = generation._reserves_met
+    room = generation._cell_room
+    packed = generation._allotted_over
+
+    def reading(*given):  # type: ignore[no-untyped-def]
+        readings[0] += 1
+        if readings[0] > limit:
+            raise _Walked(f"the walk read its reserves more than {limit} times")
+        return met(*given)
+
+    def entering(*given):  # type: ignore[no-untyped-def]
+        states[0] += 1
+        return room(*given)
+
+    def asked(*given):  # type: ignore[no-untyped-def]
+        nonlocal answers
+        answers += [packed(*given)]
+        if len(answers) == 2:
+            raise _Enough()
+        return answers[len(answers) - 1]
+
+    with pytest.MonkeyPatch.context() as patch:
+        patch.setattr(generation, "_reserves_met", reading)
+        patch.setattr(generation, "_cell_room", entering)
+        patch.setattr(generation, "_allotted_over", asked)
+        try:
+            generation.generate(loaded, 0)
+        except _Walked:
+            return None, states[0], False
+        except _Enough:
+            pass
+    answered = len(answers) == 2 and answers[0] is not None and answers[1] is not None
+    return readings[0], states[0], answered
 
 
 def test_a_reserve_is_read_at_every_size_it_reads_so_one_cell_never_tries_every_way() -> None:
@@ -898,43 +952,10 @@ def test_a_reserve_is_read_at_every_size_it_reads_so_one_cell_never_tries_every_
     every reserve at every size the cell decides, a copy taken or not,
     passes them over the two -- the answers and the states the same.
     """
-    with tempfile.TemporaryDirectory() as home:
-        loaded = linear._described(
-            pathlib.Path(home), _mixed_identifier(105), declared=["value"]
-        )
-    assert isinstance(loaded.columns[0].facts, contract.IdentifierFacts)
-    readings = [0]
-    states = [0]
-    answers: "list[object]" = []
-    met = generation._reserves_met
-    room = generation._cell_room
-    packed = generation._allotted_over
-
-    def reading(*given):  # type: ignore[no-untyped-def]
-        readings[0] += 1
-        if readings[0] > 2000:
-            raise _Walked("the walk read its reserves more than 2,000 times")
-        return met(*given)
-
-    def entering(*given):  # type: ignore[no-untyped-def]
-        states[0] += 1
-        return room(*given)
-
-    def asked(*given):  # type: ignore[no-untyped-def]
-        nonlocal answers
-        answers += [packed(*given)]
-        if len(answers) == 2:
-            raise _Enough()
-        return answers[len(answers) - 1]
-
-    with pytest.MonkeyPatch.context() as patch:
-        patch.setattr(generation, "_reserves_met", reading)
-        patch.setattr(generation, "_cell_room", entering)
-        patch.setattr(generation, "_allotted_over", asked)
-        with pytest.raises(_Enough):
-            generation.generate(loaded, 0)
-    assert answers[0] is not None and answers[1] is not None
-    assert states[0] <= 150, states[0]
+    readings, states, answered = seed_105_reserve_readings()
+    assert readings is not None, "the walk read its reserves more than 2,000 times"
+    assert answered, "a packing question with an answer was refused"
+    assert states <= 150, states
 
 
 def test_a_total_s_binary_figures_are_read_as_bit_length_reads_them() -> None:

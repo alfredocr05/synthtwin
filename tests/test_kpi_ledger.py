@@ -1751,8 +1751,12 @@ def test_k_s4_04(record_property) -> None:
     And of four seeded declared identifiers written in mixed forms
     (`test_stage4_allocator_walk._mixed_identifier`, seeds 6, 20, 37 and
     48), how many build their twin within 20,000 walk states: the first
-    two do, and the last two are what the entry holds open. Counts of
-    work, never a time.
+    two do, and the last two are what the entry holds open. And how many
+    times the walk reads its reserves over the first two packing
+    questions of seed 105's twin, where a reserve filed under only the
+    last size it reads had one cell try every way of taking the smaller
+    sizes: past 2,000,000 readings in one state. Counts of work, never a
+    time.
     """
     import test_stage4_allocator_walk as walk
 
@@ -1764,6 +1768,9 @@ def test_k_s4_04(record_property) -> None:
     for seed in (6, 20, 37, 48):
         if walk.mixed_identifier_states(seed) is not None:
             packed += 1
+    readings, _states, answered = walk.seed_105_reserve_readings(20000)
+    if readings is None or not answered:
+        readings = 20001
     _kpi(record_property, "K-S4-04", {
         "walk_states_growth_2x_groups": round(
             max(states[40] / states[20], states[80] / states[40]), 2
@@ -1772,4 +1779,5 @@ def test_k_s4_04(record_property) -> None:
         "packing_question_fills_k60": fills,
         "walk_states_80": states[80],
         "mixed_identifiers_packed": packed,
+        "reserve_readings_seed105": readings,
     })
