@@ -1149,6 +1149,13 @@ def test_sk2_item3_a_run_whose_few_suffixes_read_as_an_offset_is_asked(
     keeping the dates. Stamps half of which wear an offset the census
     names are not asked. Mutant, run: the clause withdrawn, and neither run
     is asked.
+
+    And only a run of 12 or 14 figures: 1,000 stamps with a fraction after
+    their seconds, seven ending `-0400` or `-0500`, read under
+    `{SS}.{F}{+HHMM?}` with `(none)` alone in the census, are not asked,
+    since the layout before their offset is no such run
+    (`parsing.layout_low_evidence`). Mutant, run (the leftover round): the
+    run's own condition dropped, and that column is asked.
     """
     for name, cells, layout, width in (
         (
@@ -1178,6 +1185,13 @@ def test_sk2_item3_a_run_whose_few_suffixes_read_as_an_offset_is_asked(
         tmp_path / "named", spellings.cells("hl7_offset_some_omit", ROWS)
     )
     assert block["format"] == "layout {YYYY}{MM}{DD}{HH}{MI}{SS}{+HHMM?}"
+    assert not [entry for entry in questions["asked"] if entry["read_as_now"] == asking.ANSWER_KEEP]
+    seed, worn, shape, layout = _OWED_SHAPES["fraction"]
+    block, _profile, questions = _described(
+        tmp_path / "fraction", _stamps_wearing(1000, seed, worn, shape)
+    )
+    assert block["format"] == layout
+    assert block["utc_offsets"] == {"(none)": 1000}
     assert not [entry for entry in questions["asked"] if entry["read_as_now"] == asking.ANSWER_KEEP]
 
 
