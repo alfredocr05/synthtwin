@@ -671,7 +671,13 @@ def test_c5_a_table_of_one_counted_column_is_counted_in_rows(tmp_path: pathlib.P
 
 
 def test_c5_r_exponent_form_and_a_decimal_comma_round_trip(tmp_path: pathlib.Path) -> None:
-    """Items 6 and 8: R's shorter form, and a comma for the point, read and written back."""
+    """Items 6 and 8: R's shorter form asked about undeclared, and both it and a comma for the point read and written back.
+
+    Item 6 said Q3 never asked a column of milliseconds R wrote with an
+    exponent on some cells (here about one in six). It is asked, offering
+    the system that wrote it; with the exponent cells read as no count by
+    the question's walk, it is not, and the round trip still holds.
+    """
     draw = random.Random(6)
     cells: "list[str]" = []
     for _row in range(400):
@@ -680,6 +686,9 @@ def test_c5_r_exponent_form_and_a_decimal_comma_round_trip(tmp_path: pathlib.Pat
         form = date_counts.CountForm(0, True, 15, True, ".", None)
         cells += [date_counts.spelled_count(milliseconds, 1, form)]
     assert any("e+" in cell for cell in cells) and not all("e+" in cell for cell in cells)
+    said = _q3(_block_of(tmp_path / "asked", cells))
+    assert said is not None
+    assert "milliseconds-since-1970" in [member for member, _first, _last in said.readings]
     trip = _trip(tmp_path / "r", cells, "milliseconds-since-1970")
     assert trip["block"]["count_form"]["exponent"] is True
     assert any("e+" in cell for cell in trip["twin"])
