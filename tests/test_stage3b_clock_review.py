@@ -376,6 +376,15 @@ def _questions(document: "dict[str, typing.Any]", cells: "list[str]") -> "list[a
     return asking.questions_for(document, [cells], taxonomy.Settings(), [])
 
 
+def _many_times_on_twelve_hours() -> "list[str]":
+    """709 different minutes on hours 01 to 12 over 3,000 rows: too many for labels."""
+    draw = random.Random(49)
+    cells = _minutes(draw.sample(range(60, 13 * 60), 709))
+    cells += [draw.choice(cells) for _row in range(3000 - 709)]
+    draw.shuffle(cells)
+    return cells
+
+
 def test_item_2_the_twelve_hour_question_offers_the_labels_answer(tmp_path: pathlib.Path) -> None:
     """`keep`, `twelve-hour` and `code`, and the questions file takes `code` as `--code`.
 
@@ -406,6 +415,15 @@ def test_item_2_the_twelve_hour_question_offers_the_labels_answer(tmp_path: path
     document, _loaded = _described(tmp_path / "figures", figures)
     answers = [choice.answer for choice in _questions(document, figures)[0].choices]
     assert answers.count(asking.ANSWER_CODE) == 1 and asking.ANSWER_TWELVE_HOUR in answers
+    # ...and a column the 12-hour question fits and the clock-or-labels
+    # question does not, too many different times for labels, is offered
+    # no code: `code` comes only with the other question, as K-S3-49 now
+    # says (the verification of the review stream).
+    many = _many_times_on_twelve_hours()
+    document, _loaded = _described(tmp_path / "many", many)
+    asked = _questions(document, many)
+    assert [question.reason for question in asked] == [asking.BECAUSE_TWELVE_HOUR]
+    assert [choice.answer for choice in asked[0].choices] == [asking.ANSWER_KEEP, asking.ANSWER_TWELVE_HOUR]
 
 
 def test_item_2_red_without_the_labels_answer(
@@ -758,6 +776,7 @@ def test_item_8_the_clock_kpi_says_where_a_clock_shaped_cell_is_no_time() -> Non
     assert "every clock-shaped twin cell is a time" not in entry["name"]
     assert "labels" in entry["name"] and "clock line" in entry["name"]
     assert "labels_clock_line" in entry["rule"] and "26:32" in entry["rule"]
+    assert "the 12-hour question and the clock-or-labels question both fit is offered code too" in entry["rule"]
 
 
 # -- one more, not Codex's: a SQL Server `time(7)` column -----------------
