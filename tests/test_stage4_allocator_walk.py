@@ -799,6 +799,51 @@ def test_each_lesser_reading_passes_over_work_on_a_question_of_its_own() -> None
         assert spent <= most, (reading, spent)
 
 
+# A group of 100 rows only the first cell may hold, beside groups of 1 to
+# 24 rows the first and the last cell may hold and thirty groups of 10
+# rows the last two may hold, over one margin of three counts.
+_ONE_GROUP_ONLY_HERE = (
+    tuple(list(range(1, 25)) + [100] + [10 for _each in range(30)]),
+    [([115, 200, 385], [0, 1, 2])],
+    [5 for _each in range(24)] + [1] + [6 for _each in range(30)],
+)
+
+
+def test_a_size_taken_whole_counts_whole_in_the_totals_the_cell_can_reach() -> None:
+    """Condition 2's forced copies, read by `_reach_bits`: the cell decides its other sizes knowing the forced group comes too.
+
+    Over the counts 115, 200 and 385, the first cell must total exactly
+    115, and the group of 100 rows may stand nowhere else, so condition 2
+    takes it there whole. `generation._reach_bits` then adds the whole
+    100 to every total the sizes after a place can make, so the groups
+    of 1 to 24 rows are decided knowing they must make 15: 3 states, 3
+    fills and 9 readings of the reserves, the answer the walk as 493f6f8
+    shipped it gives after 5,839 states. Neither the states nor the fills
+    see this reading, so the readings are what is held. Mutation, run:
+    with `_reach_bits` choosing the group of 100 like any other size --
+    the branch for a size the cell takes whole never taken -- the cell
+    tries every set of the groups of 1 to 24 that makes 115 without it
+    before learning the 100 must come too: the same 3 states, 3 fills
+    and answer, and 8,127 readings, 27,207 with groups of 1 to 32 and
+    40,557 with groups of 1 to 40, where this reads 9.
+    """
+    built, _names = _as_built()
+    readings = [0]
+    met = generation._reserves_met
+
+    def reading(*given):  # type: ignore[no-untyped-def]
+        readings[0] += 1
+        return met(*given)
+
+    with pytest.MonkeyPatch.context() as patch:
+        patch.setattr(generation, "_reserves_met", reading)
+        answer, states, fills = _work(_ONE_GROUP_ONLY_HERE)
+    assert answer == built(*_ONE_GROUP_ONLY_HERE)  # type: ignore[operator]
+    assert _meets(_ONE_GROUP_ONLY_HERE, answer)
+    assert readings[0] <= 20, readings[0]
+    assert states <= 3 and fills <= 3, (states, fills)
+
+
 def _mixed_identifier(seed: int) -> "list[str]":
     """A declared identifier of 100 to 160 values written in two to five forms, each held by 1 to 10, 40 or 120 rows.
 
