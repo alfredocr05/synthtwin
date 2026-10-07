@@ -1179,17 +1179,27 @@ def test_c5_a_declaration_reading_two_dates_decides_nothing(tmp_path: pathlib.Pa
 
 
 def test_c5_the_census_of_contact_numbers_is_held_exactly(tmp_path: pathlib.Path) -> None:
-    """Mutant M33: a twin of Epic days whose cells write no contact number misses `form.contacts`."""
+    """Mutant M33: a twin of Epic days whose census of contact numbers is another misses `form.contacts`.
+
+    Each `02` written as `01`: every cell is still in the published form
+    and names the same day, and the census the twin's own description
+    counts -- `01` and `(none)` -- is not the one published, so only the
+    census check can see it. Written with no contact number at all the
+    twin publishes no census, which a vacuous check of the census would
+    miss as well; the clause asks the census beside one.
+    """
     shape = battery.BY_NAME["epic_real"]
     cells, _truth = battery.cells(shape, battery.ROWS, 0)
     trip = _trip(tmp_path, cells, shape.system)
     assert trip["twin_exit"] == 0
-    stripped = tmp_path / "stripped"
-    assert _rewritten(trip, stripped, lambda cell: cell.split(".")[0]) == 3
+    census = trip["block"]["count_form"]["contacts"]
+    assert census is not None and "02" in census
+    merged = tmp_path / "merged"
+    assert _rewritten(trip, merged, lambda cell: cell[:-3] + ".01" if cell.endswith(".02") else cell) == 3
     report = "\n".join(
-        path.read_text(encoding="utf-8") for path in sorted((stripped / "check-changed").glob("*.txt"))
+        path.read_text(encoding="utf-8") for path in sorted((merged / "check-changed").glob("*.txt"))
     )
-    assert "form.contacts" in report
+    assert "form.contacts" in report and "MISSED" in report
 
 
 @pytest.mark.parametrize("noisy", (137, 5))

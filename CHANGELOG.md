@@ -6,25 +6,31 @@ exists).
 
 ## [Unreleased]
 
-### Numbers that are dates are read as dates and written back as the same numbers (2026-10-06)
+### Numbers that are dates are read as dates and written back as the same numbers (2026-10-07)
 
-**Landing R4** (plan P4-D384). Excel serials, SAS and Stata days,
-seconds and milliseconds, Unix seconds and milliseconds, Epic day
-numbers and the other counting systems of a closed table of twelve were
-described as numbers: the twin kept each number's spelling and lost the
-calendar, its weekdays 0.13 to 0.16 away from the source's, and the
-remark NF51 read SAS and Stata counts a decade late and said nothing
-about the twin changed. A column named with `--date-count NAME SYSTEM`,
-or by an answer to the new question Q3 in the questions file, is now
-read exactly as the dates its counts name, described as dates, and
-twinned as the same counts written the way the column writes them
-(`count_form`); `validate` holds every count of the checked file to that
-form, and a source whose rarest Epic contact number falls below the line
-meets it. Q3 asks 13 of the 14 shapes of `K-S3-60`, still asks 12 or 13
-with a stray `0`, `-1`, placeholder day or keying slip among the cells,
-offers every system of the column's unit whose years fit, and raises no
-question the fixed-width question did not already raise on the chance
-battery's ordinary columns. NF51 is no longer written.
+**Landing R4** (plan P4-D384), with its review's nine items repaired.
+Excel serials, SAS and Stata days, seconds and milliseconds, Unix seconds
+and milliseconds, Epic day numbers and the other counting systems of a
+closed table of twelve were described as numbers: the twin kept each
+number's spelling and lost the calendar, its weekdays 0.13 to 0.16 away
+from the source's, and the remark NF51 read SAS and Stata counts a decade
+late and said nothing about the twin changed. A column named with
+`--date-count NAME SYSTEM`, or by an answer to the new question Q3 in the
+questions file, is now read exactly as the dates its counts name,
+described as dates, and twinned as the same counts written the way the
+column writes them (`count_form`); `validate` holds every count of the
+checked file to that form. A column whose figures no unit of time keeps
+-- one to three figures of a day, tenths of a second -- is not read as
+dates and says so, where the build lost its figures or wrote a twin that
+missed its own description. Q3 asks 13 of the 14 shapes of `K-S3-60`,
+still asks 12 or 13 with a stray `0`, `-1`, placeholder day or up to five
+keying slips among the cells, and still offers each column the system that
+wrote it, with its true years, when a placeholder is common enough to be
+the column's published end; it names a set-aside number only where eleven
+cells hold it, and raises no question the fixed-width question did not
+already raise on the chance battery's ordinary columns, money in cents and
+lengths of time among them. Epic contact numbers are spread evenly over
+the twin's rows. NF51 is no longer written.
 
 ### A description written before the published pairs loads again (2026-10-03)
 
