@@ -70,7 +70,13 @@ and 855 more cells that are no time of day; a form whose seconds a point
 and figures follow is now a clock's form, filled with times at whole
 seconds first, and its walks no longer stop at 4,096 different values, so
 every cell of such a twin is a time in its own spelling, at 1,000 rows
-and at 100,000, and no other twin of the battery moves.
+and at 100,000, and no other twin of the battery moves. And one its
+verification caught in the landing itself: a tail listing its values
+sorted them as text, so on a 12-hour clock, a one-figure hour or the
+declared half-day face the producer could write a description its own
+loader refused, and `synthtwin generate` stopped and said the file had
+been changed; such a tail lists its values in the order of the day now,
+and every other description keeps every byte.
 
 ### The weekday guards dropped (2026-10-02)
 
