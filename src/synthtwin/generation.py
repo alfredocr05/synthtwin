@@ -15371,17 +15371,10 @@ def _width_rule_withdrawn(
     and the settings floor; returns the division and the ladder, or None.
     Determinism: a function of those. Raises nothing. No I/O of any kind.
     """
-    if not facts.tail_rule:
+    if not contract.reach_moved_an_end(facts):
         return None
-    ruled = contract.tail_ladder(facts)
     held = contract.tail_ladder(facts, reach_rule=False)
-    if ruled is None or held is None:
-        return None
-    moved = False
-    for mine, theirs in ((ruled.low, held.low), (ruled.high, held.high)):
-        if mine is not None and theirs is not None and mine.end != theirs.end:
-            moved = True
-    if not moved:
+    if held is None:
         return None
     divided, _notes, _words = _ladder_layout(
         column, facts, grain_values, floor, held

@@ -68,7 +68,7 @@ import pytest
 import complement_reader as reader
 import kpi_shapes
 import stage3_battery
-from synthtwin import contract, generation, parsing
+from synthtwin import contract, generation, parsing, validation
 
 SEEDS = (0, 4, 9)
 
@@ -1986,3 +1986,90 @@ def test_a_hundred_thousand_rows_keep_their_census_and_their_moments(tmp_path: p
     _mean, spread = _errors(cells, written)
     assert spread <= _ON_110CB46[("bulk", 100000, 11)][1] + _SLACK, spread
     assert kpi_shapes.missed(kpi_shapes.measure(described, text, "twin-0.csv")) == []
+
+
+# -- 6. the checker, where rule 1 moved an end ---------------------------------
+
+
+def _moment_check(described: kpi_shapes.Described, text: str, name: str, subcheck: str) -> validation.Check:
+    checks = [check for check in kpi_shapes.measure(described, text, name).checks if check.subcheck == subcheck]
+    assert len(checks) == 1, f"premise: one {subcheck} check"
+    return checks[0]
+
+
+def _shown_ends(published: str) -> "tuple[float, float]":
+    """The two ends of the window a check line prints beside its published value."""
+    inside = published.split("(between ", 1)[1].rstrip(")")
+    low, high = inside.split(" and ")
+    return float(low), float(high)
+
+
+_HELD_GRIDS = ((1000, 11), (1000, 20), (400, 20), (400, 36))
+
+
+@pytest.mark.parametrize("rows,floor", _HELD_GRIDS, ids=[f"grid{rows}_f{floor}" for rows, floor in _HELD_GRIDS])
+def test_where_rule_1_moved_an_end_the_spread_answers_to_the_window_without_it_too(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch, rows: int, floor: int
+) -> None:
+    """The first skeptic's grid shapes, written as 110cb46 wrote them: `validate` misses their spread again.
+
+    Readings 1000 to 1900 beside one `99900`: rule 1 takes the high end
+    to the pair's reach, and the standard deviation's window, drawn
+    through that end, widens until it reaches the published value -- 0 to
+    36,011.8 against 3,124.9 at 1,001 rows -- so V6.1-A2's half-width test
+    stopped applying. Rule 3 writes these twins as 110cb46 did, their
+    spread 0.37 to 0.50 of the real one, and 110cb46's report MISSED it
+    on the window drawn with the rule withdrawn, 0 to 3,090.8. So where
+    rule 1 moved an end the file answers to that window's half-width test
+    too (validation method V6.1-A2; the second skeptic of the repair, item
+    1). Its mutant draws no second window, and the twins pass.
+    """
+    cells = _grid(rows)
+    described = _described(tmp_path, f"grid{rows}", cells, floor)
+    facts = _facts(described)
+    assert contract.reach_moved_an_end(facts), "premise: rule 1 moved the end"
+    published = described.document["columns"][0]["std"]
+    held = validation._windows_of(described.loaded.columns[0], facts, floor, False)["std"]
+    assert not held[0] <= published <= held[1], "premise: the window without the rule misses the value"
+    for seed in SEEDS:
+        written = _twin_numbers(described, seed)
+        assert written == _withdrawn_numbers(described, seed), f"premise: 110cb46's twin, seed {seed}"
+        text = kpi_shapes.twin_text(described, seed)
+        check = _moment_check(described, text, f"twin-{seed}.csv", "moments.std")
+        low, high = _shown_ends(check.published)
+        assert low <= published <= high, f"premise: the rule's own window reaches the value, seed {seed}"
+        assert check.verdict == validation.MISSED, f"seed {seed}: {check}"
+        assert any("(V6.1-A2)" in line for line in check.note), check.note
+        assert abs(float(check.achieved) / published - 1.0) > 0.45, f"seed {seed}: {check.achieved}"
+    monkeypatch.setattr(contract, "reach_moved_an_end", lambda _facts: False)
+    check = _moment_check(described, kpi_shapes.twin_text(described, 0), "twin-0-mutant.csv", "moments.std")
+    assert check.verdict == validation.WITHIN_BOUND, check
+
+
+def test_the_window_without_the_rule_is_asked_only_where_it_misses_the_value() -> None:
+    """`validation._within` asked directly with a second window, the one drawn with rule 1 withdrawn.
+
+    Its half-width test is asked only of the mean and the spread
+    (``anchored``) and only where that window misses the published value:
+    a file near the value passes, one further than half its width misses,
+    whatever the first window says, and the line keeps printing the first
+    window. A second window that reaches the value, or none, leaves the
+    first window's verdict alone.
+    """
+    def within(measured, held, anchored=True):  # type: ignore[no-untyped-def]
+        return validation._within(
+            "c", "numeric.std", "moments.std", "10", measured, (0.0, 100.0), "G12.3", 10.0,
+            anchored=anchored, held=held,
+        )
+
+    assert within(11.0, (0.0, 4.0)).verdict == validation.WITHIN_BOUND
+    far = within(13.0, (0.0, 4.0))
+    assert far.verdict == validation.MISSED and far.published == "10 (between 0.0 and 100.0)"
+    assert any("between 0.0 and 4.0" in line for line in far.note)
+    assert within(13.0, (0.0, 12.0)).verdict == validation.WITHIN_BOUND
+    # A second window that reaches the value, however narrow, asks nothing.
+    assert within(13.0, (9.0, 11.0)).verdict == validation.WITHIN_BOUND
+    assert within(13.0, None).verdict == validation.WITHIN_BOUND
+    assert within(13.0, (0.0, 4.0), anchored=False).verdict == validation.WITHIN_BOUND
+    assert within(10.0, (0.0, 4.0)).verdict == validation.HELD
+    assert within(150.0, (0.0, 4.0)).verdict == validation.MISSED

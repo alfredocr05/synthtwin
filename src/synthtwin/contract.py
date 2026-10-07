@@ -12828,6 +12828,34 @@ def _off_the_stand_ins(
     return value
 
 
+def reach_moved_an_end(facts: NumericFacts) -> bool:
+    """Whether method G6.6.8's rule 1 moved either derived end of a tail block (plan P4-D377).
+
+    The ladder read with the reach rule and the one read with it withdrawn
+    (`tail_ladder`) hold different ends exactly there, and nowhere else do
+    they differ. It is the one reading of where the rule moved an end, and
+    both sides of the boundary ask it: the generator reads the values a
+    second time there (rule 3, `generation._width_rule_withdrawn`), and
+    the validator holds the mean and the spread to the window the second
+    ladder draws as well (validation method V6.1-A2).
+
+    Guarantees: accepts one numeric block's facts; returns True exactly
+    where the block is a tail block whose two readings both stand and
+    hold a different end on some side. Determinism: a function of the
+    facts. Raises nothing. No I/O of any kind.
+    """
+    if not facts.tail_rule:
+        return False
+    ruled = tail_ladder(facts)
+    held = tail_ladder(facts, reach_rule=False)
+    if ruled is None or held is None:
+        return False
+    for mine, theirs in ((ruled.low, held.low), (ruled.high, held.high)):
+        if mine is not None and theirs is not None and mine.end != theirs.end:
+            return True
+    return False
+
+
 def pair_reach(mean: "float | None", root: "float | None") -> float:
     """The nearest a tail's furthest row can stand: Bhatia and Davis (method G6.6.8).
 

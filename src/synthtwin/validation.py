@@ -4329,6 +4329,7 @@ def _within(
     value: "float | None" = None,
     anchored: bool = False,
     why: str = "",
+    held: "tuple[float, float] | None" = None,
 ) -> Check:
     """One approximated obligation, against both ends of its envelope.
 
@@ -4371,6 +4372,22 @@ def _within(
     must ALSO stand within the window's own width of that value -- half
     of it either side -- or the obligation is MISSED. Nothing changes
     where the window reaches the value.
+
+    AND ``held`` IS THE SAME WINDOW DRAWN WITH METHOD G6.6.8'S RULE 1
+    WITHDRAWN, handed in only where that rule moved a derived end
+    (`_moment_checks`; the second skeptic of plan P4-D377's repair, item
+    1). The rule draws the window through a further end, which widens it
+    until it reaches the published value, and the generator may still
+    write the column on the ladder with the rule withdrawn (its rule 3),
+    so the half-width test above stopped applying where it had always
+    applied: 1,001 readings 1000 to 1900 beside one `99900`, at a floor
+    of eleven, written byte for byte as 110cb46 wrote them, their spread
+    0.38 of the real one, were MISSED by 110cb46's report and passed by
+    this one, the standard deviation's window having gone from 0 to
+    3,090.8 to 0 to 36,011.8 against a published 3,124.9. So where
+    ``held`` does not reach the value, the file must also stand within
+    half of ``held``'s width of it, or the obligation is MISSED. The
+    window printed and the WITHIN-BOUND test stay the first one's.
 
     ``why`` NAMES WHICH SILENCE THIS IS, where the caller knows and the
     gate's general sentence would be less than the truth (plan P4-D349).
@@ -4422,6 +4439,23 @@ def _within(
                 "      and the file stands farther from the description's",
                 "      own value than half this window's width, so the",
                 "      window is not taken as a pass (V6.1-A2).",
+            ]
+    if anchored and held is not None and value is not None:
+        held_low, held_high = held
+        held_half = (held_high - held_low) / 2.0
+        if not held_low <= value <= held_high and not (
+            value - held_half <= measured <= value + held_half
+        ):
+            verdict = MISSED
+            lines += [
+                "      the description's own tail distances put this column's",
+                "      far end past the widest field width it names, and that",
+                "      widens the window above. Drawn with that end held at the",
+                "      widest named width, the window runs",
+                f"      {_shown_window(held_low, held_high)}, which does not",
+                "      reach the description's own value, and the file stands",
+                "      farther from that value than half that window's width,",
+                "      so the window above is not taken as a pass (V6.1-A2).",
             ]
     note: tuple[str, ...] = tuple(lines)
     return Check(
@@ -12755,6 +12789,16 @@ def _moment_checks(
     windows = _windows_of(column, facts, floor)
     if not windows:
         return checks
+    # AND WHERE METHOD G6.6.8'S RULE 1 MOVED A DERIVED END, THE MEAN AND
+    # THE SPREAD ARE HELD TO THE WINDOWS THE LADDER WITH THAT RULE
+    # WITHDRAWN DRAWS TOO (V6.1-A2; the second skeptic of plan P4-D377's
+    # repair, item 1): the generator may write the column on that ladder
+    # (its rule 3), and the rule's own windows, drawn through the further
+    # end, reach the published value where that ladder's do not. See
+    # `_within`.
+    held: "dict[str, tuple[float, float]]" = {}
+    if contract.reach_moved_an_end(facts):
+        held = _windows_of(column, facts, floor, False)
     for field, value in published:
         if value is None:
             continue
@@ -12798,6 +12842,9 @@ def _moment_checks(
                 ENVELOPE_MOMENTS,
                 value,
                 anchored=field in ("mean", "std"),
+                held=_window_named(held, field)
+                if field in ("mean", "std")
+                else None,
             )
         ]
     return checks
