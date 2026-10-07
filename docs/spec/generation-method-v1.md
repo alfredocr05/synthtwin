@@ -6707,19 +6707,34 @@ mover as the ranks then stand has no place, of hours and, through the
 whole pass, of moments -- with the answer this section gives each, and
 no G14.3 case.
 
-#### G7.3g The hour census: the hour pass
+#### G7.3g The hour census: the clock pass
 
-*Stage 3b, landing 3b.2-H, plan P4-D371.* Where a column of moments
-publishes a non-empty `hour_census` (contract HC1 to HC6) -- or stands on
-the dial's half day (G7.3b step 10), whose census is then hours 0 to 11
-holding the body and 12 to 23 none, published or not -- with both tails,
-at least three parsed cells, counted in seconds and with no bare date,
-its ranks are moved once G7.3f's day pass is done and before any cell is
-spelled, until the cells between the two boundary ranks fall on the
-published groups. No word is drawn. A moment's HOUR is the hour of its
-written wall clock, `(o div 3,600) mod 24`; its GROUP the census group
-holding that hour. A rank is written AT MIDNIGHT where its cell, cut to
-the column's precision, reads 00:00:00. Its DAY STANDING is its
+*Stage 3b, landing 3b.2-H, plan P4-D371.* ONE PASS FOR EVERY FIELD OF
+THE WRITTEN CLOCK (the 3b.4 skeptic's M4). A census of a FIELD counts a
+column's body by bins of `unit` seconds, `period` of them in one turn:
+the hour of the day, 3,600 and 24, and, when landing 3b.4 publishes
+theirs, the minute of the hour, 60 and 60, and the second of the minute,
+1 and 60. An instant's BIN is `(o div unit) mod period` and its GROUP
+the census group holding that bin; its PARENT is the turn it stands in,
+`o div (unit × period)` -- a day for the hour, an hour for the minute --
+and its SEAT that parent's place in its day, from nought, always nought
+for the hour. Where the parent is shorter than a day, each seat has a
+KIN group, its group in the coarser census every move keeps (for the
+minute, its hour's group in the hour census); the hour has none. The
+hour census is the only field published so far. Each field's landing
+names its unit, its period, its kin and where its pass runs; the steps
+below are every field's, read for the hour where they name it.
+
+Where a column of moments publishes a non-empty `hour_census` (contract
+HC1 to HC6) -- or stands on the dial's half day (G7.3b step 10), whose
+census is then hours 0 to 11 holding the body and 12 to 23 none,
+published or not -- with both tails, at least three parsed cells,
+counted in seconds and with no bare date, its ranks are moved once
+G7.3f's day pass is done and before any cell is spelled, until the cells
+between the two boundary ranks fall on the published groups. No word is
+drawn. A moment's HOUR, its bin, is the hour of its written wall clock,
+`(o div 3,600) mod 24`. A rank is written AT MIDNIGHT where its cell,
+cut to the column's precision, reads 00:00:00. Its DAY STANDING is its
 weekday's group in the column's `weekday_census` where one stands, and
 its weekday itself where none does. No step below moves a rank to a day
 of another standing, but for two LAST RESORTS where no weekday census
@@ -6730,13 +6745,14 @@ standing has been made: nothing published then counts a weekday.
    a single place, nor -- where `n_at_midnight` is published -- one
    written at midnight. The count of different values the pass keeps is
    the count of written units the ranks stand on as it begins.
-2. **The shared steps.** G7.3f's steps 1 to 9 at a unit of an hour with
-   the day kept: bins the hours, groups the census's, the unit 3,600
-   seconds, the written unit a minute or a second at the column's
-   precision, the day 86,400 seconds, a period of 24 bins, and every
-   move keeping the rank's day (THE SEAMS of G7.3f), so a move shifts a
-   rank by whole hours on its own day and keeps its minute and second.
-3. **SAMEDAY, the ESCAPE, SPLIT and RELIEF** (the design skeptic's B1 and B2),
+2. **The shared steps.** G7.3f's steps 1 to 9 at the field's unit with
+   the parent kept -- for the hour: bins the hours, groups the census's,
+   the unit 3,600 seconds, the written unit a minute or a second at the
+   column's precision, the day 86,400 seconds, a period of 24 bins, and
+   every move keeping the rank's day (THE SEAMS of G7.3f), so a move
+   shifts a rank by whole hours on its own day and keeps its minute and
+   second.
+3. **SAMEPARENT, the ESCAPE, SPLIT and RELIEF** (the design skeptic's B1 and B2),
    where a group is still over its count, up to four rounds, a round
    that moves nothing ending the step. In group order, each group over
    its count asks its movable units in PROPORTIONAL ORDER (the 3b.4
@@ -6747,29 +6763,34 @@ standing has been made: nothing published then counts a weekday.
    written unit where no other rank of the column stands on it and all
    share one gap, and otherwise each movable rank alone. Asked while its
    group is still over, a unit of `k` ranks takes:
-   - SAMEDAY: on its own day, in each hour of a group with room for `k`
-     more ranks, the FREE place nearest its own minute and second inside
-     its gap -- a place free where it is no hole, no rank holds its
-     written unit and it is not written at midnight, found a written
-     unit at a time outward, the earlier on a tie -- and of those, the
-     one whose clock is nearest the unit's own, the earlier on a tie;
-   - else the ESCAPE: the nearest other day of its gap, the earlier on a
-     tie, that is no hole, of its day standing and of its width kind,
-     and there SAMEDAY's place;
+   - SAMEPARENT (SAMEDAY, for the hour): on its own parent, in each bin
+     of a group with room for `k` more ranks, the FREE place nearest its
+     own place in its bin -- for the hour, its minute and second --
+     inside its gap -- a place free where it is no hole, no rank holds
+     its written unit and it is not written at midnight, found a
+     written unit at a time outward, the earlier on a tie -- and of
+     those, the one whose place in its parent -- for the hour, its
+     clock -- is nearest the unit's own, the earlier on a tie;
+   - else the ESCAPE: where the parent is shorter than a day, the
+     nearest other parent of its own day whose seat has its own seat's
+     kin group, the earlier on a tie, and there SAMEPARENT's place (for
+     the hour, none); then the nearest other day of its gap, the earlier
+     on a tie, that is no hole, of its day standing and of its width
+     kind, and there SAMEPARENT's place in the parent at its own seat;
    - else SPLIT: where `k` is more than one, each rank of it alone, in
      rank order, as above, while its group is over.
 
    Then RELIEF, where a group is still over its count: in group order,
-   each such group asks its units again, in proportional order, whole and
-   then rank by rank, and a unit takes, in the first group with a count of
-   its own and no room for it, SAMEDAY's place there on its own day inside
-   its gap -- asked of that group alone -- once a RELIEF unit has left that
-   group: the first, in rank order, of that group's units as they stood
-   when RELIEF first asked that group, of as many ranks, that has
-   SAMEDAY's place on its own day in a group with room. Where the unit
-   then has none, the relief unit goes back and the next is asked; one
-   that finds no place is not asked again, since no move of RELIEF gives
-   a group room.
+   each such group asks its units again, in proportional order, whole
+   and then rank by rank, and a unit takes, in the first group with a
+   count of its own and no room for it, SAMEPARENT's place there on its
+   own parent inside its gap -- asked of that group alone -- once a
+   RELIEF unit has left that group: the first, in rank order, of that
+   group's units as they stood when RELIEF first asked that group, of as
+   many ranks, that has SAMEPARENT's place on its own parent in a group
+   with room. Where the unit then has none, the relief unit goes back
+   and the next is asked; one that finds no place is not asked again,
+   since no move of RELIEF gives a group room.
 
    Last, where no weekday census stands and a group is still over its
    count, the rounds above once more, the ESCAPE free at last to take,
@@ -6780,30 +6801,34 @@ standing has been made: nothing published then counts a weekday.
    census).
 4. **Off midnight.** A movable rank the steps above left written at
    midnight that was not there when the pass began, with every such rank
-   of its written unit, takes the free place of hour 0 nearest midnight
-   inside all their gaps; where there is none, they stay. A published
-   count at midnight stays exact, and a withheld one only falls (plan
-   P4-D191).
-5. **The half day's tails.** On the dial's half day, each tail rank past
-   noon or written at midnight takes the nearer of the half day's places
-   on either side of it inside its stratum, the earlier on a tie: G7.3b
-   step 10 draws it there, and a pass after it may have moved it a unit.
+   of its written unit, takes the free place of the day's first bin --
+   hour 0, for the hour -- nearest midnight inside all their gaps; where
+   there is none, they stay. A published count at midnight stays exact,
+   and a withheld one only falls (plan P4-D191).
+5. **The half day's tails** (the hour's alone). On the dial's half day,
+   each tail rank past noon or written at midnight takes the nearer of
+   the half day's places on either side of it inside its stratum, the
+   earlier on a tie: G7.3b step 10 draws it there, and a pass after it
+   may have moved it a unit.
 6. **PUT BACK** (the design skeptic's B1), where the count of different
    written units is not the one the pass began with and the column's
-   count is one the construction reaches (`contract.datetime_counts_reachable`),
-   last of the moves, so it repays every move before it. Where the count
-   is LONG: the runs -- every movable body rank of a written unit no
-   other rank holds, in one gap -- the fewest ranks first, in
-   proportional order within one size, each move a run whole onto the
-   nearest written unit another rank holds of its own hour group inside
-   its gap, at no written midnight: on its own day first, else on the
-   nearest other day of its gap, of its day standing and width kind, no
-   hole, the earlier first. Where no weekday census stands and the count
-   is still long once every such merge is made, the same once more, a
-   run free at last to merge onto the nearest day of another weekday on
-   the same terms (the LAST RESORT). Where it is SHORT: in rank order, a
-   movable body rank sharing its written unit takes the free place of its
-   own hour, day and gap nearest it. Each move keeps every group's count;
+   count is one the construction reaches
+   (`contract.datetime_counts_reachable`), last of the moves, so it
+   repays every move before it. Where the count is LONG: the runs --
+   every movable body rank of a written unit no other rank holds, in one
+   gap -- the fewest ranks first, in proportional order within one size,
+   each move a run whole onto the nearest written unit another rank
+   holds of its own group inside its gap, at no written midnight: on its
+   own parent first, else on the parents the ESCAPE asks, in its order
+   -- the other parents of its own day in its seat's kin group, then its
+   seat on the nearest other day of its gap, of its day standing and
+   width kind, no hole, the earlier first. Where no weekday census
+   stands and the count is still long once every such merge is made, the
+   same once more, a run free at last to merge onto the nearest day of
+   another weekday on the same terms (the LAST RESORT). Where it is
+   SHORT: in rank order, a movable body rank sharing its written unit
+   takes the free place of its own bin, parent and gap nearest it (for
+   the hour, its own hour and day). Each move keeps every group's count;
    the step stops once the count is back.
 7. Each run of ranks the layout does not pin is sorted.
 
@@ -6832,14 +6857,20 @@ columns unmet -- 400 noon moments at a floor of one, a rank on a rung's
 day with no other day of its weekday in its gap; 400 moments on 60
 values written at 78; visits a minute either side of midnight at 21 and
 22 values for 20 -- and the last resorts meet them; on the lane's
-battery neither fires, every twin's statistics as before.
+battery neither fires, every twin's statistics as before. Made one pass
+for every field, it gave the hour pass's answer on 3,000 random states
+of hours and every twin of the lane's battery its statistics, and the
+product and the oracle answer alike on 1,500 random states of hours and
+1,500 of a field of minutes whose parent is the hour.
 
 **Its frozen cases** are states of ranks, as G7.3f's are: the sixteenth
 vectors file, `tests/reference/generation-branch-vectors-16.json`, holds
-twelve -- SAMEDAY, the escape with a weekday census's groups and its last
+fifteen -- SAMEDAY, the escape with a weekday census's groups and its last
 resort, SPLIT, RELIEF, PUT BACK long and short and its last resort, the
 proportional order, the step off midnight, the half day's tail ranks and
-the whole pass -- and three of G7.3b step 10's
+the whole pass, and, on a field of minutes whose parent is the hour, the
+escape's and PUT BACK's tier in their kin group and the escape kept to
+it -- and three of G7.3b step 10's
 distances, on a low tail of minutes, a high tail of seconds and a tail
 whose ranks must all differ, each with the answer this section gives it
 and no G14.3 case.

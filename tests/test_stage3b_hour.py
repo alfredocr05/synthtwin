@@ -44,7 +44,9 @@ The clauses, each red on its own mutant (named beside it):
   and `midnight.count` missed);
 * the sixteenth vectors file: the product gives every frozen state the
   oracle's answer, and each case is red on its own mutant
-  (`STEP_MUTANTS`);
+  (`STEP_MUTANTS`) -- three of them on a field of minutes whose parent
+  is the hour, so the one clock pass is held field-generic (G7.3g, the
+  3b.4 skeptic's M4);
 * the dial's half day (plan P4-D370's carve-out): a stamp declared a
   12-hour clock with no marker writes no time it cannot read back, its
   census published or withheld (mutants: G7.3b step 10 withdrawn; the
@@ -590,7 +592,7 @@ def test_whole_units_the_census_cannot_hold_are_split_and_put_back(ten_thousand)
 def test_red_without_the_hour_steps(ten_thousand, monkeypatch: pytest.MonkeyPatch) -> None:
     """Mutant: G7.3g's own steps withdrawn -- the shared steps alone miss the 10-week clinic."""
     described, _columns, _text = ten_thousand
-    monkeypatch.setattr(generation, "_hour_left_their_groups", lambda *_arguments: None)
+    monkeypatch.setattr(generation, "_clock_left_their_groups", lambda *_arguments: None)
     written = kpi_shapes.twin_text(described, 0)
     missed = kpi_shapes.missed(kpi_shapes.measure(described, written, "twin.csv"))
     assert "ten_week_clinic:hour_census.groups" in missed, missed
@@ -615,7 +617,7 @@ def test_a_lab_panel_keeps_its_census_and_its_count(panel) -> None:
 def test_red_without_put_back(panel, monkeypatch: pytest.MonkeyPatch) -> None:
     """Mutant: PUT BACK withdrawn -- the panel's split units leave the count long."""
     described, _cells_of = panel
-    monkeypatch.setattr(generation, "_hour_count_put_back", lambda *_arguments: None)
+    monkeypatch.setattr(generation, "_clock_count_put_back", lambda *_arguments: None)
     written = kpi_shapes.twin_text(described, 0)
     missed = kpi_shapes.missed(kpi_shapes.measure(described, written, "twin.csv"))
     assert "drawn_at:distinct.n_distinct" in missed, missed
@@ -639,7 +641,7 @@ def test_or_starts_meet_their_census_through_relief(tmp_path: pathlib.Path, monk
         written = kpi_shapes.twin_text(described, seed)
         assert kpi_shapes.missed(kpi_shapes.measure(described, written, f"twin-{seed}.csv")) == [], seed
         assert _statistics_failures(described.block("or_start"), cells, _cells(written, "or_start"), form) == [], seed
-    monkeypatch.setattr(generation, "_hour_relieved", lambda *_arguments: None)
+    monkeypatch.setattr(generation, "_clock_relieved", lambda *_arguments: None)
     written = kpi_shapes.twin_text(described, 0)
     missed = kpi_shapes.missed(kpi_shapes.measure(described, written, "mutant.csv"))
     assert "or_start:hour_census.groups" in missed, missed
@@ -802,11 +804,14 @@ def _case(name: str) -> dict:
 
 
 def _state(case: dict, module=generation):
+    # A state's FIELD: the hour unless the case names another, its bins
+    # `where`. The bin rule `bins` is read only by the shared steps, which
+    # only the whole-pass case runs, and that case is of hours.
     state = module._WeekdayPass(
         moved=list(case["ordinals"]), held={}, where=tuple(case["where"]), facts=None,
         word="", widths=False, kinds={}, holes=frozenset(case["holes"]), lows=list(case["lows"]),
-        highs=list(case["highs"]), keep_units=case["reachable"], unit=3600,
-        step=case["written_unit"], day=DAY, bins="hour", period=24, keeps="day",
+        highs=list(case["highs"]), keep_units=case["reachable"], unit=case.get("field_unit", 3600),
+        step=case["written_unit"], day=DAY, bins="hour", period=len(case["where"]), keeps="day",
     )
     for ordinal in state.moved:
         module._weekday_tally(state.held, ordinal // state.step, 1)
@@ -826,21 +831,25 @@ def _answer(case: dict, module=generation) -> list:
     pinned = list(case["pinned"])
     standing = tuple(case["standing"])
     anyday = case.get("anyday", False)
+    kin = tuple(case.get("kin", ()))
     step = case["step"]
     if step == "pass":
-        module._hour_pass(
-            state, list(case["counts"]), first, last, pinned, case["wanted"], standing, case["half_day"], anyday
+        module._clock_pass(
+            state, list(case["counts"]), first, last, pinned, case["wanted"], standing, case["half_day"],
+            anyday, kin,
         )
     elif step == "left":
-        have = module._hour_found(state, len(case["counts"]), first, last)
-        module._hour_left_their_groups(state, list(case["counts"]), have, first, last, pinned, standing, anyday)
+        have = module._clock_found(state, len(case["counts"]), first, last)
+        module._clock_left_their_groups(
+            state, list(case["counts"]), have, first, last, pinned, standing, anyday, kin
+        )
     elif step == "relief":
-        have = module._hour_found(state, len(case["counts"]), first, last)
-        module._hour_relieved(state, list(case["counts"]), have, first, last, pinned)
+        have = module._clock_found(state, len(case["counts"]), first, last)
+        module._clock_relieved(state, list(case["counts"]), have, first, last, pinned)
     elif step == "put_back":
-        module._hour_count_put_back(state, first, last, pinned, case["wanted"], standing, anyday)
+        module._clock_count_put_back(state, first, last, pinned, case["wanted"], standing, anyday, kin)
     elif step == "midnight":
-        module._hour_off_midnight(state, list(case["before"]), first, last, pinned)
+        module._clock_off_midnight(state, list(case["before"]), first, last, pinned)
     elif step == "tails":
         module._hour_tails_on_the_half_day(state, first, last, state.step)
     return state.moved
@@ -882,13 +891,13 @@ class _Distances:
 STEP_MUTANTS = {
     "SAMEDAY withdrawn": (
         "hour_same_day_clock",
-        "                    target = _hour_target_on(\n                        state, here // calendar_clock.DAY_SECONDS, here,",
-        "                    target = None and _hour_target_on(\n                        state, here // calendar_clock.DAY_SECONDS, here,",
+        "                    target = _clock_target_on(\n                        state, here // span, here,",
+        "                    target = None and _clock_target_on(\n                        state, here // span, here,",
     ),
     "the escape keeps no day standing": (
         "hour_escape_weekday",
-        "                if (standing[calendar_rules.weekday_of(other)] == own) != kept:\n                    continue\n                if _weekday_width_kind(state, other * calendar_clock.DAY_SECONDS) != width:\n                    continue\n                target = _hour_target_on(",
-        "                if False:\n                    continue\n                if _weekday_width_kind(state, other * calendar_clock.DAY_SECONDS) != width:\n                    continue\n                target = _hour_target_on(",
+        "                if (standing[calendar_rules.weekday_of(other)] == own) != kept:\n                    continue\n                if _weekday_width_kind(state, other * state.day) != width:\n                    continue\n                target = _clock_target_on(",
+        "                if False:\n                    continue\n                if _weekday_width_kind(state, other * state.day) != width:\n                    continue\n                target = _clock_target_on(",
     ),
     "the escape takes no day of another weekday": (
         "hour_escape_any_day",
@@ -907,7 +916,7 @@ STEP_MUTANTS = {
     ),
     "RELIEF asks no full group": (
         "hour_relief",
-        "        if _hour_target_on(state, day, here, low, high, size, alone, counts) is None:\n            continue",
+        "        if _clock_target_on(state, parent, here, low, high, size, alone, counts) is None:\n            continue",
         "        if True:\n            continue",
     ),
     "RELIEF takes a unit of any size": (
@@ -917,13 +926,13 @@ STEP_MUTANTS = {
     ),
     "PUT BACK withdrawn": (
         "hour_put_back",
-        "    count = _weekday_count(state)\n    if count > wanted:\n        by_day",
-        "    count = wanted\n    if count > wanted:\n        by_day",
+        "    count = _weekday_count(state)\n    if count > wanted:\n        by_parent",
+        "    count = wanted\n    if count > wanted:\n        by_parent",
     ),
-    "PUT BACK merges only on its own day": (
+    "PUT BACK merges only on its own parent": (
         "hour_put_back",
-        "    target = nearest_on(day)\n    if target is not None:\n        return target\n    width",
-        "    target = nearest_on(day)\n    if target is not None or True:\n        return target\n    width",
+        "    target = nearest_on(day * per_day + seat)\n    if target is not None:\n        return target\n    if kin:",
+        "    target = nearest_on(day * per_day + seat)\n    if target is not None or True:\n        return target\n    if kin:",
     ),
     "the short count is not put back": (
         "hour_put_back_short",
@@ -937,7 +946,7 @@ STEP_MUTANTS = {
     ),
     "a written midnight is left": (
         "hour_off_midnight",
-        "        target = _hour_nearest_free(state, start, low, high, len(members))\n        if target is None:\n            continue\n        for rank in members:",
+        "        target = _clock_nearest_free(state, start, low, high, len(members))\n        if target is None:\n            continue\n        for rank in members:",
         "        target = None\n        if target is None:\n            continue\n        for rank in members:",
     ),
     "the half day's tail ranks are left": (
@@ -947,8 +956,26 @@ STEP_MUTANTS = {
     ),
     "the whole pass without its own steps": (
         "hour_whole_pass",
-        "    if found != counts:\n        _hour_left_their_groups(\n            state, counts, found, body_low, body_high, pinned, standing\n        )\n    if found != counts:\n        _hour_relieved(",
-        "    if found != counts and False:\n        _hour_left_their_groups(\n            state, counts, found, body_low, body_high, pinned, standing\n        )\n    if found != counts and False:\n        _hour_relieved(",
+        "    if found != counts:\n        _clock_left_their_groups(\n            state, counts, found, body_low, body_high, pinned, standing, False, kin\n        )\n    if found != counts:\n        _clock_relieved(",
+        "    if found != counts and False:\n        _clock_left_their_groups(\n            state, counts, found, body_low, body_high, pinned, standing, False, kin\n        )\n    if found != counts and False:\n        _clock_relieved(",
+    ),
+    # THE ONE CLOCK PASS, field-generic (the 3b.4 skeptic's M4): its own
+    # tier of the escape and of PUT BACK where the parent is shorter than a
+    # day, frozen on a field of minutes whose parent is the hour.
+    "the escape asks no parent of its own day": (
+        "clock_minute_kin_escape",
+        "    if kin:\n        for away in range(1, per_day):\n            for other in (seat - away, seat + away):\n                if other < 0 or other >= per_day or kin[other] != kin[seat]:\n                    continue\n                target = _clock_target_on(",
+        "    if False:\n        for away in range(1, per_day):\n            for other in (seat - away, seat + away):\n                if other < 0 or other >= per_day or kin[other] != kin[seat]:\n                    continue\n                target = _clock_target_on(",
+    ),
+    "the escape leaves its kin group": (
+        "clock_minute_kin_kept",
+        "                if other < 0 or other >= per_day or kin[other] != kin[seat]:\n                    continue\n                target = _clock_target_on(",
+        "                if other < 0 or other >= per_day:\n                    continue\n                target = _clock_target_on(",
+    ),
+    "PUT BACK asks no parent of its own day": (
+        "clock_minute_put_back_kin",
+        "    if kin:\n        for away in range(1, per_day):\n            for other in (seat - away, seat + away):\n                if other < 0 or other >= per_day or kin[other] != kin[seat]:\n                    continue\n                target = nearest_on(",
+        "    if False:\n        for away in range(1, per_day):\n            for other in (seat - away, seat + away):\n                if other < 0 or other >= per_day or kin[other] != kin[seat]:\n                    continue\n                target = nearest_on(",
     ),
 }
 
@@ -972,6 +999,7 @@ DISTANCE_MUTANTS = {
 }
 
 CASES = [
+    "clock_minute_kin_escape", "clock_minute_kin_kept", "clock_minute_put_back_kin",
     "half_day_apart", "half_day_high", "half_day_low", "hour_escape_any_day", "hour_escape_weekday",
     "hour_half_day_tails", "hour_off_midnight", "hour_proportional", "hour_put_back",
     "hour_put_back_any_day", "hour_put_back_short", "hour_relief", "hour_same_day_clock", "hour_split", "hour_whole_pass",

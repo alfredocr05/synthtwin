@@ -9265,18 +9265,22 @@ def _label_content(column):
     return content
 
 
-# ------------------------------------------------ G7.3g, the hour pass
+# ------------------------------------------------ G7.3g, the clock pass
 #
 # Written from method section G7.3g (landing 3b.2-H, plan P4-D371) and from
-# nothing else: the pass that puts a column of moments on the groups its
-# hour census publishes -- or, on a stamp declared a 12-hour clock with no
-# marker, on the dial's half day -- through G7.3f's shared walk at a unit of
-# an hour with the day kept (`bins_settled`), and then its own steps.
+# nothing else: the ONE pass that puts a column of moments on the groups a
+# census of a field of the written clock publishes -- the hour of the day
+# now, its first field -- through G7.3f's shared walk at the field's unit
+# with the parent kept (`bins_settled`), and then its own steps. A walk's
+# FIELD is its bins: `unit` seconds each, as many as its census has bins in
+# one turn; one turn is the PARENT, a day for the hour. The hour's own
+# entry, `hour_settled`, also puts a stamp declared a 12-hour clock with no
+# marker on the dial's half day.
 
 HOUR = 3600
 HOUR_DAY = 86400
 HOUR_HALF_DAY = 43200
-HOUR_ROUNDS = 4
+CLOCK_ROUNDS = 4
 
 
 def on_the_half_day(column):
@@ -9291,7 +9295,8 @@ def hour_settled(column, ordinals, parsed, whole, lows, highs, holes):
     It runs where the column publishes an hour census, or stands on the
     dial's half day -- whose census is then hours 0 to 11 holding the
     body, 12 to 23 none -- on at least three parsed cells counted in
-    seconds, with both tails and no bare date.
+    seconds, with both tails and no bare date: the clock pass with the
+    hour as its field, bins of 3,600 seconds and the day as the parent.
     """
     ordinals = list(ordinals)
     census = column.get("hour_census") or []
@@ -9349,24 +9354,40 @@ def hour_settled(column, ordinals, parsed, whole, lows, highs, holes):
     for index, group in enumerate(census_of_days):
         for weekday in range(group["first"], group["last"] + 1):
             standing[weekday] = index
-    return hour_pass(
+    return clock_pass(
         walk, first, last, pinned, walk.different(), standing, half,
         date_counts_reachable(column), not census_of_days,
     )
 
 
-def hour_pass(walk, first, last, pinned, wanted, standing, half, reachable, anyday=False):
-    """G7.3g steps 2 to 7 over a walk whose bins are the hours.
+def clock_span(walk):
+    """One PARENT of the walk's field, in seconds: its unit times its bins
+    -- a day for the hour, an hour for the minute."""
+    return walk.unit * len(walk.group_of_bin)
 
-    2. G7.3f's shared steps at a unit of an hour with the day kept;
-    3. while a group is over its count: SAMEDAY, the ESCAPE, and a SPLIT
+
+def clock_seat(walk, ordinal):
+    """The place of an instant's parent in its day, from nought: always
+    nought for the hour, whose parent is the day."""
+    span = clock_span(walk)
+    return ordinal // span - (ordinal // walk.day) * (walk.day // span)
+
+
+def clock_pass(walk, first, last, pinned, wanted, standing, half, reachable, anyday=False, kin=()):
+    """G7.3g steps 2 to 7 over a walk whose bins are a field of the clock.
+
+    ``kin`` gives each parent's place in its day its group in the coarser
+    census the moves keep; it is empty where the parent is the day.
+
+    2. G7.3f's shared steps at the field's unit with the parent kept;
+    3. while a group is over its count: SAMEPARENT, the ESCAPE, and a SPLIT
        where a unit has no place whole; then RELIEF, a place in a full
        group another unit of it leaves; then, where no weekday census
        stands (``anyday``), the same again with an escape free to take a
        day of another weekday;
     4. off a written midnight, for each rank the pass put there;
     5. on the half day, each tail rank past noon or at midnight back on
-       it inside its stratum;
+       it inside its stratum (the hour's alone);
     6. PUT BACK, where the count of different written units is off, and
        once more, where no weekday census stands, free to merge onto a
        day of another weekday;
@@ -9374,33 +9395,33 @@ def hour_pass(walk, first, last, pinned, wanted, standing, half, reachable, anyd
     """
     before = [written_at_midnight(ordinal, 0, walk.step) for ordinal in walk.days]
     bins_settled(walk, first, last, pinned, wanted, reachable)
-    have = hour_have(walk, first, last)
+    have = clock_have(walk, first, last)
     if have != walk.counts:
-        hour_groups_left(walk, have, first, last, pinned, standing)
+        clock_groups_left(walk, have, first, last, pinned, standing, False, kin)
     if have != walk.counts:
-        hour_relieved(walk, have, first, last, pinned)
+        clock_relieved(walk, have, first, last, pinned)
     if have != walk.counts and anyday:
-        hour_groups_left(walk, have, first, last, pinned, standing, True)
-    hour_off_midnight(walk, before, first, last, pinned)
+        clock_groups_left(walk, have, first, last, pinned, standing, True, kin)
+    clock_off_midnight(walk, before, first, last, pinned)
     if half:
         hour_tails_on_the_half_day(walk, first, last)
     if reachable and walk.different() != wanted:
-        hour_put_back(walk, first, last, pinned, wanted, standing)
+        clock_put_back(walk, first, last, pinned, wanted, standing, False, kin)
         if anyday and walk.different() != wanted:
-            hour_put_back(walk, first, last, pinned, wanted, standing, True)
+            clock_put_back(walk, first, last, pinned, wanted, standing, True, kin)
     sort_unpinned_runs(walk.days, pinned)
     return walk.days
 
 
-def hour_have(walk, first, last):
-    """How many body ranks stand in each hour group."""
+def clock_have(walk, first, last):
+    """How many body ranks stand in each group of the field."""
     have = [0] * len(walk.counts)
     for rank in range(first, last + 1):
         have[walk.group(walk.days[rank])] += 1
     return have
 
 
-def hour_free(walk, target, low, high):
+def clock_free(walk, target, low, high):
     """A place a unit may take: inside [low, high], on no hole, on a written
     unit no rank holds, and not written at midnight."""
     return (
@@ -9411,7 +9432,7 @@ def hour_free(walk, target, low, high):
     )
 
 
-def hour_nearest_free(walk, ideal, low, high):
+def clock_nearest_free(walk, ideal, low, high):
     """The free place nearest ``ideal`` in [low, high], a written unit at a
     time, the earlier on a tie; None where none is."""
     if low > high:
@@ -9420,57 +9441,94 @@ def hour_nearest_free(walk, ideal, low, high):
     away = 0
     while ideal - away * walk.step >= low or ideal + away * walk.step <= high:
         for target in (ideal - away * walk.step, ideal + away * walk.step):
-            if hour_free(walk, target, low, high):
+            if clock_free(walk, target, low, high):
                 return target
         away += 1
     return None
 
 
-def hour_place_on(walk, day, ordinal, low, high, size, have):
-    """SAMEDAY on the unit's own day, the escape's place on another: in each
-    hour whose group has room for ``size`` ranks, the free place nearest the
-    unit's own minute and second inside its gap; of these, the one whose
-    clock is nearest the unit's, the earlier on a tie."""
+def clock_place_on(walk, parent, ordinal, low, high, size, have):
+    """SAMEPARENT on the unit's own parent, the escape's place on another:
+    in each bin whose group has room for ``size`` ranks, the free place
+    nearest the unit's own place in its bin inside its gap; of these, the
+    one whose place in its parent is nearest the unit's, the earlier on a
+    tie. For the hour: each hour of the day, the unit's minute and second,
+    its clock."""
+    span = clock_span(walk)
     best = None
-    for hour in range(24):
-        group = walk.group_of_bin[hour]
+    for field in range(len(walk.group_of_bin)):
+        group = walk.group_of_bin[field]
         if have[group] + size > walk.counts[group]:
             continue
-        start = day * HOUR_DAY + hour * HOUR
-        target = hour_nearest_free(
-            walk, start + ordinal % HOUR, max(start, low), min(start + HOUR - 1, high)
+        start = parent * span + field * walk.unit
+        target = clock_nearest_free(
+            walk, start + ordinal % walk.unit, max(start, low), min(start + walk.unit - 1, high)
         )
         if target is None or target == ordinal:
             continue
-        option = (abs(target % HOUR_DAY - ordinal % HOUR_DAY), target)
+        option = (abs(target % span - ordinal % span), target)
         if best is None or option < best:
             best = option
     return None if best is None else best[1]
 
 
-def hour_escape(walk, ordinal, low, high, size, have, standing, anyday=False):
-    """THE ESCAPE: the nearest other day of the gap of the unit's standing,
-    on no hole and of its width kind, the earlier first, and its place there;
-    where no weekday census stands (``anyday``) and no such day has one, the
-    nearest day of another weekday on the same terms."""
-    day = ordinal // HOUR_DAY
-    width = walk.width_of(day)
-    for same in ([True, False] if anyday else [True]):
-        for away in range(1, max(day - low // HOUR_DAY, high // HOUR_DAY - day) + 1):
-            for other in (day - away, day + away):
-                if not low // HOUR_DAY <= other <= high // HOUR_DAY or other in walk.holes:
-                    continue
-                if (standing[(other + 3) % 7] == standing[(day + 3) % 7]) != same:
-                    continue
-                if walk.width_of(other) != width:
-                    continue
-                target = hour_place_on(walk, other, ordinal, low, high, size, have)
-                if target is not None:
-                    return target
+def clock_kin_parents(walk, ordinal, kin):
+    """The other parents of an instant's own day whose place has its own
+    parent's group in ``kin``, nearest first, the earlier on a tie; none
+    where ``kin`` is empty, as for the hour."""
+    if not kin:
+        return []
+    per_day = walk.day // clock_span(walk)
+    seat = clock_seat(walk, ordinal)
+    base = (ordinal // walk.day) * per_day
+    found = []
+    for away in range(1, per_day):
+        for other in (seat - away, seat + away):
+            if 0 <= other < per_day and kin[other] == kin[seat]:
+                found.append(base + other)
+    return found
+
+
+def clock_days_of_standing(walk, ordinal, low, high, standing, same):
+    """The other days of the gap, nearest first, the earlier on a tie, on
+    no hole and of the instant's width kind, whose day standing is the
+    instant's own (``same``) or is not -- each as the parent at the
+    instant's own parent's place in that day."""
+    per_day = walk.day // clock_span(walk)
+    seat = clock_seat(walk, ordinal)
+    day = ordinal // walk.day
+    found = []
+    for away in range(1, max(day - low // walk.day, high // walk.day - day) + 1):
+        for other in (day - away, day + away):
+            if not low // walk.day <= other <= high // walk.day or other in walk.holes:
+                continue
+            if (standing[(other + 3) % 7] == standing[(day + 3) % 7]) != same:
+                continue
+            if walk.width_of(other) != walk.width_of(day):
+                continue
+            found.append(other * per_day + seat)
+    return found
+
+
+def clock_escape(walk, ordinal, low, high, size, have, standing, anyday=False, kin=()):
+    """THE ESCAPE: SAMEPARENT's place on the first of these that has one --
+    the parents of the unit's own day in its kin group, nearest first;
+    the nearest other day of the gap of its standing, at its own parent's
+    place; and, where no weekday census stands (``anyday``), the nearest
+    day of another weekday on the same terms."""
+    tiers = [clock_kin_parents(walk, ordinal, kin)]
+    tiers.append(clock_days_of_standing(walk, ordinal, low, high, standing, True))
+    if anyday:
+        tiers.append(clock_days_of_standing(walk, ordinal, low, high, standing, False))
+    for parents in tiers:
+        for parent in parents:
+            target = clock_place_on(walk, parent, ordinal, low, high, size, have)
+            if target is not None:
+                return target
     return None
 
 
-def hour_units(walk, group, first, last, pinned):
+def clock_units(walk, group, first, last, pinned):
     """A group's movable units in rank order: each written unit whose every
     rank in the column is movable here and shares one gap moves whole; every
     other movable rank alone."""
@@ -9489,7 +9547,7 @@ def hour_units(walk, group, first, last, pinned):
     return units
 
 
-def hour_rotated(units, leaving):
+def clock_rotated(units, leaving):
     """Proportional order: the units the smooth rotation chooses first --
     each adds ``leaving`` to a credit and is chosen where it reaches the
     number of units, which is then taken back -- then the rest in order."""
@@ -9504,17 +9562,17 @@ def hour_rotated(units, leaving):
     return chosen + rest
 
 
-def hour_groups_left(walk, have, first, last, pinned, standing, anyday=False):
+def clock_groups_left(walk, have, first, last, pinned, standing, anyday=False, kin=()):
     """G7.3g step 3: the units of each group still over its count, in
-    proportional order, take SAMEDAY's place, else the escape's; a unit with
-    neither whole leaves a rank at a time."""
-    for _round in range(HOUR_ROUNDS):
+    proportional order, take SAMEPARENT's place, else the escape's; a unit
+    with neither whole leaves a rank at a time."""
+    for _round in range(CLOCK_ROUNDS):
         changed = False
         for group in range(len(walk.counts)):
             if have[group] <= walk.counts[group]:
                 continue
-            units = hour_units(walk, group, first, last, pinned)
-            for unit in hour_rotated(units, have[group] - walk.counts[group]):
+            units = clock_units(walk, group, first, last, pinned)
+            for unit in clock_rotated(units, have[group] - walk.counts[group]):
                 if have[group] <= walk.counts[group]:
                     break
                 ordinal = walk.days[unit[0]]
@@ -9526,9 +9584,13 @@ def hour_groups_left(walk, have, first, last, pinned, standing, anyday=False):
                     here = walk.days[members[0]]
                     if here // walk.step != ordinal // walk.step:
                         continue
-                    target = hour_place_on(walk, here // HOUR_DAY, here, low, high, len(members), have)
+                    target = clock_place_on(
+                        walk, here // clock_span(walk), here, low, high, len(members), have
+                    )
                     if target is None:
-                        target = hour_escape(walk, here, low, high, len(members), have, standing, anyday)
+                        target = clock_escape(
+                            walk, here, low, high, len(members), have, standing, anyday, kin
+                        )
                     if target is None:
                         continue
                     for rank in members:
@@ -9542,25 +9604,27 @@ def hour_groups_left(walk, have, first, last, pinned, standing, anyday=False):
             return
 
 
-def hour_relieved(walk, have, first, last, pinned):
+def clock_relieved(walk, have, first, last, pinned):
     """G7.3g step 3's RELIEF, from the method's sentence (landing 3b.2-H).
 
     Each group still over its count, in group order, asks its units as
     step 3 does -- in proportional order, whole and then rank by rank --
     and a unit takes, in the first group with a count of its own and no
-    room for it, SAMEDAY's place there on its own day inside its gap,
-    asked of that group alone, once a RELIEF unit has left that group:
-    the first, in rank order, of the group's units as they stood when
-    RELIEF first asked that group, of as many ranks, with SAMEDAY's place
-    on its own day in a group with room. Where the unit then has none, the relief goes back and the next
-    is asked; a relief unit that finds no place is not asked again.
+    room for it, SAMEPARENT's place there on its own parent inside its
+    gap, asked of that group alone, once a RELIEF unit has left that
+    group: the first, in rank order, of the group's units as they stood
+    when RELIEF first asked that group, of as many ranks, with
+    SAMEPARENT's place on its own parent in a group with room. Where the
+    unit then has none, the relief goes back and the next is asked; a
+    relief unit that finds no place is not asked again.
     """
     counts = walk.counts
+    span = clock_span(walk)
     pools, spent = {}, {}
 
     def taken(group, members):
         here = walk.days[members[0]]
-        day = here // HOUR_DAY
+        parent = here // span
         low, high = walk.lows[members[0]], walk.highs[members[0]]
         size = len(members)
         for middle in range(len(counts)):
@@ -9568,10 +9632,10 @@ def hour_relieved(walk, have, first, last, pinned):
                 continue
             alone = list(counts)
             alone[middle] = counts[middle] - size
-            if hour_place_on(walk, day, here, low, high, size, alone) is None:
+            if clock_place_on(walk, parent, here, low, high, size, alone) is None:
                 continue
             if middle not in pools:
-                pools[middle] = hour_units(walk, middle, first, last, pinned)
+                pools[middle] = clock_units(walk, middle, first, last, pinned)
                 spent[middle] = set()
             for index, relief in enumerate(pools[middle]):
                 if index in spent[middle] or len(relief) != size or members[0] in relief:
@@ -9580,8 +9644,8 @@ def hour_relieved(walk, have, first, last, pinned):
                 if walk.group(start) != middle:
                     spent[middle].add(index)
                     continue
-                out = hour_place_on(
-                    walk, start // HOUR_DAY, start, walk.lows[relief[0]], walk.highs[relief[0]], size, have
+                out = clock_place_on(
+                    walk, start // span, start, walk.lows[relief[0]], walk.highs[relief[0]], size, have
                 )
                 if out is None:
                     spent[middle].add(index)
@@ -9591,7 +9655,7 @@ def hour_relieved(walk, have, first, last, pinned):
                     walk.move(rank, out)
                 have[middle] -= size
                 have[into] += size
-                target = hour_place_on(walk, day, here, low, high, size, have)
+                target = clock_place_on(walk, parent, here, low, high, size, have)
                 if target is None:
                     for rank in relief:
                         walk.move(rank, start)
@@ -9609,8 +9673,8 @@ def hour_relieved(walk, have, first, last, pinned):
     for group in range(len(counts)):
         if have[group] <= counts[group]:
             continue
-        units = hour_units(walk, group, first, last, pinned)
-        for unit in hour_rotated(units, have[group] - counts[group]):
+        units = clock_units(walk, group, first, last, pinned)
+        for unit in clock_rotated(units, have[group] - counts[group]):
             if have[group] <= counts[group]:
                 break
             ordinal = walk.days[unit[0]]
@@ -9624,20 +9688,21 @@ def hour_relieved(walk, have, first, last, pinned):
                     break
 
 
-def hour_merge_place(walk, rank, held, standing, anyday=False):
+def clock_merge_place(walk, rank, held, standing, anyday=False, kin=()):
     """PUT BACK's place: the nearest written unit another rank holds, of the
-    rank's own hour group, inside its gap and at no written midnight -- on
-    its own day first, then on the nearest other day of its standing and
-    width kind, the earlier first, and last, where no weekday census stands
-    (``anyday``), on the nearest day of another weekday on the same terms."""
+    rank's own group of the field, inside its gap and at no written
+    midnight -- on its own parent first, then on the parents the escape
+    asks, in its order: those of its own day in its kin group, then its
+    own parent's place on the nearest other day of its standing, and last,
+    where no weekday census stands (``anyday``), on the nearest day of
+    another weekday."""
     ordinal = walk.days[rank]
     group = walk.group(ordinal)
     low, high = walk.lows[rank], walk.highs[rank]
-    day = ordinal // HOUR_DAY
 
-    def nearest_on(other):
+    def nearest_on(parent):
         best = None
-        for unit in held.get(other, ()):
+        for unit in held.get(parent, ()):
             if unit == ordinal // walk.step or walk.holding(unit * walk.step) == 0:
                 continue
             target = unit * walk.step + ordinal % walk.step
@@ -9649,34 +9714,27 @@ def hour_merge_place(walk, rank, held, standing, anyday=False):
                 best = (abs(target - ordinal), target)
         return None if best is None else best[1]
 
-    found = nearest_on(day)
-    if found is not None:
-        return found
-    for same in ([True, False] if anyday else [True]):
-        for away in range(1, max(day - low // HOUR_DAY, high // HOUR_DAY - day) + 1):
-            for other in (day - away, day + away):
-                if not low // HOUR_DAY <= other <= high // HOUR_DAY or other in walk.holes:
-                    continue
-                if (standing[(other + 3) % 7] == standing[(day + 3) % 7]) != same:
-                    continue
-                if walk.width_of(other) != walk.width_of(day):
-                    continue
-                found = nearest_on(other)
-                if found is not None:
-                    return found
+    parents = [ordinal // clock_span(walk)] + clock_kin_parents(walk, ordinal, kin)
+    parents += clock_days_of_standing(walk, ordinal, low, high, standing, True)
+    if anyday:
+        parents += clock_days_of_standing(walk, ordinal, low, high, standing, False)
+    for parent in parents:
+        found = nearest_on(parent)
+        if found is not None:
+            return found
     return None
 
 
-def hour_put_back(walk, first, last, pinned, wanted, standing, anyday=False):
+def clock_put_back(walk, first, last, pinned, wanted, standing, anyday=False, kin=()):
     """G7.3g step 6: where the count is long, whole runs -- smallest first,
     proportional order within a size -- join a unit another rank holds in
-    their own hour group; where it is short, a rank sharing its unit takes
-    the nearest free place of its own hour, day and gap."""
+    their own group of the field; where it is short, a rank sharing its
+    unit takes the nearest free place of its own bin, parent and gap."""
     count = walk.different()
     if count > wanted:
         held = {}
         for unit in sorted({ordinal // walk.step for ordinal in walk.days}):
-            held.setdefault(unit * walk.step // HOUR_DAY, []).append(unit)
+            held.setdefault(unit * walk.step // clock_span(walk), []).append(unit)
         runs = {}
         for rank in range(first, last + 1):
             if not pinned[rank]:
@@ -9689,13 +9747,13 @@ def hour_put_back(walk, first, last, pinned, wanted, standing, anyday=False):
         )
         order = []
         for size in sorted({size for size, _unit in whole}):
-            order += hour_rotated([runs[unit] for each, unit in whole if each == size], count - wanted)
+            order += clock_rotated([runs[unit] for each, unit in whole if each == size], count - wanted)
         for members in order:
             if count <= wanted:
                 return
             if walk.holding(walk.days[members[0]]) != len(members):
                 continue
-            target = hour_merge_place(walk, members[0], held, standing, anyday)
+            target = clock_merge_place(walk, members[0], held, standing, anyday, kin)
             if target is None:
                 continue
             for rank in members:
@@ -9708,19 +9766,20 @@ def hour_put_back(walk, first, last, pinned, wanted, standing, anyday=False):
         ordinal = walk.days[rank]
         if pinned[rank] or walk.holding(ordinal) < 2:
             continue
-        start = ordinal - ordinal % HOUR
-        target = hour_nearest_free(
-            walk, ordinal, max(start, walk.lows[rank]), min(start + HOUR - 1, walk.highs[rank])
+        start = ordinal - ordinal % walk.unit
+        target = clock_nearest_free(
+            walk, ordinal, max(start, walk.lows[rank]), min(start + walk.unit - 1, walk.highs[rank])
         )
         if target is not None:
             walk.move(rank, target)
             count += 1
 
 
-def hour_off_midnight(walk, before, first, last, pinned):
+def clock_off_midnight(walk, before, first, last, pinned):
     """G7.3g step 4: every movable rank the pass left written at midnight,
-    with every such rank of its written unit, takes the free place of hour 0
-    nearest midnight inside all their gaps; where none is, they stay."""
+    with every such rank of its written unit, takes the free place of the
+    day's first bin -- hour 0, for the hour -- nearest midnight inside all
+    their gaps; where none is, they stay."""
     runs = {}
     for rank in range(first, last + 1):
         ordinal = walk.days[rank]
@@ -9730,8 +9789,8 @@ def hour_off_midnight(walk, before, first, last, pinned):
     for unit, members in runs.items():
         start = unit * walk.step
         low = max([start] + [walk.lows[rank] for rank in members])
-        high = min([start + HOUR - 1] + [walk.highs[rank] for rank in members])
-        target = hour_nearest_free(walk, start, low, high)
+        high = min([start + walk.unit - 1] + [walk.highs[rank] for rank in members])
+        target = clock_nearest_free(walk, start, low, high)
         if target is not None:
             for rank in members:
                 walk.move(rank, target)
@@ -14193,6 +14252,54 @@ def hour_pass_case():
     )
 
 
+# THE FIELD-GENERIC PASS on a field of minutes: bins of 60 seconds, 60 of
+# them in a turn, the parent an hour, and each hour's group in the hour
+# census as its kin -- the shape landing 3b.4 instantiates (plan P4-D372).
+MINUTE_QUARTER = [0] * 15 + [1] * 45
+HOURS_OF_THE_MORNING = [0] * 8 + [1] * 4 + [2] * 12
+
+
+def clock_kin_escape_case():
+    m = HOUR_MONDAY
+    ordinals = [hour_at(m, 9, 15), hour_at(m, 9, 20, 5), hour_at(m, 9, 40, 5), hour_at(m, 10, 59)]
+    return hour_case(
+        "The ESCAPE's first tier, on a field of minutes whose parent is the hour: minutes "
+        "[00-14] owed one rank, [15-59] one over, a gap from 09:15 to 10:59 that leaves hour "
+        "9 no minute of [00-14]. Hours 9 and 10 share a group of the hour census, so the "
+        "rank at 09:40:05 takes 10:14:05 on its own day.",
+        "left", ordinals, {0, 3}, [1, 3], MINUTE_QUARTER,
+        written_unit=1, field_unit=60, kin=HOURS_OF_THE_MORNING,
+    )
+
+
+def clock_kin_kept_case():
+    m = HOUR_MONDAY
+    ordinals = [hour_at(m, 9, 15), hour_at(m, 9, 20, 5), hour_at(m, 9, 40, 5), hour_at(m, 10, 59)]
+    return hour_case(
+        "The ESCAPE keeps its kin group: the same state with hour 9 alone in its group of "
+        "the hour census. Hour 10 has a place, but a move there would change the hour "
+        "census, and the gap holds no other day, so no rank moves.",
+        "left", ordinals, {0, 3}, [1, 3], MINUTE_QUARTER,
+        written_unit=1, field_unit=60, kin=[0] * 9 + [1] + [2] * 14,
+    )
+
+
+def clock_put_back_kin_case():
+    m = HOUR_MONDAY
+    ordinals = [
+        hour_at(m, 9, 5), hour_at(m, 9, 30, 7), hour_at(m, 10, 20, 9), hour_at(m, 10, 20, 9),
+        hour_at(m, 10, 50),
+    ]
+    return hour_case(
+        "PUT BACK on a field of minutes, the count one long: 09:30:07 is alone on its second "
+        "and hour 9 holds no other of [15-59]; hour 10, in its group of the hour census, "
+        "does, so it joins the nearest, 10:20:09.",
+        "put_back", ordinals, {0, 4}, [1, 4], MINUTE_QUARTER,
+        written_unit=1, field_unit=60, kin=HOURS_OF_THE_MORNING,
+        wanted=len(set(ordinals)) - 1,
+    )
+
+
 def hour_distances_case(why, found, anchor, unit, low_side, apart, edge):
     return {
         "why": why, "step": "half_day", "found": list(found), "anchor": anchor,
@@ -14213,6 +14320,9 @@ HOUR_STEP_CASES = {
     "hour_off_midnight": hour_midnight_case,
     "hour_half_day_tails": hour_tails_case,
     "hour_whole_pass": hour_pass_case,
+    "clock_minute_kin_escape": clock_kin_escape_case,
+    "clock_minute_kin_kept": clock_kin_kept_case,
+    "clock_minute_put_back_kin": clock_put_back_kin_case,
     "half_day_low": lambda: hour_distances_case(
         "G7.3b step 10 on a low tail of minutes, the boundary at 03:40: 300 minutes out "
         "is 22:40 the day before, nearer 00:01 than 11:59, so 219; 700 out is 16:00, "
@@ -14242,10 +14352,13 @@ def hour_step_answer(case):
             list(case["found"]), (case["anchor"], case["unit"], case["low_side"]),
             case["apart"], case["edge"],
         )
+    # A state's FIELD: the hour unless it names another, its bins `where`.
+    unit = case.get("field_unit", HOUR)
+    bins = len(case["where"])
     seams = {
-        "unit": HOUR, "step": case["written_unit"], "day": HOUR_DAY,
-        "bin_of": lambda ordinal: (ordinal // HOUR) % 24,
-        "keep_of": lambda ordinal: ordinal // HOUR_DAY,
+        "unit": unit, "step": case["written_unit"], "day": HOUR_DAY,
+        "bin_of": lambda ordinal: (ordinal // unit) % bins,
+        "keep_of": lambda ordinal: ordinal // (unit * bins),
         "keeps_always": not case["reachable"],
     }
     walk = WeekdayWalk(
@@ -14256,21 +14369,22 @@ def hour_step_answer(case):
     pinned = list(case["pinned"])
     step = case["step"]
     anyday = case.get("anyday", False)
+    kin = case.get("kin", [])
     if step == "pass":
-        return hour_pass(
+        return clock_pass(
             walk, first, last, pinned, case["wanted"], case["standing"], case["half_day"],
-            case["reachable"], anyday,
+            case["reachable"], anyday, kin,
         )
     if step == "left":
-        hour_groups_left(
-            walk, hour_have(walk, first, last), first, last, pinned, case["standing"], anyday
+        clock_groups_left(
+            walk, clock_have(walk, first, last), first, last, pinned, case["standing"], anyday, kin
         )
     elif step == "relief":
-        hour_relieved(walk, hour_have(walk, first, last), first, last, pinned)
+        clock_relieved(walk, clock_have(walk, first, last), first, last, pinned)
     elif step == "put_back":
-        hour_put_back(walk, first, last, pinned, case["wanted"], case["standing"], anyday)
+        clock_put_back(walk, first, last, pinned, case["wanted"], case["standing"], anyday, kin)
     elif step == "midnight":
-        hour_off_midnight(walk, list(case["before"]), first, last, pinned)
+        clock_off_midnight(walk, list(case["before"]), first, last, pinned)
     elif step == "tails":
         hour_tails_on_the_half_day(walk, first, last)
     return walk.days
@@ -14288,7 +14402,9 @@ def hour_step_document():
         "P4-D371) are frozen on, and the tails G7.3b step 10 takes onto the dial's half day, "
         "each with its answer computed from the method's text: every rank's ordinal after the "
         "step, or every distance. A state's bins are the hours, a unit of an hour with the "
-        "day kept; it names its census, its written unit, its day standing and its holes.",
+        "day kept, unless it names another field (`field_unit`, its bins `where`, each "
+        "parent's group in the coarser census `kin`); it names its census, its written "
+        "unit, its day standing and its holes.",
         "generated_by": "tools/reference/make_generation_reference_vectors.py",
         "method": "docs/spec/generation-method-v1.md",
         "never_imports": ["synthtwin", "numpy", "pandas"],
