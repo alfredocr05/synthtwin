@@ -48,6 +48,20 @@ asked again whether they hold dates, codes or record numbers. Every rule
 of the repair round that no test turned red now has one, red on its own
 mutant.
 
+**Its Codex review**, eight items. SAS dates written `1MAR2023` to
+`28MAR2023` read as dates whichever day comes first, where one order
+stopped the describe on an internal error and the other gave labels.
+A layout column of five dates beside blank cells loads the description
+it was given. Identifiers every one of which ends in a suffix read as an
+offset are asked whether they hold dates. Stamps repeated ten times
+each, a few of them with an offset, keep the cells that are not numbers
+in the twin (method G7.9b step 5). A column of dates read as labels
+until its codes are answered is asked its century in the same file, so
+one answering run reads 1931 rather than 2031. The loader refuses a
+zulu offset on a signed field, a fraction past nine figures, and dates
+outside the years or the seconds the layout reads. G7.9b says that an
+offset it writes may be one some real cells wore.
+
 ### A description written before the published pairs loads again (2026-10-03)
 
 **The review of landing 3b.G1, its four items** (plan P4-D375). A

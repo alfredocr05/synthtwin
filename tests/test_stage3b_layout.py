@@ -63,6 +63,17 @@ eighteen layouts that stand in for a two-figure member, the stand-ins
 taken off the debt, the zulu word, the run with a fraction, the
 hours-only and colon fields, the bound of the offer at 180 owed, the
 numbers left at the line, and no offset beside a pool.
+
+And the Codex review's eight items, each clause failing on the reviewed
+head and run against the mutants its docstring names: a compact
+month-word date read whichever day comes first, candidate discovery and
+LY1 one set both ways, and the choice stopping at a layout reading every
+row (item 1); a sparse layout column loading as it was written (item
+2); a run every cell of which ends in a suffix asked (item 3); whole
+repeated texts carrying the offsets owed, with G7.9b step 5's choice and
+room (item 4); Q5 beside the codes question (item 5); no zulu key on a
+signed field (item 6); a layout admitting only values its reader reads
+back (item 7); and G7.9b's provenance sentence (item 8).
 """
 
 import collections
