@@ -6274,7 +6274,9 @@ unit by DT3.
    distance, so the strata of step 8 and the window of G12.14, drawn
    through it, bound every rank. A tail of the shared clock's days, and
    a column wholly at midnight, take no step: their ranks stand at a
-   midnight already. Measured at 1,000 rows of a year of such stamps,
+   midnight already. No other tail rank of the half day stands at a
+   written midnight, so the move onto a midnight spreads the published
+   count over the body alone (G7.5). Measured at 1,000 rows of a year of such stamps,
    seeds 0 to 2: 10, 11 and 5 obligations MISSED before (rungs, tail
    distances and both distinct counts), none after.
 
@@ -7378,7 +7380,14 @@ rather than passing it off as an outcome the description asked for.
      rank's own wall clock and cut to the column's precision.
   3. What is still owed is spread over the other ranks: each adds the
      count owed to a credit, and a rank is chosen where the credit
-     reaches the number of those ranks, which is then taken back.
+     reaches the number of those ranks, which is then taken back. On the
+     dial's half day (G7.3b step 10) the other ranks are the body's
+     alone: a tail rank stands there from one unit past midnight, never
+     at a written midnight, so one chosen was taken back off midnight by
+     G7.3g step 5 and the count left a cell short (landing 3b.2-H, plan
+     P4-D371: a weekday clinic written `h:mm` on the dial, its noon slots
+     reading 12:00, published 21 cells at midnight and its twins wrote 20
+     at a floor of 11, every seed).
   4. A chosen rank moves to the local midnight nearest its instant, the
      earlier on a tie, brought inside the pinned values either side; a
      rank with no local midnight inside them is left. An unchosen rank

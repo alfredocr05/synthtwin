@@ -25301,6 +25301,15 @@ def _snapped_to_midnight(
     on the rank's own offset, as the describing step asks it; a count the
     two passes cannot reach is named by `_midnight_count_notes`.
 
+    ON THE DIAL'S HALF DAY (`_on_the_half_day`; landing 3b.2-H, plan
+    P4-D371) no tail rank is among the ranks of rules 2 to 5: G7.3b step
+    10 stands every tail rank from one unit past midnight to the last unit
+    before noon, never at a written midnight, so a tail rank chosen here
+    was taken back off midnight by G7.3g step 5 and nothing gave the body
+    that cell back -- a weekday clinic written h:mm on the dial, its noon
+    slots reading 12:00, published 21 cells at midnight and its twins wrote
+    20 at every seed (the lane's skeptic, finding 2).
+
     Guarantees: accepts the facts, one instant per rank in seconds on the
     column's clock and one offset per rank; returns the instants moved.
     Linear in the number of ranks. Determinism: a function of the three;
@@ -25325,6 +25334,11 @@ def _snapped_to_midnight(
             moved[rank] = min(max(moved[rank], lows[rank]), highs[rank])
     counted = facts.n_at_midnight
     owed = 0 if counted is None else counted
+    # The ranks rules 2 to 5 may move: every rank, or on the half day the
+    # body's alone.
+    first, last = 0, parsed - 1
+    if _on_the_half_day(facts) and layout.low is not None and layout.high is not None:
+        first, last = layout.low.rows, parsed - 1 - layout.high.rows
     free: list[int] = []
     for rank in range(parsed):
         # A rank between two pinned ranks holding one value has nowhere
@@ -25332,7 +25346,7 @@ def _snapped_to_midnight(
         if pinned[rank] or lows[rank] == highs[rank]:
             if _written_at_midnight(moved[rank], shifts[rank], step):
                 owed = owed - 1
-        else:
+        elif first <= rank <= last:
             free += [rank]
     wanted = max(0, min(owed, len(free)))
     chosen = [False for _rank in range(parsed)]

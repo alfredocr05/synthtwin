@@ -11229,7 +11229,10 @@ def snapped_to_midnight(column, ordinals, shifts, bounds=None):
     its nearest local midnight inside its bounds; an unchosen rank written
     at midnight moves one precision step later, or earlier where later
     would pass its upper bound; then a second pass over the unchosen ranks,
-    in rank order, takes what is still owed.
+    in rank order, takes what is still owed.  On the dial's half day no
+    tail rank is among the other ranks: G7.3b step 10 stands every tail
+    rank from one unit past midnight to the last unit before noon, never
+    at a written midnight (landing 3b.2-H, plan P4-D371).
     """
     parsed = len(ordinals)
     moved = list(ordinals)
@@ -11247,12 +11250,15 @@ def snapped_to_midnight(column, ordinals, shifts, bounds=None):
         if not pinned[rank]:
             moved[rank] = min(max(moved[rank], lows[rank]), highs[rank])
     owed = column["n_at_midnight"] or 0
+    first, last = 0, parsed - 1
+    if on_the_half_day(column) and column.get("low_tail") and column.get("high_tail"):
+        first, last = column["low_tail"]["rows"], parsed - 1 - column["high_tail"]["rows"]
     free = []
     for rank in range(parsed):
         if pinned[rank] or lows[rank] == highs[rank]:
             if written_at_midnight(moved[rank], shifts[rank], step):
                 owed -= 1
-        else:
+        elif first <= rank <= last:
             free.append(rank)
     wanted = max(0, min(owed, len(free)))
     chosen = set()

@@ -1109,6 +1109,42 @@ def test_red_without_the_half_days_own_census(tmp_path: pathlib.Path, monkeypatc
     assert any(missed for missed in found), found
 
 
+def _twelve_hour_clinic(rows: int, seed: int) -> "list[str]":
+    """A weekday clinic written `m/d/yyyy h:mm` on a 12-hour face with no marker, on the
+    quarter hours: its morning slots read as written, its afternoon ones twelve hours earlier,
+    and its noon slots read 12:00, midnight on the dial."""
+    draw = random.Random(seed)
+    found: "list[str]" = []
+    for _row in range(rows):
+        moment = _at(
+            draw.choice(_WEEKDAYS), draw.choices(_CLINIC_HOURS, weights=_CLINIC)[0], draw.choice((0, 15, 30, 45))
+        )
+        found += [f"{moment.month}/{moment.day}/{moment.year} {moment.hour % 12 or 12}:{moment.minute:02d}"]
+    return found
+
+
+def test_a_twelve_hour_clinic_keeps_its_count_at_midnight(tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """The count at midnight of a 12-hour clinic is the body's to hold (the lane's skeptic, finding 2).
+
+    Its noon slots read 12:00, midnight on the dial, and the description publishes them as
+    its count at midnight. The move onto a midnight (G7.5) spread that count over the tail
+    ranks too, G7.3g step 5 took a tail rank chosen there back onto the half day, and every
+    twin at a floor of 11 wrote one cell fewer at midnight than published. Seeds 0 to 4,
+    nothing missed. Mutant: the move onto a midnight choosing tail ranks again.
+    """
+    cells = _twelve_hour_clinic(2000, 40003)
+    block = _described_alone(tmp_path / "clinic", cells, LINE, twelve=True)
+    assert block["n_at_midnight"] is not None and block["n_at_midnight"] >= LINE, block["n_at_midnight"]
+    assert _twelve_hour_run(tmp_path / "run", cells, (0, 1, 2, 3, 4)) == [[], [], [], [], []]
+    mutant = _mutant(
+        monkeypatch,
+        "        elif first <= rank <= last:\n            free += [rank]",
+        "        else:\n            free += [rank]",
+    )
+    found = _twelve_hour_run(tmp_path / "mutant", cells, (0, 1), mutant.generate)
+    assert any("seen_at:midnight.count" in missed for missed in found), found
+
+
 # -- the rules, worked by hand ---------------------------------------------------------
 
 
