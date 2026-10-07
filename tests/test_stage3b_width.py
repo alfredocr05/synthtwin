@@ -362,6 +362,32 @@ def test_the_end_goes_no_further_out_than_the_end_the_fitted_reading_left() -> N
     assert contract._past_the_width(-9998.0, -10900.0, True, -1000.0, pair, ()) == -10500.0
 
 
+def test_on_the_low_side_the_end_is_the_first_whole_number_at_or_past_the_reach(tmp_path: pathlib.Path) -> None:
+    """`K-S3-22`'s one `-4000` beside a run of 99 from `500`, at 36: the low end rounds outward, to `-3433`.
+
+    The width held the low end at `-998`; the pair's reach from the boundary,
+    535.63, is 3,968.09, so the end stands at the first whole number at or
+    past `-3432.455` on the low side, `math.floor` of it. Taken toward
+    nought, `-3432` would stand inside the reach -- nearer than the pair
+    proves the furthest row stands -- and 58 twins of the second skeptic's
+    batteries moved with it. The twenty-third vectors file freezes a high
+    side only, so this pins the low side's rounding (the second skeptic of
+    the repair, item 3); its mutant leaves the end at `-3432`.
+    """
+    described = _described(tmp_path, "neg4000_100", reader.far_low(4000, 100), 36)
+    block = described.document["columns"][0]
+    facts = _facts(described)
+    ladder = contract.tail_ladder(facts)
+    held = contract.tail_ladder(facts, reach_rule=False)
+    assert ladder is not None and ladder.low is not None and held is not None and held.low is not None
+    assert held.low.end == -998.0, "premise: the width held the low end"
+    boundary = ladder.low.boundary
+    tail = block["tails"]["low"]
+    point = boundary - contract.pair_reach(tail["mean_distance"], tail["rms_distance"])
+    assert point != math.floor(point), "premise: the reach lands between two whole numbers"
+    assert ladder.low.end == math.floor(point) == _reach_end(block, "low", boundary) == -3433.0
+
+
 def test_the_ladder_read_without_the_reach_rule_holds_the_width_s_end(tmp_path: pathlib.Path) -> None:
     """`reach_rule` False is the ladder 110cb46 read; the walk reads from it which side the rule moved.
 
@@ -1524,6 +1550,36 @@ def test_a_run_with_too_little_room_under_the_width_widens_inward(
                 walked = [moved[place] for place in sorted(tails)]
                 assert walked == sorted(walked) and len(set(moved)) == len(set(values)), f"seed {seed} floor {floor}"
     assert short, "premise: some run found too few free values beside it on its own"
+
+
+def _two_figures_thousand_beside_185() -> "list[str]":
+    """A thousand two-figure readings 10 to 99 drawn evenly, beside one `185` (the second skeptic's `uniform_1000_185`)."""
+    draw = random.Random("g2/uniform/1000/185")
+    return [str(draw.randint(10, 99)) for _row in range(1000)] + ["185"]
+
+
+def test_a_stratum_taken_into_a_run_frees_its_own_value(tmp_path: pathlib.Path) -> None:
+    """A thousand two-figure readings beside one `185`, at 36: the twin's mean and spread within a hundredth of the real ones.
+
+    The fitted end, `172`, stood past `99` on 110cb46 already, so rule 1
+    moved nothing and the side's walk stands where it serves the census
+    better and neither moment worse. The strata it moves under the width
+    find too few free values beside them, so the run takes the side's
+    strata under the width in, one at a time, and each one taken in frees
+    its own value for the run. Withheld, the run finds too few, the side's
+    walk is given up and the twin is 110cb46's: 37 cells past `99`, the
+    spread 1.07 to 1.10 times the real one and the mean 0.03 to 0.05 of the
+    real spread off, where this writes one cell past `99`, 0.997 and 0.002
+    (the second skeptic of the repair, item 3, its mutant
+    `widen_free_not_released`).
+    """
+    cells = _two_figures_thousand_beside_185()
+    described = _described(tmp_path, "uniform_1000_185", cells, 36)
+    sides = generation._proven_sides(_facts(described), 2)
+    assert [(side[0], side[4], side[5]) for side in sides] == [(True, False, 172.0)], "premise: a side rule 1 left"
+    for seed in SEEDS:
+        mean, spread = _errors(cells, _twin_numbers(described, seed))
+        assert mean <= 0.01 and spread <= 0.01, f"seed {seed}: {mean} {spread}"
 
 
 _HELD_SHAPES = (
