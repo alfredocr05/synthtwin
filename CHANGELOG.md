@@ -18,12 +18,13 @@ minutes at 10,000: they take 0.4, 1.3, 0.6 and 1.3 s now, and rounds of
 the reach step that come back to a division they reached are stepped
 past. Reading the made-up 50-column health table of 200,000 rows takes
 33.8 s of CPU for 45.4 and peaks 901 MB above its start for 1,299, and
-500,000 rows 2,111 MB for 2,914: the file's opening is cut into lines
-once rather than 31 times, a column's row order is read only until it
-is settled, and the pandas check reads the file a piece at a time, in
-the steps pandas' own reader takes, rather than holding a second copy
-of the table, and reads it whole again only to refuse it in the words
-it always used. `K-S4-02` records the reader's peak memory a row. A
+500,000 rows 2,111 MB for 2,914: reading cuts one list of lines where
+it cut 31 (the first megabyte 29 times, the whole text twice), a
+column's row order is read only until it is settled, and the pandas
+check reads the file a piece at a time, in the steps pandas' own reader
+takes, rather than holding a second copy of the table, and reads it
+whole again only to refuse it in the words it always used. `K-S4-02`
+records the reader's peak memory a row. A
 column whose ladder is crowded onto fewer whole numbers than strata
 still spends minutes in the reach rounds from about 10,000 rows, and
 500,000 charges did not get through them in fifteen minutes: the next
