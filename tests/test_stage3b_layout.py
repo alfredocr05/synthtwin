@@ -69,7 +69,6 @@ import collections
 import csv
 import dataclasses
 import datetime
-import importlib.util
 import io
 import json
 import pathlib
@@ -80,7 +79,7 @@ import sys
 import pytest
 
 from synthtwin import (
-    asking, canonical, contract, errors, generation, parsing, taxonomy, validation,
+    asking, contract, errors, generation, parsing, taxonomy, validation,
 )
 from tests import fixtures
 from tests import layout_spellings as spellings
@@ -984,26 +983,16 @@ def test_item2_a_repeated_text_is_never_paid_on(tmp_path: pathlib.Path) -> None:
 
 # -- skeptic 2's round (the report's item numbers) --------------------------
 
-_ORACLE_PATH = (
-    pathlib.Path(__file__).resolve().parents[1]
-    / "tools"
-    / "reference"
-    / "make_generation_reference_vectors.py"
-)
-_ORACLE: "dict[str, object]" = {}
-
 
 def _oracle() -> object:
-    """The generation oracle, loaded once from its path (it is not a package)."""
-    if "module" not in _ORACLE:
-        spec = importlib.util.spec_from_file_location(
-            "make_generation_reference_vectors", _ORACLE_PATH
-        )
-        assert spec is not None and spec.loader is not None
-        module = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(module)
-        _ORACLE["module"] = module
-    return _ORACLE["module"]
+    """The generation oracle, imported as the reader review's clauses import it.
+
+    Not loaded from its path: each `spec_from_file_location` is a route the
+    version-reach guard counts (`tests/test_version_reach.py`).
+    """
+    from tools.reference import make_generation_reference_vectors as oracle
+
+    return oracle
 
 
 def _stamps_wearing(
@@ -1288,8 +1277,7 @@ def test_sk2_item4_the_numbers_left_stay_at_the_line(tmp_path: pathlib.Path) -> 
     assert block["utc_offsets"] == {"(none)": 120}
     block["n_numeric"] = 5
     block["n_not_numeric"] = 115
-    edited = tmp_path / "edited-profile.json"
-    edited.write_text(canonical.serialize(document), encoding="utf-8", newline="\n")
+    edited = fixtures.write_profile(tmp_path, "edited-profile.json", document)
     column, facts = _loaded(edited)
     bare = [cell[0:14] for cell in cells]
     paid = generation._offsets_owed_by_the_classes(column, facts, list(bare), (), 11)
