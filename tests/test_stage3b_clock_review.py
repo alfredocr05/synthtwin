@@ -60,6 +60,14 @@ time's spelling, in free text and in a long tail's held-back labels
 alike (mutants: each walk bounded as every other form's); and the oracle
 states the same supply and bounds, call by call, since no frozen case
 holds such a form. Each failed at cc50fd7.
+
+And one the verification of this stream found in landing 3b.5 itself:
+`test_tail_order_a_listing_tail_holds_the_order_of_the_day` -- a tail
+that lists its values listed them sorted as text, so on a 12-hour clock,
+a one-figure hour and the declared half-day face the loader refused the
+producer's own description under DT3, and `synthtwin generate` told the
+person it had been changed since it was written (mutant: the values
+sorted as text again). It failed at 90466b2 and at 0138325.
 """
 
 from __future__ import annotations
@@ -83,6 +91,7 @@ import fixtures
 from synthtwin import (
     asking,
     calendar_clock,
+    cli,
     contract,
     errors,
     generation,
@@ -935,3 +944,122 @@ def test_time7_the_oracle_states_the_same_supply_and_bounds() -> None:
     assert supply == 86400 * 10**7
     firsts = {generation._clock_filled_form("%%:%%:%%.%%%%%%%", step) for step in range(86400)}
     assert len(firsts) == 86400 and all(cell[8:] == ".0000000" for cell in firsts)
+
+
+# -- the verification's catch: a listing tail in the order of the day ----
+#
+# The verification of this stream profiled 514 random clock columns, and
+# the loader refused the producer's own description of 8 of them. A tail
+# that lists its values listed them sorted as TEXT, which is the order of
+# the day only on the two two-figure 24-hour forms: on a 12-hour clock
+# `02:30:00 PM` sorts before `11:30:00 AM`, on a one-figure hour
+# `12:30:00` before `9:30:00`, and on the declared half-day face `01:05`
+# before `12:50`. DT3 refused each list as out of order, and generate
+# told the person the file had been changed since it was written. The
+# defect is landing 3b.5's own: at 110cb46 such columns were read as
+# labels.
+
+# The verification's fuzz case 126: 498 rows of a 12-hour clock at the
+# second, as a second of the day and how many rows wrote it. Its high tail
+# is a heap of 101 rows at 11:30 AM beside two rows at 2:30 PM.
+_CASE_126 = (
+    (18000, 6), (23400, 29), (25200, 1), (28800, 1), (30600, 4), (32400, 50),
+    (34200, 122), (36000, 133), (37800, 42), (39600, 7), (41400, 101), (52200, 2),
+)
+
+
+def _case_126(spelling: "typing.Callable[[int, int, int], str]", earlier: int = 0) -> "list[str]":
+    """Case 126's cells `earlier` seconds earlier, each written `spelling(hour, minute, second)`."""
+    cells: "list[str]" = []
+    for at, rows in _CASE_126:
+        moved = at - earlier
+        cells += [spelling(moved // 3600, moved // 60 % 60, moved % 60)] * rows
+    random.Random(126).shuffle(cells)
+    return cells
+
+
+def _twelve_hour(hour: int, minute: int, second: int) -> str:
+    return f"{hour % 12 or 12:02d}:{minute:02d}:{second:02d} {'AM' if hour < 12 else 'PM'}"
+
+
+def _one_figure(hour: int, minute: int, second: int) -> str:
+    return f"{hour}:{minute:02d}:{second:02d}"
+
+
+def _two_figures(hour: int, minute: int, second: int) -> str:
+    return f"{hour:02d}:{minute:02d}:{second:02d}"
+
+
+def _half_day_face() -> "list[str]":
+    """Hours 2 to 5 every ten minutes on ten rows, and `12:50` and `01:05` on six each below them."""
+    cells: "list[str]" = []
+    for minute in range(120, 360, 10):
+        cells += [f"{minute // 60:02d}:{minute % 60:02d}"] * 10
+    cells += ["12:50"] * 6 + ["01:05"] * 6
+    random.Random(12).shuffle(cells)
+    return cells
+
+
+def _through_the_commands(
+    folder: pathlib.Path, cells: "list[str]", capsys: "pytest.CaptureFixture[str]", *extra: str
+) -> "tuple[dict[str, typing.Any], list[tuple[str, int, str]]]":
+    """`synthtwin profile`, `generate` and `validate` on one column `t`, up to the first that fails.
+
+    Returns the published block and each command run, its exit code and
+    what it said.
+    """
+    folder.mkdir(parents=True, exist_ok=True)
+    table = fixtures.write(folder, "table.csv", "\n".join(["t"] + cells) + "\n")
+    description = folder / "table-profile.json"
+    twin = folder / "twin" / "table-twin.csv"
+    twin.parent.mkdir()
+    commands = (
+        ("profile", ["profile", str(table), *extra]),
+        ("generate", ["generate", str(description), "--seed", "0", "--out-dir", str(twin.parent)]),
+        ("validate", ["validate", str(description), "--twin", str(twin), "--out-dir", str(twin.parent)]),
+    )
+    ran: "list[tuple[str, int, str]]" = []
+    for name, argv in commands:
+        code = cli.main(argv)
+        said = capsys.readouterr()
+        ran += [(name, code, said.out + said.err)]
+        if code != 0:
+            break
+    return _block(json.loads(description.read_text(encoding="utf-8"))), ran
+
+
+def test_tail_order_a_listing_tail_holds_the_order_of_the_day(
+    tmp_path: pathlib.Path, capsys: "pytest.CaptureFixture[str]"
+) -> None:
+    """Case 126 on a 12-hour clock and on a one-figure hour, and a declared half-day face: profiled, generated, validated.
+
+    At 90466b2 and at 0138325 their tails listed `02:30:00 PM` before
+    `11:30:00 AM`, `12:30:00` before `9:30:00` and `01:05` before
+    `12:50`, and `synthtwin generate` stopped with exit 1. The same cells
+    two hours earlier on two figures list the same values in the same
+    order either way, and generated then as now.
+    """
+    cases = (
+        ("twelve-hour", _case_126(_twelve_hour), (), "high_tail", ["11:30:00 AM", "02:30:00 PM"]),
+        ("one-figure", _case_126(_one_figure, 7200), (), "high_tail", ["9:30:00", "12:30:00"]),
+        ("half-day", _half_day_face(), ("--twelve-hour", "t"), "low_tail", ["12:50", "01:05"]),
+        ("two-figures", _case_126(_two_figures, 7200), (), "high_tail", ["09:30:00", "12:30:00"]),
+    )
+    for name, cells, extra, side, listed in cases:
+        block, ran = _through_the_commands(tmp_path / name, cells, capsys, *extra)
+        assert [(command, code) for command, code, _said in ran] == [
+            ("profile", 0), ("generate", 0), ("validate", 0),
+        ], (name, ran)
+        assert block["role"] == taxonomy.ROLE_CLOCK, name
+        assert block[side]["values"] == listed, name
+
+
+def test_tail_order_red_when_the_values_are_sorted_as_text(
+    tmp_path: pathlib.Path, capsys: "pytest.CaptureFixture[str]", monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """MUTATION: a listing tail's values sorted as text again, as at 0138325."""
+    monkeypatch.setattr(taxonomy, "_listed_values", lambda _distances, texts: sorted(set(texts)))
+    block, ran = _through_the_commands(tmp_path / "twelve-hour", _case_126(_twelve_hour), capsys)
+    assert block["high_tail"]["values"] == ["02:30:00 PM", "11:30:00 AM"]
+    assert [(command, code) for command, code, _said in ran] == [("profile", 0), ("generate", 1)]
+    assert "changed since it was written" in ran[1][2]

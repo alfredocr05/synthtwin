@@ -5239,6 +5239,43 @@ def _values_mean_pins(
     return False
 
 
+def _listed_values(distances: "list[int]", texts: "list[str]") -> "list[str]":
+    """A listing tail's values, each once, in the column's own order (DT3).
+
+    `ordered_tails` hands each tail its cells in RANK order, the
+    column's own order, and a tail lists its values only where one text
+    stands to a distance (`_tail_side`). So the text a distance first
+    shows is that distance's value, and the order the distances first
+    show in is the order DT3 holds a listing to: ascending instants on a
+    column of dates, and ascending places in the form's own unit on a
+    column of clock times (contract T3).
+
+    THE VALUES WERE SORTED AS TEXT (landing 3b.5, caught by the
+    verification of its review stream), which is the column's order only
+    where text order is: on a date's canonical text and on the two-figure
+    24-hour forms. On a 12-hour clock `02:30:00 PM` sorts before
+    `11:30:00 AM`, on a one-figure hour `12:30:00` before `9:30:00`, and
+    on the declared half-day face `01:05` before `12:50`, so a tail
+    listing both was written backwards and the loader refused the
+    producer's own description under DT3, telling the person the file had
+    been changed since it was written. Where text order is the column's
+    order the two agree, so those columns keep every byte.
+
+    Guarantees: accepts the tail's distances and texts, in rank order
+    and of one length; returns the text of each different distance
+    once, in the order the distances first appear. Determinism: a
+    function of the two. Raises nothing. No I/O of any kind.
+    """
+    values: "list[str]" = []
+    shown: "dict[int, str]" = {}
+    for place in range(len(distances)):
+        distance = distances[place]
+        if distance not in shown:
+            shown[distance] = texts[place]
+            values += [texts[place]]
+    return values
+
+
 def _tail_side(
     distances: "list[int]",
     texts: "list[str]",
@@ -5265,10 +5302,11 @@ def _tail_side(
       2026-09-22 reaches it, which is what `tail_may_list` answers for
       BOTH roles -- and, on this role alone, where one canonical text
       stands to a distance (below). Where both hold, the tail lists its
-      sorted values in place of the root-mean-square distance -- if it
-      holds at most `TAIL_FEW_VALUES` of them, or if its two distances
-      would pin what the floor protects (`_tail_pinned`) -- with its
-      mean beside them unless that would pin a count below the floor
+      values, in the column's own order (`_listed_values`), in place of
+      the root-mean-square distance -- if it holds at most
+      `TAIL_FEW_VALUES` of them, or if its two distances would pin what
+      the floor protects (`_tail_pinned`) -- with its mean beside them
+      unless that would pin a count below the floor
       (`_values_mean_pins`). The ruling is asked FIRST and there is no
       road around it.
     * Otherwise it publishes ITS TWO DISTANCES, the shape rather than
@@ -5349,12 +5387,7 @@ def _tail_side(
             "rms_distance": _rounded_root(squares, size),
             "values": None,
         }
-    first: "dict[int, str]" = {}
-    for place in range(size):
-        distance = distances[place]
-        if distance not in first or texts[place] < first[distance]:
-            first[distance] = texts[place]
-    values = sorted(first[distance] for distance in first)
+    values = _listed_values(distances, texts)
     mean: "float | None" = _rounded_ratio(total, size)
     if _values_mean_pins(counts, size, total, floor):
         mean = None
