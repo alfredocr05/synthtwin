@@ -50,12 +50,13 @@ logs 6 of 83, one short and five met; and a log of about two rows a
 business day over two years at every floor, its twins meeting it. That
 is its price, and it falls on columns holding a row on every day their
 census allows, where it reads every merge the twin's count pass may
-make as taken from the tails: it withholds 21 censuses 4a4b901
-published over 56 Monday-to-Friday logs holding every business day, 18
-of them met by their twins, and 10 over 48 clinics holding every
-Monday, Wednesday and Friday, 9 of them met, but 2 over 72 such
-business-day logs with the federal holidays closed and none over 51
-whose days are drawn. One row a business
+make as taken from the tails: of the censuses 4a4b901 published, each
+log at the floors of 11 and 20, it withholds 21 of 52 over 28
+Monday-to-Friday logs holding every business day, 18 of them met by
+their twins, and 10 of 47 over 24 clinics holding every Monday,
+Wednesday and Friday, 9 of them met, but 2 of 72 over 36 such
+business-day logs with the federal holidays closed and none of 51 over
+28 whose rows a day are Poisson draws. One row a business
 day keeps its census at every floor, as the gate requires: reading the
 tails at their fewest whatever the draw, as the repair first did,
 withheld it. At a million rows the description takes what it took

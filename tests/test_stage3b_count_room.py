@@ -32,7 +32,8 @@ reach their most, and where it merges the body keeps no more than its
 draw. Read so, it withholds some censuses a twin meets -- on columns
 holding a row on every day their census allows, two rows a business
 day over two years and three clinic days a week among them -- and that
-is its price; close a few of those days and the census is published.
+is its price; with the federal holidays closed, such logs keep 70 of
+the 72 censuses measured.
 (3) What is claimed is what was measured: on the review's columns,
 the 26 batteries at seeds 0 to 4, 2,000 short spans, 25 weekday logs
 and six business-day logs, no census these rules publish left a twin a
@@ -165,7 +166,7 @@ def _one_row_a_business_day() -> "list[str]":
     return cells
 
 
-# The US federal holidays of 2022 and 2023 on the business day each was kept: 21 days.
+# The US federal holidays of 2022 and 2023 on the business day each was observed: 21 days.
 _FEDERAL_HOLIDAYS = frozenset(
     datetime.date.fromisoformat(each)
     for each in (
