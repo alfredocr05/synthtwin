@@ -146,7 +146,7 @@ import types
 
 import pytest
 
-from synthtwin import generation
+from synthtwin import calendar_rules, generation
 
 REPOSITORY = pathlib.Path(__file__).resolve().parent.parent
 VECTORS = REPOSITORY / "tests" / "reference" / "generation-branch-vectors-15.json"
@@ -1330,12 +1330,22 @@ def test_the_body_counts_a_unit_a_move_empties(monkeypatch: pytest.MonkeyPatch) 
 
 
 def _sessions(tmp_path: pathlib.Path):
-    """The review's weekly sessions `_weekly_schedule(92)`, described at a floor of 36."""
+    """The review's weekly sessions `_weekly_schedule(92)`, described at a floor of 36 with lane
+    D1b's count-room rule withdrawn. That rule (plan P4-D388) withholds this census at 36,
+    because its twins come back long -- 52 different days for 46 -- which is the very count
+    these nodes hold step 8.5 and the report's long cause to: a census of whole dates the
+    producer publishes or withholds is held by tests/test_stage3b_count_room.py, and the pass
+    meets one the loader accepts however it came to be published."""
     import kpi_shapes
     import test_stage3b_weekday_review as review
 
     cells = review._weekly_schedule(92)
-    return kpi_shapes.describe(tmp_path, "sessions", "visit\n" + "".join(f"{cell}\n" for cell in cells), 36)
+    rule = calendar_rules.count_room_short
+    calendar_rules.count_room_short = lambda *arguments: False
+    try:
+        return kpi_shapes.describe(tmp_path, "sessions", "visit\n" + "".join(f"{cell}\n" for cell in cells), 36)
+    finally:
+        calendar_rules.count_room_short = rule
 
 
 def test_a_schedule_at_floor_36_reaches_step_8_5(tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch) -> None:

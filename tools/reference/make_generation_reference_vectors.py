@@ -13554,6 +13554,11 @@ def shared_walk(case):
         seams["keep_of"] = lambda ordinal: ordinal // day
     if case["pair"]:
         seams["pair_of"] = lambda ordinal: case["pair_where"][shared_bin(case["pair"], ordinal, day)]
+    if case.get("width_word"):
+        # A day's width kind, where the case names its member and its one
+        # width word (the seventeenth file's `an_escape_keeps_its_width_kind`).
+        column = {"format": case["member"]}
+        seams["width_of"] = lambda number: counts_into_width(column, number, case["width_word"])
     return WeekdayWalk(
         case["counts"], case["where"], list(case["ordinals"]), list(case["lows"]),
         list(case["highs"]), set(case["holes"]), seams,
@@ -13751,6 +13756,27 @@ def moment_hole_case():
     )
 
 
+def moment_kind_case():
+    """Step 7c keeps a moment on an end day of its own width kind."""
+    w0, w1 = moment_at(210, 11, 0), moment_at(217, 9, 15)
+    rows = [
+        (w0, w0, w0, True),
+        (moment_at(211, 10, 0), w0, w1, False),
+        (w1, w1, w1, True),
+    ]
+    return moment_case(
+        "Step 7c keeps a moment's width kind: an unpadded month-first column of moments whose "
+        "one width word is `second-field-unpadded`, so a day of October to December counts "
+        "under it and a day of September, which shows its first field, does not. A moment at "
+        "Tuesday 1 October 2024 10:00, in a gap from Monday 30 September 11:00 to Monday 7 "
+        "October 09:15, the census asking it on a Monday, goes on to the second Monday at "
+        "09:14, the minute nearest its own clock there that no rank holds, though the first "
+        "Monday is nearer: the first is of the other kind.",
+        "escaped", rows, [3, 0], where=[0, 1, 1, 1, 1, 1, 1], want=[1, 0],
+        member="month-first-datetime", width_word="second-field-unpadded",
+    )
+
+
 def moment_shift_case():
     """Step 7c alone, its shift: a group at its total passes an escape on."""
     a_low, a_high = moment_at(1, 18, 4), moment_at(3, 11, 24)
@@ -13873,6 +13899,7 @@ MOMENT_STEP_CASES = {
     "an_escape_keeps_the_midnight": moment_midnight_case,
     "an_escape_takes_the_nearer_end": moment_nearer_case,
     "an_escape_keeps_off_a_hole": moment_hole_case,
+    "an_escape_keeps_its_width_kind": moment_kind_case,
     "crowded_wednesdays_spread_on_their_day": moment_crowded_case,
     "a_full_group_passes_an_escape_on": moment_shift_case,
     "a_day_spread_takes_the_nearer_minute": moment_spread_nearer_case,
@@ -13911,7 +13938,8 @@ def moment_step_document():
         "method's text: every rank's ordinal after step 7c alone, its movable ranks asked "
         "against the totals `want`, after step 8.7 alone, asked to reach the count `wanted`, or "
         "after the whole pass. A case names its seams as the fifteenth file's do: a unit and a "
-        "day of 86,400 seconds and a written unit of a minute.",
+        "day of 86,400 seconds and a written unit of a minute, and where it names a member and "
+        "its one width word, each day's width kind under that word (G7.3f's kind).",
         "generated_by": "tools/reference/make_generation_reference_vectors.py",
         "method": "docs/spec/generation-method-v1.md",
         "never_imports": ["synthtwin", "numpy", "pandas"],

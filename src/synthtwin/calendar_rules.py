@@ -1930,12 +1930,14 @@ def room_short(
 # so a census of weekdays is never a census of a few dates; the body
 # holds at least `FEWEST_MEAN_UNITS` different WRITTEN units a non-empty
 # group on average wherever two or more groups are non-empty (the
-# few-units rule, the producer's alone), and above a floor of 11 the
-# units its tails leave it reach what the census needs between its pins
-# (the unit-room rule, the producer's alone); and WC6's half on written
-# forms is not asked, as the count of different values on a column of
-# moments is a count of instants, never of days -- its half on a
-# workbook's storage is.
+# few-units rule, the producer's alone); and at every floor the units its
+# tails leave it reach what the census needs between its pins (the
+# unit-room rule, the producer's alone) -- on a column every value of
+# which stands at midnight, which the twin counts and moves in days, the
+# two count rules of a column of dates instead (`count_room_short` and
+# `count_reach_short`); and WC6's half on written forms is not asked, as
+# the count of different values on a column of moments is a count of
+# instants, never of days -- its half on a workbook's storage is.
 
 # WC10: the days the middle half of a column of moments spans at least,
 # from its published `p25` to its published `p75` (four cycles of the
@@ -1955,24 +1957,14 @@ FEWEST_MEAN_UNITS = 8
 
 # WHY A COLUMN OF MOMENTS PUBLISHES NO WEEKDAY CENSUS, besides the
 # reasons of a column of dates: its middle half spans fewer than
-# `SPAN_DAYS` days, or its groups hold too few different written units.
+# `SPAN_DAYS` days, its groups hold too few different written units, or
+# its tails leave its body too few for the census (`unit_room_short`).
 # Each is said in the one sentence of every rule the table's own numbers
 # decide (NF74, `REASON_UNSAID`).
 REASON_SPAN = "span"
 REASON_FEW_UNITS = "few_units"
 REASON_UNIT_ROOM = "unit_room"
 MOMENTS_REASONS = (REASON_SPAN, REASON_FEW_UNITS, REASON_UNIT_ROOM)
-
-# THE UNIT-ROOM RULE IS ASKED ABOVE THIS FLOOR (plan P4-D367): the floor
-# the few-units rule was set and measured at. A twin rebuilds a tail that
-# publishes its two distances with up to the floor's number of different
-# values, so a raised floor narrows what the count of different values
-# leaves the body. Asked at a floor of 36 on this landing's batteries,
-# it withholds the censuses whose twins came back holding more different
-# values than the column (written at noon: Wednesday schedules, 54 twins
-# of 294, sparse columns, 75 of 219); at 11 and below no census of
-# moments measured there left its twins long.
-UNIT_ROOM_ABOVE_FLOOR = 11
 
 
 def span_short(p25: "int | None", p75: "int | None") -> bool:
@@ -2064,9 +2056,15 @@ def unit_room_short(
 ) -> bool:
     """Whether the body is left too few written units for the census (plan P4-D367).
 
-    THE PRODUCER'S UNIT-ROOM RULE ON A COLUMN OF MOMENTS, asked above
-    `UNIT_ROOM_ABOVE_FLOOR`: lane D1b's count-room rule for whole dates
-    (plan P4-D388), restated in WRITTEN units. `pins` are the body's
+    THE PRODUCER'S UNIT-ROOM RULE ON A COLUMN OF MOMENTS, asked at every
+    floor of a column whose values do not all stand at midnight (one that
+    does asks `count_room_short` and `count_reach_short`, as a column of
+    dates does): lane D1b's count-room rule for whole dates (plan
+    P4-D388), restated in WRITTEN units. Asked above the floor of 11
+    alone until skeptic 1 of landing 3b.D2 (item 1) wrote `_hunt(690)`
+    with one cell moved at noon: at 11 it published Monday to Friday 73
+    and the weekend 31, and every twin came back 26 different values for
+    24; asked, the rule withholds it. `pins` are the body's
     pinned ranks with their instants, ascending (`moments_pins`); `step`
     the seconds a written unit spans; `units` how many different written
     units the column holds; `tails` the most its twin's two tails can

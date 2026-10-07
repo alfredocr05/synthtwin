@@ -107,10 +107,10 @@
     },
     {
       "generator": "tools/reference/make_generation_branch_vectors_17.py",
-      "justification": "The states of ranks synthtwin's generation method freezes the weekday census of a column of moments on (landing 3b.D2, plan P4-D367, method section G7.3f): step 7c, the escape of a moment to an end day of its gap at another clock -- three Wednesday sessions through the whole pass, the count of different values kept, a midnight kept, the nearer end day taken and a hole kept off, and its shift through a group at its total -- and step 8.7, a count left short put back at another clock on a moment's own day -- crowded Wednesdays through the whole pass, the nearer minute taken, the earlier on a tie, no clock put on midnight or taken off it, a rank kept inside its gap and a hole's day left alone -- each with the answer the oracle computes from the method's text; held by tests/test_stage3b_weekday_moments.py.",
+      "justification": "The states of ranks synthtwin's generation method freezes the weekday census of a column of moments on (landing 3b.D2, plan P4-D367, method section G7.3f): step 7c, the escape of a moment to an end day of its gap at another clock -- three Wednesday sessions through the whole pass, the count of different values kept, a midnight kept, the nearer end day taken, a hole kept off and a day of the moment's own width kind kept to, and its shift through a group at its total -- and step 8.7, a count left short put back at another clock on a moment's own day -- crowded Wednesdays through the whole pass, the nearer minute taken, the earlier on a tie, no clock put on midnight or taken off it, a rank kept inside its gap and a hole's day left alone -- each with the answer the oracle computes from the method's text; held by tests/test_stage3b_weekday_moments.py.",
       "path": "tests/reference/generation-branch-vectors-17.json",
       "seed": 0,
-      "sha256": "c0452b5777d04b3952d19d86232d8c5686f39f30b57a2e249120239aee989f6c"
+      "sha256": "5802982cd54d2b32efc827357b5f3cda48fccc587a712e0fae681ab631d09236"
     },
     {
       "generator": "tools/reference/make_generation_branch_vectors_22.py",

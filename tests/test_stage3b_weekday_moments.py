@@ -77,6 +77,7 @@ import datetime
 import json
 import pathlib
 import random
+import re
 import runpy
 import sys
 import types
@@ -241,6 +242,45 @@ def _three_weeks() -> "list[str]":
     middle half spans under four weeks while every group holds dates enough (WC10 alone)."""
     return _clinic(800, 677, _THREE_WEEKS) + _clinic(200, 678)
 
+def _one_saturday_clinic() -> "list[str]":
+    """A weekday clinic of 975 visits at the quarter hours of 2023, and 25 more on ONE Saturday,
+    17 June (skeptic 1 of the landing, item 3): a census counting that Saturday would count the
+    rows of one date."""
+    draw = random.Random(5517)
+    weekdays = [day for day in _YEAR if day.weekday() < 5]
+    found = [
+        _at(draw.choice(weekdays), draw.randrange(8, 17), draw.choice((0, 15, 30, 45))).strftime("%Y-%m-%d %H:%M:%S")
+        for _row in range(975)
+    ]
+    saturday = datetime.date(2023, 6, 17)
+    found += [
+        _at(saturday, draw.randrange(8, 13), draw.choice((0, 15, 30, 45))).strftime("%Y-%m-%d %H:%M:%S")
+        for _row in range(25)
+    ]
+    draw.shuffle(found)
+    return found
+
+
+def _moved_hunt(clock: str) -> "list[str]":
+    """Lane D1b's `_hunt(690)` with one `2024-07-02` cell written `2024-05-16` (the Codex review
+    of plan P4-D388, item 1): 131 visits on 24 dates, every one written at `clock`."""
+    import test_stage3b_count_room as count_room
+
+    return [f"{cell} {clock}" for cell in count_room._moved_hunt_690()]
+
+
+def _business_year(spelling: str) -> "list[str]":
+    """Lane D1b's business year -- every weekday of 2024's first 52 weeks once and 740 more by
+    weight, 1,000 rows on 260 dates -- every value at midnight, written `2024-01-02 00:00:00`
+    (`iso`) or `01/02/2024 00:00` (`month first`)."""
+    import test_stage3b_count_room as count_room
+
+    cells = count_room._business_year()
+    if spelling == "iso":
+        return [f"{cell} 00:00:00" for cell in cells]
+    return [f"{cell[5:7]}/{cell[8:10]}/{cell[0:4]} 00:00" for cell in cells]
+
+
 PUBLISHED = {
     "clinic": _clinic,
     "emergency": _emergency,
@@ -285,6 +325,15 @@ def _weekdays(block: "dict[str, object]", cells: "list[str]") -> "list[int]":
     return found
 
 
+def _instant(cell: str, member: str) -> int:
+    """A cell's instant in seconds of the local clock, read under the column's own member."""
+    read = parsing.parse_datetime(cell, member)
+    assert read is not None, cell
+    instant = parsing.instant_key(read[0], "")
+    assert instant is not None, cell
+    return instant
+
+
 def _weekend(counts: "list[int]") -> float:
     return (counts[5] + counts[6]) / max(1, sum(counts))
 
@@ -327,17 +376,86 @@ def test_a_column_on_the_shared_clock_publishes_nothing_and_says_nothing() -> No
     assert described.details["weekday_census"] == []
 
 
-def test_each_rule_withholds_its_own_shapes(monkeypatch: pytest.MonkeyPatch) -> None:
-    """The mutants of G-D1: with the few-dates and few-units rules withdrawn the fixed clocks
-    publish, and with the span rule withdrawn three weeks of clinic publishes."""
-    monkeypatch.setattr(calendar_rules, "few_dates", lambda groups, body: False)
-    monkeypatch.setattr(calendar_rules, "few_units", lambda groups, body, units: False)
-    for name in ("seven_at_noon", "forty_at_noon", "payroll_at_six"):
-        assert _block(name, WITHHELD[name]()).details["weekday_census"], name
-    monkeypatch.undo()
-    monkeypatch.setattr(calendar_rules, "span_short", lambda p25, p75: False)
-    monkeypatch.setattr(calendar_rules, "moments_breach", lambda *arguments: None)
-    assert _block("three_weeks", WITHHELD["three_weeks"]()).details["weekday_census"]
+def _decided(monkeypatch: pytest.MonkeyPatch, cells: "list[str]", floor: int = FLOOR) -> "tuple[taxonomy.WeekdayDecision, taxonomy.ColumnProfile]":
+    """The producer's decision on a column of moments, beside the column's description."""
+    heard: "list[taxonomy.WeekdayDecision]" = []
+    decide = taxonomy.moments_weekday_decision
+
+    def recorded(*arguments, **named):
+        decision = decide(*arguments, **named)
+        heard[:] = heard + [decision]
+        return decision
+
+    monkeypatch.setattr(taxonomy, "moments_weekday_decision", recorded)
+    described = _block("visit", cells, floor)
+    monkeypatch.setattr(taxonomy, "moments_weekday_decision", decide)
+    assert len(heard) == 1, heard
+    return heard[0], described
+
+
+def _dates_held(block: "dict[str, object]", cells: "list[str]") -> "list[int]":
+    """How many different dates each non-empty group of a published census holds in the body,
+    read by instant as the census is."""
+    low = parsing.instant_key(block["low_tail"]["boundary"], "")  # type: ignore[index]
+    high = parsing.instant_key(block["high_tail"]["boundary"], "")  # type: ignore[index]
+    groups = [(group["first"], group["last"], group["count"]) for group in block["weekday_census"]]  # type: ignore[union-attr]
+    held: "list[set[int]]" = [set() for _group in groups]
+    for cell in cells:
+        read = parsing.parse_datetime(cell, str(block["format"]))
+        instant = None if read is None else parsing.instant_key(read[0], "")
+        if instant is None or not low <= instant <= high:
+            continue
+        weekday = (instant // DAY + 3) % 7
+        for index, (first, last, _count) in enumerate(groups):
+            if first <= weekday <= last:
+                held[index] = held[index] | {instant // DAY}
+    return [len(held[index]) for index in range(len(groups)) if groups[index][2] > 0]
+
+
+# Each rule of the producer beside the one shape of the battery it ALONE withholds at the floor
+# of 11, the names in `calendar_rules` withdrawing it, and the reason it gives.
+RULE_SHAPES = {
+    "few_dates": (_one_saturday_clinic, {"few_dates": lambda groups, body: False}, calendar_rules.REASON_FEW_DATES),
+    "few_units": (
+        lambda: _tenth_of_the_month("12:00:00", 56),
+        {"few_units": lambda groups, body, units: False},
+        calendar_rules.REASON_FEW_UNITS,
+    ),
+    "unit_room": (lambda: _moved_hunt("12:00:00"), {"unit_room_short": lambda *arguments: False}, calendar_rules.REASON_UNIT_ROOM),
+    "count_room": (lambda: _moved_hunt("00:00:00"), {"count_room_short": lambda *arguments: False}, calendar_rules.REASON_COUNT_ROOM),
+    "count_reach": (lambda: _business_year("iso"), {"count_reach_short": lambda *arguments: False}, calendar_rules.REASON_COUNT_REACH),
+    "span": (
+        _three_weeks,
+        {"span_short": lambda p25, p75: False, "moments_breach": lambda *arguments: None},
+        calendar_rules.REASON_SPAN,
+    ),
+}
+
+
+@pytest.mark.parametrize("rule", sorted(RULE_SHAPES))
+def test_each_rule_withholds_its_own_shapes(monkeypatch: pytest.MonkeyPatch, rule: str) -> None:
+    """The mutants of G-D1, one rule withdrawn at a time (skeptic 1 of the landing, item 3: the
+    few-dates and few-units rules were withdrawn together, and the few-units rule alone withheld
+    every shape there). At the floor of 11 each shape is withheld by its own rule, said in NF74's
+    sentence, and with that rule ALONE withdrawn it publishes: the clinic with one Saturday
+    (few dates), the tenth of the month at noon (few units), lane D1b's moved hunt at noon (the
+    unit-room rule) and at midnight (the count-room rule), its business year at midnight (the
+    count-reach rule) and three weeks of clinic (WC10). Without the few-dates rule the clinic's
+    Saturday counts 25 rows on ONE date beside the remark that every group holding rows holds
+    them on at least three different dates."""
+    make, withdrawn, reason = RULE_SHAPES[rule]
+    cells = make()
+    decision, described = _decided(monkeypatch, cells)
+    assert described.details["weekday_census"] == [] and decision.reason == reason, (rule, decision)
+    assert decision.said == calendar_rules.REASON_UNSAID, decision
+    assert [note.form for note in described.publication_notes].count(taxonomy.NOTE_WEEKDAY_WITHHELD_NARROWED) == 1
+    for name, stand_in in withdrawn.items():
+        monkeypatch.setattr(calendar_rules, name, stand_in)
+    decision, described = _decided(monkeypatch, cells)
+    assert described.details["weekday_census"] and decision.reason == "", (rule, decision)
+    if rule == "few_dates":
+        assert min(_dates_held(described.details, cells)) < calendar_rules.FEWEST_REAL_DATES
+        assert taxonomy.REMARK_WEEKDAY_FLOOR in [remark.form for remark in described.remarks]
 
 
 def test_the_rules_give_their_stated_answers_on_hand_made_bodies() -> None:
@@ -376,7 +494,8 @@ def test_a_raised_floor_withholds_what_the_tails_leave_the_body_too_few_values_f
     values, so the body is left no more than its pins, and the census of Wednesdays and
     Thursdays needs a Thursday more in its gaps: withheld, with NF74. Mutant: the rule
     withdrawn, the census publishes and each of three twins holds more different values than
-    the column. At a floor of 11 the rule is not asked, and the same column publishes, met."""
+    the column. At a floor of 11 the rule is asked too, its tails' most 22, and the same column
+    publishes, met by its twins."""
     cells = _noon_schedule()
     document = _described(tmp_path / "asked", "visit", cells, 36).document
     assert document["columns"][0]["weekday_census"] == []
@@ -392,15 +511,90 @@ def test_a_raised_floor_withholds_what_the_tails_leave_the_body_too_few_values_f
     rule = calendar_rules.unit_room_short
 
     def counted(*arguments):
-        asked[:] = asked + [True]
-        return rule(*arguments)
+        answer = rule(*arguments)
+        asked[:] = asked + [answer]
+        return answer
 
     monkeypatch.setattr(calendar_rules, "unit_room_short", counted)
     described = _described(tmp_path / "eleven", "visit", cells, 11)
-    assert described.block("visit")["weekday_census"] and asked == []
+    assert described.block("visit")["weekday_census"] and asked == [False]
     for seed in (0, 1, 2):
         text = kpi_shapes.twin_text(described, seed)
         assert kpi_shapes.missed(kpi_shapes.measure(described, text, f"eleven-{seed}.csv")) == [], seed
+
+
+def _twin_values(described: kpi_shapes.Described, seed: int) -> "tuple[list[str], list[str]]":
+    """A twin's cells of its one column, and the MISSED checks the validator finds in it."""
+    text = kpi_shapes.twin_text(described, seed)
+    missed = kpi_shapes.missed(kpi_shapes.measure(described, text, f"twin-{seed}.csv"))
+    return [line for line in text.split("\n")[1:] if line], missed
+
+
+@pytest.mark.parametrize("clock", ("00:00:00", "12:00:00"))
+def test_at_the_floor_of_11_a_census_that_leaves_its_twins_long_is_withheld(tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch, clock: str) -> None:
+    """Lane D1b's moved `_hunt(690)` -- 131 visits on 24 dates, one `2024-07-02` cell written
+    `2024-05-16` -- written at midnight and at noon, at the floor of 11 (skeptic 1 of the landing,
+    item 1). The landing asked its unit-room rule above 11 alone, and published Monday to Friday
+    73 and the weekend 31: the midnight twins at seeds 2, 3 and 17 came back 25, 27 and 27 values
+    for 24, the noon twins 26 at every seed. Asked at every floor -- the count rules of a column
+    of dates at midnight, the unit-room rule at noon -- the census is withheld with NF74 and the
+    twins at seeds 0, 1, 2, 3 and 17 hold 24, missing nothing. Mutant: the rule withdrawn, as the
+    floor of 11 had it, and the census and the long twins come back."""
+    cells = _moved_hunt(clock)
+    name, reason = (
+        ("count_room_short", calendar_rules.REASON_COUNT_ROOM)
+        if clock == "00:00:00"
+        else ("unit_room_short", calendar_rules.REASON_UNIT_ROOM)
+    )
+    decision, _block_of = _decided(monkeypatch, cells)
+    assert decision.reason == reason, decision
+    described = _described(tmp_path / "asked", "visit", cells)
+    assert described.block("visit")["weekday_census"] == []
+    assert any(NOTE_NF74 in entry["note"] for entry in described.document["publication_notes"])
+    for seed in (0, 1, 2, 3, 17):
+        values, missed = _twin_values(described, seed)
+        assert missed == [] and len(set(values)) == 24, (seed, missed, len(set(values)))
+    monkeypatch.setattr(calendar_rules, name, lambda *arguments: False)
+    described = _described(tmp_path / "withdrawn", "visit", cells)
+    assert [group["count"] for group in described.block("visit")["weekday_census"]] == [73, 31]
+    long = {0: 26, 1: 26, 2: 26, 3: 26, 17: 26} if clock == "12:00:00" else {2: 25, 3: 27, 17: 27}
+    for seed, held in long.items():
+        values, missed = _twin_values(described, seed)
+        assert len(set(values)) == held and "visit:distinct.n_distinct" in missed, (seed, len(set(values)), missed)
+
+
+@pytest.mark.parametrize("floor", (11, 20))
+@pytest.mark.parametrize("spelling", ("iso", "month first"))
+def test_a_census_that_keeps_midnight_moments_from_a_day_their_tail_lost_is_withheld(tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch, floor: int, spelling: str) -> None:
+    """Lane D1b's business year at midnight (skeptic 1 of the landing, item 2): its rebuilt high
+    tail holds one day fewer than the real one, every weekday of the body already holds a date
+    and the census keeps the weekend empty, so with the census published a twin has no day to
+    put the count back on. At the floors of 11 and 20 the count-reach rule a column of dates
+    asks withholds it, with NF74, and the twins at seeds 0 to 2 hold 260 values on 260 days,
+    every cell spelled as the column spells its own. Mutant: the rule withdrawn, the census
+    publishes and the twins come back short -- 259 values written month first, and ISO 259
+    days with one cell `2024-01-01T00:00:00`, a spelling the column never wrote, making up the
+    count of texts."""
+    cells = _business_year(spelling)
+    shapes = {re.sub("[0-9]", "9", cell) for cell in cells}
+    described = _described(tmp_path / "asked", "visit", cells, floor)
+    assert described.block("visit")["weekday_census"] == []
+    assert any(NOTE_NF74 in entry["note"] for entry in described.document["publication_notes"])
+    decision, _block_of = _decided(monkeypatch, cells, floor)
+    assert decision.reason == calendar_rules.REASON_COUNT_REACH, decision
+    for seed in (0, 1, 2):
+        values, missed = _twin_values(described, seed)
+        days = {value[0:10] for value in values}
+        assert missed == [] and len(set(values)) == 260 and len(days) == 260, (seed, missed, len(days))
+        assert {re.sub("[0-9]", "9", value) for value in values} <= shapes, seed
+    monkeypatch.setattr(calendar_rules, "count_reach_short", lambda *arguments: False)
+    described = _described(tmp_path / "withdrawn", "visit", cells, floor)
+    assert described.block("visit")["weekday_census"]
+    values, missed = _twin_values(described, 0)
+    if spelling == "iso":
+        assert len({value[0:10] for value in values}) == 259 and "2024-01-01T00:00:00" in values
+    else:
+        assert len(set(values)) == 259 and "visit:distinct.n_distinct" in missed, missed
 
 
 def test_the_unit_room_rule_gives_its_stated_answers() -> None:
@@ -424,6 +618,102 @@ def test_the_unit_room_rule_gives_its_stated_answers() -> None:
     assert not calendar_rules.unit_room_short(crossing, one, 1, 5, 2)
     assert calendar_rules.unit_room_short(crossing, one, 1, 4, 2)
     assert calendar_rules.moments_pins((10, 20, 30, 40, 50, 60), 1, 1, [50]) == ((1, 20), (2, 30), (4, 50))
+
+
+# -- a published hole on a column of moments --------------------------------------
+
+
+TAXONOMY_SOURCE = pathlib.Path(taxonomy.__file__).read_text(encoding="utf-8")
+_NEW_YEAR = datetime.date(1900, 1, 1)
+
+
+def _taxonomy_mutant(monkeypatch: pytest.MonkeyPatch, before: str, after: str) -> types.ModuleType:
+    """The product's taxonomy module with ONE source edit, built beside it (an edit that no
+    longer applies turns the test red)."""
+    assert TAXONOMY_SOURCE.count(before) == 1, before
+    name = "synthtwin._taxonomy_moments_mutant"
+    module = types.ModuleType(name)
+    module.__file__ = taxonomy.__file__
+    monkeypatch.setitem(sys.modules, name, module)
+    exec(compile(TAXONOMY_SOURCE.replace(before, after), taxonomy.__file__, "exec"), module.__dict__)
+    return module
+
+
+def _around_new_year(seed: int, mondays_full: bool) -> "list[str]":
+    """Visits at midnight on the weekdays from 2 October 1899 to 30 March 1900, nought to eight a
+    day; on Monday 1 January 1900 four, or, with every Monday holding one or two, none."""
+    draw = random.Random(seed)
+    found: "list[str]" = []
+    day = datetime.date(1899, 10, 2)
+    while day <= datetime.date(1900, 3, 30):
+        rows = draw.choice((0, 0, 1, 2, 3, 5, 8))
+        if day == _NEW_YEAR:
+            rows = 0 if mondays_full else 4
+        elif mondays_full and day.weekday() == 0:
+            rows = 1 + (day.toordinal() % 3 == 0)
+        if day.weekday() < 5:
+            found += [f"{day.isoformat()} 00:00:00"] * rows
+        day += datetime.timedelta(days=1)
+    draw.shuffle(found)
+    return found
+
+
+def _decided_on_a_hole(module: types.ModuleType, cells: "list[str]") -> "taxonomy.WeekdayDecision":
+    """The producer's decision on the column with its block's `sentinel_verdicts` reading
+    1900-01-01 as missing, set by hand: a published placeholder hole between its boundaries."""
+    settings = taxonomy.Settings(small_cell_floor=FLOOR)
+    block = taxonomy.profile_column("seen_at", 1, cells, len(cells), settings)
+    assert block.details["weekday_census"], "the column publishes its census without the hole"
+    details = dict(block.details)
+    details["sentinel_verdicts"] = [
+        {"candidate": _NEW_YEAR.isoformat(), "n_occurrences": 4, "reason": "outlier", "spellings": [], "verdict": taxonomy.VERDICT_MISSING}
+    ]
+    moments = tuple(sorted(_instant(cell, str(details["format"])) for cell in cells))
+    days = tuple(moment // DAY for moment in moments)
+    return module.moments_weekday_decision(details, moments, days, block.n_distinct, settings)
+
+
+def test_a_body_day_on_a_published_hole_withholds_the_census_of_moments(monkeypatch: pytest.MonkeyPatch) -> None:
+    """A day the description publishes as holding no body cell, which body cells stand on, keeps
+    the census of moments back as it keeps a column of dates' (skeptic 1 of the landing, item 4
+    (a)): no twin could meet a census beside that hole. No description of one table sets such a
+    hole on moments today -- an absent spelling names a day only where it is written as the
+    column's own DATE text (`calendar_rules.declared_holes`), which no member of dates and times
+    writes, and a placeholder judged absent lies outside the body -- so the block's verdict
+    reading 1900-01-01 as missing is set by hand, as an edited or merged description could carry
+    it, beside four visits on that day: withheld, said in NF74's sentence. Mutant: the clause
+    withdrawn, and the census publishes beside the hole."""
+    cells = _around_new_year(1, False)
+    decision = _decided_on_a_hole(taxonomy, cells)
+    assert decision.groups == () and decision.reason == calendar_rules.REASON_TEXTS, decision
+    assert decision.said == calendar_rules.REASON_UNSAID
+    mutant = _taxonomy_mutant(
+        monkeypatch,
+        "    if set(holes) & set(body):\n        return withheld(calendar_rules.REASON_TEXTS)\n    ladder = details",
+        "    ladder = details",
+    )
+    assert _decided_on_a_hole(mutant, cells).groups
+
+
+def test_the_room_rule_asks_midnight_moments_beside_a_placeholder_hole(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Lane D1's room rule beside a placeholder hole, asked of a column every value of which
+    stands at midnight, which the twin moves as a column of dates (skeptic 1 of the landing,
+    item 4 (b)): every Monday from October 1899 to March 1900 holds one or two visits but Monday
+    1 January 1900, which the block's verdict -- set by hand, as in the node above -- reads as
+    missing, so the Mondays have no free day, and a twin leaving a one-row Monday empty would
+    hold one value fewer: withheld, NF74. Mutant: the rule withdrawn from midnight moments, and
+    the census publishes. (The rule is never asked beside a DECLARED day on moments: a declared
+    spelling with its clock names no day to the producer, while the twin of a column at midnight
+    keeps its values off it; plan P4-D367 records the two, measured harmless.)"""
+    cells = _around_new_year(3, True)
+    decision = _decided_on_a_hole(taxonomy, cells)
+    assert decision.groups == () and decision.reason == calendar_rules.REASON_ROOM, decision
+    mutant = _taxonomy_mutant(
+        monkeypatch,
+        "        step == 86400\n        and beside\n        and calendar_rules.room_short(groups, body, holes)\n",
+        "        False\n",
+    )
+    assert _decided_on_a_hole(mutant, cells).groups
 
 
 # -- G-D2: every published census met --------------------------------------------
@@ -635,9 +925,13 @@ def _case(name: str) -> dict:
 
 
 def _state(case: dict, module: types.ModuleType = generation):
+    # A case naming its member and its one width word asks each day's width kind under that
+    # word, which the pass reads off the facts' member alone (`_weekday_width_kind`).
+    word = case.get("width_word", "")
+    facts = types.SimpleNamespace(parser_family=case["member"]) if word else None
     state = module._WeekdayPass(
-        moved=list(case["ordinals"]), held={}, where=list(case["where"]), facts=None,
-        word="", widths=False, kinds={}, holes=frozenset(case["holes"]), lows=list(case["lows"]),
+        moved=list(case["ordinals"]), held={}, where=list(case["where"]), facts=facts,
+        word=word, widths=bool(word), kinds={}, holes=frozenset(case["holes"]), lows=list(case["lows"]),
         highs=list(case["highs"]), keep_units=case["reachable"], unit=case["unit"],
         step=case["written_unit"], day=case["day"], bins=case["bin"], period=case["period"],
         keeps=case["keep"], pairs=case["pair"], pair_where=tuple(case["pair_where"]),
@@ -686,6 +980,7 @@ CASES = (
     "a_day_spread_takes_no_clock_off_midnight",
     "a_day_spread_takes_the_nearer_minute",
     "a_full_group_passes_an_escape_on",
+    "an_escape_keeps_its_width_kind",
     "an_escape_keeps_off_a_hole",
     "an_escape_keeps_the_count",
     "an_escape_keeps_the_midnight",
@@ -716,6 +1011,10 @@ MUTANTS = {
     "an_escape_keeps_off_a_hole": (
         "            or _weekday_hole(state, spot)\n            or _weekday_kind(state, spot) != kind\n        ):\n            continue\n        chosen",
         "            or _weekday_kind(state, spot) != kind\n        ):\n            continue\n        chosen",
+    ),
+    "an_escape_keeps_its_width_kind": (
+        "            or _weekday_kind(state, spot) != kind\n        ):\n            continue\n        chosen",
+        "        ):\n            continue\n        chosen",
     ),
     "crowded_wednesdays_spread_on_their_day": (
         "    if state.keep_units and state.unit == state.day and state.unit != state.step:\n"
@@ -920,8 +1219,18 @@ def test_a_count_the_pass_leaves_off_is_counted_in_values(tmp_path: pathlib.Path
     """Where the census holds and the count of different values does not, the deviation counts
     VALUES on a column of moments, never days (the 3b.2-W skeptic, minor 1, found it counting
     days over instants). The pass is made to leave one moment on another's minute inside its
-    own group, so the census holds and the count is one short."""
-    described = _described(tmp_path, "session_at", _sessions())
+    own group, so the census holds and the count is one short. And it names the cause a short
+    count of values has, never the tails' (skeptic 1 of the landing, item 4 (d)): every
+    Wednesday between the twelve sessions' boundaries holds a moment, which on a column of days
+    would mean the twin's tails hold too few days, but a full day of moments still has instants
+    free. Mutant: the tails' cause asked off a column of days too."""
+    cells = _sessions()
+    described = _described(tmp_path, "session_at", cells)
+    block = described.block("session_at")
+    low = parsing.instant_key(block["low_tail"]["boundary"], "") // DAY
+    high = parsing.instant_key(block["high_tail"]["boundary"], "") // DAY
+    held = {_instant(cell, str(block["format"])) // DAY for cell in cells}
+    assert all(day in held for day in range(low, high + 1) if (day + 3) % 7 == 2)
     settled = generation._bins_settled
 
     def one_short(state, counts, body_low, body_high, pinned, wanted):
@@ -946,7 +1255,7 @@ def test_a_count_the_pass_leaves_off_is_counted_in_values(tmp_path: pathlib.Path
 
     def heard(*arguments, **named):
         moved, notes = weekday_settled(*arguments, **named)
-        said[:] = said + [(note.published, note.achieved) for note in notes if note.fact == "n_distinct"]
+        said[:] = said + [(note.published, note.achieved, note.note) for note in notes if note.fact == "n_distinct"]
         return moved, notes
 
     monkeypatch.setattr(generation, "_bins_settled", one_short)
@@ -954,8 +1263,9 @@ def test_a_count_the_pass_leaves_off_is_counted_in_values(tmp_path: pathlib.Path
     generation.generate(described.loaded, 0)
     assert said and all(
         published.endswith("different values") and achieved.endswith("different values")
-        for published, achieved in said
+        for published, achieved, _cause in said
     ), said
+    assert [cause for _published, _achieved, cause in said] == [generation._WEEKDAY_DAYS_GIVEN_WAY] * len(said), said
 
 
 # -- the workbook ----------------------------------------------------------------

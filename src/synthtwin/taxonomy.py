@@ -16248,7 +16248,10 @@ def weekday_decision(
 
     A COLUMN OF MOMENTS is decided by its own rules
     (`moments_weekday_decision`, landing 3b.D2, plan P4-D367), handed
-    `moments`, the instant of every parsed cell (`_census_moments`).
+    `moments`, the instant of every parsed cell (`_census_moments`), and,
+    where every value stands at midnight, by the two count rules of this
+    one too (`_count_rules_reason`), its twin moving days as a column of
+    dates does.
 
     Guarantees: accepts the published block, the days, the published
     count, the settings, the storage flag, the texts and the instants;
@@ -16264,7 +16267,7 @@ def weekday_decision(
         return WeekdayDecision(empty, "", 0)
     if details["resolution"] == RESOLUTION_DATETIME:
         return moments_weekday_decision(
-            details, moments, settings, stored_one_way
+            details, moments, days, n_distinct, settings, stored_one_way
         )
     line = parsing.census_floor(settings.small_cell_floor)
     low_tail = details["low_tail"]
@@ -16327,6 +16330,80 @@ def weekday_decision(
         return withheld(calendar_rules.REASON_MENU)
     if calendar_rules.few_dates(groups, list(body)):
         return withheld(calendar_rules.REASON_FEW_DATES, entry)
+    counted = _count_rules_reason(details, days, n_distinct, settings, groups, holes)
+    if counted:
+        return withheld(counted, entry)
+    # THE ROOM RULE BESIDE EVERY PUBLISHED HOLE BUT A WIDTH HOLE (second
+    # review of landing 3b.G, item 1): May's holes, placeholder days and
+    # declared days. No column between width holes was measured to miss
+    # with the rule off (the first review, item 3); a column with a date
+    # on every day but its declared missing days was, its twin holding
+    # 234 different days for 235. A twin must pass its own checks, so
+    # its census stays withheld, as at 668f276, until the shared count
+    # steps can keep both the census and the count of different days.
+    beside = calendar_rules.may_only_published(forms, format_name) or bool(
+        set(holes) - set(calendar_rules.form_holes(forms, format_name, low, high))
+    )
+    if beside and calendar_rules.room_short(groups, list(body), holes):
+        return withheld(calendar_rules.REASON_ROOM, entry)
+    if calendar_rules.shape_breach(groups, len(body), line, one_spelling):
+        return withheld(calendar_rules.REASON_NARROWED, entry)
+    return WeekdayDecision(groups, "", entry)
+
+
+def _count_rules_reason(
+    details: "dict[str, object]",
+    days: "tuple[int, ...]",
+    n_distinct: int,
+    settings: Settings,
+    groups: "tuple[tuple[int, int, int], ...]",
+    holes: "tuple[int, ...]",
+) -> str:
+    """The count rule of a column of days that withholds its census, or "".
+
+    THE COUNT RULES OF A COLUMN OF DAYS, both asked at every floor: the
+    count-room rule (`calendar_rules.count_room_short`, plan P4-D388) and
+    its other direction, the count-reach rule
+    (`calendar_rules.count_reach_short`, its Codex review, item 2), on
+    the body's pins, the column's different days and the days its two
+    rebuilt tails can hold. A column of whole dates asks them
+    (`weekday_decision`), and so does a column of moments every value of
+    which stands at midnight (`moments_weekday_decision`, plan P4-D367):
+    its twin is counted in days and moved as a column of dates is
+    (`generation._ordinal_space`), its tails rebuilt in days by method
+    G7.3b, so its census keeps the count of different values, or loses
+    it, as a column of dates does. Asked on neither before skeptic 1 of
+    landing 3b.D2 (items 1 and 2), the business year written
+    `MM/DD/YYYY 00:00` published its census at the floors of 11 and 20
+    and its twins came back 259 values for 260, its rebuilt high tail on
+    one day fewer than the real one and the census keeping the body off
+    the weekend that would have held the day.
+
+    `details` is the published block, its two tails dicts with whole
+    rows (the callers withhold every other); `days` the day of every
+    parsed cell ascending; `n_distinct` the published count; `groups`
+    the census the menu offers; `holes` the days the description
+    publishes as holding no body cell (`calendar_rules.public_holes`).
+
+    Guarantees: returns `calendar_rules.REASON_COUNT_ROOM`,
+    `calendar_rules.REASON_COUNT_REACH` or the empty string.
+    Determinism: a function of the six. Raises nothing. No I/O of any
+    kind.
+    """
+    low_tail = details["low_tail"]
+    high_tail = details["high_tail"]
+    format_name = details["format"]
+    if (
+        not isinstance(low_tail, dict)
+        or not isinstance(high_tail, dict)
+        or not isinstance(format_name, str)
+    ):
+        return ""
+    rows_low = low_tail["rows"]
+    rows_high = high_tail["rows"]
+    if not isinstance(rows_low, int) or not isinstance(rows_high, int):
+        return ""
+    parsed = len(days)
     # THE COUNT'S ROOM (plan P4-D388), asked at every floor since its Codex
     # review (item 1): the most different days the twin's two tails can
     # hold -- a listed tail's values, or for one publishing its two
@@ -16367,7 +16444,7 @@ def weekday_decision(
             settings.small_cell_floor,
         ),
     ):
-        return withheld(calendar_rules.REASON_COUNT_ROOM, entry)
+        return calendar_rules.REASON_COUNT_ROOM
     # AND ITS OTHER DIRECTION (the Codex review of P4-D388, item 2): the
     # fewest and the most different days the twin's two tails can hold,
     # rebuilt as the generator rebuilds them (method G7.3b) from their
@@ -16403,23 +16480,8 @@ def weekday_decision(
         calendar_rules.tails_most_rebuilt(*rebuilt),
         frozenset(holes),
     ):
-        return withheld(calendar_rules.REASON_COUNT_REACH, entry)
-    # THE ROOM RULE BESIDE EVERY PUBLISHED HOLE BUT A WIDTH HOLE (second
-    # review of landing 3b.G, item 1): May's holes, placeholder days and
-    # declared days. No column between width holes was measured to miss
-    # with the rule off (the first review, item 3); a column with a date
-    # on every day but its declared missing days was, its twin holding
-    # 234 different days for 235. A twin must pass its own checks, so
-    # its census stays withheld, as at 668f276, until the shared count
-    # steps can keep both the census and the count of different days.
-    beside = calendar_rules.may_only_published(forms, format_name) or bool(
-        set(holes) - set(calendar_rules.form_holes(forms, format_name, low, high))
-    )
-    if beside and calendar_rules.room_short(groups, list(body), holes):
-        return withheld(calendar_rules.REASON_ROOM, entry)
-    if calendar_rules.shape_breach(groups, len(body), line, one_spelling):
-        return withheld(calendar_rules.REASON_NARROWED, entry)
-    return WeekdayDecision(groups, "", entry)
+        return calendar_rules.REASON_COUNT_REACH
+    return ""
 
 
 def _rung_day(ladder: object, name: str) -> "int | None":
@@ -16436,6 +16498,8 @@ def _rung_day(ladder: object, name: str) -> "int | None":
 def moments_weekday_decision(
     details: "dict[str, object]",
     moments: "tuple[int, ...]",
+    days: "tuple[int, ...]",
+    n_distinct: int,
     settings: Settings,
     stored_one_way: bool = True,
 ) -> WeekdayDecision:
@@ -16443,7 +16507,9 @@ def moments_weekday_decision(
 
     THE PRODUCER on a column of dates and times read on the local clock,
     `moments` the instant of every parsed cell ascending, in seconds
-    (`_census_moments`). Its BODY is cut BY INSTANT: the cells between
+    (`_census_moments`), `days` the day of each (`_census_days`) and
+    `n_distinct` the column's published count of different values. Its
+    BODY is cut BY INSTANT: the cells between
     the two tail boundaries, both included, so a cell on a boundary's
     day but before its instant is a tail cell (contract WC3). Each body
     cell counts on the weekday of its day, and the census is the menu's
@@ -16463,13 +16529,17 @@ def moments_weekday_decision(
       3b.2-W skeptic's blocker 1: seven sessions at 09:00 came back 17
       different values for 9 where FEW DAYS, keyed to midnight, let
       them through);
-    * above a floor of 11, the column's different written units less the
-      most its twin's tails can hold leave the body fewer than the census
-      needs between its pins (`calendar_rules.unit_room_short`, lane
-      D1b's count-room rule restated in written units);
-    * where every value stands at midnight, so the twin moves days as
-      on a column of dates, the room rule beside the same holes
-      (`calendar_rules.room_short`);
+    * where every value stands at midnight, so the twin counts and moves
+      days as on a column of dates, the count rules of a column of dates,
+      both asked at every floor (`_count_rules_reason`: lane D1b's
+      count-room and count-reach rules, plan P4-D388); on any other
+      column, at every floor, the column's different written units less
+      the most its twin's tails can hold leave the body fewer than the
+      census needs between its pins (`calendar_rules.unit_room_short`,
+      lane D1b's count-room rule restated in written units) -- skeptic 1
+      of the landing, items 1 and 2;
+    * where every value stands at midnight, the room rule beside the
+      same holes as on a column of dates (`calendar_rules.room_short`);
     * or the loader's own check refuses it
       (`calendar_rules.moments_breach`).
 
@@ -16479,9 +16549,10 @@ def moments_weekday_decision(
     of a column of dates: no rule here asks what a reader could work
     out from the census.
 
-    Guarantees: accepts the published block, the instants, the settings
-    and the storage flag; returns the decision. Determinism: a function
-    of the four. Raises nothing. No I/O of any kind.
+    Guarantees: accepts the published block, the instants and their
+    days, the published count, the settings and the storage flag;
+    returns the decision. Determinism: a function of the six. Raises
+    nothing. No I/O of any kind.
     """
     empty: "tuple[tuple[int, int, int], ...]" = ()
 
@@ -16548,12 +16619,23 @@ def moments_weekday_decision(
         return withheld(calendar_rules.REASON_FEW_DATES, entry)
     if calendar_rules.few_units(groups, body, units):
         return withheld(calendar_rules.REASON_FEW_UNITS, entry)
-    # THE UNITS' ROOM, WHICH A RAISED FLOOR NARROWS (lane D1b's count-room
-    # rule, plan P4-D388, restated in written units): the most different
-    # values the twin's two tails can hold -- a listed tail's values, or
-    # for one publishing its two distances up to the floor's number --
-    # and the body's pins, its two boundaries and the rungs between them.
-    if settings.small_cell_floor > calendar_rules.UNIT_ROOM_ABOVE_FLOOR:
+    # THE COUNT'S ROOM, AT EVERY FLOOR (skeptic 1 of landing 3b.D2, items 1
+    # and 2). A column every value of which stands at midnight is counted
+    # and moved in days, as a column of dates is, so it asks the count
+    # rules of a column of days, both ways (`_count_rules_reason`). Every
+    # other column asks the unit-room rule, lane D1b's count-room rule
+    # (plan P4-D388) restated in written units: the most different values
+    # the twin's two tails can hold -- a listed tail's values, or for one
+    # publishing its two distances up to the floor's number -- and the
+    # body's pins, its two boundaries and the rungs between them. Asked
+    # above the floor of 11 alone, it let `_hunt(690)` with one cell moved,
+    # written at noon, publish at 11, and its twins came back 26 values
+    # for 24 at every seed.
+    if step == 86400:
+        counted = _count_rules_reason(details, days, n_distinct, settings, groups, holes)
+        if counted:
+            return withheld(counted, entry)
+    else:
         tails = 0
         for tail, rows in ((low_tail, rows_low), (high_tail, rows_high)):
             values = tail["values"] if "values" in tail else None

@@ -424,6 +424,69 @@
       "why": "Step 7c alone, its shift: groups Tuesday, Wednesday, Thursday, Saturday and the other days, the movable ranks asked for one Tuesday, one Thursday and one Saturday. A gap from Tuesday 18:04 to Thursday 11:24 holds a moment at Wednesday 15:16, whose clock reaches neither end day, and both end days' groups hold their totals, so the escape has no offer for it. A gap from the next Tuesday 09:00 to Saturday 20:00 holds a moment at Tuesday 10:00 with a Saturday place, a link of step 7b from Tuesday to Saturday; a gap inside a later Thursday holds one at 12:00, and no link leads on from Thursday. The shift takes the Wednesday moment to Tuesday 18:05, the first minute of that end day inside its gap no rank holds, past Thursday 11:23, nearer but linked to nothing, and step 7b then takes the second Tuesday moment to Saturday 10:00.",
       "written_unit": 60
     },
+    "an_escape_keeps_its_width_kind": {
+      "answer": [
+        1727694000,
+        1728292440,
+        1728292500
+      ],
+      "bin": "weekday",
+      "body": [
+        0,
+        2
+      ],
+      "counts": [
+        3,
+        0
+      ],
+      "day": 86400,
+      "highs": [
+        1727694000,
+        1728292500,
+        1728292500
+      ],
+      "holes": [],
+      "keep": "",
+      "lows": [
+        1727694000,
+        1727694000,
+        1728292500
+      ],
+      "member": "month-first-datetime",
+      "ordinals": [
+        1727694000,
+        1727776800,
+        1728292500
+      ],
+      "pair": "",
+      "pair_where": [],
+      "period": 7,
+      "pinned": [
+        true,
+        false,
+        true
+      ],
+      "reachable": true,
+      "step": "escaped",
+      "unit": 86400,
+      "want": [
+        1,
+        0
+      ],
+      "wanted": 3,
+      "where": [
+        0,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1
+      ],
+      "why": "Step 7c keeps a moment's width kind: an unpadded month-first column of moments whose one width word is `second-field-unpadded`, so a day of October to December counts under it and a day of September, which shows its first field, does not. A moment at Tuesday 1 October 2024 10:00, in a gap from Monday 30 September 11:00 to Monday 7 October 09:15, the census asking it on a Monday, goes on to the second Monday at 09:14, the minute nearest its own clock there that no rank holds, though the first Monday is nearer: the first is of the other kind.",
+      "width_word": "second-field-unpadded",
+      "written_unit": 60
+    },
     "an_escape_keeps_off_a_hole": {
       "answer": [
         1709722800,
@@ -902,5 +965,5 @@
     "numpy",
     "pandas"
   ],
-  "what": "The states of ranks on a day of moments method section G7.3f's steps 7c and 8.7 (landing 3b.D2, plan P4-D367) are frozen on, each with the answer computed from the method's text: every rank's ordinal after step 7c alone, its movable ranks asked against the totals `want`, after step 8.7 alone, asked to reach the count `wanted`, or after the whole pass. A case names its seams as the fifteenth file's do: a unit and a day of 86,400 seconds and a written unit of a minute."
+  "what": "The states of ranks on a day of moments method section G7.3f's steps 7c and 8.7 (landing 3b.D2, plan P4-D367) are frozen on, each with the answer computed from the method's text: every rank's ordinal after step 7c alone, its movable ranks asked against the totals `want`, after step 8.7 alone, asked to reach the count `wanted`, or after the whole pass. A case names its seams as the fifteenth file's do: a unit and a day of 86,400 seconds and a written unit of a minute, and where it names a member and its one width word, each day's width kind under that word (G7.3f's kind)."
 }

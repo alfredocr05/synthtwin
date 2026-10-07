@@ -6,8 +6,9 @@ ranks landing 3b.D2 (plan P4-D367) freezes method section G7.3f's steps
 7c and 8.7 on. Step 7c is the escape of a moment to an end day of its gap
 at another clock, where its own clock stands outside the gap there:
 three Wednesday sessions through the whole pass, the count of different
-values kept, a midnight kept, the nearer end day taken and a hole kept
-off, and its shift through a group at its total.
+values kept, a midnight kept, the nearer end day taken, a hole kept off
+and an end day of the moment's own width kind kept to, and its shift
+through a group at its total.
 Step 8.7 puts a count left short back at another clock on a
 moment's own day: crowded Wednesdays through the whole pass, the nearer
 minute taken, the earlier on a tie, no clock put on midnight or taken off

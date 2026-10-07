@@ -142,8 +142,11 @@ calls are held by what they are handed or by where they run:
   guard reads, carrying ONE edit: a reviewer's mutant from
   `REVIEW_MUTANTS`, or one of the three the long cause's test makes;
   and `tests/test_stage3b_weekday_moments.py` does the same with one
-  edit of step 7c or 8.7 a case (`MUTANTS`, plan P4-D367), and runs the
-  committed oracle by path, as the seventeenth entry point does.
+  edit of step 7c or 8.7 a case (`MUTANTS`, plan P4-D367), and, where
+  `source` is `src/synthtwin/taxonomy.py`, with one edit of the producer
+  of a census of moments (a clause a published hole asks, skeptic 1 of
+  the landing, item 4), and runs the committed oracle by path, as the
+  seventeenth entry point does.
   Each edit is a string constant of `tests/` that changes a comparison,
   a constant or a condition, or leaves a line out -- names, numbers and
   operators every Python spells alike -- so it adds no spelling the
@@ -318,8 +321,8 @@ ROUTES_THAT_RUN_SOURCE = {
     # source edit for each case's mutant, as the shared steps' test does.
     ("tools/reference/make_generation_branch_vectors_17.py", "runpy.run_path"): 1,
     ("tests/test_stage3b_weekday_moments.py", "runpy.run_path"): 1,
-    ("tests/test_stage3b_weekday_moments.py", "compile"): 1,
-    ("tests/test_stage3b_weekday_moments.py", "exec"): 1,
+    ("tests/test_stage3b_weekday_moments.py", "compile"): 2,
+    ("tests/test_stage3b_weekday_moments.py", "exec"): 2,
     # anchor 3b-D3 (P4-D368)
     # anchor 3b-D4 (P4-D369)
     # anchor 3b-T1 (P4-D370)
