@@ -953,14 +953,16 @@ def test_band_a_layout_writes_back_only_the_years_it_reads(tmp_path: pathlib.Pat
     assert _validated(profile, twin)[0] == 0
 
 
-def test_item2_a_repeated_text_is_never_paid_on(tmp_path: pathlib.Path) -> None:
-    """G7.9b makes a payment only on a rank whose text no other rank repeats.
+def test_item2_a_repeated_text_is_never_paid_on_in_part(tmp_path: pathlib.Path) -> None:
+    """G7.9b writes an offset on a text another rank repeats only on every rank of it.
 
     1,000 HL7 stamps to the minute over three days -- many minutes repeat
     -- fifteen of them ending in an offset the census counts into
-    `(none)`. Mutant, run: a repeated text paid on, and the twin holds
-    more different values than its description publishes, missing
-    `distinct.n_distinct` at every seed.
+    `(none)`; step 4 writes them on texts standing alone, and a repeated
+    text is paid on only whole, by step 5 (the Codex review of landing
+    R2a, item 4). Mutant, run: one rank of a repeated text paid on, and
+    the twin holds more different values than its description publishes,
+    missing `distinct.n_distinct` at every seed.
     """
     draw = random.Random(81)
     start = datetime.datetime(2023, 1, 1)
@@ -1747,3 +1749,132 @@ def test_codex_item7_a_layout_admits_only_values_its_reader_reads_back(
         with pytest.raises(errors.ProfileError) as refused:
             contract.load_profile(str(edited))
         assert "LY3" in str(refused.value), name
+
+
+def _repeated_stamps() -> "list[str]":
+    """Codex's column: 100 stamps 123 seconds apart, ten copies each, seven ending `-0500`."""
+    start = datetime.datetime(2024, 1, 1)
+    stamps = [
+        (start + datetime.timedelta(seconds=123 * step)).strftime("%Y%m%d%H%M%S")
+        for step in range(100)
+    ]
+    cells = [stamp for stamp in stamps for _copy in range(10)]
+    for place in (100, 130, 160, 190, 220, 250, 280):
+        cells[place] = cells[place] + "-0500"
+    random.Random(31).shuffle(cells)
+    return cells
+
+
+def test_codex_item4_repeated_stamps_wear_the_offsets_their_class_count_owes(
+    tmp_path: pathlib.Path,
+) -> None:
+    """Item 4: where no text stands alone, whole repeated texts carry the debt.
+
+    One hundred stamps ten times each, seven cells ending `-0500`: the
+    description publishes 107 different texts, seven cells that are not
+    numbers and `{"(none)": 1000}`. G7.9b paid only on a text no other rank
+    repeats, and the twin's texts all repeat, so seeds 1 and 2 wrote no
+    offset and missed both class counts. Step 5 writes the rest on whole
+    texts, every copy at one offset, so the twin holds seven cells that are
+    not numbers and 107 different texts at seeds 0 to 3, and validates;
+    and on each twin's stamps as the pass meets them, bare and in rank
+    order, the shipped pass and the oracle write the same cells. Mutant,
+    run: step 5 withdrawn, and seeds 1 to 3 hold no cell that is not a
+    number.
+    """
+    cells = _repeated_stamps()
+    block, profile, _questions = _described(tmp_path, cells)
+    assert block["format"] == "layout {YYYY}{MM}{DD}{HH}{MI}{SS}{+HHMM?}"
+    assert block["utc_offsets"] == {"(none)": 1000}
+    assert (block["n_distinct"], block["n_not_numeric"]) == (107, 7)
+    column, facts = _loaded(profile)
+    oracle = _oracle()
+    for seed in (0, 1, 2, 3):
+        twin, written = _twin(profile, seed)
+        assert _not_numbers(written) == 7, seed
+        assert len(set(written)) == 107, seed
+        assert _validated(profile, twin)[0] == 0, seed
+        bare = sorted(cell[0:14] for cell in written)
+        paid = generation._offsets_owed_by_the_classes(column, facts, list(bare), (), 11)
+        assert _not_numbers(paid) == 7, seed
+        assert oracle.offsets_paid_to_the_classes(block, list(bare), (), 11) == paid, seed  # type: ignore[attr-defined]
+
+
+def _ranked_stamps(copies: "list[int]") -> "list[str]":
+    """Stamps in rank order: an end, a text of each number of ``copies``, an end."""
+    start = datetime.datetime(2024, 1, 1)
+    cells = [start.strftime("%Y%m%d%H%M%S")]
+    step = 0
+    for size in copies:
+        step = step + 1
+        cells += [(start + datetime.timedelta(minutes=step)).strftime("%Y%m%d%H%M%S")] * size
+    cells += [(start + datetime.timedelta(minutes=step + 1)).strftime("%Y%m%d%H%M%S")]
+    return cells
+
+
+def test_codex_item4_whole_texts_reach_the_rest_and_keep_each_offset_under_the_line(
+    tmp_path: pathlib.Path,
+) -> None:
+    """Item 4's step 5, asked of the pass itself and of the oracle on stamps in rank order.
+
+    Texts of three, four and five copies beside texts of twelve, which no
+    offset holds, and seven owed: the choice reaches seven with the texts
+    of four and three, where taking the largest first without asking
+    whether the rest stays reachable would stop at five. And six stamps
+    standing alone beside the same texts, thirteen owed: step 4 writes the
+    six at `+0000`, which then has room for four more, so step 5 writes the
+    text of four there and the text of three at `+0100` -- no offset on
+    eleven cells or more, which the twin's own description would name.
+    Each time the shipped pass and the oracle write the same cells.
+    Mutants, run: the remainder's reach unasked; the room at an offset
+    taken whole, step 4's payments there forgotten.
+    """
+    cells = _hl7_with_offsets(ROWS, 2)
+    block, profile, _questions = _described(tmp_path, cells)
+    column, facts = _loaded(profile)
+    oracle = _oracle()
+    for copies, owed in (
+        ([12, 3, 12, 4, 12, 5, 12], 7),
+        ([12, 1, 1, 1, 12, 1, 1, 1, 12, 3, 12, 4, 12, 5, 12], 13),
+    ):
+        bare = _ranked_stamps(copies)
+        numbers = len(bare) - owed
+        owing = dataclasses.replace(column, n_numeric=numbers, n_not_numeric=owed)
+        whole = {"(none)": len(bare)}
+        paid = generation._offsets_owed_by_the_classes(
+            owing, dataclasses.replace(facts, utc_offsets=whole), list(bare), (), 11
+        )
+        assert _not_numbers(paid) == owed, copies
+        assert len(set(paid)) == len(set(bare)), copies
+        worn = collections.Counter(cell[14:] for cell in paid if len(cell) > 14)
+        assert max(worn.values()) < parsing.census_floor(11), (copies, worn)
+        owing_block = dict(block, n_numeric=numbers, n_not_numeric=owed, utc_offsets=whole)
+        assert oracle.offsets_paid_to_the_classes(owing_block, list(bare), (), 11) == paid, copies  # type: ignore[attr-defined]
+
+
+def test_codex_item8_a_made_up_offset_may_be_one_the_real_column_wore(
+    tmp_path: pathlib.Path,
+) -> None:
+    """Item 8: G7.9b's provenance sentence says derived, never that it differs.
+
+    1,000 different stamps, seven of them ending in a real `+0000` that the
+    census counted into `(none)`: the twin writes seven made-up offsets,
+    and each is `+0000`, the real ones' own. Method G7.9b and the pass's
+    docstring said no offset written is the real column's; they say now
+    that each is worked out from the census and the field, and may still
+    be one some real cells wore. A wording correction, not a new rule.
+    """
+    start = datetime.datetime(2024, 3, 17, 14, 5, 0)
+    cells = [(start + datetime.timedelta(seconds=7 * step)).strftime("%Y%m%d%H%M%S") for step in range(1000)]
+    for place in random.Random(8).sample(range(1, 999), 7):
+        cells[place] = cells[place] + "+0000"
+    block, profile, _questions = _described(tmp_path, cells)
+    assert block["utc_offsets"] == {"(none)": 1000} and block["n_not_numeric"] == 7
+    _twin_path, written = _twin(profile, 1)
+    assert sorted(cell[14:] for cell in written if len(cell) > 14) == ["+0000"] * 7
+    method = pathlib.Path(__file__).resolve().parents[1] / "docs" / "spec" / "generation-method-v1.md"
+    section = method.read_text(encoding="utf-8").split("### G7.9b ")[1].split("\n## ")[0]
+    shipped = " ".join(f"{generation._offsets_owed_by_the_classes.__doc__}".split())
+    for said in (" ".join(section.split()), shipped):
+        assert "No offset written is the real column's" not in said
+        assert "may still be one some real cells wore" in said

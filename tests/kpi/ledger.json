@@ -7088,7 +7088,7 @@
     "tests/test_stage3b_layout.py::test_item1_the_unreached_century_says_only_what_the_run_took",
     "tests/test_stage3b_layout.py::test_item2_an_offset_on_fewer_cells_than_the_room_is_read",
     "tests/test_stage3b_layout.py::test_item2_the_twin_writes_the_offsets_its_class_count_owes",
-    "tests/test_stage3b_layout.py::test_item2_a_repeated_text_is_never_paid_on",
+    "tests/test_stage3b_layout.py::test_item2_a_repeated_text_is_never_paid_on_in_part",
     "tests/test_stage3b_layout.py::test_item3_a_date_spelled_as_a_version_is_asked",
     "tests/test_stage3b_layout.py::test_item4_an_older_categorical_description_of_layout_dates_is_described_again",
     "tests/test_stage3b_layout.py::test_item5_a_layout_is_shown_as_its_column_writes_it",

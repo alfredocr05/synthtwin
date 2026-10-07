@@ -22503,7 +22503,10 @@ def _offsets_owed_by_the_classes(
     cell fewer than the census line apiece, so the twin's own description
     counts each back into `(none)` and publishes the census exactly as it
     stands -- and never so many that the cells left with none fall below
-    the line, which is the count that absorbs them.
+    the line, which is the count that absorbs them. WHERE THOSE RANKS FALL
+    SHORT, the rest is paid with whole repeated texts, every copy of one at
+    one offset, so the count of different values still stands
+    (`_whole_texts_paid`, step 5; the Codex review of landing R2a, item 4).
 
     NEVER AN OFFSET THE CENSUS NAMES (skeptic 2 of landing R2a, item 1). A
     cell written at a named offset is counted into that offset and read at
@@ -22520,8 +22523,12 @@ def _offsets_owed_by_the_classes(
     moves, on the local clock or the shared one. And only under a layout
     whose cells with no offset are numbers (`parsing.layout_writes_numbers`):
     every other layout's cells are text with an offset or without one, and
-    owe nothing here. No offset written is the real column's; none is
-    published.
+    owe nothing here. Each offset written is worked out from the census
+    and the field alone, not read from the real column, and none is
+    published; it may still be one some real cells wore, which the census
+    counted into `(none)` without saying which (the Codex review of
+    landing R2a, item 8): seven real `+0000` among 1,000 stamps came back
+    as seven made-up `+0000`.
 
     WHAT IT COSTS (skeptic 2, item 2): one reading of each cell's class,
     and nothing more where nothing is owed or nothing is on offer. It wrote
@@ -22573,12 +22580,9 @@ def _offsets_owed_by_the_classes(
         ):
             open_ranks += [rank]
     line = parsing.census_floor(floor)
-    owed = min(
-        debt,
-        len(open_ranks),
-        len(cells) - worn - line,
-        (line - 1) * len(on_offer),
-    )
+    bound = min(debt, len(cells) - worn - line, (line - 1) * len(on_offer))
+    owed = min(bound, len(open_ranks))
+    held = [0 for _one in on_offer]
     for payment in range(max(owed, 0)):
         rank = open_ranks[(payment * len(open_ranks)) // owed]
         changed = parsing.layout_offset_added(
@@ -22586,7 +22590,139 @@ def _offsets_owed_by_the_classes(
         )
         if changed is not None and not _is_a_hole_spelling(changed, holes):
             cells[rank] = changed
+            held[payment // (line - 1)] = held[payment // (line - 1)] + 1
+    paid = 0
+    for count in held:
+        paid = paid + count
+    if bound - paid >= 2:
+        _whole_texts_paid(
+            cells, family, on_offer, held, bound - paid, line, copies, holes
+        )
     return cells
+
+
+def _whole_texts_paid(
+    cells: "list[str]",
+    family: str,
+    on_offer: "list[str]",
+    held: "list[int]",
+    rest: int,
+    line: int,
+    copies: "dict[str, int]",
+    holes: "tuple[str, ...]",
+) -> None:
+    """G7.9b step 5: the rest of the debt paid with WHOLE repeated texts.
+
+    WHERE THE OPEN RANKS FALL SHORT (the Codex review of landing R2a, item
+    4). A number more than one rank wears is paid on only whole: every
+    rank wearing it is written again at ONE offset, so the column holds as
+    many different texts as before and no text wears two spellings. 100
+    stamps repeated ten times each, seven of the 1,000 cells ending
+    `-0500`, publish 107 different texts and seven cells that are not
+    numbers; the twin, with no text standing alone, wore no offset at
+    seeds 1 and 2 and missed both class counts. The offsets are taken in
+    G7.9b's order, each holding at most ``line - 1`` cells with the
+    payments of step 4 already written at it (``held``); at each, the
+    texts between the two ends whose respelling its field writes and the
+    column does not hold absent, of at most its room and the rest, are
+    chosen to reach as many ranks as any choice of them does -- the sizes
+    from the most ranks down, as many texts of each as still leave the
+    remainder reachable by the smaller ones, and of the texts of one size,
+    in the order of their first rank, choice k of n the text at position
+    k times their count over n. ``cells`` is changed in place.
+
+    Guarantees: accepts the cells, the layout, the offsets on offer with
+    the cells step 4 wrote at each, the rest owed, the census line, each
+    text's copies and every absent spelling; returns nothing. Determinism:
+    a function of the arguments; draws no word. No I/O of any kind.
+    """
+    ranks_of: "dict[str, list[int]]" = {}
+    for rank in range(1, len(cells) - 1):
+        text = cells[rank]
+        # A cell step 4 wrote again is a text of its own, out of the count.
+        if text not in copies or copies[text] < 2 or copies[text] >= line:
+            continue
+        if text in ranks_of:
+            ranks_of[text] += [rank]
+        else:
+            ranks_of[text] = [rank]
+    whole: "list[str]" = []
+    for text in ranks_of:
+        if len(ranks_of[text]) == copies[text] and (
+            parsing.classify_number(text) == parsing.NUMBER
+        ):
+            whole += [text]
+    used: "dict[str, int]" = {}
+    for place in range(len(on_offer)):
+        target = min((line - 1) - held[place], rest)
+        if target < 2:
+            if rest < 2:
+                return
+            continue
+        sized: "dict[int, list[tuple[str, str]]]" = {}
+        for text in whole:
+            size = copies[text]
+            if text in used or size > target:
+                continue
+            changed = parsing.layout_offset_added(text, family, on_offer[place])
+            if changed is None or _is_a_hole_spelling(changed, holes):
+                continue
+            if size in sized:
+                sized[size] += [(text, changed)]
+            else:
+                sized[size] = [(text, changed)]
+        for text, changed in _whole_texts_chosen(sized, target):
+            used[text] = 1
+            for rank in ranks_of[text]:
+                cells[rank] = changed
+            rest = rest - copies[text]
+
+
+def _whole_texts_chosen(
+    sized: "dict[int, list[tuple[str, str]]]", target: int
+) -> "list[tuple[str, str]]":
+    """G7.9b step 5's choice at one offset: texts whose ranks add up to the most it reaches.
+
+    ``sized`` holds each size's texts, in the order of their first rank,
+    with the respelling each takes; the choice reaches the largest sum of
+    sizes at most ``target`` any choice reaches, taking the sizes from the
+    largest down, as many texts of each as leave the remainder reachable
+    by the smaller sizes, and of ``n`` texts of a size taking ``k``, the
+    ``j``-th at position ``j * n // k``. Determinism: a function of the
+    two. Raises nothing. No I/O of any kind.
+    """
+    sizes = sorted(size for size in sized if size <= target)
+    # reach[i][t]: whether t ranks are a sum of texts of the i smallest sizes.
+    reach: "list[list[bool]]" = [[total == 0 for total in range(target + 1)]]
+    for size in sizes:
+        before = reach[len(reach) - 1]
+        most = min(len(sized[size]), target // size)
+        after: "list[bool]" = []
+        for total in range(target + 1):
+            found = False
+            count = 0
+            while count <= most and count * size <= total:
+                if before[total - count * size]:
+                    found = True
+                    break
+                count = count + 1
+            after += [found]
+        reach += [after]
+    left = 0
+    for total in range(target + 1):
+        if reach[len(sizes)][total]:
+            left = total
+    chosen: "list[tuple[str, str]]" = []
+    for place in range(len(sizes) - 1, -1, -1):
+        size = sizes[place]
+        texts = sized[size]
+        taken = min(len(texts), left // size)
+        while taken > 0 and not reach[place][left - taken * size]:
+            taken = taken - 1
+        for choice in range(taken):
+            chosen += [texts[(choice * len(texts)) // taken]]
+        left = left - taken * size
+    return chosen
 
 
 def _named_marks(facts: contract.DatetimeFacts) -> "tuple[str, ...]":

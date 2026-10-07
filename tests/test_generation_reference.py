@@ -828,6 +828,7 @@ TWENTY_FIFTH_BRANCH_CASES = (
     "layout_offsets_owed",
     "layout_offsets_owed_beside_named",
     "layout_offsets_owed_repeats",
+    "layout_offsets_owed_whole_texts",
     "layout_optional_offset",
     "layout_sas_date9",
     "layout_space_padded_day",
@@ -881,6 +882,8 @@ SEEDS = {
     # ...and its second skeptic's offer beside a named offset (item 1),
     # after the highest seed another lane of the wave had taken, 435.
     "layout_offsets_owed_beside_named": 436,
+    # ...and the Codex review's whole texts of G7.9b step 5 (item 4).
+    "layout_offsets_owed_whole_texts": 437,
     # Landing T1's written clocks take the next seeds after the highest in
     # use below 34041 (plan P4-D370).
     "stamp_unpadded_hour": 416,
@@ -1781,12 +1784,14 @@ FOURTEENTH_BRANCH_NAMED_COUNTS = 53
 # its five cases publish no binary64 at all.
 TWENTY_SECOND_BRANCH_PUBLISHED_NUMBERS = 0
 TWENTY_SECOND_BRANCH_NAMED_COUNTS = 122
-# The twenty-fifth, at its own generator's line ("proved 20 ... beside 327"):
+# The twenty-fifth, at its own generator's line ("proved 24 ... beside 353"):
 # the distances its cases with two tails publish, G7.9b's two cases of the
-# repair round adding eight of them and the one of its second skeptic four
-# more.
-TWENTY_FIFTH_BRANCH_PUBLISHED_NUMBERS = 20
-TWENTY_FIFTH_BRANCH_NAMED_COUNTS = 327
+# repair round adding eight of them, the one of its second skeptic four
+# more and the Codex review's whole texts four more; that last case names
+# twenty-six counts, as `layout_offsets_owed` does, both censuses of
+# offsets naming one key.
+TWENTY_FIFTH_BRANCH_PUBLISHED_NUMBERS = 24
+TWENTY_FIFTH_BRANCH_NAMED_COUNTS = 353
 # The document file publishes NO binary64 at all, and that is a fact
 # about its transforms rather than a gap in its proof: the written form,
 # the arrangement, the workbook writer, the shape of a line before a
@@ -3559,6 +3564,14 @@ CASE_MUTANTS = {
         "offset too, and the payments wear it",
         attribute="offsets_on_offer",
         replacement=lambda field, census: _OFFSETS_ON_OFFER(field, {}),
+        outcome=CHANGES_THE_CELLS,
+    ),
+    "layout_offsets_owed_whole_texts": Mutant(
+        branch="G7.9b step 5, the rest owed paid with whole repeated texts "
+        "where the texts standing alone fall short (the Codex review of "
+        "landing R2a, item 4); the mutant withdraws the step",
+        attribute="whole_texts_paid",
+        replacement=lambda paid, cells, joint, offer, made_at, rest, line, absent, a_number: paid,
         outcome=CHANGES_THE_CELLS,
     ),
     "layout_space_padded_day": Mutant(

@@ -9987,7 +9987,9 @@ def offsets_paid_to_the_classes(column, cells, holes, floor=CASE_SMALL_CELL_FLOO
       less the census line, and (line - 1) times the offsets on offer
       (`payments_owed`);
     * a payment whose cell would be a spelling the column holds absent is
-      not made.
+      not made;
+    * and the rest of that smallest -- counted without the eligible ranks
+      -- is step 5's, paid with whole repeated texts (`whole_texts_paid`).
     """
     member = column["format"]
     if not is_layout(member):
@@ -10038,11 +10040,107 @@ def offsets_paid_to_the_classes(column, cells, holes, floor=CASE_SMALL_CELL_FLOO
         len(offer),
     )
     paid = list(cells)
+    made_at = [0] * len(offer)
     for payment in range(max(payments, 0)):
         rank = eligible[payment * len(eligible) // payments]
         candidate = cells[rank] + joint + offer[payment // (line - 1)]
         if candidate.strip().lower() not in absent:
             paid[rank] = candidate
+            made_at[payment // (line - 1)] += 1
+    rest = payments_owed(
+        column["n_not_numeric"] - not_numbers - column["n_unparsed"],
+        len(cells),
+        len(cells) - not_numbers,
+        line,
+        len(offer),
+    ) - sum(made_at)
+    return whole_texts_paid(paid, cells, joint, offer, made_at, rest, line, absent, a_number)
+
+
+def sums_of_sizes(counts, cap):
+    """Every total at most ``cap`` that some texts reach, ``counts`` as (size, texts)."""
+    totals = {0}
+    for size, texts in counts:
+        totals = {
+            total + size * taken
+            for total in totals
+            for taken in range(texts + 1)
+            if total + size * taken <= cap
+        }
+    return totals
+
+
+def whole_texts_paid(paid, cells, joint, offer, made_at, rest, line, absent, a_number):
+    """G7.9b step 5: the rest owed, paid with whole repeated texts.
+
+    WRITTEN FROM STEP 5'S STATEMENT ALONE (the Codex review of landing R2a,
+    item 4).  The rest is step 4's bound less the payments step 4 made.
+    Where it is two or more:
+
+    * a text is on offer when it is a number worn by at least two ranks
+      and fewer than the census line, none of them an end, and it was not
+      paid at an earlier offset;
+    * the offsets are taken in step 3's order, each holding `line - 1`
+      cells less the payments step 4 wrote at it; a text goes to one
+      offset whole, every rank wearing it written again with the marks
+      and that offset, and only where its ranks number at most that room
+      and at most the rest and its respelling is no spelling the column
+      holds absent;
+    * at each offset the texts chosen reach the largest total of ranks at
+      most the smaller of the room and the rest that any choice reaches;
+      the sizes are taken largest first, each as many times as fits while
+      what is left stays a total the smaller sizes reach, and of the n
+      texts of one size, in the order of their first rank, choice j of k
+      is the text at position j * n // k;
+    * the rest falls by each offset's total, and the walk stops where it
+      is under two.
+    """
+    if rest < 2:
+        return paid
+    worn_by = {}
+    for rank, text in enumerate(cells):
+        worn_by.setdefault(text, []).append(rank)
+    texts = [
+        text
+        for text, ranks in worn_by.items()
+        if 2 <= len(ranks) < line
+        and ranks[0] > 0
+        and ranks[-1] < len(cells) - 1
+        and a_number(text)
+    ]
+    texts.sort(key=lambda text: worn_by[text][0])
+    taken_already = set()
+    for place, spelled in enumerate(offer):
+        cap = min(line - 1 - made_at[place], rest)
+        if rest < 2:
+            break
+        if cap < 2:
+            continue
+        by_size = {}
+        for text in texts:
+            if text in taken_already or len(worn_by[text]) > cap:
+                continue
+            if (text + joint + spelled).strip().lower() in absent:
+                continue
+            by_size.setdefault(len(worn_by[text]), []).append(text)
+        sizes = sorted(by_size)
+        best = max(sums_of_sizes([(size, len(by_size[size])) for size in sizes], cap))
+        left = best
+        for at in range(len(sizes) - 1, -1, -1):
+            size = sizes[at]
+            smaller = sums_of_sizes([(one, len(by_size[one])) for one in sizes[:at]], cap)
+            count = max(
+                taken
+                for taken in range(min(len(by_size[size]), left // size) + 1)
+                if left - size * taken in smaller
+            )
+            for choice in range(count):
+                text = by_size[size][choice * len(by_size[size]) // count]
+                taken_already.add(text)
+                for rank in worn_by[text]:
+                    paid[rank] = text + joint + spelled
+            left -= size * count
+        rest -= best
     return paid
 
 
@@ -22960,6 +23058,25 @@ def _layout_offsets_owed_beside_named():
     )
 
 
+def _layout_offsets_owed_whole_texts():
+    return _r2a_layout(
+        "layout {YYYY}{MM}{DD}{HH}{MI}{SS}{+HHMM?}", "datetime", "second", 0, 24,
+        {"(none)": 24}, "local",
+        why="G7.9b step 5, the rest paid with whole repeated texts (the Codex "
+        "review of landing R2a, item 4): twenty-four HL7 stamps over eight "
+        "different values, seven of whose offsets the census counted into "
+        "`(none)`. Two texts stand alone between the ends and take two "
+        "offsets at `+0000`; the other five are owed where every text repeats, "
+        "and a copy of one would add a value the published count of different "
+        "values does not hold, so a text of five ranks is written again whole, "
+        "every rank of it at `+0000`, and the column keeps its eight values. "
+        "The mutant withdraws the step, and the twin holds two cells that are "
+        "not numbers for seven.",
+        earliest="1970-01-01 00:00:00", latest="1970-01-24 21:45:00",
+        numeric=17, distinct=8,
+    )
+
+
 def _layout_space_padded_day():
     return _r2a_layout(
         "layout {Mon} {_D} {YYYY}", "date", "date", 0, 12, {"(none)": 12}, "local",
@@ -23016,6 +23133,7 @@ R2A_BRANCH_CASE_BUILDERS = {
     "layout_offsets_owed": _layout_offsets_owed,
     "layout_offsets_owed_beside_named": _layout_offsets_owed_beside_named,
     "layout_offsets_owed_repeats": _layout_offsets_owed_repeats,
+    "layout_offsets_owed_whole_texts": _layout_offsets_owed_whole_texts,
     "layout_optional_offset": _layout_optional_offset,
     "layout_sas_date9": _layout_sas_date9,
     "layout_space_padded_day": _layout_space_padded_day,
@@ -32534,7 +32652,9 @@ _TWENTY_FIFTH_BRANCH_ACCOUNT = (
     "runs whose count of cells that are not numbers still holds the "
     "offsets its census counted into `(none)`; and, from its second "
     "skeptic, those offsets beside an offset the census names, which is "
-    "never written for them. They "
+    "never written for them; and, from its Codex review, the rest of them "
+    "paid with whole repeated texts where the texts standing alone fall "
+    "short. They "
     "are computed by the same oracle and the same proof layer "
     "as tests/reference/generation-reference-vectors.json, "
     "tests/reference/generation-branch-vectors.json, "
@@ -32962,6 +33082,24 @@ GIVEN_WORDS = {
         205796669871881458, 7989721165120253828, 3755740244614251843,
         5595582438671437075, 15317152902321133127, 16415137625249378943,
         3767219378542190651, 16820870707325869515, 6803819411126845134,
+    ),
+    # ...and the Codex review's whole texts (item 4), at seed 437.
+    "layout_offsets_owed_whole_texts": (
+        4568547970671111711, 14541358963852075493, 7522943598962369940,
+        17060530995917719193, 2095766350703196630, 6854732477035821234,
+        12724707156612563411, 7269938088429978985, 6137845389946921615,
+        17118834998973590351, 6216298984757051754, 2338637640002035815,
+        13447546671674286403, 7813615556124485300, 7622731843255878734,
+        16124182203187590852, 17689983131517394028, 15367137621304947486,
+        9078513533944893161, 13467225563920344711, 9037955481522156904,
+        13433875893294364443, 11585049734331561748, 10834071870384293875,
+        5813128240313659656, 8850333631830437388, 16942146020834888696,
+        7046120650055117908, 7347443595463077525, 2277157444879242935,
+        17598894605504618958, 10095148133937113161, 2228478411500130388,
+        11080119797405291379, 14845178557871284442, 11659997440368933290,
+        605832156603860367, 15905277172330650498, 3798049900601013908,
+        6149091102096072696, 9906396393657955348, 5628501896614219039,
+        5637794449753356037, 6497846461626531416, 17728263551944195374,
     ),
     # ...and the space-padded day of its repair round (item 6), at seed 431.
     "layout_space_padded_day": (
