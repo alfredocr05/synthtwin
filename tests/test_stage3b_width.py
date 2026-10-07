@@ -30,19 +30,24 @@ only where the width census counts every number of the column, and a
 far cell a pair proves past every named pad is written plain (method
 G6.3). And the rules stand only where they read the published mean and
 spread, together, no further off than the twin without them (rule 3):
-the values are read again from the same words with both withdrawn --
-each end where the width held it, the strata divided by that ladder,
-110cb46's walk -- and the block keeps that reading wherever it reads
-them nearer. Rule 3 can hide a fault of the walk from the finished twin, so
-a test pinning a clause of rules 1 and 2 reads the walk's own output, a
-twin nearer than 110cb46's, or the twin with rule 3 withdrawn.
+wherever rule 1 moved a derived end, the values are read again from the
+same words with both withdrawn -- each end where the width held it, the
+strata divided by that ladder, once, with the plan, and 110cb46's walk
+-- and the block keeps that reading wherever it reads them nearer. Rule
+3 can hide a fault of the walk from the finished twin, so a test pinning
+a clause of rules 1 and 2 reads the walk's own output, a twin nearer
+than 110cb46's, or the twin with rule 3 withdrawn. And where rule 1
+moved an end, the checker holds the mean and the spread to the window
+drawn with it withdrawn as well (validation method V6.1-A2, section 6).
 
 Each clause is held up by a test here and, where a mutant is cheap to
 write, by the mutant that withdraws it turning the test's own
 measurement the other way. The repair round ran a source mutant of each
 clause of the three rules, of the guard on the cells left past the width
-and of G6.3's give-up against this file; method section G6.6.8 states
-how many turn it red. The end rule is also frozen in
+and of G6.3's give-up against this file, and its leftover round one of
+each clause of rule 3's one division a block and of the checker's second
+window; method section G6.6.8 states how many turn it red. The end rule
+is also frozen in
 `tail_width_past_the_reach` (tests/reference/generation-branch-vectors-23.json);
 the walk has no frozen case, because the oracle does not run G6.6's
 walk, so it is pinned here. The mean and spread 110cb46 wrote on the
@@ -772,8 +777,12 @@ def _rule_three_withdrawn(patch: pytest.MonkeyPatch) -> None:
     patch.setattr(generation, "_width_rule_withdrawn", lambda *_arguments: None)
 
 
-def _withdrawn_numbers(described: kpi_shapes.Described, seed: int) -> "list[float]":
-    """110cb46's twin: method G6.6.8 and its G6.3 clause withdrawn through the lane's own seams, as `K-S3-22` withdraws them."""
+def _withdrawn_text(described: kpi_shapes.Described, seed: int) -> str:
+    """110cb46's twin: method G6.6.8 and its G6.3 clause withdrawn through the lane's own seams, as `K-S3-22` withdraws them.
+
+    Generated inside the seams and handed back as text, so a caller checks
+    it outside them, with the checker as it stands.
+    """
     ladder = contract.tail_ladder
     worn = generation._point_free_form_worn
     with pytest.MonkeyPatch.context() as patch:
@@ -782,7 +791,13 @@ def _withdrawn_numbers(described: kpi_shapes.Described, seed: int) -> "list[floa
         patch.setattr(
             generation, "_point_free_form_worn", lambda styles, value, whole: worn(styles, value, whole) or "leading_zero"
         )
-        return _twin_numbers(described, seed)
+        return kpi_shapes.twin_text(described, seed)
+
+
+def _withdrawn_numbers(described: kpi_shapes.Described, seed: int) -> "list[float]":
+    """110cb46's twin's numbers (`_withdrawn_text`)."""
+    text = _withdrawn_text(described, seed)
+    return _numbers([row[0] for row in list(csv.reader(io.StringIO(text)))[1:] if row])
 
 
 def test_strata_at_the_reach_that_read_the_moments_further_off_go_under_the_width(
@@ -1966,15 +1981,18 @@ def test_a_hundred_thousand_rows_keep_their_census_and_their_moments(tmp_path: p
     of eleven. Rule 1 takes the high end to the pair's reach; the walk
     leaves the tail's outermost strata past the width inside the line less
     one and the pair's totals, and moves the rest under it. The twin's own
-    census is the source's, its spread no further
-    off than 110cb46's and it misses nothing -- 110cb46's twin held every
-    cell under the width, read 0.42 of the real spread and missed
-    `moments.std`; on a million rows the first form wrote a thousand
-    cells on one five-figure value. The rule's reading stands under rule 3
-    because the mean and the spread are weighed together: its mean stands
-    0.007 of the real spread off where 110cb46's stood 0.002 off, and its
-    spread 0.91 of the real one where 110cb46's stood 0.42; weighed one by
-    one, the block would go back to 110cb46's.
+    census is the source's and its spread no further off than 110cb46's.
+    ONE CHECKER READS BOTH TWINS (the second skeptic of the repair, item
+    1): it misses nothing on this one, and misses `moments.std` on
+    110cb46's, which held every cell under the width and read 0.42 of the
+    real spread -- as 110cb46's own checker did, the spread being held to
+    the window drawn with the reach rule withdrawn too (validation method
+    V6.1-A2); on a million rows the first form wrote a thousand cells on
+    one five-figure value. The rule's reading stands under rule 3 because
+    the mean and the spread are weighed together: its mean stands 0.007 of
+    the real spread off where 110cb46's stood 0.002 off, and its spread
+    0.91 of the real one where 110cb46's stood 0.42; weighed one by one,
+    the block would go back to 110cb46's.
     """
     cells = _bulk(100000)
     described = _described(tmp_path, "bulk", cells, 11)
@@ -1986,6 +2004,8 @@ def test_a_hundred_thousand_rows_keep_their_census_and_their_moments(tmp_path: p
     _mean, spread = _errors(cells, written)
     assert spread <= _ON_110CB46[("bulk", 100000, 11)][1] + _SLACK, spread
     assert kpi_shapes.missed(kpi_shapes.measure(described, text, "twin-0.csv")) == []
+    theirs = _withdrawn_text(described, 0)
+    assert "value:moments.std" in kpi_shapes.missed(kpi_shapes.measure(described, theirs, "twin-0-110cb46.csv"))
 
 
 # -- 6. the checker, where rule 1 moved an end ---------------------------------

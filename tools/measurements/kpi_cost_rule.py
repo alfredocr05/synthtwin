@@ -31,6 +31,12 @@ producer, and -- where a twin is asked -- the real generator and checker:
   whose spread alone does, whose count of cells past the widest named
   width stands further from the source's, whose widest cell is wider than
   both, and whose own width census stands further from the source's;
+  and, read off the real column's own moments rather than any window,
+  the twins more than 0.05 of the real spread off on the mean or more
+  than a tenth off on the spread (the second skeptic of the repair,
+  item 1: windows drawn through a further end widen, and only this count
+  sees a column regress behind them), with the same count of the twins
+  the rule withdrawn writes beside it as context;
 * `K-S3-50`: how far twins write past the real column's own range, which
   no check sees because no end is published -- over `K-S3-20`'s 37 shapes
   at floors 11, 20, 36 and 50, the numeric twins holding a cell outside
@@ -349,6 +355,13 @@ def _as_written(home, stem, cells, block, text, floor):
     }
 
 
+# A TWIN OFF THE REAL MOMENTS, read off the real column and never a window:
+# its mean more than this share of the real spread from the real mean, or its
+# spread more than this share off the real spread (K-S3-22).
+_OFF_THE_MEAN = 0.05
+_OFF_THE_SPREAD = 0.10
+
+
 def _beside_the_rule_withdrawn(home, name, cells, floor, described, value):
     """K-S3-22's per-twin count: each twin at seeds 0, 4 and 9 beside the same twin with the rule withdrawn."""
     block = described.document["columns"][0]
@@ -369,6 +382,12 @@ def _beside_the_rule_withdrawn(home, name, cells, floor, described, value):
         value["twins_wider"] += int(mine["chars"] > max(real_chars, theirs["chars"]))
         value["twins_census_further"] += int(mine["census"] > theirs["census"])
         value["twins_census_unlike_source"] += int(mine["census"] > 0)
+        value["twins_off_the_real_moments"] += int(
+            mine["mean"] > _OFF_THE_MEAN or mine["spread"] > _OFF_THE_SPREAD
+        )
+        value["twins_off_the_real_moments_withdrawn"] += int(
+            theirs["mean"] > _OFF_THE_MEAN or theirs["spread"] > _OFF_THE_SPREAD
+        )
 
 
 def residual(home):
@@ -389,6 +408,8 @@ def residual(home):
         "twins_wider": 0,
         "twins_census_further": 0,
         "twins_census_unlike_source": 0,
+        "twins_off_the_real_moments": 0,
+        "twins_off_the_real_moments_withdrawn": 0,
     }
     for name, cells, floor in _width_battery():
         described = _described(home / "k322w", name, cells, floor)

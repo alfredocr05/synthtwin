@@ -12842,9 +12842,7 @@ def _moment_checks(
                 ENVELOPE_MOMENTS,
                 value,
                 anchored=field in ("mean", "std"),
-                held=_window_named(held, field)
-                if field in ("mean", "std")
-                else None,
+                held=_window_named(held, field),
             )
         ]
     return checks
