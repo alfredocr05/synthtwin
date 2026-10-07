@@ -142,11 +142,15 @@ def _wrong() -> "list[str]":
     for name, case in sorted(_FILE["spellings"].items()):
         if _spelled(case) != case["answer"]:
             wrong += [f"spelling {name}"]
+    for name, case in sorted(_FILE["dealings"].items()):
+        if generation._contacts_dealt(case["census"], case["dated"]) != case["answer"]:
+            wrong += [f"dealing {name}"]
     return wrong
 
 
 def test_c1_every_case_of_the_twenty_sixth_file_is_the_products() -> None:
-    assert len(_FILE["readings"]) >= 14 and len(_FILE["spellings"]) >= 15
+    assert len(_FILE["readings"]) >= 14 and len(_FILE["spellings"]) >= 17
+    assert len(_FILE["dealings"]) >= 4
     assert _wrong() == []
 
 
@@ -189,11 +193,36 @@ def _exact_where_binary64(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(date_counts, "_spelled_inexact", date_counts._spelled_exact)
 
 
+def _dealt_down_the_rows(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The first build's dealing: the census's words in rank order, down the rows."""
+
+    def in_rank_order(census: "dict[str, int]", dated: int) -> "list[str]":
+        words: "list[str]" = []
+        for _rank, word in sorted((-census[each], each) for each in census):
+            words += [word] * census[word]
+        return (words + [date_counts.NO_CONTACT] * dated)[:dated]
+
+    monkeypatch.setattr(generation, "_contacts_dealt", in_rank_order)
+
+
+def _repr_never(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Seventeen figures written by `%.17g` and a whole count with no `.0`, as `repr` never writes them."""
+    monkeypatch.setattr(date_counts, "_REPR_WHOLE_BELOW", 0)
+    original = date_counts._spelled_inexact
+
+    def seventeen(numerator: int, denominator: int, form: "date_counts.CountForm") -> str:
+        if form.significant == 17 and not form.exponent:
+            return f"{numerator / denominator:.17g}"
+        return original(numerator, denominator, form)
+
+    monkeypatch.setattr(date_counts, "_spelled_inexact", seventeen)
+
+
 @pytest.mark.parametrize(
     "mutant",
     (
         _float_arithmetic, _epoch_1970_for_1960, _halves_up, _not_trimmed,
-        _no_leap_day, _exact_where_binary64,
+        _no_leap_day, _exact_where_binary64, _dealt_down_the_rows, _repr_never,
     ),
     ids=lambda mutant: mutant.__name__.strip("_"),
 )
@@ -419,6 +448,198 @@ def test_c2_a_declared_decimal_comma_is_read_with_the_comma(
     assert "excel-1900" not in _offered_of(mutated)
 
 
+def _table_of(folder: pathlib.Path, columns: "dict[str, list[str]]") -> pathlib.Path:
+    """Several columns of one length in a CSV file, none holding a comma."""
+    folder.mkdir(parents=True, exist_ok=True)
+    path = folder / "table.csv"
+    names = list(columns)
+    rows = [",".join(names)]
+    for place in range(len(columns[names[0]])):
+        rows += [",".join(columns[name][place] for name in names)]
+    path.write_text("\n".join(rows) + "\n", encoding="utf-8", newline="")
+    return path
+
+
+@pytest.mark.parametrize("kind", battery.PLACEHOLDERS)
+def test_c2_a_heap_of_placeholders_keeps_each_shapes_system_and_years(
+    tmp_path: pathlib.Path, kind: str
+) -> None:
+    """The review of landing R4, item 1: a placeholder common enough to be the column's published end.
+
+    At 10,000 rows, two and ten cells in a thousand holding `0`, `-1` or
+    the system's own count for 9999-12-31 or 1900-01-01: every shape Q3
+    asks is offered the system that wrote it, with years within one of
+    the true span. The first build read the years off the heaped end
+    itself -- `0` names no Excel date, so the 1900 system was dropped
+    from the four Excel shapes, and the 9999 count gave "2016 to 9999".
+    """
+    shapes = [shape for shape in battery.SHAPES if shape.name not in battery.NOT_ASKED]
+    for share in (0.002, 0.01):
+        columns: "dict[str, list[str]]" = {}
+        spans: "dict[str, tuple[int, int]]" = {}
+        for shape in shapes:
+            cells, truth = battery.cells(shape, 10000, 0)
+            columns[shape.name] = battery.heaped(shape, cells, kind, share)
+            spans[shape.name] = (min(t.year for t in truth), max(t.year for t in truth))
+        path = _table_of(tmp_path / f"{kind}-{share}", columns)
+        document = profile.build_document(reading.read_table(str(path)), taxonomy.Settings(), [])
+        for shape, block in zip(shapes, document["columns"]):
+            said = _q3(block)
+            assert said is not None, (kind, share, shape.name)
+            years = {member: (first, last) for member, first, last in said.readings}
+            assert shape.system in years, (kind, share, shape.name, sorted(years))
+            first, last = years[shape.system]
+            low, high = spans[shape.name]
+            assert abs(first - low) <= 1 and abs(last - high) <= 1, (kind, share, shape.name, years)
+
+
+def test_c2_one_placeholder_cell_is_set_aside_and_not_named(tmp_path: pathlib.Path) -> None:
+    """The review of landing R4, item 4: a set-aside number one row holds is no word of NF113.
+
+    One `0` among Unix-second birth dates is a birth on 1 January 1970,
+    and one `-1` among SAS days is 31 December 1959: each is still set
+    aside for the question, and named only where the census line of
+    cells -- eleven -- holds it.
+    """
+    for name, word in (("unix_s_birth", "0"), ("sas_days", "-1"), ("xl_date", "2")):
+        cells, _truth = battery.cells(battery.BY_NAME[name], battery.ROWS, 0)
+        for many in (1, 9, 11):
+            changed = list(cells)
+            for place in range(many):
+                changed[100 + 7 * place] = word
+            held = changed.count(word)
+            said = _q3(_block_of(tmp_path / f"{name}-{many}", changed))
+            assert said is not None, (name, many)
+            shown = "the count for 1 January 1900" if word == "2" else word
+            named = date_counts.aside_listed(said.aside).split(", ")
+            assert (shown in named) == (held >= 11), (name, held, said.aside)
+            if many == 1:
+                assert held < 11 and shown not in named
+
+
+def test_c2_nine_tenths_of_the_present_cells_stand_beside_the_set_aside_ones(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The 90 % share (mutant M04): twelve cells in a hundred holding `0` leave no question."""
+    shape = battery.BY_NAME["xl_date"]
+    cells, _truth = battery.cells(shape, battery.ROWS, 0)
+    cells = battery.heaped(shape, cells, "zero", 0.12)
+    assert _q3(_block_of(tmp_path / "head", cells)) is None
+    monkeypatch.setattr(date_counts, "_rest_is_enough", lambda rest, present: rest >= date_counts.REST_LEAST)
+    assert _q3(_block_of(tmp_path / "mutant", cells)) is not None
+
+
+def test_c2_every_system_of_the_unit_whose_years_fit_is_offered(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The R4 design review's item 2 (mutant M07): SAS days of June 1987 to 1989.
+
+    Read in the 1960 system they lie before the band from 1990, and read
+    in the 1970 one inside it, so the rule holds for the 1970 system
+    alone; the 1960 system that wrote them is offered beside it because
+    its years fit 1900 to 2050.
+    """
+    draw = random.Random(1987)
+    first = datetime.date(1987, 6, 1)
+    cells = [
+        f"{(first + datetime.timedelta(days=draw.randrange(944)) - datetime.date(1960, 1, 1)).days}"
+        for _row in range(battery.ROWS)
+    ]
+    said = _q3(_block_of(tmp_path / "head", cells))
+    assert said is not None
+    offered = [member for member, _first, _last in said.readings]
+    assert "days-since-1960" in offered and "days-since-1970" in offered
+
+    def hits_alone(
+        ordered: "list[float]", hits: "list[str]", total: int, *rest: object
+    ) -> "tuple[str, ...]":
+        return tuple(hits)
+
+    monkeypatch.setattr(date_counts, "_offered", hits_alone)
+    said = _q3(_block_of(tmp_path / "mutant", cells))
+    assert said is not None
+    assert "days-since-1960" not in [member for member, _first, _last in said.readings]
+
+
+def _days_at_midnight(days: "list[int]") -> "tuple[list[str], list[float]]":
+    texts = [f"{day * 86400}" for day in days]
+    return texts, [float(text) for text in texts]
+
+
+def test_c2_rule_b_reads_eleven_different_days_at_midnight(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Rule B (mutant M35): Unix seconds at midnight UTC of births before 1990, eleven different days or more.
+
+    Ten different days repeated over a thousand rows are no column of
+    dates rule B may ask about; eleven are.
+    """
+    first = parsing.days_from_civil(1935, 3, 1)
+    for different, asked in ((10, False), (11, True)):
+        days = [first + 997 * (row % different) for row in range(battery.ROWS)]
+        texts, numbers = _days_at_midnight(days)
+        found = date_counts.asked_of(
+            texts, numbers, taxonomy._needed(0.99, len(texts)), _median(sorted(numbers)), True,
+            floor=11,
+        )
+        assert (found is not None) == asked, different
+        if found is not None:
+            assert found.rule == date_counts.RULE_MIDNIGHT
+    days = [first + 997 * (row % 10) for row in range(battery.ROWS)]
+    texts, numbers = _days_at_midnight(days)
+    monkeypatch.setattr(date_counts, "REST_LEAST", 1)
+    assert date_counts.asked_of(
+        texts, numbers, taxonomy._needed(0.99, len(texts)), _median(sorted(numbers)), True,
+        floor=11,
+    ) is not None
+
+
+def test_c2_money_amounts_and_lengths_of_time_are_not_asked(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The review of landing R4, item 7: four ordinary shapes the first build asked about, newly.
+
+    Salaries and payments in cents and amounts to one decimal in Excel's
+    five-figure band, a room charge in cents read as Epic days, and
+    lengths of time kept as whole days of seconds or of milliseconds.
+    Each is asked once its rule is put back as it was: rule A without its
+    four figures of a day or its Epic days mostly whole, rule B without
+    its year from the epoch or its thousand-day step.
+    """
+    names = (
+        "salary_cents_45k", "payment_cents_20k", "room_charge_cents_62k", "glucose_area_1dp",
+        "dose_total_1dp", "stay_seconds_whole_days", "gap_milliseconds_whole_days",
+        "followup_seconds_whole_days",
+    )
+
+    def asked(name: str, draw: int) -> bool:
+        texts = battery.ordinary(name, 1000, draw)
+        numbers = [float(text) for text in texts]
+        whole = all(value == int(value) for value in numbers)
+        return date_counts.asked_of(
+            texts, numbers, taxonomy._needed(0.99, len(texts)), _median(sorted(numbers)), whole,
+            floor=11,
+        ) is not None
+
+    for name in names:
+        assert not any(asked(name, draw) for draw in range(4)), name
+    monkeypatch.setattr(date_counts, "DAY_TIME_PLACES", 0)
+    assert asked("salary_cents_45k", 0) and asked("dose_total_1dp", 0)
+    monkeypatch.undo()
+    original = date_counts._text_holds
+
+    def any_contacts(present: "list[str]", member: str, rule: str, needed: int, mark: str = ".") -> bool:
+        if date_counts.TABLE[member].contacts:
+            return sum(date_counts.counted(member, text, mark) is not None for text in present) >= needed
+        return original(present, member, rule, needed, mark)
+
+    monkeypatch.setattr(date_counts, "_text_holds", any_contacts)
+    assert asked("room_charge_cents_62k", 0)
+    monkeypatch.undo()
+    monkeypatch.setattr(date_counts, "EPOCH_YEAR_DAYS", 0)
+    assert asked("stay_seconds_whole_days", 0)
+    monkeypatch.undo()
+    # Whole days of milliseconds read as seconds stand every thousand days.
+    monkeypatch.setattr(date_counts, "UNIT_STEP_DAYS", 10**18)
+    assert asked("gap_milliseconds_whole_days", 0)
+
+
 # -- C3: the answer and the option ---------------------------------------
 
 
@@ -441,7 +662,12 @@ def test_c3_an_answered_file_and_the_typed_option_give_one_description(
     typed = tmp_path / "typed"
     answered.mkdir()
     typed.mkdir()
-    assert _exit_of(["profile", str(path), "--answers", str(answers), "--out-dir", str(answered), "--replace"])[0] == 0
+    code, said = _exit_of(["profile", str(path), "--answers", str(answers), "--out-dir", str(answered), "--replace"])
+    assert code == 0, said[-600:]
+    # THE LINE THAT REPEATS THE RUN NAMES THE ANSWER AS ITS OPTION (mutant
+    # M51: the repeat command dropping `--date-count`).
+    assert "TO REPEAT THIS RUN WITHOUT THE QUESTIONS" in said
+    assert "--date-count seen days-since-1960" in said
     assert _exit_of(["profile", str(path), "--date-count", "seen", "days-since-1960", "--out-dir", str(typed), "--replace"])[0] == 0
     one = (answered / "table-profile.json").read_bytes()
     assert one == (typed / "table-profile.json").read_bytes()
@@ -736,6 +962,269 @@ def test_c5_fifteen_figures_crossing_serial_ten_thousand_round_trip(tmp_path: pa
         assert date_counts.written_for("excel-1900", moment, unit, facts.count_form) == cell
 
 
+@pytest.mark.parametrize("name", sorted(battery.COARSE))
+def test_c4_figures_no_unit_keeps_are_refused_and_the_rest_written_back(
+    tmp_path: pathlib.Path, name: str
+) -> None:
+    """The review of landing R4, item 2: the reading unit keeps every figure the column wrote, or reads none.
+
+    One and two figures of a day step by 2.4 hours and 14.4 minutes,
+    tenths and hundredths of a second by a tenth and a hundredth, and four
+    figures of a day of moments off the minute by 8.64 seconds: settled to
+    a unit at least the step, a count loses its figures, and settled
+    finer the twin's own cells are rounded onto the column's coarser grid
+    as they are written -- the first build's twin of one figure missed its
+    own description, and its Unix tenths came back as whole seconds. Such a
+    column is not read as counted dates (NF115) and is twinned as the
+    numbers it reads, both files at exit 0. Four figures of a day at
+    whole minutes and five at whole seconds are kept: read as dates, every
+    source cell written back as itself.
+    """
+    system, _write, kept = battery.COARSE[name]
+    cells = battery.coarse(name, battery.ROWS, 0)
+    trip = _trip(tmp_path, cells, system)
+    block = trip["block"]
+    assert trip["twin_exit"] == 0 and trip["real_exit"] == 0
+    if not kept:
+        assert block["role"] != "datetime", name
+        assert any(contract.COUNTED_NOT_READ_MARK in remark for remark in block["remarks"])
+        return
+    assert block["role"] == "datetime" and block["count_form"] is not None
+    loaded = contract.load_profile(str(trip["described"]))
+    facts = loaded.columns[0].facts
+    assert isinstance(facts, contract.DatetimeFacts) and facts.count_form is not None
+    unit = contract.counted_unit(facts)
+    for cell in cells:
+        written = date_counts.written_count(cell)
+        assert written is not None
+        numerator, denominator = date_counts.exact_value(written)
+        moment = date_counts.moment_of(system, numerator, denominator, unit)
+        assert moment is not None
+        assert date_counts.written_for(system, moment, unit, facts.count_form) == cell
+
+
+def test_c4_the_settled_unit_is_at_least_the_step(monkeypatch: pytest.MonkeyPatch, tmp_path: pathlib.Path) -> None:
+    """The first build's minute floor (mutant M52), and a figures check that holds everything.
+
+    Settled to the minute, one figure of a day reads exactly -- 0.1 of a
+    day is 144 minutes -- and its twin, drawn at the minute and rounded to
+    2.4 hours as it is written, missed its own description. Put back, the
+    column is read as dates again; so is a column of Unix tenths where the
+    figures check holds every count.
+    """
+    assert date_counts.settled_unit("excel-1900", 1) == date_counts.DAY
+    assert date_counts.settled_unit("excel-1900", 4) == date_counts.MINUTE
+    assert date_counts.settled_unit("excel-1900", 6) == date_counts.SECOND
+    assert date_counts.settled_unit("excel-1900", 10) == date_counts.MILLISECOND
+    assert date_counts.settled_unit("seconds-since-1970", 1) == date_counts.SECOND
+    original = date_counts.settled_unit
+
+    def minute_floor(member: str, places: int) -> int:
+        found = date_counts.TABLE[member]
+        if places > 0 and found.unit >= date_counts.DAY and not found.contacts and places < 4:
+            return date_counts.MINUTE
+        return original(member, places)
+
+    monkeypatch.setattr(date_counts, "settled_unit", minute_floor)
+    block = _block_of(tmp_path / "floor", battery.coarse("excel_1dp", battery.ROWS, 0), "excel-1900")
+    assert block["role"] == "datetime"
+    monkeypatch.undo()
+    monkeypatch.setattr(date_counts, "held_by_its_moment", lambda *arguments: True)
+    block = _block_of(tmp_path / "held", battery.coarse("unix_s_1dp", battery.ROWS, 0), "seconds-since-1970")
+    assert block["role"] == "datetime"
+
+
+def test_c4_the_contact_numbers_are_spread_over_the_rows(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The review of landing R4, item 8: each half of the twin holds the census's share of each contact number.
+
+    Dealt in rank order down the rows, the first build's twin of 100,000
+    rows held no contact number in its first half at all. At 10,000 rows
+    each half of the twin's dated cells is within one point of the
+    census's share, and with the first build's dealing it is not.
+    """
+    shape = battery.BY_NAME["epic_real"]
+    cells, _truth = battery.cells(shape, 10000, 0)
+
+    def halves_off(twin: "list[str]", census: "dict[str, int]") -> float:
+        words = [date_counts.contact_word(date_counts.written_count(cell)) for cell in twin if cell]  # type: ignore[arg-type]
+        total = sum(census.values())
+        worst = 0.0
+        for half in (words[: len(words) // 2], words[len(words) // 2 :]):
+            for word, count in census.items():
+                worst = max(worst, abs(half.count(word) / len(half) - count / total) * 100)
+        return worst
+
+    trip = _trip(tmp_path / "head", cells, shape.system)
+    census = trip["block"]["count_form"]["contacts"]
+    assert census is not None and len(census) >= 2
+    assert halves_off(trip["twin"], census) <= 1.0
+    _dealt_down_the_rows(monkeypatch)
+    trip = _trip(tmp_path / "mutant", cells, shape.system)
+    assert halves_off(trip["twin"], census) > 1.0
+
+
+@pytest.mark.parametrize(("writer", "name"), (("repr", "xl_dt15g"), ("repr", "xl_dt6"), ("pandas_point_zero", "xl_date")))
+def test_c4_pandas_and_repr_spellings_round_trip(
+    tmp_path: pathlib.Path, writer: str, name: str
+) -> None:
+    """`repr`'s shortest figures (mutant M47) and pandas' `45000.0` (mutant M49) written as their writer writes them.
+
+    A column of Excel serials pandas wrote with `repr` is settled at the
+    second or the minute its moments stand on, every source cell is
+    written back as itself, and every twin cell is `repr`'s own spelling
+    of its double -- not `%.17g`'s seventeen figures. A column of whole
+    serials pandas wrote as `45000.0` keeps its one nought after the point
+    in the twin, and the source meets its own form.
+    """
+    shape = battery.BY_NAME[name]
+    cells = battery.written_by(writer, shape, battery.ROWS, 0)
+    trip = _trip(tmp_path, cells, shape.system)
+    assert trip["twin_exit"] == 0 and trip["real_exit"] == 0
+    form = trip["block"]["count_form"]
+    if writer == "repr":
+        assert form["significant"] == 17
+        assert trip["block"]["time_precision"] in ("second", "minute")
+        assert all(cell == repr(float(cell)) for cell in trip["twin"] if cell)
+    else:
+        assert form["places"] == 1 and form["trimmed"] is False
+        assert all(cell.endswith(".0") for cell in trip["twin"] if cell)
+    loaded = contract.load_profile(str(trip["described"]))
+    facts = loaded.columns[0].facts
+    assert isinstance(facts, contract.DatetimeFacts) and facts.count_form is not None
+    unit = contract.counted_unit(facts)
+    for cell in cells:
+        written = date_counts.written_count(cell)
+        assert written is not None
+        numerator, denominator = date_counts.exact_value(written)
+        moment = date_counts.moment_of(shape.system, numerator, denominator, unit)
+        assert moment is not None
+        assert date_counts.written_for(shape.system, moment, unit, facts.count_form) == cell
+
+
+def test_c5_a_placeholder_count_is_set_aside_whole_or_not(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Mutant M12: Excel's count for 31 December 9999, and pandas' `2` for 1 January 1900.
+
+    Each is counted as no value and written back as written: the twin
+    holds as many of each spelling as the source, no ISO date stands in a
+    column of numbers, and both files meet the description. With no
+    placeholder day set aside the date role's own judgement withholds
+    them under the ISO text it read, and the twin writes that text into
+    the column.
+    """
+    shape = battery.BY_NAME["xl_date"]
+    cells, _truth = battery.cells(shape, battery.ROWS, 0)
+    for place in range(0, 1000, 50):
+        cells[place] = "2958465"
+    for place in range(25, 1000, 50):
+        cells[place] = "2"
+    trip = _trip(tmp_path / "head", cells, shape.system)
+    assert trip["block"]["missing_by_source"] == {"2": 20, "2958465": 20}
+    assert trip["twin"].count("2958465") == 20 and trip["twin"].count("2") == 20
+    assert not [cell for cell in trip["twin"] if "-" in cell]
+    assert trip["twin_exit"] == 0 and trip["real_exit"] == 0
+    monkeypatch.setattr(date_counts, "declared_aside", lambda member: ())
+    monkeypatch.setattr(date_counts, "placeholder_day_named", lambda moment, unit: "")
+    path = _table(tmp_path / "mutant", cells)
+    code, said = _exit_of(["profile", str(path), "--date-count", "seen", "excel-1900", "--out-dir", str(tmp_path / "mutant"), "--replace"])
+    assert code == 0, said[-500:]
+    block = json.loads((tmp_path / "mutant" / "table-profile.json").read_text(encoding="utf-8"))["columns"][0]
+    assert block["missing_by_source"] != {"2": 20, "2958465": 20}
+
+
+def test_c5_keep_value_does_not_reach_a_declared_columns_placeholder(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Mutant M40: `--keep-value 2958465` beside `--date-count` leaves the count set aside.
+
+    The first build rescued it, read it as 31 December 9999, and the date
+    role withheld that day under its ISO text: the twin wrote
+    `9999-12-31` twenty times into a column of numbers and the source
+    missed its own description. A number kept that way is no word of the
+    vocabulary the settings record, so the checker could not keep it too.
+    """
+    shape = battery.BY_NAME["xl_date"]
+    cells, _truth = battery.cells(shape, battery.ROWS, 0)
+    for place in range(0, 1000, 50):
+        cells[place] = "2958465"
+    trip = _trip(tmp_path / "head", cells, shape.system, "--keep-value", "2958465")
+    assert trip["block"]["missing_by_source"] == {"2958465": 20}
+    assert trip["twin"].count("2958465") == 20 and "9999-12-31" not in trip["twin"]
+    assert trip["twin_exit"] == 0 and trip["real_exit"] == 0
+    original = date_counts.declared_aside
+    monkeypatch.setattr(
+        date_counts, "declared_aside", lambda member: tuple(n for n in original(member) if n != 2958465)
+    )
+    monkeypatch.setattr(date_counts, "placeholder_day_named", lambda moment, unit: "")
+    trip = _trip(tmp_path / "mutant", cells, shape.system, "--keep-value", "2958465")
+    assert trip["real_exit"] == 3
+
+
+def test_c5_a_declaration_reading_two_dates_decides_nothing(tmp_path: pathlib.Path) -> None:
+    """Mutant M19: two different serials are read as dates, and the date rule does not take two values.
+
+    The column is then read as if nothing had been declared and says so
+    (NF115); without that the first build left a column of two dates on
+    another role, and `generate` and `validate` stopped.
+    """
+    cells = ["45000" if row % 2 else "45001" for row in range(battery.ROWS)]
+    trip = _trip(tmp_path, cells, "excel-1900")
+    assert trip["block"]["role"] != "datetime"
+    assert any(contract.COUNTED_NOT_READ_MARK in remark for remark in trip["block"]["remarks"])
+    assert sorted(set(trip["twin"])) == ["45000", "45001"]
+    assert trip["twin_exit"] == 0 and trip["real_exit"] == 0
+
+
+def test_c5_the_census_of_contact_numbers_is_held_exactly(tmp_path: pathlib.Path) -> None:
+    """Mutant M33: a twin of Epic days whose cells write no contact number misses `form.contacts`."""
+    shape = battery.BY_NAME["epic_real"]
+    cells, _truth = battery.cells(shape, battery.ROWS, 0)
+    trip = _trip(tmp_path, cells, shape.system)
+    assert trip["twin_exit"] == 0
+    stripped = tmp_path / "stripped"
+    assert _rewritten(trip, stripped, lambda cell: cell.split(".")[0]) == 3
+    report = "\n".join(
+        path.read_text(encoding="utf-8") for path in sorted((stripped / "check-changed").glob("*.txt"))
+    )
+    assert "form.contacts" in report
+
+
+@pytest.mark.parametrize("noisy", (137, 5))
+def test_c5_an_epic_day_with_a_binary64_tail_is_no_count(tmp_path: pathlib.Path, noisy: int) -> None:
+    """The review of landing R4, item 3: `65053.010000000002` is a day and a binary64's tail.
+
+    An Epic `*_DATE_REAL` exported with seventeen significant figures
+    stopped `profile` with an internal fault once declared. Such a cell is
+    no count: it stands to the date role's own line, so a column of them
+    is read as it reads without the declaration and says so (NF115), and
+    a column of five among a thousand is read as dates with five cells it
+    could not read. Question Q3 does not offer the 1840 system for it.
+    """
+    shape = battery.BY_NAME["epic_real"]
+    cells, truth = battery.cells(shape, battery.ROWS, 0)
+    for place in range(noisy):
+        day = int(battery.count_of(shape.system, truth[place * 7]))
+        cells[place * 7] = f"{day + 0.01:.17g}"
+    assert sum(len(cell.split(".")[1]) > 9 for cell in cells if "." in cell) == noisy
+    trip = _trip(tmp_path, cells, shape.system)
+    if noisy > 10:
+        assert trip["block"]["role"] != "datetime"
+        assert any(contract.COUNTED_NOT_READ_MARK in remark for remark in trip["block"]["remarks"])
+        assert trip["twin_exit"] == 0
+        said = _q3(_block_of(tmp_path / "asked", cells))
+        assert said is None or "days-since-1840" not in [m for m, _f, _l in said.readings]
+    else:
+        # Read as dates beside five cells the date role could not read, which
+        # the source meets. (Its twin writes those five as text stand-ins, as
+        # every column of dates does with cells that are numbers, and so
+        # misses `n_numeric` -- method G10.4's, not this landing's.)
+        assert trip["block"]["role"] == "datetime" and trip["block"]["n_unparsed"] == noisy
+        assert trip["real_exit"] == 0
+
+
 # -- C6: NF51's place -----------------------------------------------------
 
 
@@ -754,23 +1243,35 @@ def test_c6_a_column_of_unix_seconds_carries_q3s_words_and_no_nf51(tmp_path: pat
     assert "run from" not in said or "runs from 2016 to 2025" in said
 
 
-def test_c6_the_years_are_the_published_edges_said_another_way(tmp_path: pathlib.Path) -> None:
-    """NF114 quotes the block's own edges: a description naming other years is refused."""
+def test_c6_the_years_are_the_published_rungs_said_another_way(tmp_path: pathlib.Path) -> None:
+    """NF114 quotes the block's own rungs; the loader refuses other years.
+
+    Twenty `0` cells among a thousand SAS days are the published low end.
+    Each system's years are those of the outermost published rung that is
+    a date of the column (`taxonomy.counted_edge_years`), and a description
+    naming other years -- a year off, or the first build's, read off the
+    heaped `0` as 1960 -- is refused (the review of landing R4, item 1).
+    """
     shape = battery.BY_NAME["sas_days"]
     cells, _truth = battery.cells(shape, battery.ROWS, 0)
-    block = _block_of(tmp_path, cells)
+    block = _block_of(tmp_path, battery.heaped(shape, cells, "zero", 0.02))
+    edges = taxonomy.published_ends(block)
+    assert edges is not None and edges[0] == 0.0
+    seen = 0
     for remark in block["remarks"]:
-        if remark.form == taxonomy.REMARK_READ_AS_COUNTED_DATES:
-            edges = taxonomy.published_ends(block)
-            assert edges is not None
-            assert remark.arguments[1:] == (
-                date_counts.years_of(remark.arguments[0], edges[0]),
-                date_counts.years_of(remark.arguments[0], edges[1]),
-            )
+        if remark.form != taxonomy.REMARK_READ_AS_COUNTED_DATES:
+            continue
+        member = remark.arguments[0]
+        years = taxonomy.counted_edge_years(block, member)
+        assert years is not None and remark.arguments[1:] == years
+        profile._counted_years_quote_the_published_edges(remark.arguments, block)
+        first_build = (date_counts.years_of(member, edges[0]), date_counts.years_of(member, edges[1]))
+        assert first_build != years
+        for wrong in ((member,) + first_build, (member, years[0] - 1, years[1])):
             with pytest.raises(Exception):
-                profile._counted_years_quote_the_published_edges(
-                    (remark.arguments[0], remark.arguments[1] - 1, remark.arguments[2]), block
-                )
+                profile._counted_years_quote_the_published_edges(wrong, block)
+        seen += 1
+    assert seen >= 2
 
 
 # -- C7: a workbook --------------------------------------------------------

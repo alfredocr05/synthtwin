@@ -213,6 +213,24 @@ def _counted_with_contacts(member: str) -> Change:
     return change
 
 
+def _contacts_counting(sum_off: int, below_line: int) -> Change:
+    """`recorded_on` carrying a census of contacts off one CD4 rule alone (landing R4, review item 5).
+
+    ``sum_off`` dates more than the column reads, every count at the line;
+    or ``below_line`` dates written `01`, under the line, the census
+    summing to every date the column reads.
+    """
+    def change(document: Document) -> None:
+        block = at(document, "recorded_on")
+        dates = int(block["n_present"]) - int(block["n_unparsed"])
+        if below_line:
+            census = {"(none)": dates - below_line, "01": below_line}
+        else:
+            census = {"(none)": dates - 11 + sum_off, "01": 11}
+        block.update(count_form=_count_form_of(contacts=census))
+    return change
+
+
 def a_form_one_row_wore(_column: str) -> Change:
     """Read a column of stamps jointly, one value of it a whole date (RM3).
 
@@ -1717,6 +1735,16 @@ def battery() -> list[Mutation]:
         Mutation(
             "CD4", "a census of contact numbers counting one date",
             edit("recorded_on", count_form=_count_form_of(contacts={"01": 1})),
+        ),
+        # ...AND EACH HALF OF CD4 ON ITS OWN (the review of landing R4,
+        # item 5: one case tripping both left either half unpinned).
+        Mutation(
+            "CD4", "a census of contact numbers counting more dates than the column reads",
+            _contacts_counting(sum_off=3, below_line=0),
+        ),
+        Mutation(
+            "CD4", "a census of contact numbers with a count under the line",
+            _contacts_counting(sum_off=0, below_line=5),
         ),
         Mutation(
             "CD5", "an exponent form written to no number of significant figures",
