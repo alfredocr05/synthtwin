@@ -1886,14 +1886,18 @@ def _shape_of(
                 "four, each read as a date; version numbers and codes are "
                 "written the same way"
             )
-        if mark == "?":
+        if mark == "?" or mark == "+":
             # ...AND A RUN SOME OF WHOSE CELLS END IN WHAT IS READ AS AN
-            # OFFSET (skeptic 2 of landing R2a, item 3): the suffix an
+            # OFFSET (skeptic 2 of landing R2a, item 3), OR EVERY ONE OF
+            # THEM (the Codex review of landing R2a, item 3): the suffix an
             # identifier carries is the reading the question puts to the
-            # person, so the sentence names it.
+            # person, so the sentence names it, and says of how many cells
+            # only what the layout says -- some, where it is one some cells
+            # omit, or each.
+            which = "some of them" if mark == "?" else "each of them"
             return (
                 f"the values that read as dates are written in figures, "
-                f"{remainder} characters wide, some of them followed by what "
+                f"{remainder} characters wide, {which} followed by what "
                 f"is read as an offset from UTC, each read as a date and "
                 f"time written without marks; identifiers that end in a "
                 f"suffix are written the same way"
@@ -2027,6 +2031,16 @@ def _layout_question(
     same. An offset the census names marks a column of stamps, and it is
     not asked.
 
+    AND A RUN EVERY CELL OF WHICH CARRIES ONE, NONE OF THEM NAMED (the
+    Codex review of landing R2a, item 3). The suffix needs no cell without
+    it: 1,000 accession numbers, a run of 14 figures with one of a hundred
+    suffixes `-0000` to `-0139` on ten cells each, read under `{+HHMM}`
+    with every offset in one pool, `{"(withheld)": 1000}`, and were asked
+    nothing, where the bare run is asked. So the rule is a census that
+    names no offset -- `(none)` alone, or the pool alone -- after an
+    offset field written straight after the run, some cells omitting it or
+    none; the sentence says which.
+
     Guarantees: a function of the three; opens nothing; no cell of the
     column appears in what it returns.
     """
@@ -2042,9 +2056,9 @@ def _layout_question(
             and parsing.layout_low_evidence(run) == ""
             and isinstance(offsets, dict)
             and len(offsets) == 1
-            and _NO_OFFSET in offsets
+            and (_NO_OFFSET in offsets or parsing.MISSING_WITHHELD in offsets)
         ):
-            mark = "?"
+            mark = "?" if parsing.layout_offset_optional(shown) else "+"
             shown = run
     if mark is None:
         return None

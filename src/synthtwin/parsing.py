@@ -9772,16 +9772,18 @@ def layout_low_evidence(name: str) -> "str | None":
 
 
 def layout_before_its_offset(name: str) -> str:
-    """The layout a cell that omits its offset is read under, or `''`.
+    """The layout of a cell's figures before an offset written straight after them, or `''`.
 
     `layout {YYYY}{MM}{DD}{HH}{MI}{SS}{+HHMM?}` gives
     `layout {YYYY}{MM}{DD}{HH}{MI}{SS}`: the cells that leave the offset
     out are that layout's own cells, so a question asked of the one is
-    asked of the other (skeptic 2 of landing R2a, item 3). `''` for a
-    layout whose last item is no offset some cells omit written straight
-    after a field, and for every name that is not a layout. Guarantees: a
-    function of the name. Raises TypeError for anything that is not text.
-    No I/O of any kind.
+    asked of the other (skeptic 2 of landing R2a, item 3). And so does
+    `{...}{SS}{+HHMM}`, whose every cell writes the offset (the Codex
+    review of landing R2a, item 3): a suffix every identifier carries is
+    the same suffix. `''` for a layout whose last item is no offset field
+    written straight after a field, and for every name that is not a
+    layout. Guarantees: a function of the name. Raises TypeError for
+    anything that is not text. No I/O of any kind.
     """
     if not isinstance(name, str):
         raise TypeError(_NOT_TEXT)
@@ -9789,7 +9791,12 @@ def layout_before_its_offset(name: str) -> str:
     if items is None:
         return ""
     size = len(items)
-    if size < 2 or _layout_tail(items) != size - 1:
+    if size < 2 or items[size - 2][0] != "f":
+        return ""
+    kind, last = items[size - 1]
+    if last[len(last) - 1 : len(last)] == "?":
+        last = last[0 : len(last) - 1]
+    if kind != "f" or last not in _LAYOUT_OFFSET_FIELDS:
         return ""
     text = ""
     for place in range(size - 1):

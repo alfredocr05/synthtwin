@@ -1543,3 +1543,50 @@ def test_codex_item2_a_sparse_layout_column_loads_as_it_was_written(
     assert code == 3
     missed = {line.split(" [")[0].strip() for line in report.splitlines() if line.rstrip().endswith(": MISSED")}
     assert missed == {"counts.n_numeric", "counts.n_not_numeric"}
+
+
+def _accessions() -> "list[str]":
+    """1,000 accession numbers: a run of 14 figures and one of a hundred suffixes.
+
+    The prefixes are consecutive seconds from `20240317140500`; the
+    suffixes `-0000` to `-0059` and `-0100` to `-0139`, ten cells each --
+    every one a valid offset, none on enough cells to be named.
+    """
+    start = datetime.datetime(2024, 3, 17, 14, 5, 0)
+    suffixes = [f"-00{minute:02d}" for minute in range(60)] + [f"-01{minute:02d}" for minute in range(40)]
+    return [
+        (start + datetime.timedelta(seconds=place)).strftime("%Y%m%d%H%M%S") + suffixes[place // 10]
+        for place in range(1000)
+    ]
+
+
+def test_codex_item3_a_run_every_cell_of_which_ends_in_a_suffix_is_asked(
+    tmp_path: pathlib.Path,
+) -> None:
+    """Item 3: identifiers whose every cell ends in a suffix read as an offset are asked.
+
+    The thousand accession numbers read under `{+HHMM}`, every offset in
+    one pool, and were asked nothing, where their bare prefixes are asked
+    keep, code or identifier: a suffix on every cell changed identifiers
+    into dates without a question. They are asked now, at the run's own
+    width, the sentence saying each value carries the suffix, Enter
+    keeping the dates; declared identifiers, they are described as such.
+    Mutants, run: the rule held to an offset some cells omit, as before,
+    and the column is asked nothing; the sentence saying "some of them" of
+    a suffix every cell carries.
+    """
+    cells = _accessions()
+    block, _profile, questions = _described(tmp_path / "suffixed", cells)
+    assert block["format"] == "layout {YYYY}{MM}{DD}{HH}{MI}{SS}{+HHMM}"
+    assert block["utc_offsets"] == {"(withheld)": 1000}
+    asked = [entry for entry in questions["asked"] if entry["read_as_now"] == asking.ANSWER_KEEP]
+    assert len(asked) == 1
+    seen = asked[0]["what_synthtwin_saw"]
+    assert "14 characters wide, each of them followed by what is read as an offset" in seen
+    assert {"keep", "code", "identifier"} <= {
+        choice["answer"] for choice in asked[0]["answers_you_can_give"]
+    }
+    block, profile, questions = _described(tmp_path / "declared", cells, "--identifier", "seen_at")
+    assert block["role"] == taxonomy.ROLE_IDENTIFIER
+    twin, _written = _twin(profile, 0)
+    assert _validated(profile, twin)[0] == 0
