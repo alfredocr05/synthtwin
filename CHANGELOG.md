@@ -78,6 +78,22 @@ loader refused, and `synthtwin generate` stopped and said the file had
 been changed; such a tail lists its values in the order of the day now,
 and every other description keeps every byte.
 
+**Its second verification** found a time declared missing written back
+as present cells: beside `00:00` or `12:00` written for an unknown time
+and declared with `--missing-value`, 16 of 150 clock columns on a five-
+to sixty-minute grid failed their own check at every seed, and 14 of 100
+at the minute. A run of the body whose only step was the absence took a
+share of its group's cells (285 `12:00` against 279), and a tail's draw
+could land on it (21 `00:00` against 20, at its outer end) -- in another
+column too, where one column wrote the absence and the other's tail
+reached midnight. The times any column's absent spellings name now hold
+no cell of a run, a tail is drawn past them, the checker draws its
+windows the same way, and the loader refuses a hand-edited group or
+drawn tail left with no step to stand on. None of those columns misses
+now, every real table still passes, and a twin with no absence inside a
+run or on a tail's reach keeps every byte; vectors file 21 freezes
+sixteen cases.
+
 ### The weekday guards dropped (2026-10-02)
 
 **The weekday census is published wherever its twin can meet it** (plan
