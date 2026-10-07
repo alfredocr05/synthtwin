@@ -1589,3 +1589,71 @@ def test_a_unit_left_takes_its_maps_with_it(pairs: int, monkeypatch: pytest.Monk
     assert moved == as_built
     assert upkeeps[0] >= 150 * pairs // 100 - 1, upkeeps
     assert not faults, faults[:3]
+
+
+class _CountedHeld(dict):  # type: ignore[type-arg]
+    """A map of the ranks held per unit that counts the units asked about, which a search asks first of each unit it visits."""
+
+    asked = 0
+
+    def __contains__(self, key: object) -> bool:
+        _CountedHeld.asked += 1
+        return dict.__contains__(self, key)
+
+
+def test_a_search_jumps_the_units_a_merge_left() -> None:
+    """A search given the book's jumps visits no unit a merge left: four visits, where over 990 without them.
+
+    The midnight of each of a thousand days is filed, and those of days
+    1 to 498 and 502 to 998 are marked as left, as
+    `generation._book_settled` marks the unit a merge left in each file
+    of units; a moment at one o'clock on day 500 asks for the nearest
+    held midnight other than those of days 499, 500 and 501, which
+    earlier offers tried. Given the jumps, the search visits those three
+    and then the midnight of day 999, jumping both ways from where it
+    steps; without them it steps past every unit left between, which no
+    rank holds, and finds the same unit. From day 700, where both cursors
+    start on a unit left, it jumps before its first visit and makes the
+    same four. And `generation._jumped` points every place a walk went
+    through at where it ended, so no walk goes through them one by one
+    again.
+    """
+    spot = {DAY * day: DAY * day for day in range(1000)}
+    order = generation._held_order(_FACTS, spot, DAY, 1, False)
+    assert len(order[(2, 1)]) == 1000
+    jumps: "dict[tuple[int, int], tuple[dict[int, int], dict[int, int]]]" = {
+        selector: ({}, {}) for selector in order
+    }
+    upward, downward = jumps[(2, 1)]
+    for place in list(range(1, 499)) + list(range(502, 999)):
+        upward[place] = place + 1
+        downward[place] = place - 1
+    origin = DAY * 500 + 3600
+    held = _CountedHeld({0: 1, DAY * 499: 1, DAY * 500: 1, DAY * 501: 1, DAY * 999: 1, origin: 1})
+    tried = (DAY * 499, DAY * 500, DAY * 501)
+    answers = []
+    visits = []
+    for given in (jumps, None):
+        _CountedHeld.asked = 0
+        answers += [
+            generation._nearest_held_unit(
+                _FACTS, origin, 0, DAY * 999, DAY, 1, 1, held, spot, order,
+                False, "", False, -1, True, tried, frozenset(), given,
+            )
+        ]
+        visits += [_CountedHeld.asked]
+    assert answers == [DAY * 999, DAY * 999], answers
+    assert visits[0] == 4 and visits[1] >= 990, visits
+    # From one o'clock on day 700 both cursors start on a unit left, and
+    # jump before the first visit: the same four visits, nearest first.
+    _CountedHeld.asked = 0
+    found = generation._nearest_held_unit(
+        _FACTS, DAY * 700 + 3600, 0, DAY * 999, DAY, 1, 1, held, spot, order,
+        False, "", False, -1, True, tried, frozenset(), jumps,
+    )
+    assert (found, _CountedHeld.asked) == (DAY * 999, 4), (found, _CountedHeld.asked)
+    # Every place the walks went through now points at where they ended.
+    assert all(upward[place] == 999 for place in range(502, 999)), "the upward walk was not cut short"
+    assert all(downward[place] == 0 for place in range(1, 499)), "the downward walk was not cut short"
+    assert generation._jumped(upward, 1) == 499
+    assert all(upward[place] == 499 for place in range(1, 499))
