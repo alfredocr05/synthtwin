@@ -7886,6 +7886,19 @@ leading segment answer plausibly and wrongly.
   cells in the code's form. A form none of whose spellings is usable
   still costs 4,096 steps, and a walk whose first 4,096 steps held what
   it needed writes what it wrote before.
+- **A supply is counted only as far as an arrangement can spend it**
+  (the review of plan P4-D390, item 1): to the number of held-back
+  labels, or to the cells the form owes where those are fewer. Every
+  label covers a row at least and no arrangement gives a form a label
+  once it owes nothing, so a supply counted further moves nothing, and
+  the one-pass arrangement counts its own where the search is not
+  entered. G8.3a's rooms are counted to each form's debt the same way,
+  and G8.3b's traded form to the cells it is paid on the labels a trade
+  may move, which no trade changes. Counted to the number of labels, a
+  supply walked every held-back label once for every form owing a cell:
+  a register of seven-character codes in 126 forms holding 24,610 back
+  over 200,000 rows at a floor of eleven took 131.1 s of processor time
+  to generate, and takes 11.4 s, the twin byte for byte the same.
 - **The four neutrality properties are ASKED rather than had.** A
   spelling built to look like a code no longer has them by
   construction, so each candidate is tested against all four and
