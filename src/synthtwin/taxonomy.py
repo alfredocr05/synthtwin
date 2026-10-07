@@ -16263,18 +16263,22 @@ def weekday_decision(
         return withheld(calendar_rules.REASON_MENU)
     if calendar_rules.few_dates(groups, list(body)):
         return withheld(calendar_rules.REASON_FEW_DATES, entry)
-    # THE COUNT'S ROOM (plan P4-D388), asked at every floor since its Codex
-    # review (item 1): the most different days the twin's two tails can
-    # hold -- a listed tail's values, or for one publishing its two
-    # distances up to the floor's number and what its spread allows --
-    # and the body's pins, its two boundaries and the rungs published
-    # between them.
-    listed: "list[int | None]" = []
+    # THE COUNT'S ROOM (plan P4-D388), either way (its Codex review, items
+    # 1 and 2), asked at every floor: the body's pins, its two boundaries
+    # and the rungs published between them, and the fewest and the most
+    # different days the twin's two tails keep once its count pass has
+    # run, at all but a tenth of seeds (`calendar_rules.tails_kept`, the
+    # orchestrator's ruling of 2026-10-07: a census its twins meet at nine
+    # seeds in ten stands) -- rebuilt as the generator rebuilds them
+    # (method G7.3b) from their published facts, the member's own edges --
+    # a workbook's date system is not asked, so a low tail rebuilt back to
+    # 1900 is read as the member's -- and the days the column's published
+    # absent spellings name, which the generator steps a tail's end and
+    # group off.
     published: "list[tuple[int | None, float | None, float | None]]" = []
     for tail in (low_tail, high_tail):
         values = tail["values"] if "values" in tail else None
         count = len(values) if isinstance(values, list) else None
-        listed += [count]
         pair: "list[float | None]" = []
         for key in ("mean_distance", "rms_distance"):
             figure = tail[key] if key in tail else None
@@ -16291,26 +16295,6 @@ def weekday_decision(
             if label in rungs and rungs[label] is not None:
                 percents += [(100 * num) // den]
     pins = calendar_rules.body_pins(days, rows_low, rows_high, percents)
-    if calendar_rules.count_room_short(
-        groups,
-        pins,
-        len(set(days)),
-        calendar_rules.tails_most(
-            days,
-            rows_low,
-            rows_high,
-            (listed[0], listed[1]),
-            settings.small_cell_floor,
-        ),
-    ):
-        return withheld(calendar_rules.REASON_COUNT_ROOM, entry)
-    # AND ITS OTHER DIRECTION (the Codex review of P4-D388, item 2): the
-    # fewest and the most different days the twin's two tails can hold,
-    # rebuilt as the generator rebuilds them (method G7.3b) from their
-    # published facts, the member's own edges -- a workbook's date system
-    # is not asked, so a low tail rebuilt back to 1900 is read as the
-    # member's -- and the days the column's published absent spellings
-    # name, which the generator steps a tail's end and group off.
     unread = details["n_unparsed"] if "n_unparsed" in details else 0
     absent: "set[int]" = set()
     named = details["missing_by_source"] if "missing_by_source" in details else None
@@ -16331,11 +16315,15 @@ def weekday_decision(
         isinstance(unread, int) and n_distinct - unread >= parsed,
         frozenset(absent),
     )
+    distinct = len(set(days))
+    fewest, most = calendar_rules.tails_kept(*rebuilt, pins, frozenset(holes))
+    if calendar_rules.count_room_short(groups, pins, distinct, most):
+        return withheld(calendar_rules.REASON_COUNT_ROOM, entry)
     if calendar_rules.count_reach_short(
         groups,
         pins,
-        len(set(days)),
-        calendar_rules.tails_fewest(*rebuilt),
+        distinct,
+        fewest,
         calendar_rules.tails_most_rebuilt(*rebuilt),
         frozenset(holes),
     ):
