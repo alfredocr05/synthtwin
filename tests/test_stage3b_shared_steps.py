@@ -102,17 +102,29 @@ The cases and their clauses:
   step 8.3's cycles kept and its limit stated on the review's ten groups
   of days of the month;
 * `test_a_trade_keeps_a_way_back_once_the_count_is_put_back` -- a strict
-  xfail owned by landing D3, the first to keep a second census: on the
-  second-census state the verification of the Codex review's item 1
-  noted, a cycle of step 8.3 and a merge of step 8.4 leave step 8.6 no
-  way back, and the census is missed where 9cb2eb5 met it (P4-D366's
-  stated limit); and
+  xfail owned by landing D3, the first to keep a second census, until
+  landing 3b.D2 (plan P4-D367): on the second-census state the
+  verification of the Codex review's item 1 noted, a cycle of step 8.3
+  and a merge of step 8.4 left step 8.6 no way back, and the census was
+  missed where 9cb2eb5 met it (P4-D366's stated limit); step 7c's shift
+  now meets that state first, and the limit stands with the shift
+  withdrawn;
   `test_a_chain_reaches_a_group_through_the_rank_beside_its_mover`, a
-  strict xfail owned by D3 the same way: on a second-census state of
+  strict xfail owned by D3: on a second-census state of
   that item's repair's own battery, step 7b's link, asked of each
   cell's mover alone, finds no chain where the rank beside the mover
   has the place, and the census is missed where 9cb2eb5's chain, moved
-  half way, was finished by step 8.6;
+  half way, was finished by step 8.6; and
+  `test_a_chain_spends_a_value_only_where_the_census_is_then_met`, a
+  strict xfail owned by landing D2, the first to publish a weekday
+  census of moments, until that landing (3b.D2, plan P4-D367): on a day
+  of moments the second verification of that item found, where no
+  placement keeping every clock meets both facts, step 7b's chain, made
+  whole through the mover its link was asked of, halves the census's
+  miss and keeps 12 different minutes where 9cb2eb5 kept the 13 asked
+  (P4-D366's third stated limit); step 7c's escape now meets the census
+  at another clock on a gap's first day and step 8.7 puts the minute
+  back, and the limit stands with the two withdrawn;
 * `test_the_body_is_full_only_where_every_unit_the_census_counts_holds_a_rank`
   -- the test the short cause asks (the review's M65), and
   `test_the_body_counts_a_unit_a_move_empties` -- the review's M09 and
@@ -1750,3 +1762,56 @@ def test_a_chain_reaches_a_group_through_the_rank_beside_its_mover() -> None:
     case = _a_chain_asked_of_its_mover_alone()
     moved = _answer(case)
     assert _holding(case, moved, range(len(moved))) == case["counts"]
+
+
+def _a_chain_made_whole_on_a_held_minute() -> dict:
+    """The state the second verification of the Codex review's item 1 found among 140,000 random
+    states (its 11902): a day of moments, minutes written, no second census, the groups Monday,
+    Tuesday, Wednesday to Friday, Saturday and Sunday, and Tuesday 23 to Thursday 25 April 2024
+    holes. A gap from Friday 19 April 04:36 to Thursday 25 April 12:30 holds Friday 04:36 three
+    times, 09:52, 12:30 twice and 13:33:04 three times, Saturday 02:08 twice and 12:30, Sunday
+    09:52 twice, Monday 02:08 and 13:33:04 twice, Tuesday 13:33:04 twice, Wednesday 02:08 twice
+    and 13:33:04, and Thursday 02:08 three times; Friday 04:36 once more, Thursday 12:30 and
+    Thursday 13:33:04 are pinned, and Thursday 12:30 and 13:33:04 stand once more in a gap of that
+    Thursday alone. The census asks 3, 0, 20, 5 and 2, and 13 different minutes are asked."""
+    day = (datetime.date(2024, 4, 19) - datetime.date(1970, 1, 1)).days
+    clocks = [(0, 4, 36, 0)] * 4 + [(0, 9, 52, 0)] + [(0, 12, 30, 0)] * 2 + [(0, 13, 33, 4)] * 3
+    clocks += [(1, 2, 8, 0)] * 2 + [(1, 12, 30, 0)] + [(2, 9, 52, 0)] * 2 + [(3, 2, 8, 0)]
+    clocks += [(3, 13, 33, 4)] * 2 + [(4, 13, 33, 4)] * 2 + [(5, 2, 8, 0)] * 2 + [(5, 13, 33, 4)]
+    clocks += [(6, 2, 8, 0)] * 3 + [(6, 12, 30, 0)] * 2 + [(6, 13, 33, 4)] * 2
+    ordinals = [(day + days) * DAY + hours * HOUR + minutes * 60 + seconds for days, hours, minutes, seconds in clocks]
+    return {
+        "ordinals": ordinals, "lows": [ordinals[0]] * 26 + [ordinals[26]] * 3 + [ordinals[29]],
+        "highs": [ordinals[0]] + [ordinals[26]] * 26 + [ordinals[29]] * 3,
+        "pinned": [rank in (0, 26, 29) for rank in range(30)], "counts": [3, 0, 20, 5, 2],
+        "where": [0, 1, 2, 2, 2, 3, 4], "unit": DAY, "written_unit": 60, "day": DAY,
+        "bin": "weekday", "period": 7, "keep": "", "pair": "", "pair_where": [],
+        "holes": [day + 4, day + 5, day + 6], "reachable": True, "body": [0, 29], "wanted": 13,
+        "step": "settled",
+    }
+
+
+def test_a_chain_spends_a_value_only_where_the_census_is_then_met(monkeypatch: pytest.MonkeyPatch) -> None:
+    """A strict xfail of P4-D366's third limit, owned by landing D2, until landing 3b.D2 (plan
+    P4-D367): both facts are met now. Steps 1 to 7 leave Monday two over and Wednesday to Friday
+    two under, and no Monday rank has a place from Wednesday to Friday keeping its clock: each
+    stands at 02:08, before the gap opens on Friday 19 April at 04:36, and Wednesday and Thursday
+    are holes. Step 7b's chain moves Monday 22 April 02:08 to Sunday and, its link asked of the
+    lone Sunday 21 April 13:33:04, that moment onto Friday 19 April 13:33:04, which six ranks hold:
+    one rank each way short, 12 different minutes. Step 7c's escape then takes the other Monday
+    22 April 02:08 to its gap's first day at the place nearest its own, Friday 19 April 04:36, the
+    pinned minute, and the census is met; step 8.7 puts the minute the chain spent back on that
+    moment's own day, at 04:37, and the 13 minutes asked are kept -- the move this limit named as
+    the one meeting both. With step 7c's escape withdrawn the census is missed again, and with
+    step 8.7 withdrawn too the limit stands as P4-D366 states it: one rank each way, 12 minutes."""
+    case = _a_chain_made_whole_on_a_held_minute()
+    moved = _answer(case)
+    assert _holding(case, moved, range(len(moved))) == case["counts"]
+    assert len({ordinal // case["written_unit"] for ordinal in moved}) == case["wanted"]
+    monkeypatch.setattr(generation, "_weekday_escaped", _withdrawn)
+    moved = _answer(case)
+    assert _holding(case, moved, range(len(moved))) == [4, 0, 19, 5, 2]
+    monkeypatch.setattr(generation, "_weekday_day_spread", _withdrawn)
+    moved = _answer(case)
+    assert _holding(case, moved, range(len(moved))) == [4, 0, 19, 5, 2]
+    assert len({ordinal // case["written_unit"] for ordinal in moved}) == case["wanted"] - 1

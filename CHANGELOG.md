@@ -182,7 +182,13 @@ is left half made: on 100,000 random states 13 more meet their census
 and none fewer. No date moves. Where a second census is kept, a chain
 asked of each cell's leader alone can still miss a group the value
 beside the leader reaches, on one state of those 100,000; the landing
-that first publishes such a census decides on it with the other. The
+that first publishes such a census decides on it with the other. A
+census met or nearer can cost a value: of 140,000 random states, seven
+now meet a census they missed with one value more or fewer, and on one
+day of moments, whose census and count no placement keeping every clock
+meets together, a chain made whole halves the census's miss and keeps
+12 different minutes where 13 were asked and kept; the landing that
+first publishes a weekday census of moments decides on it. The
 fifteenth vectors file holds 51 states.
 
 ### Stage 4's first tier repaired at its review (2026-10-02)
