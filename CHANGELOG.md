@@ -20,7 +20,9 @@ wherever it would name fewer than the census line, and the twin puts its
 cells on those hours, every rank inside its gap and keeping its weekday
 -- or, where a weekday census stands, its weekday's group -- and keeps
 the column's count of different values (method G7.3g); validation
-counts the file's body against the published groups (V5-H1). On the
+counts the file's body against the published groups (V5-H1). The pass
+is the one clock pass for every field of the written clock, so the
+minutes and seconds still to come are instances of it. On the
 lane's battery of 25 columns at floors 11 and 36, seeds 0 to 4, all 250
 twins validate with nothing missed (and so do the design skeptic's
 sixteen other shapes, OR starts at 07:30 on weekdays alone among them
