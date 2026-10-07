@@ -284,8 +284,8 @@ def test_a_column_holding_A_FEW_epoch_shaped_values_hears_nothing() -> None:
     """Two epoch-shaped values among ordinary counts ask nothing.
 
     The rest beside the set-aside numbers must lie in the band but for
-    one cell in a thousand (one at least), so two strays among two
-    hundred ordinary counts are far from enough -- and the published
+    one cell in a hundred (one at least), so two epoch-shaped values among
+    two hundred ordinary counts are far from enough -- and the published
     median, asked before anything is sorted, already says so.
     """
     values = _epoch_seconds(count=2) + fixtures.numbers(

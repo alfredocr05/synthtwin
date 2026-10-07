@@ -1047,9 +1047,10 @@ def reading_units(member: str, form: CountForm, tally: Tally) -> "tuple[int, ...
         return (finest,)
     coarsest = settled_unit(member, max(0, FAITHFUL_FIGURES - tally.whole))
     units: "list[int]" = []
-    for unit in SETTLED_UNITS:
+    for unit in WRITTEN_UNITS:
+        # `WRITTEN_UNITS` are `SETTLED_UNITS`, coarsest first.
         if finest <= unit <= coarsest:
-            units = [unit] + units
+            units += [unit]
     return tuple(units)
 
 
