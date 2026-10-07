@@ -1116,6 +1116,32 @@ STEP_MUTANTS = {
         "    if found != counts:\n        _clock_left_their_groups(\n            state, counts, found, body_low, body_high, pinned, standing, False, kin\n        )\n    if found != counts:\n        _clock_relieved(",
         "    if found != counts and False:\n        _clock_left_their_groups(\n            state, counts, found, body_low, body_high, pinned, standing, False, kin\n        )\n    if found != counts and False:\n        _clock_relieved(",
     ),
+    # THE STEP DETAILS no other state turned red (the lane's skeptic, finding 3 (h)).
+    "PUT BACK merges onto a written midnight": (
+        "hour_put_back_off_midnight",
+        "            if _written_at_midnight(target, 0, state.step):\n                continue\n            found = (abs(target - ordinal), target)",
+        "            found = (abs(target - ordinal), target)",
+    ),
+    "PUT BACK's short count moves any rank": (
+        "hour_put_back_short_shared",
+        "            if pinned[rank] or _weekday_there(state, ordinal) < 2:\n                continue\n            start = ordinal - ordinal % state.unit",
+        "            if pinned[rank]:\n                continue\n            start = ordinal - ordinal % state.unit",
+    ),
+    "the half day's tail ranks leave their strata": (
+        "hour_half_day_tails_stratum",
+        "        for target in (before, after):\n            if low <= target <= high:\n                found += [(abs(target - place), target)]",
+        "        for target in (before, after):\n            if True:\n                found += [(abs(target - place), target)]",
+    ),
+    "RELIEF never gives a unit back": (
+        "hour_relief_given_back",
+        "            if target is None:\n                for rank in relief:\n                    _weekday_step(state, rank, start)\n                have[middle] = have[middle] + size\n                have[into] = have[into] - size\n                continue",
+        "            if target is None:\n                continue",
+    ),
+    "a free place may stand on a hole": (
+        "hour_off_a_hole",
+        "        low <= target <= high\n        and not _weekday_hole(state, target)\n        and not _weekday_holds(state, target)",
+        "        low <= target <= high\n        and not _weekday_holds(state, target)",
+    ),
     # THE ONE CLOCK PASS, field-generic (the 3b.4 skeptic's M4): its own
     # tier of the escape and of PUT BACK where the parent is shorter than a
     # day, frozen on a field of minutes whose parent is the hour.
@@ -1158,8 +1184,10 @@ DISTANCE_MUTANTS = {
 CASES = [
     "clock_minute_kin_escape", "clock_minute_kin_kept", "clock_minute_put_back_kin",
     "half_day_apart", "half_day_high", "half_day_low", "hour_escape_any_day", "hour_escape_weekday",
-    "hour_half_day_tails", "hour_off_midnight", "hour_proportional", "hour_put_back",
-    "hour_put_back_any_day", "hour_put_back_short", "hour_relief", "hour_same_day_clock", "hour_split", "hour_whole_pass",
+    "hour_half_day_tails", "hour_half_day_tails_stratum", "hour_off_a_hole", "hour_off_midnight",
+    "hour_proportional", "hour_put_back", "hour_put_back_any_day", "hour_put_back_off_midnight",
+    "hour_put_back_short", "hour_put_back_short_shared", "hour_relief", "hour_relief_given_back",
+    "hour_same_day_clock", "hour_split", "hour_whole_pass",
 ]
 
 
@@ -1264,6 +1292,67 @@ def test_red_without_the_half_days_own_census(tmp_path: pathlib.Path, monkeypatc
     )
     found = _twelve_hour_run(tmp_path, cells, (0, 1), mutant.generate)
     assert any(missed for missed in found), found
+
+
+def test_a_tie_group_gives_way_on_the_half_day_alone(tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """G7.3b step 9 offers a 12-hour stamp's tie group no unit off the half day (finding 3 (h)).
+
+    A year of stamps whose high tail ends in two visits booked on one slot, 11:58 the day
+    before the last, so it runs a row past the floor and holds a tie group, which the twin
+    stands at 11:59. With every unit beside the group held but the one past it at 12:00 and the
+    count one short, step 9 takes the next free unit on the half day, 11:57; a unit at 12:00
+    would be written on the dial at 00:00. Mutant: step 9 offering units off the half day.
+    """
+    cells = _twelve_hour_stamps(1000, 40001, _YEAR[:-3])
+    last, before_last = _YEAR[-1], _YEAR[-2]
+    for slot in range(10):
+        moment = _at(last, 1 + slot, 5 * slot)
+        cells += [f"{moment.month}/{moment.day}/{moment.year} {moment.hour % 12 or 12}:{moment.minute:02d}"]
+    cells += [f"{before_last.month}/{before_last.day}/{before_last.year} 11:58"] * 2
+    table = fixtures.write(tmp_path, "real.csv", "seen_at\n" + "\n".join(cells) + "\n")
+    settings = taxonomy.Settings(small_cell_floor=LINE, forced_twelve_hour_clocks=("seen_at",))
+    document = profile.build_document(reading.read_table(str(table), small_cell_floor=LINE), settings, [], [], [])
+    loaded = contract.load_profile(str(fixtures.write_profile(tmp_path, "real-profile.json", document)))
+    asked: "list[tuple[tuple[object, ...], dict[str, object]]]" = []
+    gives_way = generation._group_gives_way
+
+    def recorded(*arguments: object, **named: object) -> None:
+        nonlocal asked
+        asked += [(arguments, named)]
+        gives_way(*arguments, **named)
+
+    monkeypatch.setattr(generation, "_group_gives_way", recorded)
+    generation.generate(loaded, 0)
+    monkeypatch.undo()
+    (arguments, named), = asked
+    column, facts, layout, moved, day, step, unit, _wanted, widths, word = arguments[:10]
+    plan = layout.high
+    assert plan is not None and plan.shape is not None and plan.shape.grouped < plan.rows
+    group = plan.shape.group
+    near = 1
+    while calendar_clock.morning(generation._tail_place(plan, group + near), unit):
+        near = near + 1
+    held = [generation._tail_place(plan, group - away) for away in range(1, near + 1)]
+    held += [generation._tail_place(plan, group + away) for away in range(1, near)]
+    stood = list(moved)
+    for place in range(len(held)):
+        stood[plan.rows + 5 + place] = held[place]
+    found = {}
+    for name, module in (
+        ("product", generation),
+        ("mutant", _mutant(
+            monkeypatch,
+            "                if shape.half_day is not None and not calendar_clock.morning(\n"
+            "                    spot, shape.half_day[1]\n                ):\n                    continue",
+            "                if False:\n                    continue",
+        )),
+    ):
+        ranks = list(stood)
+        count = len({value // unit for value in ranks})
+        module._group_gives_way(column, facts, layout, ranks, day, step, unit, count + 1, widths, word, *arguments[10:], **named)
+        found[name] = [ranks[rank] for rank in range(len(ranks)) if ranks[rank] != stood[rank]]
+    assert len(found["product"]) == 1 and calendar_clock.morning(found["product"][0], unit), found
+    assert len(found["mutant"]) == 1 and not calendar_clock.morning(found["mutant"][0], unit), found
 
 
 def _twelve_hour_clinic(rows: int, seed: int) -> "list[str]":

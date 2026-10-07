@@ -780,6 +780,183 @@
       "why": "Step 5, the dial's half day: a low tail rank at 15:30 takes 11:59 the same day, nearer than 00:01 the next; a high tail rank at 23:40 whose stratum opens at 20:00 takes 00:01 the next day; and one written at midnight takes 00:01.",
       "written_unit": 60
     },
+    "hour_half_day_tails_stratum": {
+      "answer": [
+        1709164860,
+        1709424060,
+        1709542800,
+        1709974800
+      ],
+      "before": [
+        true,
+        false,
+        false,
+        false
+      ],
+      "body": [
+        2,
+        2
+      ],
+      "counts": [
+        1
+      ],
+      "half_day": true,
+      "highs": [
+        1709186400,
+        1709434800,
+        1709542800,
+        1709978400
+      ],
+      "holes": [],
+      "lows": [
+        1709096400,
+        1709382600,
+        1709542800,
+        1709971200
+      ],
+      "ordinals": [
+        1709164800,
+        1709384400,
+        1709542800,
+        1709974800
+      ],
+      "pinned": [
+        false,
+        false,
+        true,
+        false
+      ],
+      "reachable": true,
+      "standing": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "step": "tails",
+      "wanted": 4,
+      "where": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "why": "Step 5 inside the stratum: a low tail rank at 13:00 is nearer 11:59 than 00:01 the next day, but its stratum opens at 12:30, so it takes 00:01; a rank written at midnight takes 00:01 as before.",
+      "written_unit": 60
+    },
+    "hour_off_a_hole": {
+      "answer": [
+        1708941600,
+        1709453700,
+        1709542800,
+        1710151200
+      ],
+      "before": [
+        false,
+        false,
+        false,
+        false
+      ],
+      "body": [
+        1,
+        2
+      ],
+      "counts": [
+        0,
+        2
+      ],
+      "half_day": false,
+      "highs": [
+        1708941600,
+        1710151200,
+        1710151200,
+        1710151200
+      ],
+      "holes": [
+        19786
+      ],
+      "lows": [
+        1708941600,
+        1708941600,
+        1708941600,
+        1710151200
+      ],
+      "ordinals": [
+        1708941600,
+        1709522100,
+        1709542800,
+        1710151200
+      ],
+      "pinned": [
+        true,
+        false,
+        false,
+        true
+      ],
+      "reachable": true,
+      "standing": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "step": "left",
+      "wanted": 4,
+      "where": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1
+      ],
+      "why": "SAMEPARENT asks no place of a hole (step 3): a rank at 03:15 on a day the description holds empty, hours 0 to 7 counted empty. Its own day has places in hour 8, but none is free, as no rank may land on a hole, so it escapes to the day before, at 08:15.",
+      "written_unit": 60
+    },
     "hour_off_midnight": {
       "answer": [
         1709503200,
@@ -1189,6 +1366,107 @@
       "why": "PUT BACK's last resort (step 6), the count one long and no weekday census standing: Monday's 09:05 is alone on its minute and no Monday of its gap holds another of its hour group, so it joins the nearest such unit on a day of another weekday, Sunday's 09:40.",
       "written_unit": 60
     },
+    "hour_put_back_off_midnight": {
+      "answer": [
+        1709496000,
+        1709510400,
+        1709519400,
+        1709519400,
+        1709519400,
+        1709668800
+      ],
+      "before": [
+        false,
+        true,
+        false,
+        false,
+        false,
+        false
+      ],
+      "body": [
+        0,
+        5
+      ],
+      "counts": [
+        4,
+        1,
+        1
+      ],
+      "half_day": false,
+      "highs": [
+        1709496000,
+        1709510400,
+        1709668800,
+        1709668800,
+        1709668800,
+        1709668800
+      ],
+      "holes": [],
+      "lows": [
+        1709496000,
+        1709510400,
+        1709510400,
+        1709510400,
+        1709510400,
+        1709668800
+      ],
+      "ordinals": [
+        1709496000,
+        1709510400,
+        1709513400,
+        1709519400,
+        1709519400,
+        1709668800
+      ],
+      "pinned": [
+        true,
+        true,
+        false,
+        false,
+        false,
+        true
+      ],
+      "reachable": true,
+      "standing": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "step": "put_back",
+      "wanted": 4,
+      "where": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        1,
+        1,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2
+      ],
+      "why": "PUT BACK (step 6), the count one long, never onto a written midnight: 00:50 is alone on its minute, and of the units of its hour group on its own day 00:00 is nearer than 02:30, but a merge there would write one more cell at midnight, so it joins 02:30.",
+      "written_unit": 60
+    },
     "hour_put_back_short": {
       "answer": [
         1709532000,
@@ -1282,6 +1560,101 @@
         2
       ],
       "why": "PUT BACK (step 6), the count one short: the first rank sharing 10:20 takes the free minute of its own hour nearest it, 10:19.",
+      "written_unit": 60
+    },
+    "hour_put_back_short_shared": {
+      "answer": [
+        1709532000,
+        1709544000,
+        1709547540,
+        1709547600,
+        1709668800
+      ],
+      "before": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "body": [
+        0,
+        4
+      ],
+      "counts": [
+        1,
+        3,
+        1
+      ],
+      "half_day": false,
+      "highs": [
+        1709532000,
+        1709668800,
+        1709668800,
+        1709668800,
+        1709668800
+      ],
+      "holes": [],
+      "lows": [
+        1709532000,
+        1709532000,
+        1709532000,
+        1709532000,
+        1709668800
+      ],
+      "ordinals": [
+        1709532000,
+        1709544000,
+        1709547600,
+        1709547600,
+        1709668800
+      ],
+      "pinned": [
+        true,
+        false,
+        false,
+        false,
+        true
+      ],
+      "reachable": true,
+      "standing": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "step": "put_back",
+      "wanted": 5,
+      "where": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        1,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2
+      ],
+      "why": "PUT BACK (step 6), the count one short: 09:20 comes first in rank order but holds its minute alone, and moving it gains nothing, so the first rank SHARING its minute moves, 10:20 to 10:19.",
       "written_unit": 60
     },
     "hour_relief": {
@@ -1383,6 +1756,107 @@
         2
       ],
       "why": "RELIEF (step 3): a rank at 03:40 before a rung at 07:30 on the last day of its gap, hours 0 to 6 counted empty and hour 7 full. It takes 07:29 once a unit of hour 7 of as many ranks has left: the pair at 07:05 is two, so the rank at 07:15 goes, to 08:15 on its own day.",
+      "written_unit": 60
+    },
+    "hour_relief_given_back": {
+      "answer": [
+        1709190000,
+        1709276700,
+        1709363400,
+        1709450100,
+        1709523600,
+        1709537400
+      ],
+      "before": [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "body": [
+        1,
+        4
+      ],
+      "counts": [
+        0,
+        2,
+        2
+      ],
+      "half_day": false,
+      "highs": [
+        1709190000,
+        1709537400,
+        1709537400,
+        1709537400,
+        1709537400,
+        1709537400
+      ],
+      "holes": [],
+      "lows": [
+        1709190000,
+        1709190000,
+        1709190000,
+        1709190000,
+        1709190000,
+        1709537400
+      ],
+      "ordinals": [
+        1709190000,
+        1709276700,
+        1709363400,
+        1709450100,
+        1709523600,
+        1709537400
+      ],
+      "pinned": [
+        true,
+        false,
+        false,
+        false,
+        false,
+        true
+      ],
+      "reachable": true,
+      "standing": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "step": "relief",
+      "wanted": 6,
+      "where": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2
+      ],
+      "why": "RELIEF gives back (step 3): a rank at 03:40 before a rung at 07:30 on the last day of its gap, hours 0 to 6 counted empty, and hour 7 OVER its count by one. A unit of hour 7 leaving it still leaves no room there, so each relief unit goes back where it stood, and no rank moves.",
       "written_unit": 60
     },
     "hour_same_day_clock": {

@@ -21993,8 +21993,13 @@ def _hour_settled(
 # shared pass, for ANY FIELD of the written clock -- the hour of the day
 # now, the minute of the hour and the second of the minute when their
 # censuses land (landing 3b.4, the 3b.4 skeptic's M4): how many rounds
-# step 3 makes over the groups still over their count.
-_CLOCK_ROUNDS = 4
+# step 3 makes over the groups still over their count. ONE: a move of
+# step 3 takes a unit out of a group over its count into one with room, so
+# no move gives a group room or frees a place in a group with room, and a
+# unit with no place at its turn has none in a later round. Four rounds
+# moved nothing a first did not, on 5,000 random states of hours (the
+# lane's skeptic, finding 3 (h)).
+_CLOCK_ROUNDS = 1
 
 
 def _clock_bin(state: _WeekdayPass, ordinal: int) -> int:

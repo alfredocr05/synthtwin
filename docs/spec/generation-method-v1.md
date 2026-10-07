@@ -6755,8 +6755,12 @@ standing has been made: nothing published then counts a weekday.
    shifts a rank by whole hours on its own day and keeps its minute and
    second.
 3. **SAMEPARENT, the ESCAPE, SPLIT and RELIEF** (the design skeptic's B1 and B2),
-   where a group is still over its count, up to four rounds, a round
-   that moves nothing ending the step. In group order, each group over
+   where a group is still over its count, in one round: a move of this
+   step takes a unit out of a group over its count into one with room,
+   so no move gives a group room or frees a place in a group with room,
+   and a unit with no place at its turn has none later (four rounds moved
+   nothing a first did not, on 5,000 random states of hours). In group
+   order, each group over
    its count asks its movable units in PROPORTIONAL ORDER (the 3b.4
    skeptic's B1): of its `n` units, those the smooth rotation chooses --
    each adds the number the group is over by to a credit and is chosen

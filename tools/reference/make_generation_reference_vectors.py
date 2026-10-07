@@ -9280,7 +9280,7 @@ def _label_content(column):
 HOUR = 3600
 HOUR_DAY = 86400
 HOUR_HALF_DAY = 43200
-CLOCK_ROUNDS = 4
+CLOCK_ROUNDS = 1  # one round: no move of step 3 gives a group room (G7.3g step 3)
 
 
 def on_the_half_day(column):
@@ -14259,6 +14259,83 @@ def hour_pass_case():
     )
 
 
+# THE STEP DETAILS no other state turned red (the lane's skeptic, finding 3
+# (h)): PUT BACK off a written midnight and its short count asking only a
+# shared unit, step 5 inside a tail rank's stratum, RELIEF's give-back, and
+# SAMEPARENT asking no place of a hole.
+HOUR_EARLY = [0] * 8 + [1] * 4 + [2] * 12
+
+
+def hour_put_back_off_midnight_case():
+    m = HOUR_MONDAY
+    ordinals = [
+        hour_at(m - 1, 20), hour_at(m, 0, 0), hour_at(m, 0, 50), hour_at(m, 2, 30),
+        hour_at(m, 2, 30), hour_at(m + 1, 20),
+    ]
+    return hour_case(
+        "PUT BACK (step 6), the count one long, never onto a written midnight: 00:50 is "
+        "alone on its minute, and of the units of its hour group on its own day 00:00 is "
+        "nearer than 02:30, but a merge there would write one more cell at midnight, so it "
+        "joins 02:30.",
+        "put_back", ordinals, {0, 1, 5}, [4, 1, 1], HOUR_EARLY,
+        wanted=len({o // 60 for o in ordinals}) - 1,
+    )
+
+
+def hour_put_back_short_shared_case():
+    m = HOUR_MONDAY
+    ordinals = [hour_at(m, 6), hour_at(m, 9, 20), hour_at(m, 10, 20), hour_at(m, 10, 20), hour_at(m + 1, 20)]
+    return hour_case(
+        "PUT BACK (step 6), the count one short: 09:20 comes first in rank order but holds "
+        "its minute alone, and moving it gains nothing, so the first rank SHARING its minute "
+        "moves, 10:20 to 10:19.",
+        "put_back", ordinals, {0, 4}, [1, 3, 1], [0] * 9 + [1] * 3 + [2] * 12,
+        wanted=5,
+    )
+
+
+def hour_half_day_tails_stratum_case():
+    m = HOUR_MONDAY
+    ordinals = [hour_at(m - 4, 0), hour_at(m - 2, 13), hour_at(m, 9), hour_at(m + 5, 9)]
+    case = hour_case(
+        "Step 5 inside the stratum: a low tail rank at 13:00 is nearer 11:59 than 00:01 the "
+        "next day, but its stratum opens at 12:30, so it takes 00:01; a rank written at "
+        "midnight takes 00:01 as before.",
+        "tails", ordinals, {0, 3}, [1], [0] * 24, half_day=True, body=[2, 2],
+    )
+    case["pinned"] = [False, False, True, False]
+    case["lows"] = [hour_at(m - 5, 5), hour_at(m - 2, 12, 30), hour_at(m, 9), hour_at(m + 5, 8)]
+    case["highs"] = [hour_at(m - 4, 6), hour_at(m - 1, 3), hour_at(m, 9), hour_at(m + 5, 10)]
+    return case
+
+
+def hour_relief_given_back_case():
+    m = HOUR_MONDAY
+    ordinals = [
+        hour_at(m - 4, 7), hour_at(m - 3, 7, 5), hour_at(m - 2, 7, 10), hour_at(m - 1, 7, 15),
+        hour_at(m, 3, 40), hour_at(m, 7, 30),
+    ]
+    return hour_case(
+        "RELIEF gives back (step 3): a rank at 03:40 before a rung at 07:30 on the last day "
+        "of its gap, hours 0 to 6 counted empty, and hour 7 OVER its count by one. A unit of "
+        "hour 7 leaving it still leaves no room there, so each relief unit goes back where "
+        "it stood, and no rank moves.",
+        "relief", ordinals, {0, 5}, [0, 2, 2], HOUR_SEVEN, body=[1, 4],
+    )
+
+
+def hour_off_a_hole_case():
+    m = HOUR_MONDAY
+    ordinals = [hour_at(m - 7, 10), hour_at(m, 3, 15), hour_at(m, 9), hour_at(m + 7, 10)]
+    return hour_case(
+        "SAMEPARENT asks no place of a hole (step 3): a rank at 03:15 on a day the "
+        "description holds empty, hours 0 to 7 counted empty. Its own day has places in "
+        "hour 8, but none is free, as no rank may land on a hole, so it escapes to the "
+        "day before, at 08:15.",
+        "left", ordinals, {0, 3}, [0, 2], HOUR_NIGHT_DAY, holes=[m], body=[1, 2],
+    )
+
+
 # THE FIELD-GENERIC PASS on a field of minutes: bins of 60 seconds, 60 of
 # them in a turn, the parent an hour, and each hour's group in the hour
 # census as its kin -- the shape landing 3b.4 instantiates (plan P4-D372).
@@ -14327,6 +14404,11 @@ HOUR_STEP_CASES = {
     "hour_off_midnight": hour_midnight_case,
     "hour_half_day_tails": hour_tails_case,
     "hour_whole_pass": hour_pass_case,
+    "hour_put_back_off_midnight": hour_put_back_off_midnight_case,
+    "hour_put_back_short_shared": hour_put_back_short_shared_case,
+    "hour_half_day_tails_stratum": hour_half_day_tails_stratum_case,
+    "hour_relief_given_back": hour_relief_given_back_case,
+    "hour_off_a_hole": hour_off_a_hole_case,
     "clock_minute_kin_escape": clock_kin_escape_case,
     "clock_minute_kin_kept": clock_kin_kept_case,
     "clock_minute_put_back_kin": clock_put_back_kin_case,
