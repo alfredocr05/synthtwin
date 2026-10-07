@@ -6,6 +6,19 @@ exists).
 
 ## [Unreleased]
 
+### The second key cut repaired at its review (2026-10-05)
+
+**A long reserved declaration is refused in step with its length** (plan
+P4-D386, review item 1). The search for a column named twice in
+`century_windows` or `forced_date_counts`, and S8d's search for a
+counted column under another reading, each went through a list once per
+entry, so a description holding 80,000 different counted pairs took
+17.2 s to be refused and twice the pairs four times as long. Each name
+is now looked up in a set: the same description is refused in 0.57 s,
+and every refusal names the entry it named before. Section 6.6.2 of the
+contract counts the datetime block's added keys as twenty-eight and
+names `count_form` among them (review item 2).
+
 ### A timestamp column's count pass stops rebuilding on every attempt (2026-10-03)
 
 **No published fact and no twin byte moves** (plan P4-D376, stage 3b
