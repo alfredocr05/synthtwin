@@ -9388,8 +9388,9 @@ def clock_pass(walk, first, last, pinned, wanted, standing, half, reachable, any
     4. off a written midnight, for each rank the pass put there;
     5. on the half day, each tail rank past noon or at midnight back on
        it inside its stratum (the hour's alone);
-    6. PUT BACK, where the count of different written units is off, and
-       once more, where no weekday census stands, free to merge onto a
+    6. PUT BACK, where the count of different written units is off --
+       where the column's count is not reachable, only where it is short --
+       and once more, where no weekday census stands, free to merge onto a
        day of another weekday;
     7. each run of unpinned ranks sorted.
     """
@@ -9405,7 +9406,7 @@ def clock_pass(walk, first, last, pinned, wanted, standing, half, reachable, any
     clock_off_midnight(walk, before, first, last, pinned)
     if half:
         hour_tails_on_the_half_day(walk, first, last)
-    if reachable and walk.different() != wanted:
+    if (reachable and walk.different() != wanted) or walk.different() < wanted:
         clock_put_back(walk, first, last, pinned, wanted, standing, False, kin)
         if anyday and walk.different() != wanted:
             clock_put_back(walk, first, last, pinned, wanted, standing, True, kin)

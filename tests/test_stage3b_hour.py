@@ -1145,6 +1145,59 @@ def test_a_twelve_hour_clinic_keeps_its_count_at_midnight(tmp_path: pathlib.Path
     assert any("seen_at:midnight.count" in missed for missed in found), found
 
 
+def _two_marks(rows: int, seed: int) -> "list[str]":
+    """Discharges, every one a different moment, four in five written with a `T` between day
+    and clock and the rest with a space: one instant has two spellings, so the count of
+    different values is one the construction does not reach."""
+    draw = random.Random(seed)
+    found: "list[str]" = []
+    seen: "set[datetime.datetime]" = set()
+    while len(found) < rows:
+        moment = _at(draw.choice(_YEAR), draw.choices(range(24), weights=_DISCHARGE)[0], draw.randrange(60), draw.randrange(60))
+        if moment in seen:
+            continue
+        seen = seen | {moment}
+        found += [moment.strftime("%Y-%m-%dT%H:%M:%S") if draw.random() < 0.8 else moment.strftime(_ISO_S)]
+    return found
+
+
+def test_a_tie_the_pass_makes_is_split_where_the_count_is_out_of_reach(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """PUT BACK's short count, where the column's count is not reachable (the lane's skeptic, finding 4).
+
+    Two thousand different discharges written with two marks: G7.3f's moves at the unit of an
+    hour made one tie at seed 2 and nothing put it back, the count of different values falling
+    from what the construction drew to 1,999. Now, at seeds 0 to 2, every twin holds as many
+    different instants as the same seed with the pass withdrawn, nothing missed. Mutant: PUT
+    BACK asked only where the count is reachable.
+    """
+    cells = _two_marks(2000, 40021)
+    described = kpi_shapes.describe(tmp_path, "marks", "seen_at\n" + "\n".join(cells) + "\n", LINE)
+    block = described.block("seen_at")
+    assert block["hour_census"] and len(block["datetime_separators"]) == 2, block["datetime_separators"]
+    column = next(column for column in described.loaded.columns if column.name == "seen_at")
+    assert not contract.datetime_counts_reachable(column)
+
+    def instants(written: str) -> int:
+        return len({cell.replace("T", " ") for cell in _cells(written, "seen_at") if cell})
+
+    monkeypatch.setattr(generation, "_hour_settled", lambda column, facts, ordinals, *rest, **named: (ordinals, []))
+    flat = [instants(kpi_shapes.twin_text(described, seed)) for seed in (0, 1, 2)]
+    monkeypatch.undo()
+    for seed in (0, 1, 2):
+        written = kpi_shapes.twin_text(described, seed)
+        assert kpi_shapes.missed(kpi_shapes.measure(described, written, f"twin-{seed}.csv")) == [], seed
+        assert instants(written) == flat[seed], seed
+    mutant = _mutant(
+        monkeypatch,
+        "    if (state.keep_units and count != wanted) or count < wanted:",
+        "    if state.keep_units and count != wanted:",
+    )
+    lost = instants(rendering.twin_csv(mutant.generate(described.loaded, 2)))
+    assert lost < flat[2], (lost, flat[2])
+
+
 # -- the rules, worked by hand ---------------------------------------------------------
 
 

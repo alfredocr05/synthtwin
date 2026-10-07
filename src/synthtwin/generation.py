@@ -21847,8 +21847,10 @@ def _clock_pass(
     (`_clock_off_midnight`); step 5, on the dial's half day, every tail
     rank back on it (`_hour_tails_on_the_half_day`, the hour's alone);
     step 6, PUT BACK, where the count of different written units is off
-    (`_clock_count_put_back`), last of the moves, so it repays every move
-    before it; step 7, each run of unpinned ranks sorted. `anyday` says
+    (`_clock_count_put_back`) -- where the column's count is not one the
+    construction reaches, only where it is short -- last of the moves, so
+    it repays every move before it; step 7, each run of unpinned ranks
+    sorted. `anyday` says
     no weekday census stands, so, once RELIEF has had its turn, step 3
     runs once more with an escape free to take a day of another weekday
     (`_clock_escape`), and, once PUT BACK has made every merge keeping the
@@ -21878,7 +21880,13 @@ def _clock_pass(
     _clock_off_midnight(state, before, body_low, body_high, pinned)
     if half_day:
         _hour_tails_on_the_half_day(state, body_low, body_high, state.step)
-    if state.keep_units and _weekday_count(state) != wanted:
+    # PUT BACK where the count is reachable, and, where it is not, a SHORT
+    # count all the same: a tie the moves made is split inside its own bin,
+    # parent and gap, which every census keeps (the lane's skeptic, finding
+    # 4: 2,000 different moments written with two marks between day and
+    # clock came back 1,999 at one seed in three, from HELD to an envelope).
+    count = _weekday_count(state)
+    if (state.keep_units and count != wanted) or count < wanted:
         _clock_count_put_back(
             state, body_low, body_high, pinned, wanted, standing, False, kin
         )

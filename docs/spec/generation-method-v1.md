@@ -6830,8 +6830,13 @@ standing has been made: nothing published then counts a weekday.
    another weekday on the same terms (the LAST RESORT). Where it is
    SHORT: in rank order, a movable body rank sharing its written unit
    takes the free place of its own bin, parent and gap nearest it (for
-   the hour, its own hour and day). Each move keeps every group's count;
-   the step stops once the count is back.
+   the hour, its own hour and day). Where the column's count is not one
+   the construction reaches, the step still puts back a SHORT count, as
+   above: a tie the moves made is split all the same, and a long count is
+   left (the lane's skeptic, finding 4: 2,000 different moments written
+   with two marks between day and clock came back 1,999 at one seed in
+   three, their count from HELD to its envelope). Each move keeps every
+   group's count; the step stops once the count is back.
 7. Each run of ranks the layout does not pin is sorted.
 
 Where the census still does not hold, the report names `hour_census` as
