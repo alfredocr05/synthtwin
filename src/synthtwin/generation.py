@@ -26231,6 +26231,10 @@ def _class_stand_ins_walked(
         sub = tuple([sizes[place] for place in mine])
         room: "dict[str, int]" = {}
         for form in sorted(mine_forms):
+            # EACH SUPPLY COUNTED ONLY UP TO THE FORM'S DEBT
+            # (`_supply_wanted`): the two settlements below spend these
+            # rooms on that debt and on nothing else.
+            wanted = _supply_wanted(sub, mine_forms[form])
             if name == _OWED_NUMBER:
                 # A NUMBER FORM HAS TWO SUPPLIES, and counting only the
                 # first gave the form to nobody (landing 2b.13, Codex
@@ -26249,21 +26253,21 @@ def _class_stand_ins_walked(
                 # three, so no column the other two answered moves.
                 room[form] = max(
                     _ladder_room(
-                        ladder, form, len(sub), named, used, owners,
+                        ladder, form, wanted, named, used, owners,
                         holes, decimal_comma,
                     ),
                     _usable_room(
-                        form, len(sub), used, owners, holes,
+                        form, wanted, used, owners, holes,
                         parsing.NUMBER, decimal_comma, ladder,
                     ),
                     _ladder_room(
-                        ladder, form, len(sub), named, used, owners,
+                        ladder, form, wanted, named, used, owners,
                         holes, decimal_comma, 0, None, False, True,
                     ),
                 )
             else:
                 room[form] = _usable_room(
-                    form, len(sub), used, owners, holes, reads_as,
+                    form, wanted, used, owners, holes, reads_as,
                     decimal_comma,
                 )
         forms_of = ["" for _each in sub]
@@ -26870,21 +26874,6 @@ def _shared_out(
     order = sorted([(0 - sizes[place], place) for place in range(len(sizes))])
     places = [pair[1] for pair in order]
     left = {form: owing[form] for form in names}
-    # HOW MANY DISTINCT SPELLINGS EACH FORM CAN STILL SUPPLY (review
-    # round 2 finding 5). The debt is in CELLS and the supply is in
-    # SPELLINGS, and they are not the same quantity: `@-%` owes 31
-    # cells and can spell 260 of them, but a form of one figure owes 31
-    # and can spell ten. An arrangement that settles every debt
-    # arithmetically and asks a form for more distinct stand-ins than
-    # it HAS is not an arrangement at all -- the walk exhausts the form
-    # and writes neutral spellings, and the census is missed by the
-    # cells it was built to meet.
-    supply = {
-        form: _usable_room(form, len(sizes), used, owners, holes)
-        if supplied is None
-        else supplied[form]
-        for form in names
-    }
     chosen: "dict[int, str]" = {}
     # SETTLE EACH DEBT EXACTLY BY ARITHMETIC BEFORE SEARCHING FOR IT
     # (review round 3 finding 7). The walk below is a search over
@@ -26910,6 +26899,28 @@ def _shared_out(
         return _greedily(
             sizes, places, owing, names, used, owners, holes, supplied
         )
+    # HOW MANY DISTINCT SPELLINGS EACH FORM CAN STILL SUPPLY (review
+    # round 2 finding 5). The debt is in CELLS and the supply is in
+    # SPELLINGS, and they are not the same quantity: `@-%` owes 31
+    # cells and can spell 260 of them, but a form of one figure owes 31
+    # and can spell ten. An arrangement that settles every debt
+    # arithmetically and asks a form for more distinct stand-ins than
+    # it HAS is not an arrangement at all -- the walk exhausts the form
+    # and writes neutral spellings, and the census is missed by the
+    # cells it was built to meet.
+    #
+    # COUNTED HERE, PAST THE GREEDY RETURN, AND ONLY UP TO THE DEBT
+    # (`_supply_wanted`, the review of plan P4-D390): `_greedily` counts
+    # its own, and no arrangement gives a form more places than it owes
+    # cells.
+    supply = {
+        form: _usable_room(
+            form, _supply_wanted(sizes, owing[form]), used, owners, holes
+        )
+        if supplied is None
+        else supplied[form]
+        for form in names
+    }
     # BOTH WAYS ROUND BEFORE GIVING UP (review round 4 finding 4). One
     # debt taking an exact subset can leave another unreachable where
     # a different subset would not: debts of four and two, with sizes
@@ -26975,7 +26986,9 @@ def _greedily(
     every = [form for form in sorted(owing) if owing[form] > 0]
     left = {form: owing[form] for form in every}
     spare = {
-        form: _usable_room(form, len(sizes), used, owners, holes)
+        form: _usable_room(
+            form, _supply_wanted(sizes, owing[form]), used, owners, holes
+        )
         if supplied is None
         else supplied[form]
         for form in every
@@ -27274,6 +27287,28 @@ def _usable_room(
             continue
         usable = usable + 1
     return usable
+
+
+def _supply_wanted(sizes: "tuple[int, ...]", owed: int) -> int:
+    """How far one form's supply is counted: its places, or its debt.
+
+    A FORM IS NEVER GIVEN MORE PLACES THAN IT OWES CELLS (the review of
+    plan P4-D390, item 1), because every held-back size is at least one
+    row (`held_back_sizes`) and each arrangement gives a form a place
+    only while it still owes a cell: `_subset_making` makes a debt of
+    ``owed`` cells in at most ``owed`` parts, `_settles` steps past a
+    form owing less than the size, and `_greedily` stops a form at a
+    debt of nought. So a supply counted past the debt changes no
+    arrangement -- and counted to the number of places, as it was, it
+    walked every held-back group once for EVERY form owing a cell.
+    Measured on a register of seven-character codes in 126 forms, 22,946
+    of them held back over 200,000 rows: generate took 108.7 s, 627 of
+    them in `_usable_room`, and takes 12.4 s counted to the debt, the
+    twin byte for byte the same.
+
+    Guarantees: a fixed function of the two. Raises nothing. No I/O.
+    """
+    return min(len(sizes), owed)
 
 
 def _neediest_form(owing: "dict[str, int]") -> str:
@@ -28052,11 +28087,20 @@ def _level_shape_spent(
     if supply < 1 or not free:
         return arranged, covered_places
     taken: "dict[str, int]" = {}
+    # THE CELLS EACH FORM IS PAID ON THE PLACES A TRADE MAY MOVE, which
+    # no trade changes: a place of `k` rows is traded for places summing
+    # to `k`. Every size is at least one row, so a form never holds more
+    # of those places than it is paid cells there, and its room is
+    # counted no further (`_supply_wanted`, the review of plan P4-D390):
+    # counted to the number of places, it walked every held-back group
+    # once for every form a trade was offered.
+    paid: "dict[str, int]" = {}
     for place in range(len(sizes)):
         if place in fixed or not arranged[place]:
             continue
         name = arranged[place]
         taken[name] = (taken[name] if name in taken else 0) + 1
+        paid[name] = (paid[name] if name in paid else 0) + sizes[place]
     rooms: "dict[str, int]" = {}
     offered = sorted(
         [
@@ -28100,7 +28144,9 @@ def _level_shape_spent(
             continue
         name = arranged[place]
         if name not in rooms:
-            rooms[name] = _usable_room(name, len(sizes), used, owners, holes)
+            rooms[name] = _usable_room(
+                name, _supply_wanted(sizes, paid[name]), used, owners, holes
+            )
         if taken[name] - 1 + len(chosen) > rooms[name]:
             continue
         trial = list(arranged)

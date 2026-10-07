@@ -7024,6 +7024,17 @@ def walk_goes_on(steps, taken, room):
     """
     return steps < room and steps < 2 * taken + STAND_IN_STEPS
 
+
+def supply_wanted(sizes, owed):
+    """How far one form's supply is counted -- method section G8.3 (the
+    review of plan P4-D390): its places, or the cells it owes where those
+    are fewer.  Every held-back size is at least one row and no
+    arrangement gives a form a place once it owes nothing, so a form is
+    never given more places than it owes cells, and a supply counted past
+    that changes no arrangement.
+    """
+    return min(len(sizes), owed)
+
 # How many different exact class arrangements G8.3a step 1 tries before
 # the first one stands (landing 2b.13).  Each pass forbids one more of
 # the places the refused arrangement spent, so the passes reach
@@ -7157,7 +7168,7 @@ def greedily(sizes, places, owing, seen, folds, supplied=None):
     every = [name for name in sorted(owing) if owing[name] > 0]
     left = {name: owing[name] for name in every}
     spare = {
-        name: usable_room(name, len(sizes), seen, folds)
+        name: usable_room(name, supply_wanted(sizes, owing[name]), seen, folds)
         if supplied is None else supplied[name]
         for name in every
     }
@@ -7186,13 +7197,13 @@ def shared_out(sizes, owing, seen, folds, supplied=None):
     if not names:
         return ["" for _ in sizes]
     places = [pair[1] for pair in sorted((-size, place) for place, size in enumerate(sizes))]
+    if len(places) > SHARE_OUT_PLACES:
+        return greedily(sizes, places, owing, seen, folds, supplied)
     supply = {
-        name: usable_room(name, len(sizes), seen, folds)
+        name: usable_room(name, supply_wanted(sizes, owing[name]), seen, folds)
         if supplied is None else supplied[name]
         for name in names
     }
-    if len(places) > SHARE_OUT_PLACES:
-        return greedily(sizes, places, owing, seen, folds, supplied)
     for biggest_first in (True, False):
         settled = settled_by_sums(
             sizes, places, owing, names, dict(supply), biggest_first
@@ -8627,6 +8638,9 @@ def class_stand_ins_walked(
         sub = [sizes[place] for place in mine]
         room = {}
         for form in sorted(mine_forms):
+            # Each supply is counted only up to the form's debt
+            # (supply_wanted): the settlements spend it on nothing else.
+            wanted = supply_wanted(sub, mine_forms[form])
             if name == OWED_NUMBER:
                 # A NUMBER FORM HAS TWO SUPPLIES (landing 2b.13).  The
                 # ladder spells a PLAIN decimal, so a form the ladder
@@ -8636,19 +8650,19 @@ def class_stand_ins_walked(
                 # the other supply, and the walk below takes it where
                 # the ladder has nothing.
                 room[form] = max(
-                    ladder_room(ladder, form, len(sub), named, seen, folds),
-                    usable_room(form, len(sub), seen, folds, reads, ladder),
+                    ladder_room(ladder, form, wanted, named, seen, folds),
+                    usable_room(form, wanted, seen, folds, reads, ladder),
                     # AND A THIRD, THE FORM'S OWN SCALE: an exponent form
                     # the ladder cannot spell at its bare places can be
                     # spelled at the scale its own exponent fixes.  It is
                     # SPENT last of the three.
                     ladder_room(
-                        ladder, form, len(sub), named, seen, folds,
+                        ladder, form, wanted, named, seen, folds,
                         0, None, False, True,
                     ),
                 )
             else:
-                room[form] = usable_room(form, len(sub), seen, folds, reads)
+                room[form] = usable_room(form, wanted, seen, folds, reads)
         forms_of = ["" for _ in sub]
         if mine_forms:
             forms_of = shared_out(sub, mine_forms, seen, folds, room)
@@ -9048,10 +9062,15 @@ def level_shape_spent(sizes, shared, level_shape, fixed, seen, folds):
     if supply < 1 or not free:
         return arranged, set()
     taken = {}
+    # The cells each form is paid on the places a trade may move, which
+    # no trade changes; a form never holds more of those places than
+    # it is paid cells there, so its room is counted no further.
+    paid = {}
     for place in range(len(sizes)):
         if place in fixed or not arranged[place]:
             continue
         taken[arranged[place]] = taken.get(arranged[place], 0) + 1
+        paid[arranged[place]] = paid.get(arranged[place], 0) + sizes[place]
     rooms = {}
     offered = sorted(
         (-sizes[place], place) for place in range(len(sizes))
@@ -9084,7 +9103,9 @@ def level_shape_spent(sizes, shared, level_shape, fixed, seen, folds):
             continue
         name = arranged[place]
         if name not in rooms:
-            rooms[name] = usable_room(name, len(sizes), seen, folds)
+            rooms[name] = usable_room(
+                name, supply_wanted(sizes, paid[name]), seen, folds
+            )
         if taken[name] - 1 + len(chosen) > rooms[name]:
             continue
         trial = list(arranged)

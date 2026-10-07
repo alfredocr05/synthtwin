@@ -1976,3 +1976,64 @@ def test_the_oracle_bounds_the_walk_as_the_product_does() -> None:
     assert {label for label, _size in produced} == (
         set(twin.columns[0]) - set(published)
     )
+
+
+def _register_of_many_forms() -> "list[str]":
+    """Seven-character codes in 64 forms: a letter, then six places each a
+    figure or a letter by form; per form one published code on twelve
+    rows and 78 codes written once, 4,992 held back in all."""
+    draw = random.Random(390)
+    letters = "ABCGHJKLMNPRSTUVWXYZ"
+    values: "list[str]" = []
+    seen: "dict[str, int]" = {}
+    for mask in range(64):
+        made = 0
+        while made < 79:
+            code = "X" + "".join(
+                str(draw.randrange(10)) if mask >> bit & 1 else draw.choice(letters)
+                for bit in range(6)
+            )
+            if code in seen:
+                continue
+            seen[code] = 1
+            values += [code] * (12 if made == 0 else 1)
+            made = made + 1
+    draw.shuffle(values)
+    return values
+
+
+def test_each_form_s_supply_is_counted_only_up_to_what_it_owes() -> None:
+    """THE SUPPLY OF EVERY FORM WALKED EVERY HELD-BACK GROUP (review of
+    plan P4-D390, item 1).
+
+    `_shared_out` and `_greedily` counted each owing form's supply up to
+    the number of held-back groups, so a register of many forms cost
+    forms times groups, twice, and lifting the 4,096 bound let that walk
+    run to the end: 22,946 codes held back in 126 forms over 200,000
+    rows took 108.7 s to generate, 93 per cent of it in `_usable_room`.
+    No arrangement gives a form more places than it owes cells, so the
+    supply is counted to the debt (`generation._supply_wanted`) and the
+    twin is the same byte for byte. Here 64 forms hold 4,992 codes back:
+    da7a6f9 asked `_filled_form` 634,095 times, 127 per held-back code;
+    counted to the debt it asks about two per code.
+    """
+    values = _register_of_many_forms()
+    document, described, _folder = _described(values, "proc")
+    block = document["columns"][0]
+    assert (block["suppressed_levels"], block["suppressed_rows"]) == (4992, 4992)
+    named = [form for form in block["shape_forms"] if form != contract.WITHHELD]
+    assert len(named) == 63, named
+    calls = [0]
+    original = generation._filled_form
+
+    def counted(form: str, step: int) -> str:
+        calls[0] = calls[0] + 1
+        return original(form, step)
+
+    generation._filled_form = counted
+    try:
+        twin = generation.generate(described, 7)
+    finally:
+        generation._filled_form = original
+    assert len(twin.columns[0]) == len(values)
+    assert calls[0] < 10 * 4992, calls[0]
