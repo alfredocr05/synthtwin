@@ -796,6 +796,17 @@ class _ColumnPlan:
     # the day pass keeps every rank off them (review of landing 3b.1,
     # item 4; `calendar_rules.public_holes`).
     declared_days: "tuple[str, ...]" = ()
+    # THE DIVISION AND THE LADDER EACH BLOCK OF NUMBERS TAKES WITH METHOD
+    # G6.6.8 WITHDRAWN (rule 3, plan P4-D377), one entry a block in the
+    # order its values are drawn -- the column's own block or its numeric
+    # half, else each wrapper in `_wrappers_of`'s order or each position
+    # -- and None for a block where rule 1 moved no derived end. Divided
+    # HERE, once, where the plan divides the strata, because the value
+    # stage and the generation report's bound both read it: asked of
+    # each, a column was divided by the withdrawn ladder twice, 4.8 to
+    # 9.0 s profiled on 200,000 rows. A plan handed one block's view
+    # carries that block's one entry (`_block_plan`).
+    withdrawn: "tuple[tuple[_NumericLayout, tuple[float, ...]] | None, ...]" = ()
 
 
 @dataclasses.dataclass(frozen=True)
@@ -8867,10 +8878,8 @@ def _joined_content(
             part_words += [words[at + step]]
             step = step + 1
         at = at + part_content
-        part_plan = dataclasses.replace(plan, column=view, layout=layout)
-        values, part_notes = _numeric_content(
-            part_plan, part_words, facts.parts[place].n_distinct_values
-        )
+        part_plan = _block_plan(plan, view, layout, place)
+        values, part_notes = _numeric_content(part_plan, part_words)
         # AND A POSITION'S NOTE NAMES THE POSITION (round 3, item 4).
         # `Deviation.fact` is the description's own key, and a joined
         # column publishes `parts[0].integer_valued`, not
@@ -9009,9 +9018,7 @@ def _affixed_content(
         # shipped, to the line: the plan carries the layout, the cores
         # are built from it, and the pair goes on afterwards.
         core_plan = dataclasses.replace(plan, column=_core_view(column))
-        cores, notes = _numeric_content(
-            core_plan, words, facts.numbers.n_distinct_values
-        )
+        cores, notes = _numeric_content(core_plan, words)
         for step in range(len(cores)):
             cells += [
                 f"{facts.affix_prefix}{cores[step]}{facts.affix_suffix}"
@@ -9045,12 +9052,12 @@ def _affixed_content(
                 mine += [words[at + step]]
                 step = step + 1
             at = at + wrapper_content
-            wrapper_plan = dataclasses.replace(
-                plan, column=pair_view[1], layout=wrapper_layout
+            # Its place in `_wrappers_of`'s order is one past its step,
+            # the commonest first.
+            wrapper_plan = _block_plan(
+                plan, pair_view[1], wrapper_layout, step_of_wrapper + 1
             )
-            drawn, drawn_notes = _numeric_content(
-                wrapper_plan, mine, pair_view[2].n_distinct_values
-            )
+            drawn, drawn_notes = _numeric_content(wrapper_plan, mine)
             # AND A WRAPPER'S NOTE NAMES ITS WRAPPER (review round 2,
             # item 7), on the joined role's precedent in
             # `_position_notes`. `Deviation.fact` is the description's
@@ -9966,7 +9973,7 @@ def _wears_a_published_hole(text: str, holes: "tuple[str, ...]") -> bool:
 
 
 def _numeric_content(
-    plan: "_ColumnPlan", words: "list[int]", grain_values: "int | None"
+    plan: "_ColumnPlan", words: "list[int]"
 ) -> "tuple[list[str], list[Deviation]]":
     """Every present cell of a column of numbers (method G5, G6, G10.3).
 
@@ -9976,15 +9983,12 @@ def _numeric_content(
     the same list. The rows are made random by the arrangement of G4.2,
     not by this order.
 
-    ``grain_values`` is the count the plan divided this column's strata
-    by (`_numeric_layout`): None for a plain column of numbers, and a
-    position's, a wrapper's or a numeric half's own count of different
-    numbers where the column is one of those. Where method G6.6.8 has
-    anything to do, the values are read twice from the same words and
-    the reading its rules give stands only where it reads the published
-    mean and spread, together, no further off than the one with them
-    withdrawn (`_width_rule_withdrawn`, `_reads_no_further`), which is
-    why the division has to be made again here.
+    Where rule 1 of method G6.6.8 moved a derived end, the values are
+    read twice from the same words, and the reading its rules give
+    stands only where it reads the published mean and spread, together,
+    no further off than the one with them withdrawn (`_reads_no_further`),
+    which is read on the division the plan made with them withdrawn
+    (`_ColumnPlan.withdrawn`, `_own_withdrawn`).
     """
     column = plan.column
     facts = column.facts
@@ -10042,7 +10046,9 @@ def _numeric_content(
     # ladder always: read on the plan's division instead, ten of 3,333
     # twins measured stood further from the real moments than 110cb46's,
     # and the generation report's bound widens to it (`_report_widest`).
-    withdrawn = _width_rule_withdrawn(column, facts, grain_values, floor)
+    # The plan made that division once (`_ColumnPlan.withdrawn`), and
+    # only where rule 1 moved a derived end (`_width_rule_withdrawn`).
+    withdrawn = _own_withdrawn(plan)
     if withdrawn is not None:
         held = _values_drawn(
             column, facts, withdrawn[0], withdrawn[1], words, floor, False
@@ -10082,9 +10088,9 @@ def _values_drawn(
     """Every value pass of a column of numbers, in order, on one division and one ladder (G5, G6).
 
     `_numeric_content`'s value stage, which it runs once, or twice where
-    method G6.6.8 has anything to do (rule 3): once on the plan's division
-    and ladder with the width walk taking the sides a tail's pair proves,
-    and once with that rule withdrawn.
+    rule 1 of method G6.6.8 moved a derived end (rule 3): once on the
+    plan's division and ladder with the width walk taking the sides a
+    tail's pair proves, and once with that rule withdrawn.
 
     Guarantees: accepts the column, its numeric facts, the division its
     strata take, the ladder its values are read from, the words G4.3
@@ -15339,19 +15345,26 @@ def _width_rule_withdrawn(
     grain_values: "int | None",
     floor: int,
 ) -> "tuple[_NumericLayout, tuple[float, ...]] | None":
-    """The division and the ladder a column takes with method G6.6.8 withdrawn, where that rule has anything to do (rule 3).
+    """The division and the ladder a column takes with method G6.6.8 withdrawn, where rule 1 moved a derived end (rule 3).
 
     None where the block is no tail block, or where rule 1 moved neither
-    derived end and no side is proven for rule 2 (`_proven_sides`): there
-    the rule changes nothing. Otherwise the ladder with each width-held
-    end where the width clamp left it (`contract.tail_ladder` with the
-    reach rule withdrawn) and the strata divided by that ladder
-    (`_ladder_layout`): the division 110cb46 planned, which draws the
-    plan's own words. That division can hold a wider stratum than the
-    plan's -- the width-held end makes a run of equal rungs at the top of
-    the tail, `99` written fifteen times beside readings 10 to 99 where
-    the reach rule's ladder divides no stratum past eleven -- so the
-    generation report widens its windows to it (`_report_widest`).
+    derived end. There the ladder read either way is one and so are the
+    two divisions, and the readings could differ only by rule 2's walk on a
+    side rule 1 left, which stands only where it leaves neither published
+    moment further off than 110cb46's walk (`_serves_better`): measured,
+    asking the second reading there too changed none of 3,636 twins over
+    eleven batteries, and on 200,000 six-figure numbers -- a proven side
+    and no moved end -- it took generating from 19.9 s on 110cb46 to
+    27.0 s. Otherwise the ladder with each width-held end where the width
+    clamp left it (`contract.tail_ladder` with the reach rule withdrawn)
+    and the strata divided by that ladder (`_ladder_layout`): the
+    division 110cb46 planned, which draws the plan's own words. That
+    division can hold a wider stratum than the plan's -- the width-held
+    end makes a run of equal rungs at the top of the tail, `99` written
+    fifteen times beside readings 10 to 99 where the reach rule's ladder
+    divides no stratum past eleven -- so the generation report widens its
+    windows to it (`_report_widest`). Asked once a block, where the plan
+    divides its strata (`_plan_column`).
 
     Guarantees: accepts the column, its numeric facts, the count the
     plan's strata were divided by (`_numeric_layout`'s ``grain_values``)
@@ -15368,9 +15381,7 @@ def _width_rule_withdrawn(
     for mine, theirs in ((ruled.low, held.low), (ruled.high, held.high)):
         if mine is not None and theirs is not None and mine.end != theirs.end:
             moved = True
-    if not moved and not _proven_sides(
-        facts, _widest_demanded(_field_demands(facts))
-    ):
+    if not moved:
         return None
     divided, _notes, _words = _ladder_layout(
         column, facts, grain_values, floor, held
@@ -39803,7 +39814,15 @@ def _plan_column(
     date_system: str = "",
     declared_days: "tuple[str, ...]" = (),
 ) -> "_ColumnPlan":
-    """One column's plan: its word budget, its layout, its refusals."""
+    """One column's plan: its word budget, its layout, its refusals.
+
+    AND EACH BLOCK OF NUMBERS' DIVISION WITH METHOD G6.6.8 WITHDRAWN
+    (`_ColumnPlan.withdrawn`), made here once by the count that block's
+    own strata are divided by -- None for a plain column, a position's,
+    a wrapper's or a numeric half's own count of different numbers
+    (`_numeric_layout`) -- so the value stage and the generation report
+    read one division and neither makes it again.
+    """
     facts = column.facts
     placement = max(n_rows - 1, 0)
     layout: _NumericLayout | None = None
@@ -39813,6 +39832,7 @@ def _plan_column(
     remarks: "list[Remark]" = []
     carriers = _FIRST_TWO
     content = 0
+    withdrawn: "list[tuple[_NumericLayout, tuple[float, ...]] | None]" = []
     if isinstance(facts, contract.JoinedFacts):
         # ONE LAYOUT PER POSITION, so the plan holds none of its own and
         # `_joined_content` builds each where it builds that position's
@@ -39826,6 +39846,14 @@ def _plan_column(
                 facts.parts[place].n_distinct_values,
                 floor,
             )
+            withdrawn += [
+                _width_rule_withdrawn(
+                    _part_view(column, place),
+                    facts.parts[place],
+                    facts.parts[place].n_distinct_values,
+                    floor,
+                )
+            ]
             notes = notes + each_notes
             content = content + each_content
             # ...and the words that shuffle this position against the
@@ -39846,6 +39874,11 @@ def _plan_column(
             facts.numbers.n_distinct_values,
             floor,
         )
+        withdrawn += [
+            _width_rule_withdrawn(
+                numbers_view, facts.numbers, facts.numbers.n_distinct_values, floor
+            )
+        ]
     elif isinstance(facts, contract.AffixedFacts):
         # The layout is the CORES' -- see `_core_view`.
         #
@@ -39860,6 +39893,14 @@ def _plan_column(
             _each, each_notes, each_content = _numeric_layout(
                 pair_view[1], pair_view[2], pair_view[2].n_distinct_values, floor
             )
+            withdrawn += [
+                _width_rule_withdrawn(
+                    pair_view[1],
+                    pair_view[2],
+                    pair_view[2].n_distinct_values,
+                    floor,
+                )
+            ]
             content = content + each_content
             if not facts.affix_variants:
                 # ONE WRAPPER, AND THE PLAN CARRIES ITS LAYOUT AND ITS
@@ -39878,6 +39919,7 @@ def _plan_column(
             # one it does.
     elif isinstance(facts, contract.NumericFacts):
         layout, notes, content = _numeric_layout(column, facts, None, floor)
+        withdrawn += [_width_rule_withdrawn(column, facts, None, floor)]
     elif isinstance(facts, contract.ClockFacts):
         _clock_room(column, facts)
         # THE SAME SHAPE THE DATE ROLE BUDGETS BY, and for the same
@@ -39931,7 +39973,51 @@ def _plan_column(
         carriers=carriers,
         date_system=date_system,
         declared_days=declared_days,
+        withdrawn=tuple(withdrawn),
     )
+
+
+def _block_plan(
+    plan: "_ColumnPlan",
+    view: contract.ColumnBlock,
+    layout: "_NumericLayout | None",
+    place: int,
+) -> "_ColumnPlan":
+    """The plan one block of numbers is drawn or measured on: its view, its layout and its own withdrawn division (G6.6.8 rule 3).
+
+    A position of a joined column and each wrapper of an affixed one are
+    columns of numbers of their own to the value stage, so each is handed
+    a plan carrying its own layout and the one entry of
+    `_ColumnPlan.withdrawn` that is its own, ``place`` in the order the
+    plan divided the blocks (`_plan_column`).
+
+    Guarantees: accepts the column's plan, the block's view and layout
+    and its place; returns the plan with those three, the entry None
+    where the plan holds none at that place. Determinism: a function of
+    the four. Raises nothing. No I/O of any kind.
+    """
+    found = None
+    if 0 <= place < len(plan.withdrawn):
+        found = plan.withdrawn[place]
+    return dataclasses.replace(
+        plan, column=view, layout=layout, withdrawn=(found,)
+    )
+
+
+def _own_withdrawn(
+    plan: "_ColumnPlan",
+) -> "tuple[_NumericLayout, tuple[float, ...]] | None":
+    """The withdrawn division of the block a plan is about, or None (G6.6.8 rule 3).
+
+    The first entry of `_ColumnPlan.withdrawn`: a plain column's and a
+    numeric half's own, a single wrapper's, or the one `_block_plan`
+    hands a position or a wrapper of a set. Guarantees: returns that
+    entry, or None where the plan holds none. Determinism: a function of
+    the plan. Raises nothing. No I/O of any kind.
+    """
+    if plan.withdrawn:
+        return plan.withdrawn[0]
+    return None
 
 
 def _word_capacity(length: int) -> int:
@@ -40198,9 +40284,7 @@ def _compound_content(
     numbers_plan = dataclasses.replace(
         plan, column=contract.compound_numbers_view(column)
     )
-    made, half_notes = _numeric_content(
-        numbers_plan, words, facts.numbers.n_distinct_values
-    )
+    made, half_notes = _numeric_content(numbers_plan, words)
     # THE NUMERIC HALF'S NOTES NAME THE HALF THEY ARE ABOUT (review
     # round 8 item 2). This role publishes its quantitative facts under
     # `numbers.<key>`, and the numeric stages are handed that half as a
@@ -40254,7 +40338,7 @@ def _content_of(
     if kind == "long_tail_labels":
         return _label_content(plan, short)
     if kind == "count" or kind == "continuous":
-        return _numeric_content(plan, words, None)
+        return _numeric_content(plan, words)
     if kind == "affixed_number":
         return _affixed_content(plan, words)
     if kind == "joined_numbers":
@@ -42783,7 +42867,7 @@ def _window_stratum(
 def _report_widest(
     column: contract.ColumnBlock,
     facts: contract.NumericFacts,
-    division: "tuple[_NumericLayout | None, int | None]",
+    divisions: "tuple[_NumericLayout | None, tuple[_NumericLayout, tuple[float, ...]] | None]",
     floor: int,
 ) -> int:
     """The widest stratum the generation report's rung windows allow a column of numbers (G5.6, G12.2).
@@ -42791,21 +42875,21 @@ def _report_widest(
     `_window_stratum`'s cap, widened to the plan's own widest stratum
     where G5.2b's carrier and reach steps moved one past it -- AND, where
     method G6.6.8's rule 3 may write the column on the division its width
-    rule withdrawn gives (`_width_rule_withdrawn`), to that division's
-    widest too, so the bound holds of whichever reading was written.
+    rule withdrawn gives, to that division's widest too, so the bound
+    holds of whichever reading was written. That division is the one the
+    plan made (`_ColumnPlan.withdrawn`), handed in rather than made again.
 
     Guarantees: accepts a column or the view of one, its numeric block,
-    the plan's layout or None with the count its strata were divided by
-    (`_numeric_layout`'s ``grain_values``), and the settings floor;
-    returns a whole number of at least one. Determinism: a function of
-    those. Raises nothing. No I/O of any kind.
+    the plan's layout or None with the plan's withdrawn division and
+    ladder or None, and the settings floor; returns a whole number of at
+    least one. Determinism: a function of those. Raises nothing. No I/O
+    of any kind.
     """
-    layout, grain_values = division
+    layout, withdrawn = divisions
     widest = _window_stratum(column, facts, floor)
     if layout is None:
         return widest
     readings = [layout]
-    withdrawn = _width_rule_withdrawn(column, facts, grain_values, floor)
     if withdrawn is not None:
         readings += [withdrawn[0]]
     for reading in readings:
@@ -43222,17 +43306,11 @@ def _joined_approximations(
             facts.parts[place].n_distinct_values,
             plan.small_cell_floor,
         )
-        part_plan = dataclasses.replace(plan, column=view, layout=layout)
+        part_plan = _block_plan(plan, view, layout, place)
         mine = _joined_position_numbers(written, facts, place)
         named = _position_words(place)
         for one in _numeric_approximations(
-            view,
-            facts.parts[place],
-            part_plan,
-            mine,
-            facts.parts[place].n_distinct_values,
-            named,
-            False,
+            view, facts.parts[place], part_plan, mine, named, False
         ):
             found += [
                 dataclasses.replace(
@@ -43489,7 +43567,6 @@ def _numeric_approximations(
     facts: contract.NumericFacts,
     plan: "_ColumnPlan",
     written: "list[str]",
-    grain_values: "int | None",
     subject: str = "this column",
     cardinalities: bool = True,
 ) -> "list[Approximation]":
@@ -43511,10 +43588,9 @@ def _numeric_approximations(
     while others hold numbers is filled by `_filled_rungs` and bounded
     like any other.
 
-    ``grain_values`` is the count the plan divided the column's strata by
-    (`_numeric_layout`), None for a plain column of numbers: where method
-    G6.6.8's rule 3 may write the column on the division its width rule
-    withdrawn gives, the bound is widened to that division's widest
+    Where method G6.6.8's rule 3 may write the column on the division its
+    width rule withdrawn gives, the plan carries that division
+    (`_ColumnPlan.withdrawn`) and the bound is widened to its widest
     stratum too (`_report_widest`), so it holds of whichever was written.
     """
     values = sorted(
@@ -43555,7 +43631,10 @@ def _numeric_approximations(
     # G6.6.8's RULE 3 MAY WRITE THE COLUMN ON THE DIVISION ITS WIDTH RULE
     # WITHDRAWN GIVES -- 110cb46's twin -- the bound holds of that one too.
     widest = _report_widest(
-        column, facts, (plan.layout, grain_values), plan.small_cell_floor
+        column,
+        facts,
+        (plan.layout, _own_withdrawn(plan)),
+        plan.small_cell_floor,
     )
     # THE HALF UNIT, AND THE TWO RULES THAT CAN SPEND IT. The
     # whole-number rule of G5.4 moves a value by at most half a unit on
@@ -45204,9 +45283,9 @@ def _approximations(
             layout, _notes, _content = _numeric_layout(
                 view, numbers, numbers.n_distinct_values, plan.small_cell_floor
             )
-            mine = dataclasses.replace(plan, column=view, layout=layout)
+            mine = _block_plan(plan, view, layout, step + 1)
             for record in _numeric_approximations(
-                view, numbers, mine, held[pair_view[0]], numbers.n_distinct_values
+                view, numbers, mine, held[pair_view[0]]
             ):
                 records += [
                     dataclasses.replace(record, fact=_affixed_key(step, record.fact))
@@ -45251,7 +45330,6 @@ def _approximations(
             facts.numbers,
             plan,
             numeric,
-            facts.numbers.n_distinct_values,
             subject="the numbers in this column",
             # THE HALF'S DISTINCTNESS IS NOT PRINTED UNDER THE COLUMN'S
             # NAME, which is the fault that withdrew the joined role's
@@ -45268,7 +45346,7 @@ def _approximations(
             column, facts, plan, numeric, written
         )
     if isinstance(facts, contract.NumericFacts):
-        return _numeric_approximations(column, facts, plan, written, None)
+        return _numeric_approximations(column, facts, plan, written)
     if isinstance(facts, contract.ClockFacts):
         return _clock_approximations(
             column, facts, written, plan.small_cell_floor

@@ -977,19 +977,24 @@ def test_where_the_rule_reads_both_moments_nearer_the_twin_keeps_it(
         assert _twin_numbers(described, seed) == _withdrawn_numbers(described, seed), f"seed {seed}"
 
 
-def test_the_second_reading_is_asked_only_where_the_rule_has_anything_to_do(
+def test_the_second_reading_is_asked_only_where_rule_1_moved_an_end(
     tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """`_width_rule_withdrawn` asked directly: the ladder with each width-held end, where rule 1 moved one or a side is proven.
+    """`_width_rule_withdrawn` asked directly: the ladder with each width-held end, only where rule 1 moved one.
 
     `00001` to `00149` beside `99999` at eleven: rule 1 moved the high end,
     and the ladder handed back holds the end the width held, under
-    `10000`, with the strata divided by it. With no side proven it is still asked, since
-    the end moved; a block that is no tail block, and codes beside
-    decimals, where the census counts the codes alone, ask none. A side the
-    rule left -- 60 codes beside 90 plain numbers and `99999` -- is asked
-    because its side is proven, the ladder read either way holding one
-    end there.
+    `10000`, with the strata divided by it. With no side proven it is still
+    asked, since the end moved; a block that is no tail block, and codes
+    beside decimals, where the census counts the codes alone, ask none. Nor
+    does a side the rule left -- 60 codes beside 90 plain numbers and
+    `99999`, its side proven for rule 2 (the second skeptic of the repair,
+    item 4): the ladder read either way is one there, and rule 2's walk on that side
+    stands only where it leaves neither published moment further off than
+    110cb46's (`_serves_better`), so a second reading changed none of 3,636
+    twins and cost generating 200,000 six-figure numbers seven seconds of
+    nineteen. Its mutant, the repair round's form, asks it wherever a side
+    is proven too, and hands this column a division.
     """
     described = _described(tmp_path, "pad99999", reader.shape("pad99999", 150, 1), 11)
     facts = _facts(described)
@@ -1014,7 +1019,7 @@ def test_the_second_reading_is_asked_only_where_the_rule_has_anything_to_do(
     left_facts = _facts(left)
     left_column = left.loaded.columns[0]
     assert [side[4] for side in generation._proven_sides(left_facts, 4)] == [False], "premise: a side the rule left"
-    assert generation._width_rule_withdrawn(left_column, left_facts, None, 11) is not None
+    assert generation._width_rule_withdrawn(left_column, left_facts, None, 11) is None
 
 
 def test_both_readings_are_divided_into_the_same_strata_and_draw_the_same_words(tmp_path: pathlib.Path) -> None:
@@ -1040,6 +1045,36 @@ def test_both_readings_are_divided_into_the_same_strata_and_draw_the_same_words(
         assert len(other[0].sizes) == len(plan[0].sizes) and other[1:] == plan[1:], label
         if label == "bell_237":
             assert other[0].sizes != plan[0].sizes, "premise: the two divisions differ"
+
+
+def test_a_column_is_divided_with_the_rule_withdrawn_once_and_read_by_its_values_and_its_report(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """`K-S3-22`'s `00001` to `00149` beside `99999`, at eleven: one second division a run, made with the plan.
+
+    The second skeptic of the repair (item 4): the withdrawn division was
+    made where the values were drawn and made again where the generation
+    report measured them, which cost 4.8 to 9.0 s profiled on 200,000 rows
+    where rule 1 moves an end. The plan makes it once
+    (`generation._ColumnPlan.withdrawn`), and both read that one. Its
+    mutant makes it again in either place and asks it twice.
+    """
+    described = _described(tmp_path, "pad99999_once", reader.shape("pad99999", 150, 1), 11)
+    asked: "list[tuple]" = []
+    real_withdrawn = generation._width_rule_withdrawn
+
+    def watched(column, facts, grain_values, floor):  # type: ignore[no-untyped-def]
+        found = real_withdrawn(column, facts, grain_values, floor)
+        asked.append(found)
+        return found
+
+    monkeypatch.setattr(generation, "_width_rule_withdrawn", watched)
+    planned = generation.plan_generation(described.loaded)
+    assert len(asked) == 1 and asked[0] is not None, "premise: rule 1 moved the end"
+    assert planned.columns[0].withdrawn == (asked[0],)
+    asked.clear()
+    kpi_shapes.twin_text(described, 0)
+    assert len(asked) == 1, len(asked)
 
 
 def _two_figures_beside_188() -> "list[str]":
@@ -1073,8 +1108,9 @@ def test_the_second_reading_is_divided_by_its_own_ladder_and_the_report_s_bound_
     description's cap. The second reading is divided by that ladder all
     the same, so at seed 0, where the rule's reading stands further from
     the real mean and spread, the twin is 110cb46's cell for cell; and the
-    generation report's bound widens to the 15 (`_report_widest`), so it
-    holds of whichever reading was written. Its mutant is the repair
+    generation report's bound widens to the 15 (`_report_widest`, handed
+    the division the plan made), so it holds of whichever reading was
+    written. Its mutant is the repair
     round's own earlier form, which read the withdrawn ladder on the plan's
     division wherever its own was wider than the plan's bound: that second
     reading was not 110cb46's twin, and the twin stood further from the
@@ -1089,7 +1125,7 @@ def test_the_second_reading_is_divided_by_its_own_ladder_and_the_report_s_bound_
     found = generation._width_rule_withdrawn(column, facts, None, 20)
     cap = generation._window_stratum(column, facts, 20)
     assert found is not None and max(found[0].sizes) > max(cap, max(layout.sizes)), "premise: the second division is wider"
-    assert generation._report_widest(column, facts, (layout, None), 20) == max(found[0].sizes)
+    assert generation._report_widest(column, facts, (layout, found), 20) == max(found[0].sizes)
     theirs = _withdrawn_numbers(described, 0)
     assert _twin_numbers(described, 0) == theirs
     monkeypatch.setattr(generation, "_width_rule_withdrawn", _read_on_the_plan_s_division(generation._width_rule_withdrawn))
@@ -1106,7 +1142,8 @@ def test_the_report_s_bound_is_the_widest_of_the_cap_and_of_either_division(tmp_
     15, so the bound is 15. A plan holding a wider stratum -- G5.2b's
     carrier and reach steps can move one past the cap -- widens it again:
     a plan of 20 rows in one stratum gives 20. And with no second reading,
-    the tail rule read off, the plan's widest alone widens the cap. Its
+    the plan's widest alone widens the cap. The division is the one the
+    plan carries (`generation._ColumnPlan.withdrawn`), handed in. Its
     mutants drop the plan's division or the second one from the bound.
     """
     described = _described(tmp_path, "two_188_bound", _two_figures_beside_188(), 20)
@@ -1116,13 +1153,14 @@ def test_the_report_s_bound_is_the_widest_of_the_cap_and_of_either_division(tmp_
     found = generation._width_rule_withdrawn(column, facts, None, 20)
     cap = generation._window_stratum(column, facts, 20)
     assert found is not None and (cap, max(layout.sizes), max(found[0].sizes)) == (11, 11, 15), "premise"
-    assert generation._report_widest(column, facts, (layout, None), 20) == 15
+    assert generation._report_widest(column, facts, (layout, found), 20) == 15
+    assert generation._report_widest(column, facts, (layout, None), 20) == 11
     wider = dataclasses.replace(layout, sizes=(20,) + tuple(layout.sizes[1:]))
-    assert generation._report_widest(column, facts, (wider, None), 20) == 20
+    assert generation._report_widest(column, facts, (wider, found), 20) == 20
     plain = dataclasses.replace(facts, tail_rule=False)
     assert generation._width_rule_withdrawn(column, plain, None, 20) is None
     assert generation._report_widest(column, plain, (wider, None), 20) == max(20, generation._window_stratum(column, plain, 20))
-    assert generation._report_widest(column, facts, (None, None), 20) == cap
+    assert generation._report_widest(column, facts, (None, found), 20) == cap
 
 
 def _joined_battery_column() -> "list[str]":
@@ -1131,23 +1169,30 @@ def _joined_battery_column() -> "list[str]":
     return cells
 
 
+# THE FAR CORES ARE FIVE FIGURES JUST PAST THE WIDTH, `12345` and `11111`:
+# rule 1 moves the end of each block they reach, which `99999` beside these
+# cores does not -- there the width hold falls inside the tail's mean
+# distance and the fitted end stands -- and since the second skeptic of the
+# repair (item 4) only a block whose end rule 1 moved is read again.
+
+
 def _affixed_beside_one_far() -> "list[str]":
-    """400 cores 1000 to 1999 wearing ` mg`, beside one `99999 mg`."""
+    """400 cores 1000 to 1999 wearing ` mg`, beside one `12345 mg`."""
     draw = random.Random("g2/roles/affixed")
-    return [f"{draw.randint(1000, 1999)} mg" for _row in range(400)] + ["99999 mg"]
+    return [f"{draw.randint(1000, 1999)} mg" for _row in range(400)] + ["12345 mg"]
 
 
 def _two_wrappers_beside_far() -> "list[str]":
-    """Cores 1000 to 1999 in two wrappers, ` mg` and ` kg`, each beside one far core."""
+    """Cores 1000 to 1999 in two wrappers, ` mg` and ` kg`, each beside one far core: two blocks read again, each its own."""
     draw = random.Random("g2/roles/set")
-    cells = [f"{draw.randint(1000, 1999)} mg" for _row in range(300)] + ["99999 mg"]
-    return cells + [f"{draw.randint(1000, 1999)} kg" for _row in range(100)] + ["88888 kg"]
+    cells = [f"{draw.randint(1000, 1999)} mg" for _row in range(300)] + ["12345 mg"]
+    return cells + [f"{draw.randint(1000, 1999)} kg" for _row in range(100)] + ["11111 kg"]
 
 
 def _numbers_beside_labels_and_far() -> "list[str]":
-    """400 numbers 1000 to 1999 and one `99999`, beside twelve cells of one label."""
+    """400 numbers 1000 to 1999 and one `12345`, beside twelve cells of one label."""
     draw = random.Random("g2/roles/compound")
-    return [str(draw.randint(1000, 1999)) for _row in range(400)] + ["99999"] + ["NOT DETECTED"] * 12
+    return [str(draw.randint(1000, 1999)) for _row in range(400)] + ["12345"] + ["NOT DETECTED"] * 12
 
 
 _ROLE_SHAPES = (
@@ -1162,35 +1207,58 @@ _ROLE_SHAPES = (
 def test_each_block_is_read_again_and_bounded_by_its_own_count(
     tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch, label: str, shape, kind  # type: ignore[no-untyped-def]
 ) -> None:
-    """A position, a core, each wrapper and a numeric half: the second reading and the report's bound are divided by that block's own count.
+    """A position, a core, each wrapper and a numeric half: one second division a block, by its own count, read by its values and its report.
 
     These are columns of numbers of their own to the value stage, each
     divided by its own count of different numbers rather than the column's
     count of cells (residual R-P4-112), so rule 3's second reading must be
-    divided the same way or its words would not be the plan's -- and the
-    generation report's bound (`_report_widest`) asks the same division
-    again. Each block a far cell reaches is asked twice, once where its
-    values are drawn and once where its report is measured, and both times
-    with its own count. A mutant handing either call no count divides by
-    the column's cells and turns this red.
+    divided the same way or its words would not be the plan's. The plan
+    divides it ONCE a block (`_plan_column`, the second skeptic of the
+    repair, item 4) -- it was divided again where the values were drawn
+    and again where the report was measured -- and hands it to both: the
+    second reading of each block is drawn on that block's own division,
+    and the generation report's bound (`_report_widest`) is widened by it.
+    A mutant handing the plan's call no count divides by the column's cells
+    and turns this red; so does one dividing a block again, or handing a
+    block another block's division.
     """
     cells = shape()
     described = kpi_shapes.describe(tmp_path / label, label, stage3_battery.rows_text(["value"], [[cell] for cell in cells]), 11)
     assert isinstance(described.loaded.columns[0].facts, kind), f"premise: a {label} column"
     asked: "list[tuple[object, int]]" = []
+    made: "dict[int, tuple]" = {}
+    drawn: "list[bool]" = []
+    bounded: "list[bool]" = []
     real_withdrawn = generation._width_rule_withdrawn
+    real_drawn = generation._values_drawn
+    real_widest = generation._report_widest
 
     def watched(column, facts, grain_values, floor):  # type: ignore[no-untyped-def]
         found = real_withdrawn(column, facts, grain_values, floor)
         if found is not None:
             asked.append((grain_values, facts.n_distinct_values))
+            made[id(facts)] = found
         return found
 
+    def drawn_on(column, facts, layout, rungs, words, floor, sided):  # type: ignore[no-untyped-def]
+        if not sided:
+            drawn.append(id(facts) in made and layout is made[id(facts)][0] and rungs is made[id(facts)][1])
+        return real_drawn(column, facts, layout, rungs, words, floor, sided)
+
+    def widest(column, facts, divisions, floor):  # type: ignore[no-untyped-def]
+        if id(facts) in made:
+            bounded.append(divisions[1] is made[id(facts)])
+        return real_widest(column, facts, divisions, floor)
+
     monkeypatch.setattr(generation, "_width_rule_withdrawn", watched)
+    monkeypatch.setattr(generation, "_values_drawn", drawn_on)
+    monkeypatch.setattr(generation, "_report_widest", widest)
     kpi_shapes.twin_text(described, 0)
     assert asked, "premise: a block reaches the second reading"
     assert all(grain == count for grain, count in asked), asked
-    assert len(asked) == 2 * len({count for _grain, count in asked}), asked
+    assert len(asked) == len(made), asked
+    assert drawn and all(drawn) and len(drawn) == len(made), drawn
+    assert bounded and all(bounded) and len(bounded) == len(made), bounded
 
 
 # -- 3. where the strata moved under the width go ----------------------------
