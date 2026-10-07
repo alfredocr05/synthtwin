@@ -1648,19 +1648,34 @@ def battery() -> list[Mutation]:
                 resolution_mix={"layout {YYYY}-{MM}-{DD} {HH}:{MI}:{SS}{+HH:MM}": 240},
             ),
         ),
-        # ...and the case of a zulu offset, which a layout's own field
-        # fixes (skeptic 1 of landing R2a, item 6): the offsets every
-        # field can write, no mark counted, so LY4's zulu clause alone
-        # refuses it.
+        # ...and the zulu key on a signed field, which reads `+0000` as
+        # `+00:00` and never as `Z` (the Codex review of landing R2a, item
+        # 6): the writer handed it wrote a literal `Z` the field cannot
+        # read back. No case is counted, so LY4's offset clause alone
+        # refuses it before D20 asks for one.
         Mutation(
-            "LY4", "the case of the zulu offsets counted on a layout",
+            "LY4", "a zulu offset counted on a signed offset field",
             edit(
                 "logged_at",
                 format="layout {YYYY}-{MM}-{DD} {HH}:{MI}:{SS}{+HH:MM}",
                 resolution_mix={"layout {YYYY}-{MM}-{DD} {HH}:{MI}:{SS}{+HH:MM}": 240},
                 datetime_separators={},
                 utc_offsets={"+02:00": 120, "Z": 120},
-                zulu_case={"upper": 120},
+            ),
+        ),
+        # ...and the case of a zulu offset, which a layout's own field
+        # fixes (skeptic 1 of landing R2a, item 6): the offset its zulu
+        # field writes, no mark counted, so LY4's zulu clause alone
+        # refuses it.
+        Mutation(
+            "LY4", "the case of the zulu offsets counted on a layout",
+            edit(
+                "logged_at",
+                format="layout {YYYY}-{MM}-{DD} {HH}:{MI}:{SS}{Z}",
+                resolution_mix={"layout {YYYY}-{MM}-{DD} {HH}:{MI}:{SS}{Z}": 240},
+                datetime_separators={},
+                utc_offsets={"Z": 240},
+                zulu_case={"upper": 240},
             ),
         ),
         Mutation(

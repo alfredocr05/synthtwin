@@ -9266,7 +9266,10 @@ def layout_offset_writable(name: str, offset: str) -> bool:
     """Whether a layout's offset field can write one published offset key.
 
     `(none)` only where the field is optional or there is none; `Z` only on
-    a zulu field or a signed one; a signed offset only on a signed field,
+    a zulu field -- a signed field reads `+0000` as `+00:00` and never as
+    `Z`, so no column of its own publishes that key, and the writer handed
+    it wrote a literal `Z` the field cannot read back (the Codex review of
+    landing R2a, item 6); a signed offset only on a signed field,
     and on `{+HH}` only a whole hour. `(withheld)` on every layout, with an
     offset field or none (the Codex review of landing R2a, item 2): the
     pool is the census's one count where no key reaches the line, and on a
@@ -9289,7 +9292,7 @@ def layout_offset_writable(name: str, offset: str) -> bool:
     if field in _LAYOUT_ZULU_FIELDS:
         return offset == "Z"
     if offset == "Z":
-        return True
+        return False
     if field == "+HH":
         return offset[4:6] == "00"
     return True

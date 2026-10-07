@@ -1633,3 +1633,54 @@ def test_codex_item5_q5_is_asked_beside_the_codes_question(tmp_path: pathlib.Pat
     assert [entry for entry in questions["asked"] if entry["column"] == "seen_at"] == []
     twin, _written = _twin(profile, 0)
     assert _validated(profile, twin)[0] == 0
+
+
+def test_codex_item6_a_signed_field_takes_no_zulu_key(tmp_path: pathlib.Path) -> None:
+    """Item 6: `Z` is refused on a signed offset field, and nothing loadable parts writer from oracle.
+
+    HL7 stamps with a fraction and `+0000` on every cell, the census
+    changed to `{"Z": 300}` and nothing else: the loader took it, and the
+    twin wrote cells such as `20210101000000.0000Z` under a layout ending
+    `{+HHMM}`, every one unreadable by it, where the oracle writes
+    `+0000`. A signed field reads `+0000` as `+00:00`, never as `Z`, so no
+    description of its own carries that key: LY4 refuses it now. And for
+    every offset field, every key LY4 admits is written alike by the
+    shipped writer and the oracle, and read back by the layout. Mutant,
+    run: `Z` admitted on a signed field, as before.
+    """
+    _block, profile, _questions = _described(tmp_path, spellings.cells("hl7_ts_fraction_offset", ROWS))
+    document = json.loads(profile.read_text(encoding="utf-8"))
+    block = document["columns"][0]
+    assert block["format"] == "layout {YYYY}{MM}{DD}{HH}{MI}{SS}.{F}{+HHMM}"
+    assert block["utc_offsets"] == {"+00:00": ROWS}
+    block["utc_offsets"] = {"Z": ROWS}
+    edited = fixtures.write_profile(tmp_path, "edited-profile.json", document)
+    with pytest.raises(errors.ProfileError) as refused:
+        contract.load_profile(str(edited))
+    assert "LY4" in str(refused.value)
+    oracle = _oracle()
+    keys = ("Z", "+00:00", "+01:00", "-05:00", "+05:30", "(none)", "(withheld)")
+    for layout in (
+        "layout {YYYY}{MM}{DD}{HH}{MI}{SS}{+HHMM}",
+        "layout {YYYY}{MM}{DD}{HH}{MI}{SS}{+HHMM?}",
+        "layout {YYYY}-{MM}-{DD} {HH}:{MI}:{SS} {+HH:MM}",
+        "layout {YYYY}-{MM}-{DD} {HH}:{MI}:{SS}{+HH}",
+        "layout {YYYY}{MM}{DD}T{HH}{MI}{SS}{Z}",
+        "layout {YYYY}-{MM}-{DD} {HH}:{MI}:{SS} {UTC}",
+        "layout {YYYY}{MM}{DD}{HH}{MI}{SS}{Z?}",
+    ):
+        assert parsing.is_layout_format(layout), layout
+        items = parsing.layout_items(layout)
+        assert items is not None
+        assert parsing.layout_offset_writable(layout, "Z") == (
+            parsing.layout_offset_field(layout) in ("Z", "z", "UTC", "GMT")
+        ), layout
+        for key in keys:
+            if not parsing.layout_offset_writable(layout, key):
+                continue
+            offset = key if key[0:1] != "(" else ""
+            written = parsing.layout_cell(items, "2024-03-17 14:05:09", offset, (), 0)
+            assert written == oracle.layout_written(  # type: ignore[attr-defined]
+                layout, 2024, 3, 17, 14 * 3600 + 5 * 60 + 9, offset, "padded", 0
+            ), (layout, key)
+            assert parsing.layout_reading(written, items) is not None, (layout, key, written)
