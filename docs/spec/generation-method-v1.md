@@ -7605,15 +7605,26 @@ count of different values only because a repeated text is never paid
 on in part (paid on in part, five and fifteen offsets missed
 `distinct.n_distinct`); beside a named offset, `+00:00` with 5 and with
 40 rare ones and `+01:00` with 30, every seed at floors 11 and 36 exits
-0 since the named offsets left the offer; and by step 5, thirty
+0 since the named offsets left the offer; and by steps 5 and 6, thirty
 shapes of repeated stamps -- two to twelve copies of each, one to
 fifteen offsets owed, floors 11 and 36, seeds 0 to 2 -- hold both class
 counts and the count of different values and exit 0 in `validate` on
-163 of 180 twins, where 129 did before it. Frozen cases
-`layout_offsets_owed`, `layout_offsets_owed_repeats` beside repeated
-texts, `layout_offsets_owed_beside_named` beside a named `+00:00` and
-`layout_offsets_owed_whole_texts`, step 5's, the oracle's
-`offsets_paid_to_the_classes` against the shipped
+168 of 180 twins, where 163 did with step 5 alone and 129 before it.
+Codex's column of 100 stamps ten times each, with 11, 13, 14, 17, 20 or
+24 of its cells wearing an offset, validates at every seed from 0 to 5,
+where nine of those twins fell short while each offset took the most it
+held; and on the verification's random shapes in rank order, no text
+standing alone, step 5 writes all that any choice of whole texts over
+the offsets writes on 1,112 of 1,112, where 232 fell short so. The pass
+alone costs 1.1 CPU seconds at 300,000 rows and 3.5 at a million
+whether 7 or 140 cells are owed, and a second pass of step 6 0.2 and 0.7
+more; respelling every text on offer at every offset step 5 wrote at
+cost 20.6 and 68.0 owing 140. Frozen cases `layout_offsets_owed`,
+`layout_offsets_owed_repeats` beside repeated texts,
+`layout_offsets_owed_beside_named` beside a named `+00:00`,
+`layout_offsets_owed_whole_texts`, step 5's, and
+`layout_offsets_owed_across_offsets`, its aim and look ahead, the
+oracle's `offsets_paid_to_the_classes` against the shipped
 `_offsets_owed_by_the_classes`.
 
 **What it leaves.** A run of figures whose every offset falls in one pool
@@ -7624,10 +7635,17 @@ times the offsets on offer -- 150 cells at a floor of 11 where the
 census names none of the fifteen -- paid past that bound: 1,000 HL7
 stamps, 180 of them in twenty offsets of nine, are paid 150 and miss
 both counts (validate exits 3), as they did before this pass. Nor is a
-rest no choice of whole texts reaches -- one cell owed where no number
-stands alone -- paid past what they reach: those twins miss both class
-counts, 17 of the 180 above, every one owing one to three cells beside
-texts of four to twelve copies.
+rest that no choice of whole texts reaches beside any count of the texts
+standing alone -- one cell owed where no number stands alone -- paid
+past what they reach: those twins miss both class counts, 12 of the 180
+above, each owing one to three cells beside texts of ten or twelve
+copies. And step 5 places whole texts by its aim and its look ahead, not
+by a search of every packing, so where the rest nears what the rooms on
+offer hold together it can write a few cells fewer than some packing of
+the same texts would: against an exact search over random shapes in
+rank order with two or three offsets on offer, 7 of 2,724 fell short, by
+11 cells in all, and with fifteen on offer owing 120 to 150, 2 of 300
+fell short of the largest total their texts reach, by 3.
 
 ## G7A. Clock columns (`time_of_day`)
 

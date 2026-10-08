@@ -74,6 +74,18 @@ repeated texts carrying the offsets owed, with G7.9b step 5's choice and
 room (item 4); Q5 beside the codes question (item 5); no zulu key on a
 signed field (item 6); a layout admitting only values its reader reads
 back (item 7); and G7.9b's provenance sentence (item 8).
+
+And the verification of that review's repair, each clause run against
+the mutants its docstring names, the item 1 and item 3 ones failing on
+f747e7b's code: Codex's column with eleven and with thirteen offset
+cells wearing every one, a shape for each rule of G7.9b step 5's aim and
+look ahead -- the bar on one offset among them -- and of step 6's fewer
+texts standing alone, and no text already wearing an offset walked (item
+1); the five rules of the Codex round no test turned red -- the choice
+stopping only at a layout reading every row, Q5 beside a member's codes
+question, LY3 asking a tail's listed values, no text with a copy at an
+end, and the texts of one size spread (item 2); and step 5 respelling
+only the texts it writes (item 3).
 """
 
 import collections

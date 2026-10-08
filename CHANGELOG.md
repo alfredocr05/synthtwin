@@ -63,6 +63,16 @@ outside the years or the seconds the layout reads. G7.9b says that an
 offset it writes may be one some real cells wore. `K-S3-58` pins the
 round's eleven clauses and is stamped again.
 
+**Its Codex review's verification.** Repeated stamps owing more offsets
+than one offset holds -- 11 of 1,000 cells, where the twin wrote ten and
+missed both class counts -- now wear every one; a rest of one cell
+beside the texts standing alone is written by leaving one of them bare
+and writing a text of two whole; a respelling that would be an absent
+spelling bars only that offset; and the step costs 1.1 CPU seconds at
+300,000 rows whatever is owed, where 20.6 were measured. Five rules of
+the Codex round that no test turned red have a clause each, and
+`K-S3-58` pins the round and is stamped again.
+
 ### A description written before the published pairs loads again (2026-10-03)
 
 **The review of landing 3b.G1, its four items** (plan P4-D375). A
