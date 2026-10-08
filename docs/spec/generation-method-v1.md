@@ -7567,9 +7567,9 @@ below on that step:
    3b.5.* Skipped as every absent place is, those steps left a drawn
    tail no room, and CC5 refused the producer's own description: 70
    `00:30` and one `0:00` beyond a low boundary at `01:00`, beside 40
-   `00:00` declared missing, drew one row past the dial, so generate and
-   the checker of the real table exited 1 at every seed and the table
-   had no twin; 12 of this repair's 1,500 random tables of clock
+   `00:00` declared missing, left its one drawn row no step inside the
+   dial, so generate and the checker of the real table exited 1 at every
+   seed and the table had no twin; 12 of this repair's 1,500 random tables of clock
    columns were refused so at 05eeeb9, every one on a low tail. Its
    twins now write 40 `00:00` and the one `0:00` and miss nothing; and
    so do the twins of one `01:00 AM` beyond a heap on `2:00 AM`, beside
