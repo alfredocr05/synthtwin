@@ -2006,11 +2006,23 @@ def test_k_s3_59_claims_what_was_measured_and_states_the_limit_beside_it() -> No
     one row an open day whose high tail keeps the days it drew there, their
     census published and missed at up to seven seeds in ten: since the
     ruling of 2026-10-08 the three records state that risk, and P4-D388
-    names the split order the fix owes to lane D4. Red when the name claims
-    every published census again, the limit goes unnamed, the ruling or the
-    price's columns go unnamed, the price is put back on rows a business
-    day, the near-one risk or the fix owed goes unnamed, or the old claim
-    that the split brings both tails to their most comes back.
+    names the split order the fix owes to lane D4. The repair's
+    verification found the low tail short of its most too where the pass
+    splits, on Monday-to-Friday logs, none of those censuses costing the
+    count, and two of the 24 that do to be merges: the contract, P4-D388,
+    the entry's evidence, the docstrings of `tails_kept` and
+    `count_reach_short` and this module's say that the low tail keeps only
+    the splits the body's nearer ones leave it, with the figures; P4-D388
+    tells the two merges from the 22 the split order costs and gives the
+    cuts' totals, and the evidence and the changelog count the 22. Red
+    when the name claims every published census again, the limit goes
+    unnamed, the ruling or the price's columns go unnamed, the price is put
+    back on rows a business day, the near-one risk or the fix owed goes
+    unnamed, the old claim that the split brings both tails to their most
+    comes back, the low tail is said again to reach its most at all but a
+    tenth of seeds in any of those texts or the changelog, its figures go,
+    the fresh logs' three are put back under the split order, the 22 go,
+    or the cuts lose their totals.
     """
     ledger = json.loads((_ROOT / "tests" / "kpi" / "ledger.json").read_text(encoding="utf-8"))
     entry = [item for item in ledger["entries"] if item["id"] == "K-S3-59"][0]
@@ -2037,3 +2049,35 @@ def test_k_s3_59_claims_what_was_measured_and_states_the_limit_beside_it() -> No
     assert "OWED TO LANE D4" in flat and "split order" in flat
     assert "only splits and the tails reach their most" not in flat
     assert "both tails' most where it splits" not in " ".join(entry["rule"].split())
+    evidence = " ".join(entry["evidence"].split())
+    assert "Out of sample, on logs just above one row an open day" in evidence
+    assert "a log just above one row an open day published" in " ".join(section.split())
+    contract_text = (_ROOT / "docs" / "spec" / "profile-contract-v6.md").read_text(encoding="utf-8")
+    texts = (
+        ("the contract", contract_text),
+        ("P4-D388", decision),
+        ("K-S3-59", entry["evidence"]),
+        ("tails_kept", calendar_rules.tails_kept.__doc__ or ""),
+        ("count_reach_short", calendar_rules.count_reach_short.__doc__ or ""),
+        ("this module", __doc__ or ""),
+    )
+    for name, text in texts:
+        flat = " ".join(text.split())
+        assert "like the high tail it keeps only the splits the body's nearer ones leave it" in flat, name
+        assert "10 of 272" in flat and "64 of 125" in flat and "none of them costing the count" in flat, name
+    for name, text in (*texts, ("the changelog", section)):
+        flat = " ".join(text.split())
+        for old in (
+            "reaches its most at all but a tenth",
+            "reaches at all but a tenth",
+            "reaches it at all but a tenth",
+            "reaches its most (`tails_most_rebuilt`) at all but a tenth",
+        ):
+            assert old not in flat, (name, old)
+    flat = " ".join(decision.split())
+    assert "on 26 and 72 of them, and on 10 and 64" in flat
+    assert "all where the pass splits" not in flat and "so the pass merged" in flat
+    assert "22 of the 24 censuses that cost the count" in flat
+    assert "76, 72 and 12 in all" in flat and "67, 66 and 12 more --" not in flat
+    assert "2 of them where the count pass splits" in evidence and "There the pass splits" not in evidence
+    assert "22 of them where the pass splits" in " ".join(section.split())
