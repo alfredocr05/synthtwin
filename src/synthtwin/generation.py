@@ -9797,11 +9797,12 @@ def _spelled_as_counts(
     cells handed out and to nothing this method measures.
 
     A `days-since-1840` column writes its day count and the contact number
-    the census gives each cell (`_contacts_dealt`): the census's words in
-    rank order, the commonest first and ties in sorted order, each as many
-    times as the census counts it, dealt over the dated cells in the
-    order they stand by a stride, so every stretch of rows holds each
-    contact number in the census's share, and independently of the dates,
+    the census gives each cell (`_contacts_dealt`): each word as many
+    times as the census counts it, at evenly spaced keys -- the middle of
+    each of as many equal shares of the dated cells, in the order they
+    stand, a tie to the commonest word, ties in sorted order -- so every
+    stretch of rows holds each contact number in the census's share
+    (method G7.10), and independently of the dates,
     which the arrangement put in an order drawn at random (a stated
     limit: a patient's contacts on one day are not kept together). Dealt
     in rank order down the rows, as the first build did, the first half of

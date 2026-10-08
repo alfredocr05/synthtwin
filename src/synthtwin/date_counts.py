@@ -398,13 +398,16 @@ def integer_figures(written: Written) -> int:
 
 @dataclasses.dataclass(frozen=True)
 class Tally:
-    """What a column's counts show of how they are written, cell by cell, held as five numbers.
+    """What a column's counts show of how they are written, cell by cell, held as six numbers.
 
     `places` the most figures after the mark a cell's number carries and
     `least` the fewest; `significant` the most significant figures a cell
     writes; `whole` the most figures a cell's whole part has; `exponent`
-    whether a cell writes an exponent form. Taken in one walk and nothing
-    kept per cell, so a million counts cost five numbers.
+    whether a cell writes an exponent form; `cells` how many counts it
+    took in. Taken in one walk and nothing kept per cell, so a million
+    counts cost six numbers -- or six per number of figures after the
+    mark the counts write, where a column is tallied by places
+    (`tallied_by_places`).
     """
 
     places: int = 0
@@ -412,6 +415,7 @@ class Tally:
     significant: int = 0
     whole: int = 0
     exponent: bool = False
+    cells: int = 0
 
 
 def tallied(tally: Tally, written: Written) -> Tally:
@@ -423,7 +427,87 @@ def tallied(tally: Tally, written: Written) -> Tally:
         max(tally.significant, significant_figures(written)),
         max(tally.whole, integer_figures(written)),
         tally.exponent or written.exponent_form,
+        tally.cells + 1,
     )
+
+
+def tallied_by_places(tallies: "dict[int, Tally]", written: Written) -> None:
+    """One more cell's figures, taken into the tally of the counts writing as many figures after the mark.
+
+    ``tallies`` maps figures after the mark to the tally of the counts
+    writing that many, and is updated in place: a column's counts cost
+    six numbers per number of figures they write, at most eighteen.
+    """
+    figures = figures_after_the_mark(written)
+    tallies[figures] = tallied(tallies[figures] if figures in tallies else Tally(), written)
+
+
+def merged(one: Tally, other: Tally) -> Tally:
+    """Two tallies taken as one."""
+    if one.cells == 0:
+        return other
+    if other.cells == 0:
+        return one
+    return Tally(
+        max(one.places, other.places),
+        min(one.least, other.least),
+        max(one.significant, other.significant),
+        max(one.whole, other.whole),
+        one.exponent or other.exponent,
+        one.cells + other.cells,
+    )
+
+
+def usual_tally(tallies: "dict[int, Tally]") -> "tuple[Tally, int]":
+    """The tally of a column's USUAL counts, and the most figures after the mark they write (or -1).
+
+    A COUNT WRITTEN WITH MORE FIGURES THAN THE REST IS A STRAY (the second
+    review of landing R4, item 5): one cell exported to seven or ten
+    figures among a thousand written `%.6f` made the column's form one of
+    seven figures, the six-figure cells were held to a seven-figure
+    tolerance they cannot meet, and question Q3 asked nothing and the
+    declaration was refused. So the column's form, its unit and the check
+    are taken from the counts written with its usual figures, and the
+    counts writing the most figures are set beside them as strays, the
+    longest first, while they number at most one in a hundred of the
+    counts -- one at least (`STRAY_PER`) -- and the usual ones at least
+    nine tenths (`REST_SHARE_NUM`). Each stray is held to its own last
+    figure (`settled_reading`), and is not written back as itself: the
+    twin writes its moment in the column's usual form.
+
+    Guarantees: accepts the tallies by figures after the mark
+    (`tallied_by_places`); returns the merged tally of the usual counts
+    and the most figures after the mark a usual count writes, -1 where no
+    count is a stray. Raises nothing. No I/O.
+    """
+    ordered = sorted(tallies)
+    total = 0
+    for figures in ordered:
+        total = total + tallies[figures].cells
+    allowed = _strays_allowed(total)
+    strays = 0
+    keep = len(ordered)
+    while keep > 1:
+        here = tallies[ordered[keep - 1]].cells
+        if strays + here > allowed:
+            break
+        if (total - strays - here) * REST_SHARE_DEN < total * REST_SHARE_NUM:
+            break
+        strays = strays + here
+        keep = keep - 1
+    usual = Tally()
+    for figures in ordered[:keep]:
+        usual = merged(usual, tallies[figures])
+    if keep == len(ordered):
+        return usual, -1
+    return usual, ordered[keep - 1]
+
+
+def held_to(plain: "CountForm", usual: int, denominator: int) -> "CountForm":
+    """The form one count is held to: its column's, or -- a stray (`usual_tally`) -- its own last figure."""
+    if usual < 0 or denominator <= 10**usual:
+        return plain
+    return CountForm(len(f"{denominator}") - 1, False, None, False, plain.mark, None)
 
 
 # ------------------------------------------------------------- reading
@@ -1122,13 +1206,18 @@ def settled_reading(
     tally: Tally,
     counts: "list[tuple[int, int]]",
     published: int = 0,
+    usual: int = -1,
 ) -> "tuple[int, int, list[int | None]] | None":
     """How a declared column's counts are read: the settled unit, the written unit, each count's moment.
 
     THE ONE DECISION THE PROFILER AND QUESTION Q3 SHARE (the review of
     landing R4, item 2). ``counts`` are the column's exact counts beside
     its set-aside numbers, in the order the cells stand; ``plain`` and
-    ``tally`` say how they are written. Each unit the figures may carry
+    ``tally`` say how its USUAL counts are written, and ``usual`` the most
+    figures after the mark a usual count writes, -1 where every count is
+    usual (`usual_tally`): a stray written with more figures is held to
+    its own last figure (`held_to`; the second review of landing R4, item
+    5). Each unit the figures may carry
     is tried, coarsest first (`reading_units`; the checker passes the
     unit the description published, ``published``, and that alone): every
     count is read as the moment it names in that unit, None where it names
@@ -1166,9 +1255,9 @@ def settled_reading(
             if moment is not None:
                 standing += [moment]
         unit = published if published else written_unit(standing, settled)
-        if published or tally.places == 0 or found.contacts:
+        if published or found.contacts or (tally.places == 0 and usual < 0):
             return settled, unit, moments
-        if _every_figure_held(member, plain, counts, moments, settled):
+        if _every_figure_held(member, plain, counts, moments, settled, usual):
             return settled, unit, moments
     return None
 
@@ -1187,14 +1276,16 @@ def _every_figure_held(
     counts: "list[tuple[int, int]]",
     moments: "list[int | None]",
     settled: int,
+    usual: int = -1,
 ) -> bool:
-    """Whether every count that names a moment is its column's own writing of it, at the first that is not."""
+    """Whether every count that names a moment is its column's own writing of it, a stray by its own last figure."""
     for place in range(len(counts)):
         moment = moments[place]
         if moment is None:
             continue
         numerator, denominator = counts[place]
-        if not held_by_its_moment(member, plain, numerator, denominator, moment, settled):
+        form = held_to(plain, usual, denominator)
+        if not held_by_its_moment(member, form, numerator, denominator, moment, settled):
             return False
     return True
 
@@ -1207,9 +1298,12 @@ def figures_kept(
     THE PROFILER'S OWN DECISION, asked before the question is put
     (`settled_reading`): for each member, the present cells read as its
     counts (`counted`), its set-aside numbers taken out (`declared_aside`),
-    tallied, settled to each unit the figures may carry (`reading_units`)
-    and asked whether every count names its moment as its column wrote it
-    (`held_by_its_moment`), exactly as a declaration reads them. A system
+    tallied by the figures each writes after the mark -- a stray written
+    with more figures than the usual counts set beside them and held to
+    its own last figure (`usual_tally`, `held_to`) -- settled to each unit
+    the figures may carry (`reading_units`) and asked whether every count
+    names its moment as its column wrote it (`held_by_its_moment`),
+    exactly as a declaration reads them. A system
     no unit of which holds every figure -- Unix seconds written with
     tenths, four figures of a day of moments off the minute -- is not
     offered, since the answer would be refused (NF115): the first build of
@@ -1240,7 +1334,7 @@ def figures_kept(
     """
     walked: "list[str]" = []
     asides: "dict[str, dict[int, int]]" = {}
-    tallies: "dict[str, Tally]" = {}
+    tallies: "dict[str, dict[int, Tally]]" = {}
     for member in members:
         if TABLE[member].contacts:
             continue
@@ -1249,7 +1343,7 @@ def figures_kept(
         for number in declared_aside(member):
             aside[number] = 1
         asides[member] = aside
-        tallies[member] = Tally()
+        tallies[member] = {}
     if walked:
         for text in present:
             written = written_count(text, mark)
@@ -1258,19 +1352,23 @@ def figures_kept(
             numerator, denominator = exact_value(written)
             for member in walked:
                 if not stands_aside(numerator, denominator, False, asides[member]):
-                    tallies[member] = tallied(tallies[member], written)
+                    tallied_by_places(tallies[member], written)
     held: "dict[str, int]" = {}
     plains: "dict[str, CountForm]" = {}
+    usuals: "dict[str, int]" = {}
     units: "dict[str, tuple[int, ...]]" = {}
     tried: "dict[str, int]" = {}
     pending: "list[str]" = []
     for member in walked:
-        tally = tallies[member]
-        if tally.places == 0:
+        # THE USUAL COUNTS DECIDE THE FORM AND THE UNIT, a stray written with
+        # more figures is held to its own (`usual_tally`, `held_to`).
+        tally, usual = usual_tally(tallies[member])
+        if tally.places == 0 and usual < 0:
             # No count at all, or every count whole: every figure is held.
             held[member] = 1
             continue
         plains[member] = form_from(tally, mark, None)
+        usuals[member] = usual
         units[member] = reading_units(member, plains[member], tally)
         # The finest first: `reading_units` gives them coarsest first.
         tried[member] = len(units[member]) - 1
@@ -1294,7 +1392,12 @@ def figures_kept(
                 settled = units[member][tried[member]]
                 moment = _settled_moment(member, numerator, denominator, settled)
                 if moment is not None and not held_by_its_moment(
-                    member, plains[member], numerator, denominator, moment, settled
+                    member,
+                    held_to(plains[member], usuals[member], denominator),
+                    numerator,
+                    denominator,
+                    moment,
+                    settled,
                 ):
                     del standing[member]
         still: "list[str]" = []
@@ -1352,6 +1455,35 @@ def form_holds(member: str, form: CountForm, written: Written) -> bool:
     if form.trimmed:
         return len(written.fraction) <= form.places and written.fraction[-1:] != "0"
     return len(written.fraction) == form.places
+
+
+def written_finer(form: CountForm, written: Written) -> bool:
+    """Whether a cell writes more figures than the published form does: a stray (`usual_tally`).
+
+    More figures after the mark than a form by places writes, or more
+    significant figures than a form by significance; a column with
+    contacts has none. The checker lets as many such cells stand as the
+    profiler set beside the usual counts -- one in a hundred, one at
+    least, the rest nine tenths -- and misses any cell the form cannot
+    write for another reason (the second review of landing R4, item 5).
+
+    Guarantees: a function of the two. Raises nothing. No I/O.
+    """
+    if form.contacts is not None or written.exponent_form:
+        return False
+    if form.significant is not None or form.exponent:
+        figures = form.significant if form.significant is not None else 15
+        return significant_figures(written) > figures
+    return figures_after_the_mark(written) > form.places
+
+
+def strays_stand(strays: int, counts: int) -> bool:
+    """Whether a column's cells written finer than its form are few enough to stand as strays.
+
+    At most one in a hundred of its counts, one at least, and the rest at
+    least nine tenths -- the profiler's own rule (`usual_tally`).
+    """
+    return strays <= _strays_allowed(counts) and (counts - strays) * REST_SHARE_DEN >= counts * REST_SHARE_NUM
 
 
 # ------------------------------------------------- what is set aside

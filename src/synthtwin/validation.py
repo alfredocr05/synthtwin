@@ -1844,7 +1844,11 @@ def _count_form_checks(
     own words, or that a cell is written another way. A cell that is no
     count OF ``member`` (`date_counts.counted`) -- an Epic day written with
     a binary64's tail of more than nine figures -- is text the date role's
-    own line took, and is not asked, as the profiler did not read it.
+    own line took, and is not asked, as the profiler did not read it. A
+    cell written with MORE figures than the form is a stray, and as many
+    stand as the profiler sets beside the usual counts -- one in a
+    hundred, one at least (`date_counts.strays_stand`; the second review
+    of landing R4, item 5).
 
     Guarantees: accepts the column, its facts, the file's own block and
     its cells; returns the checks, none where the column publishes no form
@@ -1864,6 +1868,11 @@ def _count_form_checks(
     if not isinstance(found_form, dict):
         measured = "no form of counts: the file's cells were not read as such dates"
     else:
+        # A CELL WRITTEN WITH MORE FIGURES THAN THE FORM IS A STRAY, and as
+        # many stand as the profiler set beside the usual counts (the second
+        # review of landing R4, item 5): one in a hundred, one at least.
+        counts = 0
+        strays = 0
         for cell in cells:
             if not cell or cell in holes:
                 continue
@@ -1874,9 +1883,15 @@ def _count_form_checks(
             )
             if written is None:
                 continue
-            if not date_counts.form_holds(member, form, written):
+            counts = counts + 1
+            if date_counts.form_holds(member, form, written):
+                continue
+            if not date_counts.written_finer(form, written):
                 measured = "a cell written another way"
                 break
+            strays = strays + 1
+        if measured == published and not date_counts.strays_stand(strays, counts):
+            measured = "more cells written with more figures than may stand"
     checks = [_exact(name, "datetime.count_form", "form.count_form", published, measured)]
     if form.contacts is not None:
         wanted = _census_said(form.contacts)

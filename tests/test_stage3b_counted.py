@@ -702,6 +702,30 @@ def test_c2_one_placeholder_cell_is_set_aside_and_not_named(tmp_path: pathlib.Pa
                 assert held < 11 and shown not in named
 
 
+def test_c2_nf113s_line_follows_the_floor(tmp_path: pathlib.Path) -> None:
+    """The second review of landing R4, item 6 (mutant K4b): the census line, not eleven.
+
+    At a floor of 36 the line is 36: a `0` that 11 or 35 of ten thousand
+    Unix-second birth dates hold -- births on 1 January 1970 among them --
+    is set aside and not named, and one 36 hold is named. A line fixed at
+    eleven named the first two.
+    """
+    cells, _truth = battery.cells(battery.BY_NAME["unix_s_birth"], 10000, 0)
+    free = [place for place in range(len(cells)) if cells[place] != "0"]
+    for held, named in ((11, False), (35, False), (36, True)):
+        changed = list(cells)
+        for place in free[: held - cells.count("0")]:
+            changed[place] = "0"
+        assert changed.count("0") == held
+        path = _table(tmp_path / f"zeros-{held}", changed)
+        document = profile.build_document(
+            reading.read_table(str(path)), taxonomy.Settings(small_cell_floor=36), []
+        )
+        said = _q3(document["columns"][0])
+        assert said is not None, held
+        assert ("0" in said.aside) == named, (held, said.aside)
+
+
 def test_c2_nine_tenths_of_the_present_cells_stand_beside_the_set_aside_ones(
     tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -1450,6 +1474,31 @@ def test_c4_figures_no_unit_keeps_are_refused_and_the_rest_written_back(
         assert date_counts.written_for(system, moment, unit, facts.count_form) == cell
 
 
+def test_c4_a_truncating_exporter_is_refused(tmp_path: pathlib.Path) -> None:
+    """The second review of landing R4, item 6 (mutant K2b): a count is held within HALF its last figure.
+
+    A thousand Excel date-times at whole seconds whose exporter CUT them
+    to six figures instead of rounding: each count stands up to a whole
+    last figure, 86 milliseconds, below its moment, so no unit keeps the
+    column's figures -- Q3 offers no system and the declaration is refused
+    (NF115), both files at exit 0. Held within a whole last figure, the
+    column was read as dates and only 514 of its 1,000 cells were written
+    back as themselves.
+    """
+    draw = random.Random(12)
+    cells: "list[str]" = []
+    for _row in range(1000):
+        value = 45000 + draw.randrange(3000) + draw.randrange(86400) / 86400
+        cells += [f"{int(value * 10**6) / 10**6:.6f}"]
+    said = _q3(_block_of(tmp_path / "asked", cells))
+    assert said is None or "excel-1900" not in [member for member, _first, _last in said.readings]
+    trip = _trip(tmp_path / "declared", cells, "excel-1900")
+    block = trip["block"]
+    assert isinstance(block, dict) and block["role"] != "datetime"
+    assert any(contract.COUNTED_NOT_READ_MARK in remark for remark in block["remarks"])
+    assert trip["twin_exit"] == 0 and trip["real_exit"] == 0
+
+
 def test_c4_the_settled_unit_is_at_least_the_step(monkeypatch: pytest.MonkeyPatch, tmp_path: pathlib.Path) -> None:
     """The first build's minute floor (mutant M52), and a figures check that holds everything.
 
@@ -1565,6 +1614,92 @@ def test_c4_pandas_and_repr_spellings_round_trip(
         assert date_counts.written_for(shape.system, moment, unit, facts.count_form) == cell
 
 
+@pytest.mark.parametrize("figures,many", ((7, 1), (10, 1), (7, 10), (7, 11)))
+def test_c4_a_cell_written_with_more_figures_is_a_stray(tmp_path: pathlib.Path, figures: int, many: int) -> None:
+    """The second review of landing R4, item 5: cells exported with more figures than the rest.
+
+    A thousand Excel date-times at whole seconds written `%.6f`, one or
+    ten of them to seven or ten figures. The column's form, unit and
+    figures check are its usual counts', and each stray is held to its
+    own last figure: Q3 asks with the 1900 system, and declared, the
+    column is read as dates at the second in six fixed figures, its twin
+    and source each at exit 0. The twin writes each stray's moment in six
+    figures, so the strays alone are not written back as themselves. On
+    e9aa5fb one stray silenced Q3 and refused the declaration (NF115):
+    the six-figure cells were held to the seven-figure form's tolerance.
+    ELEVEN in a thousand are more than one in a hundred, no stray: the
+    form is then one of seven figures, which the six-figure cells do not
+    meet, and the declaration is refused as before.
+    """
+    draw = random.Random(11)
+    moments = [45000 + draw.randrange(3000) + draw.randrange(86400) / 86400 for _row in range(1000)]
+    cells = [f"{value:.6f}" for value in moments]
+    strays = [500 + 37 * place for place in range(many)]
+    for place in strays:
+        cells[place] = f"{moments[place]:.{figures}f}"
+    said = _q3(_block_of(tmp_path / "asked", cells))
+    offered = [] if said is None else [member for member, _first, _last in said.readings]
+    block = _block_of(tmp_path / "declared-alone", cells, "excel-1900")
+    if many > 10:
+        assert "excel-1900" not in offered and block["role"] != "datetime", (offered, block["role"])
+        return
+    assert "excel-1900" in offered, offered
+    trip = _trip(tmp_path / "declared", cells, "excel-1900")
+    described = trip["block"]
+    assert isinstance(described, dict) and described["role"] == "datetime"
+    assert described["time_precision"] == "second"
+    assert described["count_form"]["places"] == 6 and not described["count_form"]["trimmed"]
+    assert trip["twin_exit"] == 0 and trip["real_exit"] == 0
+    form = date_counts.CountForm(6, False, None, False, ".", None)
+    moved: "list[int]" = []
+    for place in range(len(cells)):
+        written = date_counts.written_count(cells[place])
+        assert written is not None
+        numerator, denominator = date_counts.exact_value(written)
+        moment = date_counts.moment_of("excel-1900", numerator, denominator, date_counts.SECOND)
+        assert moment is not None
+        if date_counts.written_for("excel-1900", moment, date_counts.SECOND, form) != cells[place]:
+            moved += [place]
+    assert moved == strays
+    twin = trip["twin"]
+    assert isinstance(twin, list) and all(len(f"{cell}".split(".")[1]) == 6 for cell in twin if cell)
+    # THE CHECKER LETS AS MANY STAND, AND NO MORE: the twin with ten of its
+    # cells written to seven figures passes, with eleven it misses.
+    for finer, code in ((10, 0), (11, 3)):
+        changed = list(twin)
+        for place in range(finer):
+            changed[100 + 13 * place] = f"{changed[100 + 13 * place]}0"
+        folder = tmp_path / f"finer-{finer}"
+        folder.mkdir()
+        path = folder / "changed.csv"
+        path.write_text("seen\n" + "\n".join(changed) + "\n", encoding="utf-8", newline="")
+        out = folder / "check"
+        out.mkdir()
+        assert _exit_of(["validate", str(trip["described"]), "--twin", str(path), "--out-dir", str(out), "--replace"])[0] == code, finer
+
+
+def test_c4_a_stray_is_held_to_its_own_last_figure(tmp_path: pathlib.Path) -> None:
+    """The second review of landing R4, item 5: a stray's figures are kept, or the column is not read.
+
+    One cell of a thousand `%.6f` date-times at whole seconds written to
+    seven figures for a moment 0.02 seconds past its second: its own last
+    figure, 8.6 milliseconds, says the moment is not at the second the
+    column is read at, so no unit keeps every figure the column wrote --
+    Q3 offers no system, and the declaration is refused (NF115). Held to
+    the six-figure form instead, 86 milliseconds, the cell would be read
+    as its second and written back without its seventh figure.
+    """
+    draw = random.Random(11)
+    moments = [45000 + draw.randrange(3000) + draw.randrange(86400) / 86400 for _row in range(1000)]
+    cells = [f"{value:.6f}" for value in moments]
+    cells[500] = f"{moments[500] + 0.02 / 86400:.7f}"
+    said = _q3(_block_of(tmp_path / "asked", cells))
+    assert said is None or "excel-1900" not in [member for member, _first, _last in said.readings]
+    assert _block_of(tmp_path / "declared", cells, "excel-1900")["role"] != "datetime"
+    cells[500] = f"{moments[500]:.7f}"
+    assert _block_of(tmp_path / "whole-second", cells, "excel-1900")["role"] == "datetime"
+
+
 def test_c5_a_placeholder_count_is_set_aside_whole_or_not(
     tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -1609,6 +1744,45 @@ def test_c5_a_placeholder_count_is_set_aside_whole_or_not(
     assert code == 0, said[-500:]
     block = json.loads((tmp_path / "mutant" / "table-profile.json").read_text(encoding="utf-8"))["columns"][0]
     assert block["missing_by_source"] != {"2": 20, "2958465": 20}
+
+
+@pytest.mark.parametrize(
+    "case",
+    ("minutes_ten_9999_quarter", "minutes_ten_1900_quarter", "dates_ten_serial_2", "dates_ten_serial_1", "dates_ten_9999"),
+)
+def test_c5_ten_pooled_placeholder_counts_leave_both_files_whole(tmp_path: pathlib.Path, case: str) -> None:
+    """The second review of landing R4, item 6 (mutants K2j and K2k): placeholders fewer than the line.
+
+    Ten cells of a thousand naming a placeholder day -- `2958465.2500` or
+    `1.2500` among Excel moments at whole minutes written to four figures,
+    or `2`, `1` or `2958465` among whole Excel dates -- are set aside, and
+    ten are fewer than the line, so they are pooled as withheld and the
+    twin writes them empty. Both files are at exit 0: the reading the
+    generator and the checker share sets each aside as the profiler did.
+    A read-back keeping a placeholder day's moment (K2j) read the quarter
+    days as dates of 9999 and 1900, and one reading a declared-aside whole
+    count (K2k) read `2` as 2 January 1900, each in the source's tails,
+    which then missed its own description.
+    """
+    draw = random.Random(13)
+    minutes = [f"{45000 + draw.randrange(3000) + draw.randrange(1440) / 1440:.4f}" for _row in range(1000)]
+    dates = [f"{42500 + draw.randrange(3000)}" for _row in range(1000)]
+    base, word = {
+        "minutes_ten_9999_quarter": (minutes, "2958465.2500"),
+        "minutes_ten_1900_quarter": (minutes, "1.2500"),
+        "dates_ten_serial_2": (dates, "2"),
+        "dates_ten_serial_1": (dates, "1"),
+        "dates_ten_9999": (dates, "2958465"),
+    }[case]
+    cells = list(base)
+    for place in range(10):
+        cells[13 + 37 * place] = word
+    trip = _trip(tmp_path, cells, "excel-1900")
+    block = trip["block"]
+    assert isinstance(block, dict) and block["role"] == "datetime"
+    assert block["missing_by_class"].get(parsing.MISSING_WITHHELD) == 10, block["missing_by_class"]
+    assert trip["twin_exit"] == 0 and trip["real_exit"] == 0
+    assert trip["twin"].count(word) == 0  # type: ignore[union-attr]
 
 
 def test_c5_keep_value_does_not_reach_a_declared_columns_placeholder(

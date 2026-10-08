@@ -16946,7 +16946,11 @@ def _counts_read_as_dates(
     not -- Unix seconds written with tenths, four figures of a day of
     moments off the whole minute, one figure of a day -- means no unit a
     twin could be drawn at keeps the column's figures, and nothing is
-    read: the caller then says so in NF115.
+    read: the caller then says so in NF115. THE FORM AND THE UNIT ARE THE
+    USUAL COUNTS' (`date_counts.usual_tally`; the second review of
+    landing R4, item 5): up to one count in a hundred written with more
+    figures than the rest is a stray, held to its own last figure, and
+    the twin writes its moment in the usual form.
 
     Guarantees: accepts the classified present cells, the member, the
     column's settings, whether it is declared `--decimal-comma` and the
@@ -16968,8 +16972,10 @@ def _counts_read_as_dates(
     # THE FIGURES FIRST: the unit a moment is settled to is a fact about
     # the whole column, so how its counts are written is tallied before any
     # cell is read -- every count but the set-aside numbers, which are
-    # written back as written and say nothing of the column's form.
-    tally = date_counts.Tally()
+    # written back as written and say nothing of the column's form -- by
+    # the figures after the mark each writes, so a stray written with more
+    # figures than the rest is set beside them (`date_counts.usual_tally`).
+    tallies: "dict[int, date_counts.Tally]" = {}
     for cell in classified:
         written = date_counts.counted(member, cell.text, mark)
         if written is None:
@@ -16981,7 +16987,8 @@ def _counts_read_as_dates(
             parsed += [(_COUNT_SET_ASIDE, numerator, denominator, word)]
             continue
         parsed += [(_COUNT_READ, numerator, denominator, word)]
-        tally = date_counts.tallied(tally, written)
+        date_counts.tallied_by_places(tallies, written)
+    tally, usual = date_counts.usual_tally(tallies)
     plain = date_counts.form_from(tally, mark, None)
     counts: "list[tuple[int, int]]" = []
     no_count = True
@@ -16995,7 +17002,7 @@ def _counts_read_as_dates(
     # EVERY FIGURE THE COLUMN WROTE IS HELD at the unit it is settled to, or
     # nothing is read -- the one decision question Q3 asks before it offers
     # the member (`date_counts.settled_reading`, `date_counts.figures_kept`).
-    reading = date_counts.settled_reading(member, plain, tally, counts, published)
+    reading = date_counts.settled_reading(member, plain, tally, counts, published, usual)
     if reading is None:
         return classified, [], None
     settled, unit, read_moments = reading
