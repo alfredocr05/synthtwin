@@ -37,11 +37,12 @@ Its review measured the walk at a million rows: on a declared
 identifier of 1,414 values held by 1 to 1,414 rows each, it took 47 s,
 nearly all of them reading which totals some groups can make, where
 493f6f8's took 16. From 4,096 rows on, two readings that need no number
-as wide as the total come first, and only what they leave open is read
-as before; on that identifier they settle every one, and that walk
-takes 2.6 s, its twin 82.7 s of CPU against 95.3 on 493f6f8, every twin
-the same. Described at a floor of 36 rather than 11, 12 of the 120
-seeded identifiers take the walk a long time.
+as wide as the total come first, and in reading which totals a cell may
+take, the run of smallest sizes is set at once; only what these leave
+open is read as before, and on that identifier they leave nothing open:
+that walk takes 2.6 s, its twin 82.7 s of CPU against 95.3 on 493f6f8,
+every twin the same. Described at a floor of 36 rather than 11, 12 of
+the 120 seeded identifiers take the walk a long time.
 
 ### A description written before the published pairs loads again (2026-10-03)
 

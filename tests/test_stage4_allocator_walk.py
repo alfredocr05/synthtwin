@@ -1132,6 +1132,74 @@ def test_each_reading_of_a_total_spares_the_walk_over_every_total() -> None:
     assert narrow["owed_narrow"] >= 241 and narrow["owed_not_halved"] == 0, narrow
 
 
+def test_a_record_saying_a_total_needs_no_number_as_wide_names_condition_4_s_run() -> None:
+    """Each sentence of this walk's records saying a reading needs no number as wide as the total names condition 4's run.
+
+    From `_WIDE_TOTAL` rows on, conditions 3 and 5 ask `_makes_a_total`,
+    whose two readings need no number as wide as the total; condition 4
+    asks neither: `_owed_less` sets the run of smallest sizes at once, as
+    one number as wide as the total. ddcf147's CHANGELOG, `K-S4-04`'s
+    evidence and the ledger note's clause on 25d89cd said such a total is
+    read without that number, and ef37517's CHANGELOG and clause still
+    counted the run among the two readings, where on the plain-number
+    identifier of 1,414 values 119 of the 1,853 wide readings are
+    condition 4's, each a number 499,501 to 1,000,406 bits wide set at
+    once (plan P4-D389, its second review). The records read are P4-D389's
+    CHANGELOG entry, the ledger's note and `K-S4-04`'s evidence; the plan
+    is sealed. Mutations, run, each red here: the CHANGELOG and the
+    ledger as ef37517 left them, and as ddcf147 did; each of the three
+    records alone without the run; and condition 4 walking every size,
+    no run, which turns the premise.
+    """
+    import json
+    import re
+
+    asked = {"_makes_a_total": [0], "_owed_past": [0]}
+
+    def counted(name: str):  # type: ignore[no-untyped-def]
+        inner = getattr(generation, name)
+
+        def counting(*given):  # type: ignore[no-untyped-def]
+            asked[name][0] += 1
+            return inner(*given)
+
+        return counting
+
+    doubling = [(1 << power, 1) for power in range(12)]
+    with pytest.MonkeyPatch.context() as patch:
+        for name in asked:
+            patch.setattr(generation, name, counted(name))
+        owed = generation._owed_less(
+            doubling, [1 for _each in doubling], [1 for _each in doubling], 1, 5000
+        )
+    assert asked == {"_makes_a_total": [0], "_owed_past": [0]}, (
+        f"premise: condition 4 sets its run at once and asks neither reading ({asked})"
+    )
+    assert owed.bit_length() == 5001, "premise: the run is one number as wide as the total"
+    root = pathlib.Path(__file__).resolve().parents[1]
+    entries = (root / "CHANGELOG.md").read_text(encoding="utf-8").split("\n### ")
+    ledger = json.loads((root / "tests" / "kpi" / "ledger.json").read_text(encoding="utf-8"))
+    records = [("the CHANGELOG", entry) for entry in entries if "P4-D389" in entry]
+    records += [("the ledger's note", ledger["measurement_note"])]
+    records += [
+        ("K-S4-04's evidence", entry["evidence"])
+        for entry in ledger["entries"]
+        if entry["id"] == "K-S4-04"
+    ]
+    claim = re.compile(r"\b(?:no|without an?) number as wide as\b")
+    run = re.compile(r"\brun of smallest sizes\b[^.;]*\bat once\b")
+    said: list[str] = []
+    wrong: list[str] = []
+    for where, text in records:
+        for sentence in re.split(r"(?<=[.;])\s+", " ".join(text.split())):
+            if claim.search(sentence):
+                said += [where]
+                if not run.search(sentence):
+                    wrong += [f"{where}: {sentence!r}"]
+    assert said, "premise: a record of this walk says a reading needs no number as wide as the total"
+    assert wrong == [], "condition 4's run is left among the readings that need no such number:\n" + "\n".join(wrong)
+
+
 class _Counted(list):  # type: ignore[type-arg]
     """A list that counts the places read from it, to show where a reading stopped."""
 
