@@ -106,6 +106,10 @@ on a column laid on its census, laid as before by G7A.4 and beside
 another column's `00:00` alike, and so are a heap and a low boundary on
 such a place; the oracle writes the same (mutants: every present time
 in the form's own spelling; each column's own absent spellings alone).
+And its note on K-S3-11's driver:
+`test_round_2_the_tail_leak_driver_draws_its_windows_beside_the_tables_absences`
+-- the driver drew a clock tail's window beside the column's own absent
+spellings alone, where the checker draws it beside every column's.
 """
 
 from __future__ import annotations
@@ -968,19 +972,23 @@ def test_time7_red_when_the_label_walk_stops_at_its_bound(
     assert "t:forms.published.%%:%%:%%.%%%%%%%" in missed
 
 
-def _oracle_module() -> types.ModuleType:
-    """The generation oracle, loaded from its committed file as a module of its own.
+def _tool_module(relative: str, name: str) -> types.ModuleType:
+    """A committed tool, loaded from its file as a module of its own.
 
     Unedited, so it is loaded as the file it is -- as every test that
-    asks the oracle unchanged loads it -- and no string of source is run
+    asks a tool unchanged loads it -- and no string of source is run
     (`tests/test_version_reach.py` counts this loader among its thirty-one).
     """
-    path = _HERE.parent / "tools" / "reference" / "make_generation_reference_vectors.py"
-    spec = importlib.util.spec_from_file_location("oracle_of_the_time7_fix", path)
+    spec = importlib.util.spec_from_file_location(name, _HERE.parent / relative)
     assert spec is not None and spec.loader is not None
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     return module
+
+
+def _oracle_module() -> types.ModuleType:
+    """The generation oracle, `tools/reference/make_generation_reference_vectors.py`."""
+    return _tool_module("tools/reference/make_generation_reference_vectors.py", "oracle_of_the_time7_fix")
 
 
 def test_time7_the_oracle_states_the_same_supply_and_bounds() -> None:
@@ -1446,6 +1454,28 @@ def test_round_2_red_when_a_column_reads_its_own_absences_alone(
     )
     _document, twins, _table = _two_column_twins(tmp_path, (0,))
     assert twins[0][1] == 1 and twins[0][2] != [], twins
+
+
+def test_round_2_the_tail_leak_driver_draws_its_windows_beside_the_tables_absences(tmp_path: pathlib.Path) -> None:
+    """K-S3-11's driver draws a clock tail's window beside every column's absent spellings, as the checker does.
+
+    `b` publishes no absence, but `a`'s `00:00` is no value in `b` too, so
+    `b`'s low tail is drawn past `00:00` (method G7A.4b step 1) and its
+    window starts 15 minutes out, not 20. The driver read `b`'s own
+    spellings alone at baaf9de, so its window was not the checker's.
+    """
+    driver = _tool_module("tools/measurements/kpi_stage3_tail_leak.py", "kpi_stage3_tail_leak_of_the_clock_review")
+    _two_column_twins(tmp_path, ())
+    loaded = contract.load_profile(str(tmp_path / "table.json"))
+    column = loaded.columns[1]
+    facts = column.facts
+    assert isinstance(facts, contract.ClockFacts)
+    floor = loaded.settings.small_cell_floor
+    holes = tuple(validation.settings_for(loaded).declared_missing_values)
+    checker = validation._clock_tail_windows(column, facts, floor, holes)
+    own = validation._clock_tail_windows(column, facts, floor)
+    assert checker["low"][0][0] == 15 and own["low"][0][0] == 20, (checker["low"], own["low"])
+    assert driver._tail_windows(loaded, column) == checker
 
 
 def _two_hourly_columns(folder: pathlib.Path) -> "dict[str, typing.Any]":
