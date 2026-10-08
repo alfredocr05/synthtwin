@@ -2099,6 +2099,9 @@ _STEP6_SHAPES: "dict[str, tuple[list[int], int, int, tuple[tuple[int, str], ...]
     "a_second_pass_kept_only_where_it_writes_more": (
         [2, 7, 8, 1, 8, 5], 20, 13, (), {1: "+1400", 3: "+1300", 4: "+1300", 5: "+1400"}
     ),
+    "a_tie_keeps_the_first_pass": (
+        [1, 6, 7, 4, 7, 5], 20, 13, (), {1: "+1300", 3: "+1400", 4: "+1300", 6: "+1300"}
+    ),
     "step5_after_refused_payments": (
         [1, 1, 1, 1, 2, 12], 4, 0, ((1, "+0000"), (2, "+0000")), {3: "+0000", 4: "+0000", 5: "+0000"}
     ),
@@ -2140,6 +2143,12 @@ def test_cxv_item1_step6_fewer_texts_alone_where_whole_texts_write_more(
       texts reach 20 but two rooms of ten hold 18 of them, so the first
       pass's cells stand. Mutant: the second pass kept whatever it writes,
       18.
+    * `a_tie_keeps_the_first_pass` -- a text standing alone, then 6, 7, 4,
+      7 and 5, owing 20 with `+13:00` and `+14:00` alone on offer: the first
+      pass writes 17 with the lone text, and the second, without it, 17 as
+      well; a second pass is kept only where it writes more, so the first
+      stands. Mutant: the second pass kept on a tie, which writes the text
+      of six for the lone text and the five.
     * `step5_after_refused_payments` -- four texts standing alone, two of
       whose `+0000` are absent spellings, a text of two and one of twelve,
       owing 4: step 4, owed the whole bound, makes two payments, and step 5
