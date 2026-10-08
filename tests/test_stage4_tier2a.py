@@ -41,7 +41,9 @@ so the measure is known to see the defect rather than assumed to.
    each piece the rows pandas' own reader parses at a time, and reads the
    whole frame only where a piece differs, to refuse in its words -- at
    the line the pieces are read at, so a warning pandas gives about the
-   file is shown once, as it was.
+   file is shown once, as it was, save for a file pandas reads in part
+   and then cannot read at all, where pandas may warn about the part it
+   read and 110cb46 showed nothing.
 """
 
 from __future__ import annotations
@@ -1829,10 +1831,55 @@ def test_a_reader_that_fails_sends_the_check_to_the_whole_frame(
             assert ours == theirs and ours.startswith("ProfileError: "), (failure, refusals, ours, theirs)
 
 
+def _read_in_part_only(path: pathlib.Path, found: "reading._Reading") -> bool:
+    """Whether the installed pandas, asked as the checking pass asks it, fails reading the file whole but hands over a first piece of 7 rows.
+
+    Asked of a headed file with no line above its header and no
+    end-of-file mark, which the checking pass reads from its first line
+    with no count of rows.
+    """
+    assert found.survey is not None, path
+    form = found.survey.form
+    assert found.header_source == reading.HEADER_FROM_FILE and not form.end_of_file_mark, path
+    assert not form.separator_line and not dialect.preamble_lines_holding_text(form.preamble), path
+    backslash = form.escape == dialect.ESCAPE_BACKSLASH
+    asked: "dict[str, object]" = {
+        "encoding": dialect.READING_CODECS[found.encoding],
+        "encoding_errors": "strict",
+        "header": 0,
+        "index_col": False,
+        "dtype": str,
+        "keep_default_na": False,
+        "na_filter": False,
+        "skip_blank_lines": True,
+        "engine": "c",
+        "sep": form.delimiter,
+        "quotechar": '"',
+        "doublequote": not backslash,
+        "escapechar": "\\" if backslash else None,
+        "skipinitialspace": form.initial_space,
+        "comment": None,
+    }
+    with warnings.catch_warnings(record=True):
+        warnings.simplefilter("always")
+        try:
+            pandas.read_csv(path, **asked)
+        except Exception:  # noqa: BLE001 -- any failure is the answer asked for
+            pass
+        else:
+            return False
+        try:
+            with pandas.read_csv(path, chunksize=7, **asked) as pieces:
+                first = next(pieces)
+        except Exception:  # noqa: BLE001 -- any failure is the answer asked for
+            return False
+    return len(first) == 7
+
+
 def test_a_file_refused_after_its_pieces_shows_pandas_warning_as_often_as_before(
     tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """A warning pandas gives about a file is shown as often as 110cb46 showed it, once at most.
+    """A warning pandas gives about a file is shown once at most: as often as 110cb46 showed it, save for a file pandas reads in part and then cannot read at all.
 
     Rows ending in a delimiter their header does not end in make pandas 3
     warn on every piece it hands over and on the whole frame. Python
@@ -1845,6 +1892,17 @@ def test_a_file_refused_after_its_pieces_shows_pandas_warning_as_often_as_before
     the one set of trailing delimiters it allows warns about nothing.
     Pieces of 7 rows, under Python's own filter, for the file as written
     and with one value changed.
+
+    And two files pandas reads in part and then cannot read at all (plan
+    P4-D387): the same rows, ended by carriage returns alone, with one
+    record beginning with a space, or two, the second the last. Such a
+    record sends pandas' reader back over the lines before it: read
+    whole, pandas fails before it hands anything over, and read in pieces
+    it hands over pieces with rows repeated, the second file's last piece
+    failing too. Where the installed pandas does so, both passes refuse
+    in the same words, 110cb46's showing no warning and this pass the one
+    pandas gives about the part it read, once -- 1 under pandas 3, 0
+    under pandas 2; where it does not, both show as many.
     """
     monkeypatch.setattr(reading, "_pandas_rows_a_piece", lambda width: 7, raising=False)
     lines = ["id,amount,label"] + [f"{row},{row * 3},L{row % 11}," for row in range(300)]
@@ -1868,6 +1926,28 @@ def test_a_file_refused_after_its_pieces_shows_pandas_warning_as_often_as_before
                 shown += [(said, len(warned))]
             assert shown[1] == shown[0] and shown[0][1] == once, (name, refusals, once, shown)
             assert (shown[0][0] == "agrees") == (name == "as written"), (name, refusals, shown)
+    for spaced in ((150,), (150, 299)):
+        lines = ["id,amount,label"]
+        lines += [f"{' ' if row in spaced else ''}{row},{row * 3},L{row % 11}," for row in range(300)]
+        damaged = fixtures.write(tmp_path, f"read-in-part-{len(spaced)}.csv", "\r".join(lines) + "\r")
+        assert b"\n" not in damaged.read_bytes(), damaged
+        found = reading._read_authoritatively(damaged, "table.csv", reading.FIRST_ROW_NAMES)
+        assert found.survey is not None and found.survey.form.rows_trailing_delimiter, spaced
+        assert not found.survey.form.header_trailing_delimiter and found.n_rows == 300, spaced
+        in_part = _read_in_part_only(damaged, found)
+        for refusals in (reading.REFUSALS_MAY_QUOTE, reading.REFUSALS_NAME_POSITIONS):
+            shown = []
+            for check in (_check_against_pandas_as_built, reading._check_against_pandas):
+                with warnings.catch_warnings(record=True) as caught:
+                    warnings.simplefilter("default")
+                    said = _checked(check, found, damaged, refusals)
+                warned = [warning for warning in caught if issubclass(warning.category, pandas.errors.ParserWarning)]
+                shown += [(said, len(warned))]
+            if in_part:
+                assert shown[1][0] == shown[0][0] != "agrees", (spaced, refusals, shown)
+                assert shown[0][1] == 0 and shown[1][1] == once, (spaced, refusals, once, shown)
+            else:
+                assert shown[1][1] == shown[0][1], (spaced, refusals, shown)
 
 
 # Made-up files whose lines end in carriage returns alone and hold quoted

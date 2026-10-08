@@ -2413,7 +2413,11 @@ def _check_against_pandas(
     Both readings are made by one call and handed over at one line, the
     whole frame as one piece holding every row, so a warning pandas
     gives about the file is shown once, as it was when the file was
-    read once.
+    read once, save for a file pandas reads in part and then cannot
+    read at all: pandas may warn about the part it read (pandas 3, rows
+    ending in a delimiter their header does not), where 110cb46,
+    failing before it handed anything over, showed nothing; the refusal
+    is the same, word for word.
     """
     validated = validate_local_path(raw_path, purpose="input")
     file_path = pathlib.Path(validated)
