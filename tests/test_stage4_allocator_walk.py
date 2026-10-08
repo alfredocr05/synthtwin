@@ -1737,16 +1737,24 @@ def test_the_reserves_cost_the_walk_no_arithmetic_past_the_walk_it_replaced() ->
 
 # -- how far condition 1 narrows -------------------------------------------
 #
-# Codex's review of this landing (item 2): `_bounds_settled` narrows each
+# Codex's review of this landing (item 2): `_bounds_settled` narrowed each
 # later cell's least and most for at most one round more than there are
-# cells, and G9.5 and plan P4-D389 said it narrows until no end moves.
+# cells, where G9.5 and plan P4-D389 say it narrows until no end moves.
 # The grid below is Codex's: four classes by three alphabets by three
 # more counts, 4,150 groups of one row each permitted in six cells, two
-# of its counts answered for by the same open cells and one row apart.
+# of its counts answered for by the same open cells and one row apart,
+# so no filling meets them; with cell 10 open as well, one does.
 
 
-def _codex_grid(scale: int = 1, one_row_apart: bool = False) -> "tuple[tuple[int, ...], list[tuple[list[int], list[int]]], list[int]]":
-    """Codex's grid with every count and the groups ``scale`` times larger; with ``one_row_apart`` its two conflicting counts stay one row apart."""
+def _codex_grid(
+    scale: int = 1, one_row_apart: bool = False, wider: bool = False
+) -> "tuple[tuple[int, ...], list[tuple[list[int], list[int]]], list[int]]":
+    """Codex's grid with every count and the groups ``scale`` times larger.
+
+    With ``one_row_apart`` its two conflicting counts stay one row apart
+    at every scale; with ``wider`` cell 10 is open too, and holds the
+    row they differ by.
+    """
     quotas = [
         [1593 * scale, 1731 * scale, 826 * scale, 0],
         [1322 * scale, 1851 * scale, 977 * scale],
@@ -1755,7 +1763,7 @@ def _codex_grid(scale: int = 1, one_row_apart: bool = False) -> "tuple[tuple[int
     if one_row_apart:
         quotas[2] = [1731 * scale - 1, 2419 * scale + 1, 0]
     mask = 0
-    for cell in (1, 4, 9, 12, 15, 22):
+    for cell in (1, 4, 9, 12, 15, 22) + ((10,) if wider else ()):
         mask = mask | (1 << cell)
     return _grid_question(
         [1 for _each in range(4150 * scale)],
@@ -1764,65 +1772,67 @@ def _codex_grid(scale: int = 1, one_row_apart: bool = False) -> "tuple[tuple[int
     )
 
 
-def narrowing_continued(
+def narrowing_rounds(
     question: "tuple[tuple[int, ...], list[tuple[list[int], list[int]]], list[int]]",
-) -> "tuple[bool, bool, int]":
-    """Condition 1 on entering the first cell of ``question``, and the same narrowing carried on until no end moves.
+) -> "tuple[bool, int, int]":
+    """Condition 1 on entering the first cell of ``question``: what it answers, its rounds, and the cells.
 
-    Returns what `generation._bounds_settled` answered there, whether an
-    end still moved when it stopped, and how many calls of it the same
-    narrowing then takes -- each carrying on from the ends the last left,
-    for at most one round more than there are cells -- until it refuses
-    or no end moves; and whether it refused.
+    The ends `_cell_entry` hands `generation._bounds_settled` there are
+    narrowed again with the counts owed read through a counter: a round
+    reads every count once, so the rounds are the counts read over the
+    counts there are, a round cut short by a refusal counted whole.
     """
     seen: "list[tuple[object, ...]]" = []
-    settle = generation._bounds_settled
 
     def first(owed, families, cell, low, high):  # type: ignore[no-untyped-def]
         nonlocal seen
-        seen += [(owed, families, cell, low, high, settle(owed, families, cell, low, high))]
+        seen += [(owed, families, cell, low, high)]
         raise _Enough()
 
     with pytest.MonkeyPatch.context() as patch:
         patch.setattr(generation, "_bounds_settled", first)
         with pytest.raises(_Enough):
             generation._allotted_over(*question)
-    owed, families, cell, low, high, answered = seen[0]
-    ends = ([number for number in low], [number for number in high])  # type: ignore[attr-defined]
-    answer = settle(owed, families, cell, low, high)  # type: ignore[arg-type]
-    moved = (low, high) != ends
-    calls = 2
-    while answer and moved:
-        ends = ([number for number in low], [number for number in high])  # type: ignore[attr-defined]
-        answer = settle(owed, families, cell, low, high)  # type: ignore[arg-type]
-        moved = (low, high) != ends
-        calls += 1
-    return bool(answered), not answer, calls
+    owed, families, cell, low, high = seen[0]
+    read = _Counted(owed)  # type: ignore[arg-type]
+    answer = generation._bounds_settled(read, families, cell, low, high)  # type: ignore[arg-type]
+    return answer, -(-read.read // len(families)), len(low)  # type: ignore[arg-type]
 
 
-def test_condition_1_narrows_one_round_past_the_cells_and_the_walk_still_answers() -> None:
-    """The cutoff of `_bounds_settled`, on Codex's grid: what it leaves is true and costs states, never an answer.
+def test_condition_1_settles_so_codex_s_grid_is_refused_on_entering() -> None:
+    """Condition 1 narrows until no end moves (method G9.5), so the walk refuses Codex's grid in its first state.
 
-    On entering the first cell the narrowing stops after 37 rounds, one
-    more than the grid's 36 cells, with ends still moving, and lets the
-    cell be filled; carried on, the same narrowing refuses at its 378th
-    round. So the walk enters 706 states before it answers that no
-    packing exists -- the answer of the walk as 493f6f8 shipped it,
-    which enters 4,748. Settling fully would cost rounds in proportion
-    to the counts, not the cells: with every count ten times larger and
-    the two conflicting counts still one row apart, the narrowing
-    carried on refuses only at its 3,771st round, against 378 at the
-    first size, where each call stops at 37 (plan P4-D389, method G9.5).
+    On entering the first cell the narrowing refuses at its 378th round,
+    ten times the grid's 36 cells, and the walk enters one state before
+    answering that no filling meets the counts -- the answer of the walk
+    as 493f6f8 shipped it, which enters 4,748. 489c783 stopped the
+    narrowing after 37 rounds with ends still moving, let the cell be
+    filled and entered 706 states (red there). The rounds grow with the
+    counts and no faster: with every count ten times larger and the two
+    counts the same cells answer for still one row apart, 3,771, and
+    the walk still enters one state. With cell 10 open the counts can be
+    met, and the narrowing settles in 4 rounds and the walk answers in 36
+    states (plan P4-D389, Codex's review of this landing, item 2).
+    Mutations, run, each red here: the rounds stopped at one more than
+    the cells, or at ten times the cells; and the counts read again only
+    while a most moves.
     """
     built, names = _as_built()
     question = _codex_grid()
-    answered, refused, calls = narrowing_continued(question)
-    assert answered, "premise: the narrowing let the first cell be filled"
-    assert refused and calls >= 2, (refused, calls)
+    kept, rounds, cells = narrowing_rounds(question)
+    assert kept is False and rounds > cells + 1, (kept, rounds, cells)
     old_states = _counted(names)
     expected = built(*question)  # type: ignore[operator]
     answer, states, _fills = _work(question)
     assert answer == expected is None
-    assert 1 < states <= old_states[0], (states, old_states[0])
-    _answered, refused_ten, calls_ten = narrowing_continued(_codex_grid(10, one_row_apart=True))
-    assert refused_ten and calls_ten >= 8 * calls, (calls, calls_ten)
+    assert states == 1 < old_states[0], (states, old_states[0])
+    tenfold = _codex_grid(10, one_row_apart=True)
+    kept, rounds_ten, _cells = narrowing_rounds(tenfold)
+    assert kept is False and rounds < rounds_ten <= 11 * rounds, (rounds, rounds_ten)
+    answer, states, _fills = _work(tenfold)
+    assert answer is None and states == 1, states
+    wider = _codex_grid(wider=True)
+    kept, rounds_wide, _cells = narrowing_rounds(wider)
+    assert kept is True and rounds_wide <= cells + 1, rounds_wide
+    answer, states, _fills = _work(wider)
+    assert _meets(wider, answer) and states <= 36, states

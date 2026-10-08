@@ -1701,7 +1701,7 @@ def _bounds_settled(
     low: "list[int]",
     high: "list[int]",
 ) -> bool:
-    """Narrow the least and the most each cell from ``cell`` on may hold, for at most one round more than there are cells.
+    """Narrow the least and the most each cell from ``cell`` on may hold until no end moves.
 
     ``families`` names, for each count of each margin, the cells that
     answer for it, as their places in the order they fill; a count is
@@ -1711,20 +1711,24 @@ def _bounds_settled(
     narrowed: a cell holds at least what its count still owes less the
     most every other cell of that count may hold, and at most what it
     owes less the least they must. A narrowed end can narrow another
-    count's cells, so the counts are read again while anything moves --
-    no more than once more than there are cells, after which what is
-    left is still true, only less narrow.
+    count's cells, so the counts are read again until no end moves.
+    Each round before the last raises a least or lowers a most by a row
+    or more, and the narrowing refuses once a cell's ends cross, so it
+    ends within one round more than the rows between the ends it is
+    given, summed over the cells from ``cell`` on.
 
-    THE ROUNDS STOP THERE RATHER THAN WHERE NO END MOVES (plan P4-D389,
-    Codex's review of the landing, item 2). Carried on, the ends can
-    keep moving for rounds in proportion to the counts rather than the
-    cells: on Codex's grid of 4,150 rows, two of whose counts the same
-    cells answer for one row apart, the narrowing stops after 37 rounds
-    and lets the first cell be filled where 378 refuse it, and with
-    every count ten times larger and those two still one row apart,
-    3,771 do. What the cutoff leaves costs the walk states, never an
-    answer: 706 on that grid, where the walk as 493f6f8 shipped it
-    enters 4,748.
+    SETTLED, NOT CUT OFF (plan P4-D389, Codex's review of the landing,
+    item 2). The rounds had stopped at one more than there are cells:
+    on Codex's grid of 4,150 rows, two of whose counts the same cells
+    answer for one row apart, the ends were still moving after 37, and
+    the walk entered 706 states before answering that no filling meets
+    the counts, where the narrowing carried on refuses on entering, at
+    its 378th round. On counts like those the rounds grow with the
+    counts -- 90,858 at 1,000,150 rows, 4.1 s where the cutoff's walk
+    took 8.1 s -- and measured, a narrowing has run past that cutoff
+    only where it then refuses: 100 of the 9,787,979 entries of the
+    lane's 36,000 seeded questions, none of them going on. So the rounds
+    it adds are spent where they spare the walk the states below.
 
     Every narrowing is a necessary condition on the cells' totals, read
     as whole numbers and nothing else, so a filling that meets every
@@ -1736,11 +1740,9 @@ def _bounds_settled(
     and no I/O; it changes ``low`` and ``high`` and nothing else, and
     only at the places from ``cell`` on.
     """
-    rounds = 0
     moved = True
-    while moved and rounds <= len(low):
+    while moved:
         moved = False
-        rounds = rounds + 1
         for margin, part, steps in families:
             due = owed[margin][part]
             below = 0
@@ -1954,9 +1956,8 @@ def _cell_entry(
     1. **What each cell from this one on may hold.** At most what every
        count it answers for still owes, and nothing where no unplaced
        group may stand; then each count's cells are held to what it owes
-       together, narrowing the least and the most of each, round after
-       round, for at most one round more than there are cells
-       (`_bounds_settled`). A count only one cell can still
+       together, narrowing the least and the most of each until every
+       count agrees (`_bounds_settled`). A count only one cell can still
        answer for fixes that cell's total this way, and what that leaves
        its other counts fixes theirs.
     2. **Where each size can still go.** A group can stand only in a
