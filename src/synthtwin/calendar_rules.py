@@ -1985,7 +1985,7 @@ def tails_kept(
     pins: "tuple[tuple[int, int], ...]",
     census_holes: "frozenset[int]" = frozenset(),
 ) -> "tuple[int, int]":
-    """The fewest and the most different days the twin's two tails keep once its count pass has run, but at a share of seeds no larger than `KEPT_MISS`.
+    """The fewest and the most different days the twin's two tails keep once its count pass has run: where it merges, but at a share of seeds no larger than `KEPT_MISS`; where it splits, the most they can hold.
 
     The first eight arguments are `tails_fewest`'s; `pins` are the body's
     pinned ranks with their days (`body_pins`) and `census_holes` the days
@@ -1995,32 +1995,46 @@ def tails_kept(
     nine seeds in ten or more stands): the room rule the most, the reach
     rule the fewest.
 
-    THE COUNT PASS DECIDES WHAT THE TAILS KEEP (method G12.5), and it knows
-    nothing of the census. Where the body's draw (`body_draw`) and the
-    days the two tails draw in expectation (`tail_days_law`) pass the
-    column's count of different days, it MERGES runs onto held days,
-    nearest first, then the shorter run, then the LOWER rank: the low
-    tail's ranks are the column's lowest, so it is merged first, at most
-    down to its fewest days (`_side_counted`), and the high tail's are the
-    highest, so it keeps the days it drew. Where they fall short it SPLITS
-    ranks onto free days, the low tail first again, and both tails spread
-    to their most (`tails_most_rebuilt`). So, merging, the FEWEST is the
-    low tail's fewest and the least count the high tail draws with a
-    chance above `KEPT_MISS` of drawing no more; and the MOST counts no
-    merge at all -- the least count the two tails draw together with a
-    chance of at least `1 - KEPT_MISS` of drawing no more. A merge only
-    takes days away, so where the pass merges, the days the tails draw
-    bound the days they keep; how far a merge takes the low tail is not
-    read here, and a day it keeps is a day the body loses. Measured (plan
-    P4-D388): the low tail kept a day or two above its fewest on the
-    median of the twins measured and up to ten on a column of monthly
-    dates whose low tail's days stand apart, whose census a most read at
-    that fewest published, its twins long at every seed; it fell below
-    its fewest only where the column's count leaves the body a few days
-    or none beside the two tails' fewest, and the pass moves tail ranks
-    out of their strata to meet it; and the high tail gave up days where
-    the pass took more than a quarter of the body's drawn days, which the
-    fewest does not count. Splitting, both are the two tails' most.
+    THE COUNT PASS DECIDES WHAT THE TAILS KEEP (method G7.3's count
+    passes), and it knows nothing of the census. Where the body's draw
+    (`body_draw`, beside the census holes) and the days the two tails
+    draw in expectation (`tail_days_law`) pass the column's count of
+    different days, it MERGES runs onto held days, nearest first, then
+    the shorter run, then the LOWER rank: the low tail's ranks are the
+    column's lowest, so it is merged first, at most down to its fewest
+    days (`_side_counted`), and the high tail's are the highest, so it
+    keeps the days it drew -- each with the measured exceptions below.
+    Where they fall short it SPLITS ranks onto free days, nearest first,
+    then the LOWER rank: the low tail comes first at each distance and
+    reaches its most (`tails_most_rebuilt`) at all but a tenth of seeds,
+    but a body rank one day from a free day splits before any high tail
+    rank whose free day is further, so the high tail keeps the days it
+    drew unless the body's nearer splits run out first. So, merging, the
+    FEWEST is the low tail's fewest and the least count
+    the high tail draws with a chance above `KEPT_MISS` of drawing no
+    more; and the MOST counts no merge at all -- the least count the two
+    tails draw together with a chance of at least `1 - KEPT_MISS` of
+    drawing no more. A merge only takes days away, so where the pass
+    merges, the days the tails draw bound the days they keep; how far a
+    merge takes the low tail is not read here, and a day it keeps is a day
+    the body loses. Measured (plan P4-D388): the low tail kept a day or two
+    above its fewest on the median of the twins measured and up to ten on
+    a column of monthly dates whose low tail's days stand apart, whose
+    census a most read at that fewest published, its twins long at every
+    seed; it fell below its fewest only where the column's count leaves
+    the body a few days or none beside the two tails' fewest, and the pass
+    moves tail ranks out of their strata to meet it; and the high tail gave
+    up days where the pass took more than a quarter of the body's drawn
+    days, which the fewest does not count. Splitting, both are read at the
+    two tails' most, which the high tail reaches only where the body's
+    nearer splits run out first: one row a business day spends its body's
+    spare ranks first and its tails reach their most, but on logs just
+    above one row an open day the high tail keeps the days it drew at more
+    than a tenth of seeds, and a census the reach rule publishes can come
+    back short at up to seven seeds in ten (plan P4-D388: 21 of 313 such
+    censuses, one to four values short, each miss named by validation) --
+    a risk the orchestrator's ruling of 2026-10-08 lets stand, P4-D388
+    naming the fix it waits on.
 
     Guarantees: accepts what `tails_fewest` accepts, the pins and the
     holes; returns the fewest and the most, the fewest never above the
@@ -2062,8 +2076,9 @@ def count_reach_short(
     are the body's pinned ranks with their days, ascending (`body_pins`);
     `days` is how many different days the column holds; `fewest` the
     fewest different days the twin's two tails keep once its count pass
-    has run, but at a share of seeds no larger than `KEPT_MISS`
-    (`tails_kept`, the orchestrator's ruling of 2026-10-07), and `most`
+    has run, but at a share of seeds no larger than `KEPT_MISS` where it
+    merges, and their most where it splits (`tails_kept`, the
+    orchestrator's ruling of 2026-10-07), and `most`
     the most they can hold as G7.3b rebuilds them
     (`tails_most_rebuilt`); `holes` the days the description publishes as
     holding no body cell (`public_holes`).
@@ -2081,16 +2096,20 @@ def count_reach_short(
     WHAT THE COUNT ASKS OF IT. Before the day pass, the count pass meets
     the column's count of different days on the drawn twin, knowing
     nothing of the census. The body's ranks land on its DRAW
-    (`body_draw`). Where the draw and the tails' most fall short of the
-    count, the pass only SPLITS, moving ranks that share a day onto days
-    no rank holds -- a tail's ranks onto free days of their own spans --
-    and the tails reach their most: one row a business day over four and
-    a half years draws about 830 of its 1,180 days and comes back
-    holding every one. Otherwise it MERGES, and merging only takes days
-    away: the body keeps no more than its draw, and the tails no fewer
-    than `fewest`. So the body's NEED is what the tails at their most
-    leave it, and, where its draw passes that, as much of the draw as
-    the tails at `fewest` leave room for.
+    (`body_draw`, beside the holes). Where the draw and the tails' most
+    fall short of the count, the pass only SPLITS, moving ranks that share
+    a day onto days no rank holds -- a tail's ranks onto free days of
+    their own spans -- nearest first, then the lower rank, and the rule
+    reads the tails at their most: the low tail, the column's lowest
+    ranks, reaches it at all but a tenth of seeds, and the high tail where
+    the body's nearer splits run out first -- one row a business day over
+    four and a half years draws about 830 of its 1,180 days and comes back
+    holding every one.
+    Otherwise it MERGES, and merging only takes days away: the body keeps
+    no more than its draw, and the tails no fewer than `fewest`. So the
+    body's NEED is what the tails at their most leave it, and, where its
+    draw passes that, as much of the draw as the tails at `fewest` leave
+    room for.
 
     True where the need is more than the reach and the census narrows it
     -- without the census the body would reach further -- so the twin
@@ -2106,7 +2125,13 @@ def count_reach_short(
     censuses their twins meet; and the tails are read at the share of
     seeds the ruling allows, and the draw at its expectation, so a twin of
     a census it publishes can still come back a value short at that share
-    of seeds, a miss the twin's report and validation name.
+    of seeds -- and at more where the pass splits and the body's nearer
+    splits do not run out before the high tail's: on logs just above one
+    row an open day the high tail keeps the days it drew, the body needs
+    more than the tails' most leave it, and 21 of 313 such censuses
+    published came back one to four values short at two to seven seeds of
+    ten, a risk the orchestrator's ruling of 2026-10-08 lets stand. Each
+    miss is one the twin's report and validation name.
     No day of the body's span is walked: the days of each weekday in a
     gap are counted, and the holes inside it set aside one by one.
 

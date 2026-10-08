@@ -17,7 +17,8 @@ body for more days than that: D0's repair found twins at the floor of
 withholds the census where the column's different days, less the most
 the twin's tails can hold, leave the body less room than the census
 needs between its pins (`calendar_rules.count_room_short`, with
-`body_pins` and `tails_most`), said in NF74's one sentence. On the 26
+`body_pins`, and `tails_most` until the ruling below), said in NF74's
+one sentence. On the 26
 date batteries of D0's identity run (4,781 tables, seeds 0 to 4) the
 twins left long by their census fall from 86, 87 and 158 at the floors
 of 20, 36 and 50 to none, and no twin misses a check its 493f6f8 twin
@@ -90,8 +91,9 @@ them, at all but a tenth of seeds (`calendar_rules.tails_kept`): the
 reach rule the fewest they keep, the low tail merged to its fewest
 beside the days the high tail draws, a law worked out exactly from the
 tail's shape (`tail_days_law`); the room rule the most, the days the two
-draw with no merge counted; where the pass splits, both tails' most.
-Measured at seeds 0 to 9 over the 7,730 censuses that reach the two
+draw with no merge counted; where the pass splits, both tails' most,
+which the high tail reaches only where the body's nearer splits run out
+first. Measured at seeds 0 to 9 over the 7,730 censuses that reach the two
 rules (6,704 of the 26 batteries, 1,026 of the logs), 4a4b901, 3841dd8
 and this code publish 7,344, 7,066 and 7,440; withhold 312, 573 and 199
 whose twins meet them at nine seeds in ten; and publish 17, 0 and 0
@@ -100,7 +102,16 @@ left falls where the twin's low tail keeps more days than its fewest
 (35, all on the logs) or where merges the room rule does not count take
 days from the tails (164, all on the batteries); the risk accepted is 16
 censuses whose twins miss at one seed in ten, each miss named by
-validation. Seven-day logs holding every day come back one to three
+validation. Its second verification found, out of sample, the census of
+a log just above one row an open day published while its twins come back
+one to four values short at two to seven seeds of ten -- 21 of 313 such
+censuses, and 3 of 523 of fresh logs -- where the pass splits the body's
+nearer ranks before the high tail's; the orchestrator's ruling of
+2026-10-08 lets that risk stand beside the first, since a withheld census
+lets the twin write up to 85 per cent of a column's rows on days it
+never uses, and P4-D388 names the fix it waits on. A node holds one such
+log as it stands, and three more how the body's draw reads published
+holes. Seven-day logs holding every day come back one to three
 values short with or without their census, a limit recorded for lane
 D4. The tails' law is walked reading a rank only where it can meet the
 distance last drawn: read at every distance, one column of 20,000

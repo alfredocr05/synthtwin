@@ -1,4 +1,4 @@
-"""Landing 3b.D1b (plan P4-D388), its Codex review and the ruling on its price: the weekday census withheld where the count of different values has no room for it, either way, at more than one seed in ten.
+"""Landing 3b.D1b (plan P4-D388), its Codex review and the rulings on its price: the weekday census withheld where the count of different values has no room for it, either way, the tails read as the twin's count pass keeps them.
 
 The few-dates rule of landing 3b.G (plan P4-D365) was measured at the
 floor of 11 alone. Raised to 36, 59 twins of the date batteries published
@@ -32,20 +32,28 @@ seed in ten. Read at the most and the fewest the twin's tails could hold,
 the two rules withheld censuses their twins met -- clinics holding every
 clinic day among them, whose twins without the census wrote most of their
 rows on days the clinic never opens. Both rules now read the tails as the
-twin's count pass leaves them (`calendar_rules.tails_kept`), each at all
-but a tenth of seeds (`KEPT_MISS`): the pass merges the low tail first,
-at most down to its fewest, and leaves the high tail the days it drew,
-whose law is worked out exactly from method G7.3b (`tail_days_law`, held
-to the generator's own words here), so the reach rule reads the fewest the
+twin's count pass leaves them (`calendar_rules.tails_kept`). Where the
+pass merges, each reads them at all but a tenth of seeds (`KEPT_MISS`):
+the pass merges the low tail first, at most down to its fewest -- below
+it only where the count leaves the body a few days or none beside the
+two tails' fewest -- and leaves the high tail the days it drew, except
+where it takes more than a quarter of the body's drawn days, the high tail's
+law worked out exactly from method G7.3b (`tail_days_law`, held to the
+generator's own words here); so the reach rule reads the fewest the
 tails keep -- the low tail at its fewest beside the days the high tail
 draws -- and the room rule the most, the days the two tails draw with no
-merge counted; where the pass splits, both tails reach their most. The
-price left and the risk accepted are both measured and stated: a census
-its twins meet is still withheld where the low tail keeps more days than
-its fewest and the margin is narrow, or where a merge the room rule does
-not count takes days from the tails; a census published can miss at one
-seed in ten, reported; and seven-day logs holding every day come back
-short with or without their census, a limit named for lane D4.
+merge counted. Where the pass splits, both read the two tails' most,
+which the low tail reaches at all but a tenth of seeds and the high tail
+only where the body's nearer splits run out first. The price left and
+the risks accepted are all measured and stated: a census its twins meet
+is still withheld where the low tail keeps more days than its fewest and
+the margin is narrow, or where a merge the room rule does not count takes
+days from the tails; a census published can miss at one seed in ten, and
+on logs just above one row an open day, whose count pass splits the
+body's nearer ranks before the high tail's, at up to seven seeds in ten
+(the orchestrator's ruling of 2026-10-08 lets that risk stand), each miss
+reported; and seven-day logs holding every day come back short with or
+without their census, a limit named for lane D4.
 
 Each test names the mutation that turns it red.
 """

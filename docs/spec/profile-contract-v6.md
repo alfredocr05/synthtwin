@@ -6532,7 +6532,11 @@ they withhold only where, read off the description, a twin would miss
 with a chance above one in ten -- and since how far the count pass
 merges is not read, some they withhold are met, a price P4-D388
 measures -- and a census they publish may still be missed at that share
-of seeds, a miss the twin's report and validation name. A census is
+of seeds, and at more where the count pass splits on logs just above one
+row an open day: there its twins came back one to four values short at
+two to seven seeds in ten, a risk the orchestrator's ruling of 2026-10-08
+lets stand beside the first (P4-D388). Each miss is one the twin's report
+and validation name. A census is
 withheld where a non-empty group holds fewer than
 three different dates of the body, or where two or more groups are
 non-empty and they hold fewer than seven and a half different dates
@@ -6561,13 +6565,21 @@ one inside each, each its own. The count pass knows nothing of the
 census. Where the body's draw (below) and the days the tails draw pass
 the column's count it MERGES runs onto held days, nearest first, then
 the shorter run, then the lower rank: the low tail first, at most down
-to its fewest, while the high tail keeps the days it drew. Where they
-fall short it SPLITS ranks onto free days, and both tails reach their
-most. Each count rule reads the tails at all but a tenth of seeds: the
-reach rule the FEWEST they keep, the low tail at its fewest beside the
-days the high tail draws, and the room rule the MOST, the days the two
-tails draw with no merge counted, since how far a merge takes the low
-tail is not read and a day it keeps is a day the body loses. The day
+to its fewest -- below it only where the count leaves the body a few days
+or none beside the two tails' fewest -- while the high tail keeps the
+days it drew, except where the pass takes more than a quarter of the
+body's drawn days and it gives some up too. Where they fall short it
+SPLITS ranks onto free days, nearest first, then the lower rank: the low
+tail reaches its most at all but a tenth of seeds, while a body rank one
+day from a free day splits before any high tail rank whose free day is
+further, so the high tail keeps the days it drew unless the body's
+nearer splits run out first. Where the pass merges, each count rule
+reads the tails at all but a tenth of seeds: the reach rule the FEWEST
+they keep, the low tail at its fewest beside the days the high tail
+draws, and the room rule the MOST, the days the two tails draw with no
+merge counted, since how far a merge takes the low tail is not read and
+a day it keeps is a day the body loses; where it splits, both read the
+two tails' most. The day
 pass moves a body rank only between the two pins either side of it --
 the body's boundaries and the rungs published between them -- so the
 census needs every pin day and, inside each gap, a day of every group
@@ -6588,8 +6600,10 @@ on a body whose ranks are drawn independently inside their gaps and
 land, in expectation, on n(1 - (1 - 1/n)^r) of a gap's n days that are
 no hole, r its ranks -- with the pin days, the body's DRAW. Where the
 draw and the tails' most fall short of the count the pass only splits,
-spreading the tails' ranks over their own spans, and the body NEEDS
-what the tails at their most leave it; otherwise it merges, which only
+and the rule reads the body's NEED as what the tails at their most leave
+it, which holds where the body's nearer splits run out before the high
+tail's; where they do not, the high tail keeps the days it drew and the
+body needs more than that, the risk above; otherwise it merges, which only
 takes days away, so the body keeps no more than its draw and the tails
 no fewer than the fewest they keep, and the need is the draw, no more
 than what the tails' fewest kept leave and no less than what their most
@@ -6601,7 +6615,8 @@ body every weekday between the boundaries and its weekend empty, came
 back with 11 different values for 12 at every seed, and 12 with the
 census emptied -- and a need equal to the reach publishes it. One row a
 business day over four and a half years draws about 830 of its 1,180
-days, its tails reach their most, and its census is published.
+days, its body runs out of ranks to split before its high tail's turn
+comes, its tails reach their most, and its census is published.
 Neither rule speaks of a twin whose tails alone hold more different
 days than its column, the census or no census: fifteen consecutive
 Mondays at the floor of 36 come back with 33 different values for 15
