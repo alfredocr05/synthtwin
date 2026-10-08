@@ -23,13 +23,14 @@ rule 1 moved it always walks, and the strata it leaves past the width
 stand only where they read the published mean and spread, together, no
 further off than the same walk with none left there; on another proven
 side, where 110cb46's end already stood past the width, its walk stands
-only where it serves
-the census strictly better and leaves neither published moment further
-off, and is given up where a stratum finds no room. A side is proven
-only where the width census counts every number of the column, and a
-far cell the walk the block takes leaves past every named pad is written
-plain, where one the draw left there keeps its pad (method G6.3). And the rules stand only where they read the published mean and
-spread, together, no further off than the twin without them (rule 3):
+only where it serves the census strictly better and leaves neither
+published moment further off, and is given up where a stratum finds no
+room. A side is proven only where the width census counts every number
+of the column, and a far cell the walk the block takes leaves past
+every named pad is written plain, where one the draw left there keeps
+its pad (method G6.3). And the rules stand only where they read the
+published mean and spread, together, no further off than the twin
+without them (rule 3):
 wherever rule 1 moved a derived end, the values are read again from the
 same words with both withdrawn -- each end where the width held it, the
 strata divided by that ladder, once, with the plan, and 110cb46's walk
@@ -49,8 +50,9 @@ and of G6.3's give-up against this file, and its leftover round one of
 each clause of where rule 3 is asked, of its one division a block and of
 the checker's second window -- the low end's side of where rule 1 moved
 an end and the mean's half of that window among them, which that round's
-verifier found no test held; method section G6.6.8 states how many turn
-it red. The end rule is also frozen in
+verifier found no test held -- and Codex's review one of each clause it
+added, the sides each walk the block weighs names among them; method
+section G6.6.8 states how many turn it red. The end rule is also frozen in
 `tail_width_past_the_reach` (tests/reference/generation-branch-vectors-23.json);
 the walk has no frozen case, because the oracle does not run G6.6's
 walk, so it is pinned here. The mean and spread 110cb46 wrote on the
@@ -658,11 +660,13 @@ def test_the_squares_the_rows_under_the_width_hold_come_off_the_pair_s_total_fir
     widest = generation._widest_demanded(demands)
     stacked = _left_past(facts, values, widest)
     assert sum(layout.sizes[place] for place in stacked) == 24, "premise: 24 rows past the width by the staircase"
-    moved, freed, _kept = generation._walked_past_the_width(facts, layout, values, demands, floor, sides)
-    assert freed == 0 and _left_past(facts, moved, widest) == []
+    # The side is named for G6.3's plain far cells only where the walk left
+    # a cell past the width there (Codex's review of lane G2, item 2).
+    moved, freed, kept = generation._walked_past_the_width(facts, layout, values, demands, floor, sides)
+    assert freed == 0 and _left_past(facts, moved, widest) == [] and kept == ()
     raised = _with_totals(sides, sides[0][2], sides[0][3] + _squares_under_the_width(facts, layout, values, demands, sides[0]))
-    moved, freed, _kept = generation._walked_past_the_width(facts, layout, values, demands, floor, raised)
-    assert freed == 24 and _left_past(facts, moved, widest) == stacked
+    moved, freed, kept = generation._walked_past_the_width(facts, layout, values, demands, floor, raised)
+    assert freed == 24 and _left_past(facts, moved, widest) == stacked and kept == (True,)
 
 
 def test_the_line_and_each_total_bind_on_their_own(tmp_path: pathlib.Path) -> None:
@@ -673,7 +677,10 @@ def test_the_line_and_each_total_bind_on_their_own(tmp_path: pathlib.Path) -> No
     outermost stratum's distance, or a total of squares of exactly its
     square beside the squares the tail's strata under the width hold,
     leaves that one alone; and every stratum the walk does not leave is
-    moved under the width, so no other cell stays past it.
+    moved under the width, so no other cell stays past it. The side it
+    leaves cells on is named either way -- with every stratum left and
+    none moved, as at eleven, too -- for G6.3's plain far cells (Codex's
+    review of lane G2, item 2).
     """
     described = _described(tmp_path, "ten_wide", _ten_wide(), 11)
     facts, layout, values, demands, floor, sides = _walk_calls(described)[0]
@@ -681,10 +688,11 @@ def test_the_line_and_each_total_bind_on_their_own(tmp_path: pathlib.Path) -> No
     widest = generation._widest_demanded(demands)
     before = _left_past(facts, values, widest)
     assert len(before) == 5 and all(layout.sizes[place] == 1 for place in before), "premise: five one-cell strata"
-    moved, freed, _kept = generation._walked_past_the_width(facts, layout, values, demands, floor, sides)
-    assert freed == 5 and _left_past(facts, moved, widest) == before
-    moved, freed, _kept = generation._walked_past_the_width(facts, layout, values, demands, 4, sides)
-    assert freed == 3 and _left_past(facts, moved, widest) == before[2:]
+    moved, freed, kept = generation._walked_past_the_width(facts, layout, values, demands, floor, sides)
+    assert freed == 5 and _left_past(facts, moved, widest) == before and kept == (True,)
+    assert moved == values, "premise: no stratum moved"
+    moved, freed, kept = generation._walked_past_the_width(facts, layout, values, demands, 4, sides)
+    assert freed == 3 and _left_past(facts, moved, widest) == before[2:] and kept == (True,)
     boundary = sides[0][1]
     outermost = values[before[-1]] - boundary
     # The squares the strata under the width hold come off the total first,
@@ -1605,6 +1613,129 @@ def test_a_far_cell_only_the_draw_left_keeps_its_pad(tmp_path: pathlib.Path) -> 
         assert _missed(described, seed) == [], f"seed {seed}"
 
 
+def _padded_ten_wide() -> "list[str]":
+    """`01000` to `01089` padded to five beside ten of five figures, `10000` to `10009`: one pad of five names every cell."""
+    return [f"{1000 + step:05}" for step in range(90)] + [str(10000 + step) for step in range(10)]
+
+
+def _padded_thousand_beside_185() -> "list[str]":
+    """A thousand two-figure readings padded to three beside one `185` (the second skeptic's `uniform_1000_185`, padded)."""
+    draw = random.Random("g2/uniform/1000/185")
+    return [f"{draw.randint(10, 99):03}" for _row in range(1000)] + ["185"]
+
+
+def test_a_far_cell_the_walk_leaves_is_written_plain_whichever_walk_stands(tmp_path: pathlib.Path) -> None:
+    """Every cell padded, far cells past the one pad: the walk the block takes leaves them there, and each is written plain.
+
+    `01000` to `01089` beside `10000` to `10009`, at eleven: rule 1 moved
+    the high end, and its walk leaves the tail's five outermost strata past
+    the width without moving one under it. A thousand two-figure readings
+    padded to three beside one `185`, at 36: rule 1 moved nothing, and the
+    side's walk stands because it serves the census better, leaving a cell
+    past `99`. Either way the walk the block took names the side, so each
+    cell it left there is written plain: every cell of the twin is as wide
+    as every source cell and nothing is missed, where 110cb46's twin of the
+    second, its far cell padded to four, misses its padded width. Their
+    mutants -- the walk that moved nothing naming no side, the trial walk's
+    values taken without its sides -- pad those cells one figure wider
+    than the field the census names (Codex's review of lane G2, item 2:
+    the plain spelling follows the walk actually taken).
+    """
+    ten = _described(tmp_path, "padded_ten_wide", _padded_ten_wide(), 11)
+    assert ten.document["columns"][0]["pad_widths"] == {"5": 100}, "premise: one pad of five on every cell"
+    assert contract.reach_moved_an_end(_facts(ten)), "premise: rule 1 moved the high end"
+    facts, layout, values, demands, floor, sides = _walk_calls(ten)[0]
+    assert [(side[0], side[4]) for side in sides] == [(True, True)], "premise: the side rule 1 moved"
+    moved, freed, kept = generation._walked_past_the_width(facts, layout, values, demands, floor, sides)
+    assert moved == values and freed > 0, "premise: the walk leaves cells and moves none"
+    assert kept == (True,)
+    for seed in SEEDS:
+        assert {len(cell) for cell in _cells(ten, seed)} == {5}, f"seed {seed}"
+        assert _missed(ten, seed) == [], f"seed {seed}"
+    thousand = _described(tmp_path, "padded_thousand_185", _padded_thousand_beside_185(), 36)
+    facts = _facts(thousand)
+    assert thousand.document["columns"][0]["pad_widths"] == {"3": 1001}, "premise: one pad of three on every cell"
+    assert not contract.reach_moved_an_end(facts), "premise: rule 1 moved nothing"
+    widest = generation._widest_demanded(generation._field_demands(facts))
+    assert [(side[0], side[4]) for side in generation._proven_sides(facts, widest)] == [(True, False)], "premise: a side rule 1 left"
+    for seed in SEEDS:
+        cells = _cells(thousand, seed)
+        assert _past(_numbers(cells), 99.0) >= 1, f"premise: a cell past the width, seed {seed}"
+        assert {len(cell) for cell in cells} == {3}, f"seed {seed}"
+        assert _missed(thousand, seed) == [], f"seed {seed}"
+        theirs = _withdrawn_text(thousand, seed)
+        assert "value:pads.published.3" in kpi_shapes.missed(kpi_shapes.measure(thousand, theirs, f"110cb46-{seed}.csv")), seed
+
+
+def _bell_beside_188_and_334() -> "list[str]":
+    """150 two-figure readings shaped like a bell around 54.5, beside `188` and `334`."""
+    draw = random.Random("g2/bell/150/188/334")
+    return [str(max(10, min(99, int(round(draw.gauss(54.5, 89 / 6)))))) for _row in range(150)] + ["188", "334"]
+
+
+def test_the_cells_are_handed_the_sides_of_the_walk_and_the_reading_the_block_writes(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Where the guard's walk or rule 3's second reading stands, the cells are handed no side, though the first walk named one.
+
+    The width walk, `_wide_enough` and `_number_cells` watched as the
+    generator calls them. 150 bell-shaped two-figure readings beside one
+    `237`, at 36, rule 3 withdrawn: the first walk leaves three cells past
+    `99` and names the high side, the guard takes them under the width,
+    and the walk it keeps names none, so the cells are handed none. 150
+    such readings beside `188` and `334`, at fifty, seeds 0 and 9: the
+    rule's own reading names the high side, and rule 3 writes the reading
+    with the rules withdrawn -- 110cb46's twin, which names none. Neither
+    moves a twin, the reading written holding no cell past the width on
+    that side; their mutants hand on the sides of a walk or a reading the
+    block did not keep (Codex's review of lane G2, item 2: the plain
+    spelling follows the walk the block takes and the reading it writes).
+    """
+    seen: "list[tuple]" = []
+    real_walk = generation._width_walk
+    real_wide = generation._wide_enough
+    real_cells = generation._number_cells
+
+    def walk(*arguments):  # type: ignore[no-untyped-def]
+        nonlocal seen
+        found = real_walk(*arguments)
+        seen += [("walk", found[1])]
+        return found
+
+    def wide(column, facts, layout, rungs, values, floor, sided):  # type: ignore[no-untyped-def]
+        nonlocal seen
+        found = real_wide(column, facts, layout, rungs, values, floor, sided)
+        seen += [("wide", sided, found[1])]
+        return found
+
+    def cells(column, facts, layout, values, floor, kept=()):  # type: ignore[no-untyped-def]
+        nonlocal seen
+        seen += [("cells", kept)]
+        return real_cells(column, facts, layout, values, floor, kept)
+
+    monkeypatch.setattr(generation, "_width_walk", walk)
+    monkeypatch.setattr(generation, "_wide_enough", wide)
+    monkeypatch.setattr(generation, "_number_cells", cells)
+    bell = _described(tmp_path, "bell_237", _bell_beside_237(), 36)
+    with pytest.MonkeyPatch.context() as patch:
+        _rule_three_withdrawn(patch)
+        for seed in SEEDS:
+            seen = []
+            written = _twin_numbers(bell, seed)
+            assert _past(written, 99.0) == 0, f"premise: every far cell under the width, seed {seed}"
+            assert seen[0] == ("walk", (True,)), f"premise: the first walk names the high side, seed {seed}: {seen}"
+            assert seen[1:] == [("walk", ()), ("wide", True, ()), ("cells", ())], f"seed {seed}: {seen}"
+    two = _described(tmp_path, "bell_188_334", _bell_beside_188_and_334(), 50)
+    assert contract.reach_moved_an_end(_facts(two)), "premise: rule 1 moved the high end"
+    for seed in (0, 9):
+        theirs = _withdrawn_text(two, seed)
+        seen = []
+        assert kpi_shapes.twin_text(two, seed) == theirs, f"premise: rule 3 writes 110cb46's twin, seed {seed}"
+        readings = [entry for entry in seen if entry[0] == "wide"]
+        assert readings == [("wide", True, (True,)), ("wide", False, ())], f"premise: the rule's reading names a side: {seen}"
+        assert [entry for entry in seen if entry[0] == "cells"] == [("cells", ())], f"seed {seed}: {seen}"
+
+
 def test_only_a_far_cell_a_pair_proves_gives_its_pad_up_to_a_form_the_map_does_not_name() -> None:
     """`_padded_style_swaps` and `_proven_side_holds` asked directly: every cell padded, one value no pad can hold.
 
@@ -1844,9 +1975,12 @@ def test_a_side_the_rule_left_gives_its_walk_up_where_a_stratum_finds_no_room(tm
     is the heap of `9999` itself, so no value under the width lies past
     the stratum inside the tail. With no end the width held to fall back
     to, the side's walk is given up whole: the first step hands the values
-    back as they stood and counts no cell left past the width, so the
-    walk weighed is 110cb46's. Its mutant keeps the end's cell counted,
-    beside six strata the rule does not allow past the width.
+    back as they stood, counts no cell left past the width and names no
+    side, so the walk weighed is 110cb46's and the far cells the draw left
+    keep their pad where a column is padded (method G6.3; Codex's review
+    of lane G2, item 2: the walk declining names nothing). Its mutant keeps
+    the end's cell counted, beside six strata the rule does not allow past
+    the width.
     """
     described = _described(tmp_path, "heap_far3", _heap_far3(), 11)
     calls = [call for call in _walk_calls(described) if call[5]]
@@ -1855,8 +1989,8 @@ def test_a_side_the_rule_left_gives_its_walk_up_where_a_stratum_finds_no_room(tm
     assert [(side[0], side[4]) for side in sides] == [(True, False)], "premise: a side the rule did not move"
     widest = generation._widest_demanded(demands)
     assert len(_left_past(facts, values, widest)) > 1, "premise: strata past the width"
-    moved, freed, _kept = generation._walked_past_the_width(facts, layout, values, demands, floor, sides)
-    assert moved == values and freed == 0
+    moved, freed, kept = generation._walked_past_the_width(facts, layout, values, demands, floor, sides)
+    assert moved == values and freed == 0 and kept == ()
 
 
 def _run_layout(values: "list[float]") -> "generation._NumericLayout":
@@ -2520,7 +2654,8 @@ def test_the_tails_second_windows_read_the_stratum_bound_with_the_rule_withdrawn
     real = validation._window_stratum
 
     def watched(facts, floor, reach_rule=True):  # type: ignore[no-untyped-def]
-        asked.append(reach_rule)
+        nonlocal asked
+        asked += [reach_rule]
         return real(facts, floor, reach_rule)
 
     monkeypatch.setattr(validation, "_window_stratum", watched)
