@@ -18955,16 +18955,18 @@ def clock_kept_apart(places, size, pinned=()):
 
 
 def clock_off_absent(place, size, low_at, stride, form, absent, taken, apart,
-                     lowest=0, highest=None):
+                     lowest=0, highest=None, room=()):
     """The nearest step of a run, from ``lowest`` to ``highest``, whose
-    spelling the column does not call absent, the earlier first, on no
-    other rank's step where the values all differ; the same step where
-    there is none (G7A.4b)."""
+    spelling the column does not call absent or that is in ``room`` -- the
+    places the other width spells another way of a run on absent places
+    alone -- the earlier first, on no other rank's step where the values
+    all differ; the same step where there is none (G7A.4b)."""
     highest = size - 1 if highest is None else highest
     for away in range(1, size + 1):
         for other in (place - away, place + away):
             if (lowest <= other <= highest and not (apart and taken.get(other))
-                    and not _clock_reads_absent(low_at + other * stride, form, absent)):
+                    and (low_at + other * stride in room
+                         or not _clock_reads_absent(low_at + other * stride, form, absent))):
                 return other
     return place
 
@@ -19074,13 +19076,15 @@ def clock_census_runs(column, parsed, tails, body, heaps, stride):
             if start <= high:
                 runs += [(start, high)]
             units = [clock_run_units(a, b, stride, form, absent) for a, b in runs]
-            steps = [at for a, b in runs for at in range(a, b + 1, stride)]
-            if not sum(units) and steps and all(
-                    clock_other_width_of(at, form) != clock_spelling_of(at, form)
-                    for at in steps):
-                # Every step an absent place the other width spells another
-                # way: the table held the group's cells there, in that width.
-                units = [len(range(a, b + 1, stride)) for a, b in runs]
+            if not sum(units):
+                # Every step an absent place: the table held the group's
+                # cells on those the other width spells another way, in that
+                # width, and the runs take those steps alone.
+                units = [
+                    sum(1 for at in range(a, b + 1, stride)
+                        if clock_other_width_of(at, form) != clock_spelling_of(at, form))
+                    for a, b in runs
+                ]
             first_cells = [sum(1 for end in ends if a <= end <= b) for a, b in runs]
             for (a, b), cells in zip(runs, clock_run_shares(count, units, first_cells)):
                 events += [(a, b, cells, False)]
@@ -19268,16 +19272,24 @@ def clock_census_content(column):
         taken = {}
         for place in places:
             taken[place] = taken.get(place, 0) + 1
+        # A run on absent places alone stands its ranks on those the other
+        # width spells another way, and moves a rank off the others onto
+        # the nearest of them.
+        on_steps = range(low_at, high_at + 1, stride)
+        standable = set()
+        if absent and all(_clock_reads_absent(at, form, absent) for at in on_steps):
+            standable = {at for at in on_steps
+                         if clock_other_width_of(at, form) != clock_spelling_of(at, form)}
         for index, place in enumerate(places):
             rank = first + index
-            if (rank not in pins and absent
+            if (rank not in pins and absent and low_at + place * stride not in standable
                     and _clock_reads_absent(low_at + place * stride, form, absent)):
                 lowest, highest = 0, size - 1
                 if apart:
                     lowest, highest = clock_pin_walls(index, pinned, places, size)
                 moved = clock_off_absent(
                     place, size, low_at, stride, form, absent, taken, apart,
-                    lowest, highest,
+                    lowest, highest, standable,
                 )
                 taken[place] -= 1
                 taken[moved] = taken.get(moved, 0) + 1
@@ -19285,7 +19297,8 @@ def clock_census_content(column):
             ordinals[rank] = low_at + place * stride
     published = clock_published_places(column)
     # ...and the steps of a run laid on absent places alone, which only a
-    # group whose every step the other width spells another way lays.
+    # group whose every step is one lays -- those the other width spells
+    # another way written in it.
     for _first, _cells, low_at, high_at, heap, _group in stretches:
         steps = range(low_at, high_at + 1, stride)
         if not heap and all(_clock_reads_absent(at, form, absent) for at in steps):

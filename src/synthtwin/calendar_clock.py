@@ -298,10 +298,10 @@ def absent_with_another_width(
     Of the places `absent_places` gives, those whose hour shows a width --
     `0` to `9`, or `1` to `9` on a marked face -- so a present time can
     still have stood there in the table, written in the other width. A
-    census group counting cells whose every step on no heap is one of
-    these counts present cells the table wrote there so: its runs take
-    those steps (`clock_body_blocks`), CC5 counts them as its room
-    (`clock_group_reach`), and the twin writes them in that width
+    census group counting cells whose every step on no heap is an absent
+    place counts present cells the table wrote on these so: its runs
+    take these steps alone (`clock_body_blocks`), CC5 counts them as its
+    room (`clock_group_reach`), and the twin writes them in that width
     (`present_spellings`); and so does a drawn tail whose every step
     beyond its boundary on no heap is an absent place
     (`absent_room_beyond`).
@@ -328,10 +328,10 @@ def present_spellings(
 
     A place the table calls absent (`absent_places`) that the description
     stands present cells on -- a heap's value, a tail's boundary, a listed
-    tail value, a published rung, a step of a census group whose every
-    step is such a place (`absent_with_another_width`), or such a place
-    beyond a drawn tail's boundary whose every step on no heap is an
-    absent place (`absent_room_beyond`), `published` --
+    tail value, a published rung, such a place in a census group whose
+    every step is an absent place (`absent_with_another_width`), or such
+    a place beyond a drawn tail's boundary whose every step on no heap is
+    an absent place (`absent_room_beyond`), `published` --
     held present cells in the table, and the form's own spelling of it is
     one the column's reader counts as no value. So those cells can only
     have shown the hour's OTHER width -- `0:00` in a column of `hh:mm`
@@ -459,10 +459,11 @@ def clock_group_reach(
     The steps `clock_body_blocks` shares a group's count over: a group
     counting cells with none of them left is refused at load (the round-2
     fix of landing 3b.5), where the generator would stop on an internal
-    error. A group whose every step on no heap is an absent place the
-    hour's other width spells another way (`absent_with_another_width`)
-    counts those steps, as its runs do: they hold the present cells the
-    table wrote there in that width.
+    error. A group whose every step on no heap is an absent place counts
+    those of them the hour's other width spells another way
+    (`absent_with_another_width`), as its runs do: they hold the present
+    cells the table wrote there in that width, and none stands on one
+    whose hour shows no width (the third verification of that fix).
 
     Guarantees: accepts the groups, the form, the step in the form's
     units, the body's two ends, the heaps' ordinals and the absent places
@@ -488,11 +489,11 @@ def clock_group_reach(
                 units = units - 1
                 if at not in wide:
                     narrow = narrow + 1
-        # A GROUP WHOSE EVERY STEP ON NO HEAP IS AN ABSENT PLACE THE OTHER
-        # WIDTH SPELLS ANOTHER WAY holds the present cells the table wrote
-        # there in that width, as its runs do (`clock_body_blocks`).
-        if units < 1 and narrow == 0:
-            units = free
+        # A GROUP WHOSE EVERY STEP ON NO HEAP IS AN ABSENT PLACE holds the
+        # present cells the table wrote on those the other width spells
+        # another way, in that width, as its runs do (`clock_body_blocks`).
+        if units < 1:
+            units = free - narrow
         found += [units]
     return found
 
@@ -652,10 +653,10 @@ def clock_body_blocks(
     grid's run holding nothing but `12:00`, written for an unknown time,
     took six cells no rank could move off it, and the twin wrote 285
     `12:00` where the table wrote 279. Save one group: where EVERY step
-    of a group counting cells is an absent place the hour's other width
-    spells another way (`absent_with_another_width`), the table held
-    those cells there, present, in that width, and its runs take those
-    steps.
+    of a group counting cells is an absent place, the table held those
+    cells, present, on the ones the hour's other width spells another way
+    (`absent_with_another_width`), in that width, and its runs take those
+    steps alone.
 
     Guarantees: accepts the parsed count, the two tails' rows or None,
     the body's two ends, the census, the heaps as ordinals, the form,
@@ -715,18 +716,21 @@ def clock_body_blocks(
             ]
             total = sum(units)
             if total < 1:
-                # A GROUP WHOSE EVERY STEP IS AN ABSENT PLACE THE OTHER
-                # WIDTH SPELLS ANOTHER WAY counts present cells the table
-                # wrote there in that width (the verification of the
-                # round-2 fix): its runs take those steps, and the twin
-                # writes their cells so (`present_spellings`). Read off
-                # the absence alone, CC5 refused the producer's own
-                # description of 20 `1:15` beside `01:15` declared missing.
+                # A GROUP WHOSE EVERY STEP IS AN ABSENT PLACE counts present
+                # cells the table wrote on those the other width spells
+                # another way, in that width (the verification of the
+                # round-2 fix, and its third for a group beside a place
+                # whose hour shows no width): its runs take those steps
+                # alone, and the twin writes their cells so
+                # (`present_spellings`). Read off the absence alone, CC5
+                # refused the producer's own description of 20 `1:15`
+                # beside `01:15` declared missing.
                 wide = absent_with_another_width(absent, form)
-                steps = [at for begin, stop in runs for at in range(begin, stop + 1, stride)]
-                if steps and all(at in wide for at in steps):
-                    units = [(stop - begin) // stride + 1 for begin, stop in runs]
-                    total = sum(units)
+                units = [
+                    len([at for at in range(begin, stop + 1, stride) if at in wide])
+                    for begin, stop in runs
+                ]
+                total = sum(units)
             if total < 1:
                 return None
             forced = [0 for _run in runs]

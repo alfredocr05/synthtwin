@@ -17935,9 +17935,12 @@ def _clock_census_content(
     between its pins, and every pinned rank stays on its value
     (`_clock_kept_apart`). A rank of a run on a spelling the table calls
     absent moves to the nearest step of its run that is not one -- where
-    the values all differ, between the pins either side of it. Then the
-    codes, each as many times as it counts, and the other stand-ins of
-    G7A.5.
+    the values all differ, between the pins either side of it -- save in
+    a run laid on absent places alone, whose ranks stand on those the
+    hour's other width spells another way, a rank on another moving to
+    the nearest of them (the third verification of the round-2 fix of
+    landing 3b.5). Then the codes, each as many times as it counts, and
+    the other stand-ins of G7A.5.
     """
     column = plan.column
     facts = column.facts
@@ -17984,6 +17987,11 @@ def _clock_census_content(
     for rank, value in census.pins:
         pinned[rank] = value
     holes = _all_holes_of(plan)
+    absent_at = calendar_clock.absent_places(holes, form)
+    is_absent: "dict[int, int]" = {at: 1 for at in absent_at}
+    is_wide: "dict[int, int]" = {
+        at: 1 for at in calendar_clock.absent_with_another_width(absent_at, form)
+    }
     for block in census.blocks:
         start = block.first_rank
         if block.heap:
@@ -17991,6 +17999,16 @@ def _clock_census_content(
                 ordinals[rank] = block.low
             continue
         units = (block.high - block.low) // stride + 1
+        # A RUN LAID ON ABSENT PLACES ALONE -- a group whose every step is
+        # one -- stands its ranks on those the hour's other width spells
+        # another way (`calendar_clock.clock_body_blocks`), and a rank on
+        # another moves to the nearest of them (the third verification of
+        # the round-2 fix of landing 3b.5).
+        room: "dict[int, int]" = {}
+        if all(at in is_absent for at in range(block.low, block.high + 1, stride)):
+            for at in range(block.low, block.high + 1, stride):
+                if at in is_wide:
+                    room[at] = 1
         knots: "list[tuple[int, int]]" = [(start * _WORD_SCALE, 0)]
         fixed: "list[int]" = []
         for rank in range(start, start + block.cells):
@@ -18013,15 +18031,20 @@ def _clock_census_content(
         for index in range(len(places)):
             rank = start + index
             place = places[index]
-            if rank not in pinned and holes and _is_a_hole_spelling(
-                parsing.clock_spelling(block.low + place * stride, form), holes
+            if (
+                rank not in pinned
+                and holes
+                and block.low + place * stride not in room
+                and _is_a_hole_spelling(
+                    parsing.clock_spelling(block.low + place * stride, form), holes
+                )
             ):
                 least, most = 0, units - 1
                 if layout.apart:
                     least, most = _clock_between_pins(index, fixed, places, units)
                 place = _clock_off_a_hole(
                     place, least, most, block.low, stride, form, holes,
-                    taken if layout.apart else {},
+                    taken if layout.apart else {}, room,
                 )
                 taken[places[index]] = taken[places[index]] - 1
                 taken[place] = (taken[place] if place in taken else 0) + 1
@@ -18126,19 +18149,22 @@ def _clock_off_a_hole(
     form: str,
     holes: "tuple[str, ...]",
     taken: "dict[int, int]",
+    room: "dict[int, int] | None" = None,
 ) -> int:
     """The nearest step of a run from `least` to `most` whose spelling the
-    table does not call absent -- the earlier first at one distance, and
-    on a column whose values all differ one no other rank stands on,
-    between the pins either side of it -- or the same step where there is
-    none (method G7A.4b)."""
+    table does not call absent, or that is one of `room` -- the absent
+    places the hour's other width spells another way in a run laid on
+    absent places alone -- the earlier first at one distance, and on a
+    column whose values all differ one no other rank stands on, between
+    the pins either side of it; or the same step where there is none
+    (method G7A.4b)."""
     for away in range(1, max(place - least, most - place) + 1):
         for other in (place - away, place + away):
             if other < least or other > most:
                 continue
             if other in taken and taken[other] > 0:
                 continue
-            if _is_a_hole_spelling(
+            if (room is None or low + other * stride not in room) and _is_a_hole_spelling(
                 parsing.clock_spelling(low + other * stride, form), holes
             ):
                 continue
@@ -18412,10 +18438,11 @@ def _clock_runs_on_absent_places(
     """The steps of every run holding cells whose every step is an absent place (method G7A.4b step 2).
 
     A run takes no cell where its steps are all absent places, save in a
-    group whose every step is one the hour's other width spells another
-    way (`calendar_clock.clock_body_blocks`): the table held that group's
-    cells there, present, in that width, and these are the places the
-    description so stands them on (`_clock_cells_written`).
+    group whose every step is one: the table held that group's cells,
+    present, on those the hour's other width spells another way, in that
+    width (`calendar_clock.clock_body_blocks`), and these are the places
+    the description so stands them on (`_clock_cells_written`, which
+    gives another width's spelling to those alone).
 
     Guarantees: a function of the census, the form and the table's
     absent spellings; returns the steps in the form's unit. Raises

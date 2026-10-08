@@ -7464,9 +7464,8 @@ every step is one takes no cell (G7A.4b step 2), a rank of another run
 moves off it (step 4), and a tail drawn through its shape skips their
 distances (step 1), so a tail rank still never moves and none lands
 there -- save the places the hour's other width spells another way
-that a group holds nothing but, or a drawn tail has nothing but absent
-places beside, whose cells are written in that width (below; G7A.4b
-steps 1 and 2).
+that a group or a drawn tail has nothing but absent places beside,
+whose cells are written in that width (below; G7A.4b steps 1 and 2).
 
 *Added by the dates pass of the stage-3 review, item 5.* The stand-ins
 of G7A.5 were stepped past the absent spellings from the day the role
@@ -7480,8 +7479,8 @@ absent count and the uniqueness, and the step above takes one.
 **AND A PRESENT TIME PUBLISHED ON AN ABSENT PLACE IS WRITTEN AS ITS
 SOURCE WROTE IT.** Where a place a spelling the table calls absent names
 (G7A.4b step 1) is one the description stands present cells on -- a
-heap's value, a tail's boundary or listed value, a published rung, the
-steps of a census group whose every step is such a place (G7A.4b
+heap's value, a tail's boundary or listed value, a published rung, such
+a place in a census group whose every step is an absent place (G7A.4b
 step 2), or such a place beyond a drawn tail's boundary whose every
 step on no heap is an absent place (step 1) -- the table held present
 cells there, and the form's own
@@ -7589,10 +7588,11 @@ below on that step:
    of them (`calendar_clock.run_shares`), `U` the group's steps on no
    absent place, `U<=j` and `U<j` those through and before run `j` -- so
    a run whose every step is an absent place takes no cell, save in a
-   group whose every step on no heap is an absent place the hour's other
-   width spells another way (`calendar_clock.absent_with_another_width`):
-   the table held that group's cells there, present, in that width, so
-   `U` counts those steps and the cells are written in it (G7A.4) --
+   group whose every step on no heap is an absent place: the table held
+   that group's cells, present, on those the hour's other width spells
+   another way (`calendar_clock.absent_with_another_width`), in that
+   width, and never on one whose hour shows no width, so `U` counts
+   those steps alone and the cells are written in it (G7A.4) --
    `f_j` one for each tail boundary standing in run `j` on no heap, and
    `r = n - sum(f)`; where the `f_j` outnumber `n`, none is taken
    first. The boundary's ONE CELL
@@ -7602,6 +7602,17 @@ below on that step:
    census -- nothing, or fewer than the line, left beside its heaps
    (NF106) -- is one group over the dial counting the body's cells on no
    heap.
+
+   *Amended by the third verification of the round-2 fix of landing
+   3b.5.* Its verification let a group stand on its absent steps only
+   where the hour's other width spells every one of them another way,
+   so five `09:00 AM` and six `03:00 PM` of a column of `h:mm AM` on a
+   three-hour grid, one group of 11 across an empty noon with `9:00 AM`,
+   `12:00 PM` and `3:00 PM` declared missing, had the producer's own
+   description refused by CC5, at every seed. Its runs now take
+   `9:00 AM` and `3:00 PM` alone, a rank laid on `12:00 PM` moving to
+   the nearest of them, the earlier first (step 4): every twin writes
+   the five and the six and misses nothing.
 3. **The pins.** The two boundary ranks stand on their boundaries, and
    each published interior rung whose rank lies in a run holding its
    value on the step stands on it (`_clock_rung_pins`) -- the rungs
@@ -7625,7 +7636,10 @@ below on that step:
    a spelling the table calls absent moves to the nearest step of its
    run that is not one, the earlier first -- where the values differ, on
    no other rank's step and strictly between the pins either side of
-   it. A run whose every step is an absent place holds no rank (step 2).
+   it. A run whose every step is an absent place holds no rank (step 2),
+   save one of a group whose every step is: a rank on one the hour's
+   other width does not spell another way moves to the nearest that it
+   does, the same way.
 
    *Amended by the review of landing 3b.5, item 1.* The code read an
    all-different column's ranks WITHOUT the pins as knots and then stepped
@@ -12575,8 +12589,8 @@ from where the twin's share put it is still inside -- a heap's rank its
 value, a boundary rank its boundary, and a tail rank anywhere beyond its
 boundary (`calendar_clock.clock_rank_windows`), the runs shared as
 G7A.4b step 2 shares them, over their steps on no absent place -- or,
-in a group whose every step is an absent place the other width spells
-another way, over those steps. A tail
+in a group whose every step is an absent place, over those the other
+width spells another way. A tail
 holding heaps, drawn on a step of more than one unit or beside an absent
 place beyond its boundary has its two distances' window (G12.14) summed
 over its heaps' distances and its drawn cells' strata, read back past the

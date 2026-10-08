@@ -15608,7 +15608,10 @@ def _clock_census(
       5: `08:00`'s heap one row short of a body of 100 cells all at
       `08:00` loaded, and generation stopped on an internal error; and
       the round-2 fix: a group whose only steps are absent spellings,
-      which the generator's runs no longer count). And each tail drawn
+      which the generator's runs no longer count -- save, where every
+      step of a group is one, those the hour's other width spells
+      another way, which hold the present cells the table wrote there
+      in that width). And each tail drawn
       through its shape whose heaps leave it rows keeps a step beyond its
       boundary that is no heap and no absent place, where its draw can
       stand -- or, where every step there on no heap is an absent place,
