@@ -844,6 +844,328 @@ def test_a_size_taken_whole_counts_whole_in_the_totals_the_cell_can_reach() -> N
     assert states <= 3 and fills <= 3, (states, fills)
 
 
+# -- the readings of a total ---------------------------------------------
+#
+# Whether some copies can make a total in a range (`_reach_any` for
+# condition 3, `_reserves_met` for condition 5) and which totals leave a
+# count what the cells after it can make (`_owed_less`, condition 4) were
+# each the halving walk over every copy, with totals as wide as the
+# counts. On a declared identifier of 1,414 values held by 1 to 1,414
+# rows each -- 1,000,405 rows -- that was about 45 s of the walk's 48
+# on a213d43, where 493f6f8's walk took 16. From
+# `generation._WIDE_TOTAL` rows on, readings that need no number as wide
+# as the total come first (`_makes_a_total`, `_owed_less`); under it the
+# halving walk reads them at once, as it did.
+
+
+def _plain_makes(sizes: "list[tuple[int, int]]", least: int, most: int) -> bool:
+    """Whether some copies of ``sizes`` total from ``least`` to ``most``: every total built one copy at a time."""
+    if most < 0 or least > most:
+        return False
+    limit = (1 << (most + 1)) - 1
+    reach = 1
+    for size, copies in sizes:
+        for _each in range(copies):
+            reach = (reach | (reach << size)) & limit
+    return reach >> max(least, 0) != 0
+
+
+def _plain_owed(
+    keys: "list[tuple[int, int]]",
+    left: "list[int]",
+    where: "list[int]",
+    theirs: int,
+    due: int,
+) -> int:
+    """Condition 4's totals built one copy at a time: bit ``t`` set when the copies of ``theirs`` can make ``due - t``."""
+    rest = 1 << due
+    for place in range(len(keys)):
+        if where[place] & theirs == 0:
+            continue
+        for _each in range(left[place]):
+            rest = rest | (rest >> keys[place][0])
+    return rest
+
+
+def _plain_reach_any(
+    keys: "list[tuple[int, int]]",
+    left: "list[int]",
+    where: "list[int]",
+    cells: int,
+    target: int,
+) -> bool:
+    """Condition 3 read one copy at a time: whether the copies that can reach one of ``cells`` make ``target``."""
+    if target < 1:
+        return True
+    sizes = [
+        (keys[place][0], left[place])
+        for place in range(len(keys))
+        if where[place] & cells and left[place] > 0
+    ]
+    return _plain_makes(sizes, target, target)
+
+
+def _plain_reserves(
+    keys: "list[tuple[int, int]]",
+    left: "list[int]",
+    walk: "list[int]",
+    reserves: "list[tuple[int, int, list[int]]]",
+) -> bool:
+    """Condition 5 read one copy at a time: whether every reserve can still find a total in its range."""
+    for least, most, places in reserves:
+        sizes: "list[tuple[int, int]]" = []
+        for place in places:
+            copies = left[place]
+            if place < len(walk):
+                copies = copies - walk[place]
+            if copies > 0:
+                sizes += [(keys[place][0], copies)]
+        if not _plain_makes(sizes, least, most):
+            return False
+    return True
+
+
+def _drawn_sizes(draw: random.Random, wide: bool) -> "list[int]":
+    """Ascending group sizes: up to nine of 1 to 200, or a run from 1 beside up to four sizes of up to 2,500."""
+    if not wide:
+        top = draw.choice((1, 2, 3, 5, 9, 20, 60, 200))
+        return sorted(draw.sample(range(1, top + 1), min(draw.randint(0, 9), top)))
+    sizes = list(range(1, draw.choice((1, 2, 3, 6, 20, 40)) + 1))
+    for _each in range(draw.randint(0, 4)):
+        sizes += [draw.randint(2, 2500)]
+    return sorted(set(sizes))
+
+
+def _drawn_range(draw: random.Random, whole: int, wide: bool) -> "tuple[int, int]":
+    """A range to read: wide ones from `_WIDE_TOTAL` on where the copies reach it, some empty or below nought."""
+    least = draw.randint(-3, whole + 3)
+    if wide and whole >= generation._WIDE_TOTAL and draw.random() < 0.8:
+        least = draw.randint(generation._WIDE_TOTAL, whole + 3)
+    return least, least + draw.choice((-4, -1, 0, 0, 0, 1, 2, 5, 17, 300))
+
+
+def test_the_readings_of_a_total_answer_as_the_walk_over_every_total() -> None:
+    """30,000 seeded inputs on each side of `_WIDE_TOTAL`: each reading of a total gives what the copies give one at a time.
+
+    `_makes_a_total`, `_owed_less`, `_reach_any` and `_reserves_met`
+    against the totals built one copy at a time. The sizes come
+    ascending, as the walk hands them over, or for `_makes_a_total` in no
+    order at all and with a size of nought among them, since its answer
+    may need neither; with copies of nought to forty, ranges empty, below
+    nought or past every total, and wide totals from `_WIDE_TOTAL` on
+    beside narrow ones. Mutations, run, each red here: copies totalling
+    exactly ``least`` refused; a copy more of a size taken than fits
+    under ``most``; a range from one counted as met without a copy; a
+    size of nought divided by; a run let through a size two past its
+    end; the run's whole sum left out of what it makes; the sizes past
+    the run never walked; a narrow condition 4 walked down from one more
+    than is owed; condition 3 read wide as a range rather than its exact
+    total; condition 5 read wide without what the cell takes; a narrow
+    reserve stopped at its first size whatever that made; and the walk
+    `_makes_a_total` falls back on read from one past ``least``.
+    """
+    draw = random.Random(20261007)
+    for case in range(30000):
+        wide = case % 3 == 0
+        sizes = [
+            (size, draw.choice((0, 1, 1, 1, 2, 3, 7, 40)))
+            for size in _drawn_sizes(draw, wide)
+        ]
+        if draw.random() < 0.05:
+            sizes += [(0, draw.randint(1, 3))]
+        if draw.random() < 0.3:
+            draw.shuffle(sizes)
+        whole = 0
+        for size, copies in sizes:
+            whole = whole + size * copies
+        least, most = _drawn_range(draw, whole, wide)
+        assert generation._makes_a_total(sizes, least, most) == _plain_makes(
+            sizes, least, most
+        ), (sizes, least, most)
+        keys = sorted({
+            (size, draw.getrandbits(4) | 1) for size in _drawn_sizes(draw, wide)
+        })
+        left = [draw.choice((0, 1, 1, 2, 3, 9)) for _each in keys]
+        where = [draw.getrandbits(4) for _each in keys]
+        theirs = draw.getrandbits(4) | 1
+        owed = 0
+        for place in range(len(keys)):
+            owed = owed + keys[place][0] * left[place]
+        due = draw.randint(0, owed + 3)
+        if wide and owed >= generation._WIDE_TOTAL:
+            due = draw.randint(generation._WIDE_TOTAL, owed + 3)
+        assert generation._owed_less(keys, left, where, theirs, due) == _plain_owed(
+            keys, left, where, theirs, due
+        ), (keys, left, where, theirs, due)
+        assert generation._reach_any(keys, left, where, theirs, due) == _plain_reach_any(
+            keys, left, where, theirs, due
+        ), (keys, left, where, theirs, due)
+        walk = [
+            draw.randint(0, left[place])
+            for place in range(draw.randint(0, len(keys)))
+        ]
+        reserves: "list[tuple[int, int, list[int]]]" = []
+        for _each in range(draw.randint(1, 3)):
+            places = [place for place in range(len(keys)) if draw.random() < 0.7]
+            low, high = _drawn_range(draw, owed, wide)
+            low = max(low, 1)
+            reserves += [(low, max(high, low), places)]
+        assert generation._reserves_met(keys, left, walk, reserves) == _plain_reserves(
+            keys, left, walk, reserves
+        ), (keys, left, walk, reserves)
+
+
+def _reading_work(
+    question: "tuple[tuple[int, ...], list[tuple[list[int], list[int]]], list[int]]",
+) -> "tuple[list[int] | None, dict[str, int]]":
+    """The walk's answer to ``question``, and what its readings of a total did on the way.
+
+    ``wide`` counts the readings of conditions 3 and 5 that went to
+    `_makes_a_total`, and ``walked`` those of them that fell back on the
+    walk over every total (`_reach_between`). ``owed_wide`` counts the
+    readings of condition 4 from `_WIDE_TOTAL` on, and ``owed_past``
+    those of them that walked sizes past their run. ``owed_narrow`` counts
+    the narrower readings of condition 4, and ``owed_not_halved`` those of
+    them that were not one walk down from what is owed over every size.
+    """
+    seen = {
+        "wide": 0, "walked": 0, "owed_wide": 0, "owed_past": 0,
+        "owed_narrow": 0, "owed_not_halved": 0,
+    }
+    current = {"due": -1, "walks": 0, "halved": 1}
+    makes = generation._makes_a_total
+    between = generation._reach_between
+    owed_less = generation._owed_less
+    owed_past = generation._owed_past
+
+    def making(*given):  # type: ignore[no-untyped-def]
+        seen["wide"] += 1
+        return makes(*given)
+
+    def walking(*given):  # type: ignore[no-untyped-def]
+        seen["walked"] += 1
+        return between(*given)
+
+    def owing(keys, left, where, theirs, due):  # type: ignore[no-untyped-def]
+        current["due"] = due
+        current["walks"] = 0
+        current["halved"] = 1
+        answer = owed_less(keys, left, where, theirs, due)
+        if due >= generation._WIDE_TOTAL:
+            seen["owed_wide"] += 1
+        else:
+            seen["owed_narrow"] += 1
+            if current["walks"] != 1 or not current["halved"]:
+                seen["owed_not_halved"] += 1
+        return answer
+
+    def passing(keys, left, where, theirs, start, rest):  # type: ignore[no-untyped-def]
+        current["walks"] += 1
+        due = current["due"]
+        if due >= generation._WIDE_TOTAL:
+            seen["owed_past"] += 1
+        elif start != 0 or rest != 1 << due:
+            current["halved"] = 0
+        return owed_past(keys, left, where, theirs, start, rest)
+
+    with pytest.MonkeyPatch.context() as patch:
+        patch.setattr(generation, "_makes_a_total", making)
+        patch.setattr(generation, "_reach_between", walking)
+        patch.setattr(generation, "_owed_less", owing)
+        patch.setattr(generation, "_owed_past", passing)
+        answer, _states, _fills = _work(question)
+    return answer, seen
+
+
+def test_each_reading_of_a_total_spares_the_walk_over_every_total() -> None:
+    """Each reading settles a question of its own without the walk over every total, and each width is read its own way.
+
+    Two copies of 5 cannot make 11: refused on their total. Three copies
+    of 1 and two of 4 make 9: found taking the largest size first. And
+    sizes 1, 2, 4 ... 2,048 make every total to 4,095, so condition 4
+    sets what they leave of 5,000 at once. On the 300-value identifier's
+    question (`_LENGTHS_FIX_A_CELL`, 45,150 rows), 1,192 readings of
+    conditions 3 and 5 from `_WIDE_TOTAL` on walk every total 431 times,
+    and condition 4 walks past its run 57 times in 99. On the 122-value
+    identifier's (`_ONE_LEFT_FOR_A_CELL`, 694 rows) no reading is that
+    wide, and each of condition 4's 241 is one halving walk down from
+    what is owed. Mutations, run, each red here: no refusal on the
+    total, and the first question walks every total; no size taken
+    first, and the second does; no run, and condition 4 walks past it on
+    the third; condition 3, 4 or 5 read the narrow way at every width,
+    or the wide way at every width; and no total counted wide, or every
+    one.
+    """
+    seen = {"_reach_between": [0], "_owed_past": [0]}
+
+    def counted(name: str):  # type: ignore[no-untyped-def]
+        inner = getattr(generation, name)
+
+        def counting(*given):  # type: ignore[no-untyped-def]
+            seen[name][0] += 1
+            return inner(*given)
+
+        return counting
+
+    doubling = [(1 << power, 1) for power in range(12)]
+    with pytest.MonkeyPatch.context() as patch:
+        for name in seen:
+            patch.setattr(generation, name, counted(name))
+        assert not generation._makes_a_total([(5, 2)], 11, 20)
+        assert generation._makes_a_total([(1, 3), (4, 2)], 9, 9)
+        assert generation._owed_less(
+            doubling, [1 for _each in doubling], [1 for _each in doubling], 1, 5000
+        ) == _plain_owed(
+            doubling, [1 for _each in doubling], [1 for _each in doubling], 1, 5000
+        )
+        assert seen == {"_reach_between": [0], "_owed_past": [0]}, seen
+    answer, wide = _reading_work(_LENGTHS_FIX_A_CELL)
+    assert _meets(_LENGTHS_FIX_A_CELL, answer)
+    assert wide["wide"] >= 1192 and wide["walked"] <= 431, wide
+    assert wide["owed_wide"] >= 99 and wide["owed_past"] <= 57, wide
+    answer, narrow = _reading_work(_ONE_LEFT_FOR_A_CELL)
+    assert _meets(_ONE_LEFT_FOR_A_CELL, answer)
+    assert narrow["wide"] == 0 and narrow["owed_wide"] == 0, narrow
+    assert narrow["owed_narrow"] >= 241 and narrow["owed_not_halved"] == 0, narrow
+
+
+class _Counted(list):  # type: ignore[type-arg]
+    """A list that counts the places read from it, to show where a reading stopped."""
+
+    def __init__(self, items: "list[object]") -> None:
+        super().__init__(items)
+        self.read = 0
+
+    def __getitem__(self, index):  # type: ignore[no-untyped-def]
+        self.read += 1
+        return super().__getitem__(index)
+
+    def __iter__(self):  # type: ignore[no-untyped-def]
+        for index in range(len(self)):
+            yield self[index]
+
+
+def test_a_reading_of_a_total_stops_at_the_first_size_that_settles_it() -> None:
+    """The halving walk of `_reserves_met` and of `_reach_between` stops at the first size that brings a total in range.
+
+    Totals only gain members as sizes are added, so the size that first
+    brings one in range settles the reading. Ten sizes of 1 to 10 rows
+    and a reserve of 1 to 5: the first size makes 1, and the other nine
+    are never read. Five thousand copies of 1 and a reading from 4,096
+    to 9,000: the first size makes it, and the 7 and the 9 are never
+    read. Mutations, run, each red here: a narrow reserve read to its
+    last size, all ten read; and the walk `_makes_a_total` falls back on
+    read to its last size, all three.
+    """
+    keys = [(size, 1) for size in range(1, 11)]
+    left = _Counted([1 for _each in keys])
+    assert generation._reserves_met(keys, left, [], [(1, 5, list(range(10)))])  # type: ignore[arg-type]
+    assert left.read == 1, left.read
+    sizes = _Counted([(1, 5000), (7, 1), (9, 1)])
+    assert generation._reach_between(sizes, 4096, 9000)  # type: ignore[arg-type]
+    assert sizes.read == 1, sizes.read
+
+
 def _mixed_identifier(seed: int) -> "list[str]":
     """A declared identifier of 100 to 160 values written in two to five forms, each held by 1 to 10, 40 or 120 rows.
 

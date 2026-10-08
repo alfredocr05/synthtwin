@@ -1552,6 +1552,21 @@ def _reach_bits(
     return bits
 
 
+# HOW WIDE A TOTAL THE HALVING RULE READS ALONE, in rows (stage 4, plan
+# P4-D389). Whether some copies can make a total -- `_reach_any`,
+# `_reserves_met` and `_owed_less` ask it on entering every cell and
+# inside every fill -- the halving rule answers with a whole number one
+# bit wider than the total read, shifted once for every size and copy
+# count. Under this many rows that number is a few machine words, and
+# no reading is quicker; from it on, two readings that need no such
+# number come first (`_makes_a_total`, `_owed_less`). On a declared
+# identifier of 1,414 values held by 1 to 1,414 rows each -- 1,000,405
+# rows -- the halving rule alone spent 47 s of the walk's 48 on totals
+# near a million bits wide. Either way the answer is the halving rule's,
+# so the walk and its answer are the same whatever this says.
+_WIDE_TOTAL = 4096
+
+
 def _reach_any(
     keys: "list[tuple[int, int]]",
     left: "list[int]",
@@ -1564,10 +1579,21 @@ def _reach_any(
     ``where[k]`` is the set of cells the copies at place ``k`` can still
     stand in (`_cell_entry`). The same halving walk as `_reach_bits`,
     over the union of a set of cells rather than one cell, and answering
-    one question instead of building a table.
+    one question instead of building a table. A target of `_WIDE_TOTAL`
+    rows or more is read by `_makes_a_total` instead, which answers as
+    that walk does.
+
+    Guarantees: a fixed function of its arguments; it changes none of
+    them.
     """
     if target < 1:
         return True
+    if target >= _WIDE_TOTAL:
+        sizes: list[tuple[int, int]] = []
+        for place in range(len(keys)):
+            if where[place] & cells and left[place] > 0:
+                sizes += [(keys[place][0], left[place])]
+        return _makes_a_total(sizes, target, target)
     limit = (1 << (target + 1)) - 1
     reach = 1
     for place in range(len(keys)):
@@ -1583,6 +1609,79 @@ def _reach_any(
         if (reach >> target) & 1:
             return True
     return (reach >> target) & 1 == 1
+
+
+def _makes_a_total(sizes: "list[tuple[int, int]]", least: int, most: int) -> bool:
+    """Whether some of the copies ``sizes`` holds total from ``least`` to ``most``.
+
+    ``sizes`` holds ``(size, copies)`` pairs, the sizes ascending, as the
+    walk's places come; the walk asks this where ``most`` is
+    `_WIDE_TOTAL` rows or more. The answer is the one the halving walk of
+    `_reach_bits` gives over every copy (`_reach_between`); two readings
+    that need no number as wide as ``most`` come first, and each settles
+    only a question that walk settles the same way (stage 4, plan
+    P4-D389: on a declared identifier of 1,414 values held by 1 to 1,414
+    rows each, these two settled every one of the walk's 1,734 questions
+    of this kind, each of which had walked up to 1,414 sizes over totals
+    near a million):
+
+    1. Copies totalling less than ``least`` make nothing in range.
+    2. Copies taken from the largest size down, as many of each as still
+       fit under ``most``, are one total of at most ``most``; once they
+       reach ``least`` they are a total in range. Of copies totalling
+       ``least`` or more this always finds one where no size passes
+       ``most - least + 1``, and where the smallest sizes, each at most
+       one more than the sizes before it total, make every total from
+       nought to ``least``.
+
+    Guarantees: a fixed function of its arguments, every size nought or
+    more; it changes none of them. Nothing is in range where ``most`` is
+    below nought or below ``least``, and no copies at all make a total of
+    nought.
+    """
+    if most < 0 or least > most:
+        return False
+    if least < 1:
+        return True
+    total = 0
+    for size, copies in sizes:
+        if copies > 0:
+            total = total + size * copies
+    if total < least:
+        return False
+    made = 0
+    for index in range(len(sizes) - 1, -1, -1):
+        size, copies = sizes[index]
+        if copies > 0 and size > 0:
+            made = made + min(copies, (most - made) // size) * size
+            if made >= least:
+                return True
+    return _reach_between(sizes, least, most)
+
+
+def _reach_between(sizes: "list[tuple[int, int]]", least: int, most: int) -> bool:
+    """The reading `_makes_a_total` falls back on: the halving walk over every copy, to the first total in range.
+
+    The totals the copies of ``sizes`` can make, built one size at a
+    time by the halving rule of `_reach_bits` and kept to ``most``, read
+    after each size for one from ``least`` on: totals only gain members
+    as sizes are added, so the first size that brings one in settles it.
+
+    Guarantees: a fixed function of its arguments, ``least`` one or
+    more; it changes none of them.
+    """
+    limit = (1 << (most + 1)) - 1
+    reach = 1
+    for size, copies in sizes:
+        step = 1
+        while copies > 0:
+            take = min(step, copies)
+            reach = (reach | (reach << (take * size))) & limit
+            copies = copies - take
+            step = step * 2
+        if reach >> least:
+            return True
+    return False
 
 
 def _bounds_settled(
@@ -1664,12 +1763,27 @@ def _reserves_met(
     has not yet decided is counted at every copy still unplaced, the
     most the cell can leave there -- so a reserve this refuses is one no
     way of deciding the rest can meet. The totals those copies can make
-    are built by the halving rule of `_reach_bits`.
+    are built by the halving rule of `_reach_bits`, read after each size:
+    totals only gain members as sizes are added, so the first size that
+    brings one in range settles the reserve. A reserve whose ``most`` is
+    `_WIDE_TOTAL` rows or more is read by `_makes_a_total`, which answers
+    as that rule does.
 
     Guarantees: a fixed function of its arguments; it changes none of
     them.
     """
     for least, most, places in reserves:
+        if most >= _WIDE_TOTAL:
+            sizes: list[tuple[int, int]] = []
+            for place in places:
+                copies = left[place]
+                if place < len(walk):
+                    copies = copies - walk[place]
+                if copies > 0:
+                    sizes += [(keys[place][0], copies)]
+            if not _makes_a_total(sizes, least, most):
+                return False
+            continue
         limit = (1 << (most + 1)) - 1
         reach = 1
         for place in places:
@@ -1682,6 +1796,8 @@ def _reserves_met(
                 reach = (reach | (reach << (take * keys[place][0]))) & limit
                 copies = copies - take
                 step = step * 2
+            if reach >> least:
+                break
         if reach >> least == 0:
             return False
     return True
@@ -1852,20 +1968,10 @@ def _cell_entry(
         part = part_at[margin][cell]
         theirs = part_cells[margin][part] & after
         # Bit ``t`` of ``rest`` is set when the cells after this one can
-        # make up exactly what is owed less ``t``: built down from the
-        # amount owed, one size at a time by the same halving rule.
+        # make up exactly what is owed less ``t`` (`_owed_less`).
         rest = 1 << owed[margin][part]
         if theirs:
-            for place in range(len(keys)):
-                if where[place] & theirs == 0:
-                    continue
-                copies = left[place]
-                step = 1
-                while copies > 0:
-                    take = min(step, copies)
-                    rest = rest | (rest >> (take * keys[place][0]))
-                    copies = copies - take
-                    step = step * 2
+            rest = _owed_less(keys, left, where, theirs, owed[margin][part])
         accept = accept & rest
         if accept == 0:
             return None
@@ -1903,6 +2009,83 @@ def _cell_entry(
         for place in reserve[2]:
             reserves[place] += [reserve]
     return accept, need, _binary_length(accept) - 1, reserves
+
+
+def _owed_less(
+    keys: "list[tuple[int, int]]",
+    left: "list[int]",
+    where: "list[int]",
+    theirs: int,
+    due: int,
+) -> int:
+    """Which totals leave ``due`` less them for the cells ``theirs`` to make exactly, as the bits of one whole number.
+
+    Bit ``t`` is set when the copies still unplaced at the places whose
+    cells meet ``theirs`` (`_cell_entry`, condition 4) can be chosen to
+    total exactly ``due - t``. Under `_WIDE_TOTAL` rows every size is
+    walked down from ``due`` by the halving rule (`_owed_past`). From it
+    on, the smallest sizes come first, while each is at most one more
+    than the sizes before it total: those make every total from nought to
+    their sum -- the totals before a size run unbroken from nought, and a
+    size at most one past their end carries them unbroken to their end
+    plus that size -- so they are set at once, and only the sizes past
+    them are walked down from there. On a declared identifier of 1,414
+    values held by 1 to 1,414 rows each, every size is in that run (stage
+    4, plan P4-D389).
+
+    Guarantees: a fixed function of its arguments, ``due`` nought or
+    more; it changes none of them.
+    """
+    if due < _WIDE_TOTAL:
+        return _owed_past(keys, left, where, theirs, 0, 1 << due)
+    run = 0
+    start = len(keys)
+    for place in range(len(keys)):
+        if where[place] & theirs == 0 or left[place] < 1:
+            continue
+        if keys[place][0] > run + 1:
+            start = place
+            break
+        run = run + left[place] * keys[place][0]
+    lowest = due - run
+    if lowest < 0:
+        lowest = 0
+    rest = ((1 << (due + 1)) - 1) >> lowest << lowest
+    if start < len(keys):
+        rest = _owed_past(keys, left, where, theirs, start, rest)
+    return rest
+
+
+def _owed_past(
+    keys: "list[tuple[int, int]]",
+    left: "list[int]",
+    where: "list[int]",
+    theirs: int,
+    start: int,
+    rest: int,
+) -> int:
+    """`_owed_less`'s halving rule: ``rest`` taken down by every size from place ``start`` on.
+
+    Bit ``t`` of the result is set when some bit ``u`` of ``rest`` is and
+    the copies at places from ``start`` on whose cells meet ``theirs``
+    can total exactly ``u - t``. Built one size at a time -- one copy,
+    then two, then four, then what is left -- so a size with a thousand
+    copies costs ten shifts.
+
+    Guarantees: a fixed function of its arguments; it changes none of
+    them.
+    """
+    for place in range(start, len(keys)):
+        if where[place] & theirs == 0:
+            continue
+        copies = left[place]
+        step = 1
+        while copies > 0:
+            take = min(step, copies)
+            rest = rest | (rest >> (take * keys[place][0]))
+            copies = copies - take
+            step = step * 2
+    return rest
 
 
 def _cell_next(
