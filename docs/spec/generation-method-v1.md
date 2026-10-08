@@ -6692,7 +6692,7 @@ column of whole dates reaches them there through the whole generator;
 at a floor of 36 eight twins of 15,152 move, steps 8.4 and 8.5 merging a
 count already left long one or two values nearer the published one. The
 fifteenth vectors file, `tests/reference/generation-branch-vectors-15.json`,
-holds fifty-one such states -- the landing's ten (an hour inside its
+holds fifty-three such states -- the landing's ten (an hour inside its
 day, a day of moments, the index of steps 5 and 6, a chain, step 8.4 at
 its own clock and at another, a long pair, a two-census trade, and the
 cycles of seven and of ten groups), its review's twenty-four (each new
@@ -6704,10 +6704,12 @@ of forty ranks each at 00:15, 01:15 and 02:30 and on a day of moments,
 a place past the gap twice, a link past its gap, and each step's mover;
 and two cycles restated, where a move puts its rank in the next group's
 mover's place), the two that review's verification found one short
-there too, of hours and of moments, and two chains of step 7b whose
+there too, of hours and of moments, two chains of step 7b whose
 mover as the ranks then stand has no place, of hours and, through the
-whole pass, of moments -- with the answer this section gives each, and
-no G14.3 case.
+whole pass, of moments, and step 3's last pass on four alike weeks whose
+every move ties across the gaps, one tying two giving groups and one two
+taking groups (the lane T2 skeptic's second report, finding 4) -- with
+the answer this section gives each, and no G14.3 case.
 
 #### G7.3g The hour census: the clock pass
 

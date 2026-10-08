@@ -13931,6 +13931,57 @@ def shared_settled_chain_asked_case():
     )
 
 
+# THE SHARES' TIES (the lane T2 skeptic's second report, finding 4): step 3
+# makes its totals exact one share at a time, the move of the largest room,
+# the earliest giving group, then taking group, then gap on a tie. Four gaps
+# of a week each between Sunday pins, alike, so the rakes leave every gap a
+# quarter of each owed total and every move ties across the gaps.
+SHARED_SHARE_GROUPS = [0, 0, 0, 1, 1, 2, 2]  # [Mon-Wed] [Thu-Fri] [Sat-Sun]
+
+
+def shared_weeks_case(why, weekdays, owed):
+    """Four week-long gaps between Sunday pins, each holding a rank on each
+    of ``weekdays`` (Monday nought), the census owing ``owed``."""
+    ordinals, pins = [SHARED_MONDAY - 1], {0}
+    for week in range(4):
+        ordinals += [SHARED_MONDAY + 7 * week + weekday for weekday in weekdays]
+        ordinals += [SHARED_MONDAY + 7 * week + 6]
+        pins |= {len(ordinals) - 1}
+    pinned, lows, highs = shared_layout(ordinals, pins)
+    counts = list(owed)
+    for rank in pins:
+        counts[SHARED_SHARE_GROUPS[(ordinals[rank] + 3) % 7]] += 1
+    return shared_case(why, "shares", ordinals, lows, highs, pinned, counts, SHARED_SHARE_GROUPS)
+
+
+def shared_shares_giving_case():
+    return shared_weeks_case(
+        "Step 3's shares, two giving groups tying in every gap: four weeks between Sunday pins, "
+        "a Monday and a Thursday in each, owing 3, 3 and 2, so every gap's unrounded shares are "
+        "0.75, 0.75 and 0.5 and each rounds to 1, 1 and 0: Monday to Wednesday and Thursday and "
+        "Friday one over, the weekend two under. The first move ties in every gap on its room and "
+        "on both giving groups, so the earliest group gives in the earliest gap, Monday to "
+        "Wednesday to the weekend in the first; the weekend's room there falls, and Thursday and "
+        "Friday give in the second. The latest giving group on a tie swaps those two gaps' rows; "
+        "the latest gap moves both shares into the last two.",
+        [0, 3], [3, 3, 2],
+    )
+
+
+def shared_shares_taking_case():
+    return shared_weeks_case(
+        "Step 3's shares, two taking groups tying in every gap: four weeks between Sunday pins, "
+        "a Monday in each, owing 2, 1 and 1, so every gap's unrounded shares are 0.5, 0.25 and "
+        "0.25 and each rounds to 1, 0 and 0: Monday to Wednesday two over, Thursday and Friday "
+        "and the weekend one under each. The first move ties in every gap on its room and on both "
+        "taking groups, so the earliest gap gives to the earliest group, Thursday and Friday in "
+        "the first; Monday to Wednesday, left nothing there, gives its second share in the second "
+        "gap to the weekend. The latest taking group on a tie swaps those two gaps' rows; the "
+        "latest gap moves both shares into the last two.",
+        [0], [2, 1, 1],
+    )
+
+
 SHARED_STEP_CASES = {
     "an_hour_inside_its_day": shared_hour_case,
     "a_moments_day": shared_moment_case,
@@ -13986,6 +14037,9 @@ SHARED_STEP_CASES = {
     # ...and its repair's, on step 7b
     "a_chain_moves_its_asked_mover": shared_chain_asked_mover_case,
     "a_chain_moves_its_asked_mover_in_the_pass": shared_settled_chain_asked_case,
+    # the lane T2 skeptic's second report (its finding 4), step 3's ties
+    "the_shares_tie_two_giving_groups": shared_shares_giving_case,
+    "the_shares_tie_two_taking_groups": shared_shares_taking_case,
 }
 
 
@@ -14008,7 +14062,8 @@ def shared_walk(case):
 
 def shared_answer(case):
     """What G7.3f's text makes of one case: every rank's ordinal after the
-    step, or the cycle step 8.3 takes as [giving, taking] pairs."""
+    step, or the cycle step 8.3 takes as [giving, taking] pairs, or step
+    3's prior or quotas, gap by gap."""
     walk = shared_walk(case)
     movable = [rank for rank in range(case["body"][0], case["body"][1] + 1) if not case["pinned"][rank]]
     step = case["step"]
@@ -14041,6 +14096,23 @@ def shared_answer(case):
         # Step 3's prior, the calendar's part, for each gap in turn.
         gaps = sorted({(walk.lows[rank], walk.highs[rank]) for rank in movable})
         return [weekday_calendar_row(walk, low, high, len(case["counts"])) for low, high in gaps]
+    elif step == "shares":
+        # Step 3's shares, each gap's quota of every group, from the owed
+        # totals and the gaps as the pass builds them, once every rank drawn
+        # onto a hole has left it.
+        first, last = case["body"]
+        owed = list(walk.counts)
+        for rank in range(first, last + 1):
+            if rank not in movable:
+                owed[walk.group(walk.days[rank])] -= 1
+        gaps = []
+        for rank in movable:
+            if gaps and gaps[-1][-1] == rank - 1 and (walk.lows[gaps[-1][0]], walk.highs[gaps[-1][0]]) == (walk.lows[rank], walk.highs[rank]):
+                gaps[-1] += [rank]
+            else:
+                gaps += [[rank]]
+        weekday_holes_left(walk, gaps)
+        return weekday_shares(walk, gaps, owed)
     return walk.days
 
 
