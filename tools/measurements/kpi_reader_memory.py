@@ -21,7 +21,7 @@ of its own so the high-water mark is this read's:
   rows. MACHINE-FREE, so judged everywhere (the Codex review of plan
   P4-D387, item 2): 9fa2008 cut a file at its line feeds alone, so every
   line of a run of carriage-return lines was cut into one list held
-  while the survey filled its table, 1.164 and 1.124 times the line
+  while the survey filled its table, 1.164 and 1.125 times the line
   feeds' peak; each line ending now ends a block. `survey_bytes_a_row`
   records the line feeds' peak beside them.
 

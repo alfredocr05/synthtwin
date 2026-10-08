@@ -29,6 +29,13 @@ column whose ladder is crowded onto fewer whole numbers than strata
 still spends minutes in the reach rounds from about 10,000 rows, and
 500,000 charges did not get through them in fifteen minutes: the next
 item of stage 4, which the plan names.
+After its Codex review, a column whose shares step back between two
+rungs a unit in the last place apart is walked without the square of its
+rows as well (1,283,479,890 steps read at 64,000 rows before, 700,780
+now), and a file whose lines end in carriage returns alone, or hold a
+run of them after the last line feed, no longer keeps a list of every
+such line at the survey's peak (3,644.6 bytes a row against 3,140.6 with
+line feeds, 3,139.1 now); `K-S4-02` holds that peak to the line feeds'.
 
 ### The weekday guards dropped (2026-10-02)
 
