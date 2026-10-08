@@ -44,6 +44,23 @@ that walk takes 2.6 s, its twin 82.7 s of CPU against 95.3 on 493f6f8,
 every twin the same. Described at a floor of 36 rather than 11, 12 of
 the 120 seeded identifiers take the walk a long time.
 
+Its Codex review found two things. A cell's reserve was read again
+over every size left each time the cell took one more: on a declared
+identifier of 998,991 rows, value i held by i rows, the twin's first
+packing question took 5.2 s of CPU where 493f6f8's walk took 0.64. A
+reserve of 4,096 rows or more now remembers where it found a total and
+is read again only once the cell decides a size from there on: that
+question takes 0.15 s and the twin's whole walk 0.5 s, against
+10.7 on 489c783 and 849 on 493f6f8, every answer and twin the same, and
+a test counts the walk's arithmetic beside its states (`K-S4-04`). And
+the least and the most of each later cell were narrowed for at most one
+round more than there are cells, where method G9.5 says until no end
+moves: on Codex's grid of 4,150 rows, which no filling meets, the walk
+entered 706 states where the narrowing carried on refuses on entering.
+It now settles, as G9.5 says. Measured, it runs past that cutoff only
+where it then refuses, and that grid at a million rows is refused in
+4.1 s of CPU where the cutoff's walk took 8.1.
+
 ### A description written before the published pairs loads again (2026-10-03)
 
 **The review of landing 3b.G1, its four items** (plan P4-D375). A

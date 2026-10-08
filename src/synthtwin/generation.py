@@ -1800,10 +1800,11 @@ def _reserves_met(
     the reserve is met without being read (Codex's review of this
     landing, item 1: on a declared identifier of 998,991 rows the last
     cell's reserve was read again over every size left each time the
-    cell before it took one more, 640 times, a number half a million
-    bits wide shifted once a size, and the twin's first packing question
-    took 5.0 s of CPU where the walk as 493f6f8 shipped it took 0.66;
-    now it is read twice).
+    cell before it took one more, its totals walked 640 times, a number
+    half a million bits wide shifted once a size, and the twin's first
+    packing question took 5.2 s of CPU where the walk as 493f6f8 shipped
+    it took 0.64; now the same 1,010 readings walk those totals twice,
+    and the question takes 0.15 s).
 
     Guarantees: the answer is a fixed function of ``keys``, ``left``,
     ``walk`` and each reserve's first three parts; the only thing it

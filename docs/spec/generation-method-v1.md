@@ -9703,8 +9703,11 @@ the least and the most each cell from this one on may hold — at most
 what every count it answers for still owes and nothing where no
 unplaced group may stand, and then each count's cells held to what that
 count still owes together, a cell's least raised and its most lowered
-until no end moves; where each size can still stand — a cell from this
-one on that permits it and may hold at least its size — so that a size
+until no end moves — each round before the last moves an end by a row
+or more, so this ends, though where no filling meets the counts the
+ends can take rounds in proportion to the counts to cross; where each
+size can still stand — a cell from this one on that permits it and
+may hold at least its size — so that a size
 with no such cell ends the branch and a size whose only such cell is
 this one is taken here, every copy; whether every count still owed, on
 every margin, can be made from the sizes that can still stand in one of
