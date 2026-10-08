@@ -84,6 +84,18 @@ column's absent spellings name: one column writing `00:00` for unknown
 times and another pressed against midnight wrote it in the second
 column's twin at d4f5ee4 and at d0ae8f7 (mutant: the column's own
 spellings alone).
+
+And two rules the verification of that round found no clause held, at
+baaf9de: `test_round_2_the_loader_asks_room_beside_every_columns_absence`
+patched the loader's reading of the table's absent spellings on every
+call, so it held nothing of that reading; it now builds two columns, `u`'s
+absent key moved by hand onto the only step of `t`'s group of 14, and CC5
+refuses the description naming `t` (mutant: each column's own spellings
+alone -- it loads, and generation stops on an internal error); and
+`test_round_2_a_marker_typed_in_lower_case_names_its_absent_place` --
+`12:00 am` declared missing names the place a column of `h:mm AM` writes
+`12:00 AM`, where a reading in its own case alone let the low tail draw
+a cell onto it (mutant: the case not folded).
 """
 
 from __future__ import annotations
@@ -1426,13 +1438,119 @@ def test_round_2_red_when_a_column_reads_its_own_absences_alone(
     assert twins[0][1] == 1 and twins[0][2] != [], twins
 
 
-def test_round_2_the_loader_asks_room_beside_every_columns_absence(
+def _two_hourly_columns(folder: pathlib.Path) -> "dict[str, typing.Any]":
+    """`hourly` as `t` beside `u`, the same column with its `15:00` rows on `16:00`, `u`'s absent key moved by hand to `15:00`.
+
+    Both are described by the real producer beside `12:00` declared
+    missing. `u` holds no `15:00`, so its own group there counts nothing
+    and its block asks no room of it; but its key now names `15:00`, the
+    only step of `t`'s group of 14, and a spelling any column publishes
+    absent is no value in every column.
+    """
+    t, hole = _absence_column("hourly")
+    u = ["16:00" if cell == "15:00" else cell for cell in t]
+    folder.mkdir(parents=True, exist_ok=True)
+    table = fixtures.write(folder, "table.csv", "\n".join(["t,u"] + [f"{x},{y}" for x, y in zip(t, u)]) + "\n")
+    settings = taxonomy.Settings(small_cell_floor=11, declared_missing_values=(hole,))
+    document = profile.build_document(reading.read_table(str(table), small_cell_floor=11), settings, [], [])
+    edited = copy.deepcopy(document)
+    first, second = edited["columns"]
+    assert first["name"] == "t" and {"count": 14, "first": 90, "last": 90} in [
+        dict(group) for group in first["clock_census"]
+    ]
+    assert second["name"] == "u" and second["missing_by_source"] == {"12:00": 279}
+    assert [group["count"] for group in second["clock_census"] if group["first"] <= 90 <= group["last"]] == [0]
+    second["missing_by_source"] = {"15:00": second["missing_by_source"]["12:00"]}
+    return typing.cast("dict[str, typing.Any]", edited)
+
+
+def test_round_2_the_loader_asks_room_beside_every_columns_absence(tmp_path: pathlib.Path) -> None:
+    """CC5 counts out the places any column's absent spellings name, read off the description itself.
+
+    `u`'s key moved by hand to `15:00` leaves `t`'s group of 14 on `15:00`
+    no step, so the two-column description is refused, naming `t`. Read
+    off each column's own spellings alone (the verification of round 2,
+    its mutants M7 and M7b) it loaded, and generate stopped on an
+    internal error.
+    """
+    refused = _loads(tmp_path, _two_hourly_columns(tmp_path), "beside-another")
+    assert isinstance(refused, str) and "CC5" in refused, refused
+    assert "the column named 't'" in refused and "bin 90 to bin 90 counts 14" in refused, refused
+
+
+def test_round_2_red_when_the_loader_reads_each_columns_own_absences_alone(
     tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """CC5 counts out the places any column's absent spellings name: beside another column's `15:00`, `hourly`'s group of 14 on `15:00` alone is refused."""
-    cells, hole = _absence_column("hourly")
-    document, _loaded = _described(tmp_path, cells, declared=(hole,))
-    assert contract._table_holes(document["columns"]) == ("12:00",)
-    monkeypatch.setattr(contract, "_table_holes", lambda _columns: ("12:00", "15:00"))
-    refused = _loads(tmp_path, document, "beside-another")
-    assert isinstance(refused, str) and "CC5" in refused and "bin 90 to bin 90 counts 14" in refused, refused
+    """MUTATION: no spelling read off the table's blocks, each column's own alone -- it loads, and generation stops on an internal error."""
+    built = contract._table_holes
+    monkeypatch.setattr(
+        contract, "_table_holes",
+        lambda columns: () if isinstance(columns, list) and len(columns) > 1 else built(columns),
+    )
+    loaded = _loads(tmp_path, _two_hourly_columns(tmp_path), "beside-another")
+    assert isinstance(loaded, contract.Profile)
+    with pytest.raises(errors.ProfileError):
+        generation.generate(loaded, 0)
+
+
+def _on_the_marked_face(minute: int) -> str:
+    """A minute of the day written `h:mm AM`."""
+    hour = minute // 60
+    return f"{hour % 12 or 12}:{minute % 60:02d} {'AM' if hour < 12 else 'PM'}"
+
+
+def _marker_twins(
+    folder: pathlib.Path, seeds: "tuple[int, ...]" = (0, 1, 2)
+) -> "tuple[dict[str, typing.Any], int, list[tuple[int, int, list[str]]], list[str]]":
+    """`ten-minute` written `h:mm AM`, its unknown time typed `12:00 am` and declared so.
+
+    Returns the published block, the table's rows the reader counts as
+    no value on `12:00 am`, each seed's twin's with what the checker
+    MISSED of that twin, and what it MISSED of the table itself.
+    """
+    _hole, pairs = _ABSENCES["ten-minute"]
+    cells: "list[str]" = []
+    for minute, rows in pairs:
+        cells += [_on_the_marked_face(minute)] * rows
+    random.Random(len(cells)).shuffle(cells)
+    cells = ["12:00 am" if cell == "12:00 AM" else cell for cell in cells]
+    document, loaded = _described(folder, cells, declared=("12:00 am",))
+    twins: "list[tuple[int, int, list[str]]]" = []
+    for seed in seeds:
+        twin, path = _twin(loaded, seed, folder)
+        twins += [(seed, len([cell for cell in twin if parsing.folded(cell) == "12:00 am"]), _missed(loaded, path))]
+    return _block(document), cells.count("12:00 am"), twins, _missed(loaded, folder / "table.csv")
+
+
+def test_round_2_a_marker_typed_in_lower_case_names_its_absent_place(tmp_path: pathlib.Path) -> None:
+    """`12:00 am` declared missing names the place the form writes `12:00 AM`: a marker's case is folded (G7A.4b step 1).
+
+    Read in its own case alone (the verification of round 2, its mutant
+    M13, as at d4f5ee4) it named no place, the low tail drew a cell onto
+    it, and every twin wrote 21 such cells of 20 and MISSED the presence
+    counts and the low tail.
+    """
+    block, real, twins, table = _marker_twins(tmp_path)
+    assert block["clock_form"] == "h-mm AM-PM" and block["clock_step"] == 600, block
+    assert block["missing_by_source"] == {"12:00 am": real} and real == 20 and table == [], (block, table)
+    assert twins == [(seed, real, []) for seed in (0, 1, 2)], (real, twins)
+
+
+def test_round_2_red_when_an_absent_spelling_is_read_in_its_own_case_alone(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """MUTATION: `absent_places` reads the trimmed spelling alone -- `12:00 am` names no place, and the tail draws onto it."""
+
+    def own_case(spellings: "tuple[str, ...] | list[str]", form: str) -> "tuple[int, ...]":
+        found: "list[int]" = []
+        for spelling in spellings:
+            at = parsing.clock_ordinal(parsing.trimmed(spelling), form)
+            if at is None or at in found:
+                continue
+            if parsing.folded(parsing.clock_spelling(at, form)) == parsing.folded(spelling):
+                found += [at]
+        return tuple(sorted(found))
+
+    monkeypatch.setattr(calendar_clock, "absent_places", own_case)
+    _block_of, real, twins, _table = _marker_twins(tmp_path, (0,))
+    assert twins[0][1] > real and twins[0][2] != [], (real, twins)
