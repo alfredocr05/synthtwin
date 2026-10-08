@@ -121,6 +121,11 @@ And the limit that repair states, a strict xfail:
 description stands nothing present on, are written on their group's
 other step in the column's width, as NF109 writes every cell of the
 other width (plan P4-D370), so no twin writes `8:00`.
+And one the second verification of that repair found, at 49d170b:
+`test_round_2_the_other_widths_remark_says_the_times_its_twin_keeps`
+-- NF109's remark, the summary's line and the twin report's note said
+every value of the other width is written the way most are, while the
+verification's column wrote its 15 `0:00` as `0:00`.
 """
 
 from __future__ import annotations
@@ -2006,3 +2011,73 @@ def test_round_2_limit_cells_of_the_other_width_the_description_stands_nowhere_k
     if [(seed, absent, missed) for seed, absent, _written, missed in twins] != [(seed, 25, []) for seed in (0, 1, 2)]:
         pytest.fail(f"the twins the limit was measured on moved: {twins}")
     assert [written for _seed, _absent, written, _missed_checks in twins] == [12, 12, 12], twins
+
+
+# -- the second verification of that repair: NF109's words -------------
+#
+# The repair writes a present time on an absent place in the hour's other
+# width, as the table wrote it, so every twin of the verification's
+# column holds its 15 `0:00` -- while NF109's remark, which that column
+# carries because those cells show the other width, said such values
+# "are read and written the way most of them are": in the description,
+# on the summary's "worth knowing" line and in the twin report's "Note
+# from the description" alike (at 49d170b). The words now say both. A
+# column of slashed stamps carries the same remark and writes its clock
+# half in the column's width throughout, so the exception is said of
+# clock times with no date alone.
+
+_CONTRACT = _HERE.parent / "docs" / "spec" / "profile-contract-v6.md"
+
+
+def _quoted_in_the_contract(identifier: str) -> str:
+    """The sentence the contract quotes under one note form's row, word for word."""
+    lines = _CONTRACT.read_text(encoding="utf-8").splitlines()
+    row = next(index for index, line in enumerate(lines) if line.startswith(f"**{identifier}. "))
+    return next(line for line in lines[row + 1 :] if line.startswith("> "))[2:]
+
+
+def test_round_2_the_other_widths_remark_says_the_times_its_twin_keeps(
+    tmp_path: pathlib.Path, capsys: "pytest.CaptureFixture[str]"
+) -> None:
+    """The verification's column through the commands: NF109 in all three places says the 15 `0:00` its twin keeps.
+
+    With `00:00` declared missing every twin writes the table's 15 `0:00`
+    as `0:00`; with nothing declared the same column writes all 35 as
+    `00:00`, the column's way. Both carry NF109 -- in the description, on
+    the summary's line and in the twin report's note -- and its words
+    hold of both: written the way most are, save, on a column of clock
+    times, a time the description stands present cells on whose spelling
+    that way the table counts as missing, which keeps its own figures.
+    At 49d170b the words said the first half alone, false of the first
+    column's twin. The contract quotes them word for word (NF109).
+    """
+    remark = taxonomy.rendered(taxonomy.REMARK_CLOCK_OTHER_WIDTH, ())
+    cells, hole = _at_midnight_column()
+    for name, declared, kept in (("declared", ("--missing-value", hole), 15), ("undeclared", (), 0)):
+        block, ran = _through_the_commands(tmp_path / name, cells, capsys, *declared)
+        assert [(command, code) for command, code, _said in ran] == [
+            ("profile", 0), ("generate", 0), ("validate", 0),
+        ], (name, ran)
+        assert block["clock_form"] == "hh-mm" and block["missing_by_source"] == ({hole: 20} if declared else {}), block
+        written = (tmp_path / name / "twin" / "table-twin.csv").read_text(encoding="utf-8")
+        twin = [row[0] for row in csv.reader(io.StringIO(written)) if row][1:]
+        assert (twin.count(hole), twin.count("0:00")) == (35 - kept, kept), (name, twin.count(hole), twin.count("0:00"))
+        summary = (tmp_path / name / "table-profile.txt").read_text(encoding="utf-8")
+        report = (tmp_path / name / "twin" / "table-twin-report.txt").read_text(encoding="utf-8")
+        said = (
+            remark in block["remarks"],
+            f"    worth knowing: {remark}\n" in summary,
+            f"  Note from the description: {remark}\n" in report,
+        )
+        assert said == (True, True, True), (name, said)
+    # The rule holds of the undeclared column's twin, and only the exception
+    # of the declared column's: a column of clock times, a present time on
+    # the place a spelling counted missing names, kept in its own figures.
+    rule, save, exception = remark.partition(" -- save, ")
+    assert rule.endswith("written the way most of them are"), rule
+    assert save, f"NF109 names no exception, and every twin kept the table's 15 `0:00`: {remark}"
+    assert exception == (
+        "in a column of clock times with no date, a time the description stands present cells on "
+        "where that way is a spelling the table counts as missing, which keeps its own number of figures"
+    ), remark
+    assert _quoted_in_the_contract("NF109") == remark

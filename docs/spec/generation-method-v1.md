@@ -7492,9 +7492,9 @@ description stands nothing present on keeps the form's own spelling
 too: the construction keeps its ranks off such a place where it can
 (the step above; G7A.4b steps 1, 2 and 4), and a cell it could not move
 is not given a spelling the table may never have held. Every other cell
-is the form's own spelling of its ordinal, so NF109's remark -- a cell
-of the other width is written in the column's -- holds of every cell
-but these.
+is the form's own spelling of its ordinal, and NF109's remark says both:
+a cell of the other width is written in the column's, save these, which
+keep their own.
 
 *Added by the verification of the round-2 fix of landing 3b.5.* A
 ten-minute grid in `hh:mm` holding 15 real times at midnight written

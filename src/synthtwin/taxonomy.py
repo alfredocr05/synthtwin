@@ -793,7 +793,9 @@ EVIDENCE_CLOCK = "evidence_clock_times"
 # (`parsing.clock_style_of_cells`): cells on another face -- with AM or PM
 # where the column writes none, or the other way round -- are counted
 # unread, and cells whose hour shows the other width are counted in and
-# written the column's way. Neither sentence carries a count.
+# written the column's way -- save, on a column of clock times, a present
+# time the description stands where that way is a spelling the table
+# counts missing (method G7A.4). Neither sentence carries a count.
 REMARK_CLOCK_OTHER_FACE = "remark_some_clocks_written_another_way"
 REMARK_CLOCK_OTHER_WIDTH = "remark_some_hours_written_another_width"
 EVIDENCE_AFFIXED = "evidence_numbers_wearing_one_affix"
@@ -2760,10 +2762,22 @@ def rendered(form: str, arguments: "tuple[object, ...]") -> str:
             "read"
         )
     if form == REMARK_CLOCK_OTHER_WIDTH:
+        # TRUE BOTH WAYS, ON EVERY COLUMN THAT CARRIES IT (the second
+        # verification of landing 3b.5's round-2 repair). A column of
+        # clock times writes a present time the description stands on a
+        # place whose spelling in the column's width the table counts
+        # missing in the other width, as the table wrote it (method
+        # G7A.4), where these words said every such value was written
+        # the column's way. A column of slashed stamps carries the same
+        # remark and writes its clock half in the column's width
+        # throughout, so the exception names clock times alone.
         return (
             "some values write the hour with a different number of "
-            "figures than most do, and are read and written the way most "
-            "of them are"
+            "figures than most do, and are read, and written the way "
+            "most of them are -- save, in a column of clock times with "
+            "no date, a time the description stands present cells on "
+            "where that way is a spelling the table counts as missing, "
+            "which keeps its own number of figures"
         )
     if form == REMARK_ALL_DIFFERENT_TEXT:
         return (
