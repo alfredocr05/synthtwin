@@ -2087,6 +2087,29 @@ def _wide_codes(seed: int, rows: int = 2000) -> "list[str]":
     return built
 
 
+def _bracketed_negatives() -> "list[str]":
+    """Sixty published words on twenty rows each beside 210 accounting
+    brackets around a minus, each written once: 140 of three figures and
+    70 of four, so the census names `(-%%%)` and `(-%%%%)`, whose cells
+    read as contradictory numbers."""
+    draw = random.Random(390)
+    values: "list[str]" = []
+    for word in range(60):
+        values += [f"shelf{word:02d}"] * 20
+    seen: "dict[str, int]" = {}
+    for figures in (3, 3, 4):
+        made = 0
+        while made < 70:
+            spelling = f"(-{draw.randrange(10 ** (figures - 1), 10 ** figures)})"
+            if spelling in seen:
+                continue
+            seen[spelling] = 1
+            values += [spelling]
+            made = made + 1
+    draw.shuffle(values)
+    return values
+
+
 def test_no_form_s_supply_is_counted_past_what_it_can_be_paid() -> None:
     """Every supply count of a named form, in the three places it is taken
     (review of plan P4-D390, item 1).
@@ -2099,10 +2122,14 @@ def test_no_form_s_supply_is_counted_past_what_it_can_be_paid() -> None:
     for every form: 64 forms holding 4,992 codes back, past the search's
     256 places; 16 forms holding 192 back, inside them, where the search
     asked each form of 24 cells for 192 spellings; decimals held back 300
-    to a form in nine forms beside 2,700 labels; and the carried column of
+    to a form in nine forms beside 2,700 labels; the carried column of
     figures, a hyphen and capitals at a floor of twenty, where the trade
-    asked for 1,082 spellings of forms of 356, 350 and 306 cells. No byte
-    of any twin moves either way.
+    asked for 1,082 spellings of forms of 356, 350 and 306 cells; and
+    accounting brackets around a minus beside sixty published words,
+    where the class walk's count for the out-of-range and contradictory
+    classes asked forms of 140 and 70 cells for 210 spellings each, and
+    no test held that count (second review of plan P4-D390, item 2). No
+    byte of any twin moves either way.
     """
     recorded: "list[tuple[str, int]]" = []
     usable = generation._usable_room
@@ -2123,6 +2150,7 @@ def test_no_form_s_supply_is_counted_past_what_it_can_be_paid() -> None:
         (_register_of_many_forms(range(1, 17), 12), None, 11),
         (_decimal_codes(), ["proc"], 11),
         (_wide_codes(401), None, 20),
+        (_bracketed_negatives(), None, 11),
     ):
         document, described, _folder = _described(values, "proc", codes, floor)
         census = document["columns"][0]["shape_forms"]
@@ -2392,6 +2420,53 @@ def test_the_ladder_does_not_count_a_published_number_it_steps_past() -> None:
     for step in range(1, 51):
         outward += [f"{1000001 - step}", f"{1060000 + step}"]
     assert product[2000:] == outward
+    assert product == mirrored
+
+
+def test_the_ladder_does_not_count_a_side_whose_sign_the_column_lacks() -> None:
+    """A POSITION PAST THE PUBLISHED SPAN THAT HOLDS NO VALUE IS NOT
+    COUNTED EITHER (second review of plan P4-D390, item 1).
+
+    Past the span, a side whose sign the column does not hold holds no
+    value at any step, and the walk stands on it once for each value it
+    tries on the other side. The case above reaches only positions inside
+    the span, so with those outside counted again, in the product or in
+    the oracle, every test passed. Published 1 and 2, positives only, so
+    every step below them holds no value; with every even number from 4
+    already written, the walk takes the odd ones above 2 and refuses the
+    even ones between. Counted, the empty steps below gave the walk up
+    after 16,382 numbers, as on 4ec50cd; now it takes the 20,000 asked
+    for, and the oracle walks alike (A-P4-59).
+    """
+    oracle = _reference_oracle()
+    written = ["1", "2"]
+    ladder = generation._number_ladder(written, False, [])
+    reference = oracle.number_ladder(written, [])
+    assert ladder.signs == generation._SIGN_POSITIVE_BIT
+    assert reference["signs"] == {"positive"}
+    used = {f"{value}": 1 for value in range(4, 40010, 2)}
+    seen = set(used)
+    number = generation._OWED_NUMBER
+    assert generation._ladder_room(ladder, number, 20000, {}, used, {}, (), False) == 20000
+    assert oracle.ladder_room(
+        reference, oracle.OWED_NUMBER, 20000, set(), seen, set()
+    ) == 20000
+    cursor: "dict[str, int]" = {}
+    walked: "dict[str, int]" = {}
+    product: "list[str]" = []
+    mirrored: "list[str]" = []
+    for _each in range(20000):
+        product += [
+            generation._next_on_ladder(ladder, number, cursor, {}, used, {}, (), False)
+        ]
+        mirrored += [
+            oracle.next_on_ladder(
+                reference, oracle.OWED_NUMBER, walked, set(), seen, set()
+            )
+        ]
+    assert "" not in product, len([value for value in product if value])
+    assert len(set(product)) == 20000
+    assert [value for value in product if int(value) % 2 == 0 or int(value) < 3] == []
     assert product == mirrored
 
 
