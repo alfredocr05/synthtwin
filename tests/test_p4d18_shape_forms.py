@@ -2319,6 +2319,121 @@ def test_the_class_walk_takes_a_form_past_the_old_bound_as_the_oracle_does() -> 
         assert product == mirrored, form
 
 
+def _bracketed_negatives_past_the_old_bound() -> "list[str]":
+    """Codex's column: sixty `shelfNN` labels on twenty rows each beside
+    `(-1000)` to `(-5999)`, each written once."""
+    values: "list[str]" = []
+    for word in range(60):
+        values += [f"shelf{word:02d}"] * 20
+    for figures in range(1000, 6000):
+        values += [f"(-{figures})"]
+    random.Random(1).shuffle(values)
+    return values
+
+
+def _zero_padded_readings(held: int = 450) -> "list[str]":
+    """Readings written seven characters wide with leading noughts, as
+    `%%%%%.%`: two words on forty rows each, `00000.1` and `09999.9` on
+    twenty each, and ``held`` others between them written once."""
+    draw = random.Random(390)
+    values: "list[str]" = []
+    for word in ("awaiting", "review"):
+        values += [word] * 40
+    seen: "dict[int, int]" = {}
+    for tenths in (1, 99999):
+        values += [f"{tenths // 10:05d}.{tenths % 10}"] * 20
+        seen[tenths] = 1
+    while len(seen) < held + 2:
+        tenths = draw.randrange(2, 99999)
+        if tenths in seen:
+            continue
+        seen[tenths] = 1
+        values += [f"{tenths // 10:05d}.{tenths % 10}"]
+    draw.shuffle(values)
+    return values
+
+
+def _class_walk_steps_recorded() -> "tuple[dict[str, int], object]":
+    """`_class_form_stand_in` wrapped to record how far each class walked.
+
+    The wrapper hands the walk every argument its caller gave, so what a
+    whole generation writes is what its caller in `_class_stand_ins_walked`
+    makes it write; it only reads, after each call, how many spellings the
+    form has been walked.
+    """
+    steps: "dict[str, int]" = {}
+    original = generation._class_form_stand_in
+
+    def recorded(form: str, reads_as: str, walked: "dict[str, int]", *rest: object) -> str:
+        found = original(form, reads_as, walked, *rest)  # type: ignore[arg-type]
+        steps[reads_as] = max(steps[reads_as] if reads_as in steps else 0, walked[form])
+        return found
+
+    return steps, recorded
+
+
+def test_a_whole_generation_carries_the_class_walk_s_counter_on_both_branches() -> None:
+    """The caller of G8.3a's walk keeps what it has taken, on both of its
+    branches (Codex's review of plan P4-D390, item 2).
+
+    The check above hands `_class_form_stand_in` a `taken` of its own, so
+    it could not see the caller in `_class_stand_ins_walked` drop it: the
+    walk then gives a form up at 4,096 spellings in all, as before plan
+    P4-D390, and nothing here went red. Two whole generations, one per
+    branch of that caller, each walking its form past 4,096 spellings:
+
+    - the out-of-range and contradictory classes: sixty `shelfNN` labels
+      on twenty rows each beside `(-1000)` to `(-5999)` written once each.
+      Every one of the 5,000 is written in `(-%%%%)`; without the counter
+      4,096 are and 904 take shorter widths (Codex's own measurement);
+    - the number class, reached where the ladder cannot spell the form:
+      readings written seven wide with leading noughts, declared a code,
+      450 of them held back in `%%%%%.%`. The ladder's steps never wear a
+      leading nought, so the form's own walk writes the 450, about one
+      spelling in ten of it lying inside the published ends: all 450 in
+      the form; without the counter 409, and 41 written `%.%`.
+
+    Each twin meets its form's count. The first meets every count its
+    description sets; the second misses one, the pooled mean of the
+    held-back numbers, because the form's own walk places nothing on it
+    (method G8.3a, step 2), and 493f6f8 missed it on this column too,
+    beside the form's count.
+    """
+    columns = (
+        ("other", _bracketed_negatives_past_the_old_bound(), None, "(-%%%%)", 5000, []),
+        (
+            "number", _zero_padded_readings(), ["proc"], "%%%%%.%", 490,
+            ["suppressed.numbers.mean"],
+        ),
+    )
+    for branch, values, codes, form, wanted, unmet in columns:
+        document, described, folder = _described(values, "proc", codes)
+        census = document["columns"][0]["shape_forms"]
+        assert census[form] == wanted, (branch, census)
+        steps, recorded = _class_walk_steps_recorded()
+        original = generation._class_form_stand_in
+        generation._class_form_stand_in = recorded  # type: ignore[assignment]
+        try:
+            twin = generation.generate(described, 7)
+        finally:
+            generation._class_form_stand_in = original
+        reads = parsing.NUMBER
+        if branch == "other":
+            reads = generation._owed_reading(generation._OWED_CONTRADICTORY)
+        assert steps[reads] > generation._STAND_IN_STEPS, (branch, steps)
+        cells = twin.columns[0]
+        assert len(
+            [cell for cell in cells if parsing.shape_form(cell) == form]
+        ) == wanted, branch
+        twin_file = fixtures.write(folder, "twin.csv", rendering.twin_csv(twin))
+        outcome = validation.measure(described, f"{twin_file}")
+        assert [
+            check.subcheck
+            for check in outcome.checks
+            if check.verdict == validation.MISSED
+        ] == unmet, branch
+
+
 def test_a_ladder_tier_that_ended_is_never_walked_again() -> None:
     """An ended tier is marked ended, not stood at the old bound (review of
     plan P4-D390, item 2).
