@@ -2092,6 +2092,7 @@ def test_cxv_item1_step5_aims_once_and_looks_ahead(tmp_path: pathlib.Path, name:
 # Step 6's shapes, listed as step 5's are.
 _STEP6_SHAPES: "dict[str, tuple[list[int], int, int, tuple[tuple[int, str], ...], dict[int, str]]]" = {
     "one_alone_fewer_beside_a_text_of_two": ([1, 1, 2, 12], 3, 0, (), {1: "+0000", 3: "+0000"}),
+    "a_count_the_whole_texts_complete": ([1, 1, 1, 3, 12], 4, 0, (), {1: "+0000", 4: "+0000"}),
     "the_most_texts_alone_that_reach_it": (
         [1, 1, 1, 2, 2, 12], 4, 0, (), {1: "+0000", 2: "+0000", 4: "+0000"}
     ),
@@ -2122,6 +2123,12 @@ def test_cxv_item1_step6_fewer_texts_alone_where_whole_texts_write_more(
       and the text of two. Mutants: step 6 withdrawn, and the texts step 5
       may take read only where step 4 leaves two cells or more -- each
       writes the two lone texts, 2.
+    * `a_count_the_whole_texts_complete` -- three texts standing alone, a
+      text of three and one of twelve, owing 4: two lone texts leave two
+      cells no whole text reaches, and one leaves three, which the text of
+      three writes; the count is the one whose rest the texts reach.
+      Mutant: every total taken as reached, which chooses two lone texts,
+      and that second pass writing no more, the three lone texts stand, 3.
     * `the_most_texts_alone_that_reach_it` -- three texts standing alone,
       two of two and one of twelve, owing 4: two lone texts and a text of
       two reach 4, as do the two texts of two alone, and the largest count
