@@ -2417,14 +2417,14 @@ def test_a_whole_generation_carries_the_class_walk_s_counter_on_both_branches() 
             twin = generation.generate(described, 7)
         finally:
             generation._class_form_stand_in = original
-        reads = parsing.NUMBER
-        if branch == "other":
-            reads = generation._owed_reading(generation._OWED_CONTRADICTORY)
-        assert steps[reads] > generation._STAND_IN_STEPS, (branch, steps)
         cells = twin.columns[0]
         assert len(
             [cell for cell in cells if parsing.shape_form(cell) == form]
         ) == wanted, branch
+        reads = parsing.NUMBER
+        if branch == "other":
+            reads = generation._owed_reading(generation._OWED_CONTRADICTORY)
+        assert steps[reads] > generation._STAND_IN_STEPS, (branch, steps)
         twin_file = fixtures.write(folder, "twin.csv", rendering.twin_csv(twin))
         outcome = validation.measure(described, f"{twin_file}")
         assert [
