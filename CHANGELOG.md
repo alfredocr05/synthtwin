@@ -49,9 +49,11 @@ number 1,500 of 3,459 where 110cb46's number 1,875. The rule changes 695
 twins; two newly miss a check -- random shapes at fifty whose far
 tail's mean distance stands at twice and at one and a half times the
 real one -- and none writes a
-cell wider than both the source's and 110cb46's, writes its own width
-census further from the source's or stands further from the real mean
-and spread taken together. What it still costs: 99 twins stand further
+cell wider than both the source's and 110cb46's (25 write a far value
+past the real end a figure wider than every source cell, as 110cb46's
+do), writes its own
+width census further from the source's or stands further from the real
+mean and spread taken together. What it still costs: 99 twins stand further
 from the real mean alone and 22 from the real spread alone, all where
 the reach stands barely past the width, each nearer on the other by
 more; and 186
@@ -72,20 +74,30 @@ times the real one -- one far cell moved, on readings 1000 to 1900 a
 hundred and fifty times beside `99900` -- missed none of seventy checks;
 it now bounds the file's distance from the value either way, half its
 width for the mean and spread and the furthest it admits for a tail's
-distances, and where it reaches the value its own ends too, but within
-a band of the value -- `K-S3-22`'s line for the mean and spread, three
-tenths of a tail's distance -- so the file misses its spread and both
-far-tail distances, as on 110cb46, and so does one at 1.49 times the
-real spread, which the distance alone had passed (the verifier of these
-corrections); each rung the rule moved answers to its own second window
-the same way. A far cell was written plain wherever a pair proved its
-side, so `-00001` to `-00150` beside ten `-099999` came back with eleven
+distances, and its own ends too, or where it stops short of the value
+the stretch from it to the value, but within a band of the value --
+`K-S3-22`'s line for the mean and spread, three tenths of a tail's
+distance -- so the file misses its spread and both far-tail distances,
+as on 110cb46, and so do one at 1.49 times the real spread, which the
+distance alone had passed (the verifier of these corrections), and one
+at 1.45 times it on the leftover round's own column, readings 1000 to
+1900 a hundred times beside `99900`, past a window that stops just short
+of the value (their second verifier); each rung the rule moved answers
+to its own second window the same way. A far cell was written plain
+wherever a pair proved its side, so `-00001` to `-00150` beside ten
+`-099999` came back with eleven
 cells plain and four checks missed where every value was 110cb46's; the
 plain spelling now follows the walk the block takes, and 21 battery
 twins whose walk does not stand are 110cb46's again, byte for byte, as
 are 87 of 120 padded twins measured beside them: on 9 the pair alone
 had newly missed checks, and on 72 it wrote every cell at the source's
-width where 110cb46's far cell is a figure wider, nothing missed. And
+width where 110cb46's far cell is a figure wider, nothing missed. That
+give-back is a stated limit: over 1,080 padded twins 382 write a far
+cell a figure wider than every source cell, ten of them twins the rule
+moves, and 25 more the rule moves on the batteries write a far value
+past the real end a figure wider, none wider than 110cb46's twin and
+none missing a check, so code reading such a column at a fixed width
+may meet one wider far cell on the twin. And
 a run widening inward over dense values began its search for free values
 again for every stratum it took in -- 11,881 checks on a tail of 160
 strata -- and now resumes it, 166 checks and the same twins.

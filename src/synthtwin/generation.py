@@ -3413,7 +3413,17 @@ def _padded_style_swaps(
     # left past the width where the walk did not stand, on a side the
     # pair proves -- read off the pair alone, ten `-099999` beside
     # `-00001` to `-00150` came back with eleven cells plain and four
-    # checks missed (Codex's review of lane G2, item 2).
+    # checks missed (Codex's review of lane G2, item 2). WHAT THAT KEEPS
+    # IS 110cb46'S SPELLING, AND WITH IT ITS WIDTH, A STATED LIMIT (plan
+    # P4-D377, method G6.3): over 1,080 padded and signed twins, 382 write
+    # a far cell one figure wider than every source cell where the pair
+    # alone wrote every cell at the source's width -- ten of them twins
+    # G6.6.8 moves, codes of both signs beside ten `-099999` and a plain
+    # `123456`, at 36, whose low far cells come back as `-0172012`, eight
+    # characters where the source's widest holds seven -- none wider than
+    # 110cb46's twin of the same seed and none missing a check; so code
+    # reading such a column at a fixed width may meet one wider far cell
+    # on the twin.
     widest = 0
     for width in quotas:
         if width > widest:

@@ -2690,7 +2690,7 @@ not cover the published one.
 **AND WHERE METHOD G6.6.8'S RULE 1 MOVED A DERIVED END, THE WINDOW
 DRAWN WITH THAT RULE WITHDRAWN BOUNDS THE FILE TOO** (the second skeptic
 of plan P4-D377's repair, item 1; Codex's review of lane G2, item 1, and
-the verifier of its corrections). Rule 1 reads a tail's end, and with it
+the two verifiers of its corrections). Rule 1 reads a tail's end, and with it
 every window of G12.2, G12.3 and G12.13, through the reach the tail's
 published pair proves, which widens the windows until they reach the
 published values -- so the clause above stopped applying where it had
@@ -2737,10 +2737,25 @@ value: the column above with its far cell `149100`, its spread 3,821.84
 three-figure readings heaped low beside one `2064`, at fifty, whose `p95`
 window the rule drew to 1,267.5 where 110cb46 drew it to 999.5 around a
 published 865, with its far side half again as far out and its `p95` at
-1,135. Held to the second window's own ends, 57 pass, one where 110cb46's
-window reached the value -- through a `skew` and a `kurtosis` the rule's
-reading lists (G5.6a) -- and 56 only where it did not, and so missed a
-file holding all but exactly the value. The band near the value is for
+1,135. Held to the second window's own ends, 57 still passed, one where
+110cb46's window reached the value -- through a `skew` and a `kurtosis`
+the rule's reading lists (G5.6a) -- and 56 where it did not. AND WHERE
+THE SECOND WINDOW MISSES THE VALUE, THE FILE STANDS BETWEEN THAT WINDOW
+AND THE VALUE OR WITHIN THE SAME BAND PAST THE VALUE (the second verifier
+of those corrections). The window's own ends alone would miss a file
+holding all but exactly the value, but the distance alone held the side
+away from the window only to half its width, and a tail's distances to
+twice the published distance: the leftover round's own column, 1000 to
+1900, each 100 times, beside one `99900`, draws the spread's second
+window 0 to 3,090.81 against a published 3,124.94, and with its last
+cell `119580` or `144180`, its spread 1.20 or 1.45 times the real one,
+the file passed every check at floors of 11, 20 and 36, where 110cb46's
+report missed its spread and its far tail's root-mean-square distance;
+so did `K-S3-22`'s own column of `-4000` beside 500 to 648, at 36, with
+its far cell `-4915`, `-6058` or `-6287`, up to 1.50 times the real
+spread. Each of them misses its spread now; of the 1,568 altered files,
+every one 110cb46's report missed misses a check, no source misses, and
+none 110cb46's report passed is missed. The band near the value is for
 the rule's own twins, which stand just past a reaching second window
 where the value sits near its end: `00001` to `00149` beside one
 `50000`, at 36, are written with a mean of 412.11 against a published
@@ -2750,10 +2765,11 @@ end, and 110cb46's 744 there, the second window's own ends miss one
 check a distance alone met: a twin of the rule standing further from the
 real far tail than 110cb46's, its mean distance 9.78 against a published
 6.43, past the window's 0 to 9.0 and the band, where 110cb46's stands at
-5.59. Where the second window reaches the
-value, then, the check passes no file that window misses unless the
-file stands within the band of the value; where it misses the value, no
-file further from it than the distance above. A tail's distances and a
+5.59; the stretch to the value changes no verdict there. Whether or not
+the second window reaches the value, then, the check passes no file that
+window misses unless the file stands between that window and the value
+or within the band of the value, and none further from the value than
+the distance above. A tail's distances and a
 rung take the whole window's reach and not half its width because those
 windows were never a margin around the value, and the rule exists
 because the tail stands past them: 150 different Pareto readings at a

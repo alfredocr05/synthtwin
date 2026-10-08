@@ -994,10 +994,11 @@ windows, each tail's two distance windows and each rung's window the
 rule moved through that second ladder as well, and holds the file to a
 distance from the published value that the second window sets, whether
 or not it reaches the value -- half its width for the two moments, the
-furthest it admits for a tail's distances and a rung -- and, where it
-reaches the value, to that window's own ends but within a band near the
-value (validation method V6.1-A2; Codex's review of lane G2, item 1, and
-the verifier of its corrections).
+furthest it admits for a tail's distances and a rung -- and to that
+window's own ends, or the stretch from it to the value where it misses
+the value, but within a band near the value (validation method V6.1-A2;
+Codex's review of lane G2, item 1, and the two verifiers of its
+corrections).
 
 A tail block whose `tails` is null publishes no rung and no moment (the
 block floor, TL2), and its ladder is G5.3d's ramp; one whose two sides
@@ -3025,7 +3026,20 @@ cells, a ceiling of one. Two rules follow and both are normative:
    on 9 and this rule on none; what it gives back is 72 twins whose far
    cell is padded one figure wider than every source cell, as 110cb46
    wrote it, where the pair alone wrote every cell at the source's width,
-   no check missed either way.
+   no check missed either way. Its verifier measured the give-back wider:
+   over 1,080 padded and signed twins at seeds 0 to 9, 382 write a far
+   cell one figure wider than every source cell, the padded style's
+   leading zero, where the pair alone wrote every cell at the source's
+   width -- 372 of them 110cb46's twin byte for byte, and ten twins G6.6.8
+   moves, codes of both signs beside ten `-099999` and a plain `123456`,
+   declared, at 36, whose low far cells come back as `-0172012`, eight
+   characters where the source's widest holds seven. And 25 more twins
+   G6.6.8 moves on its batteries write a far value past the real column's
+   end a figure wider, plain, as 110cb46's twins do (`121861` beside
+   `99999`). None is wider than 110cb46's twin of the same seed, and none
+   misses a check 110cb46's twin met. IT IS A STATED LIMIT, accepted (plan
+   P4-D377): code reading such a column at a fixed width may meet, on the
+   twin, one far cell a figure wider than any cell of the real table.
 
    **WHAT THIS COSTS IS A FORM COUNT, AND G13's RECOUNT NAMES IT.** The
    exchange above moves no count; this gives one cell from
@@ -4538,8 +4552,10 @@ against this rule's, BOTH READ BY ONE CHECKER, the one the corrections
 to Codex's review of lane G2 left, which holds the mean, the spread, each
 tail's distances and each rung the rule moved to the windows drawn with
 rule 1 withdrawn as well wherever rule 1 moved an end, whether or not
-those reach the published value, and to their own ends near the value
-where they reach it (validation method V6.1-A2): read by each tree's own
+those reach the published value, and to their own ends, or the stretch
+from them to the value where they miss it, but within a band near the
+value (validation method V6.1-A2; the stretch changes no verdict on
+these twins): read by each tree's own
 checker, as the repair round first measured, most of the fall was the
 checker's. `K-S3-22`'s 36
 column-floors miss 21 checks where 110cb46's twins miss 147; the 21 are
@@ -4562,11 +4578,14 @@ shapes at fifty whose high tail's mean distance stands at 33.4 against a
 published 16.2, where 110cb46's stood at 22.4, past the furthest the
 tail's second window admits, and at 9.8 against 6.4, where 110cb46's
 stood at 5.6, past that window, 0 to 9.0, and three tenths of the
-published distance -- and none writes a cell wider than the
-source's widest and 110cb46's, writes its own width census further from
-the source's, writes further past the real column's range, or stands
-further from the real mean and spread taken together; 691 stand nearer
-on them together and 566 nearer on each. Read off the real column and
+published distance -- and none writes a cell wider than both the
+source's widest and 110cb46's (25 write a far value past the real
+column's end one figure wider than every source cell, as 110cb46's twins
+of the same seeds do: G6.3's stated limit), writes its own width census
+further from the source's,
+writes further past the real column's range, or stands further from the
+real mean and spread taken together; 691 stand nearer on them together
+and 566 nearer on each. Read off the real column and
 no window, 1,500 of the 3,459 stand more than 0.05 of the real spread
 off its mean or a tenth off its spread, where 1,875 of 110cb46's did.
 
@@ -4626,7 +4645,13 @@ spread is published and its being handed on, and each rung's second
 window, its ladder, its stratum bound, its reach, its band and the rung
 whose two windows are one -- and a source mutant of each turns it red,
 the stratum bound's only once a test read the note of a rung on the one
-battery column whose two bounds differ.
+battery column whose two bounds differ. Its second verifier's correction
+added nine more -- the hull of the second window and the band asked
+where the window misses the value, the hull's four ends, the window's
+and the band's, the reach the two notes on a reaching window ask, and
+the note on a file past the value on the side away from a window that
+misses it, with the distance that note asks -- and a source mutant of
+each turns the file red.
 
 ### G6.7 No value stands where the description says there is none
 
