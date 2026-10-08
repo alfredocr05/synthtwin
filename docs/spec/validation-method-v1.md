@@ -2689,39 +2689,72 @@ not cover the published one.
 
 **AND WHERE METHOD G6.6.8'S RULE 1 MOVED A DERIVED END, THE WINDOW
 DRAWN WITH THAT RULE WITHDRAWN BOUNDS THE FILE TOO** (the second skeptic
-of plan P4-D377's repair, item 1; Codex's review of lane G2, item 1).
-Rule 1 reads a tail's end, and with it every window of G12.3 and G12.13,
-through the reach the tail's published pair proves, which widens the
-windows until they reach the published values -- so the clause above
-stopped applying where it had applied -- while the generator may still
-write such a column on the ladder with the rule withdrawn (G6.6.8 rule
-3). MEASURED: 1,001 readings 1000 to 1900 beside one `99900`, at a floor
-of eleven, written byte for byte as 110cb46 wrote them, their spread
-0.38 of the real one, were MISSED by 110cb46's report on a `std` window
-of 0 to 3,090.8 against a published 3,124.9, and passed on the rule's
-window of 0 to 36,011.8. So on a tail block where the rule moved an end
-(`contract.reach_moved_an_end`), the `mean` and `std` windows and each
-tail's two distance windows are drawn a second time through the ladder
-read with the rule withdrawn -- the windows 110cb46 drew, to the last
-digit -- and a file not holding the published value exactly must also
-stand within a distance of it that the second window sets, or the
-obligation is MISSED, the note printing that window: for `mean` and
-`std` half its width, the distance the clause above asks, and for a
-tail's `mean_distance` and `rms_distance` the furthest any value the
-window admits stands from the published one. WHETHER OR NOT THE SECOND
-WINDOW REACHES THE VALUE. Asked only where it did not, as the leftover
-round first wrote this, it asked nothing where it did, and the rule's
-wide window was the only bound: readings 1000 to 1900, each 150 times,
-beside one `99900`, at eleven, draw the spread's second window 0 to
-3,020.28 around a published 2,557.30, and a file whose last cell is
-`300000`, its spread 7,711.31, three times the real one, missed none
-of its seventy checks where 110cb46's report missed its spread and both
-of its high tail's distances; it misses those three again, and the twin
-written there, 110cb46's own at 0.35 of the real spread, misses its
-spread, which both earlier reports passed. A distance from the published
-value bounds both sides of it alike, so the second window never passes a
-file further from the real column than one it fails. A tail's distances
-take the whole window's reach and not half its width because those
+of plan P4-D377's repair, item 1; Codex's review of lane G2, item 1, and
+the verifier of its corrections). Rule 1 reads a tail's end, and with it
+every window of G12.2, G12.3 and G12.13, through the reach the tail's
+published pair proves, which widens the windows until they reach the
+published values -- so the clause above stopped applying where it had
+applied -- while the generator may still write such a column on the
+ladder with the rule withdrawn (G6.6.8 rule 3). MEASURED: 1,001 readings
+1000 to 1900 beside one `99900`, at a floor of eleven, written byte for
+byte as 110cb46 wrote them, their spread 0.38 of the real one, were
+MISSED by 110cb46's report on a `std` window of 0 to 3,090.8 against a
+published 3,124.9, and passed on the rule's window of 0 to 36,011.8. So
+on a tail block where the rule moved an end
+(`contract.reach_moved_an_end`), the `mean` and `std` windows, each
+tail's two distance windows and the window of each published rung the
+rule moved are drawn a second time through the ladder read with the rule
+withdrawn -- the windows 110cb46 drew, to the last digit -- and a file
+not holding the published value exactly must also stand within a
+distance of it that the second window sets, or the obligation is MISSED,
+the note printing that window: for `mean` and `std` half its width, the
+distance the clause above asks, and for a tail's `mean_distance` and
+`rms_distance` and for a rung the furthest any value the window admits
+stands from the published one. WHETHER OR NOT THE SECOND WINDOW REACHES
+THE VALUE. Asked only where it did not, as the leftover round first
+wrote this, it asked nothing where it did, and the rule's wide window
+was the only bound: readings 1000 to 1900, each 150 times, beside one
+`99900`, at eleven, draw the spread's second window 0 to 3,020.28 around
+a published 2,557.30, and a file whose last cell is `300000`, its spread
+7,711.31, three times the real one, missed none of its seventy checks
+where 110cb46's report missed its spread and both of its high tail's
+distances; it misses those three again, and the twin written there,
+110cb46's own at 0.35 of the real spread, misses its spread, which both
+earlier reports passed. AND WHERE THE SECOND WINDOW REACHES THE VALUE,
+ITS OWN ENDS HOLD THE FILE TOO: a file outside it is MISSED unless it
+stands within 0.05 of the published spread of a published mean or rung,
+within a tenth of the spread of a published spread -- `K-S3-22`'s line
+for a twin on the real moments -- or within three tenths of a published
+tail distance of that distance. A distance alone fell short of the bound
+110cb46 drew there: half the spread's second window above runs to
+4,067.44, and the furthest a tail's or a rung's window admits always
+takes in the whole window, so over 1,568 files altered from 196
+column-floors -- a far cell moved, an outer tail stretched, a heap of far
+values, the spread or the far side scaled -- 164 that 110cb46's report
+missed passed every check, 108 of them where its window reached the
+value: the column above with its far cell `149100`, its spread 3,821.84
+-- 1.49 times the real one -- at floors of 11, 20 and 36, and 1,000
+three-figure readings heaped low beside one `2064`, at fifty, whose `p95`
+window the rule drew to 1,267.5 where 110cb46 drew it to 999.5 around a
+published 865, with its far side half again as far out and its `p95` at
+1,135. Held to the second window's own ends, 57 pass, one where 110cb46's
+window reached the value -- through a `skew` and a `kurtosis` the rule's
+reading lists (G5.6a) -- and 56 only where it did not, and so missed a
+file holding all but exactly the value. The band near the value is for
+the rule's own twins, which stand just past a reaching second window
+where the value sits near its end: `00001` to `00149` beside one
+`50000`, at 36, are written with a mean of 412.11 against a published
+407.83 and a second window ending at 411.70. Over the 744 twins this
+landing writes on the batteries' column-floors where rule 1 moved an
+end, and 110cb46's 744 there, the second window's own ends miss one
+check a distance alone met: a twin of the rule standing further from the
+real far tail than 110cb46's, its mean distance 9.78 against a published
+6.43, past the window's 0 to 9.0 and the band, where 110cb46's stands at
+5.59. Where the second window reaches the
+value, then, the check passes no file that window misses unless the
+file stands within the band of the value; where it misses the value, no
+file further from it than the distance above. A tail's distances and a
+rung take the whole window's reach and not half its width because those
 windows were never a margin around the value, and the rule exists
 because the tail stands past them: 150 different Pareto readings at a
 floor of 36 are written with their far tail's root-mean-square distance

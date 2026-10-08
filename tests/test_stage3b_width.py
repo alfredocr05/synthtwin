@@ -2746,6 +2746,34 @@ def test_a_rung_near_the_moved_end_answers_to_its_window_without_the_rule(
     assert check.verdict == validation.WITHIN_BOUND, check
 
 
+def test_a_rung_s_second_window_reads_the_stratum_bound_with_the_rule_withdrawn(tmp_path: pathlib.Path) -> None:
+    """Stage 3's column of one grouped number, at twenty: a rung's second window is drawn with the stratum bound read without rule 1.
+
+    The bound G12.2's rank windows widen by is read off the ladder each
+    window is drawn through (`taxonomy.window_stratum`): on this column 9
+    strata with the rule and 13 without it, so every published rung's
+    second window, 110cb46's to the last digit, is wider than its first.
+    A median set past both misses on the first window, and its note prints
+    the second drawn with the 13 (validation method V6.1-A2); read with the
+    rule's 9 strata, the second window would be the first and print
+    nothing.
+    """
+    cells, _flags = stage3_battery.SHAPES["numeric_one_grouped_comma"](random.Random(stage3_battery.BATTERY_SEED))
+    text = stage3_battery.rows_text(["value"], [[cell] for cell in cells])
+    described = kpi_shapes.describe(tmp_path / "grouped", "grouped", text, 20)
+    facts = _facts(described)
+    assert contract.reach_moved_an_end(facts), "premise: rule 1 moved an end"
+    assert validation._window_stratum(facts, 20) < validation._window_stratum(facts, 20, False), "premise: two bounds"
+    first = _rung_windows(facts, 20, "p50", True)
+    held = _rung_windows(facts, 20, "p50", False)
+    assert held[0] < first[0] and first[1] < held[1], "premise: the second window is the wider"
+    block = copy.deepcopy(described.document["columns"][0])
+    block["percentiles"]["p50"] = held[1] + 1.0
+    found = [one for one in validation._tail_block_checks(described.loaded.columns[0], facts, block, 20) if one.subcheck == "ladder.p50"]
+    assert len(found) == 1 and found[0].verdict == validation.MISSED, found
+    assert any(validation._shown_window(*held) in line for line in found[0].note), found[0].note
+
+
 def test_the_rule_s_own_twin_just_past_a_reaching_second_window_passes_within_k_s3_22_s_line(
     tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

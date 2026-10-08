@@ -28,9 +28,10 @@ the column keeps whichever reads the published mean and spread nearer,
 together. A far cell the walk leaves past every named pad is written
 plain, so a column of five-character codes stays five characters wide;
 one the draw left there keeps its pad, as 110cb46 wrote it. And
-`validate` holds the mean, the spread and the tails' distances of such a
-column to the windows drawn with the rule withdrawn as well, whether or
-not those reach the published value (validation method V6.1-A2): the
+`validate` holds the mean, the spread, the tails' distances and the
+rungs the rule moved of such a column to the windows drawn with the rule
+withdrawn as well, whether or not those reach the published value
+(validation method V6.1-A2): the
 rule's own windows, drawn through the further end, reached the published
 values where 110cb46's did not, and twins written as 110cb46 wrote them,
 their spread 0.37 to 0.50 of the real one, passed. Nothing new is
@@ -42,11 +43,12 @@ One checker, this one, reads 110cb46's twin and this landing's over
 3,636 twins of eleven batteries, at seeds 0, 4 and 9: `K-S3-22`'s
 column-floors miss 21 mean and spread checks where 110cb46's twins miss
 114, codes beside plain numbers 205 checks where 605, the skeptics'
-shapes 27 where 234, and 1,500 random shapes 5 where 57; the twins more
+shapes 27 where 234, and 1,500 random shapes 6 where 57; the twins more
 than 0.05 of the real spread off the real mean or a tenth off its spread
 number 1,500 of 3,459 where 110cb46's number 1,875. The rule changes 695
-twins; one newly misses a check -- a random shape at fifty whose far
-tail's mean distance stands at twice the real one -- and none writes a
+twins; two newly miss a check -- random shapes at fifty whose far
+tail's mean distance stands at twice and at one and a half times the
+real one -- and none writes a
 cell wider than both the source's and 110cb46's, writes its own width
 census further from the source's or stands further from the real mean
 and spread taken together. What it still costs: 99 twins stand further
@@ -70,8 +72,13 @@ times the real one -- one far cell moved, on readings 1000 to 1900 a
 hundred and fifty times beside `99900` -- missed none of seventy checks;
 it now bounds the file's distance from the value either way, half its
 width for the mean and spread and the furthest it admits for a tail's
-distances, and the file misses its spread and both far-tail distances,
-as on 110cb46. A far cell was written plain wherever a pair proved its
+distances, and where it reaches the value its own ends too, but within
+a band of the value -- `K-S3-22`'s line for the mean and spread, three
+tenths of a tail's distance -- so the file misses its spread and both
+far-tail distances, as on 110cb46, and so does one at 1.49 times the
+real spread, which the distance alone had passed (the verifier of these
+corrections); each rung the rule moved answers to its own second window
+the same way. A far cell was written plain wherever a pair proved its
 side, so `-00001` to `-00150` beside ten `-099999` came back with eleven
 cells plain and four checks missed where every value was 110cb46's; the
 plain spelling now follows the walk the block takes, and 21 battery

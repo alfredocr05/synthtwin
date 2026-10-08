@@ -990,12 +990,14 @@ stage 3b, plan P4-D377): where G6.6.8's rule 1 moved a derived end
 (`contract.reach_moved_an_end`), the generator also divides and reads
 the column on the ladder with that rule withdrawn and may write that
 reading (G6.6.8 rule 3), so the validator draws the `mean` and `std`
-windows and each tail's two distance windows through that second ladder
-as well, and holds the file to a distance from the published value that
-the second window sets, whether or not it reaches the value -- half its
-width for the two moments, the furthest it admits for a tail's
-distances (validation method V6.1-A2; Codex's review of lane G2, item
-1).
+windows, each tail's two distance windows and each rung's window the
+rule moved through that second ladder as well, and holds the file to a
+distance from the published value that the second window sets, whether
+or not it reaches the value -- half its width for the two moments, the
+furthest it admits for a tail's distances and a rung -- and, where it
+reaches the value, to that window's own ends but within a band near the
+value (validation method V6.1-A2; Codex's review of lane G2, item 1, and
+the verifier of its corrections).
 
 A tail block whose `tails` is null publishes no rung and no moment (the
 block floor, TL2), and its ladder is G5.3d's ramp; one whose two sides
@@ -4532,12 +4534,14 @@ rows hold. Three rules follow, and none publishes anything new:
 
 Measured on eleven batteries -- seeds 0, 4 and 9, the codes beside
 plain numbers at 0 to 19 and the random shapes at 0 -- 110cb46's twins
-against this rule's, BOTH READ BY ONE CHECKER, the one Codex's review of
-lane G2 left, which holds the mean, the spread and each tail's distances
-to the windows drawn with rule 1 withdrawn as well wherever rule 1 moved
-an end, whether or not those reach the published value (validation
-method V6.1-A2): read by each tree's own checker, as the repair round
-first measured, most of the fall was the checker's. `K-S3-22`'s 36
+against this rule's, BOTH READ BY ONE CHECKER, the one the corrections
+to Codex's review of lane G2 left, which holds the mean, the spread, each
+tail's distances and each rung the rule moved to the windows drawn with
+rule 1 withdrawn as well wherever rule 1 moved an end, whether or not
+those reach the published value, and to their own ends near the value
+where they reach it (validation method V6.1-A2): read by each tree's own
+checker, as the repair round first measured, most of the fall was the
+checker's. `K-S3-22`'s 36
 column-floors miss 21 checks where 110cb46's twins miss 147; the 21 are
 the mean or the spread of the two moments-only columns and of three
 Pareto(2.5) columns at fifty whose spread reads 0.90 to 0.94 of the real
@@ -4548,15 +4552,17 @@ bulk and attack shapes miss 27 where 234 were missed -- the grid twins
 rule 3 writes as 110cb46 wrote them, their spread 0.37 to 0.50 of the
 real one, and 398 numbers from 1000 beside `99999` and `88888` at a floor
 of 20; 1,500 random shapes of one to four figures beside one to five far
-cells, at floors 11 to 50, miss 5 where 57 were missed; 288 twins of
+cells, at floors 11 to 50, miss 6 where 57 were missed; 288 twins of
 readings 10 to 99 beside one or two far readings of three figures miss
 nothing on either; and the second skeptic's 21 shapes beside far cells
 miss 6 where 18 were missed. Twin by twin, each of the 3,459 counted
 once: the rules change 695 and leave 2,764 as 110cb46 wrote them, byte
-for byte; one of the 695 misses a check 110cb46's twin met -- a random
-shape at fifty whose high tail's mean distance stands at 33.4 against a
+for byte; two of the 695 miss a check 110cb46's twin met -- random
+shapes at fifty whose high tail's mean distance stands at 33.4 against a
 published 16.2, where 110cb46's stood at 22.4, past the furthest the
-tail's second window admits -- and none writes a cell wider than the
+tail's second window admits, and at 9.8 against 6.4, where 110cb46's
+stood at 5.6, past that window, 0 to 9.0, and three tenths of the
+published distance -- and none writes a cell wider than the
 source's widest and 110cb46's, writes its own width census further from
 the source's, writes further past the real column's range, or stands
 further from the real mean and spread taken together; 691 stand nearer
@@ -4611,7 +4617,16 @@ tail's distances, the tails' second windows and their stratum bound,
 and its hold on the mean as well as the spread and on neither higher
 moment -- and a source mutant of each turns the file red: five of the
 sides' only once that round pinned them on padded columns and where the
-sides are handed on, having changed no twin of 548 battery jobs.
+sides are handed on, having changed no twin of 548 battery jobs. The
+corrections its verifier asked added seventeen more -- the second
+window's own ends where it reaches the value (that it reaches it, that
+the file stands outside it, the band near the value), that band for the
+mean, the spread and a tail's distances, its nought where no finite
+spread is published and its being handed on, and each rung's second
+window, its ladder, its stratum bound, its reach, its band and the rung
+whose two windows are one -- and a source mutant of each turns it red,
+the stratum bound's only once a test read the note of a rung on the one
+battery column whose two bounds differ.
 
 ### G6.7 No value stands where the description says there is none
 
