@@ -43,9 +43,10 @@ The gate's clauses, each beside the mutant that turns it red:
   `test_a_log_just_above_one_row_an_open_day_at_midnight_keeps_its_census_and_comes_back_short`
   -- lane D1b's pinned near-one log at 20, published, its twins at seven seeds of ten 154 or 155
   days for 156, both distinct counts MISSED month first and, ISO, the count made up by G7.9's
-  `T` with nothing named; mutants: the tails split first, standing in for the split order owed
-  to lane D4 (both members), and G7.9 spending no mark on a column counted in days that
-  publishes a census (ISO);
+  `T` with nothing named; written with both marks, one cell `T`, the count made up in the `T`
+  the column wrote, so no new spelling shows either; mutants: the tails split first, standing
+  in for the split order owed to lane D4 (all three cases), and G7.9 spending no mark on a
+  column counted in days that publishes a census (ISO, and both marks, every twin MISSED);
 * the count rules read every parsed day: `test_midnight_moments_decide_as_the_same_days_written_as_dates`
   -- seven of lane D1b's shapes, at midnight and as dates, one census and one reason; mutant: the
   rules handed the body's days alone (skeptic 2 of the landing's N3);
@@ -631,7 +632,7 @@ def test_a_census_that_keeps_midnight_moments_from_a_day_their_tail_lost_is_with
         assert len(set(values)) == 259 and "visit:distinct.n_distinct" in missed, missed
 
 
-@pytest.mark.parametrize("spelling", ("iso", "month first"))
+@pytest.mark.parametrize("spelling", ("iso", "month first", "two marks"))
 def test_a_log_just_above_one_row_an_open_day_at_midnight_keeps_its_census_and_comes_back_short(tmp_path: pathlib.Path, spelling: str) -> None:
     """The risk the orchestrator's ruling of 2026-10-08 lets stand on a column of dates, reaching
     midnight moments, pinned as it stands (skeptic 2 of the landing, item 1). Lane D1b's pinned
@@ -644,17 +645,29 @@ def test_a_log_just_above_one_row_an_open_day_at_midnight_keeps_its_census_and_c
     `MM/DD/YYYY 00:00`, validation names each: both distinct counts MISSED. Written ISO, G7.9
     makes up the count of texts with one cell written `T` for each day lost, a mark the column
     never wrote, below the census line, and validation names nothing (P4-D367 states it). At seeds
-    2, 5 and 9 the twins hold the 156 days and meet every check. Red when the census is withheld,
-    when an ISO twin's shortfall is named or a month-first one's goes unnamed, or when lane D4's
-    owed split order brings the tails to their most first -- that fix shows here."""
+    2, 5 and 9 the twins hold the 156 days and meet every check. Written ISO with both marks --
+    the second `2022-04-20` cell written `T`, 157 texts on 156 days (the leftover verification's
+    two marks) -- G7.9 makes up the count in the `T` the census leaves unnamed, one the column
+    did write: the twins at the same seven seeds hold 154 or 155 days and all 157 texts, one cell
+    written `T` for each day beyond the column's one, each on a day also written with a space, so
+    no new spelling shows either and nothing is named; at seeds 2, 5 and 9, 156 days and one `T`.
+    Red when the census is withheld, when an ISO twin's shortfall is named or a month-first one's
+    goes unnamed, or when lane D4's owed split order brings the tails to their most first -- that
+    fix shows here, in all three cases -- and, with both marks, when G7.9 spends no unnamed mark
+    on a column counted in days that publishes a census: every twin then MISSES both counts."""
     import test_stage3b_count_room as count_room
 
     cells = count_room._every_open_day(1.15, 52, 1002, frozenset({0, 2, 4}))
     assert (len(cells), len(set(cells))) == (177, 156)
-    if spelling == "iso":
-        written = [f"{cell} 00:00:00" for cell in cells]
-    else:
+    if spelling == "month first":
         written = [f"{cell[5:7]}/{cell[8:10]}/{cell[0:4]} 00:00" for cell in cells]
+    else:
+        written = [f"{cell} 00:00:00" for cell in cells]
+    if spelling == "two marks":
+        place = max(at for at, cell in enumerate(cells) if cell == "2022-04-20")
+        written[place] = "2022-04-20T00:00:00"
+    shapes = {re.sub("[0-9]", "9", cell) for cell in written}
+    assert len(set(written)) == (157 if spelling == "two marks" else 156), spelling
     described = _described(tmp_path, "visit", written, 20)
     block = described.block("visit")
     groups = [(group["first"], group["last"], group["count"]) for group in block["weekday_census"]]
@@ -664,7 +677,13 @@ def test_a_log_just_above_one_row_an_open_day_at_midnight_keeps_its_census_and_c
         values, missed = _twin_values(described, seed)
         days = len({_instant(value, str(block["format"])) // DAY for value in values})
         marked = sum("T" in value for value in values)
-        if seed in (2, 5, 9):
+        if spelling == "two marks":
+            spaced = {value[0:10] for value in values if "T" not in value}
+            wanted = (156,) if seed in (2, 5, 9) else (154, 155)
+            assert days in wanted and len(set(values)) == 157 and marked == 157 - days and missed == [], (seed, days, marked, missed)
+            assert all(value[0:10] in spaced for value in values if "T" in value), seed
+            assert {re.sub("[0-9]", "9", value) for value in values} <= shapes, seed
+        elif seed in (2, 5, 9):
             assert (days, marked, missed) == (156, 0, []), (seed, days, marked, missed)
         elif spelling == "iso":
             assert days in (154, 155) and len(set(values)) == 156 and marked == 156 - days and missed == [], (seed, days, marked, missed)
