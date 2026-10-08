@@ -6770,8 +6770,9 @@ count pass splits, a published census can leave twins a day or two
 short at some seeds. Validation names that miss on a member writing
 the month first or a 12-hour clock, both distinct counts MISSED; on an
 ISO member, writing a space or a `T`, G7.9 makes up the count of texts
-with a cell in the mark the column never wrote, below the census line,
-and nothing is named (P4-D367).
+with a cell in a mark the census leaves unnamed (one the column never
+wrote, or one it wrote too seldom for the census to name), below the
+census line, and nothing is named (P4-D367).
 The few-dates rule above is asked of the moments' days as of dates, and
 the room rule beside the same holes where every value stands at
 midnight. A declared spelling of a moment names no day to the producer

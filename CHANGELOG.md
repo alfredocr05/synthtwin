@@ -69,15 +69,16 @@ stand that day, reaches midnight moments -- of the 236 censuses that 90
 near-one logs written ISO at midnight publish at 11, 20 and 36, 18 leave
 twins a day or two short at two to seven seeds of ten -- and validation
 names the miss on a month-first or 12-hour member only: on an ISO one
-G7.9 makes up the count of texts with a cell in a mark the column never
-wrote. P4-D367 states it, a node pins D1b's near-one log at midnight as
-it stands, and whether the ruling stands there is put to the
-orchestrator; so is the noon trade, recorded head against base on seven
-logs (the business year's weekend share 0.24 to 0.31 at the base and 0
-to 0.02 here, the real 0; its days 211 to 236 of 260 at the base, 179 to
-202 here). Nodes pin midnight moments deciding as the same days written
-as dates, and the unit-room rule's count of a tail at the floor's
-number.
+G7.9 makes up the count of texts with a cell in a mark the census leaves
+unnamed: one the column never wrote, or one it wrote too seldom for the
+census to name, where nothing shows at all. P4-D367 states it, a node
+pins D1b's near-one log at midnight as it stands, and whether the ruling
+stands there is put to the orchestrator; so is the noon trade, recorded
+head against base on seven logs (the business year's weekend share 0.24
+to 0.31 at the base and 0 to 0.02 here, the real 0; its days 211 to 236
+of 260 at the base, 179 to 202 here). Nodes pin midnight moments
+deciding as the same days written as dates, and the unit-room rule's
+count of a tail at the floor's number.
 KPIs `K-S3-36` (new) and `K-S3-37` (new, an accepted limit, status only).
 
 ### The second key cut repaired at its review (2026-10-05)
