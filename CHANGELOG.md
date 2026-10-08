@@ -89,7 +89,9 @@ column too, where one column wrote the absence and the other's tail
 reached midnight. The times any column's absent spellings name now hold
 no cell of a run, a tail is drawn past them, the checker draws its
 windows the same way, and the loader refuses a hand-edited group or
-drawn tail left with no step to stand on. None of those columns misses
+drawn tail left with no step to stand on -- since its third
+verification, below, a step only the hour's other width can still write
+counting as one. None of those columns misses
 now, every real table still passes, and a twin with no absence inside a
 run or on a tail's reach keeps every byte; vectors file 21 freezes
 sixteen cases.
@@ -116,6 +118,20 @@ column's absent spellings, and an absent marker typed in lower case --
 are held by clauses that fail without them, `K-S3-49` pins the round's
 clauses, and the tail-leak measurement draws its clock windows as the
 checker does.
+
+**And its third verification** found the producer writing a description
+its own loader refused, so the table had no twin at all: 70 `00:30` and
+one real `0:00` beyond a low boundary at `01:00`, beside `00:00`
+declared missing, make a tail drawn through its shape whose only steps
+past its boundary are its heap's and `00:00`, and the loader counted
+neither as room. Where every such step is a time the hour's other width
+can still write, the tail now draws there and writes it in that width,
+as the table did: every twin keeps the one `0:00` and its 40 `00:00`
+and misses nothing, and the table is checked clean, alone and beside a
+second column. A battery of 1,300 random tables of clock columns holds
+every description `synthtwin profile` writes to its loader and its
+generator. The stated limit also names a place the description stands
+only a rung on.
 
 ### The weekday guards dropped (2026-10-02)
 

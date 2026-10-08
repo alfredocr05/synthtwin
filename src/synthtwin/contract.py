@@ -15611,8 +15611,8 @@ def _clock_census(
       which the generator's runs no longer count). And each tail drawn
       through its shape whose heaps leave it rows keeps a step beyond its
       boundary that is no heap and no absent place, where its draw can
-      stand -- or, where every step there on no heap is an absent place
-      the hour's other width spells another way, those steps
+      stand -- or, where every step there on no heap is an absent place,
+      those the hour's other width spells another way
       (`_drawn_tails_have_room`).
 
     The heaps are looked up through a set, in the order they stand, so
@@ -15903,9 +15903,9 @@ def _drawn_tails_have_room(
     skip the heaps' distances and the absent places' (method G7A.4b,
     step 1), out to the end of the dial, so at least one step beyond the
     boundary must be neither, or a draw would land past the dial -- save
-    where every step there on no heap is an absent place the hour's other
-    width spells another way: those rows stood there in the table,
-    present, in that width, and the draw stands on those steps
+    where every step there on no heap is an absent place: those rows
+    stood in the table, present, on the ones the hour's other width
+    spells another way, in that width, and the draw stands on those
     (`calendar_clock.absent_room_beyond`). A description the producer
     writes always has one or the other, those rows having been written
     on such steps; read off the absence alone, the producer's own
@@ -15955,8 +15955,8 @@ def _drawn_tails_have_room(
                 f"the table calls absent",
                 "a tail drawn through its shape keeps a step beyond its "
                 "boundary for the rows its heaps leave -- or, where the "
-                "table calls every such step absent, only times the hour's "
-                "other number of figures writes another way",
+                "table calls every such step absent, one the hour's other "
+                "number of figures writes another way",
             )
 
 

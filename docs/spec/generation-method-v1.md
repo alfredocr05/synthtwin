@@ -7463,9 +7463,10 @@ is left on a place a spelling the table calls absent names: a run whose
 every step is one takes no cell (G7A.4b step 2), a rank of another run
 moves off it (step 4), and a tail drawn through its shape skips their
 distances (step 1), so a tail rank still never moves and none lands
-there -- save the places a group or a drawn tail holds nothing but,
-which the hour's other width spells another way, whose cells are
-written in that width (below; G7A.4b steps 1 and 2).
+there -- save the places the hour's other width spells another way
+that a group holds nothing but, or a drawn tail has nothing but absent
+places beside, whose cells are written in that width (below; G7A.4b
+steps 1 and 2).
 
 *Added by the dates pass of the stage-3 review, item 5.* The stand-ins
 of G7A.5 were stepped past the absent spellings from the day the role
@@ -7481,8 +7482,9 @@ SOURCE WROTE IT.** Where a place a spelling the table calls absent names
 (G7A.4b step 1) is one the description stands present cells on -- a
 heap's value, a tail's boundary or listed value, a published rung, the
 steps of a census group whose every step is such a place (G7A.4b
-step 2), or the steps beyond a drawn tail's boundary whose every step
-on no heap is one (step 1) -- the table held present cells there, and the form's own
+step 2), or such a place beyond a drawn tail's boundary whose every
+step on no heap is an absent place (step 1) -- the table held present
+cells there, and the form's own
 spelling of that
 place is one the column's reader counts as no value. So those cells can
 only have shown the hour's OTHER width, the one other spelling that
@@ -7551,15 +7553,16 @@ below on that step:
    at or before it) and times `k`. So no drawn cell stands off the step,
    on a heap or on a spelling the column calls absent, and every heap
    keeps its count -- save where EVERY step beyond the boundary on no
-   heap is an absent place the hour's other width spells another way
-   (`calendar_clock.absent_with_another_width`): the rows the heaps
-   leave stood there in the table, present, in that width, as a census
-   group's cells do on such places alone (step 2), so those steps are
-   the draw's room (`calendar_clock.absent_room_beyond`) -- its edge
-   less the heaps' distances alone, each drawn distance read back past
-   them alone -- and each cell drawn there is written in that width
-   (G7A.4). The tail's cells, heaps and drawn ones together, stand at
-   its ranks in order.
+   heap is an absent place. The rows the heaps leave stood in the table,
+   present, on those the hour's other width spells another way
+   (`calendar_clock.absent_with_another_width`), in that width -- as a
+   census group's cells do on such places alone (step 2) -- and never
+   on one whose hour shows no width; so those are then the draw's room
+   (`calendar_clock.absent_room_beyond`) -- its edge less the heaps'
+   distances and the other absent places', each drawn distance read
+   back past those alone -- and each cell drawn there is written in
+   that width (G7A.4). The tail's cells, heaps and drawn ones together,
+   stand at its ranks in order.
 
    *Amended by the third verification of the round-2 fix of landing
    3b.5.* Skipped as every absent place is, those steps left a drawn
@@ -7569,7 +7572,10 @@ below on that step:
    the checker of the real table exited 1 at every seed and the table
    had no twin; 12 of this repair's 1,500 random tables of clock
    columns were refused so at 05eeeb9, every one on a low tail. Its
-   twins now write 40 `00:00` and the one `0:00` and miss nothing.
+   twins now write 40 `00:00` and the one `0:00` and miss nothing; and
+   so do the twins of one `01:00 AM` beyond a heap on `2:00 AM`, beside
+   `1:00 AM` and `12:00 AM` declared missing, where the draw stands on
+   `1:00 AM` alone, `12`'s hour showing no width.
 2. **The body's stretches** (`calendar_clock.clock_body_blocks`). From
    rank `m_lo` (nought with no tails), in ordinal order: each heap
    between the boundaries is a stretch of its count on its value; each
@@ -12575,8 +12581,8 @@ holding heaps, drawn on a step of more than one unit or beside an absent
 place beyond its boundary has its two distances' window (G12.14) summed
 over its heaps' distances and its drawn cells' strata, read back past the
 heaps and the absent places and times the step, as G7A.4b draws them --
-past the heaps alone where those places are the draw's room (G7A.4b
-step 1).
+past the heaps and the other absent places alone where the places the
+other width spells another way are the draw's room (G7A.4b step 1).
 
 ### G12.11 The envelope on a clock column's two distinctness counts
 

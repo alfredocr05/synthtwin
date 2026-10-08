@@ -17568,10 +17568,10 @@ class _ClockCensus:
     its heaps' and those of the places the column calls absent beyond its
     boundary (the round-2 fix of landing 3b.5). `stood_beyond` are the
     absent places beyond a boundary a drawn tail stands its cells on,
-    where every step there on no heap is one the hour's other width
-    spells another way (`calendar_clock.absent_room_beyond`): the twin
-    writes those cells in that width (the third verification of that
-    fix).
+    where every step there on no heap is an absent place -- those the
+    hour's other width spells another way
+    (`calendar_clock.absent_room_beyond`): the twin writes those cells
+    in that width (the third verification of that fix).
     """
 
     stride: int
@@ -17612,8 +17612,8 @@ def _clock_census_laid(
       the column calls absent beyond its boundary beside its heaps',
       even on a step of one unit (the round-2 fix of landing 3b.5) --
       save where every step beyond its boundary on no heap is an absent
-      place the hour's other width spells another way, whose steps are
-      its draw's room and whose cells are written in that width
+      place: those the hour's other width spells another way are then
+      its draw's room, and their cells are written in that width
       (`calendar_clock.absent_room_beyond`; the third verification of
       that fix);
     - the body is laid by the rank rule (`calendar_clock.clock_body_blocks`):
@@ -17683,8 +17683,8 @@ def _clock_census_laid(
                 plans += [side]
                 continue
             # A DRAWN TAIL WHOSE EVERY STEP BEYOND ITS BOUNDARY ON NO HEAP IS
-            # AN ABSENT PLACE THE OTHER WIDTH SPELLS ANOTHER WAY stands its
-            # draw there, as the table's rows stood, and writes it in that
+            # AN ABSENT PLACE stands its draw on those the other width spells
+            # another way, as the table's rows stood, and writes it in that
             # width (the third verification of the round-2 fix): skipped,
             # the draw stood past the dial, and the loader refused the
             # producer's own description.

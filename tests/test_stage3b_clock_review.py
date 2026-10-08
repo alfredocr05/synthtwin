@@ -135,7 +135,11 @@ only steps beyond its boundary are its heap's and `00:00`; CC5 refused
 the producer's own description, and the table had no twin at all. Those
 steps are now the draw's room and its cell is written `0:00` (mutants:
 no such step counted as room; the drawn cell written in the form's own
-spelling), and the oracle draws the same. And the orchestrator's
+spelling), and the oracle draws the same; and
+`test_round_2_a_drawn_tail_stands_on_the_absent_place_its_hour_can_write_beside_one_it_cannot`
+-- one real `01:00 AM` beyond a heap on `2:00 AM`, beside `1:00 AM` and
+`12:00 AM` declared missing, refused at the first commit of this repair
+too, where the draw now stands on `1:00 AM` alone. And the orchestrator's
 battery, `test_round_2_every_clock_table_the_producer_describes_loads_and_generates`:
 random tables of clock columns, every description the producer writes
 loaded and generated at seeds 0 and 1.
@@ -2229,6 +2233,45 @@ def test_round_2_red_when_a_drawn_tails_room_is_written_in_the_forms(
     assert twins[0][1:3] == (41, 0) and twins[0][3] != [], twins
 
 
+def _drawn_tail_on_the_marked_face() -> "list[str]":
+    """`h:mm AM` on the hour: 300 times from `2:00 AM` (`random.Random(3)`), 20 `12:00 AM`, 15 `1:00 AM` and one `01:00 AM`."""
+    draw = random.Random(3)
+    cells = [_on_the_marked_face(draw.randrange(2, 24) * 60) for _row in range(300)]
+    cells += ["12:00 AM"] * 20 + ["1:00 AM"] * 15 + ["01:00 AM"]
+    draw.shuffle(cells)
+    return cells
+
+
+def test_round_2_a_drawn_tail_stands_on_the_absent_place_its_hour_can_write_beside_one_it_cannot(
+    tmp_path: pathlib.Path,
+) -> None:
+    """Beside `1:00 AM` and `12:00 AM` declared missing, one real `01:00 AM` beyond a heap on `2:00 AM`: the description loads, every twin writes it.
+
+    The low tail draws one row through its shape, and its steps beyond
+    the boundary are the heap's, `1:00 AM` and `12:00 AM`, both absent
+    places -- the first one the other width writes `01:00 AM`, the second
+    one whose hour shows no width, where no present cell can stand. Read
+    as all of them or none, the loader refused the producer's own
+    description at 05eeeb9 and at the first commit of this repair alike
+    (that repair's own probe). Now the draw stands on `1:00 AM` alone and
+    writes `01:00 AM`: every twin at seeds 0 to 2 writes 20 `12:00 AM`,
+    15 `1:00 AM` and the one `01:00 AM` and misses nothing, and the table
+    validates.
+    """
+    document, loaded = _described(tmp_path, _drawn_tail_on_the_marked_face(), declared=("12:00 AM", "1:00 AM"))
+    block = _block(document)
+    assert block["clock_form"] == "h-mm AM-PM" and block["clock_step"] == 3600, block
+    assert block["missing_by_source"] == {"12:00 AM": 20, "1:00 AM": 15}, block["missing_by_source"]
+    assert block["low_tail"]["values"] is None and block["low_tail"]["boundary"] == "3:00 AM", block["low_tail"]
+    assert {"count": 14, "value": "2:00 AM"} in block["clock_heaps"], block["clock_heaps"]
+    twins: "list[tuple[int, int, int, int, list[str]]]" = []
+    for seed in (0, 1, 2):
+        twin, path = _twin(loaded, seed, tmp_path)
+        twins += [(seed, twin.count("12:00 AM"), twin.count("1:00 AM"), twin.count("01:00 AM"), _missed(loaded, path))]
+    assert twins == [(seed, 20, 15, 1, []) for seed in (0, 1, 2)], twins
+    assert _missed(loaded, tmp_path / "table.csv") == []
+
+
 def test_round_2_the_oracle_draws_a_tail_onto_an_absent_place_of_the_other_width_as_the_product(
     tmp_path: pathlib.Path,
 ) -> None:
@@ -2392,10 +2435,15 @@ def test_round_2_every_clock_table_the_producer_describes_loads_and_generates(
     """SLOW. Every description `synthtwin profile` writes of 1,300 random tables of clock columns loads, and generates at seeds 0 and 1.
 
     The orchestrator's battery for the third verification of round 2,
-    seed 2026: at least 2,000 clock columns described. A table of fewer
-    than 100 rows holding a value is refused by `synthtwin profile`
-    before any description is written, as it should be, and is not
-    counted. Pinned in the ledger's slow nodes.
+    seed 2026: at least 2,000 clock columns described. At 05eeeb9 the
+    loader refused 12 of the 1,251 descriptions `synthtwin profile` writes
+    of these tables (2,129 clock columns), every one under CC5, a drawn
+    low tail whose only steps beyond its boundary were its heaps' and an
+    absent place the hour's other width writes -- each such table had no
+    twin at all. A table of fewer than 100 rows holding a value is refused
+    by `synthtwin profile` before any description is written, as it
+    should be, and is not counted (49). About four minutes on a loaded
+    machine; pinned in the ledger's slow nodes.
     """
     draw = random.Random(2026)
     clock_columns = 0

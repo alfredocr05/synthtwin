@@ -15775,9 +15775,9 @@ def _clock_tail_windows(
         # The draw skips the places the column calls absent beyond the
         # boundary beside the heaps', on any step (the round-2 fix of
         # landing 3b.5), read off the block as the generator reads them --
-        # save those that are its room, where every step there on no heap
-        # is one the hour's other width spells another way (the third
-        # verification of that fix).
+        # save those that are its room: where every step there on no heap
+        # is absent, those the hour's other width spells another way (the
+        # third verification of that fix).
         heaped: "list[tuple[int, int]]" = []
         beyond: "list[int]" = []
         room: "list[int]" = []

@@ -19008,9 +19008,9 @@ def clock_tail_room(column, at, is_low, stride, heaped):
     although the column calls them absent (G7A.4b step 1, the third
     verification of the round-2 fix of landing 3b.5): where every step out
     to the dial's end that is no heap's (``heaped``, their distances) is
-    spelled absent and the hour's other width writes it another way, every
-    such step -- the rows the heaps leave stood there in that width --
-    and otherwise none.  Every step is spelled and asked."""
+    spelled absent, each such step the hour's other width writes another
+    way -- the rows the heaps leave stood there, in that width -- and
+    otherwise none.  Every step is spelled and asked."""
     form = column["clock_form"]
     absent = clock_absent_of(column)
     if not absent:
@@ -19020,10 +19020,10 @@ def clock_tail_room(column, at, is_low, stride, heaped):
     while (at - distance >= 0) if is_low else (at + distance <= last):
         if distance not in heaped:
             place = at - distance if is_low else at + distance
-            if not (_clock_reads_absent(place, form, absent)
-                    and clock_other_width_of(place, form) != clock_spelling_of(place, form)):
+            if not _clock_reads_absent(place, form, absent):
                 return []
-            room += [distance]
+            if clock_other_width_of(place, form) != clock_spelling_of(place, form):
+                room += [distance]
         distance += stride
     return room
 
@@ -19103,9 +19103,10 @@ def clock_census_content(column):
     heaps', each distance divided by the step, its edge in steps less the
     heaps and the absent steps inside it -- each drawn distance read back
     past the heaps' and the absent ones' and times the step; save where
-    every step beyond the boundary on no heap is an absent one the hour's
-    other width writes another way, which the draw stands on, read back
-    past the heaps' alone, and writes in that width.  BODY: each stretch of
+    every step beyond the boundary on no heap is an absent one, where the
+    draw stands on those the hour's other width writes another way, read
+    back past the heaps' and the others alone, and writes them in that
+    width.  BODY: each stretch of
     `clock_census_runs`; a heap's ranks on its value, a run's ranks by
 
         steps[((r - a) 2**64 + w) |steps| // (n 2**64)]
