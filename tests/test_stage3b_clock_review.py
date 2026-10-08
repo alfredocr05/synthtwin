@@ -103,9 +103,14 @@ beside `00:00` declared missing publishes a heap and a listed low tail
 on `00:00`, and every twin wrote all 35 such cells `00:00`; those times
 are now written `0:00`, the one other spelling the reader reads there,
 on a column laid on its census, laid as before by G7A.4 and beside
-another column's `00:00` alike, and so are a heap and a low boundary on
-such a place; the oracle writes the same (mutants: every present time
-in the form's own spelling; each column's own absent spellings alone).
+another column's `00:00` alike, and so are a heap, a low boundary and a
+pinned rung on such a place; the oracle writes the same (mutants: every
+present time in the form's own spelling; each column's own absent
+spellings alone). And `test_round_2_a_group_whose_every_step_is_an_absent_spelling_holds_the_tables_present_cells`
+-- 20 `1:15` beside `01:15` declared missing, the only step of its
+census group: CC5 refused the producer's own description at baaf9de;
+its twins now write them `1:15` (mutants: such places no room; the
+run's cells in the form's own spelling).
 And its note on K-S3-11's driver:
 `test_round_2_the_tail_leak_driver_draws_its_windows_beside_the_tables_absences`
 -- the driver drew a clock tail's window beside the column's own absent
@@ -1683,23 +1688,39 @@ def test_round_2_a_column_laid_as_before_writes_a_present_time_on_an_absent_spel
 
 
 def _other_width_shape(name: str) -> "tuple[list[str], str, str]":
-    """A column of `hh:mm` on a ten-minute grid whose present cells on an absent spelling show the other width.
+    """A column of `hh:mm` whose present cells on an absent spelling show the other width.
 
-    `heap`: 30 real `8:00` in the body, a heap, beside 25 `08:00`
-    declared missing. `boundary`: eleven times before `07:00`, then four
-    real `7:00` -- the low boundary stands on the first -- beside 14
-    `07:00` declared missing. Returns the cells, the absent spelling and
-    the other width's.
+    On a ten-minute grid, `heap`: 30 real `8:00` in the body, a heap,
+    beside 25 `08:00` declared missing; `boundary`: eleven times before
+    `07:00`, then four real `7:00` -- the low boundary stands on the
+    first -- beside 14 `07:00`. On a five-minute grid, `rung`: eight real
+    `5:00`, where the fifth percentile stands, beside 25 `05:00`. On a
+    quarter-hour grid, `group`: 20 rows on every step, `01:15`'s written
+    `1:15`, beside 15 `01:15` -- the only step of its census group.
+    Returns the cells, the absent spelling and the other width's.
     """
     draw = random.Random(3)
     if name == "heap":
         cells = [cell for cell in _minutes([draw.randrange(36, 108) * 10 for _row in range(400)]) if cell != "08:00"]
         cells += ["8:00"] * 30 + ["08:00"] * 25
         hole, other = "08:00", "8:00"
-    else:
+    elif name == "boundary":
         cells = _minutes([draw.randrange(30, 42) * 10 for _row in range(11)]) + ["7:00"] * 4
         cells += _minutes([draw.randrange(43, 108) * 10 for _row in range(380)]) + ["07:00"] * 14
         hole, other = "07:00", "7:00"
+    elif name == "rung":
+        draw = random.Random(5)
+        cells = _minutes([draw.randrange(12, 56) * 5 for _row in range(11)])
+        cells += ["04:40", "04:45", "04:50", "04:55"] + ["5:00"] * 8 + ["05:00"] * 25
+        cells += _minutes([draw.randrange(61, 217) * 5 for _row in range(380)])
+        hole, other = "05:00", "5:00"
+    else:
+        draw = random.Random(11)
+        cells = []
+        for at in range(0, 1440, 15):
+            cells += (["1:15"] if at == 75 else _minutes([at])) * 20
+        cells += ["01:15"] * 15
+        hole, other = "01:15", "1:15"
     draw.shuffle(cells)
     return cells, hole, other
 
@@ -1717,15 +1738,17 @@ def _other_width_twins(
     return _block(document), twins, _missed(loaded, folder / name / "table.csv")
 
 
-def test_round_2_a_heap_and_a_boundary_on_an_absent_spelling_are_written_as_the_table_wrote_them(
+def test_round_2_a_heap_a_boundary_and_a_rung_on_an_absent_spelling_are_written_as_the_table_wrote_them(
     tmp_path: pathlib.Path,
 ) -> None:
-    """A heap of 30 `8:00` beside `08:00` declared missing, and a low boundary on `7:00` beside `07:00`, are written in their own width.
+    """A heap of 30 `8:00` beside `08:00` declared missing, a low boundary on `7:00` beside `07:00` and a rung on `5:00` beside `05:00` are written in their own width.
 
     At baaf9de the heap's twins wrote 55 `08:00` and MISSED eight checks,
-    and the boundary's 15 `07:00` and MISSED six, at seeds 0 to 2. The
-    boundary's three other `7:00` rows are counted in its census group
-    and laid on the group's other steps, as every run's cells are.
+    the boundary's 15 `07:00` and MISSED six, and the rung's -- the fifth
+    percentile, pinned in its run on its value -- 26 `05:00` and MISSED
+    five, at seeds 0 to 2. The boundary's three other `7:00` rows, and the
+    rung's seven other `5:00`, are counted in their census group and laid
+    on the group's other steps, as every run's cells are.
     """
     block, twins, table = _other_width_twins(tmp_path, "heap")
     assert block["missing_by_source"] == {"08:00": 25} and {"count": 30, "value": "08:00"} in block["clock_heaps"]
@@ -1734,6 +1757,54 @@ def test_round_2_a_heap_and_a_boundary_on_an_absent_spelling_are_written_as_the_
     assert block["missing_by_source"] == {"07:00": 14} and block["low_tail"]["boundary"] == "07:00", block
     assert all(heap["value"] != "07:00" for heap in block["clock_heaps"]), block["clock_heaps"]
     assert table == [] and twins == [(seed, 14, 1, []) for seed in (0, 1, 2)], (table, twins)
+    block, twins, table = _other_width_twins(tmp_path, "rung")
+    assert block["missing_by_source"] == {"05:00": 25} and block["clock_percentiles"]["p05"] == "05:00", block
+    assert all(heap["value"] != "05:00" for heap in block["clock_heaps"]), block["clock_heaps"]
+    assert table == [] and twins == [(seed, 25, 1, []) for seed in (0, 1, 2)], (table, twins)
+
+
+def test_round_2_a_group_whose_every_step_is_an_absent_spelling_holds_the_tables_present_cells(
+    tmp_path: pathlib.Path,
+) -> None:
+    """20 `1:15` beside 15 `01:15` declared missing, the only step of its census group: the description loads and every twin writes them `1:15`.
+
+    A run whose every step is an absent place takes no cell (G7A.4b step
+    2), save in a group whose every step is one the other width spells
+    another way: the table held its cells there, present, in that width.
+    At baaf9de CC5 refused the producer's own description -- "this file
+    has been changed since it was written" -- so neither generate nor
+    validate ran; at d4f5ee4 it loaded, and every twin wrote 35 `01:15`
+    and MISSED eleven checks.
+    """
+    block, twins, table = _other_width_twins(tmp_path, "group")
+    assert block["missing_by_source"] == {"01:15": 15}, block["missing_by_source"]
+    assert {"count": 20, "first": 7, "last": 7} in [dict(group) for group in block["clock_census"]], block["clock_census"]
+    assert all(heap["value"] != "01:15" for heap in block["clock_heaps"]), block["clock_heaps"]
+    assert table == [] and twins == [(seed, 15, 20, []) for seed in (0, 1, 2)], (table, twins)
+
+
+def test_round_2_red_when_an_absent_place_of_the_other_width_is_no_room(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """MUTATION: no absent place spelled another way by the other width -- CC5 refuses the producer's own description again."""
+    monkeypatch.setattr(calendar_clock, "absent_with_another_width", lambda *_a: ())
+    cells, hole, _other = _other_width_shape("group")
+    folder = tmp_path / "group"
+    folder.mkdir(parents=True, exist_ok=True)
+    table = fixtures.write(folder, "table.csv", "\n".join(["t"] + cells) + "\n")
+    settings = taxonomy.Settings(small_cell_floor=11, declared_missing_values=(hole,))
+    document = profile.build_document(reading.read_table(str(table), small_cell_floor=11), settings, [], [])
+    refused = _loads(folder, document, "group")
+    assert isinstance(refused, str) and "CC5" in refused and "bin 7 to bin 7 counts 20" in refused, refused
+
+
+def test_round_2_red_when_a_run_on_absent_places_is_written_in_the_forms(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """MUTATION: a run laid on absent places written in the form's own spelling -- the twin writes 35 `01:15`."""
+    monkeypatch.setattr(generation, "_clock_runs_on_absent_places", lambda *_a: [])
+    _block_of, twins, _table = _other_width_twins(tmp_path, "group", (0,))
+    assert twins[0][1:3] == (35, 0) and twins[0][3] != [], twins
 
 
 def test_round_2_red_when_a_present_time_on_an_absent_spelling_is_written_in_the_forms(
@@ -1806,24 +1877,25 @@ def test_round_2_red_when_a_present_time_is_spelled_beside_the_columns_own_absen
 
 
 def test_round_2_the_oracle_writes_a_present_time_on_an_absent_spelling_as_the_product(tmp_path: pathlib.Path) -> None:
-    """No frozen case holds a present time on an absent spelling, so the oracle is held to the product on five columns (A-P4-59).
+    """No frozen case holds a present time on an absent spelling, so the oracle is held to the product on seven columns (A-P4-59).
 
     The oracle's content list, from the opening words of the stream the
     product draws at seed 0, holds the cells the product's twin holds
     beside its absent ones: the verification's column on its census and
-    laid as before by G7A.4, 15 `0:00` each; the heap of `8:00` and the
-    boundary on `7:00`, on their census; and round 2's `minute` column
-    laid as before, whose G7A.4 draw -- skipping no absent place -- lands
-    one cell on `00:00`, a place its description stands nothing present
-    on, so both write that cell `00:00`.
+    laid as before by G7A.4, 15 `0:00` each; the heap of `8:00`, the
+    boundary on `7:00`, the rung on `5:00` and the group of `1:15`, on
+    their census; and round 2's `minute` column laid as before, whose
+    G7A.4 draw -- skipping no absent place -- lands one cell on `00:00`,
+    a place its description stands nothing present on, so both write
+    that cell `00:00`.
     """
     numpy = pytest.importorskip("numpy")
     oracle = _oracle_module()
     cells, hole = _at_midnight_column()
     shapes = [("at-midnight", cells, hole, "0:00", False, (0, 15)), ("at-midnight-before", cells, hole, "0:00", True, (0, 15))]
-    for name, (on, off) in (("heap", (0, 30)), ("boundary", (0, 1))):
+    for name, counts in (("heap", (0, 30)), ("boundary", (0, 1)), ("rung", (0, 1)), ("group", (0, 20))):
         cells, hole, other = _other_width_shape(name)
-        shapes += [(name, cells, hole, other, False, (on, off))]
+        shapes += [(name, cells, hole, other, False, counts)]
     cells, hole = _absence_column("minute")
     shapes += [("minute-before", cells, hole, "0:00", True, (1, 0))]
     for name, cells, hole, other, as_before, counts in shapes:

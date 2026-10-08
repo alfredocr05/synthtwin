@@ -19049,6 +19049,13 @@ def clock_census_runs(column, parsed, tails, body, heaps, stride):
             if start <= high:
                 runs += [(start, high)]
             units = [clock_run_units(a, b, stride, form, absent) for a, b in runs]
+            steps = [at for a, b in runs for at in range(a, b + 1, stride)]
+            if not sum(units) and steps and all(
+                    clock_other_width_of(at, form) != clock_spelling_of(at, form)
+                    for at in steps):
+                # Every step an absent place the other width spells another
+                # way: the table held the group's cells there, in that width.
+                units = [len(range(a, b + 1, stride)) for a, b in runs]
             first_cells = [sum(1 for end in ends if a <= end <= b) for a, b in runs]
             for (a, b), cells in zip(runs, clock_run_shares(count, units, first_cells)):
                 events += [(a, b, cells, False)]
@@ -19242,6 +19249,12 @@ def clock_census_content(column):
                 place = moved
             ordinals[rank] = low_at + place * stride
     published = clock_published_places(column)
+    # ...and the steps of a run laid on absent places alone, which only a
+    # group whose every step the other width spells another way lays.
+    for _first, _cells, low_at, high_at, heap, _group in stretches:
+        steps = range(low_at, high_at + 1, stride)
+        if not heap and all(_clock_reads_absent(at, form, absent) for at in steps):
+            published |= set(steps)
     content = [clock_written_present(ordinal, form, absent, published)
                for ordinal in ordinals]
     codes = clock_codes_of(column)
@@ -19275,10 +19288,19 @@ def _clock_reads_absent(ordinal, form, absent):
     return text.strip().lower() in absent or not text.strip()
 
 
+def clock_other_width_of(ordinal, form):
+    """One time written at the hour's other width on the form's face (G7A.4)."""
+    width, seconds, face = clock_form_fields(form)
+    return written_clock_of(
+        ordinal * (1 if seconds else 60), seconds,
+        "h" if width == "hh" else "hh", face,
+    )
+
+
 def clock_published_places(column):
     """The places the description stands present cells on (G7A.4): each
-    heap's value and each tail's boundary and listed values, in the
-    form's own unit."""
+    heap's value, each tail's boundary and listed values, and each
+    published rung, in the form's own unit."""
     form = column["clock_form"]
     found = {clock_ordinal_of(heap["value"], form)
              for heap in column.get("clock_heaps") or []}
@@ -19287,6 +19309,9 @@ def clock_published_places(column):
             continue
         found.add(clock_ordinal_of(side["boundary"], form))
         for text in side["values"] or []:
+            found.add(clock_ordinal_of(text, form))
+    for text in (column.get("clock_percentiles") or {}).values():
+        if text is not None:
             found.add(clock_ordinal_of(text, form))
     return found
 
@@ -19301,11 +19326,7 @@ def clock_written_present(ordinal, form, absent, published):
     text = clock_spelling_of(ordinal, form)
     if ordinal not in published or text.strip().lower() not in absent:
         return text
-    width, seconds, face = clock_form_fields(form)
-    return written_clock_of(
-        ordinal * (1 if seconds else 60), seconds,
-        "h" if width == "hh" else "hh", face,
-    )
+    return clock_other_width_of(ordinal, form)
 
 
 def _clock_content(column):

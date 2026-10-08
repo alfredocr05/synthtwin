@@ -17997,7 +17997,9 @@ def _clock_census_content(
                 taken[places[index]] = taken[places[index]] - 1
                 taken[place] = (taken[place] if place in taken else 0) + 1
             ordinals[rank] = block.low + place * stride
-    cells = _clock_cells_written(ordinals, facts, holes)
+    cells = _clock_cells_written(
+        ordinals, facts, holes, _clock_runs_on_absent_places(census, form, holes)
+    )
     used: "dict[str, int]" = {cell: 1 for cell in cells}
     for spelling, count in census.codes:
         for _copy in range(count):
@@ -18371,26 +18373,61 @@ def _clock_off_the_holes(
     return moved
 
 
+def _clock_runs_on_absent_places(
+    census: "_ClockCensus", form: str, holes: "tuple[str, ...]"
+) -> "list[int]":
+    """The steps of every run holding cells whose every step is an absent place (method G7A.4b step 2).
+
+    A run takes no cell where its steps are all absent places, save in a
+    group whose every step is one the hour's other width spells another
+    way (`calendar_clock.clock_body_blocks`): the table held that group's
+    cells there, present, in that width, and these are the places the
+    description so stands them on (`_clock_cells_written`).
+
+    Guarantees: a function of the census, the form and the table's
+    absent spellings; returns the steps in the form's unit. Raises
+    nothing. No I/O.
+    """
+    absent: "dict[int, int]" = {
+        at: 1 for at in calendar_clock.absent_places(holes, form)
+    }
+    found: "list[int]" = []
+    for block in census.blocks:
+        if block.heap or block.cells < 1:
+            continue
+        steps = range(block.low, block.high + 1, census.stride)
+        if all(at in absent for at in steps):
+            for at in steps:
+                found += [at]
+    return found
+
+
 def _clock_cells_written(
-    ordinals: "list[int]", facts: contract.ClockFacts, holes: "tuple[str, ...]"
+    ordinals: "list[int]",
+    facts: contract.ClockFacts,
+    holes: "tuple[str, ...]",
+    stood: "list[int] | tuple[int, ...]" = (),
 ) -> "list[str]":
     """Each parsed rank's cell, written as its source wrote it (method G7A.4).
 
     The form's own spelling of its ordinal -- except on a place a
     spelling the table calls absent names where the description stands
-    present cells (a heap's value, a tail's boundary or a listed tail
-    value): the table's present cells there showed the hour's other
+    present cells (a heap's value, a tail's boundary, a listed tail value,
+    a published rung, or `stood`, the steps of a run laid on such places
+    alone): the table's present cells there showed the hour's other
     width, the one other spelling the column's reader reads at that
-    place, and the cell is written in it (`calendar_clock.present_spellings`).
+    place, and the cell is written in it
+    (`calendar_clock.present_spellings`).
     Beside `00:00` declared missing a column of `hh:mm` holding real
     times at midnight written `0:00` wrote every one of them `00:00` -- a cell its
     own reader counts as no value -- and its twin MISSED its presence
     counts, heaps and low tail at every seed (the verification of the
     round-2 fix of landing 3b.5).
 
-    Guarantees: accepts one ordinal per rank, the column's clock facts
-    and every spelling the table calls absent; returns one cell per rank,
-    the form's own spelling wherever no rank stands on such a place.
+    Guarantees: accepts one ordinal per rank, the column's clock facts,
+    every spelling the table calls absent and the steps of runs laid on
+    absent places; returns one cell per rank, the form's own spelling
+    wherever no rank stands on such a place.
     Determinism: a function of the three; draws no word. Raises
     ProfileError only where a published clock value does not read in its
     own form, which the loader never lets through (T1). No I/O.
@@ -18405,6 +18442,12 @@ def _clock_cells_written(
         published += [_clock_ordinal_of(tail.boundary, form)]
         for value in tail.values or ():
             published += [_clock_ordinal_of(value, form)]
+    for name in _LADDER_NAMES:
+        rung = facts.clock_percentiles[name] if name in facts.clock_percentiles else None
+        if rung is not None:
+            published += [_clock_ordinal_of(rung, form)]
+    for at in stood:
+        published += [at]
     other = calendar_clock.present_spellings(holes, form, published)
     cells: "list[str]" = []
     for ordinal in ordinals:

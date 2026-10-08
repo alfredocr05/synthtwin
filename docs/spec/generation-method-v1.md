@@ -7477,8 +7477,10 @@ absent count and the uniqueness, and the step above takes one.
 **AND A PRESENT TIME PUBLISHED ON AN ABSENT PLACE IS WRITTEN AS ITS
 SOURCE WROTE IT.** Where a place a spelling the table calls absent names
 (G7A.4b step 1) is one the description stands present cells on -- a
-heap's value, a tail's boundary or a listed tail value -- the table
-held present cells there, and the form's own spelling of that
+heap's value, a tail's boundary or listed value, a published rung, or
+the steps of a census group whose every step is such a place (G7A.4b
+step 2) -- the table held present cells there, and the form's own
+spelling of that
 place is one the column's reader counts as no value. So those cells can
 only have shown the hour's OTHER width, the one other spelling that
 reader reads at that place -- `0:00` in a column of `hh:mm` beside
@@ -7504,7 +7506,18 @@ validates; laid by G7A.4 its twins MISSED twelve or thirteen, and a
 second column holding those times beside another column's `00:00`
 nine, or eleven laid by G7A.4. Laid either way the column now writes 15
 `0:00` and 20 `00:00`, the second column 15 `0:00` and no `00:00`, and
-no twin misses anything.
+no twin misses anything. So do a heap of 30 `8:00` beside `08:00`
+declared missing (55 `08:00` before, eight MISSED), a low boundary on
+`7:00` beside `07:00` (one `07:00` too many, six MISSED) and a fifth
+percentile on `5:00`, pinned in its run, beside `05:00` (one too many,
+five MISSED). And a quarter-hour grid writing 20 `1:15` beside 15
+`01:15` declared missing, the only step of its census group, had its
+producer's own description refused under CC5 at baaf9de -- "this file
+has been changed since it was written" -- where at d4f5ee4 it loaded
+and every twin wrote 35 `01:15` and MISSED eleven checks; it now loads
+and its twins write 20 `1:15` and 15 `01:15`. Of this repair's own 80
+such columns (seed 71), 40 MISSED at every seed at baaf9de and two had
+their description refused; none now.
 
 ### G7A.4b The rank rule: a census, heaps, a step and codes (landing 3b.5)
 
@@ -7548,8 +7561,12 @@ below on that step:
 
    of them (`calendar_clock.run_shares`), `U` the group's steps on no
    absent place, `U<=j` and `U<j` those through and before run `j` -- so
-   a run whose every step is an absent place takes no cell -- `f_j` one
-   for each tail boundary standing in run `j` on no heap, and
+   a run whose every step is an absent place takes no cell, save in a
+   group whose every step on no heap is an absent place the hour's other
+   width spells another way (`calendar_clock.absent_with_another_width`):
+   the table held that group's cells there, present, in that width, so
+   `U` counts those steps and the cells are written in it (G7A.4) --
+   `f_j` one for each tail boundary standing in run `j` on no heap, and
    `r = n - sum(f)`; where the `f_j` outnumber `n`, none is taken
    first. The boundary's ONE CELL
    FIRST is the 3b.5 skeptic's MAJOR 1: a first run of two steps in

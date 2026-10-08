@@ -282,6 +282,41 @@ def absent_places(spellings: "tuple[str, ...] | list[str]", form: str) -> "tuple
     return tuple(sorted(found))
 
 
+def _other_width_form(form: str) -> str:
+    """The form one form's hour is written in at its other width (`h-mm` for `hh-mm`)."""
+    style = parsing.clock_style_of(form)
+    width = parsing.clock_hour_width(style)
+    other = ("h" if width == "hh" else "hh") + parsing.clock_face(style)
+    return parsing.clock_form_of(other, parsing.clock_step(form) == 1)
+
+
+def absent_with_another_width(
+    absent: "tuple[int, ...] | list[int]", form: str
+) -> "tuple[int, ...]":
+    """The absent places the hour's other width spells another way (method G7A.4b step 2).
+
+    Of the places `absent_places` gives, those whose hour shows a width --
+    `0` to `9`, or `1` to `9` on a marked face -- so a present time can
+    still have stood there in the table, written in the other width. A
+    census group counting cells whose every step on no heap is one of
+    these counts present cells the table wrote there so: its runs take
+    those steps (`clock_body_blocks`), CC5 counts them as its room
+    (`clock_group_reach`), and the twin writes them in that width
+    (`present_spellings`).
+
+    Guarantees: accepts absent places and one of `parsing.CLOCK_FORMS`;
+    returns those of them with another width's spelling, in the order
+    given. Determinism: a function of the two. Raises ValueError for a
+    form `parsing` does not know. No I/O of any kind.
+    """
+    other = _other_width_form(form)
+    found: "list[int]" = []
+    for at in absent:
+        if parsing.clock_spelling(at, other) != parsing.clock_spelling(at, form):
+            found += [at]
+    return tuple(found)
+
+
 def present_spellings(
     spellings: "tuple[str, ...] | list[str]",
     form: str,
@@ -290,21 +325,23 @@ def present_spellings(
     """The places a present time is written off the form's own spelling, each with the spelling it is written in (method G7A.4).
 
     A place the table calls absent (`absent_places`) that the description
-    stands present cells on -- a heap's value, a tail's boundary or a
-    listed tail value, `published` -- held present cells in the table,
-    and the form's own spelling of it is one the column's reader counts
-    as no value. So those cells can only have shown the hour's OTHER
-    width -- `0:00` in a column of `hh:mm` beside `00:00` declared
-    missing -- the one other spelling that reader reads at that place
-    (`parsing.clock_ordinal`). That is the spelling the source wrote, and
-    the twin writes it (the owner's ruling of 2026-09-15; the
-    verification of the round-2 fix of landing 3b.5: every twin of such
-    a column wrote every time at midnight `00:00`). A place whose hour
-    shows no width -- `10` to `23`, and `12` on a marked face -- has no
-    such spelling, and a place the description stands nothing present
-    on is one no present cell of the table is known to have stood on: a
-    drawn or a run's cell is kept off it (G7A.4b steps 1, 2 and 4), never
-    written in a spelling the table may not hold. Neither is mapped.
+    stands present cells on -- a heap's value, a tail's boundary, a listed
+    tail value, a published rung, or a step of a census group whose every
+    step is such a place (`absent_with_another_width`), `published` --
+    held present cells in the table, and the form's own spelling of it is
+    one the column's reader counts as no value. So those cells can only
+    have shown the hour's OTHER width -- `0:00` in a column of `hh:mm`
+    beside `00:00` declared missing -- the one other spelling that reader
+    reads at that place (`parsing.clock_ordinal`). That is the spelling
+    the source wrote, and the twin writes it (the owner's ruling of
+    2026-09-15; the verification of the round-2 fix of landing 3b.5:
+    every twin of such a column wrote every time at midnight `00:00`). A
+    place whose hour shows no width -- `10` to `23`, and `12` on a marked
+    face -- has no such spelling, and a place the description stands
+    nothing present on is one no present cell of the table is known to
+    have stood on: a drawn or a run's cell is kept off it (G7A.4b steps 1,
+    2 and 4), never written in a spelling the table may not hold. Neither
+    is mapped.
 
     Guarantees: accepts the spellings the table calls absent, one of
     `parsing.CLOCK_FORMS` and the places the description stands present
@@ -314,10 +351,7 @@ def present_spellings(
     Raises ValueError for a form `parsing` does not know. No I/O of any
     kind.
     """
-    style = parsing.clock_style_of(form)
-    width = parsing.clock_hour_width(style)
-    other_style = ("h" if width == "hh" else "hh") + parsing.clock_face(style)
-    other_form = parsing.clock_form_of(other_style, parsing.clock_step(form) == 1)
+    other_form = _other_width_form(form)
     named: "dict[int, int]" = {at: 1 for at in published}
     found: "dict[int, str]" = {}
     for at in absent_places(spellings, form):
@@ -362,7 +396,10 @@ def clock_group_reach(
     The steps `clock_body_blocks` shares a group's count over: a group
     counting cells with none of them left is refused at load (the round-2
     fix of landing 3b.5), where the generator would stop on an internal
-    error.
+    error. A group whose every step on no heap is an absent place the
+    hour's other width spells another way (`absent_with_another_width`)
+    counts those steps, as its runs do: they hold the present cells the
+    table wrote there in that width.
 
     Guarantees: accepts the groups, the form, the step in the form's
     units, the body's two ends, the heaps' ordinals and the absent places
@@ -370,6 +407,7 @@ def clock_group_reach(
     function of the arguments. Raises nothing.
     """
     heaped: "set[int]" = set(heaps)
+    wide = absent_with_another_width(absent, form)
     found: "list[int]" = []
     for first, last, _count in groups:
         span = group_span(first, last, form, stride, body)
@@ -380,9 +418,18 @@ def clock_group_reach(
         for at in heaps:
             if span[0] <= at <= span[1] and at % stride == 0:
                 units = units - 1
+        free = units
+        narrow = 0
         for at in absent:
             if span[0] <= at <= span[1] and at % stride == 0 and at not in heaped:
                 units = units - 1
+                if at not in wide:
+                    narrow = narrow + 1
+        # A GROUP WHOSE EVERY STEP ON NO HEAP IS AN ABSENT PLACE THE OTHER
+        # WIDTH SPELLS ANOTHER WAY holds the present cells the table wrote
+        # there in that width, as its runs do (`clock_body_blocks`).
+        if units < 1 and narrow == 0:
+            units = free
         found += [units]
     return found
 
@@ -541,7 +588,11 @@ def clock_body_blocks(
     run whose every step is absent takes no cell. Counted, an hourly
     grid's run holding nothing but `12:00`, written for an unknown time,
     took six cells no rank could move off it, and the twin wrote 285
-    `12:00` where the table wrote 279.
+    `12:00` where the table wrote 279. Save one group: where EVERY step
+    of a group counting cells is an absent place the hour's other width
+    spells another way (`absent_with_another_width`), the table held
+    those cells there, present, in that width, and its runs take those
+    steps.
 
     Guarantees: accepts the parsed count, the two tails' rows or None,
     the body's two ends, the census, the heaps as ordinals, the form,
@@ -600,6 +651,19 @@ def clock_body_blocks(
                 for begin, stop in runs
             ]
             total = sum(units)
+            if total < 1:
+                # A GROUP WHOSE EVERY STEP IS AN ABSENT PLACE THE OTHER
+                # WIDTH SPELLS ANOTHER WAY counts present cells the table
+                # wrote there in that width (the verification of the
+                # round-2 fix): its runs take those steps, and the twin
+                # writes their cells so (`present_spellings`). Read off
+                # the absence alone, CC5 refused the producer's own
+                # description of 20 `1:15` beside `01:15` declared missing.
+                wide = absent_with_another_width(absent, form)
+                steps = [at for begin, stop in runs for at in range(begin, stop + 1, stride)]
+                if steps and all(at in wide for at in steps):
+                    units = [(stop - begin) // stride + 1 for begin, stop in runs]
+                    total = sum(units)
             if total < 1:
                 return None
             forced = [0 for _run in runs]
