@@ -1143,6 +1143,13 @@ STEP_MUTANTS = {
         "        low <= target <= high\n        and not _weekday_hole(state, target)\n        and not _weekday_holds(state, target)",
         "        low <= target <= high\n        and not _weekday_holds(state, target)",
     ),
+    # STEP 3'S LATER ROUND (the lane's second skeptic, finding 2): a whole unit's
+    # leaving gives its group room, which a unit asked earlier takes in the next round.
+    "step 3 makes one round": (
+        "hour_rounds",
+        "_CLOCK_ROUNDS = 4",
+        "_CLOCK_ROUNDS = 1",
+    ),
     # THE ONE CLOCK PASS, field-generic (the 3b.4 skeptic's M4): its own
     # tier of the escape and of PUT BACK where the parent is shorter than a
     # day, frozen on a field of minutes whose parent is the hour.
@@ -1188,7 +1195,7 @@ CASES = [
     "hour_half_day_tails", "hour_half_day_tails_stratum", "hour_off_a_hole", "hour_off_midnight",
     "hour_proportional", "hour_put_back", "hour_put_back_any_day", "hour_put_back_off_midnight",
     "hour_put_back_short", "hour_put_back_short_shared", "hour_relief", "hour_relief_given_back",
-    "hour_same_day_clock", "hour_split", "hour_whole_pass",
+    "hour_rounds", "hour_same_day_clock", "hour_split", "hour_whole_pass",
 ]
 
 

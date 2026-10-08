@@ -9280,7 +9280,10 @@ def _label_content(column):
 HOUR = 3600
 HOUR_DAY = 86400
 HOUR_HALF_DAY = 43200
-CLOCK_ROUNDS = 1  # one round: no move of step 3 gives a group room (G7.3g step 3)
+# Step 3's rounds (G7.3g step 3): a whole unit leaving a group over by fewer
+# than its ranks gives that group room, which a unit asked earlier may take
+# in the next round; a round that moves nothing ends the step.
+CLOCK_ROUNDS = 4
 
 
 def on_the_half_day(column):
@@ -9566,7 +9569,9 @@ def clock_rotated(units, leaving):
 def clock_groups_left(walk, have, first, last, pinned, standing, anyday=False, kin=()):
     """G7.3g step 3: the units of each group still over its count, in
     proportional order, take SAMEPARENT's place, else the escape's; a unit
-    with neither whole leaves a rank at a time."""
+    with neither whole leaves a rank at a time. Up to four rounds, a round
+    that moves nothing ending the step: a whole unit leaving a group over
+    by fewer than its ranks gives that group room."""
     for _round in range(CLOCK_ROUNDS):
         changed = False
         for group in range(len(walk.counts)):
@@ -14336,6 +14341,29 @@ def hour_off_a_hole_case():
     )
 
 
+# STEP 3'S LATER ROUND (the lane's second skeptic, finding 2): the state its
+# search found, as step 3 receives it once G7.3f's shared pass is done, on a
+# Monday and a Tuesday.
+HOUR_ROUNDS = [0] * 5 + [1] * 2 + [2, 3, 4, 5, 6] + [7] * 5 + [8] * 5 + [9, 10]
+
+
+def hour_rounds_case():
+    m = HOUR_MONDAY
+    ordinals = [
+        hour_at(m, 0, 45), hour_at(m, 0, 45), hour_at(m, 5, 13), hour_at(m, 8, 41),
+        hour_at(m, 9, 41), hour_at(m, 14, 41), hour_at(m, 17, 16), hour_at(m + 1, 8),
+        hour_at(m + 1, 8), hour_at(m + 1, 17, 48), hour_at(m + 1, 17, 48), hour_at(m + 1, 21, 45),
+    ]
+    return hour_case(
+        "Step 3's later round: hours 0 to 4 are one over, and their rank at 00:45, sharing its "
+        "minute with the pinned rank, has no place, hour 22 the one group with room and past "
+        "its gap's end at 17:16. Hour 8 is one over too, and Tuesday's pair at 08:00 leaves it "
+        "WHOLE, by the escape to Monday's 22:00, so hour 8 stands one under its count. In the "
+        "next round the 00:45 rank takes Monday's 08:45, and the census is met.",
+        "left", ordinals, {0, 6, 11}, [1, 1, 0, 2, 1, 0, 0, 1, 4, 2, 0], HOUR_ROUNDS,
+    )
+
+
 # THE FIELD-GENERIC PASS on a field of minutes: bins of 60 seconds, 60 of
 # them in a turn, the parent an hour, and each hour's group in the hour
 # census as its kin -- the shape landing 3b.4 instantiates (plan P4-D372).
@@ -14409,6 +14437,7 @@ HOUR_STEP_CASES = {
     "hour_half_day_tails_stratum": hour_half_day_tails_stratum_case,
     "hour_relief_given_back": hour_relief_given_back_case,
     "hour_off_a_hole": hour_off_a_hole_case,
+    "hour_rounds": hour_rounds_case,
     "clock_minute_kin_escape": clock_kin_escape_case,
     "clock_minute_kin_kept": clock_kin_kept_case,
     "clock_minute_put_back_kin": clock_put_back_kin_case,

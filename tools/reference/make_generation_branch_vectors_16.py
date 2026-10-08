@@ -9,8 +9,9 @@ resort, the proportional order, the step off
 midnight, the dial's half day for the tail ranks, and the whole pass;
 the details no other state turned red -- PUT BACK off a written
 midnight, its short count asking only a shared minute, a tail rank kept
-inside its stratum, RELIEF's give-back, and SAMEPARENT asking no place of
-a hole -- and, on a field of minutes whose parent is the hour, the one clock
+inside its stratum, RELIEF's give-back, SAMEPARENT asking no place of
+a hole, and step 3's later round, where a whole unit's leaving gave a
+group room -- and, on a field of minutes whose parent is the hour, the one clock
 pass's tier in its kin group for the escape and PUT BACK -- and the
 tails G7.3b step 10 takes onto the dial's half day, on a low
 tail, a high tail and one whose ranks must all differ: each with what the

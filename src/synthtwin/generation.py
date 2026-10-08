@@ -21993,13 +21993,15 @@ def _hour_settled(
 # shared pass, for ANY FIELD of the written clock -- the hour of the day
 # now, the minute of the hour and the second of the minute when their
 # censuses land (landing 3b.4, the 3b.4 skeptic's M4): how many rounds
-# step 3 makes over the groups still over their count. ONE: a move of
-# step 3 takes a unit out of a group over its count into one with room, so
-# no move gives a group room or frees a place in a group with room, and a
-# unit with no place at its turn has none in a later round. Four rounds
-# moved nothing a first did not, on 5,000 random states of hours (the
-# lane's skeptic, finding 3 (h)).
-_CLOCK_ROUNDS = 1
+# step 3 makes over the groups still over their count, a round that moves
+# nothing ending the step. A unit leaves WHOLE while its group is over, so
+# one of k ranks leaving a group over by fewer than k leaves that group
+# under its count, and a unit of an earlier group that had no place at its
+# turn finds one there in the next round (the lane's second skeptic,
+# finding 2: in one round, a rank at 00:45 sharing its minute with a
+# pinned rank kept hours 0 to 4 one over while a pair from hour 8 left it
+# one under; the second round meets the census).
+_CLOCK_ROUNDS = 4
 
 
 def _clock_bin(state: _WeekdayPass, ordinal: int) -> int:
@@ -22365,6 +22367,9 @@ def _clock_left_their_groups(
     is kept; a rank alone of a shared written unit leaves it, and the
     count is put back after (G7.3f steps 8.1 to 8.5, G7.3g step 6). No
     rank lands on a hole or a written midnight, and none leaves its gap.
+    Up to `_CLOCK_ROUNDS` rounds, a round that moves nothing ending the
+    step: a whole unit leaving a group over by fewer than its ranks gives
+    that group room, which a unit asked earlier may take in the next.
     """
     span = state.unit * state.period
     for _round in range(_CLOCK_ROUNDS):
@@ -22435,8 +22440,9 @@ def _clock_relieved(
     they stood when RELIEF first asked that group, of as many ranks, that
     has SAMEPARENT's place on its own parent in a group with room. Where
     the unit then has no place, the relief goes back and the next is
-    asked. A relief unit that finds no place is not asked again, since no
-    move of this step gives a group room. Every move keeps its ranks'
+    asked. A relief unit that finds no place is not asked again in this
+    step, though a whole unit leaving a group over by fewer than its ranks
+    gives that group room, as in step 3's rounds. Every move keeps its ranks'
     parent and gap and lands on a written unit no rank holds, so the count
     of different values moves only where a rank leaves a written unit
     others hold, as in SPLIT.

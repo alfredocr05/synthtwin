@@ -6755,11 +6755,13 @@ standing has been made: nothing published then counts a weekday.
    shifts a rank by whole hours on its own day and keeps its minute and
    second.
 3. **SAMEPARENT, the ESCAPE, SPLIT and RELIEF** (the design skeptic's B1 and B2),
-   where a group is still over its count, in one round: a move of this
-   step takes a unit out of a group over its count into one with room,
-   so no move gives a group room or frees a place in a group with room,
-   and a unit with no place at its turn has none later (four rounds moved
-   nothing a first did not, on 5,000 random states of hours). In group
+   where a group is still over its count, up to four rounds, a round
+   that moves nothing ending the step. A unit leaves whole while its
+   group is over, so one of `k` ranks leaving a group over by fewer than
+   `k` leaves that group under its count, and a unit asked earlier that
+   had no place at its turn may find one there in a later round (the
+   lane's second skeptic, finding 2: a census one round left two cells
+   off, four meet). In group
    order, each group over
    its count asks its movable units in PROPORTIONAL ORDER (the 3b.4
    skeptic's B1): of its `n` units, those the smooth rotation chooses --
@@ -6795,8 +6797,9 @@ standing has been made: nothing published then counts a weekday.
    group's units as they stood when RELIEF first asked that group, of as
    many ranks, that has SAMEPARENT's place on its own parent in a group
    with room. Where the unit then has none, the relief unit goes back
-   and the next is asked; one that finds no place is not asked again,
-   since no move of RELIEF gives a group room.
+   and the next is asked; one that finds no place is not asked again in
+   this step, though a whole unit leaving a group over by fewer than its
+   ranks gives that group room, as in the rounds above.
 
    Last, where no weekday census stands and a group is still over its
    count, the rounds above once more, the ESCAPE free at last to take,
@@ -6900,13 +6903,14 @@ afternoon cells back twelve hours early and misses published facts).
 
 **Its frozen cases** are states of ranks, as G7.3f's are: the sixteenth
 vectors file, `tests/reference/generation-branch-vectors-16.json`, holds
-twenty -- SAMEDAY, the escape with a weekday census's groups and its last
+twenty-one -- SAMEDAY, the escape with a weekday census's groups and its last
 resort, SPLIT, RELIEF and its give-back where the room it made is not
 enough, PUT BACK long and short and its last resort, PUT BACK never onto
 a written midnight and its short count moving only a rank that shares
 its written unit, the proportional order, the step off midnight, the half
 day's tail ranks and a tail rank kept inside its stratum, SAMEPARENT
-asking no place of a hole, and the whole pass, and, on a field of minutes
+asking no place of a hole, step 3's later round, where a whole unit's
+leaving gave a group room, and the whole pass, and, on a field of minutes
 whose parent is the hour, the escape's and PUT BACK's tier in their kin
 group and the escape kept to it -- and three of G7.3b step 10's
 distances, on a low tail of minutes, a high tail of seconds and a tail
