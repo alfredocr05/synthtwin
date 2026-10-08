@@ -35,7 +35,9 @@ ORACLE and asks both the same questions:
    with blocks cut at two offers so the pool halves and drops blocks all
    the while; drawn puts and takes of the pool against one sorted list;
    and, at the shipped size, where its blocks are cut, halved and
-   dropped, none of them merged;
+   dropped, none of them merged, along one path built by hand, over every
+   cut of up to 1,100 offers, and over drawn steps each held to the
+   blocks the stated rules make;
 3. every call the real generator makes on seeded clinic-slot columns,
    and on the same slots with one cell in fifty written date-only, at
    midnight, each answered by both from the same state.
@@ -60,6 +62,7 @@ import csv
 import io
 import pathlib
 import random
+import sys
 import types
 import typing
 
@@ -81,6 +84,11 @@ AS_BUILT_SEARCHES_PER_RANK_AT_LEAST = 50
 # and what the pool held as one sorted list must exceed there.
 MOVES_PER_RANK_AT_MOST = 500
 ONE_BLOCK_MOVES_PER_RANK_AT_LEAST = 1500
+# The entries the book's files of ranks move a rank on eight instants held
+# 7,024 times between them (`heavy_instants`), and what those files held
+# as one sorted list each, as 5f28017 held them, must exceed there.
+RANK_MOVES_PER_RANK_AT_MOST = 2000
+ONE_BLOCK_RANK_MOVES_PER_RANK_AT_LEAST = 3000
 
 
 # -- the oracle: the pass as 110cb46 shipped it -----------------------------
@@ -428,6 +436,33 @@ def _pool_faults(pool: typing.Any) -> "list[str]":
     return wrong
 
 
+def _filed(blocks: "list[list[int]]") -> "list[int]":
+    """The ranks of a file of the book, read block after block."""
+    ranks: "list[int]" = []
+    for block in blocks:
+        ranks += block
+    return ranks
+
+
+def _file_faults(blocks: "list[list[int]]", what: str) -> "list[str]":
+    """What a file of ranks breaks of the statements `generation._ranks_put` and `generation._ranks_taken` make."""
+    wrong: "list[str]" = []
+    for at, block in enumerate(blocks):
+        if not block or len(block) > 2 * generation._RANK_BLOCK:
+            wrong += [f"{what}: block {at} holds {len(block)} ranks"]
+    ranks = _filed(blocks)
+    if any(ranks[at] >= ranks[at + 1] for at in range(len(ranks) - 1)):
+        wrong += [f"{what}: ranks out of order"]
+    return wrong
+
+
+def _still_filed(book: typing.Any, selector: "tuple[int, int]") -> "list[int]":
+    """The units of one file of `book.order` that no merge has marked as left (`generation._jumped`)."""
+    upward, _downward = book.jumps[selector]
+    keys = book.order[selector]
+    return [keys[place] for place in range(len(keys)) if place not in upward]
+
+
 def _drift(book: typing.Any, left: int) -> "list[str]":
     """What ``book`` says that a book built afresh from the trade's state does not.
 
@@ -435,11 +470,15 @@ def _drift(book: typing.Any, left: int) -> "list[str]":
     P4-D376: the same offers (the pool, read block after block), the same
     runs and the same ranks on each unit. Beyond that the kept book
     promises that its pool's blocks are what `generation._OfferPool`
-    states; that ``left``, the unit the merge left, is in no file a
-    search walks; that each payer stands filed under its standing now, in
-    rank order; and that a rank the tail does not pin is out of its list
-    only where its search, with no unit set aside, finds no held unit at
-    all.
+    states, and its files of ranks what `generation._ranks_put` states;
+    that ``left``, the unit the merge left, is marked as left in every
+    file a search walks, which then holds the units of a fresh book's
+    file and no other; that every map it keeps by unit -- the ranks on a
+    unit, the runs on it and the runs offered it -- is a fresh book's,
+    none of them left empty (the Codex review of lane G3, items 1 and 2);
+    that each payer stands filed under its standing now, in rank order;
+    and that a rank the tail does not pin is out of its list only where
+    its search, with no unit set aside, finds no held unit at all.
     """
     wrong: "list[str]" = []
     fresh = generation._trade_book(
@@ -452,23 +491,33 @@ def _drift(book: typing.Any, left: int) -> "list[str]":
     wrong += _pool_faults(book.pool)
     if book.last_of != fresh.last_of:
         wrong += ["the runs"]
-    held_ranks = {key: ranks for key, ranks in book.on_unit.items() if ranks}
-    if held_ranks != fresh.on_unit:
+    held_ranks = {key: _filed(blocks) for key, blocks in book.on_unit.items()}
+    if held_ranks != {key: _filed(blocks) for key, blocks in fresh.on_unit.items()}:
         wrong += ["the ranks on each unit"]
-    for keys in book.order.values():
-        if left in keys:
+    for key, blocks in book.on_unit.items():
+        wrong += _file_faults(blocks, f"the ranks on unit {key}")
+    if book.runs_on != fresh.runs_on:
+        wrong += ["the runs on each unit, or an empty map of them"]
+    if book.aimed != fresh.aimed:
+        wrong += ["the runs offered each unit, or an empty map of them"]
+    for selector in book.order:
+        upward, downward = book.jumps[selector]
+        if sorted(upward) != sorted(downward):
+            wrong += [f"the file of units {selector} marked one way and not the other"]
+        filed = _still_filed(book, selector)
+        if left in filed:
             wrong += [f"unit {left}, which the merge left, still filed"]
+        if filed != fresh.order[selector]:
+            wrong += [f"the file of units {selector}"]
     for standing in (False, True):
-        ranks = book.payers[standing]
-        if ranks != sorted(ranks):
-            wrong += ["payers out of rank order"]
-        for rank in ranks:
+        wrong += _file_faults(book.payers[standing], f"payers {standing}")
+        for rank in _filed(book.payers[standing]):
             if book.pinned[rank] or book.stands[rank] != standing:
                 wrong += [f"rank {rank} filed under the wrong standing"]
     for rank in book.free:
         if book.stands[rank] != fresh.stands[rank]:
             wrong += [f"rank {rank} keeps a standing it left"]
-        if rank in book.payers[book.stands[rank]]:
+        if rank in _filed(book.payers[book.stands[rank]]):
             continue
         found = generation._nearest_held_unit(
             book.facts, book.moved[rank], book.lows[rank], book.highs[rank],
@@ -485,15 +534,19 @@ def test_the_book_is_the_rebuild_after_every_merge(monkeypatch: pytest.MonkeyPat
     """1,500 small and 300 large drawn trades: after each paid merge, the book is a fresh one.
 
     The kept book is compared with a book built afresh from the trade's
-    state after EVERY paid merge, and the ranks a walk takes out of its
-    list are checked as it takes them, so a book that drifts is caught
-    at the merge where it drifts. The draws must reach every way the
-    book changes: payers taken out, offers traded for the next nearest
-    with and without one to find, the book built again whole, and its
-    pool's blocks halved and dropped, which blocks cut at two offers
-    here make happen all the while.
+    state after EVERY paid merge it is brought up to date for, and the
+    ranks a walk takes out of its list are checked as it takes them, so
+    a book that drifts is caught at the merge where it drifts. The draws
+    must reach every way the book changes: payers taken out, offers
+    traded for the next nearest with and without one to find, the book
+    built again whole, and the blocks of its pool and of its files of
+    ranks halved and dropped, which blocks cut at two offers and two
+    ranks here make happen all the while. And while a book stands, no
+    file of units its searches walk loses an entry: the unit a merge
+    left keeps its place there under a mark.
     """
     monkeypatch.setattr(generation, "_OFFER_BLOCK", 2)
+    monkeypatch.setattr(generation, "_RANK_BLOCK", 2)
     drifted: "list[str]" = []
     reached: "collections.Counter[str]" = collections.Counter()
     # The books built afresh to check against are not the pass's own.
@@ -507,8 +560,18 @@ def test_the_book_is_the_rebuild_after_every_merge(monkeypatch: pytest.MonkeyPat
         book: typing.Any, done: "tuple[int, int, int, int, dict[int, int]]"
     ) -> None:
         nonlocal drifted
+        files = book.order
+        lengths = {selector: len(keys) for selector, keys in files.items()}
         settled(book, done)
         reached["merges"] += 1
+        # THE FILES OF UNITS SHIFT NONE (the Codex review of lane G3, item
+        # 1): while the book stands, the unit a merge left keeps its place
+        # in each file of units under a mark, where 5f28017 deleted it and
+        # shifted every unit after it; a book built again files afresh.
+        if book.order is files:
+            reached["merges the book stood through"] += 1
+            if {selector: len(keys) for selector, keys in files.items()} != lengths:
+                drifted += ["a file of units lost the unit a merge left, shifting the units after it"]
         checking[0] = True
         drifted += _drift(book, done[2])
         checking[0] = False
@@ -534,10 +597,11 @@ def test_the_book_is_the_rebuild_after_every_merge(monkeypatch: pytest.MonkeyPat
                 drifted += [f"rank {rank} taken out of its list, but it can pay"]
         if dead:
             reached["payers taken out"] += 1
-        kept = [rank for rank in book.payers[standing] if rank not in dead]
+        kept = [rank for rank in _filed(book.payers[standing]) if rank not in dead]
         dropped(book, standing, dead)
-        if book.payers[standing] != kept:
+        if _filed(book.payers[standing]) != kept:
             drifted += ["a walk's list lost a rank it did not name, or kept one it did"]
+        drifted += _file_faults(book.payers[standing], "a walk's list")
 
     def replaced_counted(book: typing.Any, first: int, left: int) -> None:
         before = len(book.offers_of[first])
@@ -563,6 +627,13 @@ def test_the_book_is_the_rebuild_after_every_merge(monkeypatch: pytest.MonkeyPat
         upkept(pool, at, blocks)
 
     monkeypatch.setattr(generation, "_pool_blocks_replaced", upkept_counted)
+    filed = generation._rank_blocks_replaced
+
+    def filed_counted(blocks: "list[list[int]]", at: int, replaced_by: "list[list[int]]") -> None:
+        reached["rank blocks halved" if replaced_by else "rank blocks dropped"] += 1
+        filed(blocks, at, replaced_by)
+
+    monkeypatch.setattr(generation, "_rank_blocks_replaced", filed_counted)
     draw = random.Random(3761)
     missed: "list[str]" = []
     calls = 0
@@ -577,14 +648,19 @@ def test_the_book_is_the_rebuild_after_every_merge(monkeypatch: pytest.MonkeyPat
             missed += [f"case {number}: {got!r}, as built {want!r}"]
     assert not missed, missed[:3]
     assert not drifted, drifted[:5]
-    # Measured: 2,152 merges, 711 walks taking payers out, 201 offers
-    # traded for a next nearest and 274 given up, 63 books built again,
-    # and 400 blocks of the pool halved and 3,657 dropped.
+    # Measured: 1,883 merges brought up to date for (2,152 before the last
+    # merge a call owed went without its upkeep), 1,828 of them with the
+    # book standing, 711 walks taking payers out, 190 offers traded for a
+    # next nearest and 222 given up, 55 books built again after a merge,
+    # 359 blocks of the pool halved and 3,091 dropped, and
+    # 10,763 blocks of the files of ranks halved and 13,814 dropped.
     assert reached["merges"] >= 1000, reached
+    assert reached["merges the book stood through"] >= 1000, reached
     assert reached["payers taken out"] >= 100, reached
     assert reached["offers traded for a next nearest"] >= 100, reached
     assert reached["offers given up"] >= 100, reached
     assert reached["blocks halved"] >= 100 and reached["blocks dropped"] >= 100, reached
+    assert reached["rank blocks halved"] >= 100 and reached["rank blocks dropped"] >= 100, reached
     # Built again whole after a merge, beyond the one build of each call.
     assert reached["books built"] - calls >= 20, (reached, calls)
 
@@ -616,7 +692,7 @@ def test_a_payer_taken_out_and_moved_is_filed_again(
         nonlocal moved_out, drifted
         start, size, _left, _onto, paid = done
         for rank in list(range(start, start + size)) + sorted(paid):
-            if rank not in book.payers[book.stands[rank]]:
+            if rank not in _filed(book.payers[book.stands[rank]]):
                 moved_out += [rank]
         settled(book, done)
         drifted += _drift(book, done[2])
@@ -690,6 +766,100 @@ def test_the_pool_reads_as_one_sorted_list(block: int, monkeypatch: pytest.Monke
     assert reached["halved"] >= 5 and reached["dropped"] >= 5, reached
 
 
+def _stated_put(
+    blocks: "list[list[tuple[int, int, int, int]]]", offer: "tuple[int, int, int, int]"
+) -> int:
+    """Put ``offer`` into ``blocks`` as plan P4-D376 states a put, on plain lists.
+
+    It goes into the first block whose last offer is above it, or into
+    the last block where none is, at its place there, and no other block
+    changes; that block, grown past 512 offers, becomes its first
+    ``len // 2`` offers and the rest. Into no block at all, it is a
+    block of its own. Returns the place of the block it went into.
+    """
+    if not blocks:
+        blocks += [[offer]]
+        return 0
+    at = len(blocks) - 1
+    for place, block in enumerate(blocks):
+        if block[-1] > offer:
+            at = place
+            break
+    block = blocks[at]
+    slot = bisect.bisect_left(block, offer)
+    block[slot:slot] = [offer]
+    if len(block) > 512:
+        half = len(block) // 2
+        blocks[at:at + 1] = [block[:half], block[half:]]
+    return at
+
+
+def _stated_take(
+    blocks: "list[list[tuple[int, int, int, int]]]", offer: "tuple[int, int, int, int]"
+) -> int:
+    """Take ``offer`` out of ``blocks`` as plan P4-D376 states a take, on plain lists.
+
+    Only the block that holds it changes, and that block goes once it
+    holds none: no block is merged, joined or topped up. Returns the
+    place of the block it was in.
+    """
+    for place, block in enumerate(blocks):
+        slot = bisect.bisect_left(block, offer)
+        if slot < len(block) and block[slot] == offer:
+            del block[slot]
+            if not block:
+                del blocks[place]
+            return place
+    raise AssertionError(f"{offer} is in no block")
+
+
+def _stepped_alike(
+    pool: typing.Any,
+    stated: "list[list[tuple[int, int, int, int]]]",
+    held: "list[tuple[int, int, int, int]]",
+    offer: "tuple[int, int, int, int]",
+    reached: "collections.Counter[str]",
+) -> None:
+    """Take ``offer`` out where sorted ``held`` holds it, else put it in, on the pool and ``stated`` alike.
+
+    After the step the pool's blocks, and the last offer filed for each,
+    must be ``stated``'s, which `_stated_put` and `_stated_take` keep by
+    the stated rules alone. ``reached`` counts the steps where a block
+    merged, joined, topped up or spilled into would show: a take that
+    leaves a block under ten offers beside one under ten or one of 256
+    or more, a take that drops a block between two others, a put beside
+    a block under 256 that halves none, and a halving, of the last block
+    too.
+    """
+    sizes = [len(block) for block in stated]
+    at = bisect.bisect_left(held, offer)
+    if at < len(held) and held[at] == offer:
+        generation._pool_take(pool, offer)
+        place = _stated_take(stated, offer)
+        del held[at]
+        beside = sizes[max(place - 1, 0):place] + sizes[place + 1:place + 2]
+        if len(stated) < len(sizes) and 0 < place < len(stated):
+            reached["dropped between two"] += 1
+        if len(stated) == len(sizes) and sizes[place] <= 10:
+            if any(size < 10 for size in beside):
+                reached["left under ten beside under ten"] += 1
+            if any(size >= 256 for size in beside):
+                reached["left under ten beside 256 or more"] += 1
+    else:
+        generation._pool_put(pool, offer)
+        place = _stated_put(stated, offer)
+        held[at:at] = [offer]
+        beside = sizes[max(place - 1, 0):place] + sizes[place + 1:place + 2]
+        if sizes and len(stated) > len(sizes):
+            reached["halved"] += 1
+            if place == len(sizes) - 1:
+                reached["halved the last block"] += 1
+        elif any(size < 256 for size in beside):
+            reached["put beside a block under 256"] += 1
+    assert pool.blocks == stated, (offer, [len(block) for block in pool.blocks][:12])
+    assert pool.lasts == [block[-1] for block in stated], offer
+
+
 def test_the_pool_cuts_halves_and_drops_its_blocks_and_merges_none() -> None:
     """At the shipped size: blocks cut at 256 offers, halved past 512, dropped when emptied, never merged.
 
@@ -713,6 +883,24 @@ def test_the_pool_cuts_halves_and_drops_its_blocks_and_merges_none() -> None:
     others, would not show (two verifiers of the second skeptic's fix).
     No block is merged into a neighbour, so a block holds anything from
     1 to 512 offers.
+
+    One path is not enough, because a merge, a join or a spill that waits
+    for a condition the path never meets passes it: the verifier of
+    4262946 left all 19 lane tests green under a block merged into the
+    next where both hold 3 to 9 offers, a short last block of the cut
+    joined to the one before, and a put that moves an offer into a
+    shorter neighbour. So every cut of none to 1,100 offers is held to
+    blocks of 256 with the rest last, and drawn steps are held, after
+    each one, to the blocks `_stated_put` and `_stated_take` make of
+    plain lists by the stated rules alone. Ten cases each shape their
+    pool first, every block taken down or put up, in drawn turns, to a
+    drawn size from none to 511 offers, so that blocks of every size
+    stand beside each other and blocks are emptied between two others;
+    then 2,500 drawn steps at the case's share of takes, half of the takes
+    picking a block first and half of the puts crowding one spot, above
+    every offer in every other case, so that blocks fill and halve, the
+    last block among them. The counts of what the steps reached are held
+    below what they measured, so draws that stop reaching it fail.
     """
     offers = [(10 * number, 1, 0, 0) for number in range(1000)]
     pool = generation._offer_pool(offers)
@@ -747,6 +935,78 @@ def test_the_pool_cuts_halves_and_drops_its_blocks_and_merges_none() -> None:
         assert got == expected, (offer, [len(block) for block in pool.blocks])
         assert pool.lasts == [block[-1] for block in pool.blocks], offer
     assert [len(block) for block in pool.blocks] == [1, 1, 1]
+    # Every cut of none to 1,100 offers: blocks of 256, the rest last.
+    ordered = [(number, 1, 0, 0) for number in range(1100)]
+    for count in range(1101):
+        cut = [ordered[start:min(start + 256, count)] for start in range(0, count, 256)]
+        built = generation._offer_pool(ordered[:count])
+        assert built.blocks == cut, (count, [len(block) for block in built.blocks])
+        assert built.lasts == [block[-1] for block in cut], count
+    # Drawn steps, each held to the blocks the stated rules make of plain
+    # lists. A case shapes its pool first: each block, in turns drawn at
+    # random, is taken down or put up to a size drawn for it, none for
+    # half of them, else one offer, 2 to 9, 10 to 63, 64 to 255 or 256 to
+    # 511, so blocks of every size stand beside each other and blocks are
+    # emptied between two others. Then 2,500 drawn steps take at the
+    # case's share: half the takes pick a block first, so that small
+    # blocks empty, and half the puts crowd one spot, which in every other
+    # case lies above every offer, so that blocks fill and halve, the
+    # last one among them.
+    draw = random.Random(3768)
+    reached: "collections.Counter[str]" = collections.Counter()
+    spans = ((1, 1), (2, 9), (10, 63), (64, 255), (256, 511))
+    for case in range(10):
+        held = [(key, 1, 0, 0) for key in sorted(draw.sample(range(10**9), draw.randrange(1, 8200)))]
+        pool = generation._offer_pool(held)
+        stated = [held[start:start + 256] for start in range(0, len(held), 256)]
+        assert pool.blocks == stated, case
+        aims: "list[int]" = []
+        for _block in stated:
+            low, high = spans[draw.randrange(len(spans))]
+            aims += [0 if draw.random() < 0.5 else draw.randrange(low, high + 1)]
+        while True:
+            off = [at for at in range(len(stated)) if len(stated[at]) != aims[at]]
+            if not off:
+                break
+            at = off[draw.randrange(len(off))]
+            before = len(stated)
+            if len(stated[at]) > aims[at]:
+                _stepped_alike(pool, stated, held, stated[at][draw.randrange(len(stated[at]))], reached)
+                if len(stated) < before:
+                    del aims[at]
+                continue
+            # Above the last offer of the block before and below its own
+            # last offer, a put lands in this block.
+            low = stated[at - 1][-1][0] + 1 if at else 0
+            if low >= stated[at][-1][0]:
+                aims[at] = len(stated[at])
+                continue
+            offer = (draw.randrange(low, stated[at][-1][0]), 1, 0, 0)
+            if offer not in stated[at]:
+                _stepped_alike(pool, stated, held, offer, reached)
+        taken = (0.2, 0.5, 0.75)[case % 3]
+        hot = 10**9 + 50_000_000 if case % 2 else draw.randrange(10**9)
+        for _step in range(2500):
+            if held and draw.random() < taken:
+                if draw.random() < 0.5:
+                    block = stated[draw.randrange(len(stated))]
+                    offer = block[draw.randrange(len(block))]
+                else:
+                    offer = held[draw.randrange(len(held))]
+            elif draw.random() < 0.5:
+                offer = (hot + draw.randrange(-50_000_000, 50_000_001), 1, 0, 0)
+            else:
+                offer = (draw.randrange(10**9), 1, 0, 0)
+            _stepped_alike(pool, stated, held, offer, reached)
+    # Measured: 112 blocks dropped between two others; 607 takes leaving a
+    # block under ten offers beside one under ten and 443 beside one of
+    # 256 or more; 10,708 puts beside a block under 256; 14 blocks halved,
+    # 8 of them the last.
+    assert reached["dropped between two"] >= 50, reached
+    assert reached["left under ten beside under ten"] >= 200, reached
+    assert reached["left under ten beside 256 or more"] >= 150, reached
+    assert reached["put beside a block under 256"] >= 3000, reached
+    assert reached["halved"] >= 6 and reached["halved the last block"] >= 3, reached
 
 
 # -- 3. every call the generator makes, on clinic slots ----------------------
@@ -798,6 +1058,28 @@ def few_at_midnight(rows: int, seed: int = 0) -> "list[str]":
         if draw.random() < 0.02:
             cell = cell[:10] + " 00:00"
         cells += [cell]
+    return cells
+
+
+_HEAVY_TIMES = ("00:00", "00:00", "12:00", "00:00", "09:00", "00:00", "15:00", "00:00")
+_HEAVY_COUNTS = (52, 41, 47, 38, 67, 63, 52, 79)
+
+
+def heavy_instants(factor: int) -> "list[str]":
+    """Eight instants, 1 to 8 March 2024, each held many times: the Codex review of lane G3, item 1.
+
+    At 00:00, 00:00, 12:00, 00:00, 09:00, 00:00, 15:00 and 00:00, held
+    52, 41, 47, 38, 67, 63, 52 and 79 times ``factor``, shuffled by
+    ``random.Random(42)``: 7,024 rows at a factor of 16. Generated at
+    seed 11, its count pass makes 664 paid merges at 7,024 rows and 2,666
+    at 28,096, each onto an instant thousands of ranks hold, and the book
+    of 5f28017 shifted 32 and 515 million entries of its files of ranks
+    and units to keep them.
+    """
+    cells: "list[str]" = []
+    for day in range(8):
+        cells += [f"2024-03-{day + 1:02d}T{_HEAVY_TIMES[day]}:00"] * (_HEAVY_COUNTS[day] * factor)
+    random.Random(42).shuffle(cells)
     return cells
 
 
@@ -879,8 +1161,9 @@ def _trade_counts(
     trade: "typing.Callable[..., int] | None",
     checked: bool,
     cells: "typing.Callable[[int], list[str]]",
+    seed: int = 0,
 ) -> "dict[str, int]":
-    """What the trade pass reads, searches and moves generating ``cells(rows)`` at seed 0, and its merges.
+    """What the trade pass reads, searches and moves generating ``cells(rows)`` at ``seed``, and its merges.
 
     Every rank the pass looks at -- building its offers, walking for a
     payment -- is first asked whether the tail pins it, so the reads of
@@ -890,14 +1173,21 @@ def _trade_counts(
     it changes (`generation._offer_slot`), where the offers at and after
     that place are the ones it moves, beside which a block's halving or
     removal (`generation._pool_blocks_replaced`) moves the offers of the
-    new blocks and the entries filed after it. ``trade`` stands in for
-    the pass, so the as-built one is measured the same way. Where
-    ``checked``, the twin is also generated uncounted by the shipped
-    pass and must be the counted one, byte for byte, or this raises.
+    new blocks and the entries filed after it. The book's files of ranks
+    -- the payers and the ranks on each unit -- are counted the same way
+    (``rank_moves``): every put or take finds its place in the block it
+    changes (`generation._rank_slot`), and a block's halving or removal
+    (`generation._rank_blocks_replaced`) moves the ranks of the new blocks
+    and the blocks filed after it; on 5f28017, whose files were single
+    lists, each place was found in a whole file, and its files of units
+    were walked to a unit a merge left the same way. ``trade`` stands in
+    for the pass, so the as-built one is measured the same way. Where
+    ``checked``, the twin is also generated uncounted by the shipped pass
+    and must be the counted one, byte for byte, or this raises.
     """
     loaded = _described(folder, cells(rows))
-    plain = rendering.twin_csv(generation.generate(loaded, 0)) if checked else ""
-    counts = {"reads": 0, "searches": 0, "made": 0, "moved": 0}
+    plain = rendering.twin_csv(generation.generate(loaded, seed)) if checked else ""
+    counts = {"reads": 0, "searches": 0, "made": 0, "moved": 0, "rank_moves": 0}
     inside = [False]
 
     class Counted(list):  # type: ignore[type-arg]
@@ -910,6 +1200,8 @@ def _trade_counts(
     search = generation._nearest_held_unit
     slot_of = generation._offer_slot
     upkept = generation._pool_blocks_replaced
+    rank_slot_of = generation._rank_slot
+    filed = getattr(generation, "_rank_blocks_replaced", None)
 
     def searched(*arguments, **named):  # type: ignore[no-untyped-def]
         if inside[0]:
@@ -927,6 +1219,17 @@ def _trade_counts(
             counts["moved"] += sum(len(block) for block in blocks) + 2 * (len(pool.blocks) - at - 1)
         upkept(pool, at, blocks)
 
+    def rank_placed(ranks, rank):  # type: ignore[no-untyped-def]
+        slot = rank_slot_of(ranks, rank)
+        if inside[0]:
+            counts["rank_moves"] += len(ranks) - slot
+        return slot
+
+    def rank_upkeep(blocks, at, replaced_by):  # type: ignore[no-untyped-def]
+        if inside[0]:
+            counts["rank_moves"] += sum(len(block) for block in replaced_by) + len(blocks) - at - 1
+        filed(blocks, at, replaced_by)
+
     def counted(facts, moved, pinned, *rest):  # type: ignore[no-untyped-def]
         inside[0] = True
         try:
@@ -940,13 +1243,19 @@ def _trade_counts(
     generation._nearest_held_unit = searched
     generation._offer_slot = placed
     generation._pool_blocks_replaced = upkeep
+    generation._rank_slot = rank_placed
+    if filed is not None:
+        generation._rank_blocks_replaced = rank_upkeep
     try:
-        twin = rendering.twin_csv(generation.generate(loaded, 0))
+        twin = rendering.twin_csv(generation.generate(loaded, seed))
     finally:
         generation._traded_merges = original
         generation._nearest_held_unit = search
         generation._offer_slot = slot_of
         generation._pool_blocks_replaced = upkept
+        generation._rank_slot = rank_slot_of
+        if filed is not None:
+            generation._rank_blocks_replaced = filed
     if checked and twin != plain:
         raise AssertionError("counting the pass changed the twin")
     return counts
@@ -977,12 +1286,30 @@ def trade_searches(
 def midnight_counts(rows: int, folder: pathlib.Path, checked: bool = False) -> "dict[str, int]":
     """What the trade pass reads, searches and moves on `few_at_midnight`'s ``rows``, and the merges.
 
-    The offers moved (``moved``) are what ledger entry K-S3-51 bounds at
-    40,000 and 160,000 rows; the reads and searches there are recorded
-    beside them, unbounded, because they still rise with the rows (plan
-    P4-D376, what is left).
+    The offers moved (``moved``) and the entries the files of ranks move
+    (``rank_moves``) are what ledger entry K-S3-51 bounds at 40,000 and
+    160,000 rows; the reads and searches there are recorded beside them,
+    unbounded, because they still rise with the rows (plan P4-D376, what
+    is left).
     """
     return _trade_counts(rows, folder, None, checked, few_at_midnight)
+
+
+def heavy_counts(factor: int, folder: pathlib.Path, checked: bool = False) -> "dict[str, int]":
+    """What the trade pass reads, searches and moves on `heavy_instants` at ``factor``, generated at seed 11.
+
+    The entries its files of ranks move (``rank_moves``) are what ledger
+    entry K-S3-51 bounds at 14,048 and 28,096 rows (factors 32 and 64);
+    the reads there are recorded, unbounded, because they still rise
+    with the rows: each paid merge offers afresh the runs on the units it
+    touched, reading every rank of each, and each payment walk steps
+    again past the ranks on the unit the run joins (plan P4-D376, what is
+    left).
+    """
+    return _trade_counts(
+        sum(_HEAVY_COUNTS) * factor, folder, None, checked,
+        lambda _rows: heavy_instants(factor), 11,
+    )
 
 
 def test_the_measure_sees_the_rebuild(tmp_path: pathlib.Path) -> None:
@@ -1034,3 +1361,313 @@ def test_the_measure_sees_the_pool(tmp_path: pathlib.Path, monkeypatch: pytest.M
     counts = midnight_counts(5000, tmp_path / "one", checked=True)
     assert counts["made"] >= 100
     assert counts["moved"] >= ONE_BLOCK_MOVES_PER_RANK_AT_LEAST * 5000, counts
+
+
+# -- 4. the files of ranks, the last merge owed, and the maps of a unit left --
+#
+# The Codex review of lane G3 (2026-10-07). Item 1: the book's files of
+# ranks were single sorted lists, so every rank a merge moved shifted
+# the tail of four of them, and every unit a merge left was deleted from
+# four files of units: 32 to 515 million entries on `heavy_instants` at
+# 7,024 to 28,096 rows, four times as many at each doubling, and 3m**2
+# for one merge of m ranks, made even after the last merge a call owed.
+# Item 2: the maps of the runs offered each unit kept the room of every
+# unit a merge left, 482,544 to 7,460,528 bytes on `_units_left` where a
+# fresh book held 2,264 to 9,304.
+
+# Four puts and takes a moved rank -- the file of its unit and the file
+# of its standing, each out of one and into another -- each in one
+# block of at most twice the cut of 256 ranks.
+RANK_MOVES_PER_MOVED_RANK_AT_MOST = 4 * 2 * 256
+
+
+def test_heavy_instants_answer_as_built(tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Eight heavy instants at 7,024 rows, seed 11: each trade answered from one state by both, the same."""
+    made = _calls_answer_as_built(_described(tmp_path, heavy_instants(16)), 11, monkeypatch)
+    assert made >= 600, made
+
+
+def test_the_rank_files_move_a_block_a_rank_on_heavy_instants(tmp_path: pathlib.Path) -> None:
+    """Eight heavy instants at 7,024 and 14,048 rows: the files of ranks move at most 2,000 entries a rank.
+
+    Measured with this measure: 582.6 and 554.4 a rank in blocks, where
+    5f28017's single lists moved 4,569 and 9,270, twice as many a rank
+    at twice the rows. Ledger entry K-S3-51 holds the blocks at 14,048
+    and 28,096 rows.
+    """
+    for factor in (16, 32):
+        rows = sum(_HEAVY_COUNTS) * factor
+        counts = heavy_counts(factor, tmp_path / f"heavy{factor}", checked=True)
+        assert counts["made"] >= 600 * factor // 16, counts
+        assert counts["rank_moves"] <= RANK_MOVES_PER_RANK_AT_MOST * rows, (rows, counts)
+
+
+def test_the_measure_sees_the_rank_files(tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Eight heavy instants at 7,024 rows, each file of ranks one block: over 3,000 entries moved a rank.
+
+    Held as one block each, the files are the single sorted lists 5f28017
+    kept. Measured with this measure: 4,494.0 a rank, where 5f28017
+    itself moved 4,569.4, its halvings to a unit a merge left in the
+    files of units among them.
+    """
+    monkeypatch.setattr(generation, "_RANK_BLOCK", 10**12)
+    counts = heavy_counts(16, tmp_path / "one", checked=True)
+    assert counts["made"] >= 600, counts
+    assert counts["rank_moves"] >= ONE_BLOCK_RANK_MOVES_PER_RANK_AT_LEAST * 7024, counts
+
+
+def _large_merge(size: int, owed: int) -> "dict[str, object]":
+    """One paid merge of a run of ``size`` ranks, paid by ``size`` more: the Codex review of lane G3, item 1.
+
+    At second precision: rank 0 is pinned at a midnight; ranks 1 to
+    ``size`` stand loose at one o'clock that day, their gap reaching the
+    midnight ten days on, where the next rank is pinned; the ``size``
+    ranks after it stand loose at that midnight, their gap reaching two
+    o'clock, where the last rank is pinned. The run is offered its own
+    day's midnight, every rank at the later midnight gives the payment by
+    moving to two o'clock, and then no run is left to offer.
+    """
+    start = _FIRST_DAY * DAY
+    later = start + 10 * DAY
+    moved = [start] + [start + 3600] * size + [later] * (size + 1) + [later + 7200]
+    count = len(moved)
+    pinned = [rank in (0, size + 1, count - 1) for rank in range(count)]
+    lows = [start if rank <= size else later for rank in range(count)]
+    highs = [later if rank <= size else later + 7200 for rank in range(count)]
+    for rank in range(count):
+        if pinned[rank]:
+            lows[rank] = moved[rank]
+            highs[rank] = moved[rank]
+    return {
+        "moved": moved, "pinned": pinned, "lows": lows, "highs": highs, "day": DAY,
+        "step": 1, "unit": 1, "held": dict(collections.Counter(moved)), "widths": False,
+        "word": "", "owed": owed, "clock": True, "gone": frozenset(),
+    }
+
+
+@pytest.mark.parametrize("size", [4000, 16000])
+def test_one_large_merge_moves_each_rank_through_one_block(size: int, monkeypatch: pytest.MonkeyPatch) -> None:
+    """A run of 4,000 or 16,000 ranks merged and paid for: each moved rank moves the ranks of four blocks at most.
+
+    Owed a second merge, the pass brings its book up to date after the
+    first, and each of the run's ranks and its payers leaves the file of
+    its unit and of its standing for another: at most 2,048 entries
+    moved a moved rank, and the merge answers as built. 5f28017 moved
+    3m**2, 48,012,012 entries for a run of 4,000 ranks, 6,001.5 a moved
+    rank, and 768,048,012 for 16,000; the blocks move 385.4 a moved rank
+    for 4,000.
+    """
+    counts: "collections.Counter[str]" = collections.Counter()
+    slot_of = generation._rank_slot
+    filed = getattr(generation, "_rank_blocks_replaced", None)
+    settled = generation._book_settled
+
+    def placed(ranks: "list[int]", rank: int) -> int:
+        slot = slot_of(ranks, rank)
+        counts["moved"] += len(ranks) - slot
+        return slot
+
+    def upkeep(blocks: "list[list[int]]", at: int, replaced_by: "list[list[int]]") -> None:
+        counts["moved"] += sum(len(block) for block in replaced_by) + len(blocks) - at - 1
+        assert filed is not None
+        filed(blocks, at, replaced_by)
+
+    def upkept(book: typing.Any, done: "tuple[int, int, int, int, dict[int, int]]") -> None:
+        counts["upkept"] += 1
+        settled(book, done)
+
+    monkeypatch.setattr(generation, "_rank_slot", placed)
+    monkeypatch.setattr(generation, "_rank_blocks_replaced", upkeep, raising=False)
+    monkeypatch.setattr(generation, "_book_settled", upkept)
+    want = _asked(_traded_merges_as_built, _large_merge(size, 2))
+    assert want[0] == 1, want[0]
+    assert _asked(generation._traded_merges, _large_merge(size, 2)) == want
+    assert counts["upkept"] == 1, counts
+    assert counts["moved"] <= RANK_MOVES_PER_MOVED_RANK_AT_MOST * 2 * size, counts
+
+
+def test_the_last_merge_owed_goes_without_upkeep(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Owed one merge, the pass makes it and brings no book up to date: the book is dropped on return.
+
+    The run of 4,000 ranks of `_large_merge`, owed that merge alone,
+    answers as built with no call of `generation._book_settled`; 5f28017
+    made that call, moving 48,012,012 entries of a book it then dropped.
+    And over 1,800 drawn trades, a call that made every merge it owed
+    brought its book up to date one merge fewer than it made.
+    """
+    upkept = [0]
+    settled = generation._book_settled
+
+    def counted(book: typing.Any, done: "tuple[int, int, int, int, dict[int, int]]") -> None:
+        upkept[0] += 1
+        settled(book, done)
+
+    monkeypatch.setattr(generation, "_book_settled", counted)
+    case = _large_merge(4000, 1)
+    assert _asked(generation._traded_merges, case) == _asked(_traded_merges_as_built, case)
+    assert upkept[0] == 0, "the book was brought up to date after the last merge owed"
+    draw = random.Random(3769)
+    full = 0
+    for number in range(1800):
+        case = _trade_case(draw, large=number >= 1500)
+        upkept[0] = 0
+        made = _asked(generation._traded_merges, case)[0]
+        if made == case["owed"]:
+            full += 1
+            assert upkept[0] == made - 1, (number, made, upkept[0])
+        else:
+            assert upkept[0] == made, (number, made, upkept[0])
+    assert full >= 100, full
+
+
+def _units_left(pairs: int) -> "tuple[list[int], list[bool], list[int], list[int]]":
+    """A count-pass state whose midnight trade leaves unit after unit: the Codex review of lane G3, item 2.
+
+    At second precision, n = ``pairs``: one rank at instant 0; 2n + 1 at
+    instant 1, the last of them pinned; two each at 100 + 100i and
+    101 + 100i; one each at midnight on days 1000 + 3i and 1001 + 3i;
+    and one, pinned, at the midnight of day 1000 + 3n -- 8n + 3 ranks,
+    the first pinned too. The ranks at 1 before the pinned one
+    may stand at 0 or 1; every later loose rank between 1 and the last
+    instant.
+    """
+    moved = [0] + [1] * (2 * pairs + 1)
+    for number in range(pairs):
+        moved += [100 + 100 * number] * 2 + [101 + 100 * number] * 2
+    for number in range(pairs):
+        moved += [DAY * (1000 + 3 * number), DAY * (1001 + 3 * number)]
+    moved += [DAY * (1000 + 3 * pairs)]
+    count = len(moved)
+    pinned = [rank in (0, 2 * pairs + 1, count - 1) for rank in range(count)]
+    lows = [0 if rank <= 2 * pairs else 1 for rank in range(count)]
+    highs = [1 if rank <= 2 * pairs else moved[count - 1] for rank in range(count)]
+    for rank in range(count):
+        if pinned[rank]:
+            lows[rank] = moved[rank]
+            highs[rank] = moved[rank]
+    return moved, pinned, lows, highs
+
+
+def _map_bytes(maps: "dict[int, dict[int, bool]]") -> int:
+    """The bytes the maps of ``maps`` take, each map's room counted as Python allocates it."""
+    return sum(sys.getsizeof(each) for each in maps.values())
+
+
+@pytest.mark.parametrize("pairs", [100, 200, 400])
+def test_a_unit_left_takes_its_maps_with_it(pairs: int, monkeypatch: pytest.MonkeyPatch) -> None:
+    """803, 1,603 and 3,203 ranks: after every merge no map is left empty, and the maps take what a fresh book's take.
+
+    The trade makes 150, 300 and 600 paid merges, each leaving a unit
+    that runs were offered. After each one no map the book keeps by unit
+    -- of the runs offered it, of the runs on it, of its ranks -- is
+    empty, the maps of the runs offered each unit take at most four times
+    the bytes a fresh book's maps take, and the ranks end as the as-built
+    pass leaves them. A map keeps the room of its most crowded moment, so
+    the kept maps take up to 2.07 times a fresh book's here, and at the
+    end 4,688, 9,304 and 18,512 bytes where a fresh book's take 2,264,
+    4,688 and 9,304. On 5f28017 the maps of the units left stayed,
+    emptied, keeping their room: 104, 204 and 404 empty maps at the end,
+    taking 482,544, 1,888,856 and 7,460,528 bytes, four times as many at
+    each doubling of the ranks.
+    """
+    moved, pinned, lows, highs = _units_left(pairs)
+    as_built = list(moved)
+    traded = generation._traded_merges
+    monkeypatch.setattr(generation, "_traded_merges", _traded_merges_as_built)
+    generation._distinct_reached(_FACTS, as_built, list(pinned), list(lows), list(highs), DAY, 1, 3, False)
+    monkeypatch.setattr(generation, "_traded_merges", traded)
+    faults: "list[str]" = []
+    upkeeps = [0]
+    settled = generation._book_settled
+    built = generation._trade_book
+
+    def checked(book: typing.Any, done: "tuple[int, int, int, int, dict[int, int]]") -> None:
+        nonlocal faults
+        settled(book, done)
+        upkeeps[0] += 1
+        fresh = built(
+            book.facts, book.moved, book.pinned, book.lows, book.highs, book.day,
+            book.step, book.unit, book.held, book.widths, book.word, book.clock,
+            book.gone,
+        )
+        for name in ("aimed", "runs_on", "on_unit"):
+            empty = [key for key, held in getattr(book, name).items() if not held]
+            if empty:
+                faults += [f"merge {upkeeps[0]}: {len(empty)} empty maps in {name}"]
+        kept = _map_bytes(book.aimed)
+        if kept > 4 * _map_bytes(fresh.aimed):
+            faults += [f"merge {upkeeps[0]}: the maps take {kept} bytes, a fresh book's {_map_bytes(fresh.aimed)}"]
+
+    monkeypatch.setattr(generation, "_book_settled", checked)
+    generation._distinct_reached(_FACTS, moved, pinned, lows, highs, DAY, 1, 3, False)
+    assert moved == as_built
+    assert upkeeps[0] >= 150 * pairs // 100 - 1, upkeeps
+    assert not faults, faults[:3]
+
+
+class _CountedHeld(dict):  # type: ignore[type-arg]
+    """A map of the ranks held per unit that counts the units asked about, which a search asks first of each unit it visits."""
+
+    asked = 0
+
+    def __contains__(self, key: object) -> bool:
+        _CountedHeld.asked += 1
+        return dict.__contains__(self, key)
+
+
+def test_a_search_jumps_the_units_a_merge_left() -> None:
+    """A search given the book's jumps visits no unit a merge left: four visits, where over 990 without them.
+
+    The midnight of each of a thousand days is filed, and those of days
+    1 to 498 and 502 to 998 are marked as left, as
+    `generation._book_settled` marks the unit a merge left in each file
+    of units; a moment at one o'clock on day 500 asks for the nearest
+    held midnight other than those of days 499, 500 and 501, which
+    earlier offers tried. Given the jumps, the search visits those three
+    and then the midnight of day 999, jumping both ways from where it
+    steps; without them it steps past every unit left between, which no
+    rank holds, and finds the same unit. From day 700, where both cursors
+    start on a unit left, it jumps before its first visit and makes the
+    same four. And `generation._jumped` points every place a walk went
+    through at where it ended, so no walk goes through them one by one
+    again.
+    """
+    spot = {DAY * day: DAY * day for day in range(1000)}
+    order = generation._held_order(_FACTS, spot, DAY, 1, False)
+    assert len(order[(2, 1)]) == 1000
+    jumps: "dict[tuple[int, int], tuple[dict[int, int], dict[int, int]]]" = {
+        selector: ({}, {}) for selector in order
+    }
+    upward, downward = jumps[(2, 1)]
+    for place in list(range(1, 499)) + list(range(502, 999)):
+        upward[place] = place + 1
+        downward[place] = place - 1
+    origin = DAY * 500 + 3600
+    held = _CountedHeld({0: 1, DAY * 499: 1, DAY * 500: 1, DAY * 501: 1, DAY * 999: 1, origin: 1})
+    tried = (DAY * 499, DAY * 500, DAY * 501)
+    answers = []
+    visits = []
+    for given in (jumps, None):
+        _CountedHeld.asked = 0
+        answers += [
+            generation._nearest_held_unit(
+                _FACTS, origin, 0, DAY * 999, DAY, 1, 1, held, spot, order,
+                False, "", False, -1, True, tried, frozenset(), given,
+            )
+        ]
+        visits += [_CountedHeld.asked]
+    assert answers == [DAY * 999, DAY * 999], answers
+    assert visits[0] == 4 and visits[1] >= 990, visits
+    # From one o'clock on day 700 both cursors start on a unit left, and
+    # jump before the first visit: the same four visits, nearest first.
+    _CountedHeld.asked = 0
+    found = generation._nearest_held_unit(
+        _FACTS, DAY * 700 + 3600, 0, DAY * 999, DAY, 1, 1, held, spot, order,
+        False, "", False, -1, True, tried, frozenset(), jumps,
+    )
+    assert (found, _CountedHeld.asked) == (DAY * 999, 4), (found, _CountedHeld.asked)
+    # Every place the walks went through now points at where they ended.
+    assert all(upward[place] == 999 for place in range(502, 999)), "the upward walk was not cut short"
+    assert all(downward[place] == 0 for place in range(1, 499)), "the downward walk was not cut short"
+    assert generation._jumped(upward, 1) == 499
+    assert all(upward[place] == 499 for place in range(1, 499))

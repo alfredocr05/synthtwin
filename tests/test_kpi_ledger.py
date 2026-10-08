@@ -1704,7 +1704,7 @@ def test_k_s3_55(record_property, tmp_path: pathlib.Path, monkeypatch: pytest.Mo
 
 
 def test_k_s3_51(record_property, tmp_path: pathlib.Path) -> None:
-    """P4-D376: the count pass's paid merge reads a few ranks a rank, and moves offers a block at a time.
+    """P4-D376: the count pass's paid merge reads a few ranks a rank, and moves offers and ranks a block at a time.
 
     The clinic slots of `tests/test_stage3b_count_pass_speed.py` at
     10,000 and 40,000 rows, about 154 a weekday, so the trade pass is
@@ -1718,9 +1718,14 @@ def test_k_s3_51(record_property, tmp_path: pathlib.Path) -> None:
     searches it makes, 197 a rank at 10,000 rows before the landing.
     And there at 40,000 and 160,000 rows, where it makes thousands, the
     offers its pool moves to put one in or take one out: 57,160 and
-    391,482 a rank on 311cf30, whose pool was one sorted list. The
-    reads and searches there are recorded beside them, unbounded: they
-    still rise with the rows (plan P4-D376, what is left).
+    391,482 a rank on 311cf30, whose pool was one sorted list. And the
+    entries its files of ranks move there, and on eight instants held
+    14,048 and 28,096 times (`heavy_instants`, generated at seed 11, the
+    Codex review of the lane, item 1), where 5f28017's files, single
+    sorted lists, moved 1,966 and 8,204 a rank on the midnight slots and
+    9,270 and 18,345 on the instants. The reads and searches there are
+    recorded beside them, unbounded: they still rise with the rows (plan
+    P4-D376, what is left).
     """
     import test_stage3b_count_pass_speed as count_pass
 
@@ -1736,9 +1741,16 @@ def test_k_s3_51(record_property, tmp_path: pathlib.Path) -> None:
     for rows in (40000, 160000):
         counts = count_pass.midnight_counts(rows, tmp_path / f"midnight{rows}")
         measured[f"offers_moved_per_rank_midnight_{rows}"] = round(counts["moved"] / rows, 1)
+        measured[f"rank_moves_per_rank_midnight_{rows}"] = round(counts["rank_moves"] / rows, 1)
         measured[f"merges_made_midnight_{rows}"] = counts["made"]
         measured[f"searches_per_rank_midnight_{rows}"] = round(counts["searches"] / rows, 2)
         measured[f"reads_per_rank_midnight_{rows}"] = round(counts["reads"] / rows, 2)
+    for factor in (32, 64):
+        rows = sum(count_pass._HEAVY_COUNTS) * factor
+        counts = count_pass.heavy_counts(factor, tmp_path / f"heavy{rows}")
+        measured[f"rank_moves_per_rank_heavy_{rows}"] = round(counts["rank_moves"] / rows, 1)
+        measured[f"merges_made_heavy_{rows}"] = counts["made"]
+        measured[f"reads_per_rank_heavy_{rows}"] = round(counts["reads"] / rows, 2)
     _kpi(record_property, "K-S3-51", measured)
 
 

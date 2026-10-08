@@ -26062,7 +26062,7 @@ def _traded_merges(
                     facts, moved, pinned, lows, highs, day, step, unit, held,
                     book.spot, book.order, word, size, not gaining, own,
                     target // unit, clock, widths, gone, book.payers[gaining],
-                    dead,
+                    dead, book.jumps,
                 )
                 _book_payers_dropped(book, gaining, dead)
                 if len(paid) < size:
@@ -26079,6 +26079,11 @@ def _traded_merges(
             if settled is not None:
                 break
         if settled is None:
+            return made
+        # NO UPKEEP AFTER THE LAST MERGE OWED (the Codex review of lane G3,
+        # item 1): the book is dropped on return, so bringing it up to date
+        # first only moved every rank of that merge through its files.
+        if made == owed:
             return made
         _book_settled(book, settled)
     return made
@@ -26126,6 +26131,18 @@ class _TradeBook:
     unit none of them could find: 8.0 s of CPU to generate, and 3.3 with
     each such payer asked once and the offers and files kept as above.
 
+    ITS FILES OF RANKS ARE HELD IN BLOCKS, AND A UNIT LEAVES THE FILES OF
+    UNITS BY A MARK (the Codex review of lane G3, item 1). The payers and
+    the ranks on each unit (`on_unit`) were sorted lists, so each rank a
+    merge moved shifted the tail of four of them, and the unit a merge
+    left was deleted from four files of units the same way: on a table of
+    eight instants held 7,024 to 28,096 times between them, 32 to 515
+    million entries shifted, four times as many at each doubling. Each
+    is now cut into blocks of `_RANK_BLOCK` ranks (`_ranks_put`,
+    `_ranks_taken`), and a unit that leaves `order` is passed over by the
+    searches through ``jumps`` (`_jumped`), so a move shifts the ranks of
+    one block and the files of units shift none.
+
     Guarantees: a record of the trade's state; the functions that build
     and update it are fixed functions of their arguments. No I/O.
     """
@@ -26145,10 +26162,11 @@ class _TradeBook:
     gone: "frozenset[int]"
     stands: "list[bool]"
     free: "list[int]"
-    payers: "dict[bool, list[int]]"
-    on_unit: "dict[int, list[int]]"
+    payers: "dict[bool, list[list[int]]]"
+    on_unit: "dict[int, list[list[int]]]"
     spot: "dict[int, int]"
     order: "dict[tuple[int, int], list[int]]"
+    jumps: "dict[tuple[int, int], tuple[dict[int, int], dict[int, int]]]"
     last_of: "dict[int, int]"
     run_of: "list[int]"
     unit_of_run: "dict[int, int]"
@@ -26279,6 +26297,107 @@ def _rank_slot(ranks: "list[int]", rank: int) -> int:
     return low
 
 
+# HOW MANY RANKS A FILE OF THE TRADE BOOK CUTS A BLOCK AT (the Codex review
+# of lane G3, item 1): a block is cut at 256 ranks, halved past 512 and
+# dropped when a take empties it, as the pool's offers are (`_OFFER_BLOCK`).
+_RANK_BLOCK = 256
+
+
+def _rank_appended(blocks: "list[list[int]]", rank: int) -> None:
+    """File ``rank``, above every rank ``blocks`` hold, in the last block or a new one past `_RANK_BLOCK`."""
+    if blocks and len(blocks[len(blocks) - 1]) < _RANK_BLOCK:
+        blocks[len(blocks) - 1] += [rank]
+    else:
+        blocks += [[rank]]
+
+
+def _ranks_block(blocks: "list[list[int]]", rank: int) -> int:
+    """The first block whose last rank is not below ``rank``, by halving; past the last where none is."""
+    low = 0
+    high = len(blocks)
+    while low < high:
+        middle = (low + high) // 2
+        block = blocks[middle]
+        if block[len(block) - 1] < rank:
+            low = middle + 1
+        else:
+            high = middle
+    return low
+
+
+def _ranks_put(blocks: "list[list[int]]", rank: int) -> None:
+    """File ``rank``, which ``blocks`` do not hold, in its place (the Codex review of lane G3, item 1).
+
+    It goes into the first block whose last rank is above it, or the
+    last block where none is; a block grown past twice `_RANK_BLOCK` is
+    halved, so a put shifts the ranks of one block.
+    """
+    if not blocks:
+        blocks += [[rank]]
+        return
+    at = _ranks_block(blocks, rank)
+    if at == len(blocks):
+        at = at - 1
+    block = blocks[at]
+    slot = _rank_slot(block, rank)
+    block[slot:slot] = [rank]
+    if len(block) > 2 * _RANK_BLOCK:
+        half = len(block) // 2
+        _rank_blocks_replaced(blocks, at, [block[:half], block[half:]])
+
+
+def _ranks_taken(blocks: "list[list[int]]", rank: int) -> None:
+    """Take ``rank`` out of ``blocks`` where they hold it; a block left empty goes (the Codex review of lane G3, item 1)."""
+    at = _ranks_block(blocks, rank)
+    if at == len(blocks):
+        return
+    block = blocks[at]
+    slot = _rank_slot(block, rank)
+    if slot == len(block) or block[slot] != rank:
+        return
+    del block[slot]
+    if not block:
+        _rank_blocks_replaced(blocks, at, [])
+
+
+def _rank_blocks_replaced(
+    blocks: "list[list[int]]", at: int, replaced: "list[list[int]]"
+) -> None:
+    """Put ``replaced``, none of them empty, where the block ``at`` of ``blocks`` stood."""
+    blocks[at:at + 1] = replaced
+
+
+def _filed_place(keys: "list[int]", key: int) -> int:
+    """Where ``key`` stands or would stand in a sorted file of units, by halving."""
+    low = 0
+    high = len(keys)
+    while low < high:
+        middle = (low + high) // 2
+        if keys[middle] < key:
+            low = middle + 1
+        else:
+            high = middle
+    return low
+
+
+def _jumped(jumps: "dict[int, int]", place: int) -> int:
+    """The first place from ``place`` on, the way ``jumps`` lead, whose unit is still filed (the Codex review of lane G3, item 1).
+
+    ``jumps`` maps each place of a file of units (`_TradeBook`'s
+    ``order``) whose unit a merge left to the next place to try, one way;
+    every place a walk went through is pointed at where it ended, so a
+    later walk goes through none of them one by one again.
+    """
+    end = place
+    while end in jumps:
+        end = jumps[end]
+    while place != end:
+        after = jumps[place]
+        jumps[place] = end
+        place = after
+    return end
+
+
 def _offer_slot(
     block: "list[tuple[int, int, int, int]]", offer: "tuple[int, int, int, int]"
 ) -> int:
@@ -26335,7 +26454,7 @@ def _trade_book(
         stands[rank] = _trade_standing(facts, moved[rank], day, step, word, clock)
     book = _TradeBook(
         facts, moved, pinned, lows, highs, day, step, unit, held, widths, word,
-        clock, gone, stands, free, {False: [], True: []}, {}, {}, {}, {},
+        clock, gone, stands, free, {False: [], True: []}, {}, {}, {}, {}, {},
         [0 for _rank in range(parsed)], {}, {}, {}, {}, _OfferPool([], []),
     )
     _book_filled(book)
@@ -26348,26 +26467,29 @@ def _book_filled(book: _TradeBook) -> None:
     What each attempt of `_traded_merges` built before plan P4-D376,
     statement for statement, and the payers filed from the standings
     the book keeps, every one of them, so a payer an earlier walk took
-    out of its list (`_book_payers_dropped`) is asked again.
+    out of its list (`_book_payers_dropped`) is asked again. The files of
+    ranks are cut into blocks and no unit is passed over (`_TradeBook`).
     """
     moved = book.moved
     unit = book.unit
     book.payers = {False: [], True: []}
     for rank in book.free:
-        book.payers[book.stands[rank]] += [rank]
+        _rank_appended(book.payers[book.stands[rank]], rank)
     book.on_unit = {}
     book.spot = {}
     for rank in range(len(moved)):
         key = moved[rank] // unit
-        if key in book.on_unit:
-            book.on_unit[key] += [rank]
-        else:
-            book.on_unit[key] = [rank]
+        if key not in book.on_unit:
+            book.on_unit[key] = []
+        _rank_appended(book.on_unit[key], rank)
         book.spot[key] = moved[rank]
     book.order = _held_order(
         book.facts, book.spot, book.day, book.step,
         book.widths or not book.clock, book.word,
     )
+    book.jumps = {}
+    for selector in book.order:
+        book.jumps[selector] = ({}, {})
     book.last_of = {}
     book.unit_of_run = {}
     book.runs_on = {}
@@ -26427,7 +26549,7 @@ def _book_offers_kept(
                 book.facts, moved[first], lowest, highest, book.day,
                 book.step, unit, book.held, book.spot, book.order,
                 book.widths, book.word, not book.clock, -1, book.clock,
-                tried, book.gone,
+                tried, book.gone, book.jumps,
             )
             if target is None:
                 break
@@ -26443,13 +26565,32 @@ def _book_offers_kept(
 
 
 def _book_offers_dropped(book: _TradeBook, first: int) -> None:
-    """Take the offers of the run starting at ``first`` out of the book."""
+    """Take the offers of the run starting at ``first`` out of the book.
+
+    A unit no run is offered any more leaves ``aimed``, its map with it
+    (`_book_aim_dropped`).
+    """
     if first not in book.offers_of:
         return
     for offer in book.offers_of[first]:
-        del book.aimed[offer[3] // book.unit][first]
+        _book_aim_dropped(book, offer[3] // book.unit, first)
         _pool_take(book.pool, offer)
     del book.offers_of[first]
+
+
+def _book_aim_dropped(book: _TradeBook, key: int, first: int) -> None:
+    """The run at ``first`` is no longer offered the unit ``key``; a map left empty goes (the Codex review of lane G3, item 2).
+
+    A map keeps the room it once took after its entries are deleted, so
+    the emptied map of every unit a merge left stayed in the book: on a
+    count-pass state of 803 to 3,203 ranks the maps held 482,544 to
+    7,460,528 bytes where a book built afresh held 2,264 to 9,304, four
+    times as many at each doubling.
+    """
+    aiming = book.aimed[key]
+    del aiming[first]
+    if not aiming:
+        del book.aimed[key]
 
 
 def _book_payers_dropped(
@@ -26459,20 +26600,25 @@ def _book_payers_dropped(
 
     ``dead`` is in the list's own order, every rank of it in
     ``book.payers[standing]``, as `_repaid_standings` reports them; the
-    list is copied up to the last of them only, which the walk read.
+    list's blocks are copied up to the one holding the last of them only,
+    which the walk read, and a block left empty goes.
     """
     if not dead:
         return
-    ranks = book.payers[standing]
-    end = _rank_slot(ranks, dead[len(dead) - 1]) + 1
+    blocks = book.payers[standing]
+    end = _ranks_block(blocks, dead[len(dead) - 1]) + 1
     leaving: "dict[int, bool]" = {}
     for rank in dead:
         leaving[rank] = True
-    kept: "list[int]" = []
-    for rank in ranks[:end]:
-        if rank not in leaving:
-            kept += [rank]
-    ranks[:end] = kept
+    kept: "list[list[int]]" = []
+    for block in blocks[:end]:
+        left: "list[int]" = []
+        for rank in block:
+            if rank not in leaving:
+                left += [rank]
+        if left:
+            kept += [left]
+    blocks[:end] = kept
 
 
 def _book_settled(
@@ -26489,10 +26635,13 @@ def _book_settled(
     were offered the unit the merge left, which no rank holds now, trade
     that one offer for the next nearest (`_book_offer_replaced`). That
     unit leaves the files of held units (`order`) as well, which a
-    search walks and would only step past it in. A
+    search walks and would only step past it in, and every file and map
+    the book keeps by unit, none of which is left empty. A
     search reads the held units' instants as well, and a unit whose
     last rank left for a payment stands on another instant where its
     ranks are not all on one: that rebuilds the whole book, as before.
+    Each moved rank is taken out of and put into blocks of its files of
+    ranks, so it shifts the ranks of one block in each (`_TradeBook`).
     """
     start, size, own, onto, paid = settled
     moved = book.moved
@@ -26501,52 +26650,49 @@ def _book_settled(
     shifted: "list[int]" = []
     for rank in range(start, start + size):
         shifted += [rank]
-        ranks = book.on_unit[own]
-        del ranks[_rank_slot(ranks, rank)]
-        ranks = book.on_unit[onto]
-        slot = _rank_slot(ranks, rank)
-        ranks[slot:slot] = [rank]
+        _ranks_taken(book.on_unit[own], rank)
+        _ranks_put(book.on_unit[onto], rank)
     for rank in sorted(paid):
         shifted += [rank]
         source = paid[rank] // unit
         joined = moved[rank] // unit
         touched[source] = True
         touched[joined] = True
-        ranks = book.on_unit[source]
-        del ranks[_rank_slot(ranks, rank)]
-        ranks = book.on_unit[joined]
-        slot = _rank_slot(ranks, rank)
-        ranks[slot:slot] = [rank]
+        _ranks_taken(book.on_unit[source], rank)
+        _ranks_put(book.on_unit[joined], rank)
     # A MOVED RANK IS FILED AGAIN, under its standing now, whether or not
     # a walk had taken it out of its list: it stands somewhere else.
     for rank in shifted:
         if book.pinned[rank]:
             continue
-        ranks = book.payers[book.stands[rank]]
-        slot = _rank_slot(ranks, rank)
-        if slot < len(ranks) and ranks[slot] == rank:
-            del ranks[slot]
+        _ranks_taken(book.payers[book.stands[rank]], rank)
         book.stands[rank] = _trade_standing(
             book.facts, moved[rank], book.day, book.step, book.word, book.clock
         )
-        ranks = book.payers[book.stands[rank]]
-        slot = _rank_slot(ranks, rank)
-        ranks[slot:slot] = [rank]
+        _ranks_put(book.payers[book.stands[rank]], rank)
     for key in touched:
-        ranks = book.on_unit[key]
-        if ranks and moved[ranks[len(ranks) - 1]] != book.spot[key]:
+        blocks = book.on_unit[key]
+        if not blocks:
+            del book.on_unit[key]
+            continue
+        block = blocks[len(blocks) - 1]
+        if moved[block[len(block) - 1]] != book.spot[key]:
             _book_filled(book)
             return
     # THE UNIT THE MERGE LEFT LEAVES THE FILES THE SEARCHES WALK: no rank
     # lands on it again while the book stands, and a search only stepped
     # past it. Clinic slots with one cell in fifty at midnight, at 40,000
     # rows: such units were 5,587,119 of the 6,284,432 keys their
-    # searches visited while they stayed filed.
+    # searches visited while they stayed filed. Its place in each file is
+    # marked both ways for the searches to jump (`_jumped`), where deleting
+    # it shifted every unit after it (the Codex review of lane G3, item 1).
     for selector in book.order:
         keys = book.order[selector]
-        slot = _rank_slot(keys, own)
-        if slot < len(keys) and keys[slot] == own:
-            del keys[slot]
+        place = _filed_place(keys, own)
+        if place < len(keys) and keys[place] == own:
+            upward, downward = book.jumps[selector]
+            upward[place] = place + 1
+            downward[place] = place - 1
     # THE RUNS BESIDE A MOVED RANK are split afresh over the span they
     # cover together; at each end of a span stand two ranks that did not
     # move and were on two units, so no run crosses it.
@@ -26563,7 +26709,10 @@ def _book_settled(
         else:
             spans += [[first, last]]
         _book_offers_dropped(book, first)
-        del book.runs_on[book.unit_of_run[first]][first]
+        where = book.unit_of_run[first]
+        del book.runs_on[where][first]
+        if not book.runs_on[where]:
+            del book.runs_on[where]
         del book.unit_of_run[first]
         del book.last_of[first]
     again: "dict[int, bool]" = {}
@@ -26608,7 +26757,7 @@ def _book_offer_replaced(book: _TradeBook, first: int, left: int) -> None:
             _pool_take(book.pool, offer)
         else:
             kept += [offer]
-    del book.aimed[left][first]
+    _book_aim_dropped(book, left, first)
     room = _TRADE_TARGETS if book.clock else 1
     if len(tried) >= room:
         last = book.last_of[first]
@@ -26617,6 +26766,7 @@ def _book_offer_replaced(book: _TradeBook, first: int, left: int) -> None:
             book.facts, book.moved[first], lowest, highest, book.day,
             book.step, unit, book.held, book.spot, book.order, book.widths,
             book.word, not book.clock, -1, book.clock, tried, book.gone,
+            book.jumps,
         )
         if target is not None:
             offer = (abs(target - book.moved[first]), last - first + 1, first, target)
@@ -26664,8 +26814,9 @@ def _repaid_standings(
     clock: bool = False,
     widths: bool = True,
     gone: "frozenset[int]" = frozenset(),
-    ranks: "list[int] | None" = None,
+    ranks: "list[list[int]] | None" = None,
     dead: "list[int] | None" = None,
+    jumps: "dict[tuple[int, int], tuple[dict[int, int], dict[int, int]]] | None" = None,
 ) -> "dict[int, int]":
     """Move ranks between held units to pay a trade's count back (P4-D258).
 
@@ -26676,9 +26827,11 @@ def _repaid_standings(
 
     ONLY A RANK OF THE OTHER STANDING CAN PAY (plan P4-D376): ``ranks``,
     where given, is every rank the tail does not pin whose standing is
-    not ``gaining``, in rank order (`_TradeBook`'s payers), and the walk
-    visits those alone, where it visited every rank and asked each its
-    standing; a rank it skips is one the full walk turned away.
+    not ``gaining``, in rank order, in blocks (`_TradeBook`'s payers),
+    and the walk visits those alone, where it visited every rank and
+    asked each its standing; a rank it skips is one the full walk turned
+    away. ``jumps``, where given, are the book's marks of the units that
+    left ``order`` (`_jumped`), handed to each search.
 
     AND A RANK THAT CAN PAY NOWHERE IS NAMED (plan P4-D376): where
     ``dead`` is given, each rank's search first sets no unit aside, and
@@ -26693,50 +26846,55 @@ def _repaid_standings(
     Raises nothing. No I/O of any kind.
     """
     paid: "dict[int, int]" = {}
-    walked: "list[int] | range" = range(len(moved))
+    walked: "list[list[int]] | list[range]" = [range(len(moved))]
     if ranks is not None:
         walked = ranks
-    for rank in walked:
+    for block in walked:
         if len(paid) >= wanted:
             break
-        if pinned[rank]:
-            continue
-        own = moved[rank] // unit
-        if own == skip or own == onto:
-            continue
-        if held[own] <= 1:
-            continue
-        standing = _trade_standing(facts, moved[rank], day, step, word, clock)
-        if standing == gaining:
-            continue
-        aside = skip
-        if dead is not None:
-            # NO UNIT SET ASIDE: the unit just below the rank's gap, which
-            # the search turns away for its instant before it asks whether
-            # it is set aside. -1 would not do: it is a unit like any
-            # other, the last day, minute or second of 1969.
-            aside = lows[rank] // unit - 1
-        target = _nearest_held_unit(
-            facts, moved[rank], lows[rank], highs[rank], day, step, unit,
-            held, spot, order, widths or not clock, word, not clock, aside,
-            clock, (), gone,
-        )
-        if dead is not None:
-            # Set aside nothing, the search finds nothing: no later walk
-            # of this book finds anything for this rank either. Where it
-            # found the unit set aside, it is asked again past it.
+        for rank in block:
+            if len(paid) >= wanted:
+                break
+            if pinned[rank]:
+                continue
+            own = moved[rank] // unit
+            if own == skip or own == onto:
+                continue
+            if held[own] <= 1:
+                continue
+            standing = _trade_standing(facts, moved[rank], day, step, word, clock)
+            if standing == gaining:
+                continue
+            aside = skip
+            if dead is not None:
+                # NO UNIT SET ASIDE: the unit just below the rank's gap,
+                # which the search turns away for its instant before it
+                # asks whether it is set aside. -1 would not do: it is a
+                # unit like any other, the last day, minute or second of
+                # 1969.
+                aside = lows[rank] // unit - 1
+            target = _nearest_held_unit(
+                facts, moved[rank], lows[rank], highs[rank], day, step, unit,
+                held, spot, order, widths or not clock, word, not clock, aside,
+                clock, (), gone, jumps,
+            )
+            if dead is not None:
+                # Set aside nothing, the search finds nothing: no later
+                # walk of this book finds anything for this rank either.
+                # Where it found the unit set aside, it is asked again
+                # past it.
+                if target is None:
+                    dead += [rank]
+                elif target // unit == skip:
+                    target = _nearest_held_unit(
+                        facts, moved[rank], lows[rank], highs[rank], day, step,
+                        unit, held, spot, order, widths or not clock, word,
+                        not clock, skip, clock, (), gone, jumps,
+                    )
             if target is None:
-                dead += [rank]
-            elif target // unit == skip:
-                target = _nearest_held_unit(
-                    facts, moved[rank], lows[rank], highs[rank], day, step,
-                    unit, held, spot, order, widths or not clock, word,
-                    not clock, skip, clock, (), gone,
-                )
-        if target is None:
-            continue
-        paid[rank] = moved[rank]
-        _moved_between(moved, held, unit, rank, target)
+                continue
+            paid[rank] = moved[rank]
+            _moved_between(moved, held, unit, rank, target)
     return paid
 
 
@@ -27017,6 +27175,7 @@ def _nearest_held_unit(
     flip_clock: bool = False,
     avoid: "list[int] | tuple[int, ...]" = (),
     gone: "frozenset[int]" = frozenset(),
+    jumps: "dict[tuple[int, int], tuple[dict[int, int], dict[int, int]]] | None" = None,
 ) -> "int | None":
     """The nearest instant some other rank already holds, keeping the standing.
 
@@ -27040,7 +27199,10 @@ def _nearest_held_unit(
     left the bounds. It visits the keys the walk would have accepted but
     for their held count, bounds or ``skip``, in the walk's own order, so
     its answer is the walk's answer, and it no longer steps across the
-    empty seconds between them.
+    empty seconds between them. Where ``jumps`` are given, by the trade
+    book (`_TradeBook`), the two cursors jump the places of the units a
+    merge left the files by (`_jumped`); no rank holds those, so the walk
+    would only have stepped past them.
 
     Guarantees: accepts the facts, the run's instant and bounds, the day
     and precision steps, the unit, the units ranks hold with one instant
@@ -27069,6 +27231,10 @@ def _nearest_held_unit(
             # back.
             clock = 0 if _written_at_midnight(value, 0, step) else 1
     keys = order[(kind, clock)]
+    upward: "dict[int, int]" = {}
+    downward: "dict[int, int]" = {}
+    if jumps is not None:
+        upward, downward = jumps[(kind, clock)]
     origin = value // unit
     # The first key at or after the run's own unit, by halving.
     low = 0
@@ -27083,6 +27249,10 @@ def _nearest_held_unit(
     above = low
     if above < len(keys) and keys[above] == origin:
         above = above + 1
+    if below in downward:
+        below = _jumped(downward, below)
+    if above in upward:
+        above = _jumped(upward, above)
     # The farthest distance, in units, whose earlier and later instants
     # stay inside the bounds.
     reach_down = (value - lowest) // unit
@@ -27099,9 +27269,13 @@ def _nearest_held_unit(
         if down <= reach_down and (up > reach_up or down <= up):
             key = keys[below]
             below = below - 1
+            if below in downward:
+                below = _jumped(downward, below)
         else:
             key = keys[above]
             above = above + 1
+            if above in upward:
+                above = _jumped(upward, above)
         if key not in held or held[key] <= 0:
             continue
         found = spot[key]
