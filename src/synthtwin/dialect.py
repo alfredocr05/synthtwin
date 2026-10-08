@@ -3321,6 +3321,8 @@ _LINES_BLOCK = 1 << 16
 
 def _block_lines(block: str) -> "typing.Iterator[str]":
     """A block's lines as `physical_lines` cuts them: at its line feeds, then each piece at its carriage returns."""
+    if not isinstance(block, str):
+        raise TypeError("internal check: a piece of a table was not text")
     pieces = block.split("\n")
     for index in range(len(pieces)):
         for line in _cut_at_returns(pieces[index], index < len(pieces) - 1):
@@ -3336,18 +3338,20 @@ def _line_end_from(text: str, start: int) -> int:
     read once, and no search reads more than a block past the end it
     finds.
     """
+    if not isinstance(text, str):
+        raise TypeError("internal check: a piece of a table was not text")
     size = len(text)
     while start < size:
-        stop = min(start + _LINES_BLOCK, size)
-        feed = text.find(_LF, start, stop)
-        back = text.find(_CR, start, stop if feed < 0 else feed)
+        window = text[start : start + _LINES_BLOCK]
+        feed = window.find("\n")
+        back = window.find("\r") if feed < 0 else window[:feed].find("\r")
         if back >= 0:
-            if text[back + 1 : back + 2] == _LF:
-                return back + 2
-            return back + 1
+            if text[start + back + 1 : start + back + 2] == "\n":
+                return start + back + 2
+            return start + back + 1
         if feed >= 0:
-            return feed + 1
-        start = stop
+            return start + feed + 1
+        start = start + len(window)
     return -1
 
 
