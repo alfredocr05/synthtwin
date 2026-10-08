@@ -826,6 +826,7 @@ TWENTY_FIFTH_BRANCH_CASES = (
     "layout_hl7_fraction_offset",
     "layout_hour_offset",
     "layout_offsets_owed",
+    "layout_offsets_owed_across_offsets",
     "layout_offsets_owed_beside_named",
     "layout_offsets_owed_repeats",
     "layout_offsets_owed_whole_texts",
@@ -884,6 +885,9 @@ SEEDS = {
     "layout_offsets_owed_beside_named": 436,
     # ...and the Codex review's whole texts of G7.9b step 5 (item 4).
     "layout_offsets_owed_whole_texts": 437,
+    # ...and the verification of that repair, step 5's aim and look ahead
+    # (open item 1), at the next seed no lane of the wave has taken.
+    "layout_offsets_owed_across_offsets": 438,
     # Landing T1's written clocks take the next seeds after the highest in
     # use below 34041 (plan P4-D370).
     "stamp_unpadded_hour": 416,
@@ -1784,14 +1788,15 @@ FOURTEENTH_BRANCH_NAMED_COUNTS = 53
 # its five cases publish no binary64 at all.
 TWENTY_SECOND_BRANCH_PUBLISHED_NUMBERS = 0
 TWENTY_SECOND_BRANCH_NAMED_COUNTS = 122
-# The twenty-fifth, at its own generator's line ("proved 24 ... beside 353"):
+# The twenty-fifth, at its own generator's line ("proved 28 ... beside 379"):
 # the distances its cases with two tails publish, G7.9b's two cases of the
 # repair round adding eight of them, the one of its second skeptic four
-# more and the Codex review's whole texts four more; that last case names
-# twenty-six counts, as `layout_offsets_owed` does, both censuses of
+# more, the Codex review's whole texts four more and the aim and look ahead
+# of that repair's verification four more; each of those last two cases
+# names twenty-six counts, as `layout_offsets_owed` does, both censuses of
 # offsets naming one key.
-TWENTY_FIFTH_BRANCH_PUBLISHED_NUMBERS = 24
-TWENTY_FIFTH_BRANCH_NAMED_COUNTS = 353
+TWENTY_FIFTH_BRANCH_PUBLISHED_NUMBERS = 28
+TWENTY_FIFTH_BRANCH_NAMED_COUNTS = 379
 # The document file publishes NO binary64 at all, and that is a fact
 # about its transforms rather than a gap in its proof: the written form,
 # the arrangement, the workbook writer, the shape of a line before a
@@ -2473,6 +2478,24 @@ _LAYOUT_WRITTEN = gen.layout_written
 _READABLE_DAYS = gen.readable_days
 # ...and G7.9b's offer, bound the same way (skeptic 2 of landing R2a).
 _OFFSETS_ON_OFFER = gen.offsets_on_offer
+# ...and step 5's sums and counts, bound the same way (the verification of
+# the Codex review's repair of landing R2a).
+_SUMS_OF_SIZES = gen.sums_of_sizes
+_AMOUNT_COUNTED = gen.amount_counted
+
+
+def _the_most_each_offset_holds(by_size, cap, left, later):
+    """G7.9b step 5's look ahead withdrawn: each offset the most it holds.
+
+    The rule the verification of the Codex review's repair replaced: an
+    offset takes the largest amount its room holds of what is left of the
+    aim, whether or not the rest can still be reached after it.
+    """
+    counts = sorted((size, len(texts)) for size, texts in by_size.items())
+    amounts = sorted(
+        (total for total in _SUMS_OF_SIZES(counts, cap) if total >= 2), reverse=True
+    )
+    return _AMOUNT_COUNTED(counts, amounts[0]) if amounts else {}
 
 
 def _layout_rewritten(old: str, new: str):
@@ -3564,6 +3587,15 @@ CASE_MUTANTS = {
         "offset too, and the payments wear it",
         attribute="offsets_on_offer",
         replacement=lambda field, census: _OFFSETS_ON_OFFER(field, {}),
+        outcome=CHANGES_THE_CELLS,
+    ),
+    "layout_offsets_owed_across_offsets": Mutant(
+        branch="G7.9b step 5's aim and look ahead, an offset taking the most "
+        "it holds only while the rest of the aim stays reachable after it "
+        "(the verification of the Codex review's repair of landing R2a, "
+        "open item 1); the mutant takes at each offset the most it holds",
+        attribute="amount_taken",
+        replacement=_the_most_each_offset_holds,
         outcome=CHANGES_THE_CELLS,
     ),
     "layout_offsets_owed_whole_texts": Mutant(

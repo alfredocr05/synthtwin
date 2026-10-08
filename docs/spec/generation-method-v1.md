@@ -13577,7 +13577,7 @@ that happens -- and the clause beside it, `--missing-value`'s "CAN be
 published as the column's smallest value", is exactly right under the
 new rule.
 
-**All one hundred and sixty-eight are required.** The count is taken off the committed
+**All one hundred and sixty-nine are required.** The count is taken off the committed
 case sets and not carried forward: this sentence said fifty-two and a
 split of nine, twenty, sixteen and seven while the six files held
 seventy-three, because each repair that added a case added a clause to
@@ -13611,12 +13611,13 @@ TWENTY-SECOND, `tests/reference/generation-branch-vectors-22.json`,
 holds five -- landing T1's written clocks and G7.5 step 5, in the file
 plan P4-D364's table gives that landing (G14.2); and the
 TWENTY-FIFTH, `tests/reference/generation-branch-vectors-25.json`,
-holds fourteen -- landing R2a's layouts, the century a person chose,
+holds fifteen -- landing R2a's layouts, the century a person chose,
 from its repair round a day padded with a space and the offsets a
 column of figure runs owes its class count, beside repeated texts too,
-from its second skeptic those offsets beside a named one, and from its
-Codex review the rest of them paid with whole repeated texts (plan
-P4-D383) --
+from its second skeptic those offsets beside a named one, from its
+Codex review the rest of them paid with whole repeated texts, and from
+that repair's verification those texts placed over two offsets toward
+one aim (plan P4-D383) --
 and a test holds this sentence to those files. The tenth grew by the
 two cases the GOVERNANCE PASS of stage 3's review added and the
 eleventh by the two the dates pass added; each number here is read off
@@ -13782,6 +13783,7 @@ case passed, which is the failure the count exists to prevent:
 | `layout_offsets_owed_repeats` | G7.9b's payment on a text no other rank repeats (landing R2a's repair round, item 2): twenty-four HL7 stamps to the minute over eighteen different values whose census counted four offsets into `(none)`. A respelled copy of a text another rank wears would add a value the published count of different values does not hold, so the four payments go to ranks whose text stands alone. Its mutant makes a payment on a repeated text too |
 | `layout_offsets_owed_beside_named` | G7.9b's offer, every offset the census names left off it (skeptic 2 of landing R2a, item 1): twenty-four HL7 stamps, eleven at the named `+00:00` and two whose offsets the census counted into `(none)`, beside thirteen cells that are not numbers. A cell written at `+0000` would be counted into the named offset and read at it, so the two payments wear `+0100`, the first offset on offer the census does not name. Its mutant offers the named offset too |
 | `layout_offsets_owed_whole_texts` | G7.9b step 5, the rest owed paid with whole repeated texts (the Codex review of landing R2a, item 4): twenty-four HL7 stamps over eight different values whose census counted seven offsets into `(none)`. Two texts stand alone between the ends and take two offsets at `+0000`; every other text repeats, so the other five are paid with a text of five ranks written again whole, every rank at `+0000`, and the column keeps its eight values. Its mutant withdraws the step, and the twin holds two cells that are not numbers for seven |
+| `layout_offsets_owed_across_offsets` | G7.9b step 5's aim and its look ahead at each offset (the verification of the Codex review's repair of landing R2a, open item 1): twenty-four HL7 stamps over eight different values whose census counted eleven offsets into `(none)`. Step 4 writes the two texts standing alone between the ends at `+0000`, which leaves room for eight more there; every other text repeats, so the other nine are written on whole texts, and step 5 aims at nine: a text of five copies at `+0000` and one of four at `+0100`, since taking the most `+0000` holds, two texts of four, would leave one cell owed that no text fits. Its mutant takes at each offset the most it holds, and the twin holds ten cells that are not numbers for eleven |
 | `layout_space_padded_day` | G7.5's space-padded day `{_D}` (landing R2a's repair round, item 6): SQL Server's `Mon dd yyyy` style, twelve dates of January 1970 written `Jan  1 1970` to `Jan 12 1970`, a day below ten written after a space in place of its first figure. Its mutant writes the day zero-padded, `Jan 01 1970` |
 | `layout_century_window` | G7.3e's window a person chose (landing R2a, question Q5): twenty-four `mm/dd/yy` birth dates of January 1940 read under `{YY1930}`, a tail at either end, the days a tail may reach bounded by 1930 to 2029. Its mutant reads every two-figure year in the POSIX window, 1969 to 2068, and the column's own days fall outside what its spelling writes back |
 | `date_remainder_one_joint` | G7.5 step 5 (landing T1; plan l.17955's carried case (a)): twenty-two month-first dates over twelve days publishing `{"padded": 11}`, eleven values' widths left out. The step writes those eleven ranks on whole days, the days holding the fewest of the class's ranks first, in widths the census does not name -- nine `unpadded` and two `first-padded`, each fewer than the line and than the named word -- and the named word keeps its eleven. Its mutant withdraws the step |

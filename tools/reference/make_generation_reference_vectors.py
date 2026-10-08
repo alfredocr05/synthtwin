@@ -23130,6 +23130,26 @@ def _layout_offsets_owed_whole_texts():
     )
 
 
+def _layout_offsets_owed_across_offsets():
+    return _r2a_layout(
+        "layout {YYYY}{MM}{DD}{HH}{MI}{SS}{+HHMM?}", "datetime", "second", 0, 24,
+        {"(none)": 24}, "local",
+        why="G7.9b step 5's aim and look ahead (the verification of the "
+        "Codex review's repair of landing R2a, open item 1): twenty-four HL7 "
+        "stamps over eight different values, eleven of whose offsets the "
+        "census counted into `(none)`. Step 4 writes the two texts standing "
+        "alone between the ends at `+0000`, which leaves eight cells there; "
+        "the other nine are owed where every other text repeats, and step 5 "
+        "aims at nine, writing a text of five copies whole at `+0000` and one "
+        "of four at `+0100`. Taking the most `+0000` holds, two texts of "
+        "four, would leave one cell that no text fits. The mutant takes at "
+        "each offset the most it holds, and the twin holds ten cells that "
+        "are not numbers for eleven.",
+        earliest="1970-01-01 00:00:00", latest="1970-01-24 21:45:00",
+        numeric=13, distinct=8,
+    )
+
+
 def _layout_space_padded_day():
     return _r2a_layout(
         "layout {Mon} {_D} {YYYY}", "date", "date", 0, 12, {"(none)": 12}, "local",
@@ -23184,6 +23204,7 @@ R2A_BRANCH_CASE_BUILDERS = {
     "layout_hl7_fraction_offset": _layout_hl7_fraction_offset,
     "layout_hour_offset": _layout_hour_offset,
     "layout_offsets_owed": _layout_offsets_owed,
+    "layout_offsets_owed_across_offsets": _layout_offsets_owed_across_offsets,
     "layout_offsets_owed_beside_named": _layout_offsets_owed_beside_named,
     "layout_offsets_owed_repeats": _layout_offsets_owed_repeats,
     "layout_offsets_owed_whole_texts": _layout_offsets_owed_whole_texts,
@@ -32707,7 +32728,8 @@ _TWENTY_FIFTH_BRANCH_ACCOUNT = (
     "skeptic, those offsets beside an offset the census names, which is "
     "never written for them; and, from its Codex review, the rest of them "
     "paid with whole repeated texts where the texts standing alone fall "
-    "short. They "
+    "short, and, from the verification of that repair, those whole texts "
+    "placed toward one aim with a look ahead at each offset. They "
     "are computed by the same oracle and the same proof layer "
     "as tests/reference/generation-reference-vectors.json, "
     "tests/reference/generation-branch-vectors.json, "
@@ -33135,6 +33157,25 @@ GIVEN_WORDS = {
         205796669871881458, 7989721165120253828, 3755740244614251843,
         5595582438671437075, 15317152902321133127, 16415137625249378943,
         3767219378542190651, 16820870707325869515, 6803819411126845134,
+    ),
+    # ...and the verification of that repair: step 5's aim and look ahead
+    # (open item 1), at seed 438.
+    "layout_offsets_owed_across_offsets": (
+        15846830026420936289, 12634862475263983595, 13604648691500376173,
+        15680810623548066103, 18234580745250568857, 16280485190505783267,
+        9808412174319423938, 13665084912842018565, 12410242266033948649,
+        6162574557947698747, 5521132049527312671, 5904483036685558734,
+        9986597779341405499, 17550085472302492687, 7112273642970897439,
+        15367353766274703048, 16731008260658827465, 18089372808011291602,
+        512525490376896279, 676892882782624501, 15641183473767599001,
+        9975648818390256950, 12596419946946119373, 12386518102399317113,
+        3287790805828971509, 118537791029322876, 922335776417890713,
+        18397843622732584016, 3330448621780136748, 17324274039962509438,
+        15538304814651768181, 1444128733022540384, 4321909963344588804,
+        6991976383332984597, 5372326263261345496, 429182604242189322,
+        16216835312187616410, 15344463398048224896, 17275709018666814827,
+        129774826822250867, 17311764489328714084, 12223658805910024945,
+        9652744046395475953, 1730188865600102663, 1110980226798740819,
     ),
     # ...and the Codex review's whole texts (item 4), at seed 437.
     "layout_offsets_owed_whole_texts": (
