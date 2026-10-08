@@ -21,16 +21,17 @@ described as dates, and twinned as the same counts written the way the
 column writes them (`count_form`); `validate` holds every count of the
 checked file to that form. A column whose figures no unit of time keeps
 -- one to three figures of a day, tenths of a second -- is not read as
-dates and says so, where the build lost its figures or wrote a twin that
-missed its own description. Q3 asks 13 of the 14 shapes of `K-S3-60`,
-still asks 12 or 13 with a stray `0`, `-1`, placeholder day or up to five
-keying slips among the cells, and still offers each column the system that
-wrote it, with its true years, when a placeholder is common enough to be
-the column's published end; it names a set-aside number only where eleven
-cells hold it, and raises no question the fixed-width question did not
-already raise on the chance battery's ordinary columns, money in cents and
-lengths of time among them. Epic contact numbers are spread evenly over
-the twin's rows. NF51 is no longer written.
+dates and says so, and question Q3 no longer asks about it, where the
+build lost its figures or wrote a twin that missed its own description.
+Q3 asks 13 of the 14 shapes of `K-S3-60`, still asks 12 or 13 with a
+stray `0`, `-1`, placeholder day or up to five keying slips among the
+cells, and still offers each column the system that wrote it, with its
+true years, when a placeholder is common enough to be the column's
+published end; it names a set-aside number only where eleven cells hold
+it, and raises no question the fixed-width question did not already raise
+on the chance battery's ordinary columns, money in cents and lengths of
+time among them. Epic contact numbers are spread evenly over the twin's
+rows. NF51 is no longer written.
 
 ### A description written before the published pairs loads again (2026-10-03)
 
