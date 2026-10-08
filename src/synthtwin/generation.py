@@ -3179,8 +3179,8 @@ def _padded_style_swaps(
     Guarantees: accepts the assigned styles, the drawn values, the
     published census, the pinned positions, whether the column is whole
     and ``far``, the widest figure count a width demand lets a value hold
-    with the sides a published tail pair proves a cell past it on
-    (`_proven_sides`, none by default); returns one style per cell, a
+    with the sides on which the width walk the block took left cells past
+    it (`_wide_enough`, none by default); returns one style per cell, a
     permutation of the styles handed in except that a cell no published
     width can hold gives the padded style up as stated below.
     Determinism: every walk is over an ascending index order. Raises
@@ -3396,19 +3396,24 @@ def _padded_style_swaps(
     # giving it up would write a form the map does not name, and the
     # census is then unmeetable in both directions and G13's recount
     # names it. EXCEPT A FAR CELL A TAIL'S PAIR PROVES (lane G2 of stage
-    # 3b, plan P4-D377): a value past every named width on a side whose
-    # published pair proves a cell past it (`_proven_side_holds`) is
-    # written PLAIN. Kept padded it stood one figure wider than any field
-    # the census names, where the source's own far cell -- which the
-    # census pooled into its commonest form and width (plan P4-D222) --
-    # could have been padded at none of them. Measured on `00001` to
-    # `00399` beside one `12345`, where G6.6.8 leaves the derived end
-    # `12280` past the width: the twin wrote `012280`, six characters in
-    # a column of five, at seeds 0, 4 and 9, where 110cb46 wrote every
-    # cell five wide; written plain, every cell is five wide again and
-    # nothing is missed. A value the draw alone left too wide keeps the
-    # padded style as P4-D105 states: the 1,920 runs of the stage-2b
-    # style battery give their named padded count up at eight.
+    # 3b, plan P4-D377): a value past every named width on a side where
+    # G6.6.8's walk, the one the block took, left cells past it under the
+    # pair's proof (`_proven_side_holds`, `_wide_enough`) is written
+    # PLAIN. Kept padded it stood one figure wider than any field the
+    # census names, where the source's own far cell -- which the census
+    # pooled into its commonest form and width (plan P4-D222) -- could
+    # have been padded at none of them. Measured on `00001` to `00399`
+    # beside one `12345`, where G6.6.8 leaves the derived end `12280`
+    # past the width: the twin wrote `012280`, six characters in a column
+    # of five, at seeds 0, 4 and 9, where 110cb46 wrote every cell five
+    # wide; written plain, every cell is five wide again and nothing is
+    # missed. A value the draw alone left too wide keeps the padded style
+    # as P4-D105 states: the 1,920 runs of the stage-2b style battery give
+    # their named padded count up at eight; and so does a value the draw
+    # left past the width where the walk did not stand, on a side the
+    # pair proves -- read off the pair alone, ten `-099999` beside
+    # `-00001` to `-00150` came back with eleven cells plain and four
+    # checks missed (Codex's review of lane G2, item 2).
     widest = 0
     for width in quotas:
         if width > widest:
@@ -3447,16 +3452,18 @@ def _padded_style_swaps(
 def _proven_side_holds(
     value: float, far: "tuple[int, tuple[bool, ...]]", whole_column: bool
 ) -> bool:
-    """Whether a value stands past every named width on a side a tail's pair proves a cell past it (G6.3, G6.6.8).
+    """Whether a value stands past every named width on a side G6.6.8's walk left cells past it on (G6.3, G6.6.8).
 
     ``far`` is the widest figure count any width demand lets a value hold
-    and the sides, high or not, whose published pair's reach passes it
-    (`_proven_sides`). Such a value is one of the far cells G6.6.8 leaves
-    past the width, the pair proving the source wrote at least one.
+    and the sides, high or not, on which the width walk the block took
+    left cells past it -- sides whose published pair's reach passes it
+    (`_proven_sides`), the walk standing there (`_wide_enough`). Such a
+    value is one of the far cells G6.6.8 leaves past the width, the pair
+    proving the source wrote at least one.
 
     Guarantees: accepts a value, ``far`` and whether the column is whole;
     returns True exactly where the value is carried plainly, has more
-    figures than the widest count, and stands on a proven side of nought.
+    figures than the widest count, and stands on a named side of nought.
     Determinism: a function of the three. Raises nothing. No I/O of any
     kind.
     """
@@ -10057,7 +10064,7 @@ def _numeric_content(
             facts, (drawn[0], drawn[1]), (held[0], held[1])
         ):
             drawn = held
-    layout, values, drawn_notes = drawn
+    layout, values, drawn_notes, kept = drawn
     notes = notes + drawn_notes
     # AND THE SHORTFALL NEEDS NO NOTE OF ITS OWN (residual R-P4-69). A
     # second report was written here and withdrawn on measurement: the
@@ -10065,7 +10072,13 @@ def _numeric_content(
     # written in the plain form" against the 31 a run wrote, so the twin
     # was never silent about it and a note beside that one would be the
     # same fact said twice.
-    cells, style_notes = _number_cells(column, facts, layout, values, floor)
+    # THE FAR CELLS WRITTEN PLAIN ARE THE ONES THE READING WRITTEN LEFT
+    # PAST THE WIDTH (method G6.3, G6.6.8): the sides its own width walk
+    # left cells on, and none where the second reading stands, which is
+    # 110cb46's (Codex's review of lane G2, item 2).
+    cells, style_notes = _number_cells(
+        column, facts, layout, values, floor, kept
+    )
     notes = notes + style_notes
     # ...AND THE STRETCHES, RECOUNTED FROM THOSE CELLS. It is asked
     # here because it is a fact about the finished TEXT: which width a
@@ -10084,7 +10097,7 @@ def _values_drawn(
     words: "list[int]",
     floor: int,
     sided: bool,
-) -> "tuple[_NumericLayout, list[float], list[Deviation]]":
+) -> "tuple[_NumericLayout, list[float], list[Deviation], tuple[bool, ...]]":
     """Every value pass of a column of numbers, in order, on one division and one ladder (G5, G6).
 
     `_numeric_content`'s value stage, which it runs once, or twice where
@@ -10096,9 +10109,10 @@ def _values_drawn(
     strata take, the ladder its values are read from, the words G4.3
     budgets for it, the settings floor and ``sided`` -- whether G6.6.8's
     width walk takes the proven sides (`_wide_enough`); returns the
-    division as the held-back pool leaves it, one value a stratum, and
-    the deviations the passes name. ``words`` is read and never changed,
-    so a second reading draws nothing from the stream. Determinism: a
+    division as the held-back pool leaves it, one value a stratum, the
+    deviations the passes name, and the sides on which that walk left
+    cells past the width. ``words`` is read and never changed, so a
+    second reading draws nothing from the stream. Determinism: a
     function of its arguments. Raises nothing of its own. No I/O of any
     kind.
     """
@@ -10127,7 +10141,7 @@ def _values_drawn(
     # point-free count, the strata being apart, the held-back pool --
     # comes through it untouched, and none of them has to be re-argued
     # against a value this pass chose.
-    values = _wide_enough(
+    values, kept = _wide_enough(
         column, facts, layout, rungs, values, floor, sided
     )
     # AND NO VALUE STANDS WHERE THE DESCRIPTION SAYS THERE IS NONE
@@ -10163,7 +10177,7 @@ def _values_drawn(
     # refuses every move the passes above would have to redo.
     values, mode_notes = _mode_held(column, facts, layout, values)
     notes = notes + mode_notes
-    return layout, values, notes
+    return layout, values, notes, kept
 
 
 # The styles a cell of which a thousand is always grouped where it is a
@@ -14601,7 +14615,7 @@ def _wide_enough(
     values: "list[float]",
     floor: int,
     sided: bool,
-) -> "list[float]":
+) -> "tuple[list[float], tuple[bool, ...]]":
     """Draw values the published field widths can be worn by (G6.6).
 
     THE VALUE STAGE READS THE WIDTH CENSUSES, which is what residual
@@ -14649,10 +14663,17 @@ def _wide_enough(
     ``sided`` False runs the walk as 110cb46 ran it, no tail side
     taken (method G6.6.8 withdrawn), which is the reading rule 3 of
     G6.6.8 weighs the rule's own against (`_numeric_content`).
+
+    BESIDE THE VALUES, THE SIDES ON WHICH THE WALK THE BLOCK TAKES LEFT
+    CELLS PAST THE WIDTH (`_walked_past_the_width`), and none where it
+    takes 110cb46's walk -- where no side is proven, where the guard
+    below takes every far cell under the width, or where the trial walk
+    does not stand: only those cells are G6.3's far cells, written plain
+    where no pad can hold them (Codex's review of lane G2, item 2).
     """
     demands = _field_demands(facts)
     if not demands:
-        return values
+        return values, ()
     # A PAIR THAT PROVES A CELL WIDER THAN EVERY NAMED WIDTH LEAVES AT
     # MOST THE LINE LESS ONE OF ITS TAIL'S CELLS PAST THEM, inside the
     # pair's own totals, and moves the rest of that tail's cells past the
@@ -14698,12 +14719,12 @@ def _wide_enough(
     for side in sides:
         if side[4]:
             reached += [side]
-    best = _width_walk(
+    best, kept = _width_walk(
         column, facts, layout, rungs, values, (demands, floor), reached
     )
     spent = False
     if reached and _left_past_the_width(facts, best, demands):
-        under = _width_walk(
+        under, under_kept = _width_walk(
             column,
             facts,
             layout,
@@ -14714,17 +14735,19 @@ def _wide_enough(
         )
         if not _reads_no_further(facts, (layout, best), (layout, under)):
             best = under
+            kept = under_kept
             spent = True
     if len(reached) < len(sides):
         walked: "list[tuple[bool, float, float, float, bool, float]]" = []
         for side in sides:
             walked += _moved_under([side]) if side[4] and spent else [side]
-        trial = _width_walk(
+        trial, trial_kept = _width_walk(
             column, facts, layout, rungs, values, (demands, floor), walked
         )
         if _serves_better(facts, layout, (trial, best), demands, floor):
             best = trial
-    return best
+            kept = trial_kept
+    return best, kept
 
 
 def _left_past_the_width(
@@ -14779,7 +14802,7 @@ def _width_walk(
     values: "list[float]",
     census: "tuple[list[tuple[int, int, int]], int]",
     sides: "list[tuple[bool, float, float, float, bool, float]]",
-) -> "list[float]":
+) -> "tuple[list[float], tuple[bool, ...]]":
     """One width walk over the values, rule 2 of G6.6.8 on the sides handed in (G6.6).
 
     The tail strata past the width on each side handed in are left or
@@ -14789,15 +14812,16 @@ def _width_walk(
 
     Guarantees: accepts the column, its facts, layout and ladder, the
     values as they stand, its demands with the settings floor, and the
-    proven sides to walk; returns the walked values, one a stratum.
-    Handed no side, it is the walk of 110cb46 exactly. Determinism: a
-    function of those. Raises nothing. No I/O of any kind.
+    proven sides to walk; returns the walked values, one a stratum, and
+    the sides on which the walk left cells past the width. Handed no
+    side, it is the walk of 110cb46 exactly and names none. Determinism:
+    a function of those. Raises nothing. No I/O of any kind.
     """
     demands, floor = census
-    moved, freed = _walked_past_the_width(
+    moved, freed, kept = _walked_past_the_width(
         facts, layout, values, demands, floor, sides
     )
-    return _served_walk(
+    served = _served_walk(
         column,
         facts,
         layout,
@@ -14805,6 +14829,7 @@ def _width_walk(
         moved,
         _demands_less_the_freed(demands, freed, facts),
     )
+    return served, kept
 
 
 def _serves_better(
@@ -15112,7 +15137,7 @@ def _walked_past_the_width(
     demands: "list[tuple[int, int, int]]",
     floor: int,
     sides: "list[tuple[bool, float, float, float, bool, float]]",
-) -> "tuple[list[float], int]":
+) -> "tuple[list[float], int, tuple[bool, ...]]":
     """Which of a tail's cells stand past every named width, and the rest moved under it (G6.6.8 rule 2).
 
     THE CENSUS POOLS A WIDTH FEWER THAN THE SMALLEST GROUP WROTE INTO
@@ -15182,20 +15207,28 @@ def _walked_past_the_width(
     come off the demand the census counted them into
     (`_demands_less_the_freed`).
 
+    AND IT SAYS ON WHICH SIDES IT LEFT THEM, high or not: a side it walked
+    and did not give up, with a stratum of it left past the width. Those
+    cells, and no other, are the far cells G6.3 writes plain where no pad
+    can hold them (`_number_cells`): a cell the draw alone left past the
+    width keeps its pad (Codex's review of lane G2, item 2).
+
     Guarantees: accepts the column's facts, its layout, the values as
     they stand, its demands, the settings floor and the proven sides to
-    walk; returns the values with each moved stratum's new value, and how
+    walk; returns the values with each moved stratum's new value, how
     many cells are left past the width, nought to the line less one --
-    every cell of a walked side past the width being one of them. Both
-    are unchanged where no side is handed in. Determinism: a function of
-    those. Raises nothing. No I/O of any kind.
+    every cell of a walked side past the width being one of them -- and
+    the sides they stand on. All three are unchanged, and no side named,
+    where no side is handed in. Determinism: a function of those. Raises
+    nothing. No I/O of any kind.
     """
     moved = [value for value in values]
     if not sides:
-        return moved, 0
+        return moved, 0, ()
     widest, exact = _width_of(demands)
     room = parsing.census_floor(floor) - 1
     freed = 0
+    kept: "list[bool]" = []
     for high, boundary, first_total, second_total, reached, held in sides:
         before = freed
         places = _side_strata(facts, layout, high)
@@ -15237,6 +15270,8 @@ def _walked_past_the_width(
             stopped = True
             pulled += [place]
         if not pulled:
+            if freed > before:
+                kept += [high]
             continue
         walked = _pulled_under_the_width(
             facts,
@@ -15258,7 +15293,9 @@ def _walked_past_the_width(
             freed = before
             continue
         moved = walked
-    return moved, freed
+        if freed > before:
+            kept += [high]
+    return moved, freed, tuple(kept)
 
 
 def _proven_sides(
@@ -17378,6 +17415,7 @@ def _number_cells(
     layout: "_NumericLayout",
     values: "list[float]",
     floor: int,
+    kept: "tuple[bool, ...]" = (),
 ) -> "tuple[list[str], list[Deviation]]":
     """Write every cell that reads as a number (method G6.4, G6.6).
 
@@ -17404,6 +17442,20 @@ def _number_cells(
     for ONLY there: G6.4 shares styles out cell by cell so that the way
     a number is written is not tied to its size, and that preference is
     not a published fact while both of these are.
+
+    ``kept`` NAMES THE SIDES, high or not, ON WHICH THE WIDTH WALK THE
+    BLOCK TOOK LEFT CELLS PAST EVERY NAMED WIDTH (`_wide_enough`, method
+    G6.6.8): a value past the width there that no pad can hold is written
+    plain (G6.3), and none elsewhere. Read off the published pair alone,
+    the plain spelling reached cells the draw left past the width where
+    the walk did not stand: `-00001` to `-00150` beside ten `-099999`, a
+    declared measurement at a floor of eleven, wrote eleven of them plain
+    at seeds 0 and 4 -- the line, so the census named the form -- and the
+    twin missed its census of forms and its padded width, where 110cb46
+    met both with every value the same (Codex's review of lane G2, item
+    2). The walk leaves at most the line less one past the width, so the
+    cells written plain pool into the commonest form as the source's own
+    far cell did.
     """
     quotas = _style_quotas(facts.numeric_styles)
     wanted = min(layout.folded_budgets[0], column.n_numeric)
@@ -17441,7 +17493,7 @@ def _number_cells(
         facts.pad_widths,
         _pinned_cells(layout, values),
         facts.integer_valued,
-        (widest, tuple(side[0] for side in _proven_sides(facts, widest))),
+        (widest, kept),
     )
     # ...AND THE SIGNED-DECIMAL EXCHANGE BEFORE THE WIDTHS TOO, for the
     # same reason: a width goes to a cell wearing `decimal`, so a cell

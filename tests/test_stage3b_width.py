@@ -94,6 +94,11 @@ def _described(tmp_path: pathlib.Path, name: str, cells: "list[str]", floor: int
     return kpi_shapes.describe(tmp_path / name, name, _text(cells), floor)
 
 
+def _described_measured(tmp_path: pathlib.Path, name: str, cells: "list[str]", floor: int) -> kpi_shapes.Described:
+    """``_described`` with the column declared a measurement."""
+    return kpi_shapes.describe(tmp_path / name, name, _text(cells), floor, measured=["value"])
+
+
 def _facts(described: kpi_shapes.Described) -> contract.NumericFacts:
     facts = described.loaded.columns[0].facts
     assert isinstance(facts, contract.NumericFacts)
@@ -574,7 +579,7 @@ def test_the_walk_leaves_the_tail_s_wide_cells_past_the_width(
     for seed in SEEDS:
         assert 1 < left[seed] <= room, f"seed {seed}: {left[seed]}"
         assert _missed(described, seed) == [], f"seed {seed}"
-    monkeypatch.setattr(generation, "_walked_past_the_width", lambda _f, _l, values, _d, _fl, _s: (list(values), 0))
+    monkeypatch.setattr(generation, "_walked_past_the_width", lambda _f, _l, values, _d, _fl, _s: (list(values), 0, ()))
     for seed in SEEDS:
         assert _past(_twin_numbers(described, seed), 9999.0) < left[seed], f"seed {seed}"
 
@@ -651,10 +656,10 @@ def test_the_squares_the_rows_under_the_width_hold_come_off_the_pair_s_total_fir
     widest = generation._widest_demanded(demands)
     stacked = _left_past(facts, values, widest)
     assert sum(layout.sizes[place] for place in stacked) == 24, "premise: 24 rows past the width by the staircase"
-    moved, freed = generation._walked_past_the_width(facts, layout, values, demands, floor, sides)
+    moved, freed, _kept = generation._walked_past_the_width(facts, layout, values, demands, floor, sides)
     assert freed == 0 and _left_past(facts, moved, widest) == []
     raised = _with_totals(sides, sides[0][2], sides[0][3] + _squares_under_the_width(facts, layout, values, demands, sides[0]))
-    moved, freed = generation._walked_past_the_width(facts, layout, values, demands, floor, raised)
+    moved, freed, _kept = generation._walked_past_the_width(facts, layout, values, demands, floor, raised)
     assert freed == 24 and _left_past(facts, moved, widest) == stacked
 
 
@@ -674,9 +679,9 @@ def test_the_line_and_each_total_bind_on_their_own(tmp_path: pathlib.Path) -> No
     widest = generation._widest_demanded(demands)
     before = _left_past(facts, values, widest)
     assert len(before) == 5 and all(layout.sizes[place] == 1 for place in before), "premise: five one-cell strata"
-    moved, freed = generation._walked_past_the_width(facts, layout, values, demands, floor, sides)
+    moved, freed, _kept = generation._walked_past_the_width(facts, layout, values, demands, floor, sides)
     assert freed == 5 and _left_past(facts, moved, widest) == before
-    moved, freed = generation._walked_past_the_width(facts, layout, values, demands, 4, sides)
+    moved, freed, _kept = generation._walked_past_the_width(facts, layout, values, demands, 4, sides)
     assert freed == 3 and _left_past(facts, moved, widest) == before[2:]
     boundary = sides[0][1]
     outermost = values[before[-1]] - boundary
@@ -685,7 +690,7 @@ def test_the_line_and_each_total_bind_on_their_own(tmp_path: pathlib.Path) -> No
     # 10**12 to stand clear of that rounding.
     under = _squares_under_the_width(facts, layout, values, demands, sides[0])
     for first, second in ((outermost, math.inf), (math.inf, (outermost * outermost + under) * (1.0 + 1e-12))):
-        moved, freed = generation._walked_past_the_width(
+        moved, freed, _kept = generation._walked_past_the_width(
             facts, layout, values, demands, floor, _with_totals(sides, first, second)
         )
         assert freed == 1 and _left_past(facts, moved, widest) == before[-1:], (first, second)
@@ -708,7 +713,7 @@ def test_the_walk_stops_at_the_first_stratum_that_does_not_fit(tmp_path: pathlib
     assert outermost > second > third, "premise: three strata at three distances"
     squares = outermost * outermost + third * third + (second * second - third * third) / 2.0
     squares += _squares_under_the_width(facts, layout, values, demands, sides[0])
-    moved, freed = generation._walked_past_the_width(
+    moved, freed, _kept = generation._walked_past_the_width(
         facts, layout, values, demands, floor, _with_totals(sides, math.inf, squares)
     )
     assert freed == 1 and _left_past(facts, moved, widest) == before[-1:]
@@ -738,7 +743,7 @@ def test_on_a_tie_the_outermost_by_rank_stays(tmp_path: pathlib.Path) -> None:
             widest = generation._widest_demanded(demands)
             ties = [place for place in _left_past(facts, values, widest) if values[place] == values[last]]
             assert len(ties) == 2, "premise: a staircase row on the end's value"
-        moved, _freed = generation._walked_past_the_width(facts, layout, values, demands, walk_floor, sides)
+        moved, _freed, _kept = generation._walked_past_the_width(facts, layout, values, demands, walk_floor, sides)
         assert moved[last] == values[last], f"floor {floor}"
         tail = [moved[place] for place in generation._side_strata(facts, layout, True)]
         assert tail == sorted(tail), f"floor {floor}"
@@ -1440,7 +1445,7 @@ def test_a_row_moved_under_the_width_stands_beside_its_inner_neighbour(
             assert not [value for value in written if 9000.0 <= value < 10000.0], f"seed {seed}"
     facts, layout, values, demands, walk_floor, sides = _walk_calls(described)[0]
     assert sides and sides[0][4], "premise: the side the reach rule moved"
-    moved, _freed = generation._walked_past_the_width(facts, layout, values, demands, walk_floor, sides)
+    moved, _freed, _kept = generation._walked_past_the_width(facts, layout, values, demands, walk_floor, sides)
     pulled = [place for place in range(len(values)) if moved[place] != values[place]]
     assert pulled, "premise: a staircase row is moved under the width"
     for place in pulled:
@@ -1450,7 +1455,7 @@ def test_a_row_moved_under_the_width_stands_beside_its_inner_neighbour(
         "_targets_under_the_width",
         lambda _layout, _values, _places, pulled, _side, end: [end for _place in pulled],
     )
-    aimed, _freed = generation._walked_past_the_width(facts, layout, values, demands, walk_floor, sides)
+    aimed, _freed, _kept = generation._walked_past_the_width(facts, layout, values, demands, walk_floor, sides)
     assert [aimed[place] for place in pulled] == [9998.0 for _place in pulled]
 
 
@@ -1556,6 +1561,44 @@ def test_a_far_cell_no_pad_can_hold_is_written_plain(tmp_path: pathlib.Path, mon
     assert max(len(cell) for cell in _cells(described, 0)) == 6
 
 
+def _negative_codes_beside_ten_far() -> "list[str]":
+    """`-00001` to `-00150` beside ten `-099999`, every cell padded (Codex's review of lane G2, item 2)."""
+    return ["-" + str(value).zfill(5) for value in range(1, 151)] + ["-099999"] * 10
+
+
+def test_a_far_cell_only_the_draw_left_keeps_its_pad(tmp_path: pathlib.Path) -> None:
+    """Negative codes beside ten far ones, a declared measurement at eleven: the twin is 110cb46's, every cell padded.
+
+    The low tail's pair proves a cell past the width, but rule 1 moves no
+    end there, and the walk on that side does not stand: the eleven cells
+    past the width are the draw's, 110cb46's own, and each keeps the
+    padded style as the source's ten far cells did (method G6.3, plan
+    P4-D105). The plain spelling follows the walk the block actually
+    takes, only the cells it leaves past the width. Read off the pair alone
+    on f6a24db, eleven cells were written plain -- the line, not the line
+    less one, so the census named the form -- and the twin missed its
+    census of forms and its padded width, four checks, at seeds 0 and 4
+    (Codex's review of lane G2, item 2).
+    """
+    described = _described_measured(tmp_path, "negative_codes", _negative_codes_beside_ten_far(), 11)
+    facts = _facts(described)
+    widest = generation._widest_demanded(generation._field_demands(facts))
+    assert not contract.reach_moved_an_end(facts), "premise: rule 1 moves no end"
+    assert [side[0] for side in generation._proven_sides(facts, widest)] == [False], "premise: the low side's pair proves a cell past it"
+    block = described.document["columns"][0]
+    assert block["numeric_styles"] == {"leading_zero": 160}, "premise: every source cell padded"
+    for seed in (0, 4):
+        text = kpi_shapes.twin_text(described, seed)
+        assert text == _withdrawn_text(described, seed), f"seed {seed}: the twin is 110cb46's"
+        cells = _cells(described, seed)
+        assert _past(_numbers(cells), generation._width_ceiling(widest)) == 11, f"premise: eleven cells past the width, seed {seed}"
+        assert all(cell.lstrip("-").startswith("0") for cell in cells), f"seed {seed}"
+        own = kpi_shapes.describe(tmp_path / f"own-{seed}", "own", text, 11, measured=["value"]).document["columns"][0]
+        for key in ("numeric_styles", "field_widths", "pad_widths"):
+            assert own[key] == block[key], f"seed {seed}: {key} {own[key]} against {block[key]}"
+        assert _missed(described, seed) == [], f"seed {seed}"
+
+
 def test_only_a_far_cell_a_pair_proves_gives_its_pad_up_to_a_form_the_map_does_not_name() -> None:
     """`_padded_style_swaps` and `_proven_side_holds` asked directly: every cell padded, one value no pad can hold.
 
@@ -1612,7 +1655,7 @@ def test_a_run_with_too_little_room_under_the_width_widens_inward(
                 tails: "list[int]" = []
                 for side in sides:
                     tails += generation._side_strata(facts, layout, side[0])
-                moved, freed = generation._walked_past_the_width(facts, layout, values, demands, walk_floor, sides)
+                moved, freed, _kept = generation._walked_past_the_width(facts, layout, values, demands, walk_floor, sides)
                 left = [place for place in _left_past(facts, moved, widest) if place in tails]
                 assert sum(layout.sizes[place] for place in left) == freed, f"seed {seed} floor {floor}"
                 walked = [moved[place] for place in sorted(tails)]
@@ -1806,7 +1849,7 @@ def test_a_side_the_rule_left_gives_its_walk_up_where_a_stratum_finds_no_room(tm
     assert [(side[0], side[4]) for side in sides] == [(True, False)], "premise: a side the rule did not move"
     widest = generation._widest_demanded(demands)
     assert len(_left_past(facts, values, widest)) > 1, "premise: strata past the width"
-    moved, freed = generation._walked_past_the_width(facts, layout, values, demands, floor, sides)
+    moved, freed, _kept = generation._walked_past_the_width(facts, layout, values, demands, floor, sides)
     assert moved == values and freed == 0
 
 
