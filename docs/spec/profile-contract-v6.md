@@ -3905,7 +3905,7 @@ terms, and capitalised where it starts a sentence.
 
 > some values write their time of day another way than most -- with AM or PM where most write none or the other way round, with another mark, or with an hour the column's clock does not show -- and are counted as values this column does not read
 
-**NF109. `remark_some_hours_written_another_width` — cells of the other hour width, counted in** — arity 0 (landing T1). A remark, carried where some read cells show the hour width the column does not write; they are read, and published and written back in the column's width. No count (plan P4-D347).
+**NF109. `remark_some_hours_written_another_width` — cells of the other hour width, counted in** — arity 0 (landing T1). A remark, carried where some read cells show the hour width the column does not write; they are read, and published and written back in the column's width -- save a present time whose spelling in that width the table calls absent, which can only have been written in the other width and is written back in it (generation method G7A.4, the verification of landing 3b.5's round-2 fix); the remark's words are the same either way. No count (plan P4-D347).
 
 > some values write the hour with a different number of figures than most do, and are read and written the way most of them are
 

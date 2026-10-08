@@ -95,7 +95,17 @@ alone -- it loads, and generation stops on an internal error); and
 `test_round_2_a_marker_typed_in_lower_case_names_its_absent_place` --
 `12:00 am` declared missing names the place a column of `h:mm AM` writes
 `12:00 AM`, where a reading in its own case alone let the low tail draw
-a cell onto it (mutant: the case not folded).
+a cell onto it (mutant: the case not folded). And one defect it found
+older than that round, the same at d4f5ee4 and at baaf9de:
+`test_round_2_a_present_time_on_an_absent_spelling_is_written_as_the_table_wrote_it`
+-- a column of `hh:mm` holding 15 real times at midnight written `0:00`
+beside `00:00` declared missing publishes a heap and a listed low tail
+on `00:00`, and every twin wrote all 35 such cells `00:00`; those times
+are now written `0:00`, the one other spelling the reader reads there,
+on a column laid on its census, laid as before by G7A.4 and beside
+another column's `00:00` alike, and so are a heap and a low boundary on
+such a place; the oracle writes the same (mutants: every present time
+in the form's own spelling; each column's own absent spellings alone).
 """
 
 from __future__ import annotations
@@ -1554,3 +1564,254 @@ def test_round_2_red_when_an_absent_spelling_is_read_in_its_own_case_alone(
     monkeypatch.setattr(calendar_clock, "absent_places", own_case)
     _block_of, real, twins, _table = _marker_twins(tmp_path, (0,))
     assert twins[0][1] > real and twins[0][2] != [], (real, twins)
+
+
+# -- the verification of round 2: a present time on an absent spelling ---
+#
+# A column of `hh:mm` holding real times at midnight written `0:00` beside `00:00`
+# written for an unknown time and declared missing. The column's reader
+# reads `0:00` at the place `00:00` names, so the description publishes a
+# heap and a listed low tail on `00:00`, the form's own spelling of that
+# place -- and every twin wrote all 35 of those cells `00:00`, 15 of them
+# present cells its own reader counts as no value (at d4f5ee4 and at
+# baaf9de alike), where the table validates. The only other spelling the
+# reader reads at that place is the hour's other width, so it is the one
+# the table wrote, and the twin now writes it wherever the description
+# stands present cells on such a place -- a heap's value, a tail's
+# boundary or a listed tail value (method G7A.4).
+
+
+def _at_midnight_column() -> "tuple[list[str], str]":
+    """`ten-minute` beside 15 real times at midnight written `0:00`: the verification's column."""
+    cells, hole = _absence_column("ten-minute")
+    cells = cells + ["0:00"] * 15
+    random.Random(7).shuffle(cells)
+    return cells, hole
+
+
+def _laid_as_before(document: "dict[str, typing.Any]") -> "dict[str, typing.Any]":
+    """The description with landing 3b.5's keys emptied, so each column is laid by G7A.4 as a description written before it is."""
+    edited = copy.deepcopy(document)
+    for block in edited["columns"]:
+        block["clock_step"] = None
+        for key in ("clock_heaps", "clock_census", "clock_codes"):
+            block[key] = []
+    return typing.cast("dict[str, typing.Any]", edited)
+
+
+def _midnight_twins(
+    folder: pathlib.Path, seeds: "tuple[int, ...]" = (0, 1, 2), as_before: bool = False
+) -> "tuple[dict[str, typing.Any], tuple[int, int], list[tuple[int, int, int, list[str]]], list[str]]":
+    """The verification's column through the producer, the generator and the checker.
+
+    Returns the published block, the table's `00:00` and `0:00` rows,
+    each seed's twin's with what the checker MISSED of that twin, and
+    what it MISSED of the table itself; `as_before` lays it by G7A.4.
+    """
+    cells, hole = _at_midnight_column()
+    document, loaded = _described(folder, cells, declared=(hole,))
+    if as_before:
+        written = _loads(folder, _laid_as_before(document), "as-before")
+        assert isinstance(written, contract.Profile), written
+        loaded = written
+    twins: "list[tuple[int, int, int, list[str]]]" = []
+    for seed in seeds:
+        twin, path = _twin(loaded, seed, folder)
+        twins += [(seed, twin.count(hole), twin.count("0:00"), _missed(loaded, path))]
+    table = _missed(loaded, folder / "table.csv")
+    return _block(document), (cells.count(hole), cells.count("0:00")), twins, table
+
+
+def test_round_2_a_present_time_on_an_absent_spelling_is_written_as_the_table_wrote_it(tmp_path: pathlib.Path) -> None:
+    """`0:00` read at the place `00:00` names is written `0:00`: every twin holds 20 `00:00` and 15 `0:00`, and nothing is MISSED.
+
+    At baaf9de every twin wrote 35 `00:00` and MISSED eleven checks at
+    seeds 0 to 2 -- the presence counts, the heap counts, three rungs, the
+    count of cells no number reads, the absence's own count and the low
+    tail's boundary, rows and values.
+    """
+    block, real, twins, table = _midnight_twins(tmp_path)
+    assert block["clock_form"] == "hh-mm" and block["clock_step"] == 600, block
+    assert block["missing_by_source"] == {"00:00": 20}, block["missing_by_source"]
+    assert {"count": 15, "value": "00:00"} in block["clock_heaps"], block["clock_heaps"]
+    assert block["low_tail"]["values"] == ["00:00"], block["low_tail"]
+    assert real == (20, 15) and table == [], (real, table)
+    assert twins == [(seed, 20, 15, []) for seed in (0, 1, 2)], twins
+
+
+def test_round_2_a_column_laid_as_before_writes_a_present_time_on_an_absent_spelling_as_the_table_wrote_it(
+    tmp_path: pathlib.Path,
+) -> None:
+    """The same column laid by G7A.4, its description stripped of landing 3b.5's keys: its listed low tail writes `0:00` too.
+
+    At baaf9de every twin wrote 35 `00:00` and MISSED twelve or thirteen
+    checks at seeds 0 to 2.
+    """
+    _block_of, real, twins, table = _midnight_twins(tmp_path, as_before=True)
+    assert real == (20, 15) and table == [], (real, table)
+    assert twins == [(seed, 20, 15, []) for seed in (0, 1, 2)], twins
+
+
+def _other_width_shape(name: str) -> "tuple[list[str], str, str]":
+    """A column of `hh:mm` on a ten-minute grid whose present cells on an absent spelling show the other width.
+
+    `heap`: 30 real `8:00` in the body, a heap, beside 25 `08:00`
+    declared missing. `boundary`: eleven times before `07:00`, then four
+    real `7:00` -- the low boundary stands on the first -- beside 14
+    `07:00` declared missing. Returns the cells, the absent spelling and
+    the other width's.
+    """
+    draw = random.Random(3)
+    if name == "heap":
+        cells = [cell for cell in _minutes([draw.randrange(36, 108) * 10 for _row in range(400)]) if cell != "08:00"]
+        cells += ["8:00"] * 30 + ["08:00"] * 25
+        hole, other = "08:00", "8:00"
+    else:
+        cells = _minutes([draw.randrange(30, 42) * 10 for _row in range(11)]) + ["7:00"] * 4
+        cells += _minutes([draw.randrange(43, 108) * 10 for _row in range(380)]) + ["07:00"] * 14
+        hole, other = "07:00", "7:00"
+    draw.shuffle(cells)
+    return cells, hole, other
+
+
+def _other_width_twins(
+    folder: pathlib.Path, name: str, seeds: "tuple[int, ...]" = (0, 1, 2)
+) -> "tuple[dict[str, typing.Any], list[tuple[int, int, int, list[str]]], list[str]]":
+    """One of those columns through the producer, the generator and the checker."""
+    cells, hole, other = _other_width_shape(name)
+    document, loaded = _described(folder / name, cells, declared=(hole,))
+    twins: "list[tuple[int, int, int, list[str]]]" = []
+    for seed in seeds:
+        twin, path = _twin(loaded, seed, folder / name)
+        twins += [(seed, twin.count(hole), twin.count(other), _missed(loaded, path))]
+    return _block(document), twins, _missed(loaded, folder / name / "table.csv")
+
+
+def test_round_2_a_heap_and_a_boundary_on_an_absent_spelling_are_written_as_the_table_wrote_them(
+    tmp_path: pathlib.Path,
+) -> None:
+    """A heap of 30 `8:00` beside `08:00` declared missing, and a low boundary on `7:00` beside `07:00`, are written in their own width.
+
+    At baaf9de the heap's twins wrote 55 `08:00` and MISSED eight checks,
+    and the boundary's 15 `07:00` and MISSED six, at seeds 0 to 2. The
+    boundary's three other `7:00` rows are counted in its census group
+    and laid on the group's other steps, as every run's cells are.
+    """
+    block, twins, table = _other_width_twins(tmp_path, "heap")
+    assert block["missing_by_source"] == {"08:00": 25} and {"count": 30, "value": "08:00"} in block["clock_heaps"]
+    assert table == [] and twins == [(seed, 25, 30, []) for seed in (0, 1, 2)], (table, twins)
+    block, twins, table = _other_width_twins(tmp_path, "boundary")
+    assert block["missing_by_source"] == {"07:00": 14} and block["low_tail"]["boundary"] == "07:00", block
+    assert all(heap["value"] != "07:00" for heap in block["clock_heaps"]), block["clock_heaps"]
+    assert table == [] and twins == [(seed, 14, 1, []) for seed in (0, 1, 2)], (table, twins)
+
+
+def test_round_2_red_when_a_present_time_on_an_absent_spelling_is_written_in_the_forms(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """MUTATION: every present time written in the form's own spelling, as at baaf9de -- on either layout."""
+    monkeypatch.setattr(calendar_clock, "present_spellings", lambda *_a: {})
+    for as_before in (False, True):
+        _block_of, _real, twins, _table = _midnight_twins(tmp_path / f"{as_before}", (0,), as_before)
+        assert twins[0][1:3] == (35, 0) and twins[0][3] != [], (as_before, twins)
+
+
+def _at_midnight_beside_another_column() -> "tuple[list[str], list[str]]":
+    """`a` writes `00:00` for 20 unknown times on the ten-minute grid; `b` holds 15 real times at midnight written `0:00` and never `00:00`."""
+    a, hole = _absence_column("ten-minute")
+    b = [cell for cell in a if cell != hole] + ["0:00"] * 15 + ["06:10"] * 5
+    random.Random(7).shuffle(b)
+    return a, b
+
+
+def _beside_another_twins(
+    folder: pathlib.Path, seeds: "tuple[int, ...]" = (0, 1, 2), as_before: bool = False
+) -> "tuple[dict[str, typing.Any], list[tuple[int, int, int, list[str]]], list[str]]":
+    """The two columns through the producer, the generator and the checker: each seed's `b` on `00:00` and on `0:00`.
+
+    `as_before` lays both columns by G7A.4.
+    """
+    a, b = _at_midnight_beside_another_column()
+    folder.mkdir(parents=True, exist_ok=True)
+    table = fixtures.write(folder, "table.csv", "\n".join(["a,b"] + [f"{x},{y}" for x, y in zip(a, b)]) + "\n")
+    settings = taxonomy.Settings(small_cell_floor=11, declared_missing_values=("00:00",))
+    document = profile.build_document(reading.read_table(str(table), small_cell_floor=11), settings, [], [])
+    written = _laid_as_before(document) if as_before else document
+    loaded = contract.load_profile(str(fixtures.write_profile(folder, "table.json", written)))
+    twins: "list[tuple[int, int, int, list[str]]]" = []
+    for seed in seeds:
+        text = rendering.twin_csv(generation.generate(loaded, seed))
+        path = fixtures.write(folder, f"twin-{seed}.csv", text)
+        column = [row[1] for row in list(csv.reader(io.StringIO(text)))[1:] if row]
+        twins += [(seed, column.count("00:00"), column.count("0:00"), _missed(loaded, path))]
+    return document, twins, _missed(loaded, table)
+
+
+def test_round_2_a_present_time_on_another_columns_absent_spelling_is_written_as_the_table_wrote_it(
+    tmp_path: pathlib.Path,
+) -> None:
+    """`b` publishes no absence of its own, but `a`'s `00:00` is no value in `b` too, so `b`'s 15 times at midnight are written `0:00`.
+
+    On its census and laid as before by G7A.4 alike; at baaf9de every
+    twin wrote them `00:00` and MISSED nine of `b`'s checks at seeds 0 to
+    2 on its census, and eleven laid as before.
+    """
+    for as_before in (False, True):
+        document, twins, table = _beside_another_twins(tmp_path / f"{as_before}", as_before=as_before)
+        a, b = document["columns"]
+        assert a["missing_by_source"] == {"00:00": 20} and b["missing_by_source"] == {}, (a, b)
+        assert b["clock_form"] == "hh-mm" and b["low_tail"]["values"] == ["00:00"], b
+        assert table == [], (as_before, table)
+        assert twins == [(seed, 0, 15, []) for seed in (0, 1, 2)], (as_before, twins)
+
+
+def test_round_2_red_when_a_present_time_is_spelled_beside_the_columns_own_absences_alone(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """MUTATION: the twin handed each column's own absent spellings alone -- `b`'s times at midnight are written `00:00` again, on either layout."""
+    monkeypatch.setattr(generation, "_all_holes_of", lambda plan: generation._hole_spellings(plan.column))
+    for as_before in (False, True):
+        _document, twins, _table = _beside_another_twins(tmp_path / f"{as_before}", (0,), as_before)
+        assert twins[0][1:3] == (15, 0) and twins[0][3] != [], (as_before, twins)
+
+
+def test_round_2_the_oracle_writes_a_present_time_on_an_absent_spelling_as_the_product(tmp_path: pathlib.Path) -> None:
+    """No frozen case holds a present time on an absent spelling, so the oracle is held to the product on five columns (A-P4-59).
+
+    The oracle's content list, from the opening words of the stream the
+    product draws at seed 0, holds the cells the product's twin holds
+    beside its absent ones: the verification's column on its census and
+    laid as before by G7A.4, 15 `0:00` each; the heap of `8:00` and the
+    boundary on `7:00`, on their census; and round 2's `minute` column
+    laid as before, whose G7A.4 draw -- skipping no absent place -- lands
+    one cell on `00:00`, a place its description stands nothing present
+    on, so both write that cell `00:00`.
+    """
+    numpy = pytest.importorskip("numpy")
+    oracle = _oracle_module()
+    cells, hole = _at_midnight_column()
+    shapes = [("at-midnight", cells, hole, "0:00", False, (0, 15)), ("at-midnight-before", cells, hole, "0:00", True, (0, 15))]
+    for name, (on, off) in (("heap", (0, 30)), ("boundary", (0, 1))):
+        cells, hole, other = _other_width_shape(name)
+        shapes += [(name, cells, hole, other, False, (on, off))]
+    cells, hole = _absence_column("minute")
+    shapes += [("minute-before", cells, hole, "0:00", True, (1, 0))]
+    for name, cells, hole, other, as_before, counts in shapes:
+        folder = tmp_path / name
+        document, loaded = _described(folder, cells, declared=(hole,))
+        if as_before:
+            document = _laid_as_before(document)
+            written_before = _loads(folder, document, "as-before")
+            assert isinstance(written_before, contract.Profile), written_before
+            loaded = written_before
+        column = dict(_block(document))
+        content_words, _placement = oracle.word_budget(column, len(cells))
+        stream = numpy.random.default_rng(0)
+        words = stream.integers(0, 18446744073709551615, size=content_words, dtype="uint64", endpoint=True)
+        column["_content_words"] = [int(word) for word in words]
+        laid = oracle._clock_content(column)
+        twin, _path = _twin(loaded, 0, folder)
+        written = collections.Counter(cell for cell in twin if cell)
+        written[hole] -= column["missing_by_source"][hole]
+        assert collections.Counter(laid) == +written, name
+        assert (laid.count(hole), laid.count(other)) == counts, (name, laid.count(hole), laid.count(other))

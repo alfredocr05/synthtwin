@@ -282,6 +282,51 @@ def absent_places(spellings: "tuple[str, ...] | list[str]", form: str) -> "tuple
     return tuple(sorted(found))
 
 
+def present_spellings(
+    spellings: "tuple[str, ...] | list[str]",
+    form: str,
+    published: "tuple[int, ...] | list[int]",
+) -> "dict[int, str]":
+    """The places a present time is written off the form's own spelling, each with the spelling it is written in (method G7A.4).
+
+    A place the table calls absent (`absent_places`) that the description
+    stands present cells on -- a heap's value, a tail's boundary or a
+    listed tail value, `published` -- held present cells in the table,
+    and the form's own spelling of it is one the column's reader counts
+    as no value. So those cells can only have shown the hour's OTHER
+    width -- `0:00` in a column of `hh:mm` beside `00:00` declared
+    missing -- the one other spelling that reader reads at that place
+    (`parsing.clock_ordinal`). That is the spelling the source wrote, and
+    the twin writes it (the owner's ruling of 2026-09-15; the
+    verification of the round-2 fix of landing 3b.5: every twin of such
+    a column wrote every time at midnight `00:00`). A place whose hour
+    shows no width -- `10` to `23`, and `12` on a marked face -- has no
+    such spelling, and a place the description stands nothing present
+    on is one no present cell of the table is known to have stood on: a
+    drawn or a run's cell is kept off it (G7A.4b steps 1, 2 and 4), never
+    written in a spelling the table may not hold. Neither is mapped.
+
+    Guarantees: accepts the spellings the table calls absent, one of
+    `parsing.CLOCK_FORMS` and the places the description stands present
+    cells on, in the form's unit; returns a map from each place both
+    absent and published to the other width's spelling of it, which the
+    form's reader reads there. Determinism: a function of the three.
+    Raises ValueError for a form `parsing` does not know. No I/O of any
+    kind.
+    """
+    style = parsing.clock_style_of(form)
+    width = parsing.clock_hour_width(style)
+    other_style = ("h" if width == "hh" else "hh") + parsing.clock_face(style)
+    other_form = parsing.clock_form_of(other_style, parsing.clock_step(form) == 1)
+    named: "dict[int, int]" = {at: 1 for at in published}
+    found: "dict[int, str]" = {}
+    for at in absent_places(spellings, form):
+        written = parsing.clock_spelling(at, other_form)
+        if at in named and written != parsing.clock_spelling(at, form):
+            found[at] = written
+    return found
+
+
 def absent_beyond(
     absent: "tuple[int, ...]", boundary: int, low_side: bool, stride: int
 ) -> "list[int]":

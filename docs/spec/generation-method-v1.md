@@ -7387,7 +7387,9 @@ high_tail.rows`, in the form's own unit -- minutes of the day for
   minute or second above (G7.3e in this space).
 - `r == m_lo`: the cell is `low_tail.boundary`; `r == m_hi`:
   `high_tail.boundary`, each the published TEXT, not a re-spelling of
-  its ordinal.
+  its ordinal -- unless that text is a spelling the table calls absent,
+  when the cell is written as a present time on an absent place is
+  (below).
 - otherwise: the body, interpolated between the KNOTS -- the low
   boundary at position `m_lo`, each PUBLISHED rung `j` at position
   `P * PCT[j] / 100`, and the high boundary at position `m_hi + 1`,
@@ -7456,11 +7458,12 @@ twin that moved either would miss a published fact to keep a count. Nor
 does a body rank whose window is one unit, which is a body with no slack
 left in it. The search passes at most one unit per absent spelling and,
 where the ranks must differ, one per rank. *On a column laid by G7A.4b
-(the round-2 fix of landing 3b.5)* no rank is left on a place a
-spelling the table calls absent names: a run whose every step is one takes
-no cell (G7A.4b step 2), a rank of another run moves off it (step 4),
-and a tail drawn through its shape skips their distances (step 1), so a
-tail rank still never moves and none lands there.
+(the round-2 fix of landing 3b.5)* no rank of a run or of a drawn tail
+is left on a place a spelling the table calls absent names: a run whose
+every step is one takes no cell (G7A.4b step 2), a rank of another run
+moves off it (step 4), and a tail drawn through its shape skips their
+distances (step 1), so a tail rank still never moves and none lands
+there.
 
 *Added by the dates pass of the stage-3 review, item 5.* The stand-ins
 of G7A.5 were stepped past the absent spellings from the day the role
@@ -7470,6 +7473,38 @@ missing and held by eleven cells wrote TWELVE `08:00` cells at seed 0,
 leaving 98 present against a published 99 and 12 absent against 11, at
 seeds 0, 3 and 7. There are enough free minutes to keep both the
 absent count and the uniqueness, and the step above takes one.
+
+**AND A PRESENT TIME PUBLISHED ON AN ABSENT PLACE IS WRITTEN AS ITS
+SOURCE WROTE IT.** Where a place a spelling the table calls absent names
+(G7A.4b step 1) is one the description stands present cells on -- a
+heap's value, a tail's boundary or a listed tail value -- the table
+held present cells there, and the form's own spelling of that
+place is one the column's reader counts as no value. So those cells can
+only have shown the hour's OTHER width, the one other spelling that
+reader reads at that place -- `0:00` in a column of `hh:mm` beside
+`00:00` declared missing -- and every rank standing there is written in
+it (`calendar_clock.present_spellings`), as its source wrote it. Where
+the hour shows no width (`10` to `23`, and `12` on a marked face) the
+two spellings are one, and the form's own is written. A place the
+description stands nothing present on keeps the form's own spelling
+too: the construction keeps its ranks off such a place where it can
+(the step above; G7A.4b steps 1, 2 and 4), and a cell it could not move
+is not given a spelling the table may never have held. Every other cell
+is the form's own spelling of its ordinal, so NF109's remark -- a cell
+of the other width is written in the column's -- holds of every cell
+but these.
+
+*Added by the verification of the round-2 fix of landing 3b.5.* A
+ten-minute grid in `hh:mm` holding 15 real times at midnight written
+`0:00` beside 20 cells of `00:00` declared missing publishes a heap of
+15 and a listed low tail on `00:00`, the form's spelling of that place,
+and every twin wrote all 35 cells `00:00` and MISSED eleven checks at
+seeds 0 to 2, at d4f5ee4 and at baaf9de alike, where the table
+validates; laid by G7A.4 its twins MISSED twelve or thirteen, and a
+second column holding those times beside another column's `00:00`
+nine, or eleven laid by G7A.4. Laid either way the column now writes 15
+`0:00` and 20 `00:00`, the second column 15 `0:00` and no `00:00`, and
+no twin misses anything.
 
 ### G7A.4b The rank rule: a census, heaps, a step and codes (landing 3b.5)
 

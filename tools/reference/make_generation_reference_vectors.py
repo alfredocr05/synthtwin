@@ -19241,7 +19241,9 @@ def clock_census_content(column):
                 taken[moved] = taken.get(moved, 0) + 1
                 place = moved
             ordinals[rank] = low_at + place * stride
-    content = [clock_spelling_of(ordinal, form) for ordinal in ordinals]
+    published = clock_published_places(column)
+    content = [clock_written_present(ordinal, form, absent, published)
+               for ordinal in ordinals]
     codes = clock_codes_of(column)
     content.extend(codes)
     content.extend(text_stand_ins(content, column["n_unparsed"] - len(codes)))
@@ -19271,6 +19273,39 @@ def _clock_reads_absent(ordinal, form, absent):
     """Whether this instant's cell reads as no value (G7A.4, G10.4)."""
     text = clock_spelling_of(ordinal, form)
     return text.strip().lower() in absent or not text.strip()
+
+
+def clock_published_places(column):
+    """The places the description stands present cells on (G7A.4): each
+    heap's value and each tail's boundary and listed values, in the
+    form's own unit."""
+    form = column["clock_form"]
+    found = {clock_ordinal_of(heap["value"], form)
+             for heap in column.get("clock_heaps") or []}
+    for side in (column.get("low_tail"), column.get("high_tail")):
+        if side is None:
+            continue
+        found.add(clock_ordinal_of(side["boundary"], form))
+        for text in side["values"] or []:
+            found.add(clock_ordinal_of(text, form))
+    return found
+
+
+def clock_written_present(ordinal, form, absent, published):
+    """One present time's cell (G7A.4, the verification of the round-2 fix
+    of landing 3b.5): the form's own spelling, or, where the column calls
+    that spelling absent and stands present cells there, the hour's
+    other width -- the one other spelling the form's reader reads at that
+    time, so the one its source wrote; where the hour shows no width the
+    two are one."""
+    text = clock_spelling_of(ordinal, form)
+    if ordinal not in published or text.strip().lower() not in absent:
+        return text
+    width, seconds, face = clock_form_fields(form)
+    return written_clock_of(
+        ordinal * (1 if seconds else 60), seconds,
+        "h" if width == "hh" else "hh", face,
+    )
 
 
 def _clock_content(column):
@@ -19435,15 +19470,24 @@ def _clock_content(column):
                 standing[ordinals[rank]] -= 1
                 standing[taken[0]] = standing.get(taken[0], 0) + 1
                 ordinals[rank] = taken[0]
+    # ...and every rank's cell written as its source wrote it: on a place
+    # the column calls absent where it stands present cells, the hour's
+    # other width -- a boundary rank's too.
+    absent = clock_absent_of(column)
+    published = clock_published_places(column)
     content = []
     for rank in range(parsed):
         if low is not None and high is not None and rank == low["rows"]:
-            content.append(low["boundary"])
+            content.append(clock_written_present(
+                clock_ordinal_of(low["boundary"], form), form, absent, published
+            ))
             continue
         if low is not None and high is not None and rank == parsed - 1 - high["rows"]:
-            content.append(high["boundary"])
+            content.append(clock_written_present(
+                clock_ordinal_of(high["boundary"], form), form, absent, published
+            ))
             continue
-        content.append(clock_spelling_of(ordinals[rank], form))
+        content.append(clock_written_present(ordinals[rank], form, absent, published))
     # G7A.5.  The stand-ins this file builds are `text-N`, which reads
     # as a clock time in NEITHER form, so the exclusion that belongs to
     # this role is met by construction rather than by a search.

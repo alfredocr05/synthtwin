@@ -17997,9 +17997,7 @@ def _clock_census_content(
                 taken[places[index]] = taken[places[index]] - 1
                 taken[place] = (taken[place] if place in taken else 0) + 1
             ordinals[rank] = block.low + place * stride
-    cells: "list[str]" = []
-    for rank in range(parsed):
-        cells += [parsing.clock_spelling(ordinals[rank], form)]
+    cells = _clock_cells_written(ordinals, facts, holes)
     used: "dict[str, int]" = {cell: 1 for cell in cells}
     for spelling, count in census.codes:
         for _copy in range(count):
@@ -18271,9 +18269,7 @@ def _clock_content(
     # one and the twin would write a cell its own reader counts as no
     # value at all -- one more absent cell and one fewer present one.
     ordinals = _clock_off_the_holes(layout, ordinals, form, _all_holes_of(plan))
-    cells: "list[str]" = []
-    for rank in range(parsed):
-        cells += [parsing.clock_spelling(ordinals[rank], form)]
+    cells = _clock_cells_written(ordinals, facts, _all_holes_of(plan))
     # THE STAND-INS, which are outside the obligation to reproduce a
     # clock value and are counted rather than described. Each is
     # stepped past four things: a spelling this column already wrote, a
@@ -18373,6 +18369,50 @@ def _clock_off_the_holes(
         held[found] = (held[found] if found in held else 0) + 1
         moved[rank] = found
     return moved
+
+
+def _clock_cells_written(
+    ordinals: "list[int]", facts: contract.ClockFacts, holes: "tuple[str, ...]"
+) -> "list[str]":
+    """Each parsed rank's cell, written as its source wrote it (method G7A.4).
+
+    The form's own spelling of its ordinal -- except on a place a
+    spelling the table calls absent names where the description stands
+    present cells (a heap's value, a tail's boundary or a listed tail
+    value): the table's present cells there showed the hour's other
+    width, the one other spelling the column's reader reads at that
+    place, and the cell is written in it (`calendar_clock.present_spellings`).
+    Beside `00:00` declared missing a column of `hh:mm` holding real
+    times at midnight written `0:00` wrote every one of them `00:00` -- a cell its
+    own reader counts as no value -- and its twin MISSED its presence
+    counts, heaps and low tail at every seed (the verification of the
+    round-2 fix of landing 3b.5).
+
+    Guarantees: accepts one ordinal per rank, the column's clock facts
+    and every spelling the table calls absent; returns one cell per rank,
+    the form's own spelling wherever no rank stands on such a place.
+    Determinism: a function of the three; draws no word. Raises
+    ProfileError only where a published clock value does not read in its
+    own form, which the loader never lets through (T1). No I/O.
+    """
+    form = facts.clock_form
+    published: "list[int]" = []
+    for value, _count in facts.clock_heaps:
+        published += [_clock_ordinal_of(value, form)]
+    for tail in (facts.low_tail, facts.high_tail):
+        if tail is None:
+            continue
+        published += [_clock_ordinal_of(tail.boundary, form)]
+        for value in tail.values or ():
+            published += [_clock_ordinal_of(value, form)]
+    other = calendar_clock.present_spellings(holes, form, published)
+    cells: "list[str]" = []
+    for ordinal in ordinals:
+        if ordinal in other:
+            cells += [other[ordinal]]
+            continue
+        cells += [parsing.clock_spelling(ordinal, form)]
+    return cells
 
 
 def _reads_as_a_clock(text: str) -> bool:
