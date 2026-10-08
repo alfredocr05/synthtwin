@@ -1430,6 +1430,57 @@ def test_a_twelve_hour_clinic_keeps_its_count_at_midnight(tmp_path: pathlib.Path
     assert any("seen_at:midnight.count" in missed for missed in found), found
 
 
+def _twelve_hour_lunch(rows: int, seed: int) -> "list[str]":
+    """A weekday lunch clinic, 10:00 to 14:59, written `m/d/yyyy h:mm` on a 12-hour face with
+    no marker, three slots in four on the hour or the half hour: its noon slots read 12:00,
+    midnight on the dial, and are far more of its cells than its tails hold."""
+    draw = random.Random(seed)
+    found: "list[str]" = []
+    for _row in range(rows):
+        minute = draw.choice((0, 30)) if draw.random() < 0.75 else draw.choice((15, 45))
+        day = draw.choice(_WEEKDAYS)
+        hour = draw.choices((10, 11, 12, 13, 14), weights=(0.6, 1.2, 2.0, 1.4, 0.5))[0]
+        found += [f"{day.month}/{day.day}/{day.year} {hour % 12 or 12}:{minute:02d}"]
+    return found
+
+
+_HALF_DAY_BODY = "        first, last = layout.low.rows, parsed - 1 - layout.high.rows\n"
+# The move onto a midnight offers the body alone on the dial's half day: four edits of
+# that rule (the lane's second skeptic, finding 3), of which the 2,000-row clinic above
+# turns only the first red.
+_HALF_DAY_BODY_MUTANTS = {
+    "every tail offered": ("        elif first <= rank <= last:\n            free += [rank]", "        else:\n            free += [rank]"),
+    "the high tail offered": (_HALF_DAY_BODY, "        first, last = layout.low.rows, parsed - 1\n"),
+    "the low tail offered": (_HALF_DAY_BODY, "        first, last = 0, parsed - 1 - layout.high.rows\n"),
+    "a rank more each side": (_HALF_DAY_BODY, "        first, last = layout.low.rows - 1, parsed - layout.high.rows\n"),
+}
+
+
+def test_a_twelve_hour_lunch_clinic_keeps_its_count_at_midnight(tmp_path: pathlib.Path) -> None:
+    """The body alone holds a 12-hour stamp's count at midnight (the lane's second skeptic, finding 3).
+
+    Three hundred visits of a weekday lunch clinic at a floor of 11: 35 cells at midnight
+    published beside two tails of eleven rows each. Seeds 0 to 4, nothing missed. Each
+    mutant of the rule (`test_a_twelve_hour_lunch_clinic_is_red_on_each_mutant`) misses
+    `midnight.count` at every seed.
+    """
+    cells = _twelve_hour_lunch(300, 40043)
+    block = _described_alone(tmp_path / "lunch", cells, LINE, twelve=True)
+    assert block["n_at_midnight"] == 35 and block["low_tail"]["rows"] == block["high_tail"]["rows"] == LINE, block
+    assert _twelve_hour_run(tmp_path / "run", cells, (0, 1, 2, 3, 4)) == [[], [], [], [], []]
+
+
+@pytest.mark.parametrize("name", sorted(_HALF_DAY_BODY_MUTANTS))
+def test_a_twelve_hour_lunch_clinic_is_red_on_each_mutant(
+    name: str, tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Each edit of the half day's rule in the move onto a midnight misses the lunch clinic's
+    count at midnight at seeds 0 and 1."""
+    before, after = _HALF_DAY_BODY_MUTANTS[name]
+    found = _twelve_hour_run(tmp_path, _twelve_hour_lunch(300, 40043), (0, 1), _mutant(monkeypatch, before, after).generate)
+    assert all("seen_at:midnight.count" in missed for missed in found), (name, found)
+
+
 def _two_marks(rows: int, seed: int) -> "list[str]":
     """Discharges, every one a different moment, four in five written with a `T` between day
     and clock and the rest with a space: one instant has two spellings, so the count of
