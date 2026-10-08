@@ -31,10 +31,11 @@ A count of one to ten the product prints that 493f6f8 did not print at
 the same key -- counted as a multiset, so a key whose small count
 changed is new too -- must be one of the keys `MAY_BE_NEW` names, and on
 a column declared an identifier no new count of one to ten is allowed
-at all. The tables are Codex's two, the lane's batteries (its five
-seeded tables at floors of eleven and thirty-six, and three of them
-again with columns declared identifiers) and the forty-six shapes of
-the stage-3 battery `K-S3-12` counts.
+at all. The tables are Codex's two, each again with its column declared
+an identifier, the lane's batteries (its five seeded tables at floors of
+eleven and thirty-six, and three of them again with columns declared
+identifiers) and the forty-six shapes of the stage-3 battery `K-S3-12`
+counts.
 
 Every table is built by seeded neutral code at runtime (plan D13); the
 lane's batteries are the measurement's own generators at its own seeds,
