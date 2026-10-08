@@ -541,7 +541,9 @@ def test_the_book_is_the_rebuild_after_every_merge(monkeypatch: pytest.MonkeyPat
     traded for the next nearest with and without one to find, the book
     built again whole, and the blocks of its pool and of its files of
     ranks halved and dropped, which blocks cut at two offers and two
-    ranks here make happen all the while.
+    ranks here make happen all the while. And while a book stands, no
+    file of units its searches walk loses an entry: the unit a merge
+    left keeps its place there under a mark.
     """
     monkeypatch.setattr(generation, "_OFFER_BLOCK", 2)
     monkeypatch.setattr(generation, "_RANK_BLOCK", 2)
@@ -558,8 +560,18 @@ def test_the_book_is_the_rebuild_after_every_merge(monkeypatch: pytest.MonkeyPat
         book: typing.Any, done: "tuple[int, int, int, int, dict[int, int]]"
     ) -> None:
         nonlocal drifted
+        files = book.order
+        lengths = {selector: len(keys) for selector, keys in files.items()}
         settled(book, done)
         reached["merges"] += 1
+        # THE FILES OF UNITS SHIFT NONE (the Codex review of lane G3, item
+        # 1): while the book stands, the unit a merge left keeps its place
+        # in each file of units under a mark, where 5f28017 deleted it and
+        # shifted every unit after it; a book built again files afresh.
+        if book.order is files:
+            reached["merges the book stood through"] += 1
+            if {selector: len(keys) for selector, keys in files.items()} != lengths:
+                drifted += ["a file of units lost the unit a merge left, shifting the units after it"]
         checking[0] = True
         drifted += _drift(book, done[2])
         checking[0] = False
@@ -637,11 +649,13 @@ def test_the_book_is_the_rebuild_after_every_merge(monkeypatch: pytest.MonkeyPat
     assert not missed, missed[:3]
     assert not drifted, drifted[:5]
     # Measured: 1,883 merges brought up to date for (2,152 before the last
-    # merge a call owed went without its upkeep), 711 walks taking payers
-    # out, 190 offers traded for a next nearest and 222 given up, 55 books
-    # built again, 359 blocks of the pool halved and 3,091 dropped, and
+    # merge a call owed went without its upkeep), 1,828 of them with the
+    # book standing, 711 walks taking payers out, 190 offers traded for a
+    # next nearest and 222 given up, 55 books built again after a merge,
+    # 359 blocks of the pool halved and 3,091 dropped, and
     # 10,763 blocks of the files of ranks halved and 13,814 dropped.
     assert reached["merges"] >= 1000, reached
+    assert reached["merges the book stood through"] >= 1000, reached
     assert reached["payers taken out"] >= 100, reached
     assert reached["offers traded for a next nearest"] >= 100, reached
     assert reached["offers given up"] >= 100, reached
