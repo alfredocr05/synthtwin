@@ -1657,6 +1657,66 @@ def test_the_lines_handed_over_one_at_a_time_are_the_lines_cut_at_once() -> None
             assert list(dialect.lines_in_turn(text)) == dialect.physical_lines(text), repr(text)
 
 
+_ENDINGS = {"lf": "\n", "cr": "\r", "crlf": "\r\n"}
+
+
+def _ended(lines: "list[str]", ending: str) -> str:
+    """The lines, each ended by one ending, or by "mixed" ones.
+
+    "mixed" ends the first quarter of the lines by line feeds, the rest by
+    carriage returns alone, and the last line by the pair: a long run of
+    carriage-return lines after the last line feed.
+    """
+    if ending in _ENDINGS:
+        return _ENDINGS[ending].join(lines) + _ENDINGS[ending]
+    quarter = len(lines) // 4
+    last = len(lines) - 1
+    return "".join(
+        line + ("\n" if place < quarter else "\r\n" if place == last else "\r") for place, line in enumerate(lines)
+    )
+
+
+def test_lines_are_cut_a_block_at_a_time_whatever_ends_them() -> None:
+    """`lines_in_turn` never cuts more than a block and a line of the text at once, whatever ends its lines.
+
+    The Codex review of plan P4-D387 (item 2): 9fa2008 cut the text at its
+    line feeds a block at a time, so a file of carriage-return lines, or
+    a run of them after the last line feed, was cut into lines as one
+    piece -- a list of every one of its lines. The pieces handed to
+    `_cut_at_returns` are measured here at a block of 64 characters over
+    2,000 lines of 1 to 40 characters: at most a block and the longest
+    line, with every ending, and the lines `physical_lines` cuts. A pair
+    standing across a block's end is one ending, at every block size and
+    line length.
+    """
+    draw = random.Random(3883)
+    lines = [f"{row},{'x' * draw.randrange(0, 30)}" for row in range(2000)]
+    longest = max(len(line) for line in lines) + 2
+    real = dialect._cut_at_returns
+    for ending in ("lf", "cr", "crlf", "mixed"):
+        text = _ended(lines, ending)
+        widest = [0]
+
+        def measured(piece: str, cut_at_a_feed: bool) -> "list[str]":
+            widest[0] = max(widest[0], len(piece))
+            return real(piece, cut_at_a_feed)
+
+        with pytest.MonkeyPatch.context() as patch:
+            patch.setattr(dialect, "_LINES_BLOCK", 64)
+            patch.setattr(dialect, "_cut_at_returns", measured)
+            handed = list(dialect.lines_in_turn(text))
+        assert handed == dialect.physical_lines(text), ending
+        assert len(handed) == len(lines), ending
+        assert widest[0] <= 64 + longest, (ending, widest[0])
+    for block in (1, 2, 3, 4, 5, 8):
+        for width in range(2 * block + 3):
+            for ending in ("\r\n", "\r", "\n"):
+                text = ("y" * width + ending) * 7 + "y" * width
+                with pytest.MonkeyPatch.context() as patch:
+                    patch.setattr(dialect, "_LINES_BLOCK", block)
+                    assert list(dialect.lines_in_turn(text)) == dialect.physical_lines(text), (block, repr(text))
+
+
 def splits_reading(rows: int, as_built: bool = False) -> int:
     """How many times reading a table of ``rows`` cuts text into lines, every candidate reading counted."""
     with tempfile.TemporaryDirectory() as home:
@@ -1799,10 +1859,13 @@ def test_the_walk_cutting_lines_as_it_goes_reads_what_the_listed_walk_read(monke
     assert surveys > 200 and len(ours) - surveys > 30, surveys
 
 
-def walk_peak(rows: int, listed: bool = False) -> "tuple[int, int]":
-    """The most memory the survey of a table of ``rows`` holds above its text, and the text's size."""
+def walk_peak(rows: int, listed: bool = False, ending: str = "lf") -> "tuple[int, int]":
+    """The most memory the survey of a table of ``rows`` holds above its text, and the text's size.
+
+    ``ending`` ends its lines, as `_ended` says.
+    """
     lines = ["id,amount,label,note"] + [f"{row},{row * 7}.25,L{row % 13},note number {row}" for row in range(rows)]
-    text = "\n".join(lines) + "\n"
+    text = _ended(lines, ending)
     with pytest.MonkeyPatch.context() as patch:
         if listed:
             _listed_cursor(patch)
@@ -1823,6 +1886,26 @@ def test_the_walk_holds_a_line_and_not_a_list_of_them(monkeypatch: pytest.Monkey
     ours, size = walk_peak(20_000)
     theirs, _size = walk_peak(20_000, listed=True)
     assert theirs - ours > size, (ours, theirs, size)
+
+
+def test_the_walk_holds_a_line_and_not_a_list_of_them_whatever_ends_the_lines() -> None:
+    """The survey's peak above its text with lines ended by carriage returns alone, the pair, or mixed, as by line feeds.
+
+    The Codex review of plan P4-D387 (item 2): on 9fa2008 a file of
+    carriage-return lines, or a run of them after the last line feed,
+    was cut into one list held while the walk filled the table -- on
+    these 20,000 rows 840,000 bytes above the line feeds' peak, 1.2 times
+    the text, and 467,000 with the mixed endings. Each ending is held
+    within an eighth of the text of the line feeds' peak, and a walk
+    handed every line first is required to hold more than the text
+    above it with that ending, so the measure is known to see the list.
+    """
+    lines_fed, size = walk_peak(20_000)
+    for ending in ("cr", "crlf", "mixed"):
+        ours, _size = walk_peak(20_000, ending=ending)
+        assert ours - lines_fed < size // 8, (ending, ours, lines_fed, size)
+        theirs, _size = walk_peak(20_000, listed=True, ending=ending)
+        assert theirs - ours > size, (ending, ours, theirs, size)
 
 
 # -- 5. the checking pass ------------------------------------------------------

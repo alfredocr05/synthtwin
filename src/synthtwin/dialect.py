@@ -3284,35 +3284,71 @@ def lines_in_turn(text: str) -> "typing.Iterator[str]":
     P4-D387), so it is handed them as they are cut rather than as a list
     of every line of the file, which stood beside the text and the table
     at the reader's peak: on the made-up health table that list was about
-    a tenth of all the reader held. The text is cut on its line feeds a
-    block at a time, and each piece is cut at its carriage returns
-    exactly as `physical_lines` cuts it, so the lines are the same lines.
-    A piece running past a block's end is cut out of the text once, from
-    where it began, when its line feed is reached: gluing it together a
-    block at a time copied it once a block, which on a file whose lines
-    end in carriage returns alone is the square of the file.
+    a tenth of all the reader held. The text is cut a block at a time, at
+    the end of the line holding the block's last character, and each
+    block is cut exactly as `physical_lines` cuts it, so the lines are
+    the same lines. A line running past a block's end is cut out of the
+    text once, when its end is reached: gluing it together a block at a
+    time copied it once a block, which on a long line is its square.
+
+    EVERY LINE ENDING ENDS A BLOCK, NOT THE LINE FEED ALONE (the Codex
+    review of plan P4-D387, item 2). Cut at its line feeds, a file whose
+    lines end in carriage returns alone was one piece, and so was a long
+    run of such lines before the first line feed: every line of it was
+    cut into one list, held while the walk filled the table -- on 10,000
+    rows of 50 columns, 3,644.6 bytes a row at the survey's peak against
+    3,140.6 for the same table ended by line feeds. A block ends after a
+    line feed, after a carriage return with no line feed behind it, or
+    after the pair, which is never cut in two (`_line_end_from`).
     """
     if not isinstance(text, str):
         raise TypeError("internal check: a piece of a table was not text")
     begun = 0
-    at = 0
-    while at < len(text):
-        block = text[at : at + _LINES_BLOCK]
-        pieces = block.split("\n")
-        if len(pieces) > 1:
-            for line in _cut_at_returns(text[begun : at + len(pieces[0])], True):
-                yield line
-            for index in range(1, len(pieces) - 1):
-                for line in _cut_at_returns(pieces[index], True):
-                    yield line
-            begun = at + len(block) - len(pieces[len(pieces) - 1])
-        at = at + _LINES_BLOCK
-    for line in _cut_at_returns(text[begun:], False):
+    while begun + _LINES_BLOCK < len(text):
+        cut = _line_end_from(text, begun + _LINES_BLOCK - 1)
+        if cut < 0:
+            break
+        for line in _block_lines(text[begun:cut]):
+            yield line
+        begun = cut
+    for line in _block_lines(text[begun:]):
         yield line
 
 
 # How much of the text `lines_in_turn` cuts at once.
 _LINES_BLOCK = 1 << 16
+
+
+def _block_lines(block: str) -> "typing.Iterator[str]":
+    """A block's lines as `physical_lines` cuts them: at its line feeds, then each piece at its carriage returns."""
+    pieces = block.split("\n")
+    for index in range(len(pieces)):
+        for line in _cut_at_returns(pieces[index], index < len(pieces) - 1):
+            yield line
+
+
+def _line_end_from(text: str, start: int) -> int:
+    """Where the line holding character ``start`` ends, past its ending, or -1 where the text ends first.
+
+    A line ends after a line feed, after a carriage return with no line
+    feed behind it, or after the pair, as `physical_lines` cuts it. The
+    text is searched a block at a time from ``start``, so a long line is
+    read once, and no search reads more than a block past the end it
+    finds.
+    """
+    size = len(text)
+    while start < size:
+        stop = min(start + _LINES_BLOCK, size)
+        feed = text.find(_LF, start, stop)
+        back = text.find(_CR, start, stop if feed < 0 else feed)
+        if back >= 0:
+            if text[back + 1 : back + 2] == _LF:
+                return back + 2
+            return back + 1
+        if feed >= 0:
+            return feed + 1
+        start = stop
+    return -1
 
 
 def _cut_at_returns(piece: str, cut_at_a_feed: bool) -> "list[str]":
