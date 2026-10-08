@@ -10071,7 +10071,7 @@ def tail_holes_named(column, at, low_side):
     unit is a day of its own clock as `days_named` does; None elsewhere,
     where no case of this oracle's puts an absent spelling.
     """
-    member, spellings = column.get("format", ""), column.get("missing_by_source", {})
+    member, spellings = column.get("format", ""), absent_spellings_of(column)
     if column["tail_unit"] in ("month", "quarter"):
         return (at, low_side, spans_named(member, spellings))
     if column["tail_unit"] != "day" or column["datetimes_read_at"] != "local":
@@ -10843,7 +10843,7 @@ def absent_units(column):
     `days_named` does and a month or a quarter as `spans_named` does, and
     names nothing else.
     """
-    spellings = column.get("missing_by_source", {})
+    spellings = absent_spellings_of(column)
     if not spellings:
         return set()
     space = ordinal_space(column)
@@ -10856,6 +10856,22 @@ def absent_units(column):
         # its day and takes that mark (G7.5), so the pass is not asked.
         return set()
     return days_named(column.get("format", ""), spellings)
+
+
+def absent_spellings_of(column):
+    """The spellings a column of dates publishes as absent, and the days it holds no date on.
+
+    The `missing_by_source` keys, and -- method G7.10, landing R4 -- on a
+    column of dates written as counts (the system it is declared in, which
+    a case names under `_counted_member`) the days its counts read as no
+    value (`counted_hole_words`), each an absent spelling of the column to
+    every pass of G7.
+    """
+    spellings = list(column.get("missing_by_source", {}) or {})
+    member = column.get("_counted_member")
+    if member:
+        spellings += [word for word in counted_hole_words(member) if word not in spellings]
+    return spellings
 
 
 def days_named(member, spellings):
@@ -11938,6 +11954,7 @@ def weekday_hole_days(column, holes):
     names = column.get("month_name_styles") or {}
     style = next(iter(names)) if len(names) == 1 else DEFAULT_NAME_STYLE
     absent = {folded(text) for text in holes} | {folded(text) for text in column.get("_declared_days", ())}
+    absent = absent | {folded(text) for text in absent_spellings_of(column)}
     judged = {
         decision["candidate"]
         for decision in column.get("sentinel_verdicts") or []
@@ -13540,6 +13557,135 @@ def counted_cells(cells, column, member):
     return spelled
 
 
+_COUNTED_PLACEHOLDERS = (datetime.date(1900, 1, 1), datetime.date(9999, 12, 31))
+
+
+def counted_hole_words(member):
+    """G7.10's holes: the days a column counted in ``member`` holds no date on, as ISO words.
+
+    From the method's sentence: both placeholder days, and the day each
+    count the system writes for either -- by its own rule, and by plain
+    arithmetic from its first day, which differ only before March 1900
+    on Excel's 1900 system and before 1904 on its 1904 one -- names when
+    read back by the system's own rule. Excel's plain count for 1
+    January 1900 is 2, which its own rule reads as 2 January.
+    """
+    days = set(_COUNTED_PLACEHOLDERS)
+    epoch, unit, _signed, _contacts = COUNTED_SYSTEMS[member]
+    for placeholder in _COUNTED_PLACEHOLDERS:
+        counts = [_counted_value(member, placeholder.isoformat())]
+        counts += [(placeholder - epoch).days * _COUNTED_DAY / unit]
+        for count in counts:
+            if count is None or count.denominator != 1:
+                continue
+            read = counted_reading(member, f"{count.numerator}", ".", _COUNTED_DAY)
+            if read is not None:
+                days.add(datetime.date.fromisoformat(read))
+    return tuple(day.isoformat() for day in sorted(days))
+
+
+def counted_days_kept_off(ordinals, lows, highs, day, holes):
+    """G7.10's last pass: each rank on a hole day moved by whole days off it.
+
+    ``ordinals`` are instants counted from 1970 in units ``day`` of which
+    make a day (one for whole dates, 86,400 for moments in seconds), and
+    ``holes`` the hole days counted from 1970. A rank whose day is a hole
+    moves to the nearest instant a whole number of days away inside its
+    gap whose day is no hole and which no rank holds, the earlier first at
+    one distance, and where every such instant is held to the nearest one
+    whose day is no hole; where its gap holds none it stays. Ranks are
+    taken lowest first, and each move is counted before the next rank is
+    asked.
+    """
+    held = {}
+    for value in ordinals:
+        held[value] = held.get(value, 0) + 1
+    moved = list(ordinals)
+    for rank, value in enumerate(ordinals):
+        if value // day not in holes:
+            continue
+
+        def off(candidate):
+            return candidate // day not in holes
+
+        free = nearest_fitting(
+            value, lows[rank], highs[rank], lambda candidate: off(candidate) and held.get(candidate, 0) <= 0, day
+        )
+        found = free if free is not None else nearest_fitting(value, lows[rank], highs[rank], off, day)
+        if found is None:
+            continue
+        held[value] -= 1
+        held[found] = held.get(found, 0) + 1
+        moved[rank] = found
+    return moved
+
+
+def _counted_day(year, month, date):
+    """A day counted from 1970, by `datetime` alone."""
+    return (datetime.date(year, month, date) - _COUNTED_UNIX_DAY).days
+
+
+_HOLE_1900 = _counted_day(1900, 1, 1)
+_HOLE_9999 = _counted_day(9999, 12, 31)
+_EXCEL_HOLES = (_HOLE_1900, _HOLE_1900 + 1, _HOLE_9999)
+
+# THE DAYS A COLUMN OF COUNTED DATES HOLDS NO DATE ON, KEPT OFF (the second
+# review of landing R4, item 2): instants, their gaps, the length of a day
+# in their units and the hole days, the answer each rank's instant once the
+# pass has run. Each case names the rule it pins.
+COUNTED_KEEPINGS = {
+    "a_free_day_beside": (
+        [_HOLE_1900 - 2, _HOLE_1900, _HOLE_1900 + 1, _HOLE_1900 + 5],
+        [_HOLE_1900 - 2, _HOLE_1900 - 2, _HOLE_1900 - 2, _HOLE_1900 + 5],
+        [_HOLE_1900 - 2, _HOLE_1900 + 5, _HOLE_1900 + 5, _HOLE_1900 + 5],
+        1, [_HOLE_1900, _HOLE_9999],
+        "a date on 1 January 1900 moves to the free day before it, the earlier first",
+    ),
+    "the_nearest_free_day_past_held_ones": (
+        [_HOLE_1900 - 1, _HOLE_1900, _HOLE_1900 + 1, _HOLE_1900 + 3],
+        [_HOLE_1900 - 1, _HOLE_1900 - 1, _HOLE_1900 - 1, _HOLE_1900 + 3],
+        [_HOLE_1900 - 1, _HOLE_1900 + 3, _HOLE_1900 + 3, _HOLE_1900 + 3],
+        1, [_HOLE_1900, _HOLE_9999],
+        "both neighbours are held, so the free day two after is taken",
+    ),
+    "a_held_day_where_none_is_free": (
+        [_HOLE_1900 - 1, _HOLE_1900, _HOLE_1900 + 1],
+        [_HOLE_1900 - 1, _HOLE_1900 - 1, _HOLE_1900 - 1],
+        [_HOLE_1900 + 1, _HOLE_1900 + 1, _HOLE_1900 + 1],
+        1, [_HOLE_1900, _HOLE_9999],
+        "every other day of the gap is held, so the nearest held one is shared, the earlier first",
+    ),
+    "excel_two_days": (
+        [_HOLE_1900 - 1, _HOLE_1900, _HOLE_1900 + 1, _HOLE_1900 + 4],
+        [_HOLE_1900 - 1, _HOLE_1900 - 1, _HOLE_1900 - 1, _HOLE_1900 + 4],
+        [_HOLE_1900 + 4, _HOLE_1900 + 4, _HOLE_1900 + 4, _HOLE_1900 + 4],
+        1, list(_EXCEL_HOLES),
+        "Excel's 1900 system holds 1 and 2 January: a date on each moves past both",
+    ),
+    "a_moment_keeps_its_clock": (
+        [_HOLE_1900 * 86400 - 3600, _HOLE_1900 * 86400 + 45000, _HOLE_1900 * 86400 + 3 * 86400 + 100],
+        [_HOLE_1900 * 86400 - 3600, _HOLE_1900 * 86400 - 3600, _HOLE_1900 * 86400 + 3 * 86400 + 100],
+        [_HOLE_1900 * 86400 - 3600, _HOLE_1900 * 86400 + 3 * 86400 + 100, _HOLE_1900 * 86400 + 3 * 86400 + 100],
+        86400, [_HOLE_1900, _HOLE_9999],
+        "a moment at 12:30 on 1 January 1900 moves a whole day, to 12:30 on 2 January",
+    ),
+    "a_gap_inside_the_day_stays": (
+        [_HOLE_1900 * 86400 + 100, _HOLE_1900 * 86400 + 150, _HOLE_1900 * 86400 + 200],
+        [_HOLE_1900 * 86400 + 100, _HOLE_1900 * 86400 + 100, _HOLE_1900 * 86400 + 200],
+        [_HOLE_1900 * 86400 + 100, _HOLE_1900 * 86400 + 200, _HOLE_1900 * 86400 + 200],
+        86400, [_HOLE_1900, _HOLE_9999],
+        "a gap holding no instant a whole day away leaves the rank where it is",
+    ),
+    "the_last_day": (
+        [_HOLE_9999 - 3, _HOLE_9999 - 1, _HOLE_9999],
+        [_HOLE_9999 - 3, _HOLE_9999 - 3, _HOLE_9999 - 3],
+        [_HOLE_9999, _HOLE_9999, _HOLE_9999],
+        1, [_HOLE_1900, _HOLE_9999],
+        "a date on 31 December 9999 moves to the nearest free day before it",
+    ),
+}
+
+
 # THE CONTACT NUMBERS, DEALT (the review of landing R4, item 8): a census
 # and a count of dated cells, the answer the word each cell writes in the
 # order the cells stand, each word spaced evenly over them. Dealt down the
@@ -13579,13 +13725,24 @@ def counted_case_document():
             "census": census, "dated": dated, "why": why,
             "answer": counted_contacts(census, dated),
         }
+    keepings = {}
+    for name in sorted(COUNTED_KEEPINGS):
+        ordinals, lows, highs, day, holes, why = COUNTED_KEEPINGS[name]
+        keepings[name] = {
+            "ordinals": ordinals, "lows": lows, "highs": highs, "day": day, "holes": holes, "why": why,
+            "answer": counted_days_kept_off(ordinals, lows, highs, day, set(holes)),
+        }
+    holes = {member: list(counted_hole_words(member)) for member in sorted(COUNTED_SYSTEMS)}
     return {
         "what": "Method section G7.10's two halves (landing R4, plan P4-D384), each case with "
         "its answer computed from the method's text with datetime and Fraction: a count read "
         "as the moment its system names, written as ISO text at a unit, and a moment written "
-        "back as its system's count, spelled as a `count_form` says; and the contact numbers "
-        "a census deals over the dated cells of an Epic column.",
+        "back as its system's count, spelled as a `count_form` says; the contact numbers "
+        "a census deals over the dated cells of an Epic column; the days each system's "
+        "column holds no date on; and the twin's ranks kept off them.",
         "dealings": dealings,
+        "holes": holes,
+        "keepings": keepings,
         "generated_by": "tools/reference/make_generation_reference_vectors.py",
         "method": "docs/spec/generation-method-v1.md",
         "never_imports": ["synthtwin", "numpy", "pandas"],

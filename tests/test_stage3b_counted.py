@@ -145,12 +145,22 @@ def _wrong() -> "list[str]":
     for name, case in sorted(_FILE["dealings"].items()):
         if generation._contacts_dealt(case["census"], case["dated"]) != case["answer"]:
             wrong += [f"dealing {name}"]
+    for member, words in sorted(_FILE["holes"].items()):
+        if list(date_counts.hole_words(member)) != words:
+            wrong += [f"holes {member}"]
+    for name, case in sorted(_FILE["keepings"].items()):
+        kept = generation._kept_off_placeholder_days(
+            case["ordinals"], case["lows"], case["highs"], case["day"], frozenset(case["holes"])
+        )
+        if kept != case["answer"]:
+            wrong += [f"keeping {name}"]
     return wrong
 
 
 def test_c1_every_case_of_the_twenty_sixth_file_is_the_products() -> None:
     assert len(_FILE["readings"]) >= 14 and len(_FILE["spellings"]) >= 17
     assert len(_FILE["dealings"]) >= 4
+    assert sorted(_FILE["holes"]) == sorted(date_counts.MEMBERS) and len(_FILE["keepings"]) >= 7
     assert _wrong() == []
 
 
@@ -205,6 +215,23 @@ def _dealt_down_the_rows(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(generation, "_contacts_dealt", in_rank_order)
 
 
+def _held_ignored(monkeypatch: pytest.MonkeyPatch) -> None:
+    """G7.10's last pass taking the nearest day off the holes whether or not a rank holds it."""
+    original = generation._nearest_day_off
+
+    def any_day(
+        value: int, low: int, high: int, day: int, holes: "frozenset[int]", held: "dict[int, int]", free: bool
+    ) -> "int | None":
+        return original(value, low, high, day, holes, held, False)
+
+    monkeypatch.setattr(generation, "_nearest_day_off", any_day)
+
+
+def _excel_two_ignored(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The holes of a column of counted dates the two placeholder days alone, as on every system but Excel's."""
+    monkeypatch.setattr(date_counts, "hole_words", lambda member: ("1900-01-01", "9999-12-31"))
+
+
 def _repr_never(monkeypatch: pytest.MonkeyPatch) -> None:
     """Seventeen figures written by `%.17g` and a whole count with no `.0`, as `repr` never writes them."""
     monkeypatch.setattr(date_counts, "_REPR_WHOLE_BELOW", 0)
@@ -223,6 +250,7 @@ def _repr_never(monkeypatch: pytest.MonkeyPatch) -> None:
     (
         _float_arithmetic, _epoch_1970_for_1960, _halves_up, _not_trimmed,
         _no_leap_day, _exact_where_binary64, _dealt_down_the_rows, _repr_never,
+        _held_ignored, _excel_two_ignored,
     ),
     ids=lambda mutant: mutant.__name__.strip("_"),
 )
@@ -1037,6 +1065,143 @@ def test_c5_contact_numbers_none_of_which_reaches_the_line_publish_no_census(tmp
                 assert form["contacts"] == {"(none)": 973, "01": 27}
             else:
                 assert form["contacts"] is None, (name, form)
+
+
+# How each system the next clause writes counts days, read with `datetime`.
+_SPANS = {
+    "days-since-1960": (datetime.date(1960, 1, 1), 1),
+    "seconds-since-1970": (datetime.date(1970, 1, 1), 86400),
+    "seconds-since-1960": (datetime.date(1960, 1, 1), 86400),
+}
+
+
+def _day_written(system: str, cell: str) -> datetime.date:
+    """The day a cell of the next clause names, read the way its owner reads it."""
+    if system == "excel-1900":
+        serial = int(cell)
+        first = datetime.date(1899, 12, 31) if serial < 61 else datetime.date(1899, 12, 30)
+        return first + datetime.timedelta(days=serial)
+    first, per_day = _SPANS[system]
+    return first + datetime.timedelta(days=int(cell) // per_day)
+
+
+def _counted_from(system: str, moment: datetime.datetime) -> str:
+    """A moment written as ``system`` writes it, a whole count."""
+    if system == "excel-1900":
+        first = datetime.datetime(1899, 12, 31) if moment < datetime.datetime(1900, 3, 1) else datetime.datetime(1899, 12, 30)
+        return f"{(moment - first).days}"
+    epoch, per_day = _SPANS[system]
+    seconds = (moment - datetime.datetime.combine(epoch, datetime.time())).total_seconds()
+    return f"{int(seconds) // (86400 // per_day)}"
+
+
+def test_c5_a_counted_column_crossing_1_january_1900_twins_no_date_on_it(tmp_path: pathlib.Path) -> None:
+    """The second review of landing R4, item 2: the days a counted column reads as no value are holes.
+
+    Every count naming 1 January 1900 or 31 December 9999 is no value, and
+    so is Excel's serial 2, the count pandas writes for 1 January 1900 --
+    which the 1900 system reads as 2 January. The build published no hole
+    there, so the twin drew those days and read them back as no value:
+    births of 1890 to 1935 as SAS days or Unix seconds at midnight, and of
+    1900 to 1935 as Excel serials, at 10,000 rows, missed `n_present` on
+    1, 2 and 3 seeds of 3; and every twin of dates or moments packed
+    around the day, at 1,000 rows, drew it. Each such day is now a hole of
+    the column (`date_counts.hole_words`): the source's real dates there
+    are no value, the twin writes none, and both files are at exit 0 on
+    seeds 0 to 2.
+    """
+    draw = random.Random(1900)
+    births = {
+        "sas_days": ("days-since-1960", datetime.date(1890, 1, 1), 16437),
+        "unix_s": ("seconds-since-1970", datetime.date(1890, 1, 1), 16437),
+        "xl": ("excel-1900", datetime.date(1900, 1, 1), 12784),
+    }
+    packed = {
+        "sas_days_packed": ("days-since-1960", datetime.date(1899, 7, 1), 366),
+        "sas_secs_packed": ("seconds-since-1960", datetime.date(1899, 7, 1), 366),
+        "xl_packed": ("excel-1900", datetime.date(1900, 1, 1), 365),
+    }
+    for rows, spans in ((10000, births), (1000, packed)):
+        columns: "dict[str, list[str]]" = {}
+        members: "dict[str, str]" = {}
+        for name, (system, first, days) in spans.items():
+            cells: "list[str]" = []
+            for _row in range(rows):
+                moment = datetime.datetime.combine(first, datetime.time()) + datetime.timedelta(days=draw.randrange(days))
+                if name == "sas_secs_packed":
+                    moment = moment + datetime.timedelta(seconds=draw.randrange(86400))
+                cells += [_counted_from(system, moment)]
+            columns[name] = cells
+            members[name] = system
+        folder = tmp_path / f"rows-{rows}"
+        path = _table_of(folder, columns)
+        argv = ["profile", str(path), "--out-dir", str(folder), "--replace"]
+        for name in sorted(members):
+            argv += ["--date-count", name, members[name]]
+        code, said = _exit_of(argv)
+        assert code == 0, said[-600:]
+        described = folder / "table-profile.json"
+        blocks = {block["name"]: block for block in json.loads(described.read_text(encoding="utf-8"))["columns"]}
+        holes: "dict[str, set[datetime.date]]" = {}
+        for name, system in members.items():
+            # Both placeholder days, and on Excel's 1900 system 2 January,
+            # its serial 2 being the count pandas writes for 1 January.
+            holes[name] = {datetime.date(1900, 1, 1), datetime.date(9999, 12, 31)}
+            if system == "excel-1900":
+                holes[name] = holes[name] | {datetime.date(1900, 1, 2)}
+            on_holes = sum(_day_written(system, cell) in holes[name] for cell in columns[name])
+            assert blocks[name]["role"] == "datetime" and blocks[name]["n_present"] == rows - on_holes, name
+        for seed in (0, 1, 2):
+            code, said = _exit_of(["generate", str(described), "--seed", f"{seed}", "--out-dir", str(folder), "--replace"])
+            assert code == 0, said[-600:]
+            twin = list(csv.reader(io.StringIO((folder / "table-twin.csv").read_text(encoding="utf-8"))))
+            header = twin[0]
+            for name, system in members.items():
+                at = header.index(name)
+                on = [row[at] for row in twin[1:] if row and row[at] and _day_written(system, row[at]) in holes[name]]
+                assert on == [], (rows, seed, name, on[:3])
+            out = folder / f"check-twin-{seed}"
+            out.mkdir()
+            assert _exit_of([
+                "validate", str(described), "--twin", str(folder / "table-twin.csv"), "--out-dir", str(out), "--replace",
+            ])[0] == 0, (rows, seed)
+        out = folder / "check-source"
+        out.mkdir()
+        assert _exit_of(["validate", str(described), "--twin", str(path), "--out-dir", str(out), "--replace"])[0] == 0
+    for system in ("excel-1900", "days-since-1960", "seconds-since-1970", "days-since-1840"):
+        wanted = ["1900-01-01", "1900-01-02", "9999-12-31"] if system == "excel-1900" else ["1900-01-01", "9999-12-31"]
+        assert list(date_counts.hole_words(system)) == wanted, system
+
+
+def test_c5_a_count_written_as_a_numeric_stand_in_is_the_date_it_names_on_both_sides(tmp_path: pathlib.Path) -> None:
+    """A real date whose count is `-999`, `9999` or `-9999` stays a date when the source is checked.
+
+    Found repairing the second review of landing R4, item 2. Under a
+    declaration a count is read as the date it names before any
+    judgement, so SAS day -999 (7 April 1957) and Excel serial 9999 (17
+    May 1927) are dates, never stand-ins for "no value". The checker's
+    recount asked them as stand-ins nothing publishes a verdict on, and
+    where the counted reading had set any cell aside -- a count naming
+    1 January 1900, which no published verdict accounts for either --
+    it dropped them, and the source missed its own weekday census.
+    """
+    draw = random.Random(999)
+    columns: "dict[str, list[str]]" = {"sas": [], "xl": []}
+    for row in range(1000):
+        sas = (datetime.date(1925, 1, 1) + datetime.timedelta(days=draw.randrange(25000)) - datetime.date(1960, 1, 1)).days
+        xl = (datetime.date(1905, 1, 1) + datetime.timedelta(days=draw.randrange(25000)) - datetime.date(1899, 12, 30)).days
+        columns["sas"] += [f"{(-999, 9999, -9999)[row % 3] if row < 9 else sas}"]
+        columns["xl"] += [f"{9999 if row < 3 else xl}"]
+    # ...and one count each column sets aside: 1 January 1900.
+    columns["sas"][500] = "-21914"
+    columns["xl"][500] = "1"
+    came = _trip_of(tmp_path, columns, {"sas": "days-since-1960", "xl": "excel-1900"})
+    assert came["profile"] == 0, came["said"]
+    blocks = came["blocks"]
+    assert isinstance(blocks, dict)
+    for name in ("sas", "xl"):
+        assert blocks[name]["role"] == "datetime" and blocks[name]["n_present"] == 999, name
+    assert (came["generate"], came["twin"], came["source"]) == (0, 0, 0), came
 
 
 def test_c5_a_table_of_one_counted_column_is_counted_in_rows(tmp_path: pathlib.Path) -> None:

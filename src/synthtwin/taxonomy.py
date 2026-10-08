@@ -16398,6 +16398,12 @@ def published_absent(
     declaration of missing values named (`built_in_values_named`), which
     the settings block publishes as `built_in_dates`. Nothing the person
     typed that no key publishes (review of landing 3b.1, finding 6).
+    -- 3b.R4 (P4-D384): AND, ON A COLUMN OF DATES WRITTEN AS COUNTS, the
+    days its counted reading holds no date on (`date_counts.hole_words`):
+    every count naming one is no value, whatever the description
+    publishes, so a reader holds those days empty too (the second review
+    of landing R4, item 2). The validator and the generator add the same
+    words from the settings the description publishes.
 
     Guarantees: accepts a column block and the run's settings; returns
     the spellings sorted and each once. Determinism: a function of the
@@ -16410,6 +16416,8 @@ def published_absent(
             found = found | {str(key) for key in keys}
     _texts, _numbers, days = built_in_values_named(settings.declared_missing_values)
     found = found | set(days)
+    if counted_member(settings):
+        found = found | set(date_counts.hole_words(counted_member(settings)))
     return tuple(sorted(found))
 
 

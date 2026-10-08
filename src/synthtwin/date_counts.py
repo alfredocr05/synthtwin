@@ -1482,6 +1482,40 @@ def placeholder_day_named(moment: int, unit: int) -> str:
     return ""
 
 
+def hole_words(member: str) -> "tuple[str, ...]":
+    """The days a column counted in ``member`` holds no date on, as ISO words (method G7.10).
+
+    THE DAYS A TWIN DATE WOULD READ BACK AS NO VALUE (the second review of
+    landing R4, item 2): both placeholder days, since every count naming
+    either at any time of day is set aside (`placeholder_day_named`), and
+    the day each of the member's set-aside numbers (`declared_aside`)
+    names by its own rule -- which adds a day only on Excel's 1900 system,
+    whose serial 2, the count pandas writes for 1 January 1900, Excel
+    reads as 2 January. So a real date on one of them in the source is no
+    value, and the twin draws none: the producer, the generator and the
+    validator each hold these days as the column's absent spellings
+    (`calendar_rules.public_holes`), and the twin's ranks keep off them.
+    A twin of Excel birth dates from 1900 drew serial 1 on 3 seeds of 3,
+    and one of SAS days from 1890 day -21914 on 1 of 3, each read back as
+    no value, so each missed its own count of present cells.
+
+    Guarantees: a function of the word, the days rising. Raises KeyError
+    for a word outside `MEMBERS`. No I/O of any kind.
+    """
+    days: "dict[int, int]" = {}
+    for day in PLACEHOLDER_DAYS:
+        days[day] = 1
+    for number in declared_aside(member):
+        moment = moment_of(member, number, 1, DAY)
+        if moment is not None:
+            days[moment] = 1
+    words: "list[str]" = []
+    for day in sorted(days):
+        year, month, date = parsing.civil_from_days(day)
+        words += [_word_of_day(year, month, date)]
+    return tuple(words)
+
+
 # -------------------------------------------- question Q3, the bands
 
 # THE NARROW BAND (rule A): a column whose counts all name a moment from

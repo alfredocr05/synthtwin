@@ -7660,12 +7660,16 @@ def _obligations(
     own_settings = settings_for(description)
     split_settings = settings_over_the_split(description)
     comma = column.name in description.settings.forced_decimal_commas
+    # -- 3b.R4 (P4-D384): a column of counted dates decides its holes by its
+    # counted reading (`_holes_by_the_description`).
+    counted = _counted_set_aside(description, column, cells)
     own_cells = _cells_read_as_declared(description, column, _cells_that_description_reads(
         block,
         cells,
         own_settings.kept_values,
         own_settings.declared_missing_values,
         comma,
+        counted,
     ))
     split_cells = _cells_read_as_declared(description, column, _cells_that_description_reads(
         split,
@@ -7673,6 +7677,7 @@ def _obligations(
         split_settings.kept_values,
         split_settings.declared_missing_values,
         comma,
+        counted,
     ))
     # ...AND, ON A CLOCK OR A SLASHED STAMP, LESS WHAT ITS CLOCK LEFT UNREAD
     # (the T1 review's items 1 and 2), each side under its own settings.
@@ -7688,6 +7693,12 @@ def _obligations(
     )
     writable = not subsecond_figures_unwritable(description, column)
     declared = description.settings.declared_missing_values.built_in_dates
+    # -- 3b.R4 (P4-D384): AND THE DAYS A COLUMN OF COUNTED DATES HOLDS NO DATE
+    # ON (`date_counts.hole_words`), which the producer held as holes too.
+    if isinstance(column.facts, contract.DatetimeFacts) and column.facts.count_form is not None:
+        for named, system in description.settings.forced_date_counts:
+            if named == column.name:
+                declared = tuple(sorted(set(declared) | set(date_counts.hole_words(system))))
     gated = gated + _role_checks(
         column, block, own_cells, floor, mine, pairs, writable, system,
         declared,
@@ -7709,12 +7720,48 @@ def _obligations(
     return checks + _governed(gated, measured, split_published)
 
 
+def _counted_set_aside(
+    description: contract.Profile, column: contract.ColumnBlock, cells: "list[str]"
+) -> "tuple[int, ...]":
+    """What a column of counted dates' reading makes of each cell (landing R4).
+
+    One mark per cell: 1 where the cell is a count of the column's system
+    that the counted reading sets aside -- naming no date, a placeholder
+    day or one of the system's set-aside numbers -- 0 where it reads it as
+    the date it names, and -1 where it is no count at all; empty on every
+    other column. Read by the reading the generator and the validator
+    share (`contract.counts_read_back`), at the unit the description
+    published, so `_holes_by_the_description` asks no reader of its own.
+    """
+    facts = column.facts
+    if not isinstance(facts, contract.DatetimeFacts) or facts.count_form is None:
+        return ()
+    member = ""
+    for name, system in description.settings.forced_date_counts:
+        if name == column.name:
+            member = system
+    if not member:
+        return ()
+    read = contract.counts_read_back(member, facts, (), cells)
+    marks: "list[int]" = []
+    for place in range(len(cells)):
+        cell = cells[place]
+        if read[place] != cell:
+            marks += [0]
+        elif cell and date_counts.counted(member, cell, facts.count_form.mark) is not None:
+            marks += [1]
+        else:
+            marks += [-1]
+    return tuple(marks)
+
+
 def _cells_that_description_reads(
     block: "dict[str, object]",
     cells: "list[str]",
     kept: "tuple[str, ...]",
     declared: "tuple[str, ...]",
     decimal_comma: bool = False,
+    counted: "tuple[int, ...]" = (),
 ) -> "list[str]":
     """The cells the file's OWN description counts as values, plus its blanks.
 
@@ -7832,7 +7879,7 @@ def _cells_that_description_reads(
     - Errors raised: none.
     """
     holes = _holes_by_the_description(
-        block, cells, kept, declared, decimal_comma
+        block, cells, kept, declared, decimal_comma, counted
     )
     read: list[str] = []
     for index, cell in enumerate(cells):
@@ -7847,12 +7894,27 @@ def _holes_by_the_description(
     kept: "tuple[str, ...]",
     declared: "tuple[str, ...]",
     decimal_comma: bool = False,
+    counted: "tuple[int, ...]" = (),
 ) -> "list[bool]":
     """Which cells the file's own description reads as non-blank holes.
 
     The two certainties and the one budget `_cells_that_description_reads`
     describes, in that order. Split out so the rule can be read on its
     own and tested on its own.
+
+    -- 3b.R4 (P4-D384): A COLUMN OF COUNTED DATES (``counted``: one mark
+    per cell, `_counted_set_aside`) READS EVERY CELL THAT IS A COUNT OF ITS
+    SYSTEM BY THE COUNTED READING, after the person's own declarations and
+    the built-in missing spellings and before any judgement, as the
+    producer does: a count it sets aside -- one naming no date, a
+    placeholder day or one of the system's set-aside numbers -- is a
+    certain hole, and every other count is a date, never a numeric
+    stand-in or a placeholder candidate.
+    Asked as stand-ins, a real Excel serial 9999 (17 May 1927) or SAS day
+    -999 (7 April 1957) went unsettled beside the counted reading's own
+    holes, which no published verdict accounts for, and was dropped from
+    the recount: the source missed its own weekday census (found while
+    repairing the second review of landing R4, item 2).
 
     EVERY NUMBER HERE IS AN EXACT ONE, and the two names that make it so
     are the producer's own: `taxonomy.exact_of_spelling` for a cell or a
@@ -7936,10 +7998,14 @@ def _holes_by_the_description(
     may_settle = _unread_cells(block, cells) > 0
     certain: list[bool] = []
     unsettled: list[bool] = []
-    for cell in cells:
+    for place in range(len(cells)):
+        cell = cells[place]
         body = parsing.trimmed(cell)
         is_hole = False
         undecided = False
+        # THE COUNTED READING'S OWN ANSWER for a count of the column's
+        # system, -1 where the cell is no such count.
+        counted_aside = counted[place] if counted else -1
         if body:
             exact = taxonomy.exact_of_spelling(
                 parsing.written_with_a_decimal_comma(cell)
@@ -7976,6 +8042,10 @@ def _holes_by_the_description(
                 # and the built-in table second, exactly as
                 # `_split_missing` asks them.
                 is_hole = True
+            elif counted_aside >= 0:
+                # -- 3b.R4 (P4-D384): a count of a column of counted dates is
+                # a hole exactly where the counted reading sets it aside.
+                is_hole = counted_aside == 1
             elif stand_in is not None:
                 is_hole = _named(missing_candidates, stand_in)
                 undecided = not is_hole

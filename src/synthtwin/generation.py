@@ -798,6 +798,10 @@ class _ColumnPlan:
     # the day pass keeps every rank off them (review of landing 3b.1,
     # item 4; `calendar_rules.public_holes`).
     declared_days: "tuple[str, ...]" = ()
+    # -- 3b.R4 (P4-D384): THE DAYS A COLUMN OF COUNTED DATES HOLDS NO DATE ON
+    # (`date_counts.hole_words`), as ISO words: an absent spelling of this
+    # column to every pass of G7, and no rank stands on one (G7.10).
+    counted_holes: "tuple[str, ...]" = ()
 
 
 @dataclasses.dataclass(frozen=True)
@@ -9660,6 +9664,115 @@ def _counted_member(
         if name == column.name:
             return member
     return ""
+
+
+def _counted_holes(column: contract.ColumnBlock, profile: contract.Profile) -> "tuple[str, ...]":
+    """The days a column of dates written as counts holds no date on, as ISO words (method G7.10).
+
+    THE TWIN DRAWS NONE OF THEM (the second review of landing R4, item 2).
+    Such a column reads every count naming 1 January 1900 or 31 December
+    9999, and every one of its system's set-aside numbers, as no value
+    (`date_counts.hole_words`: both placeholder days, and on Excel's 1900
+    system 2 January too, its serial 2), so a twin date on one read back
+    as no value and the twin missed its own count of present cells -- 3
+    seeds of 3 on Excel birth dates from 1900, 1 of 3 on SAS days and 2 of
+    6 on SAS moments from 1890. Each day is an absent spelling of this
+    column to every pass of G7 (`_all_holes_of`): on a column of whole
+    dates the count pass offers none of them (`_count_holes`), a tail's
+    end and group step off one (`_hole_units`), the weekday pass holds
+    each a hole, and a cell written on one moves to a neighbouring day;
+    and on every column of counted dates, after every pass,
+    `_kept_off_placeholder_days` moves a rank left on one by whole days.
+    Nothing on any other column.
+    """
+    member = _counted_member(column, profile)
+    if not member:
+        return ()
+    return date_counts.hole_words(member)
+
+
+def _hole_days(words: "tuple[str, ...]") -> "frozenset[int]":
+    """ISO day words as whole days from 1970."""
+    found: "dict[int, int]" = {}
+    for word in words:
+        found[parsing.days_from_civil(int(word[0:4]), int(word[5:7]), int(word[8:10]))] = 1
+    return frozenset(found)
+
+
+def _kept_off_placeholder_days(
+    ordinals: "list[int]",
+    lows: "list[int]",
+    highs: "list[int]",
+    day: int,
+    holes: "frozenset[int]",
+) -> "list[int]":
+    """Every rank standing on a day of ``holes``, moved by whole days off it (method G7.10).
+
+    ``ordinals`` are the ranks' instants in the column's own space and
+    ``day`` how many of its units a day holds -- one for whole dates,
+    86,400 for moments in seconds -- so an instant's day is
+    `ordinal // day`, counted from 1970 as ``holes`` are (the days a
+    column of counted dates holds no date on, `date_counts.hole_words`).
+    A rank on one moves to the nearest instant a whole number of days
+    away inside its own gap (``lows`` to ``highs``) whose day is none of
+    them and which no rank holds, the earlier first at one distance --
+    its clock kept, so no hour, minute or second moves -- and, where every
+    such instant is held, to the nearest one whose day is none of them;
+    where its gap holds none it stays. A rank the layout pins has a gap
+    of its own instant alone, and the twin's pinned instants are the
+    source's own values, which a column of counted dates never holds on
+    one of those days. Asked after every other pass of G7, last before
+    the cells are spelled.
+
+    Guarantees: accepts one instant and its gap per rank, the day's
+    length and the days; returns as many instants, each inside its gap.
+    Determinism: a function of the five; draws no word. Raises nothing.
+    No I/O of any kind.
+    """
+    held: "dict[int, int]" = {}
+    for value in ordinals:
+        held[value] = (held[value] if value in held else 0) + 1
+    moved = [value for value in ordinals]
+    for rank in range(len(moved)):
+        value = moved[rank]
+        if value // day not in holes:
+            continue
+        found = _nearest_day_off(value, lows[rank], highs[rank], day, holes, held, True)
+        if found is None:
+            found = _nearest_day_off(value, lows[rank], highs[rank], day, holes, held, False)
+        if found is None:
+            continue
+        held[value] = held[value] - 1
+        held[found] = (held[found] if found in held else 0) + 1
+        moved[rank] = found
+    return moved
+
+
+def _nearest_day_off(
+    value: int,
+    low: int,
+    high: int,
+    day: int,
+    holes: "frozenset[int]",
+    held: "dict[int, int]",
+    free: bool,
+) -> "int | None":
+    """The nearest instant whole days from ``value`` inside [low, high] on no day of ``holes``, held by no rank where ``free``."""
+    away = 1
+    while True:
+        earlier = value - away * day
+        later = value + away * day
+        if earlier < low and later > high:
+            return None
+        for candidate in (earlier, later):
+            if candidate < low or candidate > high:
+                continue
+            if candidate // day in holes:
+                continue
+            if free and candidate in held and held[candidate] > 0:
+                continue
+            return candidate
+        away = away + 1
 
 
 def _spelled_as_counts(
@@ -18799,7 +18912,9 @@ def _tail_step(facts: contract.DatetimeFacts) -> "tuple[int, int]":
 
 
 def _hole_units(
-    column: contract.ColumnBlock, facts: contract.DatetimeFacts
+    column: contract.ColumnBlock,
+    facts: contract.DatetimeFacts,
+    counted_holes: "tuple[str, ...]" = (),
 ) -> "dict[int, bool]":
     """Every tail unit one of this column's own absent spellings names.
 
@@ -18808,10 +18923,14 @@ def _hole_units(
     a moment's own tail unit -- and one it cannot read names none and
     hides none after it; a derived end or group standing on that unit
     would be written as a cell the twin's description reads as absent, so
-    it steps inward off it (G7.3b step 7).
+    it steps inward off it (G7.3b step 7). ``counted_holes`` are the days
+    a column of dates written as counts holds no date on, read the same
+    way (`_counted_holes`, G7.10).
     """
     found: "dict[int, bool]" = {}
-    for spelling in _hole_spellings(column):
+    # -- 3b.R4 (P4-D384): and the days a column of counted dates holds no
+    # date on (G7.10).
+    for spelling in _hole_spellings(column) + counted_holes:
         read = parsing.parse_datetime(spelling, facts.parser_family)
         if read is None:
             continue
@@ -18966,6 +19085,7 @@ def _date_tail_plan(
     floor: int,
     edges: "tuple[int, int]",
     apart: bool = False,
+    counted_holes: "tuple[str, ...]" = (),
 ) -> "_TailPlan":
     """One side of a column of dates, laid out (method G7.3b, G7.3c).
 
@@ -19024,7 +19144,7 @@ def _date_tail_plan(
     mean = 1.0 if side.mean_distance is None else side.mean_distance
     root = mean if side.rms_distance is None else side.rms_distance
     shape = _tail_shape(rows, mean, root, floor, edge, apart, True)
-    holes = _hole_units(column, facts)
+    holes = _hole_units(column, facts, counted_holes)
     end = _off_the_holes(shape.end, at, low_side, holes)
     group = shape.group
     if shape.grouped < rows:
@@ -19087,8 +19207,13 @@ def _date_layout(
     parsed: int,
     floor: int,
     date_system: str = "",
+    counted_holes: "tuple[str, ...]" = (),
 ) -> "_DateLayout":
     """Every rank's pin and gap in a column of dates (method G7.3).
+
+    ``counted_holes`` are the days a column of dates written as counts
+    holds no date on, which each tail's end and group step off as off an
+    absent spelling (`_counted_holes`, G7.10).
 
     WITH TAILS: the two boundary ranks are pinned at the two boundaries,
     each published rung between them at its own value, and each tail laid
@@ -19129,9 +19254,11 @@ def _date_layout(
         # the clock role reads it (`_clock_layout`): the cells that
         # parsed are as many as the spellings that are not stand-ins.
         apart = column.n_distinct - facts.n_unparsed >= parsed
-        low = _date_tail_plan(column, facts, low_facts, True, floor, edges, apart)
+        low = _date_tail_plan(
+            column, facts, low_facts, True, floor, edges, apart, counted_holes
+        )
         high = _date_tail_plan(
-            column, facts, high_facts, False, floor, edges, apart
+            column, facts, high_facts, False, floor, edges, apart, counted_holes
         )
         pins[low_rank] = low.boundary
         texts[low_rank] = low_facts.boundary
@@ -21607,7 +21734,8 @@ def _datetime_content(
     parsed = column.n_present - facts.n_unparsed
     space = _ordinal_space(facts)
     layout = _date_layout(
-        column, facts, parsed, plan.small_cell_floor, plan.date_system
+        column, facts, parsed, plan.small_cell_floor, plan.date_system,
+        plan.counted_holes,
     )
     whole = _form_allocation(facts, layout)
     # EVERY RANK'S INSTANT FIRST, then the offsets, the marks and the
@@ -21655,7 +21783,9 @@ def _datetime_content(
     )
     # The spellings ANY column publishes among its absent cells, so that
     # no cell this run writes wears one (review item P4-DATE-F2), and no
-    # count pass offers a rank the unit one names (plan P4-D358).
+    # count pass offers a rank the unit one names (plan P4-D358). -- 3b.R4
+    # (P4-D384): and on a column of counted dates both placeholder days
+    # (G7.10).
     holes = _all_holes_of(plan)
     ordinals = _units_settled(
         column, facts, ordinals, parsed, whole, gap_lows, gap_highs,
@@ -21688,6 +21818,14 @@ def _datetime_content(
         column, facts, ordinals, parsed, whole, gap_lows, gap_highs, layout,
         holes, plan.declared_days,
     )
+    # -- 3b.R4 (P4-D384): NO RANK OF A COLUMN OF COUNTED DATES STANDS ON A
+    # PLACEHOLDER DAY, which it would read back as no value (G7.10), after
+    # every other pass: a column of moments moves such a rank by whole days.
+    if plan.counted_holes and space in ("date", "datetime"):
+        ordinals = _kept_off_placeholder_days(
+            ordinals, gap_lows, gap_highs, 1 if space == "date" else 86400,
+            _hole_days(plan.counted_holes),
+        )
     # HOW EVERY RANK IS SPELLED (landing 2b.6, the reversal of owner
     # decision 5). Allocated after the instants and the offsets, because
     # which conventions a cell can show depends on the day it writes and
@@ -22276,6 +22414,11 @@ def _all_holes_of(plan: "_ColumnPlan") -> "tuple[str, ...]":
     found: list[str] = []
     for spelling in _hole_spellings(plan.column):
         found += [spelling]
+    # -- 3b.R4 (P4-D384): and the days a column of counted dates holds no
+    # date on, which are this column's own and no other's (G7.10).
+    for spelling in plan.counted_holes:
+        if spelling not in found:
+            found += [spelling]
     for spelling in plan.all_holes:
         if spelling not in found:
             found += [spelling]
@@ -40221,6 +40364,7 @@ def plan_generation(profile: contract.Profile) -> GenerationPlan:
             _truth_cells(profile, place),
             _date_system_of(profile, place),
             profile.settings.declared_missing_values.built_in_dates,
+            _counted_holes(column, profile),
         )
         plans += [plan]
         words = words + plan.content_words + plan.placement_words
@@ -40327,8 +40471,13 @@ def _plan_column(
     truths: int = 0,
     date_system: str = "",
     declared_days: "tuple[str, ...]" = (),
+    counted_holes: "tuple[str, ...]" = (),
 ) -> "_ColumnPlan":
-    """One column's plan: its word budget, its layout, its refusals."""
+    """One column's plan: its word budget, its layout, its refusals.
+
+    ``counted_holes`` are the days a column of dates written as counts
+    holds no date on (`date_counts.hole_words`; method G7.10).
+    """
     facts = column.facts
     placement = max(n_rows - 1, 0)
     layout: _NumericLayout | None = None
@@ -40456,6 +40605,7 @@ def _plan_column(
         carriers=carriers,
         date_system=date_system,
         declared_days=declared_days,
+        counted_holes=counted_holes,
     )
 
 
@@ -45082,8 +45232,12 @@ def _datetime_approximations(
     holes: "tuple[str, ...]",
     floor: int,
     date_system: str = "",
+    counted_holes: "tuple[str, ...]" = (),
 ) -> "list[Approximation]":
     """The approximated families of a column of dates (G12.4, G12.5, G12.14).
+
+    ``counted_holes`` are the plan's (`_counted_holes`), so the layout the
+    windows are read from is the one the twin was drawn on.
 
     A WITHHELD RUNG IS NOT MEASURED AND NOT PRINTED (stage 3; the skeptic
     of the tail design, B9): the rank it would be read from is one of a
@@ -45103,7 +45257,8 @@ def _datetime_approximations(
     held = len(ordinals)
     space = _ordinal_space(facts)
     layout = _date_layout(
-        column, facts, column.n_present - facts.n_unparsed, floor, date_system
+        column, facts, column.n_present - facts.n_unparsed, floor, date_system,
+        counted_holes,
     )
     mark = _commonest_mark(facts)
     lows, highs = _datetime_window(layout, facts, held)
@@ -45787,7 +45942,7 @@ def _approximations(
     if isinstance(facts, contract.DatetimeFacts):
         return _datetime_approximations(
             column, facts, written, _all_holes_of(plan),
-            plan.small_cell_floor, plan.date_system,
+            plan.small_cell_floor, plan.date_system, plan.counted_holes,
         )
     if isinstance(facts, contract.TextFacts):
         return _text_approximations(column, facts, written, plan.carriers)
