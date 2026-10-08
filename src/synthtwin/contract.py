@@ -1462,17 +1462,6 @@ INVARIANTS = {
         "the labels held back cover at least one row each and fewer "
         "rows than the smallest group size"
     ),
-    "B4b": (
-        "the labels held back never come to one label on one row, "
-        "because that pool is a count of one a reader works out by "
-        "subtraction"
-    ),
-    "B4c": (
-        "no total saying what the column's cells read as, less the "
-        "published labels that read that way, leaves exactly one row, "
-        "because that row is a held-back label of one -- and a total no "
-        "published label reads into is read the same way"
-    ),
     "B4d": (
         "the scale published for the held-back numbers is taken over a "
         "group: the cells it speaks of are nought, or they and the "
@@ -7842,9 +7831,9 @@ def _levels(
 
     Raises ProfileError for a wrong type or an out-of-range count, and
     for B1 to B7 and W2 to W7 -- B4 over the pooled total alone since the
-    owner's ruling of 2026-09-17 (plan P4-D201), and B4b over the pool a
-    reader takes by subtraction since item 5 of the same ruling (plan
-    P4-D231). B8 is a permission rather than a rule: an
+    owner's ruling of 2026-09-17 (plan P4-D201); B4b and B4c, which
+    refused a pool a reader takes a count of one off by subtraction, are
+    retired (plan P4-D390). B8 is a permission rather than a rule: an
     empty list of labels is a column every one of whose labels fell
     below the floor, and it is valid.
     """
@@ -7968,187 +7957,14 @@ def _levels(
             ),
             f"the column holds {n_present} values",
         )
-    # B4b, THE POOL A READER SUBTRACTS (the owner's ruling of
-    # 2026-09-17, item 5; plan P4-D231). B3 above says the pool IS
-    # `n_present` less the published counts, so a reader holds it
-    # whether or not a key prints it; this asks the one disclosure rule
-    # of that subtraction. The pool is nought or reaches
-    # `parsing.census_floor`, and a document whose levels leave one row,
-    # or any group below that line, unaccounted for is refused. The
-    # producer counts those cells as missing instead, so no description
-    # it writes reaches this refusal.
-    if parsing.pool_names_a_level(
-        suppressed_levels, suppressed_rows, covered
-    ):
-        raise _broken(
-            "B4b",
-            where,
-            (
-                f"{suppressed_levels} label(s) held back are said to "
-                f"cover {suppressed_rows} row(s) between them"
-            ),
-            (
-                "held-back labels covering fewer rows than twice their "
-                "number, or exactly their own number of rows while "
-                "covering fewer than the published labels do, force a "
-                "count of one, which a reader works out by subtraction"
-            ),
-        )
-    _levels_against_their_classes(mapping, where, entries, inside_a_half)
-    _levels_against_their_forms(mapping, where, entries)
+    # B4b AND B4c ARE RETIRED (plan P4-D390). They refused a pool, or a
+    # class or form total less the published levels, that a reader could
+    # read a count of one off by subtraction, and the producer counted
+    # those cells as missing so it never wrote one. The orchestrator set
+    # that pass aside under the owner's principle of 2026-10-01, so a
+    # description holding such a pool -- the one the producer now writes
+    # -- loads, and one written before stays loadable.
     return tuple(entries), suppressed_levels, suppressed_rows
-
-
-# What one published label READS AS, and the total that counts it. The
-# four are the U-family of contract 6.2 and they come to `n_present`.
-_READING_TOTALS = (
-    (parsing.NUMBER, "n_numeric"),
-    (parsing.NOT_A_NUMBER, "n_not_numeric"),
-    (parsing.NUMBER_OUT_OF_RANGE, "n_out_of_range"),
-    (parsing.NUMBER_CONTRADICTORY, "n_contradictory"),
-)
-
-
-def _levels_against_their_classes(
-    mapping: "dict[str, object]",
-    where: str,
-    entries: "list[LevelEntry]",
-    inside_a_half: bool,
-) -> None:
-    """B4c: no SIBLING TOTAL leaves exactly one held-back row (P4-D261).
-
-    B4b asks the disclosure rule of the whole pool. This asks it of each
-    of the four totals a reader holds beside the levels -- `n_numeric`,
-    `n_not_numeric`, `n_out_of_range` and `n_contradictory` -- because a
-    pool far too large to force a count of one can still leave ONE row
-    inside one of them. Measured before this check: `alpha` and `beta` a
-    hundred rows each, `1` five rows, `2` six rows and `gamma` one row at
-    a floor of eleven published `n_not_numeric` 201 with both words at
-    100, and 201 less 200 is the withheld word's own count of one.
-
-    THE QUESTION IS `parsing.census_names_one_row`, over the same pairs
-    the form and layout censuses hand it, so the difference of one is
-    refused by the one rule and not by a second copy of it. A total no
-    published label counts into is not read, exactly as there: a census
-    that says nothing about a total leaves a reader nothing to subtract.
-
-    A LABEL WHOSE CLASS THE TWO GRAMMARS DISAGREE ABOUT IS NOT READ, and
-    nor is any other label of that column. A column declared
-    `--decimal-comma` is read by the producer with the comma as a point,
-    and a loader that guessed wrong would refuse a description nobody had
-    touched -- which this repository treats as the worst refusal there
-    is. Where every label reads the same way under both grammars there is
-    nothing to guess, and that covers the shape this rule is for.
-
-    Raises ProfileError for B4c. No I/O of any kind.
-    """
-    if inside_a_half or "n_numeric" not in mapping:
-        return
-    covered: "dict[str, int]" = {}
-    for entry in entries:
-        plain = parsing.classify_number(entry.label)
-        commaed = parsing.classify_number(
-            parsing.written_with_a_decimal_comma(entry.label)
-        )
-        if plain != commaed:
-            return
-        covered[plain] = (covered[plain] if plain in covered else 0) + entry.count
-    for reading, key in _READING_TOTALS:
-        total = _whole(mapping[key], key, where, 0)
-        seen = covered[reading] if reading in covered else 0
-        rest = total - seen
-        if rest < 0:
-            continue
-        if parsing.census_names_one_row({reading: rest}, [(total, seen)]) == -1:
-            continue
-        raise _broken(
-            "B4c",
-            where,
-            (
-                f"the published labels that read as '{reading}' cover "
-                f"{seen} of the {total} rows {key} counts"
-            ),
-            (
-                f"the {rest} row(s) left over are held back, so one "
-                f"held-back label covers that one row"
-            ),
-        )
-
-
-def _levels_against_their_forms(
-    mapping: "dict[str, object]",
-    where: str,
-    entries: "list[LevelEntry]",
-) -> None:
-    """B4c over the FORM census, the other total the levels subtract from.
-
-    (Round 2 of the review, the disclosure pass, item 3.) Every level
-    entry publishes `shape_form_cells`, how many of its rows wrote the
-    label in the label's own form, and the block publishes a
-    column-wide `shape_forms` census beside them. Those count the same
-    cells, so a named form less the published levels' own contributions
-    is the cells of HELD-BACK levels wearing that form -- and one of
-    them is one row, with its form published. **Measured** on the
-    reviewer's column at a floor of eleven: `ABC-100` and `ABC-200` a
-    hundred rows each at `shape_form_cells` 100, one `ABC-300`, five
-    `QQ-400` and six `RR-500`, published `shape_forms {"@@@-%%%": 201,
-    "@@-%%%": 11}`, and 201 less 200 is that one row. The producer now
-    counts such a level's cells as missing (the owner's ruling of
-    2026-09-17, item 5), so no description it writes reaches here.
-
-    THE QUESTION IS `parsing.census_names_one_row`, the pair the class
-    check beside it hands over and the same one the form census's own
-    `_form_census_names_no_row` asks of its other totals.
-
-    WHAT IS NOT READ, and it is the case rule's doing. A form whose
-    lower-case cells were named apart stands in the census under two
-    keys, and which of a level's cells went under which is a fact of
-    the SPELLINGS rather than of the folded label this walk holds -- so
-    a form with a lower-case sibling in the census, and a lower-case key
-    itself, are passed over rather than guessed at. Guessing would
-    refuse descriptions a producer writes, which this repository treats
-    as the worst refusal there is; the producer's own pass reads the
-    split faithfully, and this stays the backstop for the shape the
-    reviewer reproduced.
-
-    Raises ProfileError for B4c. No I/O of any kind.
-    """
-    if "shape_forms" not in mapping:
-        return
-    forms = _counts(mapping["shape_forms"], "shape_forms", where, 1)
-    covered: "dict[str, int]" = {}
-    for entry in entries:
-        key = parsing.shape_form(entry.label)
-        if not key:
-            continue
-        covered[key] = (
-            covered[key] if key in covered else 0
-        ) + entry.shape_form_cells
-    for name in sorted(forms):
-        if name == WITHHELD or parsing.SHAPE_LOWER in name:
-            continue
-        if parsing.lower_case_form(name) in forms:
-            continue
-        total = forms[name]
-        seen = covered[name] if name in covered else 0
-        rest = total - seen
-        if rest < 0:
-            continue
-        if parsing.census_names_one_row({}, [(total, seen)]) == -1:
-            continue
-        raise _broken(
-            "B4c",
-            where,
-            (
-                f"the published labels written in one form cover {seen} "
-                f"of the {total} cells that form counts"
-            ),
-            (
-                f"the {rest} cell(s) left over belong to held-back "
-                f"labels, so one held-back label covers that one cell "
-                f"and its written form is published"
-            ),
-        )
 
 
 def _shape_form_cells(

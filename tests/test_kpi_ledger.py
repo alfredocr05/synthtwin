@@ -806,7 +806,7 @@ def _lone_counts(tmp_path: pathlib.Path, names: "tuple[str, ...]") -> "dict":
         ones = [path for path in S.ones_in(block) if path != "/position"]
         mirrors = {f"/{key}"} | (
             {"/n_missing_withheld", "/missing_by_class/(withheld)"} if key == "n_missing" else set()
-        )
+        ) | ({"/suppressed_levels"} if key == "suppressed_rows" else set())
         value[f"{name}_named_count"] = block.get(key)
         value[f"{name}_other_ones"] = len([p for p in ones if p not in mirrors])
     return value
@@ -815,9 +815,12 @@ def _lone_counts(tmp_path: pathlib.Path, names: "tuple[str, ...]") -> "dict":
 def test_k_2b_28(record_property, tmp_path: pathlib.Path) -> None:
     """Two counts of one LEFT AS IS on 2026-09-18, and none new beside them.
 
-    Free text's `n_numeric` and a pooled label's `n_missing`: the owner
+    Free text's `n_numeric` and a pooled label's count of one: the owner
     asked, the answers were given, and neither was closed. They are not
-    owner-accepted limits, so the entry is OPEN with its note.
+    owner-accepted limits, so the entry is OPEN with its note. The pooled
+    label's one row is the pool (`suppressed_rows` 1, `suppressed_levels`
+    its mirror) since plan P4-D390 retired ruling 5's level pass, which
+    printed it as `n_missing` 1.
     """
     _kpi(record_property, "K-2B-28", _lone_counts(tmp_path, ("free_text", "pooled_labels")))
 
@@ -1754,37 +1757,101 @@ def test_k_s3_51(record_property, tmp_path: pathlib.Path) -> None:
     _kpi(record_property, "K-S3-51", measured)
 
 
+# -- Stage 3b lane G4 (plan P4-D390) ------------------------------------------
+
+
+def _letter_among_figures(place: int) -> "list[str]":
+    """Seven-character codes with one letter at ``place`` among six figures,
+    beside seven-figure numbers: per kind a few published on twelve rows,
+    twenty codes and five numbers held back, so the column owes five cells
+    of numbers and the code's form owes twenty of words."""
+    draw = random.Random(61 + place)
+    letters = "ABCGHJKLMNPRSTUVWXYZ"
+    seen: "dict[str, int]" = {}
+    values: "list[str]" = []
+
+    def fresh(coded: bool) -> str:
+        while True:
+            figures = f"{draw.randrange(10 ** 6):06d}"
+            code = figures[:place] + draw.choice(letters) + figures[place:]
+            if not coded:
+                code = f"{draw.randrange(10 ** 7):07d}"
+            if code not in seen:
+                seen[code] = 1
+                return code
+
+    for coded, published, held in ((True, 3, 20), (False, 2, 5)):
+        for _each in range(published):
+            values += [fresh(coded)] * 12
+        for _each in range(held):
+            values += [fresh(coded)]
+    draw.shuffle(values)
+    return values
+
+
+def test_k_s3_61(record_property, tmp_path: pathlib.Path) -> None:
+    """A form with one letter among figures, owed words beside a number debt.
+
+    `_form_reading` reads such a form by its exponent filling as well,
+    `0E00000` to `00000E0`, so G8.3a counts it a NUMBER form and takes
+    it out of the word debt: where the column also owes numbers, the
+    words held back in that form are written in none, and the twin misses
+    the form's count the table meets (the review of plan P4-D390, item
+    5). Measured over the five places a letter can stand between figures
+    at a floor of eleven, the table and its twin each validated.
+    """
+    missed_twin = missed_table = 0
+    for place in range(1, 6):
+        form = "%" * place + "@" + "%" * (6 - place)
+        values = _letter_among_figures(place)
+        described = S.describe(
+            tmp_path / f"at{place}", "codes",
+            fixtures.rows_to_csv(["proc", "other"], [[value, "x"] for value in values]),
+            floor=11,
+        )
+        twin = generation.generate(described.loaded, 7)
+        subcheck = f"proc:forms.published.{form}"
+        missed_twin += subcheck in S.missed(
+            S.measure(described, rendering.twin_csv(twin), "twin.csv")
+        )
+        missed_table += subcheck in S.missed(
+            S.measure(described, fixtures.rows_to_csv(
+                ["proc", "other"], [[value, "x"] for value in values]
+            ), "table.csv")
+        )
+    _kpi(record_property, "K-S3-61", {
+        "forms": 5,
+        "forms_the_twin_misses": missed_twin,
+        "forms_the_table_misses": missed_table,
+    })
+
+
 # -- Stage 4 (tier 1, plan P4-D385) -------------------------------------------
 
 
 def test_k_s4_03(record_property) -> None:
-    """Four paths of describing and generating grow with the rows and not their square.
+    """Three paths of describing and generating grow with the rows and not their square.
 
     Each measure is a count of work, never a time: the lines run choosing
-    the end-carrier pairs, the comparisons made with held-back levels and
-    the bytes the class pass allocates beside them, the bytes a label
-    column is built with, and the walks of the role ladder per question.
+    the end-carrier pairs, the bytes a label column is built with, and
+    the walks of the role ladder per question.
     `tests/test_stage4_linear_work.py` owns the measures, and its growth
-    tests require each replaced function -- and, for the pair search and
-    the class pass, the two regressions the review of landing S1 named
-    (item 4) -- to grow as the square on the same shapes, so these
-    ratios can fail.
+    tests require each replaced function -- and, for the pair search, the
+    regression the review of landing S1 named (item 4) -- to grow as the
+    square on the same shapes, so these ratios can fail. The fourth path,
+    the held-back level lookups and the class pass beside them, went with
+    the level pass of ruling 5 (plan P4-D390).
     """
     import test_stage4_linear_work as linear
 
     lines = (linear.shape_search_lines(250), linear.shape_search_lines(500))
-    lookups = (linear.held_back_lookups(1000), linear.held_back_lookups(2000))
-    classed = (linear.class_pass_bytes(4000), linear.class_pass_bytes(8000))
     built = (linear.label_bytes(3000), linear.label_bytes(6000))
     walks, questions, _columns = linear.role_walks(500)
     _kpi(record_property, "K-S4-03", {
         "shape_search_lines_growth_2x_rows": round(lines[1] / lines[0], 2),
-        "held_back_lookups_growth_2x_rows": round(lookups[1] / lookups[0], 2),
-        "class_pass_bytes_growth_2x_rows": round(classed[1] / classed[0], 2),
         "label_bytes_growth_2x_rows": round(built[1] / built[0], 2),
         "role_walks_per_question": round(walks / questions, 2),
         "shape_search_lines_500": lines[1],
-        "held_back_lookups_2000": lookups[1],
         "role_walks_500": walks,
     })
 

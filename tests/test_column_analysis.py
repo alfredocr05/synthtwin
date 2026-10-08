@@ -416,15 +416,14 @@ def test_a_forced_identifier_beats_every_automatic_role() -> None:
 
 
 def test_a_withheld_sentinel_is_not_named_in_the_output() -> None:
-    # `constant` SINCE THE OWNER'S RULING OF 2026-09-17, ITEM 5 (plan
-    # P4-D231): the one `-999` cell is a held-back level of one row, so
-    # the pool published a count of one, and the level pass counts that
-    # cell as missing. The column is 200 noughts and one hole. What this
-    # witness is for -- that the stand-in candidate is named nowhere --
-    # is unmoved and stronger.
+    # Two values, so `binary`: the one `-999` cell is a held-back level of
+    # one row, published in the pool (plan P4-D390; from 2026-09-18 ruling
+    # 5's level pass counted it missing and the column was `constant`).
+    # What this witness is for -- that the stand-in candidate is named
+    # nowhere -- is unmoved.
     described = describe(["0"] * 200 + ["-999"])
-    assert described.role == taxonomy.ROLE_CONSTANT
-    assert (described.n_present, described.n_missing) == (200, 1)
+    assert described.role == taxonomy.ROLE_BINARY
+    assert (described.n_present, described.n_missing) == (201, 0)
     assert described.sentinel_verdicts == []
     assert described.n_sentinel_candidates_unpublished == 1
     assert "-999" not in whole_block(described)

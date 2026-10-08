@@ -30909,8 +30909,10 @@ def _label_content(
             sizes, shared, level_shape, written_as, used, owners, holes
         )
     # Each form's place in its own supply, carried across the whole
-    # column so no spelling is walked twice.
+    # column so no spelling is walked twice, and how many of its
+    # spellings the column has taken (`_walk_goes_on`).
     walked: "dict[str, int]" = {}
+    taken: "dict[str, int]" = {}
     shaped = 0
     kept = 0
     # THE COLUMN GROWS IN PLACE (stage 4, plan P4-D385). It was copied
@@ -30962,6 +30964,7 @@ def _label_content(
                 number, used, owners, form, plan.all_holes, walked,
                 level_shape if place in shaped_places else "",
                 figures if holding else None,
+                taken,
             )
             if not form and level_shape and _level_key(label) == level_shape:
                 kept = kept + 1
@@ -31273,6 +31276,7 @@ def _class_stand_ins_walked(
     cursor: "dict[str, int]" = {}
     counters: "dict[str, int]" = {}
     walked: "dict[str, int]" = {}
+    taken: "dict[str, int]" = {}
     numbers_made = 0
     scaled = 0
     for name in _OWED_CLASSES:
@@ -31289,6 +31293,10 @@ def _class_stand_ins_walked(
         sub = tuple([sizes[place] for place in mine])
         room: "dict[str, int]" = {}
         for form in sorted(mine_forms):
+            # EACH SUPPLY COUNTED ONLY UP TO THE FORM'S DEBT
+            # (`_supply_wanted`): the two settlements below spend these
+            # rooms on that debt and on nothing else.
+            wanted = _supply_wanted(sub, mine_forms[form])
             if name == _OWED_NUMBER:
                 # A NUMBER FORM HAS TWO SUPPLIES, and counting only the
                 # first gave the form to nobody (landing 2b.13, Codex
@@ -31307,21 +31315,21 @@ def _class_stand_ins_walked(
                 # three, so no column the other two answered moves.
                 room[form] = max(
                     _ladder_room(
-                        ladder, form, len(sub), named, used, owners,
+                        ladder, form, wanted, named, used, owners,
                         holes, decimal_comma,
                     ),
                     _usable_room(
-                        form, len(sub), used, owners, holes,
+                        form, wanted, used, owners, holes,
                         parsing.NUMBER, decimal_comma, ladder,
                     ),
                     _ladder_room(
-                        ladder, form, len(sub), named, used, owners,
+                        ladder, form, wanted, named, used, owners,
                         holes, decimal_comma, 0, None, False, True,
                     ),
                 )
             else:
                 room[form] = _usable_room(
-                    form, len(sub), used, owners, holes, reads_as,
+                    form, wanted, used, owners, holes, reads_as,
                     decimal_comma,
                 )
         forms_of = ["" for _each in sub]
@@ -31389,7 +31397,7 @@ def _class_stand_ins_walked(
                         # `_HELD_BACK_UNSPELLED_REASON` already says.
                         found = _class_form_stand_in(
                             form, parsing.NUMBER, walked, used, owners,
-                            holes, decimal_comma, ladder,
+                            holes, decimal_comma, ladder, taken,
                         )
                     if not found:
                         # AND LAST, THE LADDER AT THE FORM'S OWN SCALE
@@ -31421,7 +31429,7 @@ def _class_stand_ins_walked(
                 if form:
                     found = _class_form_stand_in(
                         form, reads_as, walked, used, owners, holes,
-                        decimal_comma,
+                        decimal_comma, None, taken,
                     )
                 if not found:
                     found = _straggler_stand_in(
@@ -31928,21 +31936,6 @@ def _shared_out(
     order = sorted([(0 - sizes[place], place) for place in range(len(sizes))])
     places = [pair[1] for pair in order]
     left = {form: owing[form] for form in names}
-    # HOW MANY DISTINCT SPELLINGS EACH FORM CAN STILL SUPPLY (review
-    # round 2 finding 5). The debt is in CELLS and the supply is in
-    # SPELLINGS, and they are not the same quantity: `@-%` owes 31
-    # cells and can spell 260 of them, but a form of one figure owes 31
-    # and can spell ten. An arrangement that settles every debt
-    # arithmetically and asks a form for more distinct stand-ins than
-    # it HAS is not an arrangement at all -- the walk exhausts the form
-    # and writes neutral spellings, and the census is missed by the
-    # cells it was built to meet.
-    supply = {
-        form: _usable_room(form, len(sizes), used, owners, holes)
-        if supplied is None
-        else supplied[form]
-        for form in names
-    }
     chosen: "dict[int, str]" = {}
     # SETTLE EACH DEBT EXACTLY BY ARITHMETIC BEFORE SEARCHING FOR IT
     # (review round 3 finding 7). The walk below is a search over
@@ -31968,6 +31961,28 @@ def _shared_out(
         return _greedily(
             sizes, places, owing, names, used, owners, holes, supplied
         )
+    # HOW MANY DISTINCT SPELLINGS EACH FORM CAN STILL SUPPLY (review
+    # round 2 finding 5). The debt is in CELLS and the supply is in
+    # SPELLINGS, and they are not the same quantity: `@-%` owes 31
+    # cells and can spell 260 of them, but a form of one figure owes 31
+    # and can spell ten. An arrangement that settles every debt
+    # arithmetically and asks a form for more distinct stand-ins than
+    # it HAS is not an arrangement at all -- the walk exhausts the form
+    # and writes neutral spellings, and the census is missed by the
+    # cells it was built to meet.
+    #
+    # COUNTED HERE, PAST THE GREEDY RETURN, AND ONLY UP TO THE DEBT
+    # (`_supply_wanted`, the review of plan P4-D390): `_greedily` counts
+    # its own, and no arrangement gives a form more places than it owes
+    # cells.
+    supply = {
+        form: _usable_room(
+            form, _supply_wanted(sizes, owing[form]), used, owners, holes
+        )
+        if supplied is None
+        else supplied[form]
+        for form in names
+    }
     # BOTH WAYS ROUND BEFORE GIVING UP (review round 4 finding 4). One
     # debt taking an exact subset can leave another unreachable where
     # a different subset would not: debts of four and two, with sizes
@@ -32033,7 +32048,9 @@ def _greedily(
     every = [form for form in sorted(owing) if owing[form] > 0]
     left = {form: owing[form] for form in every}
     spare = {
-        form: _usable_room(form, len(sizes), used, owners, holes)
+        form: _usable_room(
+            form, _supply_wanted(sizes, owing[form]), used, owners, holes
+        )
         if supplied is None
         else supplied[form]
         for form in every
@@ -32305,19 +32322,27 @@ def _usable_room(
     number of stand-ins and not four thousand candidates -- which is
     what made it a cost on a wide table (round 3 finding 8).
 
-    It counts as far as the walk spends (`_form_walk_bounds`): 4,096
-    spellings of a form, or a clock's form written to a fraction of the
-    second to the end of its clock supply, stopping after 4,096 refused
-    in a row.
+    IT GIVES THE FORM UP WHERE THE WALK THAT SPENDS IT DOES, so the
+    supply counted here is the supply that walk can write: where
+    `_walk_goes_on` says (plan P4-D390), and for a clock's form written to
+    a fraction of the second at the end of its clock supply, stopping
+    after 4,096 refused in a row (`_fraction_clock_supply`, landing 3b.5).
     """
-    room, tries = _form_walk_bounds(form)
+    supply = _fraction_clock_supply(form)
+    room = supply if supply else _form_room(form)
     usable = 0
     refused = 0
-    for step in range(room):
-        if usable >= wanted or refused >= tries:
+    step = 0
+    while (
+        step < room and refused < _STAND_IN_STEPS
+        if supply
+        else _walk_goes_on(step, usable, room)
+    ):
+        if usable >= wanted:
             return usable
         refused = refused + 1
         candidate = _filled_form(form, step)
+        step = step + 1
         if candidate in used or parsing.folded(candidate) in owners:
             continue
         if not _is_a_usable_stand_in(candidate, holes, reads_as, decimal_comma):
@@ -32334,6 +32359,30 @@ def _usable_room(
         usable = usable + 1
         refused = 0
     return usable
+
+
+def _supply_wanted(sizes: "tuple[int, ...]", owed: int) -> int:
+    """How far one form's supply is counted: its places, or its debt.
+
+    A FORM IS NEVER GIVEN MORE PLACES THAN IT OWES CELLS (the review of
+    plan P4-D390, item 1), because every held-back size is at least one
+    row (`held_back_sizes`) and each arrangement gives a form a place
+    only while it still owes a cell: `_subset_making` makes a debt of
+    ``owed`` cells in at most ``owed`` parts, `_settles` steps past a
+    form owing less than the size, and `_greedily` stops a form at a
+    debt of nought. So a supply counted past the debt changes no
+    arrangement -- and counted to the number of places, as it was, it
+    walked every held-back group once for EVERY form owing a cell, and
+    twice where `_greedily` counted it again. Measured on a register of
+    seven-character codes in 126 forms, 24,610 of them held back over
+    200,000 rows at a floor of eleven: generate took 131.1 s of processor
+    time on da7a6f9 (93 per cent of it in `_usable_room` under a
+    profiler, skeptic 1 found on a like register) and takes 11.4 s
+    counted to the debt, the twin byte for byte the same.
+
+    Guarantees: a fixed function of the two. Raises nothing. No I/O.
+    """
+    return min(len(sizes), owed)
 
 
 def _neediest_form(owing: "dict[str, int]") -> str:
@@ -32567,8 +32616,10 @@ def _fraction_clock_supply(form: str) -> int:
 
     THE WALK OF SUCH A FORM IS NOT STOPPED AT 4,096 SPELLINGS (the fixes
     of the clock census's review). `_STAND_IN_STEPS` bounds how many
-    spellings of one form a walk tries in all, because a form can refuse
-    every spelling it has; its clock supply cannot, since each step of it
+    spellings of one form the free text's walk tries in all, and how many
+    more a held-back label's walk may refuse than it takes (`_walk_goes_on`,
+    plan P4-D390), because a form can refuse every spelling it has; its
+    clock supply cannot, since each step of it
     is another time and no clock reader takes a fraction, so no clock
     line holds it. Bounded at 4,096, a free-text `time(7)` column of
     10,000 different times wrote 5,904 cells in no time's spelling, one of
@@ -32576,7 +32627,8 @@ def _fraction_clock_supply(form: str) -> int:
     held-back times wrote 7,294 cells `group-N` and missed its own census
     of forms. So both walks of such a form, the free text's and the
     held-back labels', run to the end of this supply, and a pass of either
-    still gives up after 4,096 spellings tried (`_form_walk_bounds`).
+    still gives up after 4,096 spellings tried (`_form_walk_bounds` for
+    the free text's; `_made_up_label` and `_usable_room` for the labels').
 
     Guarantees: a function of the form. Raises nothing. No I/O.
     """
@@ -32587,11 +32639,12 @@ def _fraction_clock_supply(form: str) -> int:
 
 
 def _form_walk_bounds(form: str, figured: bool = False) -> "tuple[int, int]":
-    """How many steps a walk of one form's spellings may take in all, and
-    how many one pass of it may try (G8.3, G9.5).
+    """How many steps the free text's walk of one form's spellings may
+    take in all, and how many one pass of it may try (G8.3, G9.5).
 
-    Every form: its room, and never more than `_STAND_IN_STEPS`, for
-    both. A clock's form written to a fraction of the second, unless it
+    A held-back label's walk is bounded by what it refuses instead
+    (`_walk_goes_on`, plan P4-D390). Every form: its room, and never more
+    than `_STAND_IN_STEPS`, for both. A clock's form written to a fraction of the second, unless it
     is filled figure by figure: its whole clock supply in all, and
     `_STAND_IN_STEPS` a pass (`_fraction_clock_supply`).
 
@@ -32788,12 +32841,36 @@ def _clock_cells_stand(
     return total < taxonomy.clock_line(rate, total + others)
 
 
-# How many spellings of one form a stand-in walk will try before it
-# gives the form up and writes the neutral spelling instead. A form of
-# many letters holds more spellings than any run needs, and a walk that
-# insisted on finding a usable one could spend an unbounded time on a
-# document the loader accepted.
+# How many spellings of one form a stand-in walk may refuse beyond the
+# ones it takes before it gives the form up and writes the neutral
+# spelling instead (`_walk_goes_on`). A form of many letters holds more
+# spellings than any run needs, and a walk that insisted on finding a
+# usable one could spend an unbounded time on a document the loader
+# accepted.
 _STAND_IN_STEPS = 4096
+
+
+def _walk_goes_on(steps: int, taken: int, room: int) -> bool:
+    """Whether a walk of one form's spellings may try one spelling more.
+
+    THE BOUND IS ON WHAT THE WALK REFUSES, NOT ON WHAT IT TAKES (plan
+    P4-D390). It was 4,096 steps in all, so a code register holding back
+    more codes of one form than that wrote the rest `group-N`: measured
+    at a floor of eleven, a register of 30,000 codes over 100,000 rows
+    held back 11,467 of them in the form `@%%%.%%`, 7,371 came out
+    `group-N`, and the twin MISSED the census count of that form, which
+    its source met. A walk now goes on while the spellings it has
+    refused number fewer than those it has taken plus `_STAND_IN_STEPS`
+    -- ``steps < 2 * taken + _STAND_IN_STEPS`` -- and never past the
+    form's own room. So a walk spends at most twice what it writes plus
+    4,096 steps, a form none of whose spellings is usable still costs
+    4,096 steps and no more, and every walk whose first 4,096 steps held
+    what it needed writes exactly what it wrote before.
+
+    Guarantees: a fixed function of the three counts. Raises nothing.
+    No I/O of any kind.
+    """
+    return steps < room and steps < 2 * taken + _STAND_IN_STEPS
 
 
 def _form_room(form: str) -> int:
@@ -33509,11 +33586,20 @@ def _level_shape_spent(
     if supply < 1 or not free:
         return arranged, covered_places
     taken: "dict[str, int]" = {}
+    # THE CELLS EACH FORM IS PAID ON THE PLACES A TRADE MAY MOVE, which
+    # no trade changes: a place of `k` rows is traded for places summing
+    # to `k`. Every size is at least one row, so a form never holds more
+    # of those places than it is paid cells there, and its room is
+    # counted no further (`_supply_wanted`, the review of plan P4-D390):
+    # counted to the number of places, it walked every held-back group
+    # once for every form a trade was offered.
+    paid: "dict[str, int]" = {}
     for place in range(len(sizes)):
         if place in fixed or not arranged[place]:
             continue
         name = arranged[place]
         taken[name] = (taken[name] if name in taken else 0) + 1
+        paid[name] = (paid[name] if name in paid else 0) + sizes[place]
     rooms: "dict[str, int]" = {}
     offered = sorted(
         [
@@ -33557,7 +33643,9 @@ def _level_shape_spent(
             continue
         name = arranged[place]
         if name not in rooms:
-            rooms[name] = _usable_room(name, len(sizes), used, owners, holes)
+            rooms[name] = _usable_room(
+                name, _supply_wanted(sizes, paid[name]), used, owners, holes
+            )
         if taken[name] - 1 + len(chosen) > rooms[name]:
             continue
         trial = list(arranged)
@@ -33612,6 +33700,7 @@ def _made_up_label(
     walked: "dict[str, int]",
     level_shape: str = "",
     figures: "dict[str, int] | None" = None,
+    taken: "dict[str, int] | None" = None,
 ) -> "tuple[int, str]":
     """One label standing in for one that was held back (G8.3, P4-D18).
 
@@ -33673,18 +33762,33 @@ def _made_up_label(
         # PAST THE CLOCK LINE A CLOCK'S FORM IS FILLED FIGURE BY FIGURE
         # (the repair round of landing 3b.5), on a cursor of its own, and
         # a spelling a clock reader takes is stepped past.
+        #
+        # HOW MANY IT HAS TAKEN IS CARRIED BESIDE WHERE IT STANDS (plan
+        # P4-D390), because the walk's bound is on what it refuses
+        # (`_walk_goes_on`); the count is the form's, on either cursor. A
+        # caller that carries no ``taken`` counts none, so its walk stops
+        # at 4,096 steps in all, the bound before P4-D390. A clock's form
+        # written to a fraction of the second runs to the end of its clock
+        # supply instead, a pass giving up after 4,096 tried
+        # (`_fraction_clock_supply`, landing 3b.5).
+        if taken is None:
+            taken = {}
         figured = figures is not None and _clock_filled_form(form, 0) is not None
-        # A form's walk stops at 4,096 spellings; a clock's form written to
-        # a fraction of the second runs to the end of its clock supply, a
-        # pass giving up after 4,096 tried (`_form_walk_bounds`).
-        room, tries = _form_walk_bounds(form, figured)
+        supply = 0 if figured else _fraction_clock_supply(form)
+        room = supply if supply else _form_room(form)
         cursor = walked
         if figured and figures is not None:
             cursor = figures
         if form not in cursor:
             cursor[form] = 0
+        if form not in taken:
+            taken[form] = 0
         tried = 0
-        while cursor[form] < room and tried < tries:
+        while (
+            cursor[form] < room and tried < _STAND_IN_STEPS
+            if supply
+            else _walk_goes_on(cursor[form], taken[form], room)
+        ):
             tried = tried + 1
             candidate = _filled_form(form, cursor[form], not figured)
             cursor[form] = cursor[form] + 1
@@ -33694,6 +33798,7 @@ def _made_up_label(
                 continue
             if not _is_a_usable_stand_in(candidate, holes):
                 continue
+            taken[form] = taken[form] + 1
             used[candidate] = 1
             owners[parsing.folded(candidate)] = candidate
             return number, candidate
@@ -33721,12 +33826,49 @@ _OWED_OUT_OF_RANGE = " out_of_range"
 _OWED_CONTRADICTORY = " contradictory"
 _OWED_CLASSES = (_OWED_NUMBER, _OWED_OUT_OF_RANGE, _OWED_CONTRADICTORY)
 
-# How many steps outward on each side the made-up numbers of a column
-# of labels may walk before the walk gives up. A column needs one step
-# for each held-back number and a few more for the spellings a rule
-# refuses; the bound is here so a form no step can ever wear costs a
-# bounded time rather than an unbounded one.
+# How many values the made-up numbers of a column of labels may refuse
+# beyond the ones they take before the walk gives up, halved
+# (`_ladder_goes_on`). A column needs one value for each held-back number
+# and a few more for the spellings a rule refuses; the bound is here so
+# a form no step can ever wear costs a bounded time rather than an
+# unbounded one.
 _LADDER_STEPS = 1 << 14
+
+
+def _ladder_goes_on(tried: int, taken: int) -> bool:
+    """Whether one debt's walk of one tier may try one value more.
+
+    THE BOUND IS ON WHAT THE WALK REFUSES, as G8.3's form walk's is
+    (`_walk_goes_on`; the review of plan P4-D390, item 2). It was
+    `2 * _LADDER_STEPS` positions in all, 32,768, so a register holding
+    back more numbers than that wrote the rest as words: measured on
+    ten-figure codes over 1,000,000 rows at a floor of eleven, 95,424
+    held back, 32,768 written as numbers, and the twin's `n_numeric`
+    914,448 against the table's 1,000,000. ``tried`` counts the
+    positions of the walk that held a value it could write, and the walk
+    goes on while that is below twice what it has taken plus
+    `2 * _LADDER_STEPS` -- while it has refused fewer values than it has
+    taken plus 32,768. A walk that takes nothing still stops after
+    32,768 values, a walk whose first 32,768 positions held what it
+    needed takes exactly what it took before, and a walk tries at most
+    twice what it writes plus 32,768 values.
+
+    A POSITION HOLDING NO VALUE IS NOT COUNTED: a number the column
+    published, a sign it does not hold, the middle of a gap of even
+    width (`_outward_at`'s `_LADDER_SKIP`). Counted, as the review's
+    first repair counted them, they gave a register of consecutive codes
+    up inside its own span: 60,000 seven-figure codes holding 2,000 back
+    walked the gaps from both ends past every published code and stopped
+    after 1,175 numbers, though every number past either end was free.
+    Inside the span such positions are at most one for each published
+    number and two more; outside it a side holds no value only while the
+    other side does, one position for each value tried there. So the
+    walk is still bounded, by the column's size.
+
+    Guarantees: a fixed function of the two counts. Raises nothing. No
+    I/O of any kind.
+    """
+    return tried < 2 * taken + 2 * _LADDER_STEPS
 
 # What one position of the ladder holds.
 _LADDER_HERE = 0
@@ -35010,6 +35152,10 @@ def _next_on_ladder(
     finest count of places first, and a tier is taken up only once the
     one before it has ended. Where ``pool`` is None no census rule is
     asked, which is how the class split counts every number there is.
+
+    A tier is given up where `_ladder_goes_on` says, ``cursor`` carrying
+    how many numbers each tier has given, how many of its positions held
+    no value, and whether it has ended.
     """
     tiers = ladder.tiers
     reach = 0
@@ -35034,18 +35180,35 @@ def _next_on_ladder(
         key = f"{name}/{places}"
         low_key = f"{key}/low"
         high_key = f"{key}/high"
+        # HOW MANY NUMBERS THIS TIER HAS GIVEN, HOW MANY OF ITS POSITIONS
+        # HELD NO VALUE, AND WHETHER IT HAS ENDED, carried beside where it
+        # stands (`_ladder_goes_on`, the review of plan P4-D390): the
+        # bound is on what the walk refuses, so a position holding no
+        # value is not counted, and an ended tier is marked as ended
+        # rather than stood at the bound, which a walk that has taken
+        # numbers would step past again.
+        taken_key = f"{key}/taken"
+        empty_key = f"{key}/empty"
+        ended_key = f"{key}/ended"
         if key not in cursor:
             cursor[key] = 0
-        while cursor[key] < 2 * _LADDER_STEPS:
+        if taken_key not in cursor:
+            cursor[taken_key] = 0
+        if empty_key not in cursor:
+            cursor[empty_key] = 0
+        while ended_key not in cursor and _ladder_goes_on(
+            cursor[key] - cursor[empty_key], cursor[taken_key]
+        ):
             state, units, side = _outward_at(
                 ladder, places, cursor[key], low_key in cursor,
                 high_key in cursor,
             )
             if state == _LADDER_END:
-                cursor[key] = 2 * _LADDER_STEPS
+                cursor[ended_key] = 1
                 break
             cursor[key] = cursor[key] + 1
             if state == _LADDER_SKIP:
+                cursor[empty_key] = cursor[empty_key] + 1
                 continue
             candidate = _units_spelled(units, places, decimal_comma)
             wearing = ""
@@ -35093,6 +35256,7 @@ def _next_on_ladder(
                 candidate, holes, parsing.NUMBER, decimal_comma, wearing
             ):
                 continue
+            cursor[taken_key] = cursor[taken_key] + 1
             return candidate
     return ""
 
@@ -35959,7 +36123,12 @@ def _ladder_room(
     bounded: bool = False,
     scaled: bool = False,
 ) -> int:
-    """How many made-up numbers one debt could still take, up to ``wanted``."""
+    """How many made-up numbers one debt could still take, up to ``wanted``.
+
+    Counted by the walk that spends them, on a cursor of its own, so the
+    supply is counted under the bound it is spent under
+    (`_ladder_goes_on`).
+    """
     cursor: "dict[str, int]" = {}
     usable = 0
     while usable < wanted:
@@ -36246,6 +36415,7 @@ def _class_form_stand_in(
     holes: "tuple[str, ...]",
     decimal_comma: bool,
     ladder: "_Ladder | None" = None,
+    taken: "dict[str, int] | None" = None,
 ) -> str:
     """A spelling of one published form that reads as one numeric class.
 
@@ -36259,11 +36429,19 @@ def _class_form_stand_in(
     so this walk can never buy a census count with a number the column
     is not known to hold. The out-of-range and contradictory classes
     pass no ladder and are unbounded, which is what those classes mean.
+
+    It gives the form up where `_walk_goes_on` says, as `_made_up_label`
+    does, with ``taken`` counting what this walk has taken of each form;
+    a caller that carries none walks under 4,096 steps in all.
     """
-    room = min(_form_room(form), _STAND_IN_STEPS)
+    if taken is None:
+        taken = {}
+    room = _form_room(form)
     if form not in walked:
         walked[form] = 0
-    while walked[form] < room:
+    if form not in taken:
+        taken[form] = 0
+    while _walk_goes_on(walked[form], taken[form], room):
         candidate = _filled_form(form, walked[form])
         walked[form] = walked[form] + 1
         if candidate in used or parsing.folded(candidate) in owners:
@@ -36274,6 +36452,7 @@ def _class_form_stand_in(
             candidate, ladder, decimal_comma
         ):
             continue
+        taken[form] = taken[form] + 1
         return candidate
     return ""
 

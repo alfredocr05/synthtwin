@@ -178,30 +178,6 @@ def test_two_lower_case_forms_come_back_at_their_counts(
     )
 
 
-def _the_tail_stands(cells: "list[str]") -> bool:
-    """Whether ruling 5 leaves a tail beside `COMMON_CODES` standing.
-
-    Written from the rule statement of plan P4-D271, not read off any
-    description: a pool whose rows come to fewer than twice its levels
-    forces single rows, and it is counted as missing unless it covers at
-    least half of the rows the column's published levels cover -- or
-    unless every held-back level is ONE row, which is counted as missing
-    outright wherever it covers fewer rows than the published levels.
-    """
-    published = 0
-    tail: "dict[str, int]" = {}
-    for cell in cells:
-        if cell in COMMON_CODES:
-            published = published + 1
-            continue
-        tail[cell] = (tail[cell] if cell in tail else 0) + 1
-    rows = len(cells) - published
-    levels = len(tail)
-    if rows == levels and rows < published:
-        return False
-    return not (rows < 2 * levels and rows * 2 < published)
-
-
 @pytest.mark.parametrize("seed", SOURCE_SEEDS)
 def test_a_lower_case_long_tail_writes_its_stand_ins_in_lower_case(
     tmp_path: pathlib.Path, seed: int
@@ -209,21 +185,12 @@ def test_a_lower_case_long_tail_writes_its_stand_ins_in_lower_case(
     """Base: every stand-in written in capitals, on the column of one
     fifth this was first built on (156 to 176 tail cells of 800).
 
-    THE TAIL COVERS TWO FIFTHS OF THE COLUMN AND NOT ONE FIFTH, because
-    that is where ruling 5 lets it stand (plan P4-D271). At one fifth the
-    pool -- 156 to 174 rows over 88 to 103 levels, fewer rows than twice
-    the levels, so single rows are forced -- covers less than half of the
-    626 to 644 rows the four common codes publish, and it is counted as
-    missing: no stand-in is written at all and this test has nothing left
-    to guard. That column is pinned as the ruling's witness below. At two
-    fifths the pool is 315 to 332 rows over 126 to 130 levels, more than
-    two rows a level on average, so NO single row is forced and the rule
-    does not reach the pool at all; it stands, and its 315 to 332 cells
-    are stand-ins again. `_the_tail_stands` asks both halves of the rule,
-    so it answers for either reason.
+    THE TAIL COVERS TWO FIFTHS OF THE COLUMN, because that is where
+    ruling 5 let it stand (plan P4-D271): at one fifth it counted the
+    tail as missing. Plan P4-D390 retired the ruling, so the one-fifth
+    column stands as well and is pinned beside this one below.
     """
     cells = lower_long_tail(seed, common_share=0.6)
-    assert _the_tail_stands(cells)
     got = _round_trip(tmp_path, cells, seed="13", floor=20, declared=False)
     assert got["source"]["role"] == "long_tail_labels"
     assert got["source"]["shape_forms"] == {"&&%": 800}
@@ -238,40 +205,42 @@ def test_a_lower_case_long_tail_writes_its_stand_ins_in_lower_case(
 
 
 @pytest.mark.parametrize("seed", SOURCE_SEEDS)
-def test_a_narrow_lower_case_tail_is_counted_as_missing_under_ruling_5(
+def test_a_narrow_lower_case_tail_stands_and_is_written_in_lower_case(
     tmp_path: pathlib.Path, seed: int
 ) -> None:
-    """THE OWNER'S RULING 5, ON THE COLUMN THE TEST ABOVE WAS FIRST BUILT ON.
+    """THE COLUMN THE TEST ABOVE WAS FIRST BUILT ON, standing again.
 
     Four common codes over four fifths of 800 rows and a tail of rare
-    ones: the tail's rows come to fewer than twice its levels, so single
-    rows are forced, and they cover less than half of what the common
-    codes publish (plan P4-D271). Every tail cell is counted as missing,
-    so the column is four labels wide, its census counts the common cells
-    alone, and the twin writes a blank wherever the table wrote a tail
-    code. Every number below is counted off the source cells.
+    ones whose rows come to fewer than twice its levels. Ruling 5 counted
+    every tail cell as missing (plan P4-D271): the column was four labels
+    wide and the twin wrote a blank wherever the table wrote a tail code.
+    Since plan P4-D390 the tail is the pool, the column is the long tail
+    it is, and the twin's tail codes are lower case and three characters
+    long as the table's are. Every number below is counted off the source
+    cells.
     """
     cells = lower_long_tail(seed)
-    assert not _the_tail_stands(cells)
     common = 0
+    tail: "dict[str, int]" = {}
     for cell in cells:
         if cell in COMMON_CODES:
             common = common + 1
-    tail = len(cells) - common
+            continue
+        tail[cell] = (tail[cell] if cell in tail else 0) + 1
     got = _round_trip(tmp_path, cells, seed="13", floor=20, declared=False)
-    assert got["source"]["role"] == "categorical"
-    assert got["source"]["suppressed_levels"] == 0
-    assert got["source"]["n_missing"] == tail
-    assert got["source"]["shape_forms"] == {"&&%": common}
-    assert got["twin_profile"]["shape_forms"] == {"&&%": common}
+    assert got["source"]["role"] == "long_tail_labels"
+    assert got["source"]["suppressed_levels"] == len(tail)
+    assert got["source"]["suppressed_rows"] == len(cells) - common
+    assert got["source"]["n_missing"] == 0
+    assert got["source"]["shape_forms"] == {"&&%": len(cells)}
+    assert got["twin_profile"]["shape_forms"] == {"&&%": len(cells)}
     assert (got["twin_exit"], got["real_exit"]) == (0, 0)
-    checks = _checks(
-        cells, got["cells"], r"[a-z]{2}[0-9]",
-        lambda cell: len(cell) == 3, str.islower,
+    _same_on_both(
+        _checks(
+            cells, got["cells"], r"[a-z]{2}[0-9]",
+            lambda cell: len(cell) == 3, str.islower,
+        )
     )
-    for name in sorted(checks):
-        real, twin = checks[name]
-        assert (real, twin) == (common + tail, common), name
 
 
 @pytest.mark.parametrize("seed", SOURCE_SEEDS)
@@ -642,18 +611,13 @@ def test_published_lower_case_labels_pay_their_own_key(
     cells blind to case would count them under `@@%`, find `&&%` unpaid
     and hand it stand-ins -- overpaying a key the table already met.
 
-    THE CAPITALS COVER TWO FIFTHS OF THE COLUMN AND NOT ONE FIFTH (ruling
-    5, plan P4-D271), and they stand for a different reason than the
-    lower-case tail above. Their codes are nearly all single rows -- 312
-    to 330 rows over 284 to 289 levels at two fifths -- so single rows
-    ARE forced; the pool stands because it covers at least half of the
-    470 to 488 rows the common codes publish. At one fifth, 161 to 178
-    rows beside 622 to 639 published, it covers less than half, is
-    counted as missing, `@@%%` is never published and no stand-in is owed
-    anything.
+    THE CAPITALS COVER TWO FIFTHS OF THE COLUMN, because that is where
+    ruling 5 let them stand (plan P4-D271): their codes are nearly all
+    single rows, and at one fifth the ruling counted them as missing and
+    `@@%%` was never published. Plan P4-D390 retired the ruling, and the
+    two-fifths column is kept as written.
     """
     cells = lower_codes_beside_rare_capitals(seed, common_share=0.6)
-    assert _the_tail_stands(cells)
     got = _round_trip(tmp_path, cells, seed="4", floor=20, declared=False)
     published = got["source"]["shape_forms"]
     assert "&&%" in published and "@@%%" in published, published

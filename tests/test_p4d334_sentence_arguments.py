@@ -621,6 +621,14 @@ def test_the_keys_a_sentence_restates_below_the_line_are_held_at_a_ceiling(
     ten. It is a CEILING and not a target, on exactly K-S3-12's
     reasoning -- the keys are published on purpose, and what may not
     happen is the number growing while nobody is looking.
+
+    RAISED FROM 20 TO 22 BY PLAN P4-D390, a recorded decision. With
+    ruling 5's level pass retired, `labels_one_blank_pooled` keeps its
+    lone label in the pool: its column is three categories again, which
+    its evidence says, and the sentence pooling the label says one value
+    over one row -- the pool's own two keys, restated. `long_tail_labels`
+    stays a long tail, so the three-category evidence it gave while its
+    tail was counted out is gone: 20, less one, plus three.
     """
     line = parsing.census_floor(11)
     keys = (taxonomy.BIND_KEY, taxonomy.BIND_SUM, taxonomy.BIND_DIFFERENCE)
@@ -636,7 +644,7 @@ def test_the_keys_a_sentence_restates_below_the_line_are_held_at_a_ceiling(
                 bound = taxonomy.argument_binding(form, place)[:1]
                 if bound and bound[0] in keys and 0 < argument < line:
                     restating = restating + 1
-    assert restating <= 20, (
+    assert restating <= 22, (
         "more sentences now restate a key the block published below the "
         f"line than the {restating} this landing measured; P4-D332 leaves "
         "those keys standing, so a rise is a decision to record rather "

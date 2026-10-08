@@ -79,14 +79,15 @@ def test_a_title_row_is_counted_and_not_asked_about(
     counted in `rows_above_header`, published by its shape and never by
     its text, and the run is not stopped.
 
-    AND THE TWO RULINGS OF 2026-09-17 MEET HERE. The row kept as a
-    record holds three words, each a lone value of its column at this
-    floor of five, so the level pass of item 5 counts each as missing
-    and the twin writes a blank there -- while `workbook.cell_classes`
-    is a census of the SHEET's own cells and counts those three as text.
-    A census the twin cannot meet is withheld now
-    (`profile._pooled_absence_withheld`, plan P4-D231), so both files
-    hold every obligation they are set.
+    AND THE TWO RULINGS OF 2026-09-17 MET HERE. The row kept as a record
+    holds three words, each a lone value of its column at this floor of
+    five. While item 5 stood its level pass counted each as missing and
+    the twin wrote a blank there, beside a `workbook.cell_classes` census
+    of the SHEET's own cells counting those three as text, so that
+    census was withheld (`profile._pooled_absence_withheld`, plan
+    P4-D231). Since plan P4-D390 each word is held back in its column's
+    pool and the twin writes text there. Either way both files hold
+    every obligation they are set.
     """
     names = ["subject", "colour", "place"]
     # ONE ROW SHORT OF THE POPULATION FLOOR IN RECORDS (plan P4-D341),

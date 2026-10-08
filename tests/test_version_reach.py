@@ -104,29 +104,27 @@ calls are held by what they are handed or by where they run:
   history built by the test; that block uses `os` and `sys` and
   imports `tools/hooks/check_messages.py`, a file this guard reads.
 - `tests/stage4_as_built.py` runs `exec(compile(source, ...))` on its
-  own three string constants, `LABEL_CONTENT`, `READ_THE_COLUMN` and
-  `ALLOTTED_OVER`: `generation._label_content` and
-  `taxonomy._read_the_column` as 668f276 shipped them, the second with
-  the one argument plan P4-D382 added, frozen as text to serve as the
-  oracle of stage 4's first tier (the review of landing S1, item 5,
-  found the earlier oracle rebuilt from the product's own source and so
-  following any change made there); and `generation._allotted_over`
+  own two string constants, `LABEL_CONTENT` and `ALLOTTED_OVER`:
+  `generation._label_content` as 668f276 shipped it, frozen as text to
+  serve as the oracle of stage 4's first tier (the review of landing S1,
+  item 5, found the earlier oracle rebuilt from the product's own source
+  and so following any change made there); and `generation._allotted_over`
   with the packing walk under it as 493f6f8 shipped them, the oracle of
   plan P4-D389. Those strings are not a file this guard reads as code,
-  so both readings below were run over the first two on 2026-10-03 and
-  over the third on 2026-10-06, and found no post-floor spelling: they
-  are the product's own functions of 668f276 and 493f6f8, which this
-  guard read when they were the product.
+  so both readings below were run over the first on 2026-10-03 and over
+  the second on 2026-10-06, and found no post-floor spelling: they are
+  the product's own functions of 668f276 and 493f6f8, which this guard
+  read when they were the product. `READ_THE_COLUMN`,
+  `taxonomy._read_the_column` as 668f276 shipped it, stood beside them
+  until plan P4-D390 deleted the level pass it was the oracle of.
 - `tests/test_stage4_linear_work.py` runs `exec(compile(tree, ...))`
   once, in `_mutated` (plan P4-D385), where `tree` is the syntax tree of
-  a shipped function -- `taxonomy._levels_counted_out`, where the level
-  pass looks its levels up since landing 3b.5, or
-  `generation._label_content`, read by `inspect.getsource` from files
-  this guard reads -- with one change of meaning made to it, to show
-  that the comparison with the frozen texts breaks: a loop over
-  `counted_out[1:]`, or a size written `sizes[place] + 1`. A slice and
-  an addition, which every Python spells alike, so it adds no spelling
-  the floor could miss.
+  a shipped function -- `generation._label_content`, read by
+  `inspect.getsource` from a file this guard reads -- with one change
+  of meaning made to it, to show that the comparison with the frozen
+  text breaks: a size written `sizes[place] + 1`. An addition, which
+  every Python spells alike, so it adds no spelling the floor could
+  miss.
 - `runpy.run_path` runs the same kind of committed file: twice in
   `tests/`, in the two stage-2 oracle tests, and eighteen times in
   `tools/` -- one for the provenance guard's own runner and one for
@@ -414,7 +412,18 @@ RUNNING_NAMES = ("exec", "eval", "compile", "runpy.run_path", "runpy.run_module"
 # holds for it as it does for the other thirty-two. (The review counted
 # 31 from 30 on its own branch, beside the two above; the merge of
 # 2026-10-08 counts all three.)
-FILES_LOADED_AS_MODULES = 33
+#
+# 32 AT PLAN P4-D390, not 31: `tests/test_p4d18_shape_forms.py` loads
+# `tools/reference/make_generation_reference_vectors.py` through
+# `_reference_oracle`, so the oracle's bound on a form's stand-in walk is
+# asked beside the product's. What it loads is a committed file under
+# tools/, which this guard reads directly, so the floor holds for it as
+# it does for the other thirty-one.
+#
+# 34 AT THE MERGE OF LANE G4 INTO THE INTEGRATED TREE (2026-10-08),
+# not 33 or 32: each paragraph above counts its own load from 30, the
+# merged tree holds all four, and the merge counts every one.
+FILES_LOADED_AS_MODULES = 34
 
 
 def _files() -> "list[pathlib.Path]":

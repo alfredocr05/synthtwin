@@ -210,17 +210,23 @@ def test_the_census_supply_of_a_key_of_figures_is_not_its_enumeration_room() -> 
 
 
 # -- blocker 2: a sibling total that leaves one row (plan P4-D261) -----
+#
+# P4-D261 counted the held-back word of one row as MISSING and invariant
+# B4c refused a class total leaving one row. Plan P4-D390 retired both
+# with the rest of the owner's ruling 5 of 2026-09-17, under his
+# principle of 2026-10-01: a count worked out within one column is
+# accepted (P4-D363). What these pin now is that the class is written.
 
 
-def test_a_class_total_never_leaves_one_held_back_row(
+def test_a_class_total_leaving_one_held_back_row_is_written(
     tmp_path: pathlib.Path,
 ) -> None:
-    """`n_not_numeric` less the published words said one row holds a word.
+    """`n_not_numeric` less the published words is one row, and the twin holds it.
 
-    THE REVIEW'S SECOND BLOCKER. The pool was three levels over twelve
-    rows -- far outside the forced band B4b asks -- and every printed
-    count cleared the floor, while 201 less 100 less 100 is one. The twin
-    wrote one `group-1` and both files passed all 99 executable checks.
+    THE REVIEW'S SECOND BLOCKER, set aside. The pool is three levels
+    over twelve rows, the class total says one of them is a word, and
+    the twin writes the word class as the table holds it: 201 words,
+    eleven numbers, every row present, and both files validate.
     """
     cells = (
         ["alpha"] * 100 + ["beta"] * 100
@@ -231,23 +237,28 @@ def test_a_class_total_never_leaves_one_held_back_row(
     )
     published = {level["label"]: level["count"] for level in block["levels"]}
     assert published == {"alpha": 100, "beta": 100}
-    # The word that occurred once is counted as missing, so the sibling
-    # total and the published words agree exactly.
-    assert block["n_not_numeric"] - 200 == 0
-    assert block["n_missing"] == 1 and block["n_present"] == 211
-    # ...and the numbers below the floor are still POOLED, because their
-    # own total leaves eleven rows over two levels and derives nothing.
-    assert block["suppressed_levels"] == 2 and block["suppressed_rows"] == 11
-    assert "group-1" not in written
+    assert (block["suppressed_levels"], block["suppressed_rows"]) == (3, 12)
+    assert (block["n_missing"], block["n_present"]) == (0, 212)
+    assert (block["n_not_numeric"], block["n_numeric"]) == (201, 11)
+    words = [cell for cell in written if parsing.classify_number(cell) == parsing.NOT_A_NUMBER]
+    assert len(words) == 201
+    assert len(_read(written)) == 11
     assert twin_exit == 0 and real_exit == 0
 
 
-def test_the_loader_refuses_a_class_total_that_leaves_one_row() -> None:
-    """B4c is asked of the one rule, `parsing.census_names_one_row`."""
+def test_the_one_rule_reads_a_class_total_that_leaves_one_row() -> None:
+    """`parsing.census_names_one_row` over a total and what a census covers of it.
+
+    B4c asked it of the class totals until plan P4-D390; the form and
+    layout censuses still ask it of their own sibling totals (P4-D124).
+    """
     assert parsing.census_names_one_row({}, [(201, 200)]) == 0
     assert parsing.census_names_one_row({}, [(202, 200)]) == -1
     # A total no published level counts into is not read at all.
     assert parsing.census_names_one_row({}, [(1, 0)]) == -1
+    # ...but a pool of one is the rule's first reading, census or none.
+    assert parsing.census_names_one_row({"x": 1}, [(1, 0)]) == -2
+    assert parsing.census_names_one_row({"x": 12}, [(212, 200)]) == -1
 
 
 # -- item 3: the anchored sentence carries the warning (P4-D266) -------
@@ -448,14 +459,29 @@ def test_a_judged_removal_does_not_fail_the_real_table(
 ) -> None:
     """The source missed the shape census it was described by.
 
-    MEASURED before the repair: the producer counts the lone `2.0` as
-    missing and publishes `shape_forms {"%.%": 68}`; validation recounted
-    all 69 written cells of that form and the REAL file had one MISSED
-    check while its twin passed.
+    MEASURED before the repair: the producer counted the lone `2.0` as
+    missing (the level pass of ruling 5) and published `shape_forms
+    {"%.%": 68}`; validation recounted all 69 written cells of that form
+    and the REAL file had one MISSED check while its twin passed.
+
+    SINCE PLAN P4-D390 the lone `2.0` is a held-back level like any
+    other, so the census counts all 69. The allowance is still what a
+    written cell the description counts absent needs, and a DECLARED
+    `--missing-value=2.0` is that cell now: published 68, recounted 69,
+    and the real table passes on the allowance alone.
     """
     cells = ["0.0"] * 19 + ["1.0"] * 19 + ["2.0"] + ["3.0"] * 30 + ["alpha"] * 12
     block, _written, twin_exit, real_exit = _round_trip(
-        tmp_path / "judged", cells, ("--smallest-group", "5")
+        tmp_path / "pooled", cells, ("--smallest-group", "5")
+    )
+    assert block["shape_forms"] == {"%.%": 69}
+    assert (block["suppressed_levels"], block["suppressed_rows"]) == (1, 1)
+    assert block["n_present"] == 81
+    assert block["n_missing"] == _padding(cells)
+    assert real_exit == 0 and twin_exit == 0
+    block, _written, twin_exit, real_exit = _round_trip(
+        tmp_path / "judged", cells,
+        ("--smallest-group", "5", "--missing-value=2.0"),
     )
     assert block["shape_forms"] == {"%.%": 68}
     assert block["n_present"] == 80
@@ -654,88 +680,38 @@ def _class_total_cells(last: str) -> "list[str]":
     "last,key",
     [("77", "n_numeric"), ("1e999", "n_out_of_range"), ("(+5)", "n_contradictory")],
 )
-def test_a_class_no_published_level_reads_into_never_leaves_one_row(
+def test_a_class_no_published_level_reads_into_is_written(
     tmp_path: pathlib.Path, last: str, key: str
 ) -> None:
-    """The count of one survived in the three classes with no published level.
+    """The one row of a class no published level reads into, written as that class.
 
-    THE SKEPTIC'S BLOCKER over the repair of Codex's blocker 2. Ruling 5
-    was asked through `parsing.census_names_one_row` over the pair
-    `(total, covered)` alone, and that pair answers NOTHING where the
-    census covers none of the total -- an absent census leaves a reader
-    nothing to subtract. A class whose every level the floor held back is
-    exactly that shape.
-
-    MEASURED before this repair, at a floor of eleven and seed 4, on all
-    three of the classes no published WORD reads into: `alpha` and `beta`
-    a hundred rows each, `gamma` six, `delta` five and ONE further cell.
-    With `77` the block published `n_numeric` 1 beside two published
-    words, `suppressed_levels` 3 over `suppressed_rows` 12 and
-    `n_missing` 0 -- so exactly one row of the column reads as a number
-    and its value is withheld. With `1e999` the same of `n_out_of_range`
-    and with `(+5)` of `n_contradictory`, which names the accounting
-    notation ONE individual's cell was written in. All three passed every
-    executable check on twin and table alike, and the twin wrote the row.
+    THE SKEPTIC'S BLOCKER over the repair of Codex's blocker 2, set aside
+    by plan P4-D390. `alpha` and `beta` a hundred rows each, `gamma` six,
+    `delta` five and ONE further cell, at a floor of eleven: with `77`
+    the block publishes `n_numeric` 1 beside two published words, with
+    `1e999` the same of `n_out_of_range` and with `(+5)` of
+    `n_contradictory`. The pool holds the cell, and the twin writes one
+    cell of that class where the table holds one, so code that parses
+    the column meets the class on the twin first.
     """
     block, written, twin_exit, real_exit = _round_trip(
         tmp_path / "class", _class_total_cells(last), ("--smallest-group", "11")
     )
     published = {level["label"]: level["count"] for level in block["levels"]}
     assert published == {"alpha": 100, "beta": 100}
-    # The lone row of that class is counted as MISSING, so the class
-    # total is nought and there is nothing left to subtract.
-    assert block[key] == 0, (key, block[key])
-    assert block["n_missing"] == 1 and block["n_missing_withheld"] == 1
-    assert block["n_present"] == 211
-    # ...and the words below the floor are still POOLED, because their
-    # own total leaves eleven rows over two levels and derives nothing.
-    assert block["suppressed_levels"] == 2 and block["suppressed_rows"] == 11
-    # Nothing of that class is written into the twin.
-    assert [cell for cell in written if parsing.classify_number(cell)
-            != parsing.NOT_A_NUMBER and cell] == []
+    assert block[key] == 1, (key, block[key])
+    assert (block["n_missing"], block["n_present"]) == (0, 212)
+    assert (block["suppressed_levels"], block["suppressed_rows"]) == (3, 12)
+    reading = {
+        "n_numeric": parsing.NUMBER,
+        "n_out_of_range": parsing.NUMBER_OUT_OF_RANGE,
+        "n_contradictory": parsing.NUMBER_CONTRADICTORY,
+    }[key]
+    classed = [cell for cell in written if cell and parsing.classify_number(cell)
+               != parsing.NOT_A_NUMBER]
+    assert len(classed) == 1, classed
+    assert parsing.classify_number(classed[0]) == reading, classed
     assert twin_exit == 0 and real_exit == 0
-
-
-def test_the_loader_refuses_a_class_total_of_one_with_no_published_level() -> None:
-    """B4c reaches the class the published levels say nothing about.
-
-    The one rule is asked of the class's own held-back rows as a POOL as
-    well as of the pair, so the reading that needs no census beside it is
-    refused too. The unit answer of `census_names_one_row` is unchanged:
-    an absent census still leaves a reader nothing to SUBTRACT.
-    """
-    from synthtwin import contract, errors
-
-    assert parsing.census_names_one_row({}, [(1, 0)]) == -1
-    assert parsing.census_names_one_row({"x": 1}, [(1, 0)]) == -2
-    assert parsing.census_names_one_row({"x": 12}, [(212, 200)]) == -1
-    mapping = {
-        "levels": [
-            {"label": "alpha", "count": 100, "share": 0.47},
-            {"label": "beta", "count": 100, "share": 0.47},
-        ],
-        "suppressed_levels": 3,
-        "suppressed_rows": 12,
-        "n_numeric": 1,
-        "n_not_numeric": 211,
-        "n_out_of_range": 0,
-        "n_contradictory": 0,
-    }
-    entries = [
-        contract.LevelEntry(
-            label="alpha", count=100, variants={}, variants_withheld={},
-            shape_form_cells=0,
-        ),
-        contract.LevelEntry(
-            label="beta", count=100, variants={}, variants_withheld={},
-            shape_form_cells=0,
-        ),
-    ]
-    with pytest.raises(errors.ProfileError) as refusal:
-        contract._levels_against_their_classes(
-            mapping, "the column named 'value'", entries, False
-        )
-    assert "B4c" in str(refusal.value)
 
 
 def test_a_held_back_number_in_an_exponent_form_is_written_through_it(

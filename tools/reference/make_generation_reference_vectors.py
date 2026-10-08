@@ -7315,15 +7315,23 @@ def usable_room(form, wanted, seen, folds, reads=None, ladder=None):
     one the neutrality tests refuse.  ``reads`` is the numeric class the
     spelling must read as (G8.3a); None is ordinary text.  ``ladder``,
     where given, holds the count to the published ends (P4-D92), so the
-    supply is counted under the bound the walk spends under.
+    supply is counted under the bound the walk spends under.  It gives
+    the form up where the walk that spends it does (`walk_goes_on`).
     """
-    room, tries = form_walk_bounds(form)
+    supply = fraction_clock_supply(form)
+    room = supply if supply else form_room(form)
     usable = refused = 0
-    for step in range(room):
-        if usable >= wanted or refused >= tries:
+    step = 0
+    while (
+        step < room and refused < STAND_IN_STEPS
+        if supply
+        else walk_goes_on(step, usable, room)
+    ):
+        if usable >= wanted:
             return usable
         refused += 1
         candidate = filled_form(form, step)
+        step += 1
         if candidate in seen or folded(candidate) in folds:
             continue
         if reads is None:
@@ -7343,6 +7351,27 @@ def usable_room(form, wanted, seen, folds, reads=None, ladder=None):
 SHARE_OUT_PLACES = 256
 SHARE_OUT_NODES = 20000
 STAND_IN_STEPS = 4096
+
+
+def walk_goes_on(steps, taken, room):
+    """Whether a walk of one form's spellings may try one spelling more --
+    method section G8.3 (plan P4-D390): never past the form's own room,
+    and while the spellings it has refused number fewer than those it has
+    taken plus STAND_IN_STEPS.  Until P4-D390 the walk stopped at
+    STAND_IN_STEPS steps in all.
+    """
+    return steps < room and steps < 2 * taken + STAND_IN_STEPS
+
+
+def supply_wanted(sizes, owed):
+    """How far one form's supply is counted -- method section G8.3 (the
+    review of plan P4-D390): its places, or the cells it owes where those
+    are fewer.  Every held-back size is at least one row and no
+    arrangement gives a form a place once it owes nothing, so a form is
+    never given more places than it owes cells, and a supply counted past
+    that changes no arrangement.
+    """
+    return min(len(sizes), owed)
 
 # How many different exact class arrangements G8.3a step 1 tries before
 # the first one stands (landing 2b.13).  Each pass forbids one more of
@@ -7477,7 +7506,7 @@ def greedily(sizes, places, owing, seen, folds, supplied=None):
     every = [name for name in sorted(owing) if owing[name] > 0]
     left = {name: owing[name] for name in every}
     spare = {
-        name: usable_room(name, len(sizes), seen, folds)
+        name: usable_room(name, supply_wanted(sizes, owing[name]), seen, folds)
         if supplied is None else supplied[name]
         for name in every
     }
@@ -7506,13 +7535,13 @@ def shared_out(sizes, owing, seen, folds, supplied=None):
     if not names:
         return ["" for _ in sizes]
     places = [pair[1] for pair in sorted((-size, place) for place, size in enumerate(sizes))]
+    if len(places) > SHARE_OUT_PLACES:
+        return greedily(sizes, places, owing, seen, folds, supplied)
     supply = {
-        name: usable_room(name, len(sizes), seen, folds)
+        name: usable_room(name, supply_wanted(sizes, owing[name]), seen, folds)
         if supplied is None else supplied[name]
         for name in names
     }
-    if len(places) > SHARE_OUT_PLACES:
-        return greedily(sizes, places, owing, seen, folds, supplied)
     for biggest_first in (True, False):
         settled = settled_by_sums(
             sizes, places, owing, names, dict(supply), biggest_first
@@ -7610,6 +7639,7 @@ def invented_levels(
     produced = []
     walked = {}
     figures = None
+    taken = {}
     number = 0
     for place, size in enumerate(sizes):
         if placed is not None and place in placed:
@@ -7625,10 +7655,21 @@ def invented_levels(
         if form:
             figured = figures is not None and holding
             cursor = figures if figured else walked
-            steps, tries = form_walk_bounds(form, figured)
+            # The walk's bound is on what it refuses (walk_goes_on, plan
+            # P4-D390), counted over the form's takes on either cursor; a
+            # clock's form written to a fraction of the second runs to the
+            # end of its clock supply instead, a pass giving up after
+            # STAND_IN_STEPS tried (fraction_clock_supply, landing 3b.5).
+            supply = 0 if figured else fraction_clock_supply(form)
+            steps = supply if supply else form_room(form)
             cursor.setdefault(form, 0)
+            taken.setdefault(form, 0)
             tried = 0
-            while cursor[form] < steps and tried < tries:
+            while (
+                cursor[form] < steps and tried < STAND_IN_STEPS
+                if supply
+                else walk_goes_on(cursor[form], taken[form], steps)
+            ):
                 tried += 1
                 trial = filled_form(form, cursor[form], not figured)
                 cursor[form] += 1
@@ -7638,6 +7679,7 @@ def invented_levels(
                     continue
                 if not usable_stand_in(trial):
                     continue
+                taken[form] += 1
                 candidate = trial
                 break
         if candidate is None:
@@ -7678,6 +7720,17 @@ def owed_reading(name):
     }[name]
 
 LADDER_STEPS = 1 << 14
+
+
+def ladder_goes_on(tried, taken):
+    """Whether one debt's walk of one tier may try one value more --
+    method section G8.3a step 3 (the review of plan P4-D390, item 2):
+    while the positions that held a value number fewer than twice the
+    numbers it has taken plus 2 * LADDER_STEPS.  A position holding no
+    value -- "skip" -- is not counted.  Until that review it stopped at
+    2 * LADDER_STEPS positions in all.
+    """
+    return tried < 2 * taken + 2 * LADDER_STEPS
 
 # The settings every frozen case is described at: the reference test
 # builds each case's description with a smallest group size of eleven and
@@ -8300,16 +8353,26 @@ def next_on_ladder(ladder, name, cursor, named, seen, folds, needed=0, pool=None
     for places in tiers:
         key = f"{name}/{places}"
         low, high = f"{key}/low", f"{key}/high"
+        # How many numbers this tier has given, how many of its positions
+        # held no value, and whether it has ended: the bound is on what
+        # the walk refuses, so a position holding no value is not counted
+        # and an ended tier is marked ended rather than stood at the bound.
+        given, empty, ended = f"{key}/taken", f"{key}/empty", f"{key}/ended"
         cursor.setdefault(key, 0)
-        while cursor[key] < 2 * LADDER_STEPS:
+        cursor.setdefault(given, 0)
+        cursor.setdefault(empty, 0)
+        while ended not in cursor and ladder_goes_on(
+            cursor[key] - cursor[empty], cursor[given]
+        ):
             state, units, side = outward_at(
                 ladder, places, cursor[key], low in cursor, high in cursor
             )
             if state == "end":
-                cursor[key] = 2 * LADDER_STEPS
+                cursor[ended] = 1
                 break
             cursor[key] += 1
             if state == "skip":
+                cursor[empty] += 1
                 continue
             candidate = units_spelled(units, places)
             wearing = ""
@@ -8343,6 +8406,7 @@ def next_on_ladder(ladder, name, cursor, named, seen, folds, needed=0, pool=None
                 continue
             if not usable_of_class(candidate, NOTATION_NUMBER, wearing):
                 continue
+            cursor[given] += 1
             return candidate
     return ""
 
@@ -8949,6 +9013,31 @@ def numbers_paid(sizes, classes, placed):
     )
 
 
+def class_form_stand_in(form, reads, walked, taken, seen, folds, ladder=None):
+    """A spelling of one census form that reads as one numeric class, or ""
+    -- method section G8.3a, the form's own walk.  Each form carries its
+    place (``walked``) and what it has given (``taken``) across the column,
+    and gives up where walk_goes_on says (plan P4-D390); a spelling already
+    written, raw or folded, is stepped past, and with ``ladder`` given --
+    the number class -- so is one whose value lies outside the published
+    numbers' own ends (P4-D92).
+    """
+    room_left = form_room(form)
+    walked.setdefault(form, 0)
+    taken.setdefault(form, 0)
+    while walk_goes_on(walked[form], taken[form], room_left):
+        trial = filled_form(form, walked[form])
+        walked[form] += 1
+        if trial in seen or folded(trial) in folds:
+            continue
+        if usable_of_class(trial, reads) and (
+            ladder is None or within_the_published_ends(trial, ladder)
+        ):
+            taken[form] += 1
+            return trial
+    return ""
+
+
 def class_stand_ins_walked(
     column, written, used, sizes, census, bounded, whole_tier=False
 ):
@@ -8985,6 +9074,7 @@ def class_stand_ins_walked(
     cursor = {}
     counters = {}
     walked = {}
+    taken = {}
     for name in OWED_CLASSES:
         reads = owed_reading(name)
         mine = [place for place in range(len(sizes)) if classes.get(place) == name]
@@ -8997,6 +9087,9 @@ def class_stand_ins_walked(
         sub = [sizes[place] for place in mine]
         room = {}
         for form in sorted(mine_forms):
+            # Each supply is counted only up to the form's debt
+            # (supply_wanted): the settlements spend it on nothing else.
+            wanted = supply_wanted(sub, mine_forms[form])
             if name == OWED_NUMBER:
                 # A NUMBER FORM HAS TWO SUPPLIES (landing 2b.13).  The
                 # ladder spells a PLAIN decimal, so a form the ladder
@@ -9006,19 +9099,19 @@ def class_stand_ins_walked(
                 # the other supply, and the walk below takes it where
                 # the ladder has nothing.
                 room[form] = max(
-                    ladder_room(ladder, form, len(sub), named, seen, folds),
-                    usable_room(form, len(sub), seen, folds, reads, ladder),
+                    ladder_room(ladder, form, wanted, named, seen, folds),
+                    usable_room(form, wanted, seen, folds, reads, ladder),
                     # AND A THIRD, THE FORM'S OWN SCALE: an exponent form
                     # the ladder cannot spell at its bare places can be
                     # spelled at the scale its own exponent fixes.  It is
                     # SPENT last of the three.
                     ladder_room(
-                        ladder, form, len(sub), named, seen, folds,
+                        ladder, form, wanted, named, seen, folds,
                         0, None, False, True,
                     ),
                 )
             else:
-                room[form] = usable_room(form, len(sub), seen, folds, reads)
+                room[form] = usable_room(form, wanted, seen, folds, reads)
         forms_of = ["" for _ in sub]
         if mine_forms:
             forms_of = shared_out(sub, mine_forms, seen, folds, room)
@@ -9070,18 +9163,9 @@ def class_stand_ins_walked(
                         # bought with a magnitude the column is not known
                         # to hold.  Where no plain number was published
                         # there are no ends and the debt simply stands.
-                        room_left = min(form_room(form), STAND_IN_STEPS)
-                        walked.setdefault(form, 0)
-                        while walked[form] < room_left:
-                            trial = filled_form(form, walked[form])
-                            walked[form] += 1
-                            if trial in seen or folded(trial) in folds:
-                                continue
-                            if usable_of_class(trial, reads) and (
-                                within_the_published_ends(trial, ladder)
-                            ):
-                                found = trial
-                                break
+                        found = class_form_stand_in(
+                            form, reads, walked, taken, seen, folds, ladder
+                        )
                     if not found:
                         # AND LAST, THE LADDER AT THE FORM'S OWN SCALE.
                         # An exponent form walked at its mantissa's bare
@@ -9103,16 +9187,9 @@ def class_stand_ins_walked(
                     )
             else:
                 if form:
-                    room_left = min(form_room(form), STAND_IN_STEPS)
-                    walked.setdefault(form, 0)
-                    while walked[form] < room_left:
-                        trial = filled_form(form, walked[form])
-                        walked[form] += 1
-                        if trial in seen or folded(trial) in folds:
-                            continue
-                        if usable_of_class(trial, reads):
-                            found = trial
-                            break
+                    found = class_form_stand_in(
+                        form, reads, walked, taken, seen, folds
+                    )
                 if not found:
                     counters.setdefault(name, 0)
                     while counters[name] < STAND_IN_STEPS:
@@ -9418,10 +9495,15 @@ def level_shape_spent(sizes, shared, level_shape, fixed, seen, folds):
     if supply < 1 or not free:
         return arranged, set()
     taken = {}
+    # The cells each form is paid on the places a trade may move, which
+    # no trade changes; a form never holds more of those places than
+    # it is paid cells there, so its room is counted no further.
+    paid = {}
     for place in range(len(sizes)):
         if place in fixed or not arranged[place]:
             continue
         taken[arranged[place]] = taken.get(arranged[place], 0) + 1
+        paid[arranged[place]] = paid.get(arranged[place], 0) + sizes[place]
     rooms = {}
     offered = sorted(
         (-sizes[place], place) for place in range(len(sizes))
@@ -9454,7 +9536,9 @@ def level_shape_spent(sizes, shared, level_shape, fixed, seen, folds):
             continue
         name = arranged[place]
         if name not in rooms:
-            rooms[name] = usable_room(name, len(sizes), seen, folds)
+            rooms[name] = usable_room(
+                name, supply_wanted(sizes, paid[name]), seen, folds
+            )
         if taken[name] - 1 + len(chosen) > rooms[name]:
             continue
         trial = list(arranged)

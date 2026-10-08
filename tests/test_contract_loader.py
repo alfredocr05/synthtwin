@@ -995,40 +995,10 @@ def battery() -> list[Mutation]:
             edit("region", suppressed_rows=11),
         ),
         Mutation(
-            # B4b, A POOL THAT IS A COUNT OF ONE (the owner's ruling of
-            # 2026-09-17, item 5; plan P4-D231). Every rule before it
-            # holds: one label covers one row fewer, one label is said
-            # to be held back over that one row, and the count of
-            # different values rises with it -- so B2, B3, B4 and B5 are
-            # all satisfied and what is left is one label on one row,
-            # which `n_present` less the published counts reads off.
-            # That is the description the producer stopped writing.
-            "B4b", "a pool of one label on one row",
-            both(
-                edit_level("region", 0, count=65),
-                both(
-                    lambda document: at(document, "region")["levels"][0].update(
-                        {"variants": {"west": 65}}
-                    ),
-                    edit("region", suppressed_rows=1),
-                ),
-            ),
-        ),
-        Mutation(
-            # B4c, A SIBLING TOTAL THAT LEAVES ONE ROW (Codex blocker 2
-            # of the extra round, 2026-09-18; plan P4-D261). `region`
-            # publishes four word levels over 233 rows and holds one back
-            # over seven, so the POOL forces nothing. Move six of its
-            # rows into `n_numeric` and the words' own total is 234
-            # against 233 published: the held-back WORD level covers the
-            # one row left, and a reader subtracts it without arithmetic.
-            "B4c", "a class total one row above the labels that read that way",
-            both(
-                edit("region", n_not_numeric=234),
-                edit("region", n_numeric=6),
-            ),
-        ),
-        Mutation(
+            # B4b AND B4c ARE RETIRED (plan P4-D390): a pool of one label
+            # on one row, and a class total one row above the labels that
+            # read that way, both load now -- see
+            # `test_the_level_rules_ruling_5_asked_load_now` below.
             # B4d, A POOLED SCALE TAKEN OVER TOO FEW CELLS (plan
             # P4-D302, ledger K-2B-50). Section 6.3 publishes the mean
             # of the numbers the floor held back, and it is safe only
@@ -3048,6 +3018,43 @@ def test_the_weekday_census_is_held_to_its_shape_alone(tmp_path: pathlib.Path, b
         loaded = contract.load_profile(str(fixtures.write_profile(tmp_path, f"shape-{place}-profile.json", document)))
         assert loaded.columns, place
     for retired in ("WC5", "WC7", "WC8", "WC9"):
+        assert retired not in contract.INVARIANTS, retired
+
+
+def test_the_level_rules_ruling_5_asked_load_now(
+    tmp_path: pathlib.Path, base: Document
+) -> None:
+    """The two descriptions B4b and B4c refused each load (plan P4-D390).
+
+    A pool of one label on one row -- `west` six rows more and the pool
+    one label over one row -- and a class total one row above the labels
+    that read that way, with every other rule of the block kept.
+    Ruling 5 of 2026-09-17 is set aside, so the loader asks neither; red
+    when it asks either again.
+    """
+    edits = (
+        both(
+            edit_level("region", 0, count=65),
+            both(
+                lambda document: at(document, "region")["levels"][0].update(
+                    {"variants": {"west": 65}}
+                ),
+                edit("region", suppressed_rows=1),
+            ),
+        ),
+        both(
+            edit("region", n_not_numeric=234),
+            edit("region", n_numeric=6),
+        ),
+    )
+    for place, change in enumerate(edits):
+        document = copy.deepcopy(base)
+        change(document)
+        loaded = contract.load_profile(
+            str(fixtures.write_profile(tmp_path, f"level-{place}-profile.json", document))
+        )
+        assert loaded.columns, place
+    for retired in ("B4b", "B4c"):
         assert retired not in contract.INVARIANTS, retired
 
 

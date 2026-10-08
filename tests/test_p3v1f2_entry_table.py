@@ -1392,15 +1392,15 @@ def _smallest_reportable_edit(
 ) -> int:
     """How many cells an edit must touch before a description can carry it.
 
-    ONE, EXCEPT ON A COLUMN THAT PUBLISHES A LEVEL LIST (the owner's
-    ruling of 2026-09-17, item 5; plan P4-D231), where it is TWO. A
-    single cell edited into a class of its own is a level of ONE row
-    below the floor, and the level pass counts such a cell as MISSING --
-    so the file's own description does not count it in any class, the
-    count of that class cannot miss, and a red case built on one cell
-    has no teeth. Two cells are one level of TWO rows, which the pool
+    ONE, EXCEPT ON A COLUMN THAT PUBLISHES A LEVEL LIST, where it is TWO.
+    While the owner's ruling of 2026-09-17, item 5 stood (plans P4-D231
+    to P4-D390), a single cell edited into a class of its own was a level
+    of ONE row below the floor, and the level pass counted such a cell as
+    MISSING -- so the file's own description counted it in no class, the
+    count of that class could not miss, and a red case built on one cell
+    had no teeth. Two cells are one level of TWO rows, which the pool
     publishes without saying a size, so they stay present and the class
-    count misses as it did.
+    count misses as it did; the battery keeps two, which still carry.
 
     It is the same reasoning `_floor_cells` gives for the style clauses:
     the battery edits the smallest number of cells a description of the
@@ -2163,7 +2163,8 @@ def _one_cell(
 
     ONE on a column of numbers and TWO on a column that publishes a
     level list, for the reason `_smallest_reportable_edit` states (the
-    owner's ruling of 2026-09-17, item 5; plan P4-D231). The family
+    owner's ruling of 2026-09-17, item 5, set aside by plan P4-D390). The
+    family
     keeps its `one-` name, which says what it is FOR: the smallest edit
     this battery can still be reported through.
 
@@ -6200,16 +6201,15 @@ FIXTURE_ROLES: "dict[str, dict[str, str]]" = {
     "shaped-text": {
         "lab_code": "free_text",
         "region": "categorical",
-        # `categorical` since plan P4-D271, and derived rather than read
-        # off the run: the rare tail is 26 levels over 39 rows (13 codes
-        # of two rows, 13 of one) beside 201 published rows. It is not a
-        # pinned pool (39 rows, 26 levels), it is not the exception
-        # (39 x 2 = 78 < 201), and 39 < 2 x 26, so the pool names a
-        # level, ruling 5 counts its rows as missing, and the column
-        # publishes its five common codes and no tail -- which is a set
-        # of categories. Before P4-D271 the exception was "smaller than
-        # the smallest published level", 22, and 39 cleared it.
-        "dx_code": "categorical",
+        # `long_tail_labels` since plan P4-D390, and derived rather than
+        # read off the run: the five common codes and the rare tail of 26
+        # levels over 39 rows (13 codes of two rows, 13 of one) are 31
+        # different values, past the 24 a set of categories may have in
+        # 240 rows, and the tail is pooled. From plan P4-D271 to P4-D390
+        # ruling 5 counted the tail's rows as missing (39 < 2 x 26, and
+        # 39 x 2 = 78 < 201 published rows), and the five codes left
+        # were a set of categories.
+        "dx_code": "long_tail_labels",
     },
     "pooled": {"reading": "continuous"},
     "saturated": {"reading": "continuous"},

@@ -25,8 +25,9 @@ the defect it guards against rather than assumed to.
    `taxonomy._levels_read_by_class` beside them). Every cell asked a
    LIST of the levels the floor holds back whether its own level was one
    of them, so describing a code register cost its cells times its rare
-   codes: 36.2 s at 200,000 rows and 126.6 s at 400,000, measured with
-   the rest of the first tier's sketch in place.
+   codes: 36.2 s at 200,000 rows and 126.6 s at 400,000. Plan P4-D390
+   deleted the level pass and both readings with ruling 5, so this path
+   and its measures are gone.
 3. **The label column** (`generation._label_content`), which was grown
    by copying the column written so far once per level: 16.7 s for the
    twin of the same register at 200,000 rows and 44.0 s at 400,000,
@@ -464,116 +465,12 @@ def test_a_carrier_choice_repeats_exactly_when_its_sorted_windows_did() -> None:
     assert repeats >= 1000, repeats
 
 
-# -- 2. the held-back level lookups --------------------------------------
-
-
-def _levels_read_by_class_as_built(
-    cells: "taxonomy._Cells", role: str, rare: "list[str]", smallest: int
-) -> "tuple[str, ...]":
-    """`taxonomy._levels_read_by_class` as 668f276 shipped it, its docstring aside."""
-    if not rare or smallest < 0:
-        return ()
-    population = cells.classified
-    if role == taxonomy.ROLE_COMPOUND:
-        compound = taxonomy._compound_reading(cells)
-        if compound is None:
-            return ()
-        population = compound.labels
-    by_class: "dict[str, str]" = {}
-    counts: "dict[str, int]" = {}
-    totals: "dict[str, int]" = {}
-    for cell in population:
-        key = cell.folded
-        counts[key] = (counts[key] if key in counts else 0) + 1
-        totals[cell.kind] = (totals[cell.kind] if cell.kind in totals else 0) + 1
-        if key in by_class and by_class[key] != cell.kind:
-            by_class[key] = taxonomy._CLASS_MIXED
-            continue
-        by_class[key] = cell.kind
-    held: "dict[str, list[str]]" = {}
-    for label in rare:
-        if label not in by_class:
-            continue
-        kind = by_class[label]
-        held[kind] = (held[kind] if kind in held else []) + [label]
-    counted_out: "list[str]" = []
-    for kind in taxonomy._READING_CLASSES:
-        if kind not in held:
-            continue
-        total = totals[kind] if kind in totals else 0
-        rows = 0
-        for label in held[kind]:
-            rows = rows + counts[label]
-        covered = total - rows
-        if parsing.census_names_one_row({kind: rows}, [(total, covered)]) != -1:
-            counted_out += held[kind]
-    return tuple(sorted(counted_out))
-
-
-def _levels_read_by_form_as_built(
-    cells: "taxonomy._Cells", role: str, rare: "list[str]"
-) -> "tuple[str, ...]":
-    """`taxonomy._levels_read_by_form` as 668f276 shipped it, its docstring aside."""
-    if not rare:
-        return ()
-    population = cells
-    with_text_total = True
-    if role == taxonomy.ROLE_COMPOUND:
-        compound = taxonomy._compound_reading(cells)
-        if compound is None:
-            return ()
-        population = taxonomy._tally(
-            taxonomy._classify_all(
-                [cell.text for cell in compound.labels], cells.decimal_comma
-            ),
-            len(compound.labels),
-            cells.settings,
-            cells.decimal_comma,
-        )
-        with_text_total = False
-    elif role not in taxonomy._LEVEL_ROLES:
-        return ()
-    spelled = taxonomy.described_spellings(population.present, population.settings)
-    census = taxonomy._shape_forms(population, False, with_text_total, spelled)
-    held: "dict[str, list[str]]" = {}
-    rows: "dict[str, int]" = {}
-    covered: "dict[str, int]" = {}
-    for value in spelled:
-        form = taxonomy._census_key_of(value, census)
-        if not form:
-            continue
-        key = parsing.folded(value)
-        if key not in rare:
-            covered[form] = (covered[form] if form in covered else 0) + 1
-            continue
-        rows[form] = (rows[form] if form in rows else 0) + 1
-        named = held[form] if form in held else []
-        held[form] = named if key in named else named + [key]
-    counted_out: "list[str]" = []
-    for form in sorted(census):
-        if form not in held:
-            continue
-        seen = covered[form] if form in covered else 0
-        if parsing.census_names_one_row(
-            {form: rows[form]}, [(census[form], seen)]
-        ) != -1:
-            counted_out += held[form]
-    return tuple(sorted(counted_out))
-
-
-def _read_the_column_as_built() -> "tuple[object, dict]":
-    """`taxonomy._read_the_column` as 668f276 shipped it, from the frozen text.
-
-    Its level pass walks the sorted tuple `counted_out`, and every role
-    is asked of `_decide`; the text is `stage4_as_built.READ_THE_COLUMN`,
-    fixed, so a change of meaning made to the product function is not
-    made to it (review of landing S1, item 5). Returns the function and
-    the copy of the module's names it runs in, so a measure can replace
-    one of them.
-    """
-    return stage4_as_built.compiled(
-        taxonomy, stage4_as_built.READ_THE_COLUMN, "_read_the_column"
-    )
+# -- 2. the held-back level lookups, retired with the level pass ---------
+#
+# Plan P4-D390 deleted the level pass of ruling 5 (`_levels_read_by_form`,
+# `_levels_read_by_class` and the pass in `_read_the_column`), so the
+# measures of its lookups and their oracle went with it. The register
+# and the mutation helper below serve section 3.
 
 
 def _register(rows: int, seed: int, codes: int, held_rows: "tuple[int, ...]") -> "list[str]":
@@ -594,73 +491,6 @@ def _register(rows: int, seed: int, codes: int, held_rows: "tuple[int, ...]") ->
     return values[:rows]
 
 
-def _level_battery() -> "list[tuple[list[str], int]]":
-    """Label columns whose floor holds levels back: named witnesses, then seeded registers."""
-    cases: "list[tuple[list[str], int]]" = [
-        # The form pass's own witness (round 2 of the review): 201 less
-        # 100 less 100 is one held-back row wearing a published form.
-        (["ABC-100"] * 100 + ["ABC-200"] * 100 + ["ABC-300"] + ["QQ-400"] * 5
-         + ["RR-500"] * 6, 11),
-        # The class pass's witnesses (plan P4-D261): one row reading as a
-        # number, out of range, or contradictory beside two words.
-        (["alpha"] * 100 + ["beta"] * 100 + ["7"], 11),
-        (["alpha"] * 100 + ["beta"] * 100 + ["1e999"], 11),
-        (["alpha"] * 100 + ["beta"] * 100 + ["(+5)"], 11),
-        # A lone level beside two common ones (the owner's ruling of
-        # 2026-09-17, item 5).
-        (["F"] * 480 + ["M"] * 519 + ["U"], 11),
-        # Readings beside words (numbers with labels).
-        ([f"{1 + (place % 97) / 10:.1f}" for place in range(296)]
-         + ["NOT DETECTED"] * 13 + ["trace"] * 2, 11),
-    ]
-    for seed in range(10):
-        for floor in (11, 36):
-            cases += [(_register(400 + 90 * seed, seed, 6 + seed, (1, 1, 2, 3, 5)), floor)]
-    # Registers whose codes written once are counted out by the level
-    # pass: their pool is smaller than the published rows, and fewer than
-    # twice its levels.
-    for rows in (400, 800, 1600):
-        cases += [(_counted_out_register(rows), 11)]
-    cases += [(_register(900, 11, 12, (1,)), 11)]
-    return cases
-
-
-def test_the_held_back_levels_are_counted_out_as_the_lists_counted_them() -> None:
-    """The form and class passes give what 668f276's list walks gave, role by role."""
-    nonempty = 0
-    for values, floor in _level_battery():
-        settings = taxonomy.Settings(small_cell_floor=floor)
-        tally = taxonomy._tally(taxonomy._classify_all(values), len(values), settings)
-        counts = tally.folded_counts
-        rare = sorted(label for label in counts if counts[label] < floor)
-        published = [counts[label] for label in counts if counts[label] >= floor]
-        smallest = min(published) if published else 0
-        roles = (taxonomy._decide(tally, False).role,) + tuple(taxonomy._LEVEL_ROLES) + (
-            taxonomy.ROLE_COMPOUND,
-        )
-        for role in roles:
-            by_form = taxonomy._levels_read_by_form(tally, role, rare)
-            assert by_form == _levels_read_by_form_as_built(tally, role, rare), (role, values[:5])
-            by_class = taxonomy._levels_read_by_class(tally, role, rare, smallest)
-            assert by_class == _levels_read_by_class_as_built(
-                tally, role, rare, smallest
-            ), (role, values[:5])
-            nonempty += bool(by_form) + bool(by_class)
-    assert nonempty >= 10, f"only {nonempty} answers named a level: the battery proves little"
-
-
-def test_the_level_pass_reads_what_the_list_walk_read() -> None:
-    """`_read_the_column` gives the reading 668f276's level pass gave, field for field."""
-    as_built, _names = _read_the_column_as_built()
-    removed = 0
-    for values, floor in _level_battery():
-        settings = taxonomy.Settings(small_cell_floor=floor)
-        shipped = taxonomy._read_the_column(values, len(values), settings)
-        assert shipped == as_built(values, len(values), settings), values[:5]
-        removed += len(values) - len(shipped.present)
-    assert removed >= 100, f"the level pass removed {removed} cells: the battery proves little"
-
-
 def _mutated(module: "object", name: str, mutation: "ast.NodeTransformer") -> "object":
     """The product function ``name`` with one change of meaning made to it, compiled apart.
 
@@ -674,166 +504,6 @@ def _mutated(module: "object", name: str, mutation: "ast.NodeTransformer") -> "o
     names = dict(vars(module))
     exec(compile(tree, f"<{name} mutated>", "exec"), names)
     return names[name]
-
-
-class _OneLevelFewer(ast.NodeTransformer):
-    """The level pass looks up every level counted out but the first."""
-
-    found = 0
-
-    def visit_For(self, node: ast.For) -> ast.For:
-        self.generic_visit(node)
-        if (
-            isinstance(node.target, ast.Name)
-            and node.target.id == "label"
-            and isinstance(node.iter, ast.Name)
-            and node.iter.id == "counted_out"
-        ):
-            self.found += 1
-            node.iter = ast.Subscript(
-                value=ast.Name("counted_out", ast.Load()),
-                slice=ast.Slice(lower=ast.Constant(1)),
-                ctx=ast.Load(),
-            )
-        return node
-
-
-def test_a_change_of_meaning_in_the_level_pass_breaks_its_comparison() -> None:
-    """The frozen reference does not follow the product: a mutant of it reads differently.
-
-    The review of landing S1 (item 5) showed the old reference, rebuilt
-    from the product's own source, followed any change made there. Here
-    the level pass of the product looks up one level fewer than it
-    counted out, and the comparison above must fail on the battery. Since
-    landing 3b.5 (plan P4-D373) the pass looks its levels up in
-    `_levels_counted_out`, which `_read_the_column` calls by name, so the
-    mutant is made there and the shipped reader runs with it in place.
-    """
-    mutant = _mutated(taxonomy, "_levels_counted_out", _OneLevelFewer())
-    as_built, _names = _read_the_column_as_built()
-    differ = 0
-    with pytest.MonkeyPatch.context() as patch:
-        patch.setattr(taxonomy, "_levels_counted_out", mutant)
-        for values, floor in _level_battery():
-            settings = taxonomy.Settings(small_cell_floor=floor)
-            reading_of = taxonomy._read_the_column(values, len(values), settings)
-            differ += reading_of != as_built(values, len(values), settings)  # type: ignore[operator]
-    assert differ >= 1, "the mutant read every column as the reference did"
-
-
-class _Counted(str):
-    """A level whose every equality test is counted: the work of looking it up."""
-
-    __hash__ = str.__hash__
-
-    def __eq__(self, other: object) -> bool:
-        _COMPARED[0] += 1
-        return str.__eq__(self, other)
-
-
-_COMPARED = [0]
-
-
-def _counted_out_register(rows: int) -> "list[str]":
-    """Twenty common codes over three quarters of the rows, and a quarter written once each."""
-    draw = random.Random(rows)
-    values: "list[str]" = []
-    for place in range(20):
-        values += [f"C{place:03d}"] * (3 * rows // 80)
-    values += [f"R{place:05d}" for place in range(rows // 4)]
-    draw.shuffle(values)
-    return values
-
-
-def held_back_lookups(rows: int, as_built: bool = False, form_pass: bool = True) -> int:
-    """How many times a held-back level is compared with a cell's while one register is read.
-
-    A register of ``rows`` rows -- a quarter of them codes written once,
-    which the floor holds back and the level pass counts out -- is asked
-    the form pass and then read whole; every held-back level is a
-    `_Counted`, so each equality test against one is counted, whatever
-    asks it. With ``as_built`` the form pass and the level pass walk
-    their lists as 668f276 walked them. With ``form_pass`` false the
-    form pass is not asked, so the count is the reading's alone.
-    """
-    values = _counted_out_register(rows)
-    settings = taxonomy.Settings()
-    tally = taxonomy._tally(taxonomy._classify_all(values), len(values), settings)
-    role = taxonomy._decide(tally, False).role
-    rare = [
-        _Counted(label)
-        for label in sorted(tally.folded_counts)
-        if tally.folded_counts[label] < settings.small_cell_floor
-    ]
-    by_form = _levels_read_by_form_as_built if as_built else taxonomy._levels_read_by_form
-    reader, names = (
-        _read_the_column_as_built() if as_built else (taxonomy._read_the_column, None)
-    )
-    shipped = taxonomy._levels_read_by_subtraction
-
-    def counted(cells: "taxonomy._Cells", asked: str) -> "tuple[str, ...]":
-        return tuple(_Counted(label) for label in shipped(cells, asked))
-
-    _COMPARED[0] = 0
-    if form_pass:
-        by_form(tally, role, rare)
-    with pytest.MonkeyPatch.context() as patch:
-        if names is None:
-            patch.setattr(taxonomy, "_levels_read_by_subtraction", counted)
-        else:
-            patch.setitem(names, "_levels_read_by_subtraction", counted)
-        reading_of = reader(values, len(values), settings)
-    assert len(reading_of.present) == len(values) - rows // 4, "the level pass did not run"
-    return _COMPARED[0]
-
-
-def test_the_held_back_lookups_grow_with_the_rows_and_not_their_square() -> None:
-    """Comparisons at 2N rows against N: about two now, and four as built."""
-    small, large = held_back_lookups(1000), held_back_lookups(2000)
-    assert large / small < LINEAR_AT_MOST, (small, large)
-    old_small = held_back_lookups(1000, as_built=True)
-    old_large = held_back_lookups(2000, as_built=True)
-    assert old_large / old_small >= SQUARE_AT_LEAST, (old_small, old_large)
-    # THE READING ON ITS OWN, AS BUILT. The form pass as built grows as
-    # the square by itself, so it is this count that shows the reader
-    # `_read_the_column_as_built` returns walks the level pass as 668f276
-    # walked it.
-    pass_small = held_back_lookups(1000, as_built=True, form_pass=False)
-    pass_large = held_back_lookups(2000, as_built=True, form_pass=False)
-    assert pass_small, "the reading as built compared no held-back level"
-    assert pass_large / pass_small >= SQUARE_AT_LEAST, (pass_small, pass_large)
-
-
-def class_pass_bytes(rows: int, as_built: bool = False) -> int:
-    """The bytes `taxonomy._levels_read_by_class`'s lines allocate over one register.
-
-    A quarter of the register's rows are codes written once, all of one
-    class, so the class pass files every one of them under that class.
-    With ``as_built`` the pass is 668f276's, its frozen copy above,
-    which copied the class's list once per level (review of landing S1,
-    item 4: that copying makes no string comparison, so the count of
-    comparisons above cannot see it).
-    """
-    values = _counted_out_register(rows)
-    settings = taxonomy.Settings()
-    tally = taxonomy._tally(taxonomy._classify_all(values), len(values), settings)
-    counts = tally.folded_counts
-    floor = settings.small_cell_floor
-    rare = sorted(label for label in counts if counts[label] < floor)
-    smallest = min(counts[label] for label in counts if counts[label] >= floor)
-    role = taxonomy._decide(tally, False).role
-    function = _levels_read_by_class_as_built if as_built else taxonomy._levels_read_by_class
-    assert len(rare) == rows // 4
-    return _allocated_by_lines(function, tally, role, rare, smallest)
-
-
-def test_the_class_pass_grows_with_the_rows_and_not_their_square() -> None:
-    """Bytes the class pass allocates at 2N rows against N: about two now, four as built."""
-    small, large = class_pass_bytes(4000), class_pass_bytes(8000)
-    assert large / small < LINEAR_AT_MOST, (small, large)
-    old_small = class_pass_bytes(4000, as_built=True)
-    old_large = class_pass_bytes(8000, as_built=True)
-    assert old_large / old_small >= SQUARE_AT_LEAST, (old_small, old_large)
 
 
 # -- 3. the label column -------------------------------------------------
@@ -1180,9 +850,9 @@ def test_no_column_walks_the_ladder_twice_for_one_question() -> None:
     """One walk per question at N rows and at 2N, and about three as built.
 
     A question is one tally asked under one set of arguments, its
-    defaults filled in. A column whose level pass takes a lone level out
-    asks a second question of a second tally, so there are a few more
-    questions than columns.
+    defaults filled in. A column a judged pass takes cells out of asks a
+    second question of a second tally, so there can be more questions
+    than columns.
     """
     for rows in (500, 1000):
         walks, questions, columns = role_walks(rows)
@@ -1246,7 +916,6 @@ def test_every_argument_of_the_ladder_is_part_of_the_question() -> None:
         "removed": 1,
         "after_removal": True,
         "after_days": True,
-        "after_levels": True,
         "forced_code": True,
         "forced_measurement": True,
         "probing": True,

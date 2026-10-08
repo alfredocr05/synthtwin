@@ -6,6 +6,73 @@ exists).
 
 ## [Unreleased]
 
+### A rare label is pooled, never blanked, and a held-back code keeps its form past the old bounds (2026-10-06)
+
+**The subtraction guard is dropped** (plan P4-D390, under the owner's
+principle of 2026-10-01; the orchestrator sets aside the owner's ruling
+of 2026-09-17, item 5). The producer no longer counts as missing the
+cells of a held-back level whose pool a reader could read a count of one
+off by subtraction: its level pass, with its pool, class and form
+readings and `parsing.pool_names_a_level`, is deleted, and the loader's
+B4b and B4c are retired (contract 6.3). A held-back level is pooled
+whatever its size. Every description written before still loads, and its
+twin is written and validated as before; but its source table, validated
+against it, misses the counts of each column the retired pass reached,
+because the table is described again without the pass: describe the
+table again.
+On the measurement's seeded tables at a floor of eleven the 30,000-code
+register at 100,000 rows came back with 22,220 blank cells and 729
+distinct codes for the real 12,196, read as categories; it now comes
+back with none and 12,196, every top code's prevalence the real file's
+and its entropy 6.14 against 6.11, read as the long tail it is. A 0/1 coding of a column
+the guard had cut to two values, and procedure codes read as integers,
+now fail on the twin, where the code is written, instead of on the real
+file, and `dropna` keeps every row where it kept 68 to 78 per cent. `K-S3-12` falls from 65 to 61, P4-D334's restating
+sentences rise from 20 to 22, `K-2B-28` reads the pooled label's one
+row off the pool, `K-2B-20` is retired, and `K-2B-26`, `K-2B-52` and
+`K-S4-03` lose what measured the pass.
+
+**A held-back code keeps its form, and a held-back number stays a
+number, past the old bounds** (methods G8.3 and G8.3a). The form walk
+gave a form up after 4,096 spellings in all, so a register holding back
+more codes of one form wrote the rest `group-N` and its twin missed that
+form's census count, which the guard had hidden inside its own window.
+A walk now goes on while it has refused fewer spellings than it has
+taken plus 4,096, never past the form's room, and the oracle mirrors it;
+no frozen vector or fixture moves. The same register now has every twin
+cell in the code's form where 89,908 of 100,000 were, and validates at
+exit 0 where it missed; 300,000 codes held back over 600,000 rows have
+every cell in the form where 112,288 were, generated in 57 s and 197 MB
+where it took 34 s and 245 MB. The landing's review found the guard had
+hidden a second bound: the made-up numbers of G8.3a stopped at 32,768
+steps of their ladder, so ten-figure codes over 1,000,000 rows holding
+95,770 back wrote 32,768 of them as numbers and the rest as words. That
+walk's bound is on what it refuses too, and that table's twin now holds
+every cell as a number and validates at exit 0. A position holding no
+value, such as a number the column published, is not counted against
+that bound, so a register of consecutive codes, whose gaps the walk
+reaches only past every published code nearer an end, is walked to the
+end of its span: 50,000 seven-figure codes on eleven rows each, 2,011
+of them written once, came back with 579 of those as words and now with
+none. Each form's supply is now counted only up to what the form owes,
+which moves no byte: counted to the number of held-back codes, it walked
+every one of them once for each form owing a cell, and 24,610 codes held
+back in 126 forms over 200,000 rows took 131.1 s of processor time to
+generate where they take 11.4. One kind of form is still missed: a code
+form with one letter among figures reads as a number by its exponent
+filling, so where the column also owes numbers its held-back words are
+written in no form, and the twin misses the form's count, which the
+table meets (`K-S3-61`, OPEN).
+
+At its merge (2026-10-08) the two routes to clock times landing 3b.5
+built inside the deleted pass stand as a pass of their own. The second,
+which counts out the levels below the floor no clock form reads beside a
+column of times, is kept, because without it 13 of lane C1's 112 columns
+of times beside notes or another face wrote twins that miss the count of
+the `HH:MM` form their table meets; it stands only where those levels
+cover fewer than half the rows the column publishes, so a column half at
+the minute and half at the second stays labels (plans P4-D390, P4-D373).
+
 ### The packing walk is offered only what the cells after it can finish (2026-10-06)
 
 **Stage 4, the allocator walk** (plan P4-D389). Codex's declared

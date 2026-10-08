@@ -19769,18 +19769,18 @@ def _judged_absent(block: "dict[str, object]", cells: "list[str]") -> int:
     THE CENSUS COUNTS THE CELLS THE DESCRIPTION WAS MADE FROM, and the
     recount walks every cell the file holds, so the two populations part
     wherever the producer judged a written cell absent (Codex item 7 of
-    the extra round, 2026-09-18; plan P4-D262). Four passes do that: the
-    declared missing words and sentinels, the cores, the placeholder
-    days, and the levels a reader could count by subtraction (the owner's
-    ruling of 2026-09-17, item 5). None of them leaves a spelling behind
-    -- that indistinguishability is what the level pass exists for -- so
-    no recount can name WHICH cells went, and the number is what the file
-    can evidence: the cells it wrote, less the cells its own description
+    the extra round, 2026-09-18; plan P4-D262). Three passes do that: the
+    declared missing words and sentinels, the cores and the placeholder
+    days; a fourth, which counted as missing the levels a reader could
+    count by subtraction, stood until plan P4-D390 retired it. No recount
+    can name WHICH cells went, and the number is what the file can
+    evidence: the cells it wrote, less the cells its own description
     says are present.
 
-    MEASURED before this allowance: `0.0` nineteen rows, `1.0` nineteen,
-    `2.0` one, `3.0` thirty and a word twelve, at a floor of five. The
-    producer counts the lone `2.0` as missing and publishes
+    MEASURED before this allowance, while that fourth pass stood: `0.0`
+    nineteen rows, `1.0` nineteen, `2.0` one, `3.0` thirty and a word
+    twelve, at a floor of five. The producer counted the lone `2.0` as
+    missing and published
     `shape_forms {"%.%": 68}`; the recount walked all 69 written cells of
     that form and the REAL TABLE was told it had missed an obligation set
     by its own description. The count is added to the pool's own window,

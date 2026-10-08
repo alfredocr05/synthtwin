@@ -3301,11 +3301,11 @@ class Declarations:
     3), because the census has to read each column the way the run will
     read it and all four of these move that reading:
 
-    * an IDENTIFIER skips the calendar-placeholder, affixed-core and
-      level passes outright, so cells those passes would have taken out
-      stay present;
+    * an IDENTIFIER skips the calendar-placeholder and affixed-core
+      passes outright, so cells those passes would have taken out stay
+      present;
     * a CODE or a MEASUREMENT changes the role the trial reading lands
-      on, and each of those three passes is gated on a role;
+      on, and each of those two passes is gated on a role;
     * `--decimal-comma` decides what NUMBER a cell denotes, and both the
       declared-number pass and the stand-in rule compare numbers.
 
@@ -3340,9 +3340,10 @@ def _present_spellings(
     IT IS THE FINISHED READING AND NOT `split_missing` ALONE (review of
     stage 3, floor item 3). `split_missing` applies the half of the
     person's declarations that reads SPELLINGS; the declared NUMBERS,
-    the judged numeric stand-ins, the judged calendar placeholders, the
-    stand-ins inside affixed cores and the lone label row read by
-    subtraction all come after it. Measured with only the first pass
+    the judged numeric stand-ins, the judged calendar placeholders and
+    the stand-ins inside affixed cores all come after it (the lone label
+    row read by subtraction did too, until plan P4-D390 retired that
+    pass). Measured with only the first pass
     asked: a column of twenty numbers followed by eighty `-999` cells,
     under `--missing-value=-999`, was counted as a hundred rows of
     population and cleared the hundred-row floor, and the description
@@ -7713,7 +7714,6 @@ def role_read(
         read.removed_by_cores,
         after_removal=read.judged_over_cores,
         after_days=read.judged_over_days,
-        after_levels=read.judged_over_levels,
         stored_as=stored_as,
     )
     details = verdict.details
@@ -9420,24 +9420,18 @@ def _levels(
     apart; the ruling gives that up, and a twin writes its invented
     labels at sizes a fixed rule reads off the pool.
 
-    A POOL OF ONE ROW NEVER REACHES THIS FUNCTION (the owner's ruling of
-    2026-09-17, item 5; plan P4-D231, loader invariant B4b). A pool of
-    one level on one row IS a count of one, and `n_present` less the published counts reads it
-    whether or not it is printed, so no key this function leaves out can
-    hide it. Two remedies were tried and only the second is the owner's.
-    The first writing of P4-D201 held the smallest PUBLISHED label back
-    beside such a pool, and the repair pass of 2026-09-17 withdrew it,
-    because the label it held back had cleared the floor and the twin
-    then wrote none of it -- measured: 400 `north`, 15 `south` and one
-    `west` at a floor of eleven gave `south` 0 twin rows against 15, and
-    a lab column's `>1000` on 11 rows 0 against 11. The ruling of item 5
-    takes the other way out: where the pool would be one level on one
-    row, the cells of it are counted as missing before this function is
-    reached (`_levels_read_by_subtraction`, the level pass of
-    `profile_column`), so no label that clears the floor is ever held
-    back, and no pool that arrives here is a count of one. What a pool
-    of one level over MORE than one row still gives away is a limit plan
-    P4-D231 measures and puts to the owner.
+    A POOL OF ONE ROW IS PUBLISHED LIKE ANY OTHER (plan P4-D390). A pool
+    of one level on one row is a count of one, and `n_present` less the
+    published counts reads it whether or not it is printed. No label
+    that clears the floor is ever held back to hide it -- the first
+    writing of P4-D201 did that, and the twin then wrote none of the
+    label held back: 400 `north`, 15 `south` and one `west` at a floor
+    of eleven gave `south` 0 twin rows against 15. From 2026-09-18 the
+    cells of such a pool were counted as missing instead (the owner's
+    ruling of 2026-09-17, item 5; plan P4-D231), and plan P4-D390 set
+    that aside under the owner's principle of 2026-10-01 for what it
+    cost the twin: a count worked out within one column is accepted
+    (2026-09-30, plan P4-D363), and blanks the source never had are not.
 
     There is no "beyond the cap" outcome here any more. `categorical_
     ceiling` decides the ROLE again, as the plan says (review item
@@ -9504,33 +9498,15 @@ _LEVEL_ROLES = (
 )
 
 
-# THE FOUR TOTALS A READER HOLDS BESIDE ANY COLUMN'S LEVELS, in the
-# order the block prints them (contract 6.2, U-family): what each present
-# cell READS AS. Every present cell answers exactly one of them, and the
-# four come to `n_present`, so a reader subtracts the published levels of
-# one class from its own total and is left with the rows that class holds
-# back (plan P4-D261).
-_READING_CLASSES = (
-    parsing.NUMBER,
-    parsing.NOT_A_NUMBER,
-    parsing.NUMBER_OUT_OF_RANGE,
-    parsing.NUMBER_CONTRADICTORY,
-)
-
-# The stand-in for a folded identity whose cells do not all read the same
-# way. It belongs to no published total, so no reader can subtract it,
-# and it is never counted out by the class pass. It holds a space, which
-# no cell kind holds, so it can be mistaken for none of them.
-_CLASS_MIXED = "two readings"
-
-
 def _a_level_is_below_the_floor(cells: _Cells) -> bool:
     """Whether any folded value of this column covers fewer rows than the floor.
 
-    The cheap gate in front of the level pass (plan P4-D231): no level
-    below the floor means no pool at all, and at the default floor of
-    one there can be no such level, so the pass costs nothing on the
-    files that do not need it and the trial reading below is never run.
+    Asked by the clock rule for cells a workbook stores as clock times
+    (plan P4-D382): a level the floor would hold back is one the twin
+    could only write as made-up text. At a floor of one there can be no
+    such level, so the answer there is always no. It is also the cheap
+    gate in front of `_read_the_column`'s clock pass (plan P4-D373),
+    whose two routes count out only levels below the floor.
 
     Guarantees: accepts the tally; returns a bool. Determinism: a fixed
     function of the tally and its settings. Raises nothing. No I/O.
@@ -9543,383 +9519,6 @@ def _a_level_is_below_the_floor(cells: _Cells) -> bool:
         if counts[label] < floor:
             return True
     return False
-
-
-def _levels_read_by_subtraction(
-    cells: _Cells, role: str
-) -> "tuple[str, ...]":
-    """The folded levels whose rows a reader could count by subtraction.
-
-    THE OWNER'S RULING OF 2026-09-17, ITEM 5 (plan P4-D231). A label
-    column publishes its levels at or above the floor and pools the
-    rest, as a count of levels and a count of rows and no size of any
-    one of them. Where the rows come to fewer than TWICE the levels a
-    count of one is FORCED -- every held-back level covers at least one
-    row -- and `n_present` less the published counts reads it whether or
-    not a key prints it: 480 `F`, 519 `M` and one `U` at a floor of
-    eleven published 999 of 1,000 present cells and told every reader
-    that one row holds a third value, and three one-patient sites among
-    2,000 rows published three levels over three rows, which can only be
-    one and one and one (plan P4-D239). This answers which levels those
-    are, and the caller counts every cell of them as MISSING, so the
-    description is that of the table with those cells blank.
-
-    THE QUESTION IS `parsing.pool_names_a_level`, which states the rule
-    once and states the two wider readings that were measured and left
-    to the owner. It is asked over the levels of the population the list
-    is counted over: the whole column for the four roles that publish a
-    level list, and the LABEL HALF alone for `numbers_with_labels`,
-    whose own `n_present` is the cells of that half.
-
-    NO LABEL THAT CLEARS THE FLOOR IS EVER HELD BACK TO HIDE ONE. The
-    first writing of P4-D201 did exactly that and the twin then wrote
-    none of a published label; this answers only levels the floor
-    already refuses to name, so every label the floor publishes is
-    published and written.
-
-    Guarantees:
-
-    - Inputs: the tally of the column's present cells, and the role the
-      reading before this pass gave it.
-    - Determinism: a fixed function of the two; the answer is in sorted
-      order.
-    - Errors raised: none.
-    - Boundary: answers nothing at all for a role that publishes no
-      level list, for a column whose every level clears the floor, and
-      for any pool whose rows reach twice its levels and which is not
-      one row per level below the published rows -- a long tail of
-      hundreds of held-back levels covering more rows than the published
-      labels do is untouched, and so is one level over five rows, which
-      plan P4-D231 puts to the owner as the limit it is. No file is
-      opened.
-    """
-    settings = cells.settings
-    floor = settings.small_cell_floor
-    counts = cells.folded_counts
-    if role == ROLE_COMPOUND:
-        compound = _compound_reading(cells)
-        if compound is None:
-            return ()
-        halved: "dict[str, int]" = {}
-        for cell in compound.labels:
-            key = cell.folded
-            halved[key] = (halved[key] if key in halved else 0) + 1
-        counts = halved
-    elif role not in _LEVEL_ROLES:
-        return ()
-    rare: "list[str]" = []
-    pooled = 0
-    published = 0
-    smallest = 0
-    for label in sorted(counts):
-        if counts[label] < floor:
-            rare += [label]
-            pooled = pooled + counts[label]
-            continue
-        # BOTH HALVES OF THE RULING ARE ASKED, and each wants a
-        # different figure off this one walk. The pool's own question is
-        # asked against the rows the PUBLISHED levels cover (plan
-        # P4-D290), which is the widened reading; the per-class question
-        # below is asked beside the smallest count the column publishes
-        # (plan P4-D261). One walk, so the two cannot part.
-        published = published + counts[label]
-        if not smallest or counts[label] < smallest:
-            smallest = counts[label]
-    if parsing.pool_names_a_level(len(rare), pooled, published):
-        return tuple(rare)
-    # BOTH SIBLING READINGS, AND THE ANSWER IS THEIR UNION (round 2 of
-    # the review, the disclosure pass, item 3). The four reading classes
-    # are one family of totals a reader subtracts the published levels
-    # from; the FORM census is another, published beside the very level
-    # entries whose `shape_form_cells` do the subtracting. A level the
-    # first pass leaves alone can be named outright by the second, so
-    # both are asked and every label either names is counted out.
-    counted_out: "dict[str, int]" = {}
-    for label in _levels_read_by_class(cells, role, rare, smallest):
-        counted_out[label] = 1
-    for label in _levels_read_by_form(cells, role, rare):
-        counted_out[label] = 1
-    return tuple(sorted(counted_out))
-
-
-def _levels_read_by_class(
-    cells: _Cells, role: str, rare: "list[str]", smallest: int
-) -> "tuple[str, ...]":
-    """The same ruling asked of each SIBLING TOTAL, not of the pool alone.
-
-    THE OWNER'S RULING OF 2026-09-17, ITEM 5, OVER A SUBDIVISION OF THE
-    POOL (Codex blocker 2 of the extra round, 2026-09-18; plan P4-D261).
-    Every column publishes four totals saying what its present cells
-    READ AS -- `n_numeric`, `n_not_numeric`, `n_out_of_range` and
-    `n_contradictory` -- and a reader subtracts from each of them the
-    published levels that read that way. The whole pool can be far too
-    large to force a count of one while ONE of those four differences is
-    a count of one on its own.
-
-    MEASURED before this pass: `alpha` and `beta` a hundred rows each,
-    `1` five rows, `2` six rows and `gamma` one row, at a floor of
-    eleven. The block published `n_not_numeric` 201 with both named
-    words at 100, so 201 less 200 is one: the withheld WORD level occurs
-    once, although the pool itself was three levels over twelve rows and
-    every printed count cleared the floor. The twin wrote one `group-1`,
-    and both files passed every executable check.
-
-    THE QUESTION IS `parsing.census_names_one_row`, asked of the class's
-    own POOL and of the pair together, which is the rule the form and
-    layout censuses already ask of their own sibling totals and the rule
-    the LOADER asks here (invariant B4c). It is asked at that width and
-    no wider, so the producer and the loader cannot part.
-
-    THE CLASS NO PUBLISHED LEVEL COUNTS INTO IS READ TOO, and this
-    paragraph said the opposite until the skeptic measured it on
-    2026-09-18. The pair alone answers nothing where the census covers
-    none of the total -- an absent census leaves a reader nothing to
-    subtract -- and a class whose every level the floor held back is
-    exactly that shape. MEASURED: `alpha` and `beta` a hundred rows each,
-    `gamma` six, `delta` five, and ONE further cell at a floor of eleven.
-    With that cell `77` the block published `n_numeric` 1 beside two
-    published WORDS, so exactly one row of the column reads as a number
-    and its value is withheld; with `1e999` the same of `n_out_of_range`
-    and with `(+5)` of `n_contradictory`, which names the accounting
-    notation ONE individual's cell was written in. All three passed
-    every executable check and the twin wrote the row. So the class's
-    held-back rows are handed in as a POOL as well: a pool of one is the
-    one rule's first reading, and it does not need a census beside it.
-
-    THE WIDER READING IS REFUSED BY MEASUREMENT AND NOT BY PREFERENCE.
-    `parsing.pool_names_a_level`'s whole forced band -- a class whose
-    rows come to fewer than twice its held-back levels -- is the natural
-    generalisation, and it breaks the twin. The generator spends a
-    pooled class over the group sizes G8.3 reads off the pool, which are
-    not the source's: 25 out-of-range cells over eight source levels
-    beside 9 words over four, at a floor of eleven, come back as six
-    groups and six, and the TWIN's own description then falls in the
-    band although the source's does not. Counting those cells out of the
-    twin's description left it missing eight of its own obligations --
-    `n_present`, `n_missing`, `n_not_numeric`, both distinct counts, both
-    held-back counts and a published form -- on a file that passed
-    before. The band belongs with the two readings plan P4-D231 already
-    puts to the owner, and it waits on the generator spending a pooled
-    class in sizes its own description cannot read a one out of.
-
-    Guarantees:
-
-    - Inputs: the tally, the role the reading before this pass gave it,
-      the levels the floor holds back, and the smallest count the column
-      publishes beside them (unused here, and taken so the two halves of
-      the ruling have one signature).
-    - Determinism: a fixed function of those; the answer is in sorted
-      order.
-    - Errors raised: none.
-    - Boundary: answers nothing where the floor holds nothing back, and
-      nothing for a class whose held-back rows are none, or more than
-      one, or which no published level of the column counts into. A
-      level whose cells do not all read the same way belongs to no class
-      and is never counted out by this pass. No file is opened.
-    """
-    if not rare or smallest < 0:
-        return ()
-    population = cells.classified
-    if role == ROLE_COMPOUND:
-        compound = _compound_reading(cells)
-        if compound is None:
-            return ()
-        population = compound.labels
-    by_class: "dict[str, str]" = {}
-    counts: "dict[str, int]" = {}
-    totals: "dict[str, int]" = {}
-    for cell in population:
-        key = cell.folded
-        counts[key] = (counts[key] if key in counts else 0) + 1
-        totals[cell.kind] = (
-            totals[cell.kind] if cell.kind in totals else 0
-        ) + 1
-        if key in by_class and by_class[key] != cell.kind:
-            by_class[key] = _CLASS_MIXED
-            continue
-        by_class[key] = cell.kind
-    held: "dict[str, list[str]]" = {}
-    for label in rare:
-        if label not in by_class:
-            continue
-        reading = by_class[label]
-        # GROWN IN PLACE (stage 4, plan P4-D385): copied whole for every
-        # held-back level, the class's list cost the square of them.
-        if reading not in held:
-            held[reading] = []
-        held[reading] += [label]
-    counted_out: "list[str]" = []
-    for reading in _READING_CLASSES:
-        if reading not in held:
-            continue
-        total = totals[reading] if reading in totals else 0
-        rows = 0
-        for label in held[reading]:
-            rows = rows + counts[label]
-        covered = total - rows
-        # THE CLASS'S OWN HELD-BACK ROWS ARE A POOL, and the one rule
-        # refuses a pool of one exactly as it refuses a printed count of
-        # one. Handing `rows` in as that pool is what reaches the class
-        # NO PUBLISHED LEVEL COUNTS INTO, where `covered` is nought and
-        # the pair alone says nothing (the skeptic's blocker of
-        # 2026-09-18; plan P4-D261). Both readings are the one rule's,
-        # asked in one call, so this is not a second copy of it.
-        if parsing.census_names_one_row(
-            {reading: rows}, [(total, covered)]
-        ) != -1:
-            counted_out += held[reading]
-    return tuple(sorted(counted_out))
-
-
-def _census_key_of(value: str, census: "dict[str, int]") -> str:
-    """The key ONE cell was counted under in a form census, or the empty text.
-
-    THE CASE RULE, READ BACK (round 2 of the review, the disclosure
-    pass, item 3). `_lower_case_split` names a form under two keys
-    where its lower-case cells reach the line and the rest do too, and
-    under the lower-case key alone where the rest fall below it; below
-    the line the form is named blind to case, and below the floor or
-    the room rule it is not named at all. So a cell's key is not
-    `parsing.shape_form` of it: a walk that assumed so would count a
-    split form's cells under a key the census does not carry, and read
-    a difference of one where there is none.
-
-    The empty text means the census says nothing about this cell --
-    it has no form, or its form was pooled.
-
-    Guarantees: accepts one cell as the description speaks of it and
-    the census the block publishes; returns a key of that census or the
-    empty text. Determinism: a fixed function of the two. Raises
-    nothing. No I/O of any kind.
-    """
-    form = parsing.shape_form(value)
-    if not form:
-        return ""
-    lowered = parsing.lower_case_form(form)
-    if lowered and lowered in census:
-        if form not in census or parsing.is_lower_case_text(value):
-            return lowered
-    if form in census:
-        return form
-    return ""
-
-
-def _levels_read_by_form(
-    cells: _Cells, role: str, rare: "list[str]"
-) -> "tuple[str, ...]":
-    """The same ruling asked of the FORM census, which levels subtract from.
-
-    THE OWNER'S RULING OF 2026-09-17, ITEM 5, OVER THE CENSUS PUBLISHED
-    BESIDE THE LEVELS (round 2 of the review, the disclosure pass, item
-    3). `_levels_read_by_class` next door weighs the published levels
-    against the four totals saying what the column's cells READ AS. It
-    is not the only family of totals a reader can subtract them from:
-    every level entry carries `shape_form_cells`, how many of that
-    level's cells were written in a form, and the block publishes a
-    column-wide `shape_forms` census beside them. Those two are about
-    THE SAME CELLS, so the census less the published levels' own
-    contributions is the cells of the held-back levels wearing that
-    form -- and where that difference is one, a held-back level is one
-    row and its FORM is published.
-
-    **Measured** at a floor of eleven and seed 4, on one column holding
-    `ABC-100` a hundred times, `ABC-200` a hundred times, `ABC-300`
-    once, `QQ-400` five times and `RR-500` six times. The block
-    published both common levels at `shape_form_cells` 100 beside
-    `shape_forms {"@@@-%%%": 201, "@@-%%%": 11}`, and 201 less 100 less
-    100 is one: one held-back level covers one row and wears three
-    letters, a hyphen and three figures. `n_missing` was nought, the
-    twin wrote one `AAA-000`, and BOTH files validated at nought with
-    47 held back and nothing missed -- every executable check passed
-    over a description that named an individual's form. The second key
-    is untouched by this pass and must be: its eleven cells belong to
-    two held-back levels, no published level wears that form, so the
-    census covers none of any total a reader holds and the pool is
-    doing exactly what the ruling asks of it.
-
-    THE QUESTION IS `parsing.census_names_one_row`, over the held-back
-    rows of each named form as a POOL and over the pair `(census,
-    published cells)` together -- the same call, at the same width, as
-    the class pass beside it and as the loader's own check. The census
-    is the one the block will publish, built by `_shape_forms` from the
-    respelling `described_spellings` gives, so a form key this pass
-    reads is a form key the description carries: a form the census
-    pooled is not named, is not read here, and stays pooled.
-
-    Guarantees:
-
-    - Inputs: the tally, the role the reading before this pass gave it,
-      and the levels the floor holds back.
-    - Determinism: a fixed function of the three; the answer is in
-      sorted order.
-    - Errors raised: none.
-    - Boundary: answers nothing where the floor holds nothing back, for
-      a role that publishes no level list, for a cell with no form at
-      all -- which this census counts nowhere -- and for any form whose
-      held-back cells are none or more than one. No file is opened.
-    """
-    if not rare:
-        return ()
-    population = cells
-    with_text_total = True
-    if role == ROLE_COMPOUND:
-        compound = _compound_reading(cells)
-        if compound is None:
-            return ()
-        # THE LABEL HALF, TALLIED THE WAY THE BLOCK TALLIES IT, so this
-        # pass reads the census `_level_details` will publish for that
-        # half and not a second census of its own.
-        population = _tally(
-            _classify_all(
-                [cell.text for cell in compound.labels], cells.decimal_comma
-            ),
-            len(compound.labels),
-            cells.settings,
-            cells.decimal_comma,
-        )
-        with_text_total = False
-    elif role not in _LEVEL_ROLES:
-        return ()
-    spelled = described_spellings(population.present, population.settings)
-    census = _shape_forms(population, False, with_text_total, spelled)
-    # THE HELD-BACK LEVELS ARE LOOKED UP, NOT WALKED (stage 4, plan
-    # P4-D385). Every cell asks whether its level is one of them, and a
-    # list of them was walked to its end for every cell that is not: a
-    # code register of 200,000 rows holds back 16,152 levels, and each
-    # of its other cells walked all of them. Each form's own named
-    # levels are looked up the same way and grow in place.
-    held_back: "dict[str, bool]" = {}
-    for label in rare:
-        held_back[label] = True
-    held: "dict[str, list[str]]" = {}
-    named: "dict[str, dict[str, bool]]" = {}
-    rows: "dict[str, int]" = {}
-    covered: "dict[str, int]" = {}
-    for value in spelled:
-        form = _census_key_of(value, census)
-        if not form:
-            continue
-        key = parsing.folded(value)
-        if key not in held_back:
-            covered[form] = (covered[form] if form in covered else 0) + 1
-            continue
-        rows[form] = (rows[form] if form in rows else 0) + 1
-        if form not in held:
-            held[form] = []
-            named[form] = {}
-        if key not in named[form]:
-            named[form][key] = True
-            held[form] += [key]
-    counted_out: "list[str]" = []
-    for form in sorted(census):
-        if form not in held:
-            continue
-        seen = covered[form] if form in covered else 0
-        if parsing.census_names_one_row(
-            {form: rows[form]}, [(census[form], seen)]
-        ) != -1:
-            counted_out += held[form]
-    return tuple(sorted(counted_out))
 
 
 @dataclasses.dataclass(frozen=True)
@@ -18114,7 +17713,7 @@ def _joined_verdict(
 
 
 # A FEW WORDS, NOT A SHARE (the repair round of landing 3b.5, plan
-# P4-D373): the rare words the level pass may count missing beside clock
+# P4-D373): the rare words the clock pass may count missing beside clock
 # times hold at most one present cell in this many. Past it the words are
 # a share of the column rather than a few slips beside its times, and the
 # column stays labels. The generator holds a label column's twin to the
@@ -18150,12 +17749,12 @@ def _rare_beside_clocks(
     takes, where they hold at most one present cell in
     `RARE_WORDS_BESIDE_CLOCKS` and the column without exactly their cells
     has a clock reading (`_clock_reading`); nothing otherwise, and nothing
-    where there are none. The level pass counts these cells missing and
+    where there are none. The clock pass counts these cells missing and
     lets every rule read the column again (`_read_the_column`), where
     every rule then reads it as clock times (`_read_as_clock_times`, the
     second repair round). It is
     asked of every first reading as labels or free text, not only where
-    the level pass counts a level out (the repair round of landing 3b.5):
+    a level is counted out (the repair round of landing 3b.5):
     a column of `7:30 AM` beside 0.6 % `UNK` and 0.3 % `99:99` was free
     text at 300 and 1,000 rows, and its twin wrote every cell `group-N`.
 
@@ -18216,23 +17815,37 @@ def _levels_beside_clock_times(
     settings: Settings,
     decimal_comma: bool,
 ) -> "tuple[str, ...] | None":
-    """What the level pass counts out of a column whose other cells are a clock's.
+    """What the clock pass counts out of a column whose other cells are a clock's.
 
-    The second repair round of landing 3b.5 (plan P4-D373). The level pass
-    counts ``counted_out`` missing and holds the column to the label rules,
-    but its twin is the table with those cells blank, read again by every
-    rule: where the cells left read as clock times (`_clock_reading`), so
-    does the twin, and a column published as labels had its role MISSED --
-    32 of 48 columns of appointment times beside 2.2 to 10 % one-off notes,
-    and 23 of 64 beside a minority of `HH:MM:SS` or `h:mm AM`. Such a
-    column is clock times. The answer is the levels of ``counted_out`` no
-    spelling of which that clock's own form reads (`parsing.clock_ordinal`)
-    -- the words, and the times of another precision or face; the rare
-    times of the form stay in, which is what the checker reads the table's
-    cells as. None where the cells left read as no clock, or where every
-    level counted out is a time of the form. The caller counts out only
-    the levels answered and keeps the answer only where every rule then
-    reads the column as clock times (`_read_as_clock_times`).
+    The second repair round of landing 3b.5 (plan P4-D373), asked since
+    plan P4-D390 over ``counted_out``, the levels below the floor, where it
+    was asked over what the level pass that plan deleted counted out. A
+    column of times beside more words or notes than `_rare_beside_clocks`
+    takes, or beside a minority of `HH:MM:SS` or `h:mm AM`, is read as
+    labels by its first reading; where its other cells read as clock times
+    (`_clock_reading`), such a column is clock times. The answer is the
+    levels of ``counted_out`` no spelling of which that clock's own form
+    reads (`parsing.clock_ordinal`) -- the words, and the times of another
+    precision or face; the rare times of the form stay in, which is what
+    the checker reads the table's cells as. None where the cells left read
+    as no clock, or where every level counted out is a time of the form.
+    The caller counts out only the levels answered and keeps the answer
+    only where every rule then reads the column as clock times
+    (`_read_as_clock_times`).
+
+    MEASURED AGAINST DROPPING IT (the merge of lane G4, 2026-10-08, plan
+    P4-D390): over lane C1's 112 columns of times beside one-off notes
+    (2.2 to 10 %) and beside a minority of another face or precision (2 to
+    20 %), read as labels without it, 13 twins missed the census count of
+    the `HH:MM` form their table meets, and none with it.
+
+    NEVER HALF OF WHAT THE COLUMN PUBLISHES OR MORE: where the cells it
+    would count out are at least half the rows of the levels the column
+    publishes, the column is a mixture rather than clock times beside a few
+    odd cells, and the answer is None. Asked of every level below the floor
+    without it, lane C1's column of 1,000 times half at the minute and half
+    at the second (`half_seconds`, at the floor of eleven) counted out its
+    480 times at the second as blanks the source never had.
 
     THE CELLS LEFT ARE COUNTED FIRST, spelling by spelling: a column whose
     cells left do not reach the clock line in any form is answered without
@@ -18269,6 +17882,7 @@ def _levels_beside_clock_times(
     if clock is None:
         return None
     narrowed: "list[str]" = []
+    odd = 0
     for label in counted_out:
         spellings = cells.spellings_by_folded[label]
         if not any(
@@ -18276,7 +17890,8 @@ def _levels_beside_clock_times(
             for spelling in spellings
         ):
             narrowed += [label]
-    if not narrowed:
+            odd = odd + cells.folded_counts[label]
+    if not narrowed or 2 * odd >= left_cells:
         return None
     return tuple(sorted(narrowed))
 
@@ -18292,18 +17907,18 @@ def _read_as_clock_times(
 ) -> bool:
     """Whether every rule reads what a clock route leaves as clock times.
 
-    The level pass takes two routes to a column of clock times (plan
-    P4-D373): the rare words beside clock times (`_rare_beside_clocks`)
-    and, since the second repair round of landing 3b.5, the levels below
-    the floor no spelling of which the clock's form reads
-    (`_levels_beside_clock_times`). Each counts out fewer levels than the
-    pass itself would and has every rule read the column again, and the
-    rare TIMES it leaves in are a clock column's values -- but only where
-    the column is read as clock times. Read as anything else, a rare time
-    left in is a held-back level, and its pool can name a count by
-    subtraction that the pass exists to refuse: 290 `07:00`, one `19:00`
-    and four `UNK` were a `binary` column publishing one held-back row on
-    the first repair round, where the pass counts that row missing. So a
+    The clock pass takes two routes to a column of clock times (plan
+    P4-D373; the level pass's until plan P4-D390 deleted it): the rare
+    words beside clock times (`_rare_beside_clocks`) and, since the second
+    repair round of landing 3b.5, the levels below the floor no spelling
+    of which the clock's form reads (`_levels_beside_clock_times`). Each
+    counts out cells no clock reads and has every rule read the column
+    again, and the rare TIMES it leaves in are a clock column's values --
+    but only where the column is read as clock times. Read as anything
+    else, the cells counted out were a column of labels' values, and no
+    pass takes a label out for its value (P4-D390): 290 `07:00` and one
+    `19:00` left by four `UNK` counted out are a `binary` column, so the
+    route does not stand and all 295 cells are kept. So a
     route stands only where this answers True, asked as `profile_column`
     asks it, which then finds the verdict kept on the tally (`_decision`).
 
@@ -18326,7 +17941,7 @@ def _read_as_clock_times(
 def _levels_counted_out(
     classified: "list[_Cell]", counted_out: "tuple[str, ...]"
 ) -> "tuple[list[_Cell], int]":
-    """The cells the level pass keeps, and how many it counts missing.
+    """The cells the clock pass keeps, and how many it counts missing.
 
     LOOKED UP, NOT WALKED (stage 4, plan P4-D385): every cell asked the
     sorted list of the levels counted out, which on a code register of
@@ -20232,7 +19847,6 @@ def _decision(
     removed: int = 0,
     after_removal: bool = False,
     after_days: bool = False,
-    after_levels: bool = False,
     forced_code: bool = False,
     forced_measurement: bool = False,
     probing: bool = False,
@@ -20241,9 +19855,9 @@ def _decision(
 ) -> _Verdict:
     """The verdict `_decide` gives this tally under these arguments, worked out once.
 
-    A column is asked its role up to four times over the same tally --
-    before the placeholder days are judged, before the cores, before the
-    level pass, and once more to describe it -- and every question walked
+    A column is asked its role up to three times over the same tally --
+    before the placeholder days are judged, before the cores, and once
+    more to describe it -- and every question walked
     the whole ladder of rules again (stage 4, plan P4-D385). `_decide` is
     a fixed function of the tally and its arguments, so the tally keeps
     each answer under the arguments it was asked with and hands it back
@@ -20274,7 +19888,6 @@ def _decision(
         removed,
         after_removal,
         after_days,
-        after_levels,
         forced_code,
         forced_measurement,
         probing,
@@ -20289,7 +19902,6 @@ def _decision(
         removed,
         after_removal=after_removal,
         after_days=after_days,
-        after_levels=after_levels,
         forced_code=forced_code,
         forced_measurement=forced_measurement,
         probing=probing,
@@ -20306,7 +19918,6 @@ def _decide(
     removed: int = 0,
     after_removal: bool = False,
     after_days: bool = False,
-    after_levels: bool = False,
     forced_code: bool = False,
     forced_measurement: bool = False,
     probing: bool = False,
@@ -20321,22 +19932,6 @@ def _decide(
     nothing else, so the question is asked exactly once and this
     function cannot call itself without end. Every other caller leaves
     it false and gets the ordinary reading.
-
-    ``after_levels`` says the LEVEL PASS took cells out of this column:
-    every cell of a label level the floor would not let the column name,
-    counted as missing because the pool they left could be read by
-    subtraction (the owner's ruling of 2026-09-17, item 5; plan
-    P4-D231). It silences rules 2, 5, 6, 8, 9 and 9c -- and rule 0c,
-    which reads a declared measurement as joined numbers -- exactly as
-    `--code` does, so the column stays a column of LABELS and which
-    label rule claims it follows the levels that remain. That narrowing
-    is the one the other two removal passes state in their own words: a
-    column may not change what KIND of thing it holds because cells left
-    it, and the cells this pass removed are the ones that were keeping
-    the parse-rate rules out. A column of 480 `F`, 519 `M` and one `U`
-    at a floor of eleven is therefore a `binary` column of `F` and `M`
-    with one cell counted absent, and its twin describes back to the
-    same role.
 
     ``described_as_pair`` says the DESCRIPTION a file is being checked
     against read this column as a slashed pair of plain whole numbers
@@ -20426,11 +20021,10 @@ def _decide(
     folded_distinct = len(cells.folded_counts)
     ceiling = _categorical_ceiling(cells)
     # THE FIVE RULES THAT READ A CELL AS SOMETHING OTHER THAN A LABEL,
-    # silenced by the `--code` declaration (rule 0b) and by the level
-    # pass (plan P4-D231), which each leave a column of labels behind
-    # them. One name for both, so the two can never silence different
-    # rules.
-    labels_only = forced_code or after_levels
+    # silenced by the `--code` declaration (rule 0b), which leaves a
+    # column of labels behind it. The level pass of plan P4-D231 shared
+    # this name until plan P4-D390 retired it.
+    labels_only = forced_code
 
     # AFTER THE CORE PASS, ONLY THE RULES THE CONTRACT LETS RUN AGAIN.
     # The affix-based stand-in pass runs only once every rule THROUGH
@@ -20479,7 +20073,7 @@ def _decide(
         # carries the measurement that says why: a rule reading the
         # values would claim this project's own date, clock, lab-code
         # and drug-code columns.
-        if forced_measurement and not after_days and not after_levels:
+        if forced_measurement and not after_days:
             reading = _joined_reading(cells)
             if reading is not None:
                 return _joined_verdict(cells, reading, notes, remarks)
@@ -20737,8 +20331,8 @@ def _decide(
         # the times ran on the table and raised on its twin. Read as clock
         # times, the values many rows share are published as HEAPS with
         # their counts, the rest as a census of ten-minute bins, and every
-        # twin cell is a time. `--code` (and the level pass after it)
-        # still makes the column a set of labels, and the questions file
+        # twin cell is a time. `--code` still makes the column a set of
+        # labels, and the questions file
         # asks where both readings fit (`asking`). The cells' own
         # spellings are asked first, so a column of labels is not read
         # cell by cell to learn that none is a clock time.
@@ -22350,11 +21944,10 @@ class _ColumnReading:
     what the person declared by SPELLING (`split_missing`), what they
     declared as a NUMBER (`_declared_numbers_removed`), the numeric
     stand-ins this package judges (`_sentinel_verdicts`), the calendar
-    placeholders it judges (`_placeholder_verdicts`), the stand-ins
-    inside affixed cores (`_cores_judged`), and the lone label row a
-    reader could read by subtraction (`_levels_read_by_subtraction`).
-    Every one of them takes cells OUT, so an answer taken before the
-    last of them is an answer about a column that does not exist.
+    placeholders it judges (`_placeholder_verdicts`), and the stand-ins
+    inside affixed cores (`_cores_judged`). Every one of them takes
+    cells OUT, so an answer taken before the last of them is an answer
+    about a column that does not exist.
 
     The command's population census asked the FIRST pass alone until the
     review of stage 3 measured it: a column of twenty numbers followed
@@ -22368,10 +21961,7 @@ class _ColumnReading:
     above removes cells by their spelling, by the exact number they
     denote, or by the canonical day they write -- all three are fixed
     functions of the text -- so "which spellings survive" is well
-    defined for the whole column, and that is what the census needs. The
-    one exception is the level pass, which counts a cell out for the
-    VALUE it holds rather than for standing for no value; it too is a
-    function of the folded text.
+    defined for the whole column, and that is what the census needs.
     """
 
     cells: _Cells
@@ -22383,7 +21973,6 @@ class _ColumnReading:
     judged_over_days: bool
     removed_by_cores: int
     judged_over_cores: bool
-    judged_over_levels: bool
 
 
 def _read_the_column(
@@ -22635,34 +22224,40 @@ def _read_the_column(
             removed_by_cores = before - len(present)
             judged_over_cores = True
 
-    # THE LEVEL PASS: a label column's lone row that a reader could read
-    # by subtraction is counted as missing (the owner's ruling of
-    # 2026-09-17, item 5; plan P4-D231). The three passes above take out
-    # cells that stand for "no value"; this one takes out cells whose
-    # VALUE the floor will not let the column name, and it takes them
-    # out for the reason the floor exists. A pool of one level on one
-    # row IS a count of one, whether or not a key prints it (B3), so a
-    # column of 480 `F`, 519 `M` and one `U` at a floor of eleven told
-    # every reader that one row holds a third value -- and its twin
-    # wrote an invented label in exactly one row, which is that person's
-    # row. The cells are counted as missing, spelled as nothing, so the
-    # description is that of the table with those cells blank: no count
-    # is left to be worked out, and the twin writes a blank there.
+    # NO PASS TAKES A LABEL OUT FOR ITS VALUE (plan P4-D390). A fourth
+    # pass stood here from 2026-09-18 to 2026-10-05 and counted as
+    # missing every cell of a held-back level whose pool a reader could
+    # read a count of one off by subtraction (the owner's ruling of
+    # 2026-09-17, item 5; plans P4-D231, P4-D239, P4-D261, P4-D271). The
+    # orchestrator set it aside under the owner's principle of
+    # 2026-10-01 -- HIPAA is the only privacy concern, and no reader is
+    # assumed to rebuild the data -- on its measured price: up to a third
+    # of a code register blank in the twin, long-tail code columns read
+    # as categories, and code written on the twin that crashed on the
+    # real file. A held-back level is now published in the pool like
+    # every other one, and the three passes above are the only ones that
+    # take cells out, each for standing for "no value".
     #
-    # ITS ORDERING IS THE OTHER PASSES' (C6-5, A-P4-1 item 3). The role
-    # is decided first and then decided again, because taking cells out
-    # changes every count; the trial reading below is what says whether
-    # this column publishes a level list at all, and `_decide` is then
-    # asked again with `after_levels`, which holds the second reading to
-    # the label rules.
-    #
-    # THE GATE IS CHEAP. No level below the floor means no pool at all,
-    # and at a floor of one there is no such level, so no run at that
-    # floor is charged for a second reading.
-    judged_over_levels = False
+    # ...SAVE THE CELLS BESIDE A COLUMN OF CLOCK TIMES THAT NO CLOCK READS
+    # (landing 3b.5, plan P4-D373; a pass of its own since P4-D390, gated
+    # as the level pass was). A column of clock times beside a few rare
+    # words is a column of clock times: where what the floor would not
+    # name holds spellings no clock reader takes, and the column without
+    # exactly those reads as clock times, only those are counted out and
+    # the column is read again by every rule -- the times left were times
+    # all along, as the numbers beside labels below were numbers. Without
+    # it, 296 shift starts beside four `UNK` at a floor of eleven were
+    # labels whose twin read back as clock times. ASKED OF EVERY READING
+    # AS LABELS OR FREE TEXT (`_rare_beside_clocks`), and, where those
+    # words are past its few, OF EVERY READING AS LABELS over the levels
+    # below the floor (`_levels_beside_clock_times`): the levels no
+    # spelling of which the clock's own form reads -- the words, and the
+    # times of another precision or face -- while the rare times of the
+    # form stay in.
     if (
         present
         and not forced_identifier
+        and not forced_code
         and _a_level_is_below_the_floor(cells)
     ):
         trial = _decision(
@@ -22676,72 +22271,33 @@ def _read_the_column(
             described_as_pair=described_as_pair,
             stored_as=stored_as,
         )
-        counted_out = _levels_read_by_subtraction(cells, trial.role)
-        # ...AND A COLUMN OF CLOCK TIMES BESIDE A FEW RARE WORDS IS A COLUMN
-        # OF CLOCK TIMES (landing 3b.5, plan P4-D373). Where what the
-        # floor would not name holds spellings no clock reader takes, and
-        # the column without exactly those reads as clock times, only
-        # those are counted out and the column is read again by every
-        # rule: the times left were times all along, as the numbers
-        # beside labels below were numbers. Without it, 296 shift starts
-        # beside four `UNK` at a floor of eleven were labels whose twin --
-        # those four cells blank -- read back as clock times. ASKED OF
-        # EVERY READING AS LABELS OR FREE TEXT, and not only where a level
-        # is counted out above (the repair round): beside a few rare
-        # codes no level is forced to a count of one, and a column of
-        # `7:30 AM` stayed free text whose twin was written `group-N`.
-        clocks_left: "tuple[str, ...]" = ()
-        if not forced_code and trial.role in _LEVEL_ROLES + (ROLE_TEXT,):
-            clocks_left = _rare_beside_clocks(
+        counted_out: "tuple[str, ...]" = ()
+        if trial.role in _LEVEL_ROLES + (ROLE_TEXT,):
+            counted_out = _rare_beside_clocks(
                 cells, classified, n_rows, settings, forced_decimal_comma
             )
-        if clocks_left:
-            counted_out = clocks_left
+        if not counted_out and trial.role in _LEVEL_ROLES:
+            floor = settings.small_cell_floor
+            below: "list[str]" = []
+            for label in sorted(cells.folded_counts):
+                if cells.folded_counts[label] < floor:
+                    below += [label]
+            clocked = _levels_beside_clock_times(
+                cells, classified, tuple(below), n_rows, settings,
+                forced_decimal_comma,
+            )
+            if clocked is not None:
+                counted_out = clocked
         if counted_out:
-            # AND WHETHER THE LABEL RULES ALONE MAY DECIDE AGAIN. On a
-            # column of LABELS they must: the cells this pass removed
-            # are the ones that were keeping the parse-rate rules out,
-            # and re-asking those rules would let a removal claim a
-            # column no rule would have given it (C6-5). On a column of
-            # numbers BESIDE labels they must not: what the pass removes
-            # there is the whole of a label half the floor would not
-            # name, and the numbers left were numbers all along --
-            # measured, 98 readings beside two `trace` cells became FREE
-            # TEXT and published no number at all, where the honest
-            # answer is a column of 98 numbers with two holes.
-            labels_alone = trial.role in _LEVEL_ROLES and not clocks_left
-            clock_route = bool(clocks_left)
-            # ...SAVE WHERE WHAT IS LEFT IS A CLOCK'S (the second repair
-            # round of landing 3b.5, plan P4-D373). The twin is the table
-            # with these cells blank, and the producer reads it again
-            # with every rule: where the cells left are clock times it
-            # is read as clock times, and a column published as labels
-            # had its role MISSED -- 32 of 48 columns of appointment
-            # times beside 2.2 to 10 % one-off notes, past the few-words
-            # cap above, and 23 of 64 beside a minority of `HH:MM:SS` or
-            # `h:mm AM`, whose cells a clock reader reads in another
-            # form. So such a column is clock times: only the levels no
-            # spelling of which that clock's form reads are counted out,
-            # and the rare times of the form stay in.
-            if labels_alone and not forced_code:
-                clocked = _levels_beside_clock_times(
-                    cells, classified, counted_out, n_rows, settings,
-                    forced_decimal_comma,
-                )
-                if clocked is not None:
-                    counted_out = clocked
-                    labels_alone = False
-                    clock_route = True
             level_kept, absent = _levels_counted_out(classified, counted_out)
             counted = _tally(
                 level_kept, n_rows, settings, forced_decimal_comma
             )
-            # ...AND EITHER CLOCK ROUTE STANDS ONLY WHERE THE COLUMN IT
-            # LEAVES IS CLOCK TIMES (`_read_as_clock_times`). Anywhere
-            # else the rare times it kept would be held-back levels whose
-            # pool names a count, so the pass counts out what it counts
-            # out of any column of labels, as before the routes.
-            if clock_route and not _read_as_clock_times(
+            # ...AND EITHER ROUTE STANDS ONLY WHERE THE COLUMN IT LEAVES IS
+            # CLOCK TIMES (`_read_as_clock_times`). Anywhere else nothing is
+            # counted out: the cells were a column of labels' values, and
+            # no pass takes a label out for its value.
+            if _read_as_clock_times(
                 counted,
                 removed_by_cores,
                 judged_over_cores,
@@ -22750,28 +22306,14 @@ def _read_the_column(
                 described_as_pair,
                 stored_as,
             ):
-                counted_out = _levels_read_by_subtraction(cells, trial.role)
-                labels_alone = bool(counted_out) and trial.role in _LEVEL_ROLES
-                level_kept, absent, counted = classified, 0, cells
-                if counted_out:
-                    level_kept, absent = _levels_counted_out(
-                        classified, counted_out
-                    )
-                    counted = _tally(
-                        level_kept, n_rows, settings, forced_decimal_comma
-                    )
-            for _absent in range(absent):
-                # THE SPELLING IS NOT CARRIED OVER, and that is the
-                # whole point. A cell counted absent under its own
-                # spelling would put that spelling in
-                # `missing_by_source` or in the pool beside it, and a
-                # reader who can tell such a cell from an ordinary blank
-                # has been told the count this pass exists to withhold.
-                missing += [("", parsing.MISSING_BLANK)]
-            classified = level_kept
-            cells = counted
-            present = cells.present
-            judged_over_levels = labels_alone
+                for _absent in range(absent):
+                    # THE SPELLING IS NOT CARRIED OVER: a cell counted out
+                    # stands as an ordinary blank, as it did in the level
+                    # pass whose route this was.
+                    missing += [("", parsing.MISSING_BLANK)]
+                classified = level_kept
+                cells = counted
+                present = cells.present
     return _ColumnReading(
         cells=cells,
         present=present,
@@ -22782,7 +22324,6 @@ def _read_the_column(
         judged_over_days=judged_over_days,
         removed_by_cores=removed_by_cores,
         judged_over_cores=judged_over_cores,
-        judged_over_levels=judged_over_levels,
     )
 
 
@@ -23113,11 +22654,9 @@ def profile_column(
       described as free text rather than rejected.
     - Boundary: no file is opened, and no value of a suppressed kind
       (identifier, free text, a number no format can hold, or a label
-      below the small-cell floor) appears in the returned description,
-      and no pool of one level on one row is left for a reader to read a
-      count of one off -- the cells of such a level are counted as
-      missing, spelled as nothing, by the level pass (the owner's ruling
-      of 2026-09-17, item 5; plan P4-D231).
+      below the small-cell floor) appears in the returned description;
+      a held-back level is counted only into the pool, whatever its
+      size (plan P4-D390).
       This is a property of the column's publication CLASS -- its role,
       plus the declaration that beats every role -- applied to the WHOLE
       block by `_publication_class_applied` once both are known, not of
@@ -23177,7 +22716,6 @@ def profile_column(
     judged_over_days = read.judged_over_days
     removed_by_cores = read.removed_by_cores
     judged_over_cores = read.judged_over_cores
-    judged_over_levels = read.judged_over_levels
     entries, unpublished = _published_verdicts(verdicts, settings)
     # THE DAY VERDICTS FOLLOW THE NUMBER VERDICTS, and the order is the
     # contract's own (invariant V4): every numeric candidate, ascending
@@ -23218,7 +22756,6 @@ def profile_column(
             removed_by_cores,
             after_removal=judged_over_cores,
             after_days=judged_over_days,
-            after_levels=judged_over_levels,
             forced_code=forced_code,
             forced_measurement=forced_measurement,
             described_as_pair=described_as_pair,

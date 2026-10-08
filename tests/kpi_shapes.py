@@ -609,6 +609,9 @@ def lone_count_shapes() -> "dict[str, tuple[list[str], list[list[str]], list[str
     """The three shapes whose one named count of one stands (ledger K-2B-28 and K-2B-48).
 
     name -> (header, rows, flags, column, the key allowed to hold 1).
+    The pooled label's one `SITE_X` is the pool `suppressed_rows` 1 since
+    plan P4-D390; it was `n_missing` 1 while ruling 5's level pass
+    counted it as missing.
     """
     draw = random.Random(8)
     words = ["alpha", "bravo", "delta", "echo", "fox", "golf", "hotel", "india",
@@ -627,7 +630,7 @@ def lone_count_shapes() -> "dict[str, tuple[list[str], list[list[str]], list[str
     floor = ["--smallest-group", "11"]
     return {
         "free_text": (["note", "other"], free, floor, "note", "n_numeric"),
-        "pooled_labels": (["value", "other"], [[c, "k"] for c in pooled], floor, "value", "n_missing"),
+        "pooled_labels": (["value", "other"], [[c, "k"] for c in pooled], floor, "value", "suppressed_rows"),
         "dates": (["value", "other"], [[c, "k"] for c in dates], floor, "value", "n_unparsed"),
     }
 

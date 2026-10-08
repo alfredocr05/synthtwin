@@ -913,9 +913,15 @@ def test_time7_held_back_labels_past_the_walks_bound_are_times(
 def test_time7_red_when_the_label_walk_stops_at_its_bound(
     tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """MUTATION: the held-back labels' walk bounded like every other form's."""
+    """MUTATION: the held-back labels' walk bounded like every other form's was
+    before plan P4-D390, at a fixed count of spellings in all: since that plan
+    every other form's walk is bounded by what it refuses (`_walk_goes_on`),
+    which a clock's supply never reaches, so the mutant bounds that too."""
     monkeypatch.setattr(generation, "_STAND_IN_STEPS", 32)
     monkeypatch.setattr(generation, "_fraction_clock_supply", lambda _form: 0)
+    monkeypatch.setattr(
+        generation, "_walk_goes_on", lambda steps, _taken, room: steps < min(room, generation._STAND_IN_STEPS)
+    )
     _block_now, twin, missed = _long_tail_twin(tmp_path / "tail")
     assert any(cell.startswith("group-") for cell in _off_its_spelling(twin))
     assert "t:forms.published.%%:%%:%%.%%%%%%%" in missed

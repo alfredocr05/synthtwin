@@ -854,8 +854,8 @@ def _spellings_held_back_as_before(
     now asks invariant W9 -- `n_distinct` is the spellings the block speaks
     of: every spelling a published level names, in `variants` or counted in
     `variants_withheld`, and the own spellings of each level held back --
-    and a raw count also counted a spelling ruling 5 (P4-D271) turned into a
-    missing cell, which no level speaks of: `label-0` (eleven `Beta`, ten
+    and a raw count also counted a spelling ruling 5 (P4-D271, retired by
+    P4-D390) turned into a missing cell, which no level speaks of: `label-0` (eleven `Beta`, ten
     `beta`, eight `BETA` and one `alpha` at a floor of eleven, the lone
     `alpha` counted missing) read `n_distinct 4` beside the three spellings
     its one level names, and W9 refused it; `label-36` the same. On every
@@ -1491,9 +1491,10 @@ def _one_column_text(values: "list[str]") -> str:
     `fixtures.single_column_table` writes an empty cell as an empty
     line, and a blank line in a one-column table is refused: synthtwin
     cannot tell it from a record whose one value is missing (plan
-    P4-D74). A probe's twin holds such a cell whenever the level pass
-    counted one out (the owner's ruling of 2026-09-17, item 5; plan
-    P4-D231), so the file this test builds from that twin writes the
+    P4-D74). A probe's twin held such a cell wherever the level pass of
+    the owner's ruling of 2026-09-17, item 5 counted one out (plan
+    P4-D231, retired by P4-D390), and a description may still publish
+    absent cells, so the file this test builds from a twin writes the
     two quotation marks the refusal itself asks for -- which is what
     the product's own writer puts there.
     """

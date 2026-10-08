@@ -8473,8 +8473,9 @@ steps write whole seconds, `.0000000`, and a fraction moves only past
 every time of the day. No clock line holds such a form, so none of it is
 filled figure by figure; and since every step of its supply is another
 time, A WALK OF SUCH A FORM RUNS TO THE END OF ITS SUPPLY, here and in
-free text's forms (G9.5), where every other form's walk stops at 4,096
-spellings: a pass of it still gives up after 4,096 tried, and the supply
+free text's forms (G9.5), where every other form's walk is bounded by
+what it refuses here (below, plan P4-D390) and stops at 4,096 spellings
+in free text: a pass of it still gives up after 4,096 tried, and the supply
 this section counts for settling is counted as far, stopping after
 4,096 refused in a row. Measured before: a free-text `time(7)` column of
 1,000 different times wrote 856 cells that are no time of day,
@@ -8576,6 +8577,34 @@ leading segment answer plausibly and wrongly.
   stride sharing no factor with the form's own supply — so consecutive
   labels differ in every fillable position, and no two steps below that
   supply collide. Every other character of the form stands as itself.
+- **A form is given up only where its walk refuses far more than it
+  takes** (plan P4-D390). The walk of one form carries its place across
+  the column and tries one spelling more while the spellings it has
+  refused number fewer than those it has taken plus 4,096 -- `steps <
+  2 * taken + 4096` -- and never past the form's own supply. A label
+  the form cannot then supply is `group-N`, as where the census names
+  no form, and the supply the arrangement above counts is counted under
+  the same bound. Until P4-D390 the walk stopped at 4,096 spellings of
+  one form in all, so a register holding back more codes of one form
+  than that wrote the rest `group-N` and its twin missed that form's
+  census count: a register of 30,000 codes over 100,000 rows at a floor
+  of eleven held 11,467 codes back, and its twin held 89,908 of 100,000
+  cells in the code's form. A form none of whose spellings is usable
+  still costs 4,096 steps, and a walk whose first 4,096 steps held what
+  it needed writes what it wrote before.
+- **A supply is counted only as far as an arrangement can spend it**
+  (the review of plan P4-D390, item 1): to the number of held-back
+  labels, or to the cells the form owes where those are fewer. Every
+  label covers a row at least and no arrangement gives a form a label
+  once it owes nothing, so a supply counted further moves nothing, and
+  the one-pass arrangement counts its own where the search is not
+  entered. G8.3a's rooms are counted to each form's debt the same way,
+  and G8.3b's traded form to the cells it is paid on the labels a trade
+  may move, which no trade changes. Counted to the number of labels, a
+  supply walked every held-back label once for every form owing a cell:
+  a register of seven-character codes in 126 forms holding 24,610 back
+  over 200,000 rows at a floor of eleven took 131.1 s of processor time
+  to generate, and takes 11.4 s, the twin byte for byte the same.
 - **The four neutrality properties are ASKED rather than had.** A
   spelling built to look like a code no longer has them by
   construction, so each candidate is tested against all four and
@@ -8929,6 +8958,33 @@ number when it is one under that reading.
    written with a minus where negative, its whole part as the figures
    it has -- no leading zero invented -- and exactly its places after
    the point, with the column's own decimal mark.
+
+   **A debt's walk of one count of places is given up only where it
+   refuses far more than it takes** (the review of plan P4-D390, item
+   2). A position of the walk holds one value of one side, the two
+   sides taking turns, or no value at all: a number the column
+   published, a sign it does not hold, or the middle of a gap of even
+   width. The walk tries one value more while the positions that held a
+   value number fewer than twice the numbers it has taken there plus
+   2^15 (`2 * 2^14`) -- it gives up once it has refused as many values
+   as it has taken plus 2^15 -- and a walk that has ended is never taken
+   up again. Until that review the walk stopped at 2^15 positions in
+   all, so a register holding back more numbers than that wrote the rest
+   as words: ten-figure codes over 1,000,000 rows at a floor of eleven
+   held 95,424 back, 32,768 were written as numbers, and the twin's
+   `n_numeric` was 914,448 against the table's 1,000,000. A position
+   holding no value is not counted: counted, as the review's first
+   repair counted it, it gave a register of consecutive codes up inside
+   its own span, whose every gap lies past published codes -- 60,000
+   seven-figure codes holding 2,000 back walked 1,175 of them and then
+   nothing, though every number past either end was free. Such positions
+   are at most one for each published number and two more inside the
+   span, and outside it one for each value tried on the other side, so
+   the walk stays bounded by the column's size. A walk that takes
+   nothing still stops after 2^15 values, and a walk whose first 2^15
+   positions held what it needed takes exactly what it took before. The
+   supply steps 1 and 2 count is counted by the same walk under the same
+   bound.
 
    **THE DRESSING, and an exponent form's own SCALE** (plan P4-D268;
    the scale added by item 3 of the numbers pass of the second Codex

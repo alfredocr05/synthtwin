@@ -2057,16 +2057,18 @@ def test_a_one_row_table_still_produces_a_twin(
     tmp_path: pathlib.Path,
 ) -> None:
     # AT THE DEFAULT FLOOR the one value is a group of one, below the
-    # smallest group of 11: it is counted absent and withheld, the
-    # column is described as empty, and the twin still has its one row,
-    # with the cell empty (plan P4-D316). Refusing such a table is the
-    # population floor's work, not this landing's.
+    # smallest group of 11: it is held back in the pool, one level over
+    # one row, so the column is a constant one with nothing named, and
+    # the twin has its one row with a made-up value in it (plan P4-D390;
+    # from 2026-09-18 ruling 5's level pass counted it absent and the
+    # column was empty). Refusing such a table is the population floor's
+    # work, not this landing's.
     described = _one_column(tmp_path / "one", "only", ["7"])
     built = generation.generate(described, 11)
     assert built.n_rows == 1
     assert len(built.rows) == 1
-    assert _block(described, "only").role == "empty"
-    assert len(_present(_cells(built, "only"))) == 0
+    assert _block(described, "only").role == "constant"
+    assert len(_present(_cells(built, "only"))) == 1
     # At a floor of one the value is published and the twin holds it.
     folder = tmp_path / "one-at-one"
     folder.mkdir()

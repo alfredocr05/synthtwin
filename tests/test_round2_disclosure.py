@@ -17,7 +17,8 @@ THE SEVEN, in the reviewer's order:
    `missing_by_source` count named one cell of a withheld spelling;
 3. a form census counted levels that the published levels already
    account for, so subtraction named one held-back label's form --
-   ruling 5 bypassed;
+   ruling 5 bypassed (closed by ruling 5's form reading until plan
+   P4-D390 set the ruling aside; the census publishes it again);
 4. a column of dates AND timestamps published timestamp-only properties
    against the whole column, so subtracting the date-only cells named
    one exceptional timestamp;
@@ -648,13 +649,15 @@ def _form_column() -> str:
 def test_a_form_census_names_no_held_back_label(
     tmp_path: pathlib.Path,
 ) -> None:
-    """Item 3, reproduced and closed by ruling 5 (2026-09-17, item 5).
+    """Item 3, closed by ruling 5's form reading until plan P4-D390.
 
-    The singleton level's cell is counted as MISSING, so the census
-    counts 200 where the published levels cover 200 and the difference
-    is nought. The second key is left exactly as it was: its eleven
-    cells belong to two held-back levels, no published level wears that
-    form, and the pool is doing what the ruling asks of it.
+    The pass counted the singleton level's cell as MISSING, so the
+    census counted 200 where the published levels cover 200. Plan
+    P4-D390 set ruling 5 aside under the owner's principle of 2026-10-01
+    (a count worked out within one column is accepted, P4-D363), so the
+    census counts all 201 cells of `@@@-%%%` again, the one held-back
+    level's form is the difference, no label of it is printed, and the
+    twin writes a made-up label in that form where the table held one.
     """
     read = _round_trip(
         tmp_path / "forms",
@@ -662,56 +665,17 @@ def test_a_form_census_names_no_held_back_label(
         ["--smallest-group", _FLOOR_ELEVEN],
     )
     block = read["document"]["columns"][0]
-    assert block["shape_forms"] == {"@@@-%%%": 200, "@@-%%%": 11}
+    assert block["shape_forms"] == {"@@@-%%%": 201, "@@-%%%": 11}
     covered = 0
     for level in block["levels"]:
         covered = covered + level["shape_form_cells"]
     assert covered == 200
-    assert block["n_missing"] == 1
-    assert block["suppressed_levels"] == 2
-    assert (read["twin_exit"], read["real_exit"]) == (0, 0)
-
-
-def test_the_form_pass_is_what_holds_item_three_shut(
-    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    """RED CHECK for item 3: withdraw the form reading of ruling 5.
-
-    With `_levels_read_by_form` counting nothing out, the census
-    publishes 201 against 200 published cells again and `n_missing`
-    goes back to nought -- `05e7d89` exactly. The loader's own half
-    then refuses the description, so it never reaches a twin.
-    """
-    from synthtwin import taxonomy
-
-    monkeypatch.setattr(
-        taxonomy, "_levels_read_by_form", lambda cells, role, rare: ()
-    )
-    folder = tmp_path / "forms"
-    folder.mkdir(parents=True)
-    table = folder / "table.csv"
-    table.write_text(_form_column(), encoding="utf-8", newline="")
-    assert (
-        _quiet(
-            [
-                "profile", f"{table}", "--out-dir", f"{folder}",
-                "--replace", "--smallest-group", _FLOOR_ELEVEN,
-            ]
-        )
-        == 0
-    )
-    block = _document(folder / "table-profile.json")["columns"][0]
-    assert block["shape_forms"]["@@@-%%%"] == 201
     assert block["n_missing"] == 0
-    assert (
-        _quiet(
-            [
-                "generate", f"{folder / 'table-profile.json'}",
-                "--out-dir", f"{folder}", "--seed", "4", "--replace",
-            ]
-        )
-        == 1
-    )
+    assert block["suppressed_levels"] == 3
+    published = json.dumps(read["document"])
+    for label in ("ABC-300", "QQ-400", "RR-500"):
+        assert label not in published and label.lower() not in published
+    assert (read["twin_exit"], read["real_exit"]) == (0, 0)
 
 
 def test_a_form_census_leaving_two_cells_over_is_unmoved(

@@ -307,6 +307,13 @@ def test_a_headerless_workbook_of_records_writes_no_record(
 
 
 # -- the third MAJOR: a pool of one in the absent-value censuses -------
+#
+# THE LONE ABSENT CELL IS AN EMPTY ONE (plan P4-D390). The skeptic's own
+# reproduction made it of one `-999` beside the labels, which ruling 5's
+# level pass counted as missing, spelled as nothing. That pass is
+# retired, so a lone `-999` is a held-back label now and the absent
+# censuses never see it; one EMPTY cell is the same absent cell with no
+# pass in between, and it is what these tests write.
 
 _PRESENT = ["north"] * 200 + ["south"] * 180
 
@@ -337,7 +344,7 @@ def test_an_absent_census_never_names_one_row(tmp_path: pathlib.Path) -> None:
     outright, and 20 less 19 by subtraction. The pool is raised now, so
     the column publishes what it publishes at a floor of twenty.
     """
-    read = _absences(tmp_path, _PRESENT + ["NA"] * 19 + ["-999"])
+    read = _absences(tmp_path, _PRESENT + ["NA"] * 19 + [""])
     column = read["column"]
     assert column["n_missing"] == 20
     assert column["n_missing_withheld"] == 20
@@ -363,9 +370,9 @@ def test_the_raised_pool_is_what_a_raised_floor_would_publish(
     reading rather than to one of its own, which is what makes it the
     floor's discipline and not a new one.
     """
-    at_eleven = _absences(tmp_path / "eleven", _PRESENT + ["NA"] * 19 + ["-999"])
+    at_eleven = _absences(tmp_path / "eleven", _PRESENT + ["NA"] * 19 + [""])
     at_twenty = _absences(
-        tmp_path / "twenty", _PRESENT + ["NA"] * 19 + ["-999"], floor="20"
+        tmp_path / "twenty", _PRESENT + ["NA"] * 19 + [""], floor="20"
     )
     for field in (
         "n_missing", "n_missing_blank", "n_missing_withheld",
@@ -379,12 +386,13 @@ def test_a_census_the_floor_can_name_is_left_alone(
 ) -> None:
     """The rule reaches a pool of ONE and nothing else.
 
-    Nineteen `NA` beside two rare words pool to two, which names no row,
-    so the spellings census keeps its key and the class census keeps its
+    Nineteen `NA` beside two absent cells the floor will not name -- one
+    empty and one a lone space -- pool to two, which names no row, so
+    the spellings census keeps its key and the class census keeps its
     count. A rule that pooled whenever anything was held back would have
     taken this column's census too.
     """
-    read = _absences(tmp_path, _PRESENT + ["NA"] * 19 + ["-999", "-998"])
+    read = _absences(tmp_path, _PRESENT + ["NA"] * 19 + ["", " "])
     column = read["column"]
     assert column["missing_by_source"] == {"NA": 19}
     assert column["missing_by_class"]["(text-code)"] == 19
@@ -417,7 +425,7 @@ def test_raising_the_pool_is_what_closes_the_census(
         "_smallest_named_spelling",
         lambda by_source, named_blank, settings: None,
     )
-    read = _absences(tmp_path, _PRESENT + ["NA"] * 19 + ["-999"])
+    read = _absences(tmp_path, _PRESENT + ["NA"] * 19 + [""])
     column = read["column"]
     assert column["missing_by_source"] == {"NA": 19}
     assert column["missing_by_class"]["(withheld)"] == 1
