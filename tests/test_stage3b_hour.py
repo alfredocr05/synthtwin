@@ -1094,8 +1094,8 @@ STEP_MUTANTS = {
     ),
     "the short count is not put back": (
         "hour_put_back_short",
-        "    if count < wanted:\n        for rank in range(body_low, body_high + 1):",
-        "    if count < wanted and False:\n        for rank in range(body_low, body_high + 1):",
+        "    if count < wanted:\n        # A BIN WITH NO FREE WRITTEN UNIT IS ASKED ONCE",
+        "    if count < wanted and False:\n        # A BIN WITH NO FREE WRITTEN UNIT IS ASKED ONCE",
     ),
     "units leave in rank order": (
         "hour_proportional",
@@ -1476,11 +1476,61 @@ def test_a_tie_the_pass_makes_is_split_where_the_count_is_out_of_reach(
         assert instants(written) == flat[seed], seed
     mutant = _mutant(
         monkeypatch,
-        "    if (state.keep_units and count != wanted) or count < wanted:",
+        "    if (state.keep_units and count != wanted) or short:",
         "    if state.keep_units and count != wanted:",
     )
     lost = instants(rendering.twin_csv(mutant.generate(described.loaded, 2)))
     assert lost < flat[2], (lost, flat[2])
+
+
+_TWELVE_DAYS = [datetime.date(2023, 1, 2) + datetime.timedelta(days=step) for step in range(12)]
+
+
+def _lab_minutes_two_marks(rows: int, seed: int) -> "list[str]":
+    """Lab draws to the minute over twelve days, four in five written with a `T` between day
+    and clock and the rest with a space: so dense that many draws share a minute, as in the
+    real column, and one instant has two spellings, so the count of different values is one
+    the construction does not reach."""
+    draw = random.Random(seed)
+    found: "list[str]" = []
+    for _row in range(rows):
+        moment = _at(draw.choice(_TWELVE_DAYS), draw.choices(range(24), weights=_LAB)[0], draw.randrange(60))
+        found += [moment.strftime(_ISO_T if draw.random() < 0.8 else _ISO_M)]
+    return found
+
+
+def test_a_dense_column_drawn_past_its_count_keeps_the_ties_the_pass_makes(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """PUT BACK's short count is put back, where the column's count is out of reach, only
+    where the count drawn is not above the published one (the lane's second skeptic, finding 1).
+
+    Twenty thousand lab draws to the minute over twelve days, written with two marks: the
+    construction draws more different minutes than the column publishes different values, and
+    the ties the hour pass makes bring the twin near the published count, as the real column's
+    own ties do. Putting the count drawn back split them, and every twin came back 18 to 19 per
+    cent long. At floors 11 and 36, seeds 0 to 4, the twin's count of different values is
+    within 1 per cent of the published one (on seven columns of this shape 70 twins came within
+    -0.94 and +1.15 per cent). Mutant: the short count put back whatever the published count.
+    """
+    cells = _lab_minutes_two_marks(20000, 40033)
+    text = "seen_at\n" + "\n".join(cells) + "\n"
+    for floor in (LINE, 36):
+        described = kpi_shapes.describe(tmp_path / f"floor-{floor}", "labs", text, floor)
+        block = described.block("seen_at")
+        column = next(column for column in described.loaded.columns if column.name == "seen_at")
+        assert block["hour_census"] and not contract.datetime_counts_reachable(column)
+        published = block["n_distinct"]
+        for seed in (0, 1, 2, 3, 4):
+            written = len({cell for cell in _cells(kpi_shapes.twin_text(described, seed), "seen_at") if cell})
+            assert 100 * abs(written - published) <= published, (floor, seed, written, published)
+    mutant = _mutant(
+        monkeypatch,
+        "    short = count < wanted and (published is None or wanted <= published)\n",
+        "    short = count < wanted\n",
+    )
+    written = len({cell for cell in _cells(rendering.twin_csv(mutant.generate(described.loaded, 0)), "seen_at") if cell})
+    assert 100 * (written - published) > published, (written, published)
 
 
 # -- the rules, worked by hand ---------------------------------------------------------

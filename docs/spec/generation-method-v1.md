@@ -6838,12 +6838,21 @@ standing has been made: nothing published then counts a weekday.
    SHORT: in rank order, a movable body rank sharing its written unit
    takes the free place of its own bin, parent and gap nearest it (for
    the hour, its own hour and day). Where the column's count is not one
-   the construction reaches, the step still puts back a SHORT count, as
-   above: a tie the moves made is split all the same, and a long count is
-   left (the lane's skeptic, finding 4: 2,000 different moments written
-   with two marks between day and clock came back 1,999 at one seed in
-   three, their count from HELD to its envelope). Each move keeps every
-   group's count; the step stops once the count is back.
+   the construction reaches, a long count is left, and a SHORT count is
+   put back, as above, only where the count of written units the pass
+   began with is not above the column's published `n_distinct`: the
+   first movable ranks in rank order that share a written unit are split
+   off it, whichever move made the tie (the lane's skeptic, finding 4:
+   2,000 different moments written with two marks between day and clock
+   came back 1,999 at one seed in three, their count from HELD to its
+   envelope). Where that count is above the published one, a short count
+   is left too: on a dense column the ties the moves make bring the twin
+   nearer the published count, as the real column's own ties do (the
+   lane's second skeptic, finding 1: 20,000 lab draws to the minute over
+   twelve days, written with two marks, came back 18 to 19 per cent long
+   when the count drawn was put back, and within 1.2 per cent of the
+   published count when it was not). Each move keeps every group's
+   count; the step stops once the count is back.
 7. Each run of ranks the layout does not pin is sorted.
 
 Where the census still does not hold, the report names `hour_census` as

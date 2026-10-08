@@ -9360,6 +9360,7 @@ def hour_settled(column, ordinals, parsed, whole, lows, highs, holes):
     return clock_pass(
         walk, first, last, pinned, walk.different(), standing, half,
         date_counts_reachable(column), not census_of_days,
+        published=column["n_distinct"],
     )
 
 
@@ -9376,11 +9377,13 @@ def clock_seat(walk, ordinal):
     return ordinal // span - (ordinal // walk.day) * (walk.day // span)
 
 
-def clock_pass(walk, first, last, pinned, wanted, standing, half, reachable, anyday=False, kin=()):
+def clock_pass(walk, first, last, pinned, wanted, standing, half, reachable, anyday=False, kin=(), published=None):
     """G7.3g steps 2 to 7 over a walk whose bins are a field of the clock.
 
     ``kin`` gives each parent's place in its day its group in the coarser
     census the moves keep; it is empty where the parent is the day.
+    ``published`` is the column's published count of different values,
+    None where the caller states none.
 
     2. G7.3f's shared steps at the field's unit with the parent kept;
     3. while a group is over its count: SAMEPARENT, the ESCAPE, and a SPLIT
@@ -9392,9 +9395,10 @@ def clock_pass(walk, first, last, pinned, wanted, standing, half, reachable, any
     5. on the half day, each tail rank past noon or at midnight back on
        it inside its stratum (the hour's alone);
     6. PUT BACK, where the count of different written units is off --
-       where the column's count is not reachable, only where it is short --
-       and once more, where no weekday census stands, free to merge onto a
-       day of another weekday;
+       where the column's count is not reachable, only where it is short
+       and the count drawn is not above the published one -- and once
+       more, where no weekday census stands and it is still long, free to
+       merge onto a day of another weekday;
     7. each run of unpinned ranks sorted.
     """
     before = [written_at_midnight(ordinal, 0, walk.step) for ordinal in walk.days]
@@ -9409,9 +9413,10 @@ def clock_pass(walk, first, last, pinned, wanted, standing, half, reachable, any
     clock_off_midnight(walk, before, first, last, pinned)
     if half:
         hour_tails_on_the_half_day(walk, first, last)
-    if (reachable and walk.different() != wanted) or walk.different() < wanted:
+    short = walk.different() < wanted and (published is None or wanted <= published)
+    if (reachable and walk.different() != wanted) or short:
         clock_put_back(walk, first, last, pinned, wanted, standing, False, kin)
-        if anyday and walk.different() != wanted:
+        if anyday and walk.different() > wanted:
             clock_put_back(walk, first, last, pinned, wanted, standing, True, kin)
     sort_unpinned_runs(walk.days, pinned)
     return walk.days

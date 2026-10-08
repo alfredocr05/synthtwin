@@ -21972,6 +21972,7 @@ def _hour_settled(
     _clock_pass(
         state, counts, body_low, body_high, pinned, wanted,
         _clock_day_standing(facts), half_day, not facts.weekday_census,
+        published=column.n_distinct,
     )
     notes: "list[Deviation]" = []
     if _clock_found(state, len(counts), body_low, body_high) != counts:
@@ -22053,6 +22054,7 @@ def _clock_pass(
     half_day: bool,
     anyday: bool = False,
     kin: "tuple[int, ...]" = (),
+    published: "int | None" = None,
 ) -> None:
     """G7.3g's steps 2 to 7 over a state of ranks, for any field (landing 3b.2-H).
 
@@ -22076,9 +22078,12 @@ def _clock_pass(
     rank back on it (`_hour_tails_on_the_half_day`, the hour's alone);
     step 6, PUT BACK, where the count of different written units is off
     (`_clock_count_put_back`) -- where the column's count is not one the
-    construction reaches, only where it is short -- last of the moves, so
-    it repays every move before it; step 7, each run of unpinned ranks
-    sorted. `anyday` says
+    construction reaches, only where it is short and the count `wanted`
+    the construction drew is not above `published`, the column's
+    published count of different values (None where the caller states
+    none, as a frozen state does) -- last of the moves, so it repays
+    every move before it; step 7, each run of unpinned ranks sorted.
+    `anyday` says
     no weekday census stands, so, once RELIEF has had its turn, step 3
     runs once more with an escape free to take a day of another weekday
     (`_clock_escape`), and, once PUT BACK has made every merge keeping the
@@ -22109,19 +22114,28 @@ def _clock_pass(
     if half_day:
         _hour_tails_on_the_half_day(state, body_low, body_high, state.step)
     # PUT BACK where the count is reachable, and, where it is not, a SHORT
-    # count all the same: a tie the moves made is split inside its own bin,
-    # parent and gap, which every census keeps (the lane's skeptic, finding
-    # 4: 2,000 different moments written with two marks between day and
-    # clock came back 1,999 at one seed in three, from HELD to an envelope).
+    # count all the same, each rank it splits off a shared written unit
+    # kept inside its own bin, parent and gap, which every census keeps (the
+    # lane's skeptic, finding 4: 2,000 different moments written with two
+    # marks between day and clock came back 1,999 at one seed in three,
+    # from HELD to an envelope) -- but only where the count the
+    # construction drew is not above the published one (its second
+    # skeptic, finding 1). A dense column drawn past that count comes
+    # nearer it through the ties the moves make, as its real cells do:
+    # 20,000 lab draws to the minute over twelve days, written with two
+    # marks, came back 18 to 19 per cent long when the count drawn was put
+    # back, and within 1.2 per cent of the published count when it was not.
     count = _weekday_count(state)
-    if (state.keep_units and count != wanted) or count < wanted:
+    short = count < wanted and (published is None or wanted <= published)
+    if (state.keep_units and count != wanted) or short:
         _clock_count_put_back(
             state, body_low, body_high, pinned, wanted, standing, False, kin
         )
-        if anyday and _weekday_count(state) != wanted:
+        if anyday and _weekday_count(state) > wanted:
             # ...AND ITS LAST RESORT, where no weekday census stands: once
             # every merge keeping the day standing is made, a day of another
-            # weekday.
+            # weekday. A count still short has no rank left to split: the
+            # step only fills free places, so asking again moves nothing.
             _clock_count_put_back(
                 state, body_low, body_high, pinned, wanted, standing, True, kin
             )
@@ -22710,6 +22724,14 @@ def _clock_count_put_back(
             count = count - 1
         return
     if count < wanted:
+        # A BIN WITH NO FREE WRITTEN UNIT IS ASKED ONCE (the lane's second
+        # skeptic, finding 1): a probe over the whole of it that finds none
+        # marks it full, and as this step only fills free places it stays
+        # full. A million lab draws to the minute over 120 days, their busy
+        # hours holding every minute, probed each such hour once for every
+        # rank in it: 27 seconds, and 24 more asking again where no weekday
+        # census stands; 1.1 now, every rank where it was.
+        full: "set[int]" = set()
         for rank in range(body_low, body_high + 1):
             if count >= wanted:
                 return
@@ -22717,11 +22739,14 @@ def _clock_count_put_back(
             if pinned[rank] or _weekday_there(state, ordinal) < 2:
                 continue
             start = ordinal - ordinal % state.unit
-            target = _clock_nearest_free(
-                state, ordinal, max(start, state.lows[rank]),
-                min(start + state.unit - 1, state.highs[rank]), 1,
-            )
+            if start in full:
+                continue
+            low = max(start, state.lows[rank])
+            high = min(start + state.unit - 1, state.highs[rank])
+            target = _clock_nearest_free(state, ordinal, low, high, 1)
             if target is None:
+                if low == start and high == start + state.unit - 1:
+                    full |= {start}
                 continue
             _weekday_step(state, rank, target)
             count = count + 1
