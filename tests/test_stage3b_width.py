@@ -1595,9 +1595,9 @@ def test_a_run_with_too_little_room_under_the_width_widens_inward(
     short: "list[int]" = []
     real_tops = generation._tops_under_the_width
 
-    def watched(taken, span, band, width, facts):  # type: ignore[no-untyped-def]
-        found = real_tops(taken, span, band, width, facts)
-        if len(found) < span[2]:
+    def watched(taken, span, band, width, facts, walked=None):  # type: ignore[no-untyped-def]
+        found = real_tops(taken, span, band, width, facts, walked)
+        if len(found[0]) < span[2]:
             short.append(span[2])
         return found
 
@@ -1648,6 +1648,86 @@ def test_a_stratum_taken_into_a_run_frees_its_own_value(tmp_path: pathlib.Path) 
     for seed in SEEDS:
         mean, spread = _errors(cells, _twin_numbers(described, seed))
         assert mean <= 0.01 and spread <= 0.01, f"seed {seed}: {mean} {spread}"
+
+
+def _dense_beside_five_far(rows: int) -> "list[str]":
+    """Consecutive whole numbers up to `999999` beside five of seven figures from `999999 + 1.56 rows`, ``rows`` in all (Codex's review of lane G2, item 3)."""
+    return [str(value) for value in range(1000005 - rows, 1000000)] + [
+        str(999999 + (156 * rows) // 100 + step) for step in range(5)
+    ]
+
+
+def test_a_run_widening_over_dense_values_looks_at_each_value_once(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Consecutive whole numbers beside five of seven figures, declared a measurement, at eleven: the search grows with the tail.
+
+    Every value under the width is held, so the far strata find no free
+    value beside them and the run takes the tail's strata in one at a
+    time, each freeing only its own value. Begun again at the width's end
+    for every stratum taken in, the search for free values made 568 checks
+    at 4,000 rows, a tail of 40 strata, and 2,807 at 8,000, a tail of 80
+    (11,881 at 16,000), on f6a24db (Codex's review of lane G2, item 3).
+    Resumed where it stopped, it looks at each value once over the whole
+    widening: no more checks than twice the tail's rows, and twice the
+    rows ask little more than twice the checks. Counted, not timed.
+    """
+    checks = [0]
+    rounds = [0]
+    real_free = generation._free_under_the_width
+    real_tops = generation._tops_under_the_width
+
+    def counted(*arguments):  # type: ignore[no-untyped-def]
+        checks[0] += 1
+        return real_free(*arguments)
+
+    def round_counted(*arguments):  # type: ignore[no-untyped-def]
+        rounds[0] += 1
+        return real_tops(*arguments)
+
+    monkeypatch.setattr(generation, "_free_under_the_width", counted)
+    monkeypatch.setattr(generation, "_tops_under_the_width", round_counted)
+    found: "list[tuple[int, int]]" = []
+    for rows in (4000, 8000):
+        cells = _dense_beside_five_far(rows)
+        assert len(cells) == rows and len(set(cells)) == rows, "premise: every value different"
+        described = kpi_shapes.describe(tmp_path / f"dense{rows}", f"dense{rows}", _text(cells), 11, measured=["value"])
+        tail = described.document["columns"][0]["tails"]["high"]["rows"]
+        checks[0] = 0
+        rounds[0] = 0
+        kpi_shapes.twin_text(described, 0)
+        assert rounds[0] >= tail // 2, f"premise: the run widens over the tail, {rows} rows: {rounds[0]} of {tail}"
+        assert checks[0] <= 2 * tail, f"{rows} rows: {checks[0]} checks for a tail of {tail}"
+        found += [(tail, checks[0])]
+    assert found[1][0] == 2 * found[0][0], f"premise: twice the rows, twice the tail: {found}"
+    assert found[1][1] <= 2.5 * found[0][1], found
+
+
+def test_a_resumed_search_finds_what_one_begun_again_finds() -> None:
+    """`_tops_under_the_width` resumed after a stratum is taken in, against the same walk begun again at the width's end.
+
+    Over seeded runs of held and free values under `9999`, each round
+    taking the stratum inside the run in -- its value freed -- the resumed
+    walk returns the values a fresh one does, round after round, and never
+    looks at more values than the fresh walk's last round did.
+    """
+    facts = types.SimpleNamespace(integer_valued=True, kept_stand_ins=())
+    for seed in range(40):
+        draw = random.Random(f"g2/codex/resume/{seed}")
+        held = sorted({float(draw.randint(9000, 9998)) for _ in range(draw.randint(20, 400))}, reverse=True)
+        taken = {value: 1 + draw.randint(0, 1) for value in held}
+        walked = None
+        for step in range(len(held) - 1):
+            inner = held[step]
+            span = (inner, 9999.0, step + 1)
+            fresh = generation._tops_under_the_width(taken, span, generation._BAND_POSITIVE, (4, False), facts)
+            walked = generation._tops_under_the_width(taken, span, generation._BAND_POSITIVE, (4, False), facts, walked)
+            assert walked[0] == fresh[0] and walked[1:] == fresh[1:], f"seed {seed} round {step}"
+            if len(walked[0]) >= step + 1:
+                break
+            taken[inner] = taken[inner] - 1
+            if taken[inner] < 1:
+                del taken[inner]
 
 
 _HELD_SHAPES = (

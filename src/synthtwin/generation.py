@@ -15608,6 +15608,16 @@ def _pulled_under_the_width(
     free = _released(holders, moved, block)
     tops: "list[float]" = []
     inner = 0.0
+    # ...AND THE SEARCH FOR FREE VALUES RESUMES WHERE IT STOPPED, its
+    # cursor and the values it found kept from one stratum taken in to the
+    # next (Codex's review of lane G2, item 3). Taking a stratum in frees
+    # only that stratum's own value, which stands inside every value the
+    # search has looked at, so nothing it found or passed changes. Begun
+    # again at the width's end each time, it looked at the same values
+    # once per stratum taken in: over consecutive whole numbers up to
+    # 999,999 beside five of seven figures, a tail of 40 strata at 4,000
+    # rows and of 160 at 16,000, it made 568 and 11,881 checks.
+    walked: "tuple[list[float], float, int] | None" = None
     for _round in range(len(places) + 1):
         innermost = block[len(block) - 1]
         inner_place = innermost - 1 if high else innermost + 1
@@ -15615,9 +15625,10 @@ def _pulled_under_the_width(
             tops = []
             break
         inner = moved[inner_place]
-        tops = _tops_under_the_width(
-            free, (inner, end, len(block)), band, width, facts
+        walked = _tops_under_the_width(
+            free, (inner, end, len(block)), band, width, facts, walked
         )
+        tops = walked[0]
         if len(tops) >= len(block):
             break
         # NEVER PAST THE SIDE'S OWN TAIL. Nothing else need be asked of
@@ -15655,7 +15666,7 @@ def _pulled_under_the_width(
                 band,
                 width,
                 facts,
-            )
+            )[0]
     count = len(block)
     first = count - len(tops)
     for index in range(count - 1, first - 1, -1):
@@ -15727,7 +15738,8 @@ def _tops_under_the_width(
     band: str,
     width: "tuple[int, bool]",
     facts: contract.NumericFacts,
-) -> "list[float]":
+    walked: "tuple[list[float], float, int] | None" = None,
+) -> "tuple[list[float], float, int]":
     """The outermost free values under the width, walked in from its end (G6.6.8).
 
     One for each stratum of a run the width walk moves under it: the most
@@ -15738,18 +15750,31 @@ def _tops_under_the_width(
     run or once it holds as many as the run's strata, and looks at most
     `_FIGURE_WORK` values past those it keeps.
 
+    ``walked`` RESUMES AN EARLIER WALK OF THE SAME RUN, as this returned
+    it, where the run has since taken a stratum in (Codex's review of lane
+    G2, item 3): the values found, the next value to look at and how many
+    have been looked at. The stratum taken in frees only its own value,
+    inside every value already looked at, so resuming finds exactly what a
+    walk begun again at the end would, and each value is looked at once
+    over the whole widening rather than once per stratum taken in.
+
     Guarantees: accepts the values other strata hold, the stratum inside
     the run's value with the width's end and the run's size, the run's
     band, the widest demanded figure count with whether a demand asks for
-    exactly it, and the column's facts; returns the free values found,
-    outermost first, no more than the run's size. Determinism: a function
-    of the five. Raises nothing. No I/O of any kind.
+    exactly it, the column's facts and an earlier walk to resume or None;
+    returns the free values found, outermost first, no more than the run's
+    size, with the next value to look at and how many were looked at.
+    Determinism: a function of the six. Raises nothing. No I/O of any
+    kind.
     """
     inner, end, wanted = span
     high = end > 0.0
     found: "list[float]" = []
     candidate = end
-    for _step in range(wanted + _FIGURE_WORK):
+    looked = 0
+    if walked is not None:
+        found, candidate, looked = walked
+    while looked < wanted + _FIGURE_WORK:
         if len(found) >= wanted:
             break
         if not (candidate > inner if high else candidate < inner):
@@ -15757,7 +15782,8 @@ def _tops_under_the_width(
         if _free_under_the_width(candidate, taken, band, width, facts):
             found += [candidate]
         candidate = candidate - 1.0 if high else candidate + 1.0
-    return found
+        looked = looked + 1
+    return found, candidate, looked
 
 
 def _free_under_the_width(
