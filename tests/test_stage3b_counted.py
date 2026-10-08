@@ -1127,7 +1127,13 @@ def test_c4_the_contact_numbers_are_spread_over_the_rows(
     assert halves_off(trip["twin"], census) > 1.0
 
 
-@pytest.mark.parametrize(("writer", "name"), (("repr", "xl_dt15g"), ("repr", "xl_dt6"), ("pandas_point_zero", "xl_date")))
+@pytest.mark.parametrize(
+    ("writer", "name"),
+    (
+        ("repr", "xl_dt15g"), ("repr", "xl_dt6"), ("pandas_point_zero", "xl_date"),
+        ("repr_microseconds", "unix_s"),
+    ),
+)
 def test_c4_pandas_and_repr_spellings_round_trip(
     tmp_path: pathlib.Path, writer: str, name: str
 ) -> None:
@@ -1138,16 +1144,20 @@ def test_c4_pandas_and_repr_spellings_round_trip(
     written back as itself, and every twin cell is `repr`'s own spelling
     of its double -- not `%.17g`'s seventeen figures. A column of whole
     serials pandas wrote as `45000.0` keeps its one nought after the point
-    in the twin, and the source meets its own form.
+    in the twin, and the source meets its own form. Unix seconds Python
+    wrote to the microsecond hold no figure at the unit fifteen figures
+    carry and are settled at the next finer one, the microsecond (mutant
+    M72: the first unit alone refused them).
     """
     shape = battery.BY_NAME[name]
     cells = battery.written_by(writer, shape, battery.ROWS, 0)
     trip = _trip(tmp_path, cells, shape.system)
     assert trip["twin_exit"] == 0 and trip["real_exit"] == 0
     form = trip["block"]["count_form"]
-    if writer == "repr":
+    if writer.startswith("repr"):
         assert form["significant"] == 17
-        assert trip["block"]["time_precision"] in ("second", "minute")
+        wanted = ("subsecond",) if writer == "repr_microseconds" else ("second", "minute")
+        assert trip["block"]["time_precision"] in wanted
         assert all(cell == repr(float(cell)) for cell in trip["twin"] if cell)
     else:
         assert form["places"] == 1 and form["trimmed"] is False
@@ -1186,6 +1196,20 @@ def test_c5_a_placeholder_count_is_set_aside_whole_or_not(
     trip = _trip(tmp_path / "head", cells, shape.system)
     assert trip["block"]["missing_by_source"] == {"2": 20, "2958465": 20}
     assert trip["twin"].count("2958465") == 20 and trip["twin"].count("2") == 20
+    assert not [cell for cell in trip["twin"] if "-" in cell]
+    assert trip["twin_exit"] == 0 and trip["real_exit"] == 0
+    # ...AND NOT WHOLE: six in the morning of either day, among date-times
+    # written to four figures, is set aside by the one reading the profiler
+    # and question Q3 share (`date_counts.settled_reading`; mutant M73 kept
+    # its moment, and the twin wrote `9999-12-31 06:00` into the column).
+    timed = battery.coarse("excel_4dp_minutes", battery.ROWS, 0)
+    for place in range(0, 1000, 50):
+        timed[place] = "2958465.2500"
+    for place in range(25, 1000, 50):
+        timed[place] = "1.2500"
+    trip = _trip(tmp_path / "timed", timed, "excel-1900")
+    assert trip["block"]["missing_by_source"] == {"1.2500": 20, "2958465.2500": 20}
+    assert trip["twin"].count("2958465.2500") == 20 and trip["twin"].count("1.2500") == 20
     assert not [cell for cell in trip["twin"] if "-" in cell]
     assert trip["twin_exit"] == 0 and trip["real_exit"] == 0
     monkeypatch.setattr(date_counts, "declared_aside", lambda member: ())

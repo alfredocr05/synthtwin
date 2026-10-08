@@ -72,11 +72,12 @@ Declared at 1,000 rows, seed 0, beside the battery:
   though no unit keeps its figures -- every system it offered would be
   refused once answered -- or one a unit keeps that Q3 does not ask with
   the system that wrote it (item 2, as the question sees it);
-* `writers_missed`: columns pandas wrote with `repr` or as `45000.0`, and
-  an Epic column written to seventeen significant figures, that are not
-  read, written back and checked as their writer writes them -- the
-  last read as numbers with NF115, and none stopping with a fault
-  (items 3 and 5).
+* `writers_missed`: columns pandas wrote with `repr` or as `45000.0`,
+  Unix seconds Python wrote with `repr` to the microsecond, and an Epic
+  column written to seventeen significant figures, that are not read,
+  written back and checked as their writer writes them -- the last read
+  as numbers with NF115, and none stopping with a fault (items 2, 3 and
+  5).
 
 Before R4 (9cb2eb5, base 2) no question offered dates on any of these
 columns; the epoch-band remark NF51 told only the four Unix-band
@@ -370,7 +371,7 @@ def _figures_and_writers(home: pathlib.Path, notes: "list[str]") -> "dict[str, i
             notes += [f"{name}: exits {[came.get(step) for step in ('profile', 'generate', 'twin', 'source')]}"]
     for writer, shape_name in (
         ("repr", "xl_dt15g"), ("repr", "xl_dt6"), ("pandas_point_zero", "xl_date"),
-        ("seventeen_significant", "epic_real"),
+        ("repr_microseconds", "unix_s"), ("seventeen_significant", "epic_real"),
     ):
         shape = battery.BY_NAME[shape_name]
         cells = battery.written_by(writer, shape, ASKED_ROWS, 0)
@@ -386,7 +387,7 @@ def _figures_and_writers(home: pathlib.Path, notes: "list[str]") -> "dict[str, i
                 and [came.get(step) for step in ("profile", "generate", "twin", "source")] == [0, 0, 0, 0]
                 and _written_back(shape.system, cells, facts) == 0
             )
-            if writer == "repr":
+            if writer.startswith("repr"):
                 ok = ok and all(cell == repr(float(cell)) for cell in twin if cell)  # type: ignore[union-attr]
         if not ok:
             totals["writers_missed"] += 1

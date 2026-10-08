@@ -36,8 +36,9 @@ SIX FAMILIES.
   and four figures of a day of moments off the minute (the review of
   landing R4, item 2), beside two whose figures a unit does keep.
 * `WRITERS` -- the shapes an exporter writes beside the battery's: pandas'
-  `45000.0` and `repr`, and an Epic day exported to seventeen significant
-  figures (the review of landing R4, items 3 and 5).
+  `45000.0` and `repr`, Python's `repr` of a timestamp taken to the
+  microsecond, and an Epic day exported to seventeen significant figures
+  (the review of landing R4, items 2, 3 and 5).
 
 What a person reads a column with is `decode`, the counting system's own
 rule, written here with `datetime` alone.
@@ -456,8 +457,15 @@ def coarse(name: str, rows: int = ROWS, seed: int = 0) -> "list[str]":
 
 
 def written_by(writer: str, shape: Shape, rows: int = ROWS, seed: int = 0) -> "list[str]":
-    """A shape's moments as another exporter writes them (`WRITERS`)."""
+    """A shape's moments as another exporter writes them (`WRITERS`).
+
+    `repr_microseconds` is Python's own writing of a timestamp it took to
+    the microsecond -- the shape's whole count and a seeded number of
+    microseconds -- whose figures are finer than fifteen carry (the
+    second pass of the review of landing R4, item 2).
+    """
     _cells, truth = cells(shape, rows, seed)
+    micro = random.Random(zlib.crc32(f"micro:{shape.name}".encode("utf-8")) + seed)
     out: "list[str]" = []
     for moment in truth:
         exact = count_of(shape.system, moment)
@@ -465,13 +473,15 @@ def written_by(writer: str, shape: Shape, rows: int = ROWS, seed: int = 0) -> "l
             out += [f"{int(round(exact))}.0"]
         elif writer == "repr":
             out += [repr(exact)]
+        elif writer == "repr_microseconds":
+            out += [repr(int(round(exact)) + micro.randrange(10**6) / 10**6)]
         else:
             day = int(exact)
             out += [f"{day + 0.01:.17g}" if moment.day % 7 == 0 else f"{day}"]
     return out
 
 
-WRITERS = ("pandas_point_zero", "repr", "seventeen_significant")
+WRITERS = ("pandas_point_zero", "repr", "repr_microseconds", "seventeen_significant")
 
 
 def decode(system: str, text: str) -> "dt.datetime | None":
