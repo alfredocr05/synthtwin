@@ -325,6 +325,13 @@ _NEARBY_SHARE_OF_THE_RANGE = 0.5
 # How many wrong-length rows are named in a refusal message.
 _MAX_REPORTED_OFFENDERS = 3
 
+# The rows of the one piece the pandas check reads its whole frame as
+# (`_check_against_pandas`, plan P4-D387): more than any file can hold,
+# so the piece is every row the file has, parsed in the steps pandas
+# parses a frame read at once and handed over at the line the check's
+# other pieces are.
+_EVERY_ROW = 1 << 62
+
 # What the caller may say about the first row. AUTOMATIC is the default
 # and is the only one that can end in the ambiguity refusal.
 FIRST_ROW_AUTOMATIC = "auto"
@@ -1151,17 +1158,6 @@ def _as_text(value: object) -> str:
     return value
 
 
-def _physical_lines(text: str) -> "list[str]":
-    """The text's lines as a file opened with ``newline=""`` hands them over.
-
-    Nothing is translated, and the lines are the survey's own
-    (`dialect.physical_lines`), so the standard reader reads exactly the
-    text the survey read -- including a text whose end-of-file mark has
-    been taken off, which a file handle could not give it.
-    """
-    return dialect.physical_lines(text)
-
-
 def _agrees_with_the_standard_reader(
     text: str,
     surveyed: dialect.Survey,
@@ -1187,7 +1183,7 @@ def _agrees_with_the_standard_reader(
         body = body[: len(body) - 1]
     backslash = form.escape == dialect.ESCAPE_BACKSLASH
     rows = csv.reader(
-        _physical_lines(body),
+        dialect.lines_in_turn(body),
         delimiter=form.delimiter,
         doublequote=not backslash,
         escapechar="\\" if backslash else None,
@@ -2482,6 +2478,28 @@ def _check_against_pandas(
     why a path-shaped object is not enough on its own -- the library
     turns it back into text before deciding whether it is a URL, so a
     Path built from "https://host/f.csv" still reaches the network.
+
+    A PIECE AT A TIME, AND THE WHOLE FRAME ONLY TO SAY WHAT DIFFERS
+    (plan P4-D387). The second reading was held whole beside the first,
+    a second copy of the table at the reader's peak. Pandas now hands it
+    over a piece at a time, and each piece is compared and dropped before
+    the next is read, so a file the two readers agree on is checked
+    holding one piece. A piece is the rows pandas' own reader parses at a
+    time (`_pandas_rows_a_piece`), so the pieces are parsed in the very
+    steps the whole frame is: a damaged file the library misreads whole
+    is misread in pieces too, rather than read right one way and wrong
+    the other. Where anything differs, or the library fails, nothing is
+    decided from the pieces: the file is read again as one frame and
+    checked as before, so every refusal is the whole frame's, word for
+    word, and only a file that is going to be refused is ever held twice.
+    Both readings are made by one call and handed over at one line, the
+    whole frame as one piece holding every row, so a warning pandas
+    gives about the file is shown once, as it was when the file was
+    read once, save for a file pandas reads in part and then cannot
+    read at all: pandas may warn about the part it read (pandas 3, rows
+    ending in a delimiter their header does not), where 110cb46,
+    failing before it handed anything over, showed nothing; the refusal
+    is the same, word for word.
     """
     validated = validate_local_path(raw_path, purpose="input")
     file_path = pathlib.Path(validated)
@@ -2507,52 +2525,135 @@ def _check_against_pandas(
     if form.end_of_file_mark:
         wanted = found.n_rows + offset - (1 if first_as_names else 0)
     backslash = form.escape == dialect.ESCAPE_BACKSLASH
-    try:
-        frame = pandas.read_csv(
-            file_path,
-            encoding=dialect.READING_CODECS[found.encoding],
-            encoding_errors="strict",
-            header=header_row,
-            index_col=False,
-            dtype=str,
-            keep_default_na=False,
-            na_filter=False,
-            skip_blank_lines=True,
-            engine="c",
-            sep=form.delimiter,
-            quotechar='"',
-            doublequote=not backslash,
-            escapechar="\\" if backslash else None,
-            skipinitialspace=form.initial_space,
-            comment=None,
-            nrows=wanted,
-        )
-    except MemoryError as error:
-        raise errors.ProfileError(
-            errors.out_of_memory(shown, _file_size(file_path))
-        ) from error
-    except Exception as error:
-        # Every failure of the checking pass becomes one plain-language
-        # refusal. The catch is deliberately broad: the offline import
-        # policy (plan D6.2) permits only pandas.read_csv from pandas,
-        # so the library's own exception classes cannot be named here,
-        # and nothing is swallowed -- the original is chained on.
-        if refusals == REFUSALS_NAME_POSITIONS:
+    width = len(found.column_names)
+    expected_rows = found.n_rows + offset - (1 if first_as_names else 0)
+    named_cells: list[str] = []
+    if headed:
+        named_cells = list(surveyed.header)
+    elif first_as_names:
+        named_cells = [found.columns[place][0] for place in range(width)]
+    # The columns pandas is to read: the header's trailing delimiter is a
+    # column of its own to it, holding nothing.
+    read_width = width + (1 if form.header_trailing_delimiter else 0)
+    agrees = False
+    keys: "list[object] | None" = None
+    found_rows = 0
+    # THE PIECES, AND THEN THE WHOLE FRAME WHERE THEY COULD NOT AGREE, ARE
+    # BOTH READ BY THE ONE CALL BELOW AND HANDED OVER AT ITS ONE LINE
+    # (plan P4-D387). Pandas warns about a file -- rows ending in a
+    # delimiter that their header does not end in, say -- from the line of
+    # this module that asked it to parse, and Python shows a warning once
+    # for each line it comes from: read at two lines, a file refused after
+    # its pieces showed the warning twice, where 110cb46, which read it
+    # once, showed it once. The whole frame is therefore one piece holding
+    # every row (`_EVERY_ROW`), which pandas parses in the very steps it
+    # parses a frame read at once.
+    for whole in (False, True):
+        if not whole and wanted == 0:
+            # Asked for no rows at all, pandas hands over no piece, where
+            # the whole frame of no rows still names the columns it read:
+            # that file is read as the one frame, which pandas hands over
+            # itself.
+            continue
+        rows_a_piece: "int | None" = _pandas_rows_a_piece(read_width)
+        if whole:
+            rows_a_piece = None if wanted == 0 else _EVERY_ROW
+        try:
+            handed = pandas.read_csv(
+                file_path,
+                encoding=dialect.READING_CODECS[found.encoding],
+                encoding_errors="strict",
+                header=header_row,
+                index_col=False,
+                dtype=str,
+                keep_default_na=False,
+                na_filter=False,
+                skip_blank_lines=True,
+                engine="c",
+                sep=form.delimiter,
+                quotechar='"',
+                doublequote=not backslash,
+                escapechar="\\" if backslash else None,
+                skipinitialspace=form.initial_space,
+                comment=None,
+                nrows=wanted,
+                chunksize=rows_a_piece,
+            )
+        except MemoryError as error:
             raise errors.ProfileError(
-                errors.checked_file_unreadable_as_csv(shown)
+                errors.out_of_memory(shown, _file_size(file_path))
             ) from error
-        raise errors.ProfileError(
-            errors.unreadable_as_csv(shown, f"{error}")
-        ) from error
-
+        except Exception as error:
+            if whole:
+                raise _unreadable_in_the_check(shown, refusals, error) from error
+            # Pandas could not begin, and the whole frame meets the same
+            # failure and refuses in its words.
+            continue
+        if rows_a_piece is None:
+            frame = handed
+            break
+        agrees = not whole
+        while True:
+            try:
+                piece = next(handed, None)
+            except MemoryError as error:
+                raise errors.ProfileError(
+                    errors.out_of_memory(shown, _file_size(file_path))
+                ) from error
+            except Exception as error:
+                if whole:
+                    raise _unreadable_in_the_check(shown, refusals, error) from error
+                # Pandas closed the file before raising; the whole frame
+                # says what failed.
+                agrees = False
+                break
+            if piece is None:
+                break
+            if whole:
+                # The one piece holding every row. Pandas is asked once
+                # more, past it, and closes the file itself.
+                frame = piece
+                continue
+            if not agrees:
+                # Read to the end without comparing, so that pandas
+                # closes the file itself: a reader dropped part way
+                # leaves it open.
+                continue
+            if keys is None:
+                # The columns pandas read are the ones the piece's size
+                # was worked out for, or nothing more is compared; the
+                # one a header's trailing delimiter adds is never asked.
+                keys = list(piece.columns)
+                names = [f"{key}" for key in keys]
+                agrees = len(keys) == read_width
+                agrees = agrees and _names_agree(named_cells, names)
+            if agrees and keys is not None:
+                # The record pandas took as names stands first in the
+                # frame, as the survey read it, and is held to the names
+                # it read above: a file with no names has no rows of
+                # descriptions (the survey reads them under a header
+                # alone), so that record is the survey's own first value
+                # and nothing else, and the pieces start one place on.
+                start = found_rows + (1 if first_as_names else 0)
+                for index in range(width):
+                    # One column of this piece is turned into text at a
+                    # time and dropped again.
+                    theirs = [f"{cell}" for cell in list(piece[keys[index]])]
+                    if not _piece_agrees(found, form, index, start, theirs):
+                        agrees = False
+                        break
+            found_rows = found_rows + len(piece)
+        if not whole and agrees and keys is not None and found_rows == expected_rows:
+            return
+    # THE WHOLE FRAME, checked as it always was, for a file the pieces
+    # could not agree on: whatever it refuses is refused in its words,
+    # and a file it accepts is accepted.
     found_rows = len(frame)
     keys = list(frame.columns)
-    width = len(found.column_names)
     if form.header_trailing_delimiter and len(keys) == width + 1:
         # The delimiter ending the header line, which pandas names as a
         # column of its own holding nothing.
         keys = keys[:width]
-    expected_rows = found.n_rows + offset - (1 if first_as_names else 0)
     if found_rows != expected_rows or len(keys) != width:
         raise errors.ProfileError(
             errors.readers_disagree(
@@ -2561,11 +2662,6 @@ def _check_against_pandas(
                 f"{found_rows - offset} rows of {len(keys)} values",
             )
         )
-    named_cells: list[str] = []
-    if headed:
-        named_cells = list(surveyed.header)
-    elif first_as_names:
-        named_cells = [found.columns[place][0] for place in range(width)]
     for index in range(len(named_cells)):
         second = f"{keys[index]}"
         expected = named_cells[index]
@@ -2630,3 +2726,106 @@ def _check_against_pandas(
                         shown, position + 1, found.column_names[index]
                     )
                 )
+
+
+def _pandas_rows_a_piece(width: int) -> int:
+    """The rows pandas' own reader parses at a time in a table ``width`` columns wide.
+
+    THE CHECKING PASS READS ITS PIECES IN PANDAS' OWN STEPS (plan
+    P4-D387). Pandas' C reader parses a file a fixed number of rows at a
+    time, whether it is asked for one frame or for pieces: the power of
+    two at least half of 1,048,576 divided by the width and below it,
+    16,384 rows at fifty columns. A piece of exactly that many rows is
+    parsed by the same steps the whole frame is, and pieces of another
+    size were not, which on a damaged file -- lines ended by carriage
+    returns alone, with quoted line breaks -- the library answered
+    differently: the whole frame failed where the pieces read, or the
+    other way round. That number is the library's and not this
+    package's, so `tests/test_stage4_tier2a.py` finds it in the
+    installed pandas, where a column's type splits.
+
+    Guarantees: a power of two of at least 1, for any width. Determinism:
+    a fixed function of the width. Raises nothing. No I/O.
+    """
+    target = 1_048_576 // max(1, width)
+    rows = 1
+    while rows * 2 < target:
+        rows = rows * 2
+    return rows
+
+
+def _unreadable_in_the_check(
+    shown: str, refusals: str, error: Exception
+) -> errors.ProfileError:
+    """The refusal of a file pandas could not read in the checking pass, in the words it always had.
+
+    Every failure of the checking pass becomes one plain-language
+    refusal. The catch that hands the failure here is deliberately
+    broad: the offline import policy (plan D6.2) permits only
+    pandas.read_csv from pandas, so the library's own exception classes
+    cannot be named, and nothing is swallowed -- the caller chains the
+    original on. Under ``REFUSALS_NAME_POSITIONS`` the library's words,
+    which may quote the file, are left out.
+
+    Guarantees: returns the refusal and raises nothing. Determinism: a
+    fixed function of its arguments. No I/O.
+    """
+    if refusals == REFUSALS_NAME_POSITIONS:
+        return errors.ProfileError(errors.checked_file_unreadable_as_csv(shown))
+    return errors.ProfileError(errors.unreadable_as_csv(shown, f"{error}"))
+
+
+def _names_agree(named_cells: "list[str]", names: "list[str]") -> bool:
+    """Whether pandas named the columns as the survey read them, as the whole frame's check asks it.
+
+    ``named_cells`` is what the survey read as names, and ``names`` the
+    columns pandas named, as text. A name pandas may change on its own --
+    a blank or repeated one (`_pandas_may_rename`) -- is not compared.
+    """
+    for index in range(len(named_cells)):
+        expected = named_cells[index]
+        if names[index] != expected and not _pandas_may_rename(
+            expected, named_cells
+        ):
+            return False
+    return True
+
+
+def _piece_agrees(
+    found: _Reading,
+    form: dialect.Dialect,
+    index: int,
+    start: int,
+    theirs: "list[str]",
+) -> bool:
+    """Whether one column of one piece of the checking pass reads as the survey read it.
+
+    ``theirs`` stands at the places from ``start`` on, counted as the
+    whole frame's column was checked: the rows of column descriptions
+    under the names first, then the data. A row above the data is
+    compared as pandas read it; the frame's last value, where an
+    end-of-file mark is glued to it, without the mark, which the survey
+    took off the text; and the values a run at a time, so a place past
+    the survey's last value differs. Nothing is refused here: a piece
+    that differs sends the check to the whole frame, which says what.
+    """
+    count = len(theirs)
+    offset = len(form.header_rows)
+    step = 0
+    while step < count and start + step < offset:
+        if theirs[step] != form.header_rows[start + step][index]:
+            return False
+        step = step + 1
+    if step == count:
+        return True
+    position = start + step - offset
+    last = found.n_rows + offset - 1
+    if form.end_of_file_mark and not form.final_line_ending:
+        if start + step <= last < start + count:
+            value = theirs[last - start]
+            if value[len(value) - 1 :] == "\x1a":
+                # The end-of-file mark glued to the last value, which
+                # pandas reads as part of it.
+                theirs[last - start] = value[: len(value) - 1]
+    mine = found.columns[index]
+    return theirs[step:] == mine[position : position + count - step]

@@ -1338,8 +1338,10 @@ def test_a_stratum_never_hands_its_number_to_a_wider_one(
         if moves is None:
             return moves
         layout = arguments[2]
-        rungs = arguments[3]
-        numbers = arguments[4]
+        # The walk's shares carry the ladder and the column's numbers
+        # since plan P4-D387, which worked them out once per walk.
+        rungs = arguments[3].rungs
+        numbers = arguments[3].numbers
         # THE HOLDER IS NARROWER, ASSERTED WHERE THE TRADE HAPPENS.
         # Trading the other way need not show up in the finished
         # column at all: the walk goes on afterwards and, on this
@@ -1357,9 +1359,9 @@ def test_a_stratum_never_hands_its_number_to_a_wider_one(
             )
         # AND NO MOVE TAKES A NUMBER A LATER STRATUM IS STILL WAITING
         # FOR. The chain asks `_whole_inside` the same question the
-        # plain walk asks and passes it the same `_shares_after`, so a
-        # stratum reaching OUTSIDE its own share never takes the one
-        # number a stratum further on could ever be given.
+        # plain walk asks and passes it the same shares of the strata
+        # further on, so a stratum reaching OUTSIDE its own share never
+        # takes the one number a stratum further on could ever be given.
         for step in range(len(moves)):
             seat = moves[step][0]
             value = moves[step][1]
@@ -1368,9 +1370,11 @@ def test_a_stratum_never_hands_its_number_to_a_wider_one(
             mine = generation._share_of(seat, layout, rungs, numbers)
             if mine is None or mine[0] <= value <= mine[1]:
                 continue
-            for share in generation._shares_after(
-                seat, layout, rungs, numbers
-            ):
+            total = len(layout.sizes)
+            for later in range(seat + 1, total - 1):
+                if layout.bands[later] == "zero":
+                    continue
+                share = generation._share_of(later, layout, rungs, numbers)
                 assert not share[0] <= value <= share[1], (
                     seat, value, share,
                 )

@@ -64,6 +64,7 @@ package's own `errors` and `parsing`, neither of which reaches a file.
 """
 
 import dataclasses
+import typing
 
 from synthtwin import errors, parsing
 
@@ -3419,6 +3420,44 @@ def physical_lines(text: str) -> "list[str]":
     return lines
 
 
+def lines_in_turn(text: str) -> "typing.Iterator[str]":
+    """`physical_lines`, handed over one line at a time and never held as a list.
+
+    THE STANDARD READER'S CHECK READS EACH LINE ONCE, IN ORDER (plan
+    P4-D387), so it is handed them as they are cut rather than as a list
+    of every line of the file, which stood beside the text and the table
+    at the reader's peak: on the made-up health table that list was about
+    a tenth of all the reader held. The text is cut on its line feeds a
+    block at a time, and each piece is cut at its carriage returns
+    exactly as `physical_lines` cuts it, so the lines are the same lines.
+    A piece running past a block's end is cut out of the text once, from
+    where it began, when its line feed is reached: gluing it together a
+    block at a time copied it once a block, which on a file whose lines
+    end in carriage returns alone is the square of the file.
+    """
+    if not isinstance(text, str):
+        raise TypeError("internal check: a piece of a table was not text")
+    begun = 0
+    at = 0
+    while at < len(text):
+        block = text[at : at + _LINES_BLOCK]
+        pieces = block.split("\n")
+        if len(pieces) > 1:
+            for line in _cut_at_returns(text[begun : at + len(pieces[0])], True):
+                yield line
+            for index in range(1, len(pieces) - 1):
+                for line in _cut_at_returns(pieces[index], True):
+                    yield line
+            begun = at + len(block) - len(pieces[len(pieces) - 1])
+        at = at + _LINES_BLOCK
+    for line in _cut_at_returns(text[begun:], False):
+        yield line
+
+
+# How much of the text `lines_in_turn` cuts at once.
+_LINES_BLOCK = 1 << 16
+
+
 def _cut_at_returns(piece: str, cut_at_a_feed: bool) -> "list[str]":
     """One line-feed piece cut again at every carriage return in it.
 
@@ -3446,13 +3485,43 @@ def _cut_at_returns(piece: str, cut_at_a_feed: bool) -> "list[str]":
 
 @dataclasses.dataclass
 class _Cursor:
-    """The lines a walk reads, and the next one it has not read."""
+    """The lines a walk reads, and the next one it has not read.
+
+    ``lines`` holds the lines from line ``base`` on, and ``index`` counts
+    from the text's first line. Where ``more`` is given, the lines after
+    those held are cut from it one at a time as the walk reaches them
+    (`_line_at`), and the walk, which never reads a line behind it, lets
+    go of the one it held: the walk of a whole file holds one line and
+    not a list of them all (plan P4-D387).
+    """
 
     lines: "list[str]"
     index: int
     delimiter: str
     escape: str
     initial_space: bool
+    more: "typing.Iterator[str] | None" = None
+    base: int = 0
+
+
+def _line_at(cursor: _Cursor) -> "str | None":
+    """The line at the cursor's ``index``, or None where the text holds no more.
+
+    Every reader of a cursor asks for the line at its index and moves on
+    by one, so a line past those held is the next one ``more`` cuts.
+    """
+    place = cursor.index - cursor.base
+    if place < len(cursor.lines):
+        return cursor.lines[place]
+    if cursor.more is None:
+        return None
+    following = next(cursor.more, None)
+    if following is None:
+        cursor.more = None
+        return None
+    cursor.lines = [following]
+    cursor.base = cursor.index
+    return following
 
 
 @dataclasses.dataclass(frozen=True)
@@ -3541,9 +3610,9 @@ def _record_at(cursor: _Cursor) -> "Record | None":
     spans, with the end of each line handed to the machine as the reader
     hands it.
     """
-    if cursor.index >= len(cursor.lines):
+    line = _line_at(cursor)
+    if line is None:
         return None
-    line = cursor.lines[cursor.index]
     body, ending = _body_of(line)
     if not body:
         cursor.index = cursor.index + 1
@@ -3586,8 +3655,11 @@ def _record_by_characters(cursor: _Cursor) -> "Record | None":
     state = _START_FIELD
     ending = ""
     raw = ""
-    while cursor.index < len(cursor.lines):
-        line = _text(cursor.lines[cursor.index])
+    while True:
+        following = _line_at(cursor)
+        if following is None:
+            break
+        line = _text(following)
         cursor.index = cursor.index + 1
         for place in range(len(line)):
             character = line[place]
@@ -3716,17 +3788,25 @@ def records(
     initial_space: bool,
     at: int = 0,
     limit: int = -1,
+    opening: "list[str] | None" = None,
 ) -> "list[Record]":
     """Every record from ``at``, or the first ``limit`` of them.
 
     A blank line is a record with no fields, as the standard reader
     yields it. With a ``limit`` only the text's first megabyte is cut
     into lines, which is all detection needs; `survey` walks the whole
-    text itself.
+    text itself. ``opening``, where given with a ``limit``, is those
+    lines already cut (`opening_lines`), and they are read as they are
+    and not cut again.
     """
     found = _text(text)
-    span = found[at:] if limit < 0 else found[at : at + 1_048_576]
-    cursor = _Cursor(physical_lines(span), 0, delimiter, escape, initial_space)
+    if limit >= 0 and opening is not None:
+        lines = opening
+    elif limit < 0:
+        lines = physical_lines(found[at:])
+    else:
+        lines = opening_lines(found, at)
+    cursor = _Cursor(lines, 0, delimiter, escape, initial_space)
     taken: list[Record] = []
     while limit < 0 or len(taken) < limit:
         record = _record_at(cursor)
@@ -3734,6 +3814,20 @@ def records(
             break
         taken += [record]
     return taken
+
+
+def opening_lines(text: str, at: int) -> "list[str]":
+    """The lines of the text's first megabyte from ``at``: all that detection reads.
+
+    CUT ONCE FOR EVERY QUESTION DETECTION ASKS (plan P4-D387). Each
+    candidate delimiter was read under each spacing and each escaping,
+    and every one of those readings, and the spacing question after
+    them, cut the same megabyte into lines again: 29 times a file. The
+    lines are the same each time and no reading changes them, so they
+    are cut here once and handed to each.
+    """
+    found = _text(text)
+    return physical_lines(found[at : at + 1_048_576])
 
 
 def _ending_at(text: str, at: int, size: int) -> str:
@@ -3825,7 +3919,9 @@ def _width_share(sample: "list[Record]") -> "tuple[float, int]":
     return (best_count / total, best)
 
 
-def delimiter_reading(text: str, at: int) -> "tuple[str, tuple[str, ...]]":
+def delimiter_reading(
+    text: str, at: int, opening: "list[str] | None" = None
+) -> "tuple[str, tuple[str, ...]]":
     """The delimiter a table is written with, from its first records.
 
     Each candidate reads the first records; the one under which the most
@@ -3884,14 +3980,22 @@ def delimiter_reading(text: str, at: int) -> "tuple[str, tuple[str, ...]]":
     table the person does not have. The share is what says a candidate
     reads the whole file; the width says only which of two readings is
     bigger, and it may break a tie but it may not hide one.
+
+    ``opening`` is the opening lines `opening_lines` cuts, where the
+    caller holds them already, and each candidate's best reading is read
+    once and asked again from there (plan P4-D387).
     """
+    if opening is None:
+        opening = opening_lines(text, at)
     chosen = ","
     best_share = 0.0
     best_width = 0
     best_numbers = -1
     best_sample: "list[Record]" = []
+    readings: "list[tuple[float, int, list[Record]] | None]" = []
     for candidate in DELIMITERS:
-        found = _best_reading(text, candidate, at)
+        found = _best_reading(text, candidate, at, opening)
+        readings += [found]
         if found is None:
             continue
         share, width, sample = found
@@ -3911,10 +4015,11 @@ def delimiter_reading(text: str, at: int) -> "tuple[str, tuple[str, ...]]":
             best_numbers = numbers
             best_sample = sample
     tied: list[str] = []
-    for candidate in DELIMITERS:
+    for place in range(len(DELIMITERS)):
+        candidate = DELIMITERS[place]
         if candidate == chosen:
             continue
-        found = _best_reading(text, candidate, at)
+        found = readings[place]
         if found is None:
             continue
         if found[0] == best_share:
@@ -3934,7 +4039,7 @@ def detected_delimiter(text: str, at: int) -> str:
 
 
 def _best_reading(
-    text: str, candidate: str, at: int
+    text: str, candidate: str, at: int, lines: "list[str] | None" = None
 ) -> "tuple[float, int, list[Record]] | None":
     """The best the first records read under one candidate delimiter.
 
@@ -3962,12 +4067,15 @@ def _best_reading(
     of `100|30` cells reads as two fields a row under the vertical bar,
     and only its first record -- the column's name, one field -- says
     the bar is not its delimiter.
+
+    ``lines`` is the opening lines `opening_lines` cuts, where the caller
+    holds them already (plan P4-D387).
     """
     best: "tuple[float, int, list[Record]] | None" = None
     for spaced in (False, True):
         for escaping in ESCAPES:
             sample = records(
-                text, candidate, escaping, spaced, at, _SAMPLE_RECORDS
+                text, candidate, escaping, spaced, at, _SAMPLE_RECORDS, lines
             )
             share, width = _width_share(sample)
             if width < 2:
@@ -3997,14 +4105,18 @@ def _numbers_read(sample: "list[Record]") -> int:
     return found
 
 
-def detected_initial_space(text: str, at: int, delimiter: str) -> bool:
+def detected_initial_space(
+    text: str, at: int, delimiter: str, opening: "list[str] | None" = None
+) -> bool:
     """Whether every field after the first begins with exactly one space.
 
     That is the comma-space writing (`"a", "b"`), read with the standard
     reader's `skipinitialspace`. A padded field, which begins with
-    several, is not it.
+    several, is not it. ``opening`` is as `delimiter_reading` takes it.
     """
-    sample = records(text, delimiter, ESCAPE_DOUBLED, False, at, _SAMPLE_RECORDS)
+    sample = records(
+        text, delimiter, ESCAPE_DOUBLED, False, at, _SAMPLE_RECORDS, opening
+    )
     seen = False
     for record in sample:
         if len(record.fields) < 2:
@@ -4437,6 +4549,10 @@ def row_order_of(
     otherwise, and change at least once. A row-sequence column is passed
     over: it is written in place whatever order the rows take, so
     sorting by it would say nothing.
+
+    Each column is read until its answer is settled and no further
+    (`_column_order`, plan P4-D387), which is the answer reading every
+    cell of it under each collation in turn gives.
     """
     if n_rows < 3:
         return NO_ORDER
@@ -4448,17 +4564,113 @@ def row_order_of(
             and index < len(declared_commas)
             and declared_commas[index]
         )
-        for collation in _collations_for(declared):
-            keys = _order_keys(columns[index], collation)
-            if keys is None:
-                continue
-            direction = _monotone(keys)
-            if direction:
-                return RowOrder(
-                    column=index + 1, direction=direction, collation=collation
-                )
-            break
+        found = _column_order(columns[index], _collations_for(declared))
+        if found is not None:
+            return RowOrder(
+                column=index + 1, direction=found[1], collation=found[0]
+            )
     return NO_ORDER
+
+
+# THE THREE FLAGS `_monotone` KEEPS, held for a reading read one step at a
+# time (`_column_order`): whether it never fell, whether it never rose,
+# and whether it ever changed.
+_RISING = 0
+_FALLING = 1
+_CHANGED = 2
+
+
+def _stepped(flags: "list[bool]", before: object, after: object) -> None:
+    """Read one more step of a reading, from ``before`` to ``after``, as `_monotone` reads it."""
+    if after != before:
+        flags[_CHANGED] = True
+    if _less(after, before):
+        flags[_RISING] = False
+    if _less(before, after):
+        flags[_FALLING] = False
+
+
+def _settled_both_ways(flags: "list[bool]") -> bool:
+    """True once a reading has stepped both ways, so no order is left in it."""
+    return not flags[_RISING] and not flags[_FALLING]
+
+
+def _direction_of(flags: "list[bool]") -> str:
+    """`_monotone`'s answer for the steps a reading has read."""
+    if not flags[_CHANGED]:
+        return ""
+    if flags[_RISING]:
+        return ASCENDING
+    return DESCENDING if flags[_FALLING] else ""
+
+
+def _number_key(cell: str, collation: str) -> "float | None":
+    """A cell's key under a number collation, as `_order_keys` reads it, or None."""
+    found = cell
+    if collation == COLLATION_DECIMAL_COMMA:
+        found = parsing.written_with_a_decimal_comma(cell)
+    if parsing.classify_number(found) != parsing.NUMBER:
+        return None
+    return parsing.parse_number(found)
+
+
+def _column_order(
+    cells: "list[str]", collations: "tuple[str, ...]"
+) -> "tuple[str, str] | None":
+    """The collation and direction one column is sorted in, or None.
+
+    THE ANSWER `row_order_of` GOT BY READING EVERY CELL UNDER EACH
+    COLLATION IN TURN, READ ONCE AND ONLY AS FAR AS IT IS SETTLED (plan
+    P4-D387). The first collation of ``collations`` reads numbers and the
+    second reads text, as `_collations_for` gives them. Under that
+    reading a cell holding nothing leaves the column with no order; a
+    column whose every cell has a number key is ordered by its numbers or
+    not at all; and any other column by its text. So both readings are
+    walked together, the number keys only while every cell so far has
+    one, each worked out once per different text, and the walk stops
+    where the answer can no longer change: at a cell holding nothing, or
+    once the text has stepped both ways and the numbers either have too
+    or a cell has none. Every cell was keyed under each reading before
+    the order was asked, and on the made-up health table of 100,000 rows
+    that was 24 of the reader's 58 profiled seconds.
+
+    Guarantees: the answer `_order_keys` and `_monotone` give, collation
+    by collation, as the loop this replaced read them. Determinism: a
+    fixed function of its arguments. Raises nothing. No I/O.
+    """
+    numeric = collations[0]
+    numbers = [True, True, False]
+    texts = [True, True, False]
+    keys: "dict[str, float | None]" = {}
+    every_number = True
+    before_text = ""
+    before_key: "float | None" = None
+    for position in range(len(cells)):
+        found = _text(cells[position])
+        if not found:
+            return None
+        if position > 0:
+            _stepped(texts, before_text, found)
+        before_text = found
+        if every_number:
+            if found not in keys:
+                keys[found] = _number_key(found, numeric)
+            key = keys[found]
+            if key is None:
+                every_number = False
+            else:
+                if position > 0:
+                    _stepped(numbers, before_key, key)
+                before_key = key
+        if _settled_both_ways(texts) and (
+            not every_number or _settled_both_ways(numbers)
+        ):
+            return None
+    if every_number:
+        direction = _direction_of(numbers)
+        return (numeric, direction) if direction else None
+    direction = _direction_of(texts)
+    return (COLLATION_TEXT, direction) if direction else None
 
 
 def holds_order(cells: "list[str]", order: RowOrder) -> bool:
@@ -4535,11 +4747,7 @@ def _read_joined(stream: _Stream) -> "Record | None":
     record = _record_at(cursor)
     if record is None:
         return None
-    if (
-        record.ending == _CR
-        and cursor.index < len(cursor.lines)
-        and cursor.lines[cursor.index] == "\r\n"
-    ):
+    if record.ending == _CR and _line_at(cursor) == "\r\n":
         cursor.index = cursor.index + 1
         return dataclasses.replace(record, ending="\r\r\n")
     return record
@@ -4668,18 +4876,30 @@ def survey(
             )
         )
     tie: "tuple[str, ...]" = ()
+    # The opening lines detection reads, cut once for both of its
+    # questions (`opening_lines`).
+    opening: "list[str] | None" = None
+    if (not hinted and not declared_delimiter) or initial_space is None:
+        opening = opening_lines(body, at)
     if hinted:
         delimiter = hinted
     elif declared_delimiter:
         delimiter = declared_delimiter
     else:
-        delimiter, tie = delimiter_reading(body, at)
+        delimiter, tie = delimiter_reading(body, at, opening)
     if initial_space is None:
-        spaced = detected_initial_space(body, at, delimiter)
+        spaced = detected_initial_space(body, at, delimiter, opening)
     else:
         spaced = initial_space
     escaping = escape if escape else ESCAPE_DOUBLED
-    cursor = _Cursor(physical_lines(body[at:]), 0, delimiter, escaping, spaced)
+    # THE WALK CUTS THE TEXT INTO LINES AS IT READS THEM (plan P4-D387).
+    # Every line of the file was cut and held as a list before the first
+    # record was read, a second copy of the text beside the text and the
+    # table the walk fills: on the made-up health table of 100,000 rows,
+    # 82 of the 169 megabytes the walk rose by.
+    cursor = _Cursor(
+        [], 0, delimiter, escaping, spaced, lines_in_turn(body[at:])
+    )
     stream = _Stream(cursor, [], 0)
     walk = _Walk([], "", 0)
     if hinted:

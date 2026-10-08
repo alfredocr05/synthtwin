@@ -6,6 +6,30 @@ exists).
 
 ## [Unreleased]
 
+### Mostly whole columns walked, and large tables read, without the square of their rows (2026-10-05)
+
+**No published fact and no twin byte moves** (plan P4-D387, stage 4's
+tier 2a). The walk that gives a column's strata their whole numbers
+worked out every later stratum's share for each stratum it visited, so
+one column of mostly whole charges took 18.8 s to twin at 2,000 rows and
+more than five minutes at 4,000, and a column of day counts with a
+visit's fraction on some rows 62.7 s at 4,000 rows and more than five
+minutes at 10,000: they take 0.4, 1.3, 0.6 and 1.3 s now, and rounds of
+the reach step that come back to a division they reached are stepped
+past. Reading the made-up 50-column health table of 200,000 rows takes
+33.8 s of CPU for 45.4 and peaks 901 MB above its start for 1,299, and
+500,000 rows 2,111 MB for 2,914: reading cuts one list of lines where
+it cut 31 (the first megabyte 29 times, the whole text twice), a
+column's row order is read only until it is settled, and the pandas
+check reads the file a piece at a time, in the steps pandas' own reader
+takes, rather than holding a second copy of the table, and reads it
+whole again only to refuse it in the words it always used. `K-S4-02`
+records the reader's peak memory a row. A
+column whose ladder is crowded onto fewer whole numbers than strata
+still spends minutes in the reach rounds from about 10,000 rows, and
+500,000 charges did not get through them in fifteen minutes: the next
+item of stage 4, which the plan names.
+
 ### The second key cut repaired at its review (2026-10-05)
 
 **A long reserved declaration is refused in step with its length** (plan
