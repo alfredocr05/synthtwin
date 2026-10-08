@@ -6764,6 +6764,14 @@ a business year written `MM/DD/YYYY 00:00`, every weekday once and 740
 rows more, published its census at the floors of 11 and 20 and its
 twins came back 259 different values for 260, its rebuilt high tail on
 one day fewer than the real one and no free weekday left in its body.
+Such a column carries the near-one risk of a column of dates, which
+P4-D388 lets stand: on a log just above one row an open day, where the
+count pass splits, a published census can leave twins a day or two
+short at some seeds. Validation names that miss on a member writing
+the month first or a 12-hour clock, both distinct counts MISSED; on an
+ISO member, writing a space or a `T`, G7.9 makes up the count of texts
+with a cell in the mark the column never wrote, below the census line,
+and nothing is named (P4-D367).
 The few-dates rule above is asked of the moments' days as of dates, and
 the room rule beside the same holes where every value stands at
 midnight. A declared spelling of a moment names no day to the producer
