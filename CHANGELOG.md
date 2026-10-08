@@ -39,15 +39,16 @@ row off the pool, `K-2B-20` is retired, and `K-2B-26`, `K-2B-52` and
 `K-S4-03` lose what measured the pass. Counted block by block against
 493f6f8 rather than over a table, at a floor of eleven or more, a column
 not declared an identifier may now print a count of one to ten that
-493f6f8 did not in the pool's
-own keys, its counts of different values and its four class totals
-with their two remarks, each counting cells the pass had blanked, and in
-no other key; a declared identifier prints none. So twelve words beside
-`77`, `1e999` and `(+5)` print `n_numeric`, `n_out_of_range` and
-`n_contradictory` 1 where nought was printed, and the twin writes those
-three cells; the orchestrator's ruling keeps both, since withheld they
-would let code run on the twin and crash on the real file
-(`tests/test_p4d390_counts_per_block.py` compares every block of 63
+493f6f8 did not in the pool's own keys, its counts of different values
+(of the column, or of the label half of numbers beside labels) and its
+four class totals with their two remarks, each counting cells the pass
+had blanked, and in its missing counts, which now count its own absent
+cells alone; in no other key, and a declared identifier prints none. So
+twelve words beside `77`, `1e999` and `(+5)` print `n_numeric`,
+`n_out_of_range` and `n_contradictory` 1 where nought was printed, and
+the twin writes those three cells; the orchestrator's ruling keeps both,
+since withheld they would let code run on the twin and crash on the real
+file (`tests/test_p4d390_counts_per_block.py` compares every block of 69
 tables with 493f6f8's).
 
 **A held-back code keeps its form, and a held-back number stays a
