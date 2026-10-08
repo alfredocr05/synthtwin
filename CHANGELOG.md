@@ -17,11 +17,13 @@ twin drew each gap evenly, so clinic visits on weekdays alone came back
 24 to 31 per cent on weekends. The loader widens WC3 to moments and asks
 WC10, the middle half spanning four weeks; the producer asks the
 few-dates rule of the moments' days, the few-units rule beside it (eight
-different written units a non-empty group on average) and, above a
-floor of 11, the unit-room rule (lane D1b's count-room rule in written
-units), and every withholding but one without tails says NF74's
-sentence. The generator moves a moment by whole days, keeping its
-clock, through G7.3f's shared pass; its new step 7c lets a moment whose
+different written units a non-empty group on average) and, at every
+floor, the unit-room rule (lane D1b's count-room rule in written units)
+-- or, where every value stands at midnight, the count-room and
+count-reach rules of a column of dates (lane D1b's, P4-D388) -- and
+every withholding but one without tails says NF74's sentence. The
+generator moves a moment by whole days, keeping its clock, through
+G7.3f's shared pass; its new step 7c lets a moment whose
 clock stands outside its gap on the gap's end day take another clock
 there, through a group at its total where step 7b leads on from it, and
 its new step 8.7 puts a count of different values left short back at
@@ -41,6 +43,26 @@ states steps 7c and 8.7 now meet are tests, and a census keeps every
 twin value off a day declared absent, so a column of moments at
 midnight publishing one no longer gives such a day's values another
 mark.
+Its skeptic's repair round (2026-10-07): the unit-room rule, asked above
+the floor of 11 alone, let lane D1b's moved `_hunt(690)` publish at 11
+and its twins come back 26 values for 24 at noon and 25 to 27 at
+midnight -- a clocked column asks it at every floor now, and a column at
+midnight, which the twin moves in days, the count-room and count-reach
+rules of a column of dates through the one helper the date path asks,
+lane D1b's fix stream merged at its second round for them, so D1b's
+business year written `MM/DD/YYYY 00:00` no longer comes back 259 values
+for 260 at 11 and 20, nor written ISO with a `T` the column never wrote.
+The price is D1b's, as ruled: 14, 16 and 3 of 273, 261 and 230 censuses
+of D1b's logs at midnight at 11, 20 and 36, each met by its twins; 37
+censuses the unit-room rule withheld at 20 and 36 publish, met at seeds
+0 to 9; and on clocked columns one of 62 hunt shapes at noon at 11, met
+before. The ruling's residual, one twin in ten of 1, 5 and 2 published
+logs at 11, 20 and 36 a day or more short, is stated in P4-D367: on a
+column at midnight G7.9's unnamed mark makes up its count of texts and
+validation does not name it. Each producer rule withholds a shape of its
+own, withdrawn one at a time; the hole clauses, step 7c's width kind (a
+thirteenth state of the seventeenth file) and the short cause on a full
+day of moments have nodes.
 KPIs `K-S3-36` (new) and `K-S3-37` (new, an accepted limit, status only).
 
 ### The second key cut repaired at its review (2026-10-05)
