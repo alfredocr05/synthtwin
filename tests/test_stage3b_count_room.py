@@ -1996,9 +1996,16 @@ def test_k_s3_59_claims_what_was_measured_and_states_the_limit_beside_it() -> No
     price the rules leave where it falls, where the twin's low tail keeps
     more days than its fewest, as
     `test_the_rules_price_is_a_census_its_twins_meet_whose_low_tail_keeps_more_than_its_fewest`
-    holds. Red when the name claims every published census again, the
-    limit goes unnamed, the ruling or the price's columns go unnamed, or the
-    price is put back on rows a business day.
+    holds. The ruling's round said both tails reach their most where the
+    count pass splits, and its second verification measured logs just above
+    one row an open day whose high tail keeps the days it drew there, their
+    census published and missed at up to seven seeds in ten: since the
+    ruling of 2026-10-08 the three records state that risk, and P4-D388
+    names the split order the fix owes to lane D4. Red when the name claims
+    every published census again, the limit goes unnamed, the ruling or the
+    price's columns go unnamed, the price is put back on rows a business
+    day, the near-one risk or the fix owed goes unnamed, or the old claim
+    that the split brings both tails to their most comes back.
     """
     ledger = json.loads((_ROOT / "tests" / "kpi" / "ledger.json").read_text(encoding="utf-8"))
     entry = [item for item in ledger["entries"] if item["id"] == "K-S3-59"][0]
@@ -2019,3 +2026,9 @@ def test_k_s3_59_claims_what_was_measured_and_states_the_limit_beside_it() -> No
         assert "nine seeds in ten" in flat, name
         assert "low tail keeps more days than its fewest" in flat, name
         assert "one and a half to two rows a business day" not in flat, name
+        assert "just above one row an open day" in flat, name
+        assert "splits and both tails reach their most" not in flat, name
+    flat = " ".join(decision.split())
+    assert "OWED TO LANE D4" in flat and "split order" in flat
+    assert "only splits and the tails reach their most" not in flat
+    assert "both tails' most where it splits" not in " ".join(entry["rule"].split())
