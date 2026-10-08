@@ -1329,13 +1329,19 @@ the published form writes
 at most that many with no trailing zero where the form is trimmed, at
 most the form's significant figures where it names them, `repr`'s
 `45123.0` at seventeen, and in exponent form only where the form writes
-one; on a `days-since-1840`
-column, a day count and no contact number or one of at most `places`
-figures, since a contact number fewer cells than the disclosure line
-wrote is counted into the commonest and named nowhere. A twin written
+one -- but for counts written with MORE figures than the form, as many
+of which stand as the profiler sets beside the usual counts, one in a
+hundred, one at least, the rest nine tenths (`date_counts.strays_stand`;
+the second review of landing R4, item 5); on a `days-since-1840`
+column, by the declared system's contact rule, a day count and no
+contact number or one of at most `places` figures, WHETHER OR NOT A
+CENSUS IS PUBLISHED: a contact number fewer cells than the disclosure
+line wrote is counted into the commonest and named nowhere, and where
+none reaches the line no census is published at all (the second review
+of landing R4, item 1). A twin written
 as ISO dates or with other figures after the point, and a file not read
 as such dates at all, MISS it; a twin written in another system misses
-the dates it then names. On a `days-since-1840` column the census of
+the dates it then names. On a `days-since-1840` column publishing a census, the census of
 contact numbers is held exactly against the file's own description
 (`form.contacts`). Neither line prints a value of the file: the
 measured side is the form in words, that a cell is written another way,
