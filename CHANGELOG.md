@@ -124,14 +124,19 @@ its own loader refused, so the table had no twin at all: 70 `00:30` and
 one real `0:00` beyond a low boundary at `01:00`, beside `00:00`
 declared missing, make a tail drawn through its shape whose only steps
 past its boundary are its heap's and `00:00`, and the loader counted
-neither as room. Where every such step is a time the hour's other width
-can still write, the tail now draws there and writes it in that width,
-as the table did: every twin keeps the one `0:00` and its 40 `00:00`
-and misses nothing, and the table is checked clean, alone and beside a
-second column. A battery of 1,300 random tables of clock columns holds
-every description `synthtwin profile` writes to its loader and its
-generator. The stated limit also names a place the description stands
-only a rung on.
+neither as room. Where every such step is a time the table calls
+absent, the tail now draws on those the hour's other width can still
+write, and writes them in that width, as the table did: every twin keeps
+the one `0:00` and its 40 `00:00` and misses nothing, and the table is
+checked clean, alone and beside a second column. A census group whose
+every step is a time the table calls absent stands on those the other
+width can still write the same way: five `09:00 AM` and six `03:00 PM`
+merged across noon, beside `9:00 AM`, `12:00 PM` and `3:00 PM` declared
+missing, were refused too, and every twin now keeps them. A battery of
+1,300 random tables of clock columns holds every description
+`synthtwin profile` writes of them to `synthtwin generate` at seeds 0
+and 1, every exit 0, where 12 tables had no twin before. The stated
+limit also names a place the description stands only a rung on.
 
 ### The weekday guards dropped (2026-10-02)
 
