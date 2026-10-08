@@ -949,20 +949,22 @@ def test_the_readings_of_a_total_answer_as_the_walk_over_every_total() -> None:
 
     `_makes_a_total`, `_owed_less`, `_reach_any` and `_reserves_met`
     against the totals built one copy at a time. The sizes come
-    ascending, as the walk hands them over, or for `_makes_a_total` in no
-    order at all and with a size of nought among them, since its answer
-    may need neither; with copies of nought to forty, ranges empty, below
-    nought or past every total, and wide totals from `_WIDE_TOTAL` on
-    beside narrow ones. Mutations, run, each red here: copies totalling
-    exactly ``least`` refused; a copy more of a size taken than fits
-    under ``most``; a range from one counted as met without a copy; a
-    size of nought divided by; a run let through a size two past its
-    end; the run's whole sum left out of what it makes; the sizes past
-    the run never walked; a narrow condition 4 walked down from one more
-    than is owed; condition 3 read wide as a range rather than its exact
-    total; condition 5 read wide without what the cell takes; a narrow
-    reserve stopped at its first size whatever that made; and the walk
-    `_makes_a_total` falls back on read from one past ``least``.
+    ascending, as the walk hands them over, or for `_makes_a_total` in
+    no order at all and with a size of nought among them, since its
+    answer may need neither; keys of one size come with two permissions,
+    as a size written in two forms does; copies run from nought to
+    forty; ranges are empty, below nought or past every total; and wide
+    totals from `_WIDE_TOTAL` on stand beside narrow ones. Mutations,
+    run, each red here: copies totalling exactly ``least`` refused; a
+    copy more of a size taken than fits under ``most``; a range from one
+    counted as met without a copy; a size of nought divided by; a run
+    let through a size two past its end; the run's whole sum left out of
+    what it makes; the sizes past the run never walked; a narrow
+    condition 4 walked down from one more than is owed; condition 3 read
+    wide as a range rather than its exact total; condition 5 read wide
+    without what the cell takes; a narrow reserve stopped at its first
+    size whatever that made; and the walk `_makes_a_total` falls back on
+    read from one past ``least``.
     """
     draw = random.Random(20261007)
     for case in range(30000):
@@ -983,7 +985,8 @@ def test_the_readings_of_a_total_answer_as_the_walk_over_every_total() -> None:
             sizes, least, most
         ), (sizes, least, most)
         keys = sorted({
-            (size, draw.getrandbits(4) | 1) for size in _drawn_sizes(draw, wide)
+            (size, draw.getrandbits(4) | 1)
+            for size in _drawn_sizes(draw, wide) + _drawn_sizes(draw, wide)[:3]
         })
         left = [draw.choice((0, 1, 1, 2, 3, 9)) for _each in keys]
         where = [draw.getrandbits(4) for _each in keys]

@@ -1163,7 +1163,9 @@ def _first_meeting(alphabet: "tuple[str, ...]", first: bool) -> str:
 # its time about 3.5 times longer for every ten more groups. And with
 # the counts read one at a time, a declared identifier written in two
 # to five forms and holding 100 to 160 values took the walk past 100,000
-# states on 27 of sixty seeded ones; read together (plan P4-D389), on 2.
+# states on 27 of sixty seeded ones; read together (plan P4-D389), on
+# 2, and on 7 of sixty more drawn after the conditions were written --
+# each described at the floor of 11; at a floor of 36, on 12 of the 120.
 #
 # THE FALLBACK BELOW IS THEREFORE UNREACHABLE FROM A PRODUCER
 # DESCRIPTION. `_share_out` runs only where NO packing of whole groups
@@ -1196,12 +1198,13 @@ def _first_meeting(alphabet: "tuple[str, ...]", first: bool) -> str:
 # that keeps the run short by writing a number the description did not
 # publish is the worse of the two. A genuine description is usually
 # quick -- its own values are an answer, and the walk is handed only the
-# relationships the description publishes -- but not always: the two
-# seeded identifiers above, of 6,705 and 8,098 rows the producer and the
-# loader accept, still take the walk past 100,000 states, one of them
-# past 3,000,000 in ten minutes, because the totals of the cells that
-# remain fix which of their many sizes may be left over only once a
-# fill of an earlier cell has spent them. The memory such a walk holds
+# relationships the description publishes -- but not always: nine of
+# those 120 seeded identifiers, of 852 to 9,613 rows the producer and
+# the loader accept, still take the walk past 100,000 states at the
+# floor of 11 (12 at a floor of 36), one of them past 3,000,000 in ten
+# minutes, because the totals of the cells that remain fix which of
+# their many sizes may be left over only once a fill of an earlier
+# cell has spent them. The memory such a walk holds
 # stays bounded (`_WALK_MEMORY`); its time does not, and `K-S4-04`
 # holds the count of such identifiers until a stronger reading of the
 # counts answers them.
@@ -1553,17 +1556,18 @@ def _reach_bits(
 
 
 # HOW WIDE A TOTAL THE HALVING RULE READS ALONE, in rows (stage 4, plan
-# P4-D389). Whether some copies can make a total -- `_reach_any`,
-# `_reserves_met` and `_owed_less` ask it on entering every cell and
-# inside every fill -- the halving rule answers with a whole number one
-# bit wider than the total read, shifted once for every size and copy
-# count. Under this many rows that number is a few machine words, and
-# no reading is quicker; from it on, two readings that need no such
-# number come first (`_makes_a_total`, `_owed_less`). On a declared
+# P4-D389). Whether some copies can make a total -- `_reach_any` and
+# `_owed_less` ask it on entering every cell, `_reserves_met` inside
+# every fill as well -- the halving rule answers with a whole number one
+# bit wider than the total, shifted at least once for every size. Under
+# this many rows that number is at most 513 bytes, and reading it is
+# the quicker way: the readings below, taken at every width, cost the
+# walk 12 to 16 per cent more CPU on the lane's seeded questions. From
+# it on they come first (`_makes_a_total`, `_owed_less`): on a declared
 # identifier of 1,414 values held by 1 to 1,414 rows each -- 1,000,405
-# rows -- the halving rule alone spent 47 s of the walk's 48 on totals
-# near a million bits wide. Either way the answer is the halving rule's,
-# so the walk and its answer are the same whatever this says.
+# rows -- the halving rule alone spent about 45 s of the walk's 48 on
+# totals near a million bits wide. Either way the answer is the halving
+# rule's, so the walk and its answer are the same whatever this says.
 _WIDE_TOTAL = 4096
 
 
