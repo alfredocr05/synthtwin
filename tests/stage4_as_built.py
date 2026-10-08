@@ -1,4 +1,4 @@
-"""Two functions of the product as they stood before stage 4's first tier, frozen as text.
+"""Functions of the product as they stood before stage 4 changed them, frozen as text.
 
 The review of landing S1 (item 5) found the references
 `tests/test_stage4_linear_work.py` compared two rewritten functions
@@ -16,11 +16,16 @@ nothing reads the product's source to build them:
   out, every role asked of `_decide` -- with the one argument plan
   P4-D382 added beside it (2026-10-02), `stored_as`, passed through as
   the merged tree passes it.
+- `ALLOTTED_OVER` is the packing walk of method G9.5 as 493f6f8
+  shipped it, `generation._allotted_over` and every function it calls
+  down to `_cell_walk`, the oracle of the bounded walk of plan P4-D389
+  (`tests/test_stage4_allocator_walk.py`): the answers must be its
+  answers wherever it finishes.
 
 Each is compiled into a copy of its module's own names, so the helpers
-it calls are today's, and the tests in that file require a change of
-meaning made to either product function to break the comparison.
-Nothing here is imported by the product.
+it does not define are today's, and the tests that use it require a
+change of meaning made to the product function to break the
+comparison. Nothing here is imported by the product.
 """
 
 from __future__ import annotations
@@ -662,5 +667,486 @@ def _read_the_column(
         judged_over_cores=judged_over_cores,
         judged_over_levels=judged_over_levels,
     )
+
+'''
+
+
+ALLOTTED_OVER = r'''
+def _allotted_over(
+    groups: "tuple[int, ...]",
+    margins: "list[tuple[list[int], list[int]]]",
+    allowed: "list[int]",
+) -> "list[int] | None":
+    """Give every group to one cell, meeting EVERY margin exactly.
+
+    THE GRID CARRIES THE DESCRIPTION'S OWN COUNTS AND NOTHING ELSE
+    (review item P2-C3-F1). A margin is a family of published counts
+    that divides the cells between them: ``(quotas, part_of)``, where
+    ``part_of[cell]`` says which count of that family the cell answers
+    for. A column of numbers too large to hold publishes THREE such
+    families over one set of cells -- what the notation classifies as,
+    whether the value is a whole number, and what sign it settles -- and
+    publishes no cross-tabulation of them at all. Packing over two
+    margins invented from them, rather than over the three the
+    description carries, is how an earlier revision asked the walk to
+    solve a question the real column never answered and then reported
+    six exact counts as missed.
+
+    ``allowed[i]`` names the cells group ``i`` may take. The answer is
+    one cell index per group, in group order, or None where no
+    assignment of whole groups meets every count of every margin.
+
+    THE ORDER IS PART OF THE RULE, so two implementations pack the same
+    way. Inside each margin the counts are ranked in ascending order of
+    their own published values, ties by the description's own order, so
+    the count that absorbs whatever is left over is answered for last.
+    Cells are then filled in ascending order of the ranks they carry,
+    margin by margin, ties by the cell's own number -- which for two
+    margins is exactly the row-major order over ranked rows and columns
+    that `_allotted_pairs` states. Within a cell the different group
+    SIZES are offered in ascending order and each offers as many copies
+    as the cell can still hold, falling back to fewer; a fill that
+    leaves a later cell unable to finish is undone and the next is
+    tried; and groups are handed to their cells in group order.
+    """
+    counted = 0
+    for size in groups:
+        counted = counted + size
+    for margin in margins:
+        total = 0
+        for quota in margin[0]:
+            total = total + quota
+        if total != counted:
+            return None
+    cells = len(margins[0][1])
+    # THE SMALLEST COUNT IS ANSWERED FOR FIRST, and the largest last.
+    # The order is fixed by the published values themselves, ascending,
+    # ties by the contract's own order, so it is a function of the
+    # description and of nothing else. It is chosen rather than inherited
+    # for a reason a ceiling used to hide: the largest count is the one
+    # that absorbs whatever is left over, so filling it first spends the
+    # small group sizes on it and leaves the small counts to be made out
+    # of the large sizes, which is the shape a packing walk can spend an
+    # unbounded amount of time undoing. Answering the small counts first
+    # is what keeps a genuine description answered at once now that no
+    # ceiling stops the walk (review items P2-C2-F1 and P2-C3-F1).
+    order = _cell_order(margins, cells)
+    ranked = [-1 for _each in range(cells)]
+    for step in range(cells):
+        ranked[order[step]] = step
+    part_at = [
+        [margin[1][order[step]] for step in range(cells)]
+        for margin in margins
+    ]
+    last_of = [_last_cells(places, cells) for places in part_at]
+    masks = [
+        _ranked_mask(allowed[place], ranked) for place in range(len(groups))
+    ]
+    keys = sorted({
+        (groups[place], masks[place]) for place in range(len(groups))
+    })
+    place_of = {keys[index]: index for index in range(len(keys))}
+    counts = [0 for _each in keys]
+    for place in range(len(groups)):
+        counts[place_of[(groups[place], masks[place])]] = (
+            counts[place_of[(groups[place], masks[place])]] + 1
+        )
+    taken = _cell_walk(
+        keys,
+        counts,
+        [[quota for quota in margin[0]] for margin in margins],
+        part_at,
+        last_of,
+    )
+    if taken is None:
+        return None
+    chosen = [-1 for _each in groups]
+    for cell in range(cells):
+        for place in range(len(groups)):
+            if chosen[place] >= 0:
+                continue
+            found = place_of[(groups[place], masks[place])]
+            if taken[cell][found] < 1:
+                continue
+            chosen[place] = order[cell]
+            taken[cell][found] = taken[cell][found] - 1
+    for cell in chosen:
+        if cell < 0:
+            return None
+    return chosen
+
+
+def _cell_order(
+    margins: "list[tuple[list[int], list[int]]]", cells: int
+) -> "list[int]":
+    """The order the cells are filled in, as cell numbers.
+
+    Each margin ranks its own counts ascending, ties by the order the
+    description states them in; a cell then carries one rank per margin,
+    and the cells are filled in ascending order of those ranks read left
+    to right, ties by the cell's own number. Over two margins this is
+    the row-major order over ranked rows and ranked columns exactly.
+    """
+    ranks: list[list[int]] = []
+    for margin in margins:
+        quotas = margin[0]
+        placed = [
+            pair[1]
+            for pair in sorted(
+                [(quotas[place], place) for place in range(len(quotas))]
+            )
+        ]
+        rank = [0 for _each in quotas]
+        for step in range(len(placed)):
+            rank[placed[step]] = step
+        ranks += [rank]
+    keyed = sorted([
+        (
+            tuple(
+                ranks[place][margins[place][1][cell]]
+                for place in range(len(margins))
+            ),
+            cell,
+        )
+        for cell in range(cells)
+    ])
+    return [pair[1] for pair in keyed]
+
+
+def _last_cells(places: "list[int]", cells: int) -> "list[bool]":
+    """Which cells are the last of their own count, in the fill order.
+
+    A count has nothing after that cell to answer for it, so the cell
+    takes exactly what the count still owes rather than choosing.
+    """
+    seen: dict[int, int] = {}
+    flags = [False for _each in range(cells)]
+    for step in range(cells - 1, -1, -1):
+        if places[step] not in seen:
+            flags[step] = True
+            seen[places[step]] = 1
+    return flags
+
+
+def _ranked_mask(mask: int, ranked: "list[int]") -> int:
+    """One permission set written over the cells in the order they fill."""
+    built = 0
+    for cell in range(len(ranked)):
+        if (mask >> cell) & 1:
+            built = built | (1 << ranked[cell])
+    return built
+
+
+def _cell_room(
+    owed: "list[list[int]]",
+    part_at: "list[list[int]]",
+    last_of: "list[list[bool]]",
+    cell: int,
+) -> "tuple[int, int]":
+    """The smallest and largest total one cell of the grid may hold.
+
+    A cell may never hold more than what ANY of the counts it answers
+    for still owes. It holds EXACTLY what one of them still owes when it
+    is that count's last cell, because nothing after it can answer for
+    that count. Where those demands cross, the pair returned has its
+    ends the wrong way round and the caller reads that as "no fill".
+    """
+    lowest = 0
+    highest = -1
+    for margin in range(len(owed)):
+        left = owed[margin][part_at[margin][cell]]
+        if last_of[margin][cell] and left > lowest:
+            lowest = left
+        if highest < 0 or left < highest:
+            highest = left
+    return lowest, highest
+
+
+def _reach_bits(
+    keys: "list[tuple[int, int]]",
+    left: "list[int]",
+    cell: int,
+    ceiling: int,
+) -> "list[int]":
+    """Which totals the sizes from each place onward can still make.
+
+    Entry ``k`` is a whole number whose bit ``t`` is set when the group
+    sizes at places ``k`` and after, in the copies still unplaced, can be
+    chosen to total exactly ``t``. It is built from the last place
+    backward, one size at a time, by the halving rule -- one copy, then
+    two, then four, then what is left -- so a size with a thousand
+    copies costs ten shifts rather than a thousand. Bits above
+    ``ceiling`` are dropped, because no fill of this cell may reach
+    them.
+
+    This is what makes the walk of `_cell_walk` enter only branches that
+    can finish the cell they are filling, which is what let the state
+    and depth ceilings of the earlier revision be removed (review item
+    P2-C2-F1).
+    """
+    total = len(keys)
+    limit = (1 << (ceiling + 1)) - 1
+    bits = [0 for _each in range(total + 1)]
+    bits[total] = 1
+    for place in range(total - 1, -1, -1):
+        reach = bits[place + 1]
+        if (keys[place][1] >> cell) & 1:
+            copies = left[place]
+            step = 1
+            while copies > 0:
+                take = min(step, copies)
+                reach = (reach | (reach << (take * keys[place][0]))) & limit
+                copies = copies - take
+                step = step * 2
+        bits[place] = reach
+    return bits
+
+
+def _reach_any(
+    keys: "list[tuple[int, int]]",
+    left: "list[int]",
+    cells: int,
+    target: int,
+) -> bool:
+    """Whether the groups allowed in ANY of ``cells`` can total ``target``.
+
+    The same halving walk as `_reach_bits`, over the union of a set of
+    cells rather than one cell, and answering one question instead of
+    building a table.
+    """
+    if target < 1:
+        return True
+    limit = (1 << (target + 1)) - 1
+    reach = 1
+    for place in range(len(keys)):
+        if keys[place][1] & cells == 0:
+            continue
+        copies = left[place]
+        step = 1
+        while copies > 0:
+            take = min(step, copies)
+            reach = (reach | (reach << (take * keys[place][0]))) & limit
+            copies = copies - take
+            step = step * 2
+        if (reach >> target) & 1:
+            return True
+    return (reach >> target) & 1 == 1
+
+
+def _margins_left(
+    keys: "list[tuple[int, int]]",
+    left: "list[int]",
+    owed: "list[list[int]]",
+    part_at: "list[list[int]]",
+    cell: int,
+    cells: int,
+) -> bool:
+    """Whether every count still owed can be made from what is unplaced.
+
+    A NECESSARY CONDITION, checked once per state rather than discovered
+    at the bottom of a walk. Every count of every margin that still owes
+    something must be able to total exactly that from the group sizes
+    still unplaced that its own remaining cells permit. It says nothing
+    about whether the margins can be satisfied TOGETHER -- that is the
+    question the walk itself answers -- but it cuts the branch where one
+    of them cannot be satisfied at all, which is where a walk with no
+    ceiling would otherwise spend an unbounded amount of time (review
+    items P2-C2-F1 and P2-C3-F1).
+    """
+    for margin in range(len(owed)):
+        for part in range(len(owed[margin])):
+            if owed[margin][part] < 1:
+                continue
+            reachable = 0
+            for step in range(cell, cells):
+                if part_at[margin][step] == part:
+                    reachable = reachable | (1 << step)
+            if not _reach_any(keys, left, reachable, owed[margin][part]):
+                return False
+    return True
+
+
+def _within(bits: int, lowest: int, highest: int) -> bool:
+    """True when some total between the two ends is still reachable."""
+    if highest < 0:
+        return False
+    low = max(lowest, 0)
+    if low > highest:
+        return False
+    return bits & (((1 << (highest - low + 1)) - 1) << low) != 0
+
+
+def _cell_next(
+    keys: "list[tuple[int, int]]",
+    left: "list[int]",
+    state: "list[int]",
+    reach: "list[int]",
+    room: "tuple[int, int]",
+    cell: int,
+) -> "tuple[list[int], list[int] | None]":
+    """The next fill of one cell in the fixed order, and the walk after it.
+
+    ``state`` is how many groups of each size this cell is taking, as far
+    as the walk has decided. An empty ``state`` asks for the first fill;
+    a complete one asks for the fill after it, which is what lets the
+    caller resume this cell after a later one failed. Sizes are decided
+    in ascending order and each offers as many copies as the cell can
+    still hold, falling back to fewer -- the order method G9.5 fixes.
+
+    Returns the walk to hand back on the next call and the fill, or None
+    for the fill where this cell's walk is spent.
+
+    Every branch entered can still reach a total the cell accepts,
+    because `reach` is consulted before descending, so a complete state
+    is always a fill and no fill is ever visited twice.
+    """
+    total = len(keys)
+    lowest, highest = room
+    walk = [number for number in state]
+    if total == 0:
+        if walk or not (lowest <= 0 <= highest):
+            return walk, None
+        return walk, []
+    used = 0
+    for place in range(len(walk)):
+        used = used + walk[place] * keys[place][0]
+    if len(walk) == total:
+        while walk and walk[len(walk) - 1] == 0:
+            walk = walk[:len(walk) - 1]
+        if not walk:
+            return walk, None
+        place = len(walk) - 1
+        walk[place] = walk[place] - 1
+        used = used - keys[place][0]
+    while True:
+        place = len(walk) - 1
+        if place >= 0 and walk[place] < 0:
+            used = used + keys[place][0]
+            walk = walk[:place]
+            if not walk:
+                return walk, None
+            walk[place - 1] = walk[place - 1] - 1
+            used = used - keys[place - 1][0]
+            continue
+        if place >= 0 and not _within(
+            reach[place + 1], lowest - used, highest - used
+        ):
+            walk[place] = walk[place] - 1
+            used = used - keys[place][0]
+            continue
+        if len(walk) == total:
+            return walk, [number for number in walk]
+        ahead = len(walk)
+        most = 0
+        if (keys[ahead][1] >> cell) & 1:
+            most = min(left[ahead], (highest - used) // keys[ahead][0])
+        walk += [most]
+        used = used + most * keys[ahead][0]
+
+
+def _moved_by(
+    fill: "list[int]",
+    keys: "list[tuple[int, int]]",
+    left: "list[int]",
+    owed: "list[list[int]]",
+    part_at: "list[list[int]]",
+    cell: int,
+    way: int,
+) -> None:
+    """Apply one cell's fill to the running tallies, or take it back.
+
+    ``way`` is -1 to place the fill and 1 to undo it, which is what lets
+    the walk of `_cell_walk` step back over a cell it has already tried.
+    """
+    moved = 0
+    for place in range(len(fill)):
+        left[place] = left[place] + way * fill[place]
+        moved = moved + fill[place] * keys[place][0]
+    for margin in range(len(owed)):
+        owed[margin][part_at[margin][cell]] = (
+            owed[margin][part_at[margin][cell]] + way * moved
+        )
+
+
+def _cell_walk(
+    keys: "list[tuple[int, int]]",
+    counts: "list[int]",
+    owed: "list[list[int]]",
+    part_at: "list[list[int]]",
+    last_of: "list[list[bool]]",
+) -> "list[list[int]] | None":
+    """Fill every cell of the grid exactly, or say no filling does.
+
+    Written as a loop over an explicit list of walks rather than as
+    nested calls, so that a description publishing many different group
+    sizes cannot grow a call chain without end -- which is the shape the
+    removed depth ceiling was guarding against, now handled rather than
+    refused (review item P2-C2-F1).
+
+    A cell whose walk is spent is written down as having no answer under
+    the state it was entered in -- which sizes were still unplaced and
+    what every count of every margin still owed -- so the same state is
+    never explored twice, and the number of different states is finite
+    and fixed by the description before the walk begins. That is the
+    whole termination argument, and it is the only thing that ends this
+    walk now: NOTHING counts trips and stops (review item P2-C3-F1).
+    """
+    cells = len(part_at[0])
+    left = [count for count in counts]
+    walks: list[list[int]] = []
+    reaches: list[list[int]] = []
+    rooms: list[tuple[int, int]] = []
+    placed: list[list[int]] = []
+    marks: list[tuple[int, tuple[int, ...], tuple[tuple[int, ...], ...]]]
+    marks = []
+    failed: dict[
+        tuple[int, tuple[int, ...], tuple[tuple[int, ...], ...]], int
+    ] = {}
+    cell = 0
+    while True:
+        if cell == cells:
+            return placed
+        if len(walks) == cell:
+            mark = (
+                cell,
+                tuple(left),
+                tuple(tuple(margin) for margin in owed),
+            )
+            room = _cell_room(owed, part_at, last_of, cell)
+            if mark in failed or room[0] > room[1] or not _margins_left(
+                keys, left, owed, part_at, cell, cells
+            ):
+                failed[mark] = 1
+                cell = cell - 1
+                if cell < 0:
+                    return None
+                continue
+            marks += [mark]
+            rooms += [room]
+            reaches += [_reach_bits(keys, left, cell, room[1])]
+            walks += [[]]
+            placed += [[]]
+        else:
+            _moved_by(
+                placed[cell], keys, left, owed, part_at, cell, 1,
+            )
+        walk, found = _cell_next(
+            keys, left, walks[cell], reaches[cell], rooms[cell], cell
+        )
+        walks[cell] = walk
+        if found is None:
+            failed[marks[cell]] = 1
+            walks = walks[:cell]
+            reaches = reaches[:cell]
+            rooms = rooms[:cell]
+            placed = placed[:cell]
+            marks = marks[:cell]
+            cell = cell - 1
+            if cell < 0:
+                return None
+            continue
+        _moved_by(found, keys, left, owed, part_at, cell, -1)
+        placed[cell] = found
+        cell = cell + 1
 
 '''

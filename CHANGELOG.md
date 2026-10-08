@@ -6,6 +6,44 @@ exists).
 
 ## [Unreleased]
 
+### The packing walk is offered only what the cells after it can finish (2026-10-06)
+
+**Stage 4, the allocator walk** (plan P4-D389). Codex's declared
+identifier of the review of landing S1 -- `7` written 2k + 1 times
+beside k values written 2, 4, ... 2k times -- built its twin at k = 80
+in 69.5 s and 925 MB, and at k = 100, 10,301 rows the producer and the
+loader accept, the machine's watchdog stopped it at 3.4 GB: method
+G9.5's walk tried every set of the even sizes before the lone odd group
+that finishes the cell of numbers written in figures alone, writing each
+failed state down. On entering a cell the walk now reads five necessary
+conditions -- what each later cell may hold with every count read
+together, where each size can still stand, whether every count can be
+made, which totals the cell may take, and what the later cells must
+still find among the groups it leaves, read again wherever the cell
+takes a size they read -- and holds each failed state as one number in a
+memory bounded at 64 MB. Every answer is the old walk's, which
+`tests/stage4_as_built.py` keeps frozen as the oracle, and every twin it
+finished is byte-identical; k = 100 builds in about a second and k = 200
+in under four, and an identifier of 300 values in four forms that
+493f6f8 could not build within 1.6 GB in about three. A seeded
+identifier on which one cell tried every way of taking the smaller
+sizes, past 2,000,000 readings of what the later cells must find without
+leaving one state, builds in 34 s. `K-S4-04`, new and open: two of sixty
+seeded identifiers written in mixed forms, and seven of sixty more drawn
+after the walk was written, still take it a long time, which STATE's
+broken list now says.
+
+Its review measured the walk at a million rows: on a declared
+identifier of 1,414 values held by 1 to 1,414 rows each, it took 47 s,
+nearly all of them reading which totals some groups can make, where
+493f6f8's took 16. From 4,096 rows on, two readings that need no number
+as wide as the total come first, and in reading which totals a cell may
+take, the run of smallest sizes is set at once; only what these leave
+open is read as before, and on that identifier they leave nothing open:
+that walk takes 2.6 s, its twin 82.7 s of CPU against 95.3 on 493f6f8,
+every twin the same. Described at a floor of 36 rather than 11, 12 of
+the 120 seeded identifiers take the walk a long time.
+
 ### A weekday census is withheld where the twin's count of different values has no room for it (2026-10-05)
 
 **Landing 3b.D1b** (plan P4-D388, `K-S3-59`). At a raised floor a tail
