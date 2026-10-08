@@ -155,6 +155,7 @@ import types
 
 import pytest
 
+import fixtures
 from synthtwin import generation
 
 REPOSITORY = pathlib.Path(__file__).resolve().parent.parent
@@ -1319,19 +1320,29 @@ def test_the_body_counts_a_unit_a_move_empties(monkeypatch: pytest.MonkeyPatch) 
 
 
 def _sessions(tmp_path: pathlib.Path):
-    """The review's weekly sessions `_weekly_schedule(92)`, described at a floor of 36."""
+    """The review's weekly sessions `_weekly_schedule(92)`, described at a floor of 36, with the census the
+    menu offers written back: plan P4-D388 withholds it there, its body left too little room."""
     import kpi_shapes
     import test_stage3b_weekday_review as review
+    from synthtwin import calendar_rules, contract, parsing
 
     cells = review._weekly_schedule(92)
-    return kpi_shapes.describe(tmp_path, "sessions", "visit\n" + "".join(f"{cell}\n" for cell in cells), 36)
+    described = kpi_shapes.describe(tmp_path, "sessions", "visit\n" + "".join(f"{cell}\n" for cell in cells), 36)
+    block = described.block("visit")
+    days = sorted(parsing.days_from_civil(int(c[0:4]), int(c[5:7]), int(c[8:10])) for c in cells)
+    body = days[block["low_tail"]["rows"] : len(days) - block["high_tail"]["rows"]]
+    groups, _entry = calendar_rules.menu_groups(calendar_rules.body_bins(body), parsing.census_floor(36))
+    census = [{"first": first, "last": last, "count": count} for first, last, count in groups]
+    document = dict(described.document, columns=[dict(block, weekday_census=census)])
+    loaded = contract.load_profile(str(fixtures.write_profile(tmp_path, "sessions-restored.json", document)))
+    return kpi_shapes.Described(described.folder, described.table, document, loaded)
 
 
 def test_a_schedule_at_floor_36_reaches_step_8_5(tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """A column of the batteries reaches a new step through the whole generator at a floor of 36
-    (review of landing 3b.D0, item 1): 538 weekly sessions on 46 days publish their census, and
-    every twin at seeds 0 to 2 holds 52 different days, a count 110cb46 left at 53. Red with
-    step 8.5 withdrawn: 53."""
+    (review of landing 3b.D0, item 1): 538 weekly sessions on 46 days with their census (written
+    back by `_sessions`, since plan P4-D388 withholds it at this floor), and every twin at seeds 0
+    to 2 holds 52 different days, a count 110cb46 left at 53. Red with step 8.5 withdrawn: 53."""
     import kpi_shapes
 
     described = _sessions(tmp_path)
