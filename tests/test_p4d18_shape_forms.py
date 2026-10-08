@@ -2188,8 +2188,8 @@ def test_the_ladder_bound_is_on_what_it_refuses_and_the_oracle_walks_alike() -> 
     """`_ladder_goes_on` at its edges, the supply counted under it, and the
     oracle's walk number for number past the old bound (A-P4-59).
 
-    A walk that takes nothing still stops at 32,768 positions; one that
-    takes may step twice what it has taken past them. Two published
+    A walk that takes nothing still stops after 32,768 values tried; one
+    that takes may try twice what it has taken past them. Two published
     numbers, 1,000 and 9,000,000, leave nearly nine million values
     between them, so the walk of a number wearing no named form takes
     40,000 numbers where the old bound stopped short of 32,768. The
@@ -2325,3 +2325,87 @@ def test_a_ladder_tier_that_ended_is_never_walked_again() -> None:
     assert len(set(product)) == 100010
     assert len([value for value in product if "." in value]) == 99996
     assert product == mirrored
+
+
+def _consecutive_codes(
+    ids: int, gone: "dict[int, int]"
+) -> "tuple[list[str], list[str]]":
+    """Seven-figure codes from 1,000,001 on, one after another: the
+    published ones, and the held-back ones, whose steps ``gone`` holds."""
+    published: "list[str]" = []
+    held_back: "list[str]" = []
+    for step in range(ids):
+        if step in gone:
+            held_back += [f"{1000001 + step}"]
+        else:
+            published += [f"{1000001 + step}"]
+    return published, held_back
+
+
+def test_the_ladder_does_not_count_a_published_number_it_steps_past() -> None:
+    """A POSITION HOLDING NO VALUE IS NOT COUNTED against the ladder's
+    bound (review of plan P4-D390, item 2).
+
+    The gaps of a register of consecutive codes are its held-back codes,
+    and the walk reaches the middle ones only past every published code
+    nearer an end. Counted as refusals, as the review's first repair
+    counted them, those positions gave the walk up inside its own span:
+    60,000 seven-figure codes holding 2,000 back, 4ec50cd's walk gave
+    1,175 of them and then nothing, though every number past
+    either end was free. Now it gives the 2,000 from the gaps and then
+    steps outward, below the smallest code and above the largest in
+    turn, and the oracle walks alike (A-P4-59).
+    """
+    draw = random.Random(390)
+    gone = dict.fromkeys(draw.sample(range(1, 59999), 2000), 1)
+    published, held_back = _consecutive_codes(60000, gone)
+    ladder = generation._number_ladder(published, False, [])
+    oracle = _reference_oracle()
+    reference = oracle.number_ladder(published, [])
+    number = generation._OWED_NUMBER
+    assert generation._ladder_room(ladder, number, 2100, {}, {}, {}, (), False) == 2100
+    assert oracle.ladder_room(
+        reference, oracle.OWED_NUMBER, 2100, set(), set(), set()
+    ) == 2100
+    cursor: "dict[str, int]" = {}
+    walked: "dict[str, int]" = {}
+    product: "list[str]" = []
+    mirrored: "list[str]" = []
+    for _each in range(2100):
+        product += [
+            generation._next_on_ladder(ladder, number, cursor, {}, {}, {}, (), False)
+        ]
+        mirrored += [
+            oracle.next_on_ladder(
+                reference, oracle.OWED_NUMBER, walked, set(), set(), set()
+            )
+        ]
+    assert "" not in product, len([value for value in product if value])
+    assert sorted(product[:2000]) == held_back
+    outward: "list[str]" = []
+    for step in range(1, 51):
+        outward += [f"{1000001 - step}", f"{1060000 + step}"]
+    assert product[2000:] == outward
+    assert product == mirrored
+
+
+def test_a_register_of_consecutive_codes_writes_its_held_back_code_as_a_number() -> None:
+    """The same, end to end: 33,000 consecutive codes on two rows each at a
+    floor of two, the middle one written once. The walk reaches it only
+    past 32,998 published codes, so 4ec50cd's walk gave up first and
+    wrote it as a word, and the twin's count of cells reading as numbers
+    missed the table's; now every twin cell is a number.
+    """
+    published, held_back = _consecutive_codes(33000, {16500: 1})
+    values: "list[str]" = []
+    for code in published:
+        values += [code, code]
+    values += held_back
+    random.Random(390).shuffle(values)
+    document, described, _folder = _described(values, "lot", ["lot"], 2)
+    block = document["columns"][0]
+    assert (block["suppressed_levels"], block["suppressed_rows"]) == (1, 1)
+    assert block["n_numeric"] == len(values)
+    cells = generation.generate(described, 7).columns[0]
+    words = [cell for cell in cells if parsing.classify_number(cell) != parsing.NUMBER]
+    assert words == [], words

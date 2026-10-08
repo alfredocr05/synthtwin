@@ -28302,17 +28302,17 @@ _OWED_OUT_OF_RANGE = " out_of_range"
 _OWED_CONTRADICTORY = " contradictory"
 _OWED_CLASSES = (_OWED_NUMBER, _OWED_OUT_OF_RANGE, _OWED_CONTRADICTORY)
 
-# How many steps on each side the made-up numbers of a column of labels
-# may walk past the numbers they take before the walk gives up
-# (`_ladder_goes_on`). A column needs one step for each held-back number
+# How many values the made-up numbers of a column of labels may refuse
+# beyond the ones they take before the walk gives up, halved
+# (`_ladder_goes_on`). A column needs one value for each held-back number
 # and a few more for the spellings a rule refuses; the bound is here so
 # a form no step can ever wear costs a bounded time rather than an
 # unbounded one.
 _LADDER_STEPS = 1 << 14
 
 
-def _ladder_goes_on(position: int, taken: int) -> bool:
-    """Whether one debt's walk of one tier may take one position more.
+def _ladder_goes_on(tried: int, taken: int) -> bool:
+    """Whether one debt's walk of one tier may try one value more.
 
     THE BOUND IS ON WHAT THE WALK REFUSES, as G8.3's form walk's is
     (`_walk_goes_on`; the review of plan P4-D390, item 2). It was
@@ -28320,19 +28320,31 @@ def _ladder_goes_on(position: int, taken: int) -> bool:
     back more numbers than that wrote the rest as words: measured on
     ten-figure codes over 1,000,000 rows at a floor of eleven, 95,424
     held back, 32,768 written as numbers, and the twin's `n_numeric`
-    914,448 against the table's 1,000,000. Each position holds one value
-    of one side, the two sides taking turns, so a walk taking every
-    value of one side still spends two positions on each. It now goes
-    on while its position is below twice what it has taken plus
-    `2 * _LADDER_STEPS`: a walk that takes nothing still stops at 32,768
-    positions, a walk whose first 32,768 held what it needed takes
-    exactly what it took before, and a walk spends at most twice what
-    it writes plus 32,768 positions.
+    914,448 against the table's 1,000,000. ``tried`` counts the
+    positions of the walk that held a value it could write, and the walk
+    goes on while that is below twice what it has taken plus
+    `2 * _LADDER_STEPS` -- while it has refused fewer values than it has
+    taken plus 32,768. A walk that takes nothing still stops after
+    32,768 values, a walk whose first 32,768 positions held what it
+    needed takes exactly what it took before, and a walk tries at most
+    twice what it writes plus 32,768 values.
+
+    A POSITION HOLDING NO VALUE IS NOT COUNTED: a number the column
+    published, a sign it does not hold, the middle of a gap of even
+    width (`_outward_at`'s `_LADDER_SKIP`). Counted, as the review's
+    first repair counted them, they gave a register of consecutive codes
+    up inside its own span: 60,000 seven-figure codes holding 2,000 back
+    walked the gaps from both ends past every published code and stopped
+    after 1,175 numbers, though every number past either end was free.
+    Inside the span such positions are at most one for each published
+    number and two more; outside it a side holds no value only while the
+    other side does, one position for each value tried there. So the
+    walk is still bounded, by the column's size.
 
     Guarantees: a fixed function of the two counts. Raises nothing. No
     I/O of any kind.
     """
-    return position < 2 * taken + 2 * _LADDER_STEPS
+    return tried < 2 * taken + 2 * _LADDER_STEPS
 
 # What one position of the ladder holds.
 _LADDER_HERE = 0
@@ -29618,7 +29630,8 @@ def _next_on_ladder(
     asked, which is how the class split counts every number there is.
 
     A tier is given up where `_ladder_goes_on` says, ``cursor`` carrying
-    how many numbers each tier has given and whether it has ended.
+    how many numbers each tier has given, how many of its positions held
+    no value, and whether it has ended.
     """
     tiers = ladder.tiers
     reach = 0
@@ -29643,19 +29656,24 @@ def _next_on_ladder(
         key = f"{name}/{places}"
         low_key = f"{key}/low"
         high_key = f"{key}/high"
-        # HOW MANY NUMBERS THIS TIER HAS GIVEN, AND WHETHER IT HAS ENDED,
-        # carried beside where it stands (`_ladder_goes_on`, the review
-        # of plan P4-D390): the bound is on what the walk refuses, so an
-        # ended tier is marked as ended rather than stood at the bound,
-        # which a walk that has taken numbers would step past again.
+        # HOW MANY NUMBERS THIS TIER HAS GIVEN, HOW MANY OF ITS POSITIONS
+        # HELD NO VALUE, AND WHETHER IT HAS ENDED, carried beside where it
+        # stands (`_ladder_goes_on`, the review of plan P4-D390): the
+        # bound is on what the walk refuses, so a position holding no
+        # value is not counted, and an ended tier is marked as ended
+        # rather than stood at the bound, which a walk that has taken
+        # numbers would step past again.
         taken_key = f"{key}/taken"
+        empty_key = f"{key}/empty"
         ended_key = f"{key}/ended"
         if key not in cursor:
             cursor[key] = 0
         if taken_key not in cursor:
             cursor[taken_key] = 0
+        if empty_key not in cursor:
+            cursor[empty_key] = 0
         while ended_key not in cursor and _ladder_goes_on(
-            cursor[key], cursor[taken_key]
+            cursor[key] - cursor[empty_key], cursor[taken_key]
         ):
             state, units, side = _outward_at(
                 ladder, places, cursor[key], low_key in cursor,
@@ -29666,6 +29684,7 @@ def _next_on_ladder(
                 break
             cursor[key] = cursor[key] + 1
             if state == _LADDER_SKIP:
+                cursor[empty_key] = cursor[empty_key] + 1
                 continue
             candidate = _units_spelled(units, places, decimal_comma)
             wearing = ""

@@ -8249,18 +8249,30 @@ number when it is one under that reading.
 
    **A debt's walk of one count of places is given up only where it
    refuses far more than it takes** (the review of plan P4-D390, item
-   2). Each position of the walk holds one value of one side, the two
-   sides taking turns, and the walk takes one position more while its
-   position is below twice the numbers it has taken there plus 2^15
-   (`2 * 2^14`); a walk that has ended is never taken up again. Until
-   that review the walk stopped at 2^15 positions in all, so a register
-   holding back more numbers than that wrote the rest as words: ten-figure
-   codes over 1,000,000 rows at a floor of eleven held 95,424 back,
-   32,768 were written as numbers, and the twin's `n_numeric` was 914,448
-   against the table's 1,000,000. A walk that takes nothing still stops
-   at 2^15 positions, and a walk whose first 2^15 positions held what it
-   needed takes exactly what it took before. The supply steps 1 and 2
-   count is counted by the same walk under the same bound.
+   2). A position of the walk holds one value of one side, the two
+   sides taking turns, or no value at all: a number the column
+   published, a sign it does not hold, or the middle of a gap of even
+   width. The walk tries one value more while the positions that held a
+   value number fewer than twice the numbers it has taken there plus
+   2^15 (`2 * 2^14`) -- it gives up once it has refused as many values
+   as it has taken plus 2^15 -- and a walk that has ended is never taken
+   up again. Until that review the walk stopped at 2^15 positions in
+   all, so a register holding back more numbers than that wrote the rest
+   as words: ten-figure codes over 1,000,000 rows at a floor of eleven
+   held 95,424 back, 32,768 were written as numbers, and the twin's
+   `n_numeric` was 914,448 against the table's 1,000,000. A position
+   holding no value is not counted: counted, as the review's first
+   repair counted it, it gave a register of consecutive codes up inside
+   its own span, whose every gap lies past published codes -- 60,000
+   seven-figure codes holding 2,000 back walked 1,175 of them and then
+   nothing, though every number past either end was free. Such positions
+   are at most one for each published number and two more inside the
+   span, and outside it one for each value tried on the other side, so
+   the walk stays bounded by the column's size. A walk that takes
+   nothing still stops after 2^15 values, and a walk whose first 2^15
+   positions held what it needed takes exactly what it took before. The
+   supply steps 1 and 2 count is counted by the same walk under the same
+   bound.
 
    **THE DRESSING, and an exponent form's own SCALE** (plan P4-D268;
    the scale added by item 3 of the numbers pass of the second Codex

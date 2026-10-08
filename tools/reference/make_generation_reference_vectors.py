@@ -7320,14 +7320,15 @@ def owed_reading(name):
 LADDER_STEPS = 1 << 14
 
 
-def ladder_goes_on(position, taken):
-    """Whether one debt's walk of one tier may take one position more --
+def ladder_goes_on(tried, taken):
+    """Whether one debt's walk of one tier may try one value more --
     method section G8.3a step 3 (the review of plan P4-D390, item 2):
-    while its position is below twice the numbers it has taken plus
-    2 * LADDER_STEPS.  Until that review it stopped at 2 * LADDER_STEPS
-    positions in all.
+    while the positions that held a value number fewer than twice the
+    numbers it has taken plus 2 * LADDER_STEPS.  A position holding no
+    value -- "skip" -- is not counted.  Until that review it stopped at
+    2 * LADDER_STEPS positions in all.
     """
-    return position < 2 * taken + 2 * LADDER_STEPS
+    return tried < 2 * taken + 2 * LADDER_STEPS
 
 # The settings every frozen case is described at: the reference test
 # builds each case's description with a smallest group size of eleven and
@@ -7950,13 +7951,17 @@ def next_on_ladder(ladder, name, cursor, named, seen, folds, needed=0, pool=None
     for places in tiers:
         key = f"{name}/{places}"
         low, high = f"{key}/low", f"{key}/high"
-        # How many numbers this tier has given, and whether it has ended:
-        # the bound is on what the walk refuses, so an ended tier is
-        # marked ended rather than stood at the bound.
-        given, ended = f"{key}/taken", f"{key}/ended"
+        # How many numbers this tier has given, how many of its positions
+        # held no value, and whether it has ended: the bound is on what
+        # the walk refuses, so a position holding no value is not counted
+        # and an ended tier is marked ended rather than stood at the bound.
+        given, empty, ended = f"{key}/taken", f"{key}/empty", f"{key}/ended"
         cursor.setdefault(key, 0)
         cursor.setdefault(given, 0)
-        while ended not in cursor and ladder_goes_on(cursor[key], cursor[given]):
+        cursor.setdefault(empty, 0)
+        while ended not in cursor and ladder_goes_on(
+            cursor[key] - cursor[empty], cursor[given]
+        ):
             state, units, side = outward_at(
                 ladder, places, cursor[key], low in cursor, high in cursor
             )
@@ -7965,6 +7970,7 @@ def next_on_ladder(ladder, name, cursor, named, seen, folds, needed=0, pool=None
                 break
             cursor[key] += 1
             if state == "skip":
+                cursor[empty] += 1
                 continue
             candidate = units_spelled(units, places)
             wearing = ""
