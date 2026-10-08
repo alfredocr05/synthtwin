@@ -17005,8 +17005,19 @@ def _contacts_floored(
     cells than `parsing.census_floor` carried is counted into the
     commonest word, ties to the first in sorted order, so no count printed
     and none left by subtraction is below the line, and the twin writes
-    the column's own contact numbers. None where no present date carries
-    a contact number.
+    the column's own contact numbers.
+
+    None WHERE NO CONTACT NUMBER REACHES THE LINE -- where no present date
+    carries one, and where every one is rarer than the line (the second
+    review of landing R4, item 1). Pooled into the commonest word, such a
+    census was `{"(none)": N}` alone: the twin wrote no contact number, its
+    own description published no census, and its check missed
+    `form.contacts`; and on a column of fewer dates than the line the pool
+    was itself below the line, and `profile` stopped with an internal
+    fault. With no census published the twin writes each date's day count
+    alone, and the published form -- `places`, the longest contact number
+    a cell writes -- still holds the source's rare ones
+    (`date_counts.form_holds`, by the member's contact rule).
     """
     standing: "dict[str, int]" = {}
     for text in present:
@@ -17018,9 +17029,13 @@ def _contacts_floored(
         words = contacts[text]
         for word in sorted(words):
             counts[word] = (counts[word] if word in counts else 0) + words[word]
-    if not counts or sorted(counts) == [date_counts.NO_CONTACT]:
-        return None
     line = parsing.census_floor(floor)
+    reaching = False
+    for word in counts:
+        if word != date_counts.NO_CONTACT and counts[word] >= line:
+            reaching = True
+    if not reaching:
+        return None
     commonest = ""
     for word in sorted(counts):
         if not commonest or counts[word] > counts[commonest]:
@@ -17054,7 +17069,8 @@ def _count_form_published(
     block but one read as counted dates (``counted``), where it says how
     the column writes its counts: `places`, `trimmed`, `significant`,
     `exponent`, `mark` and, on a `days-since-1840` column, `contacts`, the
-    census of contact numbers over the present dates, floored. Such a
+    census of contact numbers over the present dates, floored -- `null`
+    where no contact number reaches the line (`_contacts_floored`). Such a
     block also says, in NF116, which system its dates are counted in.
 
     Guarantees: as `_hour_published`. No I/O of any kind.

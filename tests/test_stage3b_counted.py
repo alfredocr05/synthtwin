@@ -810,7 +810,7 @@ def test_c4_every_twin_cell_keeps_the_columns_spelling_and_names_a_date(
     unit = contract.counted_unit(facts)
     for cell in trip["twin"]:
         written = date_counts.written_count(cell, facts.count_form.mark)
-        assert written is not None and date_counts.form_holds(facts.count_form, written), cell
+        assert written is not None and date_counts.form_holds(shape.system, facts.count_form, written), cell
         numerator, denominator = date_counts.exact_value(written)
         assert date_counts.moment_of(shape.system, numerator, denominator, unit) is not None, cell
     assert trip["twin_exit"] == 0 and trip["real_exit"] == 0
@@ -952,13 +952,91 @@ def test_c5_a_contact_number_rarer_than_the_line_leaves_the_source_whole(
     assert trip["block"]["count_form"]["contacts"] == {"(none)": 855, "01": 120, "02": 25}
     assert trip["twin_exit"] == 0 and trip["real_exit"] == 0
 
-    def named_only(form: "date_counts.CountForm", written: "date_counts.Written") -> bool:
+    def named_only(member: str, form: "date_counts.CountForm", written: "date_counts.Written") -> bool:
         return date_counts.contact_word(written) in (form.contacts or {})
 
     monkeypatch.setattr(date_counts, "form_holds", named_only)
     out = tmp_path / "mutated"
     out.mkdir()
     assert _exit_of(["validate", str(trip["described"]), "--twin", str(trip["path"]), "--out-dir", str(out), "--replace"])[0] == 3
+
+
+def _trip_of(
+    folder: pathlib.Path, columns: "dict[str, list[str]]", declared: "dict[str, str]", *extra: str
+) -> "dict[str, object]":
+    """Several columns, each of ``declared`` named with `--date-count`, described, twinned and checked."""
+    path = _table_of(folder, columns)
+    argv = ["profile", str(path), "--out-dir", str(folder), "--replace", *extra]
+    for name in sorted(declared):
+        argv += ["--date-count", name, declared[name]]
+    code, said = _exit_of(argv)
+    came: "dict[str, object]" = {"profile": code, "said": said[-600:]}
+    if code != 0:
+        return came
+    described = folder / "table-profile.json"
+    blocks = json.loads(described.read_text(encoding="utf-8"))["columns"]
+    came["blocks"] = {block["name"]: block for block in blocks}
+    came["generate"] = _exit_of(["generate", str(described), "--seed", "0", "--out-dir", str(folder), "--replace"])[0]
+    for label, checked in (("twin", folder / "table-twin.csv"), ("source", path)):
+        out = folder / f"check-{label}"
+        out.mkdir(exist_ok=True)
+        came[label] = _exit_of(["validate", str(described), "--twin", str(checked), "--out-dir", str(out), "--replace"])[0]
+    return came
+
+
+def _epic_days(rows: int, ones: int, twos: int = 0, dated: int = -1) -> "list[str]":
+    """An Epic `*_DATE_REAL` column: ``ones`` dates written `.01`, ``twos`` `.02`, the rest whole; ``dated`` dates in all, the rest empty."""
+    draw = random.Random(f"rare-contacts:{rows}:{ones}:{twos}:{dated}")
+    dates = rows if dated < 0 else dated
+    cells: "list[str]" = []
+    for row in range(dates):
+        contact = ".01" if row < ones else ".02" if row < ones + twos else ""
+        cells += [f"{64000 + draw.randrange(3650)}{contact}"]
+    cells += [""] * (rows - dates)
+    draw.shuffle(cells)
+    return cells
+
+
+def test_c5_contact_numbers_none_of_which_reaches_the_line_publish_no_census(tmp_path: pathlib.Path) -> None:
+    """The second review of landing R4, item 1: a census of `(none)` alone is not published.
+
+    Eight or ten `.01` among a thousand Epic days, six among ten thousand,
+    four `.01` and two `.02` among ten thousand, the battery's own
+    `epic_real` at 250 rows and a floor of 36, five dates of a thousand
+    rows one of them `.01`, and nine of two hundred five of them `.01`:
+    no contact number reaches the census line. The build pooled each into
+    `{"(none)": N}`, whose twin wrote no contact number, published no
+    census of its own and missed `form.contacts` -- and where the dates
+    were fewer than the line the pool itself was under it, and `profile`
+    stopped with an internal fault. No census is published now, the twin
+    writes day counts alone, and every file is at exit 0; the source's
+    rare contact numbers still stand in its own form, which reads an Epic
+    column by its contact rule (`date_counts.form_holds`). With 27 `.01`
+    among a thousand the census is published as before.
+    """
+    tables = (
+        (1000, {"eight": _epic_days(1000, 8), "ten": _epic_days(1000, 10), "sparse": _epic_days(1000, 1, 0, 5)}, ()),
+        (10000, {"six": _epic_days(10000, 6), "four_two": _epic_days(10000, 4, 2)}, ()),
+        (200, {"nine": _epic_days(200, 5, 0, 9)}, ()),
+        (250, {"battery": battery.cells(battery.BY_NAME["epic_real"], 250, 0)[0]}, ("--smallest-group", "36")),
+        (1000, {"common": _epic_days(1000, 27)}, ()),
+    )
+    for rows, columns, extra in tables:
+        named = sorted(columns)
+        columns = dict(columns)
+        columns["k"] = ["a" if row % 3 else "b" for row in range(rows)]
+        came = _trip_of(tmp_path / "-".join(named), columns, {name: "days-since-1840" for name in named}, *extra)
+        assert came["profile"] == 0, came["said"]
+        assert (came["generate"], came["twin"], came["source"]) == (0, 0, 0), (named, came)
+        blocks = came["blocks"]
+        assert isinstance(blocks, dict)
+        for name in named:
+            form = blocks[name]["count_form"]
+            assert form is not None and form["places"] == 2, (name, form)
+            if name == "common":
+                assert form["contacts"] == {"(none)": 973, "01": 27}
+            else:
+                assert form["contacts"] is None, (name, form)
 
 
 def test_c5_a_table_of_one_counted_column_is_counted_in_rows(tmp_path: pathlib.Path) -> None:

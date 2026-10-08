@@ -1312,7 +1312,7 @@ def figures_kept(
     return tuple(kept)
 
 
-def form_holds(form: CountForm, written: Written) -> bool:
+def form_holds(member: str, form: CountForm, written: Written) -> bool:
     """Whether a cell is one the published form can write (validation, CD).
 
     A fixed form writes exactly `places` figures after the mark; a
@@ -1320,15 +1320,23 @@ def form_holds(form: CountForm, written: Written) -> bool:
     significant one at most `significant` significant figures, trimmed --
     and at seventeen, `repr`'s `45123.0` for a whole count;
     an exponent form fifteen significant figures, either written in full
-    or in exponent form. A member with contacts writes its day count and
-    no contact number, or one of at most `places` figures: NOT ONLY ONE
-    THE CENSUS NAMES, because a contact number fewer cells than the
-    disclosure line wrote is counted into the commonest (`places` is the
-    longest any cell writes), so a source holding five `.03` cells beside
-    a census of `(none)`, `01` and `02` missed its own description; the
-    census itself is held exactly beside this check.
+    or in exponent form. A MEMBER WITH CONTACTS (``member``, the system
+    the column is declared in) writes its day count and no contact
+    number, or one of at most `places` figures, WHETHER OR NOT A CENSUS
+    IS PUBLISHED: a contact number fewer cells than the disclosure line
+    wrote is counted into the commonest, and where none reaches the line
+    no census is published at all (the second review of landing R4, item
+    1), so a source holding five `.03` cells beside a census of `(none)`,
+    `01` and `02`, or eight `.01` cells and no census, is still in its
+    own form -- `places` is the longest any cell writes. The census
+    itself, where published, is held exactly beside this check. An empty
+    ``member`` reads a census published as the contact rule.
+
+    Guarantees: a function of the three. Raises KeyError for a word
+    outside `MEMBERS` other than the empty one. No I/O of any kind.
     """
-    if form.contacts is not None:
+    contacts = TABLE[member].contacts if member else form.contacts is not None
+    if contacts:
         if written.exponent_form:
             return False
         return len(written.fraction) <= form.places

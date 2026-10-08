@@ -451,7 +451,7 @@ def _declared_one(
         if not cell or cell in holes:
             continue
         written = date_counts.written_count(cell, form.mark)
-        if written is None or not date_counts.form_holds(form, written):
+        if written is None or not date_counts.form_holds(system, form, written):
             off += 1
             continue
         numerator, denominator = date_counts.exact_value(written)

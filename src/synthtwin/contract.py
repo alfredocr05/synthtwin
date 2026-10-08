@@ -9300,8 +9300,9 @@ def _count_form(
     a whole number from 0 to 17, `trimmed` and `exponent` truth values,
     `significant` nothing, 15 or 17, `mark` a point or a comma, and
     `contacts` nothing or a census of contact numbers -- each word figures
-    alone or `(none)`, each count at the disclosure line, the counts
-    summing to the dates the column reads (CD4). An exponent form writes
+    alone or `(none)`, at least one a contact number, each count at the
+    disclosure line, the counts summing to the dates the column reads
+    (CD4). An exponent form writes
     fifteen significant figures, trimmed, and a significant form is
     trimmed (CD5). Whether the column is one the settings declare, and
     whether contacts stand on the one member that writes them, needs the
@@ -9352,6 +9353,20 @@ def _count_form(
                     f"every count of the census is at least {line}",
                 )
             contacts[word] = count
+        named = False
+        for word in contacts:
+            if word != date_counts.NO_CONTACT:
+                named = True
+        if not named:
+            # A CENSUS NAMING NO CONTACT NUMBER IS NOT PUBLISHED (the second
+            # review of landing R4, item 1): where none reaches the line,
+            # `contacts` is `null`, and the twin writes no contact number.
+            raise _broken(
+                "CD4",
+                where,
+                "the census of contact numbers names no contact number",
+                "a census is published only where a contact number reaches the line",
+            )
         dates = n_present - facts.n_unparsed
         if sum(contacts[word] for word in contacts) != dates:
             raise _broken(

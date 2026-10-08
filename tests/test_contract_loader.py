@@ -208,8 +208,23 @@ def _counted_with_contacts(member: str) -> Change:
     def change(document: Document) -> None:
         block = at(document, "recorded_on")
         dates = int(block["n_present"]) - int(block["n_unparsed"])
-        block.update(count_form=_count_form_of(contacts={"(none)": dates}))
+        block.update(count_form=_count_form_of(contacts={"(none)": dates - 11, "01": 11}))
         document["settings"]["forced_date_counts"] = [["recorded_on", member]]
+    return change
+
+
+def _contacts_naming_none() -> Change:
+    """`recorded_on` carrying a census of contacts that names `(none)` alone (CD4).
+
+    Every date counted, at the disclosure line, under the one word for no
+    contact number: the producer publishes no such census since the
+    second review of landing R4 (item 1), where the twin of one wrote no
+    contact number and missed its own description.
+    """
+    def change(document: Document) -> None:
+        block = at(document, "recorded_on")
+        dates = int(block["n_present"]) - int(block["n_unparsed"])
+        block.update(count_form=_count_form_of(contacts={"(none)": dates}))
     return change
 
 
@@ -1745,6 +1760,10 @@ def battery() -> list[Mutation]:
         Mutation(
             "CD4", "a census of contact numbers with a count under the line",
             _contacts_counting(sum_off=0, below_line=5),
+        ),
+        Mutation(
+            "CD4", "a census of contact numbers naming no contact number",
+            _contacts_naming_none(),
         ),
         Mutation(
             "CD5", "an exponent form written to no number of significant figures",

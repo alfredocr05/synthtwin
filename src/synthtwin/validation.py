@@ -1791,9 +1791,16 @@ def counted_units(description: contract.Profile) -> "dict[str, int]":
     return units
 
 
-def _form_of_counts_said(form: "date_counts.CountForm") -> str:
-    """A form of counts in words, naming no value: how its figures are written."""
-    if form.exponent:
+def _form_of_counts_said(form: "date_counts.CountForm", contacts: bool = False) -> str:
+    """A form of counts in words, naming no value: how its figures are written.
+
+    On a member with contacts (``contacts``), a day count and a contact
+    number of at most `places` figures, or none -- the rule
+    `date_counts.form_holds` asks of it.
+    """
+    if contacts:
+        said = f"a day count, with or without a contact number of at most {form.places} figures after the mark"
+    elif form.exponent:
         said = "fifteen significant figures, in exponent form where shorter"
     elif form.significant is not None:
         said = f"{form.significant} significant figures, trailing zeros dropped"
@@ -1829,9 +1836,11 @@ def _count_form_checks(
     with other figures after the mark, MISSES it, and a twin in another
     member misses the dates it then names. A cell spelled as one of the
     column's published absent spellings is not a count of a date, and is
-    not asked. `form.contacts` holds the census of contact numbers of a
-    `days-since-1840` column exactly, as the file's own description counts
-    it. No value of the file is printed: the measured side is the form's
+    not asked. A `days-since-1840` column's cells are held by its contact
+    rule -- a day count and at most `places` figures after the point --
+    whether or not a census is published (the second review of landing
+    R4, item 1), and `form.contacts` holds the census, where published,
+    exactly as the file's own description counts it. No value of the file is printed: the measured side is the form's
     own words, or that a cell is written another way. A cell that is no
     count OF ``member`` (`date_counts.counted`) -- an Epic day written with
     a binary64's tail of more than nine figures -- is text the date role's
@@ -1845,7 +1854,8 @@ def _count_form_checks(
     if form is None:
         return []
     name = column.name
-    published = _form_of_counts_said(form)
+    contacts = date_counts.TABLE[member].contacts if member else form.contacts is not None
+    published = _form_of_counts_said(form, contacts)
     found_form = block["count_form"] if "count_form" in block else None
     holes: "dict[str, int]" = {}
     for spelling in column.missing_by_source:
@@ -1864,7 +1874,7 @@ def _count_form_checks(
             )
             if written is None:
                 continue
-            if not date_counts.form_holds(form, written):
+            if not date_counts.form_holds(member, form, written):
                 measured = "a cell written another way"
                 break
     checks = [_exact(name, "datetime.count_form", "form.count_form", published, measured)]
