@@ -44,9 +44,9 @@ tails keep -- the low tail at its fewest beside the days the high tail
 draws -- and the room rule the most, the days the two tails draw with no
 merge counted. Where the pass splits, both read the two tails' most,
 which the high tail reaches only where the body's nearer splits run out
-first; the low tail comes first at each distance, but like the high tail
-it keeps only the splits the body's nearer ones leave it: on
-Monday-to-Friday logs, whose free days are at the weekend, it ended below
+first; the low tail comes first at each distance, but it splits a rank
+only onto a free day inside that rank's own stratum, and only while the
+count wants more: on Monday-to-Friday logs it ended below
 its most at two seeds or more on 10 of 272 censuses of logs just above
 one row an open day and 64 of 125 of fresh logs where the pass split,
 none of them costing the count. The price left and
@@ -2009,20 +2009,27 @@ def test_k_s3_59_claims_what_was_measured_and_states_the_limit_beside_it() -> No
     names the split order the fix owes to lane D4. The repair's
     verification found the low tail short of its most too where the pass
     splits, on Monday-to-Friday logs, none of those censuses costing the
-    count, and two of the 24 that do to be merges: the contract, P4-D388,
-    the entry's evidence, the docstrings of `tails_kept` and
-    `count_reach_short` and this module's say that the low tail keeps only
-    the splits the body's nearer ones leave it, with the figures; P4-D388
-    tells the two merges from the 22 the split order costs and gives the
-    cuts' totals, and the evidence and the changelog count the 22. Red
-    when the name claims every published census again, the limit goes
-    unnamed, the ruling or the price's columns go unnamed, the price is put
-    back on rows a business day, the near-one risk or the fix owed goes
-    unnamed, the old claim that the split brings both tails to their most
-    comes back, the low tail is said again to reach its most at all but a
-    tenth of seeds in any of those texts or the changelog, its figures go,
-    the fresh logs' three are put back under the split order, the 22 go,
-    or the cuts lose their totals.
+    count, and two of the 24 that do to be merges; the third verification
+    found no body rank split ahead of a low-tail rank that could still
+    split -- the low tail's ranks left sharing a day had no free day
+    inside their own strata, or its own splits met the count. So the
+    contract, P4-D388, the entry's evidence, the docstrings of
+    `tails_kept` and `count_reach_short` and this module's say that the
+    low tail splits a rank only onto a free day inside that rank's own
+    stratum, and only while the count wants more, with the figures;
+    P4-D388 tells the two merges from the 22 the split order costs and
+    gives the cuts' totals, and the evidence and the changelog count
+    the 22. Red when the name claims every published census again, the
+    limit goes unnamed, the ruling or the price's columns go unnamed, the
+    price is put back on rows a business day, the near-one risk or the fix
+    owed goes unnamed, the old claim that the split brings both tails to
+    their most comes back, the low tail is said again to reach its most at
+    all but a tenth of seeds in any of those texts or the changelog, or
+    again to keep only the splits the body's nearer ones leave it in any
+    of those texts, the rank's own stratum goes from any of them, P4-D388
+    again puts its spare ranks two or three days from their free days, its
+    figures go, the fresh logs' three are put back under the split order,
+    the 22 go, or the cuts lose their totals.
     """
     ledger = json.loads((_ROOT / "tests" / "kpi" / "ledger.json").read_text(encoding="utf-8"))
     entry = [item for item in ledger["entries"] if item["id"] == "K-S3-59"][0]
@@ -2063,7 +2070,8 @@ def test_k_s3_59_claims_what_was_measured_and_states_the_limit_beside_it() -> No
     )
     for name, text in texts:
         flat = " ".join(text.split())
-        assert "like the high tail it keeps only the splits the body's nearer ones leave it" in flat, name
+        assert "splits a rank only onto a free day inside that rank's own stratum" in flat, name
+        assert "keeps only the splits the body's nearer ones leave it" not in flat, name
         assert "10 of 272" in flat and "64 of 125" in flat and "none of them costing the count" in flat, name
     for name, text in (*texts, ("the changelog", section)):
         flat = " ".join(text.split())
@@ -2076,6 +2084,7 @@ def test_k_s3_59_claims_what_was_measured_and_states_the_limit_beside_it() -> No
             assert old not in flat, (name, old)
     flat = " ".join(decision.split())
     assert "on 26 and 72 of them, and on 10 and 64" in flat
+    assert "two or three days from the low tail's spare ranks" not in flat
     assert "all where the pass splits" not in flat and "so the pass merged" in flat
     assert "22 of the 24 censuses that cost the count" in flat
     assert "76, 72 and 12 in all" in flat and "67, 66 and 12 more --" not in flat
