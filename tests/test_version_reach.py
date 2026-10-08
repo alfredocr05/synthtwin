@@ -65,12 +65,13 @@ with no newline in it, which is most of this file's samples.)
 THE LIMIT THAT WOULD MATTER is a string of source that IS RUN --
 handed to `exec`, `eval` or `compile`, or to `runpy` -- because that
 spelling reaches the 3.10 cells while this file says nothing about it.
-The tree holds TWENTY-NINE such calls (counted again at the merge of
-stage 4's first tier into stage 3b's landings, 2026-10-02: the figure
-here had stood two short since before them). They are listed in
+The tree holds THIRTY-ONE such calls (counted again at the merge of
+stage 4's first tier into stage 3b's landings, 2026-10-02, when the
+figure here had stood two short since before them, and two more since,
+in the walk's arithmetic measure of 2026-10-08). They are listed in
 `ROUTES_THAT_RUN_SOURCE` below and
 `test_the_routes_that_run_a_string_of_source_are_the_ones_named_here`
-holds the tree to that list, so a thirtieth cannot arrive unread.
+holds the tree to that list, so a thirty-second cannot arrive unread.
 The `runpy` calls run a COMMITTED FILE of `tools/` or of `tests/`,
 which the folders below already read, and the `exec` and `compile`
 calls are held by what they are handed or by where they run:
@@ -125,6 +126,13 @@ calls are held by what they are handed or by where they run:
   `counted_out[1:]`, or a size written `sizes[place] + 1`. A slice and
   an addition, which every Python spells alike, so it adds no spelling
   the floor could miss.
+- `tests/test_stage4_allocator_walk.py` runs `exec(compile(tree, ...))`
+  once, in `_metered` (Codex's review of landing S3, item 1), where
+  `tree` holds the functions of `src/synthtwin/generation.py` -- a file
+  this guard reads -- or of the frozen `ALLOTTED_OVER` above, with each
+  `|`, `&`, `<<`, `>>`, `+` and `-` turned into a call of a counter of
+  the walk's arithmetic. A call and a name, which every Python spells
+  alike, so it adds no spelling the floor could miss.
 - `runpy.run_path` runs the same kind of committed file: twice in
   `tests/`, in the two stage-2 oracle tests, and seventeen times in
   `tools/` -- one for the provenance guard's own runner and one for
@@ -273,6 +281,8 @@ ROUTES_THAT_RUN_SOURCE = {
     ("tests/test_stage4_linear_work.py", "exec"): 1,
     ("tests/stage4_as_built.py", "compile"): 1,
     ("tests/stage4_as_built.py", "exec"): 1,
+    ("tests/test_stage4_allocator_walk.py", "compile"): 1,
+    ("tests/test_stage4_allocator_walk.py", "exec"): 1,
     ("tests/test_stage2_datetime_oracle.py", "runpy.run_path"): 1,
     ("tests/test_stage2_grouping_oracle.py", "runpy.run_path"): 1,
     ("tools/provenance/guard_runner.py", "runpy.run_path"): 1,
