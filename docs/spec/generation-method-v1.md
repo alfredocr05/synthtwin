@@ -7573,8 +7573,8 @@ column of that layout whose census of offsets pools nothing and names
    whole text reaches -- one cell, beside texts of two copies and more --
    was left owed where one text standing alone fewer and a text of two
    would have written it: 5 of 180 twins of repeated stamps. Where steps
-   4 and 5 write fewer cells than step 5's bound and step 4 made
-   payments, the pass is made a second time from the cells as they were
+   4 and 5 write fewer cells than step 5's bound and step 4 had payments
+   to make, the pass is made a second time from the cells as they were
    handed, step 4 making only the largest count of payments, below its
    own, whose sum with the largest total -- at most the bound less that
    count -- that the texts step 5 may take reach is the greatest of any

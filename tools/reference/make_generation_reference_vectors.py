@@ -9990,10 +9990,10 @@ def offsets_paid_to_the_classes(column, cells, holes, floor=CASE_SMALL_CELL_FLOO
       not made;
     * and the rest of that smallest -- counted without the eligible ranks
       -- is step 5's, paid with whole repeated texts (`whole_texts_paid`);
-    * where steps 4 and 5 write fewer cells than that bound and step 4 made
-      payments, step 6 makes the pass again from the cells as handed with
-      fewer payments (`fewer_standing_alone`), and keeps it only where it
-      writes more.
+    * where steps 4 and 5 write fewer cells than that bound and step 4 had
+      payments to make, step 6 makes the pass again from the cells as
+      handed with fewer payments (`fewer_standing_alone`), and keeps it
+      only where it writes more.
     """
     member = column["format"]
     if not is_layout(member):
