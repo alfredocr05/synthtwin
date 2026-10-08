@@ -7872,8 +7872,10 @@ leading segment answer plausibly and wrongly.
   labels differ in every fillable position, and no two steps below that
   supply collide. Every other character of the form stands as itself.
 - **A form is given up only where its walk refuses far more than it
-  takes** (plan P4-D390). The walk of one form carries its place across
-  the column and tries one spelling more while the spellings it has
+  takes** (plan P4-D390). The walk of one form carries across the
+  column its place and how many spellings it has taken, and so does
+  G8.3a's walk of a form, for a number and for the other two classes
+  alike; it tries one spelling more while the spellings it has
   refused number fewer than those it has taken plus 4,096 -- `steps <
   2 * taken + 4096` -- and never past the form's own supply. A label
   the form cannot then supply is `group-N`, as where the census names
