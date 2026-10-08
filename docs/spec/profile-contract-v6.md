@@ -6569,11 +6569,16 @@ to its fewest -- below it only where the count leaves the body a few days
 or none beside the two tails' fewest -- while the high tail keeps the
 days it drew, except where the pass takes more than a quarter of the
 body's drawn days and it gives some up too. Where they fall short it
-SPLITS ranks onto free days, nearest first, then the lower rank: the low
-tail reaches its most at all but a tenth of seeds, while a body rank one
-day from a free day splits before any high tail rank whose free day is
-further, so the high tail keeps the days it drew unless the body's
-nearer splits run out first. Where the pass merges, each count rule
+SPLITS ranks onto free days, nearest first, then the lower rank: a body
+rank one day from a free day splits before any high tail rank whose free
+day is further, so the high tail keeps the days it drew unless the
+body's nearer splits run out first; and the low tail comes first at each
+distance, but like the high tail it keeps only the splits the body's
+nearer ones leave it: on Monday-to-Friday logs, whose free days are at
+the weekend, it ended below its most at two seeds or more on 10 of 272
+censuses of logs just above one row an open day and 64 of 125 of the
+fresh logs P4-D388 measures where the pass split, none of them costing
+the count. Where the pass merges, each count rule
 reads the tails at all but a tenth of seeds: the reach rule the FEWEST
 they keep, the low tail at its fewest beside the days the high tail
 draws, and the room rule the MOST, the days the two tails draw with no

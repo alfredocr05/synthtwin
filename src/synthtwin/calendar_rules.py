@@ -2005,11 +2005,16 @@ def tails_kept(
     days (`_side_counted`), and the high tail's are the highest, so it
     keeps the days it drew -- each with the measured exceptions below.
     Where they fall short it SPLITS ranks onto free days, nearest first,
-    then the LOWER rank: the low tail comes first at each distance and
-    reaches its most (`tails_most_rebuilt`) at all but a tenth of seeds,
-    but a body rank one day from a free day splits before any high tail
-    rank whose free day is further, so the high tail keeps the days it
-    drew unless the body's nearer splits run out first. So, merging, the
+    then the LOWER rank: a body rank one day from a free day splits before
+    any high tail rank whose free day is further, so the high tail keeps
+    the days it drew unless the body's nearer splits run out first; and
+    the low tail comes first at each distance, but like the high tail it
+    keeps only the splits the body's nearer ones leave it: on
+    Monday-to-Friday logs, whose free days are at the weekend, it ended
+    below its most (`tails_most_rebuilt`) at two seeds or more on 10 of
+    272 censuses of logs just above one row an open day and 64 of 125 of
+    fresh logs where the pass split, none of them costing the count (plan
+    P4-D388). So, merging, the
     FEWEST is the low tail's fewest and the least count
     the high tail draws with a chance above `KEPT_MISS` of drawing no
     more; and the MOST counts no merge at all -- the least count the two
@@ -2100,11 +2105,16 @@ def count_reach_short(
     fall short of the count, the pass only SPLITS, moving ranks that share
     a day onto days no rank holds -- a tail's ranks onto free days of
     their own spans -- nearest first, then the lower rank, and the rule
-    reads the tails at their most: the low tail, the column's lowest
-    ranks, reaches it at all but a tenth of seeds, and the high tail where
-    the body's nearer splits run out first -- one row a business day over
+    reads the tails at their most, which the high tail reaches where the
+    body's nearer splits run out first -- one row a business day over
     four and a half years draws about 830 of its 1,180 days and comes back
-    holding every one.
+    holding every one -- and the low tail, the column's lowest ranks,
+    comes first at each distance, but like the high tail it keeps only the
+    splits the body's nearer ones leave it: on Monday-to-Friday logs,
+    whose free days are at the weekend, it ended below its most at two
+    seeds or more on 10 of 272 censuses of logs just above one row an open
+    day and 64 of 125 of fresh logs where the pass split, none of them
+    costing the count (plan P4-D388).
     Otherwise it MERGES, and merging only takes days away: the body keeps
     no more than its draw, and the tails no fewer than `fewest`. So the
     body's NEED is what the tails at their most leave it, and, where its
