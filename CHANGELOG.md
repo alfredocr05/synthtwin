@@ -6,29 +6,77 @@ exists).
 
 ## [Unreleased]
 
-### Above the floor of 11 a weekday census no longer leaves a twin with too many different days (2026-10-05)
+### A weekday census is withheld where the twin's count of different values has no room for it (2026-10-05)
 
 **Landing 3b.D1b** (plan P4-D388, `K-S3-59`). At a raised floor a tail
 that publishes its two distances is rebuilt with up to the floor's
 number of different days, the count pass leaves the body what is left
 of the column's count, and a published weekday census then asked the
 body for more days than that: D0's repair found twins at the floor of
-36 holding more different values than their column. Above the floor of
-11 the producer now withholds the census where the column's different
-days, less the most the twin's tails can hold, leave the body less room
-than the census needs between its pins
-(`calendar_rules.count_room_short`, with `body_pins` and `tails_most`),
-said in NF74's one sentence. On the 26 date batteries of D0's identity
-run (4,781 tables, seeds 0 to 4) the twins left long by their census
-fall from 86, 87 and 158 at the floors of 20, 36 and 50 to none, no
-twin misses a check its 493f6f8 twin met, and nothing moves at 11 and
-below. The price: 189, 84 and 110 censuses withheld, 166, 65 and 76 of
+36 holding more different values than their column. The producer now
+withholds the census where the column's different days, less the most
+the twin's tails can hold, leave the body less room than the census
+needs between its pins (`calendar_rules.count_room_short`, with
+`body_pins` and `tails_most`), said in NF74's one sentence. On the 26
+date batteries of D0's identity run (4,781 tables, seeds 0 to 4) the
+twins left long by their census fall from 86, 87 and 158 at the floors
+of 20, 36 and 50 to none, and no twin misses a check its 493f6f8 twin
+met. The price: 189, 84 and 110 censuses withheld, 166, 65 and 76 of
 them met by their twins, where thresholds scaled with the census line
 withheld 618, 509 and 553. At its review a room equal to the need
 publishes the census again: 19 at the floor of 20 and one at 50, every
-twin of which met it. `tests/test_stage3b_count_room.py` holds the
-rule, its scope at the floors of 11 and 12, and its pins against the
-generator's own.
+twin of which met it.
+
+**At every floor, and either way** (its Codex review, items 1 and 2).
+The rule was asked above the floor of 11 alone, and a column it
+withholds at 12 with one cell moved published its census at 11 and left
+a twin 27 different values for 24 at seed 17: it is asked at every
+floor now, and withholds 15 more censuses of the batteries at 11, every
+twin of which met them. And a rebuilt tail can hold FEWER days than the
+real one: fourteen days from 29 January 2024 whose high tail the twin
+rebuilds on three days where the real one held four came back with 11
+different values for 12 at every seed, the census keeping the body off
+the empty weekend that would have made the day up. The producer now
+withholds a census where it keeps the body from the days the count
+leaves it (`calendar_rules.count_reach_short`): the tails at their most
+where the twin's count pass only splits, and where the pass merges, the
+days the body drew, no more than the tails at their fewest leave
+(`tails_fewest` and `tails_most_rebuilt`, method G7.3b written a second
+time beside the generator's and held equal to it). On the batteries it
+withholds 3, 2, 2 and 3 censuses at 11, 20, 36 and 50, every one that
+left its twins a value short and no other; over 2,000 short spans 0, 2,
+4 and 2 at 11, 21, 36 and 50, every one short; over 25 weekday-only
+logs 6 of 83, one short and five met; and a log of about two rows a
+business day over two years at every floor, its twins meeting it. That
+is its price, and it falls on columns holding a row on every day their
+census allows, where it reads every merge the twin's count pass may
+make as taken from the tails: of the censuses 4a4b901 published, each
+log at the floors of 11 and 20, it withholds 21 of 52 over 28
+Monday-to-Friday logs holding every business day, 18 of them met by
+their twins, and 10 of 47 over 24 clinics holding every Monday,
+Wednesday and Friday, 9 of them met, but 2 of 72 over 36 such
+business-day logs with the federal holidays closed and none of 51 over
+28 whose rows a day are Poisson draws. One row a business
+day keeps its census at every floor, as the gate requires: reading the
+tails at their fewest whatever the draw, as the repair first did,
+withheld it. At a million rows the description takes what it took
+(54.5 s against 59.7 s), and a column whose two tails tie 200,000 rows
+on a day each, whose twin held 524 different values for 541 beside its
+census, keeps all 541 without it.
+
+**What is claimed is what was measured** (its Codex review, item 3).
+`K-S3-59`'s name, this entry's heading and the tests' opening lines said
+every census published keeps its twins' count, and fifteen Mondays at
+the floor of 36 say otherwise: they come back with 33 different values
+for 15 with or without their census, their tails rebuilt long whatever
+it says, and the twin's report and validation name that inside the
+window its tails allow -- a stated limit the count rules do not claim
+to repair.
+`tests/test_stage3b_count_room.py` holds both rules, their scope, the
+copy of G7.3b against the generator, Codex's three columns and that
+limit, and, since an extra review of the lane, the producer's call on
+columns whose two tails, and whose days and published count, tell them
+apart.
 
 ### Mostly whole columns walked, and large tables read, without the square of their rows (2026-10-05)
 
