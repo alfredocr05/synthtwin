@@ -2047,8 +2047,8 @@ contract:
    widening it to arbitrary strings would be exactly the hole that lets
    a source-derived value into a sentence and be rebuilt successfully.
 
-**The census.** The table holds 85 forms and 104 argument positions.
-Of those, 77 are whole numbers, 5 are package words, 17 are nested
+**The census.** The table holds 87 forms and 106 argument positions.
+Of those, 79 are whole numbers, 5 are package words, 17 are nested
 forms, and 5 are bound affix strings. No position is a string of any
 other kind. The weekday census (landing 3b.1, plan P4-D355) added the
 eleven forms NF68 to NF78 and seven whole-number positions, each the
@@ -2057,7 +2057,8 @@ those positions (plan P4-D359), and the weekday guard drop a fourth,
 `weekday_census_withheld_too_few_repeats`, with another (plan P4-D365);
 plan P4-D357 A added the
 eight forms NF79 to NF86 and no position, and plan P4-D356 the form NF87
-and no position.
+and no position. Landing 3b.5 (plan P4-D373) added NF106 and NF107 and
+two whole-number positions, each the census line.
 
 **Thirteen of the seventeen nested positions carry a whole number
 instead, and which of the two they carry is decided by the floor.**
@@ -2097,8 +2098,8 @@ shipped. `tests/test_p4d334_sentence_arguments.py` re-measures the
 class over a committed battery, so it is a number a reader can run.
 
 So every argument position of every form is bound to WHAT IT IS, and
-the table below is closed over all 104 of them exactly as the form table
-is closed over the 85 forms. A position nobody bound is a number a
+the table below is closed over all 106 of them exactly as the form table
+is closed over the 87 forms. A position nobody bound is a number a
 sentence may print that no rule governs, and a producer that adds one
 is a producer this contract does not describe. The bindings are these:
 
@@ -2273,12 +2274,14 @@ and why the sentence that cannot be withdrawn now has NF61 to say.
 | `weekday_census_counts_the_weekend_together` | 1 | setting (census line) |
 | `weekday_census_shows_no_count_below_the_line` | 1 | setting (census line) |
 | `weekday_census_withheld_could_be_narrowed` | 1 | setting (census line) |
+| `clock_census_left_out_beside_the_heaps` | 1 | setting (census line) |
+| `clock_codes_written_back` | 1 | setting (census line) |
 | `said_read_as_dates` | 1 | floored against `n_present` |
 | `said_read_as_dates` | 2 | package word |
 | `said_written_as_numbers` | 1 | sum `n_numeric` + `n_out_of_range` + `n_contradictory` |
 | `said_written_as_numbers` | 2 | key `n_present` |
 
-**Two of those 95 positions are stated here and emitted by no producer
+**Two of those 106 positions are stated here and emitted by no producer
 this version ships**: argument 1 of `remark_every_number_is_different`
 and of `remark_every_value_is_different`, which
 `tests/test_p4d27_note_grammar_matches_the_code.py` carries as named
@@ -3659,7 +3662,7 @@ names:
 
 | id | statement |
 |---|---|
-| NG14 | the form is one of the 85 in section 4.5.1 |
+| NG14 | the form is one of the 87 in section 4.5.1 |
 | NG15 | the argument count equals that form's arity |
 | NG16 | every argument is of one of C6-119's four classes |
 | NG17 | re-rendering the form with those arguments writes the leaf's text character for character |
@@ -4016,6 +4019,15 @@ back-solve beside the sentence correctly assumed they did not.
 <!-- anchor 3b-T2 (P4-D371) -->
 <!-- anchor 3b-T3 (P4-D372) -->
 <!-- anchor 3b-C1 (P4-D373) -->
+
+**NF106. `clock_census_left_out_beside_the_heaps` — a clock census left out** — arity 1 (landing 3b.5, plan P4-D373). A publication note, carried by a column of clock times whose BODY -- its cells between the two tail boundaries, both included, or every parsed cell where it has no tails -- holds one to the census line less one cells on no heap: `clock_census` is `[]` beside the heaps, so no count below the line is printed. Where no cell is left beside the heaps the census is `[]` and nothing is said. Argument 1: the census line.
+
+> how many of this column's times fall in each ten-minute stretch of the day is not counted: beside the times many rows share, fewer than «1» of the values it would count are left, and no count below «1» is printed
+
+**NF107. `clock_codes_written_back` — codes among clock times, written back** — arity 1 (landing 3b.5). A remark, carried by a column of clock times that publishes `clock_codes`. Argument 1: the census line.
+
+> some cells of this column hold text that is not a time of day; each such text that at least «1» rows wrote is published with how many rows wrote it, and the twin writes it exactly that many times, as the table writes it
+
 <!-- anchor 3b-C2 (P4-D374) -->
 <!-- anchor 3b-G1 (P4-D375) -->
 <!-- anchor 3b-G3 (P4-D376) -->
@@ -4264,10 +4276,55 @@ a floor of eleven took `categorical`, 362 twin cells were written as
 text such as `94:29`, and `validate` exited 3. A column whose every
 level clears the floor keeps its list, and `--code` keeps it always.
 
+**`time_of_day` is asked before `categorical`** (landing 3b.5, plan
+P4-D373). Where rule 8 would claim a column -- no more different values
+than its ceiling -- and enough of its present cells are written as SOME
+clock to clear the parse line, rule 9 is asked first, and a column it
+reads is a column of clock times however few values it holds. Measured
+before (110cb46, a floor of eleven): shift starts, clinic slots, rounds
+and coded shifts took `categorical` at 1,000 rows, and eleven columns of
+a seventeen-column battery at 10,000; their rare times were written
+blank by the level pass or as made-up text of a clock's shape (`57:95`),
+42 to 107 cells a column at 1,000 rows and 309 to 3,047 at 10,000, so
+code reading the times ran on the table and raised on its twin. The
+values many rows share are published as heaps with their counts
+(`clock_heaps`, section 6.13), so the list a categorical reading gave is
+not lost; `--code` still reads the column as labels, and the questions
+file asks where both readings fit and the data does not settle which --
+where the times many rows share hold every cell of the column's body, so
+its census is empty and nothing was left out of it
+(`few-times-of-day-each-shared-by-many-rows`, answers `keep` and `code`):
+three shift starts are asked about, walk-ins at 10,000 rows, 700 times
+spread over the day, are not. AND THE LEVEL PASS KEEPS A CLOCK COLUMN A
+CLOCK COLUMN: where the levels below the floor no spelling of which a
+clock reader takes hold at most one present cell in fifty, and the
+column without exactly those cells reads as clock times, only those are
+counted missing and every rule reads the column again -- 296 shift
+starts beside four `UNK` are clock times with four cells absent, not
+labels whose twin reads back as clock times. It is asked of every first
+reading as labels or free text, not only where a level is counted out
+(the repair round of landing 3b.5): a column of `7:30 AM` beside 0.6 %
+`UNK` and 0.3 % `99:99` was free text at 300 and 1,000 rows at a floor
+of 36, and is clock times. AND WHERE THE PASS COUNTS LEVELS OUT OF A
+COLUMN WHOSE OTHER CELLS ARE A CLOCK'S, it counts out only the levels no
+spelling of which that clock's form reads -- words, and times of another
+precision or face -- and every rule reads the column again, the rare
+times of the form kept in (its second repair round): the column held to
+the labels with every level below the floor counted out had a twin, those
+cells blank, read back as clock times, so validation MISSED its role on
+32 of 48 columns of appointment times beside 2.2 to 10 % one-off notes
+and 23 of 64 beside a minority of `HH:MM:SS` or `h:mm AM`, and none now.
+Either route stands only where every rule then reads the column as clock
+times; where what it leaves is one time on every row but one, the pass
+counts out what it counts out of any labels, so no held-back pool of one
+row is published.
+
 **Why rules 9 through 12 sit after `categorical`.** They are tested
 last before the fallback, so they claim only columns every earlier rule
 declined; no column an earlier rule can claim is diverted into one of
-them, and no earlier rule's reach depends on them. Their internal order
+them, and no earlier rule's reach depends on them -- save the one
+exception above: since plan P4-D373 rule 9 is asked before rule 8 on a
+column rule 8 would claim, and only there. Their internal order
 is `time_of_day` before `affixed_number` — clock text rarely splits as
 an affixed number, but the time reading is the more specific claim —
 and `affixed_number` before `long_tail_labels`, because a distribution
@@ -8786,13 +8843,16 @@ minute, and on some columns a second. It is rule 9 of the order in
 section 5.2, tested after the categorical rule, so it claims only a
 column every earlier rule declined — in particular only one the
 datetime rule did not read, that rule running at 6 and reading a clock
-only as the tail of a date.
+only as the tail of a date — save a column the categorical rule would
+claim, of which it is asked first since plan P4-D373 (section 5.2).
 
 #### When a column takes this role
 
 **C6-10.** At least the parse-line count of the column's present cells
 match ONE clock form -- one of the two below, or one of the thirty-eight
-more C6-10a adds -- and no earlier rule claimed the column. The line is the count `minimum_parse_rate` fixes
+more C6-10a adds -- and no earlier rule claimed the column -- the
+categories rule excepted, which since plan P4-D373 is asked after this
+one wherever it would claim the column (section 5.2). The line is the count `minimum_parse_rate` fixes
 (section 4.4), applied as a COUNT and never as a compared share, so
 that no rounding of a division decides a role; the arithmetic of the
 count itself is section 4.5.2's.
@@ -8925,7 +8985,10 @@ All four are named residual R-P4-5.
 rows name fills them, and the loader refuses anything else. A
 description written before plan P4-D364 carries none of the five, and
 each absent one is read as `[]`, `clock_step` as `null` (C6-45a). Each
-landing restates its own rows below its own line.
+landing restates its own rows below its own line. Landing 3b.5 (plan
+P4-D373) fills four of them -- the step, the heaps, the census and the
+codes -- held to CC1 to CC5, CH1 and CH2; `minute_census` waits for its
+second step.
 
 <!-- anchor 3b-D1 (P4-D365) -->
 <!-- anchor 3b-D0 (P4-D366) -->
@@ -8939,10 +9002,10 @@ landing restates its own rows below its own line.
 
 | key | JSON type | permitted values | meaning | disposition |
 |---|---|---|---|---|
-| `clock_census` | array | `[]` | reserved for how many cells between the two tail boundaries fall on each group of ten-minute bins | LOADER-ONLY until landing 3b.5 fills it |
-| `clock_heaps` | array | `[]` | reserved for the clock values that stand out from their neighbours, each with its count | LOADER-ONLY until landing 3b.5 fills it |
-| `clock_step` | `null` | `null` | reserved for the step every value was written on | LOADER-ONLY until landing 3b.5 fills it |
-| `clock_codes` | array | `[]` | reserved for the codes the column writes among its clock values, each with its count | LOADER-ONLY until landing 3b.5 fills it |
+| `clock_step` | integer or `null` | a whole number of seconds dividing the dial (86,400, or 43,200 on the declared 12-hour face) and a whole number of the form's own unit | the step every parsed value stands on: the greatest common divisor of the dial and every value's second of it -- 60 on a column of minutes, 300 on a five-minute grid, 1 on a column of seconds; `null` on a block its producer was not asked for, every one written before landing 3b.5, and then the other three are `[]` (CC4) | EXACT-OBSERVABLE: every parsed cell of the file stands on it |
+| `clock_heaps` | array of `{value, count}` | `value` a time in `clock_form` on the step, ascending; `count` at least the census line | every step whose count over EVERY parsed cell -- the tails' too -- stands out from the five steps on each side of it: at least the census line and at least three times their median (`calendar_clock.heaps_on_the_step`, the day read as a line) | EXACT-OBSERVABLE: the file holds each value exactly that many times |
+| `clock_census` | array of `{first, last, count}` | ten-minute bins of the dial from `0`, covering every bin in order; each count nought or at least the census line | how many cells of the BODY -- between the two tail boundaries, both included, or every parsed cell where there are no tails -- that stand on no heap fall in each group of bins; the hours are merged first and the bins inside each hour group then (`calendar_clock.nested_groups`, both through `calendar_rules.merged_groups`); `[]` where nothing is left beside the heaps, or fewer than the census line (NF106) | EXACT-OBSERVABLE: the file's own body, less its cells on a heap, holds each group's count exactly |
+| `clock_codes` | array of `{spelling, count}` | a spelling `clock_form` does not read, in text order; `count` at least the census line | every such spelling at least the census line's rows wrote, with its count (NF107); the twin writes each that many times | EXACT-OBSERVABLE: the file holds each spelling exactly that many times |
 
 <!-- anchor 3b-C2 (P4-D374) -->
 
@@ -11408,6 +11471,49 @@ stands as itself. The form was built by removing every figure and
 letter before it was published, so nothing put back can be a fragment
 of any value.
 
+**A CLOCK'S FORM IS FILLED WITH CLOCK TIMES FIRST** (landing 3b.5, plan
+P4-D373; generation method G8.3). A form of an hour of one or two
+figures, a colon and two figures -- with a second pair after a colon,
+and a marker (`@@`, `&&`, `@.@.`, `&.&.`) after one space or none, or
+not -- is filled from its CLOCK SUPPLY first: every time of day it
+writes, hours 0 to 23 (one figure: 0 to 9) or, behind a marker, 1 to 12,
+each minute and second, both halves of a marked day. Its other
+spellings follow only past that supply, and the supply is still taken
+off the counter, never off a value. Measured before: a column of clock
+times beside 2 % words, read as labels, wrote its held-back times as
+`36:54` and `57:95` -- 241 of 300 twin cells, 547 of 1,000 -- which a
+`strptime` reading the times refuses; after, none. A form never holds a
+space (section 7.9), so a held-back `7:30 PM` has no form; since the
+repair round of landing 3b.5 the SHAPE such a level is written in where
+the census owes it none (below) keeps the space and the marker's marks,
+`%:%% @@`, and this supply fills it with times of its face -- measured,
+a column of `7:30 AM` read as labels beside 2 % `UNK` wrote 587 of 3,000
+twin cells `group-N`, and now none.
+
+**AND ONLY BELOW THE CLOCK LINE** (the repair round of landing 3b.5;
+generation method G8.3). The twin of a column of labels is described
+again by the producer's own rules, and filling every held-back level of
+a clock's form with a time could carry it across one of the two that
+read a column as clock times (section 5.2): its cells a clock reader
+takes reaching the clock line, or reaching it once the rare words beside
+them are counted out. A column of appointment times beside six `99:99`
+in 250 rows is labels -- 244 times, under the line of 248 -- and its
+twin, every held-back level a time, read back as clock times, so
+validation MISSED its role: 36 of 36 such small tables, and 23 of 80
+columns of times beside clock-shaped codes near the line. The clock
+supply is therefore spent only while the twin stays labels under both,
+and every later stand-in of a clock's form is filled figure by figure,
+stepping past any spelling a clock reader takes; a column declared
+`--code`, read as labels whatever its cells hold, has no such line.
+After: none of those twins is MISSED. HELD FOR ONE FORM (its second
+repair round): a reading as clock times takes the cells of one precision
+and one face, so the line holds only the clock times of the precision and
+face whose cells could reach it, and a stand-in of another is a time of
+its own form, never a rare word. Measured before: a label twin of 10,000
+rows half `HH:MM` and half `HH:MM:SS` wrote 204 made-up times a clock
+reader refuses, one of 100,000 rows beside 5 % `HH:MM:SS` wrote 2,003,
+and a free-text twin of 1,000 rows beside 5 % wrote 32; after, none.
+
 **A FREE-TEXT GROUP MAY TAKE A FORM OF ANY ADMITTED LENGTH, AND MUST
 BE ABLE TO.** A form fixes a length, so which lengths a group may be
 offered is the whole question. A group carrying a published length end
@@ -11454,7 +11560,11 @@ is written in the shape the published labels wear. That shape is a
 published fact already, because the labels are written byte for byte:
 the shape worn by the most published rows, with `&` where every
 spelling wearing it was lower case, provided the census names it in
-neither case and it reads as no number. Its spellings are spent on the
+neither case and it reads as no number. A clock time written with one
+space before its marker has no form, and its shape is the clock's form
+with the space and the marker's marks kept -- `%:%% @@` for `7:30 AM`,
+`%%:%%:%% &&` for `07:30:15 pm` -- which no census can name, since a
+form never holds a space (the repair round of landing 3b.5). Its spellings are spent on the
 LARGEST places the census owes nothing, and a large place paying a
 named form trades with single rows summing to it exactly where that
 lets the shape cover more rows — the named form keeps its count either
@@ -12374,6 +12484,17 @@ it answers to.
 <!-- anchor 3b-T2 (P4-D371) -->
 <!-- anchor 3b-T3 (P4-D372) -->
 <!-- anchor 3b-C1 (P4-D373) -->
+
+| id | statement | loader? |
+|---|---|---|
+| CC1 | the groups of `clock_census` cover the ten-minute bins of the dial from `0` in order, each exactly once | yes |
+| CC2 | every group of `clock_census` counts nought or at least `max(2, small_cell_floor)` | yes |
+| CC3 | the groups add up to the body less its cells on a heap: `P - low_tail.rows - high_tail.rows` (`P`, the parsed cells, where there are no tails) less the counts of the heaps between the two boundaries | yes |
+| CC4 | a block publishes a census, heaps or codes only beside a `clock_step`; the step divides the dial and is a whole number of the form's unit, and every clock value the block publishes -- the boundaries, a tail's values, the rungs and the heaps -- stands on it | yes |
+| CC5 | every group counting cells holds a step between the two boundaries that is no heap -- as many as it counts on a column whose values are all different -- and every boundary and published rung stands on a heap or in a group counting cells | yes |
+| CH1 | the heaps are times in `clock_form`, strictly ascending, each counting at least the census line; those beyond a boundary count no more together than that tail's rows and, where it lists its values, are among them; those between the boundaries count no more than the body | yes |
+| CH2 | the codes are spellings `clock_form` does not read, strictly in text order, each counting at least the census line, and together no more than `n_unparsed` | yes |
+
 <!-- anchor 3b-C2 (P4-D374) -->
 <!-- anchor 3b-G1 (P4-D375) -->
 <!-- anchor 3b-G3 (P4-D376) -->
@@ -12542,7 +12663,7 @@ month-first parsed.
 | NG11 | on `remark_affixed_numbers_may_be_codes`: argument 3 equals the named block's `n_affixed` |
 | NG12 | argument 1 is character-for-character that block's `affix_prefix` and argument 2 its `affix_suffix`, AT THOSE POSITIONS, not merely as members of the pair |
 | NG13 | on `remark_a_label_is_a_built_in_stand_in`: argument 1 is 1, 2 or 3 |
-| NG14 | for every form: one of the 85 the note grammar enumerates |
+| NG14 | for every form: one of the 87 the note grammar enumerates |
 | NG15 | the argument count equals that form's arity |
 | NG16 | every argument is of one of the four argument classes |
 | NG17 | re-rendering the form with those arguments writes the leaf's text character for character |
@@ -13085,10 +13206,10 @@ table means exactly what its disposition says.
 <!-- anchor 3b-T3 (P4-D372) -->
 <!-- anchor 3b-C1 (P4-D373) -->
 
-| `clock_census` | LOADER-ONLY (plan P4-D364): `[]` on every block, refused as anything else, and no output obligation until landing 3b.5 fills it |
-| `clock_heaps` | LOADER-ONLY (plan P4-D364): `[]` on every block, refused as anything else, and no output obligation until landing 3b.5 fills it |
-| `clock_step` | LOADER-ONLY (plan P4-D364): `null` on every block, refused as anything else, and no output obligation until landing 3b.5 fills it |
-| `clock_codes` | LOADER-ONLY (plan P4-D364): `[]` on every block, refused as anything else, and no output obligation until landing 3b.5 fills it |
+| `clock_census` | EXACT-OBSERVABLE (landing 3b.5, plan P4-D373; validation V5-C1): the file's own cells between the two PUBLISHED boundaries, both included -- every parsed cell, with no tails -- that stand on no published heap hold every group's count exactly. A MISSED line keeps its verdict and prints a group the file holds one to the line less one of as fewer than the line (plan P4-D347). The file's census is counted, never produced |
+| `clock_heaps` | EXACT-OBSERVABLE (V5-C2): the file holds each published value exactly its count of times, over every parsed cell |
+| `clock_step` | EXACT-OBSERVABLE (V5-C1): every parsed cell of the file stands on the published step; silent, it names no count, and filed only where the step is coarser than the form's own unit, which every value of the form stands on |
+| `clock_codes` | EXACT-OBSERVABLE (V5-C2): the file holds each published spelling exactly its count of times |
 
 <!-- anchor 3b-C2 (P4-D374) -->
 
@@ -13831,7 +13952,7 @@ this document, and the battery the plan requires turns red on it.
 | nothing-class blocks (`numeric_unrepresentable`, `identifier`, `free_text`) | lengths, word statistics, digit and code-alphabet counts, the whole-number test, the repetition multiset, on `numeric_unrepresentable` the whole-number and sign counts, on `free_text` the census of WRITTEN FORMS its cells wore (`shape_forms`), and on `identifier` the census of LAYOUTS (`layout_forms`, 7.12) and, by the owner's ruling of 2026-09-17, the literal PREFIX every cell of the column or of one named layout opens with (`layout_prefixes`, 7.12a, row 22) | no value, no spelling, no fragment of one but the prefix of row 22 — the form census included, whose every key is built from `%`, `@` and thirteen named marks -- characters no cell that has a form may contain, so a key can carry no letter and no figure of any cell; the multiplicity map publishes SIZES of unnamed groups under no floor, the form census under the floor with a `(withheld)` pool |
 | `empty` columns nobody declared | the absent SPELLINGS their cells wore and the two absence counts, exactly as any column that is not nothing-publishing | floor-governed |
 | `settings` | the rules the run applied, the floor's own value, how many values each declaration named, and which of THIS package's published words were among them | carries no cell, no column and no count of the table; a person's own spelling never enters |
-| `source.header_evidence`, `publication_notes[].note`, `detection_evidence`, `remarks` | sentences of the 85 closed forms: 104 argument positions, of which 77 are whole numbers, 5 package words, 17 nested forms and 5 bound affix strings | the whole numbers are counts the block beside them already publishes, EXCEPT the positions priced at rows 16 and 18 |
+| `source.header_evidence`, `publication_notes[].note`, `detection_evidence`, `remarks` | sentences of the 87 closed forms: 106 argument positions, of which 79 are whole numbers, 5 package words, 17 nested forms and 5 bound affix strings | the whole numbers are counts the block beside them already publishes, EXCEPT the positions priced at rows 16 and 18 |
 | `relationships` | nothing: eight nulls | — |
 
 ### 12.3 The rows, each priced
@@ -14895,10 +15016,10 @@ width at least ONE (`1`, `2`, `10`), a cell written as a whole number
 writing at least one figure (C6-29c). `(withheld)` is again the only
 non-numeric key permitted.
 
-### 14.8 The note grammar — 85 forms
+### 14.8 The note grammar — 87 forms
 
 Defined in 4.5.1, which is the authority on every rendering and every
-argument. 104 argument positions: 77 whole numbers, 5 package words, 17
+argument. 106 argument positions: 79 whole numbers, 5 package words, 17
 nested forms, 5 bound affix strings.
 
 > **THE CENSUS IS RECOMPUTED FROM THE CODE, NOT TAKEN FROM EITHER
@@ -15011,6 +15132,12 @@ nested forms, 5 bound affix strings.
 <!-- anchor 3b-T2 (P4-D371) -->
 <!-- anchor 3b-T3 (P4-D372) -->
 <!-- anchor 3b-C1 (P4-D373) -->
+
+| # | form | arity |
+|---|---|---|
+| NG106 | `clock_census_left_out_beside_the_heaps` | 1 |
+| NG107 | `clock_codes_written_back` | 1 |
+
 <!-- anchor 3b-C2 (P4-D374) -->
 <!-- anchor 3b-G1 (P4-D375) -->
 <!-- anchor 3b-G3 (P4-D376) -->

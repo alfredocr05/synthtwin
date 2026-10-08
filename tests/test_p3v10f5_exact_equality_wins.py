@@ -39,6 +39,7 @@ Every table here is built by the seeded neutral builders in
 `fixtures.py` (plan D13), and every description by the REAL producer.
 """
 
+import json
 import os
 import pathlib
 
@@ -250,11 +251,40 @@ def _described(
     return written, contract.load_profile(f"{written}")
 
 
+def _written_before_the_clock_census(written: pathlib.Path) -> contract.Profile:
+    """The description rewritten as one written before landing 3b.5, loaded.
+
+    THE CORNER IS SEEN THROUGH G7A.4's WINDOWS (plan P4-D373). Since that
+    landing a column of clock times publishes a step and a census, and
+    is laid by G7A.4b, whose rung windows are its census groups' and hold
+    their own values: measured on this table, no window of `seen_at` misses
+    the description's own value any more. A description written before it
+    publishes no step, and so no census, heap or code (CC4); its clock
+    column is laid by G7A.4 and checked on G12.10's and G12.11's windows,
+    the ones that reach the corner -- so the witness is kept on exactly
+    such a description, which this version still reads and checks.
+    """
+    document = json.loads(written.read_text(encoding="utf-8"))
+    for block in document["columns"]:
+        if "clock_step" in block:
+            block["clock_step"] = None
+            for key in ("clock_census", "clock_heaps", "clock_codes"):
+                block[key] = []
+    written.write_text(
+        json.dumps(document, indent=2, ensure_ascii=False) + "\n",
+        encoding="utf-8",
+        newline="\n",
+    )
+    return contract.load_profile(f"{written}")
+
+
 def _outcome(
-    folder: pathlib.Path,
+    folder: pathlib.Path, before: bool = False
 ) -> "tuple[validation.Outcome, contract.Profile]":
     table = fixtures.write(folder, "table.csv", _dated_table())
-    _written, description = _described(folder, table)
+    written, description = _described(folder, table)
+    if before:
+        description = _written_before_the_clock_census(written)
     return validation.measure(description, f"{table}"), description
 
 
@@ -316,8 +346,11 @@ def test_the_dated_table_s_times_reach_the_instant_envelope_corner(
     their last clock rung (`_within_clock`), so the two witnesses see
     different envelopes and neither stands in for the other. Measured at
     that merge: `seen_at` distinctness twice and `clock-ladder.p99`.
+
+    On the description as written before landing 3b.5 (plan P4-D373;
+    `_written_before_the_clock_census` says why).
     """
-    outcome, _description = _outcome(tmp_path)
+    outcome, _description = _outcome(tmp_path, before=True)
     outside = [
         check
         for check in outcome.checks
@@ -364,6 +397,9 @@ def test_the_table_its_own_description_came_from_misses_nothing(
     """The run a researcher makes first, end to end through the CLI."""
     table = fixtures.write(tmp_path, "table.csv", _dated_table())
     written, _description = _described(tmp_path, table)
+    # ...its description as written before landing 3b.5, whose clock
+    # column reaches the corner (`_written_before_the_clock_census`).
+    _written_before_the_clock_census(written)
     assert main(["validate", f"{written}", "--twin", f"{table}"]) == 0
     report = (tmp_path / "table-quality.txt").read_text("utf-8")
     assert "0  MISSED" in report

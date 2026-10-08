@@ -414,6 +414,15 @@ def test_item_7_a_declaration_needs_its_twelve_hour_face(
         }
     else:
         column["clock_form"] = f"{column['clock_form']}".replace(" twelve-hour", "")
+        # ...and since landing 3b.5 (plan P4-D373) its census of ten-minute
+        # bins with it, from the 12-hour dial's 72 to the 24-hour dial's 144
+        # (CC1), so the face is still the one thing wrong (the merge of
+        # landing 3b.5 beside this landing).
+        census = column["clock_census"]
+        if census:
+            last = census[len(census) - 1]
+            assert last["count"] == 0 and last["last"] == 71, last
+            last["last"] = 143
     said = gate._refusal(tmp_path, changed)
     assert contract.INVARIANTS["S8c"] in said, said
     assert "24-hour face" in said

@@ -116,7 +116,8 @@ calls are held by what they are handed or by where they run:
   of 668f276, which this guard read when they were the product.
 - `tests/test_stage4_linear_work.py` runs `exec(compile(tree, ...))`
   once, in `_mutated` (plan P4-D385), where `tree` is the syntax tree of
-  a shipped function -- `taxonomy._read_the_column` or
+  a shipped function -- `taxonomy._levels_counted_out`, where the level
+  pass looks its levels up since landing 3b.5, or
   `generation._label_content`, read by `inspect.getsource` from files
   this guard reads -- with one change of meaning made to it, to show
   that the comparison with the frozen texts breaks: a loop over
@@ -318,6 +319,10 @@ ROUTES_THAT_RUN_SOURCE = {
     # anchor 3b-T2 (P4-D371)
     # anchor 3b-T3 (P4-D372)
     # anchor 3b-C1 (P4-D373)
+    # The twenty-first file, landing 3b.5's census of a column of clock
+    # times (plan P4-D373): it runs the same oracle by path, as every file
+    # above does.
+    ("tools/reference/make_generation_branch_vectors_21.py", "runpy.run_path"): 1,
     # anchor 3b-C2 (P4-D374)
     # anchor 3b-G1 (P4-D375)
     ("tools/reference/make_generation_branch_vectors_14.py", "runpy.run_path"): 1,

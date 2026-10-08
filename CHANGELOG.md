@@ -19,6 +19,45 @@ and every refusal names the entry it named before. Section 6.6.2 of the
 contract counts the datetime block's added keys as twenty-eight and
 names `count_form` among them (review item 2).
 
+### Clock-only columns keep their time of day (2026-10-03)
+
+**A column of clock times is read as clock times, and its hour, heaps
+and codes come back** (plan P4-D373, stage 3b landing 3b.5). The clock
+reading is asked before the categories rule wherever that rule would
+claim the column, so shift starts, clinic slots and coded shifts are no
+longer labels whose rare times the twin wrote blank or as `57:95`;
+`--code` still reads them as labels, and the questions file asks where
+both readings fit. A clock block publishes the step its values stand on
+(`clock_step`), the values that stand out from their neighbours with
+their counts over every cell (`clock_heaps`), a census of ten-minute
+bins nested in hours over the rest (`clock_census`) and the codes at
+least the line's rows wrote (`clock_codes`); the twin lays its ranks on
+them, every rung its run holds pinned (method G7A.4b), and the checker
+counts them back (V5-C1, V5-C2). On seventeen battery columns at 1,000
+rows the hour of day came back 0.016 to 0.333 off and now 0.013 at most,
+at 10,000 rows 0.001 at most; every heap is exact; and no twin writes a
+cell a clock reader refuses where its table wrote a time. A label
+column's held-back levels of a clock's shape are written as clock
+times -- `7:30 AM` among them -- but only while its twin is still read
+back as labels, a line held for the one precision and face a reading as
+clock times takes: a column of appointment times beside six `99:99` in
+250 rows used to read back as clock times and fail its own check, and
+none of 36 such small tables or 80 columns beside codes near the line
+does now, nor does a twin half `HH:MM` and half `HH:MM:SS` write a
+made-up time (204 in 10,000 rows before). Where the level pass counts
+levels out of a column whose other cells are clock times -- a few rare
+words, one-off notes, times of another precision or face -- it counts
+out only what the clock's form does not read and the column is clock
+times, so its twin reads back the same way: 32 of 48 columns beside 2.2
+to 10 % one-off notes, past one cell in fifty, and 23 of 64 beside a
+minority of `HH:MM:SS` or `h:mm AM` failed their own check before, and
+none does now; where every rule would not then read what is left as
+clock times -- one time on every row, or on every row but one, or two
+times beside the notes -- the pass counts out what it always did. The
+clock-or-labels question is asked only of columns whose shared times
+hold every cell. `K-S3-48` and `K-S3-49` are new; vectors file 21
+freezes fifteen cases.
+
 ### A timestamp column's count pass stops rebuilding on every attempt (2026-10-03)
 
 **No published fact and no twin byte moves** (plan P4-D376, stage 3b

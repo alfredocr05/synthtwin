@@ -43,7 +43,7 @@ import sys
 
 import pytest
 
-from synthtwin import dialect, errors, sheetwriting, taxonomy, workbook
+from synthtwin import dialect, errors, generation, sheetwriting, taxonomy, workbook
 from tests import crosscheck
 from tests.test_workbook_dates import _oracle
 
@@ -574,12 +574,19 @@ def test_a_clock_column_holding_anything_else_reads_back_as_it_was_or_is_refused
 
 
 @pytest.mark.parametrize(
-    ("step", "role"), ((15, "time_of_day"), (60, "categorical"))
+    ("step", "role"), ((15, "time_of_day"), (60, "time_of_day"))
 )
 def test_a_clock_grid_keeps_its_levels_only_where_each_can_be_named(
     step: int, role: str, tmp_path: pathlib.Path
 ) -> None:
-    """A quarter-hour grid at 1,000 rows holds levels under the floor: clocks."""
+    """A quarter-hour grid at 1,000 rows holds levels under the floor: clocks.
+
+    AND SO DOES AN HOURLY GRID SINCE LANDING 3b.5 (plan P4-D373), whose
+    every level clears the floor and which was a list of labels until
+    then: the clock rule is asked before the categories rule wherever that
+    rule would claim a column of clock times, and the levels are published
+    as its heaps or its census groups, each with its count.
+    """
     draw = random.Random(14)
     cells = []
     for _row in range(ROWS):
@@ -779,7 +786,13 @@ def test_each_reading_withdrawn_brings_its_defect_back(
         trip = _trip(tmp_path / "at_midnight", cells)
         assert trip["column"]["n_unparsed"] == 6
         assert trip["twin_exit"] == 3
-    # The quarter-hour grid held to a list of labels again.
+    # The quarter-hour grid held to a list of labels again. SINCE LANDING
+    # 3b.5 (plan P4-D373) two more readings keep it whole: the clock rule
+    # is asked before the categories rule, and a held-back level of a
+    # clock's shape is written as a clock time. Measured at that landing:
+    # with this reading withdrawn alone the grid is clock times, and with
+    # the early clock rule withdrawn too it is labels whose twin passes;
+    # the defect comes back with all three withdrawn.
     draw = random.Random(14)
     grid = []
     for _row in range(ROWS):
@@ -789,6 +802,8 @@ def test_each_reading_withdrawn_brings_its_defect_back(
         patched.setattr(
             workbook, "stored_as_clocks", lambda *arguments: False
         )
+        patched.setattr(taxonomy, "_clock_spellings_reach", lambda cells: False)
+        patched.setattr(generation, "_clock_filled_form", lambda form, step: None)
         trip = _trip(tmp_path / "grid", grid)
         assert trip["column"]["role"] == "categorical"
         assert trip["twin_exit"] == 3
@@ -1407,7 +1422,11 @@ def test_a_clock_grid_beside_a_missing_word_still_reaches_the_clock_rule(
     read = _cells_read(trip["twin"])
     assert _kinds_read(read) == {"time": ROWS - 31, "str": 31}
     # ...and with the reading's set left out of the storage word, the
-    # defect is back.
+    # defect was back until landing 3b.5 (plan P4-D373), which asks the
+    # clock reading before `categorical` wherever that rule would claim
+    # the column. Merged beside it, this grid reads as clocks either way,
+    # and the set is held by the stop of the test above, whose described
+    # clocks beside `NA` are checked as numbers without it.
     shipped = workbook.stored_as_clocks
     monkeypatch.setattr(
         workbook, "stored_as_clocks",
@@ -1416,5 +1435,5 @@ def test_a_clock_grid_beside_a_missing_word_still_reaches_the_clock_rule(
         ),
     )
     trip = _trip(tmp_path / "without", cells, ("--smallest-group", "11"))
-    assert trip["column"]["role"] == "categorical"
-    assert trip["twin_exit"] == 3
+    assert trip["column"]["role"] == "time_of_day"
+    assert trip["twin_exit"] == 0

@@ -184,6 +184,28 @@ def edit(_column: str, **changes: object) -> Change:
     return change
 
 
+def on_the_other_face(_column: str, clock_form: str) -> Change:
+    """Write a clock column on the other face of the dial, its census carried with it.
+
+    Since landing 3b.5 (plan P4-D373) a column of clock times publishes a
+    census of ten-minute bins over its whole dial, 144 on the 24-hour
+    face and 72 on the 12-hour one (CC1), so a face moved alone breaks
+    CC1 before S8c is asked. The census's last group, a group of nought
+    past every value, ends at the new dial's last bin, so the face is the
+    one thing wrong (the merge of landing 3b.5 beside landing T1).
+    """
+    def change(document: Document) -> None:
+        block = at(document, _column)
+        block["clock_form"] = clock_form
+        census = block["clock_census"]
+        if census:
+            end = 71 if clock_form.endswith(" twelve-hour") else 143
+            last = census[len(census) - 1]
+            assert last["count"] == 0 and last["first"] <= end, last
+            last["last"] = end
+    return change
+
+
 def a_form_one_row_wore(_column: str) -> Change:
     """Read a column of stamps jointly, one value of it a whole date (RM3).
 
@@ -649,7 +671,7 @@ def battery() -> list[Mutation]:
             # writes `07:00` to `08:59`, which that face spells the same
             # way, so the form is the one thing wrong.
             "S8c", "a clock on the 12-hour face that nobody declared",
-            edit("seen_at", clock_form="hh-mm twelve-hour"),
+            on_the_other_face("seen_at", "hh-mm twelve-hour"),
         ),
         Mutation(
             # ...AND THE DECLARATION WITH NO 12-HOUR FACE BEHIND IT (the
@@ -1559,25 +1581,134 @@ def battery() -> list[Mutation]:
             names="heavy_dates",
         ),
         # -- 3b.C1 (P4-D373)
+        # The base's `seen_at` publishes a step of 60 seconds, no heap, no
+        # code, and a census of 214 body cells from bin 42 to bin 53.
         Mutation(
-            "R16", "a clock_census this version of synthtwin publishes none of",
-            edit("seen_at", clock_census=[{"first": 0, "last": 143, "count": 200}]),
-            names="clock_census",
+            "CC1", "a clock census leaving a ten-minute bin out",
+            edit(
+                "seen_at",
+                clock_census=[
+                    {"first": 0, "last": 41, "count": 0},
+                    {"first": 43, "last": 143, "count": 214},
+                ],
+            ),
         ),
         Mutation(
-            "R16", "a clock_heaps this version of synthtwin publishes none of",
-            edit("seen_at", clock_heaps=[{"value": "07:00", "count": 30}]),
-            names="clock_heaps",
+            "CC2", "a clock group of five",
+            edit(
+                "seen_at",
+                clock_census=[
+                    {"first": 0, "last": 41, "count": 0},
+                    {"first": 42, "last": 42, "count": 5},
+                    {"first": 43, "last": 143, "count": 209},
+                ],
+            ),
         ),
         Mutation(
-            "R16", "a clock_codes this version of synthtwin publishes none of",
-            edit("seen_at", clock_codes=[{"spelling": "not recorded", "count": 20}]),
-            names="clock_codes",
+            "CC3", "a clock census one cell short of its body",
+            edit("seen_at", clock_census=[{"first": 0, "last": 143, "count": 213}]),
         ),
         Mutation(
-            "R16", "a clock_step this version of synthtwin publishes none of",
-            edit("seen_at", clock_step=60),
-            names="clock_step",
+            "CC4", "a clock census beside no step",
+            edit("seen_at", clock_step=None),
+        ),
+        Mutation(
+            "CC4", "a step of two minutes beside rungs off it",
+            edit("seen_at", clock_step=120),
+        ),
+        Mutation(
+            "CC5", "a clock group counting cells below the low boundary",
+            edit(
+                "seen_at",
+                clock_census=[
+                    {"first": 0, "last": 40, "count": 11},
+                    {"first": 41, "last": 143, "count": 203},
+                ],
+            ),
+        ),
+        Mutation(
+            "CH1", "a clock heap of seven",
+            edit("seen_at", clock_heaps=[{"value": "07:30", "count": 7}]),
+        ),
+        Mutation(
+            "CH2", "a clock code that reads as a time",
+            edit("seen_at", clock_codes=[{"spelling": "07:30", "count": 11}]),
+        ),
+        # ONE PER BRANCH (the 3b.5 skeptic's repair round, item 6): each of
+        # these reaches one raise and no other, so withdrawing that raise
+        # leaves the description loading and the entry red.
+        Mutation(
+            "CC4", "a step of ninety seconds, which no minute of the form is on",
+            edit("seen_at", clock_step=90),
+        ),
+        Mutation(
+            "CH1", "two clock heaps out of order",
+            edit(
+                "seen_at",
+                clock_heaps=[
+                    {"value": "08:00", "count": 11},
+                    {"value": "07:30", "count": 11},
+                ],
+                clock_census=[
+                    {"first": 0, "last": 41, "count": 0},
+                    {"first": 42, "last": 53, "count": 192},
+                    {"first": 54, "last": 143, "count": 0},
+                ],
+            ),
+        ),
+        Mutation(
+            "CH1", "a clock heap outside the boundaries, past its tail's rows",
+            edit("seen_at", clock_heaps=[{"value": "07:00", "count": 13}]),
+        ),
+        Mutation(
+            "CH1", "a clock heap in a tail that lists other values",
+            edit(
+                "seen_at",
+                low_tail={
+                    "boundary": "07:06",
+                    "rows": 12,
+                    "mean_distance": 3.5,
+                    "rms_distance": None,
+                    "values": ["07:00", "07:05"],
+                },
+                clock_heaps=[{"value": "07:02", "count": 11}],
+            ),
+        ),
+        Mutation(
+            "CH1", "clock heaps between the boundaries past the body's cells",
+            edit(
+                "seen_at",
+                clock_heaps=[{"value": "08:00", "count": 215}],
+                clock_census=[],
+            ),
+        ),
+        Mutation(
+            "CH2", "a clock code below the census line",
+            edit("seen_at", clock_codes=[{"spelling": "not recorded", "count": 2}]),
+        ),
+        Mutation(
+            "CH2", "clock codes past the cells no time reading took",
+            edit("seen_at", clock_codes=[{"spelling": "not recorded", "count": 11}]),
+        ),
+        Mutation(
+            "CC5", "a rung outside every group that counts cells",
+            edit(
+                "seen_at",
+                clock_census=[
+                    {"first": 0, "last": 41, "count": 0},
+                    {"first": 42, "last": 43, "count": 28},
+                    {"first": 44, "last": 44, "count": 20},
+                    {"first": 45, "last": 45, "count": 20},
+                    {"first": 46, "last": 46, "count": 40},
+                    {"first": 47, "last": 47, "count": 0},
+                    {"first": 48, "last": 48, "count": 20},
+                    {"first": 49, "last": 49, "count": 20},
+                    {"first": 50, "last": 50, "count": 19},
+                    {"first": 51, "last": 51, "count": 20},
+                    {"first": 52, "last": 53, "count": 27},
+                    {"first": 54, "last": 143, "count": 0},
+                ],
+            ),
         ),
         # -- 3b.C2 (P4-D374)
         Mutation(

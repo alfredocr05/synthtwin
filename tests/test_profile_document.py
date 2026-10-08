@@ -576,8 +576,20 @@ def test_nothing_that_varies_between_runs_is_written(
 # `forced_date_counts`, each empty, and `recorded_on`'s `count_form`, null;
 # the same document with those four taken out hashes to 3d2f5a31...bad62,
 # the digest on 110cb46. No other byte moves.
+# AND RE-RECORDED BY PLAN P4-D373 (landing 3b.5), read key by key against
+# a git archive of 110cb46: TWO KEYS MOVE, both on `seen_at`, the one
+# column of clock times -- `clock_step` null becomes 60, and `clock_census`
+# empty becomes twelve groups of ten-minute bins, two of nought around the
+# morning and ten counting the body's cells (28, 20, 20, 20, 20, 20, 20,
+# 19, 20 and 27). Its heaps and codes stay empty. No sentence and no other
+# key moves.
+# AND RE-RECORDED AT THE MERGE OF 3b.5 OVER THE SECOND KEY CUT (2026-10-08):
+# neither side's digest is the merged document's, as each carried only its
+# own half. Read key by key against the document on the tree before the
+# merge (1001bbca...d58d7c): the two keys of `seen_at` alone; against
+# 3b.5's own (eb810435...dd1c5a6): the second key cut's four keys alone.
 GOLDEN_SHA256 = (
-    "1001bbca5804af08a7a79c9023cb206b3c0af2d1dc0d93ba58d083abdef58d7c"
+    "b47ac3c0ac15616f1977c0345ce57bff5fd324a247fd0adf37436c05e08f3f64"
 )
 
 

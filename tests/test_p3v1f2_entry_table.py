@@ -794,6 +794,28 @@ def _registry_key(fact: str) -> str:
 _PART_ENDS = {"min": "percentiles.min", "max": "percentiles.max"}
 
 
+def _clock_census_table() -> str:
+    """1,200 clock times on a five-minute grid, two heaps and one code.
+
+    Landing 3b.5's binding table (plan P4-D373): `07:00` and `19:00` in a
+    fifth of the rows each, the rest on a five-minute grid from 06:00, and
+    `not recorded` in one row in a hundred -- so its block publishes a
+    step of 300 seconds, both heaps, the code and a census.
+    """
+    cells: "list[str]" = []
+    for index in range(1200):
+        if index % 100 == 7:
+            cells += ["not recorded"]
+        elif index % 5 == 1:
+            cells += ["07:00"]
+        elif index % 5 == 2:
+            cells += ["19:00"]
+        else:
+            minute = 360 + 5 * ((index * 37) % 168)
+            cells += [f"{minute // 60:02d}:{minute % 60:02d}"]
+    return fixtures.rows_to_csv(["shift"], [[cell] for cell in cells])
+
+
 def test_every_registry_fact_is_bound_to_one_of_the_three_kinds(
     tmp_path: pathlib.Path,
     runs: "list[tuple[str, contract.Profile, str]]",
@@ -840,9 +862,16 @@ def test_every_registry_fact_is_bound_to_one_of_the_three_kinds(
             )
         )
     )
+    # ...AND SO ARE A CLOCK COLUMN'S STEP, HEAPS AND CODES (landing 3b.5,
+    # plan P4-D373), by one more twin: the every-role clock writes minutes
+    # on a step of one minute and publishes no heap and no code, so those
+    # three checks are filed only where a column publishes them.
+    clocked = _described(tmp_path, _clock_census_table(), None, stem="clocked")
+    clocked_twin = rendering.twin_csv(generation.generate(clocked, SEED))
     for name, described, twin in runs + [
         ("spelled-codes", spelled, spelled_twin),
         ("workbook", booked, book.read_bytes()),
+        ("clock-census", clocked, clocked_twin),
     ]:
         outcome = _measured(tmp_path, described, twin, f"{name}.csv")
         for check in outcome.checks:
@@ -3459,6 +3488,22 @@ def _column_perturbations(
                 _clock_reformed(described, twin, index),
             ),
         ]
+        # -- 3b.C1 (P4-D373), its repair round. A FEW RARE WORDS BESIDE
+        # CLOCK TIMES ARE COUNTED MISSING, so one cell rewritten in a
+        # column of times -- a word, a bracketed or overflowing number --
+        # is counted back as an absent cell and moves neither the role
+        # nor a class count. The floor's worth of cells is the narrowest
+        # own-column edit that does: no longer rare, and more than the
+        # line leaves room for.
+        for tag, value in ONE_CELL_VALUES:
+            if tag in ("worded", "bracketed", "overflowed", "contradicted"):
+                built = built + [
+                    (
+                        f"floor-{tag}-{name}",
+                        CLASS_MANY_CELLS,
+                        _floor_cells(described, twin, index, value),
+                    )
+                ]
     if column.role == "datetime":
         # THE TWO EDITS EVERY RESOLUTION CARRIES, and they are chosen by
         # the resolution the description publishes rather than assumed
@@ -4861,13 +4906,18 @@ COVERING_RED_CASES: "dict[str, dict[str, tuple[tuple[str, str], ...]]]" = {
             ("renamed-seen_at", "position.at"),
             ("blanked-seen_at", "presence.n_present"),
             ("blanked-seen_at", "presence.n_missing"),
-            ("one-worded-seen_at", "axes.role"),
-            ("one-worded-seen_at", "axes.statistical_type"),
+            # THE FLOOR'S WORTH WHERE ONE CELL WAS (the repair round of
+            # landing 3b.5, plan P4-D373): a single word or number beside
+            # clock times is a rare word now, counted missing, so the
+            # role and the three class counts are reached by the floor's
+            # worth of cells, which no rare-word reading takes.
+            ("floor-worded-seen_at", "axes.role"),
+            ("floor-worded-seen_at", "axes.statistical_type"),
             ("emptied-seen_at", "axes.quality_state"),
-            ("one-bracketed-seen_at", "counts.n_numeric"),
+            ("floor-bracketed-seen_at", "counts.n_numeric"),
             ("blanked-seen_at", "counts.n_not_numeric"),
-            ("one-overflowed-seen_at", "counts.n_out_of_range"),
-            ("one-contradicted-seen_at", "counts.n_contradictory"),
+            ("floor-overflowed-seen_at", "counts.n_out_of_range"),
+            ("floor-contradicted-seen_at", "counts.n_contradictory"),
             ("rewritten-seen_at", "distinct.n_distinct"),
             ("rewritten-seen_at", "distinct.n_distinct_folded"),
             ("reformed-seen_at", "form.clock_form"),
@@ -4880,12 +4930,21 @@ COVERING_RED_CASES: "dict[str, dict[str, tuple[tuple[str, str], ...]]]" = {
             ("tail-piled-seen_at", "tails.low.rms_distance"),
             ("tail-piled-seen_at", "tails.high.mean_distance"),
             ("tail-piled-seen_at", "tails.high.rms_distance"),
-            ("crushed-seen_at", "clock-ladder.p10"),
+            # THE LOWEST RUNG ANSWERS TO THE HIGH PILE SINCE LANDING 3b.5
+            # (plan P4-D373). A column publishing a census is laid by
+            # G7A.4b, whose rung window is the rank's census GROUP, and
+            # the low pile keeps `p10`'s rank inside its group; the high
+            # pile carries it out, as it does a date ladder's lowest rung.
+            ("lifted-seen_at", "clock-ladder.p10"),
             ("crushed-seen_at", "clock-ladder.p25"),
             ("crushed-seen_at", "clock-ladder.p50"),
             ("crushed-seen_at", "clock-ladder.p75"),
             ("crushed-seen_at", "clock-ladder.p90"),
             ("tail-shifted-seen_at", "clock-ladder.p95"),
+            # THE CLOCK CENSUS (landing 3b.5, plan P4-D373): the edit that
+            # piles the body's cells low moves them into other ten-minute
+            # bins, and no tail edit is needed to reach it.
+            ("crushed-seen_at", "clock_census.groups"),
             ('quoted-seen_at', 'bytes.quoting'),
         ),
         "reading": (
@@ -6559,6 +6618,12 @@ SUBCHECK_FACTS: "dict[tuple[str, str], str]" = {
     # anchor 3b-T2 (P4-D371)
     # anchor 3b-T3 (P4-D372)
     # anchor 3b-C1 (P4-D373)
+    # THE CLOCK CENSUS (landing 3b.5): the body's cells counted against
+    # every published group at once. The step, heap and code checks are
+    # filed by no column of these fixtures -- the every-role clock writes
+    # minutes on a step of one minute and publishes no heap and no code --
+    # and are bound by the clock census table the binding test measures.
+    ("clock", "clock_census.groups"): "clock.clock_census",
     # anchor 3b-C2 (P4-D374)
     # anchor 3b-G1 (P4-D375)
     # anchor 3b-G3 (P4-D376)

@@ -493,6 +493,13 @@ def test_a_column_asking_for_more_times_than_a_day_holds_is_refused() -> None:
     column["n_distinct"] = 1441
     column["n_distinct_folded"] = 1441
     column["n_not_numeric"] = 1441
+    # ...and its census, heaps and step go (plan P4-D373), or the loader
+    # refuses the forgery for a census that no longer adds up (CC3) before
+    # the generator is ever asked.
+    column["clock_step"] = None
+    column["clock_census"] = []
+    column["clock_heaps"] = []
+    column["clock_codes"] = []
     folder = pathlib.Path(tempfile.mkdtemp())
     written = fixtures.write_profile(folder, "over.json", forged)
     loaded = contract.load_profile(f"{written}")

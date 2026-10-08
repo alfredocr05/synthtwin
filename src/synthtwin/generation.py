@@ -140,7 +140,7 @@ structure arrives in a later phase (Phase 5).
 
 import dataclasses
 import math
-from synthtwin import calendar_rules, contract, dialect, errors, parsing, taxonomy
+from synthtwin import calendar_clock, calendar_rules, contract, dialect, errors, parsing, taxonomy
 
 import numpy.random
 
@@ -796,6 +796,13 @@ class _ColumnPlan:
     # the day pass keeps every rank off them (review of landing 3b.1,
     # item 4; `calendar_rules.public_holes`).
     declared_days: "tuple[str, ...]" = ()
+    # THE CLOCK LINE A COLUMN OF LABELS IS HELD BELOW (the repair round of
+    # landing 3b.5, plan P4-D373; method G8.3): the parse rate the settings
+    # record, or None where no line is asked, and whether the column was
+    # declared `--code`, whose twin is read as labels whatever its cells
+    # read as.
+    parse_rate: "float | None" = None
+    code_declared: bool = False
 
 
 @dataclasses.dataclass(frozen=True)
@@ -17649,7 +17656,9 @@ class _ClockLayout:
     the low boundary at its rank, each published rung at `P * c / 100`, and
     the high boundary at `P - rows` of the high tail. `apart` says the
     column's values were all different, and `ramp` how many different
-    values a column with no tails spreads its ranks over.
+    values a column with no tails spreads its ranks over. `census` is what
+    a column publishing a `clock_step` is laid on (method G7A.4b, landing
+    3b.5), or None on a column laid as G7A.4 lays it.
     """
 
     parsed: int
@@ -17658,6 +17667,7 @@ class _ClockLayout:
     knots: "tuple[tuple[int, int], ...]"
     apart: bool
     ramp: int
+    census: "_ClockCensus | None" = None
 
 
 def _clock_tail_plan(
@@ -17733,6 +17743,35 @@ def _clock_layout(
     return layout
 
 
+@dataclasses.dataclass(frozen=True)
+class _ClockCensus:
+    """What a clock column publishing a step is laid on (method G7A.4b).
+
+    What landing 3b.5 adds to G7A.4's layout (plan P4-D373), carried as
+    the layout's `census`; the layout's `low` and `high` are then each
+    tail's whole plan, as the report and the windows read it. `stride` is
+    the step in the form's own unit. `blocks` are the body's stretches in
+    rank order (`calendar_clock.clock_body_blocks`) and `pins` the body
+    ranks that stand on a value of their own -- the two boundaries and
+    every published rung its run holds. Where a tail holds heaps,
+    `low_drawn` and `high_drawn` are the plans its other cells are drawn
+    through, and `low_heaped` and `high_heaped` the heaps' ordinals, one
+    per cell. `lows` and `highs` are every rank's window (G12.10), and
+    `codes` the codes with their counts.
+    """
+
+    stride: int
+    blocks: "tuple[calendar_clock.ClockBlock, ...]"
+    pins: "tuple[tuple[int, int], ...]"
+    low_drawn: "_TailPlan | None"
+    high_drawn: "_TailPlan | None"
+    low_heaped: "tuple[int, ...] | None"
+    high_heaped: "tuple[int, ...] | None"
+    lows: "tuple[int, ...]"
+    highs: "tuple[int, ...]"
+    codes: "tuple[tuple[str, int], ...]"
+
+
 def _clock_census_laid(
     column: contract.ColumnBlock,
     facts: contract.ClockFacts,
@@ -17741,15 +17780,440 @@ def _clock_census_laid(
 ) -> "_ClockLayout":
     """The layout of a column of clock times, laid on its census and heaps.
 
-    THE STUB OF LANDING 3b.5 (lane C1, plan P4-D373), which fills this
-    step and nothing beside it (plan P4-D364): until then no column
-    publishes `clock_census` or `clock_heaps`, and the layout is handed
-    back unchanged.
+    LANDING 3b.5 (lane C1, plan P4-D373; method G7A.4b). A description
+    publishing no step -- every one written before this landing, and every
+    block its producer was not asked for -- is laid exactly as G7A.4 lays
+    it, and the layout is handed back unchanged. Otherwise:
+
+    - each tail holding heaps is drawn as its heaps' cells, on their
+      values, beside its other cells drawn through the tail's shape at
+      the rows and the two distances left once the heaps are out
+      (`calendar_clock.tail_less_heaps`); a tail listing its values keeps
+      each heap's count and shares the rest by G7.3c over the values left;
+    - the body is laid by the rank rule (`calendar_clock.clock_body_blocks`):
+      every heap's ranks on its value, every group's count over its runs
+      by their steps, a run holding a boundary taking one cell first;
+    - the two boundaries and every published rung whose rank and value
+      lie in one run are pinned there.
 
     Guarantees: accepts the column, its facts, the floor and the layout;
-    returns the layout. Draws no word. Raises nothing. No I/O.
+    returns the layout, carrying its `census` where a step is published.
+    Draws no word. Raises ProfileError where the published counts cannot
+    be laid, which a description the loader accepted never is. No I/O.
     """
-    return layout
+    if facts.clock_step is None:
+        return layout
+    form = facts.clock_form
+    unit = parsing.clock_step(form)
+    stride = max(1, facts.clock_step // unit)
+    parsed = layout.parsed
+    capacity = parsing.CLOCK_CAPACITY[form]
+    heaps = tuple(
+        (_clock_ordinal_of(value, form), count) for value, count in facts.clock_heaps
+    )
+    tails: "tuple[int, int] | None" = None
+    body = (0, ((capacity - 1) // stride) * stride)
+    low_plan = layout.low
+    high_plan = layout.high
+    drawn: "list[_TailPlan | None]" = [None, None]
+    heaped: "list[tuple[int, ...] | None]" = [None, None]
+    if (
+        facts.low_tail is not None
+        and facts.high_tail is not None
+        and layout.low is not None
+        and layout.high is not None
+    ):
+        tails = (facts.low_tail.rows, facts.high_tail.rows)
+        body = (layout.low.boundary, layout.high.boundary)
+        plans: "list[_TailPlan]" = []
+        for place, side, tail, low_side in (
+            (0, layout.low, facts.low_tail, True),
+            (1, layout.high, facts.high_tail, False),
+        ):
+            mine = [
+                (at, count)
+                for at, count in heaps
+                if (at < body[0] if low_side else at > body[1])
+            ]
+            if not mine and (stride == 1 or tail.values is not None):
+                plans += [side]
+                continue
+            whole, kept, spots = _clock_tail_with_heaps(
+                side, tail, mine, floor, capacity, form, layout.apart, stride
+            )
+            plans += [whole]
+            drawn[place] = kept
+            heaped[place] = spots
+        low_plan, high_plan = plans[0], plans[1]
+    blocks = calendar_clock.clock_body_blocks(
+        parsed, tails, body, facts.clock_census, heaps, form, stride
+    )
+    windows = calendar_clock.clock_rank_windows(
+        parsed, tails, body, facts.clock_census, heaps, form, stride
+    )
+    if blocks is None or windows is None:
+        raise errors.ProfileError(_INTERNAL_CLOCK)
+    pins: "list[tuple[int, int]]" = []
+    if tails is not None:
+        pins += [(tails[0], body[0]), (parsed - 1 - tails[1], body[1])]
+        pins += _clock_rung_pins(facts, blocks, parsed, stride)
+    census = _ClockCensus(
+        stride=stride,
+        blocks=blocks,
+        pins=tuple(sorted(set(pins))),
+        low_drawn=drawn[0],
+        high_drawn=drawn[1],
+        low_heaped=heaped[0],
+        high_heaped=heaped[1],
+        lows=tuple(windows[0]),
+        highs=tuple(windows[1]),
+        codes=facts.clock_codes,
+    )
+    return _ClockLayout(
+        parsed, low_plan, high_plan, layout.knots, layout.apart, layout.ramp,
+        census,
+    )
+
+
+def _clock_rung_pins(
+    facts: contract.ClockFacts,
+    blocks: "tuple[calendar_clock.ClockBlock, ...]",
+    parsed: int,
+    stride: int,
+) -> "list[tuple[int, int]]":
+    """Each published rung pinned in its run (method G7A.4b, step 3).
+
+    The 3b.5 skeptic's MINOR 2: a published interior rung whose rank lies
+    in a run holding its value on the step stands on that value, as
+    G7A.4's knots pin a rung, so the ladder is met at its rank and not
+    only inside its group's span. A rung whose rank lies in a heap's
+    stretch, or whose value its run does not hold, is held by its group.
+
+    Guarantees: accepts the facts, the body's stretches, the parsed count
+    and the step in the form's unit; returns (rank, ordinal) pairs in
+    ladder order. Draws no word. Raises nothing. No I/O.
+    """
+    form = facts.clock_form
+    pins: "list[tuple[int, int]]" = []
+    for step in range(1, len(_PCT) - 1):
+        rung = facts.clock_percentiles[_LADDER_NAMES[step]]
+        if rung is None:
+            continue
+        rank = _rung_rank(_PCT[step], parsed)
+        value = _clock_ordinal_of(rung, form)
+        for block in blocks:
+            if (
+                not block.heap
+                and block.first_rank <= rank < block.first_rank + block.cells
+                and block.low <= value <= block.high
+                and (value - block.low) % stride == 0
+            ):
+                pins += [(rank, value)]
+    return pins
+
+
+def _clock_tail_with_heaps(
+    side: "_TailPlan",
+    tail: contract.TailFacts,
+    heaps: "list[tuple[int, int]]",
+    floor: int,
+    capacity: int,
+    form: str,
+    apart: bool,
+    stride: int,
+) -> "tuple[_TailPlan, _TailPlan | None, tuple[int, ...] | None]":
+    """One tail holding heaps, or on a step of more than one unit: its whole
+    plan, the plan its other cells are drawn through, and the heaps'
+    ordinals, one per cell (method G7A.4b) -- None where the whole plan is
+    fixed and nothing is drawn.
+
+    A tail LISTING its values gives each heap's value its count and the
+    rows left to the values left by G7.3c, against the sum its mean fixes
+    less the heaps'; its whole plan is then fixed, and nothing is drawn.
+    A tail drawn through its shape keeps the heaps' cells on their values
+    and draws the rest through the shape the rows, mean and root-mean-
+    square left give (`calendar_clock.tail_less_heaps`), IN STEPS: every
+    distance in units of the published step, the heaps' distances taken
+    out (`calendar_clock.off_the_heaps`), so each drawn cell stands on the
+    step and on no heap. Its whole plan's strata, in the form's own unit,
+    are the heaps' distances beside the drawn plan's, which is what the
+    report and the windows sum.
+    """
+    boundary = side.boundary
+    low_side = side.low_side
+    distance_of: "dict[int, int]" = {}
+    for at, count in heaps:
+        distance_of[boundary - at if low_side else at - boundary] = count
+    spots: "list[int]" = []
+    for at, count in heaps:
+        for _copy in range(count):
+            spots += [at]
+    if tail.values is not None:
+        ordered = list(tail.values)
+        if not low_side:
+            ordered = [ordered[place] for place in range(len(ordered) - 1, -1, -1)]
+        distances: "list[int]" = []
+        for value in ordered:
+            here = _clock_ordinal_of(value, form)
+            distances += [boundary - here if low_side else here - boundary]
+        rows_left = side.rows
+        total: "int | None" = None
+        if tail.mean_distance is not None:
+            total = _half_up(side.rows * tail.mean_distance)
+        free: "list[int]" = []
+        for distance in distances:
+            if distance in distance_of:
+                rows_left = rows_left - distance_of[distance]
+                if total is not None:
+                    total = total - distance_of[distance] * distance
+            else:
+                free += [distance]
+        shared = _values_counts(free, rows_left, total) if free else []
+        counts: "dict[int, int]" = {}
+        for place in range(len(free)):
+            counts[free[place]] = shared[place]
+        fixed: "list[int]" = []
+        labels: "list[str]" = []
+        for place in range(len(ordered)):
+            distance = distances[place]
+            many = distance_of[distance] if distance in distance_of else counts[distance]
+            for _copy in range(many):
+                fixed += [distance]
+                labels += [ordered[place]]
+        places = [boundary - d if low_side else boundary + d for d in fixed]
+        whole = _TailPlan(
+            side.rows, low_side, boundary, boundary, 1, 0, None,
+            tuple(fixed), tuple(places), tuple(labels), tuple(fixed),
+            tuple(fixed),
+        )
+        return whole, None, None
+    heaped: "list[tuple[int, int]]" = []
+    for distance in sorted(distance_of):
+        heaped += [(distance, distance_of[distance])]
+    rows_left, mean, root = calendar_clock.tail_less_heaps(
+        side.rows, tail.mean_distance, tail.rms_distance, heaped
+    )
+    kept: "_TailPlan | None" = None
+    near: "list[int]" = []
+    far: "list[int]" = []
+    skipped = [distance // stride for distance, _count in heaped]
+    if rows_left > 0:
+        # DRAWN IN STEPS WITH THE HEAPS' DISTANCES TAKEN OUT, so no drawn
+        # cell lands off the step or on a heap: the shape's two distances
+        # and its edge are counted in steps, the edge less the heaps
+        # inside it, and every distance it draws is read back past them.
+        edge = max(1, boundary if low_side else capacity - 1 - boundary) // stride
+        inside = len([distance for distance in skipped if distance <= edge])
+        shape = _tail_shape(
+            rows_left,
+            max(1.0, mean / stride),
+            max(1.0, root / stride),
+            floor,
+            max(1, edge - inside),
+            apart,
+            True,
+        )
+        closest, furthest = _tail_distance_bounds(shape)
+        kept = _TailPlan(
+            rows_left, low_side, boundary, boundary, stride, 0, shape,
+            (), (), (), tuple(closest), tuple(furthest),
+        )
+        near = [
+            stride * calendar_clock.off_the_heaps(value, skipped)
+            for value in kept.near
+        ]
+        far = [
+            stride * calendar_clock.off_the_heaps(value, skipped)
+            for value in kept.far
+        ]
+    for distance, count in heaped:
+        for _copy in range(count):
+            near += [distance]
+            far += [distance]
+    whole = _TailPlan(
+        side.rows, low_side, boundary, boundary, 1, 0, None,
+        (), (), (), tuple(near), tuple(far),
+    )
+    return whole, kept, tuple(spots)
+
+
+def _clock_census_content(
+    plan: "_ColumnPlan",
+    layout: "_ClockLayout",
+    census: "_ClockCensus",
+    words: "list[int]",
+) -> "tuple[list[str], list[Deviation]]":
+    """Every present cell of a census-laid column of clock times (G7A.4b).
+
+    EVERY RANK BETWEEN THE ENDS STILL READS ONE WORD, in rank order, as
+    G7A.4 reads them, so the budget planning set (`P - 2`) is spent
+    exactly. A tail without heaps is drawn as G7.3b draws it; a tail with
+    heaps stands its heaps' cells on their values and draws the rest
+    through its kept plan, the words of its ranks read from the outside
+    in. A body rank of a heap stands on it; a pinned rank on its value;
+    any other rank of a run stands at
+
+        steps[((r - a) * 2**64 + w) * |steps| // (n * 2**64)]
+
+    between the run's pins, which never goes down as the rank rises, so
+    every group, heap and boundary is met by construction. On a column
+    whose values were all different a run's ranks are stepped apart inside
+    it. A rank of a run on a spelling the table calls absent moves to the
+    nearest step of its run that is not one. Then the codes, each as many
+    times as it counts, and the other stand-ins of G7A.5.
+    """
+    column = plan.column
+    facts = column.facts
+    if not isinstance(facts, contract.ClockFacts):
+        raise _wrong_facts(column.name)
+    form = facts.clock_form
+    parsed = layout.parsed
+    stride = census.stride
+    word_of = [0 for _rank in range(parsed)]
+    for rank in range(1, parsed - 1):
+        word_of[rank] = words[rank - 1]
+    ordinals = [0 for _rank in range(parsed)]
+    if layout.low is not None and layout.high is not None:
+        for whole, kept, heaped in (
+            (layout.low, census.low_drawn, census.low_heaped),
+            (layout.high, census.high_drawn, census.high_heaped),
+        ):
+            mine: "dict[int, int]" = {}
+            if heaped is None:
+                if whole.shape is not None:
+                    for index in range(1, min(whole.shape.grouped, whole.rows)):
+                        mine[index] = word_of[_tail_rank_of(whole, parsed, index)]
+                spots = _tail_spots(whole, mine)
+                for index in range(whole.rows):
+                    ordinals[_tail_rank_of(whole, parsed, index)] = spots[index]
+                continue
+            stood = [at for at in heaped]
+            if kept is not None and kept.shape is not None:
+                for index in range(1, min(kept.shape.grouped, kept.rows)):
+                    mine[index] = word_of[_tail_rank_of(whole, parsed, index)]
+                skipped = sorted(
+                    {
+                        (whole.boundary - at if whole.low_side else at - whole.boundary)
+                        // kept.unit
+                        for at in heaped
+                    }
+                )
+                for distance in _tail_distances(kept.shape, mine):
+                    stood += [
+                        _tail_place(
+                            kept, calendar_clock.off_the_heaps(distance, skipped)
+                        )
+                    ]
+            stood = sorted(stood)
+            first = 0 if whole.low_side else parsed - whole.rows
+            for index in range(whole.rows):
+                ordinals[first + index] = stood[index]
+    pinned: "dict[int, int]" = {}
+    for rank, value in census.pins:
+        pinned[rank] = value
+    holes = _all_holes_of(plan)
+    for block in census.blocks:
+        start = block.first_rank
+        if block.heap:
+            for rank in range(start, start + block.cells):
+                ordinals[rank] = block.low
+            continue
+        units = (block.high - block.low) // stride + 1
+        knots: "list[tuple[int, int]]" = [(start * _WORD_SCALE, 0)]
+        for rank in range(start, start + block.cells):
+            if rank in pinned and not layout.apart:
+                knots += [(rank * _WORD_SCALE, (pinned[rank] - block.low) // stride)]
+        knots += [((start + block.cells) * _WORD_SCALE, units)]
+        places: "list[int]" = []
+        for rank in range(start, start + block.cells):
+            if rank in pinned:
+                places += [(pinned[rank] - block.low) // stride]
+                continue
+            position = rank * _WORD_SCALE + word_of[rank]
+            places += [min(units - 1, _clock_run_at(knots, position))]
+        if layout.apart:
+            for index in range(1, len(places)):
+                places[index] = max(places[index], places[index - 1] + 1)
+            for index in range(len(places) - 1, -1, -1):
+                ceiling = units - (len(places) - index)
+                if index + 1 < len(places):
+                    ceiling = min(ceiling, places[index + 1] - 1)
+                places[index] = max(0, min(places[index], ceiling))
+        taken: "dict[int, int]" = {}
+        for place in places:
+            taken[place] = (taken[place] if place in taken else 0) + 1
+        for index in range(len(places)):
+            rank = start + index
+            place = places[index]
+            if rank not in pinned and holes and _is_a_hole_spelling(
+                parsing.clock_spelling(block.low + place * stride, form), holes
+            ):
+                place = _clock_off_a_hole(
+                    place, units, block.low, stride, form, holes,
+                    taken if layout.apart else {},
+                )
+                taken[places[index]] = taken[places[index]] - 1
+                taken[place] = (taken[place] if place in taken else 0) + 1
+            ordinals[rank] = block.low + place * stride
+    cells: "list[str]" = []
+    for rank in range(parsed):
+        cells += [parsing.clock_spelling(ordinals[rank], form)]
+    used: "dict[str, int]" = {cell: 1 for cell in cells}
+    for spelling, count in census.codes:
+        for _copy in range(count):
+            cells += [spelling]
+        used[spelling] = 1
+    hole_spellings = _hole_spellings(column)
+    step = 1
+    while len(cells) < column.n_present:
+        candidate = _text_spelling(step, used, hole_spellings)
+        step = step + 1
+        if _reads_as_a_clock(candidate):
+            continue
+        if _is_a_hole_spelling(candidate, hole_spellings):
+            continue
+        cells += [_take(candidate, used)]
+    return cells, []
+
+
+def _clock_run_at(knots: "list[tuple[int, int]]", position: int) -> int:
+    """One run's step index read at one position, flooring between knots."""
+    for place in range(len(knots) - 1):
+        start, low = knots[place]
+        stop, high = knots[place + 1]
+        if position < stop or place == len(knots) - 2:
+            if stop <= start:
+                return low
+            share = min(max(position - start, 0), stop - start)
+            return low + (share * (high - low)) // (stop - start)
+    return knots[0][1]
+
+
+def _clock_off_a_hole(
+    place: int,
+    units: int,
+    low: int,
+    stride: int,
+    form: str,
+    holes: "tuple[str, ...]",
+    taken: "dict[int, int]",
+) -> int:
+    """The nearest step of a run whose spelling the table does not call
+    absent -- the earlier first at one distance, and on a column whose
+    values all differ one no other rank stands on -- or the same step
+    where the run holds none (method G7A.4b)."""
+    for away in range(1, units + 1):
+        for other in (place - away, place + away):
+            if other < 0 or other >= units:
+                continue
+            if other in taken and taken[other] > 0:
+                continue
+            if _is_a_hole_spelling(
+                parsing.clock_spelling(low + other * stride, form), holes
+            ):
+                continue
+            return other
+    return place
 
 
 def _clock_minutes_laid(
@@ -17851,6 +18315,9 @@ def _clock_content(
         raise _wrong_facts(column.name)
     form = facts.clock_form
     layout = _clock_layout(column, facts, plan.small_cell_floor)
+    # A column laid on its census, heaps and step (3b.C1, P4-D373).
+    if layout.census is not None:
+        return _clock_census_content(plan, layout, layout.census, words)
     parsed = layout.parsed
     ordinals = [0 for _rank in range(parsed)]
     taken = 0
@@ -27795,6 +28262,48 @@ def _held_back_debts(
     return tuple(found), tuple(wordy)
 
 
+def _clock_cells_counted(
+    timed: "dict[tuple[bool, str], int]", text: str, cells: int
+) -> None:
+    """Add ``cells`` cells of ``text`` to the tally of its clock key, if it has one.
+
+    Method G8.3's clock line counts a label column's published cells key
+    by key (`_clock_key`). Guarantees: changes ``timed`` alone. Raises
+    TypeError where ``text`` is not a string instance. No I/O of any kind.
+    """
+    key = _clock_key(text)
+    if key is not None:
+        timed[key] = (timed[key] if key in timed else 0) + cells
+
+
+def _stand_in_clock_keys(
+    count: int,
+    shared: "list[str]",
+    written_as: "dict[int, str]",
+    shaped_places: "dict[int, int]",
+    level_shape: str,
+) -> "dict[int, tuple[bool, str]]":
+    """The clock key of each stand-in whose form a time can wear (G8.3).
+
+    A stand-in's form is the one it was owed, or the shape of the
+    column's published labels where it was owed none and that shape is
+    spent on it -- the form `_made_up_label` fills; a stand-in written for
+    a class debt (G8.3a) holds a number and has none. Guarantees: a
+    function of the arguments, keyed by place. Raises nothing. No I/O.
+    """
+    keys: "dict[int, tuple[bool, str]]" = {}
+    for place in range(count):
+        if place in written_as:
+            continue
+        shape = shared[place]
+        if not shape and place in shaped_places:
+            shape = level_shape
+        key = _form_clock_key(shape)
+        if key is not None:
+            keys[place] = key
+    return keys
+
+
 def _label_content(
     plan: "_ColumnPlan",
     short: "list[int] | None" = None,
@@ -27827,6 +28336,12 @@ def _label_content(
     # where each walk of that supply stopped in this column.
     absorbed = 0
     flipped: "dict[tuple[str, str | None], int]" = {}
+    # HOW MANY OF THE CELLS WRITTEN BEFORE THE STAND-INS A CLOCK READER
+    # TAKES (the repair round of landing 3b.5, `_clock_line_room`),
+    # counted spelling by spelling as each is written -- and, since its
+    # second repair round, key by key (`_clock_key`): one reading as clock
+    # times takes the cells of one key.
+    timed: "dict[tuple[bool, str], int]" = {}
     for entry in facts.levels:
         covered = 0
         # ...AND HOW MANY OF THOSE CELLS ALREADY WEAR THE LABEL'S OWN
@@ -27839,6 +28354,7 @@ def _label_content(
             covered = covered + entry.variants[spelling]
             if parsing.shape_form(spelling):
                 covered_in_form = covered_in_form + entry.variants[spelling]
+            _clock_cells_counted(timed, spelling, entry.variants[spelling])
             used[spelling] = 1
             owners[parsing.folded(spelling)] = entry.label
         # WHICH HELD-BACK GROUPS KEEP THE LABEL'S WRITTEN FORM (method
@@ -27898,10 +28414,12 @@ def _label_content(
                     made_up = made_up + 1
                 cells += [variant for _row in range(rows)]
                 covered = covered + rows
+                _clock_cells_counted(timed, variant, rows)
         if covered < entry.count:
             cells += [entry.label for _row in range(entry.count - covered)]
             used[entry.label] = 1
             owners[parsing.folded(entry.label)] = entry.label
+            _clock_cells_counted(timed, entry.label, entry.count - covered)
     if made_up and not absorbed:
         notes += [
             _deviation(
@@ -28031,6 +28549,34 @@ def _label_content(
     # handed is copied once here, so nothing they were given changes
     # after they read it.
     cells = list(cells)
+    # THE CLOCK LINE THE TWIN IS HELD BELOW (the repair round of landing
+    # 3b.5, plan P4-D373; method G8.3, `_clock_line_room`): how many more
+    # cells may be written as clock times before the column is read back
+    # as clock times. A column declared `--code` is read as labels
+    # whatever its cells read as, so it has no such line.
+    #
+    # HELD KEY BY KEY (its second repair round): the producer reads the
+    # twin as clock times in ONE form, so only the keys whose cells could
+    # reach the line are held (`_clock_keys_held`), and a stand-in of any
+    # other key is a time of its own form, counted beside the published
+    # words and never as a rare word. Holding every clock cell together
+    # wrote about 2 % of a mixed-precision twin as made-up times -- 204
+    # cells of 10,000 rows half `HH:MM` and half `HH:MM:SS` -- where no
+    # form could have reached the line.
+    room: "int | None" = None
+    held: "dict[tuple[bool, str], bool]" = {}
+    keys_of: "dict[int, tuple[bool, str]]" = {}
+    if plan.parse_rate is not None and not plan.code_declared:
+        keys_of = _stand_in_clock_keys(
+            len(sizes), shared, written_as, shaped_places, level_shape
+        )
+        held, room = _held_clock_room(
+            timed, keys_of, sizes, len(cells), column.n_present,
+            plan.parse_rate,
+        )
+    # ...AND, ONCE THE NEXT TIME WOULD CROSS IT, EVERY LATER STAND-IN OF A
+    # HELD KEY'S FORM IS FILLED FIGURE BY FIGURE, on cursors of its own.
+    figures: "dict[str, int] | None" = None
     for place in range(len(sizes)):
         size = sizes[place]
         form = shared[place]
@@ -28038,12 +28584,18 @@ def _label_content(
             label = written_as[place]
             form = asked[place]
         else:
+            holding = place in keys_of and keys_of[place] in held
+            if room is not None and figures is None and size > room and holding:
+                figures = {}
             number, label = _made_up_label(
                 number, used, owners, form, plan.all_holes, walked,
                 level_shape if place in shaped_places else "",
+                figures if holding else None,
             )
             if not form and level_shape and _level_key(label) == level_shape:
                 kept = kept + 1
+        if room is not None and _clock_key(label) in held:
+            room = room - size
         # WHAT THE LABEL ACTUALLY WEARS, not what it was asked to wear
         # (review round 2 finding 12). The walk gives a form up when
         # its supply is spent or every spelling of it is refused, and
@@ -29423,8 +29975,12 @@ def _neediest_form(owing: "dict[str, int]") -> str:
     return sorted(ordered)[0][1]
 
 
-def _filled_form(form: str, step: int) -> str:
+def _filled_form(form: str, step: int, clocks: bool = True) -> str:
     """One spelling of one published form, stepped by ``step``.
+
+    ``clocks`` false fills a clock's form figure by figure, as every form
+    was filled before landing 3b.5: the walk past a label column's clock
+    line asks for it (`_clock_line_room`, method G8.3).
 
     THE FORM SAYS THE SHAPE AND THE STEP SAYS WHICH ONE. Every `9` of
     the form takes a figure and every `@` takes a letter; every other
@@ -29441,6 +29997,15 @@ def _filled_form(form: str, step: int) -> str:
     and the figures and letters put back here come from the step, which
     is a count of made-up values and not a reading of anything.
     """
+    # A FORM OF A CLOCK TIME IS FILLED WITH CLOCK TIMES (landing 3b.5, plan
+    # P4-D373): its first spellings are the times of day that form writes,
+    # each a time a clock reader takes, and only past them its other
+    # spellings. Measured before: 23 to 29 cells in 100 of a clock column
+    # read as labels came back as `36:54` or `57:95`.
+    if clocks:
+        clock = _clock_filled_form(form, step)
+        if clock is not None:
+            return clock
     figures = "0123456789"
     letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
     # A LOWER-CASE KEY IS FILLED IN LOWER CASE (plan P4-D121, audit
@@ -29466,6 +30031,263 @@ def _filled_form(form: str, step: int) -> str:
             continue
         spelling = spelling + character
     return spelling
+
+
+# THE MARKS A FORM OF A 12-HOUR CLOCK ENDS IN, as `parsing.shape_form`
+# writes them -- or as a census key writes an all-lower-case one -- with
+# the two words each stands for (landing 3b.5, plan P4-D373).
+_CLOCK_FORM_MARKS = (
+    ("@@", "AM", "PM"),
+    ("&&", "am", "pm"),
+    ("@.@.", "A.M.", "P.M."),
+    ("&.&.", "a.m.", "p.m."),
+)
+
+
+def _clock_filled_form(form: str, step: int) -> "str | None":
+    """One clock time of a form a clock time can wear, or None (G8.3).
+
+    Contract 7.9.1's clock supply (landing 3b.5, plan P4-D373).
+
+    A form is a clock's where it is an hour of one or two figures, a colon
+    and two figures, optionally a colon and two more, and optionally a
+    marker after one space or none (`_CLOCK_FORM_MARKS`). Its CLOCK
+    SUPPLY is every time it writes: hours 0 to 23 (one figure: 0 to 9), or
+    1 to 12 behind a marker (one figure: 1 to 9), each minute, each second
+    where it writes them, and both halves of the day where it is marked.
+    The step is moved around the form's whole room as `_filled_form` moves
+    it, and where it lands inside the supply -- the first steps always do
+    -- the time it names is written, stepped around the supply by the same
+    stride; past it, None, and the form's other spellings follow as before.
+
+    Guarantees: a function of the two; every spelling returned is read by
+    `parsing.clock_parts`. Raises nothing. No I/O of any kind.
+    """
+    body = form
+    marked = ("", "")
+    space = ""
+    for mark, morning, evening in _CLOCK_FORM_MARKS:
+        if len(body) > len(mark) and body[len(body) - len(mark) :] == mark:
+            body = body[: len(body) - len(mark)]
+            marked = (morning, evening)
+            if body[len(body) - 1 :] == " ":
+                body = body[: len(body) - 1]
+                space = " "
+            break
+    digit = parsing.SHAPE_DIGIT
+    shapes = {
+        digit + digit + ":" + digit + digit: (2, False),
+        digit + ":" + digit + digit: (1, False),
+        digit + digit + ":" + digit + digit + ":" + digit + digit: (2, True),
+        digit + ":" + digit + digit + ":" + digit + digit: (1, True),
+    }
+    if body not in shapes:
+        return None
+    figures, seconds = shapes[body]
+    first = 1 if marked[0] else 0
+    last = 12 if marked[0] else 23
+    if figures == 1:
+        last = 9
+    hours = last - first + 1
+    supply = hours * 60 * (60 if seconds else 1) * (2 if marked[0] else 1)
+    index = step % _form_room(form)
+    if index >= supply:
+        return None
+    place = _stepped_around(index, supply)
+    hour = first + place % hours
+    place = place // hours
+    minute = place % 60
+    place = place // 60
+    text = (f"{hour:02d}" if figures == 2 else f"{hour}") + f":{minute:02d}"
+    if seconds:
+        text = text + f":{place % 60:02d}"
+        place = place // 60
+    if marked[0]:
+        text = text + space + marked[place % 2]
+    return text
+
+
+def _clock_line_room(
+    present: int, rate: float, clocks: int, others: int, settled: bool
+) -> int:
+    """How many more cells a column read as labels may write as clock times (G8.3).
+
+    THE REPAIR ROUND OF LANDING 3b.5 (plan P4-D373; contract 7.9.1). The
+    twin of a column of labels is described again by the producer's own
+    rules, and two of them read a column as clock times: its cells a clock
+    reader takes reach the clock line (`taxonomy.clock_line`), or they do
+    once the rare words beside them -- below the floor, holding at most
+    one present cell in `taxonomy.RARE_WORDS_BESIDE_CLOCKS` -- are counted
+    out. Filling every held-back level of a clock's form with a time
+    crossed one or the other: an appointment column beside six `99:99` in
+    250 rows was labels and its twin read back as clock times, so the role
+    was MISSED (36 of 36 small tables measured). So the clock supply stops
+    where the next clock time would let either rule fire, and every later
+    stand-in of a clock's form is filled figure by figure.
+
+    ``present`` is the column's present cells; ``clocks`` and ``others``
+    the cells written before the stand-ins that a clock reader does and
+    does not take. ``settled`` says those others stand in levels at or
+    above the floor -- a label column's published levels -- and every
+    stand-in below it, so the answer is the largest number of stand-in
+    cells under which neither rule fires. Unsettled, as on free text,
+    where a level's size is not known until it is written, the answer
+    holds under ANY split of the other cells into rare and not: the
+    clock line of the column less the most the rare words may hold.
+
+    Guarantees: a function of the five; nought where no clock time may be
+    written, never negative. Raises TypeError where the rate is not a
+    float instance. No I/O of any kind.
+    """
+    share = taxonomy.RARE_WORDS_BESIDE_CLOCKS
+    if not settled:
+        most = taxonomy.clock_line(rate, present - present // share) - 1
+        return max(0, most - clocks)
+    stand_ins = max(0, present - clocks - others)
+    if not _clock_cells_stand(present, rate, clocks, others, stand_ins, 0):
+        return 0
+    # The rule is monotone in the cells taken -- fewer times is never read
+    # as a clock where more is not -- so the largest is found by halving.
+    low = 0
+    high = stand_ins
+    while low < high:
+        middle = (low + high + 1) // 2
+        if _clock_cells_stand(present, rate, clocks, others, stand_ins, middle):
+            low = middle
+        else:
+            high = middle - 1
+    return low
+
+
+def _clock_key(text: str) -> "tuple[bool, str] | None":
+    """Which clock reading takes one cell, or None where no clock reader does.
+
+    Its precision and its face as written (`parsing.clock_parts`): the
+    producer reads a column as clock times in ONE form, and the cells of
+    one key are the cells one such reading takes -- the hour's width does
+    not part them, since a column counts a cell of the other width into
+    its own (`parsing.clock_ordinal`). Method G8.3's clock line is held
+    per key (the second repair round of landing 3b.5).
+
+    Guarantees: a function of the text. Raises TypeError for anything that
+    is not a string instance. No I/O of any kind.
+    """
+    parts = parsing.clock_parts(text)
+    if parts is None:
+        return None
+    return (parts[3], parts[5])
+
+
+def _form_clock_key(form: str) -> "tuple[bool, str] | None":
+    """The key of the times a form's clock supply writes, or None (G8.3).
+
+    None where the form is empty or no clock time can wear it.
+    Guarantees: a function of the form. Raises nothing. No I/O.
+    """
+    if not form:
+        return None
+    time = _clock_filled_form(form, 0)
+    if time is None:
+        return None
+    return _clock_key(time)
+
+
+def _clock_keys_held(
+    potential: "dict[tuple[bool, str], int]", present: int, rate: float
+) -> "dict[tuple[bool, str], bool]":
+    """The keys a column of labels' twin could be read as clock times in (G8.3).
+
+    ``potential`` counts, key by key, the cells the published levels wrote
+    and the stand-in cells of a form whose times wear that key. A key is
+    HELD where that reaches the clock line of ``present`` less the most
+    the rare words beside it may hold (`taxonomy.RARE_WORDS_BESIDE_CLOCKS`),
+    the lowest line either of the producer's readings as clock times asks
+    for; no other key can reach either however its stand-ins are written,
+    so its stand-ins are times and are no rare words (the second repair
+    round of landing 3b.5). At the default parse rate of 0.99, and at any
+    above 0.52, at most one key is held, the one holding the most cells;
+    below that, every key held is held against the line together.
+
+    Guarantees: a function of the three. Raises TypeError where the rate
+    is not a float instance. No I/O of any kind.
+    """
+    line = taxonomy.clock_line(
+        rate, present - present // taxonomy.RARE_WORDS_BESIDE_CLOCKS
+    )
+    held: "dict[tuple[bool, str], bool]" = {}
+    for key in sorted(potential):
+        if potential[key] >= line:
+            held[key] = True
+    return held
+
+
+def _held_clock_room(
+    timed: "dict[tuple[bool, str], int]",
+    keys_of: "dict[int, tuple[bool, str]]",
+    sizes: "tuple[int, ...]",
+    written: int,
+    present: int,
+    rate: float,
+) -> "tuple[dict[tuple[bool, str], bool], int | None]":
+    """The keys G8.3's clock line holds, and the room it leaves (second repair round).
+
+    ``timed`` counts the cells the published levels wrote, key by key
+    (`_clock_key`); ``keys_of`` gives the key of each stand-in whose form
+    a time can wear (`_stand_in_clock_keys`), ``sizes`` every stand-in's
+    size, and ``written`` how many cells were written before them. A key
+    is held where its written cells and its stand-ins' reach the line
+    (`_clock_keys_held`). The room is `_clock_line_room` over the held
+    keys' written cells, every other written cell -- and every stand-in of
+    a key not held -- counted beside the published words: a time of its
+    own form, which no reading of the column as clock times takes and
+    which is never a rare word. Counted among the stand-ins instead, it
+    would stand for a rare word the producer never counts out, and the
+    room would let the twin cross the line it holds. No room where no key
+    is held: no stand-in can then carry the twin across.
+
+    Guarantees: a function of the arguments, ``held`` keyed in sorted
+    order. Raises TypeError where the rate is not a float instance. No
+    I/O of any kind.
+    """
+    potential: "dict[tuple[bool, str], int]" = {}
+    for written_key in timed:
+        potential[written_key] = timed[written_key]
+    for place in keys_of:
+        owed_key = keys_of[place]
+        potential[owed_key] = (
+            potential[owed_key] if owed_key in potential else 0
+        ) + sizes[place]
+    held = _clock_keys_held(potential, present, rate)
+    if not held:
+        return held, None
+    clocks = 0
+    for held_key in held:
+        clocks = clocks + (timed[held_key] if held_key in timed else 0)
+    others = written - clocks
+    for place in keys_of:
+        if keys_of[place] not in held:
+            others = others + sizes[place]
+    return held, _clock_line_room(present, rate, clocks, others, True)
+
+
+def _clock_cells_stand(
+    present: int, rate: float, clocks: int, others: int, stand_ins: int,
+    taken: int,
+) -> bool:
+    """Whether a twin of labels writing ``taken`` stand-in cells as times stays labels.
+
+    Neither of the producer's two readings as clock times fires: the
+    cells read as times stay below the clock line, and either the rare
+    words left -- the stand-in cells not written as times -- hold more
+    than one present cell in `taxonomy.RARE_WORDS_BESIDE_CLOCKS`, or the
+    cells left once they are counted out stay below the line too.
+    """
+    total = clocks + taken
+    if total >= taxonomy.clock_line(rate, present):
+        return False
+    if (stand_ins - taken) * taxonomy.RARE_WORDS_BESIDE_CLOCKS > present:
+        return True
+    return total < taxonomy.clock_line(rate, total + others)
 
 
 # How many spellings of one form a stand-in walk will try before it
@@ -30024,13 +30846,45 @@ def _level_key(spelling: str) -> str:
     `parsing.shape_form` of the spelling, with `&` in every letter place
     where every letter of it is lower case -- the key the census would
     give it if it named that shape -- and "" for a spelling with no form.
+
+    A CLOCK TIME WITH ONE SPACE BEFORE ITS MARKER KEEPS THE SPACE (the
+    repair round of landing 3b.5, plan P4-D373; contract 7.9.1). Such a
+    spelling has no form (section 7.9), so a column of `7:30 AM` read as
+    labels wrote every held-back time `group-N`: 632 of 3,000 twin cells
+    at a floor of 36. Its key is the clock's form with the space and the
+    marker's own marks -- `%:%% @@`, `%%:%%:%% &&`, `%:%% @.@.` -- which
+    no census names, since a census form never holds a space, and which
+    G8.3's clock supply fills with times of that face.
     """
     form = parsing.shape_form(spelling)
+    if not form:
+        parts = parsing.clock_parts(spelling)
+        if parts is not None and parts[5] in _SPACED_CLOCK_MARKS:
+            return (
+                parsing.SHAPE_DIGIT * parts[4]
+                + ":" + parsing.SHAPE_DIGIT + parsing.SHAPE_DIGIT
+                + (
+                    ":" + parsing.SHAPE_DIGIT + parsing.SHAPE_DIGIT
+                    if parts[3]
+                    else ""
+                )
+                + _SPACED_CLOCK_MARKS[parts[5]]
+            )
     if form and parsing.is_lower_case_text(spelling):
         lower = parsing.lower_case_form(form)
         if lower:
             return lower
     return form
+
+
+# THE FACE OF A CLOCK WRITTEN WITH ONE SPACE BEFORE ITS MARKER, as
+# `parsing.clock_parts` names it, and the marks its level key ends in.
+_SPACED_CLOCK_MARKS = {
+    " AM-PM": " @@",
+    " am-pm": " &&",
+    " A.M.-P.M.": " @.@.",
+    " a.m.-p.m.": " &.&.",
+}
 
 
 def _published_level_shape(
@@ -30259,8 +31113,15 @@ def _made_up_label(
     holes: "tuple[str, ...]",
     walked: "dict[str, int]",
     level_shape: str = "",
+    figures: "dict[str, int] | None" = None,
 ) -> "tuple[int, str]":
     """One label standing in for one that was held back (G8.3, P4-D18).
+
+    ``figures``, where given, is the cursor of each clock's form past the
+    column's clock line (`_clock_line_room`, the repair round of landing
+    3b.5): a form a clock time can wear is then filled figure by figure
+    from that cursor, every spelling a clock reader takes stepped past, so
+    the stand-in is never a time.
 
     WHERE THE COLUMN PUBLISHED THE FORMS ITS VALUES WERE WRITTEN IN,
     the stand-in is written in one of them. `group-14` is not a code:
@@ -30312,11 +31173,20 @@ def _made_up_label(
         # collision and its twin held `group-20101`. A shaped walk now
         # leaves `number` exactly where it found it.
         room = min(_form_room(form), _STAND_IN_STEPS)
-        if form not in walked:
-            walked[form] = 0
-        while walked[form] < room:
-            candidate = _filled_form(form, walked[form])
-            walked[form] = walked[form] + 1
+        # PAST THE CLOCK LINE A CLOCK'S FORM IS FILLED FIGURE BY FIGURE
+        # (the repair round of landing 3b.5), on a cursor of its own, and
+        # a spelling a clock reader takes is stepped past.
+        figured = figures is not None and _clock_filled_form(form, 0) is not None
+        cursor = walked
+        if figured and figures is not None:
+            cursor = figures
+        if form not in cursor:
+            cursor[form] = 0
+        while cursor[form] < room:
+            candidate = _filled_form(form, cursor[form], not figured)
+            cursor[form] = cursor[form] + 1
+            if figured and parsing.clock_parts(candidate) is not None:
+                continue
             if candidate in used or parsing.folded(candidate) in owners:
                 continue
             if not _is_a_usable_stand_in(candidate, holes):
@@ -37014,8 +37884,16 @@ def _text_cells(
     holes: "tuple[str, ...]" = (),
     truths: int = 0,
     floor: int = parsing.DEFAULT_SMALL_CELL_FLOOR,
+    parse_rate: "float | None" = None,
 ) -> "tuple[list[str], list[Deviation], tuple[int, int], list[Remark]]":
     """Every present cell of a column of free text (method G9.5).
+
+    ``parse_rate``, where given, is the clock line the twin is held below
+    (`_clock_line_room`, unsettled: a value's level is not known until it
+    is written), so a census form of a clock is filled with times only
+    while the twin would still be read back as free text -- each clock
+    key (`_clock_key`) against a line of its own, since one reading as
+    clock times takes the cells of one key.
 
     The text is MADE UP. This module never samples, quotes, templates
     from, or paraphrases source text, and no source text is available to
@@ -37130,6 +38008,17 @@ def _text_cells(
     # How many rows each parent's folded level covers so far, so the
     # preference reads the level rather than the pair.
     carried: "dict[int, int]" = {}
+    # THE CLOCK LINE (the repair round of landing 3b.5, plan P4-D373):
+    # how many cells of ONE clock key may be written as times -- each key
+    # its own, since one reading as clock times takes one key's cells and
+    # the cells of another are never rare words (`_clock_key`, the second
+    # repair round) -- how many each key has written, and which keys'
+    # forms are now filled figure by figure.
+    room: "int | None" = None
+    if parse_rate is not None:
+        room = _clock_line_room(sum(groups), parse_rate, 0, 0, False)
+    timed: "dict[tuple[bool, str], int]" = {}
+    figured: "dict[tuple[bool, str], bool]" = {}
     for index in range(total):
         partner = _partner_of(
             index, folded, spellings, families, used, windows,
@@ -37140,6 +38029,7 @@ def _text_cells(
             _settle(owing, taken, groups[index])
             _spend_length(budget, len(taken) - lengths[index], groups[index])
             spellings += [taken]
+            _clock_cells_counted(timed, taken, groups[index])
             continue
         kind = _CLASSES[kinds[index]]
         band = _BANDS[bands[index]]
@@ -37149,6 +38039,7 @@ def _text_cells(
             _settle(owing, taken, groups[index])
             _spend_length(budget, len(taken) - lengths[index], groups[index])
             spellings += [taken]
+            _clock_cells_counted(timed, taken, groups[index])
             continue
         # THE PRE-DECIDED ASK, RE-ASKED WHERE IT HAS GONE STALE. The
         # order-aware pass above cannot know which groups will take a
@@ -37179,6 +38070,15 @@ def _text_cells(
                 band,
             )
         key = f"{kind}/{band}/{lengths[index]}/{counts[index]}"
+        form_key = _form_clock_key(asked_form)
+        if (
+            room is not None
+            and form_key is not None
+            and form_key not in figured
+            and groups[index]
+            > room - (timed[form_key] if form_key in timed else 0)
+        ):
+            figured[form_key] = True
         # EVERY SPELLING THE TABLE READS AS ABSENT, not this column's
         # alone (plan P4-D158): the caller hands the document's declared
         # hole spellings beside the column's own.
@@ -37187,6 +38087,7 @@ def _text_cells(
             asks[index], states, used,
             asked_form,
             holes if holes else _hole_spellings(column),
+            form_key in figured,
         )
         if spelling is None:
             held = 0
@@ -37206,6 +38107,7 @@ def _text_cells(
         _settle(owing, spelling, groups[index])
         _spend_length(budget, len(spelling) - lengths[index], groups[index])
         spellings += [spelling]
+        _clock_cells_counted(timed, spelling, groups[index])
     # THE TWIN CAN REPROFILE INTO A DIFFERENT ROLE, AND NOW IT SAYS SO
     # (residual R-P4-36). A fold-collision partner folds onto its
     # parent, so the pair makes a level covering BOTH their rows -- and
@@ -39475,8 +40377,13 @@ def _made_up_cell(
     used: "dict[str, int]",
     form: str = "",
     holes: "tuple[str, ...]" = (),
+    figured: bool = False,
 ) -> "str | None":
     """One made-up cell of one class, one band and one length, or None.
+
+    ``figured`` fills a clock's form figure by figure, on a cursor of its
+    own, past the column's clock line (`_clock_line_room`, the repair
+    round of landing 3b.5): no spelling a clock reader takes is written.
 
     Each construction is class-preserving, and that is CHECKED here
     rather than assumed: what comes out reads back through the shipped
@@ -39515,6 +40422,10 @@ def _made_up_cell(
         # number or admitted form can hold a SPACE, so this one is
         # injective by inspection.
         shaped = f"{key} {form}"
+        figures = figured and _clock_filled_form(form, 0) is not None
+        if figures:
+            # A FORM HOLDS NO SPACE, so this key is no other form's.
+            shaped = f"{shaped} figures"
         if shaped not in states:
             states[shaped] = [0]
         # THE FORM IS AN ASK TOO, AND IT IS ASKED FIRST. Where the
@@ -39546,7 +40457,7 @@ def _made_up_cell(
         marked = shaped_state[0]
         found = _walked_cell(
             kind, band, length, words, letter, shaped_state, used, form,
-            holes,
+            holes, figures,
         )
         if found is not None:
             return found
@@ -39573,8 +40484,12 @@ def _walked_cell(
     used: "dict[str, int]",
     form: str = "",
     holes: "tuple[str, ...]" = (),
+    figures: bool = False,
 ) -> "str | None":
     """One pass of the family's walk, from where the last one stopped.
+
+    ``figures`` fills the form figure by figure and steps past every
+    spelling a clock reader takes (the repair round of landing 3b.5).
 
     The pass visits the family's indices in order and stops at the
     family's own size, which is settled before it begins. What it can
@@ -39605,7 +40520,9 @@ def _walked_cell(
         state[0] = state[0] + 1
         candidate: "str | None" = None
         if form:
-            candidate = _filled_form(form, index)
+            candidate = _filled_form(form, index, not figures)
+            if figures and parsing.clock_parts(candidate) is not None:
+                continue
         else:
             candidate = _family_at(kind, band, length, words, index)
         if candidate is None:
@@ -40995,6 +41912,8 @@ def plan_generation(profile: contract.Profile) -> GenerationPlan:
             _truth_cells(profile, place),
             _date_system_of(profile, place),
             profile.settings.declared_missing_values.built_in_dates,
+            profile.settings.minimum_parse_rate,
+            column.name in profile.settings.forced_codes,
         )
         plans += [plan]
         words = words + plan.content_words + plan.placement_words
@@ -41101,6 +42020,8 @@ def _plan_column(
     truths: int = 0,
     date_system: str = "",
     declared_days: "tuple[str, ...]" = (),
+    parse_rate: "float | None" = None,
+    code_declared: bool = False,
 ) -> "_ColumnPlan":
     """One column's plan: its word budget, its layout, its refusals."""
     facts = column.facts
@@ -41205,7 +42126,7 @@ def _plan_column(
         )
         cells, notes, carriers, remarks = _text_cells(
             column, groups, long_tail_line, _holes_reserved(column, all_holes),
-            truths, floor,
+            truths, floor, parse_rate,
         )
     elif isinstance(facts, contract.UnrepresentableFacts):
         groups = _groups_of(facts.n_distinct_by_occurrences)
@@ -41230,6 +42151,8 @@ def _plan_column(
         carriers=carriers,
         date_system=date_system,
         declared_days=declared_days,
+        parse_rate=parse_rate,
+        code_declared=code_declared,
     )
 
 
@@ -45743,6 +46666,15 @@ def _clock_windows(
     lows: "list[int]" = []
     highs: "list[int]" = []
     parsed = layout.parsed
+    # A column laid on its census, heaps and step carries its own windows
+    # (3b.C1, P4-D373; `calendar_clock.clock_rank_windows`).
+    census = layout.census
+    if census is not None:
+        for rank in range(held):
+            place = min(rank, max(parsed - 1, 0))
+            lows += [census.lows[place] if census.lows else 0]
+            highs += [census.highs[place] if census.highs else 0]
+        return (lows, highs)
     stepped = _body_bounds(layout)
     for rank in range(held):
         place = min(rank, max(parsed - 1, 0))

@@ -326,6 +326,16 @@ MEMBER_SUBCHECK = "format.member"
 # the wide list read 417, and set aside the frozen digests came back
 # character for character.
 WEEKDAY_CHECK = "recorded_on|datetime.weekday_census|weekday_census.groups"
+# ...and the ONE check landing 3b.5 added (plan P4-D373), set aside on the
+# same doctrine. The demonstration's one column of clock times publishes a
+# step of a minute and a census of ten-minute bins, and no heap and no
+# code, so the run counts the file's cells between the two tail boundaries
+# against every group at once: one check, on `seen_at` (a step of the
+# form's own unit files no check of its own, and no heap or code is
+# published to count). MEASURED before this entry was written: with it
+# left in the wide list read 417, and set aside both frozen digests came
+# back character for character.
+CLOCK_CENSUS_CHECK = "seen_at|clock.clock_census|clock_census.groups"
 # ...and the ONE check landing 2b.18 added (contract 7.12, plan
 # P4-D120), set aside on the same doctrine. The demonstration's
 # `record_code` column is a DECLARED identifier, so it now publishes a
@@ -677,7 +687,17 @@ NARROW_COLUMN_DIGESTS = {
     # it was a third one, measured on a tree that had no date and clock
     # tails, and neither branch's answer is this tree's.
     "dose": "f7c460e41b34314aa21372f2137cabf4",
-    "seen_at": "904896a1750543a4b2f419ddd8f160ed",
+    # RE-RECORDED AT LANDING 3b.5 (2026-10-03, plan P4-D373), `seen_at`
+    # ONLY. The demonstration's one column of clock times publishes a step
+    # of a minute and a census of ten-minute bins, so its body is laid by
+    # G7A.4b -- each group's count over its own bins, the boundaries and
+    # every rung its run holds pinned -- where G7A.4 spread it between the
+    # rungs. MEASURED against a git archive of 110cb46 at this seed: 132 of
+    # its 240 cells differ as written, it holds 122 different values as it
+    # did, its hours come back 120 at 07 and 118 at 08 as the real
+    # column's do (121 and 117 before), and every other column of the
+    # narrow twin is byte-identical, sorted and as written.
+    "seen_at": "9d3b4a332210e02e098c9d63e48283af",
     "note": "f0a181daf5af6bdb2db3d44e0a83a641",
 }
 # AND THE SAME COLUMNS IN THE ORDER THEIR CELLS STAND (repair of landing
@@ -726,7 +746,9 @@ NARROW_COLUMN_ORDER_DIGESTS = {
     # RE-RECORDED AT THE SAME MERGE: the same 30 cells of `dose`, in
     # the places they stand; no cell moved place, and `seen_at` holds.
     "dose": "7f9c511cfa197a17851048d8f09cf985",
-    "seen_at": "5230cc5d6f06d53b7c8a6b52cf4400bb",
+    # Re-recorded for plan P4-D373 with the sorted digest above: the same
+    # 132 moved cells of `seen_at`, as written.
+    "seen_at": "4d494c576c2978da3dd2a38ffc096a76",
     "note": "0b99ebde93cbd5fedc30a0d2b7fa9516",
 }
 
@@ -801,6 +823,8 @@ def test_widening_the_demonstration_lost_no_obligation(
             return True
         if entry == WEEKDAY_CHECK:
             return True
+        if entry == CLOCK_CENSUS_CHECK:
+            return True
         # ...and every obligation the two TAILS of a column of dates or
         # clock times brought (stage 3, plan P4-D328).
         if TAIL_SUBCHECK in entry:
@@ -821,6 +845,8 @@ def test_widening_the_demonstration_lost_no_obligation(
     assert checks.count(JUDGED_KEY_CHECK) == 1, JUDGED_KEY_CHECK
     # ...and so is the one landing 3b.1 added, on the one column of dates.
     assert checks.count(WEEKDAY_CHECK) == 1, WEEKDAY_CHECK
+    # ...and the one landing 3b.5 added, on the one column of clock times.
+    assert checks.count(CLOCK_CENSUS_CHECK) == 1, CLOCK_CENSUS_CHECK
     counted = sorted(
         [entry for entry in checks if not _since(entry)]
         + list(WITHDRAWN_CHECKS)
@@ -1715,7 +1741,21 @@ GOLDEN_DESCRIPTION_SHA256 = (
     # `count_form`, null; the same bytes with those four taken out hash
     # to 7f896e4c...46bbe1, the digest on 110cb46. The twin, the report
     # and the quality report digests below did not move.
-    "386545f9cb06ec223fe92a8af81b06717a85b3597ea1131b2baf26fabcd057f4"
+    # RE-RECORDED AT LANDING 3b.5 (2026-10-03, plan P4-D373), read key by
+    # key against a git archive of 110cb46: TWO KEYS MOVE, both on
+    # `seen_at` -- `clock_step` null becomes 60, and `clock_census` empty
+    # becomes twelve groups of ten-minute bins, two of nought around the
+    # morning (bins 0 to 41 and 54 to 143) and ten counting the body's
+    # cells (28, 20, 20, 20, 20, 20, 20, 19, 20 and 27). `clock_heaps` and
+    # `clock_codes` stay empty: no minute of this column stands out, and
+    # its two unread cells are under the line. Nothing else differs.
+    # RE-RECORDED AT THE MERGE OF 3b.5 OVER THE SECOND KEY CUT (2026-10-08):
+    # read key by key against the bytes on the tree before the merge
+    # (386545f9...d057f4), the two keys of `seen_at` alone; against
+    # 3b.5's own (ccdecf9f...636e22), the second key cut's four keys alone.
+    # The twin, the report and the quality report digests below are
+    # 3b.5's, which the second key cut did not move.
+    "24cfc8b1d16da410a9d32e9fd851a61e01be0bd1c0f0246119771ba1189ef93a"
 )
 
 
@@ -1976,7 +2016,15 @@ GOLDEN_TWIN_SHA256 = (
     # with nothing missed over its 542 checks. (A first writing of step
     # 3's prior moved 37 cells; the prior that weighs the drawn ranks
     # and the calendar the same moves 66.)
-    "bdee72b6c01e14da966d509842be30a597fc7f769640eb9bc2dd23b2591a09c3"
+    # RE-RECORDED AT LANDING 3b.5 (2026-10-03, plan P4-D373), and the one
+    # column of clock times is what moved: its description publishes a
+    # step and a census (the description digest above), so G7A.4b lays its
+    # body. READ CELL BY CELL against a git archive of 110cb46 at this
+    # seed: 132 of the 3,360 cells of the wide twin move, every one of
+    # them in `seen_at`; it holds 122 different values before and after,
+    # its hours come back 120 at 07 and 118 at 08 as the real column's do
+    # (121 and 117 before), and no cell of any other column moves.
+    "e27696f931c4b190de08464bc5f42346ac87ba6f5398c091bd1e00b011baff43"
 )
 
 
@@ -2599,7 +2647,20 @@ GOLDEN_REPORT_SHA256 = (
     # that one line in each, nothing else. AND AGAIN AT ITS REVIEW (item
     # 4): NF71 says "every group that holds rows", not "every group
     # counted"; diffed against fb257b0, that one line in each again.
-    "436f93d57e750976cee0f17c5ce246f1898fcd6fa19fbf704f65ef9968094a8c"
+    # RE-RECORDED AT LANDING 3b.5 (2026-10-03, plan P4-D373), and the
+    # TWIN is what moved, on `seen_at` alone. READ LINE BY LINE against
+    # a git archive of 110cb46: the report holds 852 lines where it held
+    # 866, every moved line is on that column, and they are of three
+    # kinds. Its five interior rungs are held exactly -- `07:11` against
+    # `07:10` before -- each inside its census group's window, `07:06 to
+    # 07:19` where it was `07:09 to 07:11` (G12.10b); the two whose window
+    # did not cover the description's own value said so in five lines
+    # each, and the summary said so in three, so those thirteen lines
+    # leave with the one blank line beside them. And its two distinctness
+    # windows open from 68 to 14 at the lower end, the group windows
+    # overlapping more. "inside the range" still stands 136 times, and
+    # "outside the range" nought times as it did.
+    "e22d5664003c00da31b7df8f83c457ce49aff0fee8bde954c3d3f8970c8d3b40"
 )
 
 
@@ -3413,7 +3474,16 @@ GOLDEN_QUALITY_SHA256 = (
     # that sentence is the only source text moved since 949cf04, so it
     # is the only one that can have moved here; the new digest is the
     # one the whole suite printed on c22d7d5.
-    "483f2efd15975a9177d60dfa03a94c506b0e0c4e954b204721da50e92550f059"
+    # RE-RECORDED AT LANDING 3b.5 (2026-10-03, plan P4-D373), read line by
+    # line against a git archive of 110cb46: ONE OBLIGATION ARRIVES, the
+    # census of `seen_at` counted against all twelve of its groups at once
+    # (`clock_census.groups`), HELD, so 542 became 543; and its five
+    # interior rungs move from WITHIN-BOUND to HELD, the twin holding each
+    # on its value, so 474 HELD and 68 WITHIN-BOUND became 480 and 63.
+    # Its two distinctness counts stay WITHIN-BOUND, their window's lower
+    # end at 14 where it was 68. Nothing is MISSED before or after, and
+    # the 214 obligations no CSV can evidence are the same 214.
+    "e756620213f5ddeb394386ee289cab2c445447e834e2c3b81f54df32c20572e4"
 )
 
 
