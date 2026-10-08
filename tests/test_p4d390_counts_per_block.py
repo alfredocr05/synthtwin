@@ -87,7 +87,10 @@ from synthtwin import (
 #   `n_contradictory` and `n_not_numeric`, with the two remarks restating
 #   the second and third (Codex's item).
 #
-# No other key does, and no key of a declared identifier does.
+# No other key does, and no key of a declared identifier does. Every table
+# here is described at a floor of eleven or thirty-six: below eleven a
+# named count between the floor and ten is the floor's own to print, and
+# the statement is made of eleven and more.
 MAY_BE_NEW = (
     "n_numeric",
     "n_out_of_range",

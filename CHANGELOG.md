@@ -37,8 +37,9 @@ file, and `dropna` keeps every row where it kept 68 to 78 per cent. `K-S3-12` fa
 sentences rise from 20 to 22, `K-2B-28` reads the pooled label's one
 row off the pool, `K-2B-20` is retired, and `K-2B-26`, `K-2B-52` and
 `K-S4-03` lose what measured the pass. Counted block by block against
-493f6f8 rather than over a table, a column not declared an identifier
-may now print a count of one to ten that 493f6f8 did not in the pool's
+493f6f8 rather than over a table, at a floor of eleven or more, a column
+not declared an identifier may now print a count of one to ten that
+493f6f8 did not in the pool's
 own keys, its counts of different values and its four class totals
 with their two remarks, each counting cells the pass had blanked, and in
 no other key; a declared identifier prints none. So twelve words beside
