@@ -94,6 +94,24 @@ now, every real table still passes, and a twin with no absence inside a
 run or on a tail's reach keeps every byte; vectors file 21 freezes
 sixteen cases.
 
+**And the verification of that round** found a present time written as
+no value. A column of `hh:mm` holding real times at midnight written
+`0:00` beside `00:00` declared missing -- its reader reads both at one
+place, and its description stands the present ones there as `00:00` --
+had every twin write all of them `00:00`, cells its own check counts
+missing, and fail eleven checks at every seed; where such cells were a
+census group's only step, the loader refused the producer's own
+description and said it had been changed since it was written. A present
+time the description stands on a place a declared-missing spelling names
+-- a heap, a tail's boundary or listed value, a pinned rung, or such a
+group -- is now written in the hour's other width, as the table wrote
+it: of 80 such columns 40 failed at every seed and 2 were refused, and
+none is now. Two rules of the round -- the loader reading every
+column's absent spellings, and an absent marker typed in lower case --
+are held by clauses that fail without them, `K-S3-49` pins the round's
+clauses, and the tail-leak measurement draws its clock windows as the
+checker does.
+
 ### The weekday guards dropped (2026-10-02)
 
 **The weekday census is published wherever its twin can meet it** (plan

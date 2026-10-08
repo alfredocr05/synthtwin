@@ -7626,8 +7626,8 @@ below on that step:
    no rank could move off it (285 against 279), and a ten-minute grid's
    low tail drew a cell onto `00:00`, its own edge (21 against 20). At
    the minute a heap-free tail was placed as G7A.4 places it and 14 of
-   100 such columns wrote one `00:00` too many at its outer end. Every
-   one of them now writes the absence on exactly the table's rows.
+   100 such columns wrote one or two `00:00` too many at its outer end.
+   Every one of them now writes the absence on exactly the table's rows.
 5. **The words** are G7A.4's: `P - 2` content words, one per rank
    between the two ends in rank order, a heap's, a pin's or a
    boundary's read and set aside, a tail's handed to its draw from the
