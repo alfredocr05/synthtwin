@@ -16225,12 +16225,14 @@ def weekday_decision(
     entry, too few different dates by the conservative rule that keeps
     the twin's count of different values (`calendar_rules.few_dates`),
     too few of the column's different days left to the body's gaps once
-    the most its rebuilt tails can hold is set aside
+    the most its rebuilt tails keep is set aside
     (`calendar_rules.count_room_short`, plan P4-D388), too few days the
-    census lets the body reach for what the count asks of it once the
-    twin's count pass has spread its rebuilt tails to their most, or
-    merged them no lower than their fewest beside a body that keeps no
-    more than its draw (`calendar_rules.count_reach_short`), both asked
+    census lets the body reach for what the count asks of it, the twin's
+    rebuilt tails read at their most where its count pass splits -- which
+    its high tail can fall short of, a risk P4-D388 states -- and merged
+    no lower than their fewest beside a body that keeps no more than its
+    draw where it merges (`calendar_rules.count_reach_short`, the tails as
+    `calendar_rules.tails_kept` reads them), the two asked
     at every floor (the
     Codex review of P4-D388, items 1 and 2), too
     little room by its companion between the published holes other

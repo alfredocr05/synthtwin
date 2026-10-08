@@ -1,4 +1,4 @@
-"""Landing 3b.D1b (plan P4-D388), its Codex review and the ruling on its price: the weekday census withheld where the count of different values has no room for it, either way, at more than one seed in ten.
+"""Landing 3b.D1b (plan P4-D388), its Codex review and the rulings on its price: the weekday census withheld where the count of different values has no room for it, either way, the tails read as the twin's count pass keeps them.
 
 The few-dates rule of landing 3b.G (plan P4-D365) was measured at the
 floor of 11 alone. Raised to 36, 59 twins of the date batteries published
@@ -32,20 +32,28 @@ seed in ten. Read at the most and the fewest the twin's tails could hold,
 the two rules withheld censuses their twins met -- clinics holding every
 clinic day among them, whose twins without the census wrote most of their
 rows on days the clinic never opens. Both rules now read the tails as the
-twin's count pass leaves them (`calendar_rules.tails_kept`), each at all
-but a tenth of seeds (`KEPT_MISS`): the pass merges the low tail first,
-at most down to its fewest, and leaves the high tail the days it drew,
-whose law is worked out exactly from method G7.3b (`tail_days_law`, held
-to the generator's own words here), so the reach rule reads the fewest the
+twin's count pass leaves them (`calendar_rules.tails_kept`). Where the
+pass merges, each reads them at all but a tenth of seeds (`KEPT_MISS`):
+the pass merges the low tail first, at most down to its fewest -- below
+it only where the count leaves the body a few days or none beside the
+two tails' fewest -- and leaves the high tail the days it drew, except
+where it takes more than a quarter of the body's drawn days, the high tail's
+law worked out exactly from method G7.3b (`tail_days_law`, held to the
+generator's own words here); so the reach rule reads the fewest the
 tails keep -- the low tail at its fewest beside the days the high tail
 draws -- and the room rule the most, the days the two tails draw with no
-merge counted; where the pass splits, both tails reach their most. The
-price left and the risk accepted are both measured and stated: a census
-its twins meet is still withheld where the low tail keeps more days than
-its fewest and the margin is narrow, or where a merge the room rule does
-not count takes days from the tails; a census published can miss at one
-seed in ten, reported; and seven-day logs holding every day come back
-short with or without their census, a limit named for lane D4.
+merge counted. Where the pass splits, both read the two tails' most,
+which the low tail reaches at all but a tenth of seeds and the high tail
+only where the body's nearer splits run out first. The price left and
+the risks accepted are all measured and stated: a census its twins meet
+is still withheld where the low tail keeps more days than its fewest and
+the margin is narrow, or where a merge the room rule does not count takes
+days from the tails; a census published can miss at one seed in ten, and
+on logs just above one row an open day, whose count pass splits the
+body's nearer ranks before the high tail's, at up to seven seeds in ten
+(the orchestrator's ruling of 2026-10-08 lets that risk stand), each miss
+reported; and seven-day logs holding every day come back short with or
+without their census, a limit named for lane D4.
 
 Each test names the mutation that turns it red.
 """
@@ -184,23 +192,8 @@ def _one_row_a_business_day() -> "list[str]":
     return cells
 
 
-# The US federal holidays of 2022 and 2023 on the business day each was observed: 21 days.
-_FEDERAL_HOLIDAYS = frozenset(
-    datetime.date.fromisoformat(each)
-    for each in (
-        "2022-01-17 2022-02-21 2022-05-30 2022-06-20 2022-07-04 2022-09-05 2022-10-10 2022-11-11 2022-11-24"
-        " 2022-12-26 2023-01-02 2023-01-16 2023-02-20 2023-05-29 2023-06-19 2023-07-04 2023-09-04 2023-10-09"
-        " 2023-11-10 2023-11-23 2023-12-25"
-    ).split()
-)
-
-
-def _two_rows_a_business_day(closed: "frozenset[datetime.date]" = frozenset()) -> "list[str]":
-    """About two rows a business day for 104 weeks from Monday 3 January 2022, `Random(304)`: 1,063 rows over 520 days.
-
-    A day in `closed` holds none of the rows it draws; every other day
-    holds the rows it draws either way.
-    """
+def _two_rows_a_business_day() -> "list[str]":
+    """About two rows a business day for 104 weeks from Monday 3 January 2022, `Random(304)`: 1,063 rows over 520 days."""
     draw = random.Random(304)
     first = datetime.date(2022, 1, 3)
     cells: "list[str]" = []
@@ -208,9 +201,7 @@ def _two_rows_a_business_day(closed: "frozenset[datetime.date]" = frozenset()) -
         day = first + datetime.timedelta(days=step)
         if day.weekday() >= 5:
             continue
-        rows = max(1, int(round(draw.gauss(2, 2 / 3))))
-        if day not in closed:
-            cells += [day.isoformat()] * rows
+        cells += [day.isoformat()] * max(1, int(round(draw.gauss(2, 2 / 3))))
     draw.shuffle(cells)
     return cells
 
@@ -403,8 +394,11 @@ def _layout_most(described: kpi_shapes.Described, floor: int) -> int:
     return _layout_counted(described, floor, True)
 
 
-def _kept(block: dict, cells: "list[str]", floor: int) -> "tuple[int, int]":
-    """The tails the twin keeps (`calendar_rules.tails_kept`) for a column of ISO dates with no hole, from its block."""
+def _kept(
+    block: dict, cells: "list[str]", floor: int, census_holes: "frozenset[int]" = frozenset()
+) -> "tuple[int, int]":
+    """The tails the twin keeps (`calendar_rules.tails_kept`) for a column of ISO dates from its block, its body's
+    pins its own and `census_holes` the days handed as holding no body cell (none unless named)."""
     ordered = tuple(sorted(_day(cell) for cell in cells))
     sides = []
     for key in ("low_tail", "high_tail"):
@@ -420,7 +414,7 @@ def _kept(block: dict, cells: "list[str]", floor: int) -> "tuple[int, int]":
         ordered, low, high, (sides[0], sides[1]), floor,
         taxonomy.tail_edges(block["format"], parsing.TAIL_UNIT_DAY, "local", {}),
         block["n_distinct"] - block["n_unparsed"] >= len(ordered), frozenset(),
-        calendar_rules.body_pins(ordered, low, high, percents),
+        calendar_rules.body_pins(ordered, low, high, percents), census_holes,
     )
 
 
@@ -693,11 +687,13 @@ def test_the_tails_kept_are_the_low_tail_merged_to_its_fewest_and_both_tails_as_
     chance of at least 0.9 -- 16. `_hunt(1084)` draws far more days than its
     count too: 7 and the high tail's 11 at the fewest, 18, and 22 at the
     most. And `_one_row_a_business_day()` draws about 833 of its 1,180 days:
-    the pass splits and both tails spread to their most, 22, so kept is 22
-    and 22. Red when the fewest reads the low tail at its draw or the high
-    tail at its fewest or its most, the two tails' roles are swapped, the
-    most counts a merge, the share of seeds is not `KEPT_MISS`, or a split
-    is read as a merge.
+    the pass splits, and both tails are read at their most, 22, so kept is
+    22 and 22 -- a most this column's twins reach, its body running out of
+    ranks to split before the high tail's turn comes (a log just above one
+    row an open day does not: below). Red when the fewest reads the low
+    tail at its draw or the high tail at its fewest or its most, the two
+    tails' roles are swapped, the most counts a merge, the share of seeds is
+    not `KEPT_MISS`, or a split is read as a merge.
     """
     for name, cells, kept, fewest_low in (
         ("two", _two_rows_a_business_day(), (12, 16), 5),
@@ -729,6 +725,49 @@ def test_the_tails_kept_are_the_low_tail_merged_to_its_fewest_and_both_tails_as_
             calendar_rules._law_reached(together, 1.0 - calendar_rules.KEPT_MISS, False),
         ), name
     assert calendar_rules.KEPT_MISS == 0.1
+
+
+def test_the_tails_kept_read_the_body_s_draw_beside_the_census_holes(tmp_path: pathlib.Path) -> None:
+    """`calendar_rules.tails_kept` asks whether the pass merges or splits of the body's draw beside the census holes.
+
+    The second verification of the ruling's round (item 3) found no node
+    holding it. `_two_rows_a_business_day()` at the floor of 11, its body's
+    own pins: its ranks draw 549.6 days and its two tails 15.1 in
+    expectation, past the column's 520, so the count pass merges and the
+    tails kept are 12 and 16. Handed every Saturday and Sunday of the body's
+    span as census holes, 202 days, the ranks land on the business days
+    alone and draw 445.3, short of the count with the tails' 15.1: the pass
+    splits, and both are read at the tails' most, 16 and 16. Red when the
+    regime reads the body's draw without the census holes, or `body_draw`
+    walks past the holes inside a gap without setting them aside (12 and 16
+    either way).
+    """
+    cells = _two_rows_a_business_day()
+    described = _described(tmp_path, "regime", cells, 11)
+    block = described.block("visit")
+    ordered = tuple(sorted(_day(cell) for cell in cells))
+    rungs = block["date_percentiles"]
+    percents = [(100 * num) // den for label, num, den in taxonomy.LADDER if rungs[label] is not None]
+    low, high = block["low_tail"]["rows"], block["high_tail"]["rows"]
+    pins = calendar_rules.body_pins(ordered, low, high, percents)
+    weekends = frozenset(
+        day for day in range(pins[0][1], pins[len(pins) - 1][1] + 1) if calendar_rules.weekday_of(day) >= 5
+    )
+    assert len(weekends) == 202
+    sides = tuple(
+        (None, float(block[key]["mean_distance"]), float(block[key]["rms_distance"])) for key in ("low_tail", "high_tail")
+    )
+    edges = taxonomy.tail_edges(block["format"], parsing.TAIL_UNIT_DAY, "local", {})
+    handed = (ordered, low, high, (sides[0], sides[1]), 11, edges, False, frozenset())
+    drawn = calendar_rules._law_mean(calendar_rules.tail_days_law(*handed, True))
+    drawn = drawn + calendar_rules._law_mean(calendar_rules.tail_days_law(*handed, False))
+    assert 15.1 < drawn < 15.2, drawn
+    assert 549.5 < calendar_rules.body_draw(pins) < 549.6
+    assert 445.2 < calendar_rules.body_draw(pins, weekends) < 445.3
+    assert calendar_rules.body_draw(pins) + drawn > 520 >= calendar_rules.body_draw(pins, weekends) + drawn
+    assert calendar_rules.tails_most_rebuilt(*handed) == 16
+    assert _kept(block, cells, 11) == (12, 16)
+    assert _kept(block, cells, 11, weekends) == (16, 16)
 
 
 @pytest.mark.parametrize("shape,low,high", [(0, 59, 40), (92, 57, 36)])
@@ -1125,8 +1164,8 @@ def test_the_count_reach_rule_reads_the_tails_and_the_body_s_draw_as_the_count_p
     Those 500 ranks drawn independently over the 699 days between land on
     357.3 of them in expectation, 359.3 with the pin days: a column of 513
     days whose tails hold 6 days at fewest and 12 at most is far past that
-    draw, so the count pass only splits and spreads the tails to their 12,
-    the body needs 501 and the census is published; 514 withholds it, the
+    draw, so the count pass only splits and the rule reads the tails at
+    their 12: the body needs 501 and the census is published; 514 withholds it, the
     need one past the reach. The same pins with 2,000 ranks between them
     draw 661.1 days, more than the count leaves the body, so the pass
     merges and may take every merge from the tails, down to their 6: 513
@@ -1168,6 +1207,62 @@ def test_the_count_reach_rule_reads_the_tails_and_the_body_s_draw_as_the_count_p
         for day in range(first, last + 1):
             walked[calendar_rules.weekday_of(day)] += 1
         assert counted == walked, (first, last, counted, walked)
+
+
+def test_the_body_s_draw_sets_aside_each_hole_inside_its_gap() -> None:
+    """`calendar_rules.body_draw` on hand-made pins and holes, Monday 1 January 2024 first, read to the last bit.
+
+    The second verification of the ruling's round (item 3) found no node
+    holding how the draw reads published holes. Two Monday pins a fortnight
+    apart with 29 ranks between them: the 13 days strictly between draw
+    13(1 - (12/13)^29) of them in expectation, 13.72 with the two pin days.
+    With the two weekends between them published as holes, the ranks land
+    on the 9 days left: 9(1 - (8/9)^29), 10.70 with the pin days. A third
+    pin a week on, 4 ranks before it: a hole before the first pin and one
+    after the last are no day of any gap, and each hole inside a gap is set
+    aside in that gap alone -- the first weekend in the first, the second
+    gap's Wednesday in the second -- 16.26 in all. Red when `body_draw`
+    walks past the holes inside a gap without setting them aside (13.72 and
+    17.83), or counts a hole in the wrong gap.
+    """
+    pins = ((10, _MONDAY), (40, _MONDAY + 14))
+    weekends = frozenset({_MONDAY + 5, _MONDAY + 6, _MONDAY + 12, _MONDAY + 13})
+    assert calendar_rules.body_draw(pins) == 2.0 + 13 * (1.0 - calendar_rules._power_of(1.0 - 1.0 / 13, 29))
+    assert calendar_rules.body_draw(pins, weekends) == 2.0 + 9 * (1.0 - calendar_rules._power_of(1.0 - 1.0 / 9, 29))
+    assert 10.70 < calendar_rules.body_draw(pins, weekends) < 10.71
+    three = ((10, _MONDAY), (40, _MONDAY + 14), (45, _MONDAY + 21))
+    holes = frozenset({_MONDAY - 2, _MONDAY + 5, _MONDAY + 6, _MONDAY + 16, _MONDAY + 30})
+    first = 11 * (1.0 - calendar_rules._power_of(1.0 - 1.0 / 11, 29))
+    second = 5 * (1.0 - calendar_rules._power_of(1.0 - 1.0 / 5, 4))
+    assert calendar_rules.body_draw(three, holes) == 3.0 + first + second
+    assert 16.25 < calendar_rules.body_draw(three, holes) < 16.26
+
+
+def test_the_count_reach_rule_reads_the_body_s_draw_beside_the_holes() -> None:
+    """`calendar_rules.count_reach_short` reads the body's draw beside the published holes: they decide its answer here.
+
+    The second verification of the ruling's round (item 3) found no node
+    holding it. Two Mondays four weeks apart, 40 ranks between them, Monday
+    to Friday holding rows and the weekend empty, seven of the eight
+    weekend days between them published as holes: the census lets the body
+    reach the two pin days and the 19 weekdays between them, 21, where
+    without it the body would reach 22. The 40 ranks drawn over the 27 days
+    between land on 23.0 of them with the pin days, and over the 20 that are
+    no hole on 19.4. A column of 34 days whose tails keep 10 days at the
+    fewest and hold 15 at the most: the body needs its draw, no more than
+    the 24 days the fewest leave and no less than the 19 the most leave --
+    19.4 beside the holes, within the reach, so the census is published;
+    without the holes the draw is 23.0 and it is withheld. Red when the rule
+    reads the draw without its holes, or `body_draw` walks past the holes
+    inside a gap without setting them aside (withheld either way).
+    """
+    weekdays = ((0, 4, 200), (5, 6, 0))
+    forty = ((10, _MONDAY), (51, _MONDAY + 28))
+    seven = frozenset({_MONDAY + 5, _MONDAY + 6, _MONDAY + 12, _MONDAY + 13, _MONDAY + 19, _MONDAY + 20, _MONDAY + 26})
+    assert 19.42 < calendar_rules.body_draw(forty, seven) < 19.43
+    assert 23.03 < calendar_rules.body_draw(forty) < 23.04
+    assert not calendar_rules.count_reach_short(weekdays, forty, 34, 10, 15, seven)
+    assert calendar_rules.count_reach_short(weekdays, forty, 34, 10, 15)
 
 
 def test_the_rebuilt_tail_is_the_generator_s_own() -> None:
@@ -1597,14 +1692,15 @@ def test_a_census_whose_twin_misses_at_one_seed_in_ten_stands_and_the_miss_is_re
 
     `_one_row_a_business_day()`, 1,181 rows over 1,180 business days, at
     the floor of 20: its body draws far fewer days than its count, so the
-    count pass splits and both tails spread to their most, 40, and the
+    count pass splits, and its body runs out of ranks to split before the
+    high tail's turn comes, so both tails spread to their most, 40, and the
     census, each weekday its own group and the weekend 0, is published. Its
-    twins at seeds 0 to 8 meet every check; at seed 9 its tails keep 39
-    days of their 40, the body cannot make the day up off the empty
-    weekend, and the twin holds 1,179 different values for 1,180 -- both
-    distinct counts MISSED, in the report validation writes. One seed in
-    ten: the census stands, and P4-D388 and K-S3-59 state the risk. Red
-    when the rule withholds it, or the miss goes unreported.
+    twins at seeds 0 to 8 meet every check; at seed 9 its low tail keeps 19
+    days of its 20, the body cannot make the day up off the empty weekend,
+    and the twin holds 1,179 different values for 1,180 -- both distinct
+    counts MISSED, in the report validation writes. One seed in ten: the
+    census stands, and P4-D388 and K-S3-59 state the risk. Red when the rule
+    withholds it, or the miss goes unreported.
     """
     cells = _one_row_a_business_day()
     described = _described(tmp_path, "business20", cells, 20)
@@ -1613,6 +1709,54 @@ def test_a_census_whose_twin_misses_at_one_seed_in_ten_stands_and_the_miss_is_re
     assert _kept(block, cells, 20) == (40, 40)
     _twins_meet(tmp_path, "business20", described.loaded, tuple(range(9)))
     _twins_off(tmp_path, "business20", described.loaded, (9,), 1180, False)
+
+
+def test_a_log_just_above_one_row_an_open_day_keeps_its_census_and_comes_back_short_at_seven_seeds_in_ten(
+    tmp_path: pathlib.Path,
+) -> None:
+    """The risk the orchestrator's ruling of 2026-10-08 lets stand, pinned as it stands: published, short at seven seeds.
+
+    `_every_open_day(1.15, 52, 1002, Monday, Wednesday and Friday)`, 177
+    rows over 156 clinic days, at the floor of 20 (the second verification
+    of the ruling's round, item 1). Its body draws fewer days than its
+    count, so the count pass splits, and the reach rule reads both tails at
+    their most, 20 days each, which leaves the body the 116 days its census
+    -- Monday, Wednesday and Friday 45 each, the other days 0 -- lets it
+    reach: the census is published. But the pass splits nearest first, then
+    the lower rank. The low tail, the column's lowest ranks, reaches its 20
+    at every seed; a body rank one day from a free day splits before any
+    high tail rank whose free day is further, so the high tail keeps the 18
+    to 20 days it drew and the body passes the census's reach. Its twins at
+    seeds 0, 1, 3, 4, 6, 7 and 8 hold 154 or 155 different values for 156,
+    both distinct counts MISSED, and at seeds 2, 5 and 9, where the high
+    tail drew its 20, meet every check; with the census emptied all ten
+    meet every check. The ruling keeps the census, whose withholding would
+    let the twin write rows on days the clinic never opens, and P4-D388
+    names the fix owed: a split order that brings the tails to their most
+    before the body passes that reach. Red when the census is withheld, a
+    seed's miss goes unreported, or the split order changes -- that fix
+    shows here first.
+    """
+    cells = _every_open_day(1.15, 52, 1002, frozenset({0, 2, 4}))
+    assert (len(cells), len(set(cells))) == (177, 156)
+    described = _described(tmp_path, "near_one", cells, 20)
+    block = described.block("visit")
+    assert _decided(block, cells, 20).reason == ""
+    groups = tuple((group["first"], group["last"], group["count"]) for group in block["weekday_census"])
+    assert groups == ((0, 0, 45), (1, 1, 0), (2, 2, 45), (3, 3, 0), (4, 4, 45), (5, 6, 0)), groups
+    low, high = block["low_tail"]["rows"], block["high_tail"]["rows"]
+    assert (low, high) == (21, 21)
+    assert block["low_tail"]["values"] is None and block["high_tail"]["values"] is None
+    assert _kept(block, cells, 20) == (40, 40)
+    for seed, high_days in enumerate((18, 19, 20, 18, 19, 20, 19, 19, 19, 20)):
+        held = sorted(_day(cell) for cell in generation.generate(described.loaded, seed).columns[0] if cell)
+        assert (len(set(held[:low])), len(set(held[len(held) - high :]))) == (20, high_days), seed
+    _twins_off(tmp_path, "near_one", described.loaded, (0, 1, 3, 4, 6, 7, 8), 156, False)
+    _twins_meet(tmp_path, "near_one", described.loaded, (2, 5, 9))
+    document = dict(described.document)
+    document["columns"] = [dict(block, weekday_census=[])]
+    emptied = contract.load_profile(str(fixtures.write_profile(tmp_path, "near_one-emptied.json", document)))
+    _twins_meet(tmp_path, "near_one-emptied", emptied, tuple(range(10)))
 
 
 def test_seven_day_logs_holding_every_day_come_back_short_with_or_without_their_census(tmp_path: pathlib.Path) -> None:
@@ -1852,9 +1996,16 @@ def test_k_s3_59_claims_what_was_measured_and_states_the_limit_beside_it() -> No
     price the rules leave where it falls, where the twin's low tail keeps
     more days than its fewest, as
     `test_the_rules_price_is_a_census_its_twins_meet_whose_low_tail_keeps_more_than_its_fewest`
-    holds. Red when the name claims every published census again, the
-    limit goes unnamed, the ruling or the price's columns go unnamed, or the
-    price is put back on rows a business day.
+    holds. The ruling's round said both tails reach their most where the
+    count pass splits, and its second verification measured logs just above
+    one row an open day whose high tail keeps the days it drew there, their
+    census published and missed at up to seven seeds in ten: since the
+    ruling of 2026-10-08 the three records state that risk, and P4-D388
+    names the split order the fix owes to lane D4. Red when the name claims
+    every published census again, the limit goes unnamed, the ruling or the
+    price's columns go unnamed, the price is put back on rows a business
+    day, the near-one risk or the fix owed goes unnamed, or the old claim
+    that the split brings both tails to their most comes back.
     """
     ledger = json.loads((_ROOT / "tests" / "kpi" / "ledger.json").read_text(encoding="utf-8"))
     entry = [item for item in ledger["entries"] if item["id"] == "K-S3-59"][0]
@@ -1875,3 +2026,9 @@ def test_k_s3_59_claims_what_was_measured_and_states_the_limit_beside_it() -> No
         assert "nine seeds in ten" in flat, name
         assert "low tail keeps more days than its fewest" in flat, name
         assert "one and a half to two rows a business day" not in flat, name
+        assert "just above one row an open day" in flat, name
+        assert "splits and both tails reach their most" not in flat, name
+    flat = " ".join(decision.split())
+    assert "OWED TO LANE D4" in flat and "split order" in flat
+    assert "only splits and the tails reach their most" not in flat
+    assert "both tails' most where it splits" not in " ".join(entry["rule"].split())
