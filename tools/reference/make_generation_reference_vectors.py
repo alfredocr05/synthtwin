@@ -6814,6 +6814,11 @@ def usable_stand_in(candidate):
     # alone is a clock's, which `clock_reads` has just refused.
     if figure_filled_clock(candidate):
         return candidate[0] not in "=+-@"
+    # ...AND NEITHER IS A TIME WRITTEN TO A FRACTION OF THE SECOND (the
+    # fixes of the clock census's review): no number grammar reads a
+    # colon, and no date form this file states is a time of day alone.
+    if fraction_clock(candidate):
+        return candidate[0] not in "=+-@"
     for character in candidate:
         if character == "," or character == '"':
             return False
@@ -6914,18 +6919,18 @@ def stepped_around(step, room):
     return (step * stride) % room
 
 
-def clock_filled_form(form, step):
-    """One time of a form a clock time can wear, or None (G8.3, P4-D373).
+def clock_shape(form):
+    """How a form a clock time can wear writes it, or None (G8.3, P4-D373).
 
     An hour of one or two figures, a colon and two, optionally a colon and
-    two more, optionally a marker -- AM/PM as ``@@``, am/pm as ``&&``,
-    A.M./P.M. as ``@.@.``, a.m./p.m. as ``&.&.`` -- after one space or
-    none.  Its supply is every time it writes: hours 0 to 23 (one figure:
-    0 to 9), or 1 to 12 behind a marker (one figure: 1 to 9), each minute,
-    each second it writes, both halves of a marked day.  The step taken
-    round the form's room lands in the supply or past it; in it, the
-    time it names stepped round the supply, hour first, then the minute,
-    the second and the half of the day.
+    two more, optionally after the seconds a point and a fraction of the
+    second in one figure or more, optionally a marker -- AM/PM as ``@@``,
+    am/pm as ``&&``, A.M./P.M. as ``@.@.``, a.m./p.m. as ``&.&.`` -- after
+    one space or none.  Answered as (the hour's figures, whether it writes
+    seconds, the fraction's figures or 0, the marker pair or None, the
+    space before it, the first hour, how many hours, how many times of the
+    day it writes with no fraction).  A fraction after the minutes alone
+    is no clock's.
     """
     body, words, space = form, None, ""
     for mark, pair in (("@@", ("AM", "PM")), ("&&", ("am", "pm")),
@@ -6936,29 +6941,107 @@ def clock_filled_form(form, step):
                 body, space = body[:-1], " "
             break
     d = SHAPE_DIGIT
+    places = 0
+    head, point, tail = body.rpartition(".")
+    if point and tail and tail == d * len(tail):
+        body, places = head, len(tail)
     shapes = {d + d + ":" + d + d: (2, False), d + ":" + d + d: (1, False),
               d + d + ":" + d + d + ":" + d + d: (2, True),
               d + ":" + d + d + ":" + d + d: (1, True)}
     if body not in shapes:
         return None
     figures, seconds = shapes[body]
+    if places and not seconds:
+        return None
     first, last = (1, 12) if words else (0, 23)
     if figures == 1:
         last = 9
     hours = last - first + 1
-    supply = hours * 60 * (60 if seconds else 1) * (2 if words else 1)
-    index = step % form_room(form)
-    if index >= supply:
+    times = hours * 60 * (60 if seconds else 1) * (2 if words else 1)
+    return figures, seconds, places, words, space, first, hours, times
+
+
+def clock_filled_form(form, step):
+    """One time of a form a clock time can wear, or None (G8.3, P4-D373).
+
+    Its supply is every time it writes: hours 0 to 23 (one figure: 0 to
+    9), or 1 to 12 behind a marker (one figure: 1 to 9), each minute, each
+    second it writes, both halves of a marked day -- and, where it writes
+    a fraction of the second, each of those at every fraction its figures
+    hold.  The step taken round the form's room lands in the supply or
+    past it; in it, its remainder by the times of the day names the time,
+    stepped round them, hour first, then the minute, the second and the
+    half of the day; and its quotient the fraction, stepped round the
+    fraction's own room (the fixes of the clock census's review: a
+    `time(7)` column's first stand-ins are whole seconds, `.0000000`).
+    """
+    shape = clock_shape(form)
+    if shape is None:
         return None
-    place = stepped_around(index, supply)
+    figures, seconds, places, words, space, first, hours, times = shape
+    index = step % form_room(form)
+    if index >= times * 10 ** places:
+        return None
+    place = stepped_around(index % times, times)
     hour, place = first + place % hours, place // hours
     minute, place = place % 60, place // 60
     text = ("%02d" % hour if figures == 2 else str(hour)) + ":%02d" % minute
     if seconds:
         text, place = text + ":%02d" % (place % 60), place // 60
+    if places:
+        text += "." + str(stepped_around(index // times, 10 ** places)).zfill(places)
     if words:
         text += space + words[place % 2]
     return text
+
+
+def fraction_clock_supply(form):
+    """How many times a clock's form written to a fraction of the second
+    writes, or 0 for any other form -- the fixes of the clock census's
+    review.  No clock reader takes such a time, so no clock line holds it,
+    and every step of its supply is another time: a walk of the form runs
+    to the supply's end rather than stopping at STAND_IN_STEPS spellings,
+    and a pass of it gives up after STAND_IN_STEPS tried.
+    """
+    shape = clock_shape(form)
+    if shape is None or not shape[2]:
+        return 0
+    return shape[7] * 10 ** shape[2]
+
+
+def form_walk_bounds(form, figured=False):
+    """(how many steps a walk of one form may take in all, how many one
+    pass may try): the form's room up to STAND_IN_STEPS for both, or, for
+    a clock's form written to a fraction of the second and not filled
+    figure by figure, its whole supply and STAND_IN_STEPS."""
+    supply = 0 if figured else fraction_clock_supply(form)
+    if supply:
+        return supply, STAND_IN_STEPS
+    room = min(form_room(form), STAND_IN_STEPS)
+    return room, room
+
+
+def fraction_clock(text):
+    """Whether ``text`` is a time of day written to a fraction of the
+    second: a clock this file reads with its seconds written, a point and
+    one figure or more after them, and its marker word, if any, last --
+    the spellings `clock_filled_form` gives a clock's form with a fraction
+    (the fixes of the clock census's review)."""
+    body, marker = text, ""
+    for morning, evening in CLOCK_PAIRS.values():
+        for word in (morning, evening):
+            if len(body) > len(word) and body.endswith(word):
+                body, marker = body[: -len(word)], word
+                if body.endswith(" "):
+                    body, marker = body[:-1], " " + word
+                break
+        if marker:
+            break
+    head, point, tail = body.rpartition(".")
+    if not point or figures_of(tail, 1, len(tail)) is None:
+        return False
+    whole = head + marker
+    return clock_reads(whole, False) and clock_key(whole)[0]
 
 
 def filled_form(form, step, clocks=True):
@@ -7175,11 +7258,12 @@ def usable_room(form, wanted, seen, folds, reads=None, ladder=None):
     where given, holds the count to the published ends (P4-D92), so the
     supply is counted under the bound the walk spends under.
     """
-    room = min(form_room(form), STAND_IN_STEPS)
-    usable = 0
+    room, tries = form_walk_bounds(form)
+    usable = refused = 0
     for step in range(room):
-        if usable >= wanted:
+        if usable >= wanted or refused >= tries:
             return usable
+        refused += 1
         candidate = filled_form(form, step)
         if candidate in seen or folded(candidate) in folds:
             continue
@@ -7191,6 +7275,7 @@ def usable_room(form, wanted, seen, folds, reads=None, ladder=None):
         if ladder is not None and not within_the_published_ends(candidate, ladder):
             continue
         usable += 1
+        refused = 0
     return usable
 
 
@@ -7443,7 +7528,7 @@ def invented_levels(
         if not form and place in covered:
             form = level_shape
         time = clock_filled_form(form, 0) if form else None
-        if time is not None:
+        if time is not None and clock_key(time) is not None:
             keys[place] = clock_key(time)
     held, room = set(), None
     if line is not None:
@@ -7481,9 +7566,11 @@ def invented_levels(
         if form:
             figured = figures is not None and holding
             cursor = figures if figured else walked
-            steps = min(form_room(form), STAND_IN_STEPS)
+            steps, tries = form_walk_bounds(form, figured)
             cursor.setdefault(form, 0)
-            while cursor[form] < steps:
+            tried = 0
+            while cursor[form] < steps and tried < tries:
+                tried += 1
                 trial = filled_form(form, cursor[form], not figured)
                 cursor[form] += 1
                 if figured and clock_reads(trial, False):
@@ -20399,27 +20486,53 @@ def clock_rung_pins(column, parsed, stretches, stride):
     return pins
 
 
-def clock_kept_apart(places, size):
-    """A run's steps on a column whose values all differ: each one past the
-    one before, and each leaving room for those after (G7A.4b)."""
+def clock_pin_walls(index, pinned, places, size):
+    """The first and last step an unpinned rank of a run may take on a
+    column whose values all differ: strictly between the pinned ranks
+    either side of it, or the run's own end (G7A.4b)."""
+    before = [places[pin] + 1 for pin in pinned if pin < index]
+    after = [places[pin] - 1 for pin in pinned if pin > index]
+    return (before[-1] if before else 0), (after[0] if after else size - 1)
+
+
+def clock_kept_apart(places, size, pinned=()):
+    """A run's steps on a column whose values all differ (G7A.4b).
+
+    Between two pinned ranks, or a pinned rank and an end of the run: each
+    rank past the one before, then each leaving room for those after,
+    strictly between the pins' steps, so a pinned rank never moves.  A
+    stretch holding more ranks than steps between its pins stands from
+    the step above its lower pin up, never past either pin.
+    """
     places = list(places)
-    for index in range(1, len(places)):
-        places[index] = max(places[index], places[index - 1] + 1)
-    for index in range(len(places) - 1, -1, -1):
-        ceiling = size - (len(places) - index)
-        if index + 1 < len(places):
-            ceiling = min(ceiling, places[index + 1] - 1)
-        places[index] = max(0, min(places[index], ceiling))
+    edges = [None] + sorted(pinned) + [None]
+    for left, right in zip(edges, edges[1:]):
+        start = 0 if left is None else left + 1
+        stop = len(places) if right is None else right
+        lowest = 0 if left is None else places[left] + 1
+        cap = size - 1 if right is None else places[right]
+        for index in range(start, stop):
+            if index > start:
+                lowest = places[index - 1] + 1
+            places[index] = max(places[index], lowest)
+        roof = cap if right is None else cap - 1
+        floor_at = 0 if left is None else places[left] + 1
+        for index in range(stop - 1, start - 1, -1):
+            places[index] = min(max(floor_at, min(places[index], roof)), cap)
+            roof = places[index] - 1
     return places
 
 
-def clock_off_absent(place, size, low_at, stride, form, absent, taken, apart):
-    """The nearest step of a run whose spelling the column does not call
-    absent, the earlier first, on no other rank's step where the values
-    all differ; the same step where there is none (G7A.4b)."""
+def clock_off_absent(place, size, low_at, stride, form, absent, taken, apart,
+                     lowest=0, highest=None):
+    """The nearest step of a run, from ``lowest`` to ``highest``, whose
+    spelling the column does not call absent, the earlier first, on no
+    other rank's step where the values all differ; the same step where
+    there is none (G7A.4b)."""
+    highest = size - 1 if highest is None else highest
     for away in range(1, size + 1):
         for other in (place - away, place + away):
-            if (0 <= other < size and not (apart and taken.get(other))
+            if (lowest <= other <= highest and not (apart and taken.get(other))
                     and not _clock_reads_absent(low_at + other * stride, form, absent)):
                 return other
     return place
@@ -20495,9 +20608,11 @@ def clock_census_content(column):
         steps[((r - a) 2**64 + w) |steps| // (n 2**64)]
 
     between the run's pins (its boundary, and each published rung whose
-    rank and value lie in the run), stepped apart inside the run where
-    the column's values are all different, and off a spelling the column
-    calls absent to the nearest step of its run.  Then every code as many
+    rank and value lie in the run), stepped apart between those pins where
+    the column's values are all different, every pin left where it stands,
+    and off a spelling the column calls absent to the nearest step of its
+    run -- between the pins either side where the values all differ.
+    Then every code as many
     times as it counts, then ``text-N``.  Every rank between the ends
     reads one word, in rank order.
     """
@@ -20615,10 +20730,14 @@ def clock_census_content(column):
                 ordinals[rank] = low_at
             continue
         size = (high_at - low_at) // stride + 1
+        # Every pin is a knot, and on a column whose values all differ a
+        # wall the step apart does not cross (the review of landing 3b.5,
+        # item 1).
+        pinned = [rank - first for rank in range(first, first + cells) if rank in pins]
         knots = [(first * TWO64, 0)]
         knots += [((rank * TWO64), (pins[rank] - low_at) // stride)
                   for rank in range(first, first + cells)
-                  if rank in pins and not apart]
+                  if rank in pins]
         knots += [((first + cells) * TWO64, size)]
         places = []
         for rank in range(first, first + cells):
@@ -20634,7 +20753,7 @@ def clock_census_content(column):
             index = below if stop <= start else below + (share * (above - below)) // (stop - start)
             places += [min(size - 1, index)]
         if apart:
-            places = clock_kept_apart(places, size)
+            places = clock_kept_apart(places, size, pinned)
         taken = {}
         for place in places:
             taken[place] = taken.get(place, 0) + 1
@@ -20642,8 +20761,12 @@ def clock_census_content(column):
             rank = first + index
             if (rank not in pins and absent
                     and _clock_reads_absent(low_at + place * stride, form, absent)):
+                lowest, highest = 0, size - 1
+                if apart:
+                    lowest, highest = clock_pin_walls(index, pinned, places, size)
                 moved = clock_off_absent(
-                    place, size, low_at, stride, form, absent, taken, apart
+                    place, size, low_at, stride, form, absent, taken, apart,
+                    lowest, highest,
                 )
                 taken[place] -= 1
                 taken[moved] = taken.get(moved, 0) + 1
@@ -23413,7 +23536,7 @@ def _clock_census_all_different():
         **tails,
     )
     return {
-        "why": "G7A.4b on a column whose 60 values all differ: each run's ranks are stepped apart inside it, each past the one before and each leaving room for those after, so the twin's values all differ too and stay inside their groups. The mutant withdraws the step apart, and two ranks share a minute.",
+        "why": "G7A.4b on a column whose 60 values all differ: each run's ranks are read between its pins and stepped apart between them, each past the one before and each leaving room for those after, so the twin's values all differ too, stay inside their groups, and every pin -- the two boundaries and the three quartiles -- stands at its rank. Re-derived at the review of landing 3b.5 (item 1), where it had frozen 07:39 at the rank of its first quartile, published 07:30. The mutant withdraws the step apart, and two ranks share a minute.",
         "column": column,
         "rows": 60,
         "identifier_declared": False,

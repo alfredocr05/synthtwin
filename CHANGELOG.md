@@ -54,9 +54,49 @@ minority of `HH:MM:SS` or `h:mm AM` failed their own check before, and
 none does now; where every rule would not then read what is left as
 clock times -- one time on every row, or on every row but one, or two
 times beside the notes -- the pass counts out what it always did. The
-clock-or-labels question is asked only of columns whose shared times
-hold every cell. `K-S3-48` and `K-S3-49` are new; vectors file 21
-freezes fifteen cases.
+clock-or-labels question was asked only of columns whose shared times
+hold every cell; its review, below, widens that. `K-S3-48` and
+`K-S3-49` are new; vectors file 21 freezes fifteen cases.
+
+**Its one review** (Codex at 90466b2, every item fixed, nothing sent
+back). A published rung of a column whose values all differ stays at its
+rank: the run's pins were left out of its knots and stepped over, so the
+median of 100 different minutes, `09:43`, came back `09:49`, and vectors
+file 21 froze the same error; every pin is now a knot and a wall,
+product and oracle alike, and that one frozen case is rebuilt. Where the
+12-hour question fits a column the clock-or-labels question also fits,
+it offers `code` too, and the clock-or-labels question is asked of a
+column few enough for labels wherever every time inside its range is
+written by at least the line's rows, so twelve neighbouring minutes on
+20 rows each, which publish a census and no heap, are asked about. The generation report counts a code
+once, as validation does, where beside 100 `UNK` it called both the
+table's and the twin's count of different values outside its range. The
+loader refuses a block with no census whose body cell on no heap has no
+step to stand on, and a listing tail its heap leaves without a row for
+another value or its mean, where generation stopped on an internal error
+or lost the value; and it looks heaps up through a set, where a list
+grew with their square. NF107 no longer calls a time written another
+way no time of day, and `K-S3-49` names G8.3's clock line, past which a
+label column's stand-in stays text. And one more, found by lane R2a's
+reach battery: a SQL Server `time(7)` column, every cell a time and seven
+figures of fraction, is free text, and its twin wrote `44:40:00.0023504`
+and 855 more cells that are no time of day; a form whose seconds a point
+and figures follow is now a clock's form, filled with times at whole
+seconds first, and its walks no longer stop at 4,096 different values, so
+every cell of such a twin is a time in its own spelling, at 1,000 rows
+and at 100,000, and no other twin of the battery moves. And one its
+verification caught in the landing itself: a tail listing its values
+sorted them as text, so on a 12-hour clock, a one-figure hour or the
+declared half-day face the producer could write a description its own
+loader refused, and `synthtwin generate` stopped and said the file had
+been changed; such a tail lists its values in the order of the day now,
+and every other description keeps every byte.
+
+Merged beside landing T1's scripted notice, a column of few shared
+times that nobody is there to ask is said to be read as times of day
+and is offered `--code`, where it was said to be read as measurements;
+a 12-hour column offered `code` is offered `--code` beside
+`--twelve-hour`.
 
 ### A timestamp column's count pass stops rebuilding on every attempt (2026-10-03)
 

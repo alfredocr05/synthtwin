@@ -3512,7 +3512,7 @@ def _stride_of_a_minute(column):
     return 60 // gen.clock_step_of(column["clock_form"])
 
 
-def _apart_withdrawn(places, size):
+def _apart_withdrawn(places, size, pinned=()):
     """G7A.4b's step apart withdrawn: a run's steps stand as read."""
     return list(places)
 

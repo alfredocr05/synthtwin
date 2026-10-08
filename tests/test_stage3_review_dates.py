@@ -354,7 +354,7 @@ def test_the_hole_step_is_what_keeps_the_two_counts(
     monkeypatch.setattr(
         generation,
         "_clock_off_a_hole",
-        lambda place, units, low, stride, form, holes, taken: place,
+        lambda place, least, most, low, stride, form, holes, taken: place,
     )
     made = [row[0] for row in generation.generate(loaded, 0).rows]
     assert made.count("08:00") > 11

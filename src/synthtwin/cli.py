@@ -1771,13 +1771,17 @@ def _clock_notice(clocks: "list[asking.Question]", listing: str) -> str:
     """The scripted run's block for columns read as times of day (the T1 review's item 8).
 
     Each column is offered what its own question offers: `--twelve-hour`
-    where every hour lies in 1 to 12 with no AM or PM, and `--measurement`
+    where every hour lies in 1 to 12 with no AM or PM, `--measurement`
     where an hour in one figure makes the cell two numbers joined by a
-    colon. Guarantees: a function of the questions and their listing;
-    raises nothing; opens nothing.
+    colon, and `--code` where few times each shared by many rows may be
+    labels written as times (landing 3b.5, plan P4-D373), never for the
+    colon question's codes written in parts (the T1 review's item 8).
+    Guarantees: a function of the questions and their listing; raises
+    nothing; opens nothing.
     """
     twelve = [one for one in clocks if _offers(one, asking.ANSWER_TWELVE_HOUR)]
     joined = [one for one in clocks if _offers(one, asking.ANSWER_JOINED)]
+    codes = [one for one in clocks if asking.offers_labels_written_as_times(one)]
     said = (
         f"THESE COLUMNS WERE READ AS TIMES OF DAY, AND MIGHT BE READ "
         f"ANOTHER WAY.{listing}\n\n"
@@ -1807,6 +1811,15 @@ def _clock_notice(clocks: "list[asking.Question]", listing: str) -> str:
             f"numbers joined by a colon, which is how a duration in minutes "
             f"and seconds is written. If any of them holds such numbers, "
             f"run the command again naming it:\n  {flags}"
+        )
+    if codes:
+        flags = _joined([_typed_option("--code", one.name) for one in codes], " ")
+        said = said + (
+            f"\n\nA few times each shared by many rows can also be labels "
+            f"written as times, each naming a group rather than a moment -- "
+            f"a shift called by when it starts. If any of them holds such "
+            f"labels, run the command again naming it:\n  "
+            f"{flags}{_quoting_said(flags)}"
         )
     return said
 

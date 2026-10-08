@@ -7820,13 +7820,35 @@ below on that step:
    steps `s_0 .. s_{|S|-1}` reads its word `w` and stands at `s[i]`,
    with `i` read between the run's knots -- `(a 2**64, 0)`, each pin
    `(rank 2**64, its step)`, `((a + n) 2**64, |S|)` -- by G7A.4's floor
-   division, at most `|S| - 1`. It never goes down as the rank rises, so
-   every group, heap and boundary is met by construction. Where the
-   column's values were all different the run's steps are stepped
-   apart -- each past the one before, then each leaving room for those
-   after -- inside the run. A rank on a spelling the table calls absent
-   moves to the nearest step of its run that is not one, the earlier
-   first, on no other rank's step where the values differ.
+   division, at most `|S| - 1`, on every column, its values all
+   different or not. It never goes down as the rank rises, so every
+   group, heap and boundary is met by construction. Where the column's
+   values were all different the ranks between two pins, or between a
+   pin and an end of the run, are stepped apart -- each past the one
+   before, then each leaving room for those after -- strictly between
+   those pins' steps, so A PINNED RANK NEVER MOVES; a stretch holding
+   more ranks than steps between its pins, which no description the
+   producer writes has, stands from the step above its lower pin up,
+   its ranks sharing steps where they must, never past either pin. A rank on
+   a spelling the table calls absent moves to the nearest step of its
+   run that is not one, the earlier first -- where the values differ, on
+   no other rank's step and strictly between the pins either side of
+   it.
+
+   *Amended by the review of landing 3b.5, item 1.* The code read an
+   all-different column's ranks WITHOUT the pins as knots and then stepped
+   them apart over the whole run, which moved the pins: 100 different
+   minutes published their median at `09:43` and third quartile at
+   `11:21`, and the seed-0 twin held `09:49` and `11:24` at those ranks,
+   the census groups' windows holding both; 40 random all-different
+   columns, three seeds each, held 176 rungs off their ranks on 33 of
+   them, and hold none now.
+   The oracle wrote the same, so vectors file 21's
+   `clock_census_all_different` froze `07:39` at the rank of its first
+   quartile, published `07:30`. A rank stepped off an absent spelling
+   could cross a pin too, where the nearest free step lay past it. Every
+   pin is now a knot, and a wall the step apart and the step off an
+   absent spelling do not cross.
 5. **The words** are G7A.4's: `P - 2` content words, one per rank
    between the two ends in rank order, a heap's, a pin's or a
    boundary's read and set aside, a tail's handed to its draw from the
@@ -8094,6 +8116,31 @@ their own. Measured: a label column of 10,000 rows half `HH:MM` and half
 `HH:MM:SS` wrote 204 made-up times no clock reader takes where its table
 holds none, one of 100,000 rows beside 5 % `HH:MM:SS` wrote 2,003, and a
 free-text column of 1,000 rows beside 5 % wrote 32; after, none.
+
+*And by the fixes of its review* (a reach battery's SQL Server `time(7)`
+column): **A FRACTION OF THE SECOND.** A form whose seconds are followed
+by a point and a fraction in one figure or more is a clock's form too --
+`time(7)` writes `14:40:05.1234567`, `%%:%%:%%.%%%%%%%` -- and a fraction
+after the minutes alone is not. No clock reader takes a fraction, so
+such a column is labels or free text. Its clock supply is each time of
+day the form writes without the fraction, at every fraction its figures
+hold, and the step taken round the form's room is parted in two: its
+remainder by the times of the day names the time, stepped round them as
+on a form without a fraction, and its quotient names the fraction,
+stepped round the fraction's own room by the same rule -- so the first
+steps write whole seconds, `.0000000`, and a fraction moves only past
+every time of the day. No clock line holds such a form, so none of it is
+filled figure by figure; and since every step of its supply is another
+time, A WALK OF SUCH A FORM RUNS TO THE END OF ITS SUPPLY, here and in
+free text's forms (G9.5), where every other form's walk stops at 4,096
+spellings: a pass of it still gives up after 4,096 tried, and the supply
+this section counts for settling is counted as far, stopping after
+4,096 refused in a row. Measured before: a free-text `time(7)` column of
+1,000 different times wrote 856 cells that are no time of day,
+`44:40:00.0023504` the first, one of 10,000 wrote 9,400, and a long tail
+of 100,000 rows holding back 5,863 times wrote 40,204, missing its own
+census of forms; after, none, and over 169 columns of the reach battery
+and nine columns beside these forms no other twin moves by a byte.
 
 `suppressed_levels` says how many levels were withheld and
 `suppressed_rows` how many rows they covered together. No size of any
@@ -13821,7 +13868,7 @@ case passed, which is the failure the count exists to prevent:
 | `clock_census_heap_splits_group` | G7A.4b's runs: a heap at 07:25 holding 15 of 84 cells stands inside the census group 07:20 to 07:39, whose 15 other cells are shared over the steps on each side of the heap -- 07:20 to 07:24 and 07:26 to 07:39 -- by how many steps each run holds. Its mutant gives the whole count to the group's first run, and the cells move |
 | `clock_census_night` | G7A.4b on a night column, 80 times from 20:00 to 05:59: the census holds 06:00 to 19:59 as one group of nought, so no rank of the body stands there, where G7A.4's knots filled the middle of the day. Its mutant withdraws the census, the body is one group over the dial, and its middle fills |
 | `clock_census_seconds` | G7A.4b at the second (`hh-mm-ss`), a step of one second: 72 times from 09:00:00 with 12 at 09:00:00, a heap that is the low tail's one listed value, and the census over the rest. Its mutant lays the body on a step of a minute, and every cell moves onto a whole minute |
-| `clock_census_all_different` | G7A.4b on a column whose 60 values all differ: each run's ranks are stepped apart inside it, each past the one before and each leaving room for those after, so the twin's values all differ too and stay inside their groups. Its mutant withdraws the step apart, and two ranks share a minute |
+| `clock_census_all_different` | G7A.4b on a column whose 60 values all differ: each run's ranks are read between its pins and stepped apart between them, each past the one before and each leaving room for those after, so the twin's values all differ too, stay inside their groups, and every pin -- the two boundaries and the three quartiles -- stands at its rank. Re-derived at the review of landing 3b.5 (item 1), where it had frozen `07:39` at the rank of its first quartile, published `07:30`. Its mutant withdraws the step apart, and two ranks share a minute |
 | `clock_census_absent_inside` | G7A.4b's step off an absent spelling: 08:30 is declared missing and 13 cells wrote it, and it lies inside the census group 08:20 to 08:39. A run's rank on that spelling moves to the nearest step of its run that is not one, the earlier first. Its mutant leaves it there, and the twin writes 08:30 as a present cell its own reader counts absent |
 | `clock_census_boundary_below_heap` | G7A.4b's first cell for a boundary (the 3b.5 skeptic's MAJOR 1): the low boundary 06:58 stands two steps below a heap of 25 at 07:00, both in the group 06:50 to 07:39, so the run holding the boundary holds 2 of the group's 41 steps and a share by steps gives it none of 19 cells. The run takes one cell first. Its mutant shares by steps alone, the boundary's rank lands on the heap, and the twin holds no 06:58 |
 | `clock_census_tail_heaps` | G7A.4b's heaps in the tails: 06:00 holds 14 of the low tail's 16 cells and 22:00 13 of the high tail's 15. Each tail's heap cells stand on their value, and its other cells are drawn through the shape its rows, mean and root-mean-square less the heap's give, in steps that skip the heap's distance. Its mutant draws each tail whole through its shape, and the heaps are gone |

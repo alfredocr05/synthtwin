@@ -397,7 +397,18 @@ RUNNING_NAMES = ("exec", "eval", "compile", "runpy.run_path", "runpy.run_module"
 # floor holds for it as it does for the other thirty-one. (The landing
 # counted 31 from 30 on its own branch; the review of lane R1 had
 # counted 31 from 30 beside it, and the merge counts both.)
-FILES_LOADED_AS_MODULES = 32
+#
+# 33 AT PLAN P4-D373'S REVIEW (2026-10-06), not 32:
+# `tests/test_stage3b_clock_review.py` loads
+# `tools/reference/make_generation_reference_vectors.py` through
+# `_oracle_module`, to hold the oracle's clock supply of a time written
+# to a fraction of the second to the product's, call by call, since no
+# frozen case holds such a form. What it loads is the committed oracle,
+# unedited, a file under tools/ this guard reads directly, so the floor
+# holds for it as it does for the other thirty-two. (The review counted
+# 31 from 30 on its own branch, beside the two above; the merge of
+# 2026-10-08 counts all three.)
+FILES_LOADED_AS_MODULES = 33
 
 
 def _files() -> "list[pathlib.Path]":

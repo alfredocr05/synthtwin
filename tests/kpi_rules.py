@@ -407,7 +407,12 @@ def functions_in(path: pathlib.Path) -> "frozenset[str]":
 
 
 _UNITS = "zero one two three four five six seven eight nine ten eleven twelve thirteen fourteen fifteen sixteen seventeen eighteen nineteen".split()
-_TENS = {"twenty": 20, "thirty": 30, "forty": 40}
+# ...and every ten up to ninety: K-S3-49 states sixty-nine, and while the
+# tens stopped at forty its "sixty" stood over sixty-seven nodes unread.
+_TENS = {
+    "twenty": 20, "thirty": 30, "forty": 40, "fifty": 50,
+    "sixty": 60, "seventy": 70, "eighty": 80, "ninety": 90,
+}
 
 
 def pinned_counts_named(rule: str) -> "list[int]":

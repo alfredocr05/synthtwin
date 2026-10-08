@@ -23,7 +23,9 @@ at 110cb46 and passes with its fix:
   -- the loader took a 12-hour style no declaration stood behind;
 * item 8 `test_item_8_a_scripted_run_names_the_clock_question_s_own_answer`
   -- the notice for a scripted run offered `--code` to the 12-hour
-  question and called a clock column text;
+  question and called a clock column text; and, at the merge of landing
+  3b.5, `test_item_8_at_the_merge_of_landing_3b_5_a_clock_or_labels_column_is_offered_code`
+  -- the clock-or-labels question fell to the block for measurements;
 * item 9 `test_item_9_a_pooled_style_is_not_an_unused_declaration`
   -- a declared stamp whose written clock was pooled was told nothing was
   read on a 12-hour clock;
@@ -465,6 +467,32 @@ def test_item_8_a_scripted_run_names_the_clock_question_s_own_answer(
     gate._described(tmp_path / "padded", padded)
     said = _notice(capsys.readouterr().out)
     assert "--twelve-hour seen_at" in said and "--measurement" not in said
+
+
+def test_item_8_at_the_merge_of_landing_3b_5_a_clock_or_labels_column_is_offered_code(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Few shared times are offered `--code` beside the clock's own answers, never called measurements.
+
+    Landing 3b.5 (plan P4-D373) asks whether a column of few times, each
+    written by many rows, holds labels written as times, and its review
+    adds `code` to the 12-hour question where both fit. Merged into this
+    landing's tree, `asking.asks_about_a_clock` knew neither: three
+    afternoon shift starts fell to the block saying a column was "read
+    as measurements" and described "with an average, a spread", and
+    three morning ones were offered `--twelve-hour` alone.
+    """
+    shifts = ["13:00"] * 100 + ["14:00"] * 100 + ["15:00"] * 100
+    gate._described(tmp_path / "shifts", shifts)
+    said = _notice(capsys.readouterr().out)
+    assert "times of day" in said and "MEASUREMENTS" not in said
+    assert "--code seen_at" in said and "--twelve-hour" not in said
+    # ...and on a face the 12-hour question also fits, both answers.
+    morning = ["07:00"] * 100 + ["08:00"] * 100 + ["09:00"] * 100
+    gate._described(tmp_path / "morning", morning)
+    said = _notice(capsys.readouterr().out)
+    assert "--twelve-hour seen_at" in said and "--code seen_at" in said
+    assert "MEASUREMENTS" not in said
 
 
 # -- item 9: a pooled style is not an unused declaration -----------------

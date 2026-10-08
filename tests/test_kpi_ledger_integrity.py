@@ -695,10 +695,15 @@ def test_a_rule_stating_another_count_of_pinned_nodes_is_named() -> None:
     """(a) can fail: a rule's 'the nine pinned nodes' is held to the nodes it pins.
 
     K-S3-39 said 'the seven pinned nodes' while it pinned sixteen, and no
-    check read the word (the final review of landing 3b.0).
+    check read the word (the final review of landing 3b.0). Nor did one
+    read a ten past forty: K-S3-49 said 'the sixty pinned nodes' while it
+    pinned sixty-seven (the verification of landing 3b.5's review).
     """
-    stated = "the nine pinned nodes; twenty-one pinned nodes, 16 pinned nodes, its pinned nodes"
-    assert kpi_rules.pinned_counts_named(stated) == [9, 21, 16]
+    stated = (
+        "the nine pinned nodes; twenty-one pinned nodes, 16 pinned nodes, its pinned nodes, "
+        "the sixty pinned nodes, the sixty-nine pinned nodes, ninety-nine pinned nodes"
+    )
+    assert kpi_rules.pinned_counts_named(stated) == [9, 21, 16, 60, 69, 99]
 
     def miscount(ledger: "dict") -> None:
         entry = _first_with("nodes", ledger)

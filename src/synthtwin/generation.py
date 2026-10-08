@@ -18057,10 +18057,13 @@ def _clock_census_content(
 
     between the run's pins, which never goes down as the rank rises, so
     every group, heap and boundary is met by construction. On a column
-    whose values were all different a run's ranks are stepped apart inside
-    it. A rank of a run on a spelling the table calls absent moves to the
-    nearest step of its run that is not one. Then the codes, each as many
-    times as it counts, and the other stand-ins of G7A.5.
+    whose values were all different a run's ranks are stepped apart
+    between its pins, and every pinned rank stays on its value
+    (`_clock_kept_apart`). A rank of a run on a spelling the table calls
+    absent moves to the nearest step of its run that is not one -- where
+    the values all differ, between the pins either side of it. Then the
+    codes, each as many times as it counts, and the other stand-ins of
+    G7A.5.
     """
     column = plan.column
     facts = column.facts
@@ -18120,9 +18123,11 @@ def _clock_census_content(
             continue
         units = (block.high - block.low) // stride + 1
         knots: "list[tuple[int, int]]" = [(start * _WORD_SCALE, 0)]
+        fixed: "list[int]" = []
         for rank in range(start, start + block.cells):
-            if rank in pinned and not layout.apart:
+            if rank in pinned:
                 knots += [(rank * _WORD_SCALE, (pinned[rank] - block.low) // stride)]
+                fixed += [rank - start]
         knots += [((start + block.cells) * _WORD_SCALE, units)]
         places: "list[int]" = []
         for rank in range(start, start + block.cells):
@@ -18132,13 +18137,7 @@ def _clock_census_content(
             position = rank * _WORD_SCALE + word_of[rank]
             places += [min(units - 1, _clock_run_at(knots, position))]
         if layout.apart:
-            for index in range(1, len(places)):
-                places[index] = max(places[index], places[index - 1] + 1)
-            for index in range(len(places) - 1, -1, -1):
-                ceiling = units - (len(places) - index)
-                if index + 1 < len(places):
-                    ceiling = min(ceiling, places[index + 1] - 1)
-                places[index] = max(0, min(places[index], ceiling))
+            places = _clock_kept_apart(places, fixed, units)
         taken: "dict[int, int]" = {}
         for place in places:
             taken[place] = (taken[place] if place in taken else 0) + 1
@@ -18148,8 +18147,11 @@ def _clock_census_content(
             if rank not in pinned and holes and _is_a_hole_spelling(
                 parsing.clock_spelling(block.low + place * stride, form), holes
             ):
+                least, most = 0, units - 1
+                if layout.apart:
+                    least, most = _clock_between_pins(index, fixed, places, units)
                 place = _clock_off_a_hole(
-                    place, units, block.low, stride, form, holes,
+                    place, least, most, block.low, stride, form, holes,
                     taken if layout.apart else {},
                 )
                 taken[places[index]] = taken[places[index]] - 1
@@ -18189,22 +18191,77 @@ def _clock_run_at(knots: "list[tuple[int, int]]", position: int) -> int:
     return knots[0][1]
 
 
+def _clock_kept_apart(
+    places: "list[int]", fixed: "list[int]", units: int
+) -> "list[int]":
+    """A run's steps on a column whose values all differ (method G7A.4b).
+
+    Between two pinned ranks -- or a pinned rank and an end of the run --
+    each rank is stepped past the one before it, then kept below the one
+    after it with room left for those after, so the ranks of each stretch
+    stand on different steps strictly between its pins' steps and A
+    PINNED RANK NEVER MOVES (the landing's review, item 1: stepped apart
+    over the whole run, the median of 100 different minutes moved from
+    09:43 to 09:49). With no pin this is the run-wide step and clamp it
+    always was. A stretch holding more ranks than steps between its pins,
+    which no description the producer writes has, stands from the step
+    above its lower pin up, its ranks sharing steps where they must, and
+    never past either pin. `fixed` are the pinned indexes, ascending; `places`
+    is changed in place and handed back. Raises nothing. No I/O.
+    """
+    walls = [-1] + fixed + [len(places)]
+    for wall in range(len(walls) - 1):
+        first = walls[wall] + 1
+        stop = walls[wall + 1]
+        below = places[walls[wall]] if walls[wall] >= 0 else -1
+        above = places[stop] if stop < len(places) else units
+        top = above if stop < len(places) else units - 1
+        last = below
+        for index in range(first, stop):
+            places[index] = max(places[index], last + 1)
+            last = places[index]
+        ceiling = above
+        for index in range(stop - 1, first - 1, -1):
+            places[index] = min(max(below + 1, min(places[index], ceiling - 1)), top)
+            ceiling = places[index]
+    return places
+
+
+def _clock_between_pins(
+    index: int, fixed: "list[int]", places: "list[int]", units: int
+) -> "tuple[int, int]":
+    """The first and last step a run's unpinned rank may move to on a
+    column whose values all differ: strictly between the pinned ranks
+    either side of it, or the run's own end (method G7A.4b)."""
+    least = 0
+    most = units - 1
+    for pin in fixed:
+        if pin < index:
+            least = places[pin] + 1
+        elif pin > index:
+            most = places[pin] - 1
+            break
+    return least, most
+
+
 def _clock_off_a_hole(
     place: int,
-    units: int,
+    least: int,
+    most: int,
     low: int,
     stride: int,
     form: str,
     holes: "tuple[str, ...]",
     taken: "dict[int, int]",
 ) -> int:
-    """The nearest step of a run whose spelling the table does not call
-    absent -- the earlier first at one distance, and on a column whose
-    values all differ one no other rank stands on -- or the same step
-    where the run holds none (method G7A.4b)."""
-    for away in range(1, units + 1):
+    """The nearest step of a run from `least` to `most` whose spelling the
+    table does not call absent -- the earlier first at one distance, and
+    on a column whose values all differ one no other rank stands on,
+    between the pins either side of it -- or the same step where there is
+    none (method G7A.4b)."""
+    for away in range(1, max(place - least, most - place) + 1):
         for other in (place - away, place + away):
-            if other < 0 or other >= units:
+            if other < least or other > most:
                 continue
             if other in taken and taken[other] > 0:
                 continue
@@ -29933,12 +29990,19 @@ def _usable_room(
     the places it has to fill, so a form of many letters costs this the
     number of stand-ins and not four thousand candidates -- which is
     what made it a cost on a wide table (round 3 finding 8).
+
+    It counts as far as the walk spends (`_form_walk_bounds`): 4,096
+    spellings of a form, or a clock's form written to a fraction of the
+    second to the end of its clock supply, stopping after 4,096 refused
+    in a row.
     """
-    room = min(_form_room(form), _STAND_IN_STEPS)
+    room, tries = _form_walk_bounds(form)
     usable = 0
+    refused = 0
     for step in range(room):
-        if usable >= wanted:
+        if usable >= wanted or refused >= tries:
             return usable
+        refused = refused + 1
         candidate = _filled_form(form, step)
         if candidate in used or parsing.folded(candidate) in owners:
             continue
@@ -29954,6 +30018,7 @@ def _usable_room(
         ):
             continue
         usable = usable + 1
+        refused = 0
     return usable
 
 
@@ -30044,24 +30109,41 @@ _CLOCK_FORM_MARKS = (
 )
 
 
-def _clock_filled_form(form: str, step: int) -> "str | None":
-    """One clock time of a form a clock time can wear, or None (G8.3).
+@dataclasses.dataclass(frozen=True)
+class _ClockShape:
+    """How one form a clock time can wear writes it (method G8.3).
 
-    Contract 7.9.1's clock supply (landing 3b.5, plan P4-D373).
+    `figures` are the hour's, one or two; `seconds` says whether it writes
+    them; `places` are the figures of its fraction of the second, nought
+    where it writes none; `marked` is the marker pair's two words, or two
+    empty words where it ends in none, and `space` what stands before the
+    marker. `first` is the first hour it writes, `hours` how many hours it
+    writes, `times` how many times of the day, its fraction aside, and
+    `parts` how many fractions its figures hold: ten to the `places`.
+    """
 
-    A form is a clock's where it is an hour of one or two figures, a colon
-    and two figures, optionally a colon and two more, and optionally a
-    marker after one space or none (`_CLOCK_FORM_MARKS`). Its CLOCK
-    SUPPLY is every time it writes: hours 0 to 23 (one figure: 0 to 9), or
-    1 to 12 behind a marker (one figure: 1 to 9), each minute, each second
-    where it writes them, and both halves of the day where it is marked.
-    The step is moved around the form's whole room as `_filled_form` moves
-    it, and where it lands inside the supply -- the first steps always do
-    -- the time it names is written, stepped around the supply by the same
-    stride; past it, None, and the form's other spellings follow as before.
+    figures: int
+    seconds: bool
+    places: int
+    marked: "tuple[str, str]"
+    space: str
+    first: int
+    hours: int
+    times: int
+    parts: int
 
-    Guarantees: a function of the two; every spelling returned is read by
-    `parsing.clock_parts`. Raises nothing. No I/O of any kind.
+
+def _clock_shape(form: str) -> "_ClockShape | None":
+    """How a form a clock time can wear writes it, or None where none can (G8.3).
+
+    An hour of one or two figures, a colon and two figures, optionally a
+    colon and two more, optionally after those a point and a fraction of
+    the second in one figure or more, and optionally a marker after one
+    space or none (`_CLOCK_FORM_MARKS`): hours 0 to 23 (one figure: 0 to
+    9), or 1 to 12 behind a marker (one figure: 1 to 9). A fraction after
+    the minutes is no clock's: `%%:%%.%` is how a stopwatch writes minutes
+    and seconds. Guarantees: a function of the form. Raises nothing. No
+    I/O of any kind.
     """
     body = form
     marked = ("", "")
@@ -30075,6 +30157,14 @@ def _clock_filled_form(form: str, step: int) -> "str | None":
                 space = " "
             break
     digit = parsing.SHAPE_DIGIT
+    # A fraction of the second, read off the end: a point and its figures.
+    places = 0
+    cut = len(body)
+    while cut > 0 and body[cut - 1 : cut] == digit:
+        cut = cut - 1
+    if cut < len(body) and body[cut - 1 : cut] == ".":
+        places = len(body) - cut
+        body = body[: cut - 1]
     shapes = {
         digit + digit + ":" + digit + digit: (2, False),
         digit + ":" + digit + digit: (1, False),
@@ -30084,27 +30174,121 @@ def _clock_filled_form(form: str, step: int) -> "str | None":
     if body not in shapes:
         return None
     figures, seconds = shapes[body]
+    if places and not seconds:
+        return None
     first = 1 if marked[0] else 0
     last = 12 if marked[0] else 23
     if figures == 1:
         last = 9
     hours = last - first + 1
-    supply = hours * 60 * (60 if seconds else 1) * (2 if marked[0] else 1)
-    index = step % _form_room(form)
-    if index >= supply:
+    times = hours * 60 * (60 if seconds else 1) * (2 if marked[0] else 1)
+    parts = 1
+    for _place in range(places):
+        parts = parts * 10
+    return _ClockShape(
+        figures, seconds, places, marked, space, first, hours, times, parts
+    )
+
+
+def _clock_filled_form(form: str, step: int) -> "str | None":
+    """One clock time of a form a clock time can wear, or None (G8.3).
+
+    Contract 7.9.1's clock supply (landing 3b.5, plan P4-D373).
+
+    A form is a clock's where `_clock_shape` reads it. Its CLOCK SUPPLY is
+    every time it writes: each hour it writes, each minute, each second
+    where it writes them, and both halves of the day where it is marked --
+    and, where it writes a fraction of the second, each of those times at
+    every fraction its figures hold. The step is moved around the form's
+    whole room as `_filled_form` moves it, and where it lands inside the
+    supply -- the first steps always do -- the time it names is written,
+    stepped around the times of the day by the same stride; past it, None,
+    and the form's other spellings follow as before.
+
+    A FRACTION OF THE SECOND (the fixes of the clock census's review, a
+    battery's SQL Server `time(7)` column). No clock reader takes a
+    fraction, so a column whose every cell is written `14:40:05.1234567`
+    is labels or free text, and its cells are stand-ins of the form
+    `%%:%%:%%.%%%%%%%`; filled figure by figure, 856 of 1,000 were no time
+    of day, `44:40:00.0023504` the first, and code reading the real
+    column's times stopped on its twin. The step is now parted in two:
+    its remainder by the times of the day names the time, exactly as on a
+    form without a fraction, and its quotient the fraction, stepped round
+    the fraction's own figures by the same rule -- so the first steps
+    write each time at a fraction of nought, `.0000000`, as an export of
+    whole seconds writes it, and only past every time of the day does a
+    fraction move. A form without a fraction is filled as it was before.
+
+    Guarantees: a function of the two; every spelling returned is a time
+    of day: read by `parsing.clock_parts` where it writes no fraction, and
+    so read once its point and fraction are taken off where it writes
+    one. Raises nothing. No I/O of any kind.
+    """
+    shape = _clock_shape(form)
+    if shape is None:
         return None
-    place = _stepped_around(index, supply)
-    hour = first + place % hours
-    place = place // hours
+    index = step % _form_room(form)
+    if index >= shape.times * shape.parts:
+        return None
+    place = _stepped_around(index % shape.times, shape.times)
+    hour = shape.first + place % shape.hours
+    place = place // shape.hours
     minute = place % 60
     place = place // 60
-    text = (f"{hour:02d}" if figures == 2 else f"{hour}") + f":{minute:02d}"
-    if seconds:
+    text = (f"{hour:02d}" if shape.figures == 2 else f"{hour}") + f":{minute:02d}"
+    if shape.seconds:
         text = text + f":{place % 60:02d}"
         place = place // 60
-    if marked[0]:
-        text = text + space + marked[place % 2]
+    if shape.places:
+        fraction = _stepped_around(index // shape.times, shape.parts)
+        text = text + f".{fraction:0{shape.places}d}"
+    if shape.marked[0]:
+        text = text + shape.space + shape.marked[place % 2]
     return text
+
+
+def _fraction_clock_supply(form: str) -> int:
+    """How many times a clock's form written to a fraction of the second
+    writes, or nought for any other form (G8.3, G9.5).
+
+    THE WALK OF SUCH A FORM IS NOT STOPPED AT 4,096 SPELLINGS (the fixes
+    of the clock census's review). `_STAND_IN_STEPS` bounds how many
+    spellings of one form a walk tries in all, because a form can refuse
+    every spelling it has; its clock supply cannot, since each step of it
+    is another time and no clock reader takes a fraction, so no clock
+    line holds it. Bounded at 4,096, a free-text `time(7)` column of
+    10,000 different times wrote 5,904 cells in no time's spelling, one of
+    100,000 wrote 95,904, and a long tail of 100,000 rows with 5,863
+    held-back times wrote 7,294 cells `group-N` and missed its own census
+    of forms. So both walks of such a form, the free text's and the
+    held-back labels', run to the end of this supply, and a pass of either
+    still gives up after 4,096 spellings tried (`_form_walk_bounds`).
+
+    Guarantees: a function of the form. Raises nothing. No I/O.
+    """
+    shape = _clock_shape(form)
+    if shape is None or not shape.places:
+        return 0
+    return shape.times * shape.parts
+
+
+def _form_walk_bounds(form: str, figured: bool = False) -> "tuple[int, int]":
+    """How many steps a walk of one form's spellings may take in all, and
+    how many one pass of it may try (G8.3, G9.5).
+
+    Every form: its room, and never more than `_STAND_IN_STEPS`, for
+    both. A clock's form written to a fraction of the second, unless it
+    is filled figure by figure: its whole clock supply in all, and
+    `_STAND_IN_STEPS` a pass (`_fraction_clock_supply`).
+
+    Guarantees: a function of the two; both numbers at least one where the
+    form holds a spelling. Raises nothing. No I/O of any kind.
+    """
+    supply = 0 if figured else _fraction_clock_supply(form)
+    if supply:
+        return supply, _STAND_IN_STEPS
+    room = min(_form_room(form), _STAND_IN_STEPS)
+    return room, room
 
 
 def _clock_line_room(
@@ -31172,17 +31356,22 @@ def _made_up_label(
         # column advanced it twenty thousand times without a single
         # collision and its twin held `group-20101`. A shaped walk now
         # leaves `number` exactly where it found it.
-        room = min(_form_room(form), _STAND_IN_STEPS)
         # PAST THE CLOCK LINE A CLOCK'S FORM IS FILLED FIGURE BY FIGURE
         # (the repair round of landing 3b.5), on a cursor of its own, and
         # a spelling a clock reader takes is stepped past.
         figured = figures is not None and _clock_filled_form(form, 0) is not None
+        # A form's walk stops at 4,096 spellings; a clock's form written to
+        # a fraction of the second runs to the end of its clock supply, a
+        # pass giving up after 4,096 tried (`_form_walk_bounds`).
+        room, tries = _form_walk_bounds(form, figured)
         cursor = walked
         if figured and figures is not None:
             cursor = figures
         if form not in cursor:
             cursor[form] = 0
-        while cursor[form] < room:
+        tried = 0
+        while cursor[form] < room and tried < tries:
+            tried = tried + 1
             candidate = _filled_form(form, cursor[form], not figured)
             cursor[form] = cursor[form] + 1
             if figured and parsing.clock_parts(candidate) is not None:
@@ -40501,8 +40690,14 @@ def _walked_cell(
     DO WITH WHAT THIS COLUMN HAS WRITTEN, so the number of indices one
     value costs is bounded by the family's own size and by the ask
     ceiling, and by nothing smaller (review item P2-C2-F8).
+
+    A clock's form written to a fraction of the second is walked to the
+    end of its clock supply, a pass of it giving up after
+    `_STAND_IN_STEPS` spellings refused in a row
+    (`_fraction_clock_supply`).
     """
     room = _family_room(kind, band, length, words)
+    tries = room
     if form:
         # A FORM'S SUPPLY IS ITS OWN AND IS USUALLY MUCH SMALLER THAN
         # THE FAMILY'S (review round 1 finding 3, found again on this
@@ -40513,9 +40708,12 @@ def _walked_cell(
         # before the walk gives up. Bounded by the form's own supply it
         # gives up at once, and the caller then takes the walk again
         # without the form.
-        room = min(room, _form_room(form), _STAND_IN_STEPS)
+        reach, tries = _form_walk_bounds(form, figures)
+        room = min(room, reach)
     asked = 0
-    while state[0] < room:
+    tried = 0
+    while state[0] < room and tried < tries:
+        tried = tried + 1
         index = state[0]
         state[0] = state[0] + 1
         candidate: "str | None" = None
@@ -46517,7 +46715,14 @@ def _clock_approximations(
             column.name, side, tail, ordinals, side.boundary,
             "minute" if parsing.clock_step(form) == 60 else "second",
         )
+    # A PUBLISHED CODE IS ONE SPELLING however many cells hold it, and every
+    # other stand-in a spelling of its own (G12.11, landing 3b.5): counted
+    # once a cell, 100 `UNK` beside 102 different times drew 113 to 405
+    # where validation drew 14 to 306, and the report said both the table's
+    # count and the twin's were outside (the landing's review, item 4).
     stand_ins = len(present) - held
+    for _spelling, count in facts.clock_codes:
+        stand_ins = stand_ins - count + 1
     lowest_count = _forced_apart(lows, highs) + stand_ins
     reachable = held
     if layout.low is not None and layout.high is not None:

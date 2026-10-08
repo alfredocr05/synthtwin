@@ -4024,9 +4024,9 @@ back-solve beside the sentence correctly assumed they did not.
 
 > how many of this column's times fall in each ten-minute stretch of the day is not counted: beside the times many rows share, fewer than «1» of the values it would count are left, and no count below «1» is printed
 
-**NF107. `clock_codes_written_back` — codes among clock times, written back** — arity 1 (landing 3b.5). A remark, carried by a column of clock times that publishes `clock_codes`. Argument 1: the census line.
+**NF107. `clock_codes_written_back` — codes among clock times, written back** — arity 1 (landing 3b.5). A remark, carried by a column of clock times that publishes `clock_codes`, the spellings its `clock_form` does not read: a code, or a time written another way, such as `14:00:00` among times written to the minute (the review of landing 3b.5, item 7: the remark called such a cell text that is not a time of day). Argument 1: the census line.
 
-> some cells of this column hold text that is not a time of day; each such text that at least «1» rows wrote is published with how many rows wrote it, and the twin writes it exactly that many times, as the table writes it
+> some cells of this column are not read as times of day in the form its times are written in -- a code, or a time written another way; each such text that at least «1» rows wrote is published with how many rows wrote it, and the twin writes it exactly that many times, as the table writes it
 
 <!-- anchor 3b-C2 (P4-D374) -->
 <!-- anchor 3b-G1 (P4-D375) -->
@@ -4291,11 +4291,18 @@ values many rows share are published as heaps with their counts
 (`clock_heaps`, section 6.13), so the list a categorical reading gave is
 not lost; `--code` still reads the column as labels, and the questions
 file asks where both readings fit and the data does not settle which --
-where the times many rows share hold every cell of the column's body, so
-its census is empty and nothing was left out of it
-(`few-times-of-day-each-shared-by-many-rows`, answers `keep` and `code`):
-three shift starts are asked about, walk-ins at 10,000 rows, 700 times
-spread over the day, are not. AND THE LEVEL PASS KEEPS A CLOCK COLUMN A
+where every time inside the column's range, between its two tail
+boundaries or anywhere where it has none, is written by at least the
+census line's rows, as every value of a list of labels the floor
+publishes is (`few-times-of-day-each-shared-by-many-rows`, answers `keep`
+and `code`): three shift starts are asked about, and so, since the
+landing's review (item 3), are twelve neighbouring minutes twenty rows
+each, which stand out from nothing and publish a census -- values side
+by side do not say they are times; walk-ins at 10,000 rows, 700 times
+spread over the day most of them on a few rows, are not. Where the
+12-hour question or the colon question a clock in one figure raises
+fits the same column, that one question is asked and offers `code` too
+(the review, item 2). AND THE LEVEL PASS KEEPS A CLOCK COLUMN A
 CLOCK COLUMN: where the levels below the floor no spelling of which a
 clock reader takes hold at most one present cell in fifty, and the
 column without exactly those cells reads as clock times, only those are
@@ -11488,7 +11495,17 @@ repair round of landing 3b.5 the SHAPE such a level is written in where
 the census owes it none (below) keeps the space and the marker's marks,
 `%:%% @@`, and this supply fills it with times of its face -- measured,
 a column of `7:30 AM` read as labels beside 2 % `UNK` wrote 587 of 3,000
-twin cells `group-N`, and now none.
+twin cells `group-N`, and now none. Since the fixes of the landing's
+review, a form whose seconds a point and a fraction in one figure or more
+follow is a clock's form too -- SQL Server's `time(7)`,
+`%%:%%:%%.%%%%%%%` -- whose supply is each time at every fraction its
+figures hold, whole seconds first; no clock reader takes such a time, so
+no clock line holds it, and a walk of it runs to the end of its supply
+where any other form's stops at 4,096 spellings. Measured before: a
+free-text `time(7)` column of 1,000 different times wrote 856 twin cells
+that are no time of day, `44:40:00.0023504` the first, and a long tail of
+100,000 rows 40,204, missing its census of forms; after, none (method
+G8.3).
 
 **AND ONLY BELOW THE CLOCK LINE** (the repair round of landing 3b.5;
 generation method G8.3). The twin of a column of labels is described
@@ -12491,8 +12508,8 @@ it answers to.
 | CC2 | every group of `clock_census` counts nought or at least `max(2, small_cell_floor)` | yes |
 | CC3 | the groups add up to the body less its cells on a heap: `P - low_tail.rows - high_tail.rows` (`P`, the parsed cells, where there are no tails) less the counts of the heaps between the two boundaries | yes |
 | CC4 | a block publishes a census, heaps or codes only beside a `clock_step`; the step divides the dial and is a whole number of the form's unit, and every clock value the block publishes -- the boundaries, a tail's values, the rungs and the heaps -- stands on it | yes |
-| CC5 | every group counting cells holds a step between the two boundaries that is no heap -- as many as it counts on a column whose values are all different -- and every boundary and published rung stands on a heap or in a group counting cells | yes |
-| CH1 | the heaps are times in `clock_form`, strictly ascending, each counting at least the census line; those beyond a boundary count no more together than that tail's rows and, where it lists its values, are among them; those between the boundaries count no more than the body | yes |
+| CC5 | every group counting cells holds a step between the two boundaries that is no heap -- as many as it counts on a column whose values are all different -- and every boundary and published rung stands on a heap or in a group counting cells; a block publishing no census is asked the same of the one group over the dial counting the body's cells on no heap, which G7A.4b lays (the review of landing 3b.5, item 5) | yes |
+| CH1 | the heaps are times in `clock_form`, strictly ascending, each counting at least the census line; those beyond a boundary count no more together than that tail's rows and, where it lists its values, are among them -- and there every other value it lists keeps at least one row, the heaps and those values hold every row, and the sum of distances `rows * mean_distance` fixes, less the heaps', lies within half a unit of what those values' rows can add, from each once and the rest on the nearest to each once and the rest on the furthest (the review of landing 3b.5, item 5); those between the boundaries count no more than the body | yes |
 | CH2 | the codes are spellings `clock_form` does not read, strictly in text order, each counting at least the census line, and together no more than `n_unparsed` | yes |
 
 <!-- anchor 3b-C2 (P4-D374) -->

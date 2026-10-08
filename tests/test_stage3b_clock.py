@@ -89,12 +89,14 @@ holds the whole battery, and NF106's sentence:
   every row but one beside a few words or notes publishes no pool that
   names a count (mutant: the route standing on labels);
 * Q `test_q_a_few_shared_times_are_asked_about` -- where a set of labels
-  could hold the column too and the times many rows share hold every
-  cell of its body, the questions file asks, and the answer `code` reads
-  it as labels; where a census is published, nobody is asked; shift
-  starts beside stray night times, whose tails meet on the middle heap,
-  are asked about (mutants: no question; the question asked beside a
-  census; the tails ignored);
+  could hold the column too and every time inside its range is written
+  by at least the line's rows, the questions file asks, and the answer
+  `code` reads it as labels; where some of its times are on fewer rows,
+  nobody is asked; shift starts beside stray night times, whose tails
+  meet on the middle heap, are asked about (mutants: no question; the
+  question asked beside times on a few rows; the tails ignored); since
+  the landing's review, a census beside no heap does not settle it
+  (`tests/test_stage3b_clock_review.py`, item 3);
 * G `test_g_the_guard_holds_each_clock_leaf_to_its_kind` -- the
   publication guard refuses a clock census bin, group count, heap count,
   heap value and step each of the wrong kind (mutant, one each: that
@@ -1344,13 +1346,14 @@ def _asked_about_times(names: "tuple[str, ...]", rows: int) -> "list[str]":
 
 
 def test_q_a_few_shared_times_are_asked_about() -> None:
-    """Asked of three shift starts, whose heaps hold every cell; not of times a census spreads."""
+    """Asked of three shift starts, every time on many rows; not of times some written on a few."""
     _folder, columns, document, _loaded, _table = _described(_ASKED, 1000, 11)
     asked = {question.name: question for question in _asked(document, columns, _ASKED)}
     assert asked["shifts3"].reason == asking.BECAUSE_FEW_CLOCK_TIMES
     assert [choice.answer for choice in asked["shifts3"].choices] == [asking.ANSWER_KEEP, asking.ANSWER_CODE]
-    # Shift starts with 10 % jitter and the handover publish a census: the
-    # data says they are times, and nobody is asked.
+    # Shift starts with 10 % jitter and the handover write some of their
+    # times on fewer rows than the line: the data says they are times, and
+    # nobody is asked.
     assert _asked_about_times(_ASKED, 1000) == ["shifts3"]
     # ...nor of walk-ins at 10,000 rows, 700 times spread over the day.
     assert _asked_about_times(("walkin",), 10000) == []
@@ -1364,9 +1367,8 @@ def test_q_shift_starts_beside_stray_times_are_asked_about() -> None:
 
     Shift starts at 07:00, 15:00 and 19:00 beside fourteen stray night
     times, fewer than the floor on either side: each tail reaches into the
-    shift starts and both boundaries stand at 15:00, so the heap there
-    holds every cell the tails leave, the census is empty, and the column
-    is asked about.
+    shift starts and both boundaries stand at 15:00, so the one time
+    inside the range is on many rows, and the column is asked about.
     """
     _folder, _columns, document, _loaded, _table = _described(("shifts_stray",), 1000, 11)
     block = _block(document, "shifts_stray")
@@ -1380,18 +1382,18 @@ def test_q_red_without_the_question(monkeypatch: pytest.MonkeyPatch) -> None:
     assert "shifts3" not in _asked_about_times(_ASKED, 1000)
 
 
-def test_q_red_when_asked_beside_a_census(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(asking, "_heaps_hold_the_body", lambda _block: True)
+def test_q_red_when_asked_beside_rare_times(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(asking, "_times_each_shared", lambda *_a: True)
     assert _asked_about_times(_ASKED, 1000) != ["shifts3"]
 
 
 def test_q_red_when_the_tails_are_ignored(monkeypatch: pytest.MonkeyPatch) -> None:
-    built = asking._heaps_hold_the_body
+    built = asking._times_each_shared
 
-    def tailless(block: "dict[str, object]") -> bool:
-        return built({**block, "low_tail": None, "high_tail": None})
+    def tailless(block: "dict[str, object]", present: "list[str]", line: int) -> bool:
+        return built({**block, "low_tail": None, "high_tail": None}, present, line)
 
-    monkeypatch.setattr(asking, "_heaps_hold_the_body", tailless)
+    monkeypatch.setattr(asking, "_times_each_shared", tailless)
     assert _asked_about_times(("shifts_stray",), 1000) == []
 
 
