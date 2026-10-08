@@ -7033,7 +7033,7 @@
    "headline": false,
    "name": "Numbers that are dates come back as dates, written as the same counts",
    "status": "GREEN",
-   "rule": "the fourteen shapes of tests/counted_dates.py -- Excel, SAS, Stata, Unix and Epic counts of encounters, arrivals, clinic slots and birth dates -- floor 11: undeclared at 1,000 rows, question Q3 asks at least thirteen on every one of seeds 0 to 2 and at least twelve under each of eight stray values at seed 0 (one, two and five keying slips a century out, one cell in a hundred holding a placeholder), at least six over events from 1985 to 2025 and three over births from 1920 to 2005, every column asked offered the system that wrote it, NF113 naming no set-aside number fewer than eleven cells hold, and no question on the chance battery's seventy-five generators at ten draws that the fixed-width question did not ask; at 10,000 rows, with two and ten cells in a thousand holding one placeholder, all thirteen asked and none without its system or with years more than one off; declared, the forty-two columns -- each shape and each over the two ranges -- at 1,000 rows and seeds 0 to 2 and at 10,000 rows and seed 0: every one read as dates, no twin cell off its column's count_form or naming no date, no source cell naming a date not written back as itself, no twin and no source MISSED, the weekday TVD of the date counts at most 0.03 and each half of an Epic twin within one point of the census's share of each contact number at 10,000 rows; the seven columns of COARSE figures read as dates exactly where a unit keeps their figures, the three writers beside the battery's read as written, every twin and source of them passing; and the gate's pinned nodes pass",
+   "rule": "the fourteen shapes of tests/counted_dates.py -- Excel, SAS, Stata, Unix and Epic counts of encounters, arrivals, clinic slots and birth dates -- floor 11: undeclared at 1,000 rows, question Q3 asks at least thirteen on every one of seeds 0 to 2 and at least twelve under each of eight stray values at seed 0 (one, two and five keying slips a century out, one cell in a hundred holding a placeholder), at least six over events from 1985 to 2025 and three over births from 1920 to 2005, every column asked offered the system that wrote it, NF113 naming no set-aside number fewer than eleven cells hold, and no question on the chance battery's seventy-five generators at ten draws that the fixed-width question did not ask; at 10,000 rows, with two and ten cells in a thousand holding one placeholder, all thirteen asked and none without its system or with years more than one off; declared, the forty-two columns -- each shape and each over the two ranges -- at 1,000 rows and seeds 0 to 2 and at 10,000 rows and seed 0: every one read as dates, no twin cell off its column's count_form or naming no date, no source cell naming a date not written back as itself, no twin and no source MISSED, the weekday TVD of the date counts at most 0.03 and each half of an Epic twin within one point of the census's share of each contact number at 10,000 rows; the seven columns of COARSE figures read as dates exactly where a unit keeps their figures and, undeclared, asked by Q3 with the system that wrote them exactly there, the three writers beside the battery's read as written, every twin and source of them passing; and the gate's pinned nodes pass",
    "rule_kind": "at_most",
    "expected": {
     "shapes": 14,
@@ -7056,6 +7056,7 @@
     "contacts_half_off_points": 1.0,
     "coarse_misread": 0,
     "coarse_missed": 0,
+    "coarse_asked_wrong": 0,
     "writers_missed": 0
    },
    "key_kinds": {
@@ -7089,6 +7090,7 @@
     "tests/test_stage3b_counted.py::test_c2_every_system_of_the_unit_whose_years_fit_is_offered",
     "tests/test_stage3b_counted.py::test_c2_rule_b_reads_eleven_different_days_at_midnight",
     "tests/test_stage3b_counted.py::test_c2_money_amounts_and_lengths_of_time_are_not_asked",
+    "tests/test_stage3b_counted.py::test_c2_a_system_whose_answer_is_refused_is_not_offered",
     "tests/test_stage3b_counted.py::test_c3_an_answered_file_and_the_typed_option_give_one_description",
     "tests/test_stage3b_counted.py::test_c3_a_system_outside_the_twelve_is_refused_before_the_table_is_read",
     "tests/test_stage3b_counted.py::test_c3_a_counted_column_also_named_a_code_is_refused",

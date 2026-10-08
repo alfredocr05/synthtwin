@@ -299,20 +299,28 @@ def test_a_column_holding_A_FEW_epoch_shaped_values_hears_nothing() -> None:
 def test_a_column_of_fractions_in_one_decade_of_the_band_is_asked() -> None:
     """A count with a fraction is a moment too, so NF51's exclusion is gone.
 
-    `45386.5` is noon in Excel's count of days and `1600000000.25` a
-    quarter of a second in Unix's; a column of such numbers read as
-    measurements keeps them as measurements, which is the answer Enter
-    gives. Whole figures of one width, inside the band, ask.
+    `45386.50000` is noon in Excel's count of days and `1600000000.250`
+    a quarter of a second in Unix's, written to the millisecond; a column
+    of such numbers read as measurements keeps them as measurements,
+    which is the answer Enter gives. Whole figures of one width, inside
+    the band, ask. The same seconds written to the tenth keep no unit --
+    a half second settled to the second is not the count written -- so
+    their every answer would be refused, and they are asked nothing (the
+    review of landing R4, item 2).
     """
     rng = random.Random(6)
     low = parsing.days_from_civil(2016, 1, 1) * _DAY
     high = parsing.days_from_civil(2025, 1, 1) * _DAY
-    values = [f"{rng.randint(low, high - 1)}.5" for _each in range(200)]
+    seconds = [rng.randint(low, high - 1) for _each in range(200)]
+    values = [f"{second}.{rng.randrange(1000):03d}" for second in seconds]
     block = _described(values, name="reading")["columns"][0]
     assert block["role"] == taxonomy.ROLE_CONTINUOUS
     (asked,) = _of_form(block, taxonomy.REMARK_NUMBERS_COULD_BE_DATES)
     assert asked.arguments[0] == date_counts.RULE_BAND
     assert _members(block) == ["seconds-since-1960", "seconds-since-1970"]
+    tenths = _described([f"{second}.5" for second in seconds], name="reading")["columns"][0]
+    assert tenths["role"] == taxonomy.ROLE_CONTINUOUS
+    assert not _of_form(tenths, taxonomy.REMARK_NUMBERS_COULD_BE_DATES)
 
 
 def test_two_values_outside_the_band_are_let_stand_and_three_are_not() -> None:

@@ -16879,11 +16879,12 @@ def _counts_read_as_dates(
     WHERE THE UNIT LOSES A FIGURE THE COLUMN WROTE, the column is not
     read as counted dates (the review of landing R4, item 2): the
     profiler asks of every count that it is its column's own writing of
-    the moment it was read as (`date_counts.held_by_its_moment`), and
-    one that is not -- Unix seconds written with tenths, four figures of
-    a day of moments off the whole minute, one figure of a day -- means
-    no unit a twin could be drawn at keeps the column's figures, and
-    nothing is read: the caller then says so in NF115.
+    the moment it was read as (`date_counts.settled_reading`, which
+    question Q3 asks too before it offers the member), and one that is
+    not -- Unix seconds written with tenths, four figures of a day of
+    moments off the whole minute, one figure of a day -- means no unit a
+    twin could be drawn at keeps the column's figures, and nothing is
+    read: the caller then says so in NF115.
 
     Guarantees: accepts the classified present cells, the member, the
     column's settings, whether it is declared `--decimal-comma` and the
@@ -16920,64 +16921,46 @@ def _counts_read_as_dates(
         parsed += [(_COUNT_READ, numerator, denominator, word)]
         tally = date_counts.tallied(tally, written)
     plain = date_counts.form_from(tally, mark, None)
-    candidates: "tuple[int, ...]" = (published,)
-    if not published:
-        candidates = date_counts.reading_units(member, plain, tally)
-    settled = candidates[0]
-    unit = settled
+    counts: "list[tuple[int, int]]" = []
+    no_count = True
+    for kind, numerator, denominator, _word in parsed:
+        if kind != _COUNT_KEPT:
+            no_count = False
+        if kind == _COUNT_READ:
+            counts += [(numerator, denominator)]
+    if no_count:
+        return classified, [], None
+    # EVERY FIGURE THE COLUMN WROTE IS HELD at the unit it is settled to, or
+    # nothing is read -- the one decision question Q3 asks before it offers
+    # the member (`date_counts.settled_reading`, `date_counts.figures_kept`).
+    reading = date_counts.settled_reading(member, plain, tally, counts, published)
+    if reading is None:
+        return classified, [], None
+    settled, unit, read_moments = reading
     fates: "list[int]" = []
     moments: "list[int]" = []
     contacts: "dict[int, dict[str, int]]" = {}
     missing: "list[tuple[str, str]]" = []
-    held_everywhere = False
-    for settled in candidates:
-        fates = []
-        moments = []
-        exact: "list[tuple[int, int]]" = []
-        contacts = {}
-        missing = []
-        for index in range(len(classified)):
-            kind, numerator, denominator, word = parsed[index]
-            if kind == _COUNT_KEPT:
-                fates += [_COUNT_KEPT]
-                continue
-            moment: "int | None" = None
-            if kind == _COUNT_READ:
-                moment = date_counts.moment_of(member, numerator, denominator, settled)
-            if moment is not None and date_counts.placeholder_day_named(moment, settled):
-                moment = None
-            if moment is None:
-                fates += [_COUNT_SET_ASIDE]
-                missing += [(classified[index].text, parsing.MISSING_DECLARED)]
-                continue
-            fates += [_COUNT_READ]
-            moments += [moment]
-            exact += [(numerator, denominator)]
-            if found.contacts:
-                held = contacts[moment] if moment in contacts else {}
-                held[word] = (held[word] if word in held else 0) + 1
-                contacts[moment] = held
-        if not moments and not missing:
-            return classified, [], None
-        unit = published if published else date_counts.written_unit(moments, settled)
-        if published or tally.places == 0 or found.contacts:
-            held_everywhere = True
-            break
-        # EVERY FIGURE THE COLUMN WROTE IS HELD at this unit, or the next is
-        # tried, and past the last nothing is read.
-        held_everywhere = True
-        for place in range(len(moments)):
-            numerator, denominator = exact[place]
-            if not date_counts.held_by_its_moment(
-                member, plain, numerator, denominator,
-                moments[place] * settled // unit, unit,
-            ):
-                held_everywhere = False
-                break
-        if held_everywhere:
-            break
-    if not held_everywhere:
-        return classified, [], None
+    count_place = 0
+    for index in range(len(classified)):
+        kind, _numerator, _denominator, word = parsed[index]
+        if kind == _COUNT_KEPT:
+            fates += [_COUNT_KEPT]
+            continue
+        moment: "int | None" = None
+        if kind == _COUNT_READ:
+            moment = read_moments[count_place]
+            count_place = count_place + 1
+        if moment is None:
+            fates += [_COUNT_SET_ASIDE]
+            missing += [(classified[index].text, parsing.MISSING_DECLARED)]
+            continue
+        fates += [_COUNT_READ]
+        moments += [moment]
+        if found.contacts:
+            held = contacts[moment] if moment in contacts else {}
+            held[word] = (held[word] if word in held else 0) + 1
+            contacts[moment] = held
     texts: "dict[int, str]" = {}
     read: "list[_Cell]" = []
     place = 0

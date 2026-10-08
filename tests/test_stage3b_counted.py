@@ -341,9 +341,24 @@ def test_c2_no_ordinary_column_gets_a_new_question() -> None:
 
 
 def test_c2_a_band_from_1970_would_ask_ordinary_columns(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Mutant: a band from 1970, which reads a potassium of `4.2` as an instant of 1 January 1970.
+
+    Measurements written to one or two figures -- a potassium, an INR,
+    cents -- stand in the band from 1970 as seconds and are asked by it,
+    where the band from 1990 asks none. Since the review of landing R4
+    the figures check refuses them too (`date_counts.figures_kept`:
+    tenths of a second keep no unit), so each guard alone keeps them
+    unasked, and the mutant is shown with the check lifted as well.
+    """
     monkeypatch.setattr(date_counts, "NARROW_FROM", 1970)
     _asked, _draws, new = _new_questions(4)
+    assert new == [], "the figures check alone"
+    monkeypatch.setattr(date_counts, "figures_kept", lambda member, present, mark=".": True)
+    _asked, _draws, new = _new_questions(4)
     assert new, "a band from 1970 asked nothing new"
+    monkeypatch.setattr(date_counts, "NARROW_FROM", 1990)
+    _asked, _draws, new = _new_questions(4)
+    assert new == [], "the band from 1990 alone"
 
 
 def test_c2_variable_width_identifiers_are_not_asked() -> None:
@@ -600,7 +615,11 @@ def test_c2_money_amounts_and_lengths_of_time_are_not_asked(monkeypatch: pytest.
     lengths of time kept as whole days of seconds or of milliseconds.
     Each is asked once its rule is put back as it was: rule A without its
     four figures of a day or its Epic days mostly whole, rule B without
-    its year from the epoch or its thousand-day step.
+    its year from the epoch or its thousand-day step. One or two figures
+    of a day keep no unit (`date_counts.figures_kept`), so the four
+    figures are the cheap half of a refusal the figures check would reach
+    after a second walk of the cells: the money and the doses are asked
+    only with both lifted.
     """
     names = (
         "salary_cents_45k", "payment_cents_20k", "room_charge_cents_62k", "glucose_area_1dp",
@@ -619,8 +638,21 @@ def test_c2_money_amounts_and_lengths_of_time_are_not_asked(monkeypatch: pytest.
 
     for name in names:
         assert not any(asked(name, draw) for draw in range(4)), name
+
+    def second_walk(member: str, present: "list[str]", mark: str = ".") -> bool:
+        raise AssertionError(f"the four figures let a column of cents reach the figures check ({member})")
+
+    # THE CHEAP HALF REFUSES FIRST: money in cents is never walked again.
+    monkeypatch.setattr(date_counts, "figures_kept", second_walk)
+    assert not asked("salary_cents_45k", 0) and not asked("dose_total_1dp", 0)
+    monkeypatch.undo()
     monkeypatch.setattr(date_counts, "DAY_TIME_PLACES", 0)
+    assert not asked("salary_cents_45k", 0) and not asked("dose_total_1dp", 0)
+    monkeypatch.setattr(date_counts, "figures_kept", lambda member, present, mark=".": True)
     assert asked("salary_cents_45k", 0) and asked("dose_total_1dp", 0)
+    monkeypatch.undo()
+    monkeypatch.setattr(date_counts, "figures_kept", lambda member, present, mark=".": True)
+    assert not asked("salary_cents_45k", 0) and not asked("dose_total_1dp", 0)
     monkeypatch.undo()
     original = date_counts._text_holds
 
@@ -638,6 +670,36 @@ def test_c2_money_amounts_and_lengths_of_time_are_not_asked(monkeypatch: pytest.
     # Whole days of milliseconds read as seconds stand every thousand days.
     monkeypatch.setattr(date_counts, "UNIT_STEP_DAYS", 10**18)
     assert asked("gap_milliseconds_whole_days", 0)
+
+
+def test_c2_a_system_whose_answer_is_refused_is_not_offered(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The review of landing R4, item 2, as question Q3 sees it: figures no unit keeps are asked nothing.
+
+    Unix seconds written with tenths or hundredths, and four figures of a
+    day of moments off the minute, are no counted dates a twin could be
+    drawn at, and their declaration is refused (NF115). Q3 asks the
+    profiler's own decision first (`date_counts.figures_kept`, over
+    `date_counts.settled_reading`): such a column is asked nothing, and
+    the two `COARSE` columns a unit keeps are asked with the system that
+    wrote them and read as dates once answered. Without the check Q3
+    asked about the tenths, and every system it offered was refused.
+    """
+    for name in sorted(battery.COARSE):
+        system, _write, kept = battery.COARSE[name]
+        cells = battery.coarse(name, battery.ROWS, 0)
+        said = _q3(_block_of(tmp_path / name, cells))
+        offered = [] if said is None else [member for member, _first, _last in said.readings]
+        assert (system in offered) == kept and (kept or not offered), (name, offered)
+        for member in offered:
+            assert _block_of(tmp_path / f"{name}-{member}", cells, member)["role"] == "datetime", (name, member)
+    monkeypatch.setattr(date_counts, "figures_kept", lambda member, present, mark=".": True)
+    cells = battery.coarse("unix_s_1dp", battery.ROWS, 0)
+    said = _q3(_block_of(tmp_path / "mutant", cells))
+    assert said is not None and said.readings
+    for member, _first, _last in said.readings:
+        assert _block_of(tmp_path / f"mutant-{member}", cells, member)["role"] != "datetime", member
 
 
 # -- C3: the answer and the option ---------------------------------------

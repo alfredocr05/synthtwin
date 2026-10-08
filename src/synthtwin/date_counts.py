@@ -1116,6 +1116,129 @@ def held_by_its_moment(
     return gap * 2 * step_bottom * 2**52 <= room
 
 
+def settled_reading(
+    member: str,
+    plain: CountForm,
+    tally: Tally,
+    counts: "list[tuple[int, int]]",
+    published: int = 0,
+) -> "tuple[int, int, list[int | None]] | None":
+    """How a declared column's counts are read: the settled unit, the written unit, each count's moment.
+
+    THE ONE DECISION THE PROFILER AND QUESTION Q3 SHARE (the review of
+    landing R4, item 2). ``counts`` are the column's exact counts beside
+    its set-aside numbers, in the order the cells stand; ``plain`` and
+    ``tally`` say how they are written. Each unit the figures may carry
+    is tried, coarsest first (`reading_units`; the checker passes the
+    unit the description published, ``published``, and that alone): every
+    count is read as the moment it names in that unit, None where it names
+    none or a moment of a placeholder day (`placeholder_day_named`), and
+    the moments are written at the coarsest unit every one of them stands
+    on (`written_unit`). The first unit at which every count is its
+    column's own writing of its moment (`held_by_its_moment`) is the
+    reading -- at once for the published unit, for whole counts and for a
+    member with contacts, whose figures after the point are no time.
+
+    None where no unit holds every figure: Unix seconds written with
+    tenths, four figures of a day of moments off the whole minute, and one
+    to three figures of a day that are not whole days are no counted dates
+    a twin could be drawn at.
+
+    Guarantees: accepts the member, the column's plain form, its tally,
+    its counts and a published unit or nought; returns the settled unit,
+    the written unit and one moment or None per count, or None.
+    Determinism: whole-number arithmetic. Raises KeyError for a word
+    outside `MEMBERS`. No I/O of any kind.
+    """
+    found = TABLE[member]
+    candidates: "tuple[int, ...]" = (published,)
+    if not published:
+        candidates = reading_units(member, plain, tally)
+    for settled in candidates:
+        moments: "list[int | None]" = []
+        standing: "list[int]" = []
+        for numerator, denominator in counts:
+            moment = moment_of(member, numerator, denominator, settled)
+            if moment is not None and placeholder_day_named(moment, settled):
+                moment = None
+            moments += [moment]
+            if moment is not None:
+                standing += [moment]
+        unit = published if published else written_unit(standing, settled)
+        if published or tally.places == 0 or found.contacts:
+            return settled, unit, moments
+        if _every_figure_held(member, plain, counts, moments, settled, unit):
+            return settled, unit, moments
+    return None
+
+
+def _every_figure_held(
+    member: str,
+    plain: CountForm,
+    counts: "list[tuple[int, int]]",
+    moments: "list[int | None]",
+    settled: int,
+    unit: int,
+) -> bool:
+    """Whether every count that names a moment is its column's own writing of it, at the first that is not."""
+    for place in range(len(counts)):
+        moment = moments[place]
+        if moment is None:
+            continue
+        numerator, denominator = counts[place]
+        if not held_by_its_moment(
+            member, plain, numerator, denominator, moment * settled // unit, unit
+        ):
+            return False
+    return True
+
+
+def figures_kept(member: str, present: "list[str]", mark: str = POINT) -> bool:
+    """Whether a declaration of ``member`` would keep every figure a column's counts write (question Q3).
+
+    THE PROFILER'S OWN DECISION, asked before the question is put
+    (`settled_reading`): the present cells read as counts of the member
+    (`counted`), its set-aside numbers taken out (`declared_aside`),
+    tallied and settled exactly as a declaration settles them. A system
+    no unit of which holds every figure -- Unix seconds written with
+    tenths, four figures of a day of moments off the minute -- is not
+    offered, since the answer would be refused (NF115): the first build of
+    the review of landing R4 asked such a column and then refused every
+    system it offered, as item 3 of that review found for Epic days with a
+    binary64's tail. A member with contacts holds the day alone.
+
+    The caller asks this only of a column some count of which is not whole:
+    a whole count is its own writing of its moment at every unit, and a
+    count past 2**53 whose fraction binary64 cannot hold stands well
+    inside the exporter's steps (`EXPORTER_STEPS`).
+
+    Guarantees: accepts the member, the present cells and the mark;
+    returns whether the reading holds. Determinism: whole-number
+    arithmetic over the text. Raises KeyError for a word outside
+    `MEMBERS`. No I/O of any kind.
+    """
+    found = TABLE[member]
+    if found.contacts:
+        return True
+    aside: "dict[int, int]" = {}
+    for number in declared_aside(member):
+        aside[number] = 1
+    tally = Tally()
+    counts: "list[tuple[int, int]]" = []
+    for text in present:
+        written = counted(member, text, mark)
+        if written is None:
+            continue
+        numerator, denominator = exact_value(written)
+        if stands_aside(numerator, denominator, False, aside):
+            continue
+        counts += [(numerator, denominator)]
+        tally = tallied(tally, written)
+    if not counts:
+        return True
+    return settled_reading(member, form_from(tally, mark, None), tally, counts) is not None
+
+
 def form_holds(form: CountForm, written: Written) -> bool:
     """Whether a cell is one the published form can write (validation, CD).
 
@@ -1392,8 +1515,9 @@ class Asked:
     """Why a column of numbers is worth asking whether it holds dates (Q3).
 
     `rule` is one of `RULES`; `members` the members offered, in the
-    table's order, each of the same unit as a member the rule fired on
-    and each reading the column inside 1900 to 2050; `set_aside` which
+    table's order, each of the same unit as a member the rule fired on,
+    each reading the column inside 1900 to 2050 and each keeping its
+    figures (`figures_kept`); `set_aside` which
     of the set-aside numbers the column holds -- words of this package's
     own (`0`, `-1`, `1900-01-01`, `9999-12-31`, `60`), never a cell.
     """
@@ -1536,7 +1660,11 @@ def asked_of(
     THE ANSWERS (item 2 of that review): every member counting in the
     unit of a member a rule fired on and reading the column inside 1900
     to 2050, so a column of SAS days from 1985 is offered the 1960
-    member it is written in beside the 1970 one.
+    member it is written in beside the 1970 one -- and, on a column some
+    count of which is not whole, only a member whose declaration would
+    keep every figure (`figures_kept`): Unix seconds written with tenths
+    are asked nothing, where the first build of the review of landing R4
+    offered systems whose every answer was then refused.
 
     Guarantees: accepts the present cells as text, their numbers, the
     cells the date role's line needs, the median, whether every number
@@ -1607,6 +1735,12 @@ def asked_of(
     if not kept:
         return None
     offered = _offered(ordered, kept, total, present, needed, mark)
+    if not whole:
+        # A SYSTEM WHOSE ANSWER WOULD BE REFUSED IS NOT OFFERED (the review of
+        # landing R4, item 2): its declaration keeps no unit of the figures.
+        offered = tuple(member for member in offered if figures_kept(member, present, mark))
+    if not offered:
+        return None
     return Asked(rule, offered, _set_aside_words(ordered, kept, floor))
 
 

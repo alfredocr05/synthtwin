@@ -68,6 +68,10 @@ Declared at 1,000 rows, seed 0, beside the battery:
   unit keeps read as dates, or one whose figures a unit keeps not read
   as dates or not written back cell for cell (item 2);
 * `coarse_missed`: their twins and sources `validate` does not pass;
+* `coarse_asked_wrong`: of the same seven, undeclared, one Q3 asks
+  though no unit keeps its figures -- every system it offered would be
+  refused once answered -- or one a unit keeps that Q3 does not ask with
+  the system that wrote it (item 2, as the question sees it);
 * `writers_missed`: columns pandas wrote with `repr` or as `45000.0`, and
   an Epic column written to seventeen significant figures, that are not
   read, written back and checked as their writer writes them -- the
@@ -345,10 +349,16 @@ def _written_back(system: str, cells: "list[str]", facts: object) -> int:
 
 def _figures_and_writers(home: pathlib.Path, notes: "list[str]") -> "dict[str, int]":
     """Items 2, 3 and 5: figures no unit keeps, and the writers beside the battery's."""
-    totals = {"coarse_misread": 0, "coarse_missed": 0, "writers_missed": 0}
+    totals = {"coarse_misread": 0, "coarse_missed": 0, "coarse_asked_wrong": 0, "writers_missed": 0}
     for name in sorted(battery.COARSE):
         system, _write_one, kept = battery.COARSE[name]
         cells = battery.coarse(name, ASKED_ROWS, 0)
+        asked_here = home / f"coarse-asked-{name}"
+        asked_here.mkdir(parents=True)
+        offered = _offered(asked_here, cells) or []
+        if (system in offered) != kept or (offered and not kept):
+            totals["coarse_asked_wrong"] += 1
+            notes += [f"{name}: Q3 offers {offered}, a unit keeps its figures {kept}"]
         came = _quiet_trip(home / f"coarse-{name}", cells, system)
         facts = came.get("facts")
         read = isinstance(facts, contract.DatetimeFacts) and facts.count_form is not None
