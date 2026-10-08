@@ -31,7 +31,7 @@ unit of that hour leaves it), lab draws come back at 43.3 per cent
 between 06:00 and 08:00 against 43.3 real and discharges at 62.6
 against 62.6 between 10:00 and 14:00, and the hour TVD falls to 0.0002
 to 0.0020 at 10,000 rows. The pass takes 0.4 s at 40,000 arrivals and
-13 s of a 180 s generate at 1,000,000; a million daytime visits, most
+13 s of a 180 s generate at 1,000,000; a million daytime visits, half
 of whose draws land in hours the census counts empty, take 18 s of a
 130 s generate, where the same column with no hour census takes 126 s
 in the same window, since the shared steps' CHAIN and exchange file

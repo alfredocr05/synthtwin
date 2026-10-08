@@ -6885,7 +6885,8 @@ seconds of 10,000 rows' pass in the shares. Filed once a call and kept
 as each move changes them, and the shares asked gap by gap, every answer
 of those steps is the same: in one window the million moments take 18
 seconds of a 130-second generate, where the column with no hour census
-takes 126, their twin byte for byte the one before, and the shares 0.47.
+takes 126, their twin byte for byte the one before, and those 10,000
+rows' shares 0.47.
 
 **A stated limit** (the lane's skeptic, finding 5). A 12-hour stamp
 whose census is withheld -- three days of stamps, HC4 -- holds its body

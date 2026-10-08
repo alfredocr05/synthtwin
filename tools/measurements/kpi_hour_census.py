@@ -161,7 +161,7 @@ def main() -> int:
         timed, said = daytime(pathlib.Path(folder))
         value: "dict[str, float]" = dict(totals)
         value.update(timed)
-        notes = notes + said
+        notes += said
         kpi_rules.emit("K-S3-38", value, "; ".join(notes) if notes else "every twin and table held, no clause failed")
     return 0
 
