@@ -45,9 +45,11 @@ write, by the mutant that withdraws it turning the test's own
 measurement the other way. The repair round ran a source mutant of each
 clause of the three rules, of the guard on the cells left past the width
 and of G6.3's give-up against this file, and its leftover round one of
-each clause of rule 3's one division a block and of the checker's second
-window; method section G6.6.8 states how many turn it red. The end rule
-is also frozen in
+each clause of where rule 3 is asked, of its one division a block and of
+the checker's second window -- the low end's side of where rule 1 moved
+an end and the mean's half of that window among them, which that round's
+verifier found no test held; method section G6.6.8 states how many turn
+it red. The end rule is also frozen in
 `tail_width_past_the_reach` (tests/reference/generation-branch-vectors-23.json);
 the walk has no frozen case, because the oracle does not run G6.6's
 walk, so it is pinned here. The mean and spread 110cb46 wrote on the
@@ -226,6 +228,11 @@ def _grid(rows: int) -> "list[str]":
     return [str(1000 + 100 * (step % 10)) for step in range(rows)] + ["99900"]
 
 
+def _mirrored_grid(rows: int) -> "list[str]":
+    """The grid mirrored below nought: readings -1000 to -1900 beside one `-99900`, so rule 1 moves the low end alone."""
+    return [str(-int(cell)) for cell in _grid(rows)]
+
+
 def _beside_one_far(rows: int) -> "list[str]":
     """`00001` up, padded to five, beside one `12345` (follow-up A's shape)."""
     return [f"{value:05}" for value in range(1, rows)] + ["12345"]
@@ -377,7 +384,11 @@ def test_on_the_low_side_the_end_is_the_first_whole_number_at_or_past_the_reach(
     proves the furthest row stands -- and 58 twins of the second skeptic's
     batteries moved with it. The twenty-third vectors file freezes a high
     side only, so this pins the low side's rounding (the second skeptic of
-    the repair, item 3); its mutant leaves the end at `-3432`.
+    the repair, item 3); its mutant leaves the end at `-3432`. The high end
+    stands at `640` either way, so the rule moved the low end alone, and
+    `contract.reach_moved_an_end`, which rule 3 and the checker both ask,
+    reads it (the leftover round's verifier, finding 1); its mutant reads
+    the high ends only.
     """
     described = _described(tmp_path, "neg4000_100", reader.far_low(4000, 100), 36)
     block = described.document["columns"][0]
@@ -391,6 +402,9 @@ def test_on_the_low_side_the_end_is_the_first_whole_number_at_or_past_the_reach(
     point = boundary - contract.pair_reach(tail["mean_distance"], tail["rms_distance"])
     assert point != math.floor(point), "premise: the reach lands between two whole numbers"
     assert ladder.low.end == math.floor(point) == _reach_end(block, "low", boundary) == -3433.0
+    assert ladder.high is not None and held.high is not None
+    assert ladder.high.end == held.high.end == 640.0, "premise: the rule left the high end"
+    assert contract.reach_moved_an_end(facts)
 
 
 def test_the_ladder_read_without_the_reach_rule_holds_the_width_s_end(tmp_path: pathlib.Path) -> None:
@@ -994,6 +1008,45 @@ def test_where_the_rule_reads_the_moments_further_off_the_twin_is_110cb46_s(
         mine = _errors(cells, _twin_numbers(described, seed))
         theirs = _errors(cells, _withdrawn_numbers(described, seed))
         assert mine[0] + mine[1] > theirs[0] + theirs[1], f"seed {seed}: {mine} {theirs}"
+
+
+def test_where_rule_1_moved_the_low_end_alone_the_values_are_read_again_too(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The first skeptic's grid mirrored below nought, at eleven: rule 3 reads it again, and the twin is 110cb46's.
+
+    Readings -1000 to -1900 beside one `-99900`: rule 1 takes the low end
+    from `-9998`, where the width held it, to the pair's reach, and leaves
+    the high end at `-1000`. Rule 3 asks `contract.reach_moved_an_end`,
+    which reads both ends, so the values are read again here, and at seeds
+    0, 4 and 9 the twin is 110cb46's -- its mean 0.25 of the real spread
+    off and its spread 0.82 of the real one -- and misses nothing. Read on
+    the high ends alone, the rule's reading stood, its mean 3.13 of the
+    real spread off and its spread 9.45 times the real one, and the
+    checker, asking the same question, drew no second window and missed
+    nothing (the leftover round's verifier, finding 1). Its mutant
+    withdraws rule 3: the twin is that reading, further off on both
+    moments, and the checker, which reads the low end too, misses its
+    spread on the window drawn with the rule withdrawn.
+    """
+    cells = _mirrored_grid(1000)
+    described = _described(tmp_path, "mirrored1000", cells, 11)
+    facts = _facts(described)
+    ruled = contract.tail_ladder(facts)
+    held = contract.tail_ladder(facts, reach_rule=False)
+    assert ruled is not None and ruled.low is not None and ruled.high is not None
+    assert held is not None and held.low is not None and held.high is not None
+    assert ruled.low.end < held.low.end == -9998.0, "premise: rule 1 moved the low end"
+    assert ruled.high.end == held.high.end == -1000.0, "premise: and left the high end"
+    for seed in SEEDS:
+        assert _twin_numbers(described, seed) == _withdrawn_numbers(described, seed), f"seed {seed}"
+        assert _missed(described, seed) == [], f"seed {seed}"
+    _rule_three_withdrawn(monkeypatch)
+    for seed in SEEDS:
+        mine = _errors(cells, _twin_numbers(described, seed))
+        theirs = _errors(cells, _withdrawn_numbers(described, seed))
+        assert mine[0] > theirs[0] and mine[1] > theirs[1], f"seed {seed}: {mine} {theirs}"
+        assert "value:moments.std" in _missed(described, seed), f"seed {seed}"
 
 
 def test_where_the_rule_reads_both_moments_nearer_the_twin_keeps_it(
@@ -2024,12 +2077,38 @@ def _shown_ends(published: str) -> "tuple[float, float]":
     return float(low), float(high)
 
 
-_HELD_GRIDS = ((1000, 11), (1000, 20), (400, 20), (400, 36))
+def _moved_sides(facts: contract.NumericFacts) -> "list[str]":
+    """The sides whose end the ladder read with rule 1 and the one read without it hold apart, read off each ladder's own ends.
+
+    A premise read without `contract.reach_moved_an_end`, so a mutant of
+    that one test turns the checker's verdict, not the premise.
+    """
+    ruled = contract.tail_ladder(facts)
+    held = contract.tail_ladder(facts, reach_rule=False)
+    assert ruled is not None and held is not None, "premise: a tail block"
+    return [
+        side
+        for side, mine, theirs in (("low", ruled.low, held.low), ("high", ruled.high, held.high))
+        if mine is not None and theirs is not None and mine.end != theirs.end
+    ]
 
 
-@pytest.mark.parametrize("rows,floor", _HELD_GRIDS, ids=[f"grid{rows}_f{floor}" for rows, floor in _HELD_GRIDS])
+_HELD_GRIDS = (
+    ("grid", 1000, 11),
+    ("grid", 1000, 20),
+    ("grid", 400, 20),
+    ("grid", 400, 36),
+    ("mirrored", 1000, 36),
+    ("mirrored", 400, 20),
+    ("mirrored", 400, 36),
+)
+
+
+@pytest.mark.parametrize(
+    "shape,rows,floor", _HELD_GRIDS, ids=[f"{shape}{rows}_f{floor}" for shape, rows, floor in _HELD_GRIDS]
+)
 def test_where_rule_1_moved_an_end_the_spread_answers_to_the_window_without_it_too(
-    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch, rows: int, floor: int
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch, shape: str, rows: int, floor: int
 ) -> None:
     """The first skeptic's grid shapes, written as 110cb46 wrote them: `validate` misses their spread again.
 
@@ -2042,12 +2121,17 @@ def test_where_rule_1_moved_an_end_the_spread_answers_to_the_window_without_it_t
     on the window drawn with the rule withdrawn, 0 to 3,090.8. So where
     rule 1 moved an end the file answers to that window's half-width test
     too (validation method V6.1-A2; the second skeptic of the repair, item
-    1). Its mutant draws no second window, and the twins pass.
+    1). Its mutant draws no second window, and the twins pass. Mirrored
+    below nought, rule 1 moves the low end alone, and at 1,001 rows and 36
+    and at 401 rows and 20 and 36 the twins, their spread 0.48 and 0.34 of
+    the real one, are missed the same way: the checker asks
+    `contract.reach_moved_an_end`, which reads both ends (the leftover
+    round's verifier, finding 1).
     """
-    cells = _grid(rows)
-    described = _described(tmp_path, f"grid{rows}", cells, floor)
+    cells = _grid(rows) if shape == "grid" else _mirrored_grid(rows)
+    described = _described(tmp_path, f"{shape}{rows}", cells, floor)
     facts = _facts(described)
-    assert contract.reach_moved_an_end(facts), "premise: rule 1 moved the end"
+    assert _moved_sides(facts) == (["high"] if shape == "grid" else ["low"]), "premise: rule 1 moved one end"
     published = described.document["columns"][0]["std"]
     held = validation._windows_of(described.loaded.columns[0], facts, floor, False)["std"]
     assert not held[0] <= published <= held[1], "premise: the window without the rule misses the value"
@@ -2063,6 +2147,53 @@ def test_where_rule_1_moved_an_end_the_spread_answers_to_the_window_without_it_t
         assert abs(float(check.achieved) / published - 1.0) > 0.45, f"seed {seed}: {check.achieved}"
     monkeypatch.setattr(contract, "reach_moved_an_end", lambda _facts: False)
     check = _moment_check(described, kpi_shapes.twin_text(described, 0), "twin-0-mutant.csv", "moments.std")
+    assert check.verdict == validation.WITHIN_BOUND, check
+
+
+def _numbers_beside_two_far() -> "list[str]":
+    """398 numbers from 1000 to 1397 beside `99999` and `88888`: 400 rows (one of the second skeptic's shapes)."""
+    return [str(1000 + step) for step in range(398)] + ["99999", "88888"]
+
+
+def test_where_rule_1_moved_an_end_the_mean_answers_to_the_window_without_it_too(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """398 numbers from 1000 beside `99999` and `88888`, at 20: `validate` misses the twin's mean on the second window.
+
+    Rule 1 takes the high end from `9998` to the pair's reach, and the
+    mean's window drawn through it, 1,245.5 to 2,524.4, reaches the
+    published 1,664.7; drawn with the rule withdrawn it runs 1,232.4 to
+    1,368.3 and does not. The twin's mean, 1,479.6, stands inside the
+    first window and further from the value than half the second's width,
+    so at seeds 0, 4 and 9 it is MISSED on the second window alone, which
+    holds the mean as well as the spread (validation method V6.1-A2; the
+    leftover round's verifier, finding 1). Its mutant hands the second
+    window to the spread alone, and the mean passes.
+    """
+    described = _described(tmp_path, "two_far_400", _numbers_beside_two_far(), 20)
+    facts = _facts(described)
+    assert _moved_sides(facts) == ["high"], "premise: rule 1 moved the high end"
+    published = described.document["columns"][0]["mean"]
+    held = validation._windows_of(described.loaded.columns[0], facts, 20, False)["mean"]
+    assert not held[0] <= published <= held[1], "premise: the window without the rule misses the value"
+    texts = [kpi_shapes.twin_text(described, seed) for seed in SEEDS]
+    for seed, text in zip(SEEDS, texts):
+        check = _moment_check(described, text, f"twin-{seed}.csv", "moments.mean")
+        low, high = _shown_ends(check.published)
+        mean = float(check.achieved)
+        assert low <= published <= high and low <= mean <= high, f"premise: the rule's own window passes it, seed {seed}"
+        assert abs(mean - published) > (held[1] - held[0]) / 2.0, f"premise: past half the second width, seed {seed}"
+        assert check.verdict == validation.MISSED, f"seed {seed}: {check}"
+        assert any(validation._shown_window(*held) in line for line in check.note), check.note
+    real_within = validation._within
+
+    def spread_alone(*arguments, **keywords):  # type: ignore[no-untyped-def]
+        if arguments[1] == "numeric.mean":
+            keywords["held"] = None
+        return real_within(*arguments, **keywords)
+
+    monkeypatch.setattr(validation, "_within", spread_alone)
+    check = _moment_check(described, texts[0], "twin-0-mutant.csv", "moments.mean")
     assert check.verdict == validation.WITHIN_BOUND, check
 
 
