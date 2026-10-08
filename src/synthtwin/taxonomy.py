@@ -16751,16 +16751,16 @@ def _date_count_remarks(
     while True:
         heaps = date_counts.heap_counts(asked.set_aside, offered)
         readings = []
-        kept: "tuple[str, ...]" = ()
+        kept: "list[str]" = []
         for member in offered:
             years = counted_edge_years(details, member, heaps)
             if years is None:
                 continue
-            kept = kept + (member,)
+            kept += [member]
             readings += [note(REMARK_READ_AS_COUNTED_DATES, (member, years[0], years[1]))]
-        if kept == offered:
+        if tuple(kept) == offered:
             break
-        offered = kept
+        offered = tuple(kept)
     if not readings:
         return []
     said = [

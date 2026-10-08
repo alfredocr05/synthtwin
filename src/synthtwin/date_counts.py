@@ -739,8 +739,9 @@ def moment_of_iso(text: str, unit: int) -> "int | None":
 class CountForm:
     """How a column of counted dates writes its numbers (`count_form`).
 
-    * `places` -- the most figures after the mark any cell writes, 0 to
-      17;
+    * `places` -- the most figures after the mark any of the column's
+      USUAL counts writes, 0 to 17 -- a stray written with more is held to
+      its own last figure and not counted here (`usual_tally`);
     * `trimmed` -- whether cells drop the zeros at the end of their
       figures after the mark, and the mark with them, as `%g`, `repr`
       and R do, rather than always writing `places` of them as `%.6f`
@@ -1044,8 +1045,9 @@ def form_from(
 ) -> CountForm:
     """The `count_form` a column's written counts publish, from their tally.
 
-    `places` is the most figures after the mark any cell's number
-    carries. A column is FIXED where every cell writes exactly that many
+    `places` is the most figures after the mark any tallied cell's number
+    carries -- the column's usual counts, a profiler's tally being taken
+    without its strays (`usual_tally`). A column is FIXED where every cell writes exactly that many
     (and at least one), and TRIMMED otherwise. A trimmed column whose
     cells reach fifteen significant figures -- sixteen or seventeen --
     is written to fifteen (seventeen): `%.15g` and `repr` write by

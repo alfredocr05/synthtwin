@@ -3311,8 +3311,8 @@ def _counted_years_quote_the_published_edges(
     member = arguments[0]
     if not isinstance(member, str) or member not in date_counts.MEMBERS:
         raise _refuse(path)
-    words: "tuple[str, ...]" = ()
-    members: "tuple[str, ...]" = ()
+    words: "list[str]" = []
+    members: "list[str]" = []
     remarks = block["remarks"] if "remarks" in block else None
     if isinstance(remarks, list):
         for remark in remarks:
@@ -3321,13 +3321,13 @@ def _counted_years_quote_the_published_edges(
             if remark.form == taxonomy.REMARK_NUMBERS_COULD_BE_DATES:
                 for word in remark.arguments[1:]:
                     if isinstance(word, str) and word != date_counts.ASIDE_NONE:
-                        words = words + (word,)
+                        words += [word]
             elif remark.form == taxonomy.REMARK_READ_AS_COUNTED_DATES:
                 named = remark.arguments[0] if remark.arguments else None
                 if isinstance(named, str) and named in date_counts.MEMBERS:
-                    members = members + (named,)
+                    members += [named]
     years = taxonomy.counted_edge_years(
-        block, member, date_counts.heap_counts(words, members)
+        block, member, date_counts.heap_counts(tuple(words), tuple(members))
     )
     if years is None or years != (arguments[1], arguments[2]):
         raise _refuse(path)
