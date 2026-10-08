@@ -79,8 +79,9 @@ from synthtwin import (
 
 # THE KEYS THAT MAY CARRY A COUNT OF ONE TO TEN 493f6f8 DID NOT PRINT,
 # on a column not declared an identifier, each counting cells or values
-# the retired pass had blanked -- measured over every table this file
-# describes, and stated in plan P4-D390:
+# the retired pass had blanked, or, for the missing counts, the column's
+# own absent cells without them -- measured over every table this file
+# describes and a wider sweep, and stated in plan P4-D390:
 #
 # - the pool's own keys, which the landing exists to publish: a held-back
 #   level is pooled whatever its size, so `suppressed_levels` and
