@@ -516,25 +516,64 @@ def test_the_pins_are_the_boundaries_and_the_rungs_strictly_between_them() -> No
     assert calendar_rules.body_pins(every, 49, 50, ladder) == ((49, 1049),)
 
 
+def _runs(
+    rows: int, rebuilt: "tuple[tuple[float, int, float], float, int, int, int]", edge: int, index: int
+) -> "list[tuple[int, int]]":
+    """Each whole distance drawn rank `index` of a rebuilt tail can stand at, with how many of the generator's words
+    put it there (`calendar_rules._words_through`), nearest first."""
+    near = calendar_rules._rank_drawn(rows, rebuilt, edge, index, 0)
+    far = calendar_rules._rank_drawn(rows, rebuilt, edge, index, 2**64 - 1)
+    found: "list[tuple[int, int]]" = []
+    below = 0
+    for distance in range(near, far + 1):
+        through = calendar_rules._words_through(rows, rebuilt, edge, index, distance)
+        if through > below:
+            found += [(distance, through - below)]
+            below = through
+    return found
+
+
+def _full_walk(rows: int, rebuilt: "tuple[tuple[float, int, float], float, int, int, int]", edge: int) -> "dict[int, float]":
+    """The law of the different days a rebuilt tail draws, walked over every distance of every stratum and every
+    distance last drawn: what `calendar_rules._drawn_law` must equal."""
+    _mixture, _stretch, end, group, grouped = rebuilt
+    states: "dict[tuple[int, int], float]" = {(0, 0): 1.0}
+    if grouped < rows:
+        states = {(group, 1): 1.0}
+    for index in range(min(grouped, rows) - 1, 0, -1):
+        moved: "dict[tuple[int, int], float]" = {}
+        for distance, words in _runs(rows, rebuilt, edge, index):
+            for (last, count), chance in states.items():
+                stands = max(distance, last)
+                key = (stands, count + (1 if stands != last else 0))
+                moved[key] = (moved[key] if key in moved else 0.0) + chance * (words / 2**64)
+        states = moved
+    found: "dict[int, float]" = {}
+    for (last, count), chance in states.items():
+        total = count + (1 if max(end, last) != last else 0)
+        found[total] = (found[total] if total in found else 0.0) + chance
+    return found
+
+
 def test_the_days_a_rebuilt_tail_draws_are_the_generator_s_own() -> None:
     """`calendar_rules.tail_days_law`: the chance of each count of different days a rebuilt tail draws (method G7.3b).
 
     The producer may not draw: it works the law out from the tail's shape.
     Over 150 tails drawn with `Random(1007)` -- rows 2 to 60, mean distances
     1 to 30, the square of the root-mean-square 1 to 6 times the mean's,
-    floors 2 to 51, edges 3 to a million -- each drawn rank's words
-    (`_rank_words`) are the generator's own, word for word: the first and
-    the last word of each distance's run put the rank, through
-    `generation._tail_shape` and the generator's own rounding, at that
-    distance, the runs follow one another and fill the word scale, and the
-    chances (`_rank_law`) are their shares. And for every tail whose drawn
-    ranks have at most 4,096 combinations of distances (142 of them), each
-    combination is handed to `generation._tail_distances` through the first
-    word of each rank's run, and the different days the generator lays,
-    weighted by the combination's chance, give `_drawn_law` to within
-    1e-12. Red when a rank's runs part from the generator's words by one
-    word, the law forgets the group, the end or a rank raised to the group,
-    or counts one distance twice.
+    floors 2 to 51, edges 3 to a million -- the words that put each drawn
+    rank at or within each distance (`_words_through`) are the generator's
+    own, word for word: the first and the last word of each distance's run
+    put the rank, through `generation._tail_shape` and the generator's own
+    rounding, at that distance, and the runs follow one another and fill
+    the word scale. And for every tail whose drawn ranks have at most 4,096
+    combinations of distances (142 of them), each combination is handed to
+    `generation._tail_distances` through the first word of each rank's run,
+    and the different days the generator lays, weighted by the
+    combination's chance, give `_drawn_law` to within 1e-12. Red when a
+    rank's runs part from the generator's words by one word, the law
+    forgets the group, the end or a rank raised to the group, or counts one
+    distance twice.
     """
     scale = 2**64
     draw = random.Random(1007)
@@ -553,19 +592,18 @@ def test_the_days_a_rebuilt_tail_draws_are_the_generator_s_own() -> None:
         drawn = list(range(1, min(shape.grouped, rows)))
         choices: "list[list[tuple[int, float, int]]]" = []
         for index in drawn:
-            runs = calendar_rules._rank_words(rows, rebuilt, edge, index)
-            ranked = calendar_rules._rank_law(rows, rebuilt, edge, index)
+            runs = _runs(rows, rebuilt, edge, index)
             options: "list[tuple[int, float, int]]" = []
             first = 0
             for distance, words in runs:
-                assert words > 0 and ranked[distance] == words / scale, (case, index, distance)
+                assert words > 0, (case, index, distance)
                 for word in (first, first + words - 1):
                     s = ((rows - 1 - index) * scale + word) / (rows * scale)
                     placed = max(1, generation._half_up(shape.stretch * generation._mixture_at(shape, s)))
                     assert min(placed, edge) == distance, (case, index, distance, word)
                 options += [(distance, words / scale, first)]
                 first = first + words
-            assert first == scale and [distance for distance, _words in runs] == sorted(ranked), (case, index)
+            assert first == scale, (case, index)
             choices += [options]
         combinations = 1
         for options in choices:
@@ -584,6 +622,61 @@ def test_the_days_a_rebuilt_tail_draws_are_the_generator_s_own() -> None:
             assert abs((found[count] if count in found else 0.0) - (law[count] if count in law else 0.0)) < 1e-12, (case, count)
         enumerated = enumerated + 1
     assert enumerated == 142, enumerated
+
+
+def test_the_law_reads_a_rank_only_where_it_can_meet_the_distance_last_drawn(monkeypatch: pytest.MonkeyPatch) -> None:
+    """`calendar_rules._drawn_law` reads each drawn rank's chances only where it can share a day with the distance last drawn.
+
+    A drawn rank's stratum lies past the next one in, so it can share a day
+    only with a distance last drawn at or past its own nearest -- where two
+    strata meet, or a group's or the end's -- and the law walks the ranks
+    reading their words at those distances alone. Over 40 tails whose
+    strata spread over up to 159 days (`Random(1008)`: rows 13 to 60, mean
+    distances 20 to 120, floors 2 to 51), and each with its end and group
+    stepped one to three days in, as the holes step them, the law equals
+    the walk over every distance of every stratum (`_full_walk`) to within
+    1e-12. And the low tail of a column of 20,000 admission dates, half a
+    per cent of them spread over two centuries, at the floor of 100 -- 100
+    rows, mean distance 39,610.48 days, root-mean-square 45,688.25, edge
+    80,000 -- is worked out reading about 200 of the generator's words a
+    drawn rank, fewer than 400: read at every distance of every stratum,
+    the column's weekday decision took 281 s at 100 and 47 s at 50, where
+    3841dd8's took a hundredth of a second. Red when the
+    walk reads every distance of a stratum, carries no distance last drawn
+    on its own where the next rank can reach it, or loses the stepped end or
+    group.
+    """
+    draw = random.Random(1008)
+    for case in range(40):
+        rows = draw.randint(13, 60)
+        mean = draw.uniform(20.0, 120.0)
+        root = mean * math.sqrt(draw.uniform(1.0, 6.0))
+        floor = draw.randint(2, 51)
+        edge = draw.choice([draw.randint(40, 400), 10**6])
+        mixture, stretch, end, group, grouped = calendar_rules.rebuilt_tail(rows, mean, root, floor, edge, False)
+        stepped = (max(1, end - draw.randint(1, 3)), max(1, group - draw.randint(1, 3)) if grouped < rows else group)
+        for last, inner in ((end, group), stepped):
+            rebuilt = (mixture, stretch, max(last, inner), inner, grouped)
+            law = calendar_rules._drawn_law(rows, rebuilt, edge)
+            walked = _full_walk(rows, rebuilt, edge)
+            for count in set(law) | set(walked):
+                assert abs((law[count] if count in law else 0.0) - (walked[count] if count in walked else 0.0)) < 1e-12, (case, count)
+    rows, mean, root, floor, edge = 100, 39610.48, 45688.25, 100, 80000
+    rebuilt_far = calendar_rules.rebuilt_tail(rows, mean, root, floor, edge, False)
+    mixture, stretch, end, group, grouped = rebuilt_far
+    rebuilt = (mixture, stretch, max(end, group), group, grouped)
+    reads = [0]
+    reckon = calendar_rules._mixture_at
+
+    def counted(shape: "tuple[float, int, float]", s: float) -> float:
+        reads[0] = reads[0] + 1
+        return reckon(shape, s)
+
+    monkeypatch.setattr(calendar_rules, "_mixture_at", counted)
+    law = calendar_rules._drawn_law(rows, rebuilt, edge)
+    drawn = min(grouped, rows) - 1
+    assert drawn == 99 and reads[0] < 400 * drawn, reads[0]
+    assert abs(sum(law.values()) - 1.0) < 1e-9 and max(law) == 100
 
 
 def test_the_tails_kept_are_the_low_tail_merged_to_its_fewest_and_both_tails_as_drawn(tmp_path: pathlib.Path) -> None:
