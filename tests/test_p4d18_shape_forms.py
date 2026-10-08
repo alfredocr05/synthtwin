@@ -1982,17 +1982,20 @@ def test_the_oracle_bounds_the_walk_as_the_product_does() -> None:
     )
 
 
-def _register_of_many_forms() -> "list[str]":
+def _register_of_many_forms(
+    masks: "range" = range(64), held: int = 78
+) -> "list[str]":
     """Seven-character codes in 64 forms: a letter, then six places each a
     figure or a letter by form; per form one published code on twelve
-    rows and 78 codes written once, 4,992 held back in all."""
+    rows and 78 codes written once, 4,992 held back in all. ``masks`` and
+    ``held`` choose fewer forms and codes."""
     draw = random.Random(390)
     letters = "ABCGHJKLMNPRSTUVWXYZ"
     values: "list[str]" = []
     seen: "dict[str, int]" = {}
-    for mask in range(64):
+    for mask in masks:
         made = 0
-        while made < 79:
+        while made < held + 1:
             code = "X" + "".join(
                 str(draw.randrange(10)) if mask >> bit & 1 else draw.choice(letters)
                 for bit in range(6)
@@ -2093,9 +2096,11 @@ def test_no_form_s_supply_is_counted_past_what_it_can_be_paid() -> None:
     more spellings than the form's census count and the floor: a form is
     paid at most what it owes and one label's rows past it. Counted to the
     number of held-back labels instead, a supply walked every one of them
-    for every form: 64 forms holding 4,992 codes back, decimals held back
-    300 to a form in nine forms beside 2,700 labels, and the carried column
-    of figures, a hyphen and capitals at a floor of twenty, where the trade
+    for every form: 64 forms holding 4,992 codes back, past the search's
+    256 places; 16 forms holding 192 back, inside them, where the search
+    asked each form of 24 cells for 192 spellings; decimals held back 300
+    to a form in nine forms beside 2,700 labels; and the carried column of
+    figures, a hyphen and capitals at a floor of twenty, where the trade
     asked for 1,082 spellings of forms of 356, 350 and 306 cells. No byte
     of any twin moves either way.
     """
@@ -2115,6 +2120,7 @@ def test_no_form_s_supply_is_counted_past_what_it_can_be_paid() -> None:
 
     for values, codes, floor in (
         (_register_of_many_forms(), None, 11),
+        (_register_of_many_forms(range(1, 17), 12), None, 11),
         (_decimal_codes(), ["proc"], 11),
         (_wide_codes(401), None, 20),
     ):
