@@ -24,18 +24,29 @@ Asked, undeclared, described in this process at 1,000 rows:
   the two ranges at seed 0;
 * `right_member_missing`: columns asked, in any of the above, whose
   answers do not name the system that wrote them;
-* `new_questions`: columns of the chance battery -- its seventy-five
+* `new_questions`: columns of the chance battery -- its seventy-seven
   generators of measurements, codes, money in cents, amounts to one
   figure and lengths of time, ten draws each at 1,000 rows -- that Q3
   asks where the fixed-width question did not ask already (items 1 and
-  5, and the review of landing R4's item 7);
+  5, the review of landing R4's item 7 and its second review's item 4);
+* `stated_limits_asked`: of the eight `STATED` columns Q3 still asks
+  newly -- identifiers with half a percent one figure shorter, a salary
+  in Epic days' band a third of it in cents, five-figure codes whose
+  "none" is `0` or `-1`, and lengths of time of a year or more kept as
+  whole days of seconds or milliseconds -- the draws, ten each, it asks
+  newly: each a limit plan P4-D384 states, pinned so a change shows;
 * `heap_10k_asked_least` and `heap_10k_wrong`: at 10,000 rows, the
   thirteen asked shapes with two and ten cells in a thousand holding
   one placeholder -- `0`, `-1`, or the system's own count for 9999-12-31
   or 1900-01-01 -- enough for the ladder to publish it as the column's
-  end: the fewest shapes asked over the eight, and the shapes asked
-  without the system that wrote them or with years more than one off
-  the true span (the review of landing R4, item 1);
+  end, and with ten in a thousand of each of two at one end (`0` and the
+  1900 count, `-1` and it, `0` and `-1`): the fewest shapes asked over
+  the eleven tables, and the shapes asked without the system that wrote
+  them, with its years more than one off the true span, or offering a
+  system whose years are not its own reading of the column's dates --
+  from the clean column's outermost count to its third percentile from
+  that edge, within one (the review of landing R4, item 1, and its
+  second review, item 3);
 * `named_below_line`: set-aside numbers NF113 names that fewer than
   eleven cells hold, over the thirteen shapes at 1,000 rows with one
   cell of each placeholder (item 4).
@@ -199,55 +210,104 @@ def asked(home: pathlib.Path, notes: "list[str]") -> "dict[str, int]":
     totals["named_below_line"] = _named_below_line(home, notes)
     for name in sorted(battery.ORDINARY):
         for draw in range(CHANCE_DRAWS):
-            texts = battery.ordinary(name, ASKED_ROWS, draw)
-            numbers = [float(text) for text in texts]
-            whole = all(value == int(value) for value in numbers)
-            found = date_counts.asked_of(
-                texts, numbers, taxonomy._needed(0.99, len(texts)), _median(sorted(numbers)), whole,
-                floor=11,
-            )
-            if found is not None and asking.why_worth_asking(texts) is None:
+            if _new_question(battery.ordinary(name, ASKED_ROWS, draw)):
                 totals["new_questions"] += 1
                 notes += [f"{name} draw {draw}: a new question"]
+    totals["stated_limits_asked"] = 0
+    for name in sorted(battery.STATED):
+        for draw in range(CHANCE_DRAWS):
+            if _new_question(battery.stated(name, ASKED_ROWS, draw)):
+                totals["stated_limits_asked"] += 1
     return totals
+
+
+def _new_question(texts: "list[str]") -> bool:
+    """Whether Q3 asks about a column of numbers that the fixed-width question did not ask already."""
+    numbers = [float(text) for text in texts]
+    whole = all(value == int(value) for value in numbers)
+    found = date_counts.asked_of(
+        texts, numbers, taxonomy._needed(0.99, len(texts)), _median(sorted(numbers)), whole,
+        floor=11,
+    )
+    return found is not None and asking.why_worth_asking(texts) is None
 
 
 HEAP_ROWS = 10000
 HEAP_SHARES = (0.002, 0.01)
+PAIR_SHARE = 0.01
+
+
+def _rung(ordered: "list[float]", percent: int) -> float:
+    """A percentile of rising numbers, read between two cells as the ladder reads it."""
+    place = (len(ordered) - 1) * percent / 100
+    low = int(place)
+    high = min(low + 1, len(ordered) - 1)
+    return ordered[low] + (place - low) * (ordered[high] - ordered[low])
+
+
+def _heap_layouts() -> "list[tuple[str, object]]":
+    """The eleven ways a heap is laid: one placeholder at two shares, and two at one end."""
+    layouts: "list[tuple[str, object]]" = []
+    for kind in battery.PLACEHOLDERS:
+        for share in HEAP_SHARES:
+            layouts += [(f"{kind} {share}", (kind, share))]
+    for pair in battery.PLACEHOLDER_PAIRS:
+        layouts += [("+".join(pair), pair)]
+    return layouts
+
+
+def _laid(shape: "battery.Shape", cells: "list[str]", how: object) -> "list[str]":
+    """A shape's cells with its heaps laid as ``how`` says (`_heap_layouts`)."""
+    first, second = how  # type: ignore[misc]
+    if isinstance(second, float):
+        return battery.heaped(shape, cells, first, second)
+    return battery.heaped_pair(shape, cells, (first, second), PAIR_SHARE)
 
 
 def _heaped(home: pathlib.Path, notes: "list[str]") -> "dict[str, int]":
-    """Item 1 of the landing's review: a placeholder heaped into the published end, at 10,000 rows."""
+    """Item 1 of the landing's review and item 3 of its second: placeholders heaped at an end, at 10,000 rows."""
     shapes = [shape for shape in battery.SHAPES if shape.name not in battery.NOT_ASKED]
     least = len(shapes)
     wrong = 0
-    for kind in battery.PLACEHOLDERS:
-        for share in HEAP_SHARES:
-            columns: "list[list[str]]" = []
-            spans: "list[tuple[int, int]]" = []
-            for shape in shapes:
-                cells, truth = battery.cells(shape, HEAP_ROWS, 0)
-                columns += [battery.heaped(shape, cells, kind, share)]
-                spans += [(min(t.year for t in truth), max(t.year for t in truth))]
-            path = home / f"heap-{kind}-{share}.csv"
-            rows = [",".join(shape.name for shape in shapes)]
-            for place in range(HEAP_ROWS):
-                rows += [",".join(column[place] for column in columns)]
-            path.write_text("\n".join(rows) + "\n", encoding="utf-8", newline="\n")
-            document = profile.build_document(reading.read_table(str(path)), taxonomy.Settings(), [])
-            asked_here = 0
-            for shape, block, span in zip(shapes, document["columns"], spans):
-                said = asking._date_counts_said(block)
-                if said is None:
-                    continue
-                asked_here += 1
-                years = {member: (first, last) for member, first, last in said.readings}
-                if shape.system not in years or max(
-                    abs(years[shape.system][0] - span[0]), abs(years[shape.system][1] - span[1])
-                ) > 1:
+    for label, how in _heap_layouts():
+        columns: "list[list[str]]" = []
+        spans: "list[tuple[int, int]]" = []
+        clean: "list[tuple[float, float, float, float]]" = []
+        for shape in shapes:
+            cells, truth = battery.cells(shape, HEAP_ROWS, 0)
+            columns += [_laid(shape, cells, how)]
+            spans += [(min(t.year for t in truth), max(t.year for t in truth))]
+            ordered = sorted(float(cell) for cell in cells)
+            clean += [(ordered[0], _rung(ordered, 3), _rung(ordered, 97), ordered[-1])]
+        path = home / f"heap-{label.replace(' ', '-')}.csv"
+        rows = [",".join(shape.name for shape in shapes)]
+        for place in range(HEAP_ROWS):
+            rows += [",".join(column[place] for column in columns)]
+        path.write_text("\n".join(rows) + "\n", encoding="utf-8", newline="\n")
+        document = profile.build_document(reading.read_table(str(path)), taxonomy.Settings(), [])
+        asked_here = 0
+        for shape, block, span, edges in zip(shapes, document["columns"], spans, clean):
+            said = asking._date_counts_said(block)
+            if said is None:
+                continue
+            asked_here += 1
+            years = {member: (first, last) for member, first, last in said.readings}
+            if shape.system not in years or max(
+                abs(years[shape.system][0] - span[0]), abs(years[shape.system][1] - span[1])
+            ) > 1:
+                wrong += 1
+                notes += [f"{shape.name} {label}: {years.get(shape.system)} against {span}"]
+                continue
+            for member in sorted(years):
+                first, last = years[member]
+                read = [date_counts.years_of(member, value) for value in edges]
+                if None in read or not (
+                    read[0] - 1 <= first <= read[1] + 1 and read[2] - 1 <= last <= read[3] + 1  # type: ignore[operator]
+                ):
                     wrong += 1
-                    notes += [f"{shape.name} {kind} {share}: {years.get(shape.system)} against {span}"]
-            least = min(least, asked_here)
+                    notes += [f"{shape.name} {label}: {member} reads {first} to {last} against {read}"]
+                    break
+        least = min(least, asked_here)
     return {"heap_10k_asked_least": least, "heap_10k_wrong": wrong}
 
 
