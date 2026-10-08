@@ -353,7 +353,7 @@ def test_c2_a_band_from_1970_would_ask_ordinary_columns(monkeypatch: pytest.Monk
     monkeypatch.setattr(date_counts, "NARROW_FROM", 1970)
     _asked, _draws, new = _new_questions(4)
     assert new == [], "the figures check alone"
-    monkeypatch.setattr(date_counts, "figures_kept", lambda member, present, mark=".": True)
+    monkeypatch.setattr(date_counts, "figures_kept", lambda members, present, mark=".": members)
     _asked, _draws, new = _new_questions(4)
     assert new, "a band from 1970 asked nothing new"
     monkeypatch.setattr(date_counts, "NARROW_FROM", 1990)
@@ -639,8 +639,8 @@ def test_c2_money_amounts_and_lengths_of_time_are_not_asked(monkeypatch: pytest.
     for name in names:
         assert not any(asked(name, draw) for draw in range(4)), name
 
-    def second_walk(member: str, present: "list[str]", mark: str = ".") -> bool:
-        raise AssertionError(f"the four figures let a column of cents reach the figures check ({member})")
+    def second_walk(members: "tuple[str, ...]", present: "list[str]", mark: str = ".") -> "tuple[str, ...]":
+        raise AssertionError(f"the four figures let a column of cents reach the figures check {members}")
 
     # THE CHEAP HALF REFUSES FIRST: money in cents is never walked again.
     monkeypatch.setattr(date_counts, "figures_kept", second_walk)
@@ -648,10 +648,10 @@ def test_c2_money_amounts_and_lengths_of_time_are_not_asked(monkeypatch: pytest.
     monkeypatch.undo()
     monkeypatch.setattr(date_counts, "DAY_TIME_PLACES", 0)
     assert not asked("salary_cents_45k", 0) and not asked("dose_total_1dp", 0)
-    monkeypatch.setattr(date_counts, "figures_kept", lambda member, present, mark=".": True)
+    monkeypatch.setattr(date_counts, "figures_kept", lambda members, present, mark=".": members)
     assert asked("salary_cents_45k", 0) and asked("dose_total_1dp", 0)
     monkeypatch.undo()
-    monkeypatch.setattr(date_counts, "figures_kept", lambda member, present, mark=".": True)
+    monkeypatch.setattr(date_counts, "figures_kept", lambda members, present, mark=".": members)
     assert not asked("salary_cents_45k", 0) and not asked("dose_total_1dp", 0)
     monkeypatch.undo()
     original = date_counts._text_holds
@@ -694,7 +694,7 @@ def test_c2_a_system_whose_answer_is_refused_is_not_offered(
         assert (system in offered) == kept and (kept or not offered), (name, offered)
         for member in offered:
             assert _block_of(tmp_path / f"{name}-{member}", cells, member)["role"] == "datetime", (name, member)
-    monkeypatch.setattr(date_counts, "figures_kept", lambda member, present, mark=".": True)
+    monkeypatch.setattr(date_counts, "figures_kept", lambda members, present, mark=".": members)
     cells = battery.coarse("unix_s_1dp", battery.ROWS, 0)
     said = _q3(_block_of(tmp_path / "mutant", cells))
     assert said is not None and said.readings
@@ -1147,10 +1147,15 @@ def test_c4_pandas_and_repr_spellings_round_trip(
     in the twin, and the source meets its own form. Unix seconds Python
     wrote to the microsecond hold no figure at the unit fifteen figures
     carry and are settled at the next finer one, the microsecond (mutant
-    M72: the first unit alone refused them).
+    M72: the first unit alone refused them). Undeclared, question Q3
+    offers each column the system that wrote it: the figures check tries
+    a system's units finest first and finds the one its reading holds at
+    (mutant M76: the coarsest alone left the microseconds unasked).
     """
     shape = battery.BY_NAME[name]
     cells = battery.written_by(writer, shape, battery.ROWS, 0)
+    said = _q3(_block_of(tmp_path / "asked", cells))
+    assert said is not None and shape.system in [member for member, _first, _last in said.readings]
     trip = _trip(tmp_path, cells, shape.system)
     assert trip["twin_exit"] == 0 and trip["real_exit"] == 0
     form = trip["block"]["count_form"]

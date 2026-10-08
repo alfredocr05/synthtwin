@@ -1137,7 +1137,10 @@ def settled_reading(
     on (`written_unit`). The first unit at which every count is its
     column's own writing of its moment (`held_by_its_moment`) is the
     reading -- at once for the published unit, for whole counts and for a
-    member with contacts, whose figures after the point are no time.
+    member with contacts, whose figures after the point are no time. A
+    count is asked of at the unit it was settled to: the written unit
+    names the same instant, and `count_of` reads it from the same
+    nanoseconds.
 
     None where no unit holds every figure: Unix seconds written with
     tenths, four figures of a day of moments off the whole minute, and one
@@ -1158,18 +1161,24 @@ def settled_reading(
         moments: "list[int | None]" = []
         standing: "list[int]" = []
         for numerator, denominator in counts:
-            moment = moment_of(member, numerator, denominator, settled)
-            if moment is not None and placeholder_day_named(moment, settled):
-                moment = None
+            moment = _settled_moment(member, numerator, denominator, settled)
             moments += [moment]
             if moment is not None:
                 standing += [moment]
         unit = published if published else written_unit(standing, settled)
         if published or tally.places == 0 or found.contacts:
             return settled, unit, moments
-        if _every_figure_held(member, plain, counts, moments, settled, unit):
+        if _every_figure_held(member, plain, counts, moments, settled):
             return settled, unit, moments
     return None
+
+
+def _settled_moment(member: str, numerator: int, denominator: int, settled: int) -> "int | None":
+    """A count's moment in whole ``settled`` units: None where it names none, or a moment of a placeholder day."""
+    moment = moment_of(member, numerator, denominator, settled)
+    if moment is not None and placeholder_day_named(moment, settled):
+        return None
+    return moment
 
 
 def _every_figure_held(
@@ -1178,7 +1187,6 @@ def _every_figure_held(
     counts: "list[tuple[int, int]]",
     moments: "list[int | None]",
     settled: int,
-    unit: int,
 ) -> bool:
     """Whether every count that names a moment is its column's own writing of it, at the first that is not."""
     for place in range(len(counts)):
@@ -1186,57 +1194,122 @@ def _every_figure_held(
         if moment is None:
             continue
         numerator, denominator = counts[place]
-        if not held_by_its_moment(
-            member, plain, numerator, denominator, moment * settled // unit, unit
-        ):
+        if not held_by_its_moment(member, plain, numerator, denominator, moment, settled):
             return False
     return True
 
 
-def figures_kept(member: str, present: "list[str]", mark: str = POINT) -> bool:
-    """Whether a declaration of ``member`` would keep every figure a column's counts write (question Q3).
+def figures_kept(
+    members: "tuple[str, ...]", present: "list[str]", mark: str = POINT
+) -> "tuple[str, ...]":
+    """The members a declaration of which would keep every figure a column's counts write (question Q3).
 
     THE PROFILER'S OWN DECISION, asked before the question is put
-    (`settled_reading`): the present cells read as counts of the member
-    (`counted`), its set-aside numbers taken out (`declared_aside`),
-    tallied and settled exactly as a declaration settles them. A system
+    (`settled_reading`): for each member, the present cells read as its
+    counts (`counted`), its set-aside numbers taken out (`declared_aside`),
+    tallied, settled to each unit the figures may carry (`reading_units`)
+    and asked whether every count names its moment as its column wrote it
+    (`held_by_its_moment`), exactly as a declaration reads them. A system
     no unit of which holds every figure -- Unix seconds written with
     tenths, four figures of a day of moments off the minute -- is not
     offered, since the answer would be refused (NF115): the first build of
     the review of landing R4 asked such a column and then refused every
     system it offered, as item 3 of that review found for Epic days with a
-    binary64's tail. A member with contacts holds the day alone.
+    binary64's tail. A member with contacts holds the day alone, and whole
+    counts hold at every unit.
+
+    WALKS OF THE CELLS SHARED BY THE MEMBERS, NOTHING KEPT PER CELL: a
+    cell is a count of every member without contacts alike, so each is
+    read once a walk -- the first tallies each member's counts, the next
+    asks each member at one unit, and stops where none is left standing.
+    A member is kept where ANY unit holds (the profiler settles at the
+    coarsest that does; the question asks only whether one does), so its
+    units are tried finest first -- `repr`'s seventeen figures hold at the
+    finest at once -- and a member whose unit fails is walked again at the
+    next. Keeping every count instead cost 170 MB at a million rows.
 
     The caller asks this only of a column some count of which is not whole:
     a whole count is its own writing of its moment at every unit, and a
     count past 2**53 whose fraction binary64 cannot hold stands well
     inside the exporter's steps (`EXPORTER_STEPS`).
 
-    Guarantees: accepts the member, the present cells and the mark;
-    returns whether the reading holds. Determinism: whole-number
-    arithmetic over the text. Raises KeyError for a word outside
-    `MEMBERS`. No I/O of any kind.
+    Guarantees: accepts the members, the present cells and the mark;
+    returns those members whose reading holds, in their order.
+    Determinism: whole-number arithmetic over the text. Raises KeyError
+    for a word outside `MEMBERS`. No I/O of any kind.
     """
-    found = TABLE[member]
-    if found.contacts:
-        return True
-    aside: "dict[int, int]" = {}
-    for number in declared_aside(member):
-        aside[number] = 1
-    tally = Tally()
-    counts: "list[tuple[int, int]]" = []
-    for text in present:
-        written = counted(member, text, mark)
-        if written is None:
+    walked: "list[str]" = []
+    asides: "dict[str, dict[int, int]]" = {}
+    tallies: "dict[str, Tally]" = {}
+    for member in members:
+        if TABLE[member].contacts:
             continue
-        numerator, denominator = exact_value(written)
-        if stands_aside(numerator, denominator, False, aside):
+        walked += [member]
+        aside: "dict[int, int]" = {}
+        for number in declared_aside(member):
+            aside[number] = 1
+        asides[member] = aside
+        tallies[member] = Tally()
+    if walked:
+        for text in present:
+            written = written_count(text, mark)
+            if written is None:
+                continue
+            numerator, denominator = exact_value(written)
+            for member in walked:
+                if not stands_aside(numerator, denominator, False, asides[member]):
+                    tallies[member] = tallied(tallies[member], written)
+    held: "dict[str, int]" = {}
+    plains: "dict[str, CountForm]" = {}
+    units: "dict[str, tuple[int, ...]]" = {}
+    tried: "dict[str, int]" = {}
+    pending: "list[str]" = []
+    for member in walked:
+        tally = tallies[member]
+        if tally.places == 0:
+            # No count at all, or every count whole: every figure is held.
+            held[member] = 1
             continue
-        counts += [(numerator, denominator)]
-        tally = tallied(tally, written)
-    if not counts:
-        return True
-    return settled_reading(member, form_from(tally, mark, None), tally, counts) is not None
+        plains[member] = form_from(tally, mark, None)
+        units[member] = reading_units(member, plains[member], tally)
+        # The finest first: `reading_units` gives them coarsest first.
+        tried[member] = len(units[member]) - 1
+        pending += [member]
+    while pending:
+        standing: "dict[str, int]" = {}
+        for member in pending:
+            standing[member] = 1
+        for text in present:
+            if not standing:
+                break
+            written = written_count(text, mark)
+            if written is None:
+                continue
+            numerator, denominator = exact_value(written)
+            for member in pending:
+                if member not in standing or stands_aside(
+                    numerator, denominator, False, asides[member]
+                ):
+                    continue
+                settled = units[member][tried[member]]
+                moment = _settled_moment(member, numerator, denominator, settled)
+                if moment is not None and not held_by_its_moment(
+                    member, plains[member], numerator, denominator, moment, settled
+                ):
+                    del standing[member]
+        still: "list[str]" = []
+        for member in pending:
+            if member in standing:
+                held[member] = 1
+            elif tried[member] > 0:
+                tried[member] = tried[member] - 1
+                still += [member]
+        pending = still
+    kept: "list[str]" = []
+    for member in members:
+        if member not in tallies or member in held:
+            kept += [member]
+    return tuple(kept)
 
 
 def form_holds(form: CountForm, written: Written) -> bool:
@@ -1738,7 +1811,7 @@ def asked_of(
     if not whole:
         # A SYSTEM WHOSE ANSWER WOULD BE REFUSED IS NOT OFFERED (the review of
         # landing R4, item 2): its declaration keeps no unit of the figures.
-        offered = tuple(member for member in offered if figures_kept(member, present, mark))
+        offered = figures_kept(offered, present, mark)
     if not offered:
         return None
     return Asked(rule, offered, _set_aside_words(ordered, kept, floor))
