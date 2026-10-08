@@ -362,10 +362,90 @@ def _new_questions(draws: int) -> "tuple[int, int, list[str]]":
 
 
 def test_c2_no_ordinary_column_gets_a_new_question() -> None:
-    """Items 1 and 5: 0 new questions over the chance battery and the review's identifiers."""
+    """Items 1 and 5: 0 new questions over the chance battery and the review's identifiers.
+
+    Seventy-seven generators at ten draws. The two the second review of
+    landing R4 added (its item 4), five-figure record numbers with a few
+    six- or seven-figure ones, were asked newly on 10 and 2 of the ten
+    draws on e9aa5fb, where rule C let the one-in-a-hundred strays stand
+    at another width.
+    """
     asked, draws, new = _new_questions(10)
-    assert draws == 750 and asked > 0
+    assert draws == 770 and asked > 0
     assert new == []
+
+
+def test_c2_rule_c_holds_every_count_beside_the_set_aside_ones_to_one_width(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The second review of landing R4, item 4: rule C asks only what the fixed-width question asks already.
+
+    Five-figure record numbers with half a percent six-figure, or nearly
+    one percent seven-figure, are no column of one width, and are not
+    asked. Under a rule C that lets the column's commonest width stand
+    for one width -- the strays of another width let stand, as the
+    one-in-a-hundred allowance did -- they are.
+    """
+
+    def asked(name: str) -> int:
+        found = 0
+        for draw in range(10):
+            texts = battery.ordinary(name, 1000, draw)
+            numbers = [float(text) for text in texts]
+            if date_counts.asked_of(
+                texts, numbers, taxonomy._needed(0.99, len(texts)), _median(sorted(numbers)), True,
+                floor=11,
+            ) is not None:
+                found += 1
+        return found
+
+    for name in ("record_no_5_some_6", "record_no_5_some_7"):
+        assert asked(name) == 0, name
+
+    def commonest_width(present: "list[str]") -> int:
+        widths: "dict[int, int]" = {}
+        for text in present:
+            if not text.isdigit():
+                return 0
+            widths[len(text)] = widths.get(len(text), 0) + 1
+        return max(widths, key=lambda width: widths[width]) if widths else 0
+
+    monkeypatch.setattr(date_counts, "fixed_width", commonest_width)
+    assert asked("record_no_5_some_6") > 0
+
+
+# THE STATED LIMITS, PINNED (the second review of landing R4, item 4): the
+# draws of ten on which each `STATED` column is asked where the
+# fixed-width question did not ask. Each is a price plan P4-D384 states;
+# a count that moves is a change of question Q3.
+_STATED_ASKED = {
+    "ids_10fig_some_9fig": 10,
+    "ids_13fig_some_12fig": 10,
+    "salary_mostly_whole_65k": 10,
+    "codes_5fig_zero": 10,
+    "codes_5fig_minus1": 10,
+    "followup_seconds_years": 10,
+    "survival_milliseconds_years": 10,
+    "age_seconds_whole_days": 10,
+}
+
+
+def test_c2_the_stated_limits_are_asked_as_measured() -> None:
+    """Eight ordinary columns Q3 still asks newly, each on the pinned number of ten draws."""
+    assert sorted(_STATED_ASKED) == sorted(battery.STATED)
+    for name in sorted(battery.STATED):
+        new = 0
+        for draw in range(10):
+            texts = battery.stated(name, 1000, draw)
+            numbers = [float(text) for text in texts]
+            whole = all(value == int(value) for value in numbers)
+            found = date_counts.asked_of(
+                texts, numbers, taxonomy._needed(0.99, len(texts)), _median(sorted(numbers)), whole,
+                floor=11,
+            )
+            if found is not None and asking.why_worth_asking(texts) is None:
+                new += 1
+        assert new == _STATED_ASKED[name], (name, new)
 
 
 def test_c2_a_band_from_1970_would_ask_ordinary_columns(monkeypatch: pytest.MonkeyPatch) -> None:

@@ -30,8 +30,11 @@ SIX FAMILIES.
   wide numbers (items 5 and 7) -- and eight the review of landing R4
   added (its item 7): five money and dose columns written to one or two
   figures in Excel's five-figure band, and two lengths of time kept as
-  whole days of seconds and milliseconds. A question one of them raises
-  that the fixed-width question did not raise already is a NEW question.
+  whole days of seconds and milliseconds; and two its second review
+  added (its item 4): five-figure record numbers with a few six- or
+  seven-figure ones. A question one of them raises that the fixed-width
+  question did not raise already is a NEW question. `STATED` holds the
+  eight ordinary columns Q3 still asks newly, each a stated limit.
 * `COARSE` -- dates written as counts with figures no unit of time keeps
   whole: one or two figures of a day, tenths and hundredths of a second,
   and four figures of a day of moments off the minute (the review of
@@ -429,7 +432,45 @@ ORDINARY = {
     "stay_seconds_whole_days": ("measure", lambda r, j: 86400 * r.randrange(1, 60), 0),
     "gap_milliseconds_whole_days": ("measure", lambda r, j: 86400000 * r.randrange(1, 30), 0),
     "followup_seconds_whole_days": ("measure", lambda r, j: 86400 * r.randrange(1, 300), 0),
+    # ...and the two its second review added (its item 4): five-figure
+    # record numbers with half a percent six-figure, or nearly one percent
+    # seven-figure, which the one-in-a-hundred stray allowance let rule C
+    # ask until rule C held every count to one width.
+    "record_no_5_some_6": ("code", lambda r, j: r.randrange(100000, 130000) if r.random() < 0.005 else r.randrange(20000, 55000), 0),
+    "record_no_5_some_7": ("code", lambda r, j: r.randrange(1000000, 9000000) if r.random() < 0.008 else r.randrange(30000, 55000), 0),
 }
+
+
+# THE STATED LIMITS (the second review of landing R4, item 4): ordinary
+# columns question Q3 still asks where the fixed-width question did not,
+# each a price plan P4-D384 states -- identifiers of one width with half a
+# percent one figure shorter (rule A lets a stray of another width stand
+# outside the band, so a century slip silences nothing), a salary in Epic
+# days' band a third of it in cents, five-figure codes whose "none" is
+# `0` or `-1`, and lengths of time of a year or more kept as whole days
+# of seconds or milliseconds. Each writes its own cells; the gate pins how
+# many draws of each are asked, so a change of the question shows.
+def _money_or_whole(draw: random.Random, value: float, share: float) -> str:
+    return f"{value:.2f}" if draw.random() < share else str(int(round(value)))
+
+
+STATED = {
+    "ids_10fig_some_9fig": ("code", lambda r: str(r.randrange(100000000, 600000000)) if r.random() < 0.005 else str(r.randrange(1000000000, 2400000000))),
+    "ids_13fig_some_12fig": ("code", lambda r: str(r.randrange(100000000000, 600000000000)) if r.random() < 0.005 else str(r.randrange(1000000000000, 2400000000000))),
+    "salary_mostly_whole_65k": ("measure", lambda r: _money_or_whole(r, r.gauss(65000, 3000), 0.35)),
+    "codes_5fig_zero": ("code", lambda r: "0" if r.random() < 0.01 else str(r.randrange(20000, 32000))),
+    "codes_5fig_minus1": ("code", lambda r: "-1" if r.random() < 0.01 else str(r.randrange(25000, 50000))),
+    "followup_seconds_years": ("measure", lambda r: str(86400 * r.randrange(366, 3650))),
+    "survival_milliseconds_years": ("measure", lambda r: str(86400000 * r.randrange(400, 4000))),
+    "age_seconds_whole_days": ("measure", lambda r: str(86400 * r.randrange(365 * 18, 365 * 90))),
+}
+
+
+def stated(name: str, rows: int, draw_number: int) -> "list[str]":
+    """One draw of a `STATED` column, written as its own writer writes it."""
+    _kind, write = STATED[name]
+    draw = random.Random(zlib.crc32(f"stated:{name}:{rows}:{draw_number}".encode("utf-8")))
+    return [write(draw) for _ in range(rows)]
 
 
 def jitter(draw: random.Random) -> float:

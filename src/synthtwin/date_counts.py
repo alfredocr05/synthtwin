@@ -1565,6 +1565,10 @@ DAY_TIME_SIGNIFICANT = 15
 EPOCH_YEAR_DAYS = 365
 UNIT_STEP_DAYS = 1000
 
+# RULE C's WIDTH: the fewest figures a column of fixed-width figures
+# writes for rule C to read it as days -- serial 10,000 is 1927.
+FIXED_WIDTH_LEAST = 5
+
 RULE_BAND = "inside-a-band"
 RULE_MIDNIGHT = "at-midnight"
 RULE_FIXED_WIDTH = "fixed-width-days"
@@ -1657,7 +1661,8 @@ def fixed_width(present: "list[str]") -> int:
 
     Today's fixed-width question, as `asking.why_worth_asking` asks it: no
     cell padded with a leading zero, every cell ASCII figures and nothing
-    else, all one width. Guarantees: a function of the cells. Raises
+    else, all one width. Rule C asks it of the cells beside the set-aside
+    numbers (`_text_holds`). Guarantees: a function of the cells. Raises
     nothing. No I/O.
     """
     width = 0
@@ -1753,10 +1758,13 @@ def asked_of(
       midnight comes back as instants and is a stated limit), and not a
       length of stay kept as whole days of seconds, or of milliseconds
       read as seconds;
-    * C -- the column is asked already as a column of figures all one
-      width, at least five (`fixed_width`), and a member counting days
-      reads every value inside 1900 to 2050: the question offers dates
-      as answers beside its own, and asks nothing new.
+    * C -- every count beside the set-aside numbers is written in figures
+      alone, all one width of at least five (`fixed_width`), so the
+      column is one the fixed-width question asks already, set-aside
+      numbers aside, and a member counting days reads it inside 1900 to
+      2050, one in a hundred at most outside: the question offers dates
+      as answers beside its own. A column whose "none" is `-1` beside
+      five-figure codes is asked newly, a stated limit (plan P4-D384).
 
     TEXT CELLS STAND TO THE DATE ROLE'S LINE: ``needed`` cells of the
     present ones must be counts. ``numbers`` are the column's own numbers
@@ -1889,18 +1897,28 @@ def _text_holds(
     counts of days that are not whole write `DAY_TIME_PLACES` figures after
     the point or `DAY_TIME_SIGNIFICANT` significant ones; and a member
     with contacts has at least half its counts write no contact number.
-    For rule C, every count beside the set-aside numbers is whole, and
-    those inside the wide band all have one width of at least five
-    figures. NO CELL OF ANOTHER WIDTH IS LET STAND, where a stray outside
-    the band is: measured on the chance battery, letting one cell of
-    another width in a thousand stand asked two measurement columns that
-    are no fixed width -- the kind of question nothing asked before --
-    and costs one keying slip
-    that lands inside the band at another width (`xl_birth` a century
-    early, one seed of three). For rule B, every count beside the
-    set-aside numbers is whole and stands at midnight UTC, with at least
-    eleven different values, and not every one a whole thousand days from
-    the member's first day (`UNIT_STEP_DAYS`).
+    NO CELL INSIDE THE BAND OF ANOTHER WIDTH IS LET STAND, where a stray
+    outside the band is: measured on the chance battery, letting one cell
+    of another width in a thousand stand asked two measurement columns
+    that are no fixed width -- the kind of question nothing asked before
+    -- and costs one keying slip that lands inside the band at another
+    width (`xl_birth` a century early, one seed of three). A stray of
+    another width OUTSIDE the band is let stand, so that a century slip
+    -- Excel's 2016 keyed as 1916, four figures -- silences no question;
+    the price is that ten- and thirteen-figure identifiers with half a
+    percent one figure shorter are asked (a stated limit, plan P4-D384).
+    For rule C, EVERY count beside the set-aside numbers, strays outside
+    the band among them, is written in figures alone, all one width of at
+    least `FIXED_WIDTH_LEAST` (`fixed_width`): set-aside numbers aside,
+    the column is one the fixed-width question asks already. The
+    one-in-a-hundred stray allowance had let six- or seven-figure record
+    numbers stand beside five-figure ones, and such columns were newly
+    asked on 37 and 31 of 40 draws (the second review of landing R4, item
+    4); the battery's only rule-C shape, Excel birth dates, keeps five
+    figures under a slip a century late. For rule B, every count beside
+    the set-aside numbers is whole and stands at midnight UTC, with at
+    least eleven different values, and not every one a whole thousand
+    days from the member's first day (`UNIT_STEP_DAYS`).
     """
     found = TABLE[member]
     tally = 0
@@ -1911,8 +1929,10 @@ def _text_holds(
     most_significant = 0
     widths: "dict[int, int]" = {}
     different: "dict[int, int]" = {}
+    standing: "list[str]" = []
     off_the_step = False
-    low, high = band(member, WIDE_FROM if rule == RULE_FIXED_WIDTH else NARROW_FROM)
+    # Rule A's band: the widths it holds to one are those inside it.
+    low, high = band(member, NARROW_FROM)
     per_day = DAY // found.unit if found.unit < DAY else 1
     aside: "dict[int, int]" = {}
     for number in set_aside(member):
@@ -1938,8 +1958,9 @@ def _text_holds(
             if (numerator // per_day) % UNIT_STEP_DAYS:
                 off_the_step = True
             continue
-        if rule == RULE_FIXED_WIDTH and (written.fraction or written.exponent_form):
-            return False
+        if rule == RULE_FIXED_WIDTH:
+            standing += [text]
+            continue
         if numerator % denominator:
             not_whole = not_whole + 1
             if found.contacts:
@@ -1954,11 +1975,10 @@ def _text_holds(
         return False
     if rule == RULE_MIDNIGHT:
         return len(different) >= REST_LEAST and off_the_step
+    if rule == RULE_FIXED_WIDTH:
+        return fixed_width(standing) >= FIXED_WIDTH_LEAST
     if len(widths) > 1:
         return False
-    for width in widths:
-        if rule == RULE_FIXED_WIDTH and width < 5:
-            return False
     if rule == RULE_BAND and found.contacts and 2 * with_contact > rest:
         return False
     if (
