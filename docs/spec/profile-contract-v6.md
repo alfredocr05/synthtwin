@@ -6573,9 +6573,9 @@ SPLITS ranks onto free days, nearest first, then the lower rank: a body
 rank one day from a free day splits before any high tail rank whose free
 day is further, so the high tail keeps the days it drew unless the
 body's nearer splits run out first; and the low tail comes first at each
-distance, but like the high tail it keeps only the splits the body's
-nearer ones leave it: on Monday-to-Friday logs, whose free days are at
-the weekend, it ended below its most at two seeds or more on 10 of 272
+distance, but it splits a rank only onto a free day inside that rank's
+own stratum, and only while the count wants more: on Monday-to-Friday
+logs it ended below its most at two seeds or more on 10 of 272
 censuses of logs just above one row an open day and 64 of 125 of the
 fresh logs P4-D388 measures where the pass split, none of them costing
 the count. Where the pass merges, each count rule

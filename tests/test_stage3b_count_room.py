@@ -44,9 +44,9 @@ tails keep -- the low tail at its fewest beside the days the high tail
 draws -- and the room rule the most, the days the two tails draw with no
 merge counted. Where the pass splits, both read the two tails' most,
 which the high tail reaches only where the body's nearer splits run out
-first; the low tail comes first at each distance, but like the high tail
-it keeps only the splits the body's nearer ones leave it: on
-Monday-to-Friday logs, whose free days are at the weekend, it ended below
+first; the low tail comes first at each distance, but it splits a rank
+only onto a free day inside that rank's own stratum, and only while the
+count wants more: on Monday-to-Friday logs it ended below
 its most at two seeds or more on 10 of 272 censuses of logs just above
 one row an open day and 64 of 125 of fresh logs where the pass split,
 none of them costing the count. The price left and
