@@ -1294,6 +1294,37 @@ def test_red_without_the_half_days_own_census(tmp_path: pathlib.Path, monkeypatc
     assert any(missed for missed in found), found
 
 
+def test_v5_h1_reads_no_stamp_on_another_face(tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """V5-H1's own reader counts no stamp written on another face (the lane's skeptic, finding 3 (c)).
+
+    A year of stamps declared a 12-hour clock, and beside them three written on the 24-hour
+    face, `23:59`, `13:05` and `17:30`: the census's recount reads every stamp the producer
+    read and none of the three, which the producer counts unread (contract NF108). Every
+    recount a validate run makes is handed cells `_cells_on_the_written_clock` has already
+    cleared of such stamps, so no table turns this test of V5-H1's own red; its reader,
+    asked alone, does. Mutant: V5-H1 reading a stamp on another face.
+    """
+    cells = _twelve_hour_stamps(1000, 40001, _YEAR)
+    table = fixtures.write(tmp_path, "real.csv", "seen_at\n" + "\n".join(cells) + "\n")
+    settings = taxonomy.Settings(small_cell_floor=LINE, forced_twelve_hour_clocks=("seen_at",))
+    document = profile.build_document(reading.read_table(str(table), small_cell_floor=LINE), settings, [], [], [])
+    loaded = contract.load_profile(str(fixtures.write_profile(tmp_path, "real-profile.json", document)))
+    column = next(column for column in loaded.columns if column.name == "seen_at")
+    facts = column.facts
+    assert isinstance(facts, contract.DatetimeFacts) and facts.hour_census
+    off = ["3/18/2023 23:59", "6/2/2023 13:05", "9/9/2023 17:30"]
+    read = validation._hour_instants_of(facts, cells)
+    assert len(read) == len(cells)
+    assert validation._hour_instants_of(facts, cells + off) == read
+    mutant = _validation_mutant(
+        monkeypatch,
+        "        if facts.parser_family in contract.CLOCK_FORM_MEMBERS and _stamp_off_its_face(cell, face):\n"
+        "            continue\n        canonical = parsing.stamp_canonical(read[0], style)",
+        "        canonical = parsing.stamp_canonical(read[0], style)",
+    )
+    assert len(mutant._hour_instants_of(facts, cells + off)) == len(read) + len(off)
+
+
 def test_a_tie_group_gives_way_on_the_half_day_alone(tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """G7.3b step 9 offers a 12-hour stamp's tie group no unit off the half day (finding 3 (h)).
 
