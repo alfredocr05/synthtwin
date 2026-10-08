@@ -53,16 +53,17 @@ lane D1b's fix stream merged at its second round for them, so D1b's
 business year written `MM/DD/YYYY 00:00` no longer comes back 259 values
 for 260 at 11 and 20, nor written ISO with a `T` the column never wrote.
 The price is D1b's, as ruled: 14, 16 and 3 of 273, 261 and 230 censuses
-of D1b's logs at midnight at 11, 20 and 36, each met by its twins; 37
-censuses the unit-room rule withheld at 20 and 36 publish, met at seeds
-0 to 9; and on clocked columns one of 62 hunt shapes at noon at 11, met
-before. The ruling's residual, one twin in ten of 1, 5 and 2 published
-logs at 11, 20 and 36 a day or more short, is stated in P4-D367: on a
-column at midnight G7.9's unnamed mark makes up its count of texts and
-validation does not name it. Each producer rule withholds a shape of its
-own, withdrawn one at a time; the hole clauses, step 7c's width kind (a
-thirteenth state of the seventeenth file) and the short cause on a full
-day of moments have nodes.
+of D1b's logs at midnight at 11, 20 and 36, of which 10, 14 and 3 kept
+every day at nine seeds of ten or more and six left twins short at two
+to nine; 37 censuses the unit-room rule withheld at 20 and 36 publish,
+met at seeds 0 to 9; and on clocked columns one of 62 hunt shapes at
+noon at 11, met before. The ruling's residual, one twin in ten of 1, 5
+and 2 published logs at 11, 20 and 36 a day or more short, is stated in
+P4-D367: on a column at midnight G7.9's unnamed mark makes up its count
+of texts and validation does not name it. Each producer rule withholds a
+shape of its own, withdrawn one at a time; the hole clauses, step 7c's
+width kind (a thirteenth state of the seventeenth file) and the short
+cause on a full day of moments have nodes.
 KPIs `K-S3-36` (new) and `K-S3-37` (new, an accepted limit, status only).
 
 ### The second key cut repaired at its review (2026-10-05)
