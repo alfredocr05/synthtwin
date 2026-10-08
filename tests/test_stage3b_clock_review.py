@@ -120,7 +120,8 @@ And the limit that repair states, a strict xfail:
 -- twelve real `8:00` beside `08:00` declared missing, on a place the
 description stands nothing present on, are written on their group's
 other step in the column's width, as NF109 writes every cell of the
-other width (plan P4-D370), so no twin writes `8:00`.
+other width (plan P4-D370), so no twin writes `8:00`; its owner is lane
+C2, stage 3b.5 step 2, by the owner's ruling of 2026-09-15.
 And one the second verification of that repair found, at 49d170b:
 `test_round_2_the_other_widths_remark_says_the_times_its_twin_keeps`
 -- NF109's remark, the summary's line and the twin report's note said
@@ -1976,11 +1977,12 @@ def _stood_on(block: "dict[str, typing.Any]") -> "list[str]":
     strict=True,
     raises=AssertionError,
     reason=(
-        "plan P4-D373's stated limit, NF109's rule (P4-D370): twelve real `8:00` "
-        "beside 25 `08:00` declared missing, on a place the description stands "
-        "nothing present on, are counted in their census group and written on its "
-        "other steps in the column's width, so no twin writes `8:00`; no landing of "
-        "the plan writes a column of clock times in both hour widths"
+        "plan P4-D373's stated limit, NF109's rule above the line (P4-D370): twelve "
+        "real `8:00` beside 25 `08:00` declared missing, on a place the description "
+        "stands nothing present on, are counted in their census group and written on "
+        "its other steps in the column's width, so no twin writes `8:00`; its owner is "
+        "lane C2 (stage 3b.5 step 2, the clock role's next landing), by the owner's "
+        "ruling of 2026-09-15 that the twin writes every value as the source wrote it"
     ),
 )
 def test_round_2_limit_cells_of_the_other_width_the_description_stands_nowhere_keep_their_spelling(
@@ -1997,6 +1999,13 @@ def test_round_2_limit_cells_of_the_other_width_the_description_stands_nowhere_k
     present on the place, and their twins wrote none of its 385 cells in
     the other width. Strict, so a repair turns it red; a shape that moves
     fails outright.
+
+    ITS OWNER IS LANE C2, stage 3b.5 step 2, the clock role's next
+    landing, which touches only clock-role code: the owner ruled on
+    2026-09-15 that the twin writes every value as the source wrote it,
+    and this is NF109's rule above the line (P4-D370's half from the T1
+    skeptic's item 2), which writes these cells in the column's width
+    where the table wrote the other.
     """
     cells, hole, other = _other_width_in_a_group()
     document, loaded = _described(tmp_path, cells, declared=(hole,))

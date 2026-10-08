@@ -109,7 +109,9 @@ it: of 80 such columns 40 failed at every seed and 2 were refused, and
 none is now. Where the description stands nothing present on such a
 place, those cells are written in the column's width on another step
 of their group, as every cell of the other hour width is: a stated
-limit, held by a strict xfail. Two rules of the round -- the loader reading every
+limit, held by a strict xfail, which lane C2, the clock role's next
+landing, owns. The remark on values of the other hour width now says
+which of them keep their own figures. Two rules of the round -- the loader reading every
 column's absent spellings, and an absent marker typed in lower case --
 are held by clauses that fail without them, `K-S3-49` pins the round's
 clauses, and the tail-leak measurement draws its clock windows as the
