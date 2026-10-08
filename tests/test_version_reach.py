@@ -65,13 +65,15 @@ with no newline in it, which is most of this file's samples.)
 THE LIMIT THAT WOULD MATTER is a string of source that IS RUN --
 handed to `exec`, `eval` or `compile`, or to `runpy` -- because that
 spelling reaches the 3.10 cells while this file says nothing about it.
-The tree holds THIRTY-SEVEN such calls (counted again at landing
-3b.2-H, 2026-10-06: the sixteenth vectors file's route adds one and its
-test's mutants four; at the review of landing 3b.D0 it held thirty-two).
+The tree holds THIRTY-NINE such calls (counted again at the repair
+round of landing 3b.2-H, 2026-10-08: its test's validation mutant adds
+two; at the landing, 2026-10-06, the sixteenth vectors file's route
+added one and its test's mutants four; at the review of landing 3b.D0
+it held thirty-two).
 They are listed in
 `ROUTES_THAT_RUN_SOURCE` below and
 `test_the_routes_that_run_a_string_of_source_are_the_ones_named_here`
-holds the tree to that list, so a thirty-eighth cannot arrive unread.
+holds the tree to that list, so a fortieth cannot arrive unread.
 The `runpy` calls run a COMMITTED FILE of `tools/` or of `tests/`,
 which the folders below already read, and the `exec` and `compile`
 calls are held by what they are handed or by where they run:
@@ -145,13 +147,16 @@ calls are held by what they are handed or by where they run:
   a constant or a condition, or leaves a line out -- names, numbers and
   operators every Python spells alike -- so it adds no spelling the
   floor could miss, and the test runs in every cell of the matrix.
-- `tests/test_stage3b_hour.py` builds a module the same way twice (plan
-  P4-D371): `src/synthtwin/generation.py` carrying ONE edit from
-  `STEP_MUTANTS` or a half-day mutant, and `src/synthtwin/calendar_clock.py`
-  carrying ONE edit from `DISTANCE_MUTANTS` -- files this guard reads,
-  each edit a string constant of `tests/` that changes a comparison or
-  a condition, or leaves a step out, so it adds no spelling the floor
-  could miss, and the test runs in every cell of the matrix.
+- `tests/test_stage3b_hour.py` builds a module the same way three times
+  (plan P4-D371): `src/synthtwin/generation.py` carrying ONE edit from
+  `STEP_MUTANTS` or a half-day mutant, `src/synthtwin/calendar_clock.py`
+  carrying ONE edit from `DISTANCE_MUTANTS`, and, since the landing's
+  repair round, `src/synthtwin/validation.py` carrying ONE edit that
+  leaves out V5-H1's own test for a stamp on another face -- files this
+  guard reads, each edit a string constant of `tests/` that changes a
+  comparison or a condition, or leaves a step out, so it adds no
+  spelling the floor could miss, and the test runs in every cell of the
+  matrix.
 
 A FILE loaded as a module is NOT this limit. The 26
 `importlib.util.spec_from_file_location` calls in the folders load
@@ -326,10 +331,11 @@ ROUTES_THAT_RUN_SOURCE = {
     # The sixteenth file, landing 3b.2-H's own steps of G7.3g (plan
     # P4-D371): it runs the same oracle by path, as every file above does.
     ("tools/reference/make_generation_branch_vectors_16.py", "runpy.run_path"): 1,
-    # Its test's mutants: the product's generation module, and
-    # `calendar_clock`, each with one edit, as the module docstring says.
-    ("tests/test_stage3b_hour.py", "compile"): 2,
-    ("tests/test_stage3b_hour.py", "exec"): 2,
+    # Its test's mutants: the product's generation module, `calendar_clock`
+    # and, since the repair round, the validation module, each with one
+    # edit, as the module docstring says.
+    ("tests/test_stage3b_hour.py", "compile"): 3,
+    ("tests/test_stage3b_hour.py", "exec"): 3,
     # anchor 3b-T3 (P4-D372)
     # anchor 3b-C1 (P4-D373)
     # anchor 3b-C2 (P4-D374)
