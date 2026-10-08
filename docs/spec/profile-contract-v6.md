@@ -6720,19 +6720,37 @@ precision, or days where every value stands at midnight -- else the
 census is withheld, as below it the day pass meets the census by
 splitting a written unit's rows across days and the twins measured that
 did held more different values than the column (seven sessions at
-09:00, 17 for 9; payroll at 18:00, 53 for 48). Above a floor of 11, the
-UNIT-ROOM rule, the producer's alone too: the column's different written
-units less the most its twin's two tails can hold -- a listed tail's
-values, or the floor's number on a side publishing its two distances,
-its rows where fewer -- must leave the body the units its census needs
-between its pins (each pin's own, and inside each gap one for each
-non-empty group with a day strictly between the pin days and on
-neither), else the census is withheld: a raised floor widens the tails
-a twin rebuilds, and at a floor of 36 schedules written at noon came
-back holding more different values than the column (the count-room
-rule for whole dates of plan P4-D388, restated in written units). The few-dates rule above is asked of the moments' days as of
-dates, and the room rule beside the same holes where every value stands
-at midnight. WC6's half on written
+09:00, 17 for 9; payroll at 18:00, 53 for 48). At every floor, on a
+column whose values do not all stand at midnight, the UNIT-ROOM rule,
+the producer's alone too: the column's different written units less the
+most its twin's two tails can hold -- a listed tail's values, or the
+floor's number on a side publishing its two distances, its rows where
+fewer -- must leave the body the units its census needs between its
+pins (each pin's own, and inside each gap one for each non-empty group
+with a day strictly between the pin days and on neither), else the
+census is withheld: a twin rebuilds a tail that publishes its two
+distances with up to the floor's number of different values, and at a
+floor of 36 schedules written at noon came back holding more different
+values than the column (the count-room rule for whole dates above,
+restated in written units). It was asked above the floor of 11 alone
+until the landing's skeptic wrote a column of 131 visits on 24 days,
+one moved, at noon: at 11 it published its census and every twin came
+back 26 different values for 24. A column every value of which stands
+at midnight -- which the twin counts and moves in days, as a column of
+dates -- asks instead the two count rules of a column of dates above,
+the count-room and the count-reach rule, on its days, at every floor:
+a business year written `MM/DD/YYYY 00:00`, every weekday once and 740
+rows more, published its census at the floors of 11 and 20 and its
+twins came back 259 different values for 260, its rebuilt high tail on
+one day fewer than the real one and no free weekday left in its body.
+The few-dates rule above is asked of the moments' days as of dates, and
+the room rule beside the same holes where every value stands at
+midnight. A declared spelling of a moment names no day to the producer
+-- a declared day is matched against the column's date text, which a
+member of dates and times never writes -- so neither the room rule nor
+the count-reach rule counts such a day a hole, while the twin of a
+column at midnight keeps every value off it; P4-D367 records it,
+measured harmless. WC6's half on written
 forms is NOT asked: the count of different values counts instants on a
 column of moments, never days, so two ways of writing an instant cost
 the day pass no day; its half on a workbook's storage is. Every

@@ -6761,7 +6761,10 @@ too, on a day of moments written to the minute, in the seventeenth
 vectors file, `tests/reference/generation-branch-vectors-17.json`: three
 Wednesday sessions through the whole pass, and step 7c alone keeping the
 count of different values, keeping the midnight, taking the nearer end
-day and keeping off a hole, and its shift through a group at its total;
+day, keeping off a hole and keeping to an end day of the moment's own
+width kind -- an unpadded month-first column whose one width word is
+`second-field-unpadded`, its nearer end day in September, of the other
+kind -- and its shift through a group at its total;
 and step 8.7 through the whole pass on crowded
 Wednesdays, and alone taking the nearest free minute of a rank's own
 day, the earlier on a tie, inside its gap and off midnight -- each with

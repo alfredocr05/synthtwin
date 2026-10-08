@@ -11,12 +11,14 @@ more than a column of dates, one fewer: the middle half spans at least
 four weeks (WC10, loader and producer), the body holds at least eight
 different WRITTEN units a non-empty group on average where two or more
 are non-empty (the few-units rule, producer-only, the 3b.2-W skeptic's
-blocker 1), above a floor of 11 the units the tails leave the body reach
+blocker 1), at every floor the units the tails leave the body reach
 what the census needs between its pins (the unit-room rule,
-producer-only, lane D1b's count-room rule in written units), and WC6's
-half on written forms is not asked -- the count of different values
-counts instants there. Every withholding but one
-without tails is said in NF74's sentence. The generator moves a moment
+producer-only, lane D1b's count-room rule in written units) -- where
+every value stands at midnight, the two count rules of a column of
+dates instead, its twin moving days as a column of dates does (skeptic
+1 of the landing, items 1 and 2) -- and WC6's half on written forms is
+not asked -- the count of different values counts instants there. Every
+withholding but one without tails is said in NF74's sentence. The generator moves a moment
 by whole days, keeping its clock (G7.3f over a unit of 86,400 seconds);
 where its clock stands outside its gap on the gap's end day, step 7c
 lets it take another clock there -- through a group at its total where
@@ -28,15 +30,29 @@ file's moments by instant (V5-W1).
 The gate's clauses, each beside the mutant that turns it red:
 
 * the unit-room rule: `test_a_raised_floor_withholds_what_the_tails_leave_the_body_too_few_values_for`
-  (mutant: the rule withdrawn, a noon schedule's twins long at a floor of 36) and
-  `test_the_unit_room_rule_gives_its_stated_answers`;
+  (mutant: the rule withdrawn, a noon schedule's twins long at a floor of 36; asked at 11 too,
+  the same column publishes, met) and `test_the_unit_room_rule_gives_its_stated_answers`;
+* every floor: `test_at_the_floor_of_11_a_census_that_leaves_its_twins_long_is_withheld` --
+  lane D1b's moved `_hunt(690)` at midnight and at noon, withheld at 11, its twins 24 values;
+  mutant: the count-room or the unit-room rule withdrawn, the census back and its twins long;
+* the count of midnight moments short: `test_a_census_that_keeps_midnight_moments_from_a_day_their_tail_lost_is_withheld`
+  -- lane D1b's business year at midnight, ISO and month first, floors 11 and 20, withheld, its
+  twins 260 values on 260 days in the column's own spellings; mutant: the count-reach rule
+  withdrawn, 259 values, or 259 days and a `T` the column never wrote;
 * G-D1, what publishes: `test_moments_publish_their_census_where_the_rules_allow`
   -- clinic visits, emergency arrivals, admissions, Wednesday sessions,
   admissions at midnight and a business log publish; seven sessions,
   forty ties and payroll at a fixed clock, a clinic over three weeks
   and a column on the shared clock do not, the first four with NF74.
-  Mutants: the few-dates and few-units rules withdrawn (the fixed
-  clocks publish), the span rule withdrawn (three weeks publishes);
+  Mutants, one rule at a time (`test_each_rule_withholds_its_own_shapes`):
+  the few-dates rule withdrawn and a clinic's one Saturday publishes on a
+  single date, the few-units rule and the tenth of the month at noon,
+  the unit-room rule and the moved hunt at noon, the count-room rule and
+  the moved hunt at midnight, the count-reach rule and the business year
+  at midnight, the span rule and three weeks of clinic;
+* a published hole: `test_a_body_day_on_a_published_hole_withholds_the_census_of_moments`
+  and `test_the_room_rule_asks_midnight_moments_beside_a_placeholder_hole`, each on a
+  verdict set by hand, red on its own source edit of the producer;
 * G-D2, every published census met:
   `test_every_published_census_is_met_by_its_twins_and_its_source` --
   three twins each, nothing MISSED, the weekend share of the body as
@@ -48,6 +64,8 @@ The gate's clauses, each beside the mutant that turns it red:
   or 8.7 moved it (`test_a_clock_changes_only_on_ranks_steps_7c_8_4_8_5_or_8_7_moved`),
   the 3b.2-W skeptic's minor 2: the bound is the cells those steps
   moved, never a share of the body;
+* the short cause: `test_a_count_the_pass_leaves_off_is_counted_in_values` -- in values,
+  and never the tails' cause on a full day of moments (mutant: that cause asked off days);
 * G-D4, the mutants: the few-units rule keyed to `all_at_midnight`
   (`test_the_few_units_rule_is_asked_off_midnight_too`), step 7c
   withdrawn (`test_wednesday_sessions_need_step_7c`), its shift offered
@@ -241,6 +259,7 @@ def _three_weeks() -> "list[str]":
     """Eight hundred clinic visits in three weeks of June and two hundred over the year: the
     middle half spans under four weeks while every group holds dates enough (WC10 alone)."""
     return _clinic(800, 677, _THREE_WEEKS) + _clinic(200, 678)
+
 
 def _one_saturday_clinic() -> "list[str]":
     """A weekday clinic of 975 visits at the quarter hours of 2023, and 25 more on ONE Saturday,
