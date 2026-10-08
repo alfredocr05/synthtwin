@@ -12547,7 +12547,9 @@ run's, so a real column whose rung stands on the far side of a heap
 from where the twin's share put it is still inside -- a heap's rank its
 value, a boundary rank its boundary, and a tail rank anywhere beyond its
 boundary (`calendar_clock.clock_rank_windows`), the runs shared as
-G7A.4b step 2 shares them, over their steps on no absent place. A tail
+G7A.4b step 2 shares them, over their steps on no absent place -- or,
+in a group whose every step is an absent place the other width spells
+another way, over those steps. A tail
 holding heaps, drawn on a step of more than one unit or beside an absent
 place beyond its boundary has its two distances' window (G12.14) summed
 over its heaps' distances and its drawn cells' strata, read back past the
