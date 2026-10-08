@@ -38,9 +38,11 @@ strata divided by that ladder, once, with the plan, and 110cb46's walk
 3 can hide a fault of the walk from the finished twin, so a test pinning
 a clause of rules 1 and 2 reads the walk's own output, a twin nearer
 than 110cb46's, or the twin with rule 3 withdrawn. And where rule 1
-moved an end, the checker holds the mean, the spread and each tail's
-distances to the windows drawn with it withdrawn as well, whether or not
-those reach the published value (validation method V6.1-A2, section 6).
+moved an end, the checker holds the mean, the spread, each tail's
+distances and each rung whose window the rule moved to the windows drawn
+with it withdrawn as well, whether or not those reach the published
+value, and where one reaches it, to its own ends but near the value
+(validation method V6.1-A2, section 6).
 
 Each clause is held up by a test here and, where a mutant is cheap to
 write, by the mutant that withdraws it turning the test's own
@@ -51,7 +53,8 @@ each clause of where rule 3 is asked, of its one division a block and of
 the checker's second window -- the low end's side of where rule 1 moved
 an end and the mean's half of that window among them, which that round's
 verifier found no test held -- and Codex's review one of each clause it
-added, the sides each walk the block weighs names among them; method
+added, the sides each walk the block weighs names among them, and the
+corrections its verifier asked one of each clause they added; method
 section G6.6.8 states how many turn it red. The end rule is also frozen in
 `tail_width_past_the_reach` (tests/reference/generation-branch-vectors-23.json);
 the walk has no frozen case, because the oracle does not run G6.6's
@@ -2469,16 +2472,22 @@ def test_the_window_without_the_rule_holds_the_file_to_half_its_width_whether_or
     width misses. WHETHER OR NOT THE SECOND WINDOW REACHES THE VALUE: the
     leftover round asked it only where it did not, so a window reaching the
     value, however narrow, asked nothing and the rule's wide window was the
-    only bound (Codex's review of lane G2, item 1). So the verdict is a
-    distance from the value: no file further from it passes where a nearer
-    one misses. It holds whichever check it is handed to -- the caller hands
-    it the mean's, the spread's and a moved tail's two distances -- and
-    none leaves the first window's verdict alone.
+    only bound (Codex's review of lane G2, item 1). AND WHERE IT REACHES THE
+    VALUE ITS OWN ENDS HOLD TOO: half its width around a value near one of
+    its ends runs past that end, so a distance alone passed files the window
+    itself missed (the verifier of that review's corrections). A file
+    outside a reaching second window passes only within ``held_near`` of the
+    value, nought unless the caller says how near: around 10, a second
+    window 8 to 30 passes 8 to 21 and nothing below 8, three either side
+    7 to 21, and 0 to 12 passes 4 to 12, three either side 4 to 13. It
+    holds whichever check it is handed to -- the caller hands it the
+    mean's, the spread's, a moved tail's two distances and each rung's --
+    and none leaves the first window's verdict alone.
     """
-    def within(measured, held, anchored=True):  # type: ignore[no-untyped-def]
+    def within(measured, held, anchored=True, near=0.0):  # type: ignore[no-untyped-def]
         return validation._within(
             "c", "numeric.std", "moments.std", "10", measured, (0.0, 100.0), "G12.3", 10.0,
-            anchored=anchored, held=held,
+            anchored=anchored, held=held, held_near=near,
         )
 
     assert within(11.0, (0.0, 4.0)).verdict == validation.WITHIN_BOUND
@@ -2486,7 +2495,16 @@ def test_the_window_without_the_rule_holds_the_file_to_half_its_width_whether_or
     assert far.verdict == validation.MISSED and far.published == "10 (between 0.0 and 100.0)"
     assert any("between 0.0 and 4.0" in line for line in far.note)
     assert any("does not" in line for line in far.note)
-    assert within(13.0, (0.0, 12.0)).verdict == validation.WITHIN_BOUND
+    # A second window reaching the value near its top: 13 stands inside half its width and outside the window.
+    top = within(13.0, (0.0, 12.0))
+    assert top.verdict == validation.MISSED and top.published == "10 (between 0.0 and 100.0)"
+    assert any("between 0.0 and 12.0" in line for line in top.note)
+    assert any("which reaches the" in line for line in top.note)
+    assert not any("does not" in line for line in top.note)
+    assert within(13.0, (0.0, 12.0), near=3.0).verdict == validation.WITHIN_BOUND
+    nearby = within(13.5, (0.0, 12.0), near=3.0)
+    assert nearby.verdict == validation.MISSED
+    assert any("3.0" in line for line in nearby.note) and any("which reaches the" in line for line in nearby.note)
     # A second window that reaches the value holds the file to half its width too.
     reaching = within(13.0, (9.0, 11.0))
     assert reaching.verdict == validation.MISSED and reaching.published == "10 (between 0.0 and 100.0)"
@@ -2495,19 +2513,30 @@ def test_the_window_without_the_rule_holds_the_file_to_half_its_width_whether_or
     assert within(10.5, (9.0, 11.0)).verdict == validation.WITHIN_BOUND
     assert within(9.0, (8.0, 30.0)).verdict == validation.WITHIN_BOUND
     assert within(21.0, (8.0, 30.0)).verdict == validation.WITHIN_BOUND
-    assert within(22.0, (8.0, 30.0)).verdict == validation.MISSED
+    halfway = within(22.0, (8.0, 30.0))
+    assert halfway.verdict == validation.MISSED and any("than half" in line for line in halfway.note)
     assert within(-1.5, (8.0, 30.0)).verdict == validation.MISSED
-    # Inside the first window, a distance and nothing else: past the half width misses, inside it passes.
-    for step in range(-40, 61):
-        measured = 10.0 + step / 4.0
-        if measured == 10.0:
-            continue
-        expected = validation.WITHIN_BOUND if abs(measured - 10.0) <= 11.0 else validation.MISSED
-        assert within(measured, (8.0, 30.0)).verdict == expected, measured
+    assert within(7.5, (8.0, 30.0)).verdict == validation.MISSED
+    assert within(7.5, (8.0, 30.0), near=3.0).verdict == validation.WITHIN_BOUND
+    # Inside the first window: inside the reaching second window or within ``near``, and within half its width.
+    for held, near, low, high in (
+        ((8.0, 30.0), 0.0, 8.0, 21.0),
+        ((8.0, 30.0), 1.0, 8.0, 21.0),
+        ((8.0, 30.0), 3.0, 7.0, 21.0),
+        ((0.0, 12.0), 0.0, 4.0, 12.0),
+        ((0.0, 12.0), 3.0, 4.0, 13.0),
+    ):
+        for step in range(-40, 61):
+            measured = 10.0 + step / 4.0
+            if measured == 10.0:
+                continue
+            expected = validation.WITHIN_BOUND if low <= measured <= high else validation.MISSED
+            assert within(measured, held, near=near).verdict == expected, (held, near, measured)
     assert within(13.0, None).verdict == validation.WITHIN_BOUND
     assert within(13.0, (0.0, 4.0), anchored=False).verdict == validation.MISSED
     assert within(11.0, (0.0, 4.0), anchored=False).verdict == validation.WITHIN_BOUND
     assert within(10.0, (0.0, 4.0)).verdict == validation.HELD
+    assert within(10.0, (0.0, 12.0)).verdict == validation.HELD
     assert within(150.0, (0.0, 4.0)).verdict == validation.MISSED
 
 
@@ -2562,17 +2591,255 @@ def test_a_file_three_times_the_real_spread_misses_where_the_window_without_the_
         assert _missed(described, seed) == ["value:moments.std"], f"seed {seed}"
 
 
+def _far_side_half_again(cells: "list[str]") -> "list[str]":
+    """Every number above the column's mean taken half again as far from it, written as a whole number."""
+    numbers = [float(cell) for cell in cells]
+    mean = statistics.fmean(numbers)
+    return [str(round(mean + 1.5 * (number - mean))) if number > mean else cell for cell, number in zip(cells, numbers)]
+
+
+# What `validate` misses on Codex's column with its far cell `149100`, or its far side half again as far out, at
+# each floor. 110cb46 missed the spread at every floor too, beside the high tail's root-mean-square distance on a
+# window (0 to 8,199) that misses the published one and so every file but the source's exact value.
+_HALF_AGAIN_MISSES = {
+    11: ["value:moments.std", "value:tails.high.mean_distance"],
+    20: ["value:moments.std"],
+    36: ["value:moments.std"],
+}
+
+
+@pytest.mark.parametrize("floor", (11, 20, 36))
+def test_a_file_half_again_the_real_spread_misses_where_the_window_without_the_rule_reaches_the_value(
+    tmp_path: pathlib.Path, floor: int
+) -> None:
+    """Readings 1000 to 1900, each 150 times, beside one `99900`: a file whose far cell is `149100` misses its spread.
+
+    The spread's second window, 0 to about 3,020 against a published
+    2,557.30, reaches the value near its top, so half its width around the
+    value runs to 4,067: held to that distance alone (Codex's round), a file
+    whose far cell is `149100`, its spread 3,821.84 -- 1.49 times the real
+    one -- passed every check at floors of 11, 20 and 36, and so did one
+    whose far side stood half again as far out, where 110cb46's report
+    missed the spread of both (the verifier of that round's corrections).
+    Where the second window reaches the published value the file must stand
+    inside it or within a tenth of the published spread of it, `K-S3-22`'s
+    own line (validation method V6.1-A2), and both files miss the spread
+    again; the source misses nothing.
+    """
+    cells = _grid(1500)
+    described = _described(tmp_path, f"grid1500_{floor}", cells, floor)
+    facts = _facts(described)
+    assert _moved_sides(facts) == ["high"], "premise: rule 1 moved the high end"
+    column = described.loaded.columns[0]
+    published = described.document["columns"][0]["std"]
+    held = validation._windows_of(column, facts, floor, False)["std"]
+    assert held[0] <= published <= held[1], "premise: the window without the rule reaches the value"
+    assert kpi_shapes.missed(kpi_shapes.measure(described, _text(cells), "source.csv")) == []
+    for name, altered_cells in (("far_cell_149100", cells[:-1] + ["149100"]), ("far_side", _far_side_half_again(cells))):
+        altered = _text(altered_cells)
+        spread = _moment_check(described, altered, f"{name}.csv", "moments.std")
+        measured = float(spread.achieved)
+        low, high = _shown_ends(spread.published)
+        assert low <= measured <= high, f"premise: inside the rule's own window, {name}"
+        assert 1.45 * published < measured < 1.5 * published, f"premise: half again the real spread, {name}"
+        assert abs(measured - published) <= (held[1] - held[0]) / 2.0, f"premise: within half the second width, {name}"
+        assert measured > held[1] and measured - published > 0.1 * published, f"premise: past the second window, {name}"
+        assert spread.verdict == validation.MISSED, f"{name}: {spread}"
+        assert any("which reaches the" in line for line in spread.note), spread.note
+        assert any(validation._shown_window(*held) in line for line in spread.note), spread.note
+        assert kpi_shapes.missed(kpi_shapes.measure(described, altered, f"{name}-all.csv")) == _HALF_AGAIN_MISSES[floor]
+
+
+def _low_heavy_beside_2064() -> "list[str]":
+    """1000 readings from 100 to 999 heaped low, `100 + 899 (k / 1000) ** 3`, beside one `2064` (one of the random shapes')."""
+    return [str(int(100 + 899 * (step / 1000) ** 3)) for step in range(1000)] + ["2064"]
+
+
+def _rung_windows(facts: contract.NumericFacts, floor: int, key: str, reach_rule: bool) -> "tuple[float, float]":
+    """G12.2's window of one named rung, drawn through the ladder read with or without rule 1 (a premise only)."""
+    index = list(validation._LADDER_KEYS).index(key)
+    percent = contract.LADDER_PERCENTS[index]
+    ladder = validation._filled_ladder(facts, reach_rule)
+    assert ladder is not None
+    numbers = validation._numeric_cells(facts)
+    reach = 100 * (validation._window_stratum(facts, floor, reach_rule) + 2)
+    whole = 100 * numbers
+    half = validation._half_unit(facts)
+    return (
+        validation._ladder_read(ladder, max(0, percent * numbers - reach), whole) - half,
+        validation._ladder_read(ladder, min(whole, percent * numbers + reach), whole) + half,
+    )
+
+
+def test_a_rung_near_the_moved_end_answers_to_its_window_without_the_rule(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """1000 low-heavy readings from 100 to 999 beside one `2064`, at fifty: a file whose far side stands out further misses its `p95`.
+
+    Rule 1 takes the high end past the width, and the `p95` window, drawn
+    through that end, runs about 640 to 1,263 where 110cb46 drew it to
+    999.5 around a published 870. Every number above the mean taken half
+    again as far out puts the file's `p95` at 1,142, inside the rule's
+    window, which passed on Codex's round, where 110cb46's report missed it
+    (the verifier of that round's corrections, on one of 1,500 random
+    shapes). Where rule 1 moved an end each rung answers to its window drawn
+    with the rule withdrawn as well, as a tail's distances do (validation
+    method V6.1-A2): no further from the published rung than any value that
+    window admits -- a `p95` inside it, though further than half its width
+    from the value, passes -- and, where it reaches the value, inside it or
+    within 0.05 of the published spread, so one between its end and that
+    bound misses too. A rung whose two windows are one is handed no second
+    window. The source misses nothing, and the second windows miss nothing
+    on the twins at seeds 0, 4 and 9 that the first windows alone do not.
+    Withdrawn, the rule's window alone passes the file.
+    """
+    cells = _low_heavy_beside_2064()
+    described = _described(tmp_path, "low_heavy_2064", cells, 50)
+    facts = _facts(described)
+    column = described.loaded.columns[0]
+    assert _moved_sides(facts) == ["high"], "premise: rule 1 moved the high end"
+    assert kpi_shapes.missed(kpi_shapes.measure(described, _text(cells), "source.csv")) == []
+    first = _rung_windows(facts, 50, "p95", True)
+    held = _rung_windows(facts, 50, "p95", False)
+    altered = _text(_far_side_half_again(cells))
+    check = _moment_check(described, altered, "far-side.csv", "ladder.p95")
+    value = float(check.published.split(" ", 1)[0])
+    measured = float(check.achieved)
+    assert _shown_ends(check.published) == first, "premise: the line prints the rule's window"
+    assert held[0] <= value <= held[1] < first[1], "premise: the second window reaches the value and stops short"
+    assert held[1] < measured <= first[1], "premise: inside the rule's window, outside the second"
+    assert check.verdict == validation.MISSED, check
+    assert any(validation._shown_window(*held) in line for line in check.note), check.note
+    assert kpi_shapes.missed(kpi_shapes.measure(described, altered, "far-side-all.csv")) == ["value:ladder.p95"]
+    for seed in SEEDS:
+        text = kpi_shapes.twin_text(described, seed)
+        missed = kpi_shapes.missed(kpi_shapes.measure(described, text, f"twin-{seed}.csv"))
+        with pytest.MonkeyPatch.context() as patch:
+            patch.setattr(contract, "reach_moved_an_end", lambda _facts: False)
+            alone = kpi_shapes.missed(kpi_shapes.measure(described, text, f"twin-{seed}-first.csv"))
+        assert missed == alone and not [one for one in missed if one.startswith("value:ladder.")], f"seed {seed}: {missed}"
+
+    def verdict(key: str, rung: float) -> "validation.Check":
+        block = copy.deepcopy(described.document["columns"][0])
+        block["percentiles"][key] = rung
+        found = [one for one in validation._tail_block_checks(column, facts, block, 50) if one.subcheck == f"ladder.{key}"]
+        assert len(found) == 1, found
+        return found[0]
+
+    furthest = max(abs(value - held[0]), abs(held[1] - value))
+    inside = held[0] + 1.0
+    assert abs(inside - value) > (held[1] - held[0]) / 2.0, "premise: inside the second window, past half its width"
+    assert verdict("p95", inside).verdict == validation.WITHIN_BOUND
+    between = (held[1] + value + furthest) / 2.0
+    assert held[1] < between < value + furthest and between - value > 0.05 * facts.std, "premise: inside its bound, past its end"
+    beyond = verdict("p95", between)
+    assert beyond.verdict == validation.MISSED and any("which reaches the" in line for line in beyond.note), beyond
+    assert verdict("p95", value + 1.1 * furthest).verdict == validation.MISSED
+    # A rung whose two windows are one: a file outside it misses on the first window alone, with no second line.
+    middle = _rung_windows(facts, 50, "p50", True)
+    assert middle == _rung_windows(facts, 50, "p50", False), "premise: the median's two windows are one"
+    alone = verdict("p50", middle[1] + 1.0)
+    assert alone.verdict == validation.MISSED, alone
+    assert not any("Drawn with that end held" in line for line in alone.note), alone.note
+    monkeypatch.setattr(contract, "reach_moved_an_end", lambda _facts: False)
+    check = _moment_check(described, altered, "far-side-mutant.csv", "ladder.p95")
+    assert check.verdict == validation.WITHIN_BOUND, check
+
+
+def test_the_rule_s_own_twin_just_past_a_reaching_second_window_passes_within_k_s3_22_s_line(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """`00001` to `00149` beside one `50000`, at 36: the rule's twin, its mean just past the second window, passes.
+
+    The mean's second window, 72.28 to 411.70, reaches the published
+    407.83 a hair from its top, and the twin the rule writes holds a mean
+    of 412.11 -- outside that window, 0.001 of the published spread from
+    the value. Held to the window's own ends alone it would miss, though
+    `K-S3-22` counts it on the real moments; within 0.05 of the published
+    spread of the value it passes (validation method V6.1-A2), at seeds 0,
+    4 and 9, and the twin misses nothing. With no band near the value
+    it misses its mean.
+    """
+    described = _described(tmp_path, "pad50000_150", reader.shape("pad50000", 150, 1), 36)
+    facts = _facts(described)
+    assert contract.reach_moved_an_end(facts), "premise: rule 1 moved an end"
+    column = described.loaded.columns[0]
+    published = described.document["columns"][0]["mean"]
+    held = validation._windows_of(column, facts, 36, False)["mean"]
+    assert held[0] <= published <= held[1], "premise: the second window reaches the value"
+    texts = [kpi_shapes.twin_text(described, seed) for seed in SEEDS]
+    for seed, text in zip(SEEDS, texts):
+        check = _moment_check(described, text, f"twin-{seed}.csv", "moments.mean")
+        mean = float(check.achieved)
+        assert mean > held[1] and mean - published < 0.05 * facts.std, f"premise: just past the window, seed {seed}"
+        assert check.verdict == validation.WITHIN_BOUND, f"seed {seed}: {check}"
+        assert _missed(described, seed) == [], f"seed {seed}"
+    monkeypatch.setattr(validation, "_MEAN_NEAR", 0.0)
+    check = _moment_check(described, texts[0], "twin-0-mutant.csv", "moments.mean")
+    assert check.verdict == validation.MISSED, check
+
+
+def test_the_band_near_the_value_is_k_s3_22_s_line_for_the_moments_and_a_rung_and_three_tenths_for_a_tail(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Every second window `validate` hands out on a moved column, and the band near the value handed with it.
+
+    1000 low-heavy readings beside one `2064`, at fifty: the mean's band is
+    0.05 of the published spread and the spread's a tenth (`K-S3-22`'s line
+    for a twin on the real moments), each rung's the mean's, and each tail
+    distance's three tenths of the published distance (validation method
+    V6.1-A2). Where no finite spread is published the band is nought, the
+    second window's own ends.
+    """
+    cells = _low_heavy_beside_2064()
+    described = _described(tmp_path, "low_heavy_2064_bands", cells, 50)
+    facts = _facts(described)
+    assert contract.reach_moved_an_end(facts), "premise: rule 1 moved an end"
+    handed: "dict[str, tuple]" = {}
+    real = validation._within
+
+    def watched(*arguments, **keywords):  # type: ignore[no-untyped-def]
+        nonlocal handed
+        value = arguments[7] if len(arguments) > 7 else keywords.get("value")
+        handed = {**handed, arguments[2]: (keywords.get("held"), keywords.get("held_near", 0.0), value)}
+        return real(*arguments, **keywords)
+
+    monkeypatch.setattr(validation, "_within", watched)
+    kpi_shapes.measure(described, _text(_far_side_half_again(cells)), "far-side.csv")
+    spread = facts.std
+    assert spread is not None and spread > 0.0
+    assert handed["moments.mean"][0] is not None and handed["moments.mean"][1] == pytest.approx(0.05 * spread)
+    assert handed["moments.std"][0] is not None and handed["moments.std"][1] == pytest.approx(0.10 * spread)
+    rungs = [key for key in handed if key.startswith("ladder.") and handed[key][0] is not None]
+    assert "ladder.p95" in rungs, rungs
+    for key in rungs:
+        assert handed[key][1] == pytest.approx(0.05 * spread), key
+    tails = [key for key in handed if key.startswith("tails.") and key.endswith("_distance")]
+    assert len(tails) == 4, tails
+    for key in tails:
+        assert handed[key][0] is not None, key
+        assert handed[key][1] == pytest.approx(0.30 * abs(handed[key][2])), key
+    assert validation._moment_near(dataclasses.replace(facts, std=None), "mean") == 0.0
+    assert validation._moment_near(dataclasses.replace(facts, std=math.inf), "std") == 0.0
+
+
 def test_a_tail_s_distances_answer_to_the_furthest_the_window_without_the_rule_admits(tmp_path: pathlib.Path) -> None:
-    """`validation._tail_checks` asked of the grid's own description, its high tail's mean distance set by hand.
+    """`validation._tail_checks` asked of the grid's own description, its high tail's two distances set by hand.
 
     Rule 1 moved the high end, so the tail's distances answer to the
-    window drawn with it withdrawn as well: a distance inside the rule's
-    window but further from the published one than any value that window
-    admits misses, and one nearer passes, though it stands further than
-    half that window's width -- the rule exists because the tail stands
-    past that window, and half its width would refuse the rule's own twins
-    (Codex's review of lane G2, item 1). Withdrawn, the rule's window alone
-    passes both.
+    windows drawn with it withdrawn as well. Where that window misses the
+    published distance -- the root-mean-square's, 0 to 8,199 against
+    25,303 -- a distance inside the rule's window passes up to the furthest
+    any value that window admits stands from the published one, though
+    further than half its width, and misses past it: the rule exists
+    because the tail stands past that window, and half its width would
+    refuse the rule's own twins (Codex's review of lane G2, item 1). Where
+    it reaches the published distance -- the mean's, 0 to 8,199 against
+    6,533 -- the furthest it admits always holds the whole window, so a
+    distance 1.9 times the published one passed; it now stands inside that
+    window or within three tenths of the published distance (the verifier
+    of that review's corrections): 1.29 times passes, 1.31 times misses.
+    Withdrawn, the rule's window alone passes every one of them.
     """
     described = _described(tmp_path, "grid1500_tails", _grid(1500), 11)
     facts = _facts(described)
@@ -2582,29 +2849,48 @@ def test_a_tail_s_distances_answer_to_the_furthest_the_window_without_the_rule_a
     held_ladder = validation._filled_ladder(facts, False)
     assert ladder is not None and held_ladder is not None
     tails = facts.tails
-    assert tails is not None and tails.high is not None and tails.high.mean_distance is not None
+    assert tails is not None and tails.high is not None
+    assert tails.high.mean_distance is not None and tails.high.rms_distance is not None
     block = described.document["columns"][0]
-    published = tails.high.mean_distance
-    first, _first_root = validation._tail_window(facts, 11, ladder, tails.high, False)
-    held, _held_root = validation._tail_window(facts, 11, held_ladder, tails.high, False, False)
-    furthest = max(abs(published - held[0]), abs(held[1] - published))
-    assert furthest > (held[1] - held[0]) / 2.0, "premise: the furthest the window admits is past half its width"
+    first_mean, first_root = validation._tail_window(facts, 11, ladder, tails.high, False)
+    held_mean, held_root = validation._tail_window(facts, 11, held_ladder, tails.high, False, False)
 
-    def verdict(distance: float, moved: bool = True) -> str:
+    def verdict(key: str, distance: float, moved: bool = True) -> str:
         measured = copy.deepcopy(block)
-        measured["tails"]["high"]["mean_distance"] = distance
+        measured["tails"]["high"][key] = distance
         with pytest.MonkeyPatch.context() as patch:
             if not moved:
                 patch.setattr(contract, "reach_moved_an_end", lambda _facts: False)
             checks = validation._tail_checks(column, facts, measured, 11, ladder)
-        return [check.verdict for check in checks if check.subcheck == "tails.high.mean_distance"][0]
+        return [check.verdict for check in checks if check.subcheck == f"tails.high.{key}"][0]
 
-    near = published + 0.9 * furthest
-    far = published + 1.1 * furthest
-    assert first[0] <= near < far <= first[1], "premise: both inside the rule's own window"
-    assert verdict(near) == validation.WITHIN_BOUND
-    assert verdict(far) == validation.MISSED
-    assert verdict(far, moved=False) == validation.WITHIN_BOUND
+    # The root-mean-square distance: the second window misses the published one, and its reach bounds the file.
+    root = tails.high.rms_distance
+    assert not held_root[0] <= root <= held_root[1], "premise: the second window misses the published distance"
+    furthest = max(abs(root - held_root[0]), abs(held_root[1] - root))
+    assert furthest > (held_root[1] - held_root[0]) / 2.0, "premise: the furthest the window admits is past half its width"
+    near = root + 0.9 * furthest
+    far = root + 1.1 * furthest
+    assert first_root[0] <= near < far <= first_root[1], "premise: both inside the rule's own window"
+    assert verdict("rms_distance", near) == validation.WITHIN_BOUND
+    assert verdict("rms_distance", far) == validation.MISSED
+    assert verdict("rms_distance", far, moved=False) == validation.WITHIN_BOUND
+    # The mean distance: the second window reaches the published one, and a file outside it stands within three tenths.
+    mean = tails.high.mean_distance
+    assert held_mean[0] <= mean <= held_mean[1], "premise: the second window reaches the published distance"
+    furthest = max(abs(mean - held_mean[0]), abs(held_mean[1] - mean))
+    inside = mean + 0.9 * (held_mean[1] - mean)
+    banded = 1.29 * mean
+    past = 1.31 * mean
+    wide = mean + 0.9 * furthest
+    assert held_mean[1] < banded < past < wide <= mean + furthest, "premise: outside the second window, inside its reach"
+    assert first_mean[0] <= wide <= first_mean[1], "premise: inside the rule's own window"
+    assert wide > 1.85 * mean, "premise: near twice the published distance"
+    assert verdict("mean_distance", inside) == validation.WITHIN_BOUND
+    assert verdict("mean_distance", banded) == validation.WITHIN_BOUND
+    assert verdict("mean_distance", past) == validation.MISSED
+    assert verdict("mean_distance", wide) == validation.MISSED
+    assert verdict("mean_distance", wide, moved=False) == validation.WITHIN_BOUND
 
 
 def test_skew_and_kurtosis_keep_their_windows_alone_where_rule_1_moved_an_end(tmp_path: pathlib.Path) -> None:
