@@ -2745,9 +2745,9 @@ twins of eleven batteries, 175 lose a `skew` or `kurtosis` check that
 shaped like a bell beside one `188`, and P4-D377's million rows. The
 listing is the
 honest answer on the rule's reading; drawn with the rule withdrawn
-instead, those windows would fail 13 twins the rule improved, a
-kurtosis of 352.1 against a published 356.6 outside a window of 1 to 250
-among them, where 110cb46's twin held 7.9 inside it.
+instead, those windows would fail 13 checks on 9 twins the rule
+improved, a kurtosis of 352.1 against a published 356.6 outside a window
+of 1 to 250 among them, where 110cb46's twin held 7.9 inside it.
 
 ## G6. Numeric spelling
 
@@ -4514,7 +4514,7 @@ nothing on either; the stage-3 battery misses its 61 on both; six shapes
 of codes beside plain numbers and far cells miss 205 where 605 were
 missed; the skeptics' grid, pressure, code, bulk and attack shapes miss
 27 where 222 were missed -- the grid twins rule 3 writes as 110cb46
-wrote them, their spread 0.37 to 0.50 of the real one, and 399 numbers
+wrote them, their spread 0.37 to 0.50 of the real one, and 398 numbers
 from 1000 beside `99999` and `88888` at a floor of 20; 1,500 random
 shapes of one to four figures beside one to five far cells, at floors 11
 to 50, miss 4 where 57 were missed; 288 twins of readings 10 to 99
@@ -4558,15 +4558,17 @@ or `kurtosis` window can cover the whole range and is listed (G5.6a).
 The end rule is frozen in `tail_width_past_the_reach` (G14.3). THE
 WALK HAS NO FROZEN CASE, because the oracle does not run G6.6's walk at
 all (criterion 8 of the Phase 4 plan): it is pinned by
-`tests/test_stage3b_width.py`, where a source mutant of each of 106
+`tests/test_stage3b_width.py`, where a source mutant of each of 108
 clauses of the three rules, of the guard on the cells left past the
 width, of G6.3's give-up, of where rule 3 is asked and its one division
-a block, and of the checker's second window (V6.1-A2) turns a test red
-but one, which drops the check asking the second walk only where a cell
-stands past the width: with none there the two walks are one, so it
-changes no twin. Of the second skeptic's eighteen more, eleven turn it
-red; the seven that do not changed no twin of 1,584 over nine batteries
-on 9c79ece, where that skeptic ran them.
+a block, and of the checker's second window (V6.1-A2) -- the low end's
+side of where rule 1 moved an end and the window's hold on the mean
+among them -- turns a test red but one, which drops the check asking
+the second walk only where a cell stands past the width: with none
+there the two walks are one, so it changes no twin. Of the second
+skeptic's eighteen more, eleven turn it red; the seven that do not
+changed no twin of 1,584 over nine batteries on 9c79ece, where that
+skeptic ran them.
 
 ### G6.7 No value stands where the description says there is none
 

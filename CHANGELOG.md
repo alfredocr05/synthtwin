@@ -58,9 +58,9 @@ measured -- 40 cells written on a single far value, a far value written
 twice, a row left at `09998`, a code padded to `012280` -- and five more
 of its own; the second skeptic's round fixed the checker, rule 3 asked
 where it could change nothing -- 5.8 s of every 24.3 generating 200,000
-six-figure numbers -- and two clauses no test held. The walk, the
-second reading and the checker's second window are pinned by
-`tests/test_stage3b_width.py`; one frozen case opens
+six-figure numbers -- and four clauses no test held, two of them its
+own. The walk, the second reading and the checker's second window are
+pinned by `tests/test_stage3b_width.py`; one frozen case opens
 `tests/reference/generation-branch-vectors-23.json` for the end rule.
 
 ### The weekday guards dropped (2026-10-02)
