@@ -877,10 +877,11 @@ def test_a_column_wholly_at_midnight_publishes_no_census_and_says_nothing(tmp_pa
 def test_a_census_withheld_says_why(tmp_path: pathlib.Path) -> None:
     """NF89 and NF92 said, each in its own sentence, and no census published.
 
-    A hundred moments over two years at a floor of 50: the two tails of fifty rows each leave
-    no value between them to count (NF89). Two hundred and fifty at a floor of 60: the
-    hundred-odd values between the tails cannot be grouped short of the whole day with every
-    count nought or at least 60 (NF92).
+    A hundred moments over two years at a floor of 50: two tails need at least 101 values,
+    fifty beyond each boundary, so neither is published and nothing lies between them to
+    count (NF89). Two hundred and fifty at a floor of 60: the hundred-odd values between the
+    tails cannot be grouped short of the whole day with every count nought or at least 60
+    (NF92). Mutants: either census withheld without its sentence.
     """
     draw = random.Random(40006)
     cells = [
