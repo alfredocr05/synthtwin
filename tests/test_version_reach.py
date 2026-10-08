@@ -65,13 +65,14 @@ with no newline in it, which is most of this file's samples.)
 THE LIMIT THAT WOULD MATTER is a string of source that IS RUN --
 handed to `exec`, `eval` or `compile`, or to `runpy` -- because that
 spelling reaches the 3.10 cells while this file says nothing about it.
-The tree holds THIRTY-TWO such calls (counted again at the review of
+The tree holds THIRTY-THREE such calls (counted again at the review of
 landing 3b.D0, 2026-10-03: the figure here had stood one short since
 the fifteenth vectors file's route arrived, and that review's mutants
-add two). They are listed in
+add two; landing R4's twenty-sixth vectors file adds one). They are
+listed in
 `ROUTES_THAT_RUN_SOURCE` below and
 `test_the_routes_that_run_a_string_of_source_are_the_ones_named_here`
-holds the tree to that list, so a thirty-third cannot arrive unread.
+holds the tree to that list, so a thirty-fourth cannot arrive unread.
 The `runpy` calls run a COMMITTED FILE of `tools/` or of `tests/`,
 which the folders below already read, and the `exec` and `compile`
 calls are held by what they are handed or by where they run:
@@ -124,14 +125,14 @@ calls are held by what they are handed or by where they run:
   an addition, which every Python spells alike, so it adds no spelling
   the floor could miss.
 - `runpy.run_path` runs the same kind of committed file: twice in
-  `tests/`, in the two stage-2 oracle tests, and eighteen times in
+  `tests/`, in the two stage-2 oracle tests, and nineteen times in
   `tools/` -- one for the provenance guard's own runner and one for
-  each of the seventeen entry points of the generation vectors, among
+  each of the eighteen entry points of the generation vectors, among
   them the tenth and eleventh, which stage 3's two tail landings
   added (the date and clock tails, landing 3.4, opened the tenth and
   the numeric tails, landing 3.3, the eleventh), and the sixteenth,
-  fifteenth and twenty-second files of stage 3b (plans P4-D375,
-  P4-D366 and P4-D370). Each
+  fifteenth, twenty-second and twenty-sixth files of stage 3b (plans
+  P4-D375, P4-D366, P4-D370 and P4-D384). Each
   runs the committed oracle
   `tools/reference/make_generation_reference_vectors.py` exactly as
   its siblings do, and the floor holds for them for the same reason:
