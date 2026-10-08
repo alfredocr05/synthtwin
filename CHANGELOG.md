@@ -47,8 +47,14 @@ with no AM or PM is drawn on the dial's half day, tails and body, so its
 twin validates clean (T1's carve-out, P4-D370), its count at midnight
 held by the body alone, and a tail's tie group no
 longer stands at a midnight the tails listing only midnight values
-already hold. A tie the pass makes is split even where the column's
-count is out of the construction's reach. A 12-hour stamp whose census
+already hold. Where the column's count is out of the construction's
+reach, the count of different moments it drew is put back -- the first
+ranks in rank order that share a moment split off it -- only where that
+count is not above the published count of values: 20,000 lab draws to
+the minute, written two ways, came back 18 to 19 per cent too many
+values when it was put back whatever the published count, and within
+about one per cent of it now, and a million such draws spend 1.1 s
+putting it back where they spent 51. A 12-hour stamp whose census
 is withheld comes back with its dial's late morning heavier than the
 real one, a stated limit. `K-S3-38` (a headline, with a timed node of
 100,000 daytime moments), `K-S3-40` and `K-S3-41` are new.

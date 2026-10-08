@@ -52,7 +52,13 @@ The clauses, each red on its own mutant (named beside it):
   census published or withheld (mutants: G7.3b step 10 withdrawn; the
   half day's own census withdrawn);
 * the loader's six rules, one refused description each, and
-  `test_validating_never_produces_an_hour_census`.
+  `test_validating_never_produces_an_hour_census`;
+* the leftover round (the lane's second skeptic): a dense column drawn
+  past its count keeps the ties the pass makes, within 1 per cent of its
+  published count (mutant: the short count put back whatever that count
+  is), and a 300-row 12-hour lunch clinic keeps its count at midnight
+  (mutants: four edits of the half day's rule in the move onto a
+  midnight, each its own test).
 
 Every table is built here, seeded and neutral (plan D13).
 """
