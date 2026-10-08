@@ -48,16 +48,21 @@ hidden a second bound: the made-up numbers of G8.3a stopped at 32,768
 steps of their ladder, so ten-figure codes over 1,000,000 rows holding
 95,770 back wrote 32,768 of them as numbers and the rest as words. That
 walk's bound is on what it refuses too, and that table's twin now holds
-every cell as a number and validates at exit 0. Each form's supply is now
-counted only up to what the form owes, which moves no byte: counted to
-the number of held-back codes, it walked every one of them once for
-each form owing a cell, and 24,610 codes held back in 126 forms over
-200,000 rows took 131.1 s of processor time to generate where they take
-11.4. One kind of form is still missed: a code form with one letter
-among figures reads as a number by its exponent filling, so where the
-column also owes numbers its held-back words are written in no form,
-and the twin misses the form's count, which the table meets (`K-S3-61`,
-OPEN).
+every cell as a number and validates at exit 0. A position holding no
+value, such as a number the column published, is not counted against
+that bound, so a register of consecutive codes, whose gaps the walk
+reaches only past every published code nearer an end, is walked to the
+end of its span: 50,000 seven-figure codes on eleven rows each, 2,011
+of them written once, came back with 579 of those as words and now with
+none. Each form's supply is now counted only up to what the form owes,
+which moves no byte: counted to the number of held-back codes, it walked
+every one of them once for each form owing a cell, and 24,610 codes held
+back in 126 forms over 200,000 rows took 131.1 s of processor time to
+generate where they take 11.4. One kind of form is still missed: a code
+form with one letter among figures reads as a number by its exponent
+filling, so where the column also owes numbers its held-back words are
+written in no form, and the twin misses the form's count, which the
+table meets (`K-S3-61`, OPEN).
 
 ### A description written before the published pairs loads again (2026-10-03)
 
