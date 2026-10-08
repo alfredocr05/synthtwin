@@ -27,8 +27,8 @@ only where it serves
 the census strictly better and leaves neither published moment further
 off, and is given up where a stratum finds no room. A side is proven
 only where the width census counts every number of the column, and a
-far cell a pair proves past every named pad is written plain (method
-G6.3). And the rules stand only where they read the published mean and
+far cell the walk the block takes leaves past every named pad is written
+plain, where one the draw left there keeps its pad (method G6.3). And the rules stand only where they read the published mean and
 spread, together, no further off than the twin without them (rule 3):
 wherever rule 1 moved a derived end, the values are read again from the
 same words with both withdrawn -- each end where the width held it, the
@@ -37,8 +37,9 @@ strata divided by that ladder, once, with the plan, and 110cb46's walk
 3 can hide a fault of the walk from the finished twin, so a test pinning
 a clause of rules 1 and 2 reads the walk's own output, a twin nearer
 than 110cb46's, or the twin with rule 3 withdrawn. And where rule 1
-moved an end, the checker holds the mean and the spread to the window
-drawn with it withdrawn as well (validation method V6.1-A2, section 6).
+moved an end, the checker holds the mean, the spread and each tail's
+distances to the windows drawn with it withdrawn as well, whether or not
+those reach the published value (validation method V6.1-A2, section 6).
 
 Each clause is held up by a test here and, where a mutant is cheap to
 write, by the mutant that withdraws it turning the test's own
@@ -2470,3 +2471,58 @@ def test_a_tail_s_distances_answer_to_the_furthest_the_window_without_the_rule_a
     assert verdict(near) == validation.WITHIN_BOUND
     assert verdict(far) == validation.MISSED
     assert verdict(far, moved=False) == validation.WITHIN_BOUND
+
+
+def test_skew_and_kurtosis_keep_their_windows_alone_where_rule_1_moved_an_end(tmp_path: pathlib.Path) -> None:
+    """1000 to 1089 beside ten of five figures, at eleven: a skew inside its window passes, however far from the value.
+
+    Rule 1 moved the high end, and the skew here is checked, not listed. The
+    second window bounds the mean, the spread and the tails' distances only
+    (validation method V6.1-A2): `skew` and `kurtosis` are drawn wide on
+    purpose and keep their windows alone. A measured skew nine tenths of the
+    way from the published one to its window's end stands further from it
+    than half the second skew window's width, and passes.
+    """
+    described = _described(tmp_path, "ten_wide_skew", _ten_wide(), 11)
+    facts = _facts(described)
+    column = described.loaded.columns[0]
+    assert contract.reach_moved_an_end(facts), "premise: rule 1 moved an end"
+    assert not validation._skew_admits_every_value(column, facts, 11), "premise: the skew is checked"
+    published = described.document["columns"][0]["skew"]
+    first = validation._windows_of(column, facts, 11)["skew"]
+    held = validation._windows_of(column, facts, 11, False)["skew"]
+    measured = copy.deepcopy(described.document["columns"][0])
+    measured["skew"] = published + 0.9 * (first[1] - published)
+    assert abs(measured["skew"] - published) > (held[1] - held[0]) / 2.0, "premise: past half the second window's width"
+    checks = validation._moment_checks(column, facts, measured, 11)
+    found = [check for check in checks if check.subcheck == "moments.skew"]
+    assert len(found) == 1 and found[0].verdict == validation.WITHIN_BOUND, found
+
+
+def test_the_tails_second_windows_read_the_stratum_bound_with_the_rule_withdrawn(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The tails' second windows are 110cb46's to the last digit: their stratum bound is read off the ladder with rule 1 withdrawn.
+
+    The bound G12.13's rank windows widen by is read off the ladder each
+    window is drawn through (`taxonomy.window_stratum`), so the second
+    windows read it with the rule withdrawn, as the moments' second windows
+    do. Asked here of the grid's own description, `_tail_checks` reads the
+    bound both ways.
+    """
+    described = _described(tmp_path, "grid1500_bound", _grid(1500), 11)
+    facts = _facts(described)
+    column = described.loaded.columns[0]
+    assert contract.reach_moved_an_end(facts), "premise: rule 1 moved an end"
+    ladder = validation._filled_ladder(facts)
+    assert ladder is not None
+    asked: "list[bool]" = []
+    real = validation._window_stratum
+
+    def watched(facts, floor, reach_rule=True):  # type: ignore[no-untyped-def]
+        asked.append(reach_rule)
+        return real(facts, floor, reach_rule)
+
+    monkeypatch.setattr(validation, "_window_stratum", watched)
+    validation._tail_checks(column, facts, described.document["columns"][0], 11, ladder)
+    assert True in asked and False in asked, asked
