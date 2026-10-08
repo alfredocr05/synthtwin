@@ -16741,12 +16741,26 @@ def _date_count_remarks(
     )
     if asked is None:
         return []
+    # THE HEAPS ARE ASKED OF THE SYSTEMS NF114 OFFERS, and a system whose
+    # walk finds no date is not offered, so the walk is asked again of
+    # the systems left until none drops: the guard beside the loader reads
+    # the systems from the NF114s published and must find the same heaps
+    # (`profile._counted_years_quote_the_published_edges`).
+    offered = asked.members
     readings: "list[Note]" = []
-    for member in asked.members:
-        years = counted_edge_years(details, member)
-        if years is None:
-            continue
-        readings += [note(REMARK_READ_AS_COUNTED_DATES, (member, years[0], years[1]))]
+    while True:
+        heaps = date_counts.heap_counts(asked.set_aside, offered)
+        readings = []
+        kept: "tuple[str, ...]" = ()
+        for member in offered:
+            years = counted_edge_years(details, member, heaps)
+            if years is None:
+                continue
+            kept = kept + (member,)
+            readings += [note(REMARK_READ_AS_COUNTED_DATES, (member, years[0], years[1]))]
+        if kept == offered:
+            break
+        offered = kept
     if not readings:
         return []
     said = [
@@ -16776,7 +16790,9 @@ def _rung_values(details: "dict[str, object]") -> "list[object]":
 
 
 def counted_edge_years(
-    details: "dict[str, object]", member: str
+    details: "dict[str, object]",
+    member: str,
+    heaps: "frozenset[float]" = frozenset(),
 ) -> "tuple[int, int] | None":
     """The years NF114 says a column runs over, read in one member (landing R4).
 
@@ -16784,26 +16800,40 @@ def counted_edge_years(
     COLUMN. The walk starts where `published_ends` stands -- the end the
     block publishes where a group of rows holds it, the boundary rung of
     the side's tail otherwise -- and moves inward rung by rung over the
-    published ladder, passing over a rung that is one of the member's
-    set-aside numbers (`date_counts.set_aside`) or names no date in it
-    (`date_counts.years_of`), AND THE ONE RUNG INSIDE SUCH A RUNG: a rung
-    is read between two sorted cells, and the first beside a heap of
-    placeholders can be read between the last placeholder and the first
-    date -- one percent of `0` among ten thousand Excel serials from 2016
-    puts the 1st percentile at 0.99 of the first date, in 2014. A heaped
-    `0` was the published low end, which names no Excel date, and the
-    member was dropped from the question it was written in (the review of
-    landing R4, item 1).
+    published ladder (`_first_dated_rung`), passing over:
+
+    * a HEAP RUNG: one that is one of the member's set-aside numbers
+      (`date_counts.set_aside`), or the count in any system offered of a
+      set-aside word NF113 names (``heaps``, `date_counts.heap_counts`),
+      or that names no date in the member (`date_counts.years_of`) -- so
+      Excel's 31 December 9999 is no date of a column read as Epic days,
+      where the walk read "1957 to 9941" (the second review of landing
+      R4, item 3);
+    * THE ONE RUNG INSIDE A HEAP RUNG: a rung is read between two sorted
+      cells, and the first beside a heap can be read between the last
+      placeholder and the first date -- one percent of `0` among ten
+      thousand Excel serials from 2016 puts the 1st percentile at 0.99 of
+      the first date, in 2014 (the review of landing R4, item 1);
+    * and, after a heap rung, EVERY RUNG WITH A HEAP COUNT BETWEEN IT AND
+      THE RUNG BEFORE IT: a second heap need hold no rung of its own,
+      and the rung read between it and the first date then follows a
+      rung read between the two heaps -- one percent each of `0` and the
+      1900 count, `2`, among Excel serials from 2016 publish 0, 1.98 and
+      41522.64 before the first date, and the walk read the third, in
+      2013 (item 3 of that review). Past one rung with no heap count
+      between it and the rung before it, the next is read between dates.
 
     The years are those of published rungs, so the remark quotes nothing
-    the block does not publish; the loader asks the same walk of the
-    block (`profile._counted_years_quote_the_published_edges`). None where
-    the block publishes no edge on a side, or where the walk finds no
-    rung that is a date.
+    the block does not publish; the guard beside the loader asks the same
+    walk of the block, with the words and systems the remarks publish
+    (`profile._counted_years_quote_the_published_edges`). None where the
+    block publishes no edge on a side, or where the walk finds no rung
+    that is a date.
 
-    Guarantees: accepts one numeric block and a member word; returns two
-    years or None. Determinism: a function of the two. Raises KeyError for
-    a word outside `date_counts.MEMBERS`. No I/O of any kind.
+    Guarantees: accepts one numeric block, a member word and the heap
+    counts; returns two years or None. Determinism: a function of the
+    three. Raises KeyError for a word outside `date_counts.MEMBERS`. No
+    I/O of any kind.
     """
     if published_ends(details) is None:
         return None
@@ -16818,7 +16848,7 @@ def counted_edge_years(
             if isinstance(percent, bool) or not isinstance(percent, int):
                 return None
             start = percent
-        found = _first_dated_rung(rungs, start, step, member)
+        found = _first_dated_rung(rungs, start, step, member, heaps)
         if found is None:
             return None
         years += [found]
@@ -16826,13 +16856,20 @@ def counted_edge_years(
 
 
 def _first_dated_rung(
-    rungs: "list[object]", start: int, step: int, member: str
+    rungs: "list[object]",
+    start: int,
+    step: int,
+    member: str,
+    heaps: "frozenset[float]" = frozenset(),
 ) -> "int | None":
-    """The year of the first rung from ``start`` that is a date and stands clear of a set-aside rung."""
+    """The year of the first rung from ``start`` that is a date and stands clear of every heap (`counted_edge_years`)."""
     aside: "dict[float, int]" = {}
     for number in date_counts.set_aside(member):
         aside[float(number)] = 1
-    passed = False
+    for count in heaps:
+        aside[count] = 1
+    previous: "float | None" = None
+    heaped = False
     place = start
     while 0 <= place <= 100:
         value = rungs[place]
@@ -16841,13 +16878,30 @@ def _first_dated_rung(
             continue
         year = None if value in aside else date_counts.years_of(member, value)
         if year is None:
-            passed = True
+            previous = value
+            heaped = True
             continue
-        if passed:
-            passed = False
+        if previous is None:
+            return year
+        if heaped:
+            previous = value
+            heaped = False
+            continue
+        if _a_heap_between(aside, previous, value):
+            previous = value
             continue
         return year
     return None
+
+
+def _a_heap_between(aside: "dict[float, int]", one: float, other: float) -> bool:
+    """Whether a heap count lies strictly between two rungs."""
+    low = min(one, other)
+    high = max(one, other)
+    for count in aside:
+        if low < count < high:
+            return True
+    return False
 
 
 def _counts_read_as_dates(

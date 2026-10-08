@@ -19,9 +19,10 @@ SIX FAMILIES.
   cell keyed a century late or early, two and five keyed a century out
   either way (the review of landing R4, item 6), and one in a hundred
   written `0`, `-1`, or the system's own count for 9999-12-31 or
-  1900-01-01 (item 1); and `heaped`, a share of one placeholder large
+  1900-01-01 (item 1); `heaped`, a share of one placeholder large
   enough that the ladder publishes it as the column's end (the review of
-  landing R4, item 1).
+  landing R4, item 1); and `heaped_pair`, two placeholders heaped at one
+  end (its second review, item 3).
 * `ORDINARY` -- the chance battery: forty-eight generators of
   measurements and thirteen of codes written as numbers, each drawn with
   its location and scale jittered, and six more the review added -- two
@@ -310,6 +311,27 @@ def heaped(shape: Shape, written: "list[str]", kind: str, share: float, seed: in
     draw = random.Random(2000 + seed)
     for place in draw.sample(range(len(out)), int(round(len(out) * share))):
         out[place] = placeholder(shape, kind)
+    return out
+
+
+# TWO PLACEHOLDERS HEAPED AT ONE END (the second review of landing R4, item
+# 3): `0` beside the system's count for 1900-01-01, `-1` beside it, and `0`
+# beside `-1`.
+PLACEHOLDER_PAIRS = (("zero", "lo_sentinel"), ("minus1", "lo_sentinel"), ("zero", "minus1"))
+
+
+def heaped_pair(
+    shape: Shape, written: "list[str]", kinds: "tuple[str, str]", share: float, seed: int = 0
+) -> "list[str]":
+    """The shape's cells with ``share`` of them each of two placeholders: two heaps at one end."""
+    out = list(written)
+    draw = random.Random(3000 + seed)
+    many = int(round(len(out) * share))
+    places = draw.sample(range(len(out)), 2 * many)
+    for place in places[:many]:
+        out[place] = placeholder(shape, kinds[0])
+    for place in places[many:]:
+        out[place] = placeholder(shape, kinds[1])
     return out
 
 

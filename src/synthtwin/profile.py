@@ -3293,10 +3293,13 @@ def _counted_years_quote_the_published_edges(
     advisory remark may not outlive the facts it quotes (plan P4-D345).
     Each year is the one the producer's own walk of the block's published
     rungs reads in the member at argument 1 (`taxonomy.counted_edge_years`)
-    -- from the heaped end or the boundary rung inward, past the member's
-    set-aside numbers and the rung beside them, never an outermost value
-    -- and the document is refused where either differs, or where the
-    block publishes no such rung on one side.
+    -- from the heaped end or the boundary rung inward, past every heap
+    rung and the rungs read beside heaps, never an outermost value -- and
+    the document is refused where either differs, or where the block
+    publishes no such rung on one side. THE HEAPS ARE THE ONES THE
+    REMARKS PUBLISH: the count, in every system an NF114 of the block
+    names, of each set-aside word its NF113 names (`date_counts.heap_counts`;
+    the second review of landing R4, item 3), as the producer asked them.
 
     Guarantees: accepts NF114's three arguments and the block; returns
     where they agree. Errors raised: the loader's own refusal otherwise. No
@@ -3308,7 +3311,24 @@ def _counted_years_quote_the_published_edges(
     member = arguments[0]
     if not isinstance(member, str) or member not in date_counts.MEMBERS:
         raise _refuse(path)
-    years = taxonomy.counted_edge_years(block, member)
+    words: "tuple[str, ...]" = ()
+    members: "tuple[str, ...]" = ()
+    remarks = block["remarks"] if "remarks" in block else None
+    if isinstance(remarks, list):
+        for remark in remarks:
+            if not isinstance(remark, taxonomy.Note):
+                continue
+            if remark.form == taxonomy.REMARK_NUMBERS_COULD_BE_DATES:
+                for word in remark.arguments[1:]:
+                    if isinstance(word, str) and word != date_counts.ASIDE_NONE:
+                        words = words + (word,)
+            elif remark.form == taxonomy.REMARK_READ_AS_COUNTED_DATES:
+                named = remark.arguments[0] if remark.arguments else None
+                if isinstance(named, str) and named in date_counts.MEMBERS:
+                    members = members + (named,)
+    years = taxonomy.counted_edge_years(
+        block, member, date_counts.heap_counts(words, members)
+    )
     if years is None or years != (arguments[1], arguments[2]):
         raise _refuse(path)
 

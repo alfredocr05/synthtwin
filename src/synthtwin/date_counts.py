@@ -2050,6 +2050,31 @@ def _set_aside_words(
     return tuple(word for word in _ASIDE_WORDS if word in seen)
 
 
+def heap_counts(
+    words: "tuple[str, ...]", members: "tuple[str, ...]"
+) -> "frozenset[float]":
+    """Every count a heap of placeholders may stand on, for NF114's walk (landing R4).
+
+    THE COUNT, IN EVERY SYSTEM OFFERED (``members``), OF EACH SET-ASIDE
+    WORD THE QUESTION NAMES (``words``, NF113's): a column holds a named
+    word under some count of one of the systems that wrote it, and which
+    one is not published, so each is a place a heap may stand -- and one
+    system's placeholder read as another system's date is no date of the
+    column (the second review of landing R4, item 3: Excel's 31 December
+    9999 read as Epic days was "1957 to 9941"). Both NF114's producer and
+    the guard beside the loader ask it of the same published words.
+
+    Guarantees: a function of the two. Raises KeyError for a word outside
+    `MEMBERS`. No I/O of any kind.
+    """
+    found: "dict[float, int]" = {}
+    for member in members:
+        for number, word in set_aside_named(member):
+            if word in words:
+                found[float(number)] = 1
+    return frozenset(found)
+
+
 def years_of(member: str, value: float) -> "int | None":
     """The year a published edge names read under a member, or None.
 

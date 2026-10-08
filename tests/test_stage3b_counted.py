@@ -503,6 +503,54 @@ def _table_of(folder: pathlib.Path, columns: "dict[str, list[str]]") -> pathlib.
     return path
 
 
+def _rung_of(ordered: "list[float]", percent: int) -> float:
+    """A percentile of rising numbers, read between two cells as the ladder reads it."""
+    place = (len(ordered) - 1) * percent / 100
+    low = int(place)
+    high = min(low + 1, len(ordered) - 1)
+    return ordered[low] + (place - low) * (ordered[high] - ordered[low])
+
+
+def _heaps_read_right(folder: pathlib.Path, heap: "object", label: str) -> None:
+    """Every asked shape, its heaps laid by ``heap``, offered its writer's system, every system's years its own reading of the dates.
+
+    The writer's system is held to the true span, within one year. EVERY
+    SYSTEM OFFERED, the writer's among them, is held to the years it reads
+    of the column's own dates at each edge: from the clean column's
+    outermost count to its third percentile from that edge -- the deepest
+    rung the walk reads past two heaps of one percent -- within one year
+    (`date_counts.years_of`). A system that read a placeholder as a date
+    of its own printed a year of 9941 or 1889 there (the second review of
+    landing R4, item 3).
+    """
+    shapes = [shape for shape in battery.SHAPES if shape.name not in battery.NOT_ASKED]
+    columns: "dict[str, list[str]]" = {}
+    clean: "dict[str, tuple[float, float, float, float]]" = {}
+    spans: "dict[str, tuple[int, int]]" = {}
+    for shape in shapes:
+        cells, truth = battery.cells(shape, 10000, 0)
+        columns[shape.name] = heap(shape, cells)  # type: ignore[operator]
+        ordered = sorted(float(cell) for cell in cells)
+        clean[shape.name] = (ordered[0], _rung_of(ordered, 3), _rung_of(ordered, 97), ordered[-1])
+        spans[shape.name] = (min(t.year for t in truth), max(t.year for t in truth))
+    path = _table_of(folder, columns)
+    document = profile.build_document(reading.read_table(str(path)), taxonomy.Settings(), [])
+    for shape, block in zip(shapes, document["columns"]):
+        said = _q3(block)
+        assert said is not None, (label, shape.name)
+        years = {member: (first, last) for member, first, last in said.readings}
+        assert shape.system in years, (label, shape.name, sorted(years))
+        first, last = years[shape.system]
+        low, high = spans[shape.name]
+        assert abs(first - low) <= 1 and abs(last - high) <= 1, (label, shape.name, years[shape.system], spans[shape.name])
+        for member, (first, last) in years.items():
+            edges = [date_counts.years_of(member, value) for value in clean[shape.name]]
+            assert None not in edges, (label, shape.name, member)
+            outer_low, inner_low, inner_high, outer_high = edges
+            assert outer_low - 1 <= first <= inner_low + 1, (label, shape.name, member, years[member], edges)  # type: ignore[operator]
+            assert inner_high - 1 <= last <= outer_high + 1, (label, shape.name, member, years[member], edges)  # type: ignore[operator]
+
+
 @pytest.mark.parametrize("kind", battery.PLACEHOLDERS)
 def test_c2_a_heap_of_placeholders_keeps_each_shapes_system_and_years(
     tmp_path: pathlib.Path, kind: str
@@ -512,28 +560,42 @@ def test_c2_a_heap_of_placeholders_keeps_each_shapes_system_and_years(
     At 10,000 rows, two and ten cells in a thousand holding `0`, `-1` or
     the system's own count for 9999-12-31 or 1900-01-01: every shape Q3
     asks is offered the system that wrote it, with years within one of
-    the true span. The first build read the years off the heaped end
-    itself -- `0` names no Excel date, so the 1900 system was dropped
-    from the four Excel shapes, and the 9999 count gave "2016 to 9999".
+    the true span -- AND EVERY SYSTEM OFFERED WITH ITS OWN READING OF THE
+    COLUMN'S DATES (its second review, item 3: Excel's 31 December 9999
+    read as Epic days gave "1957 to 9941", and a Unix 1900 count read from
+    1960 "1889 to 2015"; on e9aa5fb, 40 readings over the eight tables).
+    The first build read the years off the
+    heaped end itself -- `0` names no Excel date, so the 1900 system was
+    dropped from the four Excel shapes, and the 9999 count gave "2016 to
+    9999".
     """
-    shapes = [shape for shape in battery.SHAPES if shape.name not in battery.NOT_ASKED]
     for share in (0.002, 0.01):
-        columns: "dict[str, list[str]]" = {}
-        spans: "dict[str, tuple[int, int]]" = {}
-        for shape in shapes:
-            cells, truth = battery.cells(shape, 10000, 0)
-            columns[shape.name] = battery.heaped(shape, cells, kind, share)
-            spans[shape.name] = (min(t.year for t in truth), max(t.year for t in truth))
-        path = _table_of(tmp_path / f"{kind}-{share}", columns)
-        document = profile.build_document(reading.read_table(str(path)), taxonomy.Settings(), [])
-        for shape, block in zip(shapes, document["columns"]):
-            said = _q3(block)
-            assert said is not None, (kind, share, shape.name)
-            years = {member: (first, last) for member, first, last in said.readings}
-            assert shape.system in years, (kind, share, shape.name, sorted(years))
-            first, last = years[shape.system]
-            low, high = spans[shape.name]
-            assert abs(first - low) <= 1 and abs(last - high) <= 1, (kind, share, shape.name, years)
+        _heaps_read_right(
+            tmp_path / f"{kind}-{share}",
+            lambda shape, cells: battery.heaped(shape, cells, kind, share),
+            f"{kind} {share}",
+        )
+
+
+@pytest.mark.parametrize("kinds", battery.PLACEHOLDER_PAIRS, ids=lambda kinds: "+".join(kinds))
+def test_c2_two_heaps_at_one_end_keep_each_systems_years(
+    tmp_path: pathlib.Path, kinds: "tuple[str, str]"
+) -> None:
+    """The second review of landing R4, item 3: one percent each of two placeholders at one end.
+
+    `0` and the system's 1900 count, `-1` and it, or `0` and `-1`: the
+    second heap need publish no rung of its own, so the rungs before the
+    first date are the first heap, one read between the two heaps and one
+    read between the second heap and the first date. The walk passed one
+    rung beside the first heap and read the next, the writer's first year
+    two to four years early on 5 to 8 of the 13 shapes (Excel "2013 to
+    2025" for 2016). It now passes every rung with a heap count between it
+    and the rung before it, and every system's years are its own reading
+    of the column's dates.
+    """
+    _heaps_read_right(
+        tmp_path, lambda shape, cells: battery.heaped_pair(shape, cells, kinds, 0.01), "+".join(kinds)
+    )
 
 
 def test_c2_one_placeholder_cell_is_set_aside_and_not_named(tmp_path: pathlib.Path) -> None:
@@ -1616,6 +1678,40 @@ def test_c6_the_years_are_the_published_rungs_said_another_way(tmp_path: pathlib
                 profile._counted_years_quote_the_published_edges(wrong, block)
         seen += 1
     assert seen >= 2
+
+
+def test_c6_the_loader_walks_past_every_heap_the_remarks_name(tmp_path: pathlib.Path) -> None:
+    """The second review of landing R4, item 3, as the loader asks it.
+
+    Twenty cells of Excel's 31 December 9999 among ten thousand serials:
+    NF113 names `9999-12-31`, and the heaps the walk passes are that word's
+    count in every system an NF114 names (`date_counts.heap_counts`). Read
+    as Epic days, the heap is no date of the column: the walk passes it,
+    and the loader, reading the words and the systems from the remarks,
+    finds the same years. The walk that knew only the system's own
+    set-aside numbers read it as 9941, and that sentence is refused.
+    """
+    shape = battery.BY_NAME["xl_date"]
+    cells, _truth = battery.cells(shape, 10000, 0)
+    block = _block_of(tmp_path, battery.heaped(shape, cells, "hi_sentinel", 0.002))
+    said = _q3(block)
+    assert said is not None and "9999-12-31" in said.aside
+    members = tuple(member for member, _first, _last in said.readings)
+    assert "days-since-1840" in members
+    heaps = date_counts.heap_counts(("9999-12-31",), members)
+    assert 2958465.0 in heaps
+    for remark in block["remarks"]:
+        if remark.form != taxonomy.REMARK_READ_AS_COUNTED_DATES:
+            continue
+        member = remark.arguments[0]
+        assert remark.arguments[1:] == taxonomy.counted_edge_years(block, member, heaps)
+        profile._counted_years_quote_the_published_edges(remark.arguments, block)
+        if member != "days-since-1840":
+            continue
+        own_alone = taxonomy.counted_edge_years(block, member)
+        assert own_alone is not None and own_alone[1] == 9941 and remark.arguments[2] < 2000
+        with pytest.raises(Exception):
+            profile._counted_years_quote_the_published_edges((member,) + own_alone, block)
 
 
 # -- C7: a workbook --------------------------------------------------------
