@@ -22631,19 +22631,25 @@ def _whole_texts_paid(
     is left of the aim that its room holds and that leaves the rest of the
     aim a total the texts not yet taken still reach
     (`_whole_texts_walked`). Each offset taking the most it held, with no
-    look ahead, left an offset owed on Codex's column at eleven: step 4
-    wrote the one text standing alone at `+0000`, a text of nine copies
-    filled the room left there, and the one cell over fitted nothing,
-    where a text of six there and one of four at `+0100` paid the eleven.
-    A text taken whose respelling at its offset is an absent spelling, or
-    one its field cannot write, is set aside and the walk made again
-    without it.
+    look ahead, left a cell owed on Codex's column at eleven: step 4 wrote
+    the one text standing alone at `+0000`, a text of nine copies filled
+    the room left there, and the one cell over fitted nothing, where a
+    text of six there and one of four at `+0100` carried the eleven.
+
+    A REFUSED RESPELLING BARS ONE OFFSET, NOT THE TEXT. A text taken whose
+    respelling at its offset is an absent spelling, or one its field
+    cannot write, is barred from that offset alone -- the first such in
+    the walk's order -- and the walk is made again; every other offset
+    may still take it, as each could when every offset chose for itself.
+    Set aside whole, such texts left fewer cells written than that choice
+    on 265 of 3,000 random shapes with absent spellings; barred from the
+    one offset, on none of 6,000.
 
     WHAT IT COSTS: one reading of the class of each text the walk may
     take, sums over the copy counts of the texts -- never over the texts
-    themselves -- and the respelling of the texts taken alone. Respelling
-    every text on offer at every offset it wrote at cost 68 CPU seconds
-    at a million rows owing 140.
+    themselves -- and the respelling of the texts taken alone, each once
+    per offset. Respelling every text on offer at every offset it wrote
+    at cost 68 CPU seconds at a million rows owing 140.
 
     Guarantees: accepts the cells, the layout, the offsets on offer with
     the cells step 4 wrote at each, the rest owed, the census line, each
@@ -22673,29 +22679,29 @@ def _whole_texts_paid(
             sized[size] += [text]
         else:
             sized[size] = [text]
+    if not sized:
+        return
     spelled: "dict[tuple[str, int], str]" = {}
-    while sized:
+    barred: "dict[tuple[str, int], int]" = {}
+    while True:
         placed: "dict[str, str]" = {}
-        refused = ""
-        for text, place in _whole_texts_walked(sized, held, line, most):
+        refused: "tuple[str, int] | None" = None
+        for text, place in _whole_texts_walked(sized, held, line, most, barred):
             if (text, place) not in spelled:
                 changed = parsing.layout_offset_added(text, family, on_offer[place])
                 if changed is None or _is_a_hole_spelling(changed, holes):
                     changed = ""
                 spelled[(text, place)] = changed
             if not spelled[(text, place)]:
-                refused = text
+                refused = (text, place)
                 break
             placed[text] = spelled[(text, place)]
-        if not refused:
-            for rank in range(1, len(cells) - 1):
-                if cells[rank] in placed:
-                    cells[rank] = placed[cells[rank]]
-            return
-        size = copies[refused]
-        sized[size] = [text for text in sized[size] if text != refused]
-        if not sized[size]:
-            del sized[size]
+        if refused is None:
+            break
+        barred[refused] = 1
+    for rank in range(1, len(cells) - 1):
+        if cells[rank] in placed:
+            cells[rank] = placed[cells[rank]]
 
 
 def _whole_texts_walked(
@@ -22703,25 +22709,29 @@ def _whole_texts_walked(
     held: "list[int]",
     line: int,
     most: int,
+    barred: "dict[tuple[str, int], int]",
 ) -> "list[tuple[str, int]]":
     """G7.9b step 5's walk: each text taken, with the offset it is taken at.
 
     ``sized`` holds the texts on offer by their copies, each size's in the
     order of their first rank. The AIM is the largest total of copies at
     most ``most`` they reach. The offsets are walked in order, each
-    holding ``line - 1`` cells less ``held``'s payments there, and each
-    takes what `_whole_texts_amount` counts of the texts not yet taken,
-    looking ahead to the rooms after it; of the ``n`` texts left of one
-    size taking ``k``, the ``j``-th is the one at position ``j * n // k``.
-    Texts come back offset by offset, from the most copies down at each.
-    The walk stops where the aim is met or the offsets run out.
-    Determinism: a function of the four. Raises nothing. No I/O of any
-    kind.
+    holding ``line - 1`` cells less ``held``'s payments there; at each,
+    the texts on offer HERE are those not yet taken and not ``barred``
+    from it, and the offset takes what `_whole_texts_amount` counts of
+    them, looking ahead to the texts not yet taken and the rooms after
+    it; of the ``n`` texts here of one size taking ``k``, the ``j``-th is
+    the one at position ``j * n // k``. Texts come back offset by offset,
+    from the most copies down at each. The walk stops where what is left
+    of the aim is under two or the offsets run out. Determinism: a
+    function of the five. Raises nothing. No I/O of any kind.
     """
     sizes = sorted(sized)
     have: "dict[int, int]" = {}
+    unused: "dict[int, list[str]]" = {}
     for size in sizes:
         have[size] = len(sized[size])
+        unused[size] = sized[size]
     reach = _sums_reached(sizes, have, most)
     left = most
     while left > 0 and not (reach[len(sizes)] >> left) & 1:
@@ -22729,46 +22739,68 @@ def _whole_texts_walked(
     after = 0
     for count in held:
         after = after + (line - 1) - count
-    unused: "dict[int, list[str]]" = {}
-    for size in sizes:
-        unused[size] = sized[size]
+    barred_at: "dict[int, dict[str, int]]" = {}
+    for text, place in barred:
+        if place not in barred_at:
+            barred_at[place] = {}
+        barred_at[place][text] = 1
     taken: "list[tuple[str, int]]" = []
     for place in range(len(held)):
         if left < 2:
             break
         room = (line - 1) - held[place]
         after = after - room
-        counted = _whole_texts_amount(sizes, have, min(room, left), left, after)
+        here: "dict[int, list[str]]" = {}
+        here_have: "dict[int, int]" = {}
+        for size in sizes:
+            if place in barred_at:
+                here[size] = [
+                    text for text in unused[size] if text not in barred_at[place]
+                ]
+            else:
+                here[size] = unused[size]
+            here_have[size] = len(here[size])
+        counted = _whole_texts_amount(
+            sizes, here_have, have, min(room, left), left, after
+        )
         for size in sorted(counted, reverse=True):
-            texts = unused[size]
-            positions: "dict[int, int]" = {}
+            texts = here[size]
+            picked: "dict[str, int]" = {}
             for choice in range(counted[size]):
-                positions[(choice * len(texts)) // counted[size]] = 1
-                taken += [(texts[(choice * len(texts)) // counted[size]], place)]
-            unused[size] = [texts[at] for at in range(len(texts)) if at not in positions]
+                text = texts[(choice * len(texts)) // counted[size]]
+                picked[text] = 1
+                taken += [(text, place)]
+            unused[size] = [text for text in unused[size] if text not in picked]
             have[size] = have[size] - counted[size]
             left = left - counted[size] * size
     return taken
 
 
 def _whole_texts_amount(
-    sizes: "list[int]", have: "dict[int, int]", room: int, left: int, after: int
+    sizes: "list[int]",
+    here: "dict[int, int]",
+    have: "dict[int, int]",
+    room: int,
+    left: int,
+    after: int,
 ) -> "dict[int, int]":
     """How many texts of each size one offset of G7.9b step 5 takes.
 
-    The largest amount at most ``room`` -- none among them -- that the
-    ``have`` texts of each size reach and that leaves ``left`` less it a
-    total both the texts not taken still reach and the rooms of the
-    offsets after this one (``after``) hold; where not even none does, the
-    largest amount at most ``room`` they reach. The texts of an amount are
-    counted from the most copies down, as many of each size as leave the
+    The largest amount at most ``room`` that the ``here`` texts of each
+    size -- those this offset may take -- reach and that leaves ``left``
+    less it a total both the texts not taken (``have`` less the amount's,
+    texts barred from this offset among them) still reach and the rooms
+    of the offsets after this one (``after``) hold; none, where only none
+    does that; and where not even none does, the largest amount at most
+    ``room`` the texts here reach. The texts of an amount are counted
+    from the most copies down, as many of each size as leave the
     remainder of the amount reachable by the smaller sizes
-    (`_sums_reached`). Determinism: a function of the five. Raises
+    (`_sums_reached`). Determinism: a function of the six. Raises
     nothing. No I/O of any kind.
     """
     if room < 2:
         return {}
-    reach = _sums_reached(sizes, have, room)
+    reach = _sums_reached(sizes, here, room)
     fallback: "dict[int, int]" = {}
     for amount in range(room, 1, -1):
         if not (reach[len(sizes)] >> amount) & 1:
@@ -22777,7 +22809,7 @@ def _whole_texts_amount(
         part = amount
         for place in range(len(sizes) - 1, -1, -1):
             size = sizes[place]
-            count = min(have[size], part // size)
+            count = min(here[size], part // size)
             while count > 0 and not (reach[place] >> (part - count * size)) & 1:
                 count = count - 1
             if count > 0:

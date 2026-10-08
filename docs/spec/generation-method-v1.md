@@ -7536,23 +7536,26 @@ column of that layout whose census of offsets pools nothing and names
    ranks number at most the largest room and at most the rest. The step
    AIMS at the largest total of ranks, at most the rest and at most the
    rooms together, that the texts on offer reach, and walks the offsets
-   in step 3's order. At each it takes the largest amount, at most its
-   room and at most what is left of the aim, that the texts not yet
-   taken reach and that leaves what is then left of the aim both a total
-   the texts left after them still reach and no more than the rooms of
-   the offsets after it hold; it takes none where only none does that,
-   and where not even none does, the largest amount at most its room and
-   what is left of the aim that they reach. An amount's texts are
+   in step 3's order. At each, the texts it MAY TAKE are those not yet
+   taken and not barred from it (below); it takes the largest amount, at
+   most its room and at most what is left of the aim, that those texts
+   reach and that leaves what is then left of the aim both a total the
+   texts not yet taken after it still reach -- those barred from it
+   among them -- and no more than the rooms of the offsets after it
+   hold; it takes none where only none does that, and where not even
+   none does, the largest amount at most its room and what is left of
+   the aim that the texts it may take reach. An amount's texts are
    counted from the most ranks down, at each size as many as there are,
    at most what is left of the amount, while what is then left stays a
-   total the texts of fewer ranks reach; of the `n` texts of one size
-   not yet taken, in the order of their first rank, choice `j` of `k` is
-   the text at position `j * n // k`. The walk stops where what is left
-   of the aim is under two or the offsets run out. A text taken whose
+   total the texts of fewer ranks reach; of the `n` texts of one size it
+   may take, in the order of their first rank, choice `j` of `k` is the
+   text at position `j * n // k`. The walk stops where what is left of
+   the aim is under two or the offsets run out. A text taken whose
    respelling at its offset is a spelling the column holds absent, or
    one its field cannot write -- the first such in the walk's order, by
-   offset and then from the most ranks down -- is set aside, and the walk
-   is made again without it. 1,000 cells, 100 stamps ten times each and
+   offset and then from the most ranks down -- is BARRED FROM THAT
+   OFFSET alone, and the walk is made again; every other offset may
+   still take it. 1,000 cells, 100 stamps ten times each and
    seven of them ending `-0500`, publish 107 different texts and seven
    cells that are not numbers: the twin's texts all repeated, step 4
    found no rank to pay, and seeds 1 and 2 held no offset at all and

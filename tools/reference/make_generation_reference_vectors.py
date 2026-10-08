@@ -10087,8 +10087,8 @@ def whole_texts_paid(paid, cells, joint, offer, made_at, rest, line, absent, a_n
       the offsets in step 3's order (`offsets_walked`), each text taken
       written again whole, every rank with the marks and that offset;
     * a text taken whose respelling at its offset is a spelling the column
-      holds absent is set aside, the first such in the walk's order, and
-      the walk made again without it.
+      holds absent, the first such in the walk's order, is barred from
+      that offset alone, and the walk is made again.
     """
     rooms = [line - 1 - made for made in made_at]
     most = min(rest, sum(rooms))
@@ -10110,33 +10110,34 @@ def whole_texts_paid(paid, cells, joint, offer, made_at, rest, line, absent, a_n
         ),
         key=lambda text: worn_by[text][0],
     )
-    while on_offer:
-        walked = offsets_walked(on_offer, worn_by, rooms, most)
+    barred = set()
+    while True:
+        walked = offsets_walked(on_offer, worn_by, rooms, most, barred)
         refused = [
-            text
+            (text, place)
             for text, place in walked
             if (text + joint + offer[place]).strip().lower() in absent
         ]
-        if refused:
-            on_offer.remove(refused[0])
-            continue
-        for text, place in walked:
-            for rank in worn_by[text]:
-                paid[rank] = text + joint + offer[place]
-        return paid
+        if not refused:
+            break
+        barred.add(refused[0])
+    for text, place in walked:
+        for rank in worn_by[text]:
+            paid[rank] = text + joint + offer[place]
     return paid
 
 
-def offsets_walked(on_offer, worn_by, rooms, most):
+def offsets_walked(on_offer, worn_by, rooms, most, barred):
     """G7.9b step 5's walk, from its statement: (text, offset) for each text taken.
 
     The aim is the largest total of ranks at most ``most`` the texts on
-    offer reach.  The offsets are taken in order; at each, ``amount_taken``
-    says how many texts of each size it takes of the texts not yet taken,
-    and of the ``n`` such texts of one size in the order of their first
-    rank, choice ``j`` of ``k`` is the text at position ``j * n // k``.  The
-    walk stops where what is left of the aim is under two or the offsets
-    run out.
+    offer reach.  The offsets are taken in order; at each, the texts it
+    may take are those not yet taken and not ``barred`` from it, and
+    ``amount_taken`` says how many of each size it takes, looking ahead to
+    every text not yet taken; of the ``n`` texts it may take of one size,
+    in the order of their first rank, choice ``j`` of ``k`` is the text at
+    position ``j * n // k``.  The walk stops where what is left of the aim
+    is under two or the offsets run out.
     """
     by_size = {}
     for text in on_offer:
@@ -10146,34 +10147,40 @@ def offsets_walked(on_offer, worn_by, rooms, most):
     for place, room in enumerate(rooms):
         if left < 2:
             break
-        taking = amount_taken(by_size, min(room, left), left, sum(rooms[place + 1:]))
+        here = {
+            size: [text for text in texts if (text, place) not in barred]
+            for size, texts in by_size.items()
+        }
+        taking = amount_taken(here, by_size, min(room, left), left, sum(rooms[place + 1:]))
         for size in sorted(taking, reverse=True):
-            texts = by_size[size]
+            texts = here[size]
             picks = [texts[j * len(texts) // taking[size]] for j in range(taking[size])]
             walked += [(text, place) for text in picks]
-            by_size[size] = [text for text in texts if text not in picks]
+            by_size[size] = [text for text in by_size[size] if text not in picks]
             left -= size * taking[size]
     return walked
 
 
-def amount_taken(by_size, cap, left, later):
+def amount_taken(here, by_size, cap, left, later):
     """G7.9b step 5 at one offset: how many texts of each size it takes.
 
-    The largest amount at most ``cap`` the texts reach that leaves what is
-    left of the aim less it both a total the texts not taken reach and no
-    more than the ``later`` cells the offsets after this one hold; none,
-    where only none does that; and where not even none does, the largest
-    amount at most ``cap`` they reach.  An amount's texts are counted by
-    ``amount_counted``.
+    The largest amount at most ``cap`` the texts it may take (``here``)
+    reach that leaves what is left of the aim less it both a total the
+    texts not taken (``by_size``'s less the amount's) reach and no more
+    than the ``later`` cells the offsets after this one hold; none, where
+    only none does that; and where not even none does, the largest amount
+    at most ``cap`` the texts here reach.  An amount's texts are counted
+    by ``amount_counted``.
     """
-    counts = sorted((size, len(texts)) for size, texts in by_size.items())
+    counts = sorted((size, len(texts)) for size, texts in here.items())
+    every = sorted((size, len(texts)) for size, texts in by_size.items())
     amounts = sorted((total for total in sums_of_sizes(counts, cap) if total >= 2), reverse=True)
     for amount in amounts:
         taking = amount_counted(counts, amount)
-        after = [(size, texts - taking.get(size, 0)) for size, texts in counts]
+        after = [(size, texts - taking.get(size, 0)) for size, texts in every]
         if left - amount <= later and left - amount in sums_of_sizes(after, left - amount):
             return taking
-    if left <= later and left in sums_of_sizes(counts, left):
+    if left <= later and left in sums_of_sizes(every, left):
         return {}
     return amount_counted(counts, amounts[0]) if amounts else {}
 

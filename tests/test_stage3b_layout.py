@@ -1889,3 +1889,340 @@ def test_codex_item8_a_made_up_offset_may_be_one_the_real_column_wore(
     for said in (" ".join(section.split()), shipped):
         assert "No offset written is the real column's" not in said
         assert "may still be one some real cells wore" in said
+
+
+# -- the verification of the Codex review's repair (its open items) ---------
+
+
+_SUFFIXES = ("-0500", "-0400", "-0600", "-0700", "-0800", "+0100", "+0200", "+0530", "-0300", "+0900")
+
+
+def _repeated_stamps_wearing(worn: int) -> "list[str]":
+    """Codex's column with ``worn`` offset cells, as the verification built it.
+
+    100 stamps 123 seconds apart, ten copies each; ``worn`` interior cells
+    drawn by `Random(worn)`, each ending in the next of ten offsets in
+    turn, none on enough cells to be named; shuffled by `Random(31)`.
+    """
+    start = datetime.datetime(2024, 1, 1)
+    stamps = [
+        (start + datetime.timedelta(seconds=123 * step)).strftime("%Y%m%d%H%M%S")
+        for step in range(100)
+    ]
+    cells = [stamp for stamp in stamps for _copy in range(10)]
+    places = sorted(random.Random(worn).sample(range(1, 999), worn))
+    for turn, place in enumerate(places):
+        cells[place] = cells[place] + _SUFFIXES[turn % len(_SUFFIXES)]
+    random.Random(31).shuffle(cells)
+    return cells
+
+
+def test_cxv_item1_offsets_past_one_offsets_room_are_all_worn(tmp_path: pathlib.Path) -> None:
+    """Item 1: Codex's column with eleven and with thirteen offset cells wears every one.
+
+    Step 5 chose offset by offset, each taking the most it held: with
+    eleven offset cells every seed from 0 to 5 wrote ten and missed both
+    class counts -- at seed 0 step 4 wrote the one text standing alone at
+    `+0000`, a text of nine copies filled the nine cells left there and
+    the one cell over fitted no text -- and with thirteen, seeds 0, 3 and
+    4 wrote ten, ten and twelve. Step 5 aims once over the offsets and
+    looks ahead, so each of those seeds holds every cell that is not a
+    number and every different text, and validates; on each twin's
+    stamps, bare and in rank order, the shipped pass and the oracle write
+    the same cells. Mutants, run: each offset taking the most it holds,
+    as before; the reach of what is left of the aim unasked.
+    """
+    oracle = _oracle()
+    for worn, seeds in ((11, (0, 1, 2, 3, 4, 5)), (13, (0, 3, 4))):
+        cells = _repeated_stamps_wearing(worn)
+        block, profile, _questions = _described(tmp_path / f"worn-{worn}", cells)
+        assert block["format"] == "layout {YYYY}{MM}{DD}{HH}{MI}{SS}{+HHMM?}"
+        assert block["utc_offsets"] == {"(none)": 1000}
+        assert (block["n_distinct"], block["n_not_numeric"]) == (100 + worn, worn)
+        column, facts = _loaded(profile)
+        for seed in seeds:
+            twin, written = _twin(profile, seed)
+            assert _not_numbers(written) == worn, (worn, seed)
+            assert len(set(written)) == 100 + worn, (worn, seed)
+            assert _validated(profile, twin)[0] == 0, (worn, seed)
+            bare = sorted(cell[0:14] for cell in written)
+            paid = generation._offsets_owed_by_the_classes(column, facts, list(bare), (), 11)
+            assert _not_numbers(paid) == worn, (worn, seed)
+            assert oracle.offsets_paid_to_the_classes(block, list(bare), (), 11) == paid, (worn, seed)  # type: ignore[attr-defined]
+
+
+def _owing_column(
+    folder: pathlib.Path,
+) -> "tuple[contract.ColumnBlock, contract.DatetimeFacts, dict[str, object]]":
+    """A described HL7 column, whose block and facts step 5's own shapes are handed with."""
+    block, profile, _questions = _described(folder, _hl7_with_offsets(ROWS, 2))
+    column, facts = _loaded(profile)
+    return column, facts, block
+
+
+def _step5_written(
+    owing: "tuple[contract.ColumnBlock, contract.DatetimeFacts, dict[str, object]]",
+    bare: "list[str]",
+    owed: int,
+    named: int = 0,
+    holes: "tuple[str, ...]" = (),
+) -> "list[str]":
+    """What the shipped G7.9b pass writes on stamps in rank order, the oracle held to the same cells.
+
+    ``owed`` cells that are not numbers are published; the census names
+    ``named`` offsets from `+00:00` up, one cell each, so the offer starts
+    after them; ``holes`` are the column's absent spellings.
+    """
+    column, facts, block = owing
+    census = {"(none)": len(bare)}
+    for hour in range(named):
+        census[f"+{hour:02d}:00"] = 1
+    owing_column = dataclasses.replace(column, n_numeric=len(bare) - owed, n_not_numeric=owed)
+    paid = generation._offsets_owed_by_the_classes(
+        owing_column, dataclasses.replace(facts, utc_offsets=census, n_unparsed=0), list(bare), holes, 11
+    )
+    owing_block = dict(block, n_numeric=len(bare) - owed, n_not_numeric=owed, utc_offsets=census, n_unparsed=0)
+    assert _oracle().offsets_paid_to_the_classes(owing_block, list(bare), holes, 11) == paid  # type: ignore[attr-defined]
+    return paid
+
+
+def _worn_by_text(bare: "list[str]", paid: "list[str]") -> "dict[int, str]":
+    """Each text written again -- by its place among the different texts, 0 the lowest -- and its offset.
+
+    Every copy of a text written again wears the same offset, and no copy
+    of it is left bare: a text is written whole or not at all.
+    """
+    order = {text: place for place, text in enumerate(sorted(set(bare)))}
+    worn: "dict[int, str]" = {}
+    for before, after in zip(bare, paid):
+        if after != before:
+            assert after[0:14] == before and worn.get(order[before], after[14:]) == after[14:], before
+            worn[order[before]] = after[14:]
+    for before, after in zip(bare, paid):
+        assert (order[before] in worn) == (after != before), before
+    return worn
+
+
+# G7.9b step 5's shapes at floor 11, asked of the pass itself on stamps in
+# rank order (`_ranked_stamps`: an end, the texts, an end): the copies of
+# each text between the two ends, the cells owed, how many offsets from
+# `+00:00` up the census names, the absent spellings as (text, offset)
+# pairs, and each text written again -- 1 the first between the ends --
+# with the offset it wears. Each line's mutants are named in the clause.
+_STEP5_SHAPES: "dict[str, tuple[list[int], int, int, tuple[tuple[int, str], ...], dict[int, str]]]" = {
+    "the_aim_over_two_offsets": ([7, 7, 5, 5], 14, 0, (), {1: "+0000", 2: "+0100"}),
+    "none_where_only_none_reaches": ([1, 10, 9], 11, 0, (), {1: "+0000", 2: "+0100"}),
+    "the_later_rooms_counted": ([9, 6, 6, 5], 17, 13, (), {1: "+1300", 2: "+1400"}),
+    "the_aim_a_total_reached": ([10, 3, 8], 12, 12, (), {2: "+1300", 3: "+1200"}),
+    "the_most_copies_first": ([2, 2, 5, 4], 4, 0, (), {4: "+0000"}),
+    "texts_of_one_size_spread": ([3, 3, 3, 3, 12, 12], 6, 0, (), {1: "+0000", 3: "+0000"}),
+    "no_text_standing_alone": ([2, 2, 3, 1, 6], 5, 0, (), {1: "+0000", 2: "+0000", 4: "+0000"}),
+    "a_refused_offset_bars_that_offset": ([9, 2], 2, 0, ((2, "+0000"),), {2: "+0100"}),
+}
+
+
+@pytest.mark.parametrize("name", sorted(_STEP5_SHAPES))
+def test_cxv_item1_step5_aims_once_and_looks_ahead(tmp_path: pathlib.Path, name: str) -> None:
+    """Item 1: G7.9b step 5's aim and its look ahead, each rule on a shape of its own.
+
+    Each shape is written by the shipped pass exactly as listed, the oracle
+    writes the same cells, and every text is written whole. Mutants, run,
+    one per rule, each turning its own shape red:
+
+    * `the_aim_over_two_offsets` -- 7, 7, 5 and 5 owing 14: `+0000` holds
+      ten, and the two fives there would leave four no text fits, so a
+      seven goes to each of two offsets. Mutants: each offset taking the
+      most it holds, f747e7b's rule, and the reach of what is left of the
+      aim unasked -- each writes the two fives, 10.
+    * `none_where_only_none_reaches` -- a text standing alone, then texts
+      of ten and nine, owing 11: step 4 writes the lone text at `+0000`,
+      which then holds nine; the nine there would leave one cell no text
+      fits, so `+0000` takes none and the ten goes to `+0100`. Mutant: an
+      offset never taking none, which writes the nine, 10.
+    * `the_later_rooms_counted` -- 9, 6, 6 and 5 owing 17, `+13:00` and
+      `+14:00` alone on offer: no packing of two rooms of ten reaches 17,
+      and whatever `+1300` takes leaves more than `+1400` holds, so each
+      takes the most it holds, the nine and then a six, 15. Mutants: the
+      rooms of the offsets after one unasked, and those rooms counted with
+      its own -- each writes two sixes, 12; an offset where nothing reaches
+      the rest taking none, which writes nothing.
+    * `the_aim_a_total_reached` -- 10, 3 and 8 owing 12, three offsets on
+      offer: 12 is no total of the texts, so the aim is 11, the eight at
+      `+1200` and the three at `+1300`. Mutant: the aim the rest itself,
+      which writes the ten alone, 10.
+    * `the_most_copies_first` -- 2, 2, 5 and 4 owing 4: the text of four,
+      not the two of two. Mutant: an amount counted from the fewest copies
+      up.
+    * `texts_of_one_size_spread` -- four texts of three, owing 6: the first
+      and the third, choice `j` of `k` at position `j * n // k` (the
+      verification's shape (e)). Mutant: the first `k` taken, the first and
+      the second.
+    * `no_text_standing_alone` -- 2, 2, 3, a text standing alone and 6,
+      owing 5: step 4 writes the lone text and step 5 the two texts of two.
+      Mutant: texts of one copy on offer to step 5, which takes the three
+      and the lone text step 4 already wrote, 4.
+    * `a_refused_offset_bars_that_offset` -- 9 and 2 owing 2, the text of
+      two's `+0000` an absent spelling: it is barred from `+0000` alone and
+      written at `+0100`. Mutant: a refused text set aside whole, as 5e575de
+      did, which writes nothing.
+    """
+    copies, owed, named, refused, expected = _STEP5_SHAPES[name]
+    bare = _ranked_stamps(copies)
+    order = sorted(set(bare))
+    holes = tuple(order[place] + offset for place, offset in refused)
+    paid = _step5_written(_owing_column(tmp_path), bare, owed, named, holes)
+    assert _worn_by_text(bare, paid) == expected
+    worn = collections.Counter(cell[14:] for cell in paid if len(cell) > 14)
+    assert not worn or max(worn.values()) < parsing.census_floor(11)
+
+
+def test_cxv_item1_step5_offers_only_texts_that_are_numbers(tmp_path: pathlib.Path) -> None:
+    """Item 1: step 5 offers a text only where it is a number, so one already wearing an offset is not walked.
+
+    A text of three copies already wearing `+0000`, which the census names,
+    then a text standing alone, a text of two and one of ten, fifteen
+    owed: step 4 writes the lone text at `+0100`, the first offset on offer,
+    and step 5 the text of two there too; the text wearing `+0000` is left
+    as it is. Mutant, run: the class unasked, and the walk takes the text
+    already wearing an offset, which no field can write again, at each
+    offset in turn, so the text of two is written at `+1400`.
+    """
+    bare = _ranked_stamps([3, 1, 2, 10])
+    first = sorted(set(bare))[1]
+    worn_cells = [cell + "+0000" if cell == first else cell for cell in bare]
+    paid = _step5_written(_owing_column(tmp_path), worn_cells, 15, named=1)
+    assert _worn_by_text(worn_cells, paid) == {2: "+0100", 3: "+0100"}
+
+
+def test_cxv_item2d_step5_takes_no_text_with_a_copy_at_an_end(tmp_path: pathlib.Path) -> None:
+    """Item 2 (d): a text one of whose copies is an end is not on offer to step 5.
+
+    The verification's shape: texts of three, twelve and twelve copies and
+    a last text standing alone, with no other ends -- the text of three
+    holds the first rank, an end the description prints -- and three
+    owed. No text fits but the one at the end, so nothing is written, and
+    the oracle writes the same. Mutant, run: texts with a copy at an end
+    taken, and the three copies of the first text, the end among them,
+    are written at `+0000`.
+    """
+    start = datetime.datetime(2024, 1, 1)
+    bare: "list[str]" = []
+    for step, size in enumerate([3, 12, 12, 1]):
+        bare += [(start + datetime.timedelta(minutes=step)).strftime("%Y%m%d%H%M%S")] * size
+    paid = _step5_written(_owing_column(tmp_path), bare, 3)
+    assert _worn_by_text(bare, paid) == {}
+
+
+def test_cxv_item2a_the_choice_stops_only_at_a_layout_reading_every_row() -> None:
+    """Item 2 (a): the walk over the candidates stops at one reading every row, not at one reaching the line.
+
+    995 SAS dates with a two-figure day and five with a one-figure day: the
+    padded `{DD}{MON}{YYYY}`, first in key order, reaches the line and
+    reads 995, and only the flexible `{D}{MON}{YYYY}` reads all 1,000, so
+    the column is read under it with nothing left over. Mutant, run: the
+    walk stopping at the first candidate that reaches the line, which reads
+    the column under `{DD}{MON}{YYYY}` and leaves the five unparsed.
+    """
+    cells = [f"{10 + place % 19}MAR2023" for place in range(995)]
+    cells += [f"{day}APR2023" for day in range(1, 6)]
+    described = taxonomy.profile_column("seen_at", 1, cells, 1000, taxonomy.Settings())
+    details = described.details or {}
+    assert described.role == taxonomy.ROLE_DATETIME
+    assert details["format"] == "layout {D}{MON}{YYYY}"
+    assert details["n_unparsed"] == 0
+
+
+def test_cxv_item2b_q5_is_asked_beside_the_codes_question_of_a_member_column(
+    tmp_path: pathlib.Path,
+) -> None:
+    """Item 2 (b): Q5 is handed every coded column read with a two-figure year, not only a layout's.
+
+    970 births from the 1st of January 1931 written `%d/%m/%y`, beside 30
+    `UNK`: labels until the code is answered `missing`, then read by the
+    day-first member with a two-figure year. The first questions file asks
+    the codes question and Q5 together, and one answering run reads every
+    birth in 1931 to 1933 and asks nothing more of the column. Mutant, run:
+    Q5 handed only the coded columns read under a layout, and the file asks
+    about the code alone -- item 5's failure again, on a member's column.
+    """
+    start = datetime.date(1931, 1, 1)
+    cells = [(start + datetime.timedelta(days=day)).strftime("%d/%m/%y") for day in range(970)]
+    cells += ["UNK"] * 30
+    block, _profile, questions = _described(tmp_path / "asked", cells)
+    assert block["role"] == taxonomy.ROLE_LONG_TAIL
+    entries = questions["asked"]
+    assert isinstance(entries, list)
+    codes = [entry for entry in entries if entry["read_as_now"] == asking.ANSWER_KEEP]
+    centuries = [entry for entry in entries if entry["read_as_now"] == asking.ANSWER_CENTURY_POSIX]
+    assert len(codes) == 1 and len(centuries) == 1
+    codes[0]["your_answer"] = asking.ANSWER_NO_DATE
+    centuries[0]["your_answer"] = asking.ANSWER_CENTURY_1930
+    answers = tmp_path / "answers.json"
+    answers.write_text(json.dumps(questions), encoding="utf-8", newline="\n")
+    block, _profile, questions = _described(tmp_path / "answered", cells, "--answers", str(answers))
+    assert block["format"] == "layout {DD}/{MM}/{YY1930}"
+    assert block["n_unparsed"] == 0
+    assert f"{block['low_tail']['boundary']}"[0:4] == "1931"  # type: ignore[index]
+    assert f"{block['high_tail']['boundary']}"[0:4] == "1933"  # type: ignore[index]
+    assert [entry for entry in questions["asked"] if entry["column"] == "seen_at"] == []
+
+
+def test_cxv_item2c_ly3_holds_a_tails_listed_values_to_the_band(tmp_path: pathlib.Path) -> None:
+    """Item 2 (c): LY3 asks a tail's listed values, beside its boundary and the rungs.
+
+    Eleven `01JAN2020`, eleven `02JAN2020`, then daily dates from the 1st
+    of March 2020 to 400 cells: the low tail lists `2020-01-01` beside its
+    boundary, and the description loads. That listed value moved to 1720,
+    before the years `{YYYY}` reads, is refused under LY3. Mutant, run: LY3
+    asking the boundaries and the rungs alone, and the edited description
+    loads and its twin writes eleven `01JAN1720` the layout cannot read.
+    """
+    months = ("JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC")
+    cells = ["01JAN2020"] * 11 + ["02JAN2020"] * 11
+    day = datetime.date(2020, 3, 1)
+    while len(cells) < 400:
+        cells += [f"{day.day:02d}{months[day.month - 1]}{day.year}"]
+        day = day + datetime.timedelta(days=1)
+    block, profile, _questions = _described(tmp_path, cells)
+    assert block["format"] == "layout {DD}{MON}{YYYY}"
+    low = block["low_tail"]
+    assert isinstance(low, dict) and low["values"] == ["2020-01-01"]
+    contract.load_profile(str(profile))
+    document = json.loads(profile.read_text(encoding="utf-8"))
+    document["columns"][0]["low_tail"]["values"] = ["1720-01-01"]
+    edited = fixtures.write_profile(tmp_path, "edited-profile.json", document)
+    with pytest.raises(errors.ProfileError) as refused:
+        contract.load_profile(str(edited))
+    assert "LY3" in str(refused.value)
+
+
+def test_cxv_item3_step5_respells_only_the_texts_it_writes(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Item 3: step 5 respells the texts it writes, one respelling each, whatever it owes.
+
+    Step 5 respelled every text on offer at every offset it wrote at, each
+    offset choosing among them all anew: 68 CPU seconds at a million rows
+    owing 140, where one offset's share cost 8. It aims once and respells
+    only what the walk takes: 400 texts of two, three, five and seven
+    copies, 140 owed, are written at fourteen offsets with one respelling
+    for each text written. Mutant, run: every text on offer respelled at
+    every offset on offer before the walk, as the choice at each offset
+    did, and the respellings outnumber the texts written by 6,000.
+    """
+    owing = _owing_column(tmp_path)
+    bare = _ranked_stamps([(2, 3, 5, 7)[place % 4] for place in range(400)])
+    writes = 0
+    shipped_added = parsing.layout_offset_added
+
+    def write_counted(cell: str, name: str, offset: str) -> "str | None":
+        nonlocal writes
+        writes = writes + 1
+        return shipped_added(cell, name, offset)
+
+    monkeypatch.setattr(parsing, "layout_offset_added", write_counted)
+    paid = _step5_written(owing, bare, 140)
+    worn = _worn_by_text(bare, paid)
+    assert _not_numbers(paid) == 140
+    assert sorted(set(worn.values())) == [f"+{hour:02d}00" for hour in range(14)]
+    assert writes == len(worn)

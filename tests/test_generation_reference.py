@@ -2484,14 +2484,14 @@ _SUMS_OF_SIZES = gen.sums_of_sizes
 _AMOUNT_COUNTED = gen.amount_counted
 
 
-def _the_most_each_offset_holds(by_size, cap, left, later):
+def _the_most_each_offset_holds(here, by_size, cap, left, later):
     """G7.9b step 5's look ahead withdrawn: each offset the most it holds.
 
     The rule the verification of the Codex review's repair replaced: an
     offset takes the largest amount its room holds of what is left of the
     aim, whether or not the rest can still be reached after it.
     """
-    counts = sorted((size, len(texts)) for size, texts in by_size.items())
+    counts = sorted((size, len(texts)) for size, texts in here.items())
     amounts = sorted(
         (total for total in _SUMS_OF_SIZES(counts, cap) if total >= 2), reverse=True
     )
