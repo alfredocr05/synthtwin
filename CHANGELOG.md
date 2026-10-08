@@ -30,6 +30,20 @@ a column the pass still grows faster than the rows, and the plan says by
 how much: a little over two minutes of it at a million rows. What it
 holds in memory comes to half a kilobyte or two thirds of one a row.
 
+**The review of this landing found two costs, both repaired; no twin
+byte moves.** On a column holding a few instants thousands of times
+each, the pass's lists of rows moved their tails for every row a merge
+moved, 515 million entries at 28,096 rows and four times as many at
+each doubling, and it brought its record up to date after the last
+merge it owed, just before dropping it. The lists are now held in
+blocks of a few hundred, so a moved row moves one block's entries,
+and the last merge goes without that upkeep. And the record kept the
+room of every emptied map of an instant a merge left, 6.6 MB on 40,000
+day-booked appointments; such a map now goes once empty. `K-S3-51`
+holds the entries the lists move at 72 to 554 per row, where they
+moved up to 18,345. Such a column still reads its rows more often
+as it grows, and the plan says by how much.
+
 ### The weekday guards dropped (2026-10-02)
 
 **The weekday census is published wherever its twin can meet it** (plan
