@@ -34,7 +34,6 @@ SEALED: "dict[str, tuple[str, ...]]" = {
     "docs/STATE.md": (
         "01f6c7a5b7764a25",
         "04b371240fcd7be0",
-        "05f254421c154fa0",
         "074cac5da34ba50f",
         "07c45df103722d24",
         "0aac9c88928c4433",
@@ -87,6 +86,7 @@ SEALED: "dict[str, tuple[str, ...]]" = {
         "e228e11be7143d66",
         "e3b795e98b3e3bd3",
         "e3e99e94968e1acf",
+        "e62f43e80ea41e22",
         "e7f13c92d43c6a3e",
         "e83a4efffe19167a",
         "ebba1c4f32378c3e",
@@ -970,7 +970,6 @@ SEALED: "dict[str, tuple[str, ...]]" = {
     "docs/plans/phase-4-columns.md": (
         "000bbf1fe48c810e",
         "000d77f76dd9e99f",
-        "0017d81bf1383b99",
         "002dc28b82f6b966",
         "003ac8579eb65716",
         "003e7cac72dead73",
@@ -3543,6 +3542,7 @@ SEALED: "dict[str, tuple[str, ...]]" = {
         "c206b9e06d358d71",
         "c21c576c7e75855e",
         "c232a422424846e3",
+        "c242d2fed362dee4",
         "c28088f3e6f78c57",
         "c2836fd6b6d4c8fc",
         "c28dd2bee0ad11a5",

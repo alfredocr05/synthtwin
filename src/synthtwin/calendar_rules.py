@@ -1701,56 +1701,73 @@ def _weekday_days(first: int, last: int) -> "list[int]":
     return found
 
 
-def _rank_words(
+def _rank_drawn(
     rows: int,
     rebuilt: "tuple[tuple[float, int, float], float, int, int, int]",
     edge: int,
     index: int,
-) -> "list[tuple[int, int]]":
-    """How many of the generator's words put drawn rank `index` of a
-    rebuilt tail at each whole distance (G7.3b), nearest first: its word
-    is uniform over the word scale and its distance never falls as the
-    word rises, so the largest word giving each distance is found by
-    halving the words. Exact: whole numbers of words, summing to the
-    scale."""
+    word: int,
+) -> int:
+    """The whole distance drawn rank `index` of a rebuilt tail stands at
+    when it reads `word` (G7.3b), kept at most `edge`. Each step of the
+    reckoning is monotone in binary64, so the distance never falls as the
+    word rises, and an outer rank, whose stratum of the shape lies past
+    the next one in, stands no nearer at any word than the next one in at
+    any."""
     mixture, stretch, _end, _group, _grouped = rebuilt
-
-    def drawn(word: int) -> int:
-        s = ((rows - 1 - index) * _REBUILT_WORDS + word) / (rows * _REBUILT_WORDS)
-        return min(max(1, _half_up(stretch * _mixture_at(mixture, s))), edge)
-
-    near = drawn(0)
-    far = drawn(_REBUILT_WORDS - 1)
-    found: "list[tuple[int, int]]" = []
-    below = 0
-    for distance in range(near, far):
-        low, high = 0, _REBUILT_WORDS - 1
-        while high - low > 1:
-            middle = (low + high) // 2
-            if drawn(middle) <= distance:
-                low = middle
-            else:
-                high = middle
-        if low + 1 > below:
-            found += [(distance, low + 1 - below)]
-            below = low + 1
-    found += [(far, _REBUILT_WORDS - below)]
-    return found
+    s = ((rows - 1 - index) * _REBUILT_WORDS + word) / (rows * _REBUILT_WORDS)
+    return min(max(1, _half_up(stretch * _mixture_at(mixture, s))), edge)
 
 
-def _rank_law(
+def _words_through(
     rows: int,
     rebuilt: "tuple[tuple[float, int, float], float, int, int, int]",
     edge: int,
     index: int,
-) -> "dict[int, float]":
-    """The chance of each whole distance drawn rank `index` of a rebuilt
-    tail stands at (G7.3b): the share of the generator's words giving it
-    (`_rank_words`)."""
-    law: "dict[int, float]" = {}
-    for distance, words in _rank_words(rows, rebuilt, edge, index):
-        law[distance] = words / _REBUILT_WORDS
-    return law
+    distance: int,
+) -> int:
+    """How many of the generator's words put drawn rank `index` of a
+    rebuilt tail at `distance` or nearer (G7.3b): none short of its
+    nearest distance, every word from its furthest on, and between them
+    the largest word giving `distance` or nearer, found by halving the
+    words, plus one. Exact: a whole number of words of the scale."""
+    if distance < _rank_drawn(rows, rebuilt, edge, index, 0):
+        return 0
+    if distance >= _rank_drawn(rows, rebuilt, edge, index, _REBUILT_WORDS - 1):
+        return _REBUILT_WORDS
+    low, high = 0, _REBUILT_WORDS - 1
+    while high - low > 1:
+        middle = (low + high) // 2
+        if _rank_drawn(rows, rebuilt, edge, index, middle) <= distance:
+            low = middle
+        else:
+            high = middle
+    return low + 1
+
+
+def _law_put(
+    under: "dict[int, float]",
+    held: "dict[int, dict[int, float]]",
+    onward: int,
+    outermost: bool,
+    stands: int,
+    count: int,
+    chance: float,
+) -> None:
+    """Add `chance` to the walk's state of `count` different days whose
+    last distance is `stands` (`_drawn_law`): with every count whose last
+    distance lies below `onward`, the nearest the next step can bring, or
+    on its own -- and past the outermost drawn rank, where only the end
+    is asked, every distance at or past the end as one."""
+    if chance <= 0.0:
+        return
+    if stands < onward:
+        under[count] = (under[count] if count in under else 0.0) + chance
+        return
+    key = onward if outermost else stands
+    if key not in held:
+        held[key] = {}
+    held[key][count] = (held[key][count] if count in held[key] else 0.0) + chance
 
 
 def _drawn_law(
@@ -1761,35 +1778,91 @@ def _drawn_law(
     """The chance of each count of different days a rebuilt tail's ranks
     draw (G7.3b, its column's values not all different): the end, each
     drawn rank's distance raised to the group's, and the group. Each drawn
-    rank reads its own word, its stratum lies past the next one in, and
-    the distances never fall outward, so the different days are one more
-    than the places where a rank's distance passes the next one in --
-    counted from the innermost rank out, carrying the distance last
-    drawn."""
+    rank reads its own word and the distances never fall outward, so the
+    different days are one more than the places where a rank's distance
+    passes the last one in -- counted from the innermost rank out,
+    carrying the distance last drawn.
+
+    A WALK THAT READS ONLY WHERE A RANK CAN MEET THE LAST DISTANCE. A
+    rank's stratum lies past the next one in (`_rank_drawn`), so it passes
+    every last distance below its nearest and can share a day only with
+    one at or past it -- where two strata meet, or a group's or an edge's
+    distance. So the walk carries every count whose last distance lies
+    below the next step's nearest as one, each other last distance on its
+    own, and reads a rank's chances only at those distances
+    (`_words_through`): a few halvings of the words a rank however far
+    its stratum spreads. Read at every distance of every stratum, one
+    tail of fifty ranks spread over two centuries took 85 s.
+    """
     _mixture, _stretch, end, group, grouped = rebuilt
-    states: "dict[tuple[int, int], float]" = {}
+    ranks = [index for index in range(min(grouped, rows) - 1, 0, -1)]
+    nearest = [_rank_drawn(rows, rebuilt, edge, index, 0) for index in ranks]
+    # `under`: the chance of each count whose last distance lies below the
+    # nearest the next step can bring; `held`: each other last distance's.
+    under: "dict[int, float]" = {}
+    held: "dict[int, dict[int, float]]" = {}
     if grouped < rows:
-        states = {(group, 1): 1.0}
-    for index in range(min(grouped, rows) - 1, 0, -1):
-        law = _rank_law(rows, rebuilt, edge, index)
-        moved: "dict[tuple[int, int], float]" = {}
-        if not states:
-            for distance in sorted(law):
-                moved[(distance, 1)] = law[distance]
-        else:
-            for last, count in sorted(states):
-                chance = states[(last, count)]
-                for distance in sorted(law):
-                    stands = max(distance, last)
-                    key = (stands, count + (1 if stands != last else 0))
-                    moved[key] = (moved[key] if key in moved else 0.0) + chance * law[distance]
-        states = moved
+        held = {group: {1: 1.0}}
+    else:
+        under = {0: 1.0}
+    for place in range(len(ranks)):
+        index = ranks[place]
+        outermost = place + 1 == len(ranks)
+        onward = end if outermost else nearest[place + 1]
+        far = _rank_drawn(rows, rebuilt, edge, index, _REBUILT_WORDS - 1)
+        passed: "dict[int, float]" = {}
+        for count in sorted(under):
+            passed[count] = under[count]
+        starts: "list[tuple[int, dict[int, float], bool]]" = []
+        for last in sorted(held):
+            if last >= nearest[place]:
+                starts += [(last, held[last], True)]
+                continue
+            for count in sorted(held[last]):
+                passed[count] = (passed[count] if count in passed else 0.0) + held[last][count]
+        starts = [(nearest[place] - 1, passed, False)] + starts
+        moved_under: "dict[int, float]" = {}
+        moved_held: "dict[int, dict[int, float]]" = {}
+        for last, counts, stays in starts:
+            # Drawn at `last` or nearer, the rank stands on the last
+            # distance and adds no day; drawn past it, it adds one.
+            kept = _words_through(rows, rebuilt, edge, index, last)
+            split = max(last, onward - 1)
+            lumped = _words_through(rows, rebuilt, edge, index, split) - kept
+            singles: "list[tuple[int, int]]" = []
+            if outermost:
+                singles = [(onward, _REBUILT_WORDS - kept - lumped)]
+            else:
+                below = kept + lumped
+                for distance in range(split + 1, far + 1):
+                    through = _words_through(rows, rebuilt, edge, index, distance)
+                    singles += [(distance, through - below)]
+                    below = through
+            for count in sorted(counts):
+                chance = counts[count]
+                if stays:
+                    _law_put(
+                        moved_under, moved_held, onward, outermost, last, count,
+                        chance * (kept / _REBUILT_WORDS),
+                    )
+                _law_put(
+                    moved_under, moved_held, onward, outermost, onward - 1,
+                    count + 1, chance * (lumped / _REBUILT_WORDS),
+                )
+                for distance, words in singles:
+                    _law_put(
+                        moved_under, moved_held, onward, outermost, distance,
+                        count + 1, chance * (words / _REBUILT_WORDS),
+                    )
+        under, held = moved_under, moved_held
     found: "dict[int, float]" = {}
-    if not states:
-        return {1: 1.0}
-    for last, count in sorted(states):
-        total = count + (1 if max(end, last) != last else 0)
-        found[total] = (found[total] if total in found else 0.0) + states[(last, count)]
+    for count in sorted(under):
+        found[count + 1] = (found[count + 1] if count + 1 in found else 0.0) + under[count]
+    for last in sorted(held):
+        added = 1 if max(end, last) != last else 0
+        for count in sorted(held[last]):
+            total = count + added
+            found[total] = (found[total] if total in found else 0.0) + held[last][count]
     return found
 
 

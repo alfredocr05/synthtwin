@@ -174,7 +174,10 @@ days from the tails (164, all on the batteries); the risk accepted is 16
 censuses whose twins miss at one seed in ten, each miss named by
 validation. Seven-day logs holding every day come back one to three
 values short with or without their census, a limit recorded for lane
-D4.
+D4. The tails' law is walked reading a rank only where it can meet the
+distance last drawn: read at every distance, one column of 20,000
+admission dates with half a per cent spread over two centuries spent
+280.7 s in its weekday decision at the floor of 100; walked so, 0.03 s.
 
 ### A timestamp column's count pass stops rebuilding on every attempt (2026-10-03)
 
