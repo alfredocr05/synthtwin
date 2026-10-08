@@ -328,6 +328,9 @@ ROUTES_THAT_RUN_SOURCE = {
     ("tools/reference/make_generation_branch_vectors_14.py", "runpy.run_path"): 1,
     # anchor 3b-G3 (P4-D376)
     # anchor 3b-G2 (P4-D377)
+    # The twenty-third file, lane G2's width rule (plan P4-D377): it runs
+    # the same oracle by path, as every file above does.
+    ("tools/reference/make_generation_branch_vectors_23.py", "runpy.run_path"): 1,
     # anchor 3b-7 (P4-D378)
     # anchor 3b-J (P4-D379)
     # anchor 3b-R2a (P4-D383)

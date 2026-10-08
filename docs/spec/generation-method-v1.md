@@ -1034,7 +1034,13 @@ G5.2b's shares, G5.2a's cap, G5.3's values, G5.6's windows and the snap
 bounds that read them, G6.7's scale, and both reports' windows. It is
 built once from the published facts, by the rules below, and written
 once in the shipped code (`contract.tail_ladder`), where the generator
-and the validator both read it.
+and the validator both read it. **One exception, named** (lane G2 of
+stage 3b, plan P4-D377): where G6.6.8's rule 1 moved a derived end
+(`contract.reach_moved_an_end`), the generator also divides and reads
+the column on the ladder with that rule withdrawn and may write that
+reading (G6.6.8 rule 3), so the validator draws the `mean` and `std`
+windows through that second ladder as well and holds the file to
+V6.1-A2's half-width test with both (validation method V6.1-A2).
 
 A tail block whose `tails` is null publishes no rung and no moment (the
 block floor, TL2), and its ladder is G5.3d's ramp; one whose two sides
@@ -2229,6 +2235,14 @@ boundary rung itself where that percent falls between the two tails.
    from under 1 up to 10, the twin wrote five cells at 10 and none
    below it, its mean stood 5.3 above the published 15.5, and
    `validate` MISSED `ladder.p50` and `moments.mean`.
+
+   AND NO WIDTH CLAMP HOLDS THE END INSIDE ITS TAIL'S PAIR'S REACH
+   (G6.6.8, plan P4-D377). Where a width clamp lowers the end's
+   magnitude to the widest value the census names and leaves it at or
+   past `d1` but nearer `b` than `rms**2 / d1`, the clamp stands aside
+   and the end is the first whole number at or past that reach, never
+   past the end the sign rule left, unless the clamp put it on a
+   stand-in the block holds. G6.6.8 states the rule and why.
 5. and, whichever of 2a or 4 gave it, a derived end that equals a
    number the profiler reads as a stand-in for "no value" -- `-9999`,
    `-999`, `9999` (`parsing.NUMERIC_SENTINELS`) -- moves ONE step of the
@@ -2712,7 +2726,16 @@ carrier and reach steps outside the generator. Measured: of 11,134
 layouts the generation test files build, 305 stood above `Cap`, every
 one of that shape; on a 4,000-row column of halves written without
 their trailing zero one stratum held 315 cells beside a `Cap` of 268,
-and no rung left the narrower window at the seeds tried.
+and no rung left the narrower window at the seeds tried. **A second
+exception of the same kind** (lane G2 of stage 3b, plan P4-D377): where
+G6.6.8's rule 3 writes a tail block on the division its width rule
+withdrawn gives, that division was cut by a ladder whose width-held end
+makes a run of equal rungs, which raises G5.2a's cap, so a stratum can
+stand past the `Cap` the published ladder gives -- 15 rows beside a
+`Cap` of 11 on 150 two-figure readings beside one `188` at a floor of
+20. The twin's own report reads `g_max` as the widest stratum of either
+division, so its bound holds of whichever was written; the quality
+report reads `Cap`.
 
 **What it must reject.** A mutant that ignores the nine interior rungs
 and interpolates only between `min` and `max` produces
@@ -2760,6 +2783,20 @@ file's own extreme never printed (validation method V5). The rank form
 and its `d = (g_max + 2) / K` stand unchanged over the tail ladder of
 G5.1a, so G12.2's and G12.3's windows are drawn through it. A rung the
 tail rule withholds carries no window and is LISTED.
+
+**Where G6.6.8's rule 1 reads a tail toward a further end, the `skew`
+and `kurtosis` windows drawn through it can cover the statistic's whole
+range, and are then LISTED, not checked** (lane G2 of stage 3b, plan
+P4-D377; the second skeptic of its repair, item 2). Measured over 3,459
+twins of eleven batteries, 175 lose a `skew` or `kurtosis` check that
+110cb46 gave and that held -- 23 at a floor of 11, 39 at 20, 62 at 36 and
+51 at 50, on 82 column-floors, among them a thousand two-figure readings
+shaped like a bell beside one `188`, and P4-D377's million rows. The
+listing is the
+honest answer on the rule's reading; drawn with the rule withdrawn
+instead, those windows would fail 13 checks on 9 twins the rule
+improved, a kurtosis of 352.1 against a published 356.6 outside a window
+of 1 to 250 among them, where 110cb46's twin held 7.9 inside it.
 
 ## G6. Numeric spelling
 
@@ -3002,7 +3039,18 @@ cells, a ceiling of one. Two rules follow and both are normative:
    invent a spelling the description does not publish. Where the map
    carries no other point-free form at all, every cell of the column
    being padded, there is nothing to give the style up to and the cell
-   keeps it.
+   keeps it -- EXCEPT A FAR CELL A TAIL'S PAIR PROVES (plan P4-D377): a
+   value past every named width on a side whose published pair proves a
+   cell past it (G6.6.8) is written `plain`. The census counted the
+   source's own far cell into its commonest form and width (plan
+   P4-D222), and that cell could have been padded at none of them. Kept
+   padded, it stood one figure wider than every field the census names:
+   `00001` to `00399` beside one `12345`, whose far cell G6.6.8 leaves
+   past the width, came back holding `012280`, six characters in a
+   column of five, at seeds 0, 4 and 9; written plain it stands at the
+   width the census names. A value the draw alone left too wide keeps
+   the padded style: written plain, the stage-2b style battery gave its
+   named padded count up at 34 runs of 1,920, where it does at eight.
 
    **WHAT THIS COSTS IS A FORM COUNT, AND G13's RECOUNT NAMES IT.** The
    exchange above moves no count; this gives one cell from
@@ -4164,7 +4212,9 @@ demand is short, one stratum takes a value of the figure count that
 demand wants. The stratum must be
 
 1. not one of the two PINNED strata, which hold the published ends of
-   the ladder;
+   the ladder -- G6.6.8's walk, which runs before any demand is served,
+   is what may move a tail's DERIVED end under the width, no rung being
+   published beyond a boundary;
 2. not in the ZERO band, so the count of zero values does not move;
 3. holding a value that can be written point-free, so that the pass
    moves nothing the point-free count, the strata-apart rule or the
@@ -4277,6 +4327,297 @@ here rather than left as a fourth document saying a fifth thing (the
 sibling search of landing L12). The report reads the census with the
 producer's own reader, so a width the writer intended and a width a
 cell actually wears cannot come apart between them.
+
+**G6.6.8 Where a tail's published pair proves a cell wider than the
+census names** (stage 3b, lane G2, plan P4-D377). The census is pooled
+at the floor: a width fewer than the smallest group wrote is counted
+into the commonest (plan P4-D222), so `1000` to `1398` beside one
+`99999` publishes `field_widths {"4": 400}`, and G5.3b step 4's width
+clamps read that as a ceiling. The derived end stood at `9998`, the
+twin's furthest cell a tenth of the real one's, and the twins missed
+the column's mean and spread at seeds 0, 4 and 9 -- 99 of the 111
+moment misses `K-S3-22` counted on its 36 column-floors.
+
+A tail's published pair says when that reading is wrong. Every one of
+the tail's `m` distances `d` from its boundary lies between nought and
+the furthest, `D`, so `d (D - d) >= 0`; summed over the tail, `D d1 >=
+rms**2`. No tail with the published pair has its furthest row nearer
+than the REACH `rms**2 / d1` (Bhatia and Davis's bound on a variance at
+a least distance of nought), taken as `rms * (rms / d1)` and lowered by
+`2**-24` of itself so the pair's own rounding never claims more than the
+rows hold. Three rules follow, and none publishes anything new:
+
+1. THE END. Where G5.3b step 4's one-width or padded clamp LOWERS the
+   end's magnitude, the result stands at or past `d1` from `b` (nearer,
+   step 4's mean-distance guard already stands the clamp aside), and it
+   stands nearer than the reach, the clamp stands aside: the end is the
+   first whole number at or past `b -/+ reach`, and never further out
+   than the end the sign rule left. It goes past the width only as far
+   as the pair requires, the narrowest end the published facts allow.
+   A clamp that put the end on a stand-in the block publishes as held
+   (`kept`) stays: that end is the table's own heap.
+2. THE WALK. On a column whose width census counts every number --
+   beside decimals or exponents it says nothing of the cells a tail
+   holds, which G5.3b step 4's clamps, and with them rule 1, already ask
+   -- and on each side whose reach passes the widest value any demand
+   lets a cell hold, `10**widest - 1`, the tail's own strata past
+   that width -- the strata wholly inside the tail's rows, decided by
+   rank -- are walked OUTERMOST FIRST, on a tie in distance the
+   outermost by rank, so the stratum holding the end comes before a
+   staircase row standing on its value and the strata keep their order.
+   Whole strata STAY past the width while the cells staying number at
+   most the line less one over both tails AND their distances and
+   squared distances from the boundary fit inside what the pair's own
+   totals, `m d1` and `m rms**2`, have left -- the squares after those
+   the side's own strata under the width already hold, each at its own
+   distance, and the distance with every other row of the tail at
+   nought or more. The first stratum that does not fit stops the walk,
+   so the cells staying are always the outermost. THE SQUARES THE ROWS
+   UNDER THE WIDTH HOLD COME OFF FIRST because those rows hold their
+   share of `m rms**2` wherever the far cells stand: 150 two-figure
+   readings beside one `185`, at a floor of fifty, stack 24 of the
+   tail's rows on the reach, `103`, and inside the pair's totals alone
+   all 24 fit, the source's one far value written 24 times; with the
+   squares the tail's other strata hold taken off, none does. The
+   distance is not lowered the same way, because a far cell carries the
+   tail's squares far more than its distance -- one `188` beside 150
+   two-figure readings, at a floor of fifty, holds 14,641 of the tail's
+   34,855 squares and 121 of its 1,019 distance -- and the rows under
+   the width stand where the staircase stretched them toward the reach.
+   Measured and not taken, on the walk as it stood before the guard and
+   rule 3 below: over 1,500 random shapes, lowering the distance too
+   took every far cell off 14 twins where this rule kept one, and left 50
+   means further from the real one than 110cb46's where this left 44
+   (and 28 spreads where this left 30).
+
+   EVERY OTHER STRATUM OF THE TAIL PAST THE WIDTH IS MOVED UNDER IT
+   before any demand is served, the one holding the end among them: no
+   rung is published beyond a boundary (contract 6.7a), so an end under
+   the width contradicts no published fact. Where the end's stratum
+   stays, it carries the distance the pair proves, and each moved
+   stratum goes beside its inner neighbour, to the first free value past
+   it; where the end's moves too, the moved strata carry what `m rms**2`
+   has left after the strata staying, outermost first, each at
+   `sqrt(left / size)` from the boundary and never past `10**widest -
+   1`. A value is free by G6.6.3's rules -- held by no other stratum
+   unless the moved one's own value is held by another too, on the
+   stratum's side of nought, never a stand-in the block does not hold --
+   and has exactly `widest` figures where a demand asks exactly that
+   many, any count up to it where only padded ceilings ask. Where the
+   room between the run's inner neighbour and the width holds fewer free
+   values than strata to move, the side's own strata under the width
+   beside the run are taken into it one at a time until it holds one for
+   each, and the run is spread down from the width's end, the end G5.3b
+   step 4's clamp gave 110cb46. WHERE THE WHOLE TAIL TAKEN IN STILL
+   FINDS TOO FEW, the moved strata alone are placed, the innermost on
+   the outermost free values, and those that find none take the end the
+   width held on 110cb46 -- on a side rule 1 moved -- sharing it as that
+   end did; on another side, whose end stood past the width on 110cb46
+   already, the side's walk is given up and it keeps the values it was
+   drawn with. Readings 1 to 9 beside one `11`, 400 rows at a floor of
+   fifty, hold every value under the width: the end's stratum of 49
+   rows stayed past it on the repair's own first form, which wrote 49
+   cells on `10`, the mean 0.054 of the real spread off; they go back
+   to `9`, as 110cb46 wrote them, the mean 0.007 off.
+
+   Then G6.6.2's demands are served, the one the census counted the
+   cells staying past the width into lowered by them (plan P4-D222): the
+   unpadded demand of the commonest named width where some of its cells
+   are published unpadded, and that width's padded ceiling where every
+   one is -- a demand always published, a width of one being never
+   padded. Lowering the commonest demand of either kind took the cells off a
+   padded ceiling: 200 codes `0001` to `0999` beside 100 of four
+   figures, `99999` and `88888`, at a floor of eleven, missed the padded
+   census at seeds 0, 4 and 9. And the strata move FIRST because a
+   demand no move serves stops the walk: 90 codes beside 59 of four
+   figures and `99999`, at a floor of 36, missed the padded census at 18
+   of seeds 0 to 19, where 110cb46 missed it at one.
+
+   ON A SIDE RULE 1 MOVED THE WALK RUNS ALWAYS: the reach took the end
+   past the width there, and the staircase with it. ON ANOTHER PROVEN
+   SIDE -- where the end stood past the width before the rule, step 4's
+   mean-distance guard having kept the fitted end -- it stands only where
+   it serves the census STRICTLY better, counted as the demands'
+   unserved cells and every cell past the width beyond the line less
+   one, and leaves neither the published mean nor the published spread
+   further off, each taken over the strata's own cells; otherwise that
+   side keeps the walk 110cb46 ran. Codes beside plain numbers and one
+   far value -- 60 codes beside 90 plain numbers and `99999`, at a floor
+   of eleven -- missed their padded census on 110cb46 and miss nothing
+   this way; 300 four-figure numbers beside nine cells from 20000, at a
+   floor of eleven, would have had the census served and the mean moved
+   from 0.019 to 0.036 real standard deviations, and keep 110cb46's twin.
+   The census is asked strictly because its count cannot see how the
+   padded style is shared out afterwards: on 200 codes beside 100
+   three-figure numbers and two far cells, a walk the count found no
+   worse wrote two more two-figure cells than 110cb46.
+
+   AND ON A SIDE RULE 1 MOVED, THE STRATA LEFT PAST THE WIDTH STAND ONLY
+   WHERE THEY READ THE PUBLISHED MEAN AND SPREAD, TOGETHER, NO FURTHER
+   OFF than the same walk with none left past it -- every stratum of the
+   tail past the width moved under it as those that do not fit are, the
+   end's own among them -- each walk's distance from the published `mean`
+   added to its distance from the published `std`, both taken over the
+   strata's own cells. The pair proves a cell past the width; it does not
+   prove that the twin's cells there, at the reach, read the column
+   better, because the reach is the NEAREST the furthest row can stand:
+   150 two-figure readings shaped like a bell beside one `237`, at a
+   floor of 36, came back with three cells from `145` and a spread 1.17
+   to 1.20 times the real one, where 110cb46 wrote 1.02 to 1.06 and the
+   walk with none past the width writes 1.06 to 1.08; and 500 blood
+   pressures heaped on tens beside one `1300`, at a floor of 20, with a
+   spread 0.94 to 0.95 times the real one where 110cb46 wrote 1.04 to
+   1.05 -- with none past the width it writes 1.008 to 1.012, and both
+   moments stand nearer the real ones than 110cb46's. TOGETHER AND NOT
+   ONE BY ONE, because the second walk is not 110cb46's twin: on `00001`
+   to `00149` beside one `12345` it reads the spread 0.004 of the real
+   one nearer and the mean 0.032 of it further off at a floor of eleven,
+   where the end stays, and the spread 0.047 nearer and the mean 0.032
+   further at 36, where the end goes under the width and the twin writes
+   `09998`, both moments still nearer than 110cb46's.
+
+3. THE TWIN WITHOUT THE RULE. Rule 1 reads the tail toward a further
+   end, and G5.2 divides the strata by that reading before any value is
+   drawn, so where the walk then takes every far cell back under the
+   width the column is still divided as though they stood past it: 150
+   two-figure readings shaped like a bell beside one `237`, at a floor of
+   36, came back with the mean and the spread, together, 0.075 to 0.083 of
+   the real spread off where 110cb46's stood 0.069 to 0.073 off. So
+   wherever rule 1 moved a derived end, the value stage -- every pass
+   that sets a stratum's value, from G5.3's draw to the published mode's
+   -- runs twice from the same words: once as rules 1 and 2 give it, and
+   once with both withdrawn, each derived end where the width held it,
+   the strata divided by that ladder and G6.6's walk taking no side,
+   which is the twin 110cb46 wrote. The first reading stands only where
+   its distance from the published `mean` added to its distance from the
+   published `std`, each over its own strata, is no larger than the
+   second's; otherwise the column takes the second. WHERE RULE 1 MOVED NO
+   END the ladder read either way is one, and so is the division, and the
+   readings could differ only by rule 2's walk on a proven side, which
+   stands only where it leaves neither moment further off than 110cb46's
+   walk; so the second reading is not asked there (the second skeptic of
+   the repair, item 4). Asked there too, it changed none of 3,636 twins
+   of eleven batteries, and took generating 200,000 six-figure numbers
+   beside five of eight figures -- 179,308 different values, a proven
+   side and no moved end -- from 18.4 to 18.5 s on 110cb46 to 24.2 to
+   24.4 s; not asked, it takes 19.1 s (two runs each, at a load average
+   near 14). The column is divided with the rule withdrawn ONCE, where its
+   plan divides its strata, and the value stage and the generation
+   report's bound both read that division: made in each, generating
+   200,000 rows of `1000` to `1999` beside five far cells, where the rule
+   moves the end, took 19.7 to 19.9 s, and made once 18.3 to 19.5 s,
+   against 17.3 to 17.4 s on 110cb46.
+   TOGETHER AND NOT ONE BY ONE: on a hundred thousand rows of 1000 to
+   1999 beside five far cells, at eleven, the rule's reading holds the
+   spread at 0.91 of the real one where 110cb46's holds it at 0.42, its
+   mean 0.007 of the real spread off where 110cb46's stands 0.002 off, and
+   weighed one by one the column would go back to the spread a published
+   check missed. BOTH READINGS DRAW THE SAME WORDS: how many strata a
+   column divides into and where its zero stratum stands are counts, not
+   readings of the ladder, which decides only how the strata are shared
+   between the signs and how many cells each holds (G5.2). AND THE SECOND
+   READING IS DIVIDED BY ITS OWN LADDER, ALWAYS, so it is 110cb46's twin.
+   That division can hold a stratum wider than the plan's, because the
+   width-held end makes a run of equal rungs at the top of the tail and
+   G5.2a's cap is read off the ladder: 150 two-figure readings beside one
+   `188`, at a floor of 20, divide into a stratum of 15 rows where the
+   plan's cap is 11. So the generation report's rung windows widen to its
+   widest stratum as well as the plan's (G5.6), and hold of whichever
+   reading was written. Read on the plan's division instead, as the
+   repair round's own earlier form read it wherever its own was wider,
+   the second reading was not 110cb46's twin, and ten twins of 3,333
+   stood further from the real mean and spread, together, than
+   110cb46's. The far cell's plain spelling (G6.3) is asked of whichever
+   reading is written.
+
+   THE FIRST FORM OF THIS RULE (9c3b00d), as the first skeptic measured
+   it, would not move the stratum holding the end and counted the cells
+   it could not move with those staying, so where one stratum holds a
+   whole tail the twin wrote all of it at the end: 4,000 readings 1000 to
+   1900 beside one `99900`, at a floor of eleven, came back with 40
+   cells at `99900`, its own `field_widths {"4": 3961, "5": 40}` against
+   the source's `{"4": 4001}` and its spread 6.19 times the real one,
+   and `validate` reported nothing; moved, the 40 stand on `9998`, as
+   110cb46 wrote them. It took the inner of two tied strata first and
+   wrote `99999` twice beside 100 codes and 40 plus-signed numbers; it
+   moved a staircase row to `09998` rather than beside its neighbour, the
+   spread 1.21 to 1.28 times the real one on follow-up A's codes beside
+   one far value where 110cb46 read 1.14 and these rules read 0.980 to
+   1.004; and it padded that far cell to `012280` (G6.3). The repair's
+   own first form (71a7b31) kept two more, which 1,500 random shapes
+   found: the strata with no room under the width stayed past it, and
+   the squares the rows under the width hold were read as the far
+   cells' own.
+
+Measured on eleven batteries -- seeds 0, 4 and 9, the codes beside
+plain numbers at 0 to 19 and the random shapes at 0 -- 110cb46's twins
+against this rule's, BOTH READ BY ONE CHECKER, this one, which holds the
+mean and the spread to the window drawn with rule 1 withdrawn as well
+wherever rule 1 moved an end (validation method V6.1-A2): read by each
+tree's own checker, as the repair round first measured, most of the fall
+was the checker's. `K-S3-22`'s 36 column-floors miss 21 checks where
+110cb46's twins miss 144; the 21 are the mean or the spread of the two
+moments-only columns and of three Pareto(2.5) columns at fifty whose
+spread reads 0.90 to 0.94 of the real one; follow-up A's 37 shapes miss
+nothing on either; the stage-3 battery misses its 61 on both; six shapes
+of codes beside plain numbers and far cells miss 205 where 605 were
+missed; the skeptics' grid, pressure, code, bulk and attack shapes miss
+27 where 222 were missed -- the grid twins rule 3 writes as 110cb46
+wrote them, their spread 0.37 to 0.50 of the real one, and 398 numbers
+from 1000 beside `99999` and `88888` at a floor of 20; 1,500 random
+shapes of one to four figures beside one to five far cells, at floors 11
+to 50, miss 4 where 57 were missed; 288 twins of readings 10 to 99
+beside one or two far readings of three figures miss nothing on either;
+and the second skeptic's 21 shapes beside far cells miss 6 where 15 were
+missed. Twin by twin, each of the 3,459 counted once: the rules change
+716 and leave 2,743 as 110cb46 wrote them, byte for byte; none of the
+716 misses a check 110cb46's twin met, writes a cell wider than the
+source's widest and 110cb46's, writes its own width census further from
+the source's, writes further past the real column's range, or stands
+further from the real mean and spread taken together; 691 stand nearer
+on them together and 566 nearer on each. Read off the real column and
+no window, 1,500 of the 3,459 stand more than 0.05 of the real spread
+off its mean or a tenth off its spread, where 1,875 of 110cb46's did.
+
+WHAT THE RULES STILL COST IS MEASURED AND NOT HIDDEN. Weighed together,
+one moment can stand further off where the other stands nearer by more:
+99 twins stand further from the real mean and 22 from the real spread,
+every one of them among the random shapes or the readings 10 to 99,
+where the reach stands barely past the width -- at worst 0.072 of the
+real spread further on the mean, 150 bell-shaped readings beside one
+`185` at 36 whose spread stands 0.092 nearer, and 0.075 further on the
+spread, a random shape at fifty whose mean stands 0.21 nearer. Weighed
+one by one, the hundred thousand rows above would go back to the spread
+a published check missed. And 186 twins write cells past the widest
+named width where 110cb46 wrote none, further from the source's count
+than none is -- up to 15 where the source holds one -- every one inside
+the line less one and the pair's totals, and all but one with its own
+census the source's (the other, 90 codes beside 59 of four figures and
+`99999` at 36 and seed 0, writes the census 110cb46 wrote there, 89
+padded cells where the source holds 90). The count of cells past the
+width is not published, the census pooling it under the line, and the
+reach is the nearest the furthest row can stand, so the pair's squares
+are carried from there by more rows than the source held far out; all
+186 stand nearer the real mean and spread together and 46 meet a check
+110cb46's twin misses. `K-S3-22` counts all of it on its own battery and
+lane G2's width shapes, and the twins off the real moments, so none of it
+may grow. And where the rule reads a tail toward a further end, a `skew`
+or `kurtosis` window can cover the whole range and is listed (G5.6a).
+
+The end rule is frozen in `tail_width_past_the_reach` (G14.3). THE
+WALK HAS NO FROZEN CASE, because the oracle does not run G6.6's walk at
+all (criterion 8 of the Phase 4 plan): it is pinned by
+`tests/test_stage3b_width.py`, where a source mutant of each of 108
+clauses of the three rules, of the guard on the cells left past the
+width, of G6.3's give-up, of where rule 3 is asked and its one division
+a block, and of the checker's second window (V6.1-A2) -- the low end's
+side of where rule 1 moved an end and the window's hold on the mean
+among them -- turns a test red but one, which drops the check asking
+the second walk only where a cell stands past the width: with none
+there the two walks are one, so it changes no twin. Of the second
+skeptic's eighteen more, eleven turn it red; the seven that do not
+changed no twin of 1,584 over nine batteries on 9c79ece, where that
+skeptic ran them.
 
 ### G6.7 No value stands where the description says there is none
 
@@ -13673,7 +14014,7 @@ that happens -- and the clause beside it, `--missing-value`'s "CAN be
 published as the column's smallest value", is exactly right under the
 new rule.
 
-**All one hundred and sixty-nine are required.** The count is taken off the committed
+**All one hundred and seventy are required.** The count is taken off the committed
 case sets and not carried forward: this sentence said fifty-two and a
 split of nine, twenty, sixteen and seven while the six files held
 seventy-three, because each repair that added a case added a clause to
@@ -13705,12 +14046,14 @@ thirteen; the SIXTEENTH,
 `tests/reference/generation-branch-vectors-14.json`, holds three; and the
 TWENTY-SECOND, `tests/reference/generation-branch-vectors-22.json`,
 holds five -- landing T1's written clocks and G7.5 step 5, in the file
-plan P4-D364's table gives that landing (G14.2); and the TWENTY-FIRST,
+plan P4-D364's table gives that landing (G14.2); the TWENTY-FIRST,
 `tests/reference/generation-branch-vectors-21.json`, holds fifteen --
 landing 3b.5's census of a column of clock times, G7A.4b and G8.3's
 clock supply and clock line, held key by key since its second repair
-round, in the file that table gives that landing,
-and a test holds this sentence to those files. The tenth grew by the
+round, in the file that table gives that landing; and the
+TWENTY-THIRD, `tests/reference/generation-branch-vectors-23.json`,
+holds one -- lane G2's width rule, G6.6.8 -- in the file that table
+gives lane G2, and a test holds this sentence to those files. The tenth grew by the
 two cases the GOVERNANCE PASS of stage 3's review added and the
 eleventh by the two the dates pass added; each number here is read off
 the committed case sets again at every landing that touches them.
@@ -13799,6 +14142,7 @@ case passed, which is the failure the count exists to prevent:
 | `tail_pad_ceiling` | G5.3b step 4's padded ceiling (the skeptic pass of the repair of the oracle's derived end): sixty-eight whole numbers written `0100` to `0999`, padded to four on every cell, whose high tail's reading reaches 1380. The ceiling holds the end at 999. Its mutant withdraws the ceiling and the twin writes four figures with no pad |
 | `tail_marks_pooled` | G5.3b step 4's mark clamp counting a census's `(withheld)` pool (the repair of the product's two divergences from step 4): `tail_mark_held`'s forty-four numbers with the census `{"(withheld)": 44}` and no mark published, every cell wearing one of the seven marks (G6.1). It counted a comma named at thirty-three beside a pool of eleven until the loader refused a pool beside a named mark (TM1, the review of follow-up B). The end is held at 1,000. Its mutant counts the named marks alone, as the product did, and the twin writes 1 |
 | `tail_pad_partial` | G5.3b step 4's ceiling of a PARTLY padded block (the same repair): sixty-eight whole numbers written with a plus, four wide, sixteen of them padded, whose high tail's reading reaches 15536. The one field width holds the end at 9999, a stand-in number, which G5.3b step 5 moves one step to 9998 (plan P4-D353); withdrawing step 5 writes the case's earlier bytes exactly. Its mutant withdraws the ceiling and the twin writes five figures in a field of four |
+| `tail_width_past_the_reach` | G6.6.8's reach (lane G2, plan P4-D377): a hundred whole numbers, 1000 to 1089 and ten of five figures from 10000 to 10009, at seed 431. The census counts the ten into its one width of four; the high tail's pair, a mean distance of 7431.38 and a root-mean-square of 8140.417410739247 from the boundary rung 1087.12, puts its furthest row at least about 8917.0 out, past 9999, which stands 8911.88 out -- at least the mean distance, so step 4's guard leaves the clamp standing. The clamp stands aside and the end is 10005, the first whole number at or past the reach. Its mutant withdraws the rule and the end comes back at 9998 |
 | `tail_width_stands_aside` | G5.3b step 4's stand-aside (the same pass): sixty whole numbers, nine of four figures and eight at 10,000, so the census names the width five and the low boundary rung is 10,000. The sign rule holds the low end at 1 and the width clamp's 10,000 is no distance from that rung, so the clamp stands aside and the end stays at 1. Its mutant applies the clamp regardless and the end moves to 10,000 |
 | `tail_moment_ladder` | G5.3c's moment ladder (stage 3): fifteen two-place readings at a floor of eleven, where no percent leaves eleven rows outside on both sides at once, so the block publishes its moments and not one rung. Its mutant reads the block as the ramp of G5.3d instead |
 | `tail_listed_floor` | G5.3e's FLOOR `q` under each listed value (the governance pass of stage 3's review, item 1; plan P4-D346): sixty whole readings of a scale from 0 to 8, whose low tail lists two values and whose high tail lists four, so the one case parts both roads of the floor -- one row apiece where contract TL6's other road lists, two where the listing rule admitted the tail by finding every value it names on at least two cells of the column. Its mutant counts from one on both, which is the allocation the shipped rule retired: the high tail goes from [2, 2, 2, 6] -- the real column's own counts beyond that boundary -- to [1, 4, 1, 6], and the staircase moves with it |

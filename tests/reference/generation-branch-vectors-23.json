@@ -1,0 +1,3758 @@
+{
+  "case_set": "The 1 case method section G14.3 adds with lane G2's width rule (plan P4-D377): G6.6.8's reach, where a tail's published pair proves a cell wider than every width the census names and the width hold stands aside, the derived end going to the first whole number at or past rms**2 / d1 from its boundary, on 100 whole numbers of which ten are five figures wide and counted into the census's one width of four. It is computed by the same oracle and the same proof layer as tests/reference/generation-reference-vectors.json, tests/reference/generation-branch-vectors.json, tests/reference/generation-branch-vectors-2.json, tests/reference/generation-branch-vectors-3.json, tests/reference/generation-branch-vectors-4.json, tests/reference/generation-branch-vectors-5.json, tests/reference/generation-branch-vectors-6.json, tests/reference/generation-branch-vectors-7.json, tests/reference/generation-branch-vectors-8.json, tests/reference/generation-branch-vectors-9.json, tests/reference/generation-branch-vectors-10.json, tests/reference/generation-branch-vectors-11.json, tests/reference/generation-branch-vectors-12.json, tests/reference/generation-branch-vectors-13.json, tests/reference/generation-branch-vectors-14.json, tests/reference/generation-branch-vectors-21.json, tests/reference/generation-branch-vectors-22.json and tests/reference/generation-document-vectors.json, and lives in a file of its own, the number plan P4-D364's table gives this landing: no cap is raised and no case is dropped.",
+  "cases": {
+    "tail_width_past_the_reach": {
+      "cells": [
+        "1053",
+        "1027",
+        "6112",
+        "1069",
+        "10001",
+        "1065",
+        "1086",
+        "1087",
+        "1081",
+        "1055",
+        "1030",
+        "1043",
+        "1047",
+        "1071",
+        "1044",
+        "5150",
+        "1024",
+        "1004",
+        "1003",
+        "1075",
+        "1019",
+        "1073",
+        "1084",
+        "10003",
+        "1010",
+        "1007",
+        "1039",
+        "1036",
+        "1025",
+        "1008",
+        "7075",
+        "1083",
+        "1018",
+        "1050",
+        "1017",
+        "1067",
+        "1040",
+        "1080",
+        "1011",
+        "1085",
+        "1054",
+        "1035",
+        "1041",
+        "1006",
+        "1059",
+        "1056",
+        "1016",
+        "1028",
+        "1077",
+        "1063",
+        "1026",
+        "1033",
+        "1061",
+        "1042",
+        "1023",
+        "1066",
+        "8037",
+        "1020",
+        "1046",
+        "1002",
+        "1012",
+        "1045",
+        "1013",
+        "1038",
+        "1072",
+        "1001",
+        "10002",
+        "1048",
+        "1015",
+        "9962",
+        "1057",
+        "1037",
+        "1014",
+        "1034",
+        "1031",
+        "1049",
+        "1058",
+        "1032",
+        "1074",
+        "10004",
+        "1000",
+        "1076",
+        "1029",
+        "1052",
+        "1070",
+        "10005",
+        "1064",
+        "1082",
+        "1051",
+        "1022",
+        "1062",
+        "1068",
+        "4187",
+        "1009",
+        "9000",
+        "1060",
+        "1021",
+        "1005",
+        "1078",
+        "1079"
+      ],
+      "column": {
+        "bin_groups": [
+          {
+            "count": 12,
+            "first": 0,
+            "last": 4
+          },
+          {
+            "count": 12,
+            "first": 5,
+            "last": 9
+          },
+          {
+            "count": 12,
+            "first": 10,
+            "last": 14
+          },
+          {
+            "count": 11,
+            "first": 15,
+            "last": 19
+          },
+          {
+            "count": 12,
+            "first": 20,
+            "last": 24
+          },
+          {
+            "count": 17,
+            "first": 25,
+            "last": 31
+          }
+        ],
+        "decimal_plus": {},
+        "detection_evidence": "written by hand in this method specification's own neutral vocabulary; no value here comes from any table.",
+        "empty_bins": [],
+        "empty_edges": [],
+        "field_widths": {
+          "4": 100
+        },
+        "fraction_widths": {},
+        "group_separator": "",
+        "integer_valued": true,
+        "kurtosis": {
+          "decimal": "8.109807865977091",
+          "exact": "8109807865977091/1000000000000000",
+          "float64": 8.109807865977091,
+          "proof": "nearest"
+        },
+        "mean": {
+          "decimal": "1940.5",
+          "exact": "3881/2",
+          "float64": 1940.5,
+          "proof": "nearest"
+        },
+        "missing_by_class": {
+          "(blank)": 0,
+          "(date-sentinel)": 0,
+          "(declared-missing)": 0,
+          "(numeric-sentinel)": 0,
+          "(text-code)": 0,
+          "(withheld)": 0
+        },
+        "missing_by_source": {},
+        "mode": null,
+        "mode_count": 0,
+        "n_contradictory": 0,
+        "n_distinct": 100,
+        "n_distinct_folded": 100,
+        "n_distinct_values": 100,
+        "n_left_out_of_statistics": 0,
+        "n_missing": 0,
+        "n_missing_blank": 0,
+        "n_missing_withheld": 0,
+        "n_negative": 0,
+        "n_negative_unrepresentable": 0,
+        "n_not_numeric": 0,
+        "n_numeric": 100,
+        "n_out_of_range": 0,
+        "n_present": 100,
+        "n_rows": 100,
+        "n_sentinel_candidates_unpublished": 0,
+        "n_used_in_statistics": 100,
+        "n_zero": 0,
+        "name": "column_1",
+        "negative_form": "minus",
+        "negative_notations": {},
+        "number_spellings": {},
+        "numeric_share": {
+          "decimal": "1.0",
+          "exact": "1",
+          "float64": 1.0,
+          "proof": "nearest"
+        },
+        "numeric_styles": {
+          "plain": 100
+        },
+        "pad_widths": {},
+        "percentiles": {
+          "max": null,
+          "min": null,
+          "p01": null,
+          "p05": null,
+          "p10": null,
+          "p25": {
+            "decimal": "1024.75",
+            "exact": "4099/4",
+            "float64": 1024.75,
+            "proof": "nearest"
+          },
+          "p50": {
+            "decimal": "1049.5",
+            "exact": "2099/2",
+            "float64": 1049.5,
+            "proof": "nearest"
+          },
+          "p75": {
+            "decimal": "1074.25",
+            "exact": "4297/4",
+            "float64": 1074.25,
+            "proof": "nearest"
+          },
+          "p90": null,
+          "p95": null,
+          "p99": null
+        },
+        "percentiles_between": {
+          "p02": null,
+          "p03": null,
+          "p04": null,
+          "p06": null,
+          "p07": null,
+          "p08": null,
+          "p09": null,
+          "p11": null,
+          "p12": {
+            "decimal": "1011.88",
+            "exact": "25297/25",
+            "float64": 1011.88,
+            "proof": "nearest"
+          },
+          "p13": {
+            "decimal": "1012.870000",
+            "exact": "101287/100",
+            "float64": 1012.87,
+            "proof": "nearest"
+          },
+          "p14": {
+            "decimal": "1013.860000",
+            "exact": "50693/50",
+            "float64": 1013.86,
+            "proof": "nearest"
+          },
+          "p15": {
+            "decimal": "1014.850000",
+            "exact": "20297/20",
+            "float64": 1014.85,
+            "proof": "nearest"
+          },
+          "p16": {
+            "decimal": "1015.840000",
+            "exact": "25396/25",
+            "float64": 1015.84,
+            "proof": "nearest"
+          },
+          "p17": {
+            "decimal": "1016.830000",
+            "exact": "101683/100",
+            "float64": 1016.83,
+            "proof": "nearest"
+          },
+          "p18": {
+            "decimal": "1017.820000",
+            "exact": "50891/50",
+            "float64": 1017.82,
+            "proof": "nearest"
+          },
+          "p19": {
+            "decimal": "1018.810000",
+            "exact": "101881/100",
+            "float64": 1018.81,
+            "proof": "nearest"
+          },
+          "p20": {
+            "decimal": "1019.800000",
+            "exact": "5099/5",
+            "float64": 1019.8,
+            "proof": "nearest"
+          },
+          "p21": {
+            "decimal": "1020.790000",
+            "exact": "102079/100",
+            "float64": 1020.79,
+            "proof": "nearest"
+          },
+          "p22": {
+            "decimal": "1021.780000",
+            "exact": "51089/50",
+            "float64": 1021.78,
+            "proof": "nearest"
+          },
+          "p23": {
+            "decimal": "1022.770000",
+            "exact": "102277/100",
+            "float64": 1022.77,
+            "proof": "nearest"
+          },
+          "p24": {
+            "decimal": "1023.760000",
+            "exact": "25594/25",
+            "float64": 1023.76,
+            "proof": "nearest"
+          },
+          "p26": {
+            "decimal": "1025.740000",
+            "exact": "51287/50",
+            "float64": 1025.74,
+            "proof": "nearest"
+          },
+          "p27": {
+            "decimal": "1026.730000",
+            "exact": "102673/100",
+            "float64": 1026.73,
+            "proof": "nearest"
+          },
+          "p28": {
+            "decimal": "1027.720000",
+            "exact": "25693/25",
+            "float64": 1027.72,
+            "proof": "nearest"
+          },
+          "p29": {
+            "decimal": "1028.710000",
+            "exact": "102871/100",
+            "float64": 1028.71,
+            "proof": "nearest"
+          },
+          "p30": {
+            "decimal": "1029.700000",
+            "exact": "10297/10",
+            "float64": 1029.7,
+            "proof": "nearest"
+          },
+          "p31": {
+            "decimal": "1030.690000",
+            "exact": "103069/100",
+            "float64": 1030.69,
+            "proof": "nearest"
+          },
+          "p32": {
+            "decimal": "1031.680000",
+            "exact": "25792/25",
+            "float64": 1031.68,
+            "proof": "nearest"
+          },
+          "p33": {
+            "decimal": "1032.670000",
+            "exact": "103267/100",
+            "float64": 1032.67,
+            "proof": "nearest"
+          },
+          "p34": {
+            "decimal": "1033.660000",
+            "exact": "51683/50",
+            "float64": 1033.66,
+            "proof": "nearest"
+          },
+          "p35": {
+            "decimal": "1034.650000",
+            "exact": "20693/20",
+            "float64": 1034.65,
+            "proof": "nearest"
+          },
+          "p36": {
+            "decimal": "1035.640000",
+            "exact": "25891/25",
+            "float64": 1035.64,
+            "proof": "nearest"
+          },
+          "p37": {
+            "decimal": "1036.630000",
+            "exact": "103663/100",
+            "float64": 1036.63,
+            "proof": "nearest"
+          },
+          "p38": {
+            "decimal": "1037.620000",
+            "exact": "51881/50",
+            "float64": 1037.62,
+            "proof": "nearest"
+          },
+          "p39": {
+            "decimal": "1038.610000",
+            "exact": "103861/100",
+            "float64": 1038.61,
+            "proof": "nearest"
+          },
+          "p40": {
+            "decimal": "1039.600000",
+            "exact": "5198/5",
+            "float64": 1039.6,
+            "proof": "nearest"
+          },
+          "p41": {
+            "decimal": "1040.590000",
+            "exact": "104059/100",
+            "float64": 1040.59,
+            "proof": "nearest"
+          },
+          "p42": {
+            "decimal": "1041.580000",
+            "exact": "52079/50",
+            "float64": 1041.58,
+            "proof": "nearest"
+          },
+          "p43": {
+            "decimal": "1042.570000",
+            "exact": "104257/100",
+            "float64": 1042.57,
+            "proof": "nearest"
+          },
+          "p44": {
+            "decimal": "1043.560000",
+            "exact": "26089/25",
+            "float64": 1043.56,
+            "proof": "nearest"
+          },
+          "p45": {
+            "decimal": "1044.550000",
+            "exact": "20891/20",
+            "float64": 1044.55,
+            "proof": "nearest"
+          },
+          "p46": {
+            "decimal": "1045.540000",
+            "exact": "52277/50",
+            "float64": 1045.54,
+            "proof": "nearest"
+          },
+          "p47": {
+            "decimal": "1046.530000",
+            "exact": "104653/100",
+            "float64": 1046.53,
+            "proof": "nearest"
+          },
+          "p48": {
+            "decimal": "1047.520000",
+            "exact": "26188/25",
+            "float64": 1047.52,
+            "proof": "nearest"
+          },
+          "p49": {
+            "decimal": "1048.510000",
+            "exact": "104851/100",
+            "float64": 1048.51,
+            "proof": "nearest"
+          },
+          "p51": {
+            "decimal": "1050.490000",
+            "exact": "105049/100",
+            "float64": 1050.49,
+            "proof": "nearest"
+          },
+          "p52": {
+            "decimal": "1051.480000",
+            "exact": "26287/25",
+            "float64": 1051.48,
+            "proof": "nearest"
+          },
+          "p53": {
+            "decimal": "1052.470000",
+            "exact": "105247/100",
+            "float64": 1052.47,
+            "proof": "nearest"
+          },
+          "p54": {
+            "decimal": "1053.460000",
+            "exact": "52673/50",
+            "float64": 1053.46,
+            "proof": "nearest"
+          },
+          "p55": {
+            "decimal": "1054.450000",
+            "exact": "21089/20",
+            "float64": 1054.45,
+            "proof": "nearest"
+          },
+          "p56": {
+            "decimal": "1055.440000",
+            "exact": "26386/25",
+            "float64": 1055.44,
+            "proof": "nearest"
+          },
+          "p57": {
+            "decimal": "1056.430000",
+            "exact": "105643/100",
+            "float64": 1056.43,
+            "proof": "nearest"
+          },
+          "p58": {
+            "decimal": "1057.420000",
+            "exact": "52871/50",
+            "float64": 1057.42,
+            "proof": "nearest"
+          },
+          "p59": {
+            "decimal": "1058.410000",
+            "exact": "105841/100",
+            "float64": 1058.41,
+            "proof": "nearest"
+          },
+          "p60": {
+            "decimal": "1059.400000",
+            "exact": "5297/5",
+            "float64": 1059.4,
+            "proof": "nearest"
+          },
+          "p61": {
+            "decimal": "1060.390000",
+            "exact": "106039/100",
+            "float64": 1060.39,
+            "proof": "nearest"
+          },
+          "p62": {
+            "decimal": "1061.380000",
+            "exact": "53069/50",
+            "float64": 1061.38,
+            "proof": "nearest"
+          },
+          "p63": {
+            "decimal": "1062.370000",
+            "exact": "106237/100",
+            "float64": 1062.37,
+            "proof": "nearest"
+          },
+          "p64": {
+            "decimal": "1063.360000",
+            "exact": "26584/25",
+            "float64": 1063.36,
+            "proof": "nearest"
+          },
+          "p65": {
+            "decimal": "1064.350000",
+            "exact": "21287/20",
+            "float64": 1064.35,
+            "proof": "nearest"
+          },
+          "p66": {
+            "decimal": "1065.340000",
+            "exact": "53267/50",
+            "float64": 1065.34,
+            "proof": "nearest"
+          },
+          "p67": {
+            "decimal": "1066.330000",
+            "exact": "106633/100",
+            "float64": 1066.33,
+            "proof": "nearest"
+          },
+          "p68": {
+            "decimal": "1067.320000",
+            "exact": "26683/25",
+            "float64": 1067.32,
+            "proof": "nearest"
+          },
+          "p69": {
+            "decimal": "1068.310000",
+            "exact": "106831/100",
+            "float64": 1068.31,
+            "proof": "nearest"
+          },
+          "p70": {
+            "decimal": "1069.300000",
+            "exact": "10693/10",
+            "float64": 1069.3,
+            "proof": "nearest"
+          },
+          "p71": {
+            "decimal": "1070.290000",
+            "exact": "107029/100",
+            "float64": 1070.29,
+            "proof": "nearest"
+          },
+          "p72": {
+            "decimal": "1071.280000",
+            "exact": "26782/25",
+            "float64": 1071.28,
+            "proof": "nearest"
+          },
+          "p73": {
+            "decimal": "1072.270000",
+            "exact": "107227/100",
+            "float64": 1072.27,
+            "proof": "nearest"
+          },
+          "p74": {
+            "decimal": "1073.260000",
+            "exact": "53663/50",
+            "float64": 1073.26,
+            "proof": "nearest"
+          },
+          "p76": {
+            "decimal": "1075.240000",
+            "exact": "26881/25",
+            "float64": 1075.24,
+            "proof": "nearest"
+          },
+          "p77": {
+            "decimal": "1076.230000",
+            "exact": "107623/100",
+            "float64": 1076.23,
+            "proof": "nearest"
+          },
+          "p78": {
+            "decimal": "1077.220000",
+            "exact": "53861/50",
+            "float64": 1077.22,
+            "proof": "nearest"
+          },
+          "p79": {
+            "decimal": "1078.210000",
+            "exact": "107821/100",
+            "float64": 1078.21,
+            "proof": "nearest"
+          },
+          "p80": {
+            "decimal": "1079.200000",
+            "exact": "5396/5",
+            "float64": 1079.2,
+            "proof": "nearest"
+          },
+          "p81": {
+            "decimal": "1080.190000",
+            "exact": "108019/100",
+            "float64": 1080.19,
+            "proof": "nearest"
+          },
+          "p82": {
+            "decimal": "1081.180000",
+            "exact": "54059/50",
+            "float64": 1081.18,
+            "proof": "nearest"
+          },
+          "p83": {
+            "decimal": "1082.170000",
+            "exact": "108217/100",
+            "float64": 1082.17,
+            "proof": "nearest"
+          },
+          "p84": {
+            "decimal": "1083.160000",
+            "exact": "27079/25",
+            "float64": 1083.16,
+            "proof": "nearest"
+          },
+          "p85": {
+            "decimal": "1084.150000",
+            "exact": "21683/20",
+            "float64": 1084.15,
+            "proof": "nearest"
+          },
+          "p86": {
+            "decimal": "1085.140000",
+            "exact": "54257/50",
+            "float64": 1085.14,
+            "proof": "nearest"
+          },
+          "p87": {
+            "decimal": "1086.130000",
+            "exact": "108613/100",
+            "float64": 1086.13,
+            "proof": "nearest"
+          },
+          "p88": {
+            "decimal": "1087.12",
+            "exact": "27178/25",
+            "float64": 1087.12,
+            "proof": "nearest"
+          },
+          "p89": null,
+          "p91": null,
+          "p92": null,
+          "p93": null,
+          "p94": null,
+          "p96": null,
+          "p97": null,
+          "p98": null
+        },
+        "position": 1,
+        "quality_state": "ok",
+        "remarks": [],
+        "role": "count",
+        "sentinel_verdicts": [],
+        "skew": {
+          "decimal": "2.6662469401806357",
+          "exact": "26662469401806357/10000000000000000",
+          "float64": 2.6662469401806357,
+          "proof": "nearest"
+        },
+        "statistical_type": "count",
+        "std": {
+          "decimal": "2701.6553567519795",
+          "exact": "5403310713503959/2000000000000",
+          "float64": 2701.6553567519795,
+          "proof": "nearest"
+        },
+        "std_unrepresentable": false,
+        "structural_role": "data",
+        "tails": {
+          "high": {
+            "mean_distance": {
+              "decimal": "7431.38",
+              "exact": "371569/50",
+              "float64": 7431.38,
+              "proof": "nearest"
+            },
+            "percent": 88,
+            "rms_distance": {
+              "decimal": "8140.417410739247",
+              "exact": "8140417410739247/1000000000000",
+              "float64": 8140.417410739247,
+              "proof": "nearest"
+            },
+            "rows": 12,
+            "values": []
+          },
+          "low": {
+            "mean_distance": {
+              "decimal": "6.3799999999999955",
+              "exact": "12759999999999991/2000000000000000",
+              "float64": 6.3799999999999955,
+              "proof": "nearest"
+            },
+            "percent": 12,
+            "rms_distance": {
+              "decimal": "7.254037955970909",
+              "exact": "7254037955970909/1000000000000000",
+              "float64": 7.254037955970909,
+              "proof": "nearest"
+            },
+            "rows": 12,
+            "values": []
+          }
+        },
+        "thousands_marks": {},
+        "value_histogram": {},
+        "wide_runs": "none"
+      },
+      "content": [
+        "1000",
+        "1001",
+        "1002",
+        "1003",
+        "1004",
+        "1005",
+        "1006",
+        "1007",
+        "1008",
+        "1009",
+        "1010",
+        "1011",
+        "1012",
+        "1013",
+        "1014",
+        "1015",
+        "1016",
+        "1017",
+        "1018",
+        "1019",
+        "1021",
+        "1020",
+        "1022",
+        "1023",
+        "1024",
+        "1025",
+        "1026",
+        "1027",
+        "1028",
+        "1029",
+        "1030",
+        "1031",
+        "1032",
+        "1033",
+        "1034",
+        "1035",
+        "1036",
+        "1037",
+        "1038",
+        "1039",
+        "1040",
+        "1041",
+        "1042",
+        "1043",
+        "1044",
+        "1045",
+        "1046",
+        "1047",
+        "1048",
+        "1049",
+        "1050",
+        "1051",
+        "1052",
+        "1053",
+        "1054",
+        "1055",
+        "1056",
+        "1057",
+        "1058",
+        "1059",
+        "1060",
+        "1061",
+        "1062",
+        "1063",
+        "1064",
+        "1065",
+        "1066",
+        "1067",
+        "1068",
+        "1069",
+        "1070",
+        "1071",
+        "1072",
+        "1073",
+        "1074",
+        "1075",
+        "1076",
+        "1077",
+        "1078",
+        "1080",
+        "1079",
+        "1081",
+        "1083",
+        "1082",
+        "1084",
+        "1085",
+        "1086",
+        "1087",
+        "4187",
+        "5150",
+        "6112",
+        "7075",
+        "8037",
+        "9000",
+        "9962",
+        "10001",
+        "10002",
+        "10003",
+        "10004",
+        "10005"
+      ],
+      "csv_bytes": "1053\n1027\n6112\n1069\n10001\n1065\n1086\n1087\n1081\n1055\n1030\n1043\n1047\n1071\n1044\n5150\n1024\n1004\n1003\n1075\n1019\n1073\n1084\n10003\n1010\n1007\n1039\n1036\n1025\n1008\n7075\n1083\n1018\n1050\n1017\n1067\n1040\n1080\n1011\n1085\n1054\n1035\n1041\n1006\n1059\n1056\n1016\n1028\n1077\n1063\n1026\n1033\n1061\n1042\n1023\n1066\n8037\n1020\n1046\n1002\n1012\n1045\n1013\n1038\n1072\n1001\n10002\n1048\n1015\n9962\n1057\n1037\n1014\n1034\n1031\n1049\n1058\n1032\n1074\n10004\n1000\n1076\n1029\n1052\n1070\n10005\n1064\n1082\n1051\n1022\n1062\n1068\n4187\n1009\n9000\n1060\n1021\n1005\n1078\n1079\n",
+      "float64": [
+        {
+          "interpolated": {
+            "exact": "35608529561468111/35184372088832",
+            "float64": 1012.0552804399981,
+            "proof": "nearest"
+          },
+          "repaired_onto_a_sign_fallback": false,
+          "segment": 12,
+          "stratum": 12,
+          "t": {
+            "exact": "797366590162235/4503599627370496",
+            "float64": 0.17705094949299283,
+            "proof": "exact"
+          },
+          "u": {
+            "exact": "3706233037208261/4503599627370496",
+            "float64": 0.8229490505070072,
+            "proof": "exact"
+          },
+          "value": {
+            "exact": "1012",
+            "float64": 1012.0,
+            "proof": "exact"
+          },
+          "x1": {
+            "exact": "32987662959484647713630116235891/39614081257132168796771975168",
+            "float64": 832.7256852270305,
+            "proof": "nearest"
+          },
+          "x2": {
+            "exact": "7103977156575120275261208250995/39614081257132168796771975168",
+            "float64": 179.32959521296763,
+            "proof": "nearest"
+          }
+        },
+        {
+          "interpolated": {
+            "exact": "17827898892124211/17592186044416",
+            "float64": 1013.3987241331517,
+            "proof": "nearest"
+          },
+          "repaired_onto_a_sign_fallback": false,
+          "segment": 13,
+          "stratum": 13,
+          "t": {
+            "exact": "1202606974264405/2251799813685248",
+            "float64": 0.5340647809612542,
+            "proof": "exact"
+          },
+          "u": {
+            "exact": "1049192839420843/2251799813685248",
+            "float64": 0.4659352190387458,
+            "proof": "exact"
+          },
+          "value": {
+            "exact": "1013",
+            "float64": 1013.0,
+            "proof": "exact"
+          },
+          "x1": {
+            "exact": "9347572441643627935053383557731/19807040628566084398385987584",
+            "float64": 471.9318053077745,
+            "proof": "nearest"
+          },
+          "x2": {
+            "exact": "10724857260198740106387969792215/19807040628566084398385987584",
+            "float64": 541.4669188253772,
+            "proof": "nearest"
+          }
+        },
+        {
+          "interpolated": {
+            "exact": "1142611133330410395/1125899906842624",
+            "float64": 1014.842550733173,
+            "proof": "nearest"
+          },
+          "repaired_onto_a_sign_fallback": false,
+          "segment": 14,
+          "stratum": 14,
+          "t": {
+            "exact": "4469712238172217/4503599627370496",
+            "float64": 0.9924754880535274,
+            "proof": "exact"
+          },
+          "u": {
+            "exact": "33887389198279/4503599627370496",
+            "float64": 0.007524511946472634,
+            "proof": "exact"
+          },
+          "value": {
+            "exact": "1015",
+            "float64": 1015.0,
+            "proof": "exact"
+          },
+          "x1": {
+            "exact": "302207969727304772601683323037/39614081257132168796771975168",
+            "float64": 7.628801682050745,
+            "proof": "nearest"
+          },
+          "x2": {
+            "exact": "39899847298211886478434660258213/39614081257132168796771975168",
+            "float64": 1007.2137490511222,
+            "proof": "nearest"
+          }
+        },
+        {
+          "interpolated": {
+            "exact": "17859851543933657/17592186044416",
+            "float64": 1015.2150221036695,
+            "proof": "nearest"
+          },
+          "repaired_onto_a_sign_fallback": false,
+          "segment": 15,
+          "stratum": 15,
+          "t": {
+            "exact": "830259298014295/2251799813685248",
+            "float64": 0.36870919562583593,
+            "proof": "exact"
+          },
+          "u": {
+            "exact": "1421540515670953/2251799813685248",
+            "float64": 0.6312908043741641,
+            "proof": "exact"
+          },
+          "value": {
+            "exact": "1015",
+            "float64": 1015.0,
+            "proof": "exact"
+          },
+          "x1": {
+            "exact": "12689687049447818634573572792917/19807040628566084398385987584",
+            "float64": 640.6654728191204,
+            "proof": "nearest"
+          },
+          "x2": {
+            "exact": "7418718140090180618022492383625/19807040628566084398385987584",
+            "float64": 374.5495492845492,
+            "proof": "nearest"
+          }
+        },
+        {
+          "interpolated": {
+            "exact": "17883661070595517/17592186044416",
+            "float64": 1016.5684370005872,
+            "proof": "nearest"
+          },
+          "repaired_onto_a_sign_fallback": false,
+          "segment": 16,
+          "stratum": 16,
+          "t": {
+            "exact": "6627451726075823/9007199254740992",
+            "float64": 0.7357949500881115,
+            "proof": "exact"
+          },
+          "u": {
+            "exact": "2379747528665169/9007199254740992",
+            "float64": 0.26420504991188853,
+            "proof": "exact"
+          },
+          "value": {
+            "exact": "1017",
+            "float64": 1017.0,
+            "proof": "exact"
+          },
+          "x1": {
+            "exact": "21264051124711519627583180256975/79228162514264337593543950336",
+            "float64": 268.39005790249286,
+            "proof": "nearest"
+          },
+          "x2": {
+            "exact": "59276798208842696478625744234303/79228162514264337593543950336",
+            "float64": 748.1783790980944,
+            "proof": "nearest"
+          }
+        },
+        {
+          "interpolated": {
+            "exact": "286218066308454535/281474976710656",
+            "float64": 1016.8508392938752,
+            "proof": "nearest"
+          },
+          "repaired_onto_a_sign_fallback": false,
+          "segment": 17,
+          "stratum": 17,
+          "t": {
+            "exact": "189599668951703/9007199254740992",
+            "float64": 0.02104979179314881,
+            "proof": "exact"
+          },
+          "u": {
+            "exact": "8817599585789289/9007199254740992",
+            "float64": 0.9789502082068512,
+            "proof": "exact"
+          },
+          "value": {
+            "exact": "1017",
+            "float64": 1017.0,
+            "proof": "exact"
+          },
+          "x1": {
+            "exact": "78865768161949308092527490467929/79228162514264337593543950336",
+            "float64": 995.4259402109725,
+            "proof": "nearest"
+          },
+          "x2": {
+            "exact": "1697455386391929791804523611141/79228162514264337593543950336",
+            "float64": 21.424899082902723,
+            "proof": "nearest"
+          }
+        },
+        {
+          "interpolated": {
+            "exact": "17918705801402639/17592186044416",
+            "float64": 1018.5604993127208,
+            "proof": "nearest"
+          },
+          "repaired_onto_a_sign_fallback": false,
+          "segment": 18,
+          "stratum": 18,
+          "t": {
+            "exact": "6737196825934033/9007199254740992",
+            "float64": 0.7479791037583486,
+            "proof": "exact"
+          },
+          "u": {
+            "exact": "2270002428806959/9007199254740992",
+            "float64": 0.25202089624165136,
+            "proof": "exact"
+          },
+          "value": {
+            "exact": "1019",
+            "float64": 1019.0,
+            "proof": "exact"
+          },
+          "x1": {
+            "exact": "20322967182409342888452365415373/79228162514264337593543950336",
+            "float64": 256.5119086126776,
+            "proof": "nearest"
+          },
+          "x2": {
+            "exact": "15093927396937281199216527056789/19807040628566084398385987584",
+            "float64": 762.0485907000432,
+            "proof": "nearest"
+          }
+        },
+        {
+          "interpolated": {
+            "exact": "4483505065097661/4398046511104",
+            "float64": 1019.4310255196026,
+            "proof": "nearest"
+          },
+          "repaired_onto_a_sign_fallback": false,
+          "segment": 19,
+          "stratum": 19,
+          "t": {
+            "exact": "5650202623575725/9007199254740992",
+            "float64": 0.6272985046491236,
+            "proof": "exact"
+          },
+          "u": {
+            "exact": "3356996631165267/9007199254740992",
+            "float64": 0.3727014953508764,
+            "proof": "exact"
+          },
+          "value": {
+            "exact": "1019",
+            "float64": 1019.0,
+            "proof": "exact"
+          },
+          "x1": {
+            "exact": "7520971218700701310275654990111/19807040628566084398385987584",
+            "float64": 379.71201047842635,
+            "proof": "nearest"
+          },
+          "x2": {
+            "exact": "25341881043573711741474093222775/39614081257132168796771975168",
+            "float64": 639.7190150411762,
+            "proof": "nearest"
+          }
+        },
+        {
+          "interpolated": {
+            "exact": "143654765628406045/140737488355328",
+            "float64": 1020.7285017458364,
+            "proof": "nearest"
+          },
+          "repaired_onto_a_sign_fallback": false,
+          "segment": 20,
+          "stratum": 20,
+          "t": {
+            "exact": "8447677003154879/9007199254740992",
+            "float64": 0.9378805513498988,
+            "proof": "exact"
+          },
+          "u": {
+            "exact": "559522251586113/9007199254740992",
+            "float64": 0.06211944865010122,
+            "proof": "exact"
+          },
+          "value": {
+            "exact": "1021",
+            "float64": 1021.0,
+            "proof": "exact"
+          },
+          "x1": {
+            "exact": "2509528823225531202397609070067/39614081257132168796771975168",
+            "float64": 63.34941373337322,
+            "proof": "nearest"
+          },
+          "x2": {
+            "exact": "9481423246601201323726179151977/9903520314283042199192993792",
+            "float64": 957.3790880124632,
+            "proof": "nearest"
+          }
+        },
+        {
+          "interpolated": {
+            "exact": "8986575750810163/8796093022208",
+            "float64": 1021.6553790553647,
+            "proof": "nearest"
+          },
+          "repaired_onto_a_sign_fallback": false,
+          "segment": 21,
+          "stratum": 21,
+          "t": {
+            "exact": "3936687667954563/4503599627370496",
+            "float64": 0.8741202579442138,
+            "proof": "exact"
+          },
+          "u": {
+            "exact": "566911959415933/4503599627370496",
+            "float64": 0.12587974205578623,
+            "proof": "exact"
+          },
+          "value": {
+            "exact": "1022",
+            "float64": 1022.0,
+            "proof": "exact"
+          },
+          "x1": {
+            "exact": "636285244899285447617488937979/4951760157141521099596496896",
+            "float64": 128.496781893126,
+            "proof": "nearest"
+          },
+          "x2": {
+            "exact": "17690828621745551110197928350735/19807040628566084398385987584",
+            "float64": 893.1585971622387,
+            "proof": "nearest"
+          }
+        },
+        {
+          "interpolated": {
+            "exact": "8992999491952925/8796093022208",
+            "float64": 1022.3856738722276,
+            "proof": "nearest"
+          },
+          "repaired_onto_a_sign_fallback": false,
+          "segment": 22,
+          "stratum": 22,
+          "t": {
+            "exact": "1377632639026491/2251799813685248",
+            "float64": 0.6117917901289309,
+            "proof": "exact"
+          },
+          "u": {
+            "exact": "874167174658757/2251799813685248",
+            "float64": 0.3882082098710691,
+            "proof": "exact"
+          },
+          "value": {
+            "exact": "1022",
+            "float64": 1022.0,
+            "proof": "exact"
+          },
+          "x1": {
+            "exact": "3928363888131059530485091704665/9903520314283042199192993792",
+            "float64": 396.66338468206095,
+            "proof": "nearest"
+          },
+          "x2": {
+            "exact": "3098426701047252016559749625229/4951760157141521099596496896",
+            "float64": 625.7222891901666,
+            "proof": "nearest"
+          }
+        },
+        {
+          "interpolated": {
+            "exact": "18001621875982395/17592186044416",
+            "float64": 1023.2737324703519,
+            "proof": "nearest"
+          },
+          "repaired_onto_a_sign_fallback": false,
+          "segment": 23,
+          "stratum": 23,
+          "t": {
+            "exact": "2291524611889709/4503599627370496",
+            "float64": 0.5088206771230361,
+            "proof": "exact"
+          },
+          "u": {
+            "exact": "2212075015480787/4503599627370496",
+            "float64": 0.49117932287696386,
+            "proof": "exact"
+          },
+          "value": {
+            "exact": "1023",
+            "float64": 1023.0,
+            "proof": "exact"
+          },
+          "x1": {
+            "exact": "4975166890302884768154494803253/9903520314283042199192993792",
+            "float64": 502.3634760588723,
+            "proof": "nearest"
+          },
+          "x2": {
+            "exact": "10317690612578950512721714111179/19807040628566084398385987584",
+            "float64": 520.9102564114795,
+            "proof": "nearest"
+          }
+        },
+        {
+          "interpolated": {
+            "exact": "18013684426923531/17592186044416",
+            "float64": 1023.9594091060287,
+            "proof": "nearest"
+          },
+          "repaired_onto_a_sign_fallback": false,
+          "segment": 24,
+          "stratum": 24,
+          "t": {
+            "exact": "1814260152737069/9007199254740992",
+            "float64": 0.20142333942286472,
+            "proof": "exact"
+          },
+          "u": {
+            "exact": "7192939102003923/9007199254740992",
+            "float64": 0.7985766605771353,
+            "proof": "exact"
+          },
+          "value": {
+            "exact": "1024",
+            "float64": 1024.0,
+            "proof": "exact"
+          },
+          "x1": {
+            "exact": "32386525488110220998997185321013/39614081257132168796771975168",
+            "float64": 817.550842032448,
+            "proof": "nearest"
+          },
+          "x2": {
+            "exact": "7436652366069245831/36028797018963968",
+            "float64": 206.40856707358063,
+            "proof": "nearest"
+          }
+        },
+        {
+          "interpolated": {
+            "exact": "18036569766290319/17592186044416",
+            "float64": 1025.2602900374268,
+            "proof": "nearest"
+          },
+          "repaired_onto_a_sign_fallback": false,
+          "segment": 25,
+          "stratum": 25,
+          "t": {
+            "exact": "4642711156375041/9007199254740992",
+            "float64": 0.5154444822491656,
+            "proof": "exact"
+          },
+          "u": {
+            "exact": "4364488098365951/9007199254740992",
+            "float64": 0.4845555177508344,
+            "proof": "exact"
+          },
+          "value": {
+            "exact": "1025",
+            "float64": 1025.0,
+            "proof": "exact"
+          },
+          "x1": {
+            "exact": "17890036715202033149/36028797018963968",
+            "float64": 496.54826681516755,
+            "proof": "nearest"
+          },
+          "x2": {
+            "exact": "20944441049549323845612243667497/39614081257132168796771975168",
+            "float64": 528.7120232222592,
+            "proof": "nearest"
+          }
+        },
+        {
+          "interpolated": {
+            "exact": "288724007048388809/281474976710656",
+            "float64": 1025.7537292389031,
+            "proof": "nearest"
+          },
+          "repaired_onto_a_sign_fallback": false,
+          "segment": 26,
+          "stratum": 26,
+          "t": {
+            "exact": "1951735959861/140737488355328",
+            "float64": 0.01386791808401,
+            "proof": "exact"
+          },
+          "u": {
+            "exact": "138785752395467/140737488355328",
+            "float64": 0.98613208191599,
+            "proof": "exact"
+          },
+          "value": {
+            "exact": "1026",
+            "float64": 1026.0,
+            "proof": "exact"
+          },
+          "x1": {
+            "exact": "626097534750317168776427729539/618970019642690137449562112",
+            "float64": 1011.5151217045076,
+            "proof": "nearest"
+          },
+          "x2": {
+            "exact": "4406635592624696388706766205/309485009821345068724781056",
+            "float64": 14.238607534395587,
+            "proof": "nearest"
+          }
+        },
+        {
+          "interpolated": {
+            "exact": "18072790558534597/17592186044416",
+            "float64": 1027.3192037024385,
+            "proof": "nearest"
+          },
+          "repaired_onto_a_sign_fallback": false,
+          "segment": 27,
+          "stratum": 27,
+          "t": {
+            "exact": "5360681969186711/9007199254740992",
+            "float64": 0.595155254988401,
+            "proof": "exact"
+          },
+          "u": {
+            "exact": "3646517285554281/9007199254740992",
+            "float64": 0.40484474501159895,
+            "proof": "exact"
+          },
+          "value": {
+            "exact": "1027",
+            "float64": 1027.0,
+            "proof": "exact"
+          },
+          "x1": {
+            "exact": "8233118203544854352381069956305/19807040628566084398385987584",
+            "float64": 415.666245045759,
+            "proof": "nearest"
+          },
+          "x2": {
+            "exact": "24230070005391006436349220929933/39614081257132168796771975168",
+            "float64": 611.6529586566795,
+            "proof": "nearest"
+          }
+        },
+        {
+          "interpolated": {
+            "exact": "36162358825234147/35184372088832",
+            "float64": 1027.7960548488109,
+            "proof": "nearest"
+          },
+          "repaired_onto_a_sign_fallback": false,
+          "segment": 28,
+          "stratum": 28,
+          "t": {
+            "exact": "345980392691357/4503599627370496",
+            "float64": 0.07682307960695955,
+            "proof": "exact"
+          },
+          "u": {
+            "exact": "4157619234679139/4503599627370496",
+            "float64": 0.9231769203930404,
+            "proof": "exact"
+          },
+          "value": {
+            "exact": "1028",
+            "float64": 1028.0,
+            "proof": "exact"
+          },
+          "x1": {
+            "exact": "18792274134352213287935030697617/19807040628566084398385987584",
+            "float64": 948.7673846263356,
+            "proof": "nearest"
+          },
+          "x2": {
+            "exact": "391331020479530068153696832293/4951760157141521099596496896",
+            "float64": 79.02867022247537,
+            "proof": "nearest"
+          }
+        },
+        {
+          "interpolated": {
+            "exact": "36226949695897271/35184372088832",
+            "float64": 1029.631837806655,
+            "proof": "nearest"
+          },
+          "repaired_onto_a_sign_fallback": false,
+          "segment": 29,
+          "stratum": 29,
+          "t": {
+            "exact": "4193523638936727/4503599627370496",
+            "float64": 0.9311492996514852,
+            "proof": "exact"
+          },
+          "u": {
+            "exact": "310075988433769/4503599627370496",
+            "float64": 0.06885070034851482,
+            "proof": "exact"
+          },
+          "value": {
+            "exact": "1030",
+            "float64": 1030.0,
+            "proof": "exact"
+          },
+          "x1": {
+            "exact": "350720316940715064920986083281/4951760157141521099596496896",
+            "float64": 70.82740395552068,
+            "proof": "nearest"
+          },
+          "x2": {
+            "exact": "18991078376138720554263244218603/19807040628566084398385987584",
+            "float64": 958.8044338511344,
+            "proof": "nearest"
+          }
+        },
+        {
+          "interpolated": {
+            "exact": "18116388585507311/17592186044416",
+            "float64": 1029.7974646111534,
+            "proof": "nearest"
+          },
+          "repaired_onto_a_sign_fallback": false,
+          "segment": 30,
+          "stratum": 30,
+          "t": {
+            "exact": "221687669935199/2251799813685248",
+            "float64": 0.098449102175024,
+            "proof": "exact"
+          },
+          "u": {
+            "exact": "2030112143750049/2251799813685248",
+            "float64": 0.901550897824976,
+            "proof": "exact"
+          },
+          "value": {
+            "exact": "1030",
+            "float64": 1030.0,
+            "proof": "exact"
+          },
+          "x1": {
+            "exact": "9193704901609567553668800455661/9903520314283042199192993792",
+            "float64": 928.3269594903778,
+            "proof": "nearest"
+          },
+          "x2": {
+            "exact": "502457604382080801186325798309/4951760157141521099596496896",
+            "float64": 101.4705051207755,
+            "proof": "nearest"
+          }
+        },
+        {
+          "interpolated": {
+            "exact": "36296107908863327/35184372088832",
+            "float64": 1031.5974324403023,
+            "proof": "nearest"
+          },
+          "repaired_onto_a_sign_fallback": false,
+          "segment": 31,
+          "stratum": 31,
+          "t": {
+            "exact": "8255984646483321/9007199254740992",
+            "float64": 0.9165984245477566,
+            "proof": "exact"
+          },
+          "u": {
+            "exact": "751214608257671/9007199254740992",
+            "float64": 0.08340157545224336,
+            "proof": "exact"
+          },
+          "value": {
+            "exact": "1032",
+            "float64": 1032.0,
+            "proof": "exact"
+          },
+          "x1": {
+            "exact": "1702636382764567848567191728861/19807040628566084398385987584",
+            "float64": 85.96116980287272,
+            "proof": "nearest"
+          },
+          "x2": {
+            "exact": "37460511747809914071117238148775/39614081257132168796771975168",
+            "float64": 945.6362626374296,
+            "proof": "nearest"
+          }
+        },
+        {
+          "interpolated": {
+            "exact": "18159747210454739/17592186044416",
+            "float64": 1032.2621170902687,
+            "proof": "nearest"
+          },
+          "repaired_onto_a_sign_fallback": false,
+          "segment": 32,
+          "stratum": 32,
+          "t": {
+            "exact": "5296206688524829/9007199254740992",
+            "float64": 0.587997060877402,
+            "proof": "exact"
+          },
+          "u": {
+            "exact": "3710992566216163/9007199254740992",
+            "float64": 0.412002939122598,
+            "proof": "exact"
+          },
+          "value": {
+            "exact": "1032",
+            "float64": 1032.0,
+            "proof": "exact"
+          },
+          "x1": {
+            "exact": "16838170923923686871986823251325/39614081257132168796771975168",
+            "float64": 425.05519223400194,
+            "proof": "nearest"
+          },
+          "x2": {
+            "exact": "3006743057643687317076589484709/4951760157141521099596496896",
+            "float64": 607.2069248562667,
+            "proof": "nearest"
+          }
+        },
+        {
+          "interpolated": {
+            "exact": "18180442302704789/17592186044416",
+            "float64": 1033.4384968874012,
+            "proof": "nearest"
+          },
+          "repaired_onto_a_sign_fallback": false,
+          "segment": 33,
+          "stratum": 33,
+          "t": {
+            "exact": "6991923829768869/9007199254740992",
+            "float64": 0.7762594822234702,
+            "proof": "exact"
+          },
+          "u": {
+            "exact": "2015275424972123/9007199254740992",
+            "float64": 0.2237405177765298,
+            "proof": "exact"
+          },
+          "value": {
+            "exact": "1033",
+            "float64": 1033.0,
+            "proof": "exact"
+          },
+          "x1": {
+            "exact": "1144104780956464649248617121683/4951760157141521099596496896",
+            "float64": 231.05012049228907,
+            "proof": "nearest"
+          },
+          "x2": {
+            "exact": "31785878342294328412751253732309/39614081257132168796771975168",
+            "float64": 802.3883763951122,
+            "proof": "nearest"
+          }
+        },
+        {
+          "interpolated": {
+            "exact": "36397097843804089/35184372088832",
+            "float64": 1034.467739026584,
+            "proof": "nearest"
+          },
+          "repaired_onto_a_sign_fallback": false,
+          "segment": 34,
+          "stratum": 34,
+          "t": {
+            "exact": "7348955917446971/9007199254740992",
+            "float64": 0.8158980066504918,
+            "proof": "exact"
+          },
+          "u": {
+            "exact": "1658243337294021/9007199254740992",
+            "float64": 0.18410199334950816,
+            "proof": "exact"
+          },
+          "value": {
+            "exact": "1034",
+            "float64": 1034.0,
+            "proof": "exact"
+          },
+          "x1": {
+            "exact": "7538514758518225387198668756981/39614081257132168796771975168",
+            "float64": 190.29886644565264,
+            "proof": "nearest"
+          },
+          "x2": {
+            "exact": "16720487156581335323304803669567/19807040628566084398385987584",
+            "float64": 844.1688725809314,
+            "proof": "nearest"
+          }
+        },
+        {
+          "interpolated": {
+            "exact": "18214174466782195/17592186044416",
+            "float64": 1035.3559484191348,
+            "proof": "nearest"
+          },
+          "repaired_onto_a_sign_fallback": false,
+          "segment": 35,
+          "stratum": 35,
+          "t": {
+            "exact": "1605711635029091/2251799813685248",
+            "float64": 0.7130792112471211,
+            "proof": "exact"
+          },
+          "u": {
+            "exact": "646088178656157/2251799813685248",
+            "float64": 0.28692078875287885,
+            "proof": "exact"
+          },
+          "value": {
+            "exact": "1035",
+            "float64": 1035.0,
+            "proof": "exact"
+          },
+          "x1": {
+            "exact": "1469992365526698311997800341689/4951760157141521099596496896",
+            "float64": 296.86259408316613,
+            "proof": "nearest"
+          },
+          "x2": {
+            "exact": "7313683936629289957483254799977/9903520314283042199192993792",
+            "float64": 738.4933543359687,
+            "proof": "nearest"
+          }
+        },
+        {
+          "interpolated": {
+            "exact": "36467097185175721/35184372088832",
+            "float64": 1036.4572399673682,
+            "proof": "nearest"
+          },
+          "repaired_onto_a_sign_fallback": false,
+          "segment": 36,
+          "stratum": 36,
+          "t": {
+            "exact": "7435397196992663/9007199254740992",
+            "float64": 0.8254949165334605,
+            "proof": "exact"
+          },
+          "u": {
+            "exact": "1571802057748329/9007199254740992",
+            "float64": 0.17450508346653948,
+            "proof": "exact"
+          },
+          "value": {
+            "exact": "1036",
+            "float64": 1036.0,
+            "proof": "exact"
+          },
+          "x1": {
+            "exact": "7159232835170026121052271712763/39614081257132168796771975168",
+            "float64": 180.72444464128696,
+            "proof": "nearest"
+          },
+          "x2": {
+            "exact": "8474767122110058603575842571405/9903520314283042199192993792",
+            "float64": 855.7327953260813,
+            "proof": "nearest"
+          }
+        },
+        {
+          "interpolated": {
+            "exact": "18248866996584263/17592186044416",
+            "float64": 1037.3279904220149,
+            "proof": "nearest"
+          },
+          "repaired_onto_a_sign_fallback": false,
+          "segment": 37,
+          "stratum": 37,
+          "t": {
+            "exact": "793805405175273/1125899906842624",
+            "float64": 0.7050408303179916,
+            "proof": "exact"
+          },
+          "u": {
+            "exact": "332094501667351/1125899906842624",
+            "float64": 0.2949591696820084,
+            "proof": "exact"
+          },
+          "value": {
+            "exact": "1037",
+            "float64": 1037.0,
+            "proof": "exact"
+          },
+          "x1": {
+            "exact": "378516908996108264168076348685/1237940039285380274899124224",
+            "float64": 305.7635240674604,
+            "proof": "nearest"
+          },
+          "x2": {
+            "exact": "905632944218745269909801405709/1237940039285380274899124224",
+            "float64": 731.5644663545544,
+            "proof": "nearest"
+          }
+        },
+        {
+          "interpolated": {
+            "exact": "36514356599495213/35184372088832",
+            "float64": 1037.800433309008,
+            "proof": "nearest"
+          },
+          "repaired_onto_a_sign_fallback": false,
+          "segment": 38,
+          "stratum": 38,
+          "t": {
+            "exact": "1641614915582905/9007199254740992",
+            "float64": 0.18225586768482238,
+            "proof": "exact"
+          },
+          "u": {
+            "exact": "7365584339158087/9007199254740992",
+            "float64": 0.8177441323151776,
+            "proof": "exact"
+          },
+          "value": {
+            "exact": "1038",
+            "float64": 1038.0,
+            "proof": "exact"
+          },
+          "x1": {
+            "exact": "8403212912729364961527133939171/9903520314283042199192993792",
+            "float64": 848.5076665728745,
+            "proof": "nearest"
+          },
+          "x2": {
+            "exact": "7498659042872552008996493391125/39614081257132168796771975168",
+            "float64": 189.29276673613336,
+            "proof": "nearest"
+          }
+        },
+        {
+          "interpolated": {
+            "exact": "571150491024853/549755813888",
+            "float64": 1038.9166910042204,
+            "proof": "nearest"
+          },
+          "repaired_onto_a_sign_fallback": false,
+          "segment": 39,
+          "stratum": 39,
+          "t": {
+            "exact": "348791285940719/1125899906842624",
+            "float64": 0.3097888931520023,
+            "proof": "exact"
+          },
+          "u": {
+            "exact": "777108620901905/1125899906842624",
+            "float64": 0.6902111068479977,
+            "proof": "exact"
+          },
+          "value": {
+            "exact": "1039",
+            "float64": 1039.0,
+            "proof": "exact"
+          },
+          "x1": {
+            "exact": "3549719567058842498037992666125/4951760157141521099596496896",
+            "float64": 716.8601576833988,
+            "proof": "nearest"
+          },
+          "x2": {
+            "exact": "797373355022582478022845726621/2475880078570760549798248448",
+            "float64": 322.0565333208216,
+            "proof": "nearest"
+          }
+        },
+        {
+          "interpolated": {
+            "exact": "146314753033660399/140737488355328",
+            "float64": 1039.6288490260047,
+            "proof": "nearest"
+          },
+          "repaired_onto_a_sign_fallback": false,
+          "segment": 40,
+          "stratum": 40,
+          "t": {
+            "exact": "131236831076115/4503599627370496",
+            "float64": 0.029140430307909027,
+            "proof": "exact"
+          },
+          "u": {
+            "exact": "4372362796294381/4503599627370496",
+            "float64": 0.970859569692091,
+            "proof": "exact"
+          },
+          "value": {
+            "exact": "1040",
+            "float64": 1040.0,
+            "proof": "exact"
+          },
+          "x1": {
+            "exact": "9995678598603878983884126324279/9903520314283042199192993792",
+            "float64": 1009.3056086518977,
+            "proof": "nearest"
+          },
+          "x2": {
+            "exact": "600613654079713802659242852765/19807040628566084398385987584",
+            "float64": 30.32324037410705,
+            "proof": "nearest"
+          }
+        },
+        {
+          "interpolated": {
+            "exact": "36620605755392297/35184372088832",
+            "float64": 1040.8202159451405,
+            "proof": "nearest"
+          },
+          "repaired_onto_a_sign_fallback": false,
+          "segment": 41,
+          "stratum": 41,
+          "t": {
+            "exact": "1047273176515377/4503599627370496",
+            "float64": 0.23254135872793946,
+            "proof": "exact"
+          },
+          "u": {
+            "exact": "3456326450855119/4503599627370496",
+            "float64": 0.7674586412720605,
+            "proof": "exact"
+          },
+          "value": {
+            "exact": "1041",
+            "float64": 1041.0,
+            "proof": "exact"
+          },
+          "x1": {
+            "exact": "15818096507804786570415212680609/19807040628566084398385987584",
+            "float64": 798.6097875212934,
+            "proof": "nearest"
+          },
+          "x2": {
+            "exact": "599683974556692301135718752551/2475880078570760549798248448",
+            "float64": 242.21042842384716,
+            "proof": "nearest"
+          }
+        },
+        {
+          "interpolated": {
+            "exact": "18337366084432879/17592186044416",
+            "float64": 1042.3585811413932,
+            "proof": "nearest"
+          },
+          "repaired_onto_a_sign_fallback": false,
+          "segment": 42,
+          "stratum": 42,
+          "t": {
+            "exact": "1770918049624363/2251799813685248",
+            "float64": 0.7864455973668973,
+            "proof": "exact"
+          },
+          "u": {
+            "exact": "480881764060885/2251799813685248",
+            "float64": 0.21355440263310266,
+            "proof": "exact"
+          },
+          "value": {
+            "exact": "1042",
+            "float64": 1042.0,
+            "proof": "exact"
+          },
+          "x1": {
+            "exact": "275359948130621161425156854755/1237940039285380274899124224",
+            "float64": 222.43399469458706,
+            "proof": "nearest"
+          },
+          "x2": {
+            "exact": "8120139798056066667424574584011/9903520314283042199192993792",
+            "float64": 819.9245864468061,
+            "proof": "nearest"
+          }
+        },
+        {
+          "interpolated": {
+            "exact": "9177280097410979/8796093022208",
+            "float64": 1043.3359531601786,
+            "proof": "nearest"
+          },
+          "repaired_onto_a_sign_fallback": false,
+          "segment": 43,
+          "stratum": 43,
+          "t": {
+            "exact": "3484390269458265/4503599627370496",
+            "float64": 0.7736900607864838,
+            "proof": "exact"
+          },
+          "u": {
+            "exact": "1019209357912231/4503599627370496",
+            "float64": 0.22630993921351616,
+            "proof": "exact"
+          },
+          "value": {
+            "exact": "1043",
+            "float64": 1043.0,
+            "proof": "exact"
+          },
+          "x1": {
+            "exact": "4673351469589324323707436536007/19807040628566084398385987584",
+            "float64": 235.94395332583554,
+            "proof": "nearest"
+          },
+          "x2": {
+            "exact": "7996023071949026829114315428925/9903520314283042199192993792",
+            "float64": 807.391999834343,
+            "proof": "nearest"
+          }
+        },
+        {
+          "interpolated": {
+            "exact": "36722278519416859/35184372088832",
+            "float64": 1043.7099297012326,
+            "proof": "nearest"
+          },
+          "repaired_onto_a_sign_fallback": false,
+          "segment": 44,
+          "stratum": 44,
+          "t": {
+            "exact": "682043784447721/4503599627370496",
+            "float64": 0.15144414265926742,
+            "proof": "exact"
+          },
+          "u": {
+            "exact": "3821555842922775/4503599627370496",
+            "float64": 0.8485558573407326,
+            "proof": "exact"
+          },
+          "value": {
+            "exact": "1044",
+            "float64": 1044.0,
+            "proof": "exact"
+          },
+          "x1": {
+            "exact": "8769754914825601086877492069875/9903520314283042199192993792",
+            "float64": 885.5189504864949,
+            "proof": "nearest"
+          },
+          "x2": {
+            "exact": "3133295152378964170722476526443/19807040628566084398385987584",
+            "float64": 158.19097921473778,
+            "proof": "nearest"
+          }
+        },
+        {
+          "interpolated": {
+            "exact": "36780558383941479/35184372088832",
+            "float64": 1045.3663430763947,
+            "proof": "nearest"
+          },
+          "repaired_onto_a_sign_fallback": false,
+          "segment": 45,
+          "stratum": 45,
+          "t": {
+            "exact": "7427237120521047/9007199254740992",
+            "float64": 0.8245889660553115,
+            "proof": "exact"
+          },
+          "u": {
+            "exact": "1579962134219945/9007199254740992",
+            "float64": 0.1754110339446885,
+            "proof": "exact"
+          },
+          "value": {
+            "exact": "1045",
+            "float64": 1045.0,
+            "proof": "exact"
+          },
+          "x1": {
+            "exact": "7258313628797732102746157707435/39614081257132168796771975168",
+            "float64": 183.22559550692435,
+            "proof": "nearest"
+          },
+          "x2": {
+            "exact": "8538228407325418130598346130193/9903520314283042199192993792",
+            "float64": 862.1407475694704,
+            "proof": "nearest"
+          }
+        },
+        {
+          "interpolated": {
+            "exact": "18396694115016717/17592186044416",
+            "float64": 1045.730989234057,
+            "proof": "nearest"
+          },
+          "repaired_onto_a_sign_fallback": false,
+          "segment": 46,
+          "stratum": 46,
+          "t": {
+            "exact": "868827316496081/4503599627370496",
+            "float64": 0.19291841823944744,
+            "proof": "exact"
+          },
+          "u": {
+            "exact": "3634772310874415/4503599627370496",
+            "float64": 0.8070815817605526,
+            "proof": "exact"
+          },
+          "value": {
+            "exact": "1046",
+            "float64": 1046.0,
+            "proof": "exact"
+          },
+          "x1": {
+            "exact": "4178473865217138065603120747385/4951760157141521099596496896",
+            "float64": 843.8360769939281,
+            "proof": "nearest"
+          },
+          "x2": {
+            "exact": "3998940729441017699083012343189/19807040628566084398385987584",
+            "float64": 201.89491224012892,
+            "proof": "nearest"
+          }
+        },
+        {
+          "interpolated": {
+            "exact": "18421713863903753/17592186044416",
+            "float64": 1047.153197299835,
+            "proof": "nearest"
+          },
+          "repaired_onto_a_sign_fallback": false,
+          "segment": 47,
+          "stratum": 47,
+          "t": {
+            "exact": "5669961873364813/9007199254740992",
+            "float64": 0.6294922220556401,
+            "proof": "exact"
+          },
+          "u": {
+            "exact": "3337237381376179/9007199254740992",
+            "float64": 0.37050777794435985,
+            "proof": "exact"
+          },
+          "value": {
+            "exact": "1047",
+            "float64": 1047.0,
+            "proof": "exact"
+          },
+          "x1": {
+            "exact": "15360261164461771257195913098751/39614081257132168796771975168",
+            "float64": 387.7475048521109,
+            "proof": "nearest"
+          },
+          "x2": {
+            "exact": "13060875341019824433573638674603/19807040628566084398385987584",
+            "float64": 659.4056924477242,
+            "proof": "nearest"
+          }
+        },
+        {
+          "interpolated": {
+            "exact": "147560044256918293/140737488355328",
+            "float64": 1048.477175351922,
+            "proof": "nearest"
+          },
+          "repaired_onto_a_sign_fallback": false,
+          "segment": 48,
+          "stratum": 48,
+          "t": {
+            "exact": "2177138665779481/2251799813685248",
+            "float64": 0.9668437898200293,
+            "proof": "exact"
+          },
+          "u": {
+            "exact": "74661147905767/2251799813685248",
+            "float64": 0.033156210179970724,
+            "proof": "exact"
+          },
+          "value": {
+            "exact": "1048",
+            "float64": 1048.0,
+            "proof": "exact"
+          },
+          "x1": {
+            "exact": "171983510188221735976467077377/4951760157141521099596496896",
+            "float64": 34.73179328772293,
+            "proof": "nearest"
+          },
+          "x2": {
+            "exact": "10039647984783417652776667277055/9903520314283042199192993792",
+            "float64": 1013.7453820641989,
+            "proof": "nearest"
+          }
+        },
+        {
+          "interpolated": {
+            "exact": "36898778957078435/35184372088832",
+            "float64": 1048.726373854789,
+            "proof": "nearest"
+          },
+          "repaired_onto_a_sign_fallback": false,
+          "segment": 49,
+          "stratum": 49,
+          "t": {
+            "exact": "492152127172325/2251799813685248",
+            "float64": 0.21855944928198534,
+            "proof": "exact"
+          },
+          "u": {
+            "exact": "1759647686512923/2251799813685248",
+            "float64": 0.7814405507180147,
+            "proof": "exact"
+          },
+          "value": {
+            "exact": "1049",
+            "float64": 1049.0,
+            "proof": "exact"
+          },
+          "x1": {
+            "exact": "8114431858433429176058260475565/9903520314283042199192993792",
+            "float64": 819.3482318333455,
+            "proof": "nearest"
+          },
+          "x2": {
+            "exact": "1033027314934710175/4503599627370496",
+            "float64": 229.3781420214436,
+            "proof": "nearest"
+          }
+        },
+        {
+          "interpolated": {
+            "exact": "18469657867567601/17592186044416",
+            "float64": 1049.8784983819633,
+            "proof": "nearest"
+          },
+          "repaired_onto_a_sign_fallback": false,
+          "segment": 50,
+          "stratum": 50,
+          "t": {
+            "exact": "3443646812060789/9007199254740992",
+            "float64": 0.3823215979426907,
+            "proof": "exact"
+          },
+          "u": {
+            "exact": "5563552442680203/9007199254740992",
+            "float64": 0.6176784020573093,
+            "proof": "exact"
+          },
+          "value": {
+            "exact": "1050",
+            "float64": 1050.0,
+            "proof": "exact"
+          },
+          "x1": {
+            "exact": "11677896577185746097/18014398509481984",
+            "float64": 648.2534829591461,
+            "proof": "nearest"
+          },
+          "x2": {
+            "exact": "15910005995856440038922356226749/39614081257132168796771975168",
+            "float64": 401.62501542281717,
+            "proof": "nearest"
+          }
+        },
+        {
+          "interpolated": {
+            "exact": "9244469841937849/8796093022208",
+            "float64": 1050.9745427427615,
+            "proof": "nearest"
+          },
+          "repaired_onto_a_sign_fallback": false,
+          "segment": 51,
+          "stratum": 51,
+          "t": {
+            "exact": "2204228803784139/4503599627370496",
+            "float64": 0.4894371139006235,
+            "proof": "exact"
+          },
+          "u": {
+            "exact": "2299370823586357/4503599627370496",
+            "float64": 0.5105628860993765,
+            "proof": "exact"
+          },
+          "value": {
+            "exact": "1051",
+            "float64": 1051.0,
+            "proof": "exact"
+          },
+          "x1": {
+            "exact": "10623332062344644063666996147837/19807040628566084398385987584",
+            "float64": 536.341206218534,
+            "proof": "nearest"
+          },
+          "x2": {
+            "exact": "5096681702674949201234551474563/9903520314283042199192993792",
+            "float64": 514.6333365242276,
+            "proof": "nearest"
+          }
+        },
+        {
+          "interpolated": {
+            "exact": "18510289975618273/17592186044416",
+            "float64": 1052.1881663190852,
+            "proof": "nearest"
+          },
+          "repaired_onto_a_sign_fallback": false,
+          "segment": 52,
+          "stratum": 52,
+          "t": {
+            "exact": "6443025395451393/9007199254740992",
+            "float64": 0.7153195142274741,
+            "proof": "exact"
+          },
+          "u": {
+            "exact": "2564173859289599/9007199254740992",
+            "float64": 0.2846804857725259,
+            "proof": "exact"
+          },
+          "value": {
+            "exact": "1052",
+            "float64": 1052.0,
+            "proof": "exact"
+          },
+          "x1": {
+            "exact": "5928957088611994948994598055383/19807040628566084398385987584",
+            "float64": 299.33583718009555,
+            "proof": "nearest"
+          },
+          "x2": {
+            "exact": "29823553341133149200943474636411/39614081257132168796771975168",
+            "float64": 752.8523291389897,
+            "proof": "nearest"
+          }
+        },
+        {
+          "interpolated": {
+            "exact": "9260909073474847/8796093022208",
+            "float64": 1052.8434669907765,
+            "proof": "nearest"
+          },
+          "repaired_onto_a_sign_fallback": false,
+          "segment": 53,
+          "stratum": 53,
+          "t": {
+            "exact": "3397870304030993/9007199254740992",
+            "float64": 0.37723938462252893,
+            "proof": "exact"
+          },
+          "u": {
+            "exact": "5609328950709999/9007199254740992",
+            "float64": 0.6227606153774711,
+            "proof": "exact"
+          },
+          "value": {
+            "exact": "1053",
+            "float64": 1053.0,
+            "proof": "exact"
+          },
+          "x1": {
+            "exact": "25964529223734634360584193628373/39614081257132168796771975168",
+            "float64": 655.436864866327,
+            "proof": "nearest"
+          },
+          "x2": {
+            "exact": "3935724357169682418069788276665/9903520314283042199192993792",
+            "float64": 397.40660212444936,
+            "proof": "nearest"
+          }
+        },
+        {
+          "interpolated": {
+            "exact": "74133084383158085/70368744177664",
+            "float64": 1053.49449175887,
+            "proof": "nearest"
+          },
+          "repaired_onto_a_sign_fallback": false,
+          "segment": 54,
+          "stratum": 54,
+          "t": {
+            "exact": "39226533432953/1125899906842624",
+            "float64": 0.034840160474794324,
+            "proof": "exact"
+          },
+          "u": {
+            "exact": "1086673373409671/1125899906842624",
+            "float64": 0.9651598395252057,
+            "proof": "exact"
+          },
+          "value": {
+            "exact": "1053",
+            "float64": 1053.0,
+            "proof": "exact"
+          },
+          "x1": {
+            "exact": "1258684552774848127153414468255/1237940039285380274899124224",
+            "float64": 1016.7572845462232,
+            "proof": "nearest"
+          },
+          "x2": {
+            "exact": "181913838960236919000332649189/4951760157141521099596496896",
+            "float64": 36.73720721264688,
+            "proof": "nearest"
+          }
+        },
+        {
+          "interpolated": {
+            "exact": "9281565950118407/8796093022208",
+            "float64": 1055.1918819735884,
+            "proof": "nearest"
+          },
+          "repaired_onto_a_sign_fallback": false,
+          "segment": 55,
+          "stratum": 55,
+          "t": {
+            "exact": "1687444131214551/2251799813685248",
+            "float64": 0.7493757308971953,
+            "proof": "exact"
+          },
+          "u": {
+            "exact": "564355682470697/2251799813685248",
+            "float64": 0.25062426910280466,
+            "proof": "exact"
+          },
+          "value": {
+            "exact": "1055",
+            "float64": 1055.0,
+            "proof": "exact"
+          },
+          "x1": {
+            "exact": "2617210845631952441786976738261/9903520314283042199192993792",
+            "float64": 264.2707605554524,
+            "proof": "nearest"
+          },
+          "x2": {
+            "exact": "3916451696480016644326677573453/4951760157141521099596496896",
+            "float64": 790.9211214181358,
+            "proof": "nearest"
+          }
+        },
+        {
+          "interpolated": {
+            "exact": "1161245381121829/1099511627776",
+            "float64": 1056.1465215885883,
+            "proof": "nearest"
+          },
+          "repaired_onto_a_sign_fallback": false,
+          "segment": 56,
+          "stratum": 56,
+          "t": {
+            "exact": "3214030669792841/4503599627370496",
+            "float64": 0.7136581702910851,
+            "proof": "exact"
+          },
+          "u": {
+            "exact": "1289568957577655/4503599627370496",
+            "float64": 0.28634182970891486,
+            "proof": "exact"
+          },
+          "value": {
+            "exact": "1056",
+            "float64": 1056.0,
+            "proof": "exact"
+          },
+          "x1": {
+            "exact": "2993008442891565330091707401965/9903520314283042199192993792",
+            "float64": 302.2166207479771,
+            "proof": "nearest"
+          },
+          "x2": {
+            "exact": "14933120177040783686750290636759/19807040628566084398385987584",
+            "float64": 753.9299008406111,
+            "proof": "nearest"
+          }
+        },
+        {
+          "interpolated": {
+            "exact": "297630355435413335/281474976710656",
+            "float64": 1057.395434981648,
+            "proof": "nearest"
+          },
+          "repaired_onto_a_sign_fallback": false,
+          "segment": 57,
+          "stratum": 57,
+          "t": {
+            "exact": "8783702269899513/9007199254740992",
+            "float64": 0.975186850149469,
+            "proof": "exact"
+          },
+          "u": {
+            "exact": "223496984841479/9007199254740992",
+            "float64": 0.024813149850530958,
+            "proof": "exact"
+          },
+          "value": {
+            "exact": "1057",
+            "float64": 1057.0,
+            "proof": "exact"
+          },
+          "x1": {
+            "exact": "1038418010509895311322717320921/39614081257132168796771975168",
+            "float64": 26.213355896596422,
+            "proof": "nearest"
+          },
+          "x2": {
+            "exact": "5106166333971715675517029754337/4951760157141521099596496896",
+            "float64": 1031.1820790850516,
+            "proof": "nearest"
+          }
+        },
+        {
+          "interpolated": {
+            "exact": "18613959275496493/17592186044416",
+            "float64": 1058.0810837550696,
+            "proof": "nearest"
+          },
+          "repaired_onto_a_sign_fallback": false,
+          "segment": 58,
+          "stratum": 58,
+          "t": {
+            "exact": "6014659703014205/9007199254740992",
+            "float64": 0.6677613687571476,
+            "proof": "exact"
+          },
+          "u": {
+            "exact": "2992539551726787/9007199254740992",
+            "float64": 0.33223863124285236,
+            "proof": "exact"
+          },
+          "value": {
+            "exact": "1058",
+            "float64": 1058.0,
+            "proof": "exact"
+          },
+          "x1": {
+            "exact": "1739631449539208907083042754363/4951760157141521099596496896",
+            "float64": 351.31577344881697,
+            "proof": "nearest"
+          },
+          "x2": {
+            "exact": "27997858432194126045950303794925/39614081257132168796771975168",
+            "float64": 706.7653103062527,
+            "proof": "nearest"
+          }
+        },
+        {
+          "interpolated": {
+            "exact": "18625824586400785/17592186044416",
+            "float64": 1058.755548592716,
+            "proof": "nearest"
+          },
+          "repaired_onto_a_sign_fallback": false,
+          "segment": 59,
+          "stratum": 59,
+          "t": {
+            "exact": "3143863663422205/9007199254740992",
+            "float64": 0.34903898254137256,
+            "proof": "exact"
+          },
+          "u": {
+            "exact": "5863335591318787/9007199254740992",
+            "float64": 0.6509610174586274,
+            "proof": "exact"
+          },
+          "value": {
+            "exact": "1059",
+            "float64": 1059.0,
+            "proof": "exact"
+          },
+          "x1": {
+            "exact": "27293454315282469978806679469395/39614081257132168796771975168",
+            "float64": 688.9836504883859,
+            "proof": "nearest"
+          },
+          "x2": {
+            "exact": "7324087009054464913941892974745/19807040628566084398385987584",
+            "float64": 369.7718981043301,
+            "proof": "nearest"
+          }
+        },
+        {
+          "interpolated": {
+            "exact": "2330336182276261/2199023255552",
+            "float64": 1059.714205565006,
+            "proof": "nearest"
+          },
+          "repaired_onto_a_sign_fallback": false,
+          "segment": 60,
+          "stratum": 60,
+          "t": {
+            "exact": "714674780544693/2251799813685248",
+            "float64": 0.3173793585918596,
+            "proof": "exact"
+          },
+          "u": {
+            "exact": "1537125033140555/2251799813685248",
+            "float64": 0.6826206414081404,
+            "proof": "exact"
+          },
+          "value": {
+            "exact": "1060",
+            "float64": 1060.0,
+            "proof": "exact"
+          },
+          "x1": {
+            "exact": "3580956012024512271650984602895/4951760157141521099596496896",
+            "float64": 723.168307507784,
+            "proof": "nearest"
+          },
+          "x2": {
+            "exact": "3332989138098328409696343956703/9903520314283042199192993792",
+            "float64": 336.5458980572221,
+            "proof": "nearest"
+          }
+        },
+        {
+          "interpolated": {
+            "exact": "9331658868008311/8796093022208",
+            "float64": 1060.88678740074,
+            "proof": "nearest"
+          },
+          "repaired_onto_a_sign_fallback": false,
+          "segment": 61,
+          "stratum": 61,
+          "t": {
+            "exact": "1129965430734689/2251799813685248",
+            "float64": 0.5018054552928537,
+            "proof": "exact"
+          },
+          "u": {
+            "exact": "1121834382950559/2251799813685248",
+            "float64": 0.4981945447071463,
+            "proof": "exact"
+          },
+          "value": {
+            "exact": "1061",
+            "float64": 1061.0,
+            "proof": "exact"
+          },
+          "x1": {
+            "exact": "5231836794730197208882023900189/9903520314283042199192993792",
+            "float64": 528.2805132620109,
+            "proof": "nearest"
+          },
+          "x2": {
+            "exact": "1318669263861876665990851839899/2475880078570760549798248448",
+            "float64": 532.6062741387291,
+            "proof": "nearest"
+          }
+        },
+        {
+          "interpolated": {
+            "exact": "18679648128539005/17592186044416",
+            "float64": 1061.8150627430512,
+            "proof": "nearest"
+          },
+          "repaired_onto_a_sign_fallback": false,
+          "segment": 62,
+          "stratum": 62,
+          "t": {
+            "exact": "1979139805543735/4503599627370496",
+            "float64": 0.4394573162133619,
+            "proof": "exact"
+          },
+          "u": {
+            "exact": "2524459821826761/4503599627370496",
+            "float64": 0.5605426837866381,
+            "proof": "exact"
+          },
+          "value": {
+            "exact": "1062",
+            "float64": 1062.0,
+            "proof": "exact"
+          },
+          "x1": {
+            "exact": "2946043732269537956213118012051/4951760157141521099596496896",
+            "float64": 594.948793717462,
+            "proof": "nearest"
+          },
+          "x2": {
+            "exact": "2311809789674227545411836512915/4951760157141521099596496896",
+            "float64": 466.86626902558925,
+            "proof": "nearest"
+          }
+        },
+        {
+          "interpolated": {
+            "exact": "9352024416497829/8796093022208",
+            "float64": 1063.2020822069794,
+            "proof": "nearest"
+          },
+          "repaired_onto_a_sign_fallback": false,
+          "segment": 63,
+          "stratum": 63,
+          "t": {
+            "exact": "7570434580393981/9007199254740992",
+            "float64": 0.8404870777571883,
+            "proof": "exact"
+          },
+          "u": {
+            "exact": "1436764674347011/9007199254740992",
+            "float64": 0.15951292224281166,
+            "proof": "exact"
+          },
+          "value": {
+            "exact": "1063",
+            "float64": 1063.0,
+            "proof": "exact"
+          },
+          "x1": {
+            "exact": "1678267816305675576724168987279/9903520314283042199192993792",
+            "float64": 169.4617432030958,
+            "proof": "nearest"
+          },
+          "x2": {
+            "exact": "35404702412076700231207131402569/39614081257132168796771975168",
+            "float64": 893.7403390038837,
+            "proof": "nearest"
+          }
+        },
+        {
+          "interpolated": {
+            "exact": "4677137512646001/4398046511104",
+            "float64": 1063.4579468037375,
+            "proof": "nearest"
+          },
+          "repaired_onto_a_sign_fallback": false,
+          "segment": 64,
+          "stratum": 64,
+          "t": {
+            "exact": "445568877590739/4503599627370496",
+            "float64": 0.09893616539152528,
+            "proof": "exact"
+          },
+          "u": {
+            "exact": "4058030749779757/4503599627370496",
+            "float64": 0.9010638346084747,
+            "proof": "exact"
+          },
+          "value": {
+            "exact": "1063",
+            "float64": 1063.0,
+            "proof": "exact"
+          },
+          "x1": {
+            "exact": "18978219750699136882023943665593/19807040628566084398385987584",
+            "float64": 958.1552391692676,
+            "proof": "nearest"
+          },
+          "x2": {
+            "exact": "1042867504206980845120874453769/9903520314283042199192993792",
+            "float64": 105.30270763446993,
+            "proof": "nearest"
+          }
+        },
+        {
+          "interpolated": {
+            "exact": "37452418817732169/35184372088832",
+            "float64": 1064.4617651033789,
+            "proof": "nearest"
+          },
+          "repaired_onto_a_sign_fallback": false,
+          "segment": 65,
+          "stratum": 65,
+          "t": {
+            "exact": "1016859147334653/9007199254740992",
+            "float64": 0.11289404381716361,
+            "proof": "exact"
+          },
+          "u": {
+            "exact": "7990340107406339/9007199254740992",
+            "float64": 0.8871059561828364,
+            "proof": "exact"
+          },
+          "value": {
+            "exact": "1064",
+            "float64": 1064.0,
+            "proof": "exact"
+          },
+          "x1": {
+            "exact": "18701633944078197994181779881369/19807040628566084398385987584",
+            "float64": 944.1912244632018,
+            "proof": "nearest"
+          },
+          "x2": {
+            "exact": "4764406969759191473613450806355/39614081257132168796771975168",
+            "float64": 120.27054064017707,
+            "proof": "nearest"
+          }
+        },
+        {
+          "interpolated": {
+            "exact": "149936023689310743/140737488355328",
+            "float64": 1065.3595246119405,
+            "proof": "nearest"
+          },
+          "repaired_onto_a_sign_fallback": false,
+          "segment": 66,
+          "stratum": 66,
+          "t": {
+            "exact": "177638454666129/9007199254740992",
+            "float64": 0.01972183024291685,
+            "proof": "exact"
+          },
+          "u": {
+            "exact": "8829560800074863/9007199254740992",
+            "float64": 0.9802781697570832,
+            "proof": "exact"
+          },
+          "value": {
+            "exact": "1065",
+            "float64": 1065.0,
+            "proof": "exact"
+          },
+          "x1": {
+            "exact": "41370155469471892979651256008705/39614081257132168796771975168",
+            "float64": 1044.329545369011,
+            "proof": "nearest"
+          },
+          "x2": {
+            "exact": "104135413320651617848255197639/4951760157141521099596496896",
+            "float64": 21.02997924292952,
+            "proof": "nearest"
+          }
+        },
+        {
+          "interpolated": {
+            "exact": "18771553192323743/17592186044416",
+            "float64": 1067.0392607791964,
+            "proof": "nearest"
+          },
+          "repaired_onto_a_sign_fallback": false,
+          "segment": 67,
+          "stratum": 67,
+          "t": {
+            "exact": "3226491495856231/4503599627370496",
+            "float64": 0.7164250294913701,
+            "proof": "exact"
+          },
+          "u": {
+            "exact": "1277108131514265/4503599627370496",
+            "float64": 0.2835749705086299,
+            "proof": "exact"
+          },
+          "value": {
+            "exact": "1067",
+            "float64": 1067.0,
+            "proof": "exact"
+          },
+          "x1": {
+            "exact": "748667755415692744411952319615/2475880078570760549798248448",
+            "float64": 302.3844983024673,
+            "proof": "nearest"
+          },
+          "x2": {
+            "exact": "15145547947203122159737592457351/19807040628566084398385987584",
+            "float64": 764.654762476729,
+            "proof": "nearest"
+          }
+        },
+        {
+          "interpolated": {
+            "exact": "9393960322891463/8796093022208",
+            "float64": 1067.9696427918616,
+            "proof": "nearest"
+          },
+          "repaired_onto_a_sign_fallback": false,
+          "segment": 68,
+          "stratum": 68,
+          "t": {
+            "exact": "2955283874092503/4503599627370496",
+            "float64": 0.6562048402641858,
+            "proof": "exact"
+          },
+          "u": {
+            "exact": "1548315753277993/4503599627370496",
+            "float64": 0.3437951597358142,
+            "proof": "exact"
+          },
+          "value": {
+            "exact": "1068",
+            "float64": 1068.0,
+            "proof": "exact"
+          },
+          "x1": {
+            "exact": "7267984592179651453209660217353/19807040628566084398385987584",
+            "float64": 366.9394498892292,
+            "proof": "nearest"
+          },
+          "x2": {
+            "exact": "6942666756336978652628055438771/9903520314283042199192993792",
+            "float64": 701.0301929026323,
+            "proof": "nearest"
+          }
+        },
+        {
+          "interpolated": {
+            "exact": "18800933029105227/17592186044416",
+            "float64": 1068.7093111474285,
+            "proof": "nearest"
+          },
+          "repaired_onto_a_sign_fallback": false,
+          "segment": 69,
+          "stratum": 69,
+          "t": {
+            "exact": "1816502560367327/4503599627370496",
+            "float64": 0.40334459336207096,
+            "proof": "exact"
+          },
+          "u": {
+            "exact": "2687097067003169/4503599627370496",
+            "float64": 0.596655406637929,
+            "proof": "exact"
+          },
+          "value": {
+            "exact": "1069",
+            "float64": 1069.0,
+            "proof": "exact"
+          },
+          "x1": {
+            "exact": "6312631974775078042640404720933/9903520314283042199192993792",
+            "float64": 637.412937465366,
+            "proof": "nearest"
+          },
+          "x2": {
+            "exact": "8542704796473831185755570855789/19807040628566084398385987584",
+            "float64": 431.29637368206244,
+            "proof": "nearest"
+          }
+        },
+        {
+          "interpolated": {
+            "exact": "9408241291821115/8796093022208",
+            "float64": 1069.5932009890744,
+            "proof": "nearest"
+          },
+          "repaired_onto_a_sign_fallback": false,
+          "segment": 70,
+          "stratum": 70,
+          "t": {
+            "exact": "2667595687150557/9007199254740992",
+            "float64": 0.2961626152265314,
+            "proof": "exact"
+          },
+          "u": {
+            "exact": "6339603567590435/9007199254740992",
+            "float64": 0.7038373847734686,
+            "proof": "exact"
+          },
+          "value": {
+            "exact": "1070",
+            "float64": 1070.0,
+            "proof": "exact"
+          },
+          "x1": {
+            "exact": "29814085036932677209943768855545/39614081257132168796771975168",
+            "float64": 752.61331553827,
+            "proof": "nearest"
+          },
+          "x2": {
+            "exact": "3139216734781152172139632702875/9903520314283042199192993792",
+            "float64": 316.9798854508043,
+            "proof": "nearest"
+          }
+        },
+        {
+          "interpolated": {
+            "exact": "2355269623522417/2199023255552",
+            "float64": 1071.0526219201788,
+            "proof": "nearest"
+          },
+          "repaired_onto_a_sign_fallback": false,
+          "segment": 71,
+          "stratum": 71,
+          "t": {
+            "exact": "6938472314226163/9007199254740992",
+            "float64": 0.770325171897808,
+            "proof": "exact"
+          },
+          "u": {
+            "exact": "2068726940514829/9007199254740992",
+            "float64": 0.22967482810219197,
+            "proof": "exact"
+          },
+          "value": {
+            "exact": "1071",
+            "float64": 1071.0,
+            "proof": "exact"
+          },
+          "x1": {
+            "exact": "2434470209499269513462757328875/9903520314283042199192993792",
+            "float64": 245.81867176949504,
+            "proof": "nearest"
+          },
+          "x2": {
+            "exact": "32690884757413344056271129143359/39614081257132168796771975168",
+            "float64": 825.2339501506838,
+            "proof": "nearest"
+          }
+        },
+        {
+          "interpolated": {
+            "exact": "18859332657276213/17592186044416",
+            "float64": 1072.0289456728672,
+            "proof": "nearest"
+          },
+          "repaired_onto_a_sign_fallback": false,
+          "segment": 72,
+          "stratum": 72,
+          "t": {
+            "exact": "6814043339890735/9007199254740992",
+            "float64": 0.7565107806740395,
+            "proof": "exact"
+          },
+          "u": {
+            "exact": "2193155914850257/9007199254740992",
+            "float64": 0.24348921932596046,
+            "proof": "exact"
+          },
+          "value": {
+            "exact": "1072",
+            "float64": 1072.0,
+            "proof": "exact"
+          },
+          "x1": {
+            "exact": "10333140210188379296220239831701/39614081257132168796771975168",
+            "float64": 260.8451308795149,
+            "proof": "nearest"
+          },
+          "x2": {
+            "exact": "16067150776847156199915917866105/19807040628566084398385987584",
+            "float64": 811.1838147933523,
+            "proof": "nearest"
+          }
+        },
+        {
+          "interpolated": {
+            "exact": "18869782294361581/17592186044416",
+            "float64": 1072.6229387706542,
+            "proof": "nearest"
+          },
+          "repaired_onto_a_sign_fallback": false,
+          "segment": 73,
+          "stratum": 73,
+          "t": {
+            "exact": "100346901262807/281474976710656",
+            "float64": 0.3565038087416177,
+            "proof": "exact"
+          },
+          "u": {
+            "exact": "181128075447849/281474976710656",
+            "float64": 0.6434961912583823,
+            "proof": "exact"
+          },
+          "value": {
+            "exact": "1073",
+            "float64": 1073.0,
+            "proof": "exact"
+          },
+          "x1": {
+            "exact": "427090341663046041934497021807/618970019642690137449562112",
+            "float64": 690.0016610006256,
+            "proof": "nearest"
+          },
+          "x2": {
+            "exact": "473662199634051601032134033553/1237940039285380274899124224",
+            "float64": 382.6212777700286,
+            "proof": "nearest"
+          }
+        },
+        {
+          "interpolated": {
+            "exact": "18887858729043129/17592186044416",
+            "float64": 1073.6504651187674,
+            "proof": "nearest"
+          },
+          "repaired_onto_a_sign_fallback": false,
+          "segment": 74,
+          "stratum": 74,
+          "t": {
+            "exact": "444065293783495/1125899906842624",
+            "float64": 0.39440921087629643,
+            "proof": "exact"
+          },
+          "u": {
+            "exact": "681834613059129/1125899906842624",
+            "float64": 0.6055907891237036,
+            "proof": "exact"
+          },
+          "value": {
+            "exact": "1074",
+            "float64": 1074.0,
+            "proof": "exact"
+          },
+          "x1": {
+            "exact": "3218428058504707229996975725791/4951760157141521099596496896",
+            "float64": 649.9563703349061,
+            "proof": "nearest"
+          },
+          "x2": {
+            "exact": "1908148567387678015/4503599627370496",
+            "float64": 423.69409478386143,
+            "proof": "nearest"
+          }
+        },
+        {
+          "interpolated": {
+            "exact": "37803704682981607/35184372088832",
+            "float64": 1074.4459098925065,
+            "proof": "nearest"
+          },
+          "repaired_onto_a_sign_fallback": false,
+          "segment": 75,
+          "stratum": 75,
+          "t": {
+            "exact": "1782423674526113/9007199254740992",
+            "float64": 0.19788878030958668,
+            "proof": "exact"
+          },
+          "u": {
+            "exact": "7224775580214879/9007199254740992",
+            "float64": 0.8021112196904133,
+            "proof": "exact"
+          },
+          "value": {
+            "exact": "1074",
+            "float64": 1074.0,
+            "proof": "exact"
+          },
+          "x1": {
+            "exact": "31044860668183335063/36028797018963968",
+            "float64": 861.6679777524265,
+            "proof": "nearest"
+          },
+          "x2": {
+            "exact": "8429002293521682808804686329545/39614081257132168796771975168",
+            "float64": 212.77793214007997,
+            "proof": "nearest"
+          }
+        },
+        {
+          "interpolated": {
+            "exact": "9463691712926721/8796093022208",
+            "float64": 1075.8971840149025,
+            "proof": "nearest"
+          },
+          "repaired_onto_a_sign_fallback": false,
+          "segment": 76,
+          "stratum": 76,
+          "t": {
+            "exact": "5979179160866493/9007199254740992",
+            "float64": 0.6638222372752903,
+            "proof": "exact"
+          },
+          "u": {
+            "exact": "3028020093874499/9007199254740992",
+            "float64": 0.3361777627247097,
+            "proof": "exact"
+          },
+          "value": {
+            "exact": "1076",
+            "float64": 1076.0,
+            "proof": "exact"
+          },
+          "x1": {
+            "exact": "14319372369694123237603946543035/39614081257132168796771975168",
+            "float64": 361.47177759211684,
+            "proof": "nearest"
+          },
+          "x2": {
+            "exact": "14150653051095954007290696419397/19807040628566084398385987584",
+            "float64": 714.4254064227857,
+            "proof": "nearest"
+          }
+        },
+        {
+          "interpolated": {
+            "exact": "18936439491128705/17592186044416",
+            "float64": 1076.411961726575,
+            "proof": "nearest"
+          },
+          "repaired_onto_a_sign_fallback": false,
+          "segment": 77,
+          "stratum": 77,
+          "t": {
+            "exact": "1655520735352901/9007199254740992",
+            "float64": 0.1837997238133161,
+            "proof": "exact"
+          },
+          "u": {
+            "exact": "7351678519388091/9007199254740992",
+            "float64": 0.8162002761866839,
+            "proof": "exact"
+          },
+          "value": {
+            "exact": "1076",
+            "float64": 1076.0,
+            "proof": "exact"
+          },
+          "x1": {
+            "exact": "17398885243635961446094217220339/19807040628566084398385987584",
+            "float64": 878.4192232403948,
+            "proof": "nearest"
+          },
+          "x2": {
+            "exact": "7843300430713669281963960749351/39614081257132168796771975168",
+            "float64": 197.99273848618037,
+            "proof": "nearest"
+          }
+        },
+        {
+          "interpolated": {
+            "exact": "4741123707948855/4398046511104",
+            "float64": 1078.006723207376,
+            "proof": "nearest"
+          },
+          "repaired_onto_a_sign_fallback": false,
+          "segment": 78,
+          "stratum": 78,
+          "t": {
+            "exact": "7157750189054169/9007199254740992",
+            "float64": 0.7946699064403006,
+            "proof": "exact"
+          },
+          "u": {
+            "exact": "1849449065686823/9007199254740992",
+            "float64": 0.20533009355969944,
+            "proof": "exact"
+          },
+          "value": {
+            "exact": "1078",
+            "float64": 1078.0,
+            "proof": "exact"
+          },
+          "x1": {
+            "exact": "8762067634503115805244045450173/39614081257132168796771975168",
+            "float64": 221.18568338437944,
+            "proof": "nearest"
+          },
+          "x2": {
+            "exact": "8485544573592165220181223651009/9903520314283042199192993792",
+            "float64": 856.8210398229965,
+            "proof": "nearest"
+          }
+        },
+        {
+          "interpolated": {
+            "exact": "151749269831209559/140737488355328",
+            "float64": 1078.2434133546528,
+            "proof": "nearest"
+          },
+          "repaired_onto_a_sign_fallback": false,
+          "segment": 79,
+          "stratum": 79,
+          "t": {
+            "exact": "152000375316345/4503599627370496",
+            "float64": 0.033750863285574306,
+            "proof": "exact"
+          },
+          "u": {
+            "exact": "4351599252054151/4503599627370496",
+            "float64": 0.9662491367144257,
+            "proof": "exact"
+          },
+          "value": {
+            "exact": "1078",
+            "float64": 1078.0,
+            "proof": "exact"
+          },
+          "x1": {
+            "exact": "5158840200400346304205187332511/4951760157141521099596496896",
+            "float64": 1041.819481696861,
+            "proof": "nearest"
+          },
+          "x2": {
+            "exact": "721450294197996453209641377765/19807040628566084398385987584",
+            "float64": 36.42393165779179,
+            "proof": "nearest"
+          }
+        },
+        {
+          "interpolated": {
+            "exact": "37975550023844017/35184372088832",
+            "float64": 1079.3300482374666,
+            "proof": "nearest"
+          },
+          "repaired_onto_a_sign_fallback": false,
+          "segment": 80,
+          "stratum": 80,
+          "t": {
+            "exact": "18487537682911/140737488355328",
+            "float64": 0.13136185602683526,
+            "proof": "exact"
+          },
+          "u": {
+            "exact": "122249950672417/140737488355328",
+            "float64": 0.8686381439731647,
+            "proof": "exact"
+          },
+          "value": {
+            "exact": "1079",
+            "float64": 1079.0,
+            "proof": "exact"
+          },
+          "x1": {
+            "exact": "580243717785226517211044357229/618970019642690137449562112",
+            "float64": 937.4342849758394,
+            "proof": "nearest"
+          },
+          "x2": {
+            "exact": "43914611686631943079398435365/309485009821345068724781056",
+            "float64": 141.8957632616272,
+            "proof": "nearest"
+          }
+        },
+        {
+          "interpolated": {
+            "exact": "9504611449807835/8796093022208",
+            "float64": 1080.549219501317,
+            "proof": "nearest"
+          },
+          "repaired_onto_a_sign_fallback": false,
+          "segment": 81,
+          "stratum": 81,
+          "t": {
+            "exact": "3268244065202651/9007199254740992",
+            "float64": 0.36284798112825045,
+            "proof": "exact"
+          },
+          "u": {
+            "exact": "5738955189538341/9007199254740992",
+            "float64": 0.6371520188717495,
+            "proof": "exact"
+          },
+          "value": {
+            "exact": "1081",
+            "float64": 1081.0,
+            "proof": "exact"
+          },
+          "x1": {
+            "exact": "13632101416540529826528523087815/19807040628566084398385987584",
+            "float64": 688.2452392650752,
+            "proof": "nearest"
+          },
+          "x2": {
+            "exact": "15540761750574856916375726346373/39614081257132168796771975168",
+            "float64": 392.30398023624184,
+            "proof": "nearest"
+          }
+        },
+        {
+          "interpolated": {
+            "exact": "38045544381660243/35184372088832",
+            "float64": 1081.319407537087,
+            "proof": "nearest"
+          },
+          "repaired_onto_a_sign_fallback": false,
+          "segment": 82,
+          "stratum": 82,
+          "t": {
+            "exact": "634177507149629/4503599627370496",
+            "float64": 0.1408156940273806,
+            "proof": "exact"
+          },
+          "u": {
+            "exact": "3869422120220867/4503599627370496",
+            "float64": 0.8591843059726194,
+            "proof": "exact"
+          },
+          "value": {
+            "exact": "1081",
+            "float64": 1081.0,
+            "proof": "exact"
+          },
+          "x1": {
+            "exact": "18399411452469984478765954051741/19807040628566084398385987584",
+            "float64": 928.9328879314767,
+            "proof": "nearest"
+          },
+          "x2": {
+            "exact": "377290748134263574339593819333/2475880078570760549798248448",
+            "float64": 152.38651960561046,
+            "proof": "nearest"
+          }
+        },
+        {
+          "interpolated": {
+            "exact": "19042305943670015/17592186044416",
+            "float64": 1082.4297728316888,
+            "proof": "nearest"
+          },
+          "repaired_onto_a_sign_fallback": false,
+          "segment": 83,
+          "stratum": 83,
+          "t": {
+            "exact": "2363460258573697/9007199254740992",
+            "float64": 0.26239679968550444,
+            "proof": "exact"
+          },
+          "u": {
+            "exact": "6643738996167295/9007199254740992",
+            "float64": 0.7376032003144956,
+            "proof": "exact"
+          },
+          "value": {
+            "exact": "1082",
+            "float64": 1082.0,
+            "proof": "exact"
+          },
+          "x1": {
+            "exact": "3952554652307028619073015536215/4951760157141521099596496896",
+            "float64": 798.2120552843377,
+            "proof": "nearest"
+          },
+          "x2": {
+            "exact": "11259023757637402606796947641073/39614081257132168796771975168",
+            "float64": 284.217717547351,
+            "proof": "nearest"
+          }
+        },
+        {
+          "interpolated": {
+            "exact": "4767344088864315/4398046511104",
+            "float64": 1083.9685475876456,
+            "proof": "nearest"
+          },
+          "repaired_onto_a_sign_fallback": false,
+          "segment": 84,
+          "stratum": 84,
+          "t": {
+            "exact": "7356312352387813/9007199254740992",
+            "float64": 0.8167147349955398,
+            "proof": "exact"
+          },
+          "u": {
+            "exact": "1650886902353179/9007199254740992",
+            "float64": 0.18328526500446018,
+            "proof": "exact"
+          },
+          "value": {
+            "exact": "1084",
+            "float64": 1084.0,
+            "proof": "exact"
+          },
+          "x1": {
+            "exact": "7864475312135769065854968543211/39614081257132168796771975168",
+            "float64": 198.5272676422311,
+            "proof": "nearest"
+          },
+          "x2": {
+            "exact": "17537971406088382400034663234913/19807040628566084398385987584",
+            "float64": 885.4412799454145,
+            "proof": "nearest"
+          }
+        },
+        {
+          "interpolated": {
+            "exact": "38173714128803783/35184372088832",
+            "float64": 1084.9622108481692,
+            "proof": "nearest"
+          },
+          "repaired_onto_a_sign_fallback": false,
+          "segment": 85,
+          "stratum": 85,
+          "t": {
+            "exact": "7389641359920733/9007199254740992",
+            "float64": 0.8204149981506351,
+            "proof": "exact"
+          },
+          "u": {
+            "exact": "1617557894820259/9007199254740992",
+            "float64": 0.17958500184936488,
+            "proof": "exact"
+          },
+          "value": {
+            "exact": "1085",
+            "float64": 1085.0,
+            "proof": "exact"
+          },
+          "x1": {
+            "exact": "3856372968970237376108378055559/19807040628566084398385987584",
+            "float64": 194.69707975498895,
+            "proof": "nearest"
+          },
+          "x2": {
+            "exact": "35267035243516666053000494936535/39614081257132168796771975168",
+            "float64": 890.2651310931802,
+            "proof": "nearest"
+          }
+        },
+        {
+          "interpolated": {
+            "exact": "4774854944186463/4398046511104",
+            "float64": 1085.6763183679648,
+            "proof": "nearest"
+          },
+          "repaired_onto_a_sign_fallback": false,
+          "segment": 86,
+          "stratum": 86,
+          "t": {
+            "exact": "4879521620439161/9007199254740992",
+            "float64": 0.541735725216781,
+            "proof": "exact"
+          },
+          "u": {
+            "exact": "4127677634301831/9007199254740992",
+            "float64": 0.45826427478321896,
+            "proof": "exact"
+          },
+          "value": {
+            "exact": "1086",
+            "float64": 1086.0,
+            "proof": "exact"
+          },
+          "x1": {
+            "exact": "19699325787626542804915078252245/39614081257132168796771975168",
+            "float64": 497.2808951382623,
+            "proof": "nearest"
+          },
+          "x2": {
+            "exact": "5827186026786526425062304824867/9903520314283042199192993792",
+            "float64": 588.3954232297025,
+            "proof": "nearest"
+          }
+        },
+        {
+          "interpolated": {
+            "exact": "4779402911740259/4398046511104",
+            "float64": 1086.710406466468,
+            "proof": "nearest"
+          },
+          "repaired_onto_a_sign_fallback": false,
+          "segment": 87,
+          "stratum": 87,
+          "t": {
+            "exact": "2640321561725707/4503599627370496",
+            "float64": 0.5862691580484263,
+            "proof": "exact"
+          },
+          "u": {
+            "exact": "1863278065644789/4503599627370496",
+            "float64": 0.4137308419515737,
+            "proof": "exact"
+          },
+          "value": {
+            "exact": "1087",
+            "float64": 1087.0,
+            "proof": "exact"
+          },
+          "x1": {
+            "exact": "2225150076733535088535736505783/4951760157141521099596496896",
+            "float64": 449.3654793688628,
+            "proof": "nearest"
+          },
+          "x2": {
+            "exact": "3155979216358188381661349631415/4951760157141521099596496896",
+            "float64": 637.3449270976051,
+            "proof": "nearest"
+          }
+        }
+      ],
+      "why": "G6.6.8's reach (lane G2, plan P4-D377): where a tail's published pair proves a cell wider than every width the census names, the width hold stands aside. A hundred whole numbers, 1000 to 1089 and ten of five figures from 10000 to 10009, publish the one width four; the high tail's pair puts its furthest row at least rms**2 / d1, about 8917.0, from the boundary rung 1087.12, past 9999. So the end is the first whole number at or past that reach, 10005, and not the 9998 the hold and the stand-in step leave. The mutant withdraws the rule and the end comes back at 9998.",
+      "word_budget": {
+        "content": 98,
+        "placement": 99
+      },
+      "words": [
+        "1067159076979164768",
+        "15468843723390121724",
+        "10265763857346022961",
+        "10351681091877607303",
+        "2120289531653354811",
+        "16349880332005335296",
+        "7666670977968717197",
+        "3427053300283787367",
+        "5489163173622109394",
+        "16536760867033200329",
+        "14857399325095436318",
+        "3266013553304516113",
+        "9851756333174006805",
+        "18307941327553402120",
+        "6801484169333105937",
+        "13573021135003287469",
+        "388300122013088672",
+        "13797779099512901099",
+        "11571614973083086094",
+        "17300842502461193001",
+        "16124672687941890329",
+        "11285566578905015630",
+        "9386084810300248371",
+        "3715604792805518349",
+        "9508272448256085895",
+        "255817935730901413",
+        "10978676672894384901",
+        "1417135688463798328",
+        "17176672825084835168",
+        "1816065392109150939",
+        "16908256555997842443",
+        "10846631298098850545",
+        "14319460003366645429",
+        "15050661718931397078",
+        "13153989714158314408",
+        "15227693459440975614",
+        "13005707758391674173",
+        "3362027347113790228",
+        "5714596428852741452",
+        "537546060087768599",
+        "4289630931006984469",
+        "14507360662522782824",
+        "14272062543701054146",
+        "2793651341097865989",
+        "15210981622827104461",
+        "3558716688367949448",
+        "11612081916651137845",
+        "17835119950065509855",
+        "4031710225795688209",
+        "7052588671100496078",
+        "9028521180299834079",
+        "13195316009884453981",
+        "6958838382655475117",
+        "642687523765503259",
+        "13823542322909601835",
+        "13164669623471476993",
+        "17989022248754203291",
+        "12318023071773092703",
+        "6438632782688676814",
+        "5854615802222126332",
+        "9256676808578573460",
+        "8106556643507139214",
+        "15504250020646873430",
+        "1825050122611667631",
+        "2082527533741369367",
+        "363803555156232328",
+        "13215709167027123651",
+        "12104842748282894053",
+        "7440394487264571977",
+        "5463235967284342077",
+        "14209991299535183857",
+        "13955160760096226231",
+        "6576334521159321420",
+        "7275565773348782246",
+        "3650403685429479706",
+        "12245358921454578583",
+        "3390506466002742702",
+        "14659072387182938340",
+        "622593537295750839",
+        "2423198539174511951",
+        "6693363845535030162",
+        "2597591069284881471",
+        "4840366609558932639",
+        "15065727697690242790",
+        "15133985505117662988",
+        "9993260278659402562",
+        "10814757116828497758",
+        "6375313112330716283",
+        "14314368933768008994",
+        "12652212389814131094",
+        "3552756015733667105",
+        "12284364915156744440",
+        "16415984814089558514",
+        "16791100536621834625",
+        "14140747550993174150",
+        "11592070030921787995",
+        "6965505720585172476",
+        "2251833047050544238",
+        "14888862237976340720",
+        "14606130272724416882",
+        "1098668889631500735",
+        "3901348695143381833",
+        "11667917374158214266",
+        "18221284809518892799",
+        "1770239311518774736",
+        "17637736102828624849",
+        "13768835114151221690",
+        "12737668987504943409",
+        "4652864400001634013",
+        "10706704638823324264",
+        "17399632942804306854",
+        "13671986919186329683",
+        "17305469970601536032",
+        "15366556510883840760",
+        "11543770109824715500",
+        "6463476703277837910",
+        "17210432499441489007",
+        "215878794113508667",
+        "18131898437221523905",
+        "17442767116505875019",
+        "7715889673349546732",
+        "13895896821059416283",
+        "11943095210631936417",
+        "7747928793890149177",
+        "8620274620364613776",
+        "3586256097987363152",
+        "9596007297221067881",
+        "15036678120869203575",
+        "2543471544187242658",
+        "4038071528022984777",
+        "13089414224354400626",
+        "5682255471610239503",
+        "311110809517561683",
+        "4067135370718484362",
+        "10963535318944861807",
+        "4074042121772548937",
+        "13457912379941072317",
+        "3920879613914771153",
+        "819889961723903783",
+        "14385128859600656062",
+        "6882775213264631725",
+        "16715025833322098360",
+        "6612620520720219870",
+        "7906928285459767944",
+        "14625141232801011954",
+        "15834149721788849771",
+        "11845786511768942977",
+        "9717427541506953162",
+        "14306095229579650824",
+        "12406652021071339388",
+        "10769755557454079423",
+        "6565906495501983277",
+        "13631353446714169564",
+        "1037880874786577484",
+        "2872235087161489008",
+        "17939475730636567943",
+        "15633048196622233706",
+        "10412346945987240990",
+        "385771305272944996",
+        "5299703755620094273",
+        "15082462557310365139",
+        "11645073672964868580",
+        "16654588261696689980",
+        "9126914109351184766",
+        "14117117963358419688",
+        "10221076987572901609",
+        "17041640799952633108",
+        "8965671872558352300",
+        "5165528908302623865",
+        "16355757790512595135",
+        "15161596298621193362",
+        "108788622194420863",
+        "5177621682119664432",
+        "7472569076787442438",
+        "3924653213697032798",
+        "17399292217408177359",
+        "14991912290281612939",
+        "17324187617665631955",
+        "10959317927113079360",
+        "2993345107313424064",
+        "5110717927773955280",
+        "11531273550244720955",
+        "5180642533708247082",
+        "3431245248908012445",
+        "10831365628785399833",
+        "10797989171367415488",
+        "9775779749239016641",
+        "6935956025022299073",
+        "12358870297991470589",
+        "9213522701579239083",
+        "2237586379985893855",
+        "5409939493312163917",
+        "4818688549573789359",
+        "1374560235761214722",
+        "12784525271776797639",
+        "2399933901210253423",
+        "12441549709505334164"
+      ]
+    }
+  },
+  "column_shape": "Each case's 'column' is one column block in the profile's own wire shape, with one departure stated rather than left to be discovered: every published binary64 in it is written inside a 'float64' wrapper carrying the exact decimal it was read from, that decimal as an exact rational, and the proof shape. The wire value is the wrapper's 'float64' field. Writing those numbers bare would put a number in this file that nothing proved.",
+  "definitions": {
+    "bounded": "bounded(w, m) = (w * m) >> 64, the whole part of (w / 2**64) * m and a value in 0..m-1. One word every call, so a run's word count is a fixed function of the published facts (G3.4b).",
+    "canonical_spelling": "a whole-number column writes the base-ten digits of the value, 0 never -0. Otherwise the shortest digit string that reads back as exactly the value (shortest first, then nearest, ties to the even significand), in fixed-point notation when -4 < decpt <= 16 with .0 appended where no fractional digit would otherwise be written, and in d[.ddd]e+/-XX otherwise with the sign always written and the exponent at least two digits. Beside it, and not always the same text, the POINT-FREE spelling the three styles carrying neither a point nor an exponent are written from: where decpt >= len(D) -- that is, where the value is whole, at any width -- it is the sign, D and decpt - len(D) trailing zeros, and where it is not whole the value has no point-free spelling at all (G6.2, as owner decision 10 amended it; the -4 < decpt <= 16 window this sentence used to carry belongs to the canonical spelling above and not to this one).",
+    "class_repair": "a stratum in the negative band whose value is at or above zero takes max(min, -1); a stratum in the positive band whose value is at or below zero takes min(max, 1); the zero stratum needs none. Where the ladder and the sign counts disagree, the counts win (G5.5).",
+    "convex_interpolation": "T = (A << 53) // B and t = ldexp(T, -53); then u = 1 - t, x1 = u * L[j], x2 = t * L[j+1], v = x1 + x2 -- four IEEE-754 binary64 operations in that order and no others -- then the clamp, v = L[j] when below and v = L[j+1] when above. The difference form L[j] + t*(L[j+1]-L[j]) is not used: it overflows to an infinity when the rungs sit at opposite ends of the range and loses the interpolation between neighbouring subnormals (G5.3).",
+    "endpoint_fields": "the two endpoint cells are built from the published endpoint's OWN four fields and never from an ordinal: take the date with HH:MM and a seconds field of 00, move THAT to the clock this cell is allocated -- unchanged on the local clock, shifted by offset_in_seconds on the shared one -- cut the result to the recorded time_precision, and write the published seconds field back unchanged. Every offset is a whole number of minutes, so the move never touches the seconds field and a seconds field of 60 survives it; for every other seconds field this produces the bytes the ordinal route produces (G7.5).",
+    "float64": "the binary64 value published for the exact rational recorded beside it. 'proof' says which claim is being made: 'nearest' means the value is the correctly rounded (round-half-even) binary64 of that rational, and 'exact' means it IS that rational with nothing rounded away. Both are re-derived from the value's two binary64 neighbours in a separate pass over the finished document.",
+    "grid_packing": "the published families of counts over one set of cells are MARGINS of one packing, never one walk after another: every group takes one cell of the grid out of the set its own facts permit, and every quota of every margin is met exactly whenever such an assignment exists. Each margin ranks its counts in ascending order of their published values, ties by the contract's own order; a cell carries one rank per margin and the cells are filled in ascending order of those ranks read margin by margin. Within a cell the group SIZES are offered in ascending order and each size offers as many copies as the cell can still hold, falling back to fewer; a fill that leaves a later cell unable to finish is undone and the next is tried; groups are handed to their cells in group order. A cell that is the last which can answer for one of its counts takes what that count still owes rather than choosing. Nothing counts the work and nothing stops the walk early (G9.5, G9.6, G10.5).",
+    "integer_rule": "b = int(v) truncated toward zero; r = v - float(b); to nearest with ties toward POSITIVE INFINITY -- r > 0.5 or r == 0.5 gives b+1, r < -0.5 gives b-1, r == -0.5 gives b. Not banker's rounding and not toward zero. Applied by the published integer_valued fact and never by the role name, and never to a pinned stratum (G5.4).",
+    "ladder_segment": "the unique j in 0..9 with PCT[j]*D <= 100*N < PCT[j+1]*D, scanned upward from zero and stopped at the first that holds. PCT is (0,1,5,10,25,50,75,90,95,99,100) held as whole numbers (G5.1, G5.3, G7.3).",
+    "notation_reading": "what one finished cell's notation settles, asked of every cell by the recounts: a sign inside accounting parentheses is the contradictory class and settles neither the sign nor the whole-number status, ordinary text settles neither either, and a well-formed number is out of range exactly when its magnitude reaches the point where binary64 rounds to an infinity or falls to or below half the smallest subnormal -- so a 400-digit whole number is out of range and whole, and a fraction below that point is out of range and a fraction (G10.2, G10.5).",
+    "offset_form": "no end takes an offset of its own since stage 3, the description naming no end row at all; the counts are spent over the ranks the layout does not pin, taking the keys in the profile's own sorted order with (none) and (withheld) last, in ascending rank -- or, on a column moved onto a midnight, the ranks with the fewest feasible keys first. A cell allocated either of those is written with no offset. Under the utc clock a datetime cell is written on its own offset's wall clock, local_ordinal = ordinal + offset_in_seconds (G7.4).",
+    "ordinal_transform": "N_r = r * 2**64 + w over D = P * 2**64; the segment is located as above and ordinal = Lo[j] + (A * (Lo[j+1] - Lo[j])) // B. The floor division rounds toward the EARLIER instant always, before the epoch included, which is why it floors toward negative infinity rather than truncating toward zero (G7.3).",
+    "partner_family": "a fold-collision partner is a case flip, edge spacing, or both, because the shipped fold trims before it turns the case over. One parent's partners are enumerated by ascending TOTAL number of spaces, and within one total the LEADING share ascends, so the spaces go to the end first and are then moved leftward one at a time; within one placement the case flips are taken in ascending binary-counter order with bit 0 the leftmost alphabetic position and k = 0 the placement's own case; the parent itself is stepped over. The case flips of the unspaced parent are therefore the first 2**L - 1 partners. A partner may take only a length its own slot may take (G9.3).",
+    "permutation": "a = [0..n-1]; for i from n-1 down to 1, j = bounded(next word, i+1) and a[i] and a[j] are swapped, the swap happening even when j == i. Consumes max(n-1, 0) words (G3.4c).",
+    "precision_form": "quarter writes YYYY-Qn, date writes YYYY-MM-DD, and datetime writes YYYY-MM-DD?HH:MM, ...:SS or ...:SS.ddd by the published time_precision, the ? being the mark separator_allocation gives the rank (T where the census names none), a column whose every moment stands at midnight writing its day with a midnight clock, and the fractional digits all zeros because the profile publishes how many digits the finest cell carried and nothing about their values (G7.5).",
+    "separator_allocation": "the census of marks between day and clock is spent over the parsed ranks by a smooth weighted rotation: each rank adds every named count to that name's credit, takes the name holding the most credit (the first in sorted order among equals) and takes the weights' total back from it; ranks the named counts leave over are added to the commonest name's weight. No rank is pinned and no word is drawn; a column counted in days by ordinal_space is written with a midnight clock (P4-D39). Where a cell's text is a declared absent spelling (matched whatever the case of its letters) it takes the first mark the census names, then the other common mark (a space for T or t, a T for a space) unless that is absent too, and the mark it owed is handed to the first rank, in rank order, allocated the mark it now wears whose new text is not absent and whose change leaves the column no spelling fewer, nor one value fewer once case is ignored; no rank is touched twice. An interior rank of a column counted in whole units whose unit wears only absent spellings steps to the nearest unit, earlier before later, inside its own window and then inside the published range. No frozen case declares an absent spelling, so that exception is pinned by the agreement test rather than by committed cells (G7.5).",
+    "stratum_layout": "negatives ascending, then the zero stratum, then positives ascending. M = min(K, F_num) different values. M_neg is the nearest whole number to M_rest*A_neg/(A_neg+A_pos) with ties upward, computed as (2*M_rest*A_neg + (A_neg+A_pos)) // (2*(A_neg+A_pos)) and clamped into [1, M_rest-1], where A_neg and A_pos are how many RUNS the ladder gives each band and fall back to G and P where there is no ladder (G5.2b). The zero stratum holds Z cells; each other band divides its C cells by the ladder's own plateaus (G5.2a): the value at every rank lo+i is read by Interpolate(Ladder, (lo+i)*2**53, K*2**53) with G5.4 applied where integer_valued is true, equal neighbours make a run, and runs are joined -- smallest (min(L[j],L[j+1]), 0 if Whole(H[j])==Whole(H[j+1]) else 1, |H[j+1]-H[j]|/(|H[j+1]|+|H[j]|)) first, leftmost on a tie -- or the longest divided into floor(L/2) and L-floor(L/2), leftmost on a tie, until there are M of them. The even split floor((i+1)*C/M) - floor(i*C/M) is the FALLBACK, taken only where there is no ladder or M >= C.",
+    "style_allocation": "the VALUES step first: W is the point-free quota of the effective map, and while fewer cells than that hold a value with a point-free spelling the strata are walked in ascending order and the fewest the shortfall needs are taken to the nearest whole number, never the two pinned ends, never one that would cross zero and never one whose rounded value is already another stratum's. Then largest-remaining-quota over the numeric cells in stratum order and, inside a stratum, in ascending cell index, with ties going to the enumeration order plain, leading_zero, leading_plus, decimal, exponent_lower, exponent_upper and the withheld remainder added to plain. A style is offered to a cell only where the finished text would classify back as that style: leading_plus needs a value that is not negative, and plain, leading_zero and leading_plus need a value with a point-free spelling. The look-ahead is part of the rule: a choice is admissible only where it leaves the point-free quotas inside the count of cells after it that can carry them. Zeros are then spent over the WHOLE column at once -- the shortfall of the base spellings' identities against the folded budget is how many cells raise their order, each taking the lowest order whose folded identity is new, inside whatever style it was given, since every style but plain carries the family (G6.3, G6.4, G6.5)."
+  },
+  "generated_by": "tools/reference/make_generation_reference_vectors.py",
+  "method": "docs/spec/generation-method-v1.md",
+  "method_revision": 1,
+  "never_imports": [
+    "synthtwin",
+    "numpy",
+    "pandas"
+  ],
+  "readings_taken": "Seven places where the method fixes the parts but not their order are read here as follows, so a reader knows which reading these vectors freeze. (1) A datetime column's content list holds the parsed cells first, in ascending rank, and the counted stand-ins after. (2) An identifier column's spellings are laid into the groups as the identities in enumeration order followed by the partners in ascending identity order. (3) G9.5 fills the packing grid's margins in ascending order of their own published counts, ties by the contract's own order; for the three alphabet bands of a declared identifier that order is read as the figures first, then the code alphabet, then the rest, which is the order G9.5 step 4 itself names them in. (4) G9.6 fixes a non-zero leading digit for the figures band of a whole-number identifier, and gives the other two bands the templates <digits>e0 and <digits>. ; the digit block of those two templates is read as the ordinary figures enumeration of G9.2, with the non-zero rule applied where G9.6 states it and nowhere else. (5) A grid of more than two margins is read margin by margin in the order the section that publishes them names: the notation counts, then the whole-number counts, then the sign counts for an unrepresentable column (G10.5 step 3), and the class counts before the alphabet counts for free text (G9.5 steps 3 and 4). (6) Free text publishes no middle rung for its word counts, so the groups that are not pinned start at the whole number nearest words.mean, which is where length.p50 stands for the lengths. (7) The content list of a free-text or unrepresentable column is built group by group in group order, the order the multiplicity map itself states. What was reading (6) here is no longer a reading: which member of a fold-collision family a slot takes was worked out two ways by two implementations, and G9.3 now states the rule -- every slot walks its parent's family from that family's own start and takes the first member the column has not written whose length its own window admits, and the count of partners a parent has supplied decides which parent comes next and never which member is taken (review item P2-C4-F4).",
+  "what": "Independent reference vectors for synthtwin's generation transform: the twin cells a conforming generator must write, computed from the method specification alone.",
+  "word_source": "The words below are INPUTS. This oracle draws none of them: it holds no generator, no seed handling and no library random operation of any kind, because the data-provenance guard refuses an import of ctypes and numpy imports ctypes. What these vectors freeze is the transform from words to bytes; the word stream a seed produces is bound separately, by the golden twin hash computed in CI against the locked numpy."
+}

@@ -292,6 +292,16 @@ FOURTEENTH_BRANCH_VECTORS = (
 )
 # anchor 3b-G3 (P4-D376)
 # anchor 3b-G2 (P4-D377)
+# THE TWENTY-THIRD FILE (lane G2's width rule, plan P4-D377): plan
+# P4-D364's numbering table gives each landing of stage 3b its own.
+TWENTY_THIRD_BRANCH_GENERATOR = (
+    REPOSITORY / "tools" / "reference" / "make_generation_branch_vectors_23.py"
+)
+TWENTY_THIRD_BRANCH_VECTORS = (
+    pathlib.Path(__file__).resolve().parent
+    / "reference"
+    / "generation-branch-vectors-23.json"
+)
 # anchor 3b-7 (P4-D378)
 # anchor 3b-J (P4-D379)
 # anchor 3b-R2a (P4-D383)
@@ -409,6 +419,10 @@ def _twenty_second_branch_document() -> dict:
 
 def _twenty_first_branch_document() -> dict:
     return json.loads(TWENTY_FIRST_BRANCH_VECTORS.read_text(encoding="utf-8"))
+
+
+def _twenty_third_branch_document() -> dict:
+    return json.loads(TWENTY_THIRD_BRANCH_VECTORS.read_text(encoding="utf-8"))
 
 
 # The nine cases method section G14.3 names, and the four the review of
@@ -844,6 +858,10 @@ TWENTY_FIRST_BRANCH_CASES = (
     "labels_clock_shaped",
 )
 
+# THE TWENTY-THIRD FILE: lane G2's width rule, G6.6.8's reach (plan
+# P4-D377).
+TWENTY_THIRD_BRANCH_CASES = ("tail_width_past_the_reach",)
+
 ALL_CASES = tuple(
     sorted(
         REQUIRED_CASES
@@ -863,6 +881,7 @@ ALL_CASES = tuple(
         + FOURTEENTH_BRANCH_CASES
         + TWENTY_SECOND_BRANCH_CASES
         + TWENTY_FIRST_BRANCH_CASES
+        + TWENTY_THIRD_BRANCH_CASES
     )
 )
 
@@ -1028,6 +1047,8 @@ SEEDS = {
     "tail_end_least_reach": 416,
     "tail_end_least_reach_months": 417,
     "tail_end_least_reach_slack": 418,
+    # ...and lane G2's width rule (plan P4-D377), at a seed clear of both.
+    "tail_width_past_the_reach": 431,
     "identifier_unnamed_partners": 184,
     "truth_values_written": 189,
     "twice_written_filled": 190,
@@ -1150,6 +1171,8 @@ def _case(name: str) -> dict:
         document = _twenty_second_branch_document()
     elif name in TWENTY_FIRST_BRANCH_CASES:
         document = _twenty_first_branch_document()
+    elif name in TWENTY_THIRD_BRANCH_CASES:
+        document = _twenty_third_branch_document()
     elif name in SEVENTH_BRANCH_CASES:
         document = _seventh_branch_document()
     elif name in SIXTH_BRANCH_CASES:
@@ -1417,6 +1440,7 @@ def test_the_branch_file_is_the_same_oracle_and_says_which_half_it_is() -> None:
     fourteenth = _fourteenth_branch_document()
     twenty_second = _twenty_second_branch_document()
     twenty_first = _twenty_first_branch_document()
+    twenty_third = _twenty_third_branch_document()
     papers = _document_document()
     assert tuple(sorted(branch["cases"])) == BRANCH_CASES
     assert tuple(sorted(second["cases"])) == SECOND_BRANCH_CASES
@@ -1434,11 +1458,12 @@ def test_the_branch_file_is_the_same_oracle_and_says_which_half_it_is() -> None:
     assert tuple(sorted(fourteenth["cases"])) == FOURTEENTH_BRANCH_CASES
     assert tuple(sorted(twenty_second["cases"])) == TWENTY_SECOND_BRANCH_CASES
     assert tuple(sorted(twenty_first["cases"])) == TWENTY_FIRST_BRANCH_CASES
+    assert tuple(sorted(twenty_third["cases"])) == TWENTY_THIRD_BRANCH_CASES
     assert tuple(sorted(papers["cases"])) == DOCUMENT_CASES
     every = (
         named, branch, second, third, fourth, fifth, sixth, seventh,
         eighth, ninth, tenth, eleventh, twelfth, thirteenth, fourteenth,
-        twenty_second, twenty_first, papers,
+        twenty_second, twenty_first, twenty_third, papers,
     )
     for index in range(len(every)):
         for other in range(index + 1, len(every)):
@@ -1465,6 +1490,7 @@ def test_the_branch_file_is_the_same_oracle_and_says_which_half_it_is() -> None:
         (fourteenth, FOURTEENTH_BRANCH_VECTORS),
         (twenty_second, TWENTY_SECOND_BRANCH_VECTORS),
         (twenty_first, TWENTY_FIRST_BRANCH_VECTORS),
+        (twenty_third, TWENTY_THIRD_BRANCH_VECTORS),
         (papers, DOCUMENT_VECTORS),
     )
     for document, own in files:
@@ -1499,6 +1525,7 @@ def test_the_branch_file_is_the_same_oracle_and_says_which_half_it_is() -> None:
         TWENTY_SECOND_BRANCH_GENERATOR,
         FIFTEENTH_BRANCH_GENERATOR,
         TWENTY_FIRST_BRANCH_GENERATOR,
+        TWENTY_THIRD_BRANCH_GENERATOR,
         DOCUMENT_GENERATOR,
     ],
 )
@@ -1796,6 +1823,9 @@ TWENTY_SECOND_BRANCH_NAMED_COUNTS = 122
 # The twenty-first, at its own generator's line ("proved 40 ... beside 629").
 TWENTY_FIRST_BRANCH_PUBLISHED_NUMBERS = 40
 TWENTY_FIRST_BRANCH_NAMED_COUNTS = 629
+# The twenty-third, at its own generator's line ("proved N ... beside M").
+TWENTY_THIRD_BRANCH_PUBLISHED_NUMBERS = 542
+TWENTY_THIRD_BRANCH_NAMED_COUNTS = 205
 # The document file publishes NO binary64 at all, and that is a fact
 # about its transforms rather than a gap in its proof: the written form,
 # the arrangement, the workbook writer, the shape of a line before a
@@ -1902,6 +1932,12 @@ COMMITTED_FILES = (
         TWENTY_FIRST_BRANCH_NAMED_COUNTS,
     ),
     (
+        TWENTY_THIRD_BRANCH_VECTORS,
+        gen.TWENTY_THIRD_BRANCH_PART,
+        TWENTY_THIRD_BRANCH_PUBLISHED_NUMBERS,
+        TWENTY_THIRD_BRANCH_NAMED_COUNTS,
+    ),
+    (
         DOCUMENT_VECTORS,
         gen.DOCUMENT_PART,
         DOCUMENT_PUBLISHED_NUMBERS,
@@ -1915,7 +1951,7 @@ def _fields(document: dict) -> frozenset:
 
 
 @pytest.mark.parametrize(
-    "committed,part,published,named", COMMITTED_FILES, ids=["named", "branches", "branches-2", "branches-3", "branches-4", "branches-5", "branches-6", "branches-8", "branches-7", "branches-9", "branches-10", "branches-11", "branches-12", "branches-13", "branches-14", "branches-22", "branches-21", "documents"]
+    "committed,part,published,named", COMMITTED_FILES, ids=["named", "branches", "branches-2", "branches-3", "branches-4", "branches-5", "branches-6", "branches-8", "branches-7", "branches-9", "branches-10", "branches-11", "branches-12", "branches-13", "branches-14", "branches-22", "branches-21", "branches-23", "documents"]
 )
 def test_the_committed_file_publishes_no_number_that_escapes_the_proof(
     committed, part, published, named
@@ -1957,7 +1993,7 @@ def test_the_committed_file_publishes_no_number_that_escapes_the_proof(
 
 
 @pytest.mark.parametrize(
-    "committed,part,published,named", COMMITTED_FILES, ids=["named", "branches", "branches-2", "branches-3", "branches-4", "branches-5", "branches-6", "branches-8", "branches-7", "branches-9", "branches-10", "branches-11", "branches-12", "branches-13", "branches-14", "branches-22", "branches-21", "documents"]
+    "committed,part,published,named", COMMITTED_FILES, ids=["named", "branches", "branches-2", "branches-3", "branches-4", "branches-5", "branches-6", "branches-8", "branches-7", "branches-9", "branches-10", "branches-11", "branches-12", "branches-13", "branches-14", "branches-22", "branches-21", "branches-23", "documents"]
 )
 def test_the_committed_bytes_are_proved_against_the_recorded_exact_values(
     committed, part, published, named
@@ -1976,7 +2012,7 @@ def test_the_committed_bytes_are_proved_against_the_recorded_exact_values(
 
 
 @pytest.mark.parametrize(
-    "committed,part,published,named", COMMITTED_FILES, ids=["named", "branches", "branches-2", "branches-3", "branches-4", "branches-5", "branches-6", "branches-8", "branches-7", "branches-9", "branches-10", "branches-11", "branches-12", "branches-13", "branches-14", "branches-22", "branches-21", "documents"]
+    "committed,part,published,named", COMMITTED_FILES, ids=["named", "branches", "branches-2", "branches-3", "branches-4", "branches-5", "branches-6", "branches-8", "branches-7", "branches-9", "branches-10", "branches-11", "branches-12", "branches-13", "branches-14", "branches-22", "branches-21", "branches-23", "documents"]
 )
 def test_the_generator_says_how_many_numbers_it_proved(
     tmp_path, capsys, committed, part, published, named
@@ -2418,7 +2454,7 @@ _real_spelled_end = gen.spelled_end
 _real_end_figures = gen.end_figures
 
 
-def _width_before_sign(placed, low, boundary, column, figures, mean):
+def _width_before_sign(placed, low, boundary, column, figures, mean, *reach):
     """G5.3b step 4's order withdrawn: the spelling clamps before the sign rule.
 
     The order the oracle carried until this review. The width clamp
@@ -2426,7 +2462,7 @@ def _width_before_sign(placed, low, boundary, column, figures, mean):
     sign rule then puts it at one step -- a width the census does not
     name.
     """
-    spelled = _real_spelled_end(placed, low, boundary, column, mean)
+    spelled = _real_spelled_end(placed, low, boundary, column, mean, *reach)
     return _real_end_sign_held(spelled, low, boundary, column, figures)
 
 
@@ -2443,11 +2479,12 @@ def _places_whatever_the_rung(column, boundary):
     return figures
 
 
-def _clamps_never_stand_aside(signed, low, boundary, column, mean):
+def _clamps_never_stand_aside(signed, low, boundary, column, mean, *_reach):
     """G5.3b step 4's stand-aside withdrawn: every clamp always applies.
 
     The width clamp then holds the end at 10,000 even where that lies
-    nearer the boundary rung than the tail's own mean distance.
+    nearer the boundary rung than the tail's own mean distance -- and
+    G6.6.8's reach, which stands aside with it, is withdrawn too.
     """
     end = signed
     for clamp in (gen.one_width_held, gen.pad_held, gen.mark_held):
@@ -4394,6 +4431,17 @@ CASE_MUTANTS = {
         replacement=lambda mean, root, edge: 0,
         outcome=CHANGES_THE_CELLS,
     ),
+    "tail_width_past_the_reach": Mutant(
+        branch="G6.6.8's reach (lane G2, plan P4-D377): where a width hold "
+        "lands a derived end inside the reach of its tail's published pair "
+        "and at or past its mean distance, the hold stands aside and the "
+        "end goes to the first whole number at or past the reach. The "
+        "mutant withdraws the rule, and the high end comes back at 9998, "
+        "the census's ceiling stepped off a stand-in",
+        attribute="past_the_width",
+        replacement=lambda clamped, *_rest: clamped,
+        outcome=CHANGES_THE_CELLS,
+    ),
     "tail_end_least_reach_slack": Mutant(
         branch="G7.3b step 5's slack (plan P4-D375); the mutant rounds the "
         "binary64 reach up as it comes, 4.000000000000001 to 5, and a tail's "
@@ -6090,6 +6138,7 @@ def test_the_method_states_the_count_the_committed_files_hold() -> None:
         (FOURTEENTH_BRANCH_VECTORS, _fourteenth_branch_document()),
         (TWENTY_SECOND_BRANCH_VECTORS, _twenty_second_branch_document()),
         (TWENTY_FIRST_BRANCH_VECTORS, _twenty_first_branch_document()),
+        (TWENTY_THIRD_BRANCH_VECTORS, _twenty_third_branch_document()),
     )
     flat = " ".join(section.split())
     for path, document in held:

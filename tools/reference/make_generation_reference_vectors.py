@@ -1465,7 +1465,7 @@ def mark_held(value, low, boundary, column):
     return min(held, boundary) if low else max(held, boundary)
 
 
-def spelled_end(signed, low, boundary, column, mean):
+def spelled_end(signed, low, boundary, column, mean, root=None, kept=()):
     """The two width clamps and then the mark, after the sign rule.
 
     G5.3b step 4's order: the one field width, the padded ceiling, the
@@ -1475,13 +1475,71 @@ def spelled_end(signed, low, boundary, column, mean):
     nearer than that, and the distance is checked where the censuses
     are report-only -- so a clamp that would land inside `b -/+ d1`
     stands aside and the end is the one the sign rule left.
+
+    AND NEITHER WIDTH CLAMP PULLS IT INSIDE THE PAIR'S REACH (G6.6.8, plan
+    P4-D377): each one the mean distance leaves standing is followed by
+    `past_the_width`, which lets the end
+    past the width as far as `rms**2 / d1` and no further than the sign
+    rule left it, unless the clamp landed it on a stand-in the block
+    holds (``kept``).
     """
     end = signed
+    reach = pair_reach(mean, root)
     for clamp in (one_width_held, pad_held, mark_held):
         end = clamp(end, low, boundary, column)
         if abs(end - boundary) < mean:
             return signed
+        if clamp is not mark_held:
+            end = past_the_width(end, signed, low, boundary, reach, kept)
     return end
+
+
+# The share of the reach `pair_reach` gives up to the rounding of the
+# two published distances (G6.6.8): two to the minus twenty-four.
+REACH_SLACK = 1.0 / 16777216.0
+
+
+def pair_reach(mean, root):
+    """G6.6.8's reach: the nearest a tail's furthest row can stand, `rms**2 / d1`.
+
+    Bhatia and Davis's bound at a least distance of nought: every
+    distance `d` lies in `[0, D]`, so `d * (D - d) >= 0`, and summed over
+    the tail `D * d1 >= rms**2`.  Taken as `rms * (rms / d1)`, the largest
+    finite number where that overflows, and lowered by `REACH_SLACK` of
+    itself; nought where the pair is not published or the mean is not
+    above nought.
+    """
+    if mean is None or root is None or not mean > 0.0 or not root > 0.0:
+        return 0.0
+    reach = root * (root / mean)
+    if not math.isfinite(reach):
+        return TAIL_LARGEST
+    return reach - reach * REACH_SLACK
+
+
+def past_the_width(clamped, signed, low, boundary, reach, kept=()):
+    """G6.6.8 (plan P4-D377): a width clamp standing aside where the pair proves it wrong.
+
+    Where the clamp took the end's size DOWN (a ceiling, never the floor a
+    one-width census also states), did not land it on a stand-in the
+    block holds, and left it nearer the boundary
+    than the pair's reach, the description proves a cell wider than every
+    width it names: the end is the first whole number at or past the
+    reach -- `b + reach` rounded up on the high side, `b - reach` rounded
+    down on the low -- and never further out than ``signed``.
+    """
+    if clamped == signed or clamped in kept or not reach > 0.0:
+        return clamped
+    if not abs(clamped) < abs(signed):
+        return clamped
+    if not abs(clamped - boundary) < reach:
+        return clamped
+    point = boundary - reach if low else boundary + reach
+    if not math.isfinite(point):
+        return signed
+    whole = math.floor(point) if low else math.ceil(point)
+    whole = float(whole)
+    return max(whole, signed) if low else min(whole, signed)
 
 
 def one_width_held(value, low, boundary, column):
@@ -1489,7 +1547,7 @@ def one_width_held(value, low, boundary, column):
     return width_held(value, low, boundary, tail_one_width(column))
 
 
-def held_end(placed, low, boundary, column, figures, mean):
+def held_end(placed, low, boundary, column, figures, mean, root=None, kept=()):
     """THE ORDER OF THE LAST THREE (G5.3b step 4): sign, widths, mark.
 
     The sign rule first, because its own hold can land an end the
@@ -1499,7 +1557,7 @@ def held_end(placed, low, boundary, column, figures, mean):
     move a magnitude and so cannot undo it.
     """
     signed = end_sign_held(placed, low, boundary, column, figures)
-    return spelled_end(signed, low, boundary, column, mean)
+    return spelled_end(signed, low, boundary, column, mean, root, kept)
 
 
 def rung_places(value):
@@ -1783,8 +1841,9 @@ def fitted_end(column, side, boundary, shape, low):
     if figures != -1 and abs(placed - boundary) > bound * (1.0 + 1e-12):
         step = tail_unit(figures)
         placed = tail_grid(placed + step if low else placed - step, figures)
-    held = held_end(placed, low, boundary, column, figures, mean)
-    return off_the_stand_ins(held, low, boundary, figures, held_by_the_block(column))
+    kept = held_by_the_block(column)
+    held = held_end(placed, low, boundary, column, figures, mean, root, kept)
+    return off_the_stand_ins(held, low, boundary, figures, kept)
 
 
 def withheld_end(column, side, boundary, _shape, low):
@@ -23250,6 +23309,8 @@ FIFTEENTH_BRANCH_PART = "branches-15"
 # The census of a column of clock times of landing 3b.5 (plan P4-D373),
 # the twenty-first file.
 TWENTY_FIRST_BRANCH_PART = "branches-21"
+# The width rule of a tail pair (lane G2, plan P4-D377), the twenty-third.
+TWENTY_THIRD_BRANCH_PART = "branches-23"
 
 
 # -- landing T1's written clocks and G7.5 step 5 (plan P4-D370) ---------
@@ -30841,6 +30902,8 @@ _DOCUMENT_ACCOUNT = (
     " tests/reference/generation-branch-vectors-22.json."
     " Landing 3b.5's census of a column of clock times (plan P4-D373)"
     " opened the twenty-first, tests/reference/generation-branch-vectors-21.json."
+    " Lane G2's width rule (plan P4-D377) opened the twenty-third,"
+    " tests/reference/generation-branch-vectors-23.json."
 )
 
 # The transforms this file's own cases name, stated the way every other
@@ -32448,6 +32511,74 @@ def _tail_width_stands_aside():
     }
 
 
+def _tail_width_past_the_reach():
+    """G6.6.8's reach (lane G2, plan P4-D377): the width hold stands aside.
+
+    A hundred whole numbers, 1000 to 1089 and 10000 to 10009.  The ten
+    five-figure cells are a group under the floor, so the census counts
+    them into its commonest width and names four on every cell, which
+    holds a derived end at 9999 at most.  The high tail's twelve rows hold
+    1088, 1089 and the ten wide cells: a mean distance of 7431.38 and a
+    root-mean-square of 8140.417410739247 from the boundary rung 1087.12,
+    so no such tail has its furthest row nearer than rms**2 / d1, about
+    8917.0 -- past 9999, which is 8911.88 out and at least the mean
+    distance, so the mean-distance guard leaves the hold standing.  The
+    pair proves the hold wrong, it stands aside, and the end is the first
+    whole number at or past the reach, 10005, which the sign rule's end
+    lies beyond.
+    """
+    ladder, finer, claims = _tail_ladder_fields({
+        12: "1011.88", 25: "1024.75", 50: "1049.5", 75: "1074.25",
+        88: "1087.12",
+    }, 12, 88)
+    moments = _tail_case_moments(
+        ("1940.5", "2701.6553567519795", "2.6662469401806357",
+         "8.109807865977091"),
+        claims,
+    )
+    tails, tail_claims = _numeric_tail_fields({
+        "low": {
+            "percent": 12, "rows": 12, "mean_distance": "6.3799999999999955",
+            "rms_distance": "7.254037955970909", "values": [],
+        },
+        "high": {
+            "percent": 88, "rows": 12, "mean_distance": "7431.38",
+            "rms_distance": "8140.417410739247", "values": [],
+        },
+    })
+    claims.update(tail_claims)
+    column = _universal(
+        "column_1", "count", "count", "data", "ok",
+        n_present=100, n_missing=0, n_distinct=100, n_distinct_folded=100,
+        n_distinct_values=100, n_numeric=100, n_not_numeric=0,
+        n_out_of_range=0, n_contradictory=0, n_zero=0, n_negative=0,
+        n_negative_unrepresentable=0, n_used_in_statistics=100,
+        n_left_out_of_statistics=0, n_rows=100,
+        percentiles=ladder, percentiles_between=finer, tails=tails,
+        bin_groups=[
+            {"first": 0, "last": 4, "count": 12},
+            {"first": 5, "last": 9, "count": 12},
+            {"first": 10, "last": 14, "count": 12},
+            {"first": 15, "last": 19, "count": 11},
+            {"first": 20, "last": 24, "count": 12},
+            {"first": 25, "last": 31, "count": 17},
+        ],
+        integer_valued=True, std_unrepresentable=False,
+        numeric_styles={"plain": 100}, mode_count=0,
+        field_widths={"4": 100},
+        negative_notations={},
+        **moments,
+    )
+    return {
+        "why": "G6.6.8's reach (lane G2, plan P4-D377): where a tail's published pair proves a cell wider than every width the census names, the width hold stands aside. A hundred whole numbers, 1000 to 1089 and ten of five figures from 10000 to 10009, publish the one width four; the high tail's pair puts its furthest row at least rms**2 / d1, about 8917.0, from the boundary rung 1087.12, past 9999. So the end is the first whole number at or past that reach, 10005, and not the 9998 the hold and the stand-in step leave. The mutant withdraws the rule and the end comes back at 9998.",
+        "column": column,
+        "rows": 100,
+        "identifier_declared": False,
+        "rungs": _tail_case_rungs(column),
+        "claims": claims,
+    }
+
+
 def _tail_marks_pooled():
     """The mark between thousands counted over a POOL (G5.3b step 4).
 
@@ -32685,10 +32816,16 @@ TWENTY_FIRST_BRANCH_CASE_BUILDERS = {
     "labels_clock_forms": _labels_clock_forms,
 }
 
+# THE TWENTY-THIRD FILE: G6.6.8's reach (lane G2, plan P4-D377).
+TWENTY_THIRD_BRANCH_CASE_BUILDERS = {
+    "tail_width_past_the_reach": _tail_width_past_the_reach,
+}
+
 CASE_SETS = {
     TWENTY_FIRST_BRANCH_PART: TWENTY_FIRST_BRANCH_CASE_BUILDERS,
     FOURTEENTH_BRANCH_PART: FOURTEENTH_BRANCH_CASE_BUILDERS,
     TWENTY_SECOND_BRANCH_PART: TWENTY_SECOND_BRANCH_CASE_BUILDERS,
+    TWENTY_THIRD_BRANCH_PART: TWENTY_THIRD_BRANCH_CASE_BUILDERS,
     EIGHTH_BRANCH_PART: EIGHTH_BRANCH_CASE_BUILDERS,
     NINTH_BRANCH_PART: NINTH_BRANCH_CASE_BUILDERS,
     TENTH_BRANCH_PART: TENTH_BRANCH_CASE_BUILDERS,
@@ -32725,6 +32862,7 @@ CASE_BUILDERS = {
     **FOURTEENTH_BRANCH_CASE_BUILDERS,
     **TWENTY_SECOND_BRANCH_CASE_BUILDERS,
     **TWENTY_FIRST_BRANCH_CASE_BUILDERS,
+    **TWENTY_THIRD_BRANCH_CASE_BUILDERS,
 }
 
 # What each file says about itself, so that neither can be read as the
@@ -32767,6 +32905,8 @@ _NAMED_ACCOUNT = (
     " tests/reference/generation-branch-vectors-22.json."
     " Landing 3b.5's census of a column of clock times (plan P4-D373)"
     " opened the twenty-first, tests/reference/generation-branch-vectors-21.json."
+    " Lane G2's width rule (plan P4-D377) opened the twenty-third,"
+    " tests/reference/generation-branch-vectors-23.json."
 )
 _BRANCH_ACCOUNT = (
     "cases method section G14.3 adds for the branches its first nine "
@@ -32812,6 +32952,8 @@ _BRANCH_ACCOUNT = (
     " tests/reference/generation-branch-vectors-22.json."
     " Landing 3b.5's census of a column of clock times (plan P4-D373)"
     " opened the twenty-first, tests/reference/generation-branch-vectors-21.json."
+    " Lane G2's width rule (plan P4-D377) opened the twenty-third,"
+    " tests/reference/generation-branch-vectors-23.json."
 )
 _SECOND_BRANCH_ACCOUNT = (
     "cases method section G14.3 adds with the carried landings 2b.2, 2b.3 "
@@ -32848,6 +32990,8 @@ _SECOND_BRANCH_ACCOUNT = (
     " tests/reference/generation-branch-vectors-22.json."
     " Landing 3b.5's census of a column of clock times (plan P4-D373)"
     " opened the twenty-first, tests/reference/generation-branch-vectors-21.json."
+    " Lane G2's width rule (plan P4-D377) opened the twenty-third,"
+    " tests/reference/generation-branch-vectors-23.json."
 )
 
 _THIRD_BRANCH_ACCOUNT = (
@@ -32884,6 +33028,8 @@ _THIRD_BRANCH_ACCOUNT = (
     " tests/reference/generation-branch-vectors-22.json."
     " Landing 3b.5's census of a column of clock times (plan P4-D373)"
     " opened the twenty-first, tests/reference/generation-branch-vectors-21.json."
+    " Lane G2's width rule (plan P4-D377) opened the twenty-third,"
+    " tests/reference/generation-branch-vectors-23.json."
 )
 
 _FOURTH_BRANCH_ACCOUNT = (
@@ -32921,6 +33067,8 @@ _FOURTH_BRANCH_ACCOUNT = (
     " tests/reference/generation-branch-vectors-22.json."
     " Landing 3b.5's census of a column of clock times (plan P4-D373)"
     " opened the twenty-first, tests/reference/generation-branch-vectors-21.json."
+    " Lane G2's width rule (plan P4-D377) opened the twenty-third,"
+    " tests/reference/generation-branch-vectors-23.json."
 )
 
 _FIFTH_BRANCH_ACCOUNT = (
@@ -32956,6 +33104,8 @@ _FIFTH_BRANCH_ACCOUNT = (
     " tests/reference/generation-branch-vectors-22.json."
     " Landing 3b.5's census of a column of clock times (plan P4-D373)"
     " opened the twenty-first, tests/reference/generation-branch-vectors-21.json."
+    " Lane G2's width rule (plan P4-D377) opened the twenty-third,"
+    " tests/reference/generation-branch-vectors-23.json."
 )
 
 _SIXTH_BRANCH_ACCOUNT = (
@@ -33008,6 +33158,8 @@ _SIXTH_BRANCH_ACCOUNT = (
     " tests/reference/generation-branch-vectors-22.json."
     " Landing 3b.5's census of a column of clock times (plan P4-D373)"
     " opened the twenty-first, tests/reference/generation-branch-vectors-21.json."
+    " Lane G2's width rule (plan P4-D377) opened the twenty-third,"
+    " tests/reference/generation-branch-vectors-23.json."
 )
 
 
@@ -33048,6 +33200,8 @@ _SEVENTH_BRANCH_ACCOUNT = (
     " tests/reference/generation-branch-vectors-22.json."
     " Landing 3b.5's census of a column of clock times (plan P4-D373)"
     " opened the twenty-first, tests/reference/generation-branch-vectors-21.json."
+    " Lane G2's width rule (plan P4-D377) opened the twenty-third,"
+    " tests/reference/generation-branch-vectors-23.json."
 )
 
 _EIGHTH_BRANCH_ACCOUNT = (
@@ -33098,6 +33252,8 @@ _EIGHTH_BRANCH_ACCOUNT = (
     " tests/reference/generation-branch-vectors-22.json."
     " Landing 3b.5's census of a column of clock times (plan P4-D373)"
     " opened the twenty-first, tests/reference/generation-branch-vectors-21.json."
+    " Lane G2's width rule (plan P4-D377) opened the twenty-third,"
+    " tests/reference/generation-branch-vectors-23.json."
 )
 _NINTH_BRANCH_ACCOUNT = (
     "cases method section G14.3 adds for the TAIL RULE of stage 3 "
@@ -33152,6 +33308,8 @@ _NINTH_BRANCH_ACCOUNT = (
     " tests/reference/generation-branch-vectors-22.json."
     " Landing 3b.5's census of a column of clock times (plan P4-D373)"
     " opened the twenty-first, tests/reference/generation-branch-vectors-21.json."
+    " Lane G2's width rule (plan P4-D377) opened the twenty-third,"
+    " tests/reference/generation-branch-vectors-23.json."
 )
 
 _TENTH_BRANCH_ACCOUNT = (
@@ -33198,6 +33356,8 @@ _TENTH_BRANCH_ACCOUNT = (
     " tests/reference/generation-branch-vectors-22.json."
     " Landing 3b.5's census of a column of clock times (plan P4-D373)"
     " opened the twenty-first, tests/reference/generation-branch-vectors-21.json."
+    " Lane G2's width rule (plan P4-D377) opened the twenty-third,"
+    " tests/reference/generation-branch-vectors-23.json."
 )
 
 _ELEVENTH_BRANCH_ACCOUNT = (
@@ -33240,6 +33400,8 @@ _ELEVENTH_BRANCH_ACCOUNT = (
     " tests/reference/generation-branch-vectors-22.json."
     " Landing 3b.5's census of a column of clock times (plan P4-D373)"
     " opened the twenty-first, tests/reference/generation-branch-vectors-21.json."
+    " Lane G2's width rule (plan P4-D377) opened the twenty-third,"
+    " tests/reference/generation-branch-vectors-23.json."
 )
 
 _TWELFTH_BRANCH_ACCOUNT = (
@@ -33279,6 +33441,8 @@ _TWELFTH_BRANCH_ACCOUNT = (
     " tests/reference/generation-branch-vectors-22.json."
     " Landing 3b.5's census of a column of clock times (plan P4-D373)"
     " opened the twenty-first, tests/reference/generation-branch-vectors-21.json."
+    " Lane G2's width rule (plan P4-D377) opened the twenty-third,"
+    " tests/reference/generation-branch-vectors-23.json."
 )
 
 _THIRTEENTH_BRANCH_ACCOUNT = (
@@ -33315,6 +33479,8 @@ _THIRTEENTH_BRANCH_ACCOUNT = (
     " tests/reference/generation-branch-vectors-22.json."
     " Landing 3b.5's census of a column of clock times (plan P4-D373)"
     " opened the twenty-first, tests/reference/generation-branch-vectors-21.json."
+    " Lane G2's width rule (plan P4-D377) opened the twenty-third,"
+    " tests/reference/generation-branch-vectors-23.json."
 )
 
 
@@ -33349,6 +33515,8 @@ _FOURTEENTH_BRANCH_ACCOUNT = (
     " tests/reference/generation-branch-vectors-22.json."
     " Landing 3b.5's census of a column of clock times (plan P4-D373)"
     " opened the twenty-first, tests/reference/generation-branch-vectors-21.json."
+    " Lane G2's width rule (plan P4-D377) opened the twenty-third,"
+    " tests/reference/generation-branch-vectors-23.json."
 )
 
 
@@ -33381,6 +33549,8 @@ _TWENTY_SECOND_BRANCH_ACCOUNT = (
     " sixteenth beside it, tests/reference/generation-branch-vectors-14.json."
     " Landing 3b.5's census of a column of clock times (plan P4-D373)"
     " opened the twenty-first, tests/reference/generation-branch-vectors-21.json."
+    " Lane G2's width rule (plan P4-D377) opened the twenty-third,"
+    " tests/reference/generation-branch-vectors-23.json."
 )
 
 
@@ -33417,6 +33587,39 @@ _TWENTY_FIRST_BRANCH_ACCOUNT = (
     "tests/reference/generation-document-vectors.json, and live in a "
     "file of their own, the number plan P4-D364's table gives this "
     "landing: no cap is raised and no case is dropped."
+    " Lane G2's width rule (plan P4-D377) opened the twenty-third,"
+    " tests/reference/generation-branch-vectors-23.json."
+)
+
+
+_TWENTY_THIRD_BRANCH_ACCOUNT = (
+    "case method section G14.3 adds with lane G2's width rule (plan "
+    "P4-D377): G6.6.8's reach, where a tail's published pair proves a cell "
+    "wider than every width the census names and the width hold stands "
+    "aside, the derived end going to the first whole number at or past "
+    "rms**2 / d1 from its boundary, on 100 whole numbers of which ten are "
+    "five figures wide and counted into the census's one width of four. "
+    "It is computed by the same oracle and the same proof layer "
+    "as tests/reference/generation-reference-vectors.json, "
+    "tests/reference/generation-branch-vectors.json, "
+    "tests/reference/generation-branch-vectors-2.json, "
+    "tests/reference/generation-branch-vectors-3.json, "
+    "tests/reference/generation-branch-vectors-4.json, "
+    "tests/reference/generation-branch-vectors-5.json, "
+    "tests/reference/generation-branch-vectors-6.json, "
+    "tests/reference/generation-branch-vectors-7.json, "
+    "tests/reference/generation-branch-vectors-8.json, "
+    "tests/reference/generation-branch-vectors-9.json, "
+    "tests/reference/generation-branch-vectors-10.json, "
+    "tests/reference/generation-branch-vectors-11.json, "
+    "tests/reference/generation-branch-vectors-12.json, "
+    "tests/reference/generation-branch-vectors-13.json, "
+    "tests/reference/generation-branch-vectors-14.json, "
+    "tests/reference/generation-branch-vectors-21.json, "
+    "tests/reference/generation-branch-vectors-22.json and "
+    "tests/reference/generation-document-vectors.json, and lives in a "
+    "file of its own, the number plan P4-D364's table gives this "
+    "landing: no cap is raised and no case is dropped."
 )
 
 
@@ -33431,6 +33634,10 @@ CASE_SET_ACCOUNTS = {
     TWENTY_SECOND_BRANCH_PART: (
         f"The {len(TWENTY_SECOND_BRANCH_CASE_BUILDERS)} "
         f"{_TWENTY_SECOND_BRANCH_ACCOUNT}"
+    ),
+    TWENTY_THIRD_BRANCH_PART: (
+        f"The {len(TWENTY_THIRD_BRANCH_CASE_BUILDERS)} "
+        f"{_TWENTY_THIRD_BRANCH_ACCOUNT}"
     ),
     EIGHTH_BRANCH_PART: (
         f"The {len(EIGHTH_BRANCH_CASE_BUILDERS)} {_EIGHTH_BRANCH_ACCOUNT}"
@@ -33484,6 +33691,75 @@ SECTION_FIELDS = frozenset(("cases", name, FLOAT64) for name in CASE_BUILDERS)
 # The stream a seed produces is bound by the golden twin hash CI computes
 # against the locked numpy, not by this file (method section G14.4).
 GIVEN_WORDS = {
+    # LANE G2'S WIDTH RULE (plan P4-D377), at seed 431.
+    "tail_width_past_the_reach": (
+        1067159076979164768, 15468843723390121724, 10265763857346022961,
+        10351681091877607303, 2120289531653354811, 16349880332005335296,
+        7666670977968717197, 3427053300283787367, 5489163173622109394,
+        16536760867033200329, 14857399325095436318, 3266013553304516113,
+        9851756333174006805, 18307941327553402120, 6801484169333105937,
+        13573021135003287469, 388300122013088672, 13797779099512901099,
+        11571614973083086094, 17300842502461193001, 16124672687941890329,
+        11285566578905015630, 9386084810300248371, 3715604792805518349,
+        9508272448256085895, 255817935730901413, 10978676672894384901,
+        1417135688463798328, 17176672825084835168, 1816065392109150939,
+        16908256555997842443, 10846631298098850545, 14319460003366645429,
+        15050661718931397078, 13153989714158314408, 15227693459440975614,
+        13005707758391674173, 3362027347113790228, 5714596428852741452,
+        537546060087768599, 4289630931006984469, 14507360662522782824,
+        14272062543701054146, 2793651341097865989, 15210981622827104461,
+        3558716688367949448, 11612081916651137845, 17835119950065509855,
+        4031710225795688209, 7052588671100496078, 9028521180299834079,
+        13195316009884453981, 6958838382655475117, 642687523765503259,
+        13823542322909601835, 13164669623471476993, 17989022248754203291,
+        12318023071773092703, 6438632782688676814, 5854615802222126332,
+        9256676808578573460, 8106556643507139214, 15504250020646873430,
+        1825050122611667631, 2082527533741369367, 363803555156232328,
+        13215709167027123651, 12104842748282894053, 7440394487264571977,
+        5463235967284342077, 14209991299535183857, 13955160760096226231,
+        6576334521159321420, 7275565773348782246, 3650403685429479706,
+        12245358921454578583, 3390506466002742702, 14659072387182938340,
+        622593537295750839, 2423198539174511951, 6693363845535030162,
+        2597591069284881471, 4840366609558932639, 15065727697690242790,
+        15133985505117662988, 9993260278659402562, 10814757116828497758,
+        6375313112330716283, 14314368933768008994, 12652212389814131094,
+        3552756015733667105, 12284364915156744440, 16415984814089558514,
+        16791100536621834625, 14140747550993174150, 11592070030921787995,
+        6965505720585172476, 2251833047050544238, 14888862237976340720,
+        14606130272724416882, 1098668889631500735, 3901348695143381833,
+        11667917374158214266, 18221284809518892799, 1770239311518774736,
+        17637736102828624849, 13768835114151221690, 12737668987504943409,
+        4652864400001634013, 10706704638823324264, 17399632942804306854,
+        13671986919186329683, 17305469970601536032, 15366556510883840760,
+        11543770109824715500, 6463476703277837910, 17210432499441489007,
+        215878794113508667, 18131898437221523905, 17442767116505875019,
+        7715889673349546732, 13895896821059416283, 11943095210631936417,
+        7747928793890149177, 8620274620364613776, 3586256097987363152,
+        9596007297221067881, 15036678120869203575, 2543471544187242658,
+        4038071528022984777, 13089414224354400626, 5682255471610239503,
+        311110809517561683, 4067135370718484362, 10963535318944861807,
+        4074042121772548937, 13457912379941072317, 3920879613914771153,
+        819889961723903783, 14385128859600656062, 6882775213264631725,
+        16715025833322098360, 6612620520720219870, 7906928285459767944,
+        14625141232801011954, 15834149721788849771, 11845786511768942977,
+        9717427541506953162, 14306095229579650824, 12406652021071339388,
+        10769755557454079423, 6565906495501983277, 13631353446714169564,
+        1037880874786577484, 2872235087161489008, 17939475730636567943,
+        15633048196622233706, 10412346945987240990, 385771305272944996,
+        5299703755620094273, 15082462557310365139, 11645073672964868580,
+        16654588261696689980, 9126914109351184766, 14117117963358419688,
+        10221076987572901609, 17041640799952633108, 8965671872558352300,
+        5165528908302623865, 16355757790512595135, 15161596298621193362,
+        108788622194420863, 5177621682119664432, 7472569076787442438,
+        3924653213697032798, 17399292217408177359, 14991912290281612939,
+        17324187617665631955, 10959317927113079360, 2993345107313424064,
+        5110717927773955280, 11531273550244720955, 5180642533708247082,
+        3431245248908012445, 10831365628785399833, 10797989171367415488,
+        9775779749239016641, 6935956025022299073, 12358870297991470589,
+        9213522701579239083, 2237586379985893855, 5409939493312163917,
+        4818688549573789359, 1374560235761214722, 12784525271776797639,
+        2399933901210253423, 12441549709505334164,
+    ),
     # THE END FLOOR OF PLAN P4-D375, at seeds 416 and 417.
     "tail_end_least_reach": (
         41291929973276416, 9010369888609378619, 4636344874514562225,

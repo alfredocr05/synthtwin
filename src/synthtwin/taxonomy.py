@@ -23680,7 +23680,7 @@ def window_lowered(bound: float) -> float:
 
 
 def window_filled_ladder(
-    facts: contract.NumericFacts,
+    facts: contract.NumericFacts, reach_rule: bool = True
 ) -> "tuple[float, ...] | None":
     """The hundred and one rungs, each null one filled (method G5.1).
 
@@ -23694,10 +23694,18 @@ def window_filled_ladder(
     A TAIL BLOCK'S LADDER IS THE ONE THE DESCRIPTION'S READER BUILDS
     (method G5.1a, G5.3b to G5.3e): `contract.tail_ladder`, a reading of
     the published facts both the construction and this module take, so
-    the windows are drawn through the ladder the twin was placed on.
+    the windows are drawn through the ladder the construction divides
+    its strata by. EXCEPT WHERE METHOD G6.6.8'S RULE 1 MOVED A DERIVED
+    END (`contract.reach_moved_an_end`, plan P4-D377): there the
+    construction may write the twin on the ladder read with that rule
+    withdrawn (its rule 3), so the windows of the mean and the spread are
+    drawn through that ladder too (``reach_rule`` False) and the file is
+    held to V6.1-A2's half-width test with both (validation method
+    V6.1-A2, `validation._moment_checks`). Every other window is drawn
+    through the first.
     """
     if facts.tail_rule:
-        return contract.tail_ladder(facts)
+        return contract.tail_ladder(facts, reach_rule)
     named: "dict[int, float | None]" = {}
     for index in range(len(contract.LADDER_PERCENTS)):
         named[contract.LADDER_PERCENTS[index]] = facts.percentiles.rungs[
@@ -23786,7 +23794,9 @@ def window_numeric_cells(facts: contract.NumericFacts) -> int:
     )
 
 
-def window_stratum_bound(facts: contract.NumericFacts, floor: int) -> int:
+def window_stratum_bound(
+    facts: contract.NumericFacts, floor: int, reach_rule: bool = True
+) -> int:
     """The most cells method G5.2a lets one stratum hold, from the description.
 
     Written from the rule and never from the generator, which this module
@@ -23817,7 +23827,7 @@ def window_stratum_bound(facts: contract.NumericFacts, floor: int) -> int:
     # the first that holds one where none below does (method G5.1): the
     # same filling the construction reads, so a run of equal rungs is
     # counted here exactly as long as it is there.
-    filled = window_filled_ladder(facts)
+    filled = window_filled_ladder(facts, reach_rule)
     bound = counted
     longest = 0
     # A MADE-UP LADDER BOUNDS NO STRATUM (stage 3, method G5.3c and
@@ -23867,14 +23877,18 @@ def window_stratum_bound(facts: contract.NumericFacts, floor: int) -> int:
     return min(bound, held)
 
 
-def window_stratum(facts: contract.NumericFacts, floor: int) -> int:
+def window_stratum(
+    facts: contract.NumericFacts, floor: int, reach_rule: bool = True
+) -> int:
     """The widest stratum every rung and moment window reads (G5.6, G12.2).
 
     `_stratum_bound`, read off the block alone, or the numeric cell count
     where nothing bounds a stratum. The generator's twin report reads the
     same number off the same block, so the two reports print one window.
+    ``reach_rule`` False reads it off the ladder with method G6.6.8's
+    rule 1 withdrawn (`window_filled_ladder`).
     """
-    bound = window_stratum_bound(facts, floor)
+    bound = window_stratum_bound(facts, floor, reach_rule)
     if bound > 0:
         return bound
     return window_numeric_cells(facts)
@@ -23939,6 +23953,7 @@ def windows_of(
     column: "contract.ColumnBlock | None",
     facts: contract.NumericFacts,
     floor: int,
+    reach_rule: bool = True,
 ) -> "dict[str, tuple[float, float]]":
     """The three G12.3 windows this description draws, or none at all.
 
@@ -23946,6 +23961,9 @@ def windows_of(
     of the description and never of the measured file. An empty mapping
     says the ladder is null at every rung: G12.3's "one column with no
     bound at all", where the three moments are listing entries.
+    ``reach_rule`` False draws them through the ladder read with method
+    G6.6.8's rule 1 withdrawn, as 110cb46 drew them, which the validator
+    asks only where that rule moved a derived end (V6.1-A2).
 
     Guarantees:
 
@@ -23954,11 +23972,11 @@ def windows_of(
       published cell counts and the half unit G12.2 grants.
     - Errors raised: none.
     """
-    rungs = window_filled_ladder(facts)
+    rungs = window_filled_ladder(facts, reach_rule)
     if rungs is None:
         return {}
     numbers = window_numeric_cells(facts)
-    widest = window_stratum(facts, floor)
+    widest = window_stratum(facts, floor, reach_rule)
     half = window_half_unit(facts)
     lows: list[float] = []
     highs: list[float] = []

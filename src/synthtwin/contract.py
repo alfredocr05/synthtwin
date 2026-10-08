@@ -12966,6 +12966,7 @@ def _derived_end(
     shape: "tuple[bool, int, float, float]",
     low: bool,
     published: "float | None",
+    reach_rule: bool = True,
 ) -> float:
     """The value a tail block's pinned stratum holds (G5.3b, G5.5a).
 
@@ -13098,12 +13099,20 @@ def _derived_end(
     # name, and on 240 prices written `92,959.11`, at 0.01 with no mark
     # in it.
     held = _signed_end(placed, low, boundary, facts, figures)
-    spelled = _within_the_marks(
-        _within_the_one_width(held, low, boundary, facts),
-        low,
-        boundary,
-        facts,
-    )
+    clamped = _within_the_one_width(held, low, boundary, facts)
+    # ...AND THE REACH RULE, which ``reach_rule`` False withdraws so the
+    # generator's width walk can tell a side this rule moved from one it
+    # left where the width clamp held it (method G6.6.8 rule 2).
+    if reach_rule:
+        clamped = _past_the_width(
+            clamped,
+            held,
+            low,
+            boundary,
+            (mean, pair_reach(mean, root)),
+            kept,
+        )
+    spelled = _within_the_marks(clamped, low, boundary, facts)
     # ...AND NO SPELLING RULE PULLS THE END INSIDE THE TAIL'S OWN MEAN
     # DISTANCE. A census of widths and a census of marks are POOLED at
     # the floor: a group of fewer cells than the smallest group is
@@ -13174,6 +13183,153 @@ def _off_the_stand_ins(
                 return value
             return moved
     return value
+
+
+def reach_moved_an_end(facts: NumericFacts) -> bool:
+    """Whether method G6.6.8's rule 1 moved either derived end of a tail block (plan P4-D377).
+
+    The ladder read with the reach rule and the one read with it withdrawn
+    (`tail_ladder`) hold different ends exactly there, and nowhere else do
+    they differ. It is the one reading of where the rule moved an end, and
+    both sides of the boundary ask it: the generator reads the values a
+    second time there (rule 3, `generation._width_rule_withdrawn`), and
+    the validator holds the mean and the spread to the window the second
+    ladder draws as well (validation method V6.1-A2).
+
+    Guarantees: accepts one numeric block's facts; returns True exactly
+    where the block is a tail block whose two readings both stand and
+    hold a different end on some side. Determinism: a function of the
+    facts. Raises nothing. No I/O of any kind.
+    """
+    if not facts.tail_rule:
+        return False
+    ruled = tail_ladder(facts)
+    held = tail_ladder(facts, reach_rule=False)
+    if ruled is None or held is None:
+        return False
+    for mine, theirs in ((ruled.low, held.low), (ruled.high, held.high)):
+        if mine is not None and theirs is not None and mine.end != theirs.end:
+            return True
+    return False
+
+
+def pair_reach(mean: "float | None", root: "float | None") -> float:
+    """The nearest a tail's furthest row can stand: Bhatia and Davis (method G6.6.8).
+
+    Every distance `d` of a tail's `m` rows from its boundary is at least
+    nought and at most the furthest, `D`, so `d * (D - d) >= 0` for each;
+    summed over the tail it says `D * d1 >= rms**2`, so no set of rows
+    with mean distance `d1` and root-mean-square distance `rms` has its
+    furthest row nearer than `rms**2 / d1` -- Bhatia and Davis's bound on
+    a variance, at a least distance of nought. Taken as `rms * (rms /
+    d1)`, which holds at both ends of the binary64 range where squaring
+    `rms` would not (`_derived_end`'s bound is taken the same way), and
+    lowered by `_REACH_SLACK` of itself so the two published distances'
+    own rounding can never make it claim more than the rows hold.
+
+    Plan P4-D377: a published pair whose reach passes the widest value
+    the field-width census lets a cell write PROVES a cell wider than
+    every named width -- the census counted it into its commonest width
+    (plan P4-D222) -- and that is what lets the width hold stand aside.
+
+    Guarantees: accepts a published mean distance and root-mean-square
+    distance, either possibly None; returns the reach, nought where the
+    pair is not published or the mean is not above nought, and the
+    largest finite number where the quotient overflows. Determinism: a
+    function of the two. Raises nothing. No I/O of any kind.
+    """
+    if mean is None or root is None or not mean > 0.0 or not root > 0.0:
+        return 0.0
+    reach = root * (root / mean)
+    if not math.isfinite(reach):
+        return _LARGEST_FINITE
+    return reach - reach * _REACH_SLACK
+
+
+# The share of the reach `pair_reach` gives up to the rounding of the two
+# published distances (method G6.6.8): each is a binary64 sum over at most
+# a hundred million rows, so far less than this of either is rounding.
+_REACH_SLACK = 1.0 / 16777216.0
+
+
+def _past_the_width(
+    clamped: float,
+    held: float,
+    low: bool,
+    boundary: float,
+    pair: "tuple[float, float]",
+    kept: "tuple[float, ...]",
+) -> float:
+    """A width-held derived end let past the width where the pair proves it (method G6.6.8).
+
+    THE WIDTH CENSUS IS POOLED AT THE FLOOR. A width fewer than the
+    smallest group wrote is counted into the commonest (plan P4-D222), so
+    `1000` to `1398` beside one `99999` publishes `field_widths {"4":
+    400}`, and `_within_the_one_width` and `_within_the_pad` read that as
+    a ceiling: the derived end stood at `9998` against a real `99999`, and
+    the twins missed the column's mean and spread at every seed
+    (`K-S3-22`, 99 of its 111 misses on this one cause).
+
+    THE TAIL'S OWN PAIR SAYS WHEN THAT READING IS WRONG. No tail with the
+    published mean and root-mean-square distances has its furthest row
+    nearer the boundary than `pair_reach`; where the width hold lands the
+    end nearer than that, the description itself proves at least one cell
+    wider than every width it names, so the hold stands aside. The end
+    goes past the width only AS FAR AS THE REACH -- the first whole number
+    at or beyond it -- and never past the end the fitted reading derived
+    (``held``), so it is the narrowest end the pair allows; the census
+    still holds every cell it can, and the generator's width walk leaves
+    past it only the tail's outermost strata the line less one and the
+    pair's own totals carry, and moves the rest under it, the end's own
+    stratum among them where it does not fit
+    (`generation._walked_past_the_width`).
+
+    AND IT IS THE HOLD THAT STANDS ASIDE, NOT THE GUARD BESIDE IT. Where
+    the hold already lands the end inside the tail's mean distance the
+    guard in `_derived_end` stands the hold aside on its own, and the end
+    is the fitted one; reading the reach there instead crowded the rows
+    of ten wide cells onto the reach (`20000` to `29000` came back as
+    five rows on `25061` to `25065`), so this rule asks nothing of it.
+
+    AND A HELD STAND-IN STAYS. Where the hold landed the end on a stand-in
+    the block publishes as held (`TailReader.kept`) -- `9999` twelve
+    times beside `9000` to `9990` and `10000` six times -- the end is the
+    table's own heap, and stepping it past the width took all twelve
+    `9999`s out of the twin. So the hold is kept there.
+
+    Guarantees: accepts the width-held end, the end before the hold, the
+    side, the boundary rung, the tail's mean distance with the pair's
+    reach, and the held stand-ins; returns ``clamped`` unless the hold
+    took the end's size down and left it at or past the mean distance
+    and inside the reach, and then a whole number at least the reach
+    from the boundary and no further out than ``held``. Determinism: a
+    function of the six. Raises nothing. No I/O of any kind.
+    """
+    mean, reach = pair
+    if clamped == held or clamped in kept or not reach > 0.0:
+        return clamped
+    # A CEILING AND NOT A FLOOR: the hold took the end's size DOWN to the
+    # widest value the census names. A hold raising a size to the
+    # narrowest named width is the mean-distance guard's business below.
+    if not abs(clamped) < abs(held):
+        return clamped
+    if abs(clamped - boundary) < mean or not abs(clamped - boundary) < reach:
+        return clamped
+    point = boundary - reach if low else boundary + reach
+    if not math.isfinite(point):
+        return held
+    whole = float(int(point)) if abs(point) < _WHOLE_EXACT else point
+    if low and whole > point:
+        whole = whole - 1.0
+    if not low and whole < point:
+        whole = whole + 1.0
+    if low:
+        return max(whole, held)
+    return min(whole, held)
+
+
+# Past this size every binary64 is a whole number already (2**52).
+_WHOLE_EXACT = 4503599627370496.0
 
 
 def _within_the_one_width(
@@ -13589,7 +13745,9 @@ def _moment_ladder(
     return _shaped(tuple(rungs), None, None)
 
 
-def tail_ladder(facts: NumericFacts) -> "ShapedLadder | None":
+def tail_ladder(
+    facts: NumericFacts, reach_rule: bool = True
+) -> "ShapedLadder | None":
     """The ladder of a tail block, every consumer's one ladder (G5.1a).
 
     Below the block floor the ramp (G5.3d); where only the moments are
@@ -13597,6 +13755,11 @@ def tail_ladder(facts: NumericFacts) -> "ShapedLadder | None":
     two boundary percents only, and outside them each tail's reading
     (G5.3b, or G5.3e where it is listed), with the two ends the pinned
     strata hold (`_derived_end`).
+
+    ``reach_rule`` False reads the ends with method G6.6.8's rule 1
+    withdrawn -- each width-held end where the width clamp left it --
+    which only the generator's width walk asks, to know which side that
+    rule moved; every consumer of the ladder itself takes the default.
     """
     tails = facts.tails
     if tails is None:
@@ -13652,7 +13815,7 @@ def tail_ladder(facts: NumericFacts) -> "ShapedLadder | None":
             blend=shape[2],
             reach=shape[3],
             end=_derived_end(
-                facts, side, boundary, shape, is_low, published
+                facts, side, boundary, shape, is_low, published, reach_rule
             ),
             listed=listed,
             counts=counts,

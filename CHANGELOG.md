@@ -159,6 +159,63 @@ withdrew. STATE, `K-S3-13` and the tail producer's docstring no longer
 describe the withdrawn protection as current, and keep the sorted-table
 exception.
 
+### A tail pair that proves a wider cell lets the end past the width (2026-10-02, repaired 2026-10-06 and 07)
+
+**The width census no longer caps a tail its own pair proves wider**
+(plan P4-D377, method G6.6.8, lane G2 of stage 3b). The census counts a
+width fewer than the floor's worth wrote into its commonest, so `1000`
+to `1398` beside one `99999` published one width of four figures, the
+twin's furthest cell stopped at `9998`, and its mean and spread were
+missed. A published tail pair puts the furthest row at least
+`rms**2 / d1` from its boundary; where a width hold lowers the end
+inside that reach, the hold stands aside and the end is the first whole
+number at or past it. The width walk then leaves past every named width
+only the tail's outermost strata that fit the floor's line less one and
+what the pair's totals leave, and moves every other stratum of that
+tail under the width before serving any demand, the end's own among
+them; the cells it leaves there stand only where they read the
+published mean and spread, together, no further off than none. Where
+the end moved, the values are read a second time with the rule
+withdrawn -- 110cb46's twin, on a division the plan makes once -- and
+the column keeps whichever reads the published mean and spread nearer,
+together. A far cell the pair proves past every named pad is written
+plain, so a column of five-character codes stays five characters wide.
+And `validate` holds the mean and spread of such a column to the window
+drawn with the rule withdrawn as well (validation method V6.1-A2): the
+rule's own window, drawn through the further end, reached the published
+value where 110cb46's did not, and twins written as 110cb46 wrote them,
+their spread 0.37 to 0.50 of the real one, passed. Nothing new is
+published; a skew or kurtosis window the rule's reading draws over the
+whole range is listed rather than checked, so 175 of 3,459 twins lose
+such a check that 110cb46 gave and that held.
+
+One checker, this one, reads 110cb46's twin and this landing's over
+3,636 twins of eleven batteries, at seeds 0, 4 and 9: `K-S3-22`'s
+column-floors miss 21 mean and spread checks where 110cb46's twins miss
+111, codes beside plain numbers 205 checks where 605, the skeptics'
+shapes 27 where 222, and 1,500 random shapes 4 where 57; the twins more
+than 0.05 of the real spread off the real mean or a tenth off its spread
+number 1,500 of 3,459 where 110cb46's number 1,875. The rule changes 716
+twins, and none newly misses a check, writes a cell wider than both the
+source's and 110cb46's, writes its own width census further from the
+source's or stands further from the real mean and spread taken
+together. What it still costs: 99 twins stand further from the real
+mean alone and 22 from the real spread alone, all where the reach
+stands barely past the width, each nearer on the other by more; and 186
+write cells past the width where 110cb46 wrote none, further from the
+source's count than none -- up to 15 where it holds one -- because the
+reach is the nearest the furthest row can stand and the pair's squares
+are carried from there. `K-S3-22` counts each of these, so none may
+grow. The first repair round fixed the four faults the first skeptic
+measured -- 40 cells written on a single far value, a far value written
+twice, a row left at `09998`, a code padded to `012280` -- and five more
+of its own; the second skeptic's round fixed the checker, rule 3 asked
+where it could change nothing -- 5.8 s of every 24.3 generating 200,000
+six-figure numbers -- and four clauses no test held, two of them its
+own. The walk, the second reading and the checker's second window are
+pinned by `tests/test_stage3b_width.py`; one frozen case opens
+`tests/reference/generation-branch-vectors-23.json` for the end rule.
+
 ### The second key cut (2026-10-02)
 
 **Three declarations and one date key are reserved, empty** (plan

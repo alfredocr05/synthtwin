@@ -22,7 +22,21 @@ producer, and -- where a twin is asked -- the real generator and checker:
   (`complement_reader.by_subtraction`), and the columns it gives up on;
 * `K-S3-22`: where no published pair keeps a moment, the moments the twins
   still miss, and how many blocks keep neither or one of them in their
-  own windows;
+  own windows; and, twin by twin over that battery and lane G2's own
+  shapes (plan P4-D377), what no check sees of a cell past every named
+  width, each twin beside the twin the same generator writes with method
+  G6.6.8 and its G6.3 clause withdrawn -- 110cb46's on these shapes: the
+  twins whose mean and spread, taken together, stand further from the
+  real column's, which G6.6.8's rule 3 refuses, the twins whose mean or
+  whose spread alone does, whose count of cells past the widest named
+  width stands further from the source's, whose widest cell is wider than
+  both, and whose own width census stands further from the source's;
+  and, read off the real column's own moments rather than any window,
+  the twins more than 0.05 of the real spread off on the mean or more
+  than a tenth off on the spread (the second skeptic of the repair,
+  item 1: windows drawn through a further end widen, and only this count
+  sees a column regress behind them), with the same count of the twins
+  the rule withdrawn writes beside it as context;
 * `K-S3-50`: how far twins write past the real column's own range, which
   no check sees because no end is published -- over `K-S3-20`'s 37 shapes
   at floors 11, 20, 36 and 50, the numeric twins holding a cell outside
@@ -44,7 +58,9 @@ read from disk but the tree's own code.
     .venv/bin/python tools/measurements/kpi_cost_rule.py --kpi [--only K-S3-18,K-S3-21]
 """
 
+import contextlib
 import pathlib
+import statistics
 import sys
 import tempfile
 
@@ -57,7 +73,7 @@ import cost_rule_window as window  # noqa: E402
 import kpi_rules  # noqa: E402
 import kpi_shapes  # noqa: E402
 import test_stage3_gate as gate  # noqa: E402
-from synthtwin import parsing, taxonomy, validation  # noqa: E402
+from synthtwin import contract, generation, parsing, taxonomy, validation  # noqa: E402
 
 kpi_rules.guard_this_tree()
 
@@ -259,17 +275,155 @@ def _k322_battery():
     yield "pad50000_150", reader.shape("pad50000", 150, 1), 36
 
 
+def _width_battery():
+    """Lane G2's own shapes (plan P4-D377): far cells past the one width a census names, each seeded.
+
+    The last two are the repair round's two-figure readings beside one far
+    reading, where the reach stands barely past `99`: what the rule costs
+    there is counted, not hidden.
+    """
+    import random
+
+    for floor in (11, 20, 36):
+        for rows in (400, 1000, 4000):
+            yield f"grid100_rep{rows}", [str(1000 + 100 * (step % 10)) for step in range(rows)] + ["99900"], floor
+    draw = random.Random("g2/plus/4")
+    plus = [f"{draw.randint(1, 999):04}" for _ in range(100)] + ["+" + str(draw.randint(100, 999)) for _ in range(40)]
+    pressures = random.Random("g2skep/bp/2000/a")
+    heaped = [str(min(190, max(90, 10 * round(pressures.gauss(130, 15) / 10)))) for _ in range(2000)]
+    for floor in (11, 36):
+        for rows in (150, 400):
+            yield f"padded_{rows - 1}_beside_one_far", [f"{value:05}" for value in range(1, rows)] + ["12345"], floor
+        yield "plus_mixed", plus + ["99999"], floor
+    for floor in (11, 20):
+        yield "pressures_beside_1300", heaped + ["1300"], floor
+    evenly = random.Random("g2/uniform/150/188")
+    yield "two_figures_beside_188", [str(evenly.randint(10, 99)) for _ in range(150)] + ["188"], 50
+    bell = random.Random("g2/bell/150/237")
+    yield "bell_beside_237", [str(max(10, min(99, int(round(bell.gauss(54.5, 89 / 6)))))) for _ in range(150)] + ["237"], 36
+
+
+def _figures(cell):
+    """How many figures a whole-written cell holds, sign and grouping marks aside, or None for one with a point."""
+    body = cell.strip().lstrip("+-")
+    if not body or any(mark in body for mark in ".eE"):
+        return None
+    digits = [one for one in body if one.isdigit()]
+    if len(digits) != len([one for one in body if one not in ",' _"]):
+        return None
+    return len(digits)
+
+
+@contextlib.contextmanager
+def _without_the_width_rule():
+    """The generator with method G6.6.8 and its G6.3 clause withdrawn: 110cb46's on lane G2's shapes (plan P4-D377).
+
+    Each through the seam the lane keeps for it: the ladder read with the
+    reach rule withdrawn (`contract.tail_ladder(..., reach_rule=False)`),
+    no side proven for the width walk, and a padded cell no named width can
+    hold keeping its pad where the map carries no other point-free form.
+    """
+    ladder = contract.tail_ladder
+    sides = generation._proven_sides
+    worn = generation._point_free_form_worn
+    contract.tail_ladder = lambda facts, reach_rule=True: ladder(facts, reach_rule=False)
+    generation._proven_sides = lambda _facts, _widest: []
+    generation._point_free_form_worn = lambda styles, value, whole: worn(styles, value, whole) or "leading_zero"
+    try:
+        yield
+    finally:
+        contract.tail_ladder = ladder
+        generation._proven_sides = sides
+        generation._point_free_form_worn = worn
+
+
+def _as_written(home, stem, cells, block, text, floor):
+    """One twin as no check reads it: mean and spread off the real column, cells past the widest width, widest cell, own census off the source's."""
+    real = [number for number in (parsing.parse_number(cell) for cell in cells) if number is not None]
+    written = [cell for cell in _csv_cells(text) if cell and parsing.parse_number(cell) is not None]
+    numbers = [parsing.parse_number(cell) for cell in written]
+    widths = [int(key) for key in (block.get("field_widths") or {}) if key.isdigit()]
+    widest = max(widths) if widths else 0
+    spread = statistics.pstdev(real)
+    own = kpi_shapes.describe(home / stem, "own", text, floor).document["columns"][0]
+    census = 0
+    for key in ("field_widths", "pad_widths"):
+        mine = own.get(key) or {}
+        theirs = block.get(key) or {}
+        census += sum(abs(mine.get(name, 0) - theirs.get(name, 0)) for name in set(mine) | set(theirs))
+    return {
+        "mean": abs(statistics.fmean(numbers) - statistics.fmean(real)) / spread,
+        "spread": abs(statistics.pstdev(numbers) / spread - 1.0),
+        "past": len([1 for cell in written if (_figures(cell) or 0) > widest]),
+        "chars": max(len(cell) for cell in written),
+        "census": census,
+    }
+
+
+# A TWIN OFF THE REAL MOMENTS, read off the real column and never a window:
+# its mean more than this share of the real spread from the real mean, or its
+# spread more than this share off the real spread (K-S3-22).
+_OFF_THE_MEAN = 0.05
+_OFF_THE_SPREAD = 0.10
+
+
+def _beside_the_rule_withdrawn(home, name, cells, floor, described, value):
+    """K-S3-22's per-twin count: each twin at seeds 0, 4 and 9 beside the same twin with the rule withdrawn."""
+    block = described.document["columns"][0]
+    real_past = len([1 for cell in cells if (_figures(cell) or 0) > max([int(key) for key in (block.get("field_widths") or {}) if key.isdigit()] or [0])])
+    real_chars = max(len(cell) for cell in cells if parsing.parse_number(cell) is not None)
+    for seed in SEEDS:
+        text = kpi_shapes.twin_text(described, seed)
+        with _without_the_width_rule():
+            before = kpi_shapes.twin_text(described, seed)
+        mine = _as_written(home / f"{name}-f{floor}-s{seed}", "with", cells, block, text, floor)
+        theirs = _as_written(home / f"{name}-f{floor}-s{seed}", "without", cells, block, before, floor)
+        value["twins_compared"] += 1
+        value["twins_changed_by_the_rule"] += int(text != before)
+        value["twins_moments_further"] += int(mine["mean"] + mine["spread"] > theirs["mean"] + theirs["spread"] + 1e-4)
+        value["twins_mean_further"] += int(mine["mean"] > theirs["mean"] + 1e-4)
+        value["twins_spread_further"] += int(mine["spread"] > theirs["spread"] + 1e-4)
+        value["twins_past_the_width_further"] += int(abs(mine["past"] - real_past) > abs(theirs["past"] - real_past))
+        value["twins_wider"] += int(mine["chars"] > max(real_chars, theirs["chars"]))
+        value["twins_census_further"] += int(mine["census"] > theirs["census"])
+        value["twins_census_unlike_source"] += int(mine["census"] > 0)
+        value["twins_off_the_real_moments"] += int(
+            mine["mean"] > _OFF_THE_MEAN or mine["spread"] > _OFF_THE_SPREAD
+        )
+        value["twins_off_the_real_moments_withdrawn"] += int(
+            theirs["mean"] > _OFF_THE_MEAN or theirs["spread"] > _OFF_THE_SPREAD
+        )
+
+
 def residual(home):
-    """K-S3-22: the moments no published pair keeps, and how many each block's own windows keep."""
+    """K-S3-22: the moments no published pair keeps, how many each block's own windows keep, and each twin beside its source."""
     value = {
         "moment_misses": 0,
         "blocks_no_candidate_keeps_either": 0,
         "blocks_one_moment_kept": 0,
         "blocks_with_no_pair_to_publish": 0,
         "shapes": 0,
+        "width_shapes": 0,
+        "twins_compared": 0,
+        "twins_changed_by_the_rule": 0,
+        "twins_moments_further": 0,
+        "twins_mean_further": 0,
+        "twins_spread_further": 0,
+        "twins_past_the_width_further": 0,
+        "twins_wider": 0,
+        "twins_census_further": 0,
+        "twins_census_unlike_source": 0,
+        "twins_off_the_real_moments": 0,
+        "twins_off_the_real_moments_withdrawn": 0,
     }
+    for name, cells, floor in _width_battery():
+        described = _described(home / "k322w", name, cells, floor)
+        value["width_shapes"] += 1
+        _beside_the_rule_withdrawn(home / "k322w-twins", name, cells, floor, described, value)
+        print(f"K-S3-22 width shape {name} at {floor}: {dict(value)}", flush=True)
     for name, cells, floor in _k322_battery():
         described = _described(home / "k322", name, cells, floor)
+        _beside_the_rule_withdrawn(home / "k322-twins", name, cells, floor, described, value)
         value["shapes"] += 1
         block = described.document["columns"][0]
         kept = None
