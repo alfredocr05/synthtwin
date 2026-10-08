@@ -31,6 +31,14 @@ against pytest's own collection. So this table is a convenience that
 may be re-measured whenever somebody wants the shards to come out
 closer in length, and it is never a thing a test result depends on.
 
+SEVEN ROWS ADDED 2026-10-08, at the integration of wave 2's first batch:
+the test files its lanes added (and lane G3's count pass file, which had
+none), each timed ON ITS OWN -- one `pytest -q --durations=0` process per
+file on the integrated tree, on a machine other work was loading -- and summed as
+above. A file timed alone runs a little faster than beside four other
+shards, so these weigh it a little light; the packing reads only which
+file outweighs which.
+
 A FILE WITH NO ROW weighs `DEFAULT_SECONDS`. Two kinds of file have
 none: one added since the last measurement, which is then placed like
 an ordinary small file and runs in its shard from the commit that adds
@@ -293,8 +301,15 @@ SECONDS = {
     "tests/test_stage3_review_sentences.py": 2.66,
     "tests/test_stage3_tail_rule.py": 62.56,
     "tests/test_stage3b_base.py": 20.71,
+    "tests/test_stage3b_clock.py": 92.53,
+    "tests/test_stage3b_clock_review.py": 14.83,
+    "tests/test_stage3b_count_pass_speed.py": 68.35,
+    "tests/test_stage3b_count_room.py": 19.99,
     "tests/test_stage3b_gate.py": 194.66,
     "tests/test_stage3b_weekday_review.py": 295.32,
+    "tests/test_stage3b_width.py": 122.91,
+    "tests/test_stage4_allocator_walk.py": 18.04,
+    "tests/test_stage4_tier2a.py": 88.39,
     "tests/test_summary_and_properties.py": 41.37,
     "tests/test_tail_back_solve_without_recursion.py": 14.72,
     "tests/test_taxonomy.py": 4.6,
