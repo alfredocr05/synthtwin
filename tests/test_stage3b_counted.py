@@ -618,8 +618,8 @@ def test_c2_money_amounts_and_lengths_of_time_are_not_asked(monkeypatch: pytest.
     its year from the epoch or its thousand-day step. One or two figures
     of a day keep no unit (`date_counts.figures_kept`), so the four
     figures are the cheap half of a refusal the figures check would reach
-    after a second walk of the cells: the money and the doses are asked
-    only with both lifted.
+    after a second walk of the cells: the money and the amounts to one
+    figure are asked only with both lifted.
     """
     names = (
         "salary_cents_45k", "payment_cents_20k", "room_charge_cents_62k", "glucose_area_1dp",
