@@ -2076,6 +2076,65 @@ def test_cxv_item1_step5_aims_once_and_looks_ahead(tmp_path: pathlib.Path, name:
     assert not worn or max(worn.values()) < parsing.census_floor(11)
 
 
+
+# Step 6's shapes, listed as step 5's are.
+_STEP6_SHAPES: "dict[str, tuple[list[int], int, int, tuple[tuple[int, str], ...], dict[int, str]]]" = {
+    "one_alone_fewer_beside_a_text_of_two": ([1, 1, 2, 12], 3, 0, (), {1: "+0000", 3: "+0000"}),
+    "the_most_texts_alone_that_reach_it": (
+        [1, 1, 1, 2, 2, 12], 4, 0, (), {1: "+0000", 2: "+0000", 4: "+0000"}
+    ),
+    "a_second_pass_kept_only_where_it_writes_more": (
+        [2, 7, 8, 1, 8, 5], 20, 13, (), {1: "+1400", 3: "+1300", 4: "+1300", 5: "+1400"}
+    ),
+    "step5_after_refused_payments": (
+        [1, 1, 1, 1, 2, 12], 4, 0, ((1, "+0000"), (2, "+0000")), {3: "+0000", 4: "+0000", 5: "+0000"}
+    ),
+}
+
+
+@pytest.mark.parametrize("name", sorted(_STEP6_SHAPES))
+def test_cxv_item1_step6_fewer_texts_alone_where_whole_texts_write_more(
+    tmp_path: pathlib.Path, name: str
+) -> None:
+    """Item 1: G7.9b step 6, a second pass with fewer texts standing alone, kept where it writes more.
+
+    Step 4 wrote every text standing alone it might before step 5 saw the
+    rest, so a rest no whole text reaches was left owed where one lone
+    text fewer and a text of two would have written it -- five of 180
+    twins of repeated stamps. Each shape is written by the shipped pass
+    exactly as listed and the oracle writes the same cells. Mutants, run:
+
+    * `one_alone_fewer_beside_a_text_of_two` -- two texts standing alone, a
+      text of two and one of twelve, owing 3: both lone texts leave one
+      cell no whole text reaches, and the second pass writes one lone text
+      and the text of two. Mutants: step 6 withdrawn, and the texts step 5
+      may take read only where step 4 leaves two cells or more -- each
+      writes the two lone texts, 2.
+    * `the_most_texts_alone_that_reach_it` -- three texts standing alone,
+      two of two and one of twelve, owing 4: two lone texts and a text of
+      two reach 4, as do the two texts of two alone, and the largest count
+      of lone texts is the one taken. Mutant: the fewest, which writes the
+      two texts of two.
+    * `a_second_pass_kept_only_where_it_writes_more` -- 2, 7, 8, a text
+      standing alone, 8 and 5, owing 20 with `+13:00` and `+14:00` alone on
+      offer: the first pass writes 19; without the lone text the whole
+      texts reach 20 but two rooms of ten hold 18 of them, so the first
+      pass's cells stand. Mutant: the second pass kept whatever it writes,
+      18.
+    * `step5_after_refused_payments` -- four texts standing alone, two of
+      whose `+0000` are absent spellings, a text of two and one of twelve,
+      owing 4: step 4, owed the whole bound, makes two payments, and step 5
+      writes the text of two for the two cells left. Mutant: the texts
+      step 5 may take read only where step 4 is owed less than the bound,
+      which writes 2.
+    """
+    copies, owed, named, refused, expected = _STEP6_SHAPES[name]
+    bare = _ranked_stamps(copies)
+    order = sorted(set(bare))
+    holes = tuple(order[place] + offset for place, offset in refused)
+    paid = _step5_written(_owing_column(tmp_path), bare, owed, named, holes)
+    assert _worn_by_text(bare, paid) == expected
+
 def test_cxv_item1_step5_offers_only_texts_that_are_numbers(tmp_path: pathlib.Path) -> None:
     """Item 1: step 5 offers a text only where it is a number, so one already wearing an offset is not walked.
 

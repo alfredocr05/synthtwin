@@ -7567,6 +7567,23 @@ column of that layout whose census of offsets pools nothing and names
    fitted no text. The aim and the look ahead write a text of six copies
    at `+0000` and one of four at `+0100` there, and the eleven at every
    seed.
+6. **FEWER TEXTS STANDING ALONE, WHERE WHOLE TEXTS THEN WRITE MORE**
+   (the verification of the Codex review's repair). Step 4 writes every
+   text standing alone it may before step 5 sees the rest, and a rest no
+   whole text reaches -- one cell, beside texts of two copies and more --
+   was left owed where one text standing alone fewer and a text of two
+   would have written it: 5 of 180 twins of repeated stamps. Where steps
+   4 and 5 write fewer cells than step 5's bound and step 4 made
+   payments, the pass is made a second time from the cells as they were
+   handed, step 4 making only the largest count of payments, below its
+   own, whose sum with the largest total -- at most the bound less that
+   count -- that the texts step 5 may take reach is the greatest of any
+   such count, and only where that sum passes the cells written; the
+   texts step 5 may take are the numbers worn by at least two ranks, by
+   fewer than `census_floor` and by no more than the bound, none of them
+   an end. Step 5 then writes the rest as above. The second pass is kept
+   only where it writes more cells; otherwise the first pass's cells
+   stand.
 
 **Why it moves no published fact.** Each offset stands on one cell
 fewer than the line and is one the census does not name, so the twin

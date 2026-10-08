@@ -22507,6 +22507,11 @@ def _offsets_owed_by_the_classes(
     SHORT, the rest is paid with whole repeated texts, every copy of one at
     one offset, so the count of different values still stands
     (`_whole_texts_paid`, step 5; the Codex review of landing R2a, item 4).
+    AND WHERE THE TEXTS STANDING ALONE LEAVE A REST NO WHOLE TEXT REACHES
+    -- one cell beside texts of two copies -- the pass is made again with
+    fewer of them and kept only where it writes more (step 6,
+    `_fewer_standing_alone`; the verification of that review's repair):
+    five of 180 twins of repeated stamps had missed both class counts so.
 
     NEVER AN OFFSET THE CENSUS NAMES (skeptic 2 of landing R2a, item 1). A
     cell written at a named offset is counted into that offset and read at
@@ -22581,24 +22586,170 @@ def _offsets_owed_by_the_classes(
             open_ranks += [rank]
     line = parsing.census_floor(floor)
     bound = min(debt, len(cells) - worn - line, (line - 1) * len(on_offer))
-    owed = min(bound, len(open_ranks))
+    owed = max(min(bound, len(open_ranks)), 0)
+    undo: "dict[int, str]" = {}
+    held = _alone_written(cells, family, on_offer, open_ranks, owed, line, holes, undo)
+    written = 0
+    for count in held:
+        written = written + count
+    # The texts steps 5 and 6 may write whole, read only where one of them
+    # has a rest to write.
+    whole: "dict[int, list[str]]" = {}
+    if bound - written >= 2 or (written < bound and owed > 0):
+        whole = _whole_texts_on_offer(cells, copies, line, bound)
+    if bound - written >= 2 and whole:
+        written = written + _whole_texts_paid(
+            cells, family, on_offer, held, bound - written, line, whole, holes, undo
+        )
+    if written >= bound or owed == 0:
+        return cells
+    # Step 6: fewer texts standing alone, where whole texts then write more.
+    fewer = _fewer_standing_alone(whole, owed, bound, written)
+    if fewer == owed:
+        return cells
+    _undone(cells, undo)
+    undo = {}
+    more = _offsets_written(
+        cells, family, on_offer, open_ranks, fewer, bound, line, whole, holes, undo
+    )
+    if more <= written:
+        _undone(cells, undo)
+        undo = {}
+        _offsets_written(
+            cells, family, on_offer, open_ranks, owed, bound, line, whole, holes, undo
+        )
+    return cells
+
+
+def _offsets_written(
+    cells: "list[str]",
+    family: str,
+    on_offer: "list[str]",
+    open_ranks: "list[int]",
+    owed: int,
+    bound: int,
+    line: int,
+    whole: "dict[int, list[str]]",
+    holes: "tuple[str, ...]",
+    undo: "dict[int, str]",
+) -> int:
+    """G7.9b steps 4 and 5 again on ``cells`` in place, for step 6: ``owed`` payments, the rest on whole texts.
+
+    Step 4's payments as `_alone_written` makes them, then, where the
+    bound less those made is two or more, step 5 on ``whole``'s texts
+    (`_whole_texts_paid`). Each rank changed is recorded in ``undo`` with
+    the text it held. Returns how many cells were written. Determinism: a
+    function of the arguments; draws no word. No I/O of any kind.
+    """
+    held = _alone_written(cells, family, on_offer, open_ranks, owed, line, holes, undo)
+    paid = 0
+    for count in held:
+        paid = paid + count
+    if bound - paid >= 2 and whole:
+        paid = paid + _whole_texts_paid(
+            cells, family, on_offer, held, bound - paid, line, whole, holes, undo
+        )
+    return paid
+
+
+def _alone_written(
+    cells: "list[str]",
+    family: str,
+    on_offer: "list[str]",
+    open_ranks: "list[int]",
+    owed: int,
+    line: int,
+    holes: "tuple[str, ...]",
+    undo: "dict[int, str]",
+) -> "list[int]":
+    """G7.9b step 4 on ``cells`` in place: ``owed`` payments on the texts standing alone.
+
+    Payment ``k`` of ``owed`` goes to the open rank at position ``k``
+    times their count over ``owed``, written again at offset number ``k //
+    (line - 1)`` on offer; a payment whose cell would be an absent
+    spelling, or one its field cannot write, is not made. Each rank
+    changed is recorded in ``undo`` with the text it held. Returns the
+    payments made at each offset. Determinism: a function of the
+    arguments; draws no word. No I/O of any kind.
+    """
     held = [0 for _one in on_offer]
-    for payment in range(max(owed, 0)):
+    for payment in range(owed):
         rank = open_ranks[(payment * len(open_ranks)) // owed]
         changed = parsing.layout_offset_added(
             cells[rank], family, on_offer[payment // (line - 1)]
         )
         if changed is not None and not _is_a_hole_spelling(changed, holes):
+            undo[rank] = cells[rank]
             cells[rank] = changed
             held[payment // (line - 1)] = held[payment // (line - 1)] + 1
-    paid = 0
-    for count in held:
-        paid = paid + count
-    if bound - paid >= 2:
-        _whole_texts_paid(
-            cells, family, on_offer, held, bound - paid, line, copies, holes
-        )
-    return cells
+    return held
+
+
+def _undone(cells: "list[str]", undo: "dict[int, str]") -> None:
+    """Every rank ``undo`` records written back as it was."""
+    for rank in undo:
+        cells[rank] = undo[rank]
+
+
+def _whole_texts_on_offer(
+    cells: "list[str]", copies: "dict[str, int]", line: int, bound: int
+) -> "dict[int, list[str]]":
+    """The texts G7.9b steps 5 and 6 may write whole, by their copies.
+
+    A number worn by at least two ranks, by fewer than ``line`` and by no
+    more than ``bound``, none of them an end -- a copy at an end would be
+    a spelling the description prints -- each size's in the order of their
+    first rank, the order ``copies`` was counted in. One reading of each
+    such text's class. Determinism: a function of the four. Raises
+    nothing. No I/O of any kind.
+    """
+    whole: "dict[int, list[str]]" = {}
+    for text in copies:
+        size = copies[text]
+        if size < 2 or size >= line or size > bound:
+            continue
+        if text == cells[0] or text == cells[len(cells) - 1]:
+            continue
+        if parsing.classify_number(text) != parsing.NUMBER:
+            continue
+        if size in whole:
+            whole[size] += [text]
+        else:
+            whole[size] = [text]
+    return whole
+
+
+def _fewer_standing_alone(
+    whole: "dict[int, list[str]]", owed: int, bound: int, written: int
+) -> int:
+    """G7.9b step 6: how many texts standing alone a second pass writes, or ``owed`` for none.
+
+    The largest count below ``owed`` whose sum with the largest total, at
+    most ``bound`` less it, that ``whole``'s texts reach is the greatest of
+    any such count -- where that sum passes the ``written`` cells of the
+    first pass; otherwise ``owed``, and no second pass is made.
+    Determinism: a function of the four. Raises nothing. No I/O of any
+    kind.
+    """
+    sizes = sorted(whole)
+    have: "dict[int, int]" = {}
+    for size in sizes:
+        have[size] = len(whole[size])
+    reach = _sums_reached(sizes, have, bound)[len(sizes)]
+    # largest[t]: the largest total at most t the texts reach.
+    largest: "list[int]" = []
+    found = 0
+    for total in range(bound + 1):
+        if (reach >> total) & 1:
+            found = total
+        largest += [found]
+    best = written
+    chosen = owed
+    for count in range(owed - 1, -1, -1):
+        if count + largest[bound - count] > best:
+            best = count + largest[bound - count]
+            chosen = count
+    return chosen
 
 
 def _whole_texts_paid(
@@ -22608,9 +22759,10 @@ def _whole_texts_paid(
     held: "list[int]",
     rest: int,
     line: int,
-    copies: "dict[str, int]",
+    whole: "dict[int, list[str]]",
     holes: "tuple[str, ...]",
-) -> None:
+    undo: "dict[int, str]",
+) -> int:
     """G7.9b step 5: the rest of the debt paid with WHOLE repeated texts.
 
     WHERE THE OPEN RANKS FALL SHORT (the Codex review of landing R2a, item
@@ -22652,10 +22804,12 @@ def _whole_texts_paid(
     at cost 68 CPU seconds at a million rows owing 140.
 
     Guarantees: accepts the cells, the layout, the offsets on offer with
-    the cells step 4 wrote at each, the rest owed, the census line, each
-    text's copies as counted before step 4 and every absent spelling;
-    returns nothing, and ``cells`` is changed in place. Determinism: a
-    function of the arguments; draws no word. No I/O of any kind.
+    the cells step 4 wrote at each, the rest owed, the census line, the
+    texts on offer by their copies (`_whole_texts_on_offer`), every absent
+    spelling and the record of the ranks changed; returns how many cells
+    it wrote, ``cells`` changed in place and each rank it changed recorded
+    in ``undo`` with the text it held. Determinism: a function of the
+    arguments; draws no word. No I/O of any kind.
     """
     widest = 0
     room = 0
@@ -22664,23 +22818,13 @@ def _whole_texts_paid(
         room = room + (line - 1) - count
     most = min(rest, room)
     if most < 2 or not cells:
-        return
+        return 0
     sized: "dict[int, list[str]]" = {}
-    for text in copies:
-        size = copies[text]
-        if size < 2 or size >= line or size > widest or size > most:
-            continue
-        # A copy at an end would be a spelling the description prints.
-        if text == cells[0] or text == cells[len(cells) - 1]:
-            continue
-        if parsing.classify_number(text) != parsing.NUMBER:
-            continue
-        if size in sized:
-            sized[size] += [text]
-        else:
-            sized[size] = [text]
+    for size in whole:
+        if size <= widest and size <= most:
+            sized[size] = whole[size]
     if not sized:
-        return
+        return 0
     spelled: "dict[tuple[str, int], str]" = {}
     barred: "dict[tuple[str, int], int]" = {}
     while True:
@@ -22699,9 +22843,13 @@ def _whole_texts_paid(
         if refused is None:
             break
         barred[refused] = 1
+    written = 0
     for rank in range(1, len(cells) - 1):
         if cells[rank] in placed:
+            undo[rank] = cells[rank]
             cells[rank] = placed[cells[rank]]
+            written = written + 1
+    return written
 
 
 def _whole_texts_walked(

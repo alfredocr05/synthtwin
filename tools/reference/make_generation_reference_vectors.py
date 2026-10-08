@@ -9989,7 +9989,11 @@ def offsets_paid_to_the_classes(column, cells, holes, floor=CASE_SMALL_CELL_FLOO
     * a payment whose cell would be a spelling the column holds absent is
       not made;
     * and the rest of that smallest -- counted without the eligible ranks
-      -- is step 5's, paid with whole repeated texts (`whole_texts_paid`).
+      -- is step 5's, paid with whole repeated texts (`whole_texts_paid`);
+    * where steps 4 and 5 write fewer cells than that bound and step 4 made
+      payments, step 6 makes the pass again from the cells as handed with
+      fewer payments (`fewer_standing_alone`), and keeps it only where it
+      writes more.
     """
     member = column["format"]
     if not is_layout(member):
@@ -10032,29 +10036,62 @@ def offsets_paid_to_the_classes(column, cells, holes, floor=CASE_SMALL_CELL_FLOO
         if a_number(cells[rank]) and a_text_worn_once(cells, rank)
     ]
     line = census_line(floor)
-    payments = payments_owed(
-        column["n_not_numeric"] - not_numbers - column["n_unparsed"],
-        len(eligible),
-        len(cells) - not_numbers,
-        line,
-        len(offer),
-    )
-    paid = list(cells)
-    made_at = [0] * len(offer)
-    for payment in range(max(payments, 0)):
-        rank = eligible[payment * len(eligible) // payments]
-        candidate = cells[rank] + joint + offer[payment // (line - 1)]
-        if candidate.strip().lower() not in absent:
-            paid[rank] = candidate
-            made_at[payment // (line - 1)] += 1
-    rest = payments_owed(
-        column["n_not_numeric"] - not_numbers - column["n_unparsed"],
-        len(cells),
-        len(cells) - not_numbers,
-        line,
-        len(offer),
-    ) - sum(made_at)
-    return whole_texts_paid(paid, cells, joint, offer, made_at, rest, line, absent, a_number)
+    debt = column["n_not_numeric"] - not_numbers - column["n_unparsed"]
+    payments = max(payments_owed(debt, len(eligible), len(cells) - not_numbers, line, len(offer)), 0)
+    bound = payments_owed(debt, len(cells), len(cells) - not_numbers, line, len(offer))
+
+    def written_with(count):
+        paid = list(cells)
+        made_at = [0] * len(offer)
+        for payment in range(count):
+            rank = eligible[payment * len(eligible) // count]
+            candidate = cells[rank] + joint + offer[payment // (line - 1)]
+            if candidate.strip().lower() not in absent:
+                paid[rank] = candidate
+                made_at[payment // (line - 1)] += 1
+        paid = whole_texts_paid(paid, cells, joint, offer, made_at, bound - sum(made_at), line, absent, a_number)
+        return paid, sum(1 for before, after in zip(cells, paid) if before != after)
+
+    paid, written = written_with(payments)
+    if written >= bound or payments == 0:
+        return paid
+    fewer = fewer_standing_alone(cells, line, bound, payments, written, a_number)
+    if fewer == payments:
+        return paid
+    again, more = written_with(fewer)
+    return again if more > written else paid
+
+
+def fewer_standing_alone(cells, line, bound, payments, written, a_number):
+    """G7.9b step 6, from its statement: how many texts standing alone the second pass writes.
+
+    The texts step 5 may take are the numbers worn by at least two ranks,
+    fewer than the census line and no more than the bound, none of them an
+    end.  The count is the largest below ``payments`` whose sum with the
+    largest total at most the bound less it that those texts reach is the
+    greatest of any such count, where that sum passes the ``written`` cells
+    of the first pass; otherwise ``payments``, and there is no second pass.
+    """
+    worn_by = {}
+    for rank, text in enumerate(cells):
+        worn_by.setdefault(text, []).append(rank)
+    sizes = {}
+    for text, ranks in worn_by.items():
+        if (
+            2 <= len(ranks) < line
+            and len(ranks) <= bound
+            and ranks[0] > 0
+            and ranks[-1] < len(cells) - 1
+            and a_number(text)
+        ):
+            sizes[len(ranks)] = sizes.get(len(ranks), 0) + 1
+    totals = sums_of_sizes(sorted(sizes.items()), bound)
+    best, chosen = written, payments
+    for count in range(payments - 1, -1, -1):
+        total = count + max(total for total in totals if total <= bound - count)
+        if total > best:
+            best, chosen = total, count
+    return chosen
 
 
 def sums_of_sizes(counts, cap):
