@@ -990,8 +990,12 @@ stage 3b, plan P4-D377): where G6.6.8's rule 1 moved a derived end
 (`contract.reach_moved_an_end`), the generator also divides and reads
 the column on the ladder with that rule withdrawn and may write that
 reading (G6.6.8 rule 3), so the validator draws the `mean` and `std`
-windows through that second ladder as well and holds the file to
-V6.1-A2's half-width test with both (validation method V6.1-A2).
+windows and each tail's two distance windows through that second ladder
+as well, and holds the file to a distance from the published value that
+the second window sets, whether or not it reaches the value -- half its
+width for the two moments, the furthest it admits for a tail's
+distances (validation method V6.1-A2; Codex's review of lane G2, item
+1).
 
 A tail block whose `tails` is null publishes no rung and no moment (the
 block floor, TL2), and its ladder is G5.3d's ramp; one whose two sides
@@ -2991,17 +2995,35 @@ cells, a ceiling of one. Two rules follow and both are normative:
    carries no other point-free form at all, every cell of the column
    being padded, there is nothing to give the style up to and the cell
    keeps it -- EXCEPT A FAR CELL A TAIL'S PAIR PROVES (plan P4-D377): a
-   value past every named width on a side whose published pair proves a
-   cell past it (G6.6.8) is written `plain`. The census counted the
-   source's own far cell into its commonest form and width (plan
-   P4-D222), and that cell could have been padded at none of them. Kept
-   padded, it stood one figure wider than every field the census names:
-   `00001` to `00399` beside one `12345`, whose far cell G6.6.8 leaves
-   past the width, came back holding `012280`, six characters in a
-   column of five, at seeds 0, 4 and 9; written plain it stands at the
-   width the census names. A value the draw alone left too wide keeps
-   the padded style: written plain, the stage-2b style battery gave its
-   named padded count up at 34 runs of 1,920, where it does at eight.
+   value past every named width on a side where G6.6.8's walk -- the
+   walk the block actually takes, in the reading it writes -- left cells
+   past it is written `plain`. The census counted the source's own far
+   cell into its commonest form and width (plan P4-D222), and that cell
+   could have been padded at none of them. Kept padded, it stood one
+   figure wider than every field the census names: `00001` to `00399`
+   beside one `12345`, whose far cell G6.6.8 leaves past the width, came
+   back holding `012280`, six characters in a column of five, at seeds
+   0, 4 and 9; written plain it stands at the width the census names. The
+   walk leaves at most the line less one past the width, so the cells
+   written plain pool into the commonest form, as the source's own did. A
+   value the draw alone left too wide keeps the padded style: written
+   plain, the stage-2b style battery gave its named padded count up at 34
+   runs of 1,920, where it does at eight. So does a value the draw left
+   past the width on a side whose pair proves a cell there but where the
+   walk does not stand -- 110cb46's walk kept, the side given up, every
+   far cell moved under the width, or rule 3's second reading written:
+   read off the pair alone, `-00001` to `-00150` beside ten `-099999`, a
+   declared measurement at eleven, came back with eleven cells plain, the
+   line and not the line less one, and missed its census of forms and its
+   padded width where 110cb46 met both with every value the same (Codex's
+   review of lane G2, item 2). Over 120 twins -- two-figure readings
+   padded to three beside one far reading, 150 to 1,000 rows, and those
+   negative codes at 150 and 400 rows, at floors 11 to 50 and seeds 0, 4
+   and 9 -- the plain spelling read off the pair alone newly missed checks
+   on 9 and this rule on none; what it gives back is 72 twins whose far
+   cell is padded one figure wider than every source cell, as 110cb46
+   wrote it, where the pair alone wrote every cell at the source's width,
+   no check missed either way.
 
    **WHAT THIS COSTS IS A FORM COUNT, AND G13's RECOUNT NAMES IT.** The
    exchange above moves no count; this gives one cell from
@@ -4359,8 +4381,16 @@ rows hold. Three rules follow, and none publishes anything new:
    values than strata to move, the side's own strata under the width
    beside the run are taken into it one at a time until it holds one for
    each, and the run is spread down from the width's end, the end G5.3b
-   step 4's clamp gave 110cb46. WHERE THE WHOLE TAIL TAKEN IN STILL
-   FINDS TOO FEW, the moved strata alone are placed, the innermost on
+   step 4's clamp gave 110cb46. The search for free values resumes where
+   it stopped as each stratum is taken in -- that stratum frees only its
+   own value, inside every value already looked at -- so the widening
+   looks at each value once: begun again at the width's end for every
+   stratum, it made 568, 2,807 and 11,881 checks over consecutive whole
+   numbers up to `999999` beside five of seven figures at 4,000, 8,000
+   and 16,000 rows, tails of 40, 80 and 160 strata, and resumed it makes
+   43, 87 and 166, the twins the same (Codex's review of lane G2, item
+   3). WHERE THE WHOLE TAIL TAKEN IN STILL FINDS TOO FEW, the moved
+   strata alone are placed, the innermost on
    the outermost free values, and those that find none take the end the
    width held on 110cb46 -- on a side rule 1 moved -- sharing it as that
    end did; on another side, whose end stood past the width on 110cb46
@@ -4478,8 +4508,8 @@ rows hold. Three rules follow, and none publishes anything new:
    repair round's own earlier form read it wherever its own was wider,
    the second reading was not 110cb46's twin, and ten twins of 3,333
    stood further from the real mean and spread, together, than
-   110cb46's. The far cell's plain spelling (G6.3) is asked of whichever
-   reading is written.
+   110cb46's. The far cell's plain spelling (G6.3) follows the reading
+   written and the walk it took: none where the second reading stands.
 
    THE FIRST FORM OF THIS RULE (9c3b00d), as the first skeptic measured
    it, would not move the stratum holding the end and counted the cells
@@ -4502,27 +4532,31 @@ rows hold. Three rules follow, and none publishes anything new:
 
 Measured on eleven batteries -- seeds 0, 4 and 9, the codes beside
 plain numbers at 0 to 19 and the random shapes at 0 -- 110cb46's twins
-against this rule's, BOTH READ BY ONE CHECKER, this one, which holds the
-mean and the spread to the window drawn with rule 1 withdrawn as well
-wherever rule 1 moved an end (validation method V6.1-A2): read by each
-tree's own checker, as the repair round first measured, most of the fall
-was the checker's. `K-S3-22`'s 36 column-floors miss 21 checks where
-110cb46's twins miss 144; the 21 are the mean or the spread of the two
-moments-only columns and of three Pareto(2.5) columns at fifty whose
-spread reads 0.90 to 0.94 of the real one; follow-up A's 37 shapes miss
-nothing on either; the stage-3 battery misses its 61 on both; six shapes
-of codes beside plain numbers and far cells miss 205 where 605 were
-missed; the skeptics' grid, pressure, code, bulk and attack shapes miss
-27 where 222 were missed -- the grid twins rule 3 writes as 110cb46
-wrote them, their spread 0.37 to 0.50 of the real one, and 398 numbers
-from 1000 beside `99999` and `88888` at a floor of 20; 1,500 random
-shapes of one to four figures beside one to five far cells, at floors 11
-to 50, miss 4 where 57 were missed; 288 twins of readings 10 to 99
-beside one or two far readings of three figures miss nothing on either;
-and the second skeptic's 21 shapes beside far cells miss 6 where 15 were
-missed. Twin by twin, each of the 3,459 counted once: the rules change
-716 and leave 2,743 as 110cb46 wrote them, byte for byte; none of the
-716 misses a check 110cb46's twin met, writes a cell wider than the
+against this rule's, BOTH READ BY ONE CHECKER, the one Codex's review of
+lane G2 left, which holds the mean, the spread and each tail's distances
+to the windows drawn with rule 1 withdrawn as well wherever rule 1 moved
+an end, whether or not those reach the published value (validation
+method V6.1-A2): read by each tree's own checker, as the repair round
+first measured, most of the fall was the checker's. `K-S3-22`'s 36
+column-floors miss 21 checks where 110cb46's twins miss 147; the 21 are
+the mean or the spread of the two moments-only columns and of three
+Pareto(2.5) columns at fifty whose spread reads 0.90 to 0.94 of the real
+one; follow-up A's 37 shapes miss nothing on either; the stage-3 battery
+misses its 61 on both; six shapes of codes beside plain numbers and far
+cells miss 205 where 605 were missed; the skeptics' grid, pressure, code,
+bulk and attack shapes miss 27 where 234 were missed -- the grid twins
+rule 3 writes as 110cb46 wrote them, their spread 0.37 to 0.50 of the
+real one, and 398 numbers from 1000 beside `99999` and `88888` at a floor
+of 20; 1,500 random shapes of one to four figures beside one to five far
+cells, at floors 11 to 50, miss 5 where 57 were missed; 288 twins of
+readings 10 to 99 beside one or two far readings of three figures miss
+nothing on either; and the second skeptic's 21 shapes beside far cells
+miss 6 where 18 were missed. Twin by twin, each of the 3,459 counted
+once: the rules change 695 and leave 2,764 as 110cb46 wrote them, byte
+for byte; one of the 695 misses a check 110cb46's twin met -- a random
+shape at fifty whose high tail's mean distance stands at 33.4 against a
+published 16.2, where 110cb46's stood at 22.4, past the furthest the
+tail's second window admits -- and none writes a cell wider than the
 source's widest and 110cb46's, writes its own width census further from
 the source's, writes further past the real column's range, or stands
 further from the real mean and spread taken together; 691 stand nearer
@@ -4568,7 +4602,16 @@ the second walk only where a cell stands past the width: with none
 there the two walks are one, so it changes no twin. Of the second
 skeptic's eighteen more, eleven turn it red; the seven that do not
 changed no twin of 1,584 over nine batteries on 9c79ece, where that
-skeptic ran them.
+skeptic ran them. Codex's review of the lane added sixteen clauses --
+the resumed search's cursor, the values it found and its count; the
+sides the walk names for G6.3's plain far cells, through each walk the
+block weighs and the reading rule 3 writes; and the checker's second
+window asked whether or not it reaches the value, its bound for a
+tail's distances, the tails' second windows and their stratum bound,
+and its hold on the mean as well as the spread and on neither higher
+moment -- and a source mutant of each turns the file red: five of the
+sides' only once that round pinned them on padded columns and where the
+sides are handed on, having changed no twin of 548 battery jobs.
 
 ### G6.7 No value stands where the description says there is none
 

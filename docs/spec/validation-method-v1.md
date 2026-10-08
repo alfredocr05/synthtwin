@@ -2688,29 +2688,53 @@ unchanged; it already prints both values and says where its range does
 not cover the published one.
 
 **AND WHERE METHOD G6.6.8'S RULE 1 MOVED A DERIVED END, THE WINDOW
-DRAWN WITH THAT RULE WITHDRAWN ASKS THE SAME** (the second skeptic of
-plan P4-D377's repair, item 1). Rule 1 reads a tail's end, and with it
-every window of G12.3, through the reach the tail's published pair
-proves, which widens the `mean` and `std` windows until they reach the
-published values -- so the clause above stopped applying where it had
-applied -- while the generator may still write such a column on the
-ladder with the rule withdrawn (G6.6.8 rule 3). MEASURED: 1,001
-readings 1000 to 1900 beside one `99900`, at a floor of eleven, written
-byte for byte as 110cb46 wrote them, their spread 0.38 of the real one,
-were MISSED by 110cb46's report on a `std` window of 0 to 3,090.8
-against a published 3,124.9, and passed on the rule's window of 0 to
-36,011.8. So on a tail block where the rule moved an end
-(`contract.reach_moved_an_end`), the `mean` and `std` windows are drawn
-a second time through the ladder read with the rule withdrawn -- the
-windows 110cb46 drew, to the last digit -- and where that window does
-not reach the published value, a file not holding it exactly must also
-stand within half that window's width of it, or the obligation is
-MISSED, the note printing that window. The line still prints the first
-window, and the WITHIN-BOUND test is the first window's alone: the
-rule's own twin of `00001` to `00149` beside one `99999`, at eleven,
+DRAWN WITH THAT RULE WITHDRAWN BOUNDS THE FILE TOO** (the second skeptic
+of plan P4-D377's repair, item 1; Codex's review of lane G2, item 1).
+Rule 1 reads a tail's end, and with it every window of G12.3 and G12.13,
+through the reach the tail's published pair proves, which widens the
+windows until they reach the published values -- so the clause above
+stopped applying where it had applied -- while the generator may still
+write such a column on the ladder with the rule withdrawn (G6.6.8 rule
+3). MEASURED: 1,001 readings 1000 to 1900 beside one `99900`, at a floor
+of eleven, written byte for byte as 110cb46 wrote them, their spread
+0.38 of the real one, were MISSED by 110cb46's report on a `std` window
+of 0 to 3,090.8 against a published 3,124.9, and passed on the rule's
+window of 0 to 36,011.8. So on a tail block where the rule moved an end
+(`contract.reach_moved_an_end`), the `mean` and `std` windows and each
+tail's two distance windows are drawn a second time through the ladder
+read with the rule withdrawn -- the windows 110cb46 drew, to the last
+digit -- and a file not holding the published value exactly must also
+stand within a distance of it that the second window sets, or the
+obligation is MISSED, the note printing that window: for `mean` and
+`std` half its width, the distance the clause above asks, and for a
+tail's `mean_distance` and `rms_distance` the furthest any value the
+window admits stands from the published one. WHETHER OR NOT THE SECOND
+WINDOW REACHES THE VALUE. Asked only where it did not, as the leftover
+round first wrote this, it asked nothing where it did, and the rule's
+wide window was the only bound: readings 1000 to 1900, each 150 times,
+beside one `99900`, at eleven, draw the spread's second window 0 to
+3,020.28 around a published 2,557.30, and a file whose last cell is
+`300000`, its spread 7,711.31, three times the real one, missed none
+of its seventy checks where 110cb46's report missed its spread and both
+of its high tail's distances; it misses those three again, and the twin
+written there, 110cb46's own at 0.35 of the real spread, misses its
+spread, which both earlier reports passed. A distance from the published
+value bounds both sides of it alike, so the second window never passes a
+file further from the real column than one it fails. A tail's distances
+take the whole window's reach and not half its width because those
+windows were never a margin around the value, and the rule exists
+because the tail stands past them: 150 different Pareto readings at a
+floor of 36 are written with their far tail's root-mean-square distance
+at 569 against a published 666, the second window 304 to 425; half its
+width would refuse that twin, while the furthest it admits, 362 from
+the value, refuses a far tail three times the real one's. The line still
+prints the first window, and the WITHIN-BOUND test is the first
+window's alone:
+the rule's own twin of `00001` to `00149` beside one `99999`, at eleven,
 holds a spread of 8,153.5 against a published 8,158.9, outside the
 second window, 0 to 2,945.5, and well within half its width of the
-value. `skew` and `kurtosis` are not held to it.
+value. `skew` and `kurtosis` are not held to it. What the corrected
+bound changes over the batteries is measured in plan P4-D377.
 
 **V6.1-A1 Where the first two definitions both fit, HELD is the one
 taken: a file holding the description's own value has met the exact

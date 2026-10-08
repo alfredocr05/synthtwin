@@ -6,7 +6,7 @@ exists).
 
 ## [Unreleased]
 
-### A tail pair that proves a wider cell lets the end past the width (2026-10-02, repaired 2026-10-06 and 07)
+### A tail pair that proves a wider cell lets the end past the width (2026-10-02, repaired 2026-10-06 to 08)
 
 **The width census no longer caps a tail its own pair proves wider**
 (plan P4-D377, method G6.6.8, lane G2 of stage 3b). The census counts a
@@ -25,12 +25,14 @@ published mean and spread, together, no further off than none. Where
 the end moved, the values are read a second time with the rule
 withdrawn -- 110cb46's twin, on a division the plan makes once -- and
 the column keeps whichever reads the published mean and spread nearer,
-together. A far cell the pair proves past every named pad is written
-plain, so a column of five-character codes stays five characters wide.
-And `validate` holds the mean and spread of such a column to the window
-drawn with the rule withdrawn as well (validation method V6.1-A2): the
-rule's own window, drawn through the further end, reached the published
-value where 110cb46's did not, and twins written as 110cb46 wrote them,
+together. A far cell the walk leaves past every named pad is written
+plain, so a column of five-character codes stays five characters wide;
+one the draw left there keeps its pad, as 110cb46 wrote it. And
+`validate` holds the mean, the spread and the tails' distances of such a
+column to the windows drawn with the rule withdrawn as well, whether or
+not those reach the published value (validation method V6.1-A2): the
+rule's own windows, drawn through the further end, reached the published
+values where 110cb46's did not, and twins written as 110cb46 wrote them,
 their spread 0.37 to 0.50 of the real one, passed. Nothing new is
 published; a skew or kurtosis window the rule's reading draws over the
 whole range is listed rather than checked, so 175 of 3,459 twins lose
@@ -39,16 +41,18 @@ such a check that 110cb46 gave and that held.
 One checker, this one, reads 110cb46's twin and this landing's over
 3,636 twins of eleven batteries, at seeds 0, 4 and 9: `K-S3-22`'s
 column-floors miss 21 mean and spread checks where 110cb46's twins miss
-111, codes beside plain numbers 205 checks where 605, the skeptics'
-shapes 27 where 222, and 1,500 random shapes 4 where 57; the twins more
+114, codes beside plain numbers 205 checks where 605, the skeptics'
+shapes 27 where 234, and 1,500 random shapes 5 where 57; the twins more
 than 0.05 of the real spread off the real mean or a tenth off its spread
-number 1,500 of 3,459 where 110cb46's number 1,875. The rule changes 716
-twins, and none newly misses a check, writes a cell wider than both the
-source's and 110cb46's, writes its own width census further from the
-source's or stands further from the real mean and spread taken
-together. What it still costs: 99 twins stand further from the real
-mean alone and 22 from the real spread alone, all where the reach
-stands barely past the width, each nearer on the other by more; and 186
+number 1,500 of 3,459 where 110cb46's number 1,875. The rule changes 695
+twins; one newly misses a check -- a random shape at fifty whose far
+tail's mean distance stands at twice the real one -- and none writes a
+cell wider than both the source's and 110cb46's, writes its own width
+census further from the source's or stands further from the real mean
+and spread taken together. What it still costs: 99 twins stand further
+from the real mean alone and 22 from the real spread alone, all where
+the reach stands barely past the width, each nearer on the other by
+more; and 186
 write cells past the width where 110cb46 wrote none, further from the
 source's count than none -- up to 15 where it holds one -- because the
 reach is the nearest the furthest row can stand and the pair's squares
@@ -59,7 +63,27 @@ twice, a row left at `09998`, a code padded to `012280` -- and five more
 of its own; the second skeptic's round fixed the checker, rule 3 asked
 where it could change nothing -- 5.8 s of every 24.3 generating 200,000
 six-figure numbers -- and four clauses no test held, two of them its
-own. The walk, the second reading and the checker's second window are
+own. Its one Codex review raised three more, each corrected here and
+pinned by a test red on f6a24db. The second window asked nothing where
+it reached the published value, so a file whose spread stood at three
+times the real one -- one far cell moved, on readings 1000 to 1900 a
+hundred and fifty times beside `99900` -- missed none of seventy checks;
+it now bounds the file's distance from the value either way, half its
+width for the mean and spread and the furthest it admits for a tail's
+distances, and the file misses its spread and both far-tail distances,
+as on 110cb46. A far cell was written plain wherever a pair proved its
+side, so `-00001` to `-00150` beside ten `-099999` came back with eleven
+cells plain and four checks missed where every value was 110cb46's; the
+plain spelling now follows the walk the block takes, and 21 battery
+twins whose walk does not stand are 110cb46's again, byte for byte, as
+are 87 of 120 padded twins measured beside them: on 9 the pair alone
+had newly missed checks, and on 72 it wrote every cell at the source's
+width where 110cb46's far cell is a figure wider, nothing missed. And
+a run widening inward over dense values began its search for free values
+again for every stratum it took in -- 11,881 checks on a tail of 160
+strata -- and now resumes it, 166 checks and the same twins.
+`K-S3-22`, re-measured with the corrected checker, holds every count it
+held. The walk, the second reading and the checker's second window are
 pinned by `tests/test_stage3b_width.py`; one frozen case opens
 `tests/reference/generation-branch-vectors-23.json` for the end rule.
 
