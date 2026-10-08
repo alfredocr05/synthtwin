@@ -1687,7 +1687,9 @@ INVARIANTS = {
         "a heap or in a group that counts cells; with no census, the values "
         "between the boundaries on no heap are one such group over the "
         "dial; and a tail drawn through its shape keeps a step beyond its "
-        "boundary that is neither for the rows its heaps leave"
+        "boundary that is neither for the rows its heaps leave -- where the "
+        "table calls every such step of a group or a tail absent, a time the "
+        "hour's other number of figures writes another way counting as one"
     ),
     "CH1": (
         "the heaps of a column of clock times are times written in its form, "
@@ -15609,7 +15611,9 @@ def _clock_census(
       which the generator's runs no longer count). And each tail drawn
       through its shape whose heaps leave it rows keeps a step beyond its
       boundary that is no heap and no absent place, where its draw can
-      stand (`_drawn_tails_have_room`).
+      stand -- or, where every step there on no heap is an absent place
+      the hour's other width spells another way, those steps
+      (`_drawn_tails_have_room`).
 
     The heaps are looked up through a set, in the order they stand, so
     the work grows with the heaps and not with their square (the
@@ -15898,15 +15902,23 @@ def _drawn_tails_have_room(
     The generator draws such a tail's rows its heaps leave in steps that
     skip the heaps' distances and the absent places' (method G7A.4b,
     step 1), out to the end of the dial, so at least one step beyond the
-    boundary must be neither, or a draw would land past the dial. A
-    description the producer writes always has one -- those rows were
-    written on such steps -- and one a hand broke is refused here, as a
-    census group with no step left is, and not inside the generator.
+    boundary must be neither, or a draw would land past the dial -- save
+    where every step there on no heap is an absent place the hour's other
+    width spells another way: those rows stood there in the table,
+    present, in that width, and the draw stands on those steps
+    (`calendar_clock.absent_room_beyond`). A description the producer
+    writes always has one or the other, those rows having been written
+    on such steps; read off the absence alone, the producer's own
+    description of 70 `00:30` and one `0:00` beyond a low boundary at
+    `01:00`, beside `00:00` declared missing, was refused here (the
+    third verification of the round-2 fix). One a hand broke is refused
+    here, as a census group with no step left is, and not inside the
+    generator.
 
     Guarantees: accepts the form, the step in the form's unit, the two
     tails, the two boundaries' ordinals, the heaps with their ordinals
     and the absent places; returns nothing. Raises ProfileError (CC5)
-    for the first tail with no such step. Determinism: a function of the
+    for the first tail with neither. Determinism: a function of the
     arguments. No I/O of any kind.
     """
     top = parsing.CLOCK_CAPACITY[form] - 1
@@ -15930,6 +15942,11 @@ def _drawn_tails_have_room(
             for distance in calendar_clock.absent_beyond(absent, at, low_side, stride)
         }
         if edge - len([distance for distance in taken if distance <= edge]) < 1:
+            if calendar_clock.absent_room_beyond(
+                absent, form, at, low_side, stride,
+                [distance for distance, _count in beyond],
+            ):
+                continue
             raise _broken(
                 "CC5",
                 where,
@@ -15937,7 +15954,9 @@ def _drawn_tails_have_room(
                 f"and every step beyond its boundary is a heap or a spelling "
                 f"the table calls absent",
                 "a tail drawn through its shape keeps a step beyond its "
-                "boundary for the rows its heaps leave",
+                "boundary for the rows its heaps leave -- or, where the "
+                "table calls every such step absent, only times the hour's "
+                "other number of figures writes another way",
             )
 
 

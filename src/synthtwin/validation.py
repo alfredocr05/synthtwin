@@ -15774,9 +15774,13 @@ def _clock_tail_windows(
         # give, so its window is the heaps' distances beside that shape's.
         # The draw skips the places the column calls absent beyond the
         # boundary beside the heaps', on any step (the round-2 fix of
-        # landing 3b.5), read off the block as the generator reads them.
+        # landing 3b.5), read off the block as the generator reads them --
+        # save those that are its room, where every step there on no heap
+        # is one the hour's other width spells another way (the third
+        # verification of that fix).
         heaped: "list[tuple[int, int]]" = []
         beyond: "list[int]" = []
+        room: "list[int]" = []
         stride = 1
         if facts.clock_step is not None:
             stride = max(1, facts.clock_step // parsing.clock_step(facts.clock_form))
@@ -15785,8 +15789,11 @@ def _clock_tail_windows(
                 distance = at - here if low_side else here - at
                 if distance > 0:
                     heaped += [(distance, count)]
-            beyond = calendar_clock.absent_beyond(
-                _clock_absent_places(column, facts, holes), at, low_side, stride
+            absent = _clock_absent_places(column, facts, holes)
+            beyond = calendar_clock.absent_beyond(absent, at, low_side, stride)
+            room = calendar_clock.absent_room_beyond(
+                absent, facts.clock_form, at, low_side, stride,
+                [distance for distance, _count in heaped],
             )
         if heaped or stride > 1 or beyond:
             rows, mean, root = calendar_clock.tail_less_heaps(
@@ -15796,7 +15803,7 @@ def _clock_tail_windows(
             far: "list[int]" = []
             skipped = sorted(
                 {distance // stride for distance, _count in heaped}
-                | {distance // stride for distance in beyond}
+                | {distance // stride for distance in beyond if distance not in room}
             )
             if rows > 0:
                 steps = edge // stride

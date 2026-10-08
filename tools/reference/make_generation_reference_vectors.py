@@ -19003,6 +19003,31 @@ def clock_tail_absent(column, at, is_low, stride):
     return found
 
 
+def clock_tail_room(column, at, is_low, stride, heaped):
+    """The distances beyond a drawn tail's boundary ``at`` its draw stands on
+    although the column calls them absent (G7A.4b step 1, the third
+    verification of the round-2 fix of landing 3b.5): where every step out
+    to the dial's end that is no heap's (``heaped``, their distances) is
+    spelled absent and the hour's other width writes it another way, every
+    such step -- the rows the heaps leave stood there in that width --
+    and otherwise none.  Every step is spelled and asked."""
+    form = column["clock_form"]
+    absent = clock_absent_of(column)
+    if not absent:
+        return []
+    last = clock_capacity(form) - 1
+    room, distance = [], stride
+    while (at - distance >= 0) if is_low else (at + distance <= last):
+        if distance not in heaped:
+            place = at - distance if is_low else at + distance
+            if not (_clock_reads_absent(place, form, absent)
+                    and clock_other_width_of(place, form) != clock_spelling_of(place, form)):
+                return []
+            room += [distance]
+        distance += stride
+    return room
+
+
 def clock_census_runs(column, parsed, tails, body, heaps, stride):
     """The body's stretches in rank order, from the method's text (G7A.4b).
 
@@ -19077,7 +19102,10 @@ def clock_census_content(column):
     rest by G7.3b in steps -- its rows, mean and root-mean-square less the
     heaps', each distance divided by the step, its edge in steps less the
     heaps and the absent steps inside it -- each drawn distance read back
-    past the heaps' and the absent ones' and times the step.  BODY: each stretch of
+    past the heaps' and the absent ones' and times the step; save where
+    every step beyond the boundary on no heap is an absent one the hour's
+    other width writes another way, which the draw stands on, read back
+    past the heaps' alone, and writes in that width.  BODY: each stretch of
     `clock_census_runs`; a heap's ranks on its value, a run's ranks by
 
         steps[((r - a) 2**64 + w) |steps| // (n 2**64)]
@@ -19102,6 +19130,7 @@ def clock_census_content(column):
     low, high = column["low_tail"], column["high_tail"]
     ordinals = [0] * parsed
     tails, body = None, (0, (capacity - 1) // stride * stride)
+    stood_beyond = set()
     if low is not None and high is not None:
         tails = (low["rows"], high["rows"])
         body = (clock_ordinal_of(low["boundary"], form),
@@ -19176,9 +19205,14 @@ def clock_census_content(column):
                         mean = max((side["rows"] * whole_mean - owed) / rows, 1.0)
                         square = (side["rows"] * (whole_root * whole_root) - squares) / rows
                         root = max(math.sqrt(square) if square > 0.0 else mean, mean)
+                    # ...past the absent steps too, save the draw's own room
+                    # (the third verification of the round-2 fix).
+                    drawn_room = clock_tail_room(column, at, is_low, stride, mine)
+                    stood_beyond |= {at - gap if is_low else at + gap for gap in drawn_room}
                     skipped = sorted(
                         {gap // stride for gap in mine}
-                        | {gap // stride for gap in clock_tail_absent(column, at, is_low, stride)}
+                        | {gap // stride for gap in clock_tail_absent(column, at, is_low, stride)
+                           if gap not in drawn_room}
                     )
                     steps = room // stride
                     drawn = tail_distances(
@@ -19255,6 +19289,8 @@ def clock_census_content(column):
         steps = range(low_at, high_at + 1, stride)
         if not heap and all(_clock_reads_absent(at, form, absent) for at in steps):
             published |= set(steps)
+    # ...and the absent steps a drawn tail stands its draw on.
+    published |= stood_beyond
     content = [clock_written_present(ordinal, form, absent, published)
                for ordinal in ordinals]
     codes = clock_codes_of(column)

@@ -17566,7 +17566,12 @@ class _ClockCensus:
     `codes` the codes with their counts. `low_skipped` and `high_skipped`
     are the distances, in steps, a drawn tail's cells are read back past:
     its heaps' and those of the places the column calls absent beyond its
-    boundary (the round-2 fix of landing 3b.5).
+    boundary (the round-2 fix of landing 3b.5). `stood_beyond` are the
+    absent places beyond a boundary a drawn tail stands its cells on,
+    where every step there on no heap is one the hour's other width
+    spells another way (`calendar_clock.absent_room_beyond`): the twin
+    writes those cells in that width (the third verification of that
+    fix).
     """
 
     stride: int
@@ -17581,6 +17586,7 @@ class _ClockCensus:
     codes: "tuple[tuple[str, int], ...]"
     low_skipped: "tuple[int, ...]" = ()
     high_skipped: "tuple[int, ...]" = ()
+    stood_beyond: "tuple[int, ...]" = ()
 
 
 def _clock_census_laid(
@@ -17604,7 +17610,12 @@ def _clock_census_laid(
       each heap's count and shares the rest by G7.3c over the values left;
       a tail drawn through its shape skips the distances of the places
       the column calls absent beyond its boundary beside its heaps',
-      even on a step of one unit (the round-2 fix of landing 3b.5);
+      even on a step of one unit (the round-2 fix of landing 3b.5) --
+      save where every step beyond its boundary on no heap is an absent
+      place the hour's other width spells another way, whose steps are
+      its draw's room and whose cells are written in that width
+      (`calendar_clock.absent_room_beyond`; the third verification of
+      that fix);
     - the body is laid by the rank rule (`calendar_clock.clock_body_blocks`):
       every heap's ranks on its value, every group's count over its runs
       by their steps less those the column calls absent, a run holding a
@@ -17643,6 +17654,7 @@ def _clock_census_laid(
     drawn: "list[_TailPlan | None]" = [None, None]
     heaped: "list[tuple[int, ...] | None]" = [None, None]
     skips: "list[tuple[int, ...]]" = [(), ()]
+    stood: "list[int]" = []
     if (
         facts.low_tail is not None
         and facts.high_tail is not None
@@ -17670,10 +17682,24 @@ def _clock_census_laid(
             if not mine and stride == 1 and not beyond:
                 plans += [side]
                 continue
+            # A DRAWN TAIL WHOSE EVERY STEP BEYOND ITS BOUNDARY ON NO HEAP IS
+            # AN ABSENT PLACE THE OTHER WIDTH SPELLS ANOTHER WAY stands its
+            # draw there, as the table's rows stood, and writes it in that
+            # width (the third verification of the round-2 fix): skipped,
+            # the draw stood past the dial, and the loader refused the
+            # producer's own description.
+            room: "list[int]" = []
+            if tail.values is None:
+                room = calendar_clock.absent_room_beyond(
+                    absent, form, side.boundary, low_side, stride,
+                    [abs(at - side.boundary) for at, _count in mine],
+                )
             whole, kept, spots, skipped = _clock_tail_with_heaps(
                 side, tail, mine, floor, capacity, form, layout.apart, stride,
-                beyond,
+                [distance for distance in beyond if distance not in room],
             )
+            for distance in room:
+                stood += [side.boundary - distance if low_side else side.boundary + distance]
             plans += [whole]
             drawn[place] = kept
             heaped[place] = spots
@@ -17704,6 +17730,7 @@ def _clock_census_laid(
         codes=facts.clock_codes,
         low_skipped=skips[0],
         high_skipped=skips[1],
+        stood_beyond=tuple(stood),
     )
     return _ClockLayout(
         parsed, low_plan, high_plan, layout.knots, layout.apart, layout.ramp,
@@ -17774,7 +17801,9 @@ def _clock_tail_with_heaps(
     distance in units of the published step, the heaps' distances and the
     absent places' (`beyond`, `calendar_clock.absent_beyond`) taken out
     (`calendar_clock.off_the_heaps`), so each drawn cell stands on the
-    step, on no heap and on no spelling the column calls absent. Its whole
+    step, on no heap and on no spelling the column calls absent -- save
+    the absent places that are the draw's room, which the caller leaves
+    out of `beyond` (`calendar_clock.absent_room_beyond`). Its whole
     plan's strata, in the form's own unit, are the heaps' distances
     beside the drawn plan's, which is what the report and the windows sum.
     """
@@ -17997,9 +18026,13 @@ def _clock_census_content(
                 taken[places[index]] = taken[places[index]] - 1
                 taken[place] = (taken[place] if place in taken else 0) + 1
             ordinals[rank] = block.low + place * stride
-    cells = _clock_cells_written(
-        ordinals, facts, holes, _clock_runs_on_absent_places(census, form, holes)
-    )
+    # The steps the description stands present cells on beside its
+    # published values: a run laid on absent places alone, and a drawn
+    # tail's room on them (`_ClockCensus.stood_beyond`).
+    stood = _clock_runs_on_absent_places(census, form, holes)
+    for at in census.stood_beyond:
+        stood += [at]
+    cells = _clock_cells_written(ordinals, facts, holes, stood)
     used: "dict[str, int]" = {cell: 1 for cell in cells}
     for spelling, count in census.codes:
         for _copy in range(count):
@@ -18414,7 +18447,9 @@ def _clock_cells_written(
     spelling the table calls absent names where the description stands
     present cells (a heap's value, a tail's boundary, a listed tail value,
     a published rung, or `stood`, the steps of a run laid on such places
-    alone): the table's present cells there showed the hour's other
+    alone and those a drawn tail stands its draw on beyond its boundary,
+    where every step there on no heap is one): the table's present cells
+    there showed the hour's other
     width, the one other spelling the column's reader reads at that
     place, and the cell is written in it
     (`calendar_clock.present_spellings`).
@@ -18425,9 +18460,9 @@ def _clock_cells_written(
     round-2 fix of landing 3b.5).
 
     Guarantees: accepts one ordinal per rank, the column's clock facts,
-    every spelling the table calls absent and the steps of runs laid on
-    absent places; returns one cell per rank, the form's own spelling
-    wherever no rank stands on such a place.
+    every spelling the table calls absent and the steps of runs and
+    drawn tails laid on absent places; returns one cell per rank, the
+    form's own spelling wherever no rank stands on such a place.
     Determinism: a function of the three; draws no word. Raises
     ProfileError only where a published clock value does not read in its
     own form, which the loader never lets through (T1). No I/O.

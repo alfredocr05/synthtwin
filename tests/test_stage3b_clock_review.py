@@ -127,19 +127,34 @@ And one the second verification of that repair found, at 49d170b:
 -- NF109's remark, the summary's line and the twin report's note said
 every value of the other width is written the way most are, while the
 verification's column wrote its 15 `0:00` as `0:00`.
+And one its third verification found, the same at 05eeeb9 and since
+baaf9de: `test_round_2_a_drawn_tail_stands_on_absent_places_the_other_width_spells`
+-- 70 `00:30` and one `0:00` beyond a low boundary at `01:00`, beside
+`00:00` declared missing, make a low tail drawn through its shape whose
+only steps beyond its boundary are its heap's and `00:00`; CC5 refused
+the producer's own description, and the table had no twin at all. Those
+steps are now the draw's room and its cell is written `0:00` (mutants:
+no such step counted as room; the drawn cell written in the form's own
+spelling), and the oracle draws the same. And the orchestrator's
+battery, `test_round_2_every_clock_table_the_producer_describes_loads_and_generates`:
+random tables of clock columns, every description the producer writes
+loaded and generated at seeds 0 and 1.
 """
 
 from __future__ import annotations
 
 import collections
+import contextlib
 import copy
 import csv
+import dataclasses
 import importlib.util
 import io
 import json
 import pathlib
 import random
 import re
+import shutil
 import types
 import typing
 
@@ -1358,33 +1373,38 @@ def test_round_2_the_oracle_lays_the_minute_column_as_the_product(tmp_path: path
 
 
 def _no_room_beyond(document: "dict[str, typing.Any]") -> "dict[str, typing.Any]":
-    """`hourly`'s description, its low tail drawn by hand beside a heap of 11 on `01:00` and `00:00` declared missing.
+    """`hourly`'s description, its high tail drawn by hand and every step beyond it declared missing.
 
-    The tail keeps 14 rows beyond `02:00`, and its heap leaves three that
-    no step beyond the boundary can hold: `01:00` is the heap's and
-    `00:00` the absence's.
+    The tail keeps its 11 rows beyond `20:00` -- six `21:00`, three
+    `22:00` and two `23:00` in the table -- drawn through its shape, and
+    the absent spelling is moved by hand onto those three steps, its 279
+    rows split evenly: no step beyond the boundary can hold a row, and
+    none is one the hour's other width can still write, `21` to `23`
+    showing no width. (Round 2 drew this by hand on the low tail, `00:00`
+    beside a heap on `01:00`; since its third verification `00:00` is
+    such a step, where `0:00` stands, and the draw's room.)
     """
     edited = copy.deepcopy(document)
     block = edited["columns"][0]
-    assert block["low_tail"]["boundary"] == "02:00" and block["low_tail"]["rows"] == 14
-    block["low_tail"] = {
-        "boundary": "02:00",
-        "rows": 14,
-        "mean_distance": 72.85714285714286,
-        "rms_distance": 76.9043933353987,
+    assert block["high_tail"]["boundary"] == "20:00" and block["high_tail"]["rows"] == 11
+    block["high_tail"] = {
+        "boundary": "20:00",
+        "rows": 11,
+        "mean_distance": 98.18181818181819,
+        "rms_distance": 108.5440840479949,
         "values": None,
     }
-    block["clock_heaps"] = [{"count": 11, "value": "01:00"}] + list(block["clock_heaps"])
-    block["missing_by_source"] = {"00:00": block["missing_by_source"]["12:00"]}
+    assert block["missing_by_source"] == {"12:00": 279}
+    block["missing_by_source"] = {"21:00": 93, "22:00": 93, "23:00": 93}
     return typing.cast("dict[str, typing.Any]", edited)
 
 
 def test_round_2_the_loader_refuses_a_drawn_tail_with_no_step_left(tmp_path: pathlib.Path) -> None:
-    """CC5 asks a tail drawn through its shape for a step beyond its boundary on no heap and no absent place."""
+    """CC5 asks a tail drawn through its shape for a step beyond its boundary on no heap and no absent place -- or one the other width writes."""
     cells, hole = _absence_column("hourly")
     document, _loaded = _described(tmp_path, cells, declared=(hole,))
     refused = _loads(tmp_path, _no_room_beyond(document), "no-room")
-    assert isinstance(refused, str) and "CC5" in refused and "the low tail draws 3 of its rows" in refused, refused
+    assert isinstance(refused, str) and "CC5" in refused and "the high tail draws 11 of its rows" in refused, refused
 
 
 def test_round_2_red_without_the_room_beyond_a_drawn_tail(
@@ -1997,8 +2017,12 @@ def test_round_2_limit_cells_of_the_other_width_the_description_stands_nowhere_k
     group's other steps written `hh:mm`, and the table's `8:00` is gone.
     Of this repair's 240 such columns (seeds 71 to 73), 87 stood nothing
     present on the place, and their twins wrote none of its 385 cells in
-    the other width. Strict, so a repair turns it red; a shape that moves
-    fails outright.
+    the other width. The limit reaches a place the description stands
+    only a rung on whose run does not hold its value (G7A.4b step 3), a
+    rung held by its group alone: of the third verification's 450 random
+    columns, 3 stand only such a rung, and their twins write none of its
+    18 cells in the other width. Strict, so a repair turns it red; a
+    shape that moves fails outright.
 
     ITS OWNER IS LANE C2, stage 3b.5 step 2, the clock role's next
     landing, which touches only clock-role code: the owner ruled on
@@ -2090,3 +2114,315 @@ def test_round_2_the_other_widths_remark_says_the_times_its_twin_keeps(
         "where that way is a spelling the table counts as missing, which keeps its own number of figures"
     ), remark
     assert _quoted_in_the_contract("NF109") == remark
+
+
+# -- the third verification of round 2: a description its loader refused --
+#
+# A tail drawn through its shape skips its heaps' distances and the absent
+# places' (G7A.4b step 1), and CC5 refuses a drawn tail left with no other
+# step (round 2). But a step beyond the boundary that the hour's other
+# width spells another way can hold the table's present cells in that
+# width: 70 `00:30` and one `0:00` beyond a low boundary at `01:00`, beside
+# `00:00` declared missing, make a drawn low tail whose only steps beyond
+# its boundary are its heap's and `00:00` -- and CC5 refused the producer's
+# own description, at 05eeeb9 and since baaf9de, so the whole table had no
+# twin. Where every step beyond a drawn tail's boundary on no heap is such
+# a place, those steps are its draw's room, as a census group's are
+# (`calendar_clock.absent_room_beyond`), and its cells there are written in
+# that width.
+
+
+def _drawn_tail_column() -> "list[str]":
+    """The third verification's column: 700 times on the half-hour from `01:00` (`random.Random(5)`), 70 `00:30`, one `0:00` and 40 `00:00`."""
+    draw = random.Random(5)
+    cells = ["00:30"] * 70
+    cells += _minutes(draw.randrange(2, 48) * 30 for _row in range(700))
+    cells += ["0:00"] + ["00:00"] * 40
+    draw.shuffle(cells)
+    return cells
+
+
+def _drawn_tail_twins(
+    folder: pathlib.Path, seeds: "tuple[int, ...]" = (0, 1, 2)
+) -> "tuple[dict[str, typing.Any], list[tuple[int, int, int, list[str]]], list[str]]":
+    """That column, `00:00` declared missing, through the producer, the generator and the checker."""
+    document, loaded = _described(folder, _drawn_tail_column(), declared=("00:00",))
+    twins: "list[tuple[int, int, int, list[str]]]" = []
+    for seed in seeds:
+        twin, path = _twin(loaded, seed, folder)
+        twins += [(seed, twin.count("00:00"), twin.count("0:00"), _missed(loaded, path))]
+    return _block(document), twins, _missed(loaded, folder / "table.csv")
+
+
+def test_round_2_a_drawn_tail_stands_on_absent_places_the_other_width_spells(
+    tmp_path: pathlib.Path, capsys: "pytest.CaptureFixture[str]"
+) -> None:
+    """The producer's own description of that drawn low tail loads, every twin writes its `0:00`, and beside a second column the table has its twin.
+
+    At 05eeeb9 CC5 refused the description -- "the low tail draws 1 of its
+    rows through its shape, and every step beyond its boundary is a heap
+    or a spelling the table calls absent ... this file has been changed
+    since it was written" -- so generate and the checker of the real table
+    exited 1 at every seed, and beside a column of ages no twin was
+    written at all. Now every twin at seeds 0 to 2 writes 40 `00:00` and
+    the one `0:00` and misses nothing, the table validates, and the
+    two-column table is profiled, generated and validated with exit 0.
+    """
+    block, twins, table = _drawn_tail_twins(tmp_path / "one")
+    assert block["missing_by_source"] == {"00:00": 40}, block["missing_by_source"]
+    assert block["low_tail"]["boundary"] == "01:00" and block["low_tail"]["rows"] == 71, block["low_tail"]
+    assert block["low_tail"]["values"] is None, block["low_tail"]
+    assert {"count": 70, "value": "00:30"} in block["clock_heaps"], block["clock_heaps"]
+    assert table == [] and twins == [(seed, 40, 1, []) for seed in (0, 1, 2)], (table, twins)
+    folder = tmp_path / "two"
+    folder.mkdir()
+    times = _drawn_tail_column()
+    draw = random.Random(5)
+    ages = [str(draw.randrange(18, 95)) for _cell in times]
+    table_path = fixtures.write(
+        folder, "table.csv", "\n".join(["t,age"] + [f"{a},{b}" for a, b in zip(times, ages)]) + "\n"
+    )
+    (folder / "twin").mkdir()
+    (folder / "real").mkdir()
+    ran: "list[int]" = []
+    for argv in (
+        ["profile", str(table_path), "--missing-value", "00:00"],
+        ["generate", str(folder / "table-profile.json"), "--seed", "0", "--out-dir", str(folder / "twin")],
+        ["validate", str(folder / "table-profile.json"), "--twin", str(folder / "twin" / "table-twin.csv"),
+         "--out-dir", str(folder / "twin")],
+        ["validate", str(folder / "table-profile.json"), "--twin", str(table_path), "--out-dir", str(folder / "real")],
+    ):
+        ran += [cli.main(argv)]
+        capsys.readouterr()
+    assert ran == [0, 0, 0, 0], ran
+    written = [row[0] for row in list(csv.reader(io.StringIO(
+        (folder / "twin" / "table-twin.csv").read_text(encoding="utf-8")
+    )))[1:] if row]
+    assert (written.count("00:00"), written.count("0:00")) == (40, 1)
+
+
+def test_round_2_red_when_a_drawn_tail_counts_no_absent_place_as_room(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """MUTATION: no step the other width spells another way counted as a drawn tail's room, as at 05eeeb9 -- CC5 refuses the producer's own description."""
+    monkeypatch.setattr(calendar_clock, "absent_room_beyond", lambda *_a: [])
+    with pytest.raises(errors.ProfileError) as refused:
+        _described(tmp_path, _drawn_tail_column(), declared=("00:00",))
+    said = str(refused.value)
+    assert "CC5" in said and "the low tail draws 1 of its rows through its shape" in said, said
+
+
+def test_round_2_red_when_a_drawn_tails_room_is_written_in_the_forms(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """MUTATION: the draw stands on `00:00` and its cell is written in the form's own spelling -- the twin writes 41 `00:00` and misses."""
+    built = generation._clock_census_laid
+
+    def unspelled(*args: typing.Any, **kwargs: typing.Any) -> typing.Any:
+        layout = built(*args, **kwargs)
+        if layout.census is None:
+            return layout
+        return dataclasses.replace(layout, census=dataclasses.replace(layout.census, stood_beyond=()))
+
+    monkeypatch.setattr(generation, "_clock_census_laid", unspelled)
+    _block_of, twins, _table = _drawn_tail_twins(tmp_path, (0,))
+    assert twins[0][1:3] == (41, 0) and twins[0][3] != [], twins
+
+
+def test_round_2_the_oracle_draws_a_tail_onto_an_absent_place_of_the_other_width_as_the_product(
+    tmp_path: pathlib.Path,
+) -> None:
+    """No frozen case holds such a tail, so the oracle is held to the product on that column (A-P4-59).
+
+    The oracle's content list, from the opening words of the stream the
+    product draws at seed 0, holds the cells the product's twin holds
+    beside its 40 absent ones: the drawn row on `00:00`, written `0:00`.
+    """
+    numpy = pytest.importorskip("numpy")
+    oracle = _oracle_module()
+    cells = _drawn_tail_column()
+    document, loaded = _described(tmp_path, cells, declared=("00:00",))
+    column = dict(_block(document))
+    content_words, _placement = oracle.word_budget(column, len(cells))
+    stream = numpy.random.default_rng(0)
+    words = stream.integers(0, 18446744073709551615, size=content_words, dtype="uint64", endpoint=True)
+    column["_content_words"] = [int(word) for word in words]
+    laid = oracle._clock_content(column)
+    twin, _path = _twin(loaded, 0, tmp_path)
+    written = collections.Counter(cell for cell in twin if cell)
+    written["00:00"] -= 40
+    assert collections.Counter(laid) == +written
+    assert (laid.count("00:00"), laid.count("0:00")) == (0, 1), (laid.count("00:00"), laid.count("0:00"))
+
+
+# -- the orchestrator's battery: every description the producer writes ---
+#
+# A description the producer writes and its own loader refuses leaves the
+# whole table without a twin -- the worst outcome for code that must run
+# unchanged on it. So random tables of clock columns are described by
+# `synthtwin profile` and every description it writes is loaded and
+# generated at seeds 0 and 1: the 24-hour clock and the marked 12-hour
+# face in five marker styles, seconds, both hour widths, a grid of a
+# second to an hour, heaps, columns pressed against either end of the dial
+# and columns whose values all differ, listed and drawn tails, census
+# groups, codes at most one cell in a hundred, and one or two times
+# written for an unknown one, declared missing for the whole table --
+# `00:00`, noon, or a place whose hour shows a width or does not -- with
+# present cells in the other width on such a place, in the column or in a
+# second column of the same form.
+
+_BATTERY_MARKS = ((" AM", " PM"), ("AM", "PM"), (" am", " pm"), (" a.m.", " p.m."), (" A.M.", " P.M."))
+
+
+def _battery_spelling(at: int, face: "dict[str, typing.Any]", width: int) -> str:
+    """One second of the day in a face's spelling, its hour in `width` figures."""
+    hour, minute, second = at // 3600, (at % 3600) // 60, at % 60
+    shown = (hour % 12 or 12) if face["marked"] else hour
+    text = (f"{shown:02d}" if width == 2 else f"{shown}") + f":{minute:02d}"
+    if face["seconds"]:
+        text += f":{second:02d}"
+    if face["marked"]:
+        text += face["marks"][0] if hour < 12 else face["marks"][1]
+    return text
+
+
+def _battery_shows_width(at: int, face: "dict[str, typing.Any]") -> bool:
+    """Whether the hour of this second shows a width on the face: `0` to `9`, or `1` to `9` marked."""
+    hour = at // 3600
+    return ((hour % 12 or 12) if face["marked"] else hour) < 10
+
+
+def _battery_face(draw: random.Random) -> "dict[str, typing.Any]":
+    seconds = draw.random() < 0.15
+    return {
+        "marked": draw.random() < 0.3,
+        "marks": draw.choice(_BATTERY_MARKS),
+        "seconds": seconds,
+        "width": 1 if draw.random() < 0.3 else 2,
+        "grid": draw.choice((1, 15, 30, 60, 60, 300)) if seconds
+        else draw.choice((60, 300, 600, 900, 1800, 1800, 3600, 3600)),
+    }
+
+
+def _battery_column(
+    draw: random.Random, rows: int, face: "dict[str, typing.Any]", beside: "list[int]"
+) -> "tuple[list[str], list[str], list[int]]":
+    """One column's cells, the spellings it writes for an unknown time and their places."""
+    width = face["width"]
+    slots = list(range(0, 86400, face["grid"]))
+    extras: "list[str]" = []
+    declared: "list[str]" = []
+    holes: "list[int]" = []
+    for _place in range(draw.choice((0, 1, 1, 1, 2))):
+        kind = draw.choice(("midnight", "midnight", "midnight", "noon", "wide", "wide", "wide", "narrow", "narrow"))
+        at = 0 if kind == "midnight" else 43200
+        if kind in ("wide", "narrow"):
+            at = draw.choice([slot for slot in slots if _battery_shows_width(slot, face) == (kind == "wide")])
+        if at in holes:
+            continue
+        holes += [at]
+        extras += [_battery_spelling(at, face, width)] * draw.choice((11, 15, 25, 40))
+        declared += [_battery_spelling(at, face, width)]
+        if _battery_shows_width(at, face) and draw.random() < 0.7:
+            extras += [_battery_spelling(at, face, 3 - width)] * draw.choice((1, 1, 2, 3, 5, 8, 12, 20, 40))
+    for at in beside:
+        if _battery_shows_width(at, face) and draw.random() < 0.8:
+            extras += [_battery_spelling(at, face, 3 - width)] * draw.choice((1, 2, 3, 5, 12, 20))
+    for _heap in range(draw.choice((0, 0, 1, 2, 3))):
+        at = draw.choice(slots)
+        if at not in holes:
+            extras += [_battery_spelling(at, face, width)] * draw.choice((11, 15, 25, 40, 80))
+    if draw.random() < 0.1:
+        extras += ["UNK"] * draw.randrange(1, rows // 100 + 1)
+    scatter = draw.random() < 0.2
+    body = rows - len(extras)
+    if body < 20:
+        del extras[rows - 20 :]
+        body = 20
+    cells: "list[str]" = []
+    if draw.random() < 0.05 and len(slots) >= body * 2:
+        for at in draw.sample([slot for slot in slots if slot not in holes], body):
+            cells += [_battery_spelling(at, face, width)]
+    else:
+        span = draw.choice((2, 4, 8, 12, 24)) * 3600
+        where = draw.random()
+        start = 0 if where < 0.25 else 86400 - span if where < 0.35 else draw.randrange(0, 86400 - span + 1)
+        busy = [slot for slot in slots if start <= slot < start + span] or slots
+        weights = [draw.choice((1, 1, 2, 5)) for _slot in busy]
+        while len(cells) < body:
+            at = draw.choices(busy, weights=weights)[0] if draw.random() < 0.85 else draw.choice(slots)
+            if at in holes:
+                continue
+            figures = width
+            if scatter and _battery_shows_width(at, face) and draw.random() < 0.05:
+                figures = 3 - width
+            cells += [_battery_spelling(at, face, figures)]
+    cells += extras
+    draw.shuffle(cells)
+    del cells[rows:]
+    return cells, declared, holes
+
+
+def _battery_table(draw: random.Random) -> "tuple[list[str], list[list[str]], list[str]]":
+    """One table of one to three clock columns, the second sometimes of the first's form beside its declared places."""
+    rows = draw.choice((120, 150, 200, 300, 600, 600, 1200))
+    columns: "list[list[str]]" = []
+    declared: "list[str]" = []
+    first: "tuple[dict[str, typing.Any], list[int]] | None" = None
+    for _index in range(draw.choice((1, 1, 1, 2, 2, 3))):
+        face = _battery_face(draw)
+        beside: "list[int]" = []
+        if first is not None and draw.random() < 0.5:
+            face, beside = dict(first[0]), first[1]
+        cells, mine, holes = _battery_column(draw, rows, face, beside)
+        if first is None:
+            first = (face, holes)
+        columns += [cells]
+        for spelling in mine:
+            if spelling not in declared:
+                declared += [spelling]
+    if declared and draw.random() < 0.1:
+        declared[0] = declared[0].lower()
+    return [f"c{index}" for index in range(len(columns))], columns, declared
+
+
+def test_round_2_every_clock_table_the_producer_describes_loads_and_generates(
+    tmp_path: pathlib.Path,
+) -> None:
+    """SLOW. Every description `synthtwin profile` writes of 1,300 random tables of clock columns loads, and generates at seeds 0 and 1.
+
+    The orchestrator's battery for the third verification of round 2,
+    seed 2026: at least 2,000 clock columns described. A table of fewer
+    than 100 rows holding a value is refused by `synthtwin profile`
+    before any description is written, as it should be, and is not
+    counted. Pinned in the ledger's slow nodes.
+    """
+    draw = random.Random(2026)
+    clock_columns = 0
+    refused: "list[tuple[int, str]]" = []
+    for case in range(1300):
+        header, columns, declared = _battery_table(draw)
+        folder = tmp_path / f"t{case}"
+        folder.mkdir()
+        table = fixtures.write(
+            folder, "table.csv", "\n".join([",".join(header)] + [",".join(row) for row in zip(*columns)]) + "\n"
+        )
+        argv = ["profile", str(table)]
+        for spelling in declared:
+            argv += ["--missing-value", spelling]
+        with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
+            code = cli.main(argv)
+        if code != 0:
+            continue
+        description = folder / "table-profile.json"
+        roles = [block["role"] for block in json.loads(description.read_text(encoding="utf-8"))["columns"]]
+        clock_columns += roles.count(taxonomy.ROLE_CLOCK)
+        try:
+            loaded = contract.load_profile(str(description))
+            for seed in (0, 1):
+                generation.generate(loaded, seed)
+        except errors.ProfileError as error:
+            refused += [(case, str(error)[:300])]
+        shutil.rmtree(folder)
+    assert refused == [], refused
+    assert clock_columns >= 2000, clock_columns

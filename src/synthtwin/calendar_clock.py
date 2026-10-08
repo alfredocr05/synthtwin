@@ -293,7 +293,7 @@ def _other_width_form(form: str) -> str:
 def absent_with_another_width(
     absent: "tuple[int, ...] | list[int]", form: str
 ) -> "tuple[int, ...]":
-    """The absent places the hour's other width spells another way (method G7A.4b step 2).
+    """The absent places the hour's other width spells another way (method G7A.4b steps 1 and 2).
 
     Of the places `absent_places` gives, those whose hour shows a width --
     `0` to `9`, or `1` to `9` on a marked face -- so a present time can
@@ -302,7 +302,8 @@ def absent_with_another_width(
     these counts present cells the table wrote there so: its runs take
     those steps (`clock_body_blocks`), CC5 counts them as its room
     (`clock_group_reach`), and the twin writes them in that width
-    (`present_spellings`).
+    (`present_spellings`); and so does a drawn tail whose every step
+    beyond its boundary on no heap is one (`absent_room_beyond`).
 
     Guarantees: accepts absent places and one of `parsing.CLOCK_FORMS`;
     returns those of them with another width's spelling, in the order
@@ -326,8 +327,10 @@ def present_spellings(
 
     A place the table calls absent (`absent_places`) that the description
     stands present cells on -- a heap's value, a tail's boundary, a listed
-    tail value, a published rung, or a step of a census group whose every
-    step is such a place (`absent_with_another_width`), `published` --
+    tail value, a published rung, a step of a census group whose every
+    step is such a place (`absent_with_another_width`), or a step beyond a
+    drawn tail's boundary whose every step on no heap is one
+    (`absent_room_beyond`), `published` --
     held present cells in the table, and the form's own spelling of it is
     one the column's reader counts as no value. So those cells can only
     have shown the hour's OTHER width -- `0:00` in a column of `hh:mm`
@@ -370,7 +373,8 @@ def absent_beyond(
     strictly below the low boundary or strictly above the high one, whose
     distance from it is a whole number of steps. A tail drawn through its
     shape takes these out of its draw beside its heaps' (method G7A.4b,
-    step 1), so no drawn cell lands on one.
+    step 1), so no drawn cell lands on one -- save those that are its
+    room (`absent_room_beyond`).
 
     Guarantees: a function of the arguments. Raises nothing. No I/O.
     """
@@ -380,6 +384,56 @@ def absent_beyond(
         if distance > 0 and distance % stride == 0:
             found += [distance]
     return sorted(found)
+
+
+def absent_room_beyond(
+    absent: "tuple[int, ...]",
+    form: str,
+    boundary: int,
+    low_side: bool,
+    stride: int,
+    heaps: "list[int]",
+) -> "list[int]":
+    """The distances beyond a drawn tail's boundary its draw stands on although absent places name them (method G7A.4b step 1).
+
+    A tail drawn through its shape skips its heaps' distances and the
+    absent places' (`absent_beyond`) -- save where EVERY step beyond its
+    boundary that is no heap's, on the step and out to the end of the
+    dial, is an absent place the hour's other width spells another way
+    (`absent_with_another_width`). The rows its heaps leave stood on those
+    places in the table, present, in that width, as a census group's
+    cells do on such places alone (step 2): so those steps are the draw's
+    room -- CC5 counts them, the draw skips only the heaps', and the twin
+    writes each cell it draws there in that width (`present_spellings`).
+    Read off the absence alone, the loader refused the producer's own
+    description of 70 `00:30` and one `0:00` beyond a low boundary at
+    `01:00`, beside `00:00` declared missing, and the table had no twin
+    at all (the third verification of the round-2 fix of landing 3b.5).
+
+    Guarantees: accepts the absent places (`absent_places`), one of
+    `parsing.CLOCK_FORMS`, the boundary's ordinal and side, the step and
+    the heaps' distances beyond the boundary, both in the form's unit;
+    returns those steps' distances in that unit, ascending -- none where a
+    step beyond the boundary on no heap is no absent place, or one the
+    other width spells the same way, and none where every step is a
+    heap's. Determinism: a function of the arguments. Raises ValueError
+    for a form `parsing` does not know. No I/O of any kind.
+    """
+    if not absent:
+        return []
+    top = parsing.CLOCK_CAPACITY[form] - 1
+    edge = max(1, boundary if low_side else top - boundary) // stride
+    heaped: "dict[int, int]" = {distance: 1 for distance in heaps}
+    wide: "dict[int, int]" = {at: 1 for at in absent_with_another_width(absent, form)}
+    room: "list[int]" = []
+    for steps in range(1, edge + 1):
+        distance = steps * stride
+        if distance in heaped:
+            continue
+        if (boundary - distance if low_side else boundary + distance) not in wide:
+            return []
+        room += [distance]
+    return room
 
 
 def clock_group_reach(
@@ -750,7 +804,8 @@ def off_the_heaps(distance: int, heaps: "list[int] | tuple[int, ...]") -> int:
     lands on a heap and every heap's count stays its own (method G7A.4b).
     `heaps` are the heaps' distances, ascending, each once -- beside them,
     since the round-2 fix of landing 3b.5, the distances of the places the
-    column calls absent (`absent_beyond`), so no drawn cell lands on one.
+    column calls absent (`absent_beyond`), so no drawn cell lands on one,
+    save those that are the draw's room (`absent_room_beyond`).
 
     Guarantees: accepts a whole distance of at least one and the
     distances to pass; returns a whole distance at least as large, on
