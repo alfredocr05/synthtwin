@@ -43,8 +43,9 @@ The gate's clauses, each beside the mutant that turns it red:
   `test_a_log_just_above_one_row_an_open_day_at_midnight_keeps_its_census_and_comes_back_short`
   -- lane D1b's pinned near-one log at 20, published, its twins at seven seeds of ten 154 or 155
   days for 156, both distinct counts MISSED month first and, ISO, the count made up by G7.9's
-  `T` with nothing named; red when lane D4's owed split order (the tails first) lands, or when
-  the census is withheld where the count pass splits (lane D1b's cut A);
+  `T` with nothing named; mutants: the tails split first, standing in for the split order owed
+  to lane D4 (both members), and G7.9 spending no mark on a column counted in days that
+  publishes a census (ISO);
 * the count rules read every parsed day: `test_midnight_moments_decide_as_the_same_days_written_as_dates`
   -- seven of lane D1b's shapes, at midnight and as dates, one census and one reason; mutant: the
   rules handed the body's days alone (skeptic 2 of the landing's N3);
@@ -634,7 +635,7 @@ def test_a_census_that_keeps_midnight_moments_from_a_day_their_tail_lost_is_with
 @pytest.mark.parametrize("spelling", ("iso", "month first"))
 def test_a_log_just_above_one_row_an_open_day_at_midnight_keeps_its_census_and_comes_back_short(tmp_path: pathlib.Path, spelling: str) -> None:
     """The risk the orchestrator's ruling of 2026-10-08 lets stand on a column of dates, reaching
-    midnight moments, pinned as it stands (skeptic 2 of the landing, finding 1). Lane D1b's pinned
+    midnight moments, pinned as it stands (skeptic 2 of the landing, item 1). Lane D1b's pinned
     near-one log, `_every_open_day(1.15, 52, 1002, Monday, Wednesday and Friday)` -- 177 rows over
     156 clinic days -- written at midnight, at the floor of 20: a column every value of which
     stands at midnight asks the count rules of a column of dates, which read both tails at their
@@ -700,7 +701,7 @@ PARITY = {
 def test_midnight_moments_decide_as_the_same_days_written_as_dates(monkeypatch: pytest.MonkeyPatch, name: str) -> None:
     """A column every value of which stands at midnight is counted and moved in days, as a column
     of dates is, so the count rules of a column of dates decide its census on the column's own
-    days, every parsed one, tails included (skeptic 2 of the landing, finding 3): the same days
+    days, every parsed one, tails included (skeptic 2 of the landing, item 3): the same days
     written as dates, `YYYY-MM-DD 00:00:00` and `MM/DD/YYYY 00:00` give one census and one
     reason. Lane D1b's `_hunt(690)` at 20 and `_weekly_schedule(0)` at 36 are withheld by the
     count-room rule, the near-one Monday, Wednesday and Friday log at 11 by the count-reach rule,
@@ -763,7 +764,7 @@ def test_the_unit_room_rule_gives_its_stated_answers() -> None:
 def test_the_unit_room_rule_counts_a_tail_s_two_distances_at_the_floor_s_number(monkeypatch: pytest.MonkeyPatch) -> None:
     """The unit-room rule counts a tail that publishes its two distances at the floor's number of
     different values, its rows where fewer -- what a twin may rebuild it on (skeptic 2 of the
-    landing, finding 3). Lane D1b's `_hunt(292)`, 108 visits on 26 days, written at noon, at the
+    landing, item 3). Lane D1b's `_hunt(292)`, 108 visits on 26 days, written at noon, at the
     floor of 11: its tails publish their distances, so they may hold 22 values between them and
     leave the body too few for its census, which is withheld by the rule (its twins met it at
     seeds 0 to 9 before the rule was asked at 11 -- the price P4-D367 states). Mutant: each such
