@@ -115,6 +115,12 @@ And its note on K-S3-11's driver:
 `test_round_2_the_tail_leak_driver_draws_its_windows_beside_the_tables_absences`
 -- the driver drew a clock tail's window beside the column's own absent
 spellings alone, where the checker draws it beside every column's.
+And the limit that repair states, a strict xfail:
+`test_round_2_limit_cells_of_the_other_width_the_description_stands_nowhere_keep_their_spelling`
+-- twelve real `8:00` beside `08:00` declared missing, on a place the
+description stands nothing present on, are written on their group's
+other step in the column's width, as NF109 writes every cell of the
+other width (plan P4-D370), so no twin writes `8:00`.
 """
 
 from __future__ import annotations
@@ -1917,3 +1923,86 @@ def test_round_2_the_oracle_writes_a_present_time_on_an_absent_spelling_as_the_p
         written[hole] -= column["missing_by_source"][hole]
         assert collections.Counter(laid) == +written, name
         assert (laid.count(hole), laid.count(other)) == counts, (name, laid.count(hole), laid.count(other))
+
+
+# -- the verification of round 2: the limit its repair states -----------
+#
+# The twin writes a present time in the hour's other width only where the
+# description stands present cells on the place -- a heap, a tail's
+# boundary or listed value, a pinned rung, or a group whose every step is
+# such a place. Other cells of the other width on that place are counted
+# in their census group and written on its other steps in the column's
+# width, as NF109 writes every cell of the other width (plan P4-D370).
+
+
+def _other_width_in_a_group() -> "tuple[list[str], str, str]":
+    """A five-minute column of `hh:mm` whose twelve real `8:00` share a census group with `08:05`, beside 25 `08:00` declared missing.
+
+    About 14 rows on every other step from `06:00` to `11:55`, so twelve
+    on `08:00` stand out from nothing: no heap, no boundary, no listed
+    value and no rung stands there, and the ten-minute group holding them
+    has `08:05` for room. Returns the cells, the absent spelling and the
+    other width's.
+    """
+    draw = random.Random(13)
+    cells = [cell for cell in _minutes([draw.randrange(72, 144) * 5 for _row in range(1000)]) if cell != "08:00"]
+    cells += ["8:00"] * 12 + ["08:00"] * 25
+    draw.shuffle(cells)
+    return cells, "08:00", "8:00"
+
+
+def _stood_on(block: "dict[str, typing.Any]") -> "list[str]":
+    """Every clock value the block stands present cells on: its heaps, its tails' boundaries and listed values, and its rungs."""
+    stood = [heap["value"] for heap in block["clock_heaps"]]
+    for side in ("low_tail", "high_tail"):
+        tail = block[side]
+        if tail is None:
+            continue
+        stood += [tail["boundary"]]
+        for value in tail["values"] or ():
+            stood += [value]
+    for rung in block["clock_percentiles"].values():
+        if rung is not None:
+            stood += [rung]
+    return stood
+
+
+@pytest.mark.xfail(
+    strict=True,
+    raises=AssertionError,
+    reason=(
+        "plan P4-D373's stated limit, NF109's rule (P4-D370): twelve real `8:00` "
+        "beside 25 `08:00` declared missing, on a place the description stands "
+        "nothing present on, are counted in their census group and written on its "
+        "other steps in the column's width, so no twin writes `8:00`; no landing of "
+        "the plan writes a column of clock times in both hour widths"
+    ),
+)
+def test_round_2_limit_cells_of_the_other_width_the_description_stands_nowhere_keep_their_spelling(
+    tmp_path: pathlib.Path,
+) -> None:
+    """THE LIMIT, stated as what should hold (the verification of round 2, plan P4-D373).
+
+    Twelve rows wrote `8:00`, above the line, on the place `08:00` names,
+    and `08:00` is declared missing: the description counts them in their
+    census group and stands nothing present on `08:00`, so every twin
+    writes 25 `08:00` and misses nothing, but lays the twelve on the
+    group's other steps written `hh:mm`, and the table's `8:00` is gone.
+    Of this repair's 240 such columns (seeds 71 to 73), 87 stood nothing
+    present on the place, and their twins wrote none of its 385 cells in
+    the other width. Strict, so a repair turns it red; a shape that moves
+    fails outright.
+    """
+    cells, hole, other = _other_width_in_a_group()
+    document, loaded = _described(tmp_path, cells, declared=(hole,))
+    block = _block(document)
+    table = _missed(loaded, tmp_path / "table.csv")
+    if block["clock_form"] != "hh-mm" or block["missing_by_source"] != {hole: 25} or hole in _stood_on(block) or table:
+        pytest.fail(f"the shape the limit was measured on moved: {block['missing_by_source']}, {_stood_on(block)}, {table}")
+    twins: "list[tuple[int, int, int, list[str]]]" = []
+    for seed in (0, 1, 2):
+        twin, path = _twin(loaded, seed, tmp_path)
+        twins += [(seed, twin.count(hole), twin.count(other), _missed(loaded, path))]
+    if [(seed, absent, missed) for seed, absent, _written, missed in twins] != [(seed, 25, []) for seed in (0, 1, 2)]:
+        pytest.fail(f"the twins the limit was measured on moved: {twins}")
+    assert [written for _seed, _absent, written, _missed_checks in twins] == [12, 12, 12], twins

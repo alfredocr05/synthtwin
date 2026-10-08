@@ -106,7 +106,10 @@ time the description stands on a place a declared-missing spelling names
 -- a heap, a tail's boundary or listed value, a pinned rung, or such a
 group -- is now written in the hour's other width, as the table wrote
 it: of 80 such columns 40 failed at every seed and 2 were refused, and
-none is now. Two rules of the round -- the loader reading every
+none is now. Where the description stands nothing present on such a
+place, those cells are written in the column's width on another step
+of their group, as every cell of the other hour width is: a stated
+limit, held by a strict xfail. Two rules of the round -- the loader reading every
 column's absent spellings, and an absent marker typed in lower case --
 are held by clauses that fail without them, `K-S3-49` pins the round's
 clauses, and the tail-leak measurement draws its clock windows as the
