@@ -39,6 +39,21 @@ The gate's clauses, each beside the mutant that turns it red:
   -- lane D1b's business year at midnight, ISO and month first, floors 11 and 20, withheld, its
   twins 260 values on 260 days in the column's own spellings; mutant: the count-reach rule
   withdrawn, 259 values, or 259 days and a `T` the column never wrote;
+* the risk the orchestrator's ruling of 2026-10-08 lets stand, on midnight moments:
+  `test_a_log_just_above_one_row_an_open_day_at_midnight_keeps_its_census_and_comes_back_short`
+  -- lane D1b's pinned near-one log at 20, published, its twins at seven seeds of ten 154 or 155
+  days for 156, both distinct counts MISSED month first and, ISO, the count made up by G7.9's
+  `T` with nothing named; red when lane D4's owed split order (the tails first) lands, or when
+  the census is withheld where the count pass splits (lane D1b's cut A);
+* the count rules read every parsed day: `test_midnight_moments_decide_as_the_same_days_written_as_dates`
+  -- seven of lane D1b's shapes, at midnight and as dates, one census and one reason; mutant: the
+  rules handed the body's days alone (skeptic 2 of the landing's N3);
+* the unit-room rule's tails: `test_the_unit_room_rule_counts_a_tail_s_two_distances_at_the_floor_s_number`
+  -- `_hunt(292)` at noon at 11, withheld; mutant: such a tail counted at the floor less one, and
+  the census publishes (N7). NOT PINNED, measured: the published holes handed to the midnight count
+  rules (`_count_rules_reason`'s `holes`) -- withheld from that call, none of 1,572 decisions the
+  skeptic's sets measured moved (N6), no description of one table giving a column of moments a
+  published hole those rules read;
 * G-D1, what publishes: `test_moments_publish_their_census_where_the_rules_allow`
   -- clinic visits, emergency arrivals, admissions, Wednesday sessions,
   admissions at midnight and a business log publish; seven sessions,
@@ -616,6 +631,112 @@ def test_a_census_that_keeps_midnight_moments_from_a_day_their_tail_lost_is_with
         assert len(set(values)) == 259 and "visit:distinct.n_distinct" in missed, missed
 
 
+@pytest.mark.parametrize("spelling", ("iso", "month first"))
+def test_a_log_just_above_one_row_an_open_day_at_midnight_keeps_its_census_and_comes_back_short(tmp_path: pathlib.Path, spelling: str) -> None:
+    """The risk the orchestrator's ruling of 2026-10-08 lets stand on a column of dates, reaching
+    midnight moments, pinned as it stands (skeptic 2 of the landing, finding 1). Lane D1b's pinned
+    near-one log, `_every_open_day(1.15, 52, 1002, Monday, Wednesday and Friday)` -- 177 rows over
+    156 clinic days -- written at midnight, at the floor of 20: a column every value of which
+    stands at midnight asks the count rules of a column of dates, which read both tails at their
+    most where the count pass splits, and the census -- Monday, Wednesday and Friday 45 each, the
+    other days 0 -- is published. The pass splits nearest first, so the high tail keeps the days it
+    drew, and the twins at seeds 0, 1, 3, 4, 6, 7 and 8 hold 154 or 155 days for 156. Written
+    `MM/DD/YYYY 00:00`, validation names each: both distinct counts MISSED. Written ISO, G7.9
+    makes up the count of texts with one cell written `T` for each day lost, a mark the column
+    never wrote, below the census line, and validation names nothing (P4-D367 states it). At seeds
+    2, 5 and 9 the twins hold the 156 days and meet every check. Red when the census is withheld,
+    when an ISO twin's shortfall is named or a month-first one's goes unnamed, or when lane D4's
+    owed split order brings the tails to their most first -- that fix shows here."""
+    import test_stage3b_count_room as count_room
+
+    cells = count_room._every_open_day(1.15, 52, 1002, frozenset({0, 2, 4}))
+    assert (len(cells), len(set(cells))) == (177, 156)
+    if spelling == "iso":
+        written = [f"{cell} 00:00:00" for cell in cells]
+    else:
+        written = [f"{cell[5:7]}/{cell[8:10]}/{cell[0:4]} 00:00" for cell in cells]
+    described = _described(tmp_path, "visit", written, 20)
+    block = described.block("visit")
+    groups = [(group["first"], group["last"], group["count"]) for group in block["weekday_census"]]
+    assert groups == [(0, 0, 45), (1, 1, 0), (2, 2, 45), (3, 3, 0), (4, 4, 45), (5, 6, 0)], groups
+    both = ["visit:distinct.n_distinct", "visit:distinct.n_distinct_folded"]
+    for seed in (0, 1, 2, 3, 4, 5, 6, 7, 8, 9):
+        values, missed = _twin_values(described, seed)
+        days = len({_instant(value, str(block["format"])) // DAY for value in values})
+        marked = sum("T" in value for value in values)
+        if seed in (2, 5, 9):
+            assert (days, marked, missed) == (156, 0, []), (seed, days, marked, missed)
+        elif spelling == "iso":
+            assert days in (154, 155) and len(set(values)) == 156 and marked == 156 - days and missed == [], (seed, days, marked, missed)
+        else:
+            assert days in (154, 155) and len(set(values)) == days and marked == 0 and missed == both, (seed, days, missed)
+
+
+def _count_room_shape(builder: str, *arguments: object) -> "list[str]":
+    """One of lane D1b's builders in `tests/test_stage3b_count_room.py`, its cells ISO dates."""
+    import test_stage3b_count_room as count_room
+
+    return getattr(count_room, builder)(*arguments)
+
+
+# Lane D1b's shapes on which the count rules of a column of dates decide, each at the floor its
+# decision was measured at, with the reason a column of these days written as dates is given.
+PARITY = {
+    "hunt690": (lambda: _count_room_shape("_hunt", 690), 20, calendar_rules.REASON_COUNT_ROOM),
+    "weekly_schedule_0": (lambda: _count_room_shape("_weekly_schedule", 0), 36, calendar_rules.REASON_COUNT_ROOM),
+    "near_one_mwf": (
+        lambda: _count_room_shape("_every_open_day", 1.2, 26, 1001, frozenset({0, 2, 4})),
+        11,
+        calendar_rules.REASON_COUNT_REACH,
+    ),
+    "near_one_mf": (lambda: _count_room_shape("_every_open_day", 1.1, 52, 901, frozenset(range(5))), 11, ""),
+    "hunt292": (lambda: _count_room_shape("_hunt", 292), 11, ""),
+    "business_year": (lambda: _count_room_shape("_business_year"), 11, calendar_rules.REASON_COUNT_REACH),
+    "moved_hunt": (lambda: _count_room_shape("_moved_hunt_690"), 11, calendar_rules.REASON_COUNT_ROOM),
+}
+
+
+@pytest.mark.parametrize("name", sorted(PARITY))
+def test_midnight_moments_decide_as_the_same_days_written_as_dates(monkeypatch: pytest.MonkeyPatch, name: str) -> None:
+    """A column every value of which stands at midnight is counted and moved in days, as a column
+    of dates is, so the count rules of a column of dates decide its census on the column's own
+    days, every parsed one, tails included (skeptic 2 of the landing, finding 3): the same days
+    written as dates, `YYYY-MM-DD 00:00:00` and `MM/DD/YYYY 00:00` give one census and one
+    reason. Lane D1b's `_hunt(690)` at 20 and `_weekly_schedule(0)` at 36 are withheld by the
+    count-room rule, the near-one Monday, Wednesday and Friday log at 11 by the count-reach rule,
+    the business year and the moved hunt at 11 as their nodes above say, and `_hunt(292)` and a
+    Monday-to-Friday near-one log at 11 publish. Mutant: the rules handed the body's days alone,
+    which moves 74 decisions of the skeptic's sets -- `_hunt(690)` at 20 then publishes Monday to
+    Friday 52 and the weekend 31 at midnight, and `_hunt(292)` at 11 is withheld."""
+    make, floor, reason = PARITY[name]
+    cells = make()
+    heard: "list[taxonomy.WeekdayDecision]" = []
+    decide = taxonomy.weekday_decision
+
+    def recorded(*arguments, **named):
+        decision = decide(*arguments, **named)
+        heard[:] = heard + [decision]
+        return decision
+
+    monkeypatch.setattr(taxonomy, "weekday_decision", recorded)
+    found: "dict[str, tuple[list[tuple[int, int, int]], str]]" = {}
+    writings = {
+        "dates": cells,
+        "iso": [f"{cell} 00:00:00" for cell in cells],
+        "month first": [f"{cell[5:7]}/{cell[8:10]}/{cell[0:4]} 00:00" for cell in cells],
+    }
+    for how, written in writings.items():
+        heard[:] = []
+        block = taxonomy.profile_column("visit", 1, written, len(written), taxonomy.Settings(small_cell_floor=floor))
+        assert len(heard) == 1, (how, heard)
+        census = [(group["first"], group["last"], group["count"]) for group in block.details["weekday_census"]]
+        found[how] = (census, heard[0].reason)
+        kind = ("date", False) if how == "dates" else ("datetime", True)
+        assert (block.details["resolution"], block.details["all_at_midnight"]) == kind, (how, kind)
+    assert found["iso"] == found["dates"] and found["month first"] == found["dates"], found
+    assert found["dates"][1] == reason and bool(found["dates"][0]) == (reason == ""), found
+
+
 def test_the_unit_room_rule_gives_its_stated_answers() -> None:
     """Hand-made pins: two Wednesday pins at noon with eight ranks between, the census asking
     Wednesdays and Thursdays, need the two pins' units and a Thursday: a room of two withholds,
@@ -637,6 +758,36 @@ def test_the_unit_room_rule_gives_its_stated_answers() -> None:
     assert not calendar_rules.unit_room_short(crossing, one, 1, 5, 2)
     assert calendar_rules.unit_room_short(crossing, one, 1, 4, 2)
     assert calendar_rules.moments_pins((10, 20, 30, 40, 50, 60), 1, 1, [50]) == ((1, 20), (2, 30), (4, 50))
+
+
+def test_the_unit_room_rule_counts_a_tail_s_two_distances_at_the_floor_s_number(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The unit-room rule counts a tail that publishes its two distances at the floor's number of
+    different values, its rows where fewer -- what a twin may rebuild it on (skeptic 2 of the
+    landing, finding 3). Lane D1b's `_hunt(292)`, 108 visits on 26 days, written at noon, at the
+    floor of 11: its tails publish their distances, so they may hold 22 values between them and
+    leave the body too few for its census, which is withheld by the rule (its twins met it at
+    seeds 0 to 9 before the rule was asked at 11 -- the price P4-D367 states). Mutant: each such
+    tail counted at the floor less one, ten, and the census of Monday to Friday 49 and the weekend
+    30 publishes."""
+    import test_stage3b_count_room as count_room
+
+    cells = [f"{cell} 12:00:00" for cell in count_room._hunt(292)]
+    settings = taxonomy.Settings(small_cell_floor=FLOOR)
+    block = taxonomy.profile_column("visit", 1, cells, len(cells), settings)
+    details = dict(block.details)
+    assert details["weekday_census"] == [] and details["all_at_midnight"] is False
+    tails = (details["low_tail"], details["high_tail"])
+    assert [tail["values"] for tail in tails] == [None, None] and min(tail["rows"] for tail in tails) >= FLOOR, tails
+    moments = tuple(sorted(_instant(cell, str(details["format"])) for cell in cells))
+    days = tuple(moment // DAY for moment in moments)
+    decision = taxonomy.moments_weekday_decision(details, moments, days, block.n_distinct, settings)
+    assert decision.reason == calendar_rules.REASON_UNIT_ROOM and decision.said == calendar_rules.REASON_UNSAID, decision
+    mutant = _taxonomy_mutant(
+        monkeypatch,
+        "                tails = tails + min(rows, max(settings.small_cell_floor, 1))\n",
+        "                tails = tails + min(rows, max(settings.small_cell_floor - 1, 1))\n",
+    )
+    assert mutant.moments_weekday_decision(details, moments, days, block.n_distinct, settings).groups == ((0, 4, 49), (5, 6, 30))
 
 
 # -- a published hole on a column of moments --------------------------------------
