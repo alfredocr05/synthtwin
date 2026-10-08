@@ -13277,6 +13277,14 @@ class _AheadIndex:
     the walk. `rising` says both ends rise with the strata, and `tree`
     then holds, for every run of them a halving can ask about, the
     furthest step any stratum of the run stands at.
+
+    Where they do not rise, `ends` holds every end of a share that holds
+    a number, ascending and once each, and they cut the line into pieces:
+    each end, and each gap beside one. `cover` then holds, for every run
+    of those pieces a halving can make, the furthest step of a stratum
+    whose share covers that run and not the run it is half of, so the
+    runs from a number's piece upward hold the furthest step of every
+    share holding the number.
     """
 
     lows: "tuple[float, ...]"
@@ -13284,6 +13292,8 @@ class _AheadIndex:
     ranks: "tuple[int, ...]"
     rising: bool
     tree: "tuple[int, ...]"
+    ends: "tuple[float, ...]" = ()
+    cover: "tuple[int, ...]" = ()
 
 
 @dataclasses.dataclass(frozen=True)
@@ -13346,8 +13356,21 @@ def _held_after(shares: _WalkShares, place: int, candidate: float) -> bool:
     Where the shares of those strata rise with the strata, which a ladder
     read upward gives, the strata whose share holds the candidate are one
     run of them, found by halving, and the question is whether any of
-    the run stands further along the walk; otherwise every one of them
-    is asked, as `_held_later` asked them before.
+    the run stands further along the walk.
+
+    WHERE THEY DO NOT RISE, THE CANDIDATE'S PIECE OF THE LINE IS ASKED,
+    AND NOT EVERY STRATUM (the Codex review of plan P4-D387, item 1). A
+    ladder read upward can still give shares that step back: the convex
+    form of G5.3 rounds, so between two rungs a unit in the last place
+    apart -- `0.1` and `0.10000000000000002` -- one end can read the
+    higher and the next the lower. Asking every stratum there cost the
+    square of the rows again: 1,250,748, 5,005,496 and 20,050,986 shares
+    read at 2,000, 4,000 and 8,000 rows of such a column. The candidate
+    is found among the shares' ends by halving, and its piece and the
+    runs above it give the furthest step of every share holding it
+    (`_AheadIndex`), so a question reads about twice the logarithm of
+    the strata. Both ends are compared as `_held_later` compares them,
+    so the answer is the one every share gave.
     """
     if shares.rungs is None:
         return False
@@ -13357,13 +13380,15 @@ def _held_after(shares: _WalkShares, place: int, candidate: float) -> bool:
     rank = shares.rank[place]
     count = len(index.ranks)
     if not index.rising:
-        for step in range(count):
-            if (
-                index.ranks[step] > rank
-                and index.lows[step] <= candidate <= index.highs[step]
-            ):
-                return True
-        return False
+        at = _first_reaching(index.ends, candidate)
+        slot = 2 * at + 2 * len(index.ends) + 1
+        if at < len(index.ends) and not index.ends[at] > candidate:
+            slot = slot + 1
+        furthest = -1
+        while slot >= 1:
+            furthest = max(furthest, index.cover[slot])
+            slot = slot // 2
+        return furthest > rank
     first = _first_reaching(index.highs, candidate) + count
     last = _first_past(index.lows, candidate) + count
     furthest = -1
@@ -13403,6 +13428,8 @@ def _ahead_index(shares: _WalkShares) -> _AheadIndex:
         if not (lows[step] <= lows[step + 1] and highs[step] <= highs[step + 1]):
             rising = False
             break
+    if not rising:
+        return _covering_index(lows, highs, ranks)
     tree = [-1 for _slot in range(2 * count)]
     for step in range(count):
         tree[count + step] = ranks[step]
@@ -13414,6 +13441,52 @@ def _ahead_index(shares: _WalkShares) -> _AheadIndex:
         ranks=tuple(ranks),
         rising=rising,
         tree=tuple(tree),
+    )
+
+
+def _covering_index(
+    lows: "list[float]", highs: "list[float]", ranks: "list[int]"
+) -> _AheadIndex:
+    """Index shares that do not rise with the strata by the pieces of the line their ends cut (G6.4).
+
+    A share whose low end stands above its high end holds no number and
+    is left out; every other one is laid over the pieces from its low
+    end to its high end, both ends included, keeping at each run the
+    furthest step laid there (the Codex review of plan P4-D387, item 1).
+    """
+    found: "list[float]" = []
+    for step in range(len(ranks)):
+        if lows[step] <= highs[step]:
+            found += [lows[step], highs[step]]
+    kept: "list[float]" = []
+    for value in sorted(found):
+        if not kept or value != kept[len(kept) - 1]:
+            kept += [value]
+    ends = tuple(kept)
+    pieces = 2 * len(ends) + 1
+    cover = [-1 for _slot in range(2 * pieces)]
+    for step in range(len(ranks)):
+        if not lows[step] <= highs[step]:
+            continue
+        first = 2 * _first_reaching(ends, lows[step]) + 1 + pieces
+        last = 2 * _first_reaching(ends, highs[step]) + 2 + pieces
+        while first < last:
+            if first % 2 == 1:
+                cover[first] = max(cover[first], ranks[step])
+                first = first + 1
+            if last % 2 == 1:
+                last = last - 1
+                cover[last] = max(cover[last], ranks[step])
+            first = first // 2
+            last = last // 2
+    return _AheadIndex(
+        lows=tuple(lows),
+        highs=tuple(highs),
+        ranks=tuple(ranks),
+        rising=False,
+        tree=(),
+        ends=ends,
+        cover=tuple(cover),
     )
 
 

@@ -21,7 +21,12 @@ so the measure is known to see the defect rather than assumed to.
    stops at the first step past the half unit, which on a column crowded
    onto fewer whole numbers than strata was most of the walk; one holder
    is counted and not searched for; the numbers taken are kept as the
-   strata move (`_seat_given`, `_taken_again`).
+   strata move (`_seat_given`, `_taken_again`). Where the shares step
+   back -- the convex form rounds, so between two rungs a unit in the
+   last place apart one end can read the higher rung and the next the
+   lower -- the index is laid over the pieces of the line the shares'
+   ends cut (`_covering_index`), where 9fa2008 asked every stratum (the
+   Codex review of P4-D387, item 1).
 2. **The reach step's free whole number** (`_free_whole`,
    `_reach_window`, `_reach_held`, method G5.2). Each question listed
    every candidate out to the column's strata before asking the first,
@@ -557,6 +562,44 @@ def _shares_after_as_built(place, layout, rungs, numbers, order=None):
     return tuple(after)
 
 
+# The index as this landing first shipped it (9fa2008), not 110cb46's: the
+# one question whose work the Codex review of P4-D387 (item 1) found
+# growing as the square of the rows, where shares that do not rise asked
+# every stratum. It reads the index's own fields, so it runs over the
+# index built now.
+
+
+def _held_after_scanning(shares, place, candidate):
+    if shares.rungs is None:
+        return False
+    if not shares.ahead:
+        shares.ahead += [generation._ahead_index(shares)]
+    index = shares.ahead[0]
+    rank = shares.rank[place]
+    count = len(index.ranks)
+    if not index.rising:
+        for step in range(count):
+            if (
+                index.ranks[step] > rank
+                and index.lows[step] <= candidate <= index.highs[step]
+            ):
+                return True
+        return False
+    first = generation._first_reaching(index.highs, candidate) + count
+    last = generation._first_past(index.lows, candidate) + count
+    furthest = -1
+    while first < last:
+        if first % 2 == 1:
+            furthest = max(furthest, index.tree[first])
+            first = first + 1
+        if last % 2 == 1:
+            last = last - 1
+            furthest = max(furthest, index.tree[last])
+        first = first // 2
+        last = last // 2
+    return furthest > rank
+
+
 def records_as_built(text, delimiter, escape, initial_space, at=0, limit=-1):
     found = dialect._text(text)
     span = found[at:] if limit < 0 else found[at:at + 1048576]
@@ -885,6 +928,54 @@ def test_the_index_of_the_strata_ahead_answers_as_every_share_did() -> None:
     assert branches[True] > 60 and branches[False] > 60, branches
 
 
+def _unit_steps(draw: random.Random) -> "tuple[float, ...]":
+    """A ladder read upward whose 101 rungs stand a unit in the last place apart, or level."""
+    rungs = [draw.choice((0.1, 1.1, 37.25, 0.001, 123456.789, -2.5))]
+    for _rung in range(100):
+        rungs += [math.nextafter(rungs[len(rungs) - 1], math.inf) if draw.random() < 0.7 else rungs[len(rungs) - 1]]
+    return tuple(rungs)
+
+
+def _one_cell_strata(total: int, negatives: int = 0) -> "tuple[generation._NumericLayout, int]":
+    """``total`` strata of a cell each, the first ``negatives`` of them negative and the rest positive."""
+    bands = tuple("negative" if place < negatives else "positive" for place in range(total))
+    layout = generation._NumericLayout(
+        sizes=tuple(1 for _place in range(total)), starts=tuple(range(total)), bands=bands,
+        raw_budgets=(), folded_budgets=(),
+    )
+    return layout, total
+
+
+def test_the_index_answers_as_every_share_did_where_a_ladder_read_upward_steps_back() -> None:
+    """`_held_after` gives what the shares of every later stratum gave where the convex form steps back.
+
+    The Codex review of plan P4-D387 (item 1): between two rungs a unit in
+    the last place apart, one end of a share can read the higher rung and
+    the next end the lower, so a ladder read upward gives shares that do
+    not rise. Over 60 sets of such rungs and 60 to 300 one-cell strata,
+    both walk orders, the index is required to step back on at least 20
+    of them and to answer as 110cb46's every share did there.
+    """
+    draw = random.Random(3881)
+    stepped_back = 0
+    for _case in range(60):
+        total = draw.randrange(60, 300)
+        layout, numbers = _one_cell_strata(total, draw.choice((0, 0, total // 3)))
+        rungs = _unit_steps(draw)
+        for order in (None, generation._negatives_last(layout.bands)):
+            shares = generation._walk_shares(layout, rungs, numbers, order)
+            for place in sorted(draw.sample(range(total), 25)):
+                later = _shares_after_as_built(place, layout, rungs, numbers, order)
+                candidates = [rungs[0], rungs[50], rungs[100], math.nextafter(rungs[0], -math.inf)]
+                for share in later[:: max(1, len(later) // 8)]:
+                    candidates += [share[0], share[1]]
+                for candidate in candidates:
+                    ours = generation._held_after(shares, place, candidate)
+                    assert ours == _held_later_as_built(candidate, later), (place, candidate)
+            stepped_back += 0 if shares.ahead[0].rising else 1
+    assert stepped_back >= 20, stepped_back
+
+
 def test_a_whole_number_inside_a_share_is_the_one_the_full_walk_found() -> None:
     """`_whole_inside` stopping past the half unit answers as walking on to the column's reach did."""
     draw = random.Random(3871)
@@ -1087,6 +1178,149 @@ def test_the_walk_over_a_crowded_column_grows_with_the_rows() -> None:
     """
     small, large = crowded_walk_lines(600), crowded_walk_lines(1200)
     assert large / small < LINEAR_AT_MOST, (small, large)
+
+
+def _stepping_back(rows: int) -> "list[str]":
+    """The Codex review's column of P4-D387 (item 1), which the producer reads as continuous.
+
+    A hundredth of the rows hold `0.1` and a hundredth `0.10000000000000002`,
+    each written one zero longer than the last; the rest count up in fives,
+    three in ten of them with a quarter. Its rungs rise, and between the
+    two that stand a unit in the last place apart the convex form reads
+    some shares stepping back.
+    """
+    hundredth = rows // 100
+    values = ["0.1" + "0" * place for place in range(hundredth)]
+    values += ["0.10000000000000002" + "0" * place for place in range(hundredth)]
+    values += [str(5 * place) if place % 10 < 7 else str(5 * place + 0.25) for place in range(rows - 2 * hundredth)]
+    return values
+
+
+def _walk_handed(values: "list[str]") -> "tuple[object, ...]":
+    """What the twin's own build hands G6.4's walk for a one-column table of ``values``, described by the producer."""
+    handed: "list[tuple[object, ...]]" = []
+    walked = generation._whole_enough
+
+    def captured(*arguments: object) -> object:
+        nonlocal handed
+        handed += [arguments]
+        return walked(*arguments)  # type: ignore[arg-type]
+
+    with tempfile.TemporaryDirectory() as home:
+        loaded = _described(pathlib.Path(home), values)
+    with pytest.MonkeyPatch.context() as patch:
+        patch.setattr(generation, "_whole_enough", captured)
+        generation.generate(loaded, 0)
+    assert len(handed) == 1, len(handed)
+    return handed[0]
+
+
+def _index_read(patch: pytest.MonkeyPatch, asked: "object") -> "dict[str, object]":
+    """Count the questions ``asked`` answers for `_held_after`, and every entry they read of the index it builds.
+
+    The index's fields are handed over as tuples that count each entry
+    read from them, so the count is the lookup's work whichever way the
+    index is laid out; the indexes built are kept to say how they were.
+    """
+    counted: "dict[str, object]" = {"questions": 0, "reads": 0, "built": []}
+    building = generation._ahead_index
+
+    class Counted(tuple):  # type: ignore[type-arg]
+        def __getitem__(self, item: object) -> object:
+            counted["reads"] += 1  # type: ignore[operator]
+            return tuple.__getitem__(self, item)  # type: ignore[index]
+
+    def built(shares: "generation._WalkShares") -> "generation._AheadIndex":
+        index = building(shares)
+        fields = {field.name: Counted(getattr(index, field.name)) for field in dataclasses.fields(index)
+                  if isinstance(getattr(index, field.name), tuple)}
+        index = dataclasses.replace(index, **fields)  # type: ignore[arg-type]
+        counted["built"] += [index]  # type: ignore[operator]
+        return index
+
+    def question(shares: "generation._WalkShares", place: int, candidate: float) -> bool:
+        counted["questions"] += 1  # type: ignore[operator]
+        return asked(shares, place, candidate)  # type: ignore[operator, no-any-return]
+
+    patch.setattr(generation, "_ahead_index", built)
+    patch.setattr(generation, "_held_after", question)
+    return counted
+
+
+def stepped_back_reads(handed: "tuple[object, ...]", scanning: bool = False) -> "dict[str, object]":
+    """The questions G6.4's walk asks of the strata ahead and the index entries read answering them.
+
+    With ``scanning`` the questions are answered as 9fa2008 answered them,
+    asking every stratum where the shares do not rise.
+    """
+    column, facts, layout, rungs, values = handed
+    with pytest.MonkeyPatch.context() as patch:
+        counted = _index_read(patch, _held_after_scanning if scanning else generation._held_after)
+        generation._whole_enough(column, facts, layout, rungs, list(values))  # type: ignore[arg-type]
+    return counted
+
+
+def test_a_ladder_whose_shares_step_back_is_asked_in_reads_that_grow_with_the_rows() -> None:
+    """The Codex review's column at 2,000 and 4,000 rows: the reads of the index grow as the rows, as 9fa2008's grew as their square.
+
+    Its shares step back, so the index is the one laid over the pieces
+    of the line (`_covering_index`), and each question may read at most
+    four times the logarithm of the strata and two, an operation count
+    that a scan of every stratum exceeds tens of times over. The whole walk's
+    lines are required to grow under two and a half times as well. 9fa2008
+    asked every stratum there: 1,250,748 and 5,005,496 shares' steps read,
+    and its reads are required to grow at least three times here, so the
+    measure is known to see the defect.
+    """
+    small_handed, large_handed = _walk_handed(_stepping_back(2000)), _walk_handed(_stepping_back(4000))
+    small, large = stepped_back_reads(small_handed), stepped_back_reads(large_handed)
+    for counted in (small, large):
+        built = counted["built"]
+        assert built and not any(index.rising for index in built), built  # type: ignore[union-attr]
+        strata = len(built[0].ranks)  # type: ignore[index]
+        assert counted["reads"] <= counted["questions"] * 4 * (math.log2(strata) + 2), counted  # type: ignore[operator]
+    assert large["reads"] / small["reads"] < LINEAR_AT_MOST, (small["reads"], large["reads"])  # type: ignore[operator]
+    small_lines = _lines_run(generation._whole_enough, *small_handed[:4], list(small_handed[4]))  # type: ignore[arg-type]
+    large_lines = _lines_run(generation._whole_enough, *large_handed[:4], list(large_handed[4]))  # type: ignore[arg-type]
+    assert large_lines / small_lines < LINEAR_AT_MOST, (small_lines, large_lines)
+    old_small, old_large = stepped_back_reads(small_handed, True), stepped_back_reads(large_handed, True)
+    assert old_small["questions"] == small["questions"] and old_large["questions"] == large["questions"]
+    assert old_large["reads"] / old_small["reads"] >= SQUARE_AT_LEAST, (old_small["reads"], old_large["reads"])  # type: ignore[operator]
+
+
+def test_shares_in_no_order_are_asked_in_reads_that_grow_as_the_logarithm_of_the_strata() -> None:
+    """A shuffled ladder and one of unit steps, at 2,000 and 8,000 strata: each question reads under four times the logarithm and two.
+
+    The answers coverage above holds the index to every share's answer on
+    shares in no order, and this holds its work: 300 questions a ladder,
+    half of them a number no share holds, half an end of a share. 9fa2008
+    read every stratum's step for each question no share holds, which is
+    required of it here so the count is known to see a scan.
+    """
+    draw = random.Random(3882)
+    for total in (2000, 8000):
+        layout, numbers = _one_cell_strata(total, total // 4)
+        for rungs in (_rungs(draw, False), _unit_steps(draw)):
+            asked: "list[tuple[int, float]]" = []
+            beyond = max(abs(rung) for rung in rungs) * 2 + 1
+            for _question in range(150):
+                asked += [(draw.randrange(total), draw.choice((beyond, -beyond)))]
+                share = generation._share_of(draw.randrange(1, total - 1), layout, rungs, numbers)
+                asked += [(draw.randrange(total), draw.choice(share))]
+            answers = []
+            for scanning in (False, True):
+                shares = generation._walk_shares(layout, rungs, numbers, None)
+                with pytest.MonkeyPatch.context() as patch:
+                    counted = _index_read(patch, _held_after_scanning if scanning else generation._held_after)
+                    answers += [[generation._held_after(shares, place, candidate) for place, candidate in asked]]
+                built = counted["built"]
+                assert len(built) == 1 and not built[0].rising, built  # type: ignore[arg-type, union-attr, index]
+                if scanning:
+                    assert counted["reads"] >= 150 * len(built[0].ranks), counted["reads"]  # type: ignore[index, operator]
+                else:
+                    assert counted["reads"] <= len(asked) * 4 * (math.log2(total) + 2), counted["reads"]  # type: ignore[operator]
+            assert answers[0] == answers[1]
+            assert any(answers[0]) and not all(answers[0])
 
 
 def _spread_ladder(low: float, high: float) -> "tuple[float, ...]":
