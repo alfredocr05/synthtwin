@@ -51,10 +51,9 @@ The gate's clauses, each beside the mutant that turns it red:
   rules handed the body's days alone (skeptic 2 of the landing's N3);
 * the unit-room rule's tails: `test_the_unit_room_rule_counts_a_tail_s_two_distances_at_the_floor_s_number`
   -- `_hunt(292)` at noon at 11, withheld; mutant: such a tail counted at the floor less one, and
-  the census publishes (N7). NOT PINNED, measured: the published holes handed to the midnight count
-  rules (`_count_rules_reason`'s `holes`) -- withheld from that call, none of 1,572 decisions the
-  skeptic's sets measured moved (N6), no description of one table giving a column of moments a
-  published hole those rules read;
+  the census publishes (N7). NOT PINNED, measured only: the published holes handed to the
+  midnight count rules (`_count_rules_reason`'s `holes`) -- withheld from that call, none of the
+  1,572 decisions of the skeptic's sets moved (N6), and no node here goes red;
 * G-D1, what publishes: `test_moments_publish_their_census_where_the_rules_allow`
   -- clinic visits, emergency arrivals, admissions, Wednesday sessions,
   admissions at midnight and a business log publish; seven sessions,
