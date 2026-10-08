@@ -22457,11 +22457,11 @@ def window_filled_ladder(
     each tail's two distance windows and each rung's window the rule
     moved are drawn through that ladder too (``reach_rule`` False), and
     the file is held to a distance from the published value that window
-    sets, whether or not it reaches the value, and, where it reaches it,
-    to that window's own ends but near the value (validation method
-    V6.1-A2, `validation._moment_checks`, `validation._tail_checks`,
-    `validation._tail_block_checks`). Every other window is drawn through
-    the first.
+    sets, whether or not it reaches the value, and to that window's own
+    ends or the stretch from it to the value, but near the value
+    (validation method V6.1-A2, `validation._moment_checks`,
+    `validation._tail_checks`, `validation._tail_block_checks`). Every
+    other window is drawn through the first.
     """
     if facts.tail_rule:
         return contract.tail_ladder(facts, reach_rule)

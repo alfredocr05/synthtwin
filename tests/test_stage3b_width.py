@@ -2479,10 +2479,16 @@ def test_the_window_without_the_rule_holds_the_file_to_half_its_width_whether_or
     outside a reaching second window passes only within ``held_near`` of the
     value, nought unless the caller says how near: around 10, a second
     window 8 to 30 passes 8 to 21 and nothing below 8, three either side
-    7 to 21, and 0 to 12 passes 4 to 12, three either side 4 to 13. It
-    holds whichever check it is handed to -- the caller hands it the
-    mean's, the spread's, a moved tail's two distances and each rung's --
-    and none leaves the first window's verdict alone.
+    7 to 21, and 0 to 12 passes 4 to 12, three either side 4 to 13. AND
+    WHERE IT MISSES THE VALUE, the file stands between the window and the
+    value or within ``held_near`` past the value: half the window's width
+    alone held the side away from it to that half, so a spread 1.45 times
+    the real one passed on the leftover round's own column (that review's
+    second verifier). Around 10, a second window 0 to 4 passes 8 to 10, and
+    8 to 11 with one either side; 16 to 30 passes 10 to 17, and 9 to 17
+    with one either side. It holds whichever check it is handed to -- the
+    caller hands it the mean's, the spread's, a moved tail's two distances
+    and each rung's -- and none leaves the first window's verdict alone.
     """
     def within(measured, held, anchored=True, near=0.0):  # type: ignore[no-untyped-def]
         return validation._within(
@@ -2490,7 +2496,14 @@ def test_the_window_without_the_rule_holds_the_file_to_half_its_width_whether_or
             anchored=anchored, held=held, held_near=near,
         )
 
-    assert within(11.0, (0.0, 4.0)).verdict == validation.WITHIN_BOUND
+    # A second window that misses the value: 11 stands past the value, on the side away from it, within half its width.
+    away = within(11.0, (0.0, 4.0))
+    assert away.verdict == validation.MISSED and away.published == "10 (between 0.0 and 100.0)"
+    assert any("between 0.0 and 4.0" in line for line in away.note)
+    assert any("on the side away from that window" in line for line in away.note)
+    assert not any("which reaches the" in line for line in away.note)
+    assert within(11.0, (0.0, 4.0), near=1.0).verdict == validation.WITHIN_BOUND
+    assert within(9.0, (0.0, 4.0)).verdict == validation.WITHIN_BOUND
     far = within(13.0, (0.0, 4.0))
     assert far.verdict == validation.MISSED and far.published == "10 (between 0.0 and 100.0)"
     assert any("between 0.0 and 4.0" in line for line in far.note)
@@ -2518,13 +2531,17 @@ def test_the_window_without_the_rule_holds_the_file_to_half_its_width_whether_or
     assert within(-1.5, (8.0, 30.0)).verdict == validation.MISSED
     assert within(7.5, (8.0, 30.0)).verdict == validation.MISSED
     assert within(7.5, (8.0, 30.0), near=3.0).verdict == validation.WITHIN_BOUND
-    # Inside the first window: inside the reaching second window or within ``near``, and within half its width.
+    # Inside the first window: inside the second window, between it and the value or within ``near``, and within half its width.
     for held, near, low, high in (
         ((8.0, 30.0), 0.0, 8.0, 21.0),
         ((8.0, 30.0), 1.0, 8.0, 21.0),
         ((8.0, 30.0), 3.0, 7.0, 21.0),
         ((0.0, 12.0), 0.0, 4.0, 12.0),
         ((0.0, 12.0), 3.0, 4.0, 13.0),
+        ((0.0, 4.0), 0.0, 8.0, 10.0),
+        ((0.0, 4.0), 1.0, 8.0, 11.0),
+        ((16.0, 30.0), 0.0, 10.0, 17.0),
+        ((16.0, 30.0), 1.0, 9.0, 17.0),
     ):
         for step in range(-40, 61):
             measured = 10.0 + step / 4.0
@@ -2534,7 +2551,8 @@ def test_the_window_without_the_rule_holds_the_file_to_half_its_width_whether_or
             assert within(measured, held, near=near).verdict == expected, (held, near, measured)
     assert within(13.0, None).verdict == validation.WITHIN_BOUND
     assert within(13.0, (0.0, 4.0), anchored=False).verdict == validation.MISSED
-    assert within(11.0, (0.0, 4.0), anchored=False).verdict == validation.WITHIN_BOUND
+    assert within(11.0, (0.0, 4.0), anchored=False).verdict == validation.MISSED
+    assert within(11.0, (0.0, 4.0), anchored=False, near=1.0).verdict == validation.WITHIN_BOUND
     assert within(10.0, (0.0, 4.0)).verdict == validation.HELD
     assert within(10.0, (0.0, 12.0)).verdict == validation.HELD
     assert within(150.0, (0.0, 4.0)).verdict == validation.MISSED
@@ -2599,12 +2617,13 @@ def _far_side_half_again(cells: "list[str]") -> "list[str]":
 
 
 # What `validate` misses on Codex's column with its far cell `149100`, or its far side half again as far out, at
-# each floor. 110cb46 missed the spread at every floor too, beside the high tail's root-mean-square distance on a
-# window (0 to 8,199) that misses the published one and so every file but the source's exact value.
+# each floor: 110cb46's own lists for both files. The high tail's root-mean-square distance answers to a second window
+# (0 to 8,199) that misses the published 25,303, and the file's stands past that value, on the side away from the
+# window, further than three tenths of it (the second verifier of the corrections to Codex's review).
 _HALF_AGAIN_MISSES = {
-    11: ["value:moments.std", "value:tails.high.mean_distance"],
-    20: ["value:moments.std"],
-    36: ["value:moments.std"],
+    11: ["value:moments.std", "value:tails.high.mean_distance", "value:tails.high.rms_distance"],
+    20: ["value:moments.std", "value:tails.high.rms_distance"],
+    36: ["value:moments.std", "value:tails.high.rms_distance"],
 }
 
 
@@ -2624,7 +2643,9 @@ def test_a_file_half_again_the_real_spread_misses_where_the_window_without_the_r
     Where the second window reaches the published value the file must stand
     inside it or within a tenth of the published spread of it, `K-S3-22`'s
     own line (validation method V6.1-A2), and both files miss the spread
-    again; the source misses nothing.
+    again; the source misses nothing. Each misses what 110cb46's report
+    missed, the high tail's root-mean-square distance among them, whose
+    second window misses the published distance.
     """
     cells = _grid(1500)
     described = _described(tmp_path, f"grid1500_{floor}", cells, floor)
@@ -2648,6 +2669,155 @@ def test_a_file_half_again_the_real_spread_misses_where_the_window_without_the_r
         assert any("which reaches the" in line for line in spread.note), spread.note
         assert any(validation._shown_window(*held) in line for line in spread.note), spread.note
         assert kpi_shapes.missed(kpi_shapes.measure(described, altered, f"{name}-all.csv")) == _HALF_AGAIN_MISSES[floor]
+
+
+# The leftover round's own column with its far cell moved out, and what `validate` misses on each file at every
+# floor: the spread at 1.20 times the real one, and beside it at 1.45 times the high tail's root-mean-square distance.
+# 110cb46's report missed both on both files.
+_PAST_THE_VALUE_MISSES = {
+    "119580": ["value:moments.std"],
+    "144180": ["value:moments.std", "value:tails.high.rms_distance"],
+}
+
+
+@pytest.mark.parametrize("floor", (11, 20, 36))
+def test_a_file_past_a_second_window_that_misses_the_value_misses_on_the_side_away_from_it(
+    tmp_path: pathlib.Path, floor: int
+) -> None:
+    """Readings 1000 to 1900, each 100 times, beside one `99900`: a file whose far cell is `119580` or `144180` misses its spread.
+
+    The leftover round's own column. Drawn with rule 1 withdrawn, the
+    spread's second window, 0 to about 3,090, stops just short of the
+    published 3,124.94, and the file was held only to half its width around
+    the value: with its last cell `119580`, its spread 3,744.76 -- 1.20
+    times the real one -- or `144180`, its spread 4,520.40 and 1.45 times,
+    it passed every check at floors of 11, 20 and 36, where 110cb46's report
+    missed its spread and its high tail's root-mean-square distance (the
+    second verifier of the corrections to Codex's review of lane G2). Where
+    the second window misses the published value, the file must stand
+    between that window and the value, or within `K-S3-22`'s line past the
+    value (validation method V6.1-A2): both files miss their spread, the
+    note says the window does not reach the value and the file stands on
+    the side away from it, and the source misses nothing.
+    """
+    cells = _grid(1000)
+    described = _described(tmp_path, f"grid1000_{floor}", cells, floor)
+    facts = _facts(described)
+    assert _moved_sides(facts) == ["high"], "premise: rule 1 moved the high end"
+    published = described.document["columns"][0]["std"]
+    held = validation._windows_of(described.loaded.columns[0], facts, floor, False)["std"]
+    assert held[1] < published < 1.02 * held[1], "premise: the window without the rule stops just short of the value"
+    assert kpi_shapes.missed(kpi_shapes.measure(described, _text(cells), "source.csv")) == []
+    for last, missed in _PAST_THE_VALUE_MISSES.items():
+        altered = _text(cells[:-1] + [last])
+        spread = _moment_check(described, altered, f"far-{last}.csv", "moments.std")
+        measured = float(spread.achieved)
+        low, high = _shown_ends(spread.published)
+        assert low <= measured <= high, f"premise: inside the rule's own window, {last}"
+        assert 1.15 * published < measured < 1.5 * published, f"premise: 1.20 to 1.45 times the real spread, {last}"
+        assert measured - published <= (held[1] - held[0]) / 2.0, f"premise: within half the second width, {last}"
+        assert spread.verdict == validation.MISSED, f"{last}: {spread}"
+        assert any("on the side away from that window" in line for line in spread.note), spread.note
+        assert not any("which reaches the" in line for line in spread.note), spread.note
+        assert any(validation._shown_window(*held) in line for line in spread.note), spread.note
+        assert kpi_shapes.missed(kpi_shapes.measure(described, altered, f"far-{last}-all.csv")) == missed
+
+
+# `K-S3-22`'s column of one far negative value beside 500 to 648, at 36, with its far cell moved out, and what
+# `validate` misses on each file. 110cb46's report missed the spread and the low tail's root-mean-square distance on
+# all three.
+_NEG_FAR_MISSES = {
+    4915: ["value:moments.std"],
+    6058: ["value:moments.std", "value:tails.low.rms_distance"],
+    6287: ["value:moments.std", "value:tails.low.rms_distance"],
+}
+
+
+def test_k_s3_22_s_far_negative_column_misses_its_spread_past_a_second_window_that_misses_the_value(
+    tmp_path: pathlib.Path,
+) -> None:
+    """`-4000` beside 500 to 648, at 36: a file whose far cell is `-4915`, `-6058` or `-6287` misses its spread.
+
+    One of `K-S3-22`'s own column-floors. Drawn with rule 1 withdrawn, the
+    spread's second window, 0 to 374.70, stops 1.24 short of the published
+    375.93, and the file was held only to half its width around the value:
+    with its far cell moved out, its spread 1.20, 1.45 and 1.50 times the
+    real one, it missed none of sixty checks, where 110cb46's report missed
+    its spread and its low tail's root-mean-square distance (the second
+    verifier of the corrections to Codex's review of lane G2). Past the
+    published spread, on the side away from the second window, the file
+    now stands within a tenth of it or misses (validation method V6.1-A2);
+    the source misses nothing.
+    """
+    described = _described(tmp_path, "neg4000_150", reader.far_low(4000, 150), 36)
+    facts = _facts(described)
+    assert _moved_sides(facts) == ["low"], "premise: rule 1 moved the low end"
+    published = described.document["columns"][0]["std"]
+    held = validation._windows_of(described.loaded.columns[0], facts, 36, False)["std"]
+    assert held[1] < published < 1.01 * held[1], "premise: the window without the rule stops just short of the value"
+    assert kpi_shapes.missed(kpi_shapes.measure(described, _text(reader.far_low(4000, 150)), "source.csv")) == []
+    for far, missed in _NEG_FAR_MISSES.items():
+        altered = _text(reader.far_low(far, 150))
+        spread = _moment_check(described, altered, f"far-{far}.csv", "moments.std")
+        measured = float(spread.achieved)
+        low, high = _shown_ends(spread.published)
+        assert low <= measured <= high, f"premise: inside the rule's own window, {far}"
+        assert 1.15 * published < measured < 1.5 * published, f"premise: 1.20 to 1.50 times the real spread, {far}"
+        assert measured - published <= (held[1] - held[0]) / 2.0, f"premise: within half the second width, {far}"
+        assert spread.verdict == validation.MISSED, f"{far}: {spread}"
+        assert any("on the side away from that window" in line for line in spread.note), spread.note
+        assert kpi_shapes.missed(kpi_shapes.measure(described, altered, f"far-{far}-all.csv")) == missed
+
+
+def test_no_second_window_that_misses_the_value_is_called_one_that_reaches_it() -> None:
+    """`validation._within` over 2,000 seeded direct cases: the verdict is the hull's, and the note names the side.
+
+    Each case draws a published value, a second window that reaches it,
+    stops short of it, starts past it or hugs it, half its width or the
+    furthest it admits as the distance (``held_whole``), a band near the
+    value, and a file from nought to two and a half times the value. A file
+    not holding the value is MISSED exactly where it stands outside the hull
+    of the second window and the band, or further from the value than that
+    distance (validation method V6.1-A2). The note under a miss calls the
+    second window one that reaches the value exactly where it does and the
+    file stands outside the hull, and says the file stands on the side away
+    from the window exactly where the window misses the value and the file
+    stands past the value, inside the distance (the second verifier of the
+    corrections to Codex's review of lane G2): the hull alone, under the
+    notes as they stood, said "which reaches" of a window that does not on
+    6,557 of 20,000 such cases.
+    """
+    draw = random.Random("G2/last/within")
+    for case in range(2000):
+        value = draw.choice((10.0, 2557.3, 375.934, 6.43, 15495.161, 1.0))
+        kind = draw.choice(("reach", "below", "above", "tight"))
+        if kind == "reach":
+            low, high = value * draw.uniform(0.0, 0.99), value * draw.uniform(1.0, 1.6)
+        elif kind == "below":
+            low, high = value * draw.uniform(0.0, 0.5), value * draw.uniform(0.5, 0.9999)
+        elif kind == "above":
+            low = value * draw.uniform(1.0001, 1.5)
+            high = low + value * draw.uniform(0.01, 1.0)
+        else:
+            low, high = value * draw.uniform(0.95, 1.0), value * draw.uniform(1.0, 1.05)
+        whole = draw.random() < 0.5
+        near = draw.choice((0.0, 0.05, 0.1, 0.3)) * value
+        measured = value * draw.uniform(0.0, 2.5)
+        if measured == value:
+            continue
+        check = validation._within(
+            "c", "numeric.std", "moments.std", str(value), measured, (0.0, 100.0 * value), "G12.3", value,
+            anchored=True, held=(low, high), held_whole=whole, held_near=near,
+        )
+        reaches = low <= value <= high
+        distance = max(value - low, high - value) if whole else (high - low) / 2.0
+        strayed = not min(low, value - near) <= measured <= max(high, value + near)
+        within = value - distance <= measured <= value + distance
+        expected = validation.MISSED if strayed or not within else validation.WITHIN_BOUND
+        assert check.verdict == expected, (case, value, (low, high), near, whole, measured, check)
+        note = " ".join(line.strip() for line in check.note)
+        assert ("which reaches the" in note) == (strayed and reaches), (case, note)
+        assert ("on the side away from that window" in note) == (strayed and not reaches and within), (case, note)
 
 
 def _low_heavy_beside_2064() -> "list[str]":
@@ -2857,17 +3027,22 @@ def test_a_tail_s_distances_answer_to_the_furthest_the_window_without_the_rule_a
     Rule 1 moved the high end, so the tail's distances answer to the
     windows drawn with it withdrawn as well. Where that window misses the
     published distance -- the root-mean-square's, 0 to 8,199 against
-    25,303 -- a distance inside the rule's window passes up to the furthest
-    any value that window admits stands from the published one, though
-    further than half its width, and misses past it: the rule exists
+    25,303 -- a distance between the window and the published one passes,
+    though further than half the window's width from it: the rule exists
     because the tail stands past that window, and half its width would
-    refuse the rule's own twins (Codex's review of lane G2, item 1). Where
-    it reaches the published distance -- the mean's, 0 to 8,199 against
-    6,533 -- the furthest it admits always holds the whole window, so a
-    distance 1.9 times the published one passed; it now stands inside that
-    window or within three tenths of the published distance (the verifier
-    of that review's corrections): 1.29 times passes, 1.31 times misses.
-    Withdrawn, the rule's window alone passes every one of them.
+    refuse the rule's own twins (Codex's review of lane G2, item 1). Past
+    the published distance, on the side away from the window, the furthest
+    any value of the window stands from it let a distance twice the
+    published one through; it now passes only within three tenths of the
+    published distance (the second verifier of that review's corrections):
+    1.29 times passes, 1.31 times and nine tenths of that furthest miss.
+    Where the window reaches the published distance -- the mean's, 0 to
+    8,199 against 6,533 -- the furthest it admits always holds the whole
+    window, so a distance 1.9 times the published one passed; it now stands
+    inside that window or within three tenths of the published distance
+    (the verifier of that review's corrections): 1.29 times passes, 1.31
+    times misses. Withdrawn, the rule's window alone passes every one of
+    them.
     """
     described = _described(tmp_path, "grid1500_tails", _grid(1500), 11)
     facts = _facts(described)
@@ -2892,16 +3067,26 @@ def test_a_tail_s_distances_answer_to_the_furthest_the_window_without_the_rule_a
             checks = validation._tail_checks(column, facts, measured, 11, ladder)
         return [check.verdict for check in checks if check.subcheck == f"tails.high.{key}"][0]
 
-    # The root-mean-square distance: the second window misses the published one, and its reach bounds the file.
+    # The root-mean-square distance: the second window misses the published one, below it. Between the two the file
+    # passes; past the published distance, only within three tenths of it.
     root = tails.high.rms_distance
-    assert not held_root[0] <= root <= held_root[1], "premise: the second window misses the published distance"
+    assert held_root[1] < root, "premise: the second window misses the published distance, below it"
     furthest = max(abs(root - held_root[0]), abs(held_root[1] - root))
     assert furthest > (held_root[1] - held_root[0]) / 2.0, "premise: the furthest the window admits is past half its width"
+    between = held_root[1] + 0.25 * (root - held_root[1])
+    assert root - between > (held_root[1] - held_root[0]) / 2.0, "premise: between the two, past half the window's width"
+    banded = 1.29 * root
+    past = 1.31 * root
     near = root + 0.9 * furthest
     far = root + 1.1 * furthest
-    assert first_root[0] <= near < far <= first_root[1], "premise: both inside the rule's own window"
-    assert verdict("rms_distance", near) == validation.WITHIN_BOUND
+    assert past < near <= root + furthest, "premise: inside the furthest the window admits"
+    assert first_root[0] <= between and near < far <= first_root[1], "premise: all inside the rule's own window"
+    assert verdict("rms_distance", between) == validation.WITHIN_BOUND
+    assert verdict("rms_distance", banded) == validation.WITHIN_BOUND
+    assert verdict("rms_distance", past) == validation.MISSED
+    assert verdict("rms_distance", near) == validation.MISSED
     assert verdict("rms_distance", far) == validation.MISSED
+    assert verdict("rms_distance", near, moved=False) == validation.WITHIN_BOUND
     assert verdict("rms_distance", far, moved=False) == validation.WITHIN_BOUND
     # The mean distance: the second window reaches the published one, and a file outside it stands within three tenths.
     mean = tails.high.mean_distance

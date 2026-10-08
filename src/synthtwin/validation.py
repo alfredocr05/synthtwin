@@ -4318,9 +4318,11 @@ def _silent(
     return Check(column, fact, subcheck, MISSED, published, "", "", kept_back)
 
 
-# HOW NEAR THE PUBLISHED VALUE A FILE OUTSIDE A SECOND WINDOW THAT
-# REACHES IT STILL PASSES (validation method V6.1-A2; the verifier of the
-# corrections to Codex's review of lane G2), as a share of the published
+# HOW NEAR THE PUBLISHED VALUE A FILE OUTSIDE A SECOND WINDOW STILL
+# PASSES -- either side of the value where the window reaches it, and past
+# it on the side away from the window where it does not (validation method
+# V6.1-A2; the verifier of the corrections to Codex's review of lane G2,
+# and its second verifier), as a share of the published
 # spread for the mean, the spread and a rung -- `K-S3-22`'s own line for a
 # twin on the real moments, the mean's for a rung -- and of the published
 # distance itself for a tail's two distances. See `_within`.
@@ -4441,10 +4443,27 @@ def _within(
     own twins stand just past ``held`` where the value sits near its end:
     `00001` to `00149` beside one `50000`, at 36, are written with a
     mean of 412.11 against a published 407.83, past the second window's
-    411.70. Where ``held`` misses the value, its own ends would miss a
-    file holding all but exactly the value itself, so they bound nothing
-    there, and the distance above is the bound. The window printed and
-    the WITHIN-BOUND test stay the first one's.
+    411.70.
+
+    AND WHERE ``held`` MISSES THE VALUE, IT HOLDS THE FILE BETWEEN ITS
+    FURTHER END AND THE VALUE, widened only by ``held_near`` past the
+    value (the second verifier of those corrections). Its own ends alone
+    would miss a file holding all but exactly the value itself, but the
+    distance alone held the side away from the window only to half its
+    width: the leftover round's own column, 1000 to 1900, each 100
+    times, beside one `99900`, at eleven, draws the spread's second
+    window 0 to 3,090.81 against a published 3,124.94, and a file whose
+    last cell is `144180`, its spread 4,520.40 -- 1.45 times the real
+    one -- passed every check at floors of 11, 20 and 36 where 110cb46
+    missed its spread. So the file must stand inside the hull of
+    ``held`` and the band -- from the nearer of ``held``'s low end and
+    ``held_near`` below the value to the further of its high end and
+    ``held_near`` above it -- whether or not ``held`` reaches the value,
+    and within the distance above as well, or the obligation is MISSED;
+    where ``held`` reaches it that hull is the window and the band
+    together, as before. The note says which side the file stands on, and
+    never calls a window that misses the value one that reaches it. The
+    window printed and the WITHIN-BOUND test stay the first one's.
 
     ``why`` NAMES WHICH SILENCE THIS IS, where the caller knows and the
     gate's general sentence would be less than the truth (plan P4-D349).
@@ -4502,10 +4521,11 @@ def _within(
         bound = (held_high - held_low) / 2.0
         if held_whole:
             bound = max(abs(value - held_low), abs(held_high - value))
-        strayed = (
-            held_low <= value <= held_high
-            and not held_low <= measured <= held_high
-            and not value - held_near <= measured <= value + held_near
+        reaching = held_low <= value <= held_high
+        strayed = not (
+            min(held_low, value - held_near)
+            <= measured
+            <= max(held_high, value + held_near)
         )
         if strayed or not value - bound <= measured <= value + bound:
             verdict = MISSED
@@ -4515,7 +4535,7 @@ def _within(
                 "      widens the window above. Drawn with that end held at the",
                 "      widest named width, the window runs",
             ]
-            if strayed and held_near > 0.0:
+            if strayed and reaching and held_near > 0.0:
                 lines += [
                     f"      {_shown_window(held_low, held_high)}, which reaches the",
                     "      description's own value, and the file stands outside it",
@@ -4523,11 +4543,20 @@ def _within(
                     f"      {_shown_number(held_near)}, so the window above is not taken",
                     "      as a pass (V6.1-A2).",
                 ]
-            elif strayed:
+            elif strayed and reaching:
                 lines += [
                     f"      {_shown_window(held_low, held_high)}, which reaches the",
                     "      description's own value, and the file stands outside it,",
                     "      so the window above is not taken as a pass (V6.1-A2).",
+                ]
+            elif strayed and value - bound <= measured <= value + bound:
+                lines += [
+                    f"      {_shown_window(held_low, held_high)}, which does not",
+                    "      reach the description's own value, and the file stands",
+                    "      past that value, on the side away from that window,",
+                    "      farther from it than",
+                    f"      {_shown_number(held_near)}, so the window above is not taken",
+                    "      as a pass (V6.1-A2).",
                 ]
             elif held_whole:
                 lines += [
@@ -4536,7 +4565,7 @@ def _within(
                     "      value that window admits, so the window above is not",
                     "      taken as a pass (V6.1-A2).",
                 ]
-            elif held_low <= value <= held_high:
+            elif reaching:
                 lines += [
                     f"      {_shown_window(held_low, held_high)}, and the file stands",
                     "      farther from the description's own value than half",
@@ -12250,9 +12279,9 @@ def _tail_block_checks(
     # whose far side stood half again as far out, its `p95` at 1,142,
     # passed where 110cb46 missed it. As a tail's distance does, a rung
     # stands no further from its published value than any value that
-    # window admits, and where the window reaches the value, inside it or
-    # within the mean's line of the value (`_within`, ``held_near``). A
-    # rung whose two windows are one is handed none.
+    # window admits, and inside it, between it and the value, or within the
+    # mean's line of the value (`_within`, ``held_near``). A rung whose two
+    # windows are one is handed none.
     held_ladder: "tuple[float, ...] | None" = None
     held_reach = reach
     if contract.reach_moved_an_end(facts):
@@ -12698,12 +12727,15 @@ def _tail_checks(
     # `99900`, at eleven, and a file whose last cell is `300000`, its far
     # tail three times the real one's, passed both where 110cb46 missed
     # both. A file stands no further from each published distance than any
-    # value that window admits (`_within`, ``held_whole``), and where that
-    # window reaches the published distance, inside it or within three
-    # tenths of the distance (``held_near``; the verifier of the review's
-    # corrections: that bound always takes in the whole window, and a far
-    # tail's mean distance 1.9 times the real one passed); on a tail whose
-    # end the rule did not move the two windows are drawn alike.
+    # value that window admits (`_within`, ``held_whole``), and inside
+    # that window, between it and the published distance, or within three
+    # tenths of the distance of it (``held_near``; the verifier of the
+    # review's corrections: that bound always takes in the whole window,
+    # and a far tail's mean distance 1.9 times the real one passed; and
+    # its second verifier: where the window misses the distance, the
+    # bound let the side away from it reach twice the distance); on a
+    # tail whose end the rule did not move the two windows are drawn
+    # alike.
     held_ladder: "tuple[float, ...] | None" = None
     if contract.reach_moved_an_end(facts):
         held_ladder = _filled_ladder(facts, False)
@@ -12969,10 +13001,10 @@ def _moment_checks(
     # end, reach the published value where that ladder's do not -- and
     # admit a file far from it where that ladder's reach it too (Codex's
     # review of lane G2, item 1, and the verifier of its corrections):
-    # half that window's width either way, and where it reaches the value
-    # its own ends as well, but for a file within `K-S3-22`'s line of the
-    # value (`_moment_near`). See `_within`. `skew` and `kurtosis` keep
-    # their windows alone.
+    # half that window's width either way, and its own ends or the stretch
+    # from it to the value as well, but for a file within `K-S3-22`'s line
+    # of the value (`_moment_near`). See `_within`. `skew` and `kurtosis`
+    # keep their windows alone.
     held: "dict[str, tuple[float, float]]" = {}
     if contract.reach_moved_an_end(facts):
         held = _windows_of(column, facts, floor, False)
@@ -13031,8 +13063,10 @@ def _moment_checks(
 
 
 def _moment_near(facts: contract.NumericFacts, field: str) -> float:
-    """How near the published mean or spread a file outside a reaching second window still passes (V6.1-A2).
+    """How near the published mean or spread a file outside a second window still passes (V6.1-A2).
 
+    Either side of the value where the second window reaches it, and past
+    it on the side away from the window where it does not (`_within`).
     `K-S3-22`'s own line for a twin on the real moments: within 0.05 of
     the published spread of the published mean, and within a tenth of
     it of the published spread. Nought -- the second window's own ends
