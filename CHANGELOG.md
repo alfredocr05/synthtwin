@@ -178,11 +178,12 @@ censuses whose twins miss at one seed in ten, each miss named by
 validation. Its second verification found, out of sample, the census of
 a log just above one row an open day published while its twins come back
 one to four values short at two to seven seeds of ten -- 21 of 313 such
-censuses, and 3 of 523 of fresh logs -- where the pass splits the body's
-nearer ranks before the high tail's; the orchestrator's ruling of
-2026-10-08 lets that risk stand beside the first, since a withheld census
-lets the twin write up to 85 per cent of a column's rows on days it
-never uses, and P4-D388 names the fix it waits on. A node holds one such
+censuses, and 3 of 523 of fresh logs, 22 of them where the pass splits
+the body's nearer ranks before the high tail's; the orchestrator's
+ruling of 2026-10-08 lets that risk stand beside the first, since a
+withheld census lets the twin write up to 85 per cent of a column's rows
+on days it never uses, and P4-D388 names the fix it waits on. A node
+holds one such
 log as it stands, and three more how the body's draw reads published
 holes. Seven-day logs holding every day come back one to three
 values short with or without their census, a limit recorded for lane
