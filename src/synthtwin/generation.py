@@ -1563,11 +1563,15 @@ def _reach_bits(
 # this many rows that number is at most 513 bytes, and reading it is
 # the quicker way: the readings below, taken at every width, cost the
 # walk 12 to 16 per cent more CPU on the lane's seeded questions. From
-# it on they come first (`_makes_a_total`, `_owed_less`): on a declared
-# identifier of 1,414 values held by 1 to 1,414 rows each -- 1,000,405
-# rows -- the halving rule alone spent about 45 s of the walk's 48 on
-# totals near a million bits wide. Either way the answer is the halving
-# rule's, so the walk and its answer are the same whatever this says.
+# it on they come first (`_makes_a_total`, `_found_from`, `_owed_less`):
+# on a declared identifier of 1,414 values held by 1 to 1,414 rows each
+# -- 1,000,405 rows -- the halving rule alone spent about 45 s of the
+# walk's 48 on totals near a million bits wide. And from it on a
+# reserve is read from its largest size down and remembers where it
+# found a total (`_reserves_met`), so it is not read again over every
+# size each time the cell takes one more. Either way the answer is the
+# halving rule's, so the walk and its answer are the same whatever this
+# says.
 _WIDE_TOTAL = 4096
 
 
@@ -1619,15 +1623,17 @@ def _makes_a_total(sizes: "list[tuple[int, int]]", least: int, most: int) -> boo
     """Whether some of the copies ``sizes`` holds total from ``least`` to ``most``.
 
     ``sizes`` holds ``(size, copies)`` pairs, the sizes ascending, as the
-    walk's places come; the walk asks this where ``most`` is
-    `_WIDE_TOTAL` rows or more. The answer is the one the halving walk of
-    `_reach_bits` gives over every copy (`_reach_between`); two readings
-    that need no number as wide as ``most`` come first, and each settles
-    only a question that walk settles the same way (stage 4, plan
-    P4-D389: on a declared identifier of 1,414 values held by 1 to 1,414
-    rows each, these two settled every one of the walk's 1,734 questions
-    of this kind, each of which had walked up to 1,414 sizes over totals
-    near a million):
+    walk's places come; condition 3 asks this where ``most`` is
+    `_WIDE_TOTAL` rows or more (`_reach_any`), and condition 5 reads the
+    same two readings below from the largest size down (`_found_from`).
+    The answer is the one the halving walk of `_reach_bits` gives over
+    every copy (`_reach_between`); two readings that need no number as
+    wide as ``most`` come first, and each settles only a question that
+    walk settles the same way (stage 4, plan P4-D389: on a declared
+    identifier of 1,414 values held by 1 to 1,414 rows each, these two
+    settled every one of the 1,734 questions of this kind conditions 3
+    and 5 asked on 25d89cd, each of which had walked up to 1,414 sizes
+    over totals near a million):
 
     1. Copies totalling less than ``least`` make nothing in range.
     2. Copies taken from the largest size down, as many of each as still
@@ -1695,7 +1701,7 @@ def _bounds_settled(
     low: "list[int]",
     high: "list[int]",
 ) -> bool:
-    """Narrow the least and the most each cell from ``cell`` on may hold until every count agrees.
+    """Narrow the least and the most each cell from ``cell`` on may hold, for at most one round more than there are cells.
 
     ``families`` names, for each count of each margin, the cells that
     answer for it, as their places in the order they fill; a count is
@@ -1708,6 +1714,17 @@ def _bounds_settled(
     count's cells, so the counts are read again while anything moves --
     no more than once more than there are cells, after which what is
     left is still true, only less narrow.
+
+    THE ROUNDS STOP THERE RATHER THAN WHERE NO END MOVES (plan P4-D389,
+    Codex's review of the landing, item 2). Carried on, the ends can
+    keep moving for rounds in proportion to the counts rather than the
+    cells: on Codex's grid of 4,150 rows, two of whose counts the same
+    cells answer for one row apart, the narrowing stops after 37 rounds
+    and lets the first cell be filled where 378 refuse it, and with
+    every count ten times larger and those two still one row apart,
+    3,771 do. What the cutoff leaves costs the walk states, never an
+    answer: 706 on that grid, where the walk as 493f6f8 shipped it
+    enters 4,748.
 
     Every narrowing is a necessary condition on the cells' totals, read
     as whole numbers and nothing else, so a filling that meets every
@@ -1755,38 +1772,52 @@ def _reserves_met(
     keys: "list[tuple[int, int]]",
     left: "list[int]",
     walk: "list[int]",
-    reserves: "list[tuple[int, int, list[int]]]",
+    reserves: "list[tuple[int, int, list[int], list[int]]]",
 ) -> bool:
     """Whether the groups a cell leaves can still make every total the cells after it must find.
 
-    Each reserve is ``(least, most, places)``: some cells after this one
-    must together hold a total from ``least`` to ``most`` out of the
-    sizes at ``places`` (`_cell_entry`, condition 5). ``walk`` is how
-    many copies of each size this cell takes, as far as it has decided:
-    a place it has decided leaves its copies less those, and a place it
-    has not yet decided is counted at every copy still unplaced, the
-    most the cell can leave there -- so a reserve this refuses is one no
-    way of deciding the rest can meet. The totals those copies can make
-    are built by the halving rule of `_reach_bits`, read after each size:
-    totals only gain members as sizes are added, so the first size that
-    brings one in range settles the reserve. A reserve whose ``most`` is
-    `_WIDE_TOTAL` rows or more is read by `_makes_a_total`, which answers
-    as that rule does.
+    Each reserve is ``(least, most, places, found)``: some cells after
+    this one must together hold a total from ``least`` to ``most`` out
+    of the sizes at ``places`` (`_cell_entry`, condition 5). ``walk`` is
+    how many copies of each size this cell takes, as far as it has
+    decided: a place it has decided leaves its copies less those, and a
+    place it has not yet decided is counted at every copy still
+    unplaced, the most the cell can leave there -- so a reserve this
+    refuses is one no way of deciding the rest can meet. The totals
+    those copies can make are built by the halving rule of
+    `_reach_bits`, read after each size: totals only gain members as
+    sizes are added, so the first size that brings one in range settles
+    the reserve.
 
-    Guarantees: a fixed function of its arguments; it changes none of
-    them.
+    A reserve whose ``most`` is `_WIDE_TOTAL` rows or more is read from
+    its largest size down (`_found_from`), and ``found``, a list of one
+    place, keeps the largest place from which on a reading found the
+    copies to make a total. Counted at every copy those places make it
+    still, since a copy more only adds totals; so while the walk has
+    decided none of them -- it decides its places in ascending order --
+    the reserve is met without being read (Codex's review of this
+    landing, item 1: on a declared identifier of 998,991 rows the last
+    cell's reserve was read again over every size left each time the
+    cell before it took one more, 640 times, a number half a million
+    bits wide shifted once a size, and the twin's first packing question
+    took 5.0 s of CPU where the walk as 493f6f8 shipped it took 0.66;
+    now it is read twice).
+
+    Guarantees: the answer is a fixed function of ``keys``, ``left``,
+    ``walk`` and each reserve's first three parts; the only thing it
+    changes is the ``found`` of a reserve, which belongs to one entry of
+    one cell (`_cell_entry`) and so to one ``left``, and which the caller
+    must not carry to another.
     """
-    for least, most, places in reserves:
+    for least, most, places, found in reserves:
         if most >= _WIDE_TOTAL:
-            sizes: list[tuple[int, int]] = []
-            for place in places:
-                copies = left[place]
-                if place < len(walk):
-                    copies = copies - walk[place]
-                if copies > 0:
-                    sizes += [(keys[place][0], copies)]
-            if not _makes_a_total(sizes, least, most):
+            if found[0] >= len(walk):
+                continue
+            place = _found_from(keys, left, walk, places, least, most)
+            if place < 0:
                 return False
+            if place > found[0]:
+                found[0] = place
             continue
         limit = (1 << (most + 1)) - 1
         reach = 1
@@ -1807,6 +1838,83 @@ def _reserves_met(
     return True
 
 
+def _found_from(
+    keys: "list[tuple[int, int]]",
+    left: "list[int]",
+    walk: "list[int]",
+    places: "list[int]",
+    least: int,
+    most: int,
+) -> int:
+    """Where the copies a cell leaves at ``places``, read from the largest size down, first make a total from ``least`` to ``most``.
+
+    ``places`` ascend, as the walk's sizes do, and each is counted as
+    `_reserves_met` counts it: a place below ``len(walk)`` at its copies
+    less those the cell takes, any other at every copy still unplaced.
+    The readings are `_makes_a_total`'s, taken from the largest size
+    down: copies totalling less than ``least`` make nothing in range;
+    copies taken from the largest size down, as many of each as still
+    fit under ``most``, are a total in range once they reach ``least``;
+    and where they do not, the halving rule of `_reach_bits` is read
+    from the largest size down to the first size that brings a total in
+    range (`_reach_down`). Returns the place at which a total in range
+    was found, so that the copies there and at the places after it make
+    one; or -1 where no copies make one.
+
+    Guarantees: a fixed function of its arguments, ``least`` one or
+    more; it changes none of them.
+    """
+    sizes: list[tuple[int, int]] = []
+    total = 0
+    for place in places:
+        copies = left[place]
+        if place < len(walk):
+            copies = copies - walk[place]
+        sizes += [(keys[place][0], copies)]
+        total = total + keys[place][0] * copies
+    if total < least or least > most:
+        return -1
+    made = 0
+    for index in range(len(sizes) - 1, -1, -1):
+        size, copies = sizes[index]
+        if copies > 0 and size > 0:
+            made = made + min(copies, (most - made) // size) * size
+            if made >= least:
+                return places[index]
+    index = _reach_down(sizes, least, most)
+    if index < 0:
+        return -1
+    return places[index]
+
+
+def _reach_down(sizes: "list[tuple[int, int]]", least: int, most: int) -> int:
+    """The halving walk of `_reach_between` read from the largest size down: where it first brings a total in range.
+
+    ``sizes`` holds ``(size, copies)`` pairs, the sizes ascending. The
+    totals the copies can make are built one size at a time from the
+    last pair to the first and kept to ``most``, and read after each
+    size for one from ``least`` on. Returns the index of the pair at
+    which one first appears, so that the copies of that pair and the
+    pairs after it make a total in range, or -1 where no copies do.
+
+    Guarantees: a fixed function of its arguments, ``least`` one or
+    more; it changes none of them.
+    """
+    limit = (1 << (most + 1)) - 1
+    reach = 1
+    for index in range(len(sizes) - 1, -1, -1):
+        size, copies = sizes[index]
+        step = 1
+        while copies > 0:
+            take = min(step, copies)
+            reach = (reach | (reach << (take * size))) & limit
+            copies = copies - take
+            step = step * 2
+        if reach >> least:
+            return index
+    return -1
+
+
 def _cell_entry(
     keys: "list[tuple[int, int]]",
     left: "list[int]",
@@ -1816,7 +1924,7 @@ def _cell_entry(
     families: "list[tuple[int, int, list[int]]]",
     cell: int,
     room: "tuple[int, int]",
-) -> "tuple[int, list[int], int, list[list[tuple[int, int, list[int]]]]] | None":
+) -> "tuple[int, list[int], int, list[list[tuple[int, int, list[int], list[int]]]]] | None":
     """What one cell may total, what it must take and what it must leave, read off the cells after it.
 
     THE WALK TRIED EVERY FILL OF ONE CELL BEFORE IT LEARNED THAT ONLY ONE
@@ -1846,8 +1954,9 @@ def _cell_entry(
     1. **What each cell from this one on may hold.** At most what every
        count it answers for still owes, and nothing where no unplaced
        group may stand; then each count's cells are held to what it owes
-       together, narrowing the least and the most of each until every
-       count agrees (`_bounds_settled`). A count only one cell can still
+       together, narrowing the least and the most of each, round after
+       round, for at most one round more than there are cells
+       (`_bounds_settled`). A count only one cell can still
        answer for fixes that cell's total this way, and what that leaves
        its other counts fixes theirs.
     2. **Where each size can still go.** A group can stand only in a
@@ -1883,7 +1992,11 @@ def _cell_entry(
        size it reads, a reserve let one cell try every way of taking the
        smaller sizes before it was read at all: on a seeded identifier of
        132 values in mixed forms, more than 2,000,000 readings without
-       leaving one state, where the whole question now takes 184.
+       leaving one state, where the whole question now takes 184. And a
+       reserve of `_WIDE_TOTAL` rows or more remembers the largest size
+       from which on it found a total, and is met without being read
+       again while the cell has decided none of the sizes from there on
+       (`_reserves_met`).
 
     ``part_cells[m][p]`` names the cells, as their places in the order
     they fill, that answer for count ``p`` of margin ``m``, and
@@ -1892,8 +2005,9 @@ def _cell_entry(
     ``t`` is set when ``t`` is allowed, all of them inside ``room`` -- how
     many copies of each size it must take, the largest total it may take,
     and its reserves, one list per size, each reserve
-    ``(least, most, places)``; or None where no fill of it can lead to
-    an answer.
+    ``(least, most, places, found)``, ``found`` the one place its
+    readings remember (`_reserves_met`), new to this entry; or None
+    where no fill of it can lead to an answer.
 
     Guarantees: a fixed function of its arguments, with no randomness
     and no I/O; it changes none of them.
@@ -1979,14 +2093,14 @@ def _cell_entry(
         accept = accept & rest
         if accept == 0:
             return None
-    filed: list[tuple[int, int, list[int]]] = []
+    filed: list[tuple[int, int, list[int], list[int]]] = []
     for step in range(cell + 1, cells):
         if low[step] < 1:
             continue
         places = [place for place in range(len(keys)) if (where[place] >> step) & 1]
         if not places:
             return None
-        filed += [(low[step], high[step], places)]
+        filed += [(low[step], high[step], places, [-1])]
     for margin, part, steps in families:
         if part_at[margin][cell] == part:
             continue
@@ -2005,10 +2119,10 @@ def _cell_entry(
         places = [place for place in range(len(keys)) if where[place] & loose]
         if not places:
             return None
-        filed += [(due, due, places)]
+        filed += [(due, due, places, [-1])]
     if not _reserves_met(keys, left, [], filed):
         return None
-    reserves: list[list[tuple[int, int, list[int]]]] = [[] for _each in keys]
+    reserves: list[list[tuple[int, int, list[int], list[int]]]] = [[] for _each in keys]
     for reserve in filed:
         for place in reserve[2]:
             reserves[place] += [reserve]
@@ -2101,7 +2215,7 @@ def _cell_next(
     top: int,
     need: "list[int]",
     cell: int,
-    reserves: "list[list[tuple[int, int, list[int]]]]",
+    reserves: "list[list[tuple[int, int, list[int], list[int]]]]",
 ) -> "tuple[list[int], list[int] | None]":
     """The next fill of one cell in the fixed order, and the walk after it.
 
@@ -2358,7 +2472,7 @@ def _cell_walk(
     accepts: list[int] = []
     tops: list[int] = []
     needs: list[list[int]] = []
-    kept_back: list[list[list[tuple[int, int, list[int]]]]] = []
+    kept_back: list[list[list[tuple[int, int, list[int], list[int]]]]] = []
     placed: list[list[int]] = []
     marks: list[int] = []
     if failed is None:
