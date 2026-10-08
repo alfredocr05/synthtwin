@@ -2,8 +2,9 @@
 
 A FROZEN RECORD, NEVER REBUILT FROM THE PRODUCT. Each table of
 `tests/test_p4d390_counts_per_block.py` -- Codex's two tables of the
-review of plan P4-D390, the lane's batteries and the forty-six shapes
-of the stage-3 battery -- was described by the producer of 493f6f8, the
+review of plan P4-D390, the lane's batteries, the four tables for the
+keys a wider sweep found moving and the forty-six shapes of the stage-3
+battery -- was described by the producer of 493f6f8, the
 tree before the subtraction guard was dropped, and its counts of one to
 ten were read by that file's own `small_counts`, block by block. What
 the product prints now is compared with this, so a block that starts
@@ -43,6 +44,49 @@ BEFORE: "dict[str, dict[str, list[tuple[object, ...]]]]" = {
             ("key", "min_length", 2),
             ("key", "n_distinct_by_occurrences/001", 3),
             ("key", "n_distinct_by_occurrences/002", 6),
+        ],
+    },
+    "codex_words_with_empty_cells": {
+        "(table)": [],
+        "other": [
+            ("key", "n_distinct", 1),
+            ("key", "n_distinct_folded", 1),
+        ],
+        "thing": [],
+    },
+    "codex_words_with_split_missing": {
+        "(table)": [],
+        "other": [
+            ("key", "n_distinct", 1),
+            ("key", "n_distinct_folded", 1),
+        ],
+        "thing": [],
+    },
+    "readings_beside_labels": {
+        "(table)": [],
+        "other": [
+            ("key", "n_distinct", 1),
+            ("key", "n_distinct_folded", 1),
+        ],
+        "thing": [
+            ("key", "labels/n_distinct", 1),
+            ("key", "labels/n_distinct_folded", 1),
+            ("key", "missing_by_class/(withheld)", 1),
+            ("key", "n_missing", 1),
+            ("key", "n_missing_withheld", 1),
+        ],
+    },
+    "readings_beside_labels_identifier": {
+        "(table)": [],
+        "other": [
+            ("key", "n_distinct", 1),
+            ("key", "n_distinct_folded", 1),
+        ],
+        "thing": [
+            ("key", "max_length", 9),
+            ("key", "min_length", 4),
+            ("key", "n_distinct_by_occurrences/05", 1),
+            ("key", "n_distinct_by_occurrences/30", 1),
         ],
     },
     "registers_100000_f11": {
@@ -751,6 +795,60 @@ BEFORE: "dict[str, dict[str, list[tuple[object, ...]]]]" = {
             ("key", "suppressed_rows", 5),
             ("said", "labels_pooled_below_the_floor", 0, 2),
             ("said", "labels_pooled_below_the_floor", 2, 5),
+        ],
+    },
+    "small_label_columns": {
+        "(table)": [],
+        "one_word": [
+            ("key", "missing_by_class/(withheld)", 2),
+            ("key", "n_distinct", 1),
+            ("key", "n_distinct_folded", 1),
+            ("key", "n_missing", 2),
+            ("key", "n_missing_withheld", 2),
+        ],
+        "pair_blanks": [
+            ("key", "missing_by_class/(withheld)", 5),
+            ("key", "n_distinct", 2),
+            ("key", "n_distinct_folded", 2),
+            ("key", "n_missing", 5),
+            ("key", "n_missing_withheld", 5),
+        ],
+        "yes_no": [
+            ("key", "missing_by_class/(withheld)", 3),
+            ("key", "n_distinct", 2),
+            ("key", "n_distinct_folded", 2),
+            ("key", "n_missing", 3),
+            ("key", "n_missing_withheld", 3),
+        ],
+    },
+    "small_label_columns_identifiers": {
+        "(table)": [],
+        "one_word": [
+            ("key", "max_length", 1),
+            ("key", "min_length", 1),
+            ("key", "n_distinct", 3),
+            ("key", "n_distinct_by_occurrences/0001", 2),
+            ("key", "n_distinct_by_occurrences/1203", 1),
+            ("key", "n_distinct_folded", 3),
+        ],
+        "pair_blanks": [
+            ("key", "max_length", 5),
+            ("key", "min_length", 4),
+            ("key", "missing_by_class/(withheld)", 3),
+            ("key", "n_distinct", 4),
+            ("key", "n_distinct_by_occurrences/001", 2),
+            ("key", "n_distinct_by_occurrences/600", 2),
+            ("key", "n_distinct_folded", 4),
+            ("key", "n_missing", 3),
+            ("key", "n_missing_withheld", 3),
+        ],
+        "yes_no": [
+            ("key", "max_length", 6),
+            ("key", "min_length", 1),
+            ("key", "n_distinct", 5),
+            ("key", "n_distinct_by_occurrences/001", 3),
+            ("key", "n_distinct_by_occurrences/601", 2),
+            ("key", "n_distinct_folded", 5),
         ],
     },
     "stage3_affixed_all_but_one_spelling": {

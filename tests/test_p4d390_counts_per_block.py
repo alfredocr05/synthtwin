@@ -29,13 +29,19 @@ it stands and compared, block by block and key by key, with what
 493f6f8 printed for the same table (`p4d390_described_before.BEFORE`).
 A count of one to ten the product prints that 493f6f8 did not print at
 the same key -- counted as a multiset, so a key whose small count
-changed is new too -- must be one of the keys `MAY_BE_NEW` names, and on
-a column declared an identifier no new count of one to ten is allowed
-at all. The tables are Codex's two, each again with its column declared
-an identifier, the lane's batteries (its five seeded tables at floors of
+changed is new too -- must be one of the keys `MAY_BE_NEW` names, or a
+missing count of the column's own cells (`MISSING_COUNTS`), and on a
+column declared an identifier no new count of one to ten is allowed at
+all. The tables are Codex's two, each again with its column declared an
+identifier; the lane's batteries (its five seeded tables at floors of
 eleven and thirty-six, and three of them again with columns declared
-identifiers) and the forty-six shapes of the stage-3 battery `K-S3-12`
-counts.
+identifiers); four tables for the keys a wider sweep (172 seeded shapes,
+each at both floors) found moving beyond those -- Codex's first table
+again beside five empty cells, and beside nine empty cells and twelve
+`NA`, a column of readings beside labels, and three label columns the
+retired pass cut down to one or two values, the last two again with
+their columns declared identifiers; and the forty-six shapes of the
+stage-3 battery `K-S3-12` counts.
 
 Every table is built by seeded neutral code at runtime (plan D13); the
 lane's batteries are the measurement's own generators at its own seeds,
@@ -80,18 +86,32 @@ from synthtwin import (
 #   level is pooled whatever its size, so `suppressed_levels` and
 #   `suppressed_rows` (and the notes restating them) count what 493f6f8
 #   printed as missing, and the form census pools the forms those cells
-#   wear under `(withheld)`;
-# - the counts of different values, `n_distinct` and `n_distinct_folded`
-#   (and the evidence restating them, or restating how many levels a long
-#   tail publishes), which now count the values the pass had blanked;
-# - and the four class totals, `n_numeric`, `n_out_of_range`,
+#   wear under `(withheld)` -- of the column, or of the label half of a
+#   column of numbers beside labels (`labels/...`);
+# - the counts of different values, `n_distinct` and `n_distinct_folded`,
+#   of the column or of its label half (and the evidence restating them,
+#   or restating how many levels a long tail publishes), which now count
+#   the values the pass had blanked;
+# - the four class totals, `n_numeric`, `n_out_of_range`,
 #   `n_contradictory` and `n_not_numeric`, with the two remarks restating
-#   the second and third (Codex's item).
+#   the second and third (Codex's item);
+# - and the missing counts, `n_missing`, `n_missing_withheld` and the
+#   pooled `missing_by_class` entry, ONLY as counts of the column's own
+#   cells standing for no value: 493f6f8 printed them with the cells it
+#   blanked added, so a column holding one to ten such cells of its own
+#   prints that count now where 493f6f8 printed a larger one, and one
+#   whose own cells of a class fall below the floor once the blanked
+#   cells are gone pools them where 493f6f8 named the class. So a new
+#   `n_missing` must be exactly the column's own such cells, and a new
+#   pooled count no more than them.
 #
-# No other key does, and no key of a declared identifier does. Every table
-# here is described at a floor of eleven or thirty-six: below eleven a
-# named count between the floor and ten is the floor's own to print, and
-# the statement is made of eleven and more.
+# A column whose cells the pass had cut to one or two values can read as
+# another role now -- a constant as binary, a binary column as a set of
+# categories, a set of categories as a long tail -- and still prints a new
+# count only in these keys. No other key does, and no key of a declared
+# identifier does. Every table here is described at a floor of eleven or
+# thirty-six: below eleven a named count between the floor and ten is the
+# floor's own to print, and the statement is made of eleven and more.
 MAY_BE_NEW = (
     "n_numeric",
     "n_out_of_range",
@@ -102,6 +122,19 @@ MAY_BE_NEW = (
     "suppressed_levels",
     "suppressed_rows",
     f"shape_forms/{contract.WITHHELD}",
+    "labels/n_distinct",
+    "labels/n_distinct_folded",
+    "labels/suppressed_levels",
+    "labels/suppressed_rows",
+    f"labels/shape_forms/{contract.WITHHELD}",
+)
+# The missing counts, which may be new only as counts of the column's own
+# cells standing for no value: the total exactly, the two pooled ones at
+# no more than it.
+MISSING_COUNTS = (
+    "n_missing",
+    "n_missing_withheld",
+    f"missing_by_class/{contract.WITHHELD}",
 )
 
 # Counts that say where something is or which version wrote it, never
@@ -275,18 +308,33 @@ def new_small_counts(
     return new
 
 
-def may_be_new(entry: "tuple[object, ...]") -> bool:
-    """Whether one new count is of a key `MAY_BE_NEW` names, or restates one."""
+def may_be_new(entry: "tuple[object, ...]", own_missing: int) -> bool:
+    """Whether one new count is of a key the list names, or restates one.
+
+    A missing count may be new only as a count of ``own_missing``, the
+    column's own cells standing for no value: `n_missing` exactly, the
+    two pooled counts at no more than it.
+    """
     if entry[0] == "key":
-        return entry[1] in MAY_BE_NEW
-    binding = taxonomy.argument_binding(f"{entry[1]}", int(f"{entry[2]}"))
-    if binding[:1] == (taxonomy.BIND_LEVELS_AT_THE_LINE,):
-        return True
-    return binding[:1] == (taxonomy.BIND_KEY,) and binding[1] in MAY_BE_NEW
+        key, value = f"{entry[1]}", entry[2]
+    else:
+        binding = taxonomy.argument_binding(f"{entry[1]}", int(f"{entry[2]}"))
+        if binding[:1] == (taxonomy.BIND_LEVELS_AT_THE_LINE,):
+            return True
+        if binding[:1] != (taxonomy.BIND_KEY,):
+            return False
+        key, value = f"{binding[1]}".replace(".", "/"), entry[3]
+    if key == MISSING_COUNTS[0]:
+        return value == own_missing
+    if key in MISSING_COUNTS:
+        return isinstance(value, int) and value <= own_missing
+    return key in MAY_BE_NEW
 
 
 def outside_the_list(
-    new: "dict[str, list[tuple[object, ...]]]", identifiers: "tuple[str, ...]"
+    new: "dict[str, list[tuple[object, ...]]]",
+    identifiers: "tuple[str, ...]",
+    own_missing: "dict[str, int]",
 ) -> "dict[str, list[tuple[object, ...]]]":
     """The new counts no rule allows: any on an identifier or the table, and
     any of another key elsewhere."""
@@ -295,10 +343,29 @@ def outside_the_list(
         if owner in identifiers or owner == "(table)":
             refused[owner] = new[owner]
             continue
-        wrong = [entry for entry in new[owner] if not may_be_new(entry)]
+        empty = own_missing[owner] if owner in own_missing else 0
+        wrong = [entry for entry in new[owner] if not may_be_new(entry, empty)]
         if wrong:
             refused[owner] = wrong
     return refused
+
+
+def missing_cells(text: str) -> "dict[str, int]":
+    """How many cells of each column of a delimited table stand for no value:
+    blank, or a spelling `parsing.is_missing_text` reads as none. No table
+    here declares a value missing or holds a sentinel the product counts as
+    missing, so these are all of a column's own absent cells."""
+    rows = list(csv.reader(io.StringIO(text)))
+    counts: "dict[str, int]" = {}
+    for place in range(len(rows[0])):
+        counts[rows[0][place]] = len(
+            [
+                row
+                for row in rows[1:]
+                if not parsing.trimmed(row[place]) or parsing.is_missing_text(row[place])
+            ]
+        )
+    return counts
 
 
 # -- the tables --------------------------------------------------------
@@ -668,6 +735,71 @@ def shapes2(rows: int = 10000) -> str:
     return _csv_text(list(columns), columns)
 
 
+def _codex_words_beside(absent: "list[str]") -> str:
+    """Codex's first table with cells of its own standing for no value."""
+    cells: "list[str]" = []
+    for word in (
+        "calm", "cold", "dark", "deep", "dull", "fair",
+        "firm", "flat", "full", "high", "kind", "late",
+    ):
+        cells += [word] * 100
+    for place in range(6):
+        cells += [f"word{place}"] * 2
+    cells += ["77", "1e999", "(+5)"] + absent
+    random.Random(1).shuffle(cells)
+    return _csv_text(["thing", "other"], {"thing": cells, "other": ["x"] * len(cells)})
+
+
+def codex_words_with_empty_cells() -> str:
+    """Codex's first table with five empty cells of its own: 1,220 rows.
+
+    493f6f8 printed its missing counts with the fifteen cells it blanked
+    added to the five, twenty in all; now they count the five.
+    """
+    return _codex_words_beside([""] * 5)
+
+
+def codex_words_with_split_missing() -> str:
+    """Codex's first table with nine empty cells and twelve `NA`: 1,236 rows.
+
+    At a floor of eleven 493f6f8 named 24 empty cells, its own nine and
+    the fifteen it blanked, and twelve `NA`, pooling none; now the nine
+    fall below the floor and are pooled, `n_missing_withheld` 9, while
+    `n_missing` is 21 -- a pooled count of the column's own cells, below
+    its own total.
+    """
+    return _codex_words_beside([""] * 9 + ["NA"] * 12)
+
+
+def readings_beside_labels() -> str:
+    """A thousand one-place readings beside 30 `hemolyzed` and one `see
+    note`: a column of numbers beside labels whose label half pools a
+    level of one row (seed 13)."""
+    draw = random.Random(13)
+    cells = [
+        f"{tenths // 10}.{tenths % 10}"
+        for tenths in [draw.randrange(600, 1600) for _row in range(1000)]
+    ]
+    cells += ["hemolyzed"] * 30 + ["see note"]
+    draw.shuffle(cells)
+    return _csv_text(["thing", "other"], {"thing": cells, "other": ["x"] * len(cells)})
+
+
+def small_label_columns() -> str:
+    """Three label columns the retired pass cut down, 1,205 rows each:
+    two words on 600 rows each beside three empty cells and two words once
+    each; `yes` and `no` on 601 each beside `maybe`, `unsure` and `7`; and
+    one word on 1,203 rows beside `2` and `3`."""
+    draw = random.Random(17)
+    columns: "dict[str, list[str]]" = {}
+    columns["pair_blanks"] = ["alpha"] * 600 + ["beta"] * 600 + [""] * 3 + ["gamma", "delta"]
+    columns["yes_no"] = ["yes"] * 600 + ["no"] * 600 + ["maybe", "unsure", "7", "yes", "no"]
+    columns["one_word"] = ["Y"] * 1203 + ["2", "3"]
+    for name in sorted(columns):
+        draw.shuffle(columns[name])
+    return _csv_text(["pair_blanks", "yes_no", "one_word"], columns)
+
+
 # Every table: (builder, its argument, floor, declared codes, declared
 # identifiers). The stage-3 battery's forty-six shapes are described by
 # that battery's own helper, at a floor of eleven.
@@ -695,18 +827,36 @@ TABLES = {
     "shapes2_identifiers_f11": (
         shapes2, 10000, 11, (), ("consent", "route", "glu_one"),
     ),
+    "codex_words_with_empty_cells": (codex_words_with_empty_cells, None, 11, (), ()),
+    "codex_words_with_split_missing": (
+        codex_words_with_split_missing, None, 11, (), (),
+    ),
+    "readings_beside_labels": (readings_beside_labels, None, 11, (), ()),
+    "readings_beside_labels_identifier": (
+        readings_beside_labels, None, 11, (), ("thing",),
+    ),
+    "small_label_columns": (small_label_columns, None, 11, (), ()),
+    "small_label_columns_identifiers": (
+        small_label_columns, None, 11, (), ("pair_blanks", "yes_no", "one_word"),
+    ),
 }
 
 _TEXTS: "dict[tuple[object, object], str]" = {}
 
 
-def described(folder: pathlib.Path, name: str) -> dict:
-    """One table of `TABLES`, written to ``folder`` and described."""
-    builder, argument, floor, codes, identifiers = TABLES[name]
+def table_text(name: str) -> str:
+    """The delimited text of one table of `TABLES`, built once."""
+    builder, argument, _floor, _codes, _identifiers = TABLES[name]
     key = (builder, argument)
     if key not in _TEXTS:
         _TEXTS[key] = builder() if argument is None else builder(argument)
-    path = fixtures.write(folder, f"{name}.csv", _TEXTS[key])
+    return _TEXTS[key]
+
+
+def described(folder: pathlib.Path, name: str) -> dict:
+    """One table of `TABLES`, written to ``folder`` and described."""
+    _builder, _argument, floor, codes, identifiers = TABLES[name]
+    path = fixtures.write(folder, f"{name}.csv", table_text(name))
     return profile.build_document(
         reading.read_table(f"{path}", small_cell_floor=floor),
         taxonomy.Settings(small_cell_floor=floor),
@@ -715,13 +865,17 @@ def described(folder: pathlib.Path, name: str) -> dict:
     )
 
 
-def stage3_described(folder: pathlib.Path, name: str) -> "tuple[dict, tuple[str, ...]]":
-    """One shape of the stage-3 battery at a floor of eleven, and its identifiers."""
-    _cells, flags = stage3_battery.SHAPES[name](
+def stage3_described(
+    folder: pathlib.Path, name: str
+) -> "tuple[dict, tuple[str, ...], dict[str, int]]":
+    """One shape of the stage-3 battery at a floor of eleven, its identifiers,
+    and its own cells standing for no value."""
+    cells, flags = stage3_battery.SHAPES[name](
         random.Random(stage3_battery.BATTERY_SEED)
     )
     identifiers = tuple(flags["identifiers"] if "identifiers" in flags else ())
-    return stage3_battery.described(folder, name, 11), identifiers
+    own = missing_cells(stage3_battery.rows_text(["value"], [[cell] for cell in cells]))
+    return stage3_battery.described(folder, name, 11), identifiers, own
 
 
 # -- the checks ----------------------------------------------------------
@@ -747,7 +901,8 @@ def test_no_block_prints_a_new_small_count_outside_the_list(
     before = p4d390_described_before.BEFORE[name]
     assert sorted(after) == sorted(before), name
     identifiers = TABLES[name][4]
-    assert outside_the_list(new_small_counts(before, after), identifiers) == {}
+    own = missing_cells(table_text(name))
+    assert outside_the_list(new_small_counts(before, after), identifiers, own) == {}
 
 
 def test_the_stage3_battery_prints_no_new_small_count_outside_the_list(
@@ -765,18 +920,65 @@ def test_the_stage3_battery_prints_no_new_small_count_outside_the_list(
     refused: "dict[str, dict[str, list[tuple[object, ...]]]]" = {}
     moved: "list[str]" = []
     for name in sorted(stage3_battery.SHAPES):
-        document, identifiers = stage3_described(tmp_path, name)
+        document, identifiers, own = stage3_described(tmp_path, name)
         after = small_counts(document)
         before = p4d390_described_before.BEFORE[f"stage3_{name}"]
         assert sorted(after) == sorted(before), name
         new = new_small_counts(before, after)
         if new:
             moved += [name]
-        wrong = outside_the_list(new, identifiers)
+        wrong = outside_the_list(new, identifiers, own)
         if wrong:
             refused[name] = wrong
     assert refused == {}
     assert moved == ["labels_one_blank_pooled", "long_tail_labels"]
+
+
+def test_the_check_lets_through_the_list_and_nothing_else() -> None:
+    """The check itself, on new counts made up for it.
+
+    The listed keys, the sentences restating them and missing counts of
+    the column's own absent cells pass. A level of two rows named where
+    the floor pooled it, a sentence restating a key outside the list, a
+    missing count holding a cell the column did not leave empty, any
+    count of the table's own blocks and any count of a column declared
+    an identifier are each refused, so loosening the check turns this
+    red before it lets a block through.
+    """
+    own = {"thing": 3}
+    listed = [
+        ("key", "n_numeric", 1),
+        ("key", "n_not_numeric", 1),
+        ("key", "n_distinct", 5),
+        ("key", "labels/n_distinct_folded", 2),
+        ("key", "suppressed_levels", 9),
+        ("key", "labels/suppressed_rows", 1),
+        ("key", f"shape_forms/{contract.WITHHELD}", 5),
+        ("key", "n_missing", 3),
+        ("key", "n_missing_withheld", 3),
+        ("key", f"missing_by_class/{contract.WITHHELD}", 2),
+        ("said", taxonomy.REMARK_OUT_OF_RANGE, 0, 1),
+        ("said", taxonomy.NOTE_LABELS_POOLED, 2, 4),
+        ("said", taxonomy.NOTE_ONE_OF_TWO_BELOW_FLOOR, 0, 1),
+    ]
+    assert outside_the_list({"thing": listed}, (), own) == {}
+    for entry in (
+        ("key", "levels/[]/count", 2),
+        ("key", "levels/[]/variants/word0", 2),
+        ("key", "n_present", 7),
+        ("key", "n_missing", 4),
+        ("key", "n_missing", 2),
+        ("key", "n_missing_withheld", 4),
+        ("key", f"missing_by_class/{contract.WITHHELD}", 4),
+        ("said", taxonomy.EVIDENCE_ONE_VALUE, 0, 7),
+    ):
+        assert outside_the_list({"thing": [entry]}, (), own) == {"thing": [entry]}
+    on_the_table = {"(table)": [("key", "n_rows", 5)]}
+    assert outside_the_list(on_the_table, (), own) == on_the_table
+    for entry in listed:
+        assert outside_the_list({"thing": [entry]}, ("thing",), own) == {
+            "thing": [entry]
+        }
 
 
 def _round_trip(
