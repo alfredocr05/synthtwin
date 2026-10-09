@@ -18042,10 +18042,16 @@ def _clock_census_content(
                 least, most = 0, units - 1
                 if layout.apart:
                     least, most = _clock_between_pins(index, fixed, places, units)
-                place = _clock_off_a_hole(
-                    place, least, most, block.low, stride, form, holes,
-                    taken if layout.apart else {}, room,
-                )
+                if room:
+                    place = _clock_onto_room(
+                        place, least, most, block.low, stride, room,
+                        taken if layout.apart else {},
+                    )
+                else:
+                    place = _clock_off_a_hole(
+                        place, least, most, block.low, stride, form, holes,
+                        taken if layout.apart else {},
+                    )
                 taken[places[index]] = taken[places[index]] - 1
                 taken[place] = (taken[place] if place in taken else 0) + 1
             ordinals[rank] = block.low + place * stride
@@ -18149,26 +18155,50 @@ def _clock_off_a_hole(
     form: str,
     holes: "tuple[str, ...]",
     taken: "dict[int, int]",
-    room: "dict[int, int] | None" = None,
 ) -> int:
     """The nearest step of a run from `least` to `most` whose spelling the
-    table does not call absent, or that is one of `room` -- the absent
-    places the hour's other width spells another way in a run laid on
-    absent places alone -- the earlier first at one distance, and on a
-    column whose values all differ one no other rank stands on, between
-    the pins either side of it; or the same step where there is none
-    (method G7A.4b)."""
+    table does not call absent -- the earlier first at one distance, and
+    on a column whose values all differ one no other rank stands on,
+    between the pins either side of it -- or the same step where there is
+    none (method G7A.4b)."""
     for away in range(1, max(place - least, most - place) + 1):
         for other in (place - away, place + away):
             if other < least or other > most:
                 continue
             if other in taken and taken[other] > 0:
                 continue
-            if (room is None or low + other * stride not in room) and _is_a_hole_spelling(
+            if _is_a_hole_spelling(
                 parsing.clock_spelling(low + other * stride, form), holes
             ):
                 continue
             return other
+    return place
+
+
+def _clock_onto_room(
+    place: int,
+    least: int,
+    most: int,
+    low: int,
+    stride: int,
+    room: "dict[int, int]",
+    taken: "dict[int, int]",
+) -> int:
+    """The nearest step of a run laid on absent places alone, from `least`
+    to `most`, that is one of `room` -- the places the hour's other width
+    spells another way -- the earlier first at one distance, and on a
+    column whose values all differ one no other rank stands on, between
+    the pins either side of it; or the same step where there is none
+    (method G7A.4b step 4; the third verification of the round-2 fix of
+    landing 3b.5)."""
+    for away in range(1, max(place - least, most - place) + 1):
+        for other in (place - away, place + away):
+            if other < least or other > most:
+                continue
+            if other in taken and taken[other] > 0:
+                continue
+            if low + other * stride in room:
+                return other
     return place
 
 

@@ -2398,12 +2398,11 @@ def test_round_2_red_when_a_rank_of_a_run_on_absent_places_stays_where_no_width_
     tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """MUTATION: a rank of that run laid on `12:00 PM` is not moved onto the steps the other width writes -- the twin writes it `12:00 PM`, a cell its own reader counts missing, and misses."""
-    real = generation._clock_off_a_hole
 
-    def blind(*args: typing.Any) -> int:
-        return real(*args[:8])
+    def left(place: int, *_rest: typing.Any) -> int:
+        return place
 
-    monkeypatch.setattr(generation, "_clock_off_a_hole", blind)
+    monkeypatch.setattr(generation, "_clock_onto_room", left)
     _block_of, twins, _table = _group_twins(tmp_path, (0,))
     assert twins[0][2] > 15 and twins[0][6] != [], twins
 
