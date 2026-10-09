@@ -432,6 +432,11 @@ def exact_value(written: Written) -> "tuple[int, int]":
     Raises nothing. No I/O.
     """
     fraction = written.fraction.rstrip("0")
+    if not written.exponent_form and len(written.whole) + len(fraction) <= VALUE_FIGURES:
+        # THE COMMON CELL, short and with no exponent: already in lowest
+        # terms over ten once its trailing zeros are gone.
+        numerator = int(written.whole + fraction)
+        return (-numerator if written.negative else numerator), 10 ** len(fraction)
     digits = (written.whole + fraction).lstrip("0")
     if not digits:
         return 0, 1
@@ -2445,6 +2450,7 @@ def asked_of(
     # on the two widths, and the midnight rule, which those values meet,
     # was never asked.
     plain_text: "bool | None" = None
+    bare = True
     for rule in RULES:
         held = _numbers_hold(ordered, open_to, rule, total)
         kept: "list[str]" = []
@@ -2455,7 +2461,20 @@ def asked_of(
             continue
         if plain_text is None:
             plain_text = True
-            for text in present:
+            # FIGURES ALONE, ASKED OF THE CELLS AT ONCE: a column of whole
+            # counts written bare -- most columns Q3 asks -- is neither walked
+            # for dates in text nor for its form, so the two checks the Codex
+            # review of landing R4 added (items 1 and 3) cost such a column
+            # one join of its text.
+            joined = "".join(present)
+            if joined.isascii() and joined.isdigit():
+                present_walked: "list[str]" = []
+            else:
+                present_walked = present
+            for text in present_walked:
+                if _figures(text[1:] if text[:1] == "-" else text):
+                    continue
+                bare = False
                 # COUNTS BESIDE DATES WRITTEN AS TEXT are not read as counted
                 # dates (`written_as_a_date`), so no answer would be taken.
                 if written_count(text, mark) is None and written_as_a_date(text):
@@ -2464,11 +2483,14 @@ def asked_of(
         if not plain_text:
             return None
         offered = _offered(ordered, kept, total, present, needed, mark)
-        # A SYSTEM WHOSE ANSWER WOULD BE REFUSED IS NOT OFFERED (the review of
-        # landing R4, item 2): its declaration keeps no unit of the figures, or
-        # -- whole or not -- no form its checker holds every count of (the
-        # Codex review of landing R4, item 3).
-        offered = figures_kept(offered, present, mark)
+        if not bare:
+            # A SYSTEM WHOSE ANSWER WOULD BE REFUSED IS NOT OFFERED (the
+            # review of landing R4, item 2): its declaration keeps no unit of
+            # the figures, or -- whole or not -- no form its checker holds
+            # every count of (the Codex review of landing R4, item 3). Whole
+            # figures written bare, with no mark and no exponent, keep every
+            # figure in the one form they are written in, and are not walked.
+            offered = figures_kept(offered, present, mark)
         if offered:
             return Asked(rule, offered, _set_aside_words(ordered, kept, floor))
     return None

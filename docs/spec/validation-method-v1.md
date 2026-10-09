@@ -1313,7 +1313,13 @@ floor, so the real table meets its description by construction:
 counted dates writes its counts is an obligation.** A column the
 description reads as dates written as counts -- named under
 `settings.forced_date_counts`, carrying a `count_form` (contract 6.6.2)
--- is described again in the checked file under the same declaration:
+-- is described again in the checked file under the same declaration
+(a declared column whose description says in NF115 that its cells did
+not read as such dates is described again WITHOUT it, as its source was
+read: the twin of a declined column of Python's `%e` counts, written by
+the numeric role in a spelling the declaration could read, was otherwise
+read as counted dates and missed its role -- the Codex review of landing
+R4, items 1 and 3):
 each cell written as a count is read exactly as the moment its system
 names, at the unit the description PUBLISHED rather than one worked out
 from the file's own figures (`validation.counted_units`), so the
@@ -1323,7 +1329,13 @@ Beside them, `count_form` is HELD (`form.count_form`) where the file was
 read as such dates and every cell it writes as a count of the declared
 system (`date_counts.counted`: on `days-since-1840`, no exponent and at
 most nine figures after the point, a longer cell being text the date
-role's own line took) -- its published absent spellings aside -- is one
+role's own line took) -- every cell the file's own description reads as
+no value aside, by that description's own decision cell by cell
+(`_holes_by_the_description`, the counted reading's marks with it), not
+its published absent spellings alone: a lone `1` the counted reading
+sets aside and a lone `9999` named with `--missing-value` publish no
+spelling under the floor, and the source missed its own form (the Codex
+review of landing R4, item 4) -- is one
 the published form writes
 (`date_counts.form_holds`): exactly `places` figures after the mark, or
 at most that many with no trailing zero where the form is trimmed, at

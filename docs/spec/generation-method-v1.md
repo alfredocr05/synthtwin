@@ -7458,9 +7458,18 @@ says how that text is written back as the system's counts, and how a
 count is read, which the validator's re-description repeats.
 
 **Reading a count.** A cell the grammar of contract 6.6.2 takes as a
-count is its exact value: the whole figures and the figures after the
-mark as one integer over a power of ten, times ten to the exponent R's
-form writes. Its moment is the system's first day plus that many units,
+count -- with as many whole figures before an exponent as it writes,
+`17e+8` and `1704067200e+0` among them (the Codex review of landing R4,
+item 8) -- is its exact value: the whole figures and the figures after
+the mark as one integer over a power of ten, times ten to the exponent
+R's form writes, in lowest terms over ten. The redundant zeros go first
+and the magnitude is asked before any number is built: a number past
+ten to the thirtieth names no date in any system and is held there, one
+nearer nought than ten to minus thirty is held at ten to minus
+thirty-one, and of more than thirty figures the rest stand as one,
+nought only where all are -- so `1e+9999` builds no number of its own
+length and `45042.` with 4,301 zeros reads as 45042, each reading
+deciding as the exact number would (item 7). Its moment is the system's first day plus that many units,
 in whole nanoseconds; Excel's 1900 system counts serial 60 as no day,
 reads 1 to 59 from 31 December 1899 and 61 onward from 30 December
 1899, and reads no serial below 1. A `days-since-1840` count reads its
@@ -7469,7 +7478,16 @@ and a cell of that system writing an exponent or more than nine figures
 after the point is no count. The moment is settled to the unit U -- the
 finest of the nanosecond, microsecond, millisecond, second, minute and
 day that is at least the system's unit over ten to the most figures
-after the mark any cell writes -- by rounding half to even. Only where
+after the mark any cell writes, and NO FINER THAN THE WRITER KEEPS -- by
+rounding half to even. The writer spells a count that is not whole
+through the binary64 nearest it, within two to the `b - 54` of the
+system's unit of the exact count where every count stands below two to
+the `b`, so U is at least the finest unit above two to the `b - 52` of
+it, a bit spare for a tail (`date_counts.writer_keeps`): Excel serials
+written to fourteen figures were settled to the nanosecond, and 999 of
+1,000 moments handed to the writer read back as another; they settle to
+the millisecond, Unix seconds to the microsecond at most, SPSS seconds
+to the millisecond (the Codex review of landing R4, item 2). Only where
 no unit holds every figure so (below) are the counts written with more
 figures than the rest, at most one in a hundred of them and one at
 least, the rest nine tenths, set aside as strays: U is then the usual
@@ -7575,7 +7593,10 @@ a placeholder day -- and an unparsed stand-in are left as they are.
 halves on cells either side of Excel's leap day, SAS and Stata days,
 seconds and milliseconds before and after 1960, R's exponent form,
 nanoseconds past 2**53, an Epic day with its contact number, a comma for
-the point, fifteen significant figures either side of serial 10,000, one
+the point, SPSS seconds, Arrow's microseconds and R's days from 1970
+each at a count worked out from the calendar, which the oracle asserts
+before it writes (the Codex review of landing R4, item 9), fifteen
+significant figures either side of serial 10,000, one
 figure rounded half to even, six figures fixed and trimmed, R's shorter
 form, a contact number, a comma, `repr`'s shortest figures and its
 `45123.0`, four censuses of contact numbers dealt over the dated

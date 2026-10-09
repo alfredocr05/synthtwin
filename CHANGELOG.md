@@ -9,7 +9,8 @@ exists).
 ### Numbers that are dates are read as dates and written back as the same numbers (2026-10-07)
 
 **Landing R4** (plan P4-D384), with its review's nine items, its
-second review's seven and the two its verification found repaired.
+second review's seven, the two its verification found and Codex's nine
+repaired.
 Excel serials, SAS and Stata days, seconds and milliseconds, Unix seconds
 and milliseconds, Epic day numbers and the other counting systems of a
 closed table of twelve were described as numbers: the twin kept each
@@ -44,7 +45,18 @@ Excel twin of births from 1900 wrote as text, and a tail running across
 side of the day and none on it -- and one cell written with more
 figures than the rest no longer refuses the column, while spreadsheet
 date-times whose few longer cells carry the time of day are read as
-dates again. NF51 is no longer written.
+dates again. NF51 is no longer written. A declared column whose cells
+write some dates as text beside the counts is no longer twinned as
+numbers alone: it is described as written, and the run says to write
+every date one way; a column whose counts no single form holds -- whole
+counts written bare and with `.0` by turns, Python's `%e` -- is declined
+the same way instead of publishing a form its own source missed. A
+column is read no finer than the twin can write it back, so Excel serials
+written to fourteen figures no longer twin moments that read back as
+another; a rare count read as no value is no longer held to the form;
+`17e+8` is a count; a cell `1e+9999` no longer costs kilobytes, nor
+`45042.` with four thousand zeros an internal fault; and Q3 asks Unix
+counts at midnight written `.0` or crossing from nine figures to ten.
 
 ### A description written before the published pairs loads again (2026-10-03)
 
