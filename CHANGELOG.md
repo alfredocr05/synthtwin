@@ -82,7 +82,7 @@ to 23. NF92 now says what the rule leaves, one group over the whole
 day, and a published census's remark names those cells as a reason an
 hour is joined (NF88).
 
-### A rare label is pooled, never blanked, and a held-back code keeps its form past the old bounds (2026-10-06)
+### A rare label is pooled, never blanked but for route 1's rare words beside clock times, and a held-back code keeps its form past the old bounds (2026-10-06)
 
 **The subtraction guard is dropped** (plan P4-D390, under the owner's
 principle of 2026-10-01; the orchestrator sets aside the owner's ruling
@@ -547,6 +547,12 @@ times beside the notes -- the pass counts out what it always did. The
 clock-or-labels question was asked only of columns whose shared times
 hold every cell; its review, below, widens that. `K-S3-48` and
 `K-S3-49` are new; vectors file 21 freezes fifteen cases.
+
+Since the route-2 correction (2026-10-09, plan P4-D390) those columns
+are labels again, with no cell counted missing; only a few rare words
+beside clock times (route 1) are still counted missing, and their 198
+blank cells over 2 columns are to be removed by lane C2 under the
+corrected ruling that no cell is blank that the source never left blank.
 
 **Its one review** (Codex at 90466b2, every item fixed, nothing sent
 back). A published rung of a column whose values all differ stays at its
