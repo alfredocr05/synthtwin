@@ -10031,8 +10031,10 @@ def partial_items(name: str) -> "tuple[tuple[str, str], ...] | None":
     while place < len(text):
         character = text[place]
         if character == "{":
-            end = text.find("}", place + 1)
-            if end < 0:
+            end = place + 1
+            while end < len(text) and text[end] != "}":
+                end = end + 1
+            if end >= len(text):
                 return None
             field = text[place + 1 : end]
             if field in LAYOUT_UNKNOWN_MARKERS:
