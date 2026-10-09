@@ -2042,8 +2042,15 @@ def test_round_2_limit_cells_of_the_other_width_the_description_stands_nowhere_k
     only a rung on whose run does not hold its value (G7A.4b step 3), a
     rung held by its group alone: of the third verification's 450 random
     columns, 3 stand only such a rung, and their twins write none of its
-    18 cells in the other width. Strict, so a repair turns it red; a
-    shape that moves fails outright.
+    18 cells in the other width. And cells of the other width beyond a
+    drawn tail's boundary where a step there is no heap and no absent
+    place are drawn onto such steps in the column's width, the tail's
+    two distances printed WITHIN-BOUND (G7A.4b step 1): of the fourth
+    verification's 100 such drawn tails (seed 4411), 261 of 300 twins
+    write none of those cells in the other width and 27 fewer than their
+    tables, the tail's mean distance is WITHIN-BOUND on 272, and every
+    twin validates. Strict, so a repair turns it red; a shape that moves
+    fails outright.
 
     ITS OWNER IS LANE C2, stage 3b.5 step 2, the clock role's next
     landing, which touches only clock-role code: the owner ruled on

@@ -136,7 +136,11 @@ missing, were refused too, and every twin now keeps them. A battery of
 1,300 random tables of clock columns holds every description
 `synthtwin profile` writes of them to `synthtwin generate` at seeds 0
 and 1, every exit 0, where 12 tables had no twin before. The stated
-limit also names a place the description stands only a rung on.
+limit also names a place the description stands only a rung on, and
+cells of the other hour width beyond a drawn tail's boundary, drawn
+onto a step there in the column's width. Its fourth verification
+found no clause holding the checker to the room it counts beside such
+a tail; one does now, and fails where the checker counts none.
 
 ### The weekday guards dropped (2026-10-02)
 
