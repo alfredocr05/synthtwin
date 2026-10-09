@@ -31,9 +31,12 @@ reviewed (b3fb647), and fixed:
 * item 3 -- PUT BACK (method G7.3g step 6) sorted and filtered every run
   again for each size before its first merge, so a clock state of one run
   of each size 1 to `k` beside `k(k-1)/2` alone did `k` times the work
-  of one sort: `test_put_back_sorts_its_runs_once`.
+  of one sort: `test_put_back_sorts_its_runs_once` counts what reaches
+  `sorted`, and `test_put_back_work_grows_with_the_rows` the lines it
+  runs at nine times the rows, b3fb647's order held beside it.
 
-Every table is built here, seeded and neutral (plan D13).
+Each mutant is the module's own source with ONE edit, built by
+`_edited`. Every table is built here, seeded and neutral (plan D13).
 """
 
 from __future__ import annotations
@@ -65,6 +68,21 @@ from synthtwin import (
 
 DAY = 86400
 _MONDAY = 19723  # 2024-01-01, a Monday
+
+
+def _edited(
+    module: types.ModuleType, old: str, new: str, name: str, monkeypatch: pytest.MonkeyPatch
+) -> types.ModuleType:
+    """`module` built again from its own source with ONE edit: `old`, found
+    exactly once, made `new`. The one route here that runs a string of
+    source (`tests/test_version_reach.py` names it)."""
+    source = pathlib.Path(str(module.__file__)).read_text(encoding="utf-8")
+    assert source.count(old) == 1, name
+    built = types.ModuleType(name)
+    built.__file__ = module.__file__
+    monkeypatch.setitem(sys.modules, name, built)
+    exec(compile(source.replace(old, new), str(module.__file__), "exec"), built.__dict__)
+    return built
 
 
 # -- item 1: a sixtieth second, in the hour it is written in -----------------------------
@@ -171,13 +189,7 @@ def test_the_twin_writes_its_hours_as_written(tmp_path: pathlib.Path, monkeypatc
     for seed in range(3):
         written = rendering.twin_csv(generation.generate(beside.loaded, seed))
         assert kpi_shapes.missed(kpi_shapes.measure(beside, written, f"beside-{seed}.csv")) == [], seed
-    source = pathlib.Path(generation.__file__).read_text(encoding="utf-8")
-    assert source.count(_AS_WRITTEN) == 1
-    name = "synthtwin._generation_review_mutant"
-    mutant = types.ModuleType(name)
-    mutant.__file__ = generation.__file__
-    monkeypatch.setitem(sys.modules, name, mutant)
-    exec(compile(source.replace(_AS_WRITTEN, _BY_ORDINAL), generation.__file__, "exec"), mutant.__dict__)
+    mutant = _edited(generation, _AS_WRITTEN, _BY_ORDINAL, "synthtwin._generation_review_mutant", monkeypatch)
     assert [d.fact for d in mutant.generate(codex.loaded, 0).deviations] == ["hour_census"]
     written = rendering.twin_csv(mutant.generate(beside.loaded, 0))
     assert kpi_shapes.missed(kpi_shapes.measure(beside, written, "mutant.csv")) == ["seen_at:hour_census.groups"]
@@ -208,13 +220,7 @@ def test_the_ranks_two_pins_of_one_sixtieth_second_leave_are_written_as_it(
         assert kpi_shapes.missed(kpi_shapes.measure(deep, written, f"deep-{seed}.csv")) == [], seed
         assert _body_hours(written, block) == {23: 1012}, seed
         assert len({line for line in written.split("\n")[1:] if line}) == block["n_distinct"] == 100
-    source = pathlib.Path(generation.__file__).read_text(encoding="utf-8")
-    assert source.count(_TIED) == 1
-    name = "synthtwin._generation_review_untied"
-    mutant = types.ModuleType(name)
-    mutant.__file__ = generation.__file__
-    monkeypatch.setitem(sys.modules, name, mutant)
-    exec(compile(source.replace(_TIED, _UNTIED), generation.__file__, "exec"), mutant.__dict__)
+    mutant = _edited(generation, _TIED, _UNTIED, "synthtwin._generation_review_untied", monkeypatch)
     twin = mutant.generate(deep.loaded, 0)
     written = rendering.twin_csv(twin)
     assert "hour_census" not in [deviation.fact for deviation in twin.deviations]
@@ -299,17 +305,10 @@ _GROUP_ON_THE_HALF_DAY = (
 
 
 def _validation_without_the_projection(monkeypatch: pytest.MonkeyPatch) -> types.ModuleType:
-    source = pathlib.Path(validation.__file__).read_text(encoding="utf-8")
-    assert source.count(_GROUP_ON_THE_HALF_DAY) == 1
-    name = "synthtwin._validation_review_mutant"
-    module = types.ModuleType(name)
-    module.__file__ = validation.__file__
-    monkeypatch.setitem(sys.modules, name, module)
-    exec(
-        compile(source.replace(_GROUP_ON_THE_HALF_DAY, "            group = group\n"), validation.__file__, "exec"),
-        module.__dict__,
+    return _edited(
+        validation, _GROUP_ON_THE_HALF_DAY, "            group = group\n",
+        "synthtwin._validation_review_mutant", monkeypatch,
     )
-    return module
 
 
 def _measures(near: "list[int]", far: "list[int]", rows: int) -> "tuple[float, float, float, float]":
@@ -437,11 +436,13 @@ def test_the_sure_cells_that_leave_no_grouping_are_named(tmp_path: pathlib.Path)
 # -- item 3: PUT BACK's runs, sorted once ---------------------------------------
 
 
-def _put_back_state(size: int) -> "tuple[generation._WeekdayPass, int]":
+def _put_back_state(
+    size: int, module: types.ModuleType = generation
+) -> "tuple[generation._WeekdayPass, int]":
     """Codex's family: one run of each size 1 to `size` -- that many ranks on one
     second each -- beside `size * (size - 1) / 2` ranks alone, `size**2` movable
     ranks in one gap, seven seconds apart from 08:00 of a Monday; and how many
-    runs there are."""
+    runs there are. Built of `module`'s own state."""
     sizes = list(range(1, size + 1)) + [1] * (size * (size - 1) // 2)
     ordinals: "list[int]" = []
     place = _MONDAY * DAY + 8 * 3600
@@ -451,15 +452,15 @@ def _put_back_state(size: int) -> "tuple[generation._WeekdayPass, int]":
             place = place + 1
         ordinals += [place] * each
     rows = len(ordinals)
-    state = generation._WeekdayPass(
-        moved=list(ordinals), held={}, where=tuple(0 for _hour in range(24)), facts=None,  # type: ignore[arg-type]
+    state = module._WeekdayPass(
+        moved=list(ordinals), held={}, where=tuple(0 for _hour in range(24)), facts=None,
         word="", widths=False, kinds={}, holes=frozenset(), lows=[ordinals[0]] * rows,
         highs=[ordinals[-1]] * rows, keep_units=True, unit=3600, step=1, day=DAY, bins="hour",
         period=24, keeps="day",
     )
     for ordinal in state.moved:
-        generation._weekday_tally(state.held, ordinal, 1)
-        generation._weekday_tally(state.units_held, ordinal // state.unit, 1)
+        module._weekday_tally(state.held, ordinal, 1)
+        module._weekday_tally(state.units_held, ordinal // state.unit, 1)
     return state, len(sizes)
 
 
@@ -498,3 +499,93 @@ def test_put_back_sorts_its_runs_once(monkeypatch: pytest.MonkeyPatch) -> None:
         elements, runs, restored = _sorted_by_put_back(monkeypatch, size)
         assert restored, size
         assert elements <= 3 * runs, (size, elements, runs)
+
+
+# The edit that puts b3fb647's order back: every run sorted and filtered again
+# for each size, before the first merge.
+_SORTED_ONCE = (
+    "        ranked = sorted(whole)\n"
+    "        place = 0\n"
+    "        while place < len(ranked):\n"
+    "            size = ranked[place][0]\n"
+    '            alike: "list[list[int]]" = []\n'
+    "            while place < len(ranked) and ranked[place][0] == size:\n"
+    "                alike += [runs[ranked[place][1]]]\n"
+    "                place = place + 1\n"
+    "            order += _clock_rotated(alike, count - wanted)\n"
+)
+_SORTED_FOR_EACH_SIZE = (
+    "        for size in sorted({size for size, _key in whole}):\n"
+    "            order += _clock_rotated(\n"
+    "                [runs[key] for each, key in sorted(whole) if each == size], count - wanted\n"
+    "            )\n"
+)
+
+
+def _lines_run(function: "object", *arguments: object) -> "tuple[object, int]":
+    """What `function` returns, and how many lines it and everything it calls ran.
+
+    Every line event of the call's own frame and of each frame opened under
+    it is counted, a loop's line once per pass -- the growth measure of
+    `tests/test_stage4_linear_work.py`, which no clock plays a part in.
+    """
+    code = function.__code__  # type: ignore[attr-defined]
+    ran = [0]
+    inside = [False]
+
+    def below(frame: object, event: str, argument: object) -> object:
+        if event == "line":
+            ran[0] += 1
+        return below
+
+    def top(frame: object, event: str, argument: object) -> object:
+        if event == "line":
+            ran[0] += 1
+        elif event == "return":
+            inside[0] = False
+        return top
+
+    def calls(frame: object, event: str, argument: object) -> object:
+        if event != "call":
+            return None
+        if frame.f_code is code and not inside[0]:  # type: ignore[attr-defined]
+            inside[0] = True
+            return top
+        return below if inside[0] else None
+
+    previous = sys.gettrace()
+    sys.settrace(calls)  # type: ignore[arg-type]
+    try:
+        answer = function(*arguments)  # type: ignore[operator]
+    finally:
+        sys.settrace(previous)
+    return answer, ran[0]
+
+
+def test_put_back_work_grows_with_the_rows(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Codex's item 3 as a growth measure, a count of lines and no clock: PUT
+    BACK on Codex's family at `size` 40 and 120, nine times the rows (1,600
+    and 14,400), each with one excess to restore. Its lines grow with the
+    rows (41,995 and 370,675, 8.8 times); b3fb647's order, put back by one
+    edit, grows as the rows' power one and a half (73,113 and 1,227,233, 16.8
+    times) and is held to show it, so the measure is known to see the
+    defect it guards against."""
+    before = _edited(
+        generation, _SORTED_ONCE, _SORTED_FOR_EACH_SIZE, "synthtwin._generation_review_put_back", monkeypatch
+    )
+    grown: "dict[str, float]" = {}
+    for name, module in (("shipped", generation), ("b3fb647", before)):
+        spent: "list[int]" = []
+        for size in (40, 120):
+            state, _runs = _put_back_state(size, module)
+            rows = len(state.moved)
+            count = module._weekday_count(state)
+            _answer, ran = _lines_run(
+                module._clock_count_put_back, state, 0, rows - 1, [False] * rows, count - 1, tuple(range(7))
+            )
+            assert module._weekday_count(state) == count - 1, (name, size)
+            spent += [ran]
+        grown[name] = spent[1] / spent[0]
+    rows_grew = (120 * 120) / (40 * 40)
+    assert grown["shipped"] <= 1.25 * rows_grew, grown
+    assert grown["b3fb647"] >= 1.5 * rows_grew, grown
