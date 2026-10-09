@@ -1604,11 +1604,14 @@ def the_date_count_declaration_did_not_reach(
         f"dates they name are too few to describe as dates, or the "
         f"figures after the point step between the units a date is "
         f"written to, as one to three figures of a day or tenths of a "
-        f"second do -- so it was "
+        f"second do, some cells are written as dates in text beside the "
+        f"counts, or the counts are not written one way -- so it was "
         f"described as {role}, as it reads without the declaration. The "
         f"description that was written is correct about everything else, "
         f"and says which columns were declared. Check the column's name "
-        f"and the system, and run the command again."
+        f"and the system; where its dates are written two ways, write "
+        f"every one the same way -- all as counts in one spelling, or all "
+        f"as text -- and run the command again."
     )
 
 

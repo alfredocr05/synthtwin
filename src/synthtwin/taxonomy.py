@@ -2159,12 +2159,18 @@ def rendered(form: str, arguments: "tuple[object, ...]") -> str:
             f"{date_counts.TABLE[member].means} ({member}), but its cells "
             f"did not read as such dates -- too few of them are counts "
             f"that name a date, the dates they name are too few to be "
-            f"described as dates, or the figures after the point step "
+            f"described as dates, the figures after the point step "
             f"between the units a date is written to -- the day, the minute, "
             f"the second and its thousandths -- as one to three figures of a "
-            f"day or tenths of a second do, so no unit keeps them all -- so "
-            f"it is described as it reads without that, and the declaration "
-            f"decided nothing about it"
+            f"day or tenths of a second do, so no unit keeps them all, some "
+            f"cells are written as dates in text beside the counts, or the "
+            f"counts are not written one way, as a whole count written "
+            f"bare beside one written with a point and a nought, or an "
+            f"exponent form keeping zeros at its end -- so it is described as it "
+            f"reads without that, and the declaration decided nothing about "
+            f"it. To have it read as dates, write every date in the column "
+            f"the same way -- all as counts in one spelling, or all as text "
+            f"-- and name it again"
         )
     if form == NOTE_SMALL_POPULATION:
         # THE TWO FLOORS ARE COUNTED IN DIFFERENT UNITS, AND THIS NOTICE
@@ -16989,6 +16995,11 @@ def _counts_read_as_dates(
     for cell in classified:
         written = date_counts.counted(member, cell.text, mark)
         if written is None:
+            if date_counts.written_as_a_date(cell.text):
+                # COUNTS BESIDE DATES WRITTEN AS TEXT: the column is not read
+                # as counted dates, and NF115 says so (the Codex review of
+                # landing R4, item 1; `date_counts.written_as_a_date`).
+                return classified, [], None
             parsed += [(_COUNT_KEPT, 0, 1, "")]
             continue
         numerator, denominator = date_counts.exact_value(written)

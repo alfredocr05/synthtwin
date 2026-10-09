@@ -361,6 +361,17 @@ def test_item5_midnight_counts_written_with_a_decimal_zero_are_asked(tmp_path: p
     assert date_counts.SECONDS_SINCE_1970 in offered and date_counts.SECONDS_SINCE_1960 in offered
 
 
+@pytest.mark.parametrize("spelled", (lambda count: f"{count}.0", lambda count: f"{count * 100}e-2", lambda count: f"{count}.000"))
+def test_item5_the_midnight_rule_reads_a_whole_count_however_its_zeros_are_written(spelled: "object") -> None:
+    """Rule B's text half over whole counts written with zeros after the point or an exponent below nought."""
+    assert callable(spelled)
+    cells = [spelled(315532800 + row * 86400) for row in range(100)]
+    assert date_counts._text_holds(cells, date_counts.SECONDS_SINCE_1970, date_counts.RULE_MIDNIGHT, 99)
+    for text in cells:
+        written = date_counts.written_count(text)
+        assert written is not None and date_counts.exact_value(written)[1] == 1, text
+
+
 def test_item6_a_band_rule_whose_text_fails_lets_the_midnight_rule_run(tmp_path: pathlib.Path) -> None:
     """Unix midnights crossing from nine to ten figures: on `dbb347a` the band held, its widths failed, and Q3 asked nothing."""
     cells = [str((11000 + row) * 86400) for row in range(1000)]

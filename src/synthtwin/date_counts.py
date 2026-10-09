@@ -339,6 +339,36 @@ def _bounded_power(power: str) -> int:
     return int(figures) if figures else 0
 
 
+# THE READINGS A COLUMN OF COUNTS IS DESCRIBED IN once read as dates: each
+# count is written as ISO text (`iso_text`), so a cell the source itself
+# writes as an ISO date is one the date role reads beside them and one the
+# twin, writing every date as a count, would turn into a number.
+ISO_READINGS = ("iso-date", "iso-datetime", "iso-mixed")
+
+
+def written_as_a_date(text: str) -> bool:
+    """Whether a cell is a date written as ISO text, which counts read as dates would be read beside.
+
+    THE REPRESENTATION IS PART OF THE DATA (the Codex review of landing
+    R4, item 1; the owner's rule of 2026-09-15, every value as the source
+    wrote it): a declared column of Excel serials beside cells written
+    `2023-06-01` was described as counted dates with no cell unread, its
+    twin wrote numbers alone, and code converting every cell with `int()`
+    ran on the twin and broke on the real table -- and Epic days carrying
+    `.01` beside such cells published a census of contact numbers its
+    loader refused (CD4). Such a column is not read as counted dates
+    (NF115 says so, and what to do), and question Q3 does not ask about
+    it. Guarantees: a function of the text. Raises TypeError where it is
+    not text. No I/O of any kind.
+    """
+    if not isinstance(text, str):
+        raise TypeError("internal check: a cell was not text")
+    for reading in ISO_READINGS:
+        if parsing.parse_datetime(text, reading) is not None:
+            return True
+    return False
+
+
 # THE MOST FIGURES A CONTACT NUMBER WRITES after the point of an Epic day
 # (`days-since-1840`): the census of contact numbers names words of one to
 # nine figures (contract 6.6.2), and the description's own publication
@@ -416,6 +446,10 @@ def exact_value(written: Written) -> "tuple[int, int]":
         rest = digits[VALUE_FIGURES:]
         shift = shift - (len(rest) - 1)
         digits = digits[:VALUE_FIGURES] + ("1" if rest.strip("0") else "0")
+    while shift > 0 and digits[len(digits) - 1 :] == "0":
+        # IN LOWEST TERMS OVER TEN: `31553280000e-2` is the whole 315532800.
+        digits = digits[: len(digits) - 1]
+        shift = shift - 1
     numerator = int(digits)
     denominator = 1
     if shift >= 0:
@@ -2459,6 +2493,11 @@ def asked_of(
             kept += [member]
     if not kept:
         return None
+    for text in present:
+        # COUNTS BESIDE DATES WRITTEN AS TEXT are not read as counted dates
+        # (`written_as_a_date`), so no answer would be taken.
+        if written_count(text, mark) is None and written_as_a_date(text):
+            return None
     offered = _offered(ordered, kept, total, present, needed, mark)
     # A SYSTEM WHOSE ANSWER WOULD BE REFUSED IS NOT OFFERED (the review of
     # landing R4, item 2): its declaration keeps no unit of the figures, or
@@ -2554,11 +2593,15 @@ def _text_holds(
             continue
         rest = rest + 1
         if rule == RULE_MIDNIGHT:
-            if denominator != 1 or numerator % per_day:
+            # WHOLE AND AT MIDNIGHT ONCE THE FRACTION IS REDUCED: a count
+            # written `315532800.0` is the midnight `315532800` is (the Codex
+            # review of landing R4, item 5).
+            if numerator % (denominator * per_day):
                 return False
+            value = numerator // denominator
             if len(different) < REST_LEAST:
-                different[numerator] = 1
-            if (numerator // per_day) % UNIT_STEP_DAYS:
+                different[value] = 1
+            if (value // per_day) % UNIT_STEP_DAYS:
                 off_the_step = True
             continue
         if rule == RULE_FIXED_WIDTH:
