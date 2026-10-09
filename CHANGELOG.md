@@ -79,6 +79,20 @@ than it still owed. That pass no longer does so where the smaller
 labels after it can finish the count exactly, and the 13 meet it
 (method G8.3; plans P4-D390, P4-D373).
 
+Its repair round (2026-10-09): where the route had written blanks, those
+label twins also wrote clock times no clock reads, such as `44:89` and
+`9:75`, on which code parsing the real column's times stops: 63 cells in
+4 of the 112 columns, and 200,134 in 47 tables of a skeptic's battery. A
+held-back label written in a clock's form is now a time: the walk of a
+clock's form ends with its times and the neutral spelling stands past
+them, a clock's form takes no more labels than it has times left, a form
+short of spellings is settled first, and past the clock line only a label
+a census form is owed is filled figure by figure (method G8.3). The clock
+line's own price stays, 63 cells on the 112 and 1,096 on those 47 tables,
+beside a minority of at most one cell in fifty that wears no form. No
+twin misses a check it met. Their held-back times are still spread round
+the whole day, where the table's lie inside its hours.
+
 ### The packing walk is offered only what the cells after it can finish (2026-10-06)
 
 **Stage 4, the allocator walk** (plan P4-D389). Codex's declared

@@ -8505,16 +8505,17 @@ less the cells of the held keys' owed stand-ins still to come, and is
 spending the room first, it left the owed stand-ins after it to be filled
 so. Measured before, on the correction's own head: 63 such cells in 4 of
 lane C1's 112 columns and 200,134 in 47 of the correction's skeptic's
-tables -- 4,822 beside 3 % notes at 100,000 rows and a floor of 36, where
-the `HH:MM` form took a label per cell, 3,567 labels with 1,394 times left
-to write; 169 in `H:MM`, Excel's one-figure hour, beside 10 % notes at
-10,000 rows, where the census could not name `%:%%` and the published
-labels' shape ran past its 600 times; 148 beside 15 % `HH:MM:SS` at 30,000
-rows; and 610 in `H:MM` beside 3 % notes at 30,000 rows once the shape
-stopped at its times and its notes spent the room first. After, none of
-those; what stays is the clock line's own price, a stand-in a census form
-is owed filled figure by figure past it, as beside a minority of at most
-one cell in fifty that wears no form.
+tables -- 4,822 beside 3 % notes at 100,000 rows and a floor of 36, the
+`HH:MM` form handed up to a label per cell and taking 3,567 with 1,394
+times left to write; 169 in `H:MM`, Excel's one-figure hour, beside 10 %
+notes at 10,000 rows, the census naming `%%:%%` alone and the published
+labels' shape `%:%%` running past its 600 times; 148 beside 15 %
+`HH:MM:SS` at 30,000 rows; and 320 in `H:MM` beside 3 % notes at 30,000
+rows, 610 once the shape stopped at its times but its notes spent the
+room first. After, on those 47 tables 1,096 over 5, and the 112's 63
+stay: the clock line's own price, a stand-in a census form is owed
+filled figure by figure past it, beside a minority of at most one cell in
+fifty that wears no form.
 
 `suppressed_levels` says how many levels were withheld and
 `suppressed_rows` how many rows they covered together. No size of any
