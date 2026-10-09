@@ -112,7 +112,8 @@ now fail on the twin, where the code is written, instead of on the real
 file, and `dropna` keeps every row where it kept 68 to 78 per cent. `K-S3-12` falls from 65 to 61, P4-D334's restating
 sentences rise from 20 to 22, `K-2B-28` reads the pooled label's one
 row off the pool, `K-2B-20` is retired, and `K-2B-26`, `K-2B-52` and
-`K-S4-03` lose what measured the pass. Counted block by block against
+`K-S4-03` lose what measured the pass (`K-2B-26` and `K-2B-52`
+re-stamped on 6d5a86c, 2026-10-09). Counted block by block against
 493f6f8 rather than over a table, at a floor of eleven or more, a column
 not declared an identifier may now print a count of one to ten that
 493f6f8 did not in the pool's own keys, its counts of different values
