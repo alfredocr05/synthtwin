@@ -4037,11 +4037,21 @@ cells of HC5 beside the floor, as they may be what leaves no grouping:
 eleven values at midnight, 78 at 23:00 and eleven at midnight again, on
 100 dates, publish a count of 22 at midnight beside tails that list no
 value, and no group short of the whole day holds those cells, though
-hours 0 to 22 at nought and hour 23 at 78 meet the floor.
+hours 0 to 22 at nought and hour 23 at 78 meet the floor. NF88 and NF92
+state the one merge rule in the same words, and NF92 says what that rule
+leaves -- one group over the whole day -- never that no grouping meets
+the floor and the sure cells, which the rule does not search for (the
+verification of the review's fixes): 49 values at floor 11 whose body
+counts 8, 2, 3, 5 and 9 rows at hours 0, 10, 17, 21 and 23, two of hour
+0's and three of hour 23's sure, are left one group by the rule, though
+hours 0 to 17 at 13 and 18 to 23 at 14 meet both. NF88 says an hour is
+joined where its rows besides its sure cells would name fewer than the
+line, as well as where all of them would: an hour of 12 rows, two of
+them published rungs, is counted inside a group of four hours.
 
 **NF88. `hour_census_counts_hours` — the census of a column of moments counted by the hour** — arity 1. A remark, carried by every block publishing an hour census.
 
-> which hours of the day this column's values fall on is counted over the values between its two tail boundaries, each hour alone or, where that would name fewer than «1» rows, together with its neighbours, never across midnight; every count is nought or at least «1» rows, and a count of several hours does not say how its rows fall among them
+> which hours of the day this column's values fall on is counted over the values between its two tail boundaries, each hour alone or, where that would name fewer than «1» rows in all or besides the rows the rest of this description places in it for certain -- at the values it publishes between the two tail boundaries, and at midnight where it counts rows there -- or fewer rows than those, together with its neighbours, never across midnight; every count is nought or at least «1» rows, and a count of several hours does not say how its rows fall among them
 
 **NF89. `hour_census_withheld_no_tails`** — arity 0 (HC3).
 
@@ -4055,9 +4065,9 @@ hours 0 to 22 at nought and hour 23 at 78 meet the floor.
 
 > the hours of the day this column's values fall on are not counted: the workbook stores its values in more than one way, so they are read back differently cell by cell
 
-**NF92. `hour_census_withheld_no_grouping`** — arity 1. Where the one merge rule, holding every group to its sure cells (HC5), leaves no grouping of the hours short of the whole day.
+**NF92. `hour_census_withheld_no_grouping`** — arity 1. Where the one merge rule, holding every group to its sure cells (HC5), leaves no grouping of the hours short of the whole day. It says what that rule leaves, never that no other grouping meets HC2 and HC5.
 
-> the hours of the day this column's values fall on are not counted: no grouping of neighbouring hours short of the whole day leaves every count nought or at least «1» rows while each group holds the rows the rest of this description places in its hours for certain -- at the values it publishes between the two tail boundaries, and at midnight where it counts rows there -- and nought or at least «1» rows besides
+> the hours of the day this column's values fall on are not counted: joining each hour or group that would name fewer than «1» rows in all or besides the rows the rest of this description places in it for certain -- at the values it publishes between the two tail boundaries, and at midnight where it counts rows there -- or fewer rows than those, to its smaller neighbour, never across midnight, leaves one group over the whole day
 
 **NF117. `hour_census_withheld_unpublished_span`** — arity 0 (HC4). Where the published p25 or p75 is withheld, its rank lying inside a tail: no span is published, short or long.
 

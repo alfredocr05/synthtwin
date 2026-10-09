@@ -890,15 +890,16 @@ def test_a_census_withheld_says_why(tmp_path: pathlib.Path) -> None:
     A hundred moments over two years at a floor of 50: two tails need at least 101 values,
     fifty beyond each boundary, so neither is published and nothing lies between them to
     count (NF89). Two hundred and fifty at a floor of 60: the hundred-odd values between the
-    tails cannot be grouped short of the whole day with every count nought or at least 60
-    (NF92). Mutants: either census withheld without its sentence.
+    tails cannot be grouped short of the whole day with every count nought or at least 60,
+    and the one merge rule leaves them one group over the whole day, which NF92 says.
+    Mutants: either census withheld without its sentence.
     """
     draw = random.Random(40006)
     cells = [
         _at(draw.choice(_TWO_YEARS), draw.choices(range(24), weights=_ED)[0], draw.randrange(60)).strftime(_ISO_M)
         for _row in range(250)
     ]
-    for rows, floor, said in ((100, 50, "the column has no tails"), (250, 60, "no grouping of neighbouring hours")):
+    for rows, floor, said in ((100, 50, "the column has no tails"), (250, 60, "leaves one group over the whole day")):
         text = "seen_at\n" + "\n".join(cells[:rows]) + "\n"
         described = kpi_shapes.describe(tmp_path / f"floor-{floor}", "few", text, floor)
         assert described.block("seen_at")["hour_census"] == [], floor

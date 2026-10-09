@@ -27,7 +27,15 @@ reviewed (b3fb647), and fixed:
   (NF117 beside NF90), and where the sure cells leave no grouping, NF92
   names them: `test_a_middle_half_not_published_is_not_called_short`,
   `test_a_short_middle_half_is_still_called_short` and
-  `test_the_sure_cells_that_leave_no_grouping_are_named`;
+  `test_the_sure_cells_that_leave_no_grouping_are_named`; and, at the
+  verification of these repairs, NF92 says what the one merge rule leaves
+  and never that no grouping meets the line and the sure cells, which the
+  rule does not search for (`test_a_withheld_census_says_what_the_merge_
+  rule_leaves`, on two columns a grouping meets though the rule does not
+  find it), NF88 names the sure cells an hour is joined for
+  (`test_the_remark_names_the_sure_cells_an_hour_is_joined_for`), and the
+  contract quotes every sentence of the census as the code writes it
+  (`test_the_contract_quotes_the_hour_census_s_sentences`);
 * item 3 -- PUT BACK (method G7.3g step 6) sorted and filtered every run
   again for each size before its first merge, so a clock state of one run
   of each size 1 to `k` beside `k(k-1)/2` alone did `k` times the work
@@ -55,6 +63,7 @@ import pytest
 import fixtures
 import kpi_shapes
 from synthtwin import (
+    calendar_clock,
     calendar_rules,
     contract,
     errors,
@@ -430,7 +439,209 @@ def test_the_sure_cells_that_leave_no_grouping_are_named(tmp_path: pathlib.Path)
     assert calendar_rules.merged_groups(bins, [22] + [0] * 23, 11, False) == ()
     sentences = _hour_sentences(described)
     assert sentences == [taxonomy.rendered(taxonomy.NOTE_HOUR_WITHHELD_NO_GROUPING, (11,))]
-    assert "places in its hours for certain" in sentences[0] and "at midnight" in sentences[0]
+    assert "places in it for certain" in sentences[0] and "at midnight" in sentences[0]
+
+
+
+def _bins_and_sure(
+    described: kpi_shapes.Described, cells: "list[str]"
+) -> "tuple[list[int], list[int], int]":
+    """The body's cells by written hour, the sure cells of each hour as the
+    producer reads them off the block (`calendar_clock.hour_sure`, rule 4 at
+    midnight), and the body's size. The cells are canonical text with no
+    sixtieth second, so their text sorts as the description ranks them."""
+    block = described.block("seen_at")
+    parsed = len(cells)
+    body = sorted(cells)[block["low_tail"]["rows"] : parsed - block["high_tail"]["rows"]]
+    bins = calendar_clock.hour_bins([calendar_clock.written_hour(cell) for cell in body])
+    counted = block["n_at_midnight"]
+    sure = calendar_clock.hour_sure(
+        taxonomy.hour_published_values(block, parsed),
+        calendar_clock.midnight_sure(
+            counted if isinstance(counted, int) else None, taxonomy.hour_tails_listed(block)
+        ),
+    )
+    return bins, sure, len(body)
+
+
+def _a_grouping(bins: "list[int]", sure: "list[int]", line: int) -> "tuple[tuple[int, int, int], ...]":
+    """A grouping of the 24 hours on a line, short of the whole day, whose every
+    group counts nought or at least `line` rows and holds its sure cells with
+    nought or at least `line` rows besides (HC2 and HC5), found by trying every
+    run of hours rather than by the merge rule; or `()` where none is."""
+    reached: "dict[tuple[int, int], tuple[tuple[int, int, int], ...]]" = {(0, 0): ()}
+    for first in range(24):
+        for held in (0, 1, 2):
+            if (first, held) not in reached:
+                continue
+            for last in range(first, 24):
+                count = sum(bins[first : last + 1])
+                left = count - sum(sure[first : last + 1])
+                if not (
+                    calendar_rules.calendar_floor_ok(count, line)
+                    and left >= 0
+                    and calendar_rules.calendar_floor_ok(left, line)
+                ):
+                    continue
+                key = (last + 1, min(held + 1, 2))
+                if key not in reached:
+                    reached[key] = reached[(first, held)] + ((first, last, count),)
+    return reached.get((24, 2), ())
+
+
+def _hand_made() -> "list[str]":
+    """49 moments: eleven at noon from 2024-01-01, eleven at noon from
+    2024-06-01, and between them 27 two days apart from 2024-03-01, written
+    at :30 of hours 0, 0, 0, 10, 17, 21, 23, 0, 23, 21, 0, 17, 23, 23, 21, 0,
+    10, 23, 21, 0, 17, 23, 21, 0, 23, 23 and 23 -- eight in hour 0, two in 10,
+    three in 17, five in 21 and nine in 23, the low boundary and the 25th
+    percentile in hour 0 and the median, the 75th percentile and the high
+    boundary in hour 23 (the verification of the review's fixes)."""
+    hours = [0, 0, 0, 10, 17, 21, 23, 0, 23, 21, 0, 17, 23, 23, 21, 0, 10, 23, 21, 0, 17, 23, 21, 0, 23, 23, 23]
+    start = datetime.date(2024, 3, 1)
+    found = [f"2024-01-{day + 1:02d} 12:00:00" for day in range(11)]
+    for step, hour in enumerate(hours):
+        found += [f"{(start + datetime.timedelta(days=2 * step)).isoformat()} {hour:02d}:30:00"]
+    found += [f"2024-06-{day + 1:02d} 12:00:00" for day in range(11)]
+    return found
+
+
+def _clinic(seed: int) -> "list[str]":
+    """A clinic's moments: 60 to 400 over 20 to 200 days, most at one to five
+    peak hours, a few at any hour and one in twenty at midnight."""
+    draw = random.Random(1000 + seed)
+    rows = draw.randint(60, 400)
+    days = draw.randint(20, 200)
+    peaks = [draw.randrange(24) for _peak in range(draw.randint(1, 5))]
+    found: "list[str]" = []
+    for _row in range(rows):
+        hour = draw.choice(peaks) if draw.random() < 0.85 else draw.randrange(24)
+        moment = datetime.datetime(2024, 1, 1) + datetime.timedelta(
+            days=draw.randrange(days), hours=hour, minutes=draw.randrange(60)
+        )
+        if draw.random() < 0.05:
+            moment = moment.replace(hour=0, minute=0)
+        found += [moment.strftime("%Y-%m-%d %H:%M:%S")]
+    return found
+
+
+@pytest.mark.parametrize(
+    ("shape", "floor", "grouping"),
+    [
+        ("hand-made", 11, ((0, 17, 13), (18, 23, 14))),
+        ("clinic-83", 36, ((0, 6, 48), (7, 23, 50))),
+    ],
+)
+def test_a_withheld_census_says_what_the_merge_rule_leaves(
+    tmp_path: pathlib.Path, shape: str, floor: int, grouping: "tuple[tuple[int, int, int], ...]"
+) -> None:
+    """NF92 says what the one merge rule leaves, and never that no grouping meets
+    the line and the sure cells: the rule joins a short group to its smaller
+    neighbour and does not search, so it can leave one group over the whole day
+    where a grouping meets both (the verification of the review's fixes).
+
+    The hand-made column's body counts 8, 2, 3, 5 and 9 rows at hours 0, 10,
+    17, 21 and 23, two of hour 0's and three of hour 23's sure, and a clinic of
+    170 moments at floor 36 counts its peaks at 5 and 6 and at 10 and 11: the
+    rule leaves each one group, yet the grouping named meets HC2 and HC5, the
+    loader takes a description publishing it, and the real file holds it. The
+    census is withheld under NF92, whose sentence must not deny that grouping:
+    on e2cdf5e it said "no grouping of neighbouring hours short of the whole day
+    leaves every count nought or at least" the line, red here."""
+    cells = _hand_made() if shape == "hand-made" else _clinic(int(shape.split("-")[1]))
+    text = "seen_at\n" + "\n".join(cells) + "\n"
+    described = kpi_shapes.describe(tmp_path, "real", text, floor)
+    block = described.block("seen_at")
+    line = calendar_rules.census_line(floor)
+    bins, sure, body = _bins_and_sure(described, cells)
+    assert block["hour_census"] == [], shape
+    assert calendar_rules.merged_groups(bins, sure, line, False) == (), shape
+    assert _a_grouping(bins, sure, line) == grouping, shape
+    assert calendar_clock.hour_breach(grouping, body, line, sure) is None, shape
+    sentences = _hour_sentences(described)
+    assert sentences == [taxonomy.rendered(taxonomy.NOTE_HOUR_WITHHELD_NO_GROUPING, (line,))], shape
+    assert "no grouping" not in sentences[0], sentences
+    assert "leaves one group over the whole day" in sentences[0], sentences
+    published = copy.deepcopy(described.document)
+    published["columns"][0]["hour_census"] = [
+        {"first": first, "last": last, "count": count} for first, last, count in grouping
+    ]
+    published["publication_notes"] = [
+        entry for entry in published["publication_notes"] if _HOURS_SAID not in entry["note"]
+    ]
+    published["columns"][0]["remarks"] = list(published["columns"][0]["remarks"]) + [
+        taxonomy.rendered(taxonomy.REMARK_HOUR_CENSUS, (line,))
+    ]
+    loaded = contract.load_profile(str(fixtures.write_profile(tmp_path, "grouped-profile.json", published)))
+    held = kpi_shapes.measure(kpi_shapes.Described(tmp_path, described.table, published, loaded), text, "again.csv")
+    assert [c.verdict for c in held.checks if c.subcheck == "hour_census.groups"] == [validation.HELD], shape
+
+
+def _evening_hour() -> "list[str]":
+    """401 moments, one a date from 2023-01-01 at :15: the eleven first and
+    eleven last at noon, and between them twelve at 20:15 -- ranks 60, 70,
+    80, 100, 150, 160, 200, 250, 260, 270, 280 and 290, the 25th percentile
+    and the median among them -- and the rest at 08:15 to 17:15 by the rank's
+    last digit (the verification of the review's fixes)."""
+    evening = {60, 70, 80, 100, 150, 160, 200, 250, 260, 270, 280, 290}
+    start = datetime.date(2023, 1, 1)
+    found: "list[str]" = []
+    for rank in range(401):
+        hour = 12
+        if 11 <= rank <= 389:
+            hour = 20 if rank in evening else 8 + rank % 10
+        found += [f"{(start + datetime.timedelta(days=rank)).isoformat()} {hour:02d}:15:00"]
+    return found
+
+
+def test_the_remark_names_the_sure_cells_an_hour_is_joined_for(tmp_path: pathlib.Path) -> None:
+    """NF88 says an hour joins its neighbours where its rows besides its sure
+    cells would name fewer than the line, as well as where all of them would
+    (HC5): hour 20 holds 12 rows, two of them the published 25th percentile and
+    median, so ten besides, and it is counted inside hours 17 to 20 at 50 --
+    with no sure cells the rule leaves it alone. On e2cdf5e the remark said an
+    hour joins its neighbours only "where that would name fewer than" the line,
+    red here (the verification of the review's fixes)."""
+    cells = _evening_hour()
+    described = kpi_shapes.describe(tmp_path, "real", "seen_at\n" + "\n".join(cells) + "\n", 11)
+    block = described.block("seen_at")
+    bins, sure, _body = _bins_and_sure(described, cells)
+    assert (bins[20], sure[20]) == (12, 2)
+    assert {"first": 17, "last": 20, "count": 50} in block["hour_census"]
+    assert (20, 20, 12) in calendar_rules.merged_groups(bins, [0] * 24, 11, False)
+    remarks = [remark for remark in block["remarks"] if _HOURS_SAID in str(remark)]
+    assert remarks == [taxonomy.rendered(taxonomy.REMARK_HOUR_CENSUS, (11,))]
+    assert "besides the rows the rest of this description places in it for certain" in remarks[0], remarks
+
+
+def test_the_contract_quotes_the_hour_census_s_sentences() -> None:
+    """Section 4.5.1 quotes each of the census's six sentences, NF88 to NF92 and
+    NF117, as `taxonomy.rendered` writes it, the census line read as 11: the
+    note grammar's guard compares names and arities and never the words, so a
+    clause could quote a sentence the code stopped writing and nothing turn red
+    (the verification of the review's fixes found NF92 amended in both, and
+    asks that it stay so)."""
+    document = fixtures.GOVERNING_CONTRACT.read_text(encoding="utf-8")
+    for anchor, form, arguments in (
+        ("**NF88. `hour_census_counts_hours`", taxonomy.REMARK_HOUR_CENSUS, (11,)),
+        ("**NF89. `hour_census_withheld_no_tails`", taxonomy.NOTE_HOUR_WITHHELD_NO_TAILS, ()),
+        ("**NF90. `hour_census_withheld_short_span`", taxonomy.NOTE_HOUR_WITHHELD_SHORT_SPAN, ()),
+        ("**NF91. `hour_census_withheld_two_storages`", taxonomy.NOTE_HOUR_WITHHELD_TWO_STORAGES, ()),
+        ("**NF92. `hour_census_withheld_no_grouping`", taxonomy.NOTE_HOUR_WITHHELD_NO_GROUPING, (11,)),
+        (
+            "**NF117. `hour_census_withheld_unpublished_span`",
+            taxonomy.NOTE_HOUR_WITHHELD_UNPUBLISHED_SPAN,
+            (),
+        ),
+    ):
+        assert document.count(anchor) == 1, anchor
+        quote = ""
+        for part in document[document.index(anchor) :].split("\n\n"):
+            if part.lstrip().startswith(">"):
+                quote = " ".join(line.lstrip("> ").strip() for line in part.split("\n"))
+                break
+        spoken = quote.replace("«1»", "11")
+        assert " ".join(spoken.split()) == " ".join(taxonomy.rendered(form, arguments).split()), form
 
 
 # -- item 3: PUT BACK's runs, sorted once ---------------------------------------

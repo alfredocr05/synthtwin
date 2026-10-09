@@ -1018,7 +1018,13 @@ NOTE_WEEKDAY_WITHHELD_NO_TAILS = "weekday_census_withheld_no_tails"
 # run. A middle half that is SHORT and one that is NOT PUBLISHED are two
 # reasons, each in its own sentence (Codex's review of the landing, item
 # 4: NF90 said a column of 30, 40 and 30 values spanning 31 days spans
-# fewer than four).
+# fewer than four). NF88 and NF92 state the one merge rule in the same
+# words, the sure cells it joins an hour for among them, and NF92 says
+# what that rule leaves -- one group over the whole day -- never that no
+# grouping meets the line and the sure cells, which the rule does not
+# search for: a 49-row column at floor 11 meets both as hours 0 to 17 and
+# 18 to 23, which the rule does not find (the verification of the
+# review's fixes).
 REMARK_HOUR_CENSUS = "hour_census_counts_hours"
 NOTE_HOUR_WITHHELD_NO_TAILS = "hour_census_withheld_no_tails"
 NOTE_HOUR_WITHHELD_SHORT_SPAN = "hour_census_withheld_short_span"
@@ -2092,14 +2098,24 @@ def rendered(form: str, arguments: "tuple[object, ...]") -> str:
     # anchor 3b-T1 (P4-D370)
     # anchor 3b-T2 (P4-D371)
     if form == REMARK_HOUR_CENSUS:
+        # The one merge rule in NF92's words: an hour joins its neighbours
+        # where it would name one to `line - 1` rows in all, or besides its
+        # sure cells (HC5), or would hold fewer than those (the
+        # verification of the review's fixes: an hour of 12 rows, two of
+        # them published rungs, is joined, which "fewer than the line" alone
+        # did not say).
         return (
             f"which hours of the day this column's values fall on is "
             f"counted over the values between its two tail boundaries, "
             f"each hour alone or, where that would name fewer than "
-            f"{_whole(arguments, 0)} rows, together with its neighbours, "
-            f"never across midnight; every count is nought or at least "
-            f"{_whole(arguments, 0)} rows, and a count of several hours "
-            f"does not say how its rows fall among them"
+            f"{_whole(arguments, 0)} rows in all or besides the rows the "
+            f"rest of this description places in it for certain -- at the "
+            f"values it publishes between the two tail boundaries, and at "
+            f"midnight where it counts rows there -- or fewer rows than "
+            f"those, together with its neighbours, never across midnight; "
+            f"every count is nought or at least {_whole(arguments, 0)} "
+            f"rows, and a count of several hours does not say how its rows "
+            f"fall among them"
         )
     if form == NOTE_HOUR_WITHHELD_NO_TAILS:
         return (
@@ -2127,15 +2143,19 @@ def rendered(form: str, arguments: "tuple[object, ...]") -> str:
             "way, so they are read back differently cell by cell"
         )
     if form == NOTE_HOUR_WITHHELD_NO_GROUPING:
+        # WHAT THE ONE MERGE RULE LEAVES, and never that no grouping meets
+        # the line and the sure cells: the rule does not search for one,
+        # and a 49-row column meets both as hours 0 to 17 and 18 to 23,
+        # which it does not find (the verification of the review's fixes).
         return (
             f"the hours of the day this column's values fall on are not "
-            f"counted: no grouping of neighbouring hours short of the "
-            f"whole day leaves every count nought or at least "
-            f"{_whole(arguments, 0)} rows while each group holds the rows "
-            f"the rest of this description places in its hours for "
-            f"certain -- at the values it publishes between the two tail "
-            f"boundaries, and at midnight where it counts rows there -- "
-            f"and nought or at least {_whole(arguments, 0)} rows besides"
+            f"counted: joining each hour or group that would name fewer "
+            f"than {_whole(arguments, 0)} rows in all or besides the rows "
+            f"the rest of this description places in it for certain -- at "
+            f"the values it publishes between the two tail boundaries, and "
+            f"at midnight where it counts rows there -- or fewer rows than "
+            f"those, to its smaller neighbour, never across midnight, "
+            f"leaves one group over the whole day"
         )
     # anchor 3b-T3 (P4-D372)
     # anchor 3b-C1 (P4-D373)
@@ -16684,10 +16704,13 @@ def hour_decision(
     merge rule publishes (`calendar_clock.hour_groups`, over the body's
     hours and their SURE cells, `calendar_clock.hour_sure` with rule 4's
     cells at midnight), whose sentence names those sure cells, as they
-    may be what leaves no grouping (HC5). Last, the loader's own check
-    (`calendar_clock.hour_breach`), so the producer never writes what the
-    loader refuses. No rule asks what a reader could work out from the
-    census (the owner's principle of 2026-10-01).
+    may be what leaves no grouping (HC5), and says what the rule leaves
+    -- one group over the whole day -- never that no other grouping
+    meets the line and those cells, as the rule searches for none. Last,
+    the loader's own check (`calendar_clock.hour_breach`), so the
+    producer never writes what the loader refuses. No rule asks what a
+    reader could work out from the census (the owner's principle of
+    2026-10-01).
 
     Guarantees: accepts the published block, the written hours, the
     settings and the storage flag; returns the decision. Determinism: a
