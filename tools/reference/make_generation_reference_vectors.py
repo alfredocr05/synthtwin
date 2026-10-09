@@ -10071,7 +10071,7 @@ def tail_holes_named(column, at, low_side):
     unit is a day of its own clock as `days_named` does; None elsewhere,
     where no case of this oracle's puts an absent spelling.
     """
-    member, spellings = column.get("format", ""), absent_spellings_of(column)
+    member, spellings = column.get("format", ""), column.get("missing_by_source", {})
     if column["tail_unit"] in ("month", "quarter"):
         return (at, low_side, spans_named(member, spellings))
     if column["tail_unit"] != "day" or column["datetimes_read_at"] != "local":
@@ -10096,6 +10096,15 @@ def tail_side_plan(column, side, low_side, parsed, words):
     at = unit_ordinal(side["boundary"], column["tail_unit"], reading)
     first, last = tail_window(column)
     edge = max(1, at - first if low_side else last - at)
+    # A COLUMN OF DATES WRITTEN AS COUNTS (G7.10) reaches no further than one
+    # unit short of the nearest stretch beyond its boundary its counts
+    # cannot hold.
+    member = column.get("_counted_member")
+    if member and column["tail_unit"] in COUNTED_TAIL_SECONDS and reading == "local":
+        edge = counted_reach(
+            member, counted_written(column), COUNTED_TAIL_SECONDS[column["tail_unit"]],
+            at, low_side, edge,
+        )
     rows = side["rows"]
     if side["values"] is not None:
         listed = list(side["values"])
@@ -10864,13 +10873,15 @@ def absent_spellings_of(column):
     The `missing_by_source` keys, and -- method G7.10, landing R4 -- on a
     column of dates written as counts (the system it is declared in, which
     a case names under `_counted_member`) the days its counts read as no
-    value (`counted_hole_words`), each an absent spelling of the column to
-    every pass of G7.
+    value (`counted_hole_words`, on a column of moments the placeholder
+    days alone), each an absent spelling of the column to the count pass
+    and the weekday pass; its tails stop short of them (`counted_reach`).
     """
     spellings = list(column.get("missing_by_source", {}) or {})
     member = column.get("_counted_member")
     if member:
-        spellings += [word for word in counted_hole_words(member) if word not in spellings]
+        moments = column.get("resolution") == "datetime"
+        spellings += [word for word in counted_hole_words(member, moments) if word not in spellings]
     return spellings
 
 
@@ -13560,17 +13571,21 @@ def counted_cells(cells, column, member):
 _COUNTED_PLACEHOLDERS = (datetime.date(1900, 1, 1), datetime.date(9999, 12, 31))
 
 
-def counted_hole_words(member):
+def counted_hole_words(member, moments=False):
     """G7.10's holes: the days a column counted in ``member`` holds no date on, as ISO words.
 
-    From the method's sentence: both placeholder days, and the day each
-    count the system writes for either -- by its own rule, and by plain
-    arithmetic from its first day, which differ only before March 1900
-    on Excel's 1900 system and before 1904 on its 1904 one -- names when
-    read back by the system's own rule. Excel's plain count for 1
-    January 1900 is 2, which its own rule reads as 2 January.
+    From the method's sentence: both placeholder days, and -- on a column
+    of dates -- the day each count the system writes for either -- by its
+    own rule, and by plain arithmetic from its first day, which differ
+    only before March 1900 on Excel's 1900 system and before 1904 on its
+    1904 one -- names when read back by the system's own rule. Excel's
+    plain count for 1 January 1900 is 2, which its own rule reads as 2
+    January. On a column of moments that count names one instant, 2
+    January at midnight, and the day is no hole.
     """
     days = set(_COUNTED_PLACEHOLDERS)
+    if moments:
+        return tuple(day.isoformat() for day in sorted(days))
     epoch, unit, _signed, _contacts = COUNTED_SYSTEMS[member]
     for placeholder in _COUNTED_PLACEHOLDERS:
         counts = [_counted_value(member, placeholder.isoformat())]
@@ -13582,6 +13597,83 @@ def counted_hole_words(member):
             if read is not None:
                 days.add(datetime.date.fromisoformat(read))
     return tuple(day.isoformat() for day in sorted(days))
+
+
+# How many seconds one tail unit of a day, a minute or a second holds.
+COUNTED_TAIL_SECONDS = {"day": 86400, "minute": 60, "second": 1}
+
+
+def counted_written(column):
+    """The unit a column of counted dates is written at, as a Fraction of a second.
+
+    A day where the column is of dates; otherwise its clock's precision:
+    the minute, the second, or three, six or nine figures of a second.
+    """
+    if column["resolution"] != "datetime":
+        return _COUNTED_DAY
+    if column["time_precision"] == "minute":
+        return fractions.Fraction(60)
+    if column["time_precision"] == "second":
+        return fractions.Fraction(1)
+    digits = column.get("subsecond_digits", 0)
+    return fractions.Fraction(1, 10 ** (3 if digits <= 3 else 6 if digits <= 6 else 9))
+
+
+def _counted_seconds(day):
+    """A day's first second, counted from the start of 1 January 1970."""
+    return (day - _COUNTED_UNIX_DAY).days * 86400
+
+
+def counted_blocked(member, written):
+    """G7.10: the stretches no twin cell of a column counted in ``member`` stands on.
+
+    Each a first and a last second from the start of 1970, both included,
+    from the method's sentence: every second of either placeholder day;
+    the instant each other count the column sets aside names (the days
+    `counted_hole_words` adds for a column of dates -- Excel 1900's
+    serial 2, midnight of 2 January 1900), the whole day on a column of
+    dates (``written`` a day) and, on a column of moments, the seconds the
+    written unit writes as that instant; and on a system that reads no
+    count below its first day -- Excel's two -- every second before that
+    day, from the first day of the calendar.
+    """
+    spans = []
+    for day in _COUNTED_PLACEHOLDERS:
+        spans += [(_counted_seconds(day), _counted_seconds(day) + 86399)]
+    for word in counted_hole_words(member):
+        day = datetime.date.fromisoformat(word)
+        if day in _COUNTED_PLACEHOLDERS:
+            continue
+        start = _counted_seconds(day)
+        if written >= _COUNTED_DAY:
+            spans += [(start, start + 86399)]
+        else:
+            spans += [(start, start + max(1, math.floor(written)) - 1)]
+    epoch, _unit, signed, _contacts = COUNTED_SYSTEMS[member]
+    if not signed:
+        first = datetime.date(1900, 1, 1) if member == "excel-1900" else epoch
+        spans += [(_counted_seconds(datetime.date(1, 1, 1)), _counted_seconds(first) - 1)]
+    return sorted(spans)
+
+
+def counted_reach(member, written, tail_seconds, at, low_side, edge):
+    """G7.10: how far a tail of a column counted in ``member`` reaches, in tail units.
+
+    One unit short of the nearest stretch beyond the boundary ``at`` the
+    column's counts cannot hold (`counted_blocked`), and never further
+    than ``edge``; ``edge`` itself where none lies beyond, or where the
+    nearest leaves no unit between it and the boundary.
+    """
+    beyond = []
+    for first, last in counted_blocked(member, written):
+        start, stop = first // tail_seconds, last // tail_seconds
+        if low_side and stop < at:
+            beyond += [at - stop - 1]
+        if not low_side and start > at:
+            beyond += [start - at - 1]
+    if not beyond or min(beyond) < 1:
+        return edge
+    return min(edge, min(beyond))
 
 
 def counted_days_kept_off(ordinals, lows, highs, day, holes):
@@ -13702,6 +13794,53 @@ COUNTED_DEALINGS = {
 }
 
 
+# HOW FAR A TAIL OF A COLUMN OF COUNTED DATES REACHES (the verification of
+# the second review of landing R4, item 2): the system, the unit the
+# column is written at, its tail unit, the boundary, the side, the reach
+# the member's own spelling allows, and the answer the reach in tail
+# units. Each case names the rule it pins.
+_FAR = 10**12
+COUNTED_REACHES = {
+    "excel_moments_stop_after_serial_two": (
+        "excel-1900", "minute", "minute", "1900-01-19 11:38:00", True, _FAR,
+        "Excel date-times at the minute: no further than 00:01 on 2 January 1900, "
+        "past 1 January and the instant serial 2 names",
+    ),
+    "excel_dates_stop_at_the_third": (
+        "excel-1900", "day", "day", "1900-01-19", True, _FAR,
+        "Excel dates: serial 2 is the whole of 2 January, so the tail stops on the third",
+    ),
+    "excel_seconds_keep_two_january": (
+        "excel-1900", "second", "second", "1900-01-02 00:00:05", True, _FAR,
+        "a column at the second: four seconds of 2 January stand between serial 2 and the boundary",
+    ),
+    "excel_1904_stops_at_its_first_day": (
+        "excel-1904", "second", "second", "1904-01-05 10:00:00", True, _FAR,
+        "the 1904 system reads no count below nought: its first day, 1 January 1904, is the last reached",
+    ),
+    "sas_days_stop_after_the_placeholder": (
+        "days-since-1960", "day", "day", "1900-01-20", True, _FAR,
+        "a system that writes 1899 still holds no date on 1 January 1900: the tail stops on the second",
+    ),
+    "sas_moments_below_1900_stop_before_it": (
+        "seconds-since-1960", "second", "second", "1899-12-25 08:00:00", False, _FAR,
+        "a high tail below 1900 stops at the last second of 31 December 1899",
+    ),
+    "the_last_day_is_no_reach": (
+        "days-since-1970", "day", "day", "9999-12-20", False, _FAR,
+        "31 December 9999 is no value in any system: a high tail stops on the thirtieth",
+    ),
+    "a_far_hole_leaves_the_reach": (
+        "seconds-since-1970", "second", "second", "1985-03-01 12:00:00", True, 1000,
+        "a placeholder day decades beyond the boundary cuts no reach the member allows",
+    ),
+    "no_unit_between_keeps_the_reach": (
+        "days-since-1960", "day", "day", "1900-01-02", True, _FAR,
+        "a boundary on the day after the placeholder leaves no unit between: the member's own reach",
+    ),
+}
+
+
 def counted_case_document():
     """The twenty-sixth file: landing R4's readings and spellings, each with its answer."""
     readings = {}
@@ -13733,16 +13872,33 @@ def counted_case_document():
             "answer": counted_days_kept_off(ordinals, lows, highs, day, set(holes)),
         }
     holes = {member: list(counted_hole_words(member)) for member in sorted(COUNTED_SYSTEMS)}
+    moment_holes = {
+        member: list(counted_hole_words(member, True)) for member in sorted(COUNTED_SYSTEMS)
+    }
+    reaches = {}
+    for name in sorted(COUNTED_REACHES):
+        member, written, tail, boundary, low_side, edge, why = COUNTED_REACHES[name]
+        at = unit_ordinal(boundary, tail, "local")
+        reaches[name] = {
+            "member": member, "written": written, "tail": tail, "boundary": boundary,
+            "low_side": low_side, "edge": edge, "why": why,
+            "answer": counted_reach(
+                member, _COUNTED_UNITS[written], COUNTED_TAIL_SECONDS[tail], at, low_side, edge
+            ),
+        }
     return {
         "what": "Method section G7.10's two halves (landing R4, plan P4-D384), each case with "
         "its answer computed from the method's text with datetime and Fraction: a count read "
         "as the moment its system names, written as ISO text at a unit, and a moment written "
         "back as its system's count, spelled as a `count_form` says; the contact numbers "
         "a census deals over the dated cells of an Epic column; the days each system's "
-        "column holds no date on; and the twin's ranks kept off them.",
+        "column of dates, and of moments, holds no date on; how far a tail reaches short "
+        "of them; and the twin's ranks kept off them.",
         "dealings": dealings,
         "holes": holes,
         "keepings": keepings,
+        "moment_holes": moment_holes,
+        "reaches": reaches,
         "generated_by": "tools/reference/make_generation_reference_vectors.py",
         "method": "docs/spec/generation-method-v1.md",
         "never_imports": ["synthtwin", "numpy", "pandas"],

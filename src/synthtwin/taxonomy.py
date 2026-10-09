@@ -16402,8 +16402,11 @@ def published_absent(
     days its counted reading holds no date on (`date_counts.hole_words`):
     every count naming one is no value, whatever the description
     publishes, so a reader holds those days empty too (the second review
-    of landing R4, item 2). The validator and the generator add the same
-    words from the settings the description publishes.
+    of landing R4, item 2) -- on a column of moments the placeholder days
+    alone, Excel's serial 2 naming one instant of its day and no more
+    (its verification, item 2 (d)). The validator and the generator add
+    the same words from the settings and the facts the description
+    publishes.
 
     Guarantees: accepts a column block and the run's settings; returns
     the spellings sorted and each once. Determinism: a function of the
@@ -16417,7 +16420,8 @@ def published_absent(
     _texts, _numbers, days = built_in_values_named(settings.declared_missing_values)
     found = found | set(days)
     if counted_member(settings):
-        found = found | set(date_counts.hole_words(counted_member(settings)))
+        moments = "resolution" in details and details["resolution"] == RESOLUTION_DATETIME
+        found = found | set(date_counts.hole_words(counted_member(settings), moments))
     return tuple(sorted(found))
 
 

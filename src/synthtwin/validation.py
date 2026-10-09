@@ -7709,11 +7709,12 @@ def _obligations(
     writable = not subsecond_figures_unwritable(description, column)
     declared = description.settings.declared_missing_values.built_in_dates
     # -- 3b.R4 (P4-D384): AND THE DAYS A COLUMN OF COUNTED DATES HOLDS NO DATE
-    # ON (`date_counts.hole_words`), which the producer held as holes too.
-    if isinstance(column.facts, contract.DatetimeFacts) and column.facts.count_form is not None:
-        for named, system in description.settings.forced_date_counts:
-            if named == column.name:
-                declared = tuple(sorted(set(declared) | set(date_counts.hole_words(system))))
+    # ON (`date_counts.hole_words`), which the producer held as holes too --
+    # on a column of moments the placeholder days alone. The system is
+    # `system` itself on such a column (`_tail_date_system`).
+    if isinstance(column.facts, contract.DatetimeFacts) and system in date_counts.TABLE:
+        moments = column.facts.resolution == taxonomy.RESOLUTION_DATETIME
+        declared = tuple(sorted(set(declared) | set(date_counts.hole_words(system, moments))))
     gated = gated + _role_checks(
         column, block, own_cells, floor, mine, pairs, writable, system,
         declared,
@@ -15941,12 +15942,22 @@ def _tail_value_spots(
 
 
 def _tail_date_system(description: contract.Profile, column: contract.ColumnBlock) -> str:
-    """G7.3e: the workbook date system a column's cells are stored under, or "".
+    """G7.3e: the system a column's cells store its dates in, or "".
 
     A workbook column whose format code stores days, read from the
     description's own record of the workbook; "" for a delimited table
-    and for a workbook column of text.
+    and for a workbook column of text. -- 3b.R4 (P4-D384): a column of
+    dates written as counts -- a `count_form` published, the column
+    named under `forced_date_counts` -- stores them as counts of the
+    system it is declared in, and the word is that system's, as the
+    generator's `_date_system_of` says it: its tails stop short of the
+    days its counts cannot hold (`_date_tail_windows`, G7.10).
     """
+    facts = column.facts
+    if isinstance(facts, contract.DatetimeFacts) and facts.count_form is not None:
+        for named, counting in description.settings.forced_date_counts:
+            if named == column.name:
+                return counting
     form = description.source.workbook
     place = column.position - 1
     if form is None or place < 0 or place >= len(form.columns):
@@ -15955,6 +15966,14 @@ def _tail_date_system(description: contract.Profile, column: contract.ColumnBloc
     if kind in (dialect.SHEET_FORMAT_DATE, dialect.SHEET_FORMAT_DATETIME):
         return form.date_system
     return ""
+
+
+# How many seconds one tail unit of a day, a minute or a second holds.
+_TAIL_UNIT_SECONDS = {
+    parsing.TAIL_UNIT_DAY: 86400,
+    parsing.TAIL_UNIT_MINUTE: 60,
+    parsing.TAIL_UNIT_SECOND: 1,
+}
 
 
 def _tail_holes(
@@ -16044,6 +16063,22 @@ def _date_tail_windows(
             continue
         at = taxonomy.tail_ordinal(tail.boundary, facts.tail_unit, reading)
         edge = max(1, at - edges[0] if low_side else edges[1] - at)
+        # -- 3b.R4 (P4-D384): ON A COLUMN OF DATES WRITTEN AS COUNTS the reach
+        # stops short of the first stretch beyond the boundary its counts
+        # cannot hold, as the generator's does (G7.10).
+        if (
+            date_system in date_counts.TABLE
+            and facts.tail_unit in _TAIL_UNIT_SECONDS
+            and reading == taxonomy.READ_AT_LOCAL
+        ):
+            edge = date_counts.tail_reach(
+                date_system,
+                contract.counted_unit(facts),
+                _TAIL_UNIT_SECONDS[facts.tail_unit],
+                at,
+                low_side,
+                edge,
+            )
         mean = 1.0 if tail.mean_distance is None else tail.mean_distance
         root = mean if tail.rms_distance is None else tail.rms_distance
         where: "tuple[int, int, int, tuple[int, ...]] | None" = None

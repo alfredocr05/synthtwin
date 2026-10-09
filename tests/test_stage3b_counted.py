@@ -69,6 +69,7 @@ _UNITS = {
     "microsecond": date_counts.MICROSECOND,
     "nanosecond": date_counts.NANOSECOND,
 }
+_TAIL_SECONDS = {"day": 86400, "minute": 60, "second": 1}
 
 
 def _exit_of(argv: "list[str]") -> "tuple[int, str]":
@@ -148,6 +149,18 @@ def _wrong() -> "list[str]":
     for member, words in sorted(_FILE["holes"].items()):
         if list(date_counts.hole_words(member)) != words:
             wrong += [f"holes {member}"]
+    for member, words in sorted(_FILE["moment_holes"].items()):
+        if list(date_counts.hole_words(member, True)) != words:
+            wrong += [f"moment holes {member}"]
+    for name, case in sorted(_FILE["reaches"].items()):
+        tail = f"{case['tail']}"
+        at = taxonomy.tail_ordinal(f"{case['boundary']}", tail, taxonomy.READ_AT_LOCAL)
+        reach = date_counts.tail_reach(
+            f"{case['member']}", _UNITS[f"{case['written']}"], _TAIL_SECONDS[tail], at,
+            bool(case["low_side"]), int(case["edge"]),
+        )
+        if reach != case["answer"]:
+            wrong += [f"reach {name}"]
     for name, case in sorted(_FILE["keepings"].items()):
         kept = generation._kept_off_placeholder_days(
             case["ordinals"], case["lows"], case["highs"], case["day"], frozenset(case["holes"])
@@ -161,6 +174,7 @@ def test_c1_every_case_of_the_twenty_sixth_file_is_the_products() -> None:
     assert len(_FILE["readings"]) >= 14 and len(_FILE["spellings"]) >= 17
     assert len(_FILE["dealings"]) >= 4
     assert sorted(_FILE["holes"]) == sorted(date_counts.MEMBERS) and len(_FILE["keepings"]) >= 7
+    assert sorted(_FILE["moment_holes"]) == sorted(date_counts.MEMBERS) and len(_FILE["reaches"]) >= 9
     assert _wrong() == []
 
 
@@ -229,7 +243,31 @@ def _held_ignored(monkeypatch: pytest.MonkeyPatch) -> None:
 
 def _excel_two_ignored(monkeypatch: pytest.MonkeyPatch) -> None:
     """The holes of a column of counted dates the two placeholder days alone, as on every system but Excel's."""
-    monkeypatch.setattr(date_counts, "hole_words", lambda member: ("1900-01-01", "9999-12-31"))
+    monkeypatch.setattr(date_counts, "hole_words", lambda member, moments=False: ("1900-01-01", "9999-12-31"))
+
+
+def _excel_two_a_day_of_moments(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Excel's serial 2 the whole of 2 January on a column of moments too, as the first repair held it."""
+    original = date_counts.hole_days
+    monkeypatch.setattr(date_counts, "hole_days", lambda member, moments=False: original(member, False))
+
+
+def _reach_the_members_own(monkeypatch: pytest.MonkeyPatch) -> None:
+    """A tail of counted dates reaching as far as the member's spelling allows, as before the verification."""
+    monkeypatch.setattr(
+        date_counts, "tail_reach", lambda member, written, tail_seconds, at, low_side, edge: edge
+    )
+
+
+def _reach_past_the_instant(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The stretches a twin cell may not stand on, Excel's serial 2 left out of them."""
+    original = date_counts.blocked_spans
+
+    def without_two(member: str, written: int) -> "tuple[tuple[int, int], ...]":
+        two = parsing.days_from_civil(1900, 1, 2) * 86400
+        return tuple(span for span in original(member, written) if span[0] != two)
+
+    monkeypatch.setattr(date_counts, "blocked_spans", without_two)
 
 
 def _repr_never(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -250,7 +288,8 @@ def _repr_never(monkeypatch: pytest.MonkeyPatch) -> None:
     (
         _float_arithmetic, _epoch_1970_for_1960, _halves_up, _not_trimmed,
         _no_leap_day, _exact_where_binary64, _dealt_down_the_rows, _repr_never,
-        _held_ignored, _excel_two_ignored,
+        _held_ignored, _excel_two_ignored, _excel_two_a_day_of_moments,
+        _reach_the_members_own, _reach_past_the_instant,
     ),
     ids=lambda mutant: mutant.__name__.strip("_"),
 )
@@ -1337,6 +1376,182 @@ def test_c5_a_counted_column_crossing_1_january_1900_twins_no_date_on_it(tmp_pat
     for system in ("excel-1900", "days-since-1960", "seconds-since-1970", "days-since-1840"):
         wanted = ["1900-01-01", "1900-01-02", "9999-12-31"] if system == "excel-1900" else ["1900-01-01", "9999-12-31"]
         assert list(date_counts.hole_words(system)) == wanted, system
+
+
+def _excel_births_from_1900(drawn_by: str) -> "list[str]":
+    """Ten thousand Excel date-times `%.15g` at whole minutes, births from 1 January 1900 to 1935."""
+    draw = random.Random(drawn_by)
+    cells: "list[str]" = []
+    for _row in range(10000):
+        moment = datetime.datetime(1900, 1, 1) + datetime.timedelta(
+            days=draw.randrange(12784), seconds=60 * draw.randrange(1440)
+        )
+        first = datetime.datetime(1899, 12, 31) if moment < datetime.datetime(1900, 3, 1) else datetime.datetime(1899, 12, 30)
+        delta = moment - first
+        cells += ["%.15g" % (delta.days + delta.seconds / 86400)]
+    return cells
+
+
+def test_c5_excel_date_times_from_1900_twin_no_cell_on_1_january_and_no_text(tmp_path: pathlib.Path) -> None:
+    """The verification of the second review's item 2: a tail of moments stops short of the days no count holds.
+
+    Excel date-times of births from 1 January 1900 to 1935 at whole
+    minutes, written `%.15g`, in the two draws the verification measured,
+    at 10,000 rows. The source's few cells on 1 January are no value, so
+    its lowest present date stands on 2 January, and the low tail drawn
+    from its two published distances reached past it: 568b597 stepped the
+    end off 00:00 of 1 January alone, left a rank on that day inside a
+    stratum less than a day wide, which no whole day's move fits, and held
+    all of 2 January a hole on a column of moments; the twin wrote
+    `1.83263888888889` (19:59 on 1 January), read back as no value, and
+    its end `1899-12-31 06:20` before Excel's first day, as ISO text -- 6
+    seeds of 6 on the first draw and 3 of 6 on the second at exit 3. Each
+    tail now stops one unit short of the nearest stretch its counts cannot
+    hold (`date_counts.tail_reach`: 00:01 on 2 January here, past the
+    instant serial 2 names), and on a column of moments only the
+    placeholder days are holes. On seeds 0 to 5 every twin cell is a count
+    naming a date -- none on 1 January 1900, none set aside, none text --
+    and twin and source are both at exit 0. Red on 568b597.
+    """
+    columns = {
+        "births": _excel_births_from_1900("tail1900:excel_dt_from_1900:10000"),
+        "born": _excel_births_from_1900("p1900dt:excel_dt_1900_1935:10000"),
+    }
+    path = _table_of(tmp_path, columns)
+    argv = ["profile", str(path), "--out-dir", str(tmp_path), "--replace"]
+    for name in sorted(columns):
+        argv += ["--date-count", name, "excel-1900"]
+    code, said = _exit_of(argv)
+    assert code == 0, said[-600:]
+    described = tmp_path / "table-profile.json"
+    blocks = {block["name"]: block for block in json.loads(described.read_text(encoding="utf-8"))["columns"]}
+    aside: "dict[int, int]" = {}
+    for number in date_counts.declared_aside("excel-1900"):
+        aside[number] = 1
+    first_day = parsing.days_from_civil(1900, 1, 1)
+    for seed in range(6):
+        code, said = _exit_of(["generate", str(described), "--seed", f"{seed}", "--out-dir", str(tmp_path), "--replace"])
+        assert code == 0, said[-600:]
+        rows = list(csv.reader(io.StringIO((tmp_path / "table-twin.csv").read_text(encoding="utf-8"))))
+        header = rows[0]
+        for name in sorted(columns):
+            assert blocks[name]["role"] == "datetime" and blocks[name]["time_precision"] == "minute", name
+            absent = blocks[name].get("missing_by_source") or {}
+            at = header.index(name)
+            for row in rows[1:]:
+                cell = row[at]
+                if not cell or cell in absent:
+                    continue
+                written = date_counts.written_count(cell)
+                assert written is not None, (seed, name, cell)
+                numerator, denominator = date_counts.exact_value(written)
+                moment = date_counts.moment_of("excel-1900", numerator, denominator, date_counts.MINUTE)
+                assert moment is not None and (moment * 60) // 86400 != first_day, (seed, name, cell)
+                assert not date_counts.stands_aside(numerator, denominator, False, aside), (seed, name, cell)
+        out = tmp_path / f"check-twin-{seed}"
+        out.mkdir()
+        assert _exit_of([
+            "validate", str(described), "--twin", str(tmp_path / "table-twin.csv"), "--out-dir", str(out), "--replace",
+        ])[0] == 0, seed
+    out = tmp_path / "check-source"
+    out.mkdir()
+    assert _exit_of(["validate", str(described), "--twin", str(path), "--out-dir", str(out), "--replace"])[0] == 0
+    assert list(date_counts.hole_words("excel-1900", True)) == ["1900-01-01", "9999-12-31"]
+
+
+def _counted_near_the_holes(shape: str) -> "tuple[str, list[str]]":
+    """Counts whose tails meet the days the system holds no date on, and the system.
+
+    Ten thousand, the last century before 10000 a thousand: as many as
+    put the tail drawn by 568b597 across one of those days.
+    """
+    draw = random.Random(f"near-the-holes:{shape}")
+    cells: "list[str]" = []
+    for _row in range(1000 if shape == "unix_days_to_9999" else 10000):
+        if shape == "excel_moments":
+            moment = datetime.datetime(1900, 1, 1) + datetime.timedelta(days=draw.randrange(12784), seconds=60 * draw.randrange(1440))
+            first = datetime.datetime(1899, 12, 31) if moment < datetime.datetime(1900, 3, 1) else datetime.datetime(1899, 12, 30)
+            delta = moment - first
+            cells += ["%.15g" % (delta.days + delta.seconds / 86400)]
+        elif shape == "excel_dates":
+            day = datetime.date(1900, 1, 1) + datetime.timedelta(days=draw.randrange(12784))
+            first = datetime.date(1899, 12, 31) if day < datetime.date(1900, 3, 1) else datetime.date(1899, 12, 30)
+            cells += [f"{(day - first).days}"]
+        elif shape == "excel_1904_seconds":
+            seconds = draw.randrange(4000) * 86400 + draw.randrange(86400)
+            cells += ["%.15g" % (seconds / 86400)]
+        elif shape == "sas_moments":
+            moment = datetime.datetime(1900, 1, 1) + datetime.timedelta(days=draw.randrange(12784), seconds=draw.randrange(86400))
+            cells += [f"{int((moment - datetime.datetime(1960, 1, 1)).total_seconds())}"]
+        else:
+            day = datetime.date(9900, 1, 1) + datetime.timedelta(days=draw.randrange(36523))
+            cells += [f"{(day - datetime.date(1970, 1, 1)).days}"]
+    member = {
+        "excel_moments": "excel-1900", "excel_dates": "excel-1900", "excel_1904_seconds": "excel-1904",
+        "sas_moments": "seconds-since-1960", "unix_days_to_9999": "days-since-1970",
+    }[shape]
+    return member, cells
+
+
+@pytest.mark.parametrize(
+    "shape", ("excel_moments", "excel_dates", "excel_1904_seconds", "sas_moments", "unix_days_to_9999")
+)
+def test_c5_both_writings_of_a_counted_tail_stop_short_of_the_days_its_counts_cannot_hold(
+    tmp_path: pathlib.Path, shape: str
+) -> None:
+    """The verification of the second review's item 2: the generator's strata and the validator's, one reach.
+
+    Ten thousand Excel date-times and Excel dates from 1900, Excel 1904
+    seconds from 1904 and SAS seconds from 1900, and a thousand Unix days
+    of the last century before 10000. Each tail's strata are drawn by the generator
+    (`generation._date_layout`) and again by the validator
+    (`validation._date_tail_windows`), both to the reach the counting
+    system leaves (`date_counts.tail_reach`), and agree rank by rank; and
+    every place a tail rank can stand, nearest and furthest, is a count of
+    the system naming a date -- no moment before Excel's first count,
+    none on 1 January 1900 or 31 December 9999, none on the instant
+    serial 2 names. Red on 568b597 on all five: its low tails stood before
+    Excel's two first counts and on 1 January 1900, and its high tail on
+    31 December 9999.
+    """
+    member, cells = _counted_near_the_holes(shape)
+    path = _table(tmp_path, cells)
+    code, said = _exit_of(["profile", str(path), "--date-count", "seen", member, "--out-dir", str(tmp_path), "--replace"])
+    assert code == 0, said[-600:]
+    described = contract.load_profile(str(tmp_path / "table-profile.json"))
+    column = described.columns[0]
+    facts = column.facts
+    assert isinstance(facts, contract.DatetimeFacts) and facts.count_form is not None
+    floor = described.settings.small_cell_floor
+    parsed = column.n_present - facts.n_unparsed
+    layout = generation._date_layout(column, facts, parsed, floor, member)
+    windows = validation._date_tail_windows(column, facts, floor, member)
+    space = generation._ordinal_space(facts)
+    unit = date_counts.DAY if space == "date" else date_counts.SECOND
+    aside: "dict[int, int]" = {}
+    for number in date_counts.declared_aside(member):
+        aside[number] = 1
+    drawn = 0
+    for side, plan in (("low", layout.low), ("high", layout.high)):
+        assert plan is not None, side
+        if plan.shape is None:
+            # A tail publishing its values stands on them: present values
+            # of the source, never on a day its counts cannot hold.
+            assert side not in windows, side
+            continue
+        drawn = drawn + 1
+        near, far = windows[side]
+        assert list(near) == list(plan.near) and list(far) == list(plan.far), side
+        for index in range(plan.rows):
+            for distance in (plan.near[index], plan.far[index]):
+                place = generation._tail_place(plan, distance)
+                found = date_counts.count_of(member, place, unit)
+                assert found is not None, (side, index, place)
+                numerator, denominator = found
+                moment = date_counts.moment_of(member, numerator, denominator, unit)
+                assert moment == place and not date_counts.placeholder_day_named(moment, unit), (side, index, place)
+                assert not date_counts.stands_aside(numerator, denominator, False, aside), (side, index, place)
+    assert drawn == 2
 
 
 def test_c5_a_count_written_as_a_numeric_stand_in_is_the_date_it_names_on_both_sides(tmp_path: pathlib.Path) -> None:

@@ -790,7 +790,10 @@ class _ColumnPlan:
     small_cell_floor: int = 0
     # THE WORKBOOK DATE SYSTEM this column's twin cells are stored under,
     # or "" (stage 3, plan P4-D331): a tail's outer values are kept inside
-    # the days that system can store (`parsing.readable_days`).
+    # the days that system can store (`parsing.readable_days`). -- 3b.R4
+    # (P4-D384): on a column of dates written as counts, the counting
+    # system it is declared in, whose counts its tails stop short of the
+    # days they cannot hold (`_date_system_of`, `date_counts.tail_reach`).
     date_system: str = ""
     # THE PLACEHOLDER DAYS THE DECLARATION OF MISSING VALUES NAMED, as the
     # settings publish them (`built_in_dates`): with the column's own
@@ -9672,23 +9675,25 @@ def _counted_holes(column: contract.ColumnBlock, profile: contract.Profile) -> "
     THE TWIN DRAWS NONE OF THEM (the second review of landing R4, item 2).
     Such a column reads every count naming 1 January 1900 or 31 December
     9999, and every one of its system's set-aside numbers, as no value
-    (`date_counts.hole_words`: both placeholder days, and on Excel's 1900
-    system 2 January too, its serial 2), so a twin date on one read back
-    as no value and the twin missed its own count of present cells -- 3
-    seeds of 3 on Excel birth dates from 1900, 1 of 3 on SAS days and 2 of
-    6 on SAS moments from 1890. Each day is an absent spelling of this
-    column to every pass of G7 (`_all_holes_of`): on a column of whole
-    dates the count pass offers none of them (`_count_holes`), a tail's
-    end and group step off one (`_hole_units`), the weekday pass holds
-    each a hole, and a cell written on one moves to a neighbouring day;
-    and on every column of counted dates, after every pass,
+    (`date_counts.hole_words`: both placeholder days, and on a column of
+    Excel 1900 DATES 2 January too, its serial 2 -- on a column of moments
+    that serial is one instant of the day, the rest of it dates, and the
+    day no hole), so a twin date on one read back as no value and the twin
+    missed its own count of present cells -- 3 seeds of 3 on Excel birth
+    dates from 1900, 1 of 3 on SAS days and 2 of 6 on SAS moments from
+    1890. Each day is an absent spelling of this column to every pass of
+    G7 (`_all_holes_of`): on a column of whole dates the count pass offers
+    none of them (`_count_holes`), the weekday pass holds each a hole, and
+    a cell written on one moves to a neighbouring day; no tail reaches one
+    (`_date_system_of`, `date_counts.tail_reach`); and after every pass
     `_kept_off_placeholder_days` moves a rank left on one by whole days.
     Nothing on any other column.
     """
     member = _counted_member(column, profile)
-    if not member:
+    facts = column.facts
+    if not member or not isinstance(facts, contract.DatetimeFacts):
         return ()
-    return date_counts.hole_words(member)
+    return date_counts.hole_words(member, facts.resolution == "datetime")
 
 
 def _hole_days(words: "tuple[str, ...]") -> "frozenset[int]":
@@ -9712,17 +9717,32 @@ def _kept_off_placeholder_days(
     ``day`` how many of its units a day holds -- one for whole dates,
     86,400 for moments in seconds -- so an instant's day is
     `ordinal // day`, counted from 1970 as ``holes`` are (the days a
-    column of counted dates holds no date on, `date_counts.hole_words`).
-    A rank on one moves to the nearest instant a whole number of days
-    away inside its own gap (``lows`` to ``highs``) whose day is none of
-    them and which no rank holds, the earlier first at one distance --
-    its clock kept, so no hour, minute or second moves -- and, where every
-    such instant is held, to the nearest one whose day is none of them;
-    where its gap holds none it stays. A rank the layout pins has a gap
-    of its own instant alone, and the twin's pinned instants are the
-    source's own values, which a column of counted dates never holds on
-    one of those days. Asked after every other pass of G7, last before
-    the cells are spelled.
+    column of counted dates holds no date on, `date_counts.hole_days`:
+    on a column of moments the two placeholder days alone). A rank on one
+    moves to the nearest instant a whole number of days away inside its
+    own gap (``lows`` to ``highs``) whose day is none of them and which no
+    rank holds, the earlier first at one distance -- its clock kept, so no
+    hour, minute or second moves -- and, where every such instant is
+    held, to the nearest one whose day is none of them; where its gap
+    holds none it stays. A rank the layout pins has a gap of its own
+    instant alone, and the twin's pinned instants are the source's own
+    values, which a column of counted dates never holds on one of those
+    days.
+
+    WHICH RANKS IT MEETS (the verification of the second review of
+    landing R4, item 2). A body rank's gap runs between two pinned
+    values of the source, neither of them on such a day, so a gap holding
+    part of one holds the whole of it: moments packed over a month around
+    1 January 1900 in systems that write the days before it -- 10,000
+    SAS seconds and Unix milliseconds at the minute and the second --
+    left no twin cell on the day on 12 trips of 12. A tail rank's gap is
+    its stratum, often less than a day wide, and no whole day's move fits
+    it: a twin of Excel date-times from 1900 left a rank on 1 January
+    inside a stratum of that day and the next, and wrote its end before
+    serial 1 as ISO text, on 6 seeds of 6. No tail rank comes here any
+    more, since every tail stops short of the days its counts cannot
+    hold (`date_counts.tail_reach`). Asked after every other pass of G7,
+    last before the cells are spelled.
 
     Guarantees: accepts one instant and its gap per rank, the day's
     length and the days; returns as many instants, each inside its gap.
@@ -18913,9 +18933,7 @@ def _tail_step(facts: contract.DatetimeFacts) -> "tuple[int, int]":
 
 
 def _hole_units(
-    column: contract.ColumnBlock,
-    facts: contract.DatetimeFacts,
-    counted_holes: "tuple[str, ...]" = (),
+    column: contract.ColumnBlock, facts: contract.DatetimeFacts
 ) -> "dict[int, bool]":
     """Every tail unit one of this column's own absent spellings names.
 
@@ -18924,14 +18942,13 @@ def _hole_units(
     a moment's own tail unit -- and one it cannot read names none and
     hides none after it; a derived end or group standing on that unit
     would be written as a cell the twin's description reads as absent, so
-    it steps inward off it (G7.3b step 7). ``counted_holes`` are the days
-    a column of dates written as counts holds no date on, read the same
-    way (`_counted_holes`, G7.10).
+    it steps inward off it (G7.3b step 7). The days a column of dates
+    written as counts holds no date on are not asked here: its tails stop
+    short of them (`date_counts.tail_reach`, G7.10), where stepping one
+    unit off a day left every other unit of it standing.
     """
     found: "dict[int, bool]" = {}
-    # -- 3b.R4 (P4-D384): and the days a column of counted dates holds no
-    # date on (G7.10).
-    for spelling in _hole_spellings(column) + counted_holes:
+    for spelling in _hole_spellings(column):
         read = parsing.parse_datetime(spelling, facts.parser_family)
         if read is None:
             continue
@@ -19086,7 +19103,7 @@ def _date_tail_plan(
     floor: int,
     edges: "tuple[int, int]",
     apart: bool = False,
-    counted_holes: "tuple[str, ...]" = (),
+    date_system: str = "",
 ) -> "_TailPlan":
     """One side of a column of dates, laid out (method G7.3b, G7.3c).
 
@@ -19097,6 +19114,11 @@ def _date_tail_plan(
     came back holding 398 of them, three ranks on one day, and the
     two distinctness counts were missed on a file whose own source met
     them (stage 3; the clock role carried this from the start).
+
+    -- 3b.R4 (P4-D384): ``date_system`` naming a counting system, the
+    column's dates are written as its counts, and the tail's reach stops
+    short of the first stretch beyond the boundary those counts cannot
+    hold (`_counted_reach`, G7.10).
     """
     space = _ordinal_space(facts)
     unit, half = _tail_step(facts)
@@ -19108,6 +19130,7 @@ def _date_tail_plan(
     at = taxonomy.tail_ordinal(side.boundary, facts.tail_unit, reading)
     edge = at - edges[0] if low_side else edges[1] - at
     edge = max(1, edge)
+    edge = _counted_reach(facts, date_system, at, low_side, edge)
     rows = side.rows
     if side.values is not None:
         ordered = list(side.values)
@@ -19145,7 +19168,7 @@ def _date_tail_plan(
     mean = 1.0 if side.mean_distance is None else side.mean_distance
     root = mean if side.rms_distance is None else side.rms_distance
     shape = _tail_shape(rows, mean, root, floor, edge, apart, True)
-    holes = _hole_units(column, facts, counted_holes)
+    holes = _hole_units(column, facts)
     end = _off_the_holes(shape.end, at, low_side, holes)
     group = shape.group
     if shape.grouped < rows:
@@ -19163,6 +19186,53 @@ def _date_tail_plan(
     return _TailPlan(
         rows, low_side, boundary, anchor, unit, half, shape,
         (), (), (), tuple(near), tuple(far),
+    )
+
+
+# How many seconds one tail unit of a day, a minute or a second holds.
+_TAIL_UNIT_SECONDS = {
+    parsing.TAIL_UNIT_DAY: 86400,
+    parsing.TAIL_UNIT_MINUTE: 60,
+    parsing.TAIL_UNIT_SECOND: 1,
+}
+
+
+def _counted_reach(
+    facts: contract.DatetimeFacts, date_system: str, at: int, low_side: bool, edge: int
+) -> int:
+    """How far one tail may reach on a column of dates written as counts (method G7.10).
+
+    Where ``date_system`` names the counting system the column is
+    declared in (`_date_system_of`), the reach ``edge`` the member's
+    spelling allows is cut to stop one unit short of the nearest stretch
+    beyond the boundary ``at`` that the column's counts cannot hold --
+    either placeholder day, Excel 1900's serial 2, the days before a
+    spreadsheet's first count (`date_counts.tail_reach`) -- so no rank of
+    the tail stands on one: its end, its group and every drawn rank alike
+    (the verification of the second review of landing R4, item 2: a twin
+    of Excel date-times from 1900 drew 1 January and wrote its end before
+    serial 1 as ISO text on 6 seeds of 6). ``edge`` unchanged on every
+    other column. The validator draws its windows to the same reach
+    (`validation._date_tail_windows`).
+
+    Guarantees: accepts the facts, the date system, the boundary's tail
+    unit, the side and the reach; returns a whole number of at least one,
+    at most ``edge``. Determinism: a function of the five. Raises nothing.
+    No I/O of any kind.
+    """
+    if (
+        date_system not in date_counts.TABLE
+        or facts.tail_unit not in _TAIL_UNIT_SECONDS
+        or facts.datetimes_read_at != taxonomy.READ_AT_LOCAL
+    ):
+        return edge
+    return date_counts.tail_reach(
+        date_system,
+        contract.counted_unit(facts),
+        _TAIL_UNIT_SECONDS[facts.tail_unit],
+        at,
+        low_side,
+        edge,
     )
 
 
@@ -19208,13 +19278,14 @@ def _date_layout(
     parsed: int,
     floor: int,
     date_system: str = "",
-    counted_holes: "tuple[str, ...]" = (),
 ) -> "_DateLayout":
     """Every rank's pin and gap in a column of dates (method G7.3).
 
-    ``counted_holes`` are the days a column of dates written as counts
-    holds no date on, which each tail's end and group step off as off an
-    absent spelling (`_counted_holes`, G7.10).
+    ``date_system`` is the system the twin's cells store the column's
+    dates in (`_date_system_of`): a workbook's, whose first day bounds the
+    tails, or -- on a column of dates written as counts -- the counting
+    system, short of whose holes every tail stops (`_counted_reach`,
+    G7.10).
 
     WITH TAILS: the two boundary ranks are pinned at the two boundaries,
     each published rung between them at its own value, and each tail laid
@@ -19256,10 +19327,10 @@ def _date_layout(
         # parsed are as many as the spellings that are not stand-ins.
         apart = column.n_distinct - facts.n_unparsed >= parsed
         low = _date_tail_plan(
-            column, facts, low_facts, True, floor, edges, apart, counted_holes
+            column, facts, low_facts, True, floor, edges, apart, date_system
         )
         high = _date_tail_plan(
-            column, facts, high_facts, False, floor, edges, apart, counted_holes
+            column, facts, high_facts, False, floor, edges, apart, date_system
         )
         pins[low_rank] = low.boundary
         texts[low_rank] = low_facts.boundary
@@ -21591,12 +21662,21 @@ def _tail_spots(plan: "_TailPlan", words: "dict[int, int]") -> "list[int]":
 
 
 def _date_system_of(profile: contract.Profile, place: int) -> str:
-    """The workbook date system a column's twin cells are stored under, or "".
+    """The system a column's twin cells store its dates in, or "".
 
     A workbook column whose format code stores days keeps the twin's dates
     inside the days that system can store (`parsing.readable_days`); a
-    delimited table, and a workbook column of text, keeps none.
+    delimited table, and a workbook column of text, keeps none. -- 3b.R4
+    (P4-D384): a column of dates written as counts stores them as counts
+    of the system it is declared in, and the word is that system's:
+    every tail stops short of the days its counts cannot hold
+    (`_counted_reach`, G7.10). Such a column's cells are numbers, never
+    a workbook's typed dates, so the two never meet.
     """
+    if place < len(profile.columns):
+        counted = _counted_member(profile.columns[place], profile)
+        if counted:
+            return counted
     form = profile.source.workbook
     if form is None or place >= len(form.columns):
         return ""
@@ -21735,8 +21815,7 @@ def _datetime_content(
     parsed = column.n_present - facts.n_unparsed
     space = _ordinal_space(facts)
     layout = _date_layout(
-        column, facts, parsed, plan.small_cell_floor, plan.date_system,
-        plan.counted_holes,
+        column, facts, parsed, plan.small_cell_floor, plan.date_system
     )
     whole = _form_allocation(facts, layout)
     # EVERY RANK'S INSTANT FIRST, then the offsets, the marks and the
@@ -21820,8 +21899,10 @@ def _datetime_content(
         holes, plan.declared_days,
     )
     # -- 3b.R4 (P4-D384): NO RANK OF A COLUMN OF COUNTED DATES STANDS ON A
-    # PLACEHOLDER DAY, which it would read back as no value (G7.10), after
-    # every other pass: a column of moments moves such a rank by whole days.
+    # DAY IT HOLDS NO DATE ON, which it would read back as no value (G7.10),
+    # after every other pass: such a rank moves by whole days, its clock
+    # kept -- on a column of moments the placeholder days alone, the plan's
+    # words (`_counted_holes`); its tails never reach one (`_counted_reach`).
     if plan.counted_holes and space in ("date", "datetime"):
         ordinals = _kept_off_placeholder_days(
             ordinals, gap_lows, gap_highs, 1 if space == "date" else 86400,
@@ -45233,11 +45314,10 @@ def _datetime_approximations(
     holes: "tuple[str, ...]",
     floor: int,
     date_system: str = "",
-    counted_holes: "tuple[str, ...]" = (),
 ) -> "list[Approximation]":
     """The approximated families of a column of dates (G12.4, G12.5, G12.14).
 
-    ``counted_holes`` are the plan's (`_counted_holes`), so the layout the
+    ``date_system`` is the plan's (`_date_system_of`), so the layout the
     windows are read from is the one the twin was drawn on.
 
     A WITHHELD RUNG IS NOT MEASURED AND NOT PRINTED (stage 3; the skeptic
@@ -45258,8 +45338,7 @@ def _datetime_approximations(
     held = len(ordinals)
     space = _ordinal_space(facts)
     layout = _date_layout(
-        column, facts, column.n_present - facts.n_unparsed, floor, date_system,
-        counted_holes,
+        column, facts, column.n_present - facts.n_unparsed, floor, date_system
     )
     mark = _commonest_mark(facts)
     lows, highs = _datetime_window(layout, facts, held)
@@ -45943,7 +46022,7 @@ def _approximations(
     if isinstance(facts, contract.DatetimeFacts):
         return _datetime_approximations(
             column, facts, written, _all_holes_of(plan),
-            plan.small_cell_floor, plan.date_system, plan.counted_holes,
+            plan.small_cell_floor, plan.date_system,
         )
     if isinstance(facts, contract.TextFacts):
         return _text_approximations(column, facts, written, plan.carriers)

@@ -402,11 +402,153 @@
     }
   },
   "method": "docs/spec/generation-method-v1.md",
+  "moment_holes": {
+    "days-since-1840": [
+      "1900-01-01",
+      "9999-12-31"
+    ],
+    "days-since-1960": [
+      "1900-01-01",
+      "9999-12-31"
+    ],
+    "days-since-1970": [
+      "1900-01-01",
+      "9999-12-31"
+    ],
+    "excel-1900": [
+      "1900-01-01",
+      "9999-12-31"
+    ],
+    "excel-1904": [
+      "1900-01-01",
+      "9999-12-31"
+    ],
+    "microseconds-since-1970": [
+      "1900-01-01",
+      "9999-12-31"
+    ],
+    "milliseconds-since-1960": [
+      "1900-01-01",
+      "9999-12-31"
+    ],
+    "milliseconds-since-1970": [
+      "1900-01-01",
+      "9999-12-31"
+    ],
+    "nanoseconds-since-1970": [
+      "1900-01-01",
+      "9999-12-31"
+    ],
+    "seconds-since-1582": [
+      "1900-01-01",
+      "9999-12-31"
+    ],
+    "seconds-since-1960": [
+      "1900-01-01",
+      "9999-12-31"
+    ],
+    "seconds-since-1970": [
+      "1900-01-01",
+      "9999-12-31"
+    ]
+  },
   "never_imports": [
     "synthtwin",
     "numpy",
     "pandas"
   ],
+  "reaches": {
+    "a_far_hole_leaves_the_reach": {
+      "answer": 1000,
+      "boundary": "1985-03-01 12:00:00",
+      "edge": 1000,
+      "low_side": true,
+      "member": "seconds-since-1970",
+      "tail": "second",
+      "why": "a placeholder day decades beyond the boundary cuts no reach the member allows",
+      "written": "second"
+    },
+    "excel_1904_stops_at_its_first_day": {
+      "answer": 381600,
+      "boundary": "1904-01-05 10:00:00",
+      "edge": 1000000000000,
+      "low_side": true,
+      "member": "excel-1904",
+      "tail": "second",
+      "why": "the 1904 system reads no count below nought: its first day, 1 January 1904, is the last reached",
+      "written": "second"
+    },
+    "excel_dates_stop_at_the_third": {
+      "answer": 16,
+      "boundary": "1900-01-19",
+      "edge": 1000000000000,
+      "low_side": true,
+      "member": "excel-1900",
+      "tail": "day",
+      "why": "Excel dates: serial 2 is the whole of 2 January, so the tail stops on the third",
+      "written": "day"
+    },
+    "excel_moments_stop_after_serial_two": {
+      "answer": 25177,
+      "boundary": "1900-01-19 11:38:00",
+      "edge": 1000000000000,
+      "low_side": true,
+      "member": "excel-1900",
+      "tail": "minute",
+      "why": "Excel date-times at the minute: no further than 00:01 on 2 January 1900, past 1 January and the instant serial 2 names",
+      "written": "minute"
+    },
+    "excel_seconds_keep_two_january": {
+      "answer": 4,
+      "boundary": "1900-01-02 00:00:05",
+      "edge": 1000000000000,
+      "low_side": true,
+      "member": "excel-1900",
+      "tail": "second",
+      "why": "a column at the second: four seconds of 2 January stand between serial 2 and the boundary",
+      "written": "second"
+    },
+    "no_unit_between_keeps_the_reach": {
+      "answer": 1000000000000,
+      "boundary": "1900-01-02",
+      "edge": 1000000000000,
+      "low_side": true,
+      "member": "days-since-1960",
+      "tail": "day",
+      "why": "a boundary on the day after the placeholder leaves no unit between: the member's own reach",
+      "written": "day"
+    },
+    "sas_days_stop_after_the_placeholder": {
+      "answer": 18,
+      "boundary": "1900-01-20",
+      "edge": 1000000000000,
+      "low_side": true,
+      "member": "days-since-1960",
+      "tail": "day",
+      "why": "a system that writes 1899 still holds no date on 1 January 1900: the tail stops on the second",
+      "written": "day"
+    },
+    "sas_moments_below_1900_stop_before_it": {
+      "answer": 575999,
+      "boundary": "1899-12-25 08:00:00",
+      "edge": 1000000000000,
+      "low_side": false,
+      "member": "seconds-since-1960",
+      "tail": "second",
+      "why": "a high tail below 1900 stops at the last second of 31 December 1899",
+      "written": "second"
+    },
+    "the_last_day_is_no_reach": {
+      "answer": 10,
+      "boundary": "9999-12-20",
+      "edge": 1000000000000,
+      "low_side": false,
+      "member": "days-since-1970",
+      "tail": "day",
+      "why": "31 December 9999 is no value in any system: a high tail stops on the thirtieth",
+      "written": "day"
+    }
+  },
   "readings": {
     "decimal_comma": {
       "answer": "2024-04-04 12:00",
@@ -782,5 +924,5 @@
       "why": "a thousandth of a second kept"
     }
   },
-  "what": "Method section G7.10's two halves (landing R4, plan P4-D384), each case with its answer computed from the method's text with datetime and Fraction: a count read as the moment its system names, written as ISO text at a unit, and a moment written back as its system's count, spelled as a `count_form` says; the contact numbers a census deals over the dated cells of an Epic column; the days each system's column holds no date on; and the twin's ranks kept off them."
+  "what": "Method section G7.10's two halves (landing R4, plan P4-D384), each case with its answer computed from the method's text with datetime and Fraction: a count read as the moment its system names, written as ISO text at a unit, and a moment written back as its system's count, spelled as a `count_form` says; the contact numbers a census deals over the dated cells of an Epic column; the days each system's column of dates, and of moments, holds no date on; how far a tail reaches short of them; and the twin's ranks kept off them."
 }

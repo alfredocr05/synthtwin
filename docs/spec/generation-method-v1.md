@@ -7469,11 +7469,15 @@ and a cell of that system writing an exponent or more than nine figures
 after the point is no count. The moment is settled to the unit U -- the
 finest of the nanosecond, microsecond, millisecond, second, minute and
 day that is at least the system's unit over ten to the most figures
-after the mark any USUAL cell writes -- a count written with more
-figures than the rest, at most one in a hundred of the counts and one at
-least, the rest nine tenths, is a stray, held to its own last figure and
+after the mark any cell writes -- by rounding half to even. Only where
+no unit holds every figure so (below) are the counts written with more
+figures than the rest, at most one in a hundred of them and one at
+least, the rest nine tenths, set aside as strays: U is then the usual
+cells', each stray is held to its own last figure, and its moment is
 written back in the usual form (the second review of landing R4, item
-5) -- by rounding half to even, so Excel's
+5; its verification: Excel date-times mostly at six-hour steps or at
+midnight, written trimmed, whose few longer cells carry the time of
+day, were refused while the strays were set aside first). So Excel's
 `%.15g` serials, ten figures after the point and a step of 8.64
 microseconds, settle to the millisecond, and `45386.3541666667` reads
 as 08:30 exactly. A column of `%.15g` or `repr` figures settles from
@@ -7492,17 +7496,35 @@ the second, lost those figures or wrote a twin that missed its own
 description (the review of landing R4, item 2). A count naming 1
 January 1900 or 31 December 9999, or its system's plain count for
 either, is no value; so the days a count of the column holds no date on
--- both placeholder days, and on Excel's 1900 system 2 January 1900, the
-day pandas' count for 1 January, serial 2, names
-(`date_counts.hole_words`) -- are holes of the column, which the
-description and the checker hold as its absent spellings. Every pass of
-G7 keeps the twin's dates off them, a tail's end and a group's step move
-off them, and a last pass, after every other, moves any rank left on
-one by whole days to the nearest day inside its own gap that is none of
-them and that no rank holds, its clock kept (the second review of
-landing R4, item 2: a twin of Excel birth dates from 1900 drew serial 1
-on three seeds of three, read it back as no value and missed its own
-count of present cells).
+-- both placeholder days, and on a column of Excel 1900 DATES 2 January
+1900, the day pandas' count for 1 January, serial 2, names; on a column
+of moments that serial names one instant, midnight of 2 January, and
+every other moment of the day is a date (`date_counts.hole_words`) --
+are holes of the column, which the description and the checker hold as
+its absent spellings. On a column of dates the count pass offers none
+of them and a cell written on one moves to a neighbouring day, and the
+weekday pass holds each a hole. NO TAIL REACHES ONE: a tail's reach,
+the furthest its member's spelling writes, is cut to one unit short of
+the nearest stretch beyond its boundary the column's counts cannot hold
+-- either placeholder day, the day or the instant serial 2 names (on a
+column of moments, the written unit's span of it), and on Excel's two
+systems every moment before the system's first count
+(`date_counts.tail_reach`) -- so its end, its group and every rank
+drawn between them stand inside it, and the validator draws its windows
+to the same reach; the source's own values beyond a boundary are never
+on such a stretch, so a tail whose values all stand on its near side
+keeps them, and one whose values straddle 1 January 1900, on a system
+that writes the days before it, is drawn this side of the day. A last
+pass, after every other, moves any rank left on a hole day by whole
+days to the nearest day inside its own gap that is none of them and
+that no rank holds, its clock kept. (The second review of landing R4,
+item 2: a twin of Excel birth dates from 1900 drew serial 1 on three
+seeds of three, read it back as no value and missed its own count of
+present cells. Its verification: a tail of Excel date-times from 1900,
+its end and group stepped off midnight of 1 January alone, kept a rank
+on that day inside a stratum less than a day wide, which no whole day's
+move fits, and wrote its end before serial 1 as ISO text, on six seeds
+of six.)
 
 **Writing a moment.** Each cell G7 wrote as a date or moment is
 written as its system's count of that moment: a whole count exactly,

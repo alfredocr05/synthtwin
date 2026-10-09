@@ -1659,38 +1659,148 @@ def placeholder_day_named(moment: int, unit: int) -> str:
     return ""
 
 
-def hole_words(member: str) -> "tuple[str, ...]":
-    """The days a column counted in ``member`` holds no date on, as ISO words (method G7.10).
+def hole_days(member: str, moments: bool = False) -> "tuple[int, ...]":
+    """The whole days a column counted in ``member`` holds no date on, from 1970 (method G7.10).
 
     THE DAYS A TWIN DATE WOULD READ BACK AS NO VALUE (the second review of
     landing R4, item 2): both placeholder days, since every count naming
     either at any time of day is set aside (`placeholder_day_named`), and
-    the day each of the member's set-aside numbers (`declared_aside`)
-    names by its own rule -- which adds a day only on Excel's 1900 system,
-    whose serial 2, the count pandas writes for 1 January 1900, Excel
-    reads as 2 January. So a real date on one of them in the source is no
-    value, and the twin draws none: the producer, the generator and the
-    validator each hold these days as the column's absent spellings
-    (`calendar_rules.public_holes`), and the twin's ranks keep off them.
-    A twin of Excel birth dates from 1900 drew serial 1 on 3 seeds of 3,
-    and one of SAS days from 1890 day -21914 on 1 of 3, each read back as
-    no value, so each missed its own count of present cells.
+    -- on a column of DATES -- the day each of the member's other
+    set-aside numbers (`declared_aside`) names by its own rule, which adds
+    a day only on Excel's 1900 system, whose serial 2, the count pandas
+    writes for 1 January 1900, Excel reads as 2 January. On a column of
+    MOMENTS (``moments``) that serial names one instant, midnight of 2
+    January, and every other moment of that day is a count such as
+    `2.519...` and a date (the verification of that repair, its item 2
+    (d)): the day is no hole there, and the instant is kept off by the
+    reach of the column's low tail (`tail_reach`), which no other rank of
+    a column whose dates start on that day can pass.
 
-    Guarantees: a function of the word, the days rising. Raises KeyError
+    Guarantees: a function of the two, the days rising. Raises KeyError
     for a word outside `MEMBERS`. No I/O of any kind.
     """
     days: "dict[int, int]" = {}
     for day in PLACEHOLDER_DAYS:
         days[day] = 1
-    for number in declared_aside(member):
-        moment = moment_of(member, number, 1, DAY)
-        if moment is not None:
-            days[moment] = 1
+    if not moments:
+        for number in declared_aside(member):
+            moment = moment_of(member, number, 1, DAY)
+            if moment is not None:
+                days[moment] = 1
+    return tuple(sorted(days))
+
+
+def hole_words(member: str, moments: bool = False) -> "tuple[str, ...]":
+    """The days a column counted in ``member`` holds no date on, as ISO words (method G7.10).
+
+    `hole_days`, written as the words the producer, the generator and the
+    validator each hold as the column's absent spellings
+    (`calendar_rules.public_holes`), so the twin's ranks keep off them. A
+    real date on one of them in the source is no value, and the twin
+    draws none: a twin of Excel birth dates from 1900 drew serial 1 on 3
+    seeds of 3, and one of SAS days from 1890 day -21914 on 1 of 3, each
+    read back as no value, so each missed its own count of present cells
+    (the second review of landing R4, item 2).
+
+    Guarantees: a function of the two, the days rising. Raises KeyError
+    for a word outside `MEMBERS`. No I/O of any kind.
+    """
     words: "list[str]" = []
-    for day in sorted(days):
+    for day in hole_days(member, moments):
         year, month, date = parsing.civil_from_days(day)
         words += [_word_of_day(year, month, date)]
     return tuple(words)
+
+
+def blocked_spans(member: str, written: int) -> "tuple[tuple[int, int], ...]":
+    """The stretches of time no twin cell of a column counted in ``member`` may stand on (method G7.10).
+
+    Each a first and a last second counted from the start of 1 January
+    1970, both included, for a column written at ``written`` (a unit of
+    `WRITTEN_UNITS`, `DAY` for a column of dates): every second of either
+    placeholder day; the instant each other set-aside count names -- Excel
+    1900's serial 2, midnight of 2 January 1900 -- with the whole of its
+    day on a column of dates and, on a column of moments, the seconds the
+    written unit writes as that instant (a minute's sixty, which the
+    clock writes as `00:00`); and, on the two spreadsheet systems, which
+    read no count below their first day, every second before it, from the
+    calendar's first day. A cell on one reads back as no value or is no
+    count at all: a twin of Excel date-times from 1900 wrote
+    `1899-12-31 06:20`, a moment before serial 1, as ISO text, and drew
+    1 January 1900 (the verification of the second review's item 2).
+
+    Guarantees: a function of the two, rising by first second. Raises
+    KeyError for a word outside `MEMBERS`. No I/O of any kind.
+    """
+    spans: "dict[int, int]" = {}
+    for day in PLACEHOLDER_DAYS:
+        spans[day * 86400] = day * 86400 + 86399
+    for number in declared_aside(member):
+        moment = moment_of(member, number, 1, SECOND)
+        if moment is None or moment // 86400 in PLACEHOLDER_DAYS:
+            continue
+        if written >= DAY:
+            day = moment // 86400
+            spans[day * 86400] = day * 86400 + 86399
+        else:
+            spans[moment] = moment + max(1, written // SECOND) - 1
+    if not TABLE[member].signed:
+        first = moment_of(member, 1 if member == EXCEL_1900 else 0, 1, DAY)
+        if first is not None and first > _FIRST_DAY:
+            spans[_FIRST_DAY * 86400] = first * 86400 - 1
+    return tuple((start, spans[start]) for start in sorted(spans))
+
+
+def tail_reach(
+    member: str, written: int, tail_seconds: int, at: int, low_side: bool, edge: int
+) -> int:
+    """How far one tail of a column counted in ``member`` may reach from its boundary, in tail units (G7.10).
+
+    THE TAIL STOPS SHORT OF THE FIRST STRETCH BEYOND ITS BOUNDARY THE
+    COLUMN'S COUNTS CANNOT HOLD (`blocked_spans`; the verification of the
+    second review of landing R4, item 2). A tail's outermost rank is drawn
+    from its two published distances and can stand beyond every value the
+    source holds: a low tail of Excel date-times from 1900 put its end at
+    `1899-12-31 06:20`, before Excel's first day and written as ISO text,
+    and a rank's stratum ran across 1 January 1900, so the twin drew that
+    day and read it back as no value on 6 seeds of 6. Stepping only the
+    end off one minute of the day left every other minute of it, and the
+    ranks beside the end, where they stood. So the reach -- ``edge``, the
+    furthest the member's own spelling can write -- is cut to stop one
+    unit short of the nearest such stretch beyond the boundary ``at``, and
+    every rank of the tail, its end, its group and each drawn rank alike,
+    stands inside it; the validator draws its windows to the same reach.
+    The source's own values beyond the boundary are present values, never
+    on such a stretch, so a tail whose source values all stand on its near
+    side keeps them all; one whose values straddle 1 January 1900, on a
+    system that writes the days before it, is drawn this side of the day
+    (a stated limit). Where the stretch touches the boundary itself and no
+    unit is left between, the reach is the member's own.
+
+    ``tail_seconds`` is how many seconds one tail unit holds -- 86,400 for
+    a day, 60 for a minute, one for a second -- and ``at`` the boundary's
+    tail unit, counted from 1970 as `taxonomy.tail_ordinal` counts it.
+
+    Guarantees: accepts the member, the written unit, the tail unit in
+    seconds, the boundary's tail unit, the side and the member's reach;
+    returns a whole number of at least one and at most ``edge`` where
+    ``edge`` is at least one. Determinism: whole-number arithmetic.
+    Raises KeyError for a word outside `MEMBERS`. No I/O of any kind.
+    """
+    nearest: "int | None" = None
+    for first, last in blocked_spans(member, written):
+        start = first // tail_seconds
+        stop = last // tail_seconds
+        if low_side and stop < at and (nearest is None or stop > nearest):
+            nearest = stop
+        if not low_side and start > at and (nearest is None or start < nearest):
+            nearest = start
+    if nearest is None:
+        return edge
+    reach = at - nearest - 1 if low_side else nearest - at - 1
+    if reach < 1:
+        return edge
+    return min(edge, reach)
 
 
 # -------------------------------------------- question Q3, the bands
