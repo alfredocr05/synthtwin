@@ -325,6 +325,14 @@ CASES: "dict[str, tuple[object, ...]]" = {
     # ...and the one it was honoured on, whose written clock was pooled
     # (the T1 review's item 9): told so, rather than told to drop it.
     "the_twelve_hour_style_was_held_back": ("seen_at",),
+    # ...and `--century` (landing R2a, plan P4-D383): a value that is not
+    # a column's name, an equals sign and a year question Q5 offers is
+    # refused before the table is opened, and it takes what the person
+    # typed, which is theirs already; a column it names that is read with
+    # no two-figure year is told so after the run, for the comma
+    # declaration's reason, with the role synthtwin read it as.
+    "century_not_supported": ("birth_date=1950",),
+    "the_century_declaration_did_not_reach": ("birth_date", "free_text"),
     # Also not a refusal: an ANSWER to a question can create the pair
     # the flags refuse, and the answer is the newer statement, so the
     # comma declaration is dropped rather than the run stopped. It

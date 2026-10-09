@@ -1022,6 +1022,10 @@ REMARK_CLOCK_CODES_WRITTEN = "clock_codes_written_back"
 # anchor 3b-7 (P4-D378)
 # anchor 3b-J (P4-D379)
 # anchor 3b-R2a (P4-D383)
+# THE CENTURY THE PERSON GAVE A COLUMN'S TWO-FIGURE YEARS (landing R2a,
+# question Q5, contract NF112): the remark NF42 makes about the POSIX
+# window, said of the window the person chose, by its first year.
+REMARK_CENTURY_DECLARED = "remark_two_figure_years_are_read_in_a_declared_century"
 # anchor 3b-R2b (P4-D383)
 # anchor 3b-R2c (P4-D383)
 # anchor 3b-R4 (P4-D384)
@@ -1194,6 +1198,7 @@ NOTE_ARITY: "dict[str, int]" = {
     # anchor 3b-7 (P4-D378)
     # anchor 3b-J (P4-D379)
     # anchor 3b-R2a (P4-D383)
+    REMARK_CENTURY_DECLARED: 1,
     # anchor 3b-R2b (P4-D383)
     # anchor 3b-R2c (P4-D383)
     # anchor 3b-R4 (P4-D384)
@@ -1419,6 +1424,7 @@ ARGUMENT_BINDINGS: "dict[tuple[str, int], tuple[object, ...]]" = {
     # anchor 3b-7 (P4-D378)
     # anchor 3b-J (P4-D379)
     # anchor 3b-R2a (P4-D383)
+    (REMARK_CENTURY_DECLARED, 0): (BIND_SETTING, "century of two-figure years"),
     # anchor 3b-R2b (P4-D383)
     # anchor 3b-R2c (P4-D383)
     # anchor 3b-R4 (P4-D384)
@@ -1682,7 +1688,13 @@ def argument_is_enumerated(argument: object) -> bool:
     if isinstance(argument, int):
         return argument >= 0
     if isinstance(argument, str):
-        return argument in NOTE_ARGUMENT_WORDS
+        # ...AND A LAYOUT THE CLOSED GRAMMAR MAKES (landing R2a), which the
+        # description publishes under `format` exactly as it does a named
+        # member: built of this package's own fields and marks, never of a
+        # cell, and refused unless the grammar's productions make it.
+        return argument in NOTE_ARGUMENT_WORDS or parsing.is_layout_format(
+            argument
+        )
     if isinstance(argument, tuple):
         if len(argument) != 2:
             return False
@@ -1767,7 +1779,9 @@ def _word(arguments: "tuple[object, ...]", place: int) -> str:
     argument = arguments[place]
     if not isinstance(argument, str):
         raise TypeError(UNAUTHORIZED_NOTE_ARGUMENT)
-    if argument not in NOTE_ARGUMENT_WORDS:
+    if argument not in NOTE_ARGUMENT_WORDS and not parsing.is_layout_format(
+        argument
+    ):
         raise ValueError(UNAUTHORIZED_NOTE_ARGUMENT)
     return argument
 
@@ -2104,6 +2118,17 @@ def rendered(form: str, arguments: "tuple[object, ...]") -> str:
     # anchor 3b-7 (P4-D378)
     # anchor 3b-J (P4-D379)
     # anchor 3b-R2a (P4-D383)
+    if form == REMARK_CENTURY_DECLARED:
+        # NF42 SAID OF THE PERSON'S OWN WINDOW (contract NF112): the
+        # century is no longer a guess, and the sentence says whose it is
+        # and what it still cannot do.
+        first_year = _whole(arguments, 0)
+        return (
+            f"this column writes its years with two figures, which do not "
+            f"say which century they are in; as you said, they are read "
+            f"as {first_year} to {first_year + 99}, so any year this table "
+            f"means outside those is read as the wrong one"
+        )
     # anchor 3b-R2b (P4-D383)
     # anchor 3b-R2c (P4-D383)
     # anchor 3b-R4 (P4-D384)
@@ -3214,6 +3239,13 @@ class Settings:
     # THE SECOND CUT'S THREE DECLARATIONS (plan P4-D386): the landing that
     # fills each adds its field below its own line.
     # -- 3b.R2a (P4-D383)
+    # THE CENTURY EACH COLUMN'S TWO-FIGURE YEARS ARE READ IN (`--century`,
+    # question Q5): `(column, first year)` for each column the person placed
+    # in a window other than the POSIX one, 1969 to 2068, which is the
+    # reading where nobody said anything. A column is READ under
+    # `for_the_column`'s view of these settings, which narrows this to
+    # `CENTURY_HERE` and the column's own first year, or to nothing.
+    century_windows: "tuple[tuple[str, int], ...]" = ()
     # -- 3b.R2c (P4-D383)
     # -- 3b.R4 (P4-D384)
 
@@ -3230,22 +3262,53 @@ def for_the_column(settings: Settings, name: str) -> Settings:
     The table's settings with `forced_twelve_hour_clocks` narrowed to
     `TWELVE_HOUR_HERE` where the column is declared and to nothing
     otherwise, so a rule reading one column asks `reads_twelve_hours`
-    and never needs the column's name. Every column of a table that
-    declares none is read under the table's own settings object.
+    and never needs the column's name -- and, since landing R2a, with
+    `century_windows` narrowed to `(CENTURY_HERE, first year)` where the
+    column's century was declared, which `century_window_of` reads. Every
+    column of a table that declares neither is read under the table's own
+    settings object.
 
     Guarantees: a function of the two. Raises nothing. No I/O.
     """
-    if not settings.forced_twelve_hour_clocks:
+    if not settings.forced_twelve_hour_clocks and not settings.century_windows:
         return settings
     narrowed: "tuple[str, ...]" = ()
     if name in settings.forced_twelve_hour_clocks:
         narrowed = (TWELVE_HOUR_HERE,)
-    return dataclasses.replace(settings, forced_twelve_hour_clocks=narrowed)
+    # -- 3b.R2a (P4-D383)
+    windows: "tuple[tuple[str, int], ...]" = ()
+    for column, first_year in settings.century_windows:
+        if column == name:
+            windows = ((CENTURY_HERE, first_year),)
+    return dataclasses.replace(
+        settings, forced_twelve_hour_clocks=narrowed, century_windows=windows
+    )
 
 
 def reads_twelve_hours(settings: Settings) -> bool:
     """Whether the column these settings were narrowed for is declared."""
     return TWELVE_HOUR_HERE in settings.forced_twelve_hour_clocks
+
+
+# What `for_the_column` leaves in `century_windows` for a column whose
+# century was declared (landing R2a): a word of this package's own, as
+# `TWELVE_HOUR_HERE` is.
+CENTURY_HERE = "(this column's two-figure years)"
+
+
+def century_window_of(settings: Settings) -> int:
+    """The first year a column's two-figure years are read from, or 0.
+
+    0 where nothing was declared, which is the POSIX window every
+    two-figure member reads (1969 to 2068); 1900, 1930 or 1940 where the
+    person answered question Q5 (`--century`), read off the settings
+    `for_the_column` narrowed. Guarantees: a function of the settings.
+    Raises nothing. No I/O.
+    """
+    for column, first_year in settings.century_windows:
+        if column == CENTURY_HERE:
+            return first_year
+    return 0
 
 
 # -- who the rows are about (plan P4-D340) ----------------------------
@@ -7612,6 +7675,15 @@ def reading_of_the_rest(
             parsed = _weighed_reading(counted, reading, room)
         if parsed >= needed and parsed:
             return reading, parsed
+    # -- 3b.R2a (P4-D383): AND THE LAYOUT MEMBER, LAST, as the classifier
+    # asks it (the R2 design skeptic, M6): a column of SAS or HL7 dates
+    # beside a few codes is asked R1's question, and no second one.
+    layout = _chosen_layout(
+        counted, total, needed, settings.day_first, contradicted,
+        century_window_of(settings),
+    )
+    if layout is not None:
+        return parsing.layout_format(layout[0]), layout[1]
     folded: "dict[str, int]" = {}
     for spelling in counted:
         folded[parsing.folded(spelling)] = 1
@@ -15011,12 +15083,48 @@ def _on_the_written_clock(
     return found
 
 
+def _reads_within(
+    present: "list[str]", format_name: str, room: int
+) -> "tuple[list[bool], bool]":
+    """Which cells one reading parses, stopping once it cannot reach the line.
+
+    The answers so far, and whether the walk stopped short: once more than
+    ``room`` cells have failed no later cell can bring the reading back to
+    the line (landing R2a, the design's lever b). `_reads_rest` finishes a
+    list this stopped, so a reading that turns out to be wanted is read
+    once in all. Determinism: a function of the three. Raises nothing. No
+    I/O of any kind.
+    """
+    answers: list[bool] = []
+    missed = 0
+    for value in present:
+        found = parsing.parse_datetime(value, format_name) is not None
+        answers += [found]
+        if not found:
+            missed = missed + 1
+            if missed > room:
+                return answers, True
+    return answers, False
+
+
+def _reads_rest(
+    present: "list[str]", format_name: str, answers: "list[bool]"
+) -> "list[bool]":
+    """`_reads` over the cells a stopped `_reads_within` did not reach."""
+    place = len(answers)
+    while place < len(present):
+        answers += [parsing.parse_datetime(present[place], format_name) is not None]
+        place = place + 1
+    return answers
+
+
 def _slashed_evidence(
     present: "list[str]",
     pair: "tuple[str, str]",
     day_first: bool,
     settings: "Settings | None" = None,
-) -> _SlashedEvidence:
+    room: int = -1,
+) -> "_SlashedEvidence | None":
     """Which reading of one slashed pair this column's values choose.
 
     EVIDENCE FIRST, AND THE DECLARATION ONLY BREAKS A TIE (plan
@@ -15034,9 +15142,22 @@ def _slashed_evidence(
     reading, which cleared it, was never asked again. ``settings`` says
     how a column's clock is read; without them the counts are the
     parser's alone, which is right for every pair that writes no clock.
+
+    WITH A ``room`` (landing R2a, lever b), the pair is weighed only where
+    one of its two readings can still reach the line that room leaves, and
+    None comes back where neither can: the walk asking it moves on, as it
+    would have once both readings had failed every cell.
     """
-    month = _reads(present, pair[0])
-    day = _reads(present, pair[1])
+    if room >= 0:
+        month, month_short = _reads_within(present, pair[0], room)
+        day, day_short = _reads_within(present, pair[1], room)
+        if month_short and day_short:
+            return None
+        month = _reads_rest(present, pair[0], month)
+        day = _reads_rest(present, pair[1], day)
+    else:
+        month = _reads(present, pair[0])
+        day = _reads(present, pair[1])
     if settings is not None and pair[0] in parsing.SLASHED_STAMPS:
         month = _on_the_written_clock(present, month, settings)
         day = _on_the_written_clock(present, day, settings)
@@ -15116,7 +15237,9 @@ def _remainder_reading(
             weighed = _slashed_evidence(
                 present, pair, settings.day_first, settings
             )
-            if settings.day_first or weighed.day_parsed > weighed.month_parsed:
+            if weighed is not None and (
+                settings.day_first or weighed.day_parsed > weighed.month_parsed
+            ):
                 reading = weighed.used
         remainder: list[str] = []
         placeholders = 0
@@ -15158,8 +15281,26 @@ def _matching_date_format(
     cells that parsed, count of cells that did not, the slashed evidence
     where a declaration put a pair in play, and a slashed stamp's one
     written clock), or None.
+
+    EACH MEMBER STOPS AS SOON AS IT CANNOT REACH THE LINE (landing R2a,
+    the design's lever b): once more cells have failed than the line
+    leaves room for, no later cell can bring the member back, so the walk
+    leaves it there. Nothing it returns changes -- a member that reaches
+    the line still reads every cell -- and a column no member reads, which
+    each of the twenty members used to read whole, costs a hundredth of
+    that. A slashed pair is weighed only where one of its two readings can
+    still reach the line, for the same reason.
+
+    AND THE LAYOUT MEMBER STANDS LAST (plan P4-D383): where no named
+    member reaches the line, `_matching_layout` asks the closed grammar.
+    A column whose two-figure years the person placed in a century of
+    their own (`century_windows`, question Q5) is read by the layout
+    alone, in that window: the two-figure members read only the POSIX
+    one.
     """
     needed = _needed(settings.minimum_parse_rate, len(present))
+    room = len(present) - needed
+    window = century_window_of(settings)
     # A DOTTED TRIPLE NAMING A ZERO FIELD IS A VERSION SAYING SO
     # (review round 1 of landing L18, item 2). It is worked out once
     # for the column rather than per format, because it is a fact about
@@ -15183,6 +15324,9 @@ def _matching_date_format(
             "dotted-two-digit-month-first-date",
             "dotted-two-digit-day-first-date",
         ):
+            continue
+        # -- 3b.R2a (P4-D383): a declared century is the layout's to read.
+        if window and format_name in _TWO_DIGIT_YEAR_MEMBERS:
             continue
         evidence: "_SlashedEvidence | None" = None
         reading = format_name
@@ -15217,22 +15361,37 @@ def _matching_date_format(
         # columns whose owner had asked for nothing. A sentence that
         # makes up a declaration is worse than the reading it stands
         # beside.
+        weighable = True
         for pair in SLASHED_PAIRS:
             if format_name != pair[0]:
                 continue
+            # -- 3b.R2a (P4-D383): weighed only where it can still win.
             weighed = _slashed_evidence(
-                present, pair, settings.day_first, settings
+                present, pair, settings.day_first, settings, room
             )
+            if weighed is None:
+                weighable = False
+                continue
             if settings.day_first or weighed.day_parsed > weighed.month_parsed:
                 evidence = weighed
                 reading = weighed.used
+        if not weighable:
+            continue
         good: list[tuple[str, str]] = []
         sources: list[str] = []
+        missed = 0
         for value in present:
             pair_read = parsing.parse_datetime(value, reading)
             if pair_read is not None:
                 good += [pair_read]
                 sources += [value]
+                continue
+            # -- 3b.R2a (P4-D383): no later cell can bring it back.
+            missed = missed + 1
+            if missed > room:
+                break
+        if missed > room:
+            continue
         clock = _StampClock()
         if len(good) >= needed and good and reading in parsing.SLASHED_STAMPS:
             # ONE WRITTEN CLOCK PER COLUMN (landing T1): the cells of
@@ -15256,7 +15415,398 @@ def _matching_date_format(
                 evidence,
                 clock,
             )
-    return None
+    # -- 3b.R2a (P4-D383): the layout member, last.
+    return _matching_layout(present, settings, contradicted)
+
+
+# THE LAYOUT MEMBER'S TWO MEMOS, AND THEIR BOUND (landing R2a; the R2
+# design skeptic, m1). A column's different texts are each read once under
+# the chosen layout, so a column of a million dates over a few thousand
+# days is read a few thousand times: `_matching_layout` keeps each text's
+# reading for every later cell of that text, and `_layout_census` keeps
+# three facts of it. The design's prototype kept about 350 bytes a text,
+# about 330 MB for a million different texts. Measured with tracemalloc,
+# the choice's memo costs 29 to 32 bytes a text over the readings the
+# column keeps anyway, and the census's 85 to 92 -- 1.9 MB and 5.99 MB at
+# this bound, the same for 99,986 different texts, past which a column
+# reads the rest cell by cell, at the reader's own cost. Each is one dict
+# made for one column and dropped with it.
+#
+# AND A THIRD DICT, WHICH IS NOT BOUNDED (skeptic 1 of landing R2a, item
+# 5): `_spelling_rows`, the column's count of each different text, which
+# the exact choice reads -- the rows a text stands on are what the line is
+# counted in, so it holds every text. Its keys are the column's own cells,
+# which the column holds anyway, so it costs the dict alone: 38.4 bytes a
+# text at 100,000 different texts and 30.8 at 1,000,000 (tracemalloc, up
+# to 58 while the dict grows), about 31 MB for a column of a million
+# different texts, made for the column and dropped with it.
+LAYOUT_MEMO_TEXTS = 65536
+
+# What the layout member's helpers say when handed something that is not
+# text, which no cell of any table can be.
+_LAYOUT_NOT_TEXT = "a layout was asked of something that is not text"
+
+
+def _spelling_rows(present: "list[str]") -> "dict[str, int]":
+    """Each different text of a column with the rows it stands on, first seen first.
+
+    Not bounded: the exact choice counts the line in rows, so it needs
+    every text's (its price is stated at `LAYOUT_MEMO_TEXTS`).
+    """
+    counted: "dict[str, int]" = {}
+    for value in present:
+        if value in counted:
+            counted[value] = counted[value] + 1
+        else:
+            counted[value] = 1
+    return counted
+
+
+def _layout_reads(
+    items: "tuple[tuple[str, str], ...]",
+    counted: "dict[str, int]",
+    room: int,
+) -> "tuple[int, int, list[str]]":
+    """How many cells one layout reads, weighed by rows, stopping past ``room``.
+
+    Returns the rows read, the rows missed and the texts it missed: where
+    it stopped short, every one it met on the way, which together stand on
+    more rows than the line leaves room for, and otherwise every one in the
+    column, at most ``room`` of them. Determinism: a function of the three,
+    in the texts' own order. Raises nothing. No I/O.
+    """
+    read = 0
+    missed = 0
+    failing: "list[str]" = []
+    for text in counted:
+        rows = counted[text]
+        if parsing.layout_reading(text, items) is not None:
+            read = read + rows
+            continue
+        missed = missed + rows
+        failing += [text]
+        if missed > room:
+            return read, missed, failing
+    return read, missed, failing
+
+
+def _layout_guarded(layout: str, contradicted: bool) -> bool:
+    """Whether the member walk's own guards keep this layout out (skeptic M1).
+
+    EVERY GUARD A MEMBER CARRIES, THE LAYOUT CARRIES TOO: a column whose
+    dotted triples name a zero field is a column of versions, and the two
+    dotted two-figure members stand aside for it, so the layouts that spell
+    the same dates stand aside as well.
+    """
+    if not isinstance(layout, str):
+        raise TypeError(_LAYOUT_NOT_TEXT)
+    if not contradicted:
+        return False
+    return layout.startswith("{MM}.{DD}.{YY") or layout.startswith(
+        "{DD}.{MM}.{YY"
+    )
+
+
+def _layouts_of_text(text: str, window: int) -> "tuple[str, ...]":
+    """The layouts one text's shape is read under, its spaces set aside in a declared century.
+
+    In a declared window (skeptic 1 of landing R2a, item 1) the layouts
+    standing in for the two-figure members read a cell as the members do,
+    its surrounding whitespace set aside, so their candidates come from the
+    trimmed text. `parsing.layouts_of` makes no layout of a text with
+    whitespace round it, so trimming takes no candidate from any other
+    layout. Raises TypeError for anything that is not text. No I/O.
+    """
+    if not isinstance(text, str):
+        raise TypeError(_LAYOUT_NOT_TEXT)
+    if window:
+        return parsing.layouts_of(text.strip())
+    return parsing.layouts_of(text)
+
+
+def _layout_candidates(
+    counted: "dict[str, int]",
+    room: int,
+    contradicted: bool,
+    window: int,
+) -> "list[str]":
+    """Every layout the column's first cells can be read under, each once.
+
+    EXACT, AND THAT IS THE POINT OF THE NUMBER OF CELLS (the R2 design,
+    §3): a layout that reaches the line misses at most ``room`` cells, so
+    it reads at least one of ANY ``room + 1`` cells -- the texts standing
+    on the column's first ``room + 1`` rows hold every layout that can
+    win. A layout with an offset brings its optional twin (`{+HHMM?}`), a
+    two-figure year takes the column's declared window, and the member
+    walk's guards hold.
+
+    IN A DECLARED CENTURY A TEXT IS READ WITH ITS SURROUNDING WHITESPACE SET
+    ASIDE (skeptic 1 of landing R2a, item 1): there the layouts standing in
+    for the two-figure members read as the members do
+    (`parsing.layout_sets_spaces_aside`), so the exactness above holds for
+    them too; every other layout reads only a text with nothing to set
+    aside, whose productions are its own.
+    """
+    found: "list[str]" = []
+    seen: "dict[str, int]" = {}
+    rows = 0
+    for text in counted:
+        if rows > room:
+            break
+        rows = rows + counted[text]
+        for layout in _layouts_of_text(text, window):
+            if window:
+                layout = parsing.layout_in_window(layout, window)
+            if _layout_guarded(layout, contradicted):
+                continue
+            for one in (layout, parsing.layout_optional(layout)):
+                if one not in seen:
+                    seen[one] = 1
+                    found += [one]
+    return found
+
+
+def _layout_extended(
+    layout: str, failing: "list[str]", window: int, contradicted: bool
+) -> "list[str]":
+    """The optional-offset layouts a layout with no offset grows into (skeptic M2).
+
+    A column some of whose cells write an offset and some do not reads under
+    one layout whose offset is optional; such a layout reads a cell either
+    with no offset, as ``layout`` does, or with one. Where ``layout`` itself
+    fails, more cells than the line leaves room for failed it, so a layout
+    reaching the line with an optional offset reads at least one of them
+    WITH its offset: its offset field is among those the failed cells show.
+    AND WHERE ``layout`` REACHES THE LINE (skeptic 1 of landing R2a, item
+    2), an optional-offset layout reads more than it only by reading a
+    cell it missed WITH its offset, so the texts it missed hold every such
+    layout too: 7 of 1,000 HL7 stamps ending `-0400` or `-0500` were the
+    seven stand-ins of a twin read 993 under the offset-free layout.
+    """
+    if not isinstance(layout, str):
+        raise TypeError(_LAYOUT_NOT_TEXT)
+    if parsing.layout_without_offset(layout) != layout:
+        return []
+    found: "list[str]" = []
+    for text in failing:
+        for one in parsing.layouts_of(text):
+            if window:
+                one = parsing.layout_in_window(one, window)
+            if parsing.layout_without_offset(one) != layout:
+                continue
+            if _layout_guarded(one, contradicted):
+                continue
+            optional = parsing.layout_optional(one)
+            if optional not in found:
+                found += [optional]
+    return found
+
+
+def _chosen_layout(
+    counted: "dict[str, int]",
+    total: int,
+    needed: int,
+    day_first: bool,
+    contradicted: bool,
+    window: int,
+) -> "tuple[str, int, dict[str, int]] | None":
+    """The layout reading the most cells at the line, its rows, and every candidate's.
+
+    Ties go to `parsing.layout_order_key`. Returns the layout text, the
+    rows it reads, and the rows each candidate that reached the line read
+    -- up to the first that read every row -- or None where none did.
+
+    THE WALK STOPS AT A LAYOUT READING EVERY ROW (the Codex review of
+    landing R2a, item 1). The candidates are walked in key order, so every
+    later one can at most tie it, which the key settles for the earlier;
+    and a layout grown from a later one's misses adds an offset some cells
+    omit, which only raises the key. Nothing chosen changes, and a column
+    of SAS stamps, which item 1's flexible day gives three candidates
+    more, reads one of its six.
+
+    Determinism: a function of the arguments. Raises nothing. No I/O of
+    any kind.
+    """
+    room = total - needed
+    candidates = _layout_candidates(counted, room, contradicted, window)
+    keyed = sorted(
+        [(parsing.layout_order_key(one, day_first), one) for one in candidates]
+    )
+    reached: "dict[str, int]" = {}
+    best = ""
+    best_rows = -1
+    later: "list[str]" = []
+    for _key, layout in keyed:
+        items = parsing.compiled_layout(layout)
+        if items is None:
+            continue
+        read, missed, failing = _layout_reads(items, counted, room)
+        # Grown from the texts it missed, whether or not it reached the
+        # line (skeptic 1 of landing R2a, item 2): a layout that reaches it
+        # missing a few cells that write an offset reads fewer than its
+        # optional-offset twin, which wins only by reading strictly more.
+        for one in _layout_extended(layout, failing, window, contradicted):
+            if one not in later and one not in reached:
+                later += [one]
+        if missed > room:
+            continue
+        reached[layout] = read
+        if read > best_rows:
+            best = layout
+            best_rows = read
+        if best_rows >= total:
+            break
+    for layout in later:
+        items = parsing.compiled_layout(layout)
+        if items is None or layout in reached:
+            continue
+        read, missed, _failing = _layout_reads(items, counted, room)
+        if missed > room:
+            continue
+        reached[layout] = read
+        if read > best_rows or (
+            read == best_rows
+            and parsing.layout_order_key(layout, day_first)
+            < parsing.layout_order_key(best, day_first)
+        ):
+            best = layout
+            best_rows = read
+    if not best:
+        return None
+    return best, best_rows, reached
+
+
+def _layout_evidence(
+    layout: str, counted: "dict[str, int]", day_first: bool
+) -> "_SlashedEvidence | None":
+    """What a layout column's own values say about which way its day and month read.
+
+    THE SAME QUESTION THE SLASHED PAIRS ASK, AND THE SAME ANSWER (contract
+    NF36): a layout whose month and day are figures has a twin with the two
+    changed round, the counts of both readings are taken, and the evidence
+    stands exactly where it stands for a member -- where the person said
+    the day comes first, or where the day-first reading reads strictly
+    more. None otherwise, and for a layout whose month is a name.
+    """
+    swapped = parsing.layout_swapped(parsing.layout_format(layout))
+    if not swapped:
+        return None
+    other = swapped[len(parsing.LAYOUT_PREFIX) :]
+    chosen_items = parsing.compiled_layout(layout)
+    swapped_items = parsing.compiled_layout(other)
+    if chosen_items is None or swapped_items is None:
+        return None
+    chosen_rows = 0
+    swapped_rows = 0
+    chosen_alone = 0
+    swapped_alone = 0
+    for text in counted:
+        rows = counted[text]
+        mine = parsing.layout_reading(text, chosen_items) is not None
+        theirs = parsing.layout_reading(text, swapped_items) is not None
+        if mine:
+            chosen_rows = chosen_rows + rows
+            if not theirs:
+                chosen_alone = chosen_alone + rows
+        if theirs:
+            swapped_rows = swapped_rows + rows
+            if not mine:
+                swapped_alone = swapped_alone + rows
+    if parsing.layout_day_order(parsing.layout_format(layout)) == "day-first":
+        if not (day_first or chosen_rows > swapped_rows):
+            return None
+        return _SlashedEvidence(
+            used=parsing.layout_format(layout),
+            reading=READING_DAY_FIRST,
+            month_parsed=swapped_rows,
+            day_parsed=chosen_rows,
+            month_only=swapped_alone,
+            day_only=chosen_alone,
+        )
+    if not day_first:
+        return None
+    return _SlashedEvidence(
+        used=parsing.layout_format(layout),
+        reading=READING_MONTH_FIRST,
+        month_parsed=chosen_rows,
+        day_parsed=swapped_rows,
+        month_only=chosen_alone,
+        day_only=swapped_alone,
+    )
+
+
+def _matching_layout(
+    present: "list[str]", settings: Settings, contradicted: bool
+) -> (
+    "tuple[str, list[tuple[str, str]], list[str], int, "
+    "_SlashedEvidence | None, _StampClock] | None"
+):
+    """The closed-grammar layout a column no member reads is read under, or None.
+
+    THE LAST MEMBER OF THE FORMAT WALK (landing R2a, plan P4-D383). The
+    layout that reads the most present cells, where it reaches the date
+    rule's own line, chosen EXACTLY and FAILING FAST: candidates come from
+    the texts on the column's first `n - needed + 1` rows (any layout that
+    reaches the line reads one of them), each is read over the column's
+    different texts weighed by their rows, and each is dropped once its
+    misses pass `n - needed`. Ties go month first unless the person said
+    the day comes first, then to a layout whose offset every cell writes,
+    then to fewer space-padded and fewer flexible fields, then to the
+    standard month names, then to the shorter text (`layout_order_key`):
+    evidence still decides, since a day above twelve reads one way only.
+
+    The chosen layout is then read over every present cell, in row order,
+    through a memo of each different text (`LAYOUT_MEMO_TEXTS`, the bound
+    stated there). Returns `_matching_date_format`'s tuple -- the format
+    name `layout <text>`, the parsed pairs, the cells that parsed, the
+    count that did not, the day-order evidence where it stands and the
+    default clock -- or None where no layout reaches the line.
+
+    Guarantees: accepts the present cells, the settings narrowed for the
+    column and whether its dotted triples name a zero field; determinism:
+    a function of the three. Raises nothing. No I/O of any kind.
+    """
+    total = len(present)
+    if total < 1:
+        return None
+    needed = _needed(settings.minimum_parse_rate, total)
+    if needed < 1:
+        return None
+    counted = _spelling_rows(present)
+    window = century_window_of(settings)
+    chosen = _chosen_layout(
+        counted, total, needed, settings.day_first, contradicted, window
+    )
+    if chosen is None:
+        return None
+    layout, _rows, _reached = chosen
+    items = parsing.compiled_layout(layout)
+    if items is None:
+        return None
+    memo: "dict[str, tuple[str, str] | None]" = {}
+    pairs: "list[tuple[str, str]]" = []
+    sources: "list[str]" = []
+    for value in present:
+        if value in memo:
+            found = memo[value]
+        else:
+            reading = parsing.layout_reading(value, items)
+            found = None if reading is None else (reading[0], reading[1])
+            if len(memo) < LAYOUT_MEMO_TEXTS:
+                memo[value] = found
+        if found is not None:
+            pairs += [found]
+            sources += [value]
+    if len(pairs) < needed:
+        return None
+    return (
+        parsing.layout_format(layout),
+        pairs,
+        sources,
+        total - len(pairs),
+        _layout_evidence(layout, counted, settings.day_first),
+        _StampClock(),
+    )
 
 
 @dataclasses.dataclass(frozen=True)
@@ -15665,9 +16215,16 @@ def _datetime_details(
         reading = READ_AT_UTC
     placed = ordered_moments(pairs, reading)
     canonical_order = placed[0]
+    # -- 3b.R2a (P4-D383): A LAYOUT COLUMN IS READ ONCE FOR ALL OF THESE
+    # (the design's lever a), each different text once, and its fraction's
+    # figures, its widths and its cells at midnight come from that reading.
+    census = _layout_census(format_name, sources)
     digits = 0
-    for value in sources:
-        digits = max(digits, parsing.subsecond_digits(value, format_name))
+    if census is not None:
+        digits = census.digits
+    else:
+        for value in sources:
+            digits = max(digits, parsing.subsecond_digits(value, format_name))
     resolution = RESOLUTION_DATE
     if format_name == "iso-datetime" or format_name == FORMAT_ISO_MIXED:
         resolution = RESOLUTION_DATETIME
@@ -15681,10 +16238,19 @@ def _datetime_details(
         resolution = RESOLUTION_QUARTER
     if format_name == "iso-month":
         resolution = RESOLUTION_MONTH
-    precision = _finest_precision(sources, format_name)
+    # -- 3b.R2a (P4-D383): a layout writing a clock is a column of moments.
+    if parsing.is_layout_name(format_name) and parsing.layout_has_clock(
+        format_name
+    ):
+        resolution = RESOLUTION_DATETIME
+    precision = (
+        parsing.layout_precision(format_name)
+        if census is not None
+        else _finest_precision(sources, format_name)
+    )
     midnight = _all_at_midnight(
         format_name, resolution, reading, sources, offsets, settings,
-        clock_style,
+        clock_style, None if census is None else census.cells_at_midnight,
     )
     # THE TAILS, IN PLACE OF THE FIRST AND LAST VALUE (stage 3, plan
     # P4-D328). The end offsets went with the ends: they described the
@@ -15727,16 +16293,85 @@ def _datetime_details(
         # (landing 2b.6). Four censuses of FORMS, each floored exactly as
         # the marks beside them are, so that the twin can be written in
         # the source's own spelling instead of in ISO.
-        "date_field_widths": _width_counts(sources, format_name, settings),
+        "date_field_widths": _width_counts(
+            sources, format_name, settings,
+            None if census is None else census.widths,
+        ),
         "month_name_styles": _name_style_counts(sources, format_name, settings),
         "quarter_marker_case": _marker_counts(sources, format_name, settings),
         "zulu_case": _zulu_counts(sources, format_name, offsets, settings),
         "all_at_midnight": midnight,
         "n_at_midnight": _midnight_count(
             format_name, resolution, reading, sources, offsets, settings,
-            clock_style,
+            clock_style, None if census is None else census.cells_at_midnight,
         ),
     }
+
+
+@dataclasses.dataclass(frozen=True)
+class _LayoutCensus:
+    """What one reading of a layout column's cells says about how they were written.
+
+    The most figures any fraction wrote, the cells each width word counts
+    before any fold (`width_tally`'s answer), and how many cells name the
+    first instant of their day (`parsing.clock_at_midnight`'s count).
+    """
+
+    digits: int
+    widths: "dict[str, int]"
+    cells_at_midnight: int
+
+
+def _layout_census(
+    format_name: str, sources: "list[str]"
+) -> "_LayoutCensus | None":
+    """A layout column's census facts, each different text read once (landing R2a).
+
+    THE DESIGN'S LEVER A, AND ITS BOUND (the R2 design skeptic, m1). The
+    facts `_datetime_details` takes from every cell -- the fraction's
+    figures, the width each cell shows, whether it stands at midnight --
+    are one reading's, so each different text is read once and kept, in
+    a dict made for this column and dropped with it, holding at most
+    `LAYOUT_MEMO_TEXTS` texts. Every answer is the per-cell helper's own:
+    `parsing.subsecond_digits`, `parsing.date_field_style` and
+    `parsing.clock_at_midnight` read the same reading. None for a column
+    that is not a layout.
+
+    Guarantees: a function of the two; raises nothing; no I/O.
+    """
+    if not parsing.is_layout_name(format_name):
+        return None
+    items = parsing.layout_items(format_name)
+    if items is None:
+        return None
+    timed = parsing.layout_has_clock(format_name)
+    memo: "dict[str, tuple[int, str, bool]]" = {}
+    digits = 0
+    widths: "dict[str, int]" = {}
+    cells_at_midnight = 0
+    for value in sources:
+        if value in memo:
+            figures, word, at_midnight = memo[value]
+        else:
+            read = parsing.layout_reading(value, items)
+            if read is None:
+                continue
+            figures = len(read[3])
+            found = parsing.layout_width_word(read[2])
+            word = "" if found is None else found
+            at_midnight = timed and read[0][11:19] == "00:00:00"
+            if at_midnight and read[3]:
+                for figure in read[3]:
+                    if figure != "0":
+                        at_midnight = False
+            if len(memo) < LAYOUT_MEMO_TEXTS:
+                memo[value] = (figures, word, at_midnight)
+        digits = max(digits, figures)
+        if word:
+            widths[word] = (widths[word] if word in widths else 0) + 1
+        if at_midnight:
+            cells_at_midnight = cells_at_midnight + 1
+    return _LayoutCensus(digits=digits, widths=widths, cells_at_midnight=cells_at_midnight)
 
 
 def _census_days(
@@ -16460,7 +17095,10 @@ def name_style_tally(sources: "list[str]", format_name: str) -> "dict[str, int]"
 
 
 def _width_counts(
-    sources: "list[str]", format_name: str, settings: Settings
+    sources: "list[str]",
+    format_name: str,
+    settings: Settings,
+    tally: "dict[str, int] | None" = None,
 ) -> "dict[str, int]":
     """How many parsed cells wrote each width convention (2b.6, P4-D139).
 
@@ -16494,7 +17132,9 @@ def _width_counts(
     into the joint words first (`parsing.folded_width_tally`).
     """
     counts = absorbed_width_tally(
-        parsing.folded_width_tally(width_tally(sources, format_name)),
+        parsing.folded_width_tally(
+            width_tally(sources, format_name) if tally is None else tally
+        ),
         len(sources),
     )
     shown = 0
@@ -16684,6 +17324,7 @@ def _all_at_midnight(
     offsets: "dict[str, int]",
     settings: Settings,
     clock_style: str = parsing.DEFAULT_CLOCK_STYLE,
+    counted_already: "int | None" = None,
 ) -> bool:
     """Whether every parsed cell of a column of moments stands at midnight.
 
@@ -16700,7 +17341,7 @@ def _all_at_midnight(
     """
     counted = _midnight_count(
         format_name, resolution, reading, sources, offsets, settings,
-        clock_style,
+        clock_style, counted_already,
     )
     return counted is not None and counted == len(sources)
 
@@ -16713,6 +17354,7 @@ def _midnight_count(
     offsets: "dict[str, int]",
     settings: Settings,
     clock_style: str = parsing.DEFAULT_CLOCK_STYLE,
+    counted_already: "int | None" = None,
 ) -> "int | None":
     """How many parsed cells of a column of moments stand at midnight.
 
@@ -16767,9 +17409,13 @@ def _midnight_count(
     if reading != READ_AT_LOCAL and parsing.MISSING_WITHHELD in offsets:
         return None
     counted = 0
-    for value in sources:
-        if parsing.clock_at_midnight(value, format_name, clock_style):
-            counted = counted + 1
+    if counted_already is not None:
+        # A layout column's cells at midnight, counted in its one reading (R2a).
+        counted = counted_already
+    else:
+        for value in sources:
+            if parsing.clock_at_midnight(value, format_name, clock_style):
+                counted = counted + 1
     floor = parsing.census_floor(settings.small_cell_floor)
     if not _joint_midnight_nameable(format_name, sources, floor):
         return None
@@ -20290,14 +20936,29 @@ def _decide(
                 ]
             elif format_name in _MONTH_FIRST_GUESSES:
                 remarks += [note(REMARK_MONTH_FIRST)]
+            # -- 3b.R2a (P4-D383): a layout whose month and day are both
+            # figures carries the same guess, and says so the same way
+            # (the R2 design skeptic, m6).
+            elif (
+                parsing.is_layout_name(format_name)
+                and parsing.layout_day_order(format_name) == "month-first"
+            ):
+                remarks += [note(REMARK_MONTH_FIRST)]
             # THE CENTURY REMARK IS NOT AN ALTERNATIVE TO EITHER, so it
             # stands outside the chain above. A two-figure year is a
             # guess about the century whichever way the month and day
             # were settled -- by evidence, by a declaration, or by the
             # default -- so the column says so in every one of those
             # cases (plan P4-D15).
-            if format_name in _TWO_DIGIT_YEAR_MEMBERS:
+            window = parsing.layout_two_figure_year(format_name)
+            if (
+                format_name in _TWO_DIGIT_YEAR_MEMBERS
+                or window == parsing.CENTURY_DEFAULT_FIRST_YEAR
+            ):
                 remarks += [note(REMARK_TWO_DIGIT_YEAR)]
+            elif window:
+                # -- 3b.R2a (P4-D383): the window the person chose (NF112).
+                remarks += [note(REMARK_CENTURY_DECLARED, (window,))]
             return _Verdict(
                 role=ROLE_DATETIME,
                 evidence=note(

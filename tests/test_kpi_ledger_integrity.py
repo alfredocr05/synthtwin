@@ -815,6 +815,13 @@ def test_the_ledger_file_is_canonical_json() -> None:
     text = kpi_rules.LEDGER_PATH.read_text(encoding="utf-8")
     assert text.endswith("\n")
     assert json.loads(text) == LEDGER
+    # 470,000 from 460,000, AT THE INTEGRATION OF WAVE 2'S BATCH 2A
+    # (2026-10-09), the integrator's call, as the orchestrator asked: raised
+    # only as far as the merged ledger needs. Landing R2a adds `K-S3-58`
+    # and its note clause, and the merged ledger stood at 466,747 bytes
+    # once it joined. Every entry is its lane's and the note's clauses are
+    # the lanes' records, so no trim was trivial.
+    #
     # 460,000 from 450,000, AT THE INTEGRATION OF WAVE 2'S FIRST BATCH
     # (2026-10-08), the integrator's call, put to the orchestrator: the
     # batch's lanes add `K-S3-48`, `K-S3-49`, `K-S3-59`, `K-S4-02` and
@@ -900,7 +907,7 @@ def test_the_ledger_file_is_canonical_json() -> None:
     # its bytes are K-P4-20's new value and the notes of the ceilings and
     # re-measurements its repair pass recorded. The cap is still a cap; the
     # prose is trimmed before it is raised again.
-    assert pathlib.Path(kpi_rules.LEDGER_PATH).stat().st_size < 460_000
+    assert pathlib.Path(kpi_rules.LEDGER_PATH).stat().st_size < 470_000
 
 
 def test_a_fast_pinned_entry_with_no_collection_floor_is_named() -> None:

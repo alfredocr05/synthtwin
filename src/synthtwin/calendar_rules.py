@@ -397,10 +397,7 @@ def one_spelling_published(
     styles: "dict[str, int]" = {}
     if "month_name_styles" in forms:
         styles = forms["month_name_styles"]
-    if (
-        format_name in parsing.VARIABLE_WIDTH_MEMBERS
-        or format_name in parsing.TEXTUAL_MEMBERS
-    ) and len(widths) != 1:
+    if parsing.width_field_count(format_name) > 0 and len(widths) != 1:
         return False
     if format_name in parsing.TEXTUAL_MEMBERS and len(styles) != 1:
         return False
@@ -449,8 +446,8 @@ def form_holes(
         for word in forms["date_field_widths"]:
             width = word
     first_field = ""
-    if format_name in parsing.VARIABLE_WIDTH_MEMBERS and parsing.width_is_value_bound(width):
-        first_field = "month" if format_name in parsing.MONTH_FIRST_MEMBERS else "day"
+    if parsing.width_field_count(format_name) == 2 and parsing.width_is_value_bound(width):
+        first_field = parsing.width_first_field(format_name)
     shows_first = width in parsing.FIELD_WIDTH_STYLES_FIRST
     may_only = may_only_published(forms, format_name)
     if not first_field and not may_only:

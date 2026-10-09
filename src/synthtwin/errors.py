@@ -1461,6 +1461,45 @@ def the_twelve_hour_declaration_did_not_reach(name: str, role: str) -> str:
     )
 
 
+def century_not_supported(given: str) -> str:
+    """Message for a --century value that is not COLUMN=YEAR with a window it offers (landing R2a)."""
+    return (
+        f"--century takes a column's name, an equals sign and the first "
+        f"year of the century its two-figure years lie in, but {given} was "
+        f"given. The years it can take are 1930 (years 1930 to 2029), 1940 "
+        f"(1940 to 2039) and 1900 (1900 to 1999); without the option a "
+        f"two-figure year is read in 1969 to 2068. Please run the command "
+        f"again with, for example, --century birth_date=1930. Nothing was "
+        f"read and nothing was written."
+    )
+
+
+def the_century_declaration_did_not_reach(name: str, role: str) -> str:
+    """Message when `--century` names a column it cannot change (landing R2a).
+
+    NOT A REFUSAL, for the comma declaration's reason: which columns write
+    their dates with two-figure years is known only once the table is read.
+
+    IT SAYS WHAT THE RUN TOOK AND NOTHING IT DID NOT MEASURE (skeptic 1 of
+    landing R2a, item 1): the column was not read as dates written with
+    two-figure years, and it was read as ``role``. It said "with no
+    two-figure year" before, which was false of a column of such dates the
+    declaration had moved off the member that read them; since that repair
+    a declared century reads every cell the member read, and this is said
+    only of a column the run did not read as such dates at all.
+    """
+    return (
+        f"The column '{_shown(name)}' was named with --century, but "
+        f"synthtwin did not read it as dates whose years are written with "
+        f"two figures: it read it as {role}, and that declaration only "
+        f"changes a column of such dates. Nothing about this column was "
+        f"read in the century you gave. The description that was written "
+        f"is correct about everything else, and says which columns were "
+        f"declared. Check that the name is the column you meant, and run "
+        f"the command again without --century for this one."
+    )
+
+
 def the_twelve_hour_style_was_held_back(name: str) -> str:
     """Message when `--twelve-hour` was honoured but its written clock is pooled (the T1 review's item 9).
 
@@ -1783,7 +1822,12 @@ def profile_version_is_older(found: int, reads: int) -> str:
     value" the person named -- and what to do, which is to describe the
     table again UNDER THE SAME OPTIONS.
 
-    IT NAMES FOURTEEN OPTIONS. `--twelve-hour` joined with landing T1
+    IT NAMES FIFTEEN OPTIONS. `--century` joined with landing R2a (plan
+    P4-D383): left out, a two-figure year is read as one of 1969 to
+    2068, so a birth date of 1931 written 31 is read as 2031 and the
+    published dates move a century; question Q5 answers it, so the
+    `--answers` clause names it too. Before it named fourteen.
+    `--twelve-hour` joined with landing T1
     (plan P4-D370): left out, the hour from twelve o'clock is read as
     noon, and the published times move. Before it named thirteen.
     `--metadata-rows` (plan P4-D81) and
@@ -1888,7 +1932,7 @@ def profile_version_is_older(found: int, reads: int) -> str:
         f"table, giving it every option you gave the first time: "
         f"--keep-value, --missing-value, --identifier, --code, "
         f"--measurement, --decimal-comma, --smallest-group, --first-row, "
-        f"--day-first, --twelve-hour, --metadata-rows, --sheet, "
+        f"--day-first, --twelve-hour, --century, --metadata-rows, --sheet, "
         f"--delimiter and "
         f"--answers. "
         f"Every one of them changes what the "
@@ -1915,6 +1959,10 @@ def profile_version_is_older(found: int, reads: int) -> str:
         f"AM or PM is read as a 24-hour clock, so the hour from twelve "
         f"o'clock is read as noon instead of the hour after midnight, "
         f"which changes the times the description publishes; without "
+        f"the --century you gave, a date whose year is written with "
+        f"two figures is read as one of 1969 to 2068, so a birth date "
+        f"of 1931 written 31 is read as 2031, which changes the dates "
+        f"the description publishes; without "
         f"the --metadata-rows you "
         f"gave, the rows under your column names that describe your "
         f"columns are read as records of your table, so their text is "
@@ -1929,7 +1977,8 @@ def profile_version_is_older(found: int, reads: int) -> str:
         f"gave, every answer you wrote in the questions file is gone \u2014 "
         f"each of them was a --code, an --identifier, a --measurement, "
         f"a --decimal-comma, a --metadata-rows, a --delimiter, a "
-        f"--twelve-hour, a --day-first, a --missing-value or a "
+        f"--twelve-hour, a --century, a --day-first, a --missing-value "
+        f"or a "
         f"--keep-value, "
         f"so leaving the file out costs whichever of those you had "
         f"given, and this same sentence says what each one costs. If "

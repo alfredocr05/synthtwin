@@ -570,7 +570,15 @@ def _settings_block(
         # said to be dates (landing R2c), and the columns said to write
         # their dates as counts (landing R4).
         # -- 3b.R2a (P4-D383)
-        "century_windows": [],
+        # THE CENTURY OF EACH COLUMN'S TWO-FIGURE YEARS THE PERSON CHOSE
+        # (question Q5, `--century`): `[column, first year]` in the
+        # columns' rising order. Recorded because the validator must
+        # re-read a checked file in the same window, and S8e holds the
+        # column's layout to it.
+        "century_windows": [
+            [name, first_year]
+            for name, first_year in sorted(settings.century_windows)
+        ],
         # -- 3b.R2c (P4-D383)
         "forced_date_columns": [],
         # -- 3b.R4 (P4-D384)
@@ -907,6 +915,10 @@ _CLOCK_STEP = "seconds-a-clock-steps-by-or-nothing"
 # anchor 3b-7 (P4-D378)
 # anchor 3b-J (P4-D379)
 # anchor 3b-R2a (P4-D383)
+# ONE HALF OF A DECLARED CENTURY (question Q5): a column of this table, or
+# the first year of one of the three windows the question offers. No
+# value of anybody's table is either.
+_CENTURY_PART = "a-name-of-this-table-or-a-century-window"
 # anchor 3b-R2b (P4-D383)
 # anchor 3b-R2c (P4-D383)
 # anchor 3b-R4 (P4-D384)
@@ -1040,6 +1052,8 @@ _STATED_RULES: "dict[tuple[str, ...], str]" = {
     # holds, so an entry is a path no rule names and is refused here.
     # -- 3b.R2a (P4-D383)
     ("settings", "century_windows"): _ARRAY,
+    ("settings", "century_windows", _EACH): _ARRAY,
+    ("settings", "century_windows", _EACH, _EACH): _CENTURY_PART,
     # -- 3b.R2c (P4-D383)
     ("settings", "forced_date_columns"): _ARRAY,
     # -- 3b.R4 (P4-D384)
@@ -2565,6 +2579,14 @@ def _leaf_is_published(
         return isinstance(value, str) and bool(parsing.trimmed(value))
     if kind == _KNOWN_NAME:
         return isinstance(value, str) and value in context.names
+    if kind == _CENTURY_PART:
+        if isinstance(value, str):
+            return value in context.names
+        return (
+            not isinstance(value, bool)
+            and isinstance(value, int)
+            and value in parsing.CENTURY_WINDOW_YEARS
+        )
     if kind == _KNOWN_NAME_OR_THE_TABLE:
         # A note about the whole table names no column, and the empty
         # spelling is how it says so (plan P4-D341). Every other value
@@ -2785,12 +2807,33 @@ def _places_are_published(places: "list[object]", floor: int) -> bool:
     return not dialect.blank_places_broken(read, floor)
 
 
+# The two places a column's date FORMAT is published, where a layout of
+# the closed grammar stands beside the named members (landing R2a, plan
+# P4-D383; contract rule LY1).
+_LAYOUT_WORD_PATHS = (
+    ("columns", _EACH, "format"),
+    ("columns", _EACH, "resolution_mix", _KEY_OF),
+)
+
+
 def _check_word(
     value: object, path: "tuple[str, ...]"
 ) -> None:
-    """Refuse anything but a word of the vocabulary this path allows."""
+    """Refuse anything but a word of the vocabulary this path allows.
+
+    A date format may also be a layout the closed grammar makes (landing
+    R2a): built of this package's own fields and marks and admitted only
+    where `parsing.is_layout_format` says the grammar's productions make
+    it, so no text out of a cell can stand there.
+    """
     if path not in PUBLICATION_WORDS:
         raise _refuse(path)
+    if (
+        path in _LAYOUT_WORD_PATHS
+        and isinstance(value, str)
+        and parsing.is_layout_format(value)
+    ):
+        return
     if not isinstance(value, str) or value not in PUBLICATION_WORDS[path]:
         raise _refuse(path)
 

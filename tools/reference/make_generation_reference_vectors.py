@@ -5860,6 +5860,261 @@ DEFAULT_WIDTH = "padded"
 DEFAULT_NAME_STYLE = "title-abbreviated-space-no-comma"
 
 
+# -- THE LAYOUT MEMBER (method G7.5's token table, landing R2a, plan P4-D383)
+#
+# A column no named member reads may be read under a LAYOUT, published as
+# `format: "layout <text>"`: fields in braces and single literal marks. The
+# twin writes every cell through the layout, field by field, from the
+# rank's instant, the width word it was allocated and its offset; written
+# here from the method's own table of fields and nothing else.
+
+LAYOUT_PREFIX = "layout "
+LAYOUT_MONTHS = ("jan", "feb", "mar", "apr", "may", "jun",
+                 "jul", "aug", "sep", "oct", "nov", "dec")
+LAYOUT_MONTHS_GB = LAYOUT_MONTHS[:8] + ("sept",) + LAYOUT_MONTHS[9:]
+LAYOUT_MONTHS_AU = LAYOUT_MONTHS[:5] + ("june", "july", "aug", "sept") + LAYOUT_MONTHS[9:]
+LAYOUT_DAYS = ("mon", "tue", "wed", "thu", "fri", "sat", "sun")
+LAYOUT_DAYS_FULL = ("monday", "tuesday", "wednesday", "thursday", "friday",
+                    "saturday", "sunday")
+
+
+def _cased(words, case):
+    if case == "upper":
+        return tuple(word.upper() for word in words)
+    if case == "title":
+        return tuple(word[:1].upper() + word[1:] for word in words)
+    return tuple(words)
+
+
+LAYOUT_NAME_WORDS = {}
+for _stems, _words in (
+    (("MON", "Mon", "mon"), LAYOUT_MONTHS),
+    (("MONTH", "Month", "month"), tuple(whole for _short, whole in MONTH_NAMES)),
+    (("MONGB", "MonGB", "monGB"), LAYOUT_MONTHS_GB),
+    (("MONAU", "MonAU", "monAU"), LAYOUT_MONTHS_AU),
+    (("DY", "Dy", "dy"), LAYOUT_DAYS),
+    (("DAY", "Day", "day"), LAYOUT_DAYS_FULL),
+):
+    for _stem, _case in zip(_stems, ("upper", "title", "lower")):
+        LAYOUT_NAME_WORDS[_stem] = _cased(_words, _case)
+LAYOUT_WEEKDAY_FIELDS = ("DY", "Dy", "dy", "DAY", "Day", "day")
+LAYOUT_WINDOWS = {"YY": 1969, "YY1900": 1900, "YY1930": 1930, "YY1940": 1940}
+LAYOUT_ZULU_FIELDS = ("Z", "z", "UTC", "GMT")
+
+
+def is_layout(member):
+    """Whether a format names the layout member."""
+    return isinstance(member, str) and member.startswith(LAYOUT_PREFIX)
+
+
+def layout_parts(member):
+    """A layout's items in order: ("f", field) or ("l", one literal mark)."""
+    text = member[len(LAYOUT_PREFIX):]
+    items = []
+    place = 0
+    while place < len(text):
+        if text[place] == "{":
+            end = text.index("}", place)
+            items.append(("f", text[place + 1:end]))
+            place = end + 1
+        else:
+            items.append(("l", text[place]))
+            place += 1
+    return items
+
+
+def layout_flexible(member):
+    """The flexible numeric fields of a layout, `M` and `D`, in its order."""
+    return [field for kind, field in layout_parts(member) if kind == "f" and field in ("M", "D")]
+
+
+def layout_window(member):
+    """The first year a layout's two-figure year is read from, or None."""
+    for kind, field in layout_parts(member):
+        if kind == "f" and field in LAYOUT_WINDOWS:
+            return LAYOUT_WINDOWS[field]
+    return None
+
+
+def layout_written(member, year, month, day, second, offset, width, figures):
+    """One instant written under a layout (G7.5): every field from the instant.
+
+    ``second`` is the second of the day, or None for a layout writing no
+    clock. ``width`` is the width word allocated to the rank, a padding
+    decision per flexible field in the layout's order (one field reads
+    every word but `unpadded` as padded). The fraction is ``figures``
+    zeros. An offset field writes the rank's offset in its own spelling;
+    one some cells omit writes nothing where the rank wears none, not even
+    the marks before it; one every cell writes, handed none, writes the
+    shared clock's.
+    """
+    items = layout_parts(member)
+    if items and items[-1][1].endswith("?") and not offset:
+        items = items[:-1]
+        while items and items[-1][0] == "l":
+            items = items[:-1]
+    flexible = layout_flexible(member)
+    padding = [width != "unpadded"] if len(flexible) == 1 else list(pair_widths(width))
+    hours, rest = divmod(second or 0, 3600)
+    minutes, seconds = divmod(rest, 60)
+    shown = offset if offset and offset != "Z" else "+00:00"
+    out = []
+    shown_flexible = 0
+    for kind, field in items:
+        if kind == "l":
+            out.append(field)
+            continue
+        field = field.rstrip("?")
+        if field == "YYYY":
+            out.append(f"{year:04d}")
+        elif field in LAYOUT_WINDOWS:
+            out.append(f"{year % 100:02d}")
+        elif field == "MM":
+            out.append(f"{month:02d}")
+        elif field == "DD":
+            out.append(f"{day:02d}")
+        elif field in ("M", "D"):
+            value = month if field == "M" else day
+            out.append(field_text(value, padding[shown_flexible]))
+            shown_flexible += 1
+        elif field == "_D":
+            out.append(f"{day:>2d}")
+        elif field == "HH":
+            out.append(f"{hours:02d}")
+        elif field == "MI":
+            out.append(f"{minutes:02d}")
+        elif field == "SS":
+            out.append(f"{seconds:02d}")
+        elif field == "F":
+            out.append("0" * figures)
+        elif field in LAYOUT_WEEKDAY_FIELDS:
+            out.append(LAYOUT_NAME_WORDS[field][(days_from_civil(year, month, day) + 3) % 7])
+        elif field in LAYOUT_NAME_WORDS:
+            out.append(LAYOUT_NAME_WORDS[field][month - 1])
+        elif field in LAYOUT_ZULU_FIELDS:
+            out.append(field)
+        elif field == "+HH:MM":
+            out.append(shown)
+        elif field == "+HHMM":
+            out.append(shown[:3] + shown[4:])
+        elif field == "+HH":
+            out.append(shown[:3])
+        else:
+            raise AssertionError(f"{field!r} is no field of the layout table")
+    return "".join(out)
+
+
+def layout_day(member, text):
+    """The day one spelling names under a layout, or None (G7.5's table, read).
+
+    Field by field, nothing trimmed: figures at each field's width, a name
+    from its own word list, a weekday that is the day's own, a four-figure
+    year in 1800 to 2299 and a two-figure one in its window; the clock's
+    fields only for their shape.
+    """
+    items = layout_parts(member)
+    at = 0
+    year = month = day = weekday = None
+    optional = items and items[-1][1].endswith("?")
+    tail = len(items)
+    if optional:
+        tail -= 1
+        while tail > 0 and items[tail - 1][0] == "l":
+            tail -= 1
+    for index, (kind, field) in enumerate(items):
+        if index == tail and at == len(text):
+            break
+        if kind == "l":
+            if text[at:at + 1] != field:
+                return None
+            at += 1
+            continue
+        field = field.rstrip("?")
+        sizes = {"YYYY": (4, 4), "MM": (2, 2), "DD": (2, 2), "HH": (2, 2), "MI": (2, 2),
+                 "SS": (2, 2), "M": (1, 2), "D": (1, 2), "F": (1, 9)}
+        for window in LAYOUT_WINDOWS:
+            sizes[window] = (2, 2)
+        if field in sizes:
+            least, most = sizes[field]
+            end = at
+            while end < len(text) and end - at < most and text[end].isdigit() and text[end].isascii():
+                end += 1
+            if end - at < least:
+                return None
+            value = int(text[at:end])
+            at = end
+            if field == "YYYY":
+                year = value
+            elif field in LAYOUT_WINDOWS:
+                first = LAYOUT_WINDOWS[field]
+                year = first // 100 * 100 + value
+                if year < first:
+                    year += 100
+            elif field in ("MM", "M"):
+                month = value
+            elif field in ("DD", "D"):
+                day = value
+            continue
+        if field == "_D":
+            pair = text[at:at + 2]
+            if len(pair) != 2 or not pair[1].isdigit() or not (pair[0] == " " or pair[0] in "123456789"):
+                return None
+            day = int(pair.strip())
+            at += 2
+            continue
+        if field in LAYOUT_NAME_WORDS:
+            end = at
+            while end < len(text) and text[end].isascii() and text[end].isalpha():
+                end += 1
+            word = text[at:end]
+            if word not in LAYOUT_NAME_WORDS[field]:
+                return None
+            if field in LAYOUT_WEEKDAY_FIELDS:
+                weekday = LAYOUT_NAME_WORDS[field].index(word)
+            else:
+                month = LAYOUT_NAME_WORDS[field].index(word) + 1
+            at = end
+            continue
+        if field in LAYOUT_ZULU_FIELDS:
+            if text[at:at + len(field)] != field:
+                return None
+            at += len(field)
+            continue
+        size = {"+HH:MM": 6, "+HHMM": 5, "+HH": 3}[field]
+        if len(text) - at < size or text[at] not in "+-":
+            return None
+        at += size
+    if at != len(text) or year is None or not 1800 <= year <= 2299:
+        return None
+    found = calendar_day(year, month, day)
+    if found is None or (weekday is not None and (found + 3) % 7 != weekday):
+        return None
+    return found
+
+
+def width_fields(member):
+    """How many numeric fields of a member's cells show a width (G7.5).
+
+    Two for the slashed and two-figure families, one for the textual pair,
+    a layout's count of flexible fields, none for every other member.
+    """
+    if member in VARIABLE_WIDTH_MEMBERS:
+        return 2
+    if member in TEXTUAL_MEMBERS:
+        return 1
+    if is_layout(member):
+        return len(layout_flexible(member))
+    return 0
+
+
+def width_leads_with_the_day(member):
+    """Whether the first width-showing field of a member is its day."""
+    if is_layout(member):
+        flexible = layout_flexible(member)
+        return bool(flexible) and flexible[0] == "D"
+    return member in DAY_FIRST_MEMBERS or member in TEXTUAL_MEMBERS
+
+
 def month_spelling(month, length, case):
     """One month written as a NAME: the inverse of the reader's own."""
     short, whole = MONTH_NAMES[month - 1]
@@ -5907,6 +6162,10 @@ def name_parts(style):
 def written_date(year, month, day, member, width=DEFAULT_WIDTH,
                  name_style=DEFAULT_NAME_STYLE):
     """One day written the way its member's own source wrote it (G7.5)."""
+    if is_layout(member):
+        # A layout writes the day in its own fields, a clock at midnight
+        # and an optional offset as nothing (landing R2a).
+        return layout_written(member, year, month, day, None, "", width, 0)
     if member == "compact-date":
         return f"{year:04d}{month:02d}{day:02d}"
     if member in ("slashed-iso-date", "slashed-iso-datetime"):
@@ -5945,7 +6204,7 @@ def written_date(year, month, day, member, width=DEFAULT_WIDTH,
 def precision_form(ordinal, resolution, time_precision, subsecond_digits,
                    mark="T", member="iso-datetime", width=DEFAULT_WIDTH,
                    name_style=DEFAULT_NAME_STYLE, marker="upper",
-                   clock=("hh", "")):
+                   clock=("hh", ""), offset=""):
     """The cell text of method section G7.5, before the offset suffix.
 
     ``mark`` is the character between the day and the clock that the
@@ -5956,7 +6215,16 @@ def precision_form(ordinal, resolution, time_precision, subsecond_digits,
     written in the member that read the real column, at the conventions
     that rank was allocated. Their defaults are the ISO member's own
     spelling, which is what every case frozen before the reversal used.
+    A LAYOUT writes the whole cell, its ``offset`` inside it (landing R2a),
+    so for a layout there is no suffix after.
     """
+    if is_layout(member) and resolution in ("date", "datetime"):
+        if resolution == "date":
+            year, month, day = civil_from_days(ordinal)
+            return layout_written(member, year, month, day, None, offset, width, 0)
+        days, rest = divmod(ordinal, 86400)
+        year, month, day = civil_from_days(days)
+        return layout_written(member, year, month, day, rest, offset, width, subsecond_digits)
     if resolution == "quarter":
         year = 1970 + ordinal // 4
         quarter = ordinal % 4 + 1
@@ -6455,13 +6723,16 @@ def written_styles(column, fields, parsed, resolution, offsets, floor=CASE_SMALL
     widths = [width_fallback] * parsed
     if widths_census:
         both, first, second = [], [], []
+        # One field or two, and which leads: a layout's flexible fields
+        # read as a textual member's day or a slashed member's pair (R2a).
+        one_field = width_fields(member) == 1
         for rank, (month, day) in enumerate(fields):
-            if member in TEXTUAL_MEMBERS:
+            if one_field:
                 if day < 10:
                     first.append(rank)
                 continue
             low = (month < 10, day < 10)
-            if member in DAY_FIRST_MEMBERS:
+            if width_leads_with_the_day(member):
                 low = (day < 10, month < 10)
             if low == (True, True):
                 both.append(rank)
@@ -6469,7 +6740,7 @@ def written_styles(column, fields, parsed, resolution, offsets, floor=CASE_SMALL
                 first.append(rank)
             elif low[1]:
                 second.append(rank)
-        if member in TEXTUAL_MEMBERS:
+        if one_field:
             weights = census_weights(widths_census, FIELD_WIDTH_STYLES_ONE_FIELD) or {width_fallback: 1}
             for rank, form in zip(first, reserved(weights, len(first), floor)):
                 widths[rank] = form
@@ -9885,6 +10156,12 @@ def _datetime_content(column):
             # The offset spelled as the source spelled it (landing 2b.6):
             # the reading folds `z` onto `Z`, and the census says which.
             suffix = "z"
+        # A LAYOUT writes the offset inside the cell, in its own field's
+        # spelling, and nothing after it (landing R2a, G7.5).
+        inner = ""
+        if is_layout(member):
+            inner = "" if offsets[rank] in ("(none)", "(withheld)") else offsets[rank]
+            suffix = ""
         if endpoint is not None:
             if whole[rank]:
                 text = endpoint[:10]
@@ -9907,7 +10184,7 @@ def _datetime_content(column):
 
         def spell(unit, mark=marks[rank], suffix=suffix, moved=moved, bare=whole[rank],
                   member=member, width=width, name_style=name_style, marker=marker,
-                  clock=clock):
+                  clock=clock, inner=inner):
             if bare:
                 # A bare date: the day alone, with no mark, clock or offset.
                 # Counted in seconds, the rank already stands at a midnight
@@ -9932,6 +10209,7 @@ def _datetime_content(column):
                     name_style=name_style,
                     marker=marker,
                     clock=clock,
+                    offset=inner,
                 )
             else:
                 body = precision_form(
@@ -9945,6 +10223,7 @@ def _datetime_content(column):
                     name_style=name_style,
                     marker=marker,
                     clock=clock,
+                    offset=inner,
                 )
             return kept_cell(body + suffix, holes, named, member)
 
@@ -9979,6 +10258,9 @@ def _datetime_content(column):
         content.append(written)
     content = rebalance_marks(marks, content, holes, column["format"])
     content = marks_bought_for_the_shortfall(column, content, holes)
+    # ...and the offsets a column of figure runs owes its count of cells
+    # that are not numbers (G7.9b, landing R2a's repair round).
+    content = offsets_paid_to_the_classes(column, content, holes)
     content.extend(text_stand_ins(content, column["n_unparsed"]))
     return content
 
@@ -10128,6 +10410,319 @@ def marks_bought_for_the_shortfall(column, cells, holes, floor=CASE_SMALL_CELL_F
     return written
 
 
+def a_text_worn_once(cells, rank):
+    """G7.9b's last clause of eligibility: no other rank's cell is this rank's text."""
+    return cells.count(cells[rank]) == 1
+
+
+def offsets_on_offer(field, census):
+    """G7.9b step 3: the offsets the pass may write, as the field spells them.
+
+    `+00:00`, `+01:00`, ..., `+14:00` in that order -- or the zulu field's
+    own word, the one offset it has, whose census key is `Z` -- less every
+    offset the census names (skeptic 2 of landing R2a, item 1): a cell
+    written at a named offset is counted into that offset and read at it.
+    """
+    if field in LAYOUT_ZULU_FIELDS:
+        keyed = [("Z", field)]
+    else:
+        keyed = []
+        for hours in range(15):
+            sign_hours = f"+{hours:02d}"
+            keyed.append(
+                (
+                    sign_hours + ":00",
+                    {"+HH:MM": sign_hours + ":00", "+HHMM": sign_hours + "00", "+HH": sign_hours}[field],
+                )
+            )
+    return [spelling for key, spelling in keyed if key not in census]
+
+
+def payments_owed(debt, open_ranks, number_cells, line, offers):
+    """G7.9b step 4: how many payments the pass makes, the fewest of four."""
+    return min(debt, open_ranks, number_cells - line, (line - 1) * offers)
+
+
+def offsets_paid_to_the_classes(column, cells, holes, floor=CASE_SMALL_CELL_FLOOR):
+    """G7.9b: the offsets a column of figure runs still owes its class count.
+
+    WRITTEN FROM G7.9b'S STATEMENT ALONE (landing R2a's repair round, item
+    2).  A layout whose last field is an offset some cells leave out, and
+    whose cells without it are figures -- `YYYY MM DD HH MI SS` fields and
+    at most a point and a fraction after them -- writes a NUMBER on every
+    rank the census of offsets gave no offset.  Where `(none)` is that
+    census's commonest key and nothing in it is pooled, every offset below
+    the census line was counted into `(none)`, and the published count of
+    cells that are not numbers is the one fact that still holds them.  So:
+
+    * the debt is `n_not_numeric`, less the cells in hand that are not
+      numbers, less the `n_unparsed` stand-ins that follow this pass;
+    * a payment goes to a rank between the two ends whose cell is a
+      number and is worn by that rank alone; payment k of n goes to the
+      eligible rank at position k * (eligible ranks) // n;
+    * payment k writes the cell again with the marks before the offset
+      field and the offset numbered k // (line - 1) of those on offer
+      (`offsets_on_offer`: `+00:00`, `+01:00`, ..., `+14:00` spelled as the
+      field spells it, or the zulu field's own word, less every offset the
+      census names);
+    * n is the smallest of the debt, the eligible ranks, the number cells
+      less the census line, and (line - 1) times the offsets on offer
+      (`payments_owed`);
+    * a payment whose cell would be a spelling the column holds absent is
+      not made;
+    * and the rest of that smallest -- counted without the eligible ranks
+      -- is step 5's, paid with whole repeated texts (`whole_texts_paid`);
+    * where steps 4 and 5 write fewer cells than that bound and step 4 had
+      payments to make, step 6 makes the pass again from the cells as
+      handed with fewer payments (`fewer_standing_alone`), and keeps it
+      only where it writes more.
+    """
+    member = column["format"]
+    if not is_layout(member):
+        return cells
+    parts = layout_parts(member)
+    kind, field = parts[-1]
+    if kind != "f" or not field.endswith("?"):
+        return cells
+    field = field[:-1]
+    start = len(parts) - 1
+    while start and parts[start - 1][0] == "l":
+        start -= 1
+    joint = "".join(text for _kind, text in parts[start:-1])
+    figures = parts[:start]
+    if figures[-2:] == [("l", "."), ("f", "F")]:
+        figures = figures[:-2]
+    if not figures or any(
+        kind != "f" or text not in ("YYYY", "MM", "DD", "HH", "MI", "SS")
+        for kind, text in figures
+    ):
+        return cells
+    census = column["utc_offsets"]
+    if WITHHELD in census or "(none)" not in census:
+        return cells
+    if max(census.values()) > census["(none)"]:
+        return cells
+
+    def a_number(text):
+        whole, _point, fraction = text.partition(".")
+        return whole.isdigit() and whole.isascii() and (
+            not _point or (fraction.isdigit() and fraction.isascii())
+        )
+
+    offer = offsets_on_offer(field, census)
+    absent = {hole.strip().lower() for hole in holes}
+    not_numbers = sum(1 for text in cells if not a_number(text))
+    eligible = [
+        rank
+        for rank in range(1, len(cells) - 1)
+        if a_number(cells[rank]) and a_text_worn_once(cells, rank)
+    ]
+    line = census_line(floor)
+    debt = column["n_not_numeric"] - not_numbers - column["n_unparsed"]
+    payments = max(payments_owed(debt, len(eligible), len(cells) - not_numbers, line, len(offer)), 0)
+    bound = payments_owed(debt, len(cells), len(cells) - not_numbers, line, len(offer))
+
+    def written_with(count):
+        paid = list(cells)
+        made_at = [0] * len(offer)
+        for payment in range(count):
+            rank = eligible[payment * len(eligible) // count]
+            candidate = cells[rank] + joint + offer[payment // (line - 1)]
+            if candidate.strip().lower() not in absent:
+                paid[rank] = candidate
+                made_at[payment // (line - 1)] += 1
+        paid = whole_texts_paid(paid, cells, joint, offer, made_at, bound - sum(made_at), line, absent, a_number)
+        return paid, sum(1 for before, after in zip(cells, paid) if before != after)
+
+    paid, written = written_with(payments)
+    if written >= bound or payments == 0:
+        return paid
+    fewer = fewer_standing_alone(cells, line, bound, payments, written, a_number)
+    if fewer == payments:
+        return paid
+    again, more = written_with(fewer)
+    return again if more > written else paid
+
+
+def fewer_standing_alone(cells, line, bound, payments, written, a_number):
+    """G7.9b step 6, from its statement: how many texts standing alone the second pass writes.
+
+    The texts step 5 may take are the numbers worn by at least two ranks,
+    fewer than the census line and no more than the bound, none of them an
+    end.  The count is the largest below ``payments`` whose sum with the
+    largest total at most the bound less it that those texts reach is the
+    greatest of any such count, where that sum passes the ``written`` cells
+    of the first pass; otherwise ``payments``, and there is no second pass.
+    """
+    worn_by = {}
+    for rank, text in enumerate(cells):
+        worn_by.setdefault(text, []).append(rank)
+    sizes = {}
+    for text, ranks in worn_by.items():
+        if (
+            2 <= len(ranks) < line
+            and len(ranks) <= bound
+            and ranks[0] > 0
+            and ranks[-1] < len(cells) - 1
+            and a_number(text)
+        ):
+            sizes[len(ranks)] = sizes.get(len(ranks), 0) + 1
+    totals = sums_of_sizes(sorted(sizes.items()), bound)
+    best, chosen = written, payments
+    for count in range(payments - 1, -1, -1):
+        total = count + max(total for total in totals if total <= bound - count)
+        if total > best:
+            best, chosen = total, count
+    return chosen
+
+
+def sums_of_sizes(counts, cap):
+    """Every total at most ``cap`` that some texts reach, ``counts`` as (size, texts)."""
+    totals = {0}
+    for size, texts in counts:
+        totals = {
+            total + size * taken
+            for total in totals
+            for taken in range(texts + 1)
+            if total + size * taken <= cap
+        }
+    return totals
+
+
+def whole_texts_paid(paid, cells, joint, offer, made_at, rest, line, absent, a_number):
+    """G7.9b step 5: the rest owed, paid with whole repeated texts.
+
+    WRITTEN FROM STEP 5'S STATEMENT ALONE (the Codex review of landing R2a,
+    item 4, and the verification of its repair, open item 1).  The rest is
+    step 4's bound less the payments step 4 made.  Where it is two or more:
+
+    * each offset's room is `line - 1` cells less the payments step 4
+      wrote at it;
+    * a text is on offer when it is a number worn by at least two ranks
+      and fewer than the census line, none of them an end, and by no more
+      ranks than the largest room or the rest;
+    * the step aims at the largest total of ranks, at most the rest and at
+      most the rooms together, that the texts on offer reach, and walks
+      the offsets in step 3's order (`offsets_walked`), each text taken
+      written again whole, every rank with the marks and that offset;
+    * a text taken whose respelling at its offset is a spelling the column
+      holds absent, the first such in the walk's order, is barred from
+      that offset alone, and the walk is made again.
+    """
+    rooms = [line - 1 - made for made in made_at]
+    most = min(rest, sum(rooms))
+    if most < 2:
+        return paid
+    worn_by = {}
+    for rank, text in enumerate(cells):
+        worn_by.setdefault(text, []).append(rank)
+    on_offer = sorted(
+        (
+            text
+            for text, ranks in worn_by.items()
+            if 2 <= len(ranks) < line
+            and len(ranks) <= max(rooms)
+            and len(ranks) <= most
+            and ranks[0] > 0
+            and ranks[-1] < len(cells) - 1
+            and a_number(text)
+        ),
+        key=lambda text: worn_by[text][0],
+    )
+    barred = set()
+    while True:
+        walked = offsets_walked(on_offer, worn_by, rooms, most, barred)
+        refused = [
+            (text, place)
+            for text, place in walked
+            if (text + joint + offer[place]).strip().lower() in absent
+        ]
+        if not refused:
+            break
+        barred.add(refused[0])
+    for text, place in walked:
+        for rank in worn_by[text]:
+            paid[rank] = text + joint + offer[place]
+    return paid
+
+
+def offsets_walked(on_offer, worn_by, rooms, most, barred):
+    """G7.9b step 5's walk, from its statement: (text, offset) for each text taken.
+
+    The aim is the largest total of ranks at most ``most`` the texts on
+    offer reach.  The offsets are taken in order; at each, the texts it
+    may take are those not yet taken and not ``barred`` from it, and
+    ``amount_taken`` says how many of each size it takes, looking ahead to
+    every text not yet taken; of the ``n`` texts it may take of one size,
+    in the order of their first rank, choice ``j`` of ``k`` is the text at
+    position ``j * n // k``.  The walk stops where what is left of the aim
+    is under two or the offsets run out.
+    """
+    by_size = {}
+    for text in on_offer:
+        by_size.setdefault(len(worn_by[text]), []).append(text)
+    left = max(sums_of_sizes(sorted((size, len(texts)) for size, texts in by_size.items()), most))
+    walked = []
+    for place, room in enumerate(rooms):
+        if left < 2:
+            break
+        here = {
+            size: [text for text in texts if (text, place) not in barred]
+            for size, texts in by_size.items()
+        }
+        taking = amount_taken(here, by_size, min(room, left), left, sum(rooms[place + 1:]))
+        for size in sorted(taking, reverse=True):
+            texts = here[size]
+            picks = [texts[j * len(texts) // taking[size]] for j in range(taking[size])]
+            walked += [(text, place) for text in picks]
+            by_size[size] = [text for text in by_size[size] if text not in picks]
+            left -= size * taking[size]
+    return walked
+
+
+def amount_taken(here, by_size, cap, left, later):
+    """G7.9b step 5 at one offset: how many texts of each size it takes.
+
+    The largest amount at most ``cap`` the texts it may take (``here``)
+    reach that leaves what is left of the aim less it both a total the
+    texts not taken (``by_size``'s less the amount's) reach and no more
+    than the ``later`` cells the offsets after this one hold; none, where
+    only none does that; and where not even none does, the largest amount
+    at most ``cap`` the texts here reach.  An amount's texts are counted
+    by ``amount_counted``.
+    """
+    counts = sorted((size, len(texts)) for size, texts in here.items())
+    every = sorted((size, len(texts)) for size, texts in by_size.items())
+    amounts = sorted((total for total in sums_of_sizes(counts, cap) if total >= 2), reverse=True)
+    for amount in amounts:
+        taking = amount_counted(counts, amount)
+        after = [(size, texts - taking.get(size, 0)) for size, texts in every]
+        if left - amount <= later and left - amount in sums_of_sizes(after, left - amount):
+            return taking
+    if left <= later and left in sums_of_sizes(every, left):
+        return {}
+    return amount_counted(counts, amounts[0]) if amounts else {}
+
+
+def amount_counted(counts, amount):
+    """The texts of each size an amount is made of, from the most ranks down.
+
+    At each size, from the largest, as many texts as there are, at most
+    what is left of the amount, while what is then left stays a total the
+    texts of fewer ranks reach.
+    """
+    taking = {}
+    left = amount
+    for at in range(len(counts) - 1, -1, -1):
+        size, texts = counts[at]
+        smaller = sums_of_sizes(counts[:at], amount)
+        count = max(n for n in range(min(texts, left // size) + 1) if left - size * n in smaller)
+        if count:
+            taking[size] = count
+        left -= size * count
+    return taking
+
+
 # ------------------------------------- the tails of a date or clock column
 #
 # Stage 3, plan P4-D328.  Written from method sections G7.3b, G7.3c,
@@ -10165,6 +10760,13 @@ def readable_days(member, system=""):
     first, last = CALENDAR_FIRST, CALENDAR_LAST
     if member in TWO_FIGURE_MEMBERS:
         first, last = TWO_FIGURE_FIRST, TWO_FIGURE_LAST
+    elif is_layout(member):
+        # A layout reads its own band (landing R2a): a four-figure year in
+        # 1800 to 2299, a two-figure one in its window.
+        window = layout_window(member)
+        first, last = (1800, 1, 1), (2299, 12, 31)
+        if window is not None:
+            first, last = (window, 1, 1), (window + 99, 12, 31)
     elif system in WORKBOOK_FIRST:
         first = WORKBOOK_FIRST[system]
     return days_from_civil(*first), days_from_civil(*last)
@@ -11280,12 +11882,12 @@ def shows_a_width(column, day_number, word=""):
     several conventions asks: does the day show a width at all.
     """
     _year, month, day = civil_from_days(day_number)
-    if column["format"] in TEXTUAL_MEMBERS:
+    if width_fields(column["format"]) == 1:
         return day < 10
     if not word:
         return month < 10 or day < 10
     first, second = month, day
-    if column["format"] in DAY_FIRST_MEMBERS:
+    if width_leads_with_the_day(column["format"]):
         first, second = day, month
     if word in FIELD_WIDTH_FIRST:
         return first < 10 and second >= 10
@@ -11457,13 +12059,18 @@ def day_read(member, text):
     C6-22 widens it, two on the dotted and year-first families, a
     two-figure year at the C6-D8P pivot, a month NAME from C6-D8N -- past
     the spaces around the spelling, a stamp's clock in its member's own
-    forms, and a day the calendar has (``calendar_day``).
+    forms, and a day the calendar has (``calendar_day``). A layout trims
+    nothing (landing R2a).
     """
+    if is_layout(member):
+        return layout_day(member, text)
     return day_of(member, text.strip())
 
 
 def day_of(member, text):
     """``day_read`` of a spelling with nothing around it."""
+    if is_layout(member):
+        return layout_day(member, text)
     if member == "iso-mixed":
         return day_of("iso-date", text) if len(text) == 10 else day_of("iso-datetime", text)
     if member == "iso-datetime":
@@ -11635,7 +12242,7 @@ def units_settled(column, ordinals, parsed, whole, lows, highs):
     census = column.get("date_field_widths", {})
     widths = None
     if len(census) == 1 and (
-        column["format"] in VARIABLE_WIDTH_MEMBERS or column["format"] in TEXTUAL_MEMBERS
+        width_fields(column["format"]) > 0
     ):
         widths = next(iter(census.values()))
     distinct = None
@@ -11742,7 +12349,7 @@ def group_gives_way(column, ordinals, parsed, whole):
     unit = step if space == "datetime" else 1
     census = column.get("date_field_widths", {})
     widths = len(census) == 1 and (
-        column["format"] in VARIABLE_WIDTH_MEMBERS or column["format"] in TEXTUAL_MEMBERS
+        width_fields(column["format"]) > 0
     )
     word = next(iter(census)) if widths else ""
     owed = column["n_distinct"] - column["n_unparsed"] - len({v // unit for v in ordinals})
@@ -11927,7 +12534,7 @@ def weekday_walk_of(column, ordinals, lows, highs, hole_days):
     widths = column.get("date_field_widths", {})
     word = None
     if len(widths) == 1 and (
-        column["format"] in VARIABLE_WIDTH_MEMBERS or column["format"] in TEXTUAL_MEMBERS
+        width_fields(column["format"]) > 0
     ):
         word = next(iter(widths))
     seams = {"keeps_always": not date_counts_reachable(column)}
@@ -12442,12 +13049,12 @@ def weekday_hole_days(column, holes):
     for day in range(low, high + 1):
         year, month, date = civil_from_days(day)
         text = written_date(year, month, date, member, width, style)
-        first, second = (month, date) if member in MONTH_FIRST_MEMBERS else (date, month)
+        first, second = (date, month) if width_leads_with_the_day(member) else (month, date)
         emptied = (
             folded(text) in absent
             or f"{year:04d}-{month:02d}-{date:02d}" in judged
-            or (member in VARIABLE_WIDTH_MEMBERS and width.startswith("first-field-") and second < 10)
-            or (member in VARIABLE_WIDTH_MEMBERS and width.startswith("second-field-") and first < 10)
+            or (width_fields(member) == 2 and width.startswith("first-field-") and second < 10)
+            or (width_fields(member) == 2 and width.startswith("second-field-") and first < 10)
             or (member in TEXTUAL_MEMBERS and name_parts(style)[1] == "either" and month != 5)
         )
         if emptied:
@@ -23386,6 +23993,8 @@ THIRTEENTH_BRANCH_PART = "branches-13"
 FOURTEENTH_BRANCH_PART = "branches-14"
 # The written clocks of landing T1 (plan P4-D370), the twenty-second file.
 TWENTY_SECOND_BRANCH_PART = "branches-22"
+# Landing R2a's layout member (plan P4-D383): the twenty-fifth file.
+TWENTY_FIFTH_BRANCH_PART = "branches-25"
 # G7.3f's shared steps (landing 3b.D0, plan P4-D366), the fifteenth file:
 # not a file of columns but of the pass itself, each case a state of
 # ranks and the steps' answer (`shared_step_document`).
@@ -24012,6 +24621,273 @@ def _labels_clock_forms():
         "identifier_declared": False,
         "parse_rate": 0.99,
     }
+
+
+def _r2a_layout(member, resolution, precision, digits, rows, offsets, read_at,
+                widths=None, earliest=None, latest=None, why="", numeric=0,
+                distinct=None):
+    """A column read under one layout of the closed grammar (G7.5, landing R2a)."""
+    if distinct is None:
+        distinct = rows
+    if earliest is None:
+        earliest = "1970-01-01" if resolution == "date" else "1970-01-01 00:00:00"
+    if latest is None:
+        latest = "1970-01-12" if resolution == "date" else "1970-01-12 21:45:00"
+    named = [key for key in offsets if key not in ("(none)", "(withheld)")]
+    end_offset = named[0] if len(named) == 1 and len(offsets) == 1 else "(none)"
+    facts = dict(
+        n_present=rows, n_missing=0, n_distinct=distinct, n_distinct_folded=distinct,
+        n_numeric=numeric, n_not_numeric=rows - numeric, n_out_of_range=0,
+        n_contradictory=0,
+        format=member, resolution=resolution, time_precision=precision,
+        subsecond_digits=digits, datetimes_read_at=read_at,
+        earliest=earliest, latest=latest,
+        earliest_utc_offset=end_offset, latest_utc_offset=end_offset,
+        date_percentiles={key: None for key in LADDER_KEYS},
+        n_unparsed=0, utc_offsets=dict(offsets),
+        resolution_mix={member: rows},
+        datetime_separators={},
+        all_at_midnight=False, n_at_midnight=None,
+    )
+    if widths is not None:
+        facts["date_field_widths"] = widths
+    column = _universal("column_1", "datetime", "datetime", "data", "ok", **facts)
+    return {"why": why, "column": column, "rows": rows, "identifier_declared": False}
+
+
+def _layout_sas_date9():
+    return _r2a_layout(
+        "layout {DD}{MON}{YYYY}", "date", "date", 0, 12, {"(none)": 12}, "local",
+        why="G7.5's layout member (landing R2a, plan P4-D383): SAS DATE9., "
+        "`17MAR2024`, every cell written field by field through the layout "
+        "the real column was read under -- two figures of day, the month's "
+        "abbreviation in capitals, four of year. Twelve dates of the ramp "
+        "from 1970-01-01. The mutant drops the month field, so every cell "
+        "loses its month word.",
+    )
+
+
+def _layout_hl7_fraction_offset():
+    return _r2a_layout(
+        "layout {YYYY}{MM}{DD}{HH}{MI}{SS}.{F}{+HHMM}", "datetime", "subsecond",
+        4, 12, {"+01:00": 12}, "local",
+        why="G7.5's layout member (landing R2a): an HL7 timestamp with a "
+        "fraction of four figures and an offset written `+HHMM`, as "
+        "`20240317140500.0000+0100`; the fraction is zeros at the published "
+        "count of figures, and the offset the rank wears is written in the "
+        "field's own spelling, inside the cell. The mutant spells the offset "
+        "as ISO does, with its colon.",
+    )
+
+
+def _layout_spaced_offset():
+    return _r2a_layout(
+        "layout {YYYY}-{MM}-{DD} {HH}:{MI}:{SS}.{F} {+HH:MM}", "datetime",
+        "subsecond", 7, 12, {"+00:00": 12}, "local",
+        why="G7.5's layout member (landing R2a): SQL Server's datetimeoffset, "
+        "seven figures of fraction and the offset after ONE SPACE, as "
+        "`2024-03-17 14:05:00.0000000 +00:00`. The space is a literal of the "
+        "layout and stands before the offset field. The mutant drops the "
+        "space, which ISO writes and this column does not.",
+    )
+
+
+def _layout_hour_offset():
+    return _r2a_layout(
+        "layout {YYYY}-{MM}-{DD} {HH}:{MI}:{SS}{+HH}", "datetime", "second",
+        0, 12, {"-05:00": 12}, "local",
+        why="G7.5's layout member (landing R2a): PostgreSQL's timestamptz text "
+        "at a whole-hour offset, `2024-03-17 14:05:00-05`, the offset written "
+        "as its sign and hour alone. The mutant writes the minutes too, "
+        "`-05:00`, which this column does not.",
+    )
+
+
+def _layout_utc_word():
+    return _r2a_layout(
+        "layout {YYYY}-{MM}-{DD} {HH}:{MI}:{SS} {UTC}", "datetime", "second",
+        0, 12, {"Z": 12}, "local",
+        why="G7.5's layout member (landing R2a): R's `usetz` at UTC, "
+        "`2024-03-17 14:05:00 UTC`, the shared clock written as the word the "
+        "field names after one space. The mutant writes ISO's `Z` instead.",
+    )
+
+
+def _layout_optional_offset():
+    return _r2a_layout(
+        "layout {YYYY}{MM}{DD}{HH}{MI}{SS}{+HHMM?}", "datetime", "second", 0, 24,
+        {"(none)": 12, "-05:00": 12}, "utc",
+        why="G7.5's layout member with an offset some cells omit (landing R2a; "
+        "the R2 design skeptic, M2): an HL7 feed half of whose senders append "
+        "`-0500`. A rank allocated `(none)` writes no offset at all, and one "
+        "allocated `-05:00` writes it in the field's spelling, each on its "
+        "own wall clock; a cell with none is fourteen figures, which also "
+        "read as a number. The mutant writes the offset on every rank.",
+        earliest="1970-01-01 00:00:00", latest="1970-01-24 21:45:00",
+        numeric=12,
+    )
+
+
+def _layout_offsets_owed():
+    return _r2a_layout(
+        "layout {YYYY}{MM}{DD}{HH}{MI}{SS}{+HHMM?}", "datetime", "second", 0, 24,
+        {"(none)": 24}, "local",
+        why="G7.9b, the offsets a column of figure runs owes its count of "
+        "cells that are not numbers (landing R2a's repair round, item 2): an "
+        "HL7 feed of twenty-four stamps whose twelve offsets each stood below "
+        "the census line, so the census counted all of them into `(none)` and "
+        "every rank is allocated no offset, while `n_not_numeric` still "
+        "publishes twelve cells a reader of numbers refuses. The pass writes "
+        "twelve interior cells again wearing an offset in the field's own "
+        "spelling, ten at `+0000` and two at `+0100`, one cell fewer than the "
+        "line apiece, spread evenly over the ranks no other rank's text "
+        "repeats, and twelve numbers left at the line or above it. The mutant "
+        "withdraws the pass, and the twin is twenty-four numbers.",
+        earliest="1970-01-01 00:00:00", latest="1970-01-24 21:45:00",
+        numeric=12,
+    )
+
+
+def _layout_offsets_owed_repeats():
+    return _r2a_layout(
+        "layout {YYYY}{MM}{DD}{HH}{MI}{+HHMM?}", "datetime", "minute", 0, 24,
+        {"(none)": 24}, "local",
+        why="G7.9b's payment on a text no other rank repeats (landing R2a's "
+        "repair round, item 2): twenty-four HL7 stamps to the minute over "
+        "eighteen different values, four of whose offsets the census counted "
+        "into `(none)`. A respelled copy of a text another rank wears would add "
+        "a value the published count of different values does not hold, so "
+        "the four payments go to ranks whose text stands alone. The mutant "
+        "makes a payment on every rank between the ends, a repeated text "
+        "among them.",
+        earliest="1970-01-01 00:00:00", latest="1970-01-24 21:45:00",
+        numeric=20, distinct=18,
+    )
+
+
+def _layout_offsets_owed_beside_named():
+    return _r2a_layout(
+        "layout {YYYY}{MM}{DD}{HH}{MI}{SS}{+HHMM?}", "datetime", "second", 0, 24,
+        {"(none)": 13, "+00:00": 11}, "utc",
+        why="G7.9b's offer, every offset the census names left off it (skeptic "
+        "2 of landing R2a, item 1): an HL7 feed of twenty-four stamps, eleven "
+        "at the named `+00:00` and two whose offsets each stood below the "
+        "census line, counted into `(none)`, so `n_not_numeric` publishes "
+        "thirteen cells a reader of numbers refuses where the census gives "
+        "eleven ranks an offset. A cell written at `+0000` would be counted "
+        "into the named offset and read at it, so the two payments wear "
+        "`+0100`, the first offset on offer the census does not name. The "
+        "mutant offers the named offset too, and the twin wears `+0000` on "
+        "thirteen cells.",
+        earliest="1970-01-01 00:00:00", latest="1970-01-24 21:45:00",
+        numeric=11,
+    )
+
+
+def _layout_offsets_owed_whole_texts():
+    return _r2a_layout(
+        "layout {YYYY}{MM}{DD}{HH}{MI}{SS}{+HHMM?}", "datetime", "second", 0, 24,
+        {"(none)": 24}, "local",
+        why="G7.9b step 5, the rest paid with whole repeated texts (the Codex "
+        "review of landing R2a, item 4): twenty-four HL7 stamps over eight "
+        "different values, seven of whose offsets the census counted into "
+        "`(none)`. Two texts stand alone between the ends and take two "
+        "offsets at `+0000`; the other five are owed where every text repeats, "
+        "and a copy of one would add a value the published count of different "
+        "values does not hold, so a text of five ranks is written again whole, "
+        "every rank of it at `+0000`, and the column keeps its eight values. "
+        "The mutant withdraws the step, and the twin holds two cells that are "
+        "not numbers for seven.",
+        earliest="1970-01-01 00:00:00", latest="1970-01-24 21:45:00",
+        numeric=17, distinct=8,
+    )
+
+
+def _layout_offsets_owed_across_offsets():
+    return _r2a_layout(
+        "layout {YYYY}{MM}{DD}{HH}{MI}{SS}{+HHMM?}", "datetime", "second", 0, 24,
+        {"(none)": 24}, "local",
+        why="G7.9b step 5's aim and look ahead (the verification of the "
+        "Codex review's repair of landing R2a, open item 1): twenty-four HL7 "
+        "stamps over eight different values, eleven of whose offsets the "
+        "census counted into `(none)`. Step 4 writes the two texts standing "
+        "alone between the ends at `+0000`, which leaves eight cells there; "
+        "the other nine are owed where every other text repeats, and step 5 "
+        "aims at nine, writing a text of five copies whole at `+0000` and one "
+        "of four at `+0100`. Taking the most `+0000` holds, two texts of "
+        "four, would leave one cell that no text fits. The mutant takes at "
+        "each offset the most it holds, and the twin holds ten cells that "
+        "are not numbers for eleven.",
+        earliest="1970-01-01 00:00:00", latest="1970-01-24 21:45:00",
+        numeric=13, distinct=8,
+    )
+
+
+def _layout_space_padded_day():
+    return _r2a_layout(
+        "layout {Mon} {_D} {YYYY}", "date", "date", 0, 12, {"(none)": 12}, "local",
+        why="G7.5's space-padded day (landing R2a's repair round, item 6): SQL "
+        "Server's `Mon dd yyyy` style, `Jan  1 1970`, a day below ten written "
+        "after a space in place of its first figure and a day from ten on in "
+        "two figures, so every cell keeps the width the column writes. Twelve "
+        "dates of January 1970. The mutant writes the day zero-padded, "
+        "`Jan 01 1970`, which this column does not.",
+    )
+
+
+def _layout_flexible_widths():
+    return _r2a_layout(
+        "layout {D}-{M}-{YYYY}", "date", "date", 0, 12, {"(none)": 12}, "local",
+        widths={"unpadded": 12},
+        why="G7.5's layout member with two flexible fields (landing R2a, rule "
+        "LY5): a Dutch `d-m-yyyy`, `1-3-1970`, whose width census is "
+        "published over its two flexible fields in the layout's own order, "
+        "the day first. Twelve dates of January 1970, every one written "
+        "unpadded. The mutant flips the padding, `01-01-1970`.",
+    )
+
+
+def _layout_weekday_long_date():
+    return _r2a_layout(
+        "layout {Day}, {Month} {D}, {YYYY}", "date", "date", 0, 12,
+        {"(none)": 12}, "local", widths={"unpadded": 12},
+        why="G7.5's layout member with a weekday lead (landing R2a): Excel's "
+        "long date, `Thursday, January 1, 1970`, the weekday the date's own "
+        "and the one flexible field, the day, unpadded. The mutant drops the "
+        "weekday and its comma.",
+    )
+
+
+def _layout_century_window():
+    return _r2a_layout(
+        "layout {MM}/{DD}/{YY1930}", "date", "date", 0, 24, {"(none)": 24},
+        "local", earliest="1940-01-01", latest="1940-01-24",
+        why="G7.5's layout member read in a century the person chose (landing "
+        "R2a, question Q5): `mm/dd/yy` birth dates of January 1940 with a "
+        "tail at either end, the two-figure years read as 1930 to 2029 and "
+        "the days a tail may reach bounded by that window. The mutant reads "
+        "every two-figure year in the POSIX window, 1969 to 2068, so the "
+        "column's own days lie outside what its spelling writes back.",
+    )
+
+
+R2A_BRANCH_CASE_BUILDERS = {
+    "layout_century_window": _layout_century_window,
+    "layout_flexible_widths": _layout_flexible_widths,
+    "layout_hl7_fraction_offset": _layout_hl7_fraction_offset,
+    "layout_hour_offset": _layout_hour_offset,
+    "layout_offsets_owed": _layout_offsets_owed,
+    "layout_offsets_owed_across_offsets": _layout_offsets_owed_across_offsets,
+    "layout_offsets_owed_beside_named": _layout_offsets_owed_beside_named,
+    "layout_offsets_owed_repeats": _layout_offsets_owed_repeats,
+    "layout_offsets_owed_whole_texts": _layout_offsets_owed_whole_texts,
+    "layout_optional_offset": _layout_optional_offset,
+    "layout_sas_date9": _layout_sas_date9,
+    "layout_space_padded_day": _layout_space_padded_day,
+    "layout_spaced_offset": _layout_spaced_offset,
+    "layout_utc_word": _layout_utc_word,
+    "layout_weekday_long_date": _layout_weekday_long_date,
+}
 
 
 NAMED_CASE_BUILDERS = {
@@ -30988,6 +31864,8 @@ _DOCUMENT_ACCOUNT = (
     " opened the twenty-first, tests/reference/generation-branch-vectors-21.json."
     " Lane G2's width rule (plan P4-D377) opened the twenty-third,"
     " tests/reference/generation-branch-vectors-23.json."
+    " Landing R2a's layout member (plan P4-D383) opened the twenty-fifth,"
+    " tests/reference/generation-branch-vectors-25.json."
 )
 
 # The transforms this file's own cases name, stated the way every other
@@ -32910,6 +33788,7 @@ CASE_SETS = {
     FOURTEENTH_BRANCH_PART: FOURTEENTH_BRANCH_CASE_BUILDERS,
     TWENTY_SECOND_BRANCH_PART: TWENTY_SECOND_BRANCH_CASE_BUILDERS,
     TWENTY_THIRD_BRANCH_PART: TWENTY_THIRD_BRANCH_CASE_BUILDERS,
+    TWENTY_FIFTH_BRANCH_PART: R2A_BRANCH_CASE_BUILDERS,
     EIGHTH_BRANCH_PART: EIGHTH_BRANCH_CASE_BUILDERS,
     NINTH_BRANCH_PART: NINTH_BRANCH_CASE_BUILDERS,
     TENTH_BRANCH_PART: TENTH_BRANCH_CASE_BUILDERS,
@@ -32947,6 +33826,7 @@ CASE_BUILDERS = {
     **TWENTY_SECOND_BRANCH_CASE_BUILDERS,
     **TWENTY_FIRST_BRANCH_CASE_BUILDERS,
     **TWENTY_THIRD_BRANCH_CASE_BUILDERS,
+    **R2A_BRANCH_CASE_BUILDERS,
 }
 
 # What each file says about itself, so that neither can be read as the
@@ -32991,6 +33871,8 @@ _NAMED_ACCOUNT = (
     " opened the twenty-first, tests/reference/generation-branch-vectors-21.json."
     " Lane G2's width rule (plan P4-D377) opened the twenty-third,"
     " tests/reference/generation-branch-vectors-23.json."
+    " Landing R2a's layout member (plan P4-D383) opened the twenty-fifth,"
+    " tests/reference/generation-branch-vectors-25.json."
 )
 _BRANCH_ACCOUNT = (
     "cases method section G14.3 adds for the branches its first nine "
@@ -33038,6 +33920,8 @@ _BRANCH_ACCOUNT = (
     " opened the twenty-first, tests/reference/generation-branch-vectors-21.json."
     " Lane G2's width rule (plan P4-D377) opened the twenty-third,"
     " tests/reference/generation-branch-vectors-23.json."
+    " Landing R2a's layout member (plan P4-D383) opened the twenty-fifth,"
+    " tests/reference/generation-branch-vectors-25.json."
 )
 _SECOND_BRANCH_ACCOUNT = (
     "cases method section G14.3 adds with the carried landings 2b.2, 2b.3 "
@@ -33076,6 +33960,8 @@ _SECOND_BRANCH_ACCOUNT = (
     " opened the twenty-first, tests/reference/generation-branch-vectors-21.json."
     " Lane G2's width rule (plan P4-D377) opened the twenty-third,"
     " tests/reference/generation-branch-vectors-23.json."
+    " Landing R2a's layout member (plan P4-D383) opened the twenty-fifth,"
+    " tests/reference/generation-branch-vectors-25.json."
 )
 
 _THIRD_BRANCH_ACCOUNT = (
@@ -33114,6 +34000,8 @@ _THIRD_BRANCH_ACCOUNT = (
     " opened the twenty-first, tests/reference/generation-branch-vectors-21.json."
     " Lane G2's width rule (plan P4-D377) opened the twenty-third,"
     " tests/reference/generation-branch-vectors-23.json."
+    " Landing R2a's layout member (plan P4-D383) opened the twenty-fifth,"
+    " tests/reference/generation-branch-vectors-25.json."
 )
 
 _FOURTH_BRANCH_ACCOUNT = (
@@ -33153,6 +34041,8 @@ _FOURTH_BRANCH_ACCOUNT = (
     " opened the twenty-first, tests/reference/generation-branch-vectors-21.json."
     " Lane G2's width rule (plan P4-D377) opened the twenty-third,"
     " tests/reference/generation-branch-vectors-23.json."
+    " Landing R2a's layout member (plan P4-D383) opened the twenty-fifth,"
+    " tests/reference/generation-branch-vectors-25.json."
 )
 
 _FIFTH_BRANCH_ACCOUNT = (
@@ -33190,6 +34080,8 @@ _FIFTH_BRANCH_ACCOUNT = (
     " opened the twenty-first, tests/reference/generation-branch-vectors-21.json."
     " Lane G2's width rule (plan P4-D377) opened the twenty-third,"
     " tests/reference/generation-branch-vectors-23.json."
+    " Landing R2a's layout member (plan P4-D383) opened the twenty-fifth,"
+    " tests/reference/generation-branch-vectors-25.json."
 )
 
 _SIXTH_BRANCH_ACCOUNT = (
@@ -33244,6 +34136,8 @@ _SIXTH_BRANCH_ACCOUNT = (
     " opened the twenty-first, tests/reference/generation-branch-vectors-21.json."
     " Lane G2's width rule (plan P4-D377) opened the twenty-third,"
     " tests/reference/generation-branch-vectors-23.json."
+    " Landing R2a's layout member (plan P4-D383) opened the twenty-fifth,"
+    " tests/reference/generation-branch-vectors-25.json."
 )
 
 
@@ -33286,6 +34180,8 @@ _SEVENTH_BRANCH_ACCOUNT = (
     " opened the twenty-first, tests/reference/generation-branch-vectors-21.json."
     " Lane G2's width rule (plan P4-D377) opened the twenty-third,"
     " tests/reference/generation-branch-vectors-23.json."
+    " Landing R2a's layout member (plan P4-D383) opened the twenty-fifth,"
+    " tests/reference/generation-branch-vectors-25.json."
 )
 
 _EIGHTH_BRANCH_ACCOUNT = (
@@ -33338,6 +34234,8 @@ _EIGHTH_BRANCH_ACCOUNT = (
     " opened the twenty-first, tests/reference/generation-branch-vectors-21.json."
     " Lane G2's width rule (plan P4-D377) opened the twenty-third,"
     " tests/reference/generation-branch-vectors-23.json."
+    " Landing R2a's layout member (plan P4-D383) opened the twenty-fifth,"
+    " tests/reference/generation-branch-vectors-25.json."
 )
 _NINTH_BRANCH_ACCOUNT = (
     "cases method section G14.3 adds for the TAIL RULE of stage 3 "
@@ -33394,6 +34292,8 @@ _NINTH_BRANCH_ACCOUNT = (
     " opened the twenty-first, tests/reference/generation-branch-vectors-21.json."
     " Lane G2's width rule (plan P4-D377) opened the twenty-third,"
     " tests/reference/generation-branch-vectors-23.json."
+    " Landing R2a's layout member (plan P4-D383) opened the twenty-fifth,"
+    " tests/reference/generation-branch-vectors-25.json."
 )
 
 _TENTH_BRANCH_ACCOUNT = (
@@ -33442,6 +34342,8 @@ _TENTH_BRANCH_ACCOUNT = (
     " opened the twenty-first, tests/reference/generation-branch-vectors-21.json."
     " Lane G2's width rule (plan P4-D377) opened the twenty-third,"
     " tests/reference/generation-branch-vectors-23.json."
+    " Landing R2a's layout member (plan P4-D383) opened the twenty-fifth,"
+    " tests/reference/generation-branch-vectors-25.json."
 )
 
 _ELEVENTH_BRANCH_ACCOUNT = (
@@ -33486,6 +34388,8 @@ _ELEVENTH_BRANCH_ACCOUNT = (
     " opened the twenty-first, tests/reference/generation-branch-vectors-21.json."
     " Lane G2's width rule (plan P4-D377) opened the twenty-third,"
     " tests/reference/generation-branch-vectors-23.json."
+    " Landing R2a's layout member (plan P4-D383) opened the twenty-fifth,"
+    " tests/reference/generation-branch-vectors-25.json."
 )
 
 _TWELFTH_BRANCH_ACCOUNT = (
@@ -33527,6 +34431,8 @@ _TWELFTH_BRANCH_ACCOUNT = (
     " opened the twenty-first, tests/reference/generation-branch-vectors-21.json."
     " Lane G2's width rule (plan P4-D377) opened the twenty-third,"
     " tests/reference/generation-branch-vectors-23.json."
+    " Landing R2a's layout member (plan P4-D383) opened the twenty-fifth,"
+    " tests/reference/generation-branch-vectors-25.json."
 )
 
 _THIRTEENTH_BRANCH_ACCOUNT = (
@@ -33565,6 +34471,8 @@ _THIRTEENTH_BRANCH_ACCOUNT = (
     " opened the twenty-first, tests/reference/generation-branch-vectors-21.json."
     " Lane G2's width rule (plan P4-D377) opened the twenty-third,"
     " tests/reference/generation-branch-vectors-23.json."
+    " Landing R2a's layout member (plan P4-D383) opened the twenty-fifth,"
+    " tests/reference/generation-branch-vectors-25.json."
 )
 
 
@@ -33601,6 +34509,8 @@ _FOURTEENTH_BRANCH_ACCOUNT = (
     " opened the twenty-first, tests/reference/generation-branch-vectors-21.json."
     " Lane G2's width rule (plan P4-D377) opened the twenty-third,"
     " tests/reference/generation-branch-vectors-23.json."
+    " Landing R2a's layout member (plan P4-D383) opened the twenty-fifth,"
+    " tests/reference/generation-branch-vectors-25.json."
 )
 
 
@@ -33635,6 +34545,8 @@ _TWENTY_SECOND_BRANCH_ACCOUNT = (
     " opened the twenty-first, tests/reference/generation-branch-vectors-21.json."
     " Lane G2's width rule (plan P4-D377) opened the twenty-third,"
     " tests/reference/generation-branch-vectors-23.json."
+    " Landing R2a's layout member (plan P4-D383) opened the twenty-fifth,"
+    " tests/reference/generation-branch-vectors-25.json."
 )
 
 
@@ -33673,6 +34585,8 @@ _TWENTY_FIRST_BRANCH_ACCOUNT = (
     "landing: no cap is raised and no case is dropped."
     " Lane G2's width rule (plan P4-D377) opened the twenty-third,"
     " tests/reference/generation-branch-vectors-23.json."
+    " Landing R2a's layout member (plan P4-D383) opened the twenty-fifth,"
+    " tests/reference/generation-branch-vectors-25.json."
 )
 
 
@@ -33704,6 +34618,49 @@ _TWENTY_THIRD_BRANCH_ACCOUNT = (
     "tests/reference/generation-document-vectors.json, and lives in a "
     "file of its own, the number plan P4-D364's table gives this "
     "landing: no cap is raised and no case is dropped."
+    " Landing R2a's layout member (plan P4-D383) opened the twenty-fifth,"
+    " tests/reference/generation-branch-vectors-25.json."
+)
+
+
+_TWENTY_FIFTH_BRANCH_ACCOUNT = (
+    "cases method section G14.3 adds with landing R2a's layout member "
+    "(plan P4-D383): G7.5's writer of a layout of the closed grammar -- "
+    "SAS's month word, HL7's fraction and `+HHMM` offset, an offset after "
+    "one space, a whole-hour offset, the zulu word `UTC`, an offset some "
+    "cells omit, two flexible fields in the layout's own order, a weekday "
+    "lead, and a two-figure year read in a century the person chose; and, "
+    "from its repair round, a day padded with a space and G7.9b's offsets, "
+    "paid on texts no other rank repeats, written on a column of figure "
+    "runs whose count of cells that are not numbers still holds the "
+    "offsets its census counted into `(none)`; and, from its second "
+    "skeptic, those offsets beside an offset the census names, which is "
+    "never written for them; and, from its Codex review, the rest of them "
+    "paid with whole repeated texts where the texts standing alone fall "
+    "short, and, from the verification of that repair, those whole texts "
+    "placed toward one aim with a look ahead at each offset. They "
+    "are computed by the same oracle and the same proof layer "
+    "as tests/reference/generation-reference-vectors.json, "
+    "tests/reference/generation-branch-vectors.json, "
+    "tests/reference/generation-branch-vectors-2.json, "
+    "tests/reference/generation-branch-vectors-3.json, "
+    "tests/reference/generation-branch-vectors-4.json, "
+    "tests/reference/generation-branch-vectors-5.json, "
+    "tests/reference/generation-branch-vectors-6.json, "
+    "tests/reference/generation-branch-vectors-7.json, "
+    "tests/reference/generation-branch-vectors-8.json, "
+    "tests/reference/generation-branch-vectors-9.json, "
+    "tests/reference/generation-branch-vectors-10.json, "
+    "tests/reference/generation-branch-vectors-11.json, "
+    "tests/reference/generation-branch-vectors-12.json, "
+    "tests/reference/generation-branch-vectors-13.json, "
+    "tests/reference/generation-branch-vectors-14.json, "
+    "tests/reference/generation-branch-vectors-21.json, "
+    "tests/reference/generation-branch-vectors-22.json, "
+    "tests/reference/generation-branch-vectors-23.json and "
+    "tests/reference/generation-document-vectors.json, and live in a "
+    "file of their own, the number the integrator gives this landing: no "
+    "cap is raised and no case is dropped."
 )
 
 
@@ -33711,6 +34668,9 @@ CASE_SET_ACCOUNTS = {
     TWENTY_FIRST_BRANCH_PART: (
         f"The {len(TWENTY_FIRST_BRANCH_CASE_BUILDERS)} "
         f"{_TWENTY_FIRST_BRANCH_ACCOUNT}"
+    ),
+    TWENTY_FIFTH_BRANCH_PART: (
+        f"The {len(R2A_BRANCH_CASE_BUILDERS)} {_TWENTY_FIFTH_BRANCH_ACCOUNT}"
     ),
     FOURTEENTH_BRANCH_PART: (
         f"The {len(FOURTEENTH_BRANCH_CASE_BUILDERS)} {_FOURTEENTH_BRANCH_ACCOUNT}"
@@ -35021,6 +35981,206 @@ GIVEN_WORDS = {
         8966092117029681544, 14854423254073201070, 7015033587518588722,
         1484743049823877755, 14915381097697466224, 17275774256485386002,
         12919575068977783570,
+    ),
+    # LANDING R2a'S LAYOUT MEMBER (plan P4-D383), at seeds 421 to 429.
+    "layout_century_window": (
+        3362089061208469715, 3757161486771403443, 4985089933647016394,
+        15450378437928355400, 1435263905940470554, 1708772456172949558,
+        16371792130894272836, 16849112491979767462, 6628804301481035744,
+        11603172487684291669, 16909070320102286764, 6230894401920974024,
+        1226123839107436959, 7788638448811833397, 7279455783208052169,
+        6952875878690697930, 11967572855703337531, 5375924949203904124,
+        16141593158981601790, 7770721771931493566, 1315722703699040412,
+        16915711120943043094, 901799404617118871, 7957960418093248312,
+        12353991135834221681, 12251895772264671354, 17400495786251990839,
+        12873069571222267233, 3546130979459365618, 6465230945508962629,
+        1600068049137886694, 11760700592861970086, 13172834151121134964,
+        12045153734150979615, 17198895805851076211, 9080870642551484583,
+        5215203863938256275, 11067164624001493516, 15598788579987101079,
+        15704062452627140584, 13835364899066661143, 12588935833648803663,
+        8386925571894564723, 8724407393936218615, 15197159594116431684,
+    ),
+    "layout_flexible_widths": (
+        11416032767607098569, 12683253509083616314, 7669285204978396353,
+        4477560390230990761, 2915360870997699881, 9981733249264835318,
+        1879594589733630265, 14293258041902608262, 14090425967577775256,
+        16993568190268996715, 14765102244609144423, 17935983271742915669,
+        14909485024541593406, 8459056048181573743, 9549344779272566177,
+        17428613747473568462, 1546301800710471509, 13651751551263420109,
+        1048097391912889734, 4009598028622595424, 18216517663999166679,
+    ),
+    "layout_hl7_fraction_offset": (
+        11053331327550872132, 10091589009302369306, 17785885620186153364,
+        9739634365722408632, 9020014179273549843, 6770561645708915809,
+        13264875051786856684, 17158207011845337211, 8961629978208828781,
+        7539935514868133778, 9937924746811397436, 11758594740659919701,
+        5521867994508614843, 4655398856554125364, 13649407343810443639,
+        8192965600708991880, 6156920402304932331, 17621679748799388112,
+        18106497932026460299, 1045779054349370634, 9852987931251584165,
+    ),
+    "layout_hour_offset": (
+        13732442019408779709, 4687650727038507657, 5053389756854296723,
+        14616595427964334315, 11671659627475393987, 5020736060934684672,
+        15104292671849500270, 6976066338388156377, 14172504984760657948,
+        11200072267517180048, 1101417795034955469, 13461411577500886759,
+        6253324684192821157, 15426573784613699627, 12147982575570174288,
+        10720625361320539290, 15944785159054352224, 16248409174033659557,
+        16711093561374080983, 2585350022719363695, 7704638994220883931,
+    ),
+    "layout_optional_offset": (
+        1637988227124846309, 3263535263611397490, 1815916003347147316,
+        13434492237170182967, 15749037167345527133, 5481489091870858405,
+        13393356879754847588, 12711887528289830440, 11445862336640874030,
+        13611369368739188885, 4279128976560069507, 6117148833160809146,
+        946797032815654786, 3869706742480540326, 13037649070270416327,
+        13993220102914136085, 13343909761018953060, 16284481282124243577,
+        5126381535041437882, 7425140352954084273, 4614705969486178003,
+        3198559286253694087, 380332974879665810, 17131985520557662986,
+        10724566048738894019, 12327175712887024048, 13268578165255218300,
+        435142232049470818, 14600668690505717774, 9430514074517005918,
+        9313196696414753093, 1014608803225530602, 18318818438163161980,
+        18318867587244386635, 627894986472589100, 12701941395027498584,
+        10028751773777104785, 2987045252566165142, 12726335595459401545,
+        4064744725985085723, 6175442461631870673, 11380771526170714439,
+        11840429483160683039, 8091833761810286945, 2919229027990204607,
+    ),
+    "layout_sas_date9": (
+        9977739947029179921, 2952682199021953711, 1920396543319677514,
+        6591389164541416718, 9326445398014051405, 14649549887746095110,
+        10454228223209853473, 14590749342322093265, 12441952228021548345,
+        5856636746657378012, 3120771036588064205, 13953774041405820380,
+        3389775416850944542, 12897953735170177902, 7201998160110118102,
+        11434660262556021745, 2788886318800256655, 13380789800439884765,
+        7641152503472580399, 6751630228233007711, 11916922104909224660,
+    ),
+    "layout_spaced_offset": (
+        10075480981289334843, 17779891449970014719, 14508519480598089918,
+        12227069643318732948, 6472950837810407911, 7835671150730203065,
+        8691838963361215063, 14942814347018945557, 16410083380903025887,
+        598770371536982392, 12864007297854802760, 3951630751293081563,
+        6080800674612275743, 2056384368944523261, 17691958996777320660,
+        11919925975632533719, 5032289580380214515, 2956245221540388566,
+        16190553223569597822, 15812231759178748222, 1781190123252570372,
+    ),
+    "layout_utc_word": (
+        11773457085632936067, 11053225601551305519, 11413767058729086434,
+        5816847813636188726, 13763278238056437057, 10598376609661429190,
+        16340759111576822953, 1960298475543984490, 11876386754296805967,
+        16081114559875322416, 2259358318463627488, 2460025609380970453,
+        7609219415722435193, 6579155870647759716, 17903394595808729213,
+        17962135594040956092, 17978759308218332494, 709684702087866971,
+        12816864415994026216, 15291644610626560099, 16043293344561764211,
+    ),
+    # ...and its repair round's G7.9b (item 2), at seed 430.
+    "layout_offsets_owed": (
+        13800651201635915000, 13166916639877564699, 18004037565452384483,
+        14575393466601618202, 1419480097204021138, 1687611729604783455,
+        2637787296097238598, 15046915938256934423, 4464442293307134507,
+        17814126704136494870, 13992233307320695075, 10767857163021221509,
+        17292521242609402530, 15270872523084238871, 15624981456649867244,
+        5249266553078510740, 10529475797292317823, 16816460496471513907,
+        684786360963354092, 15213229133987349170, 14097861754407032151,
+        2814057960188934367, 5633416184573914916, 15040444844185602091,
+        10540552452743123208, 750696399857077614, 8612056725201698731,
+        11790356825346456601, 15671064963787661526, 8562255136343645730,
+        15010239778246706157, 11417804836611515897, 6485997671667086480,
+        7340167562011965109, 18171704405878388742, 17262503304095860805,
+        12752694595508762000, 16493153706493959540, 2136136501835624260,
+        4429365169814360070, 2134826145581754533, 3034933503596956875,
+        6007134993793927254, 10094324261136200959, 5990829916535891984,
+    ),
+    # ...and G7.9b's payments beside repeated texts (item 2), at seed 432.
+    "layout_offsets_owed_repeats": (
+        12143729692894313710, 10872524536672682407, 2075953342638439291,
+        13888757622966420978, 4747793491428004468, 7726914505492834194,
+        3592125844141770685, 12784373771256620550, 9633492534457436657,
+        4159201866723229909, 17399465708016708401, 4558512428260685249,
+        13687911343447913175, 6796949080251282740, 18140458766032328492,
+        5385170043120900668, 9808941137418907712, 12419272716911041727,
+        8046315533911228024, 15726652638077068236, 16489000937662673499,
+        17240726622691873796, 10363322103890706976, 2403514987413316645,
+        15970562086965328192, 5236237678801155052, 11706505644801197063,
+        4403195386043396504, 4240202955800017581, 14554324347313320676,
+        5294612392451664604, 15820749258349047883, 17194762056253306786,
+        17242095807319382837, 10478728101532772353, 4272796120708466162,
+        18069702245401843034, 6335616562914469182, 12384629232222688895,
+        17648630171009772129, 7255128612912000851, 258969191686089756,
+        8389684766110654885, 14177414840016457100, 5233216453694197285,
+    ),
+    # ...and skeptic 2's round of it: G7.9b's offer beside an offset the
+    # census names (item 1), at seed 436.
+    "layout_offsets_owed_beside_named": (
+        4716367783806765390, 7884643201287912641, 2297083141838519310,
+        16953759435448617280, 17500889345654752306, 18172332741079724202,
+        6285098686735134646, 9802688290517549930, 140800883194953627,
+        15936980391107248753, 12080164295672989798, 17612284552788816386,
+        17344515288307770772, 9703631682277609459, 14684705860684466270,
+        5933445289531377841, 12801192950643549267, 10385244282613427710,
+        1345758328881018689, 15515320943409964108, 14155866716004913877,
+        9373835948504433549, 8523709485270373613, 14243597506006158546,
+        6193814487132956387, 14800499195232701618, 2480322347135689672,
+        3983243532031220009, 2467735324207503820, 10702446183421247832,
+        2231650917681622309, 4145314616686227114, 93216801533390599,
+        7831263025823995604, 41265574803876257, 1531141591779210239,
+        205796669871881458, 7989721165120253828, 3755740244614251843,
+        5595582438671437075, 15317152902321133127, 16415137625249378943,
+        3767219378542190651, 16820870707325869515, 6803819411126845134,
+    ),
+    # ...and the verification of that repair: step 5's aim and look ahead
+    # (open item 1), at seed 438.
+    "layout_offsets_owed_across_offsets": (
+        15846830026420936289, 12634862475263983595, 13604648691500376173,
+        15680810623548066103, 18234580745250568857, 16280485190505783267,
+        9808412174319423938, 13665084912842018565, 12410242266033948649,
+        6162574557947698747, 5521132049527312671, 5904483036685558734,
+        9986597779341405499, 17550085472302492687, 7112273642970897439,
+        15367353766274703048, 16731008260658827465, 18089372808011291602,
+        512525490376896279, 676892882782624501, 15641183473767599001,
+        9975648818390256950, 12596419946946119373, 12386518102399317113,
+        3287790805828971509, 118537791029322876, 922335776417890713,
+        18397843622732584016, 3330448621780136748, 17324274039962509438,
+        15538304814651768181, 1444128733022540384, 4321909963344588804,
+        6991976383332984597, 5372326263261345496, 429182604242189322,
+        16216835312187616410, 15344463398048224896, 17275709018666814827,
+        129774826822250867, 17311764489328714084, 12223658805910024945,
+        9652744046395475953, 1730188865600102663, 1110980226798740819,
+    ),
+    # ...and the Codex review's whole texts (item 4), at seed 437.
+    "layout_offsets_owed_whole_texts": (
+        4568547970671111711, 14541358963852075493, 7522943598962369940,
+        17060530995917719193, 2095766350703196630, 6854732477035821234,
+        12724707156612563411, 7269938088429978985, 6137845389946921615,
+        17118834998973590351, 6216298984757051754, 2338637640002035815,
+        13447546671674286403, 7813615556124485300, 7622731843255878734,
+        16124182203187590852, 17689983131517394028, 15367137621304947486,
+        9078513533944893161, 13467225563920344711, 9037955481522156904,
+        13433875893294364443, 11585049734331561748, 10834071870384293875,
+        5813128240313659656, 8850333631830437388, 16942146020834888696,
+        7046120650055117908, 7347443595463077525, 2277157444879242935,
+        17598894605504618958, 10095148133937113161, 2228478411500130388,
+        11080119797405291379, 14845178557871284442, 11659997440368933290,
+        605832156603860367, 15905277172330650498, 3798049900601013908,
+        6149091102096072696, 9906396393657955348, 5628501896614219039,
+        5637794449753356037, 6497846461626531416, 17728263551944195374,
+    ),
+    # ...and the space-padded day of its repair round (item 6), at seed 431.
+    "layout_space_padded_day": (
+        1067159076979164768, 15468843723390121724, 10265763857346022961,
+        10351681091877607303, 2120289531653354811, 16349880332005335296,
+        7666670977968717197, 3427053300283787367, 5489163173622109394,
+        16536760867033200329, 14857399325095436318, 3266013553304516113,
+        9851756333174006805, 18307941327553402120, 6801484169333105937,
+        13573021135003287469, 388300122013088672, 13797779099512901099,
+        11571614973083086094, 17300842502461193001, 16124672687941890329,
+    ),
+    "layout_weekday_long_date": (
+        10183437742050129068, 802209090374143181, 12754890606951740415,
+        16436939532281199822, 8464301922994792604, 5518006602230159252,
+        17488993143798275015, 128330082855528405, 7895988616155993710,
+        10392444726275241154, 15364319650444750931, 1562789138635024894,
+        14199191132797650784, 6903692579631444836, 9919851293581453294,
+        7792427045620656903, 315760335251673178, 3076659594509475690,
+        9165903265594221296, 12006267649774466727, 13069253373330099480,
     ),
     # LANDING T1'S WRITTEN CLOCKS (plan P4-D370), at seeds 416 to 420.
     "stamp_unpadded_hour": (

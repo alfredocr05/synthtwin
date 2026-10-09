@@ -251,6 +251,11 @@ def format_example(name: str) -> str:
     """
     if not isinstance(name, str):
         raise TypeError(_NOT_TEXT)
+    if is_layout_name(name):
+        # A LAYOUT IS SHOWN AS A DATE WRITTEN IN IT (landing R2a; the R2
+        # design skeptic, m6), at the instant every example here names.
+        written = layout_example(name)
+        return written if written else name
     if name not in _FORMAT_EXAMPLES:
         return name
     return _FORMAT_EXAMPLES[name]
@@ -4488,6 +4493,18 @@ def parse_datetime(text: str, format_name: str) -> "tuple[str, str] | None":
         raise TypeError(_NOT_TEXT)
     if not isinstance(format_name, str):
         raise TypeError(_NOT_TEXT)
+    if format_name[0:7] == LAYOUT_PREFIX:
+        # THE LAYOUT MEMBER (landing R2a, plan P4-D383), read whole: a
+        # layout trims nothing, so a cell is its own text or no date --
+        # but for one standing in for a two-figure member in a declared
+        # century, which reads as that member does (`layout_reading`).
+        items = layout_items(format_name)
+        if items is None:
+            return None
+        read_whole = layout_reading(text, items)
+        if read_whole is None:
+            return None
+        return read_whole[0], read_whole[1]
     body = text.strip()
     if not body:
         return None
@@ -5079,15 +5096,27 @@ def day_shows_width(word: str, format_name: str, month: int, day: int) -> bool:
     and False for a member that fixes both widths. Determinism: a fixed
     function of the four. Raises nothing. No I/O of any kind.
     """
-    if format_name in TEXTUAL_MEMBERS:
+    if format_name[0:7] == LAYOUT_PREFIX:
+        # A LAYOUT'S FLEXIBLE FIELDS, in layout order (landing R2a, rule
+        # LY5): one of them is read as a textual member's day is, two as a
+        # slashed member's month and day are.
+        values = layout_flexible_values(format_name, month, day)
+        if len(values) == 1:
+            return values[0] < 10 and word in FIELD_WIDTH_STYLES_BOTH
+        if len(values) != 2:
+            return False
+        first = values[0]
+        second = values[1]
+    elif format_name in TEXTUAL_MEMBERS:
         return day < 10 and word in FIELD_WIDTH_STYLES_BOTH
-    if format_name not in VARIABLE_WIDTH_MEMBERS:
+    elif format_name not in VARIABLE_WIDTH_MEMBERS:
         return False
-    first = month
-    second = day
-    if format_name in DAY_FIRST_MEMBERS:
-        first = day
-        second = month
+    else:
+        first = month
+        second = day
+        if format_name in DAY_FIRST_MEMBERS:
+            first = day
+            second = month
     if word in FIELD_WIDTH_STYLES_FIRST:
         return first < 10 and second >= 10
     if word in FIELD_WIDTH_STYLES_SECOND:
@@ -5299,6 +5328,8 @@ def date_field_style(text: str, format_name: str) -> "str | None":
         raise TypeError(_NOT_TEXT)
     if not isinstance(format_name, str):
         raise TypeError(_NOT_TEXT)
+    if format_name[0:7] == LAYOUT_PREFIX:
+        return _layout_width_style(text, format_name)
     numeric = format_name in VARIABLE_WIDTH_MEMBERS
     if not numeric and format_name not in TEXTUAL_MEMBERS:
         return None
@@ -5467,6 +5498,13 @@ def written_date(
     Determinism: a function of its arguments. Raises ValueError through
     `month_spelling` for a month outside the calendar. No I/O of any kind.
     """
+    if format_name[0:7] == LAYOUT_PREFIX:
+        # A LAYOUT WRITES THE DAY IN ITS OWN FIELDS (landing R2a), a clock
+        # it writes at midnight and an offset field some cells omit with
+        # nothing: the spelling a day of the column is written in.
+        return written_layout_date(
+            format_name, f"{year:04d}-{month:02d}-{day:02d}", "", width
+        )
     if format_name == "compact-date":
         return f"{year:04d}{month:02d}{day:02d}"
     if format_name == "slashed-iso-date" or format_name == "slashed-iso-datetime":
@@ -6925,6 +6963,15 @@ def readable_days(format_name: str, date_system: str = "") -> "tuple[int, int]":
     if format_name in TWO_FIGURE_MEMBERS:
         first_year = _TWO_FIGURE_FIRST_YEAR
         last_year = _TWO_FIGURE_LAST_YEAR
+    if is_layout_name(format_name):
+        # A LAYOUT READS ITS OWN BAND (landing R2a): a four-figure year in
+        # 1800 to 2299, a two-figure one in its column's window.
+        first_year = LAYOUT_FIRST_YEAR
+        last_year = LAYOUT_LAST_YEAR
+        window = layout_two_figure_year(format_name)
+        if window:
+            first_year = window
+            last_year = window + 99
     if date_system in _SHEET_FIRST_YEAR:
         first_year = max(first_year, _SHEET_FIRST_YEAR[date_system])
     return (
@@ -7292,6 +7339,22 @@ def _clock_of(
         raise TypeError(_NOT_TEXT)
     if not isinstance(format_name, str):
         raise TypeError(_NOT_TEXT)
+    if format_name[0:7] == LAYOUT_PREFIX:
+        # A LAYOUT ANSWERS FROM ITS READING (landing R2a): the clock it
+        # read, at the precision the layout writes, and the fraction as
+        # the cell wrote it.
+        items = layout_items(format_name)
+        if items is None:
+            return None
+        whole = layout_reading(text, items)
+        if whole is None or len(whole[0]) < 19:
+            return None
+        precision = layout_precision(format_name)
+        if precision == PRECISION_MINUTE:
+            return whole[0][11:16]
+        if whole[3]:
+            return f"{whole[0][11:19]}.{whole[3]}"
+        return whole[0][11:19]
     body = text.strip()
     if format_name in SLASHED_STAMPS:
         # THE SLASHED STAMPS ANSWER FROM THEIR CANONICAL TEXT (landing
@@ -7418,6 +7481,9 @@ def datetime_separator(text: str, format_name: str) -> "str | None":
         raise TypeError(_NOT_TEXT)
     if not isinstance(format_name, str):
         raise TypeError(_NOT_TEXT)
+    if format_name[0:7] == LAYOUT_PREFIX:
+        # A LAYOUT FIXES ITS OWN JOINT (rule LY4), so it counts no mark.
+        return None
     if _clock_of(text, format_name) is None:
         return None
     if format_name in SLASHED_STAMPS:
@@ -7902,3 +7968,1698 @@ def tail_rows(count: int, percent: int, side: str) -> int:
     if side == "low":
         return -((-steps) // 100)
     return count - 1 - steps // 100
+
+
+# -- the closed-grammar LAYOUT member (landing R2a of stage 3b, plan P4-D383)
+#
+# ONE MEMBER FOR EVERY SPELLING THE NAMED MEMBERS DO NOT READ, and it is a
+# grammar rather than a list. A layout is a short text of FIELDS in braces
+# and LITERALS from a closed set -- `{DD}{MON}{YYYY}:{HH}:{MI}:{SS}` is SAS
+# DATETIME20., `{YYYY}{MM}{DD}{HH}{MI}{SS}.{F}{+HHMM}` an HL7 timestamp
+# with a fraction and an offset -- and a column read under one is published
+# as `format: "layout <text>"`. Every field and every literal comes from the
+# tables below and nothing else, a layout is at most `LAYOUT_TEXT_LIMIT`
+# characters, and `is_layout_format` is the one predicate every reader of a
+# format asks: the producer, the sentence guard, the publication guard and
+# the loader (rule LY1).
+#
+# THE MEMBER STANDS LAST IN THE FORMAT WALK, after `iso-mixed`, so a column
+# a named member reads keeps that reading byte for byte; it is asked only of
+# a column no member reads (`taxonomy._matching_layout`). One cell under one
+# layout gives the instant in ISO's own canonical form and the offset in
+# ISO's own spelling, so every published fact of a layout column is the fact
+# an ISO column of the same instants publishes; only how the cells are
+# WRITTEN differs, and the writer below is the exact inverse of the reader:
+# the twin writes every cell in its source's own spelling.
+#
+# THE DATE HALF IS BUILT (R2a): year, month (figures or an English name in
+# three cases, with the CLDR en-GB and en-AU short sets), day (padded, one
+# or two figures, or padded with a space), an optional weekday lead, a
+# two-figure 24-hour clock on `:` or `.`, a fraction of 1 to 9 figures, and
+# an offset that may be absent from some cells. THE CLOCK HALF -- one-figure
+# and space-padded hours, the 12-hour face and its markers -- is landing
+# R2b's, and partial dates with their question are R2c's; each widens the
+# field table and the productions below and nothing else.
+
+LAYOUT_PREFIX = "layout "
+LAYOUT_TEXT_LIMIT = 80
+
+# THE YEARS A LAYOUT READS (the R2 design, measured): a four-figure field
+# outside them is unread, which is what keeps a lot number or a serial whose
+# last part happens to be four figures from reading as a date.
+LAYOUT_FIRST_YEAR = 1800
+LAYOUT_LAST_YEAR = 2299
+
+# THE MOST FIGURES A LAYOUT'S FRACTION `{F}` READS: nanoseconds, the finest
+# any export of the reach audit wrote. Contract LY3 holds a description's
+# `subsecond_digits` to it (the Codex review of landing R2a, item 7).
+LAYOUT_FRACTION_FIGURES = 9
+
+# THE CENTURY OF A TWO-FIGURE YEAR (question Q5). `{YY}` reads 69 to 99 as
+# the 1900s and 00 to 68 as the 2000s, the POSIX window every two-figure
+# member reads; a column the person answered about reads in the window
+# whose first year they chose, written `{YY1930}` and so on. The default is
+# no declaration at all, so it has no field of its own beyond `{YY}`.
+CENTURY_DEFAULT_FIRST_YEAR = 1969
+CENTURY_WINDOW_YEARS = (1900, 1930, 1940)
+_LAYOUT_YEAR_WINDOWS = {
+    "YY": CENTURY_DEFAULT_FIRST_YEAR,
+    "YY1900": 1900,
+    "YY1930": 1930,
+    "YY1940": 1940,
+}
+
+# THE MONTH NAMES, BY SET AND CASE. The standard abbreviations and the full
+# names are the ones `month_of_name` reads; the CLDR sets are what Java and
+# JavaScript write for English locales -- en-GB abbreviates
+# September as `Sept`, en-AU writes `June`, `July` and `Sept` -- and a
+# column written in one of them reads under that set's own field, written
+# back word for word.
+_LAYOUT_MONTH_SETS = (
+    ("", ("jan", "feb", "mar", "apr", "may", "jun",
+          "jul", "aug", "sep", "oct", "nov", "dec")),
+    ("TH", ("january", "february", "march", "april", "may", "june",
+            "july", "august", "september", "october", "november",
+            "december")),
+    ("GB", ("jan", "feb", "mar", "apr", "may", "jun",
+            "jul", "aug", "sept", "oct", "nov", "dec")),
+    ("AU", ("jan", "feb", "mar", "apr", "may", "june",
+            "july", "aug", "sept", "oct", "nov", "dec")),
+)
+_LAYOUT_WEEKDAY_SETS = (
+    ("", ("mon", "tue", "wed", "thu", "fri", "sat", "sun")),
+    ("TH", ("monday", "tuesday", "wednesday", "thursday", "friday",
+            "saturday", "sunday")),
+)
+
+
+def _layout_cased(word: str, case: str) -> str:
+    """One lower-case word in one of the three cases a field fixes."""
+    if not isinstance(word, str):
+        raise TypeError(_NOT_TEXT)
+    if case == "upper":
+        return word.upper()
+    if case == "title":
+        return f"{word[0:1].upper()}{word[1:]}"
+    return word
+
+
+def _layout_name_fields(
+    sets: "tuple[tuple[str, tuple[str, ...]], ...]",
+    stems: "dict[str, tuple[str, str, str]]",
+) -> "dict[str, dict[str, int]]":
+    """Every name field of one family, with the words each reads (built once).
+
+    A field is named by its set and its case: for months `MON`, `Mon` and
+    `mon` are the standard abbreviations in upper, title and lower case,
+    `MONTH`, `Month` and `month` the full names, and `MONGB` and `MONAU`
+    with their cases the CLDR sets; for weekdays `DY` and `DAY` likewise.
+    ``stems`` gives each set's three names, upper, title and lower.
+    """
+    fields: "dict[str, dict[str, int]]" = {}
+    for suffix, words in sets:
+        names = stems[suffix]
+        position = 0
+        for case in ("upper", "title", "lower"):
+            table: "dict[str, int]" = {}
+            place = 0
+            for word in words:
+                place = place + 1
+                table[_layout_cased(word, case)] = place
+            fields[names[position]] = table
+            position = position + 1
+    return fields
+
+
+_LAYOUT_MONTH_STEMS = {
+    "": ("MON", "Mon", "mon"),
+    "TH": ("MONTH", "Month", "month"),
+    "GB": ("MONGB", "MonGB", "monGB"),
+    "AU": ("MONAU", "MonAU", "monAU"),
+}
+_LAYOUT_WEEKDAY_STEMS = {
+    "": ("DY", "Dy", "dy"),
+    "TH": ("DAY", "Day", "day"),
+}
+
+
+_LAYOUT_MONTH_FIELDS = _layout_name_fields(_LAYOUT_MONTH_SETS, _LAYOUT_MONTH_STEMS)
+_LAYOUT_WEEKDAY_FIELDS = _layout_name_fields(_LAYOUT_WEEKDAY_SETS, _LAYOUT_WEEKDAY_STEMS)
+# The rank a month field's set takes on a tie (`layout_order_key`): the
+# standard words first, then the CLDR sets, so a column whose months are
+# written alike in every set keeps the commonest spelling.
+_LAYOUT_SET_RANK = {"": 0, "GB": 1, "AU": 2}
+
+# THE OFFSET FIELDS. A zulu field reads only `Z` (written as the field
+# names it); `+HH` reads whole hours only. A trailing `?` makes the offset
+# one some cells omit (the R2 design skeptic, M2): such a cell reads with no
+# offset, counted under `utc_offsets`' own `(none)` member.
+_LAYOUT_ZULU_FIELDS = ("Z", "z", "UTC", "GMT")
+_LAYOUT_SIGNED_FIELDS = ("+HH:MM", "+HHMM", "+HH")
+_LAYOUT_OFFSET_FIELDS = _LAYOUT_ZULU_FIELDS + _LAYOUT_SIGNED_FIELDS
+
+# The fixed-width numeric fields, by width, and the flexible ones.
+_LAYOUT_FIXED_FIELDS = {
+    "YYYY": 4, "YY": 2, "YY1900": 2, "YY1930": 2, "YY1940": 2,
+    "MM": 2, "DD": 2, "HH": 2, "MI": 2, "SS": 2,
+}
+_LAYOUT_FLEXIBLE_FIELDS = ("M", "D")
+_LAYOUT_SPACED_FIELDS = ("_D",)
+_LAYOUT_CLOCK_FIELDS = ("HH", "MI", "SS", "F")
+
+# THE LITERALS, a closed set: the marks a date or a clock is written with,
+# the space, and the ISO joint letter in either case.
+_LAYOUT_LITERALS = ("-", "/", ".", ",", ":", " ", "T", "t")
+
+# The joints between a date and its clock, in the order they are tried.
+_LAYOUT_JOINTS = (" ", "T", "t", ":", "-", ", ", "  ")
+
+
+def _layout_field_known(name: str) -> bool:
+    """Whether one field name is in the closed field table."""
+    if not isinstance(name, str):
+        raise TypeError(_NOT_TEXT)
+    bare = name
+    if name[len(name) - 1 : len(name)] == "?":
+        bare = name[0 : len(name) - 1]
+        return bare in _LAYOUT_OFFSET_FIELDS
+    return (
+        bare in _LAYOUT_FIXED_FIELDS
+        or bare in _LAYOUT_FLEXIBLE_FIELDS
+        or bare in _LAYOUT_SPACED_FIELDS
+        or bare == "F"
+        or bare in _LAYOUT_MONTH_FIELDS
+        or bare in _LAYOUT_WEEKDAY_FIELDS
+        or bare in _LAYOUT_OFFSET_FIELDS
+    )
+
+
+def compiled_layout(text: str) -> "tuple[tuple[str, str], ...] | None":
+    """One layout text as its items, `("f", field)` or `("l", literal)`, or None.
+
+    None for a text over `LAYOUT_TEXT_LIMIT` characters, an unbalanced or
+    empty brace, a field outside the closed table, a literal outside the
+    closed set, two fields of one kind (a second year, month, day, weekday
+    or offset), a clock field before any date field, and an optional offset
+    that is not the last item. This is the shape half of rule LY1;
+    `is_layout_format` adds the other half, that the grammar's own
+    productions make it.
+
+    Guarantees: accepts text; returns the items or None. Determinism: a
+    function of the text. Raises TypeError for anything that is not text.
+    No I/O of any kind.
+    """
+    if not isinstance(text, str):
+        raise TypeError(_NOT_TEXT)
+    if not text or len(text) > LAYOUT_TEXT_LIMIT:
+        return None
+    items: "list[tuple[str, str]]" = []
+    kinds: "dict[str, int]" = {}
+    place = 0
+    size = len(text)
+    while place < size:
+        character = text[place]
+        if character == "{":
+            end = place + 1
+            while end < size and text[end] != "}":
+                end = end + 1
+            if end >= size:
+                return None
+            name = text[place + 1 : end]
+            if not name or "{" in name:
+                return None
+            if not _layout_field_known(name):
+                return None
+            kind = _layout_field_kind(name)
+            if kind in kinds:
+                return None
+            kinds[kind] = 1
+            items += [("f", name)]
+            place = end + 1
+            continue
+        if character not in _LAYOUT_LITERALS:
+            return None
+        items += [("l", character)]
+        place = place + 1
+    if "year" not in kinds or "month" not in kinds or "day" not in kinds:
+        return None
+    if "minute" in kinds and "hour" not in kinds:
+        return None
+    if "second" in kinds and "minute" not in kinds:
+        return None
+    if "fraction" in kinds and "second" not in kinds:
+        return None
+    last = len(items) - 1
+    index = 0
+    for kind_of, name in items:
+        if kind_of == "f" and name[len(name) - 1 : len(name)] == "?":
+            if index != last:
+                return None
+        index = index + 1
+    return tuple(items)
+
+
+def _layout_field_kind(name: str) -> str:
+    """Which part of an instant one field names: year, month, day, ..."""
+    if not isinstance(name, str):
+        raise TypeError(_NOT_TEXT)
+    bare = name
+    if name[len(name) - 1 : len(name)] == "?":
+        bare = name[0 : len(name) - 1]
+    if bare in _LAYOUT_YEAR_WINDOWS or bare == "YYYY":
+        return "year"
+    if bare in ("MM", "M") or bare in _LAYOUT_MONTH_FIELDS:
+        return "month"
+    if bare in ("DD", "D", "_D"):
+        return "day"
+    if bare in _LAYOUT_WEEKDAY_FIELDS:
+        return "weekday"
+    if bare == "HH":
+        return "hour"
+    if bare == "MI":
+        return "minute"
+    if bare == "SS":
+        return "second"
+    if bare == "F":
+        return "fraction"
+    return "offset"
+
+
+def _layout_digits(text: str, start: int, least: int, most: int) -> int:
+    """Where a run of ``least`` to ``most`` ASCII digits from ``start`` ends, or -1."""
+    if not isinstance(text, str):
+        raise TypeError(_NOT_TEXT)
+    end = start
+    size = len(text)
+    while end < size and end - start < most and "0" <= text[end] <= "9":
+        end = end + 1
+    if end - start < least:
+        return -1
+    return end
+
+
+def _layout_letters(text: str, start: int) -> int:
+    """Where a run of ASCII letters from ``start`` ends."""
+    if not isinstance(text, str):
+        raise TypeError(_NOT_TEXT)
+    end = start
+    size = len(text)
+    while end < size and (
+        "a" <= text[end] <= "z" or "A" <= text[end] <= "Z"
+    ):
+        end = end + 1
+    return end
+
+
+def _layout_tail(items: "tuple[tuple[str, str], ...]") -> int:
+    """Where a layout's optional offset begins, with the literals before it.
+
+    The length of the items where the last field is not optional, so a cell
+    may end there only where an optional offset follows.
+    """
+    size = len(items)
+    if not size:
+        return size
+    kind, name = items[size - 1]
+    if kind != "f" or name[len(name) - 1 : len(name)] != "?":
+        return size
+    start = size - 1
+    while start > 0 and items[start - 1][0] == "l":
+        start = start - 1
+    return start
+
+
+# THE LAYOUTS THAT STAND IN FOR A TWO-FIGURE MEMBER, AND SET SPACES ASIDE
+# AS IT DOES (skeptic 1 of landing R2a, item 1). A column whose century the
+# person declared (question Q5, `--century`) is read by the layout alone,
+# in that window, since the four two-figure members read the POSIX window
+# only; and every member reads a cell with its surrounding whitespace set
+# aside (`parse_datetime`'s `text.strip()`). So where the layout stands in
+# for one -- three fields on `/`, or padded on `.`, the year last and read
+# in a declared window -- it sets that whitespace aside too, and the answer
+# reads every cell the member read: 1,000 `MM/DD/YY` births, 3 per cent with
+# a trailing space, answered 1930, fell to 970 read, under the line, and the
+# column became free text. Nowhere else: a layout no member reads trims
+# nothing under every answer, so an answer changes the century and nothing
+# else. Each shape is written here up to its year, which every declared
+# window then completes (`{YY1900}`, `{YY1930}`, `{YY1940}`).
+_LAYOUT_MEMBER_DATES = (
+    "{M}/{D}/",
+    "{D}/{M}/",
+    "{MM}/{DD}/",
+    "{DD}/{MM}/",
+    "{MM}.{DD}.",
+    "{DD}.{MM}.",
+)
+
+
+def _layouts_read_as_members() -> "dict[tuple[tuple[str, str], ...], int]":
+    """The compiled items of every layout that reads a cell as a two-figure member does (built once)."""
+    found: "dict[tuple[tuple[str, str], ...], int]" = {}
+    for date in _LAYOUT_MEMBER_DATES:
+        for first_year in CENTURY_WINDOW_YEARS:
+            items = compiled_layout(f"{date}{{YY{first_year}}}")
+            if items is not None:
+                found[items] = 1
+    return found
+
+
+_LAYOUTS_READ_AS_MEMBERS = _layouts_read_as_members()
+
+
+def layout_sets_spaces_aside(name: str) -> bool:
+    """Whether a layout reads its cells with their surrounding whitespace set aside.
+
+    True only for a layout standing in for a two-figure member in a
+    declared century (`_LAYOUTS_READ_AS_MEMBERS`); every other layout reads
+    a cell whole. Guarantees: accepts a format name or a bare layout text;
+    returns a bool. Raises TypeError for anything that is not text. No I/O
+    of any kind.
+    """
+    if not isinstance(name, str):
+        raise TypeError(_NOT_TEXT)
+    items = layout_items(name)
+    return items is not None and items in _LAYOUTS_READ_AS_MEMBERS
+
+
+def layout_reading(
+    text: str, items: "tuple[tuple[str, str], ...]"
+) -> "tuple[str, str, tuple[str, ...], str] | None":
+    """One cell read under one compiled layout, or None.
+
+    Returns the canonical instant -- `YYYY-MM-DD`, or `YYYY-MM-DD HH:MM:SS`
+    where the layout writes a clock -- the offset in ISO's own spelling
+    (`''`, `Z` or a signed `+HH:MM`), what each FLEXIBLE field showed in
+    layout order (`p` written padded, `u` written in one figure, `''` two
+    figures either way), and the fraction's figures as written. NOTHING IS
+    TRIMMED: a cell is read whole or not at all -- but by a layout standing
+    in for a two-figure member in a declared century, which sets the
+    cell's surrounding whitespace aside as that member does
+    (`_LAYOUTS_READ_AS_MEMBERS`). The calendar is checked, a
+    four-figure year outside `LAYOUT_FIRST_YEAR` to `LAYOUT_LAST_YEAR` is
+    unread, a weekday must be the date's own, an hour runs 0 to 23 and a
+    minute or second 0 to 59, and an offset is at most 14 hours.
+
+    Guarantees: accepts a cell and the items `compiled_layout` made;
+    returns the reading or None. Determinism: a function of the two. Raises
+    TypeError for a cell that is not text. No I/O of any kind.
+    """
+    if not isinstance(text, str):
+        raise TypeError(_NOT_TEXT)
+    if len(items) == 5 and items in _LAYOUTS_READ_AS_MEMBERS:
+        text = text.strip()
+    size = len(text)
+    tail = _layout_tail(items)
+    at = 0
+    year = -1
+    month = -1
+    day = -1
+    weekday = -1
+    hour = -1
+    minute = -1
+    second = 0
+    fraction = ""
+    offset = ""
+    shows: "list[str]" = []
+    index = 0
+    for kind, name in items:
+        if index == tail and at == size:
+            break
+        index = index + 1
+        if kind == "l":
+            if at >= size or text[at] != name:
+                return None
+            at = at + 1
+            continue
+        if name in _LAYOUT_FIXED_FIELDS:
+            width = _LAYOUT_FIXED_FIELDS[name]
+            end = at + width
+            if end > size:
+                return None
+            value = 0
+            while at < end:
+                figure = text[at]
+                if figure < "0" or figure > "9":
+                    return None
+                value = value * 10 + (ord(figure) - 48)
+                at = at + 1
+            if name == "YYYY":
+                year = value
+            elif name in _LAYOUT_YEAR_WINDOWS:
+                first = _LAYOUT_YEAR_WINDOWS[name]
+                year = (first // 100) * 100 + value
+                if year < first:
+                    year = year + 100
+            elif name == "MM":
+                month = value
+            elif name == "DD":
+                day = value
+            elif name == "HH":
+                hour = value
+            elif name == "MI":
+                minute = value
+            else:
+                second = value
+            continue
+        if name == "M" or name == "D":
+            end = _layout_digits(text, at, 1, 2)
+            if end < 0:
+                return None
+            written = text[at:end]
+            value = int(written)
+            if len(written) == 1:
+                shows += ["u"]
+            elif written[0] == "0":
+                shows += ["p"]
+            else:
+                shows += [""]
+            at = end
+            if name == "M":
+                month = value
+            else:
+                day = value
+            continue
+        if name == "_D":
+            if at + 2 > size:
+                return None
+            first_figure = text[at]
+            second_figure = text[at + 1]
+            if second_figure < "0" or second_figure > "9":
+                return None
+            if first_figure == " ":
+                day = ord(second_figure) - 48
+            elif "1" <= first_figure <= "9":
+                day = (ord(first_figure) - 48) * 10 + ord(second_figure) - 48
+            else:
+                return None
+            at = at + 2
+            continue
+        if name == "F":
+            end = _layout_digits(text, at, 1, LAYOUT_FRACTION_FIGURES)
+            if end < 0:
+                return None
+            fraction = text[at:end]
+            at = end
+            continue
+        if name in _LAYOUT_MONTH_FIELDS:
+            end = _layout_letters(text, at)
+            word = text[at:end]
+            table = _LAYOUT_MONTH_FIELDS[name]
+            if word not in table:
+                return None
+            month = table[word]
+            at = end
+            continue
+        if name in _LAYOUT_WEEKDAY_FIELDS:
+            end = _layout_letters(text, at)
+            word = text[at:end]
+            table = _LAYOUT_WEEKDAY_FIELDS[name]
+            if word not in table:
+                return None
+            weekday = table[word] - 1
+            at = end
+            continue
+        # An offset field, optional or not.
+        bare = name
+        if name[len(name) - 1 : len(name)] == "?":
+            bare = name[0 : len(name) - 1]
+        if bare in _LAYOUT_ZULU_FIELDS:
+            end = at + len(bare)
+            if text[at:end] != bare:
+                return None
+            offset = "Z"
+            at = end
+            continue
+        if at >= size or (text[at] != "+" and text[at] != "-"):
+            return None
+        sign = text[at]
+        hours_end = _layout_digits(text, at + 1, 2, 2)
+        if hours_end < 0:
+            return None
+        hours = text[at + 1 : hours_end]
+        minutes = "00"
+        at = hours_end
+        if bare == "+HH:MM":
+            if at >= size or text[at] != ":":
+                return None
+            at = at + 1
+        if bare != "+HH":
+            minutes_end = _layout_digits(text, at, 2, 2)
+            if minutes_end < 0:
+                return None
+            minutes = text[at:minutes_end]
+            at = minutes_end
+        if int(hours) > 14 or int(minutes) > 59:
+            return None
+        if int(hours) == 14 and minutes != "00":
+            return None
+        offset = f"{sign}{hours}:{minutes}"
+    if at != size:
+        return None
+    if year < LAYOUT_FIRST_YEAR or year > LAYOUT_LAST_YEAR:
+        return None
+    if not valid_date(year, month, day):
+        return None
+    if weekday >= 0 and (days_from_civil(year, month, day) + 3) % 7 != weekday:
+        return None
+    canonical = f"{year:04d}-{month:02d}-{day:02d}"
+    if hour >= 0:
+        if hour > 23 or minute < 0 or minute > 59 or second > 59:
+            return None
+        canonical = f"{canonical} {hour:02d}:{minute:02d}:{second:02d}"
+    return canonical, offset, tuple(shows), fraction
+
+
+def layout_cell(
+    items: "tuple[tuple[str, str], ...]",
+    canonical: str,
+    offset: str = "",
+    widths: "tuple[bool, ...]" = (),
+    figures: int = 0,
+) -> str:
+    """One instant written under one compiled layout: `layout_reading` reversed.
+
+    THE TWIN'S CELL, WRITTEN AS ITS SOURCE WROTE IT. Every field comes from
+    the canonical instant; a flexible field is written padded where its
+    entry in ``widths`` (layout order) is true or missing, and in as few
+    figures as it takes otherwise; the fraction is ``figures`` zeros, as
+    every member writes it until its own census is published; and the
+    offset is written in the field's own spelling -- `+0100`, `+01`, `Z`,
+    ` UTC`. An optional offset with no offset to write is written with
+    nothing, not even the literals before it; a field that must write one
+    and is handed none writes the shared clock's own, `+00:00` in its
+    spelling or its zulu word.
+
+    Guarantees: accepts compiled items and a canonical instant the layout
+    can show; returns the cell, which `layout_reading` reads back as that
+    instant, that offset and those widths. Determinism: a function of the
+    arguments. Raises TypeError for a canonical text that is not text. No
+    I/O of any kind.
+    """
+    if not isinstance(canonical, str):
+        raise TypeError(_NOT_TEXT)
+    if not isinstance(offset, str):
+        raise TypeError(_NOT_TEXT)
+    year = int(canonical[0:4])
+    month = int(canonical[5:7])
+    day = int(canonical[8:10])
+    hour = 0
+    minute = 0
+    second = 0
+    if len(canonical) >= 19:
+        hour = int(canonical[11:13])
+        minute = int(canonical[14:16])
+        second = int(canonical[17:19])
+    tail = _layout_tail(items)
+    if tail < len(items) and not offset:
+        items = items[0:tail]
+    shared = offset if offset else "+00:00"
+    written = ""
+    flexible = 0
+    for kind, name in items:
+        if kind == "l":
+            written = f"{written}{name}"
+            continue
+        bare = name
+        if name[len(name) - 1 : len(name)] == "?":
+            bare = name[0 : len(name) - 1]
+        if bare == "YYYY":
+            written = f"{written}{year:04d}"
+        elif bare in _LAYOUT_YEAR_WINDOWS:
+            written = f"{written}{year % 100:02d}"
+        elif bare == "MM":
+            written = f"{written}{month:02d}"
+        elif bare == "DD":
+            written = f"{written}{day:02d}"
+        elif bare == "M" or bare == "D":
+            value = month if bare == "M" else day
+            padded = True
+            if flexible < len(widths):
+                padded = widths[flexible]
+            flexible = flexible + 1
+            if padded or value >= 10:
+                written = f"{written}{value:02d}"
+            else:
+                written = f"{written}{value}"
+        elif bare == "_D":
+            written = f"{written}{day:>2d}"
+        elif bare == "HH":
+            written = f"{written}{hour:02d}"
+        elif bare == "MI":
+            written = f"{written}{minute:02d}"
+        elif bare == "SS":
+            written = f"{written}{second:02d}"
+        elif bare == "F":
+            written = f"{written}{'0' * figures}"
+        elif bare in _LAYOUT_MONTH_FIELDS:
+            written = f"{written}{_layout_word(_LAYOUT_MONTH_FIELDS[bare], month)}"
+        elif bare in _LAYOUT_WEEKDAY_FIELDS:
+            place = (days_from_civil(year, month, day) + 3) % 7 + 1
+            written = f"{written}{_layout_word(_LAYOUT_WEEKDAY_FIELDS[bare], place)}"
+        elif bare in _LAYOUT_ZULU_FIELDS:
+            written = f"{written}{bare}"
+        elif bare == "+HH:MM":
+            written = f"{written}{shared[0:6]}"
+        elif bare == "+HHMM":
+            written = f"{written}{shared[0:3]}{shared[4:6]}"
+        else:
+            written = f"{written}{shared[0:3]}"
+    return written
+
+
+def _layout_word(table: "dict[str, int]", place: int) -> str:
+    """The word a name field writes for one month or weekday."""
+    for word in table:
+        if table[word] == place:
+            return f"{word}"
+    return ""
+
+
+# -- the productions: every layout ONE cell can be read under ------------
+
+
+def _layout_tokens(text: str) -> "list[tuple[str, str]] | None":
+    """A cell as runs: `d` digits, `a` letters, `s` one literal mark; or None.
+
+    None for a cell holding any character outside the closed sets, which is
+    what makes most text of other kinds cost nothing here.
+    """
+    if not isinstance(text, str):
+        raise TypeError(_NOT_TEXT)
+    runs: "list[tuple[str, str]]" = []
+    place = 0
+    size = len(text)
+    while place < size:
+        character = text[place]
+        if "0" <= character <= "9":
+            end = _layout_digits(text, place, 1, size)
+            runs += [("d", text[place:end])]
+            place = end
+            continue
+        if "a" <= character <= "z" or "A" <= character <= "Z":
+            end = _layout_letters(text, place)
+            runs += [("a", text[place:end])]
+            place = end
+            continue
+        if character in "-/.,: +":
+            runs += [("s", character)]
+            place = place + 1
+            continue
+        return None
+    return runs
+
+
+def _run(runs: "list[tuple[str, str]]", place: int) -> "tuple[str, str]":
+    """One run, or an empty one past either end."""
+    if 0 <= place < len(runs):
+        return runs[place]
+    return "", ""
+
+
+def _figures(runs: "list[tuple[str, str]]", place: int, sizes: "tuple[int, ...]") -> bool:
+    """Whether a run is digits of one of these lengths."""
+    kind, text = _run(runs, place)
+    return kind == "d" and len(text) in sizes
+
+
+def _mark(runs: "list[tuple[str, str]]", place: int, marks: str) -> bool:
+    """Whether a run is one of these marks."""
+    kind, text = _run(runs, place)
+    return kind == "s" and len(text) == 1 and text in marks
+
+
+def _names_of(word: str, fields: "dict[str, dict[str, int]]") -> "list[str]":
+    """Every name field of one family that reads this word."""
+    if not isinstance(word, str):
+        raise TypeError(_NOT_TEXT)
+    found: "list[str]" = []
+    for name in fields:
+        if word in fields[name]:
+            found += [name]
+    return found
+
+
+def _layout_date_core(
+    runs: "list[tuple[str, str]]", place: int
+) -> "list[tuple[str, int, bool]]":
+    """Every date production starting at one run: (text, next run, clock inside)."""
+    found: "list[tuple[str, int, bool]]" = []
+    kind, first = _run(runs, place)
+    if kind == "d":
+        size = len(first)
+        # THREE FIELDS OF FIGURES ON ONE MARK, the same mark twice.
+        if (
+            _mark(runs, place + 1, "-/.")
+            and _figures(runs, place + 2, (1, 2))
+            and _run(runs, place + 3) == _run(runs, place + 1)
+            and _figures(runs, place + 4, (1, 2, 4))
+        ):
+            mark = runs[place + 1][1]
+            middle = len(runs[place + 2][1])
+            last = len(runs[place + 4][1])
+            after = place + 5
+            # A cell whose two fields are both two figures is read PADDED
+            # as well as flexible, and the padded layout is preferred on a
+            # tie (`layout_order_key`): a column every cell of which pads
+            # its fields says so in its layout and needs no width census.
+            padded = middle == 2 and (size == 2 or last == 2)
+            if size == 4 and last in (1, 2):
+                # Year first on dots is read padded only: `2023.5.17` is
+                # how a calendar version is written.
+                if padded:
+                    found += [(f"{{YYYY}}{mark}{{MM}}{mark}{{DD}}", after, False)]
+                if mark != ".":
+                    found += [(f"{{YYYY}}{mark}{{M}}{mark}{{D}}", after, False)]
+            elif size in (1, 2) and last in (2, 4):
+                year = "YYYY" if last == 4 else "YY"
+                # C6-22 for two figures: on dots only padded, since `1.2.24`
+                # is a version. With four, an unpadded dotted date is how
+                # de-DE and Finnish write the day (skeptic M3), read in the
+                # year band and preferred padded on a tie.
+                if padded:
+                    found += [(f"{{MM}}{mark}{{DD}}{mark}{{{year}}}", after, False)]
+                    found += [(f"{{DD}}{mark}{{MM}}{mark}{{{year}}}", after, False)]
+                if mark != "." or last == 4:
+                    found += [(f"{{M}}{mark}{{D}}{mark}{{{year}}}", after, False)]
+                    found += [(f"{{D}}{mark}{{M}}{mark}{{{year}}}", after, False)]
+        # A RUN OF FIGURES WITH NO MARK: a date, and HL7's timestamps.
+        if size == 8:
+            found += [("{YYYY}{MM}{DD}", place + 1, False)]
+        if size == 12:
+            found += [("{YYYY}{MM}{DD}{HH}{MI}", place + 1, True)]
+        if size == 14:
+            found += [("{YYYY}{MM}{DD}{HH}{MI}{SS}", place + 1, True)]
+        # A DAY, A MONTH NAME AND A YEAR, with no mark (SAS, Stata) or one.
+        # A two-figure day is read padded AND flexible, as every other
+        # production reads one (the Codex review of landing R2a, item 1):
+        # `{D}{MON}{YYYY}` reads `17MAR2023` too, so a column cycling
+        # `1MAR2023` to `28MAR2023` was offered it only by a one-figure
+        # day, and LY1, which writes its sample on the 17th, refused it.
+        if size in (1, 2):
+            second_kind, word = _run(runs, place + 1)
+            if second_kind == "a" and _figures(runs, place + 2, (2, 4)):
+                year = "YYYY" if len(runs[place + 2][1]) == 4 else "YY"
+                for name in _names_of(word, _LAYOUT_MONTH_FIELDS):
+                    for lead in ("DD", "D") if size == 2 else ("D",):
+                        found += [(f"{{{lead}}}{{{name}}}{{{year}}}", place + 3, False)]
+            if (
+                _mark(runs, place + 1, "- ./")
+                and _run(runs, place + 2)[0] == "a"
+                and _run(runs, place + 3) == _run(runs, place + 1)
+                and _figures(runs, place + 4, (2, 4))
+            ):
+                mark = runs[place + 1][1]
+                year = "YYYY" if len(runs[place + 4][1]) == 4 else "YY"
+                for name in _names_of(runs[place + 2][1], _LAYOUT_MONTH_FIELDS):
+                    for lead in ("DD", "D") if size == 2 else ("D",):
+                        found += [
+                            (
+                                f"{{{lead}}}{mark}{{{name}}}{mark}{{{year}}}",
+                                place + 5,
+                                False,
+                            )
+                        ]
+        # A YEAR, A MONTH NAME AND A DAY.
+        if (
+            size == 4
+            and _mark(runs, place + 1, "-/ ")
+            and _run(runs, place + 2)[0] == "a"
+            and _run(runs, place + 3) == _run(runs, place + 1)
+            and _figures(runs, place + 4, (1, 2))
+        ):
+            mark = runs[place + 1][1]
+            tail = ("DD", "D") if len(runs[place + 4][1]) == 2 else ("D",)
+            for name in _names_of(runs[place + 2][1], _LAYOUT_MONTH_FIELDS):
+                for lead in tail:
+                    found += [
+                        (f"{{YYYY}}{mark}{{{name}}}{mark}{{{lead}}}", place + 5, False)
+                    ]
+    if kind == "a":
+        for name in _names_of(first, _LAYOUT_MONTH_FIELDS):
+            # `Mar 17, 2023` and `Mar 17 2023`, and SQL Server's `Mar  1 2023`.
+            if _mark(runs, place + 1, " ") and _figures(runs, place + 2, (1, 2)):
+                after = place + 3
+                comma = ""
+                if _mark(runs, after, ","):
+                    comma = ","
+                    after = after + 1
+                if _mark(runs, after, " ") and _figures(runs, after + 1, (2, 4)):
+                    year = "YYYY" if len(runs[after + 1][1]) == 4 else "YY"
+                    two = len(runs[place + 2][1]) == 2
+                    for lead in ("DD", "D") if two else ("D",):
+                        found += [
+                            (
+                                f"{{{name}}} {{{lead}}}{comma} {{{year}}}",
+                                after + 2,
+                                False,
+                            )
+                        ]
+                    if len(runs[place + 2][1]) == 2 and not comma:
+                        found += [(f"{{{name}}} {{_D}} {{{year}}}", after + 2, False)]
+            # ...and a one-figure day padded with a space, before a year of
+            # either width, as a two-figure `{_D}` stands before either
+            # (the Codex review of landing R2a, item 1).
+            if (
+                _mark(runs, place + 1, " ")
+                and _mark(runs, place + 2, " ")
+                and _figures(runs, place + 3, (1,))
+                and _mark(runs, place + 4, " ")
+                and _figures(runs, place + 5, (2, 4))
+            ):
+                year = "YYYY" if len(runs[place + 5][1]) == 4 else "YY"
+                found += [(f"{{{name}}} {{_D}} {{{year}}}", place + 6, False)]
+            if (
+                _mark(runs, place + 1, "-")
+                and _figures(runs, place + 2, (1, 2))
+                and _mark(runs, place + 3, "-")
+                and _figures(runs, place + 4, (4,))
+            ):
+                for lead in ("DD", "D") if len(runs[place + 2][1]) == 2 else ("D",):
+                    found += [(f"{{{name}}}-{{{lead}}}-{{YYYY}}", place + 5, False)]
+    return found
+
+
+def _layout_dates(runs: "list[tuple[str, str]]") -> "list[tuple[str, int, bool]]":
+    """Every date production of a cell: the core, with or without a weekday lead."""
+    found = _layout_date_core(runs, 0)
+    kind, word = _run(runs, 0)
+    if kind == "a":
+        for name in _names_of(word, _LAYOUT_WEEKDAY_FIELDS):
+            if _mark(runs, 1, ",") and _mark(runs, 2, " "):
+                for text, after, timed in _layout_date_core(runs, 3):
+                    found += [(f"{{{name}}}, {text}", after, timed)]
+            elif _mark(runs, 1, " "):
+                for text, after, timed in _layout_date_core(runs, 2):
+                    found += [(f"{{{name}}} {text}", after, timed)]
+    return found
+
+
+def _layout_fractions(
+    runs: "list[tuple[str, str]]", place: int
+) -> "list[tuple[str, int]]":
+    """No fraction, or one on `.` or `,`, or SQL Server's three figures on `:`."""
+    found: "list[tuple[str, int]]" = [("", place)]
+    if _mark(runs, place, ".,") and _figures(runs, place + 1, (1, 2, 3, 4, 5, 6, 7, 8, 9)):
+        found += [(f"{runs[place][1]}{{F}}", place + 2)]
+    if _mark(runs, place, ":") and _figures(runs, place + 1, (3,)):
+        found += [(":{F}", place + 2)]
+    return found
+
+
+def _layout_clocks(
+    runs: "list[tuple[str, str]]", place: int, joint: str
+) -> "list[tuple[str, int]]":
+    """Every clock of the date half at one run: two-figure 24-hour clocks.
+
+    `HH:MI`, `HH:MI:SS` and `HH.MI.SS` (a dotted clock writes its seconds),
+    each with any fraction; and a compact `HHMI` or `HHMISS` after `T` or one
+    space. The clock half of the grammar (one-figure and space-padded hours,
+    the 12-hour face and its markers) is landing R2b's.
+    """
+    found: "list[tuple[str, int]]" = []
+    if _figures(runs, place, (2,)):
+        for mark in (":", "."):
+            if not (_mark(runs, place + 1, mark) and _figures(runs, place + 2, (2,))):
+                continue
+            base = f"{{HH}}{mark}{{MI}}"
+            after = place + 3
+            if mark == ":":
+                found += [(base, after)]
+            if _mark(runs, after, mark) and _figures(runs, after + 1, (2,)):
+                for fraction, end in _layout_fractions(runs, after + 2):
+                    found += [(f"{base}{mark}{{SS}}{fraction}", end)]
+    if joint in ("T", "t", " ") and _figures(runs, place, (4, 6)):
+        text = "{HH}{MI}" + ("{SS}" if len(runs[place][1]) == 6 else "")
+        if len(runs[place][1]) == 6:
+            for fraction, end in _layout_fractions(runs, place + 1):
+                found += [(f"{text}{fraction}", end)]
+        else:
+            found += [(text, place + 1)]
+    return found
+
+
+def _layout_offsets(
+    runs: "list[tuple[str, str]]", place: int
+) -> "list[tuple[str, int]]":
+    """No offset, or one written directly or after one space."""
+    found: "list[tuple[str, int]]" = [("", place)]
+    kind, word = _run(runs, place)
+    if kind == "a" and (word == "Z" or word == "z"):
+        found += [(f"{{{word}}}", place + 1)]
+    for gap in ("", " "):
+        at = place
+        if gap:
+            if not _mark(runs, at, " "):
+                continue
+            at = at + 1
+        if _mark(runs, at, "+-"):
+            if (
+                _figures(runs, at + 1, (2,))
+                and _mark(runs, at + 2, ":")
+                and _figures(runs, at + 3, (2,))
+            ):
+                found += [(f"{gap}{{+HH:MM}}", at + 4)]
+            if _figures(runs, at + 1, (4,)):
+                found += [(f"{gap}{{+HHMM}}", at + 2)]
+            if _figures(runs, at + 1, (2,)):
+                found += [(f"{gap}{{+HH}}", at + 2)]
+        kind, word = _run(runs, at)
+        if gap and kind == "a" and (word == "UTC" or word == "GMT"):
+            found += [(f"{gap}{{{word}}}", at + 1)]
+    return found
+
+
+def _after_joint(runs: "list[tuple[str, str]]", place: int, joint: str) -> int:
+    """The run after one joint written at ``place``, or -1."""
+    if not isinstance(joint, str):
+        raise TypeError(_NOT_TEXT)
+    at = place
+    for character in joint:
+        kind, text = _run(runs, at)
+        if character == "T" or character == "t":
+            if kind != "a" or text != character:
+                return -1
+        elif kind != "s" or text != character:
+            return -1
+        at = at + 1
+    return at
+
+
+def layouts_of(text: str) -> "tuple[str, ...]":
+    """Every layout of the grammar one cell can be read under, by its syntax.
+
+    The productions, in a fixed order: a date (three fields of figures on
+    one mark; a run of 8, 12 or 14 figures; a month name with a day and a
+    year in either order or after the year; any of these after a weekday),
+    then, where the cell goes on, one joint, one clock of the date half and
+    any offset; a 12- or 14-figure run carries its clock inside. A layout
+    returned here reads the cell's SHAPE; whether it reads the cell as a
+    date -- the calendar, the year band, the weekday -- is
+    `layout_reading`'s question.
+
+    Guarantees: accepts one cell; returns layout texts (no prefix), each
+    once, in production order. Determinism: a function of the text. Raises
+    TypeError for anything that is not text. No I/O of any kind.
+    """
+    if not isinstance(text, str):
+        raise TypeError(_NOT_TEXT)
+    runs = _layout_tokens(text)
+    if not runs:
+        return ()
+    found: "list[str]" = []
+    seen: "dict[str, int]" = {}
+    total = len(runs)
+    for date, after, timed in _layout_dates(runs):
+        written: "list[str]" = []
+        if timed:
+            for fraction, at in _layout_fractions(runs, after):
+                for offset, end in _layout_offsets(runs, at):
+                    if end == total:
+                        written += [f"{date}{fraction}{offset}"]
+        elif after == total:
+            written += [date]
+        else:
+            for joint in _LAYOUT_JOINTS:
+                at = _after_joint(runs, after, joint)
+                if at < 0:
+                    continue
+                for clock, end in _layout_clocks(runs, at, joint):
+                    for offset, last in _layout_offsets(runs, end):
+                        if last == total:
+                            written += [f"{date}{joint}{clock}{offset}"]
+        for layout in written:
+            if layout not in seen:
+                seen[layout] = 1
+                found += [layout]
+    return tuple(found)
+
+
+# -- one layout's own facts, read off its text ---------------------------
+
+
+def is_layout_name(name: str) -> bool:
+    """Whether a format name is in the layout member's form, `layout <text>`.
+
+    The cheap question, asked wherever a format name is routed: it says the
+    name CLAIMS to be a layout. `is_layout_format` says whether it is one.
+    """
+    if not isinstance(name, str):
+        raise TypeError(_NOT_TEXT)
+    return name[0 : len(LAYOUT_PREFIX)] == LAYOUT_PREFIX
+
+
+# THE COMPILED LAYOUTS ONE RUN HAS MET (landing R2a), so a reader asked of
+# a million cells under one layout compiles it once. A layout's items are a
+# fixed function of its text, so what this holds can never differ from a
+# fresh compile; it holds at most `_COMPILED_LAYOUT_LIMIT` layouts, and a
+# run meeting more compiles the rest each time. A run meets a handful.
+_COMPILED_LAYOUTS: "dict[str, tuple[tuple[str, str], ...] | None]" = {}
+_COMPILED_LAYOUT_LIMIT = 1024
+
+
+def layout_items(name: str) -> "tuple[tuple[str, str], ...] | None":
+    """The compiled items of a layout, named as a format or as its bare text.
+
+    `layout {DD}{MON}{YYYY}` and `{DD}{MON}{YYYY}` name the same layout:
+    no layout text begins with the prefix, so the two forms cannot be taken
+    for each other. None for anything that is not a layout.
+    """
+    if not isinstance(name, str):
+        raise TypeError(_NOT_TEXT)
+    if name in _COMPILED_LAYOUTS:
+        return _COMPILED_LAYOUTS[name]
+    found: "tuple[tuple[str, str], ...] | None" = None
+    if is_layout_name(name):
+        found = compiled_layout(name[len(LAYOUT_PREFIX) :])
+    elif name[0:1] == "{":
+        found = compiled_layout(name)
+    if len(_COMPILED_LAYOUTS) < _COMPILED_LAYOUT_LIMIT:
+        _COMPILED_LAYOUTS[name] = found
+    return found
+
+
+def layout_format(text: str) -> str:
+    """The format name of one layout text: `layout <text>`."""
+    if not isinstance(text, str):
+        raise TypeError(_NOT_TEXT)
+    return f"{LAYOUT_PREFIX}{text}"
+
+
+def _layout_fields(name: str) -> "list[str]":
+    """The bare field names of a layout format name, in order (none if not one)."""
+    if not isinstance(name, str):
+        raise TypeError(_NOT_TEXT)
+    items = layout_items(name)
+    found: "list[str]" = []
+    if items is None:
+        return found
+    for kind, field in items:
+        if kind != "f":
+            continue
+        bare = field
+        if field[len(field) - 1 : len(field)] == "?":
+            bare = field[0 : len(field) - 1]
+        found += [bare]
+    return found
+
+
+def layout_has_clock(name: str) -> bool:
+    """Whether a layout writes a time of day (rule LY2: `datetime` iff so)."""
+    if not isinstance(name, str):
+        raise TypeError(_NOT_TEXT)
+    return "HH" in _layout_fields(name)
+
+
+def layout_precision(name: str) -> str:
+    """The finest detail a layout writes (rule LY3): one of the PRECISION_ words."""
+    if not isinstance(name, str):
+        raise TypeError(_NOT_TEXT)
+    fields = _layout_fields(name)
+    if "F" in fields:
+        return PRECISION_SUBSECOND
+    if "SS" in fields:
+        return PRECISION_SECOND
+    if "MI" in fields:
+        return PRECISION_MINUTE
+    return PRECISION_DATE
+
+
+def layout_flexible(name: str) -> int:
+    """How many fields of a layout show a width (rule LY5): none, one or two."""
+    if not isinstance(name, str):
+        raise TypeError(_NOT_TEXT)
+    count = 0
+    for field in _layout_fields(name):
+        if field in _LAYOUT_FLEXIBLE_FIELDS:
+            count = count + 1
+    return count
+
+
+def layout_offset_field(name: str) -> str:
+    """A layout's offset field, bare, or `''` where it writes none (rule LY4)."""
+    if not isinstance(name, str):
+        raise TypeError(_NOT_TEXT)
+    for field in _layout_fields(name):
+        if field in _LAYOUT_OFFSET_FIELDS:
+            return field
+    return ""
+
+
+def layout_offset_optional(name: str) -> bool:
+    """Whether a layout's offset is one some cells omit (`{...?}`)."""
+    if not isinstance(name, str):
+        raise TypeError(_NOT_TEXT)
+    items = layout_items(name)
+    if not items:
+        return False
+    kind, field = items[len(items) - 1]
+    return kind == "f" and field[len(field) - 1 : len(field)] == "?"
+
+
+def layout_offset_writable(name: str, offset: str) -> bool:
+    """Whether a layout's offset field can write one published offset key.
+
+    `(none)` only where the field is optional or there is none; `Z` only on
+    a zulu field -- a signed field reads `+0000` as `+00:00` and never as
+    `Z`, so no column of its own publishes that key, and the writer handed
+    it wrote a literal `Z` the field cannot read back (the Codex review of
+    landing R2a, item 6); a signed offset only on a signed field,
+    and on `{+HH}` only a whole hour. `(withheld)` on every layout, with an
+    offset field or none (the Codex review of landing R2a, item 2): the
+    pool is the census's one count where no key reaches the line, and on a
+    layout with no field it pools `(none)` -- five SAS dates beside 995
+    blank cells published `{"(withheld)": 5}`, which the loader refused,
+    as the same five written in ISO's spelling are not. Rule LY4 asks this
+    of every key of `utc_offsets`.
+    """
+    if not isinstance(name, str):
+        raise TypeError(_NOT_TEXT)
+    if not isinstance(offset, str):
+        raise TypeError(_NOT_TEXT)
+    field = layout_offset_field(name)
+    if offset == MISSING_WITHHELD:
+        return True
+    if offset == "(none)":
+        return not field or layout_offset_optional(name)
+    if not field:
+        return False
+    if field in _LAYOUT_ZULU_FIELDS:
+        return offset == "Z"
+    if offset == "Z":
+        return False
+    if field == "+HH":
+        return offset[4:6] == "00"
+    return True
+
+
+# THE FIELDS A LAYOUT WRITING NUMBERS IS MADE OF (method G7.9b; skeptic 1
+# of landing R2a, item 2): a run of figures, the compact stamps HL7 writes.
+_LAYOUT_FIGURE_FIELDS = ("YYYY", "MM", "DD", "HH", "MI", "SS")
+
+
+def layout_writes_numbers(name: str) -> bool:
+    """Whether a layout's cells with no offset are numbers (method G7.9b).
+
+    A run of fixed figure fields, `{YYYY}{MM}{DD}{HH}{MI}{SS}`, with at most
+    a point and a fraction after it: `20230317140509` and
+    `20230317140509.0000` are numbers to every reader of numbers, and the
+    same cell with an offset after it is not. False for every other layout
+    and every name that is not one. Guarantees: a function of the name.
+    Raises TypeError for anything that is not text. No I/O of any kind.
+    """
+    if not isinstance(name, str):
+        raise TypeError(_NOT_TEXT)
+    items = layout_items(name)
+    if items is None:
+        return False
+    body = items[0 : _layout_tail(items)]
+    if body and body[len(body) - 1][1] in _LAYOUT_OFFSET_FIELDS:
+        return False
+    size = len(body)
+    if size >= 2 and body[size - 2] == ("l", ".") and body[size - 1] == ("f", "F"):
+        size = size - 2
+    if size < 1:
+        return False
+    for kind, field in body[0:size]:
+        if kind != "f" or field not in _LAYOUT_FIGURE_FIELDS:
+            return False
+    return True
+
+
+def layout_offset_added(cell: str, name: str, offset: str) -> "str | None":
+    """A cell a layout wrote with no offset, written again wearing one (method G7.9b).
+
+    Only under a layout whose offset some cells omit (`{+HHMM?}`): the cell
+    must read under it with no offset, and comes back with the marks before
+    the offset field and ``offset`` -- `Z`, or a signed `+HH:MM` -- in that
+    field's own spelling, which is what `layout_cell` writes for the same
+    instant at that offset. None where the layout has no such field, the
+    cell does not read with none, or the field cannot write the offset.
+
+    Guarantees: accepts text; returns the cell or None, and a cell it
+    returns reads back under the layout at ``offset``. Raises TypeError for
+    anything that is not text. No I/O of any kind.
+    """
+    if not isinstance(cell, str) or not isinstance(offset, str):
+        raise TypeError(_NOT_TEXT)
+    items = layout_items(name)
+    if items is None:
+        return None
+    tail = _layout_tail(items)
+    if tail >= len(items):
+        return None
+    read = layout_reading(cell, items)
+    if read is None or read[1]:
+        return None
+    written = cell
+    for kind, field in items[tail:]:
+        if kind == "l":
+            written = f"{written}{field}"
+            continue
+        bare = field[0 : len(field) - 1]
+        if bare in _LAYOUT_ZULU_FIELDS:
+            if offset != "Z":
+                return None
+            written = f"{written}{bare}"
+        elif len(offset) != 6:
+            return None
+        elif bare == "+HH:MM":
+            written = f"{written}{offset}"
+        elif bare == "+HHMM":
+            written = f"{written}{offset[0:3]}{offset[4:6]}"
+        elif offset[4:6] == "00":
+            written = f"{written}{offset[0:3]}"
+        else:
+            return None
+    back = layout_reading(written, items)
+    if back is None or back[1] != offset:
+        return None
+    return written
+
+
+def layout_two_figure_year(name: str) -> int:
+    """The first year of a layout's two-figure window, or 0 for a four-figure year."""
+    if not isinstance(name, str):
+        raise TypeError(_NOT_TEXT)
+    for field in _layout_fields(name):
+        if field in _LAYOUT_YEAR_WINDOWS:
+            return _LAYOUT_YEAR_WINDOWS[field]
+    return 0
+
+
+def layout_in_window(name: str, first_year: int) -> str:
+    """A layout read in another two-figure window: `{YY}` becomes `{YY1930}`.
+
+    Nothing changes for a layout with a four-figure year, or for the
+    default window, which has no field of its own beyond `{YY}`.
+    """
+    if not isinstance(name, str):
+        raise TypeError(_NOT_TEXT)
+    plain = str(_layout_produced(name))
+    if first_year == 1900:
+        return plain.replace("{YY}", "{YY1900}")
+    if first_year == 1930:
+        return plain.replace("{YY}", "{YY1930}")
+    if first_year == 1940:
+        return plain.replace("{YY}", "{YY1940}")
+    if first_year == CENTURY_DEFAULT_FIRST_YEAR:
+        return plain
+    return name
+
+
+def layout_day_order(name: str) -> str:
+    """`month-first` or `day-first` for a layout whose day order is a question, else `''`.
+
+    The question of the slashed pairs: a month and a day both written as
+    figures, BEFORE the year, so `03-04-2024` reads either way. A layout
+    whose year leads writes the ISO order, year then month then day, as
+    `slashed-iso-date` and the compact member do, and asks nothing; and a
+    month written as a name settles it.
+    """
+    if not isinstance(name, str):
+        raise TypeError(_NOT_TEXT)
+    month = -1
+    day = -1
+    year = -1
+    place = 0
+    for field in _layout_fields(name):
+        if field in ("M", "MM"):
+            month = place
+        if field in ("D", "DD"):
+            day = place
+        if field == "YYYY" or field in _LAYOUT_YEAR_WINDOWS:
+            year = place
+        place = place + 1
+    if month < 0 or day < 0 or year < month or year < day:
+        return ""
+    return "month-first" if month < day else "day-first"
+
+
+def layout_swapped(name: str) -> str:
+    """The same layout with its numeric month and day fields changed round, or `''`."""
+    if not isinstance(name, str):
+        raise TypeError(_NOT_TEXT)
+    if not layout_day_order(name):
+        return ""
+    swapped = name.replace("{MM}", "{@@}").replace("{DD}", "{MM}")
+    swapped = swapped.replace("{@@}", "{DD}")
+    swapped = swapped.replace("{M}", "{@}").replace("{D}", "{M}")
+    return swapped.replace("{@}", "{D}")
+
+
+def layout_order_key(name: str, day_first: bool) -> "tuple[int, int, int, int, int, int, str]":
+    """Where a layout stands among others that read as many cells (the ties).
+
+    Month first before day first unless the person said the day comes first;
+    then a layout whose offset every cell writes before one some omit; then
+    fewer space-padded fields; then fewer flexible fields, so a padded
+    dotted date keeps its padding; then the standard month names before the
+    CLDR sets; then the shorter text; then the text.
+    """
+    if not isinstance(name, str):
+        raise TypeError(_NOT_TEXT)
+    order = layout_day_order(name)
+    swapped = 0
+    if order == "day-first":
+        swapped = 1
+    if order and day_first:
+        swapped = 1 - swapped
+    optional = 1 if layout_offset_optional(name) else 0
+    spaced = 0
+    flexible = 0
+    rank = 0
+    for field in _layout_fields(name):
+        if field in _LAYOUT_SPACED_FIELDS:
+            spaced = spaced + 1
+        if field in _LAYOUT_FLEXIBLE_FIELDS:
+            flexible = flexible + 1
+        if field in _LAYOUT_MONTH_FIELDS:
+            suffix = field[len(field) - 2 : len(field)]
+            if suffix in _LAYOUT_SET_RANK:
+                rank = _LAYOUT_SET_RANK[suffix]
+    return swapped, optional, spaced, flexible, rank, len(name), name
+
+
+# THE FIXED INSTANT A LAYOUT IS WRITTEN AT TO SHOW IT (rule LY1 and the
+# evidence sentence): the 17th of March 2024 at 14:05, the instant every
+# example of this module's `_FORMAT_EXAMPLES` names.
+_LAYOUT_SAMPLE = "2024-03-17 14:05:00"
+
+
+def _layout_produced(text: str) -> str:
+    """The production a layout text stands for: its window and `?` set aside."""
+    if not isinstance(text, str):
+        raise TypeError(_NOT_TEXT)
+    plain = text.replace("?}", "}").replace("{YY1900}", "{YY}")
+    return plain.replace("{YY1930}", "{YY}").replace("{YY1940}", "{YY}")
+
+
+def layout_example(name: str) -> str:
+    """A layout written at the fixed sample instant: what its cells look like.
+
+    The text the evidence sentence shows in place of the layout's own
+    (`17MAR2024:14:05:00`), so a person reads a date and not a grammar.
+    A FLEXIBLE FIELD IS SHOWN IN AS FEW FIGURES AS IT TAKES (skeptic 1 of
+    landing R2a, item 5): `{D}.{M}.{YYYY}` is shown `17.3.2024`, as such a
+    column writes, and not `17.03.2024`, which is the padded member's; and
+    `{YYYY}-{M}-{D}` not as ISO's own `2024-03-17`. Rule LY1's sample, in
+    `is_layout_format`, keeps its padding. Empty for a name that is not a
+    layout.
+    """
+    if not isinstance(name, str):
+        raise TypeError(_NOT_TEXT)
+    items = layout_items(name)
+    if items is None:
+        return ""
+    offset = "Z" if layout_offset_field(name) in _LAYOUT_ZULU_FIELDS else "+01:00"
+    if not layout_offset_field(name):
+        offset = ""
+    return layout_cell(items, _LAYOUT_SAMPLE, offset, (False, False), 3)
+
+
+def is_layout_format(name: str) -> bool:
+    """Rule LY1: whether a format name is a layout this grammar produces.
+
+    The name is `layout <text>`, the text compiles under the closed tables
+    (`compiled_layout`), and the grammar's own productions make it: written
+    at the fixed sample instant, the cell reads back among `layouts_of`'s
+    answers for it. That last clause is what keeps out a text built only of
+    known fields that no production makes -- two flexible fields side by
+    side, which a lucky date reads -- and it is exact: what the producer
+    can publish and what this admits are one set.
+
+    Guarantees: accepts any object; returns a bool; raises nothing. No I/O
+    of any kind.
+    """
+    if not isinstance(name, str):
+        return False
+    if not is_layout_name(name):
+        return False
+    text = name[len(LAYOUT_PREFIX) :]
+    if compiled_layout(text) is None:
+        return False
+    plain = _layout_produced(text)
+    items = compiled_layout(plain)
+    if items is None:
+        return False
+    offset = ""
+    field = layout_offset_field(name)
+    if field:
+        offset = "Z" if field in _LAYOUT_ZULU_FIELDS else "+01:00"
+    cell = layout_cell(items, _LAYOUT_SAMPLE, offset, (), 3)
+    return plain in layouts_of(cell)
+
+
+def layout_without_offset(layout: str) -> str:
+    """A layout text with its trailing offset field and the literals before it set aside.
+
+    The text itself where it ends in no offset field. Guarantees: accepts
+    a layout text; returns a text. Raises TypeError for anything that is
+    not text. No I/O of any kind.
+    """
+    if not isinstance(layout, str):
+        raise TypeError(_NOT_TEXT)
+    end = len(layout)
+    if layout[end - 1 : end] != "}":
+        return layout
+    start = end - 1
+    while start > 0 and layout[start] != "{":
+        start = start - 1
+    field = layout[start + 1 : end - 1]
+    if field[len(field) - 1 : len(field)] == "?":
+        field = field[0 : len(field) - 1]
+    if field not in _LAYOUT_OFFSET_FIELDS:
+        return layout
+    cut = start
+    while cut > 0 and layout[cut - 1] in _LAYOUT_LITERALS:
+        cut = cut - 1
+    return layout[0:cut]
+
+
+def layout_optional(layout: str) -> str:
+    """The same layout text with its trailing offset made one some cells omit.
+
+    The text itself where it ends in no offset field, or in one already
+    optional. Guarantees: accepts a layout text; returns a text. Raises
+    TypeError for anything that is not text. No I/O of any kind.
+    """
+    if not isinstance(layout, str):
+        raise TypeError(_NOT_TEXT)
+    if layout[len(layout) - 2 : len(layout)] == "?}":
+        return layout
+    if layout_without_offset(layout) == layout:
+        return layout
+    return f"{layout[0 : len(layout) - 1]}?}}"
+
+
+
+def layout_flexible_values(name: str, month: int, day: int) -> "list[int]":
+    """The month and day values a layout's flexible fields write, in layout order.
+
+    Read off the text with two searches rather than a compile, because the
+    twin's width rules ask it of every rank: `{M}` and `{D}` are the only
+    flexible fields, and neither is the head of any other field's name.
+    """
+    if not isinstance(name, str):
+        raise TypeError(_NOT_TEXT)
+    month_at = name.find("{M}")
+    day_at = name.find("{D}")
+    if month_at < 0 and day_at < 0:
+        return []
+    if month_at < 0:
+        return [day]
+    if day_at < 0:
+        return [month]
+    if month_at < day_at:
+        return [month, day]
+    return [day, month]
+
+
+def width_field_count(format_name: str) -> int:
+    """How many numeric fields of a member's cells can show a width.
+
+    Two for the slashed and two-figure families (`VARIABLE_WIDTH_MEMBERS`),
+    one for the textual pair (the day beside a month name), a layout's own
+    count of flexible fields (landing R2a, rule LY5), and none for every
+    other member, which fixes its widths. The one statement every census
+    of widths, every twin rule and every check asks.
+    """
+    if not isinstance(format_name, str):
+        raise TypeError(_NOT_TEXT)
+    if format_name in VARIABLE_WIDTH_MEMBERS:
+        return 2
+    if format_name in TEXTUAL_MEMBERS:
+        return 1
+    if format_name[0:7] == LAYOUT_PREFIX:
+        return len(layout_flexible_values(format_name, 1, 1))
+    return 0
+
+
+def width_first_field(format_name: str) -> str:
+    """`month` or `day`: which field a member's FIRST width-showing field is.
+
+    The day for a day-first member, a textual member and a layout whose one
+    flexible field is its day; the month for a month-first member and a
+    layout whose month leads. Empty for a member that shows no width.
+    """
+    if not isinstance(format_name, str):
+        raise TypeError(_NOT_TEXT)
+    if format_name in VARIABLE_WIDTH_MEMBERS:
+        return "day" if format_name in DAY_FIRST_MEMBERS else "month"
+    if format_name in TEXTUAL_MEMBERS:
+        return "day"
+    if format_name[0:7] == LAYOUT_PREFIX:
+        month_at = format_name.find("{M}")
+        day_at = format_name.find("{D}")
+        if month_at < 0 and day_at < 0:
+            return ""
+        if month_at >= 0 and (day_at < 0 or month_at < day_at):
+            return "month"
+        return "day"
+    return ""
+
+
+def _layout_width_style(text: str, format_name: str) -> "str | None":
+    """`date_field_style` for a layout: the width word its flexible fields show.
+
+    One flexible field shows `padded` or `unpadded`, as a textual member's
+    day does; two show the joint or one-field words a slashed member's
+    month and day show, first and second in layout order (rule LY5); none
+    shows nothing.
+    """
+    if not isinstance(text, str):
+        raise TypeError(_NOT_TEXT)
+    items = layout_items(format_name)
+    if items is None:
+        return None
+    whole = layout_reading(text, items)
+    if whole is None:
+        return None
+    return layout_width_word(whole[2])
+
+
+def layout_width_word(shows: "tuple[str, ...]") -> "str | None":
+    """The width word one reading's flexible fields show, or None (rule LY5).
+
+    ``shows`` is `layout_reading`'s: `p` for a field written padded, `u` for
+    one written in one figure, `''` for two figures either way.
+    """
+    if len(shows) == 1:
+        if shows[0] == "p":
+            return WIDTH_PADDED
+        if shows[0] == "u":
+            return WIDTH_UNPADDED
+        return None
+    if len(shows) != 2:
+        return None
+    first = shows[0]
+    second = shows[1]
+    if not first and not second:
+        return None
+    if not first:
+        return WIDTH_SECOND_FIELD_PADDED if second == "p" else WIDTH_SECOND_FIELD_UNPADDED
+    if not second:
+        return WIDTH_FIRST_FIELD_PADDED if first == "p" else WIDTH_FIRST_FIELD_UNPADDED
+    if first == second:
+        return WIDTH_PADDED if first == "p" else WIDTH_UNPADDED
+    if first == "p":
+        return WIDTH_FIRST_PADDED
+    return WIDTH_SECOND_PADDED
+
+
+def written_layout_date(
+    format_name: str,
+    canonical: str,
+    offset: str = "",
+    width: str = DEFAULT_FIELD_WIDTH,
+    figures: int = 0,
+) -> str:
+    """One instant written in a layout column's own spelling (G7.5, landing R2a).
+
+    The writer the twin's every layout cell goes through: the width word
+    the rank was allocated is turned into a padding decision per flexible
+    field (`pair_widths`, layout order), and the offset is written by the
+    layout's own field, so nothing is appended after. A name that is not a
+    layout writes the canonical text.
+
+    Guarantees: accepts a layout format name, a canonical instant, its
+    offset in ISO's spelling, a width word and the fraction's figures;
+    returns the cell. Determinism: a function of the five. Raises
+    TypeError for a canonical text that is not text. No I/O of any kind.
+    """
+    if not isinstance(canonical, str):
+        raise TypeError(_NOT_TEXT)
+    items = layout_items(format_name)
+    if items is None:
+        return canonical
+    first_padded, second_padded = pair_widths(width)
+    if layout_flexible(format_name) == 1:
+        first_padded = width != WIDTH_UNPADDED
+    return layout_cell(
+        items, canonical, offset, (first_padded, second_padded), figures
+    )
+
+
+def layout_low_evidence(name: str) -> "str | None":
+    """Whether a layout is one nothing in its cells can tell from a code.
+
+    `-` for three numbers on `-` with a two-figure year -- no named member
+    reads a two-figure year on that mark, and `9-14-29` is a unit, a room
+    and a bed as readily as a date -- `.` for one or two figures, a dot,
+    one or two figures, a dot and a four-figure year, which is how a
+    version is written (`1.12.2024`; the dotted members read padded cells
+    alone for that reason, C6-22, and skeptic 1 of landing R2a, item 3,
+    found P4-D15's column of versions read as dates and asked nothing
+    else), and `''` for a run of 12 or 14 figures, which an order number
+    writes alike. None for every other layout and every name that is not
+    one (landing R2a; the R2 design skeptic, m4).
+    """
+    if not isinstance(name, str):
+        raise TypeError(_NOT_TEXT)
+    if not is_layout_name(name):
+        return None
+    plain = str(_layout_produced(name[len(LAYOUT_PREFIX) :]))
+    if plain == "{YYYY}{MM}{DD}{HH}{MI}" or plain == "{YYYY}{MM}{DD}{HH}{MI}{SS}":
+        return ""
+    if plain in ("{M}-{D}-{YY}", "{D}-{M}-{YY}", "{MM}-{DD}-{YY}", "{DD}-{MM}-{YY}"):
+        return "-"
+    if plain in ("{M}.{D}.{YYYY}", "{D}.{M}.{YYYY}"):
+        return "."
+    return None
+
+
+def layout_before_its_offset(name: str) -> str:
+    """The layout of a cell's figures before an offset written straight after them, or `''`.
+
+    `layout {YYYY}{MM}{DD}{HH}{MI}{SS}{+HHMM?}` gives
+    `layout {YYYY}{MM}{DD}{HH}{MI}{SS}`: the cells that leave the offset
+    out are that layout's own cells, so a question asked of the one is
+    asked of the other (skeptic 2 of landing R2a, item 3). And so does
+    `{...}{SS}{+HHMM}`, whose every cell writes the offset (the Codex
+    review of landing R2a, item 3): a suffix every identifier carries is
+    the same suffix. `''` for a layout whose last item is no offset field
+    written straight after a field, and for every name that is not a
+    layout. Guarantees: a function of the name. Raises TypeError for
+    anything that is not text. No I/O of any kind.
+    """
+    if not isinstance(name, str):
+        raise TypeError(_NOT_TEXT)
+    items = layout_items(name)
+    if items is None:
+        return ""
+    size = len(items)
+    if size < 2 or items[size - 2][0] != "f":
+        return ""
+    kind, last = items[size - 1]
+    if last[len(last) - 1 : len(last)] == "?":
+        last = last[0 : len(last) - 1]
+    if kind != "f" or last not in _LAYOUT_OFFSET_FIELDS:
+        return ""
+    text = ""
+    for place in range(size - 1):
+        kind, field = items[place]
+        if kind == "f":
+            text = f"{text}{{{field}}}"
+        else:
+            text = f"{text}{field}"
+    return layout_format(text)

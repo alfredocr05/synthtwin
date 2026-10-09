@@ -305,6 +305,15 @@ TWENTY_THIRD_BRANCH_VECTORS = (
 # anchor 3b-7 (P4-D378)
 # anchor 3b-J (P4-D379)
 # anchor 3b-R2a (P4-D383)
+# THE TWENTY-FIFTH FILE (landing R2a's layout member, plan P4-D383).
+TWENTY_FIFTH_BRANCH_GENERATOR = (
+    REPOSITORY / "tools" / "reference" / "make_generation_branch_vectors_25.py"
+)
+TWENTY_FIFTH_BRANCH_VECTORS = (
+    pathlib.Path(__file__).resolve().parent
+    / "reference"
+    / "generation-branch-vectors-25.json"
+)
 # anchor 3b-R2b (P4-D383)
 # anchor 3b-R2c (P4-D383)
 # anchor 3b-R4 (P4-D384)
@@ -423,6 +432,10 @@ def _twenty_first_branch_document() -> dict:
 
 def _twenty_third_branch_document() -> dict:
     return json.loads(TWENTY_THIRD_BRANCH_VECTORS.read_text(encoding="utf-8"))
+
+
+def _twenty_fifth_branch_document() -> dict:
+    return json.loads(TWENTY_FIFTH_BRANCH_VECTORS.read_text(encoding="utf-8"))
 
 
 # The nine cases method section G14.3 names, and the four the review of
@@ -862,6 +875,25 @@ TWENTY_FIRST_BRANCH_CASES = (
 # P4-D377).
 TWENTY_THIRD_BRANCH_CASES = ("tail_width_past_the_reach",)
 
+# THE TWENTY-FIFTH FILE: landing R2a's layout member (plan P4-D383).
+TWENTY_FIFTH_BRANCH_CASES = (
+    "layout_century_window",
+    "layout_flexible_widths",
+    "layout_hl7_fraction_offset",
+    "layout_hour_offset",
+    "layout_offsets_owed",
+    "layout_offsets_owed_across_offsets",
+    "layout_offsets_owed_beside_named",
+    "layout_offsets_owed_repeats",
+    "layout_offsets_owed_whole_texts",
+    "layout_optional_offset",
+    "layout_sas_date9",
+    "layout_space_padded_day",
+    "layout_spaced_offset",
+    "layout_utc_word",
+    "layout_weekday_long_date",
+)
+
 ALL_CASES = tuple(
     sorted(
         REQUIRED_CASES
@@ -882,6 +914,7 @@ ALL_CASES = tuple(
         + TWENTY_SECOND_BRANCH_CASES
         + TWENTY_FIRST_BRANCH_CASES
         + TWENTY_THIRD_BRANCH_CASES
+        + TWENTY_FIFTH_BRANCH_CASES
     )
 )
 
@@ -908,6 +941,30 @@ SEEDS = {
     # and the second repair round's line held key by key the one after.
     "labels_clock_line": 434,
     "labels_clock_forms": 435,
+    # Landing R2a's layout member takes the next seeds after T1's (plan
+    # P4-D383).
+    "layout_century_window": 421,
+    "layout_flexible_widths": 422,
+    "layout_hl7_fraction_offset": 423,
+    "layout_hour_offset": 424,
+    "layout_optional_offset": 425,
+    "layout_sas_date9": 426,
+    "layout_spaced_offset": 427,
+    "layout_utc_word": 428,
+    "layout_weekday_long_date": 429,
+    # ...and its repair round's G7.9b (item 2) and space-padded day (item
+    # 6), the next seeds.
+    "layout_offsets_owed": 430,
+    "layout_space_padded_day": 431,
+    "layout_offsets_owed_repeats": 432,
+    # ...and its second skeptic's offer beside a named offset (item 1),
+    # after the highest seed another lane of the wave had taken, 435.
+    "layout_offsets_owed_beside_named": 436,
+    # ...and the Codex review's whole texts of G7.9b step 5 (item 4).
+    "layout_offsets_owed_whole_texts": 437,
+    # ...and the verification of that repair, step 5's aim and look ahead
+    # (open item 1), at the next seed no lane of the wave has taken.
+    "layout_offsets_owed_across_offsets": 438,
     # Landing T1's written clocks take the next seeds after the highest in
     # use below 34041 (plan P4-D370).
     "stamp_unpadded_hour": 416,
@@ -1133,6 +1190,11 @@ PARSE_RATES = {"labels_clock_line": 0.99, "labels_clock_forms": 0.99}
 
 # The cases whose column was declared with --identifier, which the
 # contract's invariant A1 binds to settings.forced_identifiers.
+# The case whose column's two-figure years were placed in a century of the
+# person's own (landing R2a, question Q5), which the contract's invariant
+# S8e binds to settings.century_windows.
+DECLARED_CENTURIES = {"layout_century_window": 1930}
+
 DECLARED_IDENTIFIERS = frozenset(
     {
         "identifier_fold_collisions",
@@ -1173,6 +1235,8 @@ def _case(name: str) -> dict:
         document = _twenty_first_branch_document()
     elif name in TWENTY_THIRD_BRANCH_CASES:
         document = _twenty_third_branch_document()
+    elif name in TWENTY_FIFTH_BRANCH_CASES:
+        document = _twenty_fifth_branch_document()
     elif name in SEVENTH_BRANCH_CASES:
         document = _seventh_branch_document()
     elif name in SIXTH_BRANCH_CASES:
@@ -1213,6 +1277,7 @@ def _settings(
     commas: "list | None" = None,
     codes: "list | None" = None,
     rate: float = 0.9,
+    centuries: "list | None" = None,
 ) -> dict:
     return {
         "small_cell_floor": 11,
@@ -1273,8 +1338,9 @@ def _settings(
         # 12-hour clock: a column on that face states it in its own form.
         "forced_twelve_hour_clocks": [],
         # The three the second cut reserves (plan P4-D386), empty in every
-        # description until the landing that fills each.
-        "century_windows": [],
+        # description until the landing that fills each; landing R2a fills
+        # the first, for its one case read in a century of its own.
+        "century_windows": [] if centuries is None else centuries,
         "forced_date_columns": [],
         "forced_date_counts": [],
     }
@@ -1305,6 +1371,11 @@ def _profile_document(case: dict, name: str) -> dict:
     commas = [column["name"]] if name in DECLARED_DECIMAL_COMMAS else []
     codes = [column["name"]] if name in DECLARED_CODES else []
     rate = PARSE_RATES[name] if name in PARSE_RATES else 0.9
+    centuries = (
+        [[column["name"], DECLARED_CENTURIES[name]]]
+        if name in DECLARED_CENTURIES
+        else None
+    )
     return {
         "columns": [column],
         "created_with": "0+unknown",
@@ -1313,7 +1384,7 @@ def _profile_document(case: dict, name: str) -> dict:
         "profile_version": 6,
         "publication_notes": [],
         "relationships": _relationships(),
-        "settings": _settings(declared, commas, codes, rate),
+        "settings": _settings(declared, commas, codes, rate, centuries),
         "source": {
             "dialect": dialect.document_of(
                 dialect.ordinary(1, len(case["cells"]), False)
@@ -1441,6 +1512,7 @@ def test_the_branch_file_is_the_same_oracle_and_says_which_half_it_is() -> None:
     twenty_second = _twenty_second_branch_document()
     twenty_first = _twenty_first_branch_document()
     twenty_third = _twenty_third_branch_document()
+    twenty_fifth = _twenty_fifth_branch_document()
     papers = _document_document()
     assert tuple(sorted(branch["cases"])) == BRANCH_CASES
     assert tuple(sorted(second["cases"])) == SECOND_BRANCH_CASES
@@ -1459,11 +1531,12 @@ def test_the_branch_file_is_the_same_oracle_and_says_which_half_it_is() -> None:
     assert tuple(sorted(twenty_second["cases"])) == TWENTY_SECOND_BRANCH_CASES
     assert tuple(sorted(twenty_first["cases"])) == TWENTY_FIRST_BRANCH_CASES
     assert tuple(sorted(twenty_third["cases"])) == TWENTY_THIRD_BRANCH_CASES
+    assert tuple(sorted(twenty_fifth["cases"])) == TWENTY_FIFTH_BRANCH_CASES
     assert tuple(sorted(papers["cases"])) == DOCUMENT_CASES
     every = (
         named, branch, second, third, fourth, fifth, sixth, seventh,
         eighth, ninth, tenth, eleventh, twelfth, thirteenth, fourteenth,
-        twenty_second, twenty_first, twenty_third, papers,
+        twenty_second, twenty_first, twenty_third, twenty_fifth, papers,
     )
     for index in range(len(every)):
         for other in range(index + 1, len(every)):
@@ -1491,6 +1564,7 @@ def test_the_branch_file_is_the_same_oracle_and_says_which_half_it_is() -> None:
         (twenty_second, TWENTY_SECOND_BRANCH_VECTORS),
         (twenty_first, TWENTY_FIRST_BRANCH_VECTORS),
         (twenty_third, TWENTY_THIRD_BRANCH_VECTORS),
+        (twenty_fifth, TWENTY_FIFTH_BRANCH_VECTORS),
         (papers, DOCUMENT_VECTORS),
     )
     for document, own in files:
@@ -1523,6 +1597,7 @@ def test_the_branch_file_is_the_same_oracle_and_says_which_half_it_is() -> None:
         THIRTEENTH_BRANCH_GENERATOR,
         FOURTEENTH_BRANCH_GENERATOR,
         TWENTY_SECOND_BRANCH_GENERATOR,
+        TWENTY_FIFTH_BRANCH_GENERATOR,
         FIFTEENTH_BRANCH_GENERATOR,
         TWENTY_FIRST_BRANCH_GENERATOR,
         TWENTY_THIRD_BRANCH_GENERATOR,
@@ -1826,6 +1901,15 @@ TWENTY_FIRST_BRANCH_NAMED_COUNTS = 629
 # The twenty-third, at its own generator's line ("proved N ... beside M").
 TWENTY_THIRD_BRANCH_PUBLISHED_NUMBERS = 542
 TWENTY_THIRD_BRANCH_NAMED_COUNTS = 205
+# The twenty-fifth, at its own generator's line ("proved 28 ... beside 379"):
+# the distances its cases with two tails publish, G7.9b's two cases of the
+# repair round adding eight of them, the one of its second skeptic four
+# more, the Codex review's whole texts four more and the aim and look ahead
+# of that repair's verification four more; each of those last two cases
+# names twenty-six counts, as `layout_offsets_owed` does, both censuses of
+# offsets naming one key.
+TWENTY_FIFTH_BRANCH_PUBLISHED_NUMBERS = 28
+TWENTY_FIFTH_BRANCH_NAMED_COUNTS = 379
 # The document file publishes NO binary64 at all, and that is a fact
 # about its transforms rather than a gap in its proof: the written form,
 # the arrangement, the workbook writer, the shape of a line before a
@@ -1938,6 +2022,12 @@ COMMITTED_FILES = (
         TWENTY_THIRD_BRANCH_NAMED_COUNTS,
     ),
     (
+        TWENTY_FIFTH_BRANCH_VECTORS,
+        gen.TWENTY_FIFTH_BRANCH_PART,
+        TWENTY_FIFTH_BRANCH_PUBLISHED_NUMBERS,
+        TWENTY_FIFTH_BRANCH_NAMED_COUNTS,
+    ),
+    (
         DOCUMENT_VECTORS,
         gen.DOCUMENT_PART,
         DOCUMENT_PUBLISHED_NUMBERS,
@@ -1951,7 +2041,7 @@ def _fields(document: dict) -> frozenset:
 
 
 @pytest.mark.parametrize(
-    "committed,part,published,named", COMMITTED_FILES, ids=["named", "branches", "branches-2", "branches-3", "branches-4", "branches-5", "branches-6", "branches-8", "branches-7", "branches-9", "branches-10", "branches-11", "branches-12", "branches-13", "branches-14", "branches-22", "branches-21", "branches-23", "documents"]
+    "committed,part,published,named", COMMITTED_FILES, ids=["named", "branches", "branches-2", "branches-3", "branches-4", "branches-5", "branches-6", "branches-8", "branches-7", "branches-9", "branches-10", "branches-11", "branches-12", "branches-13", "branches-14", "branches-22", "branches-21", "branches-23", "branches-25", "documents"]
 )
 def test_the_committed_file_publishes_no_number_that_escapes_the_proof(
     committed, part, published, named
@@ -1993,7 +2083,7 @@ def test_the_committed_file_publishes_no_number_that_escapes_the_proof(
 
 
 @pytest.mark.parametrize(
-    "committed,part,published,named", COMMITTED_FILES, ids=["named", "branches", "branches-2", "branches-3", "branches-4", "branches-5", "branches-6", "branches-8", "branches-7", "branches-9", "branches-10", "branches-11", "branches-12", "branches-13", "branches-14", "branches-22", "branches-21", "branches-23", "documents"]
+    "committed,part,published,named", COMMITTED_FILES, ids=["named", "branches", "branches-2", "branches-3", "branches-4", "branches-5", "branches-6", "branches-8", "branches-7", "branches-9", "branches-10", "branches-11", "branches-12", "branches-13", "branches-14", "branches-22", "branches-21", "branches-23", "branches-25", "documents"]
 )
 def test_the_committed_bytes_are_proved_against_the_recorded_exact_values(
     committed, part, published, named
@@ -2012,7 +2102,7 @@ def test_the_committed_bytes_are_proved_against_the_recorded_exact_values(
 
 
 @pytest.mark.parametrize(
-    "committed,part,published,named", COMMITTED_FILES, ids=["named", "branches", "branches-2", "branches-3", "branches-4", "branches-5", "branches-6", "branches-8", "branches-7", "branches-9", "branches-10", "branches-11", "branches-12", "branches-13", "branches-14", "branches-22", "branches-21", "branches-23", "documents"]
+    "committed,part,published,named", COMMITTED_FILES, ids=["named", "branches", "branches-2", "branches-3", "branches-4", "branches-5", "branches-6", "branches-8", "branches-7", "branches-9", "branches-10", "branches-11", "branches-12", "branches-13", "branches-14", "branches-22", "branches-21", "branches-23", "branches-25", "documents"]
 )
 def test_the_generator_says_how_many_numbers_it_proved(
     tmp_path, capsys, committed, part, published, named
@@ -2509,6 +2599,43 @@ def _named_marks_only(value, low, boundary, column):
 
 # The oracle's own clock writer, held before any mutant replaces it.
 _WRITTEN_CLOCK_OF = gen.written_clock_of
+# Landing R2a's two rules, bound before any mutant replaces them.
+_LAYOUT_WRITTEN = gen.layout_written
+_READABLE_DAYS = gen.readable_days
+# ...and G7.9b's offer, bound the same way (skeptic 2 of landing R2a).
+_OFFSETS_ON_OFFER = gen.offsets_on_offer
+# ...and step 5's sums and counts, bound the same way (the verification of
+# the Codex review's repair of landing R2a).
+_SUMS_OF_SIZES = gen.sums_of_sizes
+_AMOUNT_COUNTED = gen.amount_counted
+
+
+def _the_most_each_offset_holds(here, by_size, cap, left, later):
+    """G7.9b step 5's look ahead withdrawn: each offset the most it holds.
+
+    The rule the verification of the Codex review's repair replaced: an
+    offset takes the largest amount its room holds of what is left of the
+    aim, whether or not the rest can still be reached after it.
+    """
+    counts = sorted((size, len(texts)) for size, texts in here.items())
+    amounts = sorted(
+        (total for total in _SUMS_OF_SIZES(counts, cap) if total >= 2), reverse=True
+    )
+    return _AMOUNT_COUNTED(counts, amounts[0]) if amounts else {}
+
+
+def _layout_rewritten(old: str, new: str):
+    """G7.5's layout writer handed the layout with one piece of it changed."""
+
+    def written(member, *rest):
+        return _LAYOUT_WRITTEN(member.replace(old, new), *rest)
+
+    return written
+
+
+def _window_ignored(member, system=""):
+    """G7.3e's window withdrawn: a two-figure year read as 1969 to 2068."""
+    return _READABLE_DAYS(member.replace("{YY1930}", "{YY}"), system)
 
 
 def _every_hour_padded(second, seconds, width, face):
@@ -3691,6 +3818,118 @@ CASE_MUTANTS = {
         branch="G8.3's clock line (the repair round of landing 3b.5), which fills a label column's held-back levels with times only while its twin stays labels; the mutant fills every one with a time, and the twin is read back as clock times",
         attribute="clock_line_room",
         replacement=_no_clock_line,
+        outcome=CHANGES_THE_CELLS,
+    ),
+    # LANDING R2a'S LAYOUT MEMBER (plan P4-D383), each case's own rule.
+    "layout_sas_date9": Mutant(
+        branch="G7.5's layout writer, every field of the layout written; the "
+        "mutant drops the month word",
+        attribute="layout_written",
+        replacement=_layout_rewritten("{MON}", ""),
+        outcome=CHANGES_THE_CELLS,
+    ),
+    "layout_hl7_fraction_offset": Mutant(
+        branch="G7.5's offset in its own field's spelling, `+HHMM`; the "
+        "mutant spells it as ISO does, with its colon",
+        attribute="layout_written",
+        replacement=_layout_rewritten("{+HHMM}", "{+HH:MM}"),
+        outcome=CHANGES_THE_CELLS,
+    ),
+    "layout_spaced_offset": Mutant(
+        branch="G7.5's literal space before the offset field; the mutant "
+        "drops it",
+        attribute="layout_written",
+        replacement=_layout_rewritten(" {+HH:MM}", "{+HH:MM}"),
+        outcome=CHANGES_THE_CELLS,
+    ),
+    "layout_hour_offset": Mutant(
+        branch="G7.5's whole-hour offset field `+HH`; the mutant writes the "
+        "minutes too",
+        attribute="layout_written",
+        replacement=_layout_rewritten("{+HH}", "{+HH:MM}"),
+        outcome=CHANGES_THE_CELLS,
+    ),
+    "layout_utc_word": Mutant(
+        branch="G7.5's zulu field written as the word it names, ` UTC`; the "
+        "mutant writes ISO's `Z`",
+        attribute="layout_written",
+        replacement=_layout_rewritten(" {UTC}", "{Z}"),
+        outcome=CHANGES_THE_CELLS,
+    ),
+    "layout_optional_offset": Mutant(
+        branch="G7.5's offset some cells omit, written only where the rank "
+        "wears one; the mutant writes it on every rank",
+        attribute="layout_written",
+        replacement=_layout_rewritten("?}", "}"),
+        outcome=CHANGES_THE_CELLS,
+    ),
+    "layout_offsets_owed": Mutant(
+        branch="G7.9b's offsets a column of figure runs owes its count of "
+        "cells that are not numbers, each below the census line; the mutant "
+        "withdraws the pass, so the twin's cells are numbers alone",
+        attribute="offsets_paid_to_the_classes",
+        replacement=lambda column, cells, holes, floor=11: cells,
+        outcome=CHANGES_THE_CELLS,
+    ),
+    "layout_offsets_owed_repeats": Mutant(
+        branch="G7.9b's payment on a rank whose text no other rank repeats; "
+        "the mutant makes a payment on a repeated text too",
+        attribute="a_text_worn_once",
+        replacement=lambda cells, rank: True,
+        outcome=CHANGES_THE_CELLS,
+    ),
+    "layout_offsets_owed_beside_named": Mutant(
+        branch="G7.9b's offer, every offset the census names left off it "
+        "(skeptic 2 of landing R2a, item 1); the mutant offers a named "
+        "offset too, and the payments wear it",
+        attribute="offsets_on_offer",
+        replacement=lambda field, census: _OFFSETS_ON_OFFER(field, {}),
+        outcome=CHANGES_THE_CELLS,
+    ),
+    "layout_offsets_owed_across_offsets": Mutant(
+        branch="G7.9b step 5's aim and look ahead, an offset taking the most "
+        "it holds only while the rest of the aim stays reachable after it "
+        "(the verification of the Codex review's repair of landing R2a, "
+        "open item 1); the mutant takes at each offset the most it holds",
+        attribute="amount_taken",
+        replacement=_the_most_each_offset_holds,
+        outcome=CHANGES_THE_CELLS,
+    ),
+    "layout_offsets_owed_whole_texts": Mutant(
+        branch="G7.9b step 5, the rest owed paid with whole repeated texts "
+        "where the texts standing alone fall short (the Codex review of "
+        "landing R2a, item 4); the mutant withdraws the step",
+        attribute="whole_texts_paid",
+        replacement=lambda paid, cells, joint, offer, made_at, rest, line, absent, a_number: paid,
+        outcome=CHANGES_THE_CELLS,
+    ),
+    "layout_space_padded_day": Mutant(
+        branch="G7.5's space-padded day `{_D}`, a day below ten written after "
+        "a space; the mutant writes it zero-padded",
+        attribute="layout_written",
+        replacement=_layout_rewritten("{_D}", "{DD}"),
+        outcome=CHANGES_THE_CELLS,
+    ),
+    "layout_flexible_widths": Mutant(
+        branch="G7.5's flexible fields written at the width allocated to the "
+        "rank (rule LY5); the mutant pads every one",
+        attribute="layout_written",
+        replacement=_layout_rewritten("{D}-{M}", "{DD}-{MM}"),
+        outcome=CHANGES_THE_CELLS,
+    ),
+    "layout_weekday_long_date": Mutant(
+        branch="G7.5's weekday lead, the date's own weekday; the mutant drops "
+        "it and its comma",
+        attribute="layout_written",
+        replacement=_layout_rewritten("{Day}, ", ""),
+        outcome=CHANGES_THE_CELLS,
+    ),
+    "layout_century_window": Mutant(
+        branch="G7.3e's days a two-figure year reads back, in the century "
+        "the person chose; the mutant reads every two-figure year in the "
+        "POSIX window",
+        attribute="readable_days",
+        replacement=_window_ignored,
         outcome=CHANGES_THE_CELLS,
     ),
     # LANDING T1'S WRITTEN CLOCKS (plan P4-D370), each case's own rule.
@@ -6139,6 +6378,7 @@ def test_the_method_states_the_count_the_committed_files_hold() -> None:
         (TWENTY_SECOND_BRANCH_VECTORS, _twenty_second_branch_document()),
         (TWENTY_FIRST_BRANCH_VECTORS, _twenty_first_branch_document()),
         (TWENTY_THIRD_BRANCH_VECTORS, _twenty_third_branch_document()),
+        (TWENTY_FIFTH_BRANCH_VECTORS, _twenty_fifth_branch_document()),
     )
     flat = " ".join(section.split())
     for path, document in held:

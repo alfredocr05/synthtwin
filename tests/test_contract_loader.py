@@ -353,6 +353,24 @@ def edit_top(**changes: object) -> Change:
     return change
 
 
+def _declared_and_read_by_a_member(_column: str) -> Change:
+    """A column read under a two-figure MEMBER, its century declared (S8e).
+
+    The members read the POSIX window alone, so a declared column is read
+    by the layout in its own window, and a description pairing the two
+    describes a reading no producer makes.
+    """
+    def change(document: Document) -> None:
+        block = at(document, _column)
+        block.update(
+            format="two-digit-month-first-date",
+            resolution_mix={"two-digit-month-first-date": block["n_present"]},
+            date_field_widths={"padded": block["n_present"]},
+        )
+        document["settings"]["century_windows"] = [[_column, 1930]]
+    return change
+
+
 def edit_in(_place: str, **changes: object) -> Change:
     """Replace keys inside one top-level block."""
     def change(document: Document) -> None:
@@ -1731,10 +1749,116 @@ def battery() -> list[Mutation]:
         # to no other reading BEFORE its key is refused as non-empty, so
         # each S8d case below is refused for the pair and not for the key.
         # -- 3b.R2a (P4-D383)
+        # THE LAYOUT MEMBER'S SIX RULES (contract LY1 to LY6): a column of
+        # the base read as a layout, with exactly one fact of it wrong.
         Mutation(
-            "R16", "a window for two-figure years this version of synthtwin takes none of",
-            edit_in("settings", century_windows=[["recorded_on", 1930]]),
-            names="century_windows",
+            "LY1", "a layout the closed grammar of dates does not make",
+            edit("recorded_on", format="layout {M}{D}{YYYY}"),
+        ),
+        Mutation(
+            "LY2", "a layout writing a clock on a column of whole dates",
+            edit(
+                "recorded_on",
+                format="layout {YYYY}{MM}{DD}{HH}{MI}{SS}",
+                resolution_mix={"layout {YYYY}{MM}{DD}{HH}{MI}{SS}": 240},
+            ),
+        ),
+        Mutation(
+            "LY3", "a layout to the minute on a column given to the second",
+            edit(
+                "logged_at",
+                format="layout {YYYY}-{MM}-{DD} {HH}:{MI}{+HH:MM}",
+                resolution_mix={"layout {YYYY}-{MM}-{DD} {HH}:{MI}{+HH:MM}": 240},
+            ),
+        ),
+        Mutation(
+            "LY4", "an offset counted on a layout that writes none",
+            edit(
+                "logged_at",
+                format="layout {YYYY}-{MM}-{DD} {HH}:{MI}:{SS}",
+                resolution_mix={"layout {YYYY}-{MM}-{DD} {HH}:{MI}:{SS}": 240},
+                datetime_separators={},
+            ),
+        ),
+        Mutation(
+            "LY4", "marks before the clock counted on a layout",
+            edit(
+                "logged_at",
+                format="layout {YYYY}-{MM}-{DD} {HH}:{MI}:{SS}{+HH:MM}",
+                resolution_mix={"layout {YYYY}-{MM}-{DD} {HH}:{MI}:{SS}{+HH:MM}": 240},
+            ),
+        ),
+        # ...and the zulu key on a signed field, which reads `+0000` as
+        # `+00:00` and never as `Z` (the Codex review of landing R2a, item
+        # 6): the writer handed it wrote a literal `Z` the field cannot
+        # read back. No case is counted, so LY4's offset clause alone
+        # refuses it before D20 asks for one.
+        Mutation(
+            "LY4", "a zulu offset counted on a signed offset field",
+            edit(
+                "logged_at",
+                format="layout {YYYY}-{MM}-{DD} {HH}:{MI}:{SS}{+HH:MM}",
+                resolution_mix={"layout {YYYY}-{MM}-{DD} {HH}:{MI}:{SS}{+HH:MM}": 240},
+                datetime_separators={},
+                utc_offsets={"+02:00": 120, "Z": 120},
+            ),
+        ),
+        # ...and the case of a zulu offset, which a layout's own field
+        # fixes (skeptic 1 of landing R2a, item 6): the offset its zulu
+        # field writes, no mark counted, so LY4's zulu clause alone
+        # refuses it.
+        Mutation(
+            "LY4", "the case of the zulu offsets counted on a layout",
+            edit(
+                "logged_at",
+                format="layout {YYYY}-{MM}-{DD} {HH}:{MI}:{SS}{Z}",
+                resolution_mix={"layout {YYYY}-{MM}-{DD} {HH}:{MI}:{SS}{Z}": 240},
+                datetime_separators={},
+                utc_offsets={"Z": 240},
+                zulu_case={"upper": 240},
+            ),
+        ),
+        Mutation(
+            "LY5", "widths counted on a layout with no flexible field",
+            edit(
+                "recorded_on",
+                format="layout {YYYY}.{MM}.{DD}",
+                resolution_mix={"layout {YYYY}.{MM}.{DD}": 240},
+                date_field_widths={"padded": 240},
+            ),
+        ),
+        Mutation(
+            "LY6", "a layout counted by form under another name",
+            edit("recorded_on", format="layout {YYYY}.{MM}.{DD}"),
+        ),
+        Mutation(
+            "R16", "a window for two-figure years question Q5 does not offer",
+            edit_in("settings", century_windows=[["recorded_on", 1950]]),
+            names="century_windows[0][1]",
+        ),
+        Mutation(
+            "R16", "windows for two-figure years out of order",
+            edit_in(
+                "settings",
+                century_windows=[["recorded_on", 1930], ["logged_at", 1930]],
+            ),
+            names="names in rising order, each of them once",
+        ),
+        Mutation(
+            "S8", "a window for two-figure years of a column this table lacks",
+            edit_in("settings", century_windows=[["no_such_column", 1930]]),
+        ),
+        Mutation(
+            "S8e", "a layout read in a century nobody declared",
+            edit(
+                "recorded_on",
+                format="layout {MM}/{DD}/{YY1930}",
+                resolution_mix={"layout {MM}/{DD}/{YY1930}": 240},
+            ),
+        ),
+        Mutation(
+            "S8e", "a declared century beside a member that reads the POSIX one",
+            _declared_and_read_by_a_member("recorded_on"),
         ),
         # The reader of `[column, value]` pairs refuses each of these
         # before the key's own refusal is reached, so each check stays

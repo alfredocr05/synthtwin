@@ -111,6 +111,73 @@ that walk takes 2.6 s, its twin 82.7 s of CPU against 95.3 on 493f6f8,
 every twin the same. Described at a floor of 36 rather than 11, 12 of
 the 120 seeded identifiers take the walk a long time.
 
+### Dates no member read are read by their shape, and written back as written (2026-10-05)
+
+**Landing R2a, the date half of the layout reader** (plan P4-D383).
+SAS's `17MAR2024`, Stata's `17mar2024`, SPSS, HL7's stamps with and
+without offsets, REDCap's hyphenated dates, Oracle's `17-MAR-24`, DB2,
+PostgreSQL and SQL Server offsets, Excel's long dates, unpadded dotted
+dates and the en-GB and en-AU month words were free text, counts or an
+affixed number, and their twins made-up strings. They now read under a
+layout, a closed grammar of date fields and marks published as the
+column's `format`, and the twin writes every cell back in its source's
+own spelling: the thirty-nine spellings of `K-S3-58` all read, are
+written back and validate, where none read before. Two-figure years are
+asked their century in the questions file (Q5, `--century`,
+`century_windows`), an option the refusal of an older description now
+names and prices, and a layout nothing in its cells tells from a code
+-- a version's dotted spelling among them -- is asked whether it is one.
+The reach battery's 120 other columns are byte for byte as they were but
+for three questions files. Describing a column written in a layout costs
+what ISO's spelling of the same moments costs: `K-S3-58`'s two scale
+nodes put the slowest of four layouts at 1.00 times ISO's time at
+100,000 rows and 1.11 at 300,000, under bounds of 1.3 and 1.6.
+
+**Its repair round** (skeptic 1). Answering Q5 on a column a two-figure
+member read no longer loses the cells written with a space round them,
+which had dropped 1,000 births to free text. An HL7 column a few of
+whose stamps end in an offset reads every stamp, and its twin writes the
+offsets its count of cells that are not numbers owes, each below the
+line, where it had missed `counts.n_numeric` (method G7.9b). A
+description made before this landing that published SAS dates as
+categories misses `axes.role` against its own twin, which is now read as
+dates: describe the table again.
+
+**Its second skeptic.** An HL7 column whose census names an offset --
+300 of 1,000 stamps at `+0000` -- beside a few rarer ones no longer has
+the rare ones written at the named offset, which had cost its twin the
+offsets census at every seed. Where no offset is owed the pass now looks
+at each cell once and stops. Fourteen- and twelve-figure identifiers a
+few of which end in a suffix read as an offset (`-0001`, `-01`) are
+asked again whether they hold dates, codes or record numbers. Every rule
+of the repair round that no test turned red now has one, red on its own
+mutant.
+
+**Its Codex review**, eight items. SAS dates written `1MAR2023` to
+`28MAR2023` read as dates whichever day comes first, where one order
+stopped the describe on an internal error and the other gave labels.
+A layout column of five dates beside blank cells loads the description
+it was given. Identifiers every one of which ends in a suffix read as an
+offset are asked whether they hold dates. Stamps repeated ten times
+each, a few of them with an offset, keep the cells that are not numbers
+in the twin (method G7.9b step 5). A column of dates read as labels
+until its codes are answered is asked its century in the same file, so
+one answering run reads 1931 rather than 2031. The loader refuses a
+zulu offset on a signed field, a fraction past nine figures, and dates
+outside the years or the seconds the layout reads. G7.9b says that an
+offset it writes may be one some real cells wore. `K-S3-58` pins the
+round's eleven clauses and is stamped again.
+
+**Its Codex review's verification.** Repeated stamps owing more offsets
+than one offset holds -- 11 of 1,000 cells, where the twin wrote ten and
+missed both class counts -- now wear every one; a rest of one cell
+beside the texts standing alone is written by leaving one of them bare
+and writing a text of two whole; a respelling that would be an absent
+spelling bars only that offset; and the step costs 1.1 CPU seconds at
+300,000 rows whatever is owed, where 20.6 were measured. Five rules of
+the Codex round that no test turned red have a clause each, and
+`K-S3-58` pins the round and is stamped again.
+
 ### A weekday census is withheld where the twin's count of different values has no room for it (2026-10-05)
 
 **Landing 3b.D1b** (plan P4-D388, `K-S3-59`). At a raised floor a tail

@@ -4920,7 +4920,10 @@ def _date_width_places(
     both: "list[int]" = []
     first: "list[int]" = []
     second: "list[int]" = []
-    textual = facts.parser_family in parsing.TEXTUAL_MEMBERS
+    # ONE FIELD OR TWO, AND WHICH LEADS (landing R2a): a layout's flexible
+    # fields are read as a textual member's day or a slashed member's pair.
+    textual = parsing.width_field_count(facts.parser_family) == 1
+    day_first = parsing.width_first_field(facts.parser_family) == "day"
     for rank in range(len(fields)):
         month, day = fields[rank]
         if textual:
@@ -4929,7 +4932,7 @@ def _date_width_places(
             continue
         low_first = month < 10
         low_second = day < 10
-        if facts.parser_family in parsing.DAY_FIRST_MEMBERS:
+        if day_first:
             low_first = day < 10
             low_second = month < 10
         if low_first and low_second:
@@ -5064,7 +5067,7 @@ def _width_allocation(
     if not census:
         return styles, True
     both, first, second = _date_width_places(facts, fields)
-    if facts.parser_family in parsing.TEXTUAL_MEMBERS:
+    if parsing.width_field_count(facts.parser_family) == 1:
         weights = _census_weights(census, parsing.FIELD_WIDTH_STYLES_ONE_FIELD)
         spread = _reserved(weights if weights else {fallback: 1}, len(first), floor)
         for index in range(len(first)):
@@ -5533,6 +5536,7 @@ def _cell_of_ordinal(
     figures: int,
     mark: str,
     style: "_DateStyle" = _DateStyle("iso-datetime"),
+    offset: str = "",
 ) -> str:
     """One instant written AS ITS SOURCE WROTE IT (G7.5, landing 2b.6).
 
@@ -5558,11 +5562,34 @@ def _cell_of_ordinal(
     part of decision 5's reasoning is untouched, and DT-8 of the
     spelling audit is named as still open rather than quietly closed.
 
+    A LAYOUT WRITES THE WHOLE CELL (landing R2a, G7.5): its date, its
+    joint, its clock, its fraction and its OFFSET, in the layout's own
+    fields, so ``offset`` is handed in here for a layout column and no
+    mark is used and nothing is appended after.
+
     Guarantees: accepts an ordinal in the resolution's own unit, the
     resolution, precision and fraction width the description records, the
-    mark this rank was allocated and its spelling; returns the cell text.
-    Whole-number arithmetic only. No I/O of any kind.
+    mark this rank was allocated, its spelling and -- for a layout -- its
+    offset; returns the cell text. Whole-number arithmetic only. No I/O of
+    any kind.
     """
+    if parsing.is_layout_name(style.family) and (
+        resolution == "date" or resolution == "datetime"
+    ):
+        if resolution == "date":
+            year, month, day = parsing.civil_from_days(ordinal)
+            canonical = f"{year:04d}-{month:02d}-{day:02d}"
+        else:
+            days = ordinal // 86400
+            rest = ordinal - days * 86400
+            year, month, day = parsing.civil_from_days(days)
+            canonical = (
+                f"{year:04d}-{month:02d}-{day:02d} {rest // 3600:02d}:"
+                f"{(rest % 3600) // 60:02d}:{rest % 60:02d}"
+            )
+        return parsing.written_layout_date(
+            style.family, canonical, offset, style.width, figures
+        )
     if resolution == "quarter":
         year = 1970 + (ordinal // 4)
         return parsing.written_quarter(year, (ordinal % 4) + 1, style.marker)
@@ -5632,6 +5659,7 @@ def _space_cell(
     facts: contract.DatetimeFacts,
     mark: str,
     style: "_DateStyle | None" = None,
+    offset: str = "",
 ) -> str:
     """One cell from an ordinal in the column's own space (`_ordinal_space`).
 
@@ -5654,6 +5682,7 @@ def _space_cell(
             facts.subsecond_digits,
             mark,
             spelling,
+            offset,
         )
     return _cell_of_ordinal(
         ordinal,
@@ -5662,6 +5691,7 @@ def _space_cell(
         facts.subsecond_digits,
         mark,
         spelling,
+        offset,
     )
 
 
@@ -24205,8 +24235,7 @@ def _weekday_settled(
     word = ""
     widths = False
     if len(facts.date_field_widths) == 1 and (
-        facts.parser_family in parsing.VARIABLE_WIDTH_MEMBERS
-        or facts.parser_family in parsing.TEXTUAL_MEMBERS
+        parsing.width_field_count(facts.parser_family) > 0
     ):
         widths = True
         for key in facts.date_field_widths:
@@ -24695,6 +24724,12 @@ def _datetime_content(
     cells = _spellings_short_of_the_count(
         column, facts, cells, holes, plan.small_cell_floor
     )
+    # ...AND THE OFFSETS THE CLASS CENSUS OWES (G7.9b, landing R2a): a run
+    # of figures whose rare offsets the census counted into `(none)` still
+    # holds the cells a reader of numbers refuses.
+    cells = _offsets_owed_by_the_classes(
+        column, facts, cells, holes, plan.small_cell_floor
+    )
     notes = notes + _worn_hole_notes(column, cells, holes)
     notes = notes + _tail_notes(column, facts, cells[0:parsed], holes)
     notes = notes + _midnight_notes(column, facts, cells)
@@ -24775,6 +24810,19 @@ def _interior_cell(
             day = local // 86400
         return _kept_datetime_cell(
             _cell_of_ordinal(day, "date", "date", 0, mark, spelling),
+            holes,
+            _offered_marks(facts),
+            facts.parser_family,
+        )
+    if parsing.is_layout_name(facts.parser_family):
+        # A LAYOUT WRITES ITS OWN OFFSET, in its own field's spelling
+        # (landing R2a): `+0100`, `+01`, ` UTC`, or nothing where the field
+        # is one some cells omit and this rank wears none.
+        return _kept_datetime_cell(
+            _space_cell(
+                local, facts, mark, spelling,
+                offset if _is_real_offset(offset) else "",
+            ),
             holes,
             _offered_marks(facts),
             facts.parser_family,
@@ -25512,6 +25560,551 @@ def _spend_leaves_a_name(wearing: int, floor: int) -> bool:
     nothing. No I/O of any kind.
     """
     return wearing - 1 >= parsing.census_floor(floor)
+
+
+# THE OFFSETS G7.9b MAY WRITE, in the order it writes them: the shared
+# clock's, then each whole hour east of it, the largest an offset field
+# reads (`parsing.layout_reading`'s fourteen hours). A zulu field writes
+# its own word alone.
+_OWED_OFFSETS = tuple(f"+{hours:02d}:00" for hours in range(15))
+
+
+def _offsets_owed_by_the_classes(
+    column: contract.ColumnBlock,
+    facts: contract.DatetimeFacts,
+    cells: "list[str]",
+    holes: "tuple[str, ...]",
+    floor: int,
+) -> "list[str]":
+    """Write an offset on as many cells as the column's class census owes (G7.9b).
+
+    A RUN OF FIGURES WHOSE OFFSET SOME CELLS OMIT (skeptic 1 of landing
+    R2a, item 2). An HL7 feed of fourteen-figure stamps, seven of 1,000
+    of which append `-0400` or `-0500`, reads under
+    `{YYYY}{MM}{DD}{HH}{MI}{SS}{+HHMM?}`; each offset stands on fewer cells
+    than the census line, so `utc_offsets` counts all seven into `(none)`
+    (plan P4-D222) and every rank is allocated no offset. But the
+    universal census publishes the seven cells a reader of numbers refuses
+    (`n_not_numeric`), and a twin of bare stamps holds none: it missed
+    `counts.n_numeric` and `counts.n_not_numeric`, and code reading the
+    twin's column as numbers ran there and stopped on the real table's
+    seven. The same column read the seven as stand-ins before the repair
+    of item 2, and so did no twin with eleven or more such cells.
+
+    THE DEBT IS THE ONE THE DESCRIPTION PUBLISHES, and nothing else: the
+    present cells that are not numbers, less the cells in hand that wear
+    an offset, less the `n_unparsed` stand-ins written after this pass,
+    each a text. It is paid on interior ranks whose cell is a number that
+    no other rank wears -- the ends are spellings the description prints,
+    and a respelled copy of a shared text would add a value the published
+    count of different values does not hold -- spread evenly over them,
+    the k-th of n payments on the open rank at k times their count over
+    n; each payment writes the cell again wearing an offset its field can
+    write (`parsing.layout_offset_added`), the shared clock's first and
+    then each whole hour east, the zulu word alone on a zulu field, on one
+    cell fewer than the census line apiece, so the twin's own description
+    counts each back into `(none)` and publishes the census exactly as it
+    stands -- and never so many that the cells left with none fall below
+    the line, which is the count that absorbs them. WHERE THOSE RANKS FALL
+    SHORT, the rest is paid with whole repeated texts, every copy of one at
+    one offset, so the count of different values still stands
+    (`_whole_texts_paid`, step 5; the Codex review of landing R2a, item 4).
+    AND WHERE THE TEXTS STANDING ALONE LEAVE A REST NO WHOLE TEXT REACHES
+    -- one cell beside texts of two copies -- the pass is made again with
+    fewer of them and kept only where it writes more (step 6,
+    `_fewer_standing_alone`; the verification of that review's repair):
+    five of 180 twins of repeated stamps had missed both class counts so.
+
+    NEVER AN OFFSET THE CENSUS NAMES (skeptic 2 of landing R2a, item 1). A
+    cell written at a named offset is counted into that offset and read at
+    it, not into `(none)`: 1,000 HL7 stamps, 300 ending `+0000` and 5
+    `-0500`, were paid at `+0000`, and their twin missed `utc_offsets` on
+    `(none)` and on `+00:00` at every seed, where the column had validated
+    as free text before the landing. An offset the census names is left
+    off the offer, and where none is left nothing is paid.
+
+    ONLY WHERE `(none)` IS THE CENSUS'S COMMONEST NAMED COUNT and nothing
+    is pooled, so the offsets the census counted into `(none)` are the
+    whole debt and an offset the twin's description counts back into it
+    is read at no offset (`taxonomy._offsets_as_published`): no instant
+    moves, on the local clock or the shared one. And only under a layout
+    whose cells with no offset are numbers (`parsing.layout_writes_numbers`):
+    every other layout's cells are text with an offset or without one, and
+    owe nothing here. Each offset written is worked out from the census
+    and the field alone, not read from the real column, and none is
+    published; it may still be one some real cells wore, which the census
+    counted into `(none)` without saying which (the Codex review of
+    landing R2a, item 8): seven real `+0000` among 1,000 stamps came back
+    as seven made-up `+0000`.
+
+    WHAT IT COSTS (skeptic 2, item 2): one reading of each cell's class,
+    and nothing more where nothing is owed or nothing is on offer. It wrote
+    the offset on every open rank before it knew the debt, 4.6 to 5.0 CPU
+    seconds of a 33-second generate at 300,000 rows that owed nothing.
+    Where offsets are owed it counts the copies of each text and writes
+    the offset only on the ranks it settles; a payment the field cannot write
+    is skipped, as one that would be an absent spelling is.
+
+    Guarantees: accepts the column, its datetime facts, the parsed cells
+    as written, every absent spelling and the settings floor; returns the
+    cells. Determinism: a function of the five; draws no word. No I/O of
+    any kind.
+    """
+    family = facts.parser_family
+    census = facts.utc_offsets
+    if (
+        not parsing.layout_offset_optional(family)
+        or not parsing.layout_writes_numbers(family)
+        or contract.WITHHELD in census
+        or contract.NO_OFFSET not in census
+    ):
+        return cells
+    for key in census:
+        if census[key] > census[contract.NO_OFFSET]:
+            return cells
+    offered: "tuple[str, ...]" = _OWED_OFFSETS
+    if parsing.layout_offset_field(family) in ("Z", "z", "UTC", "GMT"):
+        offered = ("Z",)
+    on_offer: "list[str]" = []
+    for one in offered:
+        if one not in census:
+            on_offer += [one]
+    worn = 0
+    for cell in cells:
+        if parsing.classify_number(cell) != parsing.NUMBER:
+            worn = worn + 1
+    debt = column.n_not_numeric - worn - facts.n_unparsed
+    if not on_offer or debt <= 0:
+        return cells
+    copies: "dict[str, int]" = {}
+    for cell in cells:
+        copies[cell] = (copies[cell] if cell in copies else 0) + 1
+    open_ranks: "list[int]" = []
+    for rank in range(1, len(cells) - 1):
+        if (
+            copies[cells[rank]] == 1
+            and parsing.classify_number(cells[rank]) == parsing.NUMBER
+        ):
+            open_ranks += [rank]
+    line = parsing.census_floor(floor)
+    bound = min(debt, len(cells) - worn - line, (line - 1) * len(on_offer))
+    owed = max(min(bound, len(open_ranks)), 0)
+    undo: "dict[int, str]" = {}
+    held = _alone_written(cells, family, on_offer, open_ranks, owed, line, holes, undo)
+    written = 0
+    for count in held:
+        written = written + count
+    # The texts steps 5 and 6 may write whole, read only where one of them
+    # has a rest to write.
+    whole: "dict[int, list[str]]" = {}
+    if bound - written >= 2 or (written < bound and owed > 0):
+        whole = _whole_texts_on_offer(cells, copies, line, bound)
+    if bound - written >= 2 and whole:
+        written = written + _whole_texts_paid(
+            cells, family, on_offer, held, bound - written, line, whole, holes, undo
+        )
+    if written >= bound or owed == 0:
+        return cells
+    # Step 6: fewer texts standing alone, where whole texts then write more.
+    fewer = _fewer_standing_alone(whole, owed, bound, written)
+    if fewer == owed:
+        return cells
+    _undone(cells, undo)
+    undo = {}
+    more = _offsets_written(
+        cells, family, on_offer, open_ranks, fewer, bound, line, whole, holes, undo
+    )
+    if more <= written:
+        _undone(cells, undo)
+        undo = {}
+        _offsets_written(
+            cells, family, on_offer, open_ranks, owed, bound, line, whole, holes, undo
+        )
+    return cells
+
+
+def _offsets_written(
+    cells: "list[str]",
+    family: str,
+    on_offer: "list[str]",
+    open_ranks: "list[int]",
+    owed: int,
+    bound: int,
+    line: int,
+    whole: "dict[int, list[str]]",
+    holes: "tuple[str, ...]",
+    undo: "dict[int, str]",
+) -> int:
+    """G7.9b steps 4 and 5 again on ``cells`` in place, for step 6: ``owed`` payments, the rest on whole texts.
+
+    Step 4's payments as `_alone_written` makes them, then, where the
+    bound less those made is two or more, step 5 on ``whole``'s texts
+    (`_whole_texts_paid`). Each rank changed is recorded in ``undo`` with
+    the text it held. Returns how many cells were written. Determinism: a
+    function of the arguments; draws no word. No I/O of any kind.
+    """
+    held = _alone_written(cells, family, on_offer, open_ranks, owed, line, holes, undo)
+    paid = 0
+    for count in held:
+        paid = paid + count
+    if bound - paid >= 2 and whole:
+        paid = paid + _whole_texts_paid(
+            cells, family, on_offer, held, bound - paid, line, whole, holes, undo
+        )
+    return paid
+
+
+def _alone_written(
+    cells: "list[str]",
+    family: str,
+    on_offer: "list[str]",
+    open_ranks: "list[int]",
+    owed: int,
+    line: int,
+    holes: "tuple[str, ...]",
+    undo: "dict[int, str]",
+) -> "list[int]":
+    """G7.9b step 4 on ``cells`` in place: ``owed`` payments on the texts standing alone.
+
+    Payment ``k`` of ``owed`` goes to the open rank at position ``k``
+    times their count over ``owed``, written again at offset number ``k //
+    (line - 1)`` on offer; a payment whose cell would be an absent
+    spelling, or one its field cannot write, is not made. Each rank
+    changed is recorded in ``undo`` with the text it held. Returns the
+    payments made at each offset. Determinism: a function of the
+    arguments; draws no word. No I/O of any kind.
+    """
+    held = [0 for _one in on_offer]
+    for payment in range(owed):
+        rank = open_ranks[(payment * len(open_ranks)) // owed]
+        changed = parsing.layout_offset_added(
+            cells[rank], family, on_offer[payment // (line - 1)]
+        )
+        if changed is not None and not _is_a_hole_spelling(changed, holes):
+            undo[rank] = cells[rank]
+            cells[rank] = changed
+            held[payment // (line - 1)] = held[payment // (line - 1)] + 1
+    return held
+
+
+def _undone(cells: "list[str]", undo: "dict[int, str]") -> None:
+    """Every rank ``undo`` records written back as it was."""
+    for rank in undo:
+        cells[rank] = undo[rank]
+
+
+def _whole_texts_on_offer(
+    cells: "list[str]", copies: "dict[str, int]", line: int, bound: int
+) -> "dict[int, list[str]]":
+    """The texts G7.9b steps 5 and 6 may write whole, by their copies.
+
+    A number worn by at least two ranks, by fewer than ``line`` and by no
+    more than ``bound``, none of them an end -- a copy at an end would be
+    a spelling the description prints -- each size's in the order of their
+    first rank, the order ``copies`` was counted in. One reading of each
+    such text's class. Determinism: a function of the four. Raises
+    nothing. No I/O of any kind.
+    """
+    whole: "dict[int, list[str]]" = {}
+    for text in copies:
+        size = copies[text]
+        if size < 2 or size >= line or size > bound:
+            continue
+        if text == cells[0] or text == cells[len(cells) - 1]:
+            continue
+        if parsing.classify_number(text) != parsing.NUMBER:
+            continue
+        if size in whole:
+            whole[size] += [text]
+        else:
+            whole[size] = [text]
+    return whole
+
+
+def _fewer_standing_alone(
+    whole: "dict[int, list[str]]", owed: int, bound: int, written: int
+) -> int:
+    """G7.9b step 6: how many texts standing alone a second pass writes, or ``owed`` for none.
+
+    The largest count below ``owed`` whose sum with the largest total, at
+    most ``bound`` less it, that ``whole``'s texts reach is the greatest of
+    any such count -- where that sum passes the ``written`` cells of the
+    first pass; otherwise ``owed``, and no second pass is made.
+    Determinism: a function of the four. Raises nothing. No I/O of any
+    kind.
+    """
+    sizes = sorted(whole)
+    have: "dict[int, int]" = {}
+    for size in sizes:
+        have[size] = len(whole[size])
+    reach = _sums_reached(sizes, have, bound)[len(sizes)]
+    # largest[t]: the largest total at most t the texts reach.
+    largest: "list[int]" = []
+    found = 0
+    for total in range(bound + 1):
+        if (reach >> total) & 1:
+            found = total
+        largest += [found]
+    best = written
+    chosen = owed
+    for count in range(owed - 1, -1, -1):
+        if count + largest[bound - count] > best:
+            best = count + largest[bound - count]
+            chosen = count
+    return chosen
+
+
+def _whole_texts_paid(
+    cells: "list[str]",
+    family: str,
+    on_offer: "list[str]",
+    held: "list[int]",
+    rest: int,
+    line: int,
+    whole: "dict[int, list[str]]",
+    holes: "tuple[str, ...]",
+    undo: "dict[int, str]",
+) -> int:
+    """G7.9b step 5: the rest of the debt paid with WHOLE repeated texts.
+
+    WHERE THE OPEN RANKS FALL SHORT (the Codex review of landing R2a, item
+    4). A number more than one rank wears is paid on only whole: every
+    rank wearing it is written again at ONE offset, so the column holds as
+    many different texts as before and no text wears two spellings. 100
+    stamps repeated ten times each, seven of the 1,000 cells ending
+    `-0500`, publish 107 different texts and seven cells that are not
+    numbers; the twin, with no text standing alone, wore no offset at
+    seeds 1 and 2 and missed both class counts.
+
+    ONE AIM, AND A LOOK AHEAD AT EACH OFFSET (the verification of that
+    review's repair, open item 1). The texts on offer stand between the
+    two ends and fit the largest room, an offset's room being ``line -
+    1`` cells less the payments step 4 wrote at it (``held``). The step
+    aims at the largest total of ranks, at most the rest, the texts reach,
+    and walks the offsets in G7.9b's order, each taking the most of what
+    is left of the aim that its room holds and that leaves the rest of the
+    aim a total the texts not yet taken still reach
+    (`_whole_texts_walked`). Each offset taking the most it held, with no
+    look ahead, left a cell owed on Codex's column at eleven: step 4 wrote
+    the one text standing alone at `+0000`, a text of nine copies filled
+    the room left there, and the one cell over fitted nothing, where a
+    text of six there and one of four at `+0100` carried the eleven.
+
+    A REFUSED RESPELLING BARS ONE OFFSET, NOT THE TEXT. A text taken whose
+    respelling at its offset is an absent spelling, or one its field
+    cannot write, is barred from that offset alone -- the first such in
+    the walk's order -- and the walk is made again; every other offset
+    may still take it, as each could when every offset chose for itself.
+    Set aside whole, such texts left fewer cells written than that choice
+    on 265 of 3,000 random shapes with absent spellings; barred from the
+    one offset, on none of 6,000.
+
+    WHAT IT COSTS: one reading of the class of each text the walk may
+    take, sums over the copy counts of the texts -- never over the texts
+    themselves -- and the respelling of the texts taken alone, each once
+    per offset. Respelling every text on offer at every offset it wrote
+    at cost 68 CPU seconds at a million rows owing 140.
+
+    Guarantees: accepts the cells, the layout, the offsets on offer with
+    the cells step 4 wrote at each, the rest owed, the census line, the
+    texts on offer by their copies (`_whole_texts_on_offer`), every absent
+    spelling and the record of the ranks changed; returns how many cells
+    it wrote, ``cells`` changed in place and each rank it changed recorded
+    in ``undo`` with the text it held. Determinism: a function of the
+    arguments; draws no word. No I/O of any kind.
+    """
+    widest = 0
+    room = 0
+    for count in held:
+        widest = max(widest, (line - 1) - count)
+        room = room + (line - 1) - count
+    most = min(rest, room)
+    if most < 2 or not cells:
+        return 0
+    sized: "dict[int, list[str]]" = {}
+    for size in whole:
+        if size <= widest and size <= most:
+            sized[size] = whole[size]
+    if not sized:
+        return 0
+    spelled: "dict[tuple[str, int], str]" = {}
+    barred: "dict[tuple[str, int], int]" = {}
+    while True:
+        placed: "dict[str, str]" = {}
+        refused: "tuple[str, int] | None" = None
+        for text, place in _whole_texts_walked(sized, held, line, most, barred):
+            if (text, place) not in spelled:
+                changed = parsing.layout_offset_added(text, family, on_offer[place])
+                if changed is None or _is_a_hole_spelling(changed, holes):
+                    changed = ""
+                spelled[(text, place)] = changed
+            if not spelled[(text, place)]:
+                refused = (text, place)
+                break
+            placed[text] = spelled[(text, place)]
+        if refused is None:
+            break
+        barred[refused] = 1
+    written = 0
+    for rank in range(1, len(cells) - 1):
+        if cells[rank] in placed:
+            undo[rank] = cells[rank]
+            cells[rank] = placed[cells[rank]]
+            written = written + 1
+    return written
+
+
+def _whole_texts_walked(
+    sized: "dict[int, list[str]]",
+    held: "list[int]",
+    line: int,
+    most: int,
+    barred: "dict[tuple[str, int], int]",
+) -> "list[tuple[str, int]]":
+    """G7.9b step 5's walk: each text taken, with the offset it is taken at.
+
+    ``sized`` holds the texts on offer by their copies, each size's in the
+    order of their first rank. The AIM is the largest total of copies at
+    most ``most`` they reach. The offsets are walked in order, each
+    holding ``line - 1`` cells less ``held``'s payments there; at each,
+    the texts on offer HERE are those not yet taken and not ``barred``
+    from it, and the offset takes what `_whole_texts_amount` counts of
+    them, looking ahead to the texts not yet taken and the rooms after
+    it; of the ``n`` texts here of one size taking ``k``, the ``j``-th is
+    the one at position ``j * n // k``. Texts come back offset by offset,
+    from the most copies down at each. The walk stops where what is left
+    of the aim is under two or the offsets run out. Determinism: a
+    function of the five. Raises nothing. No I/O of any kind.
+    """
+    sizes = sorted(sized)
+    have: "dict[int, int]" = {}
+    unused: "dict[int, list[str]]" = {}
+    for size in sizes:
+        have[size] = len(sized[size])
+        unused[size] = sized[size]
+    reach = _sums_reached(sizes, have, most)
+    left = most
+    while left > 0 and not (reach[len(sizes)] >> left) & 1:
+        left = left - 1
+    after = 0
+    for count in held:
+        after = after + (line - 1) - count
+    barred_at: "dict[int, dict[str, int]]" = {}
+    for text, place in barred:
+        if place not in barred_at:
+            barred_at[place] = {}
+        barred_at[place][text] = 1
+    taken: "list[tuple[str, int]]" = []
+    for place in range(len(held)):
+        if left < 2:
+            break
+        room = (line - 1) - held[place]
+        after = after - room
+        here: "dict[int, list[str]]" = {}
+        here_have: "dict[int, int]" = {}
+        for size in sizes:
+            if place in barred_at:
+                here[size] = [
+                    text for text in unused[size] if text not in barred_at[place]
+                ]
+            else:
+                here[size] = unused[size]
+            here_have[size] = len(here[size])
+        counted = _whole_texts_amount(
+            sizes, here_have, have, min(room, left), left, after
+        )
+        for size in sorted(counted, reverse=True):
+            texts = here[size]
+            picked: "dict[str, int]" = {}
+            for choice in range(counted[size]):
+                text = texts[(choice * len(texts)) // counted[size]]
+                picked[text] = 1
+                taken += [(text, place)]
+            unused[size] = [text for text in unused[size] if text not in picked]
+            have[size] = have[size] - counted[size]
+            left = left - counted[size] * size
+    return taken
+
+
+def _whole_texts_amount(
+    sizes: "list[int]",
+    here: "dict[int, int]",
+    have: "dict[int, int]",
+    room: int,
+    left: int,
+    after: int,
+) -> "dict[int, int]":
+    """How many texts of each size one offset of G7.9b step 5 takes.
+
+    The largest amount at most ``room`` that the ``here`` texts of each
+    size -- those this offset may take -- reach and that leaves ``left``
+    less it a total both the texts not taken (``have`` less the amount's,
+    texts barred from this offset among them) still reach and the rooms
+    of the offsets after this one (``after``) hold; none, where only none
+    does that; and where not even none does, the largest amount at most
+    ``room`` the texts here reach. The texts of an amount are counted
+    from the most copies down, as many of each size as leave the
+    remainder of the amount reachable by the smaller sizes
+    (`_sums_reached`). Determinism: a function of the six. Raises
+    nothing. No I/O of any kind.
+    """
+    if room < 2:
+        return {}
+    reach = _sums_reached(sizes, here, room)
+    fallback: "dict[int, int]" = {}
+    for amount in range(room, 1, -1):
+        if not (reach[len(sizes)] >> amount) & 1:
+            continue
+        counted: "dict[int, int]" = {}
+        part = amount
+        for place in range(len(sizes) - 1, -1, -1):
+            size = sizes[place]
+            count = min(here[size], part // size)
+            while count > 0 and not (reach[place] >> (part - count * size)) & 1:
+                count = count - 1
+            if count > 0:
+                counted[size] = count
+                part = part - count * size
+        if not fallback:
+            fallback = counted
+        if left - amount > after:
+            continue
+        rest: "dict[int, int]" = {}
+        for size in sizes:
+            rest[size] = have[size] - (counted[size] if size in counted else 0)
+        if (_sums_reached(sizes, rest, left - amount)[len(sizes)] >> (left - amount)) & 1:
+            return counted
+    if left <= after and (_sums_reached(sizes, have, left)[len(sizes)] >> left) & 1:
+        return {}
+    return fallback
+
+
+def _sums_reached(
+    sizes: "list[int]", have: "dict[int, int]", most: int
+) -> "list[int]":
+    """Each total of copies the texts of the smallest sizes add up to, as bits.
+
+    Entry ``i`` holds, as the bits of one number, every total of at most
+    ``most`` copies some of the ``have`` texts of the ``i`` smallest of
+    ``sizes`` add up to -- bit ``t`` set where ``t`` is one -- so entry 0
+    is the empty sum alone. The texts of one size are taken in parts of
+    1, 2, 4, ... and what is left, which reaches every count of them from
+    none to all. G7.9b step 5. Determinism: a function of the three.
+    Raises nothing. No I/O of any kind.
+    """
+    mask = (1 << (most + 1)) - 1
+    reach: "list[int]" = [1]
+    for size in sizes:
+        after = reach[len(reach) - 1]
+        left = min(have[size], most // size)
+        part = 1
+        while left > 0:
+            step = min(part, left)
+            after = (after | (after << (step * size))) & mask
+            left = left - step
+            part = part * 2
+        reach += [after]
+    return reach
 
 
 def _named_marks(facts: contract.DatetimeFacts) -> "tuple[str, ...]":
@@ -27375,7 +27968,7 @@ def _shows_a_width(
     _year, month, day = parsing.civil_from_days(day_number)
     if word:
         return parsing.day_shows_width(word, facts.parser_family, month, day)
-    if facts.parser_family in parsing.TEXTUAL_MEMBERS:
+    if parsing.width_field_count(facts.parser_family) == 1:
         return day < 10
     return month < 10 or day < 10
 
@@ -27531,10 +28124,7 @@ def _units_settled(
     census = facts.date_field_widths
     if (
         len(census) == 1
-        and (
-            facts.parser_family in parsing.VARIABLE_WIDTH_MEMBERS
-            or facts.parser_family in parsing.TEXTUAL_MEMBERS
-        )
+        and parsing.width_field_count(facts.parser_family) > 0
     ):
         for key in census:
             widths = census[key]

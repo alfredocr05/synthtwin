@@ -6672,6 +6672,13 @@ tail is placed where the column's own spelling cannot spell it:
   a twin that writes 1968 as `68` is read back as 2068 (measured:
   8 of 16 twins of a `dd/mm/yy` column wrote 1 to 3 such cells, each
   missing 4 to 7 of the tail's own checks);
+- for a LAYOUT (landing R2a, plan P4-D383), its year band,
+  1800-01-01 to 2299-12-31, where its year is four figures, and its
+  window where it is two: 1969 to 2068 under `{YY}`, and under
+  `{YY1900}`, `{YY1930}` or `{YY1940}` the window the person chose
+  (question Q5), 1900 to 1999, 1930 to 2029 or 1940 to 2039 -- a twin
+  writing a year outside it would be read back as another, or not at
+  all;
 - from the first day the workbook's date system can store, where the
   twin's cells are stored as workbook days: 1900-01-01 for the 1900
   system and 1904-01-01 for the 1904 one;
@@ -7285,6 +7292,27 @@ nothing.
 | `iso-month` | `YYYY-MM` | `2024-03` |
 | `year-quarter` | `YYYY-` then `Q` or `q` as allocated, then the quarter | `2024-Q1`, `2024-q1` |
 
+**A LAYOUT IS WRITTEN WHOLE, FIELD BY FIELD** (landing R2a, plan
+P4-D383). A column read under a layout (contract LY1) has every cell
+written through that layout by `parsing.written_layout_date`, the one
+inverse of the layout reader, and nothing is appended after it: the
+year in four figures, or in two where the field is `{YY}` or one of
+the windows of G7.3e; `{MM}`, `{DD}`, `{HH}`, `{MI}` and `{SS}` in two
+figures and `{_D}` padded with a space; a flexible `{M}` or `{D}`
+padded or not as the width word its rank was allocated says, the
+census of contract LY5 spent over the layout's flexible fields in
+their own order -- one field takes `padded` or `unpadded`, two the
+slashed pair's joint words; a month or weekday name in its field's
+own set and case, the weekday the date's own; `{F}` as zeros at
+`subsecond_digits`; and the offset the rank wears in its field's own
+spelling, at the place the layout puts it -- `+0100` under `{+HHMM}`,
+`-05` under `{+HH}`, the word itself under `{Z}`, `{UTC}` or `{GMT}`.
+A rank allocated `(none)` under an offset some cells omit
+(`{+HHMM?}`) writes no offset and none of the marks before it; a field
+that must write one and is handed none writes the shared clock's,
+`+00:00` in its spelling. The ranks, the tails, the precision and the
+allocation of the offsets are every member's.
+
 A month NAME is built by `month_spelling`, the one inverse of the
 reader's own `month_of_name`, so a producer counting names and a
 generator writing them cannot spell one month two ways — as
@@ -7857,6 +7885,177 @@ column to its three misses and moves no other shape — so the trade is
 recorded here rather than taken back. The entry K-2B-51 carries the
 same measurement, so its rule is not read as a claim about every column
 of dates.
+
+### G7.9b The offsets a column of figure runs owes its count of cells that are not numbers
+
+**The defect this closes** (landing R2a's repair round, item 2; plan
+P4-D383). A layout whose cells with no offset are figures -- HL7's
+`{YYYY}{MM}{DD}{HH}{MI}{SS}`, with at most a point and a fraction after
+the run -- and whose last field is an offset some cells omit
+(`{+HHMM?}`) writes a NUMBER on every rank G7.4 gives no offset, and a
+cell WEARING an offset is text to every reader of numbers. Where each
+offset the real column wore stood on fewer cells than the census line,
+contract D3 counts them all into `(none)` (plan P4-D222), every rank is
+allocated no offset, and the twin was all numbers -- while the universal
+count `n_not_numeric` still published the cells that were not, so it
+missed `counts.n_numeric` and `counts.n_not_numeric`, and code that read
+the twin's column as numbers stopped on the real table's offsets.
+
+**The pass**, after G7.9 and before the stand-ins are written, on a
+column of that layout whose census of offsets pools nothing and names
+`(none)` as its commonest count (ties to `(none)`):
+
+1. The DEBT is `n_not_numeric`, less the cells in hand that are not
+   numbers, less the `n_unparsed` stand-ins written after the pass,
+   each a text. Nothing the real column held and the description does
+   not publish is read.
+2. The OPEN ranks are those between the two ends -- the ends are
+   spellings the description prints -- whose cell is a number that no
+   other rank's cell repeats, so a respelled cell replaces one value
+   with one and the published counts of different values stand.
+3. The OFFSETS on offer are `+00:00`, `+01:00`, ... `+14:00`, in that
+   order, each written in the field's own spelling (`+0000` under
+   `{+HHMM?}`, `+00` under `{+HH?}`), or the zulu field's own word, the
+   one offset it has -- LESS EVERY OFFSET THE CENSUS NAMES (skeptic 2
+   of landing R2a, item 1). A cell written at a named offset is counted
+   into that offset and read at it, not into `(none)`: 1,000 HL7 stamps,
+   300 at `+0000` and 5 at `-0500`, were paid at `+0000`, and the twin
+   missed the census on `(none)` and on `+00:00` at every seed, where
+   the column had validated as free text before the landing; with
+   `+01:00` named, the payments past the first `census_floor - 1`
+   landed on it, and one moved a tail's instant. Where nothing is left
+   on offer, or the debt is nought or less, nothing is paid and
+   nothing past the class of each cell is read.
+4. The payments are the fewest of: the debt, the open ranks, the
+   number cells less `census_floor`, and `census_floor - 1` times the
+   offsets on offer. Payment `k` of `n` goes to the open rank at
+   position `k * open // n`, and writes that cell again with the marks
+   before the offset field and offset number `k // (census_floor - 1)`
+   after them; a payment whose cell would be a spelling the column
+   holds absent, or that its field cannot write, is not made.
+5. **WHOLE TEXTS, WHERE THE OPEN RANKS FALL SHORT** (the Codex review
+   of landing R2a, item 4, and the verification of its repair). The REST
+   is the fewest of the debt, the number cells less `census_floor` and
+   `census_floor - 1` times the offsets on offer, less the payments step
+   4 made. Where it is two or more it is paid with whole texts: a number
+   worn by at least two ranks and by fewer than `census_floor`, none of
+   them an end, every rank wearing it written again at ONE offset, so
+   the column holds as many different texts as before and no text wears
+   two spellings. Each offset's ROOM is `census_floor - 1` cells less the
+   payments step 4 wrote at it, and the texts on offer are those whose
+   ranks number at most the largest room and at most the rest. The step
+   AIMS at the largest total of ranks, at most the rest and at most the
+   rooms together, that the texts on offer reach, and walks the offsets
+   in step 3's order. At each, the texts it MAY TAKE are those not yet
+   taken and not barred from it (below); it takes the largest amount, at
+   most its room and at most what is left of the aim, that those texts
+   reach and that leaves what is then left of the aim both a total the
+   texts not yet taken after it still reach -- those barred from it
+   among them -- and no more than the rooms of the offsets after it
+   hold; it takes none where only none does that, and where not even
+   none does, the largest amount at most its room and what is left of
+   the aim that the texts it may take reach. An amount's texts are
+   counted from the most ranks down, at each size as many as there are,
+   at most what is left of the amount, while what is then left stays a
+   total the texts of fewer ranks reach; of the `n` texts of one size it
+   may take, in the order of their first rank, choice `j` of `k` is the
+   text at position `j * n // k`. The walk stops where what is left of
+   the aim is under two or the offsets run out. A text taken whose
+   respelling at its offset is a spelling the column holds absent, or
+   one its field cannot write -- the first such in the walk's order, by
+   offset and then from the most ranks down -- is BARRED FROM THAT
+   OFFSET alone, and the walk is made again; every other offset may
+   still take it. 1,000 cells, 100 stamps ten times each and
+   seven of them ending `-0500`, publish 107 different texts and seven
+   cells that are not numbers: the twin's texts all repeated, step 4
+   found no rank to pay, and seeds 1 and 2 held no offset at all and
+   missed both class counts. And with eleven of them wearing an offset,
+   step 5 chose offset by offset, each offset taking the most it held,
+   and every seed from 0 to 5 wrote ten and missed both class counts: at
+   seed 0 step 4 wrote the one text standing alone at `+0000`, a text of
+   nine copies filled the nine cells left there, and the one cell over
+   fitted no text. The aim and the look ahead write a text of six copies
+   at `+0000` and one of four at `+0100` there, and the eleven at every
+   seed.
+6. **FEWER TEXTS STANDING ALONE, WHERE WHOLE TEXTS THEN WRITE MORE**
+   (the verification of the Codex review's repair). Step 4 writes every
+   text standing alone it may before step 5 sees the rest, and a rest no
+   whole text reaches -- one cell, beside texts of two copies and more --
+   was left owed where one text standing alone fewer and a text of two
+   would have written it: 5 of 180 twins of repeated stamps. Where steps
+   4 and 5 write fewer cells than step 5's bound and step 4 had payments
+   to make, the pass is made a second time from the cells as they were
+   handed, step 4 making only the largest count of payments, below its
+   own, whose sum with the largest total -- at most the bound less that
+   count -- that the texts step 5 may take reach is the greatest of any
+   such count, and only where that sum passes the cells written; the
+   texts step 5 may take are the numbers worn by at least two ranks, by
+   fewer than `census_floor` and by no more than the bound, none of them
+   an end. Step 5 then writes the rest as above. The second pass is kept
+   only where it writes more cells; otherwise the first pass's cells
+   stand.
+
+**Why it moves no published fact.** Each offset stands on one cell
+fewer than the line and is one the census does not name, so the twin
+described again counts each into the commonest named count, `(none)`,
+and reads that cell at no offset
+(`taxonomy._offsets_as_published`): the census, the clock the column is
+read on, every instant and every count of different values come back as
+published, and the class count comes back exact. Each offset written is
+worked out from the census and the field alone and is not read from the
+real column, nor published; it may still be one some real cells wore,
+since the census counted those into `(none)` and does not say which they
+were -- seven real `+0000` among 1,000 stamps came back as seven made-up
+`+0000` at seeds 0 to 2 (the Codex review of landing R2a, item 8).
+Measured: HL7 stamps with 1, 7, 10, 11, 12 and 25 of 1,000 cells
+wearing an offset, at floors 11 and 36 and seeds 0 to 2, all exit 0 in
+`validate`, where 11 and 12 missed both counts before and 1 to 10 read
+as stand-ins; and stamps to the minute, whose texts repeat, keep their
+count of different values only because a repeated text is never paid
+on in part (paid on in part, five and fifteen offsets missed
+`distinct.n_distinct`); beside a named offset, `+00:00` with 5 and with
+40 rare ones and `+01:00` with 30, every seed at floors 11 and 36 exits
+0 since the named offsets left the offer; and by steps 5 and 6, thirty
+shapes of repeated stamps -- two to twelve copies of each, one to
+fifteen offsets owed, floors 11 and 36, seeds 0 to 2 -- hold both class
+counts and the count of different values and exit 0 in `validate` on
+168 of 180 twins, where 163 did with step 5 alone and 129 before it.
+Codex's column of 100 stamps ten times each, with 11, 13, 14, 17, 20 or
+24 of its cells wearing an offset, validates at every seed from 0 to 5,
+where nine of those twins fell short while each offset took the most it
+held; and on the verification's random shapes in rank order, no text
+standing alone, step 5 writes all that any choice of whole texts over
+the offsets writes on 1,112 of 1,112, where 232 fell short so. The pass
+alone costs 1.1 CPU seconds at 300,000 rows and 3.5 at a million
+whether 7 or 140 cells are owed, and a second pass of step 6 0.2 and 0.7
+more; respelling every text on offer at every offset step 5 wrote at
+cost 20.6 and 68.0 owing 140. Frozen cases `layout_offsets_owed`,
+`layout_offsets_owed_repeats` beside repeated texts,
+`layout_offsets_owed_beside_named` beside a named `+00:00`,
+`layout_offsets_owed_whole_texts`, step 5's, and
+`layout_offsets_owed_across_offsets`, its aim and look ahead, the
+oracle's `offsets_paid_to_the_classes` against the shipped
+`_offsets_owed_by_the_classes`.
+
+**What it leaves.** A run of figures whose every offset falls in one pool
+(`{"(withheld)": n}`) is not paid: G7.4 writes the pooled ranks with no
+offset at all, and the twin misses its count of cells that are not
+numbers, as before this pass. Nor is a debt past `census_floor - 1`
+times the offsets on offer -- 150 cells at a floor of 11 where the
+census names none of the fifteen -- paid past that bound: 1,000 HL7
+stamps, 180 of them in twenty offsets of nine, are paid 150 and miss
+both counts (validate exits 3), as they did before this pass. Nor is a
+rest that no choice of whole texts reaches beside any count of the texts
+standing alone -- one cell owed where no number stands alone -- paid
+past what they reach: those twins miss both class counts, 12 of the 180
+above, each owing one to three cells beside texts of ten or twelve
+copies. And step 5 places whole texts by its aim and its look ahead, not
+by a search of every packing, so where the rest nears what the rooms on
+offer hold together it can write a few cells fewer than some packing of
+the same texts would: against an exact search over random shapes in
+rank order with two or three offsets on offer, 7 of 2,724 fell short, by
+11 cells in all, and with fifteen on offer owing 120 to 150, 2 of 300
+fell short of the largest total their texts reach, by 3.
 
 ## G7A. Clock columns (`time_of_day`)
 
@@ -14093,7 +14292,7 @@ that happens -- and the clause beside it, `--missing-value`'s "CAN be
 published as the column's smallest value", is exactly right under the
 new rule.
 
-**All one hundred and seventy are required.** The count is taken off the committed
+**All one hundred and eighty-five are required.** The count is taken off the committed
 case sets and not carried forward: this sentence said fifty-two and a
 split of nine, twenty, sixteen and seven while the six files held
 seventy-three, because each repair that added a case added a clause to
@@ -14129,10 +14328,19 @@ plan P4-D364's table gives that landing (G14.2); the TWENTY-FIRST,
 `tests/reference/generation-branch-vectors-21.json`, holds fifteen --
 landing 3b.5's census of a column of clock times, G7A.4b and G8.3's
 clock supply and clock line, held key by key since its second repair
-round, in the file that table gives that landing; and the
+round, in the file that table gives that landing; the
 TWENTY-THIRD, `tests/reference/generation-branch-vectors-23.json`,
 holds one -- lane G2's width rule, G6.6.8 -- in the file that table
-gives lane G2, and a test holds this sentence to those files. The tenth grew by the
+gives lane G2; and the
+TWENTY-FIFTH, `tests/reference/generation-branch-vectors-25.json`,
+holds fifteen -- landing R2a's layouts, the century a person chose,
+from its repair round a day padded with a space and the offsets a
+column of figure runs owes its class count, beside repeated texts too,
+from its second skeptic those offsets beside a named one, from its
+Codex review the rest of them paid with whole repeated texts, and from
+that repair's verification those texts placed over two offsets toward
+one aim (plan P4-D383) --
+and a test holds this sentence to those files. The tenth grew by the
 two cases the GOVERNANCE PASS of stage 3's review added and the
 eleventh by the two the dates pass added; each number here is read off
 the committed case sets again at every landing that touches them.
@@ -14286,6 +14494,21 @@ case passed, which is the failure the count exists to prevent:
 | `stamp_twelve_hour_top` | G7.5's 12-hour face with its marker after a space (landing T1): `space h AM-PM`, the first hour of the day and the hour of noon written 12, midnight `12:00 AM`. Its mutant writes the hour less twelve with no top of the dial, so midnight comes out `0:00 AM` |
 | `stamp_dotted_seconds` | G7.5's dotted marker after one space at the second, on a day-first stamp (landing T1): `space h a.m.-p.m.`, `a.m.` below noon and `p.m.` from noon on. Its mutant writes the marker straight after the time |
 | `clock_unpadded_twelve_hour` | G7A.1's forms since landing T1: a column of clock times in `h-mm AM-PM`, every value spelled from its minute of the day by the one clock writer, twelve values of the ramp from midnight written `12:00 AM` to `12:11 AM`. Its mutant spells every value in the two-figure 24-hour clock |
+| `layout_sas_date9` | G7.5's layout written whole (landing R2a, plan P4-D383): SAS's DATE9., `17MAR2024`, twelve dates of the ramp from 1970-01-01 written field by field through the layout the real column was read under -- two figures of day, the month's abbreviation in capitals, four of year. Its mutant drops the month field, and every cell loses its month word |
+| `layout_hl7_fraction_offset` | G7.5's layout with a fraction and an offset in its own spelling (landing R2a): an HL7 timestamp written `20240317140500.0000+0100`, the fraction zeros at the published four figures and the offset the rank wears written as `+HHMM`, inside the cell. Its mutant spells the offset as ISO does, with its colon |
+| `layout_spaced_offset` | G7.5's layout with its offset after a space (landing R2a): SQL Server's datetimeoffset, `2024-03-17 14:05:00.0000000 +00:00`, seven figures of fraction and the space a literal of the layout. Its mutant drops the space, which ISO writes and this column does not |
+| `layout_hour_offset` | G7.5's `{+HH}` field (landing R2a): PostgreSQL's timestamptz text at a whole-hour offset, `2024-03-17 14:05:00-05`, the offset written as its sign and hour alone. Its mutant writes the minutes too, `-05:00` |
+| `layout_utc_word` | G7.5's zulu word (landing R2a): R's `usetz` at UTC, `2024-03-17 14:05:00 UTC`, the shared clock written as the word its field names, after one space. Its mutant writes ISO's `Z` instead |
+| `layout_optional_offset` | G7.5's offset some cells omit (landing R2a; the R2 design skeptic, M2): twenty-four HL7 stamps, half their ranks allocated `(none)` and half `-05:00`, the first written as fourteen figures and nothing after, the second with `-0500`, each on its own wall clock; a cell with no offset also reads as a number, so twelve are published numeric. Its mutant writes the offset on every rank |
+| `layout_flexible_widths` | G7.5's width census spent over a layout's two flexible fields (landing R2a, contract LY5): a Dutch `d-m-yyyy`, twelve dates of January 1970 published `{"unpadded": 12}` and written `1-1-1970`, the day's field first. Its mutant flips the padding, `01-01-1970` |
+| `layout_weekday_long_date` | G7.5's weekday lead (landing R2a): Excel's long date, `Thursday, January 1, 1970`, the weekday the date's own and the one flexible field, the day, unpadded. Its mutant drops the weekday and its comma |
+| `layout_offsets_owed` | G7.9b's offsets a column of figure runs owes (landing R2a's repair round, item 2): twenty-four HL7 stamps whose census counted twelve offsets, each below the line, into `(none)`, so every rank is allocated none, beside a published twelve cells that are not numbers. Twelve interior cells no other rank repeats are written again wearing an offset, ten `+0000` and two `+0100`, spread over the ranks, and twelve numbers stay at the line. Its mutant withdraws the pass, and the twin is twenty-four numbers |
+| `layout_offsets_owed_repeats` | G7.9b's payment on a text no other rank repeats (landing R2a's repair round, item 2): twenty-four HL7 stamps to the minute over eighteen different values whose census counted four offsets into `(none)`. A respelled copy of a text another rank wears would add a value the published count of different values does not hold, so the four payments go to ranks whose text stands alone. Its mutant makes a payment on a repeated text too |
+| `layout_offsets_owed_beside_named` | G7.9b's offer, every offset the census names left off it (skeptic 2 of landing R2a, item 1): twenty-four HL7 stamps, eleven at the named `+00:00` and two whose offsets the census counted into `(none)`, beside thirteen cells that are not numbers. A cell written at `+0000` would be counted into the named offset and read at it, so the two payments wear `+0100`, the first offset on offer the census does not name. Its mutant offers the named offset too |
+| `layout_offsets_owed_whole_texts` | G7.9b step 5, the rest owed paid with whole repeated texts (the Codex review of landing R2a, item 4): twenty-four HL7 stamps over eight different values whose census counted seven offsets into `(none)`. Two texts stand alone between the ends and take two offsets at `+0000`; every other text repeats, so the other five are paid with a text of five ranks written again whole, every rank at `+0000`, and the column keeps its eight values. Its mutant withdraws the step, and the twin holds two cells that are not numbers for seven |
+| `layout_offsets_owed_across_offsets` | G7.9b step 5's aim and its look ahead at each offset (the verification of the Codex review's repair of landing R2a, open item 1): twenty-four HL7 stamps over eight different values whose census counted eleven offsets into `(none)`. Step 4 writes the two texts standing alone between the ends at `+0000`, which leaves room for eight more there; every other text repeats, so the other nine are written on whole texts, and step 5 aims at nine: a text of five copies at `+0000` and one of four at `+0100`, since taking the most `+0000` holds, two texts of four, would leave one cell owed that no text fits. Its mutant takes at each offset the most it holds, and the twin holds ten cells that are not numbers for eleven |
+| `layout_space_padded_day` | G7.5's space-padded day `{_D}` (landing R2a's repair round, item 6): SQL Server's `Mon dd yyyy` style, twelve dates of January 1970 written `Jan  1 1970` to `Jan 12 1970`, a day below ten written after a space in place of its first figure. Its mutant writes the day zero-padded, `Jan 01 1970` |
+| `layout_century_window` | G7.3e's window a person chose (landing R2a, question Q5): twenty-four `mm/dd/yy` birth dates of January 1940 read under `{YY1930}`, a tail at either end, the days a tail may reach bounded by 1930 to 2029. Its mutant reads every two-figure year in the POSIX window, 1969 to 2068, and the column's own days fall outside what its spelling writes back |
 | `date_remainder_one_joint` | G7.5 step 5 (landing T1; plan l.17955's carried case (a)): twenty-two month-first dates over twelve days publishing `{"padded": 11}`, eleven values' widths left out. The step writes those eleven ranks on whole days, the days holding the fewest of the class's ranks first, in widths the census does not name -- nine `unpadded` and two `first-padded`, each fewer than the line and than the named word -- and the named word keeps its eleven. Its mutant withdraws the step |
 | `clock_census_slots` | G7A.4b (landing 3b.5, plan P4-D373): a clinic's slots, 100 times from 08:00 to 11:59 with 30 at 08:00 and 25 at 08:30. Both stand out from the five minutes either side and are published as heaps over every cell: 08:00 fills the low tail, which lists it, and 08:30 is a stretch of its own inside the body; the census counts the body's other cells in ten-minute bins nested in hours. Every heap, group and boundary is met by construction. Its mutant counts the census in fifteen-minute bins, and the runs move |
 | `clock_census_heap_splits_group` | G7A.4b's runs: a heap at 07:25 holding 15 of 84 cells stands inside the census group 07:20 to 07:39, whose 15 other cells are shared over the steps on each side of the heap -- 07:20 to 07:24 and 07:26 to 07:39 -- by how many steps each run holds. Its mutant gives the whole count to the group's first run, and the cells move |
