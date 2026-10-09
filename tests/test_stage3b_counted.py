@@ -841,7 +841,7 @@ def test_c2_nf113s_line_follows_the_floor(tmp_path: pathlib.Path) -> None:
         assert changed.count("0") == held
         path = _table(tmp_path / f"zeros-{held}", changed)
         document = profile.build_document(
-            reading.read_table(str(path)), taxonomy.Settings(small_cell_floor=36), []
+            reading.read_table(str(path), small_cell_floor=36), taxonomy.Settings(small_cell_floor=36), []
         )
         said = _q3(document["columns"][0])
         assert said is not None, held
