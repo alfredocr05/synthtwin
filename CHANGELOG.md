@@ -6,6 +6,24 @@ exists).
 
 ## [Unreleased]
 
+### Clock times no member read are read by their shape too (2026-10-09)
+
+**Landing R2b, the clock half of the layout reader** (plan P4-D383).
+A date followed by an hour in one figure below ten (`2023-03-17 9:05`,
+`3/17/23 9:05`), by a 12-hour clock with `AM` or `PM`
+(`2023-03-17 03:56 PM`, `Mar 17, 2023 3:56 PM`), by JavaScript's narrow
+no-break space before its marker, by Oracle's TIMESTAMP
+(`17-MAR-23 02.05.37.123456 PM`) or by SQL Server's style 100
+(`Mar  1 2021  1:52PM`) used to be described as free text. Each is now read under a
+layout and its twin writes every cell in the source's own spelling,
+the hour at its width and on its dial. A layout column whose every hour
+lies 1 to 12 is asked whether it is a 12-hour clock written without AM
+or PM; Enter keeps the 24-hour reading, and `--twelve-hour` reads it on
+the dial. No column R2a's layouts or T1's stamps read moves: R2a's
+reach battery of 169 columns moved those seven alone, and the other 162
+kept every file byte for byte. A declared dial's twin may miss its
+rungs until landing T2's half-day draw, as a declared stamp's does.
+
 ### Dates no member read are read by their shape, and written back as written (2026-10-05)
 
 **Landing R2a, the date half of the layout reader** (plan P4-D383).
