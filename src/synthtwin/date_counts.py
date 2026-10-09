@@ -1482,6 +1482,26 @@ def _settled_moment(member: str, numerator: int, denominator: int, settled: int)
     return moment
 
 
+def names_a_date(member: str, numerator: int, denominator: int) -> bool:
+    """Whether an exact count is read as a date at all: it names a moment, and no moment of a placeholder day.
+
+    THE ABSENCE DECISION, asked before a count tells how its column is
+    written (the verification of the Codex review of landing R4, item
+    4): Excel's 0 and 60, minus one in a spreadsheet, a count past
+    9999-12-31 and a moment of 1 January 1900 or 31 December 9999 are
+    read as no value and written back as written, so none of them takes
+    part in the tally the form is drawn from -- a lone `0` beside six-place
+    serials made the tally a trimmed form its own six-place counts then
+    missed, and the column was declined. Asked at the nanosecond, the
+    finest unit, before any unit is settled; the profiler's reading
+    (`taxonomy`) and question Q3's (`figures_kept`) share it.
+
+    Guarantees: a function of the three. Raises KeyError for a word
+    outside `MEMBERS`. No I/O of any kind.
+    """
+    return _settled_moment(member, numerator, denominator, NANOSECOND) is not None
+
+
 def _every_figure_held(
     member: str,
     plain: CountForm,
@@ -1509,8 +1529,8 @@ def figures_kept(
 
     THE PROFILER'S OWN DECISION, asked before the question is put
     (`settled_reading`): for each member, the present cells read as its
-    counts (`counted`), its set-aside numbers taken out (`declared_aside`),
-    tallied by the figures each writes after the mark, settled to each
+    counts (`counted`), its set-aside numbers taken out (`declared_aside`)
+    and those read as no value (`names_a_date`), tallied by the figures each writes after the mark, settled to each
     unit the figures may carry (`reading_units`) and asked whether every
     count names its moment as its column wrote it (`held_by_its_moment`),
     exactly as a declaration reads them -- by EVERY count's form first
@@ -1567,7 +1587,11 @@ def figures_kept(
                 continue
             numerator, denominator = exact_value(written)
             for member in walked:
-                if not stands_aside(numerator, denominator, False, asides[member]):
+                # ONLY A COUNT READ AS A DATE TELLS HOW THE COLUMN IS WRITTEN
+                # (`names_a_date`), as the profiler's own reading tallies.
+                if not stands_aside(
+                    numerator, denominator, False, asides[member]
+                ) and names_a_date(member, numerator, denominator):
                     tallied_by_places(tallies[member], written)
                     tops[member] = max(tops[member], abs(numerator) // denominator + 1)
     held: "dict[str, int]" = {}

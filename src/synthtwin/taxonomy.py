@@ -16986,8 +16986,9 @@ def _counts_read_as_dates(
     parsed: "list[tuple[int, int, int, str]]" = []
     # THE FIGURES FIRST: the unit a moment is settled to is a fact about
     # the whole column, so how its counts are written is tallied before any
-    # cell is read -- every count but the set-aside numbers, which are
-    # written back as written and say nothing of the column's form -- by
+    # cell is read -- every count but the set-aside numbers and those read
+    # as no value, which are written back as written and say nothing of the
+    # column's form (`date_counts.names_a_date`) -- by
     # the figures after the mark each writes, so where every count's
     # reading holds no unit a stray written with more figures than the
     # rest is set beside them (`date_counts.usual_tally`).
@@ -17008,7 +17009,11 @@ def _counts_read_as_dates(
             parsed += [(_COUNT_SET_ASIDE, numerator, denominator, word)]
             continue
         parsed += [(_COUNT_READ, numerator, denominator, word)]
-        date_counts.tallied_by_places(tallies, written)
+        if date_counts.names_a_date(member, numerator, denominator):
+            # A COUNT NAMING NO DATE, or a moment of a placeholder day, is read
+            # as no value below and says nothing of the column's form either
+            # (`date_counts.names_a_date`).
+            date_counts.tallied_by_places(tallies, written)
     counts: "list[tuple[int, int]]" = []
     no_count = True
     for kind, numerator, denominator, _word in parsed:

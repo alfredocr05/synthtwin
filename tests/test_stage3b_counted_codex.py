@@ -365,6 +365,34 @@ def test_item4_a_rare_absent_count_is_not_held_to_the_form(
     assert _missed(trip, trip["path"]) == []
 
 
+_NO_DATE_BESIDE = (("0",), ("60",), ("-1",), ("2958466",), ("1", "2958466"), ("0",) * 11, ("1.5",))
+
+
+@pytest.mark.parametrize("absent", _NO_DATE_BESIDE)
+def test_item4_a_count_naming_no_date_tells_nothing_of_the_form(tmp_path: pathlib.Path, absent: "tuple[str, ...]") -> None:
+    """The verification of item 4: 999 serials written `%.6f` beside counts read as no value -- Excel's 0 and 60, minus one, a count past 9999-12-31, a moment of 1 January 1900 -- are read as counted dates in their six-place form, and the source and its twin meet it; on `9197903` the lone count made a trimmed form and the column was declined."""
+    cells = [f"{45000 + row}.500000" for row in range(999)] + list(absent)
+    trip = _described(tmp_path / "declared", cells, "excel-1900")
+    block = trip["block"]
+    assert isinstance(block, dict) and block["role"] == "datetime", block["remarks"]
+    form = block["count_form"]
+    assert isinstance(form, dict) and form["places"] == 6 and not form["trimmed"], form
+    assert _missed(trip, trip["path"]) == []
+    twin = _twin(trip, tmp_path / "twin")
+    checked = tmp_path / "twin" / "table-twin.csv"
+    assert twin and _missed(trip, checked) == []
+
+
+@pytest.mark.parametrize("absent", _NO_DATE_BESIDE)
+def test_item4_question_q3_asks_beside_a_count_naming_no_date(tmp_path: pathlib.Path, absent: "tuple[str, ...]") -> None:
+    """The same columns undeclared: Q3 offers Excel's 1900 system, as it did on `dbb347a`; on `9197903` it asked nothing."""
+    cells = [f"{45000 + row}.500000" for row in range(999)] + list(absent)
+    said = asking._date_counts_said(_block_of(tmp_path, cells))
+    assert said is not None
+    offered = [member for member, _first, _last in said.readings]
+    assert date_counts.EXCEL_1900 in offered, offered
+
+
 # -- items 5 and 6: question Q3 -------------------------------------------------------
 
 
