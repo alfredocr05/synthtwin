@@ -10154,16 +10154,19 @@ def tail_side_plan(column, side, low_side, parsed, words):
         grouped = CASE_SMALL_CELL_FLOOR - 1
     drawn = tuple(index for index in range(1, grouped))
     off = tail_holes_named(column, at, low_side)
+    # The islands go by name and only where the tail has any, so a column
+    # of no counted dates asks `tail_distances` as it always has.
+    with_islands = {"islands": islands} if islands else {}
     stood = tail_distances(
-        rows, mean, root, CASE_SMALL_CELL_FLOOR, edge, apart, words, off, islands
+        rows, mean, root, CASE_SMALL_CELL_FLOOR, edge, apart, words, off, **with_islands
     )
     near = tail_distances(
         rows, mean, root, CASE_SMALL_CELL_FLOOR, edge, apart,
-        {index: 0 for index in drawn}, off, islands,
+        {index: 0 for index in drawn}, off, **with_islands,
     )
     far = tail_distances(
         rows, mean, root, CASE_SMALL_CELL_FLOOR, edge, apart,
-        {index: TWO64 - 1 for index in drawn}, off, islands,
+        {index: TWO64 - 1 for index in drawn}, off, **with_islands,
     )
     # A stratum lying wholly on an island is given room either side (G7.10).
     near, far = counted_strata_off_islands(near, far, islands, edge)
