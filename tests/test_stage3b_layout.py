@@ -15,8 +15,10 @@ for the dial); C5 every description the producer writes loads, and S8c
 holds a layout's declaration both ways (mutant: S8c blind to a layout);
 C6 LY1 admits the clock half exactly, discovery and LY1 one set (mutant: a
 declared dial not taken back); C7 a padded hour is not read as one figure
-(mutant: the nought set aside); and C8 a declared dial's twin says what it
-cannot hold, beside a strict expected failure owned by landing T2.
+(mutant: the nought set aside); C8 a declared dial's twin says what it
+cannot hold, beside a strict expected failure owned by landing T2; and C9
+a choice asks one text's productions at most twice (mutants: the memo
+dropped; the last-character test withdrawn).
 
 THE DATE HALF (landing R2a):
 
@@ -2762,3 +2764,79 @@ def test_r2b_c8_a_declared_dial_validates_clean(tmp_path: pathlib.Path) -> None:
     twin, _written = _twin(profile, 0)
     code, _report = _validated(profile, twin)
     assert code == 0
+
+
+
+def _space_padded_clocks(rows: int) -> "list[str]":
+    """SQL Server's style 100 on the 24-hour clock: a day and an hour padded with a space."""
+    names = ("Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec")
+    return [
+        f"{names[m.month - 1]} {m.day:>2d} {m.year} {m.hour:>2d}:{m.minute:02d}"
+        for m in spellings.moments(rows, 17)
+    ]
+
+
+def _productions_asked(
+    cells: "list[str]", monkeypatch: pytest.MonkeyPatch
+) -> "tuple[str, int]":
+    """The layout a column is read under, and the most times one choice asked one text's productions."""
+    asked: "collections.Counter[str]" = collections.Counter()
+    most = [0]
+    real = parsing.layouts_of
+    choose = taxonomy._chosen_layout
+
+    def counted(text: str) -> "tuple[str, ...]":
+        asked[text] += 1
+        return real(text)
+
+    def one_choice(*arguments: object, **named: object) -> object:
+        asked.clear()
+        found = choose(*arguments, **named)  # type: ignore[arg-type]
+        if asked:
+            most[0] = max(most[0], max(asked.values()))
+        return found
+
+    monkeypatch.setattr(parsing, "layouts_of", counted)
+    monkeypatch.setattr(taxonomy, "_chosen_layout", one_choice)
+    described = taxonomy.profile_column("seen_at", 1, cells, len(cells), taxonomy.Settings())
+    monkeypatch.setattr(parsing, "layouts_of", real)
+    monkeypatch.setattr(taxonomy, "_chosen_layout", choose)
+    return f"{(described.details or {}).get('format', '')}", most[0]
+
+
+def test_r2b_c9_the_choice_asks_each_text_once(monkeypatch: pytest.MonkeyPatch) -> None:
+    """C9: a choice asks one text's productions at most twice, and once where no offset ends it.
+
+    The clock half gives SQL Server's style 100 forty-five candidates, each
+    missing about a thousand of the same first texts, and growing each one's
+    optional offset asked the grammar again for every text it missed: 1.48
+    times ISO's describe at 100,000 rows, 1.01 since. Once for the
+    candidates and once for the optional offsets, at most. Mutants, run:
+    the choice's memo dropped, and style 100 on the 24-hour clock, whose
+    texts end in a figure, asks one text many times; the last-character
+    test withdrawn, and a text ending in its marker is asked twice.
+    """
+    layout, most = _productions_asked(spellings.cells("sqlserver_style_100", 3000), monkeypatch)
+    assert layout == "layout {Mon} {_D} {YYYY} {_h}:{MI}{AM}"
+    assert most == 1
+    layout, most = _productions_asked(_space_padded_clocks(3000), monkeypatch)
+    assert layout == "layout {Mon} {_D} {YYYY} {_H}:{MI}"
+    assert most <= 2
+
+
+def test_r2b_c9_red_without_the_memo(monkeypatch: pytest.MonkeyPatch) -> None:
+    real = taxonomy._layout_extended
+    monkeypatch.setattr(
+        taxonomy, "_layout_extended",
+        lambda layout, failing, window, contradicted, twelve=False, productions=None: real(
+            layout, failing, window, contradicted, twelve, None
+        ),
+    )
+    _layout, most = _productions_asked(_space_padded_clocks(3000), monkeypatch)
+    assert most > 2
+
+
+def test_r2b_c9_red_without_the_last_character(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(taxonomy, "_OFFSET_LAST_CHARACTERS", "0123456789ZzCTM")
+    _layout, most = _productions_asked(spellings.cells("sqlserver_style_100", 3000), monkeypatch)
+    assert most == 2

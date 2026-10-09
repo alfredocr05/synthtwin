@@ -15911,12 +15911,20 @@ def _layout_candidates(
     return found
 
 
+# THE LAST CHARACTER EVERY OFFSET FIELD ENDS A CELL WITH (landing R2b): a
+# signed offset's figure, or the last letter of `Z`, `z`, `UTC` and `GMT`.
+# A text ending in anything else has no layout with an offset, so
+# `_layout_extended` need not ask the grammar for its productions.
+_OFFSET_LAST_CHARACTERS = "0123456789ZzCT"
+
+
 def _layout_extended(
     layout: str,
     failing: "list[str]",
     window: int,
     contradicted: bool,
     twelve: bool = False,
+    productions: "dict[str, tuple[str, ...]] | None" = None,
 ) -> "list[str]":
     """The optional-offset layouts a layout with no offset grows into (skeptic M2).
 
@@ -15931,6 +15939,15 @@ def _layout_extended(
     cell it missed WITH its offset, so the texts it missed hold every such
     layout too: 7 of 1,000 HL7 stamps ending `-0400` or `-0500` were the
     seven stand-ins of a twin read 993 under the offset-free layout.
+
+    ONE TEXT'S PRODUCTIONS ARE ASKED FOR ONCE A CHOICE (landing R2b): the
+    clock half gives a column of SQL Server's style 100 forty-five
+    candidates, each missing about a thousand of the same first texts, and
+    asking the grammar again for each made the choice cost 1.48 times
+    ISO's describe at 100,000 rows. ``productions`` is the choice's own
+    dict of each text's layouts, made for one column and dropped with it,
+    holding at most `LAYOUT_MEMO_TEXTS`; and a text whose last character
+    no offset field writes is passed by, having no layout with an offset.
     """
     if not isinstance(layout, str):
         raise TypeError(_LAYOUT_NOT_TEXT)
@@ -15938,7 +15955,15 @@ def _layout_extended(
         return []
     found: "list[str]" = []
     for text in failing:
-        for one in parsing.layouts_of(text):
+        if text[len(text) - 1 : len(text)] not in _OFFSET_LAST_CHARACTERS or not text:
+            continue
+        if productions is not None and text in productions:
+            made = productions[text]
+        else:
+            made = parsing.layouts_of(text)
+            if productions is not None and len(productions) < LAYOUT_MEMO_TEXTS:
+                productions[text] = made
+        for one in made:
             if window:
                 one = parsing.layout_in_window(one, window)
             if twelve:
@@ -15993,6 +16018,8 @@ def _chosen_layout(
     best = ""
     best_rows = -1
     later: "list[str]" = []
+    # -- 3b.R2b: each failing text's productions, asked once a choice.
+    productions: "dict[str, tuple[str, ...]]" = {}
     for _key, layout in keyed:
         items = parsing.compiled_layout(layout)
         if items is None:
@@ -16002,10 +16029,8 @@ def _chosen_layout(
         # line (skeptic 1 of landing R2a, item 2): a layout that reaches it
         # missing a few cells that write an offset reads fewer than its
         # optional-offset twin, which wins only by reading strictly more.
-        grown = (
-            _layout_extended(layout, failing, window, contradicted, twelve)
-            if twelve
-            else _layout_extended(layout, failing, window, contradicted)
+        grown = _layout_extended(
+            layout, failing, window, contradicted, twelve, productions
         )
         for one in grown:
             if one not in later and one not in reached:
