@@ -15980,7 +15980,12 @@ def _chosen_layout(
     any kind.
     """
     room = total - needed
-    candidates = _layout_candidates(counted, room, contradicted, window, twelve)
+    # -- 3b.R2b: the declaration passed only where there is one, so R2a's
+    # four-argument seam stands as it was.
+    if twelve:
+        candidates = _layout_candidates(counted, room, contradicted, window, twelve)
+    else:
+        candidates = _layout_candidates(counted, room, contradicted, window)
     keyed = sorted(
         [(parsing.layout_order_key(one, day_first), one) for one in candidates]
     )
@@ -15997,7 +16002,12 @@ def _chosen_layout(
         # line (skeptic 1 of landing R2a, item 2): a layout that reaches it
         # missing a few cells that write an offset reads fewer than its
         # optional-offset twin, which wins only by reading strictly more.
-        for one in _layout_extended(layout, failing, window, contradicted, twelve):
+        grown = (
+            _layout_extended(layout, failing, window, contradicted, twelve)
+            if twelve
+            else _layout_extended(layout, failing, window, contradicted)
+        )
+        for one in grown:
             if one not in later and one not in reached:
                 later += [one]
         if missed > room:
