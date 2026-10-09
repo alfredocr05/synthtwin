@@ -260,14 +260,19 @@ class Written:
 def written_count(text: str, mark: str = POINT) -> "Written | None":
     """A cell read as a count, or None where it is written any other way.
 
-    THE GRAMMAR, and nothing wider: an optional minus, then whole figures
-    -- `0` alone or a first figure other than `0`, so a padded `007` is a
-    code's spelling and not a count's -- then optionally ``mark`` and one
-    or more figures, then, on the point only, optionally an exponent:
-    `e` or `E`, an optional sign and figures, the form R and Python write
-    a count in where it is shorter (the R4 design review, item 6). A
-    leading plus, a grouped number, a space anywhere and any other
-    character are not counts.
+    THE GRAMMAR OF CONTRACT 6.6.2, and nothing wider: an optional minus,
+    then whole figures -- `0` alone or a first figure other than `0`, so
+    a padded `007` is a code's spelling and not a count's -- then
+    optionally ``mark`` and one or more figures, then, on the point only,
+    optionally an exponent: `e` or `E`, an optional sign and figures, the
+    form R and Python write a count in where it is shorter (the R4 design
+    review, item 6). The whole figures before an exponent are as many as
+    the cell writes -- `17e+8` and `1704067200e+0` are counts, which the
+    first build refused for writing more than one (the Codex review of
+    landing R4, item 8). A leading plus, a grouped number, a space
+    anywhere and any other character are not counts. An exponent of more
+    than `EXPONENT_FIGURES` figures, its leading zeros aside, is held at
+    ten to that many: it names no date either way (`exact_value`).
 
     Guarantees: accepts a cell's text and the column's decimal mark;
     returns its parts or None. Determinism: a function of the two.
@@ -296,9 +301,9 @@ def written_count(text: str, mark: str = POINT) -> "Written | None":
                     sign = -1
                 after = after + 1
             power = text[after:]
-            if not _figures(power) or len(power) > 4:
+            if not _figures(power):
                 return None
-            exponent = sign * int(power)
+            exponent = sign * _bounded_power(power)
             exponent_form = True
             stop = cut
     split = _place_of(text, mark)
@@ -313,11 +318,25 @@ def written_count(text: str, mark: str = POINT) -> "Written | None":
         return None
     if len(whole) > 1 and whole[:1] == "0":
         return None
-    if exponent_form and (len(whole) != 1 or whole == "0" and fraction):
-        # A MANTISSA WRITES ONE FIGURE BEFORE THE POINT, as every exporter
-        # writing an exponent does; anything else is not this form.
-        return None
     return Written(negative, whole, fraction, exponent, exponent_form)
+
+
+# THE MOST FIGURES AN EXPONENT IS READ TO, its leading zeros aside: ten to
+# the millionth is past every date and below every unit, so a longer one
+# is held there -- its number names no date either way -- and no cell
+# builds a number of its own length (the Codex review of landing R4,
+# item 7).
+EXPONENT_FIGURES = 6
+
+
+def _bounded_power(power: str) -> int:
+    """An exponent's figures as a whole number, held at ten to `EXPONENT_FIGURES` where longer."""
+    if not isinstance(power, str):
+        raise TypeError("internal check: an exponent was not text")
+    figures = power.lstrip("0")
+    if len(figures) > EXPONENT_FIGURES:
+        return 10**EXPONENT_FIGURES
+    return int(figures) if figures else 0
 
 
 # THE MOST FIGURES A CONTACT NUMBER WRITES after the point of an Epic day
@@ -351,24 +370,59 @@ def counted(member: str, text: str, mark: str = POINT) -> "Written | None":
     return written
 
 
+# HOW FAR A COUNT IS READ (the Codex review of landing R4, item 7): a number
+# of more than `VALUE_FIGURES` whole figures is past the last date of every
+# system -- the longest, nanoseconds to 9999, writes twenty-one -- and one
+# below ten to minus that many is nearer its epoch than any unit reads; and
+# of the figures a cell writes, the first `VALUE_FIGURES` are kept and the
+# rest stand as one figure that is nought only where they all are. So no
+# cell builds a number of its own length -- `1e+9999` built a 4,456-byte
+# integer, kept for every cell, and `45042.` with 4,301 zeros raised
+# Python's limit on integer text -- and every reading decides as the exact
+# number would: no moment, an epoch, or the same side of each rounding
+# boundary.
+VALUE_FIGURES = 30
+
+
 def exact_value(written: Written) -> "tuple[int, int]":
     """The number a written count denotes, as a whole numerator over a power of ten.
 
     Exact: the figures are read as one whole number and the point and
-    the exponent only move the power of ten beneath it. Guarantees: a
-    function of the parts; the denominator is a positive power of ten.
+    the exponent only move the power of ten beneath it. THE REDUNDANT
+    FIGURES GO FIRST -- the zeros at the end of the figures after the
+    point and those at the front -- and the magnitude is asked before any
+    number is built (`VALUE_FIGURES`): a number past every date is held at
+    ten to that many, one nearer nought than any unit reads at ten to
+    minus one more, and figures past that many stand as one, nought only
+    where every one of them is, so each reading decides as the exact
+    number would.
+
+    Guarantees: a function of the parts; the denominator is a positive
+    power of ten; neither number is longer than about two hundred bits.
     Raises nothing. No I/O.
     """
-    numerator = int(written.whole + written.fraction)
-    shift = len(written.fraction) - written.exponent
+    fraction = written.fraction.rstrip("0")
+    digits = (written.whole + fraction).lstrip("0")
+    if not digits:
+        return 0, 1
+    shift = len(fraction) - written.exponent
+    order = len(digits) - shift
+    sign = -1 if written.negative else 1
+    if order > VALUE_FIGURES:
+        return sign * 10**VALUE_FIGURES, 1
+    if order < -VALUE_FIGURES:
+        return sign, 10 ** (VALUE_FIGURES + 1)
+    if len(digits) > VALUE_FIGURES + 1:
+        rest = digits[VALUE_FIGURES:]
+        shift = shift - (len(rest) - 1)
+        digits = digits[:VALUE_FIGURES] + ("1" if rest.strip("0") else "0")
+    numerator = int(digits)
     denominator = 1
     if shift >= 0:
         denominator = 10**shift
     else:
         numerator = numerator * 10 ** (-shift)
-    if written.negative:
-        numerator = -numerator
-    return numerator, denominator
+    return sign * numerator, denominator
 
 
 def figures_after_the_mark(written: Written) -> int:
@@ -382,17 +436,29 @@ def figures_after_the_mark(written: Written) -> int:
 
 
 def significant_figures(written: Written) -> int:
-    """How many significant figures a cell writes: its figures, less the leading zeros."""
-    figures = written.whole + written.fraction
-    while len(figures) > 1 and figures[:1] == "0":
-        figures = figures[1:]
-    return len(figures)
+    """How many significant figures a cell writes: its figures, less the leading zeros.
+
+    AND, WHERE IT WRITES NO FIGURE AFTER THE MARK, LESS THE ZEROS AT THE
+    END OF ITS WHOLE FIGURES, which place the point and say nothing of
+    how finely the number was written: `1704067200000010000` is
+    1.70406720000001e+18 written in full, fifteen figures, as R's rule
+    writes it where that is the shorter (the Codex review of landing R4,
+    item 3). One rule for the profiler's tally, the writer and the
+    checker (`form_holds`).
+    """
+    figures = (written.whole + written.fraction).lstrip("0")
+    if not written.fraction:
+        figures = figures.rstrip("0")
+    return max(1, len(figures))
 
 
 def integer_figures(written: Written) -> int:
-    """How many figures the whole part of a cell's number has: `45386.5` five, `1.6e+12` thirteen."""
+    """How many figures the whole part of a cell's number has: `45386.5` five, `1.6e+12` and `16e+11` thirteen."""
     if written.exponent_form:
-        return max(1, len(written.whole) + written.exponent)
+        digits = (written.whole + written.fraction).lstrip("0")
+        if not digits:
+            return 1
+        return max(1, len(digits) - len(written.fraction) + written.exponent)
     return len(written.whole)
 
 
