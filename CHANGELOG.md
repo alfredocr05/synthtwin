@@ -69,8 +69,8 @@ there; the twin now writes them all in hour 23, the ranks two published
 23:59:60 leave between them written as that second. A markerless 12-hour stamp's twin is no longer
 MISSED by a validator window narrower than the one its construction
 draws. PUT BACK sorts its runs once: a million movable ranks in runs of
-every size from 1 to 1,000 took 21.7 s to put one value back, and take
-0.83 s. And a census withheld says a middle half that is not published
+every size from 1 to 1,000 took 15.7 s to put one value back, and take
+0.58 s. And a census withheld says a middle half that is not published
 apart from one that is short (NF117), and names the cells the
 description places in an hour for certain where they are what leaves no
 grouping (NF92).
