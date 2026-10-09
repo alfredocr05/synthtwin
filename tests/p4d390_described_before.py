@@ -1,20 +1,26 @@
-"""What 493f6f8 printed, block by block: every count of one to ten (plan P4-D390).
+"""What 493f6f8 printed, block by block: every count of one to ten and every role (plan P4-D390).
 
 A FROZEN RECORD, NEVER REBUILT FROM THE PRODUCT. Each table of
 `tests/test_p4d390_counts_per_block.py` -- Codex's two tables of the
 review of plan P4-D390, the lane's batteries, the four tables for the
-keys a wider sweep found moving and the forty-six shapes of the stage-3
-battery -- was described by the producer of 493f6f8, the
-tree before the subtraction guard was dropped, and its counts of one to
-ten were read by that file's own `small_counts`, block by block. What
-the product prints now is compared with this, so a block that starts
-printing a count 493f6f8 did not is seen by name.
+keys a wider sweep found moving, the columns almost all empty and the
+label columns beside codes written once, and the forty-six shapes of
+the stage-3 battery -- was described by the producer of 493f6f8, the
+tree before the subtraction guard was dropped; its counts of one to ten
+were read by that file's own `small_counts`, block by block, and each
+column's role by its `roles`. What the product prints now is compared
+with this, so a block that starts printing a count 493f6f8 did not, or
+a column whose role moves other than up that file's `ROLE_ORDER`, is
+seen by name.
 
 Made on 2026-10-08 by describing each table with 493f6f8's `src` on the
-path and the test file's own builders and walker, one table at a time.
-To make it again, put 493f6f8's `src` first on the path and write
-`small_counts(described(...))` for every table; nothing on the product's
-side should ever need it.
+path and the test file's own builders and walker, one table at a time,
+and made again the same way when the five tables of the columns almost
+all empty and of the labels beside codes joined it with the roles: the
+sixty-nine tables it held came back unchanged. To make it again, put
+493f6f8's `src` first on the path and write `small_counts` and `roles`
+of `described(...)` for every table; nothing on the product's side
+should ever need it.
 """
 
 # table -> block -> its counts of one to ten: ("key", path, value) for a
@@ -851,6 +857,152 @@ BEFORE: "dict[str, dict[str, list[tuple[object, ...]]]]" = {
             ("key", "n_distinct_folded", 5),
         ],
     },
+    "sparse_columns": {
+        "(table)": [],
+        "eight_mixed": [
+            ("key", "n_distinct", 4),
+            ("key", "n_distinct_folded", 4),
+            ("key", "n_not_numeric", 5),
+            ("key", "n_present", 5),
+            ("key", "suppressed_levels", 4),
+            ("key", "suppressed_rows", 5),
+            ("said", "evidence_set_of_categories", 0, 4),
+            ("said", "labels_pooled_below_the_floor", 0, 4),
+            ("said", "labels_pooled_below_the_floor", 2, 5),
+        ],
+        "one_word": [],
+        "readings_and_a_word": [
+            ("key", "n_distinct", 5),
+            ("key", "n_distinct_folded", 5),
+            ("key", "n_numeric", 5),
+            ("key", "n_present", 5),
+            ("key", "shape_forms/(withheld)", 5),
+            ("key", "suppressed_levels", 5),
+            ("key", "suppressed_rows", 5),
+            ("said", "evidence_set_of_categories", 0, 5),
+            ("said", "labels_pooled_below_the_floor", 0, 5),
+            ("said", "labels_pooled_below_the_floor", 2, 5),
+        ],
+        "word_and_contradiction": [],
+        "word_number_out_of_range": [],
+        "words_among_na": [
+            ("key", "missing_by_class/(withheld)", 2),
+            ("key", "n_distinct", 2),
+            ("key", "n_distinct_folded", 2),
+            ("key", "n_missing_withheld", 2),
+            ("key", "n_not_numeric", 2),
+            ("key", "n_present", 2),
+            ("key", "suppressed_levels", 2),
+            ("key", "suppressed_rows", 2),
+            ("said", "one_of_two_labels_below_the_floor", 0, 2),
+        ],
+    },
+    "sparse_columns_f36": {
+        "(table)": [],
+        "eight_mixed": [
+            ("key", "n_distinct", 4),
+            ("key", "n_distinct_folded", 4),
+            ("key", "n_not_numeric", 5),
+            ("key", "n_present", 5),
+            ("key", "suppressed_levels", 4),
+            ("key", "suppressed_rows", 5),
+            ("said", "evidence_set_of_categories", 0, 4),
+            ("said", "labels_pooled_below_the_floor", 0, 4),
+            ("said", "labels_pooled_below_the_floor", 2, 5),
+        ],
+        "one_word": [],
+        "readings_and_a_word": [
+            ("key", "n_distinct", 5),
+            ("key", "n_distinct_folded", 5),
+            ("key", "n_numeric", 5),
+            ("key", "n_present", 5),
+            ("key", "shape_forms/(withheld)", 5),
+            ("key", "suppressed_levels", 5),
+            ("key", "suppressed_rows", 5),
+            ("said", "evidence_set_of_categories", 0, 5),
+            ("said", "labels_pooled_below_the_floor", 0, 5),
+            ("said", "labels_pooled_below_the_floor", 2, 5),
+        ],
+        "word_and_contradiction": [],
+        "word_number_out_of_range": [],
+        "words_among_na": [
+            ("key", "missing_by_class/(withheld)", 2),
+            ("key", "n_distinct", 2),
+            ("key", "n_distinct_folded", 2),
+            ("key", "n_missing_withheld", 2),
+            ("key", "n_not_numeric", 2),
+            ("key", "n_present", 2),
+            ("key", "suppressed_levels", 2),
+            ("key", "suppressed_rows", 2),
+            ("said", "one_of_two_labels_below_the_floor", 0, 2),
+        ],
+    },
+    "sparse_columns_identifiers": {
+        "(table)": [],
+        "eight_mixed": [
+            ("key", "max_length", 5),
+            ("key", "min_length", 2),
+            ("key", "n_code_alphabet", 8),
+            ("key", "n_distinct", 7),
+            ("key", "n_distinct_by_occurrences/1", 6),
+            ("key", "n_distinct_by_occurrences/2", 1),
+            ("key", "n_distinct_folded", 7),
+            ("key", "n_not_numeric", 8),
+            ("key", "n_present", 8),
+        ],
+        "one_word": [
+            ("key", "max_length", 5),
+            ("key", "min_length", 5),
+            ("key", "n_code_alphabet", 1),
+            ("key", "n_distinct", 1),
+            ("key", "n_distinct_by_occurrences/1", 1),
+            ("key", "n_distinct_folded", 1),
+            ("key", "n_not_numeric", 1),
+            ("key", "n_present", 1),
+        ],
+        "readings_and_a_word": [
+            ("key", "layout_forms/(withheld)", 6),
+            ("key", "max_length", 7),
+            ("key", "min_length", 3),
+            ("key", "n_distinct", 6),
+            ("key", "n_distinct_by_occurrences/1", 6),
+            ("key", "n_distinct_folded", 6),
+            ("key", "n_numeric", 6),
+            ("key", "n_present", 6),
+        ],
+        "word_and_contradiction": [
+            ("key", "max_length", 5),
+            ("key", "min_length", 4),
+            ("key", "n_code_alphabet", 2),
+            ("key", "n_contradictory", 2),
+            ("key", "n_distinct", 2),
+            ("key", "n_distinct_by_occurrences/1", 2),
+            ("key", "n_distinct_folded", 2),
+            ("key", "n_present", 2),
+            ("said", "remark_values_contradictory", 0, 2),
+        ],
+        "word_number_out_of_range": [
+            ("key", "layout_forms/(withheld)", 3),
+            ("key", "max_length", 5),
+            ("key", "min_length", 2),
+            ("key", "n_code_alphabet", 3),
+            ("key", "n_distinct", 3),
+            ("key", "n_distinct_by_occurrences/1", 3),
+            ("key", "n_distinct_folded", 3),
+            ("key", "n_numeric", 3),
+            ("key", "n_present", 3),
+        ],
+        "words_among_na": [
+            ("key", "max_length", 5),
+            ("key", "min_length", 2),
+            ("key", "n_code_alphabet", 4),
+            ("key", "n_distinct", 4),
+            ("key", "n_distinct_by_occurrences/1", 4),
+            ("key", "n_distinct_folded", 4),
+            ("key", "n_not_numeric", 4),
+            ("key", "n_present", 4),
+        ],
+    },
     "stage3_affixed_all_but_one_spelling": {
         "(table)": [],
         "value": [
@@ -1161,5 +1313,386 @@ BEFORE: "dict[str, dict[str, list[tuple[object, ...]]]]" = {
             ("key", "n_distinct_by_occurrences/5", 1),
             ("key", "n_negative", 1),
         ],
+    },
+    "words_beside_singles": {
+        "(table)": [],
+        "one_word_singles": [
+            ("key", "n_distinct", 1),
+            ("key", "n_distinct_folded", 1),
+        ],
+        "two_words_singles": [
+            ("key", "n_distinct", 2),
+            ("key", "n_distinct_folded", 2),
+        ],
+    },
+    "words_beside_singles_identifiers": {
+        "(table)": [],
+        "one_word_singles": [
+            ("key", "max_length", 5),
+            ("key", "min_length", 4),
+            ("key", "n_distinct_by_occurrences/1100", 1),
+        ],
+        "two_words_singles": [
+            ("key", "max_length", 5),
+            ("key", "min_length", 4),
+            ("key", "n_distinct_by_occurrences/600", 2),
+        ],
+    },
+}
+
+# table -> column -> the role 493f6f8 read it as.
+ROLES: "dict[str, dict[str, str]]" = {
+    "codex_codes": {
+        "thing": "categorical",
+    },
+    "codex_codes_identifier": {
+        "thing": "identifier",
+    },
+    "codex_words": {
+        "thing": "categorical",
+    },
+    "codex_words_identifier": {
+        "thing": "identifier",
+    },
+    "codex_words_with_empty_cells": {
+        "other": "constant",
+        "thing": "categorical",
+    },
+    "codex_words_with_split_missing": {
+        "other": "constant",
+        "thing": "categorical",
+    },
+    "readings_beside_labels": {
+        "other": "constant",
+        "thing": "numbers_with_labels",
+    },
+    "readings_beside_labels_identifier": {
+        "other": "constant",
+        "thing": "identifier",
+    },
+    "registers_100000_f11": {
+        "bigcat": "categorical",
+        "drug": "long_tail_labels",
+        "drug_generic": "long_tail_labels",
+        "dx_all": "long_tail_labels",
+        "dx_category": "long_tail_labels",
+        "dx_principal": "long_tail_labels",
+        "kind": "categorical",
+        "lab_test": "categorical",
+        "proc": "long_tail_labels",
+        "unit": "categorical",
+        "ward": "categorical",
+    },
+    "registers_100000_f36": {
+        "bigcat": "long_tail_labels",
+        "drug": "long_tail_labels",
+        "drug_generic": "long_tail_labels",
+        "dx_all": "long_tail_labels",
+        "dx_category": "long_tail_labels",
+        "dx_principal": "long_tail_labels",
+        "kind": "categorical",
+        "lab_test": "categorical",
+        "proc": "long_tail_labels",
+        "unit": "categorical",
+        "ward": "categorical",
+    },
+    "registers_10000_f11": {
+        "bigcat": "long_tail_labels",
+        "drug": "long_tail_labels",
+        "drug_generic": "categorical",
+        "dx_all": "long_tail_labels",
+        "dx_category": "long_tail_labels",
+        "dx_principal": "categorical",
+        "kind": "binary",
+        "lab_test": "categorical",
+        "proc": "long_tail_labels",
+        "unit": "categorical",
+        "ward": "categorical",
+    },
+    "registers_10000_f36": {
+        "bigcat": "long_tail_labels",
+        "drug": "long_tail_labels",
+        "drug_generic": "categorical",
+        "dx_all": "long_tail_labels",
+        "dx_category": "long_tail_labels",
+        "dx_principal": "long_tail_labels",
+        "kind": "binary",
+        "lab_test": "categorical",
+        "proc": "long_tail_labels",
+        "unit": "categorical",
+        "ward": "categorical",
+    },
+    "registers_10000_identifiers_f11": {
+        "bigcat": "identifier",
+        "drug": "long_tail_labels",
+        "drug_generic": "categorical",
+        "dx_all": "long_tail_labels",
+        "dx_category": "long_tail_labels",
+        "dx_principal": "categorical",
+        "kind": "identifier",
+        "lab_test": "categorical",
+        "proc": "long_tail_labels",
+        "unit": "identifier",
+        "ward": "categorical",
+    },
+    "registers_50000_f11": {
+        "bigcat": "categorical",
+        "drug": "long_tail_labels",
+        "drug_generic": "long_tail_labels",
+        "dx_all": "long_tail_labels",
+        "dx_category": "long_tail_labels",
+        "dx_principal": "long_tail_labels",
+        "kind": "categorical",
+        "lab_test": "categorical",
+        "proc": "long_tail_labels",
+        "unit": "categorical",
+        "ward": "categorical",
+    },
+    "registers_50000_f36": {
+        "bigcat": "long_tail_labels",
+        "drug": "long_tail_labels",
+        "drug_generic": "long_tail_labels",
+        "dx_all": "long_tail_labels",
+        "dx_category": "long_tail_labels",
+        "dx_principal": "long_tail_labels",
+        "kind": "categorical",
+        "lab_test": "categorical",
+        "proc": "long_tail_labels",
+        "unit": "categorical",
+        "ward": "categorical",
+    },
+    "shapes2_f11": {
+        "consent": "constant",
+        "glu_band": "continuous",
+        "glu_one": "continuous",
+        "route": "categorical",
+        "smoker": "categorical",
+    },
+    "shapes2_f36": {
+        "consent": "constant",
+        "glu_band": "continuous",
+        "glu_one": "continuous",
+        "route": "categorical",
+        "smoker": "categorical",
+    },
+    "shapes2_identifiers_f11": {
+        "consent": "identifier",
+        "glu_band": "continuous",
+        "glu_one": "identifier",
+        "route": "identifier",
+        "smoker": "categorical",
+    },
+    "shapes_f11": {
+        "disposition": "categorical",
+        "dx7": "categorical",
+        "group": "categorical",
+        "lab_cr": "continuous",
+        "lab_k": "continuous",
+        "lab_trop": "categorical",
+        "proc_one_f": "categorical",
+        "proc_three_f": "categorical",
+        "ward_closed": "categorical",
+    },
+    "shapes_f36": {
+        "disposition": "categorical",
+        "dx7": "categorical",
+        "group": "categorical",
+        "lab_cr": "continuous",
+        "lab_k": "continuous",
+        "lab_trop": "categorical",
+        "proc_one_f": "categorical",
+        "proc_three_f": "categorical",
+        "ward_closed": "categorical",
+    },
+    "shapes_identifiers_f11": {
+        "disposition": "categorical",
+        "dx7": "identifier",
+        "group": "identifier",
+        "lab_cr": "continuous",
+        "lab_k": "continuous",
+        "lab_trop": "categorical",
+        "proc_one_f": "identifier",
+        "proc_three_f": "identifier",
+        "ward_closed": "categorical",
+    },
+    "small_label_columns": {
+        "one_word": "constant",
+        "pair_blanks": "binary",
+        "yes_no": "binary",
+    },
+    "small_label_columns_identifiers": {
+        "one_word": "identifier",
+        "pair_blanks": "identifier",
+        "yes_no": "identifier",
+    },
+    "sparse_columns": {
+        "eight_mixed": "categorical",
+        "one_word": "empty",
+        "readings_and_a_word": "categorical",
+        "word_and_contradiction": "empty",
+        "word_number_out_of_range": "empty",
+        "words_among_na": "binary",
+    },
+    "sparse_columns_f36": {
+        "eight_mixed": "categorical",
+        "one_word": "empty",
+        "readings_and_a_word": "categorical",
+        "word_and_contradiction": "empty",
+        "word_number_out_of_range": "empty",
+        "words_among_na": "binary",
+    },
+    "sparse_columns_identifiers": {
+        "eight_mixed": "identifier",
+        "one_word": "identifier",
+        "readings_and_a_word": "identifier",
+        "word_and_contradiction": "identifier",
+        "word_number_out_of_range": "identifier",
+        "words_among_na": "identifier",
+    },
+    "stage3_affixed_all_but_one_spelling": {
+        "value": "free_text",
+    },
+    "stage3_affixed_many_one_variant": {
+        "value": "affixed_number",
+    },
+    "stage3_affixed_one_out_of_range_core": {
+        "value": "affixed_number",
+    },
+    "stage3_affixed_one_variant": {
+        "value": "categorical",
+    },
+    "stage3_categories_small_count": {
+        "value": "categorical",
+    },
+    "stage3_clock_two_not_clock": {
+        "value": "time_of_day",
+    },
+    "stage3_comma_settled_decimal": {
+        "value": "count",
+    },
+    "stage3_compact_dates_also_numbers": {
+        "value": "datetime",
+    },
+    "stage3_compound_five_labels": {
+        "value": "numbers_with_labels",
+    },
+    "stage3_compound_twelve_labels_one_oor": {
+        "value": "numbers_with_labels",
+    },
+    "stage3_count_whole_one_fraction": {
+        "value": "continuous",
+    },
+    "stage3_dates_beside_ten_words": {
+        "value": "free_text",
+    },
+    "stage3_dates_one_unparsed": {
+        "value": "datetime",
+    },
+    "stage3_epoch_seconds": {
+        "value": "count",
+    },
+    "stage3_free_text_affix_reach": {
+        "value": "free_text",
+    },
+    "stage3_free_text_clock_reach": {
+        "value": "free_text",
+    },
+    "stage3_free_text_letters_against_digits": {
+        "value": "free_text",
+    },
+    "stage3_free_text_one_number": {
+        "value": "free_text",
+    },
+    "stage3_free_text_some_dates": {
+        "value": "free_text",
+    },
+    "stage3_identifier_declared": {
+        "value": "identifier",
+    },
+    "stage3_joined_one_reversed": {
+        "value": "joined_numbers",
+    },
+    "stage3_joined_one_unparsed": {
+        "value": "joined_numbers",
+    },
+    "stage3_label_stand_in": {
+        "value": "categorical",
+    },
+    "stage3_labels_one_blank_pooled": {
+        "value": "binary",
+    },
+    "stage3_labels_one_case_variant": {
+        "value": "categorical",
+    },
+    "stage3_long_tail_labels": {
+        "value": "categorical",
+    },
+    "stage3_moments_one_date_only": {
+        "value": "datetime",
+    },
+    "stage3_moments_one_midnight": {
+        "value": "datetime",
+    },
+    "stage3_near_category_line": {
+        "value": "categorical",
+    },
+    "stage3_numbers_with_sentinel_frequent": {
+        "value": "continuous",
+    },
+    "stage3_numeric_all_but_one_grouped_comma": {
+        "value": "count",
+    },
+    "stage3_numeric_one_blank": {
+        "value": "continuous",
+    },
+    "stage3_numeric_one_contradictory": {
+        "value": "continuous",
+    },
+    "stage3_numeric_one_grouped_comma": {
+        "value": "count",
+    },
+    "stage3_numeric_one_negative": {
+        "value": "continuous",
+    },
+    "stage3_numeric_one_negative_unrepresentable": {
+        "value": "continuous",
+    },
+    "stage3_numeric_one_out_of_range": {
+        "value": "continuous",
+    },
+    "stage3_numeric_one_zero": {
+        "value": "continuous",
+    },
+    "stage3_numeric_padded_three": {
+        "value": "continuous",
+    },
+    "stage3_numeric_rare_sentinel": {
+        "value": "continuous",
+    },
+    "stage3_numeric_three_not_numbers": {
+        "value": "continuous",
+    },
+    "stage3_numeric_trailing_pct_near_line": {
+        "value": "continuous",
+    },
+    "stage3_numeric_two_na_words": {
+        "value": "continuous",
+    },
+    "stage3_slashed_dates_day_first_evidence": {
+        "value": "datetime",
+    },
+    "stage3_two_readings_fit": {
+        "value": "affixed_number",
+    },
+    "stage3_unrepresentable_mixed": {
+        "value": "numeric_unrepresentable",
+    },
+    "words_beside_singles": {
+        "one_word_singles": "constant",
+        "two_words_singles": "binary",
+    },
+    "words_beside_singles_identifiers": {
+        "one_word_singles": "identifier",
+        "two_words_singles": "identifier",
     },
 }

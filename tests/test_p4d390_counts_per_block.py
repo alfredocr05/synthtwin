@@ -29,19 +29,28 @@ it stands and compared, block by block and key by key, with what
 493f6f8 printed for the same table (`p4d390_described_before.BEFORE`).
 A count of one to ten the product prints that 493f6f8 did not print at
 the same key -- counted as a multiset, so a key whose small count
-changed is new too -- must be one of the keys `MAY_BE_NEW` names, or a
-missing count of the column's own cells (`MISSING_COUNTS`), and on a
-column declared an identifier no new count of one to ten is allowed at
-all. The tables are Codex's two, each again with its column declared an
-identifier; the lane's batteries (its five seeded tables at floors of
-eleven and thirty-six, and three of them again with columns declared
-identifiers); four tables for the keys a wider sweep (172 seeded shapes,
-each at both floors) found moving beyond those -- Codex's first table
-again beside five empty cells, and beside nine empty cells and twelve
-`NA`, a column of readings beside labels, and three label columns the
-retired pass cut down to one or two values, the last two again with
-their columns declared identifiers; and the forty-six shapes of the
-stage-3 battery `K-S3-12` counts.
+changed is new too -- must be one of the keys `MAY_BE_NEW` names, a
+missing count of the column's own cells (`MISSING_COUNTS`) or the count
+of the column's own present cells (`PRESENT_COUNT`), and on a column
+declared an identifier no new count of one to ten is allowed at all.
+Each column's role is compared with the one 493f6f8 read
+(`p4d390_described_before.ROLES`) too, and may move only up
+`ROLE_ORDER`. The tables are Codex's two, each again with its column
+declared an identifier; the lane's batteries (its five seeded tables at
+floors of eleven and thirty-six, and three of them again with columns
+declared identifiers); four tables for the keys a wider sweep (172
+seeded shapes, each at both floors) found moving beyond those --
+Codex's first table again beside five empty cells, and beside nine
+empty cells and twelve `NA`, a column of readings beside labels, and
+three label columns the retired pass cut down to one or two values, the
+last two again with their columns declared identifiers; six columns
+almost all empty, each holding ten or fewer present cells, at floors of
+eleven and thirty-six and again declared identifiers, for `n_present`,
+which a sweep of such columns found moving too, and for the columns the
+pass had emptied; two label columns beside 300 and 400 codes written
+once, which the pass had cut to two values and to one and which read as
+long tails now, again declared identifiers; and the forty-six shapes of
+the stage-3 battery `K-S3-12` counts.
 
 Every table is built by seeded neutral code at runtime (plan D13); the
 lane's batteries are the measurement's own generators at its own seeds,
@@ -81,7 +90,8 @@ from synthtwin import (
 # on a column not declared an identifier, each counting cells or values
 # the retired pass had blanked, or, for the missing counts, the column's
 # own absent cells without them -- measured over every table this file
-# describes and a wider sweep, and stated in plan P4-D390:
+# describes, a wider sweep and a sweep of columns almost all empty, and
+# stated in plan P4-D390:
 #
 # - the pool's own keys, which the landing exists to publish: a held-back
 #   level is pooled whatever its size, so `suppressed_levels` and
@@ -96,7 +106,7 @@ from synthtwin import (
 # - the four class totals, `n_numeric`, `n_out_of_range`,
 #   `n_contradictory` and `n_not_numeric`, with the two remarks restating
 #   the second and third (Codex's item);
-# - and the missing counts, `n_missing`, `n_missing_withheld` and the
+# - the missing counts, `n_missing`, `n_missing_withheld` and the
 #   pooled `missing_by_class` entry, ONLY as counts of the column's own
 #   cells standing for no value: 493f6f8 printed them with the cells it
 #   blanked added, so a column holding one to ten such cells of its own
@@ -104,13 +114,22 @@ from synthtwin import (
 #   whose own cells of a class fall below the floor once the blanked
 #   cells are gone pools them where 493f6f8 named the class. So a new
 #   `n_missing` must be exactly the column's own such cells, and a new
-#   pooled count no more than them.
+#   pooled count no more than them;
+# - and `n_present` (and the sentences restating it), ONLY as the count
+#   of the column's own cells holding a value: it is the complement of
+#   `n_missing`, and 493f6f8 left out of it the cells it blanked, so a
+#   column holding ten or fewer present cells prints its own count now
+#   where 493f6f8 printed a smaller one, or nought where the pass had
+#   emptied the column. So a new `n_present` must be exactly the
+#   column's own present cells.
 #
-# A column whose cells the pass had cut to one or two values can read as
-# another role now -- a constant as binary, a binary column as a set of
-# categories, a set of categories as a long tail -- and still prints a new
-# count only in these keys. No other key does, and no key of a declared
-# identifier does. Every table here is described at a floor of eleven or
+# A column whose cells the pass had emptied, or cut to fewer values, can
+# read as another role now, further up `ROLE_ORDER` -- an empty column as
+# a constant, as binary or as a set of categories, a constant or a binary
+# column as a set of categories or a long tail, a constant as binary and
+# a set of categories as a long tail -- and still prints a new count only
+# in these keys. No other key does, and no key of a declared identifier
+# does. Every table here is described at a floor of eleven or
 # thirty-six: below eleven a named count between the floor and ten is the
 # floor's own to print, and the statement is made of eleven and more.
 MAY_BE_NEW = (
@@ -136,6 +155,21 @@ MISSING_COUNTS = (
     "n_missing",
     "n_missing_withheld",
     f"missing_by_class/{contract.WITHHELD}",
+)
+# The count of present cells, which may be new only as the column's own:
+# every row's cell but the column's own absent ones.
+PRESENT_COUNT = "n_present"
+
+# The label roles in the order a column's reading moves along as values
+# come back: 493f6f8 read a column on the cells its pass left, so where
+# the pass blanked any, the column now reads as the same role or one
+# further up this order, never one down it and never a role outside it.
+ROLE_ORDER = (
+    taxonomy.ROLE_EMPTY,
+    taxonomy.ROLE_CONSTANT,
+    taxonomy.ROLE_BINARY,
+    taxonomy.ROLE_CATEGORICAL,
+    taxonomy.ROLE_LONG_TAIL,
 )
 
 # Counts that say where something is or which version wrote it, never
@@ -309,12 +343,16 @@ def new_small_counts(
     return new
 
 
-def may_be_new(entry: "tuple[object, ...]", own_missing: int) -> bool:
+def may_be_new(
+    entry: "tuple[object, ...]", own_missing: int, own_present: int
+) -> bool:
     """Whether one new count is of a key the list names, or restates one.
 
     A missing count may be new only as a count of ``own_missing``, the
     column's own cells standing for no value: `n_missing` exactly, the
-    two pooled counts at no more than it.
+    two pooled counts at no more than it. `n_present`, or a sentence
+    restating it, may be new only as ``own_present``, the column's own
+    cells holding a value, exactly.
     """
     if entry[0] == "key":
         key, value = f"{entry[1]}", entry[2]
@@ -325,6 +363,8 @@ def may_be_new(entry: "tuple[object, ...]", own_missing: int) -> bool:
         if binding[:1] != (taxonomy.BIND_KEY,):
             return False
         key, value = f"{binding[1]}".replace(".", "/"), entry[3]
+    if key == PRESENT_COUNT:
+        return value == own_present
     if key == MISSING_COUNTS[0]:
         return value == own_missing
     if key in MISSING_COUNTS:
@@ -336,6 +376,7 @@ def outside_the_list(
     new: "dict[str, list[tuple[object, ...]]]",
     identifiers: "tuple[str, ...]",
     own_missing: "dict[str, int]",
+    own_present: "dict[str, int]",
 ) -> "dict[str, list[tuple[object, ...]]]":
     """The new counts no rule allows: any on an identifier or the table, and
     any of another key elsewhere."""
@@ -345,17 +386,46 @@ def outside_the_list(
             refused[owner] = new[owner]
             continue
         empty = own_missing[owner] if owner in own_missing else 0
-        wrong = [entry for entry in new[owner] if not may_be_new(entry, empty)]
+        held = own_present[owner] if owner in own_present else -1
+        wrong = [entry for entry in new[owner] if not may_be_new(entry, empty, held)]
         if wrong:
             refused[owner] = wrong
     return refused
 
 
+def roles(document: dict) -> "dict[str, str]":
+    """Each column's role, by its name."""
+    return {block["name"]: block["role"] for block in document["columns"]}
+
+
+def roles_moved_outside_the_order(
+    before: "dict[str, str]", after: "dict[str, str]"
+) -> "list[tuple[str, str, str]]":
+    """(column, role before, role now) for every role that moved other than
+    up `ROLE_ORDER`."""
+    wrong: "list[tuple[str, str, str]]" = []
+    for name in sorted(after):
+        was, now = before[name], after[name]
+        if was == now:
+            continue
+        if (
+            was in ROLE_ORDER
+            and now in ROLE_ORDER
+            and ROLE_ORDER.index(was) < ROLE_ORDER.index(now)
+        ):
+            continue
+        wrong += [(name, was, now)]
+    return wrong
+
+
 def missing_cells(text: str) -> "dict[str, int]":
     """How many cells of each column of a delimited table stand for no value:
     blank, or a spelling `parsing.is_missing_text` reads as none. No table
-    here declares a value missing or holds a sentinel the product counts as
-    missing, so these are all of a column's own absent cells."""
+    here declares a value missing, and the one shape holding a stand-in
+    number the product counts as missing -- the stage-3 battery's
+    `numbers_with_sentinel_frequent`, thirty `-999` among 400 cells --
+    prints no new count, so wherever a count is new these are all of a
+    column's own absent cells."""
     rows = list(csv.reader(io.StringIO(text)))
     counts: "dict[str, int]" = {}
     for place in range(len(rows[0])):
@@ -367,6 +437,14 @@ def missing_cells(text: str) -> "dict[str, int]":
             ]
         )
     return counts
+
+
+def present_cells(text: str) -> "dict[str, int]":
+    """How many cells of each column of a delimited table hold a value:
+    every row's cell but those `missing_cells` counts."""
+    rows = len(list(csv.reader(io.StringIO(text)))) - 1
+    absent = missing_cells(text)
+    return {name: rows - absent[name] for name in absent}
 
 
 # -- the tables --------------------------------------------------------
@@ -801,6 +879,65 @@ def small_label_columns() -> str:
     return _csv_text(["pair_blanks", "yes_no", "one_word"], columns)
 
 
+def _filled(seed: int, present: "list[str]", filler: str = "") -> "list[str]":
+    """The cells given, filled to 1,500 rows with ``filler`` and shuffled."""
+    cells = present + [filler] * (1500 - len(present))
+    random.Random(seed).shuffle(cells)
+    return cells
+
+
+# The six columns of `sparse_columns`, each holding ten or fewer present
+# cells among 1,500 rows.
+SPARSE_COLUMNS = (
+    "eight_mixed",
+    "readings_and_a_word",
+    "one_word",
+    "word_and_contradiction",
+    "word_number_out_of_range",
+    "words_among_na",
+)
+
+
+def sparse_columns() -> str:
+    """Six columns of 1,500 rows almost all empty (seeds 21 to 26).
+
+    `alpha` twice, `beta`, `gamma` and `delta` beside `77`, `1e999` and
+    `(+5)`, whose three odd cells the retired pass blanked; five readings
+    beside `pending`; `alpha` alone, beside `(+5)`, and beside `77` and
+    `1e999`, which the pass emptied; and `alpha`, `beta`, `77` and `(+5)`
+    among 1,496 `NA`.
+    """
+    columns = {
+        "eight_mixed": _filled(
+            21, ["alpha", "alpha", "beta", "gamma", "delta", "77", "1e999", "(+5)"]
+        ),
+        "readings_and_a_word": _filled(
+            22, ["12.5", "13.1", "9.8", "11.0", "10.4", "pending"]
+        ),
+        "one_word": _filled(23, ["alpha"]),
+        "word_and_contradiction": _filled(24, ["alpha", "(+5)"]),
+        "word_number_out_of_range": _filled(25, ["alpha", "77", "1e999"]),
+        "words_among_na": _filled(26, ["alpha", "beta", "77", "(+5)"], "NA"),
+    }
+    return _csv_text(list(SPARSE_COLUMNS), columns)
+
+
+def words_beside_singles() -> str:
+    """Two label columns of 1,500 rows beside codes written once (seeds 27
+    and 28): `north` and `south` on 600 rows each beside 300 codes, and
+    `north` on 1,100 rows beside 400. The retired pass blanked the codes,
+    so 493f6f8 read the first as binary and the second as a constant."""
+    columns = {
+        "two_words_singles": _filled(
+            27, ["north"] * 600 + ["south"] * 600 + [f"U{k:03d}" for k in range(300)]
+        ),
+        "one_word_singles": _filled(
+            28, ["north"] * 1100 + [f"T{k:03d}" for k in range(400)]
+        ),
+    }
+    return _csv_text(["two_words_singles", "one_word_singles"], columns)
+
+
 # Every table: (builder, its argument, floor, declared codes, declared
 # identifiers). The stage-3 battery's forty-six shapes are described by
 # that battery's own helper, at a floor of eleven.
@@ -840,6 +977,13 @@ TABLES = {
     "small_label_columns_identifiers": (
         small_label_columns, None, 11, (), ("pair_blanks", "yes_no", "one_word"),
     ),
+    "sparse_columns": (sparse_columns, None, 11, (), ()),
+    "sparse_columns_f36": (sparse_columns, None, 36, (), ()),
+    "sparse_columns_identifiers": (sparse_columns, None, 11, (), SPARSE_COLUMNS),
+    "words_beside_singles": (words_beside_singles, None, 11, (), ()),
+    "words_beside_singles_identifiers": (
+        words_beside_singles, None, 11, (), ("two_words_singles", "one_word_singles"),
+    ),
 }
 
 _TEXTS: "dict[tuple[object, object], str]" = {}
@@ -868,15 +1012,20 @@ def described(folder: pathlib.Path, name: str) -> dict:
 
 def stage3_described(
     folder: pathlib.Path, name: str
-) -> "tuple[dict, tuple[str, ...], dict[str, int]]":
+) -> "tuple[dict, tuple[str, ...], dict[str, int], dict[str, int]]":
     """One shape of the stage-3 battery at a floor of eleven, its identifiers,
-    and its own cells standing for no value."""
+    and its own cells standing for no value and holding one."""
     cells, flags = stage3_battery.SHAPES[name](
         random.Random(stage3_battery.BATTERY_SEED)
     )
     identifiers = tuple(flags["identifiers"] if "identifiers" in flags else ())
-    own = missing_cells(stage3_battery.rows_text(["value"], [[cell] for cell in cells]))
-    return stage3_battery.described(folder, name, 11), identifiers, own
+    text = stage3_battery.rows_text(["value"], [[cell] for cell in cells])
+    return (
+        stage3_battery.described(folder, name, 11),
+        identifiers,
+        missing_cells(text),
+        present_cells(text),
+    )
 
 
 # -- the checks ----------------------------------------------------------
@@ -895,15 +1044,30 @@ def test_no_block_prints_a_new_small_count_outside_the_list(
     counts of one to ten are compared with 493f6f8's for that same
     column, so a block that starts printing a count 493f6f8 did not --
     of a key the list does not name, or of any key on a column declared
-    an identifier -- turns this red by name.
+    an identifier -- turns this red by name, and so does a column whose
+    role moved other than up `ROLE_ORDER`.
     """
     document = described(tmp_path, name)
     after = small_counts(document)
     before = p4d390_described_before.BEFORE[name]
     assert sorted(after) == sorted(before), name
     identifiers = TABLES[name][4]
-    own = missing_cells(table_text(name))
-    assert outside_the_list(new_small_counts(before, after), identifiers, own) == {}
+    text = table_text(name)
+    assert (
+        outside_the_list(
+            new_small_counts(before, after),
+            identifiers,
+            missing_cells(text),
+            present_cells(text),
+        )
+        == {}
+    )
+    assert (
+        roles_moved_outside_the_order(
+            p4d390_described_before.ROLES[name], roles(document)
+        )
+        == []
+    )
 
 
 def test_the_stage3_battery_prints_no_new_small_count_outside_the_list(
@@ -913,40 +1077,67 @@ def test_the_stage3_battery_prints_no_new_small_count_outside_the_list(
 
     Two of them move: a column of 1,977 `NORTH`, 11 `SOUTH` and one
     `SITE_X`, whose pool is one level over one row and whose count of
-    different values is three where 493f6f8 blanked the one row; and 300
-    cells of three words beside a hundred codes written once, which reads
-    as a long tail and says three levels reach its line where 493f6f8
-    blanked the hundred and read three categories.
+    different values is three where 493f6f8 blanked the one row and read
+    two values, so it reads as a set of categories where it read as
+    binary; and 300 cells of three words beside a hundred codes written
+    once, which reads as a long tail and says three levels reach its line
+    where 493f6f8 blanked the hundred and read three categories.
     """
     refused: "dict[str, dict[str, list[tuple[object, ...]]]]" = {}
     moved: "list[str]" = []
+    roles_moved: "list[tuple[str, str, str, str]]" = []
     for name in sorted(stage3_battery.SHAPES):
-        document, identifiers, own = stage3_described(tmp_path, name)
+        document, identifiers, own, present = stage3_described(tmp_path, name)
         after = small_counts(document)
         before = p4d390_described_before.BEFORE[f"stage3_{name}"]
         assert sorted(after) == sorted(before), name
         new = new_small_counts(before, after)
         if new:
             moved += [name]
-        wrong = outside_the_list(new, identifiers, own)
+        wrong = outside_the_list(new, identifiers, own, present)
         if wrong:
             refused[name] = wrong
+        was = p4d390_described_before.ROLES[f"stage3_{name}"]
+        now = roles(document)
+        roles_moved += [
+            (name, column, was[column], now[column])
+            for column in sorted(now)
+            if was[column] != now[column]
+        ]
+        assert roles_moved_outside_the_order(was, now) == [], name
     assert refused == {}
     assert moved == ["labels_one_blank_pooled", "long_tail_labels"]
+    assert roles_moved == [
+        (
+            "labels_one_blank_pooled",
+            "value",
+            taxonomy.ROLE_BINARY,
+            taxonomy.ROLE_CATEGORICAL,
+        ),
+        (
+            "long_tail_labels",
+            "value",
+            taxonomy.ROLE_CATEGORICAL,
+            taxonomy.ROLE_LONG_TAIL,
+        ),
+    ]
 
 
 def test_the_check_lets_through_the_list_and_nothing_else() -> None:
-    """The check itself, on new counts made up for it.
+    """The check itself, on new counts and roles made up for it.
 
-    The listed keys, the sentences restating them and missing counts of
-    the column's own absent cells pass. A level of two rows named where
-    the floor pooled it, a sentence restating a key outside the list, a
-    missing count holding a cell the column did not leave empty, any
-    count of the table's own blocks and any count of a column declared
-    an identifier are each refused, so loosening the check turns this
-    red before it lets a block through.
+    The listed keys, the sentences restating them, missing counts of the
+    column's own absent cells and the count of its own present cells
+    pass. A level of two rows named where the floor pooled it, a sentence
+    restating a key outside the list, a missing count holding a cell the
+    column did not leave empty, a present count other than the column's
+    own, any count of the table's own blocks and any count of a column
+    declared an identifier are each refused, so loosening the check turns
+    this red before it lets a block through. A role may move up
+    `ROLE_ORDER`, and not down it or out of it.
     """
     own = {"thing": 3}
+    present = {"thing": 8}
     listed = [
         ("key", "n_numeric", 1),
         ("key", "n_not_numeric", 1),
@@ -958,28 +1149,54 @@ def test_the_check_lets_through_the_list_and_nothing_else() -> None:
         ("key", "n_missing", 3),
         ("key", "n_missing_withheld", 3),
         ("key", f"missing_by_class/{contract.WITHHELD}", 2),
+        ("key", "n_present", 8),
         ("said", taxonomy.REMARK_OUT_OF_RANGE, 0, 1),
         ("said", taxonomy.NOTE_LABELS_POOLED, 2, 4),
         ("said", taxonomy.NOTE_ONE_OF_TWO_BELOW_FLOOR, 0, 1),
+        ("said", taxonomy.EVIDENCE_ONE_VALUE, 0, 8),
     ]
-    assert outside_the_list({"thing": listed}, (), own) == {}
+    assert outside_the_list({"thing": listed}, (), own, present) == {}
     for entry in (
         ("key", "levels/[]/count", 2),
         ("key", "levels/[]/variants/word0", 2),
         ("key", "n_present", 7),
+        ("key", "n_present", 9),
+        ("key", "labels/n_present", 8),
         ("key", "n_missing", 4),
         ("key", "n_missing", 2),
         ("key", "n_missing_withheld", 4),
         ("key", f"missing_by_class/{contract.WITHHELD}", 4),
         ("said", taxonomy.EVIDENCE_ONE_VALUE, 0, 7),
     ):
-        assert outside_the_list({"thing": [entry]}, (), own) == {"thing": [entry]}
-    on_the_table = {"(table)": [("key", "n_rows", 5)]}
-    assert outside_the_list(on_the_table, (), own) == on_the_table
-    for entry in listed:
-        assert outside_the_list({"thing": [entry]}, ("thing",), own) == {
+        assert outside_the_list({"thing": [entry]}, (), own, present) == {
             "thing": [entry]
         }
+    on_the_table = {"(table)": [("key", "n_rows", 5)]}
+    assert outside_the_list(on_the_table, (), own, present) == on_the_table
+    for entry in listed:
+        assert outside_the_list({"thing": [entry]}, ("thing",), own, present) == {
+            "thing": [entry]
+        }
+    up = [
+        (taxonomy.ROLE_EMPTY, taxonomy.ROLE_CONSTANT),
+        (taxonomy.ROLE_EMPTY, taxonomy.ROLE_CATEGORICAL),
+        (taxonomy.ROLE_CONSTANT, taxonomy.ROLE_BINARY),
+        (taxonomy.ROLE_BINARY, taxonomy.ROLE_LONG_TAIL),
+        (taxonomy.ROLE_CATEGORICAL, taxonomy.ROLE_LONG_TAIL),
+        (taxonomy.ROLE_CONTINUOUS, taxonomy.ROLE_CONTINUOUS),
+    ]
+    for was, now in up:
+        assert roles_moved_outside_the_order({"thing": was}, {"thing": now}) == []
+    for was, now in (
+        (taxonomy.ROLE_BINARY, taxonomy.ROLE_CONSTANT),
+        (taxonomy.ROLE_LONG_TAIL, taxonomy.ROLE_CATEGORICAL),
+        (taxonomy.ROLE_CATEGORICAL, taxonomy.ROLE_TEXT),
+        (taxonomy.ROLE_CONTINUOUS, taxonomy.ROLE_COMPOUND),
+        (taxonomy.ROLE_EMPTY, taxonomy.ROLE_CONTINUOUS),
+    ):
+        assert roles_moved_outside_the_order(
+            {"thing": was}, {"thing": now}
+        ) == [("thing", was, now)]
 
 
 def _round_trip(
@@ -1051,3 +1268,94 @@ def test_codex_s_two_tables_print_the_class_totals_and_keep_the_odd_cells(
             for check in outcome.checks
             if check.verdict == validation.MISSED
         ] == [], name
+
+
+def test_a_column_of_ten_or_fewer_present_cells_prints_its_own_count(
+    tmp_path: pathlib.Path,
+) -> None:
+    """`n_present` moves only to the column's own present cells, and the
+    twin writes them.
+
+    `n_present` moves too, outside the keys the first repair named: it is
+    the complement of `n_missing`, and 493f6f8 left out of it the cells
+    its pass blanked, so a column holding ten or fewer present cells
+    prints its own count now where 493f6f8 printed a smaller one. On the
+    six columns almost all empty, at a floor of eleven: 8 where 493f6f8
+    printed 5 (it blanked `77`, `1e999` and `(+5)`), 6 where it printed 5
+    (five readings beside `pending`), 1, 2 and 3 where it printed nought
+    (`alpha` alone, beside `(+5)`, and beside `77` and `1e999`: the pass
+    emptied those columns), and 4 where it printed 2 (two words beside
+    `77` and `(+5)` among `NA`). Each is the column's own present cells,
+    the twin writes as many present cells in each column, and every check
+    of the twin is met, so code that would meet those cells in the real
+    file meets them in the twin first.
+    """
+    expected = {
+        "eight_mixed": (5, 8),
+        "readings_and_a_word": (5, 6),
+        "one_word": (0, 1),
+        "word_and_contradiction": (0, 2),
+        "word_number_out_of_range": (0, 3),
+        "words_among_na": (2, 4),
+    }
+    name = "sparse_columns"
+    document = described(tmp_path, name)
+    before = p4d390_described_before.BEFORE[name]
+    new = new_small_counts(before, small_counts(document))
+    present = present_cells(table_text(name))
+    blocks = {block["name"]: block for block in document["columns"]}
+    for column in SPARSE_COLUMNS:
+        was = [entry[2] for entry in before[column] if entry[:2] == ("key", "n_present")]
+        assert (was[0] if was else 0, present[column]) == expected[column], column
+        assert blocks[column]["n_present"] == present[column], column
+        assert ("key", "n_present", present[column]) in new[column], column
+    written = fixtures.write_profile(tmp_path, f"{name}.json", document)
+    loaded = contract.load_profile(f"{written}")
+    text = rendering.twin_csv(generation.generate(loaded, 7))
+    assert present_cells(text) == present
+    outcome = validation.measure(
+        loaded, f"{fixtures.write(tmp_path, f'{name}-twin.csv', text)}"
+    )
+    assert [
+        check.subcheck for check in outcome.checks if check.verdict == validation.MISSED
+    ] == []
+
+
+def test_a_column_the_pass_had_thinned_reads_further_up_the_order(
+    tmp_path: pathlib.Path,
+) -> None:
+    """The role moves P4-D390 names, each seen on a column of its own.
+
+    493f6f8 read a column on the cells its pass left. A column the pass
+    had emptied read as empty and reads now as a constant, as binary or
+    as a set of categories; two words or one beside codes written once,
+    which the pass had cut to those words, read as binary and as a
+    constant then and as long tails now; and two words beside `77` and
+    `(+5)` among `NA` read as binary and as a set of categories now.
+    """
+    expected = {
+        "sparse_columns": {
+            "eight_mixed": (taxonomy.ROLE_CATEGORICAL, taxonomy.ROLE_CATEGORICAL),
+            "readings_and_a_word": (
+                taxonomy.ROLE_CATEGORICAL,
+                taxonomy.ROLE_CATEGORICAL,
+            ),
+            "one_word": (taxonomy.ROLE_EMPTY, taxonomy.ROLE_CONSTANT),
+            "word_and_contradiction": (taxonomy.ROLE_EMPTY, taxonomy.ROLE_BINARY),
+            "word_number_out_of_range": (
+                taxonomy.ROLE_EMPTY,
+                taxonomy.ROLE_CATEGORICAL,
+            ),
+            "words_among_na": (taxonomy.ROLE_BINARY, taxonomy.ROLE_CATEGORICAL),
+        },
+        "words_beside_singles": {
+            "one_word_singles": (taxonomy.ROLE_CONSTANT, taxonomy.ROLE_LONG_TAIL),
+            "two_words_singles": (taxonomy.ROLE_BINARY, taxonomy.ROLE_LONG_TAIL),
+        },
+    }
+    for name in sorted(expected):
+        now = roles(described(tmp_path, name))
+        was = p4d390_described_before.ROLES[name]
+        assert {column: (was[column], now[column]) for column in now} == expected[
+            name
+        ], name
