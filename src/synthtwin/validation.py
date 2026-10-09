@@ -1775,7 +1775,11 @@ def counted_units(description: contract.Profile) -> "dict[str, int]":
     counts, mapped to that unit, so a checked file's counts are read at the
     precision the description published rather than at one worked out
     from its own figures -- the validator's reading of a description's
-    own source is then the profiler's, cell for cell.
+    own source is then the profiler's, cell for cell. A declared column
+    whose description carries no form of counts -- whose cells, it says
+    in NF115, did not read as such dates -- is mapped to -1, and the
+    checked file's column is read without the declaration, as its source
+    was (the Codex review of landing R4, items 1 and 3).
     """
     declared: "dict[str, int]" = {}
     for name, _member in description.settings.forced_date_counts:
@@ -1786,6 +1790,7 @@ def counted_units(description: contract.Profile) -> "dict[str, int]":
         if column.name not in declared:
             continue
         if not isinstance(facts, contract.DatetimeFacts) or facts.count_form is None:
+            units[column.name] = -1
             continue
         units[column.name] = contract.counted_unit(facts)
     return units

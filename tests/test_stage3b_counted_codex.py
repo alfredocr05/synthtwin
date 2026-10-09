@@ -139,6 +139,9 @@ def test_item1_epic_contacts_beside_iso_dates_never_write_what_the_loader_refuse
     block = trip["block"]
     assert isinstance(block, dict)
     assert _declined(block)
+    _twin(trip, tmp_path / "twin")
+    assert _missed(trip, tmp_path / "twin" / "table-twin.csv") == []
+    assert _missed(trip, trip["path"]) == []
 
 
 _MIXED_COUNTS = {
@@ -178,6 +181,19 @@ def test_item1_the_producer_always_loads_over_mixed_count_and_text_columns(
     assert isinstance(block, dict)
     if texts.startswith("iso"):
         assert _declined(block), (counts, texts, share)
+    _twin(trip, tmp_path / "twin")
+    missed = _missed(trip, tmp_path / "twin" / "table-twin.csv")
+    assert _missed(trip, trip["path"]) == []
+    if block.get("count_form") is not None:
+        assert missed == []
+        return
+    # DECLINED, THE COLUMN IS THE COLUMN UNDECLARED: its twin meets its
+    # description as the undeclared one's does (a free-text twin of
+    # numbers beside dates misses its published forms either way, a limit
+    # of the free-text role that no declaration touches).
+    plain = _described(tmp_path / "plain", cells, "")
+    _twin(plain, tmp_path / "plain" / "twin")
+    assert missed == _missed(plain, tmp_path / "plain" / "twin" / "table-twin.csv"), (counts, texts, share)
 
 
 # -- item 2: a unit the writer keeps -------------------------------------------
@@ -280,11 +296,11 @@ def test_item3_the_source_meets_the_form_its_producer_published(
     cells = [spelled(row) for row in range(100)]
     trip = _described(tmp_path, cells, "seconds-since-1970")
     assert "form.count_form" not in _missed(trip, trip["path"])
-    block = trip["block"]
-    assert isinstance(block, dict)
-    if block.get("count_form") is not None:
-        _twin(trip, tmp_path / "twin")
-        assert _missed(trip, tmp_path / "twin" / "table-twin.csv") == []
+    # WHETHER THE FORM IS PUBLISHED OR THE DECLARATION DECLINED, the twin
+    # meets the description: a declined column's twin is read without the
+    # declaration, as its source was.
+    _twin(trip, tmp_path / "twin")
+    assert _missed(trip, tmp_path / "twin" / "table-twin.csv") == []
 
 
 def test_item3_an_exponent_forms_own_writing_is_one_its_checker_holds() -> None:

@@ -22564,7 +22564,13 @@ def _read_the_column(
     # is read as those dates here, after every declaration of the person's
     # own and before any judgement, so every pass below reads dates.
     counted_reading: "CountedReading | None" = None
-    if counted_member(settings):
+    # A NEGATIVE ``counted_unit`` IS A VALIDATOR'S, on a column whose own
+    # description says the declaration decided nothing (NF115): the checked
+    # file is read as that description read its source, without it (the
+    # Codex review of landing R4, items 1 and 3 -- a twin of Python's `%e`
+    # counts, declined, was otherwise read as counted dates against a
+    # description of numbers).
+    if counted_member(settings) and counted_unit >= 0:
         classified, set_aside_cells, counted_reading = _counts_read_as_dates(
             classified, counted_member(settings), settings, forced_decimal_comma,
             counted_unit,
