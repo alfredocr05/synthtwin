@@ -7465,11 +7465,15 @@ the mark as one integer over a power of ten, times ten to the exponent
 R's form writes, in lowest terms over ten. The redundant zeros go first
 and the magnitude is asked before any number is built: a number past
 ten to the thirtieth names no date in any system and is held there, one
-nearer nought than ten to minus thirty is held at ten to minus
-thirty-one, and of more than thirty figures the rest stand as one,
-nought only where all are -- so `1e+9999` builds no number of its own
-length and `45042.` with 4,301 zeros reads as 45042, each reading
-deciding as the exact number would (item 7). Its moment is the system's first day plus that many units,
+nearer nought than ten to minus thirty, which reads its system's first
+day at every unit, is held at ten to minus thirty-one, and every other
+count is read to its last significant figure, in pieces past Python's
+limit on integer text -- so `1e+9999` builds no number of its own
+length, `45042.` with 4,301 zeros reads as 45042, and a serial written
+forty places past the point just above a half-millisecond boundary
+reads the later millisecond, each reading deciding as the exact number
+would (item 7 and its verification; keeping thirty figures and one for
+the rest read 355 of 385 such serials a millisecond early). Its moment is the system's first day plus that many units,
 in whole nanoseconds; Excel's 1900 system counts serial 60 as no day,
 reads 1 to 59 from 31 December 1899 and 61 onward from 30 December
 1899, and reads no serial below 1. A `days-since-1840` count reads its
@@ -7478,7 +7482,11 @@ and a cell of that system writing an exponent or more than nine figures
 after the point is no count. The moment is settled to the unit U -- the
 finest of the nanosecond, microsecond, millisecond, second, minute and
 day that is at least the system's unit over ten to the most figures
-after the mark any cell writes, and NO FINER THAN THE WRITER KEEPS -- by
+after the mark any count read as a date writes (a count naming no date
+or a moment of a placeholder day tells nothing of the form: a lone `0`
+beside serials written `%.6f` made a trimmed form before, which their
+own six places missed; the verification of item 4), and NO FINER THAN
+THE WRITER KEEPS -- by
 rounding half to even. The writer spells a count that is not whole
 through the binary64 nearest it, within two to the `b - 54` of the
 system's unit of the exact count where every count stands below two to

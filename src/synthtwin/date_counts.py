@@ -336,13 +336,6 @@ def _without_leading_noughts(text: str) -> str:
     return text.lstrip("0")
 
 
-def _noughts_alone(text: str) -> bool:
-    """Whether figures are all noughts, or none."""
-    if not isinstance(text, str):
-        raise TypeError("internal check: figures were not text")
-    return not text.strip("0")
-
-
 def _bounded_power(power: str) -> int:
     """An exponent's figures as a whole number, held at ten to `EXPONENT_FIGURES` where longer."""
     if not isinstance(power, str):
@@ -417,15 +410,39 @@ def counted(member: str, text: str, mark: str = POINT) -> "Written | None":
 # HOW FAR A COUNT IS READ (the Codex review of landing R4, item 7): a number
 # of more than `VALUE_FIGURES` whole figures is past the last date of every
 # system -- the longest, nanoseconds to 9999, writes twenty-one -- and one
-# below ten to minus that many is nearer its epoch than any unit reads; and
-# of the figures a cell writes, the first `VALUE_FIGURES` are kept and the
-# rest stand as one figure that is nought only where they all are. So no
-# cell builds a number of its own length -- `1e+9999` built a 4,456-byte
-# integer, kept for every cell, and `45042.` with 4,301 zeros raised
-# Python's limit on integer text -- and every reading decides as the exact
-# number would: no moment, an epoch, or the same side of each rounding
-# boundary.
+# below ten to minus that many reads its system's first day at every unit,
+# so each is held at that bound; every other count keeps EVERY significant
+# figure it writes, the redundant zeros taken off first, so every reading
+# decides as the exact number would (the verification of that review, item
+# 7: a count of forty figures just above a half-millisecond boundary, its
+# figures past the thirtieth kept as one, read a millisecond early). No cell
+# builds a number of more than its own length -- `1e+9999` built a 4,456-byte
+# integer before, kept for every cell -- and figures past Python's limit on
+# integer text are read in pieces (`_whole_number`), where `45042.` with
+# 4,301 zeros and a one raised ValueError.
 VALUE_FIGURES = 30
+
+# THE MOST FIGURES READ AS ONE PIECE: below Python's default limit on the
+# length of integer text, 4,300.
+_PIECE_FIGURES = 4000
+
+
+def _whole_number(digits: str) -> int:
+    """Figures as a whole number, read in pieces of at most `_PIECE_FIGURES`.
+
+    Halved until each piece is short enough, and the halves joined by a
+    power of ten: the number is as long as the text, and no piece meets
+    Python's limit on integer text. Guarantees: a function of the
+    figures. Raises TypeError where they are not text. No I/O.
+    """
+    if not isinstance(digits, str):
+        raise TypeError("internal check: figures were not text")
+    if len(digits) <= _PIECE_FIGURES:
+        return int(digits)
+    half = len(digits) // 2
+    return _whole_number(digits[:half]) * 10 ** (len(digits) - half) + _whole_number(
+        digits[half:]
+    )
 
 
 def exact_value(written: Written) -> "tuple[int, int]":
@@ -436,14 +453,14 @@ def exact_value(written: Written) -> "tuple[int, int]":
     FIGURES GO FIRST -- the zeros at the end of the figures after the
     point and those at the front -- and the magnitude is asked before any
     number is built (`VALUE_FIGURES`): a number past every date is held at
-    ten to that many, one nearer nought than any unit reads at ten to
-    minus one more, and figures past that many stand as one, nought only
-    where every one of them is, so each reading decides as the exact
-    number would.
+    ten to that many, and one nearer nought than any unit reads at ten to
+    minus one more, which no reading tells from the cell's own; every
+    other count is read to its last significant figure, in pieces where
+    it writes more than Python reads as one (`_whole_number`).
 
     Guarantees: a function of the parts; the denominator is a positive
-    power of ten; neither number is longer than about two hundred bits.
-    Raises nothing. No I/O.
+    power of ten; neither number has more figures than the cell writes
+    and thirty-two more. Raises nothing. No I/O.
     """
     fraction = _trimmed_fraction(written.fraction)
     if not written.exponent_form and len(written.whole) + len(fraction) <= VALUE_FIGURES:
@@ -461,15 +478,13 @@ def exact_value(written: Written) -> "tuple[int, int]":
         return sign * 10**VALUE_FIGURES, 1
     if order < -VALUE_FIGURES:
         return sign, 10 ** (VALUE_FIGURES + 1)
-    if len(digits) > VALUE_FIGURES + 1:
-        rest = digits[VALUE_FIGURES:]
-        shift = shift - (len(rest) - 1)
-        digits = digits[:VALUE_FIGURES] + ("0" if _noughts_alone(rest) else "1")
-    while shift > 0 and digits[len(digits) - 1 :] == "0":
+    if shift > 0:
         # IN LOWEST TERMS OVER TEN: `31553280000e-2` is the whole 315532800.
-        digits = digits[: len(digits) - 1]
-        shift = shift - 1
-    numerator = int(digits)
+        kept = digits.rstrip("0")
+        dropped = min(shift, len(digits) - len(kept))
+        digits = digits[: len(digits) - dropped]
+        shift = shift - dropped
+    numerator = _whole_number(digits)
     denominator = 1
     if shift >= 0:
         denominator = 10**shift
@@ -914,14 +929,25 @@ class CountForm:
     contacts: "dict[str, int] | None"
 
 
-def _pow10_exponent(numerator: int, denominator: int) -> int:
-    """The power of ten of a positive rational's leading figure: 10**e <= x < 10**(e+1)."""
-    exponent = len(str(numerator)) - len(str(denominator))
+def _below_power(numerator: int, denominator: int, exponent: int) -> bool:
+    """Whether a positive rational is below ten to ``exponent``."""
     if exponent >= 0:
-        if numerator < denominator * 10**exponent:
-            exponent = exponent - 1
-    elif numerator * 10 ** (-exponent) < denominator:
+        return numerator < denominator * 10**exponent
+    return numerator * 10 ** (-exponent) < denominator
+
+
+def _pow10_exponent(numerator: int, denominator: int) -> int:
+    """The power of ten of a positive rational's leading figure: 10**e <= x < 10**(e+1).
+
+    Estimated from the two numbers' lengths in bits -- a count read to
+    every figure it writes may be longer than Python writes as text --
+    and then moved to the power that holds, by exact comparison.
+    """
+    exponent = ((numerator.bit_length() - denominator.bit_length()) * 30103) // 100000
+    while _below_power(numerator, denominator, exponent):
         exponent = exponent - 1
+    while not _below_power(numerator, denominator, exponent + 1):
+        exponent = exponent + 1
     return exponent
 
 

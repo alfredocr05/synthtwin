@@ -30,6 +30,7 @@ from __future__ import annotations
 
 import contextlib
 import dataclasses
+import fractions
 import io
 import json
 import pathlib
@@ -465,6 +466,61 @@ def test_item7_a_column_of_huge_exponents_keeps_a_small_reading() -> None:
     finally:
         tracemalloc.stop()
     assert peak < 2_000_000, peak
+
+
+def _just_above(boundary: "fractions.Fraction", places: int) -> str:
+    """The least number of ``places`` figures after the point above a positive rational, as written, or "" where not asked.
+
+    By long division, one figure at a time, since Python writes no integer
+    of more than 4,300 figures as text; the last figure is raised by one,
+    the expansion going on past it.
+    """
+    whole = boundary.numerator // boundary.denominator
+    rest = boundary.numerator - whole * boundary.denominator
+    figures = ""
+    for _place in range(places):
+        rest = rest * 10
+        figures = figures + f"{rest // boundary.denominator}"
+        rest = rest % boundary.denominator
+    if not rest or figures[-1:] == "9":
+        # An expansion that ends, or a last figure a carry would move: not asked.
+        return ""
+    return f"{whole}.{figures[:-1]}{int(figures[-1:]) + 1}"
+
+
+def test_item7_a_count_of_forty_figures_reads_as_the_exact_number_would() -> None:
+    """The verification of item 7: Excel serials written forty places past the point, each just above a half-millisecond boundary, read at the millisecond; on `9197903`, whose figures past the thirtieth stood as one, 355 of 385 read a millisecond early."""
+    midnight = (45000 - 25569) * 86_400_000
+    early = 0
+    asked = 0
+    for step in range(0, 4000, 10):
+        boundary = 45000 + fractions.Fraction(2 * step + 1, 172_800_000)
+        text = _just_above(boundary, 40)
+        if not text:
+            continue
+        asked = asked + 1
+        written = date_counts.written_count(text)
+        assert written is not None
+        moment = date_counts.moment_of("excel-1900", *date_counts.exact_value(written), date_counts.MILLISECOND)
+        if moment != midnight + step + 1:
+            early = early + 1
+    assert asked > 300 and early == 0
+
+
+def test_item7_a_count_longer_than_python_reads_as_one_is_read_to_its_last_figure() -> None:
+    """`45042.` and five thousand ones, and a column of them: exact, past Python's limit on integer text."""
+    text = "45042." + "1" * 5000
+    written = date_counts.written_count(text)
+    assert written is not None
+    numerator, denominator = date_counts.exact_value(written)
+    assert fractions.Fraction(numerator, denominator) == 45042 + fractions.Fraction(int("1" * 4000) * 10**1000 + int("1" * 1000), 10**5000)
+    boundary = 45000 + fractions.Fraction(1, 172_800_000)
+    long = _just_above(boundary, 4400)
+    written = date_counts.written_count(long)
+    assert written is not None
+    moment = date_counts.moment_of("excel-1900", *date_counts.exact_value(written), date_counts.MILLISECOND)
+    assert moment == (45000 - 25569) * 86_400_000 + 1
+    assert date_counts._pow10_exponent(*date_counts.exact_value(written)) == 4
 
 
 # -- item 8: the exponent grammar of contract 6.6.2 ---------------------------------
