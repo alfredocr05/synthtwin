@@ -2659,9 +2659,11 @@ def month_calendar(
 
     COUNTED, NEVER WALKED DAY BY DAY (review of landing 3b.1, finding
     10): whole 400-year cycles at once, then month by month, every whole
-    month by its length and the weekday of its first day; a day of
-    `holes` between the two is taken off. `[weekday][bin - 1]`, Monday
-    nought.
+    month by its length and the weekday of its first day, so a span of
+    6,000 years costs at most two cycles' months, as 800 years do; a day
+    of `holes` between the two is taken off. Each weekday is reckoned
+    here, `weekday_of`'s own sum, never asked of it day by day.
+    `[weekday][bin - 1]`, Monday nought.
 
     Guarantees: accepts two day numbers and the holes; returns seven
     rows of thirty-four counts. Determinism: a function of the three.
@@ -2677,7 +2679,7 @@ def month_calendar(
         year, month, _date = parsing.civil_from_days(low)
         for _month in range(_CYCLE_MONTHS):
             first = parsing.days_from_civil(year, month, 1)
-            key = (month_length(year, month), weekday_of(first))
+            key = (month_length(year, month), (first + 3) % WEEKDAYS)
             kinds[key] = (kinds[key] if key in kinds else 0) + cycles
             year, month = (year + 1, 1) if month == 12 else (year, month + 1)
     year, month, _date = parsing.civil_from_days(start)
@@ -2689,11 +2691,11 @@ def month_calendar(
         begin = max(1, start - first + 1)
         end = min(length, high - first + 1)
         if begin == 1 and end == length:
-            key = (length, weekday_of(first))
+            key = (length, (first + 3) % WEEKDAYS)
             kinds[key] = (kinds[key] if key in kinds else 0) + 1
         else:
             for date in range(begin, end + 1):
-                row = table[weekday_of(first + date - 1)]
+                row = table[(first + date + 2) % WEEKDAYS]
                 index = month_bin_of(date, length) - 1
                 row[index] = row[index] + 1
         year, month = (year + 1, 1) if month == 12 else (year, month + 1)
@@ -2705,7 +2707,7 @@ def month_calendar(
             row[index] = row[index] + count
     for hole in sorted(set(holes)):
         if low <= hole <= high:
-            row = table[weekday_of(hole)]
+            row = table[(hole + 3) % WEEKDAYS]
             index = month_bin(hole) - 1
             row[index] = row[index] - 1
     return table
