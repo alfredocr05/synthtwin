@@ -10856,7 +10856,8 @@ def _sign_repairs(
     one stopped (``walked``): the strata are in band order, so while one
     band is repaired the points on its side of nought are only taken,
     never given back, and a band whose side does give one back walks
-    again from the first step.
+    again from the first step, as both do where nought stops being held
+    (`_let_go`).
     """
     total = len(values)
     notes: list[Deviation] = []
@@ -10936,9 +10937,16 @@ def _let_go(
 ) -> None:
     """Count one stratum fewer holding ``value`` (G5.5, plan P4-D387).
 
-    A value no stratum holds any more leaves ``held``, and where it stands
-    on one side of nought that side's walk begins again from the first
-    step, because a step it passed as held may be free now.
+    A value no stratum holds any more leaves ``held``, and the walk of
+    each side whose steps can read back as it begins again from the
+    first step, because a step it passed as held may be free now: a
+    negative value's side, a positive value's, and BOTH for nought. On
+    a grid finer than binary64 reaches a step reads back as nought --
+    at 330 places every step a walk takes is `-0.0` or `0.0` -- and
+    d36627f, beginning a walk again only for a value strictly on its
+    side, began past every step after the last stratum holding nought
+    let it go: two negative strata drawn onto `0.0` were given `-1.0`
+    and `-1.0` where 564c61a gave `-1.0` and `-0.0`.
 
     Guarantees: ``value`` is a key of ``held`` (a stratum holds it); its
     count falls by one, and the key goes where it reaches nought.
@@ -10948,9 +10956,9 @@ def _let_go(
     if held[value] > 0:
         return
     del held[value]
-    if value < 0.0:
+    if value <= 0.0:
         walked[_BAND_NEGATIVE][0] = 1
-    if value > 0.0:
+    if value >= 0.0:
         walked[_BAND_POSITIVE][0] = 1
 
 
@@ -10986,9 +10994,10 @@ def _grid_step_of_sign(
     the first step for the answer where every one is, then asks from that
     step on, and leaves in ``walked`` the step it answered or stopped at.
     G5.5's repair pass hands each band one and sets it back to the first
-    step wherever a point on that side stops being held, so the answer is
-    the one the walk from the first step gives. Without it the walk asks
-    from the first step.
+    step wherever a value a step on that side can read back as stops
+    being held, nought on both sides, so the answer is the one the walk
+    from the first step gives. Without it the walk asks from the first
+    step.
     """
     negative = band == _BAND_NEGATIVE
     unit = _ten_to(grid)

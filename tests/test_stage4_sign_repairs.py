@@ -12,7 +12,9 @@ under a profiler at 8,000 rows of the Codex review's column of P4-D387,
 and at 32,000 rows it ran past eleven CPU minutes. The values held are
 now counted once, at the first repair, and kept as the strata are
 repaired, and each band's walk begins where its last one stopped while
-nothing on that side of nought has been let go.
+nothing a step on that side can read back as has been let go -- nought
+included, which every step reads back as on a grid finer than binary64
+reaches, and which d36627f missed.
 
 Nothing written moves, so 564c61a's two functions are kept here as this
 file's ORACLE (`*_as_built`, their text with the docstrings left out),
@@ -356,38 +358,53 @@ def test_the_repairs_give_what_the_repairs_as_built_gave() -> None:
     """Over 6,000 made-up strata sets, in band order and in any order: the same values and notes.
 
     A real layout puts its negative strata before its positive ones, so the
-    points a band holds only grow while its strata are repaired, and no
-    band's walk ever begins again from its first step; strata in any order
-    let a repair on one side give back a point the other side walked past,
-    and there the walk must begin again. Both are required: no walk begun
-    again in band order, and many in any order.
+    points a band holds only grow while its strata are repaired, and a
+    band's walk begins again from its first step only where the last
+    stratum holding nought lets it go -- both sides begin again then
+    (`_let_go`), and on these grids nought is not held again; strata in
+    any order let a repair on one side give back a point the other side
+    walked past, and there the walk must begin again. Both are required:
+    in band order no walk begun again before nought was let go, and many
+    walks begun again in any order.
     """
     draw = random.Random(3871)
     asked = {True: 0, False: 0}
     begun_again = {True: 0, False: 0}
+    begun_before_nought = [0]
     shipped = generation._grid_step_of_sign
+    shipped_let_go = generation._let_go
     stopped: "dict[int, int]" = {}
+    nought_let_go = [False]
 
     def spied(band, rungs, grid, held, total, kept=(), walked=None):  # type: ignore[no-untyped-def]
         if walked is not None and id(walked) in stopped and walked[0] < stopped[id(walked)]:
             begun_again[ordered] += 1
+            begun_before_nought[0] += 1 if ordered and not nought_let_go[0] else 0
         answer = shipped(band, rungs, grid, held, total, kept=kept, walked=walked)
         if walked is not None:
             stopped[id(walked)] = walked[0]
         return answer
 
+    def let_go_spied(held, value, walked):  # type: ignore[no-untyped-def]
+        shipped_let_go(held, value, walked)
+        if value == 0.0 and value not in held:
+            nought_let_go[0] = True
+
     with pytest.MonkeyPatch.context() as patch:
         patch.setattr(generation, "_grid_step_of_sign", spied)
+        patch.setattr(generation, "_let_go", let_go_spied)
         for case in range(6000):
             ordered = case % 2 == 0
             handed = _made_up(draw, ordered)
             stopped.clear()
+            nought_let_go[0] = False
             ours = generation._sign_repairs(*handed[:4], list(handed[4]), handed[5])  # type: ignore[arg-type]
             theirs = _sign_repairs_as_built(*handed[:4], list(handed[4]), handed[5])
             assert _same(ours, theirs), (case, handed[2].bands, handed[3], handed[4], handed[5])  # type: ignore[attr-defined]
             asked[ordered] += grid_steps_asked(handed)
     assert asked[True] > 3000 and asked[False] > 3000, asked
-    assert begun_again[True] == 0 and begun_again[False] > 100, begun_again
+    assert begun_before_nought[0] == 0, (begun_again, begun_before_nought)
+    assert begun_again[True] > 100 and begun_again[False] > 1000, begun_again
 
 
 def test_a_walk_begun_where_the_last_one_stopped_answers_as_the_walk_from_the_first_step() -> None:
@@ -433,6 +450,103 @@ def test_a_walk_begun_where_the_last_one_stopped_answers_as_the_walk_from_the_fi
             held[ours] = 1
     assert kinds["begun later"] > 5000 and kinds["every point held"] > 1000 and kinds["none in reach"] > 50, kinds
     assert kinds["past -999.0"] >= 1 and kinds["at -999.0 kept"] >= 1, kinds
+
+
+# -- a grid finer than binary64 --------------------------------------------
+
+
+def _let_go_by_sign_alone(held: "dict[float, int]", value: float, walked: "dict[str, list[int]]") -> None:
+    """d36627f's `_let_go`: a side's walk began again only for a value strictly on that side of nought."""
+    held[value] = held[value] - 1
+    if held[value] > 0:
+        return
+    del held[value]
+    if value < 0.0:
+        walked[generation._BAND_NEGATIVE][0] = 1
+    if value > 0.0:
+        walked[generation._BAND_POSITIVE][0] = 1
+
+
+def _strata(bands: "tuple[str, ...]", values: "list[float]", rungs: object, grid: int) -> "tuple[object, ...]":
+    """What G5.5 is handed for one-cell strata of ``bands`` holding ``values``, nothing kept, not whole."""
+    layout = generation._NumericLayout(
+        sizes=(1,) * len(bands), starts=tuple(range(len(bands))), bands=bands, raw_budgets=(), folded_budgets=()
+    )
+    column = types.SimpleNamespace(name="value")
+    facts = types.SimpleNamespace(kept_stand_ins=(), integer_valued=False)
+    return (column, facts, layout, rungs, values, grid)
+
+
+def _made_up_fine(draw: random.Random, ordered: bool) -> "tuple[object, ...]":
+    """Strata on a grid of 322 to 330 places, in band order or, with ``ordered`` false, in any order.
+
+    Binary64's least positive number is about 4.9e-324, so a step of 324
+    places or more reads back as nought until it reaches half of it, and
+    then as one of the few numbers that small: at 324 places the first
+    two steps read back as nought and the next five as 5e-324; at 330
+    every step of a walk over fewer than 2.4 million strata reads back
+    as nought. The values are mostly nought, written both ways, and
+    those numbers, so the strata hold the points their walks read.
+    """
+    total = draw.randrange(1, 40)
+    grid = draw.choice((322, 323, 324, 324, 325, 330, 330))
+    least = 5e-324
+    if ordered:
+        negatives = draw.randrange(0, total + 1)
+        zero = 1 if negatives < total and draw.random() < 0.3 else 0
+        bands = tuple(
+            "negative" if place < negatives else "zero" if place < negatives + zero else "positive"
+            for place in range(total)
+        )
+    else:
+        bands = tuple(draw.choice(("negative", "positive", "positive", "zero")) for _place in range(total))
+    values: "list[float]" = []
+    for band in bands:
+        roll = draw.random()
+        if band == "zero":
+            values += [0.0]
+        elif roll < 0.5:
+            values += [draw.choice((0.0, -0.0, 0.0))]
+        elif roll < 0.9:
+            values += [draw.choice((-1, 1)) * draw.randrange(1, 6) * least]
+        else:
+            values += [draw.choice((-1.0, 1.0, -0.5, 0.5))]
+    rungs = draw.choice((None, (-1.0, 1.0), (-2 * least, 2 * least), (-least, least), (-0.0, 0.0)))
+    return _strata(bands, values, rungs, grid)
+
+
+def test_a_grid_whose_steps_read_back_as_nought_is_repaired_as_the_repairs_as_built_repaired_it() -> None:
+    """At 330 places nought let go frees every step of both sides, and the walks begin again from the first.
+
+    Two negative strata drawn onto `0.0`: the first walks past every step,
+    each read back as `-0.0` while the second holds nought, and takes
+    `-1.0`; the second lets nought go, its first step is free, and
+    564c61a gave it `-0.0`. d36627f began that walk again only for a value
+    strictly on its side, so it began past every step and gave `-1.0`: the
+    twin wrote another number. The same on the positive side; and on 4,000
+    made-up strata sets of 322 to 330 places the answers are 564c61a's,
+    where d36627f's rule is required to answer otherwise in many of them,
+    so the battery is known to see the defect.
+    """
+    negative = _strata(("negative",) * 3 + ("positive",) * 2, [-5.0, 0.0, 0.0, 3.0, 5.0], (-5.0, 5.0), 330)
+    positive = _strata(("negative",) + ("positive",) * 4, [-5.0, 0.0, 0.0, 3.0, 5.0], (-5.0, 5.0), 330)
+    for handed, answer in ((negative, ["-5.0", "-1.0", "-0.0", "3.0", "5.0"]), (positive, ["-5.0", "1.0", "0.0", "3.0", "5.0"])):
+        theirs = _sign_repairs_as_built(*handed[:4], list(handed[4]), handed[5])  # type: ignore[index]
+        assert [repr(value) for value in theirs[0]] == answer, theirs
+        assert _same(generation._sign_repairs(*handed[:4], list(handed[4]), handed[5]), theirs), answer  # type: ignore[arg-type, index]
+    draw = random.Random(3873)
+    missed = 0
+    asked = 0
+    for case in range(4000):
+        handed = _made_up_fine(draw, case % 2 == 0)
+        theirs = _sign_repairs_as_built(*handed[:4], list(handed[4]), handed[5])  # type: ignore[index]
+        ours = generation._sign_repairs(*handed[:4], list(handed[4]), handed[5])  # type: ignore[arg-type, index]
+        assert _same(ours, theirs), (case, handed[2].bands, handed[3], handed[4], handed[5])  # type: ignore[attr-defined]
+        with pytest.MonkeyPatch.context() as patch:
+            patch.setattr(generation, "_let_go", _let_go_by_sign_alone)
+            missed += 0 if _same(generation._sign_repairs(*handed[:4], list(handed[4]), handed[5]), theirs) else 1  # type: ignore[arg-type, index]
+        asked += grid_steps_asked(handed)
+    assert asked > 10000 and missed > 100, (asked, missed)
 
 
 # -- growth ----------------------------------------------------------------
