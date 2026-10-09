@@ -6728,13 +6728,21 @@ the week and never of one date (NF71).
 local clock, not in the joint member, with both tails, publishes the
 same census: its BODY is the cells between the two boundaries, both
 included, COMPARED AS INSTANTS -- so a cell on a boundary's day but
-before its instant is a tail cell -- each counted on the weekday of its
-day, in the menu's groups (WC1 to WC4). Three rules more than a column
-of dates asks, and one fewer. WC10: the published `p75` stands at least 28
-days after the published `p25`, both named, so the middle half of the
-column spans at least four weeks and a census of weekdays is never a
-census of a few dates; the loader refuses a census beside a shorter
-middle half. The FEW-UNITS rule, the producer's alone: where two or
+before its instant is a tail cell -- each counted on the weekday of the
+day it is WRITTEN on, `YYYY-MM-DD` of its canonical text, never the day
+of its instant (a sixtieth second, `23:59:60`, is its own day's, while
+its instant is the next day's first second), in the menu's groups (WC1
+to WC4). A whole date the producer folded into the column's moments is
+counted at its midnight; a cell left unparsed is not counted. Three
+rules more than a column of dates asks, and one fewer. WC10: the
+published `p75` stands at least 28 days of 86,400 seconds after the
+published `p25`, both named and each read as a WHOLE LOCAL INSTANT, its
+clock with its day -- so `2024-01-15 23:59:04` to `2024-02-12 00:00:14`,
+27 days and 70 seconds, is short -- so the middle half of the column
+spans at least four weeks and a census of weekdays is never a census of
+a few dates; the loader refuses a census beside a shorter middle half,
+and the producer asks the same instants (Codex's review of landing
+3b.D2, items 1 to 3). The FEW-UNITS rule, the producer's alone: where two or
 more groups are non-empty, the body holds at least eight different
 WRITTEN units a non-empty group on average -- instants at the column's
 precision, or days where every value stands at midnight -- else the
@@ -12520,7 +12528,7 @@ it answers to.
 | D20 | every key of `zulu_case` is `upper` or `lower`; the census is held to D18's disclosure rule over `utc_offsets["Z"]`; the census is `{}` unless `utc_offsets` names `Z`; and its values sum to at most `utc_offsets["Z"]` (landing 2b.6) | yes |
 | WC1 | the groups of `weekday_census` cover weekdays 0 to 6 in order, each exactly once | yes |
 | WC2 | every group counts nought or at least `max(2, small_cell_floor)` | yes |
-| WC3 | a non-empty census stands only on a column of whole dates or of moments read on the local clock, not in the joint member, with both tails, and adds up to `P - low_tail.rows - high_tail.rows`, the body cut by instant on a column of moments (plan P4-D367) | yes |
+| WC3 | a non-empty census stands only on a column of whole dates or of moments read on the local clock, not in the joint member, with both tails, and adds up to `P - low_tail.rows - high_tail.rows`, the body cut by instant on a column of moments, each body cell counted on the day it is written on (plan P4-D367; its Codex review, item 1) | yes |
 | WC4 | the grouping is one of the menu's three: each weekday alone; Monday to Friday alone with `[Sat-Sun]` non-zero; `[Mon-Fri]` non-zero with `[Sat-Sun]` | yes |
 | WC6 | the five censuses of written forms give every date one text: each names at most one form holding every parsed cell, and a member that can show a width or a month name names its one form; and a workbook's published cell classes show at most one value class holding cells | yes |
 
@@ -12530,7 +12538,7 @@ it answers to.
 
 | id | statement | loader? |
 |---|---|---|
-| WC10 | a non-empty census on a column of moments stands only where its published `p25` and `p75` are both named and the `p75` stands at least 28 days after the `p25`, so the column's middle half spans at least four weeks (landing 3b.D2, plan P4-D367); WC6's half on written forms is not asked of moments, its half on a workbook's cell classes is | yes |
+| WC10 | a non-empty census on a column of moments stands only where its published `p25` and `p75` are both named and the `p75` stands at least 28 days of 86,400 seconds after the `p25`, each read as a whole local instant, clock and day together, so the column's middle half spans at least four weeks (landing 3b.D2, plan P4-D367; its Codex review, item 3); WC6's half on written forms is not asked of moments, its half on a workbook's cell classes is | yes |
 
 <!-- anchor 3b-D3 (P4-D368) -->
 <!-- anchor 3b-D4 (P4-D369) -->

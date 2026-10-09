@@ -218,6 +218,29 @@ def weekday_of(day: int) -> int:
     return (day + 3) % WEEKDAYS
 
 
+def written_day(canonical: str) -> int:
+    """The day a canonical date or moment is WRITTEN on: the day number of
+    `canonical[0:10]`, counted from 1970-01-01.
+
+    THE WRITTEN DAY IS READ OFF THE TEXT, NEVER OFF THE INSTANT (Codex's
+    review of landing 3b.D2, item 1). A sixtieth second, `23:59:60`, is
+    written on its own day, while its instant (`parsing.instant_key`) is
+    the next day's first second: fifty `2016-12-31 23:59:60` beside noon
+    stamps were published on Sunday though the source wrote them on a
+    Saturday. The instant orders the cells and places one between two
+    boundaries; the weekday a census counts a cell on is this day's. The
+    companion of `calendar_clock.written_hour`, lane T2's written hour,
+    which reads `canonical[11:13]` for the same reason.
+
+    Guarantees: accepts canonical text, `YYYY-MM-DD` first; returns a
+    whole day number. Raises ValueError for text that is not canonical.
+    No I/O of any kind.
+    """
+    return parsing.days_from_civil(
+        int(canonical[0:4]), int(canonical[5:7]), int(canonical[8:10])
+    )
+
+
 def _single_runs(
     bins: "list[int]", first: int, last: int
 ) -> "list[tuple[int, int, int]]":
@@ -2299,6 +2322,8 @@ def room_short(
 # from its published `p25` to its published `p75` (four cycles of the
 # week, the build plan's call (e), CA4).
 SPAN_DAYS = 28
+# ...each of 86,400 seconds: WC10 compares whole local instants.
+DAY_SECONDS = 86400
 # THE FEW-UNITS RULE (the 3b.2-W skeptic's blocker 1, measured on the
 # design's tie batteries): where two or more groups are non-empty, the
 # body holds fewer than eight different written units a non-empty group
@@ -2323,20 +2348,44 @@ REASON_UNIT_ROOM = "unit_room"
 MOMENTS_REASONS = (REASON_SPAN, REASON_FEW_UNITS, REASON_UNIT_ROOM)
 
 
+def rung_instant(text: object) -> "int | None":
+    """The INSTANT of one published rung of a column of moments, in whole
+    seconds of its own wall clock, or None where it is withheld (WC10).
+
+    The whole local instant, its clock read with its day (Codex's review
+    of landing 3b.D2, item 3): read as days alone, a p25 at
+    `2024-01-15 23:59:04` and a p75 at `2024-02-12 00:00:14` stood 28
+    days apart, while they are 27 days and 70 seconds apart. A rung
+    written as a whole date stands at its day's midnight. The producer
+    and the loader both read the published text through this one
+    reader, so a census the producer publishes is one its loader loads.
+
+    Guarantees: accepts the published value; returns seconds or None.
+    Determinism: a function of the text. Raises nothing. No I/O of any
+    kind.
+    """
+    if not isinstance(text, str):
+        return None
+    return parsing.instant_key(text, "")
+
+
 def span_short(p25: "int | None", p75: "int | None") -> bool:
     """WC10: whether a column's middle half spans fewer than four weeks.
 
-    `p25` and `p75` are the days of the column's published rungs of
-    those names, None where a rung is withheld: a middle half no reader
-    can measure is held short, so no census stands beside it.
+    `p25` and `p75` are the INSTANTS of the column's published rungs of
+    those names, in whole seconds of its wall clock (`rung_instant`),
+    None where a rung is withheld: a middle half no reader can measure
+    is held short, so no census stands beside it. The span is whole
+    instants, clock and day together (Codex's review of landing 3b.D2,
+    item 3): `SPAN_DAYS` days of 86,400 seconds at least.
 
-    Guarantees: accepts two day numbers or None; returns the answer.
+    Guarantees: accepts two instants or None; returns the answer.
     Determinism: a function of the two. Raises nothing. No I/O of any
     kind.
     """
     if p25 is None or p75 is None:
         return True
-    return p75 - p25 < SPAN_DAYS
+    return p75 - p25 < SPAN_DAYS * DAY_SECONDS
 
 
 def few_units(
@@ -2485,8 +2534,8 @@ def moments_breach(
     asks); an empty census breaks nothing.
 
     Guarantees: accepts the census, the body, the census line and the
-    days of the published `p25` and `p75` (None where withheld);
-    returns None or the broken rule. Determinism: a function of the
+    instants of the published `p25` and `p75` (`rung_instant`, None
+    where withheld); returns None or the broken rule. Determinism: a function of the
     five. Raises nothing. No I/O of any kind.
     """
     if not groups:

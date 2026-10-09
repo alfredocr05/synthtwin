@@ -1430,11 +1430,18 @@ rather than in ISO:
   3b.D2, plan P4-D367) the file's cells are counted BY INSTANT: each is
   read as the tails read it -- under the column's member, its clock face
   and its offsets, in tail units -- and one between the two published
-  boundaries, both included, counts on the weekday of its day, so a
-  cell on a boundary's day but before its instant is a tail cell, as
-  the census counted it. Counted by day, the source table of a clinic
-  whose low boundary's day held earlier tail cells missed its own
-  census.
+  boundaries, both included, counts on the weekday of the day it is
+  WRITTEN on, so a cell on a boundary's day but before its instant is a
+  tail cell, as the census counted it, and a sixtieth second,
+  `23:59:60`, counts on its own day, never its instant's next one.
+  Counted by day, the source table of a clinic whose low boundary's day
+  held earlier tail cells missed its own census; counted on the
+  instant's day, a twin writing 131 Saturdays for 130 was told HELD
+  (Codex's review of the landing, item 1). The fold above is asked of
+  moments too: a whole date the file's own description folded into its
+  moments is counted at its midnight, and one it left unparsed is not
+  (the same review, item 2: ten bare `2024-03-05` among noon stamps,
+  published Tuesday 90, were recounted 80 on the unchanged source).
 - each of the four is LISTED where the column's member cannot show that
   convention at all: the widths on a member of fixed field width, the
   name styles outside the two textual members, the marker outside

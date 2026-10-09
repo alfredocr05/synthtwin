@@ -424,6 +424,88 @@
       "why": "Step 7c alone, its shift: groups Tuesday, Wednesday, Thursday, Saturday and the other days, the movable ranks asked for one Tuesday, one Thursday and one Saturday. A gap from Tuesday 18:04 to Thursday 11:24 holds a moment at Wednesday 15:16, whose clock reaches neither end day, and both end days' groups hold their totals, so the escape has no offer for it. A gap from the next Tuesday 09:00 to Saturday 20:00 holds a moment at Tuesday 10:00 with a Saturday place, a link of step 7b from Tuesday to Saturday; a gap inside a later Thursday holds one at 12:00, and no link leads on from Thursday. The shift takes the Wednesday moment to Tuesday 18:05, the first minute of that end day inside its gap no rank holds, past Thursday 11:23, nearer but linked to nothing, and step 7b then takes the second Tuesday moment to Saturday 10:00.",
       "written_unit": 60
     },
+    "a_sixtieth_second_counts_on_its_written_day": {
+      "answer": [
+        2,
+        1,
+        0,
+        1,
+        0,
+        0,
+        2
+      ],
+      "bin": "weekday",
+      "body": [
+        0,
+        5
+      ],
+      "counts": [
+        2,
+        1,
+        0,
+        1,
+        0,
+        1,
+        1
+      ],
+      "day": 86400,
+      "highs": [
+        1709542800,
+        1709643600,
+        1710028800,
+        1710028800,
+        1710147600,
+        1710147600
+      ],
+      "holes": [],
+      "keep": "",
+      "lows": [
+        1709542800,
+        1709643600,
+        1709542800,
+        1710028800,
+        1710028800,
+        1710147600
+      ],
+      "ordinals": [
+        1709542800,
+        1709643600,
+        1709805600,
+        1710028800,
+        1710072000,
+        1710147600
+      ],
+      "pair": "",
+      "pair_where": [],
+      "period": 7,
+      "pinned": [
+        true,
+        true,
+        false,
+        true,
+        false,
+        true
+      ],
+      "reachable": true,
+      "sixtieths": [
+        1,
+        3
+      ],
+      "step": "as_written",
+      "unit": 86400,
+      "wanted": 6,
+      "where": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6
+      ],
+      "why": "The census as written (Codex's review of landing 3b.D2, item 1): two pinned ranks written at a sixtieth second, a Tuesday's 12:59:60 and a Saturday's 23:59:60, their ordinals the next second, one weekday a group. The Saturday's ordinal is Sunday's first second, so the pass is asked one more on Sunday and one fewer on Saturday; the Tuesday's stays on Tuesday, the day of the second before its ordinal.",
+      "written_unit": 60
+    },
     "an_escape_keeps_its_width_kind": {
       "answer": [
         1727694000,
@@ -965,5 +1047,5 @@
     "numpy",
     "pandas"
   ],
-  "what": "The states of ranks on a day of moments method section G7.3f's steps 7c and 8.7 (landing 3b.D2, plan P4-D367) are frozen on, each with the answer computed from the method's text: every rank's ordinal after step 7c alone, its movable ranks asked against the totals `want`, after step 8.7 alone, asked to reach the count `wanted`, or after the whole pass. A case names its seams as the fifteenth file's do: a unit and a day of 86,400 seconds and a written unit of a minute, and where it names a member and its one width word, each day's width kind under that word (G7.3f's kind)."
+  "what": "The states of ranks on a day of moments method section G7.3f's steps 7c and 8.7 (landing 3b.D2, plan P4-D367) are frozen on, each with the answer computed from the method's text: every rank's ordinal after step 7c alone, its movable ranks asked against the totals `want`, after step 8.7 alone, asked to reach the count `wanted`, or after the whole pass; or, for a case of the census as written, the counts the pass is asked by ordinal where its ranks `sixtieths` are written at a sixtieth second. A case names its seams as the fifteenth file's do: a unit and a day of 86,400 seconds and a written unit of a minute, and where it names a member and its one width word, each day's width kind under that word (G7.3f's kind)."
 }

@@ -12001,7 +12001,38 @@ def weekday_settled(column, ordinals, parsed, whole, lows, highs, holes):
     first = column["low_tail"]["rows"]
     last = parsed - 1 - column["high_tail"]["rows"]
     pinned = [fixed[rank] or lows[rank] >= highs[rank] for rank in range(parsed)]
+    if space == "datetime":
+        weekday_counted_as_written(walk, column, parsed, first, last, pinned)
     return bins_settled(walk, first, last, pinned, walk.different(), date_counts_reachable(column))
+
+
+def weekday_counted_as_written(walk, column, parsed, first, last, pinned):
+    """G7.3f, THE CENSUS AS WRITTEN (Codex's review of landing 3b.D2, item 1),
+    from the method's text: a body rank that never moves, pinned at a
+    published boundary or rung whose seconds field is 60 and standing at
+    that pin, is written at that sixtieth second, on the day of the second
+    before its ordinal; where that day's group is not its ordinal day's,
+    the pass is asked one more in the ordinal's group and one fewer in the
+    written one."""
+    pins, texts, _body, _sides = date_pins(column, parsed)
+    sixtieths = [
+        rank for rank in sorted(texts)
+        if first <= rank <= last and pinned[rank] and rank in pins
+        and texts[rank][17:19] == "60" and walk.days[rank] == pins[rank]
+    ]
+    weekday_counts_as_written(walk, sixtieths)
+
+
+def weekday_counts_as_written(walk, sixtieths):
+    """The census as written over the ranks written at a sixtieth second:
+    each counted one more in its ordinal day's group and one fewer in the
+    group of the day of the second before, where the two groups differ."""
+    for rank in sixtieths:
+        ordinal = walk.days[rank]
+        counted, written = walk.group(ordinal), walk.group(ordinal - 1)
+        if counted != written:
+            walk.counts[counted] += 1
+            walk.counts[written] -= 1
 
 
 def bins_settled(walk, first, last, pinned, wanted, reachable):
@@ -13893,7 +13924,30 @@ def moment_spread_hole_case():
     )
 
 
+def moment_sixtieth_case():
+    """The census as written: a pinned 23:59:60 counted on its written day."""
+    tuesday, saturday = moment_at(1, 13, 0), moment_at(6, 0, 0)
+    rows = [
+        (moment_at(0, 9, 0), moment_at(0, 9, 0), moment_at(0, 9, 0), True),
+        (tuesday, tuesday, tuesday, True),
+        (moment_at(3, 10, 0), moment_at(0, 9, 0), saturday, False),
+        (saturday, saturday, saturday, True),
+        (moment_at(6, 12, 0), saturday, moment_at(7, 9, 0), False),
+        (moment_at(7, 9, 0), moment_at(7, 9, 0), moment_at(7, 9, 0), True),
+    ]
+    return moment_case(
+        "The census as written (Codex's review of landing 3b.D2, item 1): two pinned ranks "
+        "written at a sixtieth second, a Tuesday's 12:59:60 and a Saturday's 23:59:60, their "
+        "ordinals the next second, one weekday a group. The Saturday's ordinal is Sunday's "
+        "first second, so the pass is asked one more on Sunday and one fewer on Saturday; the "
+        "Tuesday's stays on Tuesday, the day of the second before its ordinal.",
+        "as_written", rows, [2, 1, 0, 1, 0, 1, 1], where=[0, 1, 2, 3, 4, 5, 6],
+        sixtieths=[1, 3],
+    )
+
+
 MOMENT_STEP_CASES = {
+    "a_sixtieth_second_counts_on_its_written_day": moment_sixtieth_case,
     "wednesdays_at_another_clock": moment_sessions_case,
     "an_escape_keeps_the_count": moment_count_case,
     "an_escape_keeps_the_midnight": moment_midnight_case,
@@ -13913,7 +13967,12 @@ MOMENT_STEP_CASES = {
 def moment_answer(case):
     """What G7.3f's text makes of one moments case: every rank's ordinal
     after step 7c alone ("escaped"), after step 8.7 alone ("day_spread")
-    or after the whole pass."""
+    or after the whole pass; or the counts the pass is asked by ordinal
+    so the census holds as written ("as_written")."""
+    if case["step"] == "as_written":
+        walk = shared_walk(case)
+        weekday_counts_as_written(walk, case["sixtieths"])
+        return walk.counts
     if case["step"] not in ("escaped", "day_spread"):
         return shared_answer(case)
     walk = shared_walk(case)
@@ -13937,7 +13996,8 @@ def moment_step_document():
         "(landing 3b.D2, plan P4-D367) are frozen on, each with the answer computed from the "
         "method's text: every rank's ordinal after step 7c alone, its movable ranks asked "
         "against the totals `want`, after step 8.7 alone, asked to reach the count `wanted`, or "
-        "after the whole pass. A case names its seams as the fifteenth file's do: a unit and a "
+        "after the whole pass; or, for a case of the census as written, the counts the pass is "
+        "asked by ordinal where its ranks `sixtieths` are written at a sixtieth second. A case names its seams as the fifteenth file's do: a unit and a "
         "day of 86,400 seconds and a written unit of a minute, and where it names a member and "
         "its one width word, each day's width kind under that word (G7.3f's kind).",
         "generated_by": "tools/reference/make_generation_reference_vectors.py",

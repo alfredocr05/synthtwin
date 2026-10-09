@@ -6366,6 +6366,21 @@ value of which stands at midnight on its own clock is counted in days
 (G7.1) and moved as a column of dates is. Steps 7c and 8.7 below are
 asked of moments alone.
 
+THE CENSUS AS WRITTEN (Codex's review of landing 3b.D2, item 1). The
+census counts a cell on the day it is WRITTEN on, and the pass counts a
+rank on its ordinal's day. The two differ only on a body rank the layout
+pins at a published boundary or rung whose seconds field is 60, standing
+at that pin, which G7.5 writes from the pin's own fields at that
+sixtieth second while its ordinal is the next second: at `23:59:60` its
+ordinal's day is the day after the one it is written on. Before the
+pass, each such rank whose ordinal's group is not the group of the day
+of the second before its ordinal is asked one more in the first group
+and one fewer in the second; it never moves, so the pass, meeting these
+counts by ordinal, meets the published census as written (fifty
+`2016-12-31 23:59:60` beside noon stamps publish Saturday 130 and Sunday
+80, and the twin, its pinned 25th percentile at that second, wrote 131
+and 79 without this).
+
 A day `d`, counted from 1970-01-01, falls on weekday `(d + 3) mod 7`,
 Monday nought; its GROUP is the census group holding that weekday. Its
 KIND is whether a date on it counts into the width census's one word,

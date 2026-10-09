@@ -107,10 +107,10 @@
     },
     {
       "generator": "tools/reference/make_generation_branch_vectors_17.py",
-      "justification": "The states of ranks synthtwin's generation method freezes the weekday census of a column of moments on (landing 3b.D2, plan P4-D367, method section G7.3f): step 7c, the escape of a moment to an end day of its gap at another clock -- three Wednesday sessions through the whole pass, the count of different values kept, a midnight kept, the nearer end day taken, a hole kept off and a day of the moment's own width kind kept to, and its shift through a group at its total -- and step 8.7, a count left short put back at another clock on a moment's own day -- crowded Wednesdays through the whole pass, the nearer minute taken, the earlier on a tie, no clock put on midnight or taken off it, a rank kept inside its gap and a hole's day left alone -- each with the answer the oracle computes from the method's text; held by tests/test_stage3b_weekday_moments.py.",
+      "justification": "The states of ranks synthtwin's generation method freezes the weekday census of a column of moments on (landing 3b.D2, plan P4-D367, method section G7.3f): step 7c, the escape of a moment to an end day of its gap at another clock -- three Wednesday sessions through the whole pass, the count of different values kept, a midnight kept, the nearer end day taken, a hole kept off and a day of the moment's own width kind kept to, and its shift through a group at its total -- and step 8.7, a count left short put back at another clock on a moment's own day -- crowded Wednesdays through the whole pass, the nearer minute taken, the earlier on a tie, no clock put on midnight or taken off it, a rank kept inside its gap and a hole's day left alone -- and the census as written, a pinned 23:59:60 counted on the day it is written on (Codex's review of the landing, item 1) -- each with the answer the oracle computes from the method's text; held by tests/test_stage3b_weekday_moments.py.",
       "path": "tests/reference/generation-branch-vectors-17.json",
       "seed": 0,
-      "sha256": "5802982cd54d2b32efc827357b5f3cda48fccc587a712e0fae681ab631d09236"
+      "sha256": "b3a8c70fae614c98a7ed56e91a268d323ce8ecd14b83233b63793e18f81945b6"
     },
     {
       "generator": "tools/reference/make_generation_branch_vectors_22.py",

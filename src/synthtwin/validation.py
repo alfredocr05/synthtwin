@@ -16078,6 +16078,26 @@ def _tail_units_of(
 ) -> "list[int | None]":
     """One reading per cell, in tail units, or null where it is not a date.
 
+    The units of `_tail_readings_of`, the one reader of a cell's place.
+    """
+    found: "list[int | None]" = []
+    for reading in _tail_readings_of(facts, cells):
+        found += [reading[0] if reading is not None else None]
+    return found
+
+
+def _tail_readings_of(
+    facts: contract.DatetimeFacts, cells: "list[str]"
+) -> "list[tuple[int, str] | None]":
+    """One reading per cell, in tail units with the canonical text it was
+    counted from, or null where it is not a date.
+
+    The text is the cell's own wall clock as written (on the shared clock,
+    the moment it converts to), so a caller can read the day a cell is
+    WRITTEN on beside the unit that places it (`calendar_rules.written_day`:
+    a sixtieth second is its own day's, while its unit is the next day's
+    first second -- Codex's review of landing 3b.D2, item 1).
+
     Each cell is read under the member that read the real column, worn at
     the offset the published census counts it at
     (`_offset_absorbed_into`) and put on the clock the description
@@ -16121,7 +16141,7 @@ def _tail_units_of(
             dates = dates + 1
         read_cells += [(parsing.stamp_canonical(read[0], style), read[1], dated)]
     commonest, named = _offset_absorbed_into(facts, dates)
-    found: "list[int | None]" = []
+    found: "list[tuple[int, str] | None]" = []
     for entry in read_cells:
         if entry is None:
             found += [None]
@@ -16151,7 +16171,12 @@ def _tail_units_of(
                 continue
             moment = shifted
         found += [
-            taxonomy.tail_ordinal(moment, facts.tail_unit, facts.datetimes_read_at)
+            (
+                taxonomy.tail_ordinal(
+                    moment, facts.tail_unit, facts.datetimes_read_at
+                ),
+                moment,
+            )
         ]
     return found
 
@@ -17341,7 +17366,7 @@ def _weekday_checks(
         # counted it. No moment the census counts is folded: no census
         # stands on the joint member.
         on_holes = _moments_tallied(
-            facts, _dates_the_file_reads(block, facts, cells), holes, bins
+            facts, _dates_the_file_reads(block, facts, cells), holes, bins, block
         )
     else:
         for cell in _dates_the_file_reads(block, facts, cells):
@@ -17398,15 +17423,30 @@ def _moments_tallied(
     cells: "list[str]",
     holes: "set[int]",
     bins: "list[int]",
+    block: "dict[str, object] | None" = None,
 ) -> int:
     """Count a file's moments between the two boundaries into their weekdays.
 
     V5-W1 BY INSTANT (landing 3b.D2, plan P4-D367). Each cell is read as
-    the tails read it (`_tail_units_of`: the column's own member, its
+    the tails read it (`_tail_readings_of`: the column's own member, its
     clock face and its offsets), in tail units; one between the two
-    published boundaries, both included, counts on the weekday of its
-    day. Returns how many of those stand on a hole. `bins` is grown in
-    place.
+    published boundaries, both included, counts on the weekday of the day
+    it is WRITTEN on (`calendar_rules.written_day`), as the census
+    counted it -- never its unit's day, which carries a sixtieth second
+    onto the next day (Codex's review of the landing, item 1: the twin's
+    one `2016-12-31 23:59:60` counted on Sunday, its census HELD while it
+    wrote 81 Saturdays for 130).
+
+    AND THE DATES THE FILE'S OWN DESCRIPTION FOLDED INTO ITS MOMENTS
+    (Codex's review of the landing, item 2), the fold distinction of a
+    column of dates (`_folded_by_the_file`) asked of moments: where the
+    file's description, `block`, parsed cells its member does not read,
+    each such cell is read under the joint ISO reading and counted as
+    the producer counted it, a whole date at its midnight. Ten bare
+    `2024-03-05` among noon stamps published Tuesday 90, and the
+    unchanged source was told it held 80. A cell its description left
+    unparsed is no folded cell and stays out. Returns how many counted
+    cells stand on a hole. `bins` is grown in place.
     """
     low = taxonomy.tail_ordinal(
         facts.low_tail.boundary if facts.low_tail is not None else "",
@@ -17418,16 +17458,33 @@ def _moments_tallied(
         facts.tail_unit,
         facts.datetimes_read_at,
     )
-    per_day = 1
-    if facts.tail_unit == parsing.TAIL_UNIT_MINUTE:
-        per_day = 1440
-    elif facts.tail_unit == parsing.TAIL_UNIT_SECOND:
-        per_day = 86400
-    on_holes = 0
-    for unit in _tail_units_of(facts, cells):
-        if unit is None or unit < low or unit > high:
+    found: "list[tuple[int, str]]" = []
+    failing: "list[str]" = []
+    for cell, reading in zip(cells, _tail_readings_of(facts, cells)):
+        if reading is None:
+            failing += [cell]
             continue
-        day = unit // per_day
+        found += [reading]
+    if block is not None and _folded_by_the_file(
+        block, facts.parser_family, failing
+    ):
+        for cell in failing:
+            read = parsing.parse_datetime(cell, taxonomy.FORMAT_ISO_MIXED)
+            if read is None:
+                continue
+            found += [
+                (
+                    taxonomy.tail_ordinal(
+                        read[0], facts.tail_unit, facts.datetimes_read_at
+                    ),
+                    read[0],
+                )
+            ]
+    on_holes = 0
+    for unit, moment in found:
+        if unit < low or unit > high:
+            continue
+        day = calendar_rules.written_day(moment)
         weekday = calendar_rules.weekday_of(day)
         bins[weekday] = bins[weekday] + 1
         if day in holes:

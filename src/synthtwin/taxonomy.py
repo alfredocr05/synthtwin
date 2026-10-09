@@ -16088,6 +16088,14 @@ def _census_days(
     3b.1, plan P4-D355; moments since landing 3b.D2, plan P4-D367, whose
     instants `_census_moments` gives beside). Empty elsewhere.
 
+    Each is the day the cell is WRITTEN on (`calendar_rules.written_day`),
+    never its instant's: a sixtieth second, `23:59:60`, is its own day's
+    (Codex's review of landing 3b.D2, item 1). Ascending, they are also
+    the written days of the cells in the order of their instants, ties
+    broken by the written day -- the order the tails cut -- since a cell's
+    instant lies from its written day's first second to the next day's
+    first, so a later instant is never on an earlier written day.
+
     Guarantees: accepts the published details and the parsed pairs;
     returns the days. Determinism: a function of the two. Raises nothing.
     No I/O of any kind.
@@ -16100,11 +16108,7 @@ def _census_days(
         return ()
     days: "list[int]" = []
     for canonical, _offset in pairs:
-        days += [
-            parsing.days_from_civil(
-                int(canonical[0:4]), int(canonical[5:7]), int(canonical[8:10])
-            )
-        ]
+        days += [calendar_rules.written_day(canonical)]
     return tuple(sorted(days))
 
 
@@ -16476,13 +16480,24 @@ def _count_rules_reason(
 
 def _rung_day(ladder: object, name: str) -> "int | None":
     """The day of one published rung of `date_percentiles`, or None where
-    it is withheld."""
+    it is withheld. A seam kept for a census read in whole days; WC10
+    reads its rungs as whole instants (`_rung_instant`, Codex's review of
+    landing 3b.D2, item 3)."""
     if not isinstance(ladder, dict) or name not in ladder:
         return None
     text = ladder[name]
     if not isinstance(text, str) or len(text) < 10:
         return None
     return parsing.days_from_civil(int(text[0:4]), int(text[5:7]), int(text[8:10]))
+
+
+def _rung_instant(ladder: object, name: str) -> "int | None":
+    """The whole local instant of one published rung of `date_percentiles`,
+    clock and day together (`calendar_rules.rung_instant`, WC10), or None
+    where it is withheld."""
+    if not isinstance(ladder, dict) or name not in ladder:
+        return None
+    return calendar_rules.rung_instant(ladder[name])
 
 
 def moments_weekday_decision(
@@ -16502,14 +16517,22 @@ def moments_weekday_decision(
     BODY is cut BY INSTANT: the cells between
     the two tail boundaries, both included, so a cell on a boundary's
     day but before its instant is a tail cell (contract WC3). Each body
-    cell counts on the weekday of its day, and the census is the menu's
+    cell counts on the weekday of the day it is WRITTEN on
+    (`calendar_rules.written_day`), never its instant's day: fifty
+    `2016-12-31 23:59:60` beside noon stamps, whose instant is the next
+    day's first second, were published on Sunday while the source wrote
+    them on Saturday, and the twins wrote 81 Saturdays for 130 with
+    validation saying HELD (Codex's review of landing 3b.D2, item 1).
+    The census is the menu's
     (`calendar_rules.menu_groups`), published unless:
 
     * the column has no two tails (its own sentence, NF78);
     * a workbook stores its values two ways (WC6's storage half); a
       body day stands on a published hole (`calendar_rules.public_holes`);
     * its middle half spans fewer than four weeks (WC10,
-      `calendar_rules.span_short`), the published `p25` and `p75` read;
+      `calendar_rules.span_short`), the published `p25` and `p75` read
+      as whole local instants (`calendar_rules.rung_instant`, Codex's
+      review of the landing, item 3);
     * the menu offers no grouping; a non-empty group holds fewer than
       three different days, or the groups fewer than seven and a half
       each on average (`calendar_rules.few_dates`, the rule of a column
@@ -16567,9 +16590,13 @@ def moments_weekday_decision(
         return withheld(calendar_rules.REASON_NO_TAILS)
     parsed = len(moments)
     instants = moments[rows_low : parsed - rows_high]
-    if not instants:
+    if not instants or len(days) != parsed:
         return withheld(calendar_rules.REASON_NO_TAILS)
-    body = [instant // 86400 for instant in instants]
+    # THE WRITTEN DAY OF EACH BODY CELL, in the order of the instants
+    # (`_census_days`: ascending, the written days stand in that order),
+    # never `instant // 86400`, which put a sixtieth second on the next
+    # day (Codex's review of the landing, item 1).
+    body = list(days[rows_low : parsed - rows_high])
     step = 1
     if details["all_at_midnight"] is True:
         step = 86400
@@ -16598,8 +16625,8 @@ def moments_weekday_decision(
     if set(holes) & set(body):
         return withheld(calendar_rules.REASON_TEXTS)
     ladder = details["date_percentiles"]
-    p25 = _rung_day(ladder, "p25")
-    p75 = _rung_day(ladder, "p75")
+    p25 = _rung_instant(ladder, "p25")
+    p75 = _rung_instant(ladder, "p75")
     if calendar_rules.span_short(p25, p75):
         return withheld(calendar_rules.REASON_SPAN)
     groups, entry = calendar_rules.menu_groups(calendar_rules.body_bins(body), line)

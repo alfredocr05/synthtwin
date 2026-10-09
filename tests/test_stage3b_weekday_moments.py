@@ -100,7 +100,21 @@ The gate's clauses, each beside the mutant that turns it red:
 * the report: `test_a_count_the_pass_leaves_off_is_counted_in_values`
   (the 3b.2-W skeptic's minor 1);
 * the workbook: `test_a_workbook_storing_moments_two_ways_publishes_no_census`
-  (WC6's storage half, kept on moments).
+  (WC6's storage half, kept on moments);
+* Codex's review of the landing, item 1, THE WRITTEN DAY:
+  `test_a_sixtieth_second_counts_on_the_day_it_is_written_on` -- fifty
+  `2016-12-31 23:59:60` beside noon stamps publish Saturday 130 and Sunday 80, as written,
+  and three twins hold it (mutant: the pass meeting the counts by ordinal, 131 Saturdays and
+  validate saying MISSED); `test_the_validator_counts_a_sixtieth_second_on_its_written_day`
+  (mutant: the unit's day, the source misses its own census); the seventeenth file's
+  `a_sixtieth_second_counts_on_its_written_day` (mutant: the day before in place of the
+  second before); and the leap column through the oracle's whole pass;
+* item 2, THE FOLD: `test_dates_folded_into_moments_are_recounted_and_unparsed_ones_are_not`
+  -- ten bare dates folded and counted, five left unparsed and kept out (mutants: the fold
+  never asked, and asked of every failing cell);
+* item 3, WC10 ON WHOLE INSTANTS: `test_wc10_reads_the_quartiles_as_whole_local_instants`
+  (27 days and 70 seconds withheld and refused; exactly 28 days with unequal clocks loads,
+  a second less is refused) and `test_what_the_producer_publishes_on_unequal_clocks_its_loader_loads`.
 """
 
 from __future__ import annotations
@@ -494,11 +508,13 @@ def test_each_rule_withholds_its_own_shapes(monkeypatch: pytest.MonkeyPatch, rul
 
 
 def test_the_rules_give_their_stated_answers_on_hand_made_bodies() -> None:
-    """WC10 at 27 and 28 days and on a withheld rung; the few-units rule at a mean of eight
-    written units a group and just under it, on one group alone, and on days at midnight."""
-    assert calendar_rules.span_short(100, 127)
-    assert not calendar_rules.span_short(100, 128)
-    assert calendar_rules.span_short(None, 128) and calendar_rules.span_short(100, None)
+    """WC10 at 27 and 28 days of whole instants, a second short of 28, and on a withheld rung;
+    the few-units rule at a mean of eight written units a group and just under it, on one
+    group alone, and on days at midnight."""
+    assert calendar_rules.span_short(100 * DAY, 127 * DAY)
+    assert not calendar_rules.span_short(100 * DAY, 128 * DAY)
+    assert calendar_rules.span_short(100 * DAY + 5, 128 * DAY + 4)
+    assert calendar_rules.span_short(None, 128 * DAY) and calendar_rules.span_short(100 * DAY, None)
     groups = ((0, 4, 16), (5, 6, 16))
     monday, saturday = 19779, 19784  # 2024-02-26 and 2024-03-02
     body = [monday + 7 * (step % 8) for step in range(16)] + [saturday + 7 * (step % 8) for step in range(16)]
@@ -947,7 +963,7 @@ def test_the_validator_counts_moments_by_instant(tmp_path: pathlib.Path, monkeyp
     source = described.table.read_text(encoding="utf-8")
     assert kpi_shapes.missed(kpi_shapes.measure(described, source, "source.csv")) == []
 
-    def by_day(facts, cells, holes, bins):
+    def by_day(facts, cells, holes, bins, block=None):
         low_day = parsing.days_from_civil(int(facts.low_tail.boundary[0:4]), int(facts.low_tail.boundary[5:7]), int(facts.low_tail.boundary[8:10]))
         high_day = parsing.days_from_civil(int(facts.high_tail.boundary[0:4]), int(facts.high_tail.boundary[5:7]), int(facts.high_tail.boundary[8:10]))
         for cell in cells:
@@ -1019,13 +1035,19 @@ def _nightly(rows: int = 1000, seed: int = 81001) -> "list[str]":
 def _crowded_wednesdays(rows: int = 2400, seed: int = 81002) -> "list[str]":
     """Visits on seven Wednesdays a week apart, each at a minute from 07:00 to 19:59
     (`2024-03-06 07:46`): one non-empty group, so no few-dates or few-units rule asks it, and
-    a body dense enough that the clocks the day pass keeps meet."""
+    a body dense enough that the clocks the day pass keeps meet. The first and last Wednesdays
+    hold twice the visits of each other, so the middle half spans four weeks of whole instants
+    (WC10, Codex's review of the landing, item 3: with seven even Wednesdays the p75 stands on
+    the fifth at an earlier clock than the p25 on the second, under 28 days, and no census
+    stands)."""
     draw = random.Random(seed)
     days = [datetime.date(2024, 3, 6) + datetime.timedelta(days=7 * step) for step in range(7)]
-    return [
-        _at(draw.choice(days), draw.randrange(7, 20), draw.randrange(60)).strftime("%Y-%m-%d %H:%M")
-        for _row in range(rows)
-    ]
+    weights = [2.0, 1.0, 1.0, 1.0, 1.0, 1.0, 2.0]
+    found: "list[str]" = []
+    for _row in range(rows):
+        day = draw.choices(days, weights=weights)[0]
+        found += [_at(day, draw.randrange(7, 20), draw.randrange(60)).strftime("%Y-%m-%d %H:%M")]
+    return found
 
 
 # -- G-D4: the mutants -----------------------------------------------------------
@@ -1087,7 +1109,8 @@ def test_a_short_count_is_put_back_on_each_moments_own_day(tmp_path: pathlib.Pat
     clocks it keeps meet, and step 8.7 puts the count back at another clock on each moment's
     own day, never on or off midnight. Mutant: the step withdrawn, and a twin holds fewer
     different values than the column (2,400 visits came back 1,882 to 1,887 minutes for 1,933
-    at seeds 0 to 2 on the proof's battery)."""
+    at seeds 0 to 2 on the proof's battery; on this one, its outer Wednesdays doubled for
+    WC10, 1,905 and 1,904 for 1,916 at seeds 0 and 2)."""
     described = _described(tmp_path, "visit", _crowded_wednesdays())
     census = described.block("visit")["weekday_census"]
     assert [group["count"] > 0 for group in census].count(True) == 1, census
@@ -1133,8 +1156,11 @@ def _state(case: dict, module: types.ModuleType = generation):
 
 
 def _answer(case: dict, module: types.ModuleType = generation) -> "list[int]":
-    """What the product makes of a case: the whole pass, step 7c alone or step 8.7 alone."""
+    """What the product makes of a case: the whole pass, step 7c alone or step 8.7 alone; or,
+    for the census as written, the counts the pass is asked by ordinal."""
     state = _state(case, module)
+    if case["step"] == "as_written":
+        return module._weekday_counts_as_written(state, list(case["counts"]), list(case["sixtieths"]))
     low, high, pinned = case["body"][0], case["body"][1], list(case["pinned"])
     if case["step"] == "settled":
         module._bins_settled(state, list(case["counts"]), low, high, pinned, case["wanted"])
@@ -1169,6 +1195,7 @@ CASES = (
     "a_day_spread_takes_no_clock_off_midnight",
     "a_day_spread_takes_the_nearer_minute",
     "a_full_group_passes_an_escape_on",
+    "a_sixtieth_second_counts_on_its_written_day",
     "an_escape_keeps_its_width_kind",
     "an_escape_keeps_off_a_hole",
     "an_escape_keeps_the_count",
@@ -1180,6 +1207,10 @@ CASES = (
 
 # Each case's own source edit of the product, and what it withdraws.
 MUTANTS = {
+    "a_sixtieth_second_counts_on_its_written_day": (
+        "        written = _weekday_group(state, ordinal - 1)\n",
+        "        written = _weekday_group(state, ordinal - 86400)\n",
+    ),
     "wednesdays_at_another_clock": (
         "    if have != target and state.unit == state.day and state.unit != state.step:\n"
         "        _weekday_escaped(state, everything, have, target)\n",
@@ -1346,12 +1377,14 @@ def test_a_day_spread_moves_a_moment_only_on_its_own_day_and_off_midnight() -> N
 # -- the product against the oracle, on whole columns -----------------------------
 
 
-@pytest.mark.parametrize("name", ("clinic", "sessions", "midnight", "emergency", "laboratory", "crowded"))
+@pytest.mark.parametrize("name", ("clinic", "sessions", "midnight", "emergency", "laboratory", "crowded", "leap"))
 def test_the_pass_moves_whole_columns_as_the_oracle_does(tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch, name: str) -> None:
     """The ranks the generator hands the weekday pass, through the oracle's own pass, stated from
-    the method's text: the same instants come back, through step 7c on the sessions and step 8.7
-    on the crowded Wednesdays."""
-    described = _described(tmp_path, name, PUBLISHED[name]() if name in PUBLISHED else _crowded_wednesdays())
+    the method's text: the same instants come back, through step 7c on the sessions, step 8.7
+    on the crowded Wednesdays, and the census as written on the leap column (Codex's item 1:
+    its pinned 25th percentile at `23:59:60`)."""
+    built = {"crowded": _crowded_wednesdays, "leap": _leap_column}
+    described = _described(tmp_path, name, PUBLISHED[name]() if name in PUBLISHED else built[name]())
     seen: "list[tuple[tuple, list[int]]]" = []
     settled = generation._weekday_settled
 
@@ -1511,3 +1544,208 @@ def test_a_workbook_storing_moments_two_ways_publishes_no_census(tmp_path: pathl
     assert found["mixed"]["columns"][0]["weekday_census"] == []
     said = [entry["note"] for entry in found["mixed"]["publication_notes"]]
     assert any(NOTE_NF74 in sentence for sentence in said), said
+
+
+# -- Codex's review of the landing: the written day, folded dates and WC10's clocks --
+
+
+def _noon_stamps(first: datetime.date, days: int, per_day: int = 5) -> "list[str]":
+    """`per_day` stamps at 12:00:00 on each of `days` days from `first`."""
+    cells: "list[str]" = []
+    for step in range(days):
+        cells += [f"{(first + datetime.timedelta(days=step)).isoformat()} 12:00:00"] * per_day
+    return cells
+
+
+def _leap_column() -> "list[str]":
+    """Codex's item 1: five noon stamps a day for 118 days from 2016-12-01 and fifty
+    `2016-12-31 23:59:60`, a Saturday's sixtieth second whose instant is Sunday's first."""
+    return _noon_stamps(datetime.date(2016, 12, 1), 118) + ["2016-12-31 23:59:60"] * 50
+
+
+def _written_weekdays(block: "dict[str, object]", cells: "list[str]") -> "list[int]":
+    """The body's weekday counts on the day each cell is WRITTEN on, the body cut by instant;
+    a bare date read as its midnight."""
+    low = parsing.instant_key(block["low_tail"]["boundary"], "")  # type: ignore[index]
+    high = parsing.instant_key(block["high_tail"]["boundary"], "")  # type: ignore[index]
+    found = [0] * 7
+    for cell in cells:
+        read = parsing.parse_datetime(cell, str(block["format"])) or parsing.parse_datetime(cell, "iso-mixed")
+        if read is None:
+            continue
+        instant = parsing.instant_key(read[0], "")
+        if instant is not None and low <= instant <= high:
+            found[calendar_rules.weekday_of(calendar_rules.written_day(read[0]))] += 1
+    return found
+
+
+def _census_counts(block: "dict[str, object]") -> "list[int]":
+    """The published census as a count per weekday, Monday first (single-day groups)."""
+    found = [0] * 7
+    for group in block["weekday_census"]:  # type: ignore[union-attr]
+        assert group["first"] == group["last"], group
+        found[group["first"]] = group["count"]
+    return found
+
+
+def test_a_sixtieth_second_counts_on_the_day_it_is_written_on(tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Codex's item 1 (High). Fifty `2016-12-31 23:59:60` beside noon stamps: the source's body
+    holds Saturday 130 and Sunday 80, written. On 1c8f328 the census published Saturday 80 and
+    Sunday 130 -- the instant's day, `instant // 86400` -- and three twins wrote 81 and 129 with
+    validate saying HELD. The census now counts the written day (`calendar_rules.written_day`),
+    the twins hold it as written at seeds 0 to 2 (their pinned 25th percentile, written at
+    that second, counted on its written day by `_weekday_counts_as_written`), and the
+    validator reads the written day too. Mutant: the pass meeting the published counts by
+    ordinal -- the twin writes 131 Saturdays, and validate says MISSED, never HELD."""
+    cells = _leap_column()
+    described = _described(tmp_path, "leap", cells)
+    block = described.block("leap")
+    assert block["date_percentiles"]["p25"] == "2016-12-31 23:59:60"
+    assert _written_weekdays(block, cells)[5:7] == [130, 80]
+    assert _census_counts(block) == _written_weekdays(block, cells)
+    source = described.table.read_text(encoding="utf-8")
+    assert kpi_shapes.missed(kpi_shapes.measure(described, source, "source.csv")) == []
+    for seed in (0, 1, 2):
+        values, missed = _twin_values(described, seed)
+        assert _written_weekdays(block, values) == _census_counts(block), seed
+        assert missed == [], (seed, missed)
+        assert values.count("2016-12-31 23:59:60") >= 1, seed
+    monkeypatch.setattr(generation, "_weekday_counts_as_written", lambda state, counts, sixtieths: counts)
+    values, missed = _twin_values(described, 0)
+    assert _written_weekdays(block, values)[5:7] == [131, 79]
+    assert "leap:weekday_census.groups" in missed
+
+
+def test_the_validator_counts_a_sixtieth_second_on_its_written_day(tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Codex's item 1, the recount: the source of the leap column meets its own census only
+    where the validator reads each body cell's written day. Mutant: the day of its tail unit,
+    as on 1c8f328 -- the source misses its own census."""
+    described = _described(tmp_path, "leap", _leap_column())
+    source = described.table.read_text(encoding="utf-8")
+    assert kpi_shapes.missed(kpi_shapes.measure(described, source, "source.csv")) == []
+    readings = validation._tail_readings_of
+
+    def by_unit(facts, cells):
+        found = []
+        for reading in readings(facts, cells):
+            if reading is None:
+                found += [None]
+                continue
+            day = reading[0] // DAY if facts.tail_unit == parsing.TAIL_UNIT_SECOND else reading[0] // 1440
+            found += [(reading[0], datetime.date.fromordinal(719163 + day).isoformat())]
+        return found
+
+    monkeypatch.setattr(validation, "_tail_readings_of", by_unit)
+    assert "leap:weekday_census.groups" in kpi_shapes.missed(kpi_shapes.measure(described, source, "by-unit.csv"))
+
+
+def _with_bare_dates(bare: int) -> "list[str]":
+    """Codex's item 2: five noon stamps a day for 118 days from 2024-01-01 and `bare` cells
+    `2024-03-05`, a Tuesday written as a whole date."""
+    return _noon_stamps(datetime.date(2024, 1, 1), 118) + ["2024-03-05"] * bare
+
+
+@pytest.mark.parametrize("bare", (5, 10))
+def test_dates_folded_into_moments_are_recounted_and_unparsed_ones_are_not(tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch, bare: int) -> None:
+    """Codex's item 2 (Medium). Ten bare `2024-03-05` among noon stamps are folded into midnight
+    moments: `iso-datetime`, nothing unparsed, Tuesday 90 published. On 1c8f328 the recount
+    read the timestamps alone and told the unchanged source Tuesday 80, MISSED. The fold
+    distinction of a column of dates (`validation._folded_by_the_file`) is asked of moments:
+    the dates the producer absorbed are counted, at their midnight. Five bare dates are left
+    unparsed by the producer (`n_unparsed` 5, Tuesday 80) and stay out of the recount. Twins
+    at seeds 0 to 2 miss nothing either way. Mutants: the fold never asked (ten: MISSED), and
+    asked of every failing cell (five: MISSED)."""
+    described = _described(tmp_path, "folded", _with_bare_dates(bare))
+    block = described.block("folded")
+    assert block["format"] == "iso-datetime"
+    assert block["n_unparsed"] == (0 if bare == 10 else bare)
+    assert _census_counts(block)[1] == (90 if bare == 10 else 80)
+    source = described.table.read_text(encoding="utf-8")
+    assert kpi_shapes.missed(kpi_shapes.measure(described, source, "source.csv")) == []
+    for seed in (0, 1, 2):
+        assert _twin_values(described, seed)[1] == [], seed
+    folded = validation._folded_by_the_file
+    monkeypatch.setattr(validation, "_folded_by_the_file", lambda block, member, failing: bare != 10)
+    assert "folded:weekday_census.groups" in kpi_shapes.missed(kpi_shapes.measure(described, source, "mutant.csv"))
+    monkeypatch.setattr(validation, "_folded_by_the_file", folded)
+
+
+def _unequal_clocks(turn: int, days: int = 57) -> "list[str]":
+    """Codex's item 3: twenty stamps a day for `days` days from 2024-01-01, seconds 00 to 19
+    at 23:59 on the days before `turn` and at 00:00 from it on."""
+    cells: "list[str]" = []
+    for step in range(days):
+        day = (datetime.date(2024, 1, 1) + datetime.timedelta(days=step)).isoformat()
+        clock = "23:59" if step < turn else "00:00"
+        cells += [f"{day} {clock}:{second:02d}" for second in range(20)]
+    return cells
+
+
+def test_wc10_reads_the_quartiles_as_whole_local_instants(tmp_path: pathlib.Path) -> None:
+    """Codex's item 3 (Medium). Codex's column publishes p25 `2024-01-15 23:59:04` and p75
+    `2024-02-12 00:00:14`, 27 days and 70 seconds apart: read as days they stood 28 apart, and
+    on 1c8f328 the producer published a census and its loader loaded it. Both now compare
+    whole local instants (`calendar_rules.rung_instant`): the producer withholds it, and the
+    census put back by hand is refused by WC10. At the boundary with unequal clocks, a p75
+    exactly 28 days after its p25 loads and one second less is refused."""
+    described = _described(tmp_path, "span", _unequal_clocks(28))
+    block = described.block("span")
+    assert (block["date_percentiles"]["p25"], block["date_percentiles"]["p75"]) == ("2024-01-15 23:59:04", "2024-02-12 00:00:14")
+    assert block["weekday_census"] == []
+    assert calendar_rules.span_short(calendar_rules.rung_instant("2024-01-15 23:59:04"), calendar_rules.rung_instant("2024-02-12 00:00:14"))
+    assert not calendar_rules.span_short(calendar_rules.rung_instant("2024-01-15 23:59:04"), calendar_rules.rung_instant("2024-02-12 23:59:04"))
+    assert calendar_rules.span_short(calendar_rules.rung_instant("2024-01-15 23:59:04"), calendar_rules.rung_instant("2024-02-12 23:59:03"))
+    assert not calendar_rules.span_short(calendar_rules.rung_instant("2024-01-15 23:59:59"), calendar_rules.rung_instant("2024-02-12 23:59:60"))
+    published = _described(tmp_path / "clinic", "clinic", _clinic())
+    document = published.document
+    census = document["columns"][0]["weekday_census"]
+    assert census
+
+    def loaded(p25: str, p75: str, name: str) -> "str | None":
+        changed = copy.deepcopy(document)
+        column = changed["columns"][0]
+        ladder = column["date_percentiles"]
+        ladder["p25"], ladder["p75"] = p25, p75
+        for rung in ("p05", "p10"):
+            if ladder.get(rung) is not None and ladder[rung] > p25:
+                ladder[rung] = p25
+        if ladder.get("p50") is not None:
+            ladder["p50"] = p25
+        for rung in ("p90", "p95"):
+            if ladder.get(rung) is not None and ladder[rung] < p75:
+                ladder[rung] = p75
+        path = fixtures.write_profile(tmp_path, f"{name}.json", changed)
+        try:
+            contract.load_profile(str(path))
+        except errors.ProfileError as refusal:
+            return str(refusal)
+        return None
+
+    p25 = document["columns"][0]["date_percentiles"]["p25"]
+    day = datetime.date.fromisoformat(p25[0:10])
+    after = (day + datetime.timedelta(days=28)).isoformat()
+    before = (day + datetime.timedelta(days=27)).isoformat()
+    assert loaded(f"{p25[0:10]} 23:59:04", f"{after} 23:59:04", "exact") is None
+    refused = loaded(f"{p25[0:10]} 23:59:04", f"{after} 23:59:03", "a-second-short")
+    assert refused is not None and "WC10" in refused, refused
+    refused = loaded(f"{p25[0:10]} 23:59:04", f"{after} 00:00:14", "codex")
+    assert refused is not None and "WC10" in refused, refused
+    assert loaded(f"{p25[0:10]} 00:00:14", f"{after} 00:00:14", "midnights") is None
+    assert loaded(f"{p25[0:10]} 00:00:14", f"{before} 23:59:59", "a-day-short-by-day") is not None
+
+
+@pytest.mark.parametrize("turn", (14, 26, 27, 28, 29, 30))
+def test_what_the_producer_publishes_on_unequal_clocks_its_loader_loads(tmp_path: pathlib.Path, turn: int) -> None:
+    """The producer and the loader ask WC10 of the same whole instants: Codex's column with its
+    clocks turning on days 14 to 30, at the floors of 11 and 36, is described and loaded
+    (`kpi_shapes.describe` loads every description it writes), and a census stands exactly
+    where its published p75 is at least 28 days of seconds after its p25."""
+    for floor in (11, 36):
+        described = _described(tmp_path / f"f{floor}", "span", _unequal_clocks(turn), floor)
+        block = described.block("span")
+        ladder = block["date_percentiles"]
+        reach = calendar_rules.rung_instant(ladder["p75"]) - calendar_rules.rung_instant(ladder["p25"])
+        if block["weekday_census"]:
+            assert reach >= 28 * DAY, (turn, floor, ladder["p25"], ladder["p75"])
+        if reach < 28 * DAY:
+            assert block["weekday_census"] == [], (turn, floor)

@@ -21747,16 +21747,22 @@ def _weekday_settled(
             pinned[rank] = True
     body_low = layout.low.rows
     body_high = parsed - 1 - layout.high.rows
-    _bins_settled(
-        state, [count for _first, _last, count in census],
-        body_low, body_high, pinned, wanted,
+    # THE CENSUS AS WRITTEN (Codex's review of landing 3b.D2, item 1): a
+    # rank pinned at a published sixtieth second is written on the day of
+    # the second before its ordinal, and the pass meets by ordinal the
+    # counts that put it there (`_weekday_counts_as_written`).
+    counts = _weekday_counts_as_written(
+        state,
+        [count for _first, _last, count in census],
+        _sixtieth_seconds(layout, moved, pinned, body_low, body_high),
     )
+    _bins_settled(state, counts, body_low, body_high, pinned, wanted)
     found = [0 for _ in census]
     for rank in range(body_low, body_high + 1):
         group = _weekday_group(state, moved[rank])
         found[group] = found[group] + 1
     notes: "list[Deviation]" = []
-    if found != [count for _first, _last, count in census]:
+    if found != counts:
         notes += [
             _deviation(
                 column.name,
@@ -21792,6 +21798,70 @@ def _weekday_settled(
             )
         ]
     return moved, notes
+
+
+def _sixtieth_seconds(
+    layout: "_DateLayout",
+    moved: "list[int]",
+    pinned: "list[bool]",
+    body_low: int,
+    body_high: int,
+) -> "list[int]":
+    """The body ranks the twin writes at a sixtieth second (G7.5, G7.3f).
+
+    A body rank the pass never moves, pinned at a published boundary or
+    rung whose seconds field is 60 and standing at that pin: the one cell
+    written from its own published fields (G7.5), `HH:MM:60`, where the
+    ordinal space of G7.1 puts its ordinal at the next minute's first
+    second. Every other rank is written at an ordinary second. Ascending.
+
+    THE ONE NAME LANE T2 GIVES THE SAME SET (its fix stream, the hour
+    census, `generation._sixtieth_seconds` with this signature, which it
+    widens to the ranks two such pins of one moment leave between them):
+    at integration one definition stays, the widest, and the weekday pass
+    and the clock pass count the same ranks as written.
+    """
+    found: "list[int]" = []
+    for rank in sorted(layout.texts):
+        if rank < body_low or rank > body_high or not pinned[rank] or rank not in layout.pins:
+            continue
+        if layout.texts[rank][17:19] == "60" and moved[rank] == layout.pins[rank]:
+            found += [rank]
+    return found
+
+
+def _weekday_counts_as_written(
+    state: _WeekdayPass, counts: "list[int]", sixtieths: "list[int]"
+) -> "list[int]":
+    """The counts the weekday pass meets BY ORDINAL so the census holds AS
+    WRITTEN (G7.3f; Codex's review of landing 3b.D2, item 1).
+
+    Every step of the pass counts a rank in the group of its ordinal's
+    day (`_weekday_group`), and the census counts a cell on the day it is
+    WRITTEN on (`calendar_rules.written_day`). The two differ only on a
+    rank the twin writes at a sixtieth second (`_sixtieth_seconds`) at
+    `23:59:60`, whose ordinal is the next day's first second while it is
+    written on the day before: fifty `2016-12-31 23:59:60` beside noon
+    stamps published Saturday 130, and the twin, its pinned 25th
+    percentile written on Saturday and counted on Sunday, wrote 131. Each
+    such rank whose two days lie in different groups is counted one more
+    in its ordinal's group and one less in its written one; it never
+    moves, so the pass, meeting these counts by ordinal, meets the
+    published ones as written. The companion of the clock pass's own
+    (lane T2, `_clock_counts_as_written`), for the day.
+
+    Guarantees: accepts the state, the published counts and the ranks;
+    returns new counts. Raises nothing. No I/O of any kind.
+    """
+    asked = [count for count in counts]
+    for rank in sixtieths:
+        ordinal = state.moved[rank]
+        counted = _weekday_group(state, ordinal)
+        written = _weekday_group(state, ordinal - 1)
+        if counted != written:
+            asked[counted] = asked[counted] + 1
+            asked[written] = asked[written] - 1
+    return asked
 
 
 def _weekday_body_full(

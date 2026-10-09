@@ -9309,7 +9309,9 @@ def _weekday_census(
     floor (WC2), their total against the body (WC3), the menu (WC4) and
     one spelling per day (WC6); on moments
     `calendar_rules.moments_breach` asks the first four and the middle
-    half's span (WC10) in place of WC6's half on written forms. The
+    half's span (WC10, its two rungs read as whole local instants by
+    `calendar_rules.rung_instant`) in place of WC6's half on written
+    forms. The
     first broken rule is refused by name. Nothing here walks a day:
     since plan P4-D365 the loader asks no rule of what a reader could
     work out from the census (WC5, WC7, WC8 and WC9 are retired).
@@ -9354,8 +9356,11 @@ def _weekday_census(
             tuple(found),
             parsed - low.rows - high.rows,
             parsing.census_floor(floor),
-            _day_number(first) if first is not None else None,
-            _day_number(last) if last is not None else None,
+            # WC10 on WHOLE LOCAL INSTANTS, clock and day together, read
+            # as the producer reads them (Codex's review of landing
+            # 3b.D2, item 3: read as days, 27 days and 70 seconds loaded).
+            calendar_rules.rung_instant(first),
+            calendar_rules.rung_instant(last),
         )
         if broken is not None:
             raise _broken(broken[0], where, broken[1], broken[2])
