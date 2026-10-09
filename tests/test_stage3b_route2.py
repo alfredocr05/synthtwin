@@ -33,7 +33,37 @@ that leaves a debt unpaid.
   one-off notes at 30,000 rows (floor 11) and beside 10 % on the 12-hour face
   at 3,000 rows (floor 36) are labels with no cell counted missing, the real
   table and the twin miss no check, and the twin writes no blank (mutant: the
-  pass as it stood, and each twin misses `forms.published.%%:%%`).
+  pass as it stood, handed the sizes as they stood before the repair round
+  below, and each twin misses `forms.published.%%:%%`).
+
+ITS REPAIR ROUND (skeptic 1 of the correction, 2026-10-09). Where the route
+had written blanks, the label twins wrote clock times no clock reads where the
+table holds none -- `44:89`, `9:75` -- so code keeping a real column's cells
+shaped like a time and parsing them stopped on the twin: 63 cells in 4 of the
+112 columns and 200,134 in 47 of the skeptic's own tables, where the route had
+written 402 and 324,134 blanks. The held-back labels' walk of a clock's form
+ran on past the times it can write into its other spellings; a clock's form
+took up to a label per cell, more labels than it has times; the form owing the
+most took the largest labels first and left a form short of times the small
+ones; and past G8.3's clock line a stand-in owed no named form, wearing the
+published labels' shape, was filled figure by figure, or spent the room the
+owed stand-ins after it needed.
+
+* `test_label_twins_write_no_time_no_clock_reads` -- times written `HH:MM`
+  beside 3 % one-off notes at 100,000 rows (floor 36) and `H:MM` beside 10 %
+  at 10,000 rows (floor 11) are labels, the real table and the twin miss no
+  check, and the twin writes no blank and no cell shaped like a time that no
+  clock reads (mutant: the walk run past a clock's times, 4,822 and 169 such
+  cells, as on 07e9e0b);
+* `test_red_when_a_clocks_labels_are_unbounded` -- the `HH:MM` form of the
+  first, handed up to a label per cell, writes 1,091 of its cells `group-N`
+  and misses its count;
+* `test_a_form_short_of_times_is_paid_first` -- `HH:MM` beside 15 %
+  `HH:MM:SS` at 30,000 rows (floor 11) meets both forms' counts and misses
+  nothing (mutant: the form owing the most paid first, `HH:MM` 37 short);
+* `test_the_owed_stand_ins_keep_their_room` -- `H:MM` beside 3 % notes at
+  30,000 rows (floor 11) writes no such cell and misses nothing (mutant: the
+  published labels' shape spends the room first, 610 such cells).
 """
 
 from __future__ import annotations
@@ -43,6 +73,7 @@ import functools
 import io
 import pathlib
 import random
+import re
 import tempfile
 import typing
 
@@ -85,6 +116,22 @@ _TRACED = {
 # over before this correction.
 _PUBLISHED = {"notes": 29142, "face": 2718}
 
+# THE REPAIR ROUND'S FOUR TABLES, cell for cell its skeptic's own (the `mine`
+# and `mine2` batteries, at their seeds): the same appointment times, written
+# `HH:MM` or, as Excel's `h:mm` writes an hour below ten, `H:MM`, beside
+# one-off notes (`notes`, `hours`) or beside a minority written to the second
+# (`seconds`), as kind, share, rows, floor and seed.
+_CLOCKS = {
+    "notes_100000": ("notes", 0.03, 100000, 36, 7031),
+    "hours_10000": ("hours", 0.10, 10000, 11, 9034),
+    "seconds_30000": ("seconds", 0.15, 30000, 11, 7412),
+    "hours_30000": ("hours", 0.03, 30000, 11, 9016),
+}
+
+# A cell shaped like a clock time: an hour of one or two figures, a colon and
+# two figures, and optionally a colon and two more.
+_TIME_SHAPED = re.compile(r"\d{1,2}:\d\d(?::\d\d)?")
+
 
 def _slot(draw: random.Random) -> int:
     pick = draw.random()
@@ -105,7 +152,32 @@ def _twelve_hour(minutes: int) -> str:
     return f"{hour % 12 or 12}:{minutes % 60:02d} {'AM' if hour < 12 else 'PM'}"
 
 
+def _h_mm(minutes: int) -> str:
+    return f"{minutes // 60}:{minutes % 60:02d}"
+
+
+def _clock_cells(name: str) -> "list[str]":
+    """One of the repair round's tables, as its skeptic's batteries drew it."""
+    kind, share, rows, _floor, seed = _CLOCKS[name]
+    draw = random.Random(seed)
+    cells: "list[str]" = []
+    notes = 0
+    for _row in range(rows):
+        minutes = _slot(draw)
+        if draw.random() >= share:
+            cells += [_h_mm(minutes) if kind == "hours" else _hh_mm(minutes)]
+            continue
+        if kind == "seconds":
+            cells += [f"{_hh_mm(minutes)}:{draw.randrange(60):02d}"]
+            continue
+        notes = notes + 1
+        cells += [f"see note {notes}"]
+    return cells
+
+
 def _cells(name: str) -> "list[str]":
+    if name in _CLOCKS:
+        return _clock_cells(name)
     kind, share, rows, floor = _TRACED[name]
     cells: "list[str]" = []
     if kind == "capsweep":
@@ -131,8 +203,8 @@ def _cells(name: str) -> "list[str]":
 
 @functools.lru_cache(maxsize=None)
 def _described(name: str):
-    """The traced table's description, loaded, and where the table lies."""
-    floor = _TRACED[name][3]
+    """The table's description, loaded, and where the table lies."""
+    floor = _CLOCKS[name][3] if name in _CLOCKS else _TRACED[name][3]
     folder = pathlib.Path(tempfile.mkdtemp(dir=_HOME[0]))
     table = fixtures.write(folder, "times.csv", "c\n" + "\n".join(_cells(name)) + "\n")
     document = profile.build_document(
@@ -156,6 +228,28 @@ def _twin(name: str) -> "tuple[list[str], list[str]]":
     target = fixtures.write(folder, "twin.csv", text)
     body = list(csv.reader(io.StringIO(text)))
     return [row[0] if row else "" for row in body[1:]], _missed(loaded, target)
+
+
+def _twin_cells(name: str) -> "list[str]":
+    """The seed-0 twin's cells alone, for a mutant whose witness needs no validation."""
+    _folder, _document, loaded, _table = _described(name)
+    body = list(csv.reader(io.StringIO(rendering.twin_csv(generation.generate(loaded, 0)))))
+    return [row[0] if row else "" for row in body[1:]]
+
+
+def _unread(cells: "list[str]") -> "list[str]":
+    """The cells shaped like a clock time that no clock reads, such as `44:89` or `9:75`."""
+    return [cell for cell in cells if _TIME_SHAPED.fullmatch(cell) and parsing.clock_parts(cell) is None]
+
+
+def _forms(cells: "list[str]") -> "dict[str, int]":
+    """How many cells wear each written form, a cell of none left out."""
+    counted: "dict[str, int]" = {}
+    for cell in cells:
+        form = parsing.shape_form(cell)
+        if form:
+            counted[form] = counted.get(form, 0) + 1
+    return counted
 
 
 def _paid(sizes: "tuple[int, ...]", taken: "list[str]") -> "dict[str, int]":
@@ -192,7 +286,17 @@ def test_where_no_pass_settles_exactly_the_walk_still_covers_the_debt() -> None:
 
 
 def _as_it_stood(monkeypatch: pytest.MonkeyPatch) -> None:
-    """The one-pass arrangement as it stood: every size to the neediest form, however little it owes."""
+    """The one-pass arrangement as it stood: every size to the neediest form, however little it owes.
+
+    And the sizes it was handed as they stood. Since the repair round a
+    form short of spellings is paid first (`generation._tight_first`), and
+    a clock's form takes no more labels than it has times left to write
+    (`generation._word_form_bounds`); the traced table beside notes has
+    such a form, and its sizes so bounded are settled exactly by either
+    pass, so both are withdrawn too. The face table's form is short of
+    neither, and its sizes are the ones it had.
+    """
+    _unbounded(monkeypatch)
     one_pass = generation._one_pass
 
     def overpaying(
@@ -206,6 +310,41 @@ def _as_it_stood(monkeypatch: pytest.MonkeyPatch) -> None:
         return one_pass(sizes, places, owing, every, spare, False)
 
     monkeypatch.setattr(generation, "_one_pass", overpaying)
+    _short_form_waits(monkeypatch)
+
+
+def _short_form_waits(monkeypatch: pytest.MonkeyPatch) -> None:
+    """A form short of spellings paid in its turn like any other: the pass that serves it first never settles."""
+
+    def never_settles(
+        sizes: "tuple[int, ...]",
+        places: "list[int]",
+        owing: "dict[str, int]",
+        every: "list[str]",
+        spare: "dict[str, int]",
+        tight: "list[str]",
+    ) -> "tuple[list[str], bool]":
+        return ["" for _each in sizes], False
+
+    monkeypatch.setattr(generation, "_tight_first", never_settles)
+
+
+def _unbounded(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Every word form's labels bounded by its debt alone, a label per cell, as before the repair round."""
+
+    def debts_alone(
+        owing: "dict[str, int]",
+        decimal_comma: bool,
+        used: "dict[str, int]",
+        owners: "dict[str, str]",
+        holes: "tuple[str, ...]",
+    ) -> "tuple[int, ...]":
+        return tuple(
+            owing[form] for form in sorted(owing)
+            if owing[form] > 0 and generation._form_reading(form, decimal_comma) == parsing.NOT_A_NUMBER
+        )
+
+    monkeypatch.setattr(generation, "_word_form_bounds", debts_alone)
 
 
 @pytest.mark.parametrize("name", sorted(_TRACED))
@@ -227,3 +366,94 @@ def test_red_when_the_traced_twins_are_paid_past_their_debt(name: str, monkeypat
     _as_it_stood(monkeypatch)
     _cells_now, missed = _twin(name)
     assert "forms.published.%%:%%" in missed, (name, missed)
+
+
+# -- the repair round: no time no clock reads -------------------------------
+
+
+def _labels_described(name: str) -> "tuple[dict[str, typing.Any], contract.Profile, pathlib.Path]":
+    """A repair-round table's column block, read as labels with no cell counted missing."""
+    _folder, document, loaded, table = _described(name)
+    block = document["columns"][0]  # type: ignore[index]
+    assert block["role"] in (taxonomy.ROLE_CATEGORICAL, taxonomy.ROLE_LONG_TAIL), block["role"]
+    assert int(block["n_missing"] or 0) == 0
+    return block, loaded, table
+
+
+@pytest.mark.parametrize("name", ("notes_100000", "hours_10000"))
+def test_label_twins_write_no_time_no_clock_reads(name: str) -> None:
+    """The skeptic's two tables: labels, nothing missed, and every cell shaped like a time a time.
+
+    On 07e9e0b the twin of the first wrote 4,822 cells such as `44:89`,
+    and of the second 169 such as `9:75`, where the table holds none;
+    keeping the cells shaped like a time and parsing them, code that
+    runs on the real column stopped on either twin.
+    """
+    _block, loaded, table = _labels_described(name)
+    assert _unread(_cells(name)) == []
+    assert _missed(loaded, table) == []
+    cells, missed = _twin(name)
+    assert missed == [], (name, missed)
+    assert "" not in cells
+    assert _unread(cells) == [], (name, _unread(cells)[:5])
+
+
+@pytest.mark.parametrize(("name", "unread"), (("notes_100000", 4822), ("hours_10000", 169)))
+def test_red_when_the_walk_runs_past_a_clocks_times(
+    name: str, unread: int, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """MUTATION: a clock's form walked past its times as at 07e9e0b, where only a fraction's form stopped there."""
+    monkeypatch.setattr(generation, "_clock_supply", generation._fraction_clock_supply)
+    assert len(_unread(_twin_cells(name))) == unread
+
+
+def test_red_when_a_clocks_labels_are_unbounded(monkeypatch: pytest.MonkeyPatch) -> None:
+    """MUTATION: the `HH:MM` form handed up to a label per cell, past the 1,394 times it can still write.
+
+    Each of its labels past them is the neutral spelling, so 1,091 of the
+    cells it owes are written `group-N` and the twin misses its count.
+    """
+    block, _loaded, _table = _labels_described("notes_100000")
+    _unbounded(monkeypatch)
+    cells = _twin_cells("notes_100000")
+    assert _unread(cells) == []
+    assert _forms(cells)["%%:%%"] == block["shape_forms"]["%%:%%"] - 1091
+
+
+def test_a_form_short_of_times_is_paid_first() -> None:
+    """`HH:MM` beside 15 % `HH:MM:SS`: both forms' counts met exactly, nothing missed, every time a time."""
+    block, _loaded, _table = _labels_described("seconds_30000")
+    assert block["shape_forms"] == {"%%:%%": 25472, "%%:%%:%%": 4528}, block["shape_forms"]
+    cells, missed = _twin("seconds_30000")
+    assert missed == []
+    assert _unread(cells) == []
+    assert _forms(cells) == block["shape_forms"]
+
+
+def test_red_when_the_form_short_of_times_waits(monkeypatch: pytest.MonkeyPatch) -> None:
+    """MUTATION: the form owing the most paid first, and `HH:MM` runs out of times on the small labels, 37 short."""
+    block, _loaded, _table = _labels_described("seconds_30000")
+    _short_form_waits(monkeypatch)
+    cells = _twin_cells("seconds_30000")
+    assert _forms(cells)["%%:%%"] == block["shape_forms"]["%%:%%"] - 37
+
+
+def test_the_owed_stand_ins_keep_their_room() -> None:
+    """`H:MM` beside 3 % notes: past G8.3's clock line no cell shaped like a time that no clock reads, nothing missed.
+
+    The census names `%%:%%` alone, the stand-ins it owes nothing wear the
+    published labels' shape `%:%%`, and both are held by one clock line.
+    """
+    block, _loaded, _table = _labels_described("hours_30000")
+    assert sorted(block["shape_forms"]) == ["%%:%%"], block["shape_forms"]
+    cells, missed = _twin("hours_30000")
+    assert missed == []
+    assert "" not in cells
+    assert _unread(cells) == []
+
+
+def test_red_when_the_shape_spends_the_owed_room(monkeypatch: pytest.MonkeyPatch) -> None:
+    """MUTATION: no room kept for the owed stand-ins, and 610 of their cells are filled figure by figure."""
+    _labels_described("hours_30000")
+    monkeypatch.setattr(generation, "_owed_clock_cells", lambda keys_of, held, shared, sizes: 0)
+    assert len(_unread(_twin_cells("hours_30000"))) == 610
