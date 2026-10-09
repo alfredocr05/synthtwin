@@ -1762,6 +1762,10 @@ def settings_for(description: contract.Profile) -> taxonomy.Settings:
         # two-figure years are read in the windows the description's were.
         century_windows=block.century_windows,
         # -- 3b.R2c (P4-D383)
+        # THE COLUMNS THE PERSON SAID HOLD DATES (question Q6), so a
+        # checked file's are read at the half line, and under the ask-first
+        # layouts, as the description's were.
+        forced_date_columns=block.forced_date_columns,
         # -- 3b.R4 (P4-D384)
     )
 
@@ -18740,7 +18744,17 @@ def _datetime_distinct_window(
             + facts.high_tail.rows
             + facts.n_unparsed,
         )
-    lower = min(separate + facts.n_unparsed, upper)
+    # -- 3b.R2c (P4-D383): A PARTIAL FORM'S CELLS REPEAT, as `2023` does on
+    # every cell of that year, so each form promises one value at least
+    # and the other stand-ins one each.
+    partial = 0
+    forms = 0
+    if parsing.is_layout_name(facts.parser_family):
+        for key in facts.resolution_mix:
+            if key != facts.parser_family and facts.resolution_mix[key] > 0:
+                partial = partial + facts.resolution_mix[key]
+                forms = forms + 1
+    lower = min(separate + facts.n_unparsed - partial + forms, upper)
     return (float(lower), float(upper))
 
 

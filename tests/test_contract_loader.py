@@ -1744,11 +1744,9 @@ def battery() -> list[Mutation]:
             names="a column's name and one value beside it",
         ),
         # -- 3b.R2c (P4-D383)
-        Mutation(
-            "R16", "a column said to be dates this version of synthtwin takes none of",
-            edit_in("settings", forced_date_columns=["recorded_on"]),
-            names="forced_date_columns",
-        ),
+        # Filled by its landing (question Q6): the names stay held to their
+        # order and their kind, S8 to the table, and S8f binds the
+        # ask-first layouts to the declaration.
         Mutation(
             "R16", "columns said to be dates out of order",
             edit_in("settings", forced_date_columns=["visits", "recorded_on"]),
@@ -1766,6 +1764,36 @@ def battery() -> list[Mutation]:
             "R15", "a column said to be dates named by a number",
             edit_in("settings", forced_date_columns=[7]),
             names="forced_date_columns[0]",
+        ),
+        Mutation(
+            "S8", "a column said to be dates this table lacks",
+            edit_in("settings", forced_date_columns=["no_such_column"]),
+        ),
+        Mutation(
+            "S8f", "a layout of the day of the year nobody declared dates",
+            edit(
+                "recorded_on",
+                format="layout {YYYY}{DDD}",
+                resolution_mix={"layout {YYYY}{DDD}": 240},
+            ),
+        ),
+        # THE PARTIAL FORMS (LY6, LY7): a column of the base read as a
+        # layout, its census of forms counting one form wrong.
+        Mutation(
+            "LY6", "a partial form that is no cut of its layout",
+            edit(
+                "recorded_on",
+                format="layout {YYYY}.{MM}.{DD}",
+                resolution_mix={"layout {YYYY}.{MM}.{DD}": 240, "layout {MM}.{YYYY}": 20},
+            ),
+        ),
+        Mutation(
+            "LY7", "partial forms counting cells the column read",
+            edit(
+                "recorded_on",
+                format="layout {YYYY}.{MM}.{DD}",
+                resolution_mix={"layout {YYYY}.{MM}.{DD}": 240, "layout {YYYY}.{MM}": 20},
+            ),
         ),
         # -- 3b.R4 (P4-D384)
         Mutation(

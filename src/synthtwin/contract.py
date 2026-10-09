@@ -1767,10 +1767,20 @@ INVARIANTS = {
     ),
     "LY6": (
         "a column written in a layout counts its values by form under the "
-        "layout's own name"
+        "layout's own name, and the cells it reads only in part under "
+        "that layout's own partial forms"
     ),
     # anchor 3b-R2b (P4-D383)
     # anchor 3b-R2c (P4-D383)
+    # Landing R2c (plan P4-D383): partial dates and the ask-first layouts.
+    "LY7": (
+        "the cells a column written in a layout counts under its partial "
+        "forms are among the cells it left unread"
+    ),
+    "S8f": (
+        "a column is written in a layout of the day of the year exactly "
+        "where the block of rules names it as a column of dates"
+    ),
     # anchor 3b-R4 (P4-D384)
     "Q1": (
         "the row count a column of numbers repeats is the row count of "
@@ -6272,15 +6282,8 @@ def _settings(value: object) -> SettingsBlock:
         centuries += [(name, first_year)]
         place = place + 1
     # -- 3b.R2c (P4-D383)
-    if date_columns:
-        raise _out_of_range(
-            "forced_date_columns",
-            where,
-            "a list that is not empty",
-            "an empty list: this version of synthtwin takes no such "
-            "declaration, so a description holding one was written by a "
-            "newer synthtwin",
-        )
+    # Filled by its landing (question Q6): S8 holds each name to a column
+    # of the table and S8f the ask-first layouts to the declaration.
     # -- 3b.R4 (P4-D384)
     if counted:
         raise _out_of_range(
@@ -6390,6 +6393,36 @@ def _settings(value: object) -> SettingsBlock:
         block.kept_values, block.declared_missing_values, where
     )
     return block
+
+
+def _ask_first_declared(
+    columns: "tuple[ColumnBlock, ...]", settings: SettingsBlock
+) -> None:
+    """S8f: a column read under an ask-first layout was declared dates (landing R2c).
+
+    Nothing in `2023076` tells a Julian date from an accession number, so
+    no column is read under a layout of the day of the year unless the
+    person said it holds dates (question Q6), and everything that rebuilds
+    the reading from the settings -- the validator above all -- reads it
+    only under that declaration: a description publishing such a layout
+    without it would have its unchanged source read as numbers.
+    """
+    for column in columns:
+        facts = column.facts
+        if not isinstance(facts, (DatetimeFacts,)):
+            continue
+        if not parsing.is_layout_name(facts.parser_family):
+            continue
+        if not parsing.layout_asks_first(facts.parser_family):
+            continue
+        if column.name not in settings.forced_date_columns:
+            raise _broken(
+                "S8f",
+                f"in the block for the column named '{column.name}'",
+                f"the column is written as '{facts.parser_family}'",
+                "the block of rules that produced the description does not "
+                "name it as a column of dates",
+            )
 
 
 def _centuries_declared(
@@ -8713,6 +8746,7 @@ def _resolution_mix(
     parser_family: str,
     parsed: int,
     floor: int,
+    unread: int = 0,
 ) -> "dict[str, int]":
     """How many parsed cells wore each form (contract C6-25).
 
@@ -8741,9 +8775,14 @@ def _resolution_mix(
     wanted: "tuple[str, ...]" = ISO_MEMBERS
     if parser_family != FORMAT_ISO_MIXED:
         wanted = (parser_family,)
+    # -- 3b.R2c (P4-D383): A PARTIAL-DATE COLUMN (LY6, LY7): the layout's
+    # own count is the cells read, and each partial form counts cells
+    # among those left unread.
+    if parsing.is_layout_name(parser_family) and parser_family in mix and len(mix) > 1:
+        return _partial_mix(mix, where, parser_family, parsed, floor, unread)
     if parsing.is_layout_name(parser_family) and sorted(mix) != sorted(wanted):
-        # LY6 (landing R2a): one key, the layout's own name; the leading
-        # truncations of a partial-date column are landing R2c's.
+        # LY6 (landing R2a): one key, the layout's own name, or its
+        # partial forms beside it (landing R2c).
         raise _broken(
             "LY6",
             where,
@@ -8783,6 +8822,64 @@ def _resolution_mix(
         # cell of the column wore the form. What RM3 refuses is a form
         # some cells wore, counted by fewer of them than a published
         # count may name, beside another form that holds the rest.
+        if 0 < mix[key] < parsing.census_floor(floor):
+            raise _broken(
+                "RM3",
+                where,
+                f"the form '{key}' was written by {mix[key]} of the "
+                f"column's values",
+                f"a published count names at least "
+                f"{parsing.census_floor(floor)} of them",
+            )
+    return mix
+
+
+def _partial_mix(
+    mix: "dict[str, int]",
+    where: str,
+    parser_family: str,
+    parsed: int,
+    floor: int,
+    unread: int,
+) -> "dict[str, int]":
+    """A partial-date column's census of forms (landing R2c; rules LY6, LY7, RM2, RM3).
+
+    THE LAYOUT AND ITS PARTIAL FORMS AND NOTHING ELSE (LY6): every key
+    beside the layout's own name is one of `parsing.layout_truncations`
+    for it. THE LAYOUT'S OWN COUNT IS THE CELLS READ (RM2), and THE
+    PARTIAL FORMS COUNT CELLS LEFT UNREAD (LY7): a partial cell is read at
+    its own precision and at no other, so it stands inside `n_unparsed`
+    and reaches no fact of the day, the clock or the spread (the R2
+    design skeptic, M5). EACH FORM NAMED AT THE LINE (RM3): the producer
+    leaves a form on fewer cells among the stand-ins.
+    """
+    allowed = parsing.layout_truncations(parser_family)
+    for key in sorted(mix):
+        if key != parser_family and key not in allowed:
+            raise _broken(
+                "LY6",
+                where,
+                f"the forms it counts are {_listed(tuple(sorted(mix)))}",
+                f"a column written as '{parser_family}' counts its values "
+                f"under that name and its own partial forms alone",
+            )
+    if mix[parser_family] != parsed:
+        raise _broken(
+            "RM2",
+            where,
+            f"the values counted under '{parser_family}' come to "
+            f"{mix[parser_family]}",
+            f"{parsed} of the column's values were read as dates",
+        )
+    cut = _added(mix) - mix[parser_family]
+    if cut > unread:
+        raise _broken(
+            "LY7",
+            where,
+            f"its partial forms count {cut} values",
+            f"{unread} of the column's values were left unread",
+        )
+    for key in sorted(mix):
         if 0 < mix[key] < parsing.census_floor(floor):
             raise _broken(
                 "RM3",
@@ -8975,6 +9072,8 @@ def _datetime_facts(
         parser_family,
         n_present - unparsed,
         floor,
+        # -- 3b.R2c (P4-D383): what its partial forms may count.
+        unparsed,
     )
     offsets = _counts(mapping["utc_offsets"], "utc_offsets", where, 1)
     named = 0
@@ -9916,6 +10015,9 @@ def datetime_counts_reachable(column: "ColumnBlock") -> bool:
     if facts.parser_family == FORMAT_ISO_MIXED and (
         "iso-date" in facts.resolution_mix and facts.resolution_mix["iso-date"] > 0
     ):
+        return False
+    # -- 3b.R2c (P4-D383): a partial-date column's stand-ins repeat.
+    if len(facts.resolution_mix) > 1 and parsing.is_layout_name(facts.parser_family):
         return False
     if column.n_distinct != column.n_distinct_folded:
         return False
@@ -17949,6 +18051,16 @@ def _cross_checks(
                 "this table has no column of that name",
             )
     _centuries_declared(columns, settings)
+    # -- 3b.R2c (P4-D383)
+    for name in settings.forced_date_columns:
+        if name not in places:
+            raise _broken(
+                "S8",
+                "in the block of rules that produced the description",
+                f"'{name}' is named as a column of dates",
+                "this table has no column of that name",
+            )
+    _ask_first_declared(columns, settings)
     # S8c (the T1 review's item 7): THE 12-HOUR FACE WITH NO MARKER IS A
     # DECLARATION'S, and nothing else's (C6-10a). No cell says which clock
     # wrote `12:15`, so a description publishing that face without the

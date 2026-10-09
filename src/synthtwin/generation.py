@@ -21638,7 +21638,13 @@ def _datetime_content(
     notes = notes + clock_field_notes
     notes = notes + heavy_notes
     used: dict[str, int] = {cell: 1 for cell in cells}
-    for step in range(facts.n_unparsed):
+    # -- 3b.R2c (P4-D383): THE PARTIAL FORMS FIRST (G7.5's partial dates),
+    # each cell at its own precision; the stand-ins follow.
+    partial = _partial_cells(facts, cells[0:parsed])
+    for cell in partial:
+        used[cell] = 1
+    cells += partial
+    for step in range(facts.n_unparsed - len(partial)):
         cells += [_take(_text_spelling(step + 1, used, holes), used)]
     # WHAT THE TWIN'S CELLS WEAR, AND NOT THE NAMED OFFSETS ALONE (the
     # dates pass of the stage-3 review, item 8). This deviation answers
@@ -21668,6 +21674,88 @@ def _datetime_content(
             )
         ]
     return cells, notes
+
+
+# -- 3b.R2c (P4-D383) -------------------------------------------------------
+
+
+def _partial_forms(facts: contract.DatetimeFacts) -> "list[tuple[str, int]]":
+    """A layout column's partial forms with their counts, in the order of their names."""
+    family = facts.parser_family
+    if not parsing.is_layout_name(family):
+        return []
+    forms: "list[tuple[str, int]]" = []
+    for key in sorted(facts.resolution_mix):
+        if key != family and facts.resolution_mix[key] > 0:
+            forms += [(key, facts.resolution_mix[key])]
+    return forms
+
+
+def _partial_numbers(facts: contract.DatetimeFacts) -> int:
+    """How many of a column's partial cells are runs of figures a reader of numbers takes."""
+    count = 0
+    for key, rows in _partial_forms(facts):
+        if parsing.layout_partial_writes_numbers(key):
+            count = count + rows
+    return count
+
+
+def _partial_cells(
+    facts: contract.DatetimeFacts, written: "list[str]"
+) -> "list[str]":
+    """The cells a partial-date column writes at its partial forms (method G7.5).
+
+    EACH PARTIAL CELL IS A FULL RANK WRITTEN SHORT (landing R2c; the R2
+    design, section 4). The k-th of the n partial cells takes the full
+    rank at k times the count of full ranks over n -- evenly spaced over
+    the ranks in their order, so the partial cells spread as the full ones
+    do -- reads that rank's written cell back under the layout, and writes
+    its instant under the partial form whose share is furthest behind its
+    count (the lowest form on a tie), so each form takes exactly its
+    published count and the forms are interleaved over the ranks. A rank
+    whose cell does not read back hands its turn to the next that does.
+    No word is drawn. Where no full rank reads back, there are none: the
+    stand-ins take every unread cell, as they did before this landing.
+
+    Guarantees: accepts the datetime facts and the full ranks' cells as
+    written; returns the partial cells, as many as the forms count. A
+    function of the two. No I/O of any kind.
+    """
+    forms = _partial_forms(facts)
+    items = parsing.layout_items(facts.parser_family)
+    if not forms or not written or items is None:
+        return []
+    shapes: "list[tuple[tuple[str, str], ...]]" = []
+    for key, _rows in forms:
+        shape = parsing.partial_items(key)
+        if shape is None:
+            return []
+        shapes += [shape]
+    total = 0
+    for _key, rows in forms:
+        total = total + rows
+    given = [0 for _form in forms]
+    cells: "list[str]" = []
+    for turn in range(total):
+        best = 0
+        lag = -1
+        for place in range(len(forms)):
+            behind = forms[place][1] * (turn + 1) - given[place] * total
+            if place == 0 or behind > lag:
+                best = place
+                lag = behind
+        given[best] = given[best] + 1
+        rank = (turn * len(written)) // total
+        moment = ""
+        for step in range(len(written)):
+            read = parsing.layout_reading(written[(rank + step) % len(written)], items)
+            if read is not None:
+                moment = read[0]
+                break
+        if not moment:
+            return []
+        cells += [parsing.layout_partial_cell(shapes[best], moment)]
+    return cells
 
 
 def _interior_cell(
@@ -22571,7 +22659,8 @@ def _offsets_owed_by_the_classes(
     for cell in cells:
         if parsing.classify_number(cell) != parsing.NUMBER:
             worn = worn + 1
-    debt = column.n_not_numeric - worn - facts.n_unparsed
+    # -- 3b.R2c (P4-D383): a partial form of figure runs is a number too.
+    debt = column.n_not_numeric - worn - (facts.n_unparsed - _partial_numbers(facts))
     if not on_offer or debt <= 0:
         return cells
     copies: "dict[str, int]" = {}

@@ -837,6 +837,19 @@ TWENTY_FIFTH_BRANCH_CASES = (
     "layout_utc_word",
     "layout_weekday_long_date",
 )
+# -- 3b.R2c (P4-D383): partial dates and an ask-first layout, in the same
+# file, added beside the date half's cases.
+TWENTY_FIFTH_BRANCH_CASES = tuple(
+    sorted(
+        TWENTY_FIFTH_BRANCH_CASES
+        + (
+            "layout_ordinal_declared",
+            "layout_partial_fhir",
+            "layout_partial_hl7",
+            "layout_partial_markers",
+        )
+    )
+)
 
 ALL_CASES = tuple(
     sorted(
@@ -888,6 +901,12 @@ SEEDS = {
     # ...and the verification of that repair, step 5's aim and look ahead
     # (open item 1), at the next seed no lane of the wave has taken.
     "layout_offsets_owed_across_offsets": 438,
+    # Landing R2c's partial dates and ask-first layout, at seeds no lane of
+    # the wave has taken (plan P4-D383).
+    "layout_partial_fhir": 501,
+    "layout_partial_markers": 502,
+    "layout_partial_hl7": 503,
+    "layout_ordinal_declared": 504,
     # Landing T1's written clocks take the next seeds after the highest in
     # use below 34041 (plan P4-D370).
     "stamp_unpadded_hour": 416,
@@ -1105,6 +1124,9 @@ DECLARED_DECIMAL_COMMAS = frozenset({"grouped_decimal_comma", "spaced_decimal_co
 # person's own (landing R2a, question Q5), which the contract's invariant
 # S8e binds to settings.century_windows.
 DECLARED_CENTURIES = {"layout_century_window": 1930}
+# -- 3b.R2c (P4-D383): the case read under an ask-first layout, which the
+# contract's invariant S8f binds to settings.forced_date_columns.
+DECLARED_DATES = frozenset({"layout_ordinal_declared"})
 
 DECLARED_IDENTIFIERS = frozenset(
     {
@@ -1180,8 +1202,12 @@ def _relationships() -> dict:
 
 
 def _settings(
-    declared: list, commas: "list | None" = None, centuries: "list | None" = None
+    declared: list,
+    commas: "list | None" = None,
+    centuries: "list | None" = None,
+    dates: "list | None" = None,
 ) -> dict:
+    dates = [] if dates is None else dates
     return {
         "small_cell_floor": 11,
         "identifier_uniqueness": 0.95,
@@ -1244,7 +1270,7 @@ def _settings(
         # description until the landing that fills each; landing R2a fills
         # the first, for its one case read in a century of its own.
         "century_windows": [] if centuries is None else centuries,
-        "forced_date_columns": [],
+        "forced_date_columns": dates,
         "forced_date_counts": [],
     }
 
@@ -1285,7 +1311,10 @@ def _profile_document(case: dict, name: str) -> dict:
         "profile_version": 6,
         "publication_notes": [],
         "relationships": _relationships(),
-        "settings": _settings(declared, commas, centuries),
+        "settings": _settings(
+            declared, commas, centuries,
+            [column["name"]] if name in DECLARED_DATES else None,
+        ),
         "source": {
             "dialect": dialect.document_of(
                 dialect.ordinary(1, len(case["cells"]), False)
@@ -3522,7 +3551,46 @@ def _least_end_without_slack(mean: float, root: float, edge: int) -> int:
     return min(max(math.ceil(((root * root) - mean) / (mean - 1.0)), 0), edge)
 
 
+def _partial_forms_in_blocks(forms, given, turn, total):
+    """G7.5's interleaving withdrawn: each partial form written after the one before it."""
+    reached = 0
+    for place, (_key, rows) in enumerate(forms):
+        reached += rows
+        if turn < reached:
+            return place
+    return len(forms) - 1
+
+
 CASE_MUTANTS = {
+    # LANDING R2c'S PARTIAL DATES AND ASK-FIRST LAYOUT (plan P4-D383).
+    "layout_partial_fhir": Mutant(
+        branch="G7.5's partial cells, each a full rank written short; the "
+        "mutant withdraws them, so every partial cell is a text stand-in",
+        attribute="partial_cells",
+        replacement=lambda column, written: [],
+        outcome=CHANGES_THE_CELLS,
+    ),
+    "layout_partial_markers": Mutant(
+        branch="G7.5's partial forms interleaved, each written where it falls "
+        "furthest behind its share; the mutant writes them one after another",
+        attribute="partial_form_of",
+        replacement=_partial_forms_in_blocks,
+        outcome=CHANGES_THE_CELLS,
+    ),
+    "layout_partial_hl7": Mutant(
+        branch="G7.5's partial cells spread evenly over the full ranks; the "
+        "mutant takes the first ranks",
+        attribute="partial_rank",
+        replacement=lambda turn, ranks, total: turn % ranks,
+        outcome=CHANGES_THE_CELLS,
+    ),
+    "layout_ordinal_declared": Mutant(
+        branch="G7.5's day of the year in three figures; the mutant writes the "
+        "month and the day in its place",
+        attribute="layout_written",
+        replacement=_layout_rewritten("{DDD}", "{MM}{DD}"),
+        outcome=CHANGES_THE_CELLS,
+    ),
     # LANDING R2a'S LAYOUT MEMBER (plan P4-D383), each case's own rule.
     "layout_sas_date9": Mutant(
         branch="G7.5's layout writer, every field of the layout written; the "
