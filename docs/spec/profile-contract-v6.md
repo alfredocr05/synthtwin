@@ -4395,8 +4395,8 @@ spread over the day most of them on a few rows, are not. Where the
 12-hour question or the colon question a clock in one figure raises
 fits the same column, that one question is asked and offers `code` too
 (the review, item 2). AND A CLOCK PASS KEEPS A CLOCK COLUMN A CLOCK
-COLUMN (the level pass's own routes until plan P4-D390 deleted that
-pass, a pass of their own since, gated as it was): where the levels
+COLUMN (the level pass's own route until plan P4-D390 deleted that
+pass, a pass of its own since, gated as it was): where the levels
 below the floor no spelling of which a
 clock reader takes hold at most one present cell in fifty, and the
 column without exactly those cells reads as clock times, only those are
@@ -4406,26 +4406,19 @@ labels whose twin reads back as clock times. It is asked of every first
 reading as labels or free text, not only where a level is counted out
 (the repair round of landing 3b.5): a column of `7:30 AM` beside 0.6 %
 `UNK` and 0.3 % `99:99` was free text at 300 and 1,000 rows at a floor
-of 36, and is clock times. AND WHERE A COLUMN FIRST READ AS LABELS
-HOLDS LEVELS BELOW THE FLOOR BESIDE CELLS THAT ARE A CLOCK'S, the pass
-counts out only the levels below the floor no spelling of which that
-clock's form reads -- words, and times of another precision or face --
-while they cover fewer than half the rows of the levels the column
-publishes, and every rule reads the column again, the rare times of the
-form kept in (its second repair round, asked of every level below the
-floor since plan P4-D390): held to the labels with those cells blank, a
-twin read back as clock times and validation MISSED its role on 32 of 48
-columns of appointment times beside 2.2 to 10 % one-off notes and 23 of
-64 beside a minority of `HH:MM:SS` or `h:mm AM`; read as labels with
-nothing counted out, 13 of those 112 twins miss the census count of the
-`HH:MM` form their table meets; and none now. A column whose odd cells
-are half of what it publishes or more is a mixture and stays labels: a
-column of 1,000 times half at the minute and half at the second keeps its
-480 times at the second below the floor, which the route unguarded counted
-out. Either
-route stands only where every rule then reads the column as clock times;
-where what it leaves is one time on every row but one, nothing is counted
-out (plan P4-D390).
+of 36, and is clock times. PAST THOSE FEW, NOTHING IS COUNTED OUT (the
+route-2 correction, plans P4-D390 and P4-D373): times beside one-off
+notes past one cell in fifty, or beside a minority of `HH:MM:SS` or
+`h:mm AM`, are labels, their levels below the floor pooled like any
+other. The second repair round of landing 3b.5 counted out the levels
+below the floor no clock form reads and read what was left as clock
+times, so its twin wrote a blank wherever the table held a note or a
+time on another face or at another precision: 37,632 cells of lane C1's
+112 such columns, beside 2.2 to 10 % notes and 2 to 20 % of the other
+face or precision. Read as labels, those twins write no such blank and
+miss no check the route's twins met. The route stands only where every
+rule then reads the column as clock times; where what it leaves is one
+time on every row but one, nothing is counted out (plan P4-D390).
 
 **Why rules 9 through 12 sit after `categorical`.** They are tested
 last before the fallback, so they claim only columns every earlier rule
@@ -11646,7 +11639,25 @@ where any other form's stops at 4,096 spellings. Measured before: a
 free-text `time(7)` column of 1,000 different times wrote 856 twin cells
 that are no time of day, `44:40:00.0023504` the first, and a long tail of
 100,000 rows 40,204, missing its census of forms; after, none (method
-G8.3).
+G8.3). Since the repair round of the route-2 correction (plans P4-D390
+and P4-D373), a held-back label of a column of labels takes no other
+spelling of a clock's form past its clock supply: it is the neutral
+spelling, a clock's form takes no more labels than it has times left, and
+a form short of spellings is settled first, so below the clock line every
+held-back label written in a clock's form is a time -- but where the
+form is past its times. Measured before: times beside 3 % one-off notes
+at 100,000 rows wrote 4,822 twin cells such as `44:89`, and 200,134 over
+47 such tables; after, none (method G8.3). A CLOCK'S FORM PAST ITS TIMES
+(the correction's leftover) is one handed more held-back labels than the
+times it can still write: each held-back label is a different spelling
+below the floor, so the table held that form's spellings no clock reads
+-- durations written in a clock's form, such as `26:07` -- and the
+labels past its times take a duration's spellings, hours 24 to 59 and
+then 60 to 99 with every minute and second below 60 where the form has a
+two-figure hour and no marker or fraction, and the form's other spellings
+figure by figure past them. Measured before: 18 of 50 duration tables
+wrote up to 42,967 cells `group-N` and missed their count of `%%:%%`;
+after, none (method G8.3).
 
 **AND ONLY BELOW THE CLOCK LINE** (the repair round of landing 3b.5;
 generation method G8.3). The twin of a column of labels is described
@@ -11671,6 +11682,14 @@ its own form, never a rare word. Measured before: a label twin of 10,000
 rows half `HH:MM` and half `HH:MM:SS` wrote 204 made-up times a clock
 reader refuses, one of 100,000 rows beside 5 % `HH:MM:SS` wrote 2,003,
 and a free-text twin of 1,000 rows beside 5 % wrote 32; after, none.
+ONLY WHERE A CENSUS FORM IS OWED (the repair round of the route-2
+correction): past the line a stand-in the census owes a clock's form is
+filled figure by figure, so the form's count is met, and one owed no form
+is the neutral spelling, as is one wearing the published labels' shape
+where it would spend the room the owed stand-ins after it need -- so the
+only cells a label twin writes in a clock's form that no clock reads are
+the owed ones past the line, and the labels of a form past its times
+(above), whose table held such spellings itself.
 
 **A FREE-TEXT GROUP MAY TAKE A FORM OF ANY ADMITTED LENGTH, AND MUST
 BE ABLE TO.** A form fixes a length, so which lengths a group may be

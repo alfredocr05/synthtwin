@@ -9166,6 +9166,74 @@ of 100,000 rows holding back 5,863 times wrote 40,204, missing its own
 census of forms; after, none, and over 169 columns of the reach battery
 and nine columns beside these forms no other twin moves by a byte.
 
+*And by the repair round of the route-2 correction* (plans P4-D390 and
+P4-D373, 2026-10-09): **A HELD-BACK LABEL WRITTEN IN A CLOCK'S FORM IS A
+TIME.** With the route that counted out notes and other faces dropped,
+times beside one-off notes or a minority on another face or precision
+are labels, and their twins wrote clock times no clock reads where the
+table holds none -- `44:89`, `9:75` -- so code keeping a real column's
+cells shaped like a time and parsing them stopped on the twin. Four rules:
+(1) the held-back labels' walk of EVERY clock's form, and the supply this
+section counts for settling it, ends with its clock supply, not only a
+form written to a fraction, and a label the form has no time left for is
+`group-N` (free text's walk, G9.5, is as it was) -- EXCEPT A CLOCK'S
+FORM PAST ITS TIMES, one step 3's rounds leave more labels than the times
+it can still write, whose places past its times take a duration's
+spellings (the correction's leftover, below); (2) a clock's form
+takes no more labels than the times it can still write (step 3 below);
+(3) a form short of spellings is served first (the one-pass rule below);
+and (4) past the clock line only a stand-in a census form is owed is
+filled figure by figure -- one owed no named form wears the published
+labels' shape (G8.3b) only where its size is no more than the room left
+less the cells of the held keys' owed stand-ins still to come, and is
+`group-N` otherwise, since filled figure by figure it met no count and,
+spending the room first, it left the owed stand-ins after it to be filled
+so. Measured before, on the correction's own head: 63 such cells in 4 of
+lane C1's 112 columns and 200,134 in 47 of the correction's skeptic's
+tables -- 4,822 beside 3 % notes at 100,000 rows and a floor of 36, the
+`HH:MM` form handed up to a label per cell and taking 3,567 with 1,394
+times left to write; 169 in `H:MM`, Excel's one-figure hour, beside 10 %
+notes at 10,000 rows, the census naming `%%:%%` alone and the published
+labels' shape `%:%%` running past its 600 times; 148 beside 15 %
+`HH:MM:SS` at 30,000 rows; and 320 in `H:MM` beside 3 % notes at 30,000
+rows, 610 once the shape stopped at its times but its notes spent the
+room first. After, on those 47 tables 1,096 over 5, and the 112's 63
+stay: the clock line's own price, a stand-in a census form is owed
+filled figure by figure past it, beside a minority of at most one cell in
+fifty that wears no form.
+
+*And by the correction's leftover* (2026-10-09, its skeptic 2): **A
+CLOCK'S FORM PAST ITS TIMES WRITES A DURATION'S SPELLINGS.** Rule (1)
+stopped a form at its times by the form's shape alone, and a duration
+written in a clock's form -- minutes and seconds over the hour, an
+emergency stay past a day -- holds that form's spellings no clock reads,
+`26:07` and `45:12`, as its own values. Every held-back label is a
+different spelling below the floor and none a published one, so where a
+clock's form needs more labels than it has times left -- its fewest,
+its debt over one less than the floor, or what the round keeping the
+label count hands it -- the table itself held such spellings of it.
+Stopped at its times, the rest were `group-N`: on 18 of the skeptic's 50
+duration tables the twin missed the count of `%%:%%` it met before the
+repair round -- 755 cells `group-N` of minutes and seconds from 2 to 40
+minutes at 10,000 rows and a floor of eleven, 705 of a stay to 72 hours
+at 30,000 rows and a floor of 36, and 42,967 of 100,000 over the whole
+hour -- and code reading every cell as a duration, split on the colon and
+each field a whole number, stopped on it where it runs on the real table.
+So step 3's rounds report each word debt's labels, and a clock's form
+they leave more labels than its usable times (the bound step 3 reads) is
+PAST ITS TIMES. For such a form only: the arrangement below counts its
+supply over its whole room, as before the repair round; its largest
+places, as many as it has usable times, take times; and its other places,
+the smallest, the earlier on a tie, take spellings no clock reads on a
+cursor of their own, a duration's first -- on a form of a two-figure hour
+with no marker and no fraction, the hours 24 to 59 with every minute and
+second below 60, then the hours 60 to 99 likewise, each block stepped
+around its own room, and past both, as on any other clock's form, the
+form filled figure by figure, every spelling a clock reader takes stepped
+past. Filled figure by figure from the first, those two twins wrote 349
+and 324 fields of 60 or more, `29:93`, which neither a clock nor a
+duration reader takes. Every other clock's form is as rule (1) states.
+
 `suppressed_levels` says how many levels were withheld and
 `suppressed_rows` how many rows they covered together. No size of any
 one of them is published (owner ruling of 2026-09-17, item 2, option A;
@@ -9183,11 +9251,16 @@ With `cap` one less than the floor:
    up. Where the debts do not come to `suppressed_rows`, or need more
    labels than `suppressed_levels`, the pool is one word debt.
 3. **The labels left over** go one at a time to the debt whose labels
-   are then the largest on average, the earlier debt on a tie, in four
+   are then the largest on average, the earlier debt on a tie, in five
    rounds: a number debt while its average exceeds `(cap + 2) / 3`, the
    average of the sizes step 4 writes; then the debt of each census form
-   reading as no number, up to one label per cell; then the cells left
-   over, likewise; then any debt, one label per cell at most. A form's
+   reading as no number, up to one label per cell -- a clock's form up to
+   the times it can still write, counted to its debt as the walk counts
+   its supply, where those are fewer, and never below its fewest labels
+   (the repair round of the route-2 correction); then the cells left
+   over, likewise; then any debt, one label per cell at most and a
+   clock's form its times at most; then any debt, one label per cell at
+   most, which hands out only what the clock's bound left over. A form's
    debt comes before the cells owing no form because a column holding
    more held-back labels than the form walk searches is settled by its
    one-pass rule, which overshoots a debt it cannot finish in single
@@ -9214,6 +9287,42 @@ settled by an exact subset of them, read off the reachable sums rather
 than hunted for; a size no debt needs is left NEUTRAL. Where no
 arrangement settles every debt exactly, the largest debt is taken
 first and the report names what went unmet.
+
+**That one-pass rule gives no form more than it still owes where that
+settles every debt** (the route-2 correction, plans P4-D390 and
+P4-D373). It is also how a column holding more held-back labels than
+the search walks is settled (step 3 above). The sizes are taken largest
+first, each by the form owing the most cells among those whose supply
+can still spell a label, and a size that form owes fewer cells than is
+left NEUTRAL, so the smaller sizes after it -- step 4 writes each
+debt's labels rising from one row -- finish the debt exactly; that
+arrangement stands where it settles every debt. Anywhere else the pass
+is taken again giving each size to the form owing the most however
+little it owes, so no debt is left short where it was covered: a census
+form is met at its published count and up to its pool above it, never
+below. Where that second pass settles every debt, the first is the same
+arrangement. Taken alone, the second pass gave a form owing one cell a
+label of two rows: times beside 10 % on the 12-hour face at 3,000 rows
+and a floor of 36 held 326 labels back and owed the `HH:MM` form 662
+cells; the eight labels of 35 rows the cells on the 12-hour face were
+owed went to that form first, it was given 663, and the twin wrote
+2,719 cells of it for the published 2,718 and missed the count, as did
+three more such tables at the floor of 36 and nine of 30,000 rows
+beside one-off notes (29,143 for 29,142 beside 3 %).
+
+**And before either pass, a form short of spellings is served first**
+(the repair round of the route-2 correction). Where a form's supply is
+smaller than the places it could be asked for -- the held-back labels,
+or the cells it owes where those are fewer -- such forms are served in
+the order of their spelling, each taking every size still neutral,
+largest first, that is no larger than what it still owes, while it can
+still spell a label; every other size then goes as the first pass gives
+it, and that arrangement stands where it settles every debt. Anywhere
+else the two passes above stand. A clock's form is such a form wherever
+its debt outruns its times, and served in its turn it ran out: times
+beside 15 % `HH:MM:SS` at 30,000 rows and a floor of eleven owed the
+second form the larger debt, the largest labels went to it, and `HH:MM`
+was left 37 cells short of its published count on the small ones.
 
 Ascending order and neediest-form-first were what this said, and they
 do not reach an arrangement the source itself exhibits: twelve levels
@@ -9370,7 +9479,11 @@ both files passing.
 5. **The walk.** Each covered place takes the shape's next spelling
    under the same cursor, collision skips and neutrality tests a named
    form's walk uses; a place past the supply, or one whose shape is
-   spent, takes `group-N`.
+   spent, takes `group-N`. So does a covered place of a clock's shape
+   whose key G8.3's clock line holds where its size is more than the room
+   left less the cells of the owed stand-ins still to come, or once those
+   are filled figure by figure (the repair round of the route-2
+   correction, G8.3).
 
 **WHY THE LARGEST PLACES.** The published labels are the column's
 commonest values, so the held-back values most like them are the most

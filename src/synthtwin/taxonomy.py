@@ -9682,7 +9682,7 @@ def _a_level_is_below_the_floor(cells: _Cells) -> bool:
     could only write as made-up text. At a floor of one there can be no
     such level, so the answer there is always no. It is also the cheap
     gate in front of `_read_the_column`'s clock pass (plan P4-D373),
-    whose two routes count out only levels below the floor.
+    whose route counts out only levels below the floor.
 
     Guarantees: accepts the tally; returns a bool. Determinism: a fixed
     function of the tally and its settings. Raises nothing. No I/O.
@@ -18789,95 +18789,6 @@ def _rare_beside_clocks(
     return tuple(sorted(rare))
 
 
-def _levels_beside_clock_times(
-    cells: _Cells,
-    classified: "list[_Cell]",
-    counted_out: "tuple[str, ...]",
-    n_rows: int,
-    settings: Settings,
-    decimal_comma: bool,
-) -> "tuple[str, ...] | None":
-    """What the clock pass counts out of a column whose other cells are a clock's.
-
-    The second repair round of landing 3b.5 (plan P4-D373), asked since
-    plan P4-D390 over ``counted_out``, the levels below the floor, where it
-    was asked over what the level pass that plan deleted counted out. A
-    column of times beside more words or notes than `_rare_beside_clocks`
-    takes, or beside a minority of `HH:MM:SS` or `h:mm AM`, is read as
-    labels by its first reading; where its other cells read as clock times
-    (`_clock_reading`), such a column is clock times. The answer is the
-    levels of ``counted_out`` no spelling of which that clock's own form
-    reads (`parsing.clock_ordinal`) -- the words, and the times of another
-    precision or face; the rare times of the form stay in, which is what
-    the checker reads the table's cells as. None where the cells left read
-    as no clock, or where every level counted out is a time of the form.
-    The caller counts out only the levels answered and keeps the answer
-    only where every rule then reads the column as clock times
-    (`_read_as_clock_times`).
-
-    MEASURED AGAINST DROPPING IT (the merge of lane G4, 2026-10-08, plan
-    P4-D390): over lane C1's 112 columns of times beside one-off notes
-    (2.2 to 10 %) and beside a minority of another face or precision (2 to
-    20 %), read as labels without it, 13 twins missed the census count of
-    the `HH:MM` form their table meets, and none with it.
-
-    NEVER HALF OF WHAT THE COLUMN PUBLISHES OR MORE: where the cells it
-    would count out are at least half the rows of the levels the column
-    publishes, the column is a mixture rather than clock times beside a few
-    odd cells, and the answer is None. Asked of every level below the floor
-    without it, lane C1's column of 1,000 times half at the minute and half
-    at the second (`half_seconds`, at the floor of eleven) counted out its
-    480 times at the second as blanks the source never had.
-
-    THE CELLS LEFT ARE COUNTED FIRST, spelling by spelling: a column whose
-    cells left do not reach the clock line in any form is answered without
-    a tally.
-
-    Guarantees: a function of the arguments, in sorted order. Raises
-    nothing. No I/O of any kind.
-    """
-    gone: "dict[str, bool]" = {}
-    held = 0
-    for label in counted_out:
-        gone[label] = True
-        held = held + cells.folded_counts[label]
-    left_cells = len(cells.present) - held
-    if left_cells <= 0:
-        return None
-    reached = 0
-    for folded in cells.spellings_by_folded:
-        if folded in gone:
-            continue
-        spellings = cells.spellings_by_folded[folded]
-        for spelling in spellings:
-            if parsing.clock_parts(spelling) is not None:
-                reached = reached + spellings[spelling]
-    if reached < clock_line(settings.minimum_parse_rate, left_cells):
-        return None
-    left = _tally(
-        [cell for cell in classified if cell.folded not in gone],
-        n_rows,
-        settings,
-        decimal_comma,
-    )
-    clock = _clock_reading(left)
-    if clock is None:
-        return None
-    narrowed: "list[str]" = []
-    odd = 0
-    for label in counted_out:
-        spellings = cells.spellings_by_folded[label]
-        if not any(
-            parsing.clock_ordinal(spelling, clock.form) is not None
-            for spelling in spellings
-        ):
-            narrowed += [label]
-            odd = odd + cells.folded_counts[label]
-    if not narrowed or 2 * odd >= left_cells:
-        return None
-    return tuple(sorted(narrowed))
-
-
 def _read_as_clock_times(
     left: _Cells,
     removed: int,
@@ -18889,18 +18800,18 @@ def _read_as_clock_times(
 ) -> bool:
     """Whether every rule reads what a clock route leaves as clock times.
 
-    The clock pass takes two routes to a column of clock times (plan
+    The clock pass takes one route to a column of clock times (plan
     P4-D373; the level pass's until plan P4-D390 deleted it): the rare
-    words beside clock times (`_rare_beside_clocks`) and, since the second
-    repair round of landing 3b.5, the levels below the floor no spelling
-    of which the clock's form reads (`_levels_beside_clock_times`). Each
-    counts out cells no clock reads and has every rule read the column
-    again, and the rare TIMES it leaves in are a clock column's values --
-    but only where the column is read as clock times. Read as anything
-    else, the cells counted out were a column of labels' values, and no
-    pass takes a label out for its value (P4-D390): 290 `07:00` and one
-    `19:00` left by four `UNK` counted out are a `binary` column, so the
-    route does not stand and all 295 cells are kept. So a
+    words beside clock times (`_rare_beside_clocks`). A second, the levels
+    below the floor no spelling of which the clock's form reads, was
+    dropped by the route-2 correction (plans P4-D390 and P4-D373,
+    2026-10-08). The route counts out cells no clock reads and has every
+    rule read the column again, and the rare TIMES it leaves in are a clock
+    column's values -- but only where the column is read as clock times.
+    Read as anything else, the cells counted out were a column of labels'
+    values, and no pass takes a label out for its value (P4-D390): 290
+    `07:00` and one `19:00` left by four `UNK` counted out are a `binary`
+    column, so the route does not stand and all 295 cells are kept. So the
     route stands only where this answers True, asked as `profile_column`
     asks it, which then finds the verdict kept on the tally (`_decision`).
 
@@ -23236,22 +23147,24 @@ def _read_the_column(
     # every other one, and the three passes above are the only ones that
     # take cells out, each for standing for "no value".
     #
-    # ...SAVE THE CELLS BESIDE A COLUMN OF CLOCK TIMES THAT NO CLOCK READS
-    # (landing 3b.5, plan P4-D373; a pass of its own since P4-D390, gated
-    # as the level pass was). A column of clock times beside a few rare
-    # words is a column of clock times: where what the floor would not
-    # name holds spellings no clock reader takes, and the column without
-    # exactly those reads as clock times, only those are counted out and
-    # the column is read again by every rule -- the times left were times
-    # all along, as the numbers beside labels below were numbers. Without
-    # it, 296 shift starts beside four `UNK` at a floor of eleven were
-    # labels whose twin read back as clock times. ASKED OF EVERY READING
-    # AS LABELS OR FREE TEXT (`_rare_beside_clocks`), and, where those
-    # words are past its few, OF EVERY READING AS LABELS over the levels
-    # below the floor (`_levels_beside_clock_times`): the levels no
-    # spelling of which the clock's own form reads -- the words, and the
-    # times of another precision or face -- while the rare times of the
-    # form stay in.
+    # ...SAVE A FEW RARE WORDS BESIDE A COLUMN OF CLOCK TIMES (landing
+    # 3b.5, plan P4-D373; a pass of its own since P4-D390, gated as the
+    # level pass was). A column of clock times beside a few rare words is
+    # a column of clock times: where what the floor would not name holds
+    # spellings no clock reader takes, at most one present cell in fifty,
+    # and the column without exactly those reads as clock times, only
+    # those are counted out and the column is read again by every rule --
+    # the times left were times all along, as the numbers beside labels
+    # below were numbers. Without it, 296 shift starts beside four `UNK`
+    # at a floor of eleven were labels whose twin read back as clock
+    # times. ASKED OF EVERY READING AS LABELS OR FREE TEXT
+    # (`_rare_beside_clocks`). PAST THOSE FEW NOTHING IS COUNTED OUT (the
+    # route-2 correction, plans P4-D390 and P4-D373, 2026-10-08): times
+    # beside one-off notes, or beside a minority on another face or at
+    # another precision, are labels, their held-back levels pooled like
+    # any other. A second route counted those levels out and read the rest
+    # as clock times; on lane C1's 112 such columns it wrote 37,632 cells
+    # blank where the source holds a note or another face's time.
     if (
         present
         and not forced_identifier
@@ -23274,25 +23187,13 @@ def _read_the_column(
             counted_out = _rare_beside_clocks(
                 cells, classified, n_rows, settings, forced_decimal_comma
             )
-        if not counted_out and trial.role in _LEVEL_ROLES:
-            floor = settings.small_cell_floor
-            below: "list[str]" = []
-            for label in sorted(cells.folded_counts):
-                if cells.folded_counts[label] < floor:
-                    below += [label]
-            clocked = _levels_beside_clock_times(
-                cells, classified, tuple(below), n_rows, settings,
-                forced_decimal_comma,
-            )
-            if clocked is not None:
-                counted_out = clocked
         if counted_out:
             level_kept, absent = _levels_counted_out(classified, counted_out)
             counted = _tally(
                 level_kept, n_rows, settings, forced_decimal_comma
             )
-            # ...AND EITHER ROUTE STANDS ONLY WHERE THE COLUMN IT LEAVES IS
-            # CLOCK TIMES (`_read_as_clock_times`). Anywhere else nothing is
+            # ...AND IT STANDS ONLY WHERE THE COLUMN IT LEAVES IS CLOCK
+            # TIMES (`_read_as_clock_times`). Anywhere else nothing is
             # counted out: the cells were a column of labels' values, and
             # no pass takes a label out for its value.
             if _read_as_clock_times(

@@ -7131,6 +7131,19 @@ def usable_stand_in(candidate):
         return False
     if folded(candidate) in NO_VALUE_SPELLINGS:
         return False
+    # THE NEUTRAL SPELLING ITSELF, `group-N`, IS NEITHER A NUMBER NOR A DATE
+    # (method G8.3): a word, a hyphen and a count of made-up labels, which no
+    # number or date grammar reads, carrying no fragment of any value.  No
+    # frozen case wrote one; since the repair round of the route-2
+    # correction a held-back label of a clock's form the form has no time
+    # left for is written in it, so this file states it rather than
+    # refusing the figures it carries.
+    if (
+        candidate.startswith("group-")
+        and candidate[6:].isdigit()
+        and candidate[6:7] != "0"
+    ):
+        return True
     # A CLOCK TIME IS NEITHER A NUMBER NOR A DATE (plan P4-D373): the
     # clock supply of G8.3 writes figures, and a clock this file reads
     # (`clock_reads`) reads back as no number and no date, so the bound
@@ -7337,6 +7350,66 @@ def fraction_clock_supply(form):
     if shape is None or not shape[2]:
         return 0
     return shape[7] * 10 ** shape[2]
+
+
+def clock_supply(form):
+    """How many times of day any form a clock time can wear writes, at
+    every fraction its figures hold, or 0 for any other form -- method
+    section G8.3 (the repair round of the route-2 correction, plans
+    P4-D390 and P4-D373).  The held-back labels' walk of a clock's form
+    ends with these times, and so does the supply counted for settling
+    it: a label the form has no time left for is ``group-N``.
+    """
+    shape = clock_shape(form)
+    if shape is None:
+        return 0
+    return shape[7] * 10 ** shape[2]
+
+
+def past_the_clock(form, step):
+    """One spelling of a clock's form past its times -- method section
+    G8.3 (the leftover of the route-2 correction, plans P4-D390 and
+    P4-D373).  A duration reader's first: on a form of a two-figure hour
+    with no marker and no fraction, the hours 24 to 59 with every minute
+    (and second) below 60, then the hours 60 to 99 likewise, each block
+    taken round by `stepped_around`; past both, and on any other clock's
+    form from the first step, the form filled figure by figure.
+    """
+    shape = clock_shape(form)
+    if shape is not None and shape[0] == 2 and shape[3] is None and not shape[2]:
+        per_hour = 3600 if shape[1] else 60
+        for first, last in ((24, 59), (60, 99)):
+            hours = last - first + 1
+            if step < hours * per_hour:
+                place = stepped_around(step, hours * per_hour)
+                text = "%02d:%02d" % (first + place % hours, place // hours % 60)
+                if shape[1]:
+                    text += ":%02d" % (place // hours // 60 % 60)
+                return text
+            step -= hours * per_hour
+    return filled_form(form, step, False)
+
+
+def clock_forms_past_their_times(owing, counts, most):
+    """{form: the times it can still write} for each clock's form past its
+    times -- method section G8.3 (the leftover of the route-2 correction).
+    ``counts`` and ``most`` hold, for each text form's debt in the order of
+    the words `held_back_sizes` reads, the labels its rounds left it and
+    the times it can still write; a clock's form left more labels than
+    times is past them, since every held-back label is a different
+    spelling and the table held that form's values no clock reads.
+    """
+    text_forms = [
+        form for form in sorted(owing)
+        if owing[form] > 0 and form_reading(form) == NOTATION_TEXT
+    ]
+    return {
+        form: most[index]
+        for index, form in enumerate(text_forms)
+        if clock_supply(form)
+        and index < len(counts) and index < len(most)
+        and counts[index] > most[index]
+    }
 
 
 def form_walk_bounds(form, figured=False):
@@ -7578,7 +7651,7 @@ def within_the_published_ends(candidate, ladder):
     )
 
 
-def usable_room(form, wanted, seen, folds, reads=None, ladder=None):
+def usable_room(form, wanted, seen, folds, reads=None, ladder=None, whole=False):
     """How many spellings of one form a stand-in could still wear, up to
     ``wanted`` -- method section G8.3's supply rule.
 
@@ -7587,9 +7660,13 @@ def usable_room(form, wanted, seen, folds, reads=None, ladder=None):
     spelling must read as (G8.3a); None is ordinary text.  ``ladder``,
     where given, holds the count to the published ends (P4-D92), so the
     supply is counted under the bound the walk spends under.  It gives
-    the form up where the walk that spends it does (`walk_goes_on`).
+    the form up where the walk that spends it does (`walk_goes_on`), and
+    a clock's form at the end of its clock supply (`clock_supply`) -- but
+    where ``whole`` is true, a clock's form past its times, counted over
+    its whole room (`clock_forms_past_their_times`, the leftover of the
+    route-2 correction).
     """
-    supply = fraction_clock_supply(form)
+    supply = 0 if whole else clock_supply(form)
     room = supply if supply else form_room(form)
     usable = refused = 0
     step = 0
@@ -7772,44 +7849,103 @@ def given_back(left, supply, sizes, chosen, place):
     del chosen[place]
 
 
-def greedily(sizes, places, owing, seen, folds, supplied=None):
-    """G8.3's one-pass arrangement: the neediest debt that still has supply."""
+def greedily(sizes, places, owing, seen, folds, supplied=None, past=()):
+    """G8.3's one-pass arrangement: the neediest debt that still has supply.
+
+    Walked first giving no form a size larger than it still owes, and that
+    answer stands where it settles every debt exactly; anywhere else the
+    pass as it stood, every size to the neediest form however little it
+    owes (the route-2 correction, plans P4-D390 and P4-D373).
+
+    Before either, where a form's supply is short of the places it could
+    be asked for (`supply_wanted`), those forms are served first, in the
+    order of their spelling: each takes every size still neutral, largest
+    first, that is no larger than what it still owes, while it has a
+    spelling left; every other size then goes as the first walk gives it,
+    and that answer stands where it settles every debt exactly (the
+    repair round of the route-2 correction).
+    """
     every = [name for name in sorted(owing) if owing[name] > 0]
-    left = {name: owing[name] for name in every}
     spare = {
-        name: usable_room(name, supply_wanted(sizes, owing[name]), seen, folds)
+        name: usable_room(
+            name, supply_wanted(sizes, owing[name]), seen, folds,
+            whole=name in past,
+        )
         if supplied is None else supplied[name]
         for name in every
     }
-    taken = ["" for _ in sizes]
-    for place in places:
-        name = neediest_form(
-            {form: left[form] for form in sorted(left) if spare[form] > 0}
-        )
-        if not name:
-            break
-        taken[place] = name
-        left[name] = max(0, left[name] - sizes[place])
-        spare[name] -= 1
+    tight = [
+        name for name in every if spare[name] < supply_wanted(sizes, owing[name])
+    ]
+    if tight:
+        left = {name: owing[name] for name in every}
+        room = dict(spare)
+        taken = ["" for _ in sizes]
+        for name in tight:
+            for place in places:
+                if left[name] <= 0 or room[name] <= 0:
+                    break
+                if taken[place] or sizes[place] > left[name]:
+                    continue
+                taken[place] = name
+                left[name] -= sizes[place]
+                room[name] -= 1
+        for place in places:
+            if taken[place]:
+                continue
+            name = neediest_form(
+                {form: left[form] for form in sorted(left) if room[form] > 0}
+            )
+            if not name:
+                break
+            if left[name] < sizes[place]:
+                continue
+            taken[place] = name
+            left[name] -= sizes[place]
+            room[name] -= 1
+        if all(left[name] == 0 for name in every):
+            return taken
+    for whole in (True, False):
+        left = {name: owing[name] for name in every}
+        room = dict(spare)
+        taken = ["" for _ in sizes]
+        for place in places:
+            name = neediest_form(
+                {form: left[form] for form in sorted(left) if room[form] > 0}
+            )
+            if not name:
+                break
+            if whole and left[name] < sizes[place]:
+                continue
+            taken[place] = name
+            left[name] = max(0, left[name] - sizes[place])
+            room[name] -= 1
+        if not whole or all(left[name] == 0 for name in every):
+            return taken
     return taken
 
 
-def shared_out(sizes, owing, seen, folds, supplied=None):
+def shared_out(sizes, owing, seen, folds, supplied=None, past=()):
     """Which published form each held-back size is written in -- G8.3.
 
     The sizes are taken LARGEST FIRST; every debt is settled by an exact
     subset of them, the larger debt first and then the smaller first;
     where neither settles every debt, the bounded search runs, and where
-    that finds nothing the one-pass arrangement stands.
+    that finds nothing the one-pass arrangement stands.  A form of
+    ``past``, a clock's form past its times, has its supply counted over
+    its whole room (the leftover of the route-2 correction).
     """
     names = [name for name in sorted(owing) if owing[name] > 0]
     if not names:
         return ["" for _ in sizes]
     places = [pair[1] for pair in sorted((-size, place) for place, size in enumerate(sizes))]
     if len(places) > SHARE_OUT_PLACES:
-        return greedily(sizes, places, owing, seen, folds, supplied)
+        return greedily(sizes, places, owing, seen, folds, supplied, past)
     supply = {
-        name: usable_room(name, supply_wanted(sizes, owing[name]), seen, folds)
+        name: usable_room(
+            name, supply_wanted(sizes, owing[name]), seen, folds,
+            whole=name in past,
+        )
         if supplied is None else supplied[name]
         for name in names
     }
@@ -7823,12 +7959,12 @@ def shared_out(sizes, owing, seen, folds, supplied=None):
     chosen = {}
     if settles(places, sizes, left, names, chosen, [SHARE_OUT_NODES], dict(supply)):
         return [chosen.get(place, "") for place in range(len(sizes))]
-    return greedily(sizes, places, owing, seen, folds, supplied)
+    return greedily(sizes, places, owing, seen, folds, supplied, past)
 
 
 def invented_levels(
     used, sizes, census=None, written=(), placed=None, level_shape="",
-    line=None,
+    line=None, past=None,
 ):
     """The stand-in labels of method sections G8.3 and G8.3a.
 
@@ -7857,7 +7993,25 @@ def invented_levels(
     filled figure by figure, on a cursor of its own per form, and a
     spelling a clock reader takes is stepped past; each stand-in of a held
     key spends its size.
+
+    SINCE THE REPAIR ROUND OF THE ROUTE-2 CORRECTION (plans P4-D390 and
+    P4-D373) only a stand-in a census form is owed is filled figure by
+    figure.  One owed no form wears the published labels' shape only
+    where its size is no more than the room left less the cells of the
+    held key's owed stand-ins still to come, and ``group-N`` otherwise,
+    and once the owed ones are filled figure by figure; and a clock's form
+    is walked to the end of its clock supply and no further
+    (`clock_supply`).
+
+    ``past``, where given, holds each clock's form past its times and the
+    times it can still write (`clock_forms_past_their_times`, the leftover
+    of the correction): its supply is counted over its whole room when the
+    sizes are shared out, its largest places as many as those times take
+    times, and its other places -- the smallest, the earlier on a tie --
+    walk `past_the_clock` on a cursor of their own, any spelling a clock
+    reader takes stepped past.
     """
+    past = past or {}
     seen = set(used)
     folds = {folded(text) for text in used}
     owing = forms_owed(census or {}, written)
@@ -7870,7 +8024,10 @@ def invented_levels(
             if form_reading(form) != NOTATION_TEXT:
                 owing[form] = 0
         wordy = [place for place in range(len(sizes)) if place not in placed]
-    settled = shared_out([sizes[place] for place in wordy], owing, seen, folds)
+    settled = shared_out(
+        [sizes[place] for place in wordy], owing, seen, folds,
+        past=tuple(sorted(past)),
+    )
     shared = ["" for _ in sizes]
     for step, place in enumerate(wordy):
         shared[place] = settled[step]
@@ -7879,6 +8036,12 @@ def invented_levels(
         shared, covered = level_shape_spent(
             sizes, shared, level_shape, placed or {}, seen, folds
         )
+    beyond = set()
+    for form in sorted(past):
+        mine = sorted(
+            (sizes[place], place) for place in wordy if shared[place] == form
+        )
+        beyond.update(place for _size, place in mine[: max(0, len(mine) - past[form])])
     keys = {}
     for place in range(len(sizes)):
         if placed is not None and place in placed:
@@ -7909,29 +8072,46 @@ def invented_levels(
             room = clock_line_room(present, clocks, others, rate)
     produced = []
     walked = {}
+    beyond_walked = {}
     figures = None
     taken = {}
     number = 0
+    # The cells of the held keys' stand-ins a census form is owed, not yet
+    # walked: the room the published labels' shape leaves them.
+    owed_still = sum(
+        sizes[place] for place in keys if keys[place] in held and shared[place]
+    )
     for place, size in enumerate(sizes):
         if placed is not None and place in placed:
             produced.append((placed[place], size))
             continue
         form = shared[place]
+        holding = place in keys and keys[place] in held
+        if holding and form:
+            if room is not None and figures is None and size > room:
+                figures = {}
+            owed_still -= size
+        elif holding and (
+            figures is not None or room is None or size > room - owed_still
+        ):
+            covered.discard(place)
         if not form and place in covered:
             form = level_shape
-        holding = place in keys and keys[place] in held
-        if room is not None and figures is None and holding and size > room:
-            figures = {}
         candidate = None
+        outside = place in beyond
         if form:
-            figured = figures is not None and holding
+            figured = (figures is not None and holding) or outside
             cursor = figures if figured else walked
+            if outside:
+                cursor = beyond_walked
             # The walk's bound is on what it refuses (walk_goes_on, plan
             # P4-D390), counted over the form's takes on either cursor; a
-            # clock's form written to a fraction of the second runs to the
-            # end of its clock supply instead, a pass giving up after
-            # STAND_IN_STEPS tried (fraction_clock_supply, landing 3b.5).
-            supply = 0 if figured else fraction_clock_supply(form)
+            # clock's form runs to the end of its clock supply instead, a
+            # pass giving up after STAND_IN_STEPS tried, and no further
+            # (clock_supply: since the repair round of the route-2
+            # correction every clock's form, before it one written to a
+            # fraction of the second, landing 3b.5).
+            supply = 0 if figured else clock_supply(form)
             steps = supply if supply else form_room(form)
             cursor.setdefault(form, 0)
             taken.setdefault(form, 0)
@@ -7943,6 +8123,8 @@ def invented_levels(
             ):
                 tried += 1
                 trial = filled_form(form, cursor[form], not figured)
+                if outside:
+                    trial = past_the_clock(form, cursor[form])
                 cursor[form] += 1
                 if figured and clock_reads(trial, False):
                     continue
@@ -9888,7 +10070,10 @@ def rising_share(cells, count, top):
     return shares
 
 
-def held_back_sizes(held_back, rows, numbers, words, floor=CASE_SMALL_CELL_FLOOR):
+def held_back_sizes(
+    held_back, rows, numbers, words, floor=CASE_SMALL_CELL_FLOOR, most=(),
+    counts=None,
+):
     """The rows of each invented held-back label -- method G8.3's sizes.
 
     Written from the rule's statement (owner ruling of 2026-09-17, item 2,
@@ -9901,19 +10086,38 @@ def held_back_sizes(held_back, rows, numbers, words, floor=CASE_SMALL_CELL_FLOOR
     debt up to a label a cell, then the cells owing no form (the last
     word debt) likewise, then any debt up to a label a cell; and each
     debt's cells are shared by ``rising_share``.
+
+    Since the repair round of the route-2 correction (plans P4-D390 and
+    P4-D373) ``most`` holds, for each text form's debt in the order of
+    ``words``, the most labels it may take: a clock's form, no more than
+    the times it can still write.  The text forms' round and the round of
+    any debt stop there, never below the fewest labels, and one more
+    round, any debt up to a label a cell, hands out what that leaves.
+
+    ``counts``, where given, is told the labels the rounds left each debt
+    of ``words``, in its order, nought for an empty one or where the pool
+    is one debt (the leftover of the route-2 correction).
     """
     if held_back == 0:
         return []
     top = max(floor - 1, 1)
     debts = [debt for debt in numbers if debt > 0] + [debt for debt in words if debt > 0]
     count_numbers = len([debt for debt in numbers if debt > 0])
+    bounds = [debt for debt in numbers if debt > 0]
+    for index, debt in enumerate(words):
+        if debt > 0:
+            mine = index < len(words) - 1 and index < len(most)
+            bounds.append(min(debt, most[index]) if mine else debt)
     labels = [math.ceil(fractions.Fraction(debt, top)) for debt in debts]
     unformed = len(debts) - 1 if words and words[-1] > 0 else None
-    if sum(debts) != rows or sum(labels) > held_back or not debts:
+    pooled = sum(debts) != rows or sum(labels) > held_back or not debts
+    if pooled:
         debts = [rows]
+        bounds = [rows]
         labels = [math.ceil(fractions.Fraction(rows, top))]
         count_numbers = 0
         unformed = 0
+    bounds = [max(labels[place], bounds[place]) for place in range(len(debts))]
 
     def hand_out(limits):
         while sum(labels) < held_back:
@@ -9932,12 +10136,20 @@ def held_back_sizes(held_back, rows, numbers, words, floor=CASE_SMALL_CELL_FLOOR
     hand_out(limits)
     for place in range(count_numbers, len(debts)):
         if place != unformed:
-            limits[place] = debts[place]
+            limits[place] = bounds[place]
     hand_out(limits)
     if unformed is not None:
         limits[unformed] = debts[unformed]
     hand_out(limits)
+    hand_out(bounds)
     hand_out(debts)
+    if counts is not None:
+        positive = [index for index, debt in enumerate(words) if debt > 0]
+        for index, debt in enumerate(words):
+            mine = 0
+            if debt > 0 and not pooled:
+                mine = labels[count_numbers + positive.index(index)]
+            counts.append(mine)
     sizes = []
     for place in range(len(debts)):
         sizes += rising_share(debts[place], labels[place], top)
@@ -9985,9 +10197,25 @@ def _label_content(column):
                 used.append(spelling)
     census = column.get("shape_forms")
     numbers_owed, words_owed = held_back_debts(column, content, census)
+    # THE MOST LABELS EACH TEXT FORM'S DEBT MAY TAKE (the repair round of
+    # the route-2 correction): a clock's form, the times it can still write
+    # counted to its debt; any other form, its debt.
+    owing = forms_owed(census or {}, content)
+    seen = set(used)
+    folds = {folded(text) for text in used}
+    most = [
+        usable_room(form, owing[form], seen, folds) if clock_supply(form) else owing[form]
+        for form in sorted(owing)
+        if owing[form] > 0 and form_reading(form) == NOTATION_TEXT
+    ]
+    counts = []
     sizes = held_back_sizes(
-        column["suppressed_levels"], column["suppressed_rows"], numbers_owed, words_owed
+        column["suppressed_levels"], column["suppressed_rows"], numbers_owed,
+        words_owed, most=most, counts=counts,
     )
+    # A CLOCK'S FORM LEFT MORE LABELS THAN TIMES IS PAST ITS TIMES (the
+    # leftover of the route-2 correction).
+    past = clock_forms_past_their_times(owing, counts, most)
     # THE CLASSES THE HELD-BACK LEVELS OWE (method G8.3a) are settled
     # before any word is: where the published spellings leave a numeric
     # class count unpaid, those levels are written as numbers first.
@@ -10005,12 +10233,13 @@ def _label_content(column):
         line = (column["n_present"], column.get("_parse_rate", MINIMUM_PARSE_RATE))
     if placed is None:
         stand_ins = invented_levels(
-            used, sizes, census, content, level_shape=level_shape, line=line
+            used, sizes, census, content, level_shape=level_shape, line=line,
+            past=past,
         )
     else:
         stand_ins = invented_levels(
             used, sizes, census, content, placed=placed,
-            level_shape=level_shape, line=line,
+            level_shape=level_shape, line=line, past=past,
         )
     for spelling, size in stand_ins:
         content.extend([spelling] * size)

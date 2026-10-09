@@ -1020,9 +1020,13 @@ def test_time7_red_when_the_label_walk_stops_at_its_bound(
     """MUTATION: the held-back labels' walk bounded like every other form's was
     before plan P4-D390, at a fixed count of spellings in all: since that plan
     every other form's walk is bounded by what it refuses (`_walk_goes_on`),
-    which a clock's supply never reaches, so the mutant bounds that too."""
+    which a clock's supply never reaches, so the mutant bounds that too. Since
+    the repair round of the route-2 correction the labels' walk reads the
+    supply of every clock's form (`_clock_supply`), so the mutant withdraws
+    that as well as the fraction's."""
     monkeypatch.setattr(generation, "_STAND_IN_STEPS", 32)
     monkeypatch.setattr(generation, "_fraction_clock_supply", lambda _form: 0)
+    monkeypatch.setattr(generation, "_clock_supply", lambda _form: 0)
     monkeypatch.setattr(
         generation, "_walk_goes_on", lambda steps, _taken, room: steps < min(room, generation._STAND_IN_STEPS)
     )

@@ -45,6 +45,11 @@ block, T2's hour file and its review's), each timed ON ITS OWN on the
 integrated tree as the seven above were, on a machine other work was
 loading.
 
+ONE ROW ADDED AND ONE RE-MEASURED 2026-10-09, at the integration of
+the route-2 correction, each file timed on its own on the integrated
+tree: the correction's own file 26.16 s, and the clock review's file
+127.11 s, which round 2 of landing 3b.5's review took from 14.83 s.
+
 A FILE WITH NO ROW weighs `DEFAULT_SECONDS`. Two kinds of file have
 none: one added since the last measurement, which is then placed like
 an ordinary small file and runs in its shard from the commit that adds
@@ -309,13 +314,14 @@ SECONDS = {
     "tests/test_stage3_tail_rule.py": 62.56,
     "tests/test_stage3b_base.py": 20.71,
     "tests/test_stage3b_clock.py": 92.53,
-    "tests/test_stage3b_clock_review.py": 14.83,
+    "tests/test_stage3b_clock_review.py": 127.11,
     "tests/test_stage3b_count_pass_speed.py": 68.35,
     "tests/test_stage3b_count_room.py": 19.99,
     "tests/test_stage3b_gate.py": 194.66,
     "tests/test_stage3b_hour.py": 124.4,
     "tests/test_stage3b_hour_review.py": 8.36,
     "tests/test_stage3b_layout.py": 32.3,
+    "tests/test_stage3b_route2.py": 26.16,
     "tests/test_stage3b_weekday_review.py": 295.32,
     "tests/test_stage3b_width.py": 122.91,
     "tests/test_stage4_allocator_walk.py": 18.04,

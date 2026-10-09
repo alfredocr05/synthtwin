@@ -1982,6 +1982,227 @@ def test_the_oracle_bounds_the_walk_as_the_product_does() -> None:
     )
 
 
+def test_the_oracle_settles_the_one_pass_arrangement_as_the_product_does() -> None:
+    """The reference oracle mirrors the one-pass rule (A-P4-59), case for case.
+
+    The route-2 correction (plans P4-D390 and P4-D373): the pass gives no
+    form more than it still owes where that settles every debt, and is
+    taken as it stood anywhere else. No frozen case holds a column of more
+    held-back labels than the search walks, so the oracle's arrangement is
+    asked beside the product's here: the 326 sizes of times beside 10 % on
+    the 12-hour face at 3,000 rows and a floor of 36 owing one form 662
+    cells, settled exactly, and two forms between them; 300 sizes of two
+    rows owing 301, covered with 302 as before; and three sevens owing ten
+    and five, which no arrangement settles. The oracle reasons only about
+    spellings with no figure in them, so the forms are of letters.
+    """
+    oracle = _reference_oracle()
+    face = tuple(sorted([1] * 119 + [2] * 94 + [3] * 63 + [4] * 42 + [35] * 8))
+    for sizes, owing in (
+        (face, {"@@-@@": 662}),
+        (face, {"@@-@@": 400, "@@_@@": 262}),
+        (tuple([2] * 300), {"@-@": 301}),
+        ((7, 7, 7), {"@-@": 10, "@_@": 5}),
+    ):
+        product = generation._shared_out(sizes, dict(owing), {}, {}, ())
+        assert oracle.shared_out(sizes, dict(owing), set(), set()) == product, (
+            sizes,
+            owing,
+        )
+    settled = generation._shared_out(face, {"@@-@@": 662}, {}, {}, ())
+    assert sum(face[place] for place in range(len(face)) if settled[place]) == 662
+
+
+# THE REPAIR ROUND'S TABLES AT A FLOOR OF ELEVEN, cell for cell those
+# `tests/test_stage3b_route2.py` holds: appointment times written `H:MM`, as
+# Excel's `h:mm` writes an hour below ten, beside 10 % and 3 % one-off notes
+# at 10,000 and 30,000 rows, and written `HH:MM` beside 15 % at the second at
+# 30,000 rows -- as kind, share, rows and seed.
+_REPAIR_TABLES = (
+    ("hours", 0.10, 10000, 9034),
+    ("hours", 0.03, 30000, 9016),
+    ("seconds", 0.15, 30000, 7412),
+)
+
+
+def _repair_table(kind: str, share: float, rows: int, seed: int) -> "list[str]":
+    """One of the repair round's tables, drawn as its skeptic's batteries drew it."""
+    draw = random.Random(seed)
+    cells: "list[str]" = []
+    notes = 0
+    for _row in range(rows):
+        pick = draw.random()
+        if pick < 0.80:
+            hour = draw.choices(range(7, 17), weights=(3, 9, 10, 10, 8, 4, 8, 9, 8, 5))[0]
+            minutes = hour * 60 + 15 * draw.randrange(4)
+        elif pick < 0.92:
+            minutes = 390 + draw.randrange(750)
+        else:
+            minutes = 17 * 60 + 30 * draw.randrange(6)
+        if draw.random() >= share:
+            hour_text = f"{minutes // 60}" if kind == "hours" else f"{minutes // 60:02d}"
+            cells += [f"{hour_text}:{minutes % 60:02d}"]
+            continue
+        if kind == "seconds":
+            cells += [f"{minutes // 60:02d}:{minutes % 60:02d}:{draw.randrange(60):02d}"]
+            continue
+        notes = notes + 1
+        cells += [f"see note {notes}"]
+    return cells
+
+
+def test_the_oracle_states_the_repair_round_as_the_product_does() -> None:
+    """The reference oracle mirrors the route-2 correction's repair round (A-P4-59).
+
+    No frozen case holds a clock's form owed more labels than it has times
+    left, a form short of spellings past the search, or a clock line
+    beside the published labels' shape, so the oracle is asked beside the
+    product here, call by call and column by column: every clock form's
+    supply; the times `HH:MM`, `H:MM` and `HH:MM:SS` can still write beside
+    written ones; the held-back sizes with a clock's form bounded and not;
+    the one-pass arrangement with a form of 26 spellings owed more than
+    that, settled by serving it first and not; and the three label columns
+    above, cell for cell and in order -- the bound, the form short of times
+    served first, the published labels' shape stopping at its clock
+    supply, and the room the owed stand-ins keep past the clock line. The
+    columns part when the oracle's clock supply is a fraction's alone again.
+    """
+    oracle = _reference_oracle()
+    for form in (
+        "%%:%%", "%:%%", "%%:%%:%%", "%:%%:%%", "%%:%%@@", "%:%% @@", "%%:%%:%%.%%%",
+        "%%:%%.%", "%%.%%", "@%%%%", "@@-@@",
+    ):
+        assert oracle.clock_supply(form) == generation._clock_supply(form), form
+    written = ["08:00", "08:15", "9:30", "10:45:00", "12:00"]
+    owners = {parsing.folded(spelling): spelling for spelling in written}
+    for form in ("%%:%%", "%:%%", "%%:%%:%%"):
+        for wanted in (10, 590, 1000, 1440, 100000):
+            assert oracle.usable_room(
+                form, wanted, set(written), set(owners)
+            ) == generation._usable_room(
+                form, wanted, {spelling: 1 for spelling in written}, owners, ()
+            ), (form, wanted)
+    for held_back, rows, floor, numbers, words, most in (
+        (3652, 13827, 36, (), (10881, 2946), (1394,)),
+        (1550, 4135, 11, (), (3277, 858), (1390,)),
+        (300, 900, 11, (), (800, 100), (50,)),
+        (40, 120, 11, (30,), (60, 30), (20,)),
+        (60, 140, 11, (), (40, 70, 30), (12, 70)),
+        (10, 30, 11, (), (20, 10), ()),
+    ):
+        assert tuple(
+            oracle.held_back_sizes(held_back, rows, numbers, words, floor, most)
+        ) == generation.held_back_sizes(held_back, rows, floor, numbers, words, most), (
+            held_back,
+            rows,
+            most,
+        )
+    sizes = tuple(sorted([1] * 200 + [2] * 80 + [5] * 20))
+    for owing in ({"@": 104, "@@-@": 260}, {"@": 150, "@@-@": 200}):
+        product = generation._shared_out(sizes, dict(owing), {}, {}, ())
+        assert oracle.shared_out(sizes, dict(owing), set(), set()) == product, owing
+    rate = taxonomy.Settings().minimum_parse_rate
+    built: "list[tuple[list[str], dict]]" = []
+    for kind, share, rows, seed in _REPAIR_TABLES:
+        document, described, _folder = _described(_repair_table(kind, share, rows, seed), "at")
+        plan = generation.plan_generation(described)
+        product_cells, _notes = generation._label_content(plan.columns[0])
+        column = dict(document["columns"][0])
+        column["_code_declared"] = False
+        column["_parse_rate"] = rate
+        assert oracle._label_content(dict(column)) == product_cells, (kind, share, rows)
+        built += [(product_cells, column)]
+    oracle.clock_supply = oracle.fraction_clock_supply
+    assert oracle._label_content(dict(built[1][1])) != built[1][0]
+
+
+def _task_table() -> "list[str]":
+    """The leftover's duration table at a floor of eleven, cell for cell `task_10000` of `tests/test_stage3b_route2.py`.
+
+    A timed task in minutes and seconds from 2 to 40 minutes, `MM:SS`, at
+    10,000 rows, as the skeptic's duration battery drew it.
+    """
+    draw = random.Random(31014)
+    cells: "list[str]" = []
+    for _row in range(10000):
+        seconds = int(draw.triangular(120, 2400, 600))
+        cells += [f"{seconds // 60:02d}:{seconds % 60:02d}"]
+    return cells
+
+
+def test_the_oracle_states_the_leftover_as_the_product_does() -> None:
+    """The reference oracle mirrors the route-2 correction's leftover (A-P4-59).
+
+    No frozen case holds a clock's form past its times, so the oracle is
+    asked beside the product here: a duration's spellings past the clock at
+    each block's edges, on forms of a two-figure hour with and without
+    seconds and on forms that take none (one figure, a marker, a fraction,
+    no clock at all); the labels `held_back_sizes`' rounds leave each word
+    debt; which clock's forms are past their times; a supply counted over a
+    form's whole room, alone and in the arrangement; and the duration table
+    above, cell for cell and in order. The column parts when the oracle
+    names no form past its times.
+    """
+    oracle = _reference_oracle()
+    for form in ("%%:%%", "%%:%%:%%", "%:%%", "%%:%%@@", "%%:%%:%%.%%", "@@-@@"):
+        for step in (
+            0, 1, 2, 59, 60, 2159, 2160, 2161, 4559, 4560, 4561, 9999, 10000,
+            129599, 129600, 273599, 273600, 400000,
+        ):
+            assert oracle.past_the_clock(form, step) == generation._past_the_clock(form, step), (form, step)
+    for held_back, rows, floor, numbers, words, most in (
+        (1910, 8649, 11, (), (8649, 0), (1140,)),
+        (1574, 11514, 36, (), (11514, 0), (606,)),
+        (3652, 13827, 36, (), (10881, 2946), (1394,)),
+        (60, 140, 11, (), (40, 70, 30), (12, 70)),
+        (40, 120, 11, (30,), (60, 30), (20,)),
+        (10, 50, 11, (), (30, 10), (2,)),
+    ):
+        product_counts: "list[int]" = []
+        oracle_counts: "list[int]" = []
+        assert tuple(
+            oracle.held_back_sizes(held_back, rows, numbers, words, floor, most, oracle_counts)
+        ) == generation.held_back_sizes(held_back, rows, floor, numbers, words, most, product_counts)
+        assert oracle_counts == product_counts, (held_back, rows, words)
+        assert len(product_counts) == len(words)
+    for owing, counts, most in (
+        ({"%%:%%": 8649}, [1910, 0], (1140,)),
+        ({"%%:%%": 8649}, [1000, 0], (1140,)),
+        ({"%%:%%": 50, "@@-@@": 70, "see @@@@": 9}, [60, 9, 1], (12, 70)),
+        ({"%:%%": 400, "%%:%%:%%": 300}, [401, 2, 0], (390, 300)),
+    ):
+        assert oracle.clock_forms_past_their_times(
+            owing, counts, most
+        ) == generation._clock_forms_past_their_times(owing, False, counts, most), owing
+    written = [f"{hour:02d}:{minute:02d}" for hour in range(24) for minute in range(60)][10:]
+    owners = {parsing.folded(spelling): spelling for spelling in written}
+    for whole in (False, True):
+        assert oracle.usable_room(
+            "%%:%%", 3000, set(written), set(owners), whole=whole
+        ) == generation._usable_room(
+            "%%:%%", 3000, {spelling: 1 for spelling in written}, owners, (), whole=whole
+        ), whole
+        for sizes in (tuple([1] * 200), tuple([1] * 300)):
+            past = ("%%:%%",) if whole else ()
+            product = generation._shared_out(
+                sizes, {"%%:%%": len(sizes)}, {spelling: 1 for spelling in written}, owners, (), None, past
+            )
+            assert oracle.shared_out(
+                sizes, {"%%:%%": len(sizes)}, set(written), set(owners), past=past
+            ) == product, (whole, len(sizes))
+            assert len([form for form in product if form]) == (len(sizes) if whole else 10)
+    document, described, _folder = _described(_task_table(), "took")
+    plan = generation.plan_generation(described)
+    product_cells, _notes = generation._label_content(plan.columns[0])
+    assert not [cell for cell in product_cells if cell.startswith("group-")]
+    column = dict(document["columns"][0])
+    column["_code_declared"] = False
+    column["_parse_rate"] = taxonomy.Settings().minimum_parse_rate
+    assert oracle._label_content(dict(column)) == product_cells
+    oracle.clock_forms_past_their_times = lambda owing, counts, most: {}
+    assert oracle._label_content(dict(column)) != product_cells
+
+
 def _register_of_many_forms(
     masks: "range" = range(64), held: int = 78
 ) -> "list[str]":
@@ -2137,10 +2358,10 @@ def test_no_form_s_supply_is_counted_past_what_it_can_be_paid() -> None:
     usable = generation._usable_room
     ladder_room = generation._ladder_room
 
-    def usable_counted(form: str, wanted: int, *rest: object) -> int:
+    def usable_counted(form: str, wanted: int, *rest: object, **named: object) -> int:
         nonlocal recorded
         recorded += [(form, wanted)]
-        return usable(form, wanted, *rest)  # type: ignore[arg-type]
+        return usable(form, wanted, *rest, **named)  # type: ignore[arg-type]
 
     def ladder_counted(ladder: object, form: str, wanted: int, *rest: object) -> int:
         nonlocal recorded
