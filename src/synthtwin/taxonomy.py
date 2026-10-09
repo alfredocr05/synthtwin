@@ -1010,14 +1010,19 @@ NOTE_WEEKDAY_WITHHELD_NO_TAILS = "weekday_census_withheld_no_tails"
 # anchor 3b-T1 (P4-D370)
 # anchor 3b-T2 (P4-D371)
 # THE HOUR CENSUS'S SENTENCES (landing 3b.2-H, plan P4-D371, contract NF88
-# to NF92): a PUBLISHED census says what its groups are in one remark,
-# and a WITHHELD one says why in one publication note of its own for
-# each reason -- under the owner's principle of 2026-10-01 no reason is
-# pooled into a sentence that keeps it back. Each names the census line
-# where it names a number at all, and the line is a setting of the run.
+# to NF92 and NF117): a PUBLISHED census says what its groups are in one
+# remark, and a WITHHELD one says why in one publication note of its own
+# for each reason -- under the owner's principle of 2026-10-01 no reason
+# is pooled into a sentence that keeps it back. Each names the census
+# line where it names a number at all, and the line is a setting of the
+# run. A middle half that is SHORT and one that is NOT PUBLISHED are two
+# reasons, each in its own sentence (Codex's review of the landing, item
+# 4: NF90 said a column of 30, 40 and 30 values spanning 31 days spans
+# fewer than four).
 REMARK_HOUR_CENSUS = "hour_census_counts_hours"
 NOTE_HOUR_WITHHELD_NO_TAILS = "hour_census_withheld_no_tails"
 NOTE_HOUR_WITHHELD_SHORT_SPAN = "hour_census_withheld_short_span"
+NOTE_HOUR_WITHHELD_UNPUBLISHED_SPAN = "hour_census_withheld_unpublished_span"
 NOTE_HOUR_WITHHELD_TWO_STORAGES = "hour_census_withheld_two_storages"
 NOTE_HOUR_WITHHELD_NO_GROUPING = "hour_census_withheld_no_grouping"
 # anchor 3b-T3 (P4-D372)
@@ -1193,6 +1198,7 @@ NOTE_ARITY: "dict[str, int]" = {
     REMARK_HOUR_CENSUS: 1,
     NOTE_HOUR_WITHHELD_NO_TAILS: 0,
     NOTE_HOUR_WITHHELD_SHORT_SPAN: 0,
+    NOTE_HOUR_WITHHELD_UNPUBLISHED_SPAN: 0,
     NOTE_HOUR_WITHHELD_TWO_STORAGES: 0,
     NOTE_HOUR_WITHHELD_NO_GROUPING: 1,
     # anchor 3b-T3 (P4-D372)
@@ -2107,6 +2113,13 @@ def rendered(form: str, arguments: "tuple[object, ...]") -> str:
             "counted: the middle half of its values spans fewer than four "
             "days, so the counts would be the hours of a few dates"
         )
+    if form == NOTE_HOUR_WITHHELD_UNPUBLISHED_SPAN:
+        return (
+            "the hours of the day this column's values fall on are not "
+            "counted: its 25th or 75th percentile lies inside a tail and "
+            "is not published, so the description does not show that the "
+            "middle half of its values spans four days or more"
+        )
     if form == NOTE_HOUR_WITHHELD_TWO_STORAGES:
         return (
             "the hours of the day this column's values fall on are not "
@@ -2118,7 +2131,11 @@ def rendered(form: str, arguments: "tuple[object, ...]") -> str:
             f"the hours of the day this column's values fall on are not "
             f"counted: no grouping of neighbouring hours short of the "
             f"whole day leaves every count nought or at least "
-            f"{_whole(arguments, 0)} rows"
+            f"{_whole(arguments, 0)} rows while each group holds the rows "
+            f"the rest of this description places in its hours for "
+            f"certain -- at the values it publishes between the two tail "
+            f"boundaries, and at midnight where it counts rows there -- "
+            f"and nought or at least {_whole(arguments, 0)} rows besides"
         )
     # anchor 3b-T3 (P4-D372)
     # anchor 3b-C1 (P4-D373)
@@ -16521,6 +16538,7 @@ def _hour_published(
 _HOUR_WITHHELD_NOTES = {
     calendar_clock.HOUR_REASON_NO_TAILS: NOTE_HOUR_WITHHELD_NO_TAILS,
     calendar_clock.HOUR_REASON_SPAN: NOTE_HOUR_WITHHELD_SHORT_SPAN,
+    calendar_clock.HOUR_REASON_SPAN_UNPUBLISHED: NOTE_HOUR_WITHHELD_UNPUBLISHED_SPAN,
     calendar_clock.HOUR_REASON_WORKBOOK: NOTE_HOUR_WITHHELD_TWO_STORAGES,
     calendar_clock.HOUR_REASON_GROUPING: NOTE_HOUR_WITHHELD_NO_GROUPING,
 }
@@ -16648,11 +16666,13 @@ def hour_decision(
     Landing 3b.2-H (plan P4-D371). Nothing where no instant is in scope
     (`_census_instants`: HC3's reading). Then, each said in its own
     sentence: no two tails (HC3); a published middle half -- p75 less p25
-    -- shorter than `calendar_clock.HOUR_SPAN_DAYS` days, or a rung of it
-    withheld (HC4); a workbook storing the column two ways (HC6); and no
-    grouping the one merge rule publishes (`calendar_clock.hour_groups`,
-    over the body's hours and their SURE cells, `calendar_clock.hour_sure`
-    with rule 4's cells at midnight). Last, the loader's own check
+    -- shorter than `calendar_clock.HOUR_SPAN_DAYS` days, and apart from
+    it a rung of it withheld, which publishes no span at all (HC4 both);
+    a workbook storing the column two ways (HC6); and no grouping the one
+    merge rule publishes (`calendar_clock.hour_groups`, over the body's
+    hours and their SURE cells, `calendar_clock.hour_sure` with rule 4's
+    cells at midnight), whose sentence names those sure cells, as they
+    may be what leaves no grouping (HC5). Last, the loader's own check
     (`calendar_clock.hour_breach`), so the producer never writes what the
     loader refuses. No rule asks what a reader could work out from the
     census (the owner's principle of 2026-10-01).
@@ -16676,9 +16696,14 @@ def hour_decision(
     body = instants[rows_low : parsed - rows_high]
     if not body:
         return HourDecision(empty, calendar_clock.HOUR_REASON_NO_TAILS)
-    if not calendar_clock.span_long_enough(
-        _ladder_seconds(details, "p25"), _ladder_seconds(details, "p75")
-    ):
+    quarter = _ladder_seconds(details, "p25")
+    third = _ladder_seconds(details, "p75")
+    if quarter is None or third is None:
+        # NOT PUBLISHED IS NOT SHORT (Codex's review of the landing, item
+        # 4): a rung inside a tail is withheld, and HC4 then stands on no
+        # published span, whatever the real one is.
+        return HourDecision(empty, calendar_clock.HOUR_REASON_SPAN_UNPUBLISHED)
+    if not calendar_clock.span_long_enough(quarter, third):
         return HourDecision(empty, calendar_clock.HOUR_REASON_SPAN)
     if not stored_one_way:
         return HourDecision(empty, calendar_clock.HOUR_REASON_WORKBOOK)

@@ -12,6 +12,12 @@ reviewed (b3fb647), and fixed:
   column at seed 102) and `test_the_half_day_windows_are_the_construction_s`
   (a high and a low tail, both measures, red with the projection
   withdrawn);
+* item 4 -- the withheld census's sentences: a middle half whose 25th or
+  75th percentile lies inside a tail is NOT PUBLISHED, which is not SHORT
+  (NF117 beside NF90), and where the sure cells leave no grouping, NF92
+  names them: `test_a_middle_half_not_published_is_not_called_short`,
+  `test_a_short_middle_half_is_still_called_short` and
+  `test_the_sure_cells_that_leave_no_grouping_are_named`;
 * item 3 -- PUT BACK (method G7.3g step 6) sorted and filtered every run
   again for each size before its first merge, so a clock state of one run
   of each size 1 to `k` beside `k(k-1)/2` alone did `k` times the work
@@ -35,6 +41,7 @@ import pytest
 import fixtures
 import kpi_shapes
 from synthtwin import (
+    calendar_rules,
     contract,
     generation,
     profile,
@@ -182,6 +189,82 @@ def test_the_half_day_windows_are_the_construction_s(
         column, facts, floor, "", True
     )
     assert before[side] != checked[side], side
+
+
+# -- item 4: why a census is withheld, said as it is ---------------------------------
+
+_HOURS_SAID = "hours of the day this column's values fall on"
+
+
+def _hour_sentences(described: kpi_shapes.Described) -> "list[str]":
+    """Every sentence of the description about the one column's hours of the day."""
+    return [
+        entry["note"] for entry in described.document["publication_notes"]
+        if entry["column"] == "seen_at" and _HOURS_SAID in entry["note"]
+    ]
+
+
+def _plain(folder: pathlib.Path, cells: "list[str]") -> kpi_shapes.Described:
+    return kpi_shapes.describe(folder, "real", "seen_at\n" + "\n".join(cells) + "\n", 11)
+
+
+def test_a_middle_half_not_published_is_not_called_short(tmp_path: pathlib.Path) -> None:
+    """Codex's item 4, NF90: 30 values at 2024-01-01 08:00, 40 at 2024-01-20 and
+    30 at 2024-02-01, floor 11. Each tail holds 30 rows, so the 25th and 75th
+    percentiles lie inside the tails and are not published; the real middle half
+    spans 31 days. b3fb647 said it spans fewer than four; the column now says its
+    middle half is not published (NF117)."""
+    cells = (
+        ["2024-01-01 08:00:00"] * 30 + ["2024-01-20 08:00:00"] * 40 + ["2024-02-01 08:00:00"] * 30
+    )
+    described = _plain(tmp_path, cells)
+    block = described.block("seen_at")
+    assert block["hour_census"] == []
+    assert block["date_percentiles"]["p25"] is None and block["date_percentiles"]["p75"] is None
+    sentences = _hour_sentences(described)
+    assert len(sentences) == 1 and "fewer than four days" not in sentences[0], sentences
+    assert sentences == [taxonomy.rendered(taxonomy.NOTE_HOUR_WITHHELD_UNPUBLISHED_SPAN, ())]
+
+
+def test_a_short_middle_half_is_still_called_short(tmp_path: pathlib.Path) -> None:
+    """NF90 where it is true: 300 moments over three days publish a 25th and a
+    75th percentile fewer than four days apart, and the column says so."""
+    draw = random.Random(40101)
+    start = datetime.datetime(2024, 3, 4)
+    cells = [
+        (start + datetime.timedelta(seconds=draw.randrange(3 * DAY))).strftime("%Y-%m-%d %H:%M:%S")
+        for _row in range(300)
+    ]
+    described = _plain(tmp_path, cells)
+    block = described.block("seen_at")
+    assert block["hour_census"] == []
+    assert block["date_percentiles"]["p25"] is not None and block["date_percentiles"]["p75"] is not None
+    assert _hour_sentences(described) == [taxonomy.rendered(taxonomy.NOTE_HOUR_WITHHELD_SHORT_SPAN, ())]
+
+
+def test_the_sure_cells_that_leave_no_grouping_are_named(tmp_path: pathlib.Path) -> None:
+    """Codex's item 4, NF92: one moment on each of 100 dates from 2024-01-01, the
+    first eleven and the last eleven at midnight and the 78 between at 23:00,
+    floor 11. The tails list no value, so the 22 rows the description counts at
+    midnight are sure cells of hour 0 where the body holds none, and no group
+    short of the whole day holds them -- though hours 0 to 22 at nought and hour
+    23 at 78 meet the floor. b3fb647 said only that no grouping met the floor;
+    the sentence now names the sure cells."""
+    cells: "list[str]" = []
+    for step in range(100):
+        day = datetime.date(2024, 1, 1) + datetime.timedelta(days=step)
+        clock = "00:00:00" if step < 11 or step >= 89 else "23:00:00"
+        cells += [f"{day.isoformat()} {clock}"]
+    described = _plain(tmp_path, cells)
+    block = described.block("seen_at")
+    assert block["hour_census"] == [] and block["n_at_midnight"] == 22
+    assert block["low_tail"]["values"] is None and block["high_tail"]["values"] is None
+    bins = [0] * 23 + [78]
+    assert calendar_rules.merged_groups(bins, [0] * 24, 11, False) == ((0, 22, 0), (23, 23, 78))
+    assert calendar_rules.merged_groups(bins, [22] + [0] * 23, 11, False) == ()
+    sentences = _hour_sentences(described)
+    assert sentences == [taxonomy.rendered(taxonomy.NOTE_HOUR_WITHHELD_NO_GROUPING, (11,))]
+    assert "places in its hours for certain" in sentences[0] and "at midnight" in sentences[0]
 
 
 # -- item 3: PUT BACK's runs, sorted once ---------------------------------------

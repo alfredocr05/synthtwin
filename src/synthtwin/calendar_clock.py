@@ -92,16 +92,22 @@ DAY_SECONDS = 86400
 HOUR_SPAN_DAYS = 4
 
 # Why a column of moments publishes no hour census, each said in a
-# sentence of its own: no tails (HC3), a middle half shorter than
-# `HOUR_SPAN_DAYS` days (HC4), a workbook storing the column two ways
-# (HC6), or no grouping the merge rule can publish.
+# sentence of its own: no tails (HC3), a published middle half shorter
+# than `HOUR_SPAN_DAYS` days, or one whose 25th or 75th percentile lies
+# inside a tail and so is not published (HC4 both: Codex's review of the
+# landing, item 4, found a column whose real middle half spans 31 days
+# told that it spans fewer than four), a workbook storing the column two
+# ways (HC6), or no grouping the merge rule can publish with every
+# group's sure cells inside it (HC2 and HC5).
 HOUR_REASON_NO_TAILS = "no_tails"
 HOUR_REASON_SPAN = "span"
+HOUR_REASON_SPAN_UNPUBLISHED = "span_unpublished"
 HOUR_REASON_WORKBOOK = "workbook"
 HOUR_REASON_GROUPING = "grouping"
 HOUR_REASONS = (
     HOUR_REASON_NO_TAILS,
     HOUR_REASON_SPAN,
+    HOUR_REASON_SPAN_UNPUBLISHED,
     HOUR_REASON_WORKBOOK,
     HOUR_REASON_GROUPING,
 )

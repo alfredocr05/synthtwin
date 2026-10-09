@@ -2047,12 +2047,13 @@ contract:
    widening it to arbitrary strings would be exactly the hole that lets
    a source-derived value into a sentence and be rebuilt successfully.
 
-**The census.** The table holds 90 forms and 106 argument positions.
+**The census.** The table holds 91 forms and 106 argument positions.
 Of those, 79 are whole numbers, 5 are package words, 17 are nested
 forms, and 5 are bound affix strings. No position is a string of any
 other kind. The hour census (landing 3b.2-H, plan P4-D371) added the
-five forms NF88 to NF92 and two whole-number positions, each the census
-line. The weekday census (landing 3b.1, plan P4-D355) added the
+six forms NF88 to NF92 and NF117 -- the last at its review, the first
+number no landing held -- and two whole-number positions, each the
+census line. The weekday census (landing 3b.1, plan P4-D355) added the
 eleven forms NF68 to NF78 and seven whole-number positions, each the
 census line, and its review retired three of the forms with one of
 those positions (plan P4-D359), and the weekday guard drop a fourth,
@@ -2100,7 +2101,7 @@ class over a committed battery, so it is a number a reader can run.
 
 So every argument position of every form is bound to WHAT IT IS, and
 the table below is closed over all 106 of them exactly as the form table
-is closed over the 90 forms. A position nobody bound is a number a
+is closed over the 91 forms. A position nobody bound is a number a
 sentence may print that no rule governs, and a producer that adds one
 is a producer this contract does not describe. The bindings are these:
 
@@ -3663,7 +3664,7 @@ names:
 
 | id | statement |
 |---|---|
-| NG14 | the form is one of the 90 in section 4.5.1 |
+| NG14 | the form is one of the 91 in section 4.5.1 |
 | NG15 | the argument count equals that form's arity |
 | NG16 | every argument is of one of C6-119's four classes |
 | NG17 | re-rendering the form with those arguments writes the leaf's text character for character |
@@ -4019,15 +4020,24 @@ back-solve beside the sentence correctly assumed they did not.
 <!-- anchor 3b-T1 (P4-D370) -->
 <!-- anchor 3b-T2 (P4-D371) -->
 
-**NF88 to NF92 — the hour census of a column of moments** (landing
-3b.2-H, plan P4-D371). A census PUBLISHED says what its groups are in
-one remark, NF88; a census WITHHELD says why in one publication note of
-its own for each reason -- under the owner's principle of 2026-10-01 no
-reason is pooled into a sentence that keeps it back, as NF74 pools the
-weekday's. A column the census cannot stand on at all -- not of moments,
-on the shared clock, in the joint member or wholly at midnight -- says
-nothing. NF88 and NF92 take one argument, the census line; the others
-none.
+**NF88 to NF92 and NF117 — the hour census of a column of moments**
+(landing 3b.2-H, plan P4-D371). A census PUBLISHED says what its groups
+are in one remark, NF88; a census WITHHELD says why in one publication
+note of its own for each reason -- under the owner's principle of
+2026-10-01 no reason is pooled into a sentence that keeps it back, as
+NF74 pools the weekday's. A column the census cannot stand on at all --
+not of moments, on the shared clock, in the joint member or wholly at
+midnight -- says nothing. NF88 and NF92 take one argument, the census
+line; the others none. HC4's two cases are two sentences (the landing's
+review, item 4): a published middle half shorter than four days, NF90,
+and one whose 25th or 75th percentile lies inside a tail and is not
+published, NF117 -- a column of 30, 40 and 30 values at floor 11 spans
+31 days and was told it spans fewer than four. And NF92 names the sure
+cells of HC5 beside the floor, as they may be what leaves no grouping:
+eleven values at midnight, 78 at 23:00 and eleven at midnight again, on
+100 dates, publish a count of 22 at midnight beside tails that list no
+value, and no group short of the whole day holds those cells, though
+hours 0 to 22 at nought and hour 23 at 78 meet the floor.
 
 **NF88. `hour_census_counts_hours` — the census of a column of moments counted by the hour** — arity 1. A remark, carried by every block publishing an hour census.
 
@@ -4045,9 +4055,13 @@ none.
 
 > the hours of the day this column's values fall on are not counted: the workbook stores its values in more than one way, so they are read back differently cell by cell
 
-**NF92. `hour_census_withheld_no_grouping`** — arity 1. Where the one merge rule leaves no grouping of the hours short of the whole day.
+**NF92. `hour_census_withheld_no_grouping`** — arity 1. Where the one merge rule, holding every group to its sure cells (HC5), leaves no grouping of the hours short of the whole day.
 
-> the hours of the day this column's values fall on are not counted: no grouping of neighbouring hours short of the whole day leaves every count nought or at least «1» rows
+> the hours of the day this column's values fall on are not counted: no grouping of neighbouring hours short of the whole day leaves every count nought or at least «1» rows while each group holds the rows the rest of this description places in its hours for certain -- at the values it publishes between the two tail boundaries, and at midnight where it counts rows there -- and nought or at least «1» rows besides
+
+**NF117. `hour_census_withheld_unpublished_span`** — arity 0 (HC4). Where the published p25 or p75 is withheld, its rank lying inside a tail: no span is published, short or long.
+
+> the hours of the day this column's values fall on are not counted: its 25th or 75th percentile lies inside a tail and is not published, so the description does not show that the middle half of its values spans four days or more
 
 <!-- anchor 3b-T3 (P4-D372) -->
 <!-- anchor 3b-C1 (P4-D373) -->
@@ -5649,7 +5663,7 @@ carries `[]`, which still loads.
 
 | key | JSON type | permitted values | meaning |
 |---|---|---|---|
-| `hour_census` | array of `{first, last, count}` | `[]`, or groups of whole hours 0 to 23 in order, each count nought or at least the census line (HC1 to HC6) | how many cells between the two tail boundaries, both included, fall on each group of hours of the written wall clock (`canonical[11:13]`); the groups are merged from the twenty-four hours by the one merge rule every census shares, on a line -- no group runs past midnight -- and a census with one non-empty group is published; `[]` where none is, its reason in one publication note (NF89 to NF92) |
+| `hour_census` | array of `{first, last, count}` | `[]`, or groups of whole hours 0 to 23 in order, each count nought or at least the census line (HC1 to HC6) | how many cells between the two tail boundaries, both included, fall on each group of hours of the written wall clock (`canonical[11:13]`); the groups are merged from the twenty-four hours by the one merge rule every census shares, on a line -- no group runs past midnight -- and a census with one non-empty group is published; `[]` where none is, its reason in one publication note (NF89 to NF92, NF117) |
 
 <!-- anchor 3b-T3 (P4-D372) -->
 
@@ -12590,7 +12604,7 @@ month-first parsed.
 | NG11 | on `remark_affixed_numbers_may_be_codes`: argument 3 equals the named block's `n_affixed` |
 | NG12 | argument 1 is character-for-character that block's `affix_prefix` and argument 2 its `affix_suffix`, AT THOSE POSITIONS, not merely as members of the pair |
 | NG13 | on `remark_a_label_is_a_built_in_stand_in`: argument 1 is 1, 2 or 3 |
-| NG14 | for every form: one of the 90 the note grammar enumerates |
+| NG14 | for every form: one of the 91 the note grammar enumerates |
 | NG15 | the argument count equals that form's arity |
 | NG16 | every argument is of one of the four argument classes |
 | NG17 | re-rendering the form with those arguments writes the leaf's text character for character |
@@ -13879,7 +13893,7 @@ this document, and the battery the plan requires turns red on it.
 | nothing-class blocks (`numeric_unrepresentable`, `identifier`, `free_text`) | lengths, word statistics, digit and code-alphabet counts, the whole-number test, the repetition multiset, on `numeric_unrepresentable` the whole-number and sign counts, on `free_text` the census of WRITTEN FORMS its cells wore (`shape_forms`), and on `identifier` the census of LAYOUTS (`layout_forms`, 7.12) and, by the owner's ruling of 2026-09-17, the literal PREFIX every cell of the column or of one named layout opens with (`layout_prefixes`, 7.12a, row 22) | no value, no spelling, no fragment of one but the prefix of row 22 — the form census included, whose every key is built from `%`, `@` and thirteen named marks -- characters no cell that has a form may contain, so a key can carry no letter and no figure of any cell; the multiplicity map publishes SIZES of unnamed groups under no floor, the form census under the floor with a `(withheld)` pool |
 | `empty` columns nobody declared | the absent SPELLINGS their cells wore and the two absence counts, exactly as any column that is not nothing-publishing | floor-governed |
 | `settings` | the rules the run applied, the floor's own value, how many values each declaration named, and which of THIS package's published words were among them | carries no cell, no column and no count of the table; a person's own spelling never enters |
-| `source.header_evidence`, `publication_notes[].note`, `detection_evidence`, `remarks` | sentences of the 90 closed forms: 106 argument positions, of which 79 are whole numbers, 5 package words, 17 nested forms and 5 bound affix strings | the whole numbers are counts the block beside them already publishes, EXCEPT the positions priced at rows 16 and 18 |
+| `source.header_evidence`, `publication_notes[].note`, `detection_evidence`, `remarks` | sentences of the 91 closed forms: 106 argument positions, of which 79 are whole numbers, 5 package words, 17 nested forms and 5 bound affix strings | the whole numbers are counts the block beside them already publishes, EXCEPT the positions priced at rows 16 and 18 |
 | `relationships` | nothing: eight nulls | — |
 
 ### 12.3 The rows, each priced
@@ -14943,7 +14957,7 @@ width at least ONE (`1`, `2`, `10`), a cell written as a whole number
 writing at least one figure (C6-29c). `(withheld)` is again the only
 non-numeric key permitted.
 
-### 14.8 The note grammar — 90 forms
+### 14.8 The note grammar — 91 forms
 
 Defined in 4.5.1, which is the authority on every rendering and every
 argument. 106 argument positions: 79 whole numbers, 5 package words, 17
@@ -15065,6 +15079,7 @@ nested forms, 5 bound affix strings.
 | NG90 | `hour_census_withheld_short_span` | 0 |
 | NG91 | `hour_census_withheld_two_storages` | 0 |
 | NG92 | `hour_census_withheld_no_grouping` | 1 |
+| NG117 | `hour_census_withheld_unpublished_span` | 0 |
 
 <!-- anchor 3b-T3 (P4-D372) -->
 <!-- anchor 3b-C1 (P4-D373) -->
