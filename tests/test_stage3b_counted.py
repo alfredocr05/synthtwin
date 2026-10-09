@@ -1567,9 +1567,15 @@ def _counted_near_the_holes(shape: str) -> "tuple[str, list[str]]":
         elif shape == "sas_moments":
             moment = datetime.datetime(1900, 1, 1) + datetime.timedelta(days=draw.randrange(12784), seconds=draw.randrange(86400))
             cells += [f"{int((moment - datetime.datetime(1960, 1, 1)).total_seconds())}"]
+        elif shape in ("sas_days_across", "sas_seconds_across"):
+            break
         else:
             day = datetime.date(9900, 1, 1) + datetime.timedelta(days=draw.randrange(36523))
             cells += [f"{(day - datetime.date(1970, 1, 1)).days}"]
+    if shape == "sas_days_across":
+        return "days-since-1960", _across_1900("sas_days")
+    if shape == "sas_seconds_across":
+        return "seconds-since-1960", _across_1900("sas_seconds")
     member = {
         "excel_moments": "excel-1900", "excel_moments_packed": "excel-1900", "excel_dates": "excel-1900",
         "excel_1904_seconds": "excel-1904", "sas_moments": "seconds-since-1960", "unix_days_to_9999": "days-since-1970",
@@ -1577,9 +1583,47 @@ def _counted_near_the_holes(shape: str) -> "tuple[str, list[str]]":
     return member, cells
 
 
+def _across_1900(shape: str) -> "list[str]":
+    """Ten thousand counts whose low tail runs across 1 January 1900, in a system writing the days either side.
+
+    `sas_days`: eight SAS days in December 1899, none on 1 January, the
+    rest from 3 January 1900 to 1935 -- a low boundary on 7 January.
+    `sas_seconds` and `unix_minutes`: five moments on the evening of 31
+    December 1899, a crowd of three hundred on 2 January and the rest to
+    1935, SAS seconds at the second or Unix milliseconds at the minute --
+    a low tail of eleven within the first hour of 2 January and the
+    evening before, its strata hours wide.
+    """
+    draw = random.Random(f"across-1900:{shape}")
+    step = 86400 if shape == "sas_days" else 60 if shape == "unix_minutes" else 1
+    moments: "list[datetime.datetime]" = []
+    if shape == "sas_days":
+        for _row in range(8):
+            moments += [datetime.datetime(1899, 12, 1) + datetime.timedelta(days=draw.randrange(31))]
+    else:
+        for _row in range(5):
+            moments += [datetime.datetime(1899, 12, 31, 18) + datetime.timedelta(seconds=step * draw.randrange(21600 // step))]
+        for _row in range(300):
+            moments += [datetime.datetime(1900, 1, 2) + datetime.timedelta(seconds=step * draw.randrange(86400 // step))]
+    while len(moments) < 10000:
+        moments += [
+            datetime.datetime(1900, 1, 3)
+            + datetime.timedelta(days=draw.randrange(12780), seconds=step * draw.randrange(86400 // step))
+        ]
+    draw.shuffle(moments)
+    if shape == "sas_days":
+        return [f"{(moment.date() - datetime.date(1960, 1, 1)).days}" for moment in moments]
+    if shape == "unix_minutes":
+        return [f"{int((moment - datetime.datetime(1970, 1, 1)).total_seconds()) * 1000}" for moment in moments]
+    return [f"{int((moment - datetime.datetime(1960, 1, 1)).total_seconds())}" for moment in moments]
+
+
 @pytest.mark.parametrize(
     "shape",
-    ("excel_moments", "excel_moments_packed", "excel_dates", "excel_1904_seconds", "sas_moments", "unix_days_to_9999"),
+    (
+        "excel_moments", "excel_moments_packed", "excel_dates", "excel_1904_seconds", "sas_moments",
+        "unix_days_to_9999", "sas_days_across", "sas_seconds_across",
+    ),
 )
 def test_c5_both_writings_of_a_counted_tail_stop_short_of_the_days_its_counts_cannot_hold(
     tmp_path: pathlib.Path, shape: str
@@ -1590,17 +1634,22 @@ def test_c5_both_writings_of_a_counted_tail_stop_short_of_the_days_its_counts_ca
     date-times also packed into its first quarter, whose low boundary
     stands on 2 January, so the tail has room only because serial 2 is
     one instant of that day -- Excel 1904 seconds from 1904 and SAS
-    seconds from 1900, and a thousand Unix days of the last century
-    before 10000. Each tail's strata are drawn by the generator
-    (`generation._date_layout`) and again by the validator
+    seconds from 1900, a thousand Unix days of the last century before
+    10000, and SAS days and SAS seconds whose low tail runs across 1
+    January 1900 (`_across_1900`). Each tail's strata are drawn by the
+    generator (`generation._date_layout`) and again by the validator
     (`validation._date_tail_windows`), both to the reach the counting
-    system leaves (`date_counts.tail_reach`), and agree rank by rank; and
+    system leaves (`date_counts.tail_reach`), and agree rank by rank;
     every place a tail rank can stand, nearest and furthest, is a count of
-    the system naming a date -- no moment before Excel's first count,
-    none on 1 January 1900 or 31 December 9999, none on the instant
-    serial 2 names. Red on 568b597 on all six: its low tails stood before
+    the system naming a date -- no moment before Excel's first count, none
+    on the instant serial 2 names, none on a wall's 1 January 1900 or 31
+    December 9999 -- and where 1 January 1900 is an island, a system
+    writing the days either side of it, the tail reaches past it, no
+    stratum lies wholly on it and each place off it is no set-aside
+    count. Red on 568b597 on the first six: its low tails stood before
     Excel's two first counts and on 1 January 1900, and its high tail on
-    31 December 9999.
+    31 December 9999; red on 22e52f0 on the last two, whose reach stopped
+    short of the island.
     """
     member, cells = _counted_near_the_holes(shape)
     path = _table(tmp_path, cells)
@@ -1619,6 +1668,9 @@ def test_c5_both_writings_of_a_counted_tail_stop_short_of_the_days_its_counts_ca
     aside: "dict[int, int]" = {}
     for number in date_counts.declared_aside(member):
         aside[number] = 1
+    # 1 January 1900 is an island of a low tail where the system writes the
+    # days before it; every other stretch a count cannot hold is a wall.
+    island = date_counts.TABLE[member].signed
     drawn = 0
     for side, plan in (("low", layout.low), ("high", layout.high)):
         assert plan is not None, side
@@ -1631,15 +1683,141 @@ def test_c5_both_writings_of_a_counted_tail_stop_short_of_the_days_its_counts_ca
         near, far = windows[side]
         assert list(near) == list(plan.near) and list(far) == list(plan.far), side
         for index in range(plan.rows):
+            named: "list[str]" = []
             for distance in (plan.near[index], plan.far[index]):
                 place = generation._tail_place(plan, distance)
                 found = date_counts.count_of(member, place, unit)
                 assert found is not None, (side, index, place)
                 numerator, denominator = found
                 moment = date_counts.moment_of(member, numerator, denominator, unit)
-                assert moment == place and not date_counts.placeholder_day_named(moment, unit), (side, index, place)
-                assert not date_counts.stands_aside(numerator, denominator, False, aside), (side, index, place)
+                assert moment == place, (side, index, place)
+                day = date_counts.placeholder_day_named(moment, unit)
+                named += [day]
+                if day:
+                    assert island and side == "low" and day == "1900-01-01", (side, index, place)
+                else:
+                    assert not date_counts.stands_aside(numerator, denominator, False, aside), (side, index, place)
+            assert not (named[0] and named[0] == named[1]), (side, index, named)
+        if shape.endswith("_across") and side == "low":
+            # The tail reaches past the island, as the source's own does.
+            first = generation._tail_place(plan, plan.near[0])
+            assert first < parsing.days_from_civil(1900, 1, 1) * (86400 * date_counts.SECOND // unit), first
     assert drawn == 2
+
+
+@pytest.mark.parametrize("which", ("end", "group"))
+def test_c5_an_end_or_a_group_on_1_january_1900_steps_off_it_in_both_writings(
+    tmp_path: pathlib.Path, which: str
+) -> None:
+    """The repair of the verification of the second review's item 2: a word-less rank on an island steps off it.
+
+    A tail's end and its tie group each stand at one distance, so a
+    stratum of one point: on 1 January 1900 -- an island of SAS days,
+    which write the days either side of it -- no move inside it would
+    leave the day, and a group spread over the units beside it would no
+    longer be one group. So each steps off the island in the plan, inward
+    to the day after it (`date_counts.off_the_islands`), and the
+    validator's windows step it alike. A column of SAS days across the
+    day (`_across_1900`) is described; its low tail is given fourteen
+    ranks, a group of four, and a boundary as many days after 1 January
+    as the shape puts its end, or its group, from the boundary. The
+    generator's plan stands that rank off the island, a day nearer, and
+    the validator's windows are its strata rank by rank. Red where the
+    end and the group do not step (the group on the day, the end on it).
+    """
+    path = _table(tmp_path, _across_1900("sas_days"))
+    member = "days-since-1960"
+    code, said = _exit_of(["profile", str(path), "--date-count", "seen", member, "--out-dir", str(tmp_path), "--replace"])
+    assert code == 0, said[-600:]
+    described = contract.load_profile(str(tmp_path / "table-profile.json"))
+    column = described.columns[0]
+    facts = column.facts
+    assert isinstance(facts, contract.DatetimeFacts) and facts.low_tail is not None
+    low = facts.low_tail
+    assert low.values is None and low.mean_distance is not None and low.rms_distance is not None
+    floor = described.settings.small_cell_floor
+    shape = generation._tail_shape(14, low.mean_distance, low.rms_distance, floor, 10**9, False, True)
+    assert shape.grouped < 14
+    distance = shape.end if which == "end" else shape.group
+    boundary = (datetime.date(1900, 1, 1) + datetime.timedelta(days=distance)).isoformat()
+    moved = dataclasses.replace(facts, low_tail=dataclasses.replace(low, rows=14, boundary=boundary))
+    moved_column = dataclasses.replace(column, facts=moved)
+    parsed = column.n_present - facts.n_unparsed
+    layout = generation._date_layout(moved_column, moved, parsed, floor, member)
+    windows = validation._date_tail_windows(moved_column, moved, floor, member)
+    plan = layout.low
+    assert plan is not None and plan.shape is not None
+    assert plan.islands == ((distance, distance),), plan.islands
+    stood = plan.shape.end if which == "end" else plan.shape.group
+    assert stood == distance - 1, (which, distance, stood)
+    assert list(windows["low"][0]) == list(plan.near) and list(windows["low"][1]) == list(plan.far)
+
+
+def test_c5_a_tail_across_1_january_1900_keeps_its_spread_and_no_cell_on_the_day(tmp_path: pathlib.Path) -> None:
+    """The repair of the verification of the second review's item 2: a tail reaches past the day, its ranks off it.
+
+    Three columns of ten thousand whose low tail runs across 1 January
+    1900 in a system writing the days either side of it (`_across_1900`):
+    SAS days with eight values in December 1899 and a boundary on 7
+    January; SAS seconds and Unix milliseconds at the minute with five
+    moments on the evening of 31 December and a crowd on 2 January. On
+    seeds 0 to 2 every twin cell is a count naming a date -- none on 1
+    January 1900, none set aside -- each column's twin holds cells before
+    1900 as its source does, and twin and source are both at exit 0. Red
+    on 22e52f0, whose reach stopped short of the day: no twin cell before
+    1900, and the dense tail of SAS seconds piled onto one second and
+    missing both counts of different values. Red on 568b597: cells on 1
+    January 1900 in both dense columns.
+    """
+    columns = {
+        "days": _across_1900("sas_days"),
+        "seconds": _across_1900("sas_seconds"),
+        "minutes": _across_1900("unix_minutes"),
+    }
+    members = {"days": "days-since-1960", "seconds": "seconds-since-1960", "minutes": "milliseconds-since-1970"}
+    path = _table_of(tmp_path, columns)
+    argv = ["profile", str(path), "--out-dir", str(tmp_path), "--replace"]
+    for name in sorted(columns):
+        argv += ["--date-count", name, members[name]]
+    code, said = _exit_of(argv)
+    assert code == 0, said[-600:]
+    described = tmp_path / "table-profile.json"
+    blocks = {block["name"]: block for block in json.loads(described.read_text(encoding="utf-8"))["columns"]}
+    first_day = parsing.days_from_civil(1900, 1, 1)
+    for seed in range(3):
+        code, said = _exit_of(["generate", str(described), "--seed", f"{seed}", "--out-dir", str(tmp_path), "--replace"])
+        assert code == 0, said[-600:]
+        rows = list(csv.reader(io.StringIO((tmp_path / "table-twin.csv").read_text(encoding="utf-8"))))
+        header = rows[0]
+        for name in sorted(columns):
+            member = members[name]
+            assert blocks[name]["role"] == "datetime", name
+            absent = blocks[name].get("missing_by_source") or {}
+            aside: "dict[int, int]" = {}
+            for number in date_counts.declared_aside(member):
+                aside[number] = 1
+            at = header.index(name)
+            before = 0
+            for row in rows[1:]:
+                cell = row[at]
+                if not cell or cell in absent:
+                    continue
+                written = date_counts.written_count(cell)
+                assert written is not None, (seed, name, cell)
+                numerator, denominator = date_counts.exact_value(written)
+                moment = date_counts.moment_of(member, numerator, denominator, date_counts.SECOND)
+                assert moment is not None and moment // 86400 != first_day, (seed, name, cell)
+                assert not date_counts.stands_aside(numerator, denominator, False, aside), (seed, name, cell)
+                before = before + (1 if moment // 86400 < first_day else 0)
+            assert before >= 2, (seed, name, before)
+        out = tmp_path / f"check-twin-{seed}"
+        out.mkdir()
+        assert _exit_of([
+            "validate", str(described), "--twin", str(tmp_path / "table-twin.csv"), "--out-dir", str(out), "--replace",
+        ])[0] == 0, seed
+    out = tmp_path / "check-source"
+    out.mkdir()
+    assert _exit_of(["validate", str(described), "--twin", str(path), "--out-dir", str(out), "--replace"])[0] == 0
 
 
 def test_c5_a_count_written_as_a_numeric_stand_in_is_the_date_it_names_on_both_sides(tmp_path: pathlib.Path) -> None:

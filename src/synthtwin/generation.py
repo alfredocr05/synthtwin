@@ -9766,9 +9766,8 @@ def _kept_off_placeholder_days(
     has its strata given room off the day wherever one lies wholly on it
     (`date_counts.stratum_off_the_islands`), and each of its ranks on the
     day moves here, a whole day where that fits and a whole unit of the
-    column's writing where it does not. Asked as soon as the ranks are
-    drawn, so that every pass after counts each where it will stand, and
-    again after every other pass of G7, last before the cells are spelled.
+    column's writing where it does not. Asked after every other pass of
+    G7, last before the cells are spelled.
 
     Guarantees: accepts one instant and its gap per rank, the day's
     length, the days and the grid (nought for none); returns as many
@@ -21954,17 +21953,6 @@ def _datetime_content(
     # read by every pass below and by the step off a day whose every
     # spelling is absent.
     gap_lows, gap_highs = _pin_bounds(layout)
-    # -- 3b.R4 (P4-D384): A RANK DRAWN ON A DAY A COLUMN OF COUNTED DATES
-    # HOLDS NO DATE ON moves off it at once, inside its own gap, so that
-    # every pass below counts it where it will stand; the last pass moves
-    # any rank a later pass left on one (G7.10).
-    counted_days = _hole_days(plan.counted_holes)
-    counted_day = 1 if space == "date" else 86400
-    counted_grid = _counted_grid(facts, space)
-    if plan.counted_holes and space in ("date", "datetime"):
-        ordinals = _kept_off_placeholder_days(
-            ordinals, gap_lows, gap_highs, counted_day, counted_days, counted_grid
-        )
     snapping = _snaps_to_midnight(facts)
     pins: "dict[int, tuple[str, ...]]" = {}
     if snapping:
@@ -22047,7 +22035,8 @@ def _datetime_content(
     # (`_counted_islands`).
     if plan.counted_holes and space in ("date", "datetime"):
         ordinals = _kept_off_placeholder_days(
-            ordinals, gap_lows, gap_highs, counted_day, counted_days, counted_grid
+            ordinals, gap_lows, gap_highs, 1 if space == "date" else 86400,
+            _hole_days(plan.counted_holes), _counted_grid(facts, space),
         )
     # HOW EVERY RANK IS SPELLED (landing 2b.6, the reversal of owner
     # decision 5). Allocated after the instants and the offsets, because
