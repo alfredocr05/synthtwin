@@ -21,7 +21,9 @@ first step again where a value its steps read back as is let go, nought
 included, which the first steps of a grid of 324 places or more read
 back as: 1.2 s at 8,000 rows, 5.7 at 32,000, 27.6 at 128,000 and 647 at
 1,000,000, of which the repairs take under a second. `K-S4-05` holds
-the lines the repairs run to the strata.
+the lines the repairs run to the strata, and the same lines on values
+that run a line each time a builtin hashes or compares one, so a
+repair doing that square inside a builtin is seen too.
 
 ### Mostly whole columns walked, and large tables read, without the square of their rows (2026-10-05)
 
