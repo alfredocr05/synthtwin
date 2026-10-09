@@ -8313,7 +8313,9 @@ high_tail.rows`, in the form's own unit -- minutes of the day for a
   minute or second above (G7.3e in this space).
 - `r == m_lo`: the cell is `low_tail.boundary`; `r == m_hi`:
   `high_tail.boundary`, each the published TEXT, not a re-spelling of
-  its ordinal.
+  its ordinal -- unless that text is a spelling the table calls absent,
+  when the cell is written as a present time on an absent place is
+  (below).
 - otherwise: the body, interpolated between the KNOTS -- the low
   boundary at position `m_lo`, each PUBLISHED rung `j` at position
   `P * PCT[j] / 100`, and the high boundary at position `m_hi + 1`,
@@ -8381,7 +8383,15 @@ prints and the second at a distance the published shape fixes, and a
 twin that moved either would miss a published fact to keep a count. Nor
 does a body rank whose window is one unit, which is a body with no slack
 left in it. The search passes at most one unit per absent spelling and,
-where the ranks must differ, one per rank.
+where the ranks must differ, one per rank. *On a column laid by G7A.4b
+(the round-2 fix of landing 3b.5)* no rank of a run or of a drawn tail
+is left on a place a spelling the table calls absent names: a run whose
+every step is one takes no cell (G7A.4b step 2), a rank of another run
+moves off it (step 4), and a tail drawn through its shape skips their
+distances (step 1), so a tail rank still never moves and none lands
+there -- save the places the hour's other width spells another way
+that a group or a drawn tail has nothing but absent places beside,
+whose cells are written in that width (below; G7A.4b steps 1 and 2).
 
 *Added by the dates pass of the stage-3 review, item 5.* The stand-ins
 of G7A.5 were stepped past the absent spellings from the day the role
@@ -8392,6 +8402,53 @@ leaving 98 present against a published 99 and 12 absent against 11, at
 seeds 0, 3 and 7. There are enough free minutes to keep both the
 absent count and the uniqueness, and the step above takes one.
 
+**AND A PRESENT TIME PUBLISHED ON AN ABSENT PLACE IS WRITTEN AS ITS
+SOURCE WROTE IT.** Where a place a spelling the table calls absent names
+(G7A.4b step 1) is one the description stands present cells on -- a
+heap's value, a tail's boundary or listed value, a published rung, such
+a place in a census group whose every step is an absent place (G7A.4b
+step 2), or such a place beyond a drawn tail's boundary whose every
+step on no heap is an absent place (step 1) -- the table held present
+cells there, and the form's own
+spelling of that
+place is one the column's reader counts as no value. So those cells can
+only have shown the hour's OTHER width, the one other spelling that
+reader reads at that place -- `0:00` in a column of `hh:mm` beside
+`00:00` declared missing -- and every rank standing there is written in
+it (`calendar_clock.present_spellings`), as its source wrote it. Where
+the hour shows no width (`10` to `23`, and `12` on a marked face) the
+two spellings are one, and the form's own is written. A place the
+description stands nothing present on keeps the form's own spelling
+too: the construction keeps its ranks off such a place where it can
+(the step above; G7A.4b steps 1, 2 and 4), and a cell it could not move
+is not given a spelling the table may never have held. Every other cell
+is the form's own spelling of its ordinal, and NF109's remark says both:
+a cell of the other width is written in the column's, save these, which
+keep their own.
+
+*Added by the verification of the round-2 fix of landing 3b.5.* A
+ten-minute grid in `hh:mm` holding 15 real times at midnight written
+`0:00` beside 20 cells of `00:00` declared missing publishes a heap of
+15 and a listed low tail on `00:00`, the form's spelling of that place,
+and every twin wrote all 35 cells `00:00` and MISSED eleven checks at
+seeds 0 to 2, at d4f5ee4 and at baaf9de alike, where the table
+validates; laid by G7A.4 its twins MISSED twelve or thirteen, and a
+second column holding those times beside another column's `00:00`
+nine, or eleven laid by G7A.4. Laid either way the column now writes 15
+`0:00` and 20 `00:00`, the second column 15 `0:00` and no `00:00`, and
+no twin misses anything. So do a heap of 30 `8:00` beside `08:00`
+declared missing (55 `08:00` before, eight MISSED), a low boundary on
+`7:00` beside `07:00` (one `07:00` too many, six MISSED) and a fifth
+percentile on `5:00`, pinned in its run, beside `05:00` (one too many,
+five MISSED). And a quarter-hour grid writing 20 `1:15` beside 15
+`01:15` declared missing, the only step of its census group, had its
+producer's own description refused under CC5 at baaf9de -- "this file
+has been changed since it was written" -- where at d4f5ee4 it loaded
+and every twin wrote 35 `01:15` and MISSED eleven checks; it now loads
+and its twins write 20 `1:15` and 15 `01:15`. Of this repair's own 80
+such columns (seed 71), 40 MISSED at every seed at baaf9de and two had
+their description refused; none now.
+
 ### G7A.4b The rank rule: a census, heaps, a step and codes (landing 3b.5)
 
 *Added by landing 3b.5 (lane C1, plan P4-D373).* A block publishing a
@@ -8400,19 +8457,50 @@ description written before it -- by G7A.4, byte for byte as before.
 With `k` the step in the form's own unit and every distance and place
 below on that step:
 
-1. **The tails.** A tail holding no heap, on a step of one unit or
-   listing its values, is placed as G7A.4 places it (G7.3b, G7.3c). A
+1. **The tails.** An ABSENT PLACE is a time a spelling the table calls
+   absent names in the column's form -- a key of its own
+   `missing_by_source` or of any other column's, since a declaration
+   reaches the whole table and the checker reads it so: one that reads
+   as a time there and is, trimmed and case-folded, the form's own
+   spelling of that time (`calendar_clock.absent_places`). A tail listing its values
+   and holding no heap, or holding no heap on a step of one unit with no
+   absent place beyond its boundary, is placed as G7A.4 places it (G7.3b,
+   G7.3c). A
    tail LISTING its values gives each heap's value its count and the rows
    left to the other values by G7.3c, against the sum its mean fixes less
    the heaps'. A tail drawn through its shape keeps its heaps' cells on
    their values and draws the rest by G7.3b IN STEPS: its rows, mean and
    root-mean-square less the heaps' (`calendar_clock.tail_less_heaps`),
    each distance divided by `k`, its edge in steps less the heaps'
-   distances inside it; each drawn distance `d` is read back past the
-   heaps' (`calendar_clock.off_the_heaps`: one step further for each heap
-   at or before it) and times `k`. So no drawn cell stands off the step
-   or on a heap, and every heap keeps its count. The tail's cells, heaps
-   and drawn ones together, stand at its ranks in order.
+   distances and the absent places' on the step inside it
+   (`calendar_clock.absent_beyond`); each drawn distance `d` is read back
+   past both (`calendar_clock.off_the_heaps`: one step further for each
+   at or before it) and times `k`. So no drawn cell stands off the step,
+   on a heap or on a spelling the column calls absent, and every heap
+   keeps its count -- save where EVERY step beyond the boundary on no
+   heap is an absent place. The rows the heaps leave stood in the table,
+   present, on those the hour's other width spells another way
+   (`calendar_clock.absent_with_another_width`), in that width -- as a
+   census group's cells do on such places alone (step 2) -- and never
+   on one whose hour shows no width; so those are then the draw's room
+   (`calendar_clock.absent_room_beyond`) -- its edge less the heaps'
+   distances and the other absent places', each drawn distance read
+   back past those alone -- and each cell drawn there is written in
+   that width (G7A.4). The tail's cells, heaps and drawn ones together,
+   stand at its ranks in order.
+
+   *Amended by the third verification of the round-2 fix of landing
+   3b.5.* Skipped as every absent place is, those steps left a drawn
+   tail no room, and CC5 refused the producer's own description: 70
+   `00:30` and one `0:00` beyond a low boundary at `01:00`, beside 40
+   `00:00` declared missing, left its one drawn row no step inside the
+   dial, so generate and the checker of the real table exited 1 at every
+   seed and the table had no twin; 12 of this repair's 1,500 random tables of clock
+   columns were refused so at 05eeeb9, every one on a low tail. Its
+   twins now write 40 `00:00` and the one `0:00` and miss nothing; and
+   so do the twins of one `01:00 AM` beyond a heap on `2:00 AM`, beside
+   `1:00 AM` and `12:00 AM` declared missing, where the draw stands on
+   `1:00 AM` alone, `12`'s hour showing no width.
 2. **The body's stretches** (`calendar_clock.clock_body_blocks`). From
    rank `m_lo` (nought with no tails), in ordinal order: each heap
    between the boundaries is a stretch of its count on its value; each
@@ -8423,16 +8511,34 @@ below on that step:
    f_j + floor(r * U<=j / U) - floor(r * U<j / U)
    ```
 
-   of them (`calendar_clock.run_shares`), `U` the group's steps, `U<=j`
-   and `U<j` those through and before run `j`, `f_j` one for each tail
-   boundary standing in run `j` on no heap, and `r = n - sum(f)`; where
-   the `f_j` outnumber `n`, none is taken first. The boundary's ONE CELL
+   of them (`calendar_clock.run_shares`), `U` the group's steps on no
+   absent place, `U<=j` and `U<j` those through and before run `j` -- so
+   a run whose every step is an absent place takes no cell, save in a
+   group whose every step on no heap is an absent place: the table held
+   that group's cells, present, on those the hour's other width spells
+   another way (`calendar_clock.absent_with_another_width`), in that
+   width, and never on one whose hour shows no width, so `U` counts
+   those steps alone and the cells are written in it (G7A.4) --
+   `f_j` one for each tail boundary standing in run `j` on no heap, and
+   `r = n - sum(f)`; where the `f_j` outnumber `n`, none is taken
+   first. The boundary's ONE CELL
    FIRST is the 3b.5 skeptic's MAJOR 1: a first run of two steps in
    forty-one took none of twenty cells by steps alone, and the pinned
    boundary took a cell of the heap beside it. A body publishing no
    census -- nothing, or fewer than the line, left beside its heaps
    (NF106) -- is one group over the dial counting the body's cells on no
    heap.
+
+   *Amended by the third verification of the round-2 fix of landing
+   3b.5.* Its verification let a group stand on its absent steps only
+   where the hour's other width spells every one of them another way,
+   so five `09:00 AM` and six `03:00 PM` of a column of `h:mm AM` on a
+   three-hour grid, one group of 11 across an empty noon with `9:00 AM`,
+   `12:00 PM` and `3:00 PM` declared missing, had the producer's own
+   description refused by CC5, at every seed. Its runs now take
+   `9:00 AM` and `3:00 PM` alone, a rank laid on `12:00 PM` moving to
+   the nearest of them, the earlier first (step 4): every twin writes
+   the five and the six and misses nothing.
 3. **The pins.** The two boundary ranks stand on their boundaries, and
    each published interior rung whose rank lies in a run holding its
    value on the step stands on it (`_clock_rung_pins`) -- the rungs
@@ -8456,7 +8562,10 @@ below on that step:
    a spelling the table calls absent moves to the nearest step of its
    run that is not one, the earlier first -- where the values differ, on
    no other rank's step and strictly between the pins either side of
-   it.
+   it. A run whose every step is an absent place holds no rank (step 2),
+   save one of a group whose every step is: a rank on one the hour's
+   other width does not spell another way moves to the nearest that it
+   does, the same way.
 
    *Amended by the review of landing 3b.5, item 1.* The code read an
    all-different column's ranks WITHOUT the pins as knots and then stepped
@@ -8472,6 +8581,20 @@ below on that step:
    could cross a pin too, where the nearest free step lay past it. Every
    pin is now a knot, and a wall the step apart and the step off an
    absent spelling do not cross.
+
+   *Amended by the round-2 fix of landing 3b.5 (steps 1 and 2).* A
+   group's count was shared over its runs by every step, the absent
+   place too, and a tail drawn through its shape skipped its heaps'
+   distances but not the absent places', so the twin wrote present cells
+   on a spelling its own reader counts as no value. Measured on 150
+   columns on a five- to sixty-minute grid beside `00:00` or `12:00`
+   written for an unknown time and declared missing, 16 MISSED at every
+   seed: an hourly grid's run holding nothing but `12:00` took six cells
+   no rank could move off it (285 against 279), and a ten-minute grid's
+   low tail drew a cell onto `00:00`, its own edge (21 against 20). At
+   the minute a heap-free tail was placed as G7A.4 places it and 14 of
+   100 such columns wrote one or two `00:00` too many at its outer end.
+   Every one of them now writes the absence on exactly the table's rows.
 5. **The words** are G7A.4's: `P - 2` content words, one per rank
    between the two ends in rank order, a heap's, a pin's or a
    boundary's read and set aside, a tail's handed to its draw from the
@@ -13503,10 +13626,16 @@ is its census GROUP's steps inside the body -- the group's, not its
 run's, so a real column whose rung stands on the far side of a heap
 from where the twin's share put it is still inside -- a heap's rank its
 value, a boundary rank its boundary, and a tail rank anywhere beyond its
-boundary (`calendar_clock.clock_rank_windows`). A tail holding heaps or
-drawn on a step of more than one unit has its two distances' window
-(G12.14) summed over its heaps' distances and its drawn cells' strata,
-read back past the heaps and times the step, as G7A.4b draws them.
+boundary (`calendar_clock.clock_rank_windows`), the runs shared as
+G7A.4b step 2 shares them, over their steps on no absent place -- or,
+in a group whose every step is an absent place, over those the other
+width spells another way. A tail
+holding heaps, drawn on a step of more than one unit or beside an absent
+place beyond its boundary has its two distances' window (G12.14) summed
+over its heaps' distances and its drawn cells' strata, read back past the
+heaps and the absent places and times the step, as G7A.4b draws them --
+past the heaps and the other absent places alone where the places the
+other width spells another way are the draw's room (G7A.4b step 1).
 
 ### G12.11 The envelope on a clock column's two distinctness counts
 
@@ -14375,7 +14504,7 @@ that happens -- and the clause beside it, `--missing-value`'s "CAN be
 published as the column's smallest value", is exactly right under the
 new rule.
 
-**All one hundred and eighty-five are required.** The count is taken off the committed
+**All one hundred and eighty-six are required.** The count is taken off the committed
 case sets and not carried forward: this sentence said fifty-two and a
 split of nine, twenty, sixteen and seven while the six files held
 seventy-three, because each repair that added a case added a clause to
@@ -14408,10 +14537,11 @@ thirteen; the SIXTEENTH,
 TWENTY-SECOND, `tests/reference/generation-branch-vectors-22.json`,
 holds five -- landing T1's written clocks and G7.5 step 5, in the file
 plan P4-D364's table gives that landing (G14.2); the TWENTY-FIRST,
-`tests/reference/generation-branch-vectors-21.json`, holds fifteen --
+`tests/reference/generation-branch-vectors-21.json`, holds sixteen --
 landing 3b.5's census of a column of clock times, G7A.4b and G8.3's
 clock supply and clock line, held key by key since its second repair
-round, in the file that table gives that landing; the
+round, and the absent places of its second verification's fix, in the
+file that table gives that landing; the
 TWENTY-THIRD, `tests/reference/generation-branch-vectors-23.json`,
 holds one -- lane G2's width rule, G6.6.8 -- in the file that table
 gives lane G2; and the
@@ -14599,6 +14729,7 @@ case passed, which is the failure the count exists to prevent:
 | `clock_census_seconds` | G7A.4b at the second (`hh-mm-ss`), a step of one second: 72 times from 09:00:00 with 12 at 09:00:00, a heap that is the low tail's one listed value, and the census over the rest. Its mutant lays the body on a step of a minute, and every cell moves onto a whole minute |
 | `clock_census_all_different` | G7A.4b on a column whose 60 values all differ: each run's ranks are read between its pins and stepped apart between them, each past the one before and each leaving room for those after, so the twin's values all differ too, stay inside their groups, and every pin -- the two boundaries and the three quartiles -- stands at its rank. Re-derived at the review of landing 3b.5 (item 1), where it had frozen `07:39` at the rank of its first quartile, published `07:30`. Its mutant withdraws the step apart, and two ranks share a minute |
 | `clock_census_absent_inside` | G7A.4b's step off an absent spelling: 08:30 is declared missing and 13 cells wrote it, and it lies inside the census group 08:20 to 08:39. A run's rank on that spelling moves to the nearest step of its run that is not one, the earlier first. Its mutant leaves it there, and the twin writes 08:30 as a present cell its own reader counts absent |
+| `clock_census_absent_places` | G7A.4b's absent places (the round-2 fix of landing 3b.5): 58 times on a ten-minute grid beside 22 cells declared missing, 11 of `00:00` written for an unknown time and 11 of `14:30`. `14:30` is the only step of a run the heaps at `14:20` and `14:40` cut from the census group 12:20 to 16:49, so the run takes none of the group's 12 cells; `00:00` is the low tail's own edge, so the tail is drawn past it. Its mutant shares the group over every step again and the twin writes a present `14:30`; withdrawing the tail's skip, a clause of its own, writes one on `00:00` |
 | `clock_census_boundary_below_heap` | G7A.4b's first cell for a boundary (the 3b.5 skeptic's MAJOR 1): the low boundary 06:58 stands two steps below a heap of 25 at 07:00, both in the group 06:50 to 07:39, so the run holding the boundary holds 2 of the group's 41 steps and a share by steps gives it none of 19 cells. The run takes one cell first. Its mutant shares by steps alone, the boundary's rank lands on the heap, and the twin holds no 06:58 |
 | `clock_census_tail_heaps` | G7A.4b's heaps in the tails: 06:00 holds 14 of the low tail's 16 cells and 22:00 13 of the high tail's 15. Each tail's heap cells stand on their value, and its other cells are drawn through the shape its rows, mean and root-mean-square less the heap's give, in steps that skip the heap's distance. Its mutant draws each tail whole through its shape, and the heaps are gone |
 | `clock_census_on_a_step` | G7A.4b on a five-minute grid, a published step of 300 seconds: the body's runs, the tails' draws and the stand-out rule are laid on the step, so every twin value is a multiple of five minutes. Its mutant lays them on the form's own minute, and values leave the grid |

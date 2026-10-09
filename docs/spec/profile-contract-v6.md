@@ -4021,9 +4021,9 @@ terms, and capitalised where it starts a sentence.
 
 > some values write their time of day another way than most -- with AM or PM where most write none or the other way round, with another mark, or with an hour the column's clock does not show -- and are counted as values this column does not read
 
-**NF109. `remark_some_hours_written_another_width` — cells of the other hour width, counted in** — arity 0 (landing T1). A remark, carried where some read cells show the hour width the column does not write; they are read, and published and written back in the column's width. No count (plan P4-D347).
+**NF109. `remark_some_hours_written_another_width` — cells of the other hour width, counted in** — arity 0 (landing T1). A remark, carried by a column of clock times or of slashed stamps some of whose read cells show the hour width the column does not write; they are read, and published and written back in the column's width -- save, on a column of clock times, a present time the description stands on a place whose spelling in that width the table calls absent (a heap, a tail's boundary or listed value, a pinned rung, or a census group or a drawn tail with no other step), which can only have been written in the other width and is written back in it (generation method G7A.4, the verification of landing 3b.5's round-2 fix). A slashed stamp's clock half is written in the column's width throughout, so the remark says that exception of clock times alone, and its words hold on both. No count (plan P4-D347).
 
-> some values write the hour with a different number of figures than most do, and are read and written the way most of them are
+> some values write the hour with a different number of figures than most do, and are read, and written the way most of them are -- save, in a column of clock times with no date, a time the description stands present cells on where that way is a spelling the table counts as missing, which keeps its own number of figures
 
 **"EVERY VALUE IS DIFFERENT" ONLY WHERE IT IS** (plan P4-D357 A, review
 item 6 of follow-up A). The producer writes NF32 or NF34 -- in its first
@@ -8967,9 +8967,12 @@ one date format must clear the line. Cells of the other precision, cells
 written on another face (NF108), and every other present cell no clock
 reading accepted, are counted in `n_unparsed` inside the slack the line
 leaves; a cell whose hour shows the other WIDTH is not among them, and
-is read in the column's (C6-10a, NF109), save where both widths would
-spell a value declared missing. An in-slack minority is the line's
-ordinary arithmetic and not a decline.
+is read in the column's (C6-10a, NF109), save, on a slashed stamp,
+where both widths would spell a value declared missing; a column of
+clock times reads every such cell, and its twin writes one whose
+column-width spelling is declared missing in its own width (method
+G7A.4). An in-slack minority is the line's ordinary arithmetic and not
+a decline.
 
 **Where BOTH precisions clear the line, the finer wins: the column
 takes its `-mm-ss` form.** A cell matches at most one precision, so
@@ -9039,9 +9042,9 @@ another face then drops does not shut out the reading that keeps more
    face (NF108), are counted in `n_unparsed`, and where neither carries
    it the column declines to the later rules. A cell whose hour shows
    the other WIDTH is written in another of the forty forms and is read
-   all the same: C6-10a reads it in the column's width (NF109), save
-   where both widths would spell a value declared missing (the T1
-   review's item 11). `datetime` has a joint
+   all the same: C6-10a reads it in the column's width (NF109), save,
+   on a slashed stamp, where both widths would spell a value declared
+   missing (the T1 review's item 11). `datetime` has a joint
    reading across ISO resolutions because that mix is the dominant
    export shape; clock-precision mixes are not, so this version takes
    the narrow reading and names the joint one as the candidate for a
@@ -9061,7 +9064,7 @@ All four are named residual R-P4-5.
 | `low_tail` | object or `null` | the five keys of DT1, values in `clock_form` | the cells below the low boundary: the boundary itself, how many lie strictly below it, how far below on average in minutes (a `-mm` form) or seconds (a `-mm-ss` form), the root-mean-square of those distances, and -- where the tail holds few values -- which values it holds | `boundary` and `rows` EXACT-OBSERVABLE; the two distances APPROXIMATED, inside the window of G12.14 |
 | `high_tail` | object or `null` | the same five keys | the cells above the high boundary, mirrored | as `low_tail` |
 | `clock_percentiles` | ladder of strings or `null` | section 5.6, rungs in `clock_form` | the eleven-rung ladder over the ordered clock values of the cells that parsed, published between the two tail boundaries and empty everywhere else (T2) | the two ends always `null`; each published interior rung APPROXIMATED, inside the window the generation method's approximated-fields table fixes for this role |
-| `n_unparsed` | integer ≥ 0 | — | present cells the column's clock reading leaves unread: those no reading of C6-10 accepts, the cells of the other precision and those written on another face (C6-10, NF108), and -- only where both hour widths would spell a value declared missing -- the cells so written (C6-10a); every other cell of the other hour width is read (NF109) | EXACT-OBSERVABLE as counted neutral stand-ins, explicitly OUTSIDE the clock representation obligation |
+| `n_unparsed` | integer ≥ 0 | — | present cells the column's clock reading leaves unread: those no reading of C6-10 accepts, the cells of the other precision and those written on another face (C6-10, NF108), and -- only on a slashed stamp where both hour widths would spell a value declared missing -- the cells so written (C6-10a); every other cell of the other hour width is read (NF109) | EXACT-OBSERVABLE as counted neutral stand-ins, explicitly OUTSIDE the clock representation obligation |
 
 **The five keys stage 3b reserves on this role** (plan P4-D364):
 `[]` -- `clock_step` `null` -- on every block until the landing their
@@ -12583,7 +12586,7 @@ it answers to.
 | CC2 | every group of `clock_census` counts nought or at least `max(2, small_cell_floor)` | yes |
 | CC3 | the groups add up to the body less its cells on a heap: `P - low_tail.rows - high_tail.rows` (`P`, the parsed cells, where there are no tails) less the counts of the heaps between the two boundaries | yes |
 | CC4 | a block publishes a census, heaps or codes only beside a `clock_step`; the step divides the dial and is a whole number of the form's unit, and every clock value the block publishes -- the boundaries, a tail's values, the rungs and the heaps -- stands on it | yes |
-| CC5 | every group counting cells holds a step between the two boundaries that is no heap -- as many as it counts on a column whose values are all different -- and every boundary and published rung stands on a heap or in a group counting cells; a block publishing no census is asked the same of the one group over the dial counting the body's cells on no heap, which G7A.4b lays (the review of landing 3b.5, item 5) | yes |
+| CC5 | every group counting cells holds a step between the two boundaries that is no heap and no place a spelling the table calls absent -- a key of any column's `missing_by_source` -- names in its form (the absent places of method G7A.4b, which its runs leave out; the round-2 fix of landing 3b.5), or, where every such step of the group is an absent place, those the hour's other width spells another way, which hold the present cells the table wrote there in that width (G7A.4b step 2; the verification of that fix and its third) -- as many as it counts on a column whose values are all different -- and every boundary and published rung stands on a heap or in a group counting cells; a block publishing no census is asked the same of the one group over the dial counting the body's cells on no heap, which G7A.4b lays (the review of landing 3b.5, item 5); and a tail drawn through its shape whose heaps leave it rows keeps a step beyond its boundary, on the step and inside the dial, that is no heap and no such absent place, where G7A.4b step 1 draws them -- or, where every such step on no heap is an absent place, those the hour's other width spells another way, which hold the rows the table wrote there in that width (G7A.4b step 1; the third verification of that fix) | yes |
 | CH1 | the heaps are times in `clock_form`, strictly ascending, each counting at least the census line; those beyond a boundary count no more together than that tail's rows and, where it lists its values, are among them -- and there every other value it lists keeps at least one row, the heaps and those values hold every row, and the sum of distances `rows * mean_distance` fixes, less the heaps', lies within half a unit of what those values' rows can add, from each once and the rest on the nearest to each once and the rest on the furthest (the review of landing 3b.5, item 5); those between the boundaries count no more than the body | yes |
 | CH2 | the codes are spellings `clock_form` does not read, strictly in text order, each counting at least the census line, and together no more than `n_unparsed` | yes |
 

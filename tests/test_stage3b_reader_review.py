@@ -102,8 +102,12 @@ def test_item_1_a_rewritten_hour_never_spells_a_declared_absence(
 
     At 110cb46 the column kept the padded width most cells show, rewrote
     every `1:00` as `01:00` -- the declared missing spelling -- and the
-    twin at seed 0 held 191 holes against the source's eleven. The width
-    that spells no declared absence is kept instead.
+    twin at seed 0 held 191 holes against the source's eleven. A stamp
+    keeps the width that spells no declared absence instead. A column of
+    clock times keeps the width most cells show since the merge of
+    landing 3b.5's round 2 (method G7A.4): its 180 `1:00` stand on a heap
+    at the place `01:00` names, and its twin writes them `1:00` there,
+    as the table did, and every other cell padded, as the table did.
     """
     cells = [prefix + cell for cell in _padded_beside_one_figure()]
     block, profile, _questions = gate._described(
@@ -113,6 +117,16 @@ def test_item_1_a_rewritten_hour_never_spells_a_declared_absence(
     assert block["n_unparsed"] == 0
     twin, written = gate._twin(profile, 0)
     assert written.count(f"{prefix}01:00") == 11
+    if not prefix:
+        assert gate._style_of(block) == "hh"
+        assert written.count("1:00") == 180
+        for checked in (tmp_path / "real.csv", twin):
+            code, report = gate._validated(profile, checked)
+            assert code == 0, report[-3000:]
+        for cell in written:
+            if cell not in ("01:00", "1:00"):
+                assert gate._wears(cell, "clock", "hh"), cell
+        return
     assert gate._style_of(block) == "h"
     # ...and the source and its twin both validate with nothing missed.
     for checked in (tmp_path / "real.csv", twin):
@@ -173,7 +187,10 @@ def test_items_1_and_2_a_cell_counted_unread_is_in_no_recount(
         "--missing-value", f"{prefix}01:00", "--missing-value", f"{prefix}2:00",
     )
     assert block["n_present"] == 1023 and block["n_missing"] == 22
-    assert block["n_unparsed"] == 3
+    # A column of clock times reads the three at the place `01:00` names
+    # since the merge of landing 3b.5's round 2 (method G7A.4); a stamp
+    # still counts them unread.
+    assert block["n_unparsed"] == (3 if prefix else 0)
     code, report = gate._validated(profile, tmp_path / "real.csv")
     assert code == 0, report[-3000:]
     twin, _written = gate._twin(profile, 0)

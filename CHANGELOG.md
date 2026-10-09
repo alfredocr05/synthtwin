@@ -408,11 +408,83 @@ loader refused, and `synthtwin generate` stopped and said the file had
 been changed; such a tail lists its values in the order of the day now,
 and every other description keeps every byte.
 
+**Its second verification** found a time declared missing written back
+as present cells: beside `00:00` or `12:00` written for an unknown time
+and declared with `--missing-value`, 16 of 150 clock columns on a five-
+to sixty-minute grid failed their own check at every seed, and 14 of 100
+at the minute. A run of the body whose only step was the absence took a
+share of its group's cells (285 `12:00` against 279), and a tail's draw
+could land on it (21 `00:00` against 20, at its outer end) -- in another
+column too, where one column wrote the absence and the other's tail
+reached midnight. The times any column's absent spellings name now hold
+no cell of a run, a tail is drawn past them, the checker draws its
+windows the same way, and the loader refuses a hand-edited group or
+drawn tail left with no step to stand on -- since its third
+verification, below, a step only the hour's other width can still write
+counting as one. None of those columns misses
+now, every real table still passes, and a twin with no absence inside a
+run or on a tail's reach keeps every byte; vectors file 21 freezes
+sixteen cases.
+
+**And the verification of that round** found a present time written as
+no value. A column of `hh:mm` holding real times at midnight written
+`0:00` beside `00:00` declared missing -- its reader reads both at one
+place, and its description stands the present ones there as `00:00` --
+had every twin write all of them `00:00`, cells its own check counts
+missing, and fail eleven checks at every seed; where such cells were a
+census group's only step, the loader refused the producer's own
+description and said it had been changed since it was written. A present
+time the description stands on a place a declared-missing spelling names
+-- a heap, a tail's boundary or listed value, a pinned rung, or such a
+group -- is now written in the hour's other width, as the table wrote
+it: of 80 such columns 40 failed at every seed and 2 were refused, and
+none is now. Where the description stands nothing present on such a
+place, those cells are written in the column's width on another step
+of their group, as every cell of the other hour width is: a stated
+limit, held by a strict xfail, which lane C2, the clock role's next
+landing, owns. The remark on values of the other hour width now says
+which of them keep their own figures. Two rules of the round -- the loader reading every
+column's absent spellings, and an absent marker typed in lower case --
+are held by clauses that fail without them, `K-S3-49` pins the round's
+clauses, and the tail-leak measurement draws its clock windows as the
+checker does.
+
+**And its third verification** found the producer writing a description
+its own loader refused, so the table had no twin at all: 70 `00:30` and
+one real `0:00` beyond a low boundary at `01:00`, beside `00:00`
+declared missing, make a tail drawn through its shape whose only steps
+past its boundary are its heap's and `00:00`, and the loader counted
+neither as room. Where every such step is a time the table calls
+absent, the tail now draws on those the hour's other width can still
+write, and writes them in that width, as the table did: every twin keeps
+the one `0:00` and its 40 `00:00` and misses nothing, and the table is
+checked clean, alone and beside a second column. A census group whose
+every step is a time the table calls absent stands on those the other
+width can still write the same way: five `09:00 AM` and six `03:00 PM`
+merged across noon, beside `9:00 AM`, `12:00 PM` and `3:00 PM` declared
+missing, were refused too, and every twin now keeps them. A battery of
+1,300 random tables of clock columns holds every description
+`synthtwin profile` writes of them to `synthtwin generate` at seeds 0
+and 1, every exit 0, where 12 tables had no twin before. The stated
+limit also names a place the description stands only a rung on, and
+cells of the other hour width beyond a drawn tail's boundary, drawn
+onto a step there in the column's width. Its fourth verification
+found no clause holding the checker to the room it counts beside such
+a tail; one does now, and fails where the checker counts none.
+
 Merged beside landing T1's scripted notice, a column of few shared
 times that nobody is there to ask is said to be read as times of day
 and is offered `--code`, where it was said to be read as measurements;
 a 12-hour column offered `code` is offered `--code` beside
 `--twelve-hour`.
+
+Merged beside the T1 review's rule, a column of clock times keeps the
+hour width most of its cells show where a present time's spelling in
+that width is declared missing, and its twin writes that time in its
+own width, as round 2 does: T1's rule had published such a column in
+the other width, so a twin of 15 `0:00` beside 20 `00:00` declared
+missing wrote its 269 padded hours unpadded. A slashed stamp keeps
+T1's rule.
 
 ### A timestamp column's count pass stops rebuilding on every attempt (2026-10-03)
 

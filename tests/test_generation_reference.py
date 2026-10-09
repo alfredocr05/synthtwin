@@ -855,6 +855,7 @@ TWENTY_SECOND_BRANCH_CASES = (
 # (plan P4-D373).
 TWENTY_FIRST_BRANCH_CASES = (
     "clock_census_absent_inside",
+    "clock_census_absent_places",
     "clock_census_all_different",
     "clock_census_boundary_below_heap",
     "clock_census_codes",
@@ -965,6 +966,9 @@ SEEDS = {
     # ...and the verification of that repair, step 5's aim and look ahead
     # (open item 1), at the next seed no lane of the wave has taken.
     "layout_offsets_owed_across_offsets": 438,
+    # ...and the round-2 fix's absent places (plan P4-D373) the next seed
+    # after the highest another lane of the wave had taken, 436.
+    "clock_census_absent_places": 437,
     # Landing T1's written clocks take the next seeds after the highest in
     # use below 34041 (plan P4-D370).
     "stamp_unpadded_hour": 416,
@@ -3686,6 +3690,11 @@ def _absent_left(place, *_rest):
     return place
 
 
+def _every_step_counted(low, high, stride, form, absent):
+    """G7A.4b's run share over its absent places too, as before the round-2 fix."""
+    return (high - low) // stride + 1
+
+
 def _tail_heaps_withdrawn(column):
     """G7A.4b's heaps in the tails withdrawn: each tail drawn whole."""
     form = column["clock_form"]
@@ -3734,6 +3743,12 @@ CASE_MUTANTS = {
         branch="G7A.4b's step off an absent spelling inside a run; the mutant leaves a rank on 08:30",
         attribute="clock_off_absent",
         replacement=_absent_left,
+        outcome=CHANGES_THE_CELLS,
+    ),
+    "clock_census_absent_places": Mutant(
+        branch="G7A.4b's run share over the steps on no absent place (the round-2 fix of landing 3b.5); the mutant counts 14:30 again, the run holding nothing else takes a cell and the twin writes a present 14:30",
+        attribute="clock_run_units",
+        replacement=_every_step_counted,
         outcome=CHANGES_THE_CELLS,
     ),
     "clock_census_all_different": Mutant(
@@ -5392,6 +5407,27 @@ def test_withdrawing_step_five_puts_the_partly_padded_ceiling_on_a_stand_in(
         "withdrawn, so no committed byte holds that step up"
     )
     assert "+9999" in after["cells"]
+
+
+def test_withdrawing_the_tail_skip_puts_a_cell_on_the_absence(monkeypatch) -> None:
+    """G7A.4b step 1's absent places (the round-2 fix of landing 3b.5), withdrawn from the oracle.
+
+    `clock_census_absent_places` carries its run share's mutant in the
+    table above; this is the second branch the same case holds up. Its
+    low tail is drawn through its shape past `00:00`, the tail's own edge
+    and a spelling the column declares missing; withdrawn, the committed
+    cells move and the tail writes a present `00:00`.
+    """
+    before, _claims = gen.build_case("clock_census_absent_places")
+    assert before["cells"].count("00:00") == 11, "the case's absence is not its eleven declared rows"
+    monkeypatch.setattr(gen, "clock_tail_absent", lambda *_rest: [])
+    monkeypatch.setattr(gen, "RECOUNT_DISTINCT", False)
+    after, _mutant_claims = gen.build_case("clock_census_absent_places")
+    assert after["cells"] != before["cells"], (
+        "clock_census_absent_places is written the same way with G7A.4b step "
+        "1's absent places withdrawn, so no committed byte holds that step up"
+    )
+    assert after["cells"].count("00:00") > 11
 
 
 def _shares_as_drawn(walk: object, gaps: "list[list[int]]", owed: "list[int]") -> "list[list[int]]":

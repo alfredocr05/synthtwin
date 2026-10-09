@@ -643,8 +643,8 @@ def test_h_the_hour_comes_back(rows: int, floor: int) -> None:
 def test_h_red_without_the_census(monkeypatch: pytest.MonkeyPatch) -> None:
     built = calendar_clock.clock_body_blocks
 
-    def withdrawn(parsed, tails, body, groups, heaps, form, stride):  # type: ignore[no-untyped-def]
-        return built(parsed, tails, body, (), heaps, form, stride)
+    def withdrawn(parsed, tails, body, groups, heaps, form, stride, absent=()):  # type: ignore[no-untyped-def]
+        return built(parsed, tails, body, (), heaps, form, stride, absent)
 
     monkeypatch.setattr(calendar_clock, "clock_body_blocks", withdrawn)
     _folder, columns, _document, loaded, _table = _described(_CLOCKS, 1000, 11)

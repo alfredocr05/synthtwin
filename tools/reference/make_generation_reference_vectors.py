@@ -21274,18 +21274,79 @@ def clock_kept_apart(places, size, pinned=()):
 
 
 def clock_off_absent(place, size, low_at, stride, form, absent, taken, apart,
-                     lowest=0, highest=None):
+                     lowest=0, highest=None, room=()):
     """The nearest step of a run, from ``lowest`` to ``highest``, whose
-    spelling the column does not call absent, the earlier first, on no
-    other rank's step where the values all differ; the same step where
-    there is none (G7A.4b)."""
+    spelling the column does not call absent or that is in ``room`` -- the
+    places the other width spells another way of a run on absent places
+    alone -- the earlier first, on no other rank's step where the values
+    all differ; the same step where there is none (G7A.4b)."""
     highest = size - 1 if highest is None else highest
     for away in range(1, size + 1):
         for other in (place - away, place + away):
             if (lowest <= other <= highest and not (apart and taken.get(other))
-                    and not _clock_reads_absent(low_at + other * stride, form, absent)):
+                    and (low_at + other * stride in room
+                         or not _clock_reads_absent(low_at + other * stride, form, absent))):
                 return other
     return place
+
+
+def clock_absent_of(column):
+    """The spellings the table calls absent, trimmed and lower-cased (G7A.4,
+    G7A.4b): every case is one column, so they are its own."""
+    return {text.strip().lower() for text in column.get("missing_by_source") or {}}
+
+
+def clock_run_units(low, high, stride, form, absent):
+    """How many steps of one run, ``low`` to ``high`` on the step, may hold
+    a cell: those whose spelling the column does not call absent (G7A.4b,
+    the round-2 fix of landing 3b.5).  Every step is spelled and asked."""
+    return sum(
+        1 for at in range(low, high + 1, stride)
+        if not _clock_reads_absent(at, form, absent)
+    )
+
+
+def clock_tail_absent(column, at, is_low, stride):
+    """The distances beyond a tail's boundary ``at``, in the form's unit and
+    on the step, whose spelling the column calls absent (G7A.4b step 1,
+    the round-2 fix of landing 3b.5): every step out to the dial's end is
+    spelled and asked."""
+    form = column["clock_form"]
+    absent = clock_absent_of(column)
+    if not absent:
+        return []
+    last = clock_capacity(form) - 1
+    found, distance = [], stride
+    while (at - distance >= 0) if is_low else (at + distance <= last):
+        if _clock_reads_absent(at - distance if is_low else at + distance, form, absent):
+            found += [distance]
+        distance += stride
+    return found
+
+
+def clock_tail_room(column, at, is_low, stride, heaped):
+    """The distances beyond a drawn tail's boundary ``at`` its draw stands on
+    although the column calls them absent (G7A.4b step 1, the third
+    verification of the round-2 fix of landing 3b.5): where every step out
+    to the dial's end that is no heap's (``heaped``, their distances) is
+    spelled absent, each such step the hour's other width writes another
+    way -- the rows the heaps leave stood there, in that width -- and
+    otherwise none.  Every step is spelled and asked."""
+    form = column["clock_form"]
+    absent = clock_absent_of(column)
+    if not absent:
+        return []
+    last = clock_capacity(form) - 1
+    room, distance = [], stride
+    while (at - distance >= 0) if is_low else (at + distance <= last):
+        if distance not in heaped:
+            place = at - distance if is_low else at + distance
+            if not _clock_reads_absent(place, form, absent):
+                return []
+            if clock_other_width_of(place, form) != clock_spelling_of(place, form):
+                room += [distance]
+        distance += stride
+    return room
 
 
 def clock_census_runs(column, parsed, tails, body, heaps, stride):
@@ -21295,12 +21356,14 @@ def clock_census_runs(column, parsed, tails, body, heaps, stride):
     value.  Each census group counting cells takes its steps inside the
     body, on the step and on no heap, cut by the heaps inside it into
     runs; run j takes floor(n U<=j / U) - floor(n U<j / U) of the group's
-    n, where a boundary standing on no heap gives its run one cell first.
-    A body publishing no census is one group over the dial.  Returned as
-    (first rank, cells, low, high, is a heap, group).
+    n, U counting only the steps whose spelling the column does not call
+    absent, where a boundary standing on no heap gives its run one cell
+    first.  A body publishing no census is one group over the dial.
+    Returned as (first rank, cells, low, high, is a heap, group).
     """
     form = column["clock_form"]
     unit = clock_step_of(form)
+    absent = clock_absent_of(column)
     low_rows, high_rows = tails if tails is not None else (0, 0)
     inside = [(at, count) for at, count in heaps if body[0] <= at <= body[1]]
     groups = [
@@ -21331,7 +21394,16 @@ def clock_census_runs(column, parsed, tails, body, heaps, stride):
                     start = at + stride
             if start <= high:
                 runs += [(start, high)]
-            units = [(b - a) // stride + 1 for a, b in runs]
+            units = [clock_run_units(a, b, stride, form, absent) for a, b in runs]
+            if not sum(units):
+                # Every step an absent place: the table held the group's
+                # cells on those the other width spells another way, in that
+                # width, and the runs take those steps alone.
+                units = [
+                    sum(1 for at in range(a, b + 1, stride)
+                        if clock_other_width_of(at, form) != clock_spelling_of(at, form))
+                    for a, b in runs
+                ]
             first_cells = [sum(1 for end in ends if a <= end <= b) for a, b in runs]
             for (a, b), cells in zip(runs, clock_run_shares(count, units, first_cells)):
                 events += [(a, b, cells, False)]
@@ -21345,14 +21417,19 @@ def clock_census_runs(column, parsed, tails, body, heaps, stride):
 def clock_census_content(column):
     """The content list of a clock column publishing a step -- G7A.4b.
 
-    TAILS: a tail holding no heap on a step of one unit is placed as G7A.4
-    places it.  Otherwise a tail listing its values gives each heap's
-    value its count and the rows left to the other values by G7.3c, and a
-    tail drawn through its shape keeps its heaps' cells on their values
-    and draws the rest by G7.3b in steps -- its rows, mean and
-    root-mean-square less the heaps', each distance divided by the step,
-    its edge in steps less the heaps inside it -- each drawn distance
-    read back past the heaps' and times the step.  BODY: each stretch of
+    TAILS: a tail holding no heap on a step of one unit, with no spelling
+    the column calls absent on its reach, is placed as G7A.4 places it.
+    Otherwise a tail listing its values gives each heap's value its count
+    and the rows left to the other values by G7.3c, and a tail drawn
+    through its shape keeps its heaps' cells on their values and draws the
+    rest by G7.3b in steps -- its rows, mean and root-mean-square less the
+    heaps', each distance divided by the step, its edge in steps less the
+    heaps and the absent steps inside it -- each drawn distance read back
+    past the heaps' and the absent ones' and times the step; save where
+    every step beyond the boundary on no heap is an absent one, where the
+    draw stands on those the hour's other width writes another way, read
+    back past the heaps' and the others alone, and writes them in that
+    width.  BODY: each stretch of
     `clock_census_runs`; a heap's ranks on its value, a run's ranks by
 
         steps[((r - a) 2**64 + w) |steps| // (n 2**64)]
@@ -21377,6 +21454,7 @@ def clock_census_content(column):
     low, high = column["low_tail"], column["high_tail"]
     ordinals = [0] * parsed
     tails, body = None, (0, (capacity - 1) // stride * stride)
+    stood_beyond = set()
     if low is not None and high is not None:
         tails = (low["rows"], high["rows"])
         body = (clock_ordinal_of(low["boundary"], form),
@@ -21419,7 +21497,7 @@ def clock_census_content(column):
                 stood = []
                 for gap in gaps:
                     stood.extend([gap] * (mine[gap] if gap in mine else shares[gap]))
-            elif not mine and stride == 1:
+            elif not mine and stride == 1 and not clock_tail_absent(column, at, is_low, stride):
                 mean = (
                     float_of(side["mean_distance"])
                     if side["mean_distance"] is not None else 1.0
@@ -21451,7 +21529,15 @@ def clock_census_content(column):
                         mean = max((side["rows"] * whole_mean - owed) / rows, 1.0)
                         square = (side["rows"] * (whole_root * whole_root) - squares) / rows
                         root = max(math.sqrt(square) if square > 0.0 else mean, mean)
-                    skipped = sorted(gap // stride for gap in mine)
+                    # ...past the absent steps too, save the draw's own room
+                    # (the third verification of the round-2 fix).
+                    drawn_room = clock_tail_room(column, at, is_low, stride, mine)
+                    stood_beyond |= {at - gap if is_low else at + gap for gap in drawn_room}
+                    skipped = sorted(
+                        {gap // stride for gap in mine}
+                        | {gap // stride for gap in clock_tail_absent(column, at, is_low, stride)
+                           if gap not in drawn_room}
+                    )
                     steps = room // stride
                     drawn = tail_distances(
                         rows, max(1.0, mean / stride), max(1.0, root / stride),
@@ -21471,9 +21557,7 @@ def clock_census_content(column):
         pins[tails[0]] = body[0]
         pins[parsed - 1 - tails[1]] = body[1]
         pins.update(clock_rung_pins(column, parsed, stretches, stride))
-    absent = {
-        text.strip().lower() for text in column.get("missing_by_source") or {}
-    }
+    absent = clock_absent_of(column)
     for first, cells, low_at, high_at, heap, _group in stretches:
         if heap:
             for rank in range(first, first + cells):
@@ -21507,22 +21591,41 @@ def clock_census_content(column):
         taken = {}
         for place in places:
             taken[place] = taken.get(place, 0) + 1
+        # A run on absent places alone stands its ranks on those the other
+        # width spells another way, and moves a rank off the others onto
+        # the nearest of them.
+        on_steps = range(low_at, high_at + 1, stride)
+        standable = set()
+        if absent and all(_clock_reads_absent(at, form, absent) for at in on_steps):
+            standable = {at for at in on_steps
+                         if clock_other_width_of(at, form) != clock_spelling_of(at, form)}
         for index, place in enumerate(places):
             rank = first + index
-            if (rank not in pins and absent
+            if (rank not in pins and absent and low_at + place * stride not in standable
                     and _clock_reads_absent(low_at + place * stride, form, absent)):
                 lowest, highest = 0, size - 1
                 if apart:
                     lowest, highest = clock_pin_walls(index, pinned, places, size)
                 moved = clock_off_absent(
                     place, size, low_at, stride, form, absent, taken, apart,
-                    lowest, highest,
+                    lowest, highest, standable,
                 )
                 taken[place] -= 1
                 taken[moved] = taken.get(moved, 0) + 1
                 place = moved
             ordinals[rank] = low_at + place * stride
-    content = [clock_spelling_of(ordinal, form) for ordinal in ordinals]
+    published = clock_published_places(column)
+    # ...and the steps of a run laid on absent places alone, which only a
+    # group whose every step is one lays -- those the other width spells
+    # another way written in it.
+    for _first, _cells, low_at, high_at, heap, _group in stretches:
+        steps = range(low_at, high_at + 1, stride)
+        if not heap and all(_clock_reads_absent(at, form, absent) for at in steps):
+            published |= set(steps)
+    # ...and the absent steps a drawn tail stands its draw on.
+    published |= stood_beyond
+    content = [clock_written_present(ordinal, form, absent, published)
+               for ordinal in ordinals]
     codes = clock_codes_of(column)
     content.extend(codes)
     content.extend(text_stand_ins(content, column["n_unparsed"] - len(codes)))
@@ -21552,6 +21655,47 @@ def _clock_reads_absent(ordinal, form, absent):
     """Whether this instant's cell reads as no value (G7A.4, G10.4)."""
     text = clock_spelling_of(ordinal, form)
     return text.strip().lower() in absent or not text.strip()
+
+
+def clock_other_width_of(ordinal, form):
+    """One time written at the hour's other width on the form's face (G7A.4)."""
+    width, seconds, face = clock_form_fields(form)
+    return written_clock_of(
+        ordinal * (1 if seconds else 60), seconds,
+        "h" if width == "hh" else "hh", face,
+    )
+
+
+def clock_published_places(column):
+    """The places the description stands present cells on (G7A.4): each
+    heap's value, each tail's boundary and listed values, and each
+    published rung, in the form's own unit."""
+    form = column["clock_form"]
+    found = {clock_ordinal_of(heap["value"], form)
+             for heap in column.get("clock_heaps") or []}
+    for side in (column.get("low_tail"), column.get("high_tail")):
+        if side is None:
+            continue
+        found.add(clock_ordinal_of(side["boundary"], form))
+        for text in side["values"] or []:
+            found.add(clock_ordinal_of(text, form))
+    for text in (column.get("clock_percentiles") or {}).values():
+        if text is not None:
+            found.add(clock_ordinal_of(text, form))
+    return found
+
+
+def clock_written_present(ordinal, form, absent, published):
+    """One present time's cell (G7A.4, the verification of the round-2 fix
+    of landing 3b.5): the form's own spelling, or, where the column calls
+    that spelling absent and stands present cells there, the hour's
+    other width -- the one other spelling the form's reader reads at that
+    time, so the one its source wrote; where the hour shows no width the
+    two are one."""
+    text = clock_spelling_of(ordinal, form)
+    if ordinal not in published or text.strip().lower() not in absent:
+        return text
+    return clock_other_width_of(ordinal, form)
 
 
 def _clock_content(column):
@@ -21716,15 +21860,24 @@ def _clock_content(column):
                 standing[ordinals[rank]] -= 1
                 standing[taken[0]] = standing.get(taken[0], 0) + 1
                 ordinals[rank] = taken[0]
+    # ...and every rank's cell written as its source wrote it: on a place
+    # the column calls absent where it stands present cells, the hour's
+    # other width -- a boundary rank's too.
+    absent = clock_absent_of(column)
+    published = clock_published_places(column)
     content = []
     for rank in range(parsed):
         if low is not None and high is not None and rank == low["rows"]:
-            content.append(low["boundary"])
+            content.append(clock_written_present(
+                clock_ordinal_of(low["boundary"], form), form, absent, published
+            ))
             continue
         if low is not None and high is not None and rank == parsed - 1 - high["rows"]:
-            content.append(high["boundary"])
+            content.append(clock_written_present(
+                clock_ordinal_of(high["boundary"], form), form, absent, published
+            ))
             continue
-        content.append(clock_spelling_of(ordinals[rank], form))
+        content.append(clock_written_present(ordinals[rank], form, absent, published))
     # G7A.5.  The stand-ins this file builds are `text-N`, which reads
     # as a clock time in none of the forty forms (contract C6-10a), so
     # the exclusion that belongs to this role is met by construction
@@ -24331,6 +24484,43 @@ def _clock_census_absent_inside():
         "why": "G7A.4b's step off an absent spelling: 08:30 is declared missing and 13 cells wrote it, and it lies inside the census group 08:20 to 08:39. A run's rank on that spelling moves to the nearest step of its run that is not one, the earlier first. The mutant leaves it there, and the twin writes 08:30 as a present cell its own reader counts absent.",
         "column": column,
         "rows": 96,
+        "identifier_declared": False,
+        "claims": tail_claims,
+    }
+
+
+def _clock_census_absent_places():
+    tails, tail_claims = _tail_fields(
+        {"boundary": '12:20', "rows": 11, "mean_distance": '700.9090909090909', "rms_distance": '701.5502314679451', "values": None},
+        {"boundary": '16:40', "rows": 11, "mean_distance": '329.09090909090907', "rms_distance": '334.7454935537526', "values": None},
+    )
+    column = _universal(
+        "column_1", 'time_of_day', 'time_of_day', "data", "ok",
+        clock_census=[{'count': 0, 'first': 0, 'last': 73}, {'count': 12, 'first': 74, 'last': 100}, {'count': 0, 'first': 101, 'last': 143}],
+        clock_codes=[],
+        clock_form='hh-mm',
+        clock_heaps=[{'count': 11, 'value': '14:20'}, {'count': 13, 'value': '14:40'}],
+        clock_percentiles={'max': None, 'min': None, 'p01': None, 'p05': None, 'p10': None, 'p25': '13:00', 'p50': '14:20', 'p75': '14:40', 'p90': None, 'p95': None, 'p99': None},
+        clock_step=600,
+        n_contradictory=0,
+        n_distinct=27,
+        n_distinct_folded=27,
+        n_missing=22,
+        n_not_numeric=58,
+        n_numeric=0,
+        n_out_of_range=0,
+        n_present=58,
+        n_unparsed=0,
+        missing_by_source={'00:00': 11, '14:30': 11},
+        detection_evidence='58 value(s) are clock times written as hours and minutes, `09:30`, and 0 value(s) are not',
+        **tails,
+    )
+    column["missing_by_class"] = {'(blank)': 0, '(date-sentinel)': 0, '(declared-missing)': 22, '(numeric-sentinel)': 0, '(text-code)': 0, '(withheld)': 0}
+    column["n_missing_withheld"] = 0
+    return {
+        "why": "G7A.4b's absent places (the round-2 fix of landing 3b.5): 58 times on a ten-minute grid beside 22 cells declared missing, 11 of 00:00 written for an unknown time and 11 of 14:30. 14:30 is the only step of a run the heaps at 14:20 and 14:40 cut from the census group 12:20 to 16:49, so the run takes none of the group's 12 cells; 00:00 is the low tail's edge, so the tail is drawn past it. The mutant shares the group over every step again and the twin writes a present 14:30; withdrawing the tail's skip, a test of its own, writes one on 00:00.",
+        "column": column,
+        "rows": 80,
         "identifier_declared": False,
         "claims": tail_claims,
     }
@@ -33767,6 +33957,7 @@ TWENTY_FIRST_BRANCH_CASE_BUILDERS = {
     "clock_census_seconds": _clock_census_seconds,
     "clock_census_all_different": _clock_census_all_different,
     "clock_census_absent_inside": _clock_census_absent_inside,
+    "clock_census_absent_places": _clock_census_absent_places,
     "clock_census_boundary_below_heap": _clock_census_boundary_below_heap,
     "clock_census_tail_heaps": _clock_census_tail_heaps,
     "clock_census_on_a_step": _clock_census_on_a_step,
@@ -34557,8 +34748,9 @@ _TWENTY_FIRST_BRANCH_ACCOUNT = (
     "the census holds empty, a column at the second, a column whose values "
     "all differ, a spelling declared absent inside a group, a boundary two "
     "steps below a heap, heaps in both tails, a five-minute grid, a code "
-    "written back, a column with no tails and a quarter-hour grid whose "
-    "tails list their values -- and G8.3's clock supply, the stand-ins of "
+    "written back, a column with no tails, a quarter-hour grid whose "
+    "tails list their values and a run and a tail beside absent places "
+    "-- and G8.3's clock supply, the stand-ins of "
     "a label column written in a clock's form, and the clock line its "
     "repair round holds a label column's twin below, held key by key since "
     "its second. They are computed by "
@@ -36181,6 +36373,55 @@ GIVEN_WORDS = {
         14199191132797650784, 6903692579631444836, 9919851293581453294,
         7792427045620656903, 315760335251673178, 3076659594509475690,
         9165903265594221296, 12006267649774466727, 13069253373330099480,
+    ),
+    # ...and the round-2 fix's absent places, at seed 437, the next after
+    # the highest another lane of the wave had taken.
+    "clock_census_absent_places": (
+        4568547970671111711, 14541358963852075493, 7522943598962369940,
+        17060530995917719193, 2095766350703196630, 6854732477035821234,
+        12724707156612563411, 7269938088429978985, 6137845389946921615,
+        17118834998973590351, 6216298984757051754, 2338637640002035815,
+        13447546671674286403, 7813615556124485300, 7622731843255878734,
+        16124182203187590852, 17689983131517394028, 15367137621304947486,
+        9078513533944893161, 13467225563920344711, 9037955481522156904,
+        13433875893294364443, 11585049734331561748, 10834071870384293875,
+        5813128240313659656, 8850333631830437388, 16942146020834888696,
+        7046120650055117908, 7347443595463077525, 2277157444879242935,
+        17598894605504618958, 10095148133937113161, 2228478411500130388,
+        11080119797405291379, 14845178557871284442, 11659997440368933290,
+        605832156603860367, 15905277172330650498, 3798049900601013908,
+        6149091102096072696, 9906396393657955348, 5628501896614219039,
+        5637794449753356037, 6497846461626531416, 17728263551944195374,
+        10923415645247280690, 8703155408793785262, 927532470332006151,
+        12110825408070848319, 18041072979721651708, 6354280827229408679,
+        18287727902990906488, 10704951882065235573, 2786018321781957269,
+        4796708076078703371, 3662202362176669935, 11132214731487530376,
+        10090625165293305908, 9346451622251548234, 12207649147641431062,
+        8337697405295033427, 18430867222400916326, 1556232508222321180,
+        5996580237516972222, 13551619045100906030, 17791735501792714434,
+        15874272013586709725, 13329199030077379670, 10425881920861275718,
+        14021393710710342020, 17815258515681630642, 15047957810317702914,
+        13108939904605023488, 11413821405372541727, 15195757177241617103,
+        17778794581467884346, 6468351450829750408, 18138474744540548339,
+        9580894349607216789, 4563404611643963141, 18222710789478098500,
+        17078448919779592926, 7418081342611891661, 5312328865082173230,
+        17492930682212800144, 11380016231726908997, 4232851481152498209,
+        5142271193359686407, 10037585788699335024, 16476601970643135957,
+        14055382143792122515, 11200466740496349996, 7279088893413676749,
+        13775924751855515392, 11017125266831681499, 8201695539455573255,
+        2547470960394917776, 8399417503533967044, 11837895437705598332,
+        4373472624866647606, 9688914034353176720, 17450220942469596011,
+        435223080289877540, 10382884282795199069, 4657822349954680445,
+        17590863121167845358, 11047687644165830534, 2571604301030802343,
+        10734731685894280108, 15912319989038134969, 7366598394839874960,
+        12147340734025805557, 3947069063069229889, 14993893167967537463,
+        17693279835412765602, 14946502946278793244, 10614214152438433000,
+        14590397618516628919, 8239132536906579061, 14086795297913306309,
+        5198915245525723141, 16965885045202234626, 18098892990739434409,
+        11986150182506643692, 4051489915104428143, 17757594916302837629,
+        6635260364448613666, 8972329814133538254, 8185418138369925016,
+        11339075282600072249, 6306905354849175494, 6756361463778695724,
+        3465389361842839641, 3059861657211331000, 3175222166733527226,
     ),
     # LANDING T1'S WRITTEN CLOCKS (plan P4-D370), at seeds 416 to 420.
     "stamp_unpadded_hour": (

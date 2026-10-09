@@ -793,7 +793,9 @@ EVIDENCE_CLOCK = "evidence_clock_times"
 # (`parsing.clock_style_of_cells`): cells on another face -- with AM or PM
 # where the column writes none, or the other way round -- are counted
 # unread, and cells whose hour shows the other width are counted in and
-# written the column's way. Neither sentence carries a count.
+# written the column's way -- save, on a column of clock times, a present
+# time the description stands where that way is a spelling the table
+# counts missing (method G7A.4). Neither sentence carries a count.
 REMARK_CLOCK_OTHER_FACE = "remark_some_clocks_written_another_way"
 REMARK_CLOCK_OTHER_WIDTH = "remark_some_hours_written_another_width"
 EVIDENCE_AFFIXED = "evidence_numbers_wearing_one_affix"
@@ -2801,10 +2803,22 @@ def rendered(form: str, arguments: "tuple[object, ...]") -> str:
             "read"
         )
     if form == REMARK_CLOCK_OTHER_WIDTH:
+        # TRUE BOTH WAYS, ON EVERY COLUMN THAT CARRIES IT (the second
+        # verification of landing 3b.5's round-2 repair). A column of
+        # clock times writes a present time the description stands on a
+        # place whose spelling in the column's width the table counts
+        # missing in the other width, as the table wrote it (method
+        # G7A.4), where these words said every such value was written
+        # the column's way. A column of slashed stamps carries the same
+        # remark and writes its clock half in the column's width
+        # throughout, so the exception names clock times alone.
         return (
             "some values write the hour with a different number of "
-            "figures than most do, and are read and written the way most "
-            "of them are"
+            "figures than most do, and are read, and written the way "
+            "most of them are -- save, in a column of clock times with "
+            "no date, a time the description stands present cells on "
+            "where that way is a spelling the table counts as missing, "
+            "which keeps its own number of figures"
         )
     if form == REMARK_ALL_DIFFERENT_TEXT:
         return (
@@ -17845,8 +17859,9 @@ def clock_cells_written_absent(
     review's items 1 and 2). A column keeps the hour width that writes no
     present cell as a value the person declared missing; where both
     widths would, it keeps the commonest and counts the cells so written
-    unread (`_width_clear_of_absences`). So under the style a column
-    PUBLISHES, these are exactly the cells its description did not read:
+    unread (`_width_clear_of_absences`), on a slashed stamp; a column of
+    clock times reads every such cell, so it has none. So under the style
+    a column PUBLISHES, these are exactly the cells its description did not read:
     none where a width cleared every cell, and the colliding ones where
     none did. A recount that read them would count cells no published
     fact counts -- three `1:00` beside a declared `01:00` and `2:00` stood
@@ -17859,7 +17874,8 @@ def clock_cells_written_absent(
     returns those cells, as keys. Determinism: a function of the four.
     Raises ValueError for an unknown style. No I/O of any kind.
     """
-    if not settings.declared_missing_values:
+    if not settings.declared_missing_values or not stamps:
+        # A column of clock times reads every such cell (`_clock_candidates`).
         return {}
     read: "list[tuple[str, tuple[int, int, int, bool, int, str, bool]]]" = []
     days: "list[str]" = []
@@ -17888,7 +17904,7 @@ def _width_clear_of_absences(
     days: "list[str]",
     settings: Settings,
 ) -> "tuple[str, dict[str, bool]]":
-    """The column's style, at the width that rewrites no cell into a declared absence.
+    """A slashed stamp's style, at the width that rewrites no cell into a declared absence.
 
     THE WIDTH MOST CELLS SHOW, UNLESS WRITING THE OTHERS IN IT SPELLS A
     VALUE THE PERSON DECLARED MISSING and the other width spells none
@@ -17897,7 +17913,9 @@ def _width_clear_of_absences(
     present cell is written as the declared word. Where both widths
     spell one, the style most cells show stands and the cells it would
     rewrite into an absence are counted unread -- `n_unparsed` says how
-    many, as it does for another face.
+    many, as it does for another face. A column of clock times keeps the
+    width most cells show and reads every such cell, its twin writing it
+    in its own width (`_clock_candidates`, method G7A.4).
 
     Guarantees: returns the style and the cells it still writes as an
     absence. Determinism: a function of the four. Raises nothing. No I/O.
@@ -17932,9 +17950,14 @@ def _clock_candidates(cells: _Cells) -> "list[_Clock]":
             group, reads_twelve_hours(cells.settings)
         )
         kept = [(text, parts) for text, parts in read if parts[3] == with_seconds]
-        style, absent = _width_clear_of_absences(
-            style, kept, [], cells.settings
-        )
+        # A COLUMN OF CLOCK TIMES KEEPS THE WIDTH MOST CELLS SHOW (the merge
+        # of landing 3b.5's round 2 beside the T1 review's item 1). A cell
+        # whose column-width spelling the person declared missing is read
+        # at its place like any other, and its twin writes it in its own
+        # width there (`calendar_clock.present_spellings`, method G7A.4),
+        # so no present cell is written as the declared word and no width
+        # is taken from the cells that show it. A slashed stamp keeps the
+        # T1 review's rule (`_width_clear_of_absences`).
         face = parsing.clock_face(style)
         values: "list[str]" = []
         other_faces = False
@@ -17945,9 +17968,6 @@ def _clock_candidates(cells: _Cells) -> "list[_Clock]":
                 other_faces = True
                 continue
             written = parsing.written_clock(second, with_seconds, style)
-            if written in absent:
-                # Both widths spell a declared absence: counted unread.
-                continue
             if written != text:
                 widths_in = True
             values += [written]

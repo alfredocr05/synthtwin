@@ -1165,7 +1165,13 @@ def _tail_windows(described, column):
         # is written as text, which is the empty date system.
         return validation._date_tail_windows(column, facts, floor, "")
     if isinstance(facts, contract.ClockFacts):
-        return validation._clock_tail_windows(column, facts, floor)
+        # Beside the spellings the TABLE calls absent, every column's, as
+        # the validator draws its own (method G7A.4b, the round-2 fix of
+        # landing 3b.5): a census-laid tail's draw skips the places any of
+        # them names, so a window drawn beside the column's own alone could
+        # differ from the checker's on a table of several columns.
+        holes = tuple(validation.settings_for(described).declared_missing_values)
+        return validation._clock_tail_windows(column, facts, floor, holes)
     return {}
 
 
