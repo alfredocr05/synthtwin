@@ -4334,6 +4334,19 @@ def _silent(
     return Check(column, fact, subcheck, MISSED, published, "", "", kept_back)
 
 
+# HOW NEAR THE PUBLISHED VALUE A FILE OUTSIDE A SECOND WINDOW STILL
+# PASSES -- either side of the value where the window reaches it, and past
+# it on the side away from the window where it does not (validation method
+# V6.1-A2; the verifier of the corrections to Codex's review of lane G2,
+# and its second verifier), as a share of the published
+# spread for the mean, the spread and a rung -- `K-S3-22`'s own line for a
+# twin on the real moments, the mean's for a rung -- and of the published
+# distance itself for a tail's two distances. See `_within`.
+_MEAN_NEAR = 0.05
+_SPREAD_NEAR = 0.10
+_TAIL_NEAR = 0.30
+
+
 def _within(
     column: str,
     fact: str,
@@ -4346,6 +4359,8 @@ def _within(
     anchored: bool = False,
     why: str = "",
     held: "tuple[float, float] | None" = None,
+    held_whole: bool = False,
+    held_near: float = 0.0,
 ) -> Check:
     """One approximated obligation, against both ends of its envelope.
 
@@ -4390,10 +4405,11 @@ def _within(
     where the window reaches the value.
 
     AND ``held`` IS THE SAME WINDOW DRAWN WITH METHOD G6.6.8'S RULE 1
-    WITHDRAWN, handed in only where that rule moved a derived end
-    (`_moment_checks`; the second skeptic of plan P4-D377's repair, item
-    1) and asked only where ``anchored`` is set. The rule draws the
-    window through a further end, which widens it until it reaches the
+    WITHDRAWN, handed in only where that rule moved a derived end: the
+    mean's and the spread's (`_moment_checks`), each tail's two
+    distances (`_tail_checks`) and each published rung's whose window
+    the rule moved (`_tail_block_checks`). The rule draws the window
+    through a further end, which widens it until it reaches the
     published value, and the generator may still write the column on the
     ladder with the rule withdrawn (its rule 3), so the half-width test
     above stopped applying where it had always applied: 1,001 readings
@@ -4401,10 +4417,69 @@ def _within(
     for byte as 110cb46 wrote them, their spread 0.38 of the real one,
     were MISSED by 110cb46's report and passed by the repair round's, the
     standard deviation's window having gone from 0 to 3,090.8 to 0 to
-    36,011.8 against a published 3,124.9. So where ``held`` does not reach
-    the value, the file must also stand within half of ``held``'s width
-    of it, or the obligation is MISSED. The window printed and the
-    WITHIN-BOUND test stay the first one's.
+    36,011.8 against a published 3,124.9 (the second skeptic of plan
+    P4-D377's repair, item 1). So the file must also stand within a
+    distance of the value that ``held`` sets, or the obligation is MISSED
+    -- WHETHER OR NOT ``held`` REACHES IT (Codex's review of lane G2,
+    item 1). Asked only where it did not, the test asked nothing where it
+    did, and the rule's wide window was then the only bound: readings
+    1000 to 1900, each 150 times, beside one `99900`, at eleven, draw the
+    spread's second window 0 to 3,020.28 around a published 2,557.30, and
+    a file whose last cell is `300000`, its spread 7,711.31, passed all
+    seventy checks, where 110cb46 missed its spread and both of its high
+    tail's distances. For the mean and the spread the distance is half
+    ``held``'s width, V6.1-A2's own. For a tail's distances and a rung,
+    ``held_whole``, it is the furthest any value ``held`` admits stands
+    from the published one: those windows were never a margin around the
+    value, and the rule exists because the tail stands past them, so half
+    their width would refuse the rule's own twins -- 150 different Pareto
+    readings, at a floor of 36, are written with their far tail's
+    root-mean-square distance at 569 against a published 666, and the
+    second window, 304 to 425, is 122 wide -- while the furthest it
+    admits, 362 from the value, still refuses a far tail three times the
+    real one's.
+
+    AND WHERE ``held`` REACHES THE VALUE, ITS OWN ENDS HOLD THE FILE TOO,
+    widened only by ``held_near`` either side of the value (the verifier
+    of the corrections to Codex's review of lane G2). A distance alone
+    fell short of the bound 110cb46 drew there: half the spread's window
+    of 0 to 3,020.28 around 2,557.30 runs to 4,067.44, and the same
+    column with its far cell `149100`, its spread 3,821.84 -- 1.49 times
+    the real one -- passed every check at floors of 11, 20 and 36 where
+    110cb46 missed its spread; and a tail's bound, the furthest any value
+    of its window stands from the published one, always takes in the
+    whole window, so a far tail's mean distance 1.9 times the published
+    one passed too. So a file outside a reaching ``held`` that stands further
+    than ``held_near`` from the value is MISSED: there the check passes
+    no file 110cb46's own window missed unless it stands that near the
+    value. The caller says how near -- for the mean and the spread
+    `K-S3-22`'s line for a twin on the real moments, 0.05 and a tenth of
+    the published spread, for a tail's distances three tenths of the
+    published distance, for a rung the mean's line -- because the rule's
+    own twins stand just past ``held`` where the value sits near its end:
+    `00001` to `00149` beside one `50000`, at 36, are written with a
+    mean of 412.11 against a published 407.83, past the second window's
+    411.70.
+
+    AND WHERE ``held`` MISSES THE VALUE, IT HOLDS THE FILE BETWEEN ITS
+    FURTHER END AND THE VALUE, widened only by ``held_near`` past the
+    value (the second verifier of those corrections). Its own ends alone
+    would miss a file holding all but exactly the value itself, but the
+    distance alone held the side away from the window only to half its
+    width: the leftover round's own column, 1000 to 1900, each 100
+    times, beside one `99900`, at eleven, draws the spread's second
+    window 0 to 3,090.81 against a published 3,124.94, and a file whose
+    last cell is `144180`, its spread 4,520.40 -- 1.45 times the real
+    one -- passed every check at floors of 11, 20 and 36 where 110cb46
+    missed its spread. So the file must stand inside the hull of
+    ``held`` and the band -- from the nearer of ``held``'s low end and
+    ``held_near`` below the value to the further of its high end and
+    ``held_near`` above it -- whether or not ``held`` reaches the value,
+    and within the distance above as well, or the obligation is MISSED;
+    where ``held`` reaches it that hull is the window and the band
+    together, as before. The note says which side the file stands on, and
+    never calls a window that misses the value one that reaches it. The
+    window printed and the WITHIN-BOUND test stay the first one's.
 
     ``why`` NAMES WHICH SILENCE THIS IS, where the caller knows and the
     gate's general sentence would be less than the truth (plan P4-D349).
@@ -4457,23 +4532,69 @@ def _within(
                 "      own value than half this window's width, so the",
                 "      window is not taken as a pass (V6.1-A2).",
             ]
-    if anchored and held is not None and value is not None:
+    if held is not None and value is not None:
         held_low, held_high = held
-        held_half = (held_high - held_low) / 2.0
-        if not held_low <= value <= held_high and not (
-            value - held_half <= measured <= value + held_half
-        ):
+        bound = (held_high - held_low) / 2.0
+        if held_whole:
+            bound = max(abs(value - held_low), abs(held_high - value))
+        reaching = held_low <= value <= held_high
+        strayed = not (
+            min(held_low, value - held_near)
+            <= measured
+            <= max(held_high, value + held_near)
+        )
+        if strayed or not value - bound <= measured <= value + bound:
             verdict = MISSED
             lines += [
                 "      the description's own tail distances put this column's",
                 "      far end past the widest field width it names, and that",
                 "      widens the window above. Drawn with that end held at the",
                 "      widest named width, the window runs",
-                f"      {_shown_window(held_low, held_high)}, which does not",
-                "      reach the description's own value, and the file stands",
-                "      farther from that value than half that window's width,",
-                "      so the window above is not taken as a pass (V6.1-A2).",
             ]
+            if strayed and reaching and held_near > 0.0:
+                lines += [
+                    f"      {_shown_window(held_low, held_high)}, which reaches the",
+                    "      description's own value, and the file stands outside it",
+                    "      and farther from that value than",
+                    f"      {_shown_number(held_near)}, so the window above is not taken",
+                    "      as a pass (V6.1-A2).",
+                ]
+            elif strayed and reaching:
+                lines += [
+                    f"      {_shown_window(held_low, held_high)}, which reaches the",
+                    "      description's own value, and the file stands outside it,",
+                    "      so the window above is not taken as a pass (V6.1-A2).",
+                ]
+            elif strayed and value - bound <= measured <= value + bound:
+                lines += [
+                    f"      {_shown_window(held_low, held_high)}, which does not",
+                    "      reach the description's own value, and the file stands",
+                    "      past that value, on the side away from that window,",
+                    "      farther from it than",
+                    f"      {_shown_number(held_near)}, so the window above is not taken",
+                    "      as a pass (V6.1-A2).",
+                ]
+            elif held_whole:
+                lines += [
+                    f"      {_shown_window(held_low, held_high)}, and the file stands",
+                    "      farther from the description's own value than any",
+                    "      value that window admits, so the window above is not",
+                    "      taken as a pass (V6.1-A2).",
+                ]
+            elif reaching:
+                lines += [
+                    f"      {_shown_window(held_low, held_high)}, and the file stands",
+                    "      farther from the description's own value than half",
+                    "      that window's width, so the window above is not",
+                    "      taken as a pass (V6.1-A2).",
+                ]
+            else:
+                lines += [
+                    f"      {_shown_window(held_low, held_high)}, which does not",
+                    "      reach the description's own value, and the file stands",
+                    "      farther from that value than half that window's width,",
+                    "      so the window above is not taken as a pass (V6.1-A2).",
+                ]
     note: tuple[str, ...] = tuple(lines)
     return Check(
         column,
@@ -12208,7 +12329,9 @@ def _tail_block_checks(
     """A tail block's ladder: its published rungs, its ends, its tails.
 
     THE RUNGS INSIDE THE TWO BOUNDARIES are held to G12.2's window, drawn
-    through the tail ladder. A rung the rule withholds is LISTED
+    through the tail ladder -- and, where method G6.6.8's rule 1 moved a
+    derived end and so a rung's window, to that window drawn with the
+    rule withdrawn as well (V6.1-A2). A rung the rule withholds is LISTED
     (`_numeric_listings`) and never compared. An END IS CHECKED ONLY
     WHERE IT IS PUBLISHED -- a heaped end, held by at least a tail's own
     rows -- and then one-sided and silent (`_heaped_end_check`): no cell
@@ -12233,6 +12356,26 @@ def _tail_block_checks(
     reach = 100 * (_window_stratum(facts, floor) + 2)
     whole = 100 * numbers
     half = _half_unit(facts)
+    # AND WHERE METHOD G6.6.8'S RULE 1 MOVED A DERIVED END, EACH RUNG
+    # WHOSE WINDOW IT MOVED ANSWERS TO THAT WINDOW DRAWN WITH THE RULE
+    # WITHDRAWN AS WELL (V6.1-A2; the verifier of the corrections to
+    # Codex's review of lane G2). The rule reads the ladder through the
+    # further end and its own stratum bound, so a rung near that end
+    # widens with it: 1000 readings from 100 to 999 heaped low beside one
+    # `2064`, at fifty, draw `p95`'s window 639.7 to 1,263.5 where
+    # 110cb46 drew 639.7 to 999.5 around a published 870, and a file
+    # whose far side stood half again as far out, its `p95` at 1,142,
+    # passed where 110cb46 missed it. As a tail's distance does, a rung
+    # stands no further from its published value than any value that
+    # window admits, and inside it, between it and the value, or within the
+    # mean's line of the value (`_within`, ``held_near``). A rung whose two
+    # windows are one is handed none.
+    held_ladder: "tuple[float, ...] | None" = None
+    held_reach = reach
+    if contract.reach_moved_an_end(facts):
+        held_ladder = _filled_ladder(facts, False)
+        held_reach = 100 * (_window_stratum(facts, floor, False) + 2)
+    near = _moment_near(facts, "mean")
     for index in range(1, len(_LADDER_KEYS) - 1):
         percent = contract.LADDER_PERCENTS[index]
         expected = published.rungs[index]
@@ -12240,6 +12383,23 @@ def _tail_block_checks(
             continue
         key = _LADDER_KEYS[index]
         found = None if measured is None else _number_at(measured, key)
+        held: "tuple[float, float] | None" = None
+        if held_ladder is not None:
+            held = (
+                _ladder_read(
+                    held_ladder, max(0, percent * numbers - held_reach), whole
+                )
+                - half,
+                _ladder_read(
+                    held_ladder, min(whole, percent * numbers + held_reach), whole
+                )
+                + half,
+            )
+        window = (
+            _ladder_read(ladder, max(0, percent * numbers - reach), whole) - half,
+            _ladder_read(ladder, min(whole, percent * numbers + reach), whole)
+            + half,
+        )
         checks += [
             _within(
                 name,
@@ -12247,16 +12407,18 @@ def _tail_block_checks(
                 f"ladder.{key}",
                 _shown_number(expected),
                 found,
-                (
-                    _ladder_read(ladder, max(0, percent * numbers - reach), whole)
-                    - half,
-                    _ladder_read(
-                        ladder, min(whole, percent * numbers + reach), whole
-                    )
-                    + half,
-                ),
+                window,
                 ENVELOPE_NUMERIC_RUNGS,
                 expected,
+                held=(
+                    held
+                    if held is not None
+                    and held != window
+                    and _finite_window(held)
+                    else None
+                ),
+                held_whole=True,
+                held_near=near,
             )
         ]
     return checks + _tail_checks(column, facts, block, floor, ladder)
@@ -12512,6 +12674,7 @@ def _tail_window(
     ladder: "tuple[float, ...]",
     side: contract.TailSide,
     low: bool,
+    reach_rule: bool = True,
 ) -> "tuple[tuple[float, float], tuple[float, float]]":
     """G12.13: the windows a file's two distances of one tail stand in.
 
@@ -12526,9 +12689,14 @@ def _tail_window(
     most the gap between the further two; the mean distance lies between
     the means of those, and the root-mean-square between the roots of
     the means of their squares.
+
+    ``reach_rule`` False reads `g` off the ladder with method G6.6.8's
+    rule 1 withdrawn, the one ``ladder`` is then handed as: the windows
+    110cb46 drew, which a tail whose end the rule moved answers to as
+    well (`_tail_checks`, V6.1-A2).
     """
     count = _numeric_cells(facts)
-    widest = _window_stratum(facts, floor)
+    widest = _window_stratum(facts, floor, reach_rule)
     half = _half_unit(facts)
     denominator = count * (count - 1) if count > 1 else 1
     span = (widest + 2) * (count - 1)
@@ -12639,6 +12807,26 @@ def _tail_checks(
     if tails is None or tails.low is None or tails.high is None:
         return []
     checks: "list[Check]" = []
+    # AND WHERE METHOD G6.6.8'S RULE 1 MOVED A DERIVED END, EACH TAIL'S
+    # DISTANCES ANSWER TO THE WINDOWS DRAWN WITH THAT RULE WITHDRAWN AS
+    # WELL (V6.1-A2; Codex's review of lane G2, item 1): drawn through the
+    # further end, the moved tail's two windows widened from 0 to 8,199 to
+    # 0 to 98,101 on readings 1000 to 1900, each 150 times, beside one
+    # `99900`, at eleven, and a file whose last cell is `300000`, its far
+    # tail three times the real one's, passed both where 110cb46 missed
+    # both. A file stands no further from each published distance than any
+    # value that window admits (`_within`, ``held_whole``), and inside
+    # that window, between it and the published distance, or within three
+    # tenths of the distance of it (``held_near``; the verifier of the
+    # review's corrections: that bound always takes in the whole window,
+    # and a far tail's mean distance 1.9 times the real one passed; and
+    # its second verifier: where the window misses the distance, the
+    # bound let the side away from it reach twice the distance); on a
+    # tail whose end the rule did not move the two windows are drawn
+    # alike.
+    held_ladder: "tuple[float, ...] | None" = None
+    if contract.reach_moved_an_end(facts):
+        held_ladder = _filled_ladder(facts, False)
     for name, side, low in (
         ("low", tails.low, True),
         ("high", tails.high, False),
@@ -12656,18 +12844,26 @@ def _tail_checks(
         # tuple with two Nones in it.
         quiet = _tail_is_quiet(block, name, side.percent)
         mean_window, root_window = _tail_window(facts, floor, ladder, side, low)
-        for key, published, measured, window in (
+        held_mean: "tuple[float, float] | None" = None
+        held_root: "tuple[float, float] | None" = None
+        if held_ladder is not None:
+            held_mean, held_root = _tail_window(
+                facts, floor, held_ladder, side, low, False
+            )
+        for key, published, measured, window, held in (
             (
                 "mean_distance",
                 side.mean_distance,
                 None if found is None else found[1],
                 mean_window,
+                held_mean,
             ),
             (
                 "rms_distance",
                 side.rms_distance,
                 None if found is None else found[2],
                 root_window,
+                held_root,
             ),
         ):
             # THE TAIL THAT PUBLISHES NEITHER DISTANCE SETS NO OBLIGATION
@@ -12689,6 +12885,13 @@ def _tail_checks(
                     ENVELOPE_TAILS,
                     published,
                     why=_tail_withheld_reason(block, name) if quiet else _GATE_CLOSED,
+                    held=(
+                        held
+                        if held is not None and _finite_window(held)
+                        else None
+                    ),
+                    held_whole=True,
+                    held_near=_TAIL_NEAR * abs(published),
                 )
             ]
         if side.values:
@@ -12883,8 +13086,13 @@ def _moment_checks(
     # WITHDRAWN DRAWS TOO (V6.1-A2; the second skeptic of plan P4-D377's
     # repair, item 1): the generator may write the column on that ladder
     # (its rule 3), and the rule's own windows, drawn through the further
-    # end, reach the published value where that ladder's do not. See
-    # `_within`.
+    # end, reach the published value where that ladder's do not -- and
+    # admit a file far from it where that ladder's reach it too (Codex's
+    # review of lane G2, item 1, and the verifier of its corrections):
+    # half that window's width either way, and its own ends or the stretch
+    # from it to the value as well, but for a file within `K-S3-22`'s line
+    # of the value (`_moment_near`). See `_within`. `skew` and `kurtosis`
+    # keep their windows alone.
     held: "dict[str, tuple[float, float]]" = {}
     if contract.reach_moved_an_end(facts):
         held = _windows_of(column, facts, floor, False)
@@ -12931,10 +13139,31 @@ def _moment_checks(
                 ENVELOPE_MOMENTS,
                 value,
                 anchored=field in ("mean", "std"),
-                held=_window_named(held, field),
+                held=(
+                    _window_named(held, field)
+                    if field in ("mean", "std")
+                    else None
+                ),
+                held_near=_moment_near(facts, field),
             )
         ]
     return checks
+
+
+def _moment_near(facts: contract.NumericFacts, field: str) -> float:
+    """How near the published mean or spread a file outside a second window still passes (V6.1-A2).
+
+    Either side of the value where the second window reaches it, and past
+    it on the side away from the window where it does not (`_within`).
+    `K-S3-22`'s own line for a twin on the real moments: within 0.05 of
+    the published spread of the published mean, and within a tenth of
+    it of the published spread. Nought -- the second window's own ends
+    -- where no finite spread is published.
+    """
+    spread = facts.std
+    if spread is None or not math.isfinite(spread):
+        return 0.0
+    return (_MEAN_NEAR if field == "mean" else _SPREAD_NEAR) * abs(spread)
 
 
 def _tails_admit_every_value(

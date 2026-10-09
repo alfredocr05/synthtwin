@@ -48,7 +48,7 @@ stays in scope.
 | branch | `phase-5-relationships`, cut from `main`. `main` is pull-request only. Stage 2b was built on `carried-2b-integration`, cut from it at `53bb012`, and lands on it whole |
 | phase | **Phase 4 REOPENED 2026-09-12** — it closed on 2026-09-11 with silent within-column defects live inside its own charter. Phase 5 does not start until the ordered list below reaches it |
 | plan | This page is the plan of record. `docs/plans/phase-5-relationships.md` is a DRAFT whose scope is superseded: it deferred correlation, and correlation is now mandatory |
-| suite | 10,126 collected, and about 66 minutes in one process on the quiet machine (ledger `K-P0-10` carries the seconds). In CI it runs as **five shards**, the heaviest about 20 minutes. Re-measure here whenever the count moves |
+| suite | 10,147 collected, and about 66 minutes in one process on the quiet machine (ledger `K-P0-10` carries the seconds). In CI it runs as **five shards**, the heaviest about 20 minutes. Re-measure here whenever the count moves |
 | KPIs | `tests/kpi/ledger.json`: 196 KPIs over phases 0-4 and stages 1, 2, 2b, 3, 3b and 4, 30 of them headlines under a cap of 31 (raised from 30 by the orchestrator at 3b.K, plan P4-D364, for `K-S3-38`, time of day, still to come); 171 green, 13 open (7 with the stage that owns each, 6 with none set), 12 limits the owner accepted. Stage 3's are `K-S3-01` to `K-S3-25`, one of them a headline (`K-S3-11`, the tail leak); stage 3b's `K-S3-30` to `K-S3-32`, `K-S3-34`, `K-S3-35`, `K-S3-39`, `K-S3-48` to `K-S3-52`, `K-S3-54` to `K-S3-59` and `K-S3-61` (`K-S3-33` retired with the weekday certificate), `K-S3-31` (the weekday) a headline in `K-2B-22b`'s place; stage 4's `K-S4-02` to `K-S4-04`, `K-S4-03` a headline in `K-2B-14`'s place. **One command re-measures them all:** `.venv/bin/python tools/measurements/kpi_run.py` (add `--slow` for timings and scale). Run it at every stage close: **a KPI that drops is a regression even when every test is green** |
 | checks | `ruff check .`, `mypy --strict src/`, the offline import scan, the provenance check, the decontamination scan, the signed attestation and the disposition seal — all clean |
 | CI | runs on every pull request, five Pythons across Ubuntu, Windows and macOS. **It saw stages 1, 2 and 2b for the first time on 2026-09-20 (PR #6, run 35508922164): every static check green, every test cell red on three defects, all three repaired.** Its **second** run (35541541720) was red again on a deeper layer, all of it in the tests: two that asserted the answer for the machine they ran on, a `Path.read_text(newline=)` that exists only on 3.13 while the floor is 3.10, seventeen Windows failures caused by a temporary path containing `AppData` (which contains a sheet name the test forbade), and about 25 workbook cases that failed instead of skipping where openpyxl is absent. All repaired, each with a guard that now fails HERE rather than in CI. The suite is sharded five ways since, so a cell should cost about 13 minutes rather than up to three hours. **Its third run (35670708722, on `eaff15f`, 2026-09-22) passed 69 of 69 jobs, and run 36743015674 on `82b1f1a`, stages 3 and 3b, passed 69 of 69 on 2026-09-30.** A green local suite is not a green CI. Check `gh pr checks` before believing a branch is done |
@@ -250,7 +250,15 @@ cannot get worse unseen.
   where the count pass's splits break a tail's summed window it moves
   nothing, so a count G12.5 holds exactly is MISSED, 6 of 1,200 twins of
   a floor-50 family holding 1.5 to 2.4 times it -- each held by
-  `tests/test_stage3b_gate.py` (P4-D358).
+  `tests/test_stage3b_gate.py` (P4-D358). And one more that fails no
+  check, accepted as a stated limit (P4-D377): a twin can write a far
+  cell one figure wider than every real cell, as 110cb46's twin of the
+  same seed does -- a padded far cell's leading zero where the width walk
+  does not stand, on 382 of 1,080 padded twins, ten of them twins the
+  width rule moves, or a far value past the real end, on 25 more it moves
+  on its batteries; none is wider than 110cb46's (`K-S3-22` holds that at
+  nought on its own battery) -- so code reading such a column at a fixed
+  width may meet one wider far cell.
 - **With every pair published, a raised floor still costs some twins
   their mean and spread.** Since plan P4-D375 every tail pair binary64
   holds is published, so no twin of `K-S3-20`'s 37 shapes at floors 11

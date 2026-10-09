@@ -23972,11 +23972,15 @@ def window_filled_ladder(
     its strata by. EXCEPT WHERE METHOD G6.6.8'S RULE 1 MOVED A DERIVED
     END (`contract.reach_moved_an_end`, plan P4-D377): there the
     construction may write the twin on the ladder read with that rule
-    withdrawn (its rule 3), so the windows of the mean and the spread are
-    drawn through that ladder too (``reach_rule`` False) and the file is
-    held to V6.1-A2's half-width test with both (validation method
-    V6.1-A2, `validation._moment_checks`). Every other window is drawn
-    through the first.
+    withdrawn (its rule 3), so the windows of the mean and the spread,
+    each tail's two distance windows and each rung's window the rule
+    moved are drawn through that ladder too (``reach_rule`` False), and
+    the file is held to a distance from the published value that window
+    sets, whether or not it reaches the value, and to that window's own
+    ends or the stretch from it to the value, but near the value
+    (validation method V6.1-A2, `validation._moment_checks`,
+    `validation._tail_checks`, `validation._tail_block_checks`). Every
+    other window is drawn through the first.
     """
     if facts.tail_rule:
         return contract.tail_ladder(facts, reach_rule)
