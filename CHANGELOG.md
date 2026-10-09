@@ -16,7 +16,8 @@ of the twin against 43 of the real column, discharges between 10:00 and
 read on its own clock now publishes `hour_census`, how many cells
 between its two tail boundaries fall on each hour of the written clock,
 an hour alone or merged with its neighbours -- never across midnight --
-wherever it would name fewer than the census line, and the twin puts its
+wherever it would name fewer than the census line, in all or besides the
+cells the description places in it for certain, and the twin puts its
 cells on those hours, every rank inside its gap and keeping its weekday
 -- or, where a weekday census stands, its weekday's group -- and keeps
 the column's count of different values (method G7.3g); validation
@@ -39,8 +40,9 @@ their cells once a call and the shares ask each gap once, every answer
 the same -- before, 397 s of 546 against 210 in another window. A census is withheld, each reason
 said in a sentence of its own, where the column has no tails, its middle
 half spans fewer than four days or is not published, a workbook stores it
-two ways, or no grouping short of the whole day holds with the cells the
-description places in each hour for certain. Where no weekday census stands, a
+two ways, or the merge rule, holding each group to the cells the
+description places in its hours for certain, leaves one group over the
+whole day. Where no weekday census stands, a
 cell whose own day and weekday leave it no place in its gap, or a value
 no merge keeping the weekday can put back, may at last take the nearest
 day of another weekday. A stamp declared a 12-hour clock
@@ -73,7 +75,12 @@ every size from 1 to 1,000 took 15.7 s to put one value back, and take
 0.58 s. And a census withheld says a middle half that is not published
 apart from one that is short (NF117), and names the cells the
 description places in an hour for certain where they are what leaves no
-grouping (NF92).
+grouping (NF92). Its verification found NF92 still saying no grouping
+met the floor and those cells where the merge rule, which searches for
+none, had left one group: 49 moments meet both as hours 0 to 17 and 18
+to 23. NF92 now says what the rule leaves, one group over the whole
+day, and a published census's remark names those cells as a reason an
+hour is joined (NF88).
 
 ### The second key cut repaired at its review (2026-10-05)
 
