@@ -8086,11 +8086,11 @@ def _holes_by_the_description(
                 undecided = True
         certain += [is_hole]
         unsettled += [undecided]
-    counted = 0
+    certain_holes = 0
     for is_hole in certain:
         if is_hole:
-            counted = counted + 1
-    if _unread_cells(block, cells) <= counted:
+            certain_holes = certain_holes + 1
+    if _unread_cells(block, cells) <= certain_holes:
         return certain
     # The description reads more non-blank cells as holes than the
     # verdicts it publishes account for, so a candidate it does not name
