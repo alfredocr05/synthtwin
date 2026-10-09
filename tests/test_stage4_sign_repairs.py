@@ -13,8 +13,9 @@ and at 32,000 rows it ran past eleven CPU minutes. The values held are
 now counted once, at the first repair, and kept as the strata are
 repaired, and each band's walk begins where its last one stopped while
 nothing a step on that side can read back as has been let go -- nought
-included, which every step reads back as on a grid finer than binary64
-reaches, and which d36627f missed.
+included, which the first steps of a grid of 324 places or more read
+back as (at 330 places every step of a walk over fewer than 2.4 million
+strata), and which d36627f missed.
 
 Nothing written moves, so 564c61a's two functions are kept here as this
 file's ORACLE (`*_as_built`, their text with the docstrings left out),
@@ -22,7 +23,13 @@ asked the same questions and required to give the same answers, and a
 growth measure that needs no clock -- the lines the interpreter runs
 inside the call, in every frame -- is taken at N and at 2N strata. The
 oracle is required to grow at least three times on the same arguments,
-so the measure is known to see the defect rather than assumed to.
+so the measure is known to see the defect rather than assumed to. A
+builtin runs as one line however many values it reads, so the measure
+is taken again on values that run a line of their own each time a
+builtin hashes or compares one (`_Counted`): two repairs that do the
+square of the strata inside builtins -- one searching a list of the
+values held, one building their dict again at every repair -- are
+required to show it there, where the lines alone do not.
 """
 
 from __future__ import annotations
@@ -154,6 +161,32 @@ def _same(ours: "tuple[list[float], list[object]]", theirs: "tuple[list[float], 
     return [repr(value) for value in ours[0]] == [repr(value) for value in theirs[0]] and ours[1] == theirs[1]
 
 
+class _Counted(float):
+    """A value that runs a line of its own each time it is hashed or compared.
+
+    A builtin runs as one line however many values it reads -- a list
+    searched for a value, a dict built from a list of them -- so `lines_run`
+    alone lets a repair do the square of the strata inside one. Handed
+    these, each value a builtin hashes or compares is a line too. The
+    number, its sign and its text are the float's own.
+    """
+
+    __slots__ = ()
+
+    def __hash__(self) -> int:
+        return float.__hash__(self)
+
+    def __eq__(self, other: object) -> bool:
+        return float.__eq__(self, other)
+
+
+def _handed(values: "list[float]", counted: bool) -> "list[float]":
+    """A fresh list of ``values``, each one a `_Counted` where ``counted``."""
+    if counted:
+        return [_Counted(value) for value in values]
+    return list(values)
+
+
 # -- the Codex review's column, through the real producer -------------------
 
 
@@ -236,11 +269,15 @@ def grid_steps_asked(handed: "tuple[object, ...]") -> int:
     return asked
 
 
-def codex_repair_lines(rows: int, as_built: bool = False) -> int:
-    """The lines G5.5's sign repairs run on the Codex column of ``rows`` rows (564c61a's with ``as_built``)."""
+def codex_repair_lines(rows: int, as_built: bool = False, counted: bool = False) -> int:
+    """The lines G5.5's sign repairs run on the Codex column of ``rows`` rows (564c61a's with ``as_built``).
+
+    With ``counted`` each value is handed as a `_Counted`, so a value a
+    builtin hashes or compares there is a line too.
+    """
     handed = repairs_handed(rows)[1]
     function = _sign_repairs_as_built if as_built else generation._sign_repairs
-    return lines_run(function, *handed[:4], list(handed[4]), handed[5])  # type: ignore[arg-type]
+    return lines_run(function, *handed[:4], _handed(handed[4], counted), handed[5])  # type: ignore[arg-type]
 
 
 # -- a column most of whose strata walk far ---------------------------------
@@ -270,11 +307,15 @@ def crowded_repairs(strata: int) -> "tuple[object, ...]":
     return (column, facts, layout, rungs, values, 2)
 
 
-def crowded_repair_lines(strata: int, as_built: bool = False) -> int:
-    """The lines G5.5's sign repairs run on `crowded_repairs` (564c61a's with ``as_built``)."""
+def crowded_repair_lines(strata: int, as_built: bool = False, counted: bool = False) -> int:
+    """The lines G5.5's sign repairs run on `crowded_repairs` (564c61a's with ``as_built``).
+
+    With ``counted`` each value is handed as a `_Counted`, so a value a
+    builtin hashes or compares there is a line too.
+    """
     handed = crowded_repairs(strata)
     function = _sign_repairs_as_built if as_built else generation._sign_repairs
-    return lines_run(function, *handed[:4], list(handed[4]), handed[5])  # type: ignore[arg-type, index]
+    return lines_run(function, *handed[:4], _handed(handed[4], counted), handed[5])  # type: ignore[arg-type, index]
 
 
 # -- answers ---------------------------------------------------------------
@@ -586,3 +627,70 @@ def test_a_column_whose_strata_walk_far_is_repaired_in_lines_that_grow_with_the_
     assert large / small < LINEAR_AT_MOST, (small, large)
     old_small, old_large = crowded_repair_lines(400, True), crowded_repair_lines(800, True)
     assert old_large / old_small >= SQUARE_AT_LEAST, (old_small, old_large)
+
+
+# -- what a builtin does with each value ------------------------------------
+
+
+def _squared_in_builtins() -> "dict[str, object]":
+    """Two grid steps that answer as the shipped one and cost every repair the strata inside a builtin.
+
+    "a list searched" asks the shipped step of a list of the values held,
+    so each point a walk asks about is looked for along that list inside
+    `in`; "a dict built again" asks it of their dict built again from that
+    list at every repair, each value hashed inside `dict.fromkeys`.
+    """
+    shipped = generation._grid_step_of_sign
+
+    def searched(band, rungs, grid, held, total, kept=(), walked=None):  # type: ignore[no-untyped-def]
+        return shipped(band, rungs, grid, list(held), total, kept=kept, walked=walked)
+
+    def gathered(band, rungs, grid, held, total, kept=(), walked=None):  # type: ignore[no-untyped-def]
+        return shipped(band, rungs, grid, dict.fromkeys(list(held), 1), total, kept=kept, walked=walked)
+
+    return {"a list searched": searched, "a dict built again": gathered}
+
+
+def test_the_growth_measures_see_each_value_a_builtin_hashes_or_compares() -> None:
+    """Both measures on `_Counted` values: under 2.5 times; 564c61a's at least three; a builtin's square seen.
+
+    A builtin runs as one line however many values it reads, so the two
+    growth tests above can pass a repair that does the square of the
+    strata inside builtins: skeptic 1 of the lane kept the values held in
+    a list, and gathered them again at every repair with `dict.fromkeys`,
+    and on the Codex column both grew about twice by the lines alone. On
+    values that run a line each time they are hashed or compared, the
+    shipped repairs are required to grow under 2.5 times on the Codex
+    column (2,000 to 4,000 rows) and on the strata walking far (400 to
+    800), and 564c61a's at least three times. Two repairs of that kind
+    are built here from the shipped grid step (`_squared_in_builtins`):
+    each is required to give 564c61a's answers, and to grow under 2.5
+    times by the lines alone and at least 2.5 times on these values, so
+    this test fails on them where the two above do not. Handed these
+    values, the shipped repairs give 564c61a's answers too.
+    """
+    measures = (
+        ("the Codex column", codex_repair_lines, (2000, 4000), lambda rows: repairs_handed(rows)[1]),
+        ("strata walking far", crowded_repair_lines, (400, 800), crowded_repairs),
+    )
+    for name, measure, sizes, handed_at in measures:
+        theirs = {}
+        for size in sizes:
+            handed = handed_at(size)
+            theirs[size] = _sign_repairs_as_built(*handed[:4], list(handed[4]), handed[5])  # type: ignore[index]
+            ours = generation._sign_repairs(*handed[:4], _handed(handed[4], True), handed[5])  # type: ignore[arg-type, index]
+            assert _same(ours, theirs[size]), (name, size)
+        small, large = (measure(size, counted=True) for size in sizes)
+        assert large / small < LINEAR_AT_MOST, (name, small, large)
+        old_small, old_large = (measure(size, as_built=True, counted=True) for size in sizes)
+        assert old_large / old_small >= SQUARE_AT_LEAST, (name, old_small, old_large)
+        for kind, step in _squared_in_builtins().items():
+            with pytest.MonkeyPatch.context() as patch:
+                patch.setattr(generation, "_grid_step_of_sign", step)
+                for size in sizes:
+                    handed = handed_at(size)
+                    ours = generation._sign_repairs(*handed[:4], _handed(handed[4], True), handed[5])  # type: ignore[arg-type, index]
+                    assert _same(ours, theirs[size]), (name, kind, size)
+                plain = [measure(size) for size in sizes]
+                counted = [measure(size, counted=True) for size in sizes]
+            assert plain[1] / plain[0] < LINEAR_AT_MOST <= counted[1] / counted[0], (name, kind, plain, counted)
