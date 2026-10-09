@@ -1334,7 +1334,7 @@ no other.
 
 | key | JSON type | range / permitted values | meaning |
 |---|---|---|---|
-| `forced_date_columns` | array of strings | `[]` only, in this version | RESERVED by the second key cut (plan P4-D386) for lane R2c (plan P4-D383, question Q6): the columns the person said are dates whatever else some of their cells hold, in rising order, each of them once. Empty in every description this version writes, and refused as anything else (R16) after its names are read and held to S8d |
+| `forced_date_columns` | array of strings | names of columns of this table, in rising order, each of them once; possibly empty | THE COLUMNS THE PERSON SAID HOLD DATES (landing R2c, plan P4-D383, question Q6; the key the second key cut, plan P4-D386, reserved): each column the person said holds dates whatever else some of its cells hold. Typed as `--date-column NAME`, or answered `dates` in the questions file, where Q6 is asked of a column one reading reads on half its cells or more but not the date rule's line, or that only a layout of the day of the year reads -- and not of a column of dates beside a few codes, which is question Q2's (plan P4-D381). Enter keeps the reading the column has. A column named here is read as dates on half its present cells rather than `minimum_parse_rate`'s line, the reading that reads the most winning, and the cells it leaves are counted in `n_unparsed` and written in the twin as made-up stand-ins; and only such a column is read under a layout of the day of the year, `{YYYY}-{DDD}` or `{YYYY}{DDD}` (S8f). The validator reads a checked file under the same declaration. A name matching no column is refused (S8), and S8d still keeps a column whose dates are counts off this key |
 
 <!-- -- 3b.R4 (P4-D384) -->
 
@@ -1638,7 +1638,7 @@ on and would be recorded and ignored. `forced_decimal_commas` is not on
 the list: the numbers a count is written in may carry a decimal comma,
 and that declaration says how they are spelled, not what they are. It
 carries its own code for S8a's reason. A loader of this version holds
-it BEFORE it refuses the three reserved declarations as not empty, so
+it BEFORE it refuses the declarations still reserved as not empty, so
 the rule stands before the landing that fills `forced_date_counts`,
 which removes only that refusal.
 
@@ -5674,7 +5674,13 @@ The fields, a closed table: `YYYY` (1800 to 2299 -- a four-figure year outside t
 
 **Invariant LY5 (a layout's widths).** `date_field_widths` counts the widths of the flexible `M` and `D` fields, in the layout's own order, and is `{}` on a layout with neither; one flexible field takes the two words `padded` and `unpadded`.
 
-**Invariant LY6 (a layout's forms).** `resolution_mix` counts every parsed cell under the layout's own name, and under no other key.
+**Invariant LY6 (a layout's forms).** `resolution_mix` counts every parsed cell under the layout's own name, and under no other key -- but the layout's own PARTIAL FORMS (landing R2c, plan P4-D383): the layout cut after a field, wherever the fields it keeps stand side by side (`{YYYY}-{MM}` and `{YYYY}` of `{YYYY}-{MM}-{DD}`; HL7's 12, 10, 8, 6 and 4 figures of its 14; a clock cut to the minute), its offset set aside; or, on a layout of a date alone, its day -- or its day and its month -- written as one of the unknown markers `UN`, `UNK`, `--` and `XX` (`{UN} {MON} {YYYY}`, `{UN} {UNK} {YYYY}`). None on a layout with a weekday or a day of the year.
+
+**Partial dates** (landing R2c; the R2 design, section 4, and its skeptic's M2, M5 and M6). A column no layout reads at the line is read under the layout that reads at least half its present cells whole, where that layout and its partial forms together reach the line -- the one reading the most cells winning, then the one reading the most whole, then the tie rules above -- its candidates the layouts of 64 evenly spaced cells: a FHIR `date` column of `2023`, `2023-03` and `2023-03-17`, an HL7 feed of 14, 12 and 10 figures, a Medidata export writing `UN MAR 2023`. A column the layout reads at the line counts no partial form, so no column landing R2a reads moves. A PARTIAL CELL IS READ AT ITS OWN PRECISION AND AT NO OTHER: it is counted in `n_unparsed` and, where its form stands on at least the census line, under that form's name in `resolution_mix` -- a form on fewer cells is named nowhere and its cells are stand-ins (P4-D250's absorption) -- and it reaches no fact of the day, the clock or the spread, so no partial cell is read at the start of its span (read there, the 1st of the month held 44.2 % of a FHIR column against 4.1 % of its full dates). A column of years alone or of months alone, or one whose full dates are fewer than half its cells, is not read so. Limits: a partial cell carries no offset; a flexible field of a partial cell is written in as few figures as it takes; and the 12-hour dial of landing R2b has no partial form.
+
+**Invariant LY7 (a layout's partial forms count unread cells).** The counts `resolution_mix` gives a layout's partial forms come to at most `n_unparsed`; the layout's own count is the parsed cells (RM2) and each form is named at the census line (RM3).
+
+**Invariant S8f (a day of the year is a declaration's).** A column written in a layout of the day of the year -- `{YYYY}-{DDD}`, ISO's ordinal date, or `{YYYY}{DDD}`, the seven-figure Julian date -- stands under `settings.forced_date_columns`. Nothing in `2023076` tells it from an accession number, so no column is read so unless the person said it holds dates (question Q6), and a reader rebuilding the reading from the settings -- the validator above all -- reads an undeclared one as figures. It carries its own code for S8a's reason.
 
 **Twin and check.** The twin writes every cell whole through the layout it was read under, field by field (method G7.5), so a person's own parsing code reads the twin as it reads the source; and the validator holds a layout BY FIT (the validation method's entry table).
 
@@ -12157,6 +12163,7 @@ a document, so no document can violate it.
 | S8b | every name under `settings.person_columns` is also under `settings.forced_identifiers` | yes |
 | S8c | a column whose written clock is on the ` twelve-hour` face is named under `settings.forced_twelve_hour_clocks`, and a column named there whose written clock writes no marker is on that face (C6-10a) | yes |
 | S8d | no name under `settings.forced_date_counts` is also under `forced_date_columns`, `century_windows`, `forced_twelve_hour_clocks`, `forced_codes`, `forced_identifiers` or `forced_measurements` | yes |
+| S8f | a column written in a layout of the day of the year, `{YYYY}-{DDD}` or `{YYYY}{DDD}`, stands under `settings.forced_date_columns` (landing R2c) | yes |
 | S8e | a column read in a century window of its own -- a layout whose year field is `{YY1900}`, `{YY1930}` or `{YY1940}` -- stands under `settings.century_windows` beside that window's first year, and a column standing there that is read with a two-figure year is read in that window, by such a layout (landing R2a) | yes |
 | C6-53 | a column block's key set is exactly the twenty-two universal keys plus the marked cells of its role's column in the forbidden-key matrix; every other key is FORBIDDEN, and refused by name | yes |
 
@@ -12438,7 +12445,8 @@ it answers to.
 | LY3 | its `time_precision` is the finest its layout writes: `subsecond`, `second`, `minute` or `date`; its fraction holds at most nine figures, and every moment it publishes is one its layout reads back -- a year in its band or window, no sixtieth second | yes |
 | LY4 | its `datetime_separators` and `zulu_case` are `{}`, and `utc_offsets` names an offset only where the layout's offset field can write it -- `Z` on a zulu field alone -- `(none)` only where it has none or one some cells omit, and `(withheld)` on any layout | yes |
 | LY5 | its `date_field_widths` counts the widths of its flexible fields and is `{}` on a layout with none | yes |
-| LY6 | its `resolution_mix` counts every parsed cell under the layout's own name alone | yes |
+| LY6 | its `resolution_mix` counts every parsed cell under the layout's own name, and the cells it read only in part under that layout's own partial forms (landing R2c) | yes |
+| LY7 | the counts its partial forms carry come to at most `n_unparsed` (landing R2c) | yes |
 
 <!-- anchor 3b-R2b (P4-D383) -->
 <!-- anchor 3b-R2c (P4-D383) -->
@@ -13654,8 +13662,8 @@ version 5 document reads "version 5":
 > giving it every option you gave the first time: --keep-value,
 > --missing-value, --identifier, --code, --measurement,
 > --decimal-comma, --smallest-group, --first-row, --day-first,
-> --twelve-hour, --century, --metadata-rows, --sheet, --delimiter and
-> --answers.
+> --twelve-hour, --century, --date-column, --metadata-rows, --sheet,
+> --delimiter and --answers.
 > Every one of them changes what the description PUBLISHES about your
 > table, so any option you leave out can put something into the new
 > description that the old one held back: without the --smallest-group
@@ -13691,6 +13699,10 @@ version 5 document reads "version 5":
 > whose year is written with two figures is read as one of 1969 to
 > 2068, so a birth date of 1931 written 31 is read as 2031, which
 > changes the dates the description publishes; without the
+> --date-column you gave, a column holding dates beside values written
+> another way, or dates written as a year and a day of the year, is
+> described as text or numbers, so none of its dates is published and
+> its twin writes none; without the
 > --metadata-rows you gave, the
 > rows under your column names that describe your columns are read as
 > records of your table, so their text is counted and described as
@@ -13703,14 +13715,21 @@ version 5 document reads "version 5":
 > without the --answers you gave, every answer you wrote in the
 > questions file is gone — each of them was a --code, an --identifier,
 > a --measurement, a --decimal-comma, a --metadata-rows, a
-> --delimiter, a --twelve-hour, a --century, a --day-first, a
-> --missing-value or a
+> --delimiter, a --twelve-hour, a --century, a --date-column, a
+> --day-first, a --missing-value or a
 > --keep-value, so leaving the file out costs whichever of those you
 > had given, and this same sentence says what each one costs. If you
 > do not hold the table yourself, ask whoever made this description to
 > run it again for you. Read the summary page synthtwin writes beside
 > the new description before either file goes anywhere, and use the
 > description exactly as synthtwin writes it.
+
+**Why it names sixteen options and prices each.** `--date-column`
+joined them with landing R2c (plan P4-D383): a re-run without it reads
+a column holding dates beside values written another way, or dates
+written as a year and a day of the year, as text or numbers, so none of
+its dates is published. Question Q6 answers it in a questions file, so
+the `--answers` clause names it too.
 
 **Why it names fifteen options and prices each.** `--century` joined
 them with landing R2a (plan P4-D383): a re-run without it reads a date

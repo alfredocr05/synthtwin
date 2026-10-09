@@ -1838,7 +1838,12 @@ def profile_version_is_older(found: int, reads: int) -> str:
     value" the person named -- and what to do, which is to describe the
     table again UNDER THE SAME OPTIONS.
 
-    IT NAMES FIFTEEN OPTIONS. `--century` joined with landing R2a (plan
+    IT NAMES SIXTEEN OPTIONS. `--date-column` joined with landing R2c
+    (plan P4-D383): left out, a column holding dates beside values written
+    another way, or written as a year and a day of the year, is described
+    as text or numbers, and none of its dates is published; question Q6
+    answers it, so the `--answers` clause names it too. Before it named
+    fifteen. `--century` joined with landing R2a (plan
     P4-D383): left out, a two-figure year is read as one of 1969 to
     2068, so a birth date of 1931 written 31 is read as 2031 and the
     published dates move a century; question Q5 answers it, so the
@@ -1948,7 +1953,8 @@ def profile_version_is_older(found: int, reads: int) -> str:
         f"table, giving it every option you gave the first time: "
         f"--keep-value, --missing-value, --identifier, --code, "
         f"--measurement, --decimal-comma, --smallest-group, --first-row, "
-        f"--day-first, --twelve-hour, --century, --metadata-rows, --sheet, "
+        f"--day-first, --twelve-hour, --century, --date-column, "
+        f"--metadata-rows, --sheet, "
         f"--delimiter and "
         f"--answers. "
         f"Every one of them changes what the "
@@ -1978,7 +1984,11 @@ def profile_version_is_older(found: int, reads: int) -> str:
         f"the --century you gave, a date whose year is written with "
         f"two figures is read as one of 1969 to 2068, so a birth date "
         f"of 1931 written 31 is read as 2031, which changes the dates "
-        f"the description publishes; without "
+        f"the description publishes; without the --date-column you gave, "
+        f"a column holding dates beside values written another way, or "
+        f"dates written as a year and a day of the year, is described as "
+        f"text or numbers, so none of its dates is published and its twin "
+        f"writes none; without "
         f"the --metadata-rows you "
         f"gave, the rows under your column names that describe your "
         f"columns are read as records of your table, so their text is "
@@ -1993,7 +2003,8 @@ def profile_version_is_older(found: int, reads: int) -> str:
         f"gave, every answer you wrote in the questions file is gone \u2014 "
         f"each of them was a --code, an --identifier, a --measurement, "
         f"a --decimal-comma, a --metadata-rows, a --delimiter, a "
-        f"--twelve-hour, a --century, a --day-first, a --missing-value "
+        f"--twelve-hour, a --century, a --date-column, a --day-first, "
+        f"a --missing-value "
         f"or a "
         f"--keep-value, "
         f"so leaving the file out costs whichever of those you had "

@@ -4143,8 +4143,10 @@ def _run_profile(
         asked_about + coded_or_answered,
         split_columns,
     )
-    # -- 3b.R2c (P4-D383): QUESTION Q6, which answers what kind of values
-    # its column holds in place of the questions that ask it.
+    # -- 3b.R2c (P4-D383): QUESTION Q6, BESIDE every other question its
+    # column raises: an accession number written `2024-252` is asked
+    # whether it is dates and, as before, whether it is a code or a
+    # record number, since only the person knows which.
     dates_asked = asking.date_column_questions(
         document,
         read.columns,
@@ -4154,7 +4156,7 @@ def _run_profile(
         tuple(forced_decimal_commas),
         storage,
     )
-    asked_about = asking.without_columns_of(asked_about, dates_asked) + dates_asked
+    asked_about = asked_about + dates_asked
     listed_about = asking.checklist_for(
         document, read.columns, settings, settled,
         asked_about + coded_about, codes_seen.answered,

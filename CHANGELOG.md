@@ -6,6 +6,29 @@ exists).
 
 ## [Unreleased]
 
+### Partial dates are read at their own precision, and a column mostly of dates is asked (2026-10-09)
+
+**Landing R2c, the layout reader's questions and partial dates** (plan
+P4-D383). A FHIR `date` column writing `2023`, `2023-03` and
+`2023-03-17`, a Medidata export writing `UN MAR 2023` beside `17 MAR
+2023`, an HL7 feed whose stamps stop at the minute or the hour, and an
+Oracle export some of whose stamps leave out the seconds were labels,
+counts or free text; each now reads under its layout, every cell at its
+own precision. A partial cell is counted in `n_unparsed` and under its
+form in `resolution_mix`, and nothing else is taken from it, so the
+spread, the tails and every fact of the day are the full dates' own; the
+twin writes each partial cell in its source's spelling, each form at its
+published count. A column one reading reads on half its cells or more but
+not enough, or written as a year and its day of the year (`2023076`,
+which an accession number writes alike), is asked in the questions file
+whether it holds dates (Q6, `--date-column`, `forced_date_columns`), and
+answered so it is read at half its cells, the rest left unread; a column
+of dates beside a few codes is asked R1's codes question instead. The
+reach battery's other 168 columns keep every file byte for byte but six
+questions files that now ask Q6. A partial-date column is described in 0.73 to 1.09 times the
+CPU time ISO's spelling of the same moments takes at 300,000 rows, and a
+column that is no date costs what it cost.
+
 ### Dates no member read are read by their shape, and written back as written (2026-10-05)
 
 **Landing R2a, the date half of the layout reader** (plan P4-D383).
