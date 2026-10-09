@@ -20,10 +20,11 @@ generator and checker:
   scale nodes (the R2 design, section 7, and its skeptic, m2) -- the CPU
   time describing a column costs when it is written in a layout, over
   the time an ISO column of the same moments at the same precision
-  costs, the largest of six such pairs (SPSS's DATETIME20, DB2's
+  costs, the largest of seven such pairs (SPSS's DATETIME20, DB2's
   timestamp, HL7's fourteen figures, a Dutch `d-m-yyyy` date, and since
-  R2b Oracle's TIMESTAMP and SQL Server's style 100 on the 12-hour dial), at
-  100,000 and at 300,000 rows. The bounds are 1.3 and 1.6: the skeptic
+  R2b Oracle's TIMESTAMP, SQL Server's style 100 on the 12-hour dial and
+  JavaScript's locale string, the clock half's slowest), at 100,000 and
+  at 300,000 rows. The bounds are 1.3 and 1.6: the skeptic
   measured the prototype's layouts costing 7 to 10 per cent more a cell
   each time the rows tripled while ISO stayed flat, so the larger node
   is what a million rows is projected from. Both times are taken in

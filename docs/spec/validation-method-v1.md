@@ -189,6 +189,16 @@ in such a table were read back as data, the column re-read as free
 text, and seven obligations came back MISSED against the table's own
 profile; declared as the number `-777` instead, seventeen did.
 
+**V2.2-A3 The 12-hour declaration is carried less the layouts whose
+fields name the 24-hour face** (landing R2b, plan P4-D383). A layout
+column published at `{HH}:`, `{H}.` or a compact `{HH}{MI}` was read on
+the 24-hour face whatever was declared, and its name under
+`forced_twelve_hour_clocks` is set aside for the re-description: carried,
+it takes the checked file's `{HH}` onto the dial at `{hh}`, and both the
+twin and the unchanged source of a description R2a's producer wrote of a
+declared SAS column missed the column's format (exit 3). Every other
+declared column is carried as written, a dial layout among them.
+
 **V2.2-A2 A reading the description took from the values is carried
 over the way a declaration is** (2026-09-15, profile plan P4-D40). A
 column the description gives `joined_numbers` WITHOUT naming it in

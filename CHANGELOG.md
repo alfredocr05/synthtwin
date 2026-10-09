@@ -21,8 +21,12 @@ lies 1 to 12 is asked whether it is a 12-hour clock written without AM
 or PM; Enter keeps the 24-hour reading, and `--twelve-hour` reads it on
 the dial. No column R2a's layouts or T1's stamps read moves: R2a's
 reach battery of 169 columns moved those seven alone, and the other 162
-kept every file byte for byte. A declared dial's twin may miss its
-rungs until landing T2's half-day draw, as a declared stamp's does.
+kept every file byte for byte. A description written before this
+landing of a column named with `--twelve-hour` and read on the 24-hour
+clock still loads and is checked on that clock. A declared dial's twin
+may miss its rungs until landing T2's half-day draw, as a declared
+stamp's does, and a column mixing the narrow and the ordinary space
+before its marker is not read.
 
 ### Dates no member read are read by their shape, and written back as written (2026-10-05)
 
