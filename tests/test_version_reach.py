@@ -324,6 +324,14 @@ ROUTES_THAT_RUN_SOURCE = {
     ("tests/test_stage3b_weekday_moments.py", "compile"): 2,
     ("tests/test_stage3b_weekday_moments.py", "exec"): 2,
     # anchor 3b-D3 (P4-D368)
+    # The eighteenth file, landing 3b.3's joint day plan (plan P4-D368): it
+    # runs the same oracle by path, as every file above does; and its test
+    # runs that oracle by path too, and builds the product's module with one
+    # source edit for each case's mutant, as the shared steps' test does.
+    ("tools/reference/make_generation_branch_vectors_18.py", "runpy.run_path"): 1,
+    ("tests/test_stage3b_day_of_month.py", "runpy.run_path"): 1,
+    ("tests/test_stage3b_day_of_month.py", "compile"): 1,
+    ("tests/test_stage3b_day_of_month.py", "exec"): 1,
     # anchor 3b-D4 (P4-D369)
     # anchor 3b-T1 (P4-D370)
     # The twenty-second file, landing T1's written clocks (plan P4-D370): it

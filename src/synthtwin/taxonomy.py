@@ -1006,6 +1006,15 @@ NOTE_WEEKDAY_WITHHELD_NO_TAILS = "weekday_census_withheld_no_tails"
 # anchor 3b-D0 (P4-D366)
 # anchor 3b-D2 (P4-D367)
 # anchor 3b-D3 (P4-D368)
+# WHAT A COLUMN OF DATES SAYS ABOUT ITS DAY-OF-MONTH CENSUS (landing
+# 3b.3, plan P4-D368, contract DM1 to DM5): a PUBLISHED census carries one
+# remark, saying whether it counts each day or some neighbouring days
+# together, and a census the day of the month asks for but a rule keeps
+# back carries one publication note, which names no rule. Each remark
+# takes the census line as its one argument.
+REMARK_DAY_OF_MONTH_EACH = "day_of_month_census_counts_each_day"
+REMARK_DAY_OF_MONTH_TOGETHER = "day_of_month_census_counts_days_together"
+NOTE_DAY_OF_MONTH_WITHHELD = "day_of_month_census_withheld"
 # anchor 3b-D4 (P4-D369)
 # anchor 3b-T1 (P4-D370)
 # anchor 3b-T2 (P4-D371)
@@ -1176,6 +1185,11 @@ NOTE_ARITY: "dict[str, int]" = {
     # anchor 3b-D0 (P4-D366)
     # anchor 3b-D2 (P4-D367)
     # anchor 3b-D3 (P4-D368)
+    # THE CENSUS LINE, where a day-of-month sentence names a number (plan
+    # P4-D368).
+    REMARK_DAY_OF_MONTH_EACH: 1,
+    REMARK_DAY_OF_MONTH_TOGETHER: 1,
+    NOTE_DAY_OF_MONTH_WITHHELD: 0,
     # anchor 3b-D4 (P4-D369)
     # anchor 3b-T1 (P4-D370)
     # anchor 3b-T2 (P4-D371)
@@ -1399,6 +1413,8 @@ ARGUMENT_BINDINGS: "dict[tuple[str, int], tuple[object, ...]]" = {
     # anchor 3b-D0 (P4-D366)
     # anchor 3b-D2 (P4-D367)
     # anchor 3b-D3 (P4-D368)
+    (REMARK_DAY_OF_MONTH_EACH, 0): (BIND_SETTING, "census line"),
+    (REMARK_DAY_OF_MONTH_TOGETHER, 0): (BIND_SETTING, "census line"),
     # anchor 3b-D4 (P4-D369)
     # anchor 3b-T1 (P4-D370)
     # anchor 3b-T2 (P4-D371)
@@ -2064,6 +2080,32 @@ def rendered(form: str, arguments: "tuple[object, ...]") -> str:
     # anchor 3b-D0 (P4-D366)
     # anchor 3b-D2 (P4-D367)
     # anchor 3b-D3 (P4-D368)
+    if form == REMARK_DAY_OF_MONTH_EACH:
+        return (
+            f"which days of the month this column's values fall on is "
+            f"counted for each day, over the values between its two tail "
+            f"boundaries, a month's last day apart from the 28th, 29th "
+            f"and 30th of a longer month; every day that holds rows holds "
+            f"them on at least four different dates, and every count is "
+            f"nought or at least {_whole(arguments, 0)} rows"
+        )
+    if form == REMARK_DAY_OF_MONTH_TOGETHER:
+        return (
+            f"which days of the month this column's values fall on is "
+            f"counted over the values between its two tail boundaries, "
+            f"some neighbouring days together, a month's last day apart "
+            f"from the 28th, 29th and 30th of a longer month; every group "
+            f"that holds rows holds them on at least four different "
+            f"dates, and every count is nought or at least "
+            f"{_whole(arguments, 0)} rows"
+        )
+    if form == NOTE_DAY_OF_MONTH_WITHHELD:
+        return (
+            "the days of the month this column's values fall on are not "
+            "counted, though they depart from the calendar: counting them "
+            "would cost the twin its count of different values, or the "
+            "column's middle half spans too few months for them"
+        )
     # anchor 3b-D4 (P4-D369)
     # anchor 3b-T1 (P4-D370)
     # anchor 3b-T2 (P4-D371)
@@ -16841,6 +16883,236 @@ def _clock_fields_published(
     )
 
 
+@dataclasses.dataclass(frozen=True)
+class DayOfMonthDecision:
+    """What the day-of-month census producer decided for one column.
+
+    `groups` is the published census, bins from 1, empty where none is
+    published; `reason` the `calendar_rules.MONTH_REASONS` word of the
+    rule that withheld one the day of the month asked for -- empty where
+    none is asked for, which says nothing; and `scores` the day of the
+    month's and the weekday's departures beyond each other
+    (`calendar_rules.day_scores`), nought where none was scored.
+    """
+
+    groups: "tuple[tuple[int, int, int], ...]"
+    reason: str
+    scores: "tuple[float, float]" = (0.0, 0.0)
+
+
+def day_of_month_decision(
+    details: "dict[str, object]",
+    days: "tuple[int, ...]",
+    settings: Settings,
+    n_distinct: int,
+) -> DayOfMonthDecision:
+    """The day-of-month census of one column (landing 3b.3, plan P4-D368).
+
+    THE PRODUCER. `details` is the column's published block, its weekday
+    census already decided (`_weekday_published`), and `days` the day of
+    every parsed cell ascending (`_census_days`) and `n_distinct` the
+    column's published count of different values. In order:
+
+    * DM5, WC3's scope and nothing more (the 3b.3 skeptic's major 3): a
+      column of whole dates, or of moments every value of which stands
+      at midnight (major 4: the twin counts and moves those in days),
+      read on the local clock, not in the joint member, with both tails.
+      Anywhere else nothing is decided and nothing is said: a column of
+      moments with a clock is outside this landing.
+    * Its BODY's days are counted in the thirty-four bins
+      (`calendar_rules.month_bins`) and grouped on the cycle by the one
+      merge rule (`calendar_rules.month_groups`); one group, nothing.
+    * THE RULE (`calendar_rules.day_scores`, `day_of_month_stands`), both
+      scores on the published groups and the calendar between the two
+      tail boundaries less the published holes: beside a weekday census,
+      the day of the month departs by at least four chi-squared per
+      degree of freedom beyond the weekday AND more than the weekday
+      departs beyond it; with none, by four from the plain calendar.
+      Where it does not, nothing is said.
+    * Where it does, three rules may still keep the census back, all in
+      one publication note: a body day on a published hole, the middle
+      half spanning fewer than 124 days (DM4), and a group holding rows
+      on fewer than four different dates where its calendar offers more
+      (`calendar_rules.few_month_dates`, the skeptic's blocker 1 (a)),
+      and, at every floor, the two censuses leaving the body too few days
+      for the count of different values once the twin's rebuilt tails
+      are set aside (`calendar_rules.month_reach_short`, lane D1b's
+      count-reach rule asked of both censuses).
+    * Last, the loader's own check (`calendar_rules.day_census_breach`),
+      so the producer never writes what the loader refuses.
+
+    The weekday census is never withdrawn (CA6 read literally is not
+    built: it lost 7 of 10 weekday censuses and took business weekends
+    from 0 to 0.26). No certificate, band or cap: no rule here asks what
+    a reader could work out from the census (the owner's principle of
+    2026-10-01).
+
+    Guarantees: accepts the published block, the days and the settings;
+    returns the decision. Determinism: a function of the three. Raises
+    nothing. No I/O of any kind.
+    """
+    empty: "tuple[tuple[int, int, int], ...]" = ()
+    nothing = DayOfMonthDecision(empty, "")
+    resolution = details["resolution"]
+    if not days or details["datetimes_read_at"] != READ_AT_LOCAL:
+        return nothing
+    if details["format"] == FORMAT_ISO_MIXED:
+        return nothing
+    if resolution != RESOLUTION_DATE and not (
+        resolution == RESOLUTION_DATETIME and details["all_at_midnight"] is True
+    ):
+        return nothing
+    low_tail = details["low_tail"]
+    high_tail = details["high_tail"]
+    format_name = details["format"]
+    if (
+        not isinstance(low_tail, dict)
+        or not isinstance(high_tail, dict)
+        or not isinstance(format_name, str)
+    ):
+        return nothing
+    rows_low = low_tail["rows"]
+    rows_high = high_tail["rows"]
+    if not isinstance(rows_low, int) or not isinstance(rows_high, int):
+        return nothing
+    parsed = len(days)
+    body = list(days[rows_low : parsed - rows_high])
+    if not body:
+        return nothing
+    line = parsing.census_floor(settings.small_cell_floor)
+    groups = calendar_rules.month_groups(calendar_rules.month_bins(body), line)
+    if not groups:
+        return nothing
+    forms: "dict[str, dict[str, int]]" = {}
+    for name in calendar_rules.FORM_CENSUSES:
+        census = details[name]
+        forms[name] = {}
+        if isinstance(census, dict):
+            forms[name] = {
+                str(key): census[key]
+                for key in census
+                if isinstance(census[key], int)
+            }
+    low, high = body[0], body[len(body) - 1]
+    judged: "tuple[str, ...]" = ()
+    if "sentinel_verdicts" in details:
+        judged = _read_as_missing(details["sentinel_verdicts"])
+    holes = calendar_rules.public_holes(
+        forms, format_name, low, high, judged, published_absent(details, settings),
+    )
+    weekdays: "list[tuple[int, int, int]]" = []
+    published = details[calendar_rules.WEEKDAY_CENSUS]
+    if isinstance(published, list):
+        for entry in published:
+            if isinstance(entry, dict):
+                weekdays += [(int(entry["first"]), int(entry["last"]), int(entry["count"]))]
+    table = calendar_rules.month_calendar(low, high, holes)
+    scores = calendar_rules.day_scores(groups, tuple(weekdays), table)
+    if not calendar_rules.day_of_month_stands(scores[0], scores[1], bool(weekdays)):
+        return DayOfMonthDecision(empty, "", scores)
+    ladder = details["date_percentiles"]
+    p25 = _rung_day(ladder, "p25")
+    p75 = _rung_day(ladder, "p75")
+    if set(holes) & set(body):
+        return DayOfMonthDecision(empty, calendar_rules.REASON_MONTH_HOLE, scores)
+    if calendar_rules.month_span_short(p25, p75):
+        return DayOfMonthDecision(empty, calendar_rules.REASON_MONTH_SPAN, scores)
+    if calendar_rules.few_month_dates(groups, body, table):
+        return DayOfMonthDecision(empty, calendar_rules.REASON_MONTH_FEW_DATES, scores)
+    if _month_reach_reason(details, days, n_distinct, settings, groups, tuple(weekdays), holes):
+        return DayOfMonthDecision(empty, calendar_rules.REASON_MONTH_REACH, scores)
+    if calendar_rules.day_census_breach(groups, len(body), line, p25, p75):
+        return DayOfMonthDecision(empty, calendar_rules.REASON_NARROWED, scores)
+    return DayOfMonthDecision(groups, "", scores)
+
+
+def _month_reach_reason(
+    details: "dict[str, object]",
+    days: "tuple[int, ...]",
+    n_distinct: int,
+    settings: Settings,
+    groups: "tuple[tuple[int, int, int], ...]",
+    weekdays: "tuple[tuple[int, int, int], ...]",
+    holes: "tuple[int, ...]",
+) -> bool:
+    """Whether the count-reach rule keeps a day-of-month census back (P4-D368).
+
+    The pins, the column's different days and the fewest and most
+    different days the twin's two rebuilt tails keep, read exactly as
+    `_count_rules_reason` reads them for the weekday census (plan
+    P4-D388), handed to `calendar_rules.month_reach_short` with both
+    censuses. `details` is the published block, its two tails dicts with
+    whole rows (the caller asks nothing else).
+
+    Guarantees: returns the answer. Determinism: a function of the
+    seven. Raises nothing. No I/O of any kind.
+    """
+    low_tail = details["low_tail"]
+    high_tail = details["high_tail"]
+    format_name = details["format"]
+    if (
+        not isinstance(low_tail, dict)
+        or not isinstance(high_tail, dict)
+        or not isinstance(format_name, str)
+    ):
+        return False
+    rows_low = low_tail["rows"]
+    rows_high = high_tail["rows"]
+    if not isinstance(rows_low, int) or not isinstance(rows_high, int):
+        return False
+    parsed = len(days)
+    published: "list[tuple[int | None, float | None, float | None]]" = []
+    for tail in (low_tail, high_tail):
+        values = tail["values"] if "values" in tail else None
+        count = len(values) if isinstance(values, list) else None
+        pair: "list[float | None]" = []
+        for key in ("mean_distance", "rms_distance"):
+            figure = tail[key] if key in tail else None
+            pair += [
+                float(figure)
+                if isinstance(figure, (int, float)) and not isinstance(figure, bool)
+                else None
+            ]
+        published += [(count, pair[0], pair[1])]
+    rungs = details["date_percentiles"] if "date_percentiles" in details else None
+    percents: "list[int]" = []
+    if isinstance(rungs, dict):
+        for label, num, den in LADDER:
+            if label in rungs and rungs[label] is not None:
+                percents += [(100 * num) // den]
+    pins = calendar_rules.body_pins(days, rows_low, rows_high, percents)
+    unread = details["n_unparsed"] if "n_unparsed" in details else 0
+    absent: "set[int]" = set()
+    named = details["missing_by_source"] if "missing_by_source" in details else None
+    if isinstance(named, dict):
+        for spelling in named:
+            read = parsing.parse_datetime(str(spelling), format_name)
+            if read is not None:
+                absent = absent | {
+                    tail_ordinal(read[0], parsing.TAIL_UNIT_DAY, READ_AT_LOCAL)
+                }
+    rebuilt = (
+        days,
+        rows_low,
+        rows_high,
+        (published[0], published[1]),
+        settings.small_cell_floor,
+        tail_edges(format_name, parsing.TAIL_UNIT_DAY, READ_AT_LOCAL, {}),
+        isinstance(unread, int) and n_distinct - unread >= parsed,
+        frozenset(absent),
+    )
+    fewest, _most = calendar_rules.tails_kept(*rebuilt, pins, frozenset(holes))
+    return calendar_rules.month_reach_short(
+        groups,
+        weekdays,
+        pins,
+        len(set(days)),
+        fewest,
+        calendar_rules.tails_most_rebuilt(*rebuilt),
+        frozenset(holes),
+    )
+
+
 def _day_of_month_published(
     details: "dict[str, object]",
     verdict: "_Verdict",
@@ -16853,13 +17125,45 @@ def _day_of_month_published(
 ) -> "tuple[dict[str, object], list[Note], list[Note]]":
     """A column block of dates with its `day_of_month_census`, and its sentences.
 
-    THE STUB OF LANDING 3b.3 (lane D3, plan P4-D368), which fills this
-    producer and nothing beside it; until then the census is `[]` on
-    every block and no sentence is said.
+    Landing 3b.3 (plan P4-D368). Every block of the datetime role carries
+    the key; it is `[]` where no census is published. A PUBLISHED census
+    carries one remark (NF102 where every group holding rows is one bin,
+    NF103 where some neighbouring bins are counted together), and one the
+    day of the month asks for but a rule keeps back carries one
+    publication note (NF104), which names no rule. `produced` false -- the
+    validator's own re-description of a file -- asks nothing and
+    publishes `[]` with no sentence. The decision reads the block's own
+    published tails, rungs, forms, weekday census, decisions and absent
+    spellings (`day_of_month_decision`), and the column's days off the
+    role's verdict. A workbook's storage is not asked: DM5 is WC3's scope
+    alone (the 3b.3 skeptic's major 3).
 
     Guarantees: as `_hour_published`. No I/O of any kind.
     """
-    return _reserved_lists(details, (calendar_rules.DAY_OF_MONTH_CENSUS,))
+    block = dict(details)
+    block[calendar_rules.DAY_OF_MONTH_CENSUS] = []
+    if not produced:
+        return block, [], []
+    decided = day_of_month_decision(
+        dict(details, sentinel_verdicts=verdicts, missing_by_source=absent),
+        verdict.days,
+        settings,
+        _column_distinct(cells, verdict.role, details),
+    )
+    line = parsing.census_floor(settings.small_cell_floor)
+    if not decided.groups:
+        if not decided.reason:
+            return block, [], []
+        return block, [note(NOTE_DAY_OF_MONTH_WITHHELD)], []
+    block[calendar_rules.DAY_OF_MONTH_CENSUS] = [
+        {"first": first, "last": last, "count": count}
+        for first, last, count in decided.groups
+    ]
+    form = REMARK_DAY_OF_MONTH_EACH
+    for first, last, count in decided.groups:
+        if count > 0 and first != last:
+            form = REMARK_DAY_OF_MONTH_TOGETHER
+    return block, [], [note(form, (line,))]
 
 
 def _heavy_published(

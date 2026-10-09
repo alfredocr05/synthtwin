@@ -1720,6 +1720,34 @@ INVARIANTS = {
         "least four weeks"
     ),
     # anchor 3b-D3 (P4-D368)
+    # Landing 3b.3 (plan P4-D368): the day-of-month census of a column of
+    # dates, over thirty-four bins on a cycle (contract 6.6.2).
+    "DM1": (
+        "a day-of-month census's groups cover bins 1 to 34 in order, each "
+        "once -- bins 1 to 27 the days 1 to 27, bins 28 to 30 the 28th to "
+        "the 30th where that day is not the month's last, and bins 31 to "
+        "34 the month's last day in a month of 28, 29, 30 and 31 days -- "
+        "and only the last group may run past bin 34 back to bin 1"
+    ),
+    "DM2": (
+        "every count of a day-of-month census is nought or at least the "
+        "census line"
+    ),
+    "DM3": (
+        "the counts of a day-of-month census add up to the values between "
+        "the two tail boundaries, both included"
+    ),
+    "DM4": (
+        "a day-of-month census stands only where the column's published "
+        "p25 and p75 are both named and the p75 stands at least 124 days "
+        "after the p25, so the middle half of the column spans at least "
+        "four months"
+    ),
+    "DM5": (
+        "a day-of-month census stands only on a column of whole dates, or "
+        "of moments every value of which stands at midnight, read on the "
+        "local clock, not in the joint member, and with both tails"
+    ),
     # anchor 3b-D4 (P4-D369)
     # anchor 3b-T1 (P4-D370)
     # Landing T1 (plan P4-D370); 3b.K's anchor 3b-T1 is its place.
@@ -9221,17 +9249,68 @@ def _day_of_month_census(
     absent: "tuple[str, ...]",
     facts: DatetimeFacts,
 ) -> "tuple[tuple[int, int, int], ...]":
-    """A column's `day_of_month_census`, reserved: `[]` and nothing else.
+    """A column's `day_of_month_census`, read and held to DM1 to DM5.
 
-    THE STUB OF LANDING 3b.3 (lane D3, plan P4-D368), which fills this
-    reader and nothing beside it (plan P4-D364). Handed what
-    `_hour_census` is handed.
+    Landing 3b.3 (plan P4-D368). An empty census is always legal. A
+    published one must stand on a column of whole dates, or of moments
+    every value of which stands at midnight, read on the local clock,
+    not in the joint member, with both tails (DM5, WC3's scope alone:
+    the 3b.3 skeptic's majors 3 and 4); then
+    `calendar_rules.day_census_breach` asks the groups' cover of the
+    thirty-four bins on their cycle (DM1), the floor (DM2), their total
+    against the body (DM3) and the middle half's span (DM4). The first
+    broken rule is refused by name. Nothing here walks a day, and no
+    rule asks what a reader could work out from the census.
 
-    Guarantees: returns the census, empty. Raises ProfileError for any
-    other value (`_reserved_list`). No I/O of any kind.
+    Guarantees: accepts the block and what `_hour_census` is handed;
+    returns the groups as `(first, last, count)`, bins from 1. Raises
+    ProfileError for a wrong type and for any broken rule. No I/O of any
+    kind.
     """
-    _reserved_list(mapping["day_of_month_census"], "day_of_month_census", where)
-    return ()
+    groups = _listing(mapping["day_of_month_census"], "day_of_month_census", where)
+    found: "list[tuple[int, int, int]]" = []
+    for entry in groups:
+        group = _mapping(entry, "day_of_month_census", where)
+        _keys(group, where, ("count", "first", "last"), "every day-of-month group")
+        found += [
+            (
+                _whole(group["first"], "day_of_month_census -> first", where, 0),
+                _whole(group["last"], "day_of_month_census -> last", where, 0),
+                _whole(group["count"], "day_of_month_census -> count", where, 0),
+            )
+        ]
+    if not found:
+        return ()
+    low, high = facts.low_tail, facts.high_tail
+    if (
+        not (
+            facts.resolution == "date"
+            or (facts.resolution == "datetime" and facts.all_at_midnight)
+        )
+        or facts.datetimes_read_at != "local"
+        or facts.parser_family == FORMAT_ISO_MIXED
+        or low is None
+        or high is None
+    ):
+        raise _broken(
+            "DM5",
+            where,
+            "a day-of-month census is published",
+            "only a column of whole dates, or of moments every value of "
+            "which stands at midnight, read on the local clock, not in the "
+            "joint member, and with both tails publishes one",
+        )
+    first, last = facts.date_percentiles.p25, facts.date_percentiles.p75
+    broken = calendar_rules.day_census_breach(
+        tuple(found),
+        n_present - facts.n_unparsed - low.rows - high.rows,
+        parsing.census_floor(floor),
+        _day_number(first) if first is not None else None,
+        _day_number(last) if last is not None else None,
+    )
+    if broken is not None:
+        raise _broken(broken[0], where, broken[1], broken[2])
+    return tuple(found)
 
 
 def _heavy_dates(

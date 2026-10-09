@@ -258,6 +258,11 @@ SEVENTEENTH_BRANCH_GENERATOR = (
     REPOSITORY / "tools" / "reference" / "make_generation_branch_vectors_17.py"
 )
 # anchor 3b-D3 (P4-D368)
+# THE EIGHTEENTH FILE (landing 3b.3's joint day plan G7.3i, plan P4-D368):
+# states of ranks, not columns, held by tests/test_stage3b_day_of_month.py.
+EIGHTEENTH_BRANCH_GENERATOR = (
+    REPOSITORY / "tools" / "reference" / "make_generation_branch_vectors_18.py"
+)
 # anchor 3b-D4 (P4-D369)
 # anchor 3b-T1 (P4-D370)
 # THE TWENTY-SECOND FILE (landing T1's written clocks, plan P4-D370):
@@ -1424,6 +1429,7 @@ def test_the_branch_file_is_the_same_oracle_and_says_which_half_it_is() -> None:
         TWENTY_SECOND_BRANCH_GENERATOR,
         FIFTEENTH_BRANCH_GENERATOR,
         SEVENTEENTH_BRANCH_GENERATOR,
+        EIGHTEENTH_BRANCH_GENERATOR,
         DOCUMENT_GENERATOR,
     ],
 )

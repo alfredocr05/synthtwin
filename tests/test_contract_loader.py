@@ -1570,11 +1570,6 @@ def battery() -> list[Mutation]:
             names="second_heaps",
         ),
         # -- 3b.D3 (P4-D368)
-        Mutation(
-            "R16", "a day_of_month_census this version of synthtwin publishes none of",
-            edit("recorded_on", day_of_month_census=[{"first": 1, "last": 31, "count": 217}]),
-            names="day_of_month_census",
-        ),
         # -- 3b.D4 (P4-D369)
         Mutation(
             "R16", "a heavy_dates this version of synthtwin publishes none of",
@@ -1766,6 +1761,71 @@ def battery() -> list[Mutation]:
             edit_weekdays("admitted_at", 0, 1000),
         ),
         # anchor 3b-D3 (P4-D368)
+        # -- 3b.D3 (P4-D368): `recorded_on`'s 217 body values, counted over
+        # the day-of-month census's thirty-four bins; DM1 to DM4 asked of
+        # the groups and the middle half, DM5 of the column's scope.
+        Mutation(
+            "DM1", "day-of-month groups that run out of order",
+            edit(
+                "recorded_on",
+                day_of_month_census=[
+                    {"first": 2, "last": 34, "count": 200},
+                    {"first": 1, "last": 1, "count": 17},
+                ],
+            ),
+        ),
+        Mutation(
+            "DM1", "day-of-month groups that leave bins 31 to 34 uncovered",
+            edit(
+                "recorded_on",
+                day_of_month_census=[{"first": 1, "last": 30, "count": 217}],
+            ),
+        ),
+        Mutation(
+            "DM2", "a day-of-month group counting fewer than the census line",
+            edit(
+                "recorded_on",
+                day_of_month_census=[
+                    {"first": 1, "last": 1, "count": 5},
+                    {"first": 2, "last": 34, "count": 212},
+                ],
+            ),
+        ),
+        Mutation(
+            "DM3", "day-of-month counts adding to more than the body",
+            edit(
+                "recorded_on",
+                day_of_month_census=[
+                    {"first": 1, "last": 1, "count": 18},
+                    {"first": 2, "last": 34, "count": 200},
+                ],
+            ),
+        ),
+        Mutation(
+            "DM4", "a day-of-month census whose middle half spans 123 days",
+            both(
+                edit(
+                    "recorded_on",
+                    day_of_month_census=[
+                        {"first": 1, "last": 1, "count": 17},
+                        {"first": 2, "last": 34, "count": 200},
+                    ],
+                ),
+                middle_half_of("recorded_on", 123),
+            ),
+        ),
+        Mutation(
+            "DM5", "a day-of-month census on a column of moments on the shared clock",
+            edit(
+                "logged_at",
+                day_of_month_census=[{"first": 1, "last": 34, "count": 218}],
+            ),
+        ),
+        Mutation(
+            "R15", "a day-of-month census that is no list",
+            edit("recorded_on", day_of_month_census={"first": 1}),
+            names="day_of_month_census",
+        ),
         # anchor 3b-D4 (P4-D369)
         # anchor 3b-T1 (P4-D370)
         # anchor 3b-T2 (P4-D371)

@@ -479,7 +479,6 @@ INPUT_SIDE_ENTRIES = (
     ("datetime", "minute_heaps"),
     ("datetime", "second_heaps"),
     # -- 3b.D3 (P4-D368)
-    ("datetime", "day_of_month_census"),
     # -- 3b.D4 (P4-D369)
     ("datetime", "heavy_dates"),
     # -- 3b.C1 (P4-D373)
@@ -17219,15 +17218,117 @@ def _day_of_month_checks(
     cells: "list[str]",
     declared_days: "tuple[str, ...]" = (),
 ) -> "list[Check]":
-    """The day-of-month census, held exactly.
+    """The day-of-month census, held exactly (landing 3b.3, validation V5-W2).
 
-    THE STUB OF LANDING 3b.3 (lane D3, plan P4-D368), which fills this
-    check and nothing beside it (plan P4-D364); nothing to check until
-    then.
+    The file's own BODY -- its dates between the two PUBLISHED tail
+    boundaries, both included, read as the weekday check reads them
+    (`_dates_the_file_reads`, the fold of `_folded_by_the_file`; on a
+    column of moments every value of which stands at midnight, by
+    instant as the tails count them) -- counted per bin of the census's
+    thirty-four (`calendar_rules.month_bin`: the month's last day in bins
+    31 to 34) and per published group. HELD where every group holds its
+    count, MISSED otherwise, and MISSED whatever its counts where a body
+    cell stands on a day the description holds empty, as V5-W1. Printed
+    through the one printing rule of every census check
+    (`_census_lines`, plan P4-D347): a MISSED line prints no number below
+    the line. Counted here from the cells, never produced. EXACT-OBSERVABLE.
 
     Guarantees: as `_hour_checks`. No I/O of any kind.
     """
-    return []
+    census = facts.day_of_month_census
+    if not census or facts.low_tail is None or facts.high_tail is None:
+        return []
+    low = _weekday_day(facts.low_tail.boundary)
+    high = _weekday_day(facts.high_tail.boundary)
+    holes = set(_published_holes(column, facts, low, high, declared_days))
+    days: "list[int]" = []
+    if facts.resolution == taxonomy.RESOLUTION_DATETIME:
+        first = taxonomy.tail_ordinal(
+            facts.low_tail.boundary, facts.tail_unit, facts.datetimes_read_at
+        )
+        last = taxonomy.tail_ordinal(
+            facts.high_tail.boundary, facts.tail_unit, facts.datetimes_read_at
+        )
+        per_day = 1
+        if facts.tail_unit == parsing.TAIL_UNIT_MINUTE:
+            per_day = 1440
+        elif facts.tail_unit == parsing.TAIL_UNIT_SECOND:
+            per_day = 86400
+        for unit in _tail_units_of(facts, _dates_the_file_reads(block, facts, cells)):
+            if unit is not None and first <= unit <= last:
+                days += [unit // per_day]
+    else:
+        failing: "list[str]" = []
+        for cell in _dates_the_file_reads(block, facts, cells):
+            read = parsing.parse_datetime(cell, facts.parser_family)
+            if read is None:
+                failing += [cell]
+                continue
+            days += [_weekday_day(read[0])]
+        if _folded_by_the_file(block, facts.parser_family, failing):
+            for cell in failing:
+                folded_day = _day_as_counted(cell)
+                if folded_day is not None:
+                    days += [folded_day]
+        days = [day for day in days if low <= day <= high]
+    on_holes = len([day for day in days if day in holes])
+    bins = calendar_rules.month_bins(days)
+    where = calendar_rules.month_where(census)
+    found = [0 for _ in census]
+    for index in range(calendar_rules.MONTH_DAY_BINS):
+        found[where[index]] = found[where[index]] + bins[index]
+    asked, shown, lines = _census_lines(
+        [(_month_group_named(first, last), count) for first, last, count in census],
+        found,
+        parsing.census_floor(floor),
+    )
+    if on_holes:
+        lines += [
+            "Some of this file's dates between the two boundaries stand on "
+            "days its description holds no value on -- days its written "
+            "forms, its placeholder decisions or its absent spellings "
+            "leave empty. They are counted on the days of the month they "
+            "fall on, and the census is missed whatever its counts, "
+            "because the description's census holds none of them."
+        ]
+    note: "tuple[str, ...]" = tuple(lines)
+    wanted = [count for _first, _last, count in census]
+    return [
+        Check(
+            column.name,
+            "datetime.day_of_month_census",
+            "day_of_month_census.groups",
+            HELD if found == wanted and not on_holes else MISSED,
+            asked,
+            shown,
+            "",
+            note,
+        )
+    ]
+
+
+def _month_bin_named(position: int) -> str:
+    """A bin of the day-of-month census as the report names it."""
+    if position >= calendar_rules.MONTH_LAST_FIRST_BIN:
+        length = position - calendar_rules.MONTH_LAST_FIRST_BIN + 28
+        return f"the last day of a {length}-day month"
+    if position >= 28:
+        return f"the {position}th, not the month's last day"
+    suffix = "th"
+    if position % 10 == 1 and position != 11:
+        suffix = "st"
+    elif position % 10 == 2 and position != 12:
+        suffix = "nd"
+    elif position % 10 == 3 and position != 13:
+        suffix = "rd"
+    return f"the {position}{suffix}"
+
+
+def _month_group_named(first: int, last: int) -> str:
+    """A group of the day-of-month census as the report names it."""
+    if first == last:
+        return _month_bin_named(first)
+    return f"{_month_bin_named(first)} to {_month_bin_named(last)}"
 
 
 def _heavy_checks(

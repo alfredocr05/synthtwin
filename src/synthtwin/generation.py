@@ -19189,6 +19189,10 @@ class _WeekdayPass:
         default_factory=dict
     )
     gap_sizes: "dict[tuple[int, int], int]" = dataclasses.field(default_factory=dict)
+    # Each day's day-of-month bin less one, filled as it is asked (landing
+    # 3b.3): the bin of the `"month_day"` rule is a calendar reckoning the
+    # pass asks millions of times on a large column.
+    month_bins: "dict[int, int]" = dataclasses.field(default_factory=dict)
 
 
 @dataclasses.dataclass(frozen=True)
@@ -19220,11 +19224,19 @@ def _weekday_bin(state: _WeekdayPass, rule: str, ordinal: int) -> int:
     """The bin an ordinal falls in under a named rule (the seams of landing
     3b.D0): `"weekday"` its day's weekday, Monday nought; `"hour"` its hour
     of the day; `"day_of_month"` its day's day of the month, the first
-    nought. A landing that publishes another census adds its rule here."""
+    nought; `"month_day"` the day-of-month census's bin less one (landing
+    3b.3). A landing that publishes another census adds its rule here."""
     if rule == "hour":
         return (ordinal // 3600) % 24
     if rule == "day_of_month":
         return parsing.civil_from_days(ordinal // state.day)[2] - 1
+    if rule == "month_day":
+        # The day-of-month census's thirty-four bins (landing 3b.3, plan
+        # P4-D368): bin 1 nought, the month's last day in bins 31 to 34.
+        day = ordinal // state.day
+        if day not in state.month_bins:
+            state.month_bins[day] = calendar_rules.month_bin(day) - 1
+        return state.month_bins[day]
     return calendar_rules.weekday_of(ordinal // state.day)
 
 
@@ -21916,6 +21928,309 @@ def _tail_rank_of(plan: "_TailPlan", parsed: int, index: int) -> int:
     return parsed - 1 - index
 
 
+# THE DAY OF THE MONTH (landing 3b.3, plan P4-D368, method G7.3i): the
+# joint day plan in the day pass's own slot. A column publishing no
+# day-of-month census is moved by the weekday pass exactly as before.
+
+_DAY_OF_MONTH_MISSED = (
+    "The twin could not place every date on the days of the month the "
+    "description counts, so its counts per day of the month differ from "
+    "the published ones."
+)
+
+
+def _day_pass_setup(
+    column: contract.ColumnBlock,
+    facts: contract.DatetimeFacts,
+    holes: "tuple[str, ...]",
+    declared_days: "tuple[str, ...]",
+) -> "tuple[str, bool, frozenset[int]]":
+    """The width word, whether it is kept, and the hole days of a column of days.
+
+    What `_weekday_settled` builds for a column counted in days, stated
+    once for the joint plan: the column's one width word where its member
+    writes widths or names, and every day no rank may stand on -- a day
+    every spelling of which the run declares absent, the days the
+    description publishes empty (`_published_holes`) and the dates that
+    stand out (`_heavy_holes`).
+    """
+    word = ""
+    widths = False
+    if len(facts.date_field_widths) == 1 and (
+        facts.parser_family in parsing.VARIABLE_WIDTH_MEMBERS
+        or facts.parser_family in parsing.TEXTUAL_MEMBERS
+    ):
+        widths = True
+        for key in facts.date_field_widths:
+            word = key
+    hole_days: "set[int]" = set()
+    for text in holes:
+        read = parsing.parse_datetime(text, facts.parser_family)
+        if read is None:
+            continue
+        canonical = read[0]
+        hole_days = hole_days | {
+            parsing.days_from_civil(
+                int(canonical[0:4]), int(canonical[5:7]), int(canonical[8:10])
+            )
+        }
+    hole_days = hole_days | set(_published_holes(column, facts, declared_days))
+    hole_days = hole_days | set(_heavy_holes(facts))
+    return word, widths, frozenset(hole_days)
+
+
+def _day_empty_weekdays(
+    weekdays: "tuple[tuple[int, int, int], ...]", low: int, high: int
+) -> "frozenset[int]":
+    """Every day from `low` to `high` whose weekday the weekday census counts
+    nought: the holes pass A adds (G7.3i), stepped a week at a time."""
+    found: "set[int]" = set()
+    if not weekdays:
+        return frozenset()
+    where = calendar_rules.where_of(weekdays)
+    for weekday in range(calendar_rules.WEEKDAYS):
+        if weekdays[where[weekday]][2] != 0:
+            continue
+        day = low + (weekday - calendar_rules.weekday_of(low)) % calendar_rules.WEEKDAYS
+        while day <= high:
+            found = found | {day}
+            day = day + calendar_rules.WEEKDAYS
+    return frozenset(found)
+
+
+def _day_passes(
+    moved: "list[int]",
+    lows: "list[int]",
+    highs: "list[int]",
+    pinned: "list[bool]",
+    body: "tuple[int, int]",
+    wanted: int,
+    censuses: "tuple[tuple[tuple[int, int, int], ...], tuple[tuple[int, int, int], ...]]",
+    seams: "tuple[contract.DatetimeFacts, str, bool, frozenset[int], frozenset[int], bool]",
+) -> "tuple[_WeekdayPass, _WeekdayPass | None]":
+    """G7.3i's two passes over a column counted in days (plan P4-D368).
+
+    `censuses` are the day-of-month census and the weekday census (empty
+    where none is published); `seams` the facts the width kind is read
+    under, the width word, whether it is kept, the hole days, the days
+    pass A adds as holes (`_day_empty_weekdays`), and whether the count
+    of different days is kept. PASS A is G7.3f (`_bins_settled`) over the
+    day-of-month census's thirty-four bins (`"month_day"`, no period),
+    with every day of a weekday group the weekday census counts nought
+    added to its holes, so no rank is put on a day pass B would have to
+    take it off. PASS B, where a weekday census is published, is G7.3f
+    over the weekday census with every move keeping the rank's
+    day-of-month group (`pairs`), its step 8.6 trading two ranks across
+    those groups where the totals are still off (the 3b.3 skeptic's
+    blocker 1 (b)), so every day-of-month group keeps its count. Both
+    passes move only the body ranks the layout does not pin, inside
+    their own gaps and width kinds, never onto a hole.
+
+    Guarantees: returns the two passes' states, the second None where
+    no weekday census is published; `moved` is changed in place. Draws
+    no word. Raises nothing. No I/O of any kind.
+    """
+    month, weekdays = censuses
+    facts, word, widths, hole_days, emptied, keep = seams
+    body_low, body_high = body
+    held: "dict[int, int]" = {}
+    for value in moved:
+        _weekday_tally(held, value, 1)
+    month_where = calendar_rules.month_where(month)
+    first = _WeekdayPass(
+        moved=moved,
+        held=held,
+        where=month_where,
+        facts=facts,
+        word=word,
+        widths=widths,
+        kinds={},
+        holes=hole_days | emptied,
+        lows=lows,
+        highs=highs,
+        keep_units=keep,
+        bins="month_day",
+        period=0,
+    )
+    _bins_settled(
+        first, [count for _first, _last, count in month],
+        body_low, body_high, pinned, wanted,
+    )
+    if not weekdays:
+        return first, None
+    second = _WeekdayPass(
+        moved=moved,
+        held={},
+        where=calendar_rules.where_of(weekdays),
+        facts=facts,
+        word=word,
+        widths=widths,
+        kinds={},
+        holes=hole_days,
+        lows=lows,
+        highs=highs,
+        keep_units=keep,
+        pairs="month_day",
+        pair_where=month_where,
+    )
+    _bins_settled(
+        second, [count for _first, _last, count in weekdays],
+        body_low, body_high, pinned, wanted,
+    )
+    return first, second
+
+
+def _day_found(
+    state: _WeekdayPass,
+    census: "tuple[tuple[int, int, int], ...]",
+    body_low: int,
+    body_high: int,
+) -> bool:
+    """Whether the body ranks hold every group of this census exactly."""
+    found = [0 for _ in census]
+    for rank in range(body_low, body_high + 1):
+        group = _weekday_group(state, state.moved[rank])
+        found[group] = found[group] + 1
+    return found == [count for _first, _last, count in census]
+
+
+def _day_body_full(
+    state: _WeekdayPass,
+    first: int,
+    last: int,
+    censuses: "tuple[tuple[tuple[int, int, int], ...], tuple[tuple[int, int, int], ...]]",
+) -> bool:
+    """Whether every day from `first` to `last` both censuses allow -- its
+    day-of-month group and its weekday group each counting rows -- and no
+    hole holds a rank (`_weekday_body_full`, asked of both censuses)."""
+    month, weekdays = censuses
+    month_where = calendar_rules.month_where(month)
+    week_where = calendar_rules.where_of(weekdays) if weekdays else ()
+    for day in range(first, last + 1):
+        if month[month_where[calendar_rules.month_bin(day) - 1]][2] == 0:
+            continue
+        if weekdays and weekdays[week_where[calendar_rules.weekday_of(day)]][2] == 0:
+            continue
+        if _weekday_hole(state, day):
+            continue
+        if _weekday_unit_free(state, day):
+            return False
+    return True
+
+
+def _day_settled(
+    column: contract.ColumnBlock,
+    facts: contract.DatetimeFacts,
+    ordinals: "list[int]",
+    parsed: int,
+    whole: "list[bool]",
+    gap_lows: "list[int]",
+    gap_highs: "list[int]",
+    layout: "_DateLayout",
+    holes: "tuple[str, ...]",
+    declared_days: "tuple[str, ...]" = (),
+) -> "tuple[list[int], list[Deviation]]":
+    """Meet the published day-of-month census beside the weekday's (method G7.3i).
+
+    THE DAY PASS'S SLOT (landing 3b.3, plan P4-D368). A column that
+    publishes no day-of-month census -- and every column of moments with
+    a clock, which publishes none -- is moved by the weekday pass
+    exactly as before (`_weekday_settled`), so its twin is unchanged
+    byte for byte. A column counted in days (`_ordinal_space` "date":
+    whole dates, and moments every value of which stands at midnight)
+    that publishes one is moved by the JOINT DAY PLAN (`_day_passes`):
+    pass A meets the day-of-month census, keeping off the days of the
+    weekday groups the weekday census counts nought; pass B meets the
+    weekday census, every move keeping the rank's day-of-month group.
+    Only body ranks the layout does not pin move, inside their own gaps,
+    so every tail fact and every rung stands.
+
+    Draws no word. Where a census still does not hold, the returned
+    deviations name it; where both hold and the count of different days
+    the passes found does not, one deviation says the count gave way to
+    them, in the weekday pass's own words (`_WEEKDAY_CAUSES`).
+
+    Guarantees: accepts what `_weekday_settled` accepts; returns the new
+    days and the deviations. Determinism: a function of the arguments.
+    Raises nothing. No I/O of any kind.
+    """
+    month = facts.day_of_month_census
+    if (
+        not month
+        or parsed < 3
+        or _ordinal_space(facts) != "date"
+        or layout.low is None
+        or layout.high is None
+        or any(whole)
+    ):
+        return _weekday_settled(
+            column, facts, ordinals, parsed, whole, gap_lows, gap_highs,
+            layout, holes, declared_days,
+        )
+    weekdays = facts.weekday_census
+    word, widths, hole_days = _day_pass_setup(column, facts, holes, declared_days)
+    moved = [value for value in ordinals]
+    wanted = len(set(moved))
+    pinned = _ranks_the_tail_pins(layout)
+    for rank in range(parsed):
+        if gap_lows[rank] >= gap_highs[rank]:
+            pinned[rank] = True
+    body_low = layout.low.rows
+    body_high = parsed - 1 - layout.high.rows
+    first_day, last_day = layout.low.boundary, layout.high.boundary
+    keep = contract.datetime_counts_reachable(column)
+    month_state, week_state = _day_passes(
+        moved, gap_lows, gap_highs, pinned, (body_low, body_high), wanted,
+        (month, weekdays),
+        (
+            facts, word, widths, hole_days,
+            _day_empty_weekdays(weekdays, first_day, last_day), keep,
+        ),
+    )
+    notes: "list[Deviation]" = []
+    month_met = _day_found(month_state, month, body_low, body_high)
+    week_met = week_state is None or _day_found(week_state, weekdays, body_low, body_high)
+    if not month_met:
+        notes += [
+            _deviation(
+                column.name,
+                calendar_rules.DAY_OF_MONTH_CENSUS,
+                "the published groups",
+                "other counts",
+                _DAY_OF_MONTH_MISSED,
+            )
+        ]
+    if not week_met:
+        notes += [
+            _deviation(
+                column.name,
+                calendar_rules.WEEKDAY_CENSUS,
+                "the published groups",
+                "other counts",
+                "The twin could not place every date on the days of the "
+                "week the description counts, so its counts per weekday "
+                "differ from the published ones.",
+            )
+        ]
+    count = len(set(moved))
+    if month_met and week_met and keep and count != wanted:
+        cause = _WEEKDAY_DAYS_GIVEN_WAY
+        if count > wanted:
+            cause = _WEEKDAY_DAYS_LEFT_LONG
+        elif _day_body_full(month_state, first_day, last_day, (month, weekdays)):
+            cause = _WEEKDAY_DAYS_IN_THE_TAILS
+        notes += [
+            _deviation(
+                column.name,
+                "n_distinct",
+                f"{wanted} different days",
+                f"{count} different days",
+                cause,
+            )
+        ]
+    return moved, notes
+
+
 def _hour_settled(
     column: contract.ColumnBlock,
     facts: contract.DatetimeFacts,
@@ -22065,7 +22380,10 @@ def _datetime_content(
     # THE WEEKDAY CENSUS (landing 3b.1, method G7.3f): body ranks move
     # inside their own gaps until every published group holds its count,
     # before any cell is spelled. It draws no word.
-    ordinals, weekday_notes = _weekday_settled(
+    # ...and the day of the month beside it, where the column publishes
+    # one (landing 3b.3, plan P4-D368, method G7.3i): `_day_settled` is
+    # the weekday pass itself on every other column.
+    ordinals, weekday_notes = _day_settled(
         column, facts, ordinals, parsed, whole, gap_lows, gap_highs, layout,
         holes, plan.declared_days,
     )
@@ -23277,15 +23595,61 @@ def _clock_fields_spread(
     return spread
 
 
-def _day_of_month_spread(
-    facts: contract.DatetimeFacts, spread: _Spread
-) -> _Spread:
-    """The sentence with the day-of-month census's clause.
+# THE CLAUSE OF A COLUMN PUBLISHING ITS DAY-OF-MONTH CENSUS (landing 3b.3,
+# plan P4-D368): the census is met between the two tail boundaries; where
+# it counts some neighbouring days together, the twin's split among them
+# is its own; where the twin missed it, the sentence says so, read off the
+# completed measurement as the weekday's is.
+_SPREAD_DAY_OF_MONTH_MET = (
+    "the published counts per day of the month, the month's last day "
+    "counted apart, are met over the values between the two tail "
+    "boundaries"
+)
 
-    THE STUB OF LANDING 3b.3 (lane D3, plan P4-D368), which fills this
-    clause (plan P4-D364); unchanged until then.
+_SPREAD_DAYS_OF_MONTH_TOGETHER = (
+    "Some neighbouring days of the month are counted together here, so "
+    "the twin's split among them can differ from the real one."
+)
+
+_SPREAD_DAY_OF_MONTH_MISSED = (
+    "The published counts per day of the month are not met over the "
+    "values between the two tail boundaries: day_of_month_census is named "
+    "among the facts the twin could not hold exactly, and counts per day "
+    "of the month computed on this twin are not the real column's."
+)
+
+
+def _day_of_month_spread(
+    facts: contract.DatetimeFacts,
+    spread: _Spread,
+    missed: "frozenset[str]" = frozenset(),
+) -> _Spread:
+    """The sentence with the day-of-month census's clause (landing 3b.3).
+
+    Unchanged where no census is published. Where the twin missed it
+    (`missed`, the completed measurement's), said beside; else met, and
+    where a group holding rows spans more than one bin, the split among
+    them said to be the twin's own.
     """
-    return spread
+    census = facts.day_of_month_census
+    if not census:
+        return spread
+    beside = list(spread.beside)
+    if calendar_rules.DAY_OF_MONTH_CENSUS in missed:
+        return _Spread(
+            held=spread.held,
+            missing=spread.missing,
+            beside=tuple(beside + [_SPREAD_DAY_OF_MONTH_MISSED]),
+        )
+    for first, last, count in census:
+        if count > 0 and first != last:
+            beside += [_SPREAD_DAYS_OF_MONTH_TOGETHER]
+            break
+    return _Spread(
+        held=tuple(list(spread.held) + [_SPREAD_DAY_OF_MONTH_MET]),
+        missing=spread.missing,
+        beside=tuple(beside),
+    )
 
 
 def _heavy_spread(facts: contract.DatetimeFacts, spread: _Spread) -> _Spread:
@@ -23404,7 +23768,7 @@ def _spread_remarks(
     # -- the minute and the second (3b.T3, P4-D372)
     spread = _clock_fields_spread(facts, spread)
     # -- the days of the month (3b.D3, P4-D368)
-    spread = _day_of_month_spread(facts, spread)
+    spread = _day_of_month_spread(facts, spread, missed)
     # -- the dates that stand out (3b.D4, P4-D369)
     spread = _heavy_spread(facts, spread)
     held, said = _spread_written(spread)

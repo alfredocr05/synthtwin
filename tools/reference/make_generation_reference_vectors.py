@@ -9347,12 +9347,13 @@ def _datetime_content(column):
     ordinals = group_gives_way(column, ordinals, parsed, whole)
     holes = set(column.get("missing_by_source", {}))
     # ...and the weekday census met, before any cell is spelled (G7.3f,
-    # plan P4-D355).
-    ordinals = weekday_settled(column, ordinals, parsed, whole, gap_lows, gap_highs, holes)
+    # plan P4-D355), with the day of the month beside it where the column
+    # publishes one (G7.3i, plan P4-D368): the weekday pass itself on every
+    # other column.
+    ordinals = day_settled(column, ordinals, parsed, whole, gap_lows, gap_highs, holes)
     # ...and the passes stage 3b reserves (plan P4-D364), in their order,
     # each moving no rank until its landing writes it here from the
-    # method's text. The day of the month is met in the weekday pass's
-    # own slot above.
+    # method's text.
     # -- the hour of the written clock (3b.T2, P4-D371)
     ordinals = hour_settled(column, ordinals, parsed, whole, gap_lows, gap_highs, holes)
     # -- the minute and the second (3b.T3, P4-D372)
@@ -12004,6 +12005,129 @@ def weekday_settled(column, ordinals, parsed, whole, lows, highs, holes):
     return bins_settled(walk, first, last, pinned, walk.different(), date_counts_reachable(column))
 
 
+def month_bin(day):
+    """G7.3i's bin of a day, from 1 to 34: the day of its month from 1 to 27;
+    the 28th, 29th and 30th where that day is not the month's last; and the
+    month's last day in bins 31 to 34, by the month's length of 28 to 31
+    days (contract DM1)."""
+    year, month, date = civil_from_days(day)
+    following = days_from_civil(year + (month == 12), month % 12 + 1, 1)
+    length = date + (following - 1 - day)
+    if date == length:
+        return length + 3
+    return date
+
+
+def month_groups_of(census):
+    """Each of the thirty-four bins' group, bin 1 first, a group running past
+    bin 34 back to bin 1 where the census's last group does."""
+    found = [0] * 34
+    for index, group in enumerate(census):
+        position = group["first"]
+        while True:
+            found[position - 1] = index
+            if position == group["last"]:
+                break
+            position = position % 34 + 1
+    return found
+
+
+def day_empty_weekdays(weekdays, low, high):
+    """Every day from `low` to `high` on a weekday whose group the weekday
+    census counts nought: the holes pass A adds (G7.3i)."""
+    if not weekdays:
+        return set()
+    group_of_weekday = [0] * 7
+    for index, group in enumerate(weekdays):
+        for weekday in range(group["first"], group["last"] + 1):
+            group_of_weekday[weekday] = index
+    return {
+        day for day in range(low, high + 1)
+        if weekdays[group_of_weekday[(day + 3) % 7]]["count"] == 0
+    }
+
+
+def day_passes(ordinals, lows, highs, pinned, first, last, wanted, reachable, census, weekdays, hole_days, emptied, width_of=None):
+    """G7.3i's two passes over ranks counted in days (plan P4-D368).
+
+    PASS A is G7.3f over the day-of-month census, each day's bin its
+    `month_bin` and its group the census's, with `emptied` -- the days of
+    the weekday groups the weekday census counts nought -- added to the
+    holes. PASS B, where a weekday census is published, is G7.3f over it,
+    each move keeping the rank's day-of-month group (its second census),
+    step 8.6 trading two ranks across those groups where the totals are
+    still off. `wanted` is the count of different days to keep where
+    `reachable`.
+    """
+    width_of = width_of if width_of is not None else (lambda day: True)
+    group_of_bin = month_groups_of(census)
+    walk = WeekdayWalk(
+        [group["count"] for group in census], group_of_bin, list(ordinals), lows, highs,
+        set(hole_days) | set(emptied),
+        {
+            "keeps_always": not reachable,
+            "width_of": width_of,
+            "bin_of": lambda ordinal: month_bin(ordinal) - 1,
+        },
+    )
+    days = bins_settled(walk, first, last, pinned, wanted, reachable)
+    if not weekdays:
+        return days
+    group_of_weekday = [0] * 7
+    for index, group in enumerate(weekdays):
+        for weekday in range(group["first"], group["last"] + 1):
+            group_of_weekday[weekday] = index
+    second = WeekdayWalk(
+        [group["count"] for group in weekdays], group_of_weekday, days, lows, highs,
+        set(hole_days),
+        {
+            "keeps_always": not reachable,
+            "width_of": width_of,
+            "pair_of": lambda ordinal: group_of_bin[month_bin(ordinal) - 1],
+        },
+    )
+    return bins_settled(second, first, last, pinned, wanted, reachable)
+
+
+def day_settled(column, ordinals, parsed, whole, lows, highs, holes):
+    """G7.3i, the joint day plan, from the method's own text (plan P4-D368).
+
+    A column with no day-of-month census, or not counted in days, is moved
+    by G7.3f alone (`weekday_settled`). Otherwise `day_passes` moves its
+    body ranks the layout does not pin, its holes G7.3f's own, keeping the
+    count of different days the ranks held before pass A where it is
+    reachable.
+    """
+    census = column.get("day_of_month_census") or []
+    if (
+        not census
+        or parsed < 3
+        or ordinal_space(column) != "date"
+        or not column.get("low_tail")
+        or not column.get("high_tail")
+        or any(whole)
+    ):
+        return weekday_settled(column, ordinals, parsed, whole, lows, highs, holes)
+    weekdays = column.get("weekday_census") or []
+    low = ordinal_of(column["low_tail"]["boundary"], "date")
+    high = ordinal_of(column["high_tail"]["boundary"], "date")
+    widths = column.get("date_field_widths", {})
+    width_of = None
+    if len(widths) == 1 and (
+        column["format"] in VARIABLE_WIDTH_MEMBERS or column["format"] in TEXTUAL_MEMBERS
+    ):
+        word = next(iter(widths))
+        width_of = lambda day: counts_into_width(column, day, word)  # noqa: E731
+    fixed = ranks_the_tail_pins(column, parsed)
+    pinned = [fixed[rank] or lows[rank] >= highs[rank] for rank in range(parsed)]
+    return day_passes(
+        ordinals, lows, highs, pinned, column["low_tail"]["rows"],
+        parsed - 1 - column["high_tail"]["rows"], len(set(ordinals)),
+        date_counts_reachable(column), census, weekdays,
+        weekday_hole_days(column, holes), day_empty_weekdays(weekdays, low, high), width_of,
+    )
+
+
 def bins_settled(walk, first, last, pinned, wanted, reachable):
     """G7.3f's steps over any census of bins (plan P4-D366): the ranks from
     `first` to `last` the layout does not pin move; `wanted` is the count of
@@ -13940,6 +14064,198 @@ def moment_step_document():
         "after the whole pass. A case names its seams as the fifteenth file's do: a unit and a "
         "day of 86,400 seconds and a written unit of a minute, and where it names a member and "
         "its one width word, each day's width kind under that word (G7.3f's kind).",
+        "generated_by": "tools/reference/make_generation_reference_vectors.py",
+        "method": "docs/spec/generation-method-v1.md",
+        "never_imports": ["synthtwin", "numpy", "pandas"],
+        "cases": cases,
+    }
+
+
+# -- G7.3i, the joint day plan (landing 3b.3, plan P4-D368) --------------
+
+
+def day_census_of(days, starts, bins=34, bin_of=None):
+    """A census of these days in groups starting at the bins `starts` (bins
+    from 1 for the day of the month, 0 for the weekday), each group running
+    to the bin before the next start and the last to the last bin."""
+    bin_of = bin_of if bin_of is not None else month_bin
+    low = 1 if bins == 34 else 0
+    top = low + bins - 1
+    groups = []
+    for index, first in enumerate(starts):
+        last = starts[index + 1] - 1 if index + 1 < len(starts) else top
+        count = sum(1 for day in days if first <= bin_of(day) <= last)
+        groups += [{"first": first, "last": last, "count": count}]
+    return groups
+
+
+def day_weekday_of(day):
+    """A day's weekday, Monday nought."""
+    return (day + 3) % 7
+
+
+def day_case(why, real, month_starts, weekday_starts, pins, holes=(), reachable=True):
+    """A state of ranks counted in days: the real body `real` ascending, its
+    ranks in `pins` pinned at their real days and every other rank drawn
+    evenly between the pins either side, as G7.3's construction spreads a
+    gap; the two censuses counted from the real body in the groups their
+    starts name (no weekday census where `weekday_starts` is empty)."""
+    real = sorted(real)
+    ordinals = list(real)
+    pins = sorted(set(pins) | {0, len(real) - 1})
+    for place in range(len(pins) - 1):
+        a, b = pins[place], pins[place + 1]
+        for rank in range(a + 1, b):
+            ordinals[rank] = real[a] + ((rank - a) * (real[b] - real[a])) // (b - a)
+    pinned, lows, highs = shared_layout(ordinals, pins)
+    return {
+        "why": why,
+        "ordinals": ordinals,
+        "lows": lows,
+        "highs": highs,
+        "pinned": pinned,
+        "body": [0, len(real) - 1],
+        "span": [real[0], real[-1]],
+        "wanted": len(set(ordinals)),
+        "reachable": reachable,
+        "census": day_census_of(real, month_starts),
+        "weekdays": day_census_of(real, weekday_starts, 7, day_weekday_of) if weekday_starts else [],
+        "holes": sorted(holes),
+    }
+
+
+def day_dates(*triples):
+    """Day numbers of (year, month, day) triples."""
+    return [days_from_civil(year, month, date) for year, month, date in triples]
+
+
+def day_billing_case():
+    """Billing on the 1st and the 15th, no weekday census (rule (b))."""
+    heaps = day_dates(*[(2024, month, date) for month in (1, 2, 3) for date in (1, 15) for _ in range(3)])
+    spread = [days_from_civil(2024, 1, 2) + 3 * step for step in range(27)]
+    real = heaps + spread
+    return day_case(
+        "Billing from 1 January to 31 March 2024: three rows on each 1st and 15th, twenty-seven "
+        "spread three days apart, and no weekday census. The census groups the 1st, the 2nd to "
+        "the 14th, the 15th and the 16th to the month's last day; pass A moves the evenly drawn "
+        "ranks onto the 1st and the 15th of their own gaps.",
+        real, [1, 2, 15, 16], [], [22],
+    )
+
+
+def day_tenth_case():
+    """A monthly visit on the 10th beside a weekday census of seven groups."""
+    heaps = day_dates(*[(2024, month, 10) for month in range(1, 7) for _ in range(5)])
+    spread = day_dates((2024, 1, 3), (2024, 2, 6), (2024, 2, 21), (2024, 3, 12), (2024, 3, 27),
+                       (2024, 4, 4), (2024, 4, 18), (2024, 5, 2), (2024, 5, 23), (2024, 6, 14))
+    return day_case(
+        "A visit on the 10th of each month from January to June 2024, five rows each, and ten "
+        "other days, with the weekday census counting each day. Pass A puts the ranks on the "
+        "10ths; pass B meets the weekday counts with every move keeping its rank on or off the "
+        "10th, so the 10th's count stands.",
+        heaps + spread, [1, 10, 11], [0, 1, 2, 3, 4, 5, 6], [20],
+    )
+
+
+def day_month_end_case():
+    """Month ends, the last day of each month a bin of its month's length."""
+    ends = day_dates((2024, 1, 31), (2024, 1, 31), (2024, 2, 29), (2024, 2, 29), (2024, 2, 29),
+                     (2024, 3, 31), (2024, 3, 31), (2024, 4, 30), (2024, 4, 30), (2024, 4, 30),
+                     (2024, 5, 31), (2024, 5, 31))
+    spread = [days_from_civil(2024, 1, 3) + 5 * step for step in range(30)]
+    return day_case(
+        "Month ends from January to May 2024 -- the 31st of January, March and May, the 29th of "
+        "February and the 30th of April -- beside thirty days spread five apart. The census "
+        "counts days 1 to 27, the 28th to the 30th where they are not the last, and the last "
+        "day of a 29-, 30- and 31-day month, so a rank put on the month's end goes to that "
+        "month's own last day.",
+        ends + spread, [1, 28, 31, 32, 33, 34], [], [14, 28],
+    )
+
+
+def day_business_billing_case():
+    """Billing on the 1st and 15th rolled to a business day, weekends empty."""
+    rolled = []
+    for month in (1, 2, 3, 4):
+        for date in (1, 15):
+            day = days_from_civil(2024, month, date)
+            while day_weekday_of(day) >= 5:
+                day += 1
+            rolled += [day] * 3
+    business = [day for day in range(days_from_civil(2024, 1, 2), days_from_civil(2024, 4, 30), 4)
+                if day_weekday_of(day) < 5]
+    return day_case(
+        "Billing from January to April 2024 on the 1st and the 15th rolled to the next business "
+        "day, three rows each, beside business days four apart; the weekday census counts "
+        "Monday to Friday each and the weekend nought. Pass A keeps off every Saturday and "
+        "Sunday, the days of the empty weekday group, so pass B has none to take back.",
+        rolled + business, [1, 2, 4, 15, 16, 18], [0, 1, 2, 3, 4, 5], [16],
+    )
+
+
+def day_births_case():
+    """Births with a weekend dip and the 1st heaped."""
+    firsts = day_dates(*[(2023, month, 1) for month in range(1, 13)])
+    spread = [day for day in range(days_from_civil(2023, 1, 2), days_from_civil(2023, 12, 31), 6)
+              if day_weekday_of(day) < 5 or day % 3 == 0]
+    return day_case(
+        "Births through 2023: the 1st of every month, and days six apart with two weekend days in "
+        "three left out. The weekday census counts each day; the day-of-month census the 1st, "
+        "the 2nd to the 15th and the 16th to the last day.",
+        firsts + spread, [1, 2, 16], [0, 1, 2, 3, 4, 5, 6], [20, 40],
+    )
+
+
+def day_form_hole_case():
+    """A hole on the 15th the passes keep off."""
+    heaps = day_dates(*[(2024, month, 1) for month in (1, 2, 3) for _ in range(4)])
+    spread = [day for day in range(days_from_civil(2024, 1, 2), days_from_civil(2024, 3, 31), 3)
+              if civil_from_days(day)[2] != 15]
+    holes = day_dates((2024, 1, 15), (2024, 2, 15), (2024, 3, 15))
+    return day_case(
+        "The 1st heaped from January to March 2024 and days three apart, none on a 15th, each "
+        "15th a hole of the description: no rank of pass A is put on one, though the 15th "
+        "shares its group with the days beside it.",
+        heaps + spread, [1, 2], [], [12], holes,
+    )
+
+
+DAY_STEP_CASES = {
+    "day_of_month_billing": day_billing_case,
+    "day_of_month_births_dip": day_births_case,
+    "day_of_month_business_billing": day_business_billing_case,
+    "day_of_month_form_hole": day_form_hole_case,
+    "day_of_month_month_end": day_month_end_case,
+    "day_of_month_tenth": day_tenth_case,
+}
+
+
+def day_answer(case):
+    """What G7.3i's text makes of one state: every rank's day after both passes."""
+    pinned = case["pinned"]
+    return day_passes(
+        case["ordinals"], case["lows"], case["highs"], pinned, case["body"][0], case["body"][1],
+        case["wanted"], case["reachable"], case["census"], case["weekdays"], set(case["holes"]),
+        day_empty_weekdays(case["weekdays"], case["span"][0], case["span"][1]),
+    )
+
+
+def day_step_document():
+    """The eighteenth file: each state of the joint day plan and its answer."""
+    cases = {}
+    for name in sorted(DAY_STEP_CASES):
+        case = DAY_STEP_CASES[name]()
+        case["answer"] = day_answer(case)
+        cases[name] = case
+    return {
+        "what": "The states of ranks counted in days method section G7.3i's joint day plan "
+        "(landing 3b.3, plan P4-D368) is frozen on, each with the answer computed from the "
+        "method's text: every rank's day after pass A, G7.3f over the day-of-month census's "
+        "thirty-four bins with the days of the weekday groups counted nought added to the holes, "
+        "and pass B, G7.3f over the weekday census keeping each rank's day-of-month group. A "
+        "case states its ranks, their gaps and pins, the body, the span between the two "
+        "boundaries, the count of different days to keep where it is reachable, the two "
+        "censuses (bins from 1, weekdays from Monday nought) and the holes.",
         "generated_by": "tools/reference/make_generation_reference_vectors.py",
         "method": "docs/spec/generation-method-v1.md",
         "never_imports": ["synthtwin", "numpy", "pandas"],
@@ -23061,6 +23377,10 @@ FIFTEENTH_BRANCH_PART = "branches-15"
 # the seventeenth file: states of ranks as the fifteenth's, for step 7c
 # (`moment_step_document`).
 SEVENTEENTH_BRANCH_PART = "branches-17"
+# The day-of-month census (landing 3b.3, plan P4-D368), the eighteenth
+# file: states of ranks as the fifteenth's, for G7.3i's two passes
+# (`day_step_document`).
+EIGHTEENTH_BRANCH_PART = "branches-18"
 
 
 # -- landing T1's written clocks and G7.5 step 5 (plan P4-D370) ---------
@@ -37723,11 +38043,13 @@ def main(argv=None, part=None):
     args = parser.parse_args(argv)
 
     _self_check_arithmetic()
-    if part in (FIFTEENTH_BRANCH_PART, SEVENTEENTH_BRANCH_PART):
+    if part in (FIFTEENTH_BRANCH_PART, SEVENTEENTH_BRANCH_PART, EIGHTEENTH_BRANCH_PART):
         # Whole numbers only, read by the pass and written by it: there is
         # no binary64 here for the proof layer to certify.
         written_document = (
-            shared_step_document() if part == FIFTEENTH_BRANCH_PART else moment_step_document()
+            shared_step_document() if part == FIFTEENTH_BRANCH_PART
+            else moment_step_document() if part == SEVENTEENTH_BRANCH_PART
+            else day_step_document()
         )
         text = json.dumps(written_document, indent=2, sort_keys=True, allow_nan=False)
         with open(args.out, "w", encoding="utf-8", newline="\n") as handle:

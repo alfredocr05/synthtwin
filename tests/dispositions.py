@@ -457,6 +457,9 @@ PLAN4_REGIONS = {
     # anchor 3b-D0 (P4-D366)
     # anchor 3b-D2 (P4-D367)
     # anchor 3b-D3 (P4-D368)
+    "day-of-month-census": (
+        "## Decision P4-D368 — the day-of-month census (2026-10-09)"
+    ),
     # anchor 3b-D4 (P4-D369)
     # anchor 3b-T1 (P4-D370)
     # anchor 3b-T2 (P4-D371)
@@ -1161,13 +1164,17 @@ REGISTRY += (
         plan_region="stage-3b-reserves",
         aliases=(),
     ),
-    # -- 3b.D3 (P4-D368)
+    # -- 3b.D3 (P4-D368): the day-of-month census, filled; the file's own
+    # body holds every published group's count exactly (V5-W2).
     Fact(
         "datetime",
         "day_of_month_census",
-        LOADER_ONLY,
-        plan_words="LOADER-ONLY until the landing that fills each",
-        plan_region="stage-3b-reserves",
+        EXACT_OBSERVABLE,
+        plan_words=(
+            "the file's own cells between the two published boundaries hold "
+            "every day-of-month group's published count exactly"
+        ),
+        plan_region="day-of-month-census",
         aliases=(),
     ),
     # -- 3b.D4 (P4-D369)
