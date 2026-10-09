@@ -1324,11 +1324,19 @@ def writer_keeps(member: str, top: int) -> int:
     return DAY
 
 
-def count_top(counts: "list[tuple[int, int]]") -> int:
-    """One more than the largest whole part of any count's magnitude: the bound `writer_keeps` asks."""
+def count_top(member: str, counts: "list[tuple[int, int]]") -> int:
+    """One more than the largest whole part of any count's magnitude: the bound `writer_keeps` asks.
+
+    Asked of the counts read as dates alone (`names_a_date`), as question
+    Q3 asks it (`figures_kept`): a lone `1e+15` beside six-place serials
+    names no date and is written back as written, and the binary64 step at
+    its magnitude settled the column to no unit, so the declaration was
+    refused where Q3 offered it.
+    """
     top = 0
     for numerator, denominator in counts:
-        top = max(top, abs(numerator) // denominator + 1)
+        if names_a_date(member, numerator, denominator):
+            top = max(top, abs(numerator) // denominator + 1)
     return top
 
 
@@ -1486,7 +1494,7 @@ def settled_reading(
     found = TABLE[member]
     candidates: "tuple[int, ...]" = (published,)
     if not published:
-        candidates = reading_units(member, plain, tally, count_top(counts))
+        candidates = reading_units(member, plain, tally, count_top(member, counts))
     for settled in candidates:
         moments: "list[int | None]" = []
         standing: "list[int]" = []

@@ -7483,9 +7483,10 @@ after the point is no count. The moment is settled to the unit U -- the
 finest of the nanosecond, microsecond, millisecond, second, minute and
 day that is at least the system's unit over ten to the most figures
 after the mark any count read as a date writes (a count naming no date
-or a moment of a placeholder day tells nothing of the form: a lone `0`
-beside serials written `%.6f` made a trimmed form before, which their
-own six places missed; the verification of item 4), and NO FINER THAN
+or a moment of a placeholder day tells nothing of the form, nor of the
+magnitude below: a lone `0` beside serials written `%.6f` made a trimmed
+form before, which their own six places missed, and a lone `1e+15` a
+binary64 step no unit kept; the verification of item 4), and NO FINER THAN
 THE WRITER KEEPS -- by
 rounding half to even. The writer spells a count that is not whole
 through the binary64 nearest it, within two to the `b - 54` of the

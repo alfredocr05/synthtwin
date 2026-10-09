@@ -366,7 +366,7 @@ def test_item4_a_rare_absent_count_is_not_held_to_the_form(
     assert _missed(trip, trip["path"]) == []
 
 
-_NO_DATE_BESIDE = (("0",), ("60",), ("-1",), ("2958466",), ("1", "2958466"), ("0",) * 11, ("1.5",))
+_NO_DATE_BESIDE = (("0",), ("60",), ("-1",), ("2958466",), ("1", "2958466"), ("0",) * 11, ("1.5",), ("1e+15",), ("99999999999999",))
 
 
 @pytest.mark.parametrize("absent", _NO_DATE_BESIDE)
