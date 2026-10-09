@@ -30402,6 +30402,7 @@ def held_back_sizes(
     debts: "tuple[int, ...]" = (),
     words: "tuple[int, ...]" = (),
     most: "tuple[int, ...]" = (),
+    counts: "list[int] | None" = None,
 ) -> "tuple[int, ...]":
     """How many rows each invented held-back label covers (method G8.3).
 
@@ -30416,7 +30417,10 @@ def held_back_sizes(
     ``most`` holds, for each word debt but that last one, the most labels
     it may take (`_word_form_bounds`): a clock's form has no more labels
     than times it can still write. A word debt it holds no entry for may
-    take a label per cell.
+    take a label per cell. ``counts``, where given, is told how many
+    labels the rounds left each word debt, one entry per entry of
+    ``words`` and nought where the pool is one debt
+    (`_clock_forms_past_their_times` reads them).
 
     1. Each debt takes the fewest labels that pay it with every label
        below the floor: its cells over one less than the floor, rounded
@@ -30474,11 +30478,12 @@ def held_back_sizes(
     - Inputs: the held-back label count, their pooled rows, the settings
       floor, the two tuples of debts `_held_back_debts` gives, and the
       bounds `_word_form_bounds` gives in the same order.
-    - Determinism: a fixed function of the six.
-    - Errors raised: none. No I/O.
+    - Determinism: a fixed function of the six; ``counts`` changes
+      nothing it answers.
+    - Errors raised: none. No I/O but the entries added to ``counts``.
     - Boundary: the answer has ``held_back`` entries summing to
       ``rows``, each at least one and below the floor wherever B4 holds;
-      an empty pool gives an empty answer.
+      an empty pool gives an empty answer and reports no count.
     """
     if held_back <= 0:
         return ()
@@ -30510,6 +30515,7 @@ def held_back_sizes(
     rest = -1
     if words and words[len(words) - 1] > 0:
         rest = len(buckets) - 1
+    pooled = False
     if total != rows or needed > held_back or not buckets:
         buckets = [rows]
         bounds = [rows]
@@ -30517,6 +30523,7 @@ def held_back_sizes(
         needed = labels[0]
         first = 0
         rest = 0
+        pooled = True
     # A NUMBER DEBT TAKES LABELS DOWN TO THE AVERAGE ITS RAMP HAS: sizes
     # rising from one row to one below the floor as the square of their
     # place average a third of the way up, `(cap + 2) / 3`.
@@ -30539,6 +30546,17 @@ def held_back_sizes(
     needed = _labels_given(buckets, labels, reach, needed, held_back)
     needed = _labels_given(buckets, labels, bounded, needed, held_back)
     needed = _labels_given(buckets, labels, buckets, needed, held_back)
+    # EACH WORD DEBT'S LABELS, REPORTED IN ``words``' ORDER (the leftover
+    # of the route-2 correction): a clock's form handed more of them than
+    # its ``most`` is past its times.
+    if counts is not None:
+        place = first
+        for index in range(len(words)):
+            if words[index] <= 0 or pooled:
+                counts += [0]
+                continue
+            counts += [labels[place]]
+            place = place + 1
     sizes: "list[int]" = []
     for place in range(len(buckets)):
         if labels[place] >= 1:
@@ -30698,6 +30716,78 @@ def _word_form_bounds(
             bound = _usable_room(form, owing[form], used, owners, holes)
         bounds += [bound]
     return tuple(bounds)
+
+
+def _clock_forms_past_their_times(
+    owing: "dict[str, int]",
+    decimal_comma: bool,
+    counts: "list[int]",
+    most: "tuple[int, ...]",
+) -> "dict[str, int]":
+    """The clock's forms past their times, each with the times it can still write (G8.3).
+
+    A CLOCK'S FORM IS PAST ITS TIMES where `held_back_sizes`' rounds
+    leave its word debt more labels (``counts``) than its usable times
+    (``most``, `_word_form_bounds`), both in `_held_back_debts`'s order
+    of the forms reading as no number (the leftover of the route-2
+    correction, plans P4-D390 and P4-D373, 2026-10-09). Every held-back
+    label is a different spelling below the floor and none a published
+    one, so the table itself held that form's values that no clock reads:
+    durations written in a clock's form, minutes and seconds over the
+    hour or an emergency stay past a day, such as `26:07` and `45:12`.
+    Its fewest labels, a debt over one less than the floor, can outnumber
+    its times, or the round keeping the label count can hand it more.
+
+    Guarantees: a function of the arguments; a form is named only where
+    `_clock_supply` reads it, its count is known and more than its
+    times. Raises nothing. No I/O of any kind.
+    """
+    past: "dict[str, int]" = {}
+    index = 0
+    for form in sorted(owing):
+        if owing[form] <= 0:
+            continue
+        if _form_reading(form, decimal_comma) != parsing.NOT_A_NUMBER:
+            continue
+        if (
+            _clock_supply(form)
+            and index < len(counts)
+            and index < len(most)
+            and counts[index] > most[index]
+        ):
+            past[form] = most[index]
+        index = index + 1
+    return past
+
+
+def _places_past_the_times(
+    sizes: "tuple[int, ...]",
+    shared: "list[str]",
+    written_as: "dict[int, str]",
+    past: "dict[str, int]",
+) -> "dict[int, bool]":
+    """The held-back places of a clock's form past its times that take no time (G8.3).
+
+    For each form of ``past`` (`_clock_forms_past_their_times`), its
+    largest places, as many as it has usable times, take times, and its
+    other places -- the smallest, the earlier on a tie -- take spellings
+    no clock reads (`_past_the_clock`), so code reading the column's
+    values reads them as it reads the table's own (the leftover of the
+    route-2 correction). Guarantees: a function of the arguments, keyed
+    by place. Raises nothing. No I/O of any kind.
+    """
+    beyond: "dict[int, bool]" = {}
+    for form in sorted(past):
+        mine = sorted(
+            [
+                (sizes[place], place) for place in range(len(sizes))
+                if shared[place] == form and place not in written_as
+            ]
+        )
+        excess = len(mine) - past[form]
+        for step in range(max(0, excess)):
+            beyond[mine[step][1]] = True
+    return beyond
 
 
 def _clock_cells_counted(
@@ -30943,14 +31033,25 @@ def _label_content(
     numbers_owed, words_owed = _held_back_debts(
         owing, debts, facts.suppressed_rows, comma
     )
+    most = _word_form_bounds(owing, comma, used, owners, holes)
+    counts: "list[int]" = []
     sizes = held_back_sizes(
         facts.suppressed_levels,
         facts.suppressed_rows,
         plan.small_cell_floor,
         numbers_owed,
         words_owed,
-        _word_form_bounds(owing, comma, used, owners, holes),
+        most,
+        counts,
     )
+    # A CLOCK'S FORM HANDED MORE LABELS THAN IT HAS TIMES IS PAST ITS TIMES
+    # (the leftover of the route-2 correction, plans P4-D390 and P4-D373):
+    # the table held that form's values no clock reads, durations such as
+    # `26:07`, so the form's supply is counted over its whole room, its
+    # largest places take its times and the others a duration's spellings.
+    # Stopped at its times, an emergency stay to 72 hours at 30,000 rows and
+    # a floor of 36 wrote 705 cells `group-N` and missed its count.
+    past = _clock_forms_past_their_times(owing, comma, counts, most)
     # ASKED WHILE `cells` HOLDS THE PUBLISHED SPELLINGS ALONE, before any
     # stand-in joins them, so the answer is about what the DESCRIPTION
     # published and not about what the twin went on to write.
@@ -30980,13 +31081,14 @@ def _label_content(
     # meanings under one spelling is a reading nobody should have to
     # hold in their head either.
     shared: "list[str]" = []
+    whole = tuple(sorted(past))
     if not classes:
-        shared = _shared_out(sizes, owing, used, owners, holes)
+        shared = _shared_out(sizes, owing, used, owners, holes, None, whole)
     else:
         wordy = [place for place in range(len(sizes)) if place not in classes]
         settled = _shared_out(
             tuple([sizes[place] for place in wordy]), owing, used, owners,
-            holes,
+            holes, None, whole,
         )
         shared = ["" for _each in sizes]
         for step in range(len(wordy)):
@@ -31000,6 +31102,10 @@ def _label_content(
         shared, shaped_places = _level_shape_spent(
             sizes, shared, level_shape, written_as, used, owners, holes
         )
+    # THE PLACES OF A CLOCK'S FORM PAST ITS TIMES THAT TAKE NO TIME, and the
+    # cursor of each such form's spellings no clock reads.
+    beyond_places = _places_past_the_times(sizes, shared, written_as, past)
+    beyond: "dict[str, int]" = {}
     # Each form's place in its own supply, carried across the whole
     # column so no spelling is walked twice, and how many of its
     # spellings the column has taken (`_walk_goes_on`).
@@ -31074,10 +31180,12 @@ def _label_content(
                 figures is not None or room is None or size > room - owed_still
             ):
                 shape = ""
+            outside = place in beyond_places
             number, label = _made_up_label(
                 number, used, owners, form, plan.all_holes, walked, shape,
-                figures if holding and form else None,
+                beyond if outside else figures if holding and form else None,
                 taken,
+                outside,
             )
             if not form and level_shape and _level_key(label) == level_shape:
                 kept = kept + 1
@@ -32015,6 +32123,7 @@ def _shared_out(
     owners: "dict[str, str]",
     holes: "tuple[str, ...]",
     supplied: "dict[str, int] | None" = None,
+    past: "tuple[str, ...]" = (),
 ) -> "list[str]":
     """Which published form each stand-in is written in, one per size.
 
@@ -32022,7 +32131,10 @@ def _shared_out(
     itself -- the made-up numbers of method G8.3a are not spellings of a
     form walked by `_filled_form`, so `_usable_room` cannot count them.
     Where it is None every form's supply is counted here, as it always
-    was.
+    was. ``past`` names the clock's forms past their times
+    (`_clock_forms_past_their_times`): each one's supply is counted over
+    its whole room and not its times alone (the leftover of the route-2
+    correction), since past its times it writes spellings no clock reads.
 
     LARGEST DEBT FIRST IS NOT ENOUGH, and the case that breaks it is
     ordinary (review round 1 finding 4). Two forms owing 76 and 164
@@ -32072,7 +32184,7 @@ def _shared_out(
     # anyway, so it is taken directly.
     if len(places) > _SHARE_OUT_PLACES:
         return _greedily(
-            sizes, places, owing, names, used, owners, holes, supplied
+            sizes, places, owing, names, used, owners, holes, supplied, past
         )
     # HOW MANY DISTINCT SPELLINGS EACH FORM CAN STILL SUPPLY (review
     # round 2 finding 5). The debt is in CELLS and the supply is in
@@ -32090,7 +32202,8 @@ def _shared_out(
     # cells.
     supply = {
         form: _usable_room(
-            form, _supply_wanted(sizes, owing[form]), used, owners, holes
+            form, _supply_wanted(sizes, owing[form]), used, owners, holes,
+            whole=form in past,
         )
         if supplied is None
         else supplied[form]
@@ -32122,7 +32235,9 @@ def _shared_out(
             chosen[place] if place in chosen else ""
             for place in range(len(sizes))
         ]
-    return _greedily(sizes, places, owing, names, used, owners, holes, supplied)
+    return _greedily(
+        sizes, places, owing, names, used, owners, holes, supplied, past
+    )
 
 
 def _greedily(
@@ -32134,6 +32249,7 @@ def _greedily(
     owners: "dict[str, str]",
     holes: "tuple[str, ...]",
     supplied: "dict[str, int] | None" = None,
+    past: "tuple[str, ...]" = (),
 ) -> "list[str]":
     """The one-pass arrangement, settling the largest debt first.
 
@@ -32191,7 +32307,8 @@ def _greedily(
     every = [form for form in sorted(owing) if owing[form] > 0]
     spare = {
         form: _usable_room(
-            form, _supply_wanted(sizes, owing[form]), used, owners, holes
+            form, _supply_wanted(sizes, owing[form]), used, owners, holes,
+            whole=form in past,
         )
         if supplied is None
         else supplied[form]
@@ -32534,6 +32651,7 @@ def _usable_room(
     reads_as: str = parsing.NOT_A_NUMBER,
     decimal_comma: bool = False,
     ladder: "_Ladder | None" = None,
+    whole: bool = False,
 ) -> int:
     """How many spellings of one form this walk could still write.
 
@@ -32568,9 +32686,11 @@ def _usable_room(
     of its clock supply, stopping after 4,096 refused in a row -- since
     the repair round of the route-2 correction every form a clock time can
     wear, and before it only one written to a fraction of the second
-    (`_clock_supply`, landing 3b.5).
+    (`_clock_supply`, landing 3b.5). ``whole`` true counts a clock's form
+    past its times over its whole room, as before that round
+    (`_clock_forms_past_their_times`, the correction's leftover).
     """
-    supply = _clock_supply(form)
+    supply = 0 if whole else _clock_supply(form)
     room = supply if supply else _form_room(form)
     usable = 0
     refused = 0
@@ -32905,6 +33025,49 @@ def _clock_supply(form: str) -> int:
     if shape is None:
         return 0
     return shape.times * shape.parts
+
+
+def _past_the_clock(form: str, step: int) -> str:
+    """One spelling of a clock's form past its times, a duration's first (G8.3).
+
+    A CLOCK'S FORM PAST ITS TIMES WRITES WHAT A DURATION READER TAKES
+    FIRST (the leftover of the route-2 correction, plans P4-D390 and
+    P4-D373, 2026-10-09). Where the hour has two figures and the form
+    no marker and no fraction: the hours 24 to 59, every minute (and
+    second) below 60, then the hours 60 to 99 likewise, each block stepped
+    around its own room (`_stepped_around`) -- `26:07`, `45:12:30` -- and
+    only past both the form's other spellings figure by figure. Any other
+    clock's form is filled figure by figure from the first step. Filled
+    figure by figure from the first, a twin of minutes and seconds of 2 to
+    40 minutes at 10,000 rows and a floor of eleven wrote 349 fields of 60
+    or more, `29:93`, and of a stay to 72 hours at 30,000 rows and a floor
+    of 36, 324, which neither a clock nor code reading a duration takes,
+    where the table holds none.
+
+    Guarantees: a function of the two. Raises nothing. No I/O of any kind.
+    """
+    shape = _clock_shape(form)
+    if (
+        shape is not None
+        and shape.figures == 2
+        and not shape.marked[0]
+        and not shape.places
+    ):
+        per_hour = 60 * (60 if shape.seconds else 1)
+        left = step
+        for first, count in ((24, 36), (60, 40)):
+            block = count * per_hour
+            if left < block:
+                place = _stepped_around(left, block)
+                hour = first + place % count
+                place = place // count
+                spelling = f"{hour:02d}:{place % 60:02d}"
+                if shape.seconds:
+                    spelling = spelling + f":{(place // 60) % 60:02d}"
+                return spelling
+            left = left - block
+        return _filled_form(form, left, False)
+    return _filled_form(form, step, False)
 
 
 def _form_walk_bounds(form: str, figured: bool = False) -> "tuple[int, int]":
@@ -33970,6 +34133,7 @@ def _made_up_label(
     level_shape: str = "",
     figures: "dict[str, int] | None" = None,
     taken: "dict[str, int] | None" = None,
+    past: bool = False,
 ) -> "tuple[int, str]":
     """One label standing in for one that was held back (G8.3, P4-D18).
 
@@ -33982,7 +34146,10 @@ def _made_up_label(
     Where it is not given, a clock's form is walked to the end of its
     clock supply and no further, and past it the neutral spelling stands
     (`_clock_supply`), so a stand-in written in a clock's form is always
-    a time.
+    a time -- but where ``past`` is true: a place of a clock's form past
+    its times that takes none (`_places_past_the_times`) is given its own
+    ``figures`` cursor and walks a duration's spellings first
+    (`_past_the_clock`, the leftover of the route-2 correction).
 
     WHERE THE COLUMN PUBLISHED THE FORMS ITS VALUES WERE WRITTEN IN,
     the stand-in is written in one of them. `group-14` is not a code:
@@ -34067,6 +34234,8 @@ def _made_up_label(
         ):
             tried = tried + 1
             candidate = _filled_form(form, cursor[form], not figured)
+            if past and figured:
+                candidate = _past_the_clock(form, cursor[form])
             cursor[form] = cursor[form] + 1
             if figured and parsing.clock_parts(candidate) is not None:
                 continue

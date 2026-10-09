@@ -8494,7 +8494,10 @@ cells shaped like a time and parsing them stopped on the twin. Four rules:
 (1) the held-back labels' walk of EVERY clock's form, and the supply this
 section counts for settling it, ends with its clock supply, not only a
 form written to a fraction, and a label the form has no time left for is
-`group-N` (free text's walk, G9.5, is as it was); (2) a clock's form
+`group-N` (free text's walk, G9.5, is as it was) -- EXCEPT A CLOCK'S
+FORM PAST ITS TIMES, one step 3's rounds leave more labels than the times
+it can still write, whose places past its times take a duration's
+spellings (the correction's leftover, below); (2) a clock's form
 takes no more labels than the times it can still write (step 3 below);
 (3) a form short of spellings is served first (the one-pass rule below);
 and (4) past the clock line only a stand-in a census form is owed is
@@ -8516,6 +8519,38 @@ room first. After, on those 47 tables 1,096 over 5, and the 112's 63
 stay: the clock line's own price, a stand-in a census form is owed
 filled figure by figure past it, beside a minority of at most one cell in
 fifty that wears no form.
+
+*And by the correction's leftover* (2026-10-09, its skeptic 2): **A
+CLOCK'S FORM PAST ITS TIMES WRITES A DURATION'S SPELLINGS.** Rule (1)
+stopped a form at its times by the form's shape alone, and a duration
+written in a clock's form -- minutes and seconds over the hour, an
+emergency stay past a day -- holds that form's spellings no clock reads,
+`26:07` and `45:12`, as its own values. Every held-back label is a
+different spelling below the floor and none a published one, so where a
+clock's form needs more labels than it has times left -- its fewest,
+its debt over one less than the floor, or what the round keeping the
+label count hands it -- the table itself held such spellings of it.
+Stopped at its times, the rest were `group-N`: on 18 of the skeptic's 50
+duration tables the twin missed the count of `%%:%%` it met before the
+repair round -- 755 cells `group-N` of minutes and seconds from 2 to 40
+minutes at 10,000 rows and a floor of eleven, 705 of a stay to 72 hours
+at 30,000 rows and a floor of 36, and 42,967 of 100,000 over the whole
+hour -- and code reading every cell as a duration, split on the colon and
+each field a whole number, stopped on it where it runs on the real table.
+So step 3's rounds report each word debt's labels, and a clock's form
+they leave more labels than its usable times (the bound step 3 reads) is
+PAST ITS TIMES. For such a form only: the arrangement below counts its
+supply over its whole room, as before the repair round; its largest
+places, as many as it has usable times, take times; and its other places,
+the smallest, the earlier on a tie, take spellings no clock reads on a
+cursor of their own, a duration's first -- on a form of a two-figure hour
+with no marker and no fraction, the hours 24 to 59 with every minute and
+second below 60, then the hours 60 to 99 likewise, each block stepped
+around its own room, and past both, as on any other clock's form, the
+form filled figure by figure, every spelling a clock reader takes stepped
+past. Filled figure by figure from the first, those two twins wrote 349
+and 324 fields of 60 or more, `29:93`, which neither a clock nor a
+duration reader takes. Every other clock's form is as rule (1) states.
 
 `suppressed_levels` says how many levels were withheld and
 `suppressed_rows` how many rows they covered together. No size of any

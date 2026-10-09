@@ -2649,8 +2649,8 @@ def _toward_the_later_instant(position, denominator, rungs):
     )
 
 
-def _pool_shared_evenly(held_back, rows, numbers, words, floor=11, most=()):
-    """G8.3's sizes with the pool shared out evenly, its debts and bounds unread."""
+def _pool_shared_evenly(held_back, rows, numbers, words, floor=11, most=(), counts=None):
+    """G8.3's sizes with the pool shared out evenly, its debts and bounds unread, and no word debt's labels reported."""
     if held_back == 0:
         return []
     base = rows // held_back
@@ -3081,7 +3081,7 @@ def _next_on_the_ladder_without_the_census(
 
 def _levels_from_the_second_spelling(
     used, sizes, census=None, written=(), placed=None, level_shape="",
-    line=None,
+    line=None, past=None,
 ):
     """G8.3's stand-in walk, started one spelling along.
 

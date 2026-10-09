@@ -11492,9 +11492,20 @@ and P4-D373), a held-back label of a column of labels takes no other
 spelling of a clock's form past its clock supply: it is the neutral
 spelling, a clock's form takes no more labels than it has times left, and
 a form short of spellings is settled first, so below the clock line every
-held-back label written in a clock's form is a time. Measured before:
-times beside 3 % one-off notes at 100,000 rows wrote 4,822 twin cells such
-as `44:89`, and 200,134 over 47 such tables; after, none (method G8.3).
+held-back label written in a clock's form is a time -- but where the
+form is past its times. Measured before: times beside 3 % one-off notes
+at 100,000 rows wrote 4,822 twin cells such as `44:89`, and 200,134 over
+47 such tables; after, none (method G8.3). A CLOCK'S FORM PAST ITS TIMES
+(the correction's leftover) is one handed more held-back labels than the
+times it can still write: each held-back label is a different spelling
+below the floor, so the table held that form's spellings no clock reads
+-- durations written in a clock's form, such as `26:07` -- and the
+labels past its times take a duration's spellings, hours 24 to 59 and
+then 60 to 99 with every minute and second below 60 where the form has a
+two-figure hour and no marker or fraction, and the form's other spellings
+figure by figure past them. Measured before: 18 of 50 duration tables
+wrote up to 42,967 cells `group-N` and missed their count of `%%:%%`;
+after, none (method G8.3).
 
 **AND ONLY BELOW THE CLOCK LINE** (the repair round of landing 3b.5;
 generation method G8.3). The twin of a column of labels is described
@@ -11525,7 +11536,8 @@ filled figure by figure, so the form's count is met, and one owed no form
 is the neutral spelling, as is one wearing the published labels' shape
 where it would spend the room the owed stand-ins after it need -- so the
 only cells a label twin writes in a clock's form that no clock reads are
-the owed ones past the line.
+the owed ones past the line, and the labels of a form past its times
+(above), whose table held such spellings itself.
 
 **A FREE-TEXT GROUP MAY TAKE A FORM OF ANY ADMITTED LENGTH, AND MUST
 BE ABLE TO.** A form fixes a length, so which lengths a group may be
