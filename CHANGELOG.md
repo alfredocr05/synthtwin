@@ -10,8 +10,9 @@ exists).
 
 **No published fact and no twin byte moves** (plan P4-D387, stage 4).
 On a column written at one width, G5.5 gives a stratum drawn with the
-wrong sign the nearest grid point on its side of nought that no other
-stratum holds, and 564c61a gathered what every other stratum held again
+wrong sign, when it is not pinned, the nearest grid point on its side of
+nought that no other stratum holds, or the first such step where every
+one within reach is held, and 564c61a gathered what every other stratum held again
 for each such stratum, building the list of all their values once for
 every one it read: the twin of the Codex review's column took 21.1 s of
 CPU at 8,000 rows and had not finished 32,000 after fifteen minutes.

@@ -1,10 +1,12 @@
 """Stage 4: G5.5's sign repairs without the square of the strata (plan P4-D387).
 
 G5.5 repairs a stratum whose value has the wrong sign for its band, and on
-a column written at one width (``grid``) it gives that stratum the
-nearest point of the grid on its band's side of nought that no OTHER
-stratum holds at that moment -- the repaired value of each stratum before
-it, the drawn value of each after it (`generation._grid_step_of_sign`).
+a column written at one width (``grid``) it gives such a stratum, when it
+is not pinned, the nearest point of the grid on its band's side of
+nought that no OTHER stratum holds at that moment -- the repaired value
+of each stratum before it, the drawn value of each after it -- and,
+where every step within reach is held, the first such step, which
+another stratum then shares (`generation._grid_step_of_sign`, G5.5a).
 564c61a gathered those values again for every repair, and built the list
 of every stratum's value again for each stratum it read there, so each
 repair cost the square of the strata: 22 of the 26 s `generate` took
