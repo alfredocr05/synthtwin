@@ -34,8 +34,15 @@ missing count of the column's own cells (`MISSING_COUNTS`) or the count
 of the column's own present cells (`PRESENT_COUNT`), and on a column
 declared an identifier no new count of one to ten is allowed at all.
 Each column's role is compared with the one 493f6f8 read
-(`p4d390_described_before.ROLES`) too, and may move only up
-`ROLE_ORDER`. The tables are Codex's two, each again with its column
+(`p4d390_described_before.ROLES`) too, and may climb `ROLE_ORDER`
+(empty, constant, binary, categories, long tail) or make one of the two
+moves across numbers beside labels `ROLE_MOVES_ACROSS` names, each where
+the pass had blanked a note written once: numbers beside labels may now
+read as a long tail, as 493f6f8 read it at a floor of one (path A), and
+a column read as continuous, as a count or as dates may now read as
+numbers beside labels (path B), whose twin of dates written as eight
+figures then misses `ladder.p25` at a floor of eleven, as 493f6f8's twin
+of that table did at a floor of one. The tables are Codex's two, each again with its column
 declared an identifier; the lane's batteries (its five seeded tables at
 floors of eleven and thirty-six, and three of them again with columns
 declared identifiers); four tables for the keys a wider sweep (172
@@ -49,8 +56,12 @@ eleven and thirty-six and again declared identifiers, for `n_present`,
 which a sweep of such columns found moving too, and for the columns the
 pass had emptied; two label columns beside 300 and 400 codes written
 once, which the pass had cut to two values and to one and which read as
-long tails now, again declared identifiers; and the forty-six shapes of
-the stage-3 battery `K-S3-12` counts.
+long tails now, again declared identifiers; path A's table, readings on
+eleven rows each beside `hemolyzed` and two notes written once, and path
+B's, readings, whole numbers and dates written as eight figures beside
+`LOW`, `HIGH` and one note, each at floors of eleven and thirty-six and
+again declared an identifier; and the forty-six shapes of the stage-3
+battery `K-S3-12` counts.
 
 Every table is built by seeded neutral code at runtime (plan D13); the
 lane's batteries are the measurement's own generators at its own seeds,
@@ -62,6 +73,7 @@ one prefix of ward names -- and nothing else changed.
 import bisect
 import collections
 import csv
+import datetime
 import io
 import itertools
 import math
@@ -127,7 +139,9 @@ from synthtwin import (
 # read as another role now, further up `ROLE_ORDER` -- an empty column as
 # a constant, as binary or as a set of categories, a constant or a binary
 # column as a set of categories or a long tail, a constant as binary and
-# a set of categories as a long tail -- and still prints a new count only
+# a set of categories as a long tail -- or across numbers beside labels,
+# where the pass had blanked a note written once (`ROLE_MOVES_ACROSS`),
+# and still prints a new count only
 # in these keys. No other key does, and no key of a declared identifier
 # does. Every table here is described at a floor of eleven or
 # thirty-six: below eleven a named count between the floor and ten is the
@@ -160,16 +174,29 @@ MISSING_COUNTS = (
 # every row's cell but the column's own absent ones.
 PRESENT_COUNT = "n_present"
 
-# The label roles in the order a column's reading moves along as values
-# come back: 493f6f8 read a column on the cells its pass left, so where
-# the pass blanked any, the column now reads as the same role or one
-# further up this order, never one down it and never a role outside it.
+# The label roles in the order a column's reading climbs as values come
+# back: 493f6f8 read a column on the cells its pass left, so where the
+# pass blanked any, the column now reads as the same role or one further
+# up this order, never one down it -- or as one of the two moves across
+# numbers beside labels in `ROLE_MOVES_ACROSS`.
 ROLE_ORDER = (
     taxonomy.ROLE_EMPTY,
     taxonomy.ROLE_CONSTANT,
     taxonomy.ROLE_BINARY,
     taxonomy.ROLE_CATEGORICAL,
     taxonomy.ROLE_LONG_TAIL,
+)
+
+# The two moves across numbers beside labels, each where the pass had
+# blanked a note written once, and only these four pairs: numbers beside
+# labels may now read as a long tail, as 493f6f8 read it at a floor of
+# one (path A); a column read as continuous, as a count or as dates may
+# now read as numbers beside labels (path B).
+ROLE_MOVES_ACROSS = (
+    (taxonomy.ROLE_COMPOUND, taxonomy.ROLE_LONG_TAIL),
+    (taxonomy.ROLE_CONTINUOUS, taxonomy.ROLE_COMPOUND),
+    (taxonomy.ROLE_COUNT, taxonomy.ROLE_COMPOUND),
+    (taxonomy.ROLE_DATETIME, taxonomy.ROLE_COMPOUND),
 )
 
 # Counts that say where something is or which version wrote it, never
@@ -402,11 +429,11 @@ def roles_moved_outside_the_order(
     before: "dict[str, str]", after: "dict[str, str]"
 ) -> "list[tuple[str, str, str]]":
     """(column, role before, role now) for every role that moved other than
-    up `ROLE_ORDER`."""
+    up `ROLE_ORDER` or by one of `ROLE_MOVES_ACROSS`."""
     wrong: "list[tuple[str, str, str]]" = []
     for name in sorted(after):
         was, now = before[name], after[name]
-        if was == now:
+        if was == now or (was, now) in ROLE_MOVES_ACROSS:
             continue
         if (
             was in ROLE_ORDER
@@ -938,6 +965,54 @@ def words_beside_singles() -> str:
     return _csv_text(["two_words_singles", "one_word_singles"], columns)
 
 
+def numbers_beside_two_notes() -> str:
+    """Path A: 1,001 readings, 1.00 to 11.00, on 11 rows each, beside 150
+    `hemolyzed`, one `see note` and one `QNS` (11,163 rows, seed 31).
+
+    At a floor of eleven 493f6f8 blanked the two notes and read the column
+    again under the label rules, as numbers beside labels; with both notes
+    kept, most of the label half's words are written once, so the column
+    reads as a long tail now, as 493f6f8 read it at a floor of one.
+    """
+    cells: "list[str]" = []
+    for hundredths in range(100, 1101):
+        cells += [f"{hundredths / 100:.2f}"] * 11
+    cells += ["hemolyzed"] * 150 + ["see note", "QNS"]
+    random.Random(31).shuffle(cells)
+    return _one_column("thing", cells)
+
+
+def _eight_figure_date(day: int) -> str:
+    """The date ``day`` days after 1 January 2015, written YYYYMMDD."""
+    return (datetime.date(2015, 1, 1) + datetime.timedelta(days=day)).strftime(
+        "%Y%m%d"
+    )
+
+
+def numbers_beside_low_and_high(kind: str) -> str:
+    """Path B: 10,400 numbers beside 60 `LOW`, 45 `HIGH` and one `see note`
+    (10,506 rows): two-place readings (seed 33), whole numbers 0 to 20,000
+    (seed 35) or dates written as eight figures (seed 36).
+
+    The numbers fall one short of the 99 per cent line. 493f6f8 blanked
+    the note and read the column again without the label rules, so the
+    numbers reached the line and it read as continuous, as a count or as
+    dates; with the note kept it reads as numbers beside labels now.
+    """
+    if kind == "readings":
+        draw = random.Random(33)
+        cells = [f"{draw.gauss(100.0, 15.0):.2f}" for _row in range(10400)]
+    elif kind == "whole":
+        draw = random.Random(35)
+        cells = [f"{draw.randrange(0, 20001)}" for _row in range(10400)]
+    else:
+        draw = random.Random(36)
+        cells = [_eight_figure_date(draw.randrange(3650)) for _row in range(10400)]
+    cells += ["LOW"] * 60 + ["HIGH"] * 45 + ["see note"]
+    draw.shuffle(cells)
+    return _one_column("thing", cells)
+
+
 # Every table: (builder, its argument, floor, declared codes, declared
 # identifiers). The stage-3 battery's forty-six shapes are described by
 # that battery's own helper, at a floor of eleven.
@@ -983,6 +1058,42 @@ TABLES = {
     "words_beside_singles": (words_beside_singles, None, 11, (), ()),
     "words_beside_singles_identifiers": (
         words_beside_singles, None, 11, (), ("two_words_singles", "one_word_singles"),
+    ),
+    "numbers_beside_two_notes_f11": (
+        numbers_beside_two_notes, None, 11, (), (),
+    ),
+    "numbers_beside_two_notes_f36": (
+        numbers_beside_two_notes, None, 36, (), (),
+    ),
+    "numbers_beside_two_notes_identifier": (
+        numbers_beside_two_notes, None, 11, (), ("thing",),
+    ),
+    "readings_beside_low_and_high_f11": (
+        numbers_beside_low_and_high, "readings", 11, (), (),
+    ),
+    "readings_beside_low_and_high_f36": (
+        numbers_beside_low_and_high, "readings", 36, (), (),
+    ),
+    "readings_beside_low_and_high_identifier": (
+        numbers_beside_low_and_high, "readings", 11, (), ("thing",),
+    ),
+    "whole_numbers_beside_low_and_high_f11": (
+        numbers_beside_low_and_high, "whole", 11, (), (),
+    ),
+    "whole_numbers_beside_low_and_high_f36": (
+        numbers_beside_low_and_high, "whole", 36, (), (),
+    ),
+    "whole_numbers_beside_low_and_high_identifier": (
+        numbers_beside_low_and_high, "whole", 11, (), ("thing",),
+    ),
+    "dates_beside_low_and_high_f11": (
+        numbers_beside_low_and_high, "dates", 11, (), (),
+    ),
+    "dates_beside_low_and_high_f36": (
+        numbers_beside_low_and_high, "dates", 36, (), (),
+    ),
+    "dates_beside_low_and_high_identifier": (
+        numbers_beside_low_and_high, "dates", 11, (), ("thing",),
     ),
 }
 
@@ -1045,7 +1156,7 @@ def test_no_block_prints_a_new_small_count_outside_the_list(
     column, so a block that starts printing a count 493f6f8 did not --
     of a key the list does not name, or of any key on a column declared
     an identifier -- turns this red by name, and so does a column whose
-    role moved other than up `ROLE_ORDER`.
+    role moved other than up `ROLE_ORDER` or by `ROLE_MOVES_ACROSS`.
     """
     document = described(tmp_path, name)
     after = small_counts(document)
@@ -1134,7 +1245,8 @@ def test_the_check_lets_through_the_list_and_nothing_else() -> None:
     own, any count of the table's own blocks and any count of a column
     declared an identifier are each refused, so loosening the check turns
     this red before it lets a block through. A role may move up
-    `ROLE_ORDER`, and not down it or out of it.
+    `ROLE_ORDER` or by the four pairs of `ROLE_MOVES_ACROSS`, and not down
+    the order, not by those pairs' reverses and not out of it otherwise.
     """
     own = {"thing": 3}
     present = {"thing": 8}
@@ -1184,6 +1296,10 @@ def test_the_check_lets_through_the_list_and_nothing_else() -> None:
         (taxonomy.ROLE_BINARY, taxonomy.ROLE_LONG_TAIL),
         (taxonomy.ROLE_CATEGORICAL, taxonomy.ROLE_LONG_TAIL),
         (taxonomy.ROLE_CONTINUOUS, taxonomy.ROLE_CONTINUOUS),
+        (taxonomy.ROLE_COMPOUND, taxonomy.ROLE_LONG_TAIL),
+        (taxonomy.ROLE_CONTINUOUS, taxonomy.ROLE_COMPOUND),
+        (taxonomy.ROLE_COUNT, taxonomy.ROLE_COMPOUND),
+        (taxonomy.ROLE_DATETIME, taxonomy.ROLE_COMPOUND),
     ]
     for was, now in up:
         assert roles_moved_outside_the_order({"thing": was}, {"thing": now}) == []
@@ -1191,8 +1307,13 @@ def test_the_check_lets_through_the_list_and_nothing_else() -> None:
         (taxonomy.ROLE_BINARY, taxonomy.ROLE_CONSTANT),
         (taxonomy.ROLE_LONG_TAIL, taxonomy.ROLE_CATEGORICAL),
         (taxonomy.ROLE_CATEGORICAL, taxonomy.ROLE_TEXT),
-        (taxonomy.ROLE_CONTINUOUS, taxonomy.ROLE_COMPOUND),
         (taxonomy.ROLE_EMPTY, taxonomy.ROLE_CONTINUOUS),
+        (taxonomy.ROLE_LONG_TAIL, taxonomy.ROLE_COMPOUND),
+        (taxonomy.ROLE_COMPOUND, taxonomy.ROLE_CONTINUOUS),
+        (taxonomy.ROLE_COMPOUND, taxonomy.ROLE_COUNT),
+        (taxonomy.ROLE_COMPOUND, taxonomy.ROLE_DATETIME),
+        (taxonomy.ROLE_CATEGORICAL, taxonomy.ROLE_COMPOUND),
+        (taxonomy.ROLE_COUNT, taxonomy.ROLE_LONG_TAIL),
     ):
         assert roles_moved_outside_the_order(
             {"thing": was}, {"thing": now}
@@ -1332,6 +1453,16 @@ def test_a_column_the_pass_had_thinned_reads_further_up_the_order(
     which the pass had cut to those words, read as binary and as a
     constant then and as long tails now; and two words beside `77` and
     `(+5)` among `NA` read as binary and as a set of categories now.
+
+    The two moves across numbers beside labels, at a floor of eleven, each
+    where the pass had blanked a note written once: readings beside
+    `hemolyzed`, `see note` and `QNS` read as numbers beside labels then
+    and as a long tail now (path A); readings, whole numbers and dates
+    written as eight figures beside `LOW`, `HIGH` and `see note` read as
+    continuous, as a count and as dates then and as numbers beside labels
+    now (path B). At seed 7 each twin meets every check but the
+    eight-figure dates' twin, which misses `ladder.p25`, as 493f6f8's twin
+    of that table did at a floor of one.
     """
     expected = {
         "sparse_columns": {
@@ -1352,6 +1483,24 @@ def test_a_column_the_pass_had_thinned_reads_further_up_the_order(
             "one_word_singles": (taxonomy.ROLE_CONSTANT, taxonomy.ROLE_LONG_TAIL),
             "two_words_singles": (taxonomy.ROLE_BINARY, taxonomy.ROLE_LONG_TAIL),
         },
+        "numbers_beside_two_notes_f11": {
+            "thing": (taxonomy.ROLE_COMPOUND, taxonomy.ROLE_LONG_TAIL),
+        },
+        "readings_beside_low_and_high_f11": {
+            "thing": (taxonomy.ROLE_CONTINUOUS, taxonomy.ROLE_COMPOUND),
+        },
+        "whole_numbers_beside_low_and_high_f11": {
+            "thing": (taxonomy.ROLE_COUNT, taxonomy.ROLE_COMPOUND),
+        },
+        "dates_beside_low_and_high_f11": {
+            "thing": (taxonomy.ROLE_DATETIME, taxonomy.ROLE_COMPOUND),
+        },
+    }
+    missed_at_seed_7 = {
+        "numbers_beside_two_notes_f11": [],
+        "readings_beside_low_and_high_f11": [],
+        "whole_numbers_beside_low_and_high_f11": [],
+        "dates_beside_low_and_high_f11": ["ladder.p25"],
     }
     for name in sorted(expected):
         now = roles(described(tmp_path, name))
@@ -1359,3 +1508,10 @@ def test_a_column_the_pass_had_thinned_reads_further_up_the_order(
         assert {column: (was[column], now[column]) for column in now} == expected[
             name
         ], name
+    for name in sorted(missed_at_seed_7):
+        _document, _loaded, _cells, outcome = _round_trip(tmp_path, name)
+        assert [
+            check.subcheck
+            for check in outcome.checks
+            if check.verdict == validation.MISSED
+        ] == missed_at_seed_7[name], name

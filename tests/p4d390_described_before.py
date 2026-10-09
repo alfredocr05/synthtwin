@@ -4,23 +4,35 @@ A FROZEN RECORD, NEVER REBUILT FROM THE PRODUCT. Each table of
 `tests/test_p4d390_counts_per_block.py` -- Codex's two tables of the
 review of plan P4-D390, the lane's batteries, the four tables for the
 keys a wider sweep found moving, the columns almost all empty and the
-label columns beside codes written once, and the forty-six shapes of
-the stage-3 battery -- was described by the producer of 493f6f8, the
+label columns beside codes written once, the tables of the two moves
+across numbers beside labels (path A's readings beside `hemolyzed` and
+two notes, path B's readings, whole numbers and eight-figure dates
+beside `LOW`, `HIGH` and a note), and the forty-six shapes of the
+stage-3 battery -- was described by the producer of 493f6f8, the
 tree before the subtraction guard was dropped; its counts of one to ten
 were read by that file's own `small_counts`, block by block, and each
 column's role by its `roles`. What the product prints now is compared
 with this, so a block that starts printing a count 493f6f8 did not, or
-a column whose role moves other than up that file's `ROLE_ORDER`, is
+a column whose role moves other than up that file's `ROLE_ORDER`
+(empty, constant, binary, categories, long tail) or by one of the two
+moves across numbers beside labels its `ROLE_MOVES_ACROSS` names, each
+where the pass had blanked a note written once -- numbers beside labels
+to a long tail, as 493f6f8 read that table at a floor of one (path A);
+continuous, a count or dates to numbers beside labels (path B), whose
+twin of the eight-figure dates then misses `ladder.p25` at a floor of
+eleven, as 493f6f8's twin of that table did at a floor of one -- is
 seen by name.
 
 Made on 2026-10-08 by describing each table with 493f6f8's `src` on the
 path and the test file's own builders and walker, one table at a time,
 and made again the same way when the five tables of the columns almost
 all empty and of the labels beside codes joined it with the roles: the
-sixty-nine tables it held came back unchanged. To make it again, put
-493f6f8's `src` first on the path and write `small_counts` and `roles`
-of `described(...)` for every table; nothing on the product's side
-should ever need it.
+sixty-nine tables it held came back unchanged. On 2026-10-09 the twelve
+tables of paths A and B joined it, described the same way with
+493f6f8's `src`, and only they were added: eighty-six tables in all.
+To make it again, put 493f6f8's `src` first on the path and write
+`small_counts` and `roles` of `described(...)` for every table; nothing
+on the product's side should ever need it.
 """
 
 # table -> block -> its counts of one to ten: ("key", path, value) for a
@@ -68,6 +80,59 @@ BEFORE: "dict[str, dict[str, list[tuple[object, ...]]]]" = {
         ],
         "thing": [],
     },
+    "dates_beside_low_and_high_f11": {
+        "(table)": [],
+        "thing": [
+            ("key", "missing_by_class/(withheld)", 1),
+            ("key", "n_missing", 1),
+            ("key", "n_missing_withheld", 1),
+        ],
+    },
+    "dates_beside_low_and_high_f36": {
+        "(table)": [],
+        "thing": [
+            ("key", "missing_by_class/(withheld)", 1),
+            ("key", "n_missing", 1),
+            ("key", "n_missing_withheld", 1),
+        ],
+    },
+    "dates_beside_low_and_high_identifier": {
+        "(table)": [],
+        "thing": [
+            ("key", "max_length", 8),
+            ("key", "min_length", 3),
+            ("key", "n_distinct_by_occurrences/09", 8),
+            ("key", "n_distinct_by_occurrences/10", 1),
+            ("key", "n_distinct_by_occurrences/12", 1),
+            ("key", "n_distinct_by_occurrences/45", 1),
+            ("key", "n_distinct_by_occurrences/60", 1),
+        ],
+    },
+    "numbers_beside_two_notes_f11": {
+        "(table)": [],
+        "thing": [
+            ("key", "labels/n_distinct", 1),
+            ("key", "labels/n_distinct_folded", 1),
+            ("key", "missing_by_class/(withheld)", 2),
+            ("key", "n_missing", 2),
+            ("key", "n_missing_withheld", 2),
+        ],
+    },
+    "numbers_beside_two_notes_f36": {
+        "(table)": [],
+        "thing": [
+            ("said", "evidence_long_tail_of_labels", 4, 1),
+        ],
+    },
+    "numbers_beside_two_notes_identifier": {
+        "(table)": [],
+        "thing": [
+            ("key", "max_length", 9),
+            ("key", "min_length", 3),
+            ("key", "n_distinct_by_occurrences/001", 2),
+            ("key", "n_distinct_by_occurrences/150", 1),
+        ],
+    },
     "readings_beside_labels": {
         "(table)": [],
         "other": [
@@ -93,6 +158,33 @@ BEFORE: "dict[str, dict[str, list[tuple[object, ...]]]]" = {
             ("key", "min_length", 4),
             ("key", "n_distinct_by_occurrences/05", 1),
             ("key", "n_distinct_by_occurrences/30", 1),
+        ],
+    },
+    "readings_beside_low_and_high_f11": {
+        "(table)": [],
+        "thing": [
+            ("key", "missing_by_class/(withheld)", 1),
+            ("key", "n_missing", 1),
+            ("key", "n_missing_withheld", 1),
+        ],
+    },
+    "readings_beside_low_and_high_f36": {
+        "(table)": [],
+        "thing": [
+            ("key", "missing_by_class/(withheld)", 1),
+            ("key", "n_missing", 1),
+            ("key", "n_missing_withheld", 1),
+        ],
+    },
+    "readings_beside_low_and_high_identifier": {
+        "(table)": [],
+        "thing": [
+            ("key", "max_length", 8),
+            ("key", "min_length", 3),
+            ("key", "n_distinct_by_occurrences/08", 8),
+            ("key", "n_distinct_by_occurrences/09", 4),
+            ("key", "n_distinct_by_occurrences/45", 1),
+            ("key", "n_distinct_by_occurrences/60", 1),
         ],
     },
     "registers_100000_f11": {
@@ -1314,6 +1406,33 @@ BEFORE: "dict[str, dict[str, list[tuple[object, ...]]]]" = {
             ("key", "n_negative", 1),
         ],
     },
+    "whole_numbers_beside_low_and_high_f11": {
+        "(table)": [],
+        "thing": [
+            ("key", "missing_by_class/(withheld)", 1),
+            ("key", "n_missing", 1),
+            ("key", "n_missing_withheld", 1),
+        ],
+    },
+    "whole_numbers_beside_low_and_high_f36": {
+        "(table)": [],
+        "thing": [
+            ("key", "missing_by_class/(withheld)", 1),
+            ("key", "n_missing", 1),
+            ("key", "n_missing_withheld", 1),
+        ],
+    },
+    "whole_numbers_beside_low_and_high_identifier": {
+        "(table)": [],
+        "thing": [
+            ("key", "max_length", 8),
+            ("key", "min_length", 1),
+            ("key", "n_distinct_by_occurrences/05", 5),
+            ("key", "n_distinct_by_occurrences/06", 1),
+            ("key", "n_distinct_by_occurrences/45", 1),
+            ("key", "n_distinct_by_occurrences/60", 1),
+        ],
+    },
     "words_beside_singles": {
         "(table)": [],
         "one_word_singles": [
@@ -1362,12 +1481,39 @@ ROLES: "dict[str, dict[str, str]]" = {
         "other": "constant",
         "thing": "categorical",
     },
+    "dates_beside_low_and_high_f11": {
+        "thing": "datetime",
+    },
+    "dates_beside_low_and_high_f36": {
+        "thing": "datetime",
+    },
+    "dates_beside_low_and_high_identifier": {
+        "thing": "identifier",
+    },
+    "numbers_beside_two_notes_f11": {
+        "thing": "numbers_with_labels",
+    },
+    "numbers_beside_two_notes_f36": {
+        "thing": "long_tail_labels",
+    },
+    "numbers_beside_two_notes_identifier": {
+        "thing": "identifier",
+    },
     "readings_beside_labels": {
         "other": "constant",
         "thing": "numbers_with_labels",
     },
     "readings_beside_labels_identifier": {
         "other": "constant",
+        "thing": "identifier",
+    },
+    "readings_beside_low_and_high_f11": {
+        "thing": "continuous",
+    },
+    "readings_beside_low_and_high_f36": {
+        "thing": "continuous",
+    },
+    "readings_beside_low_and_high_identifier": {
         "thing": "identifier",
     },
     "registers_100000_f11": {
@@ -1686,6 +1832,15 @@ ROLES: "dict[str, dict[str, str]]" = {
     },
     "stage3_unrepresentable_mixed": {
         "value": "numeric_unrepresentable",
+    },
+    "whole_numbers_beside_low_and_high_f11": {
+        "thing": "count",
+    },
+    "whole_numbers_beside_low_and_high_f36": {
+        "thing": "count",
+    },
+    "whole_numbers_beside_low_and_high_identifier": {
+        "thing": "identifier",
     },
     "words_beside_singles": {
         "one_word_singles": "constant",
