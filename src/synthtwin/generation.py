@@ -10847,17 +10847,17 @@ def _sign_repairs(
     stratum before it and the drawn value of each after it. 564c61a
     gathered them again for each repair, building the list of every
     stratum's value again for each stratum it read, so each repair cost
-    the square of the strata: 22 of the 26 s `generate` took at 8,000
-    rows of the Codex review's column, and more than eleven CPU minutes
-    at 32,000. ``held`` counts the strata holding each value from the
-    first repair on; a stratum's own value is let go while its step is
-    asked, and its answer is counted after, so each question sees the
-    values the gathering saw. And each band's walk begins where its last
-    one stopped (``walked``): the strata are in band order, so while one
-    band is repaired the points on its side of nought are only taken,
-    never given back, and a band whose side does give one back walks
-    again from the first step, as both do where nought stops being held
-    (`_let_go`).
+    the square of the strata: 22 of the 26 s `generate` took under a
+    profiler at 8,000 rows of the Codex review's column, and more than
+    eleven CPU minutes at 32,000. ``held`` counts the strata holding
+    each value from the first repair on; a stratum's own value is let
+    go while its step is asked, and its answer is counted after, so
+    each question sees the values the gathering saw. And each band's
+    walk begins where its last one stopped (``walked``): the strata are
+    in band order, so while one band is repaired the points on its side
+    of nought are only taken, never given back, and a band whose side
+    does give one back walks again from the first step, as both do
+    where nought stops being held (`_let_go`).
     """
     total = len(values)
     notes: list[Deviation] = []
@@ -10942,7 +10942,8 @@ def _let_go(
     first step, because a step it passed as held may be free now: a
     negative value's side, a positive value's, and BOTH for nought. On
     a grid finer than binary64 reaches a step reads back as nought --
-    at 330 places every step a walk takes is `-0.0` or `0.0` -- and
+    at 324 places the first two steps, at 330 every step of a walk over
+    fewer than 2.4 million strata, each `-0.0` or `0.0` -- and
     d36627f, beginning a walk again only for a value strictly on its
     side, began past every step after the last stratum holding nought
     let it go: two negative strata drawn onto `0.0` were given `-1.0`

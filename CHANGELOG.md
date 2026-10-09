@@ -18,8 +18,8 @@ CPU at 8,000 rows and had not finished 32,000 after fifteen minutes.
 What the strata hold is now counted once and kept as they are repaired,
 and each band's walk starts where its last one stopped, and from its
 first step again where a value its steps read back as is let go, nought
-included, which every step of a grid of 324 places or more reads back
-as: 1.2 s at 8,000 rows, 5.7 at 32,000, 27.6 at 128,000 and 647 at
+included, which the first steps of a grid of 324 places or more read
+back as: 1.2 s at 8,000 rows, 5.7 at 32,000, 27.6 at 128,000 and 647 at
 1,000,000, of which the repairs take under a second. `K-S4-05` holds
 the lines the repairs run to the strata.
 
