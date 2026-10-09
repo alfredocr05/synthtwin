@@ -1982,6 +1982,37 @@ def test_the_oracle_bounds_the_walk_as_the_product_does() -> None:
     )
 
 
+def test_the_oracle_settles_the_one_pass_arrangement_as_the_product_does() -> None:
+    """The reference oracle mirrors the one-pass rule (A-P4-59), case for case.
+
+    The route-2 correction (plans P4-D390 and P4-D373): the pass gives no
+    form more than it still owes where that settles every debt, and is
+    taken as it stood anywhere else. No frozen case holds a column of more
+    held-back labels than the search walks, so the oracle's arrangement is
+    asked beside the product's here: the 326 sizes of times beside 10 % on
+    the 12-hour face at 3,000 rows and a floor of 36 owing one form 662
+    cells, settled exactly, and two forms between them; 300 sizes of two
+    rows owing 301, covered with 302 as before; and three sevens owing ten
+    and five, which no arrangement settles. The oracle reasons only about
+    spellings with no figure in them, so the forms are of letters.
+    """
+    oracle = _reference_oracle()
+    face = tuple(sorted([1] * 119 + [2] * 94 + [3] * 63 + [4] * 42 + [35] * 8))
+    for sizes, owing in (
+        (face, {"@@-@@": 662}),
+        (face, {"@@-@@": 400, "@@_@@": 262}),
+        (tuple([2] * 300), {"@-@": 301}),
+        ((7, 7, 7), {"@-@": 10, "@_@": 5}),
+    ):
+        product = generation._shared_out(sizes, dict(owing), {}, {}, ())
+        assert oracle.shared_out(sizes, dict(owing), set(), set()) == product, (
+            sizes,
+            owing,
+        )
+    settled = generation._shared_out(face, {"@@-@@": 662}, {}, {}, ())
+    assert sum(face[place] for place in range(len(face)) if settled[place]) == 662
+
+
 def _register_of_many_forms(
     masks: "range" = range(64), held: int = 78
 ) -> "list[str]":

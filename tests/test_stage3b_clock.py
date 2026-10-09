@@ -20,11 +20,13 @@ holds the whole battery, and NF106's sentence:
   since the repair round, appointment times beside clock-shaped codes
   near the clock line and small tables beside a few past it keep their
   reading: as clock times, their twins refusing no cell the table does
-  not, or as labels, refusing fewer than a held-back level's more; and,
-  since the second repair round, appointment times beside what the level
-  pass counts out -- 3 % one-off notes, 2 % `HH:MM:SS`, 10 % `h:mm AM` --
-  are clock times whose twins write every present cell as a time
-  (mutant: the level pass keeping the labels of what is left);
+  not, or as labels, refusing fewer than a held-back level's more; and
+  the second repair round's appointment times beside 3 % one-off notes,
+  2 % `HH:MM:SS` or 10 % `h:mm AM`, which its route counted out and read
+  as clock times, are labels since the route-2 correction (plans P4-D390
+  and P4-D373), with no cell counted missing and no blank in their twins
+  (mutant: that route back, counting out the levels below the floor no
+  clock form reads);
 * F `test_f_no_count_below_the_line_and_nothing_missed` -- every printed
   count is nought or at least the census line, the loader accepts every
   description (CC1 to CC5, CH1 and CH2), and every twin and every real
@@ -32,15 +34,14 @@ holds the whole battery, and NF106's sentence:
   so do the repair round's code mixes at 300 to 3,000 rows and its small
   tables, whose twins read back as labels where the tables are labels
   (mutant: G8.3's clock line withdrawn, and the role is MISSED), and the
-  second repair round's columns beside what the level pass counts out
-  (mutant: the level pass keeping the labels, and since plan P4-D390's
-  merge the face's twin at 3,000 rows misses its form's count); the
-  label column's clock line and, since the second repair round, the
-  free-text column's are the producer's own, exactly that many cells
-  read as times being labels and one more clock times, the line of rule
-  8 and the rare words, read with route 2 withdrawn since that merge
-  (mutants: the skeptic's line alone; the free-text line one cell
-  higher);
+  second repair round's columns beside notes or another face, labels
+  since the route-2 correction (mutant: G8.3's one-pass arrangement
+  giving a form more than it owes, and the face's twin at 3,000 rows and
+  a floor of 36 misses its form's count by one cell); the label column's
+  clock line and, since the second repair round, the free-text column's
+  are the producer's own, exactly that many cells read as times being
+  labels and one more clock times (mutants: the skeptic's line alone;
+  the free-text line one cell higher);
 * H `test_h_the_hour_comes_back` -- at 1,000 rows every column's hour of
   day is within 0.03 of the real one, and at every size within the bound
   of the cells the census cannot place in their hour: the cells of groups
@@ -87,10 +88,11 @@ holds the whole battery, and NF106's sentence:
 * W `test_w_rare_words_beside_clock_times_keep_the_clock` -- 296 shift
   starts beside four `UNK` are clock times, the words counted missing,
   and the twin reads back the same way (mutant: the level pass keeps the
-  labels); and, since the second repair round, a route to clock times
+  labels); and, since the second repair round, the route to clock times
   stands only where the column it leaves is clock times, so one time on
-  every row but one beside a few words or notes counts out no cell
-  (plan P4-D390; mutant: the route standing on labels);
+  every row but one beside a few words counts out no cell, nor beside
+  notes past those few, which no route reaches since the route-2
+  correction (plan P4-D390; mutant: the route standing on labels);
 * Q `test_q_a_few_shared_times_are_asked_about` -- where a set of labels
   could hold the column too and every time inside its range is written
   by at least the line's rows, the questions file asks, and the answer
@@ -256,10 +258,6 @@ def test_r_every_column_is_a_clock_and_every_twin_cell_a_time(rows: int, floor: 
 
 def test_r_red_when_rule_8_is_asked_after_rule_7(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(taxonomy, "_clock_spellings_reach", lambda _cells: False)
-    # ...and the level pass's route to clock times with it (the second
-    # repair round): before this landing a column the level pass counted
-    # times out of stayed labels.
-    monkeypatch.setattr(taxonomy, "_levels_beside_clock_times", lambda *_a: None)
     _described.cache_clear()
     _twin.cache_clear()
     try:
@@ -330,46 +328,74 @@ def test_r_small_tables_beside_codes_keep_their_reading(spec: str, floor: int) -
 
 
 # THE SECOND REPAIR ROUND'S SHAPES (the 3b.5 skeptic 2's BLOCKER): appointment
-# times beside what the level pass counts out -- 3 % one-off notes, past the
-# few words of one cell in fifty, 2 % times at the second and 10 % times on
-# the 12-hour face -- at 1,000 rows and a floor of eleven, and the notes and
-# the face at 3,000 rows and a floor of 36. The level pass counted every level
-# below the floor missing, rare times among them, and held the column to the
-# labels; its twin, those cells blank, read back as clock times and the role
-# was MISSED. Each is clock times now, counting out only what the clock's
-# form does not read -- since plan P4-D390 deleted the level pass, by route 2
-# asked of every level below the floor, which the merge of that plan kept
-# because without it the face's twin at 3,000 rows misses its form's count.
+# times beside 3 % one-off notes, past the few words of one cell in fifty, 2 %
+# times at the second and 10 % times on the 12-hour face, at 1,000 rows and a
+# floor of eleven, and the notes and the face at 3,000 rows and a floor of 36.
+# The level pass counted every level below the floor missing, rare times among
+# them, and held the column to the labels; its twin, those cells blank, read
+# back as clock times and the role was MISSED. That round's second route
+# counted out only the levels below the floor no clock form reads and read
+# the rest as clock times. Plan P4-D390 deleted the level pass, and the
+# route-2 correction (plans P4-D390 and P4-D373, 2026-10-08) dropped the
+# route: on lane C1's 112 such columns it wrote 37,632 cells blank where the
+# source holds a note or another face's time. Each is labels now, as its
+# table reads: nothing is counted missing, its twin writes no blank, and F
+# holds it to every check.
 _LEVEL_PASS_CASES = (
     (1000, 11, tuple(shapes.LEVEL_PASS_MIXES)),
     (3000, 36, ("notes3", "face10")),
 )
 
 
-def _not_clock_times(names: "tuple[str, ...]", rows: int, floor: int) -> "list[str]":
-    """The columns not read as clock times, or whose twin writes a cell no clock reader takes."""
+def _counted_out(names: "tuple[str, ...]", rows: int, floor: int) -> "list[str]":
+    """The columns read as clock times, holding a cell counted missing, or whose twin writes a blank."""
     _folder, _columns, document, _loaded, _table = _described(names, rows, floor)
     cells, _missed_now = _twin(names, rows, floor, 0)
     return [
         name for name in names
-        if _block(document, name)["role"] != taxonomy.ROLE_CLOCK or _refused(cells[name]) != 0
+        if _block(document, name)["role"] == taxonomy.ROLE_CLOCK
+        or _block(document, name)["n_missing"] != 0
+        or any(cell == "" for cell in cells[name])
     ]
 
 
+def _route_2(
+    cells: "taxonomy._Cells",
+    classified: "list[taxonomy._Cell]",
+    n_rows: int,
+    settings: taxonomy.Settings,
+    decimal_comma: bool,
+) -> "tuple[str, ...]":
+    """The route the correction dropped: the levels below the floor no spelling of which the clock's form reads,
+    where the cells left read as clock times -- the mutant, put where the rare words are asked."""
+    below = tuple(
+        label for label in sorted(cells.folded_counts) if cells.folded_counts[label] < settings.small_cell_floor
+    )
+    gone = set(below)
+    left = taxonomy._tally([cell for cell in classified if cell.folded not in gone], n_rows, settings, decimal_comma)
+    clock = taxonomy._clock_reading(left)
+    if clock is None:
+        return ()
+    return tuple(
+        label for label in below
+        if not any(parsing.clock_ordinal(spelling, clock.form) is not None for spelling in cells.spellings_by_folded[label])
+    )
+
+
 @pytest.mark.parametrize("rows,floor,names", _LEVEL_PASS_CASES)
-def test_r_times_beside_what_the_level_pass_counts_out_are_clock_times(
+def test_r_times_beside_notes_or_another_face_are_labels(
     rows: int, floor: int, names: "tuple[str, ...]"
 ) -> None:
-    assert _not_clock_times(names, rows, floor) == [], (rows, floor)
+    assert _counted_out(names, rows, floor) == [], (rows, floor)
 
 
-def test_r_red_when_the_level_pass_keeps_the_labels_of_a_clock(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(taxonomy, "_levels_beside_clock_times", lambda *_a: None)
+def test_r_red_when_their_odd_levels_are_counted_out(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(taxonomy, "_rare_beside_clocks", _route_2)
     _described.cache_clear()
     _twin.cache_clear()
     try:
         for rows, floor, names in _LEVEL_PASS_CASES:
-            assert tuple(_not_clock_times(names, rows, floor)) == names, (rows, floor)
+            assert tuple(_counted_out(names, rows, floor)) == names, (rows, floor)
     finally:
         _described.cache_clear()
         _twin.cache_clear()
@@ -405,36 +431,44 @@ def test_f_times_beside_codes_validate(rows: int, floor: int) -> None:
 @pytest.mark.parametrize("spec", _SMALL)
 @pytest.mark.parametrize("floor", (11, 36))
 def test_f_small_tables_beside_codes_validate(spec: str, floor: int) -> None:
-    """The 3b.5 skeptic's small tables: the table's reading on the twin, nothing missed.
-
-    Labels, or, since route 2 asks every level below the floor (the merge of
-    plan P4-D390), clock times where the codes are a few odd cells beside
-    the published times: `small_f`'s six `99:99` at a floor of eleven.
-    """
+    """The 3b.5 skeptic's small tables: labels on the table, labels on the twin."""
     names, rows = _small(spec)
-    _folder, _columns, _document, loaded, table = _described(names, rows, floor)
+    _folder, _columns, document, loaded, table = _described(names, rows, floor)
+    assert all(_block(document, name)["role"] != taxonomy.ROLE_CLOCK for name in names)
     assert _missed(loaded, table) == []
     _cells_now, missed = _twin(names, rows, floor, 0)
     assert missed == [], (spec, floor, missed)
 
 
 @pytest.mark.parametrize("rows,floor,names", _LEVEL_PASS_CASES)
-def test_f_times_beside_what_the_level_pass_counts_out_validate(
+def test_f_times_beside_notes_or_another_face_validate(
     rows: int, floor: int, names: "tuple[str, ...]"
 ) -> None:
-    """The 3b.5 skeptic 2's BLOCKER: clock times on the table, clock times on the twin."""
+    """The 3b.5 skeptic 2's BLOCKER, since the route-2 correction: labels on the table, labels on the twin."""
     _folder, _columns, _document, loaded, table = _described(names, rows, floor)
     assert _missed(loaded, table) == []
     _cells_now, missed = _twin(names, rows, floor, 0)
     assert missed == [], (rows, floor, missed)
 
 
-def test_f_red_when_the_level_pass_keeps_the_labels_of_a_clock(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Route 2 withdrawn: the times beside 10 % on the 12-hour face at 3,000 rows and a floor of 36 are labels
-    whose twin misses the census count of the `HH:MM` form the table meets -- the measured reason the merge of
-    plan P4-D390 kept the route, where the level pass's blanks had made the role the check missed."""
-    monkeypatch.setattr(taxonomy, "_levels_beside_clock_times", lambda *_a: None)
-    _described.cache_clear()
+def test_f_red_when_a_debt_is_settled_past_what_it_owes(monkeypatch: pytest.MonkeyPatch) -> None:
+    """G8.3's one-pass arrangement as it stood, every held-back size to the form owing the most however little
+    it owes: the times beside 10 % on the 12-hour face at 3,000 rows and a floor of 36, 326 labels held back, write
+    one `HH:MM` cell more than the table, and the twin misses that form's census count -- the misses for which the
+    merge of plan P4-D390 kept route 2, repaired where they came from by the route-2 correction."""
+    one_pass = generation._one_pass
+
+    def overpaying(
+        sizes: "tuple[int, ...]",
+        places: "list[int]",
+        owing: "dict[str, int]",
+        every: "list[str]",
+        spare: "dict[str, int]",
+        whole: bool,
+    ) -> "tuple[list[str], bool]":
+        return one_pass(sizes, places, owing, every, spare, False)
+
+    monkeypatch.setattr(generation, "_one_pass", overpaying)
     _twin.cache_clear()
     try:
         _cells_now, missed = _twin(("notes3", "face10"), 3000, 36, 0)
@@ -490,21 +524,10 @@ def _read_with(present: int, words: int, timed: int) -> str:
 
 
 def _line_holds(present: int, words: int) -> bool:
-    """Whether G8.3's room is the line the producer's rule 8 and its rare words draw.
-
-    ROUTE 2 IS WITHDRAWN WHILE THE LINE IS READ (the merge of plan P4-D390,
-    2026-10-08). Asked of every level below the floor since that plan
-    deleted the level pass, it reads these columns -- times beside rare
-    words of two rows each, and no word the floor publishes -- as clock
-    times wherever the times reach the line of the cells left, at the room
-    as at one more: the line pinned here is the one method G8.3 models.
-    """
     room = generation._clock_line_room(present, taxonomy.Settings().minimum_parse_rate, 0, words, True)
-    with pytest.MonkeyPatch.context() as patch:
-        patch.setattr(taxonomy, "_levels_beside_clock_times", lambda *_a: None)
-        if _read_with(present, words, room) == taxonomy.ROLE_CLOCK:
-            return False
-        return room == present - words or _read_with(present, words, room + 1) == taxonomy.ROLE_CLOCK
+    if _read_with(present, words, room) == taxonomy.ROLE_CLOCK:
+        return False
+    return room == present - words or _read_with(present, words, room + 1) == taxonomy.ROLE_CLOCK
 
 
 @pytest.mark.parametrize("present,words", _LINE_CASES)
@@ -1115,11 +1138,14 @@ def test_m_red_without_the_key_of_a_spaced_clock(monkeypatch: pytest.MonkeyPatch
 
 # TIMES AT THE MINUTE BESIDE TIMES AT THE SECOND (the 3b.5 skeptic 2's item
 # 2): half the cells at the second, labels at a floor of eleven and free text
-# at 36, and 5 % at the second, free text at 36. The producer reads a column
-# as clock times in ONE form, so G8.3's clock line is held key by key: no
-# form of these reaches the line, and every stand-in is a time of its own
-# form. Held against every clock time together, about 2 % of their twins'
-# cells were made-up times a clock reader refuses, where the table has none.
+# at 36, and 5 % at the second, labels at eleven and free text at 36 -- at
+# eleven clock times with its 47 times at the second counted missing until
+# the route-2 correction (plans P4-D390 and P4-D373) dropped the route that
+# counted them out. The producer reads a column as clock times in ONE form,
+# so G8.3's clock line is held key by key: no form of these reaches the
+# line, and every stand-in is a time of its own form. Held against every
+# clock time together, about 2 % of their twins' cells were made-up times a
+# clock reader refuses, where the table has none.
 _FORMS = tuple(shapes.FORM_MIXES)
 _FORM_SIZES = ((1000, 11), (1000, 36))
 
@@ -1139,7 +1165,9 @@ def _refused_beside_forms() -> "dict[tuple[int, int, str], int]":
 
 def test_m_a_stand_in_of_another_precision_is_a_time() -> None:
     found = _refused_beside_forms()
-    assert sorted(found) == [(1000, 11, "half_seconds"), (1000, 36, "half_seconds"), (1000, 36, "seconds5")]
+    assert sorted(found) == [
+        (1000, 11, "half_seconds"), (1000, 11, "seconds5"), (1000, 36, "half_seconds"), (1000, 36, "seconds5")
+    ]
     assert all(count == 0 for count in found.values()), found
 
 
@@ -1190,20 +1218,12 @@ def _one_column_read_back(column: "list[str]") -> "tuple[str, list[str], list[st
     return f"{document['columns'][0]['role']}", _missed(loaded, table), _missed(loaded, target)  # type: ignore[index]
 
 
-# ROUTE 2 IS WITHDRAWN FOR THESE TWO (the merge of plan P4-D390, 2026-10-08).
-# Asked of every level below the floor since that plan deleted the level
-# pass, it reads this column as clock times: its codes, times at the second
-# and notes are 200 cells beside 1,800 published times, all counted out. The
-# key-by-key line is pinned on the column as the producer reads it without
-# that route, a column of labels.
-def test_m_a_stand_in_of_another_key_stands_beside_the_words(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(taxonomy, "_levels_beside_clock_times", lambda *_a: None)
+def test_m_a_stand_in_of_another_key_stands_beside_the_words() -> None:
     role, real, twin = _one_column_read_back(_beside_the_words())
     assert role != taxonomy.ROLE_CLOCK and real == [] and twin == [], (role, real, twin)
 
 
 def test_m_red_when_another_keys_stand_ins_are_rare_words(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(taxonomy, "_levels_beside_clock_times", lambda *_a: None)
     built = generation._held_clock_room
 
     def among(
@@ -1301,9 +1321,6 @@ def test_w_red_when_the_few_words_are_none(monkeypatch: pytest.MonkeyPatch) -> N
 
 def test_w_red_when_the_level_pass_keeps_the_labels(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(taxonomy, "_rare_beside_clocks", lambda *_a: ())
-    # ...both of its routes to clock times: since the second repair round
-    # the four `UNK` the pass counts out leave clock times by the second.
-    monkeypatch.setattr(taxonomy, "_levels_beside_clock_times", lambda *_a: None)
     _described.cache_clear()
     _twin.cache_clear()
     try:
@@ -1317,15 +1334,16 @@ def test_w_red_when_the_level_pass_keeps_the_labels(monkeypatch: pytest.MonkeyPa
 
 
 # A ROUTE TO CLOCK TIMES STANDS ONLY WHERE THE COLUMN IS CLOCK TIMES (the
-# second repair round, `taxonomy._read_as_clock_times`). Each route counts out
+# second repair round, `taxonomy._read_as_clock_times`). The route counts out
 # only cells no clock reads and keeps the rare times in; where what it leaves
 # is one time on every row but one, the column is read as `binary`, and the
-# route does not stand. Since plan P4-D390 deleted the level pass the routes
-# were part of, nothing is counted out then: the cells were a column of
+# route does not stand. Since plan P4-D390 deleted the level pass the route
+# was part of, nothing is counted out then: the cells were a column of
 # labels' values, and no pass takes a label out for its value. Beside four
-# `UNK` (the rare words) and beside twenty-nine one-off notes, past the few
-# words of one cell in fifty (the levels beside clock times), the column
-# keeps every cell.
+# `UNK` (the rare words) the column keeps every cell; beside twenty-nine
+# one-off notes, past the few words of one cell in fifty, it keeps them with
+# no route asked at all, since the route-2 correction dropped the one that
+# counted out the levels below the floor no clock form reads.
 _ONE_TIME = {
     "words": ["07:00"] * 290 + ["19:00"] + ["UNK"] * 4,
     "notes": ["08:00"] * 970 + ["20:00"] + [f"see note {index}" for index in range(29)],
@@ -1355,7 +1373,7 @@ def test_w_a_route_to_clock_times_leaves_no_pool_that_names_a_count(name: str) -
 
 def test_w_red_when_a_route_stands_on_labels(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(taxonomy, "_read_as_clock_times", lambda *_a: True)
-    assert all(_counted_out_of_labels(_ONE_TIME[name]) > 0 for name in sorted(_ONE_TIME))
+    assert _counted_out_of_labels(_ONE_TIME["words"]) > 0
 
 
 # -- Q: a few shared times are asked about --------------------------------

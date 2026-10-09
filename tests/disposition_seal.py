@@ -7775,6 +7775,7 @@ SEALED: "dict[str, tuple[str, ...]]" = {
         "c0cadd50b7d86efc",
         "c0d3aaa1ca4440e5",
         "c0d4ee13c5e903a8",
+        "c0ff7a3ec04b8d61",
         "c113811c5cf552e4",
         "c130cece41cc6770",
         "c1368df83f4c1ae6",
@@ -7932,7 +7933,6 @@ SEALED: "dict[str, tuple[str, ...]]" = {
         "ceaf01df2b32cde2",
         "ceb16d2cff5d67f9",
         "cedb49da27897908",
-        "ceee1d6917304c65",
         "cef3f16a4b022081",
         "cf0b160c3a4cb595",
         "cf15f50190f83bc8",
@@ -8562,6 +8562,7 @@ SEALED: "dict[str, tuple[str, ...]]" = {
         "0450d114b0e9117f",
         "0468a8cfc380a05c",
         "0474ca0808bec002",
+        "048d188145dbe4d0",
         "04b3ffc4340e93e1",
         "05067c7bc2659220",
         "050911ae57f99447",
@@ -10464,7 +10465,7 @@ COUNTED: "dict[str, int]" = {
     "docs/spec/profile-contract-v4.md": 966,
     "docs/spec/profile-contract-v5.md": 319,
     "docs/spec/profile-contract-v6.md": 3278,
-    "docs/spec/generation-method-v1.md": 1645,
+    "docs/spec/generation-method-v1.md": 1646,
     "docs/spec/validation-method-v1.md": 292,
 }
 

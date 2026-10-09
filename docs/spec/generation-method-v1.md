@@ -8533,6 +8533,28 @@ than hunted for; a size no debt needs is left NEUTRAL. Where no
 arrangement settles every debt exactly, the largest debt is taken
 first and the report names what went unmet.
 
+**That one-pass rule gives no form more than it still owes where that
+settles every debt** (the route-2 correction, plans P4-D390 and
+P4-D373). It is also how a column holding more held-back labels than
+the search walks is settled (step 3 above). The sizes are taken largest
+first, each by the form owing the most cells among those whose supply
+can still spell a label, and a size that form owes fewer cells than is
+left NEUTRAL, so the smaller sizes after it -- step 4 writes each
+debt's labels rising from one row -- finish the debt exactly; that
+arrangement stands where it settles every debt. Anywhere else the pass
+is taken again giving each size to the form owing the most however
+little it owes, so no debt is left short where it was covered: a census
+form is met at its published count and up to its pool above it, never
+below. Where that second pass settles every debt, the first is the same
+arrangement. Taken alone, the second pass gave a form owing one cell a
+label of two rows: times beside 10 % on the 12-hour face at 3,000 rows
+and a floor of 36 held 326 labels back and owed the `HH:MM` form 662
+cells; the eight labels of 35 rows the cells on the 12-hour face were
+owed went to that form first, it was given 663, and the twin wrote
+2,719 cells of it for the published 2,718 and missed the count, as did
+three more such tables at the floor of 36 and nine of 30,000 rows
+beside one-off notes (29,143 for 29,142 beside 3 %).
+
 Ascending order and neediest-form-first were what this said, and they
 do not reach an arrangement the source itself exhibits: twelve levels
 whose debts of 31 and 74 are met exactly by `14+17` and

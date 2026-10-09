@@ -7502,24 +7502,36 @@ def given_back(left, supply, sizes, chosen, place):
 
 
 def greedily(sizes, places, owing, seen, folds, supplied=None):
-    """G8.3's one-pass arrangement: the neediest debt that still has supply."""
+    """G8.3's one-pass arrangement: the neediest debt that still has supply.
+
+    Walked first giving no form a size larger than it still owes, and that
+    answer stands where it settles every debt exactly; anywhere else the
+    pass as it stood, every size to the neediest form however little it
+    owes (the route-2 correction, plans P4-D390 and P4-D373).
+    """
     every = [name for name in sorted(owing) if owing[name] > 0]
-    left = {name: owing[name] for name in every}
     spare = {
         name: usable_room(name, supply_wanted(sizes, owing[name]), seen, folds)
         if supplied is None else supplied[name]
         for name in every
     }
-    taken = ["" for _ in sizes]
-    for place in places:
-        name = neediest_form(
-            {form: left[form] for form in sorted(left) if spare[form] > 0}
-        )
-        if not name:
-            break
-        taken[place] = name
-        left[name] = max(0, left[name] - sizes[place])
-        spare[name] -= 1
+    for whole in (True, False):
+        left = {name: owing[name] for name in every}
+        room = dict(spare)
+        taken = ["" for _ in sizes]
+        for place in places:
+            name = neediest_form(
+                {form: left[form] for form in sorted(left) if room[form] > 0}
+            )
+            if not name:
+                break
+            if whole and left[name] < sizes[place]:
+                continue
+            taken[place] = name
+            left[name] = max(0, left[name] - sizes[place])
+            room[name] -= 1
+        if not whole or all(left[name] == 0 for name in every):
+            return taken
     return taken
 
 

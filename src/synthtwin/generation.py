@@ -32033,6 +32033,25 @@ def _greedily(
     IT OWES THE SUPPLY RULE TOO, and its own comment promised it
     before the code did: a form of twenty-six spellings must not be
     handed a twenty-seventh place.
+
+    IT GIVES NO FORM MORE THAN IT STILL OWES WHERE THAT SETTLES EVERY
+    DEBT (the route-2 correction, plans P4-D390 and P4-D373, 2026-10-08).
+    The pass is walked first leaving a size neutral where the form owing
+    the most owes less than it (`_one_pass`), so the smaller sizes after
+    it -- each debt's own labels rise from one row (`held_back_sizes`)
+    -- finish the debt exactly; that answer stands where it settles every
+    debt. Anywhere else the pass is walked as it stood, every size to the
+    neediest form however little it owes, so no debt is left short where
+    the walk covered it: a form's census window takes a count up to its
+    pool above the published one and never below it. Wherever the pass as
+    it stood settled every debt exactly the two walks are one, since it
+    then never gave a form more than it owed. Measured before: times
+    beside 10 % on the 12-hour face at 3,000 rows and a floor of 36, 326
+    labels held back, owed the `HH:MM` form 662 cells and gave it 663 --
+    the 35-row labels of the cells owing no form went first, then a label
+    of two rows to a debt of one -- so the twin wrote 2,719 for the
+    published 2,718 and missed the count; at 30,000 rows beside 3 %
+    notes, 29,143 for 29,142.
     """
     # NO EXACT ARRANGEMENT WAS FOUND, so the greedy one stands. It is
     # the arrangement this walk had before the search was written, and
@@ -32046,7 +32065,6 @@ def _greedily(
     # twenty-six spellings thirty-one places.
     _unused = names
     every = [form for form in sorted(owing) if owing[form] > 0]
-    left = {form: owing[form] for form in every}
     spare = {
         form: _usable_room(
             form, _supply_wanted(sizes, owing[form]), used, owners, holes
@@ -32055,15 +32073,50 @@ def _greedily(
         else supplied[form]
         for form in every
     }
+    taken, settled = _one_pass(sizes, places, owing, every, dict(spare), True)
+    if settled:
+        return taken
+    return _one_pass(sizes, places, owing, every, spare, False)[0]
+
+
+def _one_pass(
+    sizes: "tuple[int, ...]",
+    places: "list[int]",
+    owing: "dict[str, int]",
+    every: "list[str]",
+    spare: "dict[str, int]",
+    whole: bool,
+) -> "tuple[list[str], bool]":
+    """One pass of `_greedily`: each size in ``places``' order to the neediest form.
+
+    The neediest form is the one owing the most cells among those whose
+    supply ``spare`` can still spell a stand-in (`_within_supply`,
+    `_neediest_form`); the pass stops where none owes a cell. ``whole``
+    leaves a size neutral where that form owes fewer cells than the size
+    -- no other form then owes as many -- and the size goes to it however
+    little it owes otherwise. Answers each size's form, "" for neutral,
+    and whether every debt of ``every`` was settled exactly, which only a
+    ``whole`` pass can say: the other cuts a debt it overshoots at nought.
+
+    Guarantees: a function of the arguments; ``spare`` is spent in place.
+    Raises nothing. No I/O of any kind.
+    """
+    left = {form: owing[form] for form in every}
     taken: "list[str]" = ["" for _each in sizes]
     for place in places:
         form = _neediest_form(_within_supply(left, spare))
         if not form:
             break
+        if whole and left[form] < sizes[place]:
+            continue
         taken[place] = form
         left[form] = max(0, left[form] - sizes[place])
         spare[form] = spare[form] - 1
-    return taken
+    settled = True
+    for form in every:
+        if left[form] != 0:
+            settled = False
+    return taken, settled
 
 
 def _within_supply(
