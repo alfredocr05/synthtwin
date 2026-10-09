@@ -1745,11 +1745,14 @@ def test_k_s4_05(record_property) -> None:
     strata a quarter of which walk past every point their band holds --
     and the same with every value handed as one that runs a line each
     time a builtin hashes or compares it (the `counted` keys), so a
-    repair doing the square of the strata inside builtins is seen too.
-    `tests/test_stage4_sign_repairs.py` owns the measures, and its growth
-    tests require 564c61a's function to grow at least three times on the
-    same arguments, and two repairs that do that square inside builtins
-    at least 2.5 times on the counted values, so these ratios can fail.
+    repair that hashes or compares the values every stratum holds inside
+    builtins at each repair is seen too (one that only copies them is
+    not: that accepted limit is bounded only by the seconds this entry's
+    evidence records). `tests/test_stage4_sign_repairs.py` owns the
+    measures, and its growth tests require 564c61a's function to grow at
+    least three times on the same arguments, and three repairs that do
+    that square inside builtins at least 2.5 times on the counted values,
+    so these ratios can fail.
     """
     import test_stage4_sign_repairs as repairs
 

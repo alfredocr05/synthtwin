@@ -26,10 +26,14 @@ oracle is required to grow at least three times on the same arguments,
 so the measure is known to see the defect rather than assumed to. A
 builtin runs as one line however many values it reads, so the measure
 is taken again on values that run a line of their own each time a
-builtin hashes or compares one (`_Counted`): two repairs that do the
-square of the strata inside builtins -- one searching a list of the
-values held, one building their dict again at every repair -- are
-required to show it there, where the lines alone do not.
+builtin hashes or compares one, by `==` or by order (`_Counted`): three
+repairs that do the square of the strata inside builtins -- one
+searching a list of the values held, one building their dict again and
+one sorting them again at every repair -- are required to show it
+there, where the lines alone do not. So a repair that hashes or
+compares the values every stratum holds inside builtins at each repair
+is seen too; one that only copies them is not, and that is the accepted
+limit, bounded only by the seconds K-S4-05's evidence records.
 """
 
 from __future__ import annotations
@@ -162,12 +166,13 @@ def _same(ours: "tuple[list[float], list[object]]", theirs: "tuple[list[float], 
 
 
 class _Counted(float):
-    """A value that runs a line of its own each time it is hashed or compared.
+    """A value that runs a line of its own each time it is hashed or compared, by ``==`` or by order.
 
     A builtin runs as one line however many values it reads -- a list
     searched for a value, a dict built from a list of them -- so `lines_run`
     alone lets a repair do the square of the strata inside one. Handed
-    these, each value a builtin hashes or compares is a line too. The
+    these, each value a builtin hashes, compares or sorts (``sorted``,
+    ``min``, ``max``) is a line too; one it only copies is not. The
     number, its sign and its text are the float's own.
     """
 
@@ -178,6 +183,21 @@ class _Counted(float):
 
     def __eq__(self, other: object) -> bool:
         return float.__eq__(self, other)
+
+    def __ne__(self, other: object) -> bool:
+        return float.__ne__(self, other)
+
+    def __lt__(self, other: float) -> bool:
+        return float.__lt__(self, other)
+
+    def __le__(self, other: float) -> bool:
+        return float.__le__(self, other)
+
+    def __gt__(self, other: float) -> bool:
+        return float.__gt__(self, other)
+
+    def __ge__(self, other: float) -> bool:
+        return float.__ge__(self, other)
 
 
 def _handed(values: "list[float]", counted: bool) -> "list[float]":
@@ -633,12 +653,14 @@ def test_a_column_whose_strata_walk_far_is_repaired_in_lines_that_grow_with_the_
 
 
 def _squared_in_builtins() -> "dict[str, object]":
-    """Two grid steps that answer as the shipped one and cost every repair the strata inside a builtin.
+    """Three grid steps that answer as the shipped one and cost every repair the strata inside a builtin.
 
     "a list searched" asks the shipped step of a list of the values held,
     so each point a walk asks about is looked for along that list inside
     `in`; "a dict built again" asks it of their dict built again from that
-    list at every repair, each value hashed inside `dict.fromkeys`.
+    list at every repair, each value hashed inside `dict.fromkeys`; "a
+    list sorted again" sorts the values held at every repair, each value
+    compared by order inside `sorted`, before asking the shipped step.
     """
     shipped = generation._grid_step_of_sign
 
@@ -648,7 +670,11 @@ def _squared_in_builtins() -> "dict[str, object]":
     def gathered(band, rungs, grid, held, total, kept=(), walked=None):  # type: ignore[no-untyped-def]
         return shipped(band, rungs, grid, dict.fromkeys(list(held), 1), total, kept=kept, walked=walked)
 
-    return {"a list searched": searched, "a dict built again": gathered}
+    def ordered(band, rungs, grid, held, total, kept=(), walked=None):  # type: ignore[no-untyped-def]
+        points = sorted(held)
+        return shipped(band, rungs, grid, held if points else {}, total, kept=kept, walked=walked)
+
+    return {"a list searched": searched, "a dict built again": gathered, "a list sorted again": ordered}
 
 
 def test_the_growth_measures_see_each_value_a_builtin_hashes_or_compares() -> None:
@@ -662,8 +688,10 @@ def test_the_growth_measures_see_each_value_a_builtin_hashes_or_compares() -> No
     values that run a line each time they are hashed or compared, the
     shipped repairs are required to grow under 2.5 times on the Codex
     column (2,000 to 4,000 rows) and on the strata walking far (400 to
-    800), and 564c61a's at least three times. Two repairs of that kind
-    are built here from the shipped grid step (`_squared_in_builtins`):
+    800), and 564c61a's at least three times. Three repairs of that kind
+    -- one searching a list of the values held, one building their dict
+    again and one sorting them again at every repair -- are built here
+    from the shipped grid step (`_squared_in_builtins`):
     each is required to give 564c61a's answers, and to grow under 2.5
     times by the lines alone and at least 2.5 times on these values, so
     this test fails on them where the two above do not. Handed these
