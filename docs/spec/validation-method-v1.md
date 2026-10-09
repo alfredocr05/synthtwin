@@ -1831,7 +1831,10 @@ word; this module writes that construction from the method's own text --
 the mixture, the moment-matched end, the rounding halves up, the tie
 group and how far G7.3b step 9 may move it, the step off a hole, the
 move onto a midnight, the two-pass all-different step and the clamp to
-the readable window -- in the
+the readable window -- and, on a column of dates written as counts, the
+reach that stops one unit short of the days its counts cannot hold
+(G7.10, `date_counts.tail_reach`; the verification of the second review
+of landing R4, item 2) -- in the
 binary64 arithmetic the clause fixes, operation by operation and in the
 order written. It is compared with the generator's writing of it in the
 suite, rank by rank: a validator whose derived end differs from the

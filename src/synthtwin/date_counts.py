@@ -767,9 +767,11 @@ def moment_of_iso(text: str, unit: int) -> "int | None":
 class CountForm:
     """How a column of counted dates writes its numbers (`count_form`).
 
-    * `places` -- the most figures after the mark any of the column's
-      USUAL counts writes, 0 to 17 -- a stray written with more is held to
-      its own last figure and not counted here (`usual_tally`);
+    * `places` -- the most figures after the mark any count of the
+      reading that held writes, 0 to 17: every count's, or -- where that
+      reading holds no unit -- the USUAL counts', a stray written with
+      more being held to its own last figure and not counted here
+      (`every_count`, `usual_tally`);
     * `trimmed` -- whether cells drop the zeros at the end of their
       figures after the mark, and the mark with them, as `%g`, `repr`
       and R do, rather than always writing `places` of them as `%.6f`
@@ -1074,8 +1076,9 @@ def form_from(
     """The `count_form` a column's written counts publish, from their tally.
 
     `places` is the most figures after the mark any tallied cell's number
-    carries -- the column's usual counts, a profiler's tally being taken
-    without its strays (`usual_tally`). A column is FIXED where every cell writes exactly that many
+    carries -- every count of the column, or its usual counts where the
+    profiler set strays aside, every count's reading holding no unit
+    (`every_count`, `usual_tally`). A column is FIXED where every cell writes exactly that many
     (and at least one), and TRIMMED otherwise. A trimmed column whose
     cells reach fifteen significant figures -- sixteen or seventeen --
     is written to fifteen (seventeen): `%.15g` and `repr` write by
@@ -1243,11 +1246,14 @@ def settled_reading(
     THE ONE DECISION THE PROFILER AND QUESTION Q3 SHARE (the review of
     landing R4, item 2). ``counts`` are the column's exact counts beside
     its set-aside numbers, in the order the cells stand; ``plain`` and
-    ``tally`` say how its USUAL counts are written, and ``usual`` the most
-    figures after the mark a usual count writes, -1 where every count is
-    usual (`usual_tally`): a stray written with more figures is held to
-    its own last figure (`held_to`; the second review of landing R4, item
-    5). Each unit the figures may carry
+    ``tally`` say how the counts of the reading asked are written -- every
+    count, or the USUAL ones -- and ``usual`` the most figures after the
+    mark a usual count writes, -1 where every count is read alike
+    (`every_count`, `usual_tally`): a stray written with more figures is
+    held to its own last figure (`held_to`; the second review of landing
+    R4, item 5). The profiler asks every count's reading first and the
+    usual counts' only where that one holds no unit, as Q3 does
+    (`figures_kept`). Each unit the figures may carry
     is tried, coarsest first (`reading_units`; the checker passes the
     unit the description published, ``published``, and that alone): every
     count is read as the moment it names in that unit, None where it names

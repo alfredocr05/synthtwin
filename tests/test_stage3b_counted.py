@@ -1468,8 +1468,9 @@ def _counted_near_the_holes(shape: str) -> "tuple[str, list[str]]":
     draw = random.Random(f"near-the-holes:{shape}")
     cells: "list[str]" = []
     for _row in range(1000 if shape == "unix_days_to_9999" else 10000):
-        if shape == "excel_moments":
-            moment = datetime.datetime(1900, 1, 1) + datetime.timedelta(days=draw.randrange(12784), seconds=60 * draw.randrange(1440))
+        if shape in ("excel_moments", "excel_moments_packed"):
+            days = 12784 if shape == "excel_moments" else 90
+            moment = datetime.datetime(1900, 1, 1) + datetime.timedelta(days=draw.randrange(days), seconds=60 * draw.randrange(1440))
             first = datetime.datetime(1899, 12, 31) if moment < datetime.datetime(1900, 3, 1) else datetime.datetime(1899, 12, 30)
             delta = moment - first
             cells += ["%.15g" % (delta.days + delta.seconds / 86400)]
@@ -1487,30 +1488,34 @@ def _counted_near_the_holes(shape: str) -> "tuple[str, list[str]]":
             day = datetime.date(9900, 1, 1) + datetime.timedelta(days=draw.randrange(36523))
             cells += [f"{(day - datetime.date(1970, 1, 1)).days}"]
     member = {
-        "excel_moments": "excel-1900", "excel_dates": "excel-1900", "excel_1904_seconds": "excel-1904",
-        "sas_moments": "seconds-since-1960", "unix_days_to_9999": "days-since-1970",
+        "excel_moments": "excel-1900", "excel_moments_packed": "excel-1900", "excel_dates": "excel-1900",
+        "excel_1904_seconds": "excel-1904", "sas_moments": "seconds-since-1960", "unix_days_to_9999": "days-since-1970",
     }[shape]
     return member, cells
 
 
 @pytest.mark.parametrize(
-    "shape", ("excel_moments", "excel_dates", "excel_1904_seconds", "sas_moments", "unix_days_to_9999")
+    "shape",
+    ("excel_moments", "excel_moments_packed", "excel_dates", "excel_1904_seconds", "sas_moments", "unix_days_to_9999"),
 )
 def test_c5_both_writings_of_a_counted_tail_stop_short_of_the_days_its_counts_cannot_hold(
     tmp_path: pathlib.Path, shape: str
 ) -> None:
     """The verification of the second review's item 2: the generator's strata and the validator's, one reach.
 
-    Ten thousand Excel date-times and Excel dates from 1900, Excel 1904
-    seconds from 1904 and SAS seconds from 1900, and a thousand Unix days
-    of the last century before 10000. Each tail's strata are drawn by the generator
+    Ten thousand Excel date-times and Excel dates from 1900 -- the
+    date-times also packed into its first quarter, whose low boundary
+    stands on 2 January, so the tail has room only because serial 2 is
+    one instant of that day -- Excel 1904 seconds from 1904 and SAS
+    seconds from 1900, and a thousand Unix days of the last century
+    before 10000. Each tail's strata are drawn by the generator
     (`generation._date_layout`) and again by the validator
     (`validation._date_tail_windows`), both to the reach the counting
     system leaves (`date_counts.tail_reach`), and agree rank by rank; and
     every place a tail rank can stand, nearest and furthest, is a count of
     the system naming a date -- no moment before Excel's first count,
     none on 1 January 1900 or 31 December 9999, none on the instant
-    serial 2 names. Red on 568b597 on all five: its low tails stood before
+    serial 2 names. Red on 568b597 on all six: its low tails stood before
     Excel's two first counts and on 1 January 1900, and its high tail on
     31 December 9999.
     """

@@ -8,8 +8,8 @@ exists).
 
 ### Numbers that are dates are read as dates and written back as the same numbers (2026-10-07)
 
-**Landing R4** (plan P4-D384), with its review's nine items and its
-second review's seven repaired.
+**Landing R4** (plan P4-D384), with its review's nine items, its
+second review's seven and the two its verification found repaired.
 Excel serials, SAS and Stata days, seconds and milliseconds, Unix seconds
 and milliseconds, Epic day numbers and the other counting systems of a
 closed table of twelve were described as numbers: the twin kept each
@@ -37,9 +37,12 @@ eight kinds of column it states and pins. Epic contact numbers are spread
 evenly over the twin's rows, and an Epic column whose contact numbers are
 each rarer than the line no longer leaves a twin failing its own check or
 stops `profile`. A counted column crossing 1 January 1900 no longer draws
-that day, which it reads as no value, and one cell written with more
-figures than the rest no longer refuses the column. NF51 is no longer
-written.
+that day, which it reads as no value -- dates nor moments: every tail of
+the twin stops short of it, and of the days before a spreadsheet's first
+count, which an Excel twin of births from 1900 wrote as text -- and one
+cell written with more figures than the rest no longer refuses the
+column, while spreadsheet date-times whose few longer cells carry the
+time of day are read as dates again. NF51 is no longer written.
 
 ### A description written before the published pairs loads again (2026-10-03)
 
