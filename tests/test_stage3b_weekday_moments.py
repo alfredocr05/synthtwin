@@ -1730,7 +1730,7 @@ def test_wc10_reads_the_quartiles_as_whole_local_instants(tmp_path: pathlib.Path
     assert refused is not None and "WC10" in refused, refused
     refused = loaded(f"{p25[0:10]} 23:59:04", f"{after} 00:00:14", "codex")
     assert refused is not None and "WC10" in refused, refused
-    assert loaded(f"{p25[0:10]} 00:00:14", f"{after} 00:00:14", "midnights") is None
+    assert loaded(f"{p25[0:10]} 00:00:14", f"{after} 00:00:14", "early-clocks") is None
     assert loaded(f"{p25[0:10]} 00:00:14", f"{before} 23:59:59", "a-day-short-by-day") is not None
 
 
