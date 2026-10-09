@@ -11487,7 +11487,14 @@ where any other form's stops at 4,096 spellings. Measured before: a
 free-text `time(7)` column of 1,000 different times wrote 856 twin cells
 that are no time of day, `44:40:00.0023504` the first, and a long tail of
 100,000 rows 40,204, missing its census of forms; after, none (method
-G8.3).
+G8.3). Since the repair round of the route-2 correction (plans P4-D390
+and P4-D373), a held-back label of a column of labels takes no other
+spelling of a clock's form past its clock supply: it is the neutral
+spelling, a clock's form takes no more labels than it has times left, and
+a form short of spellings is settled first, so below the clock line every
+held-back label written in a clock's form is a time. Measured before:
+times beside 3 % one-off notes at 100,000 rows wrote 4,822 twin cells such
+as `44:89`, and 200,134 over 47 such tables; after, none (method G8.3).
 
 **AND ONLY BELOW THE CLOCK LINE** (the repair round of landing 3b.5;
 generation method G8.3). The twin of a column of labels is described
@@ -11512,6 +11519,13 @@ its own form, never a rare word. Measured before: a label twin of 10,000
 rows half `HH:MM` and half `HH:MM:SS` wrote 204 made-up times a clock
 reader refuses, one of 100,000 rows beside 5 % `HH:MM:SS` wrote 2,003,
 and a free-text twin of 1,000 rows beside 5 % wrote 32; after, none.
+ONLY WHERE A CENSUS FORM IS OWED (the repair round of the route-2
+correction): past the line a stand-in the census owes a clock's form is
+filled figure by figure, so the form's count is met, and one owed no form
+is the neutral spelling, as is one wearing the published labels' shape
+where it would spend the room the owed stand-ins after it need -- so the
+only cells a label twin writes in a clock's form that no clock reads are
+the owed ones past the line.
 
 **A FREE-TEXT GROUP MAY TAKE A FORM OF ANY ADMITTED LENGTH, AND MUST
 BE ABLE TO.** A form fixes a length, so which lengths a group may be

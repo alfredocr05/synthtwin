@@ -2013,6 +2013,109 @@ def test_the_oracle_settles_the_one_pass_arrangement_as_the_product_does() -> No
     assert sum(face[place] for place in range(len(face)) if settled[place]) == 662
 
 
+# THE REPAIR ROUND'S TABLES AT A FLOOR OF ELEVEN, cell for cell those
+# `tests/test_stage3b_route2.py` holds: appointment times written `H:MM`, as
+# Excel's `h:mm` writes an hour below ten, beside 10 % and 3 % one-off notes
+# at 10,000 and 30,000 rows, and written `HH:MM` beside 15 % at the second at
+# 30,000 rows -- as kind, share, rows and seed.
+_REPAIR_TABLES = (
+    ("hours", 0.10, 10000, 9034),
+    ("hours", 0.03, 30000, 9016),
+    ("seconds", 0.15, 30000, 7412),
+)
+
+
+def _repair_table(kind: str, share: float, rows: int, seed: int) -> "list[str]":
+    """One of the repair round's tables, drawn as its skeptic's batteries drew it."""
+    draw = random.Random(seed)
+    cells: "list[str]" = []
+    notes = 0
+    for _row in range(rows):
+        pick = draw.random()
+        if pick < 0.80:
+            hour = draw.choices(range(7, 17), weights=(3, 9, 10, 10, 8, 4, 8, 9, 8, 5))[0]
+            minutes = hour * 60 + 15 * draw.randrange(4)
+        elif pick < 0.92:
+            minutes = 390 + draw.randrange(750)
+        else:
+            minutes = 17 * 60 + 30 * draw.randrange(6)
+        if draw.random() >= share:
+            hour_text = f"{minutes // 60}" if kind == "hours" else f"{minutes // 60:02d}"
+            cells += [f"{hour_text}:{minutes % 60:02d}"]
+            continue
+        if kind == "seconds":
+            cells += [f"{minutes // 60:02d}:{minutes % 60:02d}:{draw.randrange(60):02d}"]
+            continue
+        notes = notes + 1
+        cells += [f"see note {notes}"]
+    return cells
+
+
+def test_the_oracle_states_the_repair_round_as_the_product_does() -> None:
+    """The reference oracle mirrors the route-2 correction's repair round (A-P4-59).
+
+    No frozen case holds a clock's form owed more labels than it has times
+    left, a form short of spellings past the search, or a clock line
+    beside the published labels' shape, so the oracle is asked beside the
+    product here, call by call and column by column: every clock form's
+    supply; the times `HH:MM`, `H:MM` and `HH:MM:SS` can still write beside
+    written ones; the held-back sizes with a clock's form bounded and not;
+    the one-pass arrangement with a form of 26 spellings owed more than
+    that, settled by serving it first and not; and the three label columns
+    above, cell for cell and in order -- the bound, the form short of times
+    served first, the published labels' shape stopping at its clock
+    supply, and the room the owed stand-ins keep past the clock line. The
+    columns part when the oracle's clock supply is a fraction's alone again.
+    """
+    oracle = _reference_oracle()
+    for form in (
+        "%%:%%", "%:%%", "%%:%%:%%", "%:%%:%%", "%%:%%@@", "%:%% @@", "%%:%%:%%.%%%",
+        "%%:%%.%", "%%.%%", "@%%%%", "@@-@@",
+    ):
+        assert oracle.clock_supply(form) == generation._clock_supply(form), form
+    written = ["08:00", "08:15", "9:30", "10:45:00", "12:00"]
+    owners = {parsing.folded(spelling): spelling for spelling in written}
+    for form in ("%%:%%", "%:%%", "%%:%%:%%"):
+        for wanted in (10, 590, 1000, 1440, 100000):
+            assert oracle.usable_room(
+                form, wanted, set(written), set(owners)
+            ) == generation._usable_room(
+                form, wanted, {spelling: 1 for spelling in written}, owners, ()
+            ), (form, wanted)
+    for held_back, rows, floor, numbers, words, most in (
+        (3652, 13827, 36, (), (10881, 2946), (1394,)),
+        (1550, 4135, 11, (), (3277, 858), (1390,)),
+        (300, 900, 11, (), (800, 100), (50,)),
+        (40, 120, 11, (30,), (60, 30), (20,)),
+        (60, 140, 11, (), (40, 70, 30), (12, 70)),
+        (10, 30, 11, (), (20, 10), ()),
+    ):
+        assert tuple(
+            oracle.held_back_sizes(held_back, rows, numbers, words, floor, most)
+        ) == generation.held_back_sizes(held_back, rows, floor, numbers, words, most), (
+            held_back,
+            rows,
+            most,
+        )
+    sizes = tuple(sorted([1] * 200 + [2] * 80 + [5] * 20))
+    for owing in ({"@": 104, "@@-@": 260}, {"@": 150, "@@-@": 200}):
+        product = generation._shared_out(sizes, dict(owing), {}, {}, ())
+        assert oracle.shared_out(sizes, dict(owing), set(), set()) == product, owing
+    rate = taxonomy.Settings().minimum_parse_rate
+    built: "list[tuple[list[str], dict]]" = []
+    for kind, share, rows, seed in _REPAIR_TABLES:
+        document, described, _folder = _described(_repair_table(kind, share, rows, seed), "at")
+        plan = generation.plan_generation(described)
+        product_cells, _notes = generation._label_content(plan.columns[0])
+        column = dict(document["columns"][0])
+        column["_code_declared"] = False
+        column["_parse_rate"] = rate
+        assert oracle._label_content(dict(column)) == product_cells, (kind, share, rows)
+        built += [(product_cells, column)]
+    oracle.clock_supply = oracle.fraction_clock_supply
+    assert oracle._label_content(dict(built[1][1])) != built[1][0]
+
+
 def _register_of_many_forms(
     masks: "range" = range(64), held: int = 78
 ) -> "list[str]":

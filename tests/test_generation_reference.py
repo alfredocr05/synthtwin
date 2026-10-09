@@ -2649,8 +2649,8 @@ def _toward_the_later_instant(position, denominator, rungs):
     )
 
 
-def _pool_shared_evenly(held_back, rows, numbers, words, floor=11):
-    """G8.3's sizes with the pool shared out evenly, its debts unread."""
+def _pool_shared_evenly(held_back, rows, numbers, words, floor=11, most=()):
+    """G8.3's sizes with the pool shared out evenly, its debts and bounds unread."""
     if held_back == 0:
         return []
     base = rows // held_back
@@ -3217,8 +3217,9 @@ def _no_level_shape_trade(sizes, shared, level_shape, fixed, seen, folds):
 
     The named forms keep the places the census settlement gave them, so
     the places owed no form past the shape's supply take the neutral
-    spelling -- which carries a figure, and this oracle refuses to reason
-    about one.
+    spelling, `group-N`, which the oracle states since the repair round of
+    the route-2 correction (before it, it refused the figure the spelling
+    carries and stopped).
     """
     free = [
         place for place in range(len(sizes))
@@ -4617,10 +4618,13 @@ CASE_MUTANTS = {
         branch="G8.3b's trade, which moves a large held-back group paying a "
         "named form onto the published labels' shape and settles the form "
         "with single rows summing to it; the mutant withdraws the trade, "
-        "and a place past the shape's supply is left the neutral spelling",
+        "and a place past the shape's supply is left the neutral spelling, "
+        "which the oracle refused to reason about until the repair round of "
+        "the route-2 correction taught it `group-N` and now writes, so the "
+        "case's cells move",
         attribute="level_shape_spent",
         replacement=_no_level_shape_trade,
-        outcome="reasons only about stand-ins with no figure",
+        outcome=CHANGES_THE_CELLS,
     ),
     "identifier_layout": Mutant(
         branch="G9.6's smooth weighted rotation of a layout census over the "

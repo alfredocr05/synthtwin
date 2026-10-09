@@ -8484,6 +8484,38 @@ of 100,000 rows holding back 5,863 times wrote 40,204, missing its own
 census of forms; after, none, and over 169 columns of the reach battery
 and nine columns beside these forms no other twin moves by a byte.
 
+*And by the repair round of the route-2 correction* (plans P4-D390 and
+P4-D373, 2026-10-09): **A HELD-BACK LABEL WRITTEN IN A CLOCK'S FORM IS A
+TIME.** With the route that counted out notes and other faces dropped,
+times beside one-off notes or a minority on another face or precision
+are labels, and their twins wrote clock times no clock reads where the
+table holds none -- `44:89`, `9:75` -- so code keeping a real column's
+cells shaped like a time and parsing them stopped on the twin. Four rules:
+(1) the held-back labels' walk of EVERY clock's form, and the supply this
+section counts for settling it, ends with its clock supply, not only a
+form written to a fraction, and a label the form has no time left for is
+`group-N` (free text's walk, G9.5, is as it was); (2) a clock's form
+takes no more labels than the times it can still write (step 3 below);
+(3) a form short of spellings is served first (the one-pass rule below);
+and (4) past the clock line only a stand-in a census form is owed is
+filled figure by figure -- one owed no named form wears the published
+labels' shape (G8.3b) only where its size is no more than the room left
+less the cells of the held keys' owed stand-ins still to come, and is
+`group-N` otherwise, since filled figure by figure it met no count and,
+spending the room first, it left the owed stand-ins after it to be filled
+so. Measured before, on the correction's own head: 63 such cells in 4 of
+lane C1's 112 columns and 200,134 in 47 of the correction's skeptic's
+tables -- 4,822 beside 3 % notes at 100,000 rows and a floor of 36, where
+the `HH:MM` form took a label per cell, 3,567 labels with 1,394 times left
+to write; 169 in `H:MM`, Excel's one-figure hour, beside 10 % notes at
+10,000 rows, where the census could not name `%:%%` and the published
+labels' shape ran past its 600 times; 148 beside 15 % `HH:MM:SS` at 30,000
+rows; and 610 in `H:MM` beside 3 % notes at 30,000 rows once the shape
+stopped at its times and its notes spent the room first. After, none of
+those; what stays is the clock line's own price, a stand-in a census form
+is owed filled figure by figure past it, as beside a minority of at most
+one cell in fifty that wears no form.
+
 `suppressed_levels` says how many levels were withheld and
 `suppressed_rows` how many rows they covered together. No size of any
 one of them is published (owner ruling of 2026-09-17, item 2, option A;
@@ -8501,11 +8533,16 @@ With `cap` one less than the floor:
    up. Where the debts do not come to `suppressed_rows`, or need more
    labels than `suppressed_levels`, the pool is one word debt.
 3. **The labels left over** go one at a time to the debt whose labels
-   are then the largest on average, the earlier debt on a tie, in four
+   are then the largest on average, the earlier debt on a tie, in five
    rounds: a number debt while its average exceeds `(cap + 2) / 3`, the
    average of the sizes step 4 writes; then the debt of each census form
-   reading as no number, up to one label per cell; then the cells left
-   over, likewise; then any debt, one label per cell at most. A form's
+   reading as no number, up to one label per cell -- a clock's form up to
+   the times it can still write, counted to its debt as the walk counts
+   its supply, where those are fewer, and never below its fewest labels
+   (the repair round of the route-2 correction); then the cells left
+   over, likewise; then any debt, one label per cell at most and a
+   clock's form its times at most; then any debt, one label per cell at
+   most, which hands out only what the clock's bound left over. A form's
    debt comes before the cells owing no form because a column holding
    more held-back labels than the form walk searches is settled by its
    one-pass rule, which overshoots a debt it cannot finish in single
@@ -8554,6 +8591,20 @@ owed went to that form first, it was given 663, and the twin wrote
 2,719 cells of it for the published 2,718 and missed the count, as did
 three more such tables at the floor of 36 and nine of 30,000 rows
 beside one-off notes (29,143 for 29,142 beside 3 %).
+
+**And before either pass, a form short of spellings is served first**
+(the repair round of the route-2 correction). Where a form's supply is
+smaller than the places it could be asked for -- the held-back labels,
+or the cells it owes where those are fewer -- such forms are served in
+the order of their spelling, each taking every size still neutral,
+largest first, that is no larger than what it still owes, while it can
+still spell a label; every other size then goes as the first pass gives
+it, and that arrangement stands where it settles every debt. Anywhere
+else the two passes above stand. A clock's form is such a form wherever
+its debt outruns its times, and served in its turn it ran out: times
+beside 15 % `HH:MM:SS` at 30,000 rows and a floor of eleven owed the
+second form the larger debt, the largest labels went to it, and `HH:MM`
+was left 37 cells short of its published count on the small ones.
 
 Ascending order and neediest-form-first were what this said, and they
 do not reach an arrangement the source itself exhibits: twelve levels
@@ -8708,7 +8759,11 @@ both files passing.
 5. **The walk.** Each covered place takes the shape's next spelling
    under the same cursor, collision skips and neutrality tests a named
    form's walk uses; a place past the supply, or one whose shape is
-   spent, takes `group-N`.
+   spent, takes `group-N`. So does a covered place of a clock's shape
+   whose key G8.3's clock line holds where its size is more than the room
+   left less the cells of the owed stand-ins still to come, or once those
+   are filled figure by figure (the repair round of the route-2
+   correction, G8.3).
 
 **WHY THE LARGEST PLACES.** The published labels are the column's
 commonest values, so the held-back values most like them are the most
