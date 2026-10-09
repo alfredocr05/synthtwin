@@ -64,14 +64,20 @@ filling, so where the column also owes numbers its held-back words are
 written in no form, and the twin misses the form's count, which the
 table meets (`K-S3-61`, OPEN).
 
-At its merge (2026-10-08) the two routes to clock times landing 3b.5
-built inside the deleted pass stand as a pass of their own. The second,
-which counts out the levels below the floor no clock form reads beside a
-column of times, is kept, because without it 13 of lane C1's 112 columns
-of times beside notes or another face wrote twins that miss the count of
-the `HH:MM` form their table meets; it stands only where those levels
-cover fewer than half the rows the column publishes, so a column half at
-the minute and half at the second stays labels (plans P4-D390, P4-D373).
+At its merge (2026-10-08) the first of the two routes to clock times
+landing 3b.5 built inside the deleted pass, a few rare words beside clock
+times counted missing, stands as a pass of its own. The second, which
+counted out the levels below the floor no clock form reads beside a
+column of times, is dropped: over lane C1's 112 columns of times beside
+one-off notes or beside a minority on another face or precision it wrote
+37,632 cells blank where the source holds a note or another face's time.
+Those columns are labels again and their twins write no such blank; 13
+of them then missed the count of the `HH:MM` form their table meets by a
+cell or two, because a column holding back more than 256 labels was
+arranged in one pass that could give a form a label covering more cells
+than it still owed. That pass no longer does so where the smaller
+labels after it can finish the count exactly, and the 13 meet it
+(method G8.3; plans P4-D390, P4-D373).
 
 ### The packing walk is offered only what the cells after it can finish (2026-10-06)
 
