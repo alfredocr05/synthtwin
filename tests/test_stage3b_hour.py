@@ -46,9 +46,11 @@ The clauses, each red on its own mutant (named beside it):
   oracle's answer, and each case is red on its own mutant
   (`STEP_MUTANTS`) -- three of them on a field of minutes whose parent
   is the hour, so the one clock pass is held field-generic (G7.3g, the
-  3b.4 skeptic's M4), and, since the landing's Codex review, one of a
-  rank written at a sixtieth second, counted in the hour it is written
-  in (its other items: `tests/test_stage3b_hour_review.py`);
+  3b.4 skeptic's M4), and, since the landing's Codex review, two of
+  ranks written at a sixtieth second: one pinned there, counted in the
+  hour it is written in, and the ranks between two pins of one such
+  second, written as it (its other items:
+  `tests/test_stage3b_hour_review.py`);
 * the dial's half day (plan P4-D370's carve-out): a stamp declared a
   12-hour clock with no marker writes no time it cannot read back, its
   census published or withheld (mutants: G7.3b step 10 withdrawn; the
