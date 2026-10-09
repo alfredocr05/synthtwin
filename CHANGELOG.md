@@ -6,6 +6,82 @@ exists).
 
 ## [Unreleased]
 
+### Time of day comes back on moments (2026-10-06)
+
+**A column of moments publishes its hours, and the twin meets them**
+(plan P4-D371, stage 3b landing 3b.2-H). The twin drew the time of day
+evenly: lab draws heaped between 06:00 and 08:00 came back at 8 per cent
+of the twin against 43 of the real column, discharges between 10:00 and
+14:00 at 17 against 63, an hour TVD of 0.18 to 0.65. A column of moments
+read on its own clock now publishes `hour_census`, how many cells
+between its two tail boundaries fall on each hour of the written clock,
+an hour alone or merged with its neighbours -- never across midnight --
+wherever it would name fewer than the census line, in all or besides the
+cells the description places in it for certain, and the twin puts its
+cells on those hours, every rank inside its gap and keeping its weekday
+-- or, where a weekday census stands, its weekday's group -- and keeps
+the column's count of different values (method G7.3g); validation
+counts the file's body against the published groups (V5-H1). The pass
+is the one clock pass for every field of the written clock, so the
+minutes and seconds still to come are instances of it. On the
+lane's battery of 25 columns at floors 11 and 36, seeds 0 to 4, all 250
+twins validate with nothing missed (and so do the design skeptic's
+sixteen other shapes, OR starts at 07:30 on weekdays alone among them
+once a unit with no place but a full hour takes one there when another
+unit of that hour leaves it), lab draws come back at 43.3 per cent
+between 06:00 and 08:00 against 43.3 real and discharges at 62.6
+against 62.6 between 10:00 and 14:00, and the hour TVD falls to 0.0002
+to 0.0020 at 10,000 rows. The pass takes 0.4 s at 40,000 arrivals and
+13 s of a 180 s generate at 1,000,000; a million daytime visits, half
+of whose draws land in hours the census counts empty, take 18 s of a
+130 s generate, where the same column with no hour census takes 126 s
+in the same window, since the shared steps' CHAIN and exchange file
+their cells once a call and the shares ask each gap once, every answer
+the same -- before, 397 s of 546 against 210 in another window. A census is withheld, each reason
+said in a sentence of its own, where the column has no tails, its middle
+half spans fewer than four days or is not published, a workbook stores it
+two ways, or the merge rule, holding each group to the cells the
+description places in its hours for certain, leaves one group over the
+whole day. Where no weekday census stands, a
+cell whose own day and weekday leave it no place in its gap, or a value
+no merge keeping the weekday can put back, may at last take the nearest
+day of another weekday. A stamp declared a 12-hour clock
+with no AM or PM is drawn on the dial's half day, tails and body, so its
+twin validates clean (T1's carve-out, P4-D370), its count at midnight
+held by the body alone, and a tail's tie group no
+longer stands at a midnight the tails listing only midnight values
+already hold. Where the column's count is out of the construction's
+reach, the count of different moments it drew is put back -- the first
+ranks in rank order that share a moment split off it -- only where that
+count is not above the published count of values: 20,000 lab draws to
+the minute, written two ways, came back 18 to 19 per cent too many
+values when it was put back whatever the published count, and within
+about one per cent of it now, and a million such draws spend 1.1 s
+putting it back where they spent 51. A 12-hour stamp whose census
+is withheld comes back with its dial's late morning heavier than the
+real one, a stated limit. `K-S3-38` (a headline, with a timed node of
+100,000 daytime moments), `K-S3-40` and `K-S3-41` are new.
+
+**Its review's four repairs** (Codex, one round). A sixtieth second,
+`23:59:60`, counts in the hour it is written in: the census, the loader,
+the twin's pass and the validator all counted it in the next hour, so
+eleven a date over 100 dates published every body cell in hour 0, the
+real file said HELD and the twin wrote 1,069 of its 1,078 body cells
+there; the twin now writes them all in hour 23, the ranks two published
+23:59:60 leave between them written as that second. A markerless 12-hour stamp's twin is no longer
+MISSED by a validator window narrower than the one its construction
+draws. PUT BACK sorts its runs once: a million movable ranks in runs of
+every size from 1 to 1,000 took 15.7 s to put one value back, and take
+0.58 s. And a census withheld says a middle half that is not published
+apart from one that is short (NF117), and names the cells the
+description places in an hour for certain where they are what leaves no
+grouping (NF92). Its verification found NF92 still saying no grouping
+met the floor and those cells where the merge rule, which searches for
+none, had left one group: 49 moments meet both as hours 0 to 17 and 18
+to 23. NF92 now says what the rule leaves, one group over the whole
+day, and a published census's remark names those cells as a reason an
+hour is joined (NF88).
+
 ### A rare label is pooled, never blanked, and a held-back code keeps its form past the old bounds (2026-10-06)
 
 **The subtraction guard is dropped** (plan P4-D390, under the owner's

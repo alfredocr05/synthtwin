@@ -5746,6 +5746,220 @@
       "why": "Step 3's prior on a unit of an hour: a gap from Tuesday 06:00 to Friday 18:00, Tuesday and Thursday holes, the census [00-11] [12-23]. Every hour of a hole's day is a hole, the gap's first hour at half, so Wednesday's hours and Friday's to 18:00 alone count.",
       "written_unit": 60
     },
+    "the_shares_tie_two_giving_groups": {
+      "answer": [
+        [
+          0,
+          1,
+          1
+        ],
+        [
+          1,
+          0,
+          1
+        ],
+        [
+          1,
+          1,
+          0
+        ],
+        [
+          1,
+          1,
+          0
+        ]
+      ],
+      "bin": "weekday",
+      "body": [
+        0,
+        12
+      ],
+      "counts": [
+        3,
+        3,
+        7
+      ],
+      "day": 1,
+      "highs": [
+        19785,
+        19792,
+        19792,
+        19792,
+        19799,
+        19799,
+        19799,
+        19806,
+        19806,
+        19806,
+        19813,
+        19813,
+        19813
+      ],
+      "holes": [],
+      "keep": "",
+      "lows": [
+        19785,
+        19785,
+        19785,
+        19792,
+        19792,
+        19792,
+        19799,
+        19799,
+        19799,
+        19806,
+        19806,
+        19806,
+        19813
+      ],
+      "ordinals": [
+        19785,
+        19786,
+        19789,
+        19792,
+        19793,
+        19796,
+        19799,
+        19800,
+        19803,
+        19806,
+        19807,
+        19810,
+        19813
+      ],
+      "pair": "",
+      "pair_where": [],
+      "period": 7,
+      "pinned": [
+        true,
+        false,
+        false,
+        true,
+        false,
+        false,
+        true,
+        false,
+        false,
+        true,
+        false,
+        false,
+        true
+      ],
+      "reachable": true,
+      "step": "shares",
+      "unit": 1,
+      "wanted": 13,
+      "where": [
+        0,
+        0,
+        0,
+        1,
+        1,
+        2,
+        2
+      ],
+      "why": "Step 3's shares, two giving groups tying in every gap: four weeks between Sunday pins, a Monday and a Thursday in each, owing 3, 3 and 2, so every gap's unrounded shares are 0.75, 0.75 and 0.5 and each rounds to 1, 1 and 0: Monday to Wednesday and Thursday and Friday one over, the weekend two under. The first move ties in every gap on its room and on both giving groups, so the earliest group gives in the earliest gap, Monday to Wednesday to the weekend in the first; the weekend's room there falls, and Thursday and Friday give in the second. The latest giving group on a tie swaps those two gaps' rows; the latest gap moves both shares into the last two.",
+      "written_unit": 1
+    },
+    "the_shares_tie_two_taking_groups": {
+      "answer": [
+        [
+          0,
+          1,
+          0
+        ],
+        [
+          0,
+          0,
+          1
+        ],
+        [
+          1,
+          0,
+          0
+        ],
+        [
+          1,
+          0,
+          0
+        ]
+      ],
+      "bin": "weekday",
+      "body": [
+        0,
+        8
+      ],
+      "counts": [
+        2,
+        1,
+        6
+      ],
+      "day": 1,
+      "highs": [
+        19785,
+        19792,
+        19792,
+        19799,
+        19799,
+        19806,
+        19806,
+        19813,
+        19813
+      ],
+      "holes": [],
+      "keep": "",
+      "lows": [
+        19785,
+        19785,
+        19792,
+        19792,
+        19799,
+        19799,
+        19806,
+        19806,
+        19813
+      ],
+      "ordinals": [
+        19785,
+        19786,
+        19792,
+        19793,
+        19799,
+        19800,
+        19806,
+        19807,
+        19813
+      ],
+      "pair": "",
+      "pair_where": [],
+      "period": 7,
+      "pinned": [
+        true,
+        false,
+        true,
+        false,
+        true,
+        false,
+        true,
+        false,
+        true
+      ],
+      "reachable": true,
+      "step": "shares",
+      "unit": 1,
+      "wanted": 9,
+      "where": [
+        0,
+        0,
+        0,
+        1,
+        1,
+        2,
+        2
+      ],
+      "why": "Step 3's shares, two taking groups tying in every gap: four weeks between Sunday pins, a Monday in each, owing 2, 1 and 1, so every gap's unrounded shares are 0.5, 0.25 and 0.25 and each rounds to 1, 0 and 0: Monday to Wednesday two over, Thursday and Friday and the weekend one under each. The first move ties in every gap on its room and on both taking groups, so the earliest gap gives to the earliest group, Thursday and Friday in the first; Monday to Wednesday, left nothing there, gives its second share in the second gap to the weekend. The latest taking group on a tie swaps those two gaps' rows; the latest gap moves both shares into the last two.",
+      "written_unit": 1
+    },
     "three_group_cycles_of_ten": {
       "answer": [
         [

@@ -1924,3 +1924,35 @@ def test_k_s4_04(record_property) -> None:
         "sibling_arithmetic_growth_2x_rows": round(sibling[more] / sibling[fewer], 2),
         "sibling_arithmetic_share_of_as_built": round(sibling[more] / sibling_as_built, 3),
     })
+
+
+# -- landing 3b.2-H (lane T2, plan P4-D371) --------------------------------
+
+
+def test_k_s3_41(record_property, tmp_path: pathlib.Path) -> None:
+    """The class the owner accepted on 2026-09-30, read for hours: a merged group says a range.
+
+    The hour gate's 1,000-row table at floor 11 (`test_stage3b_hour._thousand`):
+    a group counting several hours says that one of its hours holds 1 to
+    10 rows -- a range, never a value, a date or a row (K-S3-41, the
+    orchestrator's reading of "Accept the class", plan P4-D363). Measured:
+    the columns publishing a census, the groups counting several hours
+    among them, and the counts printed below the line, which stay nought.
+    Held as a ceiling: more merged groups is the limit widened.
+    """
+    import test_stage3b_hour as hour
+
+    columns = hour._thousand()
+    described = S.describe(tmp_path, "hours", hour._table_text(columns), hour.LINE)
+    published = merged = below = 0
+    for name in columns:
+        groups = described.block(name)["hour_census"]
+        published += 1 if groups else 0
+        for group in groups:
+            merged += 1 if group["last"] > group["first"] and group["count"] > 0 else 0
+            below += 1 if 0 < group["count"] < hour.LINE else 0
+    _kpi(record_property, "K-S3-41", {
+        "censuses": published,
+        "merged_groups": merged,
+        "counts_below_the_line": below,
+    })

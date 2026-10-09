@@ -600,6 +600,102 @@ def flat_ladder(name: str) -> Change:
     return change
 
 
+# -- 3b.T2 (P4-D371): THE HOUR CENSUS'S RULES need a column of moments on
+# its own clock, and the base's `logged_at` is read on the shared clock (two
+# offsets). Each of them swaps that block for the one the producer writes
+# for 240 moments of 2024 written with no offset -- the same name, place
+# and row count -- with its census published, and then breaks one rule.
+_HOUR_BLOCK: "list[Document]" = []
+
+
+def _moments_on_their_own_clock() -> Document:
+    """The block `synthtwin profile` writes for 240 moments of 2024, no offset, floor 11."""
+    if not _HOUR_BLOCK:
+        import random
+        import tempfile
+
+        draw = random.Random(371)
+        weights = (2, 2, 1, 1, 1, 1, 2, 3, 4, 5, 6, 6, 6, 6, 6, 6, 6, 5, 5, 5, 4, 4, 3, 3)
+        cells = []
+        for _row in range(240):
+            day = 1 + draw.randrange(28)
+            hour = draw.choices(range(24), weights=weights)[0]
+            cells += [
+                f"2024-{draw.randrange(12) + 1:02d}-{day:02d} "
+                f"{hour:02d}:{draw.randrange(60):02d}:{draw.randrange(1, 60):02d}"
+            ]
+        with tempfile.TemporaryDirectory() as folder:
+            path = fixtures.write(pathlib.Path(folder), "moments.csv", "logged_at\n" + "\n".join(cells) + "\n")
+            document = profile.build_document(
+                reading.read_table(str(path), small_cell_floor=11),
+                taxonomy.Settings(small_cell_floor=11), [], [], [],
+            )
+        _HOUR_BLOCK.append(json.loads(json.dumps(document["columns"][0])))
+    return copy.deepcopy(_HOUR_BLOCK[0])
+
+
+def an_hour_census(change: "typing.Callable[[Document], None]") -> Change:
+    """`logged_at` swapped for moments on their own clock, its census published, then changed."""
+
+    def swapped(document: Document) -> None:
+        for place in range(len(document["columns"])):
+            if document["columns"][place]["name"] == "logged_at":
+                block = _moments_on_their_own_clock()
+                block["position"] = document["columns"][place]["position"]
+                document["columns"][place] = block
+        change(document)
+
+    return swapped
+
+
+def _hour_groups(document: Document) -> "list[Document]":
+    return typing.cast("list[Document]", at(document, "logged_at")["hour_census"])
+
+
+def _hours_wrapped(document: Document) -> None:
+    groups = _hour_groups(document)
+    groups[0]["first"] = 1
+    groups[-1]["last"] = 0
+
+
+def _hours_below_the_line(document: Document) -> None:
+    groups = _hour_groups(document)
+    moved = groups[0]["count"] - 5
+    groups[0]["count"] = 5
+    groups[1]["count"] += moved
+
+
+def _hours_past_the_body(document: Document) -> None:
+    _hour_groups(document)[0]["count"] += 11
+
+
+def _hours_of_a_few_days(document: Document) -> None:
+    ladder = at(document, "logged_at")["date_percentiles"]
+    ladder["p50"] = ladder["p25"]
+    ladder["p75"] = ladder["p25"]
+
+
+def _hours_short_of_their_sure_cells(document: Document) -> None:
+    block = at(document, "logged_at")
+    groups = _hour_groups(document)
+    boundary = int(block["low_tail"]["boundary"][11:13])
+    for place in range(len(groups)):
+        group = groups[place]
+        if group["first"] <= boundary <= group["last"]:
+            other = groups[place + 1] if place + 1 < len(groups) else groups[place - 1]
+            other["count"] += group["count"] - 11
+            group["count"] = 11
+            return
+
+
+def _hours_stored_two_ways(document: Document) -> None:
+    form = _workbook_block(document, 16, 120)
+    place = [block["name"] for block in document["columns"]].index("logged_at")
+    rows = typing.cast(int, document["n_rows"])
+    form["columns"][place]["cell_classes"]["number"] = rows - 12
+    form["columns"][place]["cell_classes"]["text"] = 12
+
+
 @dataclasses.dataclass(frozen=True)
 class Mutation:
     """One document with exactly one thing wrong, and what must be said.
@@ -1530,11 +1626,6 @@ def battery() -> list[Mutation]:
         # mutations below its own `# -- 3b.X` line, keeps that line, and
         # edits no other.
         # -- 3b.T2 (P4-D371)
-        Mutation(
-            "R16", "a hour_census this version of synthtwin publishes none of",
-            edit("logged_at", hour_census=[{"first": 0, "last": 23, "count": 218}]),
-            names="hour_census",
-        ),
         # -- 3b.T3 (P4-D372)
         Mutation(
             "R16", "a minute_census this version of synthtwin publishes none of",
@@ -1999,6 +2090,18 @@ def battery() -> list[Mutation]:
         # anchor 3b-D4 (P4-D369)
         # anchor 3b-T1 (P4-D370)
         # anchor 3b-T2 (P4-D371)
+        # THE HOUR CENSUS (landing 3b.2-H): `logged_at` swapped for moments
+        # on their own clock, its census published (`an_hour_census`).
+        Mutation("HC1", "hour groups that run past midnight", an_hour_census(_hours_wrapped)),
+        Mutation("HC2", "an hour group counting fewer than the census line", an_hour_census(_hours_below_the_line)),
+        Mutation("HC3", "hour counts adding to more than the body", an_hour_census(_hours_past_the_body)),
+        Mutation(
+            "HC3", "an hour census on a column read on the shared clock",
+            edit("logged_at", hour_census=[{"first": 0, "last": 23, "count": 218}]),
+        ),
+        Mutation("HC4", "an hour census over a middle half of one instant", an_hour_census(_hours_of_a_few_days)),
+        Mutation("HC5", "an hour group short of the boundary standing in it", an_hour_census(_hours_short_of_their_sure_cells)),
+        Mutation("HC6", "an hour census beside values a workbook stores two ways", an_hour_census(_hours_stored_two_ways)),
         # anchor 3b-T3 (P4-D372)
         # anchor 3b-C1 (P4-D373)
         # anchor 3b-C2 (P4-D374)

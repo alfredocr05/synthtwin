@@ -8,7 +8,8 @@ moments and through each gap's index, step 7b's chain, step 8.4's two
 places, step 8.5's long pair, step 8.6's two-census trade and step 8.3's
 bounded cycles; and, since the landing's review, each new step once
 through the whole pass and a state for every clause a reviewer's mutant
-changed -- each with what the method's text makes of it.
+changed, step 3's ties among them -- each with what the method's text
+makes of it.
 
 **Why it is not a file of columns.**  Every other file freezes the cells
 of a column put through the whole generator. At the default floor of 11

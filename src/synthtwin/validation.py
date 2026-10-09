@@ -472,7 +472,6 @@ INPUT_SIDE_ENTRIES = (
     # written file until the landing that fills it takes its own entry
     # out, below its own line.
     # -- 3b.T2 (P4-D371)
-    ("datetime", "hour_census"),
     # -- 3b.T3 (P4-D372)
     ("datetime", "minute_census"),
     ("datetime", "second_census"),
@@ -15723,6 +15722,7 @@ def _tail_construction(
     low_side: bool,
     group_midnight: "tuple[int, int, int, tuple[int, ...]] | None",
     widened: bool = False,
+    half_day: "tuple[int, int, bool] | None" = None,
 ) -> "tuple[list[int], list[int]]":
     """Every rank's nearest and furthest distance, outermost first (G7.3b).
 
@@ -15741,6 +15741,11 @@ def _tail_construction(
     `j + 1` for `j < min(g - 1, G - 1)` and the j-th outermost as far as
     `t - j` for `j < min(t - g, G - 1)`. Every other rank keeps its
     stratum, and without it every rank does.
+
+    `half_day` is, on a slashed stamp declared a 12-hour clock with no
+    marker, (the boundary in seconds, the seconds of one tail unit, the
+    side): G7.3b step 10 then takes every distance onto the dial's half
+    day (`calendar_clock.half_day_distances`, landing 3b.2-H).
     """
     ratio = 1.0
     if mean > 0.0:
@@ -15823,6 +15828,18 @@ def _tail_construction(
                 group, min(furthest, edge), low_side, group_midnight
             )
         group = _stepped_off(group, boundary, low_side, end_step)
+        if half_day is not None:
+            # STEP 10 ON THE GROUP BEFORE IT STANDS ANYWHERE, as the
+            # construction takes it (`generation._date_tail_plan`; Codex's
+            # review of landing 3b.2-H, item 2): the end it raises and the
+            # reach step 9 widens to are read off the group the ranks stand
+            # at. Projecting the ranks alone left both on the group before
+            # step 10, and a twin the construction drew at a high tail's
+            # mean of 1897.92 minutes, under its bound of 1908.75, was
+            # MISSED against 1896.25.
+            group = calendar_clock.half_day_distances(
+                [group], half_day[0], half_day[1], half_day[2], False, edge
+            )[0]
     end_whole = max(end_whole, group)
     near: "list[int]" = []
     far: "list[int]" = []
@@ -15845,6 +15862,10 @@ def _tail_construction(
                 if found[index] >= found[index - 1]:
                     found[index] = max(1, found[index - 1] - 1)
         found = [min(value, edge) for value in found]
+        if half_day is not None:
+            found = calendar_clock.half_day_distances(
+                found, half_day[0], half_day[1], half_day[2], apart, edge
+            )
         if word == 0:
             near = found
         else:
@@ -16073,11 +16094,21 @@ def _date_tail_windows(
     # a mean of 7.0 against a window of 5.64 to 6.45 whose construction
     # reaches 7.0.
     apart = column.n_distinct - facts.n_unparsed >= column.n_present - facts.n_unparsed
+    # ...AND ONLY WHERE THE PUBLISHED COUNT AT MIDNIGHT REACHES PAST THE
+    # TAILS LISTING ONLY MIDNIGHT VALUES (landing 3b.2-H): there the group
+    # stands at none.
     midnight_group = (
         facts.resolution == taxonomy.RESOLUTION_DATETIME
         and not facts.all_at_midnight
         and facts.n_at_midnight is not None
         and facts.n_at_midnight > 0
+        and (
+            calendar_clock.midnight_sure(
+                facts.n_at_midnight,
+                [(facts.low_tail.rows, facts.low_tail.values), (facts.high_tail.rows, facts.high_tail.values)],
+            )
+            or 0
+        ) > 0
     )
     shifts: "list[int]" = [0]
     if reading == "utc":
@@ -16101,9 +16132,19 @@ def _date_tail_windows(
         if midnight_group:
             anchor = taxonomy.tail_ordinal(tail.boundary, parsing.TAIL_UNIT_SECOND, reading)
             where = (anchor, seconds_per_unit, 0, tuple(shifts))
+        # THE DIAL'S HALF DAY (G7.3b step 10, landing 3b.2-H): a stamp
+        # declared a 12-hour clock with no marker draws its tails there.
+        half_day: "tuple[int, int, bool] | None" = None
+        if (
+            facts.resolution == taxonomy.RESOLUTION_DATETIME
+            and not facts.all_at_midnight
+            and parsing.clock_face(_stamp_style_of(facts)) == parsing.CLOCK_TWELVE_HOUR
+        ):
+            half_day = (calendar_clock.seconds_of(tail.boundary), seconds_per_unit, low_side)
         found[key] = _tail_construction(
             tail.rows, mean, root, floor, edge, apart, holes, at, low_side,
             where, summed and contract.datetime_counts_reachable(column),
+            half_day,
         )
     return found
 
@@ -17774,17 +17815,100 @@ def _hour_checks(
     cells: "list[str]",
     declared_days: "tuple[str, ...]" = (),
 ) -> "list[Check]":
-    """The hour census, held exactly.
+    """The hour census, held exactly (landing 3b.2-H, validation V5-H1).
 
-    THE STUB OF LANDING 3b.2-H (lane T2, plan P4-D371), which fills this
-    check and nothing beside it (plan P4-D364); it prints through
-    `_census_lines`, as the weekday check does. No column publishes an
-    hour census until then, so there is nothing to check.
+    The file's own BODY -- its moments between the two PUBLISHED tail
+    boundaries, both included, less the days its own description reads
+    as holes (`_dates_the_file_reads`) -- counted per hour of the written
+    wall clock and per published group: a cell is placed between the
+    boundaries by its instant and counted in the hour it is WRITTEN in
+    (`calendar_clock.written_hour`), so a sixtieth second stays in its
+    own hour (Codex's review of the landing, item 1). Each cell is read under the
+    member that read the real column and, on a slashed stamp, on the
+    face the description publishes, a stamp on another face being no
+    moment here, as the producer counts it unread (`_hour_instants_of`).
+    HELD where every group holds its count, MISSED otherwise. The file's
+    census is counted here, from its cells, and never produced: the
+    validator's re-description of the file skips the census producer
+    (`profile.build_document`'s `calendar_censuses`), so no validate run
+    asks the producer's rules. It prints through `_census_lines`, as the
+    weekday check does, so a group the file holds one to the line less
+    one of is printed as fewer than the line, and where naming the
+    short groups would give a count back no group is named (plan
+    P4-D347).
 
-    Guarantees: accepts what `_weekday_checks` accepts; returns no
-    check. Raises nothing. No I/O of any kind.
+    Guarantees: accepts what `_weekday_checks` accepts; returns one
+    check where a census is published and none otherwise. Determinism: a
+    function of the arguments. Raises nothing. No I/O of any kind.
     """
-    return []
+    census = facts.hour_census
+    if not census or facts.low_tail is None or facts.high_tail is None:
+        return []
+    low = calendar_clock.seconds_of(facts.low_tail.boundary)
+    high = calendar_clock.seconds_of(facts.high_tail.boundary)
+    body = [
+        hour
+        for instant, hour in _hour_instants_of(facts, _dates_the_file_reads(block, facts, cells))
+        if low <= instant <= high
+    ]
+    found = calendar_rules.group_counts(census, calendar_clock.hour_bins(body))
+    line = parsing.census_floor(floor)
+    asked, shown, lines = _census_lines(
+        [(_hour_group_named(first, last), count) for first, last, count in census],
+        found,
+        line,
+    )
+    wanted = [count for _first, _last, count in census]
+    return [
+        Check(
+            column.name,
+            "datetime.hour_census",
+            "hour_census.groups",
+            HELD if found == wanted else MISSED,
+            asked,
+            shown,
+            "",
+            tuple(lines),
+        )
+    ]
+
+
+def _hour_group_named(first: int, last: int) -> str:
+    """A group of hours as the report names it: `09:00-09:59`, `00:00-07:59`."""
+    return f"{first:02d}:00-{last:02d}:59"
+
+
+def _hour_instants_of(
+    facts: contract.DatetimeFacts, cells: "list[str]"
+) -> "list[tuple[int, int]]":
+    """The instant of every cell that reads as a moment, in seconds of its
+    wall clock, with the hour it is WRITTEN in.
+
+    Read as `_tail_units_of` reads a cell for a column on the local
+    clock: under the member that read the real column, a slashed stamp
+    on the face its description publishes (`parsing.stamp_canonical`)
+    and none on another face (contract NF108). A cell that does not read
+    is left out. The canonical text is the wall clock as written, so no
+    offset moves it. The instant places the cell between two boundaries;
+    the hour is `canonical[11:13]` (`calendar_clock.written_hour`), never
+    the instant's, which carries a sixtieth second into the next hour.
+    """
+    style = _stamp_style_of(facts)
+    face = ""
+    if facts.parser_family in contract.CLOCK_FORM_MEMBERS:
+        face = parsing.clock_face(style)
+    found: "list[tuple[int, int]]" = []
+    for cell in cells:
+        read = parsing.parse_datetime(cell, facts.parser_family)
+        if read is None:
+            continue
+        if facts.parser_family in contract.CLOCK_FORM_MEMBERS and _stamp_off_its_face(cell, face):
+            continue
+        canonical = parsing.stamp_canonical(read[0], style)
+        if len(canonical) < 19:
+            continue
+        found += [(calendar_clock.seconds_of(canonical), calendar_clock.written_hour(canonical))]
+    return found
 
 
 def _clock_field_checks(

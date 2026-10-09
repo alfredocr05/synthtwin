@@ -293,7 +293,13 @@ def test_a_short_column_whose_offsets_pool_says_no_clock_and_no_end(
 def _loaded_with(
     tmp_path: pathlib.Path, floor: int, **fields: object
 ) -> "contract.Profile":
-    """A real description of 400 moments at `Z`, one datetime field replaced."""
+    """A real description of 400 moments at `Z`, one datetime field replaced.
+
+    A case moving the column onto the shared clock (`datetimes_read_at`
+    `utc`) empties its `hour_census` too, as a description read there
+    publishes none (contract HC3, landing 3b.2-H): the rule under test is
+    then the first one the loader meets.
+    """
     text = _description_bytes(tmp_path / "base", _moments(suffix="Z"), floor)
     document = json.loads(text)
     for key in sorted(fields):
@@ -319,6 +325,7 @@ def test_the_loader_names_no_count_of_one_at_a_floor_of_one(tmp_path: pathlib.Pa
         utc_offsets={"+01:00": 1, "Z": 399},
         datetimes_read_at="utc",
         zulu_case={},
+        hour_census=[],
     )
 
 
@@ -331,6 +338,7 @@ def test_a_pool_stands_only_alone_and_only_where_it_names_no_one(
         utc_offsets={"(withheld)": 30, "Z": 370},
         datetimes_read_at="utc",
         zulu_case={},
+        hour_census=[],
     )
     _refused_by(
         tmp_path / "mark-pool", 11, "D12",
@@ -351,6 +359,7 @@ def test_a_pool_stands_only_alone_and_only_where_it_names_no_one(
         utc_offsets={"(withheld)": ROWS},
         datetimes_read_at="utc",
         zulu_case={},
+        hour_census=[],
     )
 
 

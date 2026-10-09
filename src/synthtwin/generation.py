@@ -21679,6 +21679,10 @@ class _TailShape:
     index of that group (the tail's size where there is none). `edge` is
     the furthest distance the column's own member can write, and `apart`
     whether the ranks must all differ (a clock column whose values did).
+    `half_day` is, on a slashed stamp declared a 12-hour clock with no
+    marker, the boundary in seconds, the seconds of one tail unit and the
+    side, every distance then standing on the dial's half day (step 10,
+    landing 3b.2-H); None on every other tail.
     """
 
     rows: int
@@ -21691,6 +21695,7 @@ class _TailShape:
     grouped: int
     edge: int
     apart: bool
+    half_day: "tuple[int, int, bool] | None" = None
 
 
 def _half_up(value: float) -> int:
@@ -21985,6 +21990,16 @@ def _tail_distances(shape: "_TailShape", words: "dict[int, int]") -> "list[int]"
                 found[index] = max(1, found[index - 1] - 1)
     for index in range(rows):
         found[index] = min(found[index], shape.edge)
+    # STEP 10, THE DIAL'S HALF DAY (landing 3b.2-H, plan P4-D370's
+    # carve-out): on a declared 12-hour stamp each distance is taken to the
+    # nearest whose place stands from one unit past midnight to the last
+    # before noon, so no tail rank is written on the dial twelve hours from
+    # where it stands.
+    if shape.half_day is not None:
+        anchor, unit, low_side = shape.half_day
+        found = calendar_clock.half_day_distances(
+            found, anchor, unit, low_side, shape.apart, shape.edge
+        )
     return found
 
 
@@ -22301,6 +22316,31 @@ def _off_the_holes(
     return distance
 
 
+def _midnight_past_the_listed(facts: contract.DatetimeFacts) -> bool:
+    """Whether a column's published count at midnight reaches past its tails
+    listing only midnight values.
+
+    A tail listing its values holds only them (TL1), so one whose every
+    listed value stands at midnight holds all its rows there; where those
+    rows are the whole published count -- an epoch sentinel as the low
+    tail, its 51 rows `1970-01-01 00:00` and `n_at_midnight` 51 -- no other
+    cell of the column stands at midnight, and a tie group stood at one
+    (`_nearest_midnight_distance`) wrote cells at midnight the description
+    does not count: two at a floor of 36, and `midnight.count` MISSED at every seed
+    (landing 3b.2-H, rule 4's amendment, `calendar_clock.midnight_sure`).
+
+    Guarantees: accepts the loaded facts; returns the answer. Raises
+    nothing. No I/O of any kind.
+    """
+    tails = [
+        (tail.rows, tail.values)
+        for tail in (facts.low_tail, facts.high_tail)
+        if tail is not None
+    ]
+    left = calendar_clock.midnight_sure(facts.n_at_midnight, tails)
+    return left is not None and left > 0
+
+
 def _nearest_midnight_distance(
     facts: contract.DatetimeFacts,
     anchor: int,
@@ -22425,7 +22465,7 @@ def _date_tail_plan(
     end = _off_the_holes(shape.end, at, low_side, holes)
     group = shape.group
     if shape.grouped < rows:
-        if _snaps_to_midnight(facts) and half == 0:
+        if _snaps_to_midnight(facts) and half == 0 and _midnight_past_the_listed(facts):
             share = (rows - shape.grouped) / rows
             furthest = max(
                 group, _half_up(shape.stretch * _mixture_at(shape, share))
@@ -22434,11 +22474,37 @@ def _date_tail_plan(
                 facts, anchor, low_side, group, min(furthest, edge), unit
             )
         group = _off_the_holes(group, at, low_side, holes)
-    shape = dataclasses.replace(shape, end=max(end, group), group=group)
+    half_day: "tuple[int, int, bool] | None" = None
+    if _on_the_half_day(facts) and half == 0:
+        # STEP 10 ON THE GROUP TOO, so the distance step 9 offers around is
+        # the one the group's ranks stand at (landing 3b.2-H).
+        half_day = (anchor, unit, low_side)
+        if shape.grouped < rows:
+            group = calendar_clock.half_day_distances(
+                [group], anchor, unit, low_side, False, shape.edge
+            )[0]
+    shape = dataclasses.replace(
+        shape, end=max(end, group), group=group, half_day=half_day
+    )
     near, far = _tail_distance_bounds(shape)
     return _TailPlan(
         rows, low_side, boundary, anchor, unit, half, shape,
         (), (), (), tuple(near), tuple(far),
+    )
+
+
+def _on_the_half_day(facts: contract.DatetimeFacts) -> bool:
+    """Whether a column's moments stand on the dial's half day (landing 3b.2-H).
+
+    A slashed stamp written on the declared 12-hour face with no marker
+    (`parsing.CLOCK_TWELVE_HOUR`, plan P4-D370): every value it holds
+    reads from 00:00 to 11:59, so each of its tail ranks stands there
+    (G7.3b step 10) and its body is held to the hours its census, or the
+    half day itself, gives (G7.3g).
+    """
+    return (
+        _ordinal_space(facts) == "datetime"
+        and parsing.clock_face(_stamp_clock_style(facts)) == parsing.CLOCK_TWELVE_HOUR
     )
 
 
@@ -23110,32 +23176,97 @@ def _weekday_shares(
         sum(quota[index][group] for index in range(len(gaps))) - max(owed[group], 0)
         for group in range(groups)
     ]
+    # THE TOTALS MADE EXACT, ONE SHARE AT A TIME: each step moves one share
+    # of one gap from a group over its total to one under it, the move whose
+    # ROOM -- the taking group's unrounded share less its quota, less the
+    # same of the giving group -- is the largest, the earliest giving group,
+    # then taking group, then gap on a tie, a gap giving only where it has a
+    # share and taking only where it has a day. ASKED GAP BY GAP (the lane
+    # T2 skeptic's finding 1): in one gap the room is largest for the taking
+    # group of the largest unrounded share left over and the giving group of
+    # the smallest, each the earliest on a tie, so each gap is asked once
+    # for its own best move and asked again only where a step changed it, or
+    # a group reached its total. Asked pair by pair over every gap, fifteen
+    # in a hundred moments at midnight over two years -- 733 gaps between
+    # the cells at midnight the hour pass holds -- took 785 steps of 35
+    # million rooms and 7 seconds at 10,000 rows; the steps and their order
+    # are the same.
+    over = [group for group in range(groups) if error[group] > 0]
+    under = [group for group in range(groups) if error[group] < 0]
+    sides = [
+        _weekday_share_side(shares[index], quota[index], prior[index], over, under)
+        for index in range(len(gaps))
+    ]
     for _step in range(20000):
-        over = [group for group in range(groups) if error[group] > 0]
-        under = [group for group in range(groups) if error[group] < 0]
         if not over or not under:
             break
         best: "tuple[int, int, int, int] | None" = None
-        for giving in over:
-            for taking in under:
-                for index in range(len(gaps)):
-                    if quota[index][giving] <= 0 or prior[index][taking] <= 0:
-                        continue
-                    room = (
-                        shares[index][taking] - quota[index][taking] * _WEEKDAY_SCALE
-                    ) - (
-                        shares[index][giving] - quota[index][giving] * _WEEKDAY_SCALE
-                    )
-                    if best is None or room > best[0]:
-                        best = (room, index, giving, taking)
+        for index in range(len(gaps)):
+            side = sides[index]
+            if side is None:
+                continue
+            if (
+                best is None
+                or side[0] > best[0]
+                or (side[0] == best[0] and (side[1], side[2]) < (best[1], best[2]))
+            ):
+                best = (side[0], side[1], side[2], index)
         if best is None:
             break
-        _room, index, giving, taking = best
+        _room, giving, taking, index = best
         quota[index][giving] = quota[index][giving] - 1
         quota[index][taking] = quota[index][taking] + 1
         error[giving] = error[giving] - 1
         error[taking] = error[taking] + 1
+        if error[giving] == 0 or error[taking] == 0:
+            over = [group for group in range(groups) if error[group] > 0]
+            under = [group for group in range(groups) if error[group] < 0]
+            sides = [
+                _weekday_share_side(shares[place], quota[place], prior[place], over, under)
+                for place in range(len(gaps))
+            ]
+        else:
+            sides[index] = _weekday_share_side(
+                shares[index], quota[index], prior[index], over, under
+            )
     return quota
+
+
+def _weekday_share_side(
+    shares: "list[int]",
+    quota: "list[int]",
+    prior: "list[int]",
+    over: "list[int]",
+    under: "list[int]",
+) -> "tuple[int, int, int] | None":
+    """One gap's best step of `_weekday_shares`' last pass: its room, the
+    giving group and the taking group; None where it can make none. The
+    room of giving `g` and taking `h` is `left(h) - left(g)`, `left` a
+    group's unrounded share less its quota at the share scale, so it is
+    largest where `h` has the most left of the groups under their totals
+    with a day of the gap and `g` the least of those over them with a share
+    of it, the earliest of each on a tie."""
+    giving = -1
+    least = 0
+    for group in over:
+        if quota[group] <= 0:
+            continue
+        left = shares[group] - quota[group] * _WEEKDAY_SCALE
+        if giving < 0 or left < least:
+            giving = group
+            least = left
+    taking = -1
+    most = 0
+    for group in under:
+        if prior[group] <= 0:
+            continue
+        left = shares[group] - quota[group] * _WEEKDAY_SCALE
+        if taking < 0 or left > most:
+            taking = group
+            most = left
+    if giving < 0 or taking < 0:
+        return None
+    return (most - least, giving, taking)
 
 
 def _weekday_free(
@@ -23756,25 +23887,62 @@ def _weekday_exchanged(
     one finds its place; a long count left behind is step 8.1 and 8.2's
     again.
 
+    THE CELLS ARE FILED ONCE A CALL, and the count counted once
+    (`_WeekdayAsked`; the lane T2 skeptic's finding 1): each round's moves
+    re-file their ranks and change the count by the written units they
+    leave empty and the ones they fill, so a round costs what its moves
+    touch rather than the whole body twice, and every round asks and
+    answers exactly what filing and counting it all again would.
+
     Guarantees: moves body ranks the layout does not pin, inside their
     own gaps and width kinds and never onto a hole; keeps every group's
     count. Draws no word. Raises nothing. No I/O of any kind.
     """
+    kept = _weekday_asked_of(_weekday_cells(state, body_low, body_high, pinned))
+    count = _weekday_count(state)
     for _round in range(_WEEKDAY_EXCHANGES):
-        count = _weekday_count(state)
         if count >= wanted:
             break
-        cycle = _weekday_cycle(
-            state, _weekday_cells(state, body_low, body_high, pinned),
-            wanted - count,
-        )
+        cycle = _weekday_cycle(state, kept.cells, wanted - count, kept)
         if not cycle:
             break
+        starts = [state.moved[mover] for _key, _giving, _taking, mover in cycle]
         _weekday_exchange_moves(state, cycle)
-        if _weekday_count(state) <= count:
+        gained = _weekday_cycle_refiled(state, kept, cycle, starts)
+        if gained <= 0:
             break
+        count = count + gained
     if _weekday_count(state) > wanted:
         _weekday_repaired(state, body_low, body_high, pinned, wanted)
+
+
+def _weekday_cycle_refiled(
+    state: _WeekdayPass,
+    kept: "_WeekdayAsked",
+    cycle: "list[tuple[tuple[int, int, _WeekdayKind], int, int, int]]",
+    starts: "list[int]",
+) -> int:
+    """Re-file every mover of a cycle that moved (`_weekday_refiled`), and
+    return how far the count of different written units moved: each
+    written unit a mover left or took counted as it stands, less as it
+    stood, which is what it stands at less the movers that came and plus
+    the ones that went."""
+    came: "dict[int, int]" = {}
+    went: "dict[int, int]" = {}
+    for place in range(len(cycle)):
+        key, giving, taking, mover = cycle[place]
+        start = starts[place]
+        if state.moved[mover] == start:
+            continue
+        _weekday_tally(went, start // state.step, 1)
+        _weekday_tally(came, state.moved[mover] // state.step, 1)
+        _weekday_refiled(state, kept, key, mover, giving, taking, start)
+    change = 0
+    for unit in sorted(set(came) | set(went)):
+        now = _weekday_there(state, unit * state.step)
+        was = now - (came[unit] if unit in came else 0) + (went[unit] if unit in went else 0)
+        change = change + (1 if now > 0 else 0) - (1 if was > 0 else 0)
+    return change
 
 
 def _weekday_cells(
@@ -23804,6 +23972,86 @@ def _weekday_cells_of(
         else:
             members[group] = [rank]
     return cells
+
+
+@dataclasses.dataclass(frozen=True)
+class _WeekdayAsked:
+    """Step 7b's or step 8.3's cells, filed once a call and kept as its moves change them.
+
+    FILED ONCE, NOT EACH ROUND (the lane T2 skeptic's finding 1). Each
+    round of steps 7b and 8.3 filed every movable rank by cell again and
+    asked every cell's mover again: up to 256 and 64 rounds over the whole
+    body, so a million moments of daytime visits spent 397 seconds in the
+    hour pass, nearly all of it there. Here `cells` files them once
+    (`_weekday_cells_of`) and each move re-files its rank (`_weekday_refiled`);
+    `asked` keeps what a round asked of a cell's group -- its mover, its
+    `give` and each group its `take` reaches -- until a move touches a
+    written unit inside that cell's gap and of its kind
+    (`_weekday_touched`), which is everything those answers read: the
+    mover is read off the counts of its group's written units, and each
+    take off the places of the cell's kind inside its gap. `kinds` lists
+    each kind's cells. Every round therefore asks what filing every rank
+    again would ask, and every answer is the same.
+    """
+
+    cells: "dict[tuple[int, int, _WeekdayKind], dict[int, list[int]]]"
+    kinds: "dict[_WeekdayKind, list[tuple[int, int, _WeekdayKind]]]"
+    asked: "dict[tuple[tuple[int, int, _WeekdayKind], int], tuple[int, int, tuple[tuple[int, int], ...]]]"
+
+
+def _weekday_asked_of(
+    cells: "dict[tuple[int, int, _WeekdayKind], dict[int, list[int]]]",
+) -> _WeekdayAsked:
+    """The kept filing of these cells, nothing yet asked (`_WeekdayAsked`)."""
+    kinds: "dict[_WeekdayKind, list[tuple[int, int, _WeekdayKind]]]" = {}
+    for key in sorted(cells):
+        if key[2] in kinds:
+            found = kinds[key[2]]
+            found += [key]
+        else:
+            kinds[key[2]] = [key]
+    return _WeekdayAsked(cells, kinds, {})
+
+
+def _weekday_touched(state: _WeekdayPass, kept: _WeekdayAsked, ordinal: int) -> None:
+    """Forget what was asked of every cell of this ordinal's kind whose gap
+    reaches the written unit it stands on: a rank left or took it."""
+    start = ordinal // state.step * state.step
+    end = start + state.step - 1
+    kind = _weekday_kind(state, ordinal)
+    if kind not in kept.kinds:
+        return
+    for key in kept.kinds[kind]:
+        if key[0] > end or key[1] < start:
+            continue
+        for group in kept.cells[key]:
+            if (key, group) in kept.asked:
+                del kept.asked[(key, group)]
+
+
+def _weekday_refiled(
+    state: _WeekdayPass,
+    kept: _WeekdayAsked,
+    key: "tuple[int, int, _WeekdayKind]",
+    rank: int,
+    giving: int,
+    taking: int,
+    start: int,
+) -> None:
+    """A rank of a cell moved from `start`, in `giving`, to where it now
+    stands, in `taking`: re-filed in rank order, and what was asked of the
+    cells its two written units reach forgotten (`_WeekdayAsked`)."""
+    members = kept.cells[key]
+    found = members[giving]
+    del found[_weekday_first_from(found, rank)]
+    if taking in members:
+        found = members[taking]
+        at = _weekday_first_from(found, rank)
+        found[at:at] = [rank]
+    else:
+        members[taking] = [rank]
+    _weekday_touched(state, kept, start)
+    _weekday_touched(state, kept, state.moved[rank])
 
 
 def _weekday_mover(state: _WeekdayPass, members: "list[int]") -> int:
@@ -23861,6 +24109,7 @@ def _weekday_cycle(
     state: _WeekdayPass,
     cells: "dict[tuple[int, int, _WeekdayKind], dict[int, list[int]]]",
     short: int,
+    kept: "_WeekdayAsked | None" = None,
 ) -> "list[tuple[tuple[int, int, _WeekdayKind], int, int, int]]":
     """The cycle of moves step 8.3 takes, or an empty list (method G7.3f).
 
@@ -23885,35 +24134,44 @@ def _weekday_cycle(
     not say no cycle gains: a gaining cycle of four groups or more is
     never asked (the Codex review of landing 3b.D0, item 6, its ten
     groups of days of the month).
+
+    `kept` is step 8.3's filing kept across its rounds (`_WeekdayAsked`):
+    what it asked of a cell's group in an earlier round is read back
+    where no move has touched it since, and what it asks now is kept.
     """
     groups = max(state.where) + 1
     longest = groups if groups <= _WEEKDAY_CYCLE_GROUPS else _WEEKDAY_CYCLE_LONGEST
     give: "dict[tuple[tuple[int, int, _WeekdayKind], int], int]" = {}
     movers: "dict[tuple[tuple[int, int, _WeekdayKind], int], int]" = {}
-    take: "dict[tuple[tuple[int, int, _WeekdayKind], int, int], int]" = {}
+    take: "dict[tuple[tuple[int, int, _WeekdayKind], int], tuple[tuple[int, int], ...]]" = {}
     for key in sorted(cells):
         members = cells[key]
         for giving in range(groups):
-            if giving not in members:
+            if giving not in members or not members[giving]:
+                continue
+            if kept is not None and (key, giving) in kept.asked:
+                movers[(key, giving)], give[(key, giving)], take[(key, giving)] = kept.asked[(key, giving)]
                 continue
             # The group's MOVER, the rank its moves take: give and take are
             # both asked of it, so the gain is what that move makes.
             mover = _weekday_mover(state, members[giving])
             movers[(key, giving)] = mover
             give[(key, giving)] = 0 if _weekday_there(state, state.moved[mover]) >= 2 else -1
+            reaches: "list[tuple[int, int]]" = []
             for taking in range(groups):
                 gained = _weekday_take(state, key, taking, mover)
                 if gained is not None:
-                    take[(key, giving, taking)] = gained
+                    reaches += [(taking, gained)]
+            take[(key, giving)] = tuple(reaches)
+            if kept is not None:
+                kept.asked[(key, giving)] = (mover, give[(key, giving)], take[(key, giving)])
     best: "dict[tuple[int, int], tuple[int, tuple[int, int, _WeekdayKind]]]" = {}
     for key in sorted(cells):
         for giving in range(groups):
             if (key, giving) not in give:
                 continue
-            for taking in range(groups):
-                if (key, giving, taking) not in take:
-                    continue
-                gain = give[(key, giving)] + take[(key, giving, taking)]
+            for taking, gained in take[(key, giving)]:
+                gain = give[(key, giving)] + gained
                 if (giving, taking) not in best or gain > best[(giving, taking)][0]:
                     best[(giving, taking)] = (gain, key)
     chosen: "dict[str, tuple[tuple[int, int, int], tuple[int, ...]]]" = {}
@@ -24082,28 +24340,49 @@ def _weekday_chained(
     day every rank of a cell has the same places, so the mover as the
     ranks then stand always has one, and no date's answer changes.
 
+    THE CELLS ARE FILED ONCE A CALL (`_WeekdayAsked`; the lane T2
+    skeptic's finding 1): each move re-files its rank, and what a round
+    asked of a cell's group -- its mover, and the groups it has a place
+    of -- is read back until a move touches that cell, so a round costs
+    what its moves touch rather than the whole body. Every link, path and
+    move is the one filing and asking every cell each round makes.
+
     Draws no word. Guarantees: moves only the given ranks, inside their
     own gaps and kinds and never onto a hole; keeps `have` true. Raises
     nothing. No I/O of any kind.
     """
     groups = len(want)
+    kept: "_WeekdayAsked | None" = None
     for _round in range(_WEEKDAY_CHAINS):
         over = [group for group in range(groups) if have[group] > want[group]]
         under = [group for group in range(groups) if have[group] < want[group]]
         if not over or not under:
             return
-        cells = _weekday_cells_of(state, ranks)
+        if kept is None:
+            kept = _weekday_asked_of(_weekday_cells_of(state, ranks))
+        cells = kept.cells
+        for key in sorted(cells):
+            for giving in sorted(cells[key]):
+                if (key, giving) in kept.asked or not cells[key][giving]:
+                    continue
+                mover = _weekday_mover(state, cells[key][giving])
+                reaches: "list[tuple[int, int]]" = []
+                for taking in range(groups):
+                    if taking != giving and _weekday_take(state, key, taking, mover) is not None:
+                        reaches += [(taking, 0)]
+                kept.asked[(key, giving)] = (mover, 0, tuple(reaches))
         link: "dict[tuple[int, int], tuple[int, int, _WeekdayKind]]" = {}
         asked: "dict[tuple[int, int], int]" = {}
         for key in sorted(cells):
             for giving in sorted(cells[key]):
-                mover = _weekday_mover(state, cells[key][giving])
-                for taking in range(groups):
+                if not cells[key][giving]:
+                    continue
+                linked, _give, places = kept.asked[(key, giving)]
+                for taking, _gained in places:
                     if taking == giving or (giving, taking) in link:
                         continue
-                    if _weekday_take(state, key, taking, mover) is not None:
-                        link[(giving, taking)] = key
-                        asked[(giving, taking)] = mover
+                    link[(giving, taking)] = key
+                    asked[(giving, taking)] = linked
         came: "dict[int, int]" = {}
         for group in over:
             came[group] = -1
@@ -24129,12 +24408,20 @@ def _weekday_chained(
         for place in range(len(path) - 1):
             giving, taking = path[place], path[place + 1]
             key = link[(giving, taking)]
+            members = cells[key][giving]
+            stood = [state.moved[rank] for rank in members]
             if not _weekday_cell_move(
-                state, ranks, key, giving, taking
+                state, members, key, giving, taking
             ) and not _weekday_moved_near(
                 state, asked[(giving, taking)], taking, key[2]
             ):
                 return
+            for index in range(len(members)):
+                if state.moved[members[index]] != stood[index]:
+                    _weekday_refiled(
+                        state, kept, key, members[index], giving, taking, stood[index]
+                    )
+                    break
             have[giving] = have[giving] - 1
             have[taking] = have[taking] + 1
 
@@ -25187,17 +25474,1077 @@ def _hour_settled(
     holes: "tuple[str, ...]",
     declared_days: "tuple[str, ...]" = (),
 ) -> "tuple[list[int], list[Deviation]]":
-    """Meet the published hour census of a column of moments.
+    """Meet the published hour census of a column of moments (method G7.3g).
 
-    THE STUB OF LANDING 3b.2-H (lane T2, plan P4-D371), which fills this
-    pass and nothing beside it (plan P4-D364). It runs after the day pass
-    and is handed what that pass is handed. No column publishes an hour
-    census until then, so no rank moves.
+    Landing 3b.2-H (lane T2, plan P4-D371). Where the column publishes a
+    non-empty `hour_census` -- or stands on the dial's half day
+    (`_on_the_half_day`), whose census is then hours 0 to 11 holding the
+    body and 12 to 23 none -- with both tails, at least three parsed
+    cells, counted in seconds and with no rank a bare date, the ranks
+    move once G7.3f's day pass is done (`_clock_pass`, the one clock
+    pass, with the hour as its field and no kin), until the cells
+    between the two boundary ranks fall on the published groups. No word
+    is drawn. Where the census still does not hold, one deviation names
+    `hour_census`.
 
-    Guarantees: returns the ranks' instants and no deviation. Draws no
-    word. Raises nothing. No I/O of any kind.
+    Guarantees: accepts what `_weekday_settled` accepts; returns the
+    ordinals -- each body rank the layout does not pin moved only inside
+    its own gap, a tail rank on the half day only inside its stratum,
+    none onto a hole -- and the deviations. Determinism: a function of
+    the arguments. Raises nothing. No I/O of any kind.
     """
-    return ordinals, []
+    census = facts.hour_census
+    half_day = _on_the_half_day(facts)
+    if (
+        (not census and not half_day)
+        or parsed < 3
+        or _ordinal_space(facts) != "datetime"
+        or layout.low is None
+        or layout.high is None
+    ):
+        return ordinals, []
+    for flag in whole:
+        if flag:
+            return ordinals, []
+    if not census:
+        # THE DIAL'S HALF DAY AS A CENSUS (landing 3b.2-H, plan P4-D370's
+        # carve-out): a declared 12-hour stamp publishing no hour census
+        # still holds its body to hours 0 to 11, where every value it
+        # reads stands.
+        census = (
+            (0, calendar_clock.HOURS // 2 - 1, parsed - layout.low.rows - layout.high.rows),
+            (calendar_clock.HOURS // 2, calendar_clock.HOURS - 1, 0),
+        )
+    moved = [value for value in ordinals]
+    step = 60 if facts.time_precision == "minute" else 1
+    # The count of different written units the pass keeps, built once:
+    # a union taken value by value copied the set each time, which on
+    # 10,000 moments was most of the pass.
+    wanted = len({value // step for value in moved})
+    word = ""
+    widths = False
+    if len(facts.date_field_widths) == 1 and (
+        facts.parser_family in parsing.VARIABLE_WIDTH_MEMBERS
+        or facts.parser_family in parsing.TEXTUAL_MEMBERS
+    ):
+        widths = True
+        for key in facts.date_field_widths:
+            word = key
+    hole_days: "set[int]" = set()
+    for text in holes:
+        read = parsing.parse_datetime(text, facts.parser_family)
+        if read is None:
+            continue
+        canonical = read[0]
+        hole_days = hole_days | {
+            parsing.days_from_civil(
+                int(canonical[0:4]), int(canonical[5:7]), int(canonical[8:10])
+            )
+        }
+    hole_days = hole_days | set(_published_holes(column, facts, declared_days))
+    hole_days = hole_days | set(_heavy_holes(facts))
+    where = [0 for _hour in range(calendar_clock.HOURS)]
+    for index in range(len(census)):
+        for hour in range(census[index][0], census[index][1] + 1):
+            where[hour] = index
+    state = _WeekdayPass(
+        moved=moved,
+        held={},
+        where=tuple(where),
+        facts=facts,
+        word=word,
+        widths=widths,
+        kinds={},
+        holes=frozenset(hole_days),
+        lows=gap_lows,
+        highs=gap_highs,
+        keep_units=contract.datetime_counts_reachable(column),
+        unit=calendar_clock.HOUR_SECONDS,
+        step=step,
+        day=calendar_clock.DAY_SECONDS,
+        bins="hour",
+        period=calendar_clock.HOURS,
+        keeps="day",
+    )
+    pinned = _ranks_the_tail_pins(layout)
+    for rank in range(parsed):
+        if gap_lows[rank] >= gap_highs[rank]:
+            pinned[rank] = True
+        if facts.n_at_midnight is not None and _written_at_midnight(moved[rank], 0, step):
+            pinned[rank] = True
+    body_low = layout.low.rows
+    body_high = parsed - 1 - layout.high.rows
+    # THE CENSUS AS WRITTEN (Codex's review of the landing, item 1): a rank
+    # pinned at a published sixtieth second is written in the hour before
+    # its ordinal's, and the pass meets by ordinal the counts that put it
+    # there (`_clock_counts_as_written`).
+    counts = _clock_counts_as_written(
+        state,
+        [count for _first, _last, count in census],
+        _sixtieth_seconds(layout, moved, pinned, body_low, body_high),
+    )
+    _clock_pass(
+        state, counts, body_low, body_high, pinned, wanted,
+        _clock_day_standing(facts), half_day, not facts.weekday_census,
+        published=column.n_distinct,
+    )
+    notes: "list[Deviation]" = []
+    if _clock_found(state, len(counts), body_low, body_high) != counts:
+        notes += [
+            _deviation(
+                column.name,
+                calendar_clock.HOUR_CENSUS,
+                "the published groups",
+                "other counts",
+                "The twin could not place every moment on the hours of the "
+                "day the description counts, so its counts per hour differ "
+                "from the published ones.",
+            )
+        ]
+    return moved, notes
+
+
+def _sixtieth_ties(layout: "_DateLayout") -> "dict[int, tuple[str, int]]":
+    """Each rank between two body pins publishing one sixtieth second (G7.1, G7.5).
+
+    Two consecutive pins of the body -- boundaries and rungs -- that
+    publish one moment whose seconds field is 60 leave every rank between
+    them the one place they stand at, and every row there holds that
+    moment, so each such rank is written as they are, from the moment's
+    own fields (Codex's review of landing 3b.2-H, item 1: written from
+    the place's ordinal, nine cells between a boundary and a rung at
+    2024-01-05 23:59:60 came back at 2024-01-06 00:00:00 -- a value and
+    an hour the source never wrote). Maps each rank to (the moment, the
+    pins' ordinal).
+    """
+    found: "dict[int, tuple[str, int]]" = {}
+    ranks = sorted(layout.body)
+    for place in range(len(ranks) - 1):
+        first = ranks[place]
+        last = ranks[place + 1]
+        if first not in layout.texts or last not in layout.texts:
+            continue
+        text = layout.texts[first]
+        if text != layout.texts[last] or text[17:19] != "60":
+            continue
+        for rank in range(first + 1, last):
+            found[rank] = (text, layout.body[first])
+    return found
+
+
+def _sixtieth_seconds(
+    layout: "_DateLayout",
+    moved: "list[int]",
+    pinned: "list[bool]",
+    body_low: int,
+    body_high: int,
+) -> "list[int]":
+    """The body ranks the twin writes at a sixtieth second (method G7.3g).
+
+    A body rank the pass never moves, pinned at a published boundary or
+    rung whose seconds field is 60 and standing at that pin, or standing
+    between two such pins of one moment (`_sixtieth_ties`): the cells
+    written from that moment's own fields (G7.5), `HH:MM:60`, where the
+    ordinal space of G7.1 puts their ordinal at the next minute's first
+    second. Every other rank is written at an ordinary second. Ascending.
+    """
+    written: "dict[int, tuple[str, int]]" = {}
+    for rank in layout.texts:
+        if rank in layout.pins:
+            written[rank] = (layout.texts[rank], layout.pins[rank])
+    tied = _sixtieth_ties(layout)
+    for rank in tied:
+        written[rank] = tied[rank]
+    found: "list[int]" = []
+    for rank in sorted(written):
+        if rank < body_low or rank > body_high or not pinned[rank]:
+            continue
+        text, at = written[rank]
+        if text[17:19] == "60" and moved[rank] == at:
+            found += [rank]
+    return found
+
+
+def _clock_counts_as_written(
+    state: _WeekdayPass, counts: "list[int]", sixtieths: "list[int]"
+) -> "list[int]":
+    """The counts the clock pass meets BY ORDINAL so the census holds AS WRITTEN (G7.3g).
+
+    Every step of the pass counts a rank in the bin of its ordinal
+    (`_clock_bin`), and the census counts a cell in the bin it is WRITTEN
+    in (`calendar_clock.written_hour`). The two differ only on a rank the
+    twin writes at a sixtieth second (`_sixtieth_seconds`), whose ordinal
+    is the next minute's first second while it is written in the minute
+    and hour of the second before (Codex's review of landing 3b.2-H, item
+    1: eleven `23:59:60` a date on 100 dates published every body cell in
+    hour 0, and the twin wrote its body there). Each such rank whose two
+    bins lie in different groups is counted one more in its ordinal's
+    group and one less in its written one; it never moves, so the pass,
+    meeting these counts by ordinal, meets the published ones as written.
+    For any field: the hour's bins are hours, a later census's its own.
+
+    Guarantees: accepts the state, the published counts and the ranks;
+    returns new counts, none below nought where the counts hold the sure
+    cells HC5 asks of them. Raises nothing. No I/O of any kind.
+    """
+    asked = [count for count in counts]
+    for rank in sixtieths:
+        ordinal = state.moved[rank]
+        counted = state.where[_clock_bin(state, ordinal)]
+        written = state.where[_clock_bin(state, ordinal - 1)]
+        if counted != written:
+            asked[counted] = asked[counted] + 1
+            asked[written] = asked[written] - 1
+    return asked
+
+
+# THE CLOCK PASS'S OWN STEPS (landing 3b.2-H, method G7.3g), after G7.3f's
+# shared pass, for ANY FIELD of the written clock -- the hour of the day
+# now, the minute of the hour and the second of the minute when their
+# censuses land (landing 3b.4, the 3b.4 skeptic's M4): how many rounds
+# step 3 makes over the groups still over their count, a round that moves
+# nothing ending the step. A unit leaves WHOLE while its group is over, so
+# one of k ranks leaving a group over by fewer than k leaves that group
+# under its count, and a unit of an earlier group that had no place at its
+# turn finds one there in the next round (the lane's second skeptic,
+# finding 2: in one round, a rank at 00:45 sharing its minute with a
+# pinned rank kept hours 0 to 4 one over while a pair from hour 8 left it
+# one under; the second round meets the census).
+_CLOCK_ROUNDS = 4
+
+
+def _clock_bin(state: _WeekdayPass, ordinal: int) -> int:
+    """The bin of an instant in the FIELD the state counts (method G7.3g).
+
+    `(o div unit) mod period`: the hour of the day where the unit is
+    3,600 seconds and the period 24 bins, the minute of the hour at 60
+    and 60, the second of the minute at 1 and 60. Raises nothing. No I/O.
+    """
+    return (ordinal // state.unit) % state.period
+
+
+def _clock_span(state: _WeekdayPass) -> int:
+    """How many seconds one PARENT spans (method G7.3g): one turn of the
+    field, `unit` times `period` -- the day for the hour, the hour for the
+    minute, the minute for the second. Raises nothing. No I/O."""
+    return state.unit * state.period
+
+
+def _clock_seat(state: _WeekdayPass, ordinal: int) -> int:
+    """An instant's parent's place in its day, from nought (method G7.3g):
+    always nought for the hour, whose parent is the day; its hour for the
+    minute. Raises nothing. No I/O."""
+    span = state.unit * state.period
+    return ordinal // span - (ordinal // state.day) * (state.day // span)
+
+
+def _clock_found(
+    state: _WeekdayPass, groups: int, body_low: int, body_high: int
+) -> "list[int]":
+    """How many body ranks stand in each group of the field's census."""
+    found = [0 for _group in range(groups)]
+    unit = state.unit
+    period = state.period
+    for rank in range(body_low, body_high + 1):
+        group = state.where[(state.moved[rank] // unit) % period]
+        found[group] = found[group] + 1
+    return found
+
+
+def _clock_pass(
+    state: _WeekdayPass,
+    counts: "list[int]",
+    body_low: int,
+    body_high: int,
+    pinned: "list[bool]",
+    wanted: int,
+    standing: "tuple[int, ...]",
+    half_day: bool,
+    anyday: bool = False,
+    kin: "tuple[int, ...]" = (),
+    published: "int | None" = None,
+) -> None:
+    """G7.3g's steps 2 to 7 over a state of ranks, for any field (landing 3b.2-H).
+
+    THE ONE CLOCK PASS (the 3b.4 skeptic's M4). The state's own seams name
+    the FIELD the census counts -- its bins (`_clock_bin`), `where` each
+    bin's group, the bin's `unit` and the `period` of bins in one turn --
+    and so each rank's PARENT, one turn of the field (`_clock_span`): the
+    day for the hour, the hour for the minute. `kin` gives each parent's
+    place in its day (`_clock_seat`) its group in the coarser census the
+    moves keep -- for the minute, the hour census's -- and is empty where
+    the parent is the day itself, as it is for the hour, the one field
+    published so far.
+
+    Step 2, G7.3f's shared pass at the field's unit with the parent kept
+    (`_bins_settled`); step 3, SAMEPARENT and the ESCAPE, a unit SPLIT
+    where no group has room for it whole (`_clock_left_their_groups`),
+    where a group is still over its count, and then RELIEF, a place in a
+    full group another of its units leaves (`_clock_relieved`); step 4,
+    no rank the pass moved left at a written midnight
+    (`_clock_off_midnight`); step 5, on the dial's half day, every tail
+    rank back on it (`_hour_tails_on_the_half_day`, the hour's alone);
+    step 6, PUT BACK, where the count of different written units is off
+    (`_clock_count_put_back`) -- where the column's count is not one the
+    construction reaches, only where it is short and the count `wanted`
+    the construction drew is not above `published`, the column's
+    published count of different values (None where the caller states
+    none, as a frozen state does) -- last of the moves, so it repays
+    every move before it; step 7, each run of unpinned ranks sorted.
+    `anyday` says
+    no weekday census stands, so, once RELIEF has had its turn, step 3
+    runs once more with an escape free to take a day of another weekday
+    (`_clock_escape`), and, once PUT BACK has made every merge keeping the
+    day standing, it runs once more free to merge onto such a day
+    (`_clock_merge_target`).
+
+    Draws no word. Guarantees: moves body ranks the layout does not pin
+    inside their own gaps, and on the half day tail ranks inside their
+    strata; never onto a hole. Raises nothing. No I/O of any kind.
+    """
+    before = [_written_at_midnight(value, 0, state.step) for value in state.moved]
+    _bins_settled(state, counts, body_low, body_high, pinned, wanted)
+    found = _clock_found(state, len(counts), body_low, body_high)
+    if found != counts:
+        _clock_left_their_groups(
+            state, counts, found, body_low, body_high, pinned, standing, False, kin
+        )
+    if found != counts:
+        _clock_relieved(state, counts, found, body_low, body_high, pinned)
+    if found != counts and anyday:
+        # THE LAST RESORT, where no weekday census stands: step 3 once more,
+        # its escape free at last to take a day of another weekday, once
+        # RELIEF, which keeps every day, has had its turn.
+        _clock_left_their_groups(
+            state, counts, found, body_low, body_high, pinned, standing, True, kin
+        )
+    _clock_off_midnight(state, before, body_low, body_high, pinned)
+    if half_day:
+        _hour_tails_on_the_half_day(state, body_low, body_high, state.step)
+    # PUT BACK where the count is reachable, and, where it is not, a SHORT
+    # count all the same, each rank it splits off a shared written unit
+    # kept inside its own bin, parent and gap, which every census keeps (the
+    # lane's skeptic, finding 4: 2,000 different moments written with two
+    # marks between day and clock came back 1,999 at one seed in three,
+    # from HELD to an envelope) -- but only where the count the
+    # construction drew is not above the published one (its second
+    # skeptic, finding 1). A dense column drawn past that count comes
+    # nearer it through the ties the moves make, as its real cells do:
+    # 20,000 lab draws to the minute over twelve days, written with two
+    # marks, came back 18 to 19 per cent long when the count drawn was put
+    # back, and within 1.2 per cent of the published count when it was not.
+    count = _weekday_count(state)
+    short = count < wanted and (published is None or wanted <= published)
+    if (state.keep_units and count != wanted) or short:
+        _clock_count_put_back(
+            state, body_low, body_high, pinned, wanted, standing, False, kin
+        )
+        if anyday and _weekday_count(state) > wanted:
+            # ...AND ITS LAST RESORT, where no weekday census stands: once
+            # every merge keeping the day standing is made, a day of another
+            # weekday. A count still short has no rank left to split: the
+            # step only fills free places, so asking again moves nothing.
+            _clock_count_put_back(
+                state, body_low, body_high, pinned, wanted, standing, True, kin
+            )
+    _runs_sorted(state.moved, pinned)
+
+
+def _clock_day_standing(facts: contract.DatetimeFacts) -> "tuple[int, ...]":
+    """What a move to another day keeps, weekday by weekday (G7.3g step 3).
+
+    THE DAY STANDING: each weekday's group in the column's weekday census
+    (`calendar_rules.where_of`), so a move keeps every published count per
+    weekday; where none stands, the weekday itself, so the twin's weekdays
+    are the ones G7.3 drew wherever a day of its weekday has a place, and
+    a day of another is taken only where none has (`anyday`). A later
+    census of days adds its own groups here.
+    """
+    if facts.weekday_census:
+        return calendar_rules.where_of(facts.weekday_census)
+    return tuple(range(calendar_rules.WEEKDAYS))
+
+
+def _clock_units(
+    state: _WeekdayPass,
+    group: int,
+    body_low: int,
+    body_high: int,
+    pinned: "list[bool]",
+) -> "list[list[int]]":
+    """The movable units of one group of the field, in rank order (G7.3g step 3).
+
+    A UNIT is every movable body rank of one written unit where no other
+    rank of the column stands on it and all share one gap -- it moves
+    whole, so the count of different values is kept -- and otherwise each
+    movable rank alone.
+    """
+    runs: "dict[int, list[int]]" = {}
+    order: "list[int]" = []
+    for rank in range(body_low, body_high + 1):
+        if pinned[rank]:
+            continue
+        ordinal = state.moved[rank]
+        if state.where[_clock_bin(state, ordinal)] != group:
+            continue
+        key = ordinal // state.step
+        if key in runs:
+            members = runs[key]
+            members += [rank]
+        else:
+            runs[key] = [rank]
+            order += [key]
+    found: "list[list[int]]" = []
+    for key in order:
+        members = runs[key]
+        first = members[0]
+        whole = state.held[key] == len(members)
+        for rank in members:
+            if state.lows[rank] != state.lows[first] or state.highs[rank] != state.highs[first]:
+                whole = False
+        if whole:
+            found += [members]
+        else:
+            found += [[rank] for rank in members]
+    return found
+
+
+def _clock_rotated(units: "list[list[int]]", leaving: int) -> "list[list[int]]":
+    """The units of an over-full group in the order they are asked to leave.
+
+    PROPORTIONAL ORDER (the 3b.4 skeptic's B1): of `n` units, `leaving`
+    are asked first, chosen by `_snapped_to_midnight`'s smooth rotation
+    -- each unit adds `leaving` to a credit and is chosen where the
+    credit reaches `n`, which is then taken back -- so the units that
+    leave fall evenly over the ranks rather than on the earliest; the
+    rest follow in rank order.
+    """
+    first: "list[list[int]]" = []
+    rest: "list[list[int]]" = []
+    credit = 0
+    for unit in units:
+        credit = credit + leaving
+        if credit >= len(units):
+            credit = credit - len(units)
+            first += [unit]
+        else:
+            rest += [unit]
+    return first + rest
+
+
+def _clock_free(state: _WeekdayPass, target: int, low: int, high: int, size: int) -> bool:
+    """Whether a unit of `size` ranks may stand on `target`: inside its gap,
+    on no hole, on a written unit no rank holds and not at a written midnight."""
+    return (
+        low <= target <= high
+        and not _weekday_hole(state, target)
+        and not _weekday_holds(state, target)
+        and not _written_at_midnight(target, 0, state.step)
+    )
+
+
+def _clock_nearest_free(
+    state: _WeekdayPass, ideal: int, low: int, high: int, size: int
+) -> "int | None":
+    """The free place nearest `ideal` from `low` to `high`, stepping by the
+    written unit outward from it, the earlier on a tie; None where none is."""
+    if low > high:
+        return None
+    ideal = min(max(ideal, low), high)
+    step = state.step
+    away = 0
+    while ideal - away * step >= low or ideal + away * step <= high:
+        for target in (ideal - away * step, ideal + away * step):
+            if _clock_free(state, target, low, high, size):
+                return target
+        away = away + 1
+    return None
+
+
+def _clock_target_on(
+    state: _WeekdayPass,
+    parent: int,
+    ordinal: int,
+    low: int,
+    high: int,
+    size: int,
+    have: "list[int]",
+    want: "list[int]",
+) -> "int | None":
+    """The place in `parent` a unit standing at `ordinal` takes, or None.
+
+    SAMEPARENT (G7.3g step 3; SAMEDAY, for the hour) on its own parent,
+    the ESCAPE's place on another: in each bin of a group with room for
+    the whole unit, the free place nearest the unit's own place in its
+    bin -- for the hour, its minute and second -- inside the gap
+    (`_clock_nearest_free`); of those, the one whose place in its parent
+    is nearest the unit's own -- for the hour, its clock -- the earlier
+    on a tie.
+    """
+    unit = state.unit
+    span = unit * state.period
+    place = ordinal % unit
+    clock = ordinal % span
+    best: "tuple[int, int] | None" = None
+    for field in range(state.period):
+        group = state.where[field]
+        if have[group] + size > want[group]:
+            continue
+        start = parent * span + field * unit
+        target = _clock_nearest_free(
+            state,
+            start + place,
+            max(start, low),
+            min(start + unit - 1, high),
+            size,
+        )
+        if target is None or target == ordinal:
+            continue
+        found = (abs(target % span - clock), target)
+        if best is None or found < best:
+            best = found
+    return None if best is None else best[1]
+
+
+def _clock_escape(
+    state: _WeekdayPass,
+    ordinal: int,
+    low: int,
+    high: int,
+    size: int,
+    have: "list[int]",
+    want: "list[int]",
+    standing: "tuple[int, ...]",
+    anyday: bool = False,
+    kin: "tuple[int, ...]" = (),
+) -> "int | None":
+    """THE ESCAPE (G7.3g step 3): SAMEPARENT's place on another parent.
+
+    First, where the parent is shorter than a day (`kin` not empty), the
+    nearest other parent of the unit's own day whose place in the day has
+    its own parent's group in `kin`, the earlier on a tie -- none for the
+    hour, whose parent is the day. Then the nearest other day of the
+    unit's gap keeping its day standing (`_clock_day_standing`), no hole
+    and of its width kind, the earlier on a tie, at its own parent's place
+    in that day (`_clock_seat`); then, where no weekday census stands
+    (`anyday`) and no day of its standing has a place, the nearest day of
+    another weekday on the same terms. On each, SAMEPARENT's place
+    (`_clock_target_on`); None where no parent of the gap has one.
+    """
+    span = state.unit * state.period
+    per_day = state.day // span
+    day = ordinal // state.day
+    seat = _clock_seat(state, ordinal)
+    if kin:
+        for away in range(1, per_day):
+            for other in (seat - away, seat + away):
+                if other < 0 or other >= per_day or kin[other] != kin[seat]:
+                    continue
+                target = _clock_target_on(
+                    state, day * per_day + other, ordinal, low, high, size, have, want
+                )
+                if target is not None:
+                    return target
+    own = standing[calendar_rules.weekday_of(day)]
+    width = _weekday_width_kind(state, ordinal)
+    first = low // state.day
+    last = high // state.day
+    for kept in [True, False] if anyday else [True]:
+        for away in range(1, max(day - first, last - day) + 1):
+            for other in (day - away, day + away):
+                if other < first or other > last or other in state.holes:
+                    continue
+                if (standing[calendar_rules.weekday_of(other)] == own) != kept:
+                    continue
+                if _weekday_width_kind(state, other * state.day) != width:
+                    continue
+                target = _clock_target_on(
+                    state, other * per_day + seat, ordinal, low, high, size, have, want
+                )
+                if target is not None:
+                    return target
+    return None
+
+
+def _clock_left_their_groups(
+    state: _WeekdayPass,
+    counts: "list[int]",
+    have: "list[int]",
+    body_low: int,
+    body_high: int,
+    pinned: "list[bool]",
+    standing: "tuple[int, ...]",
+    anyday: bool = False,
+    kin: "tuple[int, ...]" = (),
+) -> None:
+    """G7.3g step 3: what the shared pass left over, moved off.
+
+    Where G7.3f's pass at the field's unit leaves a group over its count
+    -- its moves keep the parent and the place in the bin, so a rank on a
+    rung's day on the closed side of the rung has no place -- each
+    over-full group's units, in proportional order (`_clock_rotated`),
+    take SAMEPARENT's place on their own parent, else the ESCAPE's on
+    another parent (`_clock_escape`) inside their gap. A whole unit moves
+    onto a written unit no rank holds, so the count of different values
+    is kept; a rank alone of a shared written unit leaves it, and the
+    count is put back after (G7.3f steps 8.1 to 8.5, G7.3g step 6). No
+    rank lands on a hole or a written midnight, and none leaves its gap.
+    Up to `_CLOCK_ROUNDS` rounds, a round that moves nothing ending the
+    step: a whole unit leaving a group over by fewer than its ranks gives
+    that group room, which a unit asked earlier may take in the next.
+    """
+    span = state.unit * state.period
+    for _round in range(_CLOCK_ROUNDS):
+        changed = False
+        for group in range(len(counts)):
+            if have[group] <= counts[group]:
+                continue
+            units = _clock_units(state, group, body_low, body_high, pinned)
+            for unit in _clock_rotated(units, have[group] - counts[group]):
+                if have[group] <= counts[group]:
+                    break
+                first = unit[0]
+                ordinal = state.moved[first]
+                low, high = state.lows[first], state.highs[first]
+                size = len(unit)
+                # SPLIT: a unit no group has room for whole leaves rank by
+                # rank, each to its own place (the design skeptic's B1).
+                for members in [unit] + ([[rank] for rank in unit] if size > 1 else []):
+                    if have[group] <= counts[group]:
+                        break
+                    here = state.moved[members[0]]
+                    if here // state.step != ordinal // state.step:
+                        continue
+                    target = _clock_target_on(
+                        state, here // span, here,
+                        low, high, len(members), have, counts,
+                    )
+                    if target is None:
+                        target = _clock_escape(
+                            state, here, low, high, len(members), have, counts, standing,
+                            anyday, kin,
+                        )
+                    if target is None:
+                        continue
+                    for rank in members:
+                        _weekday_step(state, rank, target)
+                    have[group] = have[group] - len(members)
+                    into = state.where[_clock_bin(state, target)]
+                    have[into] = have[into] + len(members)
+                    changed = True
+                    if len(members) == size:
+                        break
+        if not changed:
+            return
+
+
+def _clock_relieved(
+    state: _WeekdayPass,
+    counts: "list[int]",
+    have: "list[int]",
+    body_low: int,
+    body_high: int,
+    pinned: "list[bool]",
+) -> None:
+    """G7.3g step 3's RELIEF: a unit no group with room can take takes a
+    place in a FULL group, which a unit of that group leaves for it.
+
+    After SAMEPARENT, the escape and SPLIT a unit may still have no place:
+    a rank before a rung at 07:30 on the last day of its gap, hours 0 to 6
+    counted empty and hour 7 full, its gap holding no other day of its day
+    standing -- OR starts, ten rooms at 07:30 on weekdays alone, missed
+    their census at every seed. So, in group order, each group still over
+    its count asks its units as step 3 does -- in proportional order,
+    whole and then rank by rank -- and each takes, in the first group
+    with a count of its own that has no room for it, the place SAMEPARENT
+    gives it there on its own parent inside its gap, once a RELIEF unit
+    has left that group: the first, in rank order, of the group's units as
+    they stood when RELIEF first asked that group, of as many ranks, that
+    has SAMEPARENT's place on its own parent in a group with room. Where
+    the unit then has no place, the relief goes back and the next is
+    asked. A relief unit that finds no place is not asked again in this
+    step, though a whole unit leaving a group over by fewer than its ranks
+    gives that group room, as in step 3's rounds. Every move keeps its ranks'
+    parent and gap and lands on a written unit no rank holds, so the count
+    of different values moves only where a rank leaves a written unit
+    others hold, as in SPLIT.
+
+    Guarantees: moves body ranks the layout does not pin, each inside its
+    own gap and on its own parent; updates `have`. Raises nothing. No I/O.
+    """
+    groups = len(counts)
+    pools: "dict[int, list[list[int]]]" = {}
+    spent: "dict[int, set[int]]" = {}
+    for group in range(groups):
+        if have[group] <= counts[group]:
+            continue
+        units = _clock_units(state, group, body_low, body_high, pinned)
+        for unit in _clock_rotated(units, have[group] - counts[group]):
+            if have[group] <= counts[group]:
+                break
+            ordinal = state.moved[unit[0]]
+            size = len(unit)
+            for members in [unit] + ([[rank] for rank in unit] if size > 1 else []):
+                if have[group] <= counts[group]:
+                    break
+                first = members[0]
+                here = state.moved[first]
+                if here // state.step != ordinal // state.step:
+                    continue
+                if _clock_relief_taken(
+                    state, counts, have, group, members, pools, spent,
+                    body_low, body_high, pinned,
+                ) and len(members) == size:
+                    break
+
+
+def _clock_relief_taken(
+    state: _WeekdayPass,
+    counts: "list[int]",
+    have: "list[int]",
+    group: int,
+    members: "list[int]",
+    pools: "dict[int, list[list[int]]]",
+    spent: "dict[int, set[int]]",
+    body_low: int,
+    body_high: int,
+    pinned: "list[bool]",
+) -> bool:
+    """One unit's RELIEF (`_clock_relieved`): whether it moved."""
+    first = members[0]
+    here = state.moved[first]
+    span = state.unit * state.period
+    parent = here // span
+    low, high = state.lows[first], state.highs[first]
+    size = len(members)
+    for middle in range(len(counts)):
+        if middle == group or counts[middle] == 0 or have[middle] + size <= counts[middle]:
+            continue
+        # SAMEPARENT's place in this group alone, as though it had room.
+        alone = [counts[other] for other in range(len(counts))]
+        alone[middle] = counts[middle] - size
+        if _clock_target_on(state, parent, here, low, high, size, alone, counts) is None:
+            continue
+        if middle not in pools:
+            pools[middle] = _clock_units(state, middle, body_low, body_high, pinned)
+            spent[middle] = set()
+        pool = pools[middle]
+        for index in range(len(pool)):
+            relief = pool[index]
+            if index in spent[middle] or len(relief) != size or first in relief:
+                continue
+            start = state.moved[relief[0]]
+            if state.where[_clock_bin(state, start)] != middle:
+                spent[middle] |= {index}
+                continue
+            out = _clock_target_on(
+                state, start // span, start,
+                state.lows[relief[0]], state.highs[relief[0]], size, have, counts,
+            )
+            if out is None:
+                spent[middle] |= {index}
+                continue
+            into = state.where[_clock_bin(state, out)]
+            for rank in relief:
+                _weekday_step(state, rank, out)
+            have[middle] = have[middle] - size
+            have[into] = have[into] + size
+            target = _clock_target_on(state, parent, here, low, high, size, have, counts)
+            if target is None:
+                for rank in relief:
+                    _weekday_step(state, rank, start)
+                have[middle] = have[middle] + size
+                have[into] = have[into] - size
+                continue
+            spent[middle] |= {index}
+            for rank in members:
+                _weekday_step(state, rank, target)
+            have[group] = have[group] - size
+            moved_into = state.where[_clock_bin(state, target)]
+            have[moved_into] = have[moved_into] + size
+            return True
+    return False
+
+
+def _clock_held_by_parent(
+    state: _WeekdayPass, body_low: int, body_high: int
+) -> "dict[int, list[int]]":
+    """Every written unit some rank of the column holds, by parent, ascending."""
+    span = state.unit * state.period
+    found: "dict[int, list[int]]" = {}
+    for key in sorted(state.held):
+        if state.held[key] <= 0:
+            continue
+        parent = key * state.step // span
+        if parent in found:
+            units = found[parent]
+            units += [key]
+        else:
+            found[parent] = [key]
+    return found
+
+
+def _clock_merge_target(
+    state: _WeekdayPass,
+    rank: int,
+    by_parent: "dict[int, list[int]]",
+    standing: "tuple[int, ...]",
+    anyday: bool = False,
+    kin: "tuple[int, ...]" = (),
+) -> "int | None":
+    """PUT BACK's place for a rank alone on its written unit (G7.3g step 6).
+
+    The nearest written unit another rank holds, in the rank's own group
+    of the field, inside its gap, at no written midnight: on its own
+    parent first, nearest in time, the earlier on a tie; else, as the
+    ESCAPE asks (`_clock_escape`), on the nearest other parent of its own
+    day in its parent's `kin` group, the earlier first; else on the
+    nearest other day of the gap with its day standing and width kind, at
+    its own parent's place in that day, the earlier first; else, where no
+    weekday census stands (`anyday`), on the nearest day of another
+    weekday on the same terms.
+    """
+    ordinal = state.moved[rank]
+    own = ordinal // state.step
+    group = state.where[_clock_bin(state, ordinal)]
+    low, high = state.lows[rank], state.highs[rank]
+    span = state.unit * state.period
+    per_day = state.day // span
+    day = ordinal // state.day
+    seat = _clock_seat(state, ordinal)
+    place = ordinal % state.step
+
+    def nearest_on(parent: int) -> "int | None":
+        best: "tuple[int, int] | None" = None
+        if parent not in by_parent:
+            return None
+        for key in by_parent[parent]:
+            if key == own or state.held[key] <= 0:
+                continue
+            target = key * state.step + place
+            if target < low or target > high:
+                continue
+            if state.where[_clock_bin(state, target)] != group:
+                continue
+            if _written_at_midnight(target, 0, state.step):
+                continue
+            found = (abs(target - ordinal), target)
+            if best is None or found < best:
+                best = found
+        return None if best is None else best[1]
+
+    target = nearest_on(day * per_day + seat)
+    if target is not None:
+        return target
+    if kin:
+        for away in range(1, per_day):
+            for other in (seat - away, seat + away):
+                if other < 0 or other >= per_day or kin[other] != kin[seat]:
+                    continue
+                target = nearest_on(day * per_day + other)
+                if target is not None:
+                    return target
+    width = _weekday_width_kind(state, ordinal)
+    mine = standing[calendar_rules.weekday_of(day)]
+    first = low // state.day
+    last = high // state.day
+    for kept in [True, False] if anyday else [True]:
+        for away in range(1, max(day - first, last - day) + 1):
+            for other in (day - away, day + away):
+                if other < first or other > last or other in state.holes:
+                    continue
+                if (standing[calendar_rules.weekday_of(other)] == mine) != kept:
+                    continue
+                if _weekday_width_kind(state, other * state.day) != width:
+                    continue
+                target = nearest_on(other * per_day + seat)
+                if target is not None:
+                    return target
+    return None
+
+
+def _clock_count_put_back(
+    state: _WeekdayPass,
+    body_low: int,
+    body_high: int,
+    pinned: "list[bool]",
+    wanted: int,
+    standing: "tuple[int, ...]",
+    anyday: bool = False,
+    kin: "tuple[int, ...]" = (),
+) -> None:
+    """G7.3g step 6, PUT BACK: the count of different values the moves cost.
+
+    A unit split across groups writes a value more for each rank that
+    left it, and G7.3f's own steps put the count back only at the unit's
+    place inside its bin, which on a column of seconds almost never holds
+    another rank. So, where the count of written units is long, ranks
+    alone on their written unit join a written unit another rank holds in
+    their own group of the field (`_clock_merge_target`), in proportional
+    order (`_clock_rotated`), until it is met; where it is short, a rank
+    sharing its written unit takes the free place of its own bin, parent
+    and gap nearest it (`_clock_nearest_free`). Every move keeps each
+    group's count, and the parent, its kin group or the day standing, and
+    lands on no hole and no written midnight.
+    """
+    count = _weekday_count(state)
+    if count > wanted:
+        by_parent = _clock_held_by_parent(state, body_low, body_high)
+        runs: "dict[int, list[int]]" = {}
+        for rank in range(body_low, body_high + 1):
+            if pinned[rank]:
+                continue
+            key = state.moved[rank] // state.step
+            if key in runs:
+                members = runs[key]
+                members += [rank]
+            else:
+                runs[key] = [rank]
+        whole: "list[tuple[int, int]]" = []
+        for key in runs:
+            members = runs[key]
+            first = members[0]
+            if state.held[key] != len(members):
+                continue
+            if all(
+                state.lows[rank] == state.lows[first] and state.highs[rank] == state.highs[first]
+                for rank in members
+            ):
+                whole += [(len(members), key)]
+        # The smallest run first, as G7.3f step 8.2 takes them, each size
+        # in proportional order over the ranks. THE RUNS ARE SORTED ONCE, and
+        # each size's runs are read off them in key order (Codex's review of
+        # the landing, item 3): sorting and filtering every run again for
+        # each size read a million movable ranks -- one run of each size 1
+        # to 1,000 beside 499,500 alone -- 501 million times before its
+        # first merge.
+        order: "list[list[int]]" = []
+        ranked = sorted(whole)
+        place = 0
+        while place < len(ranked):
+            size = ranked[place][0]
+            alike: "list[list[int]]" = []
+            while place < len(ranked) and ranked[place][0] == size:
+                alike += [runs[ranked[place][1]]]
+                place = place + 1
+            order += _clock_rotated(alike, count - wanted)
+        for members in order:
+            if count <= wanted:
+                return
+            first = members[0]
+            if _weekday_there(state, state.moved[first]) != len(members):
+                continue
+            target = _clock_merge_target(state, first, by_parent, standing, anyday, kin)
+            if target is None:
+                continue
+            for rank in members:
+                _weekday_step(state, rank, target)
+            count = count - 1
+        return
+    if count < wanted:
+        # A BIN WITH NO FREE WRITTEN UNIT IS ASKED ONCE (the lane's second
+        # skeptic, finding 1): a probe over the whole of it that finds none
+        # marks it full, and as this step only fills free places it stays
+        # full. A million lab draws to the minute over 120 days, their busy
+        # hours holding every minute, probed each such hour once for every
+        # rank in it: 27 seconds, and 24 more asking again where no weekday
+        # census stands; 1.1 now, every rank where it was.
+        full: "set[int]" = set()
+        for rank in range(body_low, body_high + 1):
+            if count >= wanted:
+                return
+            ordinal = state.moved[rank]
+            if pinned[rank] or _weekday_there(state, ordinal) < 2:
+                continue
+            start = ordinal - ordinal % state.unit
+            if start in full:
+                continue
+            low = max(start, state.lows[rank])
+            high = min(start + state.unit - 1, state.highs[rank])
+            target = _clock_nearest_free(state, ordinal, low, high, 1)
+            if target is None:
+                if low == start and high == start + state.unit - 1:
+                    full |= {start}
+                continue
+            _weekday_step(state, rank, target)
+            count = count + 1
+
+
+def _clock_off_midnight(
+    state: _WeekdayPass,
+    before: "list[bool]",
+    body_low: int,
+    body_high: int,
+    pinned: "list[bool]",
+) -> None:
+    """G7.3g step 4: no rank the pass moved stands on a written midnight.
+
+    A move of the shared pass keeps the place in the bin, so a rank at the
+    top of a bin moved into the day's first bin is written at midnight,
+    which the description's count at midnight -- exact where published,
+    below the line where withheld (plan P4-D191) -- does not hold. Each
+    such rank, with every movable rank of its written unit, takes the
+    nearest free place of the day's first bin -- hour 0, for the hour --
+    inside its gap (`_clock_nearest_free`), the census and its parent
+    kept; where that bin of its gap holds none, it stays.
+    """
+    runs: "dict[int, list[int]]" = {}
+    order: "list[int]" = []
+    for rank in range(body_low, body_high + 1):
+        ordinal = state.moved[rank]
+        if pinned[rank] or before[rank] or not _written_at_midnight(ordinal, 0, state.step):
+            continue
+        key = ordinal // state.step
+        if key in runs:
+            members = runs[key]
+            members += [rank]
+        else:
+            runs[key] = [rank]
+            order += [key]
+    for key in order:
+        members = runs[key]
+        first = members[0]
+        start = key * state.step
+        low = max(state.lows[first], start)
+        high = min(state.highs[first], start + state.unit - 1)
+        for rank in members:
+            low = max(low, state.lows[rank])
+            high = min(high, state.highs[rank])
+        target = _clock_nearest_free(state, start, low, high, len(members))
+        if target is None:
+            continue
+        for rank in members:
+            _weekday_step(state, rank, target)
+
+
+def _hour_tails_on_the_half_day(
+    state: _WeekdayPass, body_low: int, body_high: int, step: int
+) -> None:
+    """G7.3g step 5: a declared 12-hour stamp's tail ranks back on the half day.
+
+    G7.3b step 10 draws every tail rank on the dial's half day and its
+    stratum begins and ends there; a pass after it that moves a rank by a
+    unit inside the stratum may still leave it past noon or at a written
+    midnight. Such a rank takes the nearer of the half day's places on
+    either side of it inside its stratum, the earlier on a tie, and is
+    written on the dial where it stands.
+    """
+    parsed = len(state.moved)
+    for rank in range(parsed):
+        if body_low <= rank <= body_high:
+            continue
+        place = state.moved[rank]
+        if calendar_clock.morning(place, step):
+            continue
+        low, high = state.lows[rank], state.highs[rank]
+        before = calendar_clock.morning_at_or_before(place, step)
+        after = calendar_clock.morning_at_or_after(place, step)
+        found: "list[tuple[int, int]]" = []
+        for target in (before, after):
+            if low <= target <= high:
+                found += [(abs(target - place), target)]
+        if found:
+            _weekday_step(state, rank, sorted(found)[0][1])
 
 
 def _clock_fields_settled(
@@ -25380,22 +26727,28 @@ def _datetime_content(
         body_low = layout.low.rows
         body_high = parsed - 1 - layout.high.rows
     cells: list[str] = []
+    tied = _sixtieth_ties(layout)
     for rank in range(parsed):
         ordinal = ordinals[rank]
         offset = offsets[rank]
         published = ""
+        at = ordinal + 1
         if rank in layout.texts:
             published = layout.texts[rank]
+            at = layout.pins[rank]
+        elif rank in tied:
+            published, at = tied[rank]
         if (
             published
             and not whole[rank]
             and facts.resolution == "datetime"
             and published[17:19] == "60"
-            and ordinal == layout.pins[rank]
+            and ordinal == at
         ):
             # A PINNED RANK CARRYING A SIXTIETH SECOND is written from its
             # own published fields (G7.5, review item P2-C2-F5): the
-            # ordinal space has no place for a leap second.
+            # ordinal space has no place for a leap second. So is a rank
+            # between two such pins of one moment (`_sixtieth_ties`).
             text = _endpoint_cell(
                 facts, published, offset, marks[rank], spellings[rank]
             )
@@ -27080,13 +28433,69 @@ def _weekday_missed_spread(spread: _Spread) -> _Spread:
     )
 
 
-def _hour_spread(facts: contract.DatetimeFacts, spread: _Spread) -> _Spread:
-    """The sentence with the hour census's clause.
+# THE CLAUSES OF A COLUMN PUBLISHING ITS HOUR CENSUS (landing 3b.2-H, plan
+# P4-D371): met between the two tail boundaries, the time of day is no
+# longer among the things not reproduced; where hours are counted
+# together the twin's split among them is its own; and a census the pass
+# could not meet is said to be missed, as the weekday's is.
+_SPREAD_HOUR_MET = (
+    "the published counts per hour of the day are met over the values "
+    "between the two tail boundaries"
+)
 
-    THE STUB OF LANDING 3b.2-H (lane T2, plan P4-D371), which fills this
-    clause (plan P4-D364); unchanged until then.
+_SPREAD_HOURS_TOGETHER = (
+    "Some hours are counted together here, so the twin's split among the "
+    "hours of such a group can differ from the real one."
+)
+
+_SPREAD_HOUR_MISSED = (
+    "The published counts per hour of the day are not met over the values "
+    "between the two tail boundaries: hour_census is named among the facts "
+    "the twin could not hold exactly, and counts per hour computed on this "
+    "twin are not the real column's."
+)
+
+
+def _hour_spread(
+    facts: contract.DatetimeFacts,
+    spread: _Spread,
+    missed: "frozenset[str]" = frozenset(),
+) -> _Spread:
+    """The sentence with the hour census's clause (landing 3b.2-H).
+
+    A column on the dial's half day says where its time of day is drawn
+    (`_SPREAD_HALF_DAY`). Otherwise unchanged where no census is
+    published. Where one is, the time of day leaves the things not
+    reproduced, and the sentence says the counts per hour are met -- or,
+    where the pass filed the census as a deviation (`missed`), that they
+    are not -- and, where a group counts several hours, that the twin's
+    split among them is its own.
     """
-    return spread
+    if _on_the_half_day(facts):
+        spread = _Spread(
+            held=spread.held,
+            missing=spread.missing,
+            beside=tuple(list(spread.beside) + [_SPREAD_HALF_DAY]),
+        )
+    if not facts.hour_census:
+        return spread
+    held = list(spread.held)
+    beside = list(spread.beside)
+    if calendar_clock.HOUR_CENSUS in missed:
+        beside += [_SPREAD_HOUR_MISSED]
+    else:
+        held += [_SPREAD_HOUR_MET]
+        for first, last, count in facts.hour_census:
+            if first != last and count > 0:
+                beside += [_SPREAD_HOURS_TOGETHER]
+                break
+    return _Spread(
+        held=tuple(held),
+        missing=tuple(
+            thing for thing in spread.missing if thing != _SPREAD_HOUR_THING
+        ),
+        beside=tuple(beside),
+    )
 
 
 def _clock_fields_spread(
@@ -27120,25 +28529,23 @@ def _heavy_spread(facts: contract.DatetimeFacts, spread: _Spread) -> _Spread:
     return spread
 
 
-# THE SAME CLAUSE FOR A STAMP DECLARED A 12-HOUR CLOCK WITH NO AM OR PM
-# (landing T1, plan P4-D370's stated limit). Its instants all stand before
-# noon, and this version draws a stamp's time of day over the whole day:
-# a time drawn after noon is written on the dial, which reads it twelve
-# hours earlier, so the ladder is not met rung for rung and saying it is
-# would be false. What the twin then holds is measured from its own cells
-# and named fact by fact above.
-_SPREAD_TWELVE_HOUR_HELD = (
-    "the days are drawn between the published rungs, and between them "
-    "independently; a time drawn after noon is written on the 12-hour "
-    "dial, which reads it twelve hours earlier, so a rung or a tail can "
-    "be missed, and each one missed is named above"
+# THE SENTENCE FOR A STAMP DECLARED A 12-HOUR CLOCK WITH NO AM OR PM. Until
+# landing 3b.2-H its twin drew the time of day over the whole day, a time
+# after noon was written on the dial and read twelve hours earlier, and
+# the held clause said so (landing T1, plan P4-D370's stated limit). Its
+# twin is drawn on the dial's half day now (G7.3b step 10, G7.3g), so the
+# ladder is met as on every column, and a sentence beside it says where
+# the time of day is drawn.
+_SPREAD_HALF_DAY = (
+    "This column is read on a 12-hour dial written with no AM or PM, so "
+    "every value of the twin is drawn before noon, where every value the "
+    "dial shows stands."
 )
 
 
 def _spread_held(facts: contract.DatetimeFacts, held: str) -> str:
-    """The spread sentence's held clause, or the 12-hour stamp's (T1)."""
-    if parsing.clock_face(_stamp_clock_style(facts)) == parsing.CLOCK_TWELVE_HOUR:
-        return _SPREAD_TWELVE_HOUR_HELD
+    """The spread sentence's held clause (landing T1, as 3b.2-H left it): the
+    column's own, a declared 12-hour stamp's included."""
     return held
 
 
@@ -27186,8 +28593,9 @@ def _spread_remarks(
     that do apply: periods holding far more values than their
     neighbours, and a column of a few scheduled periods. Printing all
     four on such a column would name two things no column of periods
-    can lose. A stamp declared a 12-hour clock with no AM or PM does not
-    say its ladder is met (`_spread_held`, landing T1).
+    can lose. A stamp declared a 12-hour clock with no AM or PM is drawn
+    on the dial's half day since landing 3b.2-H, and says so
+    (`_SPREAD_HALF_DAY`); before it, it did not say its ladder was met.
 
     ONE CLAUSE PER CENSUS (plan P4-D364). The sentence is built from
     what nothing publishes (`_SPREAD_NOTHING_MET`), and each census the
@@ -27223,7 +28631,7 @@ def _spread_remarks(
     else:
         spread = _weekday_spread(facts, _SPREAD_NOTHING_MET)
     # -- the hour of the written clock (3b.T2, P4-D371)
-    spread = _hour_spread(facts, spread)
+    spread = _hour_spread(facts, spread, missed)
     # -- the minute and the second (3b.T3, P4-D372)
     spread = _clock_fields_spread(facts, spread)
     # -- the days of the month (3b.D3, P4-D368)
@@ -28446,6 +29854,15 @@ def _snapped_to_midnight(
     on the rank's own offset, as the describing step asks it; a count the
     two passes cannot reach is named by `_midnight_count_notes`.
 
+    ON THE DIAL'S HALF DAY (`_on_the_half_day`; landing 3b.2-H, plan
+    P4-D371) no tail rank is among the ranks of rules 2 to 5: G7.3b step
+    10 stands every tail rank from one unit past midnight to the last unit
+    before noon, never at a written midnight, so a tail rank chosen here
+    was taken back off midnight by G7.3g step 5 and nothing gave the body
+    that cell back -- a weekday clinic written h:mm on the dial, its noon
+    slots reading 12:00, published 21 cells at midnight and its twins wrote
+    20 at every seed (the lane's skeptic, finding 2).
+
     Guarantees: accepts the facts, one instant per rank in seconds on the
     column's clock and one offset per rank; returns the instants moved.
     Linear in the number of ranks. Determinism: a function of the three;
@@ -28470,6 +29887,11 @@ def _snapped_to_midnight(
             moved[rank] = min(max(moved[rank], lows[rank]), highs[rank])
     counted = facts.n_at_midnight
     owed = 0 if counted is None else counted
+    # The ranks rules 2 to 5 may move: every rank, or on the half day the
+    # body's alone.
+    first, last = 0, parsed - 1
+    if _on_the_half_day(facts) and layout.low is not None and layout.high is not None:
+        first, last = layout.low.rows, parsed - 1 - layout.high.rows
     free: list[int] = []
     for rank in range(parsed):
         # A rank between two pinned ranks holding one value has nowhere
@@ -28477,7 +29899,7 @@ def _snapped_to_midnight(
         if pinned[rank] or lows[rank] == highs[rank]:
             if _written_at_midnight(moved[rank], shifts[rank], step):
                 owed = owed - 1
-        else:
+        elif first <= rank <= last:
             free += [rank]
     wanted = max(0, min(owed, len(free)))
     chosen = [False for _rank in range(parsed)]
@@ -29149,6 +30571,12 @@ def _group_gives_way(
                 if (at - distance if plan.low_side else at + distance) in holes:
                     continue
                 if not _same_standing(facts, own, spot, day, step, widths, word):
+                    continue
+                # ...and on a declared 12-hour stamp, never off the dial's
+                # half day (G7.3b step 10, landing 3b.2-H).
+                if shape.half_day is not None and not calendar_clock.morning(
+                    spot, shape.half_day[1]
+                ):
                     continue
                 free += [distance]
             away = away + by

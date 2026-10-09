@@ -663,7 +663,15 @@ def test_a_column_holding_no_midnight_publishes_no_count_and_asks_for_none(
     assert first["n_at_midnight"] is None
     assert (twin_exit, real_exit) == (0, 0)
     before = sum(1 for cell in written if _at_midnight(cell))
-    moved = [cell[:11] + "00:00" + cell[16:] if place == 7 else cell for place, cell in enumerate(written)]
+    # A cell of hour 0 well inside the middle half moved onto midnight: the
+    # hour census this column publishes since landing 3b.2-H (plan P4-D371)
+    # holds as it stood, so the one midnight is all the edit asks of it.
+    low, high = first["date_percentiles"]["p25"][:10], first["date_percentiles"]["p75"][:10]
+    edited = next(
+        place for place, cell in enumerate(written)
+        if cell[11:13] == "00" and not _at_midnight(cell) and low < cell[:10] < high
+    )
+    moved = [cell[:11] + "00:00" + cell[16:] if place == edited else cell for place, cell in enumerate(written)]
     assert sum(1 for cell in moved if _at_midnight(cell)) == before + 1
     code, report = _validate(tmp_path / "none" / "real-profile.json", moved, tmp_path / "moved")
     assert code == 0

@@ -2408,7 +2408,7 @@ _real_units_settled = gen.units_settled
 _real_group_gives_way = gen.group_gives_way
 
 
-def _group_left_on_the_hole(rows, mean, root, floor, edge, apart, words, off=None):
+def _group_left_on_the_hole(rows, mean, root, floor, edge, apart, words, off=None, half_day=None):
     """G7.3b step 7 withdrawn for a tie group alone (plan P4-D358).
 
     The absent day under the group's own distance is taken out of the
@@ -2416,12 +2416,12 @@ def _group_left_on_the_hole(rows, mean, root, floor, edge, apart, words, off=Non
     every absent day it stands on.
     """
     if off is None or not rows > floor >= 1 or apart:
-        return _real_tail_distances(rows, mean, root, floor, edge, apart, words, off)
-    group = _real_tail_distances(rows, mean, root, floor, edge, apart, words, None)[rows - 1]
+        return _real_tail_distances(rows, mean, root, floor, edge, apart, words, off, half_day)
+    group = _real_tail_distances(rows, mean, root, floor, edge, apart, words, None, half_day)[rows - 1]
     at, low_side, holes = off
     spot = at - group if low_side else at + group
     return _real_tail_distances(
-        rows, mean, root, floor, edge, apart, words, (at, low_side, set(holes) - {spot})
+        rows, mean, root, floor, edge, apart, words, (at, low_side, set(holes) - {spot}), half_day
     )
 
 
@@ -2460,14 +2460,14 @@ def _stratum_end_instead(shape, rows, mean, root, edge):
     return 1.0, min(end, float(edge))
 
 
-def _never_apart(rows, mean, root, floor, edge, apart, words, off=None):
+def _never_apart(rows, mean, root, floor, edge, apart, words, off=None, half_day=None):
     """G7.3b step 5's two-pass step withdrawn: the tail may fold onto one value.
 
     The ranks are raised to the one inside them and no further, so a
     column whose own values were all different comes back holding two
     of its tail's ranks on one value.
     """
-    return _real_tail_distances(rows, mean, root, floor, edge, False, words, off)
+    return _real_tail_distances(rows, mean, root, floor, edge, False, words, off, half_day)
 
 
 def _no_day_of_room(column):
@@ -2511,7 +2511,7 @@ def _ramp_from_one(column, parsed):
     return pins
 
 
-def _always_apart(rows, mean, root, floor, edge, apart, words, off=None):
+def _always_apart(rows, mean, root, floor, edge, apart, words, off=None, half_day=None):
     """G7A.4's CONDITION withdrawn: every tail kept apart, all-different or not.
 
     The two-pass step belongs to a column whose own values all differ;
@@ -2519,10 +2519,10 @@ def _always_apart(rows, mean, root, floor, edge, apart, words, off=None):
     shared a value comes back holding as many different ones as it has
     ranks.
     """
-    return _real_tail_distances(rows, mean, root, floor, edge, True, words, off)
+    return _real_tail_distances(rows, mean, root, floor, edge, True, words, off, half_day)
 
 
-def _no_fold_guard(rows, mean, root, floor, edge, apart, words, off=None):
+def _no_fold_guard(rows, mean, root, floor, edge, apart, words, off=None, half_day=None):
     """G7.3b step 5's ordering withdrawn: each rank at its own stratum alone.
 
     The distances are left exactly as the shape gives them, with no rank

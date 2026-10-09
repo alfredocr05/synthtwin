@@ -142,6 +142,12 @@ The cases and their clauses:
   takes a moment off its written time of day, and steps 8.4 and 8.5,
   which hold the only moves that do on a day of moments, move no rank
   (P4-D366's third stated limit, its clause restated);
+
+* `test_the_shares_break_a_tie_by_the_earliest_group_and_then_gap` --
+  step 3's totals made exact one share at a time, on four alike weeks
+  whose every move ties across the gaps, one state tying two giving
+  groups and one two taking groups (the lane T2 skeptic's second report,
+  finding 4): T2S2_4a to 4c in the mutant table;
 * `test_every_case_is_asked` -- the file holds these cases and no other,
   and the oracle gives each the answer the file carries.
 """
@@ -245,6 +251,18 @@ def _answer(case: dict, module=generation) -> list:
     elif step == "prior":
         gaps = sorted({(case["lows"][rank], case["highs"][rank]) for rank in _movable(case)})
         return [module._weekday_prior(state, first, last, len(case["counts"])) for first, last in gaps]
+    elif step == "shares":
+        # Step 3's quotas, from the owed totals and the gaps as `_bins_settled` builds them.
+        owed = list(case["counts"])
+        for rank in range(low, high + 1):
+            if pinned[rank]:
+                owed[module._weekday_group(state, state.moved[rank])] -= 1
+        gaps = module._weekday_gaps(state, low, high, pinned)
+        for ranks in gaps:
+            spot = (state.lows[ranks[0]], state.highs[ranks[0]])
+            state.gap_sizes[spot] = state.gap_sizes.get(spot, 0) + len(ranks)
+        module._weekday_holes_swept(state, gaps)
+        return module._weekday_shares(state, gaps, owed)
     else:
         cells = module._weekday_cells(state, low, high, pinned)
         return [[giving, taking] for _cell, giving, taking, _mover in module._weekday_cycle(state, cells, case["short"])]
@@ -294,6 +312,8 @@ CASES = [
     "a_moments_cycle_moves_its_asked_movers", "an_hour_cycle_moves_its_asked_movers",
     # ...and its repair's, on step 7b
     "a_chain_moves_its_asked_mover", "a_chain_moves_its_asked_mover_in_the_pass",
+    # the lane T2 skeptic's second report (its finding 4), step 3's ties
+    "the_shares_tie_two_giving_groups", "the_shares_tie_two_taking_groups",
 ]
 
 
@@ -513,6 +533,20 @@ def test_the_prior_leaves_out_every_hour_of_a_holes_day() -> None:
     case = _case("the_prior_of_hours")
     scale = generation._WEEKDAY_SCALE
     assert _answer(case) == case["answer"] == [[24 * scale, 37 * scale // 2]]
+
+
+def test_the_shares_break_a_tie_by_the_earliest_group_and_then_gap() -> None:
+    """Step 3's totals made exact one share at a time, the earliest giving group, then taking
+    group, then gap on a tie (the lane T2 skeptic's second report, finding 4). Four alike weeks
+    between Sunday pins, census Monday to Wednesday, Thursday and Friday, the weekend: owing 3,
+    3 and 2, every gap rounds to 1, 1 and 0, and the first gap gives from Monday to Wednesday
+    and the second from Thursday and Friday, each to the weekend; owing 2, 1 and 1, every gap
+    rounds to 1, 0 and 0, and the first gap gives to Thursday and Friday and the second to the
+    weekend. Red on the latest giving group, taking group and gap on a tie (T2S2_4a to 4c)."""
+    giving = _case("the_shares_tie_two_giving_groups")
+    taking = _case("the_shares_tie_two_taking_groups")
+    assert _answer(giving) == giving["answer"] == [[0, 1, 1], [1, 0, 1], [1, 1, 0], [1, 1, 0]]
+    assert _answer(taking) == taking["answer"] == [[0, 1, 0], [0, 0, 1], [1, 0, 0], [1, 0, 0]]
 
 
 def test_a_day_step_6_empties_is_free_to_step_8_3() -> None:
@@ -1233,6 +1267,22 @@ REVIEW_MUTANTS: "dict[str, tuple[str, str, str]]" = {
         "score = (-gain, abs(pairs.keys[first][0] - pairs.keys[second][0]))",
         "score = (-gain, abs(pairs.keys[first][1] - pairs.keys[second][1]))",
     ),
+    # the lane T2 skeptic's second report (its finding 4): step 3's ties
+    "T2S2_4a_shares_latest_giving_group": (
+        "the_shares_tie_two_giving_groups",
+        "        if giving < 0 or left < least:",
+        "        if giving < 0 or left <= least:",
+    ),
+    "T2S2_4b_shares_latest_taking_group": (
+        "the_shares_tie_two_taking_groups",
+        "        if taking < 0 or left > most:",
+        "        if taking < 0 or left >= most:",
+    ),
+    "T2S2_4c_shares_latest_gap": (
+        "the_shares_tie_two_giving_groups",
+        "                or (side[0] == best[0] and (side[1], side[2]) < (best[1], best[2]))",
+        "                or (side[0] == best[0] and (side[1], side[2]) <= (best[1], best[2]))",
+    ),
 }
 
 
@@ -1246,7 +1296,9 @@ def test_each_clause_is_red_on_its_mutant(name: str, monkeypatch: pytest.MonkeyP
     step's mover, the cycle's move taking the mover its gain was asked of, as that item's
     verification asked, and the chain's move onto the mover its link was asked of where the
     mover as the ranks then stand has no place, as the repair of that verification extended
-    it): under its source edit the case beside it answers otherwise, or its
+    it), and step 3's ties, the earliest giving group, then taking group, then gap, as the
+    lane T2 skeptic's second report asked (its finding 4: T2S2_4a to 4c): under its source
+    edit the case beside it answers otherwise, or its
     tables raise (M73). Every other mutant of the repair's lines, its own or the second review's,
     is red on this file's other tests, but two that change no answer: the second review's N07, a
     unit's status kept in its first cell alone, is the same pass, a unit two cells hold having
