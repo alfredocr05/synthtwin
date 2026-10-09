@@ -37,12 +37,14 @@ eight kinds of column it states and pins. Epic contact numbers are spread
 evenly over the twin's rows, and an Epic column whose contact numbers are
 each rarer than the line no longer leaves a twin failing its own check or
 stops `profile`. A counted column crossing 1 January 1900 no longer draws
-that day, which it reads as no value -- dates nor moments: every tail of
-the twin stops short of it, and of the days before a spreadsheet's first
-count, which an Excel twin of births from 1900 wrote as text -- and one
-cell written with more figures than the rest no longer refuses the
-column, while spreadsheet date-times whose few longer cells carry the
-time of day are read as dates again. NF51 is no longer written.
+that day, which it reads as no value -- dates nor moments: no tail of
+the twin reaches the days before a spreadsheet's first count, which an
+Excel twin of births from 1900 wrote as text, and a tail running across
+1 January 1900 in SAS, Stata or Unix counts keeps its values either
+side of the day and none on it -- and one cell written with more
+figures than the rest no longer refuses the column, while spreadsheet
+date-times whose few longer cells carry the time of day are read as
+dates again. NF51 is no longer written.
 
 ### A description written before the published pairs loads again (2026-10-03)
 

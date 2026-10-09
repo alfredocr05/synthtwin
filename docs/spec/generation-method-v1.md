@@ -7503,28 +7503,45 @@ every other moment of the day is a date (`date_counts.hole_words`) --
 are holes of the column, which the description and the checker hold as
 its absent spellings. On a column of dates the count pass offers none
 of them and a cell written on one moves to a neighbouring day, and the
-weekday pass holds each a hole. NO TAIL REACHES ONE: a tail's reach,
-the furthest its member's spelling writes, is cut to one unit short of
-the nearest stretch beyond its boundary the column's counts cannot hold
--- either placeholder day, the day or the instant serial 2 names (on a
+weekday pass holds each a hole. NO TAIL REACHES A WALL OF THEM: the
+stretches beyond a tail's boundary the column's counts cannot hold --
+either placeholder day, the day or the instant serial 2 names (on a
 column of moments, the written unit's span of it), and on Excel's two
-systems every moment before the system's first count
-(`date_counts.tail_reach`) -- so its end, its group and every rank
-drawn between them stand inside it, and the validator draws its windows
-to the same reach; the source's own values beyond a boundary are never
-on such a stretch, so a tail whose values all stand on its near side
-keeps them, and one whose values straddle 1 January 1900, on a system
-that writes the days before it, is drawn this side of the day. A last
-pass, after every other, moves any rank left on a hole day by whole
-days to the nearest day inside its own gap that is none of them and
-that no rank holds, its clock kept. (The second review of landing R4,
-item 2: a twin of Excel birth dates from 1900 drew serial 1 on three
-seeds of three, read it back as no value and missed its own count of
-present cells. Its verification: a tail of Excel date-times from 1900,
-its end and group stepped off midnight of 1 January alone, kept a rank
-on that day inside a stratum less than a day wide, which no whole day's
-move fits, and wrote its end before serial 1 as ISO text, on six seeds
-of six.)
+systems every moment before the system's first count -- are joined
+where they touch (`date_counts.blocked_units`), and one running on to
+the furthest unit the member's spelling writes, or to the calendar's
+first or last day, is a WALL: the tail's reach is cut to one unit short
+of the nearest (`date_counts.tail_reach`) -- Excel's days before its
+first count with 1 January 1900 and serial 2 beside them, and 31
+December 9999 -- so its end, its group and every rank drawn between
+them stand inside it, and no source value stands beyond one. Any other
+such stretch inside the reach is an ISLAND -- 1 January 1900, in a
+system that writes the days either side of it -- and cuts nothing, for
+a source's tail runs past it as often as not (`date_counts.tail_islands`):
+the tail's end and its group, each one distance, step off it, inward
+to the unit just inside it where that is a distance of one or more and
+otherwise outward to the unit just beyond it (`off_the_islands`); a
+rank whose stratum lies wholly on it, with m such ranks, is given a
+stratum from m units inside it to m beyond it, and every stratum
+is then kept no nearer than the one inside it and no further than the
+one outside it (`stratum_off_the_islands`); step 9 offers no unit on
+it. The validator draws its windows to the same reach and the same
+strata. A last pass, after every other, moves any rank left on a hole
+day to the nearest instant inside its own gap whose day is none of them
+and that no rank holds -- a whole number of days away, its clock kept,
+and where no whole day's move fits its gap, a whole number of the units
+the column is written at away (a minute, or a second) -- and where every
+such instant is held, the nearest one, in the same order. (The second
+review of landing R4, item 2: a twin of Excel birth dates from 1900 drew
+serial 1 on three seeds of three, read it back as no value and missed
+its own count of present cells. Its verification: a tail of Excel
+date-times from 1900, its end and group stepped off midnight of 1
+January alone, kept a rank on that day inside a stratum less than a day
+wide, which no whole day's move fits, and wrote its end before serial 1
+as ISO text, on six seeds of six. The repair of that verification: a
+reach cut at 1 January 1900 in SAS days drew none of a tail's eight
+values before 1900, and a dense tail of SAS seconds piled onto the last
+second it allowed missed both counts of different values.)
 
 **Writing a moment.** Each cell G7 wrote as a date or moment is
 written as its system's count of that moment: a whole count exactly,

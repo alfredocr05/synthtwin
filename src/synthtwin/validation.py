@@ -15961,8 +15961,9 @@ def _tail_date_system(description: contract.Profile, column: contract.ColumnBloc
     dates written as counts -- a `count_form` published, the column
     named under `forced_date_counts` -- stores them as counts of the
     system it is declared in, and the word is that system's, as the
-    generator's `_date_system_of` says it: its tails stop short of the
-    days its counts cannot hold (`_date_tail_windows`, G7.10).
+    generator's `_date_system_of` says it: its tails stop short of a
+    wall its counts cannot hold and reach past an island of them
+    (`_date_tail_windows`, G7.10).
     """
     facts = column.facts
     if isinstance(facts, contract.DatetimeFacts) and facts.count_form is not None:

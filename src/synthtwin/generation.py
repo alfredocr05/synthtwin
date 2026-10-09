@@ -792,8 +792,9 @@ class _ColumnPlan:
     # or "" (stage 3, plan P4-D331): a tail's outer values are kept inside
     # the days that system can store (`parsing.readable_days`). -- 3b.R4
     # (P4-D384): on a column of dates written as counts, the counting
-    # system it is declared in, whose counts its tails stop short of the
-    # days they cannot hold (`_date_system_of`, `date_counts.tail_reach`).
+    # system it is declared in, whose walls its tails stop short of and
+    # whose islands they step off (`_date_system_of`, `_counted_reach`,
+    # `_counted_islands`).
     date_system: str = ""
     # THE PLACEHOLDER DAYS THE DECLARATION OF MISSING VALUES NAMED, as the
     # settings publish them (`built_in_dates`): with the column's own
@@ -9684,10 +9685,12 @@ def _counted_holes(column: contract.ColumnBlock, profile: contract.Profile) -> "
     1890. Each day is an absent spelling of this column to every pass of
     G7 (`_all_holes_of`): on a column of whole dates the count pass offers
     none of them (`_count_holes`), the weekday pass holds each a hole, and
-    a cell written on one moves to a neighbouring day; no tail reaches one
-    (`_date_system_of`, `date_counts.tail_reach`); and after every pass
-    `_kept_off_placeholder_days` moves a rank left on one by whole days.
-    Nothing on any other column.
+    a cell written on one moves to a neighbouring day; no tail reaches a
+    wall of them and every tail steps off, or gives room off, an island of
+    them (`_date_system_of`, `_counted_reach`, `_counted_islands`); and
+    after every pass `_kept_off_placeholder_days` moves a rank left on one
+    by whole days, or by the unit the column is written at where no whole
+    day fits its gap. Nothing on any other column.
     """
     member = _counted_member(column, profile)
     facts = column.facts
@@ -19024,9 +19027,10 @@ def _hole_units(
     hides none after it; a derived end or group standing on that unit
     would be written as a cell the twin's description reads as absent, so
     it steps inward off it (G7.3b step 7). The days a column of dates
-    written as counts holds no date on are not asked here: its tails stop
-    short of them (`date_counts.tail_reach`, G7.10), where stepping one
-    unit off a day left every other unit of it standing.
+    written as counts holds no date on are not asked here, where stepping
+    one unit off a day left every other unit of it standing: its tails
+    stop short of a wall of them and step off every unit of an island of
+    them (`_counted_reach`, `_counted_islands`, G7.10).
     """
     found: "dict[int, bool]" = {}
     for spelling in _hole_spellings(column):
@@ -19411,8 +19415,8 @@ def _date_layout(
     ``date_system`` is the system the twin's cells store the column's
     dates in (`_date_system_of`): a workbook's, whose first day bounds the
     tails, or -- on a column of dates written as counts -- the counting
-    system, short of whose holes every tail stops (`_counted_reach`,
-    G7.10).
+    system, short of whose walls every tail stops and off whose islands
+    every tail steps (`_counted_reach`, `_counted_islands`, G7.10).
 
     WITH TAILS: the two boundary ranks are pinned at the two boundaries,
     each published rung between them at its own value, and each tail laid
@@ -21796,9 +21800,10 @@ def _date_system_of(profile: contract.Profile, place: int) -> str:
     delimited table, and a workbook column of text, keeps none. -- 3b.R4
     (P4-D384): a column of dates written as counts stores them as counts
     of the system it is declared in, and the word is that system's:
-    every tail stops short of the days its counts cannot hold
-    (`_counted_reach`, G7.10). Such a column's cells are numbers, never
-    a workbook's typed dates, so the two never meet.
+    every tail stops short of a wall its counts cannot hold and steps
+    off an island of them (`_counted_reach`, `_counted_islands`, G7.10).
+    Such a column's cells are numbers, never a workbook's typed dates,
+    so the two never meet.
     """
     if place < len(profile.columns):
         counted = _counted_member(profile.columns[place], profile)
