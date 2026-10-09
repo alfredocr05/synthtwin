@@ -458,6 +458,22 @@ def merged(one: Tally, other: Tally) -> Tally:
     )
 
 
+def every_count(tallies: "dict[int, Tally]") -> Tally:
+    """The tally of EVERY count of a column, strays included: its tallies by places taken as one.
+
+    The first reading a column is settled by (`usual_tally`): its form,
+    unit and figures check from all its counts.
+
+    Guarantees: accepts the tallies by figures after the mark
+    (`tallied_by_places`); returns their merged tally. Raises nothing. No
+    I/O.
+    """
+    every = Tally()
+    for figures in sorted(tallies):
+        every = merged(every, tallies[figures])
+    return every
+
+
 def usual_tally(tallies: "dict[int, Tally]") -> "tuple[Tally, int]":
     """The tally of a column's USUAL counts, and the most figures after the mark they write (or -1).
 
@@ -466,14 +482,26 @@ def usual_tally(tallies: "dict[int, Tally]") -> "tuple[Tally, int]":
     figures among a thousand written `%.6f` made the column's form one of
     seven figures, the six-figure cells were held to a seven-figure
     tolerance they cannot meet, and question Q3 asked nothing and the
-    declaration was refused. So the column's form, its unit and the check
-    are taken from the counts written with its usual figures, and the
-    counts writing the most figures are set beside them as strays, the
+    declaration was refused. So where EVERY count's reading
+    (`every_count`) holds no unit, the column's form, its unit and the
+    check are taken from the counts written with its usual figures, and
+    the counts writing the most figures are set beside them as strays, the
     longest first, while they number at most one in a hundred of the
     counts -- one at least (`STRAY_PER`) -- and the usual ones at least
     nine tenths (`REST_SHARE_NUM`). Each stray is held to its own last
     figure (`settled_reading`), and is not written back as itself: the
     twin writes its moment in the column's usual form.
+
+    EVERY COUNT IS TRIED FIRST (the verification of that repair): where the
+    few longer counts are the ones carrying the time of day -- date-times
+    mostly at six-hour steps or at midnight, written trimmed (`45123.25`,
+    `45123`), the rest at other hours or minutes in full -- the usual
+    counts' two figures, or none, settle at the day, the strays name times
+    a day cannot hold, and setting them aside refused eight such columns
+    that the reading by every count reads at the minute. So a column is
+    read as all its counts are written, and its longest counts are strays
+    only where that reading holds no unit (`taxonomy._counts_read_as_dates`,
+    `figures_kept`).
 
     Guarantees: accepts the tallies by figures after the mark
     (`tallied_by_places`); returns the merged tally of the usual counts
@@ -1300,12 +1328,14 @@ def figures_kept(
     THE PROFILER'S OWN DECISION, asked before the question is put
     (`settled_reading`): for each member, the present cells read as its
     counts (`counted`), its set-aside numbers taken out (`declared_aside`),
-    tallied by the figures each writes after the mark -- a stray written
-    with more figures than the usual counts set beside them and held to
-    its own last figure (`usual_tally`, `held_to`) -- settled to each unit
-    the figures may carry (`reading_units`) and asked whether every count
-    names its moment as its column wrote it (`held_by_its_moment`),
-    exactly as a declaration reads them. A system
+    tallied by the figures each writes after the mark, settled to each
+    unit the figures may carry (`reading_units`) and asked whether every
+    count names its moment as its column wrote it (`held_by_its_moment`),
+    exactly as a declaration reads them -- by EVERY count's form first
+    and, where some counts are strays, by the usual counts' form with
+    each stray held to its own last figure (`every_count`, `usual_tally`,
+    `held_to`). A member is kept where EITHER reading holds, as the
+    profiler reads the column by whichever does. A system
     no unit of which holds every figure -- Unix seconds written with
     tenths, four figures of a day of moments off the minute -- is not
     offered, since the answer would be refused (NF115): the first build of
@@ -1356,29 +1386,37 @@ def figures_kept(
                 if not stands_aside(numerator, denominator, False, asides[member]):
                     tallied_by_places(tallies[member], written)
     held: "dict[str, int]" = {}
-    plains: "dict[str, CountForm]" = {}
-    usuals: "dict[str, int]" = {}
-    units: "dict[str, tuple[int, ...]]" = {}
-    tried: "dict[str, int]" = {}
-    pending: "list[str]" = []
+    # ONE READING PER KEY, a member and which of its readings: 0 by every
+    # count's form, 1 by the usual counts' with each stray held to its own
+    # last figure (`every_count`, `usual_tally`, `held_to`).
+    plains: "dict[tuple[str, int], CountForm]" = {}
+    usuals: "dict[tuple[str, int], int]" = {}
+    units: "dict[tuple[str, int], tuple[int, ...]]" = {}
+    tried: "dict[tuple[str, int], int]" = {}
+    pending: "list[tuple[str, int]]" = []
     for member in walked:
-        # THE USUAL COUNTS DECIDE THE FORM AND THE UNIT, a stray written with
-        # more figures is held to its own (`usual_tally`, `held_to`).
-        tally, usual = usual_tally(tallies[member])
-        if tally.places == 0 and usual < 0:
+        every = every_count(tallies[member])
+        if every.places == 0:
             # No count at all, or every count whole: every figure is held.
             held[member] = 1
             continue
-        plains[member] = form_from(tally, mark, None)
-        usuals[member] = usual
-        units[member] = reading_units(member, plains[member], tally)
-        # The finest first: `reading_units` gives them coarsest first.
-        tried[member] = len(units[member]) - 1
-        pending += [member]
+        tally, usual = usual_tally(tallies[member])
+        readings: "list[tuple[Tally, int]]" = [(every, -1)]
+        if usual >= 0:
+            readings += [(tally, usual)]
+        for which in range(len(readings)):
+            counted_here, longest_usual = readings[which]
+            key = (member, which)
+            plains[key] = form_from(counted_here, mark, None)
+            usuals[key] = longest_usual
+            units[key] = reading_units(member, plains[key], counted_here)
+            # The finest first: `reading_units` gives them coarsest first.
+            tried[key] = len(units[key]) - 1
+            pending += [key]
     while pending:
-        standing: "dict[str, int]" = {}
-        for member in pending:
-            standing[member] = 1
+        standing: "dict[tuple[str, int], int]" = {}
+        for key in pending:
+            standing[key] = 1
         for text in present:
             if not standing:
                 break
@@ -1386,29 +1424,34 @@ def figures_kept(
             if written is None:
                 continue
             numerator, denominator = exact_value(written)
-            for member in pending:
-                if member not in standing or stands_aside(
+            for key in pending:
+                member = key[0]
+                if key not in standing or stands_aside(
                     numerator, denominator, False, asides[member]
                 ):
                     continue
-                settled = units[member][tried[member]]
+                settled = units[key][tried[key]]
                 moment = _settled_moment(member, numerator, denominator, settled)
                 if moment is not None and not held_by_its_moment(
                     member,
-                    held_to(plains[member], usuals[member], denominator),
+                    held_to(plains[key], usuals[key], denominator),
                     numerator,
                     denominator,
                     moment,
                     settled,
                 ):
-                    del standing[member]
-        still: "list[str]" = []
-        for member in pending:
-            if member in standing:
-                held[member] = 1
-            elif tried[member] > 0:
-                tried[member] = tried[member] - 1
-                still += [member]
+                    del standing[key]
+        for key in pending:
+            if key in standing:
+                held[key[0]] = 1
+        still: "list[tuple[str, int]]" = []
+        for key in pending:
+            # A member one reading holds is kept, and its other is not walked.
+            if key[0] in held:
+                continue
+            if tried[key] > 0:
+                tried[key] = tried[key] - 1
+                still += [key]
         pending = still
     kept: "list[str]" = []
     for member in members:

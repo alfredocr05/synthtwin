@@ -1700,6 +1700,78 @@ def test_c4_a_stray_is_held_to_its_own_last_figure(tmp_path: pathlib.Path) -> No
     assert _block_of(tmp_path / "whole-second", cells, "excel-1900")["role"] == "datetime"
 
 
+def _time_carried_by_the_few(maker: str, writer: str, share: float) -> "list[str]":
+    """A thousand Excel date-times whose few longer counts are the ones carrying the time of day.
+
+    `quarter`: most at 00, 06, 12 or 18 o'clock (`45123.25`), ``share`` of
+    them at other whole hours; `midnight`: most at midnight, as date-only
+    entries, ``share`` at whole minutes. Written `%.15g`, as Excel's
+    General format and R write them, or `repr`, as pandas does -- so the
+    usual counts write two figures after the point, one or none, and the
+    few others ten or twelve.
+    """
+    draw = random.Random(f"carried:{maker}:{writer}:{share}")
+    many = round(1000 * share)
+    cells: "list[str]" = []
+    for row in range(1000):
+        day = 45000 + draw.randrange(1500)
+        if maker == "quarter":
+            hours = (1, 2, 3, 4, 5, 7, 8, 9, 10, 11, 13, 14) if row < many else (0, 6, 12, 18)
+            value = day + draw.choice(hours) / 24
+        else:
+            value = day + (draw.randrange(1, 1440) if row < many else 0) / 1440
+        cells += ["%.15g" % value if writer == "g15" else repr(value)]
+    draw.shuffle(cells)
+    return cells
+
+
+def test_c4_longer_counts_carrying_the_time_of_day_are_read_with_the_rest(tmp_path: pathlib.Path) -> None:
+    """The verification of the second review's item 5: every count is read first, strays only where that fails.
+
+    Eight columns of a thousand Excel date-times, written `%.15g` or
+    `repr`, mostly at six-hour steps or at midnight with half or one
+    percent at other hours or minutes. The longer counts are the ones
+    carrying the time: reading by every count, the column settles at the
+    millisecond and is written at the minute, as e9aa5fb read all eight.
+    The first repair set the longer counts aside as strays FIRST, so the
+    usual two figures or none settled at the day, the strays named times
+    a day cannot hold, Q3 asked none of the eight and each declaration
+    was refused (NF115) -- red on 568b597. Each is asked with Excel's
+    1900 system, read at the minute in its own form, every source cell
+    that form's writing of its moment, and its twin and source both pass.
+    """
+    columns: "dict[str, list[str]]" = {}
+    for maker in ("quarter", "midnight"):
+        for writer in ("g15", "repr"):
+            for share in (0.005, 0.01):
+                columns[f"{maker}_{writer}_{round(share * 1000)}"] = _time_carried_by_the_few(maker, writer, share)
+    for name in sorted(columns):
+        said = _q3(_block_of(tmp_path / f"asked-{name}", columns[name]))
+        offered = [] if said is None else [member for member, _first, _last in said.readings]
+        assert "excel-1900" in offered, (name, offered)
+    came = _trip_of(tmp_path / "declared", columns, {name: "excel-1900" for name in columns})
+    assert came["profile"] == 0, came["said"]
+    blocks = came["blocks"]
+    assert isinstance(blocks, dict)
+    for name in sorted(columns):
+        block = blocks[name]
+        assert block["role"] == "datetime" and block["time_precision"] == "minute", (name, block["role"])
+        form = block["count_form"]
+        longest = max(len(cell.split(".")[1]) if "." in cell else 0 for cell in columns[name])
+        assert form["places"] == longest and form["trimmed"], (name, form)
+        shaped = date_counts.CountForm(
+            form["places"], form["trimmed"], form["significant"], form["exponent"], form["mark"], None
+        )
+        for cell in columns[name]:
+            written = date_counts.written_count(cell)
+            assert written is not None
+            numerator, denominator = date_counts.exact_value(written)
+            moment = date_counts.moment_of("excel-1900", numerator, denominator, date_counts.MINUTE)
+            assert moment is not None
+            assert date_counts.written_for("excel-1900", moment, date_counts.MINUTE, shaped) == cell, (name, cell)
+    assert (came["generate"], came["twin"], came["source"]) == (0, 0, 0), came
+
+
 def test_c5_a_placeholder_count_is_set_aside_whole_or_not(
     tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

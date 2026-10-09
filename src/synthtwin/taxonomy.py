@@ -16946,11 +16946,16 @@ def _counts_read_as_dates(
     not -- Unix seconds written with tenths, four figures of a day of
     moments off the whole minute, one figure of a day -- means no unit a
     twin could be drawn at keeps the column's figures, and nothing is
-    read: the caller then says so in NF115. THE FORM AND THE UNIT ARE THE
-    USUAL COUNTS' (`date_counts.usual_tally`; the second review of
-    landing R4, item 5): up to one count in a hundred written with more
-    figures than the rest is a stray, held to its own last figure, and
-    the twin writes its moment in the usual form.
+    read: the caller then says so in NF115. EVERY COUNT IS READ FIRST, and
+    only where that reading holds no unit are the counts written with the
+    most figures -- up to one in a hundred -- set beside the usual ones as
+    strays, each held to its own last figure, the form and the unit then
+    the usual counts' and each stray's moment written in the usual form
+    (`date_counts.usual_tally`; the second review of landing R4, item 5,
+    and its verification: date-times mostly at six-hour steps or at
+    midnight, written trimmed, whose few longer counts carry the time of
+    day, were refused where the usual counts settled first). The form
+    published is the form of the reading that held.
 
     Guarantees: accepts the classified present cells, the member, the
     column's settings, whether it is declared `--decimal-comma` and the
@@ -16973,8 +16978,9 @@ def _counts_read_as_dates(
     # the whole column, so how its counts are written is tallied before any
     # cell is read -- every count but the set-aside numbers, which are
     # written back as written and say nothing of the column's form -- by
-    # the figures after the mark each writes, so a stray written with more
-    # figures than the rest is set beside them (`date_counts.usual_tally`).
+    # the figures after the mark each writes, so where every count's
+    # reading holds no unit a stray written with more figures than the
+    # rest is set beside them (`date_counts.usual_tally`).
     tallies: "dict[int, date_counts.Tally]" = {}
     for cell in classified:
         written = date_counts.counted(member, cell.text, mark)
@@ -16988,8 +16994,6 @@ def _counts_read_as_dates(
             continue
         parsed += [(_COUNT_READ, numerator, denominator, word)]
         date_counts.tallied_by_places(tallies, written)
-    tally, usual = date_counts.usual_tally(tallies)
-    plain = date_counts.form_from(tally, mark, None)
     counts: "list[tuple[int, int]]" = []
     no_count = True
     for kind, numerator, denominator, _word in parsed:
@@ -17001,8 +17005,19 @@ def _counts_read_as_dates(
         return classified, [], None
     # EVERY FIGURE THE COLUMN WROTE IS HELD at the unit it is settled to, or
     # nothing is read -- the one decision question Q3 asks before it offers
-    # the member (`date_counts.settled_reading`, `date_counts.figures_kept`).
-    reading = date_counts.settled_reading(member, plain, tally, counts, published, usual)
+    # the member (`date_counts.settled_reading`, `date_counts.figures_kept`):
+    # by every count's form first, and where that holds no unit by the
+    # usual counts', each stray held to its own last figure.
+    tally = date_counts.every_count(tallies)
+    reading = date_counts.settled_reading(
+        member, date_counts.form_from(tally, mark, None), tally, counts, published
+    )
+    usual_tallied, usual = date_counts.usual_tally(tallies)
+    if reading is None and usual >= 0:
+        tally = usual_tallied
+        reading = date_counts.settled_reading(
+            member, date_counts.form_from(tally, mark, None), tally, counts, published, usual
+        )
     if reading is None:
         return classified, [], None
     settled, unit, read_moments = reading
