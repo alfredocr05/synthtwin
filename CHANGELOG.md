@@ -38,8 +38,9 @@ in the same window, since the shared steps' CHAIN and exchange file
 their cells once a call and the shares ask each gap once, every answer
 the same -- before, 397 s of 546 against 210 in another window. A census is withheld, each reason
 said in a sentence of its own, where the column has no tails, its middle
-half spans fewer than four days, a workbook stores it two ways, or no
-grouping short of the whole day holds. Where no weekday census stands, a
+half spans fewer than four days or is not published, a workbook stores it
+two ways, or no grouping short of the whole day holds with the cells the
+description places in each hour for certain. Where no weekday census stands, a
 cell whose own day and weekday leave it no place in its gap, or a value
 no merge keeping the weekday can put back, may at last take the nearest
 day of another weekday. A stamp declared a 12-hour clock
@@ -58,6 +59,20 @@ putting it back where they spent 51. A 12-hour stamp whose census
 is withheld comes back with its dial's late morning heavier than the
 real one, a stated limit. `K-S3-38` (a headline, with a timed node of
 100,000 daytime moments), `K-S3-40` and `K-S3-41` are new.
+
+**Its review's four repairs** (Codex, one round). A sixtieth second,
+`23:59:60`, counts in the hour it is written in: the census, the loader,
+the twin's pass and the validator all counted it in the next hour, so
+eleven a date over 100 dates published every body cell in hour 0, the
+real file said HELD and the twin wrote its body there; the twin now
+writes them in hour 23. A markerless 12-hour stamp's twin is no longer
+MISSED by a validator window narrower than the one its construction
+draws. PUT BACK sorts its runs once: a million movable ranks in runs of
+every size from 1 to 1,000 took 21.7 s to put one value back, and take
+0.83 s. And a census withheld says a middle half that is not published
+apart from one that is short (NF117), and names the cells the
+description places in an hour for certain where they are what leaves no
+grouping (NF92).
 
 ### The second key cut repaired at its review (2026-10-05)
 
