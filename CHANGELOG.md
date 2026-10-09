@@ -6,6 +6,21 @@ exists).
 
 ## [Unreleased]
 
+### G5.5's sign repairs without the square of the strata (2026-10-08)
+
+**No published fact and no twin byte moves** (plan P4-D387, stage 4).
+On a column written at one width, G5.5 gives a stratum drawn with the
+wrong sign the nearest grid point on its side of nought that no other
+stratum holds, and 564c61a gathered what every other stratum held again
+for each such stratum, building the list of all their values once for
+every one it read: the twin of the Codex review's column took 21.1 s of
+CPU at 8,000 rows and had not finished 32,000 after fifteen minutes.
+What the strata hold is now counted once and kept as they are repaired,
+and each band's walk starts where its last one stopped: 1.3 s at 8,000
+rows, 5.7 at 32,000, 26.3 at 128,000 and 633 at 1,000,000, where what
+is left is another walk the plan names. `K-S4-05` holds the lines the
+repairs run to the strata.
+
 ### Mostly whole columns walked, and large tables read, without the square of their rows (2026-10-05)
 
 **No published fact and no twin byte moves** (plan P4-D387, stage 4's
