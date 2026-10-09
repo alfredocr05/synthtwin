@@ -1654,13 +1654,18 @@ def codex_first_question(
     )
 
 
-def codex_question_arithmetic(n: int, as_built: bool = False) -> "tuple[object, int, int]":
-    """The answer, the states and the arithmetic of one walk over `codex_first_question` at ``n`` values.
+def question_arithmetic(
+    question: "tuple[tuple[int, ...], list[tuple[list[int], list[int]]], list[int]]",
+    as_built: bool = False,
+    calls: "tuple[str, ...]" = (),
+) -> "tuple[object, int, int, dict[str, int]]":
+    """The answer, the states and the arithmetic of one walk over ``question``, and how often it called each of ``calls``.
 
     With ``as_built`` the walk is the one 493f6f8 shipped
     (`stage4_as_built.ALLOTTED_OVER`); without it, every function of
     today's generation module, read from its own file, so a helper the
-    walk calls is counted wherever it is written.
+    walk calls is counted wherever it is written. A function of
+    ``calls`` the module does not define is counted at -1.
     """
     if as_built:
         names, bits = _metered(stage4_as_built.ALLOTTED_OVER, "<the walk as built, metered>")
@@ -1668,28 +1673,79 @@ def codex_question_arithmetic(n: int, as_built: bool = False) -> "tuple[object, 
         source = pathlib.Path(generation.__file__).read_text(encoding="utf-8")
         names, bits = _metered(source, "<generation, metered>")
     states = _counted(names)
-    answer = names["_allotted_over"](*codex_first_question(n))
-    return answer, states[0], bits[0]
+    called = {name: _counted(names, name) for name in calls if name in names}
+    answer = names["_allotted_over"](*question)
+    return answer, states[0], bits[0], {
+        name: called[name][0] if name in called else -1 for name in calls
+    }
 
 
-def test_the_producer_asks_codex_s_packing_question_of_both_identifiers() -> None:
-    """Premise: the producer describes both identifiers of the review, and the twin's first packing question is `codex_first_question`.
+def codex_question_arithmetic(n: int, as_built: bool = False) -> "tuple[object, int, int]":
+    """The answer, the states and the arithmetic of one walk over `codex_first_question` at ``n`` values (`question_arithmetic`)."""
+    answer, states, bits, _calls = question_arithmetic(codex_first_question(n), as_built)
+    return answer, states, bits
 
-    At 150 values, 11,325 rows: ``10000 + i`` held by ``i`` rows, the
-    even values written ``10002e0``, and the same values as five figures
-    with leading zeros, the even ones signed (``00001``, ``-0002``). Each
-    is described by the real producer with the column declared and
-    loaded by the real loader, and its twin is built until the walk is
-    asked its first question, which is the question written out.
+
+def sibling_first_question(
+    k: int,
+) -> "tuple[tuple[int, ...], list[tuple[list[int], list[int]]], list[int]]":
+    """The first packing question the twin of the verify's identifier at ``k`` asks, written out.
+
+    One value held by 3 rows beside ``k`` values held by 2, 4, ... ``2k``
+    rows, so the groups are 2, 3, 4, 6, ... ``2k`` rows; every value
+    reads as one class of numbers, whose count is every row; the 3-row
+    value and those held by 4, 8, 12, ... rows are written in figures
+    alone and the others, held by 2, 6, 10, ... rows, in the code
+    alphabet, so the alphabets count ``3 + 4 + 8 + ...`` -- an odd count,
+    the larger for an even ``k`` -- then ``2 + 6 + 10 + ...`` and nought;
+    and every group may stand in the cells of permission set 3351.
     """
+    sizes = [3] + [2 * step for step in range(1, k + 1)]
+    figures = 3
+    other = 0
+    for step in range(1, k + 1):
+        if step % 2 == 0:
+            figures = figures + 2 * step
+        else:
+            other = other + 2 * step
+    return _grid_question(
+        sorted(sizes),
+        [[figures + other, 0, 0, 0], [figures, other, 0]],
+        [3351 for _each in sizes],
+    )
+
+
+def test_the_producer_asks_the_packing_question_of_each_identifier_written_out_here() -> None:
+    """Premise: the producer describes the three identifiers of the review and its verify, and the twin's first packing question is the one written out.
+
+    Codex's two at 150 values, 11,325 rows: ``10000 + i`` held by ``i``
+    rows, the even values written ``10002e0``, and the same values as
+    five figures with leading zeros, the even ones signed (``00001``,
+    ``-0002``) -- `codex_first_question`. And the verify's at 150 values
+    beside the one held by 3 rows, 22,653 rows: five figures with
+    leading zeros, ``00001`` held by 3 rows, then ``-0002``, ``00003``,
+    ``-0004`` ... held by 2, 4, 6 ... rows, every other one signed --
+    `sibling_first_question`. Each is described by the real producer
+    with the column declared and loaded by the real loader, and its twin
+    is built until the walk is asked its first question, which is the
+    question written out.
+    """
+    sibling: "list[str]" = [f"{1:05d}"] * 3
+    for step in range(1, 151):
+        sibling += [f"{step + 1:05d}" if step % 2 == 0 else f"{-(step + 1):05d}"] * (2 * step)
     shapes = {
         "an exponent of nought": lambda i: str(10000 + i) if i % 2 else f"{10000 + i}e0",
         "signed with leading zeros": lambda i: f"{i:05d}" if i % 2 else f"{-i:05d}",
+    }
+    columns: "dict[str, tuple[list[str], tuple[tuple[int, ...], list[tuple[list[int], list[int]]], list[int]]]]" = {
+        "the verify's, one value held by 3 rows": (sibling, sibling_first_question(150)),
     }
     for shape, written in shapes.items():
         values: "list[str]" = []
         for size in range(1, 151):
             values += [written(size)] * size
+        columns[shape] = (values, codex_first_question(150))
+    for shape, (values, expected) in columns.items():
         with tempfile.TemporaryDirectory() as home:
             loaded = linear._described(pathlib.Path(home), values, declared=["value"])
         assert isinstance(loaded.columns[0].facts, contract.IdentifierFacts), shape
@@ -1705,7 +1761,6 @@ def test_the_producer_asks_codex_s_packing_question_of_both_identifiers() -> Non
             with pytest.raises(_Enough):
                 generation.generate(loaded, 0)
         groups, margins, allowed = asked[0]  # type: ignore[misc]
-        expected = codex_first_question(150)
         assert tuple(groups) == expected[0], shape
         assert [(list(quotas), list(part)) for quotas, part in margins] == expected[1], shape
         assert list(allowed) == expected[2], shape
@@ -1733,6 +1788,184 @@ def test_the_reserves_cost_the_walk_no_arithmetic_past_the_walk_it_replaced() ->
         assert new_bits[n] <= old_bits[n], (n, new_bits, old_bits)
     small, large = _ARITHMETIC_AT
     assert new_bits[large] / new_bits[small] <= ARITHMETIC_DOUBLED_AT_MOST, new_bits
+
+
+# The verify of that review found the same reading again wherever only a
+# small size completes a reserve's total (item 1 still open on c75ef22's
+# repair): one value held by 3 rows beside values held by 2, 4, ... 2k
+# rows, the 3-row value's notation holding the larger count, so the cell
+# of the other notation fills first. The place the reserve remembers is
+# the 3-row size's, below every size that cell takes, so the memory never
+# holds and each size it took walked the last cell's totals again from
+# the largest size down. The values of ``k`` it is read at: 250,503 and
+# 499,145 rows, the rows twice apart.
+_SIBLING_AT = (500, 706)
+
+# How much arithmetic the walk may do on that question beside the walk as
+# 493f6f8 shipped it, and what it does. The question asks for the same
+# 12 states, and on entering each the reserves are read once over every
+# size where the largest-first readings leave them open -- a cost the
+# old walk paid in condition 3's halving walk instead -- so the walk
+# today does 1.28 and 1.29 times the old walk's arithmetic; 630a2cc did
+# 12.7 and 17.4 times, reading the reserve again at every size.
+SIBLING_SHARE_AT_MOST = 1.5
+
+
+def test_a_reserve_only_a_small_size_completes_is_not_walked_again_at_every_size() -> None:
+    """Machine-free: the verify's identifier, its first packing question at 250,503 and 499,145 rows.
+
+    Both walks answer alike in the same 12 states, and the walk today
+    does at most `SIBLING_SHARE_AT_MOST` times the arithmetic of the
+    walk as 493f6f8 shipped it, and grows less than
+    `ARITHMETIC_DOUBLED_AT_MOST` times as the rows double; it walks a
+    reserve's totals over every size once or twice on entering a cell,
+    and after that reads the table `generation._owed_table` built,
+    folding in only the group of 3 rows the cell leaves. 630a2cc walked
+    the last cell's totals over every size at 362 of its readings at
+    250,503 rows, 12.7 times the old walk's arithmetic and growing 3.86
+    times; 489c783, reading them from the smallest size up, 5.4 times.
+    Mutations, run, each red here: no table ever built; the table built
+    again at every reading it answers; and the stretch of the table the
+    walk stands in worked out again at every reading.
+    """
+    old_bits: "dict[int, int]" = {}
+    new_bits: "dict[int, int]" = {}
+    for k in _SIBLING_AT:
+        old_answer, old_states, old_bits[k], _calls = question_arithmetic(
+            sibling_first_question(k), as_built=True
+        )
+        answer, states, new_bits[k], calls = question_arithmetic(
+            sibling_first_question(k), calls=("_reach_down", "_owed_table")
+        )
+        assert answer == old_answer, k
+        assert states == old_states == 12, (k, states, old_states)
+        assert new_bits[k] <= SIBLING_SHARE_AT_MOST * old_bits[k], (k, new_bits, old_bits)
+        assert calls["_owed_table"] >= 1 and calls["_reach_down"] <= 2 * states, (k, calls)
+    small, large = _SIBLING_AT
+    assert new_bits[large] / new_bits[small] <= ARITHMETIC_DOUBLED_AT_MOST, new_bits
+
+
+def test_only_the_cell_the_walk_stands_in_holds_a_table() -> None:
+    """The tables of `generation._owed_table` are emptied as the walk leaves their cell, so no state is entered holding one.
+
+    The verify's identifier at 200 values, 40,203 rows: the cell of the
+    code alphabet builds a table for the reserve the last cell must
+    find, and empties it as the walk moves on, so the last cell, and
+    every state the walk enters, finds no memory holding one. Mutation,
+    run: the tables never emptied, and the last cell is entered beside
+    the first one's.
+    """
+    built: "list[list[int]]" = []
+    held: "list[int]" = []
+    table = generation._owed_table
+    room = generation._cell_room
+
+    def building(keys, left, places, least, most, found):  # type: ignore[no-untyped-def]
+        nonlocal built
+        built += [found]
+        return table(keys, left, places, least, most, found)
+
+    def entering(*given):  # type: ignore[no-untyped-def]
+        nonlocal held
+        held += [len([found for found in built if found[2] > 0])]
+        return room(*given)
+
+    question = sibling_first_question(200)
+    with pytest.MonkeyPatch.context() as patch:
+        patch.setattr(generation, "_owed_table", building)
+        patch.setattr(generation, "_cell_room", entering)
+        answer = generation._allotted_over(*question)
+    assert _meets(question, answer)
+    assert built, "premise: the walk built no table, so nothing was measured"
+    assert held == [0 for _each in held], held
+
+
+def _parity_sizes(draw: random.Random) -> "list[int]":
+    """Ascending sizes most of which share a factor, beside a few small ones that do not, so the largest-first readings often fall short."""
+    factor = draw.choice((2, 2, 3, 5))
+    sizes = {factor * draw.randint(1, 120) for _each in range(draw.randint(8, 60))}
+    for _each in range(draw.randint(0, 2)):
+        sizes |= {draw.choice((1, 3, 7, 11))}
+    return sorted(sizes)
+
+
+def test_a_reserve_read_from_its_table_answers_as_a_new_reading() -> None:
+    """`_owed_table` and `_owed_read`: a reserve read from its table answers as the copies read one at a time, all along a walk.
+
+    2,000 seeded cells, each with up to three reserves of `_WIDE_TOTAL`
+    rows or more over 8 to 62 sizes, most sharing a factor beside a few
+    that do not -- the shape the largest-first readings leave open --
+    and copies from nought to three; each reserve builds its table at
+    the first reading those readings leave open (`_WALKED_BEFORE_TABLE`
+    set to nought). A walk decides its places in ascending order and
+    goes back as `_cell_next` goes back -- its last place one copy
+    fewer, or given up -- for sixty steps, now and then emptying the
+    tables as `_cell_walk` does on leaving a cell, and every answer is
+    compared with new reserves read one copy at a time: 30,890 readings
+    off a table, 1,183 of them with every place decided, and 4,963
+    stretches worked out as the walk moves between them. Mutations, run,
+    each red here: the table built from one copy fewer of a size; the
+    decided sizes folded in at every copy, or not at all; the stretch
+    the walk stands in not worked out again when it moves to another;
+    and a stretch worked out from the kept entry below it rather than
+    above.
+    """
+    draw = random.Random(20261009)
+    read = [0]
+    stretches = [0]
+    decided = [0]
+    owed_read = generation._owed_read
+
+    def reading(keys, left, walk, places, most, found):  # type: ignore[no-untyped-def]
+        read[0] += 1
+        before = found[3]
+        answer = owed_read(keys, left, walk, places, most, found)
+        if found[3] != before:
+            stretches[0] += 1
+        if places[len(places) - 1] < len(walk):
+            decided[0] += 1
+        return answer
+
+    with pytest.MonkeyPatch.context() as patch:
+        patch.setattr(generation, "_WALKED_BEFORE_TABLE", 0)
+        patch.setattr(generation, "_owed_read", reading)
+        for _case in range(2000):
+            sizes = _parity_sizes(draw)
+            keys = [(size, draw.getrandbits(3) | 1) for size in sizes]
+            left = [draw.choice((0, 1, 1, 1, 2, 3)) for _each in keys]
+            whole = 0
+            for place in range(len(keys)):
+                whole = whole + keys[place][0] * left[place]
+            if whole < generation._WIDE_TOTAL:
+                continue
+            reserves: "list[tuple[int, int, list[int], list[int]]]" = []
+            for _each in range(draw.randint(1, 3)):
+                places = [place for place in range(len(keys)) if draw.random() < 0.8]
+                if not places:
+                    continue
+                least = draw.randint(generation._WIDE_TOTAL, whole)
+                if draw.random() < 0.6:
+                    least = least | 1
+                most = least + draw.choice((0, 0, 0, 1, 2, 9))
+                reserves += [(least, most, places, [-1])]
+            if not reserves:
+                continue
+            walk: "list[int]" = []
+            for _step in range(60):
+                if len(walk) < len(keys) and (not walk or draw.random() < 0.75):
+                    walk += [draw.randint(0, left[len(walk)])]
+                elif walk[len(walk) - 1] > 0:
+                    walk[len(walk) - 1] -= 1
+                else:
+                    walk = walk[: len(walk) - 1]
+                if draw.random() < 0.05:
+                    for reserve in reserves:
+                        generation._owed_dropped(reserve[3])
+                fresh = [(least, most, places, [-1]) for least, most, places, _found in reserves]
+                assert generation._reserves_met(keys, left, walk, reserves) == _plain_reserves(
+                    keys, left, walk, fresh
+                ), (keys, left, walk, reserves)
+    assert read[0] > 20000 and stretches[0] > 3000 and decided[0] > 600, (read, stretches, decided)
 
 
 # -- how far condition 1 narrows -------------------------------------------

@@ -1568,11 +1568,36 @@ def _reach_bits(
 # -- 1,000,405 rows -- the halving rule alone spent about 45 s of the
 # walk's 48 on totals near a million bits wide. And from it on a
 # reserve is read from its largest size down and remembers where it
-# found a total (`_reserves_met`), so it is not read again over every
-# size each time the cell takes one more. Either way the answer is the
-# halving rule's, so the walk and its answer are the same whatever this
-# says.
+# found a total (`_reserves_met`); where that memory cannot hold -- the
+# cell has taken copies at or above the place it names -- a reserve the
+# largest-first readings have left open more than `_WALKED_BEFORE_TABLE`
+# times in one entry keeps a table of what the sizes the cell has not
+# decided leave owed (`_owed_table`), so it is not read again over every
+# size each time the cell takes one more: each reading folds in only the
+# copies the decided sizes leave (`_owed_read`). Either way the answer
+# is the halving rule's, so the walk and its answer are the same
+# whatever this says.
 _WIDE_TOTAL = 4096
+
+
+# HOW MANY TIMES ONE RESERVE'S TOTALS ARE WALKED OVER EVERY SIZE in one
+# entry of one cell before it keeps a table of them instead (stage 4,
+# plan P4-D389, the verify of Codex's review of this landing, item 1).
+# A reading the largest-first readings leave open walks the totals the
+# copies make, a number as wide as the reserve shifted once a size
+# (`_reach_down`). On the review's own identifier that happens twice in
+# 1,010 readings, and the remembered place answers the rest; but where
+# only a small size completes the total -- one value held by 3 rows
+# beside values held by 2, 4, ... 2,000 rows, 1,001,003 rows the
+# producer describes, the 3-row value's notation holding the larger
+# count -- the place it names is the 3-row size's, low in the walk, and
+# 715 of 718 readings walked the totals again from the largest size
+# down, 12 s of CPU where 493f6f8's walk took 0.45. From the third such
+# reading on the table answers: one walk over every size to build it,
+# and a reading after that the copies the decided sizes leave. Two keeps
+# the review's identifier, whose reserves walk their totals at most
+# twice in an entry, exactly as it was, with no table at all.
+_WALKED_BEFORE_TABLE = 2
 
 
 def _reach_any(
@@ -1792,8 +1817,8 @@ def _reserves_met(
     the reserve.
 
     A reserve whose ``most`` is `_WIDE_TOTAL` rows or more is read from
-    its largest size down (`_found_from`), and ``found``, a list of one
-    place, keeps the largest place from which on a reading found the
+    its largest size down (`_found_from`), and ``found``, its memory,
+    keeps first the largest place from which on a reading found the
     copies to make a total. Counted at every copy those places make it
     still, since a copy more only adds totals; so while the walk has
     decided none of them -- it decides its places in ascending order --
@@ -1804,7 +1829,12 @@ def _reserves_met(
     half a million bits wide shifted once a size, and the twin's first
     packing question took 5.2 s of CPU where the walk as 493f6f8 shipped
     it took 0.64; now the same 1,010 readings walk those totals twice,
-    and the question takes 0.15 s).
+    and the question takes 0.15 s). Where the place it keeps is low --
+    only a small size completes the total, so the cell soon takes copies
+    above it -- the readings the largest-first readings leave open are
+    counted in the same memory, and past `_WALKED_BEFORE_TABLE` of them
+    the reserve is read from a table of what its undecided sizes leave
+    owed, which the memory holds too (`_owed_table`, `_owed_read`).
 
     Guarantees: the answer is a fixed function of ``keys``, ``left``,
     ``walk`` and each reserve's first three parts; the only thing it
@@ -1816,7 +1846,7 @@ def _reserves_met(
         if most >= _WIDE_TOTAL:
             if found[0] >= len(walk):
                 continue
-            place = _found_from(keys, left, walk, places, least, most)
+            place = _found_from(keys, left, walk, places, least, most, found)
             if place < 0:
                 return False
             if place > found[0]:
@@ -1848,6 +1878,7 @@ def _found_from(
     places: "list[int]",
     least: int,
     most: int,
+    found: "list[int] | None" = None,
 ) -> int:
     """Where the copies a cell leaves at ``places``, read from the largest size down, first make a total from ``least`` to ``most``.
 
@@ -1864,9 +1895,23 @@ def _found_from(
     was found, so that the copies there and at the places after it make
     one; or -1 where no copies make one.
 
-    Guarantees: a fixed function of its arguments, ``least`` one or
-    more; it changes none of them.
+    ``found`` is the reserve's memory where `_reserves_met` reads one
+    (`_cell_entry` makes it, one per reserve and entry): it counts, at
+    ``found[1]``, the readings the two largest-first readings leave open,
+    and the one after `_WALKED_BEFORE_TABLE` of them builds the table of
+    `_owed_table` into it. From then on the table answers at once, with
+    neither those readings nor the halving walk (`_owed_read`), and a
+    total in range names the first of ``places``: every copy at the
+    places from there on is counted, which makes the same total.
+
+    Guarantees: the answer is a fixed function of its first six
+    arguments, ``least`` one or more; it changes none of them, and
+    ``found`` only as said.
     """
+    if found is not None and len(found) > 2 and found[2] > 0:
+        if _owed_read(keys, left, walk, places, most, found):
+            return places[0]
+        return -1
     sizes: list[tuple[int, int]] = []
     total = 0
     for place in places:
@@ -1884,6 +1929,15 @@ def _found_from(
             made = made + min(copies, (most - made) // size) * size
             if made >= least:
                 return places[index]
+    if found is not None:
+        if len(found) == 1:
+            found += [0, 0, -1]
+        found[1] = found[1] + 1
+        if found[1] > _WALKED_BEFORE_TABLE:
+            _owed_table(keys, left, places, least, most, found)
+            if _owed_read(keys, left, walk, places, most, found):
+                return places[0]
+            return -1
     index = _reach_down(sizes, least, most)
     if index < 0:
         return -1
@@ -1918,6 +1972,168 @@ def _reach_down(sizes: "list[tuple[int, int]]", least: int, most: int) -> int:
     return -1
 
 
+def _owed_table(
+    keys: "list[tuple[int, int]]",
+    left: "list[int]",
+    places: "list[int]",
+    least: int,
+    most: int,
+    found: "list[int]",
+) -> None:
+    """Build into ``found`` the table one reserve is read from once its largest-first readings keep leaving it open.
+
+    THE RESERVE WAS WALKED OVER EVERY SIZE EACH TIME THE CELL TOOK ONE
+    MORE (the verify of Codex's review of this landing, item 1). Where
+    only a small size can complete a reserve's total, the place
+    `_reserves_met` remembers is that size's, low in the walk; the cell
+    takes copies above it at once, so the memory holds no longer, and
+    every size the cell took read the reserve again from the largest size
+    down to that small one: on one value held by 3 rows beside values
+    held by 2, 4, ... 2,000 rows, 715 of the twin's 718 readings, 12 s of
+    CPU where the walk as 493f6f8 shipped it took 0.45.
+
+    Entry ``i`` of the table, for ``i`` from nought to ``len(places)``,
+    is a whole number whose bit ``u`` is set when the sizes at
+    ``places[i:]``, counted at every copy still unplaced, can make a
+    total ``t`` with ``least <= u + t <= most`` -- what a total ``u`` of
+    the other copies may be and still leave the reserve met. The last
+    entry has the bits from ``least`` to ``most``; each before it is the
+    one after taken down by its size, by the halving rule `_owed_past`
+    uses -- one copy, then two, then four, then what is left -- so it is
+    built in one walk over every size, from the largest down. Nothing
+    below nought is kept, since no total of copies is.
+
+    Only every ``e``-th entry is kept, ``e`` the least whole number whose
+    square reaches ``len(places)``, beside the last entry, and
+    `_owed_read` works out the ``e`` entries of one stretch between two
+    kept ones when a reading first needs one of them, keeping those too;
+    so the table holds at most ``2e + 1`` numbers no wider than
+    ``most + 1`` bits, and a walk that goes up through the sizes works
+    out each stretch once. The memory ``found`` holds it all as whole
+    numbers: ``found[2]`` is ``e``, ``found[3]`` the stretch worked out
+    (-1 for none), then the kept entries in order, then that stretch's.
+    `_owed_dropped` empties it.
+
+    Guarantees: a fixed function of its first five arguments, ``least``
+    one or more and ``places`` not empty; it changes ``found`` from its
+    third place on and nothing else.
+    """
+    count = len(places)
+    every = 1
+    while every * every < count:
+        every = every + 1
+    tops = (count + every - 1) // every
+    if len(found) < 5 + tops + every:
+        found += [0 for _each in range(5 + tops + every - len(found))]
+    rest = ((1 << (most + 1)) - 1) >> least << least
+    found[4 + tops] = rest
+    for index in range(count - 1, -1, -1):
+        place = places[index]
+        copies = left[place]
+        step = 1
+        while copies > 0:
+            take = min(step, copies)
+            rest = rest | (rest >> (take * keys[place][0]))
+            copies = copies - take
+            step = step * 2
+        if index % every == 0:
+            found[4 + index // every] = rest
+    found[2] = every
+    found[3] = -1
+
+
+def _owed_read(
+    keys: "list[tuple[int, int]]",
+    left: "list[int]",
+    walk: "list[int]",
+    places: "list[int]",
+    most: int,
+    found: "list[int]",
+) -> bool:
+    """Whether a reserve is met, read off its table (`_owed_table`): the totals the decided sizes leave against what the others leave owed.
+
+    The places of ``places`` below ``len(walk)`` are the ones the cell
+    has decided, the first ``j`` of them as they ascend; their copies
+    less those the cell takes are folded into the totals they can make,
+    by the halving rule of `_reach_bits`, kept to ``most``. The sizes
+    from ``places[j]`` on are undecided and counted at every copy, so
+    entry ``j`` of the table names the totals of the others that leave
+    the reserve met, and the reserve is met exactly where the two share
+    a bit. The answer is the halving walk's over every copy, and a
+    reading costs the copies the decided sizes leave -- on the identifier
+    of 3 rows beside 2, 4, ... 2,000 rows the cell leaves only the group
+    of 3 among them, so a reading is one fold of a number of four bits
+    -- and, the first time it is needed, the stretch of the table the
+    walk stands in.
+
+    Guarantees: the answer is a fixed function of ``keys``, ``left``,
+    ``walk``, ``places`` and the table, which ``found`` holds as
+    `_owed_table` built it from the same ``left``; it changes nothing but
+    the stretch worked out in ``found``.
+    """
+    every = found[2]
+    count = len(places)
+    tops = (count + every - 1) // every
+    made = 1
+    total = 0
+    first = 0
+    while first < count and places[first] < len(walk):
+        place = places[first]
+        copies = left[place] - walk[place]
+        if copies > 0:
+            size = keys[place][0]
+            total = total + copies * size
+            step = 1
+            while copies > 0:
+                take = min(step, copies)
+                made = made | (made << (take * size))
+                copies = copies - take
+                step = step * 2
+            if total > most:
+                made = made & ((1 << (most + 1)) - 1)
+        first = first + 1
+    if first == count:
+        return made & found[4 + tops] != 0
+    stretch = first // every
+    if found[3] != stretch:
+        rest = found[5 + stretch]
+        top = (stretch + 1) * every
+        if top > count:
+            top = count
+        for index in range(top - 1, stretch * every - 1, -1):
+            place = places[index]
+            copies = left[place]
+            step = 1
+            while copies > 0:
+                take = min(step, copies)
+                rest = rest | (rest >> (take * keys[place][0]))
+                copies = copies - take
+                step = step * 2
+            found[5 + tops + index - stretch * every] = rest
+        found[3] = stretch
+    return made & found[5 + tops + first - stretch * every] != 0
+
+
+def _owed_dropped(found: "list[int]") -> None:
+    """Empty the table a reserve's memory holds (`_owed_table`), keeping what else it remembers.
+
+    `_cell_walk` calls this as it leaves a cell for the next one, so only
+    the cell the walk stands in holds tables; a reserve that needs its
+    table again, the walk back in that cell, builds it again from the
+    same ``left`` at its next reading the largest-first readings leave
+    open, since its count of them is kept.
+
+    Guarantees: changes ``found`` from its third place on and nothing
+    else; returns at once where it holds no table.
+    """
+    if len(found) < 4 or found[2] < 1:
+        return
+    found[2] = 0
+    found[3] = -1
+    for index in range(4, len(found)):
+        found[index] = 0
+
+
 def _cell_entry(
     keys: "list[tuple[int, int]]",
     left: "list[int]",
@@ -1927,7 +2143,7 @@ def _cell_entry(
     families: "list[tuple[int, int, list[int]]]",
     cell: int,
     room: "tuple[int, int]",
-) -> "tuple[int, list[int], int, list[list[tuple[int, int, list[int], list[int]]]]] | None":
+) -> "tuple[int, list[int], int, list[list[tuple[int, int, list[int], list[int]]]], list[tuple[int, int, list[int], list[int]]]] | None":
     """What one cell may total, what it must take and what it must leave, read off the cells after it.
 
     THE WALK TRIED EVERY FILL OF ONE CELL BEFORE IT LEARNED THAT ONLY ONE
@@ -1998,7 +2214,9 @@ def _cell_entry(
        reserve of `_WIDE_TOTAL` rows or more remembers the largest size
        from which on it found a total, and is met without being read
        again while the cell has decided none of the sizes from there on
-       (`_reserves_met`).
+       (`_reserves_met`); one its largest-first readings keep leaving
+       open is read from a table of what the undecided sizes leave owed
+       (`_owed_table`).
 
     ``part_cells[m][p]`` names the cells, as their places in the order
     they fill, that answer for count ``p`` of margin ``m``, and
@@ -2006,10 +2224,11 @@ def _cell_entry(
     Returns the totals the cell may take -- a whole number whose bit
     ``t`` is set when ``t`` is allowed, all of them inside ``room`` -- how
     many copies of each size it must take, the largest total it may take,
-    and its reserves, one list per size, each reserve
-    ``(least, most, places, found)``, ``found`` the one place its
-    readings remember (`_reserves_met`), new to this entry; or None
-    where no fill of it can lead to an answer.
+    its reserves, one list per size, each reserve
+    ``(least, most, places, found)``, ``found`` the memory its readings
+    keep (`_reserves_met`), new to this entry, and the same reserves
+    once each, so the walk can empty their tables as it leaves the cell
+    (`_owed_dropped`); or None where no fill of it can lead to an answer.
 
     Guarantees: a fixed function of its arguments, with no randomness
     and no I/O; it changes none of them.
@@ -2128,7 +2347,7 @@ def _cell_entry(
     for reserve in filed:
         for place in reserve[2]:
             reserves[place] += [reserve]
-    return accept, need, _binary_length(accept) - 1, reserves
+    return accept, need, _binary_length(accept) - 1, reserves, filed
 
 
 def _owed_less(
@@ -2451,7 +2670,9 @@ def _cell_walk(
     a state it could not hold is walked again and fails again, which
     costs time and never an answer. ``failed`` is that memory, a new
     empty one unless a caller hands one in to see what the walk writes
-    down.
+    down. The tables a cell's reserves are read from (`_owed_table`) are
+    emptied as the walk leaves the cell for the next (`_owed_dropped`),
+    so only the cell the walk stands in holds any.
 
     THE ANSWER IS THE FIRST COMPLETE FILLING IN THE ORDER METHOD G9.5
     FIXES, exactly the one the walk before stage 4 returned: what
@@ -2475,6 +2696,7 @@ def _cell_walk(
     tops: list[int] = []
     needs: list[list[int]] = []
     kept_back: list[list[list[tuple[int, int, list[int], list[int]]]]] = []
+    filed_back: list[list[tuple[int, int, list[int], list[int]]]] = []
     placed: list[list[int]] = []
     marks: list[int] = []
     if failed is None:
@@ -2518,6 +2740,7 @@ def _cell_walk(
             needs += [entry[1]]
             tops += [entry[2]]
             kept_back += [entry[3]]
+            filed_back += [entry[4]]
             reaches += [_reach_bits(keys, left, cell, entry[2], entry[1])]
             walks += [[]]
             placed += [[]]
@@ -2539,6 +2762,7 @@ def _cell_walk(
             tops = tops[:cell]
             needs = needs[:cell]
             kept_back = kept_back[:cell]
+            filed_back = filed_back[:cell]
             placed = placed[:cell]
             marks = marks[:cell]
             cell = cell - 1
@@ -2547,6 +2771,8 @@ def _cell_walk(
             continue
         _moved_by(found, keys, left, owed, part_at, cell, -1)
         placed[cell] = found
+        for reserve in filed_back[cell]:
+            _owed_dropped(reserve[3])
         cell = cell + 1
 
 
