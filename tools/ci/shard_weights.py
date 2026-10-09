@@ -39,6 +39,12 @@ above. A file timed alone runs a little faster than beside four other
 shards, so these weigh it a little light; the packing reads only which
 file outweighs which.
 
+FOUR ROWS ADDED 2026-10-09, at the integration of wave 2's batch 2a:
+the test files its lanes added (R2a's layout file, G4's counts per
+block, T2's hour file and its review's), each timed ON ITS OWN on the
+integrated tree as the seven above were, on a machine other work was
+loading.
+
 A FILE WITH NO ROW weighs `DEFAULT_SECONDS`. Two kinds of file have
 none: one added since the last measurement, which is then placed like
 an ordinary small file and runs in its shard from the commit that adds
@@ -239,6 +245,7 @@ SECONDS = {
     "tests/test_p4d353_cost_rule.py": 176.89,
     "tests/test_p4d357_review_of_followup_a.py": 133.96,
     "tests/test_p4d361_compared_reaches.py": 701.85,
+    "tests/test_p4d390_counts_per_block.py": 144.64,
     "tests/test_p4d411_mode.py": 0.88,
     "tests/test_p4d42_clock_role.py": 6.95,
     "tests/test_p4d43_date_readings.py": 3.82,
@@ -306,6 +313,9 @@ SECONDS = {
     "tests/test_stage3b_count_pass_speed.py": 68.35,
     "tests/test_stage3b_count_room.py": 19.99,
     "tests/test_stage3b_gate.py": 194.66,
+    "tests/test_stage3b_hour.py": 124.4,
+    "tests/test_stage3b_hour_review.py": 8.36,
+    "tests/test_stage3b_layout.py": 32.3,
     "tests/test_stage3b_weekday_review.py": 295.32,
     "tests/test_stage3b_width.py": 122.91,
     "tests/test_stage4_allocator_walk.py": 18.04,

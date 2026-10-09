@@ -94,10 +94,12 @@ ones.
   is published where every cell carries it, per system; held-back rare
   labels publish a pooled total only; a workbook with a second table is
   refused and asks which sheet; missing words pooled below a raised
-  floor count as absent; a label row recoverable by subtraction counts
-  as missing; a spelling below the floor counts into the commonest; an
-  ambiguous first row gets placeholder names and a question, and no
-  record's text is ever published.
+  floor count as absent; a label row recoverable by subtraction counted
+  as missing, until the orchestrator set that ruling aside under the
+  owner's principle of 2026-10-01 (plan P4-D390, reversible: a held-back
+  level is pooled whatever its size); a spelling below the floor counts
+  into the commonest; an ambiguous first row gets placeholder names and
+  a question, and no record's text is ever published.
 - **The rulings that set stage 3, 2026-09-22.** The default smallest
   group is **11** again (it was 1 since A-P4-37), and a lower one stays
   legal with its alarm. **Written-form extremes stay published** — text
@@ -263,13 +265,12 @@ cannot get worse unseen.
   their mean and spread.** Since plan P4-D375 every tail pair binary64
   holds is published, so no twin of `K-S3-20`'s 37 shapes at floors 11
   to 50 misses an obligation and `K-S3-15` is green. Left, over 36
-  column-floors at three seeds (`K-S3-22`): 111 moment
-  obligations -- a far value beyond the width the column publishes
-  (`00001` to `00149` beside `99999`), whole-number Pareto(2) at 150
-  rows from floor 20, some Pareto(2.5) columns at 36 and 50, blocks that
-  publish moments only, and a lone far value whose pair keeps its mean
-  and not its spread. No date or clock tail is withheld any more, so
-  none narrows its twin for want of a pair.
+  column-floors at three seeds (`K-S3-22`): 21 moment obligations,
+  where 110cb46 left 114 before lane G2's width rule (P4-D377) -- the two
+  blocks that publish moments only, of 40 and 60 values at 36 (12), and
+  Pareto(2.5) at 400 rows, seeds 1, 4 and 6, at 50 (9), their spread
+  0.90 to 0.94 of the real one. No date or clock tail is withheld any
+  more, so none narrows its twin for want of a pair.
 - **A census of NOTATIONS that is only a pool is written as the
   majority.** Where no negative notation reaches the floor and the pool
   is no more than three notations hold below it, `negative_notations`
