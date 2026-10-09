@@ -13500,6 +13500,15 @@ COUNTED_READINGS = {
                      "an Epic day with its contact number, which is no time"),
     "decimal_comma": ("excel-1900", "45386,5", ",", "minute",
                       "a count written with a comma for its point"),
+    # THREE SYSTEMS HAD NO ANCHOR OF THEIR OWN (the Codex review of landing
+    # R4, item 9): each read at 12:34:56 on 1 January 2000, the count worked
+    # out from the calendar in `COUNTED_ANCHORS` below.
+    "spss_seconds": ("seconds-since-1582", "13166109296", ".", "second",
+                     "SPSS seconds, 152,385 days and 45,296 seconds from 14 October 1582"),
+    "unix_microseconds": ("microseconds-since-1970", "946730096789012", ".", "microsecond",
+                          "Arrow's microseconds, six figures of a second kept"),
+    "unix_days": ("days-since-1970", "10957", ".", "day",
+                  "R's days from 1970: 10,957 to 1 January 2000"),
 }
 COUNTED_SPELLINGS = {
     "excel_15g_before_10000": ("excel-1900", "1927-05-17 08:30", _counted_form(11, True, 15),
@@ -13536,6 +13545,29 @@ COUNTED_SPELLINGS = {
                        "(none)", "repr's shortest figures of the double, not %.17g's seventeen"),
     "repr_whole_point_zero": ("excel-1900", "2022-06-18", _counted_form(12, True, 17),
                               "(none)", "repr of a whole double at midnight keeps its point and nought"),
+    "spss_seconds_spelled": ("seconds-since-1582", "2000-01-01 12:34:56", _counted_form(),
+                             "(none)", "SPSS seconds written back from the moment"),
+    "unix_microseconds_spelled": ("microseconds-since-1970", "2000-01-01 12:34:56.789012",
+                                  _counted_form(), "(none)", "microseconds written back from the moment"),
+    "unix_days_spelled": ("days-since-1970", "2000-01-01", _counted_form(),
+                          "(none)", "days from 1970 written back from the date"),
+}
+
+# THE ANCHORS, WORKED OUT FROM THE CALENDAR AND NOT FROM `COUNTED_SYSTEMS`
+# (the Codex review of landing R4, item 9): 1 January 2000 is Julian day
+# number 2451545 and 14 October 1582 is 2299160 (the Gregorian calendar's
+# first day, the 15th, is 2299161), so SPSS counts 152,385 days to it,
+# 13,166,064,000 seconds; Unix time names it 946,684,800 seconds, 10,957
+# days. The oracle's own reading and writing must give each answer, so an
+# epoch moved in its table turns a case red here before any vector is
+# written.
+COUNTED_ANCHORS = {
+    "spss_seconds": "2000-01-01 12:34:56",
+    "unix_microseconds": "2000-01-01 12:34:56.789012",
+    "unix_days": "2000-01-01",
+    "spss_seconds_spelled": "13166109296",
+    "unix_microseconds_spelled": "946730096789012",
+    "unix_days_spelled": "10957",
 }
 
 
@@ -14067,6 +14099,10 @@ def counted_case_document():
             "member": member, "iso": iso, "form": form, "contact": contact, "why": why,
             "answer": counted_spelling(member, iso, form, contact),
         }
+    for name in sorted(COUNTED_ANCHORS):
+        found = readings[name] if name in readings else spellings[name]
+        if found["answer"] != COUNTED_ANCHORS[name]:
+            raise SystemExit(f"the oracle misses its calendar anchor {name}: {found['answer']}")
     dealings = {}
     for name in sorted(COUNTED_DEALINGS):
         census, dated, why = COUNTED_DEALINGS[name]

@@ -912,6 +912,14 @@
       "unit": "second",
       "why": "a SAS date-time, read with the 1960 epoch"
     },
+    "spss_seconds": {
+      "answer": "2000-01-01 12:34:56",
+      "mark": ".",
+      "member": "seconds-since-1582",
+      "text": "13166109296",
+      "unit": "second",
+      "why": "SPSS seconds, 152,385 days and 45,296 seconds from 14 October 1582"
+    },
     "stata_milliseconds": {
       "answer": "2021-12-31 00:00:00.123",
       "mark": ".",
@@ -920,6 +928,14 @@
       "unit": "millisecond",
       "why": "Stata's %tc, a thousandth of a second kept"
     },
+    "unix_days": {
+      "answer": "2000-01-01",
+      "mark": ".",
+      "member": "days-since-1970",
+      "text": "10957",
+      "unit": "day",
+      "why": "R's days from 1970: 10,957 to 1 January 2000"
+    },
     "unix_half_second": {
       "answer": "2023-11-14 22:13:22",
       "mark": ".",
@@ -927,6 +943,14 @@
       "text": "1700000002500",
       "unit": "second",
       "why": "half a second settled to the second: the half goes to the even one"
+    },
+    "unix_microseconds": {
+      "answer": "2000-01-01 12:34:56.789012",
+      "mark": ".",
+      "member": "microseconds-since-1970",
+      "text": "946730096789012",
+      "unit": "microsecond",
+      "why": "Arrow's microseconds, six figures of a second kept"
     },
     "unix_milliseconds": {
       "answer": "2023-11-14 22:13:20.123",
@@ -1182,6 +1206,21 @@
       "member": "days-since-1960",
       "why": "a date before the epoch, written signed"
     },
+    "spss_seconds_spelled": {
+      "answer": "13166109296",
+      "contact": "(none)",
+      "form": {
+        "contacts": null,
+        "exponent": false,
+        "mark": ".",
+        "places": 0,
+        "significant": null,
+        "trimmed": false
+      },
+      "iso": "2000-01-01 12:34:56",
+      "member": "seconds-since-1582",
+      "why": "SPSS seconds written back from the moment"
+    },
     "stata_milliseconds_spelled": {
       "answer": "1956614399999",
       "contact": "(none)",
@@ -1196,6 +1235,36 @@
       "iso": "2021-12-31 23:59:59.999",
       "member": "milliseconds-since-1960",
       "why": "a thousandth of a second kept"
+    },
+    "unix_days_spelled": {
+      "answer": "10957",
+      "contact": "(none)",
+      "form": {
+        "contacts": null,
+        "exponent": false,
+        "mark": ".",
+        "places": 0,
+        "significant": null,
+        "trimmed": false
+      },
+      "iso": "2000-01-01",
+      "member": "days-since-1970",
+      "why": "days from 1970 written back from the date"
+    },
+    "unix_microseconds_spelled": {
+      "answer": "946730096789012",
+      "contact": "(none)",
+      "form": {
+        "contacts": null,
+        "exponent": false,
+        "mark": ".",
+        "places": 0,
+        "significant": null,
+        "trimmed": false
+      },
+      "iso": "2000-01-01 12:34:56.789012",
+      "member": "microseconds-since-1970",
+      "why": "microseconds written back from the moment"
     }
   },
   "steps": {
