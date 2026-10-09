@@ -840,9 +840,25 @@ def test_every_registry_fact_is_bound_to_one_of_the_three_kinds(
             )
         )
     )
+    # ...AND SO IS THE DAY-OF-MONTH CENSUS (landing 3b.3, plan P4-D368), by
+    # one column of billing dates heaped on the 1st and the 15th: no
+    # fixture of the coverage identity departs by the day of the month, and
+    # the binding asked here is only that the fact is filed.
+    import test_stage3b_gate
+
+    days = _described(
+        tmp_path,
+        "billed_on\n" + "".join(
+            f"{cell}\n" for cell in test_stage3b_gate._BATTERY["heaps"](400)["billing_date"]
+        ),
+        None,
+        stem="days",
+    )
+    days_twin = rendering.twin_csv(generation.generate(days, SEED))
     for name, described, twin in runs + [
         ("spelled-codes", spelled, spelled_twin),
         ("workbook", booked, book.read_bytes()),
+        ("days", days, days_twin),
     ]:
         outcome = _measured(tmp_path, described, twin, f"{name}.csv")
         for check in outcome.checks:
