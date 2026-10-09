@@ -9,8 +9,8 @@ exists).
 ### Numbers that are dates are read as dates and written back as the same numbers (2026-10-07)
 
 **Landing R4** (plan P4-D384), with its review's nine items, its
-second review's seven, the two its verification found and Codex's nine
-repaired.
+second review's seven, the two its verification found, Codex's nine and
+the two the verification of those found repaired.
 Excel serials, SAS and Stata days, seconds and milliseconds, Unix seconds
 and milliseconds, Epic day numbers and the other counting systems of a
 closed table of twelve were described as numbers: the twin kept each

@@ -440,9 +440,9 @@ def _whole_number(digits: str) -> int:
     if len(digits) <= _PIECE_FIGURES:
         return int(digits)
     half = len(digits) // 2
-    return _whole_number(digits[:half]) * 10 ** (len(digits) - half) + _whole_number(
-        digits[half:]
-    )
+    scale: int = 10 ** (len(digits) - half)
+    head: int = _whole_number(digits[:half])
+    return head * scale + _whole_number(digits[half:])
 
 
 def exact_value(written: Written) -> "tuple[int, int]":
@@ -480,7 +480,7 @@ def exact_value(written: Written) -> "tuple[int, int]":
         return sign, 10 ** (VALUE_FIGURES + 1)
     if shift > 0:
         # IN LOWEST TERMS OVER TEN: `31553280000e-2` is the whole 315532800.
-        kept = digits.rstrip("0")
+        kept = _trimmed_fraction(digits)
         dropped = min(shift, len(digits) - len(kept))
         digits = digits[: len(digits) - dropped]
         shift = shift - dropped
@@ -929,25 +929,28 @@ class CountForm:
     contacts: "dict[str, int] | None"
 
 
-def _below_power(numerator: int, denominator: int, exponent: int) -> bool:
-    """Whether a positive rational is below ten to ``exponent``."""
-    if exponent >= 0:
-        return numerator < denominator * 10**exponent
-    return numerator * 10 ** (-exponent) < denominator
+# THE LEAST NUMBER PYTHON MAY NOT WRITE AS TEXT AT ONCE: a count read to
+# every figure it writes may be longer (`exact_value`).
+_TEXT_BELOW = 10**_PIECE_FIGURES
+
+
+def _figures_of(number: int) -> int:
+    """How many figures a positive whole number writes, a piece at a time past `_TEXT_BELOW`."""
+    figures = 0
+    while number >= _TEXT_BELOW:
+        number = number // _TEXT_BELOW
+        figures = figures + _PIECE_FIGURES
+    return figures + len(str(number))
 
 
 def _pow10_exponent(numerator: int, denominator: int) -> int:
-    """The power of ten of a positive rational's leading figure: 10**e <= x < 10**(e+1).
-
-    Estimated from the two numbers' lengths in bits -- a count read to
-    every figure it writes may be longer than Python writes as text --
-    and then moved to the power that holds, by exact comparison.
-    """
-    exponent = ((numerator.bit_length() - denominator.bit_length()) * 30103) // 100000
-    while _below_power(numerator, denominator, exponent):
+    """The power of ten of a positive rational's leading figure: 10**e <= x < 10**(e+1)."""
+    exponent = _figures_of(numerator) - _figures_of(denominator)
+    if exponent >= 0:
+        if numerator < denominator * 10**exponent:
+            exponent = exponent - 1
+    elif numerator * 10 ** (-exponent) < denominator:
         exponent = exponent - 1
-    while not _below_power(numerator, denominator, exponent + 1):
-        exponent = exponent + 1
     return exponent
 
 

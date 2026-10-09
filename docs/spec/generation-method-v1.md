@@ -7578,7 +7578,11 @@ it -- `places` figures after the mark, rounded half to even and kept
 significant figures trimmed (`%.15g`, `repr`, a whole count at
 seventeen written as `repr` writes a whole double, `45123.0`), and R's
 exponent form where it is shorter -- with the column's mark, a point or
-a comma. A `days-since-1840` column writes its day count alone where
+a comma. R's rule writes an exponent only where it is the shorter, so a
+column of whole counts written with a needless one, `1704067200e+0` or
+`1704067200000e-3`, is held by its form and written back in full,
+`1704067200`: the one spelling of such a column the twin does not keep
+(the verification of the Codex review of landing R4, item 8). A `days-since-1840` column writes its day count alone where
 no census of contact numbers is published -- none reaching the line
 (the second review of landing R4, item 1) -- and otherwise its day count
 and, after the point, the contact number the census gives the cell,
