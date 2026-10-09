@@ -1762,7 +1762,12 @@ def test_k_s4_04(record_property) -> None:
     at 250,278 and 500,500 rows: what it grows by as the rows double,
     and its share of what the walk as 493f6f8 shipped it does at 500,500,
     where 489c783 read a reserve over every size left each time a cell
-    took one more. Counts of work, never a time.
+    took one more. And the same two on the first packing question of the
+    identifier of that review's verify (one value held by 3 rows beside
+    values held by 2, 4, ... ``2k`` rows) at 250,503 and 499,145 rows,
+    where 630a2cc walked the last cell's totals over every size at each
+    size the cell before it took, the place it remembered being the
+    3-row size's. Counts of work, never a time.
     """
     import test_stage4_allocator_walk as walk
 
@@ -1780,6 +1785,13 @@ def test_k_s4_04(record_property) -> None:
     small, large = walk._ARITHMETIC_AT
     arithmetic = {n: walk.codex_question_arithmetic(n)[2] for n in (small, large)}
     as_built = walk.codex_question_arithmetic(large, as_built=True)[2]
+    fewer, more = walk._SIBLING_AT
+    sibling = {
+        k: walk.question_arithmetic(walk.sibling_first_question(k))[2] for k in (fewer, more)
+    }
+    sibling_as_built = walk.question_arithmetic(
+        walk.sibling_first_question(more), as_built=True
+    )[2]
     _kpi(record_property, "K-S4-04", {
         "walk_states_growth_2x_groups": round(
             max(states[40] / states[20], states[80] / states[40]), 2
@@ -1791,4 +1803,6 @@ def test_k_s4_04(record_property) -> None:
         "reserve_readings_seed105": readings,
         "arithmetic_growth_2x_rows": round(arithmetic[large] / arithmetic[small], 2),
         "arithmetic_share_of_as_built": round(arithmetic[large] / as_built, 3),
+        "sibling_arithmetic_growth_2x_rows": round(sibling[more] / sibling[fewer], 2),
+        "sibling_arithmetic_share_of_as_built": round(sibling[more] / sibling_as_built, 3),
     })
