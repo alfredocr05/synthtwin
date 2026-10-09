@@ -2313,3 +2313,449 @@ def test_cxv_item3_step5_respells_only_the_texts_it_writes(
     assert _not_numbers(paid) == 140
     assert sorted(set(worn.values())) == [f"+{hour:02d}00" for hour in range(14)]
     assert writes == len(worn)
+
+
+# -- 3b.R2c (P4-D383): THE LAYOUT READER'S QUESTIONS AND PARTIAL DATES ----
+#
+# Lane R2c's clauses, each red on the mutant its docstring names:
+#
+# * P1 every partial spelling is read, every cell at some precision
+#   (mutant: the partial reading withdrawn);
+# * P2 the twin writes each cell at its own precision and spelling, its
+#   forms at their published counts, and validates (mutant: the partial
+#   cells written as stand-ins);
+# * P3 the day-level facts are the full cells' alone (the R2 design
+#   skeptic, M5; mutant: a partial cell read at the start of its span);
+# * P4 a column a layout reads at the line counts no partial form, so no
+#   column R2a reads moves (mutant: forms counted whatever the line);
+# * P5 years or months alone are not partial dates, nor a column whose
+#   full cells are fewer than half (mutant: a lower half);
+# * Q6 a column mostly of dates is asked, and one of dates beside a few
+#   codes is R1's question Q2 (M6; mutant: R1's trigger not asked first);
+#   the answer `dates` reads at half the cells and validates (mutant: the
+#   date rule's own line); a day of the year is read only where declared
+#   (mutant: every column declared); and the question names no cell
+#   (mutant: an example taken from the column);
+# * LY the producer writes no description it cannot load and generate,
+#   over every partial and declared shape at floors 2, 11 and 36.
+
+_PARTIAL_ROWS = 400
+
+
+def _partial_forms_of(block: "dict[str, object]") -> "dict[str, int]":
+    """A described column's partial forms with their counts."""
+    mix = block["resolution_mix"]
+    assert isinstance(mix, dict)
+    return {key: mix[key] for key in mix if key != block["format"]}
+
+
+def _form_of(cell: str, block: "dict[str, object]") -> str:
+    """The form one twin cell reads under: the layout, one of its partial forms, or ''."""
+    items = parsing.layout_items(f"{block['format']}")
+    if items is not None and parsing.layout_reading(cell, items) is not None:
+        return f"{block['format']}"
+    for key in sorted(_partial_forms_of(block)):
+        shape = parsing.partial_items(key)
+        if shape is not None and parsing.layout_partial_reading(cell, shape) is not None:
+            return key
+    return ""
+
+
+@pytest.mark.parametrize("name", sorted(spellings.PARTIAL_SPELLINGS))
+def test_r2c_p1_every_partial_spelling_is_read(tmp_path: pathlib.Path, name: str) -> None:
+    """P1: a column of partial dates is read under its layout, every cell at some precision."""
+    block, _profile, _questions = _described(tmp_path, spellings.cells(name, _PARTIAL_ROWS))
+    assert block["role"] == "datetime"
+    assert parsing.is_layout_format(f"{block['format']}")
+    forms = _partial_forms_of(block)
+    assert forms
+    assert block["n_unparsed"] == sum(forms.values())
+
+
+def test_r2c_p1_red_without_the_partial_reading(monkeypatch: pytest.MonkeyPatch) -> None:
+    """P1's mutant: the partial reading withdrawn, and a FHIR column is no date."""
+    monkeypatch.setattr(taxonomy, "_partial_layout", lambda *_args: None)
+    cells = spellings.cells("fhir_partial", _PARTIAL_ROWS)
+    described = taxonomy.profile_column("seen_at", 1, cells, len(cells), taxonomy.Settings())
+    assert described.role != "datetime"
+
+
+@pytest.mark.parametrize("name", sorted(spellings.PARTIAL_SPELLINGS))
+def test_r2c_p2_each_cell_is_written_at_its_own_precision(tmp_path: pathlib.Path, name: str) -> None:
+    """P2: every twin cell in the source's spelling, each form at its count, and the twin validates."""
+    block, profile, _questions = _described(tmp_path, spellings.cells(name, _PARTIAL_ROWS))
+    forms = _partial_forms_of(block)
+    for seed in SEEDS:
+        twin, cells = _twin(profile, seed)
+        written: "dict[str, int]" = {}
+        for cell in cells:
+            assert spellings.written_as_the_source(name, cell), cell
+            assert spellings.parses(cell, spellings.format_of(name)), cell
+            form = _form_of(cell, block)
+            written[form] = written.get(form, 0) + 1
+        for key in forms:
+            assert written.get(key, 0) == forms[key]
+        assert _validated(profile, twin)[0] == 0
+
+
+def test_r2c_p2_red_when_the_partial_cells_are_stand_ins(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """P2's mutant: the partial cells written as made-up stand-ins, and the twin misses."""
+    _block, profile, _questions = _described(tmp_path, spellings.cells("fhir_partial", _PARTIAL_ROWS))
+    monkeypatch.setattr(generation, "_partial_cells", lambda *_args: [])
+    twin, _cells = _twin(profile, 0)
+    assert _validated(profile, twin)[0] != 0
+
+
+def _share_on_the_first(cells: "list[str]", items: "tuple[tuple[str, str], ...]") -> float:
+    """The share of the cells a layout reads whole that fall on the 1st of a month."""
+    whole = 0
+    first = 0
+    for cell in cells:
+        read = parsing.layout_reading(cell, items)
+        if read is None:
+            continue
+        whole = whole + 1
+        if read[0][8:10] == "01":
+            first = first + 1
+    return first / max(whole, 1)
+
+
+def test_r2c_p3_the_day_facts_are_the_full_cells_alone(tmp_path: pathlib.Path) -> None:
+    """P3 (the R2 design skeptic, M5): the twin's full cells hold the source's share on the 1st within .03."""
+    source = spellings.cells("fhir_partial", 2000)
+    block, profile, _questions = _described(tmp_path, source)
+    items = parsing.layout_items(f"{block['format']}")
+    assert items is not None
+    real = _share_on_the_first(source, items)
+    for seed in SEEDS:
+        _twin_path, cells = _twin(profile, seed)
+        assert abs(_share_on_the_first(cells, items) - real) <= 0.03
+
+
+def test_r2c_p3_red_when_a_partial_cell_is_read_at_its_span_start(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """P3's mutant: each partial cell read as the first day of its span, and the 1st heaps."""
+    shipped = taxonomy._matching_layout
+
+    def at_the_start(present, settings, contradicted):  # type: ignore[no-untyped-def]
+        found = shipped(present, settings, contradicted)
+        if found is None:
+            return None
+        pairs = list(found[1])
+        sources = list(found[2])
+        for value in present:
+            if len(value) in (4, 7) and value[0:4].isdigit():
+                pairs += [((value + "-01-01")[0:10], "")]
+                sources += [value]
+        return (found[0], pairs, sources, len(present) - len(pairs), found[4], found[5])
+
+    monkeypatch.setattr(taxonomy, "_matching_layout", at_the_start)
+    source = spellings.cells("fhir_partial", 2000)
+    block, profile, _questions = _described(tmp_path, source)
+    items = parsing.layout_items(f"{block['format']}")
+    assert items is not None
+    _twin_path, cells = _twin(profile, 0)
+    assert abs(_share_on_the_first(cells, items) - _share_on_the_first(source, items)) > 0.03
+
+
+def _hl7_with_minutes(rows: int, cut: int) -> "list[str]":
+    """HL7 stamps to the second, ``cut`` of them to the minute, spread over the column."""
+    found = [moment.strftime("%Y%m%d%H%M%S") for moment in spellings.moments(rows, 5)]
+    for place in range(cut):
+        spot = (place * rows) // cut
+        found[spot] = found[spot][0:12]
+    return found
+
+
+def test_r2c_p4_a_column_read_at_the_line_counts_no_partial_form() -> None:
+    """P4: 18 minute cells among 3,000 stamps leave R2a's reading as it was: no form named."""
+    cells = _hl7_with_minutes(3000, 18)
+    described = taxonomy.profile_column("seen_at", 1, cells, len(cells), taxonomy.Settings())
+    details = described.details or {}
+    assert details["n_unparsed"] == 18
+    assert list(details["resolution_mix"]) == [details["format"]]
+
+
+def test_r2c_p4_red_when_forms_are_counted_whatever_the_line(monkeypatch: pytest.MonkeyPatch) -> None:
+    """P4's mutant: the partial forms counted on a column the layout reads at the line."""
+    shipped = taxonomy.layout_partial_counts
+    monkeypatch.setattr(
+        taxonomy, "layout_partial_counts",
+        lambda name, present, _read, settings: shipped(name, present, 0, settings),
+    )
+    cells = _hl7_with_minutes(3000, 18)
+    described = taxonomy.profile_column("seen_at", 1, cells, len(cells), taxonomy.Settings())
+    assert len((described.details or {})["resolution_mix"]) == 2
+
+
+def _fhir_share(rows: int, whole: float) -> "list[str]":
+    """FHIR dates, ``whole`` of them to the day and the rest to the month."""
+    found: "list[str]" = []
+    for place, moment in enumerate(spellings.moments(rows, 9)):
+        found += [moment.strftime("%Y-%m-%d" if place % 100 < whole * 100 else "%Y-%m")]
+    return found
+
+
+def test_r2c_p5_years_or_months_alone_are_not_partial_dates() -> None:
+    """P5: a column of years, one of months and one whose full cells are 40 in 100 keep their reading."""
+    settings = taxonomy.Settings()
+    years = [moment.strftime("%Y") for moment in spellings.moments(1000, 3)]
+    months = [moment.strftime("%Y-%m") for moment in spellings.moments(1000, 3)]
+    assert taxonomy.profile_column("y", 1, years, 1000, settings).role != "datetime"
+    assert (taxonomy.profile_column("m", 1, months, 1000, settings).details or {})["format"] == "iso-month"
+    assert taxonomy.profile_column("f", 1, _fhir_share(1000, 0.4), 1000, settings).role != "datetime"
+
+
+def test_r2c_p5_red_on_a_lower_half(monkeypatch: pytest.MonkeyPatch) -> None:
+    """P5's mutant: the full layout asked to read 30 in 100, and the 40-in-100 column is claimed."""
+    monkeypatch.setattr(taxonomy, "PARTIAL_FULL_SHARE", 0.3)
+    cells = _fhir_share(1000, 0.4)
+    assert taxonomy.profile_column("f", 1, cells, 1000, taxonomy.Settings()).role == "datetime"
+
+
+def _q6_shapes() -> "dict[str, list[str]]":
+    """Columns the date rule cannot settle, and three it can (made-up cells)."""
+    draw = random.Random(17)
+    moments = spellings.moments(_PARTIAL_ROWS, 11)
+    mixed = [
+        (f"{m.month}/{m.day}/{m.year}" if place % 10 < 7 else m.strftime("%Y-%m-%d"))
+        for place, m in enumerate(moments)
+    ]
+    beds = [
+        f"{draw.randint(1, 12)}-{draw.randint(1, 28)}-{draw.randint(10, 60):02d}"
+        if place % 100 >= 2 else f"{draw.randint(13, 40)}-{draw.randint(1, 28)}-{draw.randint(10, 60):02d}"
+        for place in range(_PARTIAL_ROWS)
+    ]
+    coded = [(m.strftime("%Y-%m-%d") if place % 100 >= 3 else "UNK") for place, m in enumerate(moments)]
+    return {
+        "mixed": mixed,
+        "beds": beds,
+        "ordinal": spellings.cells("iso_ordinal", _PARTIAL_ROWS),
+        "julian": spellings.cells("julian_seven", _PARTIAL_ROWS),
+        "coded": coded,
+        "words": [f"note {draw.randint(1, 900)} about the visit" for _row in range(_PARTIAL_ROWS)],
+        "figures": [f"{draw.randint(1, 99999)}" for _row in range(_PARTIAL_ROWS)],
+    }
+
+
+def _asked(questions: "dict[str, object]") -> "list[str]":
+    """The reasons the questions file asks the one column about."""
+    asked = questions["asked"]
+    assert isinstance(asked, list)
+    return [f"{entry['reason']}" if "reason" in entry else _reason_of(entry) for entry in asked]
+
+
+def _reason_of(entry: "dict[str, object]") -> str:
+    """Which question an entry is, read off the answers it offers."""
+    offered = [f"{choice['answer']}" for choice in entry["answers_you_can_give"]]  # type: ignore[union-attr]
+    if asking.ANSWER_DATES in offered:
+        return "q6"
+    if asking.ANSWER_NO_DATE in offered:
+        return "q2"
+    return "other"
+
+
+@pytest.mark.parametrize(
+    "shape, wanted",
+    [("mixed", "q6"), ("beds", "q6"), ("ordinal", "q6"), ("julian", "q6"), ("coded", "q2")],
+)
+def test_r2c_q6_is_asked_where_the_cells_cannot_settle_it(
+    tmp_path: pathlib.Path, shape: str, wanted: str
+) -> None:
+    """Q6 asks a column mostly of dates or of days of the year; one beside a few codes is Q2's."""
+    _block, _profile, questions = _described(tmp_path, _q6_shapes()[shape])
+    reasons = _asked(questions)
+    assert wanted in reasons
+    if wanted == "q2":
+        assert "q6" not in reasons
+
+
+@pytest.mark.parametrize("shape", ["words", "figures"])
+def test_r2c_q6_asks_no_column_that_is_not_dates(tmp_path: pathlib.Path, shape: str) -> None:
+    """Q6 is put to no column of words or of figures."""
+    _block, _profile, questions = _described(tmp_path, _q6_shapes()[shape])
+    assert "q6" not in _asked(questions)
+
+
+def test_r2c_q6_red_when_q2_is_not_asked_first(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Q6's deferral's mutant: R1's trigger not asked first, and the coded column is asked Q6 too."""
+    monkeypatch.setattr(asking, "date_codes_of", lambda *_args, **_kwargs: None)
+    _block, _profile, questions = _described(tmp_path, _q6_shapes()["coded"])
+    assert "q6" in _asked(questions)
+
+
+def _answered_dates(tmp_path: pathlib.Path, cells: "list[str]") -> "tuple[dict[str, object], pathlib.Path]":
+    """Describe a column, answer `dates` to its Q6, and describe it again with the answers."""
+    _block, profile, questions = _described(tmp_path / "first", cells)
+    for entry in questions["asked"]:  # type: ignore[union-attr]
+        if _reason_of(entry) == "q6":
+            entry["your_answer"] = asking.ANSWER_DATES
+    answers = tmp_path / "answers.json"
+    answers.write_text(json.dumps(questions), encoding="utf-8", newline="\n")
+    block, again, _questions = _described(tmp_path / "again", cells, "--answers", str(answers))
+    return block, again
+
+
+@pytest.mark.parametrize("shape", ["mixed", "julian"])
+def test_r2c_q6_dates_reads_the_column_at_half_and_validates(tmp_path: pathlib.Path, shape: str) -> None:
+    """Q6's answer: the column is read as dates at half its cells, and its twin validates."""
+    block, profile = _answered_dates(tmp_path, _q6_shapes()[shape])
+    assert block["role"] == "datetime"
+    document = json.loads(profile.read_text(encoding="utf-8"))
+    assert document["settings"]["forced_date_columns"] == ["seen_at"]
+    typed, _again, _questions = _described(tmp_path / "typed", _q6_shapes()[shape], "--date-column", "seen_at")
+    assert typed == block
+    for seed in SEEDS:
+        twin, _cells = _twin(profile, seed)
+        assert _validated(profile, twin)[0] == 0
+
+
+def test_r2c_q6_red_on_the_date_rules_own_line(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The answer's mutant: a declared column held to the date rule's line, and the mix is no date."""
+    monkeypatch.setattr(taxonomy, "DECLARED_DATE_SHARE", 0.99)
+    cells = _q6_shapes()["mixed"]
+    settings = taxonomy.Settings(forced_date_columns=("seen_at",))
+    assert taxonomy.profile_column("seen_at", 1, cells, len(cells), settings).role != "datetime"
+
+
+def test_r2c_q6_a_day_of_the_year_is_read_only_where_declared() -> None:
+    """The ask-first layouts: undeclared, a column of `2023076` is not read as dates."""
+    cells = _q6_shapes()["julian"]
+    plain = taxonomy.profile_column("seen_at", 1, cells, len(cells), taxonomy.Settings())
+    declared = taxonomy.profile_column(
+        "seen_at", 1, cells, len(cells), taxonomy.Settings(forced_date_columns=("seen_at",))
+    )
+    assert plain.role != "datetime"
+    assert (declared.details or {})["format"] == "layout {YYYY}{DDD}"
+
+
+def test_r2c_q6_red_when_every_column_is_declared(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The ask-first mutant: every column read as declared dates, and the Julian column is claimed."""
+    monkeypatch.setattr(taxonomy, "dates_declared", lambda _settings: True)
+    cells = _q6_shapes()["julian"]
+    assert taxonomy.profile_column("seen_at", 1, cells, len(cells), taxonomy.Settings()).role == "datetime"
+
+
+@pytest.mark.parametrize("shape", ["mixed", "beds", "julian"])
+def test_r2c_q6_names_no_cell_of_the_column(tmp_path: pathlib.Path, shape: str) -> None:
+    """Q6's sentences carry no value of the table (A-P4-58): no cell appears in the questions file."""
+    cells = _q6_shapes()[shape]
+    _block, _profile, questions = _described(tmp_path, cells)
+    text = json.dumps(questions)
+    assert "q6" in _asked(questions)
+    for cell in set(cells):
+        assert f'"{cell}"' not in text and f" {cell} " not in text and f" {cell}," not in text
+
+
+def test_r2c_q6_red_when_the_example_is_a_cell(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The example's mutant: the column's first cell shown in place of a made-up instant."""
+    cells = _q6_shapes()["julian"]
+    monkeypatch.setattr(parsing, "format_example", lambda _name: cells[0])
+    _block, _profile, questions = _described(tmp_path, cells)
+    assert f" {cells[0]}," in json.dumps(questions)
+
+
+def _battery() -> "dict[str, tuple[list[str], tuple[str, ...]]]":
+    """Every partial and declared shape the producer writes, with the flags it is described under."""
+    moments = spellings.moments(240, 13)
+    upper = [word.upper() for word in ("jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec")]
+
+    def cut(writes: "list[str]", shares: "tuple[int, ...]") -> "list[str]":
+        found: "list[str]" = []
+        for place, moment in enumerate(moments):
+            step = place % 100
+            index = 0
+            total = 0
+            for share in shares:
+                total = total + share
+                if step >= total:
+                    index = index + 1
+            found += [moment.strftime(writes[min(index, len(writes) - 1)])]
+        return found
+
+    shapes: "dict[str, tuple[list[str], tuple[str, ...]]]" = {
+        "fhir": (cut(["%Y-%m-%d", "%Y-%m", "%Y"], (58, 27)), ()),
+        "fhir_few_years": (cut(["%Y-%m-%d", "%Y-%m", "%Y"], (60, 37)), ()),
+        "fhir_half": (cut(["%Y-%m-%d", "%Y-%m"], (50,)), ()),
+        "hl7_three": (cut(["%Y%m%d%H%M%S", "%Y%m%d%H%M", "%Y%m%d%H"], (55, 30)), ()),
+        "hl7_two": (cut(["%Y%m%d%H%M%S", "%Y%m%d%H%M"], (70,)), ()),
+        "hl7_offsets": (
+            [
+                (moment.strftime("%Y%m%d%H%M%S") + ("-0500" if place % 3 == 0 else ""))
+                if place % 100 < 70 else moment.strftime("%Y%m%d%H%M")
+                for place, moment in enumerate(moments)
+            ],
+            (),
+        ),
+        "oracle_seconds": (cut(["%d-%b-%Y %H:%M:%S", "%d-%b-%Y %H:%M"], (75,)), ()),
+        "flexible": (
+            [
+                f"{m.year}-{m.month}-{m.day}" if place % 100 < 65 else f"{m.year}-{m.month}"
+                for place, m in enumerate(moments)
+            ],
+            (),
+        ),
+        "dotted": (
+            [
+                f"{m.day:02d}.{m.month:02d}.{m.year}" if place % 100 < 70 else f"{m.month:02d}.{m.year}"
+                for place, m in enumerate(moments)
+            ],
+            (),
+        ),
+        "sas": (cut(["%d%b%Y", "%b%Y"], (80,)), ()),
+        "medidata": (
+            [
+                f"{m.day:02d} {upper[m.month - 1]} {m.year}" if place % 100 < 80
+                else (f"UN {upper[m.month - 1]} {m.year}" if place % 100 < 92 else f"UN UNK {m.year}")
+                for place, m in enumerate(moments)
+            ],
+            (),
+        ),
+        "markers_dashed": (
+            [
+                f"{m.year}-{m.month:02d}-{m.day:02d}" if place % 100 < 85 else f"{m.year}-{m.month:02d}---"
+                for place, m in enumerate(moments)
+            ],
+            (),
+        ),
+        "slashed_years": (
+            [f"{m.month:02d}/{m.day:02d}/{m.year}" if place % 100 < 80 else f"{m.year}" for place, m in enumerate(moments)],
+            (),
+        ),
+        # Forms on fewer cells than the line at eleven and at 36: absorbed.
+        "sparse": (cut(["%Y-%m-%d", "%Y-%m", "%Y"], (95, 3)), ()),
+        "ordinal": ([moment.strftime("%Y-%j") for moment in moments], ("--date-column", "seen_at")),
+        "julian": ([moment.strftime("%Y%j") for moment in moments], ("--date-column", "seen_at")),
+        "declared_mix": (
+            [f"{m.month}/{m.day}/{m.year}" if place % 10 < 6 else "pending" for place, m in enumerate(moments)],
+            ("--date-column", "seen_at"),
+        ),
+        "declared_partial": (cut(["%Y-%m-%d", "%Y-%m", "%Y"], (52, 30)), ("--date-column", "seen_at")),
+    }
+    return shapes
+
+
+@pytest.mark.parametrize("floor", [2, 11, 36])
+@pytest.mark.parametrize("shape", sorted(_battery()))
+def test_r2c_every_description_the_producer_writes_loads_and_generates(
+    tmp_path: pathlib.Path, shape: str, floor: int
+) -> None:
+    """The producer-always-loads battery of LY6, LY7 and S8f: every description loads and generates.
+
+    Validation is P2's and Q6's to hold on their own shapes: here a declared
+    column whose unread cells repeat one spelling may miss its count of
+    different values by one at the count pass (`declared_mix` at a floor of
+    eleven, 140 for 139), which is G7.3's count pass and no rule of this
+    landing, and is recorded as such.
+    """
+    cells, flags = _battery()[shape]
+    _block, profile, _questions = _described(tmp_path, cells, *flags, floor=floor)
+    contract.load_profile(str(profile))
+    _twin(profile, 0)

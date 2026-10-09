@@ -222,6 +222,19 @@ CENTURY_ANSWERS = {
 # with a two-figure year, and a run of 12 or 14 figures. Read as dates, and
 # asked; Enter keeps the dates.
 BECAUSE_DATES_LIKE_CODES = "dates-written-like-codes"
+# QUESTION Q6, A COLUMN MOSTLY OF DATES (landing R2c, plan P4-D383). Where
+# the best reading of a column reads half its cells or more but not the
+# date rule's line, or where only a day-of-the-year layout reads it
+# (`2023076`, which an accession number writes alike), its cells cannot
+# settle whether it holds dates. The answer `dates` is `--date-column`:
+# the column is read at half its cells and the rest are left unread,
+# written as made-up stand-ins; Enter keeps the reading the column has.
+BECAUSE_MOSTLY_DATES = "mostly-dates-beside-other-values"
+BECAUSE_DAYS_OF_THE_YEAR = "figures-that-may-be-days-of-the-year"
+ANSWER_DATES = "dates"
+# The cells the question's first look takes, evenly spaced: a column no
+# reading reads on half of them is asked nothing and read no further.
+DATE_COLUMN_SAMPLE_CELLS = 64
 # The offsets census's own member for a cell written with none (contract
 # NO_OFFSET): a run whose census names it alone is asked as the bare run.
 _NO_OFFSET = "(none)"
@@ -1865,6 +1878,20 @@ def _shape_of(
             "every date writes its year with two figures, which do not say "
             "which century it is in"
         )
+    # -- 3b.R2c (P4-D383): question Q6. ``mark`` is the reading's own example
+    # -- a made-up instant written in it, never a cell -- and ``remainder``
+    # the cells it reads, named under the floor as every count here is.
+    if reason == BECAUSE_MOSTLY_DATES:
+        return (
+            f"{_sayable(remainder, len(present), floor)} read as dates written "
+            f"like {mark}, and the rest are written another way"
+        )
+    if reason == BECAUSE_DAYS_OF_THE_YEAR:
+        return (
+            f"the values are a four-figure year and three figures, as in "
+            f"{mark}, which a date written as the year and its day of the "
+            f"year is, and so are accession and record numbers"
+        )
     if reason == BECAUSE_DATES_LIKE_CODES:
         # THE VALUES THE LAYOUT READS, AT THE LAYOUT'S OWN WIDTH (skeptic 1
         # of landing R2a, item 5). A column read on the date rule's line
@@ -2016,6 +2043,165 @@ def century_questions(
                 _shape_of(BECAUSE_TWO_FIGURE_YEARS, [], floor),
                 _century_choices(taxonomy.ROLE_DATETIME, floor, coded),
                 ANSWER_CENTURY_POSIX,
+            )
+        ]
+    return found
+
+
+# -- 3b.R2c (P4-D383) -------------------------------------------------------
+
+
+def _mostly_dates_sampled(present: "list[str]") -> bool:
+    """Whether some one reading reads half of `DATE_COLUMN_SAMPLE_CELLS` evenly spaced cells.
+
+    THE CHEAP FIRST LOOK OF QUESTION Q6 (the R2 design, section 3): each
+    sampled cell is asked of every named member, of the grammar's layouts
+    and of the day-of-the-year layouts, and a reading counts the cells it
+    reads. Its estimate settles only the half's edge -- the exact reading
+    is the classifier's, asked next -- and a column of text or numbers
+    costs these few readings and nothing more.
+    """
+    total = len(present)
+    if total < 1:
+        return False
+    step = max(1, total // DATE_COLUMN_SAMPLE_CELLS)
+    tally: "dict[str, int]" = {}
+    seen = 0
+    for place in range(0, total, step):
+        seen = seen + 1
+        cell = present[place]
+        readings: "dict[str, int]" = {}
+        for member in parsing.DATE_FORMATS:
+            if parsing.parse_datetime(cell, member) is not None:
+                readings[member] = 1
+        for layout in parsing.layouts_of(cell) + parsing.ask_first_layouts_of(cell):
+            items = parsing.compiled_layout(layout)
+            if items is not None and parsing.layout_reading(cell, items) is not None:
+                readings[layout] = 1
+        for name in readings:
+            tally[name] = (tally[name] if name in tally else 0) + 1
+    for name in tally:
+        if tally[name] * 2 >= seen:
+            return True
+    return False
+
+
+def _date_column_choices(role: str, floor: int, example: str) -> "list[Choice]":
+    """Question Q6's two answers (landing R2c): the questions file's alone, never the terminal's.
+
+    Enter keeps the reading the column has; `dates` is `--date-column`,
+    and says what it costs in its own words (the R2 design skeptic's open
+    call): the values written another way are left unread and the twin
+    writes them as made-up text.
+    """
+    return [
+        Choice(
+            ANSWER_KEEP,
+            "leave it as it is -- synthtwin does not read this column as dates",
+            _publishes_under(ANSWER_KEEP, role, floor),
+        ),
+        Choice(
+            ANSWER_DATES,
+            f"dates written like {example} -- the values written another way "
+            f"are left unread, and the twin writes them as made-up text, so "
+            f"code that reads their own spelling would not run on the twin",
+            f"{_clock_publishes(floor, taxonomy.ROLE_DATETIME)}, and how many "
+            f"values were left unread",
+        ),
+    ]
+
+
+def date_column_questions(
+    document: "dict[str, object]",
+    table_columns: "list[list[str]]",
+    settings: taxonomy.Settings,
+    already: "list[str]",
+    split: "SplitColumns | None" = None,
+    decimal_commas: "tuple[str, ...]" = (),
+    stored_as: "tuple[str, ...]" = (),
+) -> "list[Question]":
+    """Question Q6, of every column whose cells cannot settle whether it holds dates (landing R2c).
+
+    THE R2 DESIGN, SECTION 3, AND ITS SKEPTIC'S M6. Asked of a column not
+    read as dates or times, nobody declared, where one reading reads half
+    its cells or more -- first over `DATE_COLUMN_SAMPLE_CELLS` evenly
+    spaced cells, then by the classifier itself under the declaration
+    (`taxonomy.role_read`), which is what the answer `dates` promises: a
+    member or a layout reading at least half of them but not the line, or
+    a layout of the day of the year, which no column is read under
+    undeclared. A column of dates beside a few repeated codes is R1's
+    question Q2, not this one: R1's own trigger (`date_codes_of`) is
+    asked first, and where it fires Q6 is not put.
+
+    The answers: Enter keeps the reading the column has; `dates` is
+    `--date-column`, and says what it costs -- the cells the reading does
+    not read are written in the twin as made-up text, so code that reads
+    their own spelling would not run on it.
+
+    Guarantees: a fixed function of the arguments, in the table's own
+    column order; opens nothing; no cell of any column appears in what it
+    returns.
+    """
+    blocks = document["columns"]
+    found: "list[Question]" = []
+    if not isinstance(blocks, list):
+        return found
+    position = 0
+    for block in blocks:
+        position = position + 1
+        if not isinstance(block, dict) or position > len(table_columns):
+            continue
+        name = f"{block['name']}"
+        role = f"{block['role']}"
+        if name in already or name in settings.forced_date_columns:
+            continue
+        if role in (
+            taxonomy.ROLE_DATETIME, taxonomy.ROLE_CLOCK, taxonomy.ROLE_EMPTY
+        ):
+            continue
+        cells = table_columns[position - 1]
+        if (
+            split is not None
+            and position - 1 in split.present
+            and split.cells[position - 1] is cells
+            and split.settings == settings
+        ):
+            present = split.present[position - 1]
+        else:
+            present, _absent = taxonomy.split_missing(cells, settings)
+        if not _mostly_dates_sampled(present):
+            continue
+        # R1's own trigger, as the codes stand whatever was kept: a column
+        # asked Q2, or answered `real-value` there, is Q2's.
+        if date_codes_of(present, settings, len(cells), counting_kept=True) is not None:
+            continue
+        declared = dataclasses.replace(
+            settings,
+            forced_date_columns=tuple(sorted(settings.forced_date_columns + (name,))),
+        )
+        storage = stored_as[position - 1] if position - 1 < len(stored_as) else ""
+        try:
+            answered, reading, n_read, held = taxonomy.role_read(
+                name, cells, declared, name in decimal_commas, storage
+            )
+        except ValueError:
+            continue
+        if answered != taxonomy.ROLE_DATETIME or not reading or held < 1:
+            continue
+        floor = settings.small_cell_floor
+        example = parsing.format_example(reading)
+        if parsing.is_layout_name(reading) and parsing.layout_asks_first(reading):
+            reason = BECAUSE_DAYS_OF_THE_YEAR
+        else:
+            reason = BECAUSE_MOSTLY_DATES
+        found += [
+            Question(
+                name,
+                role,
+                reason,
+                _shape_of(reason, present, floor, example, n_read),
+                _date_column_choices(role, floor, example),
+                ANSWER_KEEP,
             )
         ]
     return found
@@ -3966,6 +4152,9 @@ class Answers:
     # carried so the file the same run writes does not ask them again.
     century_windows: "tuple[tuple[str, int], ...]" = ()
     centuries_kept: "tuple[str, ...]" = ()
+    # -- 3b.R2c (P4-D383): ...and the eleventh (question Q6): the columns
+    # the person said hold dates, which is `--date-column`.
+    date_columns: "tuple[str, ...]" = ()
 
 
 def _entry_answer(
@@ -4121,6 +4310,7 @@ def answers_in(document: object, shown: str) -> Answers:
     code_shapes: "list[tuple[str, str]]" = []
     centuries: "list[tuple[str, int]]" = []
     centuries_kept: "list[str]" = []
+    date_columns: "list[str]" = []
     for entry, place in _entries_of(document, shown):
         read = _entry_answer(entry, place)
         if read is None:
@@ -4189,6 +4379,9 @@ def answers_in(document: object, shown: str) -> Answers:
             centuries += [(name, CENTURY_ANSWERS[written])]
         elif written == ANSWER_CENTURY_POSIX:
             centuries_kept += [name]
+        elif written == ANSWER_DATES:
+            # Question Q6 (landing R2c): `--date-column NAME`.
+            date_columns += [name]
         elif written != ANSWER_KEEP:
             # Offered by the file but not a word this module acts on,
             # which a questions file synthtwin wrote cannot contain and
@@ -4223,4 +4416,5 @@ def answers_in(document: object, shown: str) -> Answers:
         date_code_shapes=tuple(code_shapes),
         century_windows=tuple(centuries),
         centuries_kept=tuple(centuries_kept),
+        date_columns=tuple(date_columns),
     )

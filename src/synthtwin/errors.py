@@ -1474,6 +1474,22 @@ def century_not_supported(given: str) -> str:
     )
 
 
+def the_dates_declaration_did_not_reach(name: str, role: str) -> str:
+    """Message when `--date-column` names a column it cannot read as dates (landing R2c).
+
+    NOT A REFUSAL, for the century declaration's reason: whether half of a
+    column's values read as dates is known only once the table is read.
+    """
+    return (
+        f"The column '{_shown(name)}' was named with --date-column, but "
+        f"fewer than half of its values read as dates written one way, so "
+        f"synthtwin read it as {role}. The description that was written is "
+        f"correct about everything else, and says which columns were "
+        f"declared. Check that the name is the column you meant, and run "
+        f"the command again without --date-column for this one."
+    )
+
+
 def the_century_declaration_did_not_reach(name: str, role: str) -> str:
     """Message when `--century` names a column it cannot change (landing R2a).
 

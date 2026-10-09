@@ -697,6 +697,8 @@ class _Options:
     # The `--century COLUMN=YEAR` options as typed (landing R2a, plan
     # P4-D383), read in words a person can act on by `_run_profile`.
     centuries: "list[str]" = dataclasses.field(default_factory=list)
+    # -- 3b.R2c (P4-D383): the columns named with `--date-column` (Q6).
+    date_columns: "list[str]" = dataclasses.field(default_factory=list)
 
 
 def _parse_arguments(argv: "list[str] | None") -> _Options:
@@ -944,6 +946,21 @@ def _parse_arguments(argv: "list[str] | None") -> _Options:
             "25 is then read as 2025. May be given more than once"
         ),
     )
+    # -- 3b.R2c (P4-D383)
+    parser.add_argument(
+        "--date-column",
+        action="append",
+        default=None,
+        metavar="COLUMN",
+        help=(
+            "name a column that holds DATES although some of its values are "
+            "written another way, or written as a year and its day of the "
+            "year (2023076): it is read as dates where half its values or "
+            "more read as one, the rest left unread and written in the twin "
+            "as made-up text. Without this such a column is read as text or "
+            "numbers, and synthtwin asks. May be given more than once"
+        ),
+    )
     parser.add_argument(
         "--twelve-hour",
         action="append",
@@ -1158,6 +1175,7 @@ def _parse_arguments(argv: "list[str] | None") -> _Options:
     )
     twelve_named = args.twelve_hour if args.twelve_hour is not None else []
     century_named = args.century if args.century is not None else []
+    date_named = args.date_column if args.date_column is not None else []
     kept = args.keep_value if args.keep_value is not None else []
     declared_missing = (
         args.missing_value if args.missing_value is not None else []
@@ -1192,6 +1210,7 @@ def _parse_arguments(argv: "list[str] | None") -> _Options:
         replace=bool(args.replace),
         twelve_hours=list(twelve_named),
         centuries=list(century_named),
+        date_columns=list(date_named),
     )
 
 
@@ -1780,6 +1799,30 @@ def _century_notice(questions: "list[asking.Question]") -> str:
     )
 
 
+def _date_column_notice(questions: "list[asking.Question]") -> str:
+    """What is said about columns mostly of dates (landing R2c, question Q6).
+
+    Question Q6's own words, put in the questions file and said here, as
+    Q5's are: each column, and the two ways to have it read as dates.
+    """
+    rows = ""
+    for question in questions:
+        rows = rows + f"\n  '{_shown(question.name)}'"
+    return (
+        f"{'=' * 66}\n"
+        f"THESE COLUMNS MAY HOLD DATES\n"
+        f"{'=' * 66}{rows}\n\n"
+        f"Half of these values or more read as dates, but not enough for "
+        f"synthtwin to read the column as dates on its own, or they are "
+        f"written as a year and a day of the year, which a record number "
+        f"is too. If a column holds dates, answer 'dates' for it under "
+        f"'asked' in the questions file this run writes and describe the "
+        f"table again with --answers, or describe it again with "
+        f"--date-column, as in --date-column visit_date. Its other values "
+        f"are then left unread, and the twin writes them as made-up text."
+    )
+
+
 def _day_or_month_notice(found: "tuple[asking.DayOrMonth, ...]") -> str:
     """What is said where no value of a column of dates says which comes first (plan P4-D381).
 
@@ -2263,6 +2306,7 @@ def _how_to_repeat(
     answered_day_first: bool = False,
     taken_out: "tuple[str, ...]" = (),
     centuries: "tuple[tuple[str, int], ...]" = (),
+    date_columns: "tuple[str, ...]" = (),
 ) -> str:
     """The options that repeat this run without asking anything.
 
@@ -2292,6 +2336,9 @@ def _how_to_repeat(
     # The centuries of two-figure years (landing R2a), typed or answered.
     for name, first_year in sorted(centuries):
         parts += [_typed_option("--century", f"{name}={first_year}")]
+    # The columns said to hold dates (landing R2c), typed or answered.
+    for name in sorted(date_columns):
+        parts += [_typed_option("--date-column", name)]
     for spelling in answered_missing:
         parts += [_typed_option("--missing-value", spelling)]
     for spelling in answered_kept:
@@ -2625,6 +2672,7 @@ def _run_profile(
     delimiter_given: str = "",
     forced_twelve_hours: "list[str] | None" = None,
     centuries_given: "list[str] | None" = None,
+    date_columns_given: "list[str] | None" = None,
 ) -> int:
     """Do the work of `synthtwin profile`; return the exit code.
 
@@ -2674,6 +2722,8 @@ def _run_profile(
     twelve_hours = sorted(
         {one: 1 for one in (forced_twelve_hours or [])}
     )
+    # -- 3b.R2c (P4-D383): THE COLUMNS SAID TO HOLD DATES (question Q6).
+    date_columns = sorted({one: 1 for one in (date_columns_given or [])})
     # THE CENTURIES OF TWO-FIGURE YEARS (landing R2a, question Q5): each
     # `--century COLUMN=YEAR`, refused before the table is opened where it
     # is not that, and the window that stands where nothing was said
@@ -2808,6 +2858,8 @@ def _run_profile(
             # reading would find them in a different column.
             + list(written.missing_date_columns)
             + list(written.real_value_columns)
+            # ...and the columns answered `dates` (landing R2c).
+            + list(written.date_columns)
         ):
             # Each name once: a column answered in both sections of the
             # file would otherwise stand twice in one sentence.
@@ -2892,6 +2944,11 @@ def _run_profile(
         answered_centuries = [
             one_century for one_century, _year in written.century_windows
         ] + list(written.centuries_kept)
+        # ...AND THE COLUMNS SAID TO HOLD DATES (landing R2c, question Q6):
+        # an answer of `dates` joins the typed `--date-column`.
+        date_columns = sorted(
+            {one: 1 for one in date_columns + list(written.date_columns)}
+        )
         # ...AND THE ORDER OF DAY AND MONTH (plan P4-D381): an answer of
         # `day-first` is `--day-first`, and it is applied before the read
         # because it decides how the columns of dates are read. It goes
@@ -2920,6 +2977,7 @@ def _run_profile(
             or bool(answered_missing_dates)
             or bool(answered_real_values)
             or bool(written.century_windows)
+            or bool(written.date_columns)
         )
     # UNDER BOTH READINGS WHERE EITHER IS IN PLAY (review item
     # P4-G3-R6-F2). `--decimal-comma` names columns and these two name
@@ -2974,6 +3032,7 @@ def _run_profile(
             for one_century in sorted(centuries)
         ),
         # -- 3b.R2c (P4-D383)
+        forced_date_columns=tuple(date_columns),
         # -- 3b.R4 (P4-D384)
     )
     read = reading.read_table(
@@ -3116,6 +3175,18 @@ def _run_profile(
                 "writing two-figure years in a century of its own",
                 unknown_centuries[0],
                 read.column_names,
+            )
+        )
+        return 2
+
+    # -- 3b.R2c (P4-D383)
+    unknown_dates = [
+        name for name in date_columns if name not in read.column_names
+    ]
+    if unknown_dates:
+        _warn(
+            errors.unknown_column_named(
+                "as a column of dates", unknown_dates[0], read.column_names
             )
         )
         return 2
@@ -3422,6 +3493,20 @@ def _run_profile(
                 )
             )
 
+    # -- 3b.R2c (P4-D383): ...AND THE DATES DECLARATION, WHICH REACHES A
+    # COLUMN HALF OF WHOSE VALUES READ AS DATES, said where it reached none.
+    for name in date_columns:
+        for described_column in _described_columns(document):
+            if described_column["name"] != name:
+                continue
+            if described_column["role"] == "datetime":
+                continue
+            _warn(
+                errors.the_dates_declaration_did_not_reach(
+                    name, f"{described_column['role']}"
+                )
+            )
+
     # A COLUMN DECLARED A MEASUREMENT HAS BEEN ANSWERED TOO, and this
     # list left it out until amendment A-P4-60. It cost nothing while
     # every unanswered column of figures was read as a measurement
@@ -3718,6 +3803,18 @@ def _run_profile(
     )
     if century_asked:
         _say(f"\n{_century_notice(century_asked)}\n")
+    # -- 3b.R2c (P4-D383): question Q6, said as Q5 is.
+    dates_asked = asking.date_column_questions(
+        document,
+        read.columns,
+        settings,
+        settled + date_columns,
+        split_columns,
+        tuple(forced_decimal_commas),
+        storage,
+    )
+    if dates_asked:
+        _say(f"\n{_date_column_notice(dates_asked)}\n")
     # A column of dates beside codes whose other cells read either way
     # is asked the order too, in the same file (review of lane R1, item
     # 4): answered `missing` alone, it would be read month first and
@@ -3899,6 +3996,7 @@ def _run_profile(
         or answered_day_first
         or taken_out
         or centuries
+        or date_columns
     ):
         _say(
             _how_to_repeat(
@@ -3915,6 +4013,7 @@ def _run_profile(
                     (one_century, centuries[one_century])
                     for one_century in sorted(centuries)
                 ),
+                date_columns=tuple(date_columns),
             )
         )
     kept_of_yours = summary.words_of_your_own(document)
@@ -4044,6 +4143,18 @@ def _run_profile(
         asked_about + coded_or_answered,
         split_columns,
     )
+    # -- 3b.R2c (P4-D383): QUESTION Q6, which answers what kind of values
+    # its column holds in place of the questions that ask it.
+    dates_asked = asking.date_column_questions(
+        document,
+        read.columns,
+        settings,
+        settled + date_columns,
+        split_columns,
+        tuple(forced_decimal_commas),
+        storage,
+    )
+    asked_about = asking.without_columns_of(asked_about, dates_asked) + dates_asked
     listed_about = asking.checklist_for(
         document, read.columns, settings, settled,
         asked_about + coded_about, codes_seen.answered,
@@ -4924,6 +5035,7 @@ def main(argv: "list[str] | None" = None) -> int:
             options.delimiter,
             options.twelve_hours,
             options.centuries,
+            options.date_columns,
         )
     except PathValidationError as error:
         # The message is treated as a VALUE, not as something synthtwin
