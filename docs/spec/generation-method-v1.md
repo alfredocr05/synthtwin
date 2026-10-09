@@ -6770,6 +6770,47 @@ Wednesdays, and alone taking the nearest free minute of a rank's own
 day, the earlier on a tie, inside its gap and off midnight -- each with
 the answer this section gives it, and no G14.3 case.
 
+#### G7.3i The day of the month: the joint day plan
+
+(Landing 3b.3, plan P4-D368.) A column counted in days -- whole dates,
+and moments every value of which stands at midnight on the local clock
+(G7.1's ordinal space `date`) -- that publishes a `day_of_month_census`
+is moved in the day pass's own slot by two passes of G7.3f's shared
+steps, in place of the weekday pass alone; every other column, a column
+of moments with a clock among them, is moved by G7.3f exactly as before,
+so its twin is unchanged byte for byte. Each day falls in one of the
+census's thirty-four BINS: the day of its month from 1 to 27; the 28th,
+29th and 30th where that day is not its month's last; and the month's
+last day in bins 31, 32, 33 and 34 by its month's length of 28 to 31
+days. The bins follow one another with no period, so G7.3f counts a
+gap's days one by one.
+
+1. **Pass A** is G7.3f over the day-of-month census: each day's group
+   is its bin's, and every day between the two tail boundaries whose
+   weekday the weekday census counts nought is added to the holes, so
+   no rank is put where pass B would have to take it off. Every other
+   seam is the weekday pass's: the width kind of the column's one width
+   word, the description's holes and the count of different days the
+   ranks held before the pass, kept where it is reachable.
+2. **Pass B**, where a weekday census is published, is G7.3f over it,
+   each move keeping the rank's day-of-month group as G7.3f keeps a
+   second census's group, so the day-of-month counts pass A met stand;
+   step 8.6 trades two ranks across those groups where the weekday
+   totals are still off, each second group keeping its count.
+
+Where a census still does not hold, the twin names it
+(`day_of_month_census`, or `weekday_census`); where both hold and the
+count of different days does not, the weekday pass's own cause is named,
+the tails' only where every day both censuses allow between the two
+boundaries holds a rank. The pass draws no word. Its frozen cases are
+states of ranks in the eighteenth vectors file,
+`tests/reference/generation-branch-vectors-18.json`: billing on the 1st
+and the 15th with no weekday census, a visit on the 10th beside seven
+weekday groups, month ends on each month's own last day, billing rolled
+to business days beside an empty weekend, births with a weekend dip, and
+the 1st heaped beside a hole on each 15th -- each with the answer this
+section gives it, and no G14.3 case.
+
 ### G7.4 Offsets: only where recorded
 
 `utc_offsets` maps an offset text to a count, under the small-cell
