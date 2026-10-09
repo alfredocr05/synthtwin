@@ -9367,16 +9367,35 @@ def hour_settled(column, ordinals, parsed, whole, lows, highs, holes):
     )
 
 
+def sixtieth_ties(texts, body):
+    """G7.1, G7.5: every rank between two consecutive body pins -- boundaries
+    and rungs -- publishing one moment whose seconds field is 60, with that
+    moment and the pins' ordinal. Their one place is the pins', every row there
+    holds that moment, and each is written from its own fields as the pins are."""
+    found = {}
+    ranks = sorted(body)
+    for first, last in zip(ranks, ranks[1:]):
+        text = texts.get(first)
+        if text is None or text != texts.get(last) or text[17:19] != "60":
+            continue
+        for rank in range(first + 1, last):
+            found[rank] = (text, body[first])
+    return found
+
+
 def clock_sixtieths(column, ordinals, parsed, first, last, pinned):
     """G7.3g: the body ranks the twin writes at a SIXTIETH SECOND -- each pinned
     at a published boundary or rung whose seconds field is 60 and standing at
-    that pin, which G7.5 writes from its own fields while G7.1's ordinal space
-    stands it at the next minute's first second. Ascending."""
-    pins, texts, _body, _sides = date_pins(column, parsed)
+    that pin, or between two such pins of one moment, which G7.5 writes from
+    its own fields while G7.1's ordinal space stands it at the next minute's
+    first second. Ascending."""
+    pins, texts, body, _sides = date_pins(column, parsed)
+    written = {rank: (texts[rank], pins[rank]) for rank in texts if rank in pins}
+    written.update(sixtieth_ties(texts, body))
     return [
-        rank for rank in sorted(texts)
-        if first <= rank <= last and pinned[rank] and rank in pins
-        and texts[rank][17:19] == "60" and ordinals[rank] == pins[rank]
+        rank for rank in sorted(written)
+        if first <= rank <= last and pinned[rank]
+        and written[rank][0][17:19] == "60" and ordinals[rank] == written[rank][1]
     ]
 
 
@@ -9906,6 +9925,7 @@ def _datetime_content(column):
     ordinals = spread_ordinals(column, parsed, words)
     gap_lows, gap_highs = pin_bounds(column, parsed)
     pinned_at, pinned_text, body_pins, _sides = date_pins(column, parsed)
+    ties = sixtieth_ties(pinned_text, body_pins)
     snapping = snaps_to_midnight(column)
     offset_pins = {}
     if snapping:
@@ -9969,15 +9989,20 @@ def _datetime_content(column):
         # published fields rather than from an ordinal (G7.3, G7.5): the
         # ordinal space of G7.1 has no place for a leap second, and a
         # tail boundary, a rung and a listed tail value are each
-        # published TEXT.  Every other rank is written from its ordinal.
+        # published TEXT.  So is a rank between two body pins publishing
+        # one such moment, whose one place they are (G7.1).  Every other
+        # rank is written from its ordinal.
         ordinal = ordinals[rank]
         endpoint = None
         standing = pinned_text.get(rank)
+        at = pinned_at.get(rank)
+        if standing is None and rank in ties:
+            standing, at = ties[rank]
         if (
             standing is not None
             and resolution == "datetime"
             and standing[17:19] == "60"
-            and ordinal == pinned_at.get(rank)
+            and ordinal == at
         ):
             endpoint = standing
         suffix, shift = offset_form(offsets[rank])
@@ -14492,6 +14517,31 @@ def hour_sixtieth_case():
     )
 
 
+def hour_sixtieth_ties_case():
+    m = HOUR_MONDAY
+    first, second = hour_at(m + 1, 0), hour_at(m + 2, 0)
+    pins = [
+        [2, hour_at(m, 10), "2024-03-04 10:00:00"],
+        [5, first, "2024-03-04 23:59:60"],
+        [9, first, "2024-03-04 23:59:60"],
+        [12, first, "2024-03-05 00:00:00"],
+        [15, second, "2024-03-05 23:59:60"],
+        [18, second, "2024-03-05 23:59:60"],
+        [20, hour_at(m + 2, 8), "2024-03-06 08:00:00"],
+        [23, hour_at(m + 2, 8), "2024-03-06 08:00:00"],
+    ]
+    return {
+        "why": "The ranks between two body pins of one sixtieth second (the review of the "
+        "landing, item 1): Monday 23:59:60 published at ranks 5 and 9 leaves ranks 6 to 8 "
+        "their one place, every row there holding that moment, and Tuesday 23:59:60 at ranks "
+        "15 and 18 leaves ranks 16 and 17 so; each is written from the moment's own fields "
+        "and counted in hour 23. Ranks 10 and 11 stand between Monday 23:59:60 and Tuesday "
+        "00:00:00, one instant written two ways, and ranks 21 and 22 between two pins of an "
+        "ordinary second: neither pair is tied.",
+        "step": "ties", "pins": pins,
+    }
+
+
 # THE FIELD-GENERIC PASS on a field of minutes: bins of 60 seconds, 60 of
 # them in a turn, the parent an hour, and each hour's group in the hour
 # census as its kin -- the shape landing 3b.4 instantiates (plan P4-D372).
@@ -14567,6 +14617,7 @@ HOUR_STEP_CASES = {
     "hour_off_a_hole": hour_off_a_hole_case,
     "hour_rounds": hour_rounds_case,
     "hour_sixtieth_second": hour_sixtieth_case,
+    "hour_sixtieth_ties": hour_sixtieth_ties_case,
     "clock_minute_kin_escape": clock_kin_escape_case,
     "clock_minute_kin_kept": clock_kin_kept_case,
     "clock_minute_put_back_kin": clock_put_back_kin_case,
@@ -14594,6 +14645,11 @@ HOUR_STEP_CASES = {
 
 def hour_step_answer(case):
     """What G7.3g's and G7.3b step 10's text make of one case."""
+    if case["step"] == "ties":
+        body = {rank: ordinal for rank, ordinal, _text in case["pins"]}
+        texts = {rank: text for rank, _ordinal, text in case["pins"]}
+        tied = sixtieth_ties(texts, body)
+        return [[rank, tied[rank][0], tied[rank][1]] for rank in sorted(tied)]
     if case["step"] == "half_day":
         return half_day_distances(
             list(case["found"]), (case["anchor"], case["unit"], case["low_side"]),

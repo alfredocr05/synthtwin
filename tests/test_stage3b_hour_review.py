@@ -9,9 +9,11 @@ reviewed (b3fb647), and fixed:
   the generator and the validator all binned the instant, so eleven of
   them on each of 100 dates published every body cell in hour 0 and the
   twin wrote its body there: `test_a_sixtieth_second_counts_in_the_hour_
-  it_is_written_in` and `test_the_twin_writes_its_hours_as_written`
-  (with the generator's own mutant), beside the sixteenth vectors file's
-  `hour_sixtieth_second`;
+  it_is_written_in`, `test_the_twin_writes_its_hours_as_written` and,
+  for the ranks two pins of one such second leave their one place,
+  `test_the_ranks_two_pins_of_one_sixtieth_second_leave_are_written_as_it`
+  (each with the generator's own mutant), beside the sixteenth vectors
+  file's `hour_sixtieth_second` and `hour_sixtieth_ties`;
 * item 2 -- on a stamp declared a 12-hour clock with no marker, the
   validator took G7.3b step 10 onto the ranks but not onto the tie group
   before the end and step 9's reach were read off it, so its window was
@@ -179,6 +181,45 @@ def test_the_twin_writes_its_hours_as_written(tmp_path: pathlib.Path, monkeypatc
     assert [d.fact for d in mutant.generate(codex.loaded, 0).deviations] == ["hour_census"]
     written = rendering.twin_csv(mutant.generate(beside.loaded, 0))
     assert kpi_shapes.missed(kpi_shapes.measure(beside, written, "mutant.csv")) == ["seen_at:hour_census.groups"]
+
+
+# The edit that writes a rank between two pins of one sixtieth second from its ordinal.
+_TIED = "        elif rank in tied:\n            published, at = tied[rank]\n"
+_UNTIED = "        elif False:\n            published, at = tied[rank]\n"
+
+
+def test_the_ranks_two_pins_of_one_sixtieth_second_leave_are_written_as_it(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Codex's column at a floor of 36: the low boundary and the 5th percentile both
+    publish 2024-01-05 23:59:60, and the nine ranks between them have that one place,
+    every row there holding that moment. They are written as it -- in hour 23, one value
+    -- so at seeds 0 to 2 the twin holds 100 different values as published and its census,
+    and nothing is missed. Mutant: those ranks written from the place's ordinal, at
+    2024-01-06 00:00:00, a value and an hour the source never wrote -- 101 values, and
+    the census missed though the pass counted them as written and filed nothing of it."""
+    deep = kpi_shapes.describe(tmp_path, "deep", "seen_at\n" + "\n".join(_codex_leap()) + "\n", 36)
+    block = deep.block("seen_at")
+    assert block["low_tail"]["boundary"] == block["date_percentiles"]["p05"] == "2024-01-05 23:59:60"
+    for seed in range(3):
+        twin = generation.generate(deep.loaded, seed)
+        written = rendering.twin_csv(twin)
+        assert not twin.deviations, seed
+        assert kpi_shapes.missed(kpi_shapes.measure(deep, written, f"deep-{seed}.csv")) == [], seed
+        assert _body_hours(written, block) == {23: 1012}, seed
+        assert len({line for line in written.split("\n")[1:] if line}) == block["n_distinct"] == 100
+    source = pathlib.Path(generation.__file__).read_text(encoding="utf-8")
+    assert source.count(_TIED) == 1
+    name = "synthtwin._generation_review_untied"
+    mutant = types.ModuleType(name)
+    mutant.__file__ = generation.__file__
+    monkeypatch.setitem(sys.modules, name, mutant)
+    exec(compile(source.replace(_TIED, _UNTIED), generation.__file__, "exec"), mutant.__dict__)
+    twin = mutant.generate(deep.loaded, 0)
+    written = rendering.twin_csv(twin)
+    assert "hour_census" not in [deviation.fact for deviation in twin.deviations]
+    assert len({line for line in written.split("\n")[1:] if line}) == 101
+    assert "seen_at:hour_census.groups" in kpi_shapes.missed(kpi_shapes.measure(deep, written, "untied.csv"))
 
 
 # -- item 2: the half day's tie group, projected before a window stands on it ---------

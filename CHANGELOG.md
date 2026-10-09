@@ -65,7 +65,8 @@ real one, a stated limit. `K-S3-38` (a headline, with a timed node of
 the twin's pass and the validator all counted it in the next hour, so
 eleven a date over 100 dates published every body cell in hour 0, the
 real file said HELD and the twin wrote 1,069 of its 1,078 body cells
-there; the twin now writes them all in hour 23. A markerless 12-hour stamp's twin is no longer
+there; the twin now writes them all in hour 23, the ranks two published
+23:59:60 leave between them written as that second. A markerless 12-hour stamp's twin is no longer
 MISSED by a validator window narrower than the one its construction
 draws. PUT BACK sorts its runs once: a million movable ranks in runs of
 every size from 1 to 1,000 took 21.7 s to put one value back, and take

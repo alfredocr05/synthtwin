@@ -5521,9 +5521,11 @@ the leap rule they use (a year divisible by four is a leap year, except
 a century not divisible by four hundred).
 
 **Some cells do not travel through this space**: the pinned cells of
-G7.3 carrying a published moment whose seconds field is `60`, which are
-built from that moment's own fields by
-G7.5. The whole-second row above has one place for `HH:MM:59` and the
+G7.3 carrying a published moment whose seconds field is `60`, and every
+rank between two body pins carrying one such moment -- that one place
+is all their gap holds, and every row there holds that moment (landing
+3b.2-H's review, item 1) -- which are built from that moment's own
+fields by G7.5. The whole-second row above has one place for `HH:MM:59` and the
 next for `HH:MM+1:00`, and none for the `SS` of `60` the profile
 contract's canonical form admits — so a boundary carrying one is
 built from the published moment's own fields, not from its ordinal, and
@@ -6739,12 +6741,13 @@ between the two boundary ranks fall on the published groups. No word is
 drawn. A moment's HOUR, its bin, is the hour of its written wall clock,
 `(o div 3,600) mod 24` -- but for a rank the twin writes at a SIXTIETH
 SECOND: a body rank pinned at a published boundary or rung whose seconds
-field is 60, which G7.5 writes from its own fields, `HH:MM:60`, while
-G7.1 stands its ordinal at the next minute's first second. Its bin is
-that of `o - 1`, the second before, the hour (and the minute) it is
-written in. No other rank is written at a sixtieth second: the cells a
-source wrote there are met in the twin by ranks at ordinary seconds of
-the same hour. Every step below counts a rank by its ordinal, so before
+field is 60, or standing between two such pins of one moment, which G7.5
+writes from that moment's own fields, `HH:MM:60`, while G7.1 stands its
+ordinal at the next minute's first second. Its bin is that of `o - 1`,
+the second before, the hour (and the minute) it is written in. No other
+rank is written at a sixtieth second: the other cells a source wrote
+there are met in the twin by ranks at ordinary seconds of the same
+hour. Every step below counts a rank by its ordinal, so before
 step 2 each such rank whose two bins lie in different groups asks its
 ordinal's group one rank more and its written group one fewer, and the
 pass, meeting those counts by ordinal, meets the census as written (the

@@ -976,6 +976,16 @@ def _state(case: dict, module=generation):
 
 def _answer(case: dict, module=generation) -> list:
     """What the product's step makes of a case, in the file's own form."""
+    if case["step"] == "ties":
+        # The ranks between two body pins of one sixtieth second: a layout
+        # holding those pins alone, each its own text.
+        pins = {rank: ordinal for rank, ordinal, _text in case["pins"]}
+        texts = {rank: text for rank, _ordinal, text in case["pins"]}
+        layout = module._DateLayout(
+            parsed=max(pins) + 1, pins=pins, body=pins, lows=(), highs=(), low=None, high=None, texts=texts
+        )
+        tied = module._sixtieth_ties(layout)
+        return [[rank, tied[rank][0], tied[rank][1]] for rank in sorted(tied)]
     if case["step"] == "half_day":
         return module.calendar_clock.half_day_distances(
             list(case["found"]), case["anchor"], case["unit"], case["low_side"], case["apart"], case["edge"]
@@ -1169,6 +1179,16 @@ STEP_MUTANTS = {
         "        if counted != written:\n            asked[counted] = asked[counted] + 1",
         "        if False:\n            asked[counted] = asked[counted] + 1",
     ),
+    "a rank between two pins of one sixtieth second keeps its ordinal": (
+        "hour_sixtieth_ties",
+        "        if text != layout.texts[last] or text[17:19] != \"60\":\n            continue",
+        "        if True:\n            continue",
+    ),
+    "two pins of any one value tie the ranks between": (
+        "hour_sixtieth_ties",
+        "        if text != layout.texts[last] or text[17:19] != \"60\":\n            continue",
+        "        if text != layout.texts[last]:\n            continue",
+    ),
     # THE ONE CLOCK PASS, field-generic (the 3b.4 skeptic's M4): its own
     # tier of the escape and of PUT BACK where the parent is shorter than a
     # day, frozen on a field of minutes whose parent is the hour.
@@ -1214,7 +1234,8 @@ CASES = [
     "hour_half_day_tails", "hour_half_day_tails_stratum", "hour_off_a_hole", "hour_off_midnight",
     "hour_proportional", "hour_put_back", "hour_put_back_any_day", "hour_put_back_off_midnight",
     "hour_put_back_short", "hour_put_back_short_shared", "hour_relief", "hour_relief_given_back",
-    "hour_rounds", "hour_same_day_clock", "hour_sixtieth_second", "hour_split", "hour_whole_pass",
+    "hour_rounds", "hour_same_day_clock", "hour_sixtieth_second", "hour_sixtieth_ties", "hour_split",
+    "hour_whole_pass",
 ]
 
 

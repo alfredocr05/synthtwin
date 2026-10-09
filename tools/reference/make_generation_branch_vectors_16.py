@@ -12,7 +12,8 @@ midnight, its short count asking only a shared minute, a tail rank kept
 inside its stratum, RELIEF's give-back, SAMEPARENT asking no place of
 a hole, and step 3's later round, where a whole unit's leaving gave a
 group room; since its Codex review, a rank written at a sixtieth second,
-counted in its written hour -- and, on a field of minutes whose parent is the hour, the one clock
+counted in its written hour, and the ranks between two pins of one such
+second -- and, on a field of minutes whose parent is the hour, the one clock
 pass's tier in its kin group for the escape and PUT BACK -- and the
 tails G7.3b step 10 takes onto the dial's half day, on a low
 tail, a high tail and one whose ranks must all differ: each with what the

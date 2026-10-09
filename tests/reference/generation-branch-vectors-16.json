@@ -2195,6 +2195,79 @@
       "why": "A rank written at a sixtieth second (the review of the landing, item 1): the rung at rank 2 is published as Monday 23:59:60, which the ordinal space stands at Tuesday 00:00:00 and the twin writes from its own fields, in hour 23. Hours 0 to 10 owe two ranks and hours 11 to 23 three, as written. Counted by its ordinal the rung would stand in hours 0 to 10, one over, and Monday's 09:00 would leave for 11:00; counted as written, the census already holds and nothing moves.",
       "written_unit": 60
     },
+    "hour_sixtieth_ties": {
+      "answer": [
+        [
+          6,
+          "2024-03-04 23:59:60",
+          1709596800
+        ],
+        [
+          7,
+          "2024-03-04 23:59:60",
+          1709596800
+        ],
+        [
+          8,
+          "2024-03-04 23:59:60",
+          1709596800
+        ],
+        [
+          16,
+          "2024-03-05 23:59:60",
+          1709683200
+        ],
+        [
+          17,
+          "2024-03-05 23:59:60",
+          1709683200
+        ]
+      ],
+      "pins": [
+        [
+          2,
+          1709546400,
+          "2024-03-04 10:00:00"
+        ],
+        [
+          5,
+          1709596800,
+          "2024-03-04 23:59:60"
+        ],
+        [
+          9,
+          1709596800,
+          "2024-03-04 23:59:60"
+        ],
+        [
+          12,
+          1709596800,
+          "2024-03-05 00:00:00"
+        ],
+        [
+          15,
+          1709683200,
+          "2024-03-05 23:59:60"
+        ],
+        [
+          18,
+          1709683200,
+          "2024-03-05 23:59:60"
+        ],
+        [
+          20,
+          1709712000,
+          "2024-03-06 08:00:00"
+        ],
+        [
+          23,
+          1709712000,
+          "2024-03-06 08:00:00"
+        ]
+      ],
+      "step": "ties",
+      "why": "The ranks between two body pins of one sixtieth second (the review of the landing, item 1): Monday 23:59:60 published at ranks 5 and 9 leaves ranks 6 to 8 their one place, every row there holding that moment, and Tuesday 23:59:60 at ranks 15 and 18 leaves ranks 16 and 17 so; each is written from the moment's own fields and counted in hour 23. Ranks 10 and 11 stand between Monday 23:59:60 and Tuesday 00:00:00, one instant written two ways, and ranks 21 and 22 between two pins of an ordinary second: neither pair is tied."
+    },
     "hour_split": {
       "answer": [
         1709287200,

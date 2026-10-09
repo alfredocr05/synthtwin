@@ -21998,6 +21998,34 @@ def _hour_settled(
     return moved, notes
 
 
+def _sixtieth_ties(layout: "_DateLayout") -> "dict[int, tuple[str, int]]":
+    """Each rank between two body pins publishing one sixtieth second (G7.1, G7.5).
+
+    Two consecutive pins of the body -- boundaries and rungs -- that
+    publish one moment whose seconds field is 60 leave every rank between
+    them the one place they stand at, and every row there holds that
+    moment, so each such rank is written as they are, from the moment's
+    own fields (Codex's review of landing 3b.2-H, item 1: written from
+    the place's ordinal, nine cells between a boundary and a rung at
+    2024-01-05 23:59:60 came back at 2024-01-06 00:00:00 -- a value and
+    an hour the source never wrote). Maps each rank to (the moment, the
+    pins' ordinal).
+    """
+    found: "dict[int, tuple[str, int]]" = {}
+    ranks = sorted(layout.body)
+    for place in range(len(ranks) - 1):
+        first = ranks[place]
+        last = ranks[place + 1]
+        if first not in layout.texts or last not in layout.texts:
+            continue
+        text = layout.texts[first]
+        if text != layout.texts[last] or text[17:19] != "60":
+            continue
+        for rank in range(first + 1, last):
+            found[rank] = (text, layout.body[first])
+    return found
+
+
 def _sixtieth_seconds(
     layout: "_DateLayout",
     moved: "list[int]",
@@ -22008,16 +22036,25 @@ def _sixtieth_seconds(
     """The body ranks the twin writes at a sixtieth second (method G7.3g).
 
     A body rank the pass never moves, pinned at a published boundary or
-    rung whose seconds field is 60 and standing at that pin: the one cell
-    written from its own published fields (G7.5), `HH:MM:60`, where the
-    ordinal space of G7.1 puts its ordinal at the next minute's first
+    rung whose seconds field is 60 and standing at that pin, or standing
+    between two such pins of one moment (`_sixtieth_ties`): the cells
+    written from that moment's own fields (G7.5), `HH:MM:60`, where the
+    ordinal space of G7.1 puts their ordinal at the next minute's first
     second. Every other rank is written at an ordinary second. Ascending.
     """
+    written: "dict[int, tuple[str, int]]" = {}
+    for rank in layout.texts:
+        if rank in layout.pins:
+            written[rank] = (layout.texts[rank], layout.pins[rank])
+    tied = _sixtieth_ties(layout)
+    for rank in tied:
+        written[rank] = tied[rank]
     found: "list[int]" = []
-    for rank in sorted(layout.texts):
-        if rank < body_low or rank > body_high or not pinned[rank] or rank not in layout.pins:
+    for rank in sorted(written):
+        if rank < body_low or rank > body_high or not pinned[rank]:
             continue
-        if layout.texts[rank][17:19] == "60" and moved[rank] == layout.pins[rank]:
+        text, at = written[rank]
+        if text[17:19] == "60" and moved[rank] == at:
             found += [rank]
     return found
 
@@ -23084,22 +23121,28 @@ def _datetime_content(
         body_low = layout.low.rows
         body_high = parsed - 1 - layout.high.rows
     cells: list[str] = []
+    tied = _sixtieth_ties(layout)
     for rank in range(parsed):
         ordinal = ordinals[rank]
         offset = offsets[rank]
         published = ""
+        at = ordinal + 1
         if rank in layout.texts:
             published = layout.texts[rank]
+            at = layout.pins[rank]
+        elif rank in tied:
+            published, at = tied[rank]
         if (
             published
             and not whole[rank]
             and facts.resolution == "datetime"
             and published[17:19] == "60"
-            and ordinal == layout.pins[rank]
+            and ordinal == at
         ):
             # A PINNED RANK CARRYING A SIXTIETH SECOND is written from its
             # own published fields (G7.5, review item P2-C2-F5): the
-            # ordinal space has no place for a leap second.
+            # ordinal space has no place for a leap second. So is a rank
+            # between two such pins of one moment (`_sixtieth_ties`).
             text = _endpoint_cell(
                 facts, published, offset, marks[rank], spellings[rank]
             )
