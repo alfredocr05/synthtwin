@@ -9234,10 +9234,9 @@ def _hour_census(
     the body (HC3) and the sure cells (HC5: every published body value
     in the hour it is written in, and rule 4's cells at midnight,
     `calendar_clock.midnight_sure`), and the first broken rule is refused
-    by name. HC6,
-    the workbook's two storages, is asked over the whole document
-    (`_hour_storage`). Nothing here asks what a reader could work out
-    from the census (the owner's principle of 2026-10-01).
+    by name. HC6, the workbook's two storages, is asked over the whole
+    document (`_hour_storage`). Nothing here asks what a reader could
+    work out from the census (the owner's principle of 2026-10-01).
 
     Guarantees: accepts the block and every fact read before it; returns
     the groups as `(first, last, count)`. Raises ProfileError for a wrong

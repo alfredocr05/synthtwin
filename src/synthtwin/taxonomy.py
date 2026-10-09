@@ -16555,13 +16555,15 @@ def _census_hours(
     offset is not read.
 
     RANKED BY THE INSTANT, COUNTED BY THE TEXT (Codex's review of the
-    landing, item 1). The cells are ordered by their instant
-    (`calendar_clock.seconds_of`) and then by their text, as
-    `ordered_moments` orders them on this clock, so the tail boundaries
-    cut this list where they cut the column; each is then counted in the
-    hour it is written in (`calendar_clock.written_hour`), so a sixtieth
-    second, whose instant is the next minute's first, stays in its own
-    hour: `23:59:60` in hour 23, never hour 0.
+    landing, item 1). The cells are ordered as `ordered_moments` orders
+    them on this clock -- by their instant (`calendar_clock.seconds_of`)
+    and then by their text, which is the order of the canonical text
+    itself, its fields fixed in width and a sixtieth second sorting after
+    its minute's 59th and before the next minute -- so the tail
+    boundaries cut this list where they cut the column; each is then
+    counted in the hour it is written in (`calendar_clock.written_hour`),
+    so a sixtieth second, whose instant is the next minute's first, stays
+    in its own hour: `23:59:60` in hour 23, never hour 0.
 
     Guarantees: accepts the published details and the parsed pairs;
     returns one hour, 0 to 23, per pair. Determinism: a function of the
@@ -16574,10 +16576,8 @@ def _census_hours(
         or details["all_at_midnight"] is True
     ):
         return ()
-    keyed: "list[tuple[int, str]]" = []
-    for canonical, _offset in pairs:
-        keyed += [(calendar_clock.seconds_of(canonical), canonical)]
-    return tuple(calendar_clock.written_hour(canonical) for _instant, canonical in sorted(keyed))
+    ordered = sorted(canonical for canonical, _offset in pairs)
+    return tuple(calendar_clock.written_hour(canonical) for canonical in ordered)
 
 
 @dataclasses.dataclass(frozen=True)
