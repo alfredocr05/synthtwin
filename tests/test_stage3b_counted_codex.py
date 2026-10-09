@@ -353,7 +353,7 @@ def test_item4_a_rare_absent_count_is_not_held_to_the_form(
 
 
 def test_item5_midnight_counts_written_with_a_decimal_zero_are_asked(tmp_path: pathlib.Path) -> None:
-    """`str(315532800 + i * 86400) + ".0"`: midnights from 1 January 1980; on `dbb347a` Q3 asked nothing."""
+    """`str(315532800 + i * 86400) + ".0"`: days at midnight from 1 January 1980; on `dbb347a` Q3 asked nothing."""
     cells = [str(315532800 + row * 86400) + ".0" for row in range(100)]
     said = asking._date_counts_said(_block_of(tmp_path, cells))
     assert said is not None and said.rule == date_counts.RULE_MIDNIGHT
@@ -373,7 +373,7 @@ def test_item5_the_midnight_rule_reads_a_whole_count_however_its_zeros_are_writt
 
 
 def test_item6_a_band_rule_whose_text_fails_lets_the_midnight_rule_run(tmp_path: pathlib.Path) -> None:
-    """Unix midnights crossing from nine to ten figures: on `dbb347a` the band held, its widths failed, and Q3 asked nothing."""
+    """Unix counts at midnight crossing from nine to ten figures: on `dbb347a` the band held, its widths failed, and Q3 asked nothing."""
     cells = [str((11000 + row) * 86400) for row in range(1000)]
     said = asking._date_counts_said(_block_of(tmp_path, cells))
     assert said is not None and said.rule == date_counts.RULE_MIDNIGHT
@@ -437,7 +437,7 @@ def test_item7_a_column_of_huge_exponents_keeps_a_small_reading() -> None:
         ("1.6e+12", (1600000000000, 1)),
     ),
 )
-def test_item8_the_exponent_reader_takes_the_contracts_grammar(text: str, value: "tuple[int, int]") -> None:
+def test_item8_the_exponent_reader_takes_the_grammar_of_section_6_6_2(text: str, value: "tuple[int, int]") -> None:
     written = date_counts.written_count(text)
     assert written is not None, text
     numerator, denominator = date_counts.exact_value(written)

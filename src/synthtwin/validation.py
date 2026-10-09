@@ -1827,6 +1827,7 @@ def _count_form_checks(
     block: "dict[str, object]",
     cells: "list[str]",
     member: str = "",
+    absent: "list[bool] | None" = None,
 ) -> "list[Check]":
     """How a column of counted dates writes its counts, held (landing R4, V5-CF).
 
@@ -1850,9 +1851,18 @@ def _count_form_checks(
     hundred, one at least (`date_counts.strays_stand`; the second review
     of landing R4, item 5).
 
-    Guarantees: accepts the column, its facts, the file's own block and
-    its cells; returns the checks, none where the column publishes no form
-    of counts. Raises nothing. No I/O of any kind.
+    A CELL THE FILE'S OWN DESCRIPTION READS AS NO VALUE IS NOT ASKED
+    (``absent``, one mark per cell from `_holes_by_the_description`; the
+    Codex review of landing R4, item 4): a lone `1` among Excel serials
+    written `%.6f` is set aside by the counted reading, and a lone `9999`
+    the person named with `--missing-value` is declared absent, and
+    neither spelling is published under the floor -- so asked of its
+    published absent spellings alone, the source missed its own form.
+
+    Guarantees: accepts the column, its facts, the file's own block, its
+    cells and which of them the description reads as holes; returns the
+    checks, none where the column publishes no form of counts. Raises
+    nothing. No I/O of any kind.
     """
     form = facts.count_form
     if form is None:
@@ -1873,8 +1883,11 @@ def _count_form_checks(
         # review of landing R4, item 5): one in a hundred, one at least.
         counts = 0
         strays = 0
-        for cell in cells:
+        for place in range(len(cells)):
+            cell = cells[place]
             if not cell or cell in holes:
+                continue
+            if absent is not None and place < len(absent) and absent[place]:
                 continue
             written = (
                 date_counts.counted(member, cell, form.mark)
@@ -7732,7 +7745,18 @@ def _obligations(
         for named, system in description.settings.forced_date_counts:
             if named == name:
                 member = system
-        checks = checks + _count_form_checks(column, column.facts, block, cells, member)
+        absent: "list[bool] | None" = None
+        if column.facts.count_form is not None:
+            # THE DESCRIPTION'S OWN ABSENCE DECISION, cell by cell (V5-CF).
+            absent = _holes_by_the_description(
+                block,
+                cells,
+                own_settings.kept_values,
+                own_settings.declared_missing_values,
+                comma,
+                counted,
+            )
+        checks = checks + _count_form_checks(column, column.facts, block, cells, member, absent)
     return checks + _governed(gated, measured, split_published)
 
 

@@ -2441,7 +2441,7 @@ def asked_of(
     # THE RULES IN THEIR ORDER, EACH TAKEN TO ITS END -- its numbers, its
     # text and the systems it would offer -- before the next is tried (the
     # Codex review of landing R4, item 6): the band's numbers held Unix
-    # midnights crossing from nine figures to ten, its text then failed
+    # counts at midnight crossing from nine figures to ten, its text then failed
     # on the two widths, and the midnight rule, which those values meet,
     # was never asked.
     plain_text: "bool | None" = None
