@@ -23316,7 +23316,7 @@ def _layout_narrow_space_marker():
         0, 12, {"(none)": 12}, "local", widths={"unpadded": 12},
         why="G7.5's clock half of the layout member (landing R2b): "
         "JavaScript's `toLocaleString` for en-US, `1/1/1970, 12:00:00 AM`, "
-        "whose ICU writes a NARROW NO-BREAK SPACE, U+202F, between the "
+        "whose recent releases write a NARROW NO-BREAK SPACE, U+202F, between the "
         "seconds and the marker; the hour in one figure below ten on the "
         "dial. The mutant writes an ordinary space there, which the column "
         "does not.",

@@ -731,7 +731,7 @@
       ],
       "csv_bytes": "\"1/11/1970, 11:59:06\u202fAM\"\n\"1/10/1970, 7:17:10\u202fPM\"\n\"1/1/1970, 6:29:09\u202fPM\"\n\"1/4/1970, 4:39:38\u202fAM\"\n\"1/12/1970, 12:00:00\u202fAM\"\n\"1/1/1970, 12:00:00\u202fAM\"\n\"1/6/1970, 5:52:40\u202fPM\"\n\"1/4/1970, 12:14:11\u202fAM\"\n\"1/7/1970, 12:42:21\u202fAM\"\n\"1/3/1970, 11:10:41\u202fPM\"\n\"1/11/1970, 12:26:10\u202fAM\"\n\"1/10/1970, 2:00:20\u202fAM\"\n",
       "float64": [],
-      "why": "G7.5's clock half of the layout member (landing R2b): JavaScript's `toLocaleString` for en-US, `1/1/1970, 12:00:00 AM`, whose ICU writes a NARROW NO-BREAK SPACE, U+202F, between the seconds and the marker; the hour in one figure below ten on the dial. The mutant writes an ordinary space there, which the column does not.",
+      "why": "G7.5's clock half of the layout member (landing R2b): JavaScript's `toLocaleString` for en-US, `1/1/1970, 12:00:00 AM`, whose recent releases write a NARROW NO-BREAK SPACE, U+202F, between the seconds and the marker; the hour in one figure below ten on the dial. The mutant writes an ordinary space there, which the column does not.",
       "word_budget": {
         "content": 10,
         "placement": 11

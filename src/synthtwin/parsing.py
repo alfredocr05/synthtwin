@@ -8309,7 +8309,7 @@ _LAYOUT_MERIDIEMS = {
 }
 
 # THE NARROW NO-BREAK SPACE, a literal only directly before a marker: what
-# JavaScript's `toLocaleString` (ICU 72 on) writes between `2:05:00` and
+# JavaScript's `toLocaleString` writes in its recent releases between `2:05:00` and
 # `PM`, and nowhere else in a date.
 LAYOUT_NARROW_SPACE = " "
 
@@ -9458,9 +9458,7 @@ def layout_on_twelve_hours(name: str) -> str:
         raise TypeError(_NOT_TEXT)
     if not layout_asks_twelve_hours(name):
         return name
-    for field in _LAYOUT_TWENTY_FOUR_HOURS:
-        name = name.replace(f"{{{field}}}", f"{{{_LAYOUT_ON_THE_DIAL[field]}}}")
-    return name
+    return name.replace("{HH}", "{hh}").replace("{H}", "{h}").replace("{_H}", "{_h}")
 
 
 def _layout_off_the_dial(text: str) -> str:
@@ -9475,9 +9473,7 @@ def _layout_off_the_dial(text: str) -> str:
     for name in _LAYOUT_MERIDIEMS:
         if f"{{{name}}}" in text:
             return text
-    for field in _LAYOUT_TWENTY_FOUR_HOURS:
-        text = text.replace(f"{{{_LAYOUT_ON_THE_DIAL[field]}}}", f"{{{field}}}")
-    return text
+    return text.replace("{hh}", "{HH}").replace("{h}", "{H}").replace("{_h}", "{_H}")
 
 
 def layout_clock_style(name: str) -> "str | None":
