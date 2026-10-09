@@ -64,6 +64,30 @@ owed stand-ins after it needed.
 * `test_the_owed_stand_ins_keep_their_room` -- `H:MM` beside 3 % notes at
   30,000 rows (floor 11) writes no such cell and misses nothing (mutant: the
   published labels' shape spends the room first, 610 such cells).
+
+ITS LEFTOVER (skeptic 2 of the correction, 2026-10-09). A duration written
+in a clock's form -- minutes and seconds over the hour, an emergency stay past
+a day -- holds that form's spellings no clock reads, `26:07` and `45:12`, and
+they are the column's own values. The repair round stopped every clock's form
+at its times, so where such a column's held-back labels outnumbered the times
+its form could still write the rest were written `group-N`: on 18 of the
+skeptic's 50 duration tables the twin missed the count of `%%:%%`, which it
+met before the round, and code reading every cell as a duration -- split on
+the colon, each field a whole number -- stopped on the twin where it runs on
+the real table. A clock's form handed more labels than it has times is now
+past its times: its supply is counted over its whole room, its largest places
+take its times and the others a duration's spellings, hours 24 to 59 first.
+
+* `test_duration_twins_miss_nothing` -- minutes and seconds of 2 to 40
+  minutes at 10,000 rows (floor 11) and a stay of up to 72 hours at 30,000
+  rows (floor 36) are labels, the real table and the twin miss no check;
+* `test_duration_twins_write_no_neutral_spelling` -- and the twin writes no
+  blank and no `group-N` (mutant: every clock's form stopped at its times,
+  755 and 705 such cells and the count missed, as on 224c320);
+* `test_duration_code_runs_on_the_twin_as_on_the_table` -- every cell of the
+  table and of its twin is read as a duration and written back as it stands,
+  every field after the first below 60 (mutant: past its times the form
+  filled figure by figure, 349 and 324 fields of 60 or more, `29:93`).
 """
 
 from __future__ import annotations
@@ -128,9 +152,22 @@ _CLOCKS = {
     "hours_30000": ("hours", 0.03, 30000, 11, 9016),
 }
 
+# THE LEFTOVER'S TWO DURATION TABLES, cell for cell its skeptic's own (the
+# duration battery, at its seeds): a timed task in minutes and seconds, `MM:SS`,
+# from 2 to 40 minutes (`task`), and an emergency department's length of
+# stay, `HH:MM`, about five hours at the median with a tail of boarders to 72
+# hours (`stay`), as kind, rows, floor and seed.
+_DURATIONS = {
+    "task_10000": ("task", 10000, 11, 31014),
+    "stay_30000": ("stay", 30000, 36, 31007),
+}
+
 # A cell shaped like a clock time: an hour of one or two figures, a colon and
 # two figures, and optionally a colon and two more.
 _TIME_SHAPED = re.compile(r"\d{1,2}:\d\d(?::\d\d)?")
+
+# The neutral spelling of a made-up label.
+_NEUTRAL = re.compile(r"group-\d+")
 
 
 def _slot(draw: random.Random) -> int:
@@ -175,9 +212,29 @@ def _clock_cells(name: str) -> "list[str]":
     return cells
 
 
+def _duration_cells(name: str) -> "list[str]":
+    """One of the leftover's duration tables, as its skeptic's battery drew it."""
+    kind, rows, _floor, seed = _DURATIONS[name]
+    draw = random.Random(seed)
+    cells: "list[str]" = []
+    for _row in range(rows):
+        if kind == "task":
+            seconds = int(draw.triangular(120, 2400, 600))
+            cells += [f"{seconds // 60:02d}:{seconds % 60:02d}"]
+            continue
+        stay = draw.lognormvariate(0.0, 0.8) * 5.0 * 60
+        while stay >= 72 * 60:
+            stay = draw.lognormvariate(0.0, 0.8) * 5.0 * 60
+        minutes = int(stay)
+        cells += [f"{minutes // 60:02d}:{minutes % 60:02d}"]
+    return cells
+
+
 def _cells(name: str) -> "list[str]":
     if name in _CLOCKS:
         return _clock_cells(name)
+    if name in _DURATIONS:
+        return _duration_cells(name)
     kind, share, rows, floor = _TRACED[name]
     cells: "list[str]" = []
     if kind == "capsweep":
@@ -204,7 +261,10 @@ def _cells(name: str) -> "list[str]":
 @functools.lru_cache(maxsize=None)
 def _described(name: str):
     """The table's description, loaded, and where the table lies."""
-    floor = _CLOCKS[name][3] if name in _CLOCKS else _TRACED[name][3]
+    if name in _DURATIONS:
+        floor = _DURATIONS[name][2]
+    else:
+        floor = _CLOCKS[name][3] if name in _CLOCKS else _TRACED[name][3]
     folder = pathlib.Path(tempfile.mkdtemp(dir=_HOME[0]))
     table = fixtures.write(folder, "times.csv", "c\n" + "\n".join(_cells(name)) + "\n")
     document = profile.build_document(
@@ -457,3 +517,110 @@ def test_red_when_the_shape_spends_the_owed_room(monkeypatch: pytest.MonkeyPatch
     _labels_described("hours_30000")
     monkeypatch.setattr(generation, "_owed_clock_cells", lambda keys_of, held, shared, sizes: 0)
     assert len(_unread(_twin_cells("hours_30000"))) == 610
+
+
+# -- the leftover: durations written in a clock's form -------------------------
+
+
+def _durations(cells: "list[str]") -> "list[list[int]]":
+    """Every cell read as a duration, as code written on the real column reads it.
+
+    Split on the colon, each field a whole number, two fields at least;
+    a cell this code cannot read raises ValueError, as the code would.
+    """
+    read: "list[list[int]]" = []
+    for cell in cells:
+        fields = [int(part) for part in cell.split(":")]
+        if len(fields) < 2:
+            raise ValueError(cell)
+        read += [fields]
+    return read
+
+
+def _written_back(fields: "list[int]") -> str:
+    """A duration's fields written as the table writes them, two figures each."""
+    return ":".join([f"{field:02d}" for field in fields])
+
+
+@functools.lru_cache(maxsize=None)
+def _duration_twin(name: str) -> "tuple[tuple[str, ...], tuple[str, ...]]":
+    """The seed-0 twin of a duration table and what validation MISSED, generated once."""
+    cells, missed = _twin(name)
+    return tuple(cells), tuple(missed)
+
+
+def _past_fifty_nine(cells: "list[str]") -> int:
+    """How many fields after a cell's first are 60 or more, over every cell read as a duration."""
+    return sum(
+        1 for fields in _durations(cells) for field in fields[1:] if field >= 60
+    )
+
+
+@pytest.mark.parametrize("name", sorted(_DURATIONS))
+def test_duration_twins_miss_nothing(name: str) -> None:
+    """The leftover's two duration tables: labels in one clock's form, nothing missed on the table or its twin."""
+    block, loaded, table = _labels_described(name)
+    assert sorted(block["shape_forms"]) == ["%%:%%"], block["shape_forms"]
+    assert _missed(loaded, table) == []
+    _cells_now, missed = _duration_twin(name)
+    assert list(missed) == [], (name, missed)
+
+
+@pytest.mark.parametrize("name", sorted(_DURATIONS))
+def test_duration_twins_write_no_neutral_spelling(name: str) -> None:
+    """No blank and no `group-N` in the twin: every held-back label is written in the column's form."""
+    _labels_described(name)
+    cells, _missed_now = _duration_twin(name)
+    assert "" not in cells
+    neutral = [cell for cell in cells if _NEUTRAL.fullmatch(cell)]
+    assert neutral == [], (name, len(neutral), neutral[:3])
+
+
+@pytest.mark.parametrize("name", sorted(_DURATIONS))
+def test_duration_code_runs_on_the_twin_as_on_the_table(name: str) -> None:
+    """Code reading the real column's cells as durations reads every cell of the twin, and writes each back as it stands.
+
+    On 224c320 it stopped on the twin at the first `group-N`.
+    """
+    _labels_described(name)
+    real = _cells(name)
+    assert [_written_back(fields) for fields in _durations(real)] == real
+    assert _past_fifty_nine(real) == 0
+    cells = list(_duration_twin(name)[0])
+    assert [_written_back(fields) for fields in _durations(cells)] == cells
+    assert _past_fifty_nine(cells) == 0
+
+
+@pytest.mark.parametrize(("name", "neutral"), (("stay_30000", 705), ("task_10000", 755)))
+def test_red_when_every_clocks_form_stops_at_its_times(
+    name: str, neutral: int, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """MUTATION: no clock's form is past its times, as at 224c320, and the labels past them are `group-N`.
+
+    The twin misses the count of `%%:%%` and code reading durations stops on it.
+    """
+    _labels_described(name)
+    monkeypatch.setattr(
+        generation,
+        "_clock_forms_past_their_times",
+        lambda owing, decimal_comma, counts, most: {},
+    )
+    cells, missed = _twin(name)
+    assert "forms.published.%%:%%" in missed, (name, missed)
+    assert len([cell for cell in cells if _NEUTRAL.fullmatch(cell)]) == neutral
+    with pytest.raises(ValueError):
+        _durations(cells)
+
+
+@pytest.mark.parametrize(("name", "fields"), (("stay_30000", 324), ("task_10000", 349)))
+def test_red_when_past_its_times_the_form_is_filled_figure_by_figure(
+    name: str, fields: int, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """MUTATION: past its times a clock's form filled figure by figure from the first, and minutes of 60 or more are written."""
+    _labels_described(name)
+    monkeypatch.setattr(
+        generation,
+        "_past_the_clock",
+        lambda form, step: generation._filled_form(form, step, False),
+    )
+    assert _past_fifty_nine(_twin_cells(name)) == fields
