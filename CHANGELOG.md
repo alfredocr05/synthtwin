@@ -47,13 +47,19 @@ alone, and in `n_present`, which now counts the present cells the pass
 had blanked, so a column of ten or fewer present cells prints its own
 count; in no other key, and a declared identifier prints none. A
 column's role may move up the order empty, constant, binary, categories,
-long tail, and never down it. So twelve words beside `77`, `1e999` and
+long tail, and never down it, or across numbers beside labels where the
+pass had blanked a note written once: numbers beside labels may now read
+as a long tail, as 493f6f8 read that table at a floor of one, and a
+column read as continuous, as a count or as dates may now read as
+numbers beside labels, whose twin of dates written as eight figures then
+misses `ladder.p25` at a floor of eleven, as 493f6f8's twin of that
+table did at a floor of one. So twelve words beside `77`, `1e999` and
 `(+5)` print `n_numeric`, `n_out_of_range` and `n_contradictory` 1 where
 nought was printed, and the twin writes those three cells; the
 orchestrator's ruling keeps both, since withheld they would let code run
 on the twin and crash on the real file
 (`tests/test_p4d390_counts_per_block.py` compares every block and role
-of 74 tables with 493f6f8's).
+of 86 tables with 493f6f8's).
 
 **A held-back code keeps its form, and a held-back number stays a
 number, past the old bounds** (methods G8.3 and G8.3a). The form walk
