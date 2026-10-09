@@ -1806,7 +1806,7 @@ _SIBLING_AT = (500, 706)
 # 12 states, and on entering each the reserves are read once over every
 # size where the largest-first readings leave them open -- a cost the
 # old walk paid in condition 3's halving walk instead -- so the walk
-# today does 1.28 and 1.29 times the old walk's arithmetic; 630a2cc did
+# today does 1.33 and 1.34 times the old walk's arithmetic; 630a2cc did
 # 12.7 and 17.4 times, reading the reserve again at every size.
 SIBLING_SHARE_AT_MOST = 1.5
 
@@ -1817,10 +1817,11 @@ def test_a_reserve_only_a_small_size_completes_is_not_walked_again_at_every_size
     Both walks answer alike in the same 12 states, and the walk today
     does at most `SIBLING_SHARE_AT_MOST` times the arithmetic of the
     walk as 493f6f8 shipped it, and grows less than
-    `ARITHMETIC_DOUBLED_AT_MOST` times as the rows double; it walks a
-    reserve's totals over every size once or twice on entering a cell,
-    and after that reads the table `generation._owed_table` built,
-    folding in only the group of 3 rows the cell leaves. 630a2cc walked
+    `ARITHMETIC_DOUBLED_AT_MOST` times as the rows double. It walks the
+    last cell's totals over every size once on entering each of the
+    eleven cells before it, twice more in the cell before it, and then
+    reads the table `generation._owed_table` built, folding in only the
+    group of 3 rows that cell leaves. 630a2cc walked
     the last cell's totals over every size at 362 of its readings at
     250,503 rows, 12.7 times the old walk's arithmetic and growing 3.86
     times; 489c783, reading them from the smallest size up, 5.4 times.
@@ -1878,6 +1879,87 @@ def test_only_the_cell_the_walk_stands_in_holds_a_table() -> None:
     assert _meets(question, answer)
     assert built, "premise: the walk built no table, so nothing was measured"
     assert held == [0 for _each in held], held
+
+
+# Seed 16165 of the verify's own seeded questions: 69 groups of 3 to 300
+# rows, 10,043 rows over one class, three counts and four more, each group
+# permitted in one of three sets of cells. Its walk enters 8,013 states
+# and comes back to the cells of a few wide reserves thousands of times,
+# each time walking their totals a little way down.
+_COMES_BACK_OFTEN = _grid_question(
+    [
+        3, 9, 15, 31, 32, 33, 36, 36, 39, 43, 48, 51, 53, 54, 55, 63,
+        71, 72, 87, 90, 90, 91, 91, 94, 96, 97, 100, 105, 108, 123, 136,
+        137, 138, 150, 161, 163, 166, 169, 175, 179, 180, 181, 184, 184,
+        189, 197, 198, 200, 201, 203, 204, 207, 211, 219, 219, 222, 224,
+        224, 230, 242, 246, 248, 252, 255, 276, 277, 289, 291, 300,
+    ],
+    [[10043], [7365, 2225, 453], [2457, 2072, 2218, 3296]],
+    [
+        1251, 11, 13, 1251, 11, 11, 11, 11, 13, 1251, 1251, 1251, 11,
+        1251, 11, 11, 13, 13, 1251, 11, 13, 1251, 13, 11, 13, 1251, 13,
+        1251, 13, 13, 1251, 1251, 11, 11, 11, 11, 1251, 13, 1251, 13,
+        13, 13, 1251, 13, 11, 13, 11, 1251, 13, 11, 11, 13, 13, 1251,
+        11, 13, 1251, 11, 13, 13, 11, 11, 13, 13, 1251, 1251, 11, 13,
+        1251,
+    ],
+)
+
+
+def _paid_for(
+    question: "tuple[tuple[int, ...], list[tuple[list[int], list[int]]], list[int]]",
+) -> "tuple[object, int, int, int]":
+    """The walk's answer to ``question``, its states, the sizes its tables were built over, and the sizes its halving walks went over."""
+    walked = [0]
+    tabled = [0]
+    down = generation._reach_down
+    table = generation._owed_table
+
+    def walking(sizes, least, most):  # type: ignore[no-untyped-def]
+        index = down(sizes, least, most)
+        walked[0] += len(sizes) - index if index >= 0 else len(sizes)
+        return index
+
+    def building(keys, left, places, least, most, found):  # type: ignore[no-untyped-def]
+        tabled[0] += len(places)
+        return table(keys, left, places, least, most, found)
+
+    with pytest.MonkeyPatch.context() as patch:
+        patch.setattr(generation, "_reach_down", walking)
+        patch.setattr(generation, "_owed_table", building)
+        answer, states, _fills = _work(question)
+    return answer, states, tabled[0], walked[0]
+
+
+def test_a_reserve_keeps_a_table_only_once_the_walks_it_replaces_have_cost_as_much() -> None:
+    """`_WALKED_BEFORE_TABLE`: no table is built before the halving walk has gone over twice its sizes for its reserve since the walk came to the cell.
+
+    A table costs one walk over every size to build and at most one more
+    to work out its stretches. On `_COMES_BACK_OFTEN` the walk builds
+    none, its halving walks stopping a few sizes down, and answers as the
+    walk as 493f6f8 shipped it does in fewer states; counted by readings
+    instead -- a table from the third reading the largest-first readings
+    leave open in a cell's entry, the count kept as the walk left the
+    cell -- it built one each of the 3,991 times the walk came back to a
+    cell, 243,451 sizes at full width where the halving walks went 187
+    sizes down in all, 1.43 to 1.47 s of CPU where 630a2cc took 1.22 to
+    1.24. On the verify's identifier at 200 values, whose halving walks
+    each go down nearly every size, the table is still built, at the
+    fourth reading in the cell before the last. Mutations, run, each red
+    here: tables counted by readings, as above; and the count not set to
+    nought as the walk leaves a cell.
+    """
+    built, names = _as_built()
+    old_states = _counted(names)
+    expected = built(*_COMES_BACK_OFTEN)  # type: ignore[operator]
+    answer, states, tabled, walked = _paid_for(_COMES_BACK_OFTEN)
+    assert answer == expected
+    assert states <= old_states[0], (states, old_states[0])
+    assert 2 * tabled <= walked, (tabled, walked)
+    question = sibling_first_question(200)
+    answer, states, tabled, walked = _paid_for(question)
+    assert _meets(question, answer) and states == 12, states
+    assert 0 < 2 * tabled <= walked, (tabled, walked)
 
 
 def _parity_sizes(draw: random.Random) -> "list[int]":

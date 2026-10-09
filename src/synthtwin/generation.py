@@ -1569,34 +1569,40 @@ def _reach_bits(
 # walk's 48 on totals near a million bits wide. And from it on a
 # reserve is read from its largest size down and remembers where it
 # found a total (`_reserves_met`); where that memory cannot hold -- the
-# cell has taken copies at or above the place it names -- a reserve the
-# largest-first readings have left open more than `_WALKED_BEFORE_TABLE`
-# times in one entry keeps a table of what the sizes the cell has not
-# decided leave owed (`_owed_table`), so it is not read again over every
-# size each time the cell takes one more: each reading folds in only the
-# copies the decided sizes leave (`_owed_read`). Either way the answer
-# is the halving rule's, so the walk and its answer are the same
-# whatever this says.
+# cell has taken copies at or above the place it names -- a reserve whose
+# totals the halving rule has gone over `_WALKED_BEFORE_TABLE` times the
+# sizes it reads, since the walk came to its cell, keeps a table of what
+# the sizes the cell has not decided leave owed (`_owed_table`), so it is
+# not read again over every size each time the cell takes one more: each
+# reading folds in only the copies the decided sizes leave
+# (`_owed_read`). Either way the answer is the halving rule's, so the
+# walk and its answer are the same whatever this says.
 _WIDE_TOTAL = 4096
 
 
-# HOW MANY TIMES ONE RESERVE'S TOTALS ARE WALKED OVER EVERY SIZE in one
-# entry of one cell before it keeps a table of them instead (stage 4,
-# plan P4-D389, the verify of Codex's review of this landing, item 1).
+# HOW FAR THE HALVING RULE GOES OVER ONE RESERVE'S TOTALS before the
+# reserve keeps a table of them instead (stage 4, plan P4-D389, the
+# verify of Codex's review of this landing, item 1): this many times the
+# sizes the reserve reads, counted since the walk last came to its cell.
 # A reading the largest-first readings leave open walks the totals the
-# copies make, a number as wide as the reserve shifted once a size
-# (`_reach_down`). On the review's own identifier that happens twice in
-# 1,010 readings, and the remembered place answers the rest; but where
-# only a small size completes the total -- one value held by 3 rows
-# beside values held by 2, 4, ... 2,000 rows, 1,001,003 rows the
-# producer describes, the 3-row value's notation holding the larger
-# count -- the place it names is the 3-row size's, low in the walk, and
-# 715 of 718 readings walked the totals again from the largest size
-# down, 12 s of CPU where 493f6f8's walk took 0.45. From the third such
-# reading on the table answers: one walk over every size to build it,
-# and a reading after that the copies the decided sizes leave. Two keeps
-# the review's identifier, whose reserves walk their totals at most
-# twice in an entry, exactly as it was, with no table at all.
+# copies make from the largest size down to the first size that brings
+# one in range, a number as wide as the reserve shifted once a size
+# (`_reach_down`). Where only a small size completes the total -- one
+# value held by 3 rows beside values held by 2, 4, ... 2,000 rows,
+# 1,001,003 rows the producer describes, the 3-row value's notation
+# holding the larger count -- every such walk goes down to that size,
+# and they were 715 of the twin's 718 readings: 12 s of CPU where
+# 493f6f8's walk took 0.45. A table costs one walk over every size to
+# build and at most one more to work out its stretches as the walk goes
+# up through them (`_owed_table`, `_owed_read`), so it is built once the
+# walks it would replace have cost as much -- on that identifier at its
+# fourth such reading. Counted by readings instead, from the third open
+# one in a cell's entry, a seeded question of 69 sizes built a table each
+# of the 3,991 times the walk came back to its cell, where the walks it
+# replaced stopped 27 sizes down on the average, and took 1.43 to 1.47 s
+# of CPU where 630a2cc took 1.22 to 1.24; counted this way it builds
+# none. Nor does the review's own identifier, whose two packing
+# questions walk such totals four times in all.
 _WALKED_BEFORE_TABLE = 2
 
 
@@ -1831,10 +1837,11 @@ def _reserves_met(
     it took 0.64; now the same 1,010 readings walk those totals twice,
     and the question takes 0.15 s). Where the place it keeps is low --
     only a small size completes the total, so the cell soon takes copies
-    above it -- the readings the largest-first readings leave open are
-    counted in the same memory, and past `_WALKED_BEFORE_TABLE` of them
-    the reserve is read from a table of what its undecided sizes leave
-    owed, which the memory holds too (`_owed_table`, `_owed_read`).
+    above it -- the sizes the halving walk goes over for it are counted
+    in the same memory, and once they reach `_WALKED_BEFORE_TABLE` times
+    the sizes it reads the reserve is read from a table of what its
+    undecided sizes leave owed, which the memory holds too
+    (`_owed_table`, `_owed_read`).
 
     Guarantees: the answer is a fixed function of ``keys``, ``left``,
     ``walk`` and each reserve's first three parts; the only thing it
@@ -1897,12 +1904,16 @@ def _found_from(
 
     ``found`` is the reserve's memory where `_reserves_met` reads one
     (`_cell_entry` makes it, one per reserve and entry): it counts, at
-    ``found[1]``, the readings the two largest-first readings leave open,
-    and the one after `_WALKED_BEFORE_TABLE` of them builds the table of
-    `_owed_table` into it. From then on the table answers at once, with
-    neither those readings nor the halving walk (`_owed_read`), and a
-    total in range names the first of ``places``: every copy at the
-    places from there on is counted, which makes the same total.
+    ``found[1]``, the sizes the halving walk has gone over for this
+    reserve since the walk last came to its cell (`_owed_dropped` sets
+    it to nought as the walk leaves), and the reading the two
+    largest-first readings leave open once that count has reached
+    `_WALKED_BEFORE_TABLE` times the sizes at ``places`` builds the table
+    of `_owed_table` into it instead. From then on the table answers at
+    once, with neither those readings nor the halving walk
+    (`_owed_read`), and a total in range names the first of ``places``:
+    every copy at the places from there on is counted, which makes the
+    same total.
 
     Guarantees: the answer is a fixed function of its first six
     arguments, ``least`` one or more; it changes none of them, and
@@ -1932,15 +1943,18 @@ def _found_from(
     if found is not None:
         if len(found) == 1:
             found += [0, 0, -1]
-        found[1] = found[1] + 1
-        if found[1] > _WALKED_BEFORE_TABLE:
+        if found[1] >= _WALKED_BEFORE_TABLE * len(places):
             _owed_table(keys, left, places, least, most, found)
             if _owed_read(keys, left, walk, places, most, found):
                 return places[0]
             return -1
     index = _reach_down(sizes, least, most)
     if index < 0:
+        if found is not None:
+            found[1] = found[1] + len(sizes)
         return -1
+    if found is not None:
+        found[1] = found[1] + len(sizes) - index
     return places[index]
 
 
@@ -2115,18 +2129,23 @@ def _owed_read(
 
 
 def _owed_dropped(found: "list[int]") -> None:
-    """Empty the table a reserve's memory holds (`_owed_table`), keeping what else it remembers.
+    """Empty the table a reserve's memory holds (`_owed_table`), and start its count of the sizes walked again.
 
     `_cell_walk` calls this as it leaves a cell for the next one, so only
-    the cell the walk stands in holds tables; a reserve that needs its
-    table again, the walk back in that cell, builds it again from the
-    same ``left`` at its next reading the largest-first readings leave
-    open, since its count of them is kept.
+    the cell the walk stands in holds tables. The count `_found_from`
+    keeps of the sizes the halving walk has gone over for the reserve
+    goes back to nought with it, so a reserve back in that cell builds
+    its table again, from the same ``left``, only once the walks it
+    would replace have cost as much again (`_WALKED_BEFORE_TABLE`); the
+    place the memory keeps first stays.
 
-    Guarantees: changes ``found`` from its third place on and nothing
-    else; returns at once where it holds no table.
+    Guarantees: changes ``found`` from its second place on and nothing
+    else; returns at once where it holds no count.
     """
-    if len(found) < 4 or found[2] < 1:
+    if len(found) < 4:
+        return
+    found[1] = 0
+    if found[2] < 1:
         return
     found[2] = 0
     found[3] = -1
@@ -2214,9 +2233,10 @@ def _cell_entry(
        reserve of `_WIDE_TOTAL` rows or more remembers the largest size
        from which on it found a total, and is met without being read
        again while the cell has decided none of the sizes from there on
-       (`_reserves_met`); one its largest-first readings keep leaving
-       open is read from a table of what the undecided sizes leave owed
-       (`_owed_table`).
+       (`_reserves_met`); one whose totals the halving walk has gone
+       over `_WALKED_BEFORE_TABLE` times the sizes it reads, since the
+       walk came to the cell, is read from a table of what the undecided
+       sizes leave owed (`_owed_table`).
 
     ``part_cells[m][p]`` names the cells, as their places in the order
     they fill, that answer for count ``p`` of margin ``m``, and
