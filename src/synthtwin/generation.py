@@ -1916,8 +1916,9 @@ def _found_from(
     every copy at the places from there on is counted, which makes the
     same total.
 
-    Guarantees: the answer is a fixed function of its first six
-    arguments, ``least`` one or more; it changes none of them, and
+    Guarantees: whether it names a place is a fixed function of its
+    first six arguments, ``least`` one or more, and so is the place it
+    names where ``found`` is not given; it changes none of them, and
     ``found`` only as said.
     """
     if found is not None and len(found) > 2 and found[2] > 0:
@@ -1995,7 +1996,7 @@ def _owed_table(
     most: int,
     found: "list[int]",
 ) -> None:
-    """Build into ``found`` the table one reserve is read from once its largest-first readings keep leaving it open.
+    """Build into ``found`` the table one reserve is read from once the halving walks over its totals have cost as much (`_WALKED_BEFORE_TABLE`).
 
     THE RESERVE WAS WALKED OVER EVERY SIZE EACH TIME THE CELL TOOK ONE
     MORE (the verify of Codex's review of this landing, item 1). Where
