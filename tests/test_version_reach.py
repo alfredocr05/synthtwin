@@ -157,6 +157,13 @@ calls are held by what they are handed or by where they run:
   comparison or a condition, or leaves a step out, so it adds no
   spelling the floor could miss, and the test runs in every cell of the
   matrix.
+- `tests/test_stage3b_hour_review.py` builds a module the same way twice
+  (plan P4-D371, the landing's Codex review): `src/synthtwin/validation.py`
+  with the half day's projection of the tie group left out, and
+  `src/synthtwin/generation.py` with the hour's pass meeting its census by
+  ordinal -- files this guard reads, each edit a string constant of
+  `tests/` that leaves a step out, so it adds no spelling the floor could
+  miss, and the test runs in every cell of the matrix.
 
 A FILE loaded as a module is NOT this limit. The 26
 `importlib.util.spec_from_file_location` calls in the folders load
@@ -336,6 +343,10 @@ ROUTES_THAT_RUN_SOURCE = {
     # edit, as the module docstring says.
     ("tests/test_stage3b_hour.py", "compile"): 3,
     ("tests/test_stage3b_hour.py", "exec"): 3,
+    # Its review's test: the validation module and the generation module,
+    # each with one edit, as the module docstring says.
+    ("tests/test_stage3b_hour_review.py", "compile"): 2,
+    ("tests/test_stage3b_hour_review.py", "exec"): 2,
     # anchor 3b-T3 (P4-D372)
     # anchor 3b-C1 (P4-D373)
     # anchor 3b-C2 (P4-D374)

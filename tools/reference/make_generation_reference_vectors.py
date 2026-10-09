@@ -9338,10 +9338,6 @@ def hour_settled(column, ordinals, parsed, whole, lows, highs, holes):
     }
     if word is not None:
         seams["width_of"] = lambda day: counts_into_width(column, day, word)
-    walk = WeekdayWalk(
-        [count for _f, _l, count in groups], group_of_hour, ordinals, list(lows),
-        list(highs), hole_days, seams,
-    )
     fixed = ranks_the_tail_pins(column, parsed)
     counted = column.get("n_at_midnight") is not None
     pinned = [
@@ -9349,6 +9345,13 @@ def hour_settled(column, ordinals, parsed, whole, lows, highs, holes):
         or (counted and written_at_midnight(ordinals[rank], 0, step))
         for rank in range(parsed)
     ]
+    # THE CENSUS AS WRITTEN: a body rank the twin writes at a sixtieth second
+    # stands, written, in the hour of the second before its ordinal.
+    counts = clock_counts_as_written(
+        [count for _f, _l, count in groups], group_of_hour, seams["bin_of"], ordinals,
+        clock_sixtieths(column, ordinals, parsed, first, last, pinned),
+    )
+    walk = WeekdayWalk(counts, group_of_hour, ordinals, list(lows), list(highs), hole_days, seams)
     # THE DAY STANDING: each weekday's group in the weekday census, or,
     # where none stands, the weekday itself -- and then, as the last
     # resort of the escape and of PUT BACK, any other day of the gap.
@@ -9362,6 +9365,35 @@ def hour_settled(column, ordinals, parsed, whole, lows, highs, holes):
         date_counts_reachable(column), not census_of_days,
         published=column["n_distinct"],
     )
+
+
+def clock_sixtieths(column, ordinals, parsed, first, last, pinned):
+    """G7.3g: the body ranks the twin writes at a SIXTIETH SECOND -- each pinned
+    at a published boundary or rung whose seconds field is 60 and standing at
+    that pin, which G7.5 writes from its own fields while G7.1's ordinal space
+    stands it at the next minute's first second. Ascending."""
+    pins, texts, _body, _sides = date_pins(column, parsed)
+    return [
+        rank for rank in sorted(texts)
+        if first <= rank <= last and pinned[rank] and rank in pins
+        and texts[rank][17:19] == "60" and ordinals[rank] == pins[rank]
+    ]
+
+
+def clock_counts_as_written(counts, group_of_bin, bin_of, ordinals, sixtieths):
+    """G7.3g: the counts the clock pass meets BY ORDINAL so the census holds AS
+    WRITTEN. A rank written at a sixtieth second is written in the bin of the
+    second before its ordinal; where that bin's group is not the ordinal's,
+    the ordinal's group is asked one more rank and the written group one fewer.
+    The rank never moves."""
+    asked = list(counts)
+    for rank in sixtieths:
+        counted = group_of_bin[bin_of(ordinals[rank])]
+        written = group_of_bin[bin_of(ordinals[rank] - 1)]
+        if counted != written:
+            asked[counted] += 1
+            asked[written] -= 1
+    return asked
 
 
 def clock_span(walk):
@@ -14441,6 +14473,25 @@ def hour_rounds_case():
     )
 
 
+HOUR_ELEVEN = [0] * 11 + [1] * 13
+
+
+def hour_sixtieth_case():
+    m = HOUR_MONDAY
+    ordinals = [
+        hour_at(m, 8), hour_at(m, 9), hour_at(m + 1, 0), hour_at(m + 1, 13), hour_at(m + 1, 20),
+    ]
+    return hour_case(
+        "A rank written at a sixtieth second (the review of the landing, item 1): the rung "
+        "at rank 2 is published as Monday 23:59:60, which the ordinal space stands at "
+        "Tuesday 00:00:00 and the twin writes from its own fields, in hour 23. Hours 0 to 10 "
+        "owe two ranks and hours 11 to 23 three, as written. Counted by its ordinal the rung "
+        "would stand in hours 0 to 10, one over, and Monday's 09:00 would leave for 11:00; "
+        "counted as written, the census already holds and nothing moves.",
+        "pass", ordinals, {0, 2, 4}, [2, 3], HOUR_ELEVEN, sixtieths=[2],
+    )
+
+
 # THE FIELD-GENERIC PASS on a field of minutes: bins of 60 seconds, 60 of
 # them in a turn, the parent an hour, and each hour's group in the hour
 # census as its kin -- the shape landing 3b.4 instantiates (plan P4-D372).
@@ -14515,6 +14566,7 @@ HOUR_STEP_CASES = {
     "hour_relief_given_back": hour_relief_given_back_case,
     "hour_off_a_hole": hour_off_a_hole_case,
     "hour_rounds": hour_rounds_case,
+    "hour_sixtieth_second": hour_sixtieth_case,
     "clock_minute_kin_escape": clock_kin_escape_case,
     "clock_minute_kin_kept": clock_kin_kept_case,
     "clock_minute_put_back_kin": clock_put_back_kin_case,
@@ -14556,8 +14608,13 @@ def hour_step_answer(case):
         "keep_of": lambda ordinal: ordinal // (unit * bins),
         "keeps_always": not case["reachable"],
     }
+    counts = case["counts"]
+    if "sixtieths" in case:
+        counts = clock_counts_as_written(
+            counts, case["where"], seams["bin_of"], case["ordinals"], case["sixtieths"]
+        )
     walk = WeekdayWalk(
-        case["counts"], case["where"], list(case["ordinals"]), list(case["lows"]),
+        counts, case["where"], list(case["ordinals"]), list(case["lows"]),
         list(case["highs"]), set(case["holes"]), seams,
     )
     first, last = case["body"]

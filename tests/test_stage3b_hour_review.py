@@ -4,6 +4,14 @@ Codex reviewed the landing once (2026-10-08) and raised four items; each
 is reproduced here on the review's own scenario, red on the head it
 reviewed (b3fb647), and fixed:
 
+* item 1 -- a sixtieth second, `23:59:60`, is WRITTEN in hour 23 while
+  its instant is the next day's first second; the producer, the loader,
+  the generator and the validator all binned the instant, so eleven of
+  them on each of 100 dates published every body cell in hour 0 and the
+  twin wrote its body there: `test_a_sixtieth_second_counts_in_the_hour_
+  it_is_written_in` and `test_the_twin_writes_its_hours_as_written`
+  (with the generator's own mutant), beside the sixteenth vectors file's
+  `hour_sixtieth_second`;
 * item 2 -- on a stamp declared a 12-hour clock with no marker, the
   validator took G7.3b step 10 onto the ranks but not onto the tie group
   before the end and step 9's reach were read off it, so its window was
@@ -29,6 +37,7 @@ Every table is built here, seeded and neutral (plan D13).
 from __future__ import annotations
 
 import builtins
+import copy
 import datetime
 import math
 import pathlib
@@ -43,6 +52,7 @@ import kpi_shapes
 from synthtwin import (
     calendar_rules,
     contract,
+    errors,
     generation,
     profile,
     reading,
@@ -53,6 +63,122 @@ from synthtwin import (
 
 DAY = 86400
 _MONDAY = 19723  # 2024-01-01, a Monday
+
+
+# -- item 1: a sixtieth second, in the hour it is written in -----------------------------
+
+
+def _codex_leap() -> "list[str]":
+    """Codex's column: eleven copies of 23:59:60 on each of 100 dates from 2024-01-01."""
+    found: "list[str]" = []
+    for step in range(100):
+        day = datetime.date(2024, 1, 1) + datetime.timedelta(days=step)
+        found += [f"{day.isoformat()} 23:59:60"] * 11
+    return found
+
+
+def _leap_beside_midnight() -> "list[str]":
+    """On each of 100 dates: four values at 23:59:60, three at 23:05, 23:20 and 23:40,
+    and two at 00:30 -- the hours on either side of midnight, both published."""
+    found: "list[str]" = []
+    for step in range(100):
+        day = (datetime.date(2024, 1, 1) + datetime.timedelta(days=step)).isoformat()
+        found += [f"{day} 23:59:60"] * 4
+        found += [f"{day} 23:{minute:02d}:00" for minute in (5, 20, 40)]
+        found += [f"{day} 00:30:00"] * 2
+    return found
+
+
+def _instant(cell: str) -> "tuple[datetime.datetime, str]":
+    """A cell's rank key: its instant, a sixtieth second at the next minute's first, then its text."""
+    if cell.endswith(":60"):
+        return (datetime.datetime.fromisoformat(cell[:-2] + "59") + datetime.timedelta(seconds=1), cell)
+    return (datetime.datetime.fromisoformat(cell), cell)
+
+
+def _body_hours(text: str, block: dict) -> "dict[int, int]":
+    """The file's body by written hour: its cells ranked by instant, the tails' rows off."""
+    cells = sorted((line for line in text.split("\n")[1:] if line), key=_instant)
+    body = cells[block["low_tail"]["rows"] : len(cells) - block["high_tail"]["rows"]]
+    found: "dict[int, int]" = {}
+    for cell in body:
+        found[int(cell[11:13])] = found.get(int(cell[11:13]), 0) + 1
+    return found
+
+
+def test_a_sixtieth_second_counts_in_the_hour_it_is_written_in(tmp_path: pathlib.Path) -> None:
+    """Codex's item 1, publication and validation. The column's 1,078 body cells are all
+    written in hour 23, and the census says so; b3fb647 published them all in hour 0, and
+    its loader and validator agreed with it. The loader now refuses that census -- the
+    boundaries and rungs it publishes at 23:59:60 are sure cells of hour 23 (HC5) -- and
+    V5-H1 counts a file whose body is written at 00:30 MISSED, where it counted it HELD."""
+    cells = _codex_leap()
+    text = "seen_at\n" + "\n".join(cells) + "\n"
+    described = kpi_shapes.describe(tmp_path, "real", text, 11)
+    block = described.block("seen_at")
+    assert block["hour_census"] == [
+        {"first": 0, "last": 22, "count": 0}, {"first": 23, "last": 23, "count": 1078},
+    ]
+    outcome = kpi_shapes.measure(described, text, "real.csv")
+    assert kpi_shapes.missed(outcome) == []
+    assert [c.verdict for c in outcome.checks if c.subcheck == "hour_census.groups"] == [validation.HELD]
+    old = copy.deepcopy(described.document)
+    old["columns"][0]["hour_census"] = [
+        {"first": 0, "last": 0, "count": 1078}, {"first": 1, "last": 23, "count": 0},
+    ]
+    with pytest.raises(errors.ProfileError, match="HC5"):
+        contract.load_profile(str(fixtures.write_profile(tmp_path, "old-profile.json", old)))
+    low, high = block["low_tail"]["rows"], block["high_tail"]["rows"]
+    moved = cells[:low] + [
+        (datetime.date.fromisoformat(cell[:10]) + datetime.timedelta(days=1)).isoformat() + " 00:30:00"
+        for cell in cells[low : len(cells) - high]
+    ] + cells[len(cells) - high :]
+    late = kpi_shapes.measure(described, "seen_at\n" + "\n".join(moved) + "\n", "late.csv")
+    assert [c.verdict for c in late.checks if c.subcheck == "hour_census.groups"] == [validation.MISSED]
+
+
+# The edit that has the hour's pass meet the census by ordinal, as b3fb647 did.
+_AS_WRITTEN = (
+    "    counts = _clock_counts_as_written(\n"
+    "        state,\n"
+    "        [count for _first, _last, count in census],\n"
+    "        _sixtieth_seconds(layout, moved, pinned, body_low, body_high),\n"
+    "    )\n"
+)
+_BY_ORDINAL = "    counts = [count for _first, _last, count in census]\n"
+
+
+def test_the_twin_writes_its_hours_as_written(tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Codex's item 1, generation. Codex's column at seeds 0 to 4: every body cell of the
+    twin written in hour 23 -- the boundaries and rungs at 23:59:60 from their own fields,
+    every other at an ordinary second -- nothing missed and no deviation, where b3fb647's
+    twin wrote 1,069 of them in hour 0. And on 100 dates of 23:59:60, three other times of
+    hour 23 and two at 00:30, nothing missed at seeds 0 to 2. Mutant: the pass meeting the
+    census by ordinal, which files a deviation the twin does not deserve on the first
+    column and, silently, misses the census on the second."""
+    codex = kpi_shapes.describe(tmp_path / "codex", "codex", "seen_at\n" + "\n".join(_codex_leap()) + "\n", 11)
+    beside = kpi_shapes.describe(
+        tmp_path / "beside", "beside", "seen_at\n" + "\n".join(_leap_beside_midnight()) + "\n", 11
+    )
+    for seed in range(5):
+        twin = generation.generate(codex.loaded, seed)
+        written = rendering.twin_csv(twin)
+        assert not twin.deviations, seed
+        assert kpi_shapes.missed(kpi_shapes.measure(codex, written, f"twin-{seed}.csv")) == [], seed
+        assert _body_hours(written, codex.block("seen_at")) == {23: 1078}, seed
+    for seed in range(3):
+        written = rendering.twin_csv(generation.generate(beside.loaded, seed))
+        assert kpi_shapes.missed(kpi_shapes.measure(beside, written, f"beside-{seed}.csv")) == [], seed
+    source = pathlib.Path(generation.__file__).read_text(encoding="utf-8")
+    assert source.count(_AS_WRITTEN) == 1
+    name = "synthtwin._generation_review_mutant"
+    mutant = types.ModuleType(name)
+    mutant.__file__ = generation.__file__
+    monkeypatch.setitem(sys.modules, name, mutant)
+    exec(compile(source.replace(_AS_WRITTEN, _BY_ORDINAL), generation.__file__, "exec"), mutant.__dict__)
+    assert [d.fact for d in mutant.generate(codex.loaded, 0).deviations] == ["hour_census"]
+    written = rendering.twin_csv(mutant.generate(beside.loaded, 0))
+    assert kpi_shapes.missed(kpi_shapes.measure(beside, written, "mutant.csv")) == ["seen_at:hour_census.groups"]
 
 
 # -- item 2: the half day's tie group, projected before a window stands on it ---------

@@ -67,17 +67,19 @@ CLOCK_LISTS = (CLOCK_CENSUS, CLOCK_HEAPS, CLOCK_CODES)
 #
 # A column of moments read on its own clock publishes how many cells of
 # its BODY -- the cells between the two tail boundaries, both included --
-# fall on each hour of the written wall clock (`canonical[11:13]`), in
-# GROUPS merged from the twenty-four hours by the one merge rule every
-# census shares (`calendar_rules.merged_groups`), ON A LINE: hour 23 and
-# hour 0 are no neighbours, because a day ends between them, so no group
-# runs past midnight (HC1). Every count is nought or at least the census
-# line (HC2), the counts add to the body (HC3), the published p75 less
-# p25 is at least `HOUR_SPAN_DAYS` days, so no census is the hourly series
-# of a few dates (HC4), every group holds at least the cells the rest of
-# the description places in it for certain and what is left of it is
-# nought or at least the line (HC5, `hour_sure`), and a workbook's
-# published cell classes do not show the column stored two ways (HC6).
+# fall on each hour of the written wall clock (`canonical[11:13]`, read
+# off the text, so a sixtieth second counts in the hour it is written in:
+# `written_hour`), in GROUPS merged from the twenty-four hours by the one
+# merge rule every census shares (`calendar_rules.merged_groups`), ON A
+# LINE: hour 23 and hour 0 are no neighbours, because a day ends between
+# them, so no group runs past midnight (HC1). Every count is nought or at
+# least the census line (HC2), the counts add to the body (HC3), the
+# published p75 less p25 is at least `HOUR_SPAN_DAYS` days, so no census
+# is the hourly series of a few dates (HC4), every group holds at least
+# the cells the rest of the description places in it for certain and
+# what is left of it is nought or at least the line (HC5, `hour_sure`),
+# and a workbook's published cell classes do not show the column stored
+# two ways (HC6).
 #
 # A census with one non-empty group is published: its one count is the
 # body, which the description already gives, and it says the empty hours
@@ -117,24 +119,31 @@ HOUR_REASONS = (
 HOUR_RULES = ("HC1", "HC2", "HC3", "HC5")
 
 
-def hour_of(instant: int) -> int:
-    """The hour of the written wall clock of an instant counted in seconds.
+def written_hour(canonical: str) -> int:
+    """The hour a canonical moment, `YYYY-MM-DD HH:MM:SS`, is WRITTEN in:
+    `canonical[11:13]`, the hour census's own definition (contract 6.6.2).
 
-    Guarantees: accepts whole seconds from 1970-01-01 00:00:00 on the
-    column's own clock; returns 0 to 23. Raises nothing. No I/O.
+    THE WRITTEN HOUR IS READ OFF THE TEXT, NEVER OFF THE INSTANT (Codex's
+    review of landing 3b.2-H, item 1). A sixtieth second, `23:59:60`, is
+    written in hour 23, and its instant (`seconds_of`) is the next day's
+    first second: eleven of them on each of 100 dates had all 1,078 body
+    cells counted in hour 0, and the twin wrote its body there.
+
+    Guarantees: accepts canonical text; returns 0 to 23. Raises
+    ValueError for text that is not canonical. No I/O of any kind.
     """
-    return (instant // HOUR_SECONDS) % HOURS
+    return int(canonical[11:13])
 
 
-def hour_bins(instants: "list[int]") -> "list[int]":
-    """How many of these instants fall on each hour, hour 0 first.
+def hour_bins(hours: "list[int]") -> "list[int]":
+    """How many cells fall on each written hour, hour 0 first.
 
-    Guarantees: accepts instants in seconds; returns twenty-four counts.
-    Determinism: a function of the instants. Raises nothing. No I/O.
+    Guarantees: accepts each cell's written hour (`written_hour`), 0 to
+    23; returns twenty-four counts. Determinism: a function of the hours.
+    Raises nothing. No I/O.
     """
     bins = [0 for _hour in range(HOURS)]
-    for instant in instants:
-        hour = hour_of(instant)
+    for hour in hours:
         bins[hour] = bins[hour] + 1
     return bins
 
@@ -181,26 +190,28 @@ def midnight_sure(
 
 
 def hour_sure(
-    published: "list[tuple[int, int]]", at_midnight: "int | None"
+    published: "list[tuple[int, str]]", at_midnight: "int | None"
 ) -> "list[int]":
     """The SURE cells of each hour: those the rest of a description places there.
 
-    `published` is every published body instant with the rank it is
-    read off -- both tail boundaries and every published rung -- and
-    every rank between two of one instant stands there too. Each such
-    rank counts in its own hour. `at_midnight` is rule 4's count
-    (`midnight_sure`); where it is not None it goes in hour 0 IN PLACE OF
-    the published ranks at exactly 00:00:00, whichever is more, since
-    both count body cells at midnight.
+    `published` is every published body value -- both tail boundaries
+    and every published rung, as canonical text -- with the rank it is
+    read off, and every rank between two of one value stands there too.
+    Each such rank counts in its WRITTEN hour (`written_hour`): two values
+    of one instant written differently, a sixtieth second and the next
+    day's midnight, are two values, and a rank between them may hold
+    either. `at_midnight` is rule 4's count (`midnight_sure`); where it is
+    not None it goes in hour 0 IN PLACE OF the published ranks written at
+    00:00:00, whichever is more, since both count body cells at midnight.
 
-    Guarantees: accepts the (rank, instant) pairs and the count; returns
-    twenty-four counts. Determinism: a function of the two. Raises
-    nothing. No I/O of any kind.
+    Guarantees: accepts the (rank, canonical text) pairs and the count;
+    returns twenty-four counts. Determinism: a function of the two.
+    Raises nothing for canonical text. No I/O of any kind.
     """
-    known: "dict[int, int]" = {}
+    known: "dict[int, str]" = {}
     ordered = sorted(published)
-    for rank, instant in ordered:
-        known[rank] = instant
+    for rank, value in ordered:
+        known[rank] = value
     for place in range(len(ordered) - 1):
         first, here = ordered[place]
         last, there = ordered[place + 1]
@@ -210,11 +221,11 @@ def hour_sure(
     sure = [0 for _hour in range(HOURS)]
     zero = 0
     for rank in sorted(known):
-        instant = known[rank]
-        if instant % DAY_SECONDS == 0:
+        value = known[rank]
+        if value[11:19] == "00:00:00":
             zero = zero + 1
             continue
-        hour = hour_of(instant)
+        hour = written_hour(value)
         sure[hour] = sure[hour] + 1
     if at_midnight is not None:
         zero = max(zero, at_midnight)
@@ -272,8 +283,11 @@ def span_long_enough(p25: "int | None", p75: "int | None") -> bool:
 def seconds_of(canonical: str) -> int:
     """The instant of a canonical moment, `YYYY-MM-DD HH:MM:SS`, in whole
     seconds from 1970-01-01 00:00:00 on its own wall clock; a sixtieth
-    second counts as the next minute's first. Raises ValueError for text
-    that is not canonical. No I/O of any kind.
+    second counts as the next minute's first. The ARITHMETIC ordinal --
+    what orders cells, measures a span and places a cell between two
+    boundaries -- and never the hour a cell is written in, which
+    `written_hour` reads off the text. Raises ValueError for text that is
+    not canonical. No I/O of any kind.
     """
     day = parsing.days_from_civil(
         int(canonical[0:4]), int(canonical[5:7]), int(canonical[8:10])

@@ -1431,7 +1431,10 @@ rather than in ISO:
   V5-H1, landing 3b.2-H, plan P4-D371): the file's own moments between
   the two PUBLISHED tail boundaries, both included, less the days its own
   description reads as holes, are counted per hour of the written wall
-  clock and summed per published group, and the obligation is HELD where
+  clock -- each placed between the boundaries by its instant and counted
+  in the hour it is WRITTEN in, `canonical[11:13]`, so a sixtieth second
+  stays in its own hour (the landing's review, item 1) -- and summed per
+  published group, and the obligation is HELD where
   every group holds its published count and MISSED otherwise. Each cell
   is read under the member that read the real column and, on a slashed
   stamp, on the face its description publishes -- a declared 12-hour

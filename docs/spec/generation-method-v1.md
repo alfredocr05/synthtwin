@@ -6737,7 +6737,19 @@ counted in seconds and with no bare date, its ranks are moved once
 G7.3f's day pass is done and before any cell is spelled, until the cells
 between the two boundary ranks fall on the published groups. No word is
 drawn. A moment's HOUR, its bin, is the hour of its written wall clock,
-`(o div 3,600) mod 24`. A rank is written AT MIDNIGHT where its cell,
+`(o div 3,600) mod 24` -- but for a rank the twin writes at a SIXTIETH
+SECOND: a body rank pinned at a published boundary or rung whose seconds
+field is 60, which G7.5 writes from its own fields, `HH:MM:60`, while
+G7.1 stands its ordinal at the next minute's first second. Its bin is
+that of `o - 1`, the second before, the hour (and the minute) it is
+written in. No other rank is written at a sixtieth second: the cells a
+source wrote there are met in the twin by ranks at ordinary seconds of
+the same hour. Every step below counts a rank by its ordinal, so before
+step 2 each such rank whose two bins lie in different groups asks its
+ordinal's group one rank more and its written group one fewer, and the
+pass, meeting those counts by ordinal, meets the census as written (the
+landing's review, item 1: eleven 23:59:60 a date over 100 dates counted
+all 1,078 body cells, and wrote them, in hour 0). A rank is written AT MIDNIGHT where its cell,
 cut to the column's precision, reads 00:00:00. Its DAY STANDING is its
 weekday's group in the column's `weekday_census` where one stands, and
 its weekday itself where none does. No step below moves a rank to a day

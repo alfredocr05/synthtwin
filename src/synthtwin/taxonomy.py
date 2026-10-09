@@ -16517,7 +16517,7 @@ def _hour_published(
     block[calendar_clock.HOUR_CENSUS] = []
     if not produced:
         return block, [], []
-    decided = hour_decision(block, verdict.instants, settings, stored_one_way)
+    decided = hour_decision(block, verdict.hours, settings, stored_one_way)
     line = parsing.census_floor(settings.small_cell_floor)
     if not decided.groups:
         if not decided.reason:
@@ -16544,19 +16544,28 @@ _HOUR_WITHHELD_NOTES = {
 }
 
 
-def _census_instants(
+def _census_hours(
     details: "dict[str, object]", pairs: "list[tuple[str, str]]"
 ) -> "tuple[int, ...]":
-    """The instant of every parsed (canonical, offset) pair, ascending, in
-    whole seconds of its own wall clock, where an hour census may stand:
-    a column of moments read on the local clock, in any member but the
-    joint one, and not wholly at midnight (landing 3b.2-H, contract HC3).
-    Empty elsewhere. A canonical text is the wall clock as written, so
-    the offset is not read.
+    """The WRITTEN hour of every parsed (canonical, offset) pair, in the
+    order the description ranks them, where an hour census may stand: a
+    column of moments read on the local clock, in any member but the joint
+    one, and not wholly at midnight (landing 3b.2-H, contract HC3). Empty
+    elsewhere. A canonical text is the wall clock as written, so the
+    offset is not read.
+
+    RANKED BY THE INSTANT, COUNTED BY THE TEXT (Codex's review of the
+    landing, item 1). The cells are ordered by their instant
+    (`calendar_clock.seconds_of`) and then by their text, as
+    `ordered_moments` orders them on this clock, so the tail boundaries
+    cut this list where they cut the column; each is then counted in the
+    hour it is written in (`calendar_clock.written_hour`), so a sixtieth
+    second, whose instant is the next minute's first, stays in its own
+    hour: `23:59:60` in hour 23, never hour 0.
 
     Guarantees: accepts the published details and the parsed pairs;
-    returns the instants. Determinism: a function of the two. Raises
-    nothing. No I/O of any kind.
+    returns one hour, 0 to 23, per pair. Determinism: a function of the
+    two. Raises nothing. No I/O of any kind.
     """
     if (
         details["resolution"] != RESOLUTION_DATETIME
@@ -16565,10 +16574,10 @@ def _census_instants(
         or details["all_at_midnight"] is True
     ):
         return ()
-    instants: "list[int]" = []
+    keyed: "list[tuple[int, str]]" = []
     for canonical, _offset in pairs:
-        instants += [calendar_clock.seconds_of(canonical)]
-    return tuple(sorted(instants))
+        keyed += [(calendar_clock.seconds_of(canonical), canonical)]
+    return tuple(calendar_clock.written_hour(canonical) for _instant, canonical in sorted(keyed))
 
 
 @dataclasses.dataclass(frozen=True)
@@ -16596,36 +16605,38 @@ def _ladder_seconds(details: "dict[str, object]", name: str) -> "int | None":
     return calendar_clock.seconds_of(rung)
 
 
-def hour_published_instants(
+def hour_published_values(
     details: "dict[str, object]", parsed: int
-) -> "list[tuple[int, int]]":
-    """Every published body instant of a block of moments, with its rank.
+) -> "list[tuple[int, str]]":
+    """Every published body value of a block of moments, with its rank.
 
     Both tail boundaries -- the first and last rank of the body -- and
     each published rung at the rank it is read off
-    (`calendar_clock.rung_rank`): what `calendar_clock.hour_sure` places
-    in its hour. Empty where the block has no two tails.
+    (`calendar_clock.rung_rank`), as the canonical text the block writes:
+    what `calendar_clock.hour_sure` places in its WRITTEN hour. Empty
+    where the block has no two tails.
 
     Guarantees: accepts the published block and the parsed count;
-    returns (rank, instant in seconds) pairs. Determinism: a function of
-    the two. Raises nothing. No I/O of any kind.
+    returns (rank, canonical text) pairs. Determinism: a function of the
+    two. Raises nothing. No I/O of any kind.
     """
     low_tail = details["low_tail"]
     high_tail = details["high_tail"]
     if not isinstance(low_tail, dict) or not isinstance(high_tail, dict):
         return []
-    found: "list[tuple[int, int]]" = []
+    found: "list[tuple[int, str]]" = []
     for tail, rank in (
         (low_tail, low_tail["rows"]),
         (high_tail, parsed - 1 - high_tail["rows"]),
     ):
         boundary = tail["boundary"]
         if isinstance(boundary, str) and isinstance(rank, int) and len(boundary) >= 19:
-            found += [(rank, calendar_clock.seconds_of(boundary))]
+            found += [(rank, boundary)]
+    ladder = details["date_percentiles"] if "date_percentiles" in details else None
     for percent, name in _HOUR_RUNG_NAMES:
-        instant = _ladder_seconds(details, name)
-        if instant is not None:
-            found += [(calendar_clock.rung_rank(percent, parsed), instant)]
+        rung = ladder[name] if isinstance(ladder, dict) and name in ladder else None
+        if isinstance(rung, str) and len(rung) >= 19:
+            found += [(calendar_clock.rung_rank(percent, parsed), rung)]
     return found
 
 
@@ -16657,14 +16668,15 @@ def hour_tails_listed(
 
 def hour_decision(
     details: "dict[str, object]",
-    instants: "tuple[int, ...]",
+    hours: "tuple[int, ...]",
     settings: Settings,
     stored_one_way: bool = True,
 ) -> HourDecision:
     """Whether a column of moments publishes its hour census, and which.
 
-    Landing 3b.2-H (plan P4-D371). Nothing where no instant is in scope
-    (`_census_instants`: HC3's reading). Then, each said in its own
+    Landing 3b.2-H (plan P4-D371). `hours` is the written hour of every
+    parsed cell in rank order (`_census_hours`), and nothing is decided
+    where none is in scope (HC3's reading). Then, each said in its own
     sentence: no two tails (HC3); a published middle half -- p75 less p25
     -- shorter than `calendar_clock.HOUR_SPAN_DAYS` days, and apart from
     it a rung of it withheld, which publishes no span at all (HC4 both);
@@ -16677,12 +16689,12 @@ def hour_decision(
     loader refuses. No rule asks what a reader could work out from the
     census (the owner's principle of 2026-10-01).
 
-    Guarantees: accepts the published block, the instants, the settings
-    and the storage flag; returns the decision. Determinism: a function
-    of the arguments. Raises nothing. No I/O of any kind.
+    Guarantees: accepts the published block, the written hours, the
+    settings and the storage flag; returns the decision. Determinism: a
+    function of the arguments. Raises nothing. No I/O of any kind.
     """
     empty: "tuple[tuple[int, int, int], ...]" = ()
-    if not instants:
+    if not hours:
         return HourDecision(empty, "")
     low_tail = details["low_tail"]
     high_tail = details["high_tail"]
@@ -16692,8 +16704,8 @@ def hour_decision(
     rows_high = high_tail["rows"]
     if not isinstance(rows_low, int) or not isinstance(rows_high, int):
         return HourDecision(empty, calendar_clock.HOUR_REASON_NO_TAILS)
-    parsed = len(instants)
-    body = instants[rows_low : parsed - rows_high]
+    parsed = len(hours)
+    body = hours[rows_low : parsed - rows_high]
     if not body:
         return HourDecision(empty, calendar_clock.HOUR_REASON_NO_TAILS)
     quarter = _ladder_seconds(details, "p25")
@@ -16710,7 +16722,7 @@ def hour_decision(
     line = parsing.census_floor(settings.small_cell_floor)
     counted = details["n_at_midnight"] if "n_at_midnight" in details else None
     sure = calendar_clock.hour_sure(
-        hour_published_instants(details, parsed),
+        hour_published_values(details, parsed),
         calendar_clock.midnight_sure(
             counted if isinstance(counted, int) else None,
             hour_tails_listed(details),
@@ -17488,13 +17500,13 @@ class _Verdict:
     # ROWS, which ten copies of one impossible date made nine texts too
     # few. Never published.
     texts: int = 0
-    # THE INSTANT OF EVERY PARSED CELL, ascending, in whole seconds of its
-    # own wall clock, on a column of moments read on the local clock, not
+    # THE WRITTEN HOUR OF EVERY PARSED CELL, in the order the description
+    # ranks the cells, on a column of moments read on the local clock, not
     # in the joint member and not wholly at midnight, and nowhere else
-    # (landing 3b.2-H, plan P4-D371): what the hour census is counted from
-    # once the block beside it is settled (`_hour_published`). Never
-    # published.
-    instants: "tuple[int, ...]" = ()
+    # (landing 3b.2-H, plan P4-D371; `_census_hours`): what the hour census
+    # is counted from once the block beside it is settled
+    # (`_hour_published`). Never published.
+    hours: "tuple[int, ...]" = ()
 
 
 def _all_different(cells: _Cells) -> bool:
@@ -20536,7 +20548,7 @@ def _decide(
                 details=details,
                 days=_census_days(details, pairs),
                 texts=len(set(sources)),
-                instants=_census_instants(details, pairs),
+                hours=_census_hours(details, pairs),
             )
 
         # RULE 6 -- numbers, at the one parse rate there is. A column that

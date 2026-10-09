@@ -9231,9 +9231,10 @@ def _hour_census(
     tails (HC3), whose published p25 and p75 lie at least four days apart
     (HC4); then `calendar_clock.hour_breach` asks the groups' cover over
     hours 0 to 23 on a line (HC1), the floor (HC2), their total against
-    the body (HC3) and the sure cells (HC5: every published body instant
-    in its own hour, and rule 4's cells at midnight, `calendar_clock.
-    midnight_sure`), and the first broken rule is refused by name. HC6,
+    the body (HC3) and the sure cells (HC5: every published body value
+    in the hour it is written in, and rule 4's cells at midnight,
+    `calendar_clock.midnight_sure`), and the first broken rule is refused
+    by name. HC6,
     the workbook's two storages, is asked over the whole document
     (`_hour_storage`). Nothing here asks what a reader could work out
     from the census (the owner's principle of 2026-10-01).
@@ -9292,17 +9293,18 @@ def _hour_census(
             f"the published 25th and 75th percentiles, {quarter} and "
             f"{third}, are not {calendar_clock.HOUR_SPAN_DAYS} days apart",
         )
+    # EACH IN ITS WRITTEN HOUR (Codex's review of the landing, item 1): the
+    # sure cells are read off the published text, so a boundary or rung
+    # written at a sixtieth second stands in the hour it is written in.
     published = [
-        (low.rows, calendar_clock.seconds_of(low.boundary)),
-        (parsed - 1 - high.rows, calendar_clock.seconds_of(high.boundary)),
+        (low.rows, low.boundary),
+        (parsed - 1 - high.rows, high.boundary),
     ]
     for percent in sorted(by_percent):
         rung = by_percent[percent]
         if rung is None or percent in (0, 100):
             continue
-        published += [
-            (calendar_clock.rung_rank(percent, parsed), calendar_clock.seconds_of(rung))
-        ]
+        published += [(calendar_clock.rung_rank(percent, parsed), rung)]
     sure = calendar_clock.hour_sure(
         published,
         calendar_clock.midnight_sure(

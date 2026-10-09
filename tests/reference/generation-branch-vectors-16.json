@@ -2098,6 +2098,103 @@
       "why": "SAMEDAY (step 3): a rank at 05:41 on the day of a rung at 08:15, hours 0 to 7 counted empty. No whole hour keeps its minute inside the gap, so it takes the free minute of hour 8 nearest its own, 08:14, on its own day.",
       "written_unit": 60
     },
+    "hour_sixtieth_second": {
+      "answer": [
+        1709539200,
+        1709542800,
+        1709596800,
+        1709643600,
+        1709668800
+      ],
+      "before": [
+        false,
+        false,
+        true,
+        false,
+        false
+      ],
+      "body": [
+        0,
+        4
+      ],
+      "counts": [
+        2,
+        3
+      ],
+      "half_day": false,
+      "highs": [
+        1709539200,
+        1709596800,
+        1709596800,
+        1709668800,
+        1709668800
+      ],
+      "holes": [],
+      "lows": [
+        1709539200,
+        1709539200,
+        1709596800,
+        1709596800,
+        1709668800
+      ],
+      "ordinals": [
+        1709539200,
+        1709542800,
+        1709596800,
+        1709643600,
+        1709668800
+      ],
+      "pinned": [
+        true,
+        false,
+        true,
+        false,
+        true
+      ],
+      "reachable": true,
+      "sixtieths": [
+        2
+      ],
+      "standing": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "step": "pass",
+      "wanted": 5,
+      "where": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1
+      ],
+      "why": "A rank written at a sixtieth second (the review of the landing, item 1): the rung at rank 2 is published as Monday 23:59:60, which the ordinal space stands at Tuesday 00:00:00 and the twin writes from its own fields, in hour 23. Hours 0 to 10 owe two ranks and hours 11 to 23 three, as written. Counted by its ordinal the rung would stand in hours 0 to 10, one over, and Monday's 09:00 would leave for 11:00; counted as written, the census already holds and nothing moves.",
+      "written_unit": 60
+    },
     "hour_split": {
       "answer": [
         1709287200,

@@ -17225,7 +17225,10 @@ def _hour_checks(
     The file's own BODY -- its moments between the two PUBLISHED tail
     boundaries, both included, less the days its own description reads
     as holes (`_dates_the_file_reads`) -- counted per hour of the written
-    wall clock and per published group. Each cell is read under the
+    wall clock and per published group: a cell is placed between the
+    boundaries by its instant and counted in the hour it is WRITTEN in
+    (`calendar_clock.written_hour`), so a sixtieth second stays in its
+    own hour (Codex's review of the landing, item 1). Each cell is read under the
     member that read the real column and, on a slashed stamp, on the
     face the description publishes, a stamp on another face being no
     moment here, as the producer counts it unread (`_hour_instants_of`).
@@ -17249,8 +17252,8 @@ def _hour_checks(
     low = calendar_clock.seconds_of(facts.low_tail.boundary)
     high = calendar_clock.seconds_of(facts.high_tail.boundary)
     body = [
-        instant
-        for instant in _hour_instants_of(facts, _dates_the_file_reads(block, facts, cells))
+        hour
+        for instant, hour in _hour_instants_of(facts, _dates_the_file_reads(block, facts, cells))
         if low <= instant <= high
     ]
     found = calendar_rules.group_counts(census, calendar_clock.hour_bins(body))
@@ -17280,21 +17283,26 @@ def _hour_group_named(first: int, last: int) -> str:
     return f"{first:02d}:00-{last:02d}:59"
 
 
-def _hour_instants_of(facts: contract.DatetimeFacts, cells: "list[str]") -> "list[int]":
-    """The instant of every cell that reads as a moment, in seconds of its wall clock.
+def _hour_instants_of(
+    facts: contract.DatetimeFacts, cells: "list[str]"
+) -> "list[tuple[int, int]]":
+    """The instant of every cell that reads as a moment, in seconds of its
+    wall clock, with the hour it is WRITTEN in.
 
     Read as `_tail_units_of` reads a cell for a column on the local
     clock: under the member that read the real column, a slashed stamp
     on the face its description publishes (`parsing.stamp_canonical`)
     and none on another face (contract NF108). A cell that does not read
     is left out. The canonical text is the wall clock as written, so no
-    offset moves it.
+    offset moves it. The instant places the cell between two boundaries;
+    the hour is `canonical[11:13]` (`calendar_clock.written_hour`), never
+    the instant's, which carries a sixtieth second into the next hour.
     """
     style = _stamp_style_of(facts)
     face = ""
     if facts.parser_family in contract.CLOCK_FORM_MEMBERS:
         face = parsing.clock_face(style)
-    found: "list[int]" = []
+    found: "list[tuple[int, int]]" = []
     for cell in cells:
         read = parsing.parse_datetime(cell, facts.parser_family)
         if read is None:
@@ -17304,7 +17312,7 @@ def _hour_instants_of(facts: contract.DatetimeFacts, cells: "list[str]") -> "lis
         canonical = parsing.stamp_canonical(read[0], style)
         if len(canonical) < 19:
             continue
-        found += [calendar_clock.seconds_of(canonical)]
+        found += [(calendar_clock.seconds_of(canonical), calendar_clock.written_hour(canonical))]
     return found
 
 

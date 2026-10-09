@@ -986,8 +986,12 @@ def _answer(case: dict, module=generation) -> list:
     kin = tuple(case.get("kin", ()))
     step = case["step"]
     if step == "pass":
+        counts = list(case["counts"])
+        if "sixtieths" in case:
+            # The census as written: ranks the twin writes at a sixtieth second.
+            counts = module._clock_counts_as_written(state, counts, list(case["sixtieths"]))
         module._clock_pass(
-            state, list(case["counts"]), first, last, pinned, case["wanted"], standing, case["half_day"],
+            state, counts, first, last, pinned, case["wanted"], standing, case["half_day"],
             anyday, kin,
         )
     elif step == "left":
@@ -1156,6 +1160,13 @@ STEP_MUTANTS = {
         "_CLOCK_ROUNDS = 4",
         "_CLOCK_ROUNDS = 1",
     ),
+    # A RANK WRITTEN AT A SIXTIETH SECOND (Codex's review of the landing, item 1):
+    # counted in its written hour, not in its ordinal's.
+    "a sixtieth second counted in its ordinal's hour": (
+        "hour_sixtieth_second",
+        "        if counted != written:\n            asked[counted] = asked[counted] + 1",
+        "        if False:\n            asked[counted] = asked[counted] + 1",
+    ),
     # THE ONE CLOCK PASS, field-generic (the 3b.4 skeptic's M4): its own
     # tier of the escape and of PUT BACK where the parent is shorter than a
     # day, frozen on a field of minutes whose parent is the hour.
@@ -1201,7 +1212,7 @@ CASES = [
     "hour_half_day_tails", "hour_half_day_tails_stratum", "hour_off_a_hole", "hour_off_midnight",
     "hour_proportional", "hour_put_back", "hour_put_back_any_day", "hour_put_back_off_midnight",
     "hour_put_back_short", "hour_put_back_short_shared", "hour_relief", "hour_relief_given_back",
-    "hour_rounds", "hour_same_day_clock", "hour_split", "hour_whole_pass",
+    "hour_rounds", "hour_same_day_clock", "hour_sixtieth_second", "hour_split", "hour_whole_pass",
 ]
 
 
@@ -1594,13 +1605,21 @@ def test_a_dense_column_drawn_past_its_count_keeps_the_ties_the_pass_makes(
 
 
 def test_the_sure_cells_and_rule_4_by_hand() -> None:
-    """Both boundaries and every rung in their hours, ranks between two rungs of one
-    instant too, and rule 4's cells at midnight in place of the published ones at 00:00:00."""
-    day = 19000 * DAY
-    published = [(5, day + 9 * 3600), (40, day + 9 * 3600), (90, day + 23 * 3600), (60, day + DAY)]
+    """Both boundaries and every rung in their written hours, ranks between two rungs of
+    one value too, and rule 4's cells at midnight in place of the published ones at
+    00:00:00. A sixtieth second stands in the hour it is written in, and a rank between it
+    and the next day's midnight, the same instant written another way, is sure of neither
+    (Codex's review of the landing, item 1)."""
+    published = [
+        (5, "2022-01-08 09:00:00"), (40, "2022-01-08 09:00:00"), (90, "2022-01-08 23:00:00"),
+        (60, "2022-01-09 00:00:00"),
+    ]
     sure = calendar_clock.hour_sure(published, None)
     assert sure[9] == 36 and sure[23] == 1 and sure[0] == 1
     assert calendar_clock.hour_sure(published, 30)[0] == 30
+    leap = [(10, "2022-01-08 23:59:60"), (20, "2022-01-09 00:00:00")]
+    assert calendar_clock.hour_sure(leap, None) == [1] + [0] * 22 + [1]
+    assert calendar_clock.written_hour("2022-01-08 23:59:60") == 23
     assert calendar_clock.midnight_sure(51, [(51, ("1970-01-01 00:00:00",)), (11, None)]) == 0
     assert calendar_clock.midnight_sure(51, [(51, ("1970-01-01 00:00:00", "2023-01-02 08:00:00")), (11, None)]) == 51
     assert calendar_clock.midnight_sure(None, []) is None

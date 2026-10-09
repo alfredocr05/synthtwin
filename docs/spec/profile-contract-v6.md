@@ -5663,7 +5663,7 @@ carries `[]`, which still loads.
 
 | key | JSON type | permitted values | meaning |
 |---|---|---|---|
-| `hour_census` | array of `{first, last, count}` | `[]`, or groups of whole hours 0 to 23 in order, each count nought or at least the census line (HC1 to HC6) | how many cells between the two tail boundaries, both included, fall on each group of hours of the written wall clock (`canonical[11:13]`); the groups are merged from the twenty-four hours by the one merge rule every census shares, on a line -- no group runs past midnight -- and a census with one non-empty group is published; `[]` where none is, its reason in one publication note (NF89 to NF92, NF117) |
+| `hour_census` | array of `{first, last, count}` | `[]`, or groups of whole hours 0 to 23 in order, each count nought or at least the census line (HC1 to HC6) | how many cells between the two tail boundaries, both included, fall on each group of hours of the written wall clock (`canonical[11:13]`, read off the text: a cell written at a sixtieth second, `23:59:60`, counts in hour 23, though its instant is the next day's first second); the groups are merged from the twenty-four hours by the one merge rule every census shares, on a line -- no group runs past midnight -- and a census with one non-empty group is published; `[]` where none is, its reason in one publication note (NF89 to NF92, NF117) |
 
 <!-- anchor 3b-T3 (P4-D372) -->
 
@@ -12431,7 +12431,7 @@ it answers to.
 | HC2 | every group counts nought or at least `max(2, small_cell_floor)` | yes |
 | HC3 | a non-empty census stands only on a column of moments read on the local clock, not in the joint member, not wholly at midnight, with both tails, and adds up to `P - low_tail.rows - high_tail.rows` | yes |
 | HC4 | a non-empty census stands only where the published `p25` and `p75` lie at least four days apart | yes |
-| HC5 | every group holds at least its SURE cells -- each tail boundary and published rung in its hour, every rank between two rungs of one instant, and in hour 0, in place of the published instants at 00:00:00 where it is more, `n_at_midnight` less the rows of every tail whose listed values all stand at midnight (rule 4) -- and what is left of it is nought or at least `max(2, small_cell_floor)` | yes |
+| HC5 | every group holds at least its SURE cells -- each tail boundary and published rung in the hour it is written in, every rank between two of one value written alike, and in hour 0, in place of the published values written at 00:00:00 where it is more, `n_at_midnight` less the rows of every tail whose listed values all stand at midnight (rule 4) -- and what is left of it is nought or at least `max(2, small_cell_floor)` | yes |
 | HC6 | a workbook's published cell classes show at most one value class holding cells | yes |
 
 <!-- anchor 3b-T3 (P4-D372) -->

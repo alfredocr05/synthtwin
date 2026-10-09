@@ -21968,7 +21968,15 @@ def _hour_settled(
             pinned[rank] = True
     body_low = layout.low.rows
     body_high = parsed - 1 - layout.high.rows
-    counts = [count for _first, _last, count in census]
+    # THE CENSUS AS WRITTEN (Codex's review of the landing, item 1): a rank
+    # pinned at a published sixtieth second is written in the hour before
+    # its ordinal's, and the pass meets by ordinal the counts that put it
+    # there (`_clock_counts_as_written`).
+    counts = _clock_counts_as_written(
+        state,
+        [count for _first, _last, count in census],
+        _sixtieth_seconds(layout, moved, pinned, body_low, body_high),
+    )
     _clock_pass(
         state, counts, body_low, body_high, pinned, wanted,
         _clock_day_standing(facts), half_day, not facts.weekday_census,
@@ -21988,6 +21996,63 @@ def _hour_settled(
             )
         ]
     return moved, notes
+
+
+def _sixtieth_seconds(
+    layout: "_DateLayout",
+    moved: "list[int]",
+    pinned: "list[bool]",
+    body_low: int,
+    body_high: int,
+) -> "list[int]":
+    """The body ranks the twin writes at a sixtieth second (method G7.3g).
+
+    A body rank the pass never moves, pinned at a published boundary or
+    rung whose seconds field is 60 and standing at that pin: the one cell
+    written from its own published fields (G7.5), `HH:MM:60`, where the
+    ordinal space of G7.1 puts its ordinal at the next minute's first
+    second. Every other rank is written at an ordinary second. Ascending.
+    """
+    found: "list[int]" = []
+    for rank in sorted(layout.texts):
+        if rank < body_low or rank > body_high or not pinned[rank] or rank not in layout.pins:
+            continue
+        if layout.texts[rank][17:19] == "60" and moved[rank] == layout.pins[rank]:
+            found += [rank]
+    return found
+
+
+def _clock_counts_as_written(
+    state: _WeekdayPass, counts: "list[int]", sixtieths: "list[int]"
+) -> "list[int]":
+    """The counts the clock pass meets BY ORDINAL so the census holds AS WRITTEN (G7.3g).
+
+    Every step of the pass counts a rank in the bin of its ordinal
+    (`_clock_bin`), and the census counts a cell in the bin it is WRITTEN
+    in (`calendar_clock.written_hour`). The two differ only on a rank the
+    twin writes at a sixtieth second (`_sixtieth_seconds`), whose ordinal
+    is the next minute's first second while it is written in the minute
+    and hour of the second before (Codex's review of landing 3b.2-H, item
+    1: eleven `23:59:60` a date on 100 dates published every body cell in
+    hour 0, and the twin wrote its body there). Each such rank whose two
+    bins lie in different groups is counted one more in its ordinal's
+    group and one less in its written one; it never moves, so the pass,
+    meeting these counts by ordinal, meets the published ones as written.
+    For any field: the hour's bins are hours, a later census's its own.
+
+    Guarantees: accepts the state, the published counts and the ranks;
+    returns new counts, none below nought where the counts hold the sure
+    cells HC5 asks of them. Raises nothing. No I/O of any kind.
+    """
+    asked = [count for count in counts]
+    for rank in sixtieths:
+        ordinal = state.moved[rank]
+        counted = state.where[_clock_bin(state, ordinal)]
+        written = state.where[_clock_bin(state, ordinal - 1)]
+        if counted != written:
+            asked[counted] = asked[counted] + 1
+            asked[written] = asked[written] - 1
+    return asked
 
 
 # THE CLOCK PASS'S OWN STEPS (landing 3b.2-H, method G7.3g), after G7.3f's
