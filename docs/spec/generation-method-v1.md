@@ -13065,7 +13065,12 @@ reach it.
 10 is among the steps each pass of the construction carries, so `near`
 and `far` stand on the half day too; the published distances are counted
 in seconds and minutes as on every column of moments, and the twin's in
-the same units.
+the same units. The tie group's distance is taken onto the half day
+FIRST, as step 10 takes it, and the end it raises and the reach `t` the
+summed window widens to are read off that distance: a window drawn
+around the group before step 10 is narrower than the construction (its
+review, item 2: a high tail the generator drew at a mean of 1897.92
+minutes, inside its bound of 1908.75, was held to 1896.25 and MISSED).
 
 **Where the window does not cover the published value.** The window
 certifies that the twin was built by the construction, not that it

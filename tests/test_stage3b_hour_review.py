@@ -4,6 +4,14 @@ Codex reviewed the landing once (2026-10-08) and raised four items; each
 is reproduced here on the review's own scenario, red on the head it
 reviewed (b3fb647), and fixed:
 
+* item 2 -- on a stamp declared a 12-hour clock with no marker, the
+  validator took G7.3b step 10 onto the ranks but not onto the tie group
+  before the end and step 9's reach were read off it, so its window was
+  narrower than the construction's and a twin the construction drew was
+  MISSED: `test_a_twin_the_half_day_draws_is_not_missed` (Codex's own
+  column at seed 102) and `test_the_half_day_windows_are_the_construction_s`
+  (a high and a low tail, both measures, red with the projection
+  withdrawn);
 * item 3 -- PUT BACK (method G7.3g step 6) sorted and filtered every run
   again for each size before its first merge, so a clock state of one run
   of each size 1 to `k` beside `k(k-1)/2` alone did `k` times the work
@@ -15,13 +23,165 @@ Every table is built here, seeded and neutral (plan D13).
 from __future__ import annotations
 
 import builtins
+import datetime
+import math
+import pathlib
+import random
+import sys
+import types
 
 import pytest
 
-from synthtwin import generation
+import fixtures
+import kpi_shapes
+from synthtwin import (
+    contract,
+    generation,
+    profile,
+    reading,
+    rendering,
+    taxonomy,
+    validation,
+)
 
 DAY = 86400
 _MONDAY = 19723  # 2024-01-01, a Monday
+
+
+# -- item 2: the half day's tie group, projected before a window stands on it ---------
+
+_TWELVE = "%m/%d/%Y %I:%M"
+
+
+def _codex_half_day() -> "list[datetime.datetime]":
+    """Codex's column: 400 morning moments of 320 days, each written twice, beside
+    a high tail of one moment at 2024-12-01 02:31 and twelve up to two days on."""
+    draw = random.Random(42)
+    found: "list[datetime.datetime]" = []
+    for _row in range(400):
+        moment = datetime.datetime(2024, 1, 1) + datetime.timedelta(
+            days=draw.randrange(320), minutes=draw.randrange(720)
+        )
+        found += [moment, moment]
+    start = datetime.datetime(2024, 12, 1, 2, 31)
+    found += [start]
+    for minutes in (1336, 1355, 1416, 1439, 1549, 1924, 1952, 2006, 2884, 2927, 1317, 1317):
+        found += [start + datetime.timedelta(minutes=minutes)]
+    return found
+
+
+def _half_day_column(seed: int) -> "list[datetime.datetime]":
+    """Morning moments, once or twice each, beside a cluster at each end spread
+    over one to three days, every one of them on the dial's morning."""
+    draw = random.Random(seed)
+    found: "list[datetime.datetime]" = []
+    days = draw.randint(60, 300)
+    start = datetime.datetime(2024, 1, 10)
+    for _row in range(draw.randint(150, 450)):
+        moment = start + datetime.timedelta(days=draw.randrange(days), minutes=draw.randrange(1, 720))
+        found += [moment] * draw.choice((1, 2))
+    end = start + datetime.timedelta(days=days)
+    for _row in range(draw.randint(12, 40)):
+        found += [start - datetime.timedelta(minutes=draw.randint(1, 60 * 24 * draw.randint(1, 3)))]
+        found += [end + datetime.timedelta(minutes=draw.randint(1, 60 * 24 * draw.randint(1, 3)))]
+    return [moment if moment.hour < 12 else moment - datetime.timedelta(hours=12) for moment in found]
+
+
+def _twelve_hour_described(
+    folder: pathlib.Path, moments: "list[datetime.datetime]", floor: int
+) -> "tuple[kpi_shapes.Described, str]":
+    """The moments written on the dial with no marker, declared `--twelve-hour`, described."""
+    text = "seen_at\n" + "\n".join(moment.strftime(_TWELVE) for moment in moments) + "\n"
+    folder.mkdir(parents=True, exist_ok=True)
+    table = fixtures.write(folder, "real.csv", text)
+    settings = taxonomy.Settings(small_cell_floor=floor, forced_twelve_hour_clocks=("seen_at",))
+    document = profile.build_document(
+        reading.read_table(str(table), small_cell_floor=floor), settings, [], [], []
+    )
+    loaded = contract.load_profile(str(fixtures.write_profile(folder, "real-profile.json", document)))
+    return kpi_shapes.Described(folder, table, document, loaded), text
+
+
+def test_a_twin_the_half_day_draws_is_not_missed(tmp_path: pathlib.Path) -> None:
+    """Codex's item 2, his own column at floor 11 and seed 102: the construction
+    draws the high tail at a mean of 1897.92 minutes, inside its bound of
+    1908.75, and says nothing; b3fb647's validator held it to 1896.25 and
+    reported `tails.high.mean_distance` MISSED (as at seed 194)."""
+    described, _text = _twelve_hour_described(tmp_path, _codex_half_day(), 11)
+    twin = generation.generate(described.loaded, 102)
+    assert not twin.deviations
+    outcome = kpi_shapes.measure(described, rendering.twin_csv(twin), "twin.csv")
+    assert kpi_shapes.missed(outcome) == []
+    high = [check for check in outcome.checks if check.subcheck == "tails.high.mean_distance"]
+    assert [check.verdict for check in high] == [validation.WITHIN_BOUND]
+
+
+# The edit withdrawing the group's projection from the validator's construction.
+_GROUP_ON_THE_HALF_DAY = (
+    "            group = calendar_clock.half_day_distances(\n"
+    "                [group], half_day[0], half_day[1], half_day[2], False, edge\n"
+    "            )[0]\n"
+)
+
+
+def _validation_without_the_projection(monkeypatch: pytest.MonkeyPatch) -> types.ModuleType:
+    source = pathlib.Path(validation.__file__).read_text(encoding="utf-8")
+    assert source.count(_GROUP_ON_THE_HALF_DAY) == 1
+    name = "synthtwin._validation_review_mutant"
+    module = types.ModuleType(name)
+    module.__file__ = validation.__file__
+    monkeypatch.setitem(sys.modules, name, module)
+    exec(
+        compile(source.replace(_GROUP_ON_THE_HALF_DAY, "            group = group\n"), validation.__file__, "exec"),
+        module.__dict__,
+    )
+    return module
+
+
+def _measures(near: "list[int]", far: "list[int]", rows: int) -> "tuple[float, float, float, float]":
+    """The windows of the mean and the root-mean-square distance two bounds give."""
+    return (
+        sum(near) / rows,
+        sum(far) / rows,
+        math.sqrt(sum(value * value for value in near) / rows),
+        math.sqrt(sum(value * value for value in far) / rows),
+    )
+
+
+@pytest.mark.parametrize(
+    ("shape", "floor", "side"),
+    [("codex", 11, "high"), ("cluster-10", 36, "high"), ("cluster-170", 36, "low")],
+)
+def test_the_half_day_windows_are_the_construction_s(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch, shape: str, floor: int, side: str
+) -> None:
+    """Codex's item 2, on both sides and both measures. Each side's window,
+    rank by rank and as the mean and root-mean-square distance it bounds, is
+    the construction's own (`generation._tail_sum_bounds` over
+    `generation._date_layout`); and on the side named, whose tail holds a tie
+    group, the validator with the group's projection withdrawn -- b3fb647's --
+    draws another, so this column asks the projection there."""
+    moments = _codex_half_day() if shape == "codex" else _half_day_column(int(shape.split("-")[1]))
+    described, _text = _twelve_hour_described(tmp_path, moments, floor)
+    column = described.loaded.columns[0]
+    facts = column.facts
+    assert isinstance(facts, contract.DatetimeFacts)
+    checked = validation._date_tail_windows(column, facts, floor, "", True)
+    layout = generation._date_layout(column, facts, column.n_present - facts.n_unparsed, floor, "")
+    counted = contract.datetime_counts_reachable(column)
+    for key, plan in (("low", layout.low), ("high", layout.high)):
+        assert plan is not None and plan.shape is not None, key
+        if key == side:
+            assert plan.shape.grouped < plan.rows, (key, "no tie group")
+        built = generation._tail_sum_bounds(plan, counted)
+        assert (list(checked[key][0]), list(checked[key][1])) == (list(built[0]), list(built[1])), key
+        assert _measures(checked[key][0], checked[key][1], plan.rows) == _measures(
+            built[0], built[1], plan.rows
+        ), key
+    before = _validation_without_the_projection(monkeypatch)._date_tail_windows(
+        column, facts, floor, "", True
+    )
+    assert before[side] != checked[side], side
 
 
 # -- item 3: PUT BACK's runs, sorted once ---------------------------------------

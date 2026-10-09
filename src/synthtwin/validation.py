@@ -15543,6 +15543,18 @@ def _tail_construction(
                 group, min(furthest, edge), low_side, group_midnight
             )
         group = _stepped_off(group, boundary, low_side, end_step)
+        if half_day is not None:
+            # STEP 10 ON THE GROUP BEFORE IT STANDS ANYWHERE, as the
+            # construction takes it (`generation._date_tail_plan`; Codex's
+            # review of landing 3b.2-H, item 2): the end it raises and the
+            # reach step 9 widens to are read off the group the ranks stand
+            # at. Projecting the ranks alone left both on the group before
+            # step 10, and a twin the construction drew at a high tail's
+            # mean of 1897.92 minutes, under its bound of 1908.75, was
+            # MISSED against 1896.25.
+            group = calendar_clock.half_day_distances(
+                [group], half_day[0], half_day[1], half_day[2], False, edge
+            )[0]
     end_whole = max(end_whole, group)
     near: "list[int]" = []
     far: "list[int]" = []
