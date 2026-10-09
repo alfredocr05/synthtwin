@@ -161,9 +161,30 @@ def _wrong() -> "list[str]":
         )
         if reach != case["answer"]:
             wrong += [f"reach {name}"]
+    for name, case in sorted(_FILE["islands"].items()):
+        tail = f"{case['tail']}"
+        at = taxonomy.tail_ordinal(f"{case['boundary']}", tail, taxonomy.READ_AT_LOCAL)
+        written = _UNITS[f"{case['written']}"]
+        reach = date_counts.tail_reach(
+            f"{case['member']}", written, _TAIL_SECONDS[tail], at, bool(case["low_side"]), int(case["edge"])
+        )
+        found = date_counts.tail_islands(
+            f"{case['member']}", written, _TAIL_SECONDS[tail], at, bool(case["low_side"]), reach
+        )
+        if {"reach": reach, "islands": [list(pair) for pair in found]} != case["answer"]:
+            wrong += [f"islands {name}"]
+    for name, case in sorted(_FILE["steps"].items()):
+        pairs = tuple((pair[0], pair[1]) for pair in case["islands"])
+        if date_counts.off_the_islands(case["distance"], pairs, case["reach"]) != case["answer"]:
+            wrong += [f"step {name}"]
+    for name, case in sorted(_FILE["strata"].items()):
+        pairs = tuple((pair[0], pair[1]) for pair in case["islands"])
+        near, far = date_counts.stratum_off_the_islands(case["near"], case["far"], pairs, case["reach"])
+        if {"near": near, "far": far} != case["answer"]:
+            wrong += [f"strata {name}"]
     for name, case in sorted(_FILE["keepings"].items()):
         kept = generation._kept_off_placeholder_days(
-            case["ordinals"], case["lows"], case["highs"], case["day"], frozenset(case["holes"])
+            case["ordinals"], case["lows"], case["highs"], case["day"], frozenset(case["holes"]), case["grid"]
         )
         if kept != case["answer"]:
             wrong += [f"keeping {name}"]
@@ -175,6 +196,8 @@ def test_c1_every_case_of_the_twenty_sixth_file_is_the_products() -> None:
     assert len(_FILE["dealings"]) >= 4
     assert sorted(_FILE["holes"]) == sorted(date_counts.MEMBERS) and len(_FILE["keepings"]) >= 7
     assert sorted(_FILE["moment_holes"]) == sorted(date_counts.MEMBERS) and len(_FILE["reaches"]) >= 9
+    assert len(_FILE["islands"]) >= 7 and len(_FILE["steps"]) >= 4 and len(_FILE["strata"]) >= 4
+    assert len([case for case in _FILE["keepings"].values() if case["grid"]]) >= 5
     assert _wrong() == []
 
 
@@ -270,6 +293,65 @@ def _reach_past_the_instant(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(date_counts, "blocked_spans", without_two)
 
 
+def _islands_cut_the_reach(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The reach cut at every stretch beyond the boundary, as the first repair of the verification cut it."""
+
+    def nearest_stretch(member: str, written: int, tail_seconds: int, at: int, low_side: bool, edge: int) -> int:
+        nearest: "int | None" = None
+        for start, stop in date_counts.blocked_units(member, written, tail_seconds):
+            if low_side and stop < at and (nearest is None or stop > nearest):
+                nearest = stop
+            if not low_side and start > at and (nearest is None or start < nearest):
+                nearest = start
+        if nearest is None:
+            return edge
+        reach = at - nearest - 1 if low_side else nearest - at - 1
+        return edge if reach < 1 else min(edge, reach)
+
+    monkeypatch.setattr(date_counts, "tail_reach", nearest_stretch)
+
+
+def _no_islands(monkeypatch: pytest.MonkeyPatch) -> None:
+    """No island inside a tail's reach, as 568b597 read the holes as one unit of their midnight."""
+    monkeypatch.setattr(
+        date_counts, "tail_islands", lambda member, written, tail_seconds, at, low_side, reach: ()
+    )
+
+
+def _stepped_inward_only(monkeypatch: pytest.MonkeyPatch) -> None:
+    """An end or group on an island beside the boundary left on it, stepping inward alone."""
+
+    def inward(distance: int, islands: "tuple[tuple[int, int], ...]", reach: int) -> int:
+        for nearest, furthest in islands:
+            if nearest <= distance <= furthest:
+                return nearest - 1 if nearest > 1 else distance
+        return distance
+
+    monkeypatch.setattr(date_counts, "off_the_islands", inward)
+
+
+def _strata_left_on_the_island(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Every stratum as the shape drew it, one wholly on an island too."""
+    monkeypatch.setattr(
+        date_counts,
+        "stratum_off_the_islands",
+        lambda near, far, islands, reach: ([value for value in near], [value for value in far]),
+    )
+
+
+def _whole_days_alone(monkeypatch: pytest.MonkeyPatch) -> None:
+    """G7.10's last pass moving by whole days alone, as before the repair of the verification."""
+    original = generation._kept_off_placeholder_days
+
+    def by_days(
+        ordinals: "list[int]", lows: "list[int]", highs: "list[int]", day: int,
+        holes: "frozenset[int]", grid: int = 0,
+    ) -> "list[int]":
+        return original(ordinals, lows, highs, day, holes, 0)
+
+    monkeypatch.setattr(generation, "_kept_off_placeholder_days", by_days)
+
+
 def _repr_never(monkeypatch: pytest.MonkeyPatch) -> None:
     """Seventeen figures written by `%.17g` and a whole count with no `.0`, as `repr` never writes them."""
     monkeypatch.setattr(date_counts, "_REPR_WHOLE_BELOW", 0)
@@ -289,7 +371,8 @@ def _repr_never(monkeypatch: pytest.MonkeyPatch) -> None:
         _float_arithmetic, _epoch_1970_for_1960, _halves_up, _not_trimmed,
         _no_leap_day, _exact_where_binary64, _dealt_down_the_rows, _repr_never,
         _held_ignored, _excel_two_ignored, _excel_two_a_day_of_moments,
-        _reach_the_members_own, _reach_past_the_instant,
+        _reach_the_members_own, _reach_past_the_instant, _islands_cut_the_reach,
+        _no_islands, _stepped_inward_only, _strata_left_on_the_island, _whole_days_alone,
     ),
     ids=lambda mutant: mutant.__name__.strip("_"),
 )

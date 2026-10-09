@@ -15673,11 +15673,19 @@ def _tail_construction(
     low_side: bool,
     group_midnight: "tuple[int, int, int, tuple[int, ...]] | None",
     widened: bool = False,
+    islands: "tuple[tuple[int, int], ...]" = (),
 ) -> "tuple[list[int], list[int]]":
     """Every rank's nearest and furthest distance, outermost first (G7.3b).
 
     `end_step` is the set of tail units the column's own absent spellings
     name, off which the outermost rank and the group step inward.
+    `islands` are, on a column of dates written as counts, the stretches
+    inside the reach its counts cannot hold, as nearest and furthest
+    distances (G7.10): the outermost rank and the group step off them
+    after the holes -- inward, or outward where no distance of one is
+    left inside -- and a rank whose stratum lies wholly on one is given
+    room either side, before any tie group's window is widened
+    (`date_counts.off_the_islands`, `date_counts.stratum_off_the_islands`).
     `group_midnight` is, on a column moved onto a midnight and counted in
     seconds or minutes, (anchor in seconds, seconds per unit, 0, the
     shifts of the offsets it names), where the group stands at the
@@ -15763,6 +15771,7 @@ def _tail_construction(
                 least = least + 1
         end_whole = max(end_whole, min(max(least, 0), edge))
     end_whole = _stepped_off(end_whole, boundary, low_side, end_step)
+    end_whole = date_counts.off_the_islands(end_whole, islands, edge)
     if grouped < rows:
         if group_midnight is not None:
             furthest = max(
@@ -15773,6 +15782,7 @@ def _tail_construction(
                 group, min(furthest, edge), low_side, group_midnight
             )
         group = _stepped_off(group, boundary, low_side, end_step)
+        group = date_counts.off_the_islands(group, islands, edge)
     end_whole = max(end_whole, group)
     near: "list[int]" = []
     far: "list[int]" = []
@@ -15799,6 +15809,7 @@ def _tail_construction(
             near = found
         else:
             far = found
+    near, far = date_counts.stratum_off_the_islands(near, far, islands, edge)
     first = max(grouped, 1)
     if widened and grouped < rows and rows - first >= 2:
         size = rows - first
@@ -16064,14 +16075,24 @@ def _date_tail_windows(
         at = taxonomy.tail_ordinal(tail.boundary, facts.tail_unit, reading)
         edge = max(1, at - edges[0] if low_side else edges[1] - at)
         # -- 3b.R4 (P4-D384): ON A COLUMN OF DATES WRITTEN AS COUNTS the reach
-        # stops short of the first stretch beyond the boundary its counts
+        # stops short of the first wall beyond the boundary its counts
         # cannot hold, as the generator's does (G7.10).
+        islands: "tuple[tuple[int, int], ...]" = ()
         if (
             date_system in date_counts.TABLE
             and facts.tail_unit in _TAIL_UNIT_SECONDS
             and reading == taxonomy.READ_AT_LOCAL
         ):
             edge = date_counts.tail_reach(
+                date_system,
+                contract.counted_unit(facts),
+                _TAIL_UNIT_SECONDS[facts.tail_unit],
+                at,
+                low_side,
+                edge,
+            )
+            # Past an island inside it the tail reaches on (G7.10).
+            islands = date_counts.tail_islands(
                 date_system,
                 contract.counted_unit(facts),
                 _TAIL_UNIT_SECONDS[facts.tail_unit],
@@ -16088,6 +16109,7 @@ def _date_tail_windows(
         found[key] = _tail_construction(
             tail.rows, mean, root, floor, edge, apart, holes, at, low_side,
             where, summed and contract.datetime_counts_reachable(column),
+            islands,
         )
     return found
 

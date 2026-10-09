@@ -190,6 +190,124 @@
       "9999-12-31"
     ]
   },
+  "islands": {
+    "a_high_tail_below_1900": {
+      "answer": {
+        "islands": [
+          [
+            576000,
+            662399
+          ]
+        ],
+        "reach": 255611779199
+      },
+      "boundary": "1899-12-25 08:00:00",
+      "edge": 1000000000000,
+      "low_side": false,
+      "member": "seconds-since-1960",
+      "tail": "second",
+      "why": "a high tail below 1900 meets the island on its way to 9999",
+      "written": "second"
+    },
+    "excel_has_none": {
+      "answer": {
+        "islands": [],
+        "reach": 25177
+      },
+      "boundary": "1900-01-19 11:38:00",
+      "edge": 1000000000000,
+      "low_side": true,
+      "member": "excel-1900",
+      "tail": "minute",
+      "why": "Excel's 1 January is part of its wall, so no island",
+      "written": "minute"
+    },
+    "past_the_reach_is_none": {
+      "answer": {
+        "islands": [],
+        "reach": 1000
+      },
+      "boundary": "1985-03-01 12:00:00",
+      "edge": 1000,
+      "low_side": true,
+      "member": "seconds-since-1970",
+      "tail": "second",
+      "why": "1 January 1900 beyond the reach is no island of this tail",
+      "written": "second"
+    },
+    "sas_days_beside_the_boundary": {
+      "answer": {
+        "islands": [
+          [
+            1,
+            1
+          ]
+        ],
+        "reach": 1000000000000
+      },
+      "boundary": "1900-01-02",
+      "edge": 1000000000000,
+      "low_side": true,
+      "member": "days-since-1960",
+      "tail": "day",
+      "why": "an island one day out, beside the boundary",
+      "written": "day"
+    },
+    "sas_days_nineteen_days_out": {
+      "answer": {
+        "islands": [
+          [
+            19,
+            19
+          ]
+        ],
+        "reach": 1000000000000
+      },
+      "boundary": "1900-01-20",
+      "edge": 1000000000000,
+      "low_side": true,
+      "member": "days-since-1960",
+      "tail": "day",
+      "why": "1 January 1900 nineteen days beyond the boundary",
+      "written": "day"
+    },
+    "sas_seconds_a_day_wide": {
+      "answer": {
+        "islands": [
+          [
+            2355,
+            88754
+          ]
+        ],
+        "reach": 1000000000000
+      },
+      "boundary": "1900-01-02 00:39:14",
+      "edge": 1000000000000,
+      "low_side": true,
+      "member": "seconds-since-1960",
+      "tail": "second",
+      "why": "the whole of 1 January, 2,355 to 88,754 seconds out",
+      "written": "second"
+    },
+    "unix_minutes": {
+      "answer": {
+        "islands": [
+          [
+            28,
+            1467
+          ]
+        ],
+        "reach": 1000000000000
+      },
+      "boundary": "1900-01-02 00:27:00",
+      "edge": 1000000000000,
+      "low_side": true,
+      "member": "milliseconds-since-1970",
+      "tail": "minute",
+      "why": "a column at the minute: 1,440 minutes from the twenty-eighth out",
+      "written": "minute"
+    }
+  },
   "keepings": {
     "a_free_day_beside": {
       "answer": [
@@ -199,6 +317,7 @@
         -25562
       ],
       "day": 1,
+      "grid": 0,
       "highs": [
         -25569,
         -25562,
@@ -230,6 +349,7 @@
         -2208988600
       ],
       "day": 86400,
+      "grid": 0,
       "highs": [
         -2208988700,
         -2208988600,
@@ -258,6 +378,7 @@
         -25566
       ],
       "day": 1,
+      "grid": 0,
       "highs": [
         -25566,
         -25566,
@@ -279,6 +400,64 @@
       ],
       "why": "every other day of the gap is held, so the nearest held one is shared, the earlier first"
     },
+    "a_minute_after_the_day": {
+      "answer": [
+        -2208999600,
+        -2208902400,
+        -2208891600
+      ],
+      "day": 86400,
+      "grid": 60,
+      "highs": [
+        -2208999600,
+        -2208891600,
+        -2208891600
+      ],
+      "holes": [
+        -25567,
+        2932896
+      ],
+      "lows": [
+        -2208999600,
+        -2208999600,
+        -2208891600
+      ],
+      "ordinals": [
+        -2208999600,
+        -2208916800,
+        -2208891600
+      ],
+      "why": "20:00 on 1 January 1900, its gap from 21:00 the day before: midnight of 2 January, the nearer"
+    },
+    "a_minute_before_the_day": {
+      "answer": [
+        -2209003200,
+        -2208988860,
+        -2208891600
+      ],
+      "day": 86400,
+      "grid": 60,
+      "highs": [
+        -2209003200,
+        -2208891600,
+        -2208891600
+      ],
+      "holes": [
+        -25567,
+        2932896
+      ],
+      "lows": [
+        -2209003200,
+        -2209003200,
+        -2208891600
+      ],
+      "ordinals": [
+        -2209003200,
+        -2208952800,
+        -2208891600
+      ],
+      "why": "10:00 on 1 January 1900 in a gap no whole day fits: the last minute of 31 December, the nearer"
+    },
     "a_moment_keeps_its_clock": {
       "answer": [
         -2208992400,
@@ -286,6 +465,7 @@
         -2208729500
       ],
       "day": 86400,
+      "grid": 0,
       "highs": [
         -2208992400,
         -2208729500,
@@ -315,6 +495,7 @@
         -25563
       ],
       "day": 1,
+      "grid": 0,
       "highs": [
         -25563,
         -25563,
@@ -340,6 +521,35 @@
       ],
       "why": "Excel's 1900 system holds 1 and 2 January: a date on each moves past both"
     },
+    "inside_the_day_still_stays": {
+      "answer": [
+        -2208988700,
+        -2208988640,
+        -2208988580
+      ],
+      "day": 86400,
+      "grid": 60,
+      "highs": [
+        -2208988700,
+        -2208988580,
+        -2208988580
+      ],
+      "holes": [
+        -25567,
+        2932896
+      ],
+      "lows": [
+        -2208988700,
+        -2208988700,
+        -2208988580
+      ],
+      "ordinals": [
+        -2208988700,
+        -2208988640,
+        -2208988580
+      ],
+      "why": "a gap wholly inside the day holds no instant off it: the rank stays"
+    },
     "the_last_day": {
       "answer": [
         2932893,
@@ -347,6 +557,7 @@
         2932894
       ],
       "day": 1,
+      "grid": 0,
       "highs": [
         2932896,
         2932896,
@@ -376,6 +587,7 @@
         -25564
       ],
       "day": 1,
+      "grid": 0,
       "highs": [
         -25568,
         -25564,
@@ -399,6 +611,68 @@
         -25564
       ],
       "why": "both neighbours are held, so the free day two after is taken"
+    },
+    "the_next_free_second": {
+      "answer": [
+        -2208992400,
+        -2208902400,
+        -2208902399,
+        -2208902350
+      ],
+      "day": 86400,
+      "grid": 1,
+      "highs": [
+        -2208992400,
+        -2208902350,
+        -2208902350,
+        -2208902350
+      ],
+      "holes": [
+        -25567,
+        2932896
+      ],
+      "lows": [
+        -2208992400,
+        -2208918800,
+        -2208918800,
+        -2208902350
+      ],
+      "ordinals": [
+        -2208992400,
+        -2208908800,
+        -2208908799,
+        -2208902350
+      ],
+      "why": "two moments late on 1 January in strata running into 2 January: midnight and the second after it"
+    },
+    "whole_days_first": {
+      "answer": [
+        -2209248000,
+        -2209030200,
+        -2208729600
+      ],
+      "day": 86400,
+      "grid": 60,
+      "highs": [
+        -2209248000,
+        -2208729600,
+        -2208729600
+      ],
+      "holes": [
+        -25567,
+        2932896
+      ],
+      "lows": [
+        -2209248000,
+        -2209248000,
+        -2208729600
+      ],
+      "ordinals": [
+        -2209248000,
+        -2208943800,
+        -2208729600
+      ],
+      "why": "a gap a whole day's move fits keeps the clock: 12:30 on 31 December, not a minute's step"
     }
   },
   "method": "docs/spec/generation-method-v1.md",
@@ -510,32 +784,32 @@
     },
     "no_unit_between_keeps_the_reach": {
       "answer": 1000000000000,
-      "boundary": "1900-01-02",
+      "boundary": "1900-01-03",
       "edge": 1000000000000,
       "low_side": true,
-      "member": "days-since-1960",
+      "member": "excel-1900",
       "tail": "day",
-      "why": "a boundary on the day after the placeholder leaves no unit between: the member's own reach",
+      "why": "a boundary on the day after Excel's wall leaves no unit between: the member's own reach",
       "written": "day"
     },
-    "sas_days_stop_after_the_placeholder": {
-      "answer": 18,
+    "sas_days_reach_past_the_placeholder": {
+      "answer": 1000000000000,
       "boundary": "1900-01-20",
       "edge": 1000000000000,
       "low_side": true,
       "member": "days-since-1960",
       "tail": "day",
-      "why": "a system that writes 1899 still holds no date on 1 January 1900: the tail stops on the second",
+      "why": "a system that writes 1899 holds 1 January 1900 as an island, which cuts no reach",
       "written": "day"
     },
-    "sas_moments_below_1900_stop_before_it": {
-      "answer": 575999,
+    "sas_moments_below_1900_reach_to_9999": {
+      "answer": 255611779199,
       "boundary": "1899-12-25 08:00:00",
       "edge": 1000000000000,
       "low_side": false,
       "member": "seconds-since-1960",
       "tail": "second",
-      "why": "a high tail below 1900 stops at the last second of 31 December 1899",
+      "why": "a high tail below 1900 reaches past the island to the wall of 31 December 9999",
       "written": "second"
     },
     "the_last_day_is_no_reach": {
@@ -924,5 +1198,201 @@
       "why": "a thousandth of a second kept"
     }
   },
-  "what": "Method section G7.10's two halves (landing R4, plan P4-D384), each case with its answer computed from the method's text with datetime and Fraction: a count read as the moment its system names, written as ISO text at a unit, and a moment written back as its system's count, spelled as a `count_form` says; the contact numbers a census deals over the dated cells of an Epic column; the days each system's column of dates, and of moments, holds no date on; how far a tail reaches short of them; and the twin's ranks kept off them."
+  "steps": {
+    "inward": {
+      "answer": 9,
+      "distance": 12,
+      "islands": [
+        [
+          10,
+          15
+        ]
+      ],
+      "reach": 100,
+      "why": "on the island: to the unit inside it"
+    },
+    "no_room_stays": {
+      "answer": 1,
+      "distance": 1,
+      "islands": [
+        [
+          1,
+          1
+        ]
+      ],
+      "reach": 1,
+      "why": "no unit inside it and none within the reach beyond: it stays"
+    },
+    "off_the_island_stands": {
+      "answer": 20,
+      "distance": 20,
+      "islands": [
+        [
+          10,
+          15
+        ]
+      ],
+      "reach": 100,
+      "why": "off every island: unchanged"
+    },
+    "outward_beside_the_boundary": {
+      "answer": 2,
+      "distance": 1,
+      "islands": [
+        [
+          1,
+          1
+        ]
+      ],
+      "reach": 100,
+      "why": "no unit inside it: to the unit beyond"
+    }
+  },
+  "strata": {
+    "across_it_is_left": {
+      "answer": {
+        "far": [
+          40,
+          18
+        ],
+        "near": [
+          30,
+          12
+        ]
+      },
+      "far": [
+        40,
+        18
+      ],
+      "islands": [
+        [
+          10,
+          15
+        ]
+      ],
+      "near": [
+        30,
+        12
+      ],
+      "reach": 100,
+      "why": "a stratum running across the island keeps its own room"
+    },
+    "one_rank_on_it": {
+      "answer": {
+        "far": [
+          40,
+          25,
+          16,
+          8,
+          4,
+          2
+        ],
+        "near": [
+          30,
+          20,
+          9,
+          5,
+          3,
+          2
+        ]
+      },
+      "far": [
+        40,
+        25,
+        14,
+        8,
+        4,
+        2
+      ],
+      "islands": [
+        [
+          10,
+          15
+        ]
+      ],
+      "near": [
+        30,
+        20,
+        12,
+        5,
+        3,
+        2
+      ],
+      "reach": 100,
+      "why": "one stratum wholly on the island: one unit either side"
+    },
+    "room_inside_the_reach": {
+      "answer": {
+        "far": [
+          6,
+          3,
+          3
+        ],
+        "near": [
+          5,
+          1,
+          1
+        ]
+      },
+      "far": [
+        6,
+        2,
+        1
+      ],
+      "islands": [
+        [
+          1,
+          2
+        ]
+      ],
+      "near": [
+        5,
+        1,
+        1
+      ],
+      "reach": 3,
+      "why": "an island beside the boundary: room from one to the reach"
+    },
+    "three_ranks_and_the_order_kept": {
+      "answer": {
+        "far": [
+          40,
+          18,
+          18,
+          18,
+          4
+        ],
+        "near": [
+          30,
+          7,
+          7,
+          7,
+          3
+        ]
+      },
+      "far": [
+        40,
+        15,
+        14,
+        13,
+        4
+      ],
+      "islands": [
+        [
+          10,
+          15
+        ]
+      ],
+      "near": [
+        30,
+        14,
+        12,
+        11,
+        3
+      ],
+      "reach": 100,
+      "why": "three on it: three units either side"
+    }
+  },
+  "what": "Method section G7.10's two halves (landing R4, plan P4-D384), each case with its answer computed from the method's text with datetime and Fraction: a count read as the moment its system names, written as ISO text at a unit, and a moment written back as its system's count, spelled as a `count_form` says; the contact numbers a census deals over the dated cells of an Epic column; the days each system's column of dates, and of moments, holds no date on; how far a tail reaches short of a wall of them, the islands inside that reach, a tail's end and group stepped off one and every stratum lying wholly on one given room; and the twin's ranks kept off them, by whole days or by the unit the column is written at."
 }

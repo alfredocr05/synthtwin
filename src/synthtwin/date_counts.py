@@ -1757,35 +1757,63 @@ def blocked_spans(member: str, written: int) -> "tuple[tuple[int, int], ...]":
     return tuple((start, spans[start]) for start in sorted(spans))
 
 
+def blocked_units(
+    member: str, written: int, tail_seconds: int
+) -> "tuple[tuple[int, int], ...]":
+    """`blocked_spans` in tail units, joined where they touch or overlap (method G7.10).
+
+    Each a first and a last tail unit, both included, counted from 1970
+    as `taxonomy.tail_ordinal` counts them; ``tail_seconds`` is how many
+    seconds one tail unit holds -- 86,400 for a day, 60 for a minute, one
+    for a second. Stretches that touch are one: Excel 1900's days before
+    its first count, 1 January 1900 and the instant serial 2 names are
+    one stretch from the calendar's first day.
+
+    Guarantees: a function of the three, rising and apart. Raises KeyError
+    for a word outside `MEMBERS`. No I/O of any kind.
+    """
+    joined: "list[tuple[int, int]]" = []
+    for first, last in blocked_spans(member, written):
+        start = first // tail_seconds
+        stop = last // tail_seconds
+        if joined and start <= joined[len(joined) - 1][1] + 1:
+            before = joined[len(joined) - 1]
+            joined[len(joined) - 1] = (before[0], max(before[1], stop))
+            continue
+        joined += [(start, stop)]
+    return tuple(joined)
+
+
 def tail_reach(
     member: str, written: int, tail_seconds: int, at: int, low_side: bool, edge: int
 ) -> int:
     """How far one tail of a column counted in ``member`` may reach from its boundary, in tail units (G7.10).
 
-    THE TAIL STOPS SHORT OF THE FIRST STRETCH BEYOND ITS BOUNDARY THE
-    COLUMN'S COUNTS CANNOT HOLD (`blocked_spans`; the verification of the
-    second review of landing R4, item 2). A tail's outermost rank is drawn
-    from its two published distances and can stand beyond every value the
-    source holds: a low tail of Excel date-times from 1900 put its end at
-    `1899-12-31 06:20`, before Excel's first day and written as ISO text,
-    and a rank's stratum ran across 1 January 1900, so the twin drew that
-    day and read it back as no value on 6 seeds of 6. Stepping only the
-    end off one minute of the day left every other minute of it, and the
-    ranks beside the end, where they stood. So the reach -- ``edge``, the
-    furthest the member's own spelling can write -- is cut to stop one
-    unit short of the nearest such stretch beyond the boundary ``at``, and
-    every rank of the tail, its end, its group and each drawn rank alike,
-    stands inside it; the validator draws its windows to the same reach.
-    The source's own values beyond the boundary are present values, never
-    on such a stretch, so a tail whose source values all stand on its near
-    side keeps them all; one whose values straddle 1 January 1900, on a
-    system that writes the days before it, is drawn this side of the day
-    (a stated limit). Where the stretch touches the boundary itself and no
-    unit is left between, the reach is the member's own.
+    THE TAIL STOPS SHORT OF THE FIRST WALL BEYOND ITS BOUNDARY: a stretch
+    the column's counts cannot hold (`blocked_units`) that runs on to the
+    furthest unit the member's own spelling writes, ``edge`` from the
+    boundary ``at``, or to the calendar's first or last day, so that no
+    count stands beyond it -- every moment
+    before a spreadsheet system's first count, with 1 January 1900 and
+    Excel's serial 2 beside it, and 31 December 9999 (the verification of
+    the second review of landing R4, item 2). A tail's outermost rank is
+    drawn from its two published distances and can stand beyond every
+    value the source holds: a low tail of Excel date-times from 1900 put
+    its end at `1899-12-31 06:20`, before Excel's first day and written as
+    ISO text, and a rank's stratum ran across 1 January 1900, so the twin
+    drew that day and read it back as no value on 6 seeds of 6. The
+    source's own values beyond a boundary stand on this side of a wall,
+    so no tail loses one. Where no unit is left between the boundary and
+    the wall the reach is the member's own.
 
-    ``tail_seconds`` is how many seconds one tail unit holds -- 86,400 for
-    a day, 60 for a minute, one for a second -- and ``at`` the boundary's
-    tail unit, counted from 1970 as `taxonomy.tail_ordinal` counts it.
+    AN ISLAND DOES NOT CUT THE REACH (`tail_islands`): 1 January 1900, in
+    a system that writes the days either side of it, has values of the
+    source beyond it as often as not, and a reach cut there drew such a
+    tail this side of the day -- SAS days from December 1899 lost every
+    one of their eight values before the day, and a dense tail of SAS
+    seconds was piled onto its last second, missing its own count of
+    different values (the repair of that verification, found on the way).
+    A tail reaches past an island, and no rank of it stays on one.
 
     Guarantees: accepts the member, the written unit, the tail unit in
     seconds, the boundary's tail unit, the side and the member's reach;
@@ -1793,20 +1821,128 @@ def tail_reach(
     ``edge`` is at least one. Determinism: whole-number arithmetic.
     Raises KeyError for a word outside `MEMBERS`. No I/O of any kind.
     """
+    furthest = at - edge if low_side else at + edge
+    first = (_FIRST_DAY * 86400) // tail_seconds
+    last = (_LAST_DAY * 86400 + 86399) // tail_seconds
     nearest: "int | None" = None
-    for first, last in blocked_spans(member, written):
-        start = first // tail_seconds
-        stop = last // tail_seconds
-        if low_side and stop < at and (nearest is None or stop > nearest):
-            nearest = stop
-        if not low_side and start > at and (nearest is None or start < nearest):
-            nearest = start
+    for start, stop in blocked_units(member, written, tail_seconds):
+        if low_side and stop < at and (start <= furthest or start <= first):
+            if nearest is None or stop > nearest:
+                nearest = stop
+        if not low_side and start > at and (stop >= furthest or stop >= last):
+            if nearest is None or start < nearest:
+                nearest = start
     if nearest is None:
         return edge
     reach = at - nearest - 1 if low_side else nearest - at - 1
     if reach < 1:
         return edge
     return min(edge, reach)
+
+
+def tail_islands(
+    member: str, written: int, tail_seconds: int, at: int, low_side: bool, reach: int
+) -> "tuple[tuple[int, int], ...]":
+    """The stretches inside one tail's reach its counts cannot hold, as distances (method G7.10).
+
+    Each a nearest and a furthest distance from the boundary ``at``, in
+    tail units, both included and the nearest first: every stretch of
+    `blocked_units` beyond the boundary that starts within ``reach``
+    (`tail_reach`), its far end kept within it. On a column counted in a
+    system that writes the days either side of it, 1 January 1900 is such
+    an ISLAND: the tail reaches past it, its end and its group step off
+    it, a rank whose stratum lies wholly on it is given room either side
+    (`stratum_off_the_islands`), and every rank left on its day moves off
+    it (`generation._kept_off_placeholder_days`).
+
+    Guarantees: a function of the six, rising and apart, each pair inside
+    one to ``reach``. Raises KeyError for a word outside `MEMBERS`. No I/O
+    of any kind.
+    """
+    found: "list[tuple[int, int]]" = []
+    for start, stop in blocked_units(member, written, tail_seconds):
+        if low_side and stop < at:
+            nearest, furthest = at - stop, at - start
+        elif not low_side and start > at:
+            nearest, furthest = start - at, stop - at
+        else:
+            continue
+        if nearest > reach:
+            continue
+        found += [(nearest, min(furthest, reach))]
+    return tuple(sorted(found))
+
+
+def on_an_island(distance: int, islands: "tuple[tuple[int, int], ...]") -> bool:
+    """True where one whole distance of a tail stands on one of ``islands`` (`tail_islands`).
+
+    Guarantees: a function of the two. Raises nothing. No I/O.
+    """
+    for nearest, furthest in islands:
+        if nearest <= distance <= furthest:
+            return True
+    return False
+
+
+def off_the_islands(distance: int, islands: "tuple[tuple[int, int], ...]", reach: int) -> int:
+    """One whole distance of a tail, stepped off every island it stands on (method G7.10).
+
+    INWARD to the unit just inside the island where that is a distance of
+    one or more -- as a tail's end and group step off a unit an absent
+    spelling names -- and otherwise OUTWARD to the unit just beyond it
+    where that is within ``reach``; it stays where neither is. ``islands``
+    are `tail_islands`.
+
+    Guarantees: a function of the three. Raises nothing. No I/O.
+    """
+    for nearest, furthest in islands:
+        if nearest <= distance <= furthest:
+            if nearest - 1 >= 1:
+                return nearest - 1
+            if furthest + 1 <= reach:
+                return furthest + 1
+            return distance
+    return distance
+
+
+def stratum_off_the_islands(
+    near: "list[int]",
+    far: "list[int]",
+    islands: "tuple[tuple[int, int], ...]",
+    reach: int,
+) -> "tuple[list[int], list[int]]":
+    """Each rank's stratum, given room off any island it lies wholly on (method G7.10).
+
+    ``near`` and ``far`` are each rank's nearest and furthest distance,
+    outermost first, each no smaller than the one inside it. A rank whose
+    stratum lies wholly on an island has nowhere to stand off it, so the
+    stratum of every such rank -- ``m`` of them on that island -- runs
+    from ``m`` units inside the island to ``m`` units beyond it, within
+    one and ``reach``; the strata are then kept no smaller than the ones
+    inside them, the nearest widened inward and the furthest outward, so
+    each still holds the one it had. The generator moves such a rank off
+    the island inside that room, and the validator draws its windows from
+    the same strata.
+
+    Guarantees: accepts two lists of one length and the islands; returns
+    two new lists of that length, each stratum holding the one given.
+    Determinism: a function of the four. Raises nothing. No I/O.
+    """
+    nearest = [value for value in near]
+    furthest = [value for value in far]
+    for first, last in islands:
+        inside: "list[int]" = []
+        for index in range(len(nearest)):
+            if first <= nearest[index] and furthest[index] <= last:
+                inside += [index]
+        for index in inside:
+            nearest[index] = max(1, first - len(inside))
+            furthest[index] = min(reach, last + len(inside))
+    for index in range(1, len(nearest)):
+        nearest[index] = min(nearest[index], nearest[index - 1])
+    for index in range(len(furthest) - 2, -1, -1):
+        furthest[index] = max(furthest[index], furthest[index + 1])
+    return (nearest, furthest)
 
 
 # -------------------------------------------- question Q3, the bands

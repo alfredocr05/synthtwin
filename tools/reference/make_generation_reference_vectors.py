@@ -9889,7 +9889,7 @@ def least_end(mean, root, edge):
     return min(max(math.ceil(reach - ((1.0 + reach) * (1.0 / 16777216.0))), 0), edge)
 
 
-def tail_distances(rows, mean, root, floor, edge, apart, words, off=None):
+def tail_distances(rows, mean, root, floor, edge, apart, words, off=None, islands=()):
     """Every rank's whole distance beyond the boundary, outermost first (G7.3b).
 
     ``words`` maps an outer index to the word that rank read; an index
@@ -9906,6 +9906,12 @@ def tail_distances(rows, mean, root, floor, edge, apart, words, off=None):
     then made at least the one inside, as step 5 makes them.  Before step
     7 the end is at least ``least_end`` (step 5, plan P4-D375), and where
     every rank is in the group the end is the group's distance first.
+    ``islands`` are, on a column of dates written as counts, the stretches
+    inside the reach its counts cannot hold (`counted_islands`): after the
+    holes, the end and the group each step off one -- to the unit inside
+    it where that is a distance of one or more, and otherwise to the unit
+    beyond it within the reach -- before the end is raised to the group's
+    distance (G7.10).
     """
     shape = mixture_of(rows, mean, root)
     stretch, end = stretched_end(shape, rows, mean, root, edge)
@@ -9932,6 +9938,11 @@ def tail_distances(rows, mean, root, floor, edge, apart, words, off=None):
         found[0] = stepped(found[0])
         if grouped < rows:
             group = stepped(group)
+        found[0] = max(found[0], group)
+    if islands:
+        found[0] = counted_off_islands(found[0], islands, edge)
+        if grouped < rows:
+            group = counted_off_islands(group, islands, edge)
         found[0] = max(found[0], group)
     for index in range(1, rows):
         if index >= grouped:
@@ -10097,11 +10108,16 @@ def tail_side_plan(column, side, low_side, parsed, words):
     first, last = tail_window(column)
     edge = max(1, at - first if low_side else last - at)
     # A COLUMN OF DATES WRITTEN AS COUNTS (G7.10) reaches no further than one
-    # unit short of the nearest stretch beyond its boundary its counts
-    # cannot hold.
+    # unit short of the nearest wall beyond its boundary its counts cannot
+    # hold, and past an island inside that reach.
     member = column.get("_counted_member")
+    islands = ()
     if member and column["tail_unit"] in COUNTED_TAIL_SECONDS and reading == "local":
         edge = counted_reach(
+            member, counted_written(column), COUNTED_TAIL_SECONDS[column["tail_unit"]],
+            at, low_side, edge,
+        )
+        islands = counted_islands(
             member, counted_written(column), COUNTED_TAIL_SECONDS[column["tail_unit"]],
             at, low_side, edge,
         )
@@ -10139,16 +10155,18 @@ def tail_side_plan(column, side, low_side, parsed, words):
     drawn = tuple(index for index in range(1, grouped))
     off = tail_holes_named(column, at, low_side)
     stood = tail_distances(
-        rows, mean, root, CASE_SMALL_CELL_FLOOR, edge, apart, words, off
+        rows, mean, root, CASE_SMALL_CELL_FLOOR, edge, apart, words, off, islands
     )
     near = tail_distances(
         rows, mean, root, CASE_SMALL_CELL_FLOOR, edge, apart,
-        {index: 0 for index in drawn}, off,
+        {index: 0 for index in drawn}, off, islands,
     )
     far = tail_distances(
         rows, mean, root, CASE_SMALL_CELL_FLOOR, edge, apart,
-        {index: TWO64 - 1 for index in drawn}, off,
+        {index: TWO64 - 1 for index in drawn}, off, islands,
     )
+    # A stratum lying wholly on an island is given room either side (G7.10).
+    near, far = counted_strata_off_islands(near, far, islands, edge)
     places = [
         anchor - distance * unit if low_side else anchor + distance * unit
         for distance in stood
@@ -13656,28 +13674,103 @@ def counted_blocked(member, written):
     return sorted(spans)
 
 
+def counted_blocks(member, written, tail_seconds):
+    """G7.10: the stretches of `counted_blocked` in tail units, those that touch or overlap made one."""
+    blocks = []
+    for first, last in counted_blocked(member, written):
+        start, stop = first // tail_seconds, last // tail_seconds
+        if blocks and start <= blocks[-1][1] + 1:
+            blocks[-1] = (blocks[-1][0], max(blocks[-1][1], stop))
+        else:
+            blocks += [(start, stop)]
+    return blocks
+
+
 def counted_reach(member, written, tail_seconds, at, low_side, edge):
     """G7.10: how far a tail of a column counted in ``member`` reaches, in tail units.
 
-    One unit short of the nearest stretch beyond the boundary ``at`` the
-    column's counts cannot hold (`counted_blocked`), and never further
-    than ``edge``; ``edge`` itself where none lies beyond, or where the
-    nearest leaves no unit between it and the boundary.
+    One unit short of the nearest WALL beyond the boundary ``at`` -- a
+    stretch the column's counts cannot hold (`counted_blocks`) running on
+    to the furthest unit ``edge`` allows or to the calendar's first or
+    last day -- and never further than ``edge``; ``edge`` itself where no
+    wall lies beyond, or where the nearest leaves no unit between it and
+    the boundary. A stretch with units the counts hold beyond it within
+    the reach is an island and cuts nothing.
     """
-    beyond = []
-    for first, last in counted_blocked(member, written):
-        start, stop = first // tail_seconds, last // tail_seconds
-        if low_side and stop < at:
-            beyond += [at - stop - 1]
-        if not low_side and start > at:
-            beyond += [start - at - 1]
-    if not beyond or min(beyond) < 1:
+    furthest = at - edge if low_side else at + edge
+    first = _counted_seconds(datetime.date(1, 1, 1)) // tail_seconds
+    last = (_counted_seconds(datetime.date(9999, 12, 31)) + 86399) // tail_seconds
+    walls = []
+    for start, stop in counted_blocks(member, written, tail_seconds):
+        if low_side and stop < at and min(start - furthest, start - first) <= 0:
+            walls += [at - stop - 1]
+        if not low_side and start > at and max(stop - furthest, stop - last) >= 0:
+            walls += [start - at - 1]
+    if not walls or min(walls) < 1:
         return edge
-    return min(edge, min(beyond))
+    return min(edge, min(walls))
 
 
-def counted_days_kept_off(ordinals, lows, highs, day, holes):
-    """G7.10's last pass: each rank on a hole day moved by whole days off it.
+def counted_islands(member, written, tail_seconds, at, low_side, reach):
+    """G7.10: the stretches beyond the boundary ``at`` and inside ``reach`` the counts cannot hold.
+
+    Each its nearest and furthest distance in tail units, the nearest
+    first, its far end kept within the reach: on a system that writes the
+    days either side of it, 1 January 1900.
+    """
+    found = []
+    for start, stop in counted_blocks(member, written, tail_seconds):
+        if low_side and stop < at:
+            nearest, furthest = at - stop, at - start
+        elif not low_side and start > at:
+            nearest, furthest = start - at, stop - at
+        else:
+            continue
+        if nearest <= reach:
+            found += [(nearest, min(furthest, reach))]
+    return sorted(found)
+
+
+def counted_off_islands(distance, islands, reach):
+    """G7.10: a tail's end or group stepped off the island it stands on.
+
+    To the unit just inside the island where that is a distance of one
+    or more, otherwise to the unit just beyond it where that is within
+    ``reach``; where neither, it stays.
+    """
+    for nearest, furthest in islands:
+        if nearest <= distance <= furthest:
+            if nearest > 1:
+                return nearest - 1
+            if furthest < reach:
+                return furthest + 1
+            return distance
+    return distance
+
+
+def counted_strata_off_islands(near, far, islands, reach):
+    """G7.10: every stratum lying wholly on an island given room either side of it.
+
+    With ``m`` ranks' strata wholly on one island, each runs from ``m``
+    units inside it to ``m`` beyond it, within one and ``reach``; then
+    each rank's nearest distance is made no more than the one outside
+    it, and its furthest no less than the one inside it.
+    """
+    near, far = list(near), list(far)
+    for first, last in islands:
+        inside = [index for index in range(len(near)) if first <= near[index] and far[index] <= last]
+        for index in inside:
+            near[index] = max(1, first - len(inside))
+            far[index] = min(reach, last + len(inside))
+    for index in range(1, len(near)):
+        near[index] = min(near[index], near[index - 1])
+    for index in range(len(far) - 2, -1, -1):
+        far[index] = max(far[index], far[index + 1])
+    return near, far
+
+
+def counted_days_kept_off(ordinals, lows, highs, day, holes, grid=0):
+    """G7.10's last pass: each rank on a hole day moved off it inside its gap.
 
     ``ordinals`` are instants counted from 1970 in units ``day`` of which
     make a day (one for whole dates, 86,400 for moments in seconds), and
@@ -13685,9 +13778,11 @@ def counted_days_kept_off(ordinals, lows, highs, day, holes):
     moves to the nearest instant a whole number of days away inside its
     gap whose day is no hole and which no rank holds, the earlier first at
     one distance, and where every such instant is held to the nearest one
-    whose day is no hole; where its gap holds none it stays. Ranks are
-    taken lowest first, and each move is counted before the next rank is
-    asked.
+    whose day is no hole; where no whole day's move fits its gap, the same
+    two asked of instants a whole number of ``grid`` units away (the unit
+    the column is written at; nought for none); where its gap holds none
+    it stays. Ranks are taken lowest first, and each move is counted
+    before the next rank is asked.
     """
     held = {}
     for value in ordinals:
@@ -13700,10 +13795,14 @@ def counted_days_kept_off(ordinals, lows, highs, day, holes):
         def off(candidate):
             return candidate // day not in holes
 
-        free = nearest_fitting(
-            value, lows[rank], highs[rank], lambda candidate: off(candidate) and held.get(candidate, 0) <= 0, day
-        )
-        found = free if free is not None else nearest_fitting(value, lows[rank], highs[rank], off, day)
+        def off_and_free(candidate):
+            return off(candidate) and held.get(candidate, 0) <= 0
+
+        found = None
+        for by in (day, grid) if grid > 0 else (day,):
+            for fits in (off_and_free, off):
+                if found is None:
+                    found = nearest_fitting(value, lows[rank], highs[rank], fits, by)
         if found is None:
             continue
         held[value] -= 1
@@ -13724,7 +13823,48 @@ _EXCEL_HOLES = (_HOLE_1900, _HOLE_1900 + 1, _HOLE_9999)
 # THE DAYS A COLUMN OF COUNTED DATES HOLDS NO DATE ON, KEPT OFF (the second
 # review of landing R4, item 2): instants, their gaps, the length of a day
 # in their units and the hole days, the answer each rank's instant once the
-# pass has run. Each case names the rule it pins.
+# pass has run. Each case names the rule it pins. A case naming a grid --
+# the unit its column is written at -- moves a rank whose gap no whole
+# day's move fits by that unit (the repair of that review's verification).
+_MIDNIGHT_1900 = _HOLE_1900 * 86400
+COUNTED_GRID_KEEPINGS = {
+    "a_minute_before_the_day": (
+        [_MIDNIGHT_1900 - 4 * 3600, _MIDNIGHT_1900 + 10 * 3600, _MIDNIGHT_1900 + 86400 + 3 * 3600],
+        [_MIDNIGHT_1900 - 4 * 3600, _MIDNIGHT_1900 - 4 * 3600, _MIDNIGHT_1900 + 86400 + 3 * 3600],
+        [_MIDNIGHT_1900 - 4 * 3600, _MIDNIGHT_1900 + 86400 + 3 * 3600, _MIDNIGHT_1900 + 86400 + 3 * 3600],
+        86400, [_HOLE_1900, _HOLE_9999], 60,
+        "10:00 on 1 January 1900 in a gap no whole day fits: the last minute of 31 December, the nearer",
+    ),
+    "a_minute_after_the_day": (
+        [_MIDNIGHT_1900 - 3 * 3600, _MIDNIGHT_1900 + 20 * 3600, _MIDNIGHT_1900 + 86400 + 3 * 3600],
+        [_MIDNIGHT_1900 - 3 * 3600, _MIDNIGHT_1900 - 3 * 3600, _MIDNIGHT_1900 + 86400 + 3 * 3600],
+        [_MIDNIGHT_1900 - 3 * 3600, _MIDNIGHT_1900 + 86400 + 3 * 3600, _MIDNIGHT_1900 + 86400 + 3 * 3600],
+        86400, [_HOLE_1900, _HOLE_9999], 60,
+        "20:00 on 1 January 1900, its gap from 21:00 the day before: midnight of 2 January, the nearer",
+    ),
+    "the_next_free_second": (
+        [_MIDNIGHT_1900 - 3600, _MIDNIGHT_1900 + 80000, _MIDNIGHT_1900 + 80001, _MIDNIGHT_1900 + 86400 + 50],
+        [_MIDNIGHT_1900 - 3600, _MIDNIGHT_1900 + 70000, _MIDNIGHT_1900 + 70000, _MIDNIGHT_1900 + 86400 + 50],
+        [_MIDNIGHT_1900 - 3600, _MIDNIGHT_1900 + 86400 + 50, _MIDNIGHT_1900 + 86400 + 50, _MIDNIGHT_1900 + 86400 + 50],
+        86400, [_HOLE_1900, _HOLE_9999], 1,
+        "two moments late on 1 January in strata running into 2 January: midnight and the second after it",
+    ),
+    "whole_days_first": (
+        [_MIDNIGHT_1900 - 3 * 86400, _MIDNIGHT_1900 + 45000, _MIDNIGHT_1900 + 3 * 86400],
+        [_MIDNIGHT_1900 - 3 * 86400, _MIDNIGHT_1900 - 3 * 86400, _MIDNIGHT_1900 + 3 * 86400],
+        [_MIDNIGHT_1900 - 3 * 86400, _MIDNIGHT_1900 + 3 * 86400, _MIDNIGHT_1900 + 3 * 86400],
+        86400, [_HOLE_1900, _HOLE_9999], 60,
+        "a gap a whole day's move fits keeps the clock: 12:30 on 31 December, not a minute's step",
+    ),
+    "inside_the_day_still_stays": (
+        [_MIDNIGHT_1900 + 100, _MIDNIGHT_1900 + 160, _MIDNIGHT_1900 + 220],
+        [_MIDNIGHT_1900 + 100, _MIDNIGHT_1900 + 100, _MIDNIGHT_1900 + 220],
+        [_MIDNIGHT_1900 + 100, _MIDNIGHT_1900 + 220, _MIDNIGHT_1900 + 220],
+        86400, [_HOLE_1900, _HOLE_9999], 60,
+        "a gap wholly inside the day holds no instant off it: the rank stays",
+    ),
+}
+
 COUNTED_KEEPINGS = {
     "a_free_day_beside": (
         [_HOLE_1900 - 2, _HOLE_1900, _HOLE_1900 + 1, _HOLE_1900 + 5],
@@ -13818,13 +13958,13 @@ COUNTED_REACHES = {
         "excel-1904", "second", "second", "1904-01-05 10:00:00", True, _FAR,
         "the 1904 system reads no count below nought: its first day, 1 January 1904, is the last reached",
     ),
-    "sas_days_stop_after_the_placeholder": (
+    "sas_days_reach_past_the_placeholder": (
         "days-since-1960", "day", "day", "1900-01-20", True, _FAR,
-        "a system that writes 1899 still holds no date on 1 January 1900: the tail stops on the second",
+        "a system that writes 1899 holds 1 January 1900 as an island, which cuts no reach",
     ),
-    "sas_moments_below_1900_stop_before_it": (
+    "sas_moments_below_1900_reach_to_9999": (
         "seconds-since-1960", "second", "second", "1899-12-25 08:00:00", False, _FAR,
-        "a high tail below 1900 stops at the last second of 31 December 1899",
+        "a high tail below 1900 reaches past the island to the wall of 31 December 9999",
     ),
     "the_last_day_is_no_reach": (
         "days-since-1970", "day", "day", "9999-12-20", False, _FAR,
@@ -13835,8 +13975,75 @@ COUNTED_REACHES = {
         "a placeholder day decades beyond the boundary cuts no reach the member allows",
     ),
     "no_unit_between_keeps_the_reach": (
+        "excel-1900", "day", "day", "1900-01-03", True, _FAR,
+        "a boundary on the day after Excel's wall leaves no unit between: the member's own reach",
+    ),
+}
+
+
+# THE ISLANDS INSIDE A TAIL'S REACH (the repair of the verification of the
+# second review of landing R4): the system, the unit the column is written
+# at, its tail unit, the boundary, the side and the member's reach; the
+# answer the reach and each island's nearest and furthest distance.
+COUNTED_ISLANDS = {
+    "sas_days_nineteen_days_out": (
+        "days-since-1960", "day", "day", "1900-01-20", True, _FAR,
+        "1 January 1900 nineteen days beyond the boundary",
+    ),
+    "sas_seconds_a_day_wide": (
+        "seconds-since-1960", "second", "second", "1900-01-02 00:39:14", True, _FAR,
+        "the whole of 1 January, 2,355 to 88,754 seconds out",
+    ),
+    "unix_minutes": (
+        "milliseconds-since-1970", "minute", "minute", "1900-01-02 00:27:00", True, _FAR,
+        "a column at the minute: 1,440 minutes from the twenty-eighth out",
+    ),
+    "sas_days_beside_the_boundary": (
         "days-since-1960", "day", "day", "1900-01-02", True, _FAR,
-        "a boundary on the day after the placeholder leaves no unit between: the member's own reach",
+        "an island one day out, beside the boundary",
+    ),
+    "a_high_tail_below_1900": (
+        "seconds-since-1960", "second", "second", "1899-12-25 08:00:00", False, _FAR,
+        "a high tail below 1900 meets the island on its way to 9999",
+    ),
+    "excel_has_none": (
+        "excel-1900", "minute", "minute", "1900-01-19 11:38:00", True, _FAR,
+        "Excel's 1 January is part of its wall, so no island",
+    ),
+    "past_the_reach_is_none": (
+        "seconds-since-1970", "second", "second", "1985-03-01 12:00:00", True, 1000,
+        "1 January 1900 beyond the reach is no island of this tail",
+    ),
+}
+
+# A TAIL'S END OR GROUP STEPPED OFF AN ISLAND: the distance, the islands and
+# the reach; the answer the distance it stands at.
+COUNTED_STEPS = {
+    "inward": (12, [(10, 15)], 100, "on the island: to the unit inside it"),
+    "outward_beside_the_boundary": (1, [(1, 1)], 100, "no unit inside it: to the unit beyond"),
+    "no_room_stays": (1, [(1, 1)], 1, "no unit inside it and none within the reach beyond: it stays"),
+    "off_the_island_stands": (20, [(10, 15)], 100, "off every island: unchanged"),
+}
+
+# EVERY STRATUM LYING WHOLLY ON AN ISLAND GIVEN ROOM: each rank's nearest
+# and furthest distance, outermost first, the islands and the reach; the
+# answer the strata.
+COUNTED_STRATA = {
+    "one_rank_on_it": (
+        [30, 20, 12, 5, 3, 2], [40, 25, 14, 8, 4, 2], [(10, 15)], 100,
+        "one stratum wholly on the island: one unit either side",
+    ),
+    "three_ranks_and_the_order_kept": (
+        [30, 14, 12, 11, 3], [40, 15, 14, 13, 4], [(10, 15)], 100,
+        "three on it: three units either side",
+    ),
+    "across_it_is_left": (
+        [30, 12], [40, 18], [(10, 15)], 100,
+        "a stratum running across the island keeps its own room",
+    ),
+    "room_inside_the_reach": (
+        [5, 1, 1], [6, 2, 1], [(1, 2)], 3,
+        "an island beside the boundary: room from one to the reach",
     ),
 }
 
@@ -13868,8 +14075,16 @@ def counted_case_document():
     for name in sorted(COUNTED_KEEPINGS):
         ordinals, lows, highs, day, holes, why = COUNTED_KEEPINGS[name]
         keepings[name] = {
-            "ordinals": ordinals, "lows": lows, "highs": highs, "day": day, "holes": holes, "why": why,
+            "ordinals": ordinals, "lows": lows, "highs": highs, "day": day, "holes": holes,
+            "grid": 0, "why": why,
             "answer": counted_days_kept_off(ordinals, lows, highs, day, set(holes)),
+        }
+    for name in sorted(COUNTED_GRID_KEEPINGS):
+        ordinals, lows, highs, day, holes, grid, why = COUNTED_GRID_KEEPINGS[name]
+        keepings[name] = {
+            "ordinals": ordinals, "lows": lows, "highs": highs, "day": day, "holes": holes,
+            "grid": grid, "why": why,
+            "answer": counted_days_kept_off(ordinals, lows, highs, day, set(holes), grid),
         }
     holes = {member: list(counted_hole_words(member)) for member in sorted(COUNTED_SYSTEMS)}
     moment_holes = {
@@ -13886,6 +14101,38 @@ def counted_case_document():
                 member, _COUNTED_UNITS[written], COUNTED_TAIL_SECONDS[tail], at, low_side, edge
             ),
         }
+    islands = {}
+    for name in sorted(COUNTED_ISLANDS):
+        member, written, tail, boundary, low_side, edge, why = COUNTED_ISLANDS[name]
+        at = unit_ordinal(boundary, tail, "local")
+        reach = counted_reach(
+            member, _COUNTED_UNITS[written], COUNTED_TAIL_SECONDS[tail], at, low_side, edge
+        )
+        islands[name] = {
+            "member": member, "written": written, "tail": tail, "boundary": boundary,
+            "low_side": low_side, "edge": edge, "why": why,
+            "answer": {
+                "reach": reach,
+                "islands": [list(pair) for pair in counted_islands(
+                    member, _COUNTED_UNITS[written], COUNTED_TAIL_SECONDS[tail], at, low_side, reach
+                )],
+            },
+        }
+    steps = {}
+    for name in sorted(COUNTED_STEPS):
+        distance, pairs, reach, why = COUNTED_STEPS[name]
+        steps[name] = {
+            "distance": distance, "islands": [list(pair) for pair in pairs], "reach": reach,
+            "why": why, "answer": counted_off_islands(distance, pairs, reach),
+        }
+    strata = {}
+    for name in sorted(COUNTED_STRATA):
+        near, far, pairs, reach, why = COUNTED_STRATA[name]
+        widened_near, widened_far = counted_strata_off_islands(near, far, pairs, reach)
+        strata[name] = {
+            "near": near, "far": far, "islands": [list(pair) for pair in pairs], "reach": reach,
+            "why": why, "answer": {"near": widened_near, "far": widened_far},
+        }
     return {
         "what": "Method section G7.10's two halves (landing R4, plan P4-D384), each case with "
         "its answer computed from the method's text with datetime and Fraction: a count read "
@@ -13893,9 +14140,12 @@ def counted_case_document():
         "back as its system's count, spelled as a `count_form` says; the contact numbers "
         "a census deals over the dated cells of an Epic column; the days each system's "
         "column of dates, and of moments, holds no date on; how far a tail reaches short "
-        "of them; and the twin's ranks kept off them.",
+        "of a wall of them, the islands inside that reach, a tail's end and group stepped "
+        "off one and every stratum lying wholly on one given room; and the twin's ranks "
+        "kept off them, by whole days or by the unit the column is written at.",
         "dealings": dealings,
         "holes": holes,
+        "islands": islands,
         "keepings": keepings,
         "moment_holes": moment_holes,
         "reaches": reaches,
@@ -13904,6 +14154,8 @@ def counted_case_document():
         "never_imports": ["synthtwin", "numpy", "pandas"],
         "readings": readings,
         "spellings": spellings,
+        "steps": steps,
+        "strata": strata,
     }
 
 

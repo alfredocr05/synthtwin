@@ -9696,6 +9696,22 @@ def _counted_holes(column: contract.ColumnBlock, profile: contract.Profile) -> "
     return date_counts.hole_words(member, facts.resolution == "datetime")
 
 
+def _counted_grid(facts: contract.DatetimeFacts, space: str) -> int:
+    """The unit a column of counted dates is written at, in its own space's units (method G7.10).
+
+    One day on a column of dates; on a column of moments, in seconds, a
+    minute's sixty or one -- a column written finer than the second keeps
+    its figures below the second apart from its instants. The last pass
+    moves a rank by it where no whole day's move fits its gap
+    (`_kept_off_placeholder_days`).
+
+    Guarantees: a function of the two. Raises nothing. No I/O.
+    """
+    if space != "datetime":
+        return 1
+    return max(1, contract.counted_unit(facts) // date_counts.SECOND)
+
+
 def _hole_days(words: "tuple[str, ...]") -> "frozenset[int]":
     """ISO day words as whole days from 1970."""
     found: "dict[int, int]" = {}
@@ -9710,8 +9726,9 @@ def _kept_off_placeholder_days(
     highs: "list[int]",
     day: int,
     holes: "frozenset[int]",
+    grid: int = 0,
 ) -> "list[int]":
-    """Every rank standing on a day of ``holes``, moved by whole days off it (method G7.10).
+    """Every rank standing on a day of ``holes``, moved off it inside its own gap (method G7.10).
 
     ``ordinals`` are the ranks' instants in the column's own space and
     ``day`` how many of its units a day holds -- one for whole dates,
@@ -9723,31 +9740,40 @@ def _kept_off_placeholder_days(
     own gap (``lows`` to ``highs``) whose day is none of them and which no
     rank holds, the earlier first at one distance -- its clock kept, so no
     hour, minute or second moves -- and, where every such instant is
-    held, to the nearest one whose day is none of them; where its gap
+    held, to the nearest one whose day is none of them. WHERE NO WHOLE
+    DAY'S MOVE FITS ITS GAP, it moves to the nearest instant a whole
+    number of ``grid`` units away -- the unit the column is written at, a
+    minute or a second of a column of moments -- off those days, free
+    first and the earlier first at one distance, as above; where its gap
     holds none it stays. A rank the layout pins has a gap of its own
     instant alone, and the twin's pinned instants are the source's own
     values, which a column of counted dates never holds on one of those
     days.
 
     WHICH RANKS IT MEETS (the verification of the second review of
-    landing R4, item 2). A body rank's gap runs between two pinned
-    values of the source, neither of them on such a day, so a gap holding
-    part of one holds the whole of it: moments packed over a month around
-    1 January 1900 in systems that write the days before it -- 10,000
-    SAS seconds and Unix milliseconds at the minute and the second --
-    left no twin cell on the day on 12 trips of 12. A tail rank's gap is
-    its stratum, often less than a day wide, and no whole day's move fits
-    it: a twin of Excel date-times from 1900 left a rank on 1 January
-    inside a stratum of that day and the next, and wrote its end before
-    serial 1 as ISO text, on 6 seeds of 6. No tail rank comes here any
-    more, since every tail stops short of the days its counts cannot
-    hold (`date_counts.tail_reach`). Asked after every other pass of G7,
-    last before the cells are spelled.
+    landing R4, item 2, and its repair). A body rank's gap runs between
+    two pinned values of the source, neither of them on such a day, so a
+    gap holding part of one holds the whole of it: moments packed over a
+    month around 1 January 1900 in systems that write the days before it
+    -- 10,000 SAS seconds and Unix milliseconds at the minute and the
+    second -- left no twin cell on the day on 12 trips of 12. A tail
+    rank's gap is its stratum, often less than a day wide, and no whole
+    day's move fits it: a twin of Excel date-times from 1900 left a rank
+    on 1 January inside a stratum of that day and the next, and wrote its
+    end before serial 1 as ISO text, on 6 seeds of 6. No tail reaches a
+    wall any more (`date_counts.tail_reach`); a tail reaching past 1
+    January 1900, in a system that writes the days either side of it,
+    has its strata given room off the day wherever one lies wholly on it
+    (`date_counts.stratum_off_the_islands`), and each of its ranks on the
+    day moves here, a whole day where that fits and a whole unit of the
+    column's writing where it does not. Asked as soon as the ranks are
+    drawn, so that every pass after counts each where it will stand, and
+    again after every other pass of G7, last before the cells are spelled.
 
     Guarantees: accepts one instant and its gap per rank, the day's
-    length and the days; returns as many instants, each inside its gap.
-    Determinism: a function of the five; draws no word. Raises nothing.
-    No I/O of any kind.
+    length, the days and the grid (nought for none); returns as many
+    instants, each inside its gap. Determinism: a function of the six;
+    draws no word. Raises nothing. No I/O of any kind.
     """
     held: "dict[int, int]" = {}
     for value in ordinals:
@@ -9760,6 +9786,12 @@ def _kept_off_placeholder_days(
         found = _nearest_day_off(value, lows[rank], highs[rank], day, holes, held, True)
         if found is None:
             found = _nearest_day_off(value, lows[rank], highs[rank], day, holes, held, False)
+        if found is None and grid > 0:
+            found = _nearest_grid_off(value, lows[rank], highs[rank], day, grid, holes, held, True)
+            if found is None:
+                found = _nearest_grid_off(
+                    value, lows[rank], highs[rank], day, grid, holes, held, False
+                )
         if found is None:
             continue
         held[value] = held[value] - 1
@@ -9793,6 +9825,52 @@ def _nearest_day_off(
                 continue
             return candidate
         away = away + 1
+
+
+def _nearest_grid_off(
+    value: int,
+    low: int,
+    high: int,
+    day: int,
+    grid: int,
+    holes: "frozenset[int]",
+    held: "dict[int, int]",
+    free: bool,
+) -> "int | None":
+    """The nearest instant whole ``grid`` units from ``value`` inside [low, high] on no day of ``holes``.
+
+    Held by no rank where ``free``; the earlier first at one distance.
+    Every instant between ``value`` and the edges of the run of hole days
+    holding it is on one, so the walk starts at the first step past
+    either edge, and a side that has left the gap is not walked.
+    """
+    first_day = value // day
+    while first_day - 1 in holes:
+        first_day = first_day - 1
+    last_day = value // day
+    while last_day + 1 in holes:
+        last_day = last_day + 1
+    below = (value - first_day * day) // grid + 1
+    above = ((last_day + 1) * day - 1 - value) // grid + 1
+    away = min(below, above)
+    while True:
+        earlier = value - away * grid
+        later = value + away * grid
+        if earlier < low and later > high:
+            return None
+        for candidate, starts in ((earlier, below), (later, above)):
+            if away < starts or candidate < low or candidate > high:
+                continue
+            if candidate // day in holes:
+                continue
+            if free and candidate in held and held[candidate] > 0:
+                continue
+            return candidate
+        away = away + 1
+        if earlier < low and away < above:
+            away = above
+        if later > high and away < below:
+            away = below
 
 
 def _spelled_as_counts(
@@ -18867,7 +18945,10 @@ class _TailPlan:
     midnight. `shape` draws the distances (G7.3b); where the tail publishes
     its values `shape` is None and `fixed` holds every rank's distance and
     `spots` its space ordinal, outermost first (G7.3c). `near` and `far`
-    are each rank's nearest and furthest distance, its STRATUM.
+    are each rank's nearest and furthest distance, its STRATUM. `islands`
+    are the stretches inside the reach of a column of counted dates that
+    its counts cannot hold, as nearest and furthest distances
+    (`_counted_islands`, G7.10), off which no rank is offered.
     """
 
     rows: int
@@ -18882,6 +18963,7 @@ class _TailPlan:
     labels: "tuple[str, ...]"
     near: "tuple[int, ...]"
     far: "tuple[int, ...]"
+    islands: "tuple[tuple[int, int], ...]" = ()
 
 
 @dataclasses.dataclass(frozen=True)
@@ -19117,8 +19199,10 @@ def _date_tail_plan(
 
     -- 3b.R4 (P4-D384): ``date_system`` naming a counting system, the
     column's dates are written as its counts, and the tail's reach stops
-    short of the first stretch beyond the boundary those counts cannot
-    hold (`_counted_reach`, G7.10).
+    short of the first wall beyond the boundary those counts cannot hold
+    (`_counted_reach`, G7.10); past an island inside it the tail reaches
+    on, its end and group step off it and a stratum lying wholly on it is
+    given room either side (`_counted_islands`).
     """
     space = _ordinal_space(facts)
     unit, half = _tail_step(facts)
@@ -19169,7 +19253,12 @@ def _date_tail_plan(
     root = mean if side.rms_distance is None else side.rms_distance
     shape = _tail_shape(rows, mean, root, floor, edge, apart, True)
     holes = _hole_units(column, facts)
+    # -- 3b.R4 (P4-D384): THE ISLANDS INSIDE THE REACH of a column of
+    # counted dates, off which the end and the group step after the holes
+    # (G7.10).
+    islands = _counted_islands(facts, date_system, at, low_side, edge)
     end = _off_the_holes(shape.end, at, low_side, holes)
+    end = date_counts.off_the_islands(end, islands, edge)
     group = shape.group
     if shape.grouped < rows:
         if _snaps_to_midnight(facts) and half == 0:
@@ -19181,11 +19270,15 @@ def _date_tail_plan(
                 facts, anchor, low_side, group, min(furthest, edge), unit
             )
         group = _off_the_holes(group, at, low_side, holes)
+        group = date_counts.off_the_islands(group, islands, edge)
     shape = dataclasses.replace(shape, end=max(end, group), group=group)
     near, far = _tail_distance_bounds(shape)
+    # A rank whose stratum lies wholly on an island is given room either
+    # side of it, where the last pass moves it (G7.10).
+    near, far = date_counts.stratum_off_the_islands(near, far, islands, edge)
     return _TailPlan(
         rows, low_side, boundary, anchor, unit, half, shape,
-        (), (), (), tuple(near), tuple(far),
+        (), (), (), tuple(near), tuple(far), islands,
     )
 
 
@@ -19204,15 +19297,17 @@ def _counted_reach(
 
     Where ``date_system`` names the counting system the column is
     declared in (`_date_system_of`), the reach ``edge`` the member's
-    spelling allows is cut to stop one unit short of the nearest stretch
-    beyond the boundary ``at`` that the column's counts cannot hold --
-    either placeholder day, Excel 1900's serial 2, the days before a
-    spreadsheet's first count (`date_counts.tail_reach`) -- so no rank of
-    the tail stands on one: its end, its group and every drawn rank alike
-    (the verification of the second review of landing R4, item 2: a twin
-    of Excel date-times from 1900 drew 1 January and wrote its end before
-    serial 1 as ISO text on 6 seeds of 6). ``edge`` unchanged on every
-    other column. The validator draws its windows to the same reach
+    spelling allows is cut to stop one unit short of the nearest WALL
+    beyond the boundary ``at`` -- a stretch the column's counts cannot
+    hold that runs on to the member's furthest unit: the days before a
+    spreadsheet's first count with 1 January 1900 and Excel 1900's serial
+    2 beside them, and 31 December 9999 (`date_counts.tail_reach`) -- so
+    no rank of the tail stands on one: its end, its group and every drawn
+    rank alike (the verification of the second review of landing R4, item
+    2: a twin of Excel date-times from 1900 drew 1 January and wrote its
+    end before serial 1 as ISO text on 6 seeds of 6). An island inside
+    the reach does not cut it (`_counted_islands`). ``edge`` unchanged on
+    every other column. The validator draws its windows to the same reach
     (`validation._date_tail_windows`).
 
     Guarantees: accepts the facts, the date system, the boundary's tail
@@ -19227,6 +19322,39 @@ def _counted_reach(
     ):
         return edge
     return date_counts.tail_reach(
+        date_system,
+        contract.counted_unit(facts),
+        _TAIL_UNIT_SECONDS[facts.tail_unit],
+        at,
+        low_side,
+        edge,
+    )
+
+
+def _counted_islands(
+    facts: contract.DatetimeFacts, date_system: str, at: int, low_side: bool, edge: int
+) -> "tuple[tuple[int, int], ...]":
+    """The islands inside one tail's reach on a column of dates written as counts (method G7.10).
+
+    Where ``date_system`` names the counting system the column is
+    declared in, the stretches beyond the boundary ``at`` and inside the
+    reach ``edge`` (`_counted_reach`) its counts cannot hold, as nearest
+    and furthest distances (`date_counts.tail_islands`): 1 January 1900
+    in a system that writes the days either side of it. The tail reaches
+    past one, its end and group step off it
+    (`date_counts.off_the_islands`), and a stratum lying wholly on it is
+    given room either side (`date_counts.stratum_off_the_islands`), as
+    the validator's windows are. None on every other column.
+
+    Guarantees: a function of the five. Raises nothing. No I/O.
+    """
+    if (
+        date_system not in date_counts.TABLE
+        or facts.tail_unit not in _TAIL_UNIT_SECONDS
+        or facts.datetimes_read_at != taxonomy.READ_AT_LOCAL
+    ):
+        return ()
+    return date_counts.tail_islands(
         date_system,
         contract.counted_unit(facts),
         _TAIL_UNIT_SECONDS[facts.tail_unit],
@@ -21826,6 +21954,17 @@ def _datetime_content(
     # read by every pass below and by the step off a day whose every
     # spelling is absent.
     gap_lows, gap_highs = _pin_bounds(layout)
+    # -- 3b.R4 (P4-D384): A RANK DRAWN ON A DAY A COLUMN OF COUNTED DATES
+    # HOLDS NO DATE ON moves off it at once, inside its own gap, so that
+    # every pass below counts it where it will stand; the last pass moves
+    # any rank a later pass left on one (G7.10).
+    counted_days = _hole_days(plan.counted_holes)
+    counted_day = 1 if space == "date" else 86400
+    counted_grid = _counted_grid(facts, space)
+    if plan.counted_holes and space in ("date", "datetime"):
+        ordinals = _kept_off_placeholder_days(
+            ordinals, gap_lows, gap_highs, counted_day, counted_days, counted_grid
+        )
     snapping = _snaps_to_midnight(facts)
     pins: "dict[int, tuple[str, ...]]" = {}
     if snapping:
@@ -21901,12 +22040,14 @@ def _datetime_content(
     # -- 3b.R4 (P4-D384): NO RANK OF A COLUMN OF COUNTED DATES STANDS ON A
     # DAY IT HOLDS NO DATE ON, which it would read back as no value (G7.10),
     # after every other pass: such a rank moves by whole days, its clock
-    # kept -- on a column of moments the placeholder days alone, the plan's
-    # words (`_counted_holes`); its tails never reach one (`_counted_reach`).
+    # kept, or where no whole day fits its gap by whole units of the
+    # column's writing -- on a column of moments the placeholder days
+    # alone, the plan's words (`_counted_holes`); its tails reach no wall
+    # (`_counted_reach`) and are given room off an island
+    # (`_counted_islands`).
     if plan.counted_holes and space in ("date", "datetime"):
         ordinals = _kept_off_placeholder_days(
-            ordinals, gap_lows, gap_highs, 1 if space == "date" else 86400,
-            _hole_days(plan.counted_holes),
+            ordinals, gap_lows, gap_highs, counted_day, counted_days, counted_grid
         )
     # HOW EVERY RANK IS SPELLED (landing 2b.6, the reversal of owner
     # decision 5). Allocated after the instants and the offsets, because
@@ -25151,6 +25292,9 @@ def _group_gives_way(
                 if spot // unit in held or spot // unit in gone:
                     continue
                 if (at - distance if plan.low_side else at + distance) in holes:
+                    continue
+                # -- 3b.R4 (P4-D384): nor a unit on an island (G7.10).
+                if date_counts.on_an_island(distance, plan.islands):
                     continue
                 if not _same_standing(facts, own, spot, day, step, widths, word):
                     continue
