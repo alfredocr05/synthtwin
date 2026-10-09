@@ -2817,16 +2817,23 @@ def few_month_dates(
 
     THE PRODUCER'S RULE (the 3b.3 skeptic's blocker 1 (a)), on the REAL
     body's days: true where a group holding rows holds them on fewer than
-    `FEWEST_MONTH_DATES` different dates AND on fewer dates than the
-    calendar `table` (`month_calendar`, the holes taken off) gives it
-    between the two boundaries. Below four the day pass meets the census
-    by splitting a date's rows across the group's other days, and the
-    twins measured that did held more different values than the column
-    (sessions, forty tied dates); a group whose every calendar day holds
-    a date has no other day to split onto -- the last day of February,
-    one date a year, is such a group on a short column. A conservative
-    rule set on the measured cases, never a rule of what a reader could
-    work out, so the loader cannot ask it, and need not.
+    `FEWEST_MONTH_DATES` different dates, unless the group counts only a
+    month's last day (bins 31 to 34, never wrapping) and holds a date on
+    every one the calendar `table` (`month_calendar`, the holes taken
+    off) gives it between the two boundaries. Below four the day pass
+    meets the census by splitting a date's rows across the group's other
+    days, and the twins measured that did held more different values than
+    the column (sessions, forty tied dates); a month's last day whose
+    every calendar date holds rows has no other day to split onto -- the
+    last day of February, one date a year, is such a group on a short
+    column. Any other group of fewer than four dates leaves the weekday
+    pass, which keeps each rank's group, too few dates to move between
+    weekdays: May alone over three years, its other months empty by its
+    written month names, held every bin's three dates and its twins
+    missed the weekday census at every seed the weekday pass alone had
+    met (repair of landing 3b.3). A conservative rule set on the measured
+    cases, never a rule of what a reader could work out, so the loader
+    cannot ask it, and need not.
 
     Guarantees: accepts the census, the body's days and the calendar;
     returns the answer. Determinism: a function of the three. Raises
@@ -2842,10 +2849,12 @@ def few_month_dates(
         for index in range(MONTH_DAY_BINS):
             days[where[index]] = days[where[index]] + row[index]
     for index in range(len(groups)):
+        first, last, count = groups[index]
+        month_ends = MONTH_LAST_FIRST_BIN <= first <= last
         if (
-            groups[index][2] > 0
+            count > 0
             and held[index] < FEWEST_MONTH_DATES
-            and held[index] < days[index]
+            and (held[index] < days[index] or not month_ends)
         ):
             return True
     return False

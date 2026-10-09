@@ -6797,6 +6797,13 @@ gap's days one by one.
    second census's group, so the day-of-month counts pass A met stand;
    step 8.6 trades two ranks across those groups where the weekday
    totals are still off, each second group keeping its count.
+3. **The core holds.** Where the two passes leave the weekday census
+   missed over the body, or the count of different days off where it
+   is kept, G7.3f alone is run from the same ranks; where its days miss
+   neither of the two the passes met and meet one they missed, the
+   column takes them -- its twin before this landing, byte for byte --
+   and the twin names `day_of_month_census` given way to the weekday
+   census and the count.
 
 Where a census still does not hold, the twin names it
 (`day_of_month_census`, or `weekday_census`); where both hold and the

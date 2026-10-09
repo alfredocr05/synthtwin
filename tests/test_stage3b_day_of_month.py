@@ -87,6 +87,8 @@ from synthtwin import (
     errors,
     generation,
     parsing,
+    profile,
+    rendering,
     taxonomy,
     validation,
 )
@@ -167,10 +169,12 @@ def _first_monday(year: int, month: int) -> datetime.date:
     return day
 
 
-def _skeptic(rows: int) -> "dict[str, list[str]]":
+def _skeptic(rows: int, quarter_ends: bool = False) -> "dict[str, list[str]]":
     """The 3b.3 skeptic's untuned shapes (blocker 1 (c)): the 30th and first Mondays, Monday
     billing, sessions, a burst and forty tied dates, each drawn as the skeptic drew it, and 97 per
-    cent on the 10th."""
+    cent on the 10th. With `quarter_ends`, the quarter ends drawn beside the first two alone: half
+    the rows on the last day of March, June, September and December, the rest any day."""
+    closes: "list[str]" = []
     out: "dict[str, list[str]]" = {
         "the_30th": [], "first_monday": [], "monday_billing": [], "sessions": [], "burst": [],
         "ties40": [], "tenth97": [],
@@ -200,9 +204,12 @@ def _skeptic(rows: int) -> "dict[str, list[str]]":
             due = draw.choice(_DAYS)
         out["the_30th"] += [due.isoformat()]
         if draw.random() < 0.50:
-            draw.choice([(y, m) for (y, m) in _MONTHS if m in (3, 6, 9, 12)])
+            year, month = draw.choice([(y, m) for (y, m) in _MONTHS if m in (3, 6, 9, 12)])
+            closes += [_last_of_month(datetime.date(year, month, 1)).isoformat()]
         else:
-            draw.choice(_DAYS)
+            closes += [draw.choice(_DAYS).isoformat()]
+    if quarter_ends:
+        return {"quarter_end": closes}
     draw = random.Random(9200 + rows)
     plan = random.Random(77)
     sessions: "list[datetime.date]" = []
@@ -353,7 +360,12 @@ def test_the_battery_publishes_its_day_of_month_census(
             census = _census(run.described.block(name))
             if census:
                 published = published | {name}
-                assert calendar_rules.day_census_breach(census, sum(c for _f, _l, c in census), line, None, 0) is not None or True
+                # The loader's own check, on the block's own body and rungs.
+                block = run.described.block(name)
+                parsed = len([cell for cell in run.columns[name] if cell]) - block["n_unparsed"]
+                body = parsed - block["low_tail"]["rows"] - block["high_tail"]["rows"]
+                rungs = block["date_percentiles"]
+                assert calendar_rules.day_census_breach(census, body, line, _day(rungs["p25"]), _day(rungs["p75"])) is None, name
                 assert all(count == 0 or count >= line for _first, _last, count in census), name
     assert published == _PUBLISHED[floor]
     monkeypatch.setattr(
@@ -393,7 +405,9 @@ def test_the_battery_twins_meet_both_censuses(battery: "dict[int, dict[str, _Run
 
 def test_the_few_dates_rule_keeps_tied_columns_their_count(tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """Sessions publish no day-of-month census; with the few-dates rule withdrawn they publish
-    one, and a twin holds more different values than the column (the skeptic's blocker 1)."""
+    one, and the twins cannot keep both: before G7.3i step 3 a twin held more different values
+    than the column (the skeptic's blocker 1); now the weekday pass's column keeps the count and
+    the census published is missed."""
     columns = {"sessions": _skeptic(ROWS)["sessions"]}
     described = kpi_shapes.describe(tmp_path / "with", "sessions", _text(columns), 11)
     assert _census(described.block("sessions")) == ()
@@ -403,7 +417,8 @@ def test_the_few_dates_rule_keeps_tied_columns_their_count(tmp_path: pathlib.Pat
     missed: "set[str]" = set()
     for seed in SEEDS:
         missed = missed | set(kpi_shapes.missed(kpi_shapes.measure(described, kpi_shapes.twin_text(described, seed), f"t{seed}.csv")))
-    assert any("n_distinct" in check for check in missed), sorted(missed)
+    assert "sessions:day_of_month_census.groups" in missed, sorted(missed)
+    assert not any("n_distinct" in check for check in missed), sorted(missed)
 
 
 # -- the heaps come back --------------------------------------------------------------
@@ -859,6 +874,11 @@ def test_the_few_dates_rule_reads_the_calendar() -> None:
     assert not calendar_rules.few_month_dates(groups, body, table)
     sparse = ((1, 30, 100), (31, 34, 42))
     assert calendar_rules.few_month_dates(sparse, body[:100] + [day(2023, 3, 31)] * 42, table)
+    # Any other group of fewer than four dates withholds, even holding every one its calendar
+    # gives: the 5th of May, June and July 2023 (the repair round's May alone).
+    spring = calendar_rules.month_calendar(day(2023, 5, 1), day(2023, 7, 31))
+    fifths = [day(2023, 5, 5), day(2023, 6, 5), day(2023, 7, 5)] * 10
+    assert calendar_rules.few_month_dates(((1, 4, 0), (5, 5, 30), (6, 34, 0)), fifths, spring)
 
 
 def test_the_rule_departs_beyond_the_weekday() -> None:
@@ -916,3 +936,234 @@ def test_the_reach_rule_asks_both_censuses_for_the_count() -> None:
     assert calendar_rules.month_reach_short(groups, weekend_empty, pins, 3, 0, 0) is (
         calendar_rules.weekday_of(day(2024, 2, 10)) >= calendar_rules.SATURDAY
     )
+
+
+# -- the repair round of landing 3b.3 (skeptic 1's items) -----------------------------
+
+
+def _decided(block: dict, days: "list[int]", floor: int) -> taxonomy.DayOfMonthDecision:
+    """The producer's decision on one described block and its column's parsed days."""
+    return taxonomy.day_of_month_decision(
+        block, tuple(sorted(days)), taxonomy.Settings(small_cell_floor=floor), block["n_distinct"]
+    )
+
+
+def _mays(years: "range", rows: int, seed: int, weekend: "float | None" = None) -> "list[str]":
+    """Days of May alone, written `3 May 2023`, two rows in five moved to the 1st or the 15th;
+    with `weekend`, Saturdays and Sundays drawn at that weight. The month names publish every
+    other month's day as a hole."""
+    draw = random.Random(seed)
+    mays = [datetime.date(year, 5, date) for year in years for date in range(1, 32)]
+    weights = [(weekend if day.weekday() >= 5 else 1.0) for day in mays] if weekend is not None else []
+    cells: "list[str]" = []
+    for _row in range(rows):
+        day = draw.choices(mays, weights=weights, k=1)[0] if weekend is not None else draw.choice(mays)
+        if draw.random() < 0.4:
+            day = day.replace(day=draw.choice((1, 15)))
+        cells += [f"{day.day} May {day.year}"]
+    return cells
+
+
+def _may_day(cell: str) -> int:
+    day = datetime.datetime.strptime(cell, "%d %B %Y").date()
+    return parsing.days_from_civil(day.year, day.month, day.day)
+
+
+@pytest.fixture(scope="module")
+def quarter_ends(tmp_path_factory: pytest.TempPathFactory) -> "tuple[kpi_shapes.Described, list[str]]":
+    """The skeptic's quarter ends at 10,000 rows and a floor of 11, described, and what its twin at
+    seed 0 misses."""
+    folder = tmp_path_factory.mktemp("quarter-ends")
+    described = kpi_shapes.describe(folder, "quarters", _text(_skeptic(10000, quarter_ends=True)), 11)
+    text = kpi_shapes.twin_text(described, 0)
+    return described, kpi_shapes.missed(kpi_shapes.measure(described, text, "twin.csv"))
+
+
+def test_quarter_ends_at_ten_thousand_rows_keep_their_count(quarter_ends: "tuple[kpi_shapes.Described, list[str]]") -> None:
+    """Skeptic 1's major 1: at 10,000 rows, half the rows on eight quarter ends, the joint plan
+    met both censuses at seed 0 and gave the count of different days way, 717 to 726 of 730 at
+    three seeds of five, where the twin before this landing held it. G7.3i step 3 now takes the
+    weekday pass's column there: the count and the weekday census hold, and only the day of the
+    month, which the twin names given way, is missed. Red where step 3 is withdrawn."""
+    described, missed = quarter_ends
+    assert _census(described.block("quarter_end")) != ()
+    assert missed == ["quarter_end:day_of_month_census.groups"]
+
+
+@pytest.mark.xfail(strict=True, reason="P4-D368: lane D4 owns the joint fix")
+def test_quarter_ends_at_ten_thousand_rows_meet_every_check(quarter_ends: "tuple[kpi_shapes.Described, list[str]]") -> None:
+    """A STATED LIMIT, pinned for lane D4 (heavy dates, its joint fix): the quarter ends' twin at
+    seed 0 meets every check, its day-of-month census among them."""
+    _described, missed = quarter_ends
+    assert missed == []
+
+
+def test_the_core_holds_where_the_joint_plan_cannot(tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Found in the repair round: six Mays, weekends drawn at 0.4 and two rows in five on the 1st
+    or the 15th, publish the census beside seven weekday groups, and each bin's six dates leave
+    pass B too few to move between weekdays: every twin missed the weekday census, which the
+    weekday pass alone met at every seed. G7.3i step 3 takes the weekday pass's column, so the
+    weekday census and the count hold and the day of the month is named given way (the oracle,
+    measured once on this column, moves it alike; its walk of the written width takes minutes,
+    so `test_step_three_moves_a_column_as_the_oracle_does` asks it on billing). Red where step 3
+    is withdrawn."""
+    cells = _mays(range(2019, 2025), 1000, 1600, 0.4)
+    described = kpi_shapes.describe(tmp_path, "mays", _text({"visit": cells}), 11)
+    block = described.block("visit")
+    assert _census(block) != () and _weekdays(block) != ()
+    for seed in SEEDS:
+        twin = generation.generate(described.loaded, seed)
+        outcome = kpi_shapes.measure(described, rendering.twin_csv(twin), f"t{seed}.csv")
+        assert kpi_shapes.missed(outcome) == ["visit:day_of_month_census.groups"], seed
+        notes = [deviation.note for deviation in twin.deviations if deviation.fact == "day_of_month_census"]
+        assert notes == [generation._DAY_OF_MONTH_GIVEN_WAY], seed
+    mutant = _mutant(
+        monkeypatch,
+        "        if kept != joint and kept[0] <= joint[0] and kept[1] <= joint[1]:\n",
+        "        if False:\n",
+    )
+    text = rendering.twin_csv(mutant.generate(described.loaded, 0))
+    assert "visit:weekday_census.groups" in kpi_shapes.missed(kpi_shapes.measure(described, text, "mutant.csv"))
+
+
+def test_step_three_moves_a_column_as_the_oracle_does(tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """G7.3i step 3 in the oracle (A-P4-59): the gate's billing at 300 rows, with both joint plans
+    stood still so the drawn ranks miss the weekday census, is moved by the product and by the
+    oracle onto the weekday pass's days, the same days."""
+    import test_stage3b_gate as gate
+
+    cells = gate._BATTERY["heaps"](300)["billing_date"]
+    described = kpi_shapes.describe(tmp_path, "billing", _text({"billing_date": cells}), 11)
+    block = copy.deepcopy(described.block("billing_date"))
+    assert _census(block) != () and _weekdays(block) != ()
+    oracle = _oracle()
+    monkeypatch.setitem(oracle["day_settled"].__globals__, "day_passes", lambda ordinals, *rest: list(ordinals))  # type: ignore[attr-defined]
+    monkeypatch.setattr(generation, "_day_passes", lambda *args: (None, None))
+    seen: "list[tuple[tuple, list[int], list]]" = []
+    settled = generation._day_settled
+
+    def captured(column, facts, ordinals, parsed, whole, lows, highs, layout, holes, declared=()):  # type: ignore[no-untyped-def]
+        answer = settled(column, facts, list(ordinals), parsed, whole, lows, highs, layout, holes, declared)
+        seen[:] = [((list(ordinals), parsed, list(whole), list(lows), list(highs)), list(answer[0]), answer[1])]
+        return answer
+
+    monkeypatch.setattr(generation, "_day_settled", captured)
+    kpi_shapes.twin_text(described, 0)
+    (ordinals, parsed, whole, lows, highs), moved, notes = seen[0]
+    assert moved != ordinals
+    assert [note.note for note in notes if note.fact == "day_of_month_census"] == [generation._DAY_OF_MONTH_GIVEN_WAY]
+    holes = set(block.get("missing_by_source", {}))
+    assert oracle["day_settled"](block, ordinals, parsed, whole, lows, highs, holes) == moved  # type: ignore[operator]
+    assert oracle["weekday_settled"](block, ordinals, parsed, whole, lows, highs, holes) == moved  # type: ignore[operator]
+
+
+def test_a_group_of_three_dates_withholds_the_census(tmp_path: pathlib.Path) -> None:
+    """Three Mays heaped on the 1st and the 15th: every bin holds its three dates, every one its
+    calendar gives, but only a month's last day may stand on fewer than four, so no census is
+    published, NF104 says so and the twins miss nothing. With the calendar clause on every group
+    the census published and every twin missed the weekday census."""
+    cells = _mays(range(2022, 2025), 1000, 21)
+    described = kpi_shapes.describe(tmp_path, "mays", _text({"visit": cells}), 11)
+    block = described.block("visit")
+    assert _census(block) == () and _weekdays(block) != ()
+    assert _decided(block, [_may_day(cell) for cell in cells], 11).reason == calendar_rules.REASON_MONTH_FEW_DATES
+    assert taxonomy.rendered(taxonomy.NOTE_DAY_OF_MONTH_WITHHELD, ()) in json.dumps(described.document)
+    for seed in SEEDS:
+        assert kpi_shapes.missed(kpi_shapes.measure(described, kpi_shapes.twin_text(described, seed), f"t{seed}.csv")) == []
+
+
+def test_the_reach_rule_withholds_the_monthly_visit_at_ten_thousand_rows(tmp_path: pathlib.Path) -> None:
+    """Skeptic 1's item 2a, the rule as measured: at 10,000 rows and a floor of 36 the gate's
+    monthly visit departs, and the count-reach rule keeps its census back with NF104. Red where
+    the producer no longer asks the rule."""
+    import test_stage3b_gate as gate
+
+    cells = gate._BATTERY["schedules"](10000)["monthly_visit"]
+    described = kpi_shapes.describe(tmp_path, "visit", _text({"monthly_visit": cells}), 36)
+    block = described.block("monthly_visit")
+    assert _census(block) == ()
+    assert _decided(block, [_day(cell) for cell in cells if cell], 36).reason == calendar_rules.REASON_MONTH_REACH
+    assert taxonomy.rendered(taxonomy.NOTE_DAY_OF_MONTH_WITHHELD, ()) in json.dumps(described.document)
+
+
+def test_a_body_day_on_a_published_hole_withholds_the_census(battery: "dict[int, dict[str, _Run]]") -> None:
+    """Item 2b: billing's own block decides its published census; with one of its body days named
+    an absent spelling, that day is a published hole the body stands on, and the census is kept
+    back. Red where the producer no longer asks the hole rule."""
+    run = battery[11]["heaps"]
+    cells = [cell for cell in run.columns["billing_date"] if cell]
+    block = run.described.block("billing_date")
+    days = [_day(cell) for cell in cells]
+    assert _decided(block, days, 11).groups == _census(block) != ()
+    middle = sorted(cells)[len(cells) // 2]
+    decided = _decided(dict(block, missing_by_source={middle: 1}), days, 11)
+    assert decided.groups == () and decided.reason == calendar_rules.REASON_MONTH_HOLE
+
+
+def test_a_file_with_a_body_date_on_a_hole_misses_the_census(tmp_path: pathlib.Path) -> None:
+    """Item 2c, V5-W2's hole clause: ten Mays written `3 May 2020` publish every other month's day
+    as a hole. A file moving one body date from 3 May 2020 to 3 April 2020 keeps every
+    day-of-month count -- the same bin -- and the census is MISSED, its line saying why. Red where
+    the validator counts no hole."""
+    cells = _mays(range(2015, 2025), 1000, 1070)
+    described = kpi_shapes.describe(tmp_path, "mays", _text({"visit": cells}), 11)
+    assert _census(described.block("visit")) != ()
+    moved = list(cells)
+    moved[moved.index("3 May 2020")] = "3 April 2020"
+    outcome = kpi_shapes.measure(described, _text({"visit": moved}), "moved.csv")
+    [check] = [check for check in outcome.checks if check.subcheck == "day_of_month_census.groups"]
+    assert check.verdict == validation.MISSED and check.achieved == check.published, check
+    assert any("days its description holds no value on" in line for line in check.note), check.note
+
+
+def test_a_census_the_twin_misses_is_named_and_said(battery: "dict[int, dict[str, _Run]]", monkeypatch: pytest.MonkeyPatch) -> None:
+    """Item 2e: with the generator told no census holds, the twin names the day-of-month census
+    among its deviations, and the column's sentence on its spread says it is missed, never met.
+    Red where either is withdrawn."""
+    run = battery[11]["heaps"]
+    monkeypatch.setattr(generation, "_day_found", lambda *args: False)
+    twin = generation.generate(run.described.loaded, 0)
+    notes = [d.note for d in twin.deviations if d.column == "billing_date" and d.fact == "day_of_month_census"]
+    assert notes == [generation._DAY_OF_MONTH_MISSED]
+    said = [r.note for r in twin.remarks if r.column == "billing_date" and r.subject == generation._SPREAD_SUBJECT]
+    assert len(said) == 1 and generation._SPREAD_DAY_OF_MONTH_MISSED in said[0], said
+
+
+def test_each_published_census_says_how_it_counts(battery: "dict[int, dict[str, _Run]]", tmp_path: pathlib.Path) -> None:
+    """Item 2f: a published census says NF102 where every group holding rows is one bin and NF103
+    where some hold neighbouring bins together: every census of the battery holds some days
+    together, and ten Mays count each day. Red where the choice is withdrawn."""
+    said: "set[str]" = set()
+    mays = kpi_shapes.describe(tmp_path, "mays", _text({"visit": _mays(range(2015, 2025), 1000, 1070)}), 11)
+    for floor in FLOORS:
+        line = parsing.census_floor(floor)
+        each = taxonomy.rendered(taxonomy.REMARK_DAY_OF_MONTH_EACH, (line,))
+        together = taxonomy.rendered(taxonomy.REMARK_DAY_OF_MONTH_TOGETHER, (line,))
+        described = [run.described for run in battery[floor].values()] + ([mays] if floor == 11 else [])
+        for one in described:
+            for name in [block["name"] for block in one.document["columns"] if block["role"] == "datetime"]:
+                block = one.block(name)
+                census = _census(block)
+                if not census:
+                    assert each not in block["remarks"] and together not in block["remarks"], name
+                    continue
+                merged = any(count > 0 and first != last for first, last, count in census)
+                assert (together if merged else each) in block["remarks"], (name, floor)
+                assert (each if merged else together) not in block["remarks"], (name, floor)
+                said = said | {"NF103" if merged else "NF102"}
+    assert said == {"NF102", "NF103"}
+
+
+def test_the_publication_guard_refuses_a_bin_off_the_cycle_and_a_count_below_the_line(battery: "dict[int, dict[str, _Run]]") -> None:
+    """Item 2g: the producer's own guard passes billing's description and refuses it with a group
+    counting 5 at a floor of 11, or a group's bin at 35 or 0. Red where either kind accepts
+    anything."""
+    document = battery[11]["heaps"].described.document
+    profile.check_publication(copy.deepcopy(document))
+    for key, value in (("count", 5), ("last", 35), ("first", 0)):
+        changed = copy.deepcopy(document)
+        for block in changed["columns"]:
+            if block["name"] == "billing_date":
+                block["day_of_month_census"][0][key] = value
+        with pytest.raises(errors.ProfileError):
+            profile.check_publication(changed)

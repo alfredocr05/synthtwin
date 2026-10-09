@@ -23,11 +23,16 @@ never withdrawn. A short middle half (DM4), a hole under a body day, a
 group of too few dates, or too few days left for the count of different
 values keeps it back, said in one note (NF104); a published census says
 NF102 or NF103. The loader holds DM1 to DM5. The generator meets both
-censuses by the joint day plan (method G7.3i), the validator counts the
-file per bin (V5-W2), and the oracle and the eighteenth vectors file
-freeze the plan. On the lane's battery at 1,000 rows each heap comes
-back exactly, no twin misses a check, and every twin of a column
-publishing no census is the base's byte for byte; at 10,000 rows the heaps come back exactly and quarter ends come back a few days short of their count at three seeds of five, named, until lane D4's heavy dates. Stated limits: a
+censuses by the joint day plan (method G7.3i); where the plan would
+cost the weekday census or the count of different values, the column
+keeps the weekday pass's days and the twin names the day of the month
+given way. The validator counts the file per bin (V5-W2), and the
+oracle and the eighteenth vectors file freeze the plan. On the lane's
+battery at 1,000 rows each heap comes back exactly, no twin misses a
+check, and every twin of a column publishing no census is the base's
+byte for byte; at 10,000 rows the heaps come back exactly, and quarter
+ends keep their count at every seed but miss their day-of-month census
+at three of five, named, until lane D4's heavy dates. Stated limits: a
 heap beside a stronger weekday pattern (Monday billing, first Mondays)
 is not published; business-day heaps come back at about four fifths of
 their joint share; a clocked column publishes none.

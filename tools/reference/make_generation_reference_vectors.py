@@ -12089,6 +12089,23 @@ def day_passes(ordinals, lows, highs, pinned, first, last, wanted, reachable, ce
     return bins_settled(second, first, last, pinned, wanted, reachable)
 
 
+def day_kept_missed(days, weekdays, first, last, wanted, reachable):
+    """G7.3i step 3's two questions of a column's days: whether the body
+    ranks `first` to `last` miss the weekday census, and whether the count
+    of different days differs from `wanted` where it is `reachable`."""
+    week_missed = False
+    if weekdays:
+        group_of_weekday = [0] * 7
+        for index, group in enumerate(weekdays):
+            for weekday in range(group["first"], group["last"] + 1):
+                group_of_weekday[weekday] = index
+        found = [0] * len(weekdays)
+        for rank in range(first, last + 1):
+            found[group_of_weekday[(days[rank] + 3) % 7]] += 1
+        week_missed = found != [group["count"] for group in weekdays]
+    return week_missed, bool(reachable) and len(set(days)) != wanted
+
+
 def day_settled(column, ordinals, parsed, whole, lows, highs, holes):
     """G7.3i, the joint day plan, from the method's own text (plan P4-D368).
 
@@ -12096,7 +12113,10 @@ def day_settled(column, ordinals, parsed, whole, lows, highs, holes):
     by G7.3f alone (`weekday_settled`). Otherwise `day_passes` moves its
     body ranks the layout does not pin, its holes G7.3f's own, keeping the
     count of different days the ranks held before pass A where it is
-    reachable.
+    reachable. STEP 3: where those days miss the weekday census or the
+    reachable count, and G7.3f alone from the same ranks misses neither
+    where the passes met it and meets one they missed, the column takes
+    G7.3f's days.
     """
     census = column.get("day_of_month_census") or []
     if (
@@ -12120,12 +12140,19 @@ def day_settled(column, ordinals, parsed, whole, lows, highs, holes):
         width_of = lambda day: counts_into_width(column, day, word)  # noqa: E731
     fixed = ranks_the_tail_pins(column, parsed)
     pinned = [fixed[rank] or lows[rank] >= highs[rank] for rank in range(parsed)]
-    return day_passes(
-        ordinals, lows, highs, pinned, column["low_tail"]["rows"],
-        parsed - 1 - column["high_tail"]["rows"], len(set(ordinals)),
-        date_counts_reachable(column), census, weekdays,
+    first, last = column["low_tail"]["rows"], parsed - 1 - column["high_tail"]["rows"]
+    wanted, reachable = len(set(ordinals)), date_counts_reachable(column)
+    days = day_passes(
+        ordinals, lows, highs, pinned, first, last, wanted, reachable, census, weekdays,
         weekday_hole_days(column, holes), day_empty_weekdays(weekdays, low, high), width_of,
     )
+    joint = day_kept_missed(days, weekdays, first, last, wanted, reachable)
+    if joint[0] or joint[1]:
+        alone = weekday_settled(column, ordinals, parsed, whole, lows, highs, holes)
+        kept = day_kept_missed(alone, weekdays, first, last, wanted, reachable)
+        if kept != joint and kept[0] <= joint[0] and kept[1] <= joint[1]:
+            return alone
+    return days
 
 
 def bins_settled(walk, first, last, pinned, wanted, reachable):

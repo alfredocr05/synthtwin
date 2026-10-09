@@ -2086,8 +2086,10 @@ def rendered(form: str, arguments: "tuple[object, ...]") -> str:
             f"counted for each day, over the values between its two tail "
             f"boundaries, a month's last day apart from the 28th, 29th "
             f"and 30th of a longer month; every day that holds rows holds "
-            f"them on at least four different dates, and every count is "
-            f"nought or at least {_whole(arguments, 0)} rows"
+            f"them on at least four different dates, or is a month's last "
+            f"day holding rows on every one the calendar gives between the "
+            f"boundaries, and every count is nought or at least "
+            f"{_whole(arguments, 0)} rows"
         )
     if form == REMARK_DAY_OF_MONTH_TOGETHER:
         return (
@@ -2096,15 +2098,18 @@ def rendered(form: str, arguments: "tuple[object, ...]") -> str:
             f"some neighbouring days together, a month's last day apart "
             f"from the 28th, 29th and 30th of a longer month; every group "
             f"that holds rows holds them on at least four different "
-            f"dates, and every count is nought or at least "
-            f"{_whole(arguments, 0)} rows"
+            f"dates, or counts only a month's last day and holds rows on "
+            f"every one the calendar gives between the boundaries, and "
+            f"every count is nought or at least {_whole(arguments, 0)} rows"
         )
     if form == NOTE_DAY_OF_MONTH_WITHHELD:
         return (
             "the days of the month this column's values fall on are not "
             "counted, though they depart from the calendar: counting them "
-            "would cost the twin its count of different values, or the "
-            "column's middle half spans too few months for them"
+            "would cost the twin its count of different values or its "
+            "counts per weekday, the column's middle half spans too few "
+            "months for them, or some of its dates fall on days the "
+            "description holds empty"
         )
     # anchor 3b-D4 (P4-D369)
     # anchor 3b-T1 (P4-D370)
@@ -16932,7 +16937,8 @@ def day_of_month_decision(
     * Where it does, three rules may still keep the census back, all in
       one publication note: a body day on a published hole, the middle
       half spanning fewer than 124 days (DM4), and a group holding rows
-      on fewer than four different dates where its calendar offers more
+      on fewer than four different dates unless it counts only a month's
+      last day and holds rows on every one its calendar offers
       (`calendar_rules.few_month_dates`, the skeptic's blocker 1 (a)),
       and, at every floor, the two censuses leaving the body too few days
       for the count of different values once the twin's rebuilt tails

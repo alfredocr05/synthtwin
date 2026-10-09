@@ -21938,6 +21938,15 @@ _DAY_OF_MONTH_MISSED = (
     "the published ones."
 )
 
+# G7.3i step 3: the joint plan cost the twin a fact the weekday pass alone
+# keeps, so the column takes the weekday pass's days.
+_DAY_OF_MONTH_GIVEN_WAY = (
+    "The twin could not meet the published counts per day of the month "
+    "without losing its counts per weekday or its count of different "
+    "days, which the twin keeps, so its counts per day of the month "
+    "differ from the published ones."
+)
+
 
 def _day_pass_setup(
     column: contract.ColumnBlock,
@@ -22094,6 +22103,32 @@ def _day_found(
     return found == [count for _first, _last, count in census]
 
 
+def _day_kept_facts_missed(
+    moved: "list[int]",
+    weekdays: "tuple[tuple[int, int, int], ...]",
+    body: "tuple[int, int]",
+    wanted: int,
+    keep: bool,
+) -> "tuple[bool, bool]":
+    """Whether these days miss the weekday census, and the count of
+    different days where it is kept (method G7.3i step 3).
+
+    The weekday census is counted over the body ranks `body` (both
+    included) and the count over every rank, as `_day_settled` names
+    them. Guarantees: returns the two answers. Determinism: a function
+    of the arguments. Raises nothing. No I/O of any kind.
+    """
+    week_missed = False
+    if weekdays:
+        where = calendar_rules.where_of(weekdays)
+        found = [0 for _ in weekdays]
+        for rank in range(body[0], body[1] + 1):
+            group = where[calendar_rules.weekday_of(moved[rank])]
+            found[group] = found[group] + 1
+        week_missed = found != [count for _first, _last, count in weekdays]
+    return week_missed, keep and len(set(moved)) != wanted
+
+
 def _day_body_full(
     state: _WeekdayPass,
     first: int,
@@ -22187,6 +22222,29 @@ def _day_settled(
             _day_empty_weekdays(weekdays, first_day, last_day), keep,
         ),
     )
+    # STEP 3 (the core holds): where the joint plan leaves the weekday
+    # census or the kept count of different days off, and the weekday pass
+    # alone misses neither where the plan met it and meets one it missed,
+    # the column takes the weekday pass's days -- the twin's column before
+    # this landing, byte for byte -- and names the day of the month missed.
+    joint = _day_kept_facts_missed(moved, weekdays, (body_low, body_high), wanted, keep)
+    if joint[0] or joint[1]:
+        alone, said = _weekday_settled(
+            column, facts, ordinals, parsed, whole, gap_lows, gap_highs,
+            layout, holes, declared_days,
+        )
+        kept = _day_kept_facts_missed(alone, weekdays, (body_low, body_high), wanted, keep)
+        if kept != joint and kept[0] <= joint[0] and kept[1] <= joint[1]:
+            said += [
+                _deviation(
+                    column.name,
+                    calendar_rules.DAY_OF_MONTH_CENSUS,
+                    "the published groups",
+                    "other counts",
+                    _DAY_OF_MONTH_GIVEN_WAY,
+                )
+            ]
+            return alone, said
     notes: "list[Deviation]" = []
     month_met = _day_found(month_state, month, body_low, body_high)
     week_met = week_state is None or _day_found(week_state, weekdays, body_low, body_high)

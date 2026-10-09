@@ -4026,7 +4026,8 @@ day of the month asks for -- it departs as the rule of 6.6.2 says --
 but the producer keeps back carries one publication note, NF104, which
 names no rule: a body day on a published hole, a middle half spanning
 fewer than 124 days (DM4), a group holding rows on fewer than four
-different dates where its calendar offers more, the two censuses
+different dates unless it counts only a month's last day and holds rows
+on every one its calendar offers, the two censuses
 leaving the body too few days for the count of different values once
 the twin's rebuilt tails are set aside (plan P4-D388's count-reach rule,
 asked of both), or the loader's own check. A column whose day of the month does not depart says nothing.
@@ -4034,15 +4035,15 @@ NF102 and NF103 take one argument, the census line; NF104 none.
 
 **NF102. `day_of_month_census_counts_each_day` — the census of a column of dates counted for each day of the month** — arity 1. Argument 1: the census line.
 
-> which days of the month this column's values fall on is counted for each day, over the values between its two tail boundaries, a month's last day apart from the 28th, 29th and 30th of a longer month; every day that holds rows holds them on at least four different dates, and every count is nought or at least «1» rows
+> which days of the month this column's values fall on is counted for each day, over the values between its two tail boundaries, a month's last day apart from the 28th, 29th and 30th of a longer month; every day that holds rows holds them on at least four different dates, or is a month's last day holding rows on every one the calendar gives between the boundaries, and every count is nought or at least «1» rows
 
 **NF103. `day_of_month_census_counts_days_together` — some neighbouring days of the month counted together** — arity 1. Argument 1: the census line.
 
-> which days of the month this column's values fall on is counted over the values between its two tail boundaries, some neighbouring days together, a month's last day apart from the 28th, 29th and 30th of a longer month; every group that holds rows holds them on at least four different dates, and every count is nought or at least «1» rows
+> which days of the month this column's values fall on is counted over the values between its two tail boundaries, some neighbouring days together, a month's last day apart from the 28th, 29th and 30th of a longer month; every group that holds rows holds them on at least four different dates, or counts only a month's last day and holds rows on every one the calendar gives between the boundaries, and every count is nought or at least «1» rows
 
 **NF104. `day_of_month_census_withheld` — why a column of dates publishes no day-of-month census** — arity 0.
 
-> the days of the month this column's values fall on are not counted, though they depart from the calendar: counting them would cost the twin its count of different values, or the column's middle half spans too few months for them
+> the days of the month this column's values fall on are not counted, though they depart from the calendar: counting them would cost the twin its count of different values or its counts per weekday, the column's middle half spans too few months for them, or some of its dates fall on days the description holds empty
 
 <!-- anchor 3b-D4 (P4-D369) -->
 <!-- anchor 3b-T1 (P4-D370) -->

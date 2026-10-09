@@ -1822,6 +1822,30 @@ def battery() -> list[Mutation]:
             ),
         ),
         Mutation(
+            "DM5", "a day-of-month census on a column of moments with a clock",
+            edit(
+                "admitted_at",
+                day_of_month_census=[{"first": 1, "last": 34, "count": 218}],
+            ),
+        ),
+        Mutation(
+            "DM5", "a day-of-month census on a column with no tails",
+            edit(
+                "recorded_on",
+                low_tail=None,
+                high_tail=None,
+                date_percentiles={
+                    rung: None
+                    for rung in (
+                        "min", "p01", "p05", "p10", "p25", "p50",
+                        "p75", "p90", "p95", "p99", "max",
+                    )
+                },
+                weekday_census=[],
+                day_of_month_census=[{"first": 1, "last": 34, "count": 217}],
+            ),
+        ),
+        Mutation(
             "R15", "a day-of-month census that is no list",
             edit("recorded_on", day_of_month_census={"first": 1}),
             names="day_of_month_census",
