@@ -12,7 +12,18 @@ of its own so the high-water mark is this read's:
   and JUDGED only on the quiet reference machine (`kpi_rules`), because
   the allocator and the platform move it;
 * `reader_seconds`: the read's CPU seconds, recorded;
-* `rows`: the rows read.
+* `rows`: the rows read;
+* `survey_peak_cr_over_lf` and `survey_peak_mixed_over_lf`: the most
+  memory the survey (`dialect.settle`) holds above its text, traced by
+  `tracemalloc`, with the table's lines ended by carriage returns alone,
+  and by line feeds for a quarter of them and carriage returns alone
+  after, over the same with line feeds, on the same table at 10,000
+  rows. MACHINE-FREE, so judged everywhere (the Codex review of plan
+  P4-D387, item 2): 9fa2008 cut a file at its line feeds alone, so every
+  line of a run of carriage-return lines was cut into one list held
+  while the survey filled its table, 1.164 and 1.125 times the line
+  feeds' peak; each line ending now ends a block. `survey_bytes_a_row`
+  records the line feeds' peak beside them.
 
 200,000 ROWS, NOT THE DESIGN'S 500,000. One read of 500,000 rows holds
 about two gigabytes at its peak, more than one process is given beside
@@ -39,6 +50,8 @@ import random
 import sys
 import tempfile
 import time
+import tracemalloc
+import typing
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "src"))
@@ -46,10 +59,13 @@ sys.path.insert(0, str(ROOT / "tests"))
 
 import kpi_rules  # noqa: E402
 
-from synthtwin import reading  # noqa: E402
+from synthtwin import dialect, reading  # noqa: E402
 
 SEED = 20261002
 ROWS = 200_000
+# The rows whose survey is traced with each line ending: tracing every
+# allocation is slow, and the ratio of two peaks does not move with the rows.
+SURVEY_ROWS = 10_000
 
 _GROUPS = {
     "ids": ["unit_id", "visit_id", "record_no"],
@@ -151,20 +167,63 @@ def _row(draw: random.Random, row: int, rows: int, pools: "dict[str, list[str]]"
     return out
 
 
-def write_table(path: pathlib.Path, rows: int) -> None:
-    """The made-up table, ``rows`` rows, from one seeded stream; nothing comes from a real table."""
+def table_lines(rows: int) -> "typing.Iterator[str]":
+    """The made-up table's lines, the header first and ``rows`` rows, without their endings, from one seeded stream."""
     draw = random.Random(SEED)
     pools = _pools(draw)
     weights = {name: _weights(len(pool)) for name, pool in pools.items()}
+    yield ",".join(_NAMES)
+    for row in range(rows):
+        cells = _row(draw, row, rows, pools, weights)
+        yield ",".join(f'"{cell}"' if "," in cell else cell for cell in cells)
+
+
+def write_table(path: pathlib.Path, rows: int) -> None:
+    """The made-up table, ``rows`` rows, its lines ended by line feeds; nothing comes from a real table."""
     with path.open("w", encoding="utf-8", newline="") as out:
-        out.write(",".join(_NAMES) + "\n")
-        for row in range(rows):
-            cells = _row(draw, row, rows, pools, weights)
-            out.write(",".join(f'"{cell}"' if "," in cell else cell for cell in cells) + "\n")
+        for line in table_lines(rows):
+            out.write(line + "\n")
+
+
+def ended(lines: "list[str]", ending: str) -> str:
+    """The lines ended by line feeds ("lf"), by carriage returns alone ("cr"), or "mixed".
+
+    "mixed" ends the first quarter of the lines by line feeds, the rest by
+    carriage returns alone and the last line by the pair: a long run of
+    carriage-return lines after the last line feed.
+    """
+    if ending in ("lf", "cr"):
+        mark = "\n" if ending == "lf" else "\r"
+        return "".join(line + mark for line in lines)
+    quarter = len(lines) // 4
+    last = len(lines) - 1
+    return "".join(
+        line + ("\n" if place < quarter else "\r\n" if place == last else "\r") for place, line in enumerate(lines)
+    )
+
+
+def survey_peaks(rows: int) -> "dict[str, int]":
+    """The most memory the survey of the table holds above its text, traced, with each line ending, in bytes."""
+    lines = list(table_lines(rows))
+    peaks: "dict[str, int]" = {}
+    for ending in ("lf", "cr", "mixed"):
+        text = ended(lines, ending)
+        tracemalloc.start()
+        try:
+            before = tracemalloc.get_traced_memory()[0]
+            tracemalloc.reset_peak()
+            surveyed = dialect.settle(text, "utf-8", False, False, "mixed.csv")
+            peaks[ending] = tracemalloc.get_traced_memory()[1] - before
+        finally:
+            tracemalloc.stop()
+        if surveyed.n_rows != rows:
+            raise SystemExit(f"the survey read {surveyed.n_rows} rows of {rows} with {ending} endings")
+        del surveyed, text
+    return peaks
 
 
 def measure(rows: int) -> "dict[str, float | int]":
-    """Write the table, read it once, and say what the read held at its peak."""
+    """Write the table, read it once, and say what the read held at its peak; then trace the survey by line ending."""
     with tempfile.TemporaryDirectory() as folder:
         path = pathlib.Path(folder) / "mixed.csv"
         write_table(path, rows)
@@ -173,12 +232,18 @@ def measure(rows: int) -> "dict[str, float | int]":
         table = reading.read_table(str(path))
         seconds = time.process_time() - started
         peak = _resident_peak()
+        read = table.n_rows
+        del table
     found: "dict[str, float | int]" = {
         "reader_seconds": round(seconds, 1),
-        "rows": table.n_rows,
+        "rows": read,
     }
     if before >= 0 and peak >= 0:
-        found["reader_peak_kb_per_row"] = round((peak - before) / 1024 / table.n_rows, 2)
+        found["reader_peak_kb_per_row"] = round((peak - before) / 1024 / read, 2)
+    peaks = survey_peaks(SURVEY_ROWS)
+    found["survey_bytes_a_row"] = round(peaks["lf"] / SURVEY_ROWS, 1)
+    found["survey_peak_cr_over_lf"] = round(peaks["cr"] / peaks["lf"], 3)
+    found["survey_peak_mixed_over_lf"] = round(peaks["mixed"] / peaks["lf"], 3)
     return found
 
 
