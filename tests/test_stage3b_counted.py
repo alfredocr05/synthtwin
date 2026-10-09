@@ -970,14 +970,21 @@ def test_c2_money_amounts_and_lengths_of_time_are_not_asked(monkeypatch: pytest.
     monkeypatch.setattr(date_counts, "figures_kept", lambda members, present, mark=".": members)
     assert not asked("salary_cents_45k", 0) and not asked("dose_total_1dp", 0)
     monkeypatch.undo()
-    original = date_counts._text_holds
+    # THE TEXT HALF IS `_text_walk` since the Codex review of landing R4,
+    # which also says whether the cells are bare and whether one is a date
+    # in text; the mutant keeps those answers and changes the first.
+    original = date_counts._text_walk
 
-    def any_contacts(present: "list[str]", member: str, rule: str, needed: int, mark: str = ".") -> bool:
+    def any_contacts(
+        present: "list[str]", member: str, rule: str, needed: int, mark: str = "."
+    ) -> "tuple[bool, bool, bool]":
         if date_counts.TABLE[member].contacts:
-            return sum(date_counts.counted(member, text, mark) is not None for text in present) >= needed
+            walked = original(present, member, rule, needed, mark)
+            held = sum(date_counts.counted(member, text, mark) is not None for text in present) >= needed
+            return held, walked[1], walked[2]
         return original(present, member, rule, needed, mark)
 
-    monkeypatch.setattr(date_counts, "_text_holds", any_contacts)
+    monkeypatch.setattr(date_counts, "_text_walk", any_contacts)
     assert asked("room_charge_cents_62k", 0)
     monkeypatch.undo()
     monkeypatch.setattr(date_counts, "EPOCH_YEAR_DAYS", 0)

@@ -329,13 +329,27 @@ def written_count(text: str, mark: str = POINT) -> "Written | None":
 EXPONENT_FIGURES = 6
 
 
+def _without_leading_noughts(text: str) -> str:
+    """Figures with the noughts at their front taken off."""
+    if not isinstance(text, str):
+        raise TypeError("internal check: figures were not text")
+    return text.lstrip("0")
+
+
+def _noughts_alone(text: str) -> bool:
+    """Whether figures are all noughts, or none."""
+    if not isinstance(text, str):
+        raise TypeError("internal check: figures were not text")
+    return not text.strip("0")
+
+
 def _bounded_power(power: str) -> int:
     """An exponent's figures as a whole number, held at ten to `EXPONENT_FIGURES` where longer."""
     if not isinstance(power, str):
         raise TypeError("internal check: an exponent was not text")
     figures = power.lstrip("0")
     if len(figures) > EXPONENT_FIGURES:
-        return 10**EXPONENT_FIGURES
+        return int(10**EXPONENT_FIGURES)
     return int(figures) if figures else 0
 
 
@@ -431,13 +445,13 @@ def exact_value(written: Written) -> "tuple[int, int]":
     power of ten; neither number is longer than about two hundred bits.
     Raises nothing. No I/O.
     """
-    fraction = written.fraction.rstrip("0")
+    fraction = _trimmed_fraction(written.fraction)
     if not written.exponent_form and len(written.whole) + len(fraction) <= VALUE_FIGURES:
         # THE COMMON CELL, short and with no exponent: already in lowest
         # terms over ten once its trailing zeros are gone.
         numerator = int(written.whole + fraction)
         return (-numerator if written.negative else numerator), 10 ** len(fraction)
-    digits = (written.whole + fraction).lstrip("0")
+    digits = _without_leading_noughts(written.whole + fraction)
     if not digits:
         return 0, 1
     shift = len(fraction) - written.exponent
@@ -450,7 +464,7 @@ def exact_value(written: Written) -> "tuple[int, int]":
     if len(digits) > VALUE_FIGURES + 1:
         rest = digits[VALUE_FIGURES:]
         shift = shift - (len(rest) - 1)
-        digits = digits[:VALUE_FIGURES] + ("1" if rest.strip("0") else "0")
+        digits = digits[:VALUE_FIGURES] + ("0" if _noughts_alone(rest) else "1")
     while shift > 0 and digits[len(digits) - 1 :] == "0":
         # IN LOWEST TERMS OVER TEN: `31553280000e-2` is the whole 315532800.
         digits = digits[: len(digits) - 1]
@@ -485,16 +499,16 @@ def significant_figures(written: Written) -> int:
     item 3). One rule for the profiler's tally, the writer and the
     checker (`form_holds`).
     """
-    figures = (written.whole + written.fraction).lstrip("0")
+    figures = _without_leading_noughts(written.whole + written.fraction)
     if not written.fraction:
-        figures = figures.rstrip("0")
+        figures = _trimmed_fraction(figures)
     return max(1, len(figures))
 
 
 def integer_figures(written: Written) -> int:
     """How many figures the whole part of a cell's number has: `45386.5` five, `1.6e+12` and `16e+11` thirteen."""
     if written.exponent_form:
-        digits = (written.whole + written.fraction).lstrip("0")
+        digits = _without_leading_noughts(written.whole + written.fraction)
         if not digits:
             return 1
         return max(1, len(digits) - len(written.fraction) + written.exponent)
@@ -1270,7 +1284,11 @@ def writer_keeps(member: str, top: int) -> int:
     outside `MEMBERS`. No I/O of any kind.
     """
     found = TABLE[member]
-    bits = max(1, top).bit_length()
+    bits = 0
+    rest = max(1, top)
+    while rest:
+        rest = rest // 2
+        bits = bits + 1
     for unit in SETTLED_UNITS:
         if unit * 2**52 > found.unit * 2**bits:
             return unit
@@ -2449,38 +2467,26 @@ def asked_of(
     # counts at midnight crossing from nine figures to ten, its text then failed
     # on the two widths, and the midnight rule, which those values meet,
     # was never asked.
-    plain_text: "bool | None" = None
-    bare = True
     for rule in RULES:
         held = _numbers_hold(ordered, open_to, rule, total)
         kept: "list[str]" = []
+        # THE TEXT HALF'S OWN WALK ALSO SAYS whether every cell is whole
+        # figures written bare and whether any cell is a date written as
+        # text (`_text_walk`), so the two checks the Codex review of landing
+        # R4 added (items 1 and 3) cost no walk of their own.
+        bare = True
+        dated = False
         for member in held:
-            if _text_holds(present, member, rule, needed, mark):
+            holds, member_bare, member_dated = _text_walk(present, member, rule, needed, mark)
+            if holds:
                 kept += [member]
+                bare = bare and member_bare
+                dated = dated or member_dated
         if not kept:
             continue
-        if plain_text is None:
-            plain_text = True
-            # FIGURES ALONE, ASKED OF THE CELLS AT ONCE: a column of whole
-            # counts written bare -- most columns Q3 asks -- is neither walked
-            # for dates in text nor for its form, so the two checks the Codex
-            # review of landing R4 added (items 1 and 3) cost such a column
-            # one join of its text.
-            joined = "".join(present)
-            if joined.isascii() and joined.isdigit():
-                present_walked: "list[str]" = []
-            else:
-                present_walked = present
-            for text in present_walked:
-                if _figures(text[1:] if text[:1] == "-" else text):
-                    continue
-                bare = False
-                # COUNTS BESIDE DATES WRITTEN AS TEXT are not read as counted
-                # dates (`written_as_a_date`), so no answer would be taken.
-                if written_count(text, mark) is None and written_as_a_date(text):
-                    plain_text = False
-                    break
-        if not plain_text:
+        if dated:
+            # COUNTS BESIDE DATES WRITTEN AS TEXT are not read as counted
+            # dates (`written_as_a_date`), so no answer would be taken.
             return None
         offered = _offered(ordered, kept, total, present, needed, mark)
         if not bare:
@@ -2549,7 +2555,20 @@ def _aside_inside(
 def _text_holds(
     present: "list[str]", member: str, rule: str, needed: int, mark: str = POINT
 ) -> bool:
+    """The written half of a rule: the grammar, the width, and midnight (`_text_walk`'s first answer)."""
+    return _text_walk(present, member, rule, needed, mark)[0]
+
+
+def _text_walk(
+    present: "list[str]", member: str, rule: str, needed: int, mark: str = POINT
+) -> "tuple[bool, bool, bool]":
     """The written half of a rule: the grammar, the width, and midnight.
+
+    Returns whether it holds, and -- over the cells walked, which are all
+    of them wherever it holds -- whether every cell is whole figures
+    written bare, with no mark and no exponent, and whether some cell
+    that is no count is a date written as ISO text (`written_as_a_date`;
+    the Codex review of landing R4, items 1 and 3).
 
     At least ``needed`` present cells are counts of the member
     (`counted`; text cells stand to the date role's line). For rule A, the
@@ -2597,10 +2616,17 @@ def _text_holds(
     aside: "dict[int, int]" = {}
     for number in set_aside(member):
         aside[number] = 1
+    bare = True
+    dated = False
     for text in present:
         written = counted(member, text, mark)
         if written is None:
+            bare = False
+            if not dated and written_as_a_date(text):
+                dated = True
             continue
+        if written.fraction or written.exponent_form:
+            bare = False
         tally = tally + 1
         numerator, denominator = exact_value(written)
         if found.contacts:
@@ -2615,7 +2641,7 @@ def _text_holds(
             # written `315532800.0` is the midnight `315532800` is (the Codex
             # review of landing R4, item 5).
             if numerator % (denominator * per_day):
-                return False
+                return False, bare, dated
             value = numerator // denominator
             if len(different) < REST_LEAST:
                 different[value] = 1
@@ -2623,6 +2649,13 @@ def _text_holds(
                 off_the_step = True
             continue
         if rule == RULE_FIXED_WIDTH:
+            # FIGURES ALONE, OR THE WALK ENDS: a cell that is not is no
+            # column of one width (`fixed_width`), so a column of cents the
+            # band rule refused costs rule C one cell rather than a walk (the
+            # Codex review of landing R4, item 6, tries rule C after the
+            # band's text fails).
+            if not _figures(text):
+                return False, bare, dated
             standing += [text]
             continue
         if numerator % denominator:
@@ -2636,15 +2669,15 @@ def _text_holds(
             width = len(f"{whole}")
             widths[width] = (widths[width] if width in widths else 0) + 1
     if tally < needed:
-        return False
+        return False, bare, dated
     if rule == RULE_MIDNIGHT:
-        return len(different) >= REST_LEAST and off_the_step
+        return len(different) >= REST_LEAST and off_the_step, bare, dated
     if rule == RULE_FIXED_WIDTH:
-        return fixed_width(standing) >= FIXED_WIDTH_LEAST
+        return fixed_width(standing) >= FIXED_WIDTH_LEAST, bare, dated
     if len(widths) > 1:
-        return False
+        return False, bare, dated
     if rule == RULE_BAND and found.contacts and 2 * with_contact > rest:
-        return False
+        return False, bare, dated
     if (
         rule == RULE_BAND
         and not found.contacts
@@ -2653,8 +2686,8 @@ def _text_holds(
         and most_places < DAY_TIME_PLACES
         and most_significant < DAY_TIME_SIGNIFICANT
     ):
-        return False
-    return True
+        return False, bare, dated
+    return True, bare, dated
 
 
 def _contacts_fit(present: "list[str]", member: str, needed: int, mark: str) -> bool:
