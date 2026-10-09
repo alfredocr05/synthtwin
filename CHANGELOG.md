@@ -83,15 +83,31 @@ Its repair round (2026-10-09): where the route had written blanks, those
 label twins also wrote clock times no clock reads, such as `44:89` and
 `9:75`, on which code parsing the real column's times stops: 63 cells in
 4 of the 112 columns, and 200,134 in 47 tables of a skeptic's battery. A
-held-back label written in a clock's form is now a time: the walk of a
-clock's form ends with its times and the neutral spelling stands past
-them, a clock's form takes no more labels than it has times left, a form
-short of spellings is settled first, and past the clock line only a label
-a census form is owed is filled figure by figure (method G8.3). The clock
+held-back label written in a clock's form is now a time, but where the
+form is past its times (below): the walk of a clock's form ends with its
+times and the neutral spelling stands past them, a clock's form takes no
+more labels than it has times left, a form short of spellings is settled
+first, and past the clock line only a label a census form is owed is
+filled figure by figure (method G8.3). The clock
 line's own price stays, 63 cells on the 112 and 1,096 on those 47 tables,
-beside a minority of at most one cell in fifty that wears no form. No
-twin misses a check it met. Their held-back times are still spread round
-the whole day, where the table's lie inside its hours.
+beside a minority of at most one cell in fifty that wears no form. On
+those batteries no twin misses a check it met; on 18 of a second
+skeptic's 50 duration tables the round's twins did (below). Their
+held-back times are still spread round the whole day, where the table's
+lie inside its hours: an hour-of-day distance of 0.44 on average at 300
+rows (0.37 to 0.53), 0.11 at 1,000 and a floor of eleven (0.07 to 0.15)
+and 0.05 to 0.12 from 3,000 (0.04 to 0.17).
+
+Its leftover (2026-10-09): a duration written in a clock's form, minutes
+and seconds over the hour or an emergency stay past a day, holds that
+form's spellings no clock reads, such as `26:07`, as its own values.
+Where its held-back labels outnumbered the times its form could still
+write, the round wrote the rest `group-N`: 18 of the 50 duration tables
+missed the count of `%%:%%` they met before, and code reading each cell
+as a duration stopped on the twin. Such a form is now past its times: its
+largest held-back labels take times and the rest a duration's spellings,
+hours 24 to 59 first. The 18 meet every check again, `group-N` is back to
+the notes' count, and no twin of the other batteries moves (method G8.3).
 
 ### The packing walk is offered only what the cells after it can finish (2026-10-06)
 
