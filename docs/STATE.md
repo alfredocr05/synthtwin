@@ -251,6 +251,15 @@ cannot get worse unseen.
   nothing, so a count G12.5 holds exactly is MISSED, 6 of 1,200 twins of
   a floor-50 family holding 1.5 to 2.4 times it -- each held by
   `tests/test_stage3b_gate.py` (P4-D358).
+- **ISO moments at midnight can come back a day or two short, and
+  validate cannot report it** (plan P4-D367, the orchestrator's ruling
+  of 2026-10-09). Where a weekday census publishes on near-one logs
+  written `YYYY-MM-DD 00:00:00`, 81 of 2,360 twins with one mark and 21
+  of 549 written with both hold one or two days fewer while G7.9 makes
+  up the count of texts with a mark, so no check is MISSED. The risk
+  stands; the fix is owed to lane D4's split order (tails split first,
+  76 of the 81 and 19 of the 21 come back whole), and these columns join
+  D4's acceptance battery.
 - **With every pair published, a raised floor still costs some twins
   their mean and spread.** Since plan P4-D375 every tail pair binary64
   holds is published, so no twin of `K-S3-20`'s 37 shapes at floors 11

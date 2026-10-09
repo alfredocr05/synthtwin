@@ -79,6 +79,21 @@ to 0.31 at the base and 0 to 0.02 here, the real 0; its days 211 to 236
 of 260 at the base, 179 to 202 here). Nodes pin midnight moments
 deciding as the same days written as dates, and the unit-room rule's
 count of a tail at the floor's number.
+Its Codex review (one round, every item fixed): a sixtieth second is
+counted on the day it is written on, never its instant's -- fifty
+`2016-12-31 23:59:60` beside noon stamps published Saturday 80 and
+Sunday 130 where the source wrote 130 and 80, and twins wrote 81 and 129
+with validate saying HELD; producer, validator and the weekday pass now
+read the written day, and the twins hold 130 and 80. Whole dates folded
+into midnight moments are recounted (ten bare `2024-03-05` published
+Tuesday 90, and the unchanged source was told 80, MISSED); dates left
+unparsed stay out. WC10 compares whole local instants in the producer
+and the loader: 27 days and 70 seconds no longer pass as 28 days, which
+withholds 3 censuses at 11 and 4 at 36 of the lane's battery, their
+twins met before; every other twin of its 6,224 a floor is unchanged.
+The near-one risk on ISO midnight moments stands, ruled by the
+orchestrator on 2026-10-09: validate cannot report it, and lane D4's
+split order owes the fix.
 KPIs `K-S3-36` (new) and `K-S3-37` (new, an accepted limit, status only).
 
 ### The second key cut repaired at its review (2026-10-05)
