@@ -1524,8 +1524,10 @@ def figures_kept(
     pending: "list[tuple[str, int]]" = []
     for member in walked:
         every = every_count(tallies[member])
-        if every.places == 0:
-            # No count at all, or every count whole: every figure is held.
+        if every.places == 0 and not every.exponent:
+            # No count at all, or every count whole and written bare: every
+            # figure is held, and the form of none but whole figures holds
+            # every cell.
             held[member] = 1
             continue
         tally, usual = usual_tally(tallies[member])
@@ -1543,8 +1545,14 @@ def figures_kept(
             pending += [key]
     while pending:
         standing: "dict[tuple[str, int], int]" = {}
+        # THE CHECKER'S RULE TOO (`in_its_form`): the counts each reading
+        # reads as dates, and those written finer than its form.
+        dated: "dict[tuple[str, int], int]" = {}
+        finer: "dict[tuple[str, int], int]" = {}
         for key in pending:
             standing[key] = 1
+            dated[key] = 0
+            finer[key] = 0
         for text in present:
             if not standing:
                 break
@@ -1560,7 +1568,9 @@ def figures_kept(
                     continue
                 settled = units[key][tried[key]]
                 moment = _settled_moment(member, numerator, denominator, settled)
-                if moment is not None and not held_by_its_moment(
+                if moment is None:
+                    continue
+                if not held_by_its_moment(
                     member,
                     held_to(plains[key], usuals[key], denominator),
                     numerator,
@@ -1569,8 +1579,16 @@ def figures_kept(
                     settled,
                 ):
                     del standing[key]
+                    continue
+                dated[key] = dated[key] + 1
+                if form_holds(member, plains[key], written):
+                    continue
+                if not written_finer(plains[key], written):
+                    del standing[key]
+                    continue
+                finer[key] = finer[key] + 1
         for key in pending:
-            if key in standing:
+            if key in standing and strays_stand(finer[key], dated[key]):
                 held[key[0]] = 1
         still: "list[tuple[str, int]]" = []
         for key in pending:
@@ -1648,6 +1666,39 @@ def written_finer(form: CountForm, written: Written) -> bool:
         figures = form.significant if form.significant is not None else 15
         return significant_figures(written) > figures
     return figures_after_the_mark(written) > form.places
+
+
+def in_its_form(member: str, form: CountForm, cells: "list[str]") -> bool:
+    """Whether every cell written as a count is one the form can write, the strays few enough (V5-CF).
+
+    THE CHECKER'S OWN RULE, asked by the profiler before it publishes a
+    form (the Codex review of landing R4, item 3): each count of the
+    member (`counted`, in the form's mark) is held by `form_holds`, or is
+    written with more figures than the form (`written_finer`) and stands
+    as a stray while they number no more than `strays_stand` lets; any
+    other is a spelling the form cannot write. A column writing whole
+    counts both bare and with `.0`, or Python's `%e` with its zeros, has
+    no form its own checker holds every cell of, and is not read as
+    counted dates -- where the first build published a form its source
+    then missed. ``cells`` are the cells the description reads as dates;
+    a cell that is no count of the member is not asked.
+
+    Guarantees: a function of the three. Raises KeyError for a word
+    outside `MEMBERS`. No I/O of any kind.
+    """
+    counts = 0
+    strays = 0
+    for text in cells:
+        written = counted(member, text, form.mark)
+        if written is None:
+            continue
+        counts = counts + 1
+        if form_holds(member, form, written):
+            continue
+        if not written_finer(form, written):
+            return False
+        strays = strays + 1
+    return strays_stand(strays, counts)
 
 
 def strays_stand(strays: int, counts: int) -> bool:
@@ -2409,10 +2460,11 @@ def asked_of(
     if not kept:
         return None
     offered = _offered(ordered, kept, total, present, needed, mark)
-    if not whole:
-        # A SYSTEM WHOSE ANSWER WOULD BE REFUSED IS NOT OFFERED (the review of
-        # landing R4, item 2): its declaration keeps no unit of the figures.
-        offered = figures_kept(offered, present, mark)
+    # A SYSTEM WHOSE ANSWER WOULD BE REFUSED IS NOT OFFERED (the review of
+    # landing R4, item 2): its declaration keeps no unit of the figures, or
+    # -- whole or not -- no form its checker holds every count of (the Codex
+    # review of landing R4, item 3).
+    offered = figures_kept(offered, present, mark)
     if not offered:
         return None
     return Asked(rule, offered, _set_aside_words(ordered, kept, floor))

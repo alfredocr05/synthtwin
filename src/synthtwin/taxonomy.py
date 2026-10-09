@@ -17016,12 +17016,14 @@ def _counts_read_as_dates(
     reading = date_counts.settled_reading(
         member, date_counts.form_from(tally, mark, None), tally, counts, published
     )
+    reading = _reading_in_its_form(classified, parsed, member, tally, mark, reading)
     usual_tallied, usual = date_counts.usual_tally(tallies)
     if reading is None and usual >= 0:
         tally = usual_tallied
         reading = date_counts.settled_reading(
             member, date_counts.form_from(tally, mark, None), tally, counts, published, usual
         )
+        reading = _reading_in_its_form(classified, parsed, member, tally, mark, reading)
     if reading is None:
         return classified, [], None
     settled, unit, read_moments = reading
@@ -17081,6 +17083,44 @@ def _counts_read_as_dates(
             raw = None
     form = date_counts.form_from(tally, mark, raw)
     return read, missing, CountedReading(member, form, settled, unit, by_text)
+
+
+def _reading_in_its_form(
+    classified: "list[_Cell]",
+    parsed: "list[tuple[int, int, int, str]]",
+    member: str,
+    tally: "date_counts.Tally",
+    mark: str,
+    reading: "tuple[int, int, list[int | None]] | None",
+) -> "tuple[int, int, list[int | None]] | None":
+    """A settled reading, kept only where its form holds every count it reads as a date (landing R4).
+
+    THE PRODUCER PUBLISHES NO FORM ITS OWN CHECKER WOULD MISS (the Codex
+    review of landing R4, item 3): the cells the reading reads as dates
+    -- every count but those set aside and those naming no date -- are
+    asked `date_counts.in_its_form` of the form the tally gives, the
+    checker's own rule (V5-CF). Unix seconds written bare and with `.0`
+    by turns, or Python's `%e` with its zeros, published a trimmed or an
+    exponent form the source then missed.
+
+    Guarantees: a function of the arguments; returns ``reading`` or
+    None. Raises nothing. No I/O of any kind.
+    """
+    if reading is None:
+        return None
+    moments = reading[2]
+    dated: "list[str]" = []
+    place = 0
+    for index in range(len(classified)):
+        if parsed[index][0] != _COUNT_READ:
+            continue
+        if moments[place] is not None:
+            dated += [classified[index].text]
+        place = place + 1
+    form = date_counts.form_from(tally, mark, None)
+    if not date_counts.in_its_form(member, form, dated):
+        return None
+    return reading
 
 
 def _contacts_floored(

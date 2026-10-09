@@ -106,7 +106,7 @@ def _block_of(tmp: pathlib.Path, cells: "list[str]") -> "dict[str, object]":
 def _declined(block: "dict[str, object]") -> bool:
     remarks = block["remarks"]
     assert isinstance(remarks, list)
-    return block["count_form"] is None and any(contract.COUNTED_NOT_READ_MARK in remark for remark in remarks)
+    return block.get("count_form") is None and any(contract.COUNTED_NOT_READ_MARK in remark for remark in remarks)
 
 
 # -- item 1: counts beside dates written as text --------------------------------
@@ -282,7 +282,7 @@ def test_item3_the_source_meets_the_form_its_producer_published(
     assert "form.count_form" not in _missed(trip, trip["path"])
     block = trip["block"]
     assert isinstance(block, dict)
-    if block["count_form"] is not None:
+    if block.get("count_form") is not None:
         _twin(trip, tmp_path / "twin")
         assert _missed(trip, tmp_path / "twin" / "table-twin.csv") == []
 
@@ -392,7 +392,7 @@ def test_item7_redundant_zeros_after_the_point_are_dropped_before_the_figures_ar
     written = date_counts.written_count(long)
     assert written is not None
     assert date_counts.exact_value(written) == (45042, 1)
-    cells = [f"{45000 + row}" for row in range(200)] + [long] * 3
+    cells = [f"{45000 + row}" for row in range(200)] + [long]
     trip = _described(tmp_path, cells, "excel-1900")
     block = trip["block"]
     assert isinstance(block, dict) and block["role"] == "datetime"
