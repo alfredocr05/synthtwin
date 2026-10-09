@@ -16,7 +16,13 @@ off by subtraction: its level pass, with its pool, class and form
 readings and `parsing.pool_names_a_level`, is deleted, and the loader's
 B4b and B4c are retired (contract 6.3). A held-back level is pooled
 whatever its size. Every description written before still loads, and its
-twin is written and validated as before; but its source table, validated
+twin is written and validated as before, except where a walk the bounds
+lifted below reach now writes a held-back code in its form, or a number
+as a number, that the old bounds wrote `group-N` or as a word: 100 codes
+on twelve rows each beside 5,000 written once, all `@%%%.%%`, are
+described alike before and now, and that description's twin at seed 7
+held 904 `group-N` cells and missed the form's count, and holds none.
+But its source table, validated
 against it, misses the counts of each column the retired pass reached,
 because the table is described again without the pass: describe the
 table again.
@@ -30,7 +36,30 @@ now fail on the twin, where the code is written, instead of on the real
 file, and `dropna` keeps every row where it kept 68 to 78 per cent. `K-S3-12` falls from 65 to 61, P4-D334's restating
 sentences rise from 20 to 22, `K-2B-28` reads the pooled label's one
 row off the pool, `K-2B-20` is retired, and `K-2B-26`, `K-2B-52` and
-`K-S4-03` lose what measured the pass.
+`K-S4-03` lose what measured the pass. Counted block by block against
+493f6f8 rather than over a table, at a floor of eleven or more, a column
+not declared an identifier may now print a count of one to ten that
+493f6f8 did not in the pool's own keys, its counts of different values
+(of the column, or of the label half of numbers beside labels) and its
+four class totals with their two remarks, each counting cells the pass
+had blanked, in its missing counts, which now count its own absent cells
+alone, and in `n_present`, which now counts the present cells the pass
+had blanked, so a column of ten or fewer present cells prints its own
+count; in no other key, and a declared identifier prints none. A
+column's role may move up the order empty, constant, binary, categories,
+long tail, and never down it, or across numbers beside labels where the
+pass had blanked a note written once: numbers beside labels may now read
+as a long tail, as 493f6f8 read that table at a floor of one, and a
+column read as continuous, as a count or as dates may now read as
+numbers beside labels, whose twin of dates written as eight figures then
+misses `ladder.p25` at a floor of eleven, as 493f6f8's twin of that
+table did at a floor of one. So twelve words beside `77`, `1e999` and
+`(+5)` print `n_numeric`, `n_out_of_range` and `n_contradictory` 1 where
+nought was printed, and the twin writes those three cells; the
+orchestrator's ruling keeps both, since withheld they would let code run
+on the twin and crash on the real file
+(`tests/test_p4d390_counts_per_block.py` compares every block and role
+of 86 tables with 493f6f8's).
 
 **A held-back code keeps its form, and a held-back number stays a
 number, past the old bounds** (methods G8.3 and G8.3a). The form walk
@@ -39,7 +68,11 @@ more codes of one form wrote the rest `group-N` and its twin missed that
 form's census count, which the guard had hidden inside its own window.
 A walk now goes on while it has refused fewer spellings than it has
 taken plus 4,096, never past the form's room, and the oracle mirrors it;
-no frozen vector or fixture moves. The same register now has every twin
+no frozen vector or fixture moves. The class walk of G8.3a carries what
+it has taken on both of its branches, and a whole generation pins it:
+5,000 accounting brackets around a minus beside sixty labels are all
+written in their form, where a caller dropping the count wrote 904 at
+shorter widths. The same register now has every twin
 cell in the code's form where 89,908 of 100,000 were, and validates at
 exit 0 where it missed; 300,000 codes held back over 600,000 rows have
 every cell in the form where 112,288 were, generated in 57 s and 197 MB
