@@ -17864,12 +17864,26 @@ def _written_clock_style(column: ColumnBlock) -> "str | None":
     """The written clock one column publishes, or None where it names none.
 
     A column of clock times names it in `clock_form`; a slashed stamp in
-    its one `datetime_separators` word, unless that census was pooled.
+    its one `datetime_separators` word, unless that census was pooled; a
+    layout in its own fields (landing R2b), unless its clock is compact.
     Determinism: a function of the block. Raises nothing. No I/O.
     """
     facts = column.facts
     if isinstance(facts, (ClockFacts,)):
         return parsing.clock_style_of(facts.clock_form)
+    # -- 3b.R2b (P4-D383): A LAYOUT NAMES ITS CLOCK IN ITS FORMAT -- where
+    # that clock could stand on the declared 12-hour dial, or does: a
+    # compact `{HH}{MI}` is read on the 24-hour clock whatever is declared,
+    # as T1 reads an ISO stamp, and the command says so.
+    if isinstance(facts, (DatetimeFacts,)) and parsing.is_layout_name(facts.parser_family):
+        style = parsing.layout_clock_style(facts.parser_family)
+        if style is None:
+            return None
+        if parsing.clock_face(style) == "" and not parsing.layout_asks_twelve_hours(
+            facts.parser_family
+        ):
+            return None
+        return style
     if isinstance(facts, (DatetimeFacts,)) and facts.parser_family in CLOCK_FORM_MEMBERS:
         for word in sorted(facts.datetime_separators):
             if word == WITHHELD:

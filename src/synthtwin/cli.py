@@ -2128,6 +2128,10 @@ def _clocks_on_the_declared_face(cells: "list[str]") -> bool:
 def _read_on_twelve_hours(column: "dict[str, object]") -> bool:
     """Whether a described column was read on the declared 12-hour face."""
     style = ""
+    # -- 3b.R2b (P4-D383): a layout says its own clock in its format.
+    if "format" in column and parsing.is_layout_name(f"{column['format']}"):
+        found = parsing.layout_clock_style(f"{column['format']}")
+        return found is not None and parsing.clock_face(found) == parsing.CLOCK_TWELVE_HOUR
     if column["role"] == "time_of_day":
         form = f"{column['clock_form']}"
         if form in parsing.CLOCK_FORMS:

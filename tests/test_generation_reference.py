@@ -825,15 +825,18 @@ TWENTY_FIFTH_BRANCH_CASES = (
     "layout_flexible_widths",
     "layout_hl7_fraction_offset",
     "layout_hour_offset",
+    "layout_narrow_space_marker",
     "layout_offsets_owed",
     "layout_offsets_owed_across_offsets",
     "layout_offsets_owed_beside_named",
     "layout_offsets_owed_repeats",
     "layout_offsets_owed_whole_texts",
     "layout_optional_offset",
+    "layout_oracle_timestamp",
     "layout_sas_date9",
     "layout_space_padded_day",
     "layout_spaced_offset",
+    "layout_style_100",
     "layout_utc_word",
     "layout_weekday_long_date",
 )
@@ -888,6 +891,11 @@ SEEDS = {
     # ...and the verification of that repair, step 5's aim and look ahead
     # (open item 1), at the next seed no lane of the wave has taken.
     "layout_offsets_owed_across_offsets": 438,
+    # Landing R2b's clock half of the layout member, at seeds no lane of
+    # its wave has taken (plan P4-D383).
+    "layout_style_100": 461,
+    "layout_oracle_timestamp": 462,
+    "layout_narrow_space_marker": 463,
     # Landing T1's written clocks take the next seeds after the highest in
     # use below 34041 (plan P4-D370).
     "stamp_unpadded_hour": 416,
@@ -3604,6 +3612,27 @@ CASE_MUTANTS = {
         "landing R2a, item 4); the mutant withdraws the step",
         attribute="whole_texts_paid",
         replacement=lambda paid, cells, joint, offer, made_at, rest, line, absent, a_number: paid,
+        outcome=CHANGES_THE_CELLS,
+    ),
+    "layout_style_100": Mutant(
+        branch="G7.5's hour on the 12-hour dial padded with a space below ten "
+        "(landing R2b); the mutant pads it with a nought",
+        attribute="layout_written",
+        replacement=_layout_rewritten("{_h}", "{hh}"),
+        outcome=CHANGES_THE_CELLS,
+    ),
+    "layout_oracle_timestamp": Mutant(
+        branch="G7.5's hour on the 12-hour dial beside its marker (landing "
+        "R2b); the mutant writes the 24-hour clock's hour",
+        attribute="layout_written",
+        replacement=_layout_rewritten("{hh}", "{HH}"),
+        outcome=CHANGES_THE_CELLS,
+    ),
+    "layout_narrow_space_marker": Mutant(
+        branch="G7.5's narrow no-break space before the marker (landing R2b); "
+        "the mutant writes an ordinary space",
+        attribute="layout_written",
+        replacement=_layout_rewritten("\u202f", " "),
         outcome=CHANGES_THE_CELLS,
     ),
     "layout_space_padded_day": Mutant(

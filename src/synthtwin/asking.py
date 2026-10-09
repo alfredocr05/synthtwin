@@ -934,6 +934,33 @@ def _clock_hours(
     return seen and unmarked, seen and unmarked and within, one_figure
 
 
+def _layout_clock_hours(present: "list[str]", format_name: str) -> bool:
+    """Whether every cell a layout column reads has its hour from 1 to 12 (landing R2b).
+
+    Asked only of a layout whose clock could be a 12-hour clock written
+    with no marker (`parsing.layout_asks_twelve_hours`), read as the
+    column was read, on the 24-hour clock: the hour as written. False
+    where no cell reads. Counts nothing that is published.
+    """
+    items = parsing.layout_items(format_name)
+    if items is None:
+        return False
+    seen = False
+    looked: "dict[str, int]" = {}
+    for value in present:
+        if value in looked:
+            continue
+        looked[value] = 1
+        reading = parsing.layout_reading(value, items)
+        if reading is None or len(reading[0]) < 19:
+            continue
+        seen = True
+        hour = int(reading[0][11:13])
+        if hour < 1 or hour > 12:
+            return False
+    return seen
+
+
 def _clock_question(
     block: "dict[str, object]",
     present: "list[str]",
@@ -951,7 +978,9 @@ def _clock_question(
     written alike (item 1); the answer `twelve-hour` is `--twelve-hour`,
     and Enter keeps the 24-hour reading. A column declared a 12-hour
     clock, a column writing a marker, and a column of two-figure hours
-    some of which pass twelve raise nothing.
+    some of which pass twelve raise nothing. Since landing R2b a column
+    read under a layout whose clock writes a mark after its hour is asked
+    the same question on the same terms; a compact clock, `1405`, is not.
     """
     name = f"{block['name']}"
     role = f"{block['role']}"
@@ -960,11 +989,23 @@ def _clock_question(
         and "format" in block
         and f"{block['format']}" in parsing.SLASHED_STAMPS
     )
-    if role != taxonomy.ROLE_CLOCK and not stamps:
+    # -- 3b.R2b (P4-D383): AND A LAYOUT COLUMN whose clock could be a
+    # 12-hour clock written with no marker, `14:05` or `14.05.09`.
+    laid = (
+        role == taxonomy.ROLE_DATETIME
+        and "format" in block
+        and parsing.layout_asks_twelve_hours(f"{block['format']}")
+    )
+    if role != taxonomy.ROLE_CLOCK and not stamps and not laid:
         return None
     if name in twelve_hours:
         return None
-    unmarked, within, one_figure = _clock_hours(present, stamps)
+    if laid:
+        unmarked = True
+        within = _layout_clock_hours(present, f"{block['format']}")
+        one_figure = False
+    else:
+        unmarked, within, one_figure = _clock_hours(present, stamps)
     if not unmarked:
         return None
     # THE CELLS THE COLUMN DID NOT READ, as its description counts them,

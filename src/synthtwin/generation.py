@@ -23295,8 +23295,16 @@ _SPREAD_TWELVE_HOUR_HELD = (
 
 
 def _spread_held(facts: contract.DatetimeFacts, held: str) -> str:
-    """The spread sentence's held clause, or the 12-hour stamp's (T1)."""
-    if parsing.clock_face(_stamp_clock_style(facts)) == parsing.CLOCK_TWELVE_HOUR:
+    """The spread sentence's held clause, or the 12-hour stamp's (T1).
+
+    And a layout's on the declared dial (landing R2b), whose clock is in
+    its format and not in a mark word: the same draw, the same limit.
+    """
+    style = _stamp_clock_style(facts)
+    if parsing.is_layout_name(facts.parser_family):
+        laid = parsing.layout_clock_style(facts.parser_family)
+        style = parsing.DEFAULT_CLOCK_STYLE if laid is None else laid
+    if parsing.clock_face(style) == parsing.CLOCK_TWELVE_HOUR:
         return _SPREAD_TWELVE_HOUR_HELD
     return held
 

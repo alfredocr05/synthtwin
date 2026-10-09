@@ -7618,7 +7618,7 @@ def reading_of_the_rest(
     # beside a few codes is asked R1's question, and no second one.
     layout = _chosen_layout(
         counted, total, needed, settings.day_first, contradicted,
-        century_window_of(settings),
+        century_window_of(settings), twelve=reads_twelve_hours(settings),
     )
     if layout is not None:
         return parsing.layout_format(layout[0]), layout[1]
@@ -15869,6 +15869,7 @@ def _layout_candidates(
     room: int,
     contradicted: bool,
     window: int,
+    twelve: bool = False,
 ) -> "list[str]":
     """Every layout the column's first cells can be read under, each once.
 
@@ -15877,8 +15878,10 @@ def _layout_candidates(
     it reads at least one of ANY ``room + 1`` cells -- the texts standing
     on the column's first ``room + 1`` rows hold every layout that can
     win. A layout with an offset brings its optional twin (`{+HHMM?}`), a
-    two-figure year takes the column's declared window, and the member
-    walk's guards hold.
+    two-figure year takes the column's declared window, a clock with no
+    marker takes the declared 12-hour dial where ``twelve`` says the person
+    declared one (`parsing.layout_on_twelve_hours`, landing R2b), and the
+    member walk's guards hold.
 
     IN A DECLARED CENTURY A TEXT IS READ WITH ITS SURROUNDING WHITESPACE SET
     ASIDE (skeptic 1 of landing R2a, item 1): there the layouts standing in
@@ -15897,6 +15900,8 @@ def _layout_candidates(
         for layout in _layouts_of_text(text, window):
             if window:
                 layout = parsing.layout_in_window(layout, window)
+            if twelve:
+                layout = parsing.layout_on_twelve_hours(layout)
             if _layout_guarded(layout, contradicted):
                 continue
             for one in (layout, parsing.layout_optional(layout)):
@@ -15907,7 +15912,11 @@ def _layout_candidates(
 
 
 def _layout_extended(
-    layout: str, failing: "list[str]", window: int, contradicted: bool
+    layout: str,
+    failing: "list[str]",
+    window: int,
+    contradicted: bool,
+    twelve: bool = False,
 ) -> "list[str]":
     """The optional-offset layouts a layout with no offset grows into (skeptic M2).
 
@@ -15932,6 +15941,8 @@ def _layout_extended(
         for one in parsing.layouts_of(text):
             if window:
                 one = parsing.layout_in_window(one, window)
+            if twelve:
+                one = parsing.layout_on_twelve_hours(one)
             if parsing.layout_without_offset(one) != layout:
                 continue
             if _layout_guarded(one, contradicted):
@@ -15949,6 +15960,7 @@ def _chosen_layout(
     day_first: bool,
     contradicted: bool,
     window: int,
+    twelve: bool = False,
 ) -> "tuple[str, int, dict[str, int]] | None":
     """The layout reading the most cells at the line, its rows, and every candidate's.
 
@@ -15968,7 +15980,7 @@ def _chosen_layout(
     any kind.
     """
     room = total - needed
-    candidates = _layout_candidates(counted, room, contradicted, window)
+    candidates = _layout_candidates(counted, room, contradicted, window, twelve)
     keyed = sorted(
         [(parsing.layout_order_key(one, day_first), one) for one in candidates]
     )
@@ -15985,7 +15997,7 @@ def _chosen_layout(
         # line (skeptic 1 of landing R2a, item 2): a layout that reaches it
         # missing a few cells that write an offset reads fewer than its
         # optional-offset twin, which wins only by reading strictly more.
-        for one in _layout_extended(layout, failing, window, contradicted):
+        for one in _layout_extended(layout, failing, window, contradicted, twelve):
             if one not in later and one not in reached:
                 later += [one]
         if missed > room:
@@ -16115,7 +16127,8 @@ def _matching_layout(
     counted = _spelling_rows(present)
     window = century_window_of(settings)
     chosen = _chosen_layout(
-        counted, total, needed, settings.day_first, contradicted, window
+        counted, total, needed, settings.day_first, contradicted, window,
+        twelve=reads_twelve_hours(settings),
     )
     if chosen is None:
         return None

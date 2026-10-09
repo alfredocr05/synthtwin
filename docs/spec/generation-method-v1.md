@@ -6897,6 +6897,15 @@ own set and case, the weekday the date's own; `{F}` as zeros at
 `subsecond_digits`; and the offset the rank wears in its field's own
 spelling, at the place the layout puts it -- `+0100` under `{+HHMM}`,
 `-05` under `{+HH}`, the word itself under `{Z}`, `{UTC}` or `{GMT}`.
+THE CLOCK HALF (landing R2b): `{H}` writes the hour in one figure below
+ten and `{_H}` pads it with a space; `{hh}`, `{h}` and `{_h}` write the
+same three widths on the 12-hour dial, the hour less twelve after noon
+and 12 at the top of the dial, never 0; a marker field -- `{AM}`, `{am}`,
+`{A.M.}`, `{a.m.}` -- writes its morning word before noon and its
+afternoon word from noon on, after the gap the layout writes: none, a
+space, or the narrow no-break space U+202F. A dial field with no marker
+is T1's declared face (`--twelve-hour`), written on the dial it shows as
+the stamps are.
 A rank allocated `(none)` under an offset some cells omit
 (`{+HHMM?}`) writes no offset and none of the marks before it; a field
 that must write one and is handed none writes the shared clock's,
@@ -13615,7 +13624,7 @@ that happens -- and the clause beside it, `--missing-value`'s "CAN be
 published as the column's smallest value", is exactly right under the
 new rule.
 
-**All one hundred and sixty-nine are required.** The count is taken off the committed
+**All one hundred and seventy-two are required.** The count is taken off the committed
 case sets and not carried forward: this sentence said fifty-two and a
 split of nine, twenty, sixteen and seven while the six files held
 seventy-three, because each repair that added a case added a clause to
@@ -13649,13 +13658,15 @@ TWENTY-SECOND, `tests/reference/generation-branch-vectors-22.json`,
 holds five -- landing T1's written clocks and G7.5 step 5, in the file
 plan P4-D364's table gives that landing (G14.2); and the
 TWENTY-FIFTH, `tests/reference/generation-branch-vectors-25.json`,
-holds fifteen -- landing R2a's layouts, the century a person chose,
+holds eighteen -- landing R2a's layouts, the century a person chose,
 from its repair round a day padded with a space and the offsets a
 column of figure runs owes its class count, beside repeated texts too,
 from its second skeptic those offsets beside a named one, from its
 Codex review the rest of them paid with whole repeated texts, and from
 that repair's verification those texts placed over two offsets toward
-one aim (plan P4-D383) --
+one aim, and landing R2b's clock half -- SQL Server's style 100, Oracle's
+TIMESTAMP and JavaScript's narrow space before its marker (plan
+P4-D383) --
 and a test holds this sentence to those files. The tenth grew by the
 two cases the GOVERNANCE PASS of stage 3's review added and the
 eleventh by the two the dates pass added; each number here is read off
@@ -13824,6 +13835,9 @@ case passed, which is the failure the count exists to prevent:
 | `layout_offsets_owed_across_offsets` | G7.9b step 5's aim and its look ahead at each offset (the verification of the Codex review's repair of landing R2a, open item 1): twenty-four HL7 stamps over eight different values whose census counted eleven offsets into `(none)`. Step 4 writes the two texts standing alone between the ends at `+0000`, which leaves room for eight more there; every other text repeats, so the other nine are written on whole texts, and step 5 aims at nine: a text of five copies at `+0000` and one of four at `+0100`, since taking the most `+0000` holds, two texts of four, would leave one cell owed that no text fits. Its mutant takes at each offset the most it holds, and the twin holds ten cells that are not numbers for eleven |
 | `layout_space_padded_day` | G7.5's space-padded day `{_D}` (landing R2a's repair round, item 6): SQL Server's `Mon dd yyyy` style, twelve dates of January 1970 written `Jan  1 1970` to `Jan 12 1970`, a day below ten written after a space in place of its first figure. Its mutant writes the day zero-padded, `Jan 01 1970` |
 | `layout_century_window` | G7.3e's window a person chose (landing R2a, question Q5): twenty-four `mm/dd/yy` birth dates of January 1940 read under `{YY1930}`, a tail at either end, the days a tail may reach bounded by 1930 to 2029. Its mutant reads every two-figure year in the POSIX window, 1969 to 2068, and the column's own days fall outside what its spelling writes back |
+| `layout_style_100` | G7.5's clock half (landing R2b, plan P4-D383): SQL Server's CONVERT style 100, `Jan  6 1970  4:37AM`, twelve moments of the ramp from midnight, the day and the hour on the 12-hour dial each padded with a space below ten and the marker straight after the minutes; midnight is `12:00AM`, the top of the dial. Its mutant pads the hour with a nought, `04:37AM` |
+| `layout_oracle_timestamp` | G7.5's dotted clock on the 12-hour dial (landing R2b): Oracle's TIMESTAMP default, `08-JAN-70 09.59.29.000000 PM`, two figures of hour on the dial, six of fraction as zeros, the marker after one space. Its mutant writes the 24-hour clock's hour beside the marker, `21.59.29.000000 PM` |
+| `layout_narrow_space_marker` | G7.5's narrow no-break space before a marker (landing R2b): JavaScript's `toLocaleString` for en-US, `1/10/1970, 7:17:10` U+202F `PM`, the month and day unpadded as `{"unpadded": 12}` allocates and the hour in one figure below ten on the dial. Its mutant writes an ordinary space before the marker |
 | `date_remainder_one_joint` | G7.5 step 5 (landing T1; plan l.17955's carried case (a)): twenty-two month-first dates over twelve days publishing `{"padded": 11}`, eleven values' widths left out. The step writes those eleven ranks on whole days, the days holding the fewest of the class's ranks first, in widths the census does not name -- nine `unpadded` and two `first-padded`, each fewer than the line and than the named word -- and the named word keeps its eleven. Its mutant withdraws the step |
 | `weekday_whole_runs` | G7.3f step 5 (plan P4-D355): 100 whole dates over three weeks with no weekend, published `[Mon-Fri] 77, [Sat-Sun] 0`, whose ranks of one day move whole onto a free day of a group with room for all of them before any single rank moves. Its mutant withdraws the step |
 | `plus_padded_field` | G6.3's second tier of named field widths (plan P4-D145): twenty-two cells of twelve thousand three hundred and forty-five published `leading_plus` with `pad_widths: {"7": 22}`, every one written `+0012345` |

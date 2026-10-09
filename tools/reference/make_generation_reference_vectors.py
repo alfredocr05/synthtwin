@@ -5841,6 +5841,17 @@ for _stems, _words in (
 LAYOUT_WEEKDAY_FIELDS = ("DY", "Dy", "dy", "DAY", "Day", "day")
 LAYOUT_WINDOWS = {"YY": 1969, "YY1900": 1900, "YY1930": 1930, "YY1940": 1940}
 LAYOUT_ZULU_FIELDS = ("Z", "z", "UTC", "GMT")
+# THE CLOCK HALF (G7.5's token table, landing R2b): the hour on the 24-hour
+# clock in two figures, in one below ten, or padded with a space; the same
+# three on the 12-hour dial, whose top is 12; and each marker's morning and
+# afternoon words.
+LAYOUT_DIAL_HOURS = ("hh", "h", "_h")
+LAYOUT_MARKERS = {
+    "AM": ("AM", "PM"),
+    "am": ("am", "pm"),
+    "A.M.": ("A.M.", "P.M."),
+    "a.m.": ("a.m.", "p.m."),
+}
 
 
 def is_layout(member):
@@ -5881,7 +5892,9 @@ def layout_written(member, year, month, day, second, offset, width, figures):
     """One instant written under a layout (G7.5): every field from the instant.
 
     ``second`` is the second of the day, or None for a layout writing no
-    clock. ``width`` is the width word allocated to the rank, a padding
+    clock; an hour on the 12-hour dial is written with 12 at its top, and a
+    marker writes its morning word before noon and its afternoon word from
+    noon on (landing R2b). ``width`` is the width word allocated to the rank, a padding
     decision per flexible field in the layout's order (one field reads
     every word but `unpadded` as padded). The fraction is ``figures``
     zeros. An offset field writes the rank's offset in its own spelling;
@@ -5922,6 +5935,18 @@ def layout_written(member, year, month, day, second, offset, width, figures):
             out.append(f"{day:>2d}")
         elif field == "HH":
             out.append(f"{hours:02d}")
+        elif field in ("H", "_H") or field in LAYOUT_DIAL_HOURS:
+            shown = hours
+            if field in LAYOUT_DIAL_HOURS:
+                shown = hours % 12 or 12
+            if field == "hh":
+                out.append(f"{shown:02d}")
+            elif field in ("H", "h"):
+                out.append(f"{shown}")
+            else:
+                out.append(f"{shown:>2d}")
+        elif field in LAYOUT_MARKERS:
+            out.append(LAYOUT_MARKERS[field][0 if hours < 12 else 1])
         elif field == "MI":
             out.append(f"{minutes:02d}")
         elif field == "SS":
@@ -5972,7 +5997,8 @@ def layout_day(member, text):
             continue
         field = field.rstrip("?")
         sizes = {"YYYY": (4, 4), "MM": (2, 2), "DD": (2, 2), "HH": (2, 2), "MI": (2, 2),
-                 "SS": (2, 2), "M": (1, 2), "D": (1, 2), "F": (1, 9)}
+                 "SS": (2, 2), "M": (1, 2), "D": (1, 2), "F": (1, 9),
+                 "hh": (2, 2), "H": (1, 2), "h": (1, 2)}
         for window in LAYOUT_WINDOWS:
             sizes[window] = (2, 2)
         if field in sizes:
@@ -5981,6 +6007,8 @@ def layout_day(member, text):
             while end < len(text) and end - at < most and text[end].isdigit() and text[end].isascii():
                 end += 1
             if end - at < least:
+                return None
+            if field in ("H", "h") and end - at == 2 and text[at] == "0":
                 return None
             value = int(text[at:end])
             at = end
@@ -5996,12 +6024,21 @@ def layout_day(member, text):
             elif field in ("DD", "D"):
                 day = value
             continue
-        if field == "_D":
+        if field in ("_D", "_H", "_h"):
             pair = text[at:at + 2]
             if len(pair) != 2 or not pair[1].isdigit() or not (pair[0] == " " or pair[0] in "123456789"):
                 return None
-            day = int(pair.strip())
+            if field == "_D":
+                day = int(pair.strip())
             at += 2
+            continue
+        if field in LAYOUT_MARKERS:
+            for word in LAYOUT_MARKERS[field]:
+                if text[at:at + len(word)] == word:
+                    at += len(word)
+                    break
+            else:
+                return None
             continue
         if field in LAYOUT_NAME_WORDS:
             end = at
@@ -23242,20 +23279,67 @@ def _layout_century_window():
     )
 
 
+# -- landing R2b's clock half of the layout member (plan P4-D383) -------
+
+
+def _layout_style_100():
+    return _r2a_layout(
+        "layout {Mon} {_D} {YYYY} {_h}:{MI}{AM}", "datetime", "minute", 0, 12,
+        {"(none)": 12}, "local",
+        why="G7.5's clock half of the layout member (landing R2b, plan "
+        "P4-D383): SQL Server's CONVERT style 100, `Jan  1 1970 12:00AM`, "
+        "the day AND the hour on the 12-hour dial each padded with a space "
+        "below ten, the marker straight after the minutes. Twelve moments of "
+        "the ramp from midnight, which the dial writes as its top, 12, with "
+        "`AM`. The mutant pads the hour with a nought, `01:15AM`, which this "
+        "column does not write.",
+    )
+
+
+def _layout_oracle_timestamp():
+    return _r2a_layout(
+        "layout {DD}-{MON}-{YY} {hh}.{MI}.{SS}.{F} {AM}", "datetime", "subsecond",
+        6, 12, {"(none)": 12}, "local",
+        why="G7.5's clock half of the layout member (landing R2b): Oracle's "
+        "TIMESTAMP default, `01-JAN-70 12.00.00.000000 AM`, a dotted clock on "
+        "the 12-hour dial in two figures with six figures of fraction and the "
+        "marker after one space; the afternoon's hours are written less "
+        "twelve with `PM`. The mutant writes the hour on the 24-hour clock "
+        "beside the marker, `21.45.00.000000 PM`, which no reader of the "
+        "column takes.",
+    )
+
+
+def _layout_narrow_space_marker():
+    return _r2a_layout(
+        "layout {M}/{D}/{YYYY}, {h}:{MI}:{SS}\u202f{AM}", "datetime", "second",
+        0, 12, {"(none)": 12}, "local", widths={"unpadded": 12},
+        why="G7.5's clock half of the layout member (landing R2b): "
+        "JavaScript's `toLocaleString` for en-US, `1/1/1970, 12:00:00 AM`, "
+        "whose ICU writes a NARROW NO-BREAK SPACE, U+202F, between the "
+        "seconds and the marker; the hour in one figure below ten on the "
+        "dial. The mutant writes an ordinary space there, which the column "
+        "does not.",
+    )
+
+
 R2A_BRANCH_CASE_BUILDERS = {
     "layout_century_window": _layout_century_window,
     "layout_flexible_widths": _layout_flexible_widths,
     "layout_hl7_fraction_offset": _layout_hl7_fraction_offset,
     "layout_hour_offset": _layout_hour_offset,
+    "layout_narrow_space_marker": _layout_narrow_space_marker,
     "layout_offsets_owed": _layout_offsets_owed,
     "layout_offsets_owed_across_offsets": _layout_offsets_owed_across_offsets,
     "layout_offsets_owed_beside_named": _layout_offsets_owed_beside_named,
     "layout_offsets_owed_repeats": _layout_offsets_owed_repeats,
     "layout_offsets_owed_whole_texts": _layout_offsets_owed_whole_texts,
     "layout_optional_offset": _layout_optional_offset,
+    "layout_oracle_timestamp": _layout_oracle_timestamp,
     "layout_sas_date9": _layout_sas_date9,
     "layout_space_padded_day": _layout_space_padded_day,
     "layout_spaced_offset": _layout_spaced_offset,
+    "layout_style_100": _layout_style_100,
     "layout_utc_word": _layout_utc_word,
     "layout_weekday_long_date": _layout_weekday_long_date,
 }
@@ -32773,7 +32857,11 @@ _TWENTY_FIFTH_BRANCH_ACCOUNT = (
     "never written for them; and, from its Codex review, the rest of them "
     "paid with whole repeated texts where the texts standing alone fall "
     "short, and, from the verification of that repair, those whole texts "
-    "placed toward one aim with a look ahead at each offset. They "
+    "placed toward one aim with a look ahead at each offset; and, from "
+    "landing R2b's clock half, SQL Server's style 100 with its hour padded "
+    "with a space on the 12-hour dial, Oracle's TIMESTAMP with its dotted "
+    "clock and marker, and JavaScript's marker after a narrow no-break "
+    "space. They "
     "are computed by the same oracle and the same proof layer "
     "as tests/reference/generation-reference-vectors.json, "
     "tests/reference/generation-branch-vectors.json, "
@@ -33075,6 +33163,35 @@ GIVEN_WORDS = {
         5215203863938256275, 11067164624001493516, 15598788579987101079,
         15704062452627140584, 13835364899066661143, 12588935833648803663,
         8386925571894564723, 8724407393936218615, 15197159594116431684,
+    ),
+    # LANDING R2b'S CLOCK HALF of the layout member (plan P4-D383), at
+    # seeds 461 to 463.
+    "layout_style_100": (
+        15629831073270818342, 8488617605032336804, 102667299897853200,
+        8523457897787909039, 15149822254853973599, 8707970447298829701,
+        15886589165728946745, 15420079636665825706, 5801002575366793554,
+        10471107935442572345, 17518762616515807792, 2909065601194560387,
+        11121385729943217330, 1627869951610976525, 7061517257850898932,
+        3169924284008451170, 13503747162106114705, 5113683364648623557,
+        1442858421646618442, 15014406435345281376, 3373252598586886370,
+    ),
+    "layout_oracle_timestamp": (
+        16184557490031754120, 8139199073182611263, 7318073413474200691,
+        18014524264631328754, 2582918505615511504, 8531151103263206462,
+        13275460074758306196, 15885212590840246683, 15865947251422674558,
+        11864879417019913540, 17422893538032679172, 17913469034876005692,
+        8934188341342635350, 8361131756250152824, 8312166436942823468,
+        14444515993510699664, 3307806877793636983, 14523463327973405722,
+        3129848380355399890, 15166253377654364000, 16490721281124669469,
+    ),
+    "layout_narrow_space_marker": (
+        16800230877360040863, 5356595767560150309, 5047458294693834728,
+        17607191616119842284, 15232915438633983548, 4973500389726600479,
+        1291679191848222681, 16440390674963760771, 10111185178593074788,
+        9634075045532685715, 10884165271560215275, 16220108806227391902,
+        4944809142428056885, 13493245814766217266, 7225301071039828329,
+        14812597322742682496, 1852584797181425128, 12229896643358909764,
+        14513861318961856989, 10493527684416312970, 5862175208038215431,
     ),
     "layout_flexible_widths": (
         11416032767607098569, 12683253509083616314, 7669285204978396353,
