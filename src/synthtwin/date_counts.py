@@ -2438,75 +2438,71 @@ def asked_of(
     if not open_to:
         return None
     ordered = sorted(numbers)
-    held: "list[tuple[str, str]]" = []
-    for member, rule in open_to:
-        if rule != RULE_BAND:
+    # THE RULES IN THEIR ORDER, EACH TAKEN TO ITS END -- its numbers, its
+    # text and the systems it would offer -- before the next is tried (the
+    # Codex review of landing R4, item 6): the band's numbers held Unix
+    # midnights crossing from nine figures to ten, its text then failed
+    # on the two widths, and the midnight rule, which those values meet,
+    # was never asked.
+    plain_text: "bool | None" = None
+    for rule in RULES:
+        held = _numbers_hold(ordered, open_to, rule, total)
+        kept: "list[str]" = []
+        for member in held:
+            if _text_holds(present, member, rule, needed, mark):
+                kept += [member]
+        if not kept:
+            continue
+        if plain_text is None:
+            plain_text = True
+            for text in present:
+                # COUNTS BESIDE DATES WRITTEN AS TEXT are not read as counted
+                # dates (`written_as_a_date`), so no answer would be taken.
+                if written_count(text, mark) is None and written_as_a_date(text):
+                    plain_text = False
+                    break
+        if not plain_text:
+            return None
+        offered = _offered(ordered, kept, total, present, needed, mark)
+        # A SYSTEM WHOSE ANSWER WOULD BE REFUSED IS NOT OFFERED (the review of
+        # landing R4, item 2): its declaration keeps no unit of the figures, or
+        # -- whole or not -- no form its checker holds every count of (the
+        # Codex review of landing R4, item 3).
+        offered = figures_kept(offered, present, mark)
+        if offered:
+            return Asked(rule, offered, _set_aside_words(ordered, kept, floor))
+    return None
+
+
+def _numbers_hold(
+    ordered: "list[float]",
+    open_to: "list[tuple[str, str]]",
+    rule: str,
+    total: int,
+) -> "list[str]":
+    """The members whose numbers one rule holds, before any text is read (`asked_of`)."""
+    held: "list[str]" = []
+    for member, fired in open_to:
+        if fired != rule:
             continue
         rest = len(ordered) - _aside_in(ordered, member)
         if not _rest_is_enough(rest, total):
             continue
-        low, high = band(member, NARROW_FROM)
+        low, high = band(member, NARROW_FROM if rule == RULE_BAND else WIDE_FROM)
         inside = _in_band(ordered, low, high) - _aside_inside(ordered, member, low, high)
-        if rest - inside <= _strays_allowed(total):
-            held += [(member, RULE_BAND)]
-    if not held:
-        for member, rule in open_to:
-            if rule != RULE_MIDNIGHT:
-                continue
-            rest = len(ordered) - _aside_in(ordered, member)
-            if not _rest_is_enough(rest, total):
-                continue
-            low, high = band(member, WIDE_FROM)
-            inside = _in_band(ordered, low, high) - _aside_inside(
-                ordered, member, low, high
-            )
-            if rest - inside > _strays_allowed(total):
-                continue
+        if rest - inside > _strays_allowed(total):
+            continue
+        if rule == RULE_MIDNIGHT:
             # A LENGTH OF TIME IS NO DATE: more than half the rest must lie a
             # year or more from the member's first day.
             year = float(EPOCH_YEAR_DAYS * (DAY // TABLE[member].unit))
             near = _in_band(ordered, -year, year) - _aside_inside(
                 ordered, member, -year, year
             )
-            if 2 * near < rest:
-                held += [(member, RULE_MIDNIGHT)]
-    if not held:
-        for member, rule in open_to:
-            if rule != RULE_FIXED_WIDTH:
+            if 2 * near >= rest:
                 continue
-            rest = len(ordered) - _aside_in(ordered, member)
-            if not _rest_is_enough(rest, total):
-                continue
-            low, high = band(member, WIDE_FROM)
-            inside = _in_band(ordered, low, high) - _aside_inside(
-                ordered, member, low, high
-            )
-            if rest - inside <= _strays_allowed(total):
-                held += [(member, RULE_FIXED_WIDTH)]
-    if not held:
-        return None
-    # THE TEXT, ONCE, and only for a column the numbers placed in a band.
-    rule = held[0][1]
-    kept: "list[str]" = []
-    for member, fired in held:
-        if _text_holds(present, member, fired, needed, mark):
-            kept += [member]
-    if not kept:
-        return None
-    for text in present:
-        # COUNTS BESIDE DATES WRITTEN AS TEXT are not read as counted dates
-        # (`written_as_a_date`), so no answer would be taken.
-        if written_count(text, mark) is None and written_as_a_date(text):
-            return None
-    offered = _offered(ordered, kept, total, present, needed, mark)
-    # A SYSTEM WHOSE ANSWER WOULD BE REFUSED IS NOT OFFERED (the review of
-    # landing R4, item 2): its declaration keeps no unit of the figures, or
-    # -- whole or not -- no form its checker holds every count of (the Codex
-    # review of landing R4, item 3).
-    offered = figures_kept(offered, present, mark)
-    if not offered:
-        return None
-    return Asked(rule, offered, _set_aside_words(ordered, kept, floor))
+        held += [member]
+    return held
 
 
 def _aside_in(ordered: "list[float]", member: str) -> int:
