@@ -1209,7 +1209,44 @@ def reading_unit(member: str, form: CountForm, tally: Tally) -> int:
 FAITHFUL_FIGURES = 15
 
 
-def reading_units(member: str, form: CountForm, tally: Tally) -> "tuple[int, ...]":
+def writer_keeps(member: str, top: int) -> int:
+    """The finest settled unit a count below ``top``, written through binary64, reads back at.
+
+    THE WRITER WRITES A COUNT THAT IS NOT WHOLE THROUGH THE BINARY64
+    NEAREST IT (`spelled_count`), which stands within half a binary64 step
+    of the exact count: below two to the ``bits`` that is two to the
+    ``bits - 54`` of the member's unit. A moment drawn at a unit reads
+    back as itself only where that is under half the unit, and one bit is
+    kept spare for a twin's tail beyond the column's largest count -- so
+    the unit is the finest of `SETTLED_UNITS` above two to the
+    ``bits - 52`` of the member's unit (the Codex review of landing R4,
+    item 2: Excel serials written to fourteen figures were settled to the
+    nanosecond, and 999 of 1,000 moments the writer was handed read back
+    as another one, 149 ns early). Excel serials of this century keep the
+    millisecond, Unix seconds the microsecond, and SPSS seconds -- past
+    two to the thirty-third -- the millisecond.
+
+    Guarantees: accepts a member and a bound above every count's
+    magnitude; returns one of `SETTLED_UNITS`. Raises KeyError for a word
+    outside `MEMBERS`. No I/O of any kind.
+    """
+    found = TABLE[member]
+    bits = max(1, top).bit_length()
+    for unit in SETTLED_UNITS:
+        if unit * 2**52 > found.unit * 2**bits:
+            return unit
+    return DAY
+
+
+def count_top(counts: "list[tuple[int, int]]") -> int:
+    """One more than the largest whole part of any count's magnitude: the bound `writer_keeps` asks."""
+    top = 0
+    for numerator, denominator in counts:
+        top = max(top, abs(numerator) // denominator + 1)
+    return top
+
+
+def reading_units(member: str, form: CountForm, tally: Tally, top: int = 0) -> "tuple[int, ...]":
     """The units a column's counts may be settled to, coarsest first.
 
     One, `reading_unit`, for every form but `repr`'s seventeen significant
@@ -1222,19 +1259,35 @@ def reading_units(member: str, form: CountForm, tally: Tally) -> "tuple[int, ...
     microsecond, and Unix seconds Python wrote to the microsecond at the
     microsecond.
 
-    Guarantees: a function of the three, each a member of
-    `SETTLED_UNITS`. Raises KeyError for a word outside `MEMBERS`. No I/O.
+    NO UNIT FINER THAN THE WRITER KEEPS (`writer_keeps`, the Codex review
+    of landing R4, item 2): where some count is not whole, ``top`` -- one
+    more than the largest count's whole part (`count_top`) -- bounds what
+    binary64 holds, and each unit finer than the one it keeps is taken to
+    that one, so a column whose figures are finer than any moment the
+    twin could write back is read at the finest it can, and held there or
+    not read at all.
+
+    Guarantees: a function of the four, each a member of `SETTLED_UNITS`,
+    coarsest first. Raises KeyError for a word outside `MEMBERS`. No I/O.
     """
     finest = reading_unit(member, form, tally)
-    if form.significant != 17:
-        return (finest,)
-    coarsest = settled_unit(member, max(0, FAITHFUL_FIGURES - tally.whole))
-    units: "list[int]" = []
-    for unit in WRITTEN_UNITS:
-        # `WRITTEN_UNITS` are `SETTLED_UNITS`, coarsest first.
-        if finest <= unit <= coarsest:
-            units += [unit]
-    return tuple(units)
+    units: "list[int]" = [finest]
+    if form.significant == 17:
+        coarsest = settled_unit(member, max(0, FAITHFUL_FIGURES - tally.whole))
+        units = []
+        for unit in WRITTEN_UNITS:
+            # `WRITTEN_UNITS` are `SETTLED_UNITS`, coarsest first.
+            if finest <= unit <= coarsest:
+                units += [unit]
+    if top <= 0 or tally.places == 0 or TABLE[member].contacts:
+        return tuple(units)
+    kept = writer_keeps(member, top)
+    taken: "list[int]" = []
+    for unit in units:
+        held = max(unit, kept)
+        if held not in taken:
+            taken += [held]
+    return tuple(taken)
 
 
 # HOW FAR AN EXPORTER'S OWN ARITHMETIC MAY MOVE A COUNT, in binary64 steps
@@ -1347,7 +1400,7 @@ def settled_reading(
     found = TABLE[member]
     candidates: "tuple[int, ...]" = (published,)
     if not published:
-        candidates = reading_units(member, plain, tally)
+        candidates = reading_units(member, plain, tally, count_top(counts))
     for settled in candidates:
         moments: "list[int | None]" = []
         standing: "list[int]" = []
@@ -1439,6 +1492,7 @@ def figures_kept(
     walked: "list[str]" = []
     asides: "dict[str, dict[int, int]]" = {}
     tallies: "dict[str, dict[int, Tally]]" = {}
+    tops: "dict[str, int]" = {}
     for member in members:
         if TABLE[member].contacts:
             continue
@@ -1448,6 +1502,7 @@ def figures_kept(
             aside[number] = 1
         asides[member] = aside
         tallies[member] = {}
+        tops[member] = 0
     if walked:
         for text in present:
             written = written_count(text, mark)
@@ -1457,6 +1512,7 @@ def figures_kept(
             for member in walked:
                 if not stands_aside(numerator, denominator, False, asides[member]):
                     tallied_by_places(tallies[member], written)
+                    tops[member] = max(tops[member], abs(numerator) // denominator + 1)
     held: "dict[str, int]" = {}
     # ONE READING PER KEY, a member and which of its readings: 0 by every
     # count's form, 1 by the usual counts' with each stray held to its own
@@ -1481,7 +1537,7 @@ def figures_kept(
             key = (member, which)
             plains[key] = form_from(counted_here, mark, None)
             usuals[key] = longest_usual
-            units[key] = reading_units(member, plains[key], counted_here)
+            units[key] = reading_units(member, plains[key], counted_here, tops[member])
             # The finest first: `reading_units` gives them coarsest first.
             tried[key] = len(units[key]) - 1
             pending += [key]
