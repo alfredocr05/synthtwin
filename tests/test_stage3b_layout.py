@@ -20,6 +20,18 @@ cannot hold, beside a strict expected failure owned by landing T2; and C9
 a choice asks one text's productions at most twice (mutants: the memo
 dropped; the last-character test withdrawn).
 
+And R2b's skeptic 1, each clause run against the mutant its docstring
+names: C5 holds S8c one way on a layout, and two descriptions R2a's
+producer wrote of a declared SAS column read at `{HH}`, frozen in
+`tests/layout_r2a_descriptions.py`, load, generate and validate, twin and
+table (item 1; mutants: S8c reaching a layout's 24-hour face; the
+validator handing the declaration on whole); C1b every cell of the seven
+read as the moment that wrote it, C7b no hour field reading a nought it
+does not write, C4c a clock writing a nought hour not asked and C4d the
+command's notice silent where the declaration reached the dial (item 2);
+and C4e and C4f the declared dial's optional offset and R1's Q2 read on
+the dial (item 3).
+
 THE DATE HALF (landing R2a):
 
 Before this landing 60 of the 116 health-export spellings of the reach
@@ -114,6 +126,7 @@ import collections
 import csv
 import dataclasses
 import datetime
+import hashlib
 import io
 import json
 import pathlib
@@ -127,6 +140,7 @@ from synthtwin import (
     asking, contract, errors, generation, parsing, taxonomy, validation,
 )
 from tests import fixtures
+from tests import layout_r2a_descriptions as r2a_written
 from tests import layout_spellings as spellings
 
 ROWS = 300
@@ -2605,7 +2619,7 @@ def test_r2b_c5_every_description_the_producer_writes_loads(tmp_path: pathlib.Pa
     assert len(written) == ROWS, name
 
 
-def _s8c_edits(tmp_path: pathlib.Path) -> "list[pathlib.Path]":
+def _s8c_edits(tmp_path: pathlib.Path) -> "tuple[pathlib.Path, pathlib.Path]":
     """A declared dial with its declaration taken out, and a 24-hour clock declared."""
     _block, declared, _questions = _described(
         tmp_path / "declared", _morning_stamps(ROWS), "--twelve-hour", "seen_at"
@@ -2616,22 +2630,33 @@ def _s8c_edits(tmp_path: pathlib.Path) -> "list[pathlib.Path]":
     _block, plain, _questions = _described(tmp_path / "plain", _morning_stamps(ROWS))
     document = json.loads(plain.read_text(encoding="utf-8"))
     document["settings"]["forced_twelve_hour_clocks"] = ["seen_at"]
-    named = fixtures.write_profile(tmp_path, "named-profile.json", document)
-    return [undeclared, named]
+    (tmp_path / "named").mkdir()
+    named = fixtures.write_profile(tmp_path / "named", "real-profile.json", document)
+    return undeclared, named
 
 
-def test_r2b_c5_s8c_holds_the_declaration_on_a_layout(tmp_path: pathlib.Path) -> None:
-    """C5: S8c both ways on a layout -- the dial only with its declaration, and back."""
-    for edited in _s8c_edits(tmp_path):
-        with pytest.raises(errors.ProfileError) as refused:
-            contract.load_profile(str(edited))
-        assert "S8c" in str(refused.value)
+def test_r2b_c5_s8c_holds_the_declaration_on_a_layout_one_way(tmp_path: pathlib.Path) -> None:
+    """C5: S8c one way on a layout -- the dial only with its declaration.
+
+    The other way round does not reach a layout, whose fields name its
+    face (skeptic 1's item 1): a declared column published at `{HH}` loads
+    and is read on the 24-hour face, its twin and the unchanged source
+    each validating with nothing missed. On 3247f33 it was refused.
+    """
+    undeclared, named = _s8c_edits(tmp_path)
+    with pytest.raises(errors.ProfileError) as refused:
+        contract.load_profile(str(undeclared))
+    assert "S8c" in str(refused.value)
+    contract.load_profile(str(named))
+    twin, _written = _twin(named, 0)
+    assert _validated(named, twin)[0] == 0
+    assert _validated(named, tmp_path / "plain" / "real.csv")[0] == 0
 
 
 def test_r2b_c5_red_without_the_layout_in_s8c(
     tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """C5's mutant: S8c blind to a layout's clock, and both edits load."""
+    """C5's mutant: S8c blind to a layout's clock, and the undeclared dial loads."""
     real = contract._written_clock_style
     monkeypatch.setattr(
         contract, "_written_clock_style",
@@ -2640,8 +2665,62 @@ def test_r2b_c5_red_without_the_layout_in_s8c(
         and parsing.is_layout_name(column.facts.parser_family)
         else real(column),
     )
-    for edited in _s8c_edits(tmp_path):
-        contract.load_profile(str(edited))
+    undeclared, _named = _s8c_edits(tmp_path)
+    contract.load_profile(str(undeclared))
+
+
+def _r2a_wrote(folder: pathlib.Path, name: str) -> "tuple[pathlib.Path, pathlib.Path]":
+    """One frozen description R2a's producer wrote, and the table it was written from."""
+    folder.mkdir(parents=True)
+    cells = _morning_stamps(ROWS) if name == "MORNING" else spellings.cells("sas_datetime20", ROWS)
+    names, rows = fixtures.rows_at_the_floor("seen_at", cells)
+    table = folder / "real.csv"
+    table.write_text(fixtures.rows_to_csv(names, rows), encoding="utf-8", newline="\n")
+    profile = fixtures.write_profile(
+        folder, "real-profile.json", json.loads(getattr(r2a_written, name))
+    )
+    assert hashlib.sha256(profile.read_bytes()).hexdigest() == getattr(
+        r2a_written, f"{name}_SHA256"
+    )
+    return profile, table
+
+
+@pytest.mark.parametrize("name", ("MORNING", "WHOLE_DAY"))
+def test_r2b_c5_every_description_r2a_wrote_loads_and_validates(
+    tmp_path: pathlib.Path, name: str
+) -> None:
+    """C5, skeptic 1's item 1: R2a's declared descriptions load, generate and validate.
+
+    R2a's producer read a SAS column named with `--twelve-hour` at
+    `{HH}`, said the declaration reached nothing, and named the column
+    under `forced_twelve_hour_clocks` (the two frozen in
+    `tests/layout_r2a_descriptions.py`, byte for byte). On 3247f33 S8c
+    refused both and `generate` exited 1; with S8c alone eased, the
+    validator re-read the column under the declaration at `{hh}` and
+    exited 3 on the twin and on the table. Mutants, run: S8c's second way
+    round reaching a layout (refused); the validator passing the
+    declaration whole (`test_r2b_c5_red_when_the_validator_keeps_the_declaration`).
+    """
+    profile, table = _r2a_wrote(tmp_path / name, name)
+    loaded = contract.load_profile(str(profile))
+    assert loaded.settings.forced_twelve_hour_clocks == ("seen_at",)
+    assert validation.declared_twelve_hour_clocks(loaded) == ()
+    twin, written = _twin(profile, 0)
+    assert len(written) == ROWS
+    assert _validated(profile, twin)[0] == 0
+    assert _validated(profile, table)[0] == 0
+
+
+def test_r2b_c5_red_when_the_validator_keeps_the_declaration(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """C5's mutant: the declaration handed to the re-description whole, and the table misses."""
+    monkeypatch.setattr(
+        validation, "declared_twelve_hour_clocks",
+        lambda description: description.settings.forced_twelve_hour_clocks,
+    )
+    profile, table = _r2a_wrote(tmp_path / "MORNING", "MORNING")
+    assert _validated(profile, table)[0] == 3
 
 
 _ADMITTED = (
@@ -2840,3 +2919,132 @@ def test_r2b_c9_red_without_the_last_character(monkeypatch: pytest.MonkeyPatch) 
     monkeypatch.setattr(taxonomy, "_OFFSET_LAST_CHARACTERS", "0123456789ZzCTM")
     _layout, most = _productions_asked(spellings.cells("sqlserver_style_100", 3000), monkeypatch)
     assert most == 2
+
+
+# -- lane R2b's repair round (skeptic 1, items 2 and 3) ---------------------
+#
+# One clause for each clock-half rule no test turned red, each run against
+# the mutant its docstring names (the mutants of `R2b-sk1/mutate.py`).
+
+
+def test_r2b_c1b_the_clock_half_reads_each_moment_right() -> None:
+    """C1b: every cell of the seven reads as the moment that wrote it, to the minute.
+
+    Mutant, run (`marker_half_swapped`): `AM` read as the afternoon, and
+    five of the seven read right on 0.645 of their cells -- every morning
+    cell twelve hours late, the twin's markers flipped, the spelling
+    check passing still.
+    """
+    for name in spellings.CLOCK_HALF:
+        moments = spellings.moments(ROWS, 50003)
+        cells = [spellings.SPELLINGS[name][0](moment) for moment in moments]
+        described = taxonomy.profile_column("seen_at", 1, cells, ROWS, taxonomy.Settings())
+        layout = f"{(described.details or {}).get('format', '')}"
+        right = 0
+        for cell, moment in zip(cells, moments):
+            reading = parsing.parse_datetime(cell, layout)
+            if reading is not None and reading[0][:16] == moment.strftime("%Y-%m-%d %H:%M"):
+                right = right + 1
+        assert right == ROWS, (name, layout, right)
+
+
+def test_r2b_c7b_no_hour_field_reads_a_nought_it_does_not_write() -> None:
+    """C7b: the dial reads no `00` beside its marker, and `{_H}` no padded `05`.
+
+    Mutants, run: `dial_reads_nought`, and `00:05 AM` reads, which the twin
+    would write back `12:05 AM`; `_H_reads_nought`, and `05` reads under the
+    space pad, which the twin writes ` 5`.
+    """
+    marked = parsing.layout_items("layout {YYYY}-{MM}-{DD} {hh}:{MI} {AM}")
+    spaced = parsing.layout_items("layout {Mon} {_D} {YYYY} {_H}:{MI}")
+    assert marked is not None and spaced is not None
+    assert parsing.layout_reading("2024-03-17 00:05 AM", marked) is None
+    assert parsing.layout_reading("2024-03-17 12:05 AM", marked) is not None
+    assert parsing.layout_reading("Mar 17 2024 05:05", spaced) is None
+    assert parsing.layout_reading("Mar 17 2024  5:05", spaced) is not None
+
+
+def _stamps_from_midnight(rows: int) -> "list[str]":
+    """SAS stamps whose hours lie 0 to 12, the first hour among them."""
+    draw = random.Random(14)
+    return [
+        f"{draw.randrange(1, 29):02d}MAR2024:{draw.randrange(0, 13):02d}:"
+        f"{draw.randrange(60):02d}:{draw.randrange(60):02d}"
+        for _row in range(rows)
+    ]
+
+
+def test_r2b_c4c_a_layout_clock_writing_a_nought_hour_is_not_asked(tmp_path: pathlib.Path) -> None:
+    """C4c: a layout column with hours 0 to 12 is not asked the 12-hour question.
+
+    No dial writes `00`. Mutant, run (`layout_hours_from_nought`): the
+    hours counted from nought, and the column is asked.
+    """
+    block, _profile, questions = _described(tmp_path, _stamps_from_midnight(ROWS))
+    assert block["format"] == "layout {DD}{MON}{YYYY}:{HH}:{MI}:{SS}"
+    assert not _twelve_hour_asked(questions)
+
+
+def test_r2b_c4d_the_notice_speaks_only_where_the_declaration_reached_nothing(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """C4d: a declared layout read on the dial is told nothing; a compact clock is told.
+
+    Mutant, run (`cli_notice_blind_to_layout`): the command's notice blind
+    to a layout, and the declared SAS morning column, read on the dial, is
+    told the declaration reached nothing.
+    """
+    told = errors.the_twelve_hour_declaration_did_not_reach("seen_at", "datetime")
+    capsys.readouterr()
+    block, _profile, _questions = _described(
+        tmp_path / "dial", _morning_stamps(ROWS), "--twelve-hour", "seen_at"
+    )
+    assert block["format"] == "layout {DD}{MON}{YYYY}:{hh}:{MI}:{SS}"
+    said = capsys.readouterr()
+    assert told[:60] not in f"{said.out}{said.err}"
+    block, _profile, _questions = _described(
+        tmp_path / "compact", _compact_mornings(ROWS), "--twelve-hour", "seen_at"
+    )
+    assert block["format"] == "layout {YYYY}{MM}{DD}{HH}{MI}{SS}"
+    said = capsys.readouterr()
+    assert told[:60] in f"{said.out}{said.err}"
+
+
+def _declared_dial_with_offsets(rows: int, worn: int) -> "list[str]":
+    """SAS stamps every hour of which lies 1 to 12, ``worn`` interior ones ending in an offset."""
+    cells = _morning_stamps(rows)
+    draw = random.Random(33)
+    for place in draw.sample(range(1, rows - 1), worn):
+        cells[place] = cells[place] + draw.choice(("-0400", "-0500"))
+    return cells
+
+
+def test_r2b_c4e_a_declared_dial_reads_the_offset_some_cells_omit() -> None:
+    """C4e (skeptic 1's item 3): a declared dial grows its optional offset on the dial.
+
+    Mutant, run (`extended_ignore_declared`): the offset layouts the
+    missed texts give are not taken onto the dial, and the column is read
+    at `{HH}`, not the face it was declared on.
+    """
+    declared = taxonomy.Settings(forced_twelve_hour_clocks=("seen_at",))
+    cells = _declared_dial_with_offsets(ROWS, 2)
+    described = taxonomy.profile_column("seen_at", 1, cells, ROWS, declared)
+    details = described.details or {}
+    assert details["format"] == "layout {DD}{MON}{YYYY}:{hh}:{MI}:{SS}{+HHMM?}"
+    assert details["n_unparsed"] == 0
+
+
+def test_r2b_c4f_a_declared_dial_with_codes_is_asked_through_the_dial() -> None:
+    """C4f (skeptic 1's item 3): R1's Q2 reads a declared column's rest on the dial.
+
+    Mutant, run (`rest_ignores_declared`): the rest read with the
+    declaration dropped, at `{HH}`.
+    """
+    counted = taxonomy._spelling_rows(_morning_stamps(970) + ["UNK"] * 30)
+    rest = dict(counted)
+    del rest["UNK"]
+    declared = taxonomy.Settings(forced_twelve_hour_clocks=(taxonomy.TWELVE_HOUR_HERE,))
+    found = taxonomy.reading_of_the_rest(rest, declared, 1000)
+    assert found is not None and found[0] == "layout {DD}{MON}{YYYY}:{hh}:{MI}:{SS}"
+    found = taxonomy.reading_of_the_rest(rest, taxonomy.Settings(), 1000)
+    assert found is not None and found[0] == "layout {DD}{MON}{YYYY}:{HH}:{MI}:{SS}"

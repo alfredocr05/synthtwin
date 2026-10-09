@@ -1668,6 +1668,37 @@ class Outcome:
 # -- V2.2: the settings the file is re-described under ----------------
 
 
+def declared_twelve_hour_clocks(description: contract.Profile) -> "tuple[str, ...]":
+    """The 12-hour declaration a checked file is read under (landing R2b, plan P4-D383).
+
+    The block's own names, less every layout column whose published
+    fields name the 24-hour face (`{HH}:{MI}`, `{HH}{MI}`): a layout names
+    its face in its own fields, so such a column was read on the 24-hour
+    face whatever was declared, and reading the checked file under the
+    declaration would take its `{HH}` onto the dial, `{hh}`, and miss the
+    column's format. R2a's producer wrote such descriptions -- a SAS
+    column named with `--twelve-hour` and read at `{HH}`, the notice
+    saying the declaration reached nothing -- and R2b's never does.
+    Guarantees: a function of the description; the block's order is kept.
+    Raises nothing. No I/O of any kind.
+    """
+    held: "dict[str, int]" = {}
+    for column in description.columns:
+        facts = column.facts
+        if not isinstance(facts, contract.DatetimeFacts):
+            continue
+        if not parsing.is_layout_name(facts.parser_family):
+            continue
+        style = parsing.layout_clock_style(facts.parser_family)
+        if style is not None and parsing.clock_face(style) == "":
+            held[column.name] = 1
+    found: "list[str]" = []
+    for name in description.settings.forced_twelve_hour_clocks:
+        if name not in held:
+            found += [name]
+    return tuple(found)
+
+
 def settings_for(description: contract.Profile) -> taxonomy.Settings:
     """Rebuild the taxonomy settings the description was written under.
 
@@ -1754,7 +1785,9 @@ def settings_for(description: contract.Profile) -> taxonomy.Settings:
         person_columns=block.person_columns,
         # THE 12-HOUR DECLARATION (landing T1, plan P4-D370), so a checked
         # file reads its clocks on the face the description read them on.
-        forced_twelve_hour_clocks=block.forced_twelve_hour_clocks,
+        # -- 3b.R2b (P4-D383): less the layouts whose fields name the
+        # 24-hour face, which the description read on that face.
+        forced_twelve_hour_clocks=declared_twelve_hour_clocks(description),
         # The second cut's three declarations (plan P4-D386): the landing
         # that fills each carries it here, below its own line.
         # -- 3b.R2a (P4-D383)

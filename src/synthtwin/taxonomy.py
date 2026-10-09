@@ -15780,6 +15780,12 @@ def _matching_date_format(
 # text at 100,000 different texts and 30.8 at 1,000,000 (tracemalloc, up
 # to 58 while the dict grows), about 31 MB for a column of a million
 # different texts, made for the column and dropped with it.
+#
+# AND THE CHOICE'S PRODUCTIONS MEMO (landing R2b, `_layout_extended`), held
+# to this bound too: each text's layouts, about 0.4 to 1.4 KB a text and
+# up to about 90 MB at the bound -- 1,357 bytes a text for SQL Server's
+# style 100 on the 24-hour clock, 88.9 MB at 65,536 texts (tracemalloc,
+# skeptic 1 of landing R2b, item 5) -- made for one column, dropped with it.
 LAYOUT_MEMO_TEXTS = 65536
 
 # What the layout member's helpers say when handed something that is not
@@ -15946,8 +15952,12 @@ def _layout_extended(
     asking the grammar again for each made the choice cost 1.48 times
     ISO's describe at 100,000 rows. ``productions`` is the choice's own
     dict of each text's layouts, made for one column and dropped with it,
-    holding at most `LAYOUT_MEMO_TEXTS`; and a text whose last character
-    no offset field writes is passed by, having no layout with an offset.
+    holding at most `LAYOUT_MEMO_TEXTS`: about 0.4 to 1.4 KB a text, up to
+    about 90 MB at the bound (skeptic 1 of landing R2b, item 5; tracemalloc
+    at 65,536 texts: 409 bytes a text for one-figure hours, 445 for
+    `m/d/yy H:MI`, 1,357 for style 100 on the 24-hour clock, a median of
+    18 productions a text, 88.9 MB). A text whose last character no offset
+    field writes is passed by, having no layout with an offset.
     """
     if not isinstance(layout, str):
         raise TypeError(_LAYOUT_NOT_TEXT)

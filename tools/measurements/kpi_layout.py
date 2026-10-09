@@ -73,9 +73,11 @@ SCALE_PAIRS = (
     ("db2_timestamp", "%Y-%m-%d %H:%M:%S.%f"),
     ("hl7_ts14", "%Y-%m-%d %H:%M:%S"),
     ("dutch_unpadded", "%Y-%m-%d"),
-    # -- 3b.R2b (P4-D383): the clock half's two.
+    # -- 3b.R2b (P4-D383): the clock half's three, JavaScript's the slowest
+    # (1.17 times ISO at 100,000 rows, skeptic 1 of landing R2b, item 4).
     ("oracle_timestamp", "%Y-%m-%d %H:%M:%S.%f"),
     ("sqlserver_style_100", "%Y-%m-%d %H:%M"),
+    ("javascript_locale", "%Y-%m-%d %H:%M:%S"),
 )
 SCALE_SEED = 7
 SCALE_ROUNDS = 2
