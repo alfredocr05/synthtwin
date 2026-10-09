@@ -22704,12 +22704,22 @@ def _clock_count_put_back(
             ):
                 whole += [(len(members), key)]
         # The smallest run first, as G7.3f step 8.2 takes them, each size
-        # in proportional order over the ranks.
+        # in proportional order over the ranks. THE RUNS ARE SORTED ONCE, and
+        # each size's runs are read off them in key order (Codex's review of
+        # the landing, item 3): sorting and filtering every run again for
+        # each size read a million movable ranks -- one run of each size 1
+        # to 1,000 beside 499,500 alone -- 501 million times before its
+        # first merge.
         order: "list[list[int]]" = []
-        for size in sorted({size for size, _key in whole}):
-            order += _clock_rotated(
-                [runs[key] for each, key in sorted(whole) if each == size], count - wanted
-            )
+        ranked = sorted(whole)
+        place = 0
+        while place < len(ranked):
+            size = ranked[place][0]
+            alike: "list[list[int]]" = []
+            while place < len(ranked) and ranked[place][0] == size:
+                alike += [runs[ranked[place][1]]]
+                place = place + 1
+            order += _clock_rotated(alike, count - wanted)
         for members in order:
             if count <= wanted:
                 return
