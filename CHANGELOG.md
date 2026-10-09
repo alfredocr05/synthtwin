@@ -189,7 +189,8 @@ body for more days than that: D0's repair found twins at the floor of
 withholds the census where the column's different days, less the most
 the twin's tails can hold, leave the body less room than the census
 needs between its pins (`calendar_rules.count_room_short`, with
-`body_pins` and `tails_most`), said in NF74's one sentence. On the 26
+`body_pins`, and `tails_most` until the ruling below), said in NF74's
+one sentence. On the 26
 date batteries of D0's identity run (4,781 tables, seeds 0 to 4) the
 twins left long by their census fall from 86, 87 and 158 at the floors
 of 20, 36 and 50 to none, and no twin misses a check its 493f6f8 twin
@@ -220,15 +221,18 @@ left its twins a value short and no other; over 2,000 short spans 0, 2,
 4 and 2 at 11, 21, 36 and 50, every one short; over 25 weekday-only
 logs 6 of 83, one short and five met; and a log of about two rows a
 business day over two years at every floor, its twins meeting it. That
-is its price, and it falls on columns holding a row on every day their
-census allows, where it reads every merge the twin's count pass may
-make as taken from the tails: of the censuses 4a4b901 published, each
-log at the floors of 11 and 20, it withholds 21 of 52 over 28
-Monday-to-Friday logs holding every business day, 18 of them met by
-their twins, and 10 of 47 over 24 clinics holding every Monday,
-Wednesday and Friday, 9 of them met, but 2 of 72 over 36 such
-business-day logs with the federal holidays closed and none of 51 over
-28 whose rows a day are Poisson draws. One row a business
+was its price until the ruling below, and it fell on columns holding a
+row on every day their census allows, or on all but one to three of
+them, where it read every merge the twin's count pass may make as taken
+from the tails: of the censuses 4a4b901 published, each log at the
+floors of 11 and 20, it withheld 21 of 52 over 28 Monday-to-Friday logs
+holding every business day, 18 of them met by their twins, and 10 of 47
+over 24 clinics holding every Monday, Wednesday and Friday, 9 of them
+met, but 2 of 72 over 36 such business-day logs with the federal
+holidays closed and none of 51 over 28 whose rows a day are Poisson
+draws; with business days closed at random inside the span, 18 of 48
+with one closed, all met, 4 of 32 with three and none of 48 with six or
+twelve. One row a business
 day keeps its census at every floor, as the gate requires: reading the
 tails at their fewest whatever the draw, as the repair first did,
 withheld it. At a million rows the description takes what it took
@@ -249,6 +253,43 @@ copy of G7.3b against the generator, Codex's three columns and that
 limit, and, since an extra review of the lane, the producer's call on
 columns whose two tails, and whose days and published count, tell them
 apart.
+
+**Its price, ruled** (2026-10-07). A census its twins meet at nine seeds
+in ten or more stands: the orchestrator's ruling under the owner's
+principle. Read at the most and the fewest the twin's tails could hold,
+the two count rules withheld 573 censuses their twins met, of the 7,730
+measured. Both rules now read the tails as the twin's count pass leaves
+them, at all but a tenth of seeds (`calendar_rules.tails_kept`): the
+reach rule the fewest they keep, the low tail merged to its fewest
+beside the days the high tail draws, a law worked out exactly from the
+tail's shape (`tail_days_law`); the room rule the most, the days the two
+draw with no merge counted; where the pass splits, both tails' most,
+which the high tail reaches only where the body's nearer splits run out
+first. Measured at seeds 0 to 9 over the 7,730 censuses that reach the two
+rules (6,704 of the 26 batteries, 1,026 of the logs), 4a4b901, 3841dd8
+and this code publish 7,344, 7,066 and 7,440; withhold 312, 573 and 199
+whose twins meet them at nine seeds in ten; and publish 17, 0 and 0
+whose census costs their twins the count at two seeds or more. The price
+left falls where the twin's low tail keeps more days than its fewest
+(35, all on the logs) or where merges the room rule does not count take
+days from the tails (164, all on the batteries); the risk accepted is 16
+censuses whose twins miss at one seed in ten, each miss named by
+validation. Its second verification found, out of sample, the census of
+a log just above one row an open day published while its twins come back
+one to four values short at two to seven seeds of ten -- 21 of 313 such
+censuses, and 3 of 523 of fresh logs, 22 of them where the pass splits
+the body's nearer ranks before the high tail's; the orchestrator's
+ruling of 2026-10-08 lets that risk stand beside the first, since a
+withheld census lets the twin write up to 85 per cent of a column's rows
+on days it never uses, and P4-D388 names the fix it waits on. A node
+holds one such
+log as it stands, and three more how the body's draw reads published
+holes. Seven-day logs holding every day come back one to three
+values short with or without their census, a limit recorded for lane
+D4. The tails' law is walked reading a rank only where it can meet the
+distance last drawn: read at every distance, one column of 20,000
+admission dates with half a per cent spread over two centuries spent
+280.7 s in its weekday decision at the floor of 100; walked so, 0.03 s.
 
 ### Mostly whole columns walked, and large tables read, without the square of their rows (2026-10-05)
 

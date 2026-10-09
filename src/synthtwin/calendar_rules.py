@@ -168,15 +168,13 @@ REASON_UNSAID = "unsaid"
 FEWEST_REAL_DATES = 3
 MEAN_REAL_HALF_DATES = 15
 
-# THE DAYS A TAIL'S SPREAD BOUND ALLOWS BESIDE ITSELF (`tails_most`, plan
-# P4-D388). The twin's tail is drawn to its published sum of squares in
-# expectation, not exactly: its outermost rank stands at least at the
-# Bhatia-Davis reach of its pair (method G7.3b step 5) and its other ranks
-# are spread through a continuous shape, so a tail of a dozen rows a day
-# out but one five days out came back on four days where its spread
-# allows three. Over the 26 batteries measured no twin's tail held more
-# than one day past it; two are allowed.
-SPREAD_SLACK = 2
+# THE SHARE OF SEEDS AT WHICH A PUBLISHED CENSUS'S TWIN MAY MISS (the
+# orchestrator's ruling of 2026-10-07 on the price of plan P4-D388's count
+# rules): a weekday census its twins meet at nine seeds in ten or more
+# stands, so the two count rules withhold a census only where the twin's
+# tails, as its count pass leaves them, keep too many or too few different
+# days with a chance above one in ten (`tails_kept`).
+KEPT_MISS = 0.1
 
 # The censuses of written forms whose one form per cell makes one text
 # per date (WC6), in the order the description publishes them.
@@ -1135,73 +1133,6 @@ def body_pins(
     return tuple(found)
 
 
-def tails_most(
-    days: "tuple[int, ...]",
-    rows_low: int,
-    rows_high: int,
-    listed: "tuple[int | None, int | None]",
-    floor: int,
-) -> int:
-    """The most different days the twin's two tails can hold (method G7.3b).
-
-    `days` is the day of every parsed cell ascending, `rows_low` and
-    `rows_high` the two tails' rows, and `listed` each tail's count of
-    listed values, or None where it publishes its two distances instead.
-
-    A tail that lists its values is written on those values, so on at
-    most as many days as it lists. A tail that publishes its two
-    distances is rebuilt with its outermost ranks one distance apiece and
-    the rest on one shared distance, the ranks past the floor's number
-    sharing it: at most the floor's number of different days, never more
-    than its rows -- AND NO MORE THAN ITS SPREAD ALLOWS, two days beside
-    (`SPREAD_SLACK`): k different whole distances of one or more over the
-    tail's rows hold a sum of squares of at least 1 + 4 + ... + k**2 and
-    one for each other row, and the twin's tail is drawn to the sum of
-    squares its published root-mean-square distance states, the real
-    tail's own (`_spread_most`). A tail close to its boundary holds few
-    days however many rows it has. (Where the column's values all differ
-    its ranks all differ too, but no twin of such a column can hold more
-    different values than the column, which holds one in every cell.)
-
-    Guarantees: accepts the days, the two tails' rows (each less than the
-    days' count), each side's listed count or None and the settings floor
-    (read as at least one); returns the sum. Determinism: a function of
-    the five. Raises nothing. No I/O of any kind.
-    """
-    parsed = len(days)
-    low = rows_low
-    high = parsed - 1 - rows_high
-    sides = (
-        (listed[0], [days[low] - days[rank] for rank in range(low)]),
-        (listed[1], [days[rank] - days[high] for rank in range(high + 1, parsed)]),
-    )
-    most = 0
-    for count, distances in sides:
-        if count is not None:
-            most = most + count
-            continue
-        cap = min(len(distances), max(floor, 1))
-        squares = 0
-        for distance in distances:
-            squares = squares + distance * distance
-        most = most + min(cap, _spread_most(len(distances), squares, cap) + SPREAD_SLACK)
-    return most
-
-
-def _spread_most(rows: int, squares: int, cap: int) -> int:
-    """The most different whole distances of one or more `rows` distances
-    summing to `squares` squared can take, counted no higher than `cap`:
-    the largest k, at least one, with 1 + 4 + ... + k**2 + (rows - k) at
-    most `squares`."""
-    held = 1
-    while held < cap and (
-        (held + 1) * (held + 2) * (2 * held + 3) // 6 + rows - held - 1
-        <= squares
-    ):
-        held = held + 1
-    return held
-
-
 def count_room_short(
     groups: "tuple[tuple[int, int, int], ...]",
     pins: "tuple[tuple[int, int], ...]",
@@ -1217,31 +1148,35 @@ def count_room_short(
     different values for 24 at seed 17. `pins` are the body's pinned
     ranks with their days, ascending (`body_pins`); `days` is how many
     different days the column holds; `tails` the most different days the
-    twin's two tails can hold (`tails_most`).
+    twin's two tails keep once its count pass has run, but at a share of
+    seeds no larger than `KEPT_MISS` (`tails_kept`, the orchestrator's
+    ruling of 2026-10-07 on the rule's price).
 
     The twin's count pass leaves the body the column's different days
-    less those its tails hold -- at least `days - tails`, its ROOM. Its
+    less those its tails keep -- `days - tails`, its ROOM. Its
     day pass moves a body rank only inside its GAP, between the two pins
     either side of it, both days included, so the census NEEDS every pin
     day and, inside each gap, one more day for each group holding rows
     that has a day strictly inside the gap and stands on neither of its
     two pin days (at most one a rank of the gap). True where the census
     needs a day past the pin days and the room is less than the need: a
-    twin whose tails hold their most cannot meet the census then without
-    holding more different values than the column. A room equal to the
-    need publishes the census. Where the census needs no day past the pin
-    days, the body holds every pin day with or without it, so it is no
-    cause of a count left long.
+    twin whose tails keep that many days cannot meet the census then
+    without holding more different values than the column. A room equal
+    to the need publishes the census. Where the census needs no day past
+    the pin days, the body holds every pin day with or without it, so it
+    is no cause of a count left long.
 
-    A CONSERVATIVE rule, both halves erring towards withholding: the
-    tails' most is the floor's number their construction can hold, or
-    their spread with two days beside it, more than any twin's tails
-    measured held, and a group with a day in a gap is counted whether or
-    not the twin puts rows there. It withholds censuses a twin would
-    meet (plan P4-D388 counts them), and that is its price.
+    Its price and its risk are both measured (plan P4-D388): a group with
+    a day in a gap is counted whether or not the twin puts rows there, and
+    the tails' most counts no merge, so where the count pass merges a body
+    down to a few days and takes days from the tails as well it withholds
+    censuses their twins meet; and the tails are read at the share of
+    seeds the ruling allows, so a twin of a census it publishes can still
+    be left long at that share of seeds, a miss the twin's report and
+    validation name.
 
     Guarantees: accepts the census, the pins, the count and the tails'
-    most; returns the answer. Determinism: a function of the four. Raises
+    days; returns the answer. Determinism: a function of the four. Raises
     nothing. No I/O of any kind.
     """
     where = where_of(groups)
@@ -1583,6 +1518,75 @@ def _most_spots(near: "list[int]", far: "list[int]") -> int:
     return found
 
 
+def _side_rebuilt(
+    days: "tuple[int, ...]",
+    rows_low: int,
+    rows_high: int,
+    facts: "tuple[int | None, float | None, float | None]",
+    floor: int,
+    edges: "tuple[int, int]",
+    apart: bool,
+    holes: "frozenset[int]",
+    low_side: bool,
+) -> "tuple[int, tuple[tuple[float, int, float], float, int, int, int] | None, int]":
+    """One tail as method G7.3b rebuilds it: `(fixed, rebuilt, edge)`.
+
+    `fixed` is the different days the tail holds whatever its draws -- as
+    many as it lists, nought where it holds no row, its rows as far as the
+    member's edge allows where the column's values all differ -- and
+    `rebuilt` None; otherwise `fixed` is -1 and `rebuilt` is the shape its
+    ranks are drawn through (`rebuilt_tail`), its end and group stepped
+    inward off the holes (step 7), with `edge` the furthest distance the
+    member can write."""
+    listed, mean_distance, rms_distance = facts
+    if listed is not None:
+        return listed, None, 0
+    rows = rows_low if low_side else rows_high
+    if rows <= 0:
+        return 0, None, 0
+    parsed = len(days)
+    at = days[rows_low] if low_side else days[parsed - 1 - rows_high]
+    edge = max(1, at - edges[0] if low_side else edges[1] - at)
+    if apart:
+        return min(rows, edge), None, edge
+    mean = 1.0 if mean_distance is None else mean_distance
+    root = mean if rms_distance is None else rms_distance
+    mixture, stretch, end, group, grouped = rebuilt_tail(
+        rows, mean, root, floor, edge, apart
+    )
+    end = _off_the_holes(end, at, low_side, holes)
+    if grouped < rows:
+        group = _off_the_holes(group, at, low_side, holes)
+    return -1, (mixture, stretch, max(end, group), group, grouped), edge
+
+
+def _side_counted(
+    days: "tuple[int, ...]",
+    rows_low: int,
+    rows_high: int,
+    facts: "tuple[int | None, float | None, float | None]",
+    floor: int,
+    edges: "tuple[int, int]",
+    apart: bool,
+    holes: "frozenset[int]",
+    low_side: bool,
+    most: bool,
+) -> int:
+    """The fewest (or, with `most`, the most) different days ONE rebuilt
+    tail can hold: its ranks' spans read off `rebuilt_distances`."""
+    fixed, rebuilt, edge = _side_rebuilt(
+        days, rows_low, rows_high, facts, floor, edges, apart, holes, low_side
+    )
+    if rebuilt is None:
+        return fixed
+    rows = rows_low if low_side else rows_high
+    near = rebuilt_distances(rows, rebuilt, edge, apart, 0)
+    far = rebuilt_distances(rows, rebuilt, edge, apart, _REBUILT_WORDS - 1)
+    if most:
+        return _most_spots(near, far)
+    return _fewest_spots(near, far)
+
+
 def _tails_counted(
     days: "tuple[int, ...]",
     rows_low: int,
@@ -1597,38 +1601,12 @@ def _tails_counted(
     """The fewest (or, with `most`, the most) different days the two
     rebuilt tails can hold, as `tails_fewest` and `tails_most_rebuilt`
     say."""
-    parsed = len(days)
     counted = 0
-    for low_side, rows, facts in (
-        (True, rows_low, published[0]),
-        (False, rows_high, published[1]),
-    ):
-        listed, mean_distance, rms_distance = facts
-        if listed is not None:
-            counted = counted + listed
-            continue
-        if rows <= 0:
-            continue
-        at = days[rows_low] if low_side else days[parsed - 1 - rows_high]
-        edge = max(1, at - edges[0] if low_side else edges[1] - at)
-        if apart:
-            counted = counted + min(rows, edge)
-            continue
-        mean = 1.0 if mean_distance is None else mean_distance
-        root = mean if rms_distance is None else rms_distance
-        mixture, stretch, end, group, grouped = rebuilt_tail(
-            rows, mean, root, floor, edge, apart
+    for low_side, facts in ((True, published[0]), (False, published[1])):
+        counted = counted + _side_counted(
+            days, rows_low, rows_high, facts, floor, edges, apart, holes,
+            low_side, most,
         )
-        end = _off_the_holes(end, at, low_side, holes)
-        if grouped < rows:
-            group = _off_the_holes(group, at, low_side, holes)
-        rebuilt = (mixture, stretch, max(end, group), group, grouped)
-        near = rebuilt_distances(rows, rebuilt, edge, apart, 0)
-        far = rebuilt_distances(rows, rebuilt, edge, apart, _REBUILT_WORDS - 1)
-        if most:
-            counted = counted + _most_spots(near, far)
-        else:
-            counted = counted + _fewest_spots(near, far)
     return counted
 
 
@@ -1694,8 +1672,8 @@ def tails_most_rebuilt(
     one inside each rank's span, each a distance of its own
     (`_most_spots`): the days the count pass can spread it onto, moving
     ranks that share a day onto free days of their own spans. Never fewer
-    than `tails_fewest`, and never more than `tails_most`, which counts
-    a tail's floor and spread rather than its spans.
+    than `tails_fewest`; a tail of distances holds no more than the
+    floor's number of days, its ranks past it sharing one distance.
 
     Guarantees: accepts what `tails_fewest` accepts; returns the sum.
     Determinism: a function of the eight. Raises nothing. No I/O.
@@ -1720,6 +1698,372 @@ def _weekday_days(first: int, last: int) -> "list[int]":
     return found
 
 
+def _rank_drawn(
+    rows: int,
+    rebuilt: "tuple[tuple[float, int, float], float, int, int, int]",
+    edge: int,
+    index: int,
+    word: int,
+) -> int:
+    """The whole distance drawn rank `index` of a rebuilt tail stands at
+    when it reads `word` (G7.3b), kept at most `edge`. Each step of the
+    reckoning is monotone in binary64, so the distance never falls as the
+    word rises, and an outer rank, whose stratum of the shape lies past
+    the next one in, stands no nearer at any word than the next one in at
+    any."""
+    mixture, stretch, _end, _group, _grouped = rebuilt
+    s = ((rows - 1 - index) * _REBUILT_WORDS + word) / (rows * _REBUILT_WORDS)
+    return min(max(1, _half_up(stretch * _mixture_at(mixture, s))), edge)
+
+
+def _words_through(
+    rows: int,
+    rebuilt: "tuple[tuple[float, int, float], float, int, int, int]",
+    edge: int,
+    index: int,
+    distance: int,
+) -> int:
+    """How many of the generator's words put drawn rank `index` of a
+    rebuilt tail at `distance` or nearer (G7.3b): none short of its
+    nearest distance, every word from its furthest on, and between them
+    the largest word giving `distance` or nearer, found by halving the
+    words, plus one. Exact: a whole number of words of the scale."""
+    if distance < _rank_drawn(rows, rebuilt, edge, index, 0):
+        return 0
+    if distance >= _rank_drawn(rows, rebuilt, edge, index, _REBUILT_WORDS - 1):
+        return _REBUILT_WORDS
+    low, high = 0, _REBUILT_WORDS - 1
+    while high - low > 1:
+        middle = (low + high) // 2
+        if _rank_drawn(rows, rebuilt, edge, index, middle) <= distance:
+            low = middle
+        else:
+            high = middle
+    return low + 1
+
+
+def _law_put(
+    under: "dict[int, float]",
+    held: "dict[int, dict[int, float]]",
+    onward: int,
+    outermost: bool,
+    stands: int,
+    count: int,
+    chance: float,
+) -> None:
+    """Add `chance` to the walk's state of `count` different days whose
+    last distance is `stands` (`_drawn_law`): with every count whose last
+    distance lies below `onward`, the nearest the next step can bring, or
+    on its own -- and past the outermost drawn rank, where only the end
+    is asked, every distance at or past the end as one."""
+    if chance <= 0.0:
+        return
+    if stands < onward:
+        under[count] = (under[count] if count in under else 0.0) + chance
+        return
+    key = onward if outermost else stands
+    if key not in held:
+        held[key] = {}
+    held[key][count] = (held[key][count] if count in held[key] else 0.0) + chance
+
+
+def _drawn_law(
+    rows: int,
+    rebuilt: "tuple[tuple[float, int, float], float, int, int, int]",
+    edge: int,
+) -> "dict[int, float]":
+    """The chance of each count of different days a rebuilt tail's ranks
+    draw (G7.3b, its column's values not all different): the end, each
+    drawn rank's distance raised to the group's, and the group. Each drawn
+    rank reads its own word and the distances never fall outward, so the
+    different days are one more than the places where a rank's distance
+    passes the last one in -- counted from the innermost rank out,
+    carrying the distance last drawn.
+
+    A WALK THAT READS ONLY WHERE A RANK CAN MEET THE LAST DISTANCE. A
+    rank's stratum lies past the next one in (`_rank_drawn`), so it passes
+    every last distance below its nearest and can share a day only with
+    one at or past it -- where two strata meet, or a group's or an edge's
+    distance. So the walk carries every count whose last distance lies
+    below the next step's nearest as one, each other last distance on its
+    own, and reads a rank's chances only at those distances
+    (`_words_through`): a few halvings of the words a rank however far
+    its stratum spreads. Read at every distance of every stratum, one
+    tail of fifty ranks spread over two centuries took 85 s.
+    """
+    _mixture, _stretch, end, group, grouped = rebuilt
+    ranks = [index for index in range(min(grouped, rows) - 1, 0, -1)]
+    nearest = [_rank_drawn(rows, rebuilt, edge, index, 0) for index in ranks]
+    # `under`: the chance of each count whose last distance lies below the
+    # nearest the next step can bring; `held`: each other last distance's.
+    under: "dict[int, float]" = {}
+    held: "dict[int, dict[int, float]]" = {}
+    if grouped < rows:
+        held = {group: {1: 1.0}}
+    else:
+        under = {0: 1.0}
+    for place in range(len(ranks)):
+        index = ranks[place]
+        outermost = place + 1 == len(ranks)
+        onward = end if outermost else nearest[place + 1]
+        far = _rank_drawn(rows, rebuilt, edge, index, _REBUILT_WORDS - 1)
+        passed: "dict[int, float]" = {}
+        for count in sorted(under):
+            passed[count] = under[count]
+        starts: "list[tuple[int, dict[int, float], bool]]" = []
+        for last in sorted(held):
+            if last >= nearest[place]:
+                starts += [(last, held[last], True)]
+                continue
+            for count in sorted(held[last]):
+                passed[count] = (passed[count] if count in passed else 0.0) + held[last][count]
+        starts = [(nearest[place] - 1, passed, False)] + starts
+        moved_under: "dict[int, float]" = {}
+        moved_held: "dict[int, dict[int, float]]" = {}
+        for last, counts, stays in starts:
+            # Drawn at `last` or nearer, the rank stands on the last
+            # distance and adds no day; drawn past it, it adds one.
+            kept = _words_through(rows, rebuilt, edge, index, last)
+            split = max(last, onward - 1)
+            lumped = _words_through(rows, rebuilt, edge, index, split) - kept
+            singles: "list[tuple[int, int]]" = []
+            if outermost:
+                singles = [(onward, _REBUILT_WORDS - kept - lumped)]
+            else:
+                below = kept + lumped
+                for distance in range(split + 1, far + 1):
+                    through = _words_through(rows, rebuilt, edge, index, distance)
+                    singles += [(distance, through - below)]
+                    below = through
+            for count in sorted(counts):
+                chance = counts[count]
+                if stays:
+                    _law_put(
+                        moved_under, moved_held, onward, outermost, last, count,
+                        chance * (kept / _REBUILT_WORDS),
+                    )
+                _law_put(
+                    moved_under, moved_held, onward, outermost, onward - 1,
+                    count + 1, chance * (lumped / _REBUILT_WORDS),
+                )
+                for distance, words in singles:
+                    _law_put(
+                        moved_under, moved_held, onward, outermost, distance,
+                        count + 1, chance * (words / _REBUILT_WORDS),
+                    )
+        under, held = moved_under, moved_held
+    found: "dict[int, float]" = {}
+    for count in sorted(under):
+        found[count + 1] = (found[count + 1] if count + 1 in found else 0.0) + under[count]
+    for last in sorted(held):
+        added = 1 if max(end, last) != last else 0
+        for count in sorted(held[last]):
+            total = count + added
+            found[total] = (found[total] if total in found else 0.0) + held[last][count]
+    return found
+
+
+def tail_days_law(
+    days: "tuple[int, ...]",
+    rows_low: int,
+    rows_high: int,
+    published: "tuple[tuple[int | None, float | None, float | None], tuple[int | None, float | None, float | None]]",
+    floor: int,
+    edges: "tuple[int, int]",
+    apart: bool,
+    holes: "frozenset[int]",
+    low_side: bool,
+) -> "dict[int, float]":
+    """The chance of each count of different days one tail of the twin draws (method G7.3b).
+
+    The arguments are `tails_fewest`'s, and `low_side` names the tail. A
+    tail that lists its values draws exactly as many days as it lists, one
+    holding no row none, and one whose column's values all differ its
+    rows as far as the member's edge allows. Any other is drawn through
+    its rebuilt shape (`rebuilt_tail`, its end and group stepped off the
+    holes), each drawn rank reading its own uniform word, so the law of
+    the days it draws is worked out exactly from the shape
+    (`_drawn_law`): no draw is made. The count pass may then merge or
+    spread the tail (`tails_kept`).
+
+    Guarantees: accepts what `tails_fewest` accepts and the side; returns
+    each count with its chance, the chances summing to one within
+    binary64. Determinism: a function of the arguments, in binary64.
+    Raises nothing. No I/O of any kind.
+    """
+    facts = published[0] if low_side else published[1]
+    fixed, rebuilt, edge = _side_rebuilt(
+        days, rows_low, rows_high, facts, floor, edges, apart, holes, low_side
+    )
+    if rebuilt is None:
+        return {fixed: 1.0}
+    return _drawn_law(rows_low if low_side else rows_high, rebuilt, edge)
+
+
+def body_draw(
+    pins: "tuple[tuple[int, int], ...]", holes: "frozenset[int]" = frozenset()
+) -> float:
+    """The different days the body's ranks draw, in expectation (method G7.3).
+
+    `pins` are the body's pinned ranks with their days, ascending
+    (`body_pins`), and `holes` the days the description publishes as
+    holding no body cell (`public_holes`). The body's ranks are drawn
+    independently inside their gaps, so a gap of `r` ranks strictly
+    between its two pins over `n` days strictly between them that are no
+    hole lands on `n * (1 - (1 - 1/n)**r)` of them in expectation; the
+    body's DRAW is that, gap by gap in order, beside the distinct pin
+    days. No day is walked: each weekday's days in a gap are counted and
+    the holes inside it set aside one by one.
+
+    Guarantees: accepts the pins and the holes; returns the draw.
+    Determinism: a function of the two, in binary64. Raises nothing. No
+    I/O of any kind.
+    """
+    if not pins:
+        return 0.0
+    held: "list[int]" = []
+    for _rank, day in pins:
+        if day not in held:
+            held += [day]
+    first_day = pins[0][1]
+    last_day = pins[len(pins) - 1][1]
+    inside = sorted(day for day in holes if first_day <= day <= last_day)
+    draw = float(len(held))
+    at = 0
+    for place in range(len(pins) - 1):
+        rank, first = pins[place]
+        following, last = pins[place + 1]
+        while at < len(inside) and inside[at] <= first:
+            at = at + 1
+        inner = following - rank - 1
+        if inner < 1 or last - first < 2:
+            continue
+        counts = _weekday_days(first + 1, last - 1)
+        while at < len(inside) and inside[at] < last:
+            weekday = weekday_of(inside[at])
+            counts[weekday] = counts[weekday] - 1
+            at = at + 1
+        every = 0
+        for weekday in range(WEEKDAYS):
+            every = every + counts[weekday]
+        if every > 0:
+            draw = draw + every * (1.0 - _power_of(1.0 - 1.0 / every, inner))
+    return draw
+
+
+def _law_mean(law: "dict[int, float]") -> float:
+    """The expected count of a law."""
+    mean = 0.0
+    for count in sorted(law):
+        mean = mean + count * law[count]
+    return mean
+
+
+def _law_reached(law: "dict[int, float]", share: float, strictly: bool) -> int:
+    """The least count at which the law's chance of no more passes `share`
+    (`strictly`) or reaches it; its largest count where none does."""
+    total = 0.0
+    for count in sorted(law):
+        total = total + law[count]
+        if total > share if strictly else total >= share:
+            return count
+    return max(law)
+
+
+def tails_kept(
+    days: "tuple[int, ...]",
+    rows_low: int,
+    rows_high: int,
+    published: "tuple[tuple[int | None, float | None, float | None], tuple[int | None, float | None, float | None]]",
+    floor: int,
+    edges: "tuple[int, int]",
+    apart: bool,
+    holes: "frozenset[int]",
+    pins: "tuple[tuple[int, int], ...]",
+    census_holes: "frozenset[int]" = frozenset(),
+) -> "tuple[int, int]":
+    """The fewest and the most different days the twin's two tails keep once its count pass has run: where it merges, but at a share of seeds no larger than `KEPT_MISS`; where it splits, the most they can hold.
+
+    The first eight arguments are `tails_fewest`'s; `pins` are the body's
+    pinned ranks with their days (`body_pins`) and `census_holes` the days
+    the description publishes as holding no body cell (`public_holes`).
+    The two count rules are handed these (the orchestrator's ruling of
+    2026-10-07 on the price of plan P4-D388: a census its twins meet at
+    nine seeds in ten or more stands): the room rule the most, the reach
+    rule the fewest.
+
+    THE COUNT PASS DECIDES WHAT THE TAILS KEEP (method G7.3's count
+    passes), and it knows nothing of the census. Where the body's draw
+    (`body_draw`, beside the census holes) and the days the two tails
+    draw in expectation (`tail_days_law`) pass the column's count of
+    different days, it MERGES runs onto held days, nearest first, then
+    the shorter run, then the LOWER rank: the low tail's ranks are the
+    column's lowest, so it is merged first, at most down to its fewest
+    days (`_side_counted`), and the high tail's are the highest, so it
+    keeps the days it drew -- each with the measured exceptions below.
+    Where they fall short it SPLITS ranks onto free days, nearest first,
+    then the LOWER rank: a body rank one day from a free day splits before
+    any high tail rank whose free day is further, so the high tail keeps
+    the days it drew unless the body's nearer splits run out first; and
+    the low tail comes first at each distance, but it splits a rank only
+    onto a free day inside that rank's own stratum, and only while the
+    count wants more: on Monday-to-Friday logs it ended
+    below its most (`tails_most_rebuilt`) at two seeds or more on 10 of
+    272 censuses of logs just above one row an open day and 64 of 125 of
+    fresh logs where the pass split, none of them costing the count (plan
+    P4-D388). So, merging, the
+    FEWEST is the low tail's fewest and the least count
+    the high tail draws with a chance above `KEPT_MISS` of drawing no
+    more; and the MOST counts no merge at all -- the least count the two
+    tails draw together with a chance of at least `1 - KEPT_MISS` of
+    drawing no more. A merge only takes days away, so where the pass
+    merges, the days the tails draw bound the days they keep; how far a
+    merge takes the low tail is not read here, and a day it keeps is a day
+    the body loses. Measured (plan P4-D388): the low tail kept a day or two
+    above its fewest on the median of the twins measured and up to ten on
+    a column of monthly dates whose low tail's days stand apart, whose
+    census a most read at that fewest published, its twins long at every
+    seed; it fell below its fewest only where the column's count leaves
+    the body a few days or none beside the two tails' fewest, and the pass
+    moves tail ranks out of their strata to meet it; and the high tail gave
+    up days where the pass took more than a quarter of the body's drawn
+    days, which the fewest does not count. Splitting, both are read at the
+    two tails' most, which the high tail reaches only where the body's
+    nearer splits run out first: one row a business day spends its body's
+    spare ranks first and its tails reach their most, but on logs just
+    above one row an open day the high tail keeps the days it drew at more
+    than a tenth of seeds, and a census the reach rule publishes can come
+    back short at up to seven seeds in ten (plan P4-D388: 21 of 313 such
+    censuses, one to four values short, each miss named by validation) --
+    a risk the orchestrator's ruling of 2026-10-08 lets stand, P4-D388
+    naming the fix it waits on.
+
+    Guarantees: accepts what `tails_fewest` accepts, the pins and the
+    holes; returns the fewest and the most, the fewest never above the
+    most. Determinism: a function of the arguments, in binary64. Raises
+    nothing. No I/O of any kind.
+    """
+    rebuilt = (days, rows_low, rows_high, published, floor, edges, apart, holes)
+    low = tail_days_law(*rebuilt, True)
+    high = tail_days_law(*rebuilt, False)
+    most = tails_most_rebuilt(*rebuilt)
+    drawn = body_draw(pins, census_holes) + _law_mean(low) + _law_mean(high)
+    if drawn <= len(set(days)):
+        return most, most
+    merged = _side_counted(
+        days, rows_low, rows_high, published[0], floor, edges, apart, holes,
+        True, False,
+    )
+    fewest = merged + _law_reached(high, KEPT_MISS, True)
+    together: "dict[int, float]" = {}
+    for low_days in sorted(low):
+        for high_days in sorted(high):
+            both = low_days + high_days
+            chance = low[low_days] * high[high_days]
+            together[both] = (together[both] if both in together else 0.0) + chance
+    return fewest, max(fewest, _law_reached(together, 1.0 - KEPT_MISS, False))
+
+
 def count_reach_short(
     groups: "tuple[tuple[int, int, int], ...]",
     pins: "tuple[tuple[int, int], ...]",
@@ -1732,10 +2076,13 @@ def count_reach_short(
 
     THE COUNT-ROOM RULE'S OTHER DIRECTION, asked at every floor. `pins`
     are the body's pinned ranks with their days, ascending (`body_pins`);
-    `days` is how many different days the column holds; `fewest` and
-    `most` the fewest and the most different days the twin's two tails
-    can hold as G7.3b rebuilds them (`tails_fewest`,
-    `tails_most_rebuilt`); `holes` the days the description publishes as
+    `days` is how many different days the column holds; `fewest` the
+    fewest different days the twin's two tails keep once its count pass
+    has run, but at a share of seeds no larger than `KEPT_MISS` where it
+    merges, and their most where it splits (`tails_kept`, the
+    orchestrator's ruling of 2026-10-07), and `most`
+    the most they can hold as G7.3b rebuilds them
+    (`tails_most_rebuilt`); `holes` the days the description publishes as
     holding no body cell (`public_holes`).
 
     WHERE THE CENSUS LETS THE BODY REACH. The twin's day pass moves a
@@ -1750,23 +2097,26 @@ def count_reach_short(
 
     WHAT THE COUNT ASKS OF IT. Before the day pass, the count pass meets
     the column's count of different days on the drawn twin, knowing
-    nothing of the census. The body's ranks are drawn independently
-    inside their gaps and land, in expectation, on `n * (1 - (1 -
-    1/n)**r)` of a gap's `n` days that are no hole, `r` its ranks; with
-    the pin days, the body's DRAW. Where the draw and the tails' most
-    fall short of the count, the pass only SPLITS, moving ranks that
-    share a day onto days no rank holds -- a tail's ranks onto free days
-    of their own spans -- and the tails reach their most: one row a
-    business day over four and a half years draws about 830 of its 1,180
-    days and comes back holding every one. Otherwise it MERGES, and
-    merging only takes days away: the body keeps no more than its draw,
-    and the tails, whose ranks alone on a day are the shortest runs it
-    merges, no fewer than their fewest -- `_hunt(2291)` of
-    tests/test_stage3b_count_room.py draws 20 or 21 days of its 17, and
-    its high tail is merged from four days to three at every seed. So the
+    nothing of the census. The body's ranks land on its DRAW
+    (`body_draw`, beside the holes). Where the draw and the tails' most
+    fall short of the count, the pass only SPLITS, moving ranks that share
+    a day onto days no rank holds -- a tail's ranks onto free days of
+    their own spans -- nearest first, then the lower rank, and the rule
+    reads the tails at their most, which the high tail reaches where the
+    body's nearer splits run out first -- one row a business day over
+    four and a half years draws about 830 of its 1,180 days and comes back
+    holding every one -- and the low tail, the column's lowest ranks,
+    comes first at each distance, but it splits a rank only onto a free
+    day inside that rank's own stratum, and only while the count wants
+    more: on Monday-to-Friday logs it ended below its most at two
+    seeds or more on 10 of 272 censuses of logs just above one row an open
+    day and 64 of 125 of fresh logs where the pass split, none of them
+    costing the count (plan P4-D388).
+    Otherwise it MERGES, and merging only takes days away: the body keeps
+    no more than its draw, and the tails no fewer than `fewest`. So the
     body's NEED is what the tails at their most leave it, and, where its
-    draw passes that, as much of the draw as the tails at their fewest
-    leave room for.
+    draw passes that, as much of the draw as the tails at `fewest` leave
+    room for.
 
     True where the need is more than the reach and the census narrows it
     -- without the census the body would reach further -- so the twin
@@ -1776,13 +2126,21 @@ def count_reach_short(
     came back with 11 for 12 at every seed, and 12 with the census
     withheld. A need equal to the reach publishes the census.
 
-    A CONSERVATIVE rule where the count pass merges: it reads every merge
-    as taken from the tails, where most are taken from the body. It
-    withholds censuses a twin would meet, and that is its price; the
-    draw is its expectation, and a twin whose body draws more than that
-    is a recorded limit. No day of the body's span is walked: the days of
-    each weekday in a gap are counted, and the holes inside it set aside
-    one by one.
+    Its price and its risk are both measured (plan P4-D388): the low tail
+    is read at its fewest, where a twin's low tail keeps a day or two more
+    on the median, so where the margin is that narrow it withholds
+    censuses their twins meet; and the tails are read at the share of
+    seeds the ruling allows, and the draw at its expectation, so a twin of
+    a census it publishes can still come back a value short at that share
+    of seeds -- and at more where the pass splits and the body's nearer
+    splits do not run out before the high tail's: on logs just above one
+    row an open day the high tail keeps the days it drew, the body needs
+    more than the tails' most leave it, and 21 of 313 such censuses
+    published came back one to four values short at two to seven seeds of
+    ten, a risk the orchestrator's ruling of 2026-10-08 lets stand. Each
+    miss is one the twin's report and validation name.
+    No day of the body's span is walked: the days of each weekday in a
+    gap are counted, and the holes inside it set aside one by one.
 
     Guarantees: accepts the census, the pins, the count, the tails'
     fewest and most and the holes; returns the answer. Determinism: a
@@ -1801,7 +2159,6 @@ def count_reach_short(
     inside = sorted(day for day in holes if first_day <= day <= last_day)
     reach = len(held)
     free = len(held)
-    draw = float(len(held))
     at = 0
     for place in range(len(pins) - 1):
         rank, first = pins[place]
@@ -1824,8 +2181,7 @@ def count_reach_short(
                 allowed = allowed + counts[weekday]
         reach = reach + min(inner, allowed)
         free = free + min(inner, every)
-        if every > 0:
-            draw = draw + every * (1.0 - _power_of(1.0 - 1.0 / every, inner))
+    draw = body_draw(pins, holes)
     spans = _weekday_days(first_day, last_day)
     for day in inside:
         weekday = weekday_of(day)
