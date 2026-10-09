@@ -1318,6 +1318,35 @@ def test_the_check_lets_through_the_list_and_nothing_else() -> None:
         assert roles_moved_outside_the_order(
             {"thing": was}, {"thing": now}
         ) == [("thing", was, now)]
+    # Every ordered pair of the taxonomy's roles: allowed exactly when the
+    # role stays, climbs `ROLE_ORDER` or is one of the four pairs written
+    # out here, not read from `ROLE_MOVES_ACROSS`, so a fifth pair or a
+    # dropped one turns this red.
+    roles = sorted(
+        value
+        for name, value in vars(taxonomy).items()
+        if name.startswith("ROLE_") and isinstance(value, str)
+    )
+    assert len(roles) == 15
+    across = (
+        (taxonomy.ROLE_COMPOUND, taxonomy.ROLE_LONG_TAIL),
+        (taxonomy.ROLE_CONTINUOUS, taxonomy.ROLE_COMPOUND),
+        (taxonomy.ROLE_COUNT, taxonomy.ROLE_COMPOUND),
+        (taxonomy.ROLE_DATETIME, taxonomy.ROLE_COMPOUND),
+    )
+    for was, now in itertools.product(roles, roles):
+        allowed = (
+            was == now
+            or (was, now) in across
+            or (
+                was in ROLE_ORDER
+                and now in ROLE_ORDER
+                and ROLE_ORDER.index(was) < ROLE_ORDER.index(now)
+            )
+        )
+        assert roles_moved_outside_the_order({"thing": was}, {"thing": now}) == (
+            [] if allowed else [("thing", was, now)]
+        ), (was, now)
 
 
 def _round_trip(
