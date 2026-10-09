@@ -1597,12 +1597,13 @@ _WIDE_TOTAL = 4096
 # up through them (`_owed_table`, `_owed_read`), so it is built once the
 # walks it would replace have cost as much -- on that identifier at its
 # fourth such reading. Counted by readings instead, from the third open
-# one in a cell's entry, a seeded question of 69 sizes built a table each
-# of the 3,991 times the walk came back to its cell, where the walks it
-# replaced stopped 27 sizes down on the average, and took 1.43 to 1.47 s
-# of CPU where 630a2cc took 1.22 to 1.24; counted this way it builds
-# none. Nor does the review's own identifier, whose two packing
-# questions walk such totals four times in all.
+# one in a cell's entry and kept as the walk left the cell, a seeded
+# question of 69 sizes built 3,991 tables, 243,451 sizes walked at full
+# width in place of halving walks over 181,827 that stop where a total
+# comes in range, and took 1.43 to 1.47 s of CPU where 630a2cc took 1.22
+# to 1.24; counted this way it builds none. Nor does the review's own
+# identifier, whose two packing questions walk such totals four times in
+# all.
 _WALKED_BEFORE_TABLE = 2
 
 

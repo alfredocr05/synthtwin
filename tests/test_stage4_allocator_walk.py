@@ -1940,9 +1940,9 @@ def test_a_reserve_keeps_a_table_only_once_the_walks_it_replaces_have_cost_as_mu
     walk as 493f6f8 shipped it does in fewer states; counted by readings
     instead -- a table from the third reading the largest-first readings
     leave open in a cell's entry, the count kept as the walk left the
-    cell -- it built one each of the 3,991 times the walk came back to a
-    cell, 243,451 sizes at full width where the halving walks went 187
-    sizes down in all, 1.43 to 1.47 s of CPU where 630a2cc took 1.22 to
+    cell -- it built 3,991, 243,451 sizes at full width where the
+    halving walks it still ran went 187 sizes down in all and those it
+    replaced 181,827, 1.43 to 1.47 s of CPU where 630a2cc took 1.22 to
     1.24. On the verify's identifier at 200 values, whose halving walks
     each go down nearly every size, the table is still built, at the
     fourth reading in the cell before the last. Mutations, run, each red

@@ -61,6 +61,18 @@ It now settles, as G9.5 says. Measured, it runs past that cutoff only
 where it then refuses, and that grid at a million rows is refused in
 4.1 s of CPU where the cutoff's walk took 8.1.
 
+Its verify found the same reading again where only a small size
+completes a reserve's total: on one value held by 3 rows beside values
+held by 2, 4, ... 2,000 rows, 1,001,003 rows, the place a reserve
+remembers is the 3-row size's, and the twin's walk took 12 s where
+493f6f8's took 0.45. A reserve whose totals the walk has gone over
+twice as many sizes as it reads, while it stands in one cell, is now
+read from a table of what its undecided sizes leave owed, built once
+and worked out a stretch at a time, so each reading folds in only what
+the decided sizes leave: that walk takes 0.8 s, every answer and twin
+the same, and `K-S4-04` holds the walk's arithmetic on that question
+beside 493f6f8's.
+
 ### A description written before the published pairs loads again (2026-10-03)
 
 **The review of landing 3b.G1, its four items** (plan P4-D375). A
