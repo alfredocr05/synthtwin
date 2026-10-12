@@ -9458,7 +9458,7 @@ def heavy_plan(knots, listed, holes, censuses, budget):
             for rank in range(at, at + ordinary):
                 placed[rank] = (segment.lows[part], segment.highs[part])
             if ordinary > 0:
-                parts += [HeavyRecord(lo=segment.lows[part], hi=segment.highs[part], first=at, count=ordinary, keyed=keyed[index][part])]
+                parts += [HeavyRecord(lo=segment.lows[part], hi=segment.highs[part], first=at, count=ordinary, keyed=keyed[index][part], lent=segment.lent if part == 0 else -1)]
             at = at + ordinary
             if part < len(segment.covered):
                 day, count = segment.covered[part]
@@ -9511,13 +9511,11 @@ def heavy_segments(knots, listed, holes):
         touches = []
         for part in range(len(covered) + 1):
             lo = max(day_a, low_day) if part == 0 else covered[part - 1] + 1
-            if part == 0 and real_a and (rank_a != low_rank):
-                lo = day_a + 1
             hi = min(day_b, high_day) if part == len(covered) else covered[part] - 1
             lows += [lo]
             highs += [hi]
             loose += [tuple(((day, count_of[day]) for day in inside if lo <= day <= hi and day not in knot_days))]
-            touches += [part == 0 and real_a and rank_a == low_rank or (part == len(covered) and real_b)]
+            touches += [part == 0 and real_a or (part == len(covered) and real_b)]
         least = []
         most = []
         offset = rank_a + 1
@@ -9527,7 +9525,7 @@ def heavy_segments(knots, listed, holes):
             least += [max(0, first - offset)]
             most += [min(ordinary, last - offset)]
             offset = offset + count_of[covered[part]]
-        segments += [HeavyRecord(base=rank_a + 1, ordinary=ordinary, lows=tuple(lows), highs=tuple(highs), loose=tuple(loose), touches=tuple(touches), covered=tuple(((day, count_of[day]) for day in covered)), least=tuple(least), most=tuple(most))]
+        segments += [HeavyRecord(base=rank_a + 1, ordinary=ordinary, lows=tuple(lows), highs=tuple(highs), loose=tuple(loose), touches=tuple(touches), covered=tuple(((day, count_of[day]) for day in covered)), least=tuple(least), most=tuple(most), lent=day_a if real_a and rank_a != low_rank else -1)]
     return segments
 HEAVY_WEIGHT_SCALE = 1048576
 HEAVY_REPAIRS = 64
@@ -9937,7 +9935,7 @@ def heavy_rounded(values, rows, columns):
     unplaced = sum((max(0, rows[row] - sum(table[row])) for row in range(height)))
     return (table, unplaced)
 
-def heavy_spread_cells(days_of, supply, demands, dropped):
+def heavy_spread_cells(days_of, supply, demands, dropped, lent):
     """SPREAD: each part's ranks per key, raked from the keys' free days to the parts' ranks and the owed rows, then rounded."""
     cells = []
     weights = []
@@ -9945,8 +9943,11 @@ def heavy_spread_cells(days_of, supply, demands, dropped):
         for key in sorted(days_of[place]):
             if key in dropped[place]:
                 continue
+            own = [day for day in days_of[place][key] if day != lent[place]]
+            if not own:
+                continue
             cells += [(place, key)]
-            weights += [len(days_of[place][key]) * WEEKDAY_SHARE_SCALE]
+            weights += [len(own) * WEEKDAY_SHARE_SCALE]
     for _round in range(HEAVY_RAKES):
         margins = [(-1, tuple(supply))]
         for which in range(len(demands)):
@@ -10130,7 +10131,8 @@ def heavy_cells(parts, demands, knots, left):
     days_of = [{key: days for key, days in part.keyed} for part in parts]
     supply = [part.count for part in parts]
     nothing = [frozenset() for _ in parts]
-    spread, short, raked = heavy_spread_cells(days_of, supply, demands, nothing)
+    lent = [part.lent for part in parts]
+    spread, short, raked = heavy_spread_cells(days_of, supply, demands, nothing, lent)
     tried = [(short, spread)]
     over = heavy_opened(spread, days_of, knots) - left
     if over > 0:
@@ -10139,7 +10141,7 @@ def heavy_cells(parts, demands, knots, left):
             light = sorted(((weight, place, key) for weight, place, key in raked if not any((day in knots for day in days_of[place][key]))))
             for _weight, place, key in light[0:over]:
                 dropped[place] = dropped[place] | {key}
-            pruned, short, raked = heavy_spread_cells(days_of, supply, demands, dropped)
+            pruned, short, raked = heavy_spread_cells(days_of, supply, demands, dropped, lent)
             tried += [(short, pruned)]
             over = heavy_opened(pruned, days_of, knots) - left
             if over <= 0 or short > 0:

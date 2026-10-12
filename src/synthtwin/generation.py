@@ -19153,6 +19153,7 @@ def _heavy_plan(
                         at,
                         ordinary,
                         keyed[index][part],
+                        segment.lent if part == 0 else -1,
                     )
                 ]
             at = at + ordinary
@@ -19173,7 +19174,8 @@ class _HeavyPart:
     its first rank and `count` how many ranks it holds. `keyed` is its
     free days by their group in each census beside the list, `(key,
     days)` ascending (`_heavy_keyed`), over which the draw splits its
-    ranks (`_heavy_cells`).
+    ranks (`_heavy_cells`); `lent` the day of the unlisted knot it shares
+    with the part before it, -1 where none.
     """
 
     lo: int
@@ -19181,6 +19183,7 @@ class _HeavyPart:
     first: int
     count: int
     keyed: "tuple[tuple[tuple[int, ...], tuple[int, ...]], ...]"
+    lent: int = -1
 
 
 @dataclasses.dataclass(frozen=True)
@@ -19189,7 +19192,9 @@ class _HeavySegment:
 
     `base` is its first rank and `ordinary` the ordinary ranks it holds.
     Per part: its first and last day (`lows`, `highs`), its loose listed
-    dates and whether it touches an unlisted knot. Per covered run: its date and count, and the least
+    dates and whether it touches an unlisted knot. `lent` is the day of
+    the unlisted knot the segment starts on, its first part's first day
+    and the last day of the part before it, -1 where it starts on none. Per covered run: its date and count, and the least
     and most ordinary ranks the parts before it may hold together.
     """
 
@@ -19202,6 +19207,7 @@ class _HeavySegment:
     covered: "tuple[tuple[int, int], ...]"
     least: "tuple[int, ...]"
     most: "tuple[int, ...]"
+    lent: int = -1
 
 
 def _heavy_segments(
@@ -19251,12 +19257,7 @@ def _heavy_segments(
         loose: "list[tuple[tuple[int, int], ...]]" = []
         touches: "list[bool]" = []
         for part in range(len(covered) + 1):
-            # An unlisted knot's day is the part's before it, never the one
-            # after: two parts sharing it each drew their ranks onto that
-            # one day. The low boundary's day is the first part's.
             lo = max(day_a, low_day) if part == 0 else covered[part - 1] + 1
-            if part == 0 and real_a and rank_a != low_rank:
-                lo = day_a + 1
             hi = min(day_b, high_day) if part == len(covered) else covered[part] - 1
             lows += [lo]
             highs += [hi]
@@ -19268,8 +19269,7 @@ def _heavy_segments(
                 )
             ]
             touches += [
-                (part == 0 and real_a and rank_a == low_rank)
-                or (part == len(covered) and real_b)
+                (part == 0 and real_a) or (part == len(covered) and real_b)
             ]
         least: "list[int]" = []
         most: "list[int]" = []
@@ -19291,6 +19291,7 @@ def _heavy_segments(
                 tuple((day, count_of[day]) for day in covered),
                 tuple(least),
                 tuple(most),
+                day_a if real_a and rank_a != low_rank else -1,
             )
         ]
     return segments
@@ -19993,10 +19994,13 @@ def _heavy_spread_cells(
     supply: "list[int]",
     demands: "tuple[tuple[int, ...], ...]",
     dropped: "list[frozenset[tuple[int, ...]]]",
+    lent: "list[int]",
 ) -> "tuple[list[dict[tuple[int, ...], int]], int, list[tuple[int, int, tuple[int, ...]]]]":
     """SPREAD: each part's ranks per key, raked from the keys' free days.
 
-    The prior of a key is its free days at `_WEEKDAY_SCALE`; it is raked
+    The prior of a key is its free days at `_WEEKDAY_SCALE`, a day the
+    part shares with the part before it (`lent`) not counted, so the two
+    do not both rake their ranks onto it; it is raked
     `_HEAVY_RAKES` times to each part's ranks and each census's owed
     rows, every step a floor division at the scale, as the weekday pass
     rakes its shares (`_weekday_shares`). The table of parts by the first
@@ -20012,8 +20016,11 @@ def _heavy_spread_cells(
         for key in sorted(days_of[place]):
             if key in dropped[place]:
                 continue
+            own = [day for day in days_of[place][key] if day != lent[place]]
+            if not own:
+                continue
             cells += [(place, key)]
-            weights += [len(days_of[place][key]) * _WEEKDAY_SCALE]
+            weights += [len(own) * _WEEKDAY_SCALE]
     for _round in range(_HEAVY_RAKES):
         margins: "list[tuple[int, tuple[int, ...]]]" = [(-1, tuple(supply))]
         for which in range(len(demands)):
@@ -20284,7 +20291,8 @@ def _heavy_cells(
     days_of = [{key: days for key, days in part.keyed} for part in parts]
     supply = [part.count for part in parts]
     nothing = [frozenset() for _ in parts]
-    spread, short, raked = _heavy_spread_cells(days_of, supply, demands, nothing)
+    lent = [part.lent for part in parts]
+    spread, short, raked = _heavy_spread_cells(days_of, supply, demands, nothing, lent)
     tried = [(short, spread)]
     over = _heavy_opened(spread, days_of, knots) - left
     if over > 0:
@@ -20299,7 +20307,7 @@ def _heavy_cells(
                 _weight, place, key = light[index]
                 dropped[place] = dropped[place] | {key}
             pruned, short, raked = _heavy_spread_cells(
-                days_of, supply, demands, dropped
+                days_of, supply, demands, dropped, lent
             )
             tried += [(short, pruned)]
             over = _heavy_opened(pruned, days_of, knots) - left

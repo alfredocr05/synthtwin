@@ -124,7 +124,7 @@
       "justification": "The states synthtwin's generation method freezes the dates that stand out on (landing 3b.6, plan P4-D369, method section G7.3j): steps 1 to 3, each listed date's run of ranks pinned on it and every ordinary rank's part, the split repaired by flows to the censuses' groups and to the count's new days, and step 4, each part's values drawn by key -- a covered run, two loose dates, a listed boundary day, two listed dates with a hole between them, Monday and Thursday sessions whose split the census repair moves, sessions with stray rows whose split the repair moves for the count's new days, and six Mays beside both censuses -- each with the answer the oracle computes from the method's text; held by tests/test_stage3b_heavy_dates.py, each red on its own mutant. Plan P4-D364's numbering table gives the landing this file. Whole numbers only; the oracle imports neither synthtwin, nor numpy, nor pandas.",
       "path": "tests/reference/generation-branch-vectors-19.json",
       "seed": 0,
-      "sha256": "938504a0ecb24b7cefb5624947c002212413fdb0cc1220c41923665c2ecc672f"
+      "sha256": "5c3635381836b8a0766489dd96e21bad9e96438d6ec738f3c54deef07bbd61e2"
     },
     {
       "generator": "tools/reference/make_generation_branch_vectors_22.py",
