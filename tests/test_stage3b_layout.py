@@ -3276,3 +3276,51 @@ def test_r2b_x3_the_method_says_what_the_layout_reads_after_an_iso_date() -> Non
         details = described.details or {}
         assert details.get("format") == f"layout {layout}", (cell, details.get("format"))
         assert details.get("n_unparsed") == 0, cell
+
+
+def _clock_beside_rare_words(gap: str, rows: int) -> "list[str]":
+    """Marked clocks with ``gap`` before the marker, one cell in 33 a rare text of its own."""
+    draw = random.Random(5)
+    cells: "list[str]" = []
+    for row in range(rows):
+        if row % 33 == 7:
+            cells += [f"pending review {row}"]
+            continue
+        clock = f"{draw.randrange(1, 13)}:{draw.randrange(60):02d}"
+        cells += [f"{clock}{gap}{('AM', 'PM')[draw.randrange(2)]}"]
+    return cells
+
+
+def _in_the_clock_shape(cells: "list[str]", gap: str) -> int:
+    pattern = re.compile(r"^\d{1,2}:\d{2}" + re.escape(gap) + r"[A-Za-z]{2}$")
+    return sum(1 for cell in cells if pattern.match(cell))
+
+
+def test_r2b_x4_a_joined_meridiem_beside_rare_words_keeps_its_shape(tmp_path: pathlib.Path) -> None:
+    """X4's control: `9:15AM` beside rare words is free text whose forms keep the clock's shape."""
+    cells = _clock_beside_rare_words("", 1000)
+    _block, profile, _questions = _described(tmp_path, cells)
+    _twin_path, written = _twin(profile, 0)
+    assert _in_the_clock_shape(written, "") == _in_the_clock_shape(cells, "") == 969
+
+
+@pytest.mark.xfail(
+    strict=True,
+    reason="Owned by lane R2b (the records round of 2026-10-09, STATE's limits): "
+    "parsing.shape_form gives no form to a cell holding a space or U+202F "
+    "(contract C6-97, section 7.9), so `9:15 AM` and `08:15:30.123 AM` publish no "
+    "forms and the twin of such a column beside rare words writes 0 of its 969 "
+    "clock cells in their shape (`9:15AM`: 969 of 969). A form holding the one "
+    "space or U+202F before the marker moves the form census of every role "
+    "(C6-97 and 7.9, method G9.5, the oracle's form filler): measured, not built "
+    "in the Codex fix stream of landing R2b.",
+)
+@pytest.mark.parametrize("gap", (" ", parsing.LAYOUT_NARROW_SPACE))
+def test_r2b_x4_a_spaced_meridiem_beside_rare_words_keeps_its_shape(
+    tmp_path: pathlib.Path, gap: str
+) -> None:
+    """X4: `9:15 AM` beside rare words keeps the clock's shape in its twin, as `9:15AM` does."""
+    cells = _clock_beside_rare_words(gap, 1000)
+    _block, profile, _questions = _described(tmp_path, cells)
+    _twin_path, written = _twin(profile, 0)
+    assert _in_the_clock_shape(written, gap) == _in_the_clock_shape(cells, gap) == 969
