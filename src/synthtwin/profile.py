@@ -906,7 +906,7 @@ _HOUR_COUNT = "an-hour-group-count-zero-or-at-the-census-line"
 # group's first and last value and a heap's value, 0 to 59; a group's count,
 # nought or at the census line; a heap's, at the census line. Which groups
 # and heaps may stand, and whether they may stand at all, are invariants
-# MC1 to MC6, SC1 to SC6, MH1, MH2, SH1 and SH2.
+# MC1 to MC6, SE1 to SE6, MH1, MH2, SH1 and SH2.
 _CLOCK_FIELD_VALUE = "a-minute-of-the-hour-or-second-of-the-minute"
 _CLOCK_FIELD_COUNT = "a-minute-or-second-group-count-zero-or-at-the-census-line"
 _CLOCK_FIELD_HEAP = "a-minute-or-second-heap-count-at-the-census-line"

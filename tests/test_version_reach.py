@@ -366,6 +366,14 @@ ROUTES_THAT_RUN_SOURCE = {
     ("tests/test_stage3b_hour_review.py", "compile"): 1,
     ("tests/test_stage3b_hour_review.py", "exec"): 1,
     # anchor 3b-T3 (P4-D372)
+    # The twentieth file, landing 3b.4's own steps of G7.3h and G7.3's
+    # drawing rule (plan P4-D372): it runs the same oracle by path, as every
+    # file above does.
+    ("tools/reference/make_generation_branch_vectors_20.py", "runpy.run_path"): 1,
+    # Its test's mutants: the product's generation module and
+    # `calendar_clock`, each with one edit, as the module docstring says.
+    ("tests/test_stage3b_minutes.py", "compile"): 2,
+    ("tests/test_stage3b_minutes.py", "exec"): 2,
     # anchor 3b-C1 (P4-D373)
     # The twenty-first file, landing 3b.5's census of a column of clock
     # times (plan P4-D373): it runs the same oracle by path, as every file
@@ -480,7 +488,13 @@ RUNNING_NAMES = ("exec", "eval", "compile", "runpy.run_path", "runpy.run_module"
 # (2026-10-09), not 34 or 33: each paragraph above counts its own load
 # from 30, the merged tree holds all five, and the merge counts every
 # one.
-FILES_LOADED_AS_MODULES = 35
+#
+# 36 AT LANDING 3b.4 (plan P4-D372), not 35:
+# `tests/test_stage3b_minutes.py` loads the generation oracle the same way,
+# to ask it again for every answer the twentieth vectors file carries. What
+# it loads is a committed file under tools/, which this guard reads
+# directly, so the floor holds for it as it does for the other thirty-five.
+FILES_LOADED_AS_MODULES = 36
 
 
 def _files() -> "list[pathlib.Path]":

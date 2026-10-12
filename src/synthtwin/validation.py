@@ -473,10 +473,6 @@ INPUT_SIDE_ENTRIES = (
     # out, below its own line.
     # -- 3b.T2 (P4-D371)
     # -- 3b.T3 (P4-D372)
-    ("datetime", "minute_census"),
-    ("datetime", "second_census"),
-    ("datetime", "minute_heaps"),
-    ("datetime", "second_heaps"),
     # -- 3b.D3 (P4-D368)
     ("datetime", "day_of_month_census"),
     # -- 3b.D4 (P4-D369)
@@ -18006,25 +18002,21 @@ def _clock_field_instants_of(
     """The instant of every cell that reads as a moment, with the minute and
     second it is WRITTEN at, read as `_hour_instants_of` reads it."""
     style = _stamp_style_of(facts)
-    face = ""
-    if facts.parser_family in contract.CLOCK_FORM_MEMBERS:
-        face = parsing.clock_face(style)
+    faced = facts.parser_family in contract.CLOCK_FORM_MEMBERS
+    face = parsing.clock_face(style) if faced else ""
     found: "list[tuple[int, tuple[int, int]]]" = []
     for cell in cells:
         read = parsing.parse_datetime(cell, facts.parser_family)
-        if read is None:
+        if read is None or (faced and _stamp_off_its_face(cell, face)):
             continue
-        if facts.parser_family in contract.CLOCK_FORM_MEMBERS and _stamp_off_its_face(cell, face):
-            continue
-        canonical = parsing.stamp_canonical(read[0], style)
-        if len(canonical) < 19:
-            continue
-        found += [
-            (
-                calendar_clock.seconds_of(canonical),
-                (calendar_clock.written_minute(canonical), calendar_clock.written_second(canonical)),
-            )
-        ]
+        written = parsing.stamp_canonical(read[0], style)
+        if len(written) >= 19:
+            found += [
+                (
+                    calendar_clock.seconds_of(written),
+                    (calendar_clock.written_minute(written), calendar_clock.written_second(written)),
+                )
+            ]
     return found
 
 

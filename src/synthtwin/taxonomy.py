@@ -1037,8 +1037,8 @@ NOTE_HOUR_WITHHELD_NO_GROUPING = "hour_census_withheld_no_grouping"
 # THE MINUTE AND SECOND CENSUSES' SENTENCES (landing 3b.4, plan P4-D372,
 # contract NF93 to NF100): a field PUBLISHING its heaps or its census says
 # what they are in one remark; a field WITHHELD for a reason of its own says
-# why in one publication note -- a middle half too short (MC4, SC4), no
-# heap and no grouping the merge rule publishes (MC5, SC5), and how the
+# why in one publication note -- a middle half too short (MC4, SE4), no
+# heap and no grouping the merge rule publishes (MC5, SE5), and how the
 # values fall on the field changing with the hour (the design skeptic's
 # M3). The reasons every census of the clock shares -- no tails, an
 # unpublished span, two storages -- are said once, in the hour census's
@@ -17304,7 +17304,8 @@ def clock_field_decision(
     `calendar_clock.SECOND`, and `hours`, `minutes` and `seconds` the
     written fields of every parsed cell in rank order (`_census_hours`,
     `_census_clock_fields`), and `fresh` whether each is written
-    differently from the one before it; no seconds, no second census. In
+    differently from the one before it, so the flatness and hour tests
+    count each different value once; no seconds, no second census. In
     order, as
     the hour census asks them: two tails (MC3), a published middle half
     -- p75 less p25 -- of four hours for minutes, four minutes for seconds
@@ -17354,7 +17355,19 @@ def clock_field_decision(
     if not stored_one_way:
         return ClockFieldDecision(groups, heaps, calendar_clock.HOUR_REASON_WORKBOOK)
     bins = calendar_clock.field_bins(body)
-    if not calendar_clock.departs_from_flat(bins):
+    # THE TWO TESTS ASK THE DIFFERENT VALUES, NOT THE CELLS (the builder's
+    # measurement of 2026-10-12): a value written on several rows -- a
+    # burst of check-ins, a panel of results -- is one event, and counted
+    # row by row a column at any minute written in panels looks heaped, and
+    # 1,000 check-ins in bursts of one to six scored chi-squared per degree
+    # of freedom 3.4 to 4.7 and Cramer's V 0.27 to 0.33 against the hour
+    # (0.8 to 1.1 and 0.22 to 0.25 counted by value).
+    units = [0 for _value in range(calendar_clock.FIELD_VALUES)]
+    for place in range(len(body)):
+        rank = rows_low + place
+        if place == 0 or rank >= len(fresh) or fresh[rank]:
+            units[body[place]] = units[body[place]] + 1
+    if not calendar_clock.departs_from_flat(units):
         return ClockFieldDecision(groups, heaps, calendar_clock.FIELD_REASON_FLAT)
     line = parsing.census_floor(settings.small_cell_floor)
     counted = details["n_at_midnight"] if "n_at_midnight" in details else None
@@ -17364,6 +17377,9 @@ def clock_field_decision(
     kept_hours: "list[int]" = []
     kept_values: "list[int]" = []
     for place in range(len(body)):
+        rank = rows_low + place
+        if place > 0 and rank < len(fresh) and not fresh[rank]:
+            continue
         if (
             isinstance(counted, int)
             and body_hours[place] == 0
@@ -17386,11 +17402,6 @@ def clock_field_decision(
         ),
         field,
     )
-    units = [0 for _value in range(calendar_clock.FIELD_VALUES)]
-    for place in range(len(body)):
-        rank = rows_low + place
-        if place == 0 or rank >= len(fresh) or fresh[rank]:
-            units[body[place]] = units[body[place]] + 1
     heaps = calendar_clock.field_heaps(bins, sure, line, units)
     rest_sure = calendar_clock.field_off_the_heaps(sure, heaps)
     groups = calendar_clock.field_groups(

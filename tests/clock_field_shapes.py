@@ -45,14 +45,16 @@ def _hour(draw: random.Random, weights: "tuple[float, ...]") -> int:
     return draw.choices(range(24), weights=weights)[0]
 
 
-def clinic(draw: random.Random, rows: int) -> "list[str]":
+def clinic(draw: random.Random, rows: int, days: int = 0) -> "list[str]":
     """Weekday slots 08:00 to 16:59: seven in ten on :00 or :30, a quarter
-    on :15 or :45, the rest walk-ins at any minute; written to the minute."""
+    on :15 or :45, the rest walk-ins at any minute; written to the minute;
+    over the first `days` weekdays where that is not nought."""
     found: "list[str]" = []
+    weekdays = _WEEKDAYS[:days] if days else _WEEKDAYS
     for _row in range(rows):
         pick = draw.random()
         minute = draw.choice((0, 30)) if pick < 0.70 else (draw.choice((15, 45)) if pick < 0.95 else draw.randrange(60))
-        found += [_at(draw.choice(_WEEKDAYS), draw.choice(_CLINIC_HOURS), minute).strftime(ISO_M)]
+        found += [_at(draw.choice(weekdays), draw.choice(_CLINIC_HOURS), minute).strftime(ISO_M)]
     return found
 
 
@@ -134,13 +136,13 @@ def emergency(draw: random.Random, rows: int) -> "list[str]":
 
 
 def three_hours(draw: random.Random, rows: int) -> "list[str]":
-    """A three-hour session of one day, slotted on the quarter hour: its
-    middle half spans fewer than four hours (MC4)."""
+    """A three-hour session of one day, slotted on the quarter hour and
+    written to the second: its middle half spans fewer than four hours (MC4)."""
     day = datetime.date(2023, 5, 9)
     found: "list[str]" = []
     for _row in range(rows):
         minute = 15 * draw.randrange(4) if draw.random() < 0.8 else draw.randrange(60)
-        found += [_at(day, 9 + draw.randrange(3), minute).strftime(ISO_M)]
+        found += [_at(day, 9 + draw.randrange(3), minute, draw.randrange(60)).strftime(ISO_S)]
     return found
 
 
@@ -175,7 +177,7 @@ def thousand(rows: int = 1000, seed: int = 72001) -> "dict[str, tuple[list[str],
         "zero_seconds": (zero_seconds(draw, rows), ISO_S),
         "on_the_hour": (on_the_hour(draw, rows), ISO_M),
         "emergency": (emergency(draw, rows), ISO_S),
-        "three_hours": (three_hours(draw, rows), ISO_M),
+        "three_hours": (three_hours(draw, rows), ISO_S),
         "near_pure_hour": (on_the_hour(draw, rows, 3), ISO_M),
         "near_pure_seconds": (zero_seconds(draw, rows, 3), ISO_S),
         "epoch_discharges": (discharges(draw, rows, 0.25), ISO_M),

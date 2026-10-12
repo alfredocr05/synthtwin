@@ -424,8 +424,8 @@ def half_day_distances(
 
 # anchor 3b-T3 (P4-D372)
 # THE MINUTE AND SECOND CENSUSES OF A COLUMN OF MOMENTS, AND THEIR HEAPS
-# (landing 3b.4, lane T3, plan P4-D372; contract 6.6.2, MC1 to MC6, SC1 to
-# SC6, MH1, MH2, SH1 and SH2; method G7.3h; validation V5-M1 and V5-S1).
+# (landing 3b.4, lane T3, plan P4-D372; contract 6.6.2, MC1 to MC6, SE1 to
+# SE6, MH1, MH2, SH1 and SH2; method G7.3h; validation V5-M1 and V5-S1).
 #
 # A column of moments whose hour census may stand publishes, over the same
 # BODY, how its cells fall on the minutes of the hour (`canonical[14:16]`)
@@ -462,13 +462,16 @@ def half_day_distances(
 MINUTE = "minute"
 SECOND = "second"
 FIELD_VALUES = 60
-# MC4 and SC4: the fewest seconds the published p75 less p25 may span, so
+# MC4 and SE4: the fewest seconds the published p75 less p25 may span, so
 # no census is the minutes of a few hours or the seconds of a few minutes.
 FIELD_SPAN_SECONDS = {MINUTE: 4 * HOUR_SECONDS, SECOND: 4 * 60}
 # The chi-squared per degree of freedom a field's sixty counts depart from
-# flat at, and the one at which the field depends on the hour (M3).
+# flat at, and the one at which the field depends on the hour (M3) -- where
+# its strength, Cramer's V, is also at least `DEPENDENCE_STRENGTH`
+# hundredths.
 FLAT_DEPARTURE = 4
 HOUR_DEPENDENCE = 4
+DEPENDENCE_STRENGTH = 20
 # M3's columns: the single values holding at least this share of the body,
 # in hundredths, and the rest as one.
 DEPENDENCE_SHARE_PERCENT = 5
@@ -480,8 +483,8 @@ FIELD_REACH = 5
 # the hour census shares -- no tails, an unpublished span, two storages --
 # withhold every census of the clock, and the hour census's own sentence
 # says so once (NF89, NF117, NF91); the other three are each said in a
-# sentence of the field's own: a middle half too short (MC4, SC4), no
-# grouping the merge rule publishes and no heap (MC5, SC5), and a field
+# sentence of the field's own: a middle half too short (MC4, SE4), no
+# grouping the merge rule publishes and no heap (MC5, SE5), and a field
 # depending on the hour (M3), and a census of the rest standing on a few
 # different values beside no heap (`few_values`). A field whose counts do
 # not depart from flat publishes nothing and says nothing: its twin's flat
@@ -511,7 +514,7 @@ FIELD_REASONS_SAID = (
 # under, and each field's heap rules.
 FIELD_RULES = {
     MINUTE: ("MC1", "MC2", "MC3", "MC5"),
-    SECOND: ("SC1", "SC2", "SC3", "SC5"),
+    SECOND: ("SE1", "SE2", "SE3", "SE5"),
 }
 FIELD_HEAP_RULES = {MINUTE: ("MH1", "MH2"), SECOND: ("SH1", "SH2")}
 # Each field's keys, census then heaps.
@@ -559,7 +562,7 @@ def field_bins(values: "list[int] | tuple[int, ...]") -> "list[int]":
 def field_sure(
     published: "list[tuple[int, str]]", at_midnight: "int | None", field: str
 ) -> "list[int]":
-    """The SURE cells of each value of a field (MC5, SC5), sixty counts.
+    """The SURE cells of each value of a field (MC5, SE5), sixty counts.
 
     As `hour_sure`: every published body value -- the tail boundaries and
     the rungs, with every rank between two of one value -- in the value
@@ -622,9 +625,16 @@ def depends_on_the_hour(
     (`hour_groups`) -- crossed with the field's single values each holding
     at least `DEPENDENCE_SHARE_PERCENT` hundredths of the body, and the
     rest as one. Its chi-squared per degree of freedom, asked exactly in
-    fractions, of `HOUR_DEPENDENCE` or more is a dependence. Where the
-    hours merge to one group, or the field to one column, there is no
-    table and no dependence. The caller leaves out the cells at a
+    fractions, of `HOUR_DEPENDENCE` or more is a dependence -- where its
+    STRENGTH, Cramer's V, the square root of chi-squared over the cells
+    times one less than the table's shorter side, is also at least
+    `DEPENDENCE_STRENGTH` hundredths (the builder's measurement of
+    2026-10-12: chi-squared grows with the rows, so 10,000 cells written
+    `HH:MM:00` whose minute does not follow the hour scored 3.9 counted by
+    value, at a V of 0.11; night charting on the hour beside day entries
+    scores a V near 0.98). The caller hands each different value once. Where
+    the hours merge to one group, or the field to one column, there is
+    no table and no dependence. The caller leaves out the cells at a
     published midnight. `hours` and `values` are the cells' written hour
     and value, pair by pair.
 
@@ -673,8 +683,14 @@ def depends_on_the_hour(
         numerator = numerator // common
         denominator = denominator // common
     # chi-squared / freedom >= HOUR_DEPENDENCE, with chi-squared =
-    # total * (numerator / denominator - 1).
-    return total * (numerator - denominator) >= HOUR_DEPENDENCE * freedom * denominator
+    # total * (numerator / denominator - 1); and V squared, chi-squared over
+    # total * (the shorter side less one), at least the strength squared.
+    shorter = min(kept_rows, kept_columns) - 1
+    return (
+        total * (numerator - denominator) >= HOUR_DEPENDENCE * freedom * denominator
+        and 10000 * (numerator - denominator)
+        >= DEPENDENCE_STRENGTH * DEPENDENCE_STRENGTH * shorter * denominator
+    )
 
 
 def field_heaps(
@@ -779,8 +795,8 @@ def field_breach(
     sure: "list[int]",
     field: str,
 ) -> "tuple[str, str, str] | None":
-    """A published census of a field held to MC1/SC1, MC2/SC2, MC3/SC3's
-    total and MC5/SC5, or None: THE ONE CHECK THE PRODUCER AND THE LOADER
+    """A published census of a field held to MC1/SE1, MC2/SE2, MC3/SE3's
+    total and MC5/SE5, or None: THE ONE CHECK THE PRODUCER AND THE LOADER
     BOTH ASK (`calendar_rules.census_breach`), over values 0 to 59 on a
     line. `body` is the body less the heaps' cells and `sure` is off the
     heaps. Raises nothing. No I/O of any kind."""
@@ -840,7 +856,7 @@ def heaps_breach(
 
 
 def span_long_enough_for(p25: "int | None", p75: "int | None", field: str) -> bool:
-    """MC4 and SC4: whether the published middle half spans four hours (a
+    """MC4 and SE4: whether the published middle half spans four hours (a
     minute census) or four minutes (a second census). A rung withheld
     publishes no span. Raises nothing. No I/O."""
     if p25 is None or p75 is None:

@@ -1793,25 +1793,25 @@ INVARIANTS = {
         "the heaps of the minutes of the hour count no more than the values "
         "between the two tail boundaries"
     ),
-    "SC1": (
+    "SE1": (
         "the groups of a second census cover second 0 to second 59 in order, "
         "each second exactly once, and no group runs past second 59"
     ),
-    "SC2": (
+    "SE2": (
         "every group of a second census counts nought or at least the "
         "census line, the smallest group size and never fewer than two"
     ),
-    "SC3": (
+    "SE3": (
         "a second census or heap stands only where an hour census may, on a "
         "column written to the second or finer, and the groups of a second "
         "census add up, with its heaps, to the values between the two tail "
         "boundaries"
     ),
-    "SC4": (
+    "SE4": (
         "a second census or heap stands only where the published 25th and "
         "75th percentiles lie at least four minutes apart"
     ),
-    "SC5": (
+    "SE5": (
         "every group of a second census holds at least the values the rest "
         "of the description places in its seconds off the heaps -- each tail "
         "boundary and published percentile, and the values at midnight the "
@@ -1819,7 +1819,7 @@ INVARIANTS = {
         "values -- and what is left of it is nought or at least the census "
         "line"
     ),
-    "SC6": (
+    "SE6": (
         "a second census or heap stands only where a workbook's published "
         "cell classes do not show the column's values stored in two ways"
     ),
@@ -5259,7 +5259,7 @@ def _hour_storage(
 def _clock_field_storage(
     source: SourceBlock, columns: "tuple[ColumnBlock, ...]"
 ) -> None:
-    """MC6 and SC6: no minute or second census or heap beside values a
+    """MC6 and SE6: no minute or second census or heap beside values a
     workbook stores two ways (landing 3b.4, plan P4-D372), asked as HC6
     asks the hour census (`_hour_storage`)."""
     form = source.workbook
@@ -5271,7 +5271,7 @@ def _clock_field_storage(
             continue
         for rule, published in (
             ("MC6", facts.minute_census or facts.minute_heaps),
-            ("SC6", facts.second_census or facts.second_heaps),
+            ("SE6", facts.second_census or facts.second_heaps),
         ):
             if not published:
                 continue
@@ -9524,12 +9524,12 @@ def _clock_field_read(
     A published census or heap must stand where the hour census may --
     a column of moments read on the local clock, not in the joint member,
     not wholly at midnight, with both tails -- and, for the second, on a
-    column written to the second or finer (MC3, SC3); its published p25
+    column written to the second or finer (MC3, SE3); its published p25
     and p75 must lie four hours apart for minutes and four minutes for
-    seconds (MC4, SC4). Then the heaps are held to MH1/SH1 and MH2/SH2
+    seconds (MC4, SE4). Then the heaps are held to MH1/SH1 and MH2/SH2
     (`calendar_clock.heaps_breach`) and the census, beside them, to
-    MC1/SC1, MC2/SC2, MC3/SC3's total -- the body less the heaps' rows --
-    and MC5/SC5 (`calendar_clock.field_breach`), the sure cells of every
+    MC1/SE1, MC2/SE2, MC3/SE3's total -- the body less the heaps' rows --
+    and MC5/SE5 (`calendar_clock.field_breach`), the sure cells of every
     published body value and of rule 4 (`calendar_clock.field_sure`) off
     the heaps' values. MC6 and SC6 are asked over the whole document
     (`_clock_field_storage`). Nothing asks what a reader could work out.
@@ -9592,7 +9592,7 @@ def _clock_field_read(
         by_percent[LADDER_PERCENTS[index]] = rungs[index]
     quarter = by_percent[25] if 25 in by_percent else None
     third = by_percent[75] if 75 in by_percent else None
-    span_rule = "MC4" if field == calendar_clock.MINUTE else "SC4"
+    span_rule = "MC4" if field == calendar_clock.MINUTE else "SE4"
     if not calendar_clock.span_long_enough_for(
         None if quarter is None else calendar_clock.seconds_of(quarter),
         None if third is None else calendar_clock.seconds_of(third),
