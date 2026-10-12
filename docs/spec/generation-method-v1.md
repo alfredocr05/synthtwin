@@ -7469,7 +7469,9 @@ pass, for the field:
 4. Each run of unpinned ranks is sorted.
 
 Where a field's groups still do not hold, one deviation names its census.
-Last, where the column publishes its count at midnight, THE TAILS KEEP IT:
+Last, where the column publishes its count at midnight -- or withholds it
+for its size, and so still owes the count it held before these passes
+(plan P4-D191) -- THE TAILS KEEP IT:
 while more ranks than it stand at a written midnight, the first unpinned
 tail rank at one steps off it by its tail's drawing unit inside its
 stratum; while fewer, the first unpinned tail rank off one takes the

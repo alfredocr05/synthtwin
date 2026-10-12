@@ -157,6 +157,17 @@ def night_and_day(draw: random.Random, rows: int) -> "list[str]":
     return found
 
 
+def days_and_a_few_times(draw: random.Random, rows: int, timed: int) -> "list[str]":
+    """Days at midnight over four years, `timed` of them at 09:30: a day
+    column a few timed cells made a column of moments (P4-D382's line)."""
+    found: "list[str]" = []
+    for row in range(rows):
+        day = datetime.date(2021, 1, 1) + datetime.timedelta(days=draw.randrange(1460))
+        found += [_at(day, 9, 30).strftime(ISO_M) if row < timed else _at(day, 0, 0).strftime(ISO_M)]
+    draw.shuffle(found)
+    return found
+
+
 def grid(draw: random.Random, rows: int, step: int) -> "list[str]":
     """A pure grid: every cell on a multiple of `step` minutes."""
     return [

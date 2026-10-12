@@ -11238,6 +11238,7 @@ def clock_fields_settled(column, ordinals, parsed, whole, lows, highs, holes):
         for weekday in range(group["first"], group["last"] + 1):
             standing[weekday] = index
     reachable = date_counts_reachable(column)
+    held_at_midnight = sum(1 for value in ordinals if written_at_midnight(value, 0, written))
     for field, census, heaps in (
         ("minute", minute_census, minute_heaps),
         ("second", second_census, second_heaps),
@@ -11272,20 +11273,32 @@ def clock_fields_settled(column, ordinals, parsed, whole, lows, highs, holes):
             clock_sixtieths(column, ordinals, parsed, first, last, pinned),
         )
         walk = WeekdayWalk(counts, group_of_value, ordinals, list(lows), list(highs), hole_days, seams)
-        if clock_have(walk, first, last) == walk.counts:
+        # Where the count is reachable, the published one, less the tail
+        # values sharing a unit of this step with another.
+        wanted = walk.different()
+        if reachable:
+            wanted = column["n_distinct"] - column["n_unparsed"] - (
+                len({value // written for value in ordinals}) - wanted
+            )
+        if clock_have(walk, first, last) == walk.counts and walk.different() == wanted:
             if field == "minute":
                 minute_of = list(group_of_value)
             continue
         clock_field_settled(
-            walk, first, last, pinned, walk.different(), standing, not census_of_days, kin,
+            walk, first, last, pinned, wanted, standing, not census_of_days, kin,
             reachable, column["n_distinct"],
         )
         ordinals = walk.days
         if field == "minute":
             minute_of = list(group_of_value)
-    if column.get("n_at_midnight") is not None:
+    # The count the tails keep: the published one, or, withheld for its size
+    # and so still owed (P4-D191), the count held before these passes.
+    counted = column.get("n_at_midnight")
+    if counted is None and midnight_withheld_for_its_size(column):
+        counted = held_at_midnight
+    if counted is not None:
         clock_midnight_count_kept(
-            column["n_at_midnight"], ordinals, ranks_the_tail_pins(column, parsed), first, last,
+            counted, ordinals, ranks_the_tail_pins(column, parsed), first, last,
             written, max(written, tail_unit_of(column)), lows, highs,
         )
     return ordinals
@@ -14583,9 +14596,9 @@ def bins_settled(walk, first, last, pinned, wanted, reachable):
         weekday_singles(walk, ranks, have, shares[j], 16, False)
     weekday_leftover(walk, movable, owed)
     weekday_chain(walk, movable, owed)
-    if reachable and walk.count_steps:
+    if reachable:
         weekday_count_kept(walk, movable, wanted)
-    if weekday_traded(walk, movable, owed) and reachable and walk.count_steps:
+    if weekday_traded(walk, movable, owed) and reachable:
         weekday_count_kept(walk, movable, wanted)
     sort_unpinned_runs(walk.days, pinned)
     return walk.days
@@ -14593,6 +14606,9 @@ def bins_settled(walk, first, last, pinned, wanted, reachable):
 
 def weekday_count_kept(walk, movable, wanted):
     """G7.3f step 8: steps 8.1 to 8.3, then 8.4 and 8.5 where it is long."""
+    if not walk.count_steps:
+        # Asked of no field of landing 3b.4 (G7.3h).
+        return
     weekday_repair(walk, movable, wanted)
     weekday_units_merged(walk, movable, wanted)
     weekday_long_pairs(walk, movable, wanted)

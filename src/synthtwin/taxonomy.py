@@ -1040,8 +1040,9 @@ NOTE_HOUR_WITHHELD_NO_GROUPING = "hour_census_withheld_no_grouping"
 # why in one publication note -- a middle half too short (MC4, SE4), no
 # heap and no grouping the merge rule publishes (MC5, SE5), and how the
 # values fall on the field changing with the hour (the design skeptic's
-# M3), and, for the minute, a census of the rest standing on a few
-# different values beside no heap. The reasons every census of the clock
+# M3), for the minute, a census of the rest standing on a few different
+# values beside no heap, and counts away from value 0 that a body could be
+# left too few cells off a midnight to hold. The reasons every census of the clock
 # shares -- no tails, an unpublished span, two storages -- are said once,
 # in the hour census's own sentence; a field whose counts do not depart
 # from flat says nothing, nor a second census left out for a few values.
@@ -1054,6 +1055,10 @@ NOTE_SECOND_WITHHELD_NO_GROUPING = "second_census_withheld_no_grouping"
 NOTE_MINUTE_WITHHELD_WITH_THE_HOUR = "minute_census_withheld_with_the_hour"
 NOTE_SECOND_WITHHELD_WITH_THE_HOUR = "second_census_withheld_with_the_hour"
 NOTE_MINUTE_WITHHELD_FEW_VALUES = "minute_census_withheld_few_values"
+# NF118 and NF119: counts away from value 0 a body could be left too few
+# cells off a midnight to hold (`calendar_clock.off_midnight_short`).
+NOTE_MINUTE_WITHHELD_OFF_MIDNIGHT = "minute_census_withheld_off_midnight"
+NOTE_SECOND_WITHHELD_OFF_MIDNIGHT = "second_census_withheld_off_midnight"
 # anchor 3b-C1 (P4-D373)
 # THE CLOCK CENSUS'S TWO SENTENCES (landing 3b.5, plan P4-D373; contract
 # NF106 and NF107), each naming the census line and no count of rows.
@@ -1247,6 +1252,8 @@ NOTE_ARITY: "dict[str, int]" = {
     NOTE_MINUTE_WITHHELD_WITH_THE_HOUR: 0,
     NOTE_SECOND_WITHHELD_WITH_THE_HOUR: 0,
     NOTE_MINUTE_WITHHELD_FEW_VALUES: 0,
+    NOTE_MINUTE_WITHHELD_OFF_MIDNIGHT: 0,
+    NOTE_SECOND_WITHHELD_OFF_MIDNIGHT: 0,
     # anchor 3b-C1 (P4-D373)
     NOTE_CLOCK_CENSUS_LEFT_OUT: 1,
     REMARK_CLOCK_CODES_WRITTEN: 1,
@@ -2271,6 +2278,16 @@ def rendered(form: str, arguments: "tuple[object, ...]") -> str:
             f"in a group, or fewer than {calendar_clock.FEW_VALUES_MEAN} a "
             f"group on average -- for counts of them to say more than where "
             f"a few events fell"
+        )
+    if form in (NOTE_MINUTE_WITHHELD_OFF_MIDNIGHT, NOTE_SECOND_WITHHELD_OFF_MIDNIGHT):
+        # NF118, NF119.
+        values, one, _whole_word = _clock_field_words(form)
+        return (
+            f"the {values} this column's values fall on are not counted: so "
+            f"many of its values are at midnight that, were every one of them "
+            f"between the two tail boundaries, fewer values off a midnight "
+            f"would be left there than its counts at each {one} other than 0 "
+            f"name"
         )
     if form in (NOTE_MINUTE_WITHHELD_WITH_THE_HOUR, NOTE_SECOND_WITHHELD_WITH_THE_HOUR):
         values, _one, _whole_word = _clock_field_words(form)
@@ -17321,7 +17338,9 @@ def clock_field_decision(
     (`calendar_clock.field_heaps`) and the CENSUS of the rest
     (`calendar_clock.field_groups`), each held to its sure cells
     (`calendar_clock.field_sure`, rule 4's cells at midnight in value 0);
-    none of either is a reason of its own. Last, the loader's own checks
+    none of either is a reason of its own; then the counts away from value
+    0 a body could be left too few cells off a midnight to hold
+    (`calendar_clock.off_midnight_short`). Last, the loader's own checks
     (`calendar_clock.field_breach`, `calendar_clock.heaps_breach`). No
     rule asks what a reader could work out from the census (the owner's
     principle of 2026-10-01).
@@ -17404,13 +17423,12 @@ def clock_field_decision(
     squares = squares + run * run
     if calendar_clock.depends_on_the_hour(kept_hours, kept_values, line, squares):
         return ClockFieldDecision(groups, heaps, calendar_clock.FIELD_REASON_HOUR)
+    at_midnight = calendar_clock.midnight_sure(
+        counted if isinstance(counted, int) else None,
+        hour_tails_listed(details),
+    )
     sure = calendar_clock.field_sure(
-        hour_published_values(details, parsed),
-        calendar_clock.midnight_sure(
-            counted if isinstance(counted, int) else None,
-            hour_tails_listed(details),
-        ),
-        field,
+        hour_published_values(details, parsed), at_midnight, field
     )
     heaps = calendar_clock.field_heaps(bins, sure, line, units)
     rest_sure = calendar_clock.field_off_the_heaps(sure, heaps)
@@ -17425,6 +17443,10 @@ def clock_field_decision(
             return ClockFieldDecision((), (), calendar_clock.FIELD_REASON_FEW_VALUES)
     if not heaps and not groups:
         return ClockFieldDecision((), (), calendar_clock.HOUR_REASON_GROUPING)
+    if calendar_clock.off_midnight_short(groups, heaps, len(body), at_midnight):
+        # COUNTS AWAY FROM VALUE 0 THE BODY MAY BE LEFT TOO FEW CELLS OFF A
+        # MIDNIGHT TO HOLD (`calendar_clock.off_midnight_short`).
+        return ClockFieldDecision((), (), calendar_clock.FIELD_REASON_OFF_MIDNIGHT)
     held = sum(count for _value, count in heaps)
     if (
         groups
@@ -17446,6 +17468,7 @@ def _clock_field_words(form: str) -> "tuple[str, str, str]":
         NOTE_SECOND_WITHHELD_SHORT_SPAN,
         NOTE_SECOND_WITHHELD_NO_GROUPING,
         NOTE_SECOND_WITHHELD_WITH_THE_HOUR,
+        NOTE_SECOND_WITHHELD_OFF_MIDNIGHT,
     ):
         return "seconds of the minute", "second", "minute"
     return "minutes of the hour", "minute", "hour"
@@ -17465,6 +17488,8 @@ _FIELD_WITHHELD_NOTES = {
     (calendar_clock.MINUTE, calendar_clock.FIELD_REASON_HOUR): NOTE_MINUTE_WITHHELD_WITH_THE_HOUR,
     (calendar_clock.SECOND, calendar_clock.FIELD_REASON_HOUR): NOTE_SECOND_WITHHELD_WITH_THE_HOUR,
     (calendar_clock.MINUTE, calendar_clock.FIELD_REASON_FEW_VALUES): NOTE_MINUTE_WITHHELD_FEW_VALUES,
+    (calendar_clock.MINUTE, calendar_clock.FIELD_REASON_OFF_MIDNIGHT): NOTE_MINUTE_WITHHELD_OFF_MIDNIGHT,
+    (calendar_clock.SECOND, calendar_clock.FIELD_REASON_OFF_MIDNIGHT): NOTE_SECOND_WITHHELD_OFF_MIDNIGHT,
 }
 
 

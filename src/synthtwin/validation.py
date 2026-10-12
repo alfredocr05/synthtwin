@@ -17924,15 +17924,18 @@ def _clock_field_checks(
     that read the real column and on its published face, placed by its
     instant and counted at the minute and second it is WRITTEN at
     (`calendar_clock.written_minute`, `calendar_clock.written_second`: a
-    sixtieth second in its own minute, at second 59). Per field one check:
-    each heap's value and each census group's values off the heaps,
-    HELD where every one holds its count, MISSED otherwise; printed
+    sixtieth second in its own minute, at second 59). Per field up to two
+    checks, the heaps' (`minute_heaps.counts`) and the census's
+    (`minute_census.groups`): each heap's value, and each census group's
+    values off the heaps, HELD where every one holds its count, MISSED
+    otherwise; printed
     through `_census_lines` (plan P4-D347), so no count below the line is
     printed beside the others. The file's censuses are counted here and
     never produced (`profile.build_document`'s `calendar_censuses`).
 
     Guarantees: accepts what `_weekday_checks` accepts; returns one check
-    per field publishing a census or heaps, none otherwise. Determinism:
+    per published census and one per field's published heaps, none
+    otherwise. Determinism:
     a function of the arguments. Raises nothing. No I/O of any kind.
     """
     published = [
@@ -17959,32 +17962,39 @@ def _clock_field_checks(
             continue
         place = 0 if field == calendar_clock.MINUTE else 1
         bins = calendar_clock.field_bins([fields[place] for fields in body])
-        named: "list[tuple[str, int]]" = []
-        found: "list[int]" = []
         heap_values = {value for value, _count in heaps}
-        for value, count in heaps:
-            named += [(_clock_field_value_named(field, value, value), count)]
-            found += [bins[value]]
-        for first, last, count in census:
-            named += [(_clock_field_value_named(field, first, last), count)]
-            found += [
-                sum(bins[value] for value in range(first, last + 1) if value not in heap_values)
+        census_key, heaps_key = calendar_clock.FIELD_KEYS[field]
+        for key, subcheck, groups in (
+            (heaps_key, "counts", tuple((value, value, count) for value, count in heaps)),
+            (census_key, "groups", census),
+        ):
+            if not groups:
+                continue
+            named: "list[tuple[str, int]]" = []
+            found: "list[int]" = []
+            for first, last, count in groups:
+                named += [(_clock_field_value_named(field, first, last), count)]
+                found += [
+                    sum(
+                        bins[value]
+                        for value in range(first, last + 1)
+                        if key == heaps_key or value not in heap_values
+                    )
+                ]
+            asked, shown, lines = _census_lines(named, found, line)
+            wanted = [count for _named, count in named]
+            checks += [
+                Check(
+                    column.name,
+                    f"datetime.{key}",
+                    f"{key}.{subcheck}",
+                    HELD if found == wanted else MISSED,
+                    asked,
+                    shown,
+                    "",
+                    tuple(lines),
+                )
             ]
-        asked, shown, lines = _census_lines(named, found, line)
-        wanted = [count for _named, count in named]
-        census_key = calendar_clock.FIELD_KEYS[field][0]
-        checks += [
-            Check(
-                column.name,
-                f"datetime.{census_key}",
-                f"{census_key}.groups",
-                HELD if found == wanted else MISSED,
-                asked,
-                shown,
-                "",
-                tuple(lines),
-            )
-        ]
     return checks
 
 

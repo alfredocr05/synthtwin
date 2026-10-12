@@ -410,9 +410,12 @@ def test_the_clock_battery_twins_meet_their_census(thousand, seed: int, monkeypa
     outcome = kpi_shapes.measure(described, written, f"twin-{seed}.csv")
     assert kpi_shapes.missed(outcome) == [], seed
     for field in ("minute", "second"):
-        fact = f"datetime.{calendar_clock.FIELD_KEYS[field][0]}"
-        held = [check for check in outcome.checks if check.fact == fact]
-        published = [name for name in columns if any(_published(described.block(name), field))]
+        facts = [f"datetime.{key}" for key in calendar_clock.FIELD_KEYS[field]]
+        held = [check for check in outcome.checks if check.fact in facts]
+        # One check per published census and one per field's published heaps.
+        published = [
+            listed for name in columns for listed in _published(described.block(name), field) if listed
+        ]
         assert len(held) == len(published) and all(check.verdict == validation.HELD for check in held), field
     monkeypatch.setattr(generation, "_clock_fields_settled", lambda column, facts, ordinals, *rest, **named: (ordinals, []))
     flat = kpi_shapes.twin_text(described, seed)
@@ -460,7 +463,7 @@ def test_a_flat_twin_misses_the_minute_census(thousand, monkeypatch: pytest.Monk
     monkeypatch.setattr(generation, "_tail_unit", lambda facts: 1)
     written = kpi_shapes.twin_text(described, 0)
     outcome = kpi_shapes.measure(described, written, "flat.csv")
-    checks = [check for check in outcome.checks if check.fact in ("datetime.minute_census", "datetime.second_census")]
+    checks = [check for check in outcome.checks if check.fact in ("datetime.minute_census", "datetime.second_census", "datetime.minute_heaps", "datetime.second_heaps")]
     assert checks and all(check.verdict == validation.MISSED for check in checks)
     for check in checks:
         for shown in check.achieved.split(", "):
@@ -562,6 +565,45 @@ def test_a_flat_column_publishes_nothing_and_its_twin_is_unchanged(tmp_path: pat
     written = kpi_shapes.twin_text(described, 0)
     monkeypatch.setattr(generation, "_clock_fields_settled", lambda column, facts, ordinals, *rest, **named: (ordinals, []))
     assert kpi_shapes.twin_text(described, 0) == written
+
+
+def test_days_beside_a_few_timed_cells_withhold_their_minutes(tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """989 days at midnight beside 11 cells at 09:30 -- and 970 beside 30 -- withhold
+    the minute's heaps and say why (NF118), and their twins at seeds 0 and 1
+    miss nothing; with the rule withdrawn the heap on minute 30 is published
+    and missed, the twins' tails standing some of their cells off a midnight
+    and their bodies left fewer than the heap counts (the builder's
+    measurement of 2026-10-12: 6 of 11)."""
+    for timed, seed in ((11, 72030), (30, 72046)):
+        cells = shapes.days_and_a_few_times(random.Random(seed), 1000, timed)
+        described = _one_column(tmp_path / f"kept-{timed}", "days", cells)
+        block = described.block("days")
+        assert block["minute_heaps"] == [] and block["minute_census"] == [], timed
+        said = [note["note"] for note in described.document["publication_notes"] if note["column"] == "days"]
+        assert taxonomy.rendered(taxonomy.NOTE_MINUTE_WITHHELD_OFF_MIDNIGHT, ()) in said, timed
+        for drawn in (0, 1):
+            written = kpi_shapes.twin_text(described, drawn)
+            assert kpi_shapes.missed(kpi_shapes.measure(described, written, f"t{drawn}.csv")) == [], (timed, drawn)
+    monkeypatch.setattr(calendar_clock, "off_midnight_short", lambda *_arguments: False)
+    cells = shapes.days_and_a_few_times(random.Random(72030), 1000, 11)
+    described = _one_column(tmp_path / "withdrawn", "days", cells)
+    assert described.block("days")["minute_heaps"] == [{"value": 30, "count": 11}]
+    written = kpi_shapes.twin_text(described, 0)
+    assert "days:minute_heaps.counts" in kpi_shapes.missed(kpi_shapes.measure(described, written, "m.csv"))
+
+
+def test_the_counts_off_midnight_by_hand() -> None:
+    """The counts away from value 0 must fit in the body less its count at midnight."""
+    assert calendar_clock.off_midnight_short((), ((30, 11),), 977, 989)
+    assert not calendar_clock.off_midnight_short((), ((30, 11),), 977, None)
+    assert not calendar_clock.off_midnight_short((), ((30, 11),), 977, 966)
+    assert calendar_clock.off_midnight_short((), ((30, 11),), 977, 967)
+    # A heap on 0 holds the cells at midnight; a group lying over 0 too,
+    # where 0 is no heap.
+    assert not calendar_clock.off_midnight_short(((1, 59, 500),), ((0, 400),), 977, 300)
+    assert calendar_clock.off_midnight_short(((1, 59, 700),), ((0, 200),), 977, 300)
+    assert not calendar_clock.off_midnight_short(((0, 29, 500), (30, 59, 400)), (), 977, 500)
+    assert calendar_clock.off_midnight_short(((0, 29, 400), (30, 59, 500)), (), 977, 500)
 
 
 # -- the loader's rules ------------------------------------------------------------------
@@ -863,8 +905,8 @@ STEP_MUTANTS = {
 CLOCK_MUTANTS = {
     "the heaps' lattice is the minute": (
         "lattice_half_hour",
-        "        for value, _count in heaps:\n            step = math.gcd(step, value)\n        return step",
-        "        for value, _count in heaps:\n            step = math.gcd(step, value)\n        return 1",
+        "        for value, _count in heaps:\n            step = common_divisor(step, value)\n        return step",
+        "        for value, _count in heaps:\n            step = common_divisor(step, value)\n        return 1",
     ),
     "the minute widens no unit": (
         "lattice_on_the_hour_seconds",

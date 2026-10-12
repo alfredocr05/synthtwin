@@ -25194,7 +25194,10 @@ def _weekday_count_kept(
     wanted: int,
 ) -> None:
     """Steps 8.1 to 8.5: the count of different values put back, every
-    group's count and every rank's kind kept."""
+    group's count and every rank's kind kept -- on a state that asks them
+    (`_WeekdayPass.count_steps`; landing 3b.4's fields do not)."""
+    if not state.count_steps:
+        return
     _weekday_repaired(state, body_low, body_high, pinned, wanted)
     _weekday_exchanged(state, body_low, body_high, pinned, wanted)
     if _weekday_count(state) > wanted:
@@ -25280,10 +25283,10 @@ def _bins_settled(
     if have != target:
         _weekday_chained(state, everything, have, target)
     # -- step 7c, the escape of a moment to an end day (3b.D2, P4-D367)
-    if state.keep_units and state.count_steps:
+    if state.keep_units:
         _weekday_count_kept(state, body_low, body_high, pinned, wanted)
     if have != target and _weekday_traded(state, everything, have, target):
-        if state.keep_units and state.count_steps:
+        if state.keep_units:
             _weekday_count_kept(state, body_low, body_high, pinned, wanted)
     _runs_sorted(state.moved, pinned)
 
@@ -26752,6 +26755,10 @@ def _clock_fields_settled(
     # published.
     minute_where = tuple(0 for _value in range(calendar_clock.FIELD_VALUES))
     notes: "list[Deviation]" = []
+    held_at_midnight = 0
+    for value in moved:
+        if _written_at_midnight(value, 0, written):
+            held_at_midnight = held_at_midnight + 1
     for field in (calendar_clock.MINUTE, calendar_clock.SECOND):
         census, heaps = facts.minute_census, facts.minute_heaps
         if field == calendar_clock.SECOND:
@@ -26773,7 +26780,7 @@ def _clock_fields_settled(
                 for place in range(calendar_clock.HOURS * 60)
             )
             unit, rule, keeps = 1, "second", "minute"
-        step = math.gcd(step, unit) if step > unit else step
+        step = calendar_clock.common_divisor(step, unit) if step > unit else step
         state = _WeekdayPass(
             moved=moved,
             held={},
@@ -26800,14 +26807,25 @@ def _clock_fields_settled(
                 pinned[rank] = True
             if facts.n_at_midnight is not None and _written_at_midnight(moved[rank], 0, step):
                 pinned[rank] = True
-        # Built once, as the hour pass builds it.
+        # Built once, as the hour pass builds it -- but where the column's
+        # count is one the construction reaches, the PUBLISHED count, less
+        # the tail values sharing a unit of this step with another, so a
+        # count an earlier pass left short is put back here: 240 moments at
+        # noon on 240 days, drawn on the hour, met their hour on 237 of
+        # them, and the field's pass kept 237.
         wanted = len({value // step for value in moved})
+        if state.keep_units:
+            wanted = column.n_distinct - facts.n_unparsed - (
+                len({value // written for value in moved}) - wanted
+            )
         counts = _clock_counts_as_written(
             state, asked, _sixtieth_seconds(layout, moved, pinned, body_low, body_high)
         )
-        if _clock_found(state, len(counts), body_low, body_high) == counts:
-            # A FIELD THE RANKS ALREADY MEET MOVES NONE -- a column drawn on
-            # the lattice its censuses pin, every second at 0.
+        if _clock_found(state, len(counts), body_low, body_high) == counts and (
+            len({value // step for value in moved}) == wanted
+        ):
+            # A FIELD THE RANKS ALREADY MEET, ITS COUNT KEPT, MOVES NONE -- a
+            # column drawn on the lattice its censuses pin, every second at 0.
             if field == calendar_clock.MINUTE:
                 minute_where = where
             continue
@@ -26819,9 +26837,17 @@ def _clock_fields_settled(
             notes += [_clock_field_deviation(column.name, field)]
         if field == calendar_clock.MINUTE:
             minute_where = where
-    if facts.n_at_midnight is not None:
+    # THE COUNT AT MIDNIGHT THE TAILS KEEP: the published one; or, where it
+    # is withheld for its size and so still owed (plan P4-D191), the count
+    # the column held before these passes -- 999 values at midnight beside
+    # one at 14:30 stood 10 off midnight once that count was kept, and the
+    # minute's pass moved the stray's minute off one more.
+    counted = facts.n_at_midnight
+    if counted is None and contract.midnight_withheld_for_its_size(facts):
+        counted = held_at_midnight
+    if counted is not None:
         _clock_midnight_count_kept(
-            facts.n_at_midnight, moved, _ranks_the_tail_pins(layout), body_low,
+            counted, moved, _ranks_the_tail_pins(layout), body_low,
             body_high, written, max(written, layout.tail_unit), gap_lows, gap_highs,
         )
     return moved, notes

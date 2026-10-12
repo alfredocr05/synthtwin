@@ -486,12 +486,14 @@ FIELD_REACH = 5
 # sentence of the field's own: a middle half too short (MC4, SE4), no
 # grouping the merge rule publishes and no heap (MC5, SE5), and a field
 # depending on the hour (M3), and a census of the rest standing on a few
-# different values beside no heap (`few_values`). A field whose counts do
-# not depart from flat publishes nothing and says nothing: its twin's flat
-# draw is its shape.
+# different values beside no heap (`few_values`), and counts away from
+# value 0 a body could be left too few cells off a midnight to hold
+# (`off_midnight_short`). A field whose counts do not depart from flat
+# publishes nothing and says nothing: its twin's flat draw is its shape.
 FIELD_REASON_FLAT = "flat"
 FIELD_REASON_HOUR = "hour"
 FIELD_REASON_FEW_VALUES = "few_values"
+FIELD_REASON_OFF_MIDNIGHT = "off_midnight"
 FIELD_REASONS = (
     HOUR_REASON_NO_TAILS,
     HOUR_REASON_SPAN,
@@ -501,6 +503,7 @@ FIELD_REASONS = (
     FIELD_REASON_FLAT,
     FIELD_REASON_HOUR,
     FIELD_REASON_FEW_VALUES,
+    FIELD_REASON_OFF_MIDNIGHT,
 )
 # The reasons said in a sentence of the field's own.
 FIELD_REASONS_SAID = (
@@ -508,6 +511,7 @@ FIELD_REASONS_SAID = (
     HOUR_REASON_GROUPING,
     FIELD_REASON_HOUR,
     FIELD_REASON_FEW_VALUES,
+    FIELD_REASON_OFF_MIDNIGHT,
 )
 
 # The names `calendar_rules.census_breach` reports each field's census
@@ -665,15 +669,13 @@ def depends_on_the_hour(
         if 100 * bins[value] >= DEPENDENCE_SHARE_PERCENT * total:
             column_of[value] = columns
             columns = columns + 1
-    table: "dict[tuple[int, int], int]" = {}
+    table = [[0 for _column in range(columns)] for _row in range(len(groups))]
     for place in range(total):
-        key = (row_of[hours[place]], column_of[values[place]])
-        table[key] = (table[key] if key in table else 0) + 1
-    rows = [0 for _row in range(len(groups))]
-    sums = [0 for _column in range(columns)]
-    for (row, column), count in table.items():
-        rows[row] = rows[row] + count
-        sums[column] = sums[column] + count
+        row = row_of[hours[place]]
+        column = column_of[values[place]]
+        table[row][column] = table[row][column] + 1
+    rows = [sum(table[row]) for row in range(len(groups))]
+    sums = [sum(table[row][column] for row in range(len(groups))) for column in range(columns)]
     kept_rows = len([count for count in rows if count > 0])
     kept_columns = len([count for count in sums if count > 0])
     freedom = (kept_rows - 1) * (kept_columns - 1)
@@ -682,14 +684,18 @@ def depends_on_the_hour(
     # chi-squared = n * (sum of O * O / (row * column) - 1), in fractions.
     numerator = 0
     denominator = 1
-    for (row, column), count in sorted(table.items()):
-        part_top = count * count
-        part_bottom = rows[row] * sums[column]
-        numerator = numerator * part_bottom + part_top * denominator
-        denominator = denominator * part_bottom
-        common = math.gcd(numerator, denominator)
-        numerator = numerator // common
-        denominator = denominator // common
+    for row in range(len(groups)):
+        for column in range(columns):
+            count = table[row][column]
+            if count <= 0:
+                continue
+            part_top = count * count
+            part_bottom = rows[row] * sums[column]
+            numerator = numerator * part_bottom + part_top * denominator
+            denominator = denominator * part_bottom
+            common = common_divisor(numerator, denominator)
+            numerator = numerator // common
+            denominator = denominator // common
     # chi-squared = total * (numerator / denominator - 1), divided by the
     # design effect squares / total: over freedom at least HOUR_DEPENDENCE,
     # and V squared, that over total * (the shorter side less one), at
@@ -702,6 +708,17 @@ def depends_on_the_hour(
         and 10000 * total * excess
         >= DEPENDENCE_STRENGTH * DEPENDENCE_STRENGTH * shorter * weight * denominator
     )
+
+
+def common_divisor(first: int, second: int) -> int:
+    """The greatest common divisor of two whole numbers, by Euclid's rule
+    (the offline scan admits no divisor helper of the math module); nought's
+    with a number is the number. Raises nothing. No I/O."""
+    first = abs(first)
+    second = abs(second)
+    while second:
+        first, second = second, first % second
+    return first
 
 
 def field_heaps(
@@ -777,6 +794,50 @@ def few_values(
     if not held:
         return False
     return min(held) < FEW_VALUES_LEAST or sum(held) < FEW_VALUES_MEAN * len(held)
+
+
+def off_midnight_short(
+    groups: "tuple[tuple[int, int, int], ...]",
+    heaps: "tuple[tuple[int, int], ...]",
+    body: int,
+    at_midnight: "int | None",
+) -> bool:
+    """Whether a field's counts away from value 0 could outrun its body's
+    cells off a midnight (landing 3b.4, plan P4-D372).
+
+    A published count at midnight is the column's, and its twin may stand
+    every one of those cells between the two tail boundaries -- all but
+    the rows of a tail whose every listed value is at midnight, which hold theirs there
+    (rule 4, `midnight_sure`): its other tails draw their cells where
+    their published distances put them, at any time of day. Its body is
+    then sure of only `body` less that many cells off a midnight
+    (`at_midnight`), and every cell at a midnight falls on value 0
+    -- so the counts that do not hold value 0 (each heap on another
+    value, and each group of the rest where 0 is a heap or lies outside
+    it) must fit in those. A column of 989 days at midnight and 11 cells
+    at 09:30, its tails holding 23 rows, published a heap of 11 on minute
+    30 that its twins, their tails standing 5 of their cells off a
+    midnight, met with 6 (the builder's measurement of 2026-10-12).
+
+    Guarantees: accepts the groups, the heaps, the number of body cells
+    and rule 4's count at midnight (`midnight_sure`), or None where none
+    is published; returns the answer -- never True where it is None.
+    Raises nothing. No I/O of any kind.
+    """
+    if at_midnight is None or at_midnight <= 0:
+        return False
+    sure = body - min(at_midnight, body)
+    zero_heaped = False
+    asked = 0
+    for value, count in heaps:
+        if value == 0:
+            zero_heaped = True
+        else:
+            asked = asked + count
+    for first, last, count in groups:
+        if zero_heaped or not first <= 0 <= last:
+            asked = asked + count
+    return asked > sure
 
 
 def field_off_the_heaps(
@@ -900,7 +961,7 @@ def field_lattice(
     if heaps and not census:
         step = FIELD_VALUES
         for value, _count in heaps:
-            step = math.gcd(step, value)
+            step = common_divisor(step, value)
         return step
     if census and not heaps:
         holding = [group for group in census if group[2] > 0]

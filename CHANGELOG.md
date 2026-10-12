@@ -21,8 +21,10 @@ validation recounts them (V5-M1, V5-S1). On the lane's battery of sixteen
 columns at 1,000 and 10,000 rows, floors 11 and 36, seeds 0 to 4, all 320
 twins validate with nothing missed; at 10,000 rows the minute TVD falls
 from 0.3 to 0.9 to 0.001 to 0.012. Columns whose minutes follow the hour,
-or whose middle half is shorter than four hours, publish nothing and say
-why; every column publishing no such fact writes the twin it wrote before.
+whose middle half is shorter than four hours, or whose cells at midnight
+could leave the body too few others for its counts -- days at midnight
+beside a few timed cells -- publish nothing and say why; every column
+publishing no such fact writes the twin it wrote before.
 
 ### Time of day comes back on moments (2026-10-06)
 
