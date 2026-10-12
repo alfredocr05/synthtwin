@@ -26288,7 +26288,10 @@ def _clock_pass(
     (`_clock_merge_target`); where one stands, step 3 runs once more with
     THE ESCAPE PAID BACK (`_clock_paid_escape`; lane J, plan P4-D367), a
     unit taking a day of another standing while as many ranks of that
-    standing take days of its own.
+    standing take days of its own -- and given back where, once steps 4
+    to 6 have run, the count of different values stands further from the
+    count PUT BACK asks than it does with steps 4 to 6 run without it
+    (`_clock_count_off`; lane J's skeptic, finding 1).
 
     Draws no word. Guarantees: moves body ranks the layout does not pin
     inside their own gaps, and on the half day tail ranks inside their
@@ -26297,6 +26300,7 @@ def _clock_pass(
     before = [_written_at_midnight(value, 0, state.step) for value in state.moved]
     _bins_settled(state, counts, body_low, body_high, pinned, wanted)
     found = _clock_found(state, len(counts), body_low, body_high)
+    unpaid: "tuple[list[int], dict[int, int], dict[int, int]] | None" = None
     if found != counts:
         _clock_left_their_groups(
             state, counts, found, body_low, body_high, pinned, standing, False, kin
@@ -26315,9 +26319,55 @@ def _clock_pass(
         # once more, a unit with no place on a day of its standing taking
         # one on a day of another, as many ranks of that standing moved by
         # whole days onto days of its own, so both censuses hold.
+        unpaid = _clock_saved(state)
+        asked = [value for value in found]
         _clock_left_their_groups(
             state, counts, found, body_low, body_high, pinned, standing, False, kin, True
         )
+        if found == asked:
+            unpaid = None
+    _clock_put_back_after(
+        state, before, body_low, body_high, pinned, wanted, standing, half_day, anyday, kin,
+        published,
+    )
+    if unpaid is not None and _clock_count_off(state, wanted, published) > 0:
+        # THE ROUND GIVEN BACK WHERE IT COSTS THE COUNT (lane J's skeptic,
+        # finding 1): a SPLIT rank the round placed on a day of another
+        # standing whose own values stand in another group of the field
+        # writes a value no merge keeping the day standing and the group
+        # can take back. Ward rounds at 08:00 on weekdays and 10:30 at
+        # weekends, a million rows over 150 days, came back with 260
+        # different values of a published 150, the hour census missed
+        # either way. So steps 4 to 6 run again on the state the round
+        # began from, and the round stands unless they come nearer the
+        # count without it.
+        paid = _clock_saved(state)
+        off = _clock_count_off(state, wanted, published)
+        _clock_restored(state, unpaid)
+        _clock_put_back_after(
+            state, before, body_low, body_high, pinned, wanted, standing, half_day, anyday,
+            kin, published,
+        )
+        if _clock_count_off(state, wanted, published) >= off:
+            _clock_restored(state, paid)
+    _runs_sorted(state.moved, pinned)
+
+
+def _clock_put_back_after(
+    state: _WeekdayPass,
+    before: "list[bool]",
+    body_low: int,
+    body_high: int,
+    pinned: "list[bool]",
+    wanted: int,
+    standing: "tuple[int, ...]",
+    half_day: bool,
+    anyday: bool,
+    kin: "tuple[int, ...]",
+    published: "int | None",
+) -> None:
+    """G7.3g steps 4 to 6 (`_clock_pass`): off a written midnight, the
+    half day's tail ranks, and PUT BACK."""
     _clock_off_midnight(state, before, body_low, body_high, pinned)
     if half_day:
         _hour_tails_on_the_half_day(state, body_low, body_high, state.step)
@@ -26347,7 +26397,46 @@ def _clock_pass(
             _clock_count_put_back(
                 state, body_low, body_high, pinned, wanted, standing, True, kin
             )
-    _runs_sorted(state.moved, pinned)
+
+
+def _clock_count_off(state: _WeekdayPass, wanted: int, published: "int | None") -> int:
+    """How far the count of different written units stands from the one
+    PUT BACK asks (G7.3g step 6; lane J's skeptic, finding 1): any distance
+    where the count is one the construction reaches (`keep_units`), else
+    only a short count's, and that only where the count drawn is not
+    above `published`; else none."""
+    count = _weekday_count(state)
+    if state.keep_units:
+        return abs(count - wanted)
+    if published is None or wanted <= published:
+        return max(wanted - count, 0)
+    return 0
+
+
+def _clock_saved(
+    state: _WeekdayPass,
+) -> "tuple[list[int], dict[int, int], dict[int, int]]":
+    """Every rank's ordinal and the counts kept on each written unit and
+    each unit, as they stand (lane J's round, given back or kept)."""
+    return (
+        [value for value in state.moved],
+        {key: state.held[key] for key in state.held},
+        {key: state.units_held[key] for key in state.units_held},
+    )
+
+
+def _clock_restored(
+    state: _WeekdayPass, saved: "tuple[list[int], dict[int, int], dict[int, int]]"
+) -> None:
+    """The state as `_clock_saved` kept it, each count in its own order."""
+    moved, held, units_held = saved
+    for rank in range(len(moved)):
+        state.moved[rank] = moved[rank]
+    for counts, kept in ((state.held, held), (state.units_held, units_held)):
+        for key in [key for key in counts]:
+            del counts[key]
+        for key in kept:
+            counts[key] = kept[key]
 
 
 def _clock_day_standing(facts: contract.DatetimeFacts) -> "tuple[int, ...]":

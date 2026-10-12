@@ -10427,7 +10427,9 @@ def clock_pass(walk, first, last, pinned, wanted, standing, half, reachable, any
        group another unit of it leaves; then, where no weekday census
        stands (``anyday``), the same again with an escape free to take a
        day of another weekday, and where one stands, the same again with
-       THE ESCAPE PAID BACK (lane J, plan P4-D367);
+       THE ESCAPE PAID BACK (lane J, plan P4-D367) -- given back where
+       steps 4 to 6, run again on the state it began from, come nearer
+       the count PUT BACK asks without it (lane J's skeptic, finding 1);
     4. off a written midnight, for each rank the pass put there;
     5. on the half day, each tail rank past noon or at midnight back on
        it inside its stratum (the hour's alone);
@@ -10441,6 +10443,7 @@ def clock_pass(walk, first, last, pinned, wanted, standing, half, reachable, any
     before = [written_at_midnight(ordinal, 0, walk.step) for ordinal in walk.days]
     bins_settled(walk, first, last, pinned, wanted, reachable)
     have = clock_have(walk, first, last)
+    unpaid = None
     if have != walk.counts:
         clock_groups_left(walk, have, first, last, pinned, standing, False, kin)
     if have != walk.counts:
@@ -10448,9 +10451,32 @@ def clock_pass(walk, first, last, pinned, wanted, standing, half, reachable, any
     if have != walk.counts and anyday:
         clock_groups_left(walk, have, first, last, pinned, standing, True, kin)
     elif have != walk.counts:
+        unpaid = list(walk.days)
+        asked = list(have)
         clock_groups_left(
             walk, have, first, last, pinned, standing, False, kin, clock_homes(walk, first, last, pinned)
         )
+        if have == asked:
+            unpaid = None
+    later = (walk, before, first, last, pinned, wanted, standing, half, reachable, anyday, kin, published)
+    clock_put_back_after(*later)
+    if unpaid is not None and clock_count_off(walk, wanted, reachable, published) > 0:
+        # The round given back where it costs the count (lane J's skeptic,
+        # finding 1): steps 4 to 6 again on the state it began from; the
+        # round stands unless they come nearer the count without it.
+        paid = list(walk.days)
+        off = clock_count_off(walk, wanted, reachable, published)
+        walk.days[:] = unpaid
+        clock_put_back_after(*later)
+        if clock_count_off(walk, wanted, reachable, published) >= off:
+            walk.days[:] = paid
+    sort_unpinned_runs(walk.days, pinned)
+    return walk.days
+
+
+def clock_put_back_after(walk, before, first, last, pinned, wanted, standing, half, reachable, anyday, kin, published):
+    """G7.3g steps 4 to 6: off a written midnight, the half day's tail
+    ranks, and PUT BACK."""
     clock_off_midnight(walk, before, first, last, pinned)
     if half:
         hour_tails_on_the_half_day(walk, first, last)
@@ -10459,8 +10485,18 @@ def clock_pass(walk, first, last, pinned, wanted, standing, half, reachable, any
         clock_put_back(walk, first, last, pinned, wanted, standing, False, kin)
         if anyday and walk.different() > wanted:
             clock_put_back(walk, first, last, pinned, wanted, standing, True, kin)
-    sort_unpinned_runs(walk.days, pinned)
-    return walk.days
+
+
+def clock_count_off(walk, wanted, reachable, published):
+    """How far the count of different written units stands from the one
+    PUT BACK asks: any distance where the count is reachable, else only a
+    short count's, and that only where the count drawn is not above the
+    published one; else none."""
+    if reachable:
+        return abs(walk.different() - wanted)
+    if published is None or wanted <= published:
+        return max(wanted - walk.different(), 0)
+    return 0
 
 
 def clock_have(walk, first, last):
@@ -16333,8 +16369,63 @@ def hour_paid_pass_case():
     )
 
 
+def hour_paid_hole_case():
+    m = HOUR_MONDAY
+    ordinals = [
+        hour_at(m - 3, 12), hour_at(m - 2, 12, 20), hour_at(m - 1, 12, 30), hour_at(m, 5, 23),
+        hour_at(m, 12), hour_at(m + 3, 12), hour_at(m + 6, 12, 10), hour_at(m + 16, 12),
+    ]
+    return hour_case(
+        "A PAYER KEPT OFF A HOLE (step 3, lane J's skeptic, finding 3): the escape paid back's "
+        "Monday rank at 05:23 takes Sunday's 12:23, and the Sunday rank at 12:10 six days on "
+        "goes the other way; the nearest Monday of its gap is a hole, so it takes the Monday a "
+        "week later, at its own 12:10.",
+        "paid", ordinals, {0, 4, 5, 7}, [0, 8, 0], HOUR_NOON, standing=HOUR_WEEK,
+        holes=[m + 7],
+    )
+
+
+def hour_paid_count_ordinals():
+    """Two Monday ranks sharing 05:23 before the Monday rung at noon, every
+    other movable rank in the evening: a Saturday's 18:20, a Sunday's 18:30
+    and, six days on, a Sunday's 18:10 whose gap holds a Monday."""
+    m = HOUR_MONDAY
+    return [
+        hour_at(m - 3, 12), hour_at(m - 2, 18, 20), hour_at(m - 1, 18, 30), hour_at(m, 5, 23),
+        hour_at(m, 5, 23), hour_at(m, 12), hour_at(m + 3, 12), hour_at(m + 6, 18, 10),
+        hour_at(m + 9, 12),
+    ]
+
+
+def hour_paid_count_given_back_case():
+    return hour_case(
+        "THE ROUND GIVEN BACK WHERE IT COSTS THE COUNT (the whole pass, lane J's skeptic, "
+        "finding 1): hours 12 to 17 counted six and 18 to 23 three beside seven single "
+        "weekdays. The pair at 05:23 finds one payer, so it SPLITs: one rank takes Sunday's "
+        "12:23, paid, and the other stays. Sunday's own value stands at 18:30, in the other "
+        "group, so no merge keeping the day and the group takes the new value back and the "
+        "count stands one long; without the round it is met, so the round is given back.",
+        "pass", hour_paid_count_ordinals(), {0, 5, 6, 8}, [0, 6, 3], HOUR_THREE,
+        standing=HOUR_WEEK,
+    )
+
+
+def hour_paid_count_tied_case():
+    return hour_case(
+        "THE ROUND KEPT WHERE THE COUNT IS NO NEARER WITHOUT IT (the whole pass, lane J's "
+        "skeptic, finding 1): the state the round is given back on, its count drawn ten. "
+        "With the round the count stands at nine; without it PUT BACK splits the pair at "
+        "05:23 and it stands at nine too, so the round, which puts a rank on its hour, stands.",
+        "pass", hour_paid_count_ordinals(), {0, 5, 6, 8}, [0, 6, 3], HOUR_THREE,
+        standing=HOUR_WEEK, wanted=10,
+    )
+
+
 HOUR_STEP_CASES = {
     "hour_paid_escape": hour_paid_case,
+    "hour_paid_hole": hour_paid_hole_case,
+    "hour_paid_count_given_back": hour_paid_count_given_back_case,
+    "hour_paid_count_tied": hour_paid_count_tied_case,
     "hour_paid_keeping": hour_paid_keeping_case,
     "hour_paid_given_back": hour_paid_given_back_case,
     "hour_paid_pass": hour_paid_pass_case,

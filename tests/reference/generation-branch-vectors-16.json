@@ -1039,6 +1039,244 @@
       "why": "Step 4: a rank the shared pass put at 00:00:20, written 00:00 on a column of minutes, takes the free minute of hour 0 nearest midnight, 00:01:00.",
       "written_unit": 60
     },
+    "hour_paid_count_given_back": {
+      "answer": [
+        1709294400,
+        1709403600,
+        1709490600,
+        1709529780,
+        1709529780,
+        1709553600,
+        1709812800,
+        1710094200,
+        1710331200
+      ],
+      "before": [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "body": [
+        0,
+        8
+      ],
+      "counts": [
+        0,
+        6,
+        3
+      ],
+      "half_day": false,
+      "highs": [
+        1709294400,
+        1709553600,
+        1709553600,
+        1709553600,
+        1709553600,
+        1709553600,
+        1709812800,
+        1710331200,
+        1710331200
+      ],
+      "holes": [],
+      "lows": [
+        1709294400,
+        1709294400,
+        1709294400,
+        1709294400,
+        1709294400,
+        1709553600,
+        1709812800,
+        1709812800,
+        1710331200
+      ],
+      "ordinals": [
+        1709294400,
+        1709403600,
+        1709490600,
+        1709529780,
+        1709529780,
+        1709553600,
+        1709812800,
+        1710094200,
+        1710331200
+      ],
+      "pinned": [
+        true,
+        false,
+        false,
+        false,
+        false,
+        true,
+        true,
+        false,
+        true
+      ],
+      "reachable": true,
+      "standing": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6
+      ],
+      "step": "pass",
+      "wanted": 8,
+      "where": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2
+      ],
+      "why": "THE ROUND GIVEN BACK WHERE IT COSTS THE COUNT (the whole pass, lane J's skeptic, finding 1): hours 12 to 17 counted six and 18 to 23 three beside seven single weekdays. The pair at 05:23 finds one payer, so it SPLITs: one rank takes Sunday's 12:23, paid, and the other stays. Sunday's own value stands at 18:30, in the other group, so no merge keeping the day and the group takes the new value back and the count stands one long; without the round it is met, so the round is given back.",
+      "written_unit": 60
+    },
+    "hour_paid_count_tied": {
+      "answer": [
+        1709294400,
+        1709403600,
+        1709468580,
+        1709490600,
+        1709529780,
+        1709553600,
+        1709812800,
+        1710180600,
+        1710331200
+      ],
+      "before": [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "body": [
+        0,
+        8
+      ],
+      "counts": [
+        0,
+        6,
+        3
+      ],
+      "half_day": false,
+      "highs": [
+        1709294400,
+        1709553600,
+        1709553600,
+        1709553600,
+        1709553600,
+        1709553600,
+        1709812800,
+        1710331200,
+        1710331200
+      ],
+      "holes": [],
+      "lows": [
+        1709294400,
+        1709294400,
+        1709294400,
+        1709294400,
+        1709294400,
+        1709553600,
+        1709812800,
+        1709812800,
+        1710331200
+      ],
+      "ordinals": [
+        1709294400,
+        1709403600,
+        1709490600,
+        1709529780,
+        1709529780,
+        1709553600,
+        1709812800,
+        1710094200,
+        1710331200
+      ],
+      "pinned": [
+        true,
+        false,
+        false,
+        false,
+        false,
+        true,
+        true,
+        false,
+        true
+      ],
+      "reachable": true,
+      "standing": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6
+      ],
+      "step": "pass",
+      "wanted": 10,
+      "where": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2
+      ],
+      "why": "THE ROUND KEPT WHERE THE COUNT IS NO NEARER WITHOUT IT (the whole pass, lane J's skeptic, finding 1): the state the round is given back on, its count drawn ten. With the round the count stands at nine; without it PUT BACK splits the pair at 05:23 and it stands at nine too, so the round, which puts a rank on its hour, stands.",
+      "written_unit": 60
+    },
     "hour_paid_escape": {
       "answer": [
         1709294400,
@@ -1269,6 +1507,121 @@
         2
       ],
       "why": "THE PAYERS GIVEN BACK (step 3, lane J): two Monday ranks share 05:23 and one Sunday rank alone can pay. Whole, the pair finds one payer for Sunday, who goes back, and none for Saturday or Friday, whose pairs are refused; SPLIT, the first rank takes Sunday's 12:23, paid, and the second finds no payer left and stays.",
+      "written_unit": 60
+    },
+    "hour_paid_hole": {
+      "answer": [
+        1709294400,
+        1709382000,
+        1709469000,
+        1709468580,
+        1709553600,
+        1709812800,
+        1710763800,
+        1710936000
+      ],
+      "before": [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "body": [
+        0,
+        7
+      ],
+      "counts": [
+        0,
+        8,
+        0
+      ],
+      "half_day": false,
+      "highs": [
+        1709294400,
+        1709553600,
+        1709553600,
+        1709553600,
+        1709553600,
+        1709812800,
+        1710936000,
+        1710936000
+      ],
+      "holes": [
+        19793
+      ],
+      "lows": [
+        1709294400,
+        1709294400,
+        1709294400,
+        1709294400,
+        1709553600,
+        1709812800,
+        1709812800,
+        1710936000
+      ],
+      "ordinals": [
+        1709294400,
+        1709382000,
+        1709469000,
+        1709529780,
+        1709553600,
+        1709812800,
+        1710072600,
+        1710936000
+      ],
+      "pinned": [
+        true,
+        false,
+        false,
+        false,
+        true,
+        true,
+        false,
+        true
+      ],
+      "reachable": true,
+      "standing": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6
+      ],
+      "step": "paid",
+      "wanted": 8,
+      "where": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2
+      ],
+      "why": "A PAYER KEPT OFF A HOLE (step 3, lane J's skeptic, finding 3): the escape paid back's Monday rank at 05:23 takes Sunday's 12:23, and the Sunday rank at 12:10 six days on goes the other way; the nearest Monday of its gap is a hole, so it takes the Monday a week later, at its own 12:10.",
       "written_unit": 60
     },
     "hour_paid_keeping": {

@@ -7387,6 +7387,21 @@ every weekday count is kept.
    beside hour 12 alone, wrote five cells at 05:23:40 on the high
    boundary's day, before its noon, its gap holding no other day of
    their weekday -- 4 twins of 10 short of the hour census).
+
+   THE ROUND GIVEN BACK (lane J's skeptic, finding 1). Where that
+   round placed a unit and, once steps 4 to 6 have run, the count of
+   different values stands off the count step 6 asks -- by any distance
+   where the count is one the construction reaches, else by its
+   shortness alone, and that only where the count drawn is not above
+   the published one -- steps 4 to 6 run again on the state the round
+   began from, and that state stands where it comes nearer the count;
+   on a tie the round stands. A SPLIT rank the round puts on a day of
+   another standing whose own values stand in another group of the
+   field writes a value no merge of step 6, which keeps the day
+   standing and the group, takes back: ward rounds at 08:00 on weekdays
+   and 10:30 at weekends, a million rows over 150 days, came back with
+   260 different values of a published 150 and the hour census missed
+   all the same.
 4. **Off midnight.** A movable rank the steps above left written at
    midnight that was not there when the pass began, with every such rank
    of its written unit, takes the free place of the day's first bin --
@@ -7491,10 +7506,12 @@ afternoon cells back twelve hours early and misses published facts).
 
 **Its frozen cases** are states of ranks, as G7.3f's are: the sixteenth
 vectors file, `tests/reference/generation-branch-vectors-16.json`, holds
-twenty-seven -- SAMEDAY, the escape with a weekday census's groups and its last
+twenty-eight -- SAMEDAY, the escape with a weekday census's groups and its last
 resort, the escape paid back, its payer keeping the count asked past the
-first, its payers given back where too few are found, and the whole pass
-beside a weekday census (lane J), SPLIT, RELIEF and its give-back where the room it made is not
+first, its payers given back where too few are found, a payer kept off a
+hole, the whole pass beside a weekday census, and the whole pass with the
+round given back where it costs the count and kept where the count is no
+nearer without it (lane J), SPLIT, RELIEF and its give-back where the room it made is not
 enough, PUT BACK long and short and its last resort, PUT BACK never onto
 a written midnight and its short count moving only a rank that shares
 its written unit, the proportional order, the step off midnight, the half

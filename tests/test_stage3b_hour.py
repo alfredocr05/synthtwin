@@ -1279,6 +1279,23 @@ STEP_MUTANTS = {
         "    elif found != counts:\n        # ...AND PAID BACK where one stands",
         "    elif False:\n        # ...AND PAID BACK where one stands",
     ),
+    # Lane J's skeptic: finding 3, a payer's place asks no hole; finding 1, the round
+    # given back where steps 4 to 6 come nearer the count without it, and kept on a tie.
+    "a payer lands on a hole": (
+        "hour_paid_hole",
+        "            if target < low or target > high or _weekday_hole(state, target):\n                continue\n            if standing[calendar_rules.weekday_of(target // state.day)] != origin:",
+        "            if target < low or target > high:\n                continue\n            if standing[calendar_rules.weekday_of(target // state.day)] != origin:",
+    ),
+    "the round kept where it costs the count": (
+        "hour_paid_count_given_back",
+        "    if unpaid is not None and _clock_count_off(state, wanted, published) > 0:",
+        "    if False:",
+    ),
+    "the round given back where the count is no nearer without it": (
+        "hour_paid_count_tied",
+        "        if _clock_count_off(state, wanted, published) >= off:\n            _clock_restored(state, paid)",
+        "        if _clock_count_off(state, wanted, published) > off:\n            _clock_restored(state, paid)",
+    ),
 }
 
 # ...and step 10's, edits of `calendar_clock`.
@@ -1304,7 +1321,8 @@ CASES = [
     "clock_minute_kin_escape", "clock_minute_kin_kept", "clock_minute_put_back_kin",
     "half_day_apart", "half_day_high", "half_day_low", "hour_escape_any_day", "hour_escape_weekday",
     "hour_half_day_tails", "hour_half_day_tails_stratum", "hour_off_a_hole", "hour_off_midnight",
-    "hour_paid_escape", "hour_paid_given_back", "hour_paid_keeping", "hour_paid_pass",
+    "hour_paid_count_given_back", "hour_paid_count_tied", "hour_paid_escape", "hour_paid_given_back",
+    "hour_paid_hole", "hour_paid_keeping", "hour_paid_pass",
     "hour_proportional", "hour_put_back", "hour_put_back_any_day", "hour_put_back_off_midnight",
     "hour_put_back_short", "hour_put_back_short_shared", "hour_relief", "hour_relief_given_back",
     "hour_rounds", "hour_same_day_clock", "hour_sixtieth_second", "hour_sixtieth_ties", "hour_split",

@@ -16,7 +16,10 @@ counted in its written hour, and the ranks between two pins of one such
 second -- and, on a field of minutes whose parent is the hour, the one clock
 pass's tier in its kin group for the escape and PUT BACK; since lane J
 (plan P4-D367), the escape paid back beside a weekday census, its payer
-keeping the count, its payers given back and the whole pass -- and the
+keeping the count, its payers given back, a payer kept off a hole and the
+whole pass, and the whole pass with the round given back where it costs
+the count of different values and kept where the count is no nearer
+without it (lane J's skeptic) -- and the
 tails G7.3b step 10 takes onto the dial's half day, on a low
 tail, a high tail and one whose ranks must all differ: each with what the
 method's text makes of it.
