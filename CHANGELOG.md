@@ -27,7 +27,12 @@ of dates beside a few codes is asked R1's codes question instead. The
 reach battery's other 168 columns keep every file byte for byte but six
 questions files that now ask Q6. A partial-date column is described in 0.73 to 1.09 times the
 CPU time ISO's spelling of the same moments takes at 300,000 rows, and a
-column that is no date costs what it cost.
+column that is no date costs what it cost. After its review, a partial
+form on fewer cells than the census line no longer counts toward the
+date rule's line, so no such column is read as dates whose twin is not;
+a declared column beside a repeated word such as `pending` keeps its
+different dates (149 of 240 had come back as 70); and Q6 is worked out
+once a run.
 
 ### Dates no member read are read by their shape, and written back as written (2026-10-05)
 

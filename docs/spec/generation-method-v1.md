@@ -5807,7 +5807,10 @@ that way.
   instant is written one way (`contract.datetime_counts_reachable`: at
   most one offset KEY and none pooled, one mark at most and none pooled,
   each written-form census naming at most one form, no bare date beside
-  moments) and the two published counts agree: the different
+  moments, no partial form beside a layout's own count, and no column
+  the person declared dates read short of the date rule's line, whose
+  unread cells may repeat one word -- landing R2c) and the two published
+  counts agree: the different
   written units -- a day, a month or a quarter, or minutes or seconds at
   the column's precision -- must number `n_distinct` less the stand-ins.
 
