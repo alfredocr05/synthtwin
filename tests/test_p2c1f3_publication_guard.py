@@ -27,7 +27,7 @@ import pathlib
 import pytest
 
 import fixtures
-from synthtwin import cli, errors, parsing, profile, reading, taxonomy
+from synthtwin import cli, date_counts, errors, parsing, profile, reading, taxonomy
 
 # The floor this file describes at, stated rather than inherited. The
 # mutations below all turn on something being WITHHELD -- the pooled
@@ -690,6 +690,16 @@ def _plausible_arguments(form: str) -> "tuple[object, ...]":
         return (120, taxonomy.NOTE_UNIT_PEOPLE)
     if form == taxonomy.SAID_READ_AS_DATES:
         return (2, taxonomy.NOTE_ARGUMENT_WORDS[0])
+    # -- 3b.R4 (P4-D384): question Q3's remarks take this package's own
+    # words where the walk below would put numbers -- the rule that
+    # asked, the set-aside numbers and the counting system -- and NF114
+    # the two years its system reads the block's edges in.
+    if form == taxonomy.REMARK_NUMBERS_COULD_BE_DATES:
+        return (date_counts.RULE_BAND, "0") + (date_counts.ASIDE_NONE,) * 4
+    if form == taxonomy.REMARK_READ_AS_COUNTED_DATES:
+        return (date_counts.EXCEL_1900, 2016, 2025)
+    if form in (taxonomy.REMARK_COUNTED_DATES_NOT_READ, taxonomy.REMARK_DATES_WRITTEN_AS_COUNTS):
+        return (date_counts.EXCEL_1900,)
     if form == taxonomy.SAID_FEWER_THAN_THE_LINE:
         # THE CENSUS LINE, WHICH IS NEVER 1. The walk below would give
         # this position `1 + place` -- one -- and "fewer than 1" is a

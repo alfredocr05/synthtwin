@@ -162,6 +162,8 @@ from synthtwin.paths import validate_local_path
 import pathlib
 
 from synthtwin import calendar_clock, calendar_rules, contract, dialect, errors, parsing, profile, reading, taxonomy, workbook
+# -- 3b.R4 (P4-D384): the twelve systems that write dates as counts.
+from synthtwin import date_counts
 
 
 # THE G12.3 WINDOWS ARE WRITTEN ONCE, IN `taxonomy` (plan P4-D353). The
@@ -485,7 +487,6 @@ INPUT_SIDE_ENTRIES = (
     # -- 3b.C2 (P4-D374)
     ("clock", "minute_census"),
     # -- 3b.R4 (P4-D384), reserved by the second cut (P4-D386)
-    ("datetime", "count_form"),
 )
 
 # -- what a listing entry says, in one fixed sentence each ------------
@@ -1758,7 +1759,163 @@ def settings_for(description: contract.Profile) -> taxonomy.Settings:
         century_windows=block.century_windows,
         # -- 3b.R2c (P4-D383)
         # -- 3b.R4 (P4-D384)
+        # THE COLUMNS WHOSE DATES ARE WRITTEN AS COUNTS (question Q3), each
+        # read in its system -- at the precision its description published,
+        # which `counted_units` hands the re-description.
+        forced_date_counts=block.forced_date_counts,
     )
+
+
+def counted_units(description: contract.Profile) -> "dict[str, int]":
+    """The unit each column of counted dates was published at (landing R4).
+
+    Each column the settings declare whose block carries its form of
+    counts, mapped to that unit, so a checked file's counts are read at the
+    precision the description published rather than at one worked out
+    from its own figures -- the validator's reading of a description's
+    own source is then the profiler's, cell for cell. A declared column
+    whose description carries no form of counts -- whose cells, it says
+    in NF115, did not read as such dates -- is mapped to -1, and the
+    checked file's column is read without the declaration, as its source
+    was (the Codex review of landing R4, items 1 and 3).
+    """
+    declared: "dict[str, int]" = {}
+    for name, _member in description.settings.forced_date_counts:
+        declared[name] = 1
+    units: "dict[str, int]" = {}
+    for column in description.columns:
+        facts = column.facts
+        if column.name not in declared:
+            continue
+        if not isinstance(facts, contract.DatetimeFacts) or facts.count_form is None:
+            units[column.name] = -1
+            continue
+        units[column.name] = contract.counted_unit(facts)
+    return units
+
+
+def _form_of_counts_said(form: "date_counts.CountForm", contacts: bool = False) -> str:
+    """A form of counts in words, naming no value: how its figures are written.
+
+    On a member with contacts (``contacts``), a day count and a contact
+    number of at most `places` figures, or none -- the rule
+    `date_counts.form_holds` asks of it.
+    """
+    if contacts:
+        said = f"a day count, with or without a contact number of at most {form.places} figures after the mark"
+    elif form.exponent:
+        said = "fifteen significant figures, in exponent form where shorter"
+    elif form.significant is not None:
+        said = f"{form.significant} significant figures, trailing zeros dropped"
+    elif form.trimmed:
+        said = f"at most {form.places} figures after the mark, trailing zeros dropped"
+    else:
+        said = f"exactly {form.places} figures after the mark"
+    mark = "a point" if form.mark == date_counts.POINT else "a comma"
+    return f"{said}, the mark {mark}"
+
+
+def _census_said(census: "dict[str, int]") -> str:
+    """A census of contact numbers in words: each word and its count, in sorted order."""
+    said = ""
+    for word in sorted(census):
+        here = f"{word} {census[word]}"
+        said = here if not said else f"{said}, {here}"
+    return said
+
+
+def _count_form_checks(
+    column: contract.ColumnBlock,
+    facts: contract.DatetimeFacts,
+    block: "dict[str, object]",
+    cells: "list[str]",
+    member: str = "",
+    absent: "list[bool] | None" = None,
+) -> "list[Check]":
+    """How a column of counted dates writes its counts, held (landing R4, V5-CF).
+
+    `form.count_form` is HELD where the file was read as counted dates at
+    all and every cell of it written as a count is one the published form
+    can write (`date_counts.form_holds`): a twin written as ISO dates, or
+    with other figures after the mark, MISSES it, and a twin in another
+    member misses the dates it then names. A cell spelled as one of the
+    column's published absent spellings is not a count of a date, and is
+    not asked. A `days-since-1840` column's cells are held by its contact
+    rule -- a day count and at most `places` figures after the point --
+    whether or not a census is published (the second review of landing
+    R4, item 1), and `form.contacts` holds the census, where published,
+    exactly as the file's own description counts it. No value of the file is printed: the measured side is the form's
+    own words, or that a cell is written another way. A cell that is no
+    count OF ``member`` (`date_counts.counted`) -- an Epic day written with
+    a binary64's tail of more than nine figures -- is text the date role's
+    own line took, and is not asked, as the profiler did not read it. A
+    cell written with MORE figures than the form is a stray, and as many
+    stand as the profiler sets beside the usual counts -- one in a
+    hundred, one at least (`date_counts.strays_stand`; the second review
+    of landing R4, item 5).
+
+    A CELL THE FILE'S OWN DESCRIPTION READS AS NO VALUE IS NOT ASKED
+    (``absent``, one mark per cell from `_holes_by_the_description`; the
+    Codex review of landing R4, item 4): a lone `1` among Excel serials
+    written `%.6f` is set aside by the counted reading, and a lone `9999`
+    the person named with `--missing-value` is declared absent, and
+    neither spelling is published under the floor -- so asked of its
+    published absent spellings alone, the source missed its own form.
+
+    Guarantees: accepts the column, its facts, the file's own block, its
+    cells and which of them the description reads as holes; returns the
+    checks, none where the column publishes no form of counts. Raises
+    nothing. No I/O of any kind.
+    """
+    form = facts.count_form
+    if form is None:
+        return []
+    name = column.name
+    contacts = date_counts.TABLE[member].contacts if member else form.contacts is not None
+    published = _form_of_counts_said(form, contacts)
+    found_form = block["count_form"] if "count_form" in block else None
+    holes: "dict[str, int]" = {}
+    for spelling in column.missing_by_source:
+        holes[spelling] = 1
+    measured = published
+    if not isinstance(found_form, dict):
+        measured = "no form of counts: the file's cells were not read as such dates"
+    else:
+        # A CELL WRITTEN WITH MORE FIGURES THAN THE FORM IS A STRAY, and as
+        # many stand as the profiler set beside the usual counts (the second
+        # review of landing R4, item 5): one in a hundred, one at least.
+        counts = 0
+        strays = 0
+        for place in range(len(cells)):
+            cell = cells[place]
+            if not cell or cell in holes:
+                continue
+            if absent is not None and place < len(absent) and absent[place]:
+                continue
+            written = (
+                date_counts.counted(member, cell, form.mark)
+                if member
+                else date_counts.written_count(cell, form.mark)
+            )
+            if written is None:
+                continue
+            counts = counts + 1
+            if date_counts.form_holds(member, form, written):
+                continue
+            if not date_counts.written_finer(form, written):
+                measured = "a cell written another way"
+                break
+            strays = strays + 1
+        if measured == published and not date_counts.strays_stand(strays, counts):
+            measured = "more cells written with more figures than may stand"
+    checks = [_exact(name, "datetime.count_form", "form.count_form", published, measured)]
+    if form.contacts is not None:
+        wanted = _census_said(form.contacts)
+        seen = "none counted"
+        if isinstance(found_form, dict) and isinstance(found_form["contacts"], dict):
+            seen = _census_said(found_form["contacts"])
+        checks += [_exact(name, "datetime.count_form", "form.contacts", wanted, seen)]
+    return checks
 
 
 def settings_over_the_split(
@@ -4947,6 +5104,9 @@ def measure(
             # PUBLISHED groups, so producing one would be paid for a
             # census nothing reads.
             calendar_censuses=False,
+            # -- 3b.R4 (P4-D384): a column of counted dates read at the
+            # precision its description published.
+            counted_units=counted_units(description),
         )
         over_the_split = profile.build_document(
             table,
@@ -4964,6 +5124,9 @@ def measure(
             # PUBLISHED groups, so producing one would be paid for a
             # census nothing reads.
             calendar_censuses=False,
+            # -- 3b.R4 (P4-D384): a column of counted dates read at the
+            # precision its description published.
+            counted_units=counted_units(description),
         )
     except MemoryError as error:
         raise errors.ProfileError(
@@ -7684,12 +7847,16 @@ def _obligations(
     own_settings = settings_for(description)
     split_settings = settings_over_the_split(description)
     comma = column.name in description.settings.forced_decimal_commas
+    # -- 3b.R4 (P4-D384): a column of counted dates decides its holes by its
+    # counted reading (`_holes_by_the_description`).
+    counted = _counted_set_aside(description, column, cells)
     own_cells = _cells_read_as_declared(description, column, _cells_that_description_reads(
         block,
         cells,
         own_settings.kept_values,
         own_settings.declared_missing_values,
         comma,
+        counted,
     ))
     split_cells = _cells_read_as_declared(description, column, _cells_that_description_reads(
         split,
@@ -7697,6 +7864,7 @@ def _obligations(
         split_settings.kept_values,
         split_settings.declared_missing_values,
         comma,
+        counted,
     ))
     # ...AND, ON A CLOCK OR A SLASHED STAMP, LESS WHAT ITS CLOCK LEFT UNREAD
     # (the T1 review's items 1 and 2), each side under its own settings.
@@ -7717,6 +7885,13 @@ def _obligations(
     )
     writable = not subsecond_figures_unwritable(description, column)
     declared = description.settings.declared_missing_values.built_in_dates
+    # -- 3b.R4 (P4-D384): AND THE DAYS A COLUMN OF COUNTED DATES HOLDS NO DATE
+    # ON (`date_counts.hole_words`), which the producer held as holes too --
+    # on a column of moments the placeholder days alone. The system is
+    # `system` itself on such a column (`_tail_date_system`).
+    if isinstance(column.facts, contract.DatetimeFacts) and system in date_counts.TABLE:
+        moments = column.facts.resolution == taxonomy.RESOLUTION_DATETIME
+        declared = tuple(sorted(set(declared) | set(date_counts.hole_words(system, moments))))
     gated = gated + _role_checks(
         column, block, own_cells, floor, mine, pairs, writable, system,
         declared, holes,
@@ -7726,7 +7901,62 @@ def _obligations(
         column, split, split_cells, floor, mine, pairs, writable, system,
         declared, holes,
     )
+    # -- 3b.R4 (P4-D384): HOW A COLUMN OF COUNTED DATES WRITES ITS COUNTS,
+    # asked of the cells as the file holds them -- every other check of the
+    # column reads them as the dates they name.
+    if isinstance(column.facts, contract.DatetimeFacts):
+        member = ""
+        for named, system in description.settings.forced_date_counts:
+            if named == name:
+                member = system
+        absent: "list[bool] | None" = None
+        if column.facts.count_form is not None:
+            # THE DESCRIPTION'S OWN ABSENCE DECISION, cell by cell (V5-CF).
+            absent = _holes_by_the_description(
+                block,
+                cells,
+                own_settings.kept_values,
+                own_settings.declared_missing_values,
+                comma,
+                counted,
+            )
+        checks = checks + _count_form_checks(column, column.facts, block, cells, member, absent)
     return checks + _governed(gated, measured, split_published)
+
+
+def _counted_set_aside(
+    description: contract.Profile, column: contract.ColumnBlock, cells: "list[str]"
+) -> "tuple[int, ...]":
+    """What a column of counted dates' reading makes of each cell (landing R4).
+
+    One mark per cell: 1 where the cell is a count of the column's system
+    that the counted reading sets aside -- naming no date, a placeholder
+    day or one of the system's set-aside numbers -- 0 where it reads it as
+    the date it names, and -1 where it is no count at all; empty on every
+    other column. Read by the reading the generator and the validator
+    share (`contract.counts_read_back`), at the unit the description
+    published, so `_holes_by_the_description` asks no reader of its own.
+    """
+    facts = column.facts
+    if not isinstance(facts, contract.DatetimeFacts) or facts.count_form is None:
+        return ()
+    member = ""
+    for name, system in description.settings.forced_date_counts:
+        if name == column.name:
+            member = system
+    if not member:
+        return ()
+    read = contract.counts_read_back(member, facts, (), cells)
+    marks: "list[int]" = []
+    for place in range(len(cells)):
+        cell = cells[place]
+        if read[place] != cell:
+            marks += [0]
+        elif cell and date_counts.counted(member, cell, facts.count_form.mark) is not None:
+            marks += [1]
+        else:
+            marks += [-1]
+    return tuple(marks)
 
 
 def _cells_that_description_reads(
@@ -7735,6 +7965,7 @@ def _cells_that_description_reads(
     kept: "tuple[str, ...]",
     declared: "tuple[str, ...]",
     decimal_comma: bool = False,
+    counted: "tuple[int, ...]" = (),
 ) -> "list[str]":
     """The cells the file's OWN description counts as values, plus its blanks.
 
@@ -7852,7 +8083,7 @@ def _cells_that_description_reads(
     - Errors raised: none.
     """
     holes = _holes_by_the_description(
-        block, cells, kept, declared, decimal_comma
+        block, cells, kept, declared, decimal_comma, counted
     )
     read: list[str] = []
     for index, cell in enumerate(cells):
@@ -7867,12 +8098,27 @@ def _holes_by_the_description(
     kept: "tuple[str, ...]",
     declared: "tuple[str, ...]",
     decimal_comma: bool = False,
+    counted: "tuple[int, ...]" = (),
 ) -> "list[bool]":
     """Which cells the file's own description reads as non-blank holes.
 
     The two certainties and the one budget `_cells_that_description_reads`
     describes, in that order. Split out so the rule can be read on its
     own and tested on its own.
+
+    -- 3b.R4 (P4-D384): A COLUMN OF COUNTED DATES (``counted``: one mark
+    per cell, `_counted_set_aside`) READS EVERY CELL THAT IS A COUNT OF ITS
+    SYSTEM BY THE COUNTED READING, after the person's own declarations and
+    the built-in missing spellings and before any judgement, as the
+    producer does: a count it sets aside -- one naming no date, a
+    placeholder day or one of the system's set-aside numbers -- is a
+    certain hole, and every other count is a date, never a numeric
+    stand-in or a placeholder candidate.
+    Asked as stand-ins, a real Excel serial 9999 (17 May 1927) or SAS day
+    -999 (7 April 1957) went unsettled beside the counted reading's own
+    holes, which no published verdict accounts for, and was dropped from
+    the recount: the source missed its own weekday census (found while
+    repairing the second review of landing R4, item 2).
 
     EVERY NUMBER HERE IS AN EXACT ONE, and the two names that make it so
     are the producer's own: `taxonomy.exact_of_spelling` for a cell or a
@@ -7956,10 +8202,14 @@ def _holes_by_the_description(
     may_settle = _unread_cells(block, cells) > 0
     certain: list[bool] = []
     unsettled: list[bool] = []
-    for cell in cells:
+    for place in range(len(cells)):
+        cell = cells[place]
         body = parsing.trimmed(cell)
         is_hole = False
         undecided = False
+        # THE COUNTED READING'S OWN ANSWER for a count of the column's
+        # system, -1 where the cell is no such count.
+        counted_aside = counted[place] if counted else -1
         if body:
             exact = taxonomy.exact_of_spelling(
                 parsing.written_with_a_decimal_comma(cell)
@@ -7996,6 +8246,10 @@ def _holes_by_the_description(
                 # and the built-in table second, exactly as
                 # `_split_missing` asks them.
                 is_hole = True
+            elif counted_aside >= 0:
+                # -- 3b.R4 (P4-D384): a count of a column of counted dates is
+                # a hole exactly where the counted reading sets it aside.
+                is_hole = counted_aside == 1
             elif stand_in is not None:
                 is_hole = _named(missing_candidates, stand_in)
                 undecided = not is_hole
@@ -8020,11 +8274,11 @@ def _holes_by_the_description(
                 undecided = True
         certain += [is_hole]
         unsettled += [undecided]
-    counted = 0
+    certain_holes = 0
     for is_hole in certain:
         if is_hole:
-            counted = counted + 1
-    if _unread_cells(block, cells) <= counted:
+            certain_holes = certain_holes + 1
+    if _unread_cells(block, cells) <= certain_holes:
         return certain
     # The description reads more non-blank cells as holes than the
     # verdicts it publishes account for, so a candidate it does not name
@@ -8474,7 +8728,17 @@ def _cells_read_as_declared(
     Guarantees: accepts the description, one column's block and its
     cells; returns cells of the same length in the same order.
     Determinism: a fixed function of the three. Raises nothing. No I/O.
+
+    AND A COLUMN OF DATES WRITTEN AS COUNTS (landing R4, plan P4-D384) is
+    read as the dates its counts name, at the precision its description
+    published (`contract.counts_read_back`), which is the reading the
+    profiler and the twin's own report make.
     """
+    if isinstance(column.facts, contract.DatetimeFacts) and column.facts.count_form is not None:
+        for name, member in description.settings.forced_date_counts:
+            if name == column.name:
+                holes = tuple(sorted(column.missing_by_source))
+                return contract.counts_read_back(member, column.facts, holes, cells)
     named = False
     for name in description.settings.forced_decimal_commas:
         if name == column.name:
@@ -15723,11 +15987,19 @@ def _tail_construction(
     group_midnight: "tuple[int, int, int, tuple[int, ...]] | None",
     widened: bool = False,
     half_day: "tuple[int, int, bool] | None" = None,
+    islands: "tuple[tuple[int, int], ...]" = (),
 ) -> "tuple[list[int], list[int]]":
     """Every rank's nearest and furthest distance, outermost first (G7.3b).
 
     `end_step` is the set of tail units the column's own absent spellings
     name, off which the outermost rank and the group step inward.
+    `islands` are, on a column of dates written as counts, the stretches
+    inside the reach its counts cannot hold, as nearest and furthest
+    distances (G7.10): the outermost rank and the group step off them
+    after the holes -- inward, or outward where no distance of one is
+    left inside -- and a rank whose stratum lies wholly on one is given
+    room either side, before any tie group's window is widened
+    (`date_counts.off_the_islands`, `date_counts.stratum_off_the_islands`).
     `group_midnight` is, on a column moved onto a midnight and counted in
     seconds or minutes, (anchor in seconds, seconds per unit, 0, the
     shifts of the offsets it names), where the group stands at the
@@ -15818,6 +16090,7 @@ def _tail_construction(
                 least = least + 1
         end_whole = max(end_whole, min(max(least, 0), edge))
     end_whole = _stepped_off(end_whole, boundary, low_side, end_step)
+    end_whole = date_counts.off_the_islands(end_whole, islands, edge)
     if grouped < rows:
         if group_midnight is not None:
             furthest = max(
@@ -15828,6 +16101,7 @@ def _tail_construction(
                 group, min(furthest, edge), low_side, group_midnight
             )
         group = _stepped_off(group, boundary, low_side, end_step)
+        group = date_counts.off_the_islands(group, islands, edge)
         if half_day is not None:
             # STEP 10 ON THE GROUP BEFORE IT STANDS ANYWHERE, as the
             # construction takes it (`generation._date_tail_plan`; Codex's
@@ -15870,6 +16144,7 @@ def _tail_construction(
             near = found
         else:
             far = found
+    near, far = date_counts.stratum_off_the_islands(near, far, islands, edge)
     first = max(grouped, 1)
     if widened and grouped < rows and rows - first >= 2:
         size = rows - first
@@ -16013,12 +16288,23 @@ def _tail_value_spots(
 
 
 def _tail_date_system(description: contract.Profile, column: contract.ColumnBlock) -> str:
-    """G7.3e: the workbook date system a column's cells are stored under, or "".
+    """G7.3e: the system a column's cells store its dates in, or "".
 
     A workbook column whose format code stores days, read from the
     description's own record of the workbook; "" for a delimited table
-    and for a workbook column of text.
+    and for a workbook column of text. -- 3b.R4 (P4-D384): a column of
+    dates written as counts -- a `count_form` published, the column
+    named under `forced_date_counts` -- stores them as counts of the
+    system it is declared in, and the word is that system's, as the
+    generator's `_date_system_of` says it: its tails stop short of a
+    wall its counts cannot hold and reach past an island of them
+    (`_date_tail_windows`, G7.10).
     """
+    facts = column.facts
+    if isinstance(facts, contract.DatetimeFacts) and facts.count_form is not None:
+        for named, counting in description.settings.forced_date_counts:
+            if named == column.name:
+                return counting
     form = description.source.workbook
     place = column.position - 1
     if form is None or place < 0 or place >= len(form.columns):
@@ -16027,6 +16313,14 @@ def _tail_date_system(description: contract.Profile, column: contract.ColumnBloc
     if kind in (dialect.SHEET_FORMAT_DATE, dialect.SHEET_FORMAT_DATETIME):
         return form.date_system
     return ""
+
+
+# How many seconds one tail unit of a day, a minute or a second holds.
+_TAIL_UNIT_SECONDS = {
+    parsing.TAIL_UNIT_DAY: 86400,
+    parsing.TAIL_UNIT_MINUTE: 60,
+    parsing.TAIL_UNIT_SECOND: 1,
+}
 
 
 def _tail_holes(
@@ -16126,6 +16420,32 @@ def _date_tail_windows(
             continue
         at = taxonomy.tail_ordinal(tail.boundary, facts.tail_unit, reading)
         edge = max(1, at - edges[0] if low_side else edges[1] - at)
+        # -- 3b.R4 (P4-D384): ON A COLUMN OF DATES WRITTEN AS COUNTS the reach
+        # stops short of the first wall beyond the boundary its counts
+        # cannot hold, as the generator's does (G7.10).
+        islands: "tuple[tuple[int, int], ...]" = ()
+        if (
+            date_system in date_counts.TABLE
+            and facts.tail_unit in _TAIL_UNIT_SECONDS
+            and reading == taxonomy.READ_AT_LOCAL
+        ):
+            edge = date_counts.tail_reach(
+                date_system,
+                contract.counted_unit(facts),
+                _TAIL_UNIT_SECONDS[facts.tail_unit],
+                at,
+                low_side,
+                edge,
+            )
+            # Past an island inside it the tail reaches on (G7.10).
+            islands = date_counts.tail_islands(
+                date_system,
+                contract.counted_unit(facts),
+                _TAIL_UNIT_SECONDS[facts.tail_unit],
+                at,
+                low_side,
+                edge,
+            )
         mean = 1.0 if tail.mean_distance is None else tail.mean_distance
         root = mean if tail.rms_distance is None else tail.rms_distance
         where: "tuple[int, int, int, tuple[int, ...]] | None" = None
@@ -16145,6 +16465,7 @@ def _date_tail_windows(
             tail.rows, mean, root, floor, edge, apart, holes, at, low_side,
             where, summed and contract.datetime_counts_reachable(column),
             half_day,
+            islands,
         )
     return found
 

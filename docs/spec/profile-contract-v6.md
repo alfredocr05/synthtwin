@@ -1340,7 +1340,7 @@ no other.
 
 | key | JSON type | range / permitted values | meaning |
 |---|---|---|---|
-| `forced_date_counts` | array of `[name, system]` pairs | `[]` only, in this version | RESERVED by the second key cut (plan P4-D386) for lane R4 (plan P4-D384, question Q3): the columns the person said write their dates as numbers counted from a fixed day, each as its name and the counting system it uses, in table order, each column once. Empty in every description this version writes, and refused as anything else (R16) after its entries are read for their shape and held to S8d, which keeps such a column off every other reading before the landing that fills the key |
+| `forced_date_counts` | array of `[name, system]` pairs | each a name of a column of this table (S8) and one of the twelve systems of 6.6.2's dates written as counts, in rising order of name, each name once; possibly empty | THE COLUMNS WHOSE DATES ARE WRITTEN AS COUNTS, AS THE PERSON GAVE THEM (landing R4, plan P4-D384): `--date-count NAME SYSTEM`, or an answer to question Q3 (4.5.1, below NF116). Each column so named is read through its system -- as the dates its counts name, described as dates and written back as the same counts (6.6.2, dates written as counts) -- or says in NF115 that its cells did not read as such dates (CD1). Held to S8d |
 
 **C6-20 (membership).** All TWENTY-SEVEN keys are REQUIRED (landing T1
 added `forced_twelve_hour_clocks`, and the second key cut, plan
@@ -2064,8 +2064,8 @@ contract:
    widening it to arbitrary strings would be exactly the hole that lets
    a source-derived value into a sentence and be rebuilt successfully.
 
-**The census.** The table holds 94 forms and 109 argument positions.
-Of those, 82 are whole numbers, 5 are package words, 17 are nested
+**The census.** The table holds 98 forms and 120 argument positions.
+Of those, 84 are whole numbers, 14 are package words, 17 are nested
 forms, and 5 are bound affix strings. No position is a string of any
 other kind. The hour census (landing 3b.2-H, plan P4-D371) added the
 six forms NF88 to NF92 and NF117 -- the last at its review, the first
@@ -2120,8 +2120,8 @@ shipped. `tests/test_p4d334_sentence_arguments.py` re-measures the
 class over a committed battery, so it is a number a reader can run.
 
 So every argument position of every form is bound to WHAT IT IS, and
-the table below is closed over all 109 of them exactly as the form table
-is closed over the 94 forms. A position nobody bound is a number a
+the table below is closed over all 120 of them exactly as the form table
+is closed over the 98 forms. A position nobody bound is a number a
 sentence may print that no rule governs, and a producer that adds one
 is a producer this contract does not describe. The bindings are these:
 
@@ -2147,9 +2147,11 @@ is a producer this contract does not describe. The bindings are these:
   protects groups INSIDE a population and this number IS the
   population.
 - **value (tail rule)** — a VALUE of the column said a second way. The
-  time-band remark reads the two ends as calendar days; those days are
-  whatever the block publishes in place of its ends, so the stage-3
-  tail rule governs them and no count rule can.
+  time-band remark read the two ends as calendar days, and NF114 reads
+  the outermost published rungs that are dates of the column as the
+  years they fall in under a counting system; those days and years are
+  whatever the block publishes, so the stage-3 tail rule governs them
+  and no count rule can.
 - **floored** — THE THIRTEEN POSITIONS WHERE THE SENTENCE IS THE
   PUBLICATION. No key of the block carries these counts, so the floor
   is asked here: the argument is nought, or reaches the census line
@@ -2255,8 +2257,10 @@ and why the sentence that cannot be withdrawn now has NF61 to say.
 | `remark_close_to_the_numeric_line` | 3 | setting (strict reading line) |
 | `remark_commas_read_as_thousands` | 1 | floored against `n_present` |
 | `remark_commas_read_as_thousands` | 2 | floored against `n_present` |
+| `remark_counted_dates_not_read` | 1 | package word |
 | `remark_dates_also_read_as_numbers` | 1 | difference `n_present` less `n_unparsed` |
 | `remark_dates_also_read_as_numbers` | 2 | sum `n_numeric` + `n_out_of_range` + `n_contradictory` |
+| `remark_dates_written_as_counts` | 1 | package word |
 | `remark_every_number_is_different` | 1 | difference `n_present` less `n_distinct` |
 | `remark_every_value_is_different` | 1 | difference `n_present` less `n_distinct` |
 | `remark_no_reading_fits` | 1 | nested form |
@@ -2268,8 +2272,17 @@ and why the sentence that cannot be withdrawn now has NF61 to say.
 | `remark_no_reading_fits` | 7 | floored |
 | `remark_no_reading_fits` | 8 | floored |
 | `remark_no_reading_fits` | 9 | floored |
+| `remark_numbers_could_be_dates` | 1 | package word |
+| `remark_numbers_could_be_dates` | 2 | package word |
+| `remark_numbers_could_be_dates` | 3 | package word |
+| `remark_numbers_could_be_dates` | 4 | package word |
+| `remark_numbers_could_be_dates` | 5 | package word |
+| `remark_numbers_could_be_dates` | 6 | package word |
 | `remark_padded_numbers_may_be_codes` | 1 | key `numeric_styles.leading_zero` |
 | `remark_rare_sentinels_unnamed` | 1 | key `n_sentinel_candidates_unpublished` |
+| `remark_read_as_counted_dates` | 1 | package word |
+| `remark_read_as_counted_dates` | 2 | value (tail rule) |
+| `remark_read_as_counted_dates` | 3 | value (tail rule) |
 | `remark_slashed_dates_read_against_your_declaration` | 1 | floored |
 | `remark_slashed_dates_read_against_your_declaration` | 2 | floored |
 | `remark_slashed_dates_read_against_your_declaration` | 3 | floored |
@@ -3480,6 +3493,16 @@ spelling of this column reaches it.
 every number it holds lies in one of the two bands below. Its number is
 appended, on the NF45–NF48 and NF50 precedent.
 
+**RETIRED FROM THE PRODUCER by landing R4** (plan P4-D384): no
+description this version writes carries NF51, and NF113 and NF114
+stand in its place. It read both bands from 1970, so SAS's seconds
+from 1960 of 2016 to 2025 were said to reach 2026 to 2035, and its
+claim that nothing about the twin changes was false: a column
+described as numbers keeps how they spread, not the day of the week
+or the time of day each falls on. The form keeps its clauses below,
+so a description written before that landing, which may carry it,
+is still one this contract describes.
+
 | # | class | meaning |
 |---|---|---|
 | 1 | whole number | which band: 1 for seconds, 2 for milliseconds, and nothing else |
@@ -3691,7 +3714,7 @@ names:
 
 | id | statement |
 |---|---|
-| NG14 | the form is one of the 94 in section 4.5.1 |
+| NG14 | the form is one of the 98 in section 4.5.1 |
 | NG15 | the argument count equals that form's arity |
 | NG16 | every argument is of one of C6-119's four classes |
 | NG17 | re-rendering the form with those arguments writes the leaf's text character for character |
@@ -4130,6 +4153,38 @@ them published rungs, is counted inside a group of four hours.
 <!-- anchor 3b-R2b (P4-D383) -->
 <!-- anchor 3b-R2c (P4-D383) -->
 <!-- anchor 3b-R4 (P4-D384) -->
+
+**NF113. `remark_numbers_could_be_dates` — question Q3's own words** — arity 6 (landing R4, plan P4-D384). A remark, carried by a column of numbers -- `count` or `continuous` -- that question Q3 asks about (below NF116) and that `settings.forced_date_counts` does not name, and only beside at least one NF114: a block publishing no edge on one side names no year, and then neither remark is written and nothing is asked. Its six arguments are package words (14.8): «1» the rule that asked, and «2» to «6» the set-aside numbers at least the census line of the column's cells hold (`parsing.census_floor`), in the order `0`, `-1`, `1900-01-01`, `9999-12-31`, `60`, each in its own place or `(none set aside)` there: a number fewer cells hold is still set aside, and not named, since a count of one names an individual -- one `0` among births kept as Unix seconds is a birth on 1 January 1970 (P4-D65.1; the review of landing R4, item 4). No value of the column reaches it.
+
+The rendering opens with «1»'s sentence:
+
+| «1» | opening |
+|---|---|
+| `inside-a-band` | nearly every value in this column is a number, and nearly every one lies where a system counting days, seconds or a finer unit from a fixed day writes a date from 1990 to 2050. |
+| `at-midnight` | nearly every value in this column is a whole number standing at the very start of a day counted in seconds or a finer unit from a fixed moment, which is how a date from 1900 to 2050 is kept as an instant at midnight UTC. |
+| `fixed-width-days` | nearly every value in this column is written in figures alone, all one width, and lies where a system counting days from a fixed day writes a date from 1900 to 2050. |
+
+"NEARLY EVERY", NEVER "EVERY": each rule lets text cells stand to the date role's own line, the set-aside numbers stand beside the rest and one cell in a hundred stray outside the band. Where «2» to «6» name any number, LIST names them -- `0`, `-1` and `60` as themselves, `1900-01-01` as "the count for 1 January 1900" and `9999-12-31` as "the count for 31 December 9999", joined as a list joined by "or" -- and this follows:
+
+> Some cells hold LIST: numbers such a system writes where no date was given, or that name no real day. Read as dates, a cell naming no date -- a spreadsheet's 0, 60 or a number below nought -- or the system's own count for 1 January 1900 or 31 December 9999 is counted as no value and written back as it is; 0 and -1 name a day of 1960 or 1970 in the other systems, and are read as that day unless you name them with --missing-value.
+
+and then, always:
+
+> synthtwin described them as numbers, so the twin keeps their spread as numbers but not the calendar behind them: which day of the week and which time of day each falls on comes back only if the column is read as dates. If they are dates, answer the question about this column in the questions file, or run the command again with --date-count NAME SYSTEM, where NAME is this column's name and SYSTEM one of the systems named beside this sentence; the column is then described as dates, and the twin writes each date back as the same count, spelled as this column spells it
+
+**NF114. `remark_read_as_counted_dates` — one counting system's reading** — arity 3 (landing R4, plan P4-D384). Carried beside NF113, one for each system offered (question Q3, below NF116), in the twelve's order: «1» the system's word, a package word; «2» and «3» the years, read in it, of the outermost published rung on each side that is a date of the column (`value (tail rule)`): the walk starts at the end where the tail rule publishes it and at the boundary rung where it does not, and moves inward past a HEAP RUNG -- one of the system's set-aside numbers, the count in any system an NF114 beside it names of a set-aside number NF113 names, or a rung naming no date in it -- past the one rung inside a heap rung, which can be read between a heap of placeholders and the first date -- one `0` in a hundred among ten thousand Excel serials from 2016 is the published low end, and the 1st percentile stands at 0.99 of the first date, in 2014 (the review of landing R4, item 1) -- and then past every rung with such a count between it and the rung before it: a second heap may hold no rung of its own, and one percent each of `0` and Excel's 1900 count `2` publish 0, 1.98 and a rung read between `2` and the first date, which the walk read as 2013 for 2016 (its second review, item 3). So one system's placeholder is no date of another's: Excel's 31 December 9999 read as Epic days was "1957 to 9941". The loader asks the same walk of the block, with the words and the systems the remarks publish. Never the column's own outermost values. A side where the walk finds no such rung is no reading: that system is left out, and where none is left, NF113 is not written either. MEANS is the system's own words in the table of 6.6.2's dates written as counts.
+
+> read as MEANS (--date-count NAME «1»), this column runs from «2» to «3», with the outermost values at each end set aside
+
+**NF115. `remark_counted_dates_not_read` — a declaration that read no dates** — arity 1 (landing R4, plan P4-D384). Carried by a column `settings.forced_date_counts` names whose cells did not read as the dates its system counts (CD1) -- among them one writing dates as ISO text beside its counts, and one whose counts no form holds by the checker's own rule, which the sentence tells to write every date one way and name it again (the Codex review of landing R4, items 1 and 3): «1» the system's word, a package word.
+
+> you said this column writes its dates as MEANS («1»), but its cells did not read as such dates -- too few of them are counts that name a date, the dates they name are too few to be described as dates, or the figures after the point step between the units a date is written to -- the day, the minute, the second and its thousandths -- as one to three figures of a day or tenths of a second do, so no unit keeps them all -- so it is described as it reads without that, and the declaration decided nothing about it
+
+**NF116. `remark_dates_written_as_counts` — dates written as counts, read as dates** — arity 1 (landing R4, plan P4-D384). Carried by a column `settings.forced_date_counts` names whose cells read as the dates they count, the column that carries a `count_form` (6.6.2, dates written as counts): «1» the system's word, a package word.
+
+> as you said, this column writes its dates as MEANS («1»). Its cells are read as the dates they count and described as dates, and the twin writes each date back as the same count, spelled as this column spells its counts (`count_form`); a number that counts no date -- or one of the numbers such a count writes where no date was given, 1 January 1900 or 31 December 9999 -- is counted as no value and written back as it was written, whatever --keep-value names
+
+**Question Q3, "number or date?"** (landing R4, plan P4-D384). A column of numbers is asked whether it holds dates written as counts where one of three rules holds over its present cells, each system's set-aside numbers taken out first (6.6.2, dates written as counts) and the rest at least nine tenths of the present cells and at least eleven, with text cells standing to the date role's own line: `inside-a-band` -- at most one in a hundred of the rest (one at least) lies outside where the system writes 1 January 1990 to 31 December 2050, and the whole figures of those inside are all one width; counts of a system of days that are not whole write four figures after the point or more, or fifteen significant figures, as a spreadsheet's date-times do and a salary in cents does not; and a column read as `days-since-1840` writes no contact number on at least half of the rest, as Epic's first contact of a day does and a charge in cents does not; `at-midnight` -- the rest are whole counts of a system finer than the day, every one at midnight UTC, at least eleven different, inside 1900 to 2050 but for one in a hundred, more than half of them a year or more from the system's first day, and not every one a whole thousand days from it -- a length of stay kept as whole days of seconds names days of 1970, and whole days of milliseconds read as seconds stand every thousand days; `fixed-width-days` -- the rest, strays outside the band among them, are written in figures alone, all one width of at least five, so the column is one the fixed-width question asks already, set-aside numbers aside, and a system counting days reads them inside 1900 to 2050 but for one in a hundred (the second review of landing R4, item 4: letting the strays stand at another width asked five-figure record numbers with half a percent six-figure on 37 of 40 draws). The systems OFFERED are every system counting in the unit of one a rule held for whose band from 1900 to 2050 holds the column on the same terms, so a column of SAS days from 1985 is offered the 1960 system beside the 1970 one -- and, on a column some count of which is not whole, only a system whose declaration would keep every figure the column writes (6.6.2, dates written as counts; NF115): Unix seconds written with tenths, or four figures of a day of moments off the whole minute, are offered none and not asked, since every answer would be refused (the review of landing R4, item 2). Each rule is taken to its end -- its numbers, its text and the systems it would offer -- before the next is tried, and the first that offers one is the one NF113 names (the Codex review of landing R4, item 6: Unix counts at midnight crossing from nine figures to ten held the band's numbers, failed its text, and were asked nothing); `at-midnight` asks integrality and midnight of a count reduced, so `315532800.0` is midnight (item 5); and a column some cell of which writes an ISO date is not asked (item 1). A column under `--date-count` is not asked. The person answers in the questions file or with `--date-count NAME SYSTEM`; the answer is recorded under `settings.forced_date_counts`. Limits are stated, not repaired: a date kept at LOCAL midnight comes back as instants at the zone's offset and is not asked by `at-midnight`; a column whose counts cross a power of ten inside the band -- SAS seconds of 1987 to 1991 -- is two widths, and is not asked by `inside-a-band`; a column of spreadsheet date-times every one of which falls on a quarter of a day writes one or two figures and is not asked; and a length of time of a year or more kept as whole days of seconds or of milliseconds -- an age, a follow-up, a survival time -- reads as a date and is asked, Enter keeping it as numbers; so are identifiers of one width with half a percent one figure shorter (`inside-a-band` lets a stray of another width stand outside the band, so that a century slip -- Excel's 2016 keyed as 1916, four figures -- silences no question), a salary in the band of Epic's days a third of it in cents, and five-figure codes whose "none" is `0` (`inside-a-band`) or `-1` (`fixed-width-days`): the second review of landing R4, item 4, each pinned in `tests/counted_dates.py`'s `STATED`. A count written with more figures than the rest, one in a hundred at most, is a stray, held to its own last figure (6.6.2, dates written as counts), and silences nothing.
 
 ## 5. The column block
 
@@ -5735,14 +5790,42 @@ The fields, a closed table: `YYYY` (1800 to 2299 -- a four-figure year outside t
 <!-- anchor 3b-R2c (P4-D383) -->
 <!-- anchor 3b-R4 (P4-D384) -->
 
-**The key the second cut reserves** (plan P4-D386): `null` on every
-block until landing R4 (plan P4-D384) fills it, and the loader refuses
-anything else. A description written before the cut does not carry it,
-and an absent one is read as `null` (C6-45a).
+##### Dates written as counts
+
+**Landing R4** (plan P4-D384) fills the key the second cut reserved (plan P4-D386). A spreadsheet, a statistics package and a database keep a date as a NUMBER -- days, seconds or a finer unit from a fixed day -- and an export writes that number. A column named under `settings.forced_date_counts` is read through its system: each cell written as a count is read EXACTLY as the moment its system names, by whole-number arithmetic and never through a float, so nanoseconds past 2**53 read from their figures; the moments are settled to the finest of the day, minute, second, millisecond, microsecond and nanosecond that is at least the step the cells' figures carry, and no finer than a count the twin writes through binary64 keeps (the Codex review of landing R4, item 2: Excel serials written to fourteen figures were settled to the nanosecond, and 999 of 1,000 drawn moments read back as another) -- for `repr`'s seventeen significant figures, whose last two are the double's own tail, the coarsest from fifteen figures' step down to that one that holds every count -- so the twin's cells, written back at the column's own figures, read back as the moments it drew; every count must then be its column's own writing of the moment it was read as, within half the form's last figure and four binary64 steps -- the form, the unit and this check being those of every count, and only where those hold no unit the USUAL counts', a count written with more figures than they write then a stray, held to its own last figure and written back in the usual form, of which at most one in a hundred of the counts, one at least, stand (the second review of landing R4, item 5, and its verification: date-times whose few longer cells carry the time of day were refused while the strays were set aside first) -- and a column where one is not -- Unix seconds written to a tenth, one to three figures of a day, four figures of a day off the whole minute -- keeps a figure no unit holds, is not read as counted dates, and says so in NF115 (the review of landing R4, item 2); and the column is described as the dates they are, with `format` `iso-date` where every settled moment is a whole day and `iso-datetime` otherwise, at the precision they stand on, every other key as for that member. The twin writes each date back as its system's count, spelled as `count_form` says (generation method G7.10), so code written on the twin converts the real table the same way. A description written before the second key cut does not carry `count_form`, and an absent one is read as `null` (C6-45a).
 
 | key | JSON type | permitted values | meaning |
 |---|---|---|---|
-| `count_form` | object or `null` | `null` | reserved for how a column whose dates are written as numbers counted from a fixed day spells those numbers -- the figures after the point, whether trailing zeros are dropped, and a contact number's census; landing R4 fills it |
+| `count_form` | object or `null` | `null` on every column but one named under `settings.forced_date_counts` whose cells read as dates (CD1, CD2); there, an object of exactly the six keys below | how the column spells its counts |
+| `count_form.places` | integer | 0 to 17 | the most figures after the mark any of the column's usual counts writes -- a stray written with more, one in a hundred at most, is held to its own last figure and not counted here (the second review of landing R4, item 5) |
+| `count_form.trimmed` | boolean | | whether a count drops the zeros at the end of its figures after the mark, and the mark with them, as `%g`, `repr` and R write, rather than always writing `places` of them as `%.6f` and pandas' `45000.0` do |
+| `count_form.significant` | integer or `null` | `15`, `17` or `null` | where each count is written to that many significant figures, trimmed (`%.15g`, `repr`) -- so a column crossing serial 10,000 writes one figure fewer after the point on the far side, and at seventeen a whole count is written as `repr` writes a whole double, `45123.0`; `null` otherwise (CD5) |
+| `count_form.exponent` | boolean | | whether a count is written in exponent form where that is shorter, as R writes a whole number of milliseconds (CD5) |
+| `count_form.mark` | string | `.` or `,` | the decimal mark |
+| `count_form.contacts` | object or `null` | `null`, or a census of contact numbers: each key figures alone, at most nine, or `(none)`, each count at the disclosure line (CD3, CD4) | on `days-since-1840` alone, how many dates write each contact number after the point -- Epic's figures after the point number a contact, not a time -- the counts below the line folded into the commonest; `null` where no contact number reaches the line -- where no date writes one, or each is rarer than the line, as on an Epic column of fewer dates than the line, whose twin then writes each date's day count alone (the second review of landing R4, item 1) |
+
+**The twelve systems**, the closed list a `[name, system]` pair names, each with its unit, its first day and the words NF114 to NF116 say it in:
+
+| system | counts | from | said |
+|---|---|---|---|
+| `excel-1900` | days | 30 December 1899, with serial 60 the 29 February 1900 Excel keeps and no day has | days from 30 December 1899, as Excel, Sheets and LibreOffice keep dates, with the figures after the point the time of day |
+| `excel-1904` | days | 1 January 1904 | days from 1 January 1904, as Excel for Mac kept dates in older workbooks, with the figures after the point the time of day |
+| `days-since-1960` | days | 1 January 1960 | days from 1 January 1960, as SAS and Stata keep dates |
+| `seconds-since-1960` | seconds | 1 January 1960 | seconds from the start of 1 January 1960, as SAS keeps moments |
+| `milliseconds-since-1960` | milliseconds | 1 January 1960 | milliseconds from the start of 1 January 1960, as Stata keeps moments |
+| `days-since-1970` | days | 1 January 1970 | days from 1 January 1970, as R keeps dates |
+| `seconds-since-1970` | seconds | 1 January 1970 | seconds from the start of 1 January 1970, as Unix and Python keep moments |
+| `milliseconds-since-1970` | milliseconds | 1 January 1970 | milliseconds from the start of 1 January 1970, as JavaScript and Java keep moments |
+| `microseconds-since-1970` | microseconds | 1 January 1970 | microseconds from the start of 1 January 1970, as Arrow and Parquet keep moments |
+| `nanoseconds-since-1970` | nanoseconds | 1 January 1970 | nanoseconds from the start of 1 January 1970, as pandas keeps moments |
+| `days-since-1840` | days | 31 December 1840 | days from 31 December 1840, as Epic and MUMPS keep dates, with the figures after the point a contact number rather than a time |
+| `seconds-since-1582` | seconds | 14 October 1582 | seconds from the start of 14 October 1582, as SPSS keeps dates |
+
+**A count, read.** A cell is a count where it is an optional minus, then whole figures -- `0` alone or a first figure other than `0` -- then optionally the column's mark and figures, then, on the point only, optionally `e` or `E`, a sign and figures -- as many whole figures before it as the cell writes, so `17e+8` and `1704067200e+0` are counts (the Codex review of landing R4, item 8). A leading plus, a grouped number, a space and any other character are not counts. A count's redundant zeros go before its number is built, a number past ten to the thirtieth names no date, and every other count is read to its last significant figure (item 7 and its verification); the zeros that end a whole written in full, with no figure after the mark, are no significant figures, so R's `1704067200000010000` writes fifteen. A column some cell of which writes an ISO date beside the counts is not read as counted dates -- its twin would turn that date into a number -- and nor is one whose counts no form holds by the checker's own rule (V5-CF), whole counts bare and with `.0` by turns or Python's `%e` with its zeros: each says so in NF115 (items 1 and 3). On `days-since-1840`, a cell writing an exponent or more than nine figures after the point is no count -- `65053.010000000002` is a day and a binary64's tail, not a contact number -- and stands to the date role's own line (the review of landing R4, item 3). A cell that is a count but names no date in its system -- Excel's 0, its 60 and a number below nought -- or that names 1 January 1900 or 31 December 9999 in it, at any time of day, or is its system's count for either day by plain arithmetic from the first day (pandas writes Excel's 1 January 1900 as `2`), is no value: it is counted with the column's absent spellings under its own spelling (`(declared-missing)`), written back as it was written, and tells nothing of the column's form -- a lone `0` beside serials written `%.6f` leaves the form six places (`date_counts.names_a_date`; the verification of the Codex review of landing R4, item 4). So a real date on 1 January 1900 or 31 December 9999 in a counted column is no value either -- and so, on `excel-1900`, is Excel's serial 2, 2 January 1900, the count pandas writes for 1 January: on a column of dates that whole day, on a column of moments the one instant, midnight, every other moment of the day being a date -- and the twin draws no date on any of those days: each is one of the column's absent spellings (`date_counts.hole_words`); no tail of the twin reaches a moment before a spreadsheet system's first count, nor 31 December 9999 (`date_counts.tail_reach`), and a tail running past 1 January 1900, in a system that writes the days either side of it, stands no rank on the day (`date_counts.tail_islands`; method G7.10; the second review of landing R4, item 2, its verification and the repair of that). `--keep-value` does not reach these: a number kept that way is no word of the vocabulary the settings block records (C5-19), so a checked file could not be read the same way. 0 and -1 name a real day in the other systems and are read as that day, unless the person names them with `--missing-value`.
+
+| key | JSON type | permitted values | meaning |
+|---|---|---|---|
+| `count_form` | object or `null` | `null`, or an object | the form of a column's counted dates; its six keys are above |
 
 ##### The format vocabulary, its readings and its resolutions
 
@@ -12455,7 +12538,7 @@ a document, so no document can violate it.
 | S5 | `source.used_fallback_encoding` is true exactly when `source.encoding == "latin-1"` | yes |
 | S6 | `source.header_by_convention` true implies `source.header_source == "file"`; generated names are not a convention about somebody's first record | yes |
 | S7 | `values_recorded` is `false` in both declaration records — neither carries the text the person typed; `true` is refused, naming an older profile that recorded spellings under this key | yes |
-| S8 | every name in each of the five declaration arrays — `forced_identifiers`, `forced_codes`, `forced_measurements`, `forced_decimal_commas`, `forced_twelve_hour_clocks` — and every name `century_windows` pairs with a year (landing R2a) is some column's `name`; a name matching no column means the profile and the schema disagree | yes |
+| S8 | every name in each of the five declaration arrays — `forced_identifiers`, `forced_codes`, `forced_measurements`, `forced_decimal_commas`, `forced_twelve_hour_clocks` — every name `century_windows` pairs with a year (landing R2a) and every name `forced_date_counts` pairs with a counting system (landing R4) is some column's `name`; a name matching no column means the profile and the schema disagree | yes |
 | S8a | no name is in `forced_decimal_commas` and also in `forced_codes` or `forced_identifiers`; those two silence the numeric reading, so the comma declaration could never be used and would be recorded and ignored | yes |
 | S9 | `settings.categorical_floor <= settings.categorical_ceiling` | yes |
 | S10 | every `publication_notes[i].column` is some column's `name`, or is EMPTY and the note is about the whole table | yes |
@@ -12778,6 +12861,14 @@ it answers to.
 <!-- anchor 3b-R2c (P4-D383) -->
 <!-- anchor 3b-R4 (P4-D384) -->
 
+| id | statement | loader? |
+|---|---|---|
+| CD1 | a column named under `settings.forced_date_counts` is a column of dates with a `count_form`, or says in NF115 that its cells did not read as such dates (landing R4) | yes |
+| CD2 | only a column of dates named under `settings.forced_date_counts` carries a `count_form` | yes |
+| CD3 | `count_form.contacts` stands only on a column counted as `days-since-1840`, whose form then writes no `significant` figures and no `exponent` | yes |
+| CD4 | `count_form.contacts` counts every date the column reads, `n_present - n_unparsed`, each count at least the census line, and names a contact number beside `(none)` | yes |
+| CD5 | a `count_form` with `exponent` writes 15 `significant` figures, trimmed, and one with `significant` figures is `trimmed` | yes |
+
 Since plan P4-D375 a date or clock tail that lists no values publishes
 its pair whatever a reader can work out from it; P4-D349 withheld it
 where it would be read back, and its twin's spread beyond the boundary
@@ -12935,7 +13026,7 @@ month-first parsed.
 | NG11 | on `remark_affixed_numbers_may_be_codes`: argument 3 equals the named block's `n_affixed` |
 | NG12 | argument 1 is character-for-character that block's `affix_prefix` and argument 2 its `affix_suffix`, AT THOSE POSITIONS, not merely as members of the pair |
 | NG13 | on `remark_a_label_is_a_built_in_stand_in`: argument 1 is 1, 2 or 3 |
-| NG14 | for every form: one of the 94 the note grammar enumerates |
+| NG14 | for every form: one of the 98 the note grammar enumerates |
 | NG15 | the argument count equals that form's arity |
 | NG16 | every argument is of one of the four argument classes |
 | NG17 | re-rendering the form with those arguments writes the leaf's text character for character |
@@ -13360,7 +13451,7 @@ form, the stand-in is written in it (7.9.1).
 <!-- anchor 3b-R2c (P4-D383) -->
 <!-- anchor 3b-R4 (P4-D384) -->
 
-| `count_form` | LOADER-ONLY (plan P4-D386): `null` on every block, refused as anything else, and no output obligation until landing R4 (plan P4-D384) fills it |
+| `count_form` | EXACT-OBSERVABLE (landing R4, plan P4-D384): the twin writes each date back as its system's count in the published form, so the file's own counts are held to it cell by cell -- a count the form cannot write, or a file not read as such dates, misses it, but for counts written with MORE figures than the form, of which as many stand as the profiler sets beside the usual counts, one in a hundred, one at least -- and `count_form.contacts` is held exactly (validation method V5-CF) |
 
 `datetime_separators`, `all_at_midnight` and `n_at_midnight` have no
 row here: all three were added after the freeze and are EXACT-OBSERVABLE
@@ -13986,7 +14077,7 @@ version 5 document reads "version 5":
 > so this file cannot be read back exactly. Please make the
 > description again by running 'synthtwin profile' on your table,
 > giving it every option you gave the first time: --keep-value,
-> --missing-value, --identifier, --code, --measurement,
+> --missing-value, --identifier, --code, --date-count, --measurement,
 > --decimal-comma, --smallest-group, --first-row, --day-first,
 > --twelve-hour, --century, --metadata-rows, --sheet, --delimiter and
 > --answers.
@@ -14006,7 +14097,11 @@ version 5 document reads "version 5":
 > comma where the decimal point goes is read by the ordinary rules, so
 > a column of quantities is described as text and every number in it
 > is lost, or a value such as 1,234 is published as one thousand two
-> hundred and thirty-four; without the --missing-value you gave, a
+> hundred and thirty-four; without the --date-count you gave, a column
+> whose dates are written as counts -- days, seconds or milliseconds
+> from a fixed day -- is described as numbers, so the twin keeps how
+> the numbers spread but loses the day of the week and the time of
+> day each date falls on; without the --missing-value you gave, a
 > stand-in is read as a real reading, and the stand-in itself can be
 > published as the column's smallest value; without the --keep-value
 > you gave, a word you had counted as an ordinary value becomes a gap,
@@ -14035,7 +14130,8 @@ version 5 document reads "version 5":
 > delimiters can be split the other way, which changes every column
 > name the description publishes and every value it describes; and
 > without the --answers you gave, every answer you wrote in the
-> questions file is gone — each of them was a --code, an --identifier,
+> questions file is gone — each of them was a --code, an --identifier, a
+> --date-count,
 > a --measurement, a --decimal-comma, a --metadata-rows, a
 > --delimiter, a --twelve-hour, a --century, a --day-first, a
 > --missing-value or a
@@ -14061,6 +14157,13 @@ and the published times move with it. A questions file can now answer
 `--twelve-hour` and `--day-first` too, and since lane R1 (plan P4-D381)
 an answer about a column's codes stands for `--missing-value` or
 `--keep-value`, so the `--answers` clause names all four.
+
+**Why it names `--date-count` and prices it.** `--date-count` joined
+them with landing R4 (plan P4-D384): a re-run without it describes a
+column whose dates are written as counts as numbers, so the twin keeps
+how the numbers spread and loses the day of the week and the time of
+day each date falls on. Question Q3 answers it in a questions file,
+so the `--answers` clause names it too.
 
 **Why it names thirteen options and prices each.** `--metadata-rows`
 (plan P4-D81) and `--sheet` (plan P4-D77) each reached the command
@@ -14237,7 +14340,7 @@ this document, and the battery the plan requires turns red on it.
 | nothing-class blocks (`numeric_unrepresentable`, `identifier`, `free_text`) | lengths, word statistics, digit and code-alphabet counts, the whole-number test, the repetition multiset, on `numeric_unrepresentable` the whole-number and sign counts, on `free_text` the census of WRITTEN FORMS its cells wore (`shape_forms`), and on `identifier` the census of LAYOUTS (`layout_forms`, 7.12) and, by the owner's ruling of 2026-09-17, the literal PREFIX every cell of the column or of one named layout opens with (`layout_prefixes`, 7.12a, row 22) | no value, no spelling, no fragment of one but the prefix of row 22 — the form census included, whose every key is built from `%`, `@` and thirteen named marks -- characters no cell that has a form may contain, so a key can carry no letter and no figure of any cell; the multiplicity map publishes SIZES of unnamed groups under no floor, the form census under the floor with a `(withheld)` pool |
 | `empty` columns nobody declared | the absent SPELLINGS their cells wore and the two absence counts, exactly as any column that is not nothing-publishing | floor-governed |
 | `settings` | the rules the run applied, the floor's own value, how many values each declaration named, and which of THIS package's published words were among them | carries no cell, no column and no count of the table; a person's own spelling never enters |
-| `source.header_evidence`, `publication_notes[].note`, `detection_evidence`, `remarks` | sentences of the 94 closed forms: 109 argument positions, of which 82 are whole numbers, 5 package words, 17 nested forms and 5 bound affix strings | the whole numbers are counts the block beside them already publishes, EXCEPT the positions priced at rows 16 and 18 |
+| `source.header_evidence`, `publication_notes[].note`, `detection_evidence`, `remarks` | sentences of the 98 closed forms: 120 argument positions, of which 84 are whole numbers, 14 package words, 17 nested forms and 5 bound affix strings | the whole numbers are counts the block beside them already publishes, EXCEPT the positions priced at rows 16 and 18 |
 | `relationships` | nothing: eight nulls | — |
 
 ### 12.3 The rows, each priced
@@ -15301,10 +15404,10 @@ width at least ONE (`1`, `2`, `10`), a cell written as a whole number
 writing at least one figure (C6-29c). `(withheld)` is again the only
 non-numeric key permitted.
 
-### 14.8 The note grammar — 94 forms
+### 14.8 The note grammar — 98 forms
 
 Defined in 4.5.1, which is the authority on every rendering and every
-argument. 109 argument positions: 82 whole numbers, 5 package words, 17
+argument. 120 argument positions: 84 whole numbers, 14 package words, 17
 nested forms, 5 bound affix strings.
 
 > **THE CENSUS IS RECOMPUTED FROM THE CODE, NOT TAKEN FROM EITHER
@@ -15451,12 +15554,28 @@ nested forms, 5 bound affix strings.
 <!-- anchor 3b-R2c (P4-D383) -->
 <!-- anchor 3b-R4 (P4-D384) -->
 
-**The package-word vocabulary — 26**, the whole of the second argument
+| # | form | arity |
+|---|---|---|
+| NG113 | `remark_numbers_could_be_dates` | 6 |
+| NG114 | `remark_read_as_counted_dates` | 3 |
+| NG115 | `remark_counted_dates_not_read` | 1 |
+| NG116 | `remark_dates_written_as_counts` | 1 |
+
+**The twenty-one words of dates written as counts** (landing R4, plan
+P4-D384) are package words too: the twelve systems of 6.6.2, each at
+NF114 to NF116 argument 1; the three rules of question Q3, `inside-a-band`,
+`at-midnight` and `fixed-width-days`, at NF113 argument 1; and the five
+set-aside words `0`, `-1`, `1900-01-01`, `9999-12-31` and `60`, with
+`(none set aside)` for a place naming none, at NF113 arguments 2 to 6,
+each only at its own place. None of them is a `format` member.
+
+**The package-word vocabulary — 47**, the whole of the second argument
 class (4.5.1): the twenty `format` members of 14.6, plus `day-first`
 and `month-first`, the two reading names the day-and-month remark
 needs, plus `hours_and_minutes` and `hours_minutes_and_seconds`, the
 two clock words NF46 names a form by, plus `rows` and `people`, the
-two units NF59 counts a population in (14.4a). **The count read nineteen and
+two units NF59 counts a population in (14.4a), plus the twenty-one words
+of dates written as counts above. **The count read nineteen and
 omitted the two clock words until 2026-08-26**, while the shipped
 producer had carried twenty-one since the clock role landed -- so a
 producer written to this document would have refused the clock

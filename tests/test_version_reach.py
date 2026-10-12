@@ -65,18 +65,19 @@ with no newline in it, which is most of this file's samples.)
 THE LIMIT THAT WOULD MATTER is a string of source that IS RUN --
 handed to `exec`, `eval` or `compile`, or to `runpy` -- because that
 spelling reaches the 3.10 cells while this file says nothing about it.
-The tree holds FORTY-TWO such calls (counted again at the merge of
-landing 3b.2-H into the integrated tree, 2026-10-09: its repair
-round's validation mutant adds two, and at the landing, 2026-10-06,
-the sixteenth vectors file's route added one and its test's mutants
-four; landing R2a's twenty-fifth vectors file adds one, and the
-walk's arithmetic measure of 2026-10-08 two more; at the review of
-landing 3b.D0, 2026-10-03, it held thirty-two, the figure having
-stood one short since the fifteenth vectors file's route arrived and
-that review's mutants adding two). They are listed in
+The tree holds FORTY-THREE such calls (counted again at the merge of
+landing R4 into the integrated tree, 2026-10-12: its twenty-sixth
+vectors file adds one; at the merge of landing 3b.2-H, 2026-10-09,
+forty-two: its repair round's validation mutant adds two, and at the
+landing, 2026-10-06, the sixteenth vectors file's route added one and
+its test's mutants four; landing R2a's twenty-fifth vectors file adds
+one, and the walk's arithmetic measure of 2026-10-08 two more; at the
+review of landing 3b.D0, 2026-10-03, it held thirty-two, the figure
+having stood one short since the fifteenth vectors file's route arrived
+and that review's mutants adding two). They are listed in
 `ROUTES_THAT_RUN_SOURCE` below and
 `test_the_routes_that_run_a_string_of_source_are_the_ones_named_here`
-holds the tree to that list, so a forty-third cannot arrive unread.
+holds the tree to that list, so a forty-fourth cannot arrive unread.
 The `runpy` calls run a COMMITTED FILE of `tools/` or of `tests/`,
 which the folders below already read, and the `exec` and `compile`
 calls are held by what they are handed or by where they run:
@@ -144,8 +145,9 @@ calls are held by what they are handed or by where they run:
   them the tenth and eleventh, which stage 3's two tail landings
   added (the date and clock tails, landing 3.4, opened the tenth and
   the numeric tails, landing 3.3, the eleventh), and the fourteenth,
-  fifteenth, sixteenth, twenty-second and twenty-fifth files of stage
-  3b (plans P4-D375, P4-D366, P4-D371, P4-D370 and P4-D383). Each
+  fifteenth, sixteenth, twenty-second, twenty-fifth and twenty-sixth
+  files of stage 3b (plans P4-D375, P4-D366, P4-D371, P4-D370, P4-D383
+  and P4-D384). Each
   runs the committed oracle
   `tools/reference/make_generation_reference_vectors.py` exactly as
   its siblings do, and the floor holds for them for the same reason:
@@ -402,6 +404,9 @@ ROUTES_THAT_RUN_SOURCE = {
     # anchor 3b-R2b (P4-D383)
     # anchor 3b-R2c (P4-D383)
     # anchor 3b-R4 (P4-D384)
+    # The twenty-sixth file, landing R4's numbers that are dates (plan
+    # P4-D384): it runs the same oracle by path, as every file above does.
+    ("tools/reference/make_generation_branch_vectors_26.py", "runpy.run_path"): 1,
     ("tools/reference/make_generation_document_vectors.py", "runpy.run_path"): 1,
 }
 RUNNING_NAMES = ("exec", "eval", "compile", "runpy.run_path", "runpy.run_module")

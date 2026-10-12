@@ -485,6 +485,12 @@ PLAN4_REGIONS = {
     # anchor 3b-R2b (P4-D383)
     # anchor 3b-R2c (P4-D383)
     # anchor 3b-R4 (P4-D384)
+    # The form of counted dates, disposed in the decision of the landing
+    # that fills the key the second cut reserved.
+    "counted-dates": (
+        "## Decision P4-D384 — numbers that are dates: read exactly, "
+        "described as dates, written back as counts (lane R4, 2026-10-06)"
+    ),
     "group-separator": (
         "### P4-D38 The mark between thousands (stage 2, 2026-09-14)"
     ),
@@ -1195,13 +1201,17 @@ REGISTRY += (
         plan_region="stage-3b-reserves",
         aliases=(),
     ),
-    # -- 3b.R4 (P4-D384), reserved by the second cut (P4-D386)
+    # -- 3b.R4 (P4-D384), reserved by the second cut (P4-D386) and filled
+    # by the landing: the twin writes each date back in the published form,
+    # and every count of the file is held to it.
     Fact(
         "datetime",
         "count_form",
-        LOADER_ONLY,
-        plan_words="LOADER-ONLY until the landing that fills it",
-        plan_region="stage-3b-second-cut",
+        EXACT_OBSERVABLE,
+        plan_words=(
+            "every count of the checked file is held to the published form"
+        ),
+        plan_region="counted-dates",
         aliases=(),
     ),
     # THE LANDINGS' ANCHORS (plan P4-D364): each landing of stage 3b

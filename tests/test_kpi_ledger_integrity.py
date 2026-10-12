@@ -815,6 +815,16 @@ def test_the_ledger_file_is_canonical_json() -> None:
     text = kpi_rules.LEDGER_PATH.read_text(encoding="utf-8")
     assert text.endswith("\n")
     assert json.loads(text) == LEDGER
+    # 550,000 from 531,000, AT THE INTEGRATION OF BATCH 2B'S SECOND PART
+    # (2026-10-12), the integrator's call, as the orchestrator asked: the
+    # least round figure the merged ledger fits under. Lane R4 adds
+    # `K-S3-60` with its note clause, the entry 18,444 bytes as the lane
+    # wrote it, of which 8,923 are its ninety-one pinned nodes and 2,101
+    # its rule: from 530,107 to 550,080. Its evidence prose and its note
+    # clause were trimmed first, every figure and its source kept (4,620
+    # to 4,370 and 1,174 to 995 characters), to 549,650 bytes; the rest is
+    # the entry's own rule and nodes, which are not trimmed.
+    #
     # 531,000 from 520,000, AT THE INTEGRATION OF BATCH 2B'S FIRST PART
     # (2026-10-12), the integrator's call, as the orchestrator asked: the
     # least round figure the merged ledger fits under, raised to 526,000
@@ -921,7 +931,7 @@ def test_the_ledger_file_is_canonical_json() -> None:
     # its bytes are K-P4-20's new value and the notes of the ceilings and
     # re-measurements its repair pass recorded. The cap is still a cap; the
     # prose is trimmed before it is raised again.
-    assert pathlib.Path(kpi_rules.LEDGER_PATH).stat().st_size < 531_000
+    assert pathlib.Path(kpi_rules.LEDGER_PATH).stat().st_size < 550_000
 
 
 def test_a_fast_pinned_entry_with_no_collection_floor_is_named() -> None:

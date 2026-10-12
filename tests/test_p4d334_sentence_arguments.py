@@ -1038,105 +1038,121 @@ def test_no_count_moved_so_the_twin_report_still_reads_the_partition(
     assert block["n_not_numeric"] == 3
 
 
-def test_the_epoch_band_remark_reads_the_published_tail_boundaries(
+def _counted_readings(block: "dict[str, object]") -> list:
+    """The NF114 remarks of a block, in the description's own order."""
+    return [
+        remark
+        for remark in block["remarks"]
+        if remark.form == taxonomy.REMARK_READ_AS_COUNTED_DATES
+    ]
+
+
+# Each counting system's first day, worked out here from the calendar
+# and not read from the producer's table: seconds from 1960 and from 1970.
+_FIRST_DAYS = {
+    "seconds-since-1960": parsing.days_from_civil(1960, 1, 1),
+    "seconds-since-1970": parsing.days_from_civil(1970, 1, 1),
+}
+
+
+def test_the_counted_dates_remark_reads_the_published_tail_boundaries(
     tmp_path: pathlib.Path,
 ) -> None:
-    """NF51 arguments 2 to 7 are the two edges the block publishes.
+    """NF114's two years are the two edges the block publishes.
 
-    THE MERGE OBLIGATION, BUILT (plan P4-D345, contract NF51). This
-    test was SKIPPED on the date and clock tail branch, with its reason
-    naming the dependency: the remark's two ends restated
-    `percentiles.min` and `percentiles.max`, and there was nothing to
-    compare them with until the NUMERIC tail landing withdrew those two
-    keys. Both landings now stand in one tree, so the check is made.
+    THE MERGE OBLIGATION NF51 CARRIED, CARRIED OVER (plan P4-D345; landing
+    R4, plan P4-D384, retired NF51 from the producer and put NF113 and
+    NF114 in its place). The remark's two ends once restated
+    `percentiles.min` and `percentiles.max`; the numeric tail rule
+    withdraws those two keys, so each year is read from the boundary rung
+    that stands in the end's place.
 
-    THE DAYS ARE WORKED OUT HERE, from the rule and not from the
+    THE YEARS ARE WORKED OUT HERE, from the rule and not from the
     producer. `tests/tail_rule.py` says which percent each boundary
     stands at, the rung is read off the ladder the description
-    publishes, and the day is that rung divided by the band's units --
-    which is the arithmetic contract NF51 states, done a second time.
+    publishes, and the year is that rung divided into days and counted
+    from the system's own first day -- the arithmetic contract NF114
+    states, done a second time.
     """
     document = battery.described(tmp_path, "epoch_seconds", 11)
     block = document["columns"][0]
-    remarks = [
-        remark
-        for remark in block["remarks"]
-        if remark.form == taxonomy.REMARK_EPOCH_BAND
-    ]
-    assert remarks, "the epoch-band shape no longer carries its remark"
+    remarks = _counted_readings(block)
+    assert [remark.arguments[0] for remark in remarks] == [
+        "seconds-since-1960",
+        "seconds-since-1970",
+    ], "the epoch-band shape no longer carries question Q3's readings"
     assert block["percentiles"]["min"] is None
     assert block["percentiles"]["max"] is None
 
     cells, _flags = battery.SHAPES["epoch_seconds"](
         random.Random(battery.BATTERY_SEED)
     )
-    numbers = [float(cell) for cell in cells]
-    low_percent = tail_rule.percent_of(len(numbers), 11)
+    low_percent = tail_rule.percent_of(len(cells), 11)
     assert low_percent is not None
     edges = (
         tail_rule.rung_of(block, low_percent),
         tail_rule.rung_of(block, 100 - low_percent),
     )
     a_day = 24 * 60 * 60
-    owed = (taxonomy.EPOCH_BAND_SECONDS,)
-    for edge in edges:
-        owed = owed + parsing.civil_from_days(int(edge) // a_day)
-    assert remarks[0].arguments == owed, remarks[0].arguments
-
-    # ...AND THEY ARE NOT THE COLUMN'S OWN ENDS, which is the leak the
-    # rule closes rather than a detail of it.
-    ends = (taxonomy.EPOCH_BAND_SECONDS,)
-    for edge in (min(numbers), max(numbers)):
-        ends = ends + parsing.civil_from_days(int(edge) // a_day)
-    assert remarks[0].arguments != ends
+    for remark in remarks:
+        member = remark.arguments[0]
+        owed: "tuple[object, ...]" = (member,)
+        for edge in edges:
+            owed = owed + (
+                parsing.civil_from_days(_FIRST_DAYS[member] + int(edge) // a_day)[0],
+            )
+        assert remark.arguments == owed, remark.arguments
 
 
-def test_a_remark_naming_ends_the_block_withholds_is_refused(
+def test_a_reading_naming_years_the_edges_do_not_name_is_refused(
     tmp_path: pathlib.Path,
 ) -> None:
     """The guard, mutated: prose may not outlive the facts it quotes.
 
-    A description whose ladder stops short of both ends and whose
-    time-band remark still names the column's real smallest and largest
-    values would publish, in prose, the two numbers the whole tail rule
-    exists to withhold. `profile.check_publication` refuses it.
+    A description whose NF114 names a year its published edges do not
+    name would say, in prose, something no fact of the description
+    holds -- at the tail, the year of a value the tail rule withholds.
+    `profile.check_publication` refuses it, on each of the two years.
 
     THE MUTATION IS OF THE DOCUMENT, not of the producer, so this stays
-    a statement about the LOADER: a second implementer writing those
-    two days into a conforming-looking description is stopped by the
-    same rule that stops this one.
+    a statement about the LOADER: a second implementer writing other
+    years into a conforming-looking description is stopped by the same
+    rule that stops this one.
     """
     document = battery.described(tmp_path, "epoch_seconds", 11)
     block = document["columns"][0]
     profile.check_publication(document)
+    kept = list(block["remarks"])
+    for place, moved in ((1, -1), (2, 1)):
+        block["remarks"] = [
+            taxonomy.note(
+                remark.form,
+                tuple(
+                    argument + moved if index == place else argument
+                    for index, argument in enumerate(remark.arguments)
+                ),
+            )
+            if remark.form == taxonomy.REMARK_READ_AS_COUNTED_DATES
+            else remark
+            for remark in kept
+        ]
+        with pytest.raises(errors.ProfileError):
+            profile.check_publication(document)
+    block["remarks"] = kept
+    profile.check_publication(document)
 
-    cells, _flags = battery.SHAPES["epoch_seconds"](
-        random.Random(battery.BATTERY_SEED)
-    )
-    numbers = [float(cell) for cell in cells]
-    a_day = 24 * 60 * 60
-    ends = (taxonomy.EPOCH_BAND_SECONDS,)
-    for edge in (min(numbers), max(numbers)):
-        ends = ends + parsing.civil_from_days(int(edge) // a_day)
-    block["remarks"] = [
-        taxonomy.note(taxonomy.REMARK_EPOCH_BAND, ends)
-        if remark.form == taxonomy.REMARK_EPOCH_BAND
-        else remark
-        for remark in block["remarks"]
-    ]
-    with pytest.raises(errors.ProfileError):
-        profile.check_publication(document)
 
-
-def test_a_block_with_no_end_and_no_boundary_carries_no_band_remark(
+def test_a_block_with_no_end_and_no_boundary_asks_nothing(
     tmp_path: pathlib.Path,
 ) -> None:
-    """A column too small for a tail says nothing about a band.
+    """A column too small for a tail says nothing about counted dates.
 
-    Contract NF51 and plan P4-D345: both of the sentence's days would
+    Contract NF114 and plan P4-D345: both of a reading's years would
     then be values nothing else in the description holds, which is the
-    one thing a sentence argument may never be (4.5.1). The shape is a
-    column of epoch seconds at a floor high enough that no percent
+    one thing a sentence argument may never be (4.5.1) -- and NF113
+    without a reading beside it would point at systems it does not name,
+    so it is not written either, and question Q3 is not put. The shape
+    is a column of epoch seconds at a floor high enough that no percent
     leaves a tail's rows outside on both sides at once (contract TL3),
     so the block publishes its moments and no rung at all. At 120 cells
     the widest boundary, 50 per cent, leaves 59 rows outside and the
@@ -1164,9 +1180,8 @@ def test_a_block_with_no_end_and_no_boundary_carries_no_band_remark(
     assert block["percentiles"]["min"] is None
     assert block["percentiles"]["max"] is None
     assert taxonomy.published_ends(block) is None
-    assert not [
-        remark
-        for remark in block["remarks"]
-        if remark.form == taxonomy.REMARK_EPOCH_BAND
-    ]
+    forms = [remark.form for remark in block["remarks"]]
+    assert taxonomy.REMARK_NUMBERS_COULD_BE_DATES not in forms
+    assert taxonomy.REMARK_READ_AS_COUNTED_DATES not in forms
+    assert taxonomy.REMARK_EPOCH_BAND not in forms
     profile.check_publication(document)

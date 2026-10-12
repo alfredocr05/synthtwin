@@ -183,6 +183,8 @@ import dataclasses
 import math
 
 from synthtwin import calendar_clock, calendar_rules, contract, errors, parsing
+# -- 3b.R4 (P4-D384): the twelve systems that write dates as counts.
+from synthtwin import date_counts
 
 # The eleven points of the percentile ladder: the shape-carrying
 # summary of a numeric column (plan P1-D4).
@@ -932,36 +934,21 @@ REMARK_MINUS_AFTER_THE_FIGURES = "remark_a_minus_after_the_figures"
 REMARK_LABEL_IS_A_STAND_IN = "remark_a_label_is_a_built_in_stand_in"
 # A COLUMN OF WHOLE NUMBERS WHOSE EVERY VALUE LIES IN THE BAND A
 # MOMENT IN TIME IS COUNTED INTO (residual R-P4-9, contract NF51).
-# Such a column is read as a count and stays one -- no rule of this
-# package reads a number as a time and no declaration makes one -- so
-# the remark exists for the one thing that WAS missing: being told.
+# RETIRED FROM THE PRODUCER by landing R4 (plan P4-D384): question Q3's
+# own words, NF113 and NF114, stand in its place, and `--date-count`
+# reads such a column as the dates it counts. The form stays in the
+# grammar with its two bands, so a description written before that
+# landing still loads and its days are still held to the block's
+# published edges (`epoch_band_days`).
 REMARK_EPOCH_BAND = "remark_whole_numbers_could_be_times"
 
-# THE TWO BANDS, and there is no third. A moment in time is counted
-# into a whole number in one of two units a person meets: seconds from
-# the 1st of January 1970, or milliseconds from the same instant. The
-# argument NAMES the band by its place in that pair, so the remark's
-# rendering is a lookup rather than a spelling.
+# THE TWO BANDS NF51 NAMES: seconds from the 1st of January 1970, or
+# milliseconds from the same instant. The argument NAMES the band by its
+# place in that pair, so the remark's rendering is a lookup rather than a
+# spelling. (The twelve counting systems landing R4 reads are
+# `date_counts.MEMBERS`.)
 EPOCH_BAND_SECONDS = 1
 EPOCH_BAND_MILLISECONDS = 2
-
-# HOW WIDE EACH BAND IS, STATED AS TWO CALENDAR YEARS AND NOT AS TWO
-# LARGE NUMBERS. The band runs from the first day of `EPOCH_BAND_FROM`
-# up to, and not including, the first day of `EPOCH_BAND_UNTIL`; the
-# whole numbers themselves are worked out from those days by
-# `parsing.days_from_civil`, so nothing here is a constant somebody
-# would have to check against a calendar.
-#
-# WHY THE BAND HAS A LOWER END AT ALL, and why it is this one. Zero is
-# the 1st of January 1970, so a band that started there would cover
-# every ordinary count a table holds -- ages, tallies, row counts -- and
-# the remark would fire on almost every column of whole numbers, which
-# is the noise a routing-nothing sentence can least afford. Starting
-# at the year 2000 puts the band's floor at 946,684,800 in seconds:
-# a count column reaching that is already unusual, and one whose
-# EVERY value does is the shape this remark exists for.
-EPOCH_BAND_FROM = 2000
-EPOCH_BAND_UNTIL = 2051
 
 # The header verdict, which the reader settles and the profile
 # publishes. The sentences live in this table with every other
@@ -1053,6 +1040,21 @@ REMARK_CENTURY_DECLARED = "remark_two_figure_years_are_read_in_a_declared_centur
 # anchor 3b-R2b (P4-D383)
 # anchor 3b-R2c (P4-D383)
 # anchor 3b-R4 (P4-D384)
+# QUESTION Q3, "NUMBER OR DATE?", IN NF51'S PLACE (landing R4, plan
+# P4-D384, contract NF113 and NF114). A column of numbers whose values lie
+# where a counting system writes dates is told so in the question's own
+# words, member by member with the years its published ends name, and is
+# asked; NF51 said the same of two bands from 1970, read every band from
+# 1970 -- so SAS seconds of 2016 to 2025 were said to run from 2026 to
+# 2035 -- and said, falsely, that nothing about the twin changed.
+REMARK_NUMBERS_COULD_BE_DATES = "remark_numbers_could_be_dates"
+REMARK_READ_AS_COUNTED_DATES = "remark_read_as_counted_dates"
+# ...AND A COLUMN DECLARED SO (`--date-count`, NF115 and NF116): which
+# system its dates are counted in, from which day, in what unit -- so code
+# written on the twin converts the real table the same way -- or, where
+# its cells did not read as dates, that the declaration decided nothing.
+REMARK_DATES_WRITTEN_AS_COUNTS = "remark_dates_written_as_counts"
+REMARK_COUNTED_DATES_NOT_READ = "remark_counted_dates_not_read"
 
 # EVERY form, with how many arguments it takes. This mapping is the
 # enumeration: a name that is not a key here is not a form, and `note`
@@ -1232,6 +1234,15 @@ NOTE_ARITY: "dict[str, int]" = {
     # anchor 3b-R2b (P4-D383)
     # anchor 3b-R2c (P4-D383)
     # anchor 3b-R4 (P4-D384)
+    # Which rule asked, and in each of five places one of the set-aside
+    # numbers where the column holds it or the word for none, each one word
+    # of this package's own (NF113); a member and the years of the block's
+    # two published edges read in it (NF114); and the member a declaration
+    # named (NF115, NF116).
+    REMARK_NUMBERS_COULD_BE_DATES: 6,
+    REMARK_READ_AS_COUNTED_DATES: 3,
+    REMARK_DATES_WRITTEN_AS_COUNTS: 1,
+    REMARK_COUNTED_DATES_NOT_READ: 1,
 }
 
 # The same names as a sorted tuple, for a reader and for the tests that
@@ -1460,6 +1471,21 @@ ARGUMENT_BINDINGS: "dict[tuple[str, int], tuple[object, ...]]" = {
     # anchor 3b-R2b (P4-D383)
     # anchor 3b-R2c (P4-D383)
     # anchor 3b-R4 (P4-D384)
+    # THE WORDS ARE THIS PACKAGE'S OWN -- package words of the second
+    # class, `date_counts.NOTE_WORDS` -- and the years are the block's two
+    # published edges said a second way -- `BIND_VALUE`, asked together
+    # one level up (`profile`), as NF51's days were.
+    (REMARK_NUMBERS_COULD_BE_DATES, 0): (BIND_WORD,),
+    (REMARK_NUMBERS_COULD_BE_DATES, 1): (BIND_WORD,),
+    (REMARK_NUMBERS_COULD_BE_DATES, 2): (BIND_WORD,),
+    (REMARK_NUMBERS_COULD_BE_DATES, 3): (BIND_WORD,),
+    (REMARK_NUMBERS_COULD_BE_DATES, 4): (BIND_WORD,),
+    (REMARK_NUMBERS_COULD_BE_DATES, 5): (BIND_WORD,),
+    (REMARK_READ_AS_COUNTED_DATES, 0): (BIND_WORD,),
+    (REMARK_READ_AS_COUNTED_DATES, 1): (BIND_VALUE,),
+    (REMARK_READ_AS_COUNTED_DATES, 2): (BIND_VALUE,),
+    (REMARK_DATES_WRITTEN_AS_COUNTS, 0): (BIND_WORD,),
+    (REMARK_COUNTED_DATES_NOT_READ, 0): (BIND_WORD,),
     (REMARK_OUT_OF_RANGE, 0): (BIND_KEY, "n_out_of_range"),
     (EVIDENCE_CLOCK, 0): (BIND_DIFFERENCE, "n_present", "n_unparsed"),
     (EVIDENCE_CLOCK, 1): (BIND_WORD,),
@@ -1647,6 +1673,9 @@ NOTE_ARGUMENT_WORDS = (
     + NOTE_CLOCK_WORDS
     + NOTE_READING_WORDS
     + NOTE_UNIT_WORDS
+    # -- 3b.R4 (P4-D384): the twelve members, the three rules of question
+    # Q3 and the words for the set-aside numbers, all this package's own.
+    + date_counts.NOTE_WORDS
 )
 
 # What `note` and `rendered` say when they are handed something the
@@ -2224,6 +2253,70 @@ def rendered(form: str, arguments: "tuple[object, ...]") -> str:
     # anchor 3b-R2b (P4-D383)
     # anchor 3b-R2c (P4-D383)
     # anchor 3b-R4 (P4-D384)
+    if form == REMARK_NUMBERS_COULD_BE_DATES:
+        # THE QUESTION'S OWN WORDS (contract NF113), in NF51's place. It
+        # names no value of the column: the set-aside numbers it may name
+        # are this package's own closed list, and the years the members
+        # read are NF114's, beside it.
+        return (
+            f"{date_counts.rule_said(_word(arguments, 0))}"
+            f"{date_counts.aside_said(tuple(_word(arguments, place) for place in range(1, 6)))}"
+            f" synthtwin described them as numbers, so the twin keeps "
+            f"their spread as numbers but not the calendar behind them: "
+            f"which day of the week and which time of day each falls on "
+            f"comes back only if the column is read as dates. If "
+            f"they are dates, answer the question about this column in "
+            f"the questions file, or run the command again with "
+            f"--date-count NAME SYSTEM, where NAME is this column's name "
+            f"and SYSTEM one of the systems named beside this sentence; "
+            f"the column is then described as dates, and the twin writes "
+            f"each date back as the same count, spelled as this column "
+            f"spells it"
+        )
+    if form == REMARK_READ_AS_COUNTED_DATES:
+        # ONE MEMBER, AND THE YEARS OF THE BLOCK'S OWN PUBLISHED EDGES read
+        # in it (contract NF114) -- never the column's outermost values,
+        # which the tail rule withholds.
+        member = _word(arguments, 0)
+        return (
+            f"read as {date_counts.TABLE[member].means} "
+            f"(--date-count NAME {member}), this column runs from "
+            f"{_whole(arguments, 1)} to {_whole(arguments, 2)}, with the "
+            f"outermost values at each end set aside"
+        )
+    if form == REMARK_DATES_WRITTEN_AS_COUNTS:
+        member = _word(arguments, 0)
+        return (
+            f"as you said, this column writes its dates as "
+            f"{date_counts.TABLE[member].means} ({member}). Its cells are "
+            f"read as the dates they count and described as dates, and "
+            f"the twin writes each date back as the same count, spelled as "
+            f"this column spells its counts (`count_form`); a number that "
+            f"counts no date -- or one of the numbers such a count writes "
+            f"where no date was given, 1 January 1900 or 31 December 9999 "
+            f"-- is counted as no value and written back as it was written, "
+            f"whatever --keep-value names"
+        )
+    if form == REMARK_COUNTED_DATES_NOT_READ:
+        member = _word(arguments, 0)
+        return (
+            f"you said this column writes its dates as "
+            f"{date_counts.TABLE[member].means} ({member}), but its cells "
+            f"did not read as such dates -- too few of them are counts "
+            f"that name a date, the dates they name are too few to be "
+            f"described as dates, the figures after the point step "
+            f"between the units a date is written to -- the day, the minute, "
+            f"the second and its thousandths -- as one to three figures of a "
+            f"day or tenths of a second do, so no unit keeps them all, some "
+            f"cells are written as dates in text beside the counts, or the "
+            f"counts are not written one way, as a whole count written "
+            f"bare beside one written with a point and a nought, or an "
+            f"exponent form keeping zeros at its end -- so it is described as it "
+            f"reads without that, and the declaration decided nothing about "
+            f"it. To have it read as dates, write every date in the column "
+            f"the same way -- all as counts in one spelling, or all as text "
+            f"-- and name it again"
+        )
     if form == NOTE_SMALL_POPULATION:
         # THE TWO FLOORS ARE COUNTED IN DIFFERENT UNITS, AND THIS NOTICE
         # SAYS SO (review of 2026-09-23, finding 6). The size above is
@@ -3352,6 +3445,12 @@ class Settings:
     century_windows: "tuple[tuple[str, int], ...]" = ()
     # -- 3b.R2c (P4-D383)
     # -- 3b.R4 (P4-D384)
+    # THE COLUMNS WHOSE DATES ARE WRITTEN AS COUNTS (`--date-count COLUMN
+    # MEMBER`, question Q3): `(column, member)` for each, the member one
+    # of `date_counts.MEMBERS`. A column is READ under
+    # `counted_for_the_column`'s view of these settings, which narrows
+    # this to `COUNTED_HERE` and the member, or to nothing.
+    forced_date_counts: "tuple[tuple[str, str], ...]" = ()
 
 
 # What `for_the_column` leaves in `forced_twelve_hour_clocks` for a column
@@ -3534,7 +3633,8 @@ def _present_spellings(
     stated = declared if declared is not None else Declarations()
     kept, held = _census_reading(
         cells,
-        for_the_column(settings, name),
+        # -- 3b.R4 (P4-D384): and its counted dates, where declared so.
+        counted_for_the_column(for_the_column(settings, name), name),
         name in stated.identifiers,
         name in stated.codes,
         name in stated.measurements,
@@ -7873,7 +7973,8 @@ def role_read(
     arguments. Errors raised: ValueError where the settings name one value
     both as data and as "no value", as `profile_column` does. No I/O.
     """
-    narrowed = for_the_column(settings, name)
+    # -- 3b.R4 (P4-D384): and its counted dates, where declared so.
+    narrowed = counted_for_the_column(for_the_column(settings, name), name)
     read = _read_the_column(
         values,
         len(values),
@@ -17096,6 +17197,15 @@ def published_absent(
     declaration of missing values named (`built_in_values_named`), which
     the settings block publishes as `built_in_dates`. Nothing the person
     typed that no key publishes (review of landing 3b.1, finding 6).
+    -- 3b.R4 (P4-D384): AND, ON A COLUMN OF DATES WRITTEN AS COUNTS, the
+    days its counted reading holds no date on (`date_counts.hole_words`):
+    every count naming one is no value, whatever the description
+    publishes, so a reader holds those days empty too (the second review
+    of landing R4, item 2) -- on a column of moments the placeholder days
+    alone, Excel's serial 2 naming one instant of its day and no more
+    (its verification, item 2 (d)). The validator and the generator add
+    the same words from the settings and the facts the description
+    publishes.
 
     Guarantees: accepts a column block and the run's settings; returns
     the spellings sorted and each once. Determinism: a function of the
@@ -17108,6 +17218,9 @@ def published_absent(
             found = found | {str(key) for key in keys}
     _texts, _numbers, days = built_in_values_named(settings.declared_missing_values)
     found = found | set(days)
+    if counted_member(settings):
+        moments = "resolution" in details and details["resolution"] == RESOLUTION_DATETIME
+        found = found | set(date_counts.hole_words(counted_member(settings), moments))
     return tuple(sorted(found))
 
 
@@ -17538,6 +17651,577 @@ def _heavy_published(
     return _reserved_lists(details, (calendar_rules.HEAVY_DATES,))
 
 
+# -- 3b.R4 (P4-D384): numbers that are dates ---------------------------
+#
+# A COLUMN DECLARED TO WRITE ITS DATES AS COUNTS (`--date-count COLUMN
+# MEMBER`, or an answer to question Q3) is read cell by cell as the dates
+# its counts name, exactly (`date_counts`), and described as a column of
+# dates; the twin writes each date back as the same count, spelled as the
+# column spells its counts (`count_form`). Only a declaration reads a
+# number as a date: undeclared, a column of numbers in a counting band is
+# asked about (NF113, NF114) and read as numbers.
+
+# What `counted_for_the_column` leaves in `forced_date_counts` for a column
+# declared: a word of this package's own beside the member, as
+# `TWELVE_HOUR_HERE` is -- and, where the column's counts did not read as
+# dates, the second word, so the reading of the column as numbers still
+# knows the declaration stood.
+COUNTED_HERE = "(this column writes its dates as counts)"
+COUNTED_NOT_READ = "(this column's counts were not read as dates)"
+
+
+def counted_for_the_column(settings: Settings, name: str) -> Settings:
+    """The settings one column is read under, for its counted dates (landing R4).
+
+    `for_the_column`'s view for `forced_date_counts`: narrowed to
+    `(COUNTED_HERE, member)` where the column is declared, and to nothing
+    otherwise, so the rules reading one column ask `counted_member` and
+    never need its name. Every column of a table declaring none is read
+    under the settings it is handed.
+
+    Guarantees: a function of the two. Raises nothing. No I/O.
+    """
+    if not settings.forced_date_counts:
+        return settings
+    counted: "tuple[tuple[str, str], ...]" = ()
+    for column, member in settings.forced_date_counts:
+        if column == name:
+            counted = ((COUNTED_HERE, member),)
+    return dataclasses.replace(settings, forced_date_counts=counted)
+
+
+def counted_member(settings: Settings) -> str:
+    """The member the column these settings were narrowed for is read in, or ""."""
+    for column, member in settings.forced_date_counts:
+        if column == COUNTED_HERE:
+            return member
+    return ""
+
+
+def counted_declared(settings: Settings) -> str:
+    """The member the column was DECLARED in, read as dates or not, or ""."""
+    for column, member in settings.forced_date_counts:
+        if column in (COUNTED_HERE, COUNTED_NOT_READ):
+            return member
+    return ""
+
+
+@dataclasses.dataclass(frozen=True)
+class CountedReading:
+    """How a column of counted dates was read, carried to its description.
+
+    `member` is the declared system; `form` how its cells write their
+    counts (`date_counts.form_of`, its contacts unfloored); `settled` the
+    unit its moments were settled to and `unit` the one they were written
+    at; `contacts` the contact words each written date carried, a
+    `days-since-1840` column's only, so the census can be counted over the
+    dates that are still present once every pass has run.
+    """
+
+    member: str
+    form: "date_counts.CountForm"
+    settled: int
+    unit: int
+    contacts: "dict[str, dict[str, int]]"
+
+
+_COUNT_KEPT = 0
+_COUNT_READ = 1
+_COUNT_SET_ASIDE = 2
+
+
+def _date_count_remarks(
+    cells: "_Cells", details: "dict[str, object]"
+) -> "list[Note]":
+    """Question Q3's own words, for a column of numbers it asks about (NF113, NF114).
+
+    Nothing for a column declared (`--date-count`, read as dates or not),
+    and nothing for a column `date_counts.asked_of` does not ask about.
+    Otherwise NF113, naming the rule that asked and the set-aside numbers
+    the column holds -- each where the census line of cells holds it --
+    and one NF114 per member offered, with the years the block's own
+    published rungs name in that member (`counted_edge_years`): the
+    outermost published rung on each side that is none of the member's
+    set-aside numbers and names a date, never the column's outermost
+    values.
+
+    NO NF113 WITHOUT AN NF114 BESIDE IT. NF113 tells the person to name
+    "one of the systems named beside this sentence", and the question is
+    put from NF114's members; a block publishing neither an end nor a
+    boundary on one side -- a column too small for a tail -- names no
+    year, so nothing is said and nothing asked, as NF51 said nothing
+    there (plan P4-D345).
+
+    Guarantees: accepts the tally and the block built from it; returns the
+    remarks. Determinism: a function of the two. Raises nothing. No I/O.
+    """
+    settings = cells.settings
+    if counted_declared(settings):
+        return []
+    present = cells.present
+    median: "float | None" = None
+    ladder = details["percentiles"] if "percentiles" in details else None
+    if isinstance(ladder, dict) and "p50" in ladder:
+        rung = ladder["p50"]
+        if isinstance(rung, float):
+            median = rung
+    whole = cells.n_whole == len(cells.numbers) and len(cells.numbers) > 0
+    asked = date_counts.asked_of(
+        present,
+        cells.numbers,
+        _needed(settings.minimum_parse_rate, len(present)),
+        median,
+        whole,
+        date_counts.COMMA if cells.decimal_comma else date_counts.POINT,
+        floor=settings.small_cell_floor,
+    )
+    if asked is None:
+        return []
+    # THE HEAPS ARE ASKED OF THE SYSTEMS NF114 OFFERS, and a system whose
+    # walk finds no date is not offered, so the walk is asked again of
+    # the systems left until none drops: the guard beside the loader reads
+    # the systems from the NF114s published and must find the same heaps
+    # (`profile._counted_years_quote_the_published_edges`).
+    offered = asked.members
+    readings: "list[Note]" = []
+    while True:
+        heaps = date_counts.heap_counts(asked.set_aside, offered)
+        readings = []
+        kept: "list[str]" = []
+        for member in offered:
+            years = counted_edge_years(details, member, heaps)
+            if years is None:
+                continue
+            kept += [member]
+            readings += [note(REMARK_READ_AS_COUNTED_DATES, (member, years[0], years[1]))]
+        if tuple(kept) == offered:
+            break
+        offered = tuple(kept)
+    if not readings:
+        return []
+    said = [
+        note(
+            REMARK_NUMBERS_COULD_BE_DATES,
+            (asked.rule,) + date_counts.aside_slots(asked.set_aside),
+        )
+    ]
+    said += readings
+    return said
+
+
+def _rung_values(details: "dict[str, object]") -> "list[object]":
+    """The block's hundred and one rungs, nought to a hundred, as published (None where withheld)."""
+    ladder = details["percentiles"] if "percentiles" in details else None
+    finer = details["percentiles_between"] if "percentiles_between" in details else None
+    rungs: "list[object]" = []
+    for percent in range(101):
+        # Nought and a hundred are `percentiles`' own `min` and `max`.
+        where, name = _rung_name(percent)
+        half = ladder if where == "percentiles" else finer
+        held: object = None
+        if isinstance(half, dict) and name in half:
+            held = half[name]
+        rungs += [held]
+    return rungs
+
+
+def counted_edge_years(
+    details: "dict[str, object]",
+    member: str,
+    heaps: "frozenset[float]" = frozenset(),
+) -> "tuple[int, int] | None":
+    """The years NF114 says a column runs over, read in one member (landing R4).
+
+    THE OUTERMOST PUBLISHED RUNG ON EACH SIDE THAT IS A DATE OF THE
+    COLUMN. The walk starts where `published_ends` stands -- the end the
+    block publishes where a group of rows holds it, the boundary rung of
+    the side's tail otherwise -- and moves inward rung by rung over the
+    published ladder (`_first_dated_rung`), passing over:
+
+    * a HEAP RUNG: one that is one of the member's set-aside numbers
+      (`date_counts.set_aside`), or the count in any system offered of a
+      set-aside word NF113 names (``heaps``, `date_counts.heap_counts`),
+      or that names no date in the member (`date_counts.years_of`) -- so
+      Excel's 31 December 9999 is no date of a column read as Epic days,
+      where the walk read "1957 to 9941" (the second review of landing
+      R4, item 3);
+    * THE ONE RUNG INSIDE A HEAP RUNG: a rung is read between two sorted
+      cells, and the first beside a heap can be read between the last
+      placeholder and the first date -- one percent of `0` among ten
+      thousand Excel serials from 2016 puts the 1st percentile at 0.99 of
+      the first date, in 2014 (the review of landing R4, item 1);
+    * and, after a heap rung, EVERY RUNG WITH A HEAP COUNT BETWEEN IT AND
+      THE RUNG BEFORE IT: a second heap need hold no rung of its own,
+      and the rung read between it and the first date then follows a
+      rung read between the two heaps -- one percent each of `0` and the
+      1900 count, `2`, among Excel serials from 2016 publish 0, 1.98 and
+      41522.64 before the first date, and the walk read the third, in
+      2013 (item 3 of that review). Past one rung with no heap count
+      between it and the rung before it, the next is read between dates.
+
+    The years are those of published rungs, so the remark quotes nothing
+    the block does not publish; the guard beside the loader asks the same
+    walk of the block, with the words and systems the remarks publish
+    (`profile._counted_years_quote_the_published_edges`). None where the
+    block publishes no edge on a side, or where the walk finds no rung
+    that is a date.
+
+    Guarantees: accepts one numeric block, a member word and the heap
+    counts; returns two years or None. Determinism: a function of the
+    three. Raises KeyError for a word outside `date_counts.MEMBERS`. No
+    I/O of any kind.
+    """
+    if published_ends(details) is None:
+        return None
+    rungs = _rung_values(details)
+    tails = details["tails"] if "tails" in details else None
+    years: "list[int]" = []
+    for side, end, step in (("low", 0, 1), ("high", 100, -1)):
+        start = end
+        if not isinstance(rungs[end], float):
+            own = tails[side] if isinstance(tails, dict) and side in tails else None
+            percent = own["percent"] if isinstance(own, dict) and "percent" in own else None
+            if isinstance(percent, bool) or not isinstance(percent, int):
+                return None
+            start = percent
+        found = _first_dated_rung(rungs, start, step, member, heaps)
+        if found is None:
+            return None
+        years += [found]
+    return years[0], years[1]
+
+
+def _first_dated_rung(
+    rungs: "list[object]",
+    start: int,
+    step: int,
+    member: str,
+    heaps: "frozenset[float]" = frozenset(),
+) -> "int | None":
+    """The year of the first rung from ``start`` that is a date and stands clear of every heap (`counted_edge_years`)."""
+    aside: "dict[float, int]" = {}
+    for number in date_counts.set_aside(member):
+        aside[float(number)] = 1
+    for count in heaps:
+        aside[count] = 1
+    previous: "float | None" = None
+    heaped = False
+    place = start
+    while 0 <= place <= 100:
+        value = rungs[place]
+        place = place + step
+        if not isinstance(value, float):
+            continue
+        year = None if value in aside else date_counts.years_of(member, value)
+        if year is None:
+            previous = value
+            heaped = True
+            continue
+        if previous is None:
+            return year
+        if heaped:
+            previous = value
+            heaped = False
+            continue
+        if _a_heap_between(aside, previous, value):
+            previous = value
+            continue
+        return year
+    return None
+
+
+def _a_heap_between(aside: "dict[float, int]", one: float, other: float) -> bool:
+    """Whether a heap count lies strictly between two rungs."""
+    low = min(one, other)
+    high = max(one, other)
+    for count in aside:
+        if low < count < high:
+            return True
+    return False
+
+
+def _counts_read_as_dates(
+    classified: "list[_Cell]",
+    member: str,
+    settings: Settings,
+    decimal_comma: bool,
+    published: int = 0,
+) -> "tuple[list[_Cell], list[tuple[str, str]], CountedReading | None]":
+    """A declared column's counts, read as the dates they name (landing R4).
+
+    THREE KINDS OF CELL, read in this order, after every declaration of
+    the person's own has taken its cells out:
+
+    * a cell written as a count of the member (`date_counts.counted`)
+      that names no date -- Excel's 0 and 60, a count below its first day
+      or past 9999-12-31 -- or that is the member's count for 1 January
+      1900 or 31 December 9999 (`date_counts.declared_aside`), or names a
+      moment of either day (`date_counts.placeholder_day_named`), is
+      counted as no value and keeps its spelling, so the twin writes it
+      back as written (the R4 design review, item 1: one such cell voided
+      the declaration before). Nought and minus one, which name dates in
+      the members that read them, are read as those dates. `--keep-value`
+      does NOT reach these: a number kept that way is no word of the
+      closed vocabulary the settings block records (contract C5-19), so a
+      checked file read again could not keep it too, and the first build's
+      rescue left the source missing its own description (the review of
+      landing R4, item 5, mutant M40);
+    * every other count is read EXACTLY as the moment it names, settled
+      to the unit its figures carry (`date_counts.reading_unit`) and
+      written as ISO text at the coarsest unit every one of them stands
+      on (`date_counts.written_unit`) -- or, in the validator, at the
+      unit the description published -- and reclassified as that text;
+    * a cell written any other way stays as it is, for the date role's
+      own line to take or leave.
+
+    WHERE THE UNIT LOSES A FIGURE THE COLUMN WROTE, the column is not
+    read as counted dates (the review of landing R4, item 2): the
+    profiler asks of every count that it is its column's own writing of
+    the moment it was read as (`date_counts.settled_reading`, which
+    question Q3 asks too before it offers the member), and one that is
+    not -- Unix seconds written with tenths, four figures of a day of
+    moments off the whole minute, one figure of a day -- means no unit a
+    twin could be drawn at keeps the column's figures, and nothing is
+    read: the caller then says so in NF115. EVERY COUNT IS READ FIRST, and
+    only where that reading holds no unit are the counts written with the
+    most figures -- up to one in a hundred -- set beside the usual ones as
+    strays, each held to its own last figure, the form and the unit then
+    the usual counts' and each stray's moment written in the usual form
+    (`date_counts.usual_tally`; the second review of landing R4, item 5,
+    and its verification: date-times mostly at six-hour steps or at
+    midnight, written trimmed, whose few longer counts carry the time of
+    day, were refused where the usual counts settled first). The form
+    published is the form of the reading that held.
+
+    Guarantees: accepts the classified present cells, the member, the
+    column's settings, whether it is declared `--decimal-comma` and the
+    unit its description published (``published``, the validator's
+    alone; nought works it out from the figures); returns the cells to
+    read on, the cells counted as no value with their class, and how the
+    counts were written -- None where no cell is a count, or where a
+    count's figures are not held. Determinism: whole-number arithmetic
+    over the text. Raises nothing for any cell. No I/O of any kind.
+    """
+    mark = date_counts.COMMA if decimal_comma else date_counts.POINT
+    aside: "dict[int, int]" = {}
+    for number in date_counts.declared_aside(member):
+        aside[number] = 1
+    found = date_counts.TABLE[member]
+    # EACH CELL PARSED ONCE: a count of the member, its exact value and
+    # contact word, and whether it stands aside -- or no count at all.
+    parsed: "list[tuple[int, int, int, str]]" = []
+    # THE FIGURES FIRST: the unit a moment is settled to is a fact about
+    # the whole column, so how its counts are written is tallied before any
+    # cell is read -- every count but the set-aside numbers and those read
+    # as no value, which are written back as written and say nothing of the
+    # column's form (`date_counts.names_a_date`) -- by
+    # the figures after the mark each writes, so where every count's
+    # reading holds no unit a stray written with more figures than the
+    # rest is set beside them (`date_counts.usual_tally`).
+    tallies: "dict[int, date_counts.Tally]" = {}
+    for cell in classified:
+        written = date_counts.counted(member, cell.text, mark)
+        if written is None:
+            if date_counts.written_as_a_date(cell.text):
+                # COUNTS BESIDE DATES WRITTEN AS TEXT: the column is not read
+                # as counted dates, and NF115 says so (the Codex review of
+                # landing R4, item 1; `date_counts.written_as_a_date`).
+                return classified, [], None
+            parsed += [(_COUNT_KEPT, 0, 1, "")]
+            continue
+        numerator, denominator = date_counts.exact_value(written)
+        word = date_counts.contact_word(written) if found.contacts else ""
+        if date_counts.stands_aside(numerator, denominator, found.contacts, aside):
+            parsed += [(_COUNT_SET_ASIDE, numerator, denominator, word)]
+            continue
+        parsed += [(_COUNT_READ, numerator, denominator, word)]
+        if date_counts.names_a_date(member, numerator, denominator):
+            # A COUNT NAMING NO DATE, or a moment of a placeholder day, is read
+            # as no value below and says nothing of the column's form either
+            # (`date_counts.names_a_date`).
+            date_counts.tallied_by_places(tallies, written)
+    counts: "list[tuple[int, int]]" = []
+    no_count = True
+    for kind, numerator, denominator, _word in parsed:
+        if kind != _COUNT_KEPT:
+            no_count = False
+        if kind == _COUNT_READ:
+            counts += [(numerator, denominator)]
+    if no_count:
+        return classified, [], None
+    # EVERY FIGURE THE COLUMN WROTE IS HELD at the unit it is settled to, or
+    # nothing is read -- the one decision question Q3 asks before it offers
+    # the member (`date_counts.settled_reading`, `date_counts.figures_kept`):
+    # by every count's form first, and where that holds no unit by the
+    # usual counts', each stray held to its own last figure.
+    tally = date_counts.every_count(tallies)
+    reading = date_counts.settled_reading(
+        member, date_counts.form_from(tally, mark, None), tally, counts, published
+    )
+    reading = _reading_in_its_form(classified, parsed, member, tally, mark, reading)
+    usual_tallied, usual = date_counts.usual_tally(tallies)
+    if reading is None and usual >= 0:
+        tally = usual_tallied
+        reading = date_counts.settled_reading(
+            member, date_counts.form_from(tally, mark, None), tally, counts, published, usual
+        )
+        reading = _reading_in_its_form(classified, parsed, member, tally, mark, reading)
+    if reading is None:
+        return classified, [], None
+    settled, unit, read_moments = reading
+    fates: "list[int]" = []
+    moments: "list[int]" = []
+    contacts: "dict[int, dict[str, int]]" = {}
+    missing: "list[tuple[str, str]]" = []
+    count_place = 0
+    for index in range(len(classified)):
+        kind, _numerator, _denominator, word = parsed[index]
+        if kind == _COUNT_KEPT:
+            fates += [_COUNT_KEPT]
+            continue
+        moment: "int | None" = None
+        if kind == _COUNT_READ:
+            moment = read_moments[count_place]
+            count_place = count_place + 1
+        if moment is None:
+            fates += [_COUNT_SET_ASIDE]
+            missing += [(classified[index].text, parsing.MISSING_DECLARED)]
+            continue
+        fates += [_COUNT_READ]
+        moments += [moment]
+        if found.contacts:
+            held = contacts[moment] if moment in contacts else {}
+            held[word] = (held[word] if word in held else 0) + 1
+            contacts[moment] = held
+    texts: "dict[int, str]" = {}
+    read: "list[_Cell]" = []
+    place = 0
+    for index in range(len(classified)):
+        fate = fates[index]
+        if fate == _COUNT_KEPT:
+            read += [classified[index]]
+            continue
+        if fate == _COUNT_SET_ASIDE:
+            continue
+        moment_here = moments[place]
+        place = place + 1
+        text = texts[moment_here] if moment_here in texts else ""
+        if not text:
+            text = date_counts.iso_text(moment_here, settled, unit)
+            if unit >= date_counts.DAY:
+                texts[moment_here] = text
+        read += [_classify(text)]
+    by_text: "dict[str, dict[str, int]]" = {}
+    for moment_here in sorted(contacts):
+        by_text[date_counts.iso_text(moment_here, settled, unit)] = contacts[moment_here]
+    raw: "dict[str, int] | None" = None
+    if found.contacts:
+        raw = {}
+        for text_here in sorted(by_text):
+            words = by_text[text_here]
+            for word in sorted(words):
+                raw[word] = (raw[word] if word in raw else 0) + words[word]
+        if sorted(raw) == [date_counts.NO_CONTACT]:
+            raw = None
+    form = date_counts.form_from(tally, mark, raw)
+    return read, missing, CountedReading(member, form, settled, unit, by_text)
+
+
+def _reading_in_its_form(
+    classified: "list[_Cell]",
+    parsed: "list[tuple[int, int, int, str]]",
+    member: str,
+    tally: "date_counts.Tally",
+    mark: str,
+    reading: "tuple[int, int, list[int | None]] | None",
+) -> "tuple[int, int, list[int | None]] | None":
+    """A settled reading, kept only where its form holds every count it reads as a date (landing R4).
+
+    THE PRODUCER PUBLISHES NO FORM ITS OWN CHECKER WOULD MISS (the Codex
+    review of landing R4, item 3): the cells the reading reads as dates
+    -- every count but those set aside and those naming no date -- are
+    asked `date_counts.in_its_form` of the form the tally gives, the
+    checker's own rule (V5-CF). Unix seconds written bare and with `.0`
+    by turns, or Python's `%e` with its zeros, published a trimmed or an
+    exponent form the source then missed.
+
+    Guarantees: a function of the arguments; returns ``reading`` or
+    None. Raises nothing. No I/O of any kind.
+    """
+    if reading is None:
+        return None
+    moments = reading[2]
+    dated: "list[str]" = []
+    place = 0
+    for index in range(len(classified)):
+        if parsed[index][0] != _COUNT_READ:
+            continue
+        if moments[place] is not None:
+            dated += [classified[index].text]
+        place = place + 1
+    form = date_counts.form_from(tally, mark, None)
+    if not date_counts.in_its_form(member, form, dated):
+        return None
+    return reading
+
+
+def _contacts_floored(
+    contacts: "dict[str, dict[str, int]]", present: "list[str]", floor: int
+) -> "dict[str, int] | None":
+    """The census of contact words a block publishes, over its present dates.
+
+    Counted over the dates still present once every pass has run, and
+    floored the way every spelling census is (plan P4-D222): a word fewer
+    cells than `parsing.census_floor` carried is counted into the
+    commonest word, ties to the first in sorted order, so no count printed
+    and none left by subtraction is below the line, and the twin writes
+    the column's own contact numbers.
+
+    None WHERE NO CONTACT NUMBER REACHES THE LINE -- where no present date
+    carries one, and where every one is rarer than the line (the second
+    review of landing R4, item 1). Pooled into the commonest word, such a
+    census was `{"(none)": N}` alone: the twin wrote no contact number, its
+    own description published no census, and its check missed
+    `form.contacts`; and on a column of fewer dates than the line the pool
+    was itself below the line, and `profile` stopped with an internal
+    fault. With no census published the twin writes each date's day count
+    alone, and the published form -- `places`, the longest contact number
+    a cell writes -- still holds the source's rare ones
+    (`date_counts.form_holds`, by the member's contact rule).
+    """
+    standing: "dict[str, int]" = {}
+    for text in present:
+        standing[text] = 1
+    counts: "dict[str, int]" = {}
+    for text in sorted(contacts):
+        if text not in standing:
+            continue
+        words = contacts[text]
+        for word in sorted(words):
+            counts[word] = (counts[word] if word in counts else 0) + words[word]
+    line = parsing.census_floor(floor)
+    reaching = False
+    for word in counts:
+        if word != date_counts.NO_CONTACT and counts[word] >= line:
+            reaching = True
+    if not reaching:
+        return None
+    commonest = ""
+    for word in sorted(counts):
+        if not commonest or counts[word] > counts[commonest]:
+            commonest = word
+    floored: "dict[str, int]" = {}
+    for word in sorted(counts):
+        if counts[word] >= line:
+            floored[word] = counts[word]
+    if commonest not in floored:
+        floored[commonest] = 0
+    for word in sorted(counts):
+        if counts[word] < line:
+            floored[commonest] = floored[commonest] + counts[word]
+    return floored
+
+
 def _count_form_published(
     details: "dict[str, object]",
     verdict: "_Verdict",
@@ -17547,19 +18231,39 @@ def _count_form_published(
     stored_one_way: bool,
     verdicts: "list[dict[str, object]]",
     absent: "dict[str, int]",
+    counted: "CountedReading | None" = None,
 ) -> "tuple[dict[str, object], list[Note], list[Note]]":
     """A column block of dates with its `count_form`, and its sentences.
 
-    THE STUB OF LANDING R4 (plan P4-D384, numbers that are dates), which
-    fills this producer and nothing beside it; the key is reserved by the
-    second cut (plan P4-D386), and until R4 lands it is `null` on every
-    block and no sentence is said.
+    LANDING R4 (plan P4-D384, numbers that are dates). `null` on every
+    block but one read as counted dates (``counted``), where it says how
+    the column writes its counts: `places`, `trimmed`, `significant`,
+    `exponent`, `mark` and, on a `days-since-1840` column, `contacts`, the
+    census of contact numbers over the present dates, floored -- `null`
+    where no contact number reaches the line (`_contacts_floored`). Such a
+    block also says, in NF116, which system its dates are counted in.
 
     Guarantees: as `_hour_published`. No I/O of any kind.
     """
     block = dict(details)
     block["count_form"] = None
-    return block, [], []
+    if counted is None:
+        return block, [], []
+    form = counted.form
+    contacts = None
+    if form.contacts is not None:
+        contacts = _contacts_floored(
+            counted.contacts, cells.present, settings.small_cell_floor
+        )
+    block["count_form"] = {
+        "places": form.places,
+        "trimmed": form.trimmed,
+        "significant": form.significant,
+        "exponent": form.exponent,
+        "mark": form.mark,
+        "contacts": contacts,
+    }
+    return block, [], [note(REMARK_DATES_WRITTEN_AS_COUNTS, (counted.member,))]
 
 
 def _clock_census_published(
@@ -22722,94 +23426,6 @@ def epoch_band_days(
     return (band,) + smallest + largest
 
 
-def _epoch_band_reading(
-    cells: _Cells, details: "dict[str, object]"
-) -> "tuple[object, ...] | None":
-    """This column read as moments in time, or None if it cannot be.
-
-    Residual R-P4-9, contract NF51. Returns the arguments NF51 takes --
-    which band, then the year, month and day of the LOW published edge
-    of `details` and of its HIGH one, read in that band -- or None
-    where the column is not in either band, or where the block
-    publishes nothing at one of its two edges.
-
-    **THE TWO DAYS ARE THE BLOCK'S OWN PUBLISHED EDGES, AND THAT IS A
-    RULE AND NOT AN OPTIMISATION** (stage 3, plan P4-D345, contract
-    NF51). They were `min(numbers)` and `max(numbers)`: the column's
-    exact outermost values, said a second way, which was sound while
-    the block published them. The tail rule withdraws them (contract
-    6.7a), and an advisory remark may not outlive the facts it quotes,
-    so each end is now whatever the block publishes in its place --
-    the end itself where a group of `tail_units` rows holds it, and the
-    side's boundary rung otherwise (`published_ends`). Where a block
-    publishes NEITHER an end nor a boundary on one side, the remark is
-    not written at all: both of its days would then be values nothing
-    else in the description holds.
-
-    THE BAND ITSELF IS STILL DECIDED OVER EVERY VALUE, which is the
-    walk below and not the two edges. A published edge is a rung, not a
-    cell, so asking the band of the edges alone would ask it of two
-    numbers the column may not hold -- and on a tail block the rung
-    between two cells can sit outside a band both of them are inside.
-    The band is a property of the COLUMN; the days are a property of
-    the DESCRIPTION; the two questions are asked separately.
-
-    THE WALK IS OVER EVERY VALUE, AND WHAT THAT DOES AND DOES NOT BUY
-    IS MEASURED RATHER THAN CLAIMED. A band is one interval, so on the
-    role this is asked of -- where every value is a whole number by the
-    role's own rule -- asking `min` and `max` answers the same question
-    as asking every value. Rewriting the walk that way was run as a
-    mutation and turned nothing red, which is the honest result: it is
-    an equivalent rewrite and not an escaped defect. The walk stays
-    because it makes this function right on ITS OWN terms rather than
-    on its caller's -- a band ever written as two intervals, or a
-    caller that ever asks this of a role admitting a value whose text
-    does not settle it as whole, breaks the equivalence and not the
-    walk. What the walk DOES rule out, on any role, is a column holding
-    a number this format cannot hold: `len(numbers) != numeric_looking`
-    above refuses it, because a cell too large to hold has no place in
-    a band at all.
-
-    WHY THE BAND STARTS IN THE YEAR 2000 rather than at zero is written
-    where `EPOCH_BAND_FROM` is set: zero is the 1st of January 1970, so
-    a band beginning there covers every ordinary count.
-
-    Guarantees: accepts the tally of one column; returns NF51's
-    arguments or None. Determinism: a function of the tallied numbers
-    alone, and the bands are worked out from two calendar years by
-    `parsing.days_from_civil`. Raises nothing. No I/O of any kind.
-    """
-    numbers = cells.numbers
-    if not numbers or len(numbers) != _numeric_looking(cells):
-        return None
-    first_day = parsing.days_from_civil(EPOCH_BAND_FROM, 1, 1)
-    last_day = parsing.days_from_civil(EPOCH_BAND_UNTIL, 1, 1)
-    for band in (EPOCH_BAND_SECONDS, EPOCH_BAND_MILLISECONDS):
-        each_day = _EPOCH_BAND_UNITS_IN_A_DAY[band]
-        low = first_day * each_day
-        high = last_day * each_day
-        inside = True
-        for value in numbers:
-            # WHOLENESS BY ARITHMETIC, NOT BY `is_integer`, which is a
-            # method call the offline audit refuses on a value it
-            # cannot trace. The remainder is also the safer test at the
-            # ends of the format: anything that is not a finite whole
-            # number leaves a remainder that is not zero, so the same
-            # line refuses it.
-            if value % 1 != 0:
-                inside = False
-                break
-            if value < low or value >= high:
-                inside = False
-                break
-        if inside:
-            edges = published_ends(details)
-            if edges is None:
-                return None
-            return epoch_band_days(band, edges)
-    return None
-
-
 def _numeric_verdict(
     cells: _Cells, notes: list[Note], remarks: list[Note]
 ) -> _Verdict:
@@ -22909,19 +23525,15 @@ def _numeric_verdict(
     details, causes = _numeric_details_and_causes(cells, whole_everywhere)
     if role == ROLE_COUNT:
         evidence = note(EVIDENCE_COUNTS, (numeric_looking,))
-        # ...AND A COLUMN OF WHOLE NUMBERS THAT ARE ALL MOMENTS IN TIME
-        # SAYS SO (residual R-P4-9, contract NF51). It is asked only of
-        # this role because the band is a band of whole non-negative
-        # numbers, which is what this role means. The remark ROUTES
-        # NOTHING and there is nothing for it to route to: no rule here
-        # reads a number as a time and no declaration makes one, so the
-        # column stays a count either way and every published fact of
-        # it is the same fact. What changes is that its owner is told.
-        band = _epoch_band_reading(cells, details)
-        if band is not None:
-            remarks += [note(REMARK_EPOCH_BAND, band)]
     else:
         evidence = note(EVIDENCE_NUMBERS, (numeric_looking, n_present))
+    # -- 3b.R4 (P4-D384): A COLUMN OF NUMBERS LYING WHERE A COUNTING SYSTEM
+    # WRITES DATES IS ASKED, in the question's own words (NF113, NF114), in
+    # the place NF51 stood -- which NF51, retired, said of two bands from
+    # 1970 on the count role alone. It ROUTES NOTHING: only a declaration
+    # reads a number as a date, so the column stays numbers and every
+    # published fact of it is the same fact.
+    remarks += _date_count_remarks(cells, details)
     if role == ROLE_COUNT:
         # EVERY SPELLING, WHERE ONE NUMBER WAS WRITTEN MORE THAN ONE WAY
         # (plan P4-D123, the audit's missed item on mixed padding). The
@@ -23211,6 +23823,10 @@ class _ColumnReading:
     judged_over_days: bool
     removed_by_cores: int
     judged_over_cores: bool
+    # -- 3b.R4 (P4-D384): how a column declared to write its dates as
+    # counts was read, where its counts were read as dates; None on every
+    # other column, and on a declared one whose counts were not.
+    counted: "CountedReading | None" = None
 
 
 def _read_the_column(
@@ -23225,6 +23841,7 @@ def _read_the_column(
     kept_placeholder_days: "tuple[str, ...]" = (),
     judged_candidates: "tuple[str, ...]" = (),
     stored_as: str = "",
+    counted_unit: int = 0,
 ) -> _ColumnReading:
     """Apply every declaration and every judgement, and stop there.
 
@@ -23269,6 +23886,22 @@ def _read_the_column(
         classified, settings, forced_decimal_comma
     )
     missing = missing + declared
+    # -- 3b.R4 (P4-D384): A COLUMN DECLARED TO WRITE ITS DATES AS COUNTS
+    # is read as those dates here, after every declaration of the person's
+    # own and before any judgement, so every pass below reads dates.
+    counted_reading: "CountedReading | None" = None
+    # A NEGATIVE ``counted_unit`` IS A VALIDATOR'S, on a column whose own
+    # description says the declaration decided nothing (NF115): the checked
+    # file is read as that description read its source, without it (the
+    # Codex review of landing R4, items 1 and 3 -- a twin of Python's `%e`
+    # counts, declined, was otherwise read as counted dates against a
+    # description of numbers).
+    if counted_member(settings) and counted_unit >= 0:
+        classified, set_aside_cells, counted_reading = _counts_read_as_dates(
+            classified, counted_member(settings), settings, forced_decimal_comma,
+            counted_unit,
+        )
+        missing = missing + set_aside_cells
     # WHICH JUDGED PASS TOOK WHICH SPELLING (repair pass of landing
     # 2b.6, contract V5). Gathered at each of the three places a pass
     # removes a cell, because that is the only place it is known: after
@@ -23542,6 +24175,44 @@ def _read_the_column(
                 classified = level_kept
                 cells = counted
                 present = cells.present
+    # -- 3b.R4 (P4-D384): A DECLARATION THAT READ NO COLUMN OF DATES DECIDES
+    # NOTHING. Where the counts read as dates leave a column the date rule
+    # does not take -- too few counts name a date, or the dates are one
+    # or two values, which rules 3 and 4 claim first -- the column is read
+    # as if nothing had been declared, so its twin writes the spellings it
+    # reads, and NF115 says the declaration decided nothing.
+    if counted_member(settings):
+        verdict = _decision(
+            cells,
+            forced_identifier,
+            removed_by_cores,
+            after_removal=judged_over_cores,
+            after_days=judged_over_days,
+            forced_code=forced_code,
+            forced_measurement=forced_measurement,
+            described_as_pair=described_as_pair,
+            stored_as=stored_as,
+        )
+        if counted_reading is None or verdict.role != ROLE_DATETIME:
+            return _read_the_column(
+                values,
+                n_rows,
+                dataclasses.replace(
+                    settings,
+                    forced_date_counts=(
+                        (COUNTED_NOT_READ, counted_member(settings)),
+                    ),
+                ),
+                forced_identifier=forced_identifier,
+                forced_code=forced_code,
+                forced_measurement=forced_measurement,
+                forced_decimal_comma=forced_decimal_comma,
+                described_as_pair=described_as_pair,
+                kept_placeholder_days=kept_placeholder_days,
+                judged_candidates=judged_candidates,
+                stored_as=stored_as,
+                counted_unit=counted_unit,
+            )
     return _ColumnReading(
         cells=cells,
         present=present,
@@ -23552,6 +24223,7 @@ def _read_the_column(
         judged_over_days=judged_over_days,
         removed_by_cores=removed_by_cores,
         judged_over_cores=judged_over_cores,
+        counted=counted_reading,
     )
 
 
@@ -23598,6 +24270,9 @@ class HeldReading:
     # reads it under, so the reading is handed over as any other is; a
     # reading taken under another word is read again.
     stored_as: str = ""
+    # -- 3b.R4 (P4-D384): the unit a column of counted dates is read at
+    # (`_read_the_column`'s ``counted_unit``), nought where worked out.
+    counted_unit: int = 0
 
 
 def _same_reading(
@@ -23613,6 +24288,7 @@ def _same_reading(
     kept_placeholder_days: "tuple[str, ...]",
     judged_candidates: "tuple[str, ...]",
     stored_as: str = "",
+    counted_unit: int = 0,
 ) -> bool:
     """Whether ``held`` is the reading `_read_the_column` would return here.
 
@@ -23646,6 +24322,7 @@ def _same_reading(
         or held.forced_decimal_comma != forced_decimal_comma
         or held.described_as_pair != described_as_pair
         or held.stored_as != stored_as
+        or held.counted_unit != counted_unit
     ):
         return False
     if tuple(held.kept_placeholder_days) != tuple(kept_placeholder_days):
@@ -23790,10 +24467,44 @@ def present_spellings_after_the_rules(
 
 
 def _standing_of(kept: HeldReading) -> "dict[str, int]":
-    """The spellings a census reading leaves present, each mapped to 1."""
+    """The spellings a census reading leaves present, each mapped to 1.
+
+    -- 3b.R4 (P4-D384): A COLUMN READ AS COUNTED DATES holds the dates its
+    counts name, as ISO text, where the census asks after the spellings the
+    file holds: each count of the column is present where the date it names
+    is (`_counts_read_as_dates`), and a cell left as it was where that cell
+    is. Reading the column's own counts again here, rather than keeping a
+    map from each date to the counts that named it, holds no more than the
+    column's spellings: a map would hold one entry per count of a column of
+    moments.
+    """
     standing: "dict[str, int]" = {}
-    for value in kept.reading.present:
-        standing[value] = 1
+    counted = kept.reading.counted
+    if counted is None:
+        for value in kept.reading.present:
+            standing[value] = 1
+        return standing
+    held: "dict[str, int]" = {}
+    for text in kept.reading.present:
+        held[text] = 1
+    mark = date_counts.COMMA if kept.forced_decimal_comma else date_counts.POINT
+    for value in kept.values:
+        if value in standing:
+            continue
+        if value in held:
+            standing[value] = 1
+            continue
+        written = date_counts.counted(counted.member, value, mark)
+        if written is None:
+            continue
+        numerator, denominator = date_counts.exact_value(written)
+        moment = date_counts.moment_of(
+            counted.member, numerator, denominator, counted.settled
+        )
+        if moment is None:
+            continue
+        if date_counts.iso_text(moment, counted.settled, counted.unit) in held:
+            standing[value] = 1
     return standing
 
 
@@ -23814,6 +24525,7 @@ def profile_column(
     calendar_census: bool = True,
     stored_one_way: bool = True,
     stored_as: str = "",
+    counted_unit: int = 0,
 ) -> ColumnProfile:
     """Describe one column: its role, its statistics, what was withheld.
 
@@ -23867,6 +24579,11 @@ def profile_column(
       text cells no date format reads, or every present one as a clock
       time (`STORED_AS_CLOCKS`), which keeps the column from a list of
       labels it could not write back (`_decide`, plan P4-D382).
+    - ``counted_unit`` is not a declaration either, and no person sets it:
+      the validator hands over the unit a column of counted dates was
+      published at (landing R4), so a checked file's counts are read at
+      that precision; nought, the profiler's, works it out from the
+      column's figures.
     - ``handed_over`` is the population census's reading of this column
       (`HeldReading`), passed on so the column is not read a second
       time. It is taken only where `_same_reading` finds every argument
@@ -23896,6 +24613,8 @@ def profile_column(
       two rows and so on -- and keeps not one spelling of a value.
     """
     settings = for_the_column(settings, name)
+    # -- 3b.R4 (P4-D384): and its counted dates, where it was declared so.
+    settings = counted_for_the_column(settings, name)
     if handed_over is not None and _same_reading(
         handed_over,
         values,
@@ -23909,6 +24628,7 @@ def profile_column(
         kept_placeholder_days,
         judged_candidates,
         stored_as,
+        counted_unit,
     ):
         # The kept reading's tally carries the settings it was read
         # under, which differ from these in `person_columns` alone; the
@@ -23934,6 +24654,7 @@ def profile_column(
             kept_placeholder_days=kept_placeholder_days,
             judged_candidates=judged_candidates,
             stored_as=stored_as,
+            counted_unit=counted_unit,
         )
     cells = read.cells
     present = read.present
@@ -24077,7 +24798,7 @@ def profile_column(
         # -- how dates written as counts spell them (3b.R4, P4-D384)
         details, census_notes, census_remarks = _count_form_published(
             details, verdict, cells, settings, calendar_census,
-            stored_one_way, entries, by_source,
+            stored_one_way, entries, by_source, counted=read.counted,
         )
         publication_notes = publication_notes + census_notes
         weekday_remarks = weekday_remarks + census_remarks
@@ -24122,6 +24843,10 @@ def profile_column(
         remarks += [note(REMARK_CONTRADICTORY, (contradictory,))]
     if unpublished:
         remarks += [note(REMARK_RARE_SENTINELS, (unpublished,))]
+    # -- 3b.R4 (P4-D384): a declaration whose counts were not read as dates
+    # says it decided nothing (NF115).
+    if counted_declared(settings) and read.counted is None:
+        remarks += [note(REMARK_COUNTED_DATES_NOT_READ, (counted_declared(settings),))]
     # THE FLOOR, ASKED OF THE SENTENCES (plan P4-D334). Every count a
     # sentence restates is a published key and the key answered for it
     # already; the thirteen that no key carries are asked here, in the

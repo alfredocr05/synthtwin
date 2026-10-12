@@ -96,6 +96,9 @@ import pathlib
 import sys
 
 from synthtwin import asking, dialect, errors, parsing
+# -- 3b.R4 (P4-D384): the twelve systems that write dates as counts, a
+# module of the package's own that imports `parsing` alone.
+from synthtwin import date_counts
 from synthtwin.paths import PathValidationError, validate_local_path
 
 _REPO_URL = "https://github.com/alfredocr05/synthtwin"
@@ -692,6 +695,10 @@ class _Options:
     sheet: str
     seed: str
     replace: bool
+    # The `--date-count COLUMN SYSTEM` pairs as typed (landing R4, plan
+    # P4-D384), each a column's name and the word of the system its dates
+    # are counted in, read by `_run_profile`.
+    date_counts: "list[list[str]]" = dataclasses.field(default_factory=list)
     # The columns named with `--twelve-hour` (landing T1, plan P4-D370).
     twelve_hours: "list[str]" = dataclasses.field(default_factory=list)
     # The `--century COLUMN=YEAR` options as typed (landing R2a, plan
@@ -960,6 +967,29 @@ def _parse_arguments(argv: "list[str] | None") -> _Options:
             "given more than once"
         ),
     )
+    # -- 3b.R4 (P4-D384): numbers that are dates.
+    parser.add_argument(
+        "--date-count",
+        action="append",
+        nargs=2,
+        default=None,
+        metavar=("COLUMN", "SYSTEM"),
+        help=(
+            "name a column whose DATES ARE WRITTEN AS NUMBERS, and the "
+            "system that counts them: excel-1900 (Excel serial days), "
+            "excel-1904, days-since-1960 (SAS and Stata dates), "
+            "seconds-since-1960 (SAS date-times), milliseconds-since-1960 "
+            "(Stata), days-since-1970 (R), seconds-since-1970 (Unix), "
+            "milliseconds-since-1970 (JavaScript), microseconds-since-1970, "
+            "nanoseconds-since-1970, days-since-1840 (Epic, with a contact "
+            "number after the point) or seconds-since-1582 (SPSS), as in "
+            "--date-count visit_day excel-1900. A number does not say that "
+            "it counts days, so synthtwin asks; named here, each cell is "
+            "read as the date it counts, the column is described as dates, "
+            "and the twin writes each date back as the same count. May be "
+            "given more than once"
+        ),
+    )
     parser.add_argument(
         "--metadata-rows",
         default=None,
@@ -1156,6 +1186,8 @@ def _parse_arguments(argv: "list[str] | None") -> _Options:
     comma_named = (
         args.decimal_comma if args.decimal_comma is not None else []
     )
+    # -- 3b.R4 (P4-D384)
+    counted_named = args.date_count if args.date_count is not None else []
     twelve_named = args.twelve_hour if args.twelve_hour is not None else []
     century_named = args.century if args.century is not None else []
     kept = args.keep_value if args.keep_value is not None else []
@@ -1190,6 +1222,7 @@ def _parse_arguments(argv: "list[str] | None") -> _Options:
         sheet=f"{args.sheet}",
         seed=f"{args.seed}",
         replace=bool(args.replace),
+        date_counts=[list(pair) for pair in counted_named],
         twelve_hours=list(twelve_named),
         centuries=list(century_named),
     )
@@ -1362,6 +1395,21 @@ _ANSWER_KEYS = {
     # on stopped an interactive run with a KeyError where the base read
     # the same column and asked nothing.
     "6": asking.ANSWER_TWELVE_HOUR,
+    # -- 3b.R4 (P4-D384): QUESTION Q3'S TWELVE SYSTEMS, from 7 in the
+    # table's own order, so a question offering any of them can be answered
+    # at the keyboard as in the questions file.
+    "7": date_counts.EXCEL_1900,
+    "8": date_counts.EXCEL_1904,
+    "9": date_counts.DAYS_SINCE_1960,
+    "10": date_counts.SECONDS_SINCE_1960,
+    "11": date_counts.MILLISECONDS_SINCE_1960,
+    "12": date_counts.DAYS_SINCE_1970,
+    "13": date_counts.SECONDS_SINCE_1970,
+    "14": date_counts.MILLISECONDS_SINCE_1970,
+    "15": date_counts.MICROSECONDS_SINCE_1970,
+    "16": date_counts.NANOSECONDS_SINCE_1970,
+    "17": date_counts.DAYS_SINCE_1840,
+    "18": date_counts.SECONDS_SINCE_1582,
     "m": asking.ANSWER_MEASUREMENT,
     "c": asking.ANSWER_CODE,
     "i": asking.ANSWER_IDENTIFIER,
@@ -1454,6 +1502,19 @@ _KEY_OF = {
     asking.ANSWER_JOINED: "4",
     asking.ANSWER_DECIMAL_COMMA: "5",
     asking.ANSWER_TWELVE_HOUR: "6",
+    # -- 3b.R4 (P4-D384)
+    date_counts.EXCEL_1900: "7",
+    date_counts.EXCEL_1904: "8",
+    date_counts.DAYS_SINCE_1960: "9",
+    date_counts.SECONDS_SINCE_1960: "10",
+    date_counts.MILLISECONDS_SINCE_1960: "11",
+    date_counts.DAYS_SINCE_1970: "12",
+    date_counts.SECONDS_SINCE_1970: "13",
+    date_counts.MILLISECONDS_SINCE_1970: "14",
+    date_counts.MICROSECONDS_SINCE_1970: "15",
+    date_counts.NANOSECONDS_SINCE_1970: "16",
+    date_counts.DAYS_SINCE_1840: "17",
+    date_counts.SECONDS_SINCE_1582: "18",
     # THE STANDING READING SHARES KEY 1 WITH `measurement`, and the two
     # never appear on one question: a column of figures offers
     # `measurement` as the reading it already has, and a joined-looking
@@ -1904,9 +1965,15 @@ def _assumptions_notice(questions: "list[asking.Question]") -> str:
     # text", though both are read as times of day. Its block offers what
     # its own question offers.
     clocks: list[asking.Question] = []
+    # -- 3b.R4 (P4-D384): ...AND A COLUMN OF NUMBERS LYING WHERE A COUNTING
+    # SYSTEM WRITES DATES (question Q3), which is told what it would gain
+    # as dates and the option that reads it so.
+    dated: list[asking.Question] = []
     for question in questions:
         if asking.asks_about_a_clock(question):
             clocks += [question]
+        elif question.reason == asking.BECAUSE_DATE_COUNTS:
+            dated += [question]
         elif question.reason == asking.BECAUSE_JOINED:
             if asking.reads_each_number(question.role):
                 paired += [question]
@@ -1958,6 +2025,23 @@ def _assumptions_notice(questions: "list[asking.Question]") -> str:
     blocks: list[str] = []
     if clocks:
         blocks += [_clock_notice(clocks, _listing(clocks, False))]
+    if dated:
+        flags = _joined(
+            [f"{_typed_option('--date-count', one.name)} SYSTEM" for one in dated],
+            " ",
+        )
+        blocks += [
+            f"THESE COLUMNS WERE READ AS NUMBERS, AND MIGHT BE DATES WRITTEN "
+            f"AS COUNTS.{_listing(dated, False)}\n\n"
+            f"Each column above lies where a system that counts days, "
+            f"seconds or a finer unit from a fixed day writes dates, and was "
+            f"read as numbers: its twin keeps how the numbers spread, but "
+            f"not the day of the week or the time of day each date falls "
+            f"on. Only you know whether they are dates.\n\n"
+            f"If any of them holds dates, run the command again naming it "
+            f"and the system it is counted in -- one of those named beside "
+            f"it above:\n  {flags}{_quoting_said(flags)}"
+        ]
     if numeric:
         flags = _joined(
             [_typed_option("--code", one.name) for one in numeric], " "
@@ -2207,7 +2291,7 @@ def _century_given(typed: str) -> "tuple[str, int] | None":
 
 def _put_the_questions(
     questions: "list[asking.Question]",
-) -> "tuple[list[str], list[str], list[str], list[str], list[str]] | None":
+) -> "tuple[list[str], list[str], list[str], list[str], list[str], list[tuple[str, str]]] | None":
     """Put every question; return the columns named as codes and as IDs.
 
     None where the person ended the run at a prompt: Ctrl-C and Ctrl-D
@@ -2231,6 +2315,8 @@ def _put_the_questions(
     measurements: list[str] = []
     commas: list[str] = []
     twelve: list[str] = []
+    # -- 3b.R4 (P4-D384): the columns answered with a counting system.
+    counted: "list[tuple[str, str]]" = []
     place = 0
     for question in questions:
         place = place + 1
@@ -2262,7 +2348,9 @@ def _put_the_questions(
             commas += [question.name]
         elif answer == asking.ANSWER_TWELVE_HOUR:
             twelve += [question.name]
-    return codes, identifiers, measurements, commas, twelve
+        elif answer in date_counts.MEMBERS:
+            counted += [(question.name, answer)]
+    return codes, identifiers, measurements, commas, twelve, counted
 
 
 def _how_to_repeat(
@@ -2271,6 +2359,7 @@ def _how_to_repeat(
     forced_measurements: "list[str]",
     forced_decimal_commas: "tuple[str, ...]" = (),
     twelve_hours: "tuple[str, ...]" = (),
+    date_counted: "tuple[tuple[str, str], ...]" = (),
     answered_missing: "tuple[str, ...]" = (),
     answered_kept: "tuple[str, ...]" = (),
     answered_day_first: bool = False,
@@ -2298,6 +2387,10 @@ def _how_to_repeat(
     clocks, typed or answered (landing T1).
     """
     parts: list[str] = []
+    # -- 3b.R4 (P4-D384): the columns whose dates are written as counts,
+    # typed or answered, each with its system.
+    for name, member in sorted(date_counted):
+        parts += [f"{_typed_option('--date-count', name)} {member}"]
     if answered_day_first:
         parts += ["--day-first"]
     for name in sorted(twelve_hours):
@@ -2331,6 +2424,18 @@ def _how_to_repeat(
         f"Those answers are also recorded inside the profile itself. "
         f"Each value is {_shell_named()}."
     )
+
+
+def _counted_settings(
+    counted: "dict[str, str]",
+) -> "tuple[tuple[str, str], ...]":
+    """The columns whose dates are written as counts, as the settings hold them (landing R4).
+
+    `(column, system)` in the columns' rising order: the one shape the
+    settings block records, the questions file's answers and the typed
+    options agree in.
+    """
+    return tuple((name, counted[name]) for name in sorted(counted))
 
 
 def _lowered_floor_warning(given: int) -> str:
@@ -2636,6 +2741,7 @@ def _run_profile(
     sheet: str = "",
     metadata_rows_given: str = "",
     delimiter_given: str = "",
+    date_counts_given: "list[list[str]] | None" = None,
     forced_twelve_hours: "list[str] | None" = None,
     centuries_given: "list[str] | None" = None,
 ) -> int:
@@ -2682,6 +2788,24 @@ def _run_profile(
     if smallest_group < 1:
         _warn(errors.floor_not_positive(f"{smallest_group}"))
         return 2
+    # -- 3b.R4 (P4-D384): THE COLUMNS WHOSE DATES ARE WRITTEN AS COUNTS
+    # (`--date-count COLUMN SYSTEM`, question Q3). Each system is one of
+    # the twelve, refused before the table is opened where it is not, and
+    # one column named with two systems is refused as two readings of it.
+    counted: "dict[str, str]" = {}
+    for typed_pair in date_counts_given or []:
+        if len(typed_pair) != 2:
+            continue
+        counted_name = f"{typed_pair[0]}"
+        counted_member = f"{typed_pair[1]}"
+        if counted_member not in date_counts.MEMBERS:
+            _warn(errors.date_count_system_not_supported(_shown(counted_member)))
+            return 2
+        if counted_name in counted and counted[counted_name] != counted_member:
+            _warn(errors.column_declared_twice(counted_name))
+            return 2
+        counted[counted_name] = counted_member
+    typed_counted = dict(counted)
     # THE SEVENTH DECLARATION (landing T1, plan P4-D370): the columns
     # named 12-hour clocks written without AM or PM.
     twelve_hours = sorted(
@@ -2812,6 +2936,8 @@ def _run_profile(
             + list(written.identifiers)
             + list(written.measurements)
             + list(written.decimal_commas)
+            # -- 3b.R4 (P4-D384): and the columns answered with a system.
+            + [one for one, _member in written.date_counts]
             + list(written.twelve_hours)
             # ...and the columns whose centuries were answered (landing R2a).
             + [one_century for one_century, _year in written.century_windows]
@@ -2919,6 +3045,23 @@ def _run_profile(
         # reading that stands -- and is carried so the question is not
         # put back to the person in the file this run writes again.
         answered_month_first = written.month_first
+        # -- 3b.R4 (P4-D384): AND THE COLUMNS ANSWERED WITH A COUNTING
+        # SYSTEM (question Q3), each the newer statement: it replaces a
+        # typed `--date-count` for its column and a typed `--code`,
+        # `--identifier` or `--measurement` for it, and a column answered
+        # one of those three is no longer read as counted dates.
+        for counted_name, counted_member in written.date_counts:
+            counted[counted_name] = counted_member
+        for counted_name in spoken_for:
+            if counted_name in counted:
+                del counted[counted_name]
+        forced_codes = [one for one in forced_codes if one not in counted]
+        forced_identifiers = [
+            one for one in forced_identifiers if one not in counted
+        ]
+        forced_measurements = [
+            one for one in forced_measurements if one not in counted
+        ]
         # ...AND THE CODES OF A COLUMN OF DATES OR TIMES (plan P4-D381).
         # These name columns, and what each answer declares is found in
         # the table once it is open, below.
@@ -2929,6 +3072,7 @@ def _run_profile(
         answers_were_handed_back = (
             bool(spoken_for)
             or bool(written.twelve_hours)
+            or bool(written.date_counts)
             or written.day_first
             or bool(answered_missing_dates)
             or bool(answered_real_values)
@@ -2988,6 +3132,7 @@ def _run_profile(
         ),
         # -- 3b.R2c (P4-D383)
         # -- 3b.R4 (P4-D384)
+        forced_date_counts=_counted_settings(counted),
     )
     read = reading.read_table(
         table, first_row, sheet=sheet, metadata_rows=metadata_rows,
@@ -3147,6 +3292,31 @@ def _run_profile(
             )
         )
         return 2
+    # -- 3b.R4 (P4-D384): A COLUMN WHOSE DATES ARE WRITTEN AS COUNTS is a
+    # column of this table, and is read one way, as those dates: named
+    # beside `--code`, `--identifier`, `--measurement` or `--twelve-hour`
+    # it is refused, as the description's own rule S8d refuses it.
+    unknown_counted = [
+        name for name in sorted(counted) if name not in read.column_names
+    ]
+    if unknown_counted:
+        _warn(
+            errors.unknown_column_named(
+                "writing its dates as counts",
+                unknown_counted[0],
+                read.column_names,
+            )
+        )
+        return 2
+    for name in sorted(counted):
+        if (
+            name in forced_codes
+            or name in forced_identifiers
+            or name in forced_measurements
+            or name in twelve_hours
+        ):
+            _warn(errors.column_declared_twice(name))
+            return 2
 
     # THE FOURTH DECLARATION IS NOT ONE OF THE THREE, and its refusals
     # are its own (plan P4-D26). It says how a column's numbers are
@@ -3386,6 +3556,20 @@ def _run_profile(
                     name, f"{described_column['role']}"
                 )
             )
+    # -- 3b.R4 (P4-D384): ...AND A COLUMN DECLARED TO WRITE ITS DATES AS
+    # COUNTS WHOSE CELLS DID NOT READ AS SUCH DATES, said here as the
+    # description says it (NF115).
+    for name in sorted(counted):
+        for described_column in _described_columns(document):
+            if described_column["name"] != name:
+                continue
+            if described_column["role"] == taxonomy.ROLE_DATETIME:
+                continue
+            _warn(
+                errors.the_date_count_declaration_did_not_reach(
+                    name, counted[name], f"{described_column['role']}"
+                )
+            )
     # ...AND THE 12-HOUR DECLARATION, WHICH REACHES ONLY AN UNMARKED CLOCK
     # (landing T1, plan P4-D370), said where it reached nothing.
     for name in twelve_hours:
@@ -3447,6 +3631,9 @@ def _run_profile(
     # the question.
     already_answered = (
         forced_identifiers + forced_codes + forced_measurements
+        # -- 3b.R4 (P4-D384): a column declared to write its dates as
+        # counts has answered question Q3.
+        + sorted(counted)
     )
     asked_about, split_columns = asking.questions_and_splits_for(
         document,
@@ -3531,9 +3718,21 @@ def _run_profile(
             if given is None:
                 _warn(errors.the_questions_were_not_finished())
                 return 1
-            new_codes, new_identifiers, new_measured, new_commas, new_twelve = (
-                given
-            )
+            (
+                new_codes, new_identifiers, new_measured, new_commas,
+                new_twelve, new_counted,
+            ) = given
+            # -- 3b.R4 (P4-D384): a column answered with a counting system
+            # is read as those dates from here, and is no measurement.
+            if new_counted:
+                for counted_name, counted_member in new_counted:
+                    counted[counted_name] = counted_member
+                forced_measurements = [
+                    named for named in forced_measurements if named not in counted
+                ]
+                settings = dataclasses.replace(
+                    settings, forced_date_counts=_counted_settings(counted)
+                )
             if new_twelve:
                 twelve_hours = sorted(
                     {one: 1 for one in twelve_hours + new_twelve}
@@ -3547,6 +3746,7 @@ def _run_profile(
                 or new_measured
                 or new_commas
                 or new_twelve
+                or new_counted
             ):
                 forced_decimal_commas = sorted(
                     [
@@ -3889,6 +4089,13 @@ def _run_profile(
     # WHAT AN ANSWER REPLACED, to be taken out of the typed command (the
     # Codex review of lane R1, item 7).
     taken_out: "list[str]" = []
+    # -- 3b.R4 (P4-D384): a typed `--date-count` an answer replaced.
+    for typed_name in sorted(typed_counted):
+        if typed_name not in counted or counted[typed_name] != typed_counted[typed_name]:
+            taken_out += [
+                f"{_typed_option('--date-count', typed_name)} "
+                f"{typed_counted[typed_name]}"
+            ]
     for option, typed_list, final in (
         ("--code", typed_codes, forced_codes),
         ("--identifier", typed_identifiers, forced_identifiers),
@@ -3902,7 +4109,8 @@ def _run_profile(
             if one not in final_of:
                 taken_out += [_typed_option(option, one)]
     if (answered or answers_were_handed_back) and (
-        forced_codes
+        counted
+        or forced_codes
         or forced_identifiers
         or forced_measurements
         or forced_decimal_commas
@@ -3920,6 +4128,7 @@ def _run_profile(
                 forced_measurements,
                 tuple(forced_decimal_commas),
                 tuple(twelve_hours),
+                _counted_settings(counted),
                 answered_missing=tuple(added_missing),
                 answered_kept=tuple(added_kept),
                 answered_day_first=answered_day_first,
@@ -4935,6 +5144,7 @@ def main(argv: "list[str] | None" = None) -> int:
             options.sheet,
             options.metadata_rows,
             options.delimiter,
+            options.date_counts,
             options.twelve_hours,
             options.centuries,
         )

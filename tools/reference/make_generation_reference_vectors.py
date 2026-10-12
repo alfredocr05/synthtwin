@@ -11819,7 +11819,7 @@ def least_end(mean, root, edge):
     return min(max(math.ceil(reach - ((1.0 + reach) * (1.0 / 16777216.0))), 0), edge)
 
 
-def tail_distances(rows, mean, root, floor, edge, apart, words, off=None, half_day=None):
+def tail_distances(rows, mean, root, floor, edge, apart, words, off=None, half_day=None, islands=()):
     """Every rank's whole distance beyond the boundary, outermost first (G7.3b).
 
     ``words`` maps an outer index to the word that rank read; an index
@@ -11840,6 +11840,12 @@ def tail_distances(rows, mean, root, floor, edge, apart, words, off=None, half_d
     the boundary in seconds, the seconds of one tail unit and the side:
     step 10 (`half_day_distances`) then takes every distance onto the
     dial's half day (landing 3b.2-H).
+    ``islands`` are, on a column of dates written as counts, the stretches
+    inside the reach its counts cannot hold (`counted_islands`): after the
+    holes, the end and the group each step off one -- to the unit inside
+    it where that is a distance of one or more, and otherwise to the unit
+    beyond it within the reach -- before the end is raised to the group's
+    distance (G7.10).
     """
     shape = mixture_of(rows, mean, root)
     stretch, end = stretched_end(shape, rows, mean, root, edge)
@@ -11866,6 +11872,11 @@ def tail_distances(rows, mean, root, floor, edge, apart, words, off=None, half_d
         found[0] = stepped(found[0])
         if grouped < rows:
             group = stepped(group)
+        found[0] = max(found[0], group)
+    if islands:
+        found[0] = counted_off_islands(found[0], islands, edge)
+        if grouped < rows:
+            group = counted_off_islands(group, islands, edge)
         found[0] = max(found[0], group)
     for index in range(1, rows):
         if index >= grouped:
@@ -12086,6 +12097,20 @@ def tail_side_plan(column, side, low_side, parsed, words):
     at = unit_ordinal(side["boundary"], column["tail_unit"], reading)
     first, last = tail_window(column)
     edge = max(1, at - first if low_side else last - at)
+    # A COLUMN OF DATES WRITTEN AS COUNTS (G7.10) reaches no further than one
+    # unit short of the nearest wall beyond its boundary its counts cannot
+    # hold, and past an island inside that reach.
+    member = column.get("_counted_member")
+    islands = ()
+    if member and column["tail_unit"] in COUNTED_TAIL_SECONDS and reading == "local":
+        edge = counted_reach(
+            member, counted_written(column), COUNTED_TAIL_SECONDS[column["tail_unit"]],
+            at, low_side, edge,
+        )
+        islands = counted_islands(
+            member, counted_written(column), COUNTED_TAIL_SECONDS[column["tail_unit"]],
+            at, low_side, edge,
+        )
     rows = side["rows"]
     if side["values"] is not None:
         listed = list(side["values"])
@@ -12122,17 +12147,22 @@ def tail_side_plan(column, side, low_side, parsed, words):
     # STEP 10: a stamp declared a 12-hour clock with no marker draws its
     # tail on the dial's half day (landing 3b.2-H).
     half_day = (anchor, unit, low_side) if on_the_half_day(column) and not half else None
+    # The islands go by name and only where the tail has any, so a column
+    # of no counted dates asks `tail_distances` as it always has.
+    with_islands = {"islands": islands} if islands else {}
     stood = tail_distances(
-        rows, mean, root, CASE_SMALL_CELL_FLOOR, edge, apart, words, off, half_day
+        rows, mean, root, CASE_SMALL_CELL_FLOOR, edge, apart, words, off, half_day, **with_islands
     )
     near = tail_distances(
         rows, mean, root, CASE_SMALL_CELL_FLOOR, edge, apart,
-        {index: 0 for index in drawn}, off, half_day,
+        {index: 0 for index in drawn}, off, half_day, **with_islands,
     )
     far = tail_distances(
         rows, mean, root, CASE_SMALL_CELL_FLOOR, edge, apart,
-        {index: TWO64 - 1 for index in drawn}, off, half_day,
+        {index: TWO64 - 1 for index in drawn}, off, half_day, **with_islands,
     )
+    # A stratum lying wholly on an island is given room either side (G7.10).
+    near, far = counted_strata_off_islands(near, far, islands, edge)
     places = [
         anchor - distance * unit if low_side else anchor + distance * unit
         for distance in stood
@@ -12842,7 +12872,7 @@ def absent_units(column):
     `days_named` does and a month or a quarter as `spans_named` does, and
     names nothing else.
     """
-    spellings = column.get("missing_by_source", {})
+    spellings = absent_spellings_of(column)
     if not spellings:
         return set()
     space = ordinal_space(column)
@@ -12855,6 +12885,24 @@ def absent_units(column):
         # its day and takes that mark (G7.5), so the pass is not asked.
         return set()
     return days_named(column.get("format", ""), spellings)
+
+
+def absent_spellings_of(column):
+    """The spellings a column of dates publishes as absent, and the days it holds no date on.
+
+    The `missing_by_source` keys, and -- method G7.10, landing R4 -- on a
+    column of dates written as counts (the system it is declared in, which
+    a case names under `_counted_member`) the days its counts read as no
+    value (`counted_hole_words`, on a column of moments the placeholder
+    days alone), each an absent spelling of the column to the count pass
+    and the weekday pass; its tails stop short of them (`counted_reach`).
+    """
+    spellings = list(column.get("missing_by_source", {}) or {})
+    member = column.get("_counted_member")
+    if member:
+        moments = column.get("resolution") == "datetime"
+        spellings += [word for word in counted_hole_words(member, moments) if word not in spellings]
+    return spellings
 
 
 def days_named(member, spellings):
@@ -13955,6 +14003,7 @@ def weekday_hole_days(column, holes):
     names = column.get("month_name_styles") or {}
     style = next(iter(names)) if len(names) == 1 else DEFAULT_NAME_STYLE
     absent = {folded(text) for text in holes} | {folded(text) for text in column.get("_declared_days", ())}
+    absent = absent | {folded(text) for text in absent_spellings_of(column)}
     judged = {
         decision["candidate"]
         for decision in column.get("sentinel_verdicts") or []
@@ -16606,6 +16655,996 @@ def moment_step_document():
         "method": "docs/spec/generation-method-v1.md",
         "never_imports": ["synthtwin", "numpy", "pandas"],
         "cases": cases,
+    }
+
+
+# -- landing R4's numbers that are dates (plan P4-D384) ------------------
+#
+# Method section G7.10 and contract 6.6.2's `count_form`, implemented from
+# their text with `datetime` and `Fraction` alone: a cell written as a
+# count is read as the moment its system names, settled to a unit, and a
+# moment is written back as its system's count, spelled as the column's
+# form says. Nothing here is the product's whole-number arithmetic: the
+# reading goes through `datetime.timedelta` and the rounding through
+# `Fraction.__round__`, which rounds a half to the even neighbour.
+
+_COUNTED_DAY = fractions.Fraction(86400)
+COUNTED_SYSTEMS = {
+    # member: (the day its count of nought names, seconds one count holds,
+    # whether it reads a count below nought, whether the figures after
+    # the point are a contact number)
+    "excel-1900": (datetime.date(1899, 12, 30), _COUNTED_DAY, False, False),
+    "excel-1904": (datetime.date(1904, 1, 1), _COUNTED_DAY, False, False),
+    "days-since-1960": (datetime.date(1960, 1, 1), _COUNTED_DAY, True, False),
+    "seconds-since-1960": (datetime.date(1960, 1, 1), fractions.Fraction(1), True, False),
+    "milliseconds-since-1960": (
+        datetime.date(1960, 1, 1), fractions.Fraction(1, 1000), True, False,
+    ),
+    "days-since-1970": (datetime.date(1970, 1, 1), _COUNTED_DAY, True, False),
+    "seconds-since-1970": (datetime.date(1970, 1, 1), fractions.Fraction(1), True, False),
+    "milliseconds-since-1970": (
+        datetime.date(1970, 1, 1), fractions.Fraction(1, 1000), True, False,
+    ),
+    "microseconds-since-1970": (
+        datetime.date(1970, 1, 1), fractions.Fraction(1, 10**6), True, False,
+    ),
+    "nanoseconds-since-1970": (
+        datetime.date(1970, 1, 1), fractions.Fraction(1, 10**9), True, False,
+    ),
+    "days-since-1840": (datetime.date(1840, 12, 31), _COUNTED_DAY, True, True),
+    "seconds-since-1582": (datetime.date(1582, 10, 14), fractions.Fraction(1), True, False),
+}
+_COUNTED_UNIX_DAY = datetime.date(1970, 1, 1)
+
+
+def _counted_number(text, mark):
+    """A cell as the exact number it writes, or None where it is no count."""
+    body = text[1:] if text.startswith("-") else text
+    if not body or body.startswith("+"):
+        return None
+    mantissa, _e, power = body.lower().partition("e")
+    if _e and (mark != "." or not power.lstrip("+-").isdigit()):
+        return None
+    whole, _point, fraction = mantissa.partition(mark)
+    if not whole.isdigit() or (len(whole) > 1 and whole.startswith("0")):
+        return None
+    if _point and not fraction.isdigit():
+        return None
+    if not whole.isascii() or not fraction.isascii():
+        return None
+    value = fractions.Fraction(int(whole + fraction), 10 ** len(fraction))
+    if _e:
+        value = value * fractions.Fraction(10) ** int(power)
+    return -value if text.startswith("-") else value
+
+
+def counted_reading(member, text, mark, unit_seconds):
+    """G7.10's reading: a count, the moment it names, settled to the unit, as ISO text.
+
+    ``unit_seconds`` is the unit the moment is written at, as a Fraction
+    of a second: a day, a minute, a second or a thousandth, millionth or
+    billionth of one. None where the text is no count or names no date.
+    """
+    value = _counted_number(text, mark)
+    if value is None:
+        return None
+    epoch, unit, signed, contacts = COUNTED_SYSTEMS[member]
+    if value < 0 and not signed:
+        return None
+    if contacts:
+        whole = int(value)
+        moment = datetime.datetime.combine(epoch, datetime.time()) + datetime.timedelta(days=whole)
+        return _counted_iso(moment, fractions.Fraction(0), _COUNTED_DAY)
+    if member == "excel-1900":
+        whole = math.floor(value)
+        if whole < 1 or whole == 60:
+            return None
+        start = datetime.date(1899, 12, 31) if whole < 60 else epoch
+        day = start + datetime.timedelta(days=whole)
+        seconds = (value - whole) * _COUNTED_DAY
+    else:
+        total = value * unit
+        days = math.floor(total / _COUNTED_DAY)
+        try:
+            day = epoch + datetime.timedelta(days=days)
+        except OverflowError:
+            return None
+        seconds = total - days * _COUNTED_DAY
+    steps = round(seconds / unit_seconds)
+    seconds = steps * unit_seconds
+    if seconds >= _COUNTED_DAY:
+        day = day + datetime.timedelta(days=1)
+        seconds = seconds - _COUNTED_DAY
+    if not (datetime.date(1, 1, 1) <= day <= datetime.date(9999, 12, 31)):
+        return None
+    return _counted_iso(datetime.datetime.combine(day, datetime.time()), seconds, unit_seconds)
+
+
+def _counted_iso(midnight, seconds, unit_seconds):
+    """A day and seconds into it, as the ISO text written at the unit."""
+    date = midnight.date().isoformat()
+    if unit_seconds >= _COUNTED_DAY:
+        return date
+    whole = int(seconds)
+    clock = f"{whole // 3600:02d}:{whole // 60 % 60:02d}"
+    if unit_seconds >= 60:
+        return f"{date} {clock}"
+    clock = f"{clock}:{whole % 60:02d}"
+    if unit_seconds >= 1:
+        return f"{date} {clock}"
+    figures = {fractions.Fraction(1, 1000): 3, fractions.Fraction(1, 10**6): 6,
+               fractions.Fraction(1, 10**9): 9}[unit_seconds]
+    part = int((seconds - whole) * 10**figures)
+    return f"{date} {clock}.{part:0{figures}d}"
+
+
+def _counted_value(member, iso):
+    """G7.10's writing, first half: the exact count a system writes for an ISO moment."""
+    date_text, _space, clock = iso.partition(" ")
+    day = datetime.date.fromisoformat(date_text)
+    seconds = fractions.Fraction(0)
+    if clock:
+        hours, minutes, rest = (clock.split(":") + ["0"])[:3]
+        seconds = int(hours) * 3600 + int(minutes) * 60 + fractions.Fraction(rest)
+    epoch, unit, signed, contacts = COUNTED_SYSTEMS[member]
+    if member == "excel-1900":
+        if day < datetime.date(1900, 1, 1):
+            return None
+        start = datetime.date(1899, 12, 31) if day < datetime.date(1900, 3, 1) else epoch
+        return (day - start).days + seconds / _COUNTED_DAY
+    value = ((day - epoch).days * _COUNTED_DAY + seconds) / unit
+    if value < 0 and not signed:
+        return None
+    return value
+
+
+def _counted_fixed(value, places, mark, trimmed):
+    """A count rounded, halves to even, to ``places`` figures after the mark."""
+    scaled = round(value * 10**places)
+    sign = "-" if scaled < 0 else ""
+    figures = str(abs(scaled)).rjust(places + 1, "0")
+    whole = figures[: len(figures) - places] if places else figures
+    fraction = figures[len(figures) - places:] if places else ""
+    if trimmed:
+        fraction = fraction.rstrip("0")
+    return f"{sign}{whole}{mark}{fraction}" if fraction else f"{sign}{whole}"
+
+
+def _counted_significant(value, figures):
+    """A count rounded, halves to even, to ``figures`` significant figures: (sign, digits, exponent)."""
+    if value == 0:
+        return "", "0", 0
+    sign = "-" if value < 0 else ""
+    magnitude = abs(value)
+    exponent = 0
+    while fractions.Fraction(10) ** exponent > magnitude:
+        exponent -= 1
+    while fractions.Fraction(10) ** (exponent + 1) <= magnitude:
+        exponent += 1
+    digits = round(magnitude / fractions.Fraction(10) ** (exponent - figures + 1))
+    if digits == 10**figures:
+        exponent += 1
+        digits //= 10
+    return sign, str(digits).rstrip("0") or "0", exponent
+
+
+def _counted_binary64(value, form):
+    """G7.10's writing of a count that is not whole: the binary64 nearest it, as an exporter writes it.
+
+    `%.Nf` for a form by places, trimmed where the form trims; `%.15g`'s
+    figures for fifteen significant ones and `repr` for seventeen; and R's
+    fifteen, in exponent form where that is the shorter.
+    """
+    near = float(value)
+    mark = form["mark"]
+    if form["significant"] is None and not form["exponent"]:
+        text = f"{near:.{form['places']}f}"
+        if form["trimmed"] and "." in text:
+            text = text.rstrip("0").rstrip(".")
+        return text.replace(".", mark)
+    if form["significant"] == 17 and not form["exponent"] and "e" not in repr(near):
+        return repr(near).replace(".", mark)
+    figures = form["significant"] or 15
+    mantissa, _e, power = f"{near:.{figures - 1}e}".partition("e")
+    sign = "-" if mantissa.startswith("-") else ""
+    digits = mantissa.lstrip("-").replace(".", "").rstrip("0") or "0"
+    exponent = int(power)
+    if exponent >= len(digits) - 1:
+        full = f"{sign}{digits}{'0' * (exponent - len(digits) + 1)}"
+    elif exponent >= 0:
+        full = f"{sign}{digits[: exponent + 1]}{mark}{digits[exponent + 1:]}"
+    else:
+        full = f"{sign}0{mark}{'0' * (-exponent - 1)}{digits}"
+    if not form["exponent"]:
+        return full
+    shown = digits[0] + (f"{mark}{digits[1:]}" if len(digits) > 1 else "")
+    short = f"{sign}{shown}e{'+' if exponent >= 0 else '-'}{abs(exponent):02d}"
+    return short if len(short) < len(full) else full
+
+
+def counted_spelling(member, iso, form, contact="(none)"):
+    """G7.10's writing: a moment, as its system's count spelled by `count_form`.
+
+    A whole count is written from its figures; one that is not is written
+    as the binary64 nearest it is written by the form (`_counted_binary64`).
+    """
+    value = _counted_value(member, iso)
+    if value is None:
+        return None
+    mark = form["mark"]
+    if COUNTED_SYSTEMS[member][3]:
+        day = str(int(value))
+        return day if contact == "(none)" else f"{day}{mark}{contact}"
+    if value.denominator != 1:
+        return _counted_binary64(value, form)
+    if form["significant"] == 17 and not form["exponent"] and abs(value) < 10**16:
+        # `repr` of a whole double: its figures, the point and a nought.
+        return f"{int(value)}{mark}0"
+    if form["significant"] is None and not form["exponent"]:
+        return _counted_fixed(value, form["places"], mark, form["trimmed"])
+    sign, digits, exponent = _counted_significant(value, form["significant"] or 15)
+    if exponent >= len(digits) - 1:
+        full = f"{sign}{digits}{'0' * (exponent - len(digits) + 1)}"
+    elif exponent >= 0:
+        full = f"{sign}{digits[: exponent + 1]}{mark}{digits[exponent + 1:]}"
+    else:
+        full = f"{sign}0{mark}{'0' * (-exponent - 1)}{digits}"
+    if not form["exponent"]:
+        return full
+    mantissa = digits[0] + (f"{mark}{digits[1:]}" if len(digits) > 1 else "")
+    scientific = f"{sign}{mantissa}e{'+' if exponent >= 0 else '-'}{abs(exponent):02d}"
+    return scientific if len(scientific) < len(full) else full
+
+
+def _counted_form(places=0, trimmed=False, significant=None, exponent=False, mark=".", contacts=None):
+    """One `count_form`, written out as the contract names its six keys."""
+    return {
+        "contacts": contacts,
+        "exponent": exponent,
+        "mark": mark,
+        "places": places,
+        "significant": significant,
+        "trimmed": trimmed,
+    }
+
+
+# THE UNITS a case writes its moment at, by the word the contract's
+# precisions use.
+_COUNTED_UNITS = {
+    "day": _COUNTED_DAY,
+    "minute": fractions.Fraction(60),
+    "second": fractions.Fraction(1),
+    "millisecond": fractions.Fraction(1, 1000),
+    "microsecond": fractions.Fraction(1, 10**6),
+    "nanosecond": fractions.Fraction(1, 10**9),
+}
+
+# EVERY CASE, each turning red on the mutant it names (`why`): float
+# arithmetic, the 1970 epoch read for 1960, halves rounded up, figures not
+# trimmed, Excel's leap day ignored, and R's exponent rule read as places.
+COUNTED_READINGS = {
+    "excel_serial_59": ("excel-1900", "59", ".", "day",
+                        "the last day before Excel's leap day: 28 February 1900"),
+    "excel_serial_60": ("excel-1900", "60", ".", "day",
+                        "Excel's 29 February 1900, which no calendar has: no date"),
+    "excel_serial_61": ("excel-1900", "61", ".", "day",
+                        "the first day after it, counted from 30 December 1899"),
+    "excel_1904_day_0": ("excel-1904", "0", ".", "day", "the 1904 system's first day"),
+    "excel_15g_clinic_slot": ("excel-1900", "45386.3541666667", ".", "minute",
+                              "%.15g of 08:30, settled through the millisecond to the minute"),
+    "sas_days_negative": ("days-since-1960", "-3653", ".", "day",
+                          "a SAS date before 1960, read with the 1960 epoch"),
+    "sas_seconds": ("seconds-since-1960", "1956528000", ".", "second",
+                    "a SAS date-time, read with the 1960 epoch"),
+    "stata_milliseconds": ("milliseconds-since-1960", "1956528000123", ".", "millisecond",
+                           "Stata's %tc, a thousandth of a second kept"),
+    "unix_milliseconds": ("milliseconds-since-1970", "1700000000123", ".", "millisecond",
+                          "a JavaScript moment, a thousandth of a second kept"),
+    "unix_half_second": ("milliseconds-since-1970", "1700000002500", ".", "second",
+                         "half a second settled to the second: the half goes to the even one"),
+    "r_exponent_milliseconds": ("milliseconds-since-1970", "1.6e+12", ".", "second",
+                                "R's exponent form, read exactly by shifting the figures"),
+    "nanoseconds_past_2_53": ("nanoseconds-since-1970", "1700000000123456789", ".", "nanosecond",
+                              "a count binary64 cannot hold, read from its figures"),
+    "epic_contact": ("days-since-1840", "66303.01", ".", "day",
+                     "an Epic day with its contact number, which is no time"),
+    "decimal_comma": ("excel-1900", "45386,5", ",", "minute",
+                      "a count written with a comma for its point"),
+    # THREE SYSTEMS HAD NO ANCHOR OF THEIR OWN (the Codex review of landing
+    # R4, item 9): each read at 12:34:56 on 1 January 2000, the count worked
+    # out from the calendar in `COUNTED_ANCHORS` below.
+    "spss_seconds": ("seconds-since-1582", "13166109296", ".", "second",
+                     "SPSS seconds, 152,385 days and 45,296 seconds from 14 October 1582"),
+    "unix_microseconds": ("microseconds-since-1970", "946730096789012", ".", "microsecond",
+                          "Arrow's microseconds, six figures of a second kept"),
+    "unix_days": ("days-since-1970", "10957", ".", "day",
+                  "R's days from 1970: 10,957 to 1 January 2000"),
+}
+COUNTED_SPELLINGS = {
+    "excel_15g_before_10000": ("excel-1900", "1927-05-17 08:30", _counted_form(11, True, 15),
+                               "(none)", "fifteen significant figures, eleven after the point"),
+    "excel_15g_after_10000": ("excel-1900", "1927-05-19 08:30", _counted_form(11, True, 15),
+                              "(none)", "fifteen significant figures, ten after the point past serial 10,000"),
+    "excel_15g_binary64": ("excel-1900", "2024-04-04 00:03:07", _counted_form(10, True, 15),
+                           "(none)", "%.15g of the binary64, where rounding the exact count gives a last figure one more"),
+    "excel_one_place_half_even": ("excel-1900", "2024-04-04 06:00", _counted_form(1, True),
+                                  "(none)", "a quarter of a day to one figure: the half goes to the even 2"),
+    "excel_six_places_fixed": ("excel-1900", "2024-04-04 12:00", _counted_form(6, False),
+                               "(none)", "six figures, every one written"),
+    "excel_six_places_trimmed": ("excel-1900", "2024-04-04 12:00", _counted_form(6, True),
+                                 "(none)", "six figures at most, the zeros at the end dropped"),
+    "excel_serial_leap_neighbour": ("excel-1900", "1900-03-01", _counted_form(),
+                                    "(none)", "1 March 1900 is serial 61"),
+    "sas_days_before_1960": ("days-since-1960", "1950-01-01", _counted_form(),
+                             "(none)", "a date before the epoch, written signed"),
+    "stata_milliseconds_spelled": ("milliseconds-since-1960", "2021-12-31 23:59:59.999",
+                                   _counted_form(), "(none)", "a thousandth of a second kept"),
+    "nanoseconds_spelled": ("nanoseconds-since-1970", "2023-11-14 22:13:20.123456789",
+                            _counted_form(), "(none)", "nineteen figures, written from the integer"),
+    "r_exponent_shorter": ("milliseconds-since-1970", "2020-09-13 12:26:40", _counted_form(0, True, 15, True),
+                           "(none)", "R writes 1.6e+12 where it is shorter than the thirteen figures"),
+    "r_exponent_longer": ("milliseconds-since-1970", "2020-09-28 09:04:05.123", _counted_form(0, True, 15, True),
+                          "(none)", "and the thirteen figures where they are shorter"),
+    "epic_contact_spelled": ("days-since-1840", "2022-07-13", _counted_form(contacts={"01": 11}),
+                             "01", "the day count, the point and the contact number"),
+    "epic_no_contact_spelled": ("days-since-1840", "2022-07-13", _counted_form(contacts={"01": 11}),
+                                "(none)", "the day count alone where the census gives none"),
+    "comma_spelled": ("excel-1900", "2024-04-04 08:30", _counted_form(6, True, mark=","),
+                      "(none)", "the comma written where the column writes it"),
+    "repr_seventeen": ("excel-1900", "2022-06-18 02:32:00", _counted_form(12, True, 17),
+                       "(none)", "repr's shortest figures of the double, not %.17g's seventeen"),
+    "repr_whole_point_zero": ("excel-1900", "2022-06-18", _counted_form(12, True, 17),
+                              "(none)", "repr of a whole double at midnight keeps its point and nought"),
+    "spss_seconds_spelled": ("seconds-since-1582", "2000-01-01 12:34:56", _counted_form(),
+                             "(none)", "SPSS seconds written back from the moment"),
+    "unix_microseconds_spelled": ("microseconds-since-1970", "2000-01-01 12:34:56.789012",
+                                  _counted_form(), "(none)", "microseconds written back from the moment"),
+    "unix_days_spelled": ("days-since-1970", "2000-01-01", _counted_form(),
+                          "(none)", "days from 1970 written back from the date"),
+}
+
+# THE ANCHORS, WORKED OUT FROM THE CALENDAR AND NOT FROM `COUNTED_SYSTEMS`
+# (the Codex review of landing R4, item 9): 1 January 2000 is Julian day
+# number 2451545 and 14 October 1582 is 2299160 (the Gregorian calendar's
+# first day, the 15th, is 2299161), so SPSS counts 152,385 days to it,
+# 13,166,064,000 seconds; Unix time names it 946,684,800 seconds, 10,957
+# days. The oracle's own reading and writing must give each answer, so an
+# epoch moved in its table turns a case red here before any vector is
+# written.
+COUNTED_ANCHORS = {
+    "spss_seconds": "2000-01-01 12:34:56",
+    "unix_microseconds": "2000-01-01 12:34:56.789012",
+    "unix_days": "2000-01-01",
+    "spss_seconds_spelled": "13166109296",
+    "unix_microseconds_spelled": "946730096789012",
+    "unix_days_spelled": "10957",
+}
+
+
+def counted_contacts(census, dated):
+    """G7.10's contact numbers: the word each of ``dated`` cells writes, in the order they stand.
+
+    Each word the census counts c times stands at the c keys
+    (2j + 1) / (2c), j from nought -- the middles of c equal shares of the
+    cells -- and the cells take the words in the order of their keys,
+    compared exactly as fractions, a tie to the word ranked first (the
+    commonest, ties in sorted order); a cell past the census's last word
+    writes "(none)".
+    """
+    order = [word for word in sorted(census, key=lambda each: (-census[each], each)) if census[word] > 0]
+    keys = sorted(
+        (fractions.Fraction(2 * j + 1, 2 * census[word]), rank)
+        for rank, word in enumerate(order)
+        for j in range(census[word])
+    )
+    dealt = [order[rank] for _key, rank in keys][:dated]
+    return dealt + ["(none)"] * (dated - len(dealt))
+
+
+def counted_cells(cells, column, member):
+    """G7.10 over a placed column: every cell the date machinery wrote, respelled as its count.
+
+    A cell the date machinery wrote is one that reads as an ISO date or
+    moment; an absent cell is written in a spelling the column publishes,
+    and an unparsed stand-in in text no date reader takes, and both are
+    left as they are. A `days-since-1840` column's contact words go to the
+    dated cells in the order they stand, dealt by `counted_contacts`.
+    """
+    form = column["count_form"]
+    dated = []
+    for place, cell in enumerate(cells):
+        try:
+            date_text, _space, clock = cell.partition(" ")
+            datetime.date.fromisoformat(date_text)
+            if len(date_text) == 10:
+                dated += [place]
+        except ValueError:
+            pass
+    contacts = counted_contacts(form["contacts"] or {}, len(dated))
+    rank_of = {place: rank for rank, place in enumerate(dated)}
+    spelled = []
+    for place, cell in enumerate(cells):
+        written = None
+        if place in rank_of:
+            written = counted_spelling(member, cell, form, contacts[rank_of[place]])
+        spelled += [written if written is not None else cell]
+    return spelled
+
+
+_COUNTED_PLACEHOLDERS = (datetime.date(1900, 1, 1), datetime.date(9999, 12, 31))
+
+
+def counted_hole_words(member, moments=False):
+    """G7.10's holes: the days a column counted in ``member`` holds no date on, as ISO words.
+
+    From the method's sentence: both placeholder days, and -- on a column
+    of dates -- the day each count the system writes for either -- by its
+    own rule, and by plain arithmetic from its first day, which differ
+    only before March 1900 on Excel's 1900 system and before 1904 on its
+    1904 one -- names when read back by the system's own rule. Excel's
+    plain count for 1 January 1900 is 2, which its own rule reads as 2
+    January. On a column of moments that count names one instant, 2
+    January at midnight, and the day is no hole.
+    """
+    days = set(_COUNTED_PLACEHOLDERS)
+    if moments:
+        return tuple(day.isoformat() for day in sorted(days))
+    epoch, unit, _signed, _contacts = COUNTED_SYSTEMS[member]
+    for placeholder in _COUNTED_PLACEHOLDERS:
+        counts = [_counted_value(member, placeholder.isoformat())]
+        counts += [(placeholder - epoch).days * _COUNTED_DAY / unit]
+        for count in counts:
+            if count is None or count.denominator != 1:
+                continue
+            read = counted_reading(member, f"{count.numerator}", ".", _COUNTED_DAY)
+            if read is not None:
+                days.add(datetime.date.fromisoformat(read))
+    return tuple(day.isoformat() for day in sorted(days))
+
+
+# How many seconds one tail unit of a day, a minute or a second holds.
+COUNTED_TAIL_SECONDS = {"day": 86400, "minute": 60, "second": 1}
+
+
+def counted_written(column):
+    """The unit a column of counted dates is written at, as a Fraction of a second.
+
+    A day where the column is of dates; otherwise its clock's precision:
+    the minute, the second, or three, six or nine figures of a second.
+    """
+    if column["resolution"] != "datetime":
+        return _COUNTED_DAY
+    if column["time_precision"] == "minute":
+        return fractions.Fraction(60)
+    if column["time_precision"] == "second":
+        return fractions.Fraction(1)
+    digits = column.get("subsecond_digits", 0)
+    return fractions.Fraction(1, 10 ** (3 if digits <= 3 else 6 if digits <= 6 else 9))
+
+
+def _counted_seconds(day):
+    """A day's first second, counted from the start of 1 January 1970."""
+    return (day - _COUNTED_UNIX_DAY).days * 86400
+
+
+def counted_blocked(member, written):
+    """G7.10: the stretches no twin cell of a column counted in ``member`` stands on.
+
+    Each a first and a last second from the start of 1970, both included,
+    from the method's sentence: every second of either placeholder day;
+    the instant each other count the column sets aside names (the days
+    `counted_hole_words` adds for a column of dates -- Excel 1900's
+    serial 2, midnight of 2 January 1900), the whole day on a column of
+    dates (``written`` a day) and, on a column of moments, the seconds the
+    written unit writes as that instant; and on a system that reads no
+    count below its first day -- Excel's two -- every second before that
+    day, from the first day of the calendar.
+    """
+    spans = []
+    for day in _COUNTED_PLACEHOLDERS:
+        spans += [(_counted_seconds(day), _counted_seconds(day) + 86399)]
+    for word in counted_hole_words(member):
+        day = datetime.date.fromisoformat(word)
+        if day in _COUNTED_PLACEHOLDERS:
+            continue
+        start = _counted_seconds(day)
+        if written >= _COUNTED_DAY:
+            spans += [(start, start + 86399)]
+        else:
+            spans += [(start, start + max(1, math.floor(written)) - 1)]
+    epoch, _unit, signed, _contacts = COUNTED_SYSTEMS[member]
+    if not signed:
+        first = datetime.date(1900, 1, 1) if member == "excel-1900" else epoch
+        spans += [(_counted_seconds(datetime.date(1, 1, 1)), _counted_seconds(first) - 1)]
+    return sorted(spans)
+
+
+def counted_blocks(member, written, tail_seconds):
+    """G7.10: the stretches of `counted_blocked` in tail units, those that touch or overlap made one."""
+    blocks = []
+    for first, last in counted_blocked(member, written):
+        start, stop = first // tail_seconds, last // tail_seconds
+        if blocks and start <= blocks[-1][1] + 1:
+            blocks[-1] = (blocks[-1][0], max(blocks[-1][1], stop))
+        else:
+            blocks += [(start, stop)]
+    return blocks
+
+
+def counted_reach(member, written, tail_seconds, at, low_side, edge):
+    """G7.10: how far a tail of a column counted in ``member`` reaches, in tail units.
+
+    One unit short of the nearest WALL beyond the boundary ``at`` -- a
+    stretch the column's counts cannot hold (`counted_blocks`) running on
+    to the furthest unit ``edge`` allows or to the calendar's first or
+    last day -- and never further than ``edge``; ``edge`` itself where no
+    wall lies beyond, or where the nearest leaves no unit between it and
+    the boundary. A stretch with units the counts hold beyond it within
+    the reach is an island and cuts nothing.
+    """
+    furthest = at - edge if low_side else at + edge
+    first = _counted_seconds(datetime.date(1, 1, 1)) // tail_seconds
+    last = (_counted_seconds(datetime.date(9999, 12, 31)) + 86399) // tail_seconds
+    walls = []
+    for start, stop in counted_blocks(member, written, tail_seconds):
+        if low_side and stop < at and min(start - furthest, start - first) <= 0:
+            walls += [at - stop - 1]
+        if not low_side and start > at and max(stop - furthest, stop - last) >= 0:
+            walls += [start - at - 1]
+    if not walls or min(walls) < 1:
+        return edge
+    return min(edge, min(walls))
+
+
+def counted_islands(member, written, tail_seconds, at, low_side, reach):
+    """G7.10: the stretches beyond the boundary ``at`` and inside ``reach`` the counts cannot hold.
+
+    Each its nearest and furthest distance in tail units, the nearest
+    first, its far end kept within the reach: on a system that writes the
+    days either side of it, 1 January 1900.
+    """
+    found = []
+    for start, stop in counted_blocks(member, written, tail_seconds):
+        if low_side and stop < at:
+            nearest, furthest = at - stop, at - start
+        elif not low_side and start > at:
+            nearest, furthest = start - at, stop - at
+        else:
+            continue
+        if nearest <= reach:
+            found += [(nearest, min(furthest, reach))]
+    return sorted(found)
+
+
+def counted_off_islands(distance, islands, reach):
+    """G7.10: a tail's end or group stepped off the island it stands on.
+
+    To the unit just inside the island where that is a distance of one
+    or more, otherwise to the unit just beyond it where that is within
+    ``reach``; where neither, it stays.
+    """
+    for nearest, furthest in islands:
+        if nearest <= distance <= furthest:
+            if nearest > 1:
+                return nearest - 1
+            if furthest < reach:
+                return furthest + 1
+            return distance
+    return distance
+
+
+def counted_strata_off_islands(near, far, islands, reach):
+    """G7.10: every stratum lying wholly on an island given room either side of it.
+
+    With ``m`` ranks' strata wholly on one island, each runs from ``m``
+    units inside it to ``m`` beyond it, within one and ``reach``; then
+    each rank's nearest distance is made no more than the one outside
+    it, and its furthest no less than the one inside it.
+    """
+    near, far = list(near), list(far)
+    for first, last in islands:
+        inside = [index for index in range(len(near)) if first <= near[index] and far[index] <= last]
+        for index in inside:
+            near[index] = max(1, first - len(inside))
+            far[index] = min(reach, last + len(inside))
+    for index in range(1, len(near)):
+        near[index] = min(near[index], near[index - 1])
+    for index in range(len(far) - 2, -1, -1):
+        far[index] = max(far[index], far[index + 1])
+    return near, far
+
+
+def counted_days_kept_off(ordinals, lows, highs, day, holes, grid=0):
+    """G7.10's last pass: each rank on a hole day moved off it inside its gap.
+
+    ``ordinals`` are instants counted from 1970 in units ``day`` of which
+    make a day (one for whole dates, 86,400 for moments in seconds), and
+    ``holes`` the hole days counted from 1970. A rank whose day is a hole
+    moves to the nearest instant a whole number of days away inside its
+    gap whose day is no hole and which no rank holds, the earlier first at
+    one distance, and where every such instant is held to the nearest one
+    whose day is no hole; where no whole day's move fits its gap, the same
+    two asked of instants a whole number of ``grid`` units away (the unit
+    the column is written at; nought for none); where its gap holds none
+    it stays. Ranks are taken lowest first, and each move is counted
+    before the next rank is asked.
+    """
+    held = {}
+    for value in ordinals:
+        held[value] = held.get(value, 0) + 1
+    moved = list(ordinals)
+    for rank, value in enumerate(ordinals):
+        if value // day not in holes:
+            continue
+
+        def off(candidate):
+            return candidate // day not in holes
+
+        def off_and_free(candidate):
+            return off(candidate) and held.get(candidate, 0) <= 0
+
+        found = None
+        for by in (day, grid) if grid > 0 else (day,):
+            for fits in (off_and_free, off):
+                if found is None:
+                    found = nearest_fitting(value, lows[rank], highs[rank], fits, by)
+        if found is None:
+            continue
+        held[value] -= 1
+        held[found] = held.get(found, 0) + 1
+        moved[rank] = found
+    return moved
+
+
+def _counted_day(year, month, date):
+    """A day counted from 1970, by `datetime` alone."""
+    return (datetime.date(year, month, date) - _COUNTED_UNIX_DAY).days
+
+
+_HOLE_1900 = _counted_day(1900, 1, 1)
+_HOLE_9999 = _counted_day(9999, 12, 31)
+_EXCEL_HOLES = (_HOLE_1900, _HOLE_1900 + 1, _HOLE_9999)
+
+# THE DAYS A COLUMN OF COUNTED DATES HOLDS NO DATE ON, KEPT OFF (the second
+# review of landing R4, item 2): instants, their gaps, the length of a day
+# in their units and the hole days, the answer each rank's instant once the
+# pass has run. Each case names the rule it pins. A case naming a grid --
+# the unit its column is written at -- moves a rank whose gap no whole
+# day's move fits by that unit (the repair of that review's verification).
+_MIDNIGHT_1900 = _HOLE_1900 * 86400
+COUNTED_GRID_KEEPINGS = {
+    "a_minute_before_the_day": (
+        [_MIDNIGHT_1900 - 4 * 3600, _MIDNIGHT_1900 + 10 * 3600, _MIDNIGHT_1900 + 86400 + 3 * 3600],
+        [_MIDNIGHT_1900 - 4 * 3600, _MIDNIGHT_1900 - 4 * 3600, _MIDNIGHT_1900 + 86400 + 3 * 3600],
+        [_MIDNIGHT_1900 - 4 * 3600, _MIDNIGHT_1900 + 86400 + 3 * 3600, _MIDNIGHT_1900 + 86400 + 3 * 3600],
+        86400, [_HOLE_1900, _HOLE_9999], 60,
+        "10:00 on 1 January 1900 in a gap no whole day fits: the last minute of 31 December, the nearer",
+    ),
+    "a_minute_after_the_day": (
+        [_MIDNIGHT_1900 - 3 * 3600, _MIDNIGHT_1900 + 20 * 3600, _MIDNIGHT_1900 + 86400 + 3 * 3600],
+        [_MIDNIGHT_1900 - 3 * 3600, _MIDNIGHT_1900 - 3 * 3600, _MIDNIGHT_1900 + 86400 + 3 * 3600],
+        [_MIDNIGHT_1900 - 3 * 3600, _MIDNIGHT_1900 + 86400 + 3 * 3600, _MIDNIGHT_1900 + 86400 + 3 * 3600],
+        86400, [_HOLE_1900, _HOLE_9999], 60,
+        "20:00 on 1 January 1900, its gap from 21:00 the day before: midnight of 2 January, the nearer",
+    ),
+    "the_next_free_second": (
+        [_MIDNIGHT_1900 - 3600, _MIDNIGHT_1900 + 80000, _MIDNIGHT_1900 + 80001, _MIDNIGHT_1900 + 86400 + 50],
+        [_MIDNIGHT_1900 - 3600, _MIDNIGHT_1900 + 70000, _MIDNIGHT_1900 + 70000, _MIDNIGHT_1900 + 86400 + 50],
+        [_MIDNIGHT_1900 - 3600, _MIDNIGHT_1900 + 86400 + 50, _MIDNIGHT_1900 + 86400 + 50, _MIDNIGHT_1900 + 86400 + 50],
+        86400, [_HOLE_1900, _HOLE_9999], 1,
+        "two moments late on 1 January in strata running into 2 January: midnight and the second after it",
+    ),
+    "whole_days_first": (
+        [_MIDNIGHT_1900 - 3 * 86400, _MIDNIGHT_1900 + 45000, _MIDNIGHT_1900 + 3 * 86400],
+        [_MIDNIGHT_1900 - 3 * 86400, _MIDNIGHT_1900 - 3 * 86400, _MIDNIGHT_1900 + 3 * 86400],
+        [_MIDNIGHT_1900 - 3 * 86400, _MIDNIGHT_1900 + 3 * 86400, _MIDNIGHT_1900 + 3 * 86400],
+        86400, [_HOLE_1900, _HOLE_9999], 60,
+        "a gap a whole day's move fits keeps the clock: 12:30 on 31 December, not a minute's step",
+    ),
+    "inside_the_day_still_stays": (
+        [_MIDNIGHT_1900 + 100, _MIDNIGHT_1900 + 160, _MIDNIGHT_1900 + 220],
+        [_MIDNIGHT_1900 + 100, _MIDNIGHT_1900 + 100, _MIDNIGHT_1900 + 220],
+        [_MIDNIGHT_1900 + 100, _MIDNIGHT_1900 + 220, _MIDNIGHT_1900 + 220],
+        86400, [_HOLE_1900, _HOLE_9999], 60,
+        "a gap wholly inside the day holds no instant off it: the rank stays",
+    ),
+}
+
+COUNTED_KEEPINGS = {
+    "a_free_day_beside": (
+        [_HOLE_1900 - 2, _HOLE_1900, _HOLE_1900 + 1, _HOLE_1900 + 5],
+        [_HOLE_1900 - 2, _HOLE_1900 - 2, _HOLE_1900 - 2, _HOLE_1900 + 5],
+        [_HOLE_1900 - 2, _HOLE_1900 + 5, _HOLE_1900 + 5, _HOLE_1900 + 5],
+        1, [_HOLE_1900, _HOLE_9999],
+        "a date on 1 January 1900 moves to the free day before it, the earlier first",
+    ),
+    "the_nearest_free_day_past_held_ones": (
+        [_HOLE_1900 - 1, _HOLE_1900, _HOLE_1900 + 1, _HOLE_1900 + 3],
+        [_HOLE_1900 - 1, _HOLE_1900 - 1, _HOLE_1900 - 1, _HOLE_1900 + 3],
+        [_HOLE_1900 - 1, _HOLE_1900 + 3, _HOLE_1900 + 3, _HOLE_1900 + 3],
+        1, [_HOLE_1900, _HOLE_9999],
+        "both neighbours are held, so the free day two after is taken",
+    ),
+    "a_held_day_where_none_is_free": (
+        [_HOLE_1900 - 1, _HOLE_1900, _HOLE_1900 + 1],
+        [_HOLE_1900 - 1, _HOLE_1900 - 1, _HOLE_1900 - 1],
+        [_HOLE_1900 + 1, _HOLE_1900 + 1, _HOLE_1900 + 1],
+        1, [_HOLE_1900, _HOLE_9999],
+        "every other day of the gap is held, so the nearest held one is shared, the earlier first",
+    ),
+    "excel_two_days": (
+        [_HOLE_1900 - 1, _HOLE_1900, _HOLE_1900 + 1, _HOLE_1900 + 4],
+        [_HOLE_1900 - 1, _HOLE_1900 - 1, _HOLE_1900 - 1, _HOLE_1900 + 4],
+        [_HOLE_1900 + 4, _HOLE_1900 + 4, _HOLE_1900 + 4, _HOLE_1900 + 4],
+        1, list(_EXCEL_HOLES),
+        "Excel's 1900 system holds 1 and 2 January: a date on each moves past both",
+    ),
+    "a_moment_keeps_its_clock": (
+        [_HOLE_1900 * 86400 - 3600, _HOLE_1900 * 86400 + 45000, _HOLE_1900 * 86400 + 3 * 86400 + 100],
+        [_HOLE_1900 * 86400 - 3600, _HOLE_1900 * 86400 - 3600, _HOLE_1900 * 86400 + 3 * 86400 + 100],
+        [_HOLE_1900 * 86400 - 3600, _HOLE_1900 * 86400 + 3 * 86400 + 100, _HOLE_1900 * 86400 + 3 * 86400 + 100],
+        86400, [_HOLE_1900, _HOLE_9999],
+        "a moment at 12:30 on 1 January 1900 moves a whole day, to 12:30 on 2 January",
+    ),
+    "a_gap_inside_the_day_stays": (
+        [_HOLE_1900 * 86400 + 100, _HOLE_1900 * 86400 + 150, _HOLE_1900 * 86400 + 200],
+        [_HOLE_1900 * 86400 + 100, _HOLE_1900 * 86400 + 100, _HOLE_1900 * 86400 + 200],
+        [_HOLE_1900 * 86400 + 100, _HOLE_1900 * 86400 + 200, _HOLE_1900 * 86400 + 200],
+        86400, [_HOLE_1900, _HOLE_9999],
+        "a gap holding no instant a whole day away leaves the rank where it is",
+    ),
+    "the_last_day": (
+        [_HOLE_9999 - 3, _HOLE_9999 - 1, _HOLE_9999],
+        [_HOLE_9999 - 3, _HOLE_9999 - 3, _HOLE_9999 - 3],
+        [_HOLE_9999, _HOLE_9999, _HOLE_9999],
+        1, [_HOLE_1900, _HOLE_9999],
+        "a date on 31 December 9999 moves to the nearest free day before it",
+    ),
+}
+
+
+# THE CONTACT NUMBERS, DEALT (the review of landing R4, item 8): a census
+# and a count of dated cells, the answer the word each cell writes in the
+# order the cells stand, each word spaced evenly over them. Dealt down the
+# rows in rank order, as the first build did, every one of these would
+# hold its rare words at the end.
+COUNTED_DEALINGS = {
+    "three_words_twenty_cells": ({"(none)": 14, "01": 4, "02": 2}, 20,
+                                 "a census of three words over twenty dated cells"),
+    "rarer_than_the_census": ({"(none)": 30, "01": 7}, 40,
+                              "three dated cells more than the census counts: they write none"),
+    "one_word": ({"07": 13}, 13, "one contact number on every dated cell"),
+    "tied_counts": ({"02": 6, "01": 6, "(none)": 11}, 23,
+                    "two words of one count, in sorted order after the commonest"),
+}
+
+
+# HOW FAR A TAIL OF A COLUMN OF COUNTED DATES REACHES (the verification of
+# the second review of landing R4, item 2): the system, the unit the
+# column is written at, its tail unit, the boundary, the side, the reach
+# the member's own spelling allows, and the answer the reach in tail
+# units. Each case names the rule it pins.
+_FAR = 10**12
+COUNTED_REACHES = {
+    "excel_moments_stop_after_serial_two": (
+        "excel-1900", "minute", "minute", "1900-01-19 11:38:00", True, _FAR,
+        "Excel date-times at the minute: no further than 00:01 on 2 January 1900, "
+        "past 1 January and the instant serial 2 names",
+    ),
+    "excel_dates_stop_at_the_third": (
+        "excel-1900", "day", "day", "1900-01-19", True, _FAR,
+        "Excel dates: serial 2 is the whole of 2 January, so the tail stops on the third",
+    ),
+    "excel_seconds_keep_two_january": (
+        "excel-1900", "second", "second", "1900-01-02 00:00:05", True, _FAR,
+        "a column at the second: four seconds of 2 January stand between serial 2 and the boundary",
+    ),
+    "excel_1904_stops_at_its_first_day": (
+        "excel-1904", "second", "second", "1904-01-05 10:00:00", True, _FAR,
+        "the 1904 system reads no count below nought: its first day, 1 January 1904, is the last reached",
+    ),
+    "sas_days_reach_past_the_placeholder": (
+        "days-since-1960", "day", "day", "1900-01-20", True, _FAR,
+        "a system that writes 1899 holds 1 January 1900 as an island, which cuts no reach",
+    ),
+    "sas_moments_below_1900_reach_to_9999": (
+        "seconds-since-1960", "second", "second", "1899-12-25 08:00:00", False, _FAR,
+        "a high tail below 1900 reaches past the island to the wall of 31 December 9999",
+    ),
+    "the_last_day_is_no_reach": (
+        "days-since-1970", "day", "day", "9999-12-20", False, _FAR,
+        "31 December 9999 is no value in any system: a high tail stops on the thirtieth",
+    ),
+    "a_far_hole_leaves_the_reach": (
+        "seconds-since-1970", "second", "second", "1985-03-01 12:00:00", True, 1000,
+        "a placeholder day decades beyond the boundary cuts no reach the member allows",
+    ),
+    "no_unit_between_keeps_the_reach": (
+        "excel-1900", "day", "day", "1900-01-03", True, _FAR,
+        "a boundary on the day after Excel's wall leaves no unit between: the member's own reach",
+    ),
+}
+
+
+# THE ISLANDS INSIDE A TAIL'S REACH (the repair of the verification of the
+# second review of landing R4): the system, the unit the column is written
+# at, its tail unit, the boundary, the side and the member's reach; the
+# answer the reach and each island's nearest and furthest distance.
+COUNTED_ISLANDS = {
+    "sas_days_nineteen_days_out": (
+        "days-since-1960", "day", "day", "1900-01-20", True, _FAR,
+        "1 January 1900 nineteen days beyond the boundary",
+    ),
+    "sas_seconds_a_day_wide": (
+        "seconds-since-1960", "second", "second", "1900-01-02 00:39:14", True, _FAR,
+        "the whole of 1 January, 2,355 to 88,754 seconds out",
+    ),
+    "unix_minutes": (
+        "milliseconds-since-1970", "minute", "minute", "1900-01-02 00:27:00", True, _FAR,
+        "a column at the minute: 1,440 minutes from the twenty-eighth out",
+    ),
+    "sas_days_beside_the_boundary": (
+        "days-since-1960", "day", "day", "1900-01-02", True, _FAR,
+        "an island one day out, beside the boundary",
+    ),
+    "a_high_tail_below_1900": (
+        "seconds-since-1960", "second", "second", "1899-12-25 08:00:00", False, _FAR,
+        "a high tail below 1900 meets the island on its way to 9999",
+    ),
+    "excel_has_none": (
+        "excel-1900", "minute", "minute", "1900-01-19 11:38:00", True, _FAR,
+        "Excel's 1 January is part of its wall, so no island",
+    ),
+    "past_the_reach_is_none": (
+        "seconds-since-1970", "second", "second", "1985-03-01 12:00:00", True, 1000,
+        "1 January 1900 beyond the reach is no island of this tail",
+    ),
+}
+
+# A TAIL'S END OR GROUP STEPPED OFF AN ISLAND: the distance, the islands and
+# the reach; the answer the distance it stands at.
+COUNTED_STEPS = {
+    "inward": (12, [(10, 15)], 100, "on the island: to the unit inside it"),
+    "outward_beside_the_boundary": (1, [(1, 1)], 100, "no unit inside it: to the unit beyond"),
+    "no_room_stays": (1, [(1, 1)], 1, "no unit inside it and none within the reach beyond: it stays"),
+    "off_the_island_stands": (20, [(10, 15)], 100, "off every island: unchanged"),
+}
+
+# EVERY STRATUM LYING WHOLLY ON AN ISLAND GIVEN ROOM: each rank's nearest
+# and furthest distance, outermost first, the islands and the reach; the
+# answer the strata.
+COUNTED_STRATA = {
+    "one_rank_on_it": (
+        [30, 20, 12, 5, 3, 2], [40, 25, 14, 8, 4, 2], [(10, 15)], 100,
+        "one stratum wholly on the island: one unit either side",
+    ),
+    "three_ranks_and_the_order_kept": (
+        [30, 14, 12, 11, 3], [40, 15, 14, 13, 4], [(10, 15)], 100,
+        "three on it: three units either side",
+    ),
+    "across_it_is_left": (
+        [30, 12], [40, 18], [(10, 15)], 100,
+        "a stratum running across the island keeps its own room",
+    ),
+    "room_inside_the_reach": (
+        [5, 1, 1], [6, 2, 1], [(1, 2)], 3,
+        "an island beside the boundary: room from one to the reach",
+    ),
+}
+
+
+def counted_case_document():
+    """The twenty-sixth file: landing R4's readings and spellings, each with its answer."""
+    readings = {}
+    for name in sorted(COUNTED_READINGS):
+        member, text, mark, unit, why = COUNTED_READINGS[name]
+        readings[name] = {
+            "member": member, "text": text, "mark": mark, "unit": unit, "why": why,
+            "answer": counted_reading(member, text, mark, _COUNTED_UNITS[unit]),
+        }
+    spellings = {}
+    for name in sorted(COUNTED_SPELLINGS):
+        member, iso, form, contact, why = COUNTED_SPELLINGS[name]
+        spellings[name] = {
+            "member": member, "iso": iso, "form": form, "contact": contact, "why": why,
+            "answer": counted_spelling(member, iso, form, contact),
+        }
+    for name in sorted(COUNTED_ANCHORS):
+        found = readings[name] if name in readings else spellings[name]
+        if found["answer"] != COUNTED_ANCHORS[name]:
+            raise SystemExit(f"the oracle misses its calendar anchor {name}: {found['answer']}")
+    dealings = {}
+    for name in sorted(COUNTED_DEALINGS):
+        census, dated, why = COUNTED_DEALINGS[name]
+        dealings[name] = {
+            "census": census, "dated": dated, "why": why,
+            "answer": counted_contacts(census, dated),
+        }
+    keepings = {}
+    for name in sorted(COUNTED_KEEPINGS):
+        ordinals, lows, highs, day, holes, why = COUNTED_KEEPINGS[name]
+        keepings[name] = {
+            "ordinals": ordinals, "lows": lows, "highs": highs, "day": day, "holes": holes,
+            "grid": 0, "why": why,
+            "answer": counted_days_kept_off(ordinals, lows, highs, day, set(holes)),
+        }
+    for name in sorted(COUNTED_GRID_KEEPINGS):
+        ordinals, lows, highs, day, holes, grid, why = COUNTED_GRID_KEEPINGS[name]
+        keepings[name] = {
+            "ordinals": ordinals, "lows": lows, "highs": highs, "day": day, "holes": holes,
+            "grid": grid, "why": why,
+            "answer": counted_days_kept_off(ordinals, lows, highs, day, set(holes), grid),
+        }
+    holes = {member: list(counted_hole_words(member)) for member in sorted(COUNTED_SYSTEMS)}
+    moment_holes = {
+        member: list(counted_hole_words(member, True)) for member in sorted(COUNTED_SYSTEMS)
+    }
+    reaches = {}
+    for name in sorted(COUNTED_REACHES):
+        member, written, tail, boundary, low_side, edge, why = COUNTED_REACHES[name]
+        at = unit_ordinal(boundary, tail, "local")
+        reaches[name] = {
+            "member": member, "written": written, "tail": tail, "boundary": boundary,
+            "low_side": low_side, "edge": edge, "why": why,
+            "answer": counted_reach(
+                member, _COUNTED_UNITS[written], COUNTED_TAIL_SECONDS[tail], at, low_side, edge
+            ),
+        }
+    islands = {}
+    for name in sorted(COUNTED_ISLANDS):
+        member, written, tail, boundary, low_side, edge, why = COUNTED_ISLANDS[name]
+        at = unit_ordinal(boundary, tail, "local")
+        reach = counted_reach(
+            member, _COUNTED_UNITS[written], COUNTED_TAIL_SECONDS[tail], at, low_side, edge
+        )
+        islands[name] = {
+            "member": member, "written": written, "tail": tail, "boundary": boundary,
+            "low_side": low_side, "edge": edge, "why": why,
+            "answer": {
+                "reach": reach,
+                "islands": [list(pair) for pair in counted_islands(
+                    member, _COUNTED_UNITS[written], COUNTED_TAIL_SECONDS[tail], at, low_side, reach
+                )],
+            },
+        }
+    steps = {}
+    for name in sorted(COUNTED_STEPS):
+        distance, pairs, reach, why = COUNTED_STEPS[name]
+        steps[name] = {
+            "distance": distance, "islands": [list(pair) for pair in pairs], "reach": reach,
+            "why": why, "answer": counted_off_islands(distance, pairs, reach),
+        }
+    strata = {}
+    for name in sorted(COUNTED_STRATA):
+        near, far, pairs, reach, why = COUNTED_STRATA[name]
+        widened_near, widened_far = counted_strata_off_islands(near, far, pairs, reach)
+        strata[name] = {
+            "near": near, "far": far, "islands": [list(pair) for pair in pairs], "reach": reach,
+            "why": why, "answer": {"near": widened_near, "far": widened_far},
+        }
+    return {
+        "what": "Method section G7.10's two halves (landing R4, plan P4-D384), each case with "
+        "its answer computed from the method's text with datetime and Fraction: a count read "
+        "as the moment its system names, written as ISO text at a unit, and a moment written "
+        "back as its system's count, spelled as a `count_form` says; the contact numbers "
+        "a census deals over the dated cells of an Epic column; the days each system's "
+        "column of dates, and of moments, holds no date on; how far a tail reaches short "
+        "of a wall of them, the islands inside that reach, a tail's end and group stepped "
+        "off one and every stratum lying wholly on one given room; and the twin's ranks "
+        "kept off them, by whole days or by the unit the column is written at.",
+        "dealings": dealings,
+        "holes": holes,
+        "islands": islands,
+        "keepings": keepings,
+        "moment_holes": moment_holes,
+        "reaches": reaches,
+        "generated_by": "tools/reference/make_generation_reference_vectors.py",
+        "method": "docs/spec/generation-method-v1.md",
+        "never_imports": ["synthtwin", "numpy", "pandas"],
+        "readings": readings,
+        "spellings": spellings,
+        "steps": steps,
+        "strata": strata,
     }
 
 
@@ -26253,6 +27292,10 @@ SEVENTEENTH_BRANCH_PART = "branches-17"
 TWENTY_FIRST_BRANCH_PART = "branches-21"
 # The width rule of a tail pair (lane G2, plan P4-D377), the twenty-third.
 TWENTY_THIRD_BRANCH_PART = "branches-23"
+# Landing R4's numbers that are dates (plan P4-D384), the twenty-sixth
+# file: not a file of columns but of method section G7.10's two halves,
+# each case a cell or a moment and its answer (`counted_case_document`).
+TWENTY_SIXTH_BRANCH_PART = "branches-26"
 
 
 # -- landing T1's written clocks and G7.5 step 5 (plan P4-D370) ---------
@@ -42887,6 +43930,11 @@ def build_case(name):
             column.get("affix_suffix", ""),
         )
     cells = place(content, absent_cells(column), rows, words[content_words:])
+    # A COLUMN OF DATES WRITTEN AS COUNTS (landing R4, plan P4-D384) is
+    # written back as those counts once its cells stand in their rows
+    # (method G7.10), as the generator's own post-pass writes them.
+    if column["role"] == "datetime" and column.get("count_form") is not None:
+        cells = counted_cells(cells, column, spec["date_count_member"])
     one_column = True
     csv_bytes = "".join(
         csv_field(cell, one_column, cell == "") + "\n" for cell in cells
@@ -43377,6 +44425,14 @@ def main(argv=None, part=None):
         }
         written_document = step_documents[part]()
         text = json.dumps(written_document, indent=2, sort_keys=True, allow_nan=False)
+        with open(args.out, "w", encoding="utf-8", newline="\n") as handle:
+            handle.write(text + "\n")
+        print(f"wrote {args.out}", file=sys.stderr)
+        return 0
+    if part == TWENTY_SIXTH_BRANCH_PART:
+        # Text only, read and written by G7.10's two halves: there is no
+        # binary64 here for the proof layer to certify either.
+        text = json.dumps(counted_case_document(), indent=2, sort_keys=True, allow_nan=False)
         with open(args.out, "w", encoding="utf-8", newline="\n") as handle:
             handle.write(text + "\n")
         print(f"wrote {args.out}", file=sys.stderr)

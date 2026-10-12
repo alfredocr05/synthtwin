@@ -6,6 +6,58 @@ exists).
 
 ## [Unreleased]
 
+### Numbers that are dates are read as dates and written back as the same numbers (2026-10-07)
+
+**Landing R4** (plan P4-D384), with its review's nine items, its
+second review's seven, the two its verification found, Codex's nine and
+the two the verification of those found repaired.
+Excel serials, SAS and Stata days, seconds and milliseconds, Unix seconds
+and milliseconds, Epic day numbers and the other counting systems of a
+closed table of twelve were described as numbers: the twin kept each
+number's spelling and lost the calendar, its weekdays 0.13 to 0.16 away
+from the source's, and the remark NF51 read SAS and Stata counts a decade
+late and said nothing about the twin changed. A column named with
+`--date-count NAME SYSTEM`, or by an answer to the new question Q3 in the
+questions file, is now read exactly as the dates its counts name,
+described as dates, and twinned as the same counts written the way the
+column writes them (`count_form`); `validate` holds every count of the
+checked file to that form. A column whose figures no unit of time keeps
+-- one to three figures of a day, tenths of a second -- is not read as
+dates and says so, and question Q3 no longer asks about it, where the
+build lost its figures or wrote a twin that missed its own description.
+Q3 asks 13 of the 14 shapes of `K-S3-60`, still asks 12 or 13 with a
+stray `0`, `-1`, placeholder day or up to five keying slips among the
+cells, and still offers each column the system that wrote it, with its
+true years, when a placeholder is common enough to be the column's
+published end, or two placeholders are heaped at one end, every system
+it offers reading the column's own dates; it names a set-aside number
+only where the census line of cells holds it, and raises no question the
+fixed-width question did not already raise on the chance battery's
+ordinary columns, money in cents and lengths of time among them, beside
+eight kinds of column it states and pins. Epic contact numbers are spread
+evenly over the twin's rows, and an Epic column whose contact numbers are
+each rarer than the line no longer leaves a twin failing its own check or
+stops `profile`. A counted column crossing 1 January 1900 no longer draws
+that day, which it reads as no value -- dates nor moments: no tail of
+the twin reaches the days before a spreadsheet's first count, which an
+Excel twin of births from 1900 wrote as text, and a tail running across
+1 January 1900 in SAS, Stata or Unix counts keeps its values either
+side of the day and none on it -- and one cell written with more
+figures than the rest no longer refuses the column, while spreadsheet
+date-times whose few longer cells carry the time of day are read as
+dates again. NF51 is no longer written. A declared column whose cells
+write some dates as text beside the counts is no longer twinned as
+numbers alone: it is described as written, and the run says to write
+every date one way; a column whose counts no single form holds -- whole
+counts written bare and with `.0` by turns, Python's `%e` -- is declined
+the same way instead of publishing a form its own source missed. A
+column is read no finer than the twin can write it back, so Excel serials
+written to fourteen figures no longer twin moments that read back as
+another; a rare count read as no value is no longer held to the form;
+`17e+8` is a count; a cell `1e+9999` no longer costs kilobytes, nor
+`45042.` with four thousand zeros an internal fault; and Q3 asks Unix
+counts at midnight written `.0` or crossing from nine figures to ten.
+
 ### G5.5's sign repairs without the square of the strata (2026-10-09)
 
 **No published fact and no twin byte moves** (plan P4-D387, stage 4).

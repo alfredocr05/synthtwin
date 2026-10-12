@@ -8520,6 +8520,188 @@ rank order with two or three offsets on offer, 7 of 2,724 fell short, by
 11 cells in all, and with fifteen on offer owing 120 to 150, 2 of 300
 fell short of the largest total their texts reach, by 3.
 
+### G7.10 Dates written as counts: read exactly, written back as counts
+
+Landing R4 (plan P4-D384; contract 6.6.2, dates written as counts). A
+column named under `settings.forced_date_counts` was described as the
+dates its counts name, so the twin draws it as dates by every rule of
+G7 above, in the ISO text the description was made from; this section
+says how that text is written back as the system's counts, and how a
+count is read, which the validator's re-description repeats.
+
+**Reading a count.** A cell the grammar of contract 6.6.2 takes as a
+count -- with as many whole figures before an exponent as it writes,
+`17e+8` and `1704067200e+0` among them (the Codex review of landing R4,
+item 8) -- is its exact value: the whole figures and the figures after
+the mark as one integer over a power of ten, times ten to the exponent
+R's form writes, in lowest terms over ten. The redundant zeros go first
+and the magnitude is asked before any number is built: a number past
+ten to the thirtieth names no date in any system and is held there, one
+nearer nought than ten to minus thirty, which reads its system's first
+day at every unit, is held at ten to minus thirty-one, and every other
+count is read to its last significant figure, in pieces past Python's
+limit on integer text -- so `1e+9999` builds no number of its own
+length, `45042.` with 4,301 zeros reads as 45042, and a serial written
+forty places past the point just above a half-millisecond boundary
+reads the later millisecond, each reading deciding as the exact number
+would (item 7 and its verification; keeping thirty figures and one for
+the rest read 355 of 385 such serials a millisecond early). Its moment is the system's first day plus that many units,
+in whole nanoseconds; Excel's 1900 system counts serial 60 as no day,
+reads 1 to 59 from 31 December 1899 and 61 onward from 30 December
+1899, and reads no serial below 1. A `days-since-1840` count reads its
+whole part alone, its figures after the point being a contact number,
+and a cell of that system writing an exponent or more than nine figures
+after the point is no count. The moment is settled to the unit U -- the
+finest of the nanosecond, microsecond, millisecond, second, minute and
+day that is at least the system's unit over ten to the most figures
+after the mark any count read as a date writes (a count naming no date
+or a moment of a placeholder day tells nothing of the form, nor of the
+magnitude below: a lone `0` beside serials written `%.6f` made a trimmed
+form before, which their own six places missed, and a lone `1e+15` a
+binary64 step no unit kept; the verification of item 4), and NO FINER THAN
+THE WRITER KEEPS -- by
+rounding half to even. The writer spells a count that is not whole
+through the binary64 nearest it, within two to the `b - 54` of the
+system's unit of the exact count where every count stands below two to
+the `b`, so U is at least the finest unit above two to the `b - 52` of
+it, a bit spare for a tail (`date_counts.writer_keeps`): Excel serials
+written to fourteen figures were settled to the nanosecond, and 999 of
+1,000 moments handed to the writer read back as another; they settle to
+the millisecond, Unix seconds to the microsecond at most, SPSS seconds
+to the millisecond (the Codex review of landing R4, item 2). Only where
+no unit holds every figure so (below) are the counts written with more
+figures than the rest, at most one in a hundred of them and one at
+least, the rest nine tenths, set aside as strays: U is then the usual
+cells', each stray is held to its own last figure, and its moment is
+written back in the usual form (the second review of landing R4, item
+5; its verification: Excel date-times mostly at six-hour steps or at
+midnight, written trimmed, whose few longer cells carry the time of
+day, were refused while the strays were set aside first). So Excel's
+`%.15g` serials, ten figures after the point and a step of 8.64
+microseconds, settle to the millisecond, and `45386.3541666667` reads
+as 08:30 exactly. A column of `%.15g` or `repr` figures settles from
+the least precise cell, which writes the fewest figures after the point
+past serial 10,000; `repr`'s seventeen figures, whose last two are the
+double's tail, are tried first at fifteen figures' step and then at
+each finer unit down to U. A unit at least the step is what lets the
+twin's own cells read back as the moments it drew. Every count must
+then be its column's own writing of the moment it was read as -- within
+half the form's last figure and four binary64 steps of that moment's
+exact count -- or the column is not read as counted dates at all
+(contract NF115): one to three figures of a day, tenths of a second and
+four figures of a day of moments off the whole minute keep a figure no
+unit holds, and the first build, which settled them to the minute or
+the second, lost those figures or wrote a twin that missed its own
+description (the review of landing R4, item 2). A count naming 1
+January 1900 or 31 December 9999, or its system's plain count for
+either, is no value; so the days a count of the column holds no date on
+-- both placeholder days, and on a column of Excel 1900 DATES 2 January
+1900, the day pandas' count for 1 January, serial 2, names; on a column
+of moments that serial names one instant, midnight of 2 January, and
+every other moment of the day is a date (`date_counts.hole_words`) --
+are holes of the column, which the description and the checker hold as
+its absent spellings. On a column of dates the count pass offers none
+of them and a cell written on one moves to a neighbouring day, and the
+weekday pass holds each a hole. NO TAIL REACHES A WALL OF THEM: the
+stretches beyond a tail's boundary the column's counts cannot hold --
+either placeholder day, the day or the instant serial 2 names (on a
+column of moments, the written unit's span of it), and on Excel's two
+systems every moment before the system's first count -- are joined
+where they touch (`date_counts.blocked_units`), and one running on to
+the furthest unit the member's spelling writes, or to the calendar's
+first or last day, is a WALL: the tail's reach is cut to one unit short
+of the nearest (`date_counts.tail_reach`) -- Excel's days before its
+first count with 1 January 1900 and serial 2 beside them, and 31
+December 9999 -- so its end, its group and every rank drawn between
+them stand inside it, and no source value stands beyond one. Any other
+such stretch inside the reach is an ISLAND -- 1 January 1900, in a
+system that writes the days either side of it -- and cuts nothing, for
+a source's tail runs past it as often as not (`date_counts.tail_islands`):
+the tail's end and its group, each one distance, step off it, inward
+to the unit just inside it where that is a distance of one or more and
+otherwise outward to the unit just beyond it (`off_the_islands`); a
+rank whose stratum lies wholly on it, with m such ranks, is given a
+stratum from m units inside it to m beyond it, and every stratum
+is then kept no nearer than the one inside it and no further than the
+one outside it (`stratum_off_the_islands`); step 9 offers no unit on
+it. The validator draws its windows to the same reach and the same
+strata. A last pass, after every other, moves any rank left on a hole
+day to the nearest instant inside its own gap whose day is none of them
+and that no rank holds -- a whole number of days away, its clock kept,
+and where no whole day's move fits its gap, a whole number of the units
+the column is written at away (a minute, or a second) -- and where every
+such instant is held, the nearest one, in the same order. (The second
+review of landing R4, item 2: a twin of Excel birth dates from 1900 drew
+serial 1 on three seeds of three, read it back as no value and missed
+its own count of present cells. Its verification: a tail of Excel
+date-times from 1900, its end and group stepped off midnight of 1
+January alone, kept a rank on that day inside a stratum less than a day
+wide, which no whole day's move fits, and wrote its end before serial 1
+as ISO text, on six seeds of six. The repair of that verification: a
+reach cut at 1 January 1900 in SAS days drew none of a tail's eight
+values before 1900, and a dense tail of SAS seconds piled onto the last
+second it allowed missed both counts of different values.)
+
+**Writing a moment.** Each cell G7 wrote as a date or moment is
+written as its system's count of that moment: a whole count exactly,
+from its integer; a count that is not whole through the binary64 value
+nearest the exact one, formatted as the exporter the form names writes
+it -- `places` figures after the mark, rounded half to even and kept
+(`%.Nf`, pandas' `45000.0`) or trimmed (`%g`, R), fifteen or seventeen
+significant figures trimmed (`%.15g`, `repr`, a whole count at
+seventeen written as `repr` writes a whole double, `45123.0`), and R's
+exponent form where it is shorter -- with the column's mark, a point or
+a comma. R's rule writes an exponent only where it is the shorter, so a
+column of whole counts written with a needless one, `1704067200e+0` or
+`1704067200000e-3`, is held by its form and written back in full,
+`1704067200`: the one spelling of such a column the twin does not keep
+(the verification of the Codex review of landing R4, item 8). A `days-since-1840` column writes its day count alone where
+no census of contact numbers is published -- none reaching the line
+(the second review of landing R4, item 1) -- and otherwise its day count
+and, after the point, the contact number the census gives the cell,
+EVENLY SPACED:
+each word the census counts c times stands at the c keys (2j + 1) / (2c)
+for j from nought -- the middles of c equal shares of the cells -- and
+the dated cells, in the order they stand, take the words in the order
+of their keys, compared exactly, a tie to the word ranked first (the
+commonest, ties in sorted order), a cell past the census's last word
+writing none. Each word is written exactly as often as the census
+counts it, every stretch of the rows holds it within about one cell of
+its share, and it is independent of the dates, which the arrangement
+put in an order drawn at random; dealt in rank order down the rows, as
+the first build did, the first half of a twin of 100,000 rows held no
+contact number (the review of landing R4, item 8). A cell written in a
+spelling the column publishes as absent -- a count that names no date,
+a placeholder day -- and an unparsed stand-in are left as they are.
+
+**What is frozen.** Generation reference vectors file 26 holds both
+halves on cells either side of Excel's leap day, SAS and Stata days,
+seconds and milliseconds before and after 1960, R's exponent form,
+nanoseconds past 2**53, an Epic day with its contact number, a comma for
+the point, SPSS seconds, Arrow's microseconds and R's days from 1970
+each at a count worked out from the calendar, which the oracle asserts
+before it writes (the Codex review of landing R4, item 9), fifteen
+significant figures either side of serial 10,000, one
+figure rounded half to even, six figures fixed and trimmed, R's shorter
+form, a contact number, a comma, `repr`'s shortest figures and its
+`45123.0`, four censuses of contact numbers dealt over the dated
+cells, each system's holes and seven cases of the last pass off them;
+`tests/test_stage3b_counted.py` holds the product to every answer and
+turns each case red on its mutant (float arithmetic, a 1970 epoch for
+1960, halves rounded up, untrimmed figures, no leap day, the exact value
+where binary64 is written, the contact numbers dealt down the rows,
+`%.17g` where `repr` is written, the last pass taking a day a rank
+holds, and Excel's serial 2 no hole).
+
+**Stated limits.** A date kept at local midnight is read as the instant
+its count names, not as the day; contact numbers are not kept with
+their dates; a column whose figures no unit keeps is not read as dates;
+an unparsed cell of a column of counted dates is a text stand-in, as on
+every column of dates, so a twin whose source holds numbers the date
+role could not read misses `n_numeric`; and a workbook's clock cells
+keep their binary64 reading, which moves 94 of them by a millisecond,
+rather than this one.
+
 ## G7A. Clock columns (`time_of_day`)
 
 This role was added by Phase 4 and this section was written after its

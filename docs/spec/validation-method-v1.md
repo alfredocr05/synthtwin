@@ -1322,6 +1322,58 @@ floor, so the real table meets its description by construction:
   value there, and one holding all but a single value there, the three
   being one state on purpose (landing 2b.6).
 
+**V5-CF. Amended 2026-10-06 (landing R4, plan P4-D384): how a column of
+counted dates writes its counts is an obligation.** A column the
+description reads as dates written as counts -- named under
+`settings.forced_date_counts`, carrying a `count_form` (contract 6.6.2)
+-- is described again in the checked file under the same declaration
+(a declared column whose description says in NF115 that its cells did
+not read as such dates is described again WITHOUT it, as its source was
+read: the twin of a declined column of Python's `%e` counts, written by
+the numeric role in a spelling the declaration could read, was otherwise
+read as counted dates and missed its role -- the Codex review of landing
+R4, items 1 and 3):
+each cell written as a count is read exactly as the moment its system
+names, at the unit the description PUBLISHED rather than one worked out
+from the file's own figures (`validation.counted_units`), so the
+description's own source reads cell for cell as the profiler read it,
+and every obligation of a column of dates then applies as on any other.
+Beside them, `count_form` is HELD (`form.count_form`) where the file was
+read as such dates and every cell it writes as a count of the declared
+system (`date_counts.counted`: on `days-since-1840`, no exponent and at
+most nine figures after the point, a longer cell being text the date
+role's own line took) -- every cell the file's own description reads as
+no value aside, by that description's own decision cell by cell
+(`_holes_by_the_description`, the counted reading's marks with it), not
+its published absent spellings alone: a lone `1` the counted reading
+sets aside and a lone `9999` named with `--missing-value` publish no
+spelling under the floor, and the source missed its own form (the Codex
+review of landing R4, item 4) -- is one
+the published form writes
+(`date_counts.form_holds`): exactly `places` figures after the mark, or
+at most that many with no trailing zero where the form is trimmed, at
+most the form's significant figures where it names them, `repr`'s
+`45123.0` at seventeen, and in exponent form only where the form writes
+one -- but for counts written with MORE figures than the form, as many
+of which stand as the profiler sets beside the usual counts, one in a
+hundred, one at least, the rest nine tenths (`date_counts.strays_stand`;
+the second review of landing R4, item 5); on a `days-since-1840`
+column, by the declared system's contact rule, a day count and no
+contact number or one of at most `places` figures, WHETHER OR NOT A
+CENSUS IS PUBLISHED: a contact number fewer cells than the disclosure
+line wrote is counted into the commonest and named nowhere, and where
+none reaches the line no census is published at all (the second review
+of landing R4, item 1). A twin written
+as ISO dates or with other figures after the point, and a file not read
+as such dates at all, MISS it; a twin written in another system misses
+the dates it then names. On a `days-since-1840` column publishing a census, the census of
+contact numbers is held exactly against the file's own description
+(`form.contacts`). Neither line prints a value of the file: the
+measured side is the form in words, that a cell is written another way,
+or the census, whose counts stand at the disclosure line. The
+`tests/test_stage3b_counted.py` clause C5 turns red on a check of the
+form that asks nothing.
+
 **Amended 2026-09-17 (plan P4-D191): a count withheld for its size is
 checked on its side.** Where `n_at_midnight` is absent because too few
 values stood at midnight or too few did not
@@ -1862,7 +1914,12 @@ word; this module writes that construction from the method's own text --
 the mixture, the moment-matched end, the rounding halves up, the tie
 group and how far G7.3b step 9 may move it, the step off a hole, the
 move onto a midnight, the two-pass all-different step and the clamp to
-the readable window -- in the
+the readable window -- and, on a column of dates written as counts, the
+reach that stops one unit short of a wall its counts cannot hold, the
+end and the group stepped off an island inside it and a stratum lying
+wholly on one given room either side (G7.10, `date_counts.tail_reach`,
+`date_counts.tail_islands`; the verification of the second review of
+landing R4, item 2, and its repair) -- in the
 binary64 arithmetic the clause fixes, operation by operation and in the
 order written. It is compared with the generator's writing of it in the
 suite, rank by rank: a validator whose derived end differs from the

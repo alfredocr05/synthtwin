@@ -1,0 +1,1467 @@
+{
+  "dealings": {
+    "one_word": {
+      "answer": [
+        "07",
+        "07",
+        "07",
+        "07",
+        "07",
+        "07",
+        "07",
+        "07",
+        "07",
+        "07",
+        "07",
+        "07",
+        "07"
+      ],
+      "census": {
+        "07": 13
+      },
+      "dated": 13,
+      "why": "one contact number on every dated cell"
+    },
+    "rarer_than_the_census": {
+      "answer": [
+        "(none)",
+        "(none)",
+        "01",
+        "(none)",
+        "(none)",
+        "(none)",
+        "(none)",
+        "01",
+        "(none)",
+        "(none)",
+        "(none)",
+        "(none)",
+        "(none)",
+        "01",
+        "(none)",
+        "(none)",
+        "(none)",
+        "(none)",
+        "01",
+        "(none)",
+        "(none)",
+        "(none)",
+        "(none)",
+        "01",
+        "(none)",
+        "(none)",
+        "(none)",
+        "(none)",
+        "(none)",
+        "01",
+        "(none)",
+        "(none)",
+        "(none)",
+        "(none)",
+        "01",
+        "(none)",
+        "(none)",
+        "(none)",
+        "(none)",
+        "(none)"
+      ],
+      "census": {
+        "(none)": 30,
+        "01": 7
+      },
+      "dated": 40,
+      "why": "three dated cells more than the census counts: they write none"
+    },
+    "three_words_twenty_cells": {
+      "answer": [
+        "(none)",
+        "(none)",
+        "01",
+        "(none)",
+        "(none)",
+        "02",
+        "(none)",
+        "01",
+        "(none)",
+        "(none)",
+        "(none)",
+        "(none)",
+        "01",
+        "(none)",
+        "(none)",
+        "02",
+        "(none)",
+        "01",
+        "(none)",
+        "(none)"
+      ],
+      "census": {
+        "(none)": 14,
+        "01": 4,
+        "02": 2
+      },
+      "dated": 20,
+      "why": "a census of three words over twenty dated cells"
+    },
+    "tied_counts": {
+      "answer": [
+        "(none)",
+        "01",
+        "02",
+        "(none)",
+        "(none)",
+        "01",
+        "02",
+        "(none)",
+        "(none)",
+        "01",
+        "02",
+        "(none)",
+        "01",
+        "02",
+        "(none)",
+        "(none)",
+        "01",
+        "02",
+        "(none)",
+        "(none)",
+        "01",
+        "02",
+        "(none)"
+      ],
+      "census": {
+        "(none)": 11,
+        "01": 6,
+        "02": 6
+      },
+      "dated": 23,
+      "why": "two words of one count, in sorted order after the commonest"
+    }
+  },
+  "generated_by": "tools/reference/make_generation_reference_vectors.py",
+  "holes": {
+    "days-since-1840": [
+      "1900-01-01",
+      "9999-12-31"
+    ],
+    "days-since-1960": [
+      "1900-01-01",
+      "9999-12-31"
+    ],
+    "days-since-1970": [
+      "1900-01-01",
+      "9999-12-31"
+    ],
+    "excel-1900": [
+      "1900-01-01",
+      "1900-01-02",
+      "9999-12-31"
+    ],
+    "excel-1904": [
+      "1900-01-01",
+      "9999-12-31"
+    ],
+    "microseconds-since-1970": [
+      "1900-01-01",
+      "9999-12-31"
+    ],
+    "milliseconds-since-1960": [
+      "1900-01-01",
+      "9999-12-31"
+    ],
+    "milliseconds-since-1970": [
+      "1900-01-01",
+      "9999-12-31"
+    ],
+    "nanoseconds-since-1970": [
+      "1900-01-01",
+      "9999-12-31"
+    ],
+    "seconds-since-1582": [
+      "1900-01-01",
+      "9999-12-31"
+    ],
+    "seconds-since-1960": [
+      "1900-01-01",
+      "9999-12-31"
+    ],
+    "seconds-since-1970": [
+      "1900-01-01",
+      "9999-12-31"
+    ]
+  },
+  "islands": {
+    "a_high_tail_below_1900": {
+      "answer": {
+        "islands": [
+          [
+            576000,
+            662399
+          ]
+        ],
+        "reach": 255611779199
+      },
+      "boundary": "1899-12-25 08:00:00",
+      "edge": 1000000000000,
+      "low_side": false,
+      "member": "seconds-since-1960",
+      "tail": "second",
+      "why": "a high tail below 1900 meets the island on its way to 9999",
+      "written": "second"
+    },
+    "excel_has_none": {
+      "answer": {
+        "islands": [],
+        "reach": 25177
+      },
+      "boundary": "1900-01-19 11:38:00",
+      "edge": 1000000000000,
+      "low_side": true,
+      "member": "excel-1900",
+      "tail": "minute",
+      "why": "Excel's 1 January is part of its wall, so no island",
+      "written": "minute"
+    },
+    "past_the_reach_is_none": {
+      "answer": {
+        "islands": [],
+        "reach": 1000
+      },
+      "boundary": "1985-03-01 12:00:00",
+      "edge": 1000,
+      "low_side": true,
+      "member": "seconds-since-1970",
+      "tail": "second",
+      "why": "1 January 1900 beyond the reach is no island of this tail",
+      "written": "second"
+    },
+    "sas_days_beside_the_boundary": {
+      "answer": {
+        "islands": [
+          [
+            1,
+            1
+          ]
+        ],
+        "reach": 1000000000000
+      },
+      "boundary": "1900-01-02",
+      "edge": 1000000000000,
+      "low_side": true,
+      "member": "days-since-1960",
+      "tail": "day",
+      "why": "an island one day out, beside the boundary",
+      "written": "day"
+    },
+    "sas_days_nineteen_days_out": {
+      "answer": {
+        "islands": [
+          [
+            19,
+            19
+          ]
+        ],
+        "reach": 1000000000000
+      },
+      "boundary": "1900-01-20",
+      "edge": 1000000000000,
+      "low_side": true,
+      "member": "days-since-1960",
+      "tail": "day",
+      "why": "1 January 1900 nineteen days beyond the boundary",
+      "written": "day"
+    },
+    "sas_seconds_a_day_wide": {
+      "answer": {
+        "islands": [
+          [
+            2355,
+            88754
+          ]
+        ],
+        "reach": 1000000000000
+      },
+      "boundary": "1900-01-02 00:39:14",
+      "edge": 1000000000000,
+      "low_side": true,
+      "member": "seconds-since-1960",
+      "tail": "second",
+      "why": "the whole of 1 January, 2,355 to 88,754 seconds out",
+      "written": "second"
+    },
+    "unix_minutes": {
+      "answer": {
+        "islands": [
+          [
+            28,
+            1467
+          ]
+        ],
+        "reach": 1000000000000
+      },
+      "boundary": "1900-01-02 00:27:00",
+      "edge": 1000000000000,
+      "low_side": true,
+      "member": "milliseconds-since-1970",
+      "tail": "minute",
+      "why": "a column at the minute: 1,440 minutes from the twenty-eighth out",
+      "written": "minute"
+    }
+  },
+  "keepings": {
+    "a_free_day_beside": {
+      "answer": [
+        -25569,
+        -25568,
+        -25566,
+        -25562
+      ],
+      "day": 1,
+      "grid": 0,
+      "highs": [
+        -25569,
+        -25562,
+        -25562,
+        -25562
+      ],
+      "holes": [
+        -25567,
+        2932896
+      ],
+      "lows": [
+        -25569,
+        -25569,
+        -25569,
+        -25562
+      ],
+      "ordinals": [
+        -25569,
+        -25567,
+        -25566,
+        -25562
+      ],
+      "why": "a date on 1 January 1900 moves to the free day before it, the earlier first"
+    },
+    "a_gap_inside_the_day_stays": {
+      "answer": [
+        -2208988700,
+        -2208988650,
+        -2208988600
+      ],
+      "day": 86400,
+      "grid": 0,
+      "highs": [
+        -2208988700,
+        -2208988600,
+        -2208988600
+      ],
+      "holes": [
+        -25567,
+        2932896
+      ],
+      "lows": [
+        -2208988700,
+        -2208988700,
+        -2208988600
+      ],
+      "ordinals": [
+        -2208988700,
+        -2208988650,
+        -2208988600
+      ],
+      "why": "a gap holding no instant a whole day away leaves the rank where it is"
+    },
+    "a_held_day_where_none_is_free": {
+      "answer": [
+        -25568,
+        -25568,
+        -25566
+      ],
+      "day": 1,
+      "grid": 0,
+      "highs": [
+        -25566,
+        -25566,
+        -25566
+      ],
+      "holes": [
+        -25567,
+        2932896
+      ],
+      "lows": [
+        -25568,
+        -25568,
+        -25568
+      ],
+      "ordinals": [
+        -25568,
+        -25567,
+        -25566
+      ],
+      "why": "every other day of the gap is held, so the nearest held one is shared, the earlier first"
+    },
+    "a_minute_after_the_day": {
+      "answer": [
+        -2208999600,
+        -2208902400,
+        -2208891600
+      ],
+      "day": 86400,
+      "grid": 60,
+      "highs": [
+        -2208999600,
+        -2208891600,
+        -2208891600
+      ],
+      "holes": [
+        -25567,
+        2932896
+      ],
+      "lows": [
+        -2208999600,
+        -2208999600,
+        -2208891600
+      ],
+      "ordinals": [
+        -2208999600,
+        -2208916800,
+        -2208891600
+      ],
+      "why": "20:00 on 1 January 1900, its gap from 21:00 the day before: midnight of 2 January, the nearer"
+    },
+    "a_minute_before_the_day": {
+      "answer": [
+        -2209003200,
+        -2208988860,
+        -2208891600
+      ],
+      "day": 86400,
+      "grid": 60,
+      "highs": [
+        -2209003200,
+        -2208891600,
+        -2208891600
+      ],
+      "holes": [
+        -25567,
+        2932896
+      ],
+      "lows": [
+        -2209003200,
+        -2209003200,
+        -2208891600
+      ],
+      "ordinals": [
+        -2209003200,
+        -2208952800,
+        -2208891600
+      ],
+      "why": "10:00 on 1 January 1900 in a gap no whole day fits: the last minute of 31 December, the nearer"
+    },
+    "a_moment_keeps_its_clock": {
+      "answer": [
+        -2208992400,
+        -2208857400,
+        -2208729500
+      ],
+      "day": 86400,
+      "grid": 0,
+      "highs": [
+        -2208992400,
+        -2208729500,
+        -2208729500
+      ],
+      "holes": [
+        -25567,
+        2932896
+      ],
+      "lows": [
+        -2208992400,
+        -2208992400,
+        -2208729500
+      ],
+      "ordinals": [
+        -2208992400,
+        -2208943800,
+        -2208729500
+      ],
+      "why": "a moment at 12:30 on 1 January 1900 moves a whole day, to 12:30 on 2 January"
+    },
+    "excel_two_days": {
+      "answer": [
+        -25568,
+        -25565,
+        -25564,
+        -25563
+      ],
+      "day": 1,
+      "grid": 0,
+      "highs": [
+        -25563,
+        -25563,
+        -25563,
+        -25563
+      ],
+      "holes": [
+        -25567,
+        -25566,
+        2932896
+      ],
+      "lows": [
+        -25568,
+        -25568,
+        -25568,
+        -25563
+      ],
+      "ordinals": [
+        -25568,
+        -25567,
+        -25566,
+        -25563
+      ],
+      "why": "Excel's 1900 system holds 1 and 2 January: a date on each moves past both"
+    },
+    "inside_the_day_still_stays": {
+      "answer": [
+        -2208988700,
+        -2208988640,
+        -2208988580
+      ],
+      "day": 86400,
+      "grid": 60,
+      "highs": [
+        -2208988700,
+        -2208988580,
+        -2208988580
+      ],
+      "holes": [
+        -25567,
+        2932896
+      ],
+      "lows": [
+        -2208988700,
+        -2208988700,
+        -2208988580
+      ],
+      "ordinals": [
+        -2208988700,
+        -2208988640,
+        -2208988580
+      ],
+      "why": "a gap wholly inside the day holds no instant off it: the rank stays"
+    },
+    "the_last_day": {
+      "answer": [
+        2932893,
+        2932895,
+        2932894
+      ],
+      "day": 1,
+      "grid": 0,
+      "highs": [
+        2932896,
+        2932896,
+        2932896
+      ],
+      "holes": [
+        -25567,
+        2932896
+      ],
+      "lows": [
+        2932893,
+        2932893,
+        2932893
+      ],
+      "ordinals": [
+        2932893,
+        2932895,
+        2932896
+      ],
+      "why": "a date on 31 December 9999 moves to the nearest free day before it"
+    },
+    "the_nearest_free_day_past_held_ones": {
+      "answer": [
+        -25568,
+        -25565,
+        -25566,
+        -25564
+      ],
+      "day": 1,
+      "grid": 0,
+      "highs": [
+        -25568,
+        -25564,
+        -25564,
+        -25564
+      ],
+      "holes": [
+        -25567,
+        2932896
+      ],
+      "lows": [
+        -25568,
+        -25568,
+        -25568,
+        -25564
+      ],
+      "ordinals": [
+        -25568,
+        -25567,
+        -25566,
+        -25564
+      ],
+      "why": "both neighbours are held, so the free day two after is taken"
+    },
+    "the_next_free_second": {
+      "answer": [
+        -2208992400,
+        -2208902400,
+        -2208902399,
+        -2208902350
+      ],
+      "day": 86400,
+      "grid": 1,
+      "highs": [
+        -2208992400,
+        -2208902350,
+        -2208902350,
+        -2208902350
+      ],
+      "holes": [
+        -25567,
+        2932896
+      ],
+      "lows": [
+        -2208992400,
+        -2208918800,
+        -2208918800,
+        -2208902350
+      ],
+      "ordinals": [
+        -2208992400,
+        -2208908800,
+        -2208908799,
+        -2208902350
+      ],
+      "why": "two moments late on 1 January in strata running into 2 January: midnight and the second after it"
+    },
+    "whole_days_first": {
+      "answer": [
+        -2209248000,
+        -2209030200,
+        -2208729600
+      ],
+      "day": 86400,
+      "grid": 60,
+      "highs": [
+        -2209248000,
+        -2208729600,
+        -2208729600
+      ],
+      "holes": [
+        -25567,
+        2932896
+      ],
+      "lows": [
+        -2209248000,
+        -2209248000,
+        -2208729600
+      ],
+      "ordinals": [
+        -2209248000,
+        -2208943800,
+        -2208729600
+      ],
+      "why": "a gap a whole day's move fits keeps the clock: 12:30 on 31 December, not a minute's step"
+    }
+  },
+  "method": "docs/spec/generation-method-v1.md",
+  "moment_holes": {
+    "days-since-1840": [
+      "1900-01-01",
+      "9999-12-31"
+    ],
+    "days-since-1960": [
+      "1900-01-01",
+      "9999-12-31"
+    ],
+    "days-since-1970": [
+      "1900-01-01",
+      "9999-12-31"
+    ],
+    "excel-1900": [
+      "1900-01-01",
+      "9999-12-31"
+    ],
+    "excel-1904": [
+      "1900-01-01",
+      "9999-12-31"
+    ],
+    "microseconds-since-1970": [
+      "1900-01-01",
+      "9999-12-31"
+    ],
+    "milliseconds-since-1960": [
+      "1900-01-01",
+      "9999-12-31"
+    ],
+    "milliseconds-since-1970": [
+      "1900-01-01",
+      "9999-12-31"
+    ],
+    "nanoseconds-since-1970": [
+      "1900-01-01",
+      "9999-12-31"
+    ],
+    "seconds-since-1582": [
+      "1900-01-01",
+      "9999-12-31"
+    ],
+    "seconds-since-1960": [
+      "1900-01-01",
+      "9999-12-31"
+    ],
+    "seconds-since-1970": [
+      "1900-01-01",
+      "9999-12-31"
+    ]
+  },
+  "never_imports": [
+    "synthtwin",
+    "numpy",
+    "pandas"
+  ],
+  "reaches": {
+    "a_far_hole_leaves_the_reach": {
+      "answer": 1000,
+      "boundary": "1985-03-01 12:00:00",
+      "edge": 1000,
+      "low_side": true,
+      "member": "seconds-since-1970",
+      "tail": "second",
+      "why": "a placeholder day decades beyond the boundary cuts no reach the member allows",
+      "written": "second"
+    },
+    "excel_1904_stops_at_its_first_day": {
+      "answer": 381600,
+      "boundary": "1904-01-05 10:00:00",
+      "edge": 1000000000000,
+      "low_side": true,
+      "member": "excel-1904",
+      "tail": "second",
+      "why": "the 1904 system reads no count below nought: its first day, 1 January 1904, is the last reached",
+      "written": "second"
+    },
+    "excel_dates_stop_at_the_third": {
+      "answer": 16,
+      "boundary": "1900-01-19",
+      "edge": 1000000000000,
+      "low_side": true,
+      "member": "excel-1900",
+      "tail": "day",
+      "why": "Excel dates: serial 2 is the whole of 2 January, so the tail stops on the third",
+      "written": "day"
+    },
+    "excel_moments_stop_after_serial_two": {
+      "answer": 25177,
+      "boundary": "1900-01-19 11:38:00",
+      "edge": 1000000000000,
+      "low_side": true,
+      "member": "excel-1900",
+      "tail": "minute",
+      "why": "Excel date-times at the minute: no further than 00:01 on 2 January 1900, past 1 January and the instant serial 2 names",
+      "written": "minute"
+    },
+    "excel_seconds_keep_two_january": {
+      "answer": 4,
+      "boundary": "1900-01-02 00:00:05",
+      "edge": 1000000000000,
+      "low_side": true,
+      "member": "excel-1900",
+      "tail": "second",
+      "why": "a column at the second: four seconds of 2 January stand between serial 2 and the boundary",
+      "written": "second"
+    },
+    "no_unit_between_keeps_the_reach": {
+      "answer": 1000000000000,
+      "boundary": "1900-01-03",
+      "edge": 1000000000000,
+      "low_side": true,
+      "member": "excel-1900",
+      "tail": "day",
+      "why": "a boundary on the day after Excel's wall leaves no unit between: the member's own reach",
+      "written": "day"
+    },
+    "sas_days_reach_past_the_placeholder": {
+      "answer": 1000000000000,
+      "boundary": "1900-01-20",
+      "edge": 1000000000000,
+      "low_side": true,
+      "member": "days-since-1960",
+      "tail": "day",
+      "why": "a system that writes 1899 holds 1 January 1900 as an island, which cuts no reach",
+      "written": "day"
+    },
+    "sas_moments_below_1900_reach_to_9999": {
+      "answer": 255611779199,
+      "boundary": "1899-12-25 08:00:00",
+      "edge": 1000000000000,
+      "low_side": false,
+      "member": "seconds-since-1960",
+      "tail": "second",
+      "why": "a high tail below 1900 reaches past the island to the wall of 31 December 9999",
+      "written": "second"
+    },
+    "the_last_day_is_no_reach": {
+      "answer": 10,
+      "boundary": "9999-12-20",
+      "edge": 1000000000000,
+      "low_side": false,
+      "member": "days-since-1970",
+      "tail": "day",
+      "why": "31 December 9999 is no value in any system: a high tail stops on the thirtieth",
+      "written": "day"
+    }
+  },
+  "readings": {
+    "decimal_comma": {
+      "answer": "2024-04-04 12:00",
+      "mark": ",",
+      "member": "excel-1900",
+      "text": "45386,5",
+      "unit": "minute",
+      "why": "a count written with a comma for its point"
+    },
+    "epic_contact": {
+      "answer": "2022-07-13",
+      "mark": ".",
+      "member": "days-since-1840",
+      "text": "66303.01",
+      "unit": "day",
+      "why": "an Epic day with its contact number, which is no time"
+    },
+    "excel_15g_clinic_slot": {
+      "answer": "2024-04-04 08:30",
+      "mark": ".",
+      "member": "excel-1900",
+      "text": "45386.3541666667",
+      "unit": "minute",
+      "why": "%.15g of 08:30, settled through the millisecond to the minute"
+    },
+    "excel_1904_day_0": {
+      "answer": "1904-01-01",
+      "mark": ".",
+      "member": "excel-1904",
+      "text": "0",
+      "unit": "day",
+      "why": "the 1904 system's first day"
+    },
+    "excel_serial_59": {
+      "answer": "1900-02-28",
+      "mark": ".",
+      "member": "excel-1900",
+      "text": "59",
+      "unit": "day",
+      "why": "the last day before Excel's leap day: 28 February 1900"
+    },
+    "excel_serial_60": {
+      "answer": null,
+      "mark": ".",
+      "member": "excel-1900",
+      "text": "60",
+      "unit": "day",
+      "why": "Excel's 29 February 1900, which no calendar has: no date"
+    },
+    "excel_serial_61": {
+      "answer": "1900-03-01",
+      "mark": ".",
+      "member": "excel-1900",
+      "text": "61",
+      "unit": "day",
+      "why": "the first day after it, counted from 30 December 1899"
+    },
+    "nanoseconds_past_2_53": {
+      "answer": "2023-11-14 22:13:20.123456789",
+      "mark": ".",
+      "member": "nanoseconds-since-1970",
+      "text": "1700000000123456789",
+      "unit": "nanosecond",
+      "why": "a count binary64 cannot hold, read from its figures"
+    },
+    "r_exponent_milliseconds": {
+      "answer": "2020-09-13 12:26:40",
+      "mark": ".",
+      "member": "milliseconds-since-1970",
+      "text": "1.6e+12",
+      "unit": "second",
+      "why": "R's exponent form, read exactly by shifting the figures"
+    },
+    "sas_days_negative": {
+      "answer": "1949-12-31",
+      "mark": ".",
+      "member": "days-since-1960",
+      "text": "-3653",
+      "unit": "day",
+      "why": "a SAS date before 1960, read with the 1960 epoch"
+    },
+    "sas_seconds": {
+      "answer": "2021-12-31 00:00:00",
+      "mark": ".",
+      "member": "seconds-since-1960",
+      "text": "1956528000",
+      "unit": "second",
+      "why": "a SAS date-time, read with the 1960 epoch"
+    },
+    "spss_seconds": {
+      "answer": "2000-01-01 12:34:56",
+      "mark": ".",
+      "member": "seconds-since-1582",
+      "text": "13166109296",
+      "unit": "second",
+      "why": "SPSS seconds, 152,385 days and 45,296 seconds from 14 October 1582"
+    },
+    "stata_milliseconds": {
+      "answer": "2021-12-31 00:00:00.123",
+      "mark": ".",
+      "member": "milliseconds-since-1960",
+      "text": "1956528000123",
+      "unit": "millisecond",
+      "why": "Stata's %tc, a thousandth of a second kept"
+    },
+    "unix_days": {
+      "answer": "2000-01-01",
+      "mark": ".",
+      "member": "days-since-1970",
+      "text": "10957",
+      "unit": "day",
+      "why": "R's days from 1970: 10,957 to 1 January 2000"
+    },
+    "unix_half_second": {
+      "answer": "2023-11-14 22:13:22",
+      "mark": ".",
+      "member": "milliseconds-since-1970",
+      "text": "1700000002500",
+      "unit": "second",
+      "why": "half a second settled to the second: the half goes to the even one"
+    },
+    "unix_microseconds": {
+      "answer": "2000-01-01 12:34:56.789012",
+      "mark": ".",
+      "member": "microseconds-since-1970",
+      "text": "946730096789012",
+      "unit": "microsecond",
+      "why": "Arrow's microseconds, six figures of a second kept"
+    },
+    "unix_milliseconds": {
+      "answer": "2023-11-14 22:13:20.123",
+      "mark": ".",
+      "member": "milliseconds-since-1970",
+      "text": "1700000000123",
+      "unit": "millisecond",
+      "why": "a JavaScript moment, a thousandth of a second kept"
+    }
+  },
+  "spellings": {
+    "comma_spelled": {
+      "answer": "45386,354167",
+      "contact": "(none)",
+      "form": {
+        "contacts": null,
+        "exponent": false,
+        "mark": ",",
+        "places": 6,
+        "significant": null,
+        "trimmed": true
+      },
+      "iso": "2024-04-04 08:30",
+      "member": "excel-1900",
+      "why": "the comma written where the column writes it"
+    },
+    "epic_contact_spelled": {
+      "answer": "66303.01",
+      "contact": "01",
+      "form": {
+        "contacts": {
+          "01": 11
+        },
+        "exponent": false,
+        "mark": ".",
+        "places": 0,
+        "significant": null,
+        "trimmed": false
+      },
+      "iso": "2022-07-13",
+      "member": "days-since-1840",
+      "why": "the day count, the point and the contact number"
+    },
+    "epic_no_contact_spelled": {
+      "answer": "66303",
+      "contact": "(none)",
+      "form": {
+        "contacts": {
+          "01": 11
+        },
+        "exponent": false,
+        "mark": ".",
+        "places": 0,
+        "significant": null,
+        "trimmed": false
+      },
+      "iso": "2022-07-13",
+      "member": "days-since-1840",
+      "why": "the day count alone where the census gives none"
+    },
+    "excel_15g_after_10000": {
+      "answer": "10001.3541666667",
+      "contact": "(none)",
+      "form": {
+        "contacts": null,
+        "exponent": false,
+        "mark": ".",
+        "places": 11,
+        "significant": 15,
+        "trimmed": true
+      },
+      "iso": "1927-05-19 08:30",
+      "member": "excel-1900",
+      "why": "fifteen significant figures, ten after the point past serial 10,000"
+    },
+    "excel_15g_before_10000": {
+      "answer": "9999.35416666667",
+      "contact": "(none)",
+      "form": {
+        "contacts": null,
+        "exponent": false,
+        "mark": ".",
+        "places": 11,
+        "significant": 15,
+        "trimmed": true
+      },
+      "iso": "1927-05-17 08:30",
+      "member": "excel-1900",
+      "why": "fifteen significant figures, eleven after the point"
+    },
+    "excel_15g_binary64": {
+      "answer": "45386.0021643518",
+      "contact": "(none)",
+      "form": {
+        "contacts": null,
+        "exponent": false,
+        "mark": ".",
+        "places": 10,
+        "significant": 15,
+        "trimmed": true
+      },
+      "iso": "2024-04-04 00:03:07",
+      "member": "excel-1900",
+      "why": "%.15g of the binary64, where rounding the exact count gives a last figure one more"
+    },
+    "excel_one_place_half_even": {
+      "answer": "45386.2",
+      "contact": "(none)",
+      "form": {
+        "contacts": null,
+        "exponent": false,
+        "mark": ".",
+        "places": 1,
+        "significant": null,
+        "trimmed": true
+      },
+      "iso": "2024-04-04 06:00",
+      "member": "excel-1900",
+      "why": "a quarter of a day to one figure: the half goes to the even 2"
+    },
+    "excel_serial_leap_neighbour": {
+      "answer": "61",
+      "contact": "(none)",
+      "form": {
+        "contacts": null,
+        "exponent": false,
+        "mark": ".",
+        "places": 0,
+        "significant": null,
+        "trimmed": false
+      },
+      "iso": "1900-03-01",
+      "member": "excel-1900",
+      "why": "1 March 1900 is serial 61"
+    },
+    "excel_six_places_fixed": {
+      "answer": "45386.500000",
+      "contact": "(none)",
+      "form": {
+        "contacts": null,
+        "exponent": false,
+        "mark": ".",
+        "places": 6,
+        "significant": null,
+        "trimmed": false
+      },
+      "iso": "2024-04-04 12:00",
+      "member": "excel-1900",
+      "why": "six figures, every one written"
+    },
+    "excel_six_places_trimmed": {
+      "answer": "45386.5",
+      "contact": "(none)",
+      "form": {
+        "contacts": null,
+        "exponent": false,
+        "mark": ".",
+        "places": 6,
+        "significant": null,
+        "trimmed": true
+      },
+      "iso": "2024-04-04 12:00",
+      "member": "excel-1900",
+      "why": "six figures at most, the zeros at the end dropped"
+    },
+    "nanoseconds_spelled": {
+      "answer": "1700000000123456789",
+      "contact": "(none)",
+      "form": {
+        "contacts": null,
+        "exponent": false,
+        "mark": ".",
+        "places": 0,
+        "significant": null,
+        "trimmed": false
+      },
+      "iso": "2023-11-14 22:13:20.123456789",
+      "member": "nanoseconds-since-1970",
+      "why": "nineteen figures, written from the integer"
+    },
+    "r_exponent_longer": {
+      "answer": "1601283845123",
+      "contact": "(none)",
+      "form": {
+        "contacts": null,
+        "exponent": true,
+        "mark": ".",
+        "places": 0,
+        "significant": 15,
+        "trimmed": true
+      },
+      "iso": "2020-09-28 09:04:05.123",
+      "member": "milliseconds-since-1970",
+      "why": "and the thirteen figures where they are shorter"
+    },
+    "r_exponent_shorter": {
+      "answer": "1.6e+12",
+      "contact": "(none)",
+      "form": {
+        "contacts": null,
+        "exponent": true,
+        "mark": ".",
+        "places": 0,
+        "significant": 15,
+        "trimmed": true
+      },
+      "iso": "2020-09-13 12:26:40",
+      "member": "milliseconds-since-1970",
+      "why": "R writes 1.6e+12 where it is shorter than the thirteen figures"
+    },
+    "repr_seventeen": {
+      "answer": "44730.10555555556",
+      "contact": "(none)",
+      "form": {
+        "contacts": null,
+        "exponent": false,
+        "mark": ".",
+        "places": 12,
+        "significant": 17,
+        "trimmed": true
+      },
+      "iso": "2022-06-18 02:32:00",
+      "member": "excel-1900",
+      "why": "repr's shortest figures of the double, not %.17g's seventeen"
+    },
+    "repr_whole_point_zero": {
+      "answer": "44730.0",
+      "contact": "(none)",
+      "form": {
+        "contacts": null,
+        "exponent": false,
+        "mark": ".",
+        "places": 12,
+        "significant": 17,
+        "trimmed": true
+      },
+      "iso": "2022-06-18",
+      "member": "excel-1900",
+      "why": "repr of a whole double at midnight keeps its point and nought"
+    },
+    "sas_days_before_1960": {
+      "answer": "-3652",
+      "contact": "(none)",
+      "form": {
+        "contacts": null,
+        "exponent": false,
+        "mark": ".",
+        "places": 0,
+        "significant": null,
+        "trimmed": false
+      },
+      "iso": "1950-01-01",
+      "member": "days-since-1960",
+      "why": "a date before the epoch, written signed"
+    },
+    "spss_seconds_spelled": {
+      "answer": "13166109296",
+      "contact": "(none)",
+      "form": {
+        "contacts": null,
+        "exponent": false,
+        "mark": ".",
+        "places": 0,
+        "significant": null,
+        "trimmed": false
+      },
+      "iso": "2000-01-01 12:34:56",
+      "member": "seconds-since-1582",
+      "why": "SPSS seconds written back from the moment"
+    },
+    "stata_milliseconds_spelled": {
+      "answer": "1956614399999",
+      "contact": "(none)",
+      "form": {
+        "contacts": null,
+        "exponent": false,
+        "mark": ".",
+        "places": 0,
+        "significant": null,
+        "trimmed": false
+      },
+      "iso": "2021-12-31 23:59:59.999",
+      "member": "milliseconds-since-1960",
+      "why": "a thousandth of a second kept"
+    },
+    "unix_days_spelled": {
+      "answer": "10957",
+      "contact": "(none)",
+      "form": {
+        "contacts": null,
+        "exponent": false,
+        "mark": ".",
+        "places": 0,
+        "significant": null,
+        "trimmed": false
+      },
+      "iso": "2000-01-01",
+      "member": "days-since-1970",
+      "why": "days from 1970 written back from the date"
+    },
+    "unix_microseconds_spelled": {
+      "answer": "946730096789012",
+      "contact": "(none)",
+      "form": {
+        "contacts": null,
+        "exponent": false,
+        "mark": ".",
+        "places": 0,
+        "significant": null,
+        "trimmed": false
+      },
+      "iso": "2000-01-01 12:34:56.789012",
+      "member": "microseconds-since-1970",
+      "why": "microseconds written back from the moment"
+    }
+  },
+  "steps": {
+    "inward": {
+      "answer": 9,
+      "distance": 12,
+      "islands": [
+        [
+          10,
+          15
+        ]
+      ],
+      "reach": 100,
+      "why": "on the island: to the unit inside it"
+    },
+    "no_room_stays": {
+      "answer": 1,
+      "distance": 1,
+      "islands": [
+        [
+          1,
+          1
+        ]
+      ],
+      "reach": 1,
+      "why": "no unit inside it and none within the reach beyond: it stays"
+    },
+    "off_the_island_stands": {
+      "answer": 20,
+      "distance": 20,
+      "islands": [
+        [
+          10,
+          15
+        ]
+      ],
+      "reach": 100,
+      "why": "off every island: unchanged"
+    },
+    "outward_beside_the_boundary": {
+      "answer": 2,
+      "distance": 1,
+      "islands": [
+        [
+          1,
+          1
+        ]
+      ],
+      "reach": 100,
+      "why": "no unit inside it: to the unit beyond"
+    }
+  },
+  "strata": {
+    "across_it_is_left": {
+      "answer": {
+        "far": [
+          40,
+          18
+        ],
+        "near": [
+          30,
+          12
+        ]
+      },
+      "far": [
+        40,
+        18
+      ],
+      "islands": [
+        [
+          10,
+          15
+        ]
+      ],
+      "near": [
+        30,
+        12
+      ],
+      "reach": 100,
+      "why": "a stratum running across the island keeps its own room"
+    },
+    "one_rank_on_it": {
+      "answer": {
+        "far": [
+          40,
+          25,
+          16,
+          8,
+          4,
+          2
+        ],
+        "near": [
+          30,
+          20,
+          9,
+          5,
+          3,
+          2
+        ]
+      },
+      "far": [
+        40,
+        25,
+        14,
+        8,
+        4,
+        2
+      ],
+      "islands": [
+        [
+          10,
+          15
+        ]
+      ],
+      "near": [
+        30,
+        20,
+        12,
+        5,
+        3,
+        2
+      ],
+      "reach": 100,
+      "why": "one stratum wholly on the island: one unit either side"
+    },
+    "room_inside_the_reach": {
+      "answer": {
+        "far": [
+          6,
+          3,
+          3
+        ],
+        "near": [
+          5,
+          1,
+          1
+        ]
+      },
+      "far": [
+        6,
+        2,
+        1
+      ],
+      "islands": [
+        [
+          1,
+          2
+        ]
+      ],
+      "near": [
+        5,
+        1,
+        1
+      ],
+      "reach": 3,
+      "why": "an island beside the boundary: room from one to the reach"
+    },
+    "three_ranks_and_the_order_kept": {
+      "answer": {
+        "far": [
+          40,
+          18,
+          18,
+          18,
+          4
+        ],
+        "near": [
+          30,
+          7,
+          7,
+          7,
+          3
+        ]
+      },
+      "far": [
+        40,
+        15,
+        14,
+        13,
+        4
+      ],
+      "islands": [
+        [
+          10,
+          15
+        ]
+      ],
+      "near": [
+        30,
+        14,
+        12,
+        11,
+        3
+      ],
+      "reach": 100,
+      "why": "three on it: three units either side"
+    }
+  },
+  "what": "Method section G7.10's two halves (landing R4, plan P4-D384), each case with its answer computed from the method's text with datetime and Fraction: a count read as the moment its system names, written as ISO text at a unit, and a moment written back as its system's count, spelled as a `count_form` says; the contact numbers a census deals over the dated cells of an Epic column; the days each system's column of dates, and of moments, holds no date on; how far a tail reaches short of a wall of them, the islands inside that reach, a tail's end and group stepped off one and every stratum lying wholly on one given room; and the twin's ranks kept off them, by whole days or by the unit the column is written at."
+}

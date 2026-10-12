@@ -734,6 +734,7 @@ jobs:
           wheel required synthtwin/canonical.py
           wheel required synthtwin/cli.py
           wheel required synthtwin/contract.py
+          wheel required synthtwin/date_counts.py
           wheel required synthtwin/dialect.py
           wheel required synthtwin/errors.py
           wheel required synthtwin/asking.py
@@ -768,6 +769,7 @@ jobs:
           sdist required ROOT/src/synthtwin/canonical.py
           sdist required ROOT/src/synthtwin/cli.py
           sdist required ROOT/src/synthtwin/contract.py
+          sdist required ROOT/src/synthtwin/date_counts.py
           sdist required ROOT/src/synthtwin/dialect.py
           sdist required ROOT/src/synthtwin/errors.py
           sdist required ROOT/src/synthtwin/asking.py

@@ -70,7 +70,6 @@ _RESERVED: "dict[tuple[str, str], object]" = {
     # -- 3b.C2 (P4-D374)
     ("time_of_day", "minute_census"): [],
     # -- 3b.R4 (P4-D384), reserved by the second cut (P4-D386)
-    ("datetime", "count_form"): None,
 }
 
 # THE DECLARATIONS THE SECOND CUT RESERVES (plan P4-D386), lane by lane:
@@ -84,7 +83,6 @@ _RESERVED_SETTINGS: "dict[str, object]" = {
     # -- 3b.R2c (P4-D383)
     "forced_date_columns": [],
     # -- 3b.R4 (P4-D384)
-    "forced_date_counts": [],
 }
 
 # THE GUARD'S CASES, lane by lane: a column of `_three_kinds`, one of its
@@ -106,7 +104,6 @@ _GUARDED = (
     # under the path of 3b.T3's key, so the rows 3b.T3 adds admit it here
     # too, and until 3b.C2 fills it the loader's R16 case refuses it.
     # -- 3b.R4 (P4-D384), reserved by the second cut (P4-D386)
-    ("seen_on", "count_form", {"places": 0, "trimmed": False, "contacts": None}),
 )
 
 # ...AND THE SETTINGS BLOCK'S, lane by lane: a reserved declaration and a
@@ -117,7 +114,6 @@ _GUARDED_SETTINGS = (
     # -- 3b.R2c (P4-D383)
     ("forced_date_columns", ["seen_on"]),
     # -- 3b.R4 (P4-D384)
-    ("forced_date_counts", [["seen_on", "excel-1900"]]),
 )
 
 # THE STUBS AND SEAMS, lane by lane: how each is called (its kind, read by

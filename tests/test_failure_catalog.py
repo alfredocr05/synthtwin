@@ -312,6 +312,13 @@ CASES: "dict[str, tuple[object, ...]]" = {
     # already theirs, and both needed, because the sentence has to say
     # which pair it is refusing and there are two such pairs.
     "comma_declaration_would_be_ignored": ("weight", "--code"),
+    # -- 3b.R4 (P4-D384): `--date-count` naming a system that is not one of
+    # the twelve is refused before the table is opened, and it takes what
+    # the person typed, theirs already; a column so named whose cells did
+    # not read as such dates is told so after the run, for the comma
+    # declaration's reason, with the system and the role synthtwin read.
+    "date_count_system_not_supported": ("excel-2000",),
+    "the_date_count_declaration_did_not_reach": ("visit_day", "excel-1900", "count"),
     # NOT a refusal: the loud remark for a declaration that was
     # accepted and then could not be honoured, because the column's
     # role was not known until the table had been read (R-P4-52). It

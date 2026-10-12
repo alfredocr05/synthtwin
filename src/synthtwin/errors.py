@@ -1608,6 +1608,52 @@ def one_column_answered_both_ways(path: str, name: str) -> str:
     )
 
 
+def date_count_system_not_supported(given: str) -> str:
+    """Message for a `--date-count` system that is not one of the twelve (landing R4).
+
+    Refused before the table is opened, and it takes what the person
+    typed, which is theirs already.
+    """
+    return (
+        f"--date-count takes a column's name and then the system its "
+        f"dates are counted in, but {given} is not one of the systems "
+        f"synthtwin reads. They are excel-1900, excel-1904, "
+        f"days-since-1960, seconds-since-1960, milliseconds-since-1960, "
+        f"days-since-1970, seconds-since-1970, milliseconds-since-1970, "
+        f"microseconds-since-1970, nanoseconds-since-1970, "
+        f"days-since-1840 and seconds-since-1582. Please run the command "
+        f"again with, for example, --date-count visit_day excel-1900. "
+        f"Nothing was read and nothing was written."
+    )
+
+
+def the_date_count_declaration_did_not_reach(
+    name: str, member: str, role: str
+) -> str:
+    """Message when `--date-count` names a column whose cells did not read as such dates (landing R4).
+
+    NOT A REFUSAL, for the comma declaration's reason: whether a column's
+    cells are counts that name dates is known only once the table is
+    read. The description says the same in NF115.
+    """
+    return (
+        f"The column '{_shown(name)}' was named with --date-count as "
+        f"dates counted as {member}, but its cells did not read as such "
+        f"dates -- too few of them are counts that name a date, the "
+        f"dates they name are too few to describe as dates, or the "
+        f"figures after the point step between the units a date is "
+        f"written to, as one to three figures of a day or tenths of a "
+        f"second do, some cells are written as dates in text beside the "
+        f"counts, or the counts are not written one way -- so it was "
+        f"described as {role}, as it reads without the declaration. The "
+        f"description that was written is correct about everything else, "
+        f"and says which columns were declared. Check the column's name "
+        f"and the system; where its dates are written two ways, write "
+        f"every one the same way -- all as counts in one spelling, or all "
+        f"as text -- and run the command again."
+    )
+
+
 def the_comma_declaration_did_not_reach(name: str, role: str) -> str:
     """Message when `--decimal-comma` lands on a role it cannot help.
 
@@ -1822,7 +1868,12 @@ def profile_version_is_older(found: int, reads: int) -> str:
     value" the person named -- and what to do, which is to describe the
     table again UNDER THE SAME OPTIONS.
 
-    IT NAMES FIFTEEN OPTIONS. `--century` joined with landing R2a (plan
+    IT NAMES SIXTEEN OPTIONS. `--date-count` joined with landing R4 (plan
+    P4-D384): left out, a column whose dates are written as counts is
+    described as numbers, so its twin keeps how they spread and loses the
+    day of the week and the time of day each date falls on; question Q3
+    answers it, so the `--answers` clause names it too. Before it named
+    fifteen. `--century` joined with landing R2a (plan
     P4-D383): left out, a two-figure year is read as one of 1969 to
     2068, so a birth date of 1931 written 31 is read as 2031 and the
     published dates move a century; question Q5 answers it, so the
@@ -1930,7 +1981,7 @@ def profile_version_is_older(found: int, reads: int) -> str:
         f"exactly. Please make the "
         f"description again by running 'synthtwin profile' on your "
         f"table, giving it every option you gave the first time: "
-        f"--keep-value, --missing-value, --identifier, --code, "
+        f"--keep-value, --missing-value, --identifier, --code, --date-count, "
         f"--measurement, --decimal-comma, --smallest-group, --first-row, "
         f"--day-first, --twelve-hour, --century, --metadata-rows, --sheet, "
         f"--delimiter and "
@@ -1941,7 +1992,7 @@ def profile_version_is_older(found: int, reads: int) -> str:
         f"old one held back: without the --smallest-group you gave, a "
         f"value that fewer rows share can be named; without the "
         f"--identifier you gave, a column of record numbers is "
-        f"described like any other column; without the --code you gave, a column of codes is described as measurements, so its values are described by a ladder and by the two groups beyond it, and an end a group of rows shares \u2014 which is a real code \u2014 is published; its twin loses any leading zeros; without the --measurement you gave, a column of readings written as two numbers in one cell, such as a blood pressure, is described as text and its twin holds no readings at all; without the --decimal-comma you gave, a column whose numbers are written with a comma where the decimal point goes is read by the ordinary rules, so a column of quantities is described as text and every number in it is lost, or a value such as 1,234 is published as one thousand two hundred and thirty-four; without the --missing-value "
+        f"described like any other column; without the --code you gave, a column of codes is described as measurements, so its values are described by a ladder and by the two groups beyond it, and an end a group of rows shares \u2014 which is a real code \u2014 is published; its twin loses any leading zeros; without the --measurement you gave, a column of readings written as two numbers in one cell, such as a blood pressure, is described as text and its twin holds no readings at all; without the --decimal-comma you gave, a column whose numbers are written with a comma where the decimal point goes is read by the ordinary rules, so a column of quantities is described as text and every number in it is lost, or a value such as 1,234 is published as one thousand two hundred and thirty-four; without the --date-count you gave, a column whose dates are written as counts -- days, seconds or milliseconds from a fixed day -- is described as numbers, so the twin keeps how the numbers spread but loses the day of the week and the time of day each date falls on; without the --missing-value "
         f"you gave, a stand-in is read as a real reading, and the "
         f"stand-in itself can be published as the column's smallest "
         f"value; without the --keep-value you gave, a word you had "
@@ -1975,7 +2026,8 @@ def profile_version_is_older(found: int, reads: int) -> str:
         f"column name the description publishes and every value it "
         f"describes; and without the --answers you "
         f"gave, every answer you wrote in the questions file is gone \u2014 "
-        f"each of them was a --code, an --identifier, a --measurement, "
+        f"each of them was a --code, an --identifier, a --date-count, a "
+        f"--measurement, "
         f"a --decimal-comma, a --metadata-rows, a --delimiter, a "
         f"--twelve-hour, a --century, a --day-first, a --missing-value "
         f"or a "
