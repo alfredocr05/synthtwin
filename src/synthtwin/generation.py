@@ -19923,7 +19923,9 @@ def _heavy_few_cells(
             )
             for place, prefix in sources
         ]
-        flow, placed = _heavy_flow(amounts, reach, list(demands[which]))
+        flow, placed = _heavy_flow(
+            amounts, reach, [owe for owe in demands[which]]
+        )
         short = short + sum(demands[which]) - flow
         grown: "list[dict[tuple[int, ...], int]]" = [{} for _ in days_of]
         for source in range(len(sources)):
@@ -20037,7 +20039,9 @@ def _heavy_spread_cells(
     for index in range(len(cells)):
         place, key = cells[index]
         first[place][key[0]] = max(first[place][key[0]], 0) + weights[index]
-    table, unplaced = _heavy_rounded(first, supply, list(demands[0]))
+    table, unplaced = _heavy_rounded(
+        first, supply, [owe for owe in demands[0]]
+    )
     if len(demands) == 1:
         for place in range(len(days_of)):
             for group in range(width):
@@ -20069,7 +20073,9 @@ def _heavy_spread_cells(
                 for value in second[row]
             ]
     split, more = _heavy_rounded(
-        second, [table[place][group] for place, group in rows], list(demands[1])
+        second,
+        [table[place][group] for place, group in rows],
+        [owe for owe in demands[1]],
     )
     for row in range(len(rows)):
         place, group = rows[row]
@@ -20191,7 +20197,9 @@ def _heavy_wide_cells(
             [group for group in range(groups) if room[source][group] > 0]
             for source in range(len(sources))
         ]
-        flow, placed = _heavy_cheapest(amounts, reach, list(demands[which]), room)
+        flow, placed = _heavy_cheapest(
+            amounts, reach, [owe for owe in demands[which]], room
+        )
         short = short + sum(demands[which]) - flow
         grown: "list[dict[tuple[int, ...], int]]" = [{} for _ in days_of]
         for source in range(len(sources)):
@@ -20281,7 +20289,8 @@ def _heavy_cells(
                 for weight, place, key in raked
                 if not any(day in knots for day in days_of[place][key])
             )
-            for _weight, place, key in light[0:over]:
+            for index in range(min(over, len(light))):
+                _weight, place, key = light[index]
                 dropped[place] = dropped[place] | {key}
             pruned, short, raked = _heavy_spread_cells(
                 days_of, supply, demands, dropped
@@ -26392,8 +26401,9 @@ def _heavy_values(
     ranks are split by key (`_heavy_cells`); each key holding ranks opens
     at least one new day unless a knot's day lies in it, and the rest of
     `left` goes to the keys by their ranks, never more than a key's free
-    days or its ranks. A key's new days are spread evenly over its free
-    days; each takes one rank, and every other rank of the key is drawn
+    days or its ranks. A key's new days are drawn among its free days,
+    one by the word of each of its first slots, no day drawn twice; each
+    takes that slot's rank, and every other rank of the key is drawn
     uniformly over the key's new days and its knots' days by the word of
     its slot -- a part's keys hold its slots in key order, one per rank.
 
@@ -26446,13 +26456,20 @@ def _heavy_values(
     for index in range(len(cells)):
         number, rows, fixed, free = cells[index]
         chosen = opened[index]
-        spread = tuple(
-            free[((2 * step + 1) * len(free)) // (2 * chosen)]
-            for step in range(chosen)
-        )
-        days = tuple(sorted(fixed + spread))
-        drawn = [day for day in spread]
         slot = slots[number]
+        # The key's new days: `chosen` of its free days, each the word of
+        # its slot drawing one of those not yet drawn (a partial shuffle,
+        # the swaps held aside so the free days are never copied).
+        swapped: "dict[int, int]" = {}
+        spread: "list[int]" = []
+        for place in range(chosen):
+            other = place + (words[slot + place] * (len(free) - place)) // _WORD_SCALE
+            here = swapped.get(place, place)
+            there = swapped.get(other, other)
+            swapped[other] = here
+            spread += [free[there]]
+        days = tuple(sorted(fixed + tuple(spread)))
+        drawn = [day for day in spread]
         for place in range(chosen, rows):
             word = words[slot + place]
             drawn += [days[(word * len(days)) // _WORD_SCALE]]

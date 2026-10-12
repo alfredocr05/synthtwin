@@ -9281,10 +9281,992 @@ def clock_fields_settled(column, ordinals, parsed, whole, lows, highs, holes):
 
 
 def heavy_sorted(column, ordinals, parsed, whole, lows, highs, holes):
-    """The dates that stand out, after every other pass -- landing 3b.6's
-    post-pass (lane D4, plan P4-D369). A STUB (plan P4-D364): every rank
-    stays until then."""
+    """The dates that stand out, after every other pass -- G7.3j step 6
+    (landing 3b.6, plan P4-D369): the body's ranks sorted again, every
+    value having stayed inside its part, so each boundary and rung reads
+    its own value."""
+    if not heavy_listed(column) or not column.get("low_tail") or not column.get("high_tail"):
+        return ordinals
+    first = column["low_tail"]["rows"]
+    last = parsed - 1 - column["high_tail"]["rows"]
+    ordinals = list(ordinals)
+    ordinals[first:last + 1] = sorted(ordinals[first:last + 1])
     return ordinals
+
+
+# THE DATES THAT STAND OUT (landing 3b.6, plan P4-D369), written from
+# method section G7.3j: each listed date's rows pinned on it, every other
+# body rank an ORDINARY rank of a PART -- the stretches between the
+# unlisted knots and the covered runs -- split by the parts' weighted room
+# and repaired by flows to the censuses' groups and to the count's new
+# days, then drawn by key with as many new days as the count leaves.
+
+
+class HeavyRecord:
+    """A segment, a part or a part's rooms of G7.3j, read by attribute."""
+
+    def __init__(self, **fields):
+        self.__dict__.update(fields)
+
+
+def heavy_weekday_of(day):
+    """The weekday of a day number: Monday 0, day 0 a Thursday."""
+    return (day + 3) % 7
+
+
+def heavy_where_of(groups):
+    """Each weekday's group in a weekday census of `(first, last, count)`."""
+    where = [0] * 7
+    for index, (first, last, _count) in enumerate(groups):
+        for weekday in range(first, last + 1):
+            where[weekday] = index
+    return tuple(where)
+
+
+def heavy_month_where(groups):
+    """Each of the thirty-four bins' group, bin 1 first, the last group
+    running past bin 34 back to bin 1 where it does."""
+    where = [0] * 34
+    for index, (first, last, _count) in enumerate(groups):
+        position = first
+        while True:
+            where[position - 1] = index
+            if position == last:
+                break
+            position = position % 34 + 1
+    return tuple(where)
+
+
+def heavy_listed(column):
+    """The column's listed dates as `(day, count)`, ascending."""
+    return tuple(
+        (ordinal_of(entry["date"], "date"), entry["count"])
+        for entry in column.get("heavy_dates") or []
+    )
+
+
+def heavy_days(column):
+    """The day of every listed date."""
+    return {day for day, _count in heavy_listed(column)}
+
+
+def heavy_groups(column, key):
+    """One published census of the column as `(first, last, count)`."""
+    return tuple(
+        (group["first"], group["last"], group["count"])
+        for group in column.get(key) or []
+    )
+
+
+HEAVY_PLANS = {}
+
+
+def heavy_planned(column, parsed, body, sides):
+    """G7.3j's plan of the column (`heavy_plan`), or None where it lists no
+    date: the knots are the body's pins, the holes the description's own
+    (its absent spellings, its decisions and its written forms), and the
+    budget the count of different values less the listed dates, the
+    unlisted knots' days and each tail's -- its published values, or one
+    -- where the count is reachable."""
+    listed = heavy_listed(column)
+    if not listed or ordinal_space(column) != "date" or not sides or not body:
+        return None
+    knots = tuple((rank, body[rank]) for rank in sorted(body))
+    holes = frozenset(
+        weekday_hole_days(dict(column, _declared_days=()), set(column.get("missing_by_source", {})))
+        - heavy_days(column)
+    )
+    budget = 1 << 62
+    if date_counts_reachable(column):
+        days = heavy_days(column)
+        knotted = {day for _rank, day in knots if day not in days}
+        budget = column["n_distinct"] - column["n_unparsed"] - len(days) - len(knotted)
+        for name in ("low", "high"):
+            side = column["low_tail" if name == "low" else "high_tail"]
+            if side["values"] is not None:
+                budget -= len(set(sides[name]["spots"]) - knotted - days)
+            else:
+                budget -= 1
+    censuses = (heavy_groups(column, "weekday_census"), heavy_groups(column, "day_of_month_census"))
+    # The plan is a function of these five alone, so it is kept by them.
+    key = (knots, listed, tuple(sorted(holes)), censuses, budget)
+    if key not in HEAVY_PLANS:
+        HEAVY_PLANS[key] = heavy_plan(knots, listed, holes, censuses, budget)
+    return HEAVY_PLANS[key]
+
+
+def heavy_drawn(column, parsed, planned, knots_of, held, words):
+    """G7.3j step 4 over the column: each ordinary rank's day, by rank."""
+    _placed, parts, owed = planned
+    listed = heavy_days(column)
+    knots = frozenset(day for day in knots_of if day not in listed)
+    left = 1 << 62
+    if date_counts_reachable(column):
+        left = column["n_distinct"] - column["n_unparsed"] - len(held)
+    values = heavy_values(parts, owed, knots, left, words)
+    found = {}
+    for number, part in enumerate(parts):
+        for index in range(part.count):
+            found[part.first + index] = on_draw_unit(column, values[number][index], part.lo, part.hi)
+    return found
+
+
+def heavy_met(column, ordinals, parsed, holes):
+    """Whether the ranks already meet every census beside the list and keep
+    off every hole -- the run's absent days and the description's -- but
+    the listed dates: G7.3j step 5 leaves such a column as drawn."""
+    first = column["low_tail"]["rows"]
+    last = parsed - 1 - column["high_tail"]["rows"]
+    for key, bins in (("weekday_census", "weekday"), ("day_of_month_census", "month_day")):
+        groups = heavy_groups(column, key)
+        if not groups:
+            continue
+        where = heavy_where_of(groups) if bins == "weekday" else heavy_month_where(groups)
+        found = [0] * len(groups)
+        for rank in range(first, last + 1):
+            found[heavy_group(where, bins, ordinals[rank])] += 1
+        if found != [count for _first, _last, count in groups]:
+            return False
+    listed = heavy_days(column)
+    kept_off = (absent_units(column) | weekday_hole_days(dict(column, _declared_days=()), set(column.get("missing_by_source", {})))) - listed
+    return not any(ordinals[rank] in kept_off for rank in range(first, last + 1))
+
+
+def heavy_plan(knots, listed, holes, censuses, budget):
+    """G7.3j steps 1 to 3 (plan P4-D369): every body rank's gap -- a listed rank's its own date -- the parts and what each census's groups owe the ordinary ranks, or None where no rank order holds the list."""
+    segments = heavy_segments(knots, listed, holes)
+    if segments is None:
+        return None
+    groups = heavy_censuses(censuses[0], censuses[1])
+    rooms = heavy_rooms(groups, segments, listed, holes, knots)
+    chosen = heavy_split(segments, rooms, budget)
+    if chosen is None:
+        return None
+    splits = heavy_repaired(segments, rooms, chosen[0], chosen[1], budget)
+    keyed = heavy_keyed(groups, segments, (listed, holes))
+    placed = {}
+    parts = []
+    for index in range(len(segments)):
+        segment = segments[index]
+        at = segment.base
+        for part in range(len(segment.lows)):
+            for day, count in segment.loose[part]:
+                for _row in range(count):
+                    placed[at] = (day, day)
+                    at = at + 1
+            ordinary = splits[index][part]
+            for rank in range(at, at + ordinary):
+                placed[rank] = (segment.lows[part], segment.highs[part])
+            if ordinary > 0:
+                parts += [HeavyRecord(lo=segment.lows[part], hi=segment.highs[part], first=at, count=ordinary, keyed=keyed[index][part])]
+            at = at + ordinary
+            if part < len(segment.covered):
+                day, count = segment.covered[part]
+                for _row in range(count):
+                    placed[at] = (day, day)
+                    at = at + 1
+    demands = tuple((tuple((max(0, owe) for owe in owes)) for owes in rooms.owed))
+    return (placed, tuple(parts), demands)
+
+def heavy_segments(knots, listed, holes):
+    """G7.3j step 1: the unlisted knots cut the body into segments, and the covered runs each segment into parts; per covered run, the least and most ordinary ranks the parts before it hold (contract HD4)."""
+    runs = heavy_runs(knots, listed, holes)
+    if runs is None:
+        return None
+    count_of = {day: count for day, count in listed}
+    start_of = {listed[index][0]: runs[index] for index in range(len(listed))}
+    knot_days = {day for _rank, day in knots}
+    low_rank, low_day = knots[0]
+    high_rank, high_day = knots[len(knots) - 1]
+    unlisted = {rank: day for rank, day in knots if day not in count_of}
+    anchors = []
+    if low_rank not in unlisted:
+        anchors += [(low_rank - 1, low_day - 1, False)]
+    for rank in sorted(unlisted):
+        anchors += [(rank, unlisted[rank], True)]
+    if high_rank not in unlisted:
+        anchors += [(high_rank + 1, high_day + 1, False)]
+    days = [day for day, _count in listed]
+    segments = []
+    pointer = 0
+    for index in range(len(anchors) - 1):
+        rank_a, day_a, real_a = anchors[index]
+        rank_b, day_b, real_b = anchors[index + 1]
+        while pointer < len(days) and days[pointer] <= day_a:
+            pointer = pointer + 1
+        inside = []
+        ahead = pointer
+        while ahead < len(days) and days[ahead] < day_b:
+            inside += [days[ahead]]
+            ahead = ahead + 1
+        if rank_b - rank_a <= 1:
+            continue
+        covered = [day for day in inside if day in knot_days]
+        ordinary = rank_b - rank_a - 1 - sum((count_of[day] for day in inside))
+        if ordinary < 0:
+            return None
+        lows = []
+        highs = []
+        loose = []
+        touches = []
+        for part in range(len(covered) + 1):
+            lo = max(day_a, low_day) if part == 0 else covered[part - 1] + 1
+            hi = min(day_b, high_day) if part == len(covered) else covered[part] - 1
+            lows += [lo]
+            highs += [hi]
+            loose += [tuple(((day, count_of[day]) for day in inside if lo <= day <= hi and day not in knot_days))]
+            touches += [part == 0 and real_a or (part == len(covered) and real_b)]
+        least = []
+        most = []
+        offset = rank_a + 1
+        for part in range(len(covered)):
+            offset = offset + sum((count for _day, count in loose[part]))
+            first, last = start_of[covered[part]]
+            least += [max(0, first - offset)]
+            most += [min(ordinary, last - offset)]
+            offset = offset + count_of[covered[part]]
+        segments += [HeavyRecord(base=rank_a + 1, ordinary=ordinary, lows=tuple(lows), highs=tuple(highs), loose=tuple(loose), touches=tuple(touches), covered=tuple(((day, count_of[day]) for day in covered)), least=tuple(least), most=tuple(most))]
+    return segments
+HEAVY_WEIGHT_SCALE = 1048576
+HEAVY_REPAIRS = 64
+
+def heavy_censuses(weekdays, month):
+    """The censuses beside the list -- the weekday census, then the day-of-month census -- each with every bin's group."""
+    found = []
+    if weekdays:
+        found += [(weekdays, heavy_where_of(weekdays), 'weekday')]
+    if month:
+        found += [(month, heavy_month_where(month), 'month_day')]
+    return found
+
+def heavy_group(where, bins, day):
+    """One day's group in one census beside the list."""
+    if bins == 'weekday':
+        return where[heavy_weekday_of(day)]
+    return where[month_bin(day) - 1]
+
+def heavy_rooms(censuses, segments, listed, holes, knots):
+    """G7.3j step 2: each part's free days -- no listed date, no hole -- by group, its weighted room and its cost in different days, and what each group owes the ordinary ranks."""
+    listed_days = {day for day, _count in listed}
+    owed = []
+    for groups, where, bins in censuses:
+        owes = [count for _first, _last, count in groups]
+        for day, count in listed:
+            group = heavy_group(where, bins, day)
+            owes[group] = owes[group] - count
+        for _rank, day in knots:
+            if day not in listed_days:
+                group = heavy_group(where, bins, day)
+                owes[group] = owes[group] - 1
+        owed += [owes]
+    room = []
+    free = []
+    totals = [[0 for _ in groups] for groups, _where, _bins in censuses]
+    for segment in segments:
+        rooms = []
+        frees = []
+        for part in range(len(segment.lows)):
+            held = 0
+            each = [[0 for _ in groups] for groups, _where, _bins in censuses]
+            for day in range(segment.lows[part], segment.highs[part] + 1):
+                if day in listed_days or day in holes:
+                    continue
+                held = held + 1
+                for which in range(len(censuses)):
+                    _groups, where, bins = censuses[which]
+                    group = heavy_group(where, bins, day)
+                    each[which][group] = each[which][group] + 1
+                    totals[which][group] = totals[which][group] + 1
+            rooms += [held]
+            frees += [tuple((tuple(row) for row in each))]
+        room += [tuple(rooms)]
+        free += [tuple(frees)]
+    weighted = []
+    cost = []
+    for index in range(len(segments)):
+        weights = []
+        costs = []
+        for part in range(len(room[index])):
+            if not censuses:
+                weights += [room[index][part] * HEAVY_WEIGHT_SCALE]
+                costs += [1]
+                continue
+            here = free[index][part][0]
+            owes = owed[0]
+            total = 0
+            spent = 0
+            for group in range(len(here)):
+                if here[group] <= 0 or totals[0][group] <= 0:
+                    continue
+                share = max(0, owes[group])
+                total = total + here[group] * share * HEAVY_WEIGHT_SCALE // totals[0][group]
+                if share > 0:
+                    spent = spent + 1
+            weights += [total]
+            costs += [max(1, spent)]
+        weighted += [tuple(weights)]
+        cost += [tuple(costs)]
+    return HeavyRecord(room=tuple(room), free=tuple(free), weighted=tuple(weighted), cost=tuple(cost), owed=tuple((tuple(owes) for owes in owed)))
+
+def heavy_bounds(segment, opened):
+    """The bounds of the ordinary ranks before each part's end that a split with these parts open can take, carried forward and back."""
+    parts = len(segment.lows)
+    reach = []
+    lowest, highest = (0, 0)
+    for part in range(parts):
+        least = segment.least[part] if part < parts - 1 else segment.ordinary
+        most = segment.most[part] if part < parts - 1 else segment.ordinary
+        if opened[part]:
+            lowest, highest = (max(lowest, least), min(most, segment.ordinary))
+        else:
+            lowest, highest = (max(lowest, least), min(highest, most))
+        if lowest > highest:
+            return None
+        reach += [(lowest, highest)]
+    bounds = [(0, 0) for _ in range(parts)]
+    bounds[parts - 1] = reach[parts - 1]
+    for part in range(parts - 1, 0, -1):
+        above = bounds[part]
+        below = reach[part - 1]
+        if opened[part]:
+            bounds[part - 1] = (below[0], min(below[1], above[1]))
+        else:
+            bounds[part - 1] = (max(below[0], above[0]), min(below[1], above[1]))
+        if bounds[part - 1][0] > bounds[part - 1][1]:
+            return None
+    return bounds
+
+def heavy_split_of(segment, opened, weights):
+    """Each part's ordinary ranks by weighted room among the open parts, held inside the bounds."""
+    bounds = heavy_bounds(segment, opened)
+    if bounds is None:
+        return None
+    total = sum((weights[part] for part in range(len(weights)) if opened[part]))
+    rooms = [weights[part] if opened[part] else 0 for part in range(len(weights))]
+    if total <= 0:
+        rooms = [1 if opened[part] else 0 for part in range(len(weights))]
+        total = sum(rooms)
+    split = []
+    before = 0
+    so_far = 0
+    for part in range(len(weights)):
+        so_far = so_far + rooms[part]
+        if not opened[part]:
+            split += [0]
+            continue
+        target = segment.ordinary
+        if total > 0:
+            target = (segment.ordinary * so_far + total // 2) // total
+        upto = min(max(target, bounds[part][0], before), bounds[part][1])
+        split += [upto - before]
+        before = upto
+    return split
+
+def heavy_split(segments, rooms, budget):
+    """G7.3j step 2: which parts open -- forced, touching an unlisted knot, then by free days while the budget lasts -- and the split."""
+    opened = []
+    spent = 0
+    for index in range(len(segments)):
+        segment = segments[index]
+        parts = len(segment.lows)
+        everything = [rooms.room[index][part] > 0 for part in range(parts)]
+        bounds = heavy_bounds(segment, everything)
+        row = []
+        for part in range(parts):
+            fewest = 0
+            if bounds is not None:
+                below = bounds[part - 1][1] if part > 0 else 0
+                fewest = max(0, bounds[part][0] - below)
+            here = rooms.room[index][part] > 0 and (fewest > 0 or segment.touches[part])
+            if fewest > 0:
+                spent = spent + rooms.cost[index][part] - (1 if segment.touches[part] else 0)
+            row += [here]
+        order = sorted(range(parts), key=lambda part: (-rooms.room[index][part], part))
+        if segment.ordinary > 0 and (not any(row)):
+            for part in order:
+                if rooms.room[index][part] > 0:
+                    row[part] = True
+                    spent = spent + rooms.cost[index][part]
+                    break
+        for part in order:
+            if heavy_bounds(segment, row) is not None:
+                break
+            if not row[part] and rooms.room[index][part] > 0:
+                row[part] = True
+                spent = spent + rooms.cost[index][part]
+        opened += [row]
+    rest = sorted(((-rooms.room[index][part], index, part) for index in range(len(segments)) for part in range(len(segments[index].lows)) if not opened[index][part] and rooms.room[index][part] > 0))
+    for _room, index, part in rest:
+        cost = rooms.cost[index][part]
+        if spent + cost > budget:
+            continue
+        opened[index][part] = True
+        if heavy_bounds(segments[index], opened[index]) is None:
+            opened[index][part] = False
+            continue
+        spent = spent + cost
+    splits = []
+    for index in range(len(segments)):
+        split = heavy_split_of(segments[index], opened[index], rooms.weighted[index])
+        if split is None:
+            return None
+        splits += [split]
+    return (splits, opened)
+
+def heavy_flow(supply, reach, demand, limit=1 << 62, caps=None):
+    """A capacity max-flow (Edmonds and Karp) from the parts to the groups: the rows placed and how many each part places on each group."""
+    parts = len(supply)
+    groups = len(demand)
+    source = parts + groups
+    sink = source + 1
+    size = sink + 1
+    capacity = [[0 for _ in range(size)] for _ in range(size)]
+    for part in range(parts):
+        capacity[source][part] = max(0, supply[part])
+        for group in reach[part]:
+            capacity[part][parts + group] = limit if caps is None else caps[part][group]
+    for group in range(groups):
+        capacity[parts + group][sink] = max(0, demand[group])
+    flow = 0
+    while True:
+        before = [-1 for _ in range(size)]
+        before[source] = source
+        queue = [source]
+        head = 0
+        while head < len(queue) and before[sink] < 0:
+            node = queue[head]
+            head = head + 1
+            for other in range(size):
+                if before[other] < 0 and capacity[node][other] > 0:
+                    before[other] = node
+                    queue += [other]
+        if before[sink] < 0:
+            placed = [[capacity[parts + group][part] for group in range(groups)] for part in range(parts)]
+            return (flow, placed)
+        push = 1 << 62
+        node = sink
+        while node != source:
+            push = min(push, capacity[before[node]][node])
+            node = before[node]
+        node = sink
+        while node != source:
+            capacity[before[node]][node] = capacity[before[node]][node] - push
+            capacity[node][before[node]] = capacity[node][before[node]] + push
+            node = before[node]
+        flow = flow + push
+
+def heavy_deficit(segments, rooms, splits):
+    """The owed rows the parts as split cannot place, over every census."""
+    supply = []
+    keys = []
+    for index in range(len(segments)):
+        for part in range(len(segments[index].lows)):
+            supply += [splits[index][part]]
+            keys += [(index, part)]
+    deficit = 0
+    for which in range(len(rooms.owed)):
+        owes = rooms.owed[which]
+        reach = [[group for group in range(len(owes)) if rooms.free[index][part][which][group] > 0] for index, part in keys]
+        demand = [max(0, owe) for owe in owes]
+        deficit = deficit + sum(demand) - heavy_flow(supply, reach, demand)[0]
+    return deficit
+
+def heavy_shift_room(segment, split, opened, source, target):
+    """How many ranks may move from one part to another of one segment with every covered run still around its knots."""
+    if not opened[target] or split[source] <= 0:
+        return 0
+    most = split[source]
+    total = 0
+    parts = len(segment.lows)
+    for part in range(parts - 1):
+        total = total + split[part]
+        if source <= part < target:
+            most = min(most, total - segment.least[part])
+        elif target <= part < source:
+            most = min(most, segment.most[part] - total)
+    return max(0, most)
+
+def heavy_repaired(segments, rooms, splits, opened, budget):
+    """G7.3j step 3: the split moved, inside one segment, while its score -- rows unplaced, then new days short of the budget -- falls."""
+    current = heavy_score(segments, rooms, splits, budget)
+    for _round in range(HEAVY_REPAIRS):
+        if current == (0, 0):
+            return splits
+        best = None
+        for index in range(len(segments)):
+            segment = segments[index]
+            parts = len(segment.lows)
+            for source in range(parts):
+                for target in range(parts):
+                    if source == target:
+                        continue
+                    most = heavy_shift_room(segment, splits[index], opened[index], source, target)
+                    if most <= 0:
+                        continue
+                    low, high = (0, most)
+                    while high - low > 1:
+                        middle = (low + high) // 2
+                        if heavy_moved_score(segments, rooms, splits, (index, source, target, middle + 1), budget) <= heavy_moved_score(segments, rooms, splits, (index, source, target, middle), budget):
+                            low = middle
+                        else:
+                            high = middle
+                    for count in (low, high):
+                        if count <= 0:
+                            continue
+                        score = heavy_moved_score(segments, rooms, splits, (index, source, target, count), budget)
+                        if score < current and (best is None or score < best[0]):
+                            best = (score, index, source, target, count)
+        if best is None:
+            return splits
+        score, index, source, target, count = best
+        splits[index][source] = splits[index][source] - count
+        splits[index][target] = splits[index][target] + count
+        current = score
+    return splits
+
+def heavy_reach_of(segments, rooms, splits):
+    """The most new days the parts as split can open."""
+    supply = []
+    keys = []
+    for index in range(len(segments)):
+        for part in range(len(segments[index].lows)):
+            supply += [splits[index][part]]
+            keys += [(index, part)]
+    if not rooms.owed:
+        return sum((min(supply[place], rooms.room[keys[place][0]][keys[place][1]]) for place in range(len(keys))))
+    owes = rooms.owed[0]
+    room = [[rooms.free[index][part][0][group] for group in range(len(owes))] for index, part in keys]
+    reach = [[group for group in range(len(owes)) if room[place][group] > 0] for place in range(len(keys))]
+    _flow, placed = heavy_cheapest(supply, reach, [max(0, owe) for owe in owes], room)
+    return sum((min(placed[place][group], room[place][group]) for place in range(len(keys)) for group in range(len(owes))))
+
+def heavy_score(segments, rooms, splits, budget):
+    """A split's score: the owed rows unplaced, then the new days short."""
+    deficit = heavy_deficit(segments, rooms, splits) if rooms.owed else 0
+    return (deficit, max(0, budget - heavy_reach_of(segments, rooms, splits)))
+
+def heavy_moved_score(segments, rooms, splits, move, budget):
+    """The score with some ranks moved from one part to another."""
+    index, source, target, count = move
+    splits[index][source] = splits[index][source] - count
+    splits[index][target] = splits[index][target] + count
+    score = heavy_score(segments, rooms, splits, budget)
+    splits[index][source] = splits[index][source] + count
+    splits[index][target] = splits[index][target] - count
+    return score
+HEAVY_RAKES = 60
+HEAVY_PRUNES = 8
+
+def heavy_keyed(censuses, segments, kept):
+    """Each part's free days by key, their group in each census beside the list."""
+    listed, holes = kept
+    listed_days = {day for day, _count in listed}
+    keyed = []
+    for segment in segments:
+        row = []
+        for part in range(len(segment.lows)):
+            found = {}
+            for day in range(segment.lows[part], segment.highs[part] + 1):
+                if day in listed_days or day in holes:
+                    continue
+                key = tuple((heavy_group(where, bins, day) for _groups, where, bins in censuses))
+                if key not in found:
+                    found[key] = []
+                found[key] += [day]
+            row += [tuple(((key, tuple(found[key])) for key in sorted(found)))]
+        keyed += [row]
+    return keyed
+
+def heavy_leftover(days_of, prefix, dropped):
+    """The group, one census further, of the widest key under a prefix."""
+    widest = -1
+    best = 0
+    for key in sorted(days_of):
+        if key in dropped or key[0:len(prefix)] != prefix:
+            continue
+        if len(days_of[key]) > widest:
+            widest = len(days_of[key])
+            best = key[len(prefix)]
+    return best
+
+def heavy_few_cells(days_of, supply, demands):
+    """FEW: each part's ranks per key by one capacity flow per census, and the rows unplaced."""
+    shares = [{(): supply[place]} for place in range(len(days_of))]
+    short = 0
+    for which in range(len(demands)):
+        sources = []
+        amounts = []
+        for place in range(len(days_of)):
+            for prefix in sorted(shares[place]):
+                if shares[place][prefix] > 0:
+                    sources += [(place, prefix)]
+                    amounts += [shares[place][prefix]]
+        reach = [sorted({key[which] for key in days_of[place] if key[0:which] == prefix}) for place, prefix in sources]
+        flow, placed = heavy_flow(amounts, reach, list(demands[which]))
+        short = short + sum(demands[which]) - flow
+        grown = [{} for _ in days_of]
+        for source in range(len(sources)):
+            place, prefix = sources[source]
+            left = amounts[source]
+            for group in range(len(demands[which])):
+                if placed[source][group] > 0:
+                    key = prefix + (group,)
+                    grown[place][key] = grown[place].get(key, 0) + placed[source][group]
+                    left = left - placed[source][group]
+            if left > 0:
+                key = prefix + (heavy_leftover(days_of[place], prefix, frozenset()),)
+                grown[place][key] = grown[place].get(key, 0) + left
+        shares = grown
+    return (shares, short)
+
+def heavy_rounded(values, rows, columns):
+    """A table of shares rounded to whole ranks with its row and column sums: floors, then a unit-capacity flow on the remainders, then an unbounded one."""
+    height = len(values)
+    width = len(columns)
+    table = [[max(0, values[row][column]) // WEEKDAY_SHARE_SCALE for column in range(width)] for row in range(height)]
+    for limit, wanted in ((1, True), (1 << 62, False)):
+        short = [max(0, rows[row] - sum(table[row])) for row in range(height)]
+        want = [max(0, columns[column] - sum((table[row][column] for row in range(height)))) for column in range(width)]
+        reach = [[column for column in range(width) if values[row][column] >= 0 and (not wanted or values[row][column] % WEEKDAY_SHARE_SCALE > 0)] for row in range(height)]
+        _flow, placed = heavy_flow(short, reach, want, limit)
+        for row in range(height):
+            for column in range(width):
+                table[row][column] = table[row][column] + placed[row][column]
+    unplaced = sum((max(0, rows[row] - sum(table[row])) for row in range(height)))
+    return (table, unplaced)
+
+def heavy_spread_cells(days_of, supply, demands, dropped):
+    """SPREAD: each part's ranks per key, raked from the keys' free days to the parts' ranks and the owed rows, then rounded."""
+    cells = []
+    weights = []
+    for place in range(len(days_of)):
+        for key in sorted(days_of[place]):
+            if key in dropped[place]:
+                continue
+            cells += [(place, key)]
+            weights += [len(days_of[place][key]) * WEEKDAY_SHARE_SCALE]
+    for _round in range(HEAVY_RAKES):
+        margins = [(-1, tuple(supply))]
+        for which in range(len(demands)):
+            margins += [(which, demands[which])]
+        for which, targets in margins:
+            totals = [0 for _ in targets]
+            for index in range(len(cells)):
+                place, key = cells[index]
+                at = place if which < 0 else key[which]
+                totals[at] = totals[at] + weights[index]
+            for index in range(len(cells)):
+                place, key = cells[index]
+                at = place if which < 0 else key[which]
+                if totals[at] > 0:
+                    weights[index] = weights[index] * targets[at] * WEEKDAY_SHARE_SCALE // totals[at]
+    raked = [(weights[index], cells[index][0], cells[index][1]) for index in range(len(cells))]
+    shares = [{} for _ in days_of]
+    if not demands:
+        for place, key in cells:
+            shares[place][key] = supply[place]
+        return (shares, 0, raked)
+    width = len(demands[0])
+    first = [[-1 for _ in range(width)] for _ in days_of]
+    for index in range(len(cells)):
+        place, key = cells[index]
+        first[place][key[0]] = max(first[place][key[0]], 0) + weights[index]
+    table, unplaced = heavy_rounded(first, supply, list(demands[0]))
+    if len(demands) == 1:
+        for place in range(len(days_of)):
+            for group in range(width):
+                if table[place][group] > 0:
+                    shares[place][group,] = table[place][group]
+        return (shares, unplaced, raked)
+    rows = [(place, group) for place in range(len(days_of)) for group in range(width) if table[place][group] > 0]
+    where = {rows[row]: row for row in range(len(rows))}
+    second = [[-1 for _ in demands[1]] for _ in rows]
+    for index in range(len(cells)):
+        place, key = cells[index]
+        if (place, key[0]) not in where:
+            continue
+        row = where[place, key[0]]
+        second[row][key[1]] = max(second[row][key[1]], 0) + weights[index]
+    for row in range(len(rows)):
+        place, group = rows[row]
+        total = sum((value for value in second[row] if value > 0))
+        if total > 0:
+            second[row] = [value * table[place][group] * WEEKDAY_SHARE_SCALE // total if value >= 0 else -1 for value in second[row]]
+    split, more = heavy_rounded(second, [table[place][group] for place, group in rows], list(demands[1]))
+    for row in range(len(rows)):
+        place, group = rows[row]
+        left = table[place][group] - sum(split[row])
+        for other in range(len(demands[1])):
+            if split[row][other] > 0:
+                shares[place][group, other] = split[row][other]
+        if left > 0:
+            key = (group, heavy_leftover(days_of[place], (group,), dropped[place]))
+            shares[place][key] = shares[place].get(key, 0) + left
+    return (shares, unplaced + more, raked)
+
+def heavy_cheapest(supply, reach, demand, room):
+    """A min-cost max-flow by successive shortest paths: a part's first rows on a group, up to its free days there, cost one less than the rest."""
+    parts = len(supply)
+    groups = len(demand)
+    source = parts + groups
+    sink = source + 1
+    size = sink + 1
+    arcs = [[] for _ in range(size)]
+
+    def joined(start, end, capacity, cost):
+        arcs[start] += [[end, capacity, cost, len(arcs[end])]]
+        arcs[end] += [[start, 0, -cost, len(arcs[start]) - 1]]
+    for part in range(parts):
+        joined(source, part, max(0, supply[part]), 0)
+        for group in reach[part]:
+            if room[part][group] > 0:
+                joined(part, parts + group, room[part][group], -1)
+            joined(part, parts + group, 1 << 62, 0)
+    for group in range(groups):
+        joined(parts + group, sink, max(0, demand[group]), 0)
+    flow = 0
+    while True:
+        far = 1 << 62
+        distance = [far for _ in range(size)]
+        before = [(-1, -1) for _ in range(size)]
+        distance[source] = 0
+        for _round in range(size):
+            changed = False
+            for node in range(size):
+                if distance[node] >= far:
+                    continue
+                for index in range(len(arcs[node])):
+                    end, capacity, cost, _back = arcs[node][index]
+                    if capacity > 0 and distance[node] + cost < distance[end]:
+                        distance[end] = distance[node] + cost
+                        before[end] = (node, index)
+                        changed = True
+            if not changed:
+                break
+        if distance[sink] >= far:
+            break
+        push = 1 << 62
+        node = sink
+        while node != source:
+            start, index = before[node]
+            push = min(push, arcs[start][index][1])
+            node = start
+        node = sink
+        while node != source:
+            start, index = before[node]
+            arcs[start][index][1] = arcs[start][index][1] - push
+            back = arcs[start][index][3]
+            arcs[node][back][1] = arcs[node][back][1] + push
+            node = start
+        flow = flow + push
+    placed = [[0 for _ in range(groups)] for _ in range(parts)]
+    for part in range(parts):
+        for end, _capacity, _cost, back in arcs[part]:
+            if parts <= end < parts + groups:
+                placed[part][end - parts] = placed[part][end - parts] + arcs[end][back][1]
+    return (flow, placed)
+
+def heavy_wide_cells(days_of, supply, demands):
+    """WIDE: each part's ranks per key, as many on days of their own as a flow placing every owed row allows."""
+    shares = [{(): supply[place]} for place in range(len(days_of))]
+    short = 0
+    for which in range(len(demands)):
+        sources = []
+        amounts = []
+        for place in range(len(days_of)):
+            for prefix in sorted(shares[place]):
+                if shares[place][prefix] > 0:
+                    sources += [(place, prefix)]
+                    amounts += [shares[place][prefix]]
+        groups = len(demands[which])
+        room = [[0 for _ in range(groups)] for _ in sources]
+        for source in range(len(sources)):
+            place, prefix = sources[source]
+            for key in days_of[place]:
+                if key[0:which] == prefix:
+                    room[source][key[which]] = room[source][key[which]] + len(days_of[place][key])
+        reach = [[group for group in range(groups) if room[source][group] > 0] for source in range(len(sources))]
+        flow, placed = heavy_cheapest(amounts, reach, list(demands[which]), room)
+        short = short + sum(demands[which]) - flow
+        grown = [{} for _ in days_of]
+        for source in range(len(sources)):
+            place, prefix = sources[source]
+            left = amounts[source]
+            for group in range(groups):
+                taken = placed[source][group]
+                if taken > 0:
+                    key = prefix + (group,)
+                    grown[place][key] = grown[place].get(key, 0) + taken
+                    left = left - taken
+            if left > 0:
+                key = prefix + (heavy_leftover(days_of[place], prefix, frozenset()),)
+                grown[place][key] = grown[place].get(key, 0) + left
+        shares = grown
+    return (shares, short)
+
+def heavy_reach(shares, days_of, knots):
+    """The most new days a split can open: per key, its ranks or its free days that are no knot's, whichever is fewer."""
+    count = 0
+    for place in range(len(shares)):
+        for key in shares[place]:
+            days = days_of[place].get(key, ())
+            free = len([day for day in days if day not in knots])
+            count = count + min(free, max(0, shares[place][key]))
+    return count
+
+def heavy_opened(shares, days_of, knots):
+    """How many keys holding ranks hold no knot's day."""
+    count = 0
+    for place in range(len(shares)):
+        for key in shares[place]:
+            if shares[place][key] > 0 and (not any((day in knots for day in days_of[place].get(key, ())))):
+                count = count + 1
+    return count
+
+def heavy_cells(parts, demands, knots, left):
+    """G7.3j step 3: SPREAD, SPREAD less its lightest keys, then FEW, or WIDE; the first placing every owed row and able to open exactly the new days the count leaves."""
+    days_of = [{key: days for key, days in part.keyed} for part in parts]
+    supply = [part.count for part in parts]
+    nothing = [frozenset() for _ in parts]
+    spread, short, raked = heavy_spread_cells(days_of, supply, demands, nothing)
+    tried = [(short, spread)]
+    over = heavy_opened(spread, days_of, knots) - left
+    if over > 0:
+        dropped = [frozenset() for _ in parts]
+        for _round in range(HEAVY_PRUNES):
+            light = sorted(((weight, place, key) for weight, place, key in raked if not any((day in knots for day in days_of[place][key]))))
+            for _weight, place, key in light[0:over]:
+                dropped[place] = dropped[place] | {key}
+            pruned, short, raked = heavy_spread_cells(days_of, supply, demands, dropped)
+            tried += [(short, pruned)]
+            over = heavy_opened(pruned, days_of, knots) - left
+            if over <= 0 or short > 0:
+                break
+        few, short = heavy_few_cells(days_of, supply, demands)
+        tried += [(short, few)]
+    elif heavy_reach(spread, days_of, knots) < left:
+        wide, short = heavy_wide_cells(days_of, supply, demands)
+        tried += [(short, wide)]
+    ranked = []
+    for order in range(len(tried)):
+        short, shares = tried[order]
+        missing = max(0, heavy_opened(shares, days_of, knots) - left, left - heavy_reach(shares, days_of, knots))
+        if short == 0 and missing == 0:
+            return shares
+        ranked += [(short, missing, order)]
+    return tried[sorted(ranked)[0][2]][1]
+
+def heavy_values(parts, owed, knots, left, words):
+    """G7.3j step 4: each key's new days drawn among its free days by the words of its first slots, no day twice, every other rank drawn over the key's days by the word of its slot; each part's values ascending."""
+    shares = heavy_cells(parts, owed, knots, left)
+    cells = []
+    for number in range(len(parts)):
+        part = parts[number]
+        for key, days in part.keyed:
+            rows = shares[number].get(key, 0)
+            if rows <= 0:
+                continue
+            fixed = tuple((day for day in days if day in knots))
+            free = tuple((day for day in days if day not in knots))
+            cells += [(number, rows, fixed, free)]
+    opened = [1 if not fixed and free else 0 for _number, _rows, fixed, free in cells]
+    most = [min(len(free), rows) for _number, rows, _fixed, free in cells]
+    left = left - sum(opened)
+    while left > 0:
+        weight = sum((cells[index][1] for index in range(len(cells)) if opened[index] < most[index]))
+        if weight <= 0:
+            break
+        given = 0
+        for index in range(len(cells)):
+            room = most[index] - opened[index]
+            if room <= 0:
+                continue
+            add = min(room, left * cells[index][1] // weight)
+            opened[index] = opened[index] + add
+            given = given + add
+        if given == 0:
+            for index in range(len(cells)):
+                if given < left and opened[index] < most[index]:
+                    opened[index] = opened[index] + 1
+                    given = given + 1
+        left = left - given
+    values = [[] for _ in parts]
+    slots = [0 for _ in parts]
+    for number in range(1, len(parts)):
+        slots[number] = slots[number - 1] + parts[number - 1].count
+    for index in range(len(cells)):
+        number, rows, fixed, free = cells[index]
+        chosen = opened[index]
+        slot = slots[number]
+        swapped = {}
+        spread = []
+        for place in range(chosen):
+            other = place + words[slot + place] * (len(free) - place) // TWO64
+            here = swapped.get(place, place)
+            there = swapped.get(other, other)
+            swapped[other] = here
+            spread += [free[there]]
+        days = tuple(sorted(fixed + tuple(spread)))
+        drawn = [day for day in spread]
+        for place in range(chosen, rows):
+            word = words[slot + place]
+            drawn += [days[word * len(days) // TWO64]]
+        slots[number] = slot + rows
+        values[number] += drawn
+    return [sorted(found) for found in values]
+
+
+def heavy_runs(knots, listed, holes):
+    """Contract HD4: where each listed date's run of ranks may start, carried forward and back along the runs, or None."""
+    if not listed or not knots:
+        return ()
+    low_rank = knots[0][0]
+    high_rank = knots[len(knots) - 1][0]
+    lows = []
+    highs = []
+    forced = []
+    below = 0
+    for index in range(len(listed)):
+        day, count = listed[index]
+        while below < len(knots) and knots[below][1] < day:
+            below = below + 1
+        above = below
+        while above < len(knots) and knots[above][1] == day:
+            above = above + 1
+        least = low_rank
+        most = high_rank - count + 1
+        if below > 0:
+            least = max(least, knots[below - 1][0] + 1)
+        if above < len(knots):
+            most = min(most, knots[above][0] - count)
+        if above > below:
+            least = max(least, knots[above - 1][0] - count + 1)
+            most = min(most, knots[below][0])
+        lows += [least]
+        highs += [most]
+        tied = False
+        if index > 0:
+            before = listed[index - 1][0]
+            between = below > 0 and knots[below - 1][1] > before
+            free = any((other not in holes for other in range(before + 1, day)))
+            tied = not between and (not free)
+        forced += [tied]
+    for index in range(1, len(listed)):
+        step = listed[index - 1][1]
+        lows[index] = max(lows[index], lows[index - 1] + step)
+        if forced[index]:
+            highs[index] = min(highs[index], highs[index - 1] + step)
+    for index in range(len(listed) - 2, -1, -1):
+        step = listed[index][1]
+        highs[index] = min(highs[index], highs[index + 1] - step)
+        if forced[index + 1]:
+            lows[index] = max(lows[index], lows[index + 1] - step)
+    found = []
+    for index in range(len(listed)):
+        if lows[index] > highs[index]:
+            return None
+        found += [(lows[index], highs[index])]
+    return tuple(found)
 
 
 def _datetime_content(column):
@@ -9485,6 +10467,9 @@ def _datetime_content(column):
                 chosen = None
                 for away in range(1, len(holes) + 2):
                     for other in (ordinal - away, ordinal + away):
+                        if other in heavy_days(column):
+                            # never onto a date that stands out (G7.3j)
+                            continue
                         if low <= other <= high:
                             candidate = spell(other)
                             if candidate.strip().lower() not in folded:
@@ -10244,6 +11229,13 @@ def date_pins(column, parsed, words=None):
             body[rank] = ordinal_of(rung, space)
             texts[rank] = rung
     pins.update(body)
+    # ...and every listed date's ranks on it (G7.3j, plan P4-D369).
+    planned = heavy_planned(column, parsed, body, sides)
+    if planned is not None:
+        listed = heavy_days(column)
+        for rank, (low, high) in planned[0].items():
+            if low == high and low in listed:
+                pins[rank] = low
     return pins, texts, body, sides
 
 
@@ -10291,6 +11283,13 @@ def pin_bounds(column, parsed):
             # never name one instant twice (G7.3b step 8).
             lows[rank] = min(first, second) - half
             highs[rank] = max(first, second) + max(half - 1, 0)
+    # ...and, on a column listing dates that stand out, every body rank's
+    # gap its part's days, a listed rank's its own date (G7.3j).
+    planned = heavy_planned(column, parsed, body, sides)
+    if planned is not None:
+        for rank, (low, high) in planned[0].items():
+            lows[rank] = low
+            highs[rank] = high
     return lows, highs
 
 
@@ -10454,9 +11453,16 @@ def spread_ordinals(column, parsed, words):
     if "low" in sides:
         for index in sides["low"]["drawn"]:
             drawn_words[index] = next(words)
-    places = sorted(body)
-    steps = pin_places(body)
+    planned = heavy_planned(column, parsed, body, sides)
+    places = sorted(body) if planned is None else []
+    steps = pin_places(body) if planned is None else {}
     body_draws = {}
+    # A COLUMN LISTING DATES THAT STAND OUT keeps one word per ordinary
+    # rank, in rank order, and draws them once the tails' days are known
+    # (G7.3j step 4).
+    body_words = []
+    if planned is not None:
+        body_words = [next(words) for _part in planned[1] for _rank in range(_part.count)]
     for step in range(len(places) - 1):
         below, above = places[step], places[step + 1]
         start, stop = steps[below], steps[above]
@@ -10481,6 +11487,11 @@ def spread_ordinals(column, parsed, words):
     for index, word in high_words.items():
         by_rank[parsed - 1 - index] = word
     pins, _texts, body, sides = date_pins(column, parsed, by_rank)
+    if planned is not None:
+        held = set(heavy_days(column)) | {day for day in body.values() if day not in heavy_days(column)}
+        for name in sides:
+            held |= set(sides[name]["spots"])
+        body_draws = heavy_drawn(column, parsed, planned, body.values(), held, body_words)
     for rank, value in pins.items():
         ordinals[rank] = value
     for rank, value in body_draws.items():
@@ -10844,19 +11855,22 @@ def absent_units(column):
     `days_named` does and a month or a quarter as `spans_named` does, and
     names nothing else.
     """
+    # ...and every date that stands out, on every column listing one
+    # (G7.3j, plan P4-D369): its count is exact.
+    listed = heavy_days(column)
     spellings = column.get("missing_by_source", {})
     if not spellings:
-        return set()
+        return set() | listed
     space = ordinal_space(column)
     if space not in ("date", "month", "quarter"):
-        return set()
+        return set() | listed
     if space != "date":
-        return spans_named(column.get("format", ""), spellings)
+        return spans_named(column.get("format", ""), spellings) | listed
     if column.get("resolution") == "datetime" and column.get("format") in ("iso-datetime", "iso-mixed"):
         # A moment at midnight on a member with another mark to give keeps
         # its day and takes that mark (G7.5), so the pass is not asked.
-        return set()
-    return days_named(column.get("format", ""), spellings)
+        return set() | listed
+    return days_named(column.get("format", ""), spellings) | listed
 
 
 def days_named(member, spellings):
@@ -11971,7 +12985,8 @@ def weekday_hole_days(column, holes):
         )
         if emptied:
             found.add(day)
-    return found
+    # ...and every date that stands out (G7.3j, plan P4-D369).
+    return found | heavy_days(column)
 
 
 def weekday_settled(column, ordinals, parsed, whole, lows, highs, holes):
@@ -11992,6 +13007,10 @@ def weekday_settled(column, ordinals, parsed, whole, lows, highs, holes):
         or not column.get("high_tail")
         or any(whole)
     ):
+        return ordinals
+    # A column listing dates that stand out whose ranks already meet every
+    # census is left as drawn (G7.3j step 5).
+    if heavy_listed(column) and heavy_met(column, ordinals, parsed, holes):
         return ordinals
     walk = weekday_walk_of(column, ordinals, lows, highs, weekday_hole_days(column, holes))
     if space == "datetime":
@@ -12119,6 +13138,15 @@ def day_settled(column, ordinals, parsed, whole, lows, highs, holes):
     G7.3f's days.
     """
     census = column.get("day_of_month_census") or []
+    # A column listing dates that stand out whose ranks already meet every
+    # census is left as drawn (G7.3j step 5).
+    if (
+        heavy_listed(column)
+        and column.get("low_tail")
+        and column.get("high_tail")
+        and heavy_met(column, ordinals, parsed, holes)
+    ):
+        return ordinals
     if (
         not census
         or parsed < 3
