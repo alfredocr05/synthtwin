@@ -17354,6 +17354,14 @@ def clock_field_decision(
     values = seconds if field == calendar_clock.SECOND else minutes
     if not values or len(hours) != len(values):
         return ClockFieldDecision(groups, heaps, "")
+    if field == calendar_clock.SECOND and details["time_precision"] != "second":
+        # NO SECOND CENSUS FINER THAN THE SECOND (SE3; the lane's skeptic,
+        # item 3): the twin writes no figure below the second, so cells the
+        # real column tells apart by the millisecond, moved onto one second
+        # of one minute to meet a census, are written alike -- 300 of them,
+        # every one different, came back as 249 values. Nothing is said:
+        # the column is not one the census describes.
+        return ClockFieldDecision(groups, heaps, "")
     low_tail = details["low_tail"]
     high_tail = details["high_tail"]
     if not isinstance(low_tail, dict) or not isinstance(high_tail, dict):

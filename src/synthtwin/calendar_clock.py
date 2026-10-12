@@ -940,25 +940,36 @@ def field_lattice(
     census: "tuple[tuple[int, int, int], ...]",
     heaps: "tuple[tuple[int, int], ...]",
     published: "list[int]",
+    body: int,
+    line: int,
 ) -> int:
     """The LATTICE a field's published facts pin the body to, or nought.
 
     METHOD G7.3's DRAWING RULE (landing 3b.4; the design's construction
     rule, widened by its skeptic's M2 and m2). Where the field publishes
-    heaps and no census beside them, every body cell but the few the rest
-    holds stands on a heap, and the lattice is the greatest step dividing
-    sixty and every heap's value -- sixty where the one heap is 0, thirty
-    for a half-hour grid, fifteen for quarter hours. Where it publishes a
-    census and no heap, the lattice is sixty -- every cell on value 0 --
-    only where the census's one non-zero group holds 0 and every value the
-    description publishes in the body stands on 0. Anything else pins
-    nothing: nought.
+    heaps and no census beside them, and the rest -- the `body` cells off
+    the heaps -- is fewer than the census `line`, so it could only have
+    been one group the merge rule withholds, every body cell but those few
+    stands on a heap, and the lattice is the greatest step dividing sixty
+    and every heap's value -- sixty where the one heap is 0, thirty for a
+    half-hour grid, fifteen for quarter hours. A REST OF THE LINE OR MORE
+    IS A CENSUS WITHHELD, NOT A FEW STRAYS (the lane's skeptic, item 2):
+    check-ins in bursts, a third of them off their heaps at 0 and 30, their
+    census withheld for its few values, were drawn on half hours and the
+    pass piled that third on :01 and :29, 15 to 24 per cent of every cell
+    against 1.2 to 1.8 real; so there, and where the body is not known
+    (below nought), it pins nothing. Where it publishes a census and no
+    heap, the lattice is sixty -- every cell on value 0 -- only where the
+    census's one non-zero group holds 0 and every value the description
+    publishes in the body stands on 0. Anything else pins nothing: nought.
 
-    Guarantees: accepts the census, the heaps and the field's value of
-    each published body value; returns 0 or a divisor of sixty. Raises
-    nothing. No I/O.
+    Guarantees: accepts the census, the heaps, the field's value of each
+    published body value, the body's cells and the census line; returns 0
+    or a divisor of sixty. Raises nothing. No I/O.
     """
     if heaps and not census:
+        if body < 0 or body - sum(count for _value, count in heaps) >= line:
+            return 0
         step = FIELD_VALUES
         for value, _count in heaps:
             step = common_divisor(step, value)
@@ -979,6 +990,8 @@ def drawing_unit(
     minute_facts: "tuple[tuple[tuple[int, int, int], ...], tuple[tuple[int, int], ...]]",
     second_facts: "tuple[tuple[tuple[int, int, int], ...], tuple[tuple[int, int], ...]]",
     published: "list[str]",
+    body: int,
+    line: int,
 ) -> int:
     """How many seconds one body draw of a column of moments steps in (G7.3).
 
@@ -994,9 +1007,10 @@ def drawing_unit(
     minutes, met 6 in 6 at thirty). A column written to the minute whose
     minute pins nothing keeps one, its written unit already the minute.
 
-    Guarantees: accepts the precision, each field's census and heaps and
-    every published body value's canonical text; returns a divisor of
-    3,600 of one or more. Raises nothing. No I/O.
+    Guarantees: accepts the precision, each field's census and heaps,
+    every published body value's canonical text, the body's cells (below
+    nought where not known) and the census line (`field_lattice`); returns
+    a divisor of 3,600 of one or more. Raises nothing. No I/O.
     """
     minute_census, minute_heaps = minute_facts
     second_census, second_heaps = second_facts
@@ -1008,13 +1022,15 @@ def drawing_unit(
             second_census,
             second_heaps,
             [written_second(value) for value in published],
+            body,
+            line,
         )
     if seconds <= 0:
         return 1
     if seconds < FIELD_VALUES:
         return seconds
     minutes = field_lattice(
-        minute_census, minute_heaps, [written_minute(value) for value in published]
+        minute_census, minute_heaps, [written_minute(value) for value in published], body, line
     )
     if minutes <= 0:
         return 1 if precision == "minute" else FIELD_VALUES

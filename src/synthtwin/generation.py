@@ -22654,18 +22654,21 @@ def _date_layout(
                 highest = highest + plan.half - 1
             lows[rank] = lowest
             highs[rank] = highest
+    # -- the body's cells and the census line the drawing rule reads (3b.T3)
+    cells = parsed - (low.rows if low is not None else 0) - (high.rows if high is not None else 0)
+    line = parsing.census_floor(floor)
     layout = _DateLayout(
         parsed, pins, body, tuple(lows), tuple(highs), low, high, texts,
-        _draw_unit(facts),
+        _draw_unit(facts, cells, line),
         # -- the tail's drawing unit (3b.T3, P4-D372)
-        _tail_unit(facts),
+        _tail_unit(facts, cells, line),
     )
     # THE DATES THAT STAND OUT, PINNED (3b.D4, P4-D369; plan P4-D364's
     # seam): unchanged until that landing fills `_heavy_layout`.
     return _heavy_layout(column, facts, layout)
 
 
-def _draw_unit(facts: contract.DatetimeFacts) -> int:
+def _draw_unit(facts: contract.DatetimeFacts, body: int = -1, line: int = 0) -> int:
     """How many ordinals of the column's own space one body draw steps in.
 
     THE DRAWING-UNIT SEAM OF STAGE 3B (plan P4-D364), which landing 3b.4
@@ -22680,9 +22683,14 @@ def _draw_unit(facts: contract.DatetimeFacts) -> int:
     a body rank -- the two steps at midnight, the body draws -- reads it
     there and needs no argument of its own.
 
-    Guarantees: accepts the loaded facts; returns a whole number of one
-    or more. Determinism: a function of the facts. Raises nothing. No
-    I/O of any kind.
+    The body's cells and the census line (`body`, `line`; landing 3b.4's
+    repair) say whether heaps beside no census leave a rest the merge rule
+    withheld, which pins nothing (`calendar_clock.field_lattice`); a body
+    below nought, where the caller knows none, pins nothing by heaps alone.
+
+    Guarantees: accepts the loaded facts, the body's cells and the census
+    line; returns a whole number of one or more. Determinism: a function
+    of the three. Raises nothing. No I/O of any kind.
     """
     if _ordinal_space(facts) != "datetime":
         return 1
@@ -22691,6 +22699,8 @@ def _draw_unit(facts: contract.DatetimeFacts) -> int:
         (facts.minute_census, facts.minute_heaps),
         (facts.second_census, facts.second_heaps),
         _published_body_values(facts),
+        body,
+        line,
     )
 
 
@@ -22707,7 +22717,7 @@ def _published_body_values(facts: contract.DatetimeFacts) -> "list[str]":
     return found
 
 
-def _tail_unit(facts: contract.DatetimeFacts) -> int:
+def _tail_unit(facts: contract.DatetimeFacts, body: int = -1, line: int = 0) -> int:
     """How many seconds one TAIL draw steps in (landing 3b.4, plan P4-D372).
 
     THE DRAWING RULE ON THE TAILS (the 3b.4 design skeptic's m3: 300
@@ -22719,9 +22729,9 @@ def _tail_unit(facts: contract.DatetimeFacts) -> int:
     windows the checker draws from the same strata (measured: 1,000-row
     grids at a floor of 36, their 36-row tails drawn at any minute, came
     back 92.8 to 93.6 per cent on their grid; on the unit, 99.5 to 99.8,
-    nothing missed).
+    nothing missed). `body` and `line` as `_draw_unit` reads them.
     """
-    unit = _draw_unit(facts)
+    unit = _draw_unit(facts, body, line)
     if unit <= 1:
         return 1
     for tail in (facts.low_tail, facts.high_tail):
@@ -22930,6 +22940,17 @@ class _WeekdayPass:
     # shares are split over the kin groups of its ranks
     # (`_clock_kin_shares_moved`); empty, no pass splits them.
     kin: "tuple[int, ...]" = ()
+    # ...whether a field pass KEEPS ITS MIDNIGHTS: set where the column
+    # publishes its count at midnight, whose cells there the pass pins, so
+    # a rank on the day's first parent is not free to take value 0 where it
+    # is a group alone (`_clock_kin_shares_moved`; the lane's skeptic, item
+    # 1: 200,000 cells written `HH:MM:00` had 327 ranks moved onto a
+    # midnight by hour 0's share of minute 0, and 217 stayed there).
+    no_midnight: bool = False
+    # ...and each kin group's CARRIED share of every group of the field,
+    # in `_KIN_SCALE`ths of a rank: what its shares so far fell short of
+    # the ideal, carried from gap to gap (`_clock_kin_shares_moved`).
+    kin_carry: "dict[tuple[int, int], int]" = dataclasses.field(default_factory=dict)
 
 
 @dataclasses.dataclass(frozen=True)
@@ -26026,47 +26047,80 @@ def _clock_units(
     return found
 
 
-def _clock_kin_share(want: "list[int]", taken: "list[int]", placed: int, size: int) -> "list[int]":
+# The scale KIN SHARES counts a kin group's ideal and carried shares in:
+# G7.3f's share scale, 2**20 to a rank.
+_KIN_SCALE = _WEEKDAY_SCALE
+
+
+def _clock_kin_share(
+    ideal: "list[int]", want: "list[int]", taken: "list[int]", placed: int, room: "list[int]"
+) -> "list[int]":
     """One kin group's shares of a gap's groups (method G7.3h, KIN SHARES).
 
     The kin groups before it took `taken` of each group, and with it they
-    hold `placed` of the gap's `size` ranks: together they take, of each
-    group, its share `placed * want / size` rounded down, never less than
-    they took; the ranks still unplaced go one each to the groups of the
-    largest remainder, the lower group on a tie, each at most to its share
-    rounded up; ranks placed beyond `placed` come back from the groups
-    raised above what was taken, the smallest remainder first, the lower
-    group on a tie. What this kin group takes is the difference. The last
-    kin group, placing the whole gap, takes every share exactly. Raises
-    nothing. No I/O.
+    hold `placed` of the gap's ranks; `ideal` is what they are owed of
+    each group together, in `_KIN_SCALE`ths of a rank -- their shares of
+    the gap and what each carries from the gaps before. Together they take
+    of each group its ideal rounded down, never less than they took, never
+    more than the gap's `want` nor than this kin group's `room` beyond what
+    was taken; the ranks still unplaced go one each to the groups of the
+    largest remainder, the lower group on a tie, as often as it takes;
+    ranks placed beyond `placed` come back from the groups raised above
+    what was taken, the smallest remainder first, the lower group on a
+    tie. What this kin group takes is the difference. The last kin group,
+    placing the whole gap, takes every share exactly where its room allows.
+    Raises nothing. No I/O.
     """
     groups = len(want)
-    target = [taken[group] for group in range(groups)]
-    total = 0
+    target: "list[int]" = []
     for group in range(groups):
-        floor = placed * want[group] // size
-        if floor > target[group]:
-            target[group] = floor
-        total = total + target[group]
-    spare = placed - total
-    if spare > 0:
+        floor = max(ideal[group] // _KIN_SCALE, taken[group])
+        target += [min(floor, want[group], taken[group] + room[group])]
+    spare = placed - sum(target)
+    while spare > 0:
         order = sorted(
-            (-((placed * want[group]) % size), group)
+            (target[group] * _KIN_SCALE - ideal[group], group)
             for group in range(groups)
-            if (placed * want[group]) % size > 0
-            and target[group] == placed * want[group] // size
+            if target[group] < want[group] and target[group] < taken[group] + room[group]
         )
-        for _remainder, group in order[:spare]:
+        if not order:
+            break
+        for _short, group in order[:spare]:
             target[group] = target[group] + 1
-    if spare < 0:
+        spare = placed - sum(target)
+    while spare < 0:
         order = sorted(
-            ((placed * want[group]) % size, group)
+            (ideal[group] - target[group] * _KIN_SCALE, group)
             for group in range(groups)
             if target[group] > taken[group]
         )
-        for _remainder, group in order[:-spare]:
+        if not order:
+            break
+        for _over, group in order[:-spare]:
             target[group] = target[group] - 1
+        spare = placed - sum(target)
     return [target[group] - taken[group] for group in range(groups)]
+
+
+def _clock_kin_ideal(
+    ranks: int, free: int, eligible: int, want: "list[int]", size: int, zero: int
+) -> "list[int]":
+    """A kin group's ideal share of each of a gap's groups, in `_KIN_SCALE`ths
+    of a rank (method G7.3h, KIN SHARES): its `ranks` of the gap's `size`
+    times each group's `want`; or, where the group of value 0 alone is
+    `zero` (not -1), that group's want spread over the kin groups by their
+    ranks FREE to stand on it, `free` of the gap's `eligible`, and what is
+    left of its ranks over the other groups as they want."""
+    groups = len(want)
+    if zero < 0:
+        return [ranks * want[group] * _KIN_SCALE // size for group in range(groups)]
+    first = want[zero] * free * _KIN_SCALE // eligible if eligible > 0 else 0
+    rest = size - want[zero]
+    return [
+        first if group == zero
+        else ((ranks * _KIN_SCALE - first) * want[group] // rest if rest > 0 else 0)
+        for group in range(groups)
+    ]
 
 
 def _clock_kin_shares_moved(state: _WeekdayPass, ranks: "list[int]", want: "list[int]") -> bool:
@@ -26084,6 +26138,20 @@ def _clock_kin_shares_moved(state: _WeekdayPass, ranks: "list[int]", want: "list
     steps 5 and 6) -- but no rank leaves a written unit it shares: a kin
     group's few ranks split bursts of check-ins to meet its own shares,
     108 values too many on 1,000 of them at a floor of 36.
+
+    CONTROLLED ROUNDING (the lane's skeptic, item 4): each kin group's
+    ideal share (`_clock_kin_ideal`) less what it took is CARRIED to the
+    next gap (`_WeekdayPass.kin_carry`), so the rounding is made over the
+    whole body -- rounded gap by gap, hour 8 of 10,000 admissions took the
+    remainder of minute 6 in most of 38 gaps and came back with 36 of its
+    cells there against 11. And on a pass keeping its midnights
+    (`_WeekdayPass.no_midnight`), where value 0 is a group alone, a rank on
+    its day's first parent -- hour 0 for the minute -- is not FREE to take
+    it, as it would stand at a written midnight and the real column's own
+    cells there are its midnights: that group's share is spread over the
+    kin groups by their ranks free to take it, where they are enough. A
+    share given hour 0 in proportion put 327 of 200,000 ranks written
+    `HH:MM:00` at midnight, and the exchange took 110 back.
     Returns whether it split the gap: not where one kin
     group holds every rank, nor where the shares do not add to the ranks.
     Raises nothing. No I/O.
@@ -26102,19 +26170,47 @@ def _clock_kin_shares_moved(state: _WeekdayPass, ranks: "list[int]", want: "list
             order += [kin]
     if len(order) < 2:
         return False
+    size = len(ranks)
+    groups = len(want)
+    zero = -1
+    if state.no_midnight and state.where.count(state.where[0]) == 1:
+        zero = state.where[0]
+    free: "dict[int, int]" = {}
+    eligible = 0
+    for kin in order:
+        free[kin] = len(rows[kin])
+        if zero >= 0:
+            free[kin] = len(
+                [rank for rank in rows[kin] if _clock_seat(state, state.moved[rank]) != 0]
+            )
+        eligible = eligible + free[kin]
+    if zero >= 0 and want[zero] > eligible:
+        zero = -1
     taken = [0 for _group in want]
+    ideal = [0 for _group in want]
     placed = 0
     for kin in order:
         members = rows[kin]
         placed = placed + len(members)
-        share = _clock_kin_share(want, taken, placed, len(ranks))
+        own = _clock_kin_ideal(len(members), free[kin], eligible, want, size, zero)
+        carried = [
+            state.kin_carry[(kin, group)] if (kin, group) in state.kin_carry else 0
+            for group in range(groups)
+        ]
+        room = [len(members) for _group in want]
+        if zero >= 0:
+            room[zero] = free[kin]
+        ideal = [ideal[group] + own[group] + carried[group] for group in range(groups)]
+        share = _clock_kin_share(ideal, want, taken, placed, room)
         have = [0 for _group in want]
         for rank in members:
             group = _weekday_group(state, state.moved[rank])
             have[group] = have[group] + 1
         _weekday_runs_moved(state, members, have, share)
         _weekday_singles_moved(state, members, have, share, _WEEKDAY_SINGLE_ROUNDS, False, False)
-        taken = [taken[group] + share[group] for group in range(len(want))]
+        for group in range(groups):
+            state.kin_carry[(kin, group)] = carried[group] + own[group] - share[group] * _KIN_SCALE
+        taken = [taken[group] + share[group] for group in range(groups)]
     return True
 
 
@@ -26917,6 +27013,9 @@ def _clock_fields_settled(
             keeps=keeps,
             count_steps=False,
             kin=kin,
+            # -- the midnights kept, where their count is published (the
+            # lane's skeptic, item 1)
+            no_midnight=facts.n_at_midnight is not None,
         )
         pinned = _ranks_the_tail_pins(layout)
         for rank in range(parsed):
@@ -26991,7 +27090,8 @@ def _clock_field_settled(
     the exchange left the count long and it is reachable
     (`_clock_count_put_back`); SUBSTITUTE where the count of
     different values is still long and the column's count is reachable
-    (`_clock_split_substituted`); and SPREAD where it is still short and
+    (`_clock_split_substituted`), round after round while one puts a value
+    back, `_SUBSTITUTE_ROUNDS` at most; and SPREAD where it is still short and
     the count is reachable or the count drawn is not above the published
     one (`_clock_short_spread`); each run of unpinned ranks sorted last.
 
@@ -27015,10 +27115,21 @@ def _clock_field_settled(
             _clock_count_put_back(
                 state, body_low, body_high, pinned, wanted, standing, last_resort, kin
             )
-    if state.keep_units and _weekday_count(state) > wanted:
+    # SUBSTITUTE ASKED AGAIN while a round puts a value back (the lane's
+    # skeptic, item 3): a round passes over a group, a parent's place and a
+    # gap whose search found nothing, and the joins and runs it moves leave
+    # new places for them -- 300 check-ins in bursts, drawn at any minute,
+    # came back 5 or 6 values long after one round and met their count
+    # after two at three seeds in three.
+    for _round in range(_SUBSTITUTE_ROUNDS):
+        count = _weekday_count(state)
+        if not state.keep_units or count <= wanted:
+            break
         _clock_split_substituted(
             state, body_low, body_high, pinned, wanted, standing, anyday, kin
         )
+        if _weekday_count(state) >= count:
+            break
     if _weekday_count(state) < wanted and (
         state.keep_units or published is None or wanted <= published
     ):
@@ -27095,6 +27206,10 @@ def _clock_midnight_count_kept(
 # How many lone ranks of one group SUBSTITUTE asks for each rank it puts
 # back, so the step stays linear in the ranks (method G7.3h).
 _SUBSTITUTE_TRIES = 64
+# ...and how many rounds of it a field asks at most, each while the one
+# before it put a value back, so the step stays linear (the lane's
+# skeptic, item 3).
+_SUBSTITUTE_ROUNDS = 3
 
 
 def _clock_split_substituted(
@@ -27425,7 +27540,13 @@ def _clock_join_target(
     in its kin group, nearest first, the earlier on a tie; at its own
     parent's place on the other days of its gap of its day standing and
     width kind, nearest first, the earlier on a tie; and, where no weekday
-    census stands, on the days of another weekday. None where none is."""
+    census stands, on the days of another weekday; and last -- THE KIN ON
+    OTHER DAYS (the lane's skeptic, item 3: 200 check-ins in bursts, about
+    one a day, came back a value long, no other burst standing at the
+    same hour inside a run's gap) -- on those days in the same order, at
+    the other places of its kin group, nearest its own first, the earlier
+    on a tie, `_JOIN_KIN_REACH` parents asked at most. None where none
+    is."""
     ordinal = state.moved[rank]
     span = state.unit * state.period
     per_day = state.day // span
@@ -27458,7 +27579,38 @@ def _clock_join_target(
                 found = _clock_held_elsewhere(state, by_parent, other * per_day + seat, rank)
                 if found is not None:
                     return found
+    # -- the kin on other days (the lane's skeptic, item 3)
+    places = [
+        place
+        for distance in range(1, per_day if kin else 1)
+        for place in (seat - distance, seat + distance)
+        if 0 <= place < per_day and kin[place] == kin[seat]
+    ]
+    if not places:
+        return None
+    asked = 0
+    for same in [True, False] if anyday else [True]:
+        for distance in range(1, max(today - earliest, latest - today) + 1):
+            for other in (today - distance, today + distance):
+                if not earliest <= other <= latest or other in state.holes:
+                    continue
+                if (standing[calendar_rules.weekday_of(other)] == group) is not same:
+                    continue
+                if _weekday_width_kind(state, other * state.day) != kind:
+                    continue
+                for place in places:
+                    asked = asked + 1
+                    if asked > _JOIN_KIN_REACH:
+                        return None
+                    found = _clock_held_elsewhere(state, by_parent, other * per_day + place, rank)
+                    if found is not None:
+                        return found
     return None
+
+
+# How many parents SUBSTITUTE's join asks at most among the other places of
+# a run's kin group on other days, so a search stays bounded (method G7.3h).
+_JOIN_KIN_REACH = 400
 
 
 def _clock_held_elsewhere(

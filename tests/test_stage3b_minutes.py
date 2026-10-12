@@ -508,8 +508,8 @@ def test_a_flat_twin_misses_the_minute_census(thousand, monkeypatch: pytest.Monk
     """G7.3h and the drawing rule withdrawn, every published field is MISSED, and no count below the line is printed."""
     described, columns, _text = thousand
     monkeypatch.setattr(generation, "_clock_fields_settled", lambda column, facts, ordinals, *rest, **named: (ordinals, []))
-    monkeypatch.setattr(generation, "_draw_unit", lambda facts: 1)
-    monkeypatch.setattr(generation, "_tail_unit", lambda facts: 1)
+    monkeypatch.setattr(generation, "_draw_unit", lambda *_facts: 1)
+    monkeypatch.setattr(generation, "_tail_unit", lambda *_facts: 1)
     written = kpi_shapes.twin_text(described, 0)
     outcome = kpi_shapes.measure(described, written, "flat.csv")
     checks = [check for check in outcome.checks if check.fact in ("datetime.minute_census", "datetime.second_census", "datetime.minute_heaps", "datetime.second_heaps")]
@@ -539,6 +539,13 @@ def test_validating_never_produces_a_clock_census(thousand, monkeypatch: pytest.
 
 def _one_column(folder: pathlib.Path, name: str, cells: "list[str]", floor: int = LINE) -> kpi_shapes.Described:
     return kpi_shapes.describe(folder, name, f"{name}\n" + "\n".join(cells) + "\n", floor)
+
+
+def _unit_of(described: kpi_shapes.Described, name: str, floor: int = LINE) -> int:
+    """The body's drawing unit of a described column, read as the layout reads it."""
+    block = described.block(name)
+    body = block["n_present"] - block["n_unparsed"] - block["low_tail"]["rows"] - block["high_tail"]["rows"]
+    return generation._draw_unit(described.loaded.columns[0].facts, body, floor)
 
 
 def test_tied_bursts_keep_their_count(tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -577,15 +584,15 @@ def test_cells_written_on_the_minute_keep_their_seconds(tmp_path: pathlib.Path, 
     their second census met (the drawing rule); with the drawing unit
     withdrawn the second census, or the count, is missed."""
     described = _one_column(tmp_path, "rounds", shapes.zero_seconds(random.Random(72013), 2000))
-    assert generation._draw_unit(described.loaded.columns[0].facts) == 60
+    assert _unit_of(described, "rounds") == 60
     written = kpi_shapes.twin_text(described, 0)
     assert kpi_shapes.missed(kpi_shapes.measure(described, written, "t.csv")) == []
     # Every cell but the two ends, each tail's outermost rank standing where
     # its published distances put it, to the second.
     twin = sorted(cell for cell in shapes.cells_of(written, "rounds") if cell)
     assert all(cell.endswith(":00") for cell in twin[1:-1])
-    monkeypatch.setattr(generation, "_draw_unit", lambda facts: 1)
-    monkeypatch.setattr(generation, "_tail_unit", lambda facts: 1)
+    monkeypatch.setattr(generation, "_draw_unit", lambda *_facts: 1)
+    monkeypatch.setattr(generation, "_tail_unit", lambda *_facts: 1)
     written = kpi_shapes.twin_text(described, 0)
     twin = sorted(cell for cell in shapes.cells_of(written, "rounds") if cell)
     assert not all(cell.endswith(":00") for cell in twin[1:-1])
@@ -594,7 +601,7 @@ def test_cells_written_on_the_minute_keep_their_seconds(tmp_path: pathlib.Path, 
 def test_a_pure_grid_is_drawn_on_its_lattice(tmp_path: pathlib.Path) -> None:
     """A half-hour grid is drawn on thirty minutes and every twin cell stands on :00 or :30."""
     described = _one_column(tmp_path, "grid", shapes.grid(random.Random(72014), 1000, 30))
-    assert generation._draw_unit(described.loaded.columns[0].facts) == 1800
+    assert _unit_of(described, "grid") == 1800
     written = kpi_shapes.twin_text(described, 0)
     assert kpi_shapes.missed(kpi_shapes.measure(described, written, "t.csv")) == []
     # The body's cells: the tails of a column written to the minute draw
@@ -807,7 +814,7 @@ def _state(case: dict, module=generation):
         highs=list(case["highs"]), keep_units=case["reachable"], unit=field,
         step=case["written_unit"], day=DAY, bins="minute" if field == 60 else "second",
         period=60, keeps="hour" if field == 60 else "minute", count_steps=False,
-        kin=tuple(case["kin"]),
+        kin=tuple(case["kin"]), no_midnight=case["no_midnight"],
     )
     for ordinal in state.moved:
         module._weekday_tally(state.held, ordinal // state.step, 1)
@@ -831,6 +838,8 @@ def _answer(case: dict, module=generation, clock=calendar_clock) -> object:
                 tuple((h["value"], h["count"]) for h in case["second_heaps"]),
             ),
             list(case["texts"]),
+            case["body"],
+            case["line"],
         )
     if step == "floor":
         return [module._on_draw_unit(value, case["unit"], low, high) for value, low, high in case["draws"]]
@@ -960,6 +969,16 @@ STEP_MUTANTS = {
         "            elif moved[rank] + step <= gap_highs[rank]:\n                # A STRATUM",
         "            elif False:\n                # A STRATUM",
     ),
+    "hour 0 takes its share of a heap at minute 0": (
+        "field_midnight_kin",
+        "    if state.no_midnight and state.where.count(state.where[0]) == 1:\n        zero = state.where[0]",
+        "    if False:\n        zero = state.where[0]",
+    ),
+    "every rank free to take value 0": (
+        "field_midnight_share",
+        "                [rank for rank in rows[kin] if _clock_seat(state, state.moved[rank]) != 0]",
+        "                [rank for rank in rows[kin]]",
+    ),
     "a draw laid on no unit": (
         "field_floor",
         "    floored = value - value % unit\n    if floored >= low:\n        return floored",
@@ -968,6 +987,11 @@ STEP_MUTANTS = {
 }
 
 CLOCK_MUTANTS = {
+    "a rest of the line or more pins a lattice": (
+        "lattice_rest_withheld",
+        "        if body < 0 or body - sum(count for _value, count in heaps) >= line:\n            return 0",
+        "        if body < 0:\n            return 0",
+    ),
     "the heaps' lattice is the minute": (
         "lattice_half_hour",
         "        for value, _count in heaps:\n            step = common_divisor(step, value)\n        return step",

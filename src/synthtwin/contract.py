@@ -1803,9 +1803,9 @@ INVARIANTS = {
     ),
     "SE3": (
         "a second census or heap stands only where an hour census may, on a "
-        "column written to the second or finer, and the groups of a second "
-        "census add up, with its heaps, to the values between the two tail "
-        "boundaries"
+        "column written to the second -- neither to the minute nor finer "
+        "than the second -- and the groups of a second census add up, with "
+        "its heaps, to the values between the two tail boundaries"
     ),
     "SE4": (
         "a second census or heap stands only where the published 25th and "
@@ -9524,7 +9524,8 @@ def _clock_field_read(
     A published census or heap must stand where the hour census may --
     a column of moments read on the local clock, not in the joint member,
     not wholly at midnight, with both tails -- and, for the second, on a
-    column written to the second or finer (MC3, SE3); its published p25
+    column written to the second, neither to the minute nor finer (MC3,
+    SE3; the twin writes no figure below the second); its published p25
     and p75 must lie four hours apart for minutes and four minutes for
     seconds (MC4, SE4). Then the heaps are held to MH1/SH1 and MH2/SH2
     (`calendar_clock.heaps_breach`) and the census, beside them, to
@@ -9574,7 +9575,7 @@ def _clock_field_read(
         or high is None
         or (
             field == calendar_clock.SECOND
-            and facts.time_precision not in ("second", "subsecond")
+            and facts.time_precision != "second"
         )
     ):
         raise _broken(
@@ -9583,7 +9584,8 @@ def _clock_field_read(
             f"a {field} census or heap is published",
             "only a column of moments read on the local clock, not in the "
             "joint member, not wholly at midnight and with both tails -- and, "
-            "for the second, written to the second or finer -- publishes one",
+            "for the second, written to the second, neither to the minute "
+            "nor finer -- publishes one",
         )
     parsed = n_present - facts.n_unparsed
     rungs = facts.date_percentiles.rungs
