@@ -22924,6 +22924,12 @@ class _WeekdayPass:
     # 40,000 clinic slots -- and G7.3h puts the count back by G7.3g's PUT
     # BACK, SUBSTITUTE and SPREAD instead.
     count_steps: bool = True
+    # ...and the KIN of a field pass (3b.T3, P4-D372): each parent's place in
+    # the day (`_clock_seat`) mapped to its group in the coarser census --
+    # the hour census's for the minute. Where it is given, each gap's
+    # shares are split over the kin groups of its ranks
+    # (`_clock_kin_shares_moved`); empty, no pass splits them.
+    kin: "tuple[int, ...]" = ()
 
 
 @dataclasses.dataclass(frozen=True)
@@ -25266,7 +25272,14 @@ def _bins_settled(
             group = _weekday_group(state, state.moved[rank])
             have[group] = have[group] + 1
         want = quota[index]
-        _weekday_runs_moved(state, ranks, have, want)
+        # -- a field's gap split over its kin groups (3b.T3, P4-D372)
+        if state.kin and _clock_kin_shares_moved(state, ranks, want):
+            have = [0 for _ in counts]
+            for rank in ranks:
+                group = _weekday_group(state, state.moved[rank])
+                have[group] = have[group] + 1
+        else:
+            _weekday_runs_moved(state, ranks, have, want)
         _weekday_singles_moved(
             state, ranks, have, want, _WEEKDAY_SINGLE_ROUNDS, False
         )
@@ -26004,6 +26017,95 @@ def _clock_units(
         else:
             found += [[rank] for rank in members]
     return found
+
+
+def _clock_kin_share(want: "list[int]", taken: "list[int]", placed: int, size: int) -> "list[int]":
+    """One kin group's shares of a gap's groups (method G7.3h, KIN SHARES).
+
+    The kin groups before it took `taken` of each group, and with it they
+    hold `placed` of the gap's `size` ranks: together they take, of each
+    group, its share `placed * want / size` rounded down, never less than
+    they took; the ranks still unplaced go one each to the groups of the
+    largest remainder, the lower group on a tie, each at most to its share
+    rounded up; ranks placed beyond `placed` come back from the groups
+    raised above what was taken, the smallest remainder first, the lower
+    group on a tie. What this kin group takes is the difference. The last
+    kin group, placing the whole gap, takes every share exactly. Raises
+    nothing. No I/O.
+    """
+    groups = len(want)
+    target = [taken[group] for group in range(groups)]
+    total = 0
+    for group in range(groups):
+        floor = placed * want[group] // size
+        if floor > target[group]:
+            target[group] = floor
+        total = total + target[group]
+    spare = placed - total
+    if spare > 0:
+        order = sorted(
+            (-((placed * want[group]) % size), group)
+            for group in range(groups)
+            if (placed * want[group]) % size > 0
+            and target[group] == placed * want[group] // size
+        )
+        for _remainder, group in order[:spare]:
+            target[group] = target[group] + 1
+    if spare < 0:
+        order = sorted(
+            ((placed * want[group]) % size, group)
+            for group in range(groups)
+            if target[group] > taken[group]
+        )
+        for _remainder, group in order[:-spare]:
+            target[group] = target[group] - 1
+    return [target[group] - taken[group] for group in range(groups)]
+
+
+def _clock_kin_shares_moved(state: _WeekdayPass, ranks: "list[int]", want: "list[int]") -> bool:
+    """G7.3h's KIN SHARES: a field's gap moved kin group by kin group.
+
+    G7.3f's moves fill each gap's shares from the ranks nearest them,
+    whole runs first, so the hours holding the most tied units sent the
+    most ranks to the heaps: 10,000 clinic slots came back with 20 per
+    cent of hour 8 on :00 and 47 per cent of hour 10, against 35 in every
+    hour of the real column. So, where the gap's ranks stand in two kin
+    groups or more (`_WeekdayPass.kin`, by their parent's place in the
+    day), each kin group, in the order its first rank stands in the gap,
+    takes its own shares of the gap's (`_clock_kin_share`), and its ranks
+    move to them as a gap's do -- whole runs, then single ranks (G7.3f
+    steps 5 and 6). Returns whether it split the gap: not where one kin
+    group holds every rank, nor where the shares do not add to the ranks.
+    Raises nothing. No I/O.
+    """
+    if sum(want) != len(ranks):
+        return False
+    rows: "dict[int, list[int]]" = {}
+    order: "list[int]" = []
+    for rank in ranks:
+        kin = state.kin[_clock_seat(state, state.moved[rank])]
+        if kin in rows:
+            members = rows[kin]
+            members += [rank]
+        else:
+            rows[kin] = [rank]
+            order += [kin]
+    if len(order) < 2:
+        return False
+    taken = [0 for _group in want]
+    placed = 0
+    for kin in order:
+        members = rows[kin]
+        placed = placed + len(members)
+        share = _clock_kin_share(want, taken, placed, len(ranks))
+        have = [0 for _group in want]
+        for rank in members:
+            group = _weekday_group(state, state.moved[rank])
+            have[group] = have[group] + 1
+        _weekday_runs_moved(state, members, have, share)
+        _weekday_singles_moved(state, members, have, share, _WEEKDAY_SINGLE_ROUNDS, False)
+        taken = [taken[group] + share[group] for group in range(len(want))]
+    return True
 
 
 def _clock_rotated(units: "list[list[int]]", leaving: int) -> "list[list[int]]":
@@ -26773,9 +26875,13 @@ def _clock_fields_settled(
             kin = hour_where
             unit, rule, keeps = 60, "minute", "hour"
         else:
-            # Each minute of the day keyed by its hour's group and its own.
+            # Each minute of the day keyed by its hour's group and its own,
+            # the hour's group counted in as many keys as the minute has
+            # groups: heaps beside a census of single minutes number more
+            # than sixty, and keyed by sixty, 07:30 of one hour group shared
+            # a key with 08:01 of the next, and PUT BACK moved a rank across.
             kin = tuple(
-                hour_where[place // 60] * calendar_clock.FIELD_VALUES
+                hour_where[place // 60] * (max(minute_where) + 1)
                 + minute_where[place % 60]
                 for place in range(calendar_clock.HOURS * 60)
             )
@@ -26800,6 +26906,7 @@ def _clock_fields_settled(
             period=calendar_clock.FIELD_VALUES,
             keeps=keeps,
             count_steps=False,
+            kin=kin,
         )
         pinned = _ranks_the_tail_pins(layout)
         for rank in range(parsed):

@@ -11261,13 +11261,14 @@ def clock_fields_settled(column, ordinals, parsed, whole, lows, highs, holes):
             kin = tuple(hour_of)
             unit, bin_of, keep_of = 60, (lambda o: (o // 60) % 60), (lambda o: o // HOUR)
         else:
-            kin = tuple(hour_of[place // 60] * CLOCK_FIELD_VALUES + minute_of[place % 60] for place in range(1440))
+            kin = tuple(hour_of[place // 60] * (max(minute_of) + 1) + minute_of[place % 60] for place in range(1440))
             unit, bin_of, keep_of = 1, (lambda o: o % 60), (lambda o: o // 60)
         if step > unit:
             step = math.gcd(step, unit)
         seams = {
             "unit": unit, "step": step, "day": HOUR_DAY, "bin_of": bin_of, "keep_of": keep_of,
             "keeps_always": not reachable, "count_steps": False,
+            "kin_of": (lambda o, kin=kin, span=unit * CLOCK_FIELD_VALUES: kin[(o // span) % (HOUR_DAY // span)]),
         }
         if word is not None:
             seams["width_of"] = lambda day: counts_into_width(column, day, word)
@@ -13990,6 +13991,8 @@ class WeekdayWalk:
         self.keeps_always = seams.get("keeps_always", False)
         # G7.3h: whether G7.3f's count steps 8.1 to 8.6 run (landing 3b.4).
         self.count_steps = seams.get("count_steps", True)
+        # G7.3h: a field pass's kin group of an ordinal's parent, or None.
+        self.kin_of = seams.get("kin_of")
 
     def group(self, ordinal):
         return self.group_of_bin[self.bin_of(ordinal)]
@@ -14602,7 +14605,12 @@ def bins_settled(walk, first, last, pinned, wanted, reachable):
         have = [0] * len(owed)
         for rank in ranks:
             have[walk.group(walk.days[rank])] += 1
-        weekday_runs(walk, ranks, have, shares[j])
+        if walk.kin_of is not None and kin_shares_moved(walk, ranks, shares[j]):
+            have = [0] * len(owed)
+            for rank in ranks:
+                have[walk.group(walk.days[rank])] += 1
+        else:
+            weekday_runs(walk, ranks, have, shares[j])
         weekday_singles(walk, ranks, have, shares[j], 16, False)
     weekday_leftover(walk, movable, owed)
     weekday_chain(walk, movable, owed)
@@ -14612,6 +14620,54 @@ def bins_settled(walk, first, last, pinned, wanted, reachable):
         weekday_count_kept(walk, movable, wanted)
     sort_unpinned_runs(walk.days, pinned)
     return walk.days
+
+
+def kin_share(want, taken, placed, size):
+    """G7.3h's KIN SHARES, one kin group's: of each group, the share of the
+    ranks placed so far rounded down and never below what was taken; the
+    ranks unplaced one each to the largest remainders (the lower group on a
+    tie), each to its share rounded up; ranks placed beyond, back from the
+    groups raised, the smallest remainder first, the lower group on a tie."""
+    target = [max(taken[g], placed * want[g] // size) for g in range(len(want))]
+    spare = placed - sum(target)
+    if spare > 0:
+        up = sorted(
+            (-((placed * want[g]) % size), g) for g in range(len(want))
+            if (placed * want[g]) % size > 0 and target[g] == placed * want[g] // size
+        )
+        for _r, g in up[:spare]:
+            target[g] += 1
+    if spare < 0:
+        down = sorted(((placed * want[g]) % size, g) for g in range(len(want)) if target[g] > taken[g])
+        for _r, g in down[:-spare]:
+            target[g] -= 1
+    return [target[g] - taken[g] for g in range(len(want))]
+
+
+def kin_shares_moved(walk, ranks, want):
+    """G7.3h's KIN SHARES: where a gap's ranks stand in two kin groups or
+    more, each, in the order its first rank stands, takes its share of the
+    gap's and moves to it as a gap does (G7.3f steps 5 and 6)."""
+    if sum(want) != len(ranks):
+        return False
+    order = []
+    for rank in ranks:
+        if walk.kin_of(walk.days[rank]) not in order:
+            order += [walk.kin_of(walk.days[rank])]
+    if len(order) < 2:
+        return False
+    members = {kin: [rank for rank in ranks if walk.kin_of(walk.days[rank]) == kin] for kin in order}
+    taken, placed = [0] * len(want), 0
+    for kin in order:
+        placed += len(members[kin])
+        share = kin_share(want, taken, placed, len(ranks))
+        have = [0] * len(want)
+        for rank in members[kin]:
+            have[walk.group(walk.days[rank])] += 1
+        weekday_runs(walk, members[kin], have, share)
+        weekday_singles(walk, members[kin], have, share, 16, False)
+        taken = [taken[g] + share[g] for g in range(len(want))]
+    return True
 
 
 def weekday_count_kept(walk, movable, wanted):
@@ -16642,6 +16698,21 @@ def field_heaps_case():
     )
 
 
+def field_kin_shares_case():
+    m = HOUR_MONDAY
+    ordinals = [
+        hour_at(m - 1, 7, 50), hour_at(m, 8, 2), hour_at(m, 8, 20), hour_at(m, 8, 58),
+        hour_at(m, 9, 40), hour_at(m, 9, 57), hour_at(m + 1, 8, 31), hour_at(m + 2, 10, 10),
+    ]
+    return field_case(
+        "KIN SHARES: a heap at minute 0 counting 2, the rest 6, hours 8 and 9 kin groups "
+        "of their own. The six movable ranks stand four in hour 8 and two in hour 9, so "
+        "each hour takes one of the heap's two: 08:02 takes 08:00 and 09:40 takes 09:00. "
+        "Nearest first over the whole gap, both came from hour 8.",
+        "field", ordinals, {0, 7}, [6, 2], HEAP_ZERO, 60, kin=[0] * 8 + [1, 2] + [3] * 14,
+    )
+
+
 def field_seconds_case():
     m = HOUR_MONDAY
     ordinals = [
@@ -16801,6 +16872,7 @@ def field_floor_case():
 CLOCK_FIELD_STEP_CASES = {
     "field_minute_heaps": field_heaps_case,
     "field_second_zero": field_seconds_case,
+    "field_kin_shares": field_kin_shares_case,
     "field_exchange_stays": field_exchange_case,
     "field_exchange_swap": field_exchange_swap_case,
     "field_exchange_kin": field_exchange_kin_case,
@@ -16861,6 +16933,9 @@ def clock_field_step_answer(case):
         "keep_of": lambda ordinal: ordinal // (unit * CLOCK_FIELD_VALUES),
         "keeps_always": not case["reachable"], "count_steps": False,
     }
+    if case["kin"]:
+        span = unit * CLOCK_FIELD_VALUES
+        seams["kin_of"] = lambda ordinal: case["kin"][(ordinal // span) % (HOUR_DAY // span)]
     walk = WeekdayWalk(
         case["counts"], case["where"], list(case["ordinals"]), list(case["lows"]),
         list(case["highs"]), set(case["holes"]), seams,

@@ -28,7 +28,9 @@ The clauses, each red on its own mutant (named beside it):
   TVDs; INDEPENDENCE, in each hour group the share of each single-minute
   group within the bound and three sampling scales of the census share;
   and the twin's hour groups and weekdays are the ones the same seed
-  writes with G7.3h withdrawn;
+  writes with G7.3h withdrawn; the real table's own cells meet
+  INDEPENDENCE, and 4,000 clinic slots meet it through KIN SHARES and
+  miss it without;
 * the frozen states of vectors file 20: the product gives every case the
   oracle's answer, and each case is red on its own mutant (`STEP_MUTANTS`);
 * the witnesses: bursts keep their count through SUBSTITUTE, clinic slots
@@ -357,11 +359,23 @@ def _statistics_failures(block: dict, real: "list[str]", twin: "list[str]", form
 
 def _independence_failures(block: dict, real: "list[str]", twin: "list[str]", form: str) -> "list[str]":
     """INDEPENDENCE (the design skeptic's B1): in each hour group holding
-    four lines of the body's cells, the twin's share of them on each
-    single-minute group lies within BOUND -- (the rows of a tail listing no
-    values + the unresolved cells) / parsed -- and three sampling scales
-    of the census share, so the units the pass moves do not bend the heap
-    by hour."""
+    four lines of the body's cells off a written midnight, the twin's share
+    of them on each single-minute group lies within BOUND -- (the rows of a
+    tail listing no values + the unresolved cells) / parsed -- and three
+    sampling scales of the census share, so the units the pass moves do not
+    bend the heap by hour.
+
+    TWO READINGS THE REAL TABLE ITSELF FAILED, measured on the battery at
+    10,000 rows and floor 11 (the 10k run of K-S3-42's driver): cells at a
+    written midnight -- bare days, a third of the admissions -- stand in
+    hour 0 on minute 0 whatever the pass does, so they are left out of the
+    hour groups and of the census share (admissions' real cells failed the
+    clause 115 times); and a group the hour group expects fewer than the
+    census line's cells of is not asked, a few events no sampling scale
+    states (vitals', the cells written `HH:MM:00` and their near-pure
+    sibling's real cells failed it 5, 11 and 13 times, the discharges' and
+    the epoch placeholder's 3 each). The real table's cells now fail it
+    nowhere (`test_the_real_table_meets_the_independence_clause`)."""
     census, heaps = _published(block, "minute")
     singles = [(value, count) for value, count in heaps] + [(first, count) for first, last, count in census if first == last and count > 0]
     if not singles or not block["hour_census"]:
@@ -380,18 +394,50 @@ def _independence_failures(block: dict, real: "list[str]", twin: "list[str]", fo
     # and no sampling scale of cells states it.
     if len(moments) > 1.5 * len(set(moments)):
         return []
-    ties = 1.0
+    off = [moment for moment in moments if (moment.hour, moment.minute, moment.second, moment.microsecond) != (0, 0, 0, 0)]
+    at_midnight = len(moments) - len(off)
     for group in block["hour_census"]:
-        inside = [moment for moment in moments if group["first"] <= moment.hour <= group["last"]]
+        inside = [moment for moment in off if group["first"] <= moment.hour <= group["last"]]
         if len(inside) < 4 * LINE:
             continue
         for value, count in singles:
-            expected = count / body
+            expected = (count - (at_midnight if value == 0 else 0)) / (body - at_midnight)
+            if expected * len(inside) < LINE:
+                continue
             share = sum(1 for moment in inside if moment.minute == value) / len(inside)
-            scale = (ties * expected * (1 - expected) / len(inside)) ** 0.5
+            scale = (expected * (1 - expected) / len(inside)) ** 0.5
             if abs(share - expected) > bound + 3 * scale:
                 found += [f"hours {group['first']}-{group['last']} minute {value}: {share:.3f} against {expected:.3f}"]
     return found
+
+
+def test_the_real_table_meets_the_independence_clause(thousand) -> None:
+    """A clause the real cells fail cannot judge a twin: on the battery's own
+    columns, every one publishing a field, INDEPENDENCE finds nothing."""
+    described, columns, _text = thousand
+    asked = 0
+    for name, (cells, form) in columns.items():
+        block = described.block(name)
+        if any(_published(block, "minute")):
+            asked = asked + 1
+            assert _independence_failures(block, cells, cells, form) == [], name
+    assert asked >= 10, asked
+
+
+def test_each_hour_takes_its_share_of_the_heaps(tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """KIN SHARES (method G7.3h): 4,000 clinic slots, every hour of the day
+    35 per cent on :00 in the real column, meet INDEPENDENCE; with each gap's
+    shares left whole -- G7.3f's moves, nearest first and whole runs first
+    -- hour 8 came back 23 per cent on :00 and 25 on :45 against 12."""
+    cells = shapes.clinic(random.Random(72003), 4000)
+    described = kpi_shapes.describe(tmp_path / "kin", "clinic", "clinic\n" + "\n".join(cells) + "\n", LINE)
+    block = described.block("clinic")
+    assert block["minute_heaps"] and block["hour_census"]
+    twin = shapes.cells_of(kpi_shapes.twin_text(described, 0), "clinic")
+    assert _independence_failures(block, cells, twin, shapes.ISO_M) == []
+    monkeypatch.setattr(generation, "_clock_kin_shares_moved", lambda *_arguments: False)
+    bent = shapes.cells_of(kpi_shapes.twin_text(described, 0), "clinic")
+    assert len(_independence_failures(block, cells, bent, shapes.ISO_M)) >= 2
 
 
 @pytest.mark.parametrize("seed", [0, 4])
@@ -758,6 +804,7 @@ def _state(case: dict, module=generation):
         highs=list(case["highs"]), keep_units=case["reachable"], unit=field,
         step=case["written_unit"], day=DAY, bins="minute" if field == 60 else "second",
         period=60, keeps="hour" if field == 60 else "minute", count_steps=False,
+        kin=tuple(case["kin"]),
     )
     for ordinal in state.moved:
         module._weekday_tally(state.held, ordinal // state.step, 1)
@@ -894,6 +941,11 @@ STEP_MUTANTS = {
         "field_midnight_tails",
         "        if at > counted and here:\n            if moved[rank] + away <= gap_highs[rank]:",
         "        if False:\n            if moved[rank] + away <= gap_highs[rank]:",
+    ),
+    "a gap's shares not split over its kin groups": (
+        "field_kin_shares",
+        "        if state.kin and _clock_kin_shares_moved(state, ranks, want):",
+        "        if False and _clock_kin_shares_moved(state, ranks, want):",
     ),
     "no PUT BACK after the exchange": (
         "field_exchange_put_back",
@@ -1140,3 +1192,43 @@ def test_substitute_grows_with_the_rows(monkeypatch: pytest.MonkeyPatch) -> None
         grown[name] = spent[1] / spent[0]
     assert grown["shipped"] <= 1.25 * 9, grown
     assert grown["uncached"] >= 1.5 * 9, grown
+
+
+def _kin_state(days: int):
+    """A state of minutes for KIN SHARES: on each of `days` days, hours 8 to 16
+    hold four ranks each at minutes 7, 22, 37 and 52, the hours each a kin
+    group of their own, one gap over every rank; the heap at minute 0 is
+    owed about a third of them."""
+    moved: "list[int]" = []
+    for day in range(days):
+        for hour in range(8, 17):
+            moved += [(19000 + day) * DAY + hour * 3600 + minute * 60 for minute in (7, 22, 37, 52)]
+    rows = len(moved)
+    state = generation._WeekdayPass(
+        moved=moved, held={}, where=tuple([1] + [0] * 59), facts=None, word="", widths=False,
+        kinds={}, holes=frozenset(), lows=[moved[0]] * rows, highs=[moved[-1]] * rows,
+        keep_units=True, unit=60, step=60, day=DAY, bins="minute", period=60, keeps="hour",
+        count_steps=False, kin=tuple(range(24)),
+    )
+    for ordinal in moved:
+        generation._weekday_tally(state.held, ordinal // 60, 1)
+    state.gap_sizes[(moved[0], moved[-1])] = rows
+    heap = rows // 3
+    return state, list(range(rows)), [rows - heap, heap]
+
+
+def test_kin_shares_grow_with_the_rows() -> None:
+    """KIN SHARES at 3 and 27 days, 108 and 972 ranks: the shares of each kin
+    group and their moves, G7.3f's steps 5 and 6 on its own ranks, grow no
+    faster than the rows (within 1.25 times nine), so a million ranks cost a
+    thousand times 972's -- machine-free -- and every hour takes its third."""
+    spent: "list[int]" = []
+    for days in (3, 27):
+        state, ranks, want = _kin_state(days)
+        spent += [_lines_run(generation._clock_kin_shares_moved, state, ranks, want)]
+        on_zero = [0 for _hour in range(24)]
+        for ordinal in state.moved:
+            if (ordinal // 60) % 60 == 0:
+                on_zero[(ordinal // 3600) % 24] += 1
+        assert on_zero[8:17] == [4 * days // 3] * 9, on_zero
+    assert spent[1] <= 1.25 * 9 * spent[0], spent

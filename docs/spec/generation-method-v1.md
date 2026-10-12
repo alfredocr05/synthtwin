@@ -7428,7 +7428,24 @@ group in the hour census -- one group over the day where none is
 published. The second's bins are one second, its parent the minute, and
 its kin each minute of the day's pair of hour group and minute group,
 the minute's groups those of its own pass, one group where it publishes
-none. The pass asks no count step of G7.3f (8.1 to 8.6): over sixty
+none -- each pair its own kin group, however many groups the minute has.
+KIN SHARES: where G7.3f's moves fill a gap's shares (steps 5 and 6) and
+the gap's ranks stand in two kin groups or more, by their parents' places
+in the day, each kin group, in the order its first rank stands in the
+gap, takes its own shares of the gap's, and its ranks move to them as a
+gap's do, whole runs and then single ranks; single ranks over the whole
+gap follow. The kin groups so far, holding P of the gap's S ranks, take
+together of each group G its share P x G / S rounded down, never less
+than they took; the ranks still unplaced go one each to the groups of the
+largest remainder, the lower group on a tie, none past its share rounded
+up; ranks placed beyond P come back from the groups raised above what
+was taken, the smallest remainder first, the lower group on a tie; a kin
+group takes the difference, and the last takes every share exactly.
+Filled nearest first and whole runs first over the whole gap, 10,000
+clinic slots came back with 20 per cent of hour 8 on :00 and 47 per cent
+of hour 10, against 35 in every hour of the real column; kin group by kin
+group, every hour stands within its sampling scale.
+The pass asks no count step of G7.3f (8.1 to 8.6): over sixty
 values they ask cycles among as many groups, and the count is put back
 by G7.3g's PUT BACK and the steps below. A field's GROUPS are its
 census's, in order, each over its values,
@@ -7487,8 +7504,8 @@ nearest midnight inside its stratum; each tail's ranks are then sorted.
 
 **Its frozen cases** are states of ranks and drawing units: the twentieth
 vectors file, `tests/reference/generation-branch-vectors-20.json`, holds
-fifteen -- the pass on a field of minutes with heaps and on a field of
-seconds with a kin group of minutes, the exchange's three answers,
+sixteen -- the pass on a field of minutes with heaps and on a field of
+seconds with a kin group of minutes, KIN SHARES over two hours, the exchange's three answers,
 PUT BACK once more after it, SUBSTITUTE, SPREAD, the tails keeping the count at midnight by their
 drawing unit and, in a stratum narrower than it, by the written unit, a draw laid
 on its unit, and the drawing units of a half-hour grid, a column on the
