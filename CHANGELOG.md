@@ -29,7 +29,14 @@ landing of a column named with `--twelve-hour` and read on the 24-hour
 clock still loads and is checked on that clock. A declared dial's twin
 may miss its rungs until landing T2's half-day draw, as a declared
 stamp's does, and a column mixing the narrow and the ordinary space
-before its marker is not read.
+before its marker is not read. After the Codex review, a column R2a's layouts
+read at the line keeps R2a's layout even where the clock half would read
+a few more of its cells: 990 SAS stamps at hour 14 beside ten at hour 4
+stay at `{HH}` with ten cells unread, and R2a's own description of them
+again validates its unchanged source. A clock column writing a space or
+a narrow space before its marker (`9:15 AM`) beside more than one cell
+in fifty of rare words stays free text whose twin is made-up text: such
+a cell has no written form, since a form holds no space.
 
 ### Dates no member read are read by their shape, and written back as written (2026-10-05)
 
