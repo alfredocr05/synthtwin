@@ -5813,6 +5813,13 @@ that way.
   counts agree: the different
   written units -- a day, a month or a quarter, or minutes or seconds at
   the column's precision -- must number `n_distinct` less the stand-ins.
+  Where only a partial form or the declared mark keeps a column out,
+  the pass aims at an UPPER target instead (the second skeptic of
+  landing R2c's repair, item 3): `n_distinct` less one for each named
+  partial form and one more where a stand-in is written, clamped to one
+  and the full ranks, under every other condition here; the validator
+  keeps its envelope. With none, 27 different FHIR values of 2,000 rows
+  came back as 275 to 280.
 
   *Amended by the dates pass of the stage-3 review (items 4).* Two
   narrowings of this clause were narrower than its own reason, and
@@ -11011,6 +11018,17 @@ explicitly outside the parsed-value obligation. The spellings are
 additionally against every date format the shipped `parsing.DATE_FORMATS`
 names so that a stand-in cannot accidentally parse as a date and change
 `n_unparsed`.
+
+*Amended by the second skeptic of landing R2c's repair (item 1).* The
+stand-ins the published `n_numeric` still owes -- `n_numeric` less the
+cells already written that read as a number, at most every stand-in and
+at least none -- are written first as made-up figures, `1`, `2`, …,
+stepped past every spelling used, every absent spelling and anything a
+date format reads; the rest are `text-N`. A form of figures below the
+census line (FHIR's `2023`, HL7's ten-figure runs) was written as text
+and its twin missed `n_numeric` and `n_not_numeric` at every seed.
+G7.9b's debt counts these figures among the numbers. Nothing new is
+published.
 
 ### G10.5 The `numeric_unrepresentable` role
 
