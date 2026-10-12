@@ -16160,7 +16160,13 @@ def _matching_layout(
     least = needed
     if chosen is None:
         chosen = _partial_layout(
-            present, counted, needed, settings.day_first, contradicted, window
+            present,
+            counted,
+            needed,
+            settings.day_first,
+            contradicted,
+            window,
+            parsing.census_floor(settings.small_cell_floor),
         )
         if chosen is not None:
             least = _needed(PARTIAL_FULL_SHARE, total)
@@ -16214,6 +16220,7 @@ def _partial_layout(
     day_first: bool,
     contradicted: bool,
     window: int,
+    line: int,
 ) -> "tuple[str, int, dict[str, int]] | None":
     """The layout a column of partial dates is read under, its full rows, or None (landing R2c).
 
@@ -16227,7 +16234,22 @@ def _partial_layout(
     the one reading the most cells wins, then the one reading the most
     whole, then `parsing.layout_order_key`. Each candidate stops as soon
     as its misses pass the line's room, and the candidates are the layouts
-    of `PARTIAL_SAMPLE_CELLS` evenly spaced cells.
+    of `PARTIAL_SAMPLE_CELLS` evenly spaced cells, each grown from the texts
+    it missed by `_layout_extended`, as `_chosen_layout` grows its own: an
+    HL7 feed of 1,000 cells, seven of them ending `-0500`, was read under
+    the optional-offset layout only where the sample held one of the seven,
+    so its twin, whose seven fell elsewhere, missed `n_unparsed` at two
+    seeds of three.
+
+    A FORM BELOW THE CENSUS LINE DOES NOT COUNT TOWARD THE LINE (the R2c
+    repair, item 1). `line` is `parsing.census_floor`: each cell the
+    layout does not read is tallied under the first partial form that
+    reads it, as `layout_partial_counts` tallies it, and a form on fewer
+    cells than `line` is not named there, so its cells are written as
+    stand-ins and count among the misses here. Counted as read, they let
+    a 240-row FHIR column with thirty cells written to the year be read as
+    dates at a floor of 36, and its twin, thirty stand-ins in place of
+    those years, was read as no date and missed its role on every seed.
 
     Returns `_chosen_layout`'s triple -- the layout text, the rows it reads
     whole, and no candidate's count -- or None. A function of the
@@ -16256,42 +16278,90 @@ def _partial_layout(
     )
     best = ""
     best_rows = (-1, -1)
+    later: "list[str]" = []
     for _key, layout in keyed:
-        items = parsing.compiled_layout(layout)
-        forms: "list[tuple[tuple[str, str], ...]]" = []
-        for name in parsing.layout_truncations(parsing.layout_format(layout)):
-            compiled = parsing.partial_items(name)
-            if compiled is not None:
-                forms += [compiled]
-        if items is None or not forms:
+        read = _partial_reads(layout, counted, room, line)
+        if read is None:
             continue
-        whole = 0
-        cut = 0
-        missed = 0
-        for text in counted:
-            rows = counted[text]
-            if parsing.layout_reading(text, items) is not None:
-                whole = whole + rows
-                continue
-            read = False
-            for form in forms:
-                if parsing.layout_partial_reading(text, form) is not None:
-                    read = True
-                    break
-            if read:
-                cut = cut + rows
-                continue
-            missed = missed + rows
-            if missed > room:
-                break
+        whole, cut, missed, failing = read
+        # Grown from the texts it missed, as `_chosen_layout` grows its own
+        # (the R2c repair): a few cells writing an offset are read by the
+        # optional-offset layout whether or not the sample held one.
+        for one in _layout_extended(layout, failing, window, contradicted):
+            if one not in later and one not in found:
+                later += [one]
         if missed > room or whole < half or cut < 1:
             continue
         if (whole + cut, whole) > best_rows:
             best = layout
             best_rows = (whole + cut, whole)
+    for layout in later:
+        read = _partial_reads(layout, counted, room, line)
+        if read is None:
+            continue
+        whole, cut, missed, _failing = read
+        if missed > room or whole < half or cut < 1:
+            continue
+        if (whole + cut, whole) > best_rows or (
+            (whole + cut, whole) == best_rows
+            and parsing.layout_order_key(layout, day_first)
+            < parsing.layout_order_key(best, day_first)
+        ):
+            best = layout
+            best_rows = (whole + cut, whole)
     if not best:
         return None
     return best, best_rows[1], {}
+
+
+def _partial_reads(
+    layout: str, counted: "dict[str, int]", room: int, line: int
+) -> "tuple[int, int, int, list[str]] | None":
+    """How one candidate of `_partial_layout` reads a column, or None where it has no partial form.
+
+    Returns the rows it reads whole, the rows its partial forms at the
+    census line read, the rows it misses -- with those of every form
+    below the line among them -- and the texts no form reads. Each unread
+    cell is tallied under the first form that reads it, as
+    `layout_partial_counts` tallies it. Stops once the texts no form reads
+    pass ``room``. A function of the arguments. Raises nothing. No I/O.
+    """
+    items = parsing.compiled_layout(layout)
+    forms: "list[tuple[tuple[str, str], ...]]" = []
+    for name in parsing.layout_truncations(parsing.layout_format(layout)):
+        compiled = parsing.partial_items(name)
+        if compiled is not None:
+            forms += [compiled]
+    if items is None or not forms:
+        return None
+    whole = 0
+    missed = 0
+    failing: "list[str]" = []
+    tallies = [0 for _form in forms]
+    for text in counted:
+        rows = counted[text]
+        if parsing.layout_reading(text, items) is not None:
+            whole = whole + rows
+            continue
+        place = -1
+        for spot, form in enumerate(forms):
+            if parsing.layout_partial_reading(text, form) is not None:
+                place = spot
+                break
+        if place >= 0:
+            tallies[place] = tallies[place] + rows
+            continue
+        missed = missed + rows
+        failing += [text]
+        if missed > room:
+            break
+    cut = 0
+    for tally in tallies:
+        if tally >= line:
+            cut = cut + tally
+        else:
+            missed = missed + tally
+    return whole, cut, missed, failing
 
 
 def _ask_first_layout(

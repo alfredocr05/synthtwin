@@ -203,6 +203,28 @@ def a_form_one_row_wore(_column: str) -> Change:
     return change
 
 
+def a_partial_form_five_cells_wore(_column: str) -> Change:
+    """Read a column of dates as a layout, five of its cells cut to the month (RM3, landing R2c).
+
+    The five are left unread, as a partial form's cells are, and every
+    count of the cells read loses them; the producer names no form on
+    fewer cells than the census line, so no document it writes reaches
+    this shape.
+    """
+    def change(document: Document) -> None:
+        block = at(document, _column)
+        parsed = int(block["n_present"]) - 5
+        block.update(
+            format="layout {YYYY}.{MM}.{DD}",
+            n_unparsed=5,
+            resolution_mix={"layout {YYYY}.{MM}.{DD}": parsed, "layout {YYYY}.{MM}": 5},
+            utc_offsets={"(none)": parsed},
+        )
+        census = typing.cast("list[dict[str, int]]", block["weekday_census"])
+        census[0]["count"] = census[0]["count"] - 5
+    return change
+
+
 def whole_dates_carrying_offsets(_column: str) -> Change:
     """Read a column of stamps jointly, every value a whole date (D16).
 
@@ -1794,6 +1816,20 @@ def battery() -> list[Mutation]:
                 format="layout {YYYY}.{MM}.{DD}",
                 resolution_mix={"layout {YYYY}.{MM}.{DD}": 240, "layout {YYYY}.{MM}": 20},
             ),
+        ),
+        # ...AND ITS TWO COUNTS (the R2c repair, item 5): the layout's own
+        # count is the cells read, and no form is named below the line.
+        Mutation(
+            "RM2", "a partial-date column's layout counting fewer than it read",
+            edit(
+                "recorded_on",
+                format="layout {YYYY}.{MM}.{DD}",
+                resolution_mix={"layout {YYYY}.{MM}.{DD}": 239, "layout {YYYY}.{MM}": 0},
+            ),
+        ),
+        Mutation(
+            "RM3", "a partial form named on five cells",
+            a_partial_form_five_cells_wore("recorded_on"),
         ),
         # -- 3b.R4 (P4-D384)
         Mutation(

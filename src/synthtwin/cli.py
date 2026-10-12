@@ -3803,7 +3803,11 @@ def _run_profile(
     )
     if century_asked:
         _say(f"\n{_century_notice(century_asked)}\n")
-    # -- 3b.R2c (P4-D383): question Q6, said as Q5 is.
+    # -- 3b.R2c (P4-D383): question Q6, said as Q5 is, and WORKED OUT
+    # ONCE A RUN as the codes question is (the R2c repair, item 3): each
+    # candidate is described again under the declaration, three to four
+    # times its own describe, so the questions file below reuses this
+    # unless the interview moved what it reads.
     dates_asked = asking.date_column_questions(
         document,
         read.columns,
@@ -3812,6 +3816,12 @@ def _run_profile(
         split_columns,
         tuple(forced_decimal_commas),
         storage,
+    )
+    dates_of = (
+        document,
+        settings,
+        list(settled + date_columns),
+        list(forced_decimal_commas),
     )
     if dates_asked:
         _say(f"\n{_date_column_notice(dates_asked)}\n")
@@ -4147,15 +4157,21 @@ def _run_profile(
     # column raises: an accession number written `2024-252` is asked
     # whether it is dates and, as before, whether it is a code or a
     # record number, since only the person knows which.
-    dates_asked = asking.date_column_questions(
-        document,
-        read.columns,
-        settings,
-        settled + date_columns,
-        split_columns,
-        tuple(forced_decimal_commas),
-        storage,
-    )
+    if not (
+        document is dates_of[0]
+        and settings == dates_of[1]
+        and settled + date_columns == dates_of[2]
+        and list(forced_decimal_commas) == dates_of[3]
+    ):
+        dates_asked = asking.date_column_questions(
+            document,
+            read.columns,
+            settings,
+            settled + date_columns,
+            split_columns,
+            tuple(forced_decimal_commas),
+            storage,
+        )
     asked_about = asked_about + dates_asked
     listed_about = asking.checklist_for(
         document, read.columns, settings, settled,

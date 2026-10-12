@@ -2779,6 +2779,14 @@ class DatetimeFacts:
     # column until landing R4 (plan P4-D384) fills it: how the counts a
     # column writes its dates as are spelled.
     count_form: "dict[str, object] | None" = None
+    # -- 3b.R2c (P4-D383): NO KEY OF THE BLOCK, carried by the loader from
+    # the settings beside it. True where the person said the column holds
+    # dates (`forced_date_columns`, question Q6) and more of its cells were
+    # left unread than the date rule's line leaves room for: those cells
+    # stand as the source wrote them and may repeat one word, so the count
+    # of different dates is not `n_distinct` less `n_unparsed`
+    # (`datetime_counts_reachable`).
+    declared_short_of_the_line: bool = False
 
 
 @dataclasses.dataclass(frozen=True)
@@ -3483,6 +3491,9 @@ class _Frame:
     # `missing_by_source` keys, the absent spellings whose days a weekday
     # census holds as holes (review of landing 3b.1, finding 6).
     declared_days: "tuple[str, ...]" = ()
+    # -- 3b.R2c (P4-D383): the columns the person said hold dates
+    # (`forced_date_columns`), whose blocks `_declared_short` marks.
+    declared_dates: "tuple[str, ...]" = ()
 
 
 def _category_ceiling(frame: _Frame) -> int:
@@ -7682,7 +7693,7 @@ def _facts(
         )
         return tail
     if role == ROLE_DATETIME:
-        return _datetime_facts(
+        dated = _datetime_facts(
             mapping,
             where,
             frame.floor,
@@ -7695,6 +7706,8 @@ def _facts(
             ),
             _absent_spellings(mapping, frame.declared_days),
         )
+        # -- 3b.R2c (P4-D383)
+        return _declared_short(dated, mapping, frame, n_present)
     if role == ROLE_COUNT or role == ROLE_CONTINUOUS:
         numeric = _numeric_facts(
             mapping,
@@ -8892,6 +8905,31 @@ def _partial_mix(
     return mix
 
 
+def _declared_short(
+    facts: DatetimeFacts,
+    mapping: "dict[str, object]",
+    frame: _Frame,
+    n_present: int,
+) -> DatetimeFacts:
+    """A declared column's facts, marked where it was read short of the date rule's line (landing R2c).
+
+    `--date-column` reads a column at half its present cells, and the
+    cells it leaves unread are often one word (`pending`, `not done`)
+    repeated: `n_distinct` counts that word once, so `n_distinct` less
+    `n_unparsed` is not the count of different dates, and method G7.3's
+    count pass, aiming at it, squeezed 138 different dates of a 240-row
+    column into 43 (the R2c repair, item 2). The line is the producer's
+    own (`_line_count` of `minimum_parse_rate`), and only a declared
+    column is marked, so no column read without the declaration moves.
+    """
+    named = mapping["name"] if "name" in mapping else None
+    if not isinstance(named, str) or named not in frame.declared_dates:
+        return facts
+    if facts.n_unparsed <= n_present - _line_count(frame.parse_rate, n_present):
+        return facts
+    return dataclasses.replace(facts, declared_short_of_the_line=True)
+
+
 def _datetime_facts(
     mapping: "dict[str, object]",
     where: str,
@@ -10018,6 +10056,9 @@ def datetime_counts_reachable(column: "ColumnBlock") -> bool:
         return False
     # -- 3b.R2c (P4-D383): a partial-date column's stand-ins repeat.
     if len(facts.resolution_mix) > 1 and parsing.is_layout_name(facts.parser_family):
+        return False
+    # -- 3b.R2c (P4-D383): and so may a declared column's unread cells.
+    if facts.declared_short_of_the_line:
         return False
     if column.n_distinct != column.n_distinct_folded:
         return False
@@ -18479,6 +18520,7 @@ def _validated(document: "dict[str, object]") -> Profile:
             category_ceiling=settings.categorical_ceiling,
             category_floor=settings.categorical_floor,
             declared_days=settings.declared_missing_values.built_in_dates,
+            declared_dates=settings.forced_date_columns,
         ),
     )
     _cross_checks(columns, settings, notes)

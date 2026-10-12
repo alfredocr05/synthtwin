@@ -11516,7 +11516,7 @@ def kept_off_midnight(column, ordinals, parsed, whole, lows, highs, floor=CASE_S
     return ordinals
 
 
-def date_counts_reachable(column):
+def date_counts_reachable(column, declared_short=False):
     """Where method G7.3's count pass reaches the count of different values
     (plan P4-D192): read on the column's own clock, at a resolution whose
     unit the layout steps by one, publishing at most one offset key and
@@ -11528,7 +11528,14 @@ def date_counts_reachable(column):
     G7.3's two amendments of the stage-3 review's dates pass are both
     here: a month and a quarter are units of one like a day, and ONE
     published offset is one way of writing an instant, being written
-    after every moment of the column."""
+    after every moment of the column.
+
+    ``declared_short`` is the loader's mark of a column the person said
+    holds dates (question Q6) with more cells unread than the date rule's
+    line leaves room for (landing R2c): those cells may repeat one word,
+    so the count less the unread cells is no count of different dates.
+    It is a fact of the settings, which no case here carries: the one
+    declared case reads every cell."""
     if column["datetimes_read_at"] != "local" or column["resolution"] not in RESOLUTIONS:
         return False
     offsets = column.get("utc_offsets", {})
@@ -11542,8 +11549,11 @@ def date_counts_reachable(column):
             return False
     if column["format"] == "iso-mixed" and column.get("resolution_mix", {}).get("iso-date", 0) > 0:
         return False
-    # A partial-date column's partial cells repeat (landing R2c).
+    # A partial-date column's partial cells repeat (landing R2c)...
     if partial_forms(column):
+        return False
+    # ...and so may a declared column's unread cells.
+    if declared_short:
         return False
     return column["n_distinct"] == column["n_distinct_folded"]
 

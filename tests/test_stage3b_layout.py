@@ -2337,7 +2337,18 @@ def test_cxv_item3_step5_respells_only_the_texts_it_writes(
 #   (mutant: every column declared); and the question names no cell
 #   (mutant: an example taken from the column);
 # * LY the producer writes no description it cannot load and generate,
-#   over every partial and declared shape at floors 2, 11 and 36.
+#   and no twin that misses, over every partial and declared shape at
+#   floors 2, 11 and 36, seeds 0 to 2.
+#
+# And the repair round's clauses, after its skeptic (each red on 144ac4d
+# or on the mutant its docstring names): the battery above validated (a
+# form below the census line counted toward the date rule's line); a
+# declared column beside one repeated word keeps its dates apart (the
+# count pass aimed at the count less the unread cells); Q6 worked out
+# once a run; the declaration narrowed to its column; G12.5's lower
+# bound, G7.9b's debt and the offset growth of the partial choice each
+# on a shape of its own; the four things `--date-column` says; and no
+# partial form of a weekday or a day of the year.
 
 _PARTIAL_ROWS = 400
 
@@ -2742,20 +2753,299 @@ def _battery() -> "dict[str, tuple[list[str], tuple[str, ...]]]":
     return shapes
 
 
+# A form below the census line leaves this column to the reading it had
+# before the landing (the repair, item 1): its free-text twin misses its
+# mean length there on the landing's base as well, which is the free-text
+# writer's and none of this landing's, so only the reading is held.
+_UNREAD_AS_BEFORE = {("fhir_few_years", 11), ("fhir_few_years", 36)}
+
+
 @pytest.mark.parametrize("floor", [2, 11, 36])
 @pytest.mark.parametrize("shape", sorted(_battery()))
 def test_r2c_every_description_the_producer_writes_loads_and_generates(
     tmp_path: pathlib.Path, shape: str, floor: int
 ) -> None:
-    """The producer-always-loads battery of LY6, LY7 and S8f: every description loads and generates.
+    """The producer-always-loads battery of LY6, LY7 and S8f: every description loads and every twin validates.
 
-    Validation is P2's and Q6's to hold on their own shapes: here a declared
-    column whose unread cells repeat one spelling may miss its count of
-    different values by one at the count pass (`declared_mix` at a floor of
-    eleven, 140 for 139), which is G7.3's count pass and no rule of this
-    landing, and is recorded as such.
+    The repair round, item 1: a partial form below the census line counted
+    toward the date rule's line, though its cells are written as stand-ins,
+    so six of these shapes were read as dates and their twins, re-read, were
+    no date at all: `axes.role` missed at seeds 0 to 2 (fhir, hl7_three,
+    markers_dashed and medidata at 36, sparse at 11 and 36). Red on 144ac4d.
     """
     cells, flags = _battery()[shape]
-    _block, profile, _questions = _described(tmp_path, cells, *flags, floor=floor)
+    block, profile, _questions = _described(tmp_path, cells, *flags, floor=floor)
     contract.load_profile(str(profile))
-    _twin(profile, 0)
+    if (shape, floor) in _UNREAD_AS_BEFORE:
+        assert block["role"] != "datetime"
+        _twin(profile, 0)
+        return
+    for seed in SEEDS:
+        twin, _cells = _twin(profile, seed)
+        assert _validated(profile, twin)[0] == 0, (shape, floor, seed)
+
+
+# -- the repair round's clauses (3b.R2c, P4-D383) -----------------------
+
+_SLASHED_DATE = re.compile(r"[0-9]{1,2}/[0-9]{1,2}/[0-9]{4}")
+
+
+def _pending(rows: int, share: int) -> "list[str]":
+    """Dates written `m/d/yyyy` on ``share`` rows in a hundred and `pending` on the rest (made up)."""
+    return [
+        f"{m.month}/{m.day}/{m.year}" if place % 100 < share else "pending"
+        for place, m in enumerate(spellings.moments(rows, 13))
+    ]
+
+
+def _date_spread(cells: "list[str]") -> "tuple[int, int]":
+    """How many different dates the cells hold, and the most copies of one."""
+    copies: "dict[str, int]" = {}
+    for cell in cells:
+        if _SLASHED_DATE.fullmatch(cell):
+            copies[cell] = (copies[cell] if cell in copies else 0) + 1
+    most = 0
+    for cell in copies:
+        most = max(most, copies[cell])
+    return len(copies), most
+
+
+@pytest.mark.parametrize("floor", [11, 36])
+@pytest.mark.parametrize("rows, share", [(240, 60), (2000, 80)])
+def test_r2c_q6_a_declared_column_beside_one_word_keeps_its_dates_apart(
+    tmp_path: pathlib.Path, rows: int, share: int, floor: int
+) -> None:
+    """Item 2: `--date-column` on dates beside a repeated `pending` keeps the different dates.
+
+    The count pass aimed at `n_distinct` less `n_unparsed`, which counts
+    `pending` once and the twin's made-up stand-ins once each: 149
+    different dates of a 240-row column came back as 70, one of them on 41
+    rows, and validation passed. The twin's different dates now fall within
+    a tenth of the source's, no date on more than two rows more than the
+    source's commonest, and it validates. Red on 144ac4d.
+    """
+    cells = _pending(rows, share)
+    _block, profile, _questions = _described(tmp_path, cells, "--date-column", "seen_at", floor=floor)
+    distinct, most = _date_spread(cells)
+    for seed in SEEDS:
+        twin, written = _twin(profile, seed)
+        found, heaviest = _date_spread(written)
+        assert abs(found - distinct) * 10 <= distinct, (seed, found, distinct)
+        assert heaviest <= most + 2, (seed, heaviest, most)
+        assert _validated(profile, twin)[0] == 0
+
+
+def test_r2c_q6_red_when_the_count_pass_aims_at_the_declared_column(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Item 2's mutant: the loader's mark withdrawn, and the dates are squeezed again."""
+    monkeypatch.setattr(contract, "_declared_short", lambda facts, *_args: facts)
+    cells = _pending(240, 60)
+    _block, profile, _questions = _described(tmp_path, cells, "--date-column", "seen_at")
+    distinct, _most = _date_spread(cells)
+    _twin_path, written = _twin(profile, 0)
+    assert _date_spread(written)[0] * 10 < distinct * 9
+
+
+def test_r2c_q6_is_worked_out_once_a_run(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Item 3: one profile run asks `date_column_questions` once, for the screen and the file.
+
+    Each call describes every candidate again under the declaration, three
+    to four times its own describe; the run made two identical calls.
+    Mutant, run: the questions file's call made whatever the first found.
+    """
+    shipped = asking.date_column_questions
+    calls = {"made": 0}
+
+    def counted(*args: object, **kwargs: object) -> object:
+        calls["made"] = calls["made"] + 1
+        return shipped(*args, **kwargs)  # type: ignore[arg-type]
+
+    monkeypatch.setattr(asking, "date_column_questions", counted)
+    _block, _profile, questions = _described(tmp_path, _q6_shapes()["mixed"])
+    assert "q6" in _asked(questions)
+    assert calls["made"] == 1
+
+
+def test_r2c_q6_the_declaration_reaches_only_the_column_it_names(tmp_path: pathlib.Path) -> None:
+    """Item 4: `--date-column a` leaves column b, seven-figure codes like `2023076`, as it was read.
+
+    Mutant, run: every column given the declaration (`for_the_column`
+    widened), and b is read as days of the year nobody declared.
+    """
+    first = _q6_shapes()["mixed"]
+    second = _q6_shapes()["julian"]
+    table = tmp_path / "real.csv"
+    lines = ["a,b"] + [f"{one},{two}" for one, two in zip(first, second)]
+    table.write_text("\n".join(lines) + "\n", encoding="utf-8", newline="\n")
+    assert _exit_of(
+        ["profile", str(table), "--out-dir", str(tmp_path), "--replace", "--date-column", "a"]
+    ) == 0
+    profile = tmp_path / "real-profile.json"
+    contract.load_profile(str(profile))
+    columns = json.loads(profile.read_text(encoding="utf-8"))["columns"]
+    alone = taxonomy.profile_column("b", 2, second, len(second), taxonomy.Settings())
+    assert columns[0]["role"] == "datetime"
+    assert columns[1]["role"] == alone.role != "datetime"
+
+
+@pytest.mark.parametrize("floor", [11, 36])
+def test_r2c_p2_days_beside_years_meet_their_count(tmp_path: pathlib.Path, floor: int) -> None:
+    """Item 6: G12.5's lower bound counts a partial form once, on 2,000 FHIR dates 55 in 100 to the day.
+
+    Mutant, run: the lower bound counting every partial cell as a value of
+    its own, and `n_distinct` and `n_distinct_folded` miss at every seed.
+    """
+    cells = [
+        m.strftime("%Y-%m-%d" if place % 100 < 55 else "%Y")
+        for place, m in enumerate(spellings.moments(2000, 13))
+    ]
+    block, profile, _questions = _described(tmp_path, cells, floor=floor)
+    assert _partial_forms_of(block) == {"layout {YYYY}": 900}
+    for seed in SEEDS:
+        twin, _cells = _twin(profile, seed)
+        assert _validated(profile, twin)[0] == 0
+
+
+def _hl7_beside_offsets() -> "list[str]":
+    """1,000 HL7 stamps: 300 cut to the minute, and seven of the rest ending `-0500` (made up)."""
+    found: "list[str]" = []
+    for place, m in enumerate(spellings.moments(1000, 13)):
+        if place % 100 >= 70:
+            found += [m.strftime("%Y%m%d%H%M")]
+            continue
+        text = m.strftime("%Y%m%d%H%M%S")
+        if place % 100 == 7 and place < 700:
+            text = text + "-0500"
+        found += [text]
+    return found
+
+
+@pytest.mark.parametrize("floor", [11, 36])
+def test_r2c_g79b_a_partial_run_of_figures_owes_no_offset(tmp_path: pathlib.Path, floor: int) -> None:
+    """Item 7: G7.9b's debt counts the cells cut to the minute as the numbers they are.
+
+    Seven offsets, fewer than the census line, are counted into `(none)`
+    and owed by `n_not_numeric`; the 300 partial cells are inside
+    `n_unparsed` and are numbers, so a debt less every unread cell is
+    below nought and the twin wrote no offset. Its layout is grown from
+    the seven it missed, wherever they stand (`_layout_extended`): read
+    from the sample, the twin, whose seven fell elsewhere, missed
+    `n_unparsed` at two seeds of three.
+    """
+    block, profile, _questions = _described(tmp_path, _hl7_beside_offsets(), floor=floor)
+    assert block["format"] == "layout {YYYY}{MM}{DD}{HH}{MI}{SS}{+HHMM?}"
+    assert _partial_forms_of(block) == {"layout {YYYY}{MM}{DD}{HH}{MI}": 300}
+    assert block["n_not_numeric"] == 7
+    for seed in SEEDS:
+        twin, cells = _twin(profile, seed)
+        assert len([cell for cell in cells if not cell.isdigit()]) == 7
+        assert _validated(profile, twin)[0] == 0
+
+
+def test_r2c_g79b_red_when_the_debt_takes_every_unread_cell(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Item 7's mutant: no partial cell counted a number, and the twin writes no offset."""
+    monkeypatch.setattr(generation, "_partial_numbers", lambda _facts: 0)
+    _block, profile, _questions = _described(tmp_path, _hl7_beside_offsets())
+    twin, cells = _twin(profile, 0)
+    assert all(cell.isdigit() for cell in cells)
+    assert _validated(profile, twin)[0] != 0
+
+
+def test_r2c_red_when_the_partial_choice_is_not_grown(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The growth's mutant: no layout grown from the misses, and the seven are stand-ins."""
+    monkeypatch.setattr(taxonomy, "_layout_extended", lambda *_args: [])
+    cells = _hl7_beside_offsets()
+    described = taxonomy.profile_column("seen_at", 1, cells, len(cells), taxonomy.Settings())
+    assert (described.details or {})["format"] == "layout {YYYY}{MM}{DD}{HH}{MI}{SS}"
+
+
+def _one_column_table(tmp_path: pathlib.Path, cells: "list[str]") -> pathlib.Path:
+    """A one-column table of ``cells``, written as `_described` writes it."""
+    tmp_path.mkdir(parents=True, exist_ok=True)
+    table = tmp_path / "real.csv"
+    names, rows = fixtures.rows_at_the_floor("seen_at", cells)
+    table.write_text(fixtures.rows_to_csv(names, rows), encoding="utf-8", newline="\n")
+    return table
+
+
+def test_r2c_q6_an_unknown_date_column_is_refused(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Item 8: `--date-column` naming no column is refused, and no description is written.
+
+    Mutant, run: the check withdrawn, and a description S8 refuses is written.
+    """
+    table = _one_column_table(tmp_path, _q6_shapes()["mixed"])
+    capsys.readouterr()
+    code = _exit_of(
+        ["profile", str(table), "--out-dir", str(tmp_path), "--replace", "--date-column", "no_such"]
+    )
+    said = capsys.readouterr()
+    assert code == 2
+    assert "no_such" in said.out + said.err
+    assert not (tmp_path / "real-profile.json").exists()
+
+
+def test_r2c_q6_a_declaration_that_reaches_no_column_is_said(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Item 8: `--date-column` on a column of words is warned about. Mutant, run: the warning withdrawn."""
+    table = _one_column_table(tmp_path, _q6_shapes()["words"])
+    capsys.readouterr()
+    assert _exit_of(
+        ["profile", str(table), "--out-dir", str(tmp_path), "--replace", "--date-column", "seen_at"]
+    ) == 0
+    said = capsys.readouterr()
+    assert errors.the_dates_declaration_did_not_reach("seen_at", "free_text")[0:60] in said.out + said.err
+
+
+def test_r2c_q6_the_answer_is_on_the_repeat_line(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Item 8: the answer `dates` is said again as `--date-column`. Mutant, run: left off the line."""
+    cells = _q6_shapes()["mixed"]
+    _block, _profile, questions = _described(tmp_path / "first", cells)
+    for entry in questions["asked"]:  # type: ignore[union-attr]
+        if _reason_of(entry) == "q6":
+            entry["your_answer"] = asking.ANSWER_DATES
+    answers = tmp_path / "answers.json"
+    answers.write_text(json.dumps(questions), encoding="utf-8", newline="\n")
+    capsys.readouterr()
+    _described(tmp_path / "again", cells, "--answers", str(answers))
+    said = capsys.readouterr()
+    assert "--date-column seen_at" in said.out + said.err
+
+
+def test_r2c_q6_is_said_on_the_screen(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Item 8: a column Q6 asks is named on the screen as well. Mutant, run: the notice withdrawn."""
+    capsys.readouterr()
+    _described(tmp_path, _q6_shapes()["mixed"])
+    said = capsys.readouterr()
+    assert "THESE COLUMNS MAY HOLD DATES" in said.out
+    assert "'seen_at'" in said.out
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        "layout {Dy} {DD} {Mon} {YYYY}",
+        "layout {Day}, {DD}-{MM}-{YYYY}",
+        "layout {YYYY}{DDD}",
+        "layout {YYYY}-{DDD}",
+    ],
+)
+def test_r2c_no_partial_form_of_a_weekday_or_a_day_of_the_year(name: str) -> None:
+    """Item 9: a layout with a field outside the partial levels has no partial form.
+
+    Mutant, run: the field passed over rather than refused, and a weekday
+    layout gains cuts and masks.
+    """
+    assert parsing.is_layout_name(name)
+    assert parsing.layout_truncations(name) == ()
