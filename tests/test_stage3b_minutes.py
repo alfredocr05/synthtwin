@@ -371,10 +371,13 @@ def _independence_failures(block: dict, real: "list[str]", twin: "list[str]", fo
     hour 0 on minute 0 whatever the pass does, so they are left out of the
     hour groups and of the census share (admissions' real cells failed the
     clause 115 times); and a group the hour group expects fewer than the
-    census line's cells of is not asked, a few events no sampling scale
-    states (vitals', the cells written `HH:MM:00` and their near-pure
-    sibling's real cells failed it 5, 11 and 13 times, the discharges' and
-    the epoch placeholder's 3 each). The real table's cells now fail it
+    census line's cells of, or fewer than the line's cells off, is not
+    asked, a few events no sampling scale states (vitals', the cells written
+    `HH:MM:00` and their near-pure sibling's real cells failed it 5, 11 and
+    13 times, the discharges' and the epoch placeholder's 3 each; and the
+    twin of a column on the hour but for three cells failed it once in the
+    KPI's ten twins at 10,000 rows, 0.991 against 1.000 in hours 0 and 1,
+    where three sampling scales come to about one cell). The real table's cells now fail it
     nowhere (`test_the_real_table_meets_the_independence_clause`)."""
     census, heaps = _published(block, "minute")
     singles = [(value, count) for value, count in heaps] + [(first, count) for first, last, count in census if first == last and count > 0]
@@ -402,7 +405,7 @@ def _independence_failures(block: dict, real: "list[str]", twin: "list[str]", fo
             continue
         for value, count in singles:
             expected = (count - (at_midnight if value == 0 else 0)) / (body - at_midnight)
-            if expected * len(inside) < LINE:
+            if expected * len(inside) < LINE or (1 - expected) * len(inside) < LINE:
                 continue
             share = sum(1 for moment in inside if moment.minute == value) / len(inside)
             scale = (expected * (1 - expected) / len(inside)) ** 0.5
