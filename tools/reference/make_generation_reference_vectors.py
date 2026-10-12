@@ -11133,9 +11133,11 @@ def units_settled(column, ordinals, parsed, whole, lows, highs):
     between held units the other way, so the width census stands where
     it stood (plan P4-D258);
     too few, a rank sharing its unit moves to the nearest free
-    unit inside its gap keeping both; nearest first, ties to the lower
-    rank. The two passes run in that order, again while each round
-    brings the column CLOSER to the two counts, stopping after
+    unit inside its gap keeping both; the two tails' ranks first, then
+    the body's (lane D4s, plan P4-D369 part one: ``tail_ranks``), each
+    nearest first, ties to the lower rank. The two passes run in that
+    order, again while each round brings the column CLOSER to the two
+    counts, stopping after
     RESTORATION_STALLS rounds that do not and at RESTORATION_ROUNDS in
     any case; then each run of unpinned ranks is sorted.
     """
@@ -11171,13 +11173,14 @@ def units_settled(column, ordinals, parsed, whole, lows, highs):
     if distinct is not None:
         distinct += len(absent_days_stuck(column, ordinals, pinned, unit, parsed))
     off = counts_off(column, ordinals, day, unit, word, distinct, widths)
+    tails = tail_ranks(column, parsed)
     stalled = 0
     for _round in range(RESTORATION_ROUNDS):
         changed = False
         if distinct is not None:
             changed = distinct_pass(
                 column, ordinals, pinned, lows, highs, day, step, distinct,
-                widths is not None, word,
+                widths is not None, word, tails,
             ) or changed
         if widths is not None:
             changed = widths_pass(
@@ -14393,8 +14396,28 @@ def widths_pass(column, ordinals, pinned, lows, highs, day, widths, step=1, dist
     return changed
 
 
-def distinct_pass(column, ordinals, pinned, lows, highs, day, step, distinct, widths, word=""):
-    """Pass 2 of `units_settled` (plan P4-D192): the count of different units."""
+def tail_ranks(column, parsed):
+    """Every rank of the column's two tails (lane D4s, plan P4-D369 part one).
+
+    The low tail's ranks are its first ``low_tail["rows"]``, the high
+    tail's its last ``high_tail["rows"]``; a column publishing no tails
+    has none.
+    """
+    low, high = column.get("low_tail"), column.get("high_tail")
+    if low is None or high is None:
+        return frozenset()
+    return frozenset(range(min(low["rows"], parsed))) | frozenset(
+        range(max(parsed - high["rows"], 0), parsed)
+    )
+
+
+def distinct_pass(column, ordinals, pinned, lows, highs, day, step, distinct, widths, word="", tails=frozenset()):
+    """Pass 2 of `units_settled` (plan P4-D192): the count of different units.
+
+    Too few, the ranks in ``tails`` split first, then the rest, each
+    nearest first and then the lower rank (lane D4s, plan P4-D369 part
+    one).
+    """
     parsed = len(ordinals)
     unit = step if day == 86400 else 1
     absent = absent_units(column)
@@ -14520,8 +14543,8 @@ def distinct_pass(column, ordinals, pinned, lows, highs, day, step, distinct, wi
                 if not widths and day == 1:
                     full.add((lows[rank], highs[rank]))
                 continue
-            options.append((abs(found - value), rank, found))
-        for _distance, rank, found in sorted(options):
+            options.append((0 if rank in tails else 1, abs(found - value), rank, found))
+        for _side, _distance, rank, found in sorted(options):
             if count == distinct:
                 break
             own = ordinals[rank] // unit
@@ -24999,6 +25022,54 @@ def _tail_end_least_reach_slack():
     }
 
 
+def _tails_split_first():
+    """G7.3's count pass splits the two tails' ranks first (lane D4s, plan P4-D369 part one).
+
+    The description the producer writes, at a floor of eleven, of a log
+    just above one row an open day: one row and a Poisson draw of 0.1
+    more on every Monday to Friday of the 13 weeks from 2022-01-03,
+    shuffled with Random(704) (P4-D388's second verification's family),
+    72 rows on 65 days, its weekday census Monday to Friday 50 and
+    Saturday and Sunday 0.
+    """
+    tails, tail_claims = _tail_fields(
+        {"boundary": "2022-01-18", "rows": 11, "mean_distance": "8.727272727272727", "rms_distance": "9.751456767627547", "values": None},
+        {"boundary": "2022-03-18", "rows": 11, "mean_distance": "8.636363636363637", "rms_distance": "9.366283826965352", "values": None},
+    )
+    ladder = {key: None for key in LADDER_KEYS}
+    ladder["p25"] = "2022-01-25"
+    ladder["p50"] = "2022-02-15"
+    ladder["p75"] = "2022-03-09"
+    column = _universal(
+        "column_1", "datetime", "datetime", "data", "ok",
+        n_present=72, n_missing=0, n_distinct=65,
+        n_distinct_folded=65, n_numeric=0, n_not_numeric=72,
+        n_out_of_range=0, n_contradictory=0,
+        format="iso-date", resolution="date", time_precision="date",
+        subsecond_digits=0, datetimes_read_at="local",
+        tail_unit="day", date_percentiles=ladder,
+        n_unparsed=0, utc_offsets={"(none)": 72},
+        weekday_census=[{"first": 0, "last": 4, "count": 50}, {"first": 5, "last": 6, "count": 0}],
+        **tails,
+    )
+    return {
+        "why": "G7.3's count pass where the different days are too few (lane "
+        "D4s, plan P4-D369 part one): the ranks of the two tails split onto "
+        "the nearest free days inside their strata first, then the body's, "
+        "each nearest first and then the lower rank, so the tails reach "
+        "their most before the body passes what the weekday census lets it "
+        "reach: the high tail's eleven ranks stand on eleven days and the "
+        "twin holds all 65. The mutant splits nearest first alone, as the "
+        "pass did before: body ranks split ahead of high tail ranks whose "
+        "free days stand further, the high tail ends on 9 days, and the "
+        "twin holds 64.",
+        "column": column,
+        "rows": 72,
+        "identifier_declared": False,
+        "claims": tail_claims,
+    }
+
+
 def _tie_group_off_the_hole():
     """G7.3b step 7 (plan P4-D358): a tail's tie group steps inward off an absent day.
 
@@ -32310,6 +32381,8 @@ FOURTEENTH_BRANCH_CASE_BUILDERS = {
     "tail_end_least_reach": _tail_end_least_reach,
     "tail_end_least_reach_months": _tail_end_least_reach_months,
     "tail_end_least_reach_slack": _tail_end_least_reach_slack,
+    # The count pass's split order (lane D4s, plan P4-D369 part one).
+    "tails_split_first": _tails_split_first,
 }
 
 TWENTY_SECOND_BRANCH_CASE_BUILDERS = {
@@ -32930,7 +33003,10 @@ _FOURTEENTH_BRANCH_ACCOUNT = (
     "rounded up, on 105 dates over 21 days and on 105 months over 21 "
     "months, each with one cell on its end units, and the slack that floor "
     "gives up to the rounding of the published pair, on 79 dates whose "
-    "reach of exactly 4 binary64 puts at 4.000000000000001. They are "
+    "reach of exactly 4 binary64 puts at 4.000000000000001; and G7.3's "
+    "count pass splitting the two tails' ranks first (lane D4s, plan "
+    "P4-D369 part one), on 72 dates of a log just above one row an open "
+    "day. They are "
     "computed by the "
     "same oracle and the same proof layer "
     "as tests/reference/generation-reference-vectors.json, "
@@ -33242,6 +33318,57 @@ GIVEN_WORDS = {
         7316934629970693498, 10815272845975857735, 11724442494808074560,
         732964018571111932, 3069408795062890501, 7526098571977256581,
         3854671723266432770, 11205342780862372950,
+    ),
+    # The count pass's split order, the tails first (lane D4s, plan
+    # P4-D369 part one), at seed 422.
+    "tails_split_first": (
+        11416032767607098569, 12683253509083616314, 7669285204978396353,
+        4477560390230990761, 2915360870997699881, 9981733249264835318,
+        1879594589733630265, 14293258041902608262, 14090425967577775256,
+        16993568190268996715, 14765102244609144423, 17935983271742915669,
+        14909485024541593406, 8459056048181573743, 9549344779272566177,
+        17428613747473568462, 1546301800710471509, 13651751551263420109,
+        1048097391912889734, 4009598028622595424, 18216517663999166679,
+        13748491049830321697, 5450419328224190072, 9504683334693741897,
+        12723541134774699799, 4652118528740788811, 9110628387751203342,
+        8306366875879802315, 13024045567795595880, 15194034264627910441,
+        6094180585242228760, 8684497493383659826, 16688361372058087311,
+        13776092689842169374, 12916845202109750097, 4909942388444823948,
+        7391985167432192822, 18208630453836149075, 5426845301703320773,
+        11188730828429892559, 13954984353687108607, 16231834227106653263,
+        8787844771847586898, 11744419985818499794, 2712260870655787394,
+        7157021435851761965, 1606688678487569987, 9237094735854930988,
+        2675221536289007155, 5614242084850628799, 15377130991364227134,
+        4823503372409817763, 13173742825957819044, 12170541070380738366,
+        16373241024591976412, 8883410007448413318, 2826800092248836647,
+        12347092403477197801, 8136280108124723609, 14330771937458545362,
+        4493682291984379268, 12369129034456408204, 4029873631343038738,
+        2886836585809081338, 15342826099011652995, 5375282511216265867,
+        15083058484475183340, 9905742930819352915, 7796031322803984769,
+        2532258295445133065, 17837186896887797937, 16071294040410783865,
+        11399744440211971541, 5655742927290255365, 7935116778083521900,
+        1073006709722499109, 16949269996791702302, 16063625674147583373,
+        9025956909761762852, 208481922220769599, 11230031568344238226,
+        15745201795109941970, 12632903140488420700, 13704704715602497383,
+        10745483171039763570, 1595297254591461716, 13621659142409854687,
+        7312482340325385453, 3407812849167856708, 6014269711314769258,
+        16958539060288566350, 15094049848918250437, 3776664635756796877,
+        4413705823679164995, 8264996114586847387, 10393574148446143930,
+        11353582316001803707, 2082196214542204022, 2890324214700023339,
+        10662223757622410024, 8842968372697254215, 17370097338957420097,
+        2641963274423539843, 4091698802297620159, 8660693128073921289,
+        10026929947194588902, 16728962253036300187, 1766879225272837073,
+        2034248815004707355, 13816853063498905145, 2578361041300107250,
+        9025735514848827530, 15332594559614399034, 7436075679583752859,
+        12455994534829725182, 482152642492602006, 12533635657748695374,
+        8624770119642869820, 13713979375959524108, 2353744117334794978,
+        3952837277935813606, 8410709012566578192, 6027935655923384288,
+        16178806610806578680, 2307555019499579939, 1199423441356987357,
+        14452178466552857480, 8649875603844126587, 15311506754902382708,
+        7307007493769436964, 90803479927900695, 14714627346932696401,
+        12066946845288659079, 5647094089442674256, 14096439814450978861,
+        4756324269226066793, 15698872715698298559, 5067356999987482364,
+        3387846976522942710, 13643229759117815969, 16303054059825905109,
     ),
     # LANDING T1'S WRITTEN CLOCKS (plan P4-D370), at seeds 416 to 420.
     "stamp_unpadded_hour": (

@@ -1731,10 +1731,10 @@ def test_a_census_whose_twin_misses_at_one_seed_in_ten_stands_and_the_miss_is_re
     _twins_off(tmp_path, "business20", described.loaded, (9,), 1180, False)
 
 
-def test_a_log_just_above_one_row_an_open_day_keeps_its_census_and_comes_back_short_at_seven_seeds_in_ten(
+def test_a_log_just_above_one_row_an_open_day_keeps_its_census_and_its_twins_meet_it_at_every_seed(
     tmp_path: pathlib.Path,
 ) -> None:
-    """The risk the orchestrator's ruling of 2026-10-08 lets stand, pinned as it stands: published, short at seven seeds.
+    """The risk the orchestrator's ruling of 2026-10-08 let stand, removed by the split order (P4-D369 part one).
 
     `_every_open_day(1.15, 52, 1002, Monday, Wednesday and Friday)`, 177
     rows over 156 clinic days, at the floor of 20 (the second verification
@@ -1742,20 +1742,17 @@ def test_a_log_just_above_one_row_an_open_day_keeps_its_census_and_comes_back_sh
     count, so the count pass splits, and the reach rule reads both tails at
     their most, 20 days each, which leaves the body the 116 days its census
     -- Monday, Wednesday and Friday 45 each, the other days 0 -- lets it
-    reach: the census is published. But the pass splits nearest first, then
-    the lower rank. The low tail, the column's lowest ranks, reaches its 20
-    at every seed; a body rank one day from a free day splits before any
-    high tail rank whose free day is further, so the high tail keeps the 18
-    to 20 days it drew and the body passes the census's reach. Its twins at
-    seeds 0, 1, 3, 4, 6, 7 and 8 hold 154 or 155 different values for 156,
-    both distinct counts MISSED, and at seeds 2, 5 and 9, where the high
-    tail drew its 20, meet every check; with the census emptied all ten
-    meet every check. The ruling keeps the census, whose withholding would
-    let the twin write rows on days the clinic never opens, and P4-D388
-    names the fix owed: a split order that brings the tails to their most
-    before the body passes that reach. Red when the census is withheld, a
-    seed's miss goes unreported, or the split order changes -- that fix
-    shows here first.
+    reach: the census is published. Until lane D4s the pass split nearest
+    first, then the lower rank, so a body rank one day from a free day
+    split before a high tail rank whose free day was further: the high tail
+    kept the 18 to 20 days it drew, the body passed the census's reach, and
+    the twins at seeds 0, 1, 3, 4, 6, 7 and 8 held 154 or 155 different
+    values for 156, both distinct counts MISSED. The pass now splits the
+    two tails' ranks first (`generation._tail_ranks`): both tails end at
+    their 20 days and the body at its 116 at every seed, and every twin at
+    seeds 0 to 9 meets every check, as with the census emptied. Red when
+    the census is withheld, a tail ends short of its most, or the split
+    order goes back to nearest first.
     """
     cells = _every_open_day(1.15, 52, 1002, frozenset({0, 2, 4}))
     assert (len(cells), len(set(cells))) == (177, 156)
@@ -1768,11 +1765,11 @@ def test_a_log_just_above_one_row_an_open_day_keeps_its_census_and_comes_back_sh
     assert (low, high) == (21, 21)
     assert block["low_tail"]["values"] is None and block["high_tail"]["values"] is None
     assert _kept(block, cells, 20) == (40, 40)
-    for seed, high_days in enumerate((18, 19, 20, 18, 19, 20, 19, 19, 19, 20)):
+    for seed in range(10):
         held = sorted(_day(cell) for cell in generation.generate(described.loaded, seed).columns[0] if cell)
-        assert (len(set(held[:low])), len(set(held[len(held) - high :]))) == (20, high_days), seed
-    _twins_off(tmp_path, "near_one", described.loaded, (0, 1, 3, 4, 6, 7, 8), 156, False)
-    _twins_meet(tmp_path, "near_one", described.loaded, (2, 5, 9))
+        tails = (len(set(held[:low])), len(set(held[len(held) - high :])), len(set(held[low : len(held) - high])))
+        assert tails == (20, 20, 116), (seed, tails)
+    _twins_meet(tmp_path, "near_one", described.loaded, tuple(range(10)))
     document = dict(described.document)
     document["columns"] = [dict(block, weekday_census=[])]
     emptied = contract.load_profile(str(fixtures.write_profile(tmp_path, "near_one-emptied.json", document)))

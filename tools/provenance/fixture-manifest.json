@@ -96,7 +96,7 @@
       "justification": "The twin cells synthtwin's generation method requires for the three cases docs/spec/generation-method-v1.md section G14.3 adds with the end floor of a date or clock tail (plan P4-D375): tail_end_least_reach, 105 dates over 21 days, and tail_end_least_reach_months, 105 months over 21 months, each with one cell on its end units, whose tails' shape puts the end two units out where G7.3b step 5's Bhatia-Davis reach of the pair puts it three out; and tail_end_least_reach_slack, 79 dates over 21 days whose tails hold ten rows one day out and one four out, a reach of exactly 4 that binary64 puts at 4.000000000000001, so only the slack the floor gives up to that rounding keeps the end on the real end day (the lane's repair round: no frozen case held that slack up). Every branch file stands past plan P4-D295's 200000-byte line, so they open a sixteenth rather than raise a cap. Computed from that specification alone by the same oracle and the same proof layer as every other vector file here, which imports neither synthtwin nor numpy nor pandas; no value in it comes from any table, and every number it publishes carries the exact value it was proved against.",
       "path": "tests/reference/generation-branch-vectors-14.json",
       "seed": 0,
-      "sha256": "1d6b4ad8d33b37b9050465102fe9dd4fff386951b30c8e46a92a9546847972f3"
+      "sha256": "b77b679b6d89e97af045d4a22c67444239d0ed81af9f5253f79b0d6fe7c4d2ef"
     },
     {
       "generator": "tools/reference/make_generation_branch_vectors_15.py",
