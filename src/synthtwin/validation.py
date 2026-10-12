@@ -480,7 +480,6 @@ INPUT_SIDE_ENTRIES = (
     ("datetime", "second_heaps"),
     # -- 3b.D3 (P4-D368)
     # -- 3b.D4 (P4-D369)
-    ("datetime", "heavy_dates"),
     # -- 3b.C1 (P4-D373)
     ("clock", "clock_census"),
     ("clock", "clock_heaps"),
@@ -17339,15 +17338,59 @@ def _heavy_checks(
     cells: "list[str]",
     declared_days: "tuple[str, ...]" = (),
 ) -> "list[Check]":
-    """Every date that stands out, holding its count exactly.
+    """Every date that stands out, holding its count exactly (landing 3b.6,
+    validation V5-D1).
 
-    THE STUB OF LANDING 3b.6 (lane D4, plan P4-D369), which fills this
-    check and nothing beside it (plan P4-D364); nothing to check until
-    then.
+    The file's own parsed cells, in any spelling -- read as the day-of-
+    month check reads them (`_dates_the_file_reads`, the fold of
+    `_folded_by_the_file`), each on the day its text names -- counted on
+    each listed date of `heavy_dates`. HELD where every listed date holds
+    its published count, MISSED otherwise; printed through the one
+    printing rule of every census check (`_census_lines`, plan P4-D347),
+    so a MISSED line prints a count of one to the heavy line less one as
+    fewer than the line, never the count. Counted here from the cells,
+    never produced. EXACT-OBSERVABLE.
 
     Guarantees: as `_hour_checks`. No I/O of any kind.
     """
-    return []
+    listed = facts.heavy_dates
+    if not listed:
+        return []
+    days: "dict[int, int]" = {}
+    failing: "list[str]" = []
+    for cell in _dates_the_file_reads(block, facts, cells):
+        read = parsing.parse_datetime(cell, facts.parser_family)
+        if read is None:
+            failing += [cell]
+            continue
+        day = _weekday_day(read[0])
+        days[day] = days.get(day, 0) + 1
+    if _folded_by_the_file(block, facts.parser_family, failing):
+        for cell in failing:
+            folded_day = _day_as_counted(cell)
+            if folded_day is not None:
+                days[folded_day] = days.get(folded_day, 0) + 1
+    named: "list[tuple[str, int]]" = []
+    for day, count in listed:
+        year, month, date = parsing.civil_from_days(day)
+        named += [(f"{year:04d}-{month:02d}-{date:02d}", count)]
+    found = [days.get(day, 0) for day, _count in listed]
+    asked, shown, lines = _census_lines(
+        named, found, calendar_rules.heavy_line(floor)
+    )
+    wanted = [count for _day, count in listed]
+    return [
+        Check(
+            column.name,
+            "datetime.heavy_dates",
+            "heavy_dates.counts",
+            HELD if found == wanted else MISSED,
+            asked,
+            shown,
+            "",
+            tuple(lines),
+        )
+    ]
 
 
 # The names a weekday census's groups are printed with, Monday first.

@@ -18570,11 +18570,13 @@ class _DateLayout:
     texts: "dict[int, str]"
     draw_unit: int = 1
     # THE DATES THAT STAND OUT (landing 3b.6, plan P4-D369, method G7.3j):
-    # the parts the ordinary ranks of the body are drawn in, and the listed
-    # dates, where the column lists any (`_heavy_layout`); empty elsewhere,
-    # and the body is drawn gap by gap.
+    # the parts the ordinary ranks of the body are drawn in, the listed
+    # dates and the count of different days the twin keeps (-1 where it
+    # keeps none), where the column lists any (`_heavy_layout`); empty
+    # elsewhere, and the body is drawn gap by gap.
     parts: "tuple[_HeavyPart, ...]" = ()
     listed: "frozenset[int]" = frozenset()
+    distinct: int = -1
 
 
 def _tail_step(facts: contract.DatetimeFacts) -> "tuple[int, int]":
@@ -19070,6 +19072,7 @@ def _heavy_layout(
     if chosen is None:
         return layout
     splits = _heavy_repaired(segments, rooms, chosen[0], chosen[1])
+    cells = _heavy_cells(facts, segments, splits, rooms.owed, (listed, holes))
     pins = {rank: layout.pins[rank] for rank in layout.pins}
     lows = [value for value in layout.lows]
     highs = [value for value in layout.highs]
@@ -19093,10 +19096,10 @@ def _heavy_layout(
                     _HeavyPart(
                         segment.lows[part],
                         segment.highs[part],
-                        segment.lefts[part],
-                        segment.rights[part],
                         at,
                         ordinary,
+                        cells[index][part][0],
+                        cells[index][part][1],
                     )
                 ]
             at = at + ordinary
@@ -19114,6 +19117,11 @@ def _heavy_layout(
         highs=tuple(highs),
         parts=tuple(parts),
         listed=frozenset(day for day, _count in listed),
+        distinct=(
+            column.n_distinct - facts.n_unparsed
+            if contract.datetime_counts_reachable(column)
+            else -1
+        ),
     )
 
 
@@ -19121,17 +19129,20 @@ def _heavy_layout(
 class _HeavyPart:
     """One part of the body that ordinary ranks are drawn in (G7.3j).
 
-    `lo` and `hi` are the days its ranks may take, `left` and `right` the
-    stretch they are drawn across in `_PIN_STEPS` steps, `first` its
-    first rank and `count` how many ranks it holds.
+    `lo` and `hi` are the days its ranks may take (their gap), `first`
+    its first rank and `count` how many ranks it holds. `cells` splits
+    those ranks by the groups of the censuses beside the list: per cell,
+    its free days ascending and how many ranks it holds -- SPREAD over
+    every cell as its days are, and `few` the same ranks on as few cells
+    as a flow finds (`_heavy_cells`).
     """
 
     lo: int
     hi: int
-    left: int
-    right: int
     first: int
     count: int
+    cells: "tuple[tuple[tuple[int, ...], int], ...]"
+    few: "tuple[tuple[tuple[int, ...], int], ...]" = ()
 
 
 @dataclasses.dataclass(frozen=True)
@@ -19139,9 +19150,8 @@ class _HeavySegment:
     """The body between two unlisted knots, cut into parts by covered runs.
 
     `base` is its first rank and `ordinary` the ordinary ranks it holds.
-    Per part: its first and last day (`lows`, `highs`), its stretch
-    (`lefts`, `rights`), its loose listed dates and whether it touches
-    an unlisted knot. Per covered run: its date and count, and the least
+    Per part: its first and last day (`lows`, `highs`), its loose listed
+    dates and whether it touches an unlisted knot. Per covered run: its date and count, and the least
     and most ordinary ranks the parts before it may hold together.
     """
 
@@ -19149,8 +19159,6 @@ class _HeavySegment:
     ordinary: int
     lows: "tuple[int, ...]"
     highs: "tuple[int, ...]"
-    lefts: "tuple[int, ...]"
-    rights: "tuple[int, ...]"
     loose: "tuple[tuple[tuple[int, int], ...], ...]"
     touches: "tuple[bool, ...]"
     covered: "tuple[tuple[int, int], ...]"
@@ -19176,25 +19184,19 @@ def _heavy_segments(
     low_rank, low_day = knots[0]
     high_rank, high_day = knots[len(knots) - 1]
     unlisted = {rank: day for rank, day in knots if day not in count_of}
-    places: "dict[int, int]" = {}
-    if unlisted:
-        ranks, steps = _pin_places(unlisted)
-        places = {ranks[index]: steps[index] for index in range(len(ranks))}
-    anchors: "list[tuple[int, int, int, bool]]" = []
+    anchors: "list[tuple[int, int, bool]]" = []
     if low_rank not in unlisted:
-        anchors += [(low_rank - 1, low_day - 1, low_day * _PIN_STEPS, False)]
+        anchors += [(low_rank - 1, low_day - 1, False)]
     for rank in sorted(unlisted):
-        anchors += [(rank, unlisted[rank], places[rank], True)]
+        anchors += [(rank, unlisted[rank], True)]
     if high_rank not in unlisted:
-        anchors += [
-            (high_rank + 1, high_day + 1, (high_day + 1) * _PIN_STEPS, False)
-        ]
+        anchors += [(high_rank + 1, high_day + 1, False)]
     days = [day for day, _count in listed]
     segments: "list[_HeavySegment]" = []
     pointer = 0
     for index in range(len(anchors) - 1):
-        rank_a, day_a, place_a, real_a = anchors[index]
-        rank_b, day_b, place_b, real_b = anchors[index + 1]
+        rank_a, day_a, real_a = anchors[index]
+        rank_b, day_b, real_b = anchors[index + 1]
         while pointer < len(days) and days[pointer] <= day_a:
             pointer = pointer + 1
         inside: "list[int]" = []
@@ -19210,8 +19212,6 @@ def _heavy_segments(
             return None
         lows: "list[int]" = []
         highs: "list[int]" = []
-        lefts: "list[int]" = []
-        rights: "list[int]" = []
         loose: "list[tuple[tuple[int, int], ...]]" = []
         touches: "list[bool]" = []
         for part in range(len(covered) + 1):
@@ -19219,10 +19219,6 @@ def _heavy_segments(
             hi = min(day_b, high_day) if part == len(covered) else covered[part] - 1
             lows += [lo]
             highs += [hi]
-            lefts += [place_a if part == 0 else lo * _PIN_STEPS]
-            rights += [
-                place_b if part == len(covered) else (hi + 1) * _PIN_STEPS
-            ]
             loose += [
                 tuple(
                     (day, count_of[day])
@@ -19248,8 +19244,6 @@ def _heavy_segments(
                 ordinary,
                 tuple(lows),
                 tuple(highs),
-                tuple(lefts),
-                tuple(rights),
                 tuple(loose),
                 tuple(touches),
                 tuple((day, count_of[day]) for day in covered),
@@ -19580,13 +19574,17 @@ def _heavy_flow(
     supply: "list[int]",
     reach: "list[list[int]]",
     demand: "list[int]",
-) -> int:
+    limit: int = 1 << 62,
+) -> "tuple[int, list[list[int]]]":
     """The most rows the parts can place on the groups they offer (a capacity
     max-flow, Edmonds and Karp: each round the shortest augmenting path).
 
     `supply` holds each part's ordinary ranks, `reach[part]` the groups
-    it offers a free day of, `demand` each group's owed rows. Linear in
-    the rows not at all: the rounds are bounded by the parts and groups.
+    it offers a free day of, `demand` each group's owed rows and `limit`
+    the most one part may place on one group; returns the rows placed and
+    how many each part places on each group. The rows
+    themselves cost nothing: the rounds are bounded by the parts and the
+    groups.
     """
     parts = len(supply)
     groups = len(demand)
@@ -19597,7 +19595,7 @@ def _heavy_flow(
     for part in range(parts):
         capacity[source][part] = max(0, supply[part])
         for group in reach[part]:
-            capacity[part][parts + group] = 1 << 62
+            capacity[part][parts + group] = limit
     for group in range(groups):
         capacity[parts + group][sink] = max(0, demand[group])
     flow = 0
@@ -19614,7 +19612,11 @@ def _heavy_flow(
                     before[other] = node
                     queue += [other]
         if before[sink] < 0:
-            return flow
+            placed = [
+                [capacity[parts + group][part] for group in range(groups)]
+                for part in range(parts)
+            ]
+            return flow, placed
         push = 1 << 62
         node = sink
         while node != source:
@@ -19652,7 +19654,7 @@ def _heavy_deficit(
             for index, part in keys
         ]
         demand = [max(0, owe) for owe in owes]
-        deficit = deficit + sum(demand) - _heavy_flow(supply, reach, demand)
+        deficit = deficit + sum(demand) - _heavy_flow(supply, reach, demand)[0]
     return deficit
 
 
@@ -19755,6 +19757,314 @@ def _heavy_moved_deficit(
     splits[index][source] = splits[index][source] + count
     splits[index][target] = splits[index][target] - count
     return left
+
+
+_HEAVY_RAKES = 60
+
+
+def _heavy_cells(
+    facts: contract.DatetimeFacts,
+    segments: "list[_HeavySegment]",
+    splits: "list[list[int]]",
+    owed: "tuple[tuple[int, ...], ...]",
+    kept: "tuple[tuple[tuple[int, int], ...], frozenset[int]]",
+) -> "list[list[tuple[tuple[tuple[tuple[int, ...], int], ...], tuple[tuple[tuple[int, ...], int], ...]]]]":
+    """Each part's ranks by CELL, the days sharing one group of every census
+    beside the list, two ways (G7.3j step 3).
+
+    A cell is a part's free days that fall in one group of each census
+    beside the list (one cell of all of them where none stands). Two
+    splits of each part's ranks over its cells are made, each meeting
+    every census's owed rows wherever the flows below place them all:
+
+    * SPREAD (`_heavy_spread_cells`): the cells' free days raked to the
+      parts' ranks and each census's owed rows, `_HEAVY_RAKES` times, and
+      rounded by a flow, so the ranks spread over every cell as its days
+      do;
+    * FEW: the capacity flow from the parts to the groups of each census
+      in turn (`_heavy_flow`), which puts the ranks on as few cells as
+      the flow finds, for a column whose count of different days leaves
+      few to open.
+
+    `_heavy_drawn` takes SPREAD where the count leaves a day for every
+    cell it fills, and FEW otherwise. A rank no flow places goes to the
+    part's cell with the most free days, and the day pass is left the
+    rest. `owed` is what each census's groups still owe the ordinary
+    ranks (`_heavy_rooms`), `kept` the listed dates and the holes.
+
+    Guarantees: returns, per segment and part, the two splits, each
+    `(free days, ranks)` per cell holding ranks. Linear in the days
+    between the boundaries; the rakes and flows are bounded by the cells.
+    Determinism: a function of the five. Raises nothing.
+    """
+    censuses = _heavy_censuses(facts)
+    listed, holes = kept
+    listed_days = {day for day, _count in listed}
+    keys: "list[tuple[int, int]]" = []
+    days_of: "list[dict[tuple[int, ...], list[int]]]" = []
+    supply: "list[int]" = []
+    for index in range(len(segments)):
+        segment = segments[index]
+        for part in range(len(segment.lows)):
+            found: "dict[tuple[int, ...], list[int]]" = {}
+            for day in range(segment.lows[part], segment.highs[part] + 1):
+                if day in listed_days or day in holes:
+                    continue
+                key = tuple(
+                    _heavy_group(where, bins, day)
+                    for _groups, where, bins in censuses
+                )
+                if key not in found:
+                    found[key] = []
+                found[key] += [day]
+            keys += [(index, part)]
+            days_of += [found]
+            supply += [splits[index][part]]
+    demands = [[max(0, owe) for owe in owes] for owes in owed]
+    few = _heavy_few_cells(days_of, supply, demands)
+    spread = _heavy_spread_cells(days_of, supply, demands)
+    cells: "list[list[tuple[tuple[tuple[tuple[int, ...], int], ...], tuple[tuple[tuple[int, ...], int], ...]]]]" = [
+        [((), ()) for _ in segment.lows] for segment in segments
+    ]
+    for place in range(len(keys)):
+        index, part = keys[place]
+        both: "list[tuple[tuple[tuple[int, ...], int], ...]]" = []
+        for shares in (spread[place], few[place]):
+            held: "list[tuple[tuple[int, ...], int]]" = []
+            for key in sorted(shares):
+                if shares[key] > 0:
+                    held += [(tuple(days_of[place][key]), shares[key])]
+            both += [tuple(held)]
+        cells[index][part] = (both[0], both[1])
+    return cells
+
+
+def _heavy_leftover(
+    days_of: "dict[tuple[int, ...], list[int]]",
+    prefix: "tuple[int, ...]",
+) -> int:
+    """The group, one census further, of the widest cell under `prefix`."""
+    widest = -1
+    best = 0
+    for key in sorted(days_of):
+        if key[0 : len(prefix)] == prefix and len(days_of[key]) > widest:
+            widest = len(days_of[key])
+            best = key[len(prefix)]
+    return best
+
+
+def _heavy_few_cells(
+    days_of: "list[dict[tuple[int, ...], list[int]]]",
+    supply: "list[int]",
+    demands: "list[list[int]]",
+) -> "list[dict[tuple[int, ...], int]]":
+    """FEW: each part's ranks per cell by one capacity flow per census."""
+    shares: "list[dict[tuple[int, ...], int]]" = [
+        {(): supply[place]} for place in range(len(days_of))
+    ]
+    for which in range(len(demands)):
+        sources: "list[tuple[int, tuple[int, ...]]]" = []
+        amounts: "list[int]" = []
+        for place in range(len(days_of)):
+            for prefix in sorted(shares[place]):
+                if shares[place][prefix] > 0:
+                    sources += [(place, prefix)]
+                    amounts += [shares[place][prefix]]
+        reach = [
+            sorted(
+                {
+                    key[which]
+                    for key in days_of[place]
+                    if key[0:which] == prefix
+                }
+            )
+            for place, prefix in sources
+        ]
+        _flow, placed = _heavy_flow(amounts, reach, demands[which])
+        grown: "list[dict[tuple[int, ...], int]]" = [{} for _ in days_of]
+        for source in range(len(sources)):
+            place, prefix = sources[source]
+            left = amounts[source]
+            for group in range(len(demands[which])):
+                if placed[source][group] > 0:
+                    key = prefix + (group,)
+                    grown[place][key] = grown[place].get(key, 0) + placed[source][group]
+                    left = left - placed[source][group]
+            if left > 0:
+                key = prefix + (_heavy_leftover(days_of[place], prefix),)
+                grown[place][key] = grown[place].get(key, 0) + left
+        shares = grown
+    return shares
+
+
+def _heavy_rounded(
+    values: "list[list[int]]",
+    rows: "list[int]",
+    columns: "list[int]",
+) -> "list[list[int]]":
+    """A table of shares at `_WEEKDAY_SCALE`, rounded to whole ranks whose
+    row and column sums are `rows` and `columns` (a share below nought
+    marks no cell): each share's floor, then one more rank on the cells
+    with a remainder by a unit-capacity flow, then the rest on any cell
+    by an unbounded one, as far as either reaches."""
+    height = len(values)
+    width = len(columns)
+    table = [
+        [max(0, values[row][column]) // _WEEKDAY_SCALE for column in range(width)]
+        for row in range(height)
+    ]
+    for limit, wanted in ((1, True), (1 << 62, False)):
+        short = [max(0, rows[row] - sum(table[row])) for row in range(height)]
+        want = [
+            max(0, columns[column] - sum(table[row][column] for row in range(height)))
+            for column in range(width)
+        ]
+        reach = [
+            [
+                column
+                for column in range(width)
+                if values[row][column] >= 0
+                and (not wanted or values[row][column] % _WEEKDAY_SCALE > 0)
+            ]
+            for row in range(height)
+        ]
+        _flow, placed = _heavy_flow(short, reach, want, limit)
+        for row in range(height):
+            for column in range(width):
+                table[row][column] = table[row][column] + placed[row][column]
+    return table
+
+
+def _heavy_spread_cells(
+    days_of: "list[dict[tuple[int, ...], list[int]]]",
+    supply: "list[int]",
+    demands: "list[list[int]]",
+) -> "list[dict[tuple[int, ...], int]]":
+    """SPREAD: each part's ranks per cell, raked from the cells' free days.
+
+    The prior of a cell is its free days at `_WEEKDAY_SCALE`; it is raked
+    `_HEAVY_RAKES` times to each part's ranks and each census's owed
+    rows, every step a floor division at the scale, as the weekday pass
+    rakes its shares (`_weekday_shares`). The table of parts by the first
+    census's groups is rounded (`_heavy_rounded`); beside a second
+    census, each part's share of each first group is rounded over the
+    second census's groups the same way.
+    """
+    cells: "list[tuple[int, tuple[int, ...]]]" = []
+    weights: "list[int]" = []
+    for place in range(len(days_of)):
+        for key in sorted(days_of[place]):
+            cells += [(place, key)]
+            weights += [len(days_of[place][key]) * _WEEKDAY_SCALE]
+    for _round in range(_HEAVY_RAKES):
+        margins: "list[tuple[int, list[int]]]" = [(-1, supply)]
+        for which in range(len(demands)):
+            margins += [(which, demands[which])]
+        for which, targets in margins:
+            totals = [0 for _ in targets]
+            for index in range(len(cells)):
+                place, key = cells[index]
+                at = place if which < 0 else key[which]
+                totals[at] = totals[at] + weights[index]
+            for index in range(len(cells)):
+                place, key = cells[index]
+                at = place if which < 0 else key[which]
+                if totals[at] > 0:
+                    weights[index] = (
+                        weights[index] * targets[at] * _WEEKDAY_SCALE
+                    ) // totals[at]
+    shares: "list[dict[tuple[int, ...], int]]" = [{} for _ in days_of]
+    if not demands:
+        for place in range(len(days_of)):
+            for key in days_of[place]:
+                shares[place][key] = supply[place]
+        return shares
+    width = len(demands[0])
+    first = [[-1 for _ in range(width)] for _ in days_of]
+    for index in range(len(cells)):
+        place, key = cells[index]
+        first[place][key[0]] = max(first[place][key[0]], 0) + weights[index]
+    table = _heavy_rounded(first, supply, demands[0])
+    if len(demands) == 1:
+        for place in range(len(days_of)):
+            for group in range(width):
+                if table[place][group] > 0:
+                    shares[place][(group,)] = table[place][group]
+        return shares
+    rows: "list[tuple[int, int]]" = [
+        (place, group)
+        for place in range(len(days_of))
+        for group in range(width)
+        if table[place][group] > 0
+    ]
+    second = [[-1 for _ in demands[1]] for _ in rows]
+    for index in range(len(cells)):
+        place, key = cells[index]
+        if table[place][key[0]] <= 0:
+            continue
+        row = rows.index((place, key[0]))
+        second[row][key[1]] = max(second[row][key[1]], 0) + weights[index]
+    for row in range(len(rows)):
+        place, group = rows[row]
+        total = sum(value for value in second[row] if value > 0)
+        if total > 0:
+            second[row] = [
+                (value * table[place][group] * _WEEKDAY_SCALE) // total
+                if value >= 0
+                else -1
+                for value in second[row]
+            ]
+    split = _heavy_rounded(
+        second, [table[place][group] for place, group in rows], demands[1]
+    )
+    for row in range(len(rows)):
+        place, group = rows[row]
+        left = table[place][group] - sum(split[row])
+        for other in range(len(demands[1])):
+            if split[row][other] > 0:
+                shares[place][(group, other)] = split[row][other]
+        if left > 0:
+            key = (group, _heavy_leftover(days_of[place], (group,)))
+            shares[place][key] = shares[place].get(key, 0) + left
+    return shares
+
+
+def _heavy_met(
+    column: contract.ColumnBlock,
+    facts: contract.DatetimeFacts,
+    ordinals: "list[int]",
+    layout: "_DateLayout",
+    holes: "tuple[str, ...]",
+) -> bool:
+    """Whether the cells already meet every census beside the list (G7.3j).
+
+    Every group of the weekday census and of the day-of-month census, as
+    published, holds its count over the body's ranks, and no body rank
+    stands on a hole of the run (`_count_holes`) or of the description
+    (`_published_holes`). The count of different days is the count pass's
+    already, so it is not asked again.
+
+    Guarantees: returns the answer. Linear in the ranks. Determinism: a
+    function of the five. Raises nothing. No I/O of any kind.
+    """
+    if layout.low is None or layout.high is None:
+        return False
+    body_low = layout.low.rows
+    body_high = layout.parsed - 1 - layout.high.rows
+    kept_off = set(_count_holes(facts, holes)) | set(
+        _published_holes(column, facts, ())
+    )
+    for groups, where, bins in _heavy_censuses(facts):
+        found = [0 for _ in groups]
+        for rank in range(body_low, body_high + 1):
+            group = _heavy_group(where, bins, ordinals[rank])
+            found[group] = found[group] + 1
+        if found != [count for _first, _last, count in groups]:
+            return False
+    for rank in range(body_low, body_high + 1):
+        if ordinals[rank] in kept_off and ordinals[rank] not in layout.listed:
+            return False
+    return True
 
 
 def _heavy_holes(facts: contract.DatetimeFacts) -> "frozenset[int]":
@@ -22440,6 +22750,11 @@ def _weekday_settled(
     for flag in whole:
         if flag:
             return ordinals, []
+    # ...and a column listing dates that stand out whose cells already
+    # meet every census is left as drawn (landing 3b.6, G7.3j step 5;
+    # `_day_settled` asks the same first).
+    if layout.parts and _heavy_met(column, facts, ordinals, layout, holes):
+        return ordinals, []
     unit = 1
     step = 1
     if space == "datetime":
@@ -22925,6 +23240,13 @@ def _day_settled(
     days and the deviations. Determinism: a function of the arguments.
     Raises nothing. No I/O of any kind.
     """
+    # A COLUMN LISTING DATES THAT STAND OUT whose cells already meet every
+    # census beside the list, keep off every hole and hold the count of
+    # different days the count pass reached (landing 3b.6, method G7.3j
+    # step 5) is left as drawn: the per-gap shares below would move ranks
+    # the cells placed on purpose.
+    if layout.parts and _heavy_met(column, facts, ordinals, layout, holes):
+        return ordinals, []
     month = facts.day_of_month_census
     if (
         not month
@@ -24482,13 +24804,56 @@ def _day_of_month_spread(
     )
 
 
-def _heavy_spread(facts: contract.DatetimeFacts, spread: _Spread) -> _Spread:
-    """The sentence with the clause of the dates that stand out.
+# THE CLAUSE OF A COLUMN LISTING ITS DATES THAT STAND OUT (landing 3b.6,
+# plan P4-D369): each listed date holds its published count, so neither
+# the heaps nor the schedule are among the things not reproduced; the
+# twin's other days are its own, and the sentence says so.
+_SPREAD_HEAVY_MET = (
+    "each listed date that stands out holds its published count exactly"
+)
+_SPREAD_HEAVY_OWN = (
+    "Only the listed dates are held at their counts: any other day on "
+    "which the twin holds far more values than its neighbours is the "
+    "twin's own, and counts per single day computed on this twin are the "
+    "real column's only on the listed dates."
+)
+_SPREAD_HEAVY_MISSED = (
+    "The listed dates that stand out do not all hold their published "
+    "counts: heavy_dates is named among the facts the twin could not "
+    "hold exactly, and counts per single day computed on this twin are "
+    "not the real column's."
+)
 
-    THE STUB OF LANDING 3b.6 (lane D4, plan P4-D369), which fills this
-    clause (plan P4-D364); unchanged until then.
+
+def _heavy_spread(
+    facts: contract.DatetimeFacts,
+    spread: _Spread,
+    missed: "frozenset[str]" = frozenset(),
+) -> _Spread:
+    """The sentence with the clause of the dates that stand out (landing 3b.6).
+
+    Unchanged where no date is listed. Where the twin missed a listed
+    count (`missed`, the completed measurement's), said beside; else the
+    heaps and the schedule leave the things not reproduced, the listed
+    counts are said to be met, and the twin's other days its own.
     """
-    return spread
+    if not facts.heavy_dates:
+        return spread
+    if calendar_rules.HEAVY_DATES in missed:
+        return _Spread(
+            held=spread.held,
+            missing=spread.missing,
+            beside=tuple(list(spread.beside) + [_SPREAD_HEAVY_MISSED]),
+        )
+    return _Spread(
+        held=tuple(list(spread.held) + [_SPREAD_HEAVY_MET]),
+        missing=tuple(
+            thing
+            for thing in spread.missing
+            if thing not in (_SPREAD_HEAVY_THING, _SPREAD_SCHEDULE_THING)
+        ),
+        beside=tuple(list(spread.beside) + [_SPREAD_HEAVY_OWN]),
+    )
 
 
 # THE SAME CLAUSE FOR A STAMP DECLARED A 12-HOUR CLOCK WITH NO AM OR PM
@@ -24600,7 +24965,7 @@ def _spread_remarks(
     # -- the days of the month (3b.D3, P4-D368)
     spread = _day_of_month_spread(facts, spread, missed)
     # -- the dates that stand out (3b.D4, P4-D369)
-    spread = _heavy_spread(facts, spread)
+    spread = _heavy_spread(facts, spread, missed)
     held, said = _spread_written(spread)
     return [
         _remark(
@@ -25681,64 +26046,118 @@ def _spread_ordinals(layout: "_DateLayout", words: "list[int]") -> "list[int]":
 def _heavy_drawn(
     layout: "_DateLayout", words: "list[int]", taken: int, ordinals: "list[int]"
 ) -> int:
-    """Every ordinary rank of the body drawn in its part (method G7.3j step 4).
+    """Every ordinary rank of the body drawn in its cell (method G7.3j step 4).
 
-    One word per ordinary rank, in rank order, as the body's gaps spend
-    them: each part's ranks are drawn uniformly across its stretch with
-    every listed date's unit cut out, sorted, and laid on the drawing
-    unit (`_on_draw_unit`). The listed ranks are pinned and draw none, so
-    the column reads fewer of its words and none past its allocation.
+    THE BODY KEEPS ONE WORD PER ORDINARY RANK, in rank order, as the
+    body's gaps spend them, so the high tail reads the words it always
+    read. Before any body rank is drawn the days already held are known:
+    the listed dates, the knots' and both tails' (the high tail's spots
+    read off its own words, `_tail_spots`). The twin's count of different
+    days, where it keeps one (`layout.distinct`), less those, is the
+    number of new days the cells may open: each cell opens at least one
+    unless a knot's day lies in it, and the rest go to the cells by their
+    ranks, never more than a cell's free days or its ranks. A cell's
+    days are spread evenly over its free days; each takes one rank, and
+    every other rank of the cell is drawn uniformly over the cell's days
+    and its knots' days by its own word. Each part's values are sorted
+    onto its ranks and laid on the drawing unit (`_on_draw_unit`).
 
     Guarantees: accepts the layout, the words, the words already taken
-    and the ordinals, which it fills; returns the words taken. Linear in
-    the ranks and the listed dates, times the sort inside each part.
-    Determinism: a function of the four. Raises nothing. No I/O.
+    and the ordinals, which it fills; returns the words the body keeps.
+    Linear in the ranks and the free days, times the sort inside each
+    part. Determinism: a function of the four. Raises nothing. No I/O.
     """
-    listed = sorted(layout.listed)
-    pointer = 0
+    parsed = layout.parsed
+    total = sum(part.count for part in layout.parts)
+    knots = {
+        layout.body[rank]
+        for rank in layout.body
+        if layout.body[rank] not in layout.listed
+    }
+    held = set(layout.listed) | knots
+    if layout.low is not None:
+        held = held | {
+            ordinals[_tail_rank_of(layout.low, parsed, index)]
+            for index in range(layout.low.rows)
+        }
+    if layout.high is not None:
+        mine: "dict[int, int]" = {}
+        at = taken + total
+        if layout.high.shape is not None:
+            for index in range(layout.high.shape.grouped - 1, 0, -1):
+                mine[index] = words[at]
+                at = at + 1
+        held = held | set(_tail_spots(layout.high, mine))
+    left = (1 << 62) if layout.distinct < 0 else layout.distinct - len(held)
+    # SPREAD where the count leaves a day for every cell it fills, FEW
+    # otherwise (`_heavy_cells`).
+    needed = 0
     for part in layout.parts:
-        while pointer < len(listed) and listed[pointer] < part.lo:
-            pointer = pointer + 1
-        pieces: "list[tuple[int, int]]" = []
-        at = part.left
-        ahead = pointer
-        while ahead < len(listed) and listed[ahead] <= part.hi:
-            day = listed[ahead]
-            ahead = ahead + 1
-            low = day * _PIN_STEPS
-            high = low + _PIN_STEPS
-            if high <= at or low >= part.right:
+        for days, rows in part.cells:
+            if rows > 0 and not any(day in knots for day in days):
+                needed = needed + 1
+    cells: "list[tuple[int, int, tuple[int, ...], tuple[int, ...]]]" = []
+    for number in range(len(layout.parts)):
+        part = layout.parts[number]
+        for days, rows in part.cells if needed <= left else part.few:
+            fixed = tuple(day for day in days if day in knots)
+            free = tuple(day for day in days if day not in knots)
+            cells += [(number, rows, fixed, free)]
+    opened = [
+        1 if not fixed and free and rows > 0 else 0
+        for _number, rows, fixed, free in cells
+    ]
+    most = [
+        min(len(free), rows) for _number, rows, _fixed, free in cells
+    ]
+    left = left - sum(opened)
+    while left > 0:
+        weight = sum(
+            cells[index][1]
+            for index in range(len(cells))
+            if opened[index] < most[index]
+        )
+        if weight <= 0:
+            break
+        given = 0
+        for index in range(len(cells)):
+            room = most[index] - opened[index]
+            if room <= 0:
                 continue
-            if low > at:
-                pieces += [(at, low)]
-            at = max(at, high)
-        if at < part.right:
-            pieces += [(at, part.right)]
-        length = sum(high - low for low, high in pieces)
-        spots: "list[int]" = []
-        for _rank in range(part.count):
-            word = words[taken]
-            taken = taken + 1
-            spots += [(word * length) // _WORD_SCALE if length > 0 else 0]
-        spots = sorted(spots)
-        piece = 0
-        passed = 0
+            add = min(room, (left * cells[index][1]) // weight)
+            opened[index] = opened[index] + add
+            given = given + add
+        if given == 0:
+            for index in range(len(cells)):
+                if given < left and opened[index] < most[index]:
+                    opened[index] = opened[index] + 1
+                    given = given + 1
+        left = left - given
+    values: "list[list[int]]" = [[] for _ in layout.parts]
+    slot = taken
+    for index in range(len(cells)):
+        number, rows, fixed, free = cells[index]
+        chosen = opened[index]
+        spread = tuple(
+            free[((2 * step + 1) * len(free)) // (2 * chosen)]
+            for step in range(chosen)
+        )
+        days = tuple(sorted(fixed + spread))
+        drawn = [day for day in spread]
+        for _rank in range(rows - chosen):
+            word = words[slot]
+            slot = slot + 1
+            drawn += [days[(word * len(days)) // _WORD_SCALE]]
+        slot = slot + chosen
+        values[number] += drawn
+    for number in range(len(layout.parts)):
+        part = layout.parts[number]
+        ordered = sorted(values[number])
         for index in range(part.count):
-            spot = spots[index]
-            while (
-                piece < len(pieces) - 1
-                and spot - passed >= pieces[piece][1] - pieces[piece][0]
-            ):
-                passed = passed + pieces[piece][1] - pieces[piece][0]
-                piece = piece + 1
-            step = part.left
-            if pieces:
-                step = pieces[piece][0] + spot - passed
-            value = min(max(step // _PIN_STEPS, part.lo), part.hi)
             ordinals[part.first + index] = _on_draw_unit(
-                value, layout.draw_unit, part.lo, part.hi
+                ordered[index], layout.draw_unit, part.lo, part.hi
             )
-    return taken
+    return taken + total
 
 
 def _midnight_offsets(
