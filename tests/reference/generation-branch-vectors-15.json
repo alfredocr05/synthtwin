@@ -1852,7 +1852,7 @@
     "a_place_past_the_gap_offers_no_cycle": {
       "answer": [
         1709769600,
-        1709978400,
+        1709978399,
         1709978400,
         1710064800,
         1710936000,
@@ -1918,7 +1918,7 @@
         1,
         1
       ],
-      "why": "Step 8.3 asks the mover's own places (the Codex review of landing 3b.D0, item 1), a day of moments, the count one short: a gap from Friday 20:00:00 to Monday 06:00:00 holds Saturday 10:00:00 twice and Sunday 10:00:00, and a gap of the week after next a lone Wednesday 12:00:00. A weekday at 10:00:00 stands outside the first gap -- Friday's before it opens and Monday's after it closes -- so the weekend's mover has no weekday place, the cycle weekday to weekend and back is not asked, and nothing moves.",
+      "why": "Step 8.3 asks the mover's own places (the Codex review of landing 3b.D0, item 1), a day of moments, the count one short: a gap from Friday 20:00:00 to Monday 06:00:00 holds Saturday 10:00:00 twice and Sunday 10:00:00, and a gap of the week after next a lone Wednesday 12:00:00. A weekday at 10:00:00 stands outside the first gap -- Friday's before it opens and Monday's after it closes -- so the weekend's mover has no weekday place, the cycle weekday to weekend and back is not asked, and steps 1 to 8.6 move nothing. Step 8.7 (landing 3b.D2, plan P4-D367) then puts the count back on a moment's own day: the first Saturday 10:00:00 takes 09:59:59.",
       "written_unit": 1
     },
     "a_third_place_past_its_gap_offers_no_cycle": {

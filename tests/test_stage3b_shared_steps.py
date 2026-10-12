@@ -102,24 +102,29 @@ The cases and their clauses:
   step 8.3's cycles kept and its limit stated on the review's ten groups
   of days of the month;
 * `test_a_trade_keeps_a_way_back_once_the_count_is_put_back` -- a strict
-  xfail owned by landing D3, the first to keep a second census: on the
-  second-census state the verification of the Codex review's item 1
-  noted, a cycle of step 8.3 and a merge of step 8.4 leave step 8.6 no
-  way back, and the census is missed where 9cb2eb5 met it (P4-D366's
-  stated limit);
+  xfail owned by landing D3, the first to keep a second census, until
+  landing 3b.D2 (plan P4-D367): on the second-census state the
+  verification of the Codex review's item 1 noted, a cycle of step 8.3
+  and a merge of step 8.4 left step 8.6 no way back, and the census was
+  missed where 9cb2eb5 met it (P4-D366's stated limit); step 7c's shift
+  now meets that state first, and the limit stands with the shift
+  withdrawn;
   `test_a_chain_reaches_a_group_through_the_rank_beside_its_mover`, a
-  strict xfail owned by D3 the same way: on a second-census state of
+  strict xfail owned by D3: on a second-census state of
   that item's repair's own battery, step 7b's link, asked of each
   cell's mover alone, finds no chain where the rank beside the mover
   has the place, and the census is missed where 9cb2eb5's chain, moved
   half way, was finished by step 8.6; and
   `test_a_chain_spends_a_value_only_where_the_census_is_then_met`, a
   strict xfail owned by landing D2, the first to publish a weekday
-  census of moments: on a day of moments the second verification of
-  that item found, where no placement keeping every clock meets both
-  facts, step 7b's chain, made whole through the mover its link was
-  asked of, halves the census's miss and keeps 12 different minutes
-  where 9cb2eb5 kept the 13 asked (P4-D366's third stated limit);
+  census of moments, until that landing (3b.D2, plan P4-D367): on a day
+  of moments the second verification of that item found, where no
+  placement keeping every clock meets both facts, step 7b's chain, made
+  whole through the mover its link was asked of, halves the census's
+  miss and keeps 12 different minutes where 9cb2eb5 kept the 13 asked
+  (P4-D366's third stated limit); step 7c's escape now meets the census
+  at another clock on a gap's first day and step 8.7 puts the minute
+  back, and the limit stands with the two withdrawn;
 * `test_the_body_is_full_only_where_every_unit_the_census_counts_holds_a_rank`
   -- the test the short cause asks (the review's M65), and
   `test_the_body_counts_a_unit_a_move_empties` -- the review's M09 and
@@ -130,13 +135,16 @@ The cases and their clauses:
   of the batteries through the whole generator, and the report's cause;
 * the third verification of the Codex review's item 1:
   `test_a_trade_meets_the_census_and_keeps_the_count` and
-  `test_a_chain_meets_the_census_and_the_count_is_still_put_back`,
-  strict xfails owned by landing D3, on two second-census states of its
-  200,000 where 9cb2eb5 met both facts and the census is met by both --
-  one value short, where 9cb2eb5's chain left half made led step 8.6 to
-  a trade keeping a value the head's trade empties, and one value long,
-  where step 7b's chain made whole meets the census 9cb2eb5's trade met
-  and steps 8.1 to 8.5 leave one value more than asked -- and
+  `test_a_chain_meets_the_census_and_the_count_is_still_put_back`, on
+  two second-census states of its 200,000 where 9cb2eb5 met both facts
+  and the census is met by both -- one value short, where 9cb2eb5's
+  chain left half made led step 8.6 to a trade keeping a value the
+  head's trade empties, a strict xfail owned by landing D3 until landing
+  D2's step 8.7 put that value back at another clock (plan P4-D367; one
+  value short again with the step withdrawn), and one value long, where
+  step 7b's chain made whole meets the census 9cb2eb5's trade met and
+  steps 8.1 to 8.5 leave one value more than asked, a strict xfail owned
+  by landing D3 -- and
   `test_every_step_keeps_the_written_time_of_day_on_the_held_minute`: on
   the second verification's day of moments above no step of the pass
   takes a moment off its written time of day, and steps 8.4 and 8.5,
@@ -655,7 +663,9 @@ def test_a_cycle_of_hours_or_moments_meets_the_count_its_movers_reach(monkeypatc
     A day of moments, minutes written: a Monday 09:49:00 moment goes to Tuesday, and Tuesday's move
     takes 11:33:00, its gain's mover, to Monday. Each meets the census and the count. Taken as the
     ranks then stand, the next group's mover is the rank just moved, which goes straight back, and
-    the count stays one short (9cb2eb5 met both facts on each through another cycle)."""
+    the count stays one short (9cb2eb5 met both facts on each through another cycle) -- with step
+    8.7 withdrawn beside the mutant, which since landing 3b.D2 (plan P4-D367) puts a count left
+    short on a day of moments back at another clock on a moment's own day."""
     for case, movers in (
         (_case("an_hour_cycle_moves_its_asked_movers"), [1, 4]),
         (_case("a_moments_cycle_moves_its_asked_movers"), [2, 4]),
@@ -665,7 +675,9 @@ def test_a_cycle_of_hours_or_moments_meets_the_count_its_movers_reach(monkeypatc
         assert made == movers, case["why"]
         assert _holding(case, answer, range(len(answer))) == case["counts"], case["why"]
         assert len({ordinal // case["written_unit"] for ordinal in answer}) == case["wanted"], case["why"]
-        answer, made = _made(monkeypatch, case, _mutant(monkeypatch, *AS_THE_RANKS_THEN_STAND))
+        mutant = _mutant(monkeypatch, *AS_THE_RANKS_THEN_STAND)
+        monkeypatch.setattr(mutant, "_weekday_day_spread", _withdrawn)
+        answer, made = _made(monkeypatch, case, mutant)
         assert made == [movers[0], movers[0]], case["why"]
         assert _holding(case, answer, range(len(answer))) == case["counts"], case["why"]
         assert len({ordinal // case["written_unit"] for ordinal in answer}) == case["wanted"] - 1, case["why"]
@@ -677,13 +689,25 @@ def test_a_cycle_whose_move_has_no_place_is_not_asked(monkeypatch: pytest.Monkey
     item 1): the two states the landing's reviews froze a cycle undone on offer no cycle, a
     weekday at 10:00:00 standing outside the first gap of one and Monday 22:00:00 past the second
     gap's close of the other, and no move is tried. Mutant: the take counts places past its gap,
-    a cycle is chosen whose move finds no place, and it is left half made, the census broken."""
+    a cycle is chosen whose move finds no place, and it is left half made, the census broken.
+    Since landing 3b.D2 (plan P4-D367) the whole pass on the first, a day of moments whose count
+    is one short, ends with step 8.7 putting the count back on a moment's own day, one Saturday
+    10:00:00 at 09:59:59: with that step withdrawn, steps 1 to 8.6 move nothing."""
     for case, half in (
         (_case("a_place_past_the_gap_offers_no_cycle"), [4, -1]),
         (_case("a_third_place_past_its_gap_offers_no_cycle"), [1, 2, -1]),
     ):
         answer, made = _made(monkeypatch, case)
-        assert answer == case["answer"] == case["ordinals"], case["why"]
+        assert answer == case["answer"], case["why"]
+        assert made == [], case["why"]
+        if case["step"] == "settled":
+            moved = [rank for rank in range(len(answer)) if answer[rank] != case["ordinals"][rank]]
+            assert len(moved) == 1 and answer[moved[0]] == case["ordinals"][moved[0]] - 1, case["why"]
+            assert len({ordinal // case["written_unit"] for ordinal in answer}) == case["wanted"], case["why"]
+            monkeypatch.setattr(generation, "_weekday_day_spread", _withdrawn)
+            answer, made = _made(monkeypatch, case)
+            monkeypatch.undo()
+        assert answer == case["ordinals"], case["why"]
         assert made == [], case["why"]
         mutant = _mutant(monkeypatch, *REVIEW_MUTANTS["C1b_take_ignores_the_gap"][1:])
         answer, made = _made(monkeypatch, case, mutant)
@@ -712,7 +736,9 @@ def test_a_chain_moves_the_mover_its_link_was_asked_of(monkeypatch: pytest.Monke
     10:37. A day of moments, through the whole pass: a Friday moment goes to Saturday 23:20:20,
     whose Monday stands past the gap's close, so Saturday 05:59:12, the mover asked, goes to
     Monday, and the census is met with the count kept. Moved as the ranks then stand alone, each
-    chain is left half made, one group over, and the census is missed."""
+    chain is left half made, one group over, and the census is missed -- through the whole pass
+    with step 7c withdrawn, which since landing 3b.D2 (plan P4-D367) lets a moment of the group
+    left over take another clock on its gap's end day and would meet the census after it."""
     for case, movers, over in (
         (_case("a_chain_moves_its_asked_mover"), [1, -1, 2], [1, 2, 1, 0]),
         (_case("a_chain_moves_its_asked_mover_in_the_pass"), [1, -1, 4], [1, 0, 0, 3, 3, 3]),
@@ -723,7 +749,9 @@ def test_a_chain_moves_the_mover_its_link_was_asked_of(monkeypatch: pytest.Monke
         assert _holding(case, answer, range(len(answer))) == case["counts"], case["why"]
         if case["step"] == "settled":
             assert len({ordinal // case["written_unit"] for ordinal in answer}) == case["wanted"], case["why"]
-        answer, made = _made(monkeypatch, case, _mutant(monkeypatch, *CHAIN_AS_THE_RANKS_THEN_STAND))
+        mutant = _mutant(monkeypatch, *CHAIN_AS_THE_RANKS_THEN_STAND)
+        monkeypatch.setattr(mutant, "_weekday_escaped", _withdrawn)
+        answer, made = _made(monkeypatch, case, mutant)
         assert made == movers[:2], case["why"]
         assert _holding(case, answer, range(len(answer))) == over, case["why"]
         monkeypatch.undo()
@@ -1748,29 +1776,24 @@ def _a_trade_left_no_way_back() -> dict:
     }
 
 
-@pytest.mark.xfail(
-    strict=True,
-    raises=AssertionError,
-    reason=(
-        "plan P4-D366's stated limit, owned by landing D3, the first to keep a second census: a "
-        "cycle of step 8.3 and a merge of step 8.4 made before step 8.6 can leave it no way back, "
-        "and the census is missed where 9cb2eb5 met it; step 8.6 asked first meets this state "
-        "but measured worse over states keeping the half of the month, so the order stays"
-    ),
-)
-def test_a_trade_keeps_a_way_back_once_the_count_is_put_back() -> None:
-    """Strict, and owned by landing D3 (P4-D366's limit). Step 8.3, its take counting written
-    units since the Codex review's item 1, moves Friday 26 July 05:47:46 to Monday 29 July and
-    Monday 23:51:26 to Friday 26 July, a gain of two where one is asked, and step 8.4 merges the
-    other Friday moment onto 23:51:26: each Friday moment of July now stands at 23:51:26, whose
-    Friday in the first half of August, the 2nd, lies past the gap's close, and no Monday of
-    August is in the gap, so step 8.6 has no second move into August and the Thursday moment
-    never reaches Saturday 27 July. 9cb2eb5's take found no cycle, so its step 8.6 traded. D3's
-    battery turns this into a passing test, or restates it."""
+def test_a_trade_keeps_a_way_back_once_the_count_is_put_back(monkeypatch: pytest.MonkeyPatch) -> None:
+    """A strict xfail of P4-D366's limit, owned by landing D3, until landing 3b.D2 (plan
+    P4-D367): step 7c's shift now meets this state before steps 8.3 and 8.4 can take its way back.
+    The Thursday moment over its total stands where neither end day of its gap takes its clock
+    for a group under its total, so the shift takes it to Friday 2 August 09:51:35, a group at
+    its total from which step 7b leads on, and step 7b takes Friday 26 July 05:47:46 to Saturday
+    27 July, the second half of July kept: the census and the count are met. With the shift
+    withdrawn the limit stands as P4-D366 states it -- step 8.3 moves Friday 26 July 05:47:46 to
+    Monday 29 July and Monday 23:51:26 to Friday 26 July, step 8.4 merges the other Friday
+    moment onto 23:51:26, and step 8.6 has no second move into August -- so the order of steps 8.3
+    to 8.6 stays D3's to ask on states the shift does not reach."""
     case = _a_trade_left_no_way_back()
     moved = _answer(case)
     assert len(set(moved)) == case["wanted"]
     assert _holding(case, moved, range(len(moved))) == case["counts"]
+    monkeypatch.setattr(generation, "_weekday_shifted", _withdrawn)
+    moved = _answer(case)
+    assert _holding(case, moved, range(len(moved))) != case["counts"]
 
 
 def _a_chain_asked_of_its_mover_alone() -> dict:
@@ -1850,28 +1873,26 @@ def _a_trade_emptying_a_held_second() -> dict:
     }
 
 
-@pytest.mark.xfail(
-    strict=True,
-    raises=AssertionError,
-    reason=(
-        "plan P4-D366's stated limits, owned by landing D3, the first to keep a second census: "
-        "with no chain left half made, step 8.6's trade empties a value 9cb2eb5's trade kept, "
-        "and the count is left one short with the census met"
-    ),
-)
-def test_a_trade_meets_the_census_and_keeps_the_count() -> None:
-    """Strict, and owned by landing D3 (P4-D366's limits, as the third verification of the Codex
-    review's item 1 found them). Steps 1 to 7 leave the census missed by four ranks each way, and
-    the 23 values asked. 9cb2eb5's step 7b moved Friday 16 January 16:45:06 to Saturday and stopped there, its
-    chain half made, and its step 8.6 then met the census moving three of the four Friday 19:49:00
-    moments to Sunday 11 January, the fourth kept: 23 values. The head's step 7b finds no chain,
-    its step 8.6 moves all four Friday 19:49:00 moments, and steps 8.1 to 8.5, run again, put no
-    value back: the census met and 22 values. D3's battery turns this into a passing test, both
-    facts met, or restates it."""
+def test_a_trade_meets_the_census_and_keeps_the_count(monkeypatch: pytest.MonkeyPatch) -> None:
+    """A strict xfail owned by landing D3 when the third verification of the Codex review's item 1
+    found it (P4-D366's limits), until landing 3b.D2 (plan P4-D367): both facts are met now. Steps
+    1 to 7 leave the census missed by four ranks each way, and the 23 values asked. 9cb2eb5's step
+    7b moved Friday 16 January 16:45:06 to Saturday and stopped there, its chain half made, and its
+    step 8.6 then met the census moving three of the four Friday 19:49:00 moments to Sunday 11
+    January, the fourth kept: 23 values. The head's step 7b finds no chain, its step 8.6 moves all
+    four Friday 19:49:00 moments, and steps 8.1 to 8.5, run again, put no value back: the census
+    met and 22 values. Landing D2's step 8.7 then puts the count still short back at another clock
+    on a moment's own day, this day of moments being written to the second -- Sunday 11 January
+    16:45:06 to 16:45:05 -- and the 23 values asked are kept. With step 8.7 withdrawn the limit
+    stands as P4-D366 states it: the census met and 22 values."""
     case = _a_trade_emptying_a_held_second()
     moved = _answer(case)
     assert _holding(case, moved, range(case["body"][0], case["body"][1] + 1)) == case["counts"]
     assert len(set(moved)) == case["wanted"]
+    monkeypatch.setattr(generation, "_weekday_day_spread", lambda *arguments: None)
+    moved = _answer(case)
+    assert _holding(case, moved, range(case["body"][0], case["body"][1] + 1)) == case["counts"]
+    assert len(set(moved)) == case["wanted"] - 1
 
 
 def _a_chain_meeting_the_census_one_long() -> dict:
@@ -2014,40 +2035,27 @@ def _a_chain_made_whole_on_a_held_minute() -> dict:
     }
 
 
-@pytest.mark.xfail(
-    strict=True,
-    raises=AssertionError,
-    reason=(
-        "plan P4-D366's third stated limit, owned by landing D2, the first to publish a weekday "
-        "census of moments: no placement of this state keeping every moment's clock meets both "
-        "the census and the count, and step 7b's chain, made whole through the mover its link "
-        "was asked of, halves 9cb2eb5's miss of the census at the cost of one of the 13 minutes "
-        "asked, the census still missed"
-    ),
-)
-def test_a_chain_spends_a_value_only_where_the_census_is_then_met() -> None:
-    """Strict, and owned by landing D2 (P4-D366's third limit). Steps 1 to 7 leave Monday two over
-    and Wednesday to Friday two under, and no Monday rank has a place from Wednesday to Friday:
-    each stands at 02:08, before the gap opens on Friday 19 April, and Wednesday and Thursday are
-    holes. Step 7b's chain moves Monday 22 April 02:08 to Sunday, where 02:08, held twice now, is
-    Sunday's mover and has no such place either, so the move takes the mover the link was asked
-    of, the lone Sunday 21 April 13:33:04, onto Friday 19 April 13:33:04, which six ranks hold:
-    the census is missed by one rank each way, and 12 different minutes are kept. 9cb2eb5's chain,
-    its link asked by unit, linked Monday straight to Wednesday to Friday and could not move a
-    Monday rank there, and the repairs before ba15cc3 left it half made, the census missed by two
-    ranks each way and the 13 minutes asked kept. No placement inside the gaps and off the holes
-    that keeps every moment's written time of day meets both facts -- with the census met at most
-    11 different minutes, with one rank each way 12 -- and no move of the pass leaves those
-    placements: on a day of moments the only moves that change a moment's written time of day,
-    step 8.4's second place and step 8.5, join an ordinal a rank stands on, keep every group's
-    count and run only where the count is long, never on this state
-    (`test_every_step_keeps_the_written_time_of_day_on_the_held_minute`). So the chain trades a
-    minute for half the miss of the method's first fact, and the census, reachable so, is missed
-    on every commit. A moment taking another clock on its gap's first day meets both, Monday 02:08
-    at Friday 04:37, the move landing D2's step 7c is reserved for (P4-D367). D2's battery turns
-    this into a passing test, the census met or the count kept where it is missed, or restates
-    it."""
+def test_a_chain_spends_a_value_only_where_the_census_is_then_met(monkeypatch: pytest.MonkeyPatch) -> None:
+    """A strict xfail of P4-D366's third limit, owned by landing D2, until landing 3b.D2 (plan
+    P4-D367): both facts are met now. Steps 1 to 7 leave Monday two over and Wednesday to Friday
+    two under, and no Monday rank has a place from Wednesday to Friday keeping its clock: each
+    stands at 02:08, before the gap opens on Friday 19 April at 04:36, and Wednesday and Thursday
+    are holes. Step 7b's chain moves Monday 22 April 02:08 to Sunday and, its link asked of the
+    lone Sunday 21 April 13:33:04, that moment onto Friday 19 April 13:33:04, which six ranks hold:
+    one rank each way short, 12 different minutes. Step 7c's escape then takes the other Monday
+    22 April 02:08 to its gap's first day at the place nearest its own, Friday 19 April 04:36, the
+    pinned minute, and the census is met; step 8.7 puts the minute the chain spent back on that
+    moment's own day, at 04:37, and the 13 minutes asked are kept -- the move this limit named as
+    the one meeting both. With step 7c's escape withdrawn the census is missed again, and with
+    step 8.7 withdrawn too the limit stands as P4-D366 states it: one rank each way, 12 minutes."""
     case = _a_chain_made_whole_on_a_held_minute()
     moved = _answer(case)
-    met = _holding(case, moved, range(len(moved))) == case["counts"]
-    assert met or len({ordinal // case["written_unit"] for ordinal in moved}) == case["wanted"]
+    assert _holding(case, moved, range(len(moved))) == case["counts"]
+    assert len({ordinal // case["written_unit"] for ordinal in moved}) == case["wanted"]
+    monkeypatch.setattr(generation, "_weekday_escaped", _withdrawn)
+    moved = _answer(case)
+    assert _holding(case, moved, range(len(moved))) == [4, 0, 19, 5, 2]
+    monkeypatch.setattr(generation, "_weekday_day_spread", _withdrawn)
+    moved = _answer(case)
+    assert _holding(case, moved, range(len(moved))) == [4, 0, 19, 5, 2]
+    assert len({ordinal // case["written_unit"] for ordinal in moved}) == case["wanted"] - 1

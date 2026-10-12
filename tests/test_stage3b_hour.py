@@ -1187,7 +1187,12 @@ STEP_MUTANTS = {
     # counted in its written hour, not in its ordinal's.
     "a sixtieth second counted in its ordinal's hour": (
         "hour_sixtieth_second",
+        # The clock pass's own lines: the weekday pass of a column of moments
+        # (landing 3b.D2) counts the same ranks on their written day in a
+        # function of its own, which this mutant leaves alone.
+        "        written = state.where[_clock_bin(state, ordinal - 1)]\n"
         "        if counted != written:\n            asked[counted] = asked[counted] + 1",
+        "        written = state.where[_clock_bin(state, ordinal - 1)]\n"
         "        if False:\n            asked[counted] = asked[counted] + 1",
     ),
     "a rank between two pins of one sixtieth second keeps its ordinal": (

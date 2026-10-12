@@ -16468,6 +16468,26 @@ def _tail_units_of(
 ) -> "list[int | None]":
     """One reading per cell, in tail units, or null where it is not a date.
 
+    The units of `_tail_readings_of`, the one reader of a cell's place.
+    """
+    found: "list[int | None]" = []
+    for placed in _tail_readings_of(facts, cells):
+        found += [placed[0] if placed is not None else None]
+    return found
+
+
+def _tail_readings_of(
+    facts: contract.DatetimeFacts, cells: "list[str]"
+) -> "list[tuple[int, str] | None]":
+    """One reading per cell, in tail units with the canonical text it was
+    counted from, or null where it is not a date.
+
+    The text is the cell's own wall clock as written (on the shared clock,
+    the moment it converts to), so a caller can read the day a cell is
+    WRITTEN on beside the unit that places it (`calendar_rules.written_day`:
+    a sixtieth second is its own day's, while its unit is the next day's
+    first second -- Codex's review of landing 3b.D2, item 1).
+
     Each cell is read under the member that read the real column, worn at
     the offset the published census counts it at
     (`_offset_absorbed_into`) and put on the clock the description
@@ -16511,7 +16531,7 @@ def _tail_units_of(
             dates = dates + 1
         read_cells += [(parsing.stamp_canonical(read[0], style), read[1], dated)]
     commonest, named = _offset_absorbed_into(facts, dates)
-    found: "list[int | None]" = []
+    found: "list[tuple[int, str] | None]" = []
     for entry in read_cells:
         if entry is None:
             found += [None]
@@ -16541,7 +16561,12 @@ def _tail_units_of(
                 continue
             moment = shifted
         found += [
-            taxonomy.tail_ordinal(moment, facts.tail_unit, facts.datetimes_read_at)
+            (
+                taxonomy.tail_ordinal(
+                    moment, facts.tail_unit, facts.datetimes_read_at
+                ),
+                moment,
+            )
         ]
     return found
 
@@ -17846,11 +17871,11 @@ def _hour_checks(
         return []
     low = calendar_clock.seconds_of(facts.low_tail.boundary)
     high = calendar_clock.seconds_of(facts.high_tail.boundary)
-    body = [
-        hour
-        for instant, hour in _hour_instants_of(facts, _dates_the_file_reads(block, facts, cells))
-        if low <= instant <= high
-    ]
+    read_cells = _dates_the_file_reads(block, facts, cells)
+    instants = _hour_instants_of(facts, read_cells) + _folded_hour_instants(
+        block, facts, read_cells
+    )
+    body = [hour for instant, hour in instants if low <= instant <= high]
     found = calendar_rules.group_counts(census, calendar_clock.hour_bins(body))
     line = parsing.census_floor(floor)
     asked, shown, lines = _census_lines(
@@ -17876,6 +17901,45 @@ def _hour_checks(
 def _hour_group_named(first: int, last: int) -> str:
     """A group of hours as the report names it: `09:00-09:59`, `00:00-07:59`."""
     return f"{first:02d}:00-{last:02d}:59"
+
+
+def _folded_hour_instants(
+    block: "dict[str, object]",
+    facts: contract.DatetimeFacts,
+    cells: "list[str]",
+) -> "list[tuple[int, int]]":
+    """The whole dates the file's own description folded into its moments,
+    each as the instant of its midnight with hour 0 (validation V5-H1).
+
+    THE FOLD IS ASKED OF THE HOUR CENSUS AS OF THE WEEKDAY'S (the
+    integration of landing 3b.D2 beside landing 3b.2-H). The producer
+    counts a whole date the joint ISO reading folded into a column of
+    moments at its midnight (`taxonomy._census_hours`), so the recount
+    must too: ten bare `2024-03-05` among 590 noon stamps published hours
+    0 to 12 holding 570, and the unchanged source, counted without them,
+    was told 560, MISSED. Which cells were folded is
+    `_folded_by_the_file`'s question, asked of the cells the tails do not
+    read (`_tail_readings_of`), exactly as `_moments_tallied` asks it; a
+    cell the description left unparsed is no folded cell and stays out.
+
+    Guarantees: accepts the file's own description block, the column's
+    facts and the cells it reads; returns (instant in seconds, hour)
+    pairs, none where nothing was folded. Determinism: a function of the
+    arguments. Raises nothing. No I/O of any kind.
+    """
+    failing: "list[str]" = []
+    for cell, placed in zip(cells, _tail_readings_of(facts, cells)):
+        if placed is None:
+            failing += [cell]
+    if not _folded_by_the_file(block, facts.parser_family, failing):
+        return []
+    found: "list[tuple[int, int]]" = []
+    for cell in failing:
+        read = parsing.parse_datetime(cell, taxonomy.FORMAT_ISO_MIXED)
+        if read is None or len(read[0]) < 19:
+            continue
+        found += [(calendar_clock.seconds_of(read[0]), calendar_clock.written_hour(read[0]))]
+    return found
 
 
 def _hour_instants_of(
@@ -18052,20 +18116,31 @@ def _weekday_checks(
     bins = [0 for _ in range(calendar_rules.WEEKDAYS)]
     failing: "list[str]" = []
     days: "list[int]" = []
-    for cell in _dates_the_file_reads(block, facts, cells):
-        read = parsing.parse_datetime(cell, facts.parser_family)
-        if read is None:
-            failing += [cell]
-            continue
-        days = [_weekday_day(read[0])]
-        on_holes = on_holes + _tallied(days, low, high, holes, bins)
-    if _folded_by_the_file(block, facts.parser_family, failing):
-        days = []
-        for cell in failing:
-            folded_day = _day_as_counted(cell)
-            if folded_day is not None:
-                days += [folded_day]
-        on_holes = on_holes + _tallied(days, low, high, holes, bins)
+    if facts.resolution == taxonomy.RESOLUTION_DATETIME:
+        # A COLUMN OF MOMENTS IS COUNTED BY INSTANT (landing 3b.D2, plan
+        # P4-D367): its body is the cells between the two boundaries as
+        # the tails count them, in tail units, so a cell on a boundary's
+        # day but before its instant is a tail cell, as the census
+        # counted it. No moment the census counts is folded: no census
+        # stands on the joint member.
+        on_holes = _moments_tallied(
+            facts, _dates_the_file_reads(block, facts, cells), holes, bins, block
+        )
+    else:
+        for cell in _dates_the_file_reads(block, facts, cells):
+            read = parsing.parse_datetime(cell, facts.parser_family)
+            if read is None:
+                failing += [cell]
+                continue
+            days = [_weekday_day(read[0])]
+            on_holes = on_holes + _tallied(days, low, high, holes, bins)
+        if _folded_by_the_file(block, facts.parser_family, failing):
+            days = []
+            for cell in failing:
+                folded_day = _day_as_counted(cell)
+                if folded_day is not None:
+                    days += [folded_day]
+            on_holes = on_holes + _tallied(days, low, high, holes, bins)
     found = calendar_rules.group_counts(census, bins)
     line = parsing.census_floor(floor)
     asked, shown, lines = _census_lines(
@@ -18099,6 +18174,80 @@ def _weekday_checks(
             note,
         )
     ]
+
+
+def _moments_tallied(
+    facts: contract.DatetimeFacts,
+    cells: "list[str]",
+    holes: "set[int]",
+    bins: "list[int]",
+    block: "dict[str, object] | None" = None,
+) -> int:
+    """Count a file's moments between the two boundaries into their weekdays.
+
+    V5-W1 BY INSTANT (landing 3b.D2, plan P4-D367). Each cell is read as
+    the tails read it (`_tail_readings_of`: the column's own member, its
+    clock face and its offsets), in tail units; one between the two
+    published boundaries, both included, counts on the weekday of the day
+    it is WRITTEN on (`calendar_rules.written_day`), as the census
+    counted it -- never its unit's day, which carries a sixtieth second
+    onto the next day (Codex's review of the landing, item 1: the twin's
+    one `2016-12-31 23:59:60` counted on Sunday, its census HELD while it
+    wrote 81 Saturdays for 130).
+
+    AND THE DATES THE FILE'S OWN DESCRIPTION FOLDED INTO ITS MOMENTS
+    (Codex's review of the landing, item 2), the fold distinction of a
+    column of dates (`_folded_by_the_file`) asked of moments: where the
+    file's description, `block`, parsed cells its member does not read,
+    each such cell is read under the joint ISO reading and counted as
+    the producer counted it, a whole date at its midnight. Ten bare
+    `2024-03-05` among noon stamps published Tuesday 90, and the
+    unchanged source was told it held 80. A cell its description left
+    unparsed is no folded cell and stays out. Returns how many counted
+    cells stand on a hole. `bins` is grown in place.
+    """
+    low = taxonomy.tail_ordinal(
+        facts.low_tail.boundary if facts.low_tail is not None else "",
+        facts.tail_unit,
+        facts.datetimes_read_at,
+    )
+    high = taxonomy.tail_ordinal(
+        facts.high_tail.boundary if facts.high_tail is not None else "",
+        facts.tail_unit,
+        facts.datetimes_read_at,
+    )
+    found: "list[tuple[int, str]]" = []
+    failing: "list[str]" = []
+    for cell, placed in zip(cells, _tail_readings_of(facts, cells)):
+        if placed is None:
+            failing += [cell]
+            continue
+        found += [placed]
+    if block is not None and _folded_by_the_file(
+        block, facts.parser_family, failing
+    ):
+        for cell in failing:
+            read = parsing.parse_datetime(cell, taxonomy.FORMAT_ISO_MIXED)
+            if read is None:
+                continue
+            found += [
+                (
+                    taxonomy.tail_ordinal(
+                        read[0], facts.tail_unit, facts.datetimes_read_at
+                    ),
+                    read[0],
+                )
+            ]
+    on_holes = 0
+    for unit, moment in found:
+        if unit < low or unit > high:
+            continue
+        day = calendar_rules.written_day(moment)
+        weekday = calendar_rules.weekday_of(day)
+        bins[weekday] = bins[weekday] + 1
+        if day in holes:
+            on_holes = on_holes + 1
+    return on_holes
 
 
 def _census_lines(

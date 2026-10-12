@@ -6823,6 +6823,35 @@ once G7.3's count passes and G7.3b step 9 are done and before any cell
 is spelled, until the cells between the two boundary ranks fall on the
 published groups. No word is drawn.
 
+A COLUMN OF MOMENTS (landing 3b.D2, plan P4-D367; contract WC3 and WC10)
+is moved by the same pass over its instants: its unit and its day are
+86,400 seconds, so a move of whole units keeps the moment's clock; its
+written unit is the minute where it is written to the minute and the
+second otherwise; its bin is the weekday of the day an instant falls on;
+and its holes are the days the description publishes empty -- an absent
+spelling of the run names one instant of a day there, never every
+spelling of it, so it makes no day a hole. A column of moments every
+value of which stands at midnight on its own clock is counted in days
+(G7.1) and moved as a column of dates is. Steps 7c and 8.7 below are
+asked of moments alone.
+
+THE CENSUS AS WRITTEN (Codex's review of landing 3b.D2, item 1). The
+census counts a cell on the day it is WRITTEN on, and the pass counts a
+rank on its ordinal's day. The two differ only on a body rank the layout
+pins at a published boundary or rung whose seconds field is 60, standing
+at that pin, or standing between two such pins of one moment, which G7.5
+writes from that moment's own fields at that sixtieth second while its
+ordinal is the next second: at `23:59:60` its ordinal's day is the day
+after the one it is written on. These are the ranks G7.3g's clock pass
+counts in the hour they are written in, one set for both censuses. Before the
+pass, each such rank whose ordinal's group is not the group of the day
+of the second before its ordinal is asked one more in the first group
+and one fewer in the second; it never moves, so the pass, meeting these
+counts by ordinal, meets the published census as written (fifty
+`2016-12-31 23:59:60` beside noon stamps publish Saturday 130 and Sunday
+80, and the twin, its pinned 25th percentile at that second, wrote 131
+and 79 without this).
+
 A day `d`, counted from 1970-01-01, falls on weekday `(d + 3) mod 7`,
 Monday nought; its GROUP is the census group holding that weekday. Its
 KIND is whether a date on it counts into the width census's one word,
@@ -6972,6 +7001,48 @@ written unit's.
    date's day every rank of a cell has the same places, so the mover as
    the ranks then stand always has one. The step ends where no path is
    found.
+
+   **7c. The escape to an end day** (landing 3b.D2, plan P4-D367). Where
+   the unit is the day and spans more than one written unit -- a day of
+   moments -- and the movable ranks still do not hold the owed totals,
+   taken at nought or above, once step 7b is done. A rank's candidates
+   keep its clock, so on the first and the last day of its gap, its END
+   DAYS, only the ranks whose clocks stand inside the gap may move: a
+   gap from a Wednesday at 11:00 to the next at 09:15 holds no Wednesday
+   for a rank drawn at 10:00, and a census of Wednesday sessions is
+   left short. Up to eight rounds, the movable ranks asked in rank order: a
+   rank whose group holds more than its total is offered, on each end
+   day of its gap other than its own day whose group holds less than its
+   total, that is no hole and of the rank's kind, a PLACE -- an ordinal of
+   that day inside the gap, a whole number of written units from the one
+   nearest the rank's own place in its unit moved to that day, asked
+   nearest that wished place first and then the earlier, at most 64 of
+   them, and standing at the start of the day exactly where the rank's
+   own place does, so no clock is put on midnight or taken off it. Of
+   those places, the first that keeps the count of different values --
+   onto a written unit no rank holds where the rank stands alone on its
+   own, onto one a rank holds where it shares -- or, failing any, the
+   first, which changes it; where the column's count is not reachable,
+   the first. Of its two end days, the offer that keeps the count, then
+   the nearer to the rank's own ordinal, then the lower. A round takes
+   only the offers that keep the count until a round moves nothing, and
+   every offer from then on; a round that moves nothing after that ends
+   the rounds. Where the totals still do not hold, THE SHIFT, up to 64
+   times: an end day whose group holds exactly its total offers its
+   places as well, where a LINK of step 7b leads on from that group to a
+   group under its total (a cell holding a rank of the group whose mover
+   has a place of the group under). The first rank, in rank order, of a
+   group over its total with such an offer takes it, chosen as above, and
+   step 7b runs again; a shift after which the ranks the groups over their
+   totals hold past them, summed, are no fewer ends the step, as does a
+   round with no such group or no such offer. A Wednesday schedule at a
+   floor of 36 had ranks at 15:16 to 17:58 in a gap from Tuesday 18:04 to
+   Thursday 11:24, both of those groups at their totals and the group
+   under them, Saturday, outside the gap, and fell five short of its
+   census before the shift. It changes only the clocks of the ranks it moves;
+   beside it only step 8.4's merge at another clock, step 8.5's pairs and
+   step 8.7 change a written clock, each on the ranks it moves, and every
+   other step keeps each rank's written clock.
 8. **The count of different days**, where the column's distinct count
    is reachable, put back to what it was before step 2, by moves that
    keep every group's count:
@@ -7109,14 +7180,32 @@ written unit's.
       first rank that offers a trade scoring nought. The step asks
       whether the count is reachable no more than step 7b does; where a
       trade was made and it is, steps 8.1 to 8.5 run again.
+   7. **The count put back on a moment's own day** (landing 3b.D2, plan
+      P4-D367), where the unit is the day and spans more than one
+      written unit -- a day of moments -- and the count is still SHORT
+      once step 6 is done. Steps 1 to 6 move a rank by whole units, so
+      each keeps its clock, and where the census sends many moments onto
+      few days their kept clocks meet: 2,400 visits on seven Wednesdays,
+      minutes from 07:00 to 19:59, came out of the pass 1,882 different
+      minutes for 1,933. The movable ranks in rank order: a rank sharing
+      its written unit, on a day no hole and not at the start of its day,
+      moves onto the first of the 64 places of its own day inside its gap
+      nearest its own place -- a whole number of written units from it,
+      the earlier on a tie, never the day's start -- whose written unit
+      no rank holds, until the count is back. On its own day the rank
+      keeps its group and kind, so every group's count holds, and no
+      clock is put on midnight or taken off it.
 
    What the steps leave off is reported as the column's count of
    different values, and where the census holds, as the count that gave
    way to it: SHORT in the twin's own tails where every day the census
-   allows between the boundaries, no hole, holds a date, short
-   elsewhere, or LONG -- each in the recount's own sentence's place only
-   where the twin's recounted values went the same way, and the long
-   one for the folded count beside it too.
+   allows between the boundaries, no hole, holds a date -- on a column
+   counted in days alone, as a full day of moments still has instants
+   free -- short elsewhere, or LONG -- each in the recount's own
+   sentence's place only where the twin's recounted values went the same
+   way, and the long one for the folded count beside it too; on a column
+   of moments counted in different values, never days (the 3b.2-W
+   skeptic, minor 1).
 9. Each run of ranks the layout does not pin is sorted.
 
 Where the census still does not hold, the report names `weekday_census`
@@ -7384,6 +7473,20 @@ group and the escape kept to it -- and three of G7.3b step 10's
 distances, on a low tail of minutes, a high tail of seconds and a tail
 whose ranks must all differ, each with the answer this section gives it
 and no G14.3 case.
+
+**Steps 7c's and 8.7's frozen cases** (plan P4-D367) are states of ranks
+too, on a day of moments written to the minute, in the seventeenth
+vectors file, `tests/reference/generation-branch-vectors-17.json`: three
+Wednesday sessions through the whole pass, and step 7c alone keeping the
+count of different values, keeping the midnight, taking the nearer end
+day, keeping off a hole and keeping to an end day of the moment's own
+width kind -- an unpadded month-first column whose one width word is
+`second-field-unpadded`, its nearer end day in September, of the other
+kind -- and its shift through a group at its total;
+and step 8.7 through the whole pass on crowded
+Wednesdays, and alone taking the nearest free minute of a rank's own
+day, the earlier on a tie, inside its gap and off midnight -- each with
+the answer this section gives it, and no G14.3 case.
 
 ### G7.4 Offsets: only where recorded
 

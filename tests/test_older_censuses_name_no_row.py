@@ -299,6 +299,12 @@ def _loaded_with(
     `utc`) empties its `hour_census` too, as a description read there
     publishes none (contract HC3, landing 3b.2-H): the rule under test is
     then the first one the loader meets.
+
+    Read on the local clock, those moments publish a weekday census since
+    landing 3b.D2 (plan P4-D367), and a column read at `utc` publishes
+    none (WC3): an edit turning the reading to `utc` passes
+    `weekday_census=[]` beside it, as such a description would, so the
+    rule each edit is about is the one judged.
     """
     text = _description_bytes(tmp_path / "base", _moments(suffix="Z"), floor)
     document = json.loads(text)
@@ -324,6 +330,7 @@ def test_the_loader_names_no_count_of_one_at_a_floor_of_one(tmp_path: pathlib.Pa
         tmp_path / "offset", 1, "D3",
         utc_offsets={"+01:00": 1, "Z": 399},
         datetimes_read_at="utc",
+        weekday_census=[],
         zulu_case={},
         hour_census=[],
     )
@@ -337,6 +344,7 @@ def test_a_pool_stands_only_alone_and_only_where_it_names_no_one(
         tmp_path / "offset-pool", 11, "D3",
         utc_offsets={"(withheld)": 30, "Z": 370},
         datetimes_read_at="utc",
+        weekday_census=[],
         zulu_case={},
         hour_census=[],
     )
@@ -358,6 +366,7 @@ def test_a_pool_stands_only_alone_and_only_where_it_names_no_one(
         tmp_path / "alone", 1, "D3",
         utc_offsets={"(withheld)": ROWS},
         datetimes_read_at="utc",
+        weekday_census=[],
         zulu_case={},
         hour_census=[],
     )

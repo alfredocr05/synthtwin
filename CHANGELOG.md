@@ -6,6 +6,108 @@ exists).
 
 ## [Unreleased]
 
+### The weekday census on timestamp columns (2026-10-06)
+
+**A column of dates and times publishes its weekday census** (stage 3b
+landing D2, plan P4-D367). Read on the local clock, not in the joint
+member, with both tails, a column of moments now publishes the census a
+column of whole dates does, its body cut by instant and each cell
+counted on the weekday of its day; before, it published `[]` and its
+twin drew each gap evenly, so clinic visits on weekdays alone came back
+24 to 31 per cent on weekends. The loader widens WC3 to moments and asks
+WC10, the middle half spanning four weeks; the producer asks the
+few-dates rule of the moments' days, the few-units rule beside it (eight
+different written units a non-empty group on average) and, at every
+floor, the unit-room rule (lane D1b's count-room rule in written units)
+-- or, where every value stands at midnight, the count-room and
+count-reach rules of a column of dates (lane D1b's, P4-D388) -- and
+every withholding but one without tails says NF74's sentence. The
+generator moves a moment by whole days, keeping its clock, through
+G7.3f's shared pass; its new step 7c lets a moment whose
+clock stands outside its gap on the gap's end day take another clock
+there, through a group at its total where step 7b leads on from it, and
+its new step 8.7 puts a count of different values left short back at
+another clock on each moment's own day, neither ever onto or off a
+midnight. The validator counts a file of moments by instant. On the lane's battery of 1,258 tables against 9cb2eb5, 994 censuses
+publish at a floor of 11 and 862 at 36 where none did, no twin
+misses a check its base twin met, every source table meets its own
+description, and the published columns' bodies come back on the real
+weekend share exactly (0.238 and 0.205 from it before); columns of
+whole dates are byte-identical to the base on 9,030 twins, and a
+million arrivals spend 5.1 s describing and 6.9 s generating on it.
+`tests/reference/generation-branch-vectors-17.json` freezes steps 7c and
+8.7, one state of the fifteenth file now ends with step 8.7's move, and
+`tests/test_stage3b_weekday_moments.py` holds the landing's clauses. The
+two strict xfails the shared pass left to this landing and to D3 on
+states steps 7c and 8.7 now meet are tests, and a census keeps every
+twin value off a day declared absent, so a column of moments at
+midnight publishing one no longer gives such a day's values another
+mark.
+Its skeptic's repair round (2026-10-07): the unit-room rule, asked above
+the floor of 11 alone, let lane D1b's moved `_hunt(690)` publish at 11
+and its twins come back 26 values for 24 at noon and 25 to 27 at
+midnight -- a clocked column asks it at every floor now, and a column at
+midnight, which the twin moves in days, the count-room and count-reach
+rules of a column of dates through the one helper the date path asks,
+lane D1b's fix stream merged at its second round for them, so D1b's
+business year written `MM/DD/YYYY 00:00` no longer comes back 259 values
+for 260 at 11 and 20, nor written ISO with a `T` the column never wrote.
+The price is D1b's, as ruled: 14, 16 and 3 of 273, 261 and 230 censuses
+of D1b's logs at midnight at 11, 20 and 36, of which 10, 14 and 3 kept
+every day at nine seeds of ten or more and six left twins short at two
+to nine; 37 censuses the unit-room rule withheld at 20 and 36 publish,
+met at seeds 0 to 9; and on clocked columns one of 62 hunt shapes at
+noon at 11, met before. The ruling's residual, one twin in ten of 1, 5
+and 2 published logs at 11, 20 and 36 a day or more short, is stated in
+P4-D367: on a column at midnight G7.9's unnamed mark makes up its count
+of texts and validation does not name it. Each producer rule withholds a
+shape of its own, withdrawn one at a time; the hole clauses, step 7c's
+width kind (a thirteenth state of the seventeenth file) and the short
+cause on a full day of moments have nodes.
+Its second skeptic (2026-10-08): lane D1b's near-one risk, ruled to
+stand that day, reaches midnight moments -- of the 236 censuses that 90
+near-one logs written ISO at midnight publish at 11, 20 and 36, 18 leave
+twins a day or two short at two to seven seeds of ten -- and validation
+names the miss on a month-first or 12-hour member only: on an ISO one
+G7.9 makes up the count of texts with a cell in a mark the census leaves
+unnamed: one the column never wrote, or one it wrote too seldom for the
+census to name, where nothing shows at all. P4-D367 states it, a node
+pins D1b's near-one log at midnight as it stands, and whether the ruling
+stands there is put to the orchestrator; so is the noon trade, recorded
+head against base on seven logs (the business year's weekend share 0.24
+to 0.31 at the base and 0 to 0.02 here, the real 0; its days 211 to 236
+of 260 at the base, 179 to 202 here). Nodes pin midnight moments
+deciding as the same days written as dates, and the unit-room rule's
+count of a tail at the floor's number.
+Its Codex review (one round, every item fixed): a sixtieth second is
+counted on the day it is written on, never its instant's -- fifty
+`2016-12-31 23:59:60` beside noon stamps published Saturday 80 and
+Sunday 130 where the source wrote 130 and 80, and twins wrote 81 and 129
+with validate saying HELD; producer, validator and the weekday pass now
+read the written day, and the twins hold 130 and 80. Whole dates folded
+into midnight moments are recounted (ten bare `2024-03-05` published
+Tuesday 90, and the unchanged source was told 80, MISSED); dates left
+unparsed stay out. WC10 compares whole local instants in the producer
+and the loader: 27 days and 70 seconds no longer pass as 28 days, which
+withholds 3 censuses at 11 and 4 at 36 of the lane's battery, their
+twins met before; every other twin of its 6,224 a floor is unchanged.
+The near-one risk on ISO midnight moments stands, ruled by the
+orchestrator on 2026-10-09: validate cannot report it, and lane D4's
+split order owes the fix.
+At its integration (2026-10-12) the weekday pass counts as written the
+ranks the clock pass does: one definition, `generation._sixtieth_seconds`
+(lane T2's), so a rank two pins of one sixtieth second leave between
+them is counted on the day it is written on too, and the oracle asks
+the same set. The hour census's recount now asks the same fold of whole
+dates (ten bare `2024-03-05` among noon stamps had the unchanged source
+miss its hours, 560 for 570). Where both censuses stand, a twin can miss
+its hour census, said by a deviation: five noon stamps a day, 4 twins of
+10; two clocks a day, 7 of 10; eleven `23:59:60` a date, every twin, its
+count of values and its count at midnight too; none without the weekday
+census.
+A stated limit in P4-D367, owed to a lane still to be named.
+KPIs `K-S3-36` (new) and `K-S3-37` (new, an accepted limit, status only).
+
 ### Time of day comes back on moments (2026-10-06)
 
 **A column of moments publishes its hours, and the twin meets them**

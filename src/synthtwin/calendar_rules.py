@@ -218,6 +218,29 @@ def weekday_of(day: int) -> int:
     return (day + 3) % WEEKDAYS
 
 
+def written_day(canonical: str) -> int:
+    """The day a canonical date or moment is WRITTEN on: the day number of
+    `canonical[0:10]`, counted from 1970-01-01.
+
+    THE WRITTEN DAY IS READ OFF THE TEXT, NEVER OFF THE INSTANT (Codex's
+    review of landing 3b.D2, item 1). A sixtieth second, `23:59:60`, is
+    written on its own day, while its instant (`parsing.instant_key`) is
+    the next day's first second: fifty `2016-12-31 23:59:60` beside noon
+    stamps were published on Sunday though the source wrote them on a
+    Saturday. The instant orders the cells and places one between two
+    boundaries; the weekday a census counts a cell on is this day's. The
+    companion of `calendar_clock.written_hour`, lane T2's written hour,
+    which reads `canonical[11:13]` for the same reason.
+
+    Guarantees: accepts canonical text, `YYYY-MM-DD` first; returns a
+    whole day number. Raises ValueError for text that is not canonical.
+    No I/O of any kind.
+    """
+    return parsing.days_from_civil(
+        int(canonical[0:4]), int(canonical[5:7]), int(canonical[8:10])
+    )
+
+
 def _single_runs(
     bins: "list[int]", first: int, last: int
 ) -> "list[tuple[int, int, int]]":
@@ -2271,6 +2294,263 @@ def room_short(
 
 # anchor 3b-D0 (P4-D366)
 # anchor 3b-D2 (P4-D367)
+
+
+# THE WEEKDAY CENSUS OF A COLUMN OF MOMENTS (landing 3b.D2, plan
+# P4-D367). A column of dates and times read on the local clock
+# publishes the same census as a column of whole dates: its BODY's cells
+# counted on the weekday of the day each falls on, the body being the
+# cells between the two tail boundaries, both included, compared as
+# instants (WC3). Three rules more than a column of dates asks, and one
+# fewer: the middle half of the column spans at least four weeks (WC10),
+# so a census of weekdays is never a census of a few dates; the body
+# holds at least `FEWEST_MEAN_UNITS` different WRITTEN units a non-empty
+# group on average wherever two or more groups are non-empty (the
+# few-units rule, the producer's alone); and at every floor the units its
+# tails leave it reach what the census needs between its pins (the
+# unit-room rule, the producer's alone) -- on a column every value of
+# which stands at midnight, which the twin counts and moves in days, the
+# two count rules of a column of dates instead (`count_room_short` and
+# `count_reach_short`); and WC6's half on written forms is not asked, as
+# the count of different values on a column of moments is a count of
+# instants, never of days -- its half on a workbook's storage is.
+
+# WC10: the days the middle half of a column of moments spans at least,
+# from its published `p25` to its published `p75` (four cycles of the
+# week, the build plan's call (e), CA4).
+SPAN_DAYS = 28
+# ...each of 86,400 seconds: WC10 compares whole local instants.
+DAY_SECONDS = 86400
+# THE FEW-UNITS RULE (the 3b.2-W skeptic's blocker 1, measured on the
+# design's tie batteries): where two or more groups are non-empty, the
+# body holds fewer than eight different written units a non-empty group
+# on average -- instants at the column's precision, or days where every
+# value stands at midnight -- and the census is withheld. Below it the
+# day pass meets the census by splitting a written unit's rows across
+# two days, and the twins measured that did held more different values
+# than the column (seven sessions at 09:00, 17 for 9; payroll on the
+# 15th and the last day at 18:00, 53 for 48). A CONSERVATIVE rule, like
+# the few-dates rule beside it: it withholds some censuses a twin meets.
+FEWEST_MEAN_UNITS = 8
+
+# WHY A COLUMN OF MOMENTS PUBLISHES NO WEEKDAY CENSUS, besides the
+# reasons of a column of dates: its middle half spans fewer than
+# `SPAN_DAYS` days, its groups hold too few different written units, or
+# its tails leave its body too few for the census (`unit_room_short`).
+# Each is said in the one sentence of every rule the table's own numbers
+# decide (NF74, `REASON_UNSAID`).
+REASON_SPAN = "span"
+REASON_FEW_UNITS = "few_units"
+REASON_UNIT_ROOM = "unit_room"
+MOMENTS_REASONS = (REASON_SPAN, REASON_FEW_UNITS, REASON_UNIT_ROOM)
+
+
+def rung_instant(text: object) -> "int | None":
+    """The INSTANT of one published rung of a column of moments, in whole
+    seconds of its own wall clock, or None where it is withheld (WC10).
+
+    The whole local instant, its clock read with its day (Codex's review
+    of landing 3b.D2, item 3): read as days alone, a p25 at
+    `2024-01-15 23:59:04` and a p75 at `2024-02-12 00:00:14` stood 28
+    days apart, while they are 27 days and 70 seconds apart. A rung
+    written as a whole date stands at its day's midnight. The producer
+    and the loader both read the published text through this one
+    reader, so a census the producer publishes is one its loader loads.
+
+    Guarantees: accepts the published value; returns seconds or None.
+    Determinism: a function of the text. Raises nothing. No I/O of any
+    kind.
+    """
+    if not isinstance(text, str):
+        return None
+    return parsing.instant_key(text, "")
+
+
+def span_short(p25: "int | None", p75: "int | None") -> bool:
+    """WC10: whether a column's middle half spans fewer than four weeks.
+
+    `p25` and `p75` are the INSTANTS of the column's published rungs of
+    those names, in whole seconds of its wall clock (`rung_instant`),
+    None where a rung is withheld: a middle half no reader can measure
+    is held short, so no census stands beside it. The span is whole
+    instants, clock and day together (Codex's review of landing 3b.D2,
+    item 3): `SPAN_DAYS` days of 86,400 seconds at least.
+
+    Guarantees: accepts two instants or None; returns the answer.
+    Determinism: a function of the two. Raises nothing. No I/O of any
+    kind.
+    """
+    if p25 is None or p75 is None:
+        return True
+    return p75 - p25 < SPAN_DAYS * DAY_SECONDS
+
+
+def few_units(
+    groups: "tuple[tuple[int, int, int], ...]",
+    body: "list[int]",
+    units: "list[int]",
+) -> bool:
+    """Whether the census's groups hold too few different written units (P4-D367).
+
+    THE PRODUCER'S FEW-UNITS RULE, on the REAL body: `body` is the day
+    of every body cell and `units` its written unit (its instant in
+    whole units of the column's precision, or its day where every value
+    stands at midnight), in the same order. True where at least two
+    groups are non-empty and they hold fewer than `FEWEST_MEAN_UNITS`
+    different written units each on average. A CONSERVATIVE rule, set on
+    the measured cases where a twin missed its count of different values
+    (module text above), not a proof that no twin can meet the census;
+    a rule of what the twin is sure to meet, never of what a reader
+    could work out, so the loader cannot ask it, and need not.
+
+    Guarantees: accepts the census, the body's days and its written
+    units, one each a cell; returns the answer. Determinism: a function
+    of the three. Raises nothing. No I/O of any kind.
+    """
+    where = where_of(groups)
+    held = [0 for _group in groups]
+    for index, _unit in {
+        (where[weekday_of(day)], unit) for day, unit in zip(body, units)
+    }:
+        held[index] = held[index] + 1
+    filled = [held[index] for index in range(len(groups)) if groups[index][2] > 0]
+    return len(filled) >= 2 and sum(filled) < FEWEST_MEAN_UNITS * len(filled)
+
+
+def moments_pins(
+    moments: "tuple[int, ...]",
+    rows_low: int,
+    rows_high: int,
+    percents: "list[int]",
+) -> "tuple[tuple[int, int], ...]":
+    """The body's pinned ranks with their instants, ascending (method G7.3).
+
+    The ranks no pass of the twin moves inside the body: the two tail
+    boundaries, ranks `rows_low` and `len(moments) - 1 - rows_high`, and
+    each published rung strictly between them, at the rank its percent is
+    read off -- `(len(moments) - 1) * percent // 100`, as the generator
+    lays it. `moments` is the instant of every parsed cell ascending and
+    `percents` the percents of the published rungs.
+
+    Guarantees: accepts the instants, the two tails' rows (a body of at
+    least one rank between them) and the percents; returns each pinned
+    rank once with its instant. Determinism: a function of the four.
+    Raises nothing. No I/O of any kind.
+    """
+    parsed = len(moments)
+    high = parsed - 1 - rows_high
+    found = [(rows_low, moments[rows_low])]
+    for percent in sorted(set(percents)):
+        rank = min(parsed - 1, ((parsed - 1) * percent) // 100)
+        if found[len(found) - 1][0] < rank < high:
+            found += [(rank, moments[rank])]
+    if high > found[len(found) - 1][0]:
+        found += [(high, moments[high])]
+    return tuple(found)
+
+
+def unit_room_short(
+    groups: "tuple[tuple[int, int, int], ...]",
+    pins: "tuple[tuple[int, int], ...]",
+    step: int,
+    units: int,
+    tails: int,
+) -> bool:
+    """Whether the body is left too few written units for the census (plan P4-D367).
+
+    THE PRODUCER'S UNIT-ROOM RULE ON A COLUMN OF MOMENTS, asked at every
+    floor of a column whose values do not all stand at midnight (one that
+    does asks `count_room_short` and `count_reach_short`, as a column of
+    dates does): lane D1b's count-room rule for whole dates (plan
+    P4-D388), restated in WRITTEN units. Asked above the floor of 11
+    alone until skeptic 1 of landing 3b.D2 (item 1) wrote `_hunt(690)`
+    with one cell moved at noon: at 11 it published Monday to Friday 73
+    and the weekend 31, and every twin came back 26 different values for
+    24; asked, the rule withholds it. `pins` are the body's
+    pinned ranks with their instants, ascending (`moments_pins`); `step`
+    the seconds a written unit spans; `units` how many different written
+    units the column holds; `tails` the most its twin's two tails can
+    hold (the floor's number on a side publishing its two distances, its
+    rows where fewer, the count of a side listing its values).
+
+    The twin's count pass leaves the body at least `units - tails`
+    different values, its ROOM, and may stack a body rank on a pin's own
+    instant. Its day pass moves a body rank only inside its gap, between
+    the pins either side, so the census NEEDS every pin's written unit
+    and, inside each gap, one more for each group holding rows that has a
+    day strictly between the two pin days and stands on neither (at most
+    one a rank of the gap). True where the census needs a unit past the
+    pins' and the room is less than the need: measured at a floor of 36,
+    a Wednesday schedule written at noon, 35 different values and tails
+    of 59 and 40 rows, was left three by its tails, its pins, and asked
+    for two Thursdays more: its twins held 37. A CONSERVATIVE rule: a
+    tail rebuilt rarely holds the floor's number, so it withholds some
+    censuses a twin would meet, and that is its price (plan P4-D367).
+
+    Guarantees: accepts the census, the pins, the written unit, the
+    count and the tails' most; returns the answer. Determinism: a
+    function of the five. Raises nothing. No I/O of any kind.
+    """
+    where = where_of(groups)
+    held: "list[int]" = []
+    for _rank, instant in pins:
+        if instant // step not in held:
+            held += [instant // step]
+    need = len(held)
+    for place in range(len(pins) - 1):
+        rank, first = pins[place]
+        following, last = pins[place + 1]
+        inner = following - rank - 1
+        first_day, last_day = first // 86400, last // 86400
+        if inner < 1 or last_day <= first_day:
+            continue
+        ends = (where[weekday_of(first_day)], where[weekday_of(last_day)])
+        found: "list[int]" = []
+        for day in range(first_day + 1, min(last_day, first_day + WEEKDAYS)):
+            index = where[weekday_of(day)]
+            if groups[index][2] > 0 and index not in ends and index not in found:
+                found += [index]
+        need = need + min(len(found), inner)
+    return need > len(held) and units - tails < need
+
+
+def moments_breach(
+    groups: "tuple[tuple[int, int, int], ...]",
+    body: int,
+    line: int,
+    p25: "int | None",
+    p75: "int | None",
+) -> "tuple[str, str, str] | None":
+    """The loader's check of a weekday census on a column of moments (P4-D367).
+
+    WC1 to WC4 as on a column of dates (`shape_breach`), with WC6's half
+    on written forms not asked -- the count of different values counts
+    instants there, never days -- and then WC10, the middle half
+    spanning at least `SPAN_DAYS` days (`span_short`). The first broken
+    rule is returned as (rule, what the census says, what the rule
+    asks); an empty census breaks nothing.
+
+    Guarantees: accepts the census, the body, the census line and the
+    instants of the published `p25` and `p75` (`rung_instant`, None
+    where withheld); returns None or the broken rule. Determinism: a function of the
+    five. Raises nothing. No I/O of any kind.
+    """
+    if not groups:
+        return None
+    broken = shape_breach(groups, body, line, True)
+    if broken is not None:
+        return broken
+    if span_short(p25, p75):
+        return (
+            "WC10",
+            "a weekday census is published on a column of moments whose "
+            "middle half spans fewer than four weeks",
+            f"the column's p75 stands at least {SPAN_DAYS} days after its "
+            f"p25, both published",
+        )
+    return None
+
+
 # anchor 3b-D3 (P4-D368)
 # anchor 3b-D4 (P4-D369)
 # anchor 3b-T1 (P4-D370)

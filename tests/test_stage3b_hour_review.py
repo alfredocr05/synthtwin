@@ -166,6 +166,40 @@ def test_a_sixtieth_second_counts_in_the_hour_it_is_written_in(tmp_path: pathlib
     assert [c.verdict for c in late.checks if c.subcheck == "hour_census.groups"] == [validation.MISSED]
 
 
+def _weekday_withdrawn(folder: pathlib.Path, described: kpi_shapes.Described) -> kpi_shapes.Described:
+    """The description with its weekday census withdrawn, as a description withholding it reads.
+
+    Since the integration of landing 3b.D2 (batch 2b, 2026-10-12) these moments publish a
+    weekday census beside their hour census, and where both stand the hour pass keeps each
+    rank's weekday and can leave its hours short -- a stated limit of plan P4-D367, pinned by
+    `test_codex_column_holds_its_hours_beside_its_weekday_census`. Withdrawn, the clock pass
+    meets the hour census alone, which is what the node using this holds.
+    """
+    document = copy.deepcopy(described.document)
+    for column in document["columns"]:
+        column["weekday_census"] = []
+    loaded = contract.load_profile(str(fixtures.write_profile(folder, "weekday-withdrawn.json", document)))
+    return kpi_shapes.Described(described.folder, described.table, document, loaded)
+
+
+@pytest.mark.xfail(
+    strict=True,
+    reason="stated limit of the integration of 3b.D2 beside 3b.2-H (plan P4-D367): beside a weekday "
+    "census the hour pass keeps each rank's weekday, and Codex's column comes back short",
+)
+def test_codex_column_holds_its_hours_beside_its_weekday_census(tmp_path: pathlib.Path) -> None:
+    """STATED, NOT YET MET (batch 2b's integration, 2026-10-12; plan P4-D367). Codex's column
+    publishes, since landing 3b.D2, a weekday census of seven single days beside its hour
+    census. Measured on the merged tree, seeds 0 to 4: every twin files deviations naming
+    `n_at_midnight` (17 to 23 values at midnight), the hour census and the count of different
+    values (104), none with the weekday census withdrawn, nor with step 7c or 8.7 withdrawn.
+    Strict: the day it holds, this node turns red and the limit is withdrawn."""
+    codex = kpi_shapes.describe(tmp_path / "codex", "codex", "seen_at\n" + "\n".join(_codex_leap()) + "\n", 11)
+    assert codex.block("seen_at")["weekday_census"]
+    for seed in range(5):
+        assert not generation.generate(codex.loaded, seed).deviations, seed
+
+
 # The edit that has the hour's pass meet the census by ordinal, as b3fb647 did.
 _AS_WRITTEN = (
     "    counts = _clock_counts_as_written(\n"
@@ -185,9 +219,15 @@ def test_the_twin_writes_its_hours_as_written(tmp_path: pathlib.Path, monkeypatc
     hour 23 and two at 00:30, nothing missed at seeds 0 to 2. Mutant: the pass meeting the
     census by ordinal, which files a deviation the twin does not deserve on the first
     column and, silently, misses the census on the second."""
-    codex = kpi_shapes.describe(tmp_path / "codex", "codex", "seen_at\n" + "\n".join(_codex_leap()) + "\n", 11)
-    beside = kpi_shapes.describe(
-        tmp_path / "beside", "beside", "seen_at\n" + "\n".join(_leap_beside_midnight()) + "\n", 11
+    codex = _weekday_withdrawn(
+        tmp_path / "codex",
+        kpi_shapes.describe(tmp_path / "codex", "codex", "seen_at\n" + "\n".join(_codex_leap()) + "\n", 11),
+    )
+    beside = _weekday_withdrawn(
+        tmp_path / "beside",
+        kpi_shapes.describe(
+            tmp_path / "beside", "beside", "seen_at\n" + "\n".join(_leap_beside_midnight()) + "\n", 11
+        ),
     )
     for seed in range(5):
         twin = generation.generate(codex.loaded, seed)

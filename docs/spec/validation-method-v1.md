@@ -1456,7 +1456,22 @@ rather than in ISO:
   the check. Before the fold was read, the source missed its own census
   by a folded cell; read for every column, it missed it by an unparsed
   one (the review of P4-D365, item 2). A description publishing `[]`
-  obliges nothing and lists nothing.
+  obliges nothing and lists nothing. ON A COLUMN OF MOMENTS (landing
+  3b.D2, plan P4-D367) the file's cells are counted BY INSTANT: each is
+  read as the tails read it -- under the column's member, its clock face
+  and its offsets, in tail units -- and one between the two published
+  boundaries, both included, counts on the weekday of the day it is
+  WRITTEN on, so a cell on a boundary's day but before its instant is a
+  tail cell, as the census counted it, and a sixtieth second,
+  `23:59:60`, counts on its own day, never its instant's next one.
+  Counted by day, the source table of a clinic whose low boundary's day
+  held earlier tail cells missed its own census; counted on the
+  instant's day, a twin writing 131 Saturdays for 130 was told HELD
+  (Codex's review of the landing, item 1). The fold above is asked of
+  moments too: a whole date the file's own description folded into its
+  moments is counted at its midnight, and one it left unparsed is not
+  (the same review, item 2: ten bare `2024-03-05` among noon stamps,
+  published Tuesday 90, were recounted 80 on the unchanged source).
 - `hour_census` is compared GROUP FOR GROUP (`hour_census.groups`,
   V5-H1, landing 3b.2-H, plan P4-D371): the file's own moments between
   the two PUBLISHED tail boundaries, both included, less the days its own
@@ -1470,6 +1485,12 @@ rather than in ISO:
   stamp, on the face its description publishes -- a declared 12-hour
   clock's `12` as the first hour -- and a stamp written on another face
   is no moment here, as the producer counts it unread (contract NF108).
+  The fold is asked here as the weekday census's recount asks it: a
+  whole date the file's own description folded into its moments is
+  counted at its midnight, in hour 0, and one it left unparsed is not
+  (the integration of landing 3b.D2 beside this landing: ten bare
+  `2024-03-05` among noon stamps published hours 0 to 12 holding 570,
+  and the unchanged source, counted without them, was told 560).
   It prints through the one census line every census check shares: a
   group the file holds one to the line less one of is printed as fewer
   than the line, and where even naming the short groups would give a

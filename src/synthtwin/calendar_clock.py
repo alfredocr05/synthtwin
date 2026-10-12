@@ -130,7 +130,9 @@ def written_hour(canonical: str) -> int:
     review of landing 3b.2-H, item 1). A sixtieth second, `23:59:60`, is
     written in hour 23, and its instant (`seconds_of`) is the next day's
     first second: eleven of them on each of 100 dates had all 1,078 body
-    cells counted in hour 0, and the twin wrote its body there.
+    cells counted in hour 0, and the twin wrote its body there. The
+    companion of `calendar_rules.written_day`, lane D2's written day, which
+    reads `canonical[0:10]` for the same reason.
 
     Guarantees: accepts canonical text; returns 0 to 23. Raises
     ValueError for text that is not canonical. No I/O of any kind.

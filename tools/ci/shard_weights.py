@@ -50,6 +50,11 @@ the route-2 correction, each file timed on its own on the integrated
 tree: the correction's own file 26.16 s, and the clock review's file
 127.11 s, which round 2 of landing 3b.5's review took from 14.83 s.
 
+ROWS ADDED 2026-10-12, at the integration of batch 2b's first part:
+the test files its lanes added, each timed ON ITS OWN on the integrated
+tree as above, on a machine other work was loading -- lane D2's weekday
+census of moments, 78.96 s.
+
 A FILE WITH NO ROW weighs `DEFAULT_SECONDS`. Two kinds of file have
 none: one added since the last measurement, which is then placed like
 an ordinary small file and runs in its shard from the commit that adds
@@ -322,6 +327,7 @@ SECONDS = {
     "tests/test_stage3b_hour_review.py": 8.36,
     "tests/test_stage3b_layout.py": 32.3,
     "tests/test_stage3b_route2.py": 26.16,
+    "tests/test_stage3b_weekday_moments.py": 78.96,
     "tests/test_stage3b_weekday_review.py": 295.32,
     "tests/test_stage3b_width.py": 122.91,
     "tests/test_stage4_allocator_walk.py": 18.04,

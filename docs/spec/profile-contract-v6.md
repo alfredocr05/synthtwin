@@ -5644,7 +5644,7 @@ vocabularies below).
 | `month_name_styles` | object | one of the THIRTY-SIX joint style words → count | how many parsed cells wrote a month NAME in each joint style — case, length, field mark, and whether a comma followed the day — a name of May counted under the length its column's other cells of that case, mark and comma wrote, or as `either` where none did (P4-D133, P4-D139), under the disclosure rule of P4-D131; `{}` outside the two textual members, and where the census is withheld whole (landing 2b.6) |
 | `quarter_marker_case` | object | `upper` or `lower` → count | how many parsed cells wrote a quarter's marker as `Q` and how many as `q`, under the disclosure rule of P4-D131; `{}` outside `year-quarter`, and where the census is withheld whole (landing 2b.6) |
 | `zulu_case` | object | `upper` or `lower` → count | how many parsed cells wrote a zulu offset marker as `Z` and how many as `z`, under the disclosure rule of P4-D131; `{}` unless `utc_offsets` NAMES `Z`, and where the census is withheld whole (landing 2b.6) |
-| `weekday_census` | array | groups `{first, last, count}`, weekdays 0 (Monday) to 6 (Sunday) | how many cells between the two tail boundaries, both included, fall on each group of weekdays -- one of the three groupings WC4 names, each count nought or at least the census line; `[]` where no census is published, and always on a column that is not whole dates read on the local clock (landing 3b.1, WC1 to WC4 and WC6, plan P4-D365) |
+| `weekday_census` | array | groups `{first, last, count}`, weekdays 0 (Monday) to 6 (Sunday) | how many cells between the two tail boundaries, both included, fall on each group of weekdays -- one of the three groupings WC4 names, each count nought or at least the census line; `[]` where no census is published, and always on a column that is not whole dates or moments read on the local clock (landing 3b.1, WC1 to WC4 and WC6, plan P4-D365; moments since landing 3b.D2, WC3 and WC10, plan P4-D367) |
 
 **Eight closed vocabularies stand in that table** — `format` with
 TWENTY members, `resolution` with FOUR, `time_precision` with SIX,
@@ -6821,6 +6821,77 @@ share .123 from the real one where .036 is reached without them, and
 spent 1,159 s describing what takes 67 s. A published census carries two
 remarks: how its days are grouped, and that its counts are of days of
 the week and never of one date (NF71).
+
+**The weekday census of a column of moments, WC3 widened and WC10
+(landing 3b.D2, plan P4-D367).** A column of dates AND TIMES read on the
+local clock, not in the joint member, with both tails, publishes the
+same census: its BODY is the cells between the two boundaries, both
+included, COMPARED AS INSTANTS -- so a cell on a boundary's day but
+before its instant is a tail cell -- each counted on the weekday of the
+day it is WRITTEN on, `YYYY-MM-DD` of its canonical text, never the day
+of its instant (a sixtieth second, `23:59:60`, is its own day's, while
+its instant is the next day's first second), in the menu's groups (WC1
+to WC4). A whole date the producer folded into the column's moments is
+counted at its midnight; a cell left unparsed is not counted. Three
+rules more than a column of dates asks, and one fewer. WC10: the
+published `p75` stands at least 28 days of 86,400 seconds after the
+published `p25`, both named and each read as a WHOLE LOCAL INSTANT, its
+clock with its day -- so `2024-01-15 23:59:04` to `2024-02-12 00:00:14`,
+27 days and 70 seconds, is short -- so the middle half of the column
+spans at least four weeks and a census of weekdays is never a census of
+a few dates; the loader refuses a census beside a shorter middle half,
+and the producer asks the same instants (Codex's review of landing
+3b.D2, items 1 to 3). The FEW-UNITS rule, the producer's alone: where two or
+more groups are non-empty, the body holds at least eight different
+WRITTEN units a non-empty group on average -- instants at the column's
+precision, or days where every value stands at midnight -- else the
+census is withheld, as below it the day pass meets the census by
+splitting a written unit's rows across days and the twins measured that
+did held more different values than the column (seven sessions at
+09:00, 17 for 9; payroll at 18:00, 53 for 48). At every floor, on a
+column whose values do not all stand at midnight, the UNIT-ROOM rule,
+the producer's alone too: the column's different written units less the
+most its twin's two tails can hold -- a listed tail's values, or the
+floor's number on a side publishing its two distances, its rows where
+fewer -- must leave the body the units its census needs between its
+pins (each pin's own, and inside each gap one for each non-empty group
+with a day strictly between the pin days and on neither), else the
+census is withheld: a twin rebuilds a tail that publishes its two
+distances with up to the floor's number of different values, and at a
+floor of 36 schedules written at noon came back holding more different
+values than the column (the count-room rule for whole dates above,
+restated in written units). It was asked above the floor of 11 alone
+until the landing's skeptic wrote a column of 131 visits on 24 days,
+one moved, at noon: at 11 it published its census and every twin came
+back 26 different values for 24. A column every value of which stands
+at midnight -- which the twin counts and moves in days, as a column of
+dates -- asks instead the two count rules of a column of dates above,
+the count-room and the count-reach rule, on its days, at every floor:
+a business year written `MM/DD/YYYY 00:00`, every weekday once and 740
+rows more, published its census at the floors of 11 and 20 and its
+twins came back 259 different values for 260, its rebuilt high tail on
+one day fewer than the real one and no free weekday left in its body.
+Such a column carries the near-one risk of a column of dates, which
+P4-D388 lets stand: on a log just above one row an open day, where the
+count pass splits, a published census can leave twins a day or two
+short at some seeds. Validation names that miss on a member writing
+the month first or a 12-hour clock, both distinct counts MISSED; on an
+ISO member, writing a space or a `T`, G7.9 makes up the count of texts
+with a cell in a mark the census leaves unnamed (one the column never
+wrote, or one it wrote too seldom for the census to name), below the
+census line, and nothing is named (P4-D367).
+The few-dates rule above is asked of the moments' days as of dates, and
+the room rule beside the same holes where every value stands at
+midnight. A declared spelling of a moment names no day to the producer
+-- a declared day is matched against the column's date text, which a
+member of dates and times never writes -- so neither the room rule nor
+the count-reach rule counts such a day a hole, while the twin of a
+column at midnight keeps every value off it; P4-D367 records it,
+measured harmless. WC6's half on written
+forms is NOT asked: the count of different values counts instants on a
+column of moments, never days, so two ways of writing an instant cost
+the day pass no day; its half on a workbook's storage is. Every
+withholding but a column without tails is said in NF74's one sentence.
 
 **A consequence, stated rather than left to be discovered.** The
 canonical `datetime` form carries seconds and no fractional part, so
@@ -12647,13 +12718,18 @@ it answers to.
 | D20 | every key of `zulu_case` is `upper` or `lower`; the census is held to D18's disclosure rule over `utc_offsets["Z"]`; the census is `{}` unless `utc_offsets` names `Z`; and its values sum to at most `utc_offsets["Z"]` (landing 2b.6) | yes |
 | WC1 | the groups of `weekday_census` cover weekdays 0 to 6 in order, each exactly once | yes |
 | WC2 | every group counts nought or at least `max(2, small_cell_floor)` | yes |
-| WC3 | a non-empty census stands only on a column of whole dates read on the local clock, not in the joint member, with both tails, and adds up to `P - low_tail.rows - high_tail.rows` | yes |
+| WC3 | a non-empty census stands only on a column of whole dates or of moments read on the local clock, not in the joint member, with both tails, and adds up to `P - low_tail.rows - high_tail.rows`, the body cut by instant on a column of moments, each body cell counted on the day it is written on (plan P4-D367; its Codex review, item 1) | yes |
 | WC4 | the grouping is one of the menu's three: each weekday alone; Monday to Friday alone with `[Sat-Sun]` non-zero; `[Mon-Fri]` non-zero with `[Sat-Sun]` | yes |
 | WC6 | the five censuses of written forms give every date one text: each names at most one form holding every parsed cell, and a member that can show a width or a month name names its one form; and a workbook's published cell classes show at most one value class holding cells | yes |
 
 <!-- anchor 3b-D1 (P4-D365) -->
 <!-- anchor 3b-D0 (P4-D366) -->
 <!-- anchor 3b-D2 (P4-D367) -->
+
+| id | statement | loader? |
+|---|---|---|
+| WC10 | a non-empty census on a column of moments stands only where its published `p25` and `p75` are both named and the `p75` stands at least 28 days of 86,400 seconds after the `p25`, each read as a whole local instant, clock and day together, so the column's middle half spans at least four weeks (landing 3b.D2, plan P4-D367; its Codex review, item 3); WC6's half on written forms is not asked of moments, its half on a workbook's cell classes is | yes |
+
 <!-- anchor 3b-D3 (P4-D368) -->
 <!-- anchor 3b-D4 (P4-D369) -->
 <!-- anchor 3b-T1 (P4-D370) -->
@@ -13247,7 +13323,7 @@ form, the stand-in is written in it (7.9.1).
 | `n_distinct`, `n_distinct_folded` | APPROXIMATED — the envelope is G12.5, and it is stated there that it need not contain the published count; held to the published count itself where that count lies inside the envelope on a column method G7.3's count pass applies to (`contract.datetime_counts_reachable`), which the pass reaches (plan P4-D192) |
 | `date_field_widths`, `month_name_styles`, `quarter_marker_case`, `zulu_case` | EXACT-OBSERVABLE IN THEIR KEY SET for the first two and EXACT for the last two (landing 2b.6, plan P4-D61, the reversal of owner decision 5; plan P4-D134). Every convention the description names must come back on at least a floor's worth of the file's own cells — on the two marker censuses at exactly its published count, since every cell they count over shows the marker — and no convention it does not name beyond the cells the named counts leave over. On the first two each convention is counted on the file's own cells as the producer folds them, and a one-field width or an `either` name is owed on a floor's worth or on every cell of that kind the file holds, whichever is fewer (plan P4-D139). On the first two the COUNTS are not compared, and that is the rule rather than a weaker reading of it: whether a cell can show a convention depends on its own value — a day above the ninth shows no field width, a month of May shows no name length — so how many of a file's cells could carry one is a fact about that file's values, and a twin whose interior instants fall a day either side of the real ones carries a different number of them. C6-25d to C6-25g state each census and D17 to D20 hold them |
 
-| `weekday_census` | EXACT-OBSERVABLE (landing 3b.1, plan P4-D355): the file's own cells between the two PUBLISHED boundaries, both included, hold every group's published count exactly. A MISSED line keeps its verdict and prints a group the file holds one to the line less one of as fewer than the line (plan P4-D347). The validator counts the file's body against the published groups and never produces a census of its own |
+| `weekday_census` | EXACT-OBSERVABLE (landing 3b.1, plan P4-D355): the file's own cells between the two PUBLISHED boundaries, both included, hold every group's published count exactly; on a column of moments they are compared as instants, read as the tails read them (plan P4-D367). A MISSED line keeps its verdict and prints a group the file holds one to the line less one of as fewer than the line (plan P4-D347). The validator counts the file's body against the published groups and never produces a census of its own |
 
 <!-- anchor 3b-D1 (P4-D365) -->
 <!-- anchor 3b-D0 (P4-D366) -->

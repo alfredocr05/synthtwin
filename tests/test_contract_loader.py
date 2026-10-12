@@ -53,6 +53,7 @@ from synthtwin import (
     canonical,
     contract,
     errors,
+    parsing,
     profile,
     reading,
     taxonomy,
@@ -89,7 +90,7 @@ def table_text() -> str:
     """
     lines = [line for line in fixtures.every_role_table().split("\n") if line]
     joined = fixtures.joined_column_text()
-    rows = [f"{lines[0]},huge,logged_at,{fixtures.JOINED_COLUMN}"]
+    rows = [f"{lines[0]},huge,logged_at,{fixtures.JOINED_COLUMN},admitted_at"]
     for index, line in enumerate(lines[1:]):
         huge = "1e999" if index % 2 else "-2e400"
         offset = "+02:00" if index % 2 else "-05:00"
@@ -98,7 +99,16 @@ def table_text() -> str:
             f"{index % 24:02d}:{(index * 11) % 60:02d}:"
             f"{(index * 7) % 59 + 1:02d}{offset}"
         )
-        rows.append(f"{line},{huge},{stamp},{joined[index]}")
+        # ...AND A COLUMN OF MOMENTS ON ITS OWN CLOCK (landing 3b.D2, plan
+        # P4-D367), every third day of two years from Monday 2024-01-01,
+        # which publishes a weekday census for WC10 to be broken on.
+        day = (index * 3) % 731
+        year, month, date = parsing.civil_from_days(parsing.days_from_civil(2024, 1, 1) + day)
+        admitted = (
+            f"{year:04d}-{month:02d}-{date:02d} "
+            f"{7 + index % 12:02d}:{(index * 13) % 60:02d}:{(index * 29) % 60:02d}"
+        )
+        rows.append(f"{line},{huge},{stamp},{joined[index]},{admitted}")
     return "\n".join(rows) + "\n"
 
 
@@ -382,6 +392,19 @@ def edit_weekdays(_column: str, _group: int, count: int) -> Change:
     """Replace one group's count of a column's weekday census."""
     def change(document: Document) -> None:
         at(document, _column)["weekday_census"][_group]["count"] = count
+    return change
+
+
+def middle_half_of(_column: str, days: int) -> Change:
+    """Pull a column's p75 (and its p50 with it) to `days` days after its p25 (WC10)."""
+    def change(document: Document) -> None:
+        ladder = at(document, _column)["date_percentiles"]
+        first = ladder["p25"]
+        year, month, date = parsing.civil_from_days(
+            parsing.days_from_civil(int(first[0:4]), int(first[5:7]), int(first[8:10])) + days
+        )
+        ladder["p75"] = f"{year:04d}-{month:02d}-{date:02d}{first[10:]}"
+        ladder["p50"] = first
     return change
 
 
@@ -673,6 +696,10 @@ def _hours_of_a_few_days(document: Document) -> None:
     ladder = at(document, "logged_at")["date_percentiles"]
     ladder["p50"] = ladder["p25"]
     ladder["p75"] = ladder["p25"]
+    # The same middle half withholds the weekday census these moments
+    # publish since landing 3b.D2 (WC10), as such a description would, so
+    # the rule judged is HC4's.
+    at(document, "logged_at")["weekday_census"] = []
 
 
 def _hours_short_of_their_sure_cells(document: Document) -> None:
@@ -689,7 +716,13 @@ def _hours_short_of_their_sure_cells(document: Document) -> None:
 
 
 def _hours_stored_two_ways(document: Document) -> None:
-    form = _workbook_block(document, 16, 120)
+    # The weekday census these moments publish since landing 3b.D2 stands
+    # only where the values are stored one way too (WC6), and a description
+    # storing them two ways withholds it, so the rule judged is HC6's.
+    at(document, "logged_at")["weekday_census"] = []
+    # Seventeen columns since landing 3b.D2 added one to the base, as every
+    # other workbook mutation below counts them.
+    form = _workbook_block(document, 17, 120)
     place = [block["name"] for block in document["columns"]].index("logged_at")
     rows = typing.cast(int, document["n_rows"])
     form["columns"][place]["cell_classes"]["number"] = rows - 12
@@ -1590,7 +1623,7 @@ def battery() -> list[Mutation]:
             ),
         ),
         Mutation(
-            "WC3", "a weekday census on a column of moments",
+            "WC3", "a weekday census on a column of moments on the shared clock",
             edit(
                 "logged_at",
                 weekday_census=[{"first": 0, "last": 6, "count": 218}],
@@ -2086,6 +2119,17 @@ def battery() -> list[Mutation]:
         # anchor 3b-D1 (P4-D365)
         # anchor 3b-D0 (P4-D366)
         # anchor 3b-D2 (P4-D367)
+        # -- 3b.D2 (P4-D367): `admitted_at`, moments on their own clock,
+        # publishes its weekday census; WC10 asks its middle half to span
+        # four weeks, and WC3 lets it stand.
+        Mutation(
+            "WC10", "a weekday census on moments whose middle half spans 27 days",
+            middle_half_of("admitted_at", 27),
+        ),
+        Mutation(
+            "WC3", "weekday counts of moments adding to more than the body",
+            edit_weekdays("admitted_at", 0, 1000),
+        ),
         # anchor 3b-D3 (P4-D368)
         # anchor 3b-D4 (P4-D369)
         # anchor 3b-T1 (P4-D370)
@@ -3039,22 +3083,22 @@ def _workbook_block(document: Document, columns: int, rows: int) -> Document:
 
 
 def _form_workbook_with_a_declared_delimiter(document: Document) -> None:
-    _workbook_block(document, 16, 120)
+    _workbook_block(document, 17, 120)
     document["settings"]["forced_delimiter"] = ","
 
 
 def _form_workbook_of_the_wrong_width(document: Document) -> None:
-    block = _workbook_block(document, 16, 120)
+    block = _workbook_block(document, 17, 120)
     del block["columns"][-1]
 
 
 def _form_workbook_sheet_past_the_last(document: Document) -> None:
-    block = _workbook_block(document, 16, 120)
+    block = _workbook_block(document, 17, 120)
     block["sheet_position"] = 3
 
 
 def _form_workbook_census_names_one_row(document: Document) -> None:
-    block = _workbook_block(document, 16, 120)
+    block = _workbook_block(document, 17, 120)
     # One cell of one class, at a floor of eleven: the row holding that
     # cell is named by the count, and so is every other row by its
     # complement.
@@ -3062,12 +3106,12 @@ def _form_workbook_census_names_one_row(document: Document) -> None:
 
 
 def _form_workbook_more_empty_rows_than_rows(document: Document) -> None:
-    block = _workbook_block(document, 16, 120)
+    block = _workbook_block(document, 17, 120)
     block["empty_rows_inside"] = 1000
 
 
 def _form_workbook_empty_records_name_one_row(document: Document) -> None:
-    block = _workbook_block(document, 16, 120)
+    block = _workbook_block(document, 17, 120)
     # ONE record of 120 holding nothing, at a floor of eleven. The count
     # names the row that holds nothing as surely as a census of one cell
     # names the row that holds it, and its complement names every other
@@ -3077,14 +3121,14 @@ def _form_workbook_empty_records_name_one_row(document: Document) -> None:
 
 
 def _form_workbook_names_too_few_sheets(document: Document) -> None:
-    block = _workbook_block(document, 16, 120)
+    block = _workbook_block(document, 17, 120)
     # Two sheets, one name. A twin built from this would have no name to
     # write the second sheet under.
     block["sheet_names"] = ["Data"]
 
 
 def _form_workbook_describes_the_tables_own_sheet(document: Document) -> None:
-    block = _workbook_block(document, 16, 120)
+    block = _workbook_block(document, 17, 120)
     # The sheet the table was read from is described by the table's own
     # facts. A block of cells here as well says two things about one
     # sheet, and the writer would put a page of withheld cells over the
@@ -3093,7 +3137,7 @@ def _form_workbook_describes_the_tables_own_sheet(document: Document) -> None:
 
 
 def _form_workbook_other_sheet_holds_a_table(document: Document) -> None:
-    block = _workbook_block(document, 16, 120)
+    block = _workbook_block(document, 17, 120)
     # A second sheet holding twelve rows by four columns is a TABLE this
     # description does not carry. synthtwin refuses such a workbook when
     # it reads one (plan P4-D82); a description asking for one would
@@ -3105,7 +3149,7 @@ def _form_workbook_other_sheet_holds_a_table(document: Document) -> None:
 def _form_workbook_census_rebuilds_its_withheld_count(
     document: Document,
 ) -> None:
-    block = _workbook_block(document, 16, 120)
+    block = _workbook_block(document, 17, 120)
     # THE REPRODUCTION (files review, item 4). Sixty numbers, fifty-nine
     # texts and one boolean, the boolean withheld and every other class
     # published: 120 - 60 - 59 rebuilds the withheld count of one.
@@ -3118,7 +3162,7 @@ def _form_workbook_census_rebuilds_its_withheld_count(
 def _form_workbook_census_nought_beside_a_withheld_count(
     document: Document,
 ) -> None:
-    block = _workbook_block(document, 16, 120)
+    block = _workbook_block(document, 17, 120)
     # Two counts withheld, the rest published -- and the published
     # noughts tell a reader the withheld ones are not nought, so each is
     # "some, but few" (plan P4-D164).
@@ -3129,7 +3173,7 @@ def _form_workbook_census_nought_beside_a_withheld_count(
 
 
 def _form_workbook_census_withholds_one_count(document: Document) -> None:
-    block = _workbook_block(document, 16, 120)
+    block = _workbook_block(document, 17, 120)
     rows = typing.cast(int, document["n_rows"])
     # Every class holds cells and every count but one is published, so
     # the one withheld is the row count less the others (plan P4-D174).
@@ -3141,7 +3185,7 @@ def _form_workbook_census_withholds_one_count(document: Document) -> None:
 
 
 def _form_workbook_census_withholds_under_the_line(document: Document) -> None:
-    block = _workbook_block(document, 16, 120)
+    block = _workbook_block(document, 17, 120)
     rows = typing.cast(int, document["n_rows"])
     # Two counts withheld, no nought beside them, and together they come
     # to five cells at a floor of eleven (plan P4-D174).
@@ -3156,7 +3200,7 @@ def _form_workbook_census_withholds_under_the_line(document: Document) -> None:
 def _form_workbook_numbers_stored_as_text_under_the_line(
     document: Document,
 ) -> None:
-    block = _workbook_block(document, 16, 120)
+    block = _workbook_block(document, 17, 120)
     rows = typing.cast(int, document["n_rows"])
     # `visits` publishes 229 numbers; a census of 224 number cells and 16
     # text cells holds every count and complement to the line, and leaves
@@ -3167,28 +3211,28 @@ def _form_workbook_numbers_stored_as_text_under_the_line(
 
 
 def _form_workbook_two_sheets_of_one_name(document: Document) -> None:
-    block = _workbook_block(document, 16, 120)
+    block = _workbook_block(document, 17, 120)
     # A spreadsheet renames the second of two sheets whose names differ
     # only in case, so the twin could not carry both (plan P4-D171).
     block["sheet_names"] = ["Data", "DATA"]
 
 
 def _form_workbook_other_sheet_holds_a_narrow_table(document: Document) -> None:
-    block = _workbook_block(document, 16, 120)
+    block = _workbook_block(document, 17, 120)
     # A header and thirty values in one column: records, however narrow
     # (files review, item 8; plan P4-D170).
     block["sheet_extents"] = [None, {"columns": 1, "rows": 31}]
 
 
 def _form_workbook_value_class_denied_by_its_census(document: Document) -> None:
-    block = _workbook_block(document, 16, 120)
+    block = _workbook_block(document, 17, 120)
     # The census says no cell holds text, and the column names text as
     # its commonest class.
     block["columns"][0]["value_class"] = "text"
 
 
 def _form_workbook_format_code_denied_by_its_census(document: Document) -> None:
-    block = _workbook_block(document, 16, 120)
+    block = _workbook_block(document, 17, 120)
     # The column's census says not one of its cells wears a date format,
     # and its twin is told to wear one. A twin written from this would
     # come back from every reader as a column of dates where the
@@ -3197,7 +3241,7 @@ def _form_workbook_format_code_denied_by_its_census(document: Document) -> None:
 
 
 def _form_workbook_format_code_carrying_a_word(document: Document) -> None:
-    block = _workbook_block(document, 16, 120)
+    block = _workbook_block(document, 17, 120)
     # A code of the format language's own tokens alone is published as
     # written; one carrying a quoted word is not, and a twin written from
     # this would wear the word in every cell of the column.
@@ -3311,8 +3355,8 @@ def test_the_base_document_loads(
 ) -> None:
     """The description every mutation starts from is accepted as it is."""
     loaded = contract.load_profile(written(tmp_path, base))
-    assert loaded.n_columns == 16
-    assert len(loaded.columns) == 16
+    assert loaded.n_columns == 17
+    assert len(loaded.columns) == 17
 
 
 def test_every_mutation_starts_from_a_document_that_loads(
