@@ -21644,7 +21644,16 @@ def _datetime_content(
     for cell in partial:
         used[cell] = 1
     cells += partial
-    for step in range(facts.n_unparsed - len(partial)):
+    # -- 3b.R2c (P4-D383; skeptic 2 of the R2c repair, item 1): the
+    # stand-ins the published count of numbers still owes are figures.
+    stand_ins = facts.n_unparsed - len(partial)
+    owed = _figures_owed(column, cells, stand_ins)
+    order = 0
+    for _place in range(owed):
+        figure = _figure_spelling(order + 1, used, holes)
+        order = int(figure)
+        cells += [_take(figure, used)]
+    for step in range(stand_ins - owed):
         cells += [_take(_text_spelling(step + 1, used, holes), used)]
     # WHAT THE TWIN'S CELLS WEAR, AND NOT THE NAMED OFFSETS ALONE (the
     # dates pass of the stage-3 review, item 8). This deviation answers
@@ -21698,6 +21707,50 @@ def _partial_numbers(facts: contract.DatetimeFacts) -> int:
         if parsing.layout_partial_writes_numbers(key):
             count = count + rows
     return count
+
+
+def _figures_owed(
+    column: contract.ColumnBlock, written: "list[str]", stand_ins: int
+) -> int:
+    """How many of a date column's stand-ins are written as figures (method G10.3).
+
+    SKEPTIC 2 OF THE R2c REPAIR, ITEM 1: a form below the census line
+    whose cells are figures -- FHIR's `2023`, HL7's ten-figure runs -- is
+    counted unread, and every unread cell was written `text-N`, so 2,000
+    FHIR cells with 10 bare years came back holding no number and missed
+    `n_numeric` and `n_not_numeric` at every seed. The count of numbers
+    is published already; the stand-ins owe what the cells written before
+    them leave of it, at most all of them and at least none. Nothing new
+    is published.
+
+    Guarantees: accepts the column, the cells written so far and the
+    count of stand-ins; returns the figures owed. No I/O of any kind.
+    """
+    numbers = 0
+    for cell in written:
+        if parsing.classify_number(cell) == parsing.NUMBER:
+            numbers = numbers + 1
+    return max(0, min(column.n_numeric - numbers, stand_ins))
+
+
+def _figure_spelling(
+    order: int, used: "dict[str, int]", holes: "tuple[str, ...]"
+) -> str:
+    """A made-up figure stand-in, stepped from ``order`` as `_text_spelling` steps its own.
+
+    Past every spelling already used in the column, every absent
+    spelling and anything a date format reads (`_reads_as_a_date`).
+    """
+    step = order
+    while True:
+        candidate = str(step)
+        if (
+            not _is_a_hole_spelling(candidate, holes)
+            and _unused(candidate, used)
+            and not _reads_as_a_date(candidate)
+        ):
+            return candidate
+        step = step + 1
 
 
 def _partial_cells(
@@ -22660,7 +22713,15 @@ def _offsets_owed_by_the_classes(
         if parsing.classify_number(cell) != parsing.NUMBER:
             worn = worn + 1
     # -- 3b.R2c (P4-D383): a partial form of figure runs is a number too.
-    debt = column.n_not_numeric - worn - (facts.n_unparsed - _partial_numbers(facts))
+    # -- 3b.R2c (skeptic 2 of the repair, item 1): and so is a stand-in
+    # written as a figure (`_figures_owed`).
+    partial = 0
+    for _key, rows in _partial_forms(facts):
+        partial = partial + rows
+    stand_ins = max(facts.n_unparsed - partial, 0)
+    numbers = len(cells) - worn + _partial_numbers(facts)
+    owed = max(0, min(column.n_numeric - numbers, stand_ins))
+    debt = column.n_not_numeric - worn - (facts.n_unparsed - _partial_numbers(facts) - owed)
     if not on_offer or debt <= 0:
         return cells
     copies: "dict[str, int]" = {}
@@ -25119,9 +25180,10 @@ def _units_settled(
             # count of cells showing "a width" is not the count this
             # census publishes unless they show THIS one.
             word = key
-    distinct = -1
-    if contract.datetime_counts_reachable(column):
-        distinct = column.n_distinct - facts.n_unparsed
+    # -- 3b.R2c (P4-D383): exact where the count is reachable, an upper
+    # target where only a partial form or the declared mark keeps it out
+    # of reach (`contract.datetime_count_target`).
+    distinct = contract.datetime_count_target(column, parsed)
     if widths < 0 and distinct < 0:
         return moved
     unit = step if space == "datetime" else 1

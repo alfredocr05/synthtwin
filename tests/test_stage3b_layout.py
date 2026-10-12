@@ -2749,7 +2749,33 @@ def _battery() -> "dict[str, tuple[list[str], tuple[str, ...]]]":
             ("--date-column", "seen_at"),
         ),
         "declared_partial": (cut(["%Y-%m-%d", "%Y-%m", "%Y"], (52, 30)), ("--date-column", "seen_at")),
+        # Skeptic 2 of the repair, item 2: the layout's named months count as read.
+        "declared_few_years": (cut(["%Y-%m-%d", "%Y-%m", "%Y"], (60, 37)), ("--date-column", "seen_at")),
     }
+    # Skeptic 2 of the repair, item 1: a form of figures below the census
+    # line, within the room, at 2,000 and 10,000 rows (made up).
+    more = spellings.moments(2000, 13)
+    most = spellings.moments(10000, 13)
+    shapes["figures_fhir_2k"] = (
+        [m.strftime("%Y-%m-%d") for m in more[:1400]]
+        + [m.strftime("%Y-%m") for m in more[1400:1990]]
+        + [m.strftime("%Y") for m in more[1990:]],
+        (),
+    )
+    shapes["figures_fhir_10k"] = (
+        [
+            m.strftime("%Y") if place % 2000 == 7
+            else (m.strftime("%Y-%m-%d") if place % 10 < 7 else m.strftime("%Y-%m"))
+            for place, m in enumerate(most)
+        ],
+        (),
+    )
+    shapes["figures_hl7_2k"] = (
+        [m.strftime("%Y%m%d%H%M%S") for m in more[:1400]]
+        + [m.strftime("%Y%m%d%H%M") for m in more[1400:1990]]
+        + [m.strftime("%Y%m%d%H") for m in more[1990:]],
+        (),
+    )
     return shapes
 
 
@@ -2772,6 +2798,12 @@ def test_r2c_every_description_the_producer_writes_loads_and_generates(
     so six of these shapes were read as dates and their twins, re-read, were
     no date at all: `axes.role` missed at seeds 0 to 2 (fhir, hl7_three,
     markers_dashed and medidata at 36, sparse at 11 and 36). Red on 144ac4d.
+
+    Skeptic 2 of the repair, item 1: the three `figures_*` shapes, a form
+    of figures below the line written `text-N`, missed `n_numeric` and
+    `n_not_numeric` at every seed and both floors; item 2:
+    `declared_few_years` was read as `iso-date` with its months written
+    `text-N`. Red on dd6b77f.
     """
     cells, flags = _battery()[shape]
     block, profile, _questions = _described(tmp_path, cells, *flags, floor=floor)
@@ -3049,3 +3081,111 @@ def test_r2c_no_partial_form_of_a_weekday_or_a_day_of_the_year(name: str) -> Non
     """
     assert parsing.is_layout_name(name)
     assert parsing.layout_truncations(name) == ()
+
+
+# -- skeptic 2 of the repair (3b.R2c, P4-D383) ---------------------------
+
+
+def test_r2c_figures_red_when_no_stand_in_is_a_figure(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Item 1's mutant: every stand-in written `text-N`, and the count of numbers is missed again."""
+    monkeypatch.setattr(generation, "_figures_owed", lambda *_args: 0)
+    cells, _flags = _battery()["figures_fhir_2k"]
+    _block, profile, _questions = _described(tmp_path, cells)
+    twin, _cells = _twin(profile, 0)
+    code, report = _validated(profile, twin)
+    assert code == 3 and "n_numeric" in report
+
+
+@pytest.mark.parametrize("floor", [11, 36])
+def test_r2c_declared_few_years_is_read_under_the_layout(tmp_path: pathlib.Path, floor: int) -> None:
+    """Item 2: `--date-column` on days, months and a few years keeps the layout and names the months.
+
+    The member tied the layout on whole pairs and won, and named no
+    partial form: every month cell became `text-N` and the twin exited 3.
+    Mutant, run: the named partial counts left out of the comparison.
+    """
+    cells, flags = _battery()["declared_few_years"]
+    block, _profile, _questions = _described(tmp_path, cells, *flags, floor=floor)
+    assert block["format"] == "layout {YYYY}-{MM}-{DD}"
+    mix = block["resolution_mix"]
+    assert isinstance(mix, dict) and mix["layout {YYYY}-{MM}"] > 0
+
+
+def _distinct_present(cells: "list[str]") -> int:
+    """How many different cells a column holds, its stand-ins among them."""
+    return len(set(cells))
+
+
+def _first_of_month() -> "list[str]":
+    """10,000 FHIR cells: 70 in 100 the first of a month, 29 a month, 1 a year (made up)."""
+    return [
+        m.strftime("%Y-%m-01") if place % 100 < 70 else (m.strftime("%Y-%m") if place % 100 < 99 else m.strftime("%Y"))
+        for place, m in enumerate(spellings.moments(10000, 13))
+    ]
+
+
+def _repeating_declared() -> "list[str]":
+    """2,000 cells: twelve dates repeated on 60 in 100 rows, `pending` on the rest (made up)."""
+    return [f"{1 + place % 12}/{1 + place % 3}/2023" if place % 10 < 6 else "pending" for place in range(2000)]
+
+
+@pytest.mark.parametrize("floor", [11, 36])
+@pytest.mark.parametrize("shape", ["first_of_month", "repeating_declared"])
+def test_r2c_repeating_dates_keep_their_count(tmp_path: pathlib.Path, shape: str, floor: int) -> None:
+    """Item 3: where the dates repeat, a partial or declared-short twin keeps near the source's different values.
+
+    With no count target the twin spread its ranks over the whole range:
+    75 different values came back as 1,045, and 12 declared dates as 262
+    to 267, and validation passed. G7.3 now aims at an upper target
+    (`contract.datetime_count_target`): at most 1.5 times the source's
+    different values, and the twin validates. Red on dd6b77f.
+    """
+    cells = _first_of_month() if shape == "first_of_month" else _repeating_declared()
+    flags = () if shape == "first_of_month" else ("--date-column", "seen_at")
+    _block, profile, _questions = _described(tmp_path, cells, *flags, floor=floor)
+    source = _distinct_present(cells)
+    for seed in SEEDS:
+        twin, written = _twin(profile, seed)
+        found = _distinct_present(written)
+        if shape == "repeating_declared":
+            source, found = _date_spread(cells)[0], _date_spread(written)[0]
+        assert found * 2 <= source * 3, (seed, found, source)
+        assert _validated(profile, twin)[0] == 0
+
+
+def test_r2c_repeating_red_when_no_target_is_given(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Item 3's mutant: the upper target withdrawn, and the declared dates spread again."""
+    shipped = contract.datetime_count_target
+
+    def exact_only(column: "contract.ColumnBlock", parsed: int) -> int:
+        if not contract.datetime_counts_reachable(column):
+            return -1
+        return shipped(column, parsed)
+
+    monkeypatch.setattr(contract, "datetime_count_target", exact_only)
+    cells = _repeating_declared()
+    _block, profile, _questions = _described(tmp_path, cells, "--date-column", "seen_at")
+    _twin_path, written = _twin(profile, 0)
+    assert _date_spread(written)[0] * 2 > _date_spread(cells)[0] * 3
+
+
+@pytest.mark.parametrize("unread, short", [(2, False), (3, True)])
+def test_r2c_declared_mark_at_the_line(tmp_path: pathlib.Path, unread: int, short: bool) -> None:
+    """Item 4: at 240 rows the line leaves room for two unread cells; three mark the column short.
+
+    Mutant, run: `_declared_short`'s `<=` turned into `<` marks the column
+    read at exactly the line.
+    """
+    cells = [
+        f"{m.month}/{m.day}/{m.year}" if place >= unread else "pending"
+        for place, m in enumerate(spellings.moments(240, 13))
+    ]
+    _block, profile, _questions = _described(tmp_path, cells, "--date-column", "seen_at")
+    facts = contract.load_profile(str(profile)).columns[0].facts
+    assert isinstance(facts, contract.DatetimeFacts)
+    assert facts.n_unparsed == unread
+    assert facts.declared_short_of_the_line is short

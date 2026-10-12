@@ -10034,6 +10034,67 @@ def datetime_counts_reachable(column: "ColumnBlock") -> bool:
     facts = column.facts
     if not isinstance(facts, (DatetimeFacts,)):
         return False
+    if _short_of_the_count(facts):
+        return False
+    return _count_pass_open(column, facts, column.n_distinct - facts.n_unparsed)
+
+
+def _short_of_the_count(facts: "DatetimeFacts") -> bool:
+    """A partial-date column, or a declared one short of the line (landing R2c).
+
+    -- 3b.R2c (P4-D383): a partial-date column's partial cells repeat, and
+    so may a declared column's unread cells, so the count less the unread
+    cells is no count of different dates.
+    """
+    if len(facts.resolution_mix) > 1 and parsing.is_layout_name(facts.parser_family):
+        return True
+    return facts.declared_short_of_the_line
+
+
+def datetime_count_target(column: "ColumnBlock", parsed: int) -> int:
+    """The count of different units method G7.3's pass reaches for, or -1 for none.
+
+    EXACT where `datetime_counts_reachable` holds: `n_distinct` less
+    `n_unparsed`. -- 3b.R2c (P4-D383; skeptic 2 of the R2c repair, item
+    3): AN UPPER TARGET where only a partial form or the declared mark
+    keeps the count out of reach. With no target at all the pass never
+    ran and the twin spread its ranks over the whole range: 2,000 FHIR
+    cells of 27 different values came back as 275 to 280, and 2,000
+    declared cells of 12 dates beside `pending` as 262 to 267 dates. The
+    target is `n_distinct` less one for each named partial form and one
+    more where any cell is left a stand-in -- each holds one spelling at
+    least -- clamped to one and the ``parsed`` full ranks, under every
+    other condition of the pass. The validator keeps its envelope here:
+    the published count is not the full ranks' own.
+
+    Guarantees: accepts a loaded column block and its count of full
+    ranks; returns -1 for any column not of dates. Raises nothing. No
+    I/O of any kind.
+    """
+    facts = column.facts
+    if not isinstance(facts, (DatetimeFacts,)):
+        return -1
+    if not _short_of_the_count(facts):
+        exact = column.n_distinct - facts.n_unparsed
+        return exact if _count_pass_open(column, facts, exact) else -1
+    forms = 0
+    partial = 0
+    if parsing.is_layout_name(facts.parser_family):
+        for key in facts.resolution_mix:
+            if key != facts.parser_family and facts.resolution_mix[key] > 0:
+                forms = forms + 1
+                partial = partial + facts.resolution_mix[key]
+    target = column.n_distinct - forms - (1 if facts.n_unparsed > partial else 0)
+    target = max(1, min(target, parsed))
+    return target if _count_pass_open(column, facts, target) else -1
+
+
+def _count_pass_open(column: "ColumnBlock", facts: "DatetimeFacts", wanted: int) -> bool:
+    """Every condition of G7.3's count pass but the partial and declared ones (landing R2c).
+
+    ``wanted`` is the count of different units the pass reaches for,
+    held against what the tails leave it below.
+    """
     if facts.datetimes_read_at != "local":
         return False
     if facts.resolution not in RESOLUTIONS:
@@ -10053,12 +10114,6 @@ def datetime_counts_reachable(column: "ColumnBlock") -> bool:
     if facts.parser_family == FORMAT_ISO_MIXED and (
         "iso-date" in facts.resolution_mix and facts.resolution_mix["iso-date"] > 0
     ):
-        return False
-    # -- 3b.R2c (P4-D383): a partial-date column's stand-ins repeat.
-    if len(facts.resolution_mix) > 1 and parsing.is_layout_name(facts.parser_family):
-        return False
-    # -- 3b.R2c (P4-D383): and so may a declared column's unread cells.
-    if facts.declared_short_of_the_line:
         return False
     if column.n_distinct != column.n_distinct_folded:
         return False
@@ -10082,7 +10137,7 @@ def datetime_counts_reachable(column: "ColumnBlock") -> bool:
         reach = reach + (
             len(high.values) if high.values is not None else high.rows
         )
-        if column.n_distinct - facts.n_unparsed > reach:
+        if wanted > reach:
             return False
     return True
 

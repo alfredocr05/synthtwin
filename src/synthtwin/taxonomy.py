@@ -16412,7 +16412,8 @@ def _declared_date_reading(
     `--date-column`: where no reading reaches the date rule's line, the
     column is read at half its present cells (`DECLARED_DATE_SHARE`) and
     the reading that reads the most wins -- the first member of the walk
-    that reaches the half, or the layout reading more than it. The cells
+    that reaches the half, or the layout reading more than it, its named
+    partial forms counted among what it reads. The cells
     it leaves are counted in `n_unparsed` and written as stand-ins, which
     the question's answer says in its own words. Returns
     `_matching_date_format`'s tuple, or None.
@@ -16427,7 +16428,20 @@ def _declared_date_reading(
             contradicted = True
             break
     layout = _matching_layout(present, half, contradicted)
-    if layout is not None and len(layout[1]) > len(found[1]):
+    if layout is None:
+        return found
+    if len(layout[1]) > len(found[1]):
+        return layout
+    # -- 3b.R2c (skeptic 2 of the repair, item 2): THE LAYOUT'S NAMED
+    # PARTIAL FORMS COUNT AS READ. A FHIR column of days, months and a
+    # few years ties the member on its whole pairs, and the member names
+    # no partial form, so every month cell was written `text-N` and the
+    # twin missed its checks at every seed.
+    named = layout_partial_counts(layout[0], present, len(layout[1]), settings)
+    partial = 0
+    for name in named:
+        partial = partial + named[name]
+    if len(layout[1]) + partial > len(found[1]):
         return layout
     return found
 

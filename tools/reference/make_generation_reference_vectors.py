@@ -9202,6 +9202,38 @@ def text_stand_ins(used, wanted):
     return produced
 
 
+def figures_owed(column, content, stand_ins):
+    """How many of a date column's stand-ins the count of numbers owes (landing R2c).
+
+    ``n_numeric`` less the cells already written that read as a number,
+    at most every stand-in and at least none.
+    """
+    numbers = sum(1 for text in content if _is_a_number(text))
+    return max(0, min(column["n_numeric"] - numbers, stand_ins))
+
+
+def figure_stand_ins(column, content, holes, stand_ins):
+    """``1``, ``2``, … -- the stand-ins written as figures (G10.3, landing R2c).
+
+    Stepped from one past every spelling already used in the column, the
+    spellings that mean "no value" and the column's absent spellings; no
+    figure reads as a date under any format the profiler tries.
+    """
+    seen = set(content)
+    absent = {hole.strip().lower() for hole in holes}
+    produced = []
+    owed = figures_owed(column, content, stand_ins)
+    counter = 1
+    while len(produced) < owed:
+        candidate = str(counter)
+        counter += 1
+        if candidate in seen or folded(candidate) in NO_VALUE_SPELLINGS or candidate in absent:
+            continue
+        seen.add(candidate)
+        produced.append(candidate)
+    return produced
+
+
 def csv_field(text, one_column, absent):
     """One CSV field, under the byte rules of method section G2.
 
@@ -9937,7 +9969,12 @@ def _datetime_content(column):
     # short, before the stand-ins (G7.5, landing R2c).
     partial = partial_cells(column, content[:parsed])
     content.extend(partial)
-    content.extend(text_stand_ins(content, column["n_unparsed"] - len(partial)))
+    # ...the stand-ins the published count of numbers still owes written
+    # as made-up figures (G10.3, skeptic 2 of the R2c repair, item 1)...
+    stand_ins = column["n_unparsed"] - len(partial)
+    figures = figure_stand_ins(column, content, holes, stand_ins)
+    content.extend(figures)
+    content.extend(text_stand_ins(content, stand_ins - len(figures)))
     return content
 
 
@@ -10195,7 +10232,11 @@ def offsets_paid_to_the_classes(column, cells, holes, floor=CASE_SMALL_CELL_FLOO
     ]
     line = census_line(floor)
     # A partial form written as a run of figures is a number (landing R2c).
-    debt = column["n_not_numeric"] - not_numbers - (column["n_unparsed"] - partial_numbers(column))
+    # ...and so is a stand-in written as a figure (skeptic 2 of the R2c
+    # repair, item 1): the figures the count of numbers owes.
+    stand_ins = max(column["n_unparsed"] - sum(rows for _key, rows in partial_forms(column)), 0)
+    owed = max(0, min(column["n_numeric"] - (len(cells) - not_numbers + partial_numbers(column)), stand_ins))
+    debt = column["n_not_numeric"] - not_numbers - (column["n_unparsed"] - partial_numbers(column) - owed)
     payments = max(payments_owed(debt, len(eligible), len(cells) - not_numbers, line, len(offer)), 0)
     bound = payments_owed(debt, len(cells), len(cells) - not_numbers, line, len(offer))
 
@@ -11536,6 +11577,36 @@ def date_counts_reachable(column, declared_short=False):
     so the count less the unread cells is no count of different dates.
     It is a fact of the settings, which no case here carries: the one
     declared case reads every cell."""
+    # A partial-date column's partial cells repeat (landing R2c)...
+    if partial_forms(column):
+        return False
+    # ...and so may a declared column's unread cells.
+    if declared_short:
+        return False
+    return count_pass_open(column)
+
+
+def date_count_target(column, parsed, declared_short=False):
+    """The count of different units G7.3's pass reaches for, or None for none.
+
+    Exact where ``date_counts_reachable``: the count less the unread
+    cells.  Where only a partial form or the declared mark keeps it out
+    of reach (skeptic 2 of the R2c repair, item 3), an UPPER target: the
+    count less one for each named partial form and one more where any
+    cell is left a stand-in, clamped to one and the ``parsed`` full
+    ranks -- each of those holds one spelling at least."""
+    if not count_pass_open(column):
+        return None
+    forms = partial_forms(column)
+    if not forms and not declared_short:
+        return column["n_distinct"] - column["n_unparsed"]
+    stand_ins = column["n_unparsed"] - sum(rows for _key, rows in forms)
+    target = column["n_distinct"] - len(forms) - (1 if stand_ins > 0 else 0)
+    return max(1, min(target, parsed))
+
+
+def count_pass_open(column):
+    """Every condition of G7.3's count pass but the partial and declared ones."""
     if column["datetimes_read_at"] != "local" or column["resolution"] not in RESOLUTIONS:
         return False
     offsets = column.get("utc_offsets", {})
@@ -11548,12 +11619,6 @@ def date_counts_reachable(column, declared_short=False):
         if len(column.get(key, {})) > 1:
             return False
     if column["format"] == "iso-mixed" and column.get("resolution_mix", {}).get("iso-date", 0) > 0:
-        return False
-    # A partial-date column's partial cells repeat (landing R2c)...
-    if partial_forms(column):
-        return False
-    # ...and so may a declared column's unread cells.
-    if declared_short:
         return False
     return column["n_distinct"] == column["n_distinct_folded"]
 
@@ -11935,9 +12000,8 @@ def units_settled(column, ordinals, parsed, whole, lows, highs):
         width_fields(column["format"]) > 0
     ):
         widths = next(iter(census.values()))
-    distinct = None
-    if date_counts_reachable(column):
-        distinct = column["n_distinct"] - column["n_unparsed"]
+    # Exact where reachable, an upper target on a partial-date column (R2c).
+    distinct = date_count_target(column, parsed)
     if widths is None and distinct is None:
         return ordinals
 
@@ -12032,7 +12096,9 @@ def group_gives_way(column, ordinals, parsed, whole):
     space = ordinal_space(column)
     if parsed < 3 or column["datetimes_read_at"] != "local" or any(whole):
         return ordinals
-    if space not in RESOLUTIONS or not date_counts_reachable(column):
+    # The count pass's own target: exact, or upper on a partial column (R2c).
+    target = date_count_target(column, parsed) if space in RESOLUTIONS else None
+    if target is None or target < 0:
         return ordinals
     day = 86400 if space == "datetime" else 1
     step = 60 if space == "datetime" and column["time_precision"] == "minute" else 1
@@ -12042,7 +12108,7 @@ def group_gives_way(column, ordinals, parsed, whole):
         width_fields(column["format"]) > 0
     )
     word = next(iter(census)) if widths else ""
-    owed = column["n_distinct"] - column["n_unparsed"] - len({v // unit for v in ordinals})
+    owed = target - len({v // unit for v in ordinals})
     if absent_units(column):
         # ...the published count with the absent days stuck tail ranks hold
         # added, as ``units_settled`` reaches it (plan P4-D358).
