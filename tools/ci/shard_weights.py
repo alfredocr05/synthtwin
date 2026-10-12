@@ -53,7 +53,7 @@ tree: the correction's own file 26.16 s, and the clock review's file
 ROWS ADDED 2026-10-12, at the integration of batch 2b's first part:
 the test files its lanes added, each timed ON ITS OWN on the integrated
 tree as above, on a machine other work was loading -- lane D2's weekday
-census of moments, 78.96 s.
+census of moments, 78.96 s, and lane S4a's sign repairs, 18.92 s.
 
 A FILE WITH NO ROW weighs `DEFAULT_SECONDS`. Two kinds of file have
 none: one added since the last measurement, which is then placed like
@@ -331,6 +331,7 @@ SECONDS = {
     "tests/test_stage3b_weekday_review.py": 295.32,
     "tests/test_stage3b_width.py": 122.91,
     "tests/test_stage4_allocator_walk.py": 18.04,
+    "tests/test_stage4_sign_repairs.py": 18.92,
     "tests/test_stage4_tier2a.py": 88.39,
     "tests/test_summary_and_properties.py": 41.37,
     "tests/test_tail_back_solve_without_recursion.py": 14.72,

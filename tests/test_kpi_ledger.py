@@ -1956,3 +1956,48 @@ def test_k_s3_41(record_property, tmp_path: pathlib.Path) -> None:
         "merged_groups": merged,
         "counts_below_the_line": below,
     })
+
+
+# -- Stage 4 (G5.5's sign repairs, plan P4-D387) -------------------------------
+
+
+def test_k_s4_05(record_property) -> None:
+    """G5.5's sign repairs grow with the strata and not their square.
+
+    Each measure is a count of work, never a time: the lines the
+    interpreter runs inside `_sign_repairs`, in every frame, on the Codex
+    review's column at 2,000 and 4,000 rows and on 400 and 800 one-cell
+    strata a quarter of which walk past every point their band holds --
+    and the same with every value handed as one that runs a line each
+    time a builtin hashes or compares it (the `counted` keys), so a
+    repair that hashes or compares the values every stratum holds inside
+    builtins at each repair is seen too (one that only copies them is
+    not: that accepted limit is bounded only by the seconds this entry's
+    evidence records). `tests/test_stage4_sign_repairs.py` owns the
+    measures, and its growth tests require 564c61a's function to grow at
+    least three times on the same arguments, and three repairs that do
+    that square inside builtins at least 2.5 times on the counted values,
+    so these ratios can fail.
+    """
+    import test_stage4_sign_repairs as repairs
+
+    codex = (repairs.codex_repair_lines(2000), repairs.codex_repair_lines(4000))
+    walked = (repairs.crowded_repair_lines(400), repairs.crowded_repair_lines(800))
+    codex_counted = (
+        repairs.codex_repair_lines(2000, counted=True),
+        repairs.codex_repair_lines(4000, counted=True),
+    )
+    walked_counted = (
+        repairs.crowded_repair_lines(400, counted=True),
+        repairs.crowded_repair_lines(800, counted=True),
+    )
+    _kpi(record_property, "K-S4-05", {
+        "codex_column_lines_growth_2x_rows": round(codex[1] / codex[0], 2),
+        "walked_far_lines_growth_2x_strata": round(walked[1] / walked[0], 2),
+        "codex_column_counted_lines_growth_2x_rows": round(codex_counted[1] / codex_counted[0], 2),
+        "walked_far_counted_lines_growth_2x_strata": round(walked_counted[1] / walked_counted[0], 2),
+        "codex_column_lines_4000": codex[1],
+        "walked_far_lines_800": walked[1],
+        "codex_column_counted_lines_4000": codex_counted[1],
+        "walked_far_counted_lines_800": walked_counted[1],
+    })

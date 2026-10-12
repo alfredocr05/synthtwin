@@ -6,6 +6,28 @@ exists).
 
 ## [Unreleased]
 
+### G5.5's sign repairs without the square of the strata (2026-10-09)
+
+**No published fact and no twin byte moves** (plan P4-D387, stage 4).
+On a column written at one width, G5.5 gives a stratum drawn with the
+wrong sign, when it is not pinned, the nearest grid point on its side of
+nought that no other stratum holds, or the first such step where every
+one within reach is held, and 564c61a gathered what every other stratum held again
+for each such stratum, building the list of all their values once for
+every one it read: the twin of the Codex review's column took 21.1 s of
+CPU at 8,000 rows and had not finished 32,000 after fifteen minutes.
+What the strata hold is now counted once and kept as they are repaired,
+and each band's walk starts where its last one stopped, and from its
+first step again where a value its steps read back as is let go, nought
+included, which the first steps of a grid of 324 places or more read
+back as: 1.2 s at 8,000 rows, 5.7 at 32,000, 27.6 at 128,000 and 647 at
+1,000,000, of which the repairs take under a second. `K-S4-05` holds
+the lines the repairs run to the strata, and the same lines on values
+that run a line each time a builtin hashes or compares one, so a
+repair that hashes, searches or sorts the values every stratum holds
+inside a builtin at each repair is seen too, though one that only
+copies them is not.
+
 ### The weekday census on timestamp columns (2026-10-06)
 
 **A column of dates and times publishes its weekday census** (stage 3b

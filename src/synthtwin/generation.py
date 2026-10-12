@@ -12267,10 +12267,30 @@ def _sign_repairs(
     is measured against the ladder and named. A repair that moves an END
     of the ladder is named separately, because that end stops being a
     fact a recount can confirm.
+
+    WHAT THE OTHER STRATA HOLD IS COUNTED ONCE AND KEPT AS THEY ARE
+    REPAIRED (plan P4-D387). The grid step asks for the values every
+    other stratum holds at that moment: the repaired value of each
+    stratum before it and the drawn value of each after it. 564c61a
+    gathered them again for each repair, building the list of every
+    stratum's value again for each stratum it read, so each repair cost
+    the square of the strata: 22 of the 26 s `generate` took under a
+    profiler at 8,000 rows of the Codex review's column, and more than
+    eleven CPU minutes at 32,000. ``held`` counts the strata holding
+    each value from the first repair on; a stratum's own value is let
+    go while its step is asked, and its answer is counted after, so
+    each question sees the values the gathering saw. And each band's
+    walk begins where its last one stopped (``walked``): the strata are
+    in band order, so while one band is repaired the points on its side
+    of nought are only taken, never given back, and a band whose side
+    does give one back walks again from the first step, as both do
+    where nought stops being held (`_let_go`).
     """
     total = len(values)
     notes: list[Deviation] = []
     repaired: list[float] = []
+    held: "dict[float, int] | None" = None
+    walked = {_BAND_NEGATIVE: [1], _BAND_POSITIVE: [1]}
     for place in range(total):
         band = layout.bands[place]
         value = values[place]
@@ -12282,15 +12302,25 @@ def _sign_repairs(
             wrong = True
         pinned = place == 0 or (place == total - 1 and total >= 2)
         if wrong and grid > 0 and not pinned:
-            held = {
-                (repaired + values[place:])[other]: 1
-                for other in range(total) if other != place
-            }
-            repaired += [
-                _grid_step_of_sign(
-                    band, rungs, grid, held, total, kept=facts.kept_stand_ins
-                )
-            ]
+            if held is None:
+                held = {}
+                for other in range(place):
+                    _hold(held, repaired[other])
+                for other in range(place + 1, total):
+                    _hold(held, values[other])
+            else:
+                _let_go(held, value, walked)
+            moved = _grid_step_of_sign(
+                band,
+                rungs,
+                grid,
+                held,
+                total,
+                kept=facts.kept_stand_ins,
+                walked=walked[band],
+            )
+            _hold(held, moved)
+            repaired += [moved]
             continue
         if wrong:
             if band == _BAND_NEGATIVE and fallback >= 0.0:
@@ -12312,8 +12342,52 @@ def _sign_repairs(
                         "twin keeps the counts and that end moves.",
                     )
                 ]
+            if held is not None:
+                _let_go(held, values[place], walked)
+                _hold(held, value)
         repaired += [value]
     return repaired, notes
+
+
+def _hold(held: "dict[float, int]", value: float) -> None:
+    """Count one more stratum holding ``value`` (G5.5, plan P4-D387)."""
+    if value in held:
+        held[value] = held[value] + 1
+    else:
+        held[value] = 1
+
+
+def _let_go(
+    held: "dict[float, int]",
+    value: float,
+    walked: "dict[str, list[int]]",
+) -> None:
+    """Count one stratum fewer holding ``value`` (G5.5, plan P4-D387).
+
+    A value no stratum holds any more leaves ``held``, and the walk of
+    each side whose steps can read back as it begins again from the
+    first step, because a step it passed as held may be free now: a
+    negative value's side, a positive value's, and BOTH for nought. On
+    a grid finer than binary64 reaches a step reads back as nought --
+    at 324 places the first two steps, at 330 every step of a walk over
+    fewer than 2.4 million strata, each `-0.0` or `0.0` -- and
+    d36627f, beginning a walk again only for a value strictly on its
+    side, began past every step after the last stratum holding nought
+    let it go: two negative strata drawn onto `0.0` were given `-1.0`
+    and `-1.0` where 564c61a gave `-1.0` and `-0.0`.
+
+    Guarantees: ``value`` is a key of ``held`` (a stratum holds it); its
+    count falls by one, and the key goes where it reaches nought.
+    Determinism: a fixed function of the arguments. Raises nothing. No I/O.
+    """
+    held[value] = held[value] - 1
+    if held[value] > 0:
+        return
+    del held[value]
+    if value <= 0.0:
+        walked[_BAND_NEGATIVE][0] = 1
+    if value >= 0.0:
+        walked[_BAND_POSITIVE][0] = 1
 
 
 def _grid_step_of_sign(
@@ -12323,6 +12397,7 @@ def _grid_step_of_sign(
     held: "dict[float, int]",
     total: int,
     kept: "tuple[float, ...]" = (),
+    walked: "list[int] | None" = None,
 ) -> float:
     """The sign fallback of G5.5 on a column written at one width (landing 2b.1).
 
@@ -12340,11 +12415,23 @@ def _grid_step_of_sign(
     such strata both became `-1.0`, beside a third already holding it:
     one number spent the column's count of different values, and its
     six cells were written `-1.0` against a published width of two.
+
+    A WALK MAY BEGIN WHERE THE LAST ONE STOPPED (plan P4-D387).
+    ``walked``, where it is handed over, holds one step, and every step
+    before it is within reach and held or such a stand-in: the walk reads
+    the first step for the answer where every one is, then asks from that
+    step on, and leaves in ``walked`` the step it answered or stopped at.
+    G5.5's repair pass hands each band one and sets it back to the first
+    step wherever a value a step on that side can read back as stops
+    being held, nought on both sides, so the answer is the one the walk
+    from the first step gives. Without it the walk asks from the first
+    step.
     """
     negative = band == _BAND_NEGATIVE
     unit = _ten_to(grid)
     first = 0.0
-    for step in range(1, total + 2):
+    step = 1
+    while step < total + 2:
         text = f"{step // unit}.{step % unit:0{grid}d}"
         if negative:
             text = "-" + text
@@ -12355,8 +12442,16 @@ def _grid_step_of_sign(
             break
         if step == 1:
             first = candidate
+            if walked is not None and walked[0] > 1:
+                step = walked[0]
+                continue
         if candidate not in held and not _is_a_stand_in(candidate, kept):
+            if walked is not None:
+                walked[0] = step
             return candidate
+        step = step + 1
+    if walked is not None:
+        walked[0] = step
     if first != 0.0:
         return first
     return -1.0 if negative else 1.0
