@@ -23699,6 +23699,7 @@ def _weekday_singles_moved(
     want: "list[int]",
     rounds: int,
     changing: bool,
+    splits: bool = True,
 ) -> None:
     """Single ranks, nearest first (method G7.3f, steps 6 and 7).
 
@@ -23706,7 +23707,9 @@ def _weekday_singles_moved(
     day it may move to, and makes the offers in order of whether they
     change the count of different days, then distance, then rank. Moves
     that change the count are allowed only once a round of keeping moves
-    finds nothing (or from the start where `changing`).
+    finds nothing (or from the start where `changing`); where not
+    `splits` (G7.3h's KIN SHARES, a kin group's own shares), never one
+    taking a rank off a written unit it shares.
     """
     allow = changing
     for _round in range(rounds):
@@ -23719,6 +23722,8 @@ def _weekday_singles_moved(
                 continue
             offer = _weekday_single_target(state, rank, have, want)
             if offer is None or (offer[0] and not allow):
+                continue
+            if offer[0] and not splits and _weekday_there(state, state.moved[rank]) > 1:
                 continue
             offers += [(offer[0], abs(offer[1] - state.moved[rank]), rank)]
         if not offers:
@@ -23733,6 +23738,8 @@ def _weekday_singles_moved(
                 continue
             offer = _weekday_single_target(state, rank, have, want)
             if offer is None or (offer[0] and not allow):
+                continue
+            if offer[0] and not splits and _weekday_there(state, state.moved[rank]) > 1:
                 continue
             target = offer[1]
             _weekday_step(state, rank, target)
@@ -26074,7 +26081,10 @@ def _clock_kin_shares_moved(state: _WeekdayPass, ranks: "list[int]", want: "list
     day), each kin group, in the order its first rank stands in the gap,
     takes its own shares of the gap's (`_clock_kin_share`), and its ranks
     move to them as a gap's do -- whole runs, then single ranks (G7.3f
-    steps 5 and 6). Returns whether it split the gap: not where one kin
+    steps 5 and 6) -- but no rank leaves a written unit it shares: a kin
+    group's few ranks split bursts of check-ins to meet its own shares,
+    108 values too many on 1,000 of them at a floor of 36.
+    Returns whether it split the gap: not where one kin
     group holds every rank, nor where the shares do not add to the ranks.
     Raises nothing. No I/O.
     """
@@ -26103,7 +26113,7 @@ def _clock_kin_shares_moved(state: _WeekdayPass, ranks: "list[int]", want: "list
             group = _weekday_group(state, state.moved[rank])
             have[group] = have[group] + 1
         _weekday_runs_moved(state, members, have, share)
-        _weekday_singles_moved(state, members, have, share, _WEEKDAY_SINGLE_ROUNDS, False)
+        _weekday_singles_moved(state, members, have, share, _WEEKDAY_SINGLE_ROUNDS, False, False)
         taken = [taken[group] + share[group] for group in range(len(want))]
     return True
 

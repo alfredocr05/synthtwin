@@ -7433,8 +7433,11 @@ KIN SHARES: where G7.3f's moves fill a gap's shares (steps 5 and 6) and
 the gap's ranks stand in two kin groups or more, by their parents' places
 in the day, each kin group, in the order its first rank stands in the
 gap, takes its own shares of the gap's, and its ranks move to them as a
-gap's do, whole runs and then single ranks; single ranks over the whole
-gap follow. The kin groups so far, holding P of the gap's S ranks, take
+gap's do, whole runs and then single ranks, but no rank leaves a written
+unit it shares by a move changing the count (a kin group's few ranks
+split bursts of check-ins to meet its own shares: 1,000 of them at a
+floor of 36 came back 108 values long); single ranks over the whole gap
+follow. The kin groups so far, holding P of the gap's S ranks, take
 together of each group G its share P x G / S rounded down, never less
 than they took; the ranks still unplaced go one each to the groups of the
 largest remainder, the lower group on a tie, none past its share rounded

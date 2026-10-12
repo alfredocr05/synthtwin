@@ -14234,26 +14234,28 @@ def weekday_offer(walk, rank, have, want):
     return None
 
 
-def weekday_singles(walk, ranks, have, want, rounds, changing):
-    """G7.3f steps 6 and 7: single ranks, up to `rounds` rounds."""
+def weekday_singles(walk, ranks, have, want, rounds, changing, splits=True):
+    """G7.3f steps 6 and 7: single ranks, up to `rounds` rounds; where not
+    `splits` (G7.3h's KIN SHARES), no rank leaves a written unit it shares
+    by a move changing the count."""
     for _ in range(rounds):
-        if (changing := weekday_single_round(walk, ranks, have, want, changing)) is None:
+        if (changing := weekday_single_round(walk, ranks, have, want, changing, splits)) is None:
             return
 
 
 # One round: None where the step ends, else whether changing offers are
 # taken from the next round on.
-def weekday_single_round(walk, ranks, have, want, changing):
+def weekday_single_round(walk, ranks, have, want, changing, splits=True):
     if have == want:
         return None
-    offers = sorted(weekday_offers_made(walk, ranks, have, want, changing))
-    stalled = not offers or not any([weekday_offer_taken(walk, rank, have, want, changing) for _kind, _distance, rank in offers])
+    offers = sorted(weekday_offers_made(walk, ranks, have, want, changing, splits))
+    stalled = not offers or not any([weekday_offer_taken(walk, rank, have, want, changing, splits) for _kind, _distance, rank in offers])
     return None if stalled and changing else (changing or stalled)
 
 
 # Every rank whose group holds more than its share, offered against the
 # holdings as the round begins: (changing, distance, rank).
-def weekday_offers_made(walk, ranks, have, want, changing):
+def weekday_offers_made(walk, ranks, have, want, changing, splits=True):
     return [
         (offer[0], abs(offer[1] - walk.days[rank]), rank)
         for rank, offer in (
@@ -14262,14 +14264,17 @@ def weekday_offers_made(walk, ranks, have, want, changing):
             if have[walk.group(walk.days[rank])] > want[walk.group(walk.days[rank])]
         )
         if offer is not None and (offer[0] == 0 or changing)
+        and not (offer[0] == 1 and not splits and walk.holding(walk.days[rank]) > 1)
     ]
 
 
 # Each offer is asked again when its turn comes.
-def weekday_offer_taken(walk, rank, have, want, changing):
+def weekday_offer_taken(walk, rank, have, want, changing, splits=True):
     group = walk.group(walk.days[rank])
     offer = weekday_offer(walk, rank, have, want) if have[group] > want[group] else None
     if offer is None or (offer[0] == 1 and not changing):
+        return False
+    if offer[0] == 1 and not splits and walk.holding(walk.days[rank]) > 1:
         return False
     return weekday_moved_whole(walk, [rank], offer[1], have)
 
@@ -14647,7 +14652,8 @@ def kin_share(want, taken, placed, size):
 def kin_shares_moved(walk, ranks, want):
     """G7.3h's KIN SHARES: where a gap's ranks stand in two kin groups or
     more, each, in the order its first rank stands, takes its share of the
-    gap's and moves to it as a gap does (G7.3f steps 5 and 6)."""
+    gap's and moves to it as a gap does (G7.3f steps 5 and 6), no rank
+    leaving a written unit it shares by a move changing the count."""
     if sum(want) != len(ranks):
         return False
     order = []
@@ -14665,7 +14671,7 @@ def kin_shares_moved(walk, ranks, want):
         for rank in members[kin]:
             have[walk.group(walk.days[rank])] += 1
         weekday_runs(walk, members[kin], have, share)
-        weekday_singles(walk, members[kin], have, share, 16, False)
+        weekday_singles(walk, members[kin], have, share, 16, False, False)
         taken = [taken[g] + share[g] for g in range(len(want))]
     return True
 

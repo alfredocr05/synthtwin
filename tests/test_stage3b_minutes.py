@@ -1198,7 +1198,8 @@ def _kin_state(days: int):
     """A state of minutes for KIN SHARES: on each of `days` days, hours 8 to 16
     hold four ranks each at minutes 7, 22, 37 and 52, the hours each a kin
     group of their own, one gap over every rank; the heap at minute 0 is
-    owed about a third of them."""
+    owed a quarter of them, one a day in each hour -- each a move onto a
+    place no rank holds, so every one keeps the count."""
     moved: "list[int]" = []
     for day in range(days):
         for hour in range(8, 17):
@@ -1206,14 +1207,14 @@ def _kin_state(days: int):
     rows = len(moved)
     state = generation._WeekdayPass(
         moved=moved, held={}, where=tuple([1] + [0] * 59), facts=None, word="", widths=False,
-        kinds={}, holes=frozenset(), lows=[moved[0]] * rows, highs=[moved[-1]] * rows,
+        kinds={}, holes=frozenset(), lows=[moved[0] - 3600] * rows, highs=[moved[-1]] * rows,
         keep_units=True, unit=60, step=60, day=DAY, bins="minute", period=60, keeps="hour",
         count_steps=False, kin=tuple(range(24)),
     )
     for ordinal in moved:
         generation._weekday_tally(state.held, ordinal // 60, 1)
-    state.gap_sizes[(moved[0], moved[-1])] = rows
-    heap = rows // 3
+    state.gap_sizes[(moved[0] - 3600, moved[-1])] = rows
+    heap = rows // 4
     return state, list(range(rows)), [rows - heap, heap]
 
 
@@ -1221,7 +1222,7 @@ def test_kin_shares_grow_with_the_rows() -> None:
     """KIN SHARES at 3 and 27 days, 108 and 972 ranks: the shares of each kin
     group and their moves, G7.3f's steps 5 and 6 on its own ranks, grow no
     faster than the rows (within 1.25 times nine), so a million ranks cost a
-    thousand times 972's -- machine-free -- and every hour takes its third."""
+    thousand times 972's -- machine-free -- and every hour takes its quarter."""
     spent: "list[int]" = []
     for days in (3, 27):
         state, ranks, want = _kin_state(days)
@@ -1230,5 +1231,5 @@ def test_kin_shares_grow_with_the_rows() -> None:
         for ordinal in state.moved:
             if (ordinal // 60) % 60 == 0:
                 on_zero[(ordinal // 3600) % 24] += 1
-        assert on_zero[8:17] == [4 * days // 3] * 9, on_zero
+        assert on_zero[8:17] == [days] * 9, on_zero
     assert spent[1] <= 1.25 * 9 * spent[0], spent
