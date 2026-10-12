@@ -41,7 +41,14 @@ Stated limits: a heap beside a stronger weekday pattern (Monday
 billing, first Mondays) is not published; nor are three or four Mays at
 a floor of 36, a group holding fewer than four dates; business-day
 heaps come back at about four fifths of their joint share; a clocked
-column publishes none.
+column publishes none. After the Codex review, a date moved off a
+spelling the run declares absent keeps its published groups, and the
+finished cells are recounted, so a census missed after the day pass is
+named and never said met; a column over centuries no longer stores
+every weekend day or every day's bin (1,000 rows over two thousand
+years: 85.6 MB traced to 4.2 MB, the same twin); and the note on a
+census kept back says it could cost a fact, or that a conservative rule
+keeps it back.
 
 ### The weekday census on timestamp columns (2026-10-06)
 

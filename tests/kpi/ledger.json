@@ -6625,7 +6625,7 @@
    "headline": false,
    "name": "Dates keep their day of the month: heaps on the 1st, the 15th, the 10th and the month's end come back",
    "status": "GREEN",
-   "rule": "the twenty-six pinned nodes pass: on the lane's battery -- the gate's heaps and schedules, the design's month ends and business days and the skeptic's untuned shapes, 1,000 rows, floors 11 and 36, seeds 0 and 4 -- the expected columns publish their day-of-month census beside an unchanged weekday census, the source and every twin miss nothing, each heap's share, the day-of-month distance and the weekend share stay within BOUND, CAP at 11 and SHAPE; a short column, a clocked one and tied ones publish none, the count-reach rule asks both censuses, two widths and midnight moments publish and hold; a table publishing none keeps its twins; the eighteenth vectors file's six states answer as the oracle does, each red on its own source edit, and the oracle moves whole columns as the product does; where the joint plan would cost the weekday census or the count (six Mays at 1,000 and 10,000 rows, quarter ends at 10,000 rows) the twin keeps both, the oracle choosing as the product does clause by clause, and three Mays at 11 and four at 36 publish none, the few-dates rule's calendar standing only for a month's last day; and every description the producer writes loads and generates",
+   "rule": "the thirty-four pinned nodes pass: on the lane's battery -- the gate's heaps and schedules, the design's month ends and business days and the skeptic's untuned shapes, 1,000 rows, floors 11 and 36, seeds 0 and 4 -- the expected columns publish their day-of-month census beside an unchanged weekday census, the source and every twin miss nothing, each heap's share, the day-of-month distance and the weekend share stay within BOUND, CAP at 11 and SHAPE; a short column, a clocked one and tied ones publish none, the count-reach rule asks both censuses, two widths and midnight moments publish and hold; a table publishing none keeps its twins; the eighteenth vectors file's six states answer as the oracle does, each red on its own source edit, and the oracle moves whole columns as the product does; where the joint plan would cost the weekday census or the count (six Mays at 1,000 and 10,000 rows, quarter ends at 10,000 rows) the twin keeps both, the oracle choosing as the product does clause by clause, and three Mays at 11 and four at 36 publish none, the few-dates rule's calendar standing only for a month's last day; the spelling repair keeps the published groups and the finished cells are recounted, the empty weekdays are a rule and a wide gap's prior is counted, rows and span measured apart, and NF104 says a possible cost (the Codex review); and every description the producer writes loads and generates",
    "rule_kind": "exact",
    "expected": {
     "pinned_nodes_failing": 0
@@ -6658,16 +6658,24 @@
     "tests/test_stage3b_day_of_month.py::test_step_three_chooses_as_the_oracle_does",
     "tests/test_stage3b_day_of_month.py::test_the_few_dates_rule_counts_only_a_month_s_last_day_by_its_calendar",
     "tests/test_stage3b_day_of_month.py::test_one_month_a_year_at_ten_thousand_rows_gives_only_the_day_of_month_way",
-    "tests/test_stage3b_day_of_month.py::test_four_mays_at_a_floor_of_36_withhold_the_census"
+    "tests/test_stage3b_day_of_month.py::test_four_mays_at_a_floor_of_36_withhold_the_census",
+    "tests/test_stage3b_day_of_month.py::test_the_spelling_repair_keeps_the_published_groups",
+    "tests/test_stage3b_day_of_month.py::test_a_census_the_finished_cells_miss_is_named_and_said",
+    "tests/test_stage3b_day_of_month.py::test_each_clause_of_the_repair_moves_its_answer",
+    "tests/test_stage3b_day_of_month.py::test_the_empty_weekdays_grow_with_the_span_not_its_square",
+    "tests/test_stage3b_day_of_month.py::test_the_day_pass_stores_no_empty_weekday_day",
+    "tests/test_stage3b_day_of_month.py::test_the_month_bins_keep_no_calendar_span",
+    "tests/test_stage3b_day_of_month.py::test_the_calendar_prior_is_the_walked_one",
+    "tests/test_stage3b_day_of_month.py::test_nf104_says_a_possible_cost_or_a_conservative_rule"
    ],
    "test": null,
    "driver": null,
    "pin_strength": "EXACT",
    "measured_on": "tests/test_stage3b_day_of_month.py: the lane's battery built at runtime at 1,000 rows, floors 11 and 36, seeds 0 and 4, the eighteenth vectors file and the producer's loading battery",
    "evidence": "Before (1c8f328), at 1,000 rows and a floor of 11, billing on the 1st and 15th came back 0.068 to 0.089 of the cells against a real 0.456, a visit on the 10th 0.080 to 0.154 against 0.915 and month ends 0.027 to 0.065 against 0.609; after, each heap comes back exactly, no twin of 220 misses a check, and the 75 twins of columns publishing none are the base's byte for byte.",
-   "nodes_min_collected": 30,
+   "nodes_min_collected": 56,
    "value_at": {
-    "commit": "6efe103",
+    "commit": "48f71d5",
     "date": "2026-10-12",
     "measured_by": "tools/measurements/kpi_run.py --only K-S3-43 --print-values",
     "value": {
@@ -6703,17 +6711,17 @@
    "driver": "tools/measurements/kpi_day_of_month_census.py --kpi",
    "pin_strength": "NONE",
    "measured_on": "the gate's billing and births and the design's month ends, last business days, business billing, visits on the 10th and births with a weekend dip, 40,000 rows each, through the real producer, generator and checker",
-   "evidence": "Measured on 1b38df7 (the repair round's head) under a load average near 6: the pass took 18 s of 26 s generating, a share of 68 per cent, every column published and the twin missed nothing; on bdf0566 under a load average near 60, 35 s of 52 s, 67 per cent; profiled at 40,000 rows, step 8.1's nearest search (`_weekday_nearest`, 350,106 calls walking up to 400 units each) is most of the pass, and the bins are reckoned once a day per pass. Skeptic 1 measured one month-end business-day column on 10019f8, base and head back to back beside another suite: the pass 13.7 s of 15.3 s generating at 40,000 rows; 48.5 of 68.4 at 400,000 (1c8f328: 26.1 of 45.7); 175 of 224 at 1,000,000 (1c8f328: 58 of 99), about n^1.4 from 400,000 up, peak memory 852 MB against 851. STEP 3'S PRICE (skeptic 2 of landing 3b.3, on 61aa2cc, back to back under a load of 12 to 27): where G7.3i step 3 takes the weekday pass's days the joint plan's seconds are thrown away; six Mays, weekends at 0.4, generated in 61.5 s against 1c8f328's 21.4 s at 100,000 rows (the day pass 51.5 s, the weekday pass 10.3 s of it) and 257.0 s against 85.1 s at 400,000 rows (211.2 s, 49.3 s), the same twin as 1c8f328's, peak memory 410 MB on both; growing linearly, about 640 s against 213 s at 1,000,000 rows. Lane D4's joint fix owns not running a joint plan step 3 then throws away.",
+   "evidence": "On 48f71d5 (the Codex fix, no method change on these columns) under a load average near 9.6: the pass 30 s of 45 s generating, 67 per cent. Measured on 1b38df7 (the repair round's head) under a load average near 6: the pass took 18 s of 26 s generating, a share of 68 per cent, every column published and the twin missed nothing; on bdf0566 under a load average near 60, 35 s of 52 s, 67 per cent; profiled at 40,000 rows, step 8.1's nearest search (`_weekday_nearest`, 350,106 calls walking up to 400 units each) is most of the pass, and the bins are reckoned once a day per pass. Skeptic 1 measured one month-end business-day column on 10019f8, base and head back to back beside another suite: the pass 13.7 s of 15.3 s generating at 40,000 rows; 48.5 of 68.4 at 400,000 (1c8f328: 26.1 of 45.7); 175 of 224 at 1,000,000 (1c8f328: 58 of 99), about n^1.4 from 400,000 up, peak memory 852 MB against 851. STEP 3'S PRICE (skeptic 2 of landing 3b.3, on 61aa2cc, back to back under a load of 12 to 27): where G7.3i step 3 takes the weekday pass's days the joint plan's seconds are thrown away; six Mays, weekends at 0.4, generated in 61.5 s against 1c8f328's 21.4 s at 100,000 rows (the day pass 51.5 s, the weekday pass 10.3 s of it) and 257.0 s against 85.1 s at 400,000 rows (211.2 s, 49.3 s), the same twin as 1c8f328's, peak memory 410 MB on both; growing linearly, about 640 s against 213 s at 1,000,000 rows. Lane D4's joint fix owns not running a joint plan step 3 then throws away.",
    "value_at": {
-    "commit": "1b38df7",
+    "commit": "48f71d5",
     "date": "2026-10-12",
     "measured_by": "tools/measurements/kpi_run.py --slow --only K-S3-44 --print-values",
     "value": {
      "censuses": 7,
-     "generate_seconds": 26,
+     "generate_seconds": 45,
      "missed": 0,
-     "pass_seconds": 18,
-     "pass_share_percent": 68
+     "pass_seconds": 30,
+     "pass_share_percent": 67
     }
    }
   },

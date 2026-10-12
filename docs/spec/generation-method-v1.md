@@ -6783,12 +6783,18 @@ census's thirty-four BINS: the day of its month from 1 to 27; the 28th,
 29th and 30th where that day is not its month's last; and the month's
 last day in bins 31, 32, 33 and 34 by its month's length of 28 to 31
 days. The bins follow one another with no period, so G7.3f counts a
-gap's days one by one.
+gap's days one by one -- and a gap wider than 1,024 days by the
+calendar, in 400-year cycles and whole months, the same counts without
+asking each day (the Codex review of landing 3b.3, item 3); a day's bin
+is kept once asked, at most 65,536 days at a time.
 
 1. **Pass A** is G7.3f over the day-of-month census: each day's group
    is its bin's, and every day between the two tail boundaries whose
    weekday the weekday census counts nought is added to the holes, so
-   no rank is put where pass B would have to take it off. Every other
+   no rank is put where pass B would have to take it off -- read as a
+   rule on the day's weekday, never stored day by day (the Codex review,
+   item 2: a business-day column over years 0001 to 2000 stored 202,436
+   such days). Every other
    seam is the weekday pass's: the width kind of the column's one width
    word, the description's holes and the count of different days the
    ranks held before the pass, kept where it is reachable.
@@ -6805,6 +6811,22 @@ gap's days one by one.
    and the twin names `day_of_month_census` given way to the weekday
    census and the count.
 
+4. **The spelling repair keeps the groups** (the Codex review, item
+   1). A cell G7.5 writes in a spelling the run declares absent moves
+   after the census is met. On a column publishing a day-of-month census
+   the repair first asks, inside each window it asks (the rank's gap,
+   then the body), the days at most 400 away, nearest first and the
+   earlier first at one distance, that are no hole, keep the rank's
+   day-of-month group and, where one is published, its weekday group,
+   keep its width kind where the column keeps one, and write no absent
+   spelling: a rank alone on its day takes the first no rank holds, one
+   sharing its day the first a rank holds, else the first found. Only
+   where none is found does it move as G7.5 always did.
+5. **The census as written.** The finished cells are recounted as V5-W2
+   counts them; where they miss the census and nothing above names it,
+   the twin names `day_of_month_census`, and the sentence on its spread
+   says missed, never met.
+
 Where a census still does not hold, the twin names it
 (`day_of_month_census`, or `weekday_census`); where both hold and the
 count of different days does not, the weekday pass's own cause is named,
@@ -6815,8 +6837,8 @@ states of ranks in the eighteenth vectors file,
 and the 15th with no weekday census, a visit on the 10th beside seven
 weekday groups, month ends on each month's own last day, billing rolled
 to business days beside an empty weekend, births with a weekend dip, and
-the 1st heaped beside a hole on each 15th -- each with the answer this
-section gives it, and no G14.3 case.
+the 1st heaped beside a hole on each 15th, and one state of step 4's
+repair -- each with the answer this section gives it, and no G14.3 case.
 
 ### G7.4 Offsets: only where recorded
 
