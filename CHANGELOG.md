@@ -6,6 +6,27 @@ exists).
 
 ## [Unreleased]
 
+### The weekday and the hour of a moment, met together (2026-10-12)
+
+**Twins of a column of moments publishing both a weekday census and an
+hour census now meet both** (plan P4-D379, stage 3b lane J). The hour
+pass kept each rank's day standing, so a rank the weekday pass left on
+its gap's end day, before a noon rung, stayed off its hour: five noon
+stamps a day for 118 days, two clocks a day, D2's leap column and T2's
+column of eleven `23:59:60` a date came back short at 4, 7, 5 and 10
+seeds of 10. Method G7.3g step 3 now lets such a rank take the nearest
+day of another standing while as many ranks of that standing move by
+whole days onto days of its own, so every weekday count and every
+clock is kept. With these four, OR starts, admissions and a clinic of
+10,000 rows meet both at seeds 0 to 9 and floors 11 and 36, and every
+twin with one census alone is byte for byte as before. At a million
+rows a column whose needed hours hold no free value anywhere in a
+rank's gap still comes back short, now 767 ranks of a clinic's million
+where it was 2,070, a limit the hour pass has without a weekday census
+too. The tails' recount reads the whole dates a column's own
+description folded into its moments, which made the unchanged source
+miss its low tail. `K-S3-62` holds it.
+
 ### G5.5's sign repairs without the square of the strata (2026-10-09)
 
 **No published fact and no twin byte moves** (plan P4-D387, stage 4).

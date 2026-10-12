@@ -54,6 +54,8 @@ ROWS ADDED 2026-10-12, at the integration of batch 2b's first part:
 the test files its lanes added, each timed ON ITS OWN on the integrated
 tree as above, on a machine other work was loading -- lane D2's weekday
 census of moments, 78.96 s, and lane S4a's sign repairs, 18.92 s.
+And on 2026-10-12, lane J's file of both censuses met together, 120.05
+s, timed on its own on the lane's tree the same way.
 
 A FILE WITH NO ROW weighs `DEFAULT_SECONDS`. Two kinds of file have
 none: one added since the last measurement, which is then placed like
@@ -325,6 +327,7 @@ SECONDS = {
     "tests/test_stage3b_gate.py": 194.66,
     "tests/test_stage3b_hour.py": 124.4,
     "tests/test_stage3b_hour_review.py": 8.36,
+    "tests/test_stage3b_joint.py": 120.05,
     "tests/test_stage3b_layout.py": 32.3,
     "tests/test_stage3b_route2.py": 26.16,
     "tests/test_stage3b_weekday_moments.py": 78.96,
