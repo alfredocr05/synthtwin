@@ -19128,6 +19128,15 @@ _WEEKDAY_FOLDED_LEFT_LONG = (
 _WeekdayKind = tuple[bool, int, int]
 _PLAIN_KIND: _WeekdayKind = (True, 0, 0)
 
+# THE DAY-OF-MONTH PASS'S TWO BOUNDS (the Codex review of landing 3b.3,
+# item 3): the most days `_WeekdayPass.month_bins` keeps before it starts
+# again, so a sparse column over two thousand years keeps no more than a
+# dense one over two hundred; and the widest gap whose prior is walked day
+# by day -- a wider one is counted by the calendar (`_month_day_prior`),
+# so no prior asks every day of a gap spanning centuries.
+_MONTH_BINS_HELD = 65536
+_MONTH_DAY_WALKED = 1024
+
 
 @dataclasses.dataclass(frozen=True)
 class _WeekdayPass:
@@ -19193,6 +19202,15 @@ class _WeekdayPass:
     # 3b.3): the bin of the `"month_day"` rule is a calendar reckoning the
     # pass asks millions of times on a large column.
     month_bins: "dict[int, int]" = dataclasses.field(default_factory=dict)
+    # The weekdays, Monday nought, whose every day from `empty_low` to
+    # `empty_high` is a hole besides `holes` (the Codex review of landing
+    # 3b.3, item 2): pass A's empty weekday groups read as a rule, never
+    # stored day by day -- a business-day column over two thousand years
+    # kept 202,436 such days, each collected by copying all before it.
+    # Only a pass counted in days, its unit and its day one, sets them.
+    empty_weekdays: "frozenset[int]" = frozenset()
+    empty_low: int = 0
+    empty_high: int = -1
 
 
 @dataclasses.dataclass(frozen=True)
@@ -19235,6 +19253,10 @@ def _weekday_bin(state: _WeekdayPass, rule: str, ordinal: int) -> int:
         # P4-D368): bin 1 nought, the month's last day in bins 31 to 34.
         day = ordinal // state.day
         if day not in state.month_bins:
+            if len(state.month_bins) >= _MONTH_BINS_HELD:
+                # BOUNDED (the Codex review of landing 3b.3, item 3): a
+                # day asked again after this is reckoned again, the same.
+                state.month_bins.clear()
             state.month_bins[day] = calendar_rules.month_bin(day) - 1
         return state.month_bins[day]
     return calendar_rules.weekday_of(ordinal // state.day)
@@ -19276,8 +19298,23 @@ def _weekday_first_from(values: "list[int]", target: int) -> int:
 
 
 def _weekday_hole(state: _WeekdayPass, ordinal: int) -> bool:
-    """Whether an ordinal's day is a hole."""
-    return ordinal // state.day in state.holes
+    """Whether an ordinal's day is a hole: one of `holes`, or a day of an
+    empty weekday between `empty_low` and `empty_high` (landing 3b.3)."""
+    day = ordinal // state.day
+    if day in state.holes:
+        return True
+    return _weekday_emptied(state, day)
+
+
+def _weekday_emptied(state: _WeekdayPass, day: int) -> bool:
+    """Whether a day is a hole by the empty weekdays' rule alone (the Codex
+    review of landing 3b.3, item 2): between the two days, on an empty
+    weekday. `calendar_rules.weekday_of`'s own sum, as it is asked often."""
+    return (
+        bool(state.empty_weekdays)
+        and state.empty_low <= day <= state.empty_high
+        and (day + 3) % calendar_rules.WEEKDAYS in state.empty_weekdays
+    )
 
 
 def _weekday_span(state: _WeekdayPass, ordinal: int, low: int, high: int) -> "tuple[int, int]":
@@ -19420,10 +19457,23 @@ def _weekday_prior(
             found[index] = (
                 found[index] + ((last - unit) // state.period + 1) * _WEEKDAY_SCALE
             )
+    elif state.bins == "month_day" and last - first + 1 > _MONTH_DAY_WALKED:
+        # COUNTED BY THE CALENDAR, NOT WALKED (the Codex review of landing
+        # 3b.3, item 3): the same counts, without asking every day.
+        found = _month_day_prior(state, first, last, groups)
     else:
         for unit in range(first, last + 1):
             index = _weekday_group(state, unit * state.unit)
             found[index] = found[index] + _WEEKDAY_SCALE
+    # THE EMPTY WEEKDAYS' DAYS (landing 3b.3) weigh as holes do: nought
+    # inside the gap, and an end unit standing on one its half taken too.
+    emptied = _weekday_emptied_counts(state, first, last, groups)
+    for index in range(groups):
+        found[index] = found[index] - emptied[index] * _WEEKDAY_SCALE
+    for end in sorted({first, last}):
+        if _weekday_emptied(state, end) and end not in state.holes:
+            index = _weekday_group(state, end * state.unit)
+            found[index] = found[index] + _WEEKDAY_SCALE // 2
     for end in sorted({first, last}):
         index = _weekday_group(state, end * state.unit)
         found[index] = found[index] - _WEEKDAY_SCALE // 2
@@ -19436,6 +19486,58 @@ def _weekday_prior(
                 found[index] = found[index] - _WEEKDAY_SCALE
             else:
                 found[index] = found[index] - _WEEKDAY_SCALE // 2
+    return found
+
+
+def _month_day_prior(
+    state: _WeekdayPass, first: int, last: int, groups: int
+) -> "list[int]":
+    """Each group's days from `first` to `last`, at the share scale, under
+    the day-of-month census's bins (the Codex review of landing 3b.3, item
+    3): `calendar_rules.month_calendar`, counted in 400-year cycles and
+    whole months, so a gap over two thousand years costs at most two
+    cycles' months and keeps no day. A pass counted in days: unit one."""
+    found = [0 for _ in range(groups)]
+    table = calendar_rules.month_calendar(first, last)
+    for row in table:
+        for index in range(calendar_rules.MONTH_DAY_BINS):
+            group = state.where[index]
+            found[group] = found[group] + row[index] * _WEEKDAY_SCALE
+    return found
+
+
+def _weekday_emptied_counts(
+    state: _WeekdayPass, first: int, last: int, groups: int
+) -> "list[int]":
+    """How many days of each group from `first` to `last` the empty
+    weekdays' rule makes holes that `holes` does not hold already (the
+    Codex review of landing 3b.3, item 2): by the calendar under the
+    day-of-month census's bins, a week at a time under any other rule.
+    Nought everywhere on a pass with no empty weekday."""
+    found = [0 for _ in range(groups)]
+    low = max(first, state.empty_low)
+    high = min(last, state.empty_high)
+    if not state.empty_weekdays or high < low:
+        return found
+    if state.bins == "month_day" and high - low + 1 > _MONTH_DAY_WALKED:
+        table = calendar_rules.month_calendar(low, high)
+        for weekday in sorted(state.empty_weekdays):
+            row = table[weekday]
+            for index in range(calendar_rules.MONTH_DAY_BINS):
+                group = state.where[index]
+                found[group] = found[group] + row[index]
+        for hole in state.holes:
+            if low <= hole <= high and _weekday_emptied(state, hole):
+                group = _weekday_group(state, hole * state.unit)
+                found[group] = found[group] - 1
+        return found
+    for weekday in sorted(state.empty_weekdays):
+        day = low + (weekday - calendar_rules.weekday_of(low)) % calendar_rules.WEEKDAYS
+        while day <= high:
+            if day not in state.holes:
+                group = _weekday_group(state, day * state.unit)
+                found[group] = found[group] + 1
+            day = day + calendar_rules.WEEKDAYS
     return found
 
 
@@ -19934,7 +20036,7 @@ def _weekday_holes_swept(state: _WeekdayPass, gaps: "list[list[int]]") -> None:
     alone on the hole onto a day no rank holds, sharing it onto a day one
     holds -- and otherwise to the first such candidate at all. The census
     moves after it never put a rank back on a hole."""
-    if not state.holes:
+    if not state.holes and not state.empty_weekdays:
         return
     unit = state.unit
     for ranks in gaps:
@@ -22001,10 +22103,27 @@ def _day_empty_weekdays(
         if weekdays[where[weekday]][2] != 0:
             continue
         day = low + (weekday - calendar_rules.weekday_of(low)) % calendar_rules.WEEKDAYS
-        while day <= high:
-            found = found | {day}
-            day = day + calendar_rules.WEEKDAYS
+        # GROWN IN PLACE (the Codex review of landing 3b.3, item 2): `found
+        # | {day}` copied every day collected before it, 20.49 billion
+        # entries over years 0001 to 2000.
+        found |= set(range(day, high + 1, calendar_rules.WEEKDAYS))
     return frozenset(found)
+
+
+def _day_empty_weekday_numbers(
+    weekdays: "tuple[tuple[int, int, int], ...]",
+) -> "frozenset[int]":
+    """The weekdays, Monday nought, whose group the weekday census counts
+    nought: `_day_empty_weekdays` as a rule (the Codex review of landing
+    3b.3, item 2), which `_WeekdayPass.empty_weekdays` reads day by day."""
+    if not weekdays:
+        return frozenset()
+    where = calendar_rules.where_of(weekdays)
+    return frozenset(
+        weekday
+        for weekday in range(calendar_rules.WEEKDAYS)
+        if weekdays[where[weekday]][2] == 0
+    )
 
 
 def _day_passes(
@@ -22016,6 +22135,7 @@ def _day_passes(
     wanted: int,
     censuses: "tuple[tuple[tuple[int, int, int], ...], tuple[tuple[int, int, int], ...]]",
     seams: "tuple[contract.DatetimeFacts, str, bool, frozenset[int], frozenset[int], bool]",
+    empty: "tuple[frozenset[int], int, int]" = (frozenset(), 0, -1),
 ) -> "tuple[_WeekdayPass, _WeekdayPass | None]":
     """G7.3i's two passes over a column counted in days (plan P4-D368).
 
@@ -22034,6 +22154,13 @@ def _day_passes(
     blocker 1 (b)), so every day-of-month group keeps its count. Both
     passes move only the body ranks the layout does not pin, inside
     their own gaps and width kinds, never onto a hole.
+
+    THE EMPTY WEEKDAYS AS A RULE (the Codex review of landing 3b.3, item
+    2): `empty` is the weekdays, Monday nought, whose days from its first
+    day to its last are pass A's holes too, besides `seams`' fifth, which
+    `_day_settled` leaves empty; pass A asks them day by day and counts
+    them by the calendar (`_weekday_hole`, `_weekday_emptied_counts`), the
+    same answers as stating every such day, which a caller may still do.
 
     Guarantees: returns the two passes' states, the second None where
     no weekday census is published; `moved` is changed in place. Draws
@@ -22060,6 +22187,9 @@ def _day_passes(
         keep_units=keep,
         bins="month_day",
         period=0,
+        empty_weekdays=empty[0],
+        empty_low=empty[1],
+        empty_high=empty[2],
     )
     _bins_settled(
         first, [count for _first, _last, count in month],
@@ -22217,10 +22347,8 @@ def _day_settled(
     month_state, week_state = _day_passes(
         moved, gap_lows, gap_highs, pinned, (body_low, body_high), wanted,
         (month, weekdays),
-        (
-            facts, word, widths, hole_days,
-            _day_empty_weekdays(weekdays, first_day, last_day), keep,
-        ),
+        (facts, word, widths, hole_days, frozenset(), keep),
+        (_day_empty_weekday_numbers(weekdays), first_day, last_day),
     )
     # STEP 3 (the core holds): where the joint plan leaves the weekday
     # census or the kept count of different days off, and the weekday pass
@@ -22287,6 +22415,201 @@ def _day_settled(
             )
         ]
     return moved, notes
+
+
+@dataclasses.dataclass(frozen=True)
+class _DayRepair:
+    """What the spelling repair keeps of a column's day censuses (G7.3i).
+
+    THE PUBLISHED GROUPS KEPT THROUGH THE LATER DATE REPAIRS (the Codex
+    review of landing 3b.3, item 1). A cell the day pass placed whose
+    spelling is one the run declares absent is moved after the census was
+    met: 400 copies of `1/1/2020` beside the declared missing spelling
+    `01/01/2020` lost a 1st of January to the 31st of December at seven
+    seeds in ten, and the census the pass had met was missed.
+    `month_where` and `week_where` are each bin's and each weekday's group
+    (the second empty where no weekday census is published), `days`
+    every day no rank may stand on (`_day_pass_setup`), `word` and
+    `widths` the width kind a move keeps, `ordinals` the ranks' days and
+    `held` how many ranks stand on each day, filled on first use and kept
+    as cells move.
+    """
+
+    month_where: "tuple[int, ...]"
+    week_where: "tuple[int, ...]"
+    days: "frozenset[int]"
+    word: str
+    widths: bool
+    ordinals: "list[int]"
+    held: "dict[int, int]" = dataclasses.field(default_factory=dict)
+
+
+def _day_repair_setup(
+    column: contract.ColumnBlock,
+    facts: contract.DatetimeFacts,
+    ordinals: "list[int]",
+    holes: "tuple[str, ...]",
+    declared_days: "tuple[str, ...]",
+) -> "_DayRepair | None":
+    """The spelling repair's view of a column counted in days that
+    publishes a day-of-month census (`_DayRepair`); None on every other
+    column, whose repair is unchanged."""
+    if not facts.day_of_month_census or _ordinal_space(facts) != "date":
+        return None
+    word, widths, days = _day_pass_setup(column, facts, holes, declared_days)
+    week_where: "tuple[int, ...]" = ()
+    if facts.weekday_census:
+        week_where = calendar_rules.where_of(facts.weekday_census)
+    return _DayRepair(
+        month_where=calendar_rules.month_where(facts.day_of_month_census),
+        week_where=week_where,
+        days=days,
+        word=word,
+        widths=widths,
+        ordinals=ordinals,
+    )
+
+
+def _day_repaired_cell(
+    repair: "_DayRepair | None",
+    facts: contract.DatetimeFacts,
+    ordinal: int,
+    window: "tuple[int, int]",
+    cell: "tuple[str, str, tuple[str, ...], bool, _DateStyle | None]",
+) -> str:
+    """The cell of the nearest day of `window` that keeps the rank's
+    published groups, or "" (method G7.3i, the spelling repair; the Codex
+    review of landing 3b.3, item 1).
+
+    A day at most `_WEEKDAY_REACH` days away, inside the window, no hole
+    (`_DayRepair.days`), in the rank's day-of-month group and, where a
+    weekday census is published, its weekday group, of its width kind
+    where the column keeps one, whose cell -- written with the rank's
+    own offset, mark and style (`cell`) -- wears no absent spelling.
+    Nearest first, the earlier first at one distance; a rank alone on its
+    day takes the first such day no rank holds, one sharing its day the
+    first a rank holds (G7.3f step 2's rule, so the count of different
+    days is kept where it can be), and otherwise the first found. ""
+    where the column publishes no day-of-month census (`repair` None) or
+    no such day lies within reach: the repair then moves the cell as it
+    always did, and the finished cells are recounted
+    (`_day_of_month_count_notes`).
+
+    Guarantees: returns the cell or ""; `repair.held` follows the move.
+    Draws no word. Raises nothing. No I/O of any kind.
+    """
+    if repair is None:
+        return ""
+    if not repair.held:
+        for value in repair.ordinals:
+            _weekday_tally(repair.held, value, 1)
+    offset, mark, holes, whole, style = cell
+    low, high = window
+    month = repair.month_where[calendar_rules.month_bin(ordinal) - 1]
+    week = repair.week_where[calendar_rules.weekday_of(ordinal)] if repair.week_where else 0
+    kind = _counts_into_width(facts, ordinal, repair.word) if repair.widths else True
+    alone = (repair.held[ordinal] if ordinal in repair.held else 0) <= 1
+    first = ""
+    first_day = ordinal
+    for away in range(1, _WEEKDAY_REACH + 1):
+        if ordinal - away < low and ordinal + away > high:
+            break
+        for other in (ordinal - away, ordinal + away):
+            if other < low or other > high or other in repair.days:
+                continue
+            if repair.month_where[calendar_rules.month_bin(other) - 1] != month:
+                continue
+            if repair.week_where and repair.week_where[calendar_rules.weekday_of(other)] != week:
+                continue
+            if repair.widths and _counts_into_width(facts, other, repair.word) != kind:
+                continue
+            tried = _interior_cell(facts, other, offset, mark, holes, whole, style)
+            if _is_a_hole_spelling(tried, holes):
+                continue
+            free = (repair.held[other] if other in repair.held else 0) <= 0
+            if free == alone:
+                _weekday_tally(repair.held, ordinal, -1)
+                _weekday_tally(repair.held, other, 1)
+                return tried
+            if not first:
+                first, first_day = tried, other
+    if first:
+        _weekday_tally(repair.held, ordinal, -1)
+        _weekday_tally(repair.held, first_day, 1)
+    return first
+
+
+def _day_of_month_count_notes(
+    column: contract.ColumnBlock,
+    facts: contract.DatetimeFacts,
+    cells: "list[str]",
+    holes: "tuple[str, ...]",
+    declared_days: "tuple[str, ...]",
+    said: "list[Deviation]",
+) -> "list[Deviation]":
+    """THE CENSUS AS WRITTEN (method G7.3i; the Codex review of landing
+    3b.3, item 1): the day-of-month census recounted on the finished
+    cells, as validation V5-W2 counts it -- the cells between the two
+    published tail boundaries, both included, that wear no absent
+    spelling, read under the column's own member (`_instant_written`),
+    a column of moments by instant in its tail unit -- per published
+    group; a cell on a day the description holds empty misses it
+    whatever the counts. Where the cells miss it and nothing `said`
+    already names the census, one deviation names it, so the spread
+    sentence, read off the completed measurement, never says it is met
+    (the census was decided before the spelling repair moved a date, and
+    seven seeds in ten were reported met while V5-W2 found them missed).
+
+    Guarantees: returns nought or one deviation. Determinism: a function
+    of the arguments. Raises nothing. No I/O of any kind.
+    """
+    census = facts.day_of_month_census
+    if not census or facts.low_tail is None or facts.high_tail is None:
+        return []
+    for note in said:
+        if note.fact == calendar_rules.DAY_OF_MONTH_CENSUS:
+            return []
+    low = taxonomy.tail_ordinal(
+        facts.low_tail.boundary, facts.tail_unit, facts.datetimes_read_at
+    )
+    high = taxonomy.tail_ordinal(
+        facts.high_tail.boundary, facts.tail_unit, facts.datetimes_read_at
+    )
+    per_day = 1
+    if facts.resolution == taxonomy.RESOLUTION_DATETIME:
+        if facts.tail_unit == parsing.TAIL_UNIT_MINUTE:
+            per_day = 1440
+        elif facts.tail_unit == parsing.TAIL_UNIT_SECOND:
+            per_day = 86400
+    empty = set(_published_holes(column, facts, declared_days))
+    where = calendar_rules.month_where(census)
+    found = [0 for _ in census]
+    on_holes = False
+    for cell in cells:
+        if _wears_a_published_hole(cell, holes):
+            continue
+        read = _instant_written(cell, facts)
+        if read is None:
+            continue
+        unit = taxonomy.tail_ordinal(read, facts.tail_unit, facts.datetimes_read_at)
+        if unit < low or unit > high:
+            continue
+        day = unit // per_day
+        if day in empty:
+            on_holes = True
+        group = where[calendar_rules.month_bin(day) - 1]
+        found[group] = found[group] + 1
+    if found == [count for _first, _last, count in census] and not on_holes:
+        return []
+    return [
+        _deviation(
+            column.name,
+            calendar_rules.DAY_OF_MONTH_CENSUS,
+            "the published groups",
+            "other counts",
+            _DAY_OF_MONTH_MISSED,
+        )
+    ]
 
 
 def _hour_settled(
@@ -22497,6 +22820,9 @@ def _datetime_content(
         body_low = layout.low.rows
         body_high = parsed - 1 - layout.high.rows
     cells: list[str] = []
+    # THE PUBLISHED GROUPS KEPT THROUGH THE SPELLING REPAIR (G7.3i, the
+    # Codex review of landing 3b.3, item 1).
+    repair = _day_repair_setup(column, facts, ordinals, holes, plan.declared_days)
     for rank in range(parsed):
         ordinal = ordinals[rank]
         offset = offsets[rank]
@@ -22548,6 +22874,16 @@ def _datetime_content(
                     (layout.body[min(layout.body)], layout.body[max(layout.body)])
                 ]
             for low, high in windows:
+                # THE RANK'S PUBLISHED GROUPS FIRST (G7.3i): the nearest
+                # day of the window keeping its day of the month's group
+                # and its weekday's, where the column publishes the census.
+                grouped = _day_repaired_cell(
+                    repair, facts, ordinal, (low, high),
+                    (offset, marks[rank], holes, whole[rank], spellings[rank]),
+                )
+                if grouped:
+                    kept = grouped
+                    break
                 found = ""
                 for away in range(1, len(holes) + 2):
                     for other in (ordinal - away, ordinal + away):
@@ -22589,6 +22925,11 @@ def _datetime_content(
     notes = notes + hour_notes
     notes = notes + clock_field_notes
     notes = notes + heavy_notes
+    # ...and the day-of-month census recounted on the cells as written
+    # (G7.3i, the Codex review of landing 3b.3, item 1).
+    notes = notes + _day_of_month_count_notes(
+        column, facts, cells, holes, plan.declared_days, notes
+    )
     used: dict[str, int] = {cell: 1 for cell in cells}
     for step in range(facts.n_unparsed):
         cells += [_take(_text_spelling(step + 1, used, holes), used)]

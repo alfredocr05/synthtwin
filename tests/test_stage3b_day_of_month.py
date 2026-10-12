@@ -62,6 +62,15 @@ THE GATE'S CLAUSES, each beside what turns it red:
   source edit: the reach rule at 10,000 rows, the hole rule, V5-W2's hole clause, the generator's
   deviation and its sentence, the NF102/NF103 choice and the publication guard's two kinds.
 
+* the Codex review (one round), each item red on a3c1b33: item 1, the census as written --
+  `test_the_spelling_repair_keeps_the_published_groups` (Codex's 1,200-row table, seeds 0, 2
+  and 3), `test_a_census_the_finished_cells_miss_is_named_and_said` (the recount, red with it
+  withdrawn), the eighteenth file's repair state and `test_each_clause_of_the_repair_moves_its_answer`;
+  item 2, the empty weekdays as a rule -- `test_the_empty_weekdays_grow_with_the_span_not_its_square`
+  and `test_the_day_pass_stores_no_empty_weekday_day`; item 3, rows and span apart --
+  `test_the_month_bins_keep_no_calendar_span` and `test_the_calendar_prior_is_the_walked_one`;
+  item 4, `test_nf104_says_a_possible_cost_or_a_conservative_rule`.
+
 A stated limit, pinned: `test_a_heap_beside_fewer_strays_than_the_line_cannot_stand_alone`
 -- 97 per cent on the 10th at a floor of 36 holds 30 other rows, fewer
 than the line, so the 10th shares its group (the dates that stand out
@@ -96,6 +105,7 @@ from synthtwin import (
     generation,
     parsing,
     profile,
+    reading,
     rendering,
     taxonomy,
     validation,
@@ -653,18 +663,42 @@ def _groups(census: "list[dict]") -> "tuple[tuple[int, int, int], ...]":
     return tuple((group["first"], group["last"], group["count"]) for group in census)
 
 
-def _answer(case: dict, module: types.ModuleType = generation) -> "list[int]":
-    """What the product makes of a case: both passes of `_day_passes`."""
+def _repaired(case: dict, module: types.ModuleType, monkeypatch: pytest.MonkeyPatch) -> "int | str | None":
+    """What the product makes of a state of the spelling repair (`_day_repaired_cell`): each
+    day's cell is the day's number, `hole` on the days whose cell wears an absent spelling (and
+    `hole` comes back where a mutant takes one)."""
+    monkeypatch.setattr(module, "_interior_cell", lambda facts, day, *rest: "hole" if day in case["spelled"] else str(day))
+    monkeypatch.setattr(module, "_is_a_hole_spelling", lambda text, holes: text == "hole")
+    weekdays = _groups(case["weekdays"])
+    repair = module._DayRepair(
+        month_where=calendar_rules.month_where(_groups(case["census"])),
+        week_where=calendar_rules.where_of(weekdays) if weekdays else (),
+        days=frozenset(case["holes"]),
+        word="",
+        widths=False,
+        ordinals=list(case["ordinals"]),
+    )
+    cell = module._day_repaired_cell(
+        repair, None, case["ordinals"][case["rank"]], tuple(case["window"]), ("", "", (), False, None)
+    )
+    if not cell:
+        return None
+    return int(cell) if cell.isdigit() else cell
+
+
+def _answer(case: dict, module: types.ModuleType = generation, monkeypatch: "pytest.MonkeyPatch | None" = None) -> "object":
+    """What the product makes of a case: both passes of `_day_passes`, or the day the spelling
+    repair moves its rank to."""
+    if case.get("repair"):
+        assert monkeypatch is not None
+        return _repaired(case, module, monkeypatch)
     weekdays = _groups(case["weekdays"])
     moved = list(case["ordinals"])
     module._day_passes(
         moved, list(case["lows"]), list(case["highs"]), list(case["pinned"]), tuple(case["body"]),
         case["wanted"], (_groups(case["census"]), weekdays),
-        (
-            None, "", False, frozenset(case["holes"]),
-            module._day_empty_weekdays(weekdays, case["span"][0], case["span"][1]),
-            case["reachable"],
-        ),
+        (None, "", False, frozenset(case["holes"]), frozenset(), case["reachable"]),
+        (module._day_empty_weekday_numbers(weekdays), case["span"][0], case["span"][1]),
     )
     return moved
 
@@ -687,6 +721,7 @@ CASES = (
     "day_of_month_business_billing",
     "day_of_month_form_hole",
     "day_of_month_month_end",
+    "day_of_month_repair",
     "day_of_month_tenth",
 )
 
@@ -704,10 +739,11 @@ MUTANTS = {
         "        body_low, body_high, pinned, wanted,\n    )\n",
         "",
     ),
-    # the days of the empty weekday groups, pass A's holes
+    # the days of the empty weekday groups, pass A's holes (read as a rule since the Codex
+    # review's item 2)
     "day_of_month_business_billing": (
-        "        holes=hole_days | emptied,\n",
-        "        holes=hole_days,\n",
+        "        empty_weekdays=empty[0],\n",
+        "",
     ),
     # the description's holes, in pass A
     "day_of_month_form_hole": (
@@ -718,6 +754,11 @@ MUTANTS = {
     "day_of_month_month_end": (
         "            state.month_bins[day] = calendar_rules.month_bin(day) - 1\n",
         "            state.month_bins[day] = min(parsing.civil_from_days(day)[2], 30) - 1\n",
+    ),
+    # the spelling repair's keep of the count of different days (the Codex review's item 1)
+    "day_of_month_repair": (
+        "            if free == alone:\n",
+        "            if True:\n",
     ),
     # pass B's keep of the day-of-month group
     "day_of_month_tenth": (
@@ -743,8 +784,13 @@ def test_the_product_gives_each_case_its_answer_and_its_mutant_another(name: str
     """Each state of ranks: the product's answer is the file's, both censuses are met, and under
     its own source edit the answer moves."""
     case = _FILE["cases"][name]
-    answer = _answer(case)
+    answer = _answer(case, generation, monkeypatch)
     assert answer == case["answer"], name
+    before, after = MUTANTS[name]
+    if case.get("repair"):
+        assert _answer(case, _mutant(monkeypatch, before, after), monkeypatch) != case["answer"], name
+        return
+    assert isinstance(answer, list)
     where = calendar_rules.month_where(_groups(case["census"]))
     found = [0] * len(case["census"])
     for day in answer:
@@ -752,7 +798,6 @@ def test_the_product_gives_each_case_its_answer_and_its_mutant_another(name: str
     assert found == [group["count"] for group in case["census"]], name
     for day in answer:
         assert day not in case["holes"], name
-    before, after = MUTANTS[name]
     assert _answer(case, _mutant(monkeypatch, before, after)) != case["answer"], name
 
 
@@ -1346,3 +1391,244 @@ def test_the_publication_guard_refuses_a_bin_off_the_cycle_and_a_count_below_the
                 block["day_of_month_census"][0][key] = value
         with pytest.raises(errors.ProfileError):
             profile.check_publication(changed)
+
+
+# -- the Codex review of landing 3b.3 -------------------------------------------------
+
+
+def _codex_table() -> str:
+    """Codex's item 1: 800 padded month-first dates on the 1st or the 15th over twenty years from
+    2010 and 400 copies of `1/1/2020`, beside 1,180 ISO dates and 20 cells of the declared missing
+    spelling `01/01/2020`."""
+    draw = random.Random(6)
+    start = datetime.date(2010, 1, 1)
+    first: "list[str]" = []
+    for _row in range(800):
+        day = start + datetime.timedelta(days=draw.randrange(7300))
+        day = day.replace(day=draw.choice([1, 15]))
+        first += [f"{day.month:02d}/{day.day:02d}/{day.year}"]
+    first += ["1/1/2020"] * 400
+    second = [(datetime.date(2021, 1, 1) + datetime.timedelta(days=step % 900)).isoformat() for step in range(1180)]
+    second += ["01/01/2020"] * 20
+    return _text({"a": first, "b": second})
+
+
+@pytest.fixture(scope="module")
+def codex_missing(tmp_path_factory: pytest.TempPathFactory) -> kpi_shapes.Described:
+    """Codex's item 1 table described at a floor of 11 with `01/01/2020` declared missing."""
+    folder = tmp_path_factory.mktemp("codex-missing")
+    table = fixtures.write(folder, "codex.csv", _codex_table())
+    settings = taxonomy.Settings(small_cell_floor=11, declared_missing_values=("01/01/2020",))
+    document = profile.build_document(reading.read_table(str(table), small_cell_floor=11), settings, [], [], [])
+    written = fixtures.write_profile(folder, "codex-profile.json", document)
+    return kpi_shapes.Described(folder, table, document, contract.load_profile(str(written)))
+
+
+def _spread_of(twin: generation.Twin, name: str) -> generation.Remark:
+    [said] = [remark for remark in twin.remarks if remark.column == name and remark.subject == generation._SPREAD_SUBJECT]
+    return said
+
+
+@pytest.mark.parametrize("seed", (0, 2, 3))
+def test_the_spelling_repair_keeps_the_published_groups(codex_missing: kpi_shapes.Described, seed: int) -> None:
+    """Codex's item 1 (High): the census [809, 0, 368, 0] is met by the day pass, and the spelling
+    repair then moved a 1st of January written `01/01/2020` to the 31st of December, so seeds 0,
+    2, 3, 5, 6, 8 and 9 came back [808, 0, 368, 1], V5-W2 MISSED, while generation named nothing
+    and said the counts were met. The repair now takes the nearest day keeping the rank's
+    published groups (`_day_repaired_cell`): V5-W2 holds and the sentence says met. Red on
+    a3c1b33."""
+    assert _census(codex_missing.block("a")) == ((1, 1, 809), (2, 14, 0), (15, 15, 368), (16, 34, 0))
+    missed = kpi_shapes.missed(kpi_shapes.measure(codex_missing, kpi_shapes.twin_text(codex_missing, seed), f"t{seed}.csv"))
+    assert "a:day_of_month_census.groups" not in missed, missed
+    twin = generation.generate(codex_missing.loaded, seed)
+    assert [d for d in twin.deviations if d.column == "a" and d.fact == "day_of_month_census"] == []
+    assert generation._SPREAD_DAY_OF_MONTH_MET in _spread_of(twin, "a").held
+
+
+def test_a_census_the_finished_cells_miss_is_named_and_said(codex_missing: kpi_shapes.Described, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Codex's item 1, the recount: with the repair moving cells as it did before (no day keeping
+    the groups), the finished cells miss the census at seed 0, and generation now names it
+    (`_day_of_month_count_notes`) and the sentence says missed, as V5-W2 does. Red on a3c1b33,
+    and red here with the recount withdrawn (nothing named, the sentence says met)."""
+    monkeypatch.setattr(generation, "_day_repaired_cell", lambda *args: "")
+    missed = kpi_shapes.missed(kpi_shapes.measure(codex_missing, kpi_shapes.twin_text(codex_missing, 0), "t0.csv"))
+    assert "a:day_of_month_census.groups" in missed, missed
+    twin = generation.generate(codex_missing.loaded, 0)
+    notes = [d.note for d in twin.deviations if d.column == "a" and d.fact == "day_of_month_census"]
+    assert notes == [generation._DAY_OF_MONTH_MISSED]
+    said = _spread_of(twin, "a")
+    assert generation._SPREAD_DAY_OF_MONTH_MISSED in said.note and generation._SPREAD_DAY_OF_MONTH_MET not in said.held
+    monkeypatch.setattr(generation, "_day_of_month_count_notes", lambda *args: [])
+    silent = generation.generate(codex_missing.loaded, 0)
+    assert [d for d in silent.deviations if d.column == "a" and d.fact == "day_of_month_census"] == []
+    assert generation._SPREAD_DAY_OF_MONTH_MET in _spread_of(silent, "a").held
+
+
+@pytest.mark.parametrize(
+    "before, after",
+    (
+        # the day-of-month group
+        ("            if repair.month_where[calendar_rules.month_bin(other) - 1] != month:\n", "            if False:\n"),
+        # the weekday group
+        ("            if repair.week_where and repair.week_where[calendar_rules.weekday_of(other)] != week:\n", "            if False:\n"),
+        # the holes
+        ("            if other < low or other > high or other in repair.days:\n", "            if other < low or other > high:\n"),
+        # the absent spellings
+        ("            if _is_a_hole_spelling(tried, holes):\n                continue\n            free =", "            free ="),
+    ),
+)
+def test_each_clause_of_the_repair_moves_its_answer(before: str, after: str, monkeypatch: pytest.MonkeyPatch) -> None:
+    """The repair's state in the eighteenth file under each other clause's source edit: the day
+    of the month's group, the weekday's, the holes and the absent spellings each turn the answer."""
+    case = _FILE["cases"]["day_of_month_repair"]
+    assert _answer(case, generation, monkeypatch) == case["answer"]
+    assert _answer(case, _mutant(monkeypatch, before, after), monkeypatch) != case["answer"]
+
+
+def _wide(shape: str, rows: int, first: int, last: int) -> "list[str]":
+    """Codex's items 2 and 3: ISO dates over years `first` to `last`, seven in ten on the 1st or
+    the 15th; `business`, no weekend day."""
+    draw = random.Random(3)
+    cells: "list[str]" = []
+    while len(cells) < rows:
+        year, month = draw.randint(first, last), draw.randint(1, 12)
+        length = calendar_rules.month_length(year, month)
+        day = datetime.date(year, month, draw.choice((1, 15)) if draw.random() < 0.7 else draw.randint(1, length))
+        if shape == "business" and day.weekday() >= 5:
+            continue
+        cells += [f"{day.year:04d}-{day.month:02d}-{day.day:02d}"]
+    return cells
+
+
+def _pass_a(described: kpi_shapes.Described, monkeypatch: pytest.MonkeyPatch) -> "tuple[generation._WeekdayPass, int, str]":
+    """Pass A's state, the generator's traced peak in bytes and the twin's text, at seed 0."""
+    import tracemalloc
+
+    states: "list[generation._WeekdayPass]" = []
+    passes = generation._day_passes
+
+    def captured(*args, **kwargs):  # type: ignore[no-untyped-def]
+        found = passes(*args, **kwargs)
+        states[:] = [found[0]]
+        return found
+
+    monkeypatch.setattr(generation, "_day_passes", captured)
+    tracemalloc.start()
+    try:
+        text = kpi_shapes.twin_text(described, 0)
+        _now, peak = tracemalloc.get_traced_memory()
+    finally:
+        tracemalloc.stop()
+    return states[0], peak, text
+
+
+def test_the_empty_weekdays_grow_with_the_span_not_its_square() -> None:
+    """Codex's item 2 (Medium), the calendar-span growth check: `found = found | {day}` copied
+    every day collected before it, 0.26, 1.02 and 3.98 CPU seconds over 40,000, 80,000 and
+    160,000 days on a3c1b33 (a span four times as long, fifteen times the work). Grown in place,
+    four times the span is at most eight times the work. Red on a3c1b33."""
+    import time
+
+    weekdays = ((0, 4, 5), (5, 6, 0))
+
+    def took(span: int) -> float:
+        best = math.inf
+        for _round in range(3):
+            start = time.perf_counter()
+            found = generation._day_empty_weekdays(weekdays, 0, span - 1)
+            best = min(best, time.perf_counter() - start)
+        assert len(found) == len([day for day in range(span) if (day + 3) % 7 >= 5])
+        return best
+
+    assert took(160000) < 8 * took(40000) + 0.01
+
+
+def test_the_day_pass_stores_no_empty_weekday_day(tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Codex's item 2: a 1,000-row business-day column over years 0001 to 2000, seven in ten on
+    the 1st or the 15th, publishes both censuses, its weekend empty, and its body asked 202,436
+    weekend holes, each collected by copying the ones before (20.49 billion entries). The pass
+    now reads the empty weekdays as a rule (`_WeekdayPass.empty_weekdays`) and never collects
+    them: the twin meets both censuses with no hole stored and a traced peak under 16 MB. Red on
+    a3c1b33, whose day pass asks `_day_empty_weekdays` over the whole span."""
+    described = kpi_shapes.describe(tmp_path, "wide", _text({"visit": _wide("business", 1000, 1, 2000)}), 11)
+    block = described.block("visit")
+    assert _census(block) != () and _weekdays(block)[-1] == (5, 6, 0)
+
+    def refused(*args: object) -> None:
+        raise AssertionError("the day pass collected the empty weekdays' days")
+
+    monkeypatch.setattr(generation, "_day_empty_weekdays", refused)
+    state, peak, text = _pass_a(described, monkeypatch)
+    assert state.holes == frozenset() and state.empty_weekdays == frozenset({5, 6})
+    assert peak < 16_000_000, peak
+    assert kpi_shapes.missed(kpi_shapes.measure(described, text, "t0.csv")) == []
+
+
+def test_the_month_bins_keep_no_calendar_span(tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Codex's item 3 (Medium), rows and span measured apart: on a3c1b33 a 1,000-row column over
+    years 0001 to 2000, seven in ten on the 1st or the 15th, every weekday group non-zero, kept
+    713,670 days in `month_bins` (85.7 MB traced peak) against 35,678 for 1,000 rows over 1901 to
+    2000: pass A's prior asked every day of every gap. The prior is now counted by the calendar
+    past `_MONTH_DAY_WALKED` days and the memo holds at most `_MONTH_BINS_HELD`: the same rows
+    over twenty times the span keep no more than twice the peak, and the twin is the same with
+    the memo cut to 64 days. Red on a3c1b33."""
+    peaks = {}
+    kept = {}
+    for first in (1901, 1):
+        described = kpi_shapes.describe(tmp_path / str(first), "wide", _text({"visit": _wide("plain", 1000, first, 2000)}), 11)
+        assert _census(described.block("visit")) != ()
+        state, peaks[first], text = _pass_a(described, monkeypatch)
+        kept[first] = len(state.month_bins)
+    assert peaks[1] < 2 * peaks[1901] + 1_000_000, (peaks, kept)
+    assert max(kept.values()) <= generation._MONTH_BINS_HELD, kept
+    monkeypatch.setattr(generation, "_MONTH_BINS_HELD", 64)
+    assert _pass_a(described, monkeypatch)[2] == text
+
+
+def test_the_calendar_prior_is_the_walked_one() -> None:
+    """Codex's items 2 and 3: the prior counted by the calendar, with the empty weekdays read as a
+    rule, gives every gap the shares the walk over stated holes gives -- gaps of one day, gaps
+    ending on a hole or on an empty weekday, gaps across leap years and centuries."""
+    draw = random.Random(368)
+    census = ((1, 1, 30), (2, 14, 0), (15, 15, 20), (16, 30, 11), (31, 34, 12))
+    where = calendar_rules.month_where(census)
+    low, high = parsing.days_from_civil(1890, 3, 1), parsing.days_from_civil(2110, 2, 27)
+    holes = frozenset(draw.randrange(low, high) for _ in range(300))
+    emptied = frozenset(day for day in range(low, high + 1) if (day + 3) % 7 in (5, 6))
+
+    def state(stated: "frozenset[int]", empty: "frozenset[int]") -> generation._WeekdayPass:
+        return generation._WeekdayPass(
+            moved=[], held={}, where=where, facts=None, word="", widths=False, kinds={},  # type: ignore[arg-type]
+            holes=stated, lows=[], highs=[], keep_units=False, bins="month_day", period=0,
+            empty_weekdays=empty, empty_low=low, empty_high=high,
+        )
+
+    walked = state(holes | emptied, frozenset())
+    counted = state(holes, frozenset({5, 6}))
+    gaps = [(day, day) for day in (low, high, min(holes), min(emptied))]
+    gaps += [(min(holes), min(holes) + 3000), (low - 40, low + 5), (low, high)]
+    for _gap in range(12):
+        first = draw.randrange(low - 100, high)
+        gaps += [(first, min(high + 100, first + draw.choice((2, 30, 1500, 40000))))]
+    for first, last in gaps:
+        assert generation._weekday_prior(counted, first, last, len(census)) == generation._weekday_prior(
+            walked, first, last, len(census)
+        ), (first, last)
+
+
+def test_nf104_says_a_possible_cost_or_a_conservative_rule(tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Codex's item 4 (Medium): four Mays 2021 to 2024, 1,000 rows, source seed 1604, two in five
+    moved to the 1st or the 15th, a floor of 36: the few-dates rule withholds the census, and
+    NF104 said counting the days WOULD cost the twin its count of different values or its
+    weekday counts. With that rule alone set aside the census publishes 12 groups the twins meet
+    with nothing missed, so the rule is a conservative exclusion, not an established loss, and
+    NF104 now says so. Red on a3c1b33."""
+    said = taxonomy.rendered(taxonomy.NOTE_DAY_OF_MONTH_WITHHELD, ())
+    assert "would cost" not in said
+    assert "could cost" in said and "conservative rule" in said and "too few different dates" in said
+    cells = _mays(range(2021, 2025), 1000, 1604, 1.0)
+    monkeypatch.setattr(calendar_rules, "few_month_dates", lambda *args: False)
+    described = kpi_shapes.describe(tmp_path, "mays", _text({"visit": cells}), 36)
+    assert len(_census(described.block("visit"))) == 12
+    for seed in (0, 1):
+        assert kpi_shapes.missed(kpi_shapes.measure(described, kpi_shapes.twin_text(described, seed), f"t{seed}.csv")) == []

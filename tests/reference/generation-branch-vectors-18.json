@@ -1546,6 +1546,55 @@
       "weekdays": [],
       "why": "Month ends from January to May 2024 -- the 31st of January, March and May, the 29th of February and the 30th of April -- beside thirty days spread five apart. The census counts days 1 to 27, the 28th to the 30th where they are not the last, and the last day of a 29-, 30- and 31-day month, so a rank put on the month's end goes to that month's own last day."
     },
+    "day_of_month_repair": {
+      "answer": 19997,
+      "census": [
+        {
+          "count": 2,
+          "first": 1,
+          "last": 1
+        },
+        {
+          "count": 4,
+          "first": 2,
+          "last": 34
+        }
+      ],
+      "holes": [
+        19844
+      ],
+      "ordinals": [
+        19787,
+        19814,
+        19884,
+        19905,
+        19955,
+        20038
+      ],
+      "rank": 3,
+      "repair": true,
+      "spelled": [
+        19905,
+        19936
+      ],
+      "weekdays": [
+        {
+          "count": 6,
+          "first": 0,
+          "last": 4
+        },
+        {
+          "count": 0,
+          "first": 5,
+          "last": 6
+        }
+      ],
+      "why": "A rank alone on Monday 1 July 2024, its cell wearing an absent spelling, moves to the nearest day of its window that keeps its day-of-month group (the 1st alone) and its weekday group (Monday to Friday), is no hole and writes no absent spelling, a day no rank holds as it was alone: not the 2nd (another group), 1 June (a Saturday), 1 August (its cell absent too), 1 May (a hole) or 1 April (held), but 1 October.",
+      "window": [
+        19723,
+        20088
+      ]
+    },
     "day_of_month_tenth": {
       "answer": [
         19725,
@@ -1832,5 +1881,5 @@
     "numpy",
     "pandas"
   ],
-  "what": "The states of ranks counted in days method section G7.3i's joint day plan (landing 3b.3, plan P4-D368) is frozen on, each with the answer computed from the method's text: every rank's day after pass A, G7.3f over the day-of-month census's thirty-four bins with the days of the weekday groups counted nought added to the holes, and pass B, G7.3f over the weekday census keeping each rank's day-of-month group. A case states its ranks, their gaps and pins, the body, the span between the two boundaries, the count of different days to keep where it is reachable, the two censuses (bins from 1, weekdays from Monday nought) and the holes."
+  "what": "The states of ranks counted in days method section G7.3i's joint day plan (landing 3b.3, plan P4-D368) is frozen on, each with the answer computed from the method's text: every rank's day after pass A, G7.3f over the day-of-month census's thirty-four bins with the days of the weekday groups counted nought added to the holes, and pass B, G7.3f over the weekday census keeping each rank's day-of-month group. A case states its ranks, their gaps and pins, the body, the span between the two boundaries, the count of different days to keep where it is reachable, the two censuses (bins from 1, weekdays from Monday nought) and the holes. A state marked `repair` is the spelling repair's (the Codex review of landing 3b.3, item 1): the ranks' days, the rank whose cell wears an absent spelling, its window, the days whose cell for it wears one (`spelled`), the censuses and the holes; its answer is the day the rank takes keeping its published groups, or null."
 }

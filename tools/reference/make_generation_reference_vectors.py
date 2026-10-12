@@ -14247,18 +14247,88 @@ def day_form_hole_case():
     )
 
 
+def day_repair_case():
+    """The spelling repair keeping the published groups (the Codex review of
+    landing 3b.3, item 1): a rank alone on Monday 1 July 2024 whose cell
+    wears an absent spelling, the 1st its own group and Monday to Friday
+    one weekday group."""
+    ordinals = day_dates(
+        (2024, 3, 5), (2024, 4, 1), (2024, 6, 10), (2024, 7, 1), (2024, 8, 20), (2024, 11, 11),
+    )
+    return {
+        "why": "A rank alone on Monday 1 July 2024, its cell wearing an absent spelling, moves "
+        "to the nearest day of its window that keeps its day-of-month group (the 1st alone) and "
+        "its weekday group (Monday to Friday), is no hole and writes no absent spelling, a day "
+        "no rank holds as it was alone: not the 2nd (another group), 1 June (a Saturday), 1 "
+        "August (its cell absent too), 1 May (a hole) or 1 April (held), but 1 October.",
+        "repair": True,
+        "ordinals": ordinals,
+        "rank": 3,
+        "window": day_dates((2024, 1, 1), (2024, 12, 31)),
+        "spelled": day_dates((2024, 7, 1), (2024, 8, 1)),
+        "census": day_census_of(ordinals, [1, 2]),
+        "weekdays": day_census_of(ordinals, [0, 5], 7, day_weekday_of),
+        "holes": day_dates((2024, 5, 1)),
+    }
+
+
+def day_repaired(case):
+    """G7.3i's spelling repair, from the method's text (the Codex review of
+    landing 3b.3, item 1): the day a rank whose cell wears an absent
+    spelling moves to, or None. Of the days at most 400 away inside its
+    window, no hole, in its day-of-month group and its weekday group,
+    whose cell wears no absent spelling, nearest first and the earlier
+    first at one distance: the first no rank holds where the rank is alone
+    on its day, the first a rank holds where it shares it, else the
+    first."""
+    days = case["ordinals"]
+    origin = days[case["rank"]]
+    low, high = case["window"]
+    group_of_bin = month_groups_of(case["census"])
+    group_of_weekday = [0] * 7
+    for index, group in enumerate(case["weekdays"]):
+        for weekday in range(group["first"], group["last"] + 1):
+            group_of_weekday[weekday] = index
+
+    def keeps(day):
+        return (
+            low <= day <= high
+            and day not in case["holes"]
+            and day not in case["spelled"]
+            and group_of_bin[month_bin(day) - 1] == group_of_bin[month_bin(origin) - 1]
+            and (
+                not case["weekdays"]
+                or group_of_weekday[(day + 3) % 7] == group_of_weekday[(origin + 3) % 7]
+            )
+        )
+
+    found = sorted(
+        (day for day in range(origin - 400, origin + 401) if day != origin and keeps(day)),
+        key=lambda day: (abs(day - origin), day),
+    )
+    alone = days.count(origin) <= 1
+    for day in found:
+        if (days.count(day) == 0) == alone:
+            return day
+    return found[0] if found else None
+
+
 DAY_STEP_CASES = {
     "day_of_month_billing": day_billing_case,
     "day_of_month_births_dip": day_births_case,
     "day_of_month_business_billing": day_business_billing_case,
     "day_of_month_form_hole": day_form_hole_case,
     "day_of_month_month_end": day_month_end_case,
+    "day_of_month_repair": day_repair_case,
     "day_of_month_tenth": day_tenth_case,
 }
 
 
 def day_answer(case):
-    """What G7.3i's text makes of one state: every rank's day after both passes."""
+    """What G7.3i's text makes of one state: every rank's day after both
+    passes, or, for a state of the spelling repair, the day its rank takes."""
+    if case.get("repair"):
+        return day_repaired(case)
     pinned = case["pinned"]
     return day_passes(
         case["ordinals"], case["lows"], case["highs"], pinned, case["body"][0], case["body"][1],
@@ -14282,7 +14352,11 @@ def day_step_document():
         "and pass B, G7.3f over the weekday census keeping each rank's day-of-month group. A "
         "case states its ranks, their gaps and pins, the body, the span between the two "
         "boundaries, the count of different days to keep where it is reachable, the two "
-        "censuses (bins from 1, weekdays from Monday nought) and the holes.",
+        "censuses (bins from 1, weekdays from Monday nought) and the holes. A state marked "
+        "`repair` is the spelling repair's (the Codex review of landing 3b.3, item 1): the "
+        "ranks' days, the rank whose cell wears an absent spelling, its window, the days whose "
+        "cell for it wears one (`spelled`), the censuses and the holes; its answer is the day "
+        "the rank takes keeping its published groups, or null.",
         "generated_by": "tools/reference/make_generation_reference_vectors.py",
         "method": "docs/spec/generation-method-v1.md",
         "never_imports": ["synthtwin", "numpy", "pandas"],

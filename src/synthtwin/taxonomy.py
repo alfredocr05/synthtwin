@@ -2105,10 +2105,12 @@ def rendered(form: str, arguments: "tuple[object, ...]") -> str:
     if form == NOTE_DAY_OF_MONTH_WITHHELD:
         return (
             "the days of the month this column's values fall on are not "
-            "counted, though they depart from the calendar: counting them "
-            "would cost the twin its count of different values or its "
-            "counts per weekday, the column's middle half spans too few "
-            "months for them, or some of its dates fall on days the "
+            "counted, though they depart from the calendar, because "
+            "counting them could cost the twin its count of different "
+            "values or its counts per weekday, or because a conservative "
+            "rule keeps them back: the column's middle half spans too few "
+            "months, a day of the month holds its rows on too few "
+            "different dates, or some of its dates fall on days the "
             "description holds empty"
         )
     # anchor 3b-D4 (P4-D369)

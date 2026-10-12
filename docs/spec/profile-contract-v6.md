@@ -4024,7 +4024,11 @@ carries one remark: NF102 where every group that holds rows is one bin,
 NF103 where some neighbouring bins are counted together. A census the
 day of the month asks for -- it departs as the rule of 6.6.2 says --
 but the producer keeps back carries one publication note, NF104, which
-names no rule: a body day on a published hole, a middle half spanning
+names no rule and claims no established loss -- counting the days could
+cost the count of different values or the counts per weekday, or a
+conservative rule keeps the census back (the Codex review of landing
+3b.3, item 4: four Mays at a floor of 36 withheld by the few-dates rule
+publish twelve groups every twin meets once the rule is set aside): a body day on a published hole, a middle half spanning
 fewer than 124 days (DM4), a group holding rows on fewer than four
 different dates unless it counts only a month's last day and holds rows
 on every one its calendar offers, the two censuses
@@ -4043,7 +4047,7 @@ NF102 and NF103 take one argument, the census line; NF104 none.
 
 **NF104. `day_of_month_census_withheld` — why a column of dates publishes no day-of-month census** — arity 0.
 
-> the days of the month this column's values fall on are not counted, though they depart from the calendar: counting them would cost the twin its count of different values or its counts per weekday, the column's middle half spans too few months for them, or some of its dates fall on days the description holds empty
+> the days of the month this column's values fall on are not counted, though they depart from the calendar, because counting them could cost the twin its count of different values or its counts per weekday, or because a conservative rule keeps them back: the column's middle half spans too few months, a day of the month holds its rows on too few different dates, or some of its dates fall on days the description holds empty
 
 <!-- anchor 3b-D4 (P4-D369) -->
 <!-- anchor 3b-T1 (P4-D370) -->
