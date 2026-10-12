@@ -152,6 +152,157 @@
       "why": "The exchange off midnight, first answer: hours 0 and 1 one kin group, so the rank at 00:00 takes 01:00, minute 0 on the other hour of its kin group, and no rank is exchanged.",
       "written_unit": 60
     },
+    "field_exchange_put_back": {
+      "answer": [
+        1709509800,
+        1709511600,
+        1709514000,
+        1709514000,
+        1709525400
+      ],
+      "anyday": false,
+      "body": [
+        0,
+        4
+      ],
+      "counts": [
+        3,
+        2
+      ],
+      "field_unit": 60,
+      "highs": [
+        1709509800,
+        1709525400,
+        1709525400,
+        1709525400,
+        1709525400
+      ],
+      "holes": [],
+      "kin": [
+        0,
+        0,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1
+      ],
+      "lows": [
+        1709509800,
+        1709509800,
+        1709509800,
+        1709509800,
+        1709525400
+      ],
+      "ordinals": [
+        1709509800,
+        1709510400,
+        1709511600,
+        1709511600,
+        1709525400
+      ],
+      "pinned": [
+        true,
+        false,
+        false,
+        false,
+        true
+      ],
+      "published": null,
+      "reachable": true,
+      "standing": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6
+      ],
+      "step": "field",
+      "wanted": 4,
+      "where": [
+        1,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "why": "PUT BACK once more after the exchange: the heap at minute 0 counting 2, the rest 3, hours 0 and 1 one kin group. The pass moves one rank of the pair at 00:20 onto 00:00, held; the exchange takes it off midnight to 01:00, one value too many; PUT BACK merges the rank at 00:00 onto 01:00, its kin group's, and the count of different values is the one drawn.",
+      "written_unit": 60
+    },
     "field_exchange_stays": {
       "answer": [
         1709509800,
@@ -438,6 +589,52 @@
       "step": "floor",
       "unit": 3600,
       "why": "A draw laid on a drawing unit of an hour: floored where the floor is inside the gap, the next hour where the floor falls below it, the draw itself where no hour lies inside."
+    },
+    "field_midnight_narrow": {
+      "answer": [
+        1709510400,
+        1709542800,
+        1709596800,
+        1709683260,
+        1709686800
+      ],
+      "away": 3600,
+      "body": [
+        1,
+        2
+      ],
+      "counted": 2,
+      "highs": [
+        0,
+        0,
+        0,
+        1709685960,
+        0
+      ],
+      "lows": [
+        0,
+        0,
+        0,
+        1709683200,
+        0
+      ],
+      "ordinals": [
+        1709510400,
+        1709542800,
+        1709596800,
+        1709683200,
+        1709686800
+      ],
+      "pinned": [
+        true,
+        false,
+        false,
+        false,
+        true
+      ],
+      "step": "midnight_count",
+      "why": "The tails keep the count at midnight in a stratum narrower than the drawing unit: three ranks at a written midnight where two are published; the tail rank at one, rank 3, drawn on the hour, has 46 minutes after it and none before, so it steps one written unit, a minute, later.",
+      "written_unit": 60
     },
     "field_midnight_tails": {
       "answer": [

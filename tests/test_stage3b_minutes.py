@@ -895,6 +895,16 @@ STEP_MUTANTS = {
         "        if at > counted and here:\n            if moved[rank] + away <= gap_highs[rank]:",
         "        if False:\n            if moved[rank] + away <= gap_highs[rank]:",
     ),
+    "no PUT BACK after the exchange": (
+        "field_exchange_put_back",
+        "    for last_resort in (False, True):\n        if state.keep_units and _weekday_count(state) > wanted and",
+        "    for last_resort in ():\n        if state.keep_units and _weekday_count(state) > wanted and",
+    ),
+    "a narrow stratum keeps its midnight": (
+        "field_midnight_narrow",
+        "            elif moved[rank] + step <= gap_highs[rank]:\n                # A STRATUM",
+        "            elif False:\n                # A STRATUM",
+    ),
     "a draw laid on no unit": (
         "field_floor",
         "    floored = value - value % unit\n    if floored >= low:\n        return floored",

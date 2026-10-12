@@ -26870,7 +26870,9 @@ def _clock_field_settled(
     G7.3g's one clock pass over the field's state (`_clock_pass`), its
     state asking no count step of G7.3f (`_WeekdayPass.count_steps`); then
     the EXCHANGE OFF MIDNIGHT for the ranks it left at a written midnight
-    (`_clock_off_midnight_exchanged`); SUBSTITUTE where the count of
+    (`_clock_off_midnight_exchanged`); G7.3g's PUT BACK once more where
+    the exchange left the count long and it is reachable
+    (`_clock_count_put_back`); SUBSTITUTE where the count of
     different values is still long and the column's count is reachable
     (`_clock_split_substituted`); and SPREAD where it is still short and
     the count is reachable or the count drawn is not above the published
@@ -26885,6 +26887,17 @@ def _clock_field_settled(
         published=published,
     )
     _clock_off_midnight_exchanged(state, before, body_low, body_high, pinned, kin)
+    # PUT BACK ONCE MORE where the exchange left the count long: G7.3g step
+    # 6's merges, keeping the day standing, then, where no weekday census
+    # stands, onto a day of another weekday. A column on the hour beside
+    # three cells off it, at 10,000 rows and a floor of 36, had 62 ranks
+    # moved onto a midnight by the pass, and the exchange that took them
+    # off it wrote one value more than the column publishes.
+    for last_resort in (False, True):
+        if state.keep_units and _weekday_count(state) > wanted and (anyday or not last_resort):
+            _clock_count_put_back(
+                state, body_low, body_high, pinned, wanted, standing, last_resort, kin
+            )
     if state.keep_units and _weekday_count(state) > wanted:
         _clock_split_substituted(
             state, body_low, body_high, pinned, wanted, standing, anyday, kin
@@ -26918,7 +26931,8 @@ def _clock_midnight_count_kept(
     published count. So, the census kept, the tails give way: while the
     column holds more ranks at a written midnight than it publishes, the
     first unpinned tail rank at one steps off it by its drawing unit
-    inside its stratum (`_midnight_step_of`); while it holds fewer, the
+    inside its stratum (`_midnight_step_of`) -- by the written unit where
+    its stratum is narrower than that; while it holds fewer, the
     first unpinned tail rank off one takes the nearest midnight inside its
     stratum. The body is not moved. Each tail's ranks are then sorted.
     `pinned` names the ranks that never move, `step` is the written unit
@@ -26941,6 +26955,16 @@ def _clock_midnight_count_kept(
                 at = at - 1
             elif moved[rank] - away >= gap_lows[rank]:
                 moved[rank] = moved[rank] - away
+                at = at - 1
+            elif moved[rank] + step <= gap_highs[rank]:
+                # A STRATUM NARROWER THAN THE DRAWING UNIT: a step of the
+                # written unit -- the last day of a column on the hour at
+                # 10,000 rows and a floor of 36 held its tail's midnight in
+                # 92 minutes, and its twin one value at midnight too many.
+                moved[rank] = moved[rank] + step
+                at = at - 1
+            elif moved[rank] - step >= gap_lows[rank]:
+                moved[rank] = moved[rank] - step
                 at = at - 1
         elif at < counted and not here:
             found = _nearest_midnight(moved[rank], 0, gap_lows[rank], gap_highs[rank])

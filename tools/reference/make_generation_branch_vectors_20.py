@@ -6,8 +6,9 @@ It asks `make_generation_reference_vectors.py` for the states landing
 clock pass on a field of minutes and on a field of seconds with their
 heaps and their kin groups, the exchange off a written midnight (its
 first answer in the kin group, a swap with a lone rank, and a rank that
-stays), SUBSTITUTE, SPREAD and the tails keeping the count at midnight
--- and the drawing units G7.3's drawing rule gives: a half-hour grid, a
+stays), PUT BACK once more after it, SUBSTITUTE, SPREAD and the tails
+keeping the count at midnight, in a stratum narrower than their drawing
+unit by the written unit -- and the drawing units G7.3's drawing rule gives: a half-hour grid, a
 column on the hour, a column whose seconds alone are pinned and one
 census group holding minute 0; and a draw laid on its unit: each with
 what the method's text makes of it.

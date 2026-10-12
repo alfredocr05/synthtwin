@@ -7449,7 +7449,14 @@ pass, for the field:
    each take the free place of the ranks' old group on its own parent
    inside its gap; where they fall short, every run goes back and the
    next place is asked.
-2. *SUBSTITUTE*, where the count of different written units is still
+2. *PUT BACK once more*, where the exchange left the count of different
+   written units long and the column's count is reachable: G7.3g's PUT
+   BACK, its merges keeping the day standing first and, where no weekday
+   census stands, its last resort. A pass that moved one rank of a tied
+   pair onto a held midnight kept the count; the exchange that took it
+   off wrote one value more (a column on the hour beside three cells off
+   it, at 10,000 rows and a floor of 36).
+3. *SUBSTITUTE*, where the count of different written units is still
    long and the column's count is reachable: each run in rank order joins
    a unit another rank holds in another group G of the field, inside its
    gap and at no written midnight, on its own parent, else on another
@@ -7460,13 +7467,13 @@ pass, for the field:
    step 1. Each pair puts back one unit. A group, a parent's place in
    the day and a gap whose search found no unit to join are not asked
    again.
-3. *SPREAD*, where the count is still short and reachable, or the count
+4. *SPREAD*, where the count is still short and reachable, or the count
    drawn is not above the published one: each rank sharing its written
    unit, in rank order, takes the free place of its own group nearest its
    own on its parent, else the escape's (G7.3g step 3) in its own group;
    a group, a parent's place in the day and a gap that found none are
    not asked again.
-4. Each run of unpinned ranks is sorted.
+5. Each run of unpinned ranks is sorted.
 
 Where a field's groups still do not hold, one deviation names its census.
 Last, where the column publishes its count at midnight -- or withholds it
@@ -7474,14 +7481,16 @@ for its size, and so still owes the count it held before these passes
 (plan P4-D191) -- THE TAILS KEEP IT:
 while more ranks than it stand at a written midnight, the first unpinned
 tail rank at one steps off it by its tail's drawing unit inside its
-stratum; while fewer, the first unpinned tail rank off one takes the
+stratum, or by the written unit where the stratum is narrower than that;
+while fewer, the first unpinned tail rank off one takes the
 nearest midnight inside its stratum; each tail's ranks are then sorted.
 
 **Its frozen cases** are states of ranks and drawing units: the twentieth
 vectors file, `tests/reference/generation-branch-vectors-20.json`, holds
-fourteen -- the pass on a field of minutes with heaps and on a field of
+fifteen -- the pass on a field of minutes with heaps and on a field of
 seconds with a kin group of minutes, the exchange's three answers,
-SUBSTITUTE, SPREAD, the tails keeping the count at midnight, a draw laid
+PUT BACK once more after it, SUBSTITUTE, SPREAD, the tails keeping the count at midnight by their
+drawing unit and, in a stratum narrower than it, by the written unit, a draw laid
 on its unit, and the drawing units of a half-hour grid, a column on the
 hour, a column whose seconds alone are pinned and one census group
 holding minute 0 -- each with the answer this section gives it.

@@ -11145,12 +11145,16 @@ def clock_short_spread(walk, first, last, pinned, wanted, standing, anyday=False
 
 def clock_field_settled(walk, first, last, pinned, wanted, standing, anyday, kin, reachable, published=None):
     """G7.3h for one field: the clock pass, then the exchange off midnight,
-    SUBSTITUTE where the count is still long and reachable, and SPREAD where
+    G7.3g's PUT BACK once more where the exchange left the count long and it
+    is reachable, SUBSTITUTE where the count is still long and reachable, and SPREAD where
     it is still short and reachable or drawn no higher than published; each
     run of unpinned ranks sorted last."""
     before = [written_at_midnight(value, 0, walk.step) for value in walk.days]
     clock_pass(walk, first, last, pinned, wanted, standing, False, reachable, anyday, kin, published=published)
     clock_off_midnight_exchanged(walk, before, first, last, pinned, kin)
+    for last_resort in (False, True):
+        if reachable and walk.different() > wanted and (anyday or not last_resort):
+            clock_put_back(walk, first, last, pinned, wanted, standing, last_resort, kin)
     if reachable and walk.different() > wanted:
         clock_split_substituted(walk, first, last, pinned, wanted, standing, anyday, kin)
     if walk.different() < wanted and (reachable or published is None or wanted <= published):
@@ -11162,8 +11166,8 @@ def clock_field_settled(walk, first, last, pinned, wanted, standing, anyday, kin
 def clock_midnight_count_kept(counted, ordinals, pinned, first, last, step, away, lows, highs):
     """G7.3h: the published count at midnight kept by the tails. While more
     ranks than it stand at a written midnight, the first unpinned tail rank
-    at one steps ``away`` -- its drawing unit -- off it inside its stratum;
-    while fewer, the first unpinned tail rank off one takes the nearest
+    at one steps ``away`` -- its drawing unit -- off it inside its stratum,
+    or ``step`` -- the written unit -- where the stratum is narrower; while fewer, the first unpinned tail rank off one takes the nearest
     midnight inside its stratum. Each tail's ranks are then sorted."""
     parsed = len(ordinals)
     at = sum(1 for value in ordinals if written_at_midnight(value, 0, step))
@@ -11179,6 +11183,12 @@ def clock_midnight_count_kept(counted, ordinals, pinned, first, last, step, away
                 at -= 1
             elif ordinals[rank] - away >= lows[rank]:
                 ordinals[rank] -= away
+                at -= 1
+            elif ordinals[rank] + step <= highs[rank]:
+                ordinals[rank] += step
+                at -= 1
+            elif ordinals[rank] - step >= lows[rank]:
+                ordinals[rank] -= step
                 at -= 1
         elif at < counted and not here:
             found = nearest_midnight(ordinals[rank], 0, lows[rank], highs[rank])
@@ -16691,6 +16701,22 @@ def field_exchange_kin_case():
     )
 
 
+def field_exchange_put_back_case():
+    m = HOUR_MONDAY
+    ordinals = [
+        hour_at(m - 1, 23, 50), hour_at(m, 0, 0), hour_at(m, 0, 20), hour_at(m, 0, 20),
+        hour_at(m, 4, 10),
+    ]
+    return field_case(
+        "PUT BACK once more after the exchange: the heap at minute 0 counting 2, the rest "
+        "3, hours 0 and 1 one kin group. The pass moves one rank of the pair at 00:20 onto "
+        "00:00, held; the exchange takes it off midnight to 01:00, one value too many; "
+        "PUT BACK merges the rank at 00:00 onto 01:00, its kin group's, and the count "
+        "of different values is the one drawn.",
+        "field", ordinals, {0, 4}, [3, 2], HEAP_ZERO, 60, kin=[0, 0] + [1] * 22,
+    )
+
+
 def field_substitute_case():
     m = HOUR_MONDAY
     ordinals = [
@@ -16736,6 +16762,24 @@ def field_midnight_tails_case():
     }
 
 
+def field_midnight_narrow_case():
+    m = HOUR_MONDAY
+    return {
+        "why": "The tails keep the count at midnight in a stratum narrower than the drawing "
+        "unit: three ranks at a written midnight where two are published; the tail rank at "
+        "one, rank 3, drawn on the hour, has 46 minutes after it and none before, so it "
+        "steps one written unit, a minute, later.",
+        "step": "midnight_count", "ordinals": [
+            hour_at(m, 0, 0), hour_at(m, 9, 0), hour_at(m + 1, 0, 0), hour_at(m + 2, 0, 0),
+            hour_at(m + 2, 1, 0),
+        ],
+        "pinned": [True, False, False, False, True], "body": [1, 2], "counted": 2,
+        "written_unit": 60, "away": 3600,
+        "lows": [0] * 3 + [hour_at(m + 2, 0, 0), 0],
+        "highs": [0] * 3 + [hour_at(m + 2, 0, 0) + 46 * 60, 0],
+    }
+
+
 def field_lattice_case(why, precision, minute_census, minute_heaps, second_census, second_heaps, texts):
     return {
         "why": why, "step": "lattice", "precision": precision,
@@ -16760,9 +16804,11 @@ CLOCK_FIELD_STEP_CASES = {
     "field_exchange_stays": field_exchange_case,
     "field_exchange_swap": field_exchange_swap_case,
     "field_exchange_kin": field_exchange_kin_case,
+    "field_exchange_put_back": field_exchange_put_back_case,
     "field_substitute": field_substitute_case,
     "field_spread": field_spread_case,
     "field_midnight_tails": field_midnight_tails_case,
+    "field_midnight_narrow": field_midnight_narrow_case,
     "field_floor": field_floor_case,
     "lattice_half_hour": lambda: field_lattice_case(
         "A half-hour grid written to the minute: heaps at minutes 0 and 30 and no census, "
