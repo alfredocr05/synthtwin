@@ -17919,15 +17919,113 @@ def _clock_field_checks(
     cells: "list[str]",
     declared_days: "tuple[str, ...]" = (),
 ) -> "list[Check]":
-    """The minute and second censuses and heaps, held exactly.
+    """The minute and second censuses and heaps, held exactly (landing 3b.4,
+    validation V5-M1 and V5-S1).
 
-    THE STUB OF LANDING 3b.4 (lane T3, plan P4-D372), which fills this
-    check and nothing beside it (plan P4-D364); nothing to check until
-    then.
+    The file's own BODY, as V5-H1 reads it (`_hour_checks`): its moments
+    between the two PUBLISHED tail boundaries, both included, less the
+    days its own description reads as holes, each read under the member
+    that read the real column and on its published face, placed by its
+    instant and counted at the minute and second it is WRITTEN at
+    (`calendar_clock.written_minute`, `calendar_clock.written_second`: a
+    sixtieth second in its own minute, at second 59). Per field one check:
+    each heap's value and each census group's values off the heaps,
+    HELD where every one holds its count, MISSED otherwise; printed
+    through `_census_lines` (plan P4-D347), so no count below the line is
+    printed beside the others. The file's censuses are counted here and
+    never produced (`profile.build_document`'s `calendar_censuses`).
 
-    Guarantees: as `_hour_checks`. No I/O of any kind.
+    Guarantees: accepts what `_weekday_checks` accepts; returns one check
+    per field publishing a census or heaps, none otherwise. Determinism:
+    a function of the arguments. Raises nothing. No I/O of any kind.
     """
-    return []
+    published = [
+        (calendar_clock.MINUTE, facts.minute_census, facts.minute_heaps),
+        (calendar_clock.SECOND, facts.second_census, facts.second_heaps),
+    ]
+    if facts.low_tail is None or facts.high_tail is None:
+        return []
+    if not any(census or heaps for _field, census, heaps in published):
+        return []
+    low = calendar_clock.seconds_of(facts.low_tail.boundary)
+    high = calendar_clock.seconds_of(facts.high_tail.boundary)
+    body = [
+        texts
+        for instant, texts in _clock_field_instants_of(
+            facts, _dates_the_file_reads(block, facts, cells)
+        )
+        if low <= instant <= high
+    ]
+    line = parsing.census_floor(floor)
+    checks: "list[Check]" = []
+    for field, census, heaps in published:
+        if not census and not heaps:
+            continue
+        place = 0 if field == calendar_clock.MINUTE else 1
+        bins = calendar_clock.field_bins([fields[place] for fields in body])
+        named: "list[tuple[str, int]]" = []
+        found: "list[int]" = []
+        heap_values = {value for value, _count in heaps}
+        for value, count in heaps:
+            named += [(_clock_field_value_named(field, value, value), count)]
+            found += [bins[value]]
+        for first, last, count in census:
+            named += [(_clock_field_value_named(field, first, last), count)]
+            found += [
+                sum(bins[value] for value in range(first, last + 1) if value not in heap_values)
+            ]
+        asked, shown, lines = _census_lines(named, found, line)
+        wanted = [count for _named, count in named]
+        census_key = calendar_clock.FIELD_KEYS[field][0]
+        checks += [
+            Check(
+                column.name,
+                f"datetime.{census_key}",
+                f"{census_key}.groups",
+                HELD if found == wanted else MISSED,
+                asked,
+                shown,
+                "",
+                tuple(lines),
+            )
+        ]
+    return checks
+
+
+def _clock_field_value_named(field: str, first: int, last: int) -> str:
+    """A heap or group of a field as the report names it: `minute :00`,
+    `minutes :01-:27`, `second :00`, `seconds :31-:59`."""
+    if first == last:
+        return f"{field} :{first:02d}"
+    return f"{field}s :{first:02d}-:{last:02d}"
+
+
+def _clock_field_instants_of(
+    facts: contract.DatetimeFacts, cells: "list[str]"
+) -> "list[tuple[int, tuple[int, int]]]":
+    """The instant of every cell that reads as a moment, with the minute and
+    second it is WRITTEN at, read as `_hour_instants_of` reads it."""
+    style = _stamp_style_of(facts)
+    face = ""
+    if facts.parser_family in contract.CLOCK_FORM_MEMBERS:
+        face = parsing.clock_face(style)
+    found: "list[tuple[int, tuple[int, int]]]" = []
+    for cell in cells:
+        read = parsing.parse_datetime(cell, facts.parser_family)
+        if read is None:
+            continue
+        if facts.parser_family in contract.CLOCK_FORM_MEMBERS and _stamp_off_its_face(cell, face):
+            continue
+        canonical = parsing.stamp_canonical(read[0], style)
+        if len(canonical) < 19:
+            continue
+        found += [
+            (
+                calendar_clock.seconds_of(canonical),
+                (calendar_clock.written_minute(canonical), calendar_clock.written_second(canonical)),
+            )
+        ]
+    return found
 
 
 def _day_of_month_checks(

@@ -423,6 +423,515 @@ def half_day_distances(
 
 
 # anchor 3b-T3 (P4-D372)
+# THE MINUTE AND SECOND CENSUSES OF A COLUMN OF MOMENTS, AND THEIR HEAPS
+# (landing 3b.4, lane T3, plan P4-D372; contract 6.6.2, MC1 to MC6, SC1 to
+# SC6, MH1, MH2, SH1 and SH2; method G7.3h; validation V5-M1 and V5-S1).
+#
+# A column of moments whose hour census may stand publishes, over the same
+# BODY, how its cells fall on the minutes of the hour (`canonical[14:16]`)
+# and -- written to the second or finer -- on the seconds of the minute
+# (`canonical[17:19]`), each read off the text: a sixtieth second,
+# `HH:MM:60`, counts in the minute it is written in and in that minute's
+# last second, 59, never in the next minute (`written_minute`,
+# `written_second`). Each field publishes two lists:
+#
+# - its HEAPS, every value holding at least the census line and at least
+#   three times the median of the five values on each side of it on the
+#   cycle of sixty (`calendar_rules.standing_out`, the clock's centre --
+#   the design skeptic's M1: below 2,500 rows a contiguous census folded a
+#   clinic's quarter hours into their neighbours, and the heaps keep them),
+#   each with its count, and only where that count less the cells the rest
+#   of the description places there for certain is nought or at least the
+#   line, as every census group's is;
+# - its CENSUS, the cells on no heap counted in groups of values merged by
+#   the one merge rule on a line, each count nought or at least the line;
+#   `[]` where nothing is left beside the heaps or the rule leaves one
+#   group over every value.
+#
+# A field publishes only where the body's sixty counts depart from flat,
+# chi-squared per degree of freedom of `FLAT_DEPARTURE` or more (the
+# design's producer-only choice: heaped columns measured 55 to 9,978, flat
+# ones 0.8 to 1.3), and not where how the body falls on the field depends
+# on the hour of the day (the design skeptic's M3: night charting on the
+# hour beside day entries at any minute came back with the comparison
+# reversed): the same statistic over the body's hour groups crossed with
+# the field's single values holding a twentieth of the body and the rest,
+# the cells at a published midnight left out, of `HOUR_DEPENDENCE` or more
+# withholds it.
+
+MINUTE = "minute"
+SECOND = "second"
+FIELD_VALUES = 60
+# MC4 and SC4: the fewest seconds the published p75 less p25 may span, so
+# no census is the minutes of a few hours or the seconds of a few minutes.
+FIELD_SPAN_SECONDS = {MINUTE: 4 * HOUR_SECONDS, SECOND: 4 * 60}
+# The chi-squared per degree of freedom a field's sixty counts depart from
+# flat at, and the one at which the field depends on the hour (M3).
+FLAT_DEPARTURE = 4
+HOUR_DEPENDENCE = 4
+# M3's columns: the single values holding at least this share of the body,
+# in hundredths, and the rest as one.
+DEPENDENCE_SHARE_PERCENT = 5
+# How many values on each side the stand-out rule reads (median and three
+# times, `calendar_rules.CENTRE_MEDIAN`).
+FIELD_REACH = 5
+
+# Why a column of moments publishes no minute or second census. The three
+# the hour census shares -- no tails, an unpublished span, two storages --
+# withhold every census of the clock, and the hour census's own sentence
+# says so once (NF89, NF117, NF91); the other three are each said in a
+# sentence of the field's own: a middle half too short (MC4, SC4), no
+# grouping the merge rule publishes and no heap (MC5, SC5), and a field
+# depending on the hour (M3), and a census of the rest standing on a few
+# different values beside no heap (`few_values`). A field whose counts do
+# not depart from flat publishes nothing and says nothing: its twin's flat
+# draw is its shape.
+FIELD_REASON_FLAT = "flat"
+FIELD_REASON_HOUR = "hour"
+FIELD_REASON_FEW_VALUES = "few_values"
+FIELD_REASONS = (
+    HOUR_REASON_NO_TAILS,
+    HOUR_REASON_SPAN,
+    HOUR_REASON_SPAN_UNPUBLISHED,
+    HOUR_REASON_WORKBOOK,
+    HOUR_REASON_GROUPING,
+    FIELD_REASON_FLAT,
+    FIELD_REASON_HOUR,
+    FIELD_REASON_FEW_VALUES,
+)
+# The reasons said in a sentence of the field's own.
+FIELD_REASONS_SAID = (
+    HOUR_REASON_SPAN,
+    HOUR_REASON_GROUPING,
+    FIELD_REASON_HOUR,
+    FIELD_REASON_FEW_VALUES,
+)
+
+# The names `calendar_rules.census_breach` reports each field's census
+# under, and each field's heap rules.
+FIELD_RULES = {
+    MINUTE: ("MC1", "MC2", "MC3", "MC5"),
+    SECOND: ("SC1", "SC2", "SC3", "SC5"),
+}
+FIELD_HEAP_RULES = {MINUTE: ("MH1", "MH2"), SECOND: ("SH1", "SH2")}
+# Each field's keys, census then heaps.
+FIELD_KEYS = {
+    MINUTE: (MINUTE_CENSUS, MINUTE_HEAPS),
+    SECOND: (SECOND_CENSUS, SECOND_HEAPS),
+}
+
+
+def written_minute(canonical: str) -> int:
+    """The minute of the hour a canonical moment is WRITTEN in, 0 to 59:
+    `canonical[14:16]`, so a sixtieth second stays in its own minute.
+    Raises ValueError for text that is not canonical. No I/O."""
+    return int(canonical[14:16])
+
+
+def written_second(canonical: str) -> int:
+    """The second of the minute a canonical moment is WRITTEN in, 0 to 59:
+    `canonical[17:19]`, a sixtieth second counted in 59, the last second
+    of the minute it is written in -- never the next minute's first,
+    where its instant (`seconds_of`) stands. Raises ValueError for text
+    that is not canonical. No I/O."""
+    return min(int(canonical[17:19]), FIELD_VALUES - 1)
+
+
+def written_field(canonical: str, field: str) -> int:
+    """The value of `field` -- `MINUTE` or `SECOND` -- a moment is written at."""
+    if field == SECOND:
+        return written_second(canonical)
+    return written_minute(canonical)
+
+
+def field_bins(values: "list[int] | tuple[int, ...]") -> "list[int]":
+    """How many cells fall on each value of a field, 0 first: sixty counts.
+
+    Guarantees: accepts each cell's written value, 0 to 59. Raises
+    nothing. No I/O of any kind.
+    """
+    bins = [0 for _value in range(FIELD_VALUES)]
+    for value in values:
+        bins[value] = bins[value] + 1
+    return bins
+
+
+def field_sure(
+    published: "list[tuple[int, str]]", at_midnight: "int | None", field: str
+) -> "list[int]":
+    """The SURE cells of each value of a field (MC5, SC5), sixty counts.
+
+    As `hour_sure`: every published body value -- the tail boundaries and
+    the rungs, with every rank between two of one value -- in the value
+    it is written at, and rule 4's cells at midnight (`midnight_sure`) in
+    value 0 in place of the published ranks written at 00:00:00, whichever
+    is more. Guarantees: a function of the three. Raises nothing for
+    canonical text. No I/O of any kind.
+    """
+    known: "dict[int, str]" = {}
+    ordered = sorted(published)
+    for rank, value in ordered:
+        known[rank] = value
+    for place in range(len(ordered) - 1):
+        first, here = ordered[place]
+        last, there = ordered[place + 1]
+        if here == there:
+            for rank in range(first, last + 1):
+                known[rank] = here
+    sure = [0 for _value in range(FIELD_VALUES)]
+    zero = 0
+    for rank in sorted(known):
+        value = known[rank]
+        if value[11:19] == "00:00:00":
+            zero = zero + 1
+            continue
+        place = written_field(value, field)
+        sure[place] = sure[place] + 1
+    if at_midnight is not None:
+        zero = max(zero, at_midnight)
+    sure[0] = sure[0] + zero
+    return sure
+
+
+def departs_from_flat(bins: "list[int]") -> bool:
+    """Whether a field's counts depart from flat: chi-squared per degree of
+    freedom of `FLAT_DEPARTURE` or more, asked in whole numbers.
+
+    With n cells over k values, chi-squared is k times the sum of the
+    squared counts over n, less n; so the test is
+    k * sum(c * c) - n * n >= FLAT_DEPARTURE * (k - 1) * n. No cells, no
+    departure. Raises nothing. No I/O.
+    """
+    total = sum(bins)
+    if total <= 0:
+        return False
+    size = len(bins)
+    squares = sum(count * count for count in bins)
+    return size * squares - total * total >= FLAT_DEPARTURE * (size - 1) * total
+
+
+def depends_on_the_hour(
+    hours: "list[int] | tuple[int, ...]",
+    values: "list[int] | tuple[int, ...]",
+    line: int,
+) -> bool:
+    """M3: whether how a body falls on a field depends on the hour of the day.
+
+    The table: the body's HOUR GROUPS -- the one merge rule over its
+    twenty-four hour counts at the census line with no sure cells
+    (`hour_groups`) -- crossed with the field's single values each holding
+    at least `DEPENDENCE_SHARE_PERCENT` hundredths of the body, and the
+    rest as one. Its chi-squared per degree of freedom, asked exactly in
+    fractions, of `HOUR_DEPENDENCE` or more is a dependence. Where the
+    hours merge to one group, or the field to one column, there is no
+    table and no dependence. The caller leaves out the cells at a
+    published midnight. `hours` and `values` are the cells' written hour
+    and value, pair by pair.
+
+    Guarantees: a function of the three. Raises nothing. No I/O.
+    """
+    total = len(values)
+    if total <= 0 or len(hours) != total:
+        return False
+    groups = hour_groups(hour_bins(list(hours)), [], line)
+    if not groups:
+        return False
+    row_of = [0 for _hour in range(HOURS)]
+    for index in range(len(groups)):
+        for hour in range(groups[index][0], groups[index][1] + 1):
+            row_of[hour] = index
+    bins = field_bins(values)
+    column_of = [0 for _value in range(FIELD_VALUES)]
+    columns = 1
+    for value in range(FIELD_VALUES):
+        if 100 * bins[value] >= DEPENDENCE_SHARE_PERCENT * total:
+            column_of[value] = columns
+            columns = columns + 1
+    table: "dict[tuple[int, int], int]" = {}
+    for place in range(total):
+        key = (row_of[hours[place]], column_of[values[place]])
+        table[key] = (table[key] if key in table else 0) + 1
+    rows = [0 for _row in range(len(groups))]
+    sums = [0 for _column in range(columns)]
+    for (row, column), count in table.items():
+        rows[row] = rows[row] + count
+        sums[column] = sums[column] + count
+    kept_rows = len([count for count in rows if count > 0])
+    kept_columns = len([count for count in sums if count > 0])
+    freedom = (kept_rows - 1) * (kept_columns - 1)
+    if freedom <= 0:
+        return False
+    # chi-squared = n * (sum of O * O / (row * column) - 1), in fractions.
+    numerator = 0
+    denominator = 1
+    for (row, column), count in sorted(table.items()):
+        part_top = count * count
+        part_bottom = rows[row] * sums[column]
+        numerator = numerator * part_bottom + part_top * denominator
+        denominator = denominator * part_bottom
+        common = math.gcd(numerator, denominator)
+        numerator = numerator // common
+        denominator = denominator // common
+    # chi-squared / freedom >= HOUR_DEPENDENCE, with chi-squared =
+    # total * (numerator / denominator - 1).
+    return total * (numerator - denominator) >= HOUR_DEPENDENCE * freedom * denominator
+
+
+def field_heaps(
+    bins: "list[int]", sure: "list[int]", line: int, units: "list[int]"
+) -> "tuple[tuple[int, int], ...]":
+    """A field's HEAPS: every value standing out (`calendar_rules.standing_out`
+    with the median of `FIELD_REACH` values each side, on the cycle of
+    sixty), with its count, kept only where its count holds its sure cells
+    and what is left is nought or at least the line (MH1, SH1), and where
+    its cells are written at no fewer than the line's different values
+    (`units`, the different values written at each).
+
+    A HEAP IS A VALUE OF THE CLOCK, NOT A FEW EVENTS (the builder's
+    measurement of 2026-10-12): check-ins in bursts of one to six on one
+    minute put 15 cells on minute 23 in three bursts, which stood out; the
+    twin had to hold exactly 15 there, split its bursts to do it, and
+    missed the column's count of different values. A minute standing out
+    over fewer different values than the line is left to the census of
+    the rest, which counts it with its neighbours.
+
+    Guarantees: accepts the sixty counts, the sure cells, the census line
+    and the sixty counts of different values; returns `(value, count)`
+    ascending. Raises nothing. No I/O.
+    """
+    found: "list[tuple[int, int]]" = []
+    for value, count in calendar_rules.standing_out(
+        bins, line, FIELD_REACH, calendar_rules.CENTRE_MEDIAN, True
+    ):
+        held = sure[value] if value < len(sure) else 0
+        if count < held or not calendar_rules.calendar_floor_ok(count - held, line):
+            continue
+        if value >= len(units) or units[value] < line:
+            continue
+        found += [(value, count)]
+    return tuple(found)
+
+
+# THE FEW-VALUES RULE OF A FIELD'S CENSUS (the builder's measurement of
+# 2026-10-12, after D2's FEW UNITS): the census of the rest is published
+# only where every non-empty group's cells are written at no fewer than
+# `FEW_VALUES_LEAST` different values and at `FEW_VALUES_MEAN` on average.
+FEW_VALUES_LEAST = 3
+FEW_VALUES_MEAN = 8
+
+
+def few_values(
+    groups: "tuple[tuple[int, int, int], ...]",
+    units: "list[int]",
+    heaps: "tuple[tuple[int, int], ...]",
+) -> bool:
+    """Whether a field's census of the rest stands on too few different values.
+
+    A census of exact counts over few different values is a census of a
+    few events, not of the clock: check-ins in bursts of one to six on one
+    minute published groups of 11 to 24 cells over 3 to 7 bursts each,
+    which the twin met only by splitting its bursts, and its count of
+    different values came back 1 to 14 long at every seed (the builder's
+    measurement of 2026-10-12). Too few: a non-empty group whose cells off
+    the heaps are written at fewer than `FEW_VALUES_LEAST` different
+    values, or non-empty groups averaging fewer than `FEW_VALUES_MEAN`.
+
+    Guarantees: accepts the groups, the different values at each value of
+    the field and the heaps; returns the answer. Raises nothing. No I/O.
+    """
+    on_heaps = {value for value, _count in heaps}
+    held: "list[int]" = []
+    for first, last, count in groups:
+        if count <= 0:
+            continue
+        held += [
+            sum(units[value] for value in range(first, last + 1) if value not in on_heaps)
+        ]
+    if not held:
+        return False
+    return min(held) < FEW_VALUES_LEAST or sum(held) < FEW_VALUES_MEAN * len(held)
+
+
+def field_off_the_heaps(
+    counts: "list[int]", heaps: "tuple[tuple[int, int], ...] | list[tuple[int, int]]"
+) -> "list[int]":
+    """Sixty counts with every heap's value set to nought: what the census
+    counts beside the heaps, of the cells or of the sure cells alike."""
+    left = [count for count in counts]
+    for value, _count in heaps:
+        left[value] = 0
+    return left
+
+
+def field_groups(
+    bins: "list[int]", sure: "list[int]", line: int
+) -> "tuple[tuple[int, int, int], ...]":
+    """A field's census groups, or none: the one merge rule over sixty
+    values on a line (`calendar_rules.merged_groups`), the counts and the
+    sure cells handed in already off the heaps (`field_off_the_heaps`)."""
+    return calendar_rules.merged_groups(bins, sure, line, False)
+
+
+def field_breach(
+    groups: "tuple[tuple[int, int, int], ...]",
+    body: int,
+    line: int,
+    sure: "list[int]",
+    field: str,
+) -> "tuple[str, str, str] | None":
+    """A published census of a field held to MC1/SC1, MC2/SC2, MC3/SC3's
+    total and MC5/SC5, or None: THE ONE CHECK THE PRODUCER AND THE LOADER
+    BOTH ASK (`calendar_rules.census_breach`), over values 0 to 59 on a
+    line. `body` is the body less the heaps' cells and `sure` is off the
+    heaps. Raises nothing. No I/O of any kind."""
+    return calendar_rules.census_breach(
+        groups, FIELD_VALUES, line, body, tuple(sure), False, 0, field,
+        FIELD_RULES[field],
+    )
+
+
+def heaps_breach(
+    heaps: "tuple[tuple[int, int], ...]",
+    body: int,
+    line: int,
+    sure: "list[int]",
+    field: str,
+    census: bool,
+) -> "tuple[str, str, str] | None":
+    """A field's published heaps held to MH1/SH1 and MH2/SH2, or None.
+
+    MH1: each heap is a value 0 to 59, after the one before it, counting
+    at least the line, at least its sure cells, and what is left of it
+    nought or at least the line. MH2: the heaps hold no more than the
+    body -- exactly the body where no census stands beside them and no
+    value off the heaps is left: the census's own total (MC3) asks the
+    rest where one stands. Raises nothing. No I/O.
+    """
+    first_rule, second_rule = FIELD_HEAP_RULES[field]
+    previous = -1
+    total = 0
+    for value, count in heaps:
+        if value <= previous or not 0 <= value < FIELD_VALUES:
+            return (
+                first_rule,
+                f"a heap stands at {field} {value}",
+                f"each heap is a {field} from 0 to 59, after the one before it",
+            )
+        held = sure[value] if value < len(sure) else 0
+        if count < line or count < held or not calendar_rules.calendar_floor_ok(
+            count - held, line
+        ):
+            return (
+                first_rule,
+                f"the heap at {field} {value} counts {count}",
+                f"a heap counts at least {line} and at least the {held} values "
+                f"the rest of the description places there, and what is left "
+                f"is nought or at least {line}",
+            )
+        previous = value
+        total = total + count
+    if total > body:
+        return (
+            second_rule,
+            f"the heaps count {total} values",
+            f"the values between the two tail boundaries number {body}",
+        )
+    return None
+
+
+def span_long_enough_for(p25: "int | None", p75: "int | None", field: str) -> bool:
+    """MC4 and SC4: whether the published middle half spans four hours (a
+    minute census) or four minutes (a second census). A rung withheld
+    publishes no span. Raises nothing. No I/O."""
+    if p25 is None or p75 is None:
+        return False
+    return p75 - p25 >= FIELD_SPAN_SECONDS[field]
+
+
+def field_lattice(
+    census: "tuple[tuple[int, int, int], ...]",
+    heaps: "tuple[tuple[int, int], ...]",
+    published: "list[int]",
+) -> int:
+    """The LATTICE a field's published facts pin the body to, or nought.
+
+    METHOD G7.3's DRAWING RULE (landing 3b.4; the design's construction
+    rule, widened by its skeptic's M2 and m2). Where the field publishes
+    heaps and no census beside them, every body cell but the few the rest
+    holds stands on a heap, and the lattice is the greatest step dividing
+    sixty and every heap's value -- sixty where the one heap is 0, thirty
+    for a half-hour grid, fifteen for quarter hours. Where it publishes a
+    census and no heap, the lattice is sixty -- every cell on value 0 --
+    only where the census's one non-zero group holds 0 and every value the
+    description publishes in the body stands on 0. Anything else pins
+    nothing: nought.
+
+    Guarantees: accepts the census, the heaps and the field's value of
+    each published body value; returns 0 or a divisor of sixty. Raises
+    nothing. No I/O.
+    """
+    if heaps and not census:
+        step = FIELD_VALUES
+        for value, _count in heaps:
+            step = math.gcd(step, value)
+        return step
+    if census and not heaps:
+        holding = [group for group in census if group[2] > 0]
+        if len(holding) != 1 or holding[0][0] != 0:
+            return 0
+        for value in published:
+            if value != 0:
+                return 0
+        return FIELD_VALUES
+    return 0
+
+
+def drawing_unit(
+    precision: str,
+    minute_facts: "tuple[tuple[tuple[int, int, int], ...], tuple[tuple[int, int], ...]]",
+    second_facts: "tuple[tuple[tuple[int, int, int], ...], tuple[tuple[int, int], ...]]",
+    published: "list[str]",
+) -> int:
+    """How many seconds one body draw of a column of moments steps in (G7.3).
+
+    One -- every draw as before -- unless a minute or second census or
+    heap is published. Then the seconds are pinned where the column is
+    written to the minute, or where the second's facts pin a lattice
+    (`field_lattice`); a lattice finer than the minute is the unit. With
+    the seconds on 0, the minute's own lattice widens it: sixty seconds
+    times the minutes' step, the hour for a column every cell of which is
+    on the hour (the design: on the hour at 10,000 rows met its minute
+    census 1 time in 3 drawn in minutes and 3 in 3 drawn in hours), half
+    an hour for a half-hour grid (its skeptic's m2: missed 2 in 3 drawn in
+    minutes, met 6 in 6 at thirty). A column written to the minute whose
+    minute pins nothing keeps one, its written unit already the minute.
+
+    Guarantees: accepts the precision, each field's census and heaps and
+    every published body value's canonical text; returns a divisor of
+    3,600 of one or more. Raises nothing. No I/O.
+    """
+    minute_census, minute_heaps = minute_facts
+    second_census, second_heaps = second_facts
+    if not (minute_census or minute_heaps or second_census or second_heaps):
+        return 1
+    seconds = FIELD_VALUES
+    if precision != "minute":
+        seconds = field_lattice(
+            second_census,
+            second_heaps,
+            [written_second(value) for value in published],
+        )
+    if seconds <= 0:
+        return 1
+    if seconds < FIELD_VALUES:
+        return seconds
+    minutes = field_lattice(
+        minute_census, minute_heaps, [written_minute(value) for value in published]
+    )
+    if minutes <= 0:
+        return 1 if precision == "minute" else FIELD_VALUES
+    return FIELD_VALUES * minutes
+
 # anchor 3b-C1 (P4-D373)
 # THE CENSUS OF A COLUMN OF CLOCK TIMES (landing 3b.5, lane C1, plan
 # P4-D373; contract 6.13, CC1 to CC5 and CH1 to CH2; method G7A.4b).
