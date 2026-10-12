@@ -2831,7 +2831,11 @@ def few_month_dates(
     weekdays: May alone over three years, its other months empty by its
     written month names, held every bin's three dates and its twins
     missed the weekday census at every seed the weekday pass alone had
-    met (repair of landing 3b.3). A conservative rule set on the measured
+    met (repair of landing 3b.3). ITS PRICE, STATED (P4-D368): three and
+    four Mays at 1,000 rows and a floor of 36 publish no census, where
+    every group standing on its calendar published 11 and 12 groups, the
+    heaps on the 1st and the 15th among them, and every twin met both
+    censuses. A conservative rule set on the measured
     cases, never a rule of what a reader could work out, so the loader
     cannot ask it, and need not.
 

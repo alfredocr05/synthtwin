@@ -32,10 +32,16 @@ battery at 1,000 rows each heap comes back exactly, no twin misses a
 check, and every twin of a column publishing no census is the base's
 byte for byte; at 10,000 rows the heaps come back exactly, and quarter
 ends keep their count at every seed but miss their day-of-month census
-at three of five, named, until lane D4's heavy dates. Stated limits: a
-heap beside a stronger weekday pattern (Monday billing, first Mondays)
-is not published; business-day heaps come back at about four fifths of
-their joint share; a clocked column publishes none.
+at three of five, named, until lane D4's heavy dates, as do columns of
+one month a year (six and ten Mays: 13 of 24 twins), each such twin the
+base's byte for byte. Where the generator so keeps the weekday pass's
+days, the joint plan's time is spent for nothing: six Mays take about
+three times the base's time to generate at 100,000 and 400,000 rows.
+Stated limits: a heap beside a stronger weekday pattern (Monday
+billing, first Mondays) is not published; nor are three or four Mays at
+a floor of 36, a group holding fewer than four dates; business-day
+heaps come back at about four fifths of their joint share; a clocked
+column publishes none.
 
 ### The weekday census on timestamp columns (2026-10-06)
 
