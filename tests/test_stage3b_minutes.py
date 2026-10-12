@@ -1038,3 +1038,53 @@ def test_spread_grows_with_the_rows() -> None:
             tuple(range(7)), True, tuple([0] * 24),
         )]
     assert spent[1] <= 1.25 * 9 * spent[0], spent
+
+
+def _substitute_state(days: int):
+    """A state of minutes no run of which can join another group: on each of `days`
+    days, every hour from 1 to 23 holds one rank alone at minute 30, the rest's
+    group, and nothing stands at minute 0; the count asked is one fewer, so
+    SUBSTITUTE asks every run and finds nothing -- the full search, per run."""
+    moved: "list[int]" = []
+    for day in range(days):
+        for hour in range(1, 24):
+            moved += [(19000 + day) * DAY + hour * 3600 + 30 * 60]
+    rows = len(moved)
+    state = generation._WeekdayPass(
+        moved=moved, held={}, where=tuple([1] + [0] * 59), facts=None, word="", widths=False,
+        kinds={}, holes=frozenset(), lows=[moved[0]] * rows, highs=[moved[-1]] * rows,
+        keep_units=True, unit=60, step=60, day=DAY, bins="minute", period=60, keeps="hour",
+    )
+    for ordinal in moved:
+        generation._weekday_tally(state.held, ordinal // 60, 1)
+    return state, rows
+
+
+def test_substitute_grows_with_the_rows(monkeypatch: pytest.MonkeyPatch) -> None:
+    """SUBSTITUTE where no run can join, at 3 and 27 days: each group, place in the
+    day and gap that found nothing is not asked again, so its lines grow no faster
+    than the rows (within 1.25 times nine; measured 3.6 times); asking every run
+    again, put back by one edit, grows 20 times and is held to show it."""
+    uncached = _mutant(
+        monkeypatch,
+        "        if asked in failed:\n            continue\n        joined = _clock_join_target(",
+        "        if False:\n            continue\n        joined = _clock_join_target(",
+    )
+    grown: "dict[str, float]" = {}
+    for name, module in (("shipped", generation), ("uncached", uncached)):
+        spent: "list[int]" = []
+        for days in (3, 27):
+            built, rows = _substitute_state(days)
+            state = module._WeekdayPass(**{
+                field.name: getattr(built, field.name)
+                for field in dataclasses.fields(built)
+                if field.name not in ("units_held", "indexes", "gap_sizes")
+            })
+            count = module._weekday_count(state)
+            spent += [_lines_run(
+                module._clock_split_substituted, state, 0, rows - 1, [False] * rows, count - 1,
+                tuple(range(7)), True, tuple([0] * 24),
+            )]
+        grown[name] = spent[1] / spent[0]
+    assert grown["shipped"] <= 1.25 * 9, grown
+    assert grown["uncached"] >= 1.5 * 9, grown

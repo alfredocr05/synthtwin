@@ -7457,7 +7457,9 @@ pass, for the field:
    another day of its day standing and width kind, nearest first, and
    where no weekday census stands on a day of another weekday; and runs
    of G holding as many ranks take free places of its old group, as in
-   step 1. Each pair puts back one unit.
+   step 1. Each pair puts back one unit. A group, a parent's place in
+   the day and a gap whose search found no unit to join are not asked
+   again.
 3. *SPREAD*, where the count is still short and reachable, or the count
    drawn is not above the published one: each rank sharing its written
    unit, in rank order, takes the free place of its own group nearest its

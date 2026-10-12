@@ -26958,6 +26958,8 @@ def _clock_split_substituted(
     (`_clock_substitute`). Every group keeps its count, every rank its
     parent and gap, and each such move puts back one unit: a burst split
     to meet a census is joined again, and bursts as large take its place.
+    A group, a parent's place in the day and a gap whose search found no
+    unit to join are not asked again.
 
     Guarantees: moves body ranks the layout does not pin, inside their
     own gaps and parents, never onto a hole or a written midnight; each
@@ -26966,6 +26968,10 @@ def _clock_split_substituted(
     count = _weekday_count(state)
     by_parent = _clock_held_by_parent(state, body_low, body_high)
     whole, by_kind = _clock_whole_runs(state, body_low, body_high, pinned)
+    # A group, a parent's place in the day and a gap whose search found no
+    # unit to join is not asked again: it finds none for any run (SPREAD's
+    # rule), which keeps the step's work in the rows, not their square.
+    failed: "set[tuple[int, int, int, int]]" = set()
     for members in whole:
         if count <= wanted:
             return
@@ -26975,8 +26981,12 @@ def _clock_split_substituted(
         if _weekday_there(state, here) != size:
             continue
         own = state.where[_clock_bin(state, here)]
+        asked = (own, _clock_seat(state, here), state.lows[first], state.highs[first])
+        if asked in failed:
+            continue
         joined = _clock_join_target(state, first, by_parent, standing, anyday, kin)
         if joined is None:
+            failed |= {asked}
             continue
         if _clock_substitute(
             state, whole, by_kind, state.where[_clock_bin(state, joined)], size, own,

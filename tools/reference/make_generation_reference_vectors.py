@@ -11066,20 +11066,27 @@ def clock_split_substituted(walk, first, last, pinned, wanted, standing, anyday=
     """G7.3h's SUBSTITUTE: where the count is still long, each run in rank order
     joins a unit another rank holds in another group (``clock_join_place``),
     and runs of that group holding as many ranks take free places of the
-    run's own group on their own parents (``clock_substitute``)."""
+    run's own group on their own parents (``clock_substitute``). A group,
+    place in the day and gap that found no unit to join are not asked
+    again."""
     count = walk.different()
     held = {}
     for unit in sorted({ordinal // walk.step for ordinal in walk.days}):
         held.setdefault(unit * walk.step // clock_span(walk), []).append(unit)
     whole, by_kind = clock_whole_runs(walk, first, last, pinned)
+    failed = set()
     for members in whole:
         if count <= wanted:
             return
         here = walk.days[members[0]]
         if walk.holding(here) != len(members):
             continue
+        asked = (walk.group(here), clock_seat(walk, here), walk.lows[members[0]], walk.highs[members[0]])
+        if asked in failed:
+            continue
         joined = clock_join_place(walk, members[0], held, standing, anyday, kin)
         if joined is None:
+            failed.add(asked)
             continue
         if clock_substitute(
             walk, whole, by_kind, walk.group(joined), len(members), walk.group(here),

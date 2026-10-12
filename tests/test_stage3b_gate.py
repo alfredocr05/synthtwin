@@ -222,6 +222,7 @@ anchor 3b-T1 (P4-D370)
 anchor 3b-T2 (P4-D371)
 3b.2-H: tests/test_stage3b_hour.py, the hour census of a column of moments and G7.3g's own steps.
 anchor 3b-T3 (P4-D372)
+3b.4: tests/test_stage3b_minutes.py, the minute and second censuses and heaps and G7.3h's own steps.
 anchor 3b-C1 (P4-D373)
 3b.5: tests/test_stage3b_clock.py.
 anchor 3b-C2 (P4-D374)
