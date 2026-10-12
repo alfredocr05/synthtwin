@@ -523,6 +523,30 @@ def test_item7_a_count_longer_than_python_reads_as_one_is_read_to_its_last_figur
     assert date_counts._pow10_exponent(*date_counts.exact_value(written)) == 4
 
 
+def _one_long_serial(places: int) -> "list[str]":
+    """199 serials written `%.6f` and one written to ``places`` figures after the point, seeded."""
+    draw = random.Random(3)
+    cells = [f"{45000 + draw.randrange(900) + draw.randrange(96) / 96:.6f}" for _ in range(199)]
+    tail = "".join(draw.choice("0123456789") for _ in range(places - 1)) + draw.choice("123456789")
+    return cells + [f"{45000 + draw.randrange(900)}.{tail}"]
+
+
+def test_item7_one_count_longer_than_python_writes_as_text_is_held_to_its_own_form(tmp_path: pathlib.Path) -> None:
+    """The second verification, item 5: one serial of 4,400 places among 199 written `%.6f`; on `4689cfc` its denominator was written as text (`held_to`) and profile and Q3 raised ValueError, declared or not; on `9197903` the column was declined in NF115, read as numbers undeclared, and Q3 asked nothing."""
+    cells = _one_long_serial(4400)
+    declared = _described(tmp_path / "declared", cells, "excel-1900")
+    block = declared["block"]
+    assert isinstance(block, dict) and block["role"] == "continuous" and _declined(block), block["remarks"]
+    undeclared = _described(tmp_path / "undeclared", cells, "")
+    block = undeclared["block"]
+    assert isinstance(block, dict) and block["role"] == "continuous" and block.get("count_form") is None
+    _twin(undeclared, tmp_path / "twin")
+    assert _missed(undeclared, tmp_path / "twin" / "table-twin.csv") == []
+    assert asking._date_counts_said(_block_of(tmp_path / "q3", cells)) is None
+    usual = date_counts.CountForm(6, False, None, False, date_counts.POINT, None)
+    assert date_counts.held_to(usual, 6, 10**4400).places == 4400
+
+
 # -- item 8: the exponent grammar of contract 6.6.2 ---------------------------------
 
 

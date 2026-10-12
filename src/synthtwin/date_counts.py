@@ -669,7 +669,11 @@ def held_to(plain: "CountForm", usual: int, denominator: int) -> "CountForm":
     """The form one count is held to: its column's, or -- a stray (`usual_tally`) -- its own last figure."""
     if usual < 0 or denominator <= 10**usual:
         return plain
-    return CountForm(len(f"{denominator}") - 1, False, None, False, plain.mark, None)
+    # THE DENOMINATOR IS A POWER OF TEN that may write more figures than
+    # Python writes as text at once (`exact_value`), so its figures are
+    # counted a piece at a time (`_figures_of`; the second verification of
+    # the Codex review of landing R4, item 5).
+    return CountForm(_figures_of(denominator) - 1, False, None, False, plain.mark, None)
 
 
 # ------------------------------------------------------------- reading
