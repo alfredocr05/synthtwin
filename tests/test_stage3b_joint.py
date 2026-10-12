@@ -25,6 +25,7 @@ from __future__ import annotations
 import copy
 import datetime
 import random
+from collections.abc import Callable
 
 import pytest
 
@@ -103,14 +104,18 @@ INTEGRATION = ("noon", "two_clocks", "leap", "codex")
 
 
 @pytest.fixture(scope="module")
-def described(tmp_path_factory: pytest.TempPathFactory) -> "dict[tuple[str, int], kpi_shapes.Described]":
+def described(tmp_path_factory: pytest.TempPathFactory) -> "Callable[[str, int], kpi_shapes.Described]":
+    """Each column described at a floor once, when a test first asks for it."""
     folder = tmp_path_factory.mktemp("joint")
     found: "dict[tuple[str, int], kpi_shapes.Described]" = {}
-    for name, build in COLUMNS.items():
-        text = name + "\n" + "\n".join(build()) + "\n"
-        for floor in FLOORS:
+
+    def table(name: str, floor: int) -> kpi_shapes.Described:
+        if (name, floor) not in found:
+            text = name + "\n" + "\n".join(COLUMNS[name]()) + "\n"
             found[(name, floor)] = kpi_shapes.describe(folder / f"{name}-{floor}", name, text, floor)
-    return found
+        return found[(name, floor)]
+
+    return table
 
 
 def _one_census(table: kpi_shapes.Described, key: str) -> kpi_shapes.Described:
@@ -127,12 +132,9 @@ def _withdrawn(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(generation, "_clock_paid_escape", lambda *_args: None)
 
 
-@pytest.mark.parametrize("floor", FLOORS)
-@pytest.mark.parametrize("name", sorted(COLUMNS))
-def test_both_censuses_are_met_together(described: "dict[tuple[str, int], kpi_shapes.Described]", name: str, floor: int) -> None:
+def _both_met(table: kpi_shapes.Described, name: str, floor: int) -> None:
     """Both censuses published, and the source and every twin at seeds 0 to 9 missing nothing
     and filing no deviation."""
-    table = described[(name, floor)]
     block = table.block(name)
     assert block["hour_census"], (name, floor)
     assert bool(block["weekday_census"]) == ((name, floor) != ("codex", 36)), (name, floor)
@@ -145,13 +147,27 @@ def test_both_censuses_are_met_together(described: "dict[tuple[str, int], kpi_sh
         assert kpi_shapes.missed(kpi_shapes.measure(table, written, f"twin-{seed}.csv")) == [], (name, floor, seed)
 
 
+@pytest.mark.parametrize("floor", FLOORS)
+@pytest.mark.parametrize("name", ("or_start", "admissions", "clinic"))
+def test_plans_three_tables_meet_both_censuses(described: "Callable[[str, int], kpi_shapes.Described]", name: str, floor: int) -> None:
+    """PLAN's row J: OR starts, admissions and the 10,000-row clinic."""
+    _both_met(described(name, floor), name, floor)
+
+
+@pytest.mark.parametrize("floor", FLOORS)
+@pytest.mark.parametrize("name", INTEGRATION)
+def test_the_integrations_four_columns_meet_both_censuses(described: "Callable[[str, int], kpi_shapes.Described]", name: str, floor: int) -> None:
+    """The four columns batch 2b's integration found short of their hour census."""
+    _both_met(described(name, floor), name, floor)
+
+
 @pytest.mark.parametrize("name", INTEGRATION)
 def test_without_the_round_paid_back_the_integrations_columns_miss_and_say_so(
-    described: "dict[tuple[str, int], kpi_shapes.Described]", name: str, monkeypatch: pytest.MonkeyPatch
+    described: "Callable[[str, int], kpi_shapes.Described]", name: str, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """The mutant: the round withdrawn, each of the four columns at the floor of 11 has twins
     short of the hour census again, and each such twin files the deviation naming it."""
-    table = described[(name, 11)]
+    table = described(name, 11)
     _withdrawn(monkeypatch)
     short: "list[int]" = []
     for seed in SEEDS:
@@ -165,12 +181,12 @@ def test_without_the_round_paid_back_the_integrations_columns_miss_and_say_so(
 
 @pytest.mark.parametrize("withdrawn", ("weekday_census", "hour_census"))
 def test_with_one_census_alone_the_round_changes_no_twin(
-    described: "dict[tuple[str, int], kpi_shapes.Described]", withdrawn: str, monkeypatch: pytest.MonkeyPatch
+    described: "Callable[[str, int], kpi_shapes.Described]", withdrawn: str, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """With either census withdrawn from the four columns' descriptions, every twin at seeds 0
     to 9 is byte for byte the twin the round withdrawn writes."""
     for name in INTEGRATION:
-        table = _one_census(described[(name, 11)], withdrawn)
+        table = _one_census(described(name, 11), withdrawn)
         with_round = [kpi_shapes.twin_text(table, seed) for seed in SEEDS]
         with monkeypatch.context() as patch:
             _withdrawn(patch)
