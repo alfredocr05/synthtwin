@@ -7148,6 +7148,9 @@
     "tests/test_stage3b_layout.py::test_r2b_c5_red_without_the_layout_in_s8c",
     "tests/test_stage3b_layout.py::test_r2b_c5_every_description_r2a_wrote_loads_and_validates",
     "tests/test_stage3b_layout.py::test_r2b_c5_red_when_the_validator_keeps_the_declaration",
+    "tests/test_stage3b_layout.py::test_r2b_c5c_a_declared_dial_is_checked_on_the_dial",
+    "tests/test_stage3b_layout.py::test_r2b_c5c_red_when_every_layout_with_a_clock_is_dropped",
+    "tests/test_stage3b_layout.py::test_r2b_c5d_a_declared_whole_day_layout_is_read_as_t1_reads_it",
     "tests/test_stage3b_layout.py::test_r2b_c6_ly1_admits_the_clock_half_exactly",
     "tests/test_stage3b_layout.py::test_r2b_c6_red_when_the_dial_is_not_taken_back",
     "tests/test_stage3b_layout.py::test_r2b_c7_a_padded_hour_is_not_read_as_one_figure",
@@ -7168,7 +7171,7 @@
    "pin_strength": "WEAKER",
    "measured_on": "tests/layout_spellings.py's forty-six spellings, three calendar years of moments with an emergency-department hour profile, through the real producer, generator and checker; and seven layouts beside ISO's spelling of the same moments (SPSS's DATETIME20, DB2's timestamp, HL7's fourteen figures, a Dutch d-m-yyyy date, Oracle's TIMESTAMP, SQL Server's style 100 and JavaScript's locale string) at 100,000 and 300,000 rows, CPU time of the describe alone",
    "evidence": "Before R2a (9cb2eb5, base 2, these thirty-nine spellings at 1,000 rows and seed 0 through the base tree's own CLI): none read -- thirty-six free text, two counts, one an affixed number; their twins were in the source's spelling on at most 29.2 per cent of cells, by accident; validate exited 0 on all but one, free text publishing next to nothing to miss. The two scale nodes bound what the R2 design's skeptic measured on its prototype at 300,000 rows: SAS at 1.19 and Oracle's TIMESTAMP at 1.57 times ISO's time a cell, each growing 7 to 10 per cent a tripling of the rows while ISO stayed flat. Before R2b (a7c9d75, R2a's head): the seven of the clock half were free text at 300 and at 1,000 rows, and the thirty-nine of the date half kept every byte of their descriptions at both sizes. JavaScript's locale string, the clock half's slowest, measured by this driver's own method at 3247f33 by R2b's skeptic 1: 1.17 times ISO at 100,000 rows and 1.11 at 300,000, which the six pairs before it did not show.",
-   "nodes_min_collected": 269,
+   "nodes_min_collected": 273,
    "value_at": {
     "commit": "c842295",
     "date": "2026-10-09",
