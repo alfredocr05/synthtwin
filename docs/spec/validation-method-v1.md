@@ -1490,7 +1490,12 @@ rather than in ISO:
   counted at its midnight, in hour 0, and one it left unparsed is not
   (the integration of landing 3b.D2 beside this landing: ten bare
   `2024-03-05` among noon stamps published hours 0 to 12 holding 570,
-  and the unchanged source, counted without them, was told 560).
+  and the unchanged source, counted without them, was told 560). The
+  two tails' recount asks the same fold, each folded date at its
+  midnight in tail units (lane J of stage 3b, plan P4-D367: ten bare
+  `2024-01-02` beside noon stamps from 2024-01-01, folded inside the
+  low tail, made the unchanged source miss `tails.low.boundary`,
+  `rows` and `values`).
   It prints through the one census line every census check shares: a
   group the file holds one to the line less one of is printed as fewer
   than the line, and where even naming the short groups would give a

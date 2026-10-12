@@ -16572,13 +16572,42 @@ def _tail_readings_of(
 
 
 def _file_tail_units(
-    facts: contract.DatetimeFacts, cells: "list[str]"
+    facts: contract.DatetimeFacts,
+    cells: "list[str]",
+    block: "dict[str, object] | None" = None,
 ) -> "list[int]":
-    """The file's cells that read as dates, in tail units, ascending."""
+    """The file's cells that read as dates, in tail units, ascending.
+
+    AND THE DATES THE FILE'S OWN DESCRIPTION FOLDED INTO ITS MOMENTS
+    (lane J of stage 3b, plan P4-D367; D2's verifier, older fault (a)),
+    where its block is given: the fold the weekday and hour recounts ask
+    (`_moments_tallied`, `_folded_hour_instants`), asked of the tails
+    too. Ten bare `2024-01-02` beside five noon stamps a day from
+    2024-01-01 were folded into midnight moments inside the low tail and
+    counted there, and the unchanged source, read without them, missed
+    `tails.low.boundary`, `rows` and `values`. Each folded cell is read
+    under the joint ISO reading, a whole date at its midnight, as the
+    producer counted it; a cell its description left unparsed stays out.
+    """
     found: "list[int]" = []
-    for unit in _tail_units_of(facts, cells):
-        if unit is not None:
-            found += [unit]
+    failing: "list[str]" = []
+    for cell, placed in zip(cells, _tail_readings_of(facts, cells)):
+        if placed is None:
+            failing += [cell]
+            continue
+        found += [placed[0]]
+    if block is not None and _folded_by_the_file(
+        block, facts.parser_family, failing
+    ):
+        for cell in failing:
+            read = parsing.parse_datetime(cell, taxonomy.FORMAT_ISO_MIXED)
+            if read is None:
+                continue
+            found += [
+                taxonomy.tail_ordinal(
+                    read[0], facts.tail_unit, facts.datetimes_read_at
+                )
+            ]
     return sorted(found)
 
 
@@ -17688,12 +17717,13 @@ def _datetime_checks(
                     here = taxonomy.tail_ordinal(value, facts.tail_unit, reading)
                     found_values += [at - here if low_side else here - at]
             values_of[side] = found_values
+        read_cells = _dates_the_file_reads(block, facts, cells)
         checks += _tail_side_checks(
             name,
             "datetime",
             facts.low_tail,
             facts.high_tail,
-            _file_tail_units(facts, _dates_the_file_reads(block, facts, cells)),
+            _file_tail_units(facts, read_cells, block),
             (
                 taxonomy.tail_ordinal(facts.low_tail.boundary, facts.tail_unit, reading),
                 taxonomy.tail_ordinal(facts.high_tail.boundary, facts.tail_unit, reading),
