@@ -6262,6 +6262,9 @@ COVERING_RED_CASES: "dict[str, dict[str, tuple[tuple[str, str], ...]]]" = {
             ("crushed-seen_at", "marks.unnamed"),
             ("midnighted-seen_at", "midnight.withheld"),
             ("crushed-seen_at", "hour_census.groups"),
+            # Its moments publish a weekday census since landing 3b.D2
+            # (plan P4-D367), and the same pile moves their days.
+            ("crushed-seen_at", "weekday_census.groups"),
             ("renamed-seen_at", "position.at"),
             ("blanked-seen_at", "presence.n_missing"),
             ("blanked-seen_at", "presence.n_present"),

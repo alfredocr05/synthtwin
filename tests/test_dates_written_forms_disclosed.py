@@ -131,7 +131,18 @@ def test_one_lower_case_zulu_marker_is_named_nowhere(
     # A census published as nothing asks the twin for nothing, and it
     # writes the one marker every row but one wrote.
     assert second["zulu_case"] == {"upper": 400}
-    assert (twin_exit, real_exit) == (0, 0)
+    assert real_exit == 0
+    # THE INTEGRATION OF 3b.D2 BESIDE 3b.2-H (batch 2b, 2026-10-12; a stated
+    # limit of plan P4-D367): these noon moments publish a weekday census
+    # beside their hour census, and at the floor of 1 the twin at seed 4
+    # comes back short of its hours, said by a deviation. Nothing else is
+    # missed, and nothing about the marker.
+    if twin_exit != 0:
+        report = (tmp_path / floor / "check-twin" / "real-twin-quality.txt").read_text(encoding="utf-8")
+        missed = sorted(
+            {line.strip().split(" [")[0] for line in report.splitlines() if line.rstrip().endswith(": MISSED")}
+        )
+        assert (twin_exit, missed) == (3, ["hour_census.groups"])
 
 
 def test_one_lower_case_quarter_marker_is_named_nowhere(
