@@ -1006,6 +1006,33 @@ def test_quarter_ends_at_ten_thousand_rows_meet_every_check(quarter_ends: "tuple
     assert missed == []
 
 
+@pytest.fixture(scope="module")
+def six_mays(tmp_path_factory: pytest.TempPathFactory) -> "tuple[kpi_shapes.Described, list[str]]":
+    """Skeptic 2's column of one month a year at 10,000 rows: six Mays, weekends drawn at 0.4, a
+    floor of 11, described, and what its twin at seed 0 misses."""
+    folder = tmp_path_factory.mktemp("six-mays")
+    described = kpi_shapes.describe(folder, "mays", _text({"visit": _mays(range(2019, 2025), 10000, 1606, 0.4)}), 11)
+    text = kpi_shapes.twin_text(described, 0)
+    return described, kpi_shapes.missed(kpi_shapes.measure(described, text, "twin.csv"))
+
+
+def test_one_month_a_year_at_ten_thousand_rows_gives_only_the_day_of_month_way(six_mays: "tuple[kpi_shapes.Described, list[str]]") -> None:
+    """Skeptic 2's item 2: six Mays at 10,000 rows publish the census, and G7.3i step 3 takes the
+    weekday pass's column (13 of 24 such twins measured): the twin misses the day-of-month census
+    alone, named given way, and nothing else."""
+    described, missed = six_mays
+    assert _census(described.block("visit")) != ()
+    assert missed == ["visit:day_of_month_census.groups"]
+
+
+@pytest.mark.xfail(strict=True, reason="P4-D368: lane D4 owns the joint fix")
+def test_one_month_a_year_at_ten_thousand_rows_meets_every_check(six_mays: "tuple[kpi_shapes.Described, list[str]]") -> None:
+    """A STATED LIMIT, pinned for lane D4 (heavy dates, its joint fix): the six Mays' twin at seed
+    0 meets every check, its day-of-month census among them."""
+    _described, missed = six_mays
+    assert missed == []
+
+
 def test_the_core_holds_where_the_joint_plan_cannot(tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """Found in the repair round: six Mays, weekends drawn at 0.4 and two rows in five on the 1st
     or the 15th, publish the census beside seven weekday groups, and each bin's six dates leave
@@ -1065,6 +1092,136 @@ def test_step_three_moves_a_column_as_the_oracle_does(tmp_path: pathlib.Path, mo
     assert oracle["weekday_settled"](block, ordinals, parsed, whole, lows, highs, holes) == moved  # type: ignore[operator]
 
 
+@pytest.fixture(scope="module")
+def step_three_days(tmp_path_factory: pytest.TempPathFactory) -> "dict[str, object]":
+    """The gate's billing at 300 rows: `_day_settled`'s own arguments as the twin at seed 0 asks
+    it, the oracle's, and stand-in days of each kind built from the weekday pass's days (which
+    meet both the weekday census and the count): `lose` keeps the census and loses one day of the
+    count (a body rank moved onto another's date seven days away), `shift` and `shift2` keep the
+    count and miss the census (a rank alone on its date moved to an empty date of another weekday
+    group, two different ranks)."""
+    import test_stage3b_gate as gate
+
+    folder = tmp_path_factory.mktemp("step-three")
+    cells = gate._BATTERY["heaps"](300)["billing_date"]
+    described = kpi_shapes.describe(folder, "billing", _text({"billing_date": cells}), 11)
+    block = copy.deepcopy(described.block("billing_date"))
+    seen: "list[tuple[tuple, dict]]" = []
+    settled = generation._day_settled
+
+    def captured(*args, **kwargs):  # type: ignore[no-untyped-def]
+        seen[:] = [(tuple(list(one) if isinstance(one, list) else one for one in args), dict(kwargs))]
+        return settled(*args, **kwargs)
+
+    with pytest.MonkeyPatch.context() as patch:
+        patch.setattr(generation, "_day_settled", captured)
+        kpi_shapes.twin_text(described, 0)
+    args, kwargs = seen[0]
+    _column, facts, ordinals, parsed, _whole, _lows, _highs, layout = args[:8]
+    good = list(generation._weekday_settled(*args, **kwargs)[0])
+    body = range(layout.low.rows, parsed - 1 - layout.high.rows + 1)
+    weekdays = facts.weekday_census
+    where = calendar_rules.where_of(weekdays)
+
+    def missed(days: "list[int]") -> "tuple[bool, bool]":
+        found = [0 for _ in weekdays]
+        for rank in body:
+            found[where[calendar_rules.weekday_of(days[rank])]] += 1
+        return found != [count for _first, _last, count in weekdays], len(set(days)) != len(set(ordinals))
+
+    assert weekdays and missed(good) == (False, False)
+    alone = [rank for rank in body if good.count(good[rank]) == 1]
+    lose = next(
+        good[:rank] + [good[other]] + good[rank + 1:]
+        for rank in alone for other in body if abs(good[other] - good[rank]) == 7
+    )
+    shifts = [
+        good[:rank] + [good[rank] + step] + good[rank + 1:]
+        for rank in alone for step in (1, -1, 2, -2, 3, -3)
+        if good[rank] + step not in good
+        and where[calendar_rules.weekday_of(good[rank] + step)] != where[calendar_rules.weekday_of(good[rank])]
+    ]
+    shift, shift2 = shifts[0], next(days for days in shifts if days != shifts[0])
+    assert missed(lose) == (False, True) and missed(shift) == missed(shift2) == (True, False)
+    return {
+        "args": args, "kwargs": kwargs, "block": block, "oracle": _oracle(),
+        "good": good, "lose": lose, "shift": shift, "shift2": shift2,
+    }
+
+
+# Each case: the joint plan's days, the weekday pass's, whether the count is reachable, and which
+# the column takes (skeptic 2's item 1, (a) to (e)).
+STEP_THREE = {
+    "a_the_joint_days_lose_only_the_count": ("lose", "good", True, "alone"),
+    "b_both_miss_the_weekday_census": ("shift", "shift2", True, "joint"),
+    "c_the_alone_days_lose_the_count": ("shift", "lose", True, "joint"),
+    "d_the_alone_days_miss_the_weekday_census": ("lose", "shift", True, "joint"),
+    "e_the_count_is_not_reachable": ("lose", "good", False, "joint"),
+}
+
+
+@pytest.mark.parametrize("name", sorted(STEP_THREE))
+def test_step_three_chooses_as_the_oracle_does(name: str, step_three_days: "dict[str, object]", monkeypatch: pytest.MonkeyPatch) -> None:
+    """Skeptic 2's item 1 (A-P4-59): step 3's choice, clause by clause, in the product and in the
+    oracle. Both joint plans write stand-in days and both weekday passes return stand-in days;
+    the column takes the weekday pass's days only where the joint days miss the weekday census
+    or a reachable count, and the alone days miss neither where the joint days met it and meet
+    one they missed. Each clause of the choice -- `kept != joint`, the weekday's `<=`, the
+    count's `<=`, the trigger's `or`, the count asked only where reachable -- is red on its own
+    edit in either."""
+    joint_name, alone_name, reachable, expected = STEP_THREE[name]
+    days = step_three_days
+    joint, alone = list(days[joint_name]), list(days[alone_name])  # type: ignore[call-overload]
+    wanted = alone if expected == "alone" else joint
+
+    def joint_passes(moved, *rest):  # type: ignore[no-untyped-def]
+        moved[:] = list(joint)
+        return None, None
+
+    monkeypatch.setattr(generation, "_day_passes", joint_passes)
+    monkeypatch.setattr(generation, "_weekday_settled", lambda *args, **kwargs: (list(alone), []))
+    monkeypatch.setattr(generation, "_day_found", lambda *args: True)
+    monkeypatch.setattr(generation, "_day_body_full", lambda *args: False)
+    monkeypatch.setattr(contract, "datetime_counts_reachable", lambda column: reachable)
+    moved, notes = generation._day_settled(*days["args"], **days["kwargs"])  # type: ignore[arg-type]
+    oracle = days["oracle"]
+    scope = oracle["day_settled"].__globals__  # type: ignore[index]
+    monkeypatch.setitem(scope, "day_passes", lambda *args: list(joint))
+    monkeypatch.setitem(scope, "weekday_settled", lambda *args: list(alone))
+    monkeypatch.setitem(scope, "date_counts_reachable", lambda column: reachable)
+    _column, _facts, ordinals, parsed, whole, lows, highs = days["args"][:7]  # type: ignore[index]
+    block = days["block"]
+    holes = set(block.get("missing_by_source", {}))  # type: ignore[attr-defined]
+    told = oracle["day_settled"](block, ordinals, parsed, whole, lows, highs, holes)  # type: ignore[index]
+    assert moved == told == wanted
+    given = [note.note for note in notes if note.fact == "day_of_month_census"]
+    assert given == ([generation._DAY_OF_MONTH_GIVEN_WAY] if expected == "alone" else [])
+
+
+def test_the_few_dates_rule_counts_only_a_month_s_last_day_by_its_calendar() -> None:
+    """Skeptic 2's item 1, the few-dates rule's calendar clause: a group holding every date its
+    calendar gives on fewer than four stands only where it counts a month's last day alone (bins
+    31 to 34, never wrapping). The 30th of May three years running, the 30th's own group or one
+    running on to the last day, and the 1st in a group wrapping from the last day, each still
+    withholds."""
+    day = parsing.days_from_civil
+
+    def table(dates: "list[int]") -> "list[list[int]]":
+        total = [[0] * calendar_rules.MONTH_DAY_BINS for _ in range(7)]
+        for date in dates:
+            for weekday, row in enumerate(calendar_rules.month_calendar(date, date)):
+                total[weekday] = [one + two for one, two in zip(total[weekday], row)]
+        return total
+
+    thirtieths = [day(year, 5, 30) for year in (2022, 2023, 2024)]
+    assert calendar_rules.few_month_dates(((1, 29, 0), (30, 30, 30), (31, 34, 0)), thirtieths * 10, table(thirtieths))
+    assert calendar_rules.few_month_dates(((1, 29, 0), (30, 34, 30)), thirtieths * 10, table(thirtieths))
+    firsts = [day(year, 5, 1) for year in (2022, 2023, 2024)]
+    assert calendar_rules.few_month_dates(((2, 30, 0), (31, 1, 30)), firsts * 10, table(firsts))
+    lasts = [day(year, 5, 31) for year in (2022, 2023, 2024)]
+    assert not calendar_rules.few_month_dates(((1, 30, 0), (31, 34, 30)), lasts * 10, table(lasts))
+
+
 def test_a_group_of_three_dates_withholds_the_census(tmp_path: pathlib.Path) -> None:
     """Three Mays heaped on the 1st and the 15th: every bin holds its three dates, every one its
     calendar gives, but only a month's last day may stand on fewer than four, so no census is
@@ -1078,6 +1235,20 @@ def test_a_group_of_three_dates_withholds_the_census(tmp_path: pathlib.Path) -> 
     assert taxonomy.rendered(taxonomy.NOTE_DAY_OF_MONTH_WITHHELD, ()) in json.dumps(described.document)
     for seed in SEEDS:
         assert kpi_shapes.missed(kpi_shapes.measure(described, kpi_shapes.twin_text(described, seed), f"t{seed}.csv")) == []
+
+
+def test_four_mays_at_a_floor_of_36_withhold_the_census(tmp_path: pathlib.Path) -> None:
+    """Skeptic 2's item 3, the few-dates rule's stated price: four Mays at 1,000 rows and a floor
+    of 36 heap on the 1st and the 15th, and the 1st's group holds three body dates, every one its
+    calendar gives (the low tail takes the first year's 1st). Before the repair round the census
+    published 12 groups and every twin met it; the rule now keeps it back (NF104), and the twin
+    still misses nothing. Red where every group may stand on its calendar again."""
+    cells = _mays(range(2021, 2025), 1000, 1604, 1.0)
+    described = kpi_shapes.describe(tmp_path, "mays", _text({"visit": cells}), 36)
+    block = described.block("visit")
+    assert _census(block) == ()
+    assert _decided(block, [_may_day(cell) for cell in cells], 36).reason == calendar_rules.REASON_MONTH_FEW_DATES
+    assert kpi_shapes.missed(kpi_shapes.measure(described, kpi_shapes.twin_text(described, 0), "t0.csv")) == []
 
 
 def test_the_reach_rule_withholds_the_monthly_visit_at_ten_thousand_rows(tmp_path: pathlib.Path) -> None:
