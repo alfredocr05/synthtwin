@@ -7819,7 +7819,7 @@
    "driver": null,
    "pin_strength": "WEAKER",
    "measured_on": "seven columns of moments at 1,000 to 11,000 rows through the real producer, generator and checker, floors 11 and 36, seeds 0 to 9",
-   "evidence": "Before (ad6487a), twins of the four last columns missed the hour census at 4, 7, 5 and 10 seeds of 10 at floor 11, T2's column its count of different values and at midnight too; none with the weekday census withdrawn. After, none at either floor; 420 twins with one census alone or met before are byte for byte ad6487a's. At a million rows the round took 0.7 s of a 124 s generate on the clinic and 26.6 s of 213 on noon stamps over 118 days, both still short where no free value is left in a gap (767 and 2,344 ranks).",
+   "evidence": "Before (ad6487a), twins of the four last columns missed the hour census at 4, 7, 5 and 10 seeds of 10 at floor 11, T2's column its count of different values and at midnight too; none with the weekday census withdrawn. After, none at either floor; 394 twins with one census alone or met before, of 420, are byte for byte ad6487a's. At a million rows the round took 0.7 s of a 124 s generate on the clinic and 26.6 s of 213 on noon stamps over 118 days, both still short where no free value is left in a gap (767 and 2,344 ranks).",
    "nodes_min_collected": 24,
    "value_at": {
     "commit": "09e335e",
