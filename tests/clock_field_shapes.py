@@ -206,6 +206,75 @@ WITH_THE_HOUR = ("night_and_day",)
 SECONDS_PUBLISHED = ("zero_seconds", "near_pure_seconds")
 
 
+def second_few(draw: random.Random, rows: int) -> "list[str]":
+    """Seventy moments of the day hours on seconds 0 to 9, each written five
+    times over: a second census of the rest standing on a few values (the
+    lane's skeptic, item 6)."""
+    moments: "list[str]" = []
+    for _moment in range(70):
+        moments += [
+            _at(draw.choice(_YEAR), draw.choice(range(6, 22)), draw.randrange(60), draw.randrange(10)).strftime(ISO_S)
+        ]
+    found: "list[str]" = []
+    while len(found) < rows:
+        found += [draw.choice(moments)] * 5
+    found = found[:rows]
+    draw.shuffle(found)
+    return found
+
+
+def fuzzed(seed: int, number: int) -> "tuple[list[str], int, str]":
+    """One random column of moments of the lane's first skeptic (its `fuzz.py`,
+    `column`): random minute heaps, seconds pinned to 0 in a share, bare days
+    at midnight, an epoch placeholder, sixtieth seconds and bursts, spans of
+    a day to five years, 60 to 3,000 rows, written to the minute, the second
+    or the millisecond; with the floor it is described under and its
+    precision. The same `seed` and `number` draw the same column."""
+    draw = random.Random(seed * 100000 + number)
+    rows = draw.choice((60, 120, 300, 700, 1500, 3000))
+    span = draw.choice((1, 3, 30, 365, 1826))
+    start = datetime.datetime(2022, 1, 1)
+    precision = draw.choice(("minute", "second", "second", "subsecond"))
+    heaps: "list[tuple[int, float]]" = []
+    for _heap in range(draw.randrange(0, 5)):
+        heaps += [(draw.randrange(60), draw.random())]
+    heap_share = draw.choice((0.0, 0.3, 0.7, 0.95, 1.0)) if heaps else 0.0
+    second_zero = draw.choice((0.0, 0.5, 0.9, 1.0))
+    midnight = draw.choice((0.0, 0.0, 0.05, 0.3))
+    epoch = draw.choice((0.0, 0.0, 0.1))
+    leap = draw.choice((0.0, 0.0, 0.02))
+    burst = draw.choice((1, 1, 3, 6))
+    hours = [draw.random() ** 2 for _hour in range(24)]
+    found: "list[str]" = []
+    while len(found) < rows:
+        if draw.random() < epoch:
+            moment = datetime.datetime(1970, 1, 1)
+        else:
+            day = start + datetime.timedelta(days=draw.randrange(span))
+            if draw.random() < midnight:
+                moment = day
+            else:
+                hour = draw.choices(range(24), weights=hours)[0]
+                if heaps and draw.random() < heap_share:
+                    minute = draw.choices([value for value, _weight in heaps], weights=[weight for _value, weight in heaps])[0]
+                else:
+                    minute = draw.randrange(60)
+                second = 0 if draw.random() < second_zero else draw.randrange(60)
+                moment = day.replace(hour=hour, minute=minute, second=second, microsecond=1000 * draw.randrange(1000))
+        if precision == "minute":
+            text = moment.strftime("%Y-%m-%d %H:%M")
+        elif precision == "second":
+            text = moment.strftime("%Y-%m-%d %H:%M:%S")
+            if draw.random() < leap and text[-2:] == "59":
+                text = text[:-2] + "60"
+        else:
+            text = moment.strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]
+        found += [text] * min(draw.randint(1, burst), rows - len(found))
+    draw.shuffle(found)
+    floor = draw.choice((1, 5, 11, 11, 20, 36, 50))
+    return found, floor, precision
+
+
 def table_text(columns: "dict[str, tuple[list[str], str]]") -> str:
     """The columns as one comma-separated table."""
     names = list(columns)

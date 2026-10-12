@@ -1055,6 +1055,9 @@ NOTE_SECOND_WITHHELD_NO_GROUPING = "second_census_withheld_no_grouping"
 NOTE_MINUTE_WITHHELD_WITH_THE_HOUR = "minute_census_withheld_with_the_hour"
 NOTE_SECOND_WITHHELD_WITH_THE_HOUR = "second_census_withheld_with_the_hour"
 NOTE_MINUTE_WITHHELD_FEW_VALUES = "minute_census_withheld_few_values"
+# NF120: the second's own (the lane's skeptic, item 6: a second census of
+# the rest withheld for its few values beside no heap had said nothing).
+NOTE_SECOND_WITHHELD_FEW_VALUES = "second_census_withheld_few_values"
 # NF118 and NF119: counts away from value 0 a body could be left too few
 # cells off a midnight to hold (`calendar_clock.off_midnight_short`).
 NOTE_MINUTE_WITHHELD_OFF_MIDNIGHT = "minute_census_withheld_off_midnight"
@@ -1252,6 +1255,7 @@ NOTE_ARITY: "dict[str, int]" = {
     NOTE_MINUTE_WITHHELD_WITH_THE_HOUR: 0,
     NOTE_SECOND_WITHHELD_WITH_THE_HOUR: 0,
     NOTE_MINUTE_WITHHELD_FEW_VALUES: 0,
+    NOTE_SECOND_WITHHELD_FEW_VALUES: 0,
     NOTE_MINUTE_WITHHELD_OFF_MIDNIGHT: 0,
     NOTE_SECOND_WITHHELD_OFF_MIDNIGHT: 0,
     # anchor 3b-C1 (P4-D373)
@@ -2266,13 +2270,12 @@ def rendered(form: str, arguments: "tuple[object, ...]") -> str:
             f"fewer rows than those, to its smaller neighbour, leaves one group "
             f"over the whole {whole}"
         )
-    if form == NOTE_MINUTE_WITHHELD_FEW_VALUES:
-        # NF101: the minute's alone; a second census of the rest left out
-        # for its few values beside no heap says nothing, as a flat
-        # field's does.
+    if form in (NOTE_MINUTE_WITHHELD_FEW_VALUES, NOTE_SECOND_WITHHELD_FEW_VALUES):
+        # NF101, NF120.
+        values, one, _whole_word = _clock_field_words(form)
         return (
-            f"the minutes of the hour this column's values fall on are not "
-            f"counted: no minute stands out on its own, and its values "
+            f"the {values} this column's values fall on are not "
+            f"counted: no {one} stands out on its own, and its values "
             f"between the two tail boundaries are written at too few "
             f"different values -- fewer than {calendar_clock.FEW_VALUES_LEAST} "
             f"in a group, or fewer than {calendar_clock.FEW_VALUES_MEAN} a "
@@ -17477,12 +17480,13 @@ def _clock_field_words(form: str) -> "tuple[str, str, str]":
         NOTE_SECOND_WITHHELD_NO_GROUPING,
         NOTE_SECOND_WITHHELD_WITH_THE_HOUR,
         NOTE_SECOND_WITHHELD_OFF_MIDNIGHT,
+        NOTE_SECOND_WITHHELD_FEW_VALUES,
     ):
         return "seconds of the minute", "second", "minute"
     return "minutes of the hour", "minute", "hour"
 
 
-# THE SENTENCES OF EACH FIELD (landing 3b.4, contract NF93 to NF100): its
+# THE SENTENCES OF EACH FIELD (landing 3b.4, contract NF93 to NF101, NF118 to NF120): its
 # remark where it publishes, and the note of each reason of its own.
 _FIELD_REMARKS = {
     calendar_clock.MINUTE: REMARK_MINUTE_CENSUS,
@@ -17496,6 +17500,7 @@ _FIELD_WITHHELD_NOTES = {
     (calendar_clock.MINUTE, calendar_clock.FIELD_REASON_HOUR): NOTE_MINUTE_WITHHELD_WITH_THE_HOUR,
     (calendar_clock.SECOND, calendar_clock.FIELD_REASON_HOUR): NOTE_SECOND_WITHHELD_WITH_THE_HOUR,
     (calendar_clock.MINUTE, calendar_clock.FIELD_REASON_FEW_VALUES): NOTE_MINUTE_WITHHELD_FEW_VALUES,
+    (calendar_clock.SECOND, calendar_clock.FIELD_REASON_FEW_VALUES): NOTE_SECOND_WITHHELD_FEW_VALUES,
     (calendar_clock.MINUTE, calendar_clock.FIELD_REASON_OFF_MIDNIGHT): NOTE_MINUTE_WITHHELD_OFF_MIDNIGHT,
     (calendar_clock.SECOND, calendar_clock.FIELD_REASON_OFF_MIDNIGHT): NOTE_SECOND_WITHHELD_OFF_MIDNIGHT,
 }

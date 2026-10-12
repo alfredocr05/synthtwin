@@ -14703,8 +14703,9 @@ def kin_shares_moved(walk, ranks, want):
     gap's and moves to it as a gap does (G7.3f steps 5 and 6), no rank
     leaving a written unit it shares by a move changing the count. Each
     kin group's ideal less what it took is carried to the next gap; on a
-    walk barring midnight with value 0 a group alone, a rank on its day's
-    first parent is not free to take that group."""
+    walk keeping its cells at midnight, with value 0 a group alone, a rank
+    whose place on value 0 of its own parent is written at midnight is not
+    free to take that group."""
     if sum(want) != len(ranks):
         return False
     order = []
@@ -14715,8 +14716,14 @@ def kin_shares_moved(walk, ranks, want):
         return False
     members = {kin: [rank for rank in ranks if walk.kin_of(walk.days[rank]) == kin] for kin in order}
     zero = walk.group_of_bin[0] if walk.no_midnight and walk.group_of_bin.count(walk.group_of_bin[0]) == 1 else -1
+    span = clock_span(walk)
     free = {
-        kin: sum(1 for rank in members[kin] if zero < 0 or clock_seat(walk, walk.days[rank]) != 0)
+        kin: sum(
+            1 for rank in members[kin]
+            if zero < 0 or not written_at_midnight(
+                walk.days[rank] - walk.days[rank] % span + walk.days[rank] % walk.unit, 0, walk.step
+            )
+        )
         for kin in order
     }
     eligible = sum(free.values())

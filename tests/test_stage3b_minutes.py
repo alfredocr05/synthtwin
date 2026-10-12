@@ -378,7 +378,19 @@ def _independence_failures(block: dict, real: "list[str]", twin: "list[str]", fo
     twin of a column on the hour but for three cells failed it once in the
     KPI's ten twins at 10,000 rows, 0.991 against 1.000 in hours 0 and 1,
     where three sampling scales come to about one cell). The real table's cells now fail it
-    nowhere (`test_the_real_table_meets_the_independence_clause`)."""
+    nowhere (`test_the_real_table_meets_the_independence_clause`).
+
+    AND A THIRD (the lane's skeptic, item 8): where the column's seconds are
+    pinned to 0 -- written to the minute, or its second's facts pinning
+    second 0 -- a cell of hour 0 on minute 0 is a written midnight, so the
+    cells off midnight of an hour group holding hour 0 stand on minute 0 only
+    in its other hours; minute 0's share is then asked of the cells free to
+    take it -- off midnight and off hour 0 -- and an hour group expects it
+    of its own cells off hour 0 alone (cells written `HH:MM:00` at 10,000
+    rows and a floor of 36 failed the clause at every seed, hour 0 a group
+    of its own and expected 0.366 on minute 0, and were right to come back
+    with none). A column written in bursts -- more than one and a half cells
+    to each different value -- is not asked (below)."""
     census, heaps = _published(block, "minute")
     singles = [(value, count) for value, count in heaps] + [(first, count) for first, last, count in census if first == last and count > 0]
     if not singles or not block["hour_census"]:
@@ -399,12 +411,20 @@ def _independence_failures(block: dict, real: "list[str]", twin: "list[str]", fo
         return []
     off = [moment for moment in moments if (moment.hour, moment.minute, moment.second, moment.microsecond) != (0, 0, 0, 0)]
     at_midnight = len(moments) - len(off)
+    second_census, second_heaps = _published(block, "second")
+    pinned = block["time_precision"] == "minute" or calendar_clock.field_lattice(
+        tuple(second_census), tuple(second_heaps), [], body, LINE
+    ) == calendar_clock.FIELD_VALUES
+    hour_zero = len([moment for moment in off if moment.hour == 0]) if pinned else 0
     for group in block["hour_census"]:
         inside = [moment for moment in off if group["first"] <= moment.hour <= group["last"]]
         if len(inside) < 4 * LINE:
             continue
         for value, count in singles:
             expected = (count - (at_midnight if value == 0 else 0)) / (body - at_midnight)
+            if value == 0 and hour_zero:
+                free = len([moment for moment in inside if moment.hour != 0])
+                expected = (count - at_midnight) / (body - at_midnight - hour_zero) * free / len(inside)
             if expected * len(inside) < LINE or (1 - expected) * len(inside) < LINE:
                 continue
             share = sum(1 for moment in inside if moment.minute == value) / len(inside)
@@ -648,6 +668,83 @@ def test_days_beside_a_few_timed_cells_withhold_their_minutes(tmp_path: pathlib.
     assert "days:minute_heaps.counts" in kpi_shapes.missed(kpi_shapes.measure(described, written, "m.csv"))
 
 
+def test_a_second_census_of_a_few_values_says_so(tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Seventy moments on seconds 0 to 9, each written five times, publish no second
+    census and say why (NF120, the lane's skeptic, item 6: it had said nothing);
+    with the few-values rule withdrawn a census of the seconds is published."""
+    cells = shapes.second_few(random.Random(74000), 1000)
+    described = _one_column(tmp_path / "few", "few", cells)
+    block = described.block("few")
+    assert block["second_census"] == [] and block["second_heaps"] == []
+    said = [note["note"] for note in described.document["publication_notes"] if note["column"] == "few"]
+    assert taxonomy.rendered(taxonomy.NOTE_SECOND_WITHHELD_FEW_VALUES, ()) in said
+    monkeypatch.setattr(calendar_clock, "few_values", lambda _groups, _units, _heaps: False)
+    assert _one_column(tmp_path / "withdrawn", "few", cells).block("few")["second_census"]
+
+
+# THE SKEPTIC'S FUZZED COLUMNS (`clock_field_shapes.fuzzed`, seed 1) whose count
+# of different values G7.3h had cost and 2341173, which publishes no minute or
+# second fact, had held: subsecond columns -- the twin writes no figure below
+# the second -- and columns at the second in bursts beside cells at midnight.
+FUZZED = (1, 28, 58, 86, 105, 120, 194, 199)
+
+
+@pytest.mark.parametrize("number", FUZZED)
+def test_the_fuzzed_columns_keep_their_count(tmp_path: pathlib.Path, number: int) -> None:
+    """Each describes, loads and comes back at seed 0 with nothing MISSED, as on
+    2341173 (the lane's skeptic, item 3); a subsecond column publishes no
+    second census (SE3)."""
+    cells, floor, precision = shapes.fuzzed(1, number)
+    described = _one_column(tmp_path, "c", cells, floor)
+    block = described.block("c")
+    if precision == "subsecond":
+        assert block["second_census"] == [] and block["second_heaps"] == [], number
+    written = kpi_shapes.twin_text(described, 0)
+    assert kpi_shapes.missed(kpi_shapes.measure(described, written, "t.csv")) == [], number
+
+
+# What 2341173 missed on the small bursty tables of the lane's skeptic (item 3):
+# the ceiling, by rows and seed.
+SMALL_BURSTS_CEILING = {(300, 2): ["bursts:distinct.n_distinct", "bursts:distinct.n_distinct_folded"]}
+
+
+def test_small_bursty_tables_keep_their_count(tmp_path: pathlib.Path) -> None:
+    """Check-ins in bursts at 200 and 300 rows, floor 11, seeds 0 to 4, miss nothing
+    2341173 held: SUBSTITUTE asked again while a round puts a value back, its join
+    reaching the kin on other days (measured: 3 of 10 twins came back long
+    after one round; 1 of 10 after three without the kin on other days)."""
+    for rows in (200, 300):
+        cells = shapes.bursts(random.Random(72011 + rows), rows)
+        described = _one_column(tmp_path / f"b{rows}", "bursts", cells)
+        for seed in range(5):
+            written = kpi_shapes.twin_text(described, seed)
+            missed = kpi_shapes.missed(kpi_shapes.measure(described, written, f"t{seed}.csv"))
+            ceiling = SMALL_BURSTS_CEILING[(rows, seed)] if (rows, seed) in SMALL_BURSTS_CEILING else []
+            assert set(missed) <= set(ceiling), (rows, seed, missed)
+
+
+def test_heaps_beside_a_withheld_rest_pin_no_lattice(tmp_path: pathlib.Path) -> None:
+    """Bursts of check-ins publish heaps at minutes 0 and 30 beside a census of the
+    rest withheld for its few values, a third of the body off them: no lattice
+    is pinned, and no minute off the heaps comes back above three times the
+    real column's busiest (the lane's skeptic, item 2: drawn on half hours,
+    the rest piled on :01 or :29, 15 to 24 per cent of every cell against 1.2
+    to 1.8 real; the frozen case `lattice_rest_withheld` holds the rule)."""
+    cells = shapes.bursts(random.Random(73011), 1000)
+    described = _one_column(tmp_path, "bursts", cells)
+    block = described.block("bursts")
+    assert block["minute_heaps"] and block["minute_census"] == []
+    assert _unit_of(described, "bursts") == 1
+    heaps = {heap["value"] for heap in block["minute_heaps"]}
+    real = _field_counts(cells, shapes.US, "minute")
+    busiest = max(real[value] for value in range(60) if value not in heaps)
+    for seed in (0, 1, 2):
+        written = kpi_shapes.twin_text(described, seed)
+        twin = _field_counts(shapes.cells_of(written, "bursts"), shapes.US, "minute")
+        assert max(twin[value] for value in range(60) if value not in heaps) <= 3 * busiest, seed
+        assert kpi_shapes.missed(kpi_shapes.measure(described, written, f"t{seed}.csv")) == [], seed
+
+
 def test_the_counts_off_midnight_by_hand() -> None:
     """The counts away from value 0 must fit in the body less its count at midnight."""
     assert calendar_clock.off_midnight_short((), ((30, 11),), 977, 989)
@@ -719,8 +816,10 @@ def test_mc3_the_scope_and_the_total(thousand, tmp_path: pathlib.Path) -> None:
         assert contract.INVARIANTS["MC3"] in f"{raised.value}", scope
 
 
-def test_sc3_a_second_census_needs_seconds(thousand) -> None:
-    """A second census on a column written to the minute is refused (SE3)."""
+@pytest.mark.parametrize("precision", ["minute", "subsecond"])
+def test_sc3_a_second_census_needs_seconds(thousand, precision: str) -> None:
+    """A second census on a column written to the minute, or finer than the
+    second, is refused (SE3; the twin writes no figure below the second)."""
     described, _columns, _text = thousand
     column = next(column for column in described.loaded.columns if column.name == "zero_seconds")
     facts = column.facts
@@ -730,7 +829,7 @@ def test_sc3_a_second_census_needs_seconds(thousand) -> None:
     with pytest.raises(errors.ProfileError) as raised:
         contract._clock_field_censuses(
             mapping, "here", LINE, column.n_present, column.n_distinct, (), (),
-            dataclasses.replace(facts, time_precision="minute"),
+            dataclasses.replace(facts, time_precision=precision),
         )
     assert contract.INVARIANTS["SE3"] in f"{raised.value}"
 
@@ -974,10 +1073,10 @@ STEP_MUTANTS = {
         "    if state.no_midnight and state.where.count(state.where[0]) == 1:\n        zero = state.where[0]",
         "    if False:\n        zero = state.where[0]",
     ),
-    "every rank free to take value 0": (
+    "the ranks free to take value 0 not counted": (
         "field_midnight_share",
-        "                [rank for rank in rows[kin] if _clock_seat(state, state.moved[rank]) != 0]",
-        "                [rank for rank in rows[kin]]",
+        "                    if not _written_at_midnight(\n",
+        "                    if False and not _written_at_midnight(\n",
     ),
     "a draw laid on no unit": (
         "field_floor",

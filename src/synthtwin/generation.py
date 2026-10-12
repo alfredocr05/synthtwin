@@ -26147,8 +26147,9 @@ def _clock_kin_shares_moved(state: _WeekdayPass, ranks: "list[int]", want: "list
     cells there against 11. And on a pass keeping its cells at midnight
     (`_WeekdayPass.no_midnight`), where value 0 is a group alone, a rank on
     its day's first parent -- hour 0 for the minute -- is not FREE to take
-    it, as it would stand at a written midnight and the real column's own
-    cells there are those at midnight: that group's share is spread over the
+    it where its place there is written at midnight (on a column written to
+    the minute, every one), as the real column's own cells there are those
+    at midnight: that group's share is spread over the
     kin groups by their ranks free to take it, where they are enough. A
     share given hour 0 in proportion put 327 of 200,000 ranks written
     `HH:MM:00` at midnight, and the exchange took 110 back.
@@ -26177,11 +26178,23 @@ def _clock_kin_shares_moved(state: _WeekdayPass, ranks: "list[int]", want: "list
         zero = state.where[0]
     free: "dict[int, int]" = {}
     eligible = 0
+    span = state.unit * state.period
     for kin in order:
         free[kin] = len(rows[kin])
         if zero >= 0:
+            # Not free: a rank whose place on value 0 of its own parent --
+            # its own place in the unit, on the parent's first unit -- is
+            # written at midnight, which only the day's first parent holds.
             free[kin] = len(
-                [rank for rank in rows[kin] if _clock_seat(state, state.moved[rank]) != 0]
+                [
+                    rank
+                    for rank in rows[kin]
+                    if not _written_at_midnight(
+                        state.moved[rank] - state.moved[rank] % span + state.moved[rank] % state.unit,
+                        0,
+                        state.step,
+                    )
+                ]
             )
         eligible = eligible + free[kin]
     if zero >= 0 and want[zero] > eligible:
