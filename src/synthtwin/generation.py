@@ -19251,7 +19251,12 @@ def _heavy_segments(
         loose: "list[tuple[tuple[int, int], ...]]" = []
         touches: "list[bool]" = []
         for part in range(len(covered) + 1):
+            # An unlisted knot's day is the part's before it, never the one
+            # after: two parts sharing it each drew their ranks onto that
+            # one day. The low boundary's day is the first part's.
             lo = max(day_a, low_day) if part == 0 else covered[part - 1] + 1
+            if part == 0 and real_a and rank_a != low_rank:
+                lo = day_a + 1
             hi = min(day_b, high_day) if part == len(covered) else covered[part] - 1
             lows += [lo]
             highs += [hi]
@@ -19263,7 +19268,8 @@ def _heavy_segments(
                 )
             ]
             touches += [
-                (part == 0 and real_a) or (part == len(covered) and real_b)
+                (part == 0 and real_a and rank_a == low_rank)
+                or (part == len(covered) and real_b)
             ]
         least: "list[int]" = []
         most: "list[int]" = []
@@ -20313,9 +20319,35 @@ def _heavy_cells(
             left - _heavy_reach(shares, days_of, knots),
         )
         if short == 0 and missing == 0:
-            return shares
+            return _heavy_whole(shares, days_of, supply)
         ranked += [(short, missing, order)]
-    return tried[sorted(ranked)[0][2]][1]
+    return _heavy_whole(tried[sorted(ranked)[0][2]][1], days_of, supply)
+
+
+def _heavy_whole(
+    shares: "list[dict[tuple[int, ...], int]]",
+    days_of: "list[dict[tuple[int, ...], tuple[int, ...]]]",
+    supply: "list[int]",
+) -> "list[dict[tuple[int, ...], int]]":
+    """Each part's shares holding every one of its ranks on keys it has: a
+    rank a flow or a rounding left unplaced goes to the part's key with
+    the most free days, the first on a tie."""
+    found: "list[dict[tuple[int, ...], int]]" = []
+    for place in range(len(shares)):
+        widest: "tuple[int, ...] | None" = None
+        for key in sorted(days_of[place]):
+            if widest is None or len(days_of[place][key]) > len(days_of[place][widest]):
+                widest = key
+        kept = {
+            key: shares[place][key]
+            for key in shares[place]
+            if key in days_of[place] and shares[place][key] > 0
+        }
+        short = supply[place] - sum(kept.values())
+        if short > 0 and widest is not None:
+            kept[widest] = kept.get(widest, 0) + short
+        found += [kept]
+    return found
 
 
 def _heavy_met(
@@ -26385,6 +26417,67 @@ def _heavy_drawn(
     return taken + total
 
 
+def _heavy_days_opened(
+    keys: "list[tuple[int, int, int]]", left: int
+) -> "list[int]":
+    """How many new days each key opens (method G7.3j step 4).
+
+    `keys` holds each key's ranks, its knots' days and its free days that
+    are no knot's. A key holding ranks and no knot's day opens at least
+    one; past that, the `left` new days the count leaves go where the
+    ranks stand thickest: the least density of ranks per day -- a key's
+    knots' days and its new days together -- at which the keys need no
+    more than `left` new days is found by halving, each key opening as
+    many as that density asks, never more than its free days or its
+    ranks, and the days still left go one each to the keys whose ranks
+    then stand thickest, ties to the earlier key. Where even one new day
+    a key is more than `left`, each key takes its one.
+
+    Guarantees: returns one count per key. Linear in the keys, times the
+    halving. Determinism: a function of the two. Raises nothing.
+    """
+    least = [
+        1 if rows > 0 and fixed == 0 and free > 0 else 0
+        for rows, fixed, free in keys
+    ]
+    most = [min(free, rows) for rows, _fixed, free in keys]
+    if sum(least) >= left:
+        return least
+
+    def wanted(density: int) -> "list[int]":
+        found: "list[int]" = []
+        for index in range(len(keys)):
+            rows, fixed, _free = keys[index]
+            days = -((-rows * _HEAVY_WEIGHT_SCALE) // density) - fixed
+            found += [max(least[index], min(most[index], days))]
+        return found
+
+    low, high = 1, max(1, max(rows for rows, _fixed, _free in keys)) * _HEAVY_WEIGHT_SCALE
+    while high - low > 1:
+        middle = (low + high) // 2
+        if sum(wanted(middle)) <= left:
+            high = middle
+        else:
+            low = middle
+    opened = wanted(high)
+    spare = left - sum(opened)
+    order = sorted(
+        range(len(keys)),
+        key=lambda index: (
+            -(keys[index][0] * _HEAVY_WEIGHT_SCALE)
+            // max(1, keys[index][1] + opened[index]),
+            index,
+        ),
+    )
+    for index in order:
+        if spare <= 0:
+            break
+        if opened[index] < most[index]:
+            opened[index] = opened[index] + 1
+            spare = spare - 1
+    return opened
+
+
 def _heavy_values(
     parts: "tuple[_HeavyPart, ...]",
     owed: "tuple[tuple[int, ...], ...]",
@@ -26398,10 +26491,8 @@ def _heavy_values(
     the unlisted knots' days, `left` the new days the count of different
     days leaves once the listed dates, the knots and both tails hold
     theirs, and `words` one word per ordinary rank in rank order. The
-    ranks are split by key (`_heavy_cells`); each key holding ranks opens
-    at least one new day unless a knot's day lies in it, and the rest of
-    `left` goes to the keys by their ranks, never more than a key's free
-    days or its ranks. A key's new days are drawn among its free days,
+    ranks are split by key (`_heavy_cells`) and each key's new days
+    counted (`_heavy_days_opened`). A key's new days are drawn among its free days,
     one by the word of each of its first slots, no day drawn twice; each
     takes that slot's rank, and every other rank of the key is drawn
     uniformly over the key's new days and its knots' days by the word of
@@ -26422,33 +26513,10 @@ def _heavy_values(
             fixed = tuple(day for day in days if day in knots)
             free = tuple(day for day in days if day not in knots)
             cells += [(number, rows, fixed, free)]
-    opened = [
-        1 if not fixed and free else 0 for _number, _rows, fixed, free in cells
-    ]
-    most = [min(len(free), rows) for _number, rows, _fixed, free in cells]
-    left = left - sum(opened)
-    while left > 0:
-        weight = sum(
-            cells[index][1]
-            for index in range(len(cells))
-            if opened[index] < most[index]
-        )
-        if weight <= 0:
-            break
-        given = 0
-        for index in range(len(cells)):
-            room = most[index] - opened[index]
-            if room <= 0:
-                continue
-            add = min(room, (left * cells[index][1]) // weight)
-            opened[index] = opened[index] + add
-            given = given + add
-        if given == 0:
-            for index in range(len(cells)):
-                if given < left and opened[index] < most[index]:
-                    opened[index] = opened[index] + 1
-                    given = given + 1
-        left = left - given
+    opened = _heavy_days_opened(
+        [(rows, len(fixed), len(free)) for _number, rows, fixed, free in cells],
+        left,
+    )
     values: "list[list[int]]" = [[] for _ in parts]
     slots = [0 for _ in parts]
     for number in range(1, len(parts)):

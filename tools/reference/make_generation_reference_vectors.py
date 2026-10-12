@@ -9511,11 +9511,13 @@ def heavy_segments(knots, listed, holes):
         touches = []
         for part in range(len(covered) + 1):
             lo = max(day_a, low_day) if part == 0 else covered[part - 1] + 1
+            if part == 0 and real_a and (rank_a != low_rank):
+                lo = day_a + 1
             hi = min(day_b, high_day) if part == len(covered) else covered[part] - 1
             lows += [lo]
             highs += [hi]
             loose += [tuple(((day, count_of[day]) for day in inside if lo <= day <= hi and day not in knot_days))]
-            touches += [part == 0 and real_a or (part == len(covered) and real_b)]
+            touches += [part == 0 and real_a and rank_a == low_rank or (part == len(covered) and real_b)]
         least = []
         most = []
         offset = rank_a + 1
@@ -10152,9 +10154,60 @@ def heavy_cells(parts, demands, knots, left):
         short, shares = tried[order]
         missing = max(0, heavy_opened(shares, days_of, knots) - left, left - heavy_reach(shares, days_of, knots))
         if short == 0 and missing == 0:
-            return shares
+            return heavy_whole(shares, days_of, supply)
         ranked += [(short, missing, order)]
-    return tried[sorted(ranked)[0][2]][1]
+    return heavy_whole(tried[sorted(ranked)[0][2]][1], days_of, supply)
+
+
+def heavy_whole(shares, days_of, supply):
+    """Each part's shares holding every one of its ranks on keys it has: a
+    rank a flow or a rounding left unplaced goes to the part's key with the
+    most free days, the first on a tie."""
+    found = []
+    for place in range(len(shares)):
+        widest = None
+        for key in sorted(days_of[place]):
+            if widest is None or len(days_of[place][key]) > len(days_of[place][widest]):
+                widest = key
+        kept = {key: shares[place][key] for key in shares[place] if key in days_of[place] and shares[place][key] > 0}
+        short = supply[place] - sum(kept.values())
+        if short > 0 and widest is not None:
+            kept[widest] = kept.get(widest, 0) + short
+        found.append(kept)
+    return found
+
+
+def heavy_days_opened(keys, left):
+    """G7.3j step 4: how many new days each key opens -- one at least where it holds ranks and no knot's day, then by the least density of ranks per day at which the keys need no more than the new days left, found by halving, the rest one each where the ranks stand thickest."""
+    least = [1 if rows > 0 and fixed == 0 and (free > 0) else 0 for rows, fixed, free in keys]
+    most = [min(free, rows) for rows, _fixed, free in keys]
+    if sum(least) >= left:
+        return least
+
+    def wanted(density):
+        found = []
+        for index in range(len(keys)):
+            rows, fixed, _free = keys[index]
+            days = -(-rows * HEAVY_WEIGHT_SCALE // density) - fixed
+            found += [max(least[index], min(most[index], days))]
+        return found
+    low, high = (1, max(1, max((rows for rows, _fixed, _free in keys))) * HEAVY_WEIGHT_SCALE)
+    while high - low > 1:
+        middle = (low + high) // 2
+        if sum(wanted(middle)) <= left:
+            high = middle
+        else:
+            low = middle
+    opened = wanted(high)
+    spare = left - sum(opened)
+    order = sorted(range(len(keys)), key=lambda index: (-(keys[index][0] * HEAVY_WEIGHT_SCALE) // max(1, keys[index][1] + opened[index]), index))
+    for index in order:
+        if spare <= 0:
+            break
+        if opened[index] < most[index]:
+            opened[index] = opened[index] + 1
+            spare = spare - 1
+    return opened
 
 def heavy_values(parts, owed, knots, left, words):
     """G7.3j step 4: each key's new days drawn among its free days by the words of its first slots, no day twice, every other rank drawn over the key's days by the word of its slot; each part's values ascending."""
@@ -10169,27 +10222,7 @@ def heavy_values(parts, owed, knots, left, words):
             fixed = tuple((day for day in days if day in knots))
             free = tuple((day for day in days if day not in knots))
             cells += [(number, rows, fixed, free)]
-    opened = [1 if not fixed and free else 0 for _number, _rows, fixed, free in cells]
-    most = [min(len(free), rows) for _number, rows, _fixed, free in cells]
-    left = left - sum(opened)
-    while left > 0:
-        weight = sum((cells[index][1] for index in range(len(cells)) if opened[index] < most[index]))
-        if weight <= 0:
-            break
-        given = 0
-        for index in range(len(cells)):
-            room = most[index] - opened[index]
-            if room <= 0:
-                continue
-            add = min(room, left * cells[index][1] // weight)
-            opened[index] = opened[index] + add
-            given = given + add
-        if given == 0:
-            for index in range(len(cells)):
-                if given < left and opened[index] < most[index]:
-                    opened[index] = opened[index] + 1
-                    given = given + 1
-        left = left - given
+    opened = heavy_days_opened([(rows, len(fixed), len(free)) for _number, rows, fixed, free in cells], left)
     values = [[] for _ in parts]
     slots = [0 for _ in parts]
     for number in range(1, len(parts)):
@@ -15311,6 +15344,166 @@ def day_step_document():
         "case states its ranks, their gaps and pins, the body, the span between the two "
         "boundaries, the count of different days to keep where it is reachable, the two "
         "censuses (bins from 1, weekdays from Monday nought) and the holes.",
+        "generated_by": "tools/reference/make_generation_reference_vectors.py",
+        "method": "docs/spec/generation-method-v1.md",
+        "never_imports": ["synthtwin", "numpy", "pandas"],
+        "cases": cases,
+    }
+
+
+# -- landing 3b.6's dates that stand out (plan P4-D369), the nineteenth file --
+#
+# States of G7.3j's plan and draw: the body's knots, the listed dates, the
+# holes, the weekday and day-of-month censuses beside the list, the
+# budget of new days the parts may open and the new days the count
+# leaves the draw, each with the words of its ordinary ranks drawn from a
+# fixed generator. Four are stated by hand -- a covered run, two loose
+# dates, a listed boundary day, two listed dates with a hole between and
+# a rung on the second -- and three are the states the product met on
+# three columns, written here as numbers: Monday and Thursday sessions
+# over 104 weeks, whose split the census repair moves (the 3b.6
+# skeptic's B1); Monday and Thursday sessions with three rows in a
+# hundred on any day, whose split the repair moves for the count's new
+# days; and six Mays, beside both censuses.
+
+NINETEENTH_BRANCH_PART = "branches-19"
+
+
+def heavy_case_words(seed, count):
+    """`count` words of 64 bits from a fixed generator (Knuth's MMIX
+    constants), so a state's draw needs no stream."""
+    found = []
+    value = seed
+    for _step in range(count):
+        value = (value * 6364136223846793005 + 1442695040888963407) % TWO64
+        found.append(value)
+    return found
+
+
+def heavy_case(name, state):
+    """One state with its words, one per ordinary rank of its plan."""
+    planned = heavy_plan(
+        tuple(tuple(knot) for knot in state["knots"]),
+        tuple(tuple(pair) for pair in state["listed"]),
+        frozenset(state["holes"]),
+        (tuple(tuple(group) for group in state["weekdays"]), tuple(tuple(group) for group in state["month"])),
+        state["budget"],
+    )
+    ordinary = sum(part.count for part in planned[1])
+    return dict(state, words=heavy_case_words(len(name), ordinary))
+
+
+HEAVY_STEP_CASES = {
+    "heavy_covered_run": lambda: heavy_case("heavy_covered_run", dict(
+        knots=[[0, 19723], [50, 19743], [99, 19764]],
+        listed=[[19743, 30]],
+        holes=[],
+        weekdays=[],
+        month=[],
+        budget=40,
+        left=25,
+    )),
+    "heavy_loose_dates": lambda: heavy_case("heavy_loose_dates", dict(
+        knots=[[0, 19723], [99, 19764]],
+        listed=[[19733, 15], [19753, 20]],
+        holes=[],
+        weekdays=[],
+        month=[],
+        budget=30,
+        left=30,
+    )),
+    "heavy_boundary_day": lambda: heavy_case("heavy_boundary_day", dict(
+        knots=[[0, 19723], [40, 19738], [99, 19764]],
+        listed=[[19723, 12]],
+        holes=[],
+        weekdays=[],
+        month=[],
+        budget=30,
+        left=30,
+    )),
+    "heavy_adjacent_dates": lambda: heavy_case("heavy_adjacent_dates", dict(
+        knots=[[0, 19723], [30, 19735], [99, 19764]],
+        listed=[[19733, 12], [19735, 15]],
+        holes=[19734],
+        weekdays=[],
+        month=[],
+        budget=30,
+        left=20,
+    )),
+    "heavy_two_weekdays_repair": lambda: heavy_case("heavy_two_weekdays_repair", dict(
+        knots=[[18, 19373], [29, 19373], [149, 19404], [299, 19432], [749, 19537], [1499, 19730], [2249, 19908], [2699, 20027], [2849, 20059], [2969, 20087], [2986, 20087]],
+        listed=[[19373, 13], [19376, 20], [19380, 15], [19387, 15], [19390, 14], [19397, 14], [19401, 18], [19404, 14], [19408, 14], [19411, 23], [19415, 14], [19418, 21], [19422, 12], [19425, 17], [19429, 24], [19432, 20], [19439, 23], [19443, 12], [19446, 15], [19453, 12], [19460, 18], [19464, 22], [19467, 11], [19474, 20], [19478, 17], [19481, 11], [19485, 13], [19492, 14], [19495, 16], [19499, 16], [19502, 17], [19506, 22], [19509, 24], [19513, 16], [19516, 15], [19523, 13], [19527, 17], [19530, 17], [19537, 28], [19541, 20], [19544, 17], [19548, 17], [19555, 14], [19562, 18], [19565, 13], [19569, 28], [19572, 16], [19576, 14], [19579, 17], [19586, 11], [19590, 19], [19593, 14], [19597, 17], [19614, 20], [19621, 12], [19625, 17], [19628, 17], [19632, 21], [19635, 13], [19642, 24], [19646, 17], [19663, 22], [19677, 14], [19681, 20], [19688, 29], [19691, 18], [19695, 11], [19698, 17], [19702, 16], [19705, 23], [19709, 17], [19716, 11], [19723, 17], [19726, 15], [19730, 12], [19733, 12], [19737, 21], [19747, 21], [19754, 14], [19758, 15], [19761, 17], [19765, 20], [19768, 17], [19775, 28], [19779, 20], [19782, 20], [19786, 17], [19789, 16], [19793, 12], [19803, 19], [19810, 11], [19814, 24], [19821, 11], [19824, 18], [19828, 13], [19831, 15], [19835, 12], [19838, 16], [19842, 14], [19845, 18], [19849, 16], [19856, 15], [19859, 14], [19863, 19], [19866, 21], [19873, 17], [19877, 17], [19880, 21], [19884, 22], [19887, 18], [19898, 20], [19901, 23], [19905, 17], [19908, 16], [19915, 17], [19922, 24], [19933, 11], [19936, 12], [19940, 16], [19943, 26], [19947, 14], [19950, 15], [19954, 17], [19961, 20], [19964, 18], [19968, 25], [19978, 26], [19982, 19], [19989, 31], [19992, 18], [20006, 19], [20010, 21], [20013, 15], [20017, 12], [20020, 15], [20024, 21], [20027, 19], [20031, 18], [20034, 20], [20038, 20], [20041, 23], [20048, 22], [20052, 17], [20055, 13], [20059, 18], [20062, 11], [20069, 18], [20073, 23], [20076, 13], [20080, 14], [20083, 23], [20087, 24]],
+        holes=[],
+        weekdays=[[0, 0, 1433], [1, 2, 0], [3, 3, 1536], [4, 6, 0]],
+        month=[],
+        budget=40,
+        left=40,
+    )),
+    "heavy_count_reach_repair": lambda: heavy_case("heavy_count_reach_repair", dict(
+        knots=[[95, 19380], [249, 19386], [499, 19393], [1249, 19421], [2499, 19463], [3749, 19515], [4499, 19540], [4749, 19547], [4930, 19554]],
+        listed=[[19382, 65], [19386, 162], [19389, 128], [19393, 130], [19396, 70], [19400, 151], [19407, 87], [19414, 111], [19417, 123], [19421, 83], [19424, 79], [19428, 143], [19431, 90], [19438, 130], [19442, 127], [19445, 89], [19449, 80], [19452, 65], [19456, 79], [19459, 153], [19463, 73], [19466, 102], [19470, 107], [19473, 100], [19477, 104], [19484, 67], [19487, 83], [19491, 130], [19498, 109], [19501, 73], [19505, 76], [19508, 122], [19512, 93], [19515, 148], [19519, 90], [19522, 104], [19526, 101], [19529, 91], [19533, 130], [19540, 125], [19543, 128], [19547, 83], [19550, 134]],
+        holes=[],
+        weekdays=[[0, 0, 22], [1, 1, 27], [2, 2, 2225], [3, 3, 21], [4, 4, 15], [5, 5, 21], [6, 6, 2505]],
+        month=[],
+        budget=79,
+        left=78,
+    )),
+    "heavy_two_censuses": lambda: heavy_case("heavy_two_censuses", dict(
+        knots=[[42, 18018], [49, 18022], [99, 18031], [249, 18397], [499, 19113], [749, 19492], [899, 19853], [949, 19860], [985, 19871]],
+        listed=[[18031, 33], [18383, 41], [18397, 50], [18748, 28], [18762, 36], [19113, 40], [19127, 28], [19478, 33], [19492, 42], [19844, 34], [19858, 31]],
+        holes=[18048, 18049, 18050, 18051, 18052, 18053, 18054, 18055, 18056, 18057, 18058, 18059, 18060, 18061, 18062, 18063, 18064, 18065, 18066, 18067, 18068, 18069, 18070, 18071, 18072, 18073, 18074, 18075, 18076, 18077, 18078, 18079, 18080, 18081, 18082, 18083, 18084, 18085, 18086, 18087, 18088, 18089, 18090, 18091, 18092, 18093, 18094, 18095, 18096, 18097, 18098, 18099, 18100, 18101, 18102, 18103, 18104, 18105, 18106, 18107, 18108, 18109, 18110, 18111, 18112, 18113, 18114, 18115, 18116, 18117, 18118, 18119, 18120, 18121, 18122, 18123, 18124, 18125, 18126, 18127, 18128, 18129, 18130, 18131, 18132, 18133, 18134, 18135, 18136, 18137, 18138, 18139, 18140, 18141, 18142, 18143, 18144, 18145, 18146, 18147, 18148, 18149, 18150, 18151, 18152, 18153, 18154, 18155, 18156, 18157, 18158, 18159, 18160, 18161, 18162, 18163, 18164, 18165, 18166, 18167, 18168, 18169, 18170, 18171, 18172, 18173, 18174, 18175, 18176, 18177, 18178, 18179, 18180, 18181, 18182, 18183, 18184, 18185, 18186, 18187, 18188, 18189, 18190, 18191, 18192, 18193, 18194, 18195, 18196, 18197, 18198, 18199, 18200, 18201, 18202, 18203, 18204, 18205, 18206, 18207, 18208, 18209, 18210, 18211, 18212, 18213, 18214, 18215, 18216, 18217, 18218, 18219, 18220, 18221, 18222, 18223, 18224, 18225, 18226, 18227, 18228, 18229, 18230, 18231, 18232, 18233, 18234, 18235, 18236, 18237, 18238, 18239, 18240, 18241, 18242, 18243, 18244, 18245, 18246, 18247, 18248, 18249, 18250, 18251, 18252, 18253, 18254, 18255, 18256, 18257, 18258, 18259, 18260, 18261, 18262, 18263, 18264, 18265, 18266, 18267, 18268, 18269, 18270, 18271, 18272, 18273, 18274, 18275, 18276, 18277, 18278, 18279, 18280, 18281, 18282, 18283, 18284, 18285, 18286, 18287, 18288, 18289, 18290, 18291, 18292, 18293, 18294, 18295, 18296, 18297, 18298, 18299, 18300, 18301, 18302, 18303, 18304, 18305, 18306, 18307, 18308, 18309, 18310, 18311, 18312, 18313, 18314, 18315, 18316, 18317, 18318, 18319, 18320, 18321, 18322, 18323, 18324, 18325, 18326, 18327, 18328, 18329, 18330, 18331, 18332, 18333, 18334, 18335, 18336, 18337, 18338, 18339, 18340, 18341, 18342, 18343, 18344, 18345, 18346, 18347, 18348, 18349, 18350, 18351, 18352, 18353, 18354, 18355, 18356, 18357, 18358, 18359, 18360, 18361, 18362, 18363, 18364, 18365, 18366, 18367, 18368, 18369, 18370, 18371, 18372, 18373, 18374, 18375, 18376, 18377, 18378, 18379, 18380, 18381, 18382, 18414, 18415, 18416, 18417, 18418, 18419, 18420, 18421, 18422, 18423, 18424, 18425, 18426, 18427, 18428, 18429, 18430, 18431, 18432, 18433, 18434, 18435, 18436, 18437, 18438, 18439, 18440, 18441, 18442, 18443, 18444, 18445, 18446, 18447, 18448, 18449, 18450, 18451, 18452, 18453, 18454, 18455, 18456, 18457, 18458, 18459, 18460, 18461, 18462, 18463, 18464, 18465, 18466, 18467, 18468, 18469, 18470, 18471, 18472, 18473, 18474, 18475, 18476, 18477, 18478, 18479, 18480, 18481, 18482, 18483, 18484, 18485, 18486, 18487, 18488, 18489, 18490, 18491, 18492, 18493, 18494, 18495, 18496, 18497, 18498, 18499, 18500, 18501, 18502, 18503, 18504, 18505, 18506, 18507, 18508, 18509, 18510, 18511, 18512, 18513, 18514, 18515, 18516, 18517, 18518, 18519, 18520, 18521, 18522, 18523, 18524, 18525, 18526, 18527, 18528, 18529, 18530, 18531, 18532, 18533, 18534, 18535, 18536, 18537, 18538, 18539, 18540, 18541, 18542, 18543, 18544, 18545, 18546, 18547, 18548, 18549, 18550, 18551, 18552, 18553, 18554, 18555, 18556, 18557, 18558, 18559, 18560, 18561, 18562, 18563, 18564, 18565, 18566, 18567, 18568, 18569, 18570, 18571, 18572, 18573, 18574, 18575, 18576, 18577, 18578, 18579, 18580, 18581, 18582, 18583, 18584, 18585, 18586, 18587, 18588, 18589, 18590, 18591, 18592, 18593, 18594, 18595, 18596, 18597, 18598, 18599, 18600, 18601, 18602, 18603, 18604, 18605, 18606, 18607, 18608, 18609, 18610, 18611, 18612, 18613, 18614, 18615, 18616, 18617, 18618, 18619, 18620, 18621, 18622, 18623, 18624, 18625, 18626, 18627, 18628, 18629, 18630, 18631, 18632, 18633, 18634, 18635, 18636, 18637, 18638, 18639, 18640, 18641, 18642, 18643, 18644, 18645, 18646, 18647, 18648, 18649, 18650, 18651, 18652, 18653, 18654, 18655, 18656, 18657, 18658, 18659, 18660, 18661, 18662, 18663, 18664, 18665, 18666, 18667, 18668, 18669, 18670, 18671, 18672, 18673, 18674, 18675, 18676, 18677, 18678, 18679, 18680, 18681, 18682, 18683, 18684, 18685, 18686, 18687, 18688, 18689, 18690, 18691, 18692, 18693, 18694, 18695, 18696, 18697, 18698, 18699, 18700, 18701, 18702, 18703, 18704, 18705, 18706, 18707, 18708, 18709, 18710, 18711, 18712, 18713, 18714, 18715, 18716, 18717, 18718, 18719, 18720, 18721, 18722, 18723, 18724, 18725, 18726, 18727, 18728, 18729, 18730, 18731, 18732, 18733, 18734, 18735, 18736, 18737, 18738, 18739, 18740, 18741, 18742, 18743, 18744, 18745, 18746, 18747, 18779, 18780, 18781, 18782, 18783, 18784, 18785, 18786, 18787, 18788, 18789, 18790, 18791, 18792, 18793, 18794, 18795, 18796, 18797, 18798, 18799, 18800, 18801, 18802, 18803, 18804, 18805, 18806, 18807, 18808, 18809, 18810, 18811, 18812, 18813, 18814, 18815, 18816, 18817, 18818, 18819, 18820, 18821, 18822, 18823, 18824, 18825, 18826, 18827, 18828, 18829, 18830, 18831, 18832, 18833, 18834, 18835, 18836, 18837, 18838, 18839, 18840, 18841, 18842, 18843, 18844, 18845, 18846, 18847, 18848, 18849, 18850, 18851, 18852, 18853, 18854, 18855, 18856, 18857, 18858, 18859, 18860, 18861, 18862, 18863, 18864, 18865, 18866, 18867, 18868, 18869, 18870, 18871, 18872, 18873, 18874, 18875, 18876, 18877, 18878, 18879, 18880, 18881, 18882, 18883, 18884, 18885, 18886, 18887, 18888, 18889, 18890, 18891, 18892, 18893, 18894, 18895, 18896, 18897, 18898, 18899, 18900, 18901, 18902, 18903, 18904, 18905, 18906, 18907, 18908, 18909, 18910, 18911, 18912, 18913, 18914, 18915, 18916, 18917, 18918, 18919, 18920, 18921, 18922, 18923, 18924, 18925, 18926, 18927, 18928, 18929, 18930, 18931, 18932, 18933, 18934, 18935, 18936, 18937, 18938, 18939, 18940, 18941, 18942, 18943, 18944, 18945, 18946, 18947, 18948, 18949, 18950, 18951, 18952, 18953, 18954, 18955, 18956, 18957, 18958, 18959, 18960, 18961, 18962, 18963, 18964, 18965, 18966, 18967, 18968, 18969, 18970, 18971, 18972, 18973, 18974, 18975, 18976, 18977, 18978, 18979, 18980, 18981, 18982, 18983, 18984, 18985, 18986, 18987, 18988, 18989, 18990, 18991, 18992, 18993, 18994, 18995, 18996, 18997, 18998, 18999, 19000, 19001, 19002, 19003, 19004, 19005, 19006, 19007, 19008, 19009, 19010, 19011, 19012, 19013, 19014, 19015, 19016, 19017, 19018, 19019, 19020, 19021, 19022, 19023, 19024, 19025, 19026, 19027, 19028, 19029, 19030, 19031, 19032, 19033, 19034, 19035, 19036, 19037, 19038, 19039, 19040, 19041, 19042, 19043, 19044, 19045, 19046, 19047, 19048, 19049, 19050, 19051, 19052, 19053, 19054, 19055, 19056, 19057, 19058, 19059, 19060, 19061, 19062, 19063, 19064, 19065, 19066, 19067, 19068, 19069, 19070, 19071, 19072, 19073, 19074, 19075, 19076, 19077, 19078, 19079, 19080, 19081, 19082, 19083, 19084, 19085, 19086, 19087, 19088, 19089, 19090, 19091, 19092, 19093, 19094, 19095, 19096, 19097, 19098, 19099, 19100, 19101, 19102, 19103, 19104, 19105, 19106, 19107, 19108, 19109, 19110, 19111, 19112, 19144, 19145, 19146, 19147, 19148, 19149, 19150, 19151, 19152, 19153, 19154, 19155, 19156, 19157, 19158, 19159, 19160, 19161, 19162, 19163, 19164, 19165, 19166, 19167, 19168, 19169, 19170, 19171, 19172, 19173, 19174, 19175, 19176, 19177, 19178, 19179, 19180, 19181, 19182, 19183, 19184, 19185, 19186, 19187, 19188, 19189, 19190, 19191, 19192, 19193, 19194, 19195, 19196, 19197, 19198, 19199, 19200, 19201, 19202, 19203, 19204, 19205, 19206, 19207, 19208, 19209, 19210, 19211, 19212, 19213, 19214, 19215, 19216, 19217, 19218, 19219, 19220, 19221, 19222, 19223, 19224, 19225, 19226, 19227, 19228, 19229, 19230, 19231, 19232, 19233, 19234, 19235, 19236, 19237, 19238, 19239, 19240, 19241, 19242, 19243, 19244, 19245, 19246, 19247, 19248, 19249, 19250, 19251, 19252, 19253, 19254, 19255, 19256, 19257, 19258, 19259, 19260, 19261, 19262, 19263, 19264, 19265, 19266, 19267, 19268, 19269, 19270, 19271, 19272, 19273, 19274, 19275, 19276, 19277, 19278, 19279, 19280, 19281, 19282, 19283, 19284, 19285, 19286, 19287, 19288, 19289, 19290, 19291, 19292, 19293, 19294, 19295, 19296, 19297, 19298, 19299, 19300, 19301, 19302, 19303, 19304, 19305, 19306, 19307, 19308, 19309, 19310, 19311, 19312, 19313, 19314, 19315, 19316, 19317, 19318, 19319, 19320, 19321, 19322, 19323, 19324, 19325, 19326, 19327, 19328, 19329, 19330, 19331, 19332, 19333, 19334, 19335, 19336, 19337, 19338, 19339, 19340, 19341, 19342, 19343, 19344, 19345, 19346, 19347, 19348, 19349, 19350, 19351, 19352, 19353, 19354, 19355, 19356, 19357, 19358, 19359, 19360, 19361, 19362, 19363, 19364, 19365, 19366, 19367, 19368, 19369, 19370, 19371, 19372, 19373, 19374, 19375, 19376, 19377, 19378, 19379, 19380, 19381, 19382, 19383, 19384, 19385, 19386, 19387, 19388, 19389, 19390, 19391, 19392, 19393, 19394, 19395, 19396, 19397, 19398, 19399, 19400, 19401, 19402, 19403, 19404, 19405, 19406, 19407, 19408, 19409, 19410, 19411, 19412, 19413, 19414, 19415, 19416, 19417, 19418, 19419, 19420, 19421, 19422, 19423, 19424, 19425, 19426, 19427, 19428, 19429, 19430, 19431, 19432, 19433, 19434, 19435, 19436, 19437, 19438, 19439, 19440, 19441, 19442, 19443, 19444, 19445, 19446, 19447, 19448, 19449, 19450, 19451, 19452, 19453, 19454, 19455, 19456, 19457, 19458, 19459, 19460, 19461, 19462, 19463, 19464, 19465, 19466, 19467, 19468, 19469, 19470, 19471, 19472, 19473, 19474, 19475, 19476, 19477, 19509, 19510, 19511, 19512, 19513, 19514, 19515, 19516, 19517, 19518, 19519, 19520, 19521, 19522, 19523, 19524, 19525, 19526, 19527, 19528, 19529, 19530, 19531, 19532, 19533, 19534, 19535, 19536, 19537, 19538, 19539, 19540, 19541, 19542, 19543, 19544, 19545, 19546, 19547, 19548, 19549, 19550, 19551, 19552, 19553, 19554, 19555, 19556, 19557, 19558, 19559, 19560, 19561, 19562, 19563, 19564, 19565, 19566, 19567, 19568, 19569, 19570, 19571, 19572, 19573, 19574, 19575, 19576, 19577, 19578, 19579, 19580, 19581, 19582, 19583, 19584, 19585, 19586, 19587, 19588, 19589, 19590, 19591, 19592, 19593, 19594, 19595, 19596, 19597, 19598, 19599, 19600, 19601, 19602, 19603, 19604, 19605, 19606, 19607, 19608, 19609, 19610, 19611, 19612, 19613, 19614, 19615, 19616, 19617, 19618, 19619, 19620, 19621, 19622, 19623, 19624, 19625, 19626, 19627, 19628, 19629, 19630, 19631, 19632, 19633, 19634, 19635, 19636, 19637, 19638, 19639, 19640, 19641, 19642, 19643, 19644, 19645, 19646, 19647, 19648, 19649, 19650, 19651, 19652, 19653, 19654, 19655, 19656, 19657, 19658, 19659, 19660, 19661, 19662, 19663, 19664, 19665, 19666, 19667, 19668, 19669, 19670, 19671, 19672, 19673, 19674, 19675, 19676, 19677, 19678, 19679, 19680, 19681, 19682, 19683, 19684, 19685, 19686, 19687, 19688, 19689, 19690, 19691, 19692, 19693, 19694, 19695, 19696, 19697, 19698, 19699, 19700, 19701, 19702, 19703, 19704, 19705, 19706, 19707, 19708, 19709, 19710, 19711, 19712, 19713, 19714, 19715, 19716, 19717, 19718, 19719, 19720, 19721, 19722, 19723, 19724, 19725, 19726, 19727, 19728, 19729, 19730, 19731, 19732, 19733, 19734, 19735, 19736, 19737, 19738, 19739, 19740, 19741, 19742, 19743, 19744, 19745, 19746, 19747, 19748, 19749, 19750, 19751, 19752, 19753, 19754, 19755, 19756, 19757, 19758, 19759, 19760, 19761, 19762, 19763, 19764, 19765, 19766, 19767, 19768, 19769, 19770, 19771, 19772, 19773, 19774, 19775, 19776, 19777, 19778, 19779, 19780, 19781, 19782, 19783, 19784, 19785, 19786, 19787, 19788, 19789, 19790, 19791, 19792, 19793, 19794, 19795, 19796, 19797, 19798, 19799, 19800, 19801, 19802, 19803, 19804, 19805, 19806, 19807, 19808, 19809, 19810, 19811, 19812, 19813, 19814, 19815, 19816, 19817, 19818, 19819, 19820, 19821, 19822, 19823, 19824, 19825, 19826, 19827, 19828, 19829, 19830, 19831, 19832, 19833, 19834, 19835, 19836, 19837, 19838, 19839, 19840, 19841, 19842, 19843],
+        weekdays=[[0, 0, 165], [1, 1, 107], [2, 2, 191], [3, 3, 104], [4, 4, 175], [5, 5, 98], [6, 6, 104]],
+        month=[[1, 1, 176], [2, 2, 11], [3, 3, 17], [4, 4, 20], [5, 5, 27], [6, 6, 17], [7, 7, 12], [8, 8, 15], [9, 9, 19], [10, 10, 25], [11, 11, 19], [12, 12, 25], [13, 13, 23], [14, 14, 18], [15, 15, 220], [16, 16, 23], [17, 17, 19], [18, 18, 15], [19, 19, 23], [20, 20, 25], [21, 21, 25], [22, 22, 19], [23, 23, 20], [24, 24, 17], [25, 25, 17], [26, 26, 18], [27, 27, 16], [28, 28, 19], [29, 29, 16], [30, 30, 12], [31, 33, 0], [34, 34, 16]],
+        budget=154,
+        left=154,
+    )),
+}
+
+
+def heavy_answer(case):
+    """What G7.3j's text makes of one state: each listed date's run of
+    ranks, the parts and each part's values."""
+    listed = tuple(tuple(pair) for pair in case["listed"])
+    planned = heavy_plan(
+        tuple(tuple(knot) for knot in case["knots"]),
+        listed,
+        frozenset(case["holes"]),
+        (tuple(tuple(group) for group in case["weekdays"]), tuple(tuple(group) for group in case["month"])),
+        case["budget"],
+    )
+    placed, parts, owed = planned
+    days = {day for day, _count in listed}
+    knots = frozenset(day for _rank, day in case["knots"] if day not in days)
+    values = heavy_values(parts, owed, knots, case["left"], case["words"])
+    runs = []
+    for rank in sorted(placed):
+        low, high = placed[rank]
+        if low != high or low not in days:
+            continue
+        if runs and runs[-1][1] == low and runs[-1][0] + runs[-1][2] == rank:
+            runs[-1][2] += 1
+        else:
+            runs.append([rank, low, 1])
+    return {"runs": runs, "parts": [[part.lo, part.hi, part.first, part.count] for part in parts], "values": values}
+
+
+def heavy_step_document():
+    """The nineteenth file: each state of G7.3j and its answer."""
+    cases = {}
+    for name in sorted(HEAVY_STEP_CASES):
+        case = HEAVY_STEP_CASES[name]()
+        case["answer"] = heavy_answer(case)
+        cases[name] = case
+    return {
+        "what": "The states method section G7.3j's plan and draw of the dates that stand out "
+        "(landing 3b.6, plan P4-D369) are frozen on, each with the answer computed from the "
+        "method's text: after steps 1 to 3, each listed date's run of ranks as (first rank, "
+        "day, ranks) and the parts, whose ordinary ranks take the part's days, as (first day, "
+        "last day, first rank, ranks); after step 4, each part's values, ascending. A case "
+        "states the knots "
+        "as (rank, day), the listed dates as (day, count), the holes, the weekday and "
+        "day-of-month censuses as (first, last, count), the budget of new days the parts may "
+        "open, the new days the count leaves the draw, and the words, one per ordinary rank.",
         "generated_by": "tools/reference/make_generation_reference_vectors.py",
         "method": "docs/spec/generation-method-v1.md",
         "never_imports": ["synthtwin", "numpy", "pandas"],
@@ -39098,13 +39291,14 @@ def main(argv=None, part=None):
     args = parser.parse_args(argv)
 
     _self_check_arithmetic()
-    if part in (FIFTEENTH_BRANCH_PART, SEVENTEENTH_BRANCH_PART, EIGHTEENTH_BRANCH_PART):
+    if part in (FIFTEENTH_BRANCH_PART, SEVENTEENTH_BRANCH_PART, EIGHTEENTH_BRANCH_PART, NINETEENTH_BRANCH_PART):
         # Whole numbers only, read by the pass and written by it: there is
         # no binary64 here for the proof layer to certify.
         written_document = (
             shared_step_document() if part == FIFTEENTH_BRANCH_PART
             else moment_step_document() if part == SEVENTEENTH_BRANCH_PART
-            else day_step_document()
+            else day_step_document() if part == EIGHTEENTH_BRANCH_PART
+            else heavy_step_document()
         )
         text = json.dumps(written_document, indent=2, sort_keys=True, allow_nan=False)
         with open(args.out, "w", encoding="utf-8", newline="\n") as handle:
