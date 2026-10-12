@@ -5,7 +5,7 @@ It asks `make_generation_reference_vectors.py` for the states landing
 3b.4 (plan P4-D372) freezes method section G7.3h's own steps on -- the
 clock pass on a field of minutes and on a field of seconds with their
 heaps and their kin groups, KIN SHARES over two hours, and keeping the
-midnights -- hour 0 not free to take a heap at minute 0, alone and beside
+cells at midnight -- hour 0 not free to take a heap at minute 0, alone and beside
 hour 1 -- the exchange off a written midnight (its
 first answer in the kin group, a swap with a lone rank, and a rank that
 stays), PUT BACK once more after it, SUBSTITUTE, SPREAD and the tails

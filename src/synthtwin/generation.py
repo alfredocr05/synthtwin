@@ -22940,7 +22940,7 @@ class _WeekdayPass:
     # shares are split over the kin groups of its ranks
     # (`_clock_kin_shares_moved`); empty, no pass splits them.
     kin: "tuple[int, ...]" = ()
-    # ...whether a field pass KEEPS ITS MIDNIGHTS: set where the column
+    # ...whether a field pass KEEPS ITS CELLS AT MIDNIGHT: set where the column
     # publishes its count at midnight, whose cells there the pass pins, so
     # a rank on the day's first parent is not free to take value 0 where it
     # is a group alone (`_clock_kin_shares_moved`; the lane's skeptic, item
@@ -26144,11 +26144,11 @@ def _clock_kin_shares_moved(state: _WeekdayPass, ranks: "list[int]", want: "list
     next gap (`_WeekdayPass.kin_carry`), so the rounding is made over the
     whole body -- rounded gap by gap, hour 8 of 10,000 admissions took the
     remainder of minute 6 in most of 38 gaps and came back with 36 of its
-    cells there against 11. And on a pass keeping its midnights
+    cells there against 11. And on a pass keeping its cells at midnight
     (`_WeekdayPass.no_midnight`), where value 0 is a group alone, a rank on
     its day's first parent -- hour 0 for the minute -- is not FREE to take
     it, as it would stand at a written midnight and the real column's own
-    cells there are its midnights: that group's share is spread over the
+    cells there are those at midnight: that group's share is spread over the
     kin groups by their ranks free to take it, where they are enough. A
     share given hour 0 in proportion put 327 of 200,000 ranks written
     `HH:MM:00` at midnight, and the exchange took 110 back.
@@ -27013,7 +27013,7 @@ def _clock_fields_settled(
             keeps=keeps,
             count_steps=False,
             kin=kin,
-            # -- the midnights kept, where their count is published (the
+            # -- the cells at midnight kept, where their count is published (the
             # lane's skeptic, item 1)
             no_midnight=facts.n_at_midnight is not None,
         )

@@ -11288,7 +11288,7 @@ def clock_fields_settled(column, ordinals, parsed, whole, lows, highs, holes):
             seams["width_of"] = lambda day: counts_into_width(column, day, word)
         fixed = ranks_the_tail_pins(column, parsed)
         counted = column.get("n_at_midnight") is not None
-        # The midnights kept where their count is published.
+        # The cells at midnight kept where their count is published.
         seams["no_midnight"] = counted
         pinned = [
             fixed[rank] or lows[rank] >= highs[rank]
@@ -14019,7 +14019,7 @@ class WeekdayWalk:
         self.count_steps = seams.get("count_steps", True)
         # G7.3h: a field pass's kin group of an ordinal's parent, or None.
         self.kin_of = seams.get("kin_of")
-        # G7.3h: whether the pass keeps its midnights (a rank on its day's
+        # G7.3h: whether the pass keeps its cells at midnight (a rank on its day's
         # first parent is not free to take value 0 alone), and each kin
         # group's carried shares, at the share scale.
         self.no_midnight = seams.get("no_midnight", False)
@@ -16917,7 +16917,7 @@ def field_midnight_kin_case():
         ]
     ordinals += [hour_at(m + days, 7, 10)]
     return field_case(
-        "KIN SHARES keeping the midnights (the lane's skeptic, item 1): 85 days, each with one "
+        "KIN SHARES keeping the cells at midnight (the lane's skeptic, item 1): 85 days, each with one "
         "rank at 00:17 and pairs at 05:00 and 06:00, minute 0 a heap counting the 340 ranks of "
         "the pairs, hour 0 a kin group of its own, the count at midnight published. Hour 0's "
         "ranks are not free to take the heap -- its minute 0 is the day's midnight -- so the "
