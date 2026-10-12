@@ -681,7 +681,10 @@ def test_or_starts_meet_their_census_through_relief(tmp_path: pathlib.Path, monk
     day of its weekday inside the gap, so SAMEDAY and the escape leave it
     where it is; RELIEF moves a unit of hour 7 to a later hour of its own
     day and the rank into hour 7 (G7.3g step 3). Seeds 0 and 1 at a floor
-    of 11, nothing missed. Mutant: RELIEF withdrawn, the census missed.
+    of 11, nothing missed. Mutant: RELIEF withdrawn, the census missed --
+    with the round paid back after it withdrawn too, since the OR starts
+    publish a weekday census and lane J's escape paid back (plan P4-D379)
+    meets their hours another way where RELIEF has not.
     """
     columns = _or_starts()
     cells, form = columns["or_start"]
@@ -692,6 +695,7 @@ def test_or_starts_meet_their_census_through_relief(tmp_path: pathlib.Path, monk
         assert kpi_shapes.missed(kpi_shapes.measure(described, written, f"twin-{seed}.csv")) == [], seed
         assert _statistics_failures(described.block("or_start"), cells, _cells(written, "or_start"), form) == [], seed
     monkeypatch.setattr(generation, "_clock_relieved", lambda *_arguments: None)
+    monkeypatch.setattr(generation, "_clock_paid_escape", lambda *_arguments: None)
     written = kpi_shapes.twin_text(described, 0)
     missed = kpi_shapes.missed(kpi_shapes.measure(described, written, "mutant.csv"))
     assert "or_start:hour_census.groups" in missed, missed
