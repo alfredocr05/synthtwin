@@ -2591,29 +2591,70 @@ def _one_figure_mornings(rows: int) -> "list[str]":
     ]
 
 
+def _spaced_mornings(rows: int) -> "list[str]":
+    """SQL Server style 100 on the 24-hour clock, no marker: every hour 1 to 12, spaced below ten."""
+    draw = random.Random(13)
+    months = ("Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec")
+    return [
+        f"{months[draw.randrange(12)]} {draw.randrange(1, 29):>2d} 2024 "
+        f"{draw.randrange(1, 13):>2d}:{draw.randrange(60):02d}"
+        for _row in range(rows)
+    ]
+
+
 # THE PRODUCER-ALWAYS-LOADS BATTERY of the clock half's loader refusals
 # (S8c on a layout): every description `synthtwin profile` writes here
-# loads, and its twin is generated, declared or not.
+# loads, and its twin is generated, declared or not. Each carries the
+# format it must publish and whether the command says the declaration
+# reached nothing (skeptic 2's item 1): S8c no longer reaches a layout,
+# so these are the only clauses on the dial's move of each hour field.
 _LOADS = {
-    "morning stamps": (_morning_stamps, ()),
-    "morning stamps declared": (_morning_stamps, ("--twelve-hour", "seen_at")),
-    "one-figure mornings declared": (_one_figure_mornings, ("--twelve-hour", "seen_at")),
-    "compact mornings declared": (_compact_mornings, ("--twelve-hour", "seen_at")),
+    "morning stamps": (_morning_stamps, (), "layout {DD}{MON}{YYYY}:{HH}:{MI}:{SS}", False),
+    "morning stamps declared": (
+        _morning_stamps, ("--twelve-hour", "seen_at"), "layout {DD}{MON}{YYYY}:{hh}:{MI}:{SS}", False
+    ),
+    "one-figure mornings declared": (
+        _one_figure_mornings, ("--twelve-hour", "seen_at"), "layout {YYYY}-{MM}-{DD} {h}:{MI}", False
+    ),
+    "spaced mornings declared": (
+        _spaced_mornings, ("--twelve-hour", "seen_at"), "layout {Mon} {_D} {YYYY} {_h}:{MI}", False
+    ),
+    "compact mornings declared": (
+        _compact_mornings, ("--twelve-hour", "seen_at"), "layout {YYYY}{MM}{DD}{HH}{MI}{SS}", True
+    ),
     "a marked clock declared": (
-        lambda rows: spellings.cells("iso_twelve_hour", rows), ("--twelve-hour", "seen_at")
+        lambda rows: spellings.cells("iso_twelve_hour", rows),
+        ("--twelve-hour", "seen_at"),
+        "layout {YYYY}-{MM}-{DD} {hh}:{MI} {AM}",
+        True,
     ),
 }
 
 
 @pytest.mark.parametrize("name", sorted(spellings.CLOCK_HALF) + sorted(_LOADS))
-def test_r2b_c5_every_description_the_producer_writes_loads(tmp_path: pathlib.Path, name: str) -> None:
-    """C5: the producer's own clock-half descriptions load and are generated."""
+def test_r2b_c5_every_description_the_producer_writes_loads(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str], name: str
+) -> None:
+    """C5: the producer's own clock-half descriptions load and are generated.
+
+    A battery case publishes its own format, and the notice that the
+    declaration reached nothing prints exactly where it should (skeptic
+    2's item 1). Mutants, run: `on_dial_misses_one_figure` (the dial
+    leaves `{H}`) and `on_dial_misses_spaced` (the dial leaves `{_H}`),
+    each published at the 24-hour hour and told it reached nothing.
+    """
+    told = errors.the_twelve_hour_declaration_did_not_reach("seen_at", "datetime")
     if name in _LOADS:
-        make, flags = _LOADS[name]
+        make, flags, published, notice = _LOADS[name]
         cells = make(ROWS)
     else:
-        cells, flags = spellings.cells(name, ROWS), ()
-    _block, profile, _questions = _described(tmp_path, cells, *flags)
+        cells, flags, published, notice = spellings.cells(name, ROWS), (), None, False
+    capsys.readouterr()
+    block, profile, _questions = _described(tmp_path, cells, *flags)
+    said = capsys.readouterr()
+    if published is not None:
+        assert block["format"] == published, name
+    assert (told[:60] in f"{said.out}{said.err}") == notice, name
     contract.load_profile(str(profile))
     _twin_path, written = _twin(profile, 0)
     assert len(written) == ROWS, name
@@ -2721,6 +2762,71 @@ def test_r2b_c5_red_when_the_validator_keeps_the_declaration(
     )
     profile, table = _r2a_wrote(tmp_path / "MORNING", "MORNING")
     assert _validated(profile, table)[0] == 3
+
+
+def test_r2b_c5c_a_declared_dial_is_checked_on_the_dial(tmp_path: pathlib.Path) -> None:
+    """C5c (skeptic 2's item 2): a declared dial layout is carried to the checker as written.
+
+    A SAS column named with `--twelve-hour` publishes `{hh}`; the
+    validator reads the checked file under the declaration, so the
+    unchanged source validates with nothing missed. Mutant, run
+    (`carry_drops_every_layout`): every layout with a clock dropped from
+    the declaration, and the source is read at `{HH}` and misses.
+    """
+    block, profile, _questions = _described(
+        tmp_path, _morning_stamps(ROWS), "--twelve-hour", "seen_at"
+    )
+    assert block["format"] == "layout {DD}{MON}{YYYY}:{hh}:{MI}:{SS}"
+    loaded = contract.load_profile(str(profile))
+    assert validation.declared_twelve_hour_clocks(loaded) == ("seen_at",)
+    assert _validated(profile, tmp_path / "real.csv")[0] == 0
+
+
+def test_r2b_c5c_red_when_every_layout_with_a_clock_is_dropped(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """C5c's mutant: the declaration loses every layout with a clock, and the source misses."""
+    real = validation.declared_twelve_hour_clocks
+
+    def without_layouts(description: contract.Profile) -> "tuple[str, ...]":
+        found: "list[str]" = []
+        for name in real(description):
+            for column in description.columns:
+                if column.name != name:
+                    continue
+                if isinstance(column.facts, contract.DatetimeFacts) and parsing.is_layout_name(
+                    column.facts.parser_family
+                ) and parsing.layout_clock_style(column.facts.parser_family) is not None:
+                    break
+                found += [name]
+        return tuple(found)
+
+    monkeypatch.setattr(validation, "declared_twelve_hour_clocks", without_layouts)
+    _block, profile, _questions = _described(
+        tmp_path, _morning_stamps(ROWS), "--twelve-hour", "seen_at"
+    )
+    assert _validated(profile, tmp_path / "real.csv")[0] == 3
+
+
+def test_r2b_c5d_a_declared_whole_day_layout_is_read_as_t1_reads_it(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """C5d (skeptic 2's item 3): a declared layout writing hours off the dial is free text, and told.
+
+    `--twelve-hour` takes every `{HH}:` layout onto the dial, which has no
+    hour 0 or 13 to 23: a SAS DATETIME20 column of the whole day, named
+    with the flag, is read as T1 reads such a stamp (P4-D370) -- not on
+    the dial, so free text with a made-up twin -- and the command says the
+    declaration reached nothing. R2a read it at `{HH}`.
+    """
+    told = errors.the_twelve_hour_declaration_did_not_reach("seen_at", "free_text")
+    capsys.readouterr()
+    block, _profile, _questions = _described(
+        tmp_path, spellings.cells("sas_datetime20", ROWS), "--twelve-hour", "seen_at"
+    )
+    said = capsys.readouterr()
+    assert block["role"] == "free_text"
+    assert told[:60] in f"{said.out}{said.err}"
 
 
 _ADMITTED = (
