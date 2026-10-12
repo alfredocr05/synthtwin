@@ -86,6 +86,20 @@ stopping only at a layout reading every row, Q5 beside a member's codes
 question, LY3 asking a tail's listed values, no text with a copy at an
 end, and the texts of one size spread (item 2); and step 5 respelling
 only the texts it writes (item 3).
+
+And the Codex review of landing R2c, each clause failing on the reviewed
+head f4623cc and red on its own mutant
+(`test_r2c_codex_each_rule_is_red_on_its_mutant`): every published
+partial form held exactly (item 1); no figure stand-in a partial form
+reads (item 2); no partial cell in a declared missing spelling (item 3);
+a partial column whose values are all different kept so and checked so
+(item 4); a second look at scattered places where the evenly spaced
+cells name no winner (item 5); Q6's first look counting every cell
+(item 6); Q6 beside Q5 and Q1 (item 7); one count window for the twin's
+report and the validator (item 8); the oracle carrying the declared
+mark (item 9); and R1's codes question following the classifier on a
+column of clock times, with a strict xfail naming why it is not put
+where the code is under the floor's line.
 """
 
 import collections
@@ -2883,20 +2897,23 @@ def test_r2c_q6_red_when_the_count_pass_aims_at_the_declared_column(
 def test_r2c_q6_is_worked_out_once_a_run(
     tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """Item 3: one profile run asks `date_column_questions` once, for the screen and the file.
+    """Item 3: one profile run asks `date_columns_seen` once, for the screen and the file.
 
     Each call describes every candidate again under the declaration, three
     to four times its own describe; the run made two identical calls.
     Mutant, run: the questions file's call made whatever the first found.
+    (The Codex review of landing R2c, item 7, moved the run's calls from
+    `date_column_questions` to `date_columns_seen`, which also carries the
+    columns Q1 and Q5 take.)
     """
-    shipped = asking.date_column_questions
+    shipped = asking.date_columns_seen
     calls = {"made": 0}
 
     def counted(*args: object, **kwargs: object) -> object:
         calls["made"] = calls["made"] + 1
         return shipped(*args, **kwargs)  # type: ignore[arg-type]
 
-    monkeypatch.setattr(asking, "date_column_questions", counted)
+    monkeypatch.setattr(asking, "date_columns_seen", counted)
     _block, _profile, questions = _described(tmp_path, _q6_shapes()["mixed"])
     assert "q6" in _asked(questions)
     assert calls["made"] == 1
@@ -3256,3 +3273,510 @@ def test_r2c_unfilled_partial_fhir_red_when_the_target_is_reached_exactly(
     assert isinstance(source, int)
     _twin_path, written = _twin(profile, 0)
     assert abs(_distinct_present(written) - source) * 100 > source * 3, source
+
+
+# -- The Codex review of landing R2c: nine items and R1's codes question ----
+#
+# Each clause below reproduces the review's own scenario, and each failed on
+# the reviewed head f4623cc (planning-notes/work-2026-10/codex-w3/fix/R2c/).
+
+_DAY_ONE = datetime.date(2024, 1, 1)
+
+
+def _codex_dmy_figures() -> "list[str]":
+    """Item 1 and 2: 600 `DD-Mon-YY` dates of 2024's first 181 days, 200 `24` and 200 `123456` (made up)."""
+    cells: "list[str]" = []
+    for place in range(1000):
+        turn = place % 5
+        if turn < 3:
+            cells += [(_DAY_ONE + datetime.timedelta(days=(place // 5 * 3 + turn) % 181)).strftime("%d-%b-%y")]
+        elif turn == 3:
+            cells += ["24"]
+        else:
+            cells += ["123456"]
+    return cells
+
+
+def _forms_written(cells: "list[str]", block: "dict[str, object]") -> "dict[str, int]":
+    """How many cells each of a block's forms reads, the layout's own among them."""
+    found: "dict[str, int]" = {}
+    for cell in cells:
+        form = _form_of(cell, block)
+        found[form] = found.get(form, 0) + 1
+    return found
+
+
+def test_r2c_codex_item1_each_partial_form_is_checked_exactly(tmp_path: pathlib.Path) -> None:
+    """Item 1: a file holding none of the 200 published partial years is MISSED on that form.
+
+    Codex's file: the twin's 600 whole dates kept and every other cell at
+    row i rewritten `123456+i`, so no cell reads `{YY}`; f4623cc's
+    validator exited 0 on it, because `resolution_mix` was REPORT-ONLY.
+    Each published partial form is now held exactly
+    (`datetime.resolution_mix`). Mutant, run: the new check withdrawn
+    (`validation._partial_form_checks` returning no check), red here.
+    """
+    block, profile, _questions = _described(tmp_path, _codex_dmy_figures(), "--date-column", "seen_at")
+    assert _partial_forms_of(block) == {"layout {YY}": 200}
+    twin, _cells = _twin(profile, 0)
+    rows = list(csv.reader(io.StringIO(twin.read_text(encoding="utf-8"))))
+    items = parsing.layout_items(f"{block['format']}")
+    assert items is not None
+    for place, row in enumerate(rows[1:]):
+        if row and row[0] and parsing.layout_reading(row[0], items) is None:
+            row[0] = str(123456 + place)
+    edited = twin.parent / "edited.csv"
+    edited.write_text("".join(",".join(row) + "\n" for row in rows), encoding="utf-8", newline="\n")
+    code, report = _validated(profile, edited)
+    assert code != 0
+    assert "resolution_mix" in report
+    assert _validated(profile, twin)[0] == 0
+    source = tmp_path / "real.csv"
+    assert _validated(profile, source)[0] == 0
+
+
+def test_r2c_codex_item2_figure_stand_ins_read_under_no_partial_form(tmp_path: pathlib.Path) -> None:
+    """Item 2: the figure stand-ins skip `10` to `99`, so the twin writes 200 partial years, not 289.
+
+    f4623cc wrote 289 at seed 0: `_figure_spelling` stepped past the
+    complete dates and not past the column's partial forms. Mutant, run:
+    the partial forms taken out of the stand-ins' readers, red here.
+    """
+    block, profile, _questions = _described(tmp_path, _codex_dmy_figures(), "--date-column", "seen_at")
+    for seed in SEEDS:
+        twin, cells = _twin(profile, seed)
+        found = _forms_written(cells, block)
+        assert found.get("layout {YY}", 0) == 200, (seed, found)
+        assert found.get(f"{block['format']}", 0) == 600, (seed, found)
+        assert _validated(profile, twin)[0] == 0
+
+
+def _codex_months_beside_a_missing_one() -> "list[str]":
+    """Item 3: 600 ISO dates of 2024's first 181 days; 200 `2024-01`, 180 `2024-06`, 20 `2024-03` (made up)."""
+    cells: "list[str]" = []
+    month = 0
+    for place in range(1000):
+        if place % 10 < 6:
+            cells += [(_DAY_ONE + datetime.timedelta(days=place % 181)).isoformat()]
+            continue
+        cells += ["2024-01" if month % 20 < 10 else ("2024-03" if month % 20 == 10 else "2024-06")]
+        month = month + 1
+    return cells
+
+
+def test_r2c_codex_item3_no_partial_cell_is_a_declared_missing_spelling(tmp_path: pathlib.Path) -> None:
+    """Item 3: `2024-03` declared missing is never written as a partial month, and 380 months stay.
+
+    f4623cc wrote 94, 85 and 83 `2024-03` cells at seeds 0 to 2, the 20
+    absent ones among them (Codex's shape: 88, 83 and 79 partial ones), so
+    980 published present cells came back as fewer and validate exited 3. A partial cell that is a declared
+    missing spelling now steps to the nearest month that is not.
+    Mutant, run: the step withdrawn (`generation._partial_unit_free`
+    taking every cell), red here.
+    """
+    cells = _codex_months_beside_a_missing_one()
+    block, profile, _questions = _described(tmp_path, cells, "--missing-value", "2024-03")
+    assert block["n_present"] == 980
+    assert _partial_forms_of(block) == {"layout {YYYY}-{MM}": 380}
+    for seed in SEEDS:
+        twin, written = _twin(profile, seed)
+        # The twenty absent cells are written as the source wrote them.
+        assert written.count("2024-03") == 20
+        present = [cell for cell in written if cell != "2024-03"]
+        assert len(present) == 980
+        assert _forms_written(present, block).get("layout {YYYY}-{MM}", 0) == 380
+        assert _validated(profile, twin)[0] == 0
+
+
+def _codex_all_different() -> "list[str]":
+    """Item 4: 120 different ISO dates from 2024-01-01 beside 80 different years 1900 to 1979 (made up)."""
+    return [(_DAY_ONE + datetime.timedelta(days=place)).isoformat() for place in range(120)] + [
+        str(1900 + year) for year in range(80)
+    ]
+
+
+def test_r2c_codex_item4_a_partial_column_keeps_its_values_all_different(tmp_path: pathlib.Path) -> None:
+    """Item 4: 200 values all different publish G11's obligation, and the twin holds 200 at every seed.
+
+    f4623cc's twins held 93, 94 and 91, every partial year `2024`, and
+    validation said nothing: the partial predicate turned the exact count
+    into an envelope. The full ranks are now held all different and each
+    partial cell steps to a unit no other cell holds; the count is checked
+    exactly. Mutants, run: the steps withdrawn; the exact check withdrawn.
+    """
+    block, profile, _questions = _described(tmp_path, _codex_all_different())
+    assert block["n_present"] == block["n_distinct"] == 200
+    assert _partial_forms_of(block) == {"layout {YYYY}": 80}
+    for seed in SEEDS:
+        twin, written = _twin(profile, seed)
+        assert len(set(written)) == 200, (seed, len(set(written)))
+        assert _forms_written(written, block).get("layout {YYYY}", 0) == 80
+        assert _validated(profile, twin)[0] == 0
+    twin, written = _twin(profile, 0)
+    rows = list(csv.reader(io.StringIO(twin.read_text(encoding="utf-8"))))
+    years = [place for place, row in enumerate(rows) if place and len(row[0]) == 4]
+    rows[years[1]][0] = rows[years[0]][0]
+    edited = twin.parent / "edited.csv"
+    edited.write_text("".join(",".join(row) + "\n" for row in rows), encoding="utf-8", newline="\n")
+    code, report = _validated(profile, edited)
+    assert code != 0
+    assert "n_distinct" in report
+
+
+def _codex_years_every_fifteenth() -> "list[str]":
+    """Item 5: `2023` on every fifteenth row, an ISO date of 2023 on the rest: 933 days, 67 years (made up)."""
+    start = datetime.date(2023, 1, 1)
+    return ["2023" if place % 15 == 0 else (start + datetime.timedelta(days=place % 300)).isoformat() for place in range(1000)]
+
+
+@pytest.mark.parametrize("order", ["forward", "reversed"])
+def test_r2c_codex_item5_row_order_does_not_decide_a_partial_column(tmp_path: pathlib.Path, order: str) -> None:
+    """Item 5: 93.3 in 100 whole dates are read whichever way the rows run.
+
+    On f4623cc every one of the 64 evenly spaced cells fell on a `2023`
+    and the column was `long_tail_labels`; reversed, it was dates. Where
+    those cells name no winner, the candidates are taken again from cells
+    at scattered places no period lines up with. Mutant, run: no second
+    look (`taxonomy.scattered_places` giving no place), red forward.
+    """
+    cells = _codex_years_every_fifteenth()
+    if order == "reversed":
+        cells = cells[::-1]
+    block, profile, _questions = _described(tmp_path, cells)
+    assert block["role"] == taxonomy.ROLE_DATETIME
+    assert block["format"] == "layout {YYYY}-{MM}-{DD}"
+    assert _partial_forms_of(block) == {"layout {YYYY}": 67}
+    twin, _written = _twin(profile, 0)
+    assert _validated(profile, twin)[0] == 0
+
+
+@pytest.mark.parametrize("order", ["forward", "reversed"])
+def test_r2c_codex_item6_the_sample_does_not_put_q6_below_the_half(tmp_path: pathlib.Path, order: str) -> None:
+    """Item 6: 500 `state-i` before 500 ISO dates is asked Q6 whichever way the rows run.
+
+    The 67 sampled places held 33 dates on f4623cc, one short of half, so
+    neither Q6 nor Q2 was put, though the declared reading reads 500 of
+    the 1,000. The samples now only name the readings, and the cells they
+    read are counted over the whole column before the classifier decides.
+    Mutant, run: the half decided on the evenly spaced cells again, red
+    forward.
+    """
+    cells = [f"state-{place}" for place in range(500)] + [
+        (_DAY_ONE + datetime.timedelta(days=place)).isoformat() for place in range(500)
+    ]
+    if order == "reversed":
+        cells = cells[::-1]
+    _block, _profile, questions = _described(tmp_path, cells)
+    assert "q6" in _asked(questions)
+
+
+def _births_beside_text() -> "list[str]":
+    """Item 7: 700 births of 1931 to 1933 written `DDMONYY`, interleaved with 300 different words (made up)."""
+    start = datetime.date(1931, 1, 1)
+    cells: "list[str]" = []
+    for place in range(1000):
+        if place % 10 < 7:
+            cells += [(start + datetime.timedelta(days=place * 7 // 10)).strftime("%d%b%y").upper()]
+        else:
+            cells += [f"note-{place}"]
+    return cells
+
+
+def _ambiguous_beside_text() -> "list[str]":
+    """Item 7: 700 `DD/MM/YYYY` dates whose days are all twelve or less, beside 300 different words (made up)."""
+    return [
+        f"{1 + place % 12:02d}/{1 + (place // 12) % 12:02d}/2023" if place % 10 < 7 else f"note-{place}"
+        for place in range(1000)
+    ]
+
+
+def test_r2c_codex_item7_q6_stands_beside_q5(tmp_path: pathlib.Path) -> None:
+    """Item 7: births written `DDMONYY` asked Q6 are asked their century in the same file.
+
+    f4623cc asked Q6 alone, and the run answering `dates` read the
+    births as 2031 to 2033 before Q5 was ever put. Q6's proposed reading
+    now joins Q5's collection, as the codes question's does, and one
+    answering run reads 1931 to 1933. Mutant, run: Q6's centuries not
+    handed to Q5, red here.
+    """
+    cells = _births_beside_text()
+    _block, _profile, questions = _described(tmp_path / "asked", cells)
+    entries = questions["asked"]
+    assert isinstance(entries, list)
+    dated = [entry for entry in entries if _reason_of(entry) == "q6"]
+    centuries = [entry for entry in entries if entry["read_as_now"] == asking.ANSWER_CENTURY_POSIX]
+    assert len(dated) == 1 and len(centuries) == 1
+    for choice in centuries[0]["answers_you_can_give"]:
+        assert choice["then_the_description_publishes"].startswith("once it is answered 'dates', "), choice
+    dated[0]["your_answer"] = asking.ANSWER_DATES
+    centuries[0]["your_answer"] = asking.ANSWER_CENTURY_1930
+    answers = tmp_path / "answers.json"
+    answers.write_text(json.dumps(questions), encoding="utf-8", newline="\n")
+    block, profile, again = _described(tmp_path / "answered", cells, "--answers", str(answers))
+    assert block["role"] == taxonomy.ROLE_DATETIME
+    assert f"{block['format']}".endswith("{YY1930}")
+    read = [parsing.parse_datetime(cell, f"{block['format']}") for cell in cells]
+    years = {found[0][0:4] for found in read if found is not None}
+    assert years and all("1931" <= year <= "1933" for year in years)
+    assert [entry for entry in again["asked"] if entry["read_as_now"] == asking.ANSWER_CENTURY_POSIX] == []
+    twin, _written = _twin(profile, 0)
+    assert _validated(profile, twin)[0] == 0
+
+
+def test_r2c_codex_item7_q6_stands_beside_q1(tmp_path: pathlib.Path) -> None:
+    """Item 7: dates whose days are all twelve or less asked Q6 are asked their order in the same file.
+
+    f4623cc asked Q6 alone and the answering run read them month first.
+    Mutant, run: Q6's day-or-month columns not handed to Q1, red here.
+    """
+    _block, _profile, questions = _described(tmp_path, _ambiguous_beside_text())
+    assert "q6" in _asked(questions)
+    order = [entry for entry in questions["about_your_file"] if entry["read_as_now"] == asking.ANSWER_MONTH_FIRST]
+    assert order
+
+
+def _codex_years_beside_days() -> "list[str]":
+    """Item 8: 600 ISO dates of 2024's first 181 days beside 400 `2024` (made up)."""
+    return [(_DAY_ONE + datetime.timedelta(days=place % 181)).isoformat() if place % 10 < 6 else "2024" for place in range(1000)]
+
+
+def test_r2c_codex_item8_generation_and_validation_give_one_count_window(tmp_path: pathlib.Path) -> None:
+    """Item 8: the twin's report and the validator bound the different values alike.
+
+    f4623cc's generation said 414 to 599 and the twin outside it, its
+    validator 17 to 598 and WITHIN-BOUND: only the validator counted a
+    partial form once. Both now ask `contract.least_unread_values`.
+    Mutant, run: generation counting every unread cell apart again, red.
+    """
+    _block, profile, _questions = _described(tmp_path, _codex_years_beside_days())
+    loaded = contract.load_profile(str(profile)).columns[0]
+    facts = loaded.facts
+    assert isinstance(facts, contract.DatetimeFacts)
+    for seed in SEEDS:
+        twin, written = _twin(profile, seed)
+        found = generation._datetime_approximations(loaded, facts, written, (), 11)
+        counted = [one for one in found if one.fact == "n_distinct"][0]
+        window = validation._datetime_distinct_window(loaded, facts, 11)
+        assert (float(counted.lowest), float(counted.highest)) == window, (seed, counted, window)
+        assert counted.inside
+        assert _validated(profile, twin)[0] == 0
+
+
+def test_r2c_codex_item9_the_oracle_carries_the_declaration(tmp_path: pathlib.Path) -> None:
+    """Item 9: the oracle aims a declared-short column at the target the product aims at.
+
+    Codex's 2,000 cells, twelve `m/d/2023` dates on 60 in 100 rows and
+    `pending` on the rest, declared dates: the product's target is 12 and
+    f4623cc's oracle computed -787, its call dropping the declared mark.
+    The oracle now reads the mark off the block (`_declared_short`, which
+    `build_case` sets from the case's declaration through
+    `declared_short_of`), and vectors file 25's case `layout_declared_short`
+    freezes the branch with its own mutant.
+    """
+    oracle = _oracle()
+    block, profile, _questions = _described(tmp_path, _repeating_declared(), "--date-column", "seen_at")
+    loaded = contract.load_profile(str(profile)).columns[0]
+    facts = loaded.facts
+    assert isinstance(facts, contract.DatetimeFacts) and facts.declared_short_of_the_line
+    parsed = loaded.n_present - facts.n_unparsed
+    shipped = contract.datetime_count_target(loaded, parsed)
+    assert shipped == 12
+    marked = dict(block)
+    marked["_declared_short"] = True
+    assert oracle.date_count_target(marked, parsed) == shipped  # type: ignore[attr-defined]
+    assert oracle.short_of_the_count(marked)  # type: ignore[attr-defined]
+
+
+# -- R1's codes question on a column of clock times (P4-D373's stated limit) --
+
+
+def _appointments(rows: int) -> "list[str]":
+    """HH:MM appointment slots with `UNK` on 2 in 100 rows (the C1 skeptic's `appt_unk2`, made up)."""
+    draw = random.Random(0)
+    cells: "list[str]" = []
+    for _row in range(rows):
+        if draw.random() < 0.02:
+            cells += ["UNK"]
+            continue
+        pick = draw.random()
+        if pick < 0.80:
+            hour = draw.choices(range(7, 17), weights=(3, 9, 10, 10, 8, 4, 8, 9, 8, 5))[0]
+            minute = hour * 60 + 15 * draw.randrange(4)
+        elif pick < 0.92:
+            minute = 390 + draw.randrange(750)
+        else:
+            minute = 17 * 60 + 30 * draw.randrange(6)
+        cells += [f"{minute // 60:02d}:{minute % 60:02d}"]
+    return cells
+
+
+def _codes_asked(questions: "dict[str, object]") -> bool:
+    """Whether the codes question (Q2) is put."""
+    return "q2" in _asked(questions)
+
+
+def test_r1_codes_question_follows_the_classifier_on_a_clock_column(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """R1's question is put wherever its answer `missing` reads the column as clock times.
+
+    10,000 appointment times beside 203 `UNK`: 606 different times, under
+    this head's categories ceiling of 1,000, so here the answer reads the
+    column as labels and nothing is asked -- but a classifier that reads
+    such a column as clock times (the integration's, since lane C1) got
+    no question either, because `reading_of_the_rest` refused the clock
+    half below the ceiling on its own account. It now leaves that to the
+    classifier, which `_as_the_classifier_reads` asks. Red on f4623cc.
+    """
+    shipped = taxonomy.role_read
+
+    def clocks_first(name: str, values: "list[str]", settings: taxonomy.Settings, *rest: object) -> "tuple[str, str, int, int]":
+        found = shipped(name, values, settings, *rest)  # type: ignore[arg-type]
+        if "UNK" in settings.declared_missing_values and found[0] == taxonomy.ROLE_CATEGORICAL:
+            held = len(values) - values.count("UNK")
+            return taxonomy.ROLE_CLOCK, "hh-mm", held, held
+        return found
+
+    cells = _appointments(10000)
+    _block, _profile, questions = _described(tmp_path / "shipped", cells)
+    assert not _codes_asked(questions)
+    monkeypatch.setattr(taxonomy, "role_read", clocks_first)
+    _block, _profile, questions = _described(tmp_path / "clocks", cells)
+    assert _codes_asked(questions)
+
+
+@pytest.mark.parametrize("rows, floor", [(300, 11), (1000, 11), (3000, 11), (3000, 36)])
+def test_r1_codes_question_is_put_where_the_code_clears_the_line(
+    tmp_path: pathlib.Path, rows: int, floor: int
+) -> None:
+    """Where `UNK` clears the census line and the answer reads clock times, the question is put."""
+    _block, _profile, questions = _described(tmp_path, _appointments(rows), floor=floor)
+    assert _codes_asked(questions)
+
+
+@pytest.mark.xfail(
+    strict=True,
+    reason=(
+        "P4-D373's stated limit, measured cause: at a floor of 36 the code `UNK` "
+        "is on 11 cells (300 rows) and 25 (1,000 rows), under the census line, "
+        "and R1's question names its code; naming it would print a spelling the "
+        "floor holds back, and no settings key declares unnamed cells missing"
+    ),
+)
+@pytest.mark.parametrize("rows", [300, 1000])
+def test_r1_codes_question_under_the_line_is_not_put(tmp_path: pathlib.Path, rows: int) -> None:
+    """The answer would read these clock columns as clock times, but the code is under the floor's line."""
+    cells = _appointments(rows)
+    settings = dataclasses.replace(taxonomy.Settings(small_cell_floor=36), declared_missing_values=("UNK",))
+    assert taxonomy.role_read("seen_at", cells, settings, False, "")[0] == taxonomy.ROLE_CLOCK
+    _block, _profile, questions = _described(tmp_path, cells, floor=36)
+    assert _codes_asked(questions)
+
+
+# -- Each rule of the Codex round, red on its own mutant --------------------
+
+
+def _sample_decides_the_half(present: "list[str]") -> bool:
+    """f4623cc's first look of Q6: a reading reading half the evenly spaced cells, and nothing more."""
+    total = len(present)
+    step = max(1, total // asking.DATE_COLUMN_SAMPLE_CELLS)
+    tally: "dict[str, int]" = {}
+    seen = 0
+    for place in range(0, total, step):
+        seen = seen + 1
+        cell = present[place]
+        names = {member for member in parsing.DATE_FORMATS if parsing.parse_datetime(cell, member) is not None}
+        for layout in parsing.layouts_of(cell) + parsing.ask_first_layouts_of(cell):
+            items = parsing.compiled_layout(layout)
+            if items is not None and parsing.layout_reading(cell, items) is not None:
+                names.add(layout)
+        for name in names:
+            tally[name] = tally.get(name, 0) + 1
+    return any(count * 2 >= seen for count in tally.values())
+
+
+def _mutate(name: str, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Put one mutant of the Codex round's rules in place."""
+    if name == "partial_forms_unchecked":
+        monkeypatch.setattr(validation, "_partial_form_checks", lambda *_args: [])
+    elif name == "figures_read_by_no_form":
+        monkeypatch.setattr(generation, "_read_by_a_form", lambda *_args: False)
+    elif name == "no_step_off_an_absent_spelling":
+        monkeypatch.setattr(
+            generation, "_partial_unit_free", lambda cell, holes, taken, apart: not apart or cell not in taken
+        )
+    elif name == "no_all_different_obligation":
+        monkeypatch.setattr(contract, "all_different_reached", lambda column: False)
+    elif name == "all_different_unchecked":
+        monkeypatch.setattr(
+            contract, "datetime_count_exact", lambda column, published: contract.datetime_counts_reachable(column)
+        )
+    elif name == "no_second_look":
+        monkeypatch.setattr(taxonomy, "scattered_places", lambda total, count: [])
+    elif name == "the_sample_decides":
+        monkeypatch.setattr(asking, "_mostly_dates_sampled", _sample_decides_the_half)
+    elif name == "q6_centuries_not_handed_on":
+        shipped_centuries = asking.century_questions
+        monkeypatch.setattr(
+            asking,
+            "century_questions",
+            lambda document, answered=(), also=(), dated=(): shipped_centuries(document, answered, also),
+        )
+    elif name == "q6_order_not_handed_on":
+        shipped_seen = asking.date_columns_seen
+
+        def without(*args: object, **kwargs: object) -> asking.DateColumnsSeen:
+            found = shipped_seen(*args, **kwargs)  # type: ignore[arg-type]
+            return asking.DateColumnsSeen(found.questions, (), found.century)
+
+        monkeypatch.setattr(asking, "date_columns_seen", without)
+    elif name == "every_unread_cell_apart":
+        monkeypatch.setattr(contract, "least_unread_values", lambda facts, unread: unread)
+    elif name == "oracle_drops_the_mark":
+        oracle = _oracle()
+        shipped_target = oracle.date_count_target  # type: ignore[attr-defined]
+        monkeypatch.setattr(
+            oracle, "date_count_target", lambda column, parsed, declared_short=None: shipped_target(column, parsed, False)
+        )
+    elif name == "the_categories_line_drawn_twice":
+        shipped_rest = taxonomy.reading_of_the_rest
+
+        def ceiling(counted: "dict[str, int]", settings: taxonomy.Settings, n_rows: int) -> "tuple[str, int] | None":
+            found = shipped_rest(counted, settings, n_rows)
+            if found is not None and found[0] not in parsing.DATE_FORMATS and not parsing.is_layout_name(found[0]):
+                folded = {parsing.folded(one) for one in counted}
+                if len(folded) <= taxonomy.categories_ceiling(n_rows, settings):
+                    return None
+            return found
+
+        monkeypatch.setattr(taxonomy, "reading_of_the_rest", ceiling)
+
+
+_CODEX_MUTANTS = {
+    "partial_forms_unchecked": ("test_r2c_codex_item1_each_partial_form_is_checked_exactly", ()),
+    "figures_read_by_no_form": ("test_r2c_codex_item2_figure_stand_ins_read_under_no_partial_form", ()),
+    "no_step_off_an_absent_spelling": ("test_r2c_codex_item3_no_partial_cell_is_a_declared_missing_spelling", ()),
+    "no_all_different_obligation": ("test_r2c_codex_item4_a_partial_column_keeps_its_values_all_different", ()),
+    "all_different_unchecked": ("test_r2c_codex_item4_a_partial_column_keeps_its_values_all_different", ()),
+    "no_second_look": ("test_r2c_codex_item5_row_order_does_not_decide_a_partial_column", ("forward",)),
+    "the_sample_decides": ("test_r2c_codex_item6_the_sample_does_not_put_q6_below_the_half", ("forward",)),
+    "q6_centuries_not_handed_on": ("test_r2c_codex_item7_q6_stands_beside_q5", ()),
+    "q6_order_not_handed_on": ("test_r2c_codex_item7_q6_stands_beside_q1", ()),
+    "every_unread_cell_apart": ("test_r2c_codex_item8_generation_and_validation_give_one_count_window", ()),
+    "oracle_drops_the_mark": ("test_r2c_codex_item9_the_oracle_carries_the_declaration", ()),
+    "the_categories_line_drawn_twice": ("test_r1_codes_question_follows_the_classifier_on_a_clock_column", ("monkeypatch",)),
+}
+
+
+@pytest.mark.parametrize("mutant", sorted(_CODEX_MUTANTS))
+def test_r2c_codex_each_rule_is_red_on_its_mutant(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch, mutant: str
+) -> None:
+    """Every rule the Codex review of landing R2c added turns its own clause red when it is withdrawn."""
+    _mutate(mutant, monkeypatch)
+    clause, extra = _CODEX_MUTANTS[mutant]
+    arguments: "list[object]" = [tmp_path]
+    for one in extra:
+        arguments += [monkeypatch if one == "monkeypatch" else one]
+    with pytest.raises(AssertionError):
+        globals()[clause](*arguments)

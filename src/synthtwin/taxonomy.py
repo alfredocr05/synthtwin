@@ -4313,6 +4313,17 @@ def _exact_ratio(share: float) -> "tuple[int, int]":
     return numerator, 1 << -place
 
 
+def declared_line(total: int) -> int:
+    """How many of ``total`` present cells a column the person said holds dates is read on (landing R2c).
+
+    `DECLARED_DATE_SHARE` taken as `_needed` takes every line: the half,
+    exactly. Question Q6's first look counts a column against it (the
+    Codex review of landing R2c, item 6). Guarantees: a function of the
+    count. Raises nothing. No I/O of any kind.
+    """
+    return _needed(DECLARED_DATE_SHARE, total)
+
+
 def _needed(share: float, total: int) -> int:
     """The smallest whole number of values that reaches ``share``.
 
@@ -7600,15 +7611,13 @@ def reading_of_the_rest(
     the rules before and after the date rule -- one value, two values,
     a list of categories -- decide a column here too.
 
-    THE CLOCK RULE STANDS AFTER THE CATEGORIES RULE, and so does this
-    function's clock half: a column of four different times beside
-    `99:99`, its code taken out, is a set of four categories to the
-    classifier (rule 7 claims it before rule 8 is asked), so it is not a
-    column of times here either, and the question that would promise
-    "read as times of day" is not put. The line is the classifier's own
-    (`categories_ceiling` over the table's ``n_rows``), against the
-    different spellings left counted as rule 7 counts them, trimmed and
-    case-folded. Dates need no such test: rule 5 stands ahead of rule 7.
+    THE CLOCK RULE STANDS AFTER THE CATEGORIES RULE, but this function's
+    clock half does not draw that line itself (landing R2c): a column of
+    four different times beside `99:99`, its code taken out, is a set of
+    four categories to the classifier (rule 7 claims it before rule 8 is
+    asked), and the question that would promise "read as times of day" is
+    not put because `role_read`, asked next, says so -- where a
+    classifier reads such a column as clock times, the question is put.
 
     Guarantees: accepts each different spelling with the rows that wore
     it, in the column's own order, the settings and the table's rows;
@@ -7659,11 +7668,15 @@ def reading_of_the_rest(
     )
     if layout is not None:
         return parsing.layout_format(layout[0]), layout[1]
-    folded: "dict[str, int]" = {}
-    for spelling in counted:
-        folded[parsing.folded(spelling)] = 1
-    if len(folded) <= categories_ceiling(n_rows, settings):
-        return None
+    # -- 3b.R2c (P4-D373's stated limit, owned by lane R2c): THE CATEGORIES
+    # LINE IS THE CLASSIFIER'S TO DRAW, NOT THIS FUNCTION'S. It was drawn
+    # here too, so where the classifier reads a column of few different
+    # times as clock times -- the integration's since lane C1, 606
+    # appointment times beside 203 `UNK` at 10,000 rows -- the question was
+    # never put, though its answer `missing` read the column so. The
+    # question still promises only what the classifier delivers:
+    # `asking._as_the_classifier_reads` asks `role_read`, so four times
+    # beside `99:99`, categories there, are asked nothing.
     # THE CLOCK RULE AS LANDING T1 READS IT (the Codex review of lane R1,
     # item 4): `_clock_candidates` over different spellings weighed by
     # their rows -- at the second, then at the minute, the face most of
@@ -16211,6 +16224,40 @@ def _matching_layout(
 # period, which is the one shape the choice can miss; a column whose sample
 # shows no layout at all costs this many productions and nothing more.
 PARTIAL_SAMPLE_CELLS = 64
+# The multiplier of `scattered_places`: 2**32 over the golden ratio, odd,
+# so its multiples modulo 2**32 fall as evenly as any sequence can and no
+# period of a column's rows lines up with them.
+_SCATTERED_STEP = 2654435769
+_SCATTERED_SPAN = 4294967296
+
+
+def scattered_places(total: int, count: int) -> "list[int]":
+    """``count`` places among ``total`` cells that no period of the rows lines up with (landing R2c).
+
+    THE SECOND LOOK OF A SAMPLE TAKEN EVENLY (the Codex review of landing
+    R2c, items 5 and 6). Cells evenly spaced share one period, so a column
+    that alternates its writing with that very period shows the sample one
+    writing alone: `2023` on every fifteenth row of 1,000 put a year on
+    each of the 64 cells `_partial_layout` read, and a column of 933 whole
+    dates was read as labels. The k-th place here is the k-th multiple of
+    `_SCATTERED_STEP` modulo 2**32, scaled to the column -- a Weyl
+    sequence, which no row period follows -- each place once, in that
+    order. Whole-number arithmetic only, so every platform takes the same
+    places.
+
+    Guarantees: a function of the two; returns places in 0 to ``total``
+    less one, each once, at most ``count`` of them. Raises nothing. No I/O.
+    """
+    found: "list[int]" = []
+    if total < 1:
+        return found
+    taken: "dict[int, int]" = {}
+    for turn in range(1, count + 1):
+        place = ((turn * _SCATTERED_STEP) % _SCATTERED_SPAN) * total // _SCATTERED_SPAN
+        if place not in taken:
+            taken[place] = 1
+            found += [place]
+    return found
 
 
 def _partial_layout(
@@ -16258,11 +16305,52 @@ def _partial_layout(
     total = len(present)
     if total < 2:
         return None
+    step = max(1, total // PARTIAL_SAMPLE_CELLS)
+    chosen = _partial_choice(
+        present, counted, needed, day_first, contradicted, window, line,
+        list(range(0, total, step)), [],
+    )
+    if chosen is not None:
+        return chosen
+    # -- 3b.R2c (the Codex review of landing R2c, item 5): WHERE THE EVENLY
+    # SPACED CELLS NAME NO WINNER, A SECOND LOOK AT SCATTERED PLACES. On
+    # f4623cc a column of 933 whole dates beside `2023` on every fifteenth
+    # row was read as labels, every sampled cell a year; reversed, it was
+    # dates. Only a column the first look reads as no partial dates takes
+    # this one, so no column that look reads moves.
+    tried: "list[str]" = []
+    for place in range(0, total, step):
+        tried += [present[place]]
+    return _partial_choice(
+        present, counted, needed, day_first, contradicted, window, line,
+        scattered_places(total, PARTIAL_SAMPLE_CELLS), tried,
+    )
+
+
+def _partial_choice(
+    present: "list[str]",
+    counted: "dict[str, int]",
+    needed: int,
+    day_first: bool,
+    contradicted: bool,
+    window: int,
+    line: int,
+    places: "list[int]",
+    tried: "list[str]",
+) -> "tuple[str, int, dict[str, int]] | None":
+    """`_partial_layout`'s choice over the layouts of the cells at ``places`` (landing R2c).
+
+    A cell among ``tried`` -- the texts a first look already produced
+    from -- gives no candidate again. Returns `_partial_layout`'s triple
+    or None. A function of the arguments. Raises nothing. No I/O.
+    """
+    total = len(present)
     room = total - needed
     half = _needed(PARTIAL_FULL_SHARE, total)
     found: "list[str]" = []
-    step = max(1, total // PARTIAL_SAMPLE_CELLS)
-    for place in range(0, total, step):
+    for place in places:
+        if present[place] in tried:
+            continue
         for layout in _layouts_of_text(present[place], window):
             if window:
                 layout = parsing.layout_in_window(layout, window)

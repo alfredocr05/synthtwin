@@ -3792,23 +3792,14 @@ def _run_profile(
         )
     if codes_seen.questions:
         _say(f"\n{_date_codes_notice(list(codes_seen.questions))}\n")
-    # -- 3b.R2a (P4-D383): question Q5, said as the date questions are --
-    # and of a column of dates beside codes whose answer `missing` reads
-    # its years as two figures, in the same file (the Codex review of
-    # landing R2a, item 5).
-    century_asked = asking.century_questions(
-        document,
-        tuple(sorted(centuries)) + tuple(answered_centuries),
-        also=codes_seen.century,
-    )
-    if century_asked:
-        _say(f"\n{_century_notice(century_asked)}\n")
-    # -- 3b.R2c (P4-D383): question Q6, said as Q5 is, and WORKED OUT
-    # ONCE A RUN as the codes question is (the R2c repair, item 3): each
-    # candidate is described again under the declaration, three to four
-    # times its own describe, so the questions file below reuses this
-    # unless the interview moved what it reads.
-    dates_asked = asking.date_column_questions(
+    # -- 3b.R2c (P4-D383): question Q6, WORKED OUT ONCE A RUN as the codes
+    # question is (the R2c repair, item 3): each candidate is described
+    # again under the declaration, three to four times its own describe,
+    # so the questions file below reuses this unless the interview moved
+    # what it reads. Worked out before Q5 and Q1 are, since the reading
+    # each answer `dates` proposes joins theirs (the Codex review of
+    # landing R2c, item 7).
+    dates_seen = asking.date_columns_seen(
         document,
         read.columns,
         settings,
@@ -3817,12 +3808,27 @@ def _run_profile(
         tuple(forced_decimal_commas),
         storage,
     )
+    dates_asked = list(dates_seen.questions)
     dates_of = (
         document,
         settings,
         list(settled + date_columns),
         list(forced_decimal_commas),
     )
+    # -- 3b.R2a (P4-D383): question Q5, said as the date questions are --
+    # and of a column of dates beside codes whose answer `missing` reads
+    # its years as two figures, in the same file (the Codex review of
+    # landing R2a, item 5), and of one Q6's answer `dates` would read so
+    # (the Codex review of landing R2c, item 7).
+    century_asked = asking.century_questions(
+        document,
+        tuple(sorted(centuries)) + tuple(answered_centuries),
+        also=codes_seen.century,
+        dated=dates_seen.century,
+    )
+    if century_asked:
+        _say(f"\n{_century_notice(century_asked)}\n")
+    # ...and Q6 itself, said as Q5 is.
     if dates_asked:
         _say(f"\n{_date_column_notice(dates_asked)}\n")
     # A column of dates beside codes whose other cells read either way
@@ -3833,7 +3839,7 @@ def _run_profile(
     if not answered_month_first:
         day_or_month = asking.day_or_month_columns(
             document, read.columns, settings, split_columns,
-            also=codes_seen.day_or_month,
+            also=codes_seen.day_or_month + dates_seen.day_or_month,
         )
     day_or_month_of = (document, settings)
     if day_or_month:
@@ -4130,13 +4136,36 @@ def _run_profile(
     coded_about = list(codes_seen.questions)
     coded_or_answered = coded_about + list(codes_seen.answered)
     asked_about = asking.without_columns_of(asked_about, coded_or_answered)
-    if not (document is day_or_month_of[0] and settings == day_or_month_of[1]):
+    # -- 3b.R2c (P4-D383): QUESTION Q6 from the FINAL settings, worked out
+    # again only where the interview moved what it reads, and before Q1
+    # and Q5, whose collections take the reading each answer `dates`
+    # proposes (the Codex review of landing R2c, item 7).
+    dates_moved = not (
+        document is dates_of[0]
+        and settings == dates_of[1]
+        and settled + date_columns == dates_of[2]
+        and list(forced_decimal_commas) == dates_of[3]
+    )
+    if dates_moved:
+        dates_seen = asking.date_columns_seen(
+            document,
+            read.columns,
+            settings,
+            settled + date_columns,
+            split_columns,
+            tuple(forced_decimal_commas),
+            storage,
+        )
+        dates_asked = list(dates_seen.questions)
+    if dates_moved or not (
+        document is day_or_month_of[0] and settings == day_or_month_of[1]
+    ):
         day_or_month = (
             ()
             if answered_month_first
             else asking.day_or_month_columns(
                 document, read.columns, settings, split_columns,
-                also=codes_seen.day_or_month,
+                also=codes_seen.day_or_month + dates_seen.day_or_month,
             )
         )
     # ...AND THE PERSON QUESTION, recomputed from the FINAL
@@ -4157,21 +4186,6 @@ def _run_profile(
     # column raises: an accession number written `2024-252` is asked
     # whether it is dates and, as before, whether it is a code or a
     # record number, since only the person knows which.
-    if not (
-        document is dates_of[0]
-        and settings == dates_of[1]
-        and settled + date_columns == dates_of[2]
-        and list(forced_decimal_commas) == dates_of[3]
-    ):
-        dates_asked = asking.date_column_questions(
-            document,
-            read.columns,
-            settings,
-            settled + date_columns,
-            split_columns,
-            tuple(forced_decimal_commas),
-            storage,
-        )
     asked_about = asked_about + dates_asked
     listed_about = asking.checklist_for(
         document, read.columns, settings, settled,
@@ -4181,11 +4195,13 @@ def _run_profile(
     # ...AND QUESTION Q5, of every column of dates whose years are two
     # figures and whose century nobody gave (landing R2a), and of every
     # column the codes question would read so (the Codex review of
-    # landing R2a, item 5).
+    # landing R2a, item 5), and of every column Q6's answer `dates` would
+    # read so (the Codex review of landing R2c, item 7).
     asked_about = asked_about + asking.century_questions(
         document,
         tuple(sorted(centuries)) + tuple(answered_centuries),
         also=codes_seen.century,
+        dated=dates_seen.century,
     )
     # AND ITS DESTINATION IS GUARDED LIKE ANY OTHER (review item
     # L17b-R1-1). On POSIX a link left at this name resolves to a

@@ -10099,6 +10099,78 @@ def datetime_count_target(column: "ColumnBlock", parsed: int) -> int:
     return target if _count_pass_open(column, facts, target) else -1
 
 
+def all_different_reached(column: "ColumnBlock") -> bool:
+    """Whether G11's all-different obligation binds a partial or declared-short column (landing R2c).
+
+    THE CODEX REVIEW OF LANDING R2c, ITEM 4. `short_of_the_count` takes
+    such a column off the exact count, since its partial cells repeat and
+    so may its unread ones -- but a column publishing as many different
+    values as present ones repeats nothing, and G11 names no exception
+    for it. Measured on f4623cc: 120 different ISO dates beside 80
+    different years publish 200 of 200, and the twins held 93, 94 and 91
+    with every partial year `2024` and nothing missed. Here the count
+    pass holds the full ranks all different (`generation._units_settled`
+    raises to them as well as lowering), each partial cell steps to a
+    unit no cell holds (method G7.5), and the validator holds the count
+    exactly (`datetime_count_exact`).
+
+    Guarantees: accepts a loaded column block; returns False for every
+    column not of dates and for every column `short_of_the_count` does
+    not mark. A function of the block. Raises nothing. No I/O of any kind.
+    """
+    facts = column.facts
+    if not isinstance(facts, (DatetimeFacts,)) or not short_of_the_count(facts):
+        return False
+    if not all_different_binds(column, column.n_distinct):
+        return False
+    return _count_pass_open(column, facts, column.n_present - facts.n_unparsed)
+
+
+def datetime_count_exact(column: "ColumnBlock", published: int) -> bool:
+    """Whether a column of dates owes one published count of different values exactly (landing R2c).
+
+    Where G7.3's pass reaches the count (`datetime_counts_reachable`), and
+    where G11's all-different obligation binds a partial or declared-short
+    column (`all_different_reached`; the Codex review of landing R2c, item
+    4). The generation's own account and the validator both ask this, so
+    the two say one thing of the same twin (item 8).
+
+    Guarantees: a function of the block and the count. Raises nothing. No
+    I/O of any kind.
+    """
+    if datetime_counts_reachable(column):
+        return True
+    return all_different_reached(column) and all_different_binds(column, published)
+
+
+def least_unread_values(facts: "DatetimeFacts", unread: int) -> int:
+    """The fewest different values ``unread`` cells a date column left unread can hold (G12.5, landing R2c).
+
+    THE ONE METHOD RULE FOR BOTH ACCOUNTS (the Codex review of landing
+    R2c, item 8). A named partial form's cells repeat -- `2024` on every
+    cell of that year -- so each form promises one value at least, and
+    every other unread cell is a stand-in spelled apart from every other.
+    Before this, only the validator counted a form once: 600 ISO dates
+    beside 400 `2024` were promised 15 to 599 different values by the
+    validator and 414 to 599 by the twin's own report, which then called
+    a twin of 175 outside a range the validator held it within.
+
+    Guarantees: accepts a column's datetime facts and a count of unread
+    cells; returns a whole number from 0 to ``unread``. Raises nothing.
+    No I/O of any kind.
+    """
+    partial = 0
+    forms = 0
+    if parsing.is_layout_name(facts.parser_family):
+        for key in facts.resolution_mix:
+            if key != facts.parser_family and facts.resolution_mix[key] > 0:
+                partial = partial + facts.resolution_mix[key]
+                forms = forms + 1
+    if unread < 1:
+        return 0
+    return max(unread - partial, 0) + min(forms, unread)
+
+
 def _count_pass_open(column: "ColumnBlock", facts: "DatetimeFacts", wanted: int) -> bool:
     """Every condition of G7.3's count pass but the partial and declared ones (landing R2c).
 

@@ -847,6 +847,11 @@ TWENTY_FIFTH_BRANCH_CASES = tuple(
             "layout_partial_fhir",
             "layout_partial_hl7",
             "layout_partial_markers",
+            # ...and the Codex review of landing R2c (items 2, 3, 4 and 9).
+            "layout_declared_short",
+            "layout_partial_absent_month",
+            "layout_partial_all_different",
+            "layout_partial_figures",
         )
     )
 )
@@ -907,6 +912,11 @@ SEEDS = {
     "layout_partial_markers": 502,
     "layout_partial_hl7": 503,
     "layout_ordinal_declared": 504,
+    # ...and the Codex review of landing R2c, at the next seeds.
+    "layout_partial_all_different": 505,
+    "layout_partial_absent_month": 506,
+    "layout_partial_figures": 507,
+    "layout_declared_short": 508,
     # Landing T1's written clocks take the next seeds after the highest in
     # use below 34041 (plan P4-D370).
     "stamp_unpadded_hour": 416,
@@ -1126,7 +1136,7 @@ DECLARED_DECIMAL_COMMAS = frozenset({"grouped_decimal_comma", "spaced_decimal_co
 DECLARED_CENTURIES = {"layout_century_window": 1930}
 # -- 3b.R2c (P4-D383): the case read under an ask-first layout, which the
 # contract's invariant S8f binds to settings.forced_date_columns.
-DECLARED_DATES = frozenset({"layout_ordinal_declared"})
+DECLARED_DATES = frozenset({"layout_ordinal_declared", "layout_declared_short"})
 
 DECLARED_IDENTIFIERS = frozenset(
     {
@@ -2504,6 +2514,7 @@ def _named_marks_only(value, low, boundary, column):
 _WRITTEN_CLOCK_OF = gen.written_clock_of
 # Landing R2a's two rules, bound before any mutant replaces them.
 _LAYOUT_WRITTEN = gen.layout_written
+_PARTIAL_WRITTEN = gen.partial_written
 _READABLE_DAYS = gen.readable_days
 # ...and G7.9b's offer, bound the same way (skeptic 2 of landing R2a).
 _OFFSETS_ON_OFFER = gen.offsets_on_offer
@@ -3561,13 +3572,49 @@ def _partial_forms_in_blocks(forms, given, turn, total):
     return len(forms) - 1
 
 
+def _partial_never_stepped(key, moment, absent, taken, apart):
+    """G7.5's step withdrawn: a partial cell is written where its rank puts it, whatever it is."""
+    return _PARTIAL_WRITTEN(key, *moment)
+
+
 CASE_MUTANTS = {
     # LANDING R2c'S PARTIAL DATES AND ASK-FIRST LAYOUT (plan P4-D383).
     "layout_partial_fhir": Mutant(
         branch="G7.5's partial cells, each a full rank written short; the "
         "mutant withdraws them, so every partial cell is a text stand-in",
         attribute="partial_cells",
-        replacement=lambda column, written: [],
+        replacement=lambda column, written, *_rest: [],
+        outcome=CHANGES_THE_CELLS,
+    ),
+    # ...and the Codex review of landing R2c, each case's own rule.
+    "layout_partial_all_different": Mutant(
+        branch="G11's all-different obligation on a partial-date column, the "
+        "full ranks held apart and each partial cell stepped off a held one; "
+        "the mutant reads no obligation, and every partial year is one",
+        attribute="all_different_reached",
+        replacement=lambda column: False,
+        outcome=CHANGES_THE_CELLS,
+    ),
+    "layout_partial_absent_month": Mutant(
+        branch="G7.5's partial cell stepped off an absent spelling; the mutant "
+        "writes the absent spelling as a present cell",
+        attribute="partial_stepped",
+        replacement=_partial_never_stepped,
+        outcome=CHANGES_THE_CELLS,
+    ),
+    "layout_partial_figures": Mutant(
+        branch="G10.3's figure stand-ins past every spelling a partial form "
+        "reads; the mutant reads no form there, and writes `10` to `12`",
+        attribute="read_by_the_layout",
+        replacement=lambda member, text: False,
+        outcome=CHANGES_THE_CELLS,
+    ),
+    "layout_declared_short": Mutant(
+        branch="G7.3's upper target on a declared column short of the date "
+        "rule's line; the mutant drops the declared mark and aims at the "
+        "count less every unread cell",
+        attribute="declared_short_of",
+        replacement=lambda spec: False,
         outcome=CHANGES_THE_CELLS,
     ),
     "layout_partial_markers": Mutant(

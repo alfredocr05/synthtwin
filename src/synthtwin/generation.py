@@ -21640,17 +21640,25 @@ def _datetime_content(
     used: dict[str, int] = {cell: 1 for cell in cells}
     # -- 3b.R2c (P4-D383): THE PARTIAL FORMS FIRST (G7.5's partial dates),
     # each cell at its own precision; the stand-ins follow.
-    partial = _partial_cells(facts, cells[0:parsed])
+    # -- 3b.R2c (the Codex review of landing R2c, items 3 and 4): none of
+    # them a declared missing spelling, and none of them a spelling the
+    # column holds where G11's all-different obligation binds.
+    partial = _partial_cells(
+        facts, cells[0:parsed], holes, contract.all_different_reached(column), used
+    )
     for cell in partial:
         used[cell] = 1
     cells += partial
     # -- 3b.R2c (P4-D383; skeptic 2 of the R2c repair, item 1): the
-    # stand-ins the published count of numbers still owes are figures.
+    # stand-ins the published count of numbers still owes are figures --
+    # none of them one the layout or a partial form of it reads (the
+    # Codex review of landing R2c, item 2).
     stand_ins = facts.n_unparsed - len(partial)
     owed = _figures_owed(column, cells, stand_ins)
+    readers = _stand_in_readers(facts)
     order = 0
     for _place in range(owed):
-        figure = _figure_spelling(order + 1, used, holes)
+        figure = _figure_spelling(order + 1, used, holes, readers)
         order = int(figure)
         cells += [_take(figure, used)]
     for step in range(stand_ins - owed):
@@ -21733,13 +21741,45 @@ def _figures_owed(
     return max(0, min(column.n_numeric - numbers, stand_ins))
 
 
+def _stand_in_readers(
+    facts: contract.DatetimeFacts,
+) -> "tuple[tuple[tuple[str, str], ...], ...]":
+    """The layout of a layout column and every partial form of it, compiled (landing R2c).
+
+    What a figure stand-in may not be read by (`_figure_spelling`): the
+    layout itself first, then each of `parsing.layout_truncations` in its
+    order. Empty for a column not written in a layout.
+    """
+    family = facts.parser_family
+    if not parsing.is_layout_name(family):
+        return ()
+    items = parsing.layout_items(family)
+    if items is None:
+        return ()
+    found: "list[tuple[tuple[str, str], ...]]" = [items]
+    for name in parsing.layout_truncations(family):
+        compiled = parsing.partial_items(name)
+        if compiled is not None:
+            found += [compiled]
+    return tuple(found)
+
+
 def _figure_spelling(
-    order: int, used: "dict[str, int]", holes: "tuple[str, ...]"
+    order: int,
+    used: "dict[str, int]",
+    holes: "tuple[str, ...]",
+    readers: "tuple[tuple[tuple[str, str], ...], ...]" = (),
 ) -> str:
     """A made-up figure stand-in, stepped from ``order`` as `_text_spelling` steps its own.
 
     Past every spelling already used in the column, every absent
-    spelling and anything a date format reads (`_reads_as_a_date`).
+    spelling, anything a date format reads (`_reads_as_a_date`) and --
+    THE CODEX REVIEW OF LANDING R2c, ITEM 2 -- anything the column's
+    layout or one of its partial forms reads (``readers``, from
+    `_stand_in_readers`, the layout first). Measured on f4623cc: a
+    `DD-Mon-YY` column publishing 200 partial years `24` beside figure
+    stand-ins wrote 289 cells a `{YY}` reads, its figures 10 to 99 among
+    them, and its totals of whole and unread cells hid it.
     """
     step = order
     while True:
@@ -21748,13 +21788,32 @@ def _figure_spelling(
             not _is_a_hole_spelling(candidate, holes)
             and _unused(candidate, used)
             and not _reads_as_a_date(candidate)
+            and not _read_by_a_form(candidate, readers)
         ):
             return candidate
         step = step + 1
 
 
+def _read_by_a_form(
+    candidate: str, readers: "tuple[tuple[tuple[str, str], ...], ...]"
+) -> bool:
+    """Whether the layout (``readers[0]``) or a partial form of it reads one stand-in (landing R2c)."""
+    for place in range(len(readers)):
+        if place == 0:
+            if parsing.layout_reading(candidate, readers[0]) is not None:
+                return True
+            continue
+        if parsing.layout_partial_reading(candidate, readers[place]) is not None:
+            return True
+    return False
+
+
 def _partial_cells(
-    facts: contract.DatetimeFacts, written: "list[str]"
+    facts: contract.DatetimeFacts,
+    written: "list[str]",
+    holes: "tuple[str, ...]" = (),
+    apart: bool = False,
+    held: "dict[str, int] | None" = None,
 ) -> "list[str]":
     """The cells a partial-date column writes at its partial forms (method G7.5).
 
@@ -21770,9 +21829,24 @@ def _partial_cells(
     No word is drawn. Where no full rank reads back, there are none: the
     stand-ins take every unread cell, as they did before this landing.
 
-    Guarantees: accepts the datetime facts and the full ranks' cells as
-    written; returns the partial cells, as many as the forms count. A
-    function of the two. No I/O of any kind.
+    A PARTIAL CELL STEPS OFF WHAT IT MAY NOT BE (the Codex review of
+    landing R2c, items 3 and 4): one that is a spelling the column's
+    absent cells wear (``holes``) -- `2024-03` declared missing beside
+    published partial months came back as 94, 85 and 83 written months,
+    each read missing -- and, where G11's all-different obligation binds
+    (``apart``, `contract.all_different_reached`), one the column already
+    holds (``held``, the full ranks' cells, or an earlier partial cell):
+    80 different years beside 120 dates of 2024 came back as one year,
+    `2024`, written 80 times. Such a cell takes the nearest unit of its
+    form's own precision -- the year, the month, the day, the hour, the
+    minute or the second -- inside the layout's year band that is
+    neither, the earlier on a tie (`_partial_stepped`), so each form
+    keeps its published count; where no unit is left, there are none.
+
+    Guarantees: accepts the datetime facts, the full ranks' cells as
+    written, the absent spellings, whether the values are all different
+    and the cells already written; returns the partial cells, as many as
+    the forms count. A function of the five. No I/O of any kind.
     """
     forms = _partial_forms(facts)
     items = parsing.layout_items(facts.parser_family)
@@ -21789,6 +21863,7 @@ def _partial_cells(
         total = total + rows
     given = [0 for _form in forms]
     cells: "list[str]" = []
+    taken: "dict[str, int]" = dict(held) if held is not None else {}
     for turn in range(total):
         best = 0
         lag = -1
@@ -21807,8 +21882,113 @@ def _partial_cells(
                 break
         if not moment:
             return []
-        cells += [parsing.layout_partial_cell(shapes[best], moment)]
+        cell = _partial_stepped(
+            shapes[best],
+            parsing.layout_partial_cell(shapes[best], moment),
+            holes,
+            taken,
+            apart,
+        )
+        if not cell:
+            return []
+        taken[cell] = 1
+        cells += [cell]
     return cells
+
+
+def _partial_unit(canonical: str) -> int:
+    """One partial reading's place among the units of its own precision (landing R2c).
+
+    `YYYY` counts years, `YYYY-MM` months, `YYYY-MM-DD` days, and the
+    clock's hour, minute and second count on from the day.
+    """
+    year = int(canonical[0:4])
+    if len(canonical) == 4:
+        return year
+    month = int(canonical[5:7])
+    if len(canonical) == 7:
+        return year * 12 + month - 1
+    day = parsing.days_from_civil(year, month, int(canonical[8:10]))
+    if len(canonical) == 10:
+        return day
+    hours = day * 24 + int(canonical[11:13])
+    if len(canonical) == 13:
+        return hours
+    minutes = hours * 60 + int(canonical[14:16])
+    if len(canonical) == 16:
+        return minutes
+    return minutes * 60 + int(canonical[17:19])
+
+
+def _partial_moment(unit: int, size: int) -> str:
+    """The canonical instant `layout_partial_cell` writes one unit of a precision from (landing R2c)."""
+    if size == 4:
+        return f"{unit:04d}-01-01"
+    if size == 7:
+        return f"{unit // 12:04d}-{unit % 12 + 1:02d}-01"
+    second = 0
+    minute = 0
+    hour = 0
+    day = unit
+    if size == 19:
+        second = unit % 60
+        unit = unit // 60
+    if size >= 16:
+        minute = unit % 60
+        unit = unit // 60
+    if size >= 13:
+        hour = unit % 24
+        unit = unit // 24
+    if size >= 13:
+        day = unit
+    year, month, date = parsing.civil_from_days(day)
+    if size == 10:
+        return f"{year:04d}-{month:02d}-{date:02d}"
+    return f"{year:04d}-{month:02d}-{date:02d} {hour:02d}:{minute:02d}:{second:02d}"
+
+
+def _partial_unit_free(
+    cell: str, holes: "tuple[str, ...]", taken: "dict[str, int]", apart: bool
+) -> bool:
+    """Whether a partial cell may stand: no absent spelling, and none held where G11 binds."""
+    if _is_a_hole_spelling(cell, holes):
+        return False
+    return not apart or cell not in taken
+
+
+def _partial_stepped(
+    shape: "tuple[tuple[str, str], ...]",
+    cell: str,
+    holes: "tuple[str, ...]",
+    taken: "dict[str, int]",
+    apart: bool,
+) -> str:
+    """One partial cell, stepped to the nearest free unit of its precision, or '' (landing R2c).
+
+    The cell stands where `_partial_unit_free` lets it; otherwise the
+    units of its form's precision are walked outward from its own, the
+    earlier first at each distance, inside the layout's year band
+    (`parsing.LAYOUT_FIRST_YEAR` to `parsing.LAYOUT_LAST_YEAR`), and the
+    first one free is written. '' where none is.
+    """
+    if _partial_unit_free(cell, holes, taken, apart):
+        return cell
+    canonical = parsing.layout_partial_reading(cell, shape)
+    if canonical is None:
+        return ""
+    size = len(canonical)
+    first = _partial_unit(f"{parsing.LAYOUT_FIRST_YEAR:04d}-01-01 00:00:00"[0:size])
+    last = _partial_unit(f"{parsing.LAYOUT_LAST_YEAR:04d}-12-31 23:59:59"[0:size])
+    unit = _partial_unit(canonical)
+    away = 1
+    while unit - away >= first or unit + away <= last:
+        for other in (unit - away, unit + away):
+            if first <= other <= last:
+                written = parsing.layout_partial_cell(shape, _partial_moment(other, size))
+                if _partial_unit_free(written, holes, taken, apart):
+                    return written
+        away = away + 1
+    return ""
 
 
 def _interior_cell(
@@ -25193,7 +25373,10 @@ def _units_settled(
     # rows publishing 534 different values came back as 586, 2,000 rows
     # over three years 3.5 to 7 % over the count. Where the full ranks
     # already hold no more units than the target the pass does not run.
-    upper = contract.short_of_the_count(facts)
+    # -- 3b.R2c (the Codex review of landing R2c, item 4): AND WHERE G11
+    # BINDS THE COLUMN IT IS NO UPPER TARGET: every full rank on a unit
+    # of its own, raised to as well as lowered to.
+    upper = contract.short_of_the_count(facts) and not contract.all_different_reached(column)
     if upper and distinct >= 0 and _upper_target_met(moved, unit, distinct):
         distinct = -1
         if widths < 0:
@@ -45695,7 +45878,14 @@ def _datetime_approximations(
     stand_ins = len(present) - held
     if contract.datetime_counts_reachable(column):
         lows, highs = _past_the_strata_windows(layout, lows, highs)
-    lowest_count = _forced_apart(lows, highs) + stand_ins
+    # -- 3b.R2c (the Codex review of landing R2c, item 8): a named partial
+    # form's cells repeat, so each promises one value at least -- the rule
+    # the validator asks (`contract.least_unread_values`). Counted as one
+    # value each, 400 cells of `2024` set the lower end at 414 where the
+    # validator set it at 15.
+    lowest_count = _forced_apart(lows, highs) + contract.least_unread_values(
+        facts, stand_ins
+    )
     # THE UPPER END COUNTS THE BODY'S UNITS AND THE TAILS' CELLS (stage 3,
     # G12.5): every body rank lies between the two boundaries, and each
     # tail cell can be a value of its own. A column with no tails is its
@@ -45758,7 +45948,7 @@ def _datetime_approximations(
         lowest_here = lowest_count
         highest_here = highest_count
         if (
-            contract.datetime_counts_reachable(column)
+            contract.datetime_count_exact(column, published)
             and lowest_count <= published <= highest_count
         ):
             lowest_here = published

@@ -232,8 +232,11 @@ BECAUSE_DATES_LIKE_CODES = "dates-written-like-codes"
 BECAUSE_MOSTLY_DATES = "mostly-dates-beside-other-values"
 BECAUSE_DAYS_OF_THE_YEAR = "figures-that-may-be-days-of-the-year"
 ANSWER_DATES = "dates"
-# The cells the question's first look takes, evenly spaced: a column no
-# reading reads on half of them is asked nothing and read no further.
+# The cells the question's first look takes, evenly spaced and then at
+# scattered places (`taxonomy.scattered_places`): a column no reading
+# reads on either sample is asked nothing and read no further, and the
+# cells the readings they show read are counted over the whole column
+# (the Codex review of landing R2c, item 6).
 DATE_COLUMN_SAMPLE_CELLS = 64
 # The offsets census's own member for a cell written with none (contract
 # NO_OFFSET): a run whose census names it alone is asked as the bare run.
@@ -1937,16 +1940,24 @@ def _shape_of(
     return "this column could be read more than one way"
 
 
-def _century_choices(role: str, floor: int, coded: bool = False) -> "list[Choice]":
+def _century_choices(
+    role: str, floor: int, coded: bool = False, dated: bool = False
+) -> "list[Choice]":
     """Question Q5's four answers, each named by its years (landing R2a).
 
     The first is the reading that stands where nobody answers, the POSIX
     window; each other is `--century COLUMN=YEAR` with its first year.
     ``coded`` is a column read as dates only once its codes are answered
-    `missing` (the Codex review of landing R2a, item 5), and every choice
-    says so: what it publishes now is labels, not dates.
+    `missing` (the Codex review of landing R2a, item 5), and ``dated`` one
+    read as dates only once question Q6 is answered `dates` (the Codex
+    review of landing R2c, item 7); every choice says so: what it
+    publishes now is not dates.
     """
-    once = "once its codes are answered 'missing', " if coded else ""
+    once = ""
+    if coded:
+        once = "once its codes are answered 'missing', "
+    elif dated:
+        once = "once it is answered 'dates', "
 
     def windowed(first: int) -> str:
         """What a description publishes with the years read from ``first``."""
@@ -1957,7 +1968,7 @@ def _century_choices(role: str, floor: int, coded: bool = False) -> "list[Choice
         )
 
     kept = f"{once}{_clock_publishes(floor, role)}"
-    if not coded:
+    if not once:
         kept = f"what it publishes now: {_clock_publishes(floor, role)}"
     return [
         Choice(
@@ -1988,6 +1999,7 @@ def century_questions(
     document: "dict[str, object]",
     answered: "tuple[str, ...]" = (),
     also: "tuple[str, ...]" = (),
+    dated: "tuple[str, ...]" = (),
 ) -> "list[Question]":
     """Question Q5, of every column of dates whose years are two figures.
 
@@ -2010,6 +2022,10 @@ def century_questions(
     the same file now, as the day-or-month question already was, each
     choice saying it holds once the codes are answered `missing`.
 
+    AND OF A COLUMN QUESTION Q6 WOULD READ SO (``dated``, from
+    `DateColumnsSeen.century`; the Codex review of landing R2c, item 7),
+    each choice saying it holds once that question is answered `dates`.
+
     Guarantees: a function of the three, in the table's own column order;
     opens nothing; no cell of any column appears in what it returns.
     """
@@ -2029,11 +2045,14 @@ def century_questions(
         if name in answered:
             continue
         coded = name in also
-        if not coded and (
+        proposed = not coded and name in dated
+        if not coded and not proposed and (
             f"{block['role']}" != taxonomy.ROLE_DATETIME or "format" not in block
         ):
             continue
-        if not coded and not reads_two_figure_years(f"{block['format']}"):
+        if not coded and not proposed and not reads_two_figure_years(
+            f"{block['format']}"
+        ):
             continue
         found += [
             Question(
@@ -2041,7 +2060,7 @@ def century_questions(
                 taxonomy.ROLE_DATETIME,
                 BECAUSE_TWO_FIGURE_YEARS,
                 _shape_of(BECAUSE_TWO_FIGURE_YEARS, [], floor),
-                _century_choices(taxonomy.ROLE_DATETIME, floor, coded),
+                _century_choices(taxonomy.ROLE_DATETIME, floor, coded, proposed),
                 ANSWER_CENTURY_POSIX,
             )
         ]
@@ -2052,36 +2071,80 @@ def century_questions(
 
 
 def _mostly_dates_sampled(present: "list[str]") -> bool:
-    """Whether some one reading reads half of `DATE_COLUMN_SAMPLE_CELLS` evenly spaced cells.
+    """Whether the readings two samples show may read half the column, counted over every cell.
 
     THE CHEAP FIRST LOOK OF QUESTION Q6 (the R2 design, section 3): each
     sampled cell is asked of every named member, of the grammar's layouts
-    and of the day-of-the-year layouts, and a reading counts the cells it
-    reads. Its estimate settles only the half's edge -- the exact reading
-    is the classifier's, asked next -- and a column of text or numbers
-    costs these few readings and nothing more.
+    and of the day-of-the-year layouts, and the readings that read any of
+    them are the column's candidates. A column of text or numbers shows
+    none, and costs these few readings and nothing more.
+
+    THE SAMPLE NEVER DECIDES THE HALF (the Codex review of landing R2c,
+    item 6). Measured on f4623cc: 500 `state-i` before 500 ISO dates put
+    33 dates among the 67 evenly spaced cells, one short of half, and
+    neither Q6 nor Q2 was asked, though the declared reading reads 500 of
+    the 1,000 -- the half the question promises; the rows reversed, it
+    was asked. So the samples name the readings only -- the evenly spaced
+    cells, then as many at scattered places no period of the rows lines
+    up with (`taxonomy.scattered_places`) -- and the cells ANY of them
+    reads are counted over every different spelling, weighed by its rows,
+    stopping once the misses pass what the half leaves room for
+    (`taxonomy.declared_line`): no single reading the declaration takes
+    reads more than all of them together, so a column below that line is
+    one the classifier would leave as it is. Where the count reaches it,
+    the classifier, asked next, decides. A reading that reads half the
+    column on no sampled cell of either look is the one it can miss.
     """
     total = len(present)
     if total < 1:
         return False
     step = max(1, total // DATE_COLUMN_SAMPLE_CELLS)
-    tally: "dict[str, int]" = {}
-    seen = 0
-    for place in range(0, total, step):
-        seen = seen + 1
-        cell = present[place]
-        readings: "dict[str, int]" = {}
-        for member in parsing.DATE_FORMATS:
-            if parsing.parse_datetime(cell, member) is not None:
-                readings[member] = 1
-        for layout in parsing.layouts_of(cell) + parsing.ask_first_layouts_of(cell):
-            items = parsing.compiled_layout(layout)
-            if items is not None and parsing.layout_reading(cell, items) is not None:
-                readings[layout] = 1
-        for name in readings:
-            tally[name] = (tally[name] if name in tally else 0) + 1
-    for name in tally:
-        if tally[name] * 2 >= seen:
+    readers: "dict[str, tuple[tuple[str, str], ...] | None]" = {}
+    for places in (
+        list(range(0, total, step)),
+        taxonomy.scattered_places(total, DATE_COLUMN_SAMPLE_CELLS),
+    ):
+        for place in places:
+            cell = present[place]
+            for member in parsing.DATE_FORMATS:
+                if member not in readers and parsing.parse_datetime(cell, member) is not None:
+                    readers[member] = None
+            for layout in parsing.layouts_of(cell) + parsing.ask_first_layouts_of(cell):
+                if layout in readers:
+                    continue
+                items = parsing.compiled_layout(layout)
+                if items is not None and parsing.layout_reading(cell, items) is not None:
+                    readers[layout] = items
+    if not readers:
+        return False
+    need = taxonomy.declared_line(total)
+    room = total - need
+    read = 0
+    missed = 0
+    counted = _spellings_counted(present)
+    for text in counted:
+        rows = counted[text]
+        if _read_by_one_of(text, readers):
+            read = read + rows
+            if read >= need:
+                return True
+            continue
+        missed = missed + rows
+        if missed > room:
+            return False
+    return read >= need
+
+
+def _read_by_one_of(
+    text: str, readers: "dict[str, tuple[tuple[str, str], ...] | None]"
+) -> bool:
+    """Whether one of Q6's candidate readings reads a spelling (landing R2c): a member, or a layout's items."""
+    for name in readers:
+        items = readers[name]
+        if items is None:
+            if parsing.parse_datetime(text, name) is not None:
+                return True
+        elif parsing.layout_reading(text, items) is not None:
             return True
     return False
 
@@ -2111,6 +2174,25 @@ def _date_column_choices(role: str, floor: int, example: str) -> "list[Choice]":
     ]
 
 
+@dataclasses.dataclass(frozen=True)
+class DateColumnsSeen:
+    """What one pass of question Q6 over a table's columns found (landing R2c).
+
+    `questions` are the Q6 questions to put. THE COLUMNS EACH ANSWER
+    `dates` WOULD READ SO, for the same file's other date questions (the
+    Codex review of landing R2c, item 7), as `DateCodesSeen` holds them
+    for the codes question: `day_or_month`, those whose proposed reading
+    is the month-first member of a slashed pair or a month-first layout
+    and whose cells read both ways, for question Q1; and `century`, the
+    names of those whose proposed reading takes a two-figure year, for
+    question Q5.
+    """
+
+    questions: "tuple[Question, ...]" = ()
+    day_or_month: "tuple[DayOrMonth, ...]" = ()
+    century: "tuple[str, ...]" = ()
+
+
 def date_column_questions(
     document: "dict[str, object]",
     table_columns: "list[list[str]]",
@@ -2120,12 +2202,36 @@ def date_column_questions(
     decimal_commas: "tuple[str, ...]" = (),
     stored_as: "tuple[str, ...]" = (),
 ) -> "list[Question]":
+    """The Q6 questions `date_columns_seen` finds, as a list."""
+    return list(
+        date_columns_seen(
+            document,
+            table_columns,
+            settings,
+            already,
+            split,
+            decimal_commas,
+            stored_as,
+        ).questions
+    )
+
+
+def date_columns_seen(
+    document: "dict[str, object]",
+    table_columns: "list[list[str]]",
+    settings: taxonomy.Settings,
+    already: "list[str]",
+    split: "SplitColumns | None" = None,
+    decimal_commas: "tuple[str, ...]" = (),
+    stored_as: "tuple[str, ...]" = (),
+) -> DateColumnsSeen:
     """Question Q6, of every column whose cells cannot settle whether it holds dates (landing R2c).
 
     THE R2 DESIGN, SECTION 3, AND ITS SKEPTIC'S M6. Asked of a column not
     read as dates or times, nobody declared, where one reading reads half
-    its cells or more -- first over `DATE_COLUMN_SAMPLE_CELLS` evenly
-    spaced cells, then by the classifier itself under the declaration
+    its cells or more -- first by the readings two samples of
+    `DATE_COLUMN_SAMPLE_CELLS` cells show, counted over every cell
+    (`_mostly_dates_sampled`), then by the classifier itself under the declaration
     (`taxonomy.role_read`), which is what the answer `dates` promises: a
     member or a layout reading at least half of them but not the line, or
     a layout of the day of the year, which no column is read under
@@ -2138,14 +2244,25 @@ def date_column_questions(
     not read are written in the twin as made-up text, so code that reads
     their own spelling would not run on it.
 
+    AND IT STANDS BESIDE THE COLUMN'S OTHER DATE QUESTIONS (the Codex
+    review of landing R2c, item 7). The reading the answer would take is
+    handed to Q1 and Q5 in the same file, as the codes question hands its
+    own (`DateColumnsSeen`). Measured on f4623cc: 700 births of 1931 to
+    1933 written `DDMONYY` beside 300 different words were asked Q6
+    alone, and the run answering `dates` read them as 2031 to 2033 before
+    the century was ever asked; 700 dates whose days are all twelve or
+    less were read month first with no Q1.
+
     Guarantees: a fixed function of the arguments, in the table's own
     column order; opens nothing; no cell of any column appears in what it
     returns.
     """
     blocks = document["columns"]
     found: "list[Question]" = []
+    order: "list[DayOrMonth]" = []
+    centuries: "list[str]" = []
     if not isinstance(blocks, list):
-        return found
+        return DateColumnsSeen()
     position = 0
     for block in blocks:
         position = position + 1
@@ -2204,7 +2321,14 @@ def date_column_questions(
                 ANSWER_KEEP,
             )
         ]
-    return found
+        # ...and the reading it proposes, for Q1 and Q5 in the same file.
+        if reading in _MONTH_FIRST_MEMBERS or _month_first_layout(reading):
+            either = day_or_month_seen(present, reading)
+            if either is not None:
+                order += [DayOrMonth(name, either.months, either.days)]
+        if reads_two_figure_years(reading):
+            centuries += [name]
+    return DateColumnsSeen(tuple(found), tuple(order), tuple(centuries))
 
 
 def reads_two_figure_years(format_name: str) -> bool:
