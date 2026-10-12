@@ -19042,13 +19042,17 @@ def _heavy_layout(
        holds, inside the bounds the covered runs' starts allow.
     3. THE REPAIR (`_heavy_repaired`): where the weekday or
        day-of-month census beside the list cannot be met inside the
-       parts as split, ranks move between the parts of one segment until
-       a capacity flow from the parts to the census's groups places
-       every row each group still owes (the 3b.6 skeptic's B1).
+       parts as split, or the parts cannot open the new days the budget
+       asks, ranks move between the parts of one segment until a
+       capacity flow from the parts to the census's groups places every
+       row each group still owes (the 3b.6 skeptic's B1) and a min-cost
+       flow opens those days.
 
-    Every rank's gap is its part's days; every listed rank's is its own
-    date. No word is drawn here. A list no rank order holds (which the
-    loader refuses) leaves the layout unchanged.
+    Every ordinary rank's gap is its part's days; every listed rank's is
+    its own date. No word is drawn here: the draw splits each part's
+    ranks by key once the tails' days are known (`_heavy_drawn`). A list
+    no rank order holds (which the loader refuses) leaves the layout
+    unchanged.
 
     Guarantees: accepts the column, its facts and the layout; returns
     the layout. Linear in the ranks and the days between the boundaries.
