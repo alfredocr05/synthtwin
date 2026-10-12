@@ -13624,7 +13624,7 @@ that happens -- and the clause beside it, `--missing-value`'s "CAN be
 published as the column's smallest value", is exactly right under the
 new rule.
 
-**All one hundred and seventy-two are required.** The count is taken off the committed
+**All one hundred and seventy-seven are required.** The count is taken off the committed
 case sets and not carried forward: this sentence said fifty-two and a
 split of nine, twenty, sixteen and seven while the six files held
 seventy-three, because each repair that added a case added a clause to
@@ -13658,15 +13658,16 @@ TWENTY-SECOND, `tests/reference/generation-branch-vectors-22.json`,
 holds five -- landing T1's written clocks and G7.5 step 5, in the file
 plan P4-D364's table gives that landing (G14.2); and the
 TWENTY-FIFTH, `tests/reference/generation-branch-vectors-25.json`,
-holds eighteen -- landing R2a's layouts, the century a person chose,
+holds twenty-three -- landing R2a's layouts, the century a person chose,
 from its repair round a day padded with a space and the offsets a
 column of figure runs owes its class count, beside repeated texts too,
 from its second skeptic those offsets beside a named one, from its
 Codex review the rest of them paid with whole repeated texts, and from
 that repair's verification those texts placed over two offsets toward
 one aim, and landing R2b's clock half -- SQL Server's style 100, Oracle's
-TIMESTAMP and JavaScript's narrow space before its marker (plan
-P4-D383) --
+TIMESTAMP and JavaScript's narrow space before its marker, and from
+its Codex review each of its five hour fields beside a signed offset
+(plan P4-D383) --
 and a test holds this sentence to those files. The tenth grew by the
 two cases the GOVERNANCE PASS of stage 3's review added and the
 eleventh by the two the dates pass added; each number here is read off
@@ -13838,6 +13839,11 @@ case passed, which is the failure the count exists to prevent:
 | `layout_style_100` | G7.5's clock half (landing R2b, plan P4-D383): SQL Server's CONVERT style 100, `Jan  6 1970  4:37AM`, twelve moments of the ramp from midnight, the day and the hour on the 12-hour dial each padded with a space below ten and the marker straight after the minutes; midnight is `12:00AM`, the top of the dial. Its mutant pads the hour with a nought, `04:37AM` |
 | `layout_oracle_timestamp` | G7.5's dotted clock on the 12-hour dial (landing R2b): Oracle's TIMESTAMP default, `08-JAN-70 09.59.29.000000 PM`, two figures of hour on the dial, six of fraction as zeros, the marker after one space. Its mutant writes the 24-hour clock's hour beside the marker, `21.59.29.000000 PM` |
 | `layout_narrow_space_marker` | G7.5's narrow no-break space before a marker (landing R2b): JavaScript's `toLocaleString` for en-US, `1/10/1970, 7:17:10` U+202F `PM`, the month and day unpadded as `{"unpadded": 12}` allocates and the hour in one figure below ten on the dial. Its mutant writes an ordinary space before the marker |
+| `layout_one_figure_hour_offset` | G7.5's hour in one figure below ten beside a signed offset (the Codex review of landing R2b, item 2): `1970-01-10 8:27:11+05:30`, twelve moments of the ramp, the offset at half an hour with its colon straight after the seconds. Its mutant writes the hour in two figures, `08:27:11+05:30` |
+| `layout_spaced_hour_offset` | G7.5's hour padded with a space below ten beside a signed offset (the Codex review of landing R2b): `Jan  7 1970  9:12 -0400`, the day and the 24-hour clock's hour each padded with a space, the offset after one space without its colon. Its mutant pads the hour with a nought, `09:12` |
+| `layout_dial_hour_offset` | G7.5's two-figure hour on the 12-hour dial beside a signed offset (the Codex review of landing R2b): `1970-01-02 01:51 PM -09:30`, the marker after one space and the offset after another. Its mutant writes the 24-hour clock's hour beside the marker, `13:51 PM` |
+| `layout_dial_one_figure_offset` | G7.5's one-figure hour on the 12-hour dial beside a signed offset (the Codex review of landing R2b, the layout it named): `1970-01-07 7:23 PM+0530`, the offset straight after the marker. Its mutant writes the 24-hour clock's hour, `19:23 PM+0530` |
+| `layout_dial_spaced_offset` | G7.5's hour on the 12-hour dial padded with a space beside a whole-hour offset (the Codex review of landing R2b): `Jan 11 1970  2:51PM-05`, style 100 with `-05` after its marker; midnight is `12:00AM-05`. Its mutant writes the 24-hour clock's hour, `14:51PM-05` |
 | `date_remainder_one_joint` | G7.5 step 5 (landing T1; plan l.17955's carried case (a)): twenty-two month-first dates over twelve days publishing `{"padded": 11}`, eleven values' widths left out. The step writes those eleven ranks on whole days, the days holding the fewest of the class's ranks first, in widths the census does not name -- nine `unpadded` and two `first-padded`, each fewer than the line and than the named word -- and the named word keeps its eleven. Its mutant withdraws the step |
 | `weekday_whole_runs` | G7.3f step 5 (plan P4-D355): 100 whole dates over three weeks with no weekend, published `[Mon-Fri] 77, [Sat-Sun] 0`, whose ranks of one day move whole onto a free day of a group with room for all of them before any single rank moves. Its mutant withdraws the step |
 | `plus_padded_field` | G6.3's second tier of named field widths (plan P4-D145): twenty-two cells of twelve thousand three hundred and forty-five published `leading_plus` with `pad_widths: {"7": 22}`, every one written `+0012345` |

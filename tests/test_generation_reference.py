@@ -822,6 +822,9 @@ TWENTY_SECOND_BRANCH_CASES = (
 # THE TWENTY-FIFTH FILE: landing R2a's layout member (plan P4-D383).
 TWENTY_FIFTH_BRANCH_CASES = (
     "layout_century_window",
+    "layout_dial_hour_offset",
+    "layout_dial_one_figure_offset",
+    "layout_dial_spaced_offset",
     "layout_flexible_widths",
     "layout_hl7_fraction_offset",
     "layout_hour_offset",
@@ -831,10 +834,12 @@ TWENTY_FIFTH_BRANCH_CASES = (
     "layout_offsets_owed_beside_named",
     "layout_offsets_owed_repeats",
     "layout_offsets_owed_whole_texts",
+    "layout_one_figure_hour_offset",
     "layout_optional_offset",
     "layout_oracle_timestamp",
     "layout_sas_date9",
     "layout_space_padded_day",
+    "layout_spaced_hour_offset",
     "layout_spaced_offset",
     "layout_style_100",
     "layout_utc_word",
@@ -896,6 +901,13 @@ SEEDS = {
     "layout_style_100": 461,
     "layout_oracle_timestamp": 462,
     "layout_narrow_space_marker": 463,
+    # The Codex review of landing R2b: each hour field of its clock half
+    # beside a signed offset, at the next seeds (item 2).
+    "layout_one_figure_hour_offset": 464,
+    "layout_spaced_hour_offset": 465,
+    "layout_dial_hour_offset": 466,
+    "layout_dial_one_figure_offset": 467,
+    "layout_dial_spaced_offset": 468,
     # Landing T1's written clocks take the next seeds after the highest in
     # use below 34041 (plan P4-D370).
     "stamp_unpadded_hour": 416,
@@ -3635,6 +3647,45 @@ CASE_MUTANTS = {
         replacement=_layout_rewritten("\u202f", " "),
         outcome=CHANGES_THE_CELLS,
     ),
+    "layout_one_figure_hour_offset": Mutant(
+        branch="G7.5's hour in one figure below ten beside a signed offset "
+        "(the Codex review of landing R2b); the mutant writes two figures",
+        attribute="layout_written",
+        replacement=_layout_rewritten("{H}", "{HH}"),
+        outcome=CHANGES_THE_CELLS,
+    ),
+    "layout_spaced_hour_offset": Mutant(
+        branch="G7.5's hour padded with a space below ten beside a signed "
+        "offset (the Codex review of landing R2b); the mutant pads it with "
+        "a nought",
+        attribute="layout_written",
+        replacement=_layout_rewritten("{_H}", "{HH}"),
+        outcome=CHANGES_THE_CELLS,
+    ),
+    "layout_dial_hour_offset": Mutant(
+        branch="G7.5's two-figure hour on the 12-hour dial beside a signed "
+        "offset (the Codex review of landing R2b); the mutant writes the "
+        "24-hour clock's hour",
+        attribute="layout_written",
+        replacement=_layout_rewritten("{hh}", "{HH}"),
+        outcome=CHANGES_THE_CELLS,
+    ),
+    "layout_dial_one_figure_offset": Mutant(
+        branch="G7.5's one-figure hour on the 12-hour dial beside a signed "
+        "offset (the Codex review of landing R2b); the mutant writes the "
+        "24-hour clock's hour",
+        attribute="layout_written",
+        replacement=_layout_rewritten("{h}", "{H}"),
+        outcome=CHANGES_THE_CELLS,
+    ),
+    "layout_dial_spaced_offset": Mutant(
+        branch="G7.5's hour on the 12-hour dial padded with a space beside "
+        "a whole-hour offset (the Codex review of landing R2b); the mutant "
+        "writes the 24-hour clock's hour",
+        attribute="layout_written",
+        replacement=_layout_rewritten("{_h}", "{_H}"),
+        outcome=CHANGES_THE_CELLS,
+    ),
     "layout_space_padded_day": Mutant(
         branch="G7.5's space-padded day `{_D}`, a day below ten written after "
         "a space; the mutant writes it zero-padded",
@@ -6112,3 +6163,37 @@ def test_the_method_states_the_count_the_committed_files_hold() -> None:
         if line.startswith("| `")
     )
     assert tuple(rows) == EVERY_CASE
+
+
+# THE CLOCK HALF'S HOUR BESIDE A SIGNED OFFSET (the Codex review of landing
+# R2b, item 2): the oracle's hour writer once wrote its hour into the
+# variable that held the offset, and every hour field but `{HH}` beside a
+# signed offset stopped it with a TypeError. Each expected cell is written
+# out by hand from the instant, the dial and the offset's spelling.
+_HOUR_BESIDE_OFFSET = (
+    ("layout {YYYY}-{MM}-{DD} {h}:{MI} {AM}{+HHMM}", 13, 5, "+05:30",
+     "2024-03-17 1:05 PM+0530"),
+    ("layout {YYYY}-{MM}-{DD} {H}:{MI}{+HH:MM}", 13, 5, "+05:30",
+     "2024-03-17 13:05+05:30"),
+    ("layout {YYYY}-{MM}-{DD} {H}:{MI}{+HH:MM}", 9, 7, "-04:00",
+     "2024-03-17 9:07-04:00"),
+    ("layout {YYYY}-{MM}-{DD} {_H}:{MI} {+HHMM}", 9, 7, "-04:00",
+     "2024-03-17  9:07 -0400"),
+    ("layout {YYYY}-{MM}-{DD} {hh}:{MI} {AM} {+HH:MM}", 13, 5, "+05:30",
+     "2024-03-17 01:05 PM +05:30"),
+    ("layout {YYYY}-{MM}-{DD} {_h}:{MI}{AM}{+HH}", 9, 7, "-05:00",
+     "2024-03-17  9:07AM-05"),
+    ("layout {YYYY}-{MM}-{DD} {_h}:{MI}{AM}{+HH}", 0, 7, "+09:00",
+     "2024-03-17 12:07AM+09"),
+)
+
+
+@pytest.mark.parametrize("member,hour,minute,offset,cell", _HOUR_BESIDE_OFFSET)
+def test_the_oracle_writes_every_hour_field_beside_a_signed_offset(
+    member: str, hour: int, minute: int, offset: str, cell: str
+) -> None:
+    """Oracle and product write one hand-derived cell (Codex, landing R2b, item 2)."""
+    second = hour * 3600 + minute * 60
+    assert gen.layout_written(member, 2024, 3, 17, second, offset, "padded", 0) == cell
+    canonical = f"2024-03-17 {hour:02d}:{minute:02d}:00"
+    assert parsing.written_layout_date(member, canonical, offset) == cell

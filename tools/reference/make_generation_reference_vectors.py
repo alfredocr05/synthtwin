@@ -5936,15 +5936,17 @@ def layout_written(member, year, month, day, second, offset, width, figures):
         elif field == "HH":
             out.append(f"{hours:02d}")
         elif field in ("H", "_H") or field in LAYOUT_DIAL_HOURS:
-            shown = hours
+            # Its own name, not `shown`, which holds the offset an offset
+            # field after it writes (the Codex review of landing R2b, item 2).
+            hour_shown = hours
             if field in LAYOUT_DIAL_HOURS:
-                shown = hours % 12 or 12
+                hour_shown = hours % 12 or 12
             if field == "hh":
-                out.append(f"{shown:02d}")
+                out.append(f"{hour_shown:02d}")
             elif field in ("H", "h"):
-                out.append(f"{shown}")
+                out.append(f"{hour_shown}")
             else:
-                out.append(f"{shown:>2d}")
+                out.append(f"{hour_shown:>2d}")
         elif field in LAYOUT_MARKERS:
             out.append(LAYOUT_MARKERS[field][0 if hours < 12 else 1])
         elif field == "MI":
@@ -23323,8 +23325,75 @@ def _layout_narrow_space_marker():
     )
 
 
+# -- the Codex review of landing R2b, item 2: each hour field of the clock
+# half beside a signed offset, which the hour writer once stopped on.
+
+
+def _layout_one_figure_hour_offset():
+    return _r2a_layout(
+        "layout {YYYY}-{MM}-{DD} {H}:{MI}:{SS}{+HH:MM}", "datetime", "second",
+        0, 12, {"+05:30": 12}, "local",
+        why="G7.5's hour in one figure below ten beside a signed offset (the "
+        "Codex review of landing R2b, item 2): `1970-01-01 0:00:00+05:30`, "
+        "the offset at half an hour written with its colon straight after "
+        "the seconds. The mutant writes the hour in two figures, "
+        "`00:00:00+05:30`, which this column does not.",
+    )
+
+
+def _layout_spaced_hour_offset():
+    return _r2a_layout(
+        "layout {Mon} {_D} {YYYY} {_H}:{MI} {+HHMM}", "datetime", "minute",
+        0, 12, {"-04:00": 12}, "local",
+        why="G7.5's hour padded with a space below ten beside a signed "
+        "offset (the Codex review of landing R2b, item 2): `Jan  1 1970  "
+        "0:00 -0400`, the day and the 24-hour clock's hour each padded with "
+        "a space and the offset after one space without its colon. The "
+        "mutant pads the hour with a nought.",
+    )
+
+
+def _layout_dial_hour_offset():
+    return _r2a_layout(
+        "layout {YYYY}-{MM}-{DD} {hh}:{MI} {AM} {+HH:MM}", "datetime",
+        "minute", 0, 12, {"-09:30": 12}, "local",
+        why="G7.5's two-figure hour on the 12-hour dial beside a signed "
+        "offset (the Codex review of landing R2b, item 2): `1970-01-01 "
+        "12:00 AM -09:30`, the marker after one space and the offset after "
+        "another. The mutant writes the 24-hour clock's hour beside the "
+        "marker.",
+    )
+
+
+def _layout_dial_one_figure_offset():
+    return _r2a_layout(
+        "layout {YYYY}-{MM}-{DD} {h}:{MI} {AM}{+HHMM}", "datetime", "minute",
+        0, 12, {"+05:30": 12}, "local",
+        why="G7.5's one-figure hour on the 12-hour dial beside a signed "
+        "offset (the Codex review of landing R2b, item 2), the layout Codex "
+        "named: `1:05 PM+0530` at 13:05 and five and a half hours east, the "
+        "offset straight after the marker. The mutant writes the 24-hour "
+        "clock's hour, `13:05 PM+0530`.",
+    )
+
+
+def _layout_dial_spaced_offset():
+    return _r2a_layout(
+        "layout {Mon} {_D} {YYYY} {_h}:{MI}{AM}{+HH}", "datetime", "minute",
+        0, 12, {"-05:00": 12}, "local",
+        why="G7.5's hour on the 12-hour dial padded with a space beside a "
+        "whole-hour offset (the Codex review of landing R2b, item 2): SQL "
+        "Server's style 100 with PostgreSQL's `-05` after its marker, `Jan  "
+        "1 1970 12:00AM-05`. The mutant writes the 24-hour clock's hour, "
+        "padded alike.",
+    )
+
+
 R2A_BRANCH_CASE_BUILDERS = {
     "layout_century_window": _layout_century_window,
+    "layout_dial_hour_offset": _layout_dial_hour_offset,
+    "layout_dial_one_figure_offset": _layout_dial_one_figure_offset,
+    "layout_dial_spaced_offset": _layout_dial_spaced_offset,
     "layout_flexible_widths": _layout_flexible_widths,
     "layout_hl7_fraction_offset": _layout_hl7_fraction_offset,
     "layout_hour_offset": _layout_hour_offset,
@@ -23334,10 +23403,12 @@ R2A_BRANCH_CASE_BUILDERS = {
     "layout_offsets_owed_beside_named": _layout_offsets_owed_beside_named,
     "layout_offsets_owed_repeats": _layout_offsets_owed_repeats,
     "layout_offsets_owed_whole_texts": _layout_offsets_owed_whole_texts,
+    "layout_one_figure_hour_offset": _layout_one_figure_hour_offset,
     "layout_optional_offset": _layout_optional_offset,
     "layout_oracle_timestamp": _layout_oracle_timestamp,
     "layout_sas_date9": _layout_sas_date9,
     "layout_space_padded_day": _layout_space_padded_day,
+    "layout_spaced_hour_offset": _layout_spaced_hour_offset,
     "layout_spaced_offset": _layout_spaced_offset,
     "layout_style_100": _layout_style_100,
     "layout_utc_word": _layout_utc_word,
@@ -32861,7 +32932,8 @@ _TWENTY_FIFTH_BRANCH_ACCOUNT = (
     "landing R2b's clock half, SQL Server's style 100 with its hour padded "
     "with a space on the 12-hour dial, Oracle's TIMESTAMP with its dotted "
     "clock and marker, and JavaScript's marker after a narrow no-break "
-    "space. They "
+    "space, and, from its Codex review, each of its five hour fields "
+    "beside a signed offset. They "
     "are computed by the same oracle and the same proof layer "
     "as tests/reference/generation-reference-vectors.json, "
     "tests/reference/generation-branch-vectors.json, "
@@ -33192,6 +33264,53 @@ GIVEN_WORDS = {
         4944809142428056885, 13493245814766217266, 7225301071039828329,
         14812597322742682496, 1852584797181425128, 12229896643358909764,
         14513861318961856989, 10493527684416312970, 5862175208038215431,
+    ),
+    # THE CODEX REVIEW OF LANDING R2b, item 2: each hour field of the
+    # clock half beside a signed offset, at seeds 464 to 468.
+    "layout_one_figure_hour_offset": (
+        10192554476091600933, 8680477962831111417, 18378191832127938107,
+        3202485008713607579, 990083980081620052, 8887927352821633135,
+        17778708954439494013, 15683440251487152271, 18139644590835667248,
+        4767057027445624630, 12650417762811141814, 11711093341082757387,
+        2684014854337564073, 3872066165472382104, 4274097496204955380,
+        11514084782437993474, 12604841450714058584, 11173661146437258731,
+        16993650527344930234, 15477628547616234020, 11120544054301652937,
+    ),
+    "layout_spaced_hour_offset": (
+        16459430279936554842, 3071723863159937243, 13136842492637321216,
+        7722747612072185027, 3479814683976567231, 14087426121021469382,
+        10705541761210192952, 4992595978086717208, 1276111723545061619,
+        14256495567357311675, 3345350126521080349, 4983111891853951042,
+        7032421664425052848, 9615601078892268657, 10434374073104064142,
+        4034994932592892850, 7109262499807954751, 12242423658911578665,
+        7995568536387921602, 6989798218588195933, 14997929865976073960,
+    ),
+    "layout_dial_hour_offset": (
+        3363310349585022672, 5742229341313212782, 10725301513192439890,
+        15010259089306110778, 5403141057730224711, 8963261787243685050,
+        8198295605376228109, 541446498405219801, 2645598887974148453,
+        18430202703766671515, 12727159878761468067, 10273374190971665130,
+        2850765638290105198, 7256134430090359277, 8517900732132867891,
+        10024905689074970196, 11691032582055812351, 378078764693119330,
+        17003273829709831530, 580078386071083907, 11391224875089291878,
+    ),
+    "layout_dial_one_figure_offset": (
+        9765999837951619631, 11416333538057272938, 14915768519682349582,
+        7435721478037429253, 13600491021405278367, 11051997422374112540,
+        14110682454654659317, 8087832934168114981, 1276014169967910576,
+        1560338657713246347, 18114760856280333245, 4600137777903957284,
+        7924447393048879550, 9075192529004776072, 5305215818650342463,
+        2615150498167026646, 18316698381913234361, 3161296679347398272,
+        238468329361296891, 10545809742624038117, 17848599439088029970,
+    ),
+    "layout_dial_spaced_offset": (
+        14656496037287454600, 16754134800389862215, 7396592763845958987,
+        1167463546477138518, 9336650868793146029, 12440558045148358759,
+        259512501459676463, 17807658224160832850, 17200404372264455006,
+        8514226329318693412, 3109581672660062460, 9492804504699479282,
+        1760468899928648358, 16510571503647803287, 14300817202074980913,
+        9245052540084552524, 7465214689900150273, 14610900413449605830,
+        3701002199305053209, 4361692955076621441, 7658460772947452361,
     ),
     "layout_flexible_widths": (
         11416032767607098569, 12683253509083616314, 7669285204978396353,
