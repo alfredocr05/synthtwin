@@ -6,6 +6,24 @@ exists).
 
 ## [Unreleased]
 
+### The minutes and seconds of a timestamp come back (2026-10-12)
+
+**A column of moments publishes its minutes and seconds, and the twin
+meets them with the hour** (plan P4-D372, stage 3b landing 3b.4). The
+twin drew a timestamp's minutes and seconds evenly: clinic slots seven in
+ten on :00 or :30 came back at 3 to 4 per cent, cells written `HH:MM:00`
+at random seconds. A column that may publish its hours now publishes the
+minutes and seconds its cells stand out on, and how the rest fall, in
+groups of at least the census line; the twin draws on the lattice those
+facts pin and moves its cells onto them inside their gaps, keeping each
+hour group, weekday and its count of different values (method G7.3h), and
+validation recounts them (V5-M1, V5-S1). On the lane's battery of sixteen
+columns at 1,000 and 10,000 rows, floors 11 and 36, seeds 0 to 4, all 320
+twins validate with nothing missed; at 10,000 rows the minute TVD falls
+from 0.3 to 0.9 to 0.001 to 0.012. Columns whose minutes follow the hour,
+or whose middle half is shorter than four hours, publish nothing and say
+why; every column publishing no such fact writes the twin it wrote before.
+
 ### Time of day comes back on moments (2026-10-06)
 
 **A column of moments publishes its hours, and the twin meets them**

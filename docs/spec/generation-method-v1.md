@@ -7385,6 +7385,103 @@ distances, on a low tail of minutes, a high tail of seconds and a tail
 whose ranks must all differ, each with the answer this section gives it
 and no G14.3 case.
 
+#### G7.3h The minute and second censuses: the clock pass on two fields, and the drawing rule
+
+*Stage 3b, landing 3b.4, plan P4-D372.* A column of moments may publish,
+beside its hour census, each FIELD's HEAPS -- values standing out, each
+with its count -- and its CENSUS of the cells on no heap: `minute_heaps`
+and `minute_census` over the minutes of the hour, and, written to the
+second or finer, `second_heaps` and `second_census` over the seconds of
+the minute (contract 6.6.2, MC1 to MC6, MH1, MH2, SE1 to SE6, SH1, SH2).
+A cell counts at the minute and second it is WRITTEN at,
+`canonical[14:16]` and `canonical[17:19]`; a sixtieth second, `HH:MM:60`,
+counts in its own minute at second 59.
+
+**THE DRAWING RULE (G7.3's body draw, the design skeptic's M2, m2 and
+m3).** Where a minute or second census or heap is published, the body is
+drawn on a LATTICE of the clock its facts pin: the seconds are pinned on
+a column written to the minute, or where the second publishes heaps and
+no census (the lattice the greatest step dividing sixty and every heap's
+value), or a census and no heap whose one non-zero group holds second 0,
+every published body value on second 0; a lattice finer than the minute
+is the DRAWING UNIT. With the seconds on 0, the minute's own lattice,
+found the same way, widens it to sixty seconds times its step -- the
+hour for a column on the hour, half an hour for a half-hour grid --
+sixty where the minute pins nothing (one on a column written to the
+minute). Every unpinned body draw is floored to the unit, or set on the
+next multiple where its floor leaves the rank's gap, and left where no
+multiple lies inside it. Each TAIL draws on the same unit where both
+boundaries and every value a tail lists stand on it, each draw inside its
+stratum, and on the written unit elsewhere; a tail's outermost rank,
+standing where its published distances put it, is not moved. Both steps at midnight step a
+body rank off a midnight by the drawing unit and a tail rank by its
+tail's. Where every body rank stands on the drawing unit, the count pass
+steps and counts in it, its published count less the tail values sharing
+a unit with another; and the hour pass (G7.3g) steps in it, up to a
+minute. Where no minute or second fact is published the unit is one and
+every draw is the one before this landing.
+
+**THE PASS.** After G7.3g, under its run conditions, G7.3g's clock pass
+runs once for the minute and then once for the second. The minute's bins
+are 60 seconds, 60 a turn, its parent the hour, and its kin each hour's
+group in the hour census -- one group over the day where none is
+published. The second's bins are one second, its parent the minute, and
+its kin each minute of the day's pair of hour group and minute group,
+the minute's groups those of its own pass, one group where it publishes
+none. The pass asks no count step of G7.3f (8.1 to 8.6): over sixty
+values they ask cycles among as many groups, and the count is put back
+by G7.3g's PUT BACK and the steps below. A field's GROUPS are its
+census's, in order, each over its values,
+or, beside heaps with no census, one group of every value counting the
+body less the heaps; then each heap, its value alone, at its count. A
+field whose ranks already meet its groups is not passed. After the clock
+pass, for the field:
+
+1. *The exchange off midnight.* The ranks the pass left on a written
+   midnight that stood off one before it, unit by unit in rank order,
+   take together the place of their own group on another parent of their
+   day in their kin group, the nearest first, the earlier on a tie;
+   where none has one, the free place of another group G of the field on
+   their own parent nearest their own, inside the gap they share and at
+   no written midnight, while runs of G holding as many ranks -- each run
+   every movable rank of one written unit, no other rank on it, one gap;
+   the longest first, each length's in rank order, at most 64 asked --
+   each take the free place of the ranks' old group on its own parent
+   inside its gap; where they fall short, every run goes back and the
+   next place is asked.
+2. *SUBSTITUTE*, where the count of different written units is still
+   long and the column's count is reachable: each run in rank order joins
+   a unit another rank holds in another group G of the field, inside its
+   gap and at no written midnight, on its own parent, else on another
+   parent of its day in its kin group, else at its own parent's place on
+   another day of its day standing and width kind, nearest first, and
+   where no weekday census stands on a day of another weekday; and runs
+   of G holding as many ranks take free places of its old group, as in
+   step 1. Each pair puts back one unit.
+3. *SPREAD*, where the count is still short and reachable, or the count
+   drawn is not above the published one: each rank sharing its written
+   unit, in rank order, takes the free place of its own group nearest its
+   own on its parent, else the escape's (G7.3g step 3) in its own group;
+   a group, a parent's place in the day and a gap that found none are
+   not asked again.
+4. Each run of unpinned ranks is sorted.
+
+Where a field's groups still do not hold, one deviation names its census.
+Last, where the column publishes its count at midnight, THE TAILS KEEP IT:
+while more ranks than it stand at a written midnight, the first unpinned
+tail rank at one steps off it by its tail's drawing unit inside its
+stratum; while fewer, the first unpinned tail rank off one takes the
+nearest midnight inside its stratum; each tail's ranks are then sorted.
+
+**Its frozen cases** are states of ranks and drawing units: the twentieth
+vectors file, `tests/reference/generation-branch-vectors-20.json`, holds
+fourteen -- the pass on a field of minutes with heaps and on a field of
+seconds with a kin group of minutes, the exchange's three answers,
+SUBSTITUTE, SPREAD, the tails keeping the count at midnight, a draw laid
+on its unit, and the drawing units of a half-hour grid, a column on the
+hour, a column whose seconds alone are pinned and one census group
+holding minute 0 -- each with the answer this section gives it.
+
 ### G7.4 Offsets: only where recorded
 
 `utc_offsets` maps an offset text to a count, under the small-cell

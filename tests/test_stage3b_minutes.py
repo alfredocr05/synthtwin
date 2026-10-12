@@ -299,7 +299,7 @@ def test_red_when_the_span_rule_is_withdrawn(tmp_path: pathlib.Path, monkeypatch
 
 def test_red_when_the_hour_rule_is_withdrawn(tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """M3's mutant: with no hour rule night charting beside day entries publishes its minutes."""
-    monkeypatch.setattr(calendar_clock, "depends_on_the_hour", lambda _hours, _values, _line: False)
+    monkeypatch.setattr(calendar_clock, "depends_on_the_hour", lambda *_arguments: False)
     block = _described_alone(tmp_path, shapes.night_and_day(random.Random(5), 1000), LINE, loads=False)
     assert block["minute_heaps"] or block["minute_census"]
 
@@ -401,9 +401,9 @@ def test_the_clock_battery_twins_meet_their_census(thousand, seed: int, monkeypa
     Every twin validates with nothing MISSED and every published field
     HELD; its minute and second statistics lie inside BOUND, CAP and SHAPE
     (`_statistics_failures`) and INDEPENDENCE (`_independence_failures`);
-    and its hour groups and weekdays are the ones the same seed writes
-    with G7.3h withdrawn -- its moves keep every hour group and day
-    standing.
+    and its body's hour groups and its weekday groups are the ones the
+    same seed writes with G7.3h withdrawn -- its moves keep every hour
+    group and day standing.
     """
     described, columns, text = thousand
     written = kpi_shapes.twin_text(described, seed)
@@ -427,8 +427,10 @@ def test_the_clock_battery_twins_meet_their_census(thousand, seed: int, monkeypa
         without = shapes.cells_of(flat, name)
         if any(_published(block, "minute")) or any(_published(block, "second")):
             if block["hour_census"]:
-                hours = [_moment(cell, form).hour for cell in twin if _moment(cell, form)]
-                hours_without = [_moment(cell, form).hour for cell in without if _moment(cell, form)]
+                # The BODY's hours, which the hour census counts: G7.3h's
+                # tails may step a cell off midnight into another hour.
+                hours = [moment.hour for moment in _body_texts(block, twin, form)]
+                hours_without = [moment.hour for moment in _body_texts(block, without, form)]
                 assert [
                     sum(1 for hour in hours if group["first"] <= hour <= group["last"])
                     for group in block["hour_census"]
@@ -713,7 +715,7 @@ def _state(case: dict, module=generation):
         word="", widths=False, kinds={}, holes=frozenset(case["holes"]), lows=list(case["lows"]),
         highs=list(case["highs"]), keep_units=case["reachable"], unit=field,
         step=case["written_unit"], day=DAY, bins="minute" if field == 60 else "second",
-        period=60, keeps="hour" if field == 60 else "minute",
+        period=60, keeps="hour" if field == 60 else "minute", count_steps=False,
     )
     for ordinal in state.moved:
         module._weekday_tally(state.held, ordinal // state.step, 1)

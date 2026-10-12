@@ -6724,16 +6724,16 @@
   },
   {
    "id": "K-S3-41",
-   "phase_stage": "Stage 3b landing 3b.2-H, the orchestrator's reading of the owner's accepted class of 2026-09-30 (plan P4-D363)",
+   "phase_stage": "Stage 3b landings 3b.2-H and 3b.4, the orchestrator's reading of the owner's accepted class of 2026-09-30 (plan P4-D363)",
    "category": "PRIVACY",
    "headline": false,
-   "name": "A group of several hours may say one of its hours holds 1 to 10 rows",
+   "name": "A group of several hours, minutes or seconds may say one of its values holds 1 to 10 rows",
    "status": "ACCEPTED_LIMIT",
-   "rule": "over the hour gate's 1,000-row table at a floor of eleven (tests/test_stage3b_hour.py::_thousand): the columns publishing a census, the groups counting several hours among them -- each says that one of its hours holds one to ten rows, a range -- and the counts printed below the line, which stay nought. It may not widen",
+   "rule": "over the hour gate's 1,000-row table (tests/test_stage3b_hour.py::_thousand) and the minute gate's (tests/clock_field_shapes.py::thousand) at a floor of eleven: the censuses of hours, minutes and seconds published, the groups counting several values among them -- each says one of its values holds one to ten rows, a range -- and the counts printed below the line, which stay nought. It may not widen",
    "rule_kind": "at_most",
    "expected": {
-    "censuses": 8,
-    "merged_groups": 9,
+    "censuses": 15,
+    "merged_groups": 108,
     "counts_below_the_line": 0
    },
    "key_kinds": {
@@ -6745,9 +6745,9 @@
    "test": "tests/test_kpi_ledger.py::test_k_s3_41",
    "driver": null,
    "pin_strength": "NONE",
-   "measured_on": "the eleven columns of the hour gate's 1,000-row table, described at floor 11",
+   "measured_on": "the hour gate's eleven columns and the minute gate's sixteen at 1,000 rows, described at floor 11",
    "evidence": "Merged by the one merge rule: an hour alone that would name one to ten rows, directly or beside the cells the rest of the description places in it, joins its smaller neighbour, never across midnight. A fixed menu was measured instead and cost the 1,000-row discharges an hour TVD of 0.33 against 0.02 merged (the design of 3b.2-H).",
-   "status_note": "THE ORCHESTRATOR'S READING OF THE OWNER'S CLASS OF 2026-09-30 ('Accept the class', plan P4-D363), NOT a new ruling and NOT to be re-asked: a count below 11 worked out within one column -- here, that one hour of a merged group holds 1 to 10 rows -- is accepted; it is a range, never a value, a date or a row, and never about another column.",
+   "status_note": "THE ORCHESTRATOR'S READING OF THE OWNER'S CLASS OF 2026-09-30 ('Accept the class', plan P4-D363), NOT a new ruling and NOT to be re-asked: a count below 11 worked out within one column -- here, that one hour, minute or second of a merged group holds 1 to 10 rows -- is accepted; it is a range, never a value, a date or a row, and never about another column.",
    "nodes_min_collected": 0,
    "value_at": {
     "commit": "9383c71",
@@ -6759,6 +6759,50 @@
      "merged_groups": 9
     }
    }
+  },
+  {
+   "id": "K-S3-42",
+   "phase_stage": "Stage 3b landing 3b.4, the minutes and seconds of a timestamp (plan P4-D372)",
+   "category": "STATS",
+   "headline": false,
+   "name": "The minutes and seconds of a timestamp come back, met with the hour",
+   "status": "GREEN",
+   "rule": "over the minute gate's shapes (tests/clock_field_shapes.py) at 1,000 rows (sixteen columns) and 10,000 rows (fourteen), floor 11, seeds 0 to 4: no twin or real table missing a checkable obligation; no field failing BOUND, CAP or SHAPE on its minute or second TVD or the INDEPENDENCE clause (tests/test_stage3b_minutes.py); no twin at 1,000 rows whose hour or weekday census groups move against the same seed with G7.3h withdrawn; and the design skeptic's node, 40,000 cells written HH:MM:00 at floor 11, seed 0, missing nothing, its G7.3h seconds judged on the quiet reference machine alone. `censuses` and `cases` may not shrink, and the pinned nodes pass",
+   "rule_kind": "at_most",
+   "expected": {
+    "censuses": 40,
+    "missed": 0,
+    "over_bound": 0,
+    "over_cap": 0,
+    "shape": 0,
+    "independence": 0,
+    "hour_changed": 0,
+    "weekday_changed": 0,
+    "cases": 200,
+    "pinned_nodes_failing": 0,
+    "rounds_40k_missed": 0,
+    "rounds_40k_pass_seconds": 10.0
+   },
+   "key_kinds": {
+    "censuses": "at_least",
+    "cases": "at_least",
+    "pinned_nodes_failing": "exact",
+    "rounds_40k_pass_seconds": "seconds_below"
+   },
+   "tier": "SLOW",
+   "source": "driver",
+   "nodes": [
+    "tests/test_stage3b_minutes.py::test_the_clock_battery_publishes_its_census",
+    "tests/test_stage3b_minutes.py::test_the_clock_battery_twins_meet_their_census",
+    "tests/test_stage3b_minutes.py::test_the_product_gives_every_case_its_answer",
+    "tests/test_stage3b_minutes.py::test_each_step_case_is_red_on_its_mutant"
+   ],
+   "test": null,
+   "driver": "tools/measurements/kpi_clock_census.py --kpi",
+   "pin_strength": "WEAKER",
+   "measured_on": "the minute gate's shapes at 1,000 and 10,000 rows, floor 11, seeds 0 to 4, through the real producer, generator and checker, and 40,000 cells written HH:MM:00 at seed 0, timed",
+   "evidence": "Before (2341173), no column of moments published its minutes or seconds and the twin drew them evenly: clinic slots 71 per cent on :00 or :30 came back at 3 to 4, cells written HH:MM:00 at random seconds. After, every field in scope is met; the battery's numbers are plan P4-D372's.",
+   "nodes_min_collected": 4
   },
   {
    "id": "K-S3-48",

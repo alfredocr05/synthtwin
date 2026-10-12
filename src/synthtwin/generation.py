@@ -22713,12 +22713,16 @@ def _tail_unit(facts: contract.DatetimeFacts) -> int:
     THE DRAWING RULE ON THE TAILS (the 3b.4 design skeptic's m3: 300
     cells written `HH:MM:00` came back with their tail cells at any
     second, 7 to 24 in 100 of the cells off :00). The body's drawing unit
-    (`_draw_unit`) up to a minute, where the boundary and every value each
-    tail lists stand on it; one elsewhere, and on a column written to the
-    minute, whose written unit is already the minute.
+    (`_draw_unit`), where the boundary and every value each tail lists
+    stand on it; one elsewhere. Each tail draw stays inside its stratum
+    (`_on_draw_unit`), so the tail's published distances stay inside the
+    windows the checker draws from the same strata (measured: 1,000-row
+    grids at a floor of 36, their 36-row tails drawn at any minute, came
+    back 92.8 to 93.6 per cent on their grid; on the unit, 99.5 to 99.8,
+    nothing missed).
     """
-    unit = min(_draw_unit(facts), 60)
-    if unit <= 1 or facts.time_precision == "minute":
+    unit = _draw_unit(facts)
+    if unit <= 1:
         return 1
     for tail in (facts.low_tail, facts.high_tail):
         if tail is None:
@@ -22914,6 +22918,12 @@ class _WeekdayPass:
         default_factory=dict
     )
     gap_sizes: "dict[tuple[int, int], int]" = dataclasses.field(default_factory=dict)
+    # -- the minute and the second (3b.T3, P4-D372): whether G7.3f's count
+    # steps 8.1 to 8.6 run. Over a field's sixty values they ask cycles
+    # among up to sixty-four groups -- 20 of 24 seconds of the pass on
+    # 40,000 clinic slots -- and G7.3h puts the count back by G7.3g's PUT
+    # BACK, SUBSTITUTE and SPREAD instead.
+    count_steps: bool = True
 
 
 @dataclasses.dataclass(frozen=True)
@@ -25270,10 +25280,10 @@ def _bins_settled(
     if have != target:
         _weekday_chained(state, everything, have, target)
     # -- step 7c, the escape of a moment to an end day (3b.D2, P4-D367)
-    if state.keep_units:
+    if state.keep_units and state.count_steps:
         _weekday_count_kept(state, body_low, body_high, pinned, wanted)
     if have != target and _weekday_traded(state, everything, have, target):
-        if state.keep_units:
+        if state.keep_units and state.count_steps:
             _weekday_count_kept(state, body_low, body_high, pinned, wanted)
     _runs_sorted(state.moved, pinned)
 
@@ -26782,6 +26792,7 @@ def _clock_fields_settled(
             bins=rule,
             period=calendar_clock.FIELD_VALUES,
             keeps=keeps,
+            count_steps=False,
         )
         pinned = _ranks_the_tail_pins(layout)
         for rank in range(parsed):
@@ -26830,7 +26841,8 @@ def _clock_field_settled(
 ) -> None:
     """G7.3h for one field: the clock pass and the three steps after it.
 
-    G7.3g's one clock pass over the field's state (`_clock_pass`); then
+    G7.3g's one clock pass over the field's state (`_clock_pass`), its
+    state asking no count step of G7.3f (`_WeekdayPass.count_steps`); then
     the EXCHANGE OFF MIDNIGHT for the ranks it left at a written midnight
     (`_clock_off_midnight_exchanged`); SUBSTITUTE where the count of
     different values is still long and the column's count is reachable

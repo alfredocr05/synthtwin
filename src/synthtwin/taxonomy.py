@@ -1040,9 +1040,11 @@ NOTE_HOUR_WITHHELD_NO_GROUPING = "hour_census_withheld_no_grouping"
 # why in one publication note -- a middle half too short (MC4, SE4), no
 # heap and no grouping the merge rule publishes (MC5, SE5), and how the
 # values fall on the field changing with the hour (the design skeptic's
-# M3). The reasons every census of the clock shares -- no tails, an
-# unpublished span, two storages -- are said once, in the hour census's
-# own sentence; a field whose counts do not depart from flat says nothing.
+# M3), and, for the minute, a census of the rest standing on a few
+# different values beside no heap. The reasons every census of the clock
+# shares -- no tails, an unpublished span, two storages -- are said once,
+# in the hour census's own sentence; a field whose counts do not depart
+# from flat says nothing, nor a second census left out for a few values.
 REMARK_MINUTE_CENSUS = "minute_census_counts_minutes"
 REMARK_SECOND_CENSUS = "second_census_counts_seconds"
 NOTE_MINUTE_WITHHELD_SHORT_SPAN = "minute_census_withheld_short_span"
@@ -1051,7 +1053,7 @@ NOTE_MINUTE_WITHHELD_NO_GROUPING = "minute_census_withheld_no_grouping"
 NOTE_SECOND_WITHHELD_NO_GROUPING = "second_census_withheld_no_grouping"
 NOTE_MINUTE_WITHHELD_WITH_THE_HOUR = "minute_census_withheld_with_the_hour"
 NOTE_SECOND_WITHHELD_WITH_THE_HOUR = "second_census_withheld_with_the_hour"
-NOTE_CLOCK_FIELD_WITHHELD_FEW_VALUES = "clock_field_census_withheld_few_values"
+NOTE_MINUTE_WITHHELD_FEW_VALUES = "minute_census_withheld_few_values"
 # anchor 3b-C1 (P4-D373)
 # THE CLOCK CENSUS'S TWO SENTENCES (landing 3b.5, plan P4-D373; contract
 # NF106 and NF107), each naming the census line and no count of rows.
@@ -1244,7 +1246,7 @@ NOTE_ARITY: "dict[str, int]" = {
     NOTE_SECOND_WITHHELD_NO_GROUPING: 1,
     NOTE_MINUTE_WITHHELD_WITH_THE_HOUR: 0,
     NOTE_SECOND_WITHHELD_WITH_THE_HOUR: 0,
-    NOTE_CLOCK_FIELD_WITHHELD_FEW_VALUES: 1,
+    NOTE_MINUTE_WITHHELD_FEW_VALUES: 0,
     # anchor 3b-C1 (P4-D373)
     NOTE_CLOCK_CENSUS_LEFT_OUT: 1,
     REMARK_CLOCK_CODES_WRITTEN: 1,
@@ -1477,7 +1479,6 @@ ARGUMENT_BINDINGS: "dict[tuple[str, int], tuple[object, ...]]" = {
     (REMARK_SECOND_CENSUS, 0): (BIND_SETTING, "census line"),
     (NOTE_MINUTE_WITHHELD_NO_GROUPING, 0): (BIND_SETTING, "census line"),
     (NOTE_SECOND_WITHHELD_NO_GROUPING, 0): (BIND_SETTING, "census line"),
-    (NOTE_CLOCK_FIELD_WITHHELD_FEW_VALUES, 0): (BIND_WORD,),
     # anchor 3b-C1 (P4-D373)
     (NOTE_CLOCK_CENSUS_LEFT_OUT, 0): (BIND_SETTING, "census line"),
     (REMARK_CLOCK_CODES_WRITTEN, 0): (BIND_SETTING, "census line"),
@@ -2222,8 +2223,9 @@ def rendered(form: str, arguments: "tuple[object, ...]") -> str:
         return (
             f"which {values} this column's values fall on is counted over the "
             f"values between its two tail boundaries: each {one} holding at "
-            f"least {line} rows and at least three times the median of the "
-            f"five on either side of it is counted alone, and the rest "
+            f"least {line} rows, written at {line} different values or more, "
+            f"and at least three times the median of the five on either side "
+            f"of it is counted alone, and the rest "
             f"together, each {one} alone or, where that would name fewer than "
             f"{line} rows in all or besides the rows the rest of this "
             f"description places in it for certain -- at the values it "
@@ -2239,7 +2241,7 @@ def rendered(form: str, arguments: "tuple[object, ...]") -> str:
         return (
             f"the {values} this column's values fall on are not counted: the "
             f"middle half of its values spans fewer than four {whole}s, so the "
-            f"counts would be the {values} of a few {whole}s"
+            f"counts would be those of a few {whole}s"
         )
     if form in (NOTE_MINUTE_WITHHELD_NO_GROUPING, NOTE_SECOND_WITHHELD_NO_GROUPING):
         values, one, whole = _clock_field_words(form)
@@ -2257,17 +2259,18 @@ def rendered(form: str, arguments: "tuple[object, ...]") -> str:
             f"fewer rows than those, to its smaller neighbour, leaves one group "
             f"over the whole {whole}"
         )
-    if form == NOTE_CLOCK_FIELD_WITHHELD_FEW_VALUES:
-        # One form for both fields, the field its word (NF101).
-        one = f"{arguments[0]}" if arguments else "minute"
-        values = "seconds of the minute" if one == "second" else "minutes of the hour"
+    if form == NOTE_MINUTE_WITHHELD_FEW_VALUES:
+        # NF101: the minute's alone; a second census of the rest left out
+        # for its few values beside no heap says nothing, as a flat
+        # field's does.
         return (
-            f"the {values} this column's values fall on are not counted: no "
-            f"{one} stands out on its own, and its values between the two "
-            f"tail boundaries are written at too few different values -- "
-            f"fewer than {calendar_clock.FEW_VALUES_LEAST} in a group, or "
-            f"fewer than {calendar_clock.FEW_VALUES_MEAN} a group on average "
-            f"-- for counts of them to say more than where a few events fell"
+            f"the minutes of the hour this column's values fall on are not "
+            f"counted: no minute stands out on its own, and its values "
+            f"between the two tail boundaries are written at too few "
+            f"different values -- fewer than {calendar_clock.FEW_VALUES_LEAST} "
+            f"in a group, or fewer than {calendar_clock.FEW_VALUES_MEAN} a "
+            f"group on average -- for counts of them to say more than where "
+            f"a few events fell"
         )
     if form in (NOTE_MINUTE_WITHHELD_WITH_THE_HOUR, NOTE_SECOND_WITHHELD_WITH_THE_HOUR):
         values, _one, _whole_word = _clock_field_words(form)
@@ -17304,9 +17307,9 @@ def clock_field_decision(
     `calendar_clock.SECOND`, and `hours`, `minutes` and `seconds` the
     written fields of every parsed cell in rank order (`_census_hours`,
     `_census_clock_fields`), and `fresh` whether each is written
-    differently from the one before it, so the flatness and hour tests
-    count each different value once; no seconds, no second census. In
-    order, as
+    differently from the one before it, so the flatness test counts each
+    different value once and the hour test weighs its cells by their ties;
+    no seconds, no second census. In order, as
     the hour census asks them: two tails (MC3), a published middle half
     -- p75 less p25 -- of four hours for minutes, four minutes for seconds
     (MC4), and one storage (MC6), each reason the hour census shares said
@@ -17355,13 +17358,12 @@ def clock_field_decision(
     if not stored_one_way:
         return ClockFieldDecision(groups, heaps, calendar_clock.HOUR_REASON_WORKBOOK)
     bins = calendar_clock.field_bins(body)
-    # THE TWO TESTS ASK THE DIFFERENT VALUES, NOT THE CELLS (the builder's
+    # FLAT IS ASKED OF THE DIFFERENT VALUES, NOT THE CELLS (the builder's
     # measurement of 2026-10-12): a value written on several rows -- a
     # burst of check-ins, a panel of results -- is one event, and counted
-    # row by row a column at any minute written in panels looks heaped, and
-    # 1,000 check-ins in bursts of one to six scored chi-squared per degree
-    # of freedom 3.4 to 4.7 and Cramer's V 0.27 to 0.33 against the hour
-    # (0.8 to 1.1 and 0.22 to 0.25 counted by value).
+    # row by row a column at any minute written in panels looks heaped. The
+    # hour's test asks the cells, its statistics divided by the ties'
+    # design effect (`calendar_clock.depends_on_the_hour`).
     units = [0 for _value in range(calendar_clock.FIELD_VALUES)]
     for place in range(len(body)):
         rank = rows_low + place
@@ -17376,10 +17378,16 @@ def clock_field_decision(
     body_seconds = seconds[rows_low : parsed - rows_high]
     kept_hours: "list[int]" = []
     kept_values: "list[int]" = []
+    # The design effect of the ties: each different value's cells, squared.
+    squares = 0
+    run = 0
     for place in range(len(body)):
         rank = rows_low + place
         if place > 0 and rank < len(fresh) and not fresh[rank]:
-            continue
+            run = run + 1
+        else:
+            squares = squares + run * run
+            run = 1
         if (
             isinstance(counted, int)
             and body_hours[place] == 0
@@ -17389,10 +17397,12 @@ def clock_field_decision(
             # A CELL AT A PUBLISHED MIDNIGHT is placed by that count, not by
             # the field: left out of M3's table (the skeptic measured
             # admissions at 17.2 with them and below the bar without).
+            run = run - 1
             continue
         kept_hours += [body_hours[place]]
         kept_values += [body[place]]
-    if calendar_clock.depends_on_the_hour(kept_hours, kept_values, line):
+    squares = squares + run * run
+    if calendar_clock.depends_on_the_hour(kept_hours, kept_values, line, squares):
         return ClockFieldDecision(groups, heaps, calendar_clock.FIELD_REASON_HOUR)
     sure = calendar_clock.field_sure(
         hour_published_values(details, parsed),
@@ -17454,8 +17464,7 @@ _FIELD_WITHHELD_NOTES = {
     (calendar_clock.SECOND, calendar_clock.HOUR_REASON_GROUPING): NOTE_SECOND_WITHHELD_NO_GROUPING,
     (calendar_clock.MINUTE, calendar_clock.FIELD_REASON_HOUR): NOTE_MINUTE_WITHHELD_WITH_THE_HOUR,
     (calendar_clock.SECOND, calendar_clock.FIELD_REASON_HOUR): NOTE_SECOND_WITHHELD_WITH_THE_HOUR,
-    (calendar_clock.MINUTE, calendar_clock.FIELD_REASON_FEW_VALUES): NOTE_CLOCK_FIELD_WITHHELD_FEW_VALUES,
-    (calendar_clock.SECOND, calendar_clock.FIELD_REASON_FEW_VALUES): NOTE_CLOCK_FIELD_WITHHELD_FEW_VALUES,
+    (calendar_clock.MINUTE, calendar_clock.FIELD_REASON_FEW_VALUES): NOTE_MINUTE_WITHHELD_FEW_VALUES,
 }
 
 
@@ -17511,9 +17520,7 @@ def _clock_fields_published(
         if (field, decided.reason) not in _FIELD_WITHHELD_NOTES:
             continue
         form = _FIELD_WITHHELD_NOTES[(field, decided.reason)]
-        if form == NOTE_CLOCK_FIELD_WITHHELD_FEW_VALUES:
-            notes += [note(form, (field,))]
-        elif NOTE_ARITY[form] == 1:
+        if NOTE_ARITY[form] == 1:
             notes += [note(form, (line,))]
         else:
             notes += [note(form)]

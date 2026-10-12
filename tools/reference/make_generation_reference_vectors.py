@@ -11249,7 +11249,7 @@ def clock_fields_settled(column, ordinals, parsed, whole, lows, highs, holes):
             step = math.gcd(step, unit)
         seams = {
             "unit": unit, "step": step, "day": HOUR_DAY, "bin_of": bin_of, "keep_of": keep_of,
-            "keeps_always": not reachable,
+            "keeps_always": not reachable, "count_steps": False,
         }
         if word is not None:
             seams["width_of"] = lambda day: counts_into_width(column, day, word)
@@ -12911,11 +12911,10 @@ def clock_drawing_unit(precision, minute_census, minute_heaps, second_census, se
 
 def tail_unit_of(column):
     """How many seconds one tail draw steps in (G7.3, landing 3b.4): the
-    drawing unit up to a minute where both tail boundaries and every value
-    a tail lists stand on it; one elsewhere and on a column written to the
-    minute."""
-    unit = min(drawing_unit_of(column), 60)
-    if unit <= 1 or column["time_precision"] == "minute":
+    drawing unit where both tail boundaries and every value a tail lists
+    stand on it; one elsewhere."""
+    unit = drawing_unit_of(column)
+    if unit <= 1:
         return 1
     for side in ("low_tail", "high_tail"):
         tail = column.get(side)
@@ -13959,6 +13958,8 @@ class WeekdayWalk:
         self.keep_of = seams.get("keep_of")
         self.pair_of = seams.get("pair_of")
         self.keeps_always = seams.get("keeps_always", False)
+        # G7.3h: whether G7.3f's count steps 8.1 to 8.6 run (landing 3b.4).
+        self.count_steps = seams.get("count_steps", True)
 
     def group(self, ordinal):
         return self.group_of_bin[self.bin_of(ordinal)]
@@ -14575,9 +14576,9 @@ def bins_settled(walk, first, last, pinned, wanted, reachable):
         weekday_singles(walk, ranks, have, shares[j], 16, False)
     weekday_leftover(walk, movable, owed)
     weekday_chain(walk, movable, owed)
-    if reachable:
+    if reachable and walk.count_steps:
         weekday_count_kept(walk, movable, wanted)
-    if weekday_traded(walk, movable, owed) and reachable:
+    if weekday_traded(walk, movable, owed) and reachable and walk.count_steps:
         weekday_count_kept(walk, movable, wanted)
     sort_unpinned_runs(walk.days, pinned)
     return walk.days
@@ -16789,7 +16790,7 @@ def clock_field_step_answer(case):
         "unit": unit, "step": case["written_unit"], "day": HOUR_DAY,
         "bin_of": lambda ordinal: (ordinal // unit) % CLOCK_FIELD_VALUES,
         "keep_of": lambda ordinal: ordinal // (unit * CLOCK_FIELD_VALUES),
-        "keeps_always": not case["reachable"],
+        "keeps_always": not case["reachable"], "count_steps": False,
     }
     walk = WeekdayWalk(
         case["counts"], case["where"], list(case["ordinals"]), list(case["lows"]),

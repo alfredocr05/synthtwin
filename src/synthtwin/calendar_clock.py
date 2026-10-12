@@ -617,6 +617,7 @@ def depends_on_the_hour(
     hours: "list[int] | tuple[int, ...]",
     values: "list[int] | tuple[int, ...]",
     line: int,
+    squares: int = 0,
 ) -> bool:
     """M3: whether how a body falls on a field depends on the hour of the day.
 
@@ -632,11 +633,18 @@ def depends_on_the_hour(
     2026-10-12: chi-squared grows with the rows, so 10,000 cells written
     `HH:MM:00` whose minute does not follow the hour scored 3.9 counted by
     value, at a V of 0.11; night charting on the hour beside day entries
-    scores a V near 0.98). The caller hands each different value once. Where
-    the hours merge to one group, or the field to one column, there is
-    no table and no dependence. The caller leaves out the cells at a
-    published midnight. `hours` and `values` are the cells' written hour
-    and value, pair by pair.
+    scores a V near 0.98). Cells written alike are one event written on
+    several rows, so both statistics are divided by the DESIGN EFFECT of
+    those ties, `squares` -- the sum of the squared number of cells each
+    different value holds -- over the cells (one where `squares` is
+    nought: no ties): 1,000 check-ins in bursts of one to six, counted
+    cell by cell, scored 3.4 to 4.7 against the hour at a V of 0.27 to
+    0.33, and counted value by value instead, 40,000 cells written
+    `HH:MM:00`, whose busy hours hold far fewer values on :00 than cells,
+    scored a V above 0.2. Where the hours merge to one group, or the field
+    to one column, there is no table and no dependence. The caller leaves
+    out the cells at a published midnight. `hours` and `values` are the
+    cells' written hour and value, pair by pair.
 
     Guarantees: a function of the three. Raises nothing. No I/O.
     """
@@ -682,14 +690,17 @@ def depends_on_the_hour(
         common = math.gcd(numerator, denominator)
         numerator = numerator // common
         denominator = denominator // common
-    # chi-squared / freedom >= HOUR_DEPENDENCE, with chi-squared =
-    # total * (numerator / denominator - 1); and V squared, chi-squared over
-    # total * (the shorter side less one), at least the strength squared.
+    # chi-squared = total * (numerator / denominator - 1), divided by the
+    # design effect squares / total: over freedom at least HOUR_DEPENDENCE,
+    # and V squared, that over total * (the shorter side less one), at
+    # least the strength squared, in hundredths.
+    weight = squares if squares > 0 else total
     shorter = min(kept_rows, kept_columns) - 1
+    excess = numerator - denominator
     return (
-        total * (numerator - denominator) >= HOUR_DEPENDENCE * freedom * denominator
-        and 10000 * (numerator - denominator)
-        >= DEPENDENCE_STRENGTH * DEPENDENCE_STRENGTH * shorter * denominator
+        total * total * excess >= HOUR_DEPENDENCE * freedom * weight * denominator
+        and 10000 * total * excess
+        >= DEPENDENCE_STRENGTH * DEPENDENCE_STRENGTH * shorter * weight * denominator
     )
 
 
