@@ -6830,7 +6830,9 @@ written unit is the minute where it is written to the minute and the
 second otherwise; its bin is the weekday of the day an instant falls on;
 and its holes are the days the description publishes empty -- an absent
 spelling of the run names one instant of a day there, never every
-spelling of it, so it makes no day a hole. A column of moments every
+spelling of it, so it makes no day a hole -- save, on a column of dates
+written as counts, the placeholder days every instant of which reads
+back as no value (G7.10). A column of moments every
 value of which stands at midnight on its own clock is counted in days
 (G7.1) and moved as a column of dates is. Steps 7c and 8.7 below are
 asked of moments alone.
@@ -8602,7 +8604,11 @@ every other moment of the day is a date (`date_counts.hole_words`) --
 are holes of the column, which the description and the checker hold as
 its absent spellings. On a column of dates the count pass offers none
 of them and a cell written on one moves to a neighbouring day, and the
-weekday pass holds each a hole. NO TAIL REACHES A WALL OF THEM: the
+weekday pass holds each a hole, as it holds both placeholder days on a
+column of moments (at this landing's integration beside landing 3b.D2:
+1,000 SAS seconds across 1 January 1900, a Monday, came out of the
+last pass below with seven Monday ranks on Sunday and missed the weekday
+census at seed 0). NO TAIL REACHES A WALL OF THEM: the
 stretches beyond a tail's boundary the column's counts cannot hold --
 either placeholder day, the day or the instant serial 2 names (on a
 column of moments, the written unit's span of it), and on Excel's two

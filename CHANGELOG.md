@@ -58,6 +58,10 @@ another; a rare count read as no value is no longer held to the form;
 `45042.` with four thousand zeros an internal fault; and Q3 asks Unix
 counts at midnight written `.0` or crossing from nine figures to ten.
 
+At integration (batch 2b's second part), the weekday census on moments
+holds both placeholder days of a column of counted dates as holes, as the
+oracle did: 1,000 SAS seconds across 1 January 1900 had missed it.
+
 ### G5.5's sign repairs without the square of the strata (2026-10-09)
 
 **No published fact and no twin byte moves** (plan P4-D387, stage 4).

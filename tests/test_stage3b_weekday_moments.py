@@ -1389,8 +1389,10 @@ def test_the_pass_moves_whole_columns_as_the_oracle_does(tmp_path: pathlib.Path,
     seen: "list[tuple[tuple, list[int]]]" = []
     settled = generation._weekday_settled
 
-    def captured(column, facts, ordinals, parsed, whole, lows, highs, layout, holes, declared=()):
-        answer = settled(column, facts, list(ordinals), parsed, whole, lows, highs, layout, holes, declared)
+    def captured(column, facts, ordinals, parsed, whole, lows, highs, layout, holes, declared=(), counted=()):
+        # ``counted``: the days a column of counted dates holds no date on
+        # (landing R4, met at its integration); none on these columns.
+        answer = settled(column, facts, list(ordinals), parsed, whole, lows, highs, layout, holes, declared, counted)
         seen[:] = [((list(ordinals), parsed, list(whole), list(lows), list(highs)), list(answer[0]))]
         return answer
 

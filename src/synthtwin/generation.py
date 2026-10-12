@@ -26164,6 +26164,7 @@ def _weekday_settled(
     layout: "_DateLayout",
     holes: "tuple[str, ...]",
     declared_days: "tuple[str, ...]" = (),
+    counted_holes: "tuple[str, ...]" = (),
 ) -> "tuple[list[int], list[Deviation]]":
     """Meet the published weekday census (landing 3b.1, method G7.3f).
 
@@ -26187,7 +26188,8 @@ def _weekday_settled(
     minute or the second it is written to, and its holes the days the
     description publishes empty -- an absent spelling of the run names
     one instant of a day there, never every spelling of it, so it makes
-    no day a hole. Where a rank's clock stands outside its gap on the
+    no day a hole -- save the placeholder days of a column of counted
+    dates (``counted_holes``, G7.10). Where a rank's clock stands outside its gap on the
     gap's first or last day, step 7c lets it take another clock there
     (`_weekday_escaped`); where the kept clocks of few days meet and the
     count is left short, step 8.7 puts it back at another clock on each
@@ -26253,6 +26255,14 @@ def _weekday_settled(
     hole_days = hole_days | set(_published_holes(column, facts, declared_days))
     # ...and every date that stands out (plan P4-D364's holes seam).
     hole_days = hole_days | set(_heavy_holes(facts))
+    # -- 3b.R4 (P4-D384), met at its integration beside landing 3b.D2: the
+    # days a column of counted dates holds no date on (``counted_holes``,
+    # `_counted_holes`), ON A COLUMN OF MOMENTS TOO, where every instant of
+    # one reads back as no value (G7.10). Without them G7.10's last pass,
+    # after the census was met, moved ranks off such a day: 1,000 SAS
+    # seconds across 1 January 1900, a Monday, wrote seven Monday ranks on
+    # Sunday at seed 0 and missed the census.
+    hole_days = hole_days | set(_hole_days(counted_holes))
     state = _WeekdayPass(
         moved=moved,
         held=held,
@@ -27714,7 +27724,7 @@ def _datetime_content(
     # before any cell is spelled. It draws no word.
     ordinals, weekday_notes = _weekday_settled(
         column, facts, ordinals, parsed, whole, gap_lows, gap_highs, layout,
-        holes, plan.declared_days,
+        holes, plan.declared_days, plan.counted_holes,
     )
     # THE PASSES STAGE 3B RESERVES (plan P4-D364), in their order, each
     # handed what the day pass is handed and each moving no rank until its
