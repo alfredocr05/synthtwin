@@ -3253,3 +3253,26 @@ def test_r2b_x1_r2a_description_of_the_column_holds_on_the_unchanged_source(
     assert code == 0, report
     _block, fresh, _questions = _described(tmp_path / "fresh", _late_fours())
     assert hashlib.sha256(fresh.read_bytes()).hexdigest() == r2a_written.LATE_FOURS_SHA256
+
+
+def test_r2b_x3_the_method_says_what_the_layout_reads_after_an_iso_date() -> None:
+    """X3 (Codex item 3): the method's ISO sentence names the member, and its examples read.
+
+    On 67341d4 the method said a 12-hour clock or a one-figure hour after
+    an ISO date is not read, which R2b's layouts read. The sentence now
+    speaks of the `iso-datetime` member alone and names each layout that
+    reads such a cell; every `<cell> under <layout>` it states is checked
+    on the reader, over a column of its clock on 28 days.
+    """
+    method = pathlib.Path(__file__).resolve().parents[1] / "docs" / "spec" / "generation-method-v1.md"
+    flat = " ".join(method.read_text(encoding="utf-8").split())
+    assert "so a 12-hour clock or a one-figure hour after an ISO date is not read" not in flat
+    assert "so that MEMBER reads no 12-hour clock and no one-figure hour after an ISO date" in flat
+    stated = re.findall(r"`(2024-03-17 [^`]+)` under `(\{[^`]+)`", flat)
+    assert len(stated) == 2
+    for cell, layout in stated:
+        cells = [f"2024-03-{row % 28 + 1:02d}{cell[10:]}" for row in range(ROWS)]
+        described = taxonomy.profile_column("seen_at", 1, cells, ROWS, taxonomy.Settings())
+        details = described.details or {}
+        assert details.get("format") == f"layout {layout}", (cell, details.get("format"))
+        assert details.get("n_unparsed") == 0, cell

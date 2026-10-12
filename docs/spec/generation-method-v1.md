@@ -6930,10 +6930,14 @@ are read since landing T1, on a slashed stamp: a 12-hour clock
 (`3/17/2023 9:30 PM`) and Excel's unpadded hour (`3/17/2023 9:30`),
 whose clock half the stamp members read in the forty forms of the
 `time_of_day` role (contract C6-10a, D12a) and the twin writes in its
-style (the T1 paragraph above). An ISO stamp still reads its clock with
-two figures a field on the 24-hour clock (the contract's `iso-datetime`
-row), so a 12-hour clock or a one-figure hour after an ISO date is not
-read (the T1 review's item 11).
+style (the T1 paragraph above). The `iso-datetime` member still reads
+its clock with two figures a field on the 24-hour clock (the contract's
+`iso-datetime` row), so that MEMBER reads no 12-hour clock and no
+one-figure hour after an ISO date (the T1 review's item 11). Such a
+column falls to the layout member of G7.5 (landing R2b, plan P4-D383),
+which reads `2024-03-17 9:30` under `{YYYY}-{MM}-{DD} {H}:{MI}` and
+`2024-03-17 09:30 PM` under `{YYYY}-{MM}-{DD} {hh}:{MI} {AM}`, and writes
+each cell back in that layout (the Codex review of landing R2b, item 3).
 
 Then the clock half, exactly:
 
