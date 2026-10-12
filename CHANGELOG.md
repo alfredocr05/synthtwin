@@ -6,6 +6,29 @@ exists).
 
 ## [Unreleased]
 
+### The dates that stand out (2026-10-12)
+
+**A column of dates lists the dates that stand out, and its twin holds
+each at its exact count** (stage 3b landing 3b.6, plan P4-D369). Before,
+the day-of-month census brought back the 1st, the 15th and the 10th, but
+a 28-day cycle's days came back 0.245 to 0.266 of the cells against
+0.900, 1 January's births 0.012 to 0.015 against 0.066 to 0.076, and the
+cycle's heaviest date 180 to 190 rows against 378. Now a column of whole
+dates, or of moments every value of which stands at midnight on the
+local clock, publishes `heavy_dates`: every date between its tail
+boundaries holding at least eleven rows (or the census line) and at
+least three times the mean of the three days either side, each with its
+exact count (HD1 to HD5; NF105). The twin pins every listed date's rows
+and draws the rest part by part and key by key (method G7.3j), the
+validator counts the file's cells on each listed date (V5-D1), and the
+oracle and the nineteenth vectors file freeze the plan. Lane D3's two
+limits are lifted: quarter ends and one month a year at 10,000 rows meet
+every check, and six Mays generate in 92 s at 1,000,000 rows where the
+discarded joint plan took about 640 s. Stated limits: clocked moments
+list nothing; on two-weekday sessions the count of different values can
+give way by one, named (`K-S3-46`); the twin may heap dates it does not
+list, said in its report (`K-S3-47`). KPIs `K-S3-45` to `K-S3-47`.
+
 ### The day-of-month census (2026-10-09)
 
 **A column of dates publishes which days of the month it falls on**
