@@ -19,9 +19,12 @@ layout and its twin writes every cell in the source's own spelling,
 the hour at its width and on its dial. A layout column whose every hour
 lies 1 to 12 is asked whether it is a 12-hour clock written without AM
 or PM; Enter keeps the 24-hour reading, and `--twelve-hour` reads it on
-the dial. No column R2a's layouts or T1's stamps read moves: R2a's
+the dial. When nothing is declared, no column R2a's layouts or T1's stamps read moves: R2a's
 reach battery of 169 columns moved those seven alone, and the other 162
-kept every file byte for byte. A description written before this
+kept every file byte for byte. A column named with `--twelve-hour`
+whose layout writes an hour of 0 or 13 to 23 is read as T1 reads such
+a stamp: not on the dial, so as free text, and the command names it;
+R2a read it on the 24-hour clock. A description written before this
 landing of a column named with `--twelve-hour` and read on the 24-hour
 clock still loads and is checked on that clock. A declared dial's twin
 may miss its rungs until landing T2's half-day draw, as a declared
