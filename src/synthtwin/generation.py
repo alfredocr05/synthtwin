@@ -19130,7 +19130,7 @@ def _heavy_plan(
     chosen = _heavy_split(segments, rooms, budget)
     if chosen is None:
         return None
-    splits = _heavy_repaired(segments, rooms, chosen[0], chosen[1])
+    splits = _heavy_repaired(segments, rooms, chosen[0], chosen[1], budget)
     keyed = _heavy_keyed(groups, segments, (listed, holes))
     placed: "dict[int, tuple[int, int]]" = {}
     parts: "list[_HeavyPart]" = []
@@ -19599,14 +19599,16 @@ def _heavy_flow(
     reach: "list[list[int]]",
     demand: "list[int]",
     limit: int = 1 << 62,
+    caps: "list[list[int]] | None" = None,
 ) -> "tuple[int, list[list[int]]]":
     """The most rows the parts can place on the groups they offer (a capacity
     max-flow, Edmonds and Karp: each round the shortest augmenting path).
 
     `supply` holds each part's ordinary ranks, `reach[part]` the groups
     it offers a free day of, `demand` each group's owed rows and `limit`
-    the most one part may place on one group; returns the rows placed and
-    how many each part places on each group. The rows
+    the most one part may place on one group -- or `caps`, that most per
+    part and group; returns the rows placed and how many each part places
+    on each group. The rows
     themselves cost nothing: the rounds are bounded by the parts and the
     groups.
     """
@@ -19619,7 +19621,9 @@ def _heavy_flow(
     for part in range(parts):
         capacity[source][part] = max(0, supply[part])
         for group in reach[part]:
-            capacity[part][parts + group] = limit
+            capacity[part][parts + group] = (
+                limit if caps is None else caps[part][group]
+            )
     for group in range(groups):
         capacity[parts + group][sink] = max(0, demand[group])
     flow = 0
@@ -19710,28 +19714,31 @@ def _heavy_repaired(
     rooms: _HeavyRooms,
     splits: "list[list[int]]",
     opened: "list[list[bool]]",
+    budget: int,
 ) -> "list[list[int]]":
-    """The split with every census's owed rows placeable, as far as moves
-    inside one segment reach (G7.3j step 3, the 3b.6 skeptic's B1).
+    """The split with every census's owed rows placeable and room for the
+    count's new days, as far as moves inside one segment reach (G7.3j
+    step 3, the 3b.6 skeptic's B1).
 
-    While the parts cannot place every row the groups owe
-    (`_heavy_deficit`), the one move that leaves the fewest unplaced --
-    some ranks from one open part to another of the same segment, the
-    count found by halving, since the rows a flow places are concave in
-    the move -- is made, at most `_HEAVY_REPAIRS` times. Which parts are
-    open never changes, so neither does the budget.
+    The split's SCORE is the rows the parts cannot place on the groups
+    that owe them (`_heavy_deficit`), and then the new days the budget
+    asks beyond the most the parts can open (`_heavy_reach_of`). While
+    the score is above nought, the one move that lowers it most -- some
+    ranks from one open part to another of the same segment, the count
+    found by halving, since both parts of the score are convex in the
+    move -- is made, at most `_HEAVY_REPAIRS` times. Which parts are open never changes, so
+    neither does the budget.
     """
-    if not rooms.owed:
-        return splits
-    current = _heavy_deficit(segments, rooms, splits)
+    current = _heavy_score(segments, rooms, splits, budget)
     for _round in range(_HEAVY_REPAIRS):
-        if current <= 0:
+        if current == (0, 0):
             return splits
-        best: "tuple[int, int, int, int, int] | None" = None
+        best: "tuple[tuple[int, int], int, int, int, int] | None" = None
         for index in range(len(segments)):
             segment = segments[index]
-            for source in range(len(segment.lows)):
-                for target in range(len(segment.lows)):
+            parts = len(segment.lows)
+            for source in range(parts):
+                for target in range(parts):
                     if source == target:
                         continue
                     most = _heavy_shift_room(
@@ -19742,10 +19749,10 @@ def _heavy_repaired(
                     low, high = 0, most
                     while high - low > 1:
                         middle = (low + high) // 2
-                        if _heavy_moved_deficit(
-                            segments, rooms, splits, (index, source, target, middle + 1)
-                        ) <= _heavy_moved_deficit(
-                            segments, rooms, splits, (index, source, target, middle)
+                        if _heavy_moved_score(
+                            segments, rooms, splits, (index, source, target, middle + 1), budget
+                        ) <= _heavy_moved_score(
+                            segments, rooms, splits, (index, source, target, middle), budget
                         ):
                             low = middle
                         else:
@@ -19753,34 +19760,86 @@ def _heavy_repaired(
                     for count in (low, high):
                         if count <= 0:
                             continue
-                        left = _heavy_moved_deficit(
-                            segments, rooms, splits, (index, source, target, count)
+                        score = _heavy_moved_score(
+                            segments, rooms, splits, (index, source, target, count), budget
                         )
-                        if left < current and (best is None or left < best[0]):
-                            best = (left, index, source, target, count)
+                        if score < current and (best is None or score < best[0]):
+                            best = (score, index, source, target, count)
         if best is None:
             return splits
-        left, index, source, target, count = best
+        score, index, source, target, count = best
         splits[index][source] = splits[index][source] - count
         splits[index][target] = splits[index][target] + count
-        current = left
+        current = score
     return splits
 
 
-def _heavy_moved_deficit(
+def _heavy_reach_of(
+    segments: "list[_HeavySegment]",
+    rooms: _HeavyRooms,
+    splits: "list[list[int]]",
+) -> int:
+    """The most new days the parts as split can open: beside a census, the
+    rows a flow placing every owed row of its first census puts on days
+    of their own (`_heavy_cheapest`, a part's group holding no more than
+    its free days there); with none, each part's ranks or free days,
+    whichever is fewer."""
+    supply: "list[int]" = []
+    keys: "list[tuple[int, int]]" = []
+    for index in range(len(segments)):
+        for part in range(len(segments[index].lows)):
+            supply += [splits[index][part]]
+            keys += [(index, part)]
+    if not rooms.owed:
+        return sum(
+            min(supply[place], rooms.room[keys[place][0]][keys[place][1]])
+            for place in range(len(keys))
+        )
+    owes = rooms.owed[0]
+    room = [
+        [rooms.free[index][part][0][group] for group in range(len(owes))]
+        for index, part in keys
+    ]
+    reach = [
+        [group for group in range(len(owes)) if room[place][group] > 0]
+        for place in range(len(keys))
+    ]
+    _flow, placed = _heavy_cheapest(
+        supply, reach, [max(0, owe) for owe in owes], room
+    )
+    return sum(
+        min(placed[place][group], room[place][group])
+        for place in range(len(keys))
+        for group in range(len(owes))
+    )
+
+
+def _heavy_score(
+    segments: "list[_HeavySegment]",
+    rooms: _HeavyRooms,
+    splits: "list[list[int]]",
+    budget: int,
+) -> "tuple[int, int]":
+    """A split's score: the owed rows unplaced, then the new days short."""
+    deficit = _heavy_deficit(segments, rooms, splits) if rooms.owed else 0
+    return deficit, max(0, budget - _heavy_reach_of(segments, rooms, splits))
+
+
+def _heavy_moved_score(
     segments: "list[_HeavySegment]",
     rooms: _HeavyRooms,
     splits: "list[list[int]]",
     move: "tuple[int, int, int, int]",
-) -> int:
-    """`_heavy_deficit` with `count` ranks moved from one part to another."""
+    budget: int,
+) -> "tuple[int, int]":
+    """`_heavy_score` with `count` ranks moved from one part to another."""
     index, source, target, count = move
     splits[index][source] = splits[index][source] - count
     splits[index][target] = splits[index][target] + count
-    left = _heavy_deficit(segments, rooms, splits)
+    score = _heavy_score(segments, rooms, splits, budget)
     splits[index][source] = splits[index][source] + count
     splits[index][target] = splits[index][target] - count
-    return left
+    return score
 
 
 _HEAVY_RAKES = 60
@@ -20024,6 +20083,151 @@ def _heavy_spread_cells(
     return shares, unplaced + more, raked
 
 
+def _heavy_cheapest(
+    supply: "list[int]",
+    reach: "list[list[int]]",
+    demand: "list[int]",
+    room: "list[list[int]]",
+) -> "tuple[int, list[list[int]]]":
+    """The most rows the parts can place on the groups they offer, with as
+    many as can be on a day of their own: a min-cost max-flow by
+    successive shortest paths (Bellman and Ford over the arcs), where a
+    part's first `room[part][group]` rows on a group cost one less than
+    the rest. Returns the rows placed and how many each part places on
+    each group. Bounded by the parts and the groups, not the rows."""
+    parts = len(supply)
+    groups = len(demand)
+    source = parts + groups
+    sink = source + 1
+    size = sink + 1
+    arcs: "list[list[list[int]]]" = [[] for _ in range(size)]
+
+    def joined(start: int, end: int, capacity: int, cost: int) -> None:
+        arcs[start] += [[end, capacity, cost, len(arcs[end])]]
+        arcs[end] += [[start, 0, -cost, len(arcs[start]) - 1]]
+
+    for part in range(parts):
+        joined(source, part, max(0, supply[part]), 0)
+        for group in reach[part]:
+            if room[part][group] > 0:
+                joined(part, parts + group, room[part][group], -1)
+            joined(part, parts + group, 1 << 62, 0)
+    for group in range(groups):
+        joined(parts + group, sink, max(0, demand[group]), 0)
+    flow = 0
+    while True:
+        far = 1 << 62
+        distance = [far for _ in range(size)]
+        before = [(-1, -1) for _ in range(size)]
+        distance[source] = 0
+        for _round in range(size):
+            changed = False
+            for node in range(size):
+                if distance[node] >= far:
+                    continue
+                for index in range(len(arcs[node])):
+                    end, capacity, cost, _back = arcs[node][index]
+                    if capacity > 0 and distance[node] + cost < distance[end]:
+                        distance[end] = distance[node] + cost
+                        before[end] = (node, index)
+                        changed = True
+            if not changed:
+                break
+        if distance[sink] >= far:
+            break
+        push = 1 << 62
+        node = sink
+        while node != source:
+            start, index = before[node]
+            push = min(push, arcs[start][index][1])
+            node = start
+        node = sink
+        while node != source:
+            start, index = before[node]
+            arcs[start][index][1] = arcs[start][index][1] - push
+            back = arcs[start][index][3]
+            arcs[node][back][1] = arcs[node][back][1] + push
+            node = start
+        flow = flow + push
+    placed = [[0 for _ in range(groups)] for _ in range(parts)]
+    for part in range(parts):
+        for end, _capacity, _cost, back in arcs[part]:
+            if parts <= end < parts + groups:
+                placed[part][end - parts] = placed[part][end - parts] + arcs[end][back][1]
+    return flow, placed
+
+
+def _heavy_wide_cells(
+    days_of: "list[dict[tuple[int, ...], tuple[int, ...]]]",
+    supply: "list[int]",
+    demands: "tuple[tuple[int, ...], ...]",
+) -> "tuple[list[dict[tuple[int, ...], int]], int]":
+    """WIDE: each part's ranks per key, as many on days of their own as a
+    flow placing every owed row it can allows -- per census in turn, the
+    cheapest most flow (`_heavy_cheapest`) whose ranks up to a part's free
+    days in a group cost less -- and the owed rows no flow placed."""
+    shares: "list[dict[tuple[int, ...], int]]" = [
+        {(): supply[place]} for place in range(len(days_of))
+    ]
+    short = 0
+    for which in range(len(demands)):
+        sources: "list[tuple[int, tuple[int, ...]]]" = []
+        amounts: "list[int]" = []
+        for place in range(len(days_of)):
+            for prefix in sorted(shares[place]):
+                if shares[place][prefix] > 0:
+                    sources += [(place, prefix)]
+                    amounts += [shares[place][prefix]]
+        groups = len(demands[which])
+        room = [[0 for _ in range(groups)] for _ in sources]
+        for source in range(len(sources)):
+            place, prefix = sources[source]
+            for key in days_of[place]:
+                if key[0:which] == prefix:
+                    room[source][key[which]] = (
+                        room[source][key[which]] + len(days_of[place][key])
+                    )
+        reach = [
+            [group for group in range(groups) if room[source][group] > 0]
+            for source in range(len(sources))
+        ]
+        flow, placed = _heavy_cheapest(amounts, reach, list(demands[which]), room)
+        short = short + sum(demands[which]) - flow
+        grown: "list[dict[tuple[int, ...], int]]" = [{} for _ in days_of]
+        for source in range(len(sources)):
+            place, prefix = sources[source]
+            left = amounts[source]
+            for group in range(groups):
+                taken = placed[source][group]
+                if taken > 0:
+                    key = prefix + (group,)
+                    grown[place][key] = grown[place].get(key, 0) + taken
+                    left = left - taken
+            if left > 0:
+                key = prefix + (
+                    _heavy_leftover(days_of[place], prefix, frozenset()),
+                )
+                grown[place][key] = grown[place].get(key, 0) + left
+        shares = grown
+    return shares, short
+
+
+def _heavy_reach(
+    shares: "list[dict[tuple[int, ...], int]]",
+    days_of: "list[dict[tuple[int, ...], tuple[int, ...]]]",
+    knots: "frozenset[int]",
+) -> int:
+    """The most new days a split can open: per key holding ranks, its ranks
+    or its free days that are no knot's, whichever is fewer."""
+    count = 0
+    for place in range(len(shares)):
+        for key in shares[place]:
+            days = days_of[place].get(key, ())
+            free = len([day for day in days if day not in knots])
+            count = count + min(free, max(0, shares[place][key]))
+    return count
+
+
 def _heavy_opened(
     shares: "list[dict[tuple[int, ...], int]]",
     days_of: "list[dict[tuple[int, ...], tuple[int, ...]]]",
@@ -20051,21 +20255,24 @@ def _heavy_cells(
     (G7.3j step 3).
 
     SPREAD (`_heavy_spread_cells`) puts every key's share of the ranks as
-    its free days are; where that fills more keys holding no knot's day
+    its free days are. Where that fills more keys holding no knot's day
     than `left` new days, the keys with the least raked weight, as many
-    as are over, take none and the rest are raked again. FEW
+    as are over, take none and the rest are raked again, at most
+    `_HEAVY_PRUNES` times while every owed row is placed, and then FEW
     (`_heavy_few_cells`) puts the ranks on as few keys as one flow per
-    census finds. The first of SPREAD, SPREAD less the lightest keys and
-    FEW whose owed rows are all placed and whose keys fit `left` is
-    taken; failing that, the one placing the most owed rows, then
-    opening the fewest keys.
+    census finds. Where SPREAD cannot open `left` new days -- a key opens
+    no more than its ranks or its free days -- WIDE (`_heavy_wide_cells`)
+    puts as many ranks on days of their own as the flows allow. The first
+    split that places every owed row and can open exactly `left` new days
+    is taken; failing that, the one placing the most owed rows, then the
+    one nearest `left`.
     """
     days_of = [{key: days for key, days in part.keyed} for part in parts]
     supply = [part.count for part in parts]
     nothing = [frozenset() for _ in parts]
     spread, short, raked = _heavy_spread_cells(days_of, supply, demands, nothing)
-    tried = [(short, _heavy_opened(spread, days_of, knots), 0, spread)]
-    over = tried[0][1] - left
+    tried = [(short, spread)]
+    over = _heavy_opened(spread, days_of, knots) - left
     if over > 0:
         dropped: "list[frozenset[tuple[int, ...]]]" = [frozenset() for _ in parts]
         for _round in range(_HEAVY_PRUNES):
@@ -20079,21 +20286,27 @@ def _heavy_cells(
             pruned, short, raked = _heavy_spread_cells(
                 days_of, supply, demands, dropped
             )
-            opened = _heavy_opened(pruned, days_of, knots)
-            tried += [(short, opened, len(tried), pruned)]
-            over = opened - left
+            tried += [(short, pruned)]
+            over = _heavy_opened(pruned, days_of, knots) - left
             if over <= 0 or short > 0:
                 break
         few, short = _heavy_few_cells(days_of, supply, demands)
-        tried += [(short, _heavy_opened(few, days_of, knots), len(tried), few)]
-    for short, opened, _order, shares in tried:
-        if short == 0 and opened <= left:
+        tried += [(short, few)]
+    elif _heavy_reach(spread, days_of, knots) < left:
+        wide, short = _heavy_wide_cells(days_of, supply, demands)
+        tried += [(short, wide)]
+    ranked: "list[tuple[int, int, int]]" = []
+    for order in range(len(tried)):
+        short, shares = tried[order]
+        missing = max(
+            0,
+            _heavy_opened(shares, days_of, knots) - left,
+            left - _heavy_reach(shares, days_of, knots),
+        )
+        if short == 0 and missing == 0:
             return shares
-    best = sorted(
-        (short, max(0, opened - left), order)
-        for short, opened, order, _shares in tried
-    )[0]
-    return tried[best[2]][3]
+        ranked += [(short, missing, order)]
+    return tried[sorted(ranked)[0][2]][1]
 
 
 def _heavy_met(
@@ -22822,7 +23035,7 @@ def _weekday_settled(
     # ...and a column listing dates that stand out whose cells already
     # meet every census is left as drawn (landing 3b.6, G7.3j step 5;
     # `_day_settled` asks the same first).
-    if layout.parts and _heavy_met(column, facts, ordinals, layout, holes):
+    if layout.listed and _heavy_met(column, facts, ordinals, layout, holes):
         return ordinals, []
     unit = 1
     step = 1
@@ -23314,7 +23527,7 @@ def _day_settled(
     # different days the count pass reached (landing 3b.6, method G7.3j
     # step 5) is left as drawn: the per-gap shares below would move ranks
     # the cells placed on purpose.
-    if layout.parts and _heavy_met(column, facts, ordinals, layout, holes):
+    if layout.listed and _heavy_met(column, facts, ordinals, layout, holes):
         return ordinals, []
     month = facts.day_of_month_census
     if (
@@ -26083,8 +26296,8 @@ def _spread_ordinals(layout: "_DateLayout", words: "list[int]") -> "list[int]":
         taken = _tail_words_spent(layout.low, parsed, words, taken, ordinals)
     # A COLUMN LISTING DATES THAT STAND OUT is drawn part by part
     # (landing 3b.6, method G7.3j: `_heavy_drawn`), every other gap by gap.
-    places, steps = ([], []) if layout.parts else _pin_places(layout.body)
-    if layout.parts:
+    places, steps = ([], []) if layout.listed else _pin_places(layout.body)
+    if layout.listed:
         taken = _heavy_drawn(layout, words, taken, ordinals)
     for step in range(len(places) - 1):
         below = places[step]
