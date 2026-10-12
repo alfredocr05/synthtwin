@@ -55,10 +55,18 @@ THE GATE'S CLAUSES, each beside what turns it red:
   in cycles, the cyclic merge keeping a heap alone (the skeptic's major
   1), the few-dates rule beside the calendar, the scores and DM1 to DM4.
 
+* the core holds (G7.3i step 3, the repair round):
+  `test_the_core_holds_where_the_joint_plan_cannot`, `test_step_three_moves_a_column_as_the_oracle_does`,
+  `test_quarter_ends_at_ten_thousand_rows_keep_their_count` and
+  `test_a_group_of_three_dates_withholds_the_census`; and skeptic 1's clauses, each red on its own
+  source edit: the reach rule at 10,000 rows, the hole rule, V5-W2's hole clause, the generator's
+  deviation and its sentence, the NF102/NF103 choice and the publication guard's two kinds.
+
 A stated limit, pinned: `test_a_heap_beside_fewer_strays_than_the_line_cannot_stand_alone`
 -- 97 per cent on the 10th at a floor of 36 holds 30 other rows, fewer
 than the line, so the 10th shares its group (the dates that stand out
-are landing 3b.6's).
+are landing 3b.6's). Another, for lane D4: `test_quarter_ends_at_ten_thousand_rows_meet_every_check`,
+a strict xfail.
 
 Test-local mutants build the product's module with one source edit (one
 `compile` and one `exec` below), as the shared steps' test does; the
