@@ -9476,6 +9476,27 @@ def _layout_off_the_dial(text: str) -> str:
     return text.replace("{hh}", "{HH}").replace("{h}", "{H}").replace("{_h}", "{_H}")
 
 
+def layout_of_the_clock_half(name: str) -> bool:
+    """Whether a layout names a field only the clock half writes (Codex review of landing R2b, item 1).
+
+    An hour field other than `HH` -- `H`, `_H`, `hh`, `h`, `_h` -- or a
+    marker, once the layout is taken back off T1's declared dial
+    (`_layout_off_the_dial`), where `{hh}` with no marker stands for R2a's
+    `{HH}`. A layout naming none of them is one R2a's grammar writes, and
+    the choice weighs such a layout first (`taxonomy._chosen_layout`).
+    Guarantees: a function of the name; False for anything that is not a
+    layout. Raises TypeError for anything that is not text. No I/O.
+    """
+    if not isinstance(name, str):
+        raise TypeError(_NOT_TEXT)
+    for field in _layout_fields(_layout_off_the_dial(name)):
+        if field in _LAYOUT_MERIDIEMS:
+            return True
+        if field in _LAYOUT_HOUR_FIELDS and field != "HH":
+            return True
+    return False
+
+
 def layout_clock_style(name: str) -> "str | None":
     """The written clock a layout names, as T1's styles say it, or None where it writes none.
 

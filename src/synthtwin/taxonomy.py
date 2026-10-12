@@ -16011,6 +16011,17 @@ def _chosen_layout(
     of SAS stamps, which item 1's flexible day gives three candidates
     more, reads one of its six.
 
+    R2a'S GRAMMAR FIRST (the Codex review of landing R2b, item 1): the
+    layouts naming no field of the clock half
+    (`parsing.layout_of_the_clock_half`) are walked alone, and only where
+    none of them reaches the line are the clock half's weighed. A column
+    R2a read at the line keeps R2a's layout: 990 SAS stamps at hour 14 and
+    ten at hour 4 stay `{HH}` with ten cells unread, where `{H}`, reading
+    all 1,000, had moved five published percentiles and left R2a's own
+    description of the unchanged source eight checks MISSED. Where none of
+    R2a's reaches the line, the second walk chooses exactly as one walk of
+    every candidate did, the first walk's layouts all falling short.
+
     Determinism: a function of the arguments. Raises nothing. No I/O of
     any kind.
     """
@@ -16024,12 +16035,48 @@ def _chosen_layout(
     keyed = sorted(
         [(parsing.layout_order_key(one, day_first), one) for one in candidates]
     )
+    # -- 3b.R2b: each failing text's productions, asked once a choice.
+    productions: "dict[str, tuple[str, ...]]" = {}
+    # -- 3b.R2b, Codex item 1: R2a's grammar alone first.
+    dated: "list[tuple[tuple[int, int, int, int, int, int, str], str]]" = []
+    clocked: "list[tuple[tuple[int, int, int, int, int, int, str], str]]" = []
+    for pair in keyed:
+        if parsing.layout_of_the_clock_half(pair[1]):
+            clocked += [pair]
+        else:
+            dated += [pair]
+    chosen = _layout_walk(
+        dated, counted, total, room, day_first, (window, contradicted, twelve), productions
+    )
+    if chosen is None and clocked:
+        chosen = _layout_walk(
+            clocked, counted, total, room, day_first, (window, contradicted, twelve), productions
+        )
+    return chosen
+
+
+def _layout_walk(
+    keyed: "list[tuple[tuple[int, int, int, int, int, int, str], str]]",
+    counted: "dict[str, int]",
+    total: int,
+    room: int,
+    day_first: bool,
+    reading: "tuple[int, bool, bool]",
+    productions: "dict[str, tuple[str, ...]]",
+) -> "tuple[str, int, dict[str, int]] | None":
+    """One walk of `_chosen_layout` over candidates in key order (landing R2a's walk, R2b's split).
+
+    ``reading`` is the column's century window, whether its dotted triples
+    name a zero field, and whether it is declared on the 12-hour dial;
+    ``productions`` is the choice's own memo (`_layout_extended`), shared
+    by its walks. Returns what `_chosen_layout` returns, for these
+    candidates and the layouts grown from them. No I/O of any kind.
+    """
+    window, contradicted, twelve = reading
     reached: "dict[str, int]" = {}
     best = ""
     best_rows = -1
     later: "list[str]" = []
-    # -- 3b.R2b: each failing text's productions, asked once a choice.
-    productions: "dict[str, tuple[str, ...]]" = {}
     for _key, layout in keyed:
         items = parsing.compiled_layout(layout)
         if items is None:

@@ -2486,8 +2486,33 @@ def test_r2b_c3_two_figure_hours_keep_hh_on_the_tie() -> None:
     assert (described.details or {})["format"] == "layout {DD}{MON}{YYYY}:{HH}:{MI}:{SS}"
 
 
+def _marked_late_mornings(rows: int) -> "list[str]":
+    """ISO dates with a marked clock whose every hour lies 10 to 12, which `{hh}` and `{h}` both read."""
+    draw = random.Random(14)
+    return [
+        f"2024-03-{draw.randrange(1, 29):02d} {draw.randrange(10, 13)}:"
+        f"{draw.randrange(60):02d} {('AM', 'PM')[draw.randrange(2)]}"
+        for _row in range(rows)
+    ]
+
+
+def test_r2b_c3_two_figure_hours_on_the_dial_keep_hh_on_the_tie() -> None:
+    """C3: a marked clock every hour of which shows two figures keeps `{hh}`.
+
+    Both are the clock half's, so the tie is the key's alone; R2a's `{HH}`
+    on an unmarked column is held by the choice's split as well (X1).
+    """
+    cells = _marked_late_mornings(ROWS)
+    described = taxonomy.profile_column("seen_at", 1, cells, ROWS, taxonomy.Settings())
+    assert (described.details or {})["format"] == "layout {YYYY}-{MM}-{DD} {hh}:{MI} {AM}"
+
+
 def test_r2b_c3_red_when_a_one_figure_hour_wins_the_tie(monkeypatch: pytest.MonkeyPatch) -> None:
-    """C3's mutant: `{H}` not counted flexible in the tie, and a column of afternoons moves."""
+    """C3's mutant: `{H}` and `{h}` not counted flexible in the tie, and a marked column moves.
+
+    The column of afternoons no longer moves under it, its `{HH}` being
+    R2a's and weighed first (the Codex review of landing R2b, item 1).
+    """
     real = parsing.layout_order_key
 
     def without_the_hour(name: str, day_first: bool) -> "tuple[int, int, int, int, int, int, str]":
@@ -2499,9 +2524,9 @@ def test_r2b_c3_red_when_a_one_figure_hour_wins_the_tie(monkeypatch: pytest.Monk
         return key[0:3] + (key[3] - hours,) + key[4:]
 
     monkeypatch.setattr(parsing, "layout_order_key", without_the_hour)
-    cells = _afternoon_stamps(ROWS)
+    cells = _marked_late_mornings(ROWS)
     described = taxonomy.profile_column("seen_at", 1, cells, ROWS, taxonomy.Settings())
-    assert "{H}" in f"{(described.details or {}).get('format', '')}"
+    assert "{h}" in f"{(described.details or {}).get('format', '')}"
 
 
 def _morning_stamps(rows: int) -> "list[str]":
@@ -3154,3 +3179,77 @@ def test_r2b_c4f_a_declared_dial_with_codes_is_asked_through_the_dial() -> None:
     assert found is not None and found[0] == "layout {DD}{MON}{YYYY}:{hh}:{MI}:{SS}"
     found = taxonomy.reading_of_the_rest(rest, taxonomy.Settings(), 1000)
     assert found is not None and found[0] == "layout {DD}{MON}{YYYY}:{HH}:{MI}:{SS}"
+
+
+# -- the Codex review of landing R2b ----------------------------------------
+#
+# Item 1: a column R2a read at the line keeps R2a's layout. Each clause
+# below was red on 67341d4, the head Codex reviewed.
+
+_LATE_FOURS = 1000
+
+
+def _late_fours() -> "list[str]":
+    """Codex's 1,000 SAS stamps: 990 at hour 14, ten at a one-figure 4."""
+    return [
+        f"{i % 28 + 1:02d}MAR2024:{14 if i < 990 else 4}:{i % 60:02d}:{i // 60:02d}"
+        for i in range(_LATE_FOURS)
+    ]
+
+
+def test_r2b_x1_r2a_keeps_its_layout_where_it_meets_the_line() -> None:
+    """X1 (Codex item 1): `{HH}` reads 990 of 1,000, at the line, and stays chosen.
+
+    On 67341d4 `{H}` read all 1,000 and won; `parsing.layout_of_the_clock_half`
+    now holds the clock half's layouts back until none of R2a's reaches the
+    line. The clock half still reads what R2a left unread (C1).
+    """
+    cells = _late_fours()
+    described = taxonomy.profile_column("seen_at", 1, cells, _LATE_FOURS, taxonomy.Settings())
+    details = described.details or {}
+    assert details["format"] == "layout {DD}{MON}{YYYY}:{HH}:{MI}:{SS}"
+    assert details["n_unparsed"] == 10
+    assert parsing.layout_of_the_clock_half("{DD}{MON}{YYYY}:{H}:{MI}:{SS}")
+    assert parsing.layout_of_the_clock_half("{YYYY}-{MM}-{DD} {hh}:{MI} {AM}")
+    assert not parsing.layout_of_the_clock_half("{DD}{MON}{YYYY}:{hh}:{MI}:{SS}")
+    assert not parsing.layout_of_the_clock_half("{DD}{MON}{YYYY}:{HH}:{MI}:{SS}")
+
+
+def test_r2b_x1_red_when_the_clock_half_is_weighed_with_r2a(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """X1's mutant: one walk of every candidate, 67341d4's choice, and `{H}` wins."""
+    monkeypatch.setattr(parsing, "layout_of_the_clock_half", lambda name: False)
+    cells = _late_fours()
+    described = taxonomy.profile_column("seen_at", 1, cells, _LATE_FOURS, taxonomy.Settings())
+    assert (described.details or {})["format"] == "layout {DD}{MON}{YYYY}:{H}:{MI}:{SS}"
+
+
+def test_r2b_x1_r2a_description_of_the_column_holds_on_the_unchanged_source(
+    tmp_path: pathlib.Path,
+) -> None:
+    """X1 (Codex item 1): R2a's own description loads, generates as R2a did, and validates.
+
+    The description a7c9d75 wrote (`layout_r2a_descriptions.LATE_FOURS`)
+    loads; its twin at seed 0 is the file a7c9d75 wrote, byte for byte;
+    the unchanged source validates against it with exit 0 (on 67341d4,
+    exit 3: the unread count, the format, the offset count and five
+    percentiles MISSED); and this producer writes the same description.
+    """
+    folder = tmp_path / "late-fours"
+    folder.mkdir()
+    names, rows = fixtures.rows_at_the_floor("seen_at", _late_fours())
+    table = folder / "real.csv"
+    table.write_text(fixtures.rows_to_csv(names, rows), encoding="utf-8", newline="\n")
+    profile = fixtures.write_profile(
+        folder, "real-profile.json", json.loads(r2a_written.LATE_FOURS)
+    )
+    assert hashlib.sha256(profile.read_bytes()).hexdigest() == r2a_written.LATE_FOURS_SHA256
+    contract.load_profile(str(profile))
+    twin, written = _twin(profile, 0)
+    assert len(written) == _LATE_FOURS
+    assert hashlib.sha256(twin.read_bytes()).hexdigest() == r2a_written.LATE_FOURS_TWIN_SHA256
+    code, report = _validated(profile, table)
+    assert code == 0, report
+    _block, fresh, _questions = _described(tmp_path / "fresh", _late_fours())
+    assert hashlib.sha256(fresh.read_bytes()).hexdigest() == r2a_written.LATE_FOURS_SHA256

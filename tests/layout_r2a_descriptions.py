@@ -1,4 +1,4 @@
-"""Two descriptions R2a's producer wrote, frozen (landing R2b's repair round, plan P4-D383).
+"""Three descriptions R2a's producer wrote, frozen (landing R2b's repair round and Codex review, plan P4-D383).
 
 Written by `synthtwin profile <table> --twelve-hour seen_at` at commit
 a7c9d75 (lane R2a's head, before the clock half), floor 11, from the gate
@@ -9,6 +9,13 @@ reached nothing, and still named the column under
 `forced_twelve_hour_clocks`. Each text is the document as compact JSON;
 `fixtures.write_profile` writes it back byte for byte as that commit did,
 which each `_SHA256` (the digest of the file a7c9d75 wrote) pins.
+
+`LATE_FOURS` (the Codex review of landing R2b, item 1) was written by
+`synthtwin profile <table>` at a7c9d75 with nothing declared, floor 11,
+from the 1,000 cells `f"{i%28+1:02d}MAR2024:{14 if i<990 else 4}:{i%60:02d}:{i//60:02d}"`:
+R2a read 990 of them at `layout {DD}{MON}{YYYY}:{HH}:{MI}:{SS}`, ten
+unread. `LATE_FOURS_TWIN_SHA256` is the digest of the twin a7c9d75's
+`synthtwin generate` wrote from it at seed 0.
 """
 
 MORNING_SHA256 = "4ae6fdf9c683294f454ae045aa3e377ca8d811705704f4ee9761d165de7bb330"
@@ -148,4 +155,68 @@ WHOLE_DAY = (
     'first record, run the command again with --first-row data: the columns are t'
     'hen named column_1, column_2, and so on and every record is kept.","header_s'
     'ource":"file","used_fallback_encoding":false,"workbook":null}}'
+)
+
+
+LATE_FOURS_SHA256 = "9a3fcd2cddda190cab086344cce890cd8080e021ab197b5de5c4bb054b00ab04"
+LATE_FOURS_TWIN_SHA256 = "729f722a239fabf3fdf5e50b80120f4904d5e3bc49630b2971f5ffd040d38be1"
+LATE_FOURS = (
+    '{"columns":[{"all_at_midnight":false,"count_form":null,"date_field_widths":{'
+    '},"date_percentiles":{"max":null,"min":null,"p01":null,"p05":"2024-03-02 14:'
+    '21:16","p10":"2024-03-03 14:46:03","p25":"2024-03-07 14:54:02","p50":"2024-0'
+    '3-14 14:49:05","p75":"2024-03-21 14:52:06","p90":"2024-03-26 14:09:11","p95"'
+    ':"2024-03-27 14:34:05","p99":null},"datetime_separators":{},"datetimes_read_'
+    'at":"local","day_of_month_census":[],"detection_evidence":"990 of the 1000 v'
+    'alues are dates written as 17MAR2024:14:05:00","format":"layout {DD}{MON}{YY'
+    'YY}:{HH}:{MI}:{SS}","heavy_dates":[],"high_tail":{"boundary":"2024-03-28 14:'
+    '43:03","mean_distance":550.1818181818181,"rms_distance":622.6303441485529,"r'
+    'ows":11,"values":null},"hour_census":[],"low_tail":{"boundary":"2024-03-01 1'
+    '4:20:02","mean_distance":757.9090909090909,"rms_distance":835.4731375911279,'
+    '"rows":11,"values":null},"minute_census":[],"minute_heaps":[],"missing_by_cl'
+    'ass":{"(blank)":0,"(date-sentinel)":0,"(declared-missing)":0,"(numeric-senti'
+    'nel)":0,"(text-code)":0,"(withheld)":0},"missing_by_source":{},"month_name_s'
+    'tyles":{},"n_at_midnight":null,"n_contradictory":0,"n_distinct":1000,"n_dist'
+    'inct_folded":1000,"n_missing":0,"n_missing_blank":0,"n_missing_withheld":0,"'
+    'n_not_numeric":1000,"n_numeric":0,"n_out_of_range":0,"n_present":1000,"n_sen'
+    'tinel_candidates_unpublished":0,"n_unparsed":10,"name":"seen_at","position":'
+    '1,"quality_state":"ok","quarter_marker_case":{},"remarks":[],"resolution":"d'
+    'atetime","resolution_mix":{"layout {DD}{MON}{YYYY}:{HH}:{MI}:{SS}":990},"rol'
+    'e":"datetime","second_census":[],"second_heaps":[],"sentinel_verdicts":[],"s'
+    'tatistical_type":"datetime","structural_role":"data","subsecond_digits":0,"t'
+    'ail_unit":"second","time_precision":"second","utc_offsets":{"(none)":990},"w'
+    'eekday_census":[],"zulu_case":{}}],"created_with":"0.1.0.dev0","n_columns":1'
+    ',"n_rows":1000,"profile_version":6,"publication_notes":[],"relationships":{"'
+    'deterministic":null,"grain":null,"hierarchy":null,"keys":null,"missing_data_'
+    'process":null,"statistical":null,"temporal":null,"validation_targets":null},'
+    '"settings":{"categorical_ceiling":1000,"categorical_floor":2,"categorical_sh'
+    'are":0.1,"century_windows":[],"day_first":false,"declaration_matching":"exac'
+    't_number_when_it_reads_as_one_else_spelling","declaration_publication":"sett'
+    'ings_counts_only_columns_unchanged","declared_missing_values":{"built_in_dat'
+    'es":[],"built_in_numbers":[],"built_in_texts":[],"n_declared":0,"values_reco'
+    'rded":false},"forced_codes":[],"forced_date_columns":[],"forced_date_counts"'
+    ':[],"forced_decimal_commas":[],"forced_delimiter":"","forced_identifiers":[]'
+    ',"forced_measurements":[],"forced_metadata_rows":0,"forced_twelve_hour_clock'
+    's":[],"identifier_minimum_rows":20,"identifier_uniqueness":0.95,"kept_values'
+    '":{"built_in_dates":[],"built_in_numbers":[],"built_in_texts":[],"n_declared'
+    '":0,"values_recorded":false},"long_tail_minimum_level":11,"minimum_parse_rat'
+    'e":0.99,"near_threshold_slack":1,"person_columns":[],"sentinel_minimum_share'
+    '":0.005,"sentinel_outlier_iqr_multiple":4.0,"small_cell_floor":11},"source":'
+    '{"dialect":{"blank_lines":[],"blank_lines_spread":null,"byte_order_mark":fal'
+    'se,"columns":[{"pad":null,"quoting":{"absent":"needed","empty":"needed","num'
+    'ber":"needed","text":"needed"},"sequence_start":null}],"delimiter":",","empt'
+    'y_rows":{"interior":0,"leading":0,"trailing":0},"end_of_file_mark":false,"es'
+    'cape":"doubled","final_line_ending":true,"header_quoting":"needed","header_r'
+    'ows":[],"header_rows_quoting":"needed","initial_space":false,"line_endings":'
+    '[{"ending":"lf","lines":1001}],"line_endings_spread":[],"preamble":[],"pream'
+    'ble_withheld":false,"row_order":null,"separator_line":false,"short_rows":fal'
+    'se,"trailing_delimiter":{"header":false,"rows":false},"written_names":[]},"e'
+    'ncoding":"utf-8-sig","header_by_convention":true,"header_evidence":"The firs'
+    't row was read as the column names by convention, not by evidence: a CSV fil'
+    'e is normally written with its column names first, and nothing in this file '
+    'contradicted that -- no value in the first row belongs among the values of t'
+    'he column below it. synthtwin did not check that those values ARE names, bec'
+    'ause no such check exists. If that row is really the first record, run the c'
+    'ommand again with --first-row data: the columns are then named column_1, col'
+    'umn_2, and so on and every record is kept.","header_source":"file","used_fal'
+    'lback_encoding":false,"workbook":null}}'
 )
