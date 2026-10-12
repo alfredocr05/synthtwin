@@ -6818,6 +6818,90 @@ to business days beside an empty weekend, births with a weekend dip, and
 the 1st heaped beside a hole on each 15th -- each with the answer this
 section gives it, and no G14.3 case.
 
+#### G7.3j The dates that stand out: pinned, the parts split and drawn by key
+
+(Landing 3b.6, plan P4-D369.) A column counted in days -- G7.1's ordinal
+space `date` -- that publishes `heavy_dates` holds each listed date at
+its published count; every other column is drawn and moved exactly as
+before, so its twin is unchanged byte for byte. The KNOTS are the body's
+pins: the two tail boundaries and each published rung, at its rank.
+
+1. **The layout.** Each listed date's rows are a RUN of ranks pinned on
+   it. A knot on a listed date is COVERED: the run stands around it,
+   starting inside the interval contract HD4's carrying forward and
+   back gives it. The unlisted knots cut the body into SEGMENTS and the
+   covered runs cut each segment into PARTS; a listed date with no knot
+   on it is LOOSE, its run standing at the start of the part it lies in.
+   A part's ORDINARY ranks take its days -- an unlisted knot's day is a
+   day of both parts beside it -- and its FREE days are those that are
+   no listed date and no hole of the description.
+2. **The split.** How many ordinary ranks each part holds, inside the
+   bounds the covered runs' starts leave. Open first every part a split
+   cannot leave empty and every part with free days that touches an
+   unlisted knot; in a segment holding ordinary ranks with none open,
+   its part with the most free days; while the segment's bounds hold no
+   split, the next by free days; then the rest, most free days first,
+   while their cost fits the BUDGET: the column's count of different
+   values, where the twin keeps it, less the listed dates, the unlisted
+   knots' days and each tail's (its published values, or one). A part
+   costs the weekday groups it offers a free day of that still owe rows
+   (one where no census stands), a part touching a knot one less where
+   the knots force it open. Inside, the ranks go by WEIGHTED ROOM: each
+   free day weighs what its group of the first census beside the list
+   owes the ordinary ranks -- its count less its listed rows and its
+   unlisted knots -- over that group's free days in the whole body.
+3. **The repair.** The split's SCORE is the rows the parts cannot place
+   on the groups of the weekday and day-of-month censuses that owe them
+   (a capacity max-flow from the parts to the groups, per census), and
+   then the new days the budget asks beyond the most the parts can open
+   (a min-cost max-flow placing every owed row, a part's first rows on
+   a group, up to its free days there, cheaper). While the score is
+   above nought, the one move that lowers it most -- some ranks from one
+   open part to another of the same segment, every covered run still
+   around its knots, the count found by halving -- is made, at most 64
+   times (the 3b.6 skeptic's B1).
+4. **The draw.** The body keeps one word per ordinary rank, in rank
+   order, so the high tail reads the words it always read. A part's
+   ranks are split by KEY, its free days of one group of each census
+   beside the list: SPREAD rakes the keys' free days (a day the part
+   shares with the part before it not counted) to the parts' ranks and
+   each census's owed rows sixty times and rounds them by flows; where
+   SPREAD fills more keys holding no knot's day than the new days the
+   count leaves -- the twin's count of different days less those the
+   listed dates, the knots and both tails already hold -- the lightest
+   keys take none and the rest are raked again, at most eight times,
+   and then FEW puts the ranks on as few keys as one flow per census
+   finds; where SPREAD cannot open the new days the count leaves, WIDE
+   puts as many ranks on days of their own as a min-cost flow allows.
+   The first split placing every owed row and able to open exactly the
+   new days left is taken, a rank no flow placed going to its part's
+   widest key. Each key opens at least one new day where it holds ranks
+   and no knot's day, and the rest go where the ranks stand thickest (a
+   density found by halving); its new days are drawn among its free days
+   by the words of its first slots, no day twice, each taking that
+   slot's rank, and every other rank of the key is drawn uniformly over
+   its new days and its knots' days. Each part's values are sorted onto
+   its ranks.
+5. **The passes.** Every listed date is a hole of the count pass, of the
+   day pass and of the step off an absent spelling, which offer it to no
+   other rank. Where the drawn ranks already meet every census beside
+   the list and keep off every hole, the day pass leaves them as drawn;
+   elsewhere it runs as before.
+6. **The sort.** After every other pass the body's ranks are sorted
+   again; every value stayed inside its part, so each boundary and rung
+   reads its own value. A listed date not holding its count is named
+   (`heavy_dates`); none was measured.
+
+Where the count of different values still does not hold, the day pass's
+own cause is named, as before. The pass draws no word of its own. Its
+frozen cases are states in the nineteenth vectors file,
+`tests/reference/generation-branch-vectors-19.json`: a covered run, two
+loose dates, a listed boundary day, two listed dates with a hole between
+them, Monday and Thursday sessions whose split the census repair moves,
+sessions with stray rows whose split the repair moves for the count's
+new days, and six Mays beside both censuses -- each with the answer this
+section gives it, and no G14.3 case.
+
 ### G7.4 Offsets: only where recorded
 
 `utc_offsets` maps an offset text to a count, under the small-cell

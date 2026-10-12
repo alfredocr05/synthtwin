@@ -6718,6 +6718,130 @@
    }
   },
   {
+   "id": "K-S3-45",
+   "phase_stage": "Stage 3b landing 3b.6, the dates that stand out (plan P4-D369)",
+   "category": "STATS",
+   "headline": false,
+   "name": "Dates that stand out come back at their exact counts",
+   "status": "GREEN",
+   "rule": "the twenty pinned nodes pass: the gate's battery lists what the design measured and admissions none (H4), every twin holds every listed date and misses nothing (H1), the heaps come back within their bounds (H2), no listed count is below max(11, line) (H3); the rule, HD4 against brute force, the scope, file 19's seven states each red on its mutant, whole columns through the oracle, the producer always loading, the report, NF71, eight seeds of the 10th on business days, the work counted to 1,000,000 rows, and lane D3's two limits lifted",
+   "rule_kind": "exact",
+   "expected": {
+    "pinned_nodes_failing": 0
+   },
+   "tier": "FAST",
+   "source": "pytest",
+   "nodes": [
+    "tests/test_stage3b_heavy_dates.py::test_the_battery_lists_what_stands_out",
+    "tests/test_stage3b_heavy_dates.py::test_the_rule_on_hand_counts",
+    "tests/test_stage3b_heavy_dates.py::test_the_runs_are_the_brute_force_s",
+    "tests/test_stage3b_heavy_dates.py::test_a_clocked_column_lists_nothing",
+    "tests/test_stage3b_heavy_dates.py::test_midnight_moments_list_and_hold",
+    "tests/test_stage3b_heavy_dates.py::test_no_listed_count_below_the_heavy_line",
+    "tests/test_stage3b_heavy_dates.py::test_the_battery_twins_hold_every_listed_date",
+    "tests/test_stage3b_heavy_dates.py::test_the_heaps_come_back",
+    "tests/test_stage3b_heavy_dates.py::test_a_missed_line_prints_fewer_than_the_line",
+    "tests/test_stage3b_heavy_dates.py::test_the_report_says_the_listed_dates_are_met",
+    "tests/test_stage3b_heavy_dates.py::test_a_listed_date_the_twin_misses_is_named_and_said",
+    "tests/test_stage3b_heavy_dates.py::test_the_weekday_floor_remark_stands_only_without_a_list",
+    "tests/test_stage3b_heavy_dates.py::test_every_case_is_asked",
+    "tests/test_stage3b_heavy_dates.py::test_the_product_gives_each_case_its_answer_and_its_mutant_another",
+    "tests/test_stage3b_heavy_dates.py::test_whole_columns_are_the_oracle_s",
+    "tests/test_stage3b_heavy_dates.py::test_every_description_the_producer_writes_loads",
+    "tests/test_stage3b_heavy_dates.py::test_the_tenth_on_business_days_meets_every_check_at_eight_seeds",
+    "tests/test_stage3b_heavy_dates.py::test_the_plan_and_the_draw_count_no_more_as_rows_grow",
+    "tests/test_stage3b_day_of_month.py::test_quarter_ends_at_ten_thousand_rows_meet_every_check",
+    "tests/test_stage3b_day_of_month.py::test_one_month_a_year_at_ten_thousand_rows_meets_every_check"
+   ],
+   "test": null,
+   "driver": null,
+   "pin_strength": "NONE",
+   "measured_on": "tests/test_stage3b_heavy_dates.py and two joint-fix tests of tests/test_stage3b_day_of_month.py",
+   "evidence": "PLACEHOLDER",
+   "nodes_min_collected": 32,
+   "value_at": {
+    "commit": "PLACEHOLDER",
+    "date": "2026-10-12",
+    "measured_by": "tools/measurements/kpi_run.py --slow --only K-S3-45 --only K-S3-46 --only K-S3-47 --print-values",
+    "value": {
+     "pinned_nodes_failing": 0
+    }
+   }
+  },
+  {
+   "id": "K-S3-46",
+   "phase_stage": "Stage 3b landing 3b.6, the dates that stand out (plan P4-D369)",
+   "category": "STATS",
+   "headline": false,
+   "name": "Dates that stand out at 40,000 rows and on sessions",
+   "status": "ACCEPTED_LIMIT",
+   "rule": "at 40,000 rows (floor 11, seed 0) the gate's battery misses nothing; on the 26-week two-weekday session family (seeds 0 and 4) no twin misses its weekday census, every listed date is held, and the twins missing their count get no more than measured, each named; seconds recorded, never judged",
+   "rule_kind": "at_most",
+   "expected": {
+    "listed_off": 0,
+    "missed_40k": 0,
+    "census_missed": 0,
+    "count_missed": 2
+   },
+   "tier": "SLOW",
+   "source": "driver",
+   "nodes": [],
+   "test": null,
+   "driver": "tools/measurements/kpi_heavy_dates.py --kpi",
+   "pin_strength": "NONE",
+   "measured_on": "the gate's battery at 40,000 rows and eighteen columns of the 3b.6 skeptic's 26-week session family",
+   "evidence": "PLACEHOLDER",
+   "status_note": "ACCEPTED: the orchestrator's reversible call (the build plan's row D4, RESIDUAL): where the count stays long beside the list and the census it gives way, named; tried for nought first (plan P4-D369).",
+   "value_at": {
+    "commit": "PLACEHOLDER",
+    "date": "2026-10-12",
+    "measured_by": "tools/measurements/kpi_run.py --slow --only K-S3-45 --only K-S3-46 --only K-S3-47 --print-values",
+    "value": {
+     "census_missed": 0,
+     "count_missed": 2,
+     "generate_seconds_40k": 10,
+     "listed_off": 0,
+     "missed_40k": 0
+    }
+   }
+  },
+  {
+   "id": "K-S3-47",
+   "phase_stage": "Stage 3b landing 3b.6, the orchestrator's reading of the owner's 'Accept the class' (plans P4-D363, P4-D369)",
+   "category": "PRIVACY",
+   "headline": false,
+   "name": "A list may narrow a weekday group, and a twin may heap a date it does not list",
+   "status": "ACCEPTED_LIMIT",
+   "rule": "on the gate's battery at 1,000, 10,000 and 40,000 rows (floor 11, seed 0) the weekday groups a list narrows to 1 to 10 rows and the twin's unlisted dates that stand out, per size, get no more than measured",
+   "rule_kind": "at_most",
+   "expected": {
+    "narrowed": 3,
+    "unlisted_standing_1k": 15,
+    "unlisted_standing_10k": 0,
+    "unlisted_standing_40k": 132
+   },
+   "tier": "SLOW",
+   "source": "driver",
+   "nodes": [],
+   "test": null,
+   "driver": "tools/measurements/kpi_heavy_dates.py --kpi",
+   "pin_strength": "NONE",
+   "measured_on": "the gate's battery at 1,000, 10,000 and 40,000 rows",
+   "evidence": "PLACEHOLDER",
+   "status_note": "ACCEPTED: the owner's 'Accept the class' (2026-09-30, plan P4-D363) under the principle of 2026-10-01, read by the orchestrator (the build plan's section 7, item 3); the report says counts per single day are the real column's only on listed dates.",
+   "value_at": {
+    "commit": "PLACEHOLDER",
+    "date": "2026-10-12",
+    "measured_by": "tools/measurements/kpi_run.py --slow --only K-S3-45 --only K-S3-46 --only K-S3-47 --print-values",
+    "value": {
+     "narrowed": 3,
+     "unlisted_standing_10k": 0,
+     "unlisted_standing_1k": 15,
+     "unlisted_standing_40k": 132
+    }
+   }
+  },
+  {
    "id": "K-S3-39",
    "phase_stage": "Stage 3b landing 3b.0, its fix pass (plan P4-D354)",
    "category": "STATS",

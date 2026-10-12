@@ -17246,7 +17246,7 @@ def heavy_dates_decided(
     high = days[parsed - 1 - rows_high]
     counts: "dict[int, int]" = {}
     for day in days:
-        counts[day] = counts.get(day, 0) + 1
+        counts[day] = (counts[day] if day in counts else 0) + 1
     first = low
     if rows_low > 0 and days[rows_low - 1] == low:
         first = low + 1
@@ -17361,7 +17361,7 @@ def _heavy_unsaid(
     off, so NF71's "never of one date" would not hold (the 3b.6 design,
     section 3 (a)); every other remark stands.
     """
-    if not details.get(calendar_rules.HEAVY_DATES):
+    if calendar_rules.HEAVY_DATES not in details or not details[calendar_rules.HEAVY_DATES]:
         return remarks
     return [remark for remark in remarks if remark.form != REMARK_WEEKDAY_FLOOR]
 

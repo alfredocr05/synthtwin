@@ -61,7 +61,6 @@ Test-local mutants build the product's module with one source edit (one
 from __future__ import annotations
 
 import copy
-import datetime
 import itertools
 import json
 import pathlib
@@ -79,7 +78,6 @@ from synthtwin import (
     calendar_rules,
     generation,
     parsing,
-    rendering,
     taxonomy,
     validation,
 )

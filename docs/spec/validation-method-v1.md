@@ -1435,6 +1435,17 @@ rather than in ISO:
   the census counted it. Counted by day, the source table of a clinic
   whose low boundary's day held earlier tail cells missed its own
   census.
+- `heavy_dates` is compared DATE FOR DATE (`heavy_dates.counts`, V5-D1,
+  landing 3b.6, plan P4-D369): the file's own parsed cells, in any
+  spelling, are counted on the day each names -- read as the
+  day-of-month census is read, a cell the member does not read counted
+  on its day only where the file's own description folded such cells
+  -- and the obligation is HELD where every listed date holds its
+  published count and MISSED otherwise. A listed date the file holds one
+  to the heavy line less one of is printed as fewer than the line, never
+  as the number, and the verdict stands (plan P4-D347). The file's list
+  is counted here, never PRODUCED. A description publishing `[]`
+  obliges nothing and lists nothing.
 - each of the four is LISTED where the column's member cannot show that
   convention at all: the widths on a member of fixed field width, the
   name styles outside the two textual members, the marker outside

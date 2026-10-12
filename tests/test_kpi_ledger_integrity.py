@@ -810,6 +810,14 @@ def test_the_ledger_file_is_canonical_json() -> None:
     text = kpi_rules.LEDGER_PATH.read_text(encoding="utf-8")
     assert text.endswith("\n")
     assert json.loads(text) == LEDGER
+    # 460,000 from 450,000, ON LANE D4'S BRANCH (landing 3b.6, plan
+    # P4-D369), FOR THE ORCHESTRATOR TO CONFIRM AT ITS MERGE as the raise
+    # of stage 4's first entry was: the ledger stood at 447,905 bytes, 2,095
+    # under the cap, and the lane's three ids -- `K-S3-45` (twenty pinned
+    # nodes), `K-S3-46` and `K-S3-47` -- grow it by about 7,000 with their
+    # prose trimmed first. A MEASUREMENT IS NEVER TRIMMED TO FIT: the cap
+    # moves, and the prose is trimmed before it moves again.
+    #
     # 450,000 from 362,000, AUTHORIZED BY THE ORCHESTRATOR (2026-10-01,
     # plan P4-D364) ONCE, FOR THE REST OF STAGE 3B: the ledger stood at
     # 361,385 bytes, and the stage's entries `K-S3-35` to `K-S3-53`
@@ -886,7 +894,7 @@ def test_the_ledger_file_is_canonical_json() -> None:
     # its bytes are K-P4-20's new value and the notes of the ceilings and
     # re-measurements its repair pass recorded. The cap is still a cap; the
     # prose is trimmed before it is raised again.
-    assert pathlib.Path(kpi_rules.LEDGER_PATH).stat().st_size < 450_000
+    assert pathlib.Path(kpi_rules.LEDGER_PATH).stat().st_size < 460_000
 
 
 def test_a_fast_pinned_entry_with_no_collection_floor_is_named() -> None:

@@ -3085,7 +3085,7 @@ def heavy_listed(
         return ()
     start = first - HEAVY_REACH
     stop = last + HEAVY_REACH
-    span = [counts.get(day, 0) for day in range(start, stop + 1)]
+    span = [counts[day] if day in counts else 0 for day in range(start, stop + 1)]
     found: "list[tuple[int, int]]" = []
     for index, count in standing_out(span, line, HEAVY_REACH, CENTRE_MEAN):
         day = start + index

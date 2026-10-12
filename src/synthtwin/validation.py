@@ -17364,17 +17364,17 @@ def _heavy_checks(
             failing += [cell]
             continue
         day = _weekday_day(read[0])
-        days[day] = days.get(day, 0) + 1
+        days[day] = (days[day] if day in days else 0) + 1
     if _folded_by_the_file(block, facts.parser_family, failing):
         for cell in failing:
             folded_day = _day_as_counted(cell)
             if folded_day is not None:
-                days[folded_day] = days.get(folded_day, 0) + 1
+                days[folded_day] = (days[folded_day] if folded_day in days else 0) + 1
     named: "list[tuple[str, int]]" = []
     for day, count in listed:
         year, month, date = parsing.civil_from_days(day)
         named += [(f"{year:04d}-{month:02d}-{date:02d}", count)]
-    found = [days.get(day, 0) for day, _count in listed]
+    found = [days[day] if day in days else 0 for day, _count in listed]
     asked, shown, lines = _census_lines(
         named, found, calendar_rules.heavy_line(floor)
     )

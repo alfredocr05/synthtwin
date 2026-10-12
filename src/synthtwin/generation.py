@@ -19559,9 +19559,12 @@ def _heavy_split(
                     1 if segment.touches[part] else 0
                 )
             row += [here]
-        order = sorted(
-            range(parts), key=lambda part: (-rooms.room[index][part], part)
-        )
+        order = [
+            part
+            for _room, part in sorted(
+                (-rooms.room[index][part], part) for part in range(parts)
+            )
+        ]
         if segment.ordinary > 0 and not any(row):
             for part in order:
                 if rooms.room[index][part] > 0:
@@ -19941,11 +19944,15 @@ def _heavy_few_cells(
             for group in range(len(demands[which])):
                 if placed[source][group] > 0:
                     key = prefix + (group,)
-                    grown[place][key] = grown[place].get(key, 0) + placed[source][group]
+                    grown[place][key] = (
+                        grown[place][key] if key in grown[place] else 0
+                    ) + placed[source][group]
                     left = left - placed[source][group]
             if left > 0:
                 key = prefix + (_heavy_leftover(days_of[place], prefix, frozenset()),)
-                grown[place][key] = grown[place].get(key, 0) + left
+                grown[place][key] = (
+                    grown[place][key] if key in grown[place] else 0
+                ) + left
         shares = grown
     return shares, short
 
@@ -20098,7 +20105,9 @@ def _heavy_spread_cells(
                 shares[place][(group, other)] = split[row][other]
         if left > 0:
             key = (group, _heavy_leftover(days_of[place], (group,), dropped[place]))
-            shares[place][key] = shares[place].get(key, 0) + left
+            shares[place][key] = (
+                shares[place][key] if key in shares[place] else 0
+            ) + left
     return shares, unplaced + more, raked
 
 
@@ -20222,13 +20231,17 @@ def _heavy_wide_cells(
                 taken = placed[source][group]
                 if taken > 0:
                     key = prefix + (group,)
-                    grown[place][key] = grown[place].get(key, 0) + taken
+                    grown[place][key] = (
+                        grown[place][key] if key in grown[place] else 0
+                    ) + taken
                     left = left - taken
             if left > 0:
                 key = prefix + (
                     _heavy_leftover(days_of[place], prefix, frozenset()),
                 )
-                grown[place][key] = grown[place].get(key, 0) + left
+                grown[place][key] = (
+                    grown[place][key] if key in grown[place] else 0
+                ) + left
         shares = grown
     return shares, short
 
@@ -20243,7 +20256,7 @@ def _heavy_reach(
     count = 0
     for place in range(len(shares)):
         for key in shares[place]:
-            days = days_of[place].get(key, ())
+            days = days_of[place][key] if key in days_of[place] else ()
             free = len([day for day in days if day not in knots])
             count = count + min(free, max(0, shares[place][key]))
     return count
@@ -20260,7 +20273,8 @@ def _heavy_opened(
     for place in range(len(shares)):
         for key in shares[place]:
             if shares[place][key] > 0 and not any(
-                day in knots for day in days_of[place].get(key, ())
+                day in knots
+                for day in (days_of[place][key] if key in days_of[place] else ())
             ):
                 count = count + 1
     return count
@@ -20290,7 +20304,7 @@ def _heavy_cells(
     """
     days_of = [{key: days for key, days in part.keyed} for part in parts]
     supply = [part.count for part in parts]
-    nothing = [frozenset() for _ in parts]
+    nothing: "list[frozenset[tuple[int, ...]]]" = [frozenset() for _ in parts]
     lent = [part.lent for part in parts]
     spread, short, raked = _heavy_spread_cells(days_of, supply, demands, nothing, lent)
     tried = [(short, spread)]
@@ -20351,9 +20365,9 @@ def _heavy_whole(
             for key in shares[place]
             if key in days_of[place] and shares[place][key] > 0
         }
-        short = supply[place] - sum(kept.values())
+        short = supply[place] - sum(kept[key] for key in kept)
         if short > 0 and widest is not None:
-            kept[widest] = kept.get(widest, 0) + short
+            kept[widest] = (kept[widest] if widest in kept else 0) + short
         found += [kept]
     return found
 
@@ -23768,9 +23782,9 @@ def _heavy_sorted(
         moved[body_low + index] = body[index]
     held: "dict[int, int]" = {}
     for value in moved:
-        held[value] = held.get(value, 0) + 1
+        held[value] = (held[value] if value in held else 0) + 1
     for day, count in facts.heavy_dates:
-        if held.get(day, 0) != count:
+        if (held[day] if day in held else 0) != count:
             return moved, [
                 _deviation(
                     column.name,
@@ -26469,14 +26483,17 @@ def _heavy_days_opened(
             low = middle
     opened = wanted(high)
     spare = left - sum(opened)
-    order = sorted(
-        range(len(keys)),
-        key=lambda index: (
-            -(keys[index][0] * _HEAVY_WEIGHT_SCALE)
-            // max(1, keys[index][1] + opened[index]),
-            index,
-        ),
-    )
+    order = [
+        index
+        for _density, index in sorted(
+            (
+                -(keys[index][0] * _HEAVY_WEIGHT_SCALE)
+                // max(1, keys[index][1] + opened[index]),
+                index,
+            )
+            for index in range(len(keys))
+        )
+    ]
     for index in order:
         if spare <= 0:
             break
@@ -26515,7 +26532,7 @@ def _heavy_values(
     for number in range(len(parts)):
         part = parts[number]
         for key, days in part.keyed:
-            rows = shares[number].get(key, 0)
+            rows = shares[number][key] if key in shares[number] else 0
             if rows <= 0:
                 continue
             fixed = tuple(day for day in days if day in knots)
@@ -26540,8 +26557,8 @@ def _heavy_values(
         spread: "list[int]" = []
         for place in range(chosen):
             other = place + (words[slot + place] * (len(free) - place)) // _WORD_SCALE
-            here = swapped.get(place, place)
-            there = swapped.get(other, other)
+            here = swapped[place] if place in swapped else place
+            there = swapped[other] if other in swapped else other
             swapped[other] = here
             spread += [free[there]]
         days = tuple(sorted(fixed + tuple(spread)))

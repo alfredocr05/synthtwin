@@ -590,6 +590,9 @@ def test_at_the_floor_of_11_a_census_that_leaves_its_twins_long_is_withheld(tmp_
         values, missed = _twin_values(described, seed)
         assert missed == [] and len(set(values)) == 24, (seed, missed, len(set(values)))
     monkeypatch.setattr(calendar_rules, name, lambda *arguments: False)
+    # ...the mutant's long twins as pinned, with no date listed as standing
+    # out (landing 3b.6 lists some of the 24 dates and draws the rest by key).
+    monkeypatch.setattr(taxonomy, "heavy_dates_decided", lambda *arguments: ())
     described = _described(tmp_path / "withdrawn", "visit", cells)
     assert [group["count"] for group in described.block("visit")["weekday_census"]] == [73, 31]
     long = {0: 26, 1: 26, 2: 26, 3: 26, 17: 26} if clock == "12:00:00" else {2: 25, 3: 27, 17: 27}
