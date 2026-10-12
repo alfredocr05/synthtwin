@@ -10266,6 +10266,9 @@ HOUR_HALF_DAY = 43200
 # than its ranks gives that group room, which a unit asked earlier may take
 # in the next round; a round that moves nothing ends the step.
 CLOCK_ROUNDS = 4
+# THE ESCAPE PAID BACK (lane J, plan P4-D367): how many payers with a place,
+# past the first, are asked for one whose move keeps the count of different values.
+CLOCK_PAYER_REACH = 1024
 
 
 def on_the_half_day(column):
@@ -10423,7 +10426,8 @@ def clock_pass(walk, first, last, pinned, wanted, standing, half, reachable, any
        where a unit has no place whole; then RELIEF, a place in a full
        group another unit of it leaves; then, where no weekday census
        stands (``anyday``), the same again with an escape free to take a
-       day of another weekday;
+       day of another weekday, and where one stands, the same again with
+       THE ESCAPE PAID BACK (lane J, plan P4-D367);
     4. off a written midnight, for each rank the pass put there;
     5. on the half day, each tail rank past noon or at midnight back on
        it inside its stratum (the hour's alone);
@@ -10443,6 +10447,10 @@ def clock_pass(walk, first, last, pinned, wanted, standing, half, reachable, any
         clock_relieved(walk, have, first, last, pinned)
     if have != walk.counts and anyday:
         clock_groups_left(walk, have, first, last, pinned, standing, True, kin)
+    elif have != walk.counts:
+        clock_groups_left(
+            walk, have, first, last, pinned, standing, False, kin, clock_homes(walk, first, last, pinned)
+        )
     clock_off_midnight(walk, before, first, last, pinned)
     if half:
         hour_tails_on_the_half_day(walk, first, last)
@@ -10570,6 +10578,125 @@ def clock_escape(walk, ordinal, low, high, size, have, standing, anyday=False, k
     return None
 
 
+def clock_homes(walk, first, last, pinned):
+    """Every movable body rank's day as the round paid back begins."""
+    return {rank: walk.days[rank] // walk.day for rank in range(first, last + 1) if not pinned[rank]}
+
+
+def clock_payer_place(walk, rank, origin, standing):
+    """A payer's place: its own clock on the nearest day of its gap whose
+    standing is ``origin``, no hole and of its width kind, the earlier on
+    a tie; None where its gap holds no such day."""
+    ordinal = walk.days[rank]
+    low, high = walk.lows[rank], walk.highs[rank]
+    away = 1
+    while ordinal - away * walk.day >= low or ordinal + away * walk.day <= high:
+        for target in (ordinal - away * walk.day, ordinal + away * walk.day):
+            if target < low or target > high or walk.hole(target):
+                continue
+            if standing[(target // walk.day + 3) % 7] != origin:
+                continue
+            if walk.width_of(target // walk.day) == walk.width_of(ordinal // walk.day):
+                return target
+        away += 1
+    return None
+
+
+def clock_payer_candidates(walk, centre, standing, into, home):
+    """The ranks a payer is asked among, in the order they are asked: the
+    days of standing ``into`` nearest the unit's own day first, the earlier
+    on a tie, and on each the ranks whose day it was as the round began,
+    in rank order."""
+    days = sorted(set(home.values()))
+    if not days:
+        return
+    away = 1
+    while centre - away >= days[0] or centre + away <= days[-1]:
+        for day in (centre - away, centre + away):
+            if standing[(day + 3) % 7] == into:
+                for rank in sorted(rank for rank in home if home[rank] == day):
+                    yield rank, day
+        away += 1
+
+
+def clock_payers(walk, unit, origin, into, standing, home):
+    """THE PAYERS of a unit's move from a day of standing ``origin`` to
+    one of ``into``: one for each of its ranks, each a movable body rank
+    not of the unit, still on the day it stood on as the round began, of
+    standing ``into``, with a place (``clock_payer_place``). Of those, in
+    the order they are asked, the first whose move keeps the count of
+    different values -- alone on its written unit onto one no rank holds,
+    sharing its own onto one a rank holds -- among the first and the
+    CLOCK_PAYER_REACH asked after it, else the first; each moves before
+    the next is asked. Where fewer are found than the unit has ranks,
+    every payer goes back. Returns how many were found."""
+    taken = []
+    asked = set(unit)
+    centre = walk.days[unit[0]] // walk.day
+    for _payer in unit:
+        chosen = None
+        after = 0
+        for rank, day in clock_payer_candidates(walk, centre, standing, into, home):
+            if walk.days[rank] // walk.day != day or rank in asked:
+                continue
+            place = clock_payer_place(walk, rank, origin, standing)
+            if place is None:
+                continue
+            alone = walk.holding(walk.days[rank]) == 1
+            if alone != (walk.holding(place) > 0):
+                chosen = (rank, place)
+                break
+            if chosen is None:
+                chosen = (rank, place)
+                continue
+            after += 1
+            if after >= CLOCK_PAYER_REACH:
+                break
+        if chosen is None:
+            for rank, before in reversed(taken):
+                walk.move(rank, before)
+            return len(taken)
+        taken.append((chosen[0], walk.days[chosen[0]]))
+        asked.add(chosen[0])
+        walk.move(chosen[0], chosen[1])
+    return len(taken)
+
+
+def clock_paid_escape(walk, unit, low, high, have, standing, refused, home):
+    """THE ESCAPE PAID BACK (G7.3g step 3; lane J, plan P4-D367): the other
+    days of the unit's gap, nearest first, the earlier on a tie, no hole,
+    of its width kind, whose standing is another; on each, SAMEPARENT's
+    place at the unit's own seat, taken only where as many payers as the
+    unit has ranks are found and moved (``clock_payers``). A standing is
+    asked once for the unit; a pair of standings no payer at all was found
+    for goes into ``refused`` and is not asked again in the step."""
+    ordinal = walk.days[unit[0]]
+    day = ordinal // walk.day
+    per_day = walk.day // clock_span(walk)
+    seat = clock_seat(walk, ordinal)
+    own = standing[(day + 3) % 7]
+    asked = set()
+    for away in range(1, max(day - low // walk.day, high // walk.day - day) + 1):
+        for other in (day - away, day + away):
+            if not low // walk.day <= other <= high // walk.day or other in walk.holes:
+                continue
+            into = standing[(other + 3) % 7]
+            if into == own or into in asked or (own, into) in refused:
+                continue
+            if walk.width_of(other) != walk.width_of(day):
+                continue
+            target = clock_place_on(walk, other * per_day + seat, ordinal, low, high, len(unit), have)
+            if target is None:
+                continue
+            found = clock_payers(walk, unit, own, into, standing, home)
+            if found == len(unit):
+                return target
+            asked.add(into)
+            if found == 0:
+                refused.add((own, into))
+    return None
+
+
 def clock_units(walk, group, first, last, pinned):
     """A group's movable units in rank order: each written unit whose every
     rank in the column is movable here and shares one gap moves whole; every
@@ -10604,12 +10731,16 @@ def clock_rotated(units, leaving):
     return chosen + rest
 
 
-def clock_groups_left(walk, have, first, last, pinned, standing, anyday=False, kin=()):
+def clock_groups_left(walk, have, first, last, pinned, standing, anyday=False, kin=(), home=None):
     """G7.3g step 3: the units of each group still over its count, in
     proportional order, take SAMEPARENT's place, else the escape's; a unit
     with neither whole leaves a rank at a time. Up to four rounds, a round
     that moves nothing ending the step: a whole unit leaving a group over
-    by fewer than its ranks gives that group room."""
+    by fewer than its ranks gives that group room. ``home`` is given in
+    the round paid back (a weekday census stands, RELIEF has had its
+    turn): every movable body rank's day as the round begins, and a unit
+    with neither place takes THE ESCAPE PAID BACK's."""
+    refused = set()
     for _round in range(CLOCK_ROUNDS):
         changed = False
         for group in range(len(walk.counts)):
@@ -10634,6 +10765,10 @@ def clock_groups_left(walk, have, first, last, pinned, standing, anyday=False, k
                     if target is None:
                         target = clock_escape(
                             walk, here, low, high, len(members), have, standing, anyday, kin
+                        )
+                    if target is None and home is not None:
+                        target = clock_paid_escape(
+                            walk, members, low, high, have, standing, refused, home
                         )
                     if target is None:
                         continue
@@ -16133,7 +16268,76 @@ def hour_distances_case(why, found, anchor, unit, low_side, apart, edge):
     }
 
 
+# THE ESCAPE PAID BACK (lane J, plan P4-D367): a weekday census of seven
+# single days beside an hour census of hour 12 alone.
+HOUR_NOON = [0] * 12 + [1] + [2] * 11
+HOUR_WEEK = [0, 1, 2, 3, 4, 5, 6]
+
+
+def hour_paid_ordinals(keeping=False, pair=False):
+    """Noon stamps from Friday to the next Wednesday but one, a Monday rank
+    at 05:23 before the Monday rung at noon (two where ``pair``), and a
+    Sunday rank six days on whose gap holds a Monday; where ``keeping``, a
+    Monday rank already at 12:10 the next week and a second Sunday rank at
+    12:40."""
+    m = HOUR_MONDAY
+    ordinals = [hour_at(m - 3, 12), hour_at(m - 2, 12, 20), hour_at(m - 1, 12, 30)]
+    ordinals += [hour_at(m, 5, 23)] * (2 if pair else 1)
+    ordinals += [hour_at(m, 12), hour_at(m + 3, 12), hour_at(m + 6, 12, 10)]
+    if keeping:
+        ordinals += [hour_at(m + 6, 12, 40), hour_at(m + 7, 12, 10)]
+    ordinals += [hour_at(m + 9, 12)]
+    return ordinals
+
+
+def hour_paid_case():
+    ordinals = hour_paid_ordinals()
+    return hour_case(
+        "THE ESCAPE PAID BACK (step 3, lane J): a Monday rank at 05:23 on the day of the "
+        "Monday rung at noon, hour 12 alone counted and seven single weekdays published. No "
+        "free minute of hour 12 lies on its day inside its gap, which holds no other Monday, "
+        "so it takes Sunday's 12:23, the nearest day of another standing; the Sunday rank "
+        "at 12:30 has no Monday in its gap, so the one six days on goes the other way, taking "
+        "the Monday after it at its own 12:10.",
+        "paid", ordinals, {0, 4, 5, 7}, [0, 8, 0], HOUR_NOON, standing=HOUR_WEEK,
+    )
+
+
+def hour_paid_keeping_case():
+    ordinals = hour_paid_ordinals(keeping=True)
+    return hour_case(
+        "THE PAYER KEEPING THE COUNT (step 3, lane J): as the escape paid back, but a Monday "
+        "rank already stands at 12:10 the next week. The Sunday rank at 12:10, alone on its "
+        "minute, would share that one, so the one at 12:40, asked after it, goes instead.",
+        "paid", ordinals, {0, 4, 5, 9}, [0, 10, 0], HOUR_NOON, standing=HOUR_WEEK,
+    )
+
+
+def hour_paid_given_back_case():
+    ordinals = hour_paid_ordinals(pair=True)
+    return hour_case(
+        "THE PAYERS GIVEN BACK (step 3, lane J): two Monday ranks share 05:23 and one Sunday "
+        "rank alone can pay. Whole, the pair finds one payer for Sunday, who goes back, and "
+        "none for Saturday or Friday, whose pairs are refused; SPLIT, the first rank takes "
+        "Sunday's 12:23, paid, and the second finds no payer left and stays.",
+        "paid", ordinals, {0, 5, 6, 8}, [0, 9, 0], HOUR_NOON, standing=HOUR_WEEK,
+    )
+
+
+def hour_paid_pass_case():
+    ordinals = hour_paid_ordinals()
+    return hour_case(
+        "The whole pass beside a weekday census (lane J): the escape paid back's state, "
+        "both censuses met where the pass with the round withdrawn left 05:23 in hour 5.",
+        "pass", ordinals, {0, 4, 5, 7}, [0, 8, 0], HOUR_NOON, standing=HOUR_WEEK,
+    )
+
+
 HOUR_STEP_CASES = {
+    "hour_paid_escape": hour_paid_case,
+    "hour_paid_keeping": hour_paid_keeping_case,
+    "hour_paid_given_back": hour_paid_given_back_case,
+    "hour_paid_pass": hour_paid_pass_case,
     "hour_same_day_clock": hour_same_day_case,
     "hour_escape_weekday": hour_escape_case,
     "hour_escape_any_day": hour_escape_any_day_case,
@@ -16225,6 +16429,11 @@ def hour_step_answer(case):
         )
     elif step == "relief":
         clock_relieved(walk, clock_have(walk, first, last), first, last, pinned)
+    elif step == "paid":
+        clock_groups_left(
+            walk, clock_have(walk, first, last), first, last, pinned, case["standing"], False, kin,
+            clock_homes(walk, first, last, pinned),
+        )
     elif step == "put_back":
         clock_put_back(walk, first, last, pinned, case["wanted"], case["standing"], anyday, kin)
     elif step == "midnight":

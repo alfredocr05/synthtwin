@@ -1017,6 +1017,12 @@ def _answer(case: dict, module=generation) -> list:
     elif step == "relief":
         have = module._clock_found(state, len(case["counts"]), first, last)
         module._clock_relieved(state, list(case["counts"]), have, first, last, pinned)
+    elif step == "paid":
+        # THE ESCAPE PAID BACK (lane J): step 3's round where a weekday census stands.
+        have = module._clock_found(state, len(case["counts"]), first, last)
+        module._clock_left_their_groups(
+            state, list(case["counts"]), have, first, last, pinned, standing, False, kin, True
+        )
     elif step == "put_back":
         module._clock_count_put_back(state, first, last, pinned, case["wanted"], standing, anyday, kin)
     elif step == "midnight":
@@ -1079,6 +1085,22 @@ class _Distances:
 
 # Each case's mutant: the one edit that withdraws or bends the step the
 # case freezes, and the case it turns red.
+# Step 3 and RELIEF in the clock pass, and the round paid back after them where a weekday
+# census stands (lane J), which would otherwise ask step 3's places once more.
+_OWN_STEPS = (
+    "    if found != counts:\n        _clock_left_their_groups(\n"
+    "            state, counts, found, body_low, body_high, pinned, standing, False, kin\n"
+    "        )\n    if found != counts:\n        _clock_relieved(state, counts, found, body_low, body_high, pinned)\n"
+    "    if found != counts and anyday:\n"
+    "        # THE LAST RESORT, where no weekday census stands: step 3 once more,\n"
+    "        # its escape free at last to take a day of another weekday, once\n"
+    "        # RELIEF, which keeps every day, has had its turn.\n"
+    "        _clock_left_their_groups(\n"
+    "            state, counts, found, body_low, body_high, pinned, standing, True, kin\n"
+    "        )\n    elif found != counts:\n"
+)
+
+
 STEP_MUTANTS = {
     "SAMEDAY withdrawn": (
         "hour_same_day_clock",
@@ -1147,8 +1169,10 @@ STEP_MUTANTS = {
     ),
     "the whole pass without its own steps": (
         "hour_whole_pass",
-        "    if found != counts:\n        _clock_left_their_groups(\n            state, counts, found, body_low, body_high, pinned, standing, False, kin\n        )\n    if found != counts:\n        _clock_relieved(",
-        "    if found != counts and False:\n        _clock_left_their_groups(\n            state, counts, found, body_low, body_high, pinned, standing, False, kin\n        )\n    if found != counts and False:\n        _clock_relieved(",
+        _OWN_STEPS,
+        _OWN_STEPS.replace("    if found != counts:\n", "    if found != counts and False:\n").replace(
+            "    elif found != counts:\n", "    elif False:\n"
+        ),
     ),
     # THE STEP DETAILS no other state turned red (the lane's skeptic, finding 3 (h)).
     "PUT BACK merges onto a written midnight": (
@@ -1223,6 +1247,34 @@ STEP_MUTANTS = {
         "    if kin:\n        for away in range(1, per_day):\n            for other in (seat - away, seat + away):\n                if other < 0 or other >= per_day or kin[other] != kin[seat]:\n                    continue\n                target = nearest_on(",
         "    if False:\n        for away in range(1, per_day):\n            for other in (seat - away, seat + away):\n                if other < 0 or other >= per_day or kin[other] != kin[seat]:\n                    continue\n                target = nearest_on(",
     ),
+    # THE ESCAPE PAID BACK (lane J, plan P4-D367): where a weekday census stands, a unit
+    # with no place on a day of its standing takes one on a day of another, as many ranks
+    # of that standing moved by whole days onto days of its own.
+    "step 3 is never paid back": (
+        "hour_paid_escape",
+        "                    if target is None and book is not None:\n",
+        "                    if target is None and False:\n",
+    ),
+    "a payer takes a day of any standing": (
+        "hour_paid_escape",
+        "            if standing[calendar_rules.weekday_of(target // state.day)] != origin:\n                continue\n            if _weekday_width_kind(state, target) == width:",
+        "            if _weekday_width_kind(state, target) == width:",
+    ),
+    "the first payer goes, keeping the count or not": (
+        "hour_paid_keeping",
+        "                    if alone != _weekday_holds(state, place):\n                        chosen = (rank, place)",
+        "                    if False:\n                        chosen = (rank, place)",
+    ),
+    "payers too few are never given back": (
+        "hour_paid_given_back",
+        "        if chosen is None:\n            for rank, before in reversed(taken):\n                _clock_book_moved(state, book, rank, before)\n            return len(taken)",
+        "        if chosen is None:\n            return len(taken)",
+    ),
+    "the whole pass without its paid round": (
+        "hour_paid_pass",
+        "    elif found != counts:\n        # ...AND PAID BACK where one stands",
+        "    elif False:\n        # ...AND PAID BACK where one stands",
+    ),
 }
 
 # ...and step 10's, edits of `calendar_clock`.
@@ -1248,6 +1300,7 @@ CASES = [
     "clock_minute_kin_escape", "clock_minute_kin_kept", "clock_minute_put_back_kin",
     "half_day_apart", "half_day_high", "half_day_low", "hour_escape_any_day", "hour_escape_weekday",
     "hour_half_day_tails", "hour_half_day_tails_stratum", "hour_off_a_hole", "hour_off_midnight",
+    "hour_paid_escape", "hour_paid_given_back", "hour_paid_keeping", "hour_paid_pass",
     "hour_proportional", "hour_put_back", "hour_put_back_any_day", "hour_put_back_off_midnight",
     "hour_put_back_short", "hour_put_back_short_shared", "hour_relief", "hour_relief_given_back",
     "hour_rounds", "hour_same_day_clock", "hour_sixtieth_second", "hour_sixtieth_ties", "hour_split",
