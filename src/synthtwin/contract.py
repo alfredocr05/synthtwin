@@ -10034,17 +10034,21 @@ def datetime_counts_reachable(column: "ColumnBlock") -> bool:
     facts = column.facts
     if not isinstance(facts, (DatetimeFacts,)):
         return False
-    if _short_of_the_count(facts):
+    if short_of_the_count(facts):
         return False
     return _count_pass_open(column, facts, column.n_distinct - facts.n_unparsed)
 
 
-def _short_of_the_count(facts: "DatetimeFacts") -> bool:
+def short_of_the_count(facts: "DatetimeFacts") -> bool:
     """A partial-date column, or a declared one short of the line (landing R2c).
 
     -- 3b.R2c (P4-D383): a partial-date column's partial cells repeat, and
     so may a declared column's unread cells, so the count less the unread
-    cells is no count of different dates.
+    cells is no count of different dates. Public since the R2c leftover
+    verify: `generation._units_settled` asks it to keep the target upper.
+
+    Guarantees: accepts a column's datetime facts; returns a bool; a
+    function of the facts. Raises nothing. No I/O of any kind.
     """
     if len(facts.resolution_mix) > 1 and parsing.is_layout_name(facts.parser_family):
         return True
@@ -10064,8 +10068,11 @@ def datetime_count_target(column: "ColumnBlock", parsed: int) -> int:
     target is `n_distinct` less one for each named partial form and one
     more where any cell is left a stand-in -- each holds one spelling at
     least -- clamped to one and the ``parsed`` full ranks, under every
-    other condition of the pass. The validator keeps its envelope here:
-    the published count is not the full ranks' own.
+    other condition of the pass. It is a target the pass lowers the twin
+    to, never raises it to (the R2c leftover verify, finding 1:
+    `generation._units_settled` runs no pass where the full ranks hold
+    no more units than it). The validator keeps its envelope here: the
+    published count is not the full ranks' own.
 
     Guarantees: accepts a loaded column block and its count of full
     ranks; returns -1 for any column not of dates. Raises nothing. No
@@ -10074,7 +10081,7 @@ def datetime_count_target(column: "ColumnBlock", parsed: int) -> int:
     facts = column.facts
     if not isinstance(facts, (DatetimeFacts,)):
         return -1
-    if not _short_of_the_count(facts):
+    if not short_of_the_count(facts):
         # Asked through the one statement of reach, so a mutant of it
         # reaches the pass (tests/test_stage3_review_dates.py).
         if not datetime_counts_reachable(column):

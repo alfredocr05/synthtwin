@@ -25187,6 +25187,17 @@ def _units_settled(
     if widths < 0 and distinct < 0:
         return moved
     unit = step if space == "datetime" else 1
+    # -- 3b.R2c (P4-D383; the R2c leftover verify, finding 1): AN UPPER
+    # TARGET LOWERS, IT NEVER RAISES. Reached exactly, it raised every
+    # partial FHIR column whose full dates do not fill their range: 1,000
+    # rows publishing 534 different values came back as 586, 2,000 rows
+    # over three years 3.5 to 7 % over the count. Where the full ranks
+    # already hold no more units than the target the pass does not run.
+    upper = contract.short_of_the_count(facts)
+    if upper and distinct >= 0 and _upper_target_met(moved, unit, distinct):
+        distinct = -1
+        if widths < 0:
+            return moved
     gone = _count_holes(facts, holes)
     if gone:
         _stepped_off_the_holes(
@@ -25244,12 +25255,25 @@ def _units_settled(
                 widths >= 0, word, distinct, tails, gone,
             )
     _runs_sorted(moved, pinned)
-    if distinct >= 0 and layout is not None:
+    if distinct >= 0 and layout is not None and not upper:
         _group_gives_way(
             column, facts, layout, moved, day, step, unit, distinct,
             widths >= 0, word, gone,
         )
     return moved
+
+
+def _upper_target_met(moved: "list[int]", unit: int, distinct: int) -> bool:
+    """Whether the full ranks hold no more units than an upper target (landing R2c).
+
+    The count pass lowers a partial or declared-short column to its upper
+    target and never raises it (the R2c leftover verify, finding 1), so
+    where this holds `_units_settled` runs no pass for the count.
+
+    Guarantees: a function of the arguments; raises nothing. No I/O of
+    any kind.
+    """
+    return len({value // unit for value in moved}) <= distinct
 
 
 def _left_to_the_weekday_pass(

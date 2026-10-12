@@ -98,6 +98,7 @@ import pathlib
 import random
 import re
 import sys
+import zlib
 
 import pytest
 
@@ -3189,3 +3190,69 @@ def test_r2c_declared_mark_at_the_line(tmp_path: pathlib.Path, unread: int, shor
     assert isinstance(facts, contract.DatetimeFacts)
     assert facts.n_unparsed == unread
     assert facts.declared_short_of_the_line is short
+
+
+# -- The R2c leftover verify, finding 1: an upper target lowers, never raises --
+
+
+def _partial_fhir_unfilled(rows: int) -> "list[str]":
+    """FHIR cells over three years: 70 in 100 a day, 27 a month, 3 a year (made up).
+
+    The full dates do not fill their range, so the full ranks drawn hold
+    fewer different days than the target the count pass is given.
+    """
+    return [
+        m.strftime("%Y-%m-%d") if place % 100 < 70 else (m.strftime("%Y-%m") if place % 100 < 97 else m.strftime("%Y"))
+        for place, m in enumerate(spellings.moments(rows, 11))
+    ]
+
+
+def _battery_fhir_partial() -> "list[str]":
+    """The reach battery's `fhir_partial`: 1,000 days of 2021 to 2024, 15 in 100 a year, 25 a month (made up)."""
+    draw = random.Random(zlib.crc32(b"fhir_partial"))
+    found: "list[str]" = []
+    for _row in range(1000):
+        day = datetime.date(2021, 1, 1) + datetime.timedelta(days=draw.randrange(1461))
+        share = draw.random()
+        found += [day.strftime("%Y") if share < 0.15 else (day.strftime("%Y-%m") if share < 0.40 else day.strftime("%Y-%m-%d"))]
+    return found
+
+
+def test_r2c_partial_fhir_holds_its_count(tmp_path: pathlib.Path) -> None:
+    """Finding 1, the battery shape: 1,000 FHIR partial cells keep their different values exactly at seed 0.
+
+    Reached exactly, the upper target raised this column from 534
+    different values to 586 (a1f8adb). `_units_settled` now runs no pass
+    where the full ranks hold no more units than it.
+    """
+    block, profile, _questions = _described(tmp_path, _battery_fhir_partial())
+    twin, written = _twin(profile, 0)
+    assert _distinct_present(written) == block["n_distinct"]
+    assert _validated(profile, twin)[0] == 0
+
+
+def test_r2c_unfilled_partial_fhir_stays_within_three_in_a_hundred(tmp_path: pathlib.Path) -> None:
+    """Finding 1: 2,000 partial FHIR cells over three years keep their different values within 3 %.
+
+    a1f8adb wrote 868 to 875 against the source's 828 (made-up shape of
+    the verifier's probe); dd6b77f and this head 819 to 844.
+    """
+    block, profile, _questions = _described(tmp_path, _partial_fhir_unfilled(2000))
+    source = block["n_distinct"]
+    assert isinstance(source, int)
+    for seed in SEEDS:
+        twin, written = _twin(profile, seed)
+        assert abs(_distinct_present(written) - source) * 100 <= source * 3, (seed, source)
+        assert _validated(profile, twin)[0] == 0
+
+
+def test_r2c_unfilled_partial_fhir_red_when_the_target_is_reached_exactly(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Finding 1's mutant: the upper target never counted as met, so the pass raises the count past 3 %."""
+    monkeypatch.setattr(generation, "_upper_target_met", lambda *_args: False)
+    block, profile, _questions = _described(tmp_path, _partial_fhir_unfilled(2000))
+    source = block["n_distinct"]
+    assert isinstance(source, int)
+    _twin_path, written = _twin(profile, 0)
+    assert abs(_distinct_present(written) - source) * 100 > source * 3, source

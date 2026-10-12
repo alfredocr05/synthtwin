@@ -12007,6 +12007,16 @@ def units_settled(column, ordinals, parsed, whole, lows, highs):
 
     word = next(iter(census)) if widths is not None else ""
     unit = step if space == "datetime" else 1
+    # An upper target lowers and never raises (the R2c leftover verify,
+    # finding 1): where the full ranks hold no more units than it, no pass.
+    if (
+        partial_forms(column)
+        and distinct is not None
+        and len({value // unit for value in ordinals}) <= distinct
+    ):
+        distinct = None
+        if widths is None:
+            return ordinals
     stepped_off_absent_days(
         column, ordinals, pinned, lows, highs, day, step, unit, widths is not None, word,
     )
@@ -12096,7 +12106,11 @@ def group_gives_way(column, ordinals, parsed, whole):
     space = ordinal_space(column)
     if parsed < 3 or column["datetimes_read_at"] != "local" or any(whole):
         return ordinals
-    # The count pass's own target: exact, or upper on a partial column (R2c).
+    # The count pass's own target: exact only. An upper target, on a
+    # partial column, is one the pass lowers to and never raises to (R2c,
+    # its leftover verify, finding 1), so no group gives way for it.
+    if partial_forms(column):
+        return ordinals
     target = date_count_target(column, parsed) if space in RESOLUTIONS else None
     if target is None or target < 0:
         return ordinals
