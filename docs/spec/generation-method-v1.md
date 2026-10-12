@@ -5819,7 +5819,11 @@ that way.
   partial form and one more where a stand-in is written, clamped to one
   and the full ranks, under every other condition here; the validator
   keeps its envelope. With none, 27 different FHIR values of 2,000 rows
-  came back as 275 to 280.
+  came back as 275 to 280. It is a target the pass lowers the twin to,
+  never raises it to (that repair's verification, finding 1): where the
+  full ranks hold no more units than it, no count pass runs and no tie
+  group gives way (G7.3b step 9). Reached exactly, it raised 534
+  different FHIR values of 1,000 rows to 586.
 
   *Amended by the dates pass of the stage-3 review (items 4).* Two
   narrowings of this clause were narrower than its own reason, and

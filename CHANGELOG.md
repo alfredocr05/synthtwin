@@ -35,7 +35,8 @@ different dates (149 of 240 had come back as 70); and Q6 is worked out
 once a run. After its second review, a date column's unread figures are
 written as made-up figures, a declared column keeps a layout's named
 months, and repeating partial or declared dates keep near their count of
-different values (27 had come back as 275).
+different values (27 had come back as 275), without partial dates that
+do not repeat rising past theirs.
 
 ### Dates no member read are read by their shape, and written back as written (2026-10-05)
 
