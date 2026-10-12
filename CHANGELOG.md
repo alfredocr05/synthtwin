@@ -23,7 +23,10 @@ twin with one census alone is byte for byte as before. At a million
 rows a column whose needed hours hold no free value anywhere in a
 rank's gap still comes back short, now 767 ranks of a clinic's million
 where it was 2,070, a limit the hour pass has without a weekday census
-too. The tails' recount reads the whole dates a column's own
+too. Where the new move would leave the count of different values
+further off than the pass without it -- ward rounds at a million rows
+came back with 260 of a published 150 -- it is given back, and that
+column misses its hour census alone, as before. The tails' recount reads the whole dates a column's own
 description folded into its moments, which made the unchanged source
 miss its low tail. `K-S3-62` holds it.
 
