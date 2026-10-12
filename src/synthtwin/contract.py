@@ -10075,8 +10075,11 @@ def datetime_count_target(column: "ColumnBlock", parsed: int) -> int:
     if not isinstance(facts, (DatetimeFacts,)):
         return -1
     if not _short_of_the_count(facts):
-        exact = column.n_distinct - facts.n_unparsed
-        return exact if _count_pass_open(column, facts, exact) else -1
+        # Asked through the one statement of reach, so a mutant of it
+        # reaches the pass (tests/test_stage3_review_dates.py).
+        if not datetime_counts_reachable(column):
+            return -1
+        return column.n_distinct - facts.n_unparsed
     forms = 0
     partial = 0
     if parsing.is_layout_name(facts.parser_family):
