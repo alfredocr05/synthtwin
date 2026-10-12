@@ -18569,6 +18569,12 @@ class _DateLayout:
     high: "_TailPlan | None"
     texts: "dict[int, str]"
     draw_unit: int = 1
+    # THE DATES THAT STAND OUT (landing 3b.6, plan P4-D369, method G7.3j):
+    # the parts the ordinary ranks of the body are drawn in, and the listed
+    # dates, where the column lists any (`_heavy_layout`); empty elsewhere,
+    # and the body is drawn gap by gap.
+    parts: "tuple[_HeavyPart, ...]" = ()
+    listed: "frozenset[int]" = frozenset()
 
 
 def _tail_step(facts: contract.DatetimeFacts) -> "tuple[int, int]":
@@ -18667,7 +18673,10 @@ def _count_holes(
             and facts.parser_family in _ISO_MARK_MEMBERS
         )
     ):
-        return frozenset()
+        # ...a date that stands out is a hole on every column that lists
+        # one, moments at midnight in a member with a mark among them
+        # (landing 3b.6, plan P4-D369): its count is exact.
+        return _heavy_holes(facts)
     found: "dict[int, bool]" = {}
     for spelling in holes:
         read = parsing.parse_datetime(spelling, facts.parser_family)
@@ -19009,31 +19018,758 @@ def _heavy_layout(
     facts: contract.DatetimeFacts,
     layout: "_DateLayout",
 ) -> "_DateLayout":
-    """The layout with every date that stands out pinned at its count.
+    """The layout with every date that stands out pinned at its count (G7.3j).
 
-    THE PINS SEAM OF STAGE 3B (plan P4-D364), which landing 3b.6 (lane D4,
-    plan P4-D369) fills: each listed date's rows become pinned ranks, and
-    every other rank's gap leaves the listed dates out. Until then no
-    column lists a date, and the layout is handed back unchanged.
+    THE PINS SEAM OF STAGE 3B (plan P4-D364), filled by landing 3b.6
+    (lane D4, plan P4-D369). Where the column lists dates that stand out
+    (`facts.heavy_dates`), each listed date's rows become ranks pinned
+    on that date, and every other rank of the body is an ORDINARY rank
+    drawn in a PART:
+
+    1. THE KNOTS are the body's pins -- the two boundaries and the
+       rungs. A knot on a listed date is COVERED: that date's run of
+       ranks stands around it, starting where `calendar_rules.heavy_runs`
+       (contract HD4) allows. The unlisted knots cut the body into
+       SEGMENTS, and the covered runs cut each segment into PARTS; a
+       listed date with no knot on it is LOOSE, its run standing at the
+       start of the part it lies in. A part's ordinary ranks take any
+       day of the part that is no listed date and no published hole.
+    2. THE SPLIT (`_heavy_split`): how many ordinary ranks each part
+       holds, inside the bounds the covered runs' starts allow.
+    3. THE REPAIR (`_heavy_repaired`): where the weekday or
+       day-of-month census beside the list cannot be met inside the
+       parts as split, ranks move between the parts of one segment until
+       a capacity flow from the parts to the census's groups places
+       every row each group still owes (the 3b.6 skeptic's B1).
+
+    Every rank's gap is its part's days; every listed rank's is its own
+    date. No word is drawn here. A list no rank order holds (which the
+    loader refuses) leaves the layout unchanged.
 
     Guarantees: accepts the column, its facts and the layout; returns
-    the layout. Draws no word. Raises nothing. No I/O of any kind.
+    the layout. Linear in the ranks and the days between the boundaries.
+    Determinism: a function of the three. Raises nothing. No I/O of any
+    kind.
     """
-    return layout
+    listed = facts.heavy_dates
+    if (
+        not listed
+        or layout.low is None
+        or layout.high is None
+        or not layout.body
+        or _ordinal_space(facts) != "date"
+    ):
+        return layout
+    holes = frozenset(_published_holes(column, facts, ()))
+    segments = _heavy_segments(layout, listed, holes)
+    if segments is None:
+        return layout
+    rooms = _heavy_rooms(facts, segments, listed, holes, layout)
+    budget = _heavy_budget(column, facts, layout, listed)
+    chosen = _heavy_split(segments, rooms, budget)
+    if chosen is None:
+        return layout
+    splits = _heavy_repaired(segments, rooms, chosen[0], chosen[1])
+    pins = {rank: layout.pins[rank] for rank in layout.pins}
+    lows = [value for value in layout.lows]
+    highs = [value for value in layout.highs]
+    parts: "list[_HeavyPart]" = []
+    for index in range(len(segments)):
+        segment = segments[index]
+        at = segment.base
+        for part in range(len(segment.lows)):
+            for day, count in segment.loose[part]:
+                for _row in range(count):
+                    pins[at] = day
+                    lows[at] = day
+                    highs[at] = day
+                    at = at + 1
+            ordinary = splits[index][part]
+            for rank in range(at, at + ordinary):
+                lows[rank] = segment.lows[part]
+                highs[rank] = segment.highs[part]
+            if ordinary > 0:
+                parts += [
+                    _HeavyPart(
+                        segment.lows[part],
+                        segment.highs[part],
+                        segment.lefts[part],
+                        segment.rights[part],
+                        at,
+                        ordinary,
+                    )
+                ]
+            at = at + ordinary
+            if part < len(segment.covered):
+                day, count = segment.covered[part]
+                for _row in range(count):
+                    pins[at] = day
+                    lows[at] = day
+                    highs[at] = day
+                    at = at + 1
+    return dataclasses.replace(
+        layout,
+        pins=pins,
+        lows=tuple(lows),
+        highs=tuple(highs),
+        parts=tuple(parts),
+        listed=frozenset(day for day, _count in listed),
+    )
+
+
+@dataclasses.dataclass(frozen=True)
+class _HeavyPart:
+    """One part of the body that ordinary ranks are drawn in (G7.3j).
+
+    `lo` and `hi` are the days its ranks may take, `left` and `right` the
+    stretch they are drawn across in `_PIN_STEPS` steps, `first` its
+    first rank and `count` how many ranks it holds.
+    """
+
+    lo: int
+    hi: int
+    left: int
+    right: int
+    first: int
+    count: int
+
+
+@dataclasses.dataclass(frozen=True)
+class _HeavySegment:
+    """The body between two unlisted knots, cut into parts by covered runs.
+
+    `base` is its first rank and `ordinary` the ordinary ranks it holds.
+    Per part: its first and last day (`lows`, `highs`), its stretch
+    (`lefts`, `rights`), its loose listed dates and whether it touches
+    an unlisted knot. Per covered run: its date and count, and the least
+    and most ordinary ranks the parts before it may hold together.
+    """
+
+    base: int
+    ordinary: int
+    lows: "tuple[int, ...]"
+    highs: "tuple[int, ...]"
+    lefts: "tuple[int, ...]"
+    rights: "tuple[int, ...]"
+    loose: "tuple[tuple[tuple[int, int], ...], ...]"
+    touches: "tuple[bool, ...]"
+    covered: "tuple[tuple[int, int], ...]"
+    least: "tuple[int, ...]"
+    most: "tuple[int, ...]"
+
+
+def _heavy_segments(
+    layout: "_DateLayout",
+    listed: "tuple[tuple[int, int], ...]",
+    holes: "frozenset[int]",
+) -> "list[_HeavySegment] | None":
+    """The body's segments and parts (G7.3j step 1), or None where no rank
+    order holds the list (`calendar_rules.heavy_runs`)."""
+    body = layout.body
+    knots = tuple((rank, body[rank]) for rank in sorted(body))
+    runs = calendar_rules.heavy_runs(knots, listed, holes)
+    if runs is None:
+        return None
+    count_of = {day: count for day, count in listed}
+    start_of = {listed[index][0]: runs[index] for index in range(len(listed))}
+    knot_days = {day for _rank, day in knots}
+    low_rank, low_day = knots[0]
+    high_rank, high_day = knots[len(knots) - 1]
+    unlisted = {rank: day for rank, day in knots if day not in count_of}
+    places: "dict[int, int]" = {}
+    if unlisted:
+        ranks, steps = _pin_places(unlisted)
+        places = {ranks[index]: steps[index] for index in range(len(ranks))}
+    anchors: "list[tuple[int, int, int, bool]]" = []
+    if low_rank not in unlisted:
+        anchors += [(low_rank - 1, low_day - 1, low_day * _PIN_STEPS, False)]
+    for rank in sorted(unlisted):
+        anchors += [(rank, unlisted[rank], places[rank], True)]
+    if high_rank not in unlisted:
+        anchors += [
+            (high_rank + 1, high_day + 1, (high_day + 1) * _PIN_STEPS, False)
+        ]
+    days = [day for day, _count in listed]
+    segments: "list[_HeavySegment]" = []
+    pointer = 0
+    for index in range(len(anchors) - 1):
+        rank_a, day_a, place_a, real_a = anchors[index]
+        rank_b, day_b, place_b, real_b = anchors[index + 1]
+        while pointer < len(days) and days[pointer] <= day_a:
+            pointer = pointer + 1
+        inside: "list[int]" = []
+        ahead = pointer
+        while ahead < len(days) and days[ahead] < day_b:
+            inside += [days[ahead]]
+            ahead = ahead + 1
+        if rank_b - rank_a <= 1:
+            continue
+        covered = [day for day in inside if day in knot_days]
+        ordinary = rank_b - rank_a - 1 - sum(count_of[day] for day in inside)
+        if ordinary < 0:
+            return None
+        lows: "list[int]" = []
+        highs: "list[int]" = []
+        lefts: "list[int]" = []
+        rights: "list[int]" = []
+        loose: "list[tuple[tuple[int, int], ...]]" = []
+        touches: "list[bool]" = []
+        for part in range(len(covered) + 1):
+            lo = max(day_a, low_day) if part == 0 else covered[part - 1] + 1
+            hi = min(day_b, high_day) if part == len(covered) else covered[part] - 1
+            lows += [lo]
+            highs += [hi]
+            lefts += [place_a if part == 0 else lo * _PIN_STEPS]
+            rights += [
+                place_b if part == len(covered) else (hi + 1) * _PIN_STEPS
+            ]
+            loose += [
+                tuple(
+                    (day, count_of[day])
+                    for day in inside
+                    if lo <= day <= hi and day not in knot_days
+                )
+            ]
+            touches += [
+                (part == 0 and real_a) or (part == len(covered) and real_b)
+            ]
+        least: "list[int]" = []
+        most: "list[int]" = []
+        offset = rank_a + 1
+        for part in range(len(covered)):
+            offset = offset + sum(count for _day, count in loose[part])
+            first, last = start_of[covered[part]]
+            least += [max(0, first - offset)]
+            most += [min(ordinary, last - offset)]
+            offset = offset + count_of[covered[part]]
+        segments += [
+            _HeavySegment(
+                rank_a + 1,
+                ordinary,
+                tuple(lows),
+                tuple(highs),
+                tuple(lefts),
+                tuple(rights),
+                tuple(loose),
+                tuple(touches),
+                tuple((day, count_of[day]) for day in covered),
+                tuple(least),
+                tuple(most),
+            )
+        ]
+    return segments
+
+
+@dataclasses.dataclass(frozen=True)
+class _HeavyRooms:
+    """What each part offers its ordinary ranks (G7.3j step 2).
+
+    Per part, in segment order: its free days (`room`), its free days in
+    each group of each census beside the list (`free`, one tuple per
+    census), its weighted room and its cost in different days. Per
+    census, what each group still owes the ordinary ranks (`owed`).
+    """
+
+    room: "tuple[tuple[int, ...], ...]"
+    free: "tuple[tuple[tuple[tuple[int, ...], ...], ...], ...]"
+    weighted: "tuple[tuple[int, ...], ...]"
+    cost: "tuple[tuple[int, ...], ...]"
+    owed: "tuple[tuple[int, ...], ...]"
+
+
+_HEAVY_WEIGHT_SCALE = 1048576
+_HEAVY_REPAIRS = 64
+
+
+def _heavy_censuses(
+    facts: contract.DatetimeFacts,
+) -> "list[tuple[tuple[tuple[int, int, int], ...], tuple[int, ...], str]]":
+    """Each census beside the list: its groups, each bin's group and its bins."""
+    found: "list[tuple[tuple[tuple[int, int, int], ...], tuple[int, ...], str]]" = []
+    if facts.weekday_census:
+        found += [
+            (
+                facts.weekday_census,
+                calendar_rules.where_of(facts.weekday_census),
+                "weekday",
+            )
+        ]
+    if facts.day_of_month_census:
+        found += [
+            (
+                facts.day_of_month_census,
+                calendar_rules.month_where(facts.day_of_month_census),
+                "month_day",
+            )
+        ]
+    return found
+
+
+def _heavy_group(where: "tuple[int, ...]", bins: str, day: int) -> int:
+    """One day's group in one census beside the list."""
+    if bins == "weekday":
+        return where[calendar_rules.weekday_of(day)]
+    return where[calendar_rules.month_bin(day) - 1]
+
+
+def _heavy_rooms(
+    facts: contract.DatetimeFacts,
+    segments: "list[_HeavySegment]",
+    listed: "tuple[tuple[int, int], ...]",
+    holes: "frozenset[int]",
+    layout: "_DateLayout",
+) -> _HeavyRooms:
+    """Each part's free days, by group, weighted, and its cost (G7.3j step 2).
+
+    A FREE day is a day of the part that is no listed date and no
+    published hole. Beside a census, each group OWES the ordinary ranks
+    its published count less its listed rows and less the unlisted
+    knots on its days; a free day weighs what its group owes over the
+    group's free days in the whole body (one where no census stands, the
+    weekday census's where both do), and a part's COST is the weekday
+    groups it offers a free day of that still owe rows, one where no
+    census stands: the different days opening it takes.
+    """
+    censuses = _heavy_censuses(facts)
+    listed_days = {day for day, _count in listed}
+    owed: "list[list[int]]" = []
+    for groups, where, bins in censuses:
+        owes = [count for _first, _last, count in groups]
+        for day, count in listed:
+            group = _heavy_group(where, bins, day)
+            owes[group] = owes[group] - count
+        for rank in layout.body:
+            day = layout.body[rank]
+            if day not in listed_days:
+                group = _heavy_group(where, bins, day)
+                owes[group] = owes[group] - 1
+        owed += [owes]
+    room: "list[tuple[int, ...]]" = []
+    free: "list[tuple[tuple[tuple[int, ...], ...], ...]]" = []
+    totals = [[0 for _ in groups] for groups, _where, _bins in censuses]
+    for segment in segments:
+        rooms: "list[int]" = []
+        frees: "list[tuple[tuple[int, ...], ...]]" = []
+        for part in range(len(segment.lows)):
+            held = 0
+            each = [[0 for _ in groups] for groups, _where, _bins in censuses]
+            for day in range(segment.lows[part], segment.highs[part] + 1):
+                if day in listed_days or day in holes:
+                    continue
+                held = held + 1
+                for which in range(len(censuses)):
+                    _groups, where, bins = censuses[which]
+                    group = _heavy_group(where, bins, day)
+                    each[which][group] = each[which][group] + 1
+                    totals[which][group] = totals[which][group] + 1
+            rooms += [held]
+            frees += [tuple(tuple(row) for row in each)]
+        room += [tuple(rooms)]
+        free += [tuple(frees)]
+    weighted: "list[tuple[int, ...]]" = []
+    cost: "list[tuple[int, ...]]" = []
+    for index in range(len(segments)):
+        weights: "list[int]" = []
+        costs: "list[int]" = []
+        for part in range(len(room[index])):
+            if not censuses:
+                weights += [room[index][part] * _HEAVY_WEIGHT_SCALE]
+                costs += [1]
+                continue
+            here = free[index][part][0]
+            owes = owed[0]
+            total = 0
+            spent = 0
+            for group in range(len(here)):
+                if here[group] <= 0 or totals[0][group] <= 0:
+                    continue
+                share = max(0, owes[group])
+                total = total + (
+                    here[group] * share * _HEAVY_WEIGHT_SCALE
+                ) // totals[0][group]
+                if share > 0:
+                    spent = spent + 1
+            weights += [total]
+            costs += [max(1, spent)]
+        weighted += [tuple(weights)]
+        cost += [tuple(costs)]
+    return _HeavyRooms(
+        tuple(room),
+        tuple(free),
+        tuple(weighted),
+        tuple(cost),
+        tuple(tuple(owes) for owes in owed),
+    )
+
+
+def _heavy_budget(
+    column: contract.ColumnBlock,
+    facts: contract.DatetimeFacts,
+    layout: "_DateLayout",
+    listed: "tuple[tuple[int, int], ...]",
+) -> int:
+    """The different days the parts may open beyond the knots' (G7.3j step 2).
+
+    The column's count of different values, where the twin keeps it
+    (`contract.datetime_counts_reachable`), less the listed dates, the
+    unlisted knots' days and each tail's: its published values where it
+    publishes them, one where it does not. Where the count is not kept,
+    every part may open.
+    """
+    if not contract.datetime_counts_reachable(column):
+        return 1 << 62
+    listed_days = {day for day, _count in listed}
+    knots = {
+        layout.body[rank]
+        for rank in layout.body
+        if layout.body[rank] not in listed_days
+    }
+    budget = column.n_distinct - facts.n_unparsed - len(listed_days) - len(knots)
+    for side in (layout.low, layout.high):
+        if side is None:
+            continue
+        if side.shape is None:
+            budget = budget - len(set(side.spots) - knots - listed_days)
+        else:
+            budget = budget - 1
+    return budget
+
+
+def _heavy_bounds(
+    segment: _HeavySegment, opened: "list[bool]"
+) -> "list[tuple[int, int]] | None":
+    """The bounds of the ordinary ranks before each part's end that a
+    split with these parts open can take, carried forward and back, or
+    None where none can (G7.3j step 2)."""
+    parts = len(segment.lows)
+    reach: "list[tuple[int, int]]" = []
+    lowest, highest = 0, 0
+    for part in range(parts):
+        least = segment.least[part] if part < parts - 1 else segment.ordinary
+        most = segment.most[part] if part < parts - 1 else segment.ordinary
+        if opened[part]:
+            lowest, highest = max(lowest, least), min(most, segment.ordinary)
+        else:
+            lowest, highest = max(lowest, least), min(highest, most)
+        if lowest > highest:
+            return None
+        reach += [(lowest, highest)]
+    bounds = [(0, 0) for _ in range(parts)]
+    bounds[parts - 1] = reach[parts - 1]
+    for part in range(parts - 1, 0, -1):
+        above = bounds[part]
+        below = reach[part - 1]
+        if opened[part]:
+            bounds[part - 1] = (below[0], min(below[1], above[1]))
+        else:
+            bounds[part - 1] = (max(below[0], above[0]), min(below[1], above[1]))
+        if bounds[part - 1][0] > bounds[part - 1][1]:
+            return None
+    return bounds
+
+
+def _heavy_split_of(
+    segment: _HeavySegment, opened: "list[bool]", weights: "tuple[int, ...]"
+) -> "list[int] | None":
+    """Each part's ordinary ranks: by weighted room among the open parts,
+    held inside the bounds (`_heavy_bounds`), or None."""
+    bounds = _heavy_bounds(segment, opened)
+    if bounds is None:
+        return None
+    total = sum(weights[part] for part in range(len(weights)) if opened[part])
+    rooms = [weights[part] if opened[part] else 0 for part in range(len(weights))]
+    if total <= 0:
+        rooms = [1 if opened[part] else 0 for part in range(len(weights))]
+        total = sum(rooms)
+    split: "list[int]" = []
+    before = 0
+    so_far = 0
+    for part in range(len(weights)):
+        so_far = so_far + rooms[part]
+        if not opened[part]:
+            split += [0]
+            continue
+        target = segment.ordinary
+        if total > 0:
+            target = (segment.ordinary * so_far + total // 2) // total
+        upto = min(max(target, bounds[part][0], before), bounds[part][1])
+        split += [upto - before]
+        before = upto
+    return split
+
+
+def _heavy_split(
+    segments: "list[_HeavySegment]", rooms: _HeavyRooms, budget: int
+) -> "tuple[list[list[int]], list[list[bool]]] | None":
+    """How many ordinary ranks each part holds (G7.3j step 2), or None.
+
+    OPEN, first, every part a split cannot leave empty and every part
+    with free days that touches an unlisted knot; then, in a segment
+    holding ordinary ranks with no part open, its part with the most
+    free days; then, while the segment's bounds hold no split, the next
+    by free days. The rest open, most free days first, while their cost
+    fits the BUDGET (`_heavy_budget`), which the forced parts spend
+    first -- a part touching a knot one day less, its knot's day being
+    the column's already. Inside, ranks go by weighted room
+    (`_heavy_split_of`).
+    """
+    opened: "list[list[bool]]" = []
+    spent = 0
+    for index in range(len(segments)):
+        segment = segments[index]
+        parts = len(segment.lows)
+        everything = [rooms.room[index][part] > 0 for part in range(parts)]
+        bounds = _heavy_bounds(segment, everything)
+        row: "list[bool]" = []
+        for part in range(parts):
+            fewest = 0
+            if bounds is not None:
+                below = bounds[part - 1][1] if part > 0 else 0
+                fewest = max(0, bounds[part][0] - below)
+            here = rooms.room[index][part] > 0 and (
+                fewest > 0 or segment.touches[part]
+            )
+            if fewest > 0:
+                spent = spent + rooms.cost[index][part] - (
+                    1 if segment.touches[part] else 0
+                )
+            row += [here]
+        order = sorted(
+            range(parts), key=lambda part: (-rooms.room[index][part], part)
+        )
+        if segment.ordinary > 0 and not any(row):
+            for part in order:
+                if rooms.room[index][part] > 0:
+                    row[part] = True
+                    spent = spent + rooms.cost[index][part]
+                    break
+        for part in order:
+            if _heavy_bounds(segment, row) is not None:
+                break
+            if not row[part] and rooms.room[index][part] > 0:
+                row[part] = True
+                spent = spent + rooms.cost[index][part]
+        opened += [row]
+    rest = sorted(
+        (-rooms.room[index][part], index, part)
+        for index in range(len(segments))
+        for part in range(len(segments[index].lows))
+        if not opened[index][part] and rooms.room[index][part] > 0
+    )
+    for _room, index, part in rest:
+        cost = rooms.cost[index][part]
+        if spent + cost > budget:
+            continue
+        opened[index][part] = True
+        if _heavy_bounds(segments[index], opened[index]) is None:
+            opened[index][part] = False
+            continue
+        spent = spent + cost
+    splits: "list[list[int]]" = []
+    for index in range(len(segments)):
+        split = _heavy_split_of(
+            segments[index], opened[index], rooms.weighted[index]
+        )
+        if split is None:
+            return None
+        splits += [split]
+    return splits, opened
+
+
+def _heavy_flow(
+    supply: "list[int]",
+    reach: "list[list[int]]",
+    demand: "list[int]",
+) -> int:
+    """The most rows the parts can place on the groups they offer (a capacity
+    max-flow, Edmonds and Karp: each round the shortest augmenting path).
+
+    `supply` holds each part's ordinary ranks, `reach[part]` the groups
+    it offers a free day of, `demand` each group's owed rows. Linear in
+    the rows not at all: the rounds are bounded by the parts and groups.
+    """
+    parts = len(supply)
+    groups = len(demand)
+    source = parts + groups
+    sink = source + 1
+    size = sink + 1
+    capacity = [[0 for _ in range(size)] for _ in range(size)]
+    for part in range(parts):
+        capacity[source][part] = max(0, supply[part])
+        for group in reach[part]:
+            capacity[part][parts + group] = 1 << 62
+    for group in range(groups):
+        capacity[parts + group][sink] = max(0, demand[group])
+    flow = 0
+    while True:
+        before = [-1 for _ in range(size)]
+        before[source] = source
+        queue = [source]
+        head = 0
+        while head < len(queue) and before[sink] < 0:
+            node = queue[head]
+            head = head + 1
+            for other in range(size):
+                if before[other] < 0 and capacity[node][other] > 0:
+                    before[other] = node
+                    queue += [other]
+        if before[sink] < 0:
+            return flow
+        push = 1 << 62
+        node = sink
+        while node != source:
+            push = min(push, capacity[before[node]][node])
+            node = before[node]
+        node = sink
+        while node != source:
+            capacity[before[node]][node] = capacity[before[node]][node] - push
+            capacity[node][before[node]] = capacity[node][before[node]] + push
+            node = before[node]
+        flow = flow + push
+
+
+def _heavy_deficit(
+    segments: "list[_HeavySegment]",
+    rooms: _HeavyRooms,
+    splits: "list[list[int]]",
+) -> int:
+    """The owed rows the parts as split cannot place, over every census."""
+    supply: "list[int]" = []
+    keys: "list[tuple[int, int]]" = []
+    for index in range(len(segments)):
+        for part in range(len(segments[index].lows)):
+            supply += [splits[index][part]]
+            keys += [(index, part)]
+    deficit = 0
+    for which in range(len(rooms.owed)):
+        owes = rooms.owed[which]
+        reach = [
+            [
+                group
+                for group in range(len(owes))
+                if rooms.free[index][part][which][group] > 0
+            ]
+            for index, part in keys
+        ]
+        demand = [max(0, owe) for owe in owes]
+        deficit = deficit + sum(demand) - _heavy_flow(supply, reach, demand)
+    return deficit
+
+
+def _heavy_shift_room(
+    segment: _HeavySegment,
+    split: "list[int]",
+    opened: "list[bool]",
+    source: int,
+    target: int,
+) -> int:
+    """How many ranks may move from part `source` to part `target` of one
+    segment with every covered run still around its knots."""
+    if not opened[target] or split[source] <= 0:
+        return 0
+    most = split[source]
+    total = 0
+    parts = len(segment.lows)
+    for part in range(parts - 1):
+        total = total + split[part]
+        if source <= part < target:
+            most = min(most, total - segment.least[part])
+        elif target <= part < source:
+            most = min(most, segment.most[part] - total)
+    return max(0, most)
+
+
+def _heavy_repaired(
+    segments: "list[_HeavySegment]",
+    rooms: _HeavyRooms,
+    splits: "list[list[int]]",
+    opened: "list[list[bool]]",
+) -> "list[list[int]]":
+    """The split with every census's owed rows placeable, as far as moves
+    inside one segment reach (G7.3j step 3, the 3b.6 skeptic's B1).
+
+    While the parts cannot place every row the groups owe
+    (`_heavy_deficit`), the one move that leaves the fewest unplaced --
+    some ranks from one open part to another of the same segment, the
+    count found by halving, since the rows a flow places are concave in
+    the move -- is made, at most `_HEAVY_REPAIRS` times. Which parts are
+    open never changes, so neither does the budget.
+    """
+    if not rooms.owed:
+        return splits
+    current = _heavy_deficit(segments, rooms, splits)
+    for _round in range(_HEAVY_REPAIRS):
+        if current <= 0:
+            return splits
+        best: "tuple[int, int, int, int, int] | None" = None
+        for index in range(len(segments)):
+            segment = segments[index]
+            for source in range(len(segment.lows)):
+                for target in range(len(segment.lows)):
+                    if source == target:
+                        continue
+                    most = _heavy_shift_room(
+                        segment, splits[index], opened[index], source, target
+                    )
+                    if most <= 0:
+                        continue
+                    low, high = 0, most
+                    while high - low > 1:
+                        middle = (low + high) // 2
+                        if _heavy_moved_deficit(
+                            segments, rooms, splits, (index, source, target, middle + 1)
+                        ) <= _heavy_moved_deficit(
+                            segments, rooms, splits, (index, source, target, middle)
+                        ):
+                            low = middle
+                        else:
+                            high = middle
+                    for count in (low, high):
+                        if count <= 0:
+                            continue
+                        left = _heavy_moved_deficit(
+                            segments, rooms, splits, (index, source, target, count)
+                        )
+                        if left < current and (best is None or left < best[0]):
+                            best = (left, index, source, target, count)
+        if best is None:
+            return splits
+        left, index, source, target, count = best
+        splits[index][source] = splits[index][source] - count
+        splits[index][target] = splits[index][target] + count
+        current = left
+    return splits
+
+
+def _heavy_moved_deficit(
+    segments: "list[_HeavySegment]",
+    rooms: _HeavyRooms,
+    splits: "list[list[int]]",
+    move: "tuple[int, int, int, int]",
+) -> int:
+    """`_heavy_deficit` with `count` ranks moved from one part to another."""
+    index, source, target, count = move
+    splits[index][source] = splits[index][source] - count
+    splits[index][target] = splits[index][target] + count
+    left = _heavy_deficit(segments, rooms, splits)
+    splits[index][source] = splits[index][source] + count
+    splits[index][target] = splits[index][target] - count
+    return left
 
 
 def _heavy_holes(facts: contract.DatetimeFacts) -> "frozenset[int]":
     """The day of every date that stands out, which no other rank may take.
 
-    THE HOLES SEAM OF STAGE 3B (plan P4-D364), which landing 3b.6 (lane
-    D4, plan P4-D369) fills: a listed date holds exactly its published
-    rows, so the count pass (`_count_holes`) and the day pass offer it to
-    no other rank. Empty until then.
+    THE HOLES SEAM OF STAGE 3B (plan P4-D364), filled by landing 3b.6
+    (lane D4, plan P4-D369, method G7.3j): a listed date holds exactly
+    its published rows, so the count pass (`_count_holes`), the day pass
+    (`_day_pass_setup`, `_weekday_settled`) and the step off an absent
+    spelling offer it to no other rank.
 
     Guarantees: accepts the loaded facts; returns day numbers. Raises
     nothing. No I/O of any kind.
     """
-    return frozenset()
+    return frozenset(day for day, _count in facts.heavy_dates)
 
 
 # THE WEEKDAY PASS (landing 3b.1, plan P4-D355, method G7.3f). Its fixed
@@ -22337,6 +23073,12 @@ def _clock_fields_settled(
     return ordinals, []
 
 
+_HEAVY_MISSED = (
+    "The twin could not hold every date that stands out at its published "
+    "count, so some of those dates hold other counts."
+)
+
+
 def _heavy_sorted(
     column: contract.ColumnBlock,
     facts: contract.DatetimeFacts,
@@ -22351,15 +23093,41 @@ def _heavy_sorted(
 ) -> "tuple[list[int], list[Deviation]]":
     """The dates that stand out, after every other pass: the body re-sorted.
 
-    THE STUB OF LANDING 3b.6 (lane D4, plan P4-D369), which fills this
-    post-pass and nothing beside it (plan P4-D364): its listed dates are
-    pinned by `_heavy_layout` and kept off by `_heavy_holes`, and this
-    pass sorts the body and names a count it could not meet. No column
-    lists a date until then, so no rank moves.
+    THE POST-PASS OF LANDING 3b.6 (lane D4, plan P4-D369, method G7.3j
+    step 6). The layout pins each listed date's rows (`_heavy_layout`)
+    and every pass keeps every other rank off a listed date
+    (`_heavy_holes`), so the body only needs sorting again: a loose
+    run stood at the start of its part, and every value stays inside its
+    part, so each boundary and rung still reads its own value. Where a
+    listed date does not hold its count -- a list no rank order holds,
+    which the loader refuses -- one deviation says so.
 
-    Guarantees: as `_hour_settled`. No I/O of any kind.
+    Guarantees: as `_hour_settled`. Linear in the ranks, times the sort.
+    No I/O of any kind.
     """
-    return ordinals, []
+    if not facts.heavy_dates or layout.low is None or layout.high is None:
+        return ordinals, []
+    body_low = layout.low.rows
+    body_high = parsed - 1 - layout.high.rows
+    body = sorted(ordinals[rank] for rank in range(body_low, body_high + 1))
+    moved = [value for value in ordinals]
+    for index in range(len(body)):
+        moved[body_low + index] = body[index]
+    held: "dict[int, int]" = {}
+    for value in moved:
+        held[value] = held.get(value, 0) + 1
+    for day, count in facts.heavy_dates:
+        if held.get(day, 0) != count:
+            return moved, [
+                _deviation(
+                    column.name,
+                    calendar_rules.HEAVY_DATES,
+                    "the published counts",
+                    "other counts",
+                    _HEAVY_MISSED,
+                )
+            ]
+    return moved, []
 
 
 def _datetime_content(
@@ -22552,6 +23320,10 @@ def _datetime_content(
                 for away in range(1, len(holes) + 2):
                     for other in (ordinal - away, ordinal + away):
                         if other < low or other > high:
+                            continue
+                        # ...never onto a date that stands out (landing
+                        # 3b.6, plan P4-D369), whose count is exact.
+                        if other in layout.listed:
                             continue
                         tried = _interior_cell(
                             facts,
@@ -24875,7 +25647,11 @@ def _spread_ordinals(layout: "_DateLayout", words: "list[int]") -> "list[int]":
     taken = 0
     if layout.low is not None:
         taken = _tail_words_spent(layout.low, parsed, words, taken, ordinals)
-    places, steps = _pin_places(layout.body)
+    # A COLUMN LISTING DATES THAT STAND OUT is drawn part by part
+    # (landing 3b.6, method G7.3j: `_heavy_drawn`), every other gap by gap.
+    places, steps = ([], []) if layout.parts else _pin_places(layout.body)
+    if layout.parts:
+        taken = _heavy_drawn(layout, words, taken, ordinals)
     for step in range(len(places) - 1):
         below = places[step]
         above = places[step + 1]
@@ -24899,6 +25675,70 @@ def _spread_ordinals(layout: "_DateLayout", words: "list[int]") -> "list[int]":
     if layout.high is not None:
         taken = _tail_words_spent(layout.high, parsed, words, taken, ordinals)
     return ordinals
+
+
+
+def _heavy_drawn(
+    layout: "_DateLayout", words: "list[int]", taken: int, ordinals: "list[int]"
+) -> int:
+    """Every ordinary rank of the body drawn in its part (method G7.3j step 4).
+
+    One word per ordinary rank, in rank order, as the body's gaps spend
+    them: each part's ranks are drawn uniformly across its stretch with
+    every listed date's unit cut out, sorted, and laid on the drawing
+    unit (`_on_draw_unit`). The listed ranks are pinned and draw none, so
+    the column reads fewer of its words and none past its allocation.
+
+    Guarantees: accepts the layout, the words, the words already taken
+    and the ordinals, which it fills; returns the words taken. Linear in
+    the ranks and the listed dates, times the sort inside each part.
+    Determinism: a function of the four. Raises nothing. No I/O.
+    """
+    listed = sorted(layout.listed)
+    pointer = 0
+    for part in layout.parts:
+        while pointer < len(listed) and listed[pointer] < part.lo:
+            pointer = pointer + 1
+        pieces: "list[tuple[int, int]]" = []
+        at = part.left
+        ahead = pointer
+        while ahead < len(listed) and listed[ahead] <= part.hi:
+            day = listed[ahead]
+            ahead = ahead + 1
+            low = day * _PIN_STEPS
+            high = low + _PIN_STEPS
+            if high <= at or low >= part.right:
+                continue
+            if low > at:
+                pieces += [(at, low)]
+            at = max(at, high)
+        if at < part.right:
+            pieces += [(at, part.right)]
+        length = sum(high - low for low, high in pieces)
+        spots: "list[int]" = []
+        for _rank in range(part.count):
+            word = words[taken]
+            taken = taken + 1
+            spots += [(word * length) // _WORD_SCALE if length > 0 else 0]
+        spots = sorted(spots)
+        piece = 0
+        passed = 0
+        for index in range(part.count):
+            spot = spots[index]
+            while (
+                piece < len(pieces) - 1
+                and spot - passed >= pieces[piece][1] - pieces[piece][0]
+            ):
+                passed = passed + pieces[piece][1] - pieces[piece][0]
+                piece = piece + 1
+            step = part.left
+            if pieces:
+                step = pieces[piece][0] + spot - passed
+            value = min(max(step // _PIN_STEPS, part.lo), part.hi)
+            ordinals[part.first + index] = _on_draw_unit(
+                value, layout.draw_unit, part.lo, part.hi
+            )
+    return taken
 
 
 def _midnight_offsets(
