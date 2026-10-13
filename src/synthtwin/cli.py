@@ -1706,6 +1706,15 @@ def _delimiter_tie_notice(tied: "tuple[str, ...]") -> str:
     the one sentence that tells them whether to override the reading.
     The order is now stated as the walk has it: the wider reading, and
     the count of numbers only between readings of one width.
+
+    AND A READING WHOSE FIRST ROW IS AS WIDE AS ITS ROWS COMES FIRST
+    (Codex's review of landing R5, item 1). `dialect.delimiter_reading`
+    takes such a reading before one that lines the first row up only by
+    reading a delimiter at the end of a line as closing it, and records
+    the lined-up reading as the competitor; the sentence says so, because
+    on `id,notes,measure;type;unit;` over rows `i,x;y;z,6` the two
+    readings give three columns each and the comma was not taken for
+    its numbers.
     """
     others = ""
     for one in tied[1:]:
@@ -1724,10 +1733,14 @@ def _delimiter_tie_notice(tied: "tuple[str, ...]") -> str:
         f"{others} -- and the two readings need not give your table the "
         f"same number of columns at all. Nothing in the values can say "
         f"which your file uses. synthtwin has read it with "
-        f"{dialect.DELIMITER_WORDS[tied[0]]}, which is the reading that "
-        f"gives your table the most columns; where two readings give it "
-        f"the same number of columns, the one under which more of the "
-        f"values read as numbers is taken. If that is not how your "
+        f"{dialect.DELIMITER_WORDS[tied[0]]}: a reading under which "
+        f"the first row has as many fields as the rows below it most "
+        f"often have is taken before one that lines them up only by "
+        f"reading a delimiter at the end of a line as closing it; then "
+        f"the reading that gives your table the most columns; where two "
+        f"readings give it the same number of columns, the one under "
+        f"which more of the values read as numbers is taken. If that is "
+        f"not how your "
         f"file is written, describe the table again with --delimiter, "
         f"or answer the question under 'about_your_file' in the "
         f"questions file this run writes: your column names, and every "

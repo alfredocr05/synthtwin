@@ -673,7 +673,10 @@ def detected_initial_space_as_built(text, at, delimiter):
     for record in sample:
         if len(record.fields) < 2:
             continue
-        for index in range(1, len(record.fields)):
+        # The closing delimiter is not asked for a space (Codex's review
+        # of landing R5, item 3): an unquoted empty last field.
+        closes = record.fields[-1] == "" and not record.quoted[-1]
+        for index in range(1, len(record.fields) - 1 if closes else len(record.fields)):
             value = record.fields[index]
             if value[:1] != dialect._SPACE or value[1:2] == dialect._SPACE:
                 return False

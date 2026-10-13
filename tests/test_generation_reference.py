@@ -5891,7 +5891,9 @@ def _one_reading_for_each_candidate(text, candidate, at):
         opening = opening + 1
     if opening < len(sample) and len(sample[opening]["fields"]) != width:
         return None
-    return {"at_that_width": at_width, "records": total, "width": width}
+    return {
+        "at_that_width": at_width, "records": total, "straight": True, "width": width,
+    }
 
 
 def _classed_by_their_characters(census, cells, value_class=None):
@@ -6228,6 +6230,29 @@ def test_the_delimiter_is_settled_the_way_the_method_settles_it() -> None:
             candidate
         )
     assert dialect.detected_delimiter(text, 0) == case["delimiter"]
+    # A TRAILING DELIMITER ON ONE SIDE ONLY (plan P4-D387): each file the
+    # case reads under `lined_up`, the same way.
+    # ...and since Codex's review of landing R5, a straight reading
+    # before a lined-up one, and a quoted empty field lining nothing up.
+    assert len(case["lined_up"]) == 7
+    for entry in case["lined_up"]:
+        more = entry["text"]
+        for candidate in dialect.DELIMITERS:
+            found = dialect._best_reading(more, candidate, 0)
+            published = entry["readings"][candidate]
+            if published is None:
+                assert found is None, (more, candidate)
+                continue
+            assert found is not None, (more, candidate)
+            share, width, sample = found
+            assert width == published["width"], (more, candidate)
+            assert dialect._reads_straight(sample, width) == published["straight"], (
+                more, candidate,
+            )
+            assert share == published["at_that_width"] / published["records"], (
+                more, candidate,
+            )
+        assert dialect.detected_delimiter(more, 0) == entry["delimiter"], more
 
 
 def _workbook_profile(case: dict, folder: pathlib.Path) -> contract.Profile:
@@ -6411,6 +6436,37 @@ DOCUMENT_MUTANTS = {
             "rule it replaced, and the file is read as one column",
             attribute="best_reading",
             replacement=_one_reading_for_each_candidate,
+            outcome=CHANGES_THE_CELLS,
+        ),
+        Mutant(
+            branch="plan P4-D387's rule that a trailing delimiter on one "
+            "side lines the first record up with the reading; the mutant "
+            "withdraws it, which is the rule it replaced, and the "
+            "semicolon file whose rows end in `;` and the tab file whose "
+            "header ends in a tab are read as one column under the comma",
+            attribute="opening_lines_up",
+            replacement=lambda sample, opening, width: False,
+            outcome=CHANGES_THE_CELLS,
+        ),
+        Mutant(
+            branch="Codex's review of landing R5, item 1: a straight "
+            "reading comes before a lined-up one; the mutant ranks by the "
+            "share alone, and the comma table whose header also ends in "
+            "a semicolon is taken by the semicolon",
+            attribute="reading_rank",
+            replacement=lambda found: (
+                True, found["at_that_width"], found["records"], found["width"],
+            ),
+            outcome=CHANGES_THE_CELLS,
+        ),
+        Mutant(
+            branch="Codex's review of landing R5, item 2: a quoted empty "
+            "last field is a value and lines nothing up; the mutant "
+            "ignores the quotation marks, and the semicolon reads both "
+            "quoted files with the field taken off",
+            attribute="closes",
+            replacement=lambda record: bool(record["fields"])
+            and record["fields"][-1] == "",
             outcome=CHANGES_THE_CELLS,
         ),
     ),

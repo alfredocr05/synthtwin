@@ -35801,9 +35801,11 @@ def doc_read_records(text, delimiter, escape, initial_space, at, limit):
                 body = body[: len(body) - len(ending)]
                 break
         if not body:
-            taken += [{"fields": [], "raw": ""}]
+            taken += [{"fields": [], "quoted": [], "raw": ""}]
             continue
         fields = []
+        quoted = []
+        opened = False
         value = ""
         inside = False
         closed = False
@@ -35834,6 +35836,8 @@ def doc_read_records(text, delimiter, escape, initial_space, at, limit):
                 continue
             if mark == delimiter:
                 fields += [value]
+                quoted += [opened]
+                opened = False
                 value = ""
                 closed = False
                 skipping = initial_space
@@ -35845,6 +35849,7 @@ def doc_read_records(text, delimiter, escape, initial_space, at, limit):
             skipping = False
             if mark == DOC_QUOTE and not value and not closed:
                 inside = True
+                opened = True
                 index = index + 1
                 continue
             if closed:
@@ -35866,7 +35871,10 @@ def doc_read_records(text, delimiter, escape, initial_space, at, limit):
                 f"ending, and the line {body!r} opens one"
             )
         fields += [value]
-        taken += [{"fields": fields, "malformed": malformed, "raw": body}]
+        quoted += [opened]
+        taken += [
+            {"fields": fields, "quoted": quoted, "malformed": malformed, "raw": body}
+        ]
     return taken
 
 
@@ -35914,6 +35922,69 @@ def width_share(sample):
     return (best_count, total, best)
 
 
+def opening_lines_up(sample, opening, width):
+    """Whether the first record lines up with a reading ``width`` wide
+    through a trailing delimiter one side carries and the other does not.
+
+    A TRAILING DELIMITER ON ONE SIDE ONLY (plan P4-D387). The first
+    record that is not a line before the table lines up where it is ONE
+    FIELD NARROWER than the width, at least two fields wide, and every
+    record of the sample at the width ends with an empty field (the rows
+    carry a trailing delimiter, the header does not); or where it is ONE
+    FIELD WIDER and its own last field is empty (the header carries one,
+    the rows do not). Such a reading counts that record at the width.
+    No other first record lines up, so a one-field first record never
+    does, and a one-column table whose cells end in a delimiter stays
+    one column.
+
+    The empty last field is UNQUOTED (`closes`; Codex's review of
+    landing R5, item 2): `""` is a value the line wrote empty, not the
+    delimiter that closes it.
+    """
+    first = sample[opening]
+    if len(first["fields"]) == width + 1:
+        return closes(first)
+    if len(first["fields"]) != width - 1 or width - 1 < 2:
+        return False
+    for record in sample:
+        if len(record["fields"]) == width and not closes(record):
+            return False
+    return True
+
+
+def closes(record):
+    """Whether a record ends in a delimiter with nothing after it: its
+    last field is empty and was not quoted (Codex's review of landing
+    R5, item 2)."""
+    fields = record["fields"]
+    if not fields:
+        return False
+    return fields[-1] == "" and not record["quoted"][-1]
+
+
+def reading_rank(found):
+    """What one candidate's reading is ranked by, before the number count.
+
+    A STRAIGHT READING COMES BEFORE A LINED-UP ONE (Codex's review of
+    landing R5, item 1): a reading whose first record has its width is
+    the kind the method had before plan P4-D387, so wherever one exists
+    the choice is the one made then; a reading a trailing delimiter
+    lines up is taken only where no candidate reads straight. Then the
+    share, then the width. The share is returned as its two counts, so
+    that two ranks compare by cross-multiplying and no division rounds.
+    """
+    return (found["straight"], found["at_that_width"], found["records"], found["width"])
+
+
+def outranks(found, best):
+    """Whether ``found`` ranks above ``best`` (`reading_rank`)."""
+    mine = reading_rank(found)
+    theirs = reading_rank(best)
+    return (mine[0], mine[1] * theirs[2], mine[3]) > (
+        theirs[0], theirs[1] * mine[2], theirs[3]
+    )
+
+
 def best_reading(text, candidate, at):
     """The best the first records read under one candidate delimiter.
 
@@ -35929,7 +36000,10 @@ def best_reading(text, candidate, at):
     and the two escapings, a reading counts only where the commonest
     width is two or more, and THE TABLE'S FIRST RECORD HAS THE TABLE'S
     WIDTH: the first record that is not a line before the table must
-    stand at that width, or the reading is rejected.
+    stand at that width, or the reading is rejected -- unless a trailing
+    delimiter on one side lines it up (`opening_lines_up`, plan P4-D387),
+    and it is then counted at that width. A straight reading ranks above
+    a lined-up one (`outranks`; Codex's review of landing R5, item 1).
     """
     best = None
     for spaced in (False, True):
@@ -35943,17 +36017,20 @@ def best_reading(text, candidate, at):
             opening = 0
             while opening < len(sample) and leads_the_table(sample[opening]):
                 opening = opening + 1
-            if opening < len(sample) and len(sample[opening]["fields"]) != width:
-                continue
+            straight = opening >= len(sample) or len(
+                sample[opening]["fields"]
+            ) == width
+            if not straight:
+                if not opening_lines_up(sample, opening, width):
+                    continue
+                at_width = at_width + 1
             found = {
                 "at_that_width": at_width,
                 "records": total,
+                "straight": straight,
                 "width": width,
             }
-            if best is None or (at_width * best["records"], width) > (
-                best["at_that_width"] * total,
-                best["width"],
-            ):
+            if best is None or outranks(found, best):
                 best = found
     return best
 
@@ -35964,7 +36041,8 @@ def chosen_delimiter(readings):
     The candidate under which the most records share one width of two or
     more fields wins, a wider table breaking a tie.  A table no candidate
     reads as two or more fields is one column and its delimiter is the
-    comma.
+    comma.  A straight reading comes before a lined-up one, whatever
+    their shares (`reading_rank`; Codex's review of landing R5, item 1).
 
     A TIE OF BOTH is decided by the cells, which this oracle does not
     reach: it stops rather than choosing, because the rule that settles
@@ -35981,12 +36059,10 @@ def chosen_delimiter(readings):
         if best is None:
             chosen, best = candidate, found
             continue
-        here = found["at_that_width"] * best["records"]
-        there = best["at_that_width"] * found["records"]
-        if here > there or (here == there and found["width"] > best["width"]):
+        if outranks(found, best):
             chosen, best = candidate, found
             continue
-        if here == there and found["width"] == best["width"]:
+        if not outranks(best, found):
             raise AssertionError(
                 f"the readings under {best!r} and {found!r} tie on both the "
                 "share and the width, and the rule that settles such a tie "
@@ -37916,9 +37992,48 @@ def _delimiter_reading():
         "freezes the reading every candidate delimiter reaches and the "
         "one the file is settled to be written with. Its mutant scores "
         "each candidate ONE way, which is the rule this one replaced, "
-        "and the file is then read as one column under the comma.",
+        "and the file is then read as one column under the comma. "
+        "Since plan P4-D387 the case also reads, under `lined_up`, four "
+        "files a trailing delimiter on one side does or does not line "
+        "up with their first record; its second mutant withdraws that "
+        "lining up, and the first two are read as one column. Since "
+        "Codex's review of landing R5 it reads three more: a comma "
+        "table whose header also ends in a semicolon, which the comma "
+        "reads straight with one short row and the semicolon only lined "
+        "up, so the comma stands (third mutant: the share alone ranks, "
+        "and the semicolon takes it); and rows, then a header, ending "
+        "in a QUOTED empty field, which lines nothing up (fourth mutant: "
+        "the quotation marks ignored, and the semicolon takes both).",
         "kind": "reading",
         "text": '"id"; "note"\n"1"; "alpha; beta"\n"2"; "gamma"\n',
+        # A TRAILING DELIMITER ON ONE SIDE ONLY (plan P4-D387). Rows
+        # ending in `;` under a header that does not, which the first
+        # record's width rule read as one column named by the whole
+        # header line; a header ending in a tab over rows that do not;
+        # and two files no trailing delimiter lines up -- a one-column
+        # table whose cells end in `;`, which stays one column, and rows
+        # one field wider than their header whose last field is not
+        # always empty, which no candidate reads. The second mutant
+        # withdraws the lining up, and the first two are read as one
+        # column under the comma.
+        "lined_up": [
+            "record_id;age;arm;weight\n"
+            "P01;34;F;61,5;\nP02;51;M;80,0;\nP03;27;F;55,2;\n",
+            "record_id\tage\tarm\t\r\n"
+            "P01\t34\tF\r\nP02\t51\tM\r\nP03\t27\tF\r\n",
+            "name\nalpha;\nbeta;\ngamma;\n",
+            "id|age|site\n1|20|N|x\n2|30|S|\n3|40|E|y\n",
+            # Codex's review of landing R5: item 1, a reading the
+            # comma reads straight (four of five records at three
+            # fields, row 3 a short row) beside the semicolon's lined-up
+            # five of five; the comma stands. Item 2, a quoted empty
+            # last field on the rows, then on the header, which lines
+            # nothing up, so no candidate reads either.
+            "id,notes,measure;type;unit;\n"
+            "1,x;y;z,6\n2,x;y;z,6\n3,x;y;z\n4,x;y;z,6\n",
+            'a;b\n1;2;""\n3;4;""\n5;6;""\n',
+            'a;b;""\n1;2\n3;4\n5;6\n',
+        ],
     }
 
 
@@ -38693,6 +38808,22 @@ def build_document_case(name):
         case["text"] = text
         case["readings"] = readings
         case["delimiter"] = chosen_delimiter(readings)
+        # The files a trailing delimiter on one side lines up, and two
+        # it does not (plan P4-D387), each read the same way.
+        lined = []
+        for more in spec.get("lined_up", ()):
+            found = {}
+            for candidate in DOC_DELIMITERS:
+                found[candidate] = best_reading(more, candidate, 0)
+            lined += [
+                {
+                    "text": more,
+                    "readings": found,
+                    "delimiter": chosen_delimiter(found),
+                }
+            ]
+        if lined:
+            case["lined_up"] = lined
     elif kind == "workbook":
         block = spec["workbook"]
         names = spec["names"]

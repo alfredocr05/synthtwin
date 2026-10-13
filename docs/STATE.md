@@ -323,9 +323,9 @@ cannot get worse unseen.
   figures (P4-D390); a code with one letter among figures misses its
   form (`K-S3-61`); free text written on `HH:MM:SS` durations and a
   face column misses its form (G9.5, `!!!!!!"N`): lane L1 owns them.
-  A semicolon table whose rows end in `;` and whose header does not is
-  read as one column, its profile exiting 0 with no question (P4-D387):
-  lane R5 owns it.
+  A table whose rows end in its delimiter and whose header does not,
+  or the reverse, is read as its columns since lane R5 (P4-D387); a
+  headerless one still reads an empty last column, written back empty.
 - **With every pair published, a raised floor still costs some twins
   their mean and spread.** Since plan P4-D375 every tail pair binary64
   holds is published, so no twin of `K-S3-20`'s 37 shapes at floors 11

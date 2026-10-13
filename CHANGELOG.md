@@ -6,6 +6,60 @@ exists).
 
 ## [Unreleased]
 
+### A trailing delimiter on one side is read as the table's delimiter (2026-10-13)
+
+**Lane R5, reading** (plan P4-D387). A semicolon, tab or bar table whose
+rows end in the delimiter and whose header does not, or whose header
+ends in it and whose rows do not, was read as ONE column named by its
+whole header line, or refused where decimal commas split it again;
+`profile` asked nothing, and code written on the twin could not run on
+the real table. Detection now lines such a header up with its records
+(`dialect.opening_lines_up`), the table is read as its columns, and the
+twin writes each line's trailing delimiter where the source wrote one.
+A one-column table whose cells end in `;` stays one column. A column
+whose first or a later cell is a whole number of more than 4,300
+figures no longer crashes the reader (`dialect._sequence_of`). On a
+battery of 63 made-up tables the 39 the change does not reach keep
+byte-identical descriptions, questions and twins; the reference
+generator mirrors the rule and the document vectors gain four files
+and a mutant.
+
+A class of files goes from described to refused. Any semicolon, tab or
+bar table whose rows (or header alone) end in the delimiter and that
+holds a row the reading cannot read was described as one column at exit
+0 before; it is now refused at exit 1, as the same file without trailing
+delimiters is, except where a row inside the sample holds a value after
+the closing delimiter: detection then does not line up and the file is
+still read as one column at exit 0, as on 0ecc82d (row 51 `...;x`, alone
+or beside a row 61 of two values). That covers a row that does not end in
+the delimiter, or
+that holds a value after it (row 501, past the sample, too), the header
+and some row alone ending in it, and a row of too few or too many values
+(row 51 `P0051;age;arm;`, row 51 ending `;;`, or an unclosed row 51 with
+a row 61 of two values), measured on seven such made-up tables. The
+refusal names the row and the trailing delimiter it lacks or carries
+(`errors.trailing_delimiter_uneven`) and asks that every row end the same
+way, where the ragged-rows sentence had said "names 4 columns, but row 51
+has 4" and blamed quotation marks. A ragged row is counted by its own
+values, the closing delimiter left out ("row 51 has 3"), and a row that
+only lacks the closing delimiter is not listed beside a ragged one. A
+quoted empty last value is a value, not the closing delimiter
+(`P0051;30;F;""` reads "row 51 does not end in a semicolon"), and a short
+row that does not close reads by its count ("row 51 has 2").
+
+Codex's review of the landing, four items. A reading whose first row
+has its width comes before one lined up by a trailing delimiter, so a
+comma table with a short row and a header ending in a semicolon reads
+as before and the semicolon is asked about. A quoted empty last field
+(`1;2;""`, `a;b;""`) is a value and lines nothing up, so it is no
+longer written back as `1;2;`, in the sample or past it; a quoted empty
+where the other lines close is refused with that reason, and a
+header-closed table's row 51 `31,72,Q,""` is refused as holding 4
+values, not as ending in the delimiter. A comma-space table whose rows end in the semicolon
+(`"1"; "alpha";`) reads with its spaces skipped, as without the
+trailing semicolon. The 63-table battery's descriptions, questions and
+twins are byte-identical before and after.
+
 ### The count pass splits the tails first (2026-10-12)
 
 **Logs just above one row an open day keep their count beside a weekday

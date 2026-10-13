@@ -29,6 +29,13 @@ CASES: "dict[str, tuple[object, ...]]" = {
     "file_is_empty": ("/data/table.csv",),
     "no_data_rows": ("/data/table.csv",),
     "ragged_rows": ("/data/table.csv", 4, [(2, 3), (7, 5)], 9),
+    # A row that does not close the way the others do (plan P4-D387,
+    # lane R5's repair): positions and kinds, both whole numbers.
+    "trailing_delimiter_uneven": ("/data/table.csv", [(51, 0), (501, 1)], 9),
+    # A first row ending in a quoted empty name over a column no row
+    # fills (Codex's review of landing R5, item 2): a path and the
+    # delimiter's words.
+    "quoted_empty_name_over_an_empty_column": ("/data/table.csv", "a semicolon"),
     "twin_not_writable_in_encoding": ("Western European text (Latin-1)",),
     "field_too_long": ("/data/table.csv", 10_000_000),
     "unreadable_as_csv": ("/data/table.csv", "unexpected end of data"),
