@@ -732,37 +732,65 @@ def test_a_cell_naming_a_zero_field_keeps_the_dotted_pair_out(tmp_path: pathlib.
     assert _asked_here(tmp_path, values) == (False, False)
 
 
+def _as_labels_once_answered(monkeypatch: pytest.MonkeyPatch) -> None:
+    """A classifier that reads a clock column as labels once its code is declared missing.
+
+    The classifier before lane C1, as lane R1's reviews measured it: the
+    stand-in for the question's mutant, since the question follows
+    whatever the answer `missing` reads (lane R2c, plan P4-D383).
+    """
+    shipped = taxonomy.role_read
+
+    def labels(name: str, values: "list[str]", settings: taxonomy.Settings, *rest: object) -> "tuple[str, str, int, int]":
+        found = shipped(name, values, settings, *rest)  # type: ignore[arg-type]
+        if settings.declared_missing_values and found[0] == taxonomy.ROLE_CLOCK:
+            return taxonomy.ROLE_CATEGORICAL, "", found[2], found[3]
+        return found
+
+    monkeypatch.setattr(taxonomy, "role_read", labels)
+
+
 def test_a_clock_of_few_values_is_not_promised_a_reading_of_times(
     tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """Four times beside `99:99` are four categories once the code is out, so nothing is asked.
+    """Four times beside `99:99` are asked exactly where the answer reads them as times.
 
     The review of lane R1, item 5: the `missing` choice promised "the
-    column read as times of day" and the answer left it categorical.
-    Red when the categories line is moved out of the way.
+    column read as times of day" and the answer left it categorical. At
+    batch 3's integration the question follows the classifier (lane R2c,
+    plan P4-D383), and lane C1's classifier reads the four times as times
+    of day once the code is out (`taxonomy.role_read`), so the question
+    is put and promises what the answer gives. Red the other way: a
+    classifier reading them as labels puts no question.
     """
     values = [["08:00", "12:00", "16:00", "20:00"][place % 4] if place % 33 else "99:99" for place in range(1000)]
-    assert not _asked_here(tmp_path / "shipped", values)[0]
-    monkeypatch.setattr(taxonomy, "categories_ceiling", lambda n_rows, settings: 0)
-    assert _asked_here(tmp_path / "moved", values)[0]
+    answered = dataclasses.replace(taxonomy.Settings(), declared_missing_values=("99:99",))
+    assert taxonomy.role_read("seen_at", values, answered, False, "")[0] == taxonomy.ROLE_CLOCK
+    assert _asked_here(tmp_path / "shipped", values)[0]
+    _as_labels_once_answered(monkeypatch)
+    assert not _asked_here(tmp_path / "labels", values)[0]
 
 
-@pytest.mark.parametrize("different, asked", [(100, False), (101, True)])
+@pytest.mark.parametrize("different, asked", [(100, True), (101, True)])
 def test_a_clock_is_asked_only_past_the_categories_line(
-    tmp_path: pathlib.Path, different: int, asked: bool
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch, different: int, asked: bool
 ) -> None:
-    """At a thousand rows the categories line is a hundred values: a hundred times are not asked, 101 are.
+    """At a thousand rows, a hundred times and 101 are both read as times once answered, and both asked.
 
-    The second review of lane R1, item 4: measured at the boundary, a
-    hundred different times beside `99:99` stay categories once the code
-    is declared missing and 101 are read as times of day, so the question
-    is put exactly where the answer delivers what it promises. Red when
-    the line is moved by one.
+    The second review of lane R1, item 4, measured a hundred different
+    times beside `99:99` staying categories once the code was declared
+    missing and 101 read as times of day, so the question stood at the
+    categories line. At batch 3's integration lane C1's classifier reads
+    both as times of day and the question follows it (lane R2c, plan
+    P4-D383): the line no longer stands between. Where a classifier reads
+    the column as labels the question is not put.
     """
     assert taxonomy.categories_ceiling(1000, taxonomy.Settings()) == 100
     times = [f"{6 + place // 60:02d}:{place % 60:02d}" for place in range(different)]
     values = ["99:99" if place % 33 == 0 else times[place % different] for place in range(1000)]
-    assert _asked_here(tmp_path, values)[0] is asked
+    assert _asked_here(tmp_path / "shipped", values)[0] is asked
+    _as_labels_once_answered(monkeypatch)
+    assert not _asked_here(tmp_path / "labels", values)[0]
 
 
 @pytest.mark.parametrize("name", ["mdy_zero", "iso_zero_date", "clock_9999"])
