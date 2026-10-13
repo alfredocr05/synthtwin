@@ -1760,6 +1760,31 @@ INVARIANTS = {
         "local clock, not in the joint member, and with both tails"
     ),
     # anchor 3b-D4 (P4-D369)
+    # Landing 3b.6 (plan P4-D369): the dates that stand out, listed with
+    # their exact counts (contract 6.6.2).
+    "HD1": (
+        "the listed dates are canonical, strictly ascending, from the low "
+        "tail boundary to the high one, on no day the description holds "
+        "empty, on a column of whole dates or of moments every value of "
+        "which stands at midnight, read on the local clock, not in the "
+        "joint member, and with both tails"
+    ),
+    "HD2": "every listed count is at least the heavy line, eleven or the census line",
+    "HD3": (
+        "the listed counts add up to at most the values between the two "
+        "tail boundaries, the list is no longer than the column's "
+        "different values, less one where any cell did not read as a "
+        "date, and no weekday or day-of-month group "
+        "holds fewer rows than its listed dates"
+    ),
+    "HD4": (
+        "the two tail boundaries, the published rungs and the listed "
+        "dates' runs of rows stand in one rank order"
+    ),
+    "HD5": (
+        "every listed date holds at least half the rows listed on the "
+        "dates within three days of it"
+    ),
     # anchor 3b-T1 (P4-D370)
     # Landing T1 (plan P4-D370); 3b.K's anchor 3b-T1 is its place.
     "D12a": (
@@ -9705,16 +9730,117 @@ def _heavy_dates(
     absent: "tuple[str, ...]",
     facts: DatetimeFacts,
 ) -> "tuple[tuple[int, int], ...]":
-    """A column's `heavy_dates`, reserved: `[]` and nothing else (plan P4-D364).
+    """A column's `heavy_dates`, read and held to HD1 to HD5.
 
-    THE STUB OF LANDING 3b.6 (lane D4, plan P4-D369), which fills this
-    reader and nothing beside it. Handed what `_hour_census` is handed.
+    Landing 3b.6 (plan P4-D369). An empty list is always legal. A
+    published one must stand where `calendar_rules.heavy_scope` allows
+    it -- whole dates, or moments every value of which stands at
+    midnight, read on the local clock, not in the joint member, with both
+    tails -- and each entry is `{"date": "YYYY-MM-DD", "count": n}`;
+    then `calendar_rules.heavy_breach` asks HD1 the order, the boundaries
+    and the holes (`calendar_rules.public_holes`, on what the block
+    publishes), HD2 the heavy line, HD3 the body, the column's different
+    values and the weekday and day-of-month groups beside it, HD4 the
+    published boundaries and rungs in one rank order with the runs, and
+    HD5 the neighbouring listed rows. The first broken rule is refused by
+    name. Read after the day-of-month census, which HD3 reads.
 
-    Guarantees: returns the list, empty. Raises ProfileError for any
-    other value (`_reserved_list`). No I/O of any kind.
+    Guarantees: accepts the block and what `_hour_census` is handed;
+    returns `(day, count)` ascending, the day counted from 1970-01-01.
+    Raises ProfileError for a wrong type and for any broken rule. No I/O
+    of any kind.
     """
-    _reserved_list(mapping["heavy_dates"], "heavy_dates", where)
-    return ()
+    entries = _listing(mapping["heavy_dates"], "heavy_dates", where)
+    found: "list[tuple[int, int]]" = []
+    for entry in entries:
+        listed = _mapping(entry, "heavy_dates", where)
+        _keys(listed, where, ("count", "date"), "every listed date")
+        text = listed["date"]
+        read = (
+            parsing.parse_datetime(text, "iso-date")
+            if isinstance(text, str)
+            else None
+        )
+        if read is None or read[0] != text:
+            raise _broken(
+                "HD1",
+                where,
+                "a listed date that is not a canonical date",
+                "every listed date written YYYY-MM-DD, a day the calendar holds",
+            )
+        found += [
+            (
+                _day_number(read[0]),
+                _whole(listed["count"], "heavy_dates -> count", where, 0),
+            )
+        ]
+    if not found:
+        return ()
+    low, high = facts.low_tail, facts.high_tail
+    if low is None or high is None or not calendar_rules.heavy_scope(
+        facts.resolution,
+        facts.all_at_midnight,
+        facts.datetimes_read_at,
+        facts.parser_family,
+        True,
+    ):
+        raise _broken(
+            "HD1",
+            where,
+            "dates that stand out are listed",
+            "only a column of whole dates, or of moments every value of "
+            "which stands at midnight, read on the local clock, not in the "
+            "joint member, and with both tails lists them",
+        )
+    parsed = n_present - facts.n_unparsed
+    first = _day_number(low.boundary)
+    last = _day_number(high.boundary)
+    forms = {
+        "datetime_separators": dict(facts.datetime_separators),
+        "date_field_widths": dict(facts.date_field_widths),
+        "month_name_styles": dict(facts.month_name_styles),
+        "quarter_marker_case": dict(facts.quarter_marker_case),
+        "zulu_case": dict(facts.zulu_case),
+    }
+    holes = frozenset(
+        calendar_rules.public_holes(
+            forms, facts.parser_family, first, last, judged, absent
+        )
+    )
+    knots: "list[tuple[int, int]]" = [(low.rows, first)]
+    high_rank = parsed - 1 - high.rows
+    rungs = facts.date_percentiles.rungs
+    for step in range(1, len(_HEAVY_RUNG_PERCENTS) - 1):
+        text = rungs[step] if step < len(rungs) else None
+        if text is None:
+            continue
+        rank = min(parsed - 1, ((parsed - 1) * _HEAVY_RUNG_PERCENTS[step]) // 100)
+        if knots[len(knots) - 1][0] < rank < high_rank:
+            knots += [(rank, _day_number(text))]
+    if high_rank > knots[len(knots) - 1][0]:
+        knots += [(high_rank, last)]
+    broken = calendar_rules.heavy_breach(
+        tuple(found),
+        calendar_rules.heavy_line(floor),
+        (
+            first,
+            last,
+            parsed - low.rows - high.rows,
+            calendar_rules.heavy_different(n_distinct, facts.n_unparsed),
+        ),
+        holes,
+        tuple(knots),
+        (facts.weekday_census, facts.day_of_month_census),
+    )
+    if broken is not None:
+        raise _broken(broken[0], where, broken[1], broken[2])
+    return tuple(found)
+
+
+# The percent each rung of the ladder is read at, the ends included, which
+# HD4 reads its knots off as the generator lays them (method G7.3,
+# `generation._date_layout`).
+_HEAVY_RUNG_PERCENTS = (0, 1, 5, 10, 25, 50, 75, 90, 95, 99, 100)
 
 
 def _count_form(
@@ -10497,6 +10623,52 @@ def _count_pass_open(column: "ColumnBlock", facts: "DatetimeFacts", wanted: int)
         if wanted > reach:
             return False
     return True
+
+
+def datetime_count_held_exactly(
+    column: "ColumnBlock", published: int, window: "tuple[float, float]"
+) -> bool:
+    """Whether a date column's count of different values is held EXACTLY.
+
+    THE ONE STATEMENT OF HOW THE COUNT IS JUDGED (plan P4-D192; the
+    orchestrator's ruling (c) of 2026-10-13, plan P4-D369): exactly where
+    the count pass reaches it (`datetime_counts_reachable`), or where G11
+    binds a partial or declared-short column (`datetime_count_exact`,
+    landing R2c), AND the published count lies inside G12.5's envelope
+    (`window`, its lower and upper end); elsewhere the envelope stands in
+    its place. Asked by the validator, by the generator's report and by
+    method G7.3j's steps 5 and 7 (`datetime_count_off`); the oracle
+    states it again.
+
+    Guarantees: returns the answer. A function of the three. Raises
+    nothing. No I/O of any kind.
+    """
+    return datetime_count_exact(column, published) and (
+        window[0] <= published <= window[1]
+    )
+
+
+def datetime_count_off(
+    column: "ColumnBlock", published: int, held: int,
+    window: "tuple[float, float]",
+) -> int:
+    """How far a count of different values stands from the count as judged.
+
+    The distance from the published count where it is held exactly
+    (`datetime_count_held_exactly`); elsewhere the distance outside the
+    envelope, nought inside it (the orchestrator's ruling (c) of
+    2026-10-13, plan P4-D369).
+
+    Guarantees: returns a whole number of nought or more. A function of
+    the four. Raises nothing. No I/O of any kind.
+    """
+    if datetime_count_held_exactly(column, published, window):
+        return abs(held - published)
+    if held < window[0]:
+        return int(window[0] - held)
+    if held > window[1]:
+        return int(held - window[1])
+    return 0
 
 
 def _units_between(low: str, high: str, facts: "DatetimeFacts") -> int:

@@ -461,6 +461,10 @@ PLAN4_REGIONS = {
         "## Decision P4-D368 — the day-of-month census (2026-10-09)"
     ),
     # anchor 3b-D4 (P4-D369)
+    "heavy-dates": (
+        "## Decision P4-D369 — the count pass splits the tails first, and "
+        "dates that stand out (stage 3b lanes D4s and D4, 2026-10-12)"
+    ),
     # anchor 3b-T1 (P4-D370)
     # anchor 3b-T2 (P4-D371)
     # The hour census (landing 3b.2-H), disposed in the decision that
@@ -1199,13 +1203,17 @@ REGISTRY += (
         plan_region="day-of-month-census",
         aliases=(),
     ),
-    # -- 3b.D4 (P4-D369)
+    # -- 3b.D4 (P4-D369): the dates that stand out, filled; the file's own
+    # cells on each listed date number its count exactly (V5-D1).
     Fact(
         "datetime",
         "heavy_dates",
-        LOADER_ONLY,
-        plan_words="LOADER-ONLY until the landing that fills each",
-        plan_region="stage-3b-reserves",
+        EXACT_OBSERVABLE,
+        plan_words=(
+            "the file's own parsed cells on each listed date, in any "
+            "spelling, number its published count exactly"
+        ),
+        plan_region="heavy-dates",
         aliases=(),
     ),
     # -- 3b.R4 (P4-D384), reserved by the second cut (P4-D386) and filled

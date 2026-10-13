@@ -58,7 +58,6 @@ REPO = pathlib.Path(__file__).resolve().parent.parent
 _RESERVED: "dict[tuple[str, str], object]" = {
     # -- 3b.D3 (P4-D368)
     # -- 3b.D4 (P4-D369)
-    ("datetime", "heavy_dates"): [],
     # -- 3b.T2 (P4-D371)
     # -- 3b.T3 (P4-D372)
     ("datetime", "minute_census"): [],
@@ -89,7 +88,6 @@ _RESERVED_SETTINGS: "dict[str, object]" = {
 _GUARDED = (
     # -- 3b.D3 (P4-D368)
     # -- 3b.D4 (P4-D369)
-    ("seen_on", "heavy_dates", [{"date": "2023-02-01", "count": 30}]),
     # -- 3b.T2 (P4-D371)
     # -- 3b.T3 (P4-D372)
     ("seen_at", "minute_census", [{"first": 0, "last": 59, "count": 300}]),
@@ -119,11 +117,6 @@ _GUARDED_SETTINGS = (
 _STUBS = (
     # -- 3b.D3 (P4-D368)
     # -- 3b.D4 (P4-D369)
-    ("layout", generation._heavy_layout),
-    ("holes", generation._heavy_holes),
-    ("pass", generation._heavy_sorted),
-    ("spread", generation._heavy_spread),
-    ("check", validation._heavy_checks),
     # -- 3b.T2 (P4-D371)
     # -- 3b.T3 (P4-D372)
     ("unit", generation._draw_unit),

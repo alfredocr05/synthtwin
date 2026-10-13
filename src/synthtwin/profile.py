@@ -909,6 +909,11 @@ _WEEKDAY_COUNT = "a-weekday-group-count-zero-or-at-the-census-line"
 _MONTH_DAY = "a-day-of-month-bin-number"
 _MONTH_DAY_COUNT = "a-day-of-month-group-count-zero-or-at-the-census-line"
 # anchor 3b-D4 (P4-D369)
+# THE DATES THAT STAND OUT (landing 3b.6, plan P4-D369): each a canonical
+# date (contract HD1) and its count, at least the heavy line and never
+# nought (HD2).
+_HEAVY_DATE = "a-canonical-date-that-stands-out"
+_HEAVY_COUNT = "a-heavy-date-count-at-the-heavy-line"
 # anchor 3b-T1 (P4-D370)
 # anchor 3b-T2 (P4-D371)
 # THE HOUR CENSUS OF A COLUMN OF MOMENTS (landing 3b.2-H, plan P4-D371): a
@@ -1809,6 +1814,10 @@ _STATED_RULES: "dict[tuple[str, ...], str]" = {
     ("columns", _EACH, "day_of_month_census", _EACH, "last"): _MONTH_DAY,
     ("columns", _EACH, "day_of_month_census", _EACH, "count"): _MONTH_DAY_COUNT,
     # anchor 3b-D4 (P4-D369)
+    # THE DATES THAT STAND OUT (landing 3b.6): each date and its count.
+    ("columns", _EACH, "heavy_dates", _EACH): _OBJECT,
+    ("columns", _EACH, "heavy_dates", _EACH, "date"): _HEAVY_DATE,
+    ("columns", _EACH, "heavy_dates", _EACH, "count"): _HEAVY_COUNT,
     # anchor 3b-T1 (P4-D370)
     # anchor 3b-T2 (P4-D371)
     # WHICH HOURS OF THE DAY THE BODY FALLS ON (landing 3b.2-H): groups of
@@ -2737,6 +2746,16 @@ def _leaf_is_published(
             value, parsing.census_floor(context.floor)
         )
     # anchor 3b-D4 (P4-D369)
+    if kind == _HEAVY_DATE:
+        if not isinstance(value, str):
+            return False
+        read = parsing.parse_datetime(value, "iso-date")
+        return read is not None and read[0] == value
+    if kind == _HEAVY_COUNT:
+        if isinstance(value, bool) or not isinstance(value, int):
+            return False
+        # HD2: never nought, and at least the heavy line.
+        return value >= calendar_rules.heavy_line(context.floor)
     # anchor 3b-T1 (P4-D370)
     # anchor 3b-T2 (P4-D371)
     if kind == _HOUR:

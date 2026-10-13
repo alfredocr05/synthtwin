@@ -265,6 +265,12 @@ EIGHTEENTH_BRANCH_GENERATOR = (
     REPOSITORY / "tools" / "reference" / "make_generation_branch_vectors_18.py"
 )
 # anchor 3b-D4 (P4-D369)
+# THE NINETEENTH FILE (landing 3b.6's dates that stand out G7.3j, plan
+# P4-D369): states of the plan and the draw, not columns, held by
+# tests/test_stage3b_heavy_dates.py.
+NINETEENTH_BRANCH_GENERATOR = (
+    REPOSITORY / "tools" / "reference" / "make_generation_branch_vectors_19.py"
+)
 # anchor 3b-T1 (P4-D370)
 # THE TWENTY-SECOND FILE (landing T1's written clocks, plan P4-D370):
 # plan P4-D364's numbering table gives each landing of stage 3b its own.
@@ -851,11 +857,14 @@ THIRTEENTH_BRANCH_CASES = (
 )
 
 # THE SIXTEENTH FILE: G7.3b step 5's end floor, in days and in months,
-# and the slack it gives up to the rounding of the pair (plan P4-D375).
+# and the slack it gives up to the rounding of the pair (plan P4-D375);
+# and G7.3's count pass splitting the tails first (lane D4s, plan
+# P4-D369 part one).
 FOURTEENTH_BRANCH_CASES = (
     "tail_end_least_reach",
     "tail_end_least_reach_months",
     "tail_end_least_reach_slack",
+    "tails_split_first",
 )
 
 # THE TWENTY-SECOND FILE: landing T1's written clocks and G7.5 step 5
@@ -1186,6 +1195,9 @@ SEEDS = {
     "tail_end_least_reach_slack": 418,
     # ...and lane G2's width rule (plan P4-D377), at a seed clear of both.
     "tail_width_past_the_reach": 431,
+    # ...and the count pass's split order (lane D4s, plan P4-D369 part
+    # one), at the next seed clear of landing T1's.
+    "tails_split_first": 422,
     "identifier_unnamed_partners": 184,
     "truth_values_written": 189,
     "twice_written_filled": 190,
@@ -1702,6 +1714,7 @@ def test_the_branch_file_is_the_same_oracle_and_says_which_half_it_is() -> None:
         TWENTY_THIRD_BRANCH_GENERATOR,
         TWENTY_SIXTH_BRANCH_GENERATOR,
         EIGHTEENTH_BRANCH_GENERATOR,
+        NINETEENTH_BRANCH_GENERATOR,
         DOCUMENT_GENERATOR,
     ],
 )
@@ -4971,6 +4984,15 @@ CASE_MUTANTS = {
         "end stands a day past the column's real range",
         attribute="least_end",
         replacement=_least_end_without_slack,
+        outcome=CHANGES_THE_CELLS,
+    ),
+    "tails_split_first": Mutant(
+        branch="G7.3's count pass splitting the two tails' ranks first (lane "
+        "D4s, plan P4-D369 part one); the mutant splits nearest first alone, "
+        "the high tail ends on 9 days of its 11 ranks and the twin holds 64 "
+        "different days for the description's 65",
+        attribute="tail_ranks",
+        replacement=lambda column, parsed: frozenset(),
         outcome=CHANGES_THE_CELLS,
     ),
     "tie_group_off_the_hole": Mutant(

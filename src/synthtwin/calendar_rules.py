@@ -2024,17 +2024,19 @@ def tails_kept(
     column's lowest, so it is merged first, at most down to its fewest
     days (`_side_counted`), and the high tail's are the highest, so it
     keeps the days it drew -- each with the measured exceptions below.
-    Where they fall short it SPLITS ranks onto free days, nearest first,
-    then the LOWER rank: a body rank one day from a free day splits before
-    any high tail rank whose free day is further, so the high tail keeps
-    the days it drew unless the body's nearer splits run out first; and
-    the low tail comes first at each distance, but it splits a rank only
-    onto a free day inside that rank's own stratum, and only while the
-    count wants more: on Monday-to-Friday logs it ended
-    below its most (`tails_most_rebuilt`) at two seeds or more on 10 of
-    272 censuses of logs just above one row an open day and 64 of 125 of
-    fresh logs where the pass split, none of them costing the count (plan
-    P4-D388). So, merging, the
+    Where they fall short it SPLITS ranks onto free days, THE TWO TAILS'
+    RANKS FIRST, then the body's, each nearest first and then the LOWER
+    rank (since lane D4s, plan P4-D369 part one); a tail splits a rank
+    only onto a free day inside that rank's own stratum, and only while
+    the count wants more, so no body rank splits while a tail rank still
+    can. Until lane D4s it split nearest first alone: a body rank one day
+    from a free day split before any high tail rank whose free day was
+    further, so the high tail kept the days it drew unless the body's
+    nearer splits ran out first, and the low tail, first at each
+    distance, ended below its most (`tails_most_rebuilt`) at two seeds or
+    more on 10 of 272 censuses of logs just above one row an open day and
+    64 of 125 of fresh logs where the pass split, none of them costing the
+    count (plan P4-D388). So, merging, the
     FEWEST is the low tail's fewest and the least count
     the high tail draws with a chance above `KEPT_MISS` of drawing no
     more; and the MOST counts no merge at all -- the least count the two
@@ -2051,15 +2053,16 @@ def tails_kept(
     moves tail ranks out of their strata to meet it; and the high tail gave
     up days where the pass took more than a quarter of the body's drawn
     days, which the fewest does not count. Splitting, both are read at the
-    two tails' most, which the high tail reaches only where the body's
-    nearer splits run out first: one row a business day spends its body's
-    spare ranks first and its tails reach their most, but on logs just
-    above one row an open day the high tail keeps the days it drew at more
-    than a tenth of seeds, and a census the reach rule publishes can come
-    back short at up to seven seeds in ten (plan P4-D388: 21 of 313 such
-    censuses, one to four values short, each miss named by validation) --
-    a risk the orchestrator's ruling of 2026-10-08 lets stand, P4-D388
-    naming the fix it waits on.
+    two tails' most, and the body passes its draw only once the tails hold
+    every day their strata give: on the 90 logs just above one row an
+    open day of P4-D388's second verification, the censuses whose twins
+    miss the count at two seeds or more fell from 21 of 310 published to
+    1, and their twins short of the count from 97 to 7, each of the 7
+    where the pass merges (plan P4-D369 part one, seeds 0 to 9); until
+    lane D4s, the high tail kept the days it drew at more than a tenth of
+    seeds there and a census the reach rule published could come back
+    short at up to seven seeds in ten, the risk the orchestrator's ruling
+    of 2026-10-08 let stand.
 
     Guarantees: accepts what `tails_fewest` accepts, the pins and the
     holes; returns the fewest and the most, the fewest never above the
@@ -2124,17 +2127,18 @@ def count_reach_short(
     (`body_draw`, beside the holes). Where the draw and the tails' most
     fall short of the count, the pass only SPLITS, moving ranks that share
     a day onto days no rank holds -- a tail's ranks onto free days of
-    their own spans -- nearest first, then the lower rank, and the rule
-    reads the tails at their most, which the high tail reaches where the
-    body's nearer splits run out first -- one row a business day over
-    four and a half years draws about 830 of its 1,180 days and comes back
-    holding every one -- and the low tail, the column's lowest ranks,
-    comes first at each distance, but it splits a rank only onto a free
-    day inside that rank's own stratum, and only while the count wants
-    more: on Monday-to-Friday logs it ended below its most at two
-    seeds or more on 10 of 272 censuses of logs just above one row an open
-    day and 64 of 125 of fresh logs where the pass split, none of them
-    costing the count (plan P4-D388).
+    their own spans -- the two tails' ranks first, then the body's, each
+    nearest first and then the lower rank (since lane D4s, plan P4-D369
+    part one), and the rule reads the tails at their most: a tail splits
+    a rank only onto a free day inside that rank's own stratum, and only
+    while the count wants more, so no body rank splits while a tail rank
+    still can -- one row a
+    business day over four and a half years draws about 830 of its 1,180
+    days and comes back holding every one. Until lane D4s it split
+    nearest first alone, and the low tail, first at each distance, ended
+    below its most at two seeds or more on 10 of 272 censuses of logs
+    just above one row an open day and 64 of 125 of fresh logs where the
+    pass split, none of them costing the count (plan P4-D388).
     Otherwise it MERGES, and merging only takes days away: the body keeps
     no more than its draw, and the tails no fewer than `fewest`. So the
     body's NEED is what the tails at their most leave it, and, where its
@@ -2155,13 +2159,17 @@ def count_reach_short(
     censuses their twins meet; and the tails are read at the share of
     seeds the ruling allows, and the draw at its expectation, so a twin of
     a census it publishes can still come back a value short at that share
-    of seeds -- and at more where the pass splits and the body's nearer
-    splits do not run out before the high tail's: on logs just above one
-    row an open day the high tail keeps the days it drew, the body needs
-    more than the tails' most leave it, and 21 of 313 such censuses
-    published came back one to four values short at two to seven seeds of
-    ten, a risk the orchestrator's ruling of 2026-10-08 lets stand. Each
-    miss is one the twin's report and validation name.
+    of seeds, and at more where its body draws past that expectation and
+    the pass merges where the rule read a split: a Tuesday-to-Thursday
+    clinic of 1.15 rows a clinic day over 45 weeks at the floor of 11
+    draws 137 to 139 days for its 135 at seeds 2, 4, 6 and 8 and comes
+    back one or two values short there (plan P4-D369 part one). Until lane
+    D4s split the two tails' ranks first, 21 of the 310 censuses published
+    on the 90 logs just above one row an open day came back one to four
+    values short at two to seven seeds of ten, the high tail keeping the
+    days it drew, a risk the orchestrator's ruling of 2026-10-08 let
+    stand; 1 does now, where the pass merges.
+    Each miss is one the twin's report and validation name.
     No day of the body's span is walked: the days of each weekday in a
     gap are counted, and the holes inside it set aside one by one.
 
@@ -3057,6 +3065,313 @@ def day_census_breach(
 
 
 # anchor 3b-D4 (P4-D369)
+# THE DATES THAT STAND OUT (landing 3b.6, plan P4-D369, contract HD1 to
+# HD5). A date of the body stands out where it holds at least the heavy
+# line and at least three times the mean of the three dates either side
+# (`standing_out`, the mean, three either side); the column then
+# publishes `heavy_dates`, each such date with its exact count, and the
+# twin holds every one of them exactly.
+HEAVY_FLOOR = 11
+HEAVY_REACH = 3
+HEAVY_RULES = ("HD1", "HD2", "HD3", "HD4", "HD5")
+
+
+def heavy_line(floor: int) -> int:
+    """The least count a listed date may hold: eleven, or the census line.
+
+    The orchestrator's call of 2026-10-01 (plan section 8, its minors):
+    heavy dates list at `max(11, line)`, so a floor of one or two, whose
+    census line is two, lists no noise on an ordinary column.
+
+    Guarantees: accepts the settings floor; returns the line.
+    Determinism: a fixed function. Raises nothing. No I/O of any kind.
+    """
+    return max(HEAVY_FLOOR, census_line(floor))
+
+
+def heavy_different(n_distinct: int, n_unparsed: int) -> int:
+    """The most different parsed values a column can hold, as HD3 reads it.
+
+    THE ONE BOUND the producer and the loader both ask (contract HD3; the
+    Codex review of landing 3b.6, item 2). `n_distinct` counts the parsed
+    values and the unparsed spellings together, and `n_unparsed` counts
+    ROWS: five cells of one unread text are one different value, so
+    `n_distinct - n_unparsed` was no bound -- sixty weekly dates beside
+    five copies of `2020-07-09T00:00:00` (61 different values) gave 56,
+    and the producer withdrew a list of 57 dates that five different
+    unread texts let it publish. What the published counts do fix is that
+    unread cells, where there are any, spell at least one value no
+    parsed cell does: `n_distinct` less one where `n_unparsed` is not
+    nought, else `n_distinct`.
+
+    Guarantees: accepts the two published counts; returns a whole number.
+    Determinism: a fixed function. Raises nothing. No I/O of any kind.
+    """
+    if n_unparsed > 0:
+        return n_distinct - 1
+    return n_distinct
+
+
+def heavy_scope(
+    resolution: str,
+    all_at_midnight: bool,
+    read_at: str,
+    family: str,
+    tails: bool,
+) -> bool:
+    """Whether a column may list dates that stand out (the 3b.6 skeptic's M1).
+
+    THE ONE STATEMENT the producer, the loader, the generator and the
+    validator each ask: a column the twin counts in days -- whole dates,
+    or moments every value of which stands at midnight -- read on the
+    local clock, not in the joint member, with both tails. A column of
+    moments with a clock lists none (a stated limit of plan P4-D369).
+
+    Guarantees: accepts the block's resolution, whether every value is
+    at midnight, its clock, its member and whether both tails stand;
+    returns the answer. Determinism: a function of the five. Raises
+    nothing. No I/O of any kind.
+    """
+    if resolution != "date" and not (resolution == "datetime" and all_at_midnight):
+        return False
+    return read_at == "local" and family != "iso-mixed" and tails
+
+
+def heavy_listed(
+    counts: "dict[int, int]",
+    first: int,
+    last: int,
+    line: int,
+    holes: "frozenset[int]",
+) -> "tuple[tuple[int, int], ...]":
+    """The dates from `first` to `last` that stand out, with their counts.
+
+    `counts` holds the parsed cells of the WHOLE column on each day,
+    tail cells included, so a date beside a boundary is judged against
+    every cell around it; a day with no cell holds nought. A date stands
+    out by `standing_out` (the mean of the `HEAVY_REACH` days either
+    side, at least the line and three times it, in whole numbers); a
+    hole of the description is never listed.
+
+    Guarantees: accepts the counts, the first and last day that may be
+    listed, the line and the holes; returns `(day, count)` ascending.
+    Linear in the days from `first` to `last`. Determinism: a function
+    of the five. Raises nothing. No I/O of any kind.
+    """
+    if last < first:
+        return ()
+    start = first - HEAVY_REACH
+    stop = last + HEAVY_REACH
+    span = [counts[day] if day in counts else 0 for day in range(start, stop + 1)]
+    found: "list[tuple[int, int]]" = []
+    for index, count in standing_out(span, line, HEAVY_REACH, CENTRE_MEAN):
+        day = start + index
+        if first <= day <= last and day not in holes:
+            found += [(day, count)]
+    return tuple(found)
+
+
+def heavy_runs(
+    knots: "tuple[tuple[int, int], ...]",
+    listed: "tuple[tuple[int, int], ...]",
+    holes: "frozenset[int]",
+) -> "tuple[tuple[int, int], ...] | None":
+    """HD4: where each listed date's run of ranks may start, or None.
+
+    The knots are the body's pinned ranks with their days, ascending --
+    the low boundary first, each published rung, the high boundary last
+    (`body_pins`). A listed date of count c is a run of c consecutive
+    ranks on its day: every knot on that day stands inside the run, every
+    knot on an earlier day before it and every knot on a later day after
+    it, inside the body, and the runs follow one another in day order.
+    Between two listed dates with no knot between them, the ordinary
+    ranks need a day of their own: where every day between them is a
+    hole, the second run starts where the first ends. The bounds are
+    carried forward and then back along the runs, which on a chain of
+    such constraints is exact.
+
+    Guarantees: accepts the knots, the listed dates ascending and the
+    holes; returns `(first, last)` start rank per listed date, or None
+    where no rank order holds them all. Linear in the knots, the listed
+    dates and the days between listed dates. Determinism: a function of
+    the three. Raises nothing. No I/O of any kind.
+    """
+    if not listed or not knots:
+        return ()
+    low_rank = knots[0][0]
+    high_rank = knots[len(knots) - 1][0]
+    lows: "list[int]" = []
+    highs: "list[int]" = []
+    forced: "list[bool]" = []
+    below = 0
+    for index in range(len(listed)):
+        day, count = listed[index]
+        while below < len(knots) and knots[below][1] < day:
+            below = below + 1
+        above = below
+        while above < len(knots) and knots[above][1] == day:
+            above = above + 1
+        least = low_rank
+        most = high_rank - count + 1
+        if below > 0:
+            least = max(least, knots[below - 1][0] + 1)
+        if above < len(knots):
+            most = min(most, knots[above][0] - count)
+        if above > below:
+            least = max(least, knots[above - 1][0] - count + 1)
+            most = min(most, knots[below][0])
+        lows += [least]
+        highs += [most]
+        tied = False
+        if index > 0:
+            before = listed[index - 1][0]
+            between = below > 0 and knots[below - 1][1] > before
+            free = any(
+                other not in holes for other in range(before + 1, day)
+            )
+            tied = not between and not free
+        forced += [tied]
+    for index in range(1, len(listed)):
+        step = listed[index - 1][1]
+        lows[index] = max(lows[index], lows[index - 1] + step)
+        if forced[index]:
+            highs[index] = min(highs[index], highs[index - 1] + step)
+    for index in range(len(listed) - 2, -1, -1):
+        step = listed[index][1]
+        highs[index] = min(highs[index], highs[index + 1] - step)
+        if forced[index + 1]:
+            lows[index] = max(lows[index], lows[index + 1] - step)
+    found: "list[tuple[int, int]]" = []
+    for index in range(len(listed)):
+        if lows[index] > highs[index]:
+            return None
+        found += [(lows[index], highs[index])]
+    return tuple(found)
+
+
+def _heavy_group_breach(
+    listed: "tuple[tuple[int, int], ...]",
+    census: "tuple[tuple[int, int, int], ...]",
+    bin_of: str,
+) -> "tuple[str, str, str] | None":
+    """HD3 beside one census: no group's listed rows exceed its count."""
+    if not census:
+        return None
+    where = where_of(census) if bin_of == "weekday" else month_where(census)
+    held = [0 for _ in census]
+    for day, count in listed:
+        if bin_of == "weekday":
+            group = where[weekday_of(day)]
+        else:
+            group = where[month_bin(day) - 1]
+        held[group] = held[group] + count
+    for index in range(len(census)):
+        if held[index] > census[index][2]:
+            return (
+                "HD3",
+                f"the listed dates of one {bin_of} group hold {held[index]} rows",
+                f"at most that group's published count, {census[index][2]}",
+            )
+    return None
+
+
+def heavy_breach(
+    listed: "tuple[tuple[int, int], ...]",
+    line: int,
+    room: "tuple[int, int, int, int]",
+    holes: "frozenset[int]",
+    knots: "tuple[tuple[int, int], ...]",
+    censuses: "tuple[tuple[tuple[int, int, int], ...], tuple[tuple[int, int, int], ...]]",
+) -> "tuple[str, str, str] | None":
+    """The loader's check of one published list of heavy dates, or None (P4-D369).
+
+    THE ONE STATEMENT the loader and the producer's self-check ask, in
+    order, the first broken rule returned by name:
+
+    * HD1 every date strictly after the one before it, from the low
+      boundary to the high boundary (`room`'s first two), on no hole;
+    * HD2 every count at least the heavy line (`heavy_line`), never
+      nought;
+    * HD3 the counts add to at most the body (`room`'s third), the list
+      holds at most as many dates as the column's different parsed
+      values can number (its fourth, `heavy_different`), and beside a weekday census or a day-of-month
+      census (`censuses`) no group's listed rows exceed its count;
+    * HD4 the knots and the runs fit one rank order (`heavy_runs`);
+    * HD5 every listed date holds at least half the listed rows within
+      three days of it (2c >= their sum): a list that runs on as a daily
+      series breaks it.
+
+    Guarantees: accepts the list `(day, count)`, the line, `(low, high,
+    body rows, different parsed values)`, the holes, the knots and the
+    weekday and day-of-month censuses; returns None or (rule, what the
+    list says, what the rule asks). Determinism: a function of the six.
+    Raises nothing. No I/O of any kind.
+    """
+    if not listed:
+        return None
+    low, high, body, different = room
+    previous = low - 1
+    for day, _count in listed:
+        if day <= previous or day > high or day in holes:
+            return (
+                "HD1",
+                "a listed date out of order, outside the two boundaries or "
+                "on a day the description holds empty",
+                "dates strictly ascending from the low boundary to the high "
+                "boundary, none on a hole",
+            )
+        previous = day
+    for _day, count in listed:
+        if count < line or count <= 0:
+            return (
+                "HD2",
+                f"a listed date holding {count} rows",
+                f"every listed count at least {line}",
+            )
+    total = sum(count for _day, count in listed)
+    if total > body:
+        return (
+            "HD3",
+            f"listed dates holding {total} rows",
+            f"at most the {body} rows between the two boundaries",
+        )
+    if len(listed) > different:
+        return (
+            "HD3",
+            f"{len(listed)} listed dates",
+            f"at most the column's {different} different parsed values",
+        )
+    weekdays, month = censuses
+    broken = _heavy_group_breach(listed, weekdays, "weekday")
+    if broken is None:
+        broken = _heavy_group_breach(listed, month, "day-of-month")
+    if broken is not None:
+        return broken
+    if heavy_runs(knots, listed, holes) is None:
+        return (
+            "HD4",
+            "listed runs the published boundaries and rungs cannot stand beside",
+            "every boundary and rung on a listed date inside its run, and "
+            "every other one before or after it, in one rank order",
+        )
+    for index in range(len(listed)):
+        day, count = listed[index]
+        near = 0
+        for step in (-1, 1):
+            other = index + step
+            while 0 <= other < len(listed) and abs(listed[other][0] - day) <= HEAVY_REACH:
+                near = near + listed[other][1]
+                other = other + step
+        if 2 * count < near:
+            return (
+                "HD5",
+                f"a listed date holding {count} rows beside {near} listed rows "
+                "within three days",
+                "every listed date at least half the listed rows within three days",
+            )
+    return None
+
+
 # anchor 3b-T1 (P4-D370)
 # anchor 3b-T2 (P4-D371)
 # anchor 3b-T3 (P4-D372)

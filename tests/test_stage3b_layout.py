@@ -4335,7 +4335,12 @@ def test_r2c_repeating_dates_keep_their_count(tmp_path: pathlib.Path, shape: str
 def test_r2c_repeating_red_when_no_target_is_given(
     tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """Item 3's mutant: the upper target withdrawn, and the declared dates spread again."""
+    """Item 3's mutant: the upper target withdrawn, and the declared dates spread again.
+
+    Described listing no date that stands out (plan P4-D369; batch 3b's integration): the
+    repeating dates are listed at their counts otherwise, and G7.3j pins each listed date's
+    rows, so the target withdrawn would move none of them."""
+    monkeypatch.setattr(taxonomy, "heavy_dates_decided", lambda *arguments: ())
     shipped = contract.datetime_count_target
 
     def exact_only(column: "contract.ColumnBlock", parsed: int) -> int:

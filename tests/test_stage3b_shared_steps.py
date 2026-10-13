@@ -170,7 +170,7 @@ import types
 import pytest
 
 import fixtures
-from synthtwin import generation
+from synthtwin import generation, taxonomy
 
 REPOSITORY = pathlib.Path(__file__).resolve().parent.parent
 VECTORS = REPOSITORY / "tests" / "reference" / "generation-branch-vectors-15.json"
@@ -1401,13 +1401,21 @@ def test_the_body_counts_a_unit_a_move_empties(monkeypatch: pytest.MonkeyPatch) 
 
 def _sessions(tmp_path: pathlib.Path):
     """The review's weekly sessions `_weekly_schedule(92)`, described at a floor of 36, with the census the
-    menu offers written back: plan P4-D388 withholds it there, its body left too little room."""
+    menu offers written back: plan P4-D388 withholds it there, its body left too little room. Described
+    listing no date that stands out (plan P4-D369): the producer lists two of its days, and beside that
+    list the count gives way, named as the list's (method G7.3j step 7, the orchestrator's ruling (a) of
+    2026-10-13), as tests/test_stage3b_heavy_dates.py measures."""
     import kpi_shapes
     import test_stage3b_weekday_review as review
     from synthtwin import calendar_rules, contract, parsing
 
     cells = review._weekly_schedule(92)
-    described = kpi_shapes.describe(tmp_path, "sessions", "visit\n" + "".join(f"{cell}\n" for cell in cells), 36)
+    listing = taxonomy.heavy_dates_decided
+    taxonomy.heavy_dates_decided = lambda *arguments: ()
+    try:
+        described = kpi_shapes.describe(tmp_path, "sessions", "visit\n" + "".join(f"{cell}\n" for cell in cells), 36)
+    finally:
+        taxonomy.heavy_dates_decided = listing
     block = described.block("visit")
     days = sorted(parsing.days_from_civil(int(c[0:4]), int(c[5:7]), int(c[8:10])) for c in cells)
     body = days[block["low_tail"]["rows"] : len(days) - block["high_tail"]["rows"]]

@@ -1750,7 +1750,7 @@ def _oracle_absent(module: types.ModuleType) -> typing.Callable[..., object]:
 def _generator_absent(member, resolution, midnight, spellings):
     facts = types.SimpleNamespace(
         parser_family=member, resolution=resolution, all_at_midnight=midnight,
-        datetimes_read_at="local",
+        datetimes_read_at="local", heavy_dates=(),
     )
     return set(generation._count_holes(typing.cast(contract.DatetimeFacts, facts), spellings))
 

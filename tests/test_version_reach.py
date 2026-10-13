@@ -372,6 +372,16 @@ ROUTES_THAT_RUN_SOURCE = {
     ("tests/test_stage3b_day_of_month.py", "compile"): 1,
     ("tests/test_stage3b_day_of_month.py", "exec"): 1,
     # anchor 3b-D4 (P4-D369)
+    # The nineteenth file, landing 3b.6's dates that stand out (plan
+    # P4-D369): it runs the same oracle by path, as every file above does;
+    # and its test runs that oracle by path too, and builds the product's
+    # module with one source edit for each case's mutant -- and, since the
+    # D4 skeptic 2's item 2, the oracle's namespace with one source edit
+    # for each of its rulings' mutants, as the product's module is built.
+    ("tools/reference/make_generation_branch_vectors_19.py", "runpy.run_path"): 1,
+    ("tests/test_stage3b_heavy_dates.py", "runpy.run_path"): 1,
+    ("tests/test_stage3b_heavy_dates.py", "compile"): 2,
+    ("tests/test_stage3b_heavy_dates.py", "exec"): 2,
     # anchor 3b-T1 (P4-D370)
     # The twenty-second file, landing T1's written clocks (plan P4-D370): it
     # runs the same oracle by path, as every file above does.

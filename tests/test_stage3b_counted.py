@@ -1540,8 +1540,11 @@ def test_c5_the_day_pass_holds_the_placeholder_days_of_counted_dates(
     the day, no twin cell names it, and every twin is at exit 0. THE
     MUTANT: the day pass's holes without that day, whose twins at seeds 0
     to 2 missed both censuses and the count of different values at exit
-    3, no cell left on the day.
+    3, no cell left on the day. Described listing no date that stands out (plan P4-D369; batch
+    3b's integration): the 1sts are listed otherwise, and G7.3j's list and step 7 then leave the
+    mutant red at seed 0 alone.
     """
+    monkeypatch.setattr(taxonomy, "heavy_dates_decided", lambda *arguments: ())
     system = "seconds-since-1960"
     draw = random.Random(1900)
     days = [datetime.date(1898, 1, 1) + datetime.timedelta(days=step) for step in range(365 * 4 + 1)]

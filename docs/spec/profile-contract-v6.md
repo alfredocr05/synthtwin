@@ -2077,8 +2077,8 @@ contract:
    widening it to arbitrary strings would be exactly the hole that lets
    a source-derived value into a sentence and be rebuilt successfully.
 
-**The census.** The table holds 101 forms and 122 argument positions.
-Of those, 86 are whole numbers, 14 are package words, 17 are nested
+**The census.** The table holds 102 forms and 123 argument positions.
+Of those, 87 are whole numbers, 14 are package words, 17 are nested
 forms, and 5 are bound affix strings. No position is a string of any
 other kind. The hour census (landing 3b.2-H, plan P4-D371) added the
 six forms NF88 to NF92 and NF117 -- the last at its review, the first
@@ -2092,7 +2092,9 @@ plan P4-D357 A added the
 eight forms NF79 to NF86 and no position, and plan P4-D356 the form NF87
 and no position; the day-of-month census (landing 3b.3, plan P4-D368)
 added the three forms NF102 to NF104 and two whole-number positions,
-each the census line. Landing 3b.5 (plan P4-D373) added NF106 and NF107 and
+each the census line; the dates that stand out (landing 3b.6, plan
+P4-D369) added the form NF105 and one whole-number position, the heavy
+line. Landing 3b.5 (plan P4-D373) added NF106 and NF107 and
 two whole-number positions, each the census line; landing R2a (plan
 P4-D383) added NF112 and one whole-number position, the century the
 person gave, a setting.
@@ -2135,8 +2137,8 @@ shipped. `tests/test_p4d334_sentence_arguments.py` re-measures the
 class over a committed battery, so it is a number a reader can run.
 
 So every argument position of every form is bound to WHAT IT IS, and
-the table below is closed over all 122 of them exactly as the form table
-is closed over the 101 forms. A position nobody bound is a number a
+the table below is closed over all 123 of them exactly as the form table
+is closed over the 102 forms. A position nobody bound is a number a
 sentence may print that no rule governs, and a producer that adds one
 is a producer this contract does not describe. The bindings are these:
 
@@ -2331,6 +2333,7 @@ and why the sentence that cannot be withdrawn now has NF61 to say.
 | `hour_census_withheld_no_grouping` | 1 | setting (census line) |
 | `day_of_month_census_counts_each_day` | 1 | setting (census line) |
 | `day_of_month_census_counts_days_together` | 1 | setting (census line) |
+| `heavy_dates_each_count_exact` | 1 | setting (heavy line) |
 | `said_read_as_dates` | 1 | floored against `n_present` |
 | `said_read_as_dates` | 2 | package word |
 | `said_written_as_numbers` | 1 | sum `n_numeric` + `n_out_of_range` + `n_contradictory` |
@@ -3731,7 +3734,7 @@ names:
 
 | id | statement |
 |---|---|
-| NG14 | the form is one of the 101 in section 4.5.1 |
+| NG14 | the form is one of the 102 in section 4.5.1 |
 | NG15 | the argument count equals that form's arity |
 | NG16 | every argument is of one of C6-119's four classes |
 | NG17 | re-rendering the form with those arguments writes the leaf's text character for character |
@@ -4118,6 +4121,17 @@ NF102 and NF103 take one argument, the census line; NF104 none.
 > the days of the month this column's values fall on are not counted, though they depart from the calendar, because counting them could cost the twin its count of different values or its counts per weekday, or because a conservative rule keeps them back: the column's middle half spans too few months, a day of the month holds its rows on too few different dates, or some of its dates fall on days the description holds empty
 
 <!-- anchor 3b-D4 (P4-D369) -->
+
+What a column of dates says about its dates that stand out (landing
+3b.6, plan P4-D369): a PUBLISHED list carries the one remark below, which
+takes the heavy line as its argument; a column listing nothing says
+nothing. Beside a list, NF71 is not said: a weekday group less its
+listed dates' rows can be read off the two, so "never of one date" would
+not hold.
+
+**NF105. `heavy_dates_each_count_exact` — the dates that stand out, each with its exact count** — arity 1. Argument 1: the heavy line.
+
+> these dates each hold at least «1» rows and at least three times the average of the three days either side; each count is exact
 <!-- anchor 3b-T1 (P4-D370) -->
 <!-- anchor 3b-T2 (P4-D371) -->
 
@@ -5787,7 +5801,7 @@ landing restates its own rows below its own line.
 
 | key | JSON type | permitted values | meaning |
 |---|---|---|---|
-| `heavy_dates` | array | `[]` | reserved for the dates between the two tail boundaries that stand out from their neighbours, each with its count; landing 3b.6 fills it |
+| `heavy_dates` | array | entries `{date, count}`, ascending by date | the dates that STAND OUT (landing 3b.6, plan P4-D369, HD1 to HD5): every date from the low tail boundary to the high one holding at least the HEAVY LINE -- eleven, or the census line where it is higher -- and at least three times the mean of the three days either side, compared in whole numbers as twice its count against their sum, every parsed cell of the column counted on its day, tail cells included, a day holding no cell or lying outside the column holding nought; each with its EXACT count. No day the description holds empty is listed, and a boundary day on which a tail cell also stands is not, so every cell of a listed date is a body cell. `date` is canonical `YYYY-MM-DD`; `count` a whole number. `[]` where no date stands out, and always on a column that is not whole dates or moments every value of which stands at midnight, read on the local clock, not in the joint member, with both tails (a column of moments with a clock lists none: a stated limit). Beside the list, NF71 is not said |
 
 <!-- anchor 3b-T1 (P4-D370) -->
 <!-- anchor 3b-T2 (P4-D371) -->
@@ -6831,11 +6845,15 @@ they withhold only where, read off the description, a twin would miss
 with a chance above one in ten -- and since how far the count pass
 merges is not read, some they withhold are met, a price P4-D388
 measures -- and a census they publish may still be missed at that share
-of seeds, and at more where the count pass splits on logs just above one
-row an open day: there its twins came back one to four values short at
-two to seven seeds in ten, a risk the orchestrator's ruling of 2026-10-08
-lets stand beside the first (P4-D388). Each miss is one the twin's report
-and validation name. A census is
+of seeds, and at more where a twin draws past the expectation the rules
+read and the count pass merges where they read a split: a
+Tuesday-to-Thursday clinic at the floor of 11 at four seeds in ten (P4-D369
+part one). Until the count pass split the two tails' ranks first, twins of 21
+censuses on logs just above one row an open day came back one to four
+values short at two to seven seeds in ten where the count pass split, a
+risk the orchestrator's ruling of 2026-10-08 let stand beside the first
+(P4-D388); 1 of them does now, where the pass merges. Each miss is one
+the twin's report and validation name. A census is
 withheld where a non-empty group holds fewer than
 three different dates of the body, or where two or more groups are
 non-empty and they hold fewer than seven and a half different dates
@@ -6868,13 +6886,15 @@ to its fewest -- below it only where the count leaves the body a few days
 or none beside the two tails' fewest -- while the high tail keeps the
 days it drew, except where the pass takes more than a quarter of the
 body's drawn days and it gives some up too. Where they fall short it
-SPLITS ranks onto free days, nearest first, then the lower rank: a body
-rank one day from a free day splits before any high tail rank whose free
-day is further, so the high tail keeps the days it drew unless the
-body's nearer splits run out first; and the low tail comes first at each
-distance, but it splits a rank only onto a free day inside that rank's
-own stratum, and only while the count wants more: on Monday-to-Friday
-logs it ended below its most at two seeds or more on 10 of 272
+SPLITS ranks onto free days, the two tails' ranks first, then the
+body's, each nearest first, then the lower rank (since plan P4-D369
+part one): a tail splits a rank only onto a free day inside that
+rank's own stratum, and only while the count wants more, so no body rank
+splits while a tail rank still can. Until then it split nearest first
+alone: a body rank one day from a free day split before any high tail
+rank whose free day was further, so the high tail kept the days it drew
+unless the body's nearer splits ran out first, and the low tail, first
+at each distance, ended below its most at two seeds or more on 10 of 272
 censuses of logs just above one row an open day and 64 of 125 of the
 fresh logs P4-D388 measures where the pass split, none of them costing
 the count. Where the pass merges, each count rule
@@ -6905,9 +6925,10 @@ land, in expectation, on n(1 - (1 - 1/n)^r) of a gap's n days that are
 no hole, r its ranks -- with the pin days, the body's DRAW. Where the
 draw and the tails' most fall short of the count the pass only splits,
 and the rule reads the body's NEED as what the tails at their most leave
-it, which holds where the body's nearer splits run out before the high
-tail's; where they do not, the high tail keeps the days it drew and the
-body needs more than that, the risk above; otherwise it merges, which only
+it: the body splits only once the tails can split no further (until
+then, where the body's nearer splits did not run out before the high
+tail's, the high tail kept the days it drew and the body needed more
+than that, the risk above); otherwise it merges, which only
 takes days away, so the body keeps no more than its draw and the tails
 no fewer than the fewest they keep, and the need is the draw, no more
 than what the tails' fewest kept leave and no less than what their most
@@ -7012,10 +7033,14 @@ a business year written `MM/DD/YYYY 00:00`, every weekday once and 740
 rows more, published its census at the floors of 11 and 20 and its
 twins came back 259 different values for 260, its rebuilt high tail on
 one day fewer than the real one and no free weekday left in its body.
-Such a column carries the near-one risk of a column of dates, which
-P4-D388 lets stand: on a log just above one row an open day, where the
-count pass splits, a published census can leave twins a day or two
-short at some seeds. Validation names that miss on a member writing
+Such a column carried the near-one risk of a column of dates, which
+P4-D388 let stand: on a log just above one row an open day, where the
+count pass split a body rank before the high tail's, a published census
+could leave twins a day or two short at some seeds -- 81 of 2,360 twins
+of the 90 near-one logs written ISO at midnight. Since the count pass splits
+the two tails' ranks first (P4-D369 part one) 5 are, each where the
+count pass merges, the draw past the rules' expectation. Validation names
+that miss on a member writing
 the month first or a 12-hour clock, both distinct counts MISSED; on an
 ISO member, writing a space or a `T`, G7.9 makes up the count of texts
 with a cell in a mark the census leaves unnamed (one the column never
@@ -12883,6 +12908,14 @@ it answers to.
 | DM5 | a non-empty census stands only on a column of whole dates, or of moments every value of which stands at midnight, read on the local clock, not in the joint member, with both tails -- WC3's scope and nothing more: the censuses of written forms and a workbook's cell classes are not asked | yes |
 
 <!-- anchor 3b-D4 (P4-D369) -->
+
+| id | statement | loader? |
+|---|---|---|
+| HD1 | the listed dates are canonical, strictly ascending, from the low tail boundary to the high one, on no day the description holds empty (its written forms, its decisions and its absent spellings), on a column of whole dates or of moments every value of which stands at midnight, read on the local clock, not in the joint member, with both tails (landing 3b.6, plan P4-D369) | yes |
+| HD2 | every listed count is at least the heavy line, `max(11, max(2, small_cell_floor))`, and never nought | yes |
+| HD3 | the listed counts add up to at most `P - low_tail.rows - high_tail.rows`; the list holds at most `n_distinct - 1` dates where `n_unparsed > 0`, else `n_distinct` (`n_unparsed` counts rows, and unread cells spell at least one value no parsed cell does; amended by the Codex review of landing 3b.6, item 2); beside a weekday census or a day-of-month census, no group's listed rows exceed its count | yes |
+| HD4 | the two tail boundaries and the published rungs, each at its rank, and each listed date's run of rows stand in one rank order: every boundary or rung on a listed date inside its run, every one on an earlier date before it and on a later date after it, and two listed dates with no day between them but holes and no boundary or rung between them adjacent | yes |
+| HD5 | every listed date holds at least half the rows listed on the dates within three days of it | yes |
 <!-- anchor 3b-T1 (P4-D370) -->
 <!-- anchor 3b-T2 (P4-D371) -->
 
@@ -13095,7 +13128,7 @@ month-first parsed.
 | NG11 | on `remark_affixed_numbers_may_be_codes`: argument 3 equals the named block's `n_affixed` |
 | NG12 | argument 1 is character-for-character that block's `affix_prefix` and argument 2 its `affix_suffix`, AT THOSE POSITIONS, not merely as members of the pair |
 | NG13 | on `remark_a_label_is_a_built_in_stand_in`: argument 1 is 1, 2 or 3 |
-| NG14 | for every form: one of the 101 the note grammar enumerates |
+| NG14 | for every form: one of the 102 the note grammar enumerates |
 | NG15 | the argument count equals that form's arity |
 | NG16 | every argument is of one of the four argument classes |
 | NG17 | re-rendering the form with those arguments writes the leaf's text character for character |
@@ -13494,7 +13527,7 @@ form, the stand-in is written in it (7.9.1).
 
 <!-- anchor 3b-D4 (P4-D369) -->
 
-| `heavy_dates` | LOADER-ONLY (plan P4-D364): `[]` on every block, refused as anything else, and no output obligation until landing 3b.6 fills it |
+| `heavy_dates` | EXACT-OBSERVABLE (landing 3b.6, plan P4-D369): the file's own parsed cells on each listed date, in any spelling -- read as the day-of-month check reads them, a cell its member fails folded where the file's own description folded it -- number its published count exactly. A MISSED line keeps its verdict and prints no count below the heavy line (plan P4-D347). The validator counts the file's cells on the listed dates and never produces a list of its own |
 
 <!-- anchor 3b-T1 (P4-D370) -->
 <!-- anchor 3b-T2 (P4-D371) -->
@@ -14420,7 +14453,7 @@ this document, and the battery the plan requires turns red on it.
 | nothing-class blocks (`numeric_unrepresentable`, `identifier`, `free_text`) | lengths, word statistics, digit and code-alphabet counts, the whole-number test, the repetition multiset, on `numeric_unrepresentable` the whole-number and sign counts, on `free_text` the census of WRITTEN FORMS its cells wore (`shape_forms`), and on `identifier` the census of LAYOUTS (`layout_forms`, 7.12) and, by the owner's ruling of 2026-09-17, the literal PREFIX every cell of the column or of one named layout opens with (`layout_prefixes`, 7.12a, row 22) | no value, no spelling, no fragment of one but the prefix of row 22 — the form census included, whose every key is built from `%`, `@` and thirteen named marks -- characters no cell that has a form may contain, so a key can carry no letter and no figure of any cell; the multiplicity map publishes SIZES of unnamed groups under no floor, the form census under the floor with a `(withheld)` pool |
 | `empty` columns nobody declared | the absent SPELLINGS their cells wore and the two absence counts, exactly as any column that is not nothing-publishing | floor-governed |
 | `settings` | the rules the run applied, the floor's own value, how many values each declaration named, and which of THIS package's published words were among them | carries no cell, no column and no count of the table; a person's own spelling never enters |
-| `source.header_evidence`, `publication_notes[].note`, `detection_evidence`, `remarks` | sentences of the 101 closed forms: 122 argument positions, of which 86 are whole numbers, 14 package words, 17 nested forms and 5 bound affix strings | the whole numbers are counts the block beside them already publishes, EXCEPT the positions priced at rows 16 and 18 |
+| `source.header_evidence`, `publication_notes[].note`, `detection_evidence`, `remarks` | sentences of the 102 closed forms: 123 argument positions, of which 87 are whole numbers, 14 package words, 17 nested forms and 5 bound affix strings | the whole numbers are counts the block beside them already publishes, EXCEPT the positions priced at rows 16 and 18 |
 | `relationships` | nothing: eight nulls | — |
 
 ### 12.3 The rows, each priced
@@ -15484,10 +15517,10 @@ width at least ONE (`1`, `2`, `10`), a cell written as a whole number
 writing at least one figure (C6-29c). `(withheld)` is again the only
 non-numeric key permitted.
 
-### 14.8 The note grammar — 101 forms
+### 14.8 The note grammar — 102 forms
 
 Defined in 4.5.1, which is the authority on every rendering and every
-argument. 122 argument positions: 86 whole numbers, 14 package words, 17
+argument. 123 argument positions: 87 whole numbers, 14 package words, 17
 nested forms, 5 bound affix strings.
 
 > **THE CENSUS IS RECOMPUTED FROM THE CODE, NOT TAKEN FROM EITHER
@@ -15593,6 +15626,7 @@ nested forms, 5 bound affix strings.
 | NG102 | `day_of_month_census_counts_each_day` | 1 |
 | NG103 | `day_of_month_census_counts_days_together` | 1 |
 | NG104 | `day_of_month_census_withheld` | 0 |
+| NG105 | `heavy_dates_each_count_exact` | 1 |
 
 <!-- anchor 3b-D1 (P4-D365) -->
 <!-- anchor 3b-D0 (P4-D366) -->

@@ -2660,7 +2660,7 @@ _EXPECTED = {
 
 
 @pytest.mark.parametrize("name", sorted(_EXPECTED))
-def test_each_rule_publishes_what_it_derives(tmp_path: pathlib.Path, name: str) -> None:
+def test_each_rule_publishes_what_it_derives(tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch, name: str) -> None:
     """The seeded witnesses of the rules, each publishing what its rule derives (plan P4-D365).
 
     * `walkcase4_s0` (1,001 different dates, no day repeated) and
@@ -2692,8 +2692,16 @@ def test_each_rule_publishes_what_it_derives(tmp_path: pathlib.Path, name: str) 
     Every published census here is met by the twins of seeds 0 to 2 with
     nothing missed, and the real table validates; every withheld one says
     so in the one sentence every rule the table's own numbers decide
-    shares.
+    shares. `ties60_1000` is described listing no date that stands out
+    (plan P4-D369), so it stands as these rules were measured: it lists
+    53 of its 60 days, and its twins hold that list only by giving way on
+    the count, which then gives way, named (method G7.3j step 7; the
+    orchestrator's ruling (a) of 2026-10-13), as
+    tests/test_stage3b_heavy_dates.py measures. Every other witness is
+    described as the producer writes it.
     """
+    if name == "ties60_1000":
+        monkeypatch.setattr(taxonomy, "heavy_dates_decided", lambda *arguments: ())
     column, build, expected, reason = _EXPECTED[name]
     cells = build()
     text = f"{column}\n" + "".join(f"{cell}\n" for cell in cells)
@@ -3163,8 +3171,10 @@ def test_declared_days_beside_a_date_on_every_other_day_withhold_by_the_room_rul
     hole, so the room rule is asked and withholds the census in the one
     shared sentence, and the real table validates with nothing missed.
     With the room rule withdrawn the seven counts publish and the twins
-    of seeds 0, 1 and 4 hold 234 different days for 235, both distinct
-    counts MISSED: 668f276 withheld this census and its twins met every
+    of seeds 8 and 9 hold 234 different days for 235, both distinct
+    counts MISSED -- those of seeds 0, 1, 4, 8 and 9 until the count pass
+    split the two tails' ranks first (plan P4-D369 part one, measured at
+    seeds 0 to 9): 668f276 withheld this census and its twins met every
     check. A twin must pass its own checks, so the census stays withheld
     until the shared count steps can keep both it and the count of
     different days. Red when the room rule is asked beside May's holes
@@ -3198,7 +3208,7 @@ def test_declared_days_beside_a_date_on_every_other_day_withhold_by_the_room_rul
         roomy.setattr(calendar_rules, "room_short", lambda *_arguments: False)
         unruled = _described_with_declared(tmp_path / "unruled", "declared_room", text, declared)
         assert calendar_rules.entry_of(_groups(unruled.block("seen_on"))) == calendar_rules.ENTRY_SEVEN
-        missed = kpi_shapes.missed(kpi_shapes.measure(unruled, kpi_shapes.twin_text(unruled, 0), "unruled-0.csv"))
+        missed = kpi_shapes.missed(kpi_shapes.measure(unruled, kpi_shapes.twin_text(unruled, 8), "unruled-8.csv"))
     assert "seen_on:distinct.n_distinct" in missed, missed
 
 
@@ -3580,7 +3590,9 @@ _FOLDED = {
 
 
 @pytest.mark.parametrize("name", sorted(_FOLDED))
-def test_a_folded_moment_is_counted_where_the_census_counted_it(tmp_path: pathlib.Path, name: str) -> None:
+def test_a_folded_moment_is_counted_where_the_census_counted_it(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch, name: str
+) -> None:
     """The validator reads a folded ISO moment on its day, as the census counted it (plan P4-D365).
 
     395 ISO dates, one moment at midnight among them and four unreadable
@@ -3594,8 +3606,16 @@ def test_a_folded_moment_is_counted_where_the_census_counted_it(tmp_path: pathli
     (`validation._day_as_counted`) wherever the file's own description
     folded it -- here `n_unparsed` 4 for five present cells the member
     fails (`validation._folded_by_the_file`). The real file validates
-    with nothing missed, and the twins of seeds 0 and 1 too.
+    with nothing missed, and the twins of seeds 0 and 1 too. The Tuesday
+    clinic is described listing no date that stands out (plan P4-D369):
+    every Tuesday of it stands out, and 18 listed dates beside two tail
+    days are more days than the count leaves the twin once its four
+    stand-ins take theirs, so beside the list the count gives way, named
+    (method G7.3j step 7; the orchestrator's ruling (a) of 2026-10-13).
+    The other two are described as the producer writes them.
     """
+    if name == "tuesday_clinic_20w":
+        monkeypatch.setattr(taxonomy, "heavy_dates_decided", lambda *arguments: ())
     cells = _FOLDED[name](random.Random(5))
     moment = "2020-05-03T00:00:00" if name == "every_day_395" else sorted(cells)[len(cells) // 2] + "T00:00:00"
     cells = cells + [moment] + ["unparsed"] * 4

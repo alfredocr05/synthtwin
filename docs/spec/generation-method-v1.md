@@ -6403,8 +6403,19 @@ that way.
   them over; otherwise nothing moves. Too few: each
   unpinned rank sharing its unit is offered
   the nearest unit no rank holds inside its gap, of the same width kind
-  and midnight standing, earlier first, nearest first, ties to the lower
-  rank.
+  and midnight standing, earlier first -- **THE TWO TAILS' RANKS
+  FIRST**, then the body's, each nearest first, ties to the lower rank
+  (lane D4s, plan P4-D369 part one). A tail's ranks are the first and
+  the last as many ranks as its published rows. Split nearest first
+  alone, a body rank a day from a free day split ahead of a high tail
+  rank whose free day stood further, so the body passed what a weekday
+  census lets it reach while the high tail kept fewer days than its
+  most, and the day pass (G7.3f) took the body's extra days back: a log
+  of 1.15 rows a clinic day over 52 weeks at a floor of 20 came back 154
+  or 155 different days for 156 at seven seeds of ten, where it now
+  keeps all 156 at every seed (`tests/test_stage3b_count_room.py`; the
+  frozen case `tails_split_first` holds the order on 72 dates of a
+  13-week log).
 
 **NO PASS OFFERS A HOLE, AND NONE COUNTS ONE A RANK CANNOT LEAVE** (plan
 P4-D358; the review of landing 3b.0, items 2 and 4). A HOLE is a unit an
@@ -7661,6 +7672,134 @@ weekday groups, month ends on each month's own last day, billing rolled
 to business days beside an empty weekend, births with a weekend dip, and
 the 1st heaped beside a hole on each 15th, and one state of step 4's
 repair -- each with the answer this section gives it, and no G14.3 case.
+
+#### G7.3j The dates that stand out: pinned, the parts split and drawn by key
+
+(Landing 3b.6, plan P4-D369.) A column counted in days -- G7.1's ordinal
+space `date` -- that publishes `heavy_dates` holds each listed date at
+its published count; every other column is drawn and moved exactly as
+before, so its twin is unchanged byte for byte. The KNOTS are the body's
+pins: the two tail boundaries and each published rung, at its rank.
+
+1. **The layout.** Each listed date's rows are a RUN of ranks pinned on
+   it. A knot on a listed date is COVERED: the run stands around it,
+   starting inside the interval contract HD4's carrying forward and
+   back gives it. The unlisted knots cut the body into SEGMENTS and the
+   covered runs cut each segment into PARTS; a listed date with no knot
+   on it is LOOSE, its run standing at the start of the part it lies in.
+   A part's ORDINARY ranks take its days -- an unlisted knot's day is a
+   day of both parts beside it -- and its FREE days are those that are
+   no listed date and no hole of the description.
+2. **The split.** How many ordinary ranks each part holds, inside the
+   bounds the covered runs' starts leave. Open first every part a split
+   cannot leave empty and every part with free days that touches an
+   unlisted knot; in a segment holding ordinary ranks with none open,
+   its part with the most free days; while the segment's bounds hold no
+   split, the next by free days; then the rest, most free days first,
+   while their cost fits the BUDGET: the column's count of different
+   values, where the twin keeps it, less the listed dates, the unlisted
+   knots' days and each tail's (its published values, or one). A part
+   costs the weekday groups it offers a free day of that still owe rows
+   (one where no census stands), a part touching a knot one less where
+   the knots force it open. Inside, the ranks go by WEIGHTED ROOM: each
+   free day weighs what its group of the first census beside the list
+   owes the ordinary ranks -- its count less its listed rows and its
+   unlisted knots -- over that group's free days in the whole body.
+3. **The repair.** The split's SCORE is the rows the parts cannot place
+   on the groups of the weekday and day-of-month censuses that owe them
+   (a capacity max-flow from the parts to the groups, per census), and
+   then the new days the budget asks beyond the most the parts can open
+   (a min-cost max-flow placing every owed row, a part's first rows on
+   a group, up to its free days there, cheaper). While the score is
+   above nought, the one move that lowers it most -- some ranks from one
+   open part to another of the same segment, every covered run still
+   around its knots, the count found by halving -- is made, at most 64
+   times (the 3b.6 skeptic's B1).
+4. **The draw.** The body keeps one word per ordinary rank, in rank
+   order, so the high tail reads the words it always read. A part's
+   ranks are split by KEY, its free days of one group of each census
+   beside the list: SPREAD rakes the keys' free days (a day the part
+   shares with the part before it not counted) to the parts' ranks and
+   each census's owed rows sixty times and rounds them by a flow; where
+   SPREAD fills more keys holding no knot's day than the new days the
+   count leaves -- the twin's count of different days less those the
+   listed dates, the knots and both tails already hold -- the lightest
+   keys take none and the rest are raked again, at most eight times,
+   and then FEW puts the ranks on as few keys as one flow per census
+   finds; where SPREAD cannot open the new days the count leaves, WIDE
+   puts as many ranks on days of their own as a min-cost flow allows.
+   The first split placing every owed row and able to open exactly the
+   new days left is taken, a rank no flow placed going to its part's
+   widest key and a rank a rounding placed beyond the part's own leaving
+   its fullest key. Each key opens at least one new day where it holds ranks
+   and no knot's day, and the rest go where the ranks stand thickest (a
+   density found by halving); its new days are drawn among its free days
+   by the words of its first slots, no day twice, each taking that
+   slot's rank, and every other rank of the key is drawn uniformly over
+   its new days and its knots' days. Each part's values are sorted onto
+   its ranks.
+5. **The passes.** Every listed date is a hole of the count pass, of the
+   day pass and of the step off an absent spelling, which offer it to no
+   other rank. Where the drawn ranks already meet every census beside
+   the list, keep off every hole and hold the count of different values
+   as the validator judges it, the day pass leaves them as drawn;
+   elsewhere it runs as before, its step 8.5 included. THE COUNT AS THE
+   VALIDATOR JUDGES IT (the orchestrator's ruling (c) of 2026-10-13):
+   exactly where the count pass reaches it and the published count lies
+   inside G12.5's envelope drawn on the description's own gaps (the
+   list's parts left out, as the validator draws it); elsewhere the
+   distance outside that envelope, nought inside it
+   (`contract.datetime_count_held_exactly`, the one statement the
+   validator, the report and this section ask).
+6. **The sort.** After every other pass the body's ranks are sorted
+   again; every value stayed inside its part, so each boundary and rung
+   reads its own value. A listed date not holding its count is named
+   (`heavy_dates`).
+7. **What gives way** (the orchestrator's rulings (a) and (b) of
+   2026-10-13). Where the sorted ranks meet every group of the weekday
+   and the day-of-month census beside the list, the listed twin stands,
+   whatever the count of different values holds: beside a list the
+   count gives way, and where it is off as step 5 judges it and the
+   twin of the column listing nothing stands nearer it, one deviation
+   says the count gave way to the listed dates, read as the count's
+   cause. Where they miss a group, the column is drawn again
+   from the same words as if it listed no date -- the twin of the
+   column without `heavy_dates`, byte for byte -- and the two are
+   weighed by ROWS OFF the published counts: over every group of both
+   censuses and every listed date, the rows a twin holds more or fewer
+   than its count, summed. That twin is taken only where it stands
+   fewer rows off, and one deviation names the list and the census it
+   gave way to (`heavy_dates`, "as if no date were listed"); a tie
+   keeps the list, and then each missed census's deviation says it
+   gave way to the listed dates wherever the twin listing nothing meets
+   that census. The count of different values does
+   not enter the weighing. At most twice the column's work. The pass
+   draws no word of its own.
+8. **The spelling keeps the date** (the Codex review of landing 3b.6,
+   item 1). Once G7.5 has allocated every rank's spelling and before any
+   cell is written, each rank on a listed date, ascending, whose cell
+   would wear an absent spelling keeps its date (`_listed_date_respelled`,
+   the one rule every step that would move such a rank asks first): it
+   TRADES spellings with the first rank, ascending, standing on no
+   listed date, not yet traded, of its convention class (the same form
+   and offset; on a textual member the same month, elsewhere the month
+   below ten or not; the day below ten or not) and wearing another
+   spelling the column allocates, first allocated first, under which its
+   date wears no absent spelling, where that rank's own date wears none
+   in its spelling -- so every census of spellings keeps its counts; a
+   refused date's ranks are passed over together, at most 64 dates per
+   spelling. With no such rank it takes the first such spelling alone,
+   the spelling censuses recounted on the cells; with none, G7.5's step
+   off an absent spelling moves it as before. The listed counts are then
+   recounted on the written cells as V5-D1 counts them, and a miss is
+   named (`heavy_dates`) before any sentence says they are met. Its
+frozen cases are states in the nineteenth vectors file,
+`tests/reference/generation-branch-vectors-19.json`: a covered run, two
+loose dates, a listed boundary day, two listed dates with a hole between
+them, Monday and Thursday sessions whose split the census repair moves,
+sessions with stray rows whose split the repair moves for the count's
+new days, and six Mays beside both censuses -- each with the answer this
+section gives it, and no G14.3 case.
 
 ### G7.4 Offsets: only where recorded
 
@@ -14091,6 +14230,15 @@ two ends are that rank's own two ends above.
 
 ### G12.5 The envelope on datetime `n_distinct` and `n_distinct_folded`
 
+**One test, asked everywhere** (the orchestrator's ruling (c) of
+2026-10-13, plan P4-D369). The count is held EXACTLY where it is
+reachable and the published count lies inside this envelope, and the
+envelope stands in its place elsewhere: `contract.datetime_count_held_exactly`
+states it once, and the validator, the report and G7.3j's steps 5 and 7
+ask it. On a column listing dates that stand out the windows of G12.4
+are the description's own gaps, before G7.3j's parts, since the
+validator draws its window from the description alone.
+
 **The lower end.** Two ranks whose windows of G12.4 do not overlap
 cannot hold the same instant. Where the column's count is reachable
 (contract `datetime_counts_reachable`), G7.3 may meet it with an
@@ -15467,7 +15615,7 @@ that happens -- and the clause beside it, `--missing-value`'s "CAN be
 published as the column's smallest value", is exactly right under the
 new rule.
 
-**All two hundred and four are required.** The count is taken off the committed
+**All two hundred and five are required.** The count is taken off the committed
 case sets and not carried forward: this sentence said fifty-two and a
 split of nine, twenty, sixteen and seven while the six files held
 seventy-three, because each repair that added a case added a clause to
@@ -15496,7 +15644,8 @@ holds three; the FOURTEENTH,
 `tests/reference/generation-branch-vectors-12.json`, holds four; and the
 FIFTEENTH, `tests/reference/generation-branch-vectors-13.json`, holds
 thirteen; the SIXTEENTH,
-`tests/reference/generation-branch-vectors-14.json`, holds three; and the
+`tests/reference/generation-branch-vectors-14.json`, holds four (its
+fourth, `tails_split_first`, lane D4s's, plan P4-D369 part one); and the
 TWENTY-SECOND, `tests/reference/generation-branch-vectors-22.json`,
 holds five -- landing T1's written clocks and G7.5 step 5, in the file
 plan P4-D364's table gives that landing (G14.2); the TWENTY-FIRST,
@@ -15669,6 +15818,7 @@ case passed, which is the failure the count exists to prevent:
 | `tail_end_least_reach` | G7.3b step 5's end floor (plan P4-D375): 105 ISO dates over the 21 days from 2024-05-06, one cell on each end day, at seed 416. Each tail holds nineteen rows at one, two and three days out, a mean of 28/19 and a root-mean-square of the square root of 48/19; the shape puts each end two days out, and the Bhatia-Davis reach of the pair, 20/9 rounded up, puts it three out, on the column's own first and last days. Its mutant withdraws the floor: both ends stand two days out and the twin writes neither end day |
 | `tail_end_least_reach_months` | G7.3b step 5's end floor counted in months (plan P4-D375): the same counts over the 21 months from 2019-03, written `yyyy-mm`, at seed 417, the tail unit a month. Its mutant withdraws the floor and both ends stand two months out |
 | `tail_end_least_reach_slack` | G7.3b step 5's slack (plan P4-D375; the repair round of its landing): 79 ISO dates over the 21 days from 2024-05-06, one cell on each end day and none on the two days inside it, at seed 418. Each tail holds ten rows one day out and one four days out, a mean of 14/11 and a root-mean-square of the square root of 26/11, so the reach of the pair is exactly 4 and binary64 takes it, in the step's order, as 4.000000000000001; lowered by `2**-24` of itself plus one before it is rounded up, it puts each end four days out, on the column's own first and last days, where the shape alone puts it three out. Its mutant rounds the reach up with no slack: both ends stand five days out, a day past the column's real range. Before this case no frozen case held the slack up: the two above have a reach of 20/9, which rounds up to three with or without it |
+| `tails_split_first` | G7.3's count pass splitting the two tails' ranks first (lane D4s, plan P4-D369 part one): 72 ISO dates of a log just above one row an open day -- one row and a Poisson draw of 0.1 more on every Monday to Friday of the 13 weeks from 2022-01-03 -- on 65 days, its weekday census Monday to Friday 50 and Saturday and Sunday 0, at seed 422. The body draws fewer days than the count, so the pass splits: the two tails' ranks first, each onto the nearest free day inside its stratum, then the body's, and the twin holds all 65 days, the high tail's eleven ranks on eleven. Its mutant splits nearest first alone, as the pass did before: body ranks split ahead of high tail ranks whose free days stand further, the high tail ends on 9 days and the twin holds 64, both distinct counts MISSED |
 | `tie_group_off_the_hole` | G7.3b step 7 for a tie group (plan P4-D358; the second review of landing 3b.0): 111 ISO dates over 40 days from 2020-02-09, 11 of them written 2020-03-10 and declared absent, at seed 0. The high tail's tie group of five ranks stands five days past its boundary, on 2020-03-10, and steps one day inward off it. Its mutant steps the tail's end and leaves the group there: its five cells are written with the absent spelling, 16 read back absent where the column holds 11 |
 | `weekday_count_put_back` | G7.3f step 8.1 (plan P4-D355): 120 whole dates over four weeks with no weekend, published `[Mon-Fri] 92, [Sat-Sun] 0`, whose day pass leaves the count of different days off what it was before the pass. Single ranks, in rank order and inside their own group, put it back. Its mutant withdraws those moves |
 | `weekday_days_moved` | G7.3f (plan P4-D355): 100 whole dates over seven weeks published `[Mon-Fri] 66, [Sat-Sun] 12`, so body ranks move inside their own gaps until the cells between the two boundaries fall on those groups. Its mutant withdraws the pass, as the twin was written before this decision |

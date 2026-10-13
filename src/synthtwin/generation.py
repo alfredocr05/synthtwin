@@ -22714,6 +22714,23 @@ class _DateLayout:
     high: "_TailPlan | None"
     texts: "dict[int, str]"
     draw_unit: int = 1
+    # THE DATES THAT STAND OUT (landing 3b.6, plan P4-D369, method G7.3j):
+    # the parts the ordinary ranks of the body are drawn in, the listed
+    # dates, the count of different days the twin keeps (-1 where it
+    # keeps none) and what each census's groups owe the ordinary ranks,
+    # where the column lists any (`_heavy_layout`); empty elsewhere, and
+    # the body is drawn gap by gap.
+    parts: "tuple[_HeavyPart, ...]" = ()
+    listed: "frozenset[int]" = frozenset()
+    distinct: int = -1
+    owed: "tuple[tuple[int, ...], ...]" = ()
+    # ...the gaps as the description draws them, before the list's parts
+    # (None where nothing is listed), and G12.5's envelope of the count
+    # of different values on them (`_datetime_count_window`), which the
+    # validator judges the count by (the orchestrator's ruling (c) of
+    # 2026-10-13): the count method G7.3j steps 5 and 7 read.
+    described: "tuple[tuple[int, ...], tuple[int, ...]] | None" = None
+    count_window: "tuple[int, int]" = (0, -1)
 
 
 def _tail_step(facts: contract.DatetimeFacts) -> "tuple[int, int]":
@@ -22816,7 +22833,10 @@ def _count_holes(
             and facts.parser_family in _ISO_MARK_MEMBERS
         )
     ):
-        return frozenset()
+        # ...a date that stands out is a hole on every column that lists
+        # one, moments at midnight in a member with a mark among them
+        # (landing 3b.6, plan P4-D369): its count is exact.
+        return _heavy_holes(facts)
     found: "dict[int, bool]" = {}
     for spelling in holes:
         read = parsing.parse_datetime(spelling, facts.parser_family)
@@ -23312,7 +23332,16 @@ def _date_layout(
     )
     # THE DATES THAT STAND OUT, PINNED (3b.D4, P4-D369; plan P4-D364's
     # seam): unchanged until that landing fills `_heavy_layout`.
-    return _heavy_layout(column, facts, layout)
+    listing = _heavy_layout(column, facts, layout)
+    if not listing.listed:
+        return listing
+    # ...with the count's envelope as the validator draws it (G7.3j).
+    return dataclasses.replace(
+        listing,
+        count_window=_datetime_count_window(
+            column, facts, listing, column.n_present, parsed, floor
+        ),
+    )
 
 
 def _draw_unit(facts: contract.DatetimeFacts) -> int:
@@ -23339,31 +23368,1774 @@ def _heavy_layout(
     facts: contract.DatetimeFacts,
     layout: "_DateLayout",
 ) -> "_DateLayout":
-    """The layout with every date that stands out pinned at its count.
+    """The layout with every date that stands out pinned at its count (G7.3j).
 
-    THE PINS SEAM OF STAGE 3B (plan P4-D364), which landing 3b.6 (lane D4,
-    plan P4-D369) fills: each listed date's rows become pinned ranks, and
-    every other rank's gap leaves the listed dates out. Until then no
-    column lists a date, and the layout is handed back unchanged.
+    THE PINS SEAM OF STAGE 3B (plan P4-D364), filled by landing 3b.6
+    (lane D4, plan P4-D369). Where the column lists dates that stand out
+    (`facts.heavy_dates`), each listed date's rows become ranks pinned
+    on that date, and every other rank of the body is an ORDINARY rank
+    drawn in a PART:
+
+    1. THE KNOTS are the body's pins -- the two boundaries and the
+       rungs. A knot on a listed date is COVERED: that date's run of
+       ranks stands around it, starting where `calendar_rules.heavy_runs`
+       (contract HD4) allows. The unlisted knots cut the body into
+       SEGMENTS, and the covered runs cut each segment into PARTS; a
+       listed date with no knot on it is LOOSE, its run standing at the
+       start of the part it lies in. A part's ordinary ranks take any
+       day of the part that is no listed date and no published hole.
+    2. THE SPLIT (`_heavy_split`): how many ordinary ranks each part
+       holds, inside the bounds the covered runs' starts allow.
+    3. THE REPAIR (`_heavy_repaired`): where the weekday or
+       day-of-month census beside the list cannot be met inside the
+       parts as split, or the parts cannot open the new days the budget
+       asks, ranks move between the parts of one segment until a
+       capacity flow from the parts to the census's groups places every
+       row each group still owes (the 3b.6 skeptic's B1) and a min-cost
+       flow opens those days.
+
+    Every ordinary rank's gap is its part's days; every listed rank's is
+    its own date. No word is drawn here: the draw splits each part's
+    ranks by key once the tails' days are known (`_heavy_drawn`). A list
+    no rank order holds (which the loader refuses) leaves the layout
+    unchanged.
 
     Guarantees: accepts the column, its facts and the layout; returns
-    the layout. Draws no word. Raises nothing. No I/O of any kind.
+    the layout. Linear in the ranks and the days between the boundaries.
+    Determinism: a function of the three. Raises nothing. No I/O of any
+    kind.
     """
-    return layout
+    listed = facts.heavy_dates
+    if (
+        not listed
+        or layout.low is None
+        or layout.high is None
+        or not layout.body
+        or _ordinal_space(facts) != "date"
+    ):
+        return layout
+    planned = _heavy_plan(
+        tuple((rank, layout.body[rank]) for rank in sorted(layout.body)),
+        listed,
+        frozenset(_published_holes(column, facts, ())),
+        (facts.weekday_census, facts.day_of_month_census),
+        _heavy_budget(column, facts, layout, listed),
+    )
+    if planned is None:
+        return layout
+    placed, parts, owed = planned
+    days = {day for day, _count in listed}
+    pins = {rank: layout.pins[rank] for rank in layout.pins}
+    lows = [value for value in layout.lows]
+    highs = [value for value in layout.highs]
+    for rank in placed:
+        low, high = placed[rank]
+        if low == high and low in days:
+            pins[rank] = low
+        lows[rank] = low
+        highs[rank] = high
+    return dataclasses.replace(
+        layout,
+        pins=pins,
+        lows=tuple(lows),
+        highs=tuple(highs),
+        parts=parts,
+        owed=owed,
+        listed=frozenset(day for day, _count in listed),
+        described=(layout.lows, layout.highs),
+        distinct=(
+            column.n_distinct - facts.n_unparsed
+            if contract.datetime_counts_reachable(column)
+            else -1
+        ),
+    )
+
+
+def _heavy_plan(
+    knots: "tuple[tuple[int, int], ...]",
+    listed: "tuple[tuple[int, int], ...]",
+    holes: "frozenset[int]",
+    censuses: "tuple[tuple[tuple[int, int, int], ...], tuple[tuple[int, int, int], ...]]",
+    budget: int,
+) -> "tuple[dict[int, tuple[int, int]], tuple[_HeavyPart, ...], tuple[tuple[int, ...], ...]] | None":
+    """G7.3j steps 1 to 3 on plain numbers: where every body rank may stand.
+
+    `knots` are the body's pins with their days, ascending, `listed` the
+    dates that stand out, `holes` the description's holes, `censuses` the
+    weekday and day-of-month censuses (empty where none) and `budget` the
+    different days the parts may open (`_heavy_budget`). Returns, for
+    every body rank between the two boundaries that is no knot, its gap
+    `(lo, hi)` -- a listed rank's its own date -- the parts, and what
+    each census's groups owe the ordinary ranks, or None where no rank
+    order holds the list.
+
+    Guarantees: a function of the five; draws no word. Linear in the
+    ranks and the days between the boundaries; each flow is bounded by
+    the parts and the groups. Raises nothing. No I/O of any kind.
+    """
+    segments = _heavy_segments(knots, listed, holes)
+    if segments is None:
+        return None
+    groups = _heavy_censuses(censuses[0], censuses[1])
+    rooms = _heavy_rooms(groups, segments, listed, holes, knots)
+    chosen = _heavy_split(segments, rooms, budget)
+    if chosen is None:
+        return None
+    splits = _heavy_repaired(segments, rooms, chosen[0], chosen[1], budget)
+    keyed = _heavy_keyed(groups, segments, (listed, holes))
+    placed: "dict[int, tuple[int, int]]" = {}
+    parts: "list[_HeavyPart]" = []
+    for index in range(len(segments)):
+        segment = segments[index]
+        at = segment.base
+        for part in range(len(segment.lows)):
+            for day, count in segment.loose[part]:
+                for _row in range(count):
+                    placed[at] = (day, day)
+                    at = at + 1
+            ordinary = splits[index][part]
+            for rank in range(at, at + ordinary):
+                placed[rank] = (segment.lows[part], segment.highs[part])
+            if ordinary > 0:
+                parts += [
+                    _HeavyPart(
+                        segment.lows[part],
+                        segment.highs[part],
+                        at,
+                        ordinary,
+                        keyed[index][part],
+                        segment.lent if part == 0 else -1,
+                    )
+                ]
+            at = at + ordinary
+            if part < len(segment.covered):
+                day, count = segment.covered[part]
+                for _row in range(count):
+                    placed[at] = (day, day)
+                    at = at + 1
+    demands = tuple(tuple(max(0, owe) for owe in owes) for owes in rooms.owed)
+    return placed, tuple(parts), demands
+
+
+@dataclasses.dataclass(frozen=True)
+class _HeavyPart:
+    """One part of the body that ordinary ranks are drawn in (G7.3j).
+
+    `lo` and `hi` are the days its ranks may take (their gap), `first`
+    its first rank and `count` how many ranks it holds. `keyed` is its
+    free days by their group in each census beside the list, `(key,
+    days)` ascending (`_heavy_keyed`), over which the draw splits its
+    ranks (`_heavy_cells`); `lent` the day of the unlisted knot it shares
+    with the part before it, -1 where none.
+    """
+
+    lo: int
+    hi: int
+    first: int
+    count: int
+    keyed: "tuple[tuple[tuple[int, ...], tuple[int, ...]], ...]"
+    lent: int = -1
+
+
+@dataclasses.dataclass(frozen=True)
+class _HeavySegment:
+    """The body between two unlisted knots, cut into parts by covered runs.
+
+    `base` is its first rank and `ordinary` the ordinary ranks it holds.
+    Per part: its first and last day (`lows`, `highs`), its loose listed
+    dates and whether it touches an unlisted knot. `lent` is the day of
+    the unlisted knot the segment starts on, its first part's first day
+    and the last day of the part before it, -1 where it starts on none. Per covered run: its date and count, and the least
+    and most ordinary ranks the parts before it may hold together.
+    """
+
+    base: int
+    ordinary: int
+    lows: "tuple[int, ...]"
+    highs: "tuple[int, ...]"
+    loose: "tuple[tuple[tuple[int, int], ...], ...]"
+    touches: "tuple[bool, ...]"
+    covered: "tuple[tuple[int, int], ...]"
+    least: "tuple[int, ...]"
+    most: "tuple[int, ...]"
+    lent: int = -1
+
+
+def _heavy_segments(
+    knots: "tuple[tuple[int, int], ...]",
+    listed: "tuple[tuple[int, int], ...]",
+    holes: "frozenset[int]",
+) -> "list[_HeavySegment] | None":
+    """The body's segments and parts (G7.3j step 1), or None where no rank
+    order holds the list (`calendar_rules.heavy_runs`)."""
+    runs = calendar_rules.heavy_runs(knots, listed, holes)
+    if runs is None:
+        return None
+    count_of = {day: count for day, count in listed}
+    start_of = {listed[index][0]: runs[index] for index in range(len(listed))}
+    knot_days = {day for _rank, day in knots}
+    low_rank, low_day = knots[0]
+    high_rank, high_day = knots[len(knots) - 1]
+    unlisted = {rank: day for rank, day in knots if day not in count_of}
+    anchors: "list[tuple[int, int, bool]]" = []
+    if low_rank not in unlisted:
+        anchors += [(low_rank - 1, low_day - 1, False)]
+    for rank in sorted(unlisted):
+        anchors += [(rank, unlisted[rank], True)]
+    if high_rank not in unlisted:
+        anchors += [(high_rank + 1, high_day + 1, False)]
+    days = [day for day, _count in listed]
+    segments: "list[_HeavySegment]" = []
+    pointer = 0
+    for index in range(len(anchors) - 1):
+        rank_a, day_a, real_a = anchors[index]
+        rank_b, day_b, real_b = anchors[index + 1]
+        while pointer < len(days) and days[pointer] <= day_a:
+            pointer = pointer + 1
+        inside: "list[int]" = []
+        ahead = pointer
+        while ahead < len(days) and days[ahead] < day_b:
+            inside += [days[ahead]]
+            ahead = ahead + 1
+        if rank_b - rank_a <= 1:
+            continue
+        covered = [day for day in inside if day in knot_days]
+        ordinary = rank_b - rank_a - 1 - sum(count_of[day] for day in inside)
+        if ordinary < 0:
+            return None
+        lows: "list[int]" = []
+        highs: "list[int]" = []
+        loose: "list[tuple[tuple[int, int], ...]]" = []
+        touches: "list[bool]" = []
+        for part in range(len(covered) + 1):
+            lo = max(day_a, low_day) if part == 0 else covered[part - 1] + 1
+            hi = min(day_b, high_day) if part == len(covered) else covered[part] - 1
+            lows += [lo]
+            highs += [hi]
+            loose += [
+                tuple(
+                    (day, count_of[day])
+                    for day in inside
+                    if lo <= day <= hi and day not in knot_days
+                )
+            ]
+            touches += [
+                (part == 0 and real_a) or (part == len(covered) and real_b)
+            ]
+        least: "list[int]" = []
+        most: "list[int]" = []
+        offset = rank_a + 1
+        for part in range(len(covered)):
+            offset = offset + sum(count for _day, count in loose[part])
+            first, last = start_of[covered[part]]
+            least += [max(0, first - offset)]
+            most += [min(ordinary, last - offset)]
+            offset = offset + count_of[covered[part]]
+        segments += [
+            _HeavySegment(
+                rank_a + 1,
+                ordinary,
+                tuple(lows),
+                tuple(highs),
+                tuple(loose),
+                tuple(touches),
+                tuple((day, count_of[day]) for day in covered),
+                tuple(least),
+                tuple(most),
+                day_a if real_a and rank_a != low_rank else -1,
+            )
+        ]
+    return segments
+
+
+@dataclasses.dataclass(frozen=True)
+class _HeavyRooms:
+    """What each part offers its ordinary ranks (G7.3j step 2).
+
+    Per part, in segment order: its free days (`room`), its free days in
+    each group of each census beside the list (`free`, one tuple per
+    census), its weighted room and its cost in different days. Per
+    census, what each group still owes the ordinary ranks (`owed`).
+    """
+
+    room: "tuple[tuple[int, ...], ...]"
+    free: "tuple[tuple[tuple[tuple[int, ...], ...], ...], ...]"
+    weighted: "tuple[tuple[int, ...], ...]"
+    cost: "tuple[tuple[int, ...], ...]"
+    owed: "tuple[tuple[int, ...], ...]"
+
+
+_HEAVY_WEIGHT_SCALE = 1048576
+_HEAVY_REPAIRS = 64
+
+
+def _heavy_censuses(
+    weekdays: "tuple[tuple[int, int, int], ...]",
+    month: "tuple[tuple[int, int, int], ...]",
+) -> "list[tuple[tuple[tuple[int, int, int], ...], tuple[int, ...], str]]":
+    """Each census beside the list -- the weekday census, then the
+    day-of-month census, where published -- with each bin's group."""
+    found: "list[tuple[tuple[tuple[int, int, int], ...], tuple[int, ...], str]]" = []
+    if weekdays:
+        found += [(weekdays, calendar_rules.where_of(weekdays), "weekday")]
+    if month:
+        found += [(month, calendar_rules.month_where(month), "month_day")]
+    return found
+
+
+def _heavy_group(where: "tuple[int, ...]", bins: str, day: int) -> int:
+    """One day's group in one census beside the list."""
+    if bins == "weekday":
+        return where[calendar_rules.weekday_of(day)]
+    return where[calendar_rules.month_bin(day) - 1]
+
+
+def _heavy_rooms(
+    censuses: "list[tuple[tuple[tuple[int, int, int], ...], tuple[int, ...], str]]",
+    segments: "list[_HeavySegment]",
+    listed: "tuple[tuple[int, int], ...]",
+    holes: "frozenset[int]",
+    knots: "tuple[tuple[int, int], ...]",
+) -> _HeavyRooms:
+    """Each part's free days, by group, weighted, and its cost (G7.3j step 2).
+
+    A FREE day is a day of the part that is no listed date and no
+    published hole. Beside a census, each group OWES the ordinary ranks
+    its published count less its listed rows and less the unlisted
+    knots on its days; a free day weighs what its group owes over the
+    group's free days in the whole body (one where no census stands, the
+    weekday census's where both do), and a part's COST is the weekday
+    groups it offers a free day of that still owe rows, one where no
+    census stands: the different days opening it takes.
+    """
+    listed_days = {day for day, _count in listed}
+    owed: "list[list[int]]" = []
+    for groups, where, bins in censuses:
+        owes = [count for _first, _last, count in groups]
+        for day, count in listed:
+            group = _heavy_group(where, bins, day)
+            owes[group] = owes[group] - count
+        for _rank, day in knots:
+            if day not in listed_days:
+                group = _heavy_group(where, bins, day)
+                owes[group] = owes[group] - 1
+        owed += [owes]
+    room: "list[tuple[int, ...]]" = []
+    free: "list[tuple[tuple[tuple[int, ...], ...], ...]]" = []
+    totals = [[0 for _ in groups] for groups, _where, _bins in censuses]
+    for segment in segments:
+        rooms: "list[int]" = []
+        frees: "list[tuple[tuple[int, ...], ...]]" = []
+        for part in range(len(segment.lows)):
+            held = 0
+            each = [[0 for _ in groups] for groups, _where, _bins in censuses]
+            for day in range(segment.lows[part], segment.highs[part] + 1):
+                if day in listed_days or day in holes:
+                    continue
+                held = held + 1
+                for which in range(len(censuses)):
+                    _groups, where, bins = censuses[which]
+                    group = _heavy_group(where, bins, day)
+                    each[which][group] = each[which][group] + 1
+                    totals[which][group] = totals[which][group] + 1
+            rooms += [held]
+            frees += [tuple(tuple(row) for row in each)]
+        room += [tuple(rooms)]
+        free += [tuple(frees)]
+    weighted: "list[tuple[int, ...]]" = []
+    cost: "list[tuple[int, ...]]" = []
+    for index in range(len(segments)):
+        weights: "list[int]" = []
+        costs: "list[int]" = []
+        for part in range(len(room[index])):
+            if not censuses:
+                weights += [room[index][part] * _HEAVY_WEIGHT_SCALE]
+                costs += [1]
+                continue
+            here = free[index][part][0]
+            owes = owed[0]
+            total = 0
+            spent = 0
+            for group in range(len(here)):
+                if here[group] <= 0 or totals[0][group] <= 0:
+                    continue
+                share = max(0, owes[group])
+                total = total + (
+                    here[group] * share * _HEAVY_WEIGHT_SCALE
+                ) // totals[0][group]
+                if share > 0:
+                    spent = spent + 1
+            weights += [total]
+            costs += [max(1, spent)]
+        weighted += [tuple(weights)]
+        cost += [tuple(costs)]
+    return _HeavyRooms(
+        tuple(room),
+        tuple(free),
+        tuple(weighted),
+        tuple(cost),
+        tuple(tuple(owes) for owes in owed),
+    )
+
+
+def _heavy_budget(
+    column: contract.ColumnBlock,
+    facts: contract.DatetimeFacts,
+    layout: "_DateLayout",
+    listed: "tuple[tuple[int, int], ...]",
+) -> int:
+    """The different days the parts may open beyond the knots' (G7.3j step 2).
+
+    The column's count of different values, where the twin keeps it
+    (`contract.datetime_counts_reachable`), less the listed dates, the
+    unlisted knots' days and each tail's: its published values where it
+    publishes them, one where it does not. Where the count is not kept,
+    every part may open.
+    """
+    if not contract.datetime_counts_reachable(column):
+        return 1 << 62
+    listed_days = {day for day, _count in listed}
+    knots = {
+        layout.body[rank]
+        for rank in layout.body
+        if layout.body[rank] not in listed_days
+    }
+    budget = column.n_distinct - facts.n_unparsed - len(listed_days) - len(knots)
+    for side in (layout.low, layout.high):
+        if side is None:
+            continue
+        if side.shape is None:
+            budget = budget - len(set(side.spots) - knots - listed_days)
+        else:
+            budget = budget - 1
+    return budget
+
+
+def _heavy_bounds(
+    segment: _HeavySegment, opened: "list[bool]"
+) -> "list[tuple[int, int]] | None":
+    """The bounds of the ordinary ranks before each part's end that a
+    split with these parts open can take, carried forward and back, or
+    None where none can (G7.3j step 2)."""
+    parts = len(segment.lows)
+    reach: "list[tuple[int, int]]" = []
+    lowest, highest = 0, 0
+    for part in range(parts):
+        least = segment.least[part] if part < parts - 1 else segment.ordinary
+        most = segment.most[part] if part < parts - 1 else segment.ordinary
+        if opened[part]:
+            lowest, highest = max(lowest, least), min(most, segment.ordinary)
+        else:
+            lowest, highest = max(lowest, least), min(highest, most)
+        if lowest > highest:
+            return None
+        reach += [(lowest, highest)]
+    bounds = [(0, 0) for _ in range(parts)]
+    bounds[parts - 1] = reach[parts - 1]
+    for part in range(parts - 1, 0, -1):
+        above = bounds[part]
+        below = reach[part - 1]
+        if opened[part]:
+            bounds[part - 1] = (below[0], min(below[1], above[1]))
+        else:
+            bounds[part - 1] = (max(below[0], above[0]), min(below[1], above[1]))
+        if bounds[part - 1][0] > bounds[part - 1][1]:
+            return None
+    return bounds
+
+
+def _heavy_split_of(
+    segment: _HeavySegment, opened: "list[bool]", weights: "tuple[int, ...]"
+) -> "list[int] | None":
+    """Each part's ordinary ranks: by weighted room among the open parts,
+    held inside the bounds (`_heavy_bounds`), or None."""
+    bounds = _heavy_bounds(segment, opened)
+    if bounds is None:
+        return None
+    total = sum(weights[part] for part in range(len(weights)) if opened[part])
+    rooms = [weights[part] if opened[part] else 0 for part in range(len(weights))]
+    if total <= 0:
+        rooms = [1 if opened[part] else 0 for part in range(len(weights))]
+        total = sum(rooms)
+    split: "list[int]" = []
+    before = 0
+    so_far = 0
+    for part in range(len(weights)):
+        so_far = so_far + rooms[part]
+        if not opened[part]:
+            split += [0]
+            continue
+        target = segment.ordinary
+        if total > 0:
+            target = (segment.ordinary * so_far + total // 2) // total
+        upto = min(max(target, bounds[part][0], before), bounds[part][1])
+        split += [upto - before]
+        before = upto
+    return split
+
+
+def _heavy_split(
+    segments: "list[_HeavySegment]", rooms: _HeavyRooms, budget: int
+) -> "tuple[list[list[int]], list[list[bool]]] | None":
+    """How many ordinary ranks each part holds (G7.3j step 2), or None.
+
+    OPEN, first, every part a split cannot leave empty and every part
+    with free days that touches an unlisted knot; then, in a segment
+    holding ordinary ranks with no part open, its part with the most
+    free days; then, while the segment's bounds hold no split, the next
+    by free days. The rest open, most free days first, while their cost
+    fits the BUDGET (`_heavy_budget`), which the forced parts spend
+    first -- a part touching a knot one day less, its knot's day being
+    the column's already. Inside, ranks go by weighted room
+    (`_heavy_split_of`).
+    """
+    opened: "list[list[bool]]" = []
+    spent = 0
+    for index in range(len(segments)):
+        segment = segments[index]
+        parts = len(segment.lows)
+        everything = [rooms.room[index][part] > 0 for part in range(parts)]
+        bounds = _heavy_bounds(segment, everything)
+        row: "list[bool]" = []
+        for part in range(parts):
+            fewest = 0
+            if bounds is not None:
+                below = bounds[part - 1][1] if part > 0 else 0
+                fewest = max(0, bounds[part][0] - below)
+            here = rooms.room[index][part] > 0 and (
+                fewest > 0 or segment.touches[part]
+            )
+            if fewest > 0:
+                spent = spent + rooms.cost[index][part] - (
+                    1 if segment.touches[part] else 0
+                )
+            row += [here]
+        order = [
+            part
+            for _room, part in sorted(
+                (-rooms.room[index][part], part) for part in range(parts)
+            )
+        ]
+        if segment.ordinary > 0 and not any(row):
+            for part in order:
+                if rooms.room[index][part] > 0:
+                    row[part] = True
+                    spent = spent + rooms.cost[index][part]
+                    break
+        for part in order:
+            if _heavy_bounds(segment, row) is not None:
+                break
+            if not row[part] and rooms.room[index][part] > 0:
+                row[part] = True
+                spent = spent + rooms.cost[index][part]
+        opened += [row]
+    rest = sorted(
+        (-rooms.room[index][part], index, part)
+        for index in range(len(segments))
+        for part in range(len(segments[index].lows))
+        if not opened[index][part] and rooms.room[index][part] > 0
+    )
+    for _room, index, part in rest:
+        cost = rooms.cost[index][part]
+        if spent + cost > budget:
+            continue
+        opened[index][part] = True
+        if _heavy_bounds(segments[index], opened[index]) is None:
+            opened[index][part] = False
+            continue
+        spent = spent + cost
+    splits: "list[list[int]]" = []
+    for index in range(len(segments)):
+        split = _heavy_split_of(
+            segments[index], opened[index], rooms.weighted[index]
+        )
+        if split is None:
+            return None
+        splits += [split]
+    return splits, opened
+
+
+def _heavy_flow(
+    supply: "list[int]",
+    reach: "list[list[int]]",
+    demand: "list[int]",
+    limit: int = 1 << 62,
+    caps: "list[list[int]] | None" = None,
+) -> "tuple[int, list[list[int]]]":
+    """The most rows the parts can place on the groups they offer (a capacity
+    max-flow, Edmonds and Karp: each round the shortest augmenting path).
+
+    `supply` holds each part's ordinary ranks, `reach[part]` the groups
+    it offers a free day of, `demand` each group's owed rows and `limit`
+    the most one part may place on one group -- or `caps`, that most per
+    part and group; returns the rows placed and how many each part places
+    on each group. The rows
+    themselves cost nothing: the rounds are bounded by the parts and the
+    groups.
+    """
+    parts = len(supply)
+    groups = len(demand)
+    source = parts + groups
+    sink = source + 1
+    size = sink + 1
+    capacity = [[0 for _ in range(size)] for _ in range(size)]
+    for part in range(parts):
+        capacity[source][part] = max(0, supply[part])
+        for group in reach[part]:
+            capacity[part][parts + group] = (
+                limit if caps is None else caps[part][group]
+            )
+    for group in range(groups):
+        capacity[parts + group][sink] = max(0, demand[group])
+    flow = 0
+    while True:
+        before = [-1 for _ in range(size)]
+        before[source] = source
+        queue = [source]
+        head = 0
+        while head < len(queue) and before[sink] < 0:
+            node = queue[head]
+            head = head + 1
+            for other in range(size):
+                if before[other] < 0 and capacity[node][other] > 0:
+                    before[other] = node
+                    queue += [other]
+        if before[sink] < 0:
+            placed = [
+                [capacity[parts + group][part] for group in range(groups)]
+                for part in range(parts)
+            ]
+            return flow, placed
+        push = 1 << 62
+        node = sink
+        while node != source:
+            push = min(push, capacity[before[node]][node])
+            node = before[node]
+        node = sink
+        while node != source:
+            capacity[before[node]][node] = capacity[before[node]][node] - push
+            capacity[node][before[node]] = capacity[node][before[node]] + push
+            node = before[node]
+        flow = flow + push
+
+
+def _heavy_deficit(
+    segments: "list[_HeavySegment]",
+    rooms: _HeavyRooms,
+    splits: "list[list[int]]",
+) -> int:
+    """The owed rows the parts as split cannot place, over every census."""
+    supply: "list[int]" = []
+    keys: "list[tuple[int, int]]" = []
+    for index in range(len(segments)):
+        for part in range(len(segments[index].lows)):
+            supply += [splits[index][part]]
+            keys += [(index, part)]
+    deficit = 0
+    for which in range(len(rooms.owed)):
+        owes = rooms.owed[which]
+        reach = [
+            [
+                group
+                for group in range(len(owes))
+                if rooms.free[index][part][which][group] > 0
+            ]
+            for index, part in keys
+        ]
+        demand = [max(0, owe) for owe in owes]
+        deficit = deficit + sum(demand) - _heavy_flow(supply, reach, demand)[0]
+    return deficit
+
+
+def _heavy_shift_room(
+    segment: _HeavySegment,
+    split: "list[int]",
+    opened: "list[bool]",
+    source: int,
+    target: int,
+) -> int:
+    """How many ranks may move from part `source` to part `target` of one
+    segment with every covered run still around its knots."""
+    if not opened[target] or split[source] <= 0:
+        return 0
+    most = split[source]
+    total = 0
+    parts = len(segment.lows)
+    for part in range(parts - 1):
+        total = total + split[part]
+        if source <= part < target:
+            most = min(most, total - segment.least[part])
+        elif target <= part < source:
+            most = min(most, segment.most[part] - total)
+    return max(0, most)
+
+
+def _heavy_repaired(
+    segments: "list[_HeavySegment]",
+    rooms: _HeavyRooms,
+    splits: "list[list[int]]",
+    opened: "list[list[bool]]",
+    budget: int,
+) -> "list[list[int]]":
+    """The split with every census's owed rows placeable and room for the
+    count's new days, as far as moves inside one segment reach (G7.3j
+    step 3, the 3b.6 skeptic's B1).
+
+    The split's SCORE is the rows the parts cannot place on the groups
+    that owe them (`_heavy_deficit`), and then the new days the budget
+    asks beyond the most the parts can open (`_heavy_reach_of`). While
+    the score is above nought, the one move that lowers it most -- some
+    ranks from one open part to another of the same segment, the count
+    found by halving, since both parts of the score are convex in the
+    move -- is made, at most `_HEAVY_REPAIRS` times. Which parts are open never changes, so
+    neither does the budget.
+    """
+    current = _heavy_score(segments, rooms, splits, budget)
+    for _round in range(_HEAVY_REPAIRS):
+        if current == (0, 0):
+            return splits
+        best: "tuple[tuple[int, int], int, int, int, int] | None" = None
+        for index in range(len(segments)):
+            segment = segments[index]
+            parts = len(segment.lows)
+            for source in range(parts):
+                for target in range(parts):
+                    if source == target:
+                        continue
+                    most = _heavy_shift_room(
+                        segment, splits[index], opened[index], source, target
+                    )
+                    if most <= 0:
+                        continue
+                    low, high = 0, most
+                    while high - low > 1:
+                        middle = (low + high) // 2
+                        if _heavy_moved_score(
+                            segments, rooms, splits, (index, source, target, middle + 1), budget
+                        ) <= _heavy_moved_score(
+                            segments, rooms, splits, (index, source, target, middle), budget
+                        ):
+                            low = middle
+                        else:
+                            high = middle
+                    for count in (low, high):
+                        if count <= 0:
+                            continue
+                        score = _heavy_moved_score(
+                            segments, rooms, splits, (index, source, target, count), budget
+                        )
+                        if score < current and (best is None or score < best[0]):
+                            best = (score, index, source, target, count)
+        if best is None:
+            return splits
+        score, index, source, target, count = best
+        splits[index][source] = splits[index][source] - count
+        splits[index][target] = splits[index][target] + count
+        current = score
+    return splits
+
+
+def _heavy_reach_of(
+    segments: "list[_HeavySegment]",
+    rooms: _HeavyRooms,
+    splits: "list[list[int]]",
+) -> int:
+    """The most new days the parts as split can open: beside a census, the
+    rows a flow placing every owed row of its first census puts on days
+    of their own (`_heavy_cheapest`, a part's group holding no more than
+    its free days there); with none, each part's ranks or free days,
+    whichever is fewer."""
+    supply: "list[int]" = []
+    keys: "list[tuple[int, int]]" = []
+    for index in range(len(segments)):
+        for part in range(len(segments[index].lows)):
+            supply += [splits[index][part]]
+            keys += [(index, part)]
+    if not rooms.owed:
+        return sum(
+            min(supply[place], rooms.room[keys[place][0]][keys[place][1]])
+            for place in range(len(keys))
+        )
+    owes = rooms.owed[0]
+    room = [
+        [rooms.free[index][part][0][group] for group in range(len(owes))]
+        for index, part in keys
+    ]
+    reach = [
+        [group for group in range(len(owes)) if room[place][group] > 0]
+        for place in range(len(keys))
+    ]
+    _flow, placed = _heavy_cheapest(
+        supply, reach, [max(0, owe) for owe in owes], room
+    )
+    return sum(
+        min(placed[place][group], room[place][group])
+        for place in range(len(keys))
+        for group in range(len(owes))
+    )
+
+
+def _heavy_score(
+    segments: "list[_HeavySegment]",
+    rooms: _HeavyRooms,
+    splits: "list[list[int]]",
+    budget: int,
+) -> "tuple[int, int]":
+    """A split's score: the owed rows unplaced, then the new days short."""
+    deficit = _heavy_deficit(segments, rooms, splits) if rooms.owed else 0
+    return deficit, max(0, budget - _heavy_reach_of(segments, rooms, splits))
+
+
+def _heavy_moved_score(
+    segments: "list[_HeavySegment]",
+    rooms: _HeavyRooms,
+    splits: "list[list[int]]",
+    move: "tuple[int, int, int, int]",
+    budget: int,
+) -> "tuple[int, int]":
+    """`_heavy_score` with `count` ranks moved from one part to another."""
+    index, source, target, count = move
+    splits[index][source] = splits[index][source] - count
+    splits[index][target] = splits[index][target] + count
+    score = _heavy_score(segments, rooms, splits, budget)
+    splits[index][source] = splits[index][source] + count
+    splits[index][target] = splits[index][target] - count
+    return score
+
+
+_HEAVY_RAKES = 60
+_HEAVY_PRUNES = 8
+
+
+def _heavy_keyed(
+    censuses: "list[tuple[tuple[tuple[int, int, int], ...], tuple[int, ...], str]]",
+    segments: "list[_HeavySegment]",
+    kept: "tuple[tuple[tuple[int, int], ...], frozenset[int]]",
+) -> "list[list[tuple[tuple[tuple[int, ...], tuple[int, ...]], ...]]]":
+    """Each part's free days by KEY, its group in each census beside the
+    list (G7.3j step 3): per segment and part, `(key, days)` ascending by
+    key, a key of no group where no census stands. `kept` is the listed
+    dates and the holes, whose days are no part's."""
+    listed, holes = kept
+    listed_days = {day for day, _count in listed}
+    keyed: "list[list[tuple[tuple[tuple[int, ...], tuple[int, ...]], ...]]]" = []
+    for segment in segments:
+        row: "list[tuple[tuple[tuple[int, ...], tuple[int, ...]], ...]]" = []
+        for part in range(len(segment.lows)):
+            found: "dict[tuple[int, ...], list[int]]" = {}
+            for day in range(segment.lows[part], segment.highs[part] + 1):
+                if day in listed_days or day in holes:
+                    continue
+                key = tuple(
+                    _heavy_group(where, bins, day)
+                    for _groups, where, bins in censuses
+                )
+                if key not in found:
+                    found[key] = []
+                found[key] += [day]
+            row += [tuple((key, tuple(found[key])) for key in sorted(found))]
+        keyed += [row]
+    return keyed
+
+
+def _heavy_leftover(
+    days_of: "dict[tuple[int, ...], tuple[int, ...]]",
+    prefix: "tuple[int, ...]",
+    dropped: "frozenset[tuple[int, ...]]",
+) -> int:
+    """The group, one census further, of the widest cell under `prefix`."""
+    widest = -1
+    best = 0
+    for key in sorted(days_of):
+        if key in dropped or key[0 : len(prefix)] != prefix:
+            continue
+        if len(days_of[key]) > widest:
+            widest = len(days_of[key])
+            best = key[len(prefix)]
+    return best
+
+
+def _heavy_few_cells(
+    days_of: "list[dict[tuple[int, ...], tuple[int, ...]]]",
+    supply: "list[int]",
+    demands: "tuple[tuple[int, ...], ...]",
+) -> "tuple[list[dict[tuple[int, ...], int]], int]":
+    """FEW: each part's ranks per key by one capacity flow per census, and
+    the owed rows no flow could place."""
+    shares: "list[dict[tuple[int, ...], int]]" = [
+        {(): supply[place]} for place in range(len(days_of))
+    ]
+    short = 0
+    for which in range(len(demands)):
+        sources: "list[tuple[int, tuple[int, ...]]]" = []
+        amounts: "list[int]" = []
+        for place in range(len(days_of)):
+            for prefix in sorted(shares[place]):
+                if shares[place][prefix] > 0:
+                    sources += [(place, prefix)]
+                    amounts += [shares[place][prefix]]
+        reach = [
+            sorted(
+                {
+                    key[which]
+                    for key in days_of[place]
+                    if key[0:which] == prefix
+                }
+            )
+            for place, prefix in sources
+        ]
+        flow, placed = _heavy_flow(
+            amounts, reach, [owe for owe in demands[which]]
+        )
+        short = short + sum(demands[which]) - flow
+        grown: "list[dict[tuple[int, ...], int]]" = [{} for _ in days_of]
+        for source in range(len(sources)):
+            place, prefix = sources[source]
+            left = amounts[source]
+            for group in range(len(demands[which])):
+                if placed[source][group] > 0:
+                    key = prefix + (group,)
+                    grown[place][key] = (
+                        grown[place][key] if key in grown[place] else 0
+                    ) + placed[source][group]
+                    left = left - placed[source][group]
+            if left > 0:
+                key = prefix + (_heavy_leftover(days_of[place], prefix, frozenset()),)
+                grown[place][key] = (
+                    grown[place][key] if key in grown[place] else 0
+                ) + left
+        shares = grown
+    return shares, short
+
+
+def _heavy_rounded(
+    values: "list[list[int]]",
+    rows: "list[int]",
+    columns: "list[int]",
+) -> "tuple[list[list[int]], int]":
+    """A table of shares at `_WEEKDAY_SCALE`, rounded to whole ranks whose
+    row and column sums are `rows` and `columns` (a share below nought
+    marks no cell), and the ranks it could not place: each share's floor,
+    then one more rank on the cells with a remainder by a unit-capacity
+    flow, then the rest on any cell by an unbounded one."""
+    tall = len(values)
+    width = len(columns)
+    table = [
+        [max(0, values[row][column]) // _WEEKDAY_SCALE for column in range(width)]
+        for row in range(tall)
+    ]
+    for limit, wanted in ((1, True), (1 << 62, False)):
+        short = [max(0, rows[row] - sum(table[row])) for row in range(tall)]
+        want = [
+            max(0, columns[column] - sum(table[row][column] for row in range(tall)))
+            for column in range(width)
+        ]
+        reach = [
+            [
+                column
+                for column in range(width)
+                if values[row][column] >= 0
+                and (not wanted or values[row][column] % _WEEKDAY_SCALE > 0)
+            ]
+            for row in range(tall)
+        ]
+        _flow, placed = _heavy_flow(short, reach, want, limit)
+        for row in range(tall):
+            for column in range(width):
+                table[row][column] = table[row][column] + placed[row][column]
+    unplaced = sum(max(0, rows[row] - sum(table[row])) for row in range(tall))
+    return table, unplaced
+
+
+def _heavy_spread_cells(
+    days_of: "list[dict[tuple[int, ...], tuple[int, ...]]]",
+    supply: "list[int]",
+    demands: "tuple[tuple[int, ...], ...]",
+    dropped: "list[frozenset[tuple[int, ...]]]",
+    lent: "list[int]",
+) -> "tuple[list[dict[tuple[int, ...], int]], int, list[tuple[int, int, tuple[int, ...]]]]":
+    """SPREAD: each part's ranks per key, raked from the keys' free days.
+
+    The prior of a key is its free days at `_WEEKDAY_SCALE`, a day the
+    part shares with the part before it (`lent`) not counted, so the two
+    do not both rake their ranks onto it; it is raked
+    `_HEAVY_RAKES` times to each part's ranks and each census's owed
+    rows, every step a floor division at the scale, as the weekday pass
+    rakes its shares (`_weekday_shares`). The table of parts by the first
+    census's groups is rounded (`_heavy_rounded`); beside a second
+    census, each part's share of each first group is rounded over the
+    second census's groups the same way. A key in `dropped` takes no
+    rank. Returns the shares, the ranks no rounding placed, and every
+    key's raked weight as `(weight, place, key)`.
+    """
+    cells: "list[tuple[int, tuple[int, ...]]]" = []
+    weights: "list[int]" = []
+    for place in range(len(days_of)):
+        for key in sorted(days_of[place]):
+            if key in dropped[place]:
+                continue
+            own = [day for day in days_of[place][key] if day != lent[place]]
+            if not own:
+                continue
+            cells += [(place, key)]
+            weights += [len(own) * _WEEKDAY_SCALE]
+    for _round in range(_HEAVY_RAKES):
+        margins: "list[tuple[int, tuple[int, ...]]]" = [(-1, tuple(supply))]
+        for which in range(len(demands)):
+            margins += [(which, demands[which])]
+        for which, targets in margins:
+            totals = [0 for _ in targets]
+            for index in range(len(cells)):
+                place, key = cells[index]
+                at = place if which < 0 else key[which]
+                totals[at] = totals[at] + weights[index]
+            for index in range(len(cells)):
+                place, key = cells[index]
+                at = place if which < 0 else key[which]
+                if totals[at] > 0:
+                    weights[index] = (
+                        weights[index] * targets[at] * _WEEKDAY_SCALE
+                    ) // totals[at]
+    raked = [
+        (weights[index], cells[index][0], cells[index][1])
+        for index in range(len(cells))
+    ]
+    shares: "list[dict[tuple[int, ...], int]]" = [{} for _ in days_of]
+    if not demands:
+        for place, key in cells:
+            shares[place][key] = supply[place]
+        return shares, 0, raked
+    width = len(demands[0])
+    first = [[-1 for _ in range(width)] for _ in days_of]
+    for index in range(len(cells)):
+        place, key = cells[index]
+        first[place][key[0]] = max(first[place][key[0]], 0) + weights[index]
+    table, unplaced = _heavy_rounded(
+        first, supply, [owe for owe in demands[0]]
+    )
+    if len(demands) == 1:
+        for place in range(len(days_of)):
+            for group in range(width):
+                if table[place][group] > 0:
+                    shares[place][(group,)] = table[place][group]
+        return shares, unplaced, raked
+    rows: "list[tuple[int, int]]" = [
+        (place, group)
+        for place in range(len(days_of))
+        for group in range(width)
+        if table[place][group] > 0
+    ]
+    where = {rows[row]: row for row in range(len(rows))}
+    second = [[-1 for _ in demands[1]] for _ in rows]
+    for index in range(len(cells)):
+        place, key = cells[index]
+        if (place, key[0]) not in where:
+            continue
+        row = where[(place, key[0])]
+        second[row][key[1]] = max(second[row][key[1]], 0) + weights[index]
+    for row in range(len(rows)):
+        place, group = rows[row]
+        total = sum(value for value in second[row] if value > 0)
+        if total > 0:
+            second[row] = [
+                (value * table[place][group] * _WEEKDAY_SCALE) // total
+                if value >= 0
+                else -1
+                for value in second[row]
+            ]
+    split, more = _heavy_rounded(
+        second,
+        [table[place][group] for place, group in rows],
+        [owe for owe in demands[1]],
+    )
+    for row in range(len(rows)):
+        place, group = rows[row]
+        left = table[place][group] - sum(split[row])
+        for other in range(len(demands[1])):
+            if split[row][other] > 0:
+                shares[place][(group, other)] = split[row][other]
+        if left > 0:
+            key = (group, _heavy_leftover(days_of[place], (group,), dropped[place]))
+            shares[place][key] = (
+                shares[place][key] if key in shares[place] else 0
+            ) + left
+    return shares, unplaced + more, raked
+
+
+def _heavy_cheapest(
+    supply: "list[int]",
+    reach: "list[list[int]]",
+    demand: "list[int]",
+    room: "list[list[int]]",
+) -> "tuple[int, list[list[int]]]":
+    """The most rows the parts can place on the groups they offer, with as
+    many as can be on a day of their own: a min-cost max-flow by
+    successive shortest paths (Bellman and Ford over the arcs), where a
+    part's first `room[part][group]` rows on a group cost one less than
+    the rest. Returns the rows placed and how many each part places on
+    each group. Bounded by the parts and the groups, not the rows."""
+    parts = len(supply)
+    groups = len(demand)
+    source = parts + groups
+    sink = source + 1
+    size = sink + 1
+    arcs: "list[list[list[int]]]" = [[] for _ in range(size)]
+
+    def joined(start: int, end: int, capacity: int, cost: int) -> None:
+        arcs[start] += [[end, capacity, cost, len(arcs[end])]]
+        arcs[end] += [[start, 0, -cost, len(arcs[start]) - 1]]
+
+    for part in range(parts):
+        joined(source, part, max(0, supply[part]), 0)
+        for group in reach[part]:
+            if room[part][group] > 0:
+                joined(part, parts + group, room[part][group], -1)
+            joined(part, parts + group, 1 << 62, 0)
+    for group in range(groups):
+        joined(parts + group, sink, max(0, demand[group]), 0)
+    flow = 0
+    while True:
+        far = 1 << 62
+        distance = [far for _ in range(size)]
+        before = [(-1, -1) for _ in range(size)]
+        distance[source] = 0
+        for _round in range(size):
+            changed = False
+            for node in range(size):
+                if distance[node] >= far:
+                    continue
+                for index in range(len(arcs[node])):
+                    end, capacity, cost, _back = arcs[node][index]
+                    if capacity > 0 and distance[node] + cost < distance[end]:
+                        distance[end] = distance[node] + cost
+                        before[end] = (node, index)
+                        changed = True
+            if not changed:
+                break
+        if distance[sink] >= far:
+            break
+        push = 1 << 62
+        node = sink
+        while node != source:
+            start, index = before[node]
+            push = min(push, arcs[start][index][1])
+            node = start
+        node = sink
+        while node != source:
+            start, index = before[node]
+            arcs[start][index][1] = arcs[start][index][1] - push
+            back = arcs[start][index][3]
+            arcs[node][back][1] = arcs[node][back][1] + push
+            node = start
+        flow = flow + push
+    placed = [[0 for _ in range(groups)] for _ in range(parts)]
+    for part in range(parts):
+        for end, _capacity, _cost, back in arcs[part]:
+            if parts <= end < parts + groups:
+                placed[part][end - parts] = placed[part][end - parts] + arcs[end][back][1]
+    return flow, placed
+
+
+def _heavy_wide_cells(
+    days_of: "list[dict[tuple[int, ...], tuple[int, ...]]]",
+    supply: "list[int]",
+    demands: "tuple[tuple[int, ...], ...]",
+) -> "tuple[list[dict[tuple[int, ...], int]], int]":
+    """WIDE: each part's ranks per key, as many on days of their own as a
+    flow placing every owed row it can allows -- per census in turn, the
+    cheapest most flow (`_heavy_cheapest`) whose ranks up to a part's free
+    days in a group cost less -- and the owed rows no flow placed."""
+    shares: "list[dict[tuple[int, ...], int]]" = [
+        {(): supply[place]} for place in range(len(days_of))
+    ]
+    short = 0
+    for which in range(len(demands)):
+        sources: "list[tuple[int, tuple[int, ...]]]" = []
+        amounts: "list[int]" = []
+        for place in range(len(days_of)):
+            for prefix in sorted(shares[place]):
+                if shares[place][prefix] > 0:
+                    sources += [(place, prefix)]
+                    amounts += [shares[place][prefix]]
+        groups = len(demands[which])
+        room = [[0 for _ in range(groups)] for _ in sources]
+        for source in range(len(sources)):
+            place, prefix = sources[source]
+            for key in days_of[place]:
+                if key[0:which] == prefix:
+                    room[source][key[which]] = (
+                        room[source][key[which]] + len(days_of[place][key])
+                    )
+        reach = [
+            [group for group in range(groups) if room[source][group] > 0]
+            for source in range(len(sources))
+        ]
+        flow, placed = _heavy_cheapest(
+            amounts, reach, [owe for owe in demands[which]], room
+        )
+        short = short + sum(demands[which]) - flow
+        grown: "list[dict[tuple[int, ...], int]]" = [{} for _ in days_of]
+        for source in range(len(sources)):
+            place, prefix = sources[source]
+            left = amounts[source]
+            for group in range(groups):
+                taken = placed[source][group]
+                if taken > 0:
+                    key = prefix + (group,)
+                    grown[place][key] = (
+                        grown[place][key] if key in grown[place] else 0
+                    ) + taken
+                    left = left - taken
+            if left > 0:
+                key = prefix + (
+                    _heavy_leftover(days_of[place], prefix, frozenset()),
+                )
+                grown[place][key] = (
+                    grown[place][key] if key in grown[place] else 0
+                ) + left
+        shares = grown
+    return shares, short
+
+
+def _heavy_reach(
+    shares: "list[dict[tuple[int, ...], int]]",
+    days_of: "list[dict[tuple[int, ...], tuple[int, ...]]]",
+    knots: "frozenset[int]",
+) -> int:
+    """The most new days a split can open: per key holding ranks, its ranks
+    or its free days that are no knot's, whichever is fewer."""
+    count = 0
+    for place in range(len(shares)):
+        for key in shares[place]:
+            days = days_of[place][key] if key in days_of[place] else ()
+            free = len([day for day in days if day not in knots])
+            count = count + min(free, max(0, shares[place][key]))
+    return count
+
+
+def _heavy_opened(
+    shares: "list[dict[tuple[int, ...], int]]",
+    days_of: "list[dict[tuple[int, ...], tuple[int, ...]]]",
+    knots: "frozenset[int]",
+) -> int:
+    """How many keys holding ranks hold no knot's day: the fewest new days
+    a split opens."""
+    count = 0
+    for place in range(len(shares)):
+        for key in shares[place]:
+            if shares[place][key] > 0 and not any(
+                day in knots
+                for day in (days_of[place][key] if key in days_of[place] else ())
+            ):
+                count = count + 1
+    return count
+
+
+def _heavy_cells(
+    parts: "tuple[_HeavyPart, ...]",
+    demands: "tuple[tuple[int, ...], ...]",
+    knots: "frozenset[int]",
+    left: int,
+) -> "list[dict[tuple[int, ...], int]]":
+    """Each part's ranks per key, chosen for the new days the count leaves
+    (G7.3j step 3).
+
+    SPREAD (`_heavy_spread_cells`) puts every key's share of the ranks as
+    its free days are. Where that fills more keys holding no knot's day
+    than `left` new days, the keys with the least raked weight, as many
+    as are over, take none and the rest are raked again, at most
+    `_HEAVY_PRUNES` times while every owed row is placed, and then FEW
+    (`_heavy_few_cells`) puts the ranks on as few keys as one flow per
+    census finds. Where SPREAD cannot open `left` new days -- a key opens
+    no more than its ranks or its free days -- WIDE (`_heavy_wide_cells`)
+    puts as many ranks on days of their own as the flow allows. The first
+    split that places every owed row and can open exactly `left` new days
+    is taken; failing that, the one placing the most owed rows, then the
+    one nearest `left`.
+    """
+    days_of = [{key: days for key, days in part.keyed} for part in parts]
+    supply = [part.count for part in parts]
+    nothing: "list[frozenset[tuple[int, ...]]]" = [frozenset() for _ in parts]
+    lent = [part.lent for part in parts]
+    spread, short, raked = _heavy_spread_cells(days_of, supply, demands, nothing, lent)
+    tried = [(short, spread)]
+    over = _heavy_opened(spread, days_of, knots) - left
+    if over > 0:
+        dropped: "list[frozenset[tuple[int, ...]]]" = [frozenset() for _ in parts]
+        for _round in range(_HEAVY_PRUNES):
+            light = sorted(
+                (weight, place, key)
+                for weight, place, key in raked
+                if not any(day in knots for day in days_of[place][key])
+            )
+            for index in range(min(over, len(light))):
+                _weight, place, key = light[index]
+                dropped[place] = dropped[place] | {key}
+            pruned, short, raked = _heavy_spread_cells(
+                days_of, supply, demands, dropped, lent
+            )
+            tried += [(short, pruned)]
+            over = _heavy_opened(pruned, days_of, knots) - left
+            if over <= 0 or short > 0:
+                break
+        few, short = _heavy_few_cells(days_of, supply, demands)
+        tried += [(short, few)]
+    elif _heavy_reach(spread, days_of, knots) < left:
+        wide, short = _heavy_wide_cells(days_of, supply, demands)
+        tried += [(short, wide)]
+    ranked: "list[tuple[int, int, int]]" = []
+    for order in range(len(tried)):
+        short, shares = tried[order]
+        missing = max(
+            0,
+            _heavy_opened(shares, days_of, knots) - left,
+            left - _heavy_reach(shares, days_of, knots),
+        )
+        if short == 0 and missing == 0:
+            return _heavy_whole(shares, days_of, supply)
+        ranked += [(short, missing, order)]
+    return _heavy_whole(tried[sorted(ranked)[0][2]][1], days_of, supply)
+
+
+def _heavy_whole(
+    shares: "list[dict[tuple[int, ...], int]]",
+    days_of: "list[dict[tuple[int, ...], tuple[int, ...]]]",
+    supply: "list[int]",
+) -> "list[dict[tuple[int, ...], int]]":
+    """Each part's shares holding exactly its ranks on keys it has: a rank a
+    flow or a rounding left unplaced goes to the part's key with the most
+    free days, the first on a tie, and ranks a rounding placed beyond the
+    part's own -- a rake stopped before its margins meet -- leave its
+    keys holding the most, the first on a tie."""
+    found: "list[dict[tuple[int, ...], int]]" = []
+    for place in range(len(shares)):
+        widest: "tuple[int, ...] | None" = None
+        for key in sorted(days_of[place]):
+            if widest is None or len(days_of[place][key]) > len(days_of[place][widest]):
+                widest = key
+        kept = {
+            key: shares[place][key]
+            for key in shares[place]
+            if key in days_of[place] and shares[place][key] > 0
+        }
+        short = supply[place] - sum(kept[key] for key in kept)
+        if short > 0 and widest is not None:
+            kept[widest] = (kept[widest] if widest in kept else 0) + short
+        while short < 0:
+            most = sorted((-kept[key], key) for key in kept)[0][1]
+            taken = min(kept[most], -short)
+            kept[most] = kept[most] - taken
+            short = short + taken
+        found += [{key: kept[key] for key in kept if kept[key] > 0}]
+    return found
+
+
+def _heavy_met(
+    column: contract.ColumnBlock,
+    facts: contract.DatetimeFacts,
+    ordinals: "list[int]",
+    layout: "_DateLayout",
+    holes: "tuple[str, ...]",
+) -> bool:
+    """Whether the cells already meet every census beside the list (G7.3j).
+
+    Every group of the weekday census and of the day-of-month census, as
+    published, holds its count over the body's ranks, no body rank
+    stands on a hole of the run (`_count_holes`) or of the description
+    (`_published_holes`), and the ranks hold the count of different
+    values as the validator judges it (`_heavy_count_off`): a count the
+    count pass left long is the day pass's to repair (G7.3f step 8.5),
+    so the pass is not skipped then.
+
+    Guarantees: returns the answer. Linear in the ranks, times the sort
+    of the count's envelope. Determinism: a function of the five. Raises
+    nothing. No I/O of any kind.
+    """
+    if layout.low is None or layout.high is None:
+        return False
+    if _heavy_count_off(column, facts, ordinals, layout) > 0:
+        return False
+    if not _heavy_census_met(facts, ordinals, layout):
+        return False
+    body_low = layout.low.rows
+    body_high = layout.parsed - 1 - layout.high.rows
+    kept_off = set(_count_holes(facts, holes)) | set(
+        _published_holes(column, facts, ())
+    )
+    for rank in range(body_low, body_high + 1):
+        if ordinals[rank] in kept_off and ordinals[rank] not in layout.listed:
+            return False
+    return True
+
+
+def _heavy_count_off(
+    column: contract.ColumnBlock,
+    facts: contract.DatetimeFacts,
+    ordinals: "list[int]",
+    layout: "_DateLayout",
+) -> int:
+    """How far the ranks stand from the count of different values AS THE
+    VALIDATOR JUDGES IT (G7.3j; the orchestrator's ruling (c) of
+    2026-10-13, plan P4-D369).
+
+    `contract.datetime_count_off` over the different days the ranks hold
+    and the stand-ins beside them, against G12.5's envelope on the
+    description's own gaps (`layout.count_window`): the distance from the
+    published count where the count is reachable and inside that
+    envelope, the distance outside the envelope elsewhere. Nought where
+    the count pass does not reach the count (`layout.distinct` is -1):
+    there the spellings drawn after the ranks decide it and no pass of
+    the ranks steers it.
+
+    Guarantees: returns a whole number of nought or more. Linear in the
+    ranks. Determinism: a function of the four. Raises nothing. No I/O
+    of any kind.
+    """
+    if layout.distinct < 0:
+        return 0
+    return contract.datetime_count_off(
+        column,
+        column.n_distinct,
+        len(set(ordinals)) + facts.n_unparsed,
+        layout.count_window,
+    )
+
+
+def _heavy_census_off(
+    facts: contract.DatetimeFacts,
+    ordinals: "list[int]",
+    layout: "_DateLayout",
+) -> "tuple[int, tuple[str, ...]]":
+    """How many rows the body's ranks stand off the censuses beside the
+    list (G7.3j step 7), and which census each missed group is of.
+
+    Over every group of the weekday census and of the day-of-month
+    census, as published, the rows the group holds more or fewer than
+    its count, summed; with the facts of the censuses that miss a group
+    (`calendar_rules.WEEKDAY_CENSUS`, `DAY_OF_MONTH_CENSUS`), in that
+    order.
+
+    Guarantees: returns the rows and the facts; (0, ()) where every
+    group holds or no census is published. Linear in the ranks.
+    Determinism: a function of the three. Raises nothing. No I/O of any
+    kind.
+    """
+    if layout.low is None or layout.high is None:
+        return 0, ()
+    body_low = layout.low.rows
+    body_high = layout.parsed - 1 - layout.high.rows
+    off = 0
+    missed: "list[str]" = []
+    for groups, where, bins in _heavy_censuses(
+        facts.weekday_census, facts.day_of_month_census
+    ):
+        found = [0 for _ in groups]
+        for rank in range(body_low, body_high + 1):
+            group = _heavy_group(where, bins, ordinals[rank])
+            found[group] = found[group] + 1
+        here = 0
+        for place in range(len(groups)):
+            here = here + abs(found[place] - groups[place][2])
+        if here > 0:
+            off = off + here
+            missed += [
+                calendar_rules.WEEKDAY_CENSUS
+                if bins == "weekday"
+                else calendar_rules.DAY_OF_MONTH_CENSUS
+            ]
+    return off, tuple(missed)
+
+
+def _heavy_census_met(
+    facts: contract.DatetimeFacts,
+    ordinals: "list[int]",
+    layout: "_DateLayout",
+) -> bool:
+    """Whether every group of the weekday census and of the day-of-month
+    census, as published, holds its count over the body's ranks (G7.3j).
+
+    Guarantees: returns the answer; True where the column publishes
+    neither census. Linear in the ranks. Determinism: a function of the
+    three. Raises nothing. No I/O of any kind.
+    """
+    if layout.low is None or layout.high is None:
+        return False
+    return _heavy_census_off(facts, ordinals, layout)[0] == 0
+
+
+def _heavy_listed_off(
+    facts: contract.DatetimeFacts, ordinals: "list[int]"
+) -> int:
+    """How many rows the ranks stand off the listed dates' published
+    counts (G7.3j step 7): over every listed date, the rows it holds more
+    or fewer than its count, summed.
+
+    Guarantees: returns a whole number of nought or more. Linear in the
+    ranks. Determinism: a function of the two. Raises nothing. No I/O of
+    any kind.
+    """
+    held: "dict[int, int]" = {}
+    for value in ordinals:
+        held[value] = (held[value] if value in held else 0) + 1
+    off = 0
+    for day, count in facts.heavy_dates:
+        off = off + abs((held[day] if day in held else 0) - count)
+    return off
+
+
+# WHAT GAVE WAY, NAMED (G7.3j step 7; the orchestrator's rulings (a) and
+# (b) of 2026-10-13): the census the list gave way to, or the census or
+# the count that gave way to the list, each sentence whole.
+_HEAVY_WEEKDAYS_NAMED = "the published counts per day of the week"
+_HEAVY_MONTH_DAYS_NAMED = "the published counts per day of the month"
+_HEAVY_BOTH_NAMED = (
+    "the published counts per day of the week and per day of the month"
+)
+_HEAVY_LIST_OPEN = (
+    "Drawn holding the dates that stand out at their published counts, "
+    "the twin missed "
+)
+_HEAVY_LIST_MIDDLE = (
+    "; drawn as if no date were listed it stands fewer rows off the "
+    "published counts, the listed dates' and the census's together, so it "
+    "is drawn so: the listed dates gave way to "
+)
+_HEAVY_LIST_CLOSE = " and hold other counts."
+_HEAVY_LIST_TO_WEEKDAYS = (
+    _HEAVY_LIST_OPEN + _HEAVY_WEEKDAYS_NAMED + _HEAVY_LIST_MIDDLE
+    + _HEAVY_WEEKDAYS_NAMED + _HEAVY_LIST_CLOSE
+)
+_HEAVY_LIST_TO_MONTH_DAYS = (
+    _HEAVY_LIST_OPEN + _HEAVY_MONTH_DAYS_NAMED + _HEAVY_LIST_MIDDLE
+    + _HEAVY_MONTH_DAYS_NAMED + _HEAVY_LIST_CLOSE
+)
+_HEAVY_LIST_TO_BOTH = (
+    _HEAVY_LIST_OPEN + _HEAVY_BOTH_NAMED + _HEAVY_LIST_MIDDLE
+    + _HEAVY_BOTH_NAMED + _HEAVY_LIST_CLOSE
+)
+# The sentence naming the list given way, by the censuses the listed twin
+# missed (`_heavy_census_off`), and every such sentence.
+_HEAVY_GIVEN_WAY = {
+    (calendar_rules.WEEKDAY_CENSUS,): _HEAVY_LIST_TO_WEEKDAYS,
+    (calendar_rules.DAY_OF_MONTH_CENSUS,): _HEAVY_LIST_TO_MONTH_DAYS,
+    (
+        calendar_rules.WEEKDAY_CENSUS,
+        calendar_rules.DAY_OF_MONTH_CENSUS,
+    ): _HEAVY_LIST_TO_BOTH,
+}
+_HEAVY_GIVEN_WAY_NOTES = (
+    _HEAVY_LIST_TO_WEEKDAYS, _HEAVY_LIST_TO_MONTH_DAYS, _HEAVY_LIST_TO_BOTH,
+)
+_HEAVY_CENSUS_OPEN = (
+    "The twin holds the dates that stand out at their published counts "
+    "and, drawn so, misses "
+)
+_HEAVY_CENSUS_MIDDLE = (
+    "; drawn as if no date were listed it would stand as many rows off the "
+    "published counts or more, the listed dates' among them, so "
+)
+_HEAVY_CENSUS_CLOSE = " gave way to the listed dates."
+# The sentence of a census that gave way to the list, by its fact.
+_HEAVY_CENSUS_GIVEN_WAY = {
+    calendar_rules.WEEKDAY_CENSUS: (
+        _HEAVY_CENSUS_OPEN + _HEAVY_WEEKDAYS_NAMED + _HEAVY_CENSUS_MIDDLE
+        + _HEAVY_WEEKDAYS_NAMED + _HEAVY_CENSUS_CLOSE
+    ),
+    calendar_rules.DAY_OF_MONTH_CENSUS: (
+        _HEAVY_CENSUS_OPEN + _HEAVY_MONTH_DAYS_NAMED + _HEAVY_CENSUS_MIDDLE
+        + _HEAVY_MONTH_DAYS_NAMED + _HEAVY_CENSUS_CLOSE
+    ),
+}
+_HEAVY_COUNT_SHORT = (
+    "The twin holds the dates that stand out at their published counts "
+    "and, drawn so, holds fewer different values than the description "
+    "records: the count of different values gave way to the listed dates."
+)
+_HEAVY_COUNT_LONG = (
+    "The twin holds the dates that stand out at their published counts "
+    "and, drawn so, holds more different values than the description "
+    "records: the count of different values gave way to the listed dates."
+)
+
+
+def _heavy_standing(
+    facts: contract.DatetimeFacts,
+    ordinals: "list[int]",
+    layout: "_DateLayout",
+) -> int:
+    """How many rows the ranks stand off the published counts that step 7
+    weighs (G7.3j; the orchestrator's ruling (b) of 2026-10-13): the
+    censuses' groups beside the list (`_heavy_census_off`) and the listed
+    dates (`_heavy_listed_off`), together. The count of different values
+    does not enter it: beside a list that count gives way, named
+    (ruling (a)).
+
+    Guarantees: returns a whole number of nought or more. Linear in the
+    ranks. Determinism: a function of the three. Raises nothing. No I/O
+    of any kind.
+    """
+    return _heavy_census_off(facts, ordinals, layout)[0] + _heavy_listed_off(
+        facts, ordinals
+    )
+
+
+def _heavy_given_way(
+    plan: "_ColumnPlan",
+    words: "list[int]",
+    ordinals: "list[int]",
+    layout: "_DateLayout",
+) -> "tuple[tuple[list[str], list[Deviation]] | None, list[int] | None]":
+    """The column drawn as if it listed no date where that twin stands
+    fewer rows off, the list named (G7.3j step 7); None where the list
+    stands -- each beside that twin's ranks where it was drawn.
+
+    THE ORCHESTRATOR'S RULINGS OF 2026-10-13 (plan P4-D369). Where the
+    twin drawn with the list (`ordinals`) meets every group of the
+    censuses beside it, it stands, whatever the count of different values
+    holds (ruling (a): that count gives way, named by
+    `_heavy_kept_notes`). Where it misses a group, the column is drawn
+    again from the same words with `heavy_dates` empty -- the very twin
+    of a column listing nothing -- and the two are weighed by rows off
+    the published counts (`_heavy_standing`: the censuses' groups and
+    the listed dates): that twin is taken only where it stands FEWER
+    rows off, and one deviation names the list and the census it gave
+    way to; a tie keeps the list (ruling (b)).
+
+    Guarantees: returns the cells and the deviations, or None, and the
+    ranks of the twin listing nothing where it was drawn. Twice the
+    column's work at most. Determinism: a function of the four. Raises
+    nothing. No I/O of any kind.
+    """
+    column = plan.column
+    facts = column.facts
+    if not isinstance(facts, contract.DatetimeFacts):
+        raise _wrong_facts(column.name)
+    census_off, missed = _heavy_census_off(facts, ordinals, layout)
+    if census_off == 0:
+        return None, None
+    listed = census_off + _heavy_listed_off(facts, ordinals)
+    cells, notes, ranks = _heavy_bare(plan, words)
+    if _heavy_standing(facts, ranks, layout) >= listed:
+        return None, ranks
+    return (
+        cells,
+        notes + [
+            _deviation(
+                column.name,
+                calendar_rules.HEAVY_DATES,
+                "the published counts",
+                "the counts of a twin listing no date",
+                _HEAVY_GIVEN_WAY[missed],
+            )
+        ],
+    ), ranks
+
+
+def _heavy_bare(
+    plan: "_ColumnPlan", words: "list[int]"
+) -> "tuple[list[str], list[Deviation], list[int]]":
+    """The column drawn from the same words as if it listed no date -- the
+    twin of the column without `heavy_dates`, byte for byte -- with its
+    ranks before any cell is spelled (G7.3j step 7).
+
+    Guarantees: returns the cells, the deviations and the ranks. The
+    column's work. Determinism: a function of the two. Raises nothing.
+    No I/O of any kind.
+    """
+    column = plan.column
+    facts = column.facts
+    if not isinstance(facts, contract.DatetimeFacts):
+        raise _wrong_facts(column.name)
+    bare = dataclasses.replace(
+        plan,
+        column=dataclasses.replace(
+            column, facts=dataclasses.replace(facts, heavy_dates=())
+        ),
+    )
+    settled: "list[list[int]]" = []
+    cells, notes = _datetime_content(bare, words, settled)
+    return cells, notes, settled[0]
+
+
+def _heavy_kept_notes(
+    plan: "_ColumnPlan",
+    words: "list[int]",
+    ordinals: "list[int]",
+    layout: "_DateLayout",
+    notes: "list[Deviation]",
+    bare: "list[int] | None",
+) -> "list[Deviation]":
+    """The day pass's deviations where the list stands, naming the list
+    where it is what the check gave way to (G7.3j step 7; the
+    orchestrator's rulings (a) and (b) of 2026-10-13).
+
+    Measured against the twin of the column listing nothing (`bare`, its
+    ranks where step 7 drew it, else drawn here only where the count is
+    off): a census deviation says the census gave way to the listed
+    dates (`_HEAVY_CENSUS_GIVEN_WAY`) where that twin meets the census;
+    and where the count of different values is off as the validator
+    judges it (`_heavy_count_off`) and that twin stands nearer it, one
+    deviation says the count gave way to the listed dates
+    (`_HEAVY_COUNT_SHORT`, `_HEAVY_COUNT_LONG`), which the recount reads
+    as the count's cause (`_COUNT_CAUSES`) in place of the day pass's.
+    Elsewhere the day pass's own words stand: the twin listing nothing
+    misses the same check, so the list is not its cause.
+
+    Guarantees: returns the deviations. At most the column's work again.
+    Determinism: a function of the six. Raises nothing. No I/O of any
+    kind.
+    """
+    column = plan.column
+    facts = column.facts
+    if not isinstance(facts, contract.DatetimeFacts):
+        raise _wrong_facts(column.name)
+    off = _heavy_count_off(column, facts, ordinals, layout)
+    if bare is None and off > 0:
+        bare = _heavy_bare(plan, words)[2]
+    if bare is None:
+        return notes
+    bare_missed = _heavy_census_off(facts, bare, layout)[1]
+    caused = off > 0 and _heavy_count_off(column, facts, bare, layout) < off
+    found: "list[Deviation]" = []
+    for note in notes:
+        if note.fact in (
+            calendar_rules.WEEKDAY_CENSUS, calendar_rules.DAY_OF_MONTH_CENSUS
+        ) and note.fact not in bare_missed:
+            note = dataclasses.replace(
+                note, note=_HEAVY_CENSUS_GIVEN_WAY[note.fact]
+            )
+        if caused and note.fact == "n_distinct" and note.note in _COUNT_CAUSES:
+            continue
+        found += [note]
+    if caused:
+        held = len(set(ordinals)) + facts.n_unparsed
+        found += [
+            _deviation(
+                column.name,
+                "n_distinct",
+                f"{column.n_distinct} different values",
+                f"{held} different values",
+                _HEAVY_COUNT_SHORT
+                if held < column.n_distinct
+                else _HEAVY_COUNT_LONG,
+            )
+        ]
+    return found
 
 
 def _heavy_holes(facts: contract.DatetimeFacts) -> "frozenset[int]":
     """The day of every date that stands out, which no other rank may take.
 
-    THE HOLES SEAM OF STAGE 3B (plan P4-D364), which landing 3b.6 (lane
-    D4, plan P4-D369) fills: a listed date holds exactly its published
-    rows, so the count pass (`_count_holes`) and the day pass offer it to
-    no other rank. Empty until then.
+    THE HOLES SEAM OF STAGE 3B (plan P4-D364), filled by landing 3b.6
+    (lane D4, plan P4-D369, method G7.3j): a listed date holds exactly
+    its published rows, so the count pass (`_count_holes`), the day pass
+    (`_day_pass_setup`, `_weekday_settled`) and the step off an absent
+    spelling offer it to no other rank.
 
     Guarantees: accepts the loaded facts; returns day numbers. Raises
     nothing. No I/O of any kind.
     """
-    return frozenset()
+    return frozenset(day for day, _count in facts.heavy_dates)
 
 
 # THE WEEKDAY PASS (landing 3b.1, plan P4-D355, method G7.3f). Its fixed
@@ -23439,6 +25211,9 @@ _WEEKDAY_DAYS_LEFT_LONG = (
 _WEEKDAY_CAUSES = (
     _WEEKDAY_DAYS_GIVEN_WAY, _WEEKDAY_DAYS_IN_THE_TAILS, _WEEKDAY_DAYS_LEFT_LONG,
 )
+# ...and every cause a pass names for the count, the list's beside the
+# day pass's (G7.3j step 7, plan P4-D369): the recount reads each.
+_COUNT_CAUSES = _WEEKDAY_CAUSES + (_HEAVY_COUNT_SHORT, _HEAVY_COUNT_LONG)
 # ...and the folded count's line beside it, where that count is long too:
 # "for the same reason" names the day pass's, not the long sentence's
 # claim that the column's rule holds on to no repetition, which is false
@@ -23448,6 +25223,13 @@ _WEEKDAY_FOLDED_LEFT_LONG = (
     "The twin holds MORE different values, ignoring case and edge "
     "spacing, than the description records, for the same reason: the day "
     "pass kept the published counts per day of the week."
+)
+# ...those saying the twin holds MORE, each with the folded count's line.
+_LONG_CAUSES = (_WEEKDAY_DAYS_LEFT_LONG, _HEAVY_COUNT_LONG)
+_HEAVY_FOLDED_LONG = (
+    "The twin holds MORE different values, ignoring case and edge "
+    "spacing, than the description records, for the same reason: the "
+    "count of different values gave way to the listed dates."
 )
 
 # A unit's KIND (method G7.3f): whether a date on it counts into the
@@ -26361,6 +28143,11 @@ def _weekday_settled(
     for flag in whole:
         if flag:
             return ordinals, []
+    # ...and a column listing dates that stand out whose cells already
+    # meet every census is left as drawn (landing 3b.6, G7.3j step 5;
+    # `_day_settled` asks the same first).
+    if layout.listed and _heavy_met(column, facts, ordinals, layout, holes):
+        return ordinals, []
     unit = 1
     step = 1
     if space == "datetime":
@@ -26640,6 +28427,28 @@ def _tail_rank_of(plan: "_TailPlan", parsed: int, index: int) -> int:
     if plan.low_side:
         return index
     return parsed - 1 - index
+
+
+def _tail_ranks(layout: "_DateLayout | None", parsed: int) -> "frozenset[int]":
+    """Every rank of the column's two tails, the ranks G7.3's count pass splits first.
+
+    The low tail's ranks are the first `layout.low.rows`, the high tail's
+    the last `layout.high.rows` (`_tail_rank_of`); a column laid out with
+    no tails, or none, has none (lane D4s, plan P4-D369 part one).
+
+    Guarantees: a set of ranks inside `range(parsed)`. Linear in the two
+    tails' rows. Determinism: a fixed function of its arguments; draws no
+    word. Raises nothing. No I/O of any kind.
+    """
+    found: "dict[int, bool]" = {}
+    if layout is None:
+        return frozenset()
+    for plan in (layout.low, layout.high):
+        if plan is None:
+            continue
+        for index in range(min(plan.rows, parsed)):
+            found[_tail_rank_of(plan, parsed, index)] = True
+    return frozenset(found)
 
 
 # THE DAY OF THE MONTH (landing 3b.3, plan P4-D368, method G7.3i): the
@@ -26932,6 +28741,13 @@ def _day_settled(
     days and the deviations. Determinism: a function of the arguments.
     Raises nothing. No I/O of any kind.
     """
+    # A COLUMN LISTING DATES THAT STAND OUT whose cells already meet every
+    # census beside the list, keep off every hole and hold the count of
+    # different days the count pass reached (landing 3b.6, method G7.3j
+    # step 5) is left as drawn: the per-gap shares below would move ranks
+    # the cells placed on purpose.
+    if layout.listed and _heavy_met(column, facts, ordinals, layout, holes):
+        return ordinals, []
     month = facts.day_of_month_census
     if (
         not month
@@ -28769,6 +30585,374 @@ def _clock_fields_settled(
     return ordinals, []
 
 
+_HEAVY_MISSED = (
+    "The twin could not hold every date that stands out at its published "
+    "count, so some of those dates hold other counts."
+)
+# ...and where the cells as written miss a listed count the ranks held (the
+# Codex review of landing 3b.6, item 1): a rank whose date no spelling the
+# column writes can show without wearing an absent spelling is written on
+# another date.
+_HEAVY_WRITTEN_MISSED = (
+    "Some rows of a date that stands out could be written in no spelling "
+    "the column uses that the description does not read as absent, so "
+    "they are written on another date and some of those dates hold other "
+    "counts."
+)
+# How many dates a listed rank's trade (`_listed_date_respelled`) tries,
+# per spelling, before it gives up on that spelling: each refused date is
+# passed over in one step, its ranks unread (`_ListedSpelling.runs`), so
+# the work per rank traded is bounded however many rows a date holds.
+_LISTED_PROBES = 64
+
+
+@dataclasses.dataclass
+class _ListedSpelling:
+    """What the spelling of the listed dates' ranks reads (G7.3j step 8).
+
+    `keys` is each rank's convention class (`_listed_class`), `order`
+    every spelling the column's ranks wear, the first worn first, and
+    `queues` the ranks standing on no listed date, ascending, by class
+    and spelling, each queue's ranks already traded passed over through
+    `skips` (`_listed_free`), `runs` where each queue's runs of one date
+    start, the queue's length last, each run every rank of which is
+    traded passed over through `spent` (`_listed_free` again), and
+    `absent` each cell's answer asked so far (`_listed_absent`). `spellings` is a copy of the column's,
+    changed by each trade; a bare view (no queues) only answers
+    `_listed_absent`.
+    """
+
+    facts: contract.DatetimeFacts
+    ordinals: "list[int]"
+    offsets: "list[str]"
+    marks: "list[str]"
+    whole: "list[bool]"
+    spellings: "list[_DateStyle]"
+    holes: "tuple[str, ...]"
+    keys: "list[tuple[object, ...]]"
+    order: "list[_DateStyle]"
+    queues: "dict[tuple[object, ...], list[int]]"
+    skips: "dict[tuple[object, ...], dict[int, int]]"
+    absent: "dict[tuple[object, ...], bool]"
+    runs: "dict[tuple[object, ...], list[int]]" = dataclasses.field(
+        default_factory=dict
+    )
+    spent: "dict[tuple[object, ...], dict[int, int]]" = dataclasses.field(
+        default_factory=dict
+    )
+
+
+def _listed_class(
+    facts: contract.DatetimeFacts,
+    fields: "tuple[int, int]",
+    whole: bool,
+    offset: str,
+) -> "tuple[object, ...]":
+    """The conventions a rank's cell can show, as one key (G7.3j step 8).
+
+    Two ranks of one key show the same census words in the same spelling:
+    the width a numeric member shows hangs on which of its two fields is
+    below ten (`_date_width_places`), the month name a textual member
+    shows on its month, and the offset's case and the bare date's form on
+    the rank's offset and form.
+    """
+    month, day = fields
+    if facts.parser_family in parsing.TEXTUAL_MEMBERS:
+        return (whole, offset, month, day < 10)
+    return (whole, offset, month < 10, day < 10)
+
+
+def _listed_absent(
+    keep: _ListedSpelling, rank: int, style: _DateStyle
+) -> bool:
+    """Whether the cell `rank` writes on its own date in `style`, as the
+    cell loop writes it (`_interior_cell`), wears an absent spelling.
+
+    Asked once per date, offset, mark, form and spelling (`keep.absent`):
+    the cell is a function of the five, and a listed date's ranks share
+    them.
+    """
+    asked = (
+        keep.ordinals[rank],
+        keep.offsets[rank],
+        keep.marks[rank],
+        keep.whole[rank],
+        style,
+    )
+    if asked not in keep.absent:
+        keep.absent[asked] = _is_a_hole_spelling(
+            _interior_cell(
+                keep.facts,
+                keep.ordinals[rank],
+                keep.offsets[rank],
+                keep.marks[rank],
+                keep.holes,
+                keep.whole[rank],
+                style,
+            ),
+            keep.holes,
+        )
+    return keep.absent[asked]
+
+
+def _listed_free(skip: "dict[int, int]", at: int) -> int:
+    """The first place of a queue from `at` not yet traded (path-halved)."""
+    root = at
+    while root in skip:
+        root = skip[root]
+    while at in skip and at != root:
+        following = skip[at]
+        skip[at] = root
+        at = following
+    return root
+
+
+def _listed_date_respelled(keep: _ListedSpelling, rank: int) -> bool:
+    """Keep `rank` on its listed date in a spelling the run does not read
+    as absent: THE ONE HELPER every step that would move a rank off a
+    listed date for its spelling asks first (method G7.3j step 8; the
+    Codex review of landing 3b.6, item 1).
+
+    In order: (a) a TRADE -- for each other spelling the column wears, in
+    `keep.order`, under which this rank's date wears no absent spelling,
+    the first rank, ascending, standing on no listed date, of this rank's
+    convention class (`_listed_class`) and wearing that spelling, whose
+    own date wears no absent spelling in this rank's spelling: the two
+    swap spellings, so every census of spellings keeps its counts and no
+    date moves; a date refused passes over all its ranks, and at most
+    `_LISTED_PROBES` dates are refused per spelling, each passed over in
+    one step (`keep.runs`: the Codex review's verifier measured the walk
+    over a refused date's ranks, asked again by every listed rank, at 11
+    seconds for 2,290 trades beside a tail date of 64,000 rows); else
+    (b) the first
+    such spelling alone, the date kept and the census of spellings
+    recounted on the written cells (`_date_count_notes`); else (c)
+    False: the rank's date has no spelling the column wears that is not
+    absent, and the caller moves it as before, the listed counts
+    recounted on the written cells (`_heavy_written_notes`).
+
+    Guarantees: returns whether the rank keeps its date; changes
+    `keep.spellings` (and the queue it traded from) only. At most
+    `_LISTED_PROBES` dates read per spelling, whatever their rows (plus
+    the runs of a refused date's day a queue out of order splits). Draws
+    no word. Determinism: a function of `keep` and the rank. Raises
+    nothing. No I/O of any kind.
+    """
+    own = keep.spellings[rank]
+    key = keep.keys[rank]
+    allowed: "list[_DateStyle]" = []
+    for style in keep.order:
+        if style == own:
+            continue
+        if _listed_absent(keep, rank, style):
+            continue
+        allowed += [style]
+        place = (key, style)
+        if place not in keep.queues:
+            continue
+        queue = keep.queues[place]
+        skip = keep.skips[place]
+        starts = keep.runs[place]
+        spent = keep.spent[place]
+        last = len(starts) - 1
+        run = _listed_free(spent, 0)
+        refused = 0
+        while run < last and refused < _LISTED_PROBES:
+            # The run's first rank not yet traded: a run in `spent` has none.
+            at = _listed_free(skip, starts[run])
+            other = queue[at]
+            if not _listed_absent(keep, other, own):
+                keep.spellings[rank] = style
+                keep.spellings[other] = own
+                skip[at] = at + 1
+                if _listed_free(skip, at + 1) >= starts[run + 1]:
+                    spent[run] = run + 1
+                return True
+            refused = refused + 1
+            day = keep.ordinals[other]
+            # A refused date's following ranks are passed over: its run,
+            # and any run of the same day its traded neighbours now join.
+            run = _listed_free(spent, run + 1)
+            while run < last and keep.ordinals[queue[starts[run]]] == day:
+                run = _listed_free(spent, run + 1)
+    if allowed:
+        keep.spellings[rank] = allowed[0]
+        return True
+    return False
+
+
+def _listed_spellings(
+    facts: contract.DatetimeFacts,
+    ordinals: "list[int]",
+    offsets: "list[str]",
+    marks: "list[str]",
+    whole: "list[bool]",
+    spellings: "list[_DateStyle]",
+    holes: "tuple[str, ...]",
+    listed: "frozenset[int]",
+) -> "list[_DateStyle]":
+    """Every rank of a listed date kept on it through the spelling (G7.3j
+    step 8; the Codex review of landing 3b.6, item 1).
+
+    THE LISTED COUNT IS THE RANKS', AND THE CELLS MUST CARRY IT. 900
+    dates through 2022 and a hundred more on 3 May, written alternately
+    `03/05/2022` and `3/5/2022`, beside twenty `3/5/2022` declared
+    missing, list 3 May with 52 rows; the spelling allocation gave half
+    of them `3/5/2022`, and the step off an absent spelling moved 21 to
+    another date after the ranks had held 52, so the twin held 31 while
+    its report said every listed count was met. Each rank of a listed
+    date whose cell (`_interior_cell`) would wear an absent spelling now
+    asks `_listed_date_respelled`, ascending, before any cell is written.
+
+    Guarantees: returns the spellings, `spellings` itself where no listed
+    rank wears an absent spelling. Linear in the ranks, plus
+    `_LISTED_PROBES` dates per spelling per rank traded, each read in one
+    step whatever its rows (`_listed_date_respelled`); each cell is
+    written once per date, offset, mark, form and spelling. Draws no word. Determinism: a function of the eight. Raises
+    nothing. No I/O of any kind.
+    """
+    if not listed or not holes:
+        return spellings
+    # The view is built at the first listed rank wearing an absent
+    # spelling: until then each check reads a bare view of no queues.
+    keep = _ListedSpelling(
+        facts=facts,
+        ordinals=ordinals,
+        offsets=offsets,
+        marks=marks,
+        whole=whole,
+        spellings=spellings,
+        holes=holes,
+        keys=[],
+        order=[],
+        queues={},
+        skips={},
+        absent={},
+    )
+    built = False
+    for rank in range(len(spellings)):
+        if ordinals[rank] not in listed:
+            continue
+        if not _listed_absent(keep, rank, keep.spellings[rank]):
+            continue
+        if not built:
+            keep = _listed_setup(keep, listed)
+            built = True
+        _listed_date_respelled(keep, rank)
+    return keep.spellings
+
+
+def _listed_setup(
+    bare: _ListedSpelling, listed: "frozenset[int]"
+) -> _ListedSpelling:
+    """The view `_listed_date_respelled` reads (`_ListedSpelling`), built
+    once per column from the bare view of `_listed_spellings`, in one
+    walk of the ranks; the spellings are a copy, changed by each trade."""
+    facts = bare.facts
+    ordinals = bare.ordinals
+    offsets = bare.offsets
+    whole = bare.whole
+    spellings = bare.spellings
+    parsed = len(spellings)
+    fields = _written_fields(facts, ordinals, offsets, parsed)
+    keys: "list[tuple[object, ...]]" = []
+    order: "list[_DateStyle]" = []
+    seen: "set[_DateStyle]" = set()
+    queues: "dict[tuple[object, ...], list[int]]" = {}
+    skips: "dict[tuple[object, ...], dict[int, int]]" = {}
+    runs: "dict[tuple[object, ...], list[int]]" = {}
+    spent: "dict[tuple[object, ...], dict[int, int]]" = {}
+    for rank in range(parsed):
+        key = _listed_class(facts, fields[rank], whole[rank], offsets[rank])
+        keys += [key]
+        style = spellings[rank]
+        if style not in seen:
+            seen = seen | {style}
+            order += [style]
+        if ordinals[rank] in listed:
+            continue
+        place = (key, style)
+        if place not in queues:
+            queues[place] = []
+            skips[place] = {}
+            runs[place] = []
+            spent[place] = {}
+        queue = queues[place]
+        if not queue or ordinals[queue[-1]] != ordinals[rank]:
+            runs[place] += [len(queue)]
+        queues[place] += [rank]
+    for queued in queues:
+        runs[queued] += [len(queues[queued])]
+    return dataclasses.replace(
+        bare,
+        spellings=[style for style in spellings],
+        keys=keys,
+        order=order,
+        queues=queues,
+        skips=skips,
+        runs=runs,
+        spent=spent,
+    )
+
+
+def _heavy_written_notes(
+    column: contract.ColumnBlock,
+    facts: contract.DatetimeFacts,
+    cells: "list[str]",
+    holes: "tuple[str, ...]",
+    said: "list[Deviation]",
+) -> "list[Deviation]":
+    """THE LISTED COUNTS AS WRITTEN (method G7.3j step 8; the Codex review
+    of landing 3b.6, item 1): each listed date's rows recounted on the
+    finished parsed cells, as validation V5-D1 counts them -- a cell
+    wearing no published absent spelling (`_wears_a_published_hole`),
+    read under the column's own member, on the day its text names. Where
+    a listed date holds another count and nothing `said` already names
+    the list, one deviation names it (`_HEAVY_WRITTEN_MISSED`), so the
+    spread sentence, read off the deviations, never says the listed
+    counts are met while the cells miss one.
+
+    Guarantees: returns nought or one deviation. Linear in the cells,
+    each different text read once. Determinism: a function of the
+    arguments. Raises nothing. No I/O of any kind.
+    """
+    if not facts.heavy_dates:
+        return []
+    for note in said:
+        if note.fact == calendar_rules.HEAVY_DATES:
+            return []
+    held: "dict[int, int]" = {}
+    # Each different text read once: a column of dates repeats its texts.
+    read_as: "dict[str, int | None]" = {}
+    for cell in cells:
+        if cell not in read_as:
+            read_as[cell] = None
+            read = None
+            if not _wears_a_published_hole(cell, holes):
+                read = parsing.parse_datetime(cell, facts.parser_family)
+            if read is not None:
+                canonical = read[0]
+                read_as[cell] = parsing.days_from_civil(
+                    int(canonical[0:4]), int(canonical[5:7]), int(canonical[8:10])
+                )
+        day = read_as[cell]
+        if day is None:
+            continue
+        held[day] = (held[day] if day in held else 0) + 1
+    for day, count in facts.heavy_dates:
+        if (held[day] if day in held else 0) != count:
+            return [
+                _deviation(
+                    column.name,
+                    calendar_rules.HEAVY_DATES,
+                    "the published counts",
+                    "other counts",
+                    _HEAVY_WRITTEN_MISSED,
+                )
+            ]
+    return []
+
+
 def _heavy_sorted(
     column: contract.ColumnBlock,
     facts: contract.DatetimeFacts,
@@ -28783,19 +30967,47 @@ def _heavy_sorted(
 ) -> "tuple[list[int], list[Deviation]]":
     """The dates that stand out, after every other pass: the body re-sorted.
 
-    THE STUB OF LANDING 3b.6 (lane D4, plan P4-D369), which fills this
-    post-pass and nothing beside it (plan P4-D364): its listed dates are
-    pinned by `_heavy_layout` and kept off by `_heavy_holes`, and this
-    pass sorts the body and names a count it could not meet. No column
-    lists a date until then, so no rank moves.
+    THE POST-PASS OF LANDING 3b.6 (lane D4, plan P4-D369, method G7.3j
+    step 6). The layout pins each listed date's rows (`_heavy_layout`)
+    and every pass keeps every other rank off a listed date
+    (`_heavy_holes`), so the body only needs sorting again: a loose
+    run stood at the start of its part, and every value stays inside its
+    part, so each boundary and rung still reads its own value. Where a
+    listed date does not hold its count -- a list no rank order holds,
+    which the loader refuses -- one deviation says so.
 
-    Guarantees: as `_hour_settled`. No I/O of any kind.
+    Guarantees: as `_hour_settled`. Linear in the ranks, times the sort.
+    No I/O of any kind.
     """
-    return ordinals, []
+    if not facts.heavy_dates or layout.low is None or layout.high is None:
+        return ordinals, []
+    body_low = layout.low.rows
+    body_high = parsed - 1 - layout.high.rows
+    body = sorted(ordinals[rank] for rank in range(body_low, body_high + 1))
+    moved = [value for value in ordinals]
+    for index in range(len(body)):
+        moved[body_low + index] = body[index]
+    held: "dict[int, int]" = {}
+    for value in moved:
+        held[value] = (held[value] if value in held else 0) + 1
+    for day, count in facts.heavy_dates:
+        if (held[day] if day in held else 0) != count:
+            return moved, [
+                _deviation(
+                    column.name,
+                    calendar_rules.HEAVY_DATES,
+                    "the published counts",
+                    "other counts",
+                    _HEAVY_MISSED,
+                )
+            ]
+    return moved, []
 
 
 def _datetime_content(
-    plan: "_ColumnPlan", words: "list[int]"
+    plan: "_ColumnPlan",
+    words: "list[int]",
+    settled: "list[list[int]] | None" = None,
 ) -> "tuple[list[str], list[Deviation]]":
     """Every present cell of a column of dates (method G7, G10.4).
 
@@ -28805,6 +31017,9 @@ def _datetime_content(
     rank's place comes from the layout (`_date_layout`): the two tail
     boundaries and the rungs between them pinned, each tail drawn through
     its published shape or set on its published values (stage 3).
+    `settled`, where given, receives the ranks' days as the last pass
+    left them, before any cell is spelled (method G7.3j step 7 asks them
+    of a column drawn as if it listed no date).
     """
     column = plan.column
     facts = column.facts
@@ -28912,6 +31127,18 @@ def _datetime_content(
             ordinals, gap_lows, gap_highs, 1 if space == "date" else 86400,
             _hole_days(plan.counted_holes), _counted_grid(facts, space),
         )
+    # ...and where the list costs a group of a census beside it or a day
+    # of the count that the twin listing nothing holds, the list gives
+    # way (G7.3j step 7): the column is drawn as if it listed none.
+    if layout.listed:
+        given, bare = _heavy_given_way(plan, words, ordinals, layout)
+        if given is not None:
+            return given
+        weekday_notes = _heavy_kept_notes(
+            plan, words, ordinals, layout, weekday_notes, bare
+        )
+    if settled is not None:
+        settled += [ordinals]
     # HOW EVERY RANK IS SPELLED (landing 2b.6, the reversal of owner
     # decision 5). Allocated after the instants and the offsets, because
     # which conventions a cell can show depends on the day it writes and
@@ -28919,6 +31146,15 @@ def _datetime_content(
     spellings, remainder_placed = _cell_spellings(
         facts, ordinals, offsets, parsed, plan.small_cell_floor
     )
+    # ...AND A LISTED DATE KEEPS ITS ROWS THROUGH THE SPELLING (method
+    # G7.3j step 8; the Codex review of landing 3b.6, item 1): a rank on a
+    # listed date whose cell would wear an absent spelling trades its
+    # spelling rather than its date, before any cell is written.
+    if space != "datetime":
+        spellings = _listed_spellings(
+            facts, ordinals, offsets, marks, whole, spellings, holes,
+            layout.listed,
+        )
     if not remainder_placed:
         # G7.5 STEP 5 COULD NOT PLACE THE WIDTH CENSUS'S UNNAMED REMAINDER
         # on whole dates (landing T1): said, and no word invented for it.
@@ -29019,6 +31255,10 @@ def _datetime_content(
                     for other in (ordinal - away, ordinal + away):
                         if other < low or other > high:
                             continue
+                        # ...never onto a date that stands out (landing
+                        # 3b.6, plan P4-D369), whose count is exact.
+                        if other in layout.listed:
+                            continue
                         tried = _interior_cell(
                             facts,
                             other,
@@ -29066,6 +31306,10 @@ def _datetime_content(
     notes = notes + _day_of_month_count_notes(
         column, facts, cells, holes, plan.declared_days, notes
     )
+    # ...and the listed counts recounted on the cells as written, before
+    # any sentence says they are met (the Codex review of landing 3b.6,
+    # item 1).
+    notes = notes + _heavy_written_notes(column, facts, cells, holes, heavy_notes)
     used: dict[str, int] = {cell: 1 for cell in cells}
     # -- 3b.R2c (P4-D383): THE PARTIAL FORMS FIRST (G7.5's partial dates),
     # each cell at its own precision; the stand-ins follow.
@@ -31199,13 +33443,70 @@ def _day_of_month_spread(
     )
 
 
-def _heavy_spread(facts: contract.DatetimeFacts, spread: _Spread) -> _Spread:
-    """The sentence with the clause of the dates that stand out.
+# THE CLAUSE OF A COLUMN LISTING ITS DATES THAT STAND OUT (landing 3b.6,
+# plan P4-D369): each listed date holds its published count, so neither
+# the heaps nor the schedule are among the things not reproduced; the
+# twin's other days are its own, and the sentence says so.
+_SPREAD_HEAVY_MET = (
+    "each listed date that stands out holds its published count exactly"
+)
+_SPREAD_HEAVY_OWN = (
+    "Only the listed dates are held at their counts: any other day on "
+    "which the twin holds far more values than its neighbours is the "
+    "twin's own, and counts per single day computed on this twin are the "
+    "real column's only on the listed dates."
+)
+_SPREAD_HEAVY_MISSED = (
+    "The listed dates that stand out do not all hold their published "
+    "counts: heavy_dates is named among the facts the twin could not "
+    "hold exactly, and counts per single day computed on this twin are "
+    "not the real column's."
+)
+# ...and where the list gave way to a census beside it (G7.3j step 7):
+# the twin held every listed count drawn with the list, and gave the list
+# up for the census the deviation names (the 3b.6 skeptic's item 4).
+_SPREAD_HEAVY_GIVEN_WAY = (
+    "The listed dates that stand out gave way to a census beside them: "
+    "heavy_dates is named among the facts given way, with the census it "
+    "gave way to, and counts per single day computed on this twin are "
+    "not the real column's."
+)
 
-    THE STUB OF LANDING 3b.6 (lane D4, plan P4-D369), which fills this
-    clause (plan P4-D364); unchanged until then.
+
+def _heavy_spread(
+    facts: contract.DatetimeFacts,
+    spread: _Spread,
+    missed: "frozenset[str]" = frozenset(),
+    given_way: bool = False,
+) -> _Spread:
+    """The sentence with the clause of the dates that stand out (landing 3b.6).
+
+    Unchanged where no date is listed. Where the twin missed a listed
+    count (`missed`, the completed measurement's), said beside -- as
+    given way where step 7 of G7.3j gave the list up (`given_way`); else
+    the heaps and the schedule leave the things not reproduced, the
+    listed counts are said to be met, and the twin's other days its own.
     """
-    return spread
+    if not facts.heavy_dates:
+        return spread
+    if calendar_rules.HEAVY_DATES in missed:
+        return _Spread(
+            held=spread.held,
+            missing=spread.missing,
+            beside=tuple(
+                list(spread.beside)
+                + [_SPREAD_HEAVY_GIVEN_WAY if given_way else _SPREAD_HEAVY_MISSED]
+            ),
+        )
+    return _Spread(
+        held=tuple(list(spread.held) + [_SPREAD_HEAVY_MET]),
+        missing=tuple(
+            thing
+            for thing in spread.missing
+            if thing not in (_SPREAD_HEAVY_THING, _SPREAD_SCHEDULE_THING)
+        ),
+        beside=tuple(list(spread.beside) + [_SPREAD_HEAVY_OWN]),
+    )
 
 
 # THE SENTENCE FOR A STAMP DECLARED A 12-HOUR CLOCK WITH NO AM OR PM. Until
@@ -31257,6 +33558,7 @@ def _spread_held(facts: contract.DatetimeFacts, held: str) -> str:
 def _spread_remarks(
     column: contract.ColumnBlock,
     missed: "frozenset[str]" = frozenset(),
+    given_way: bool = False,
 ) -> "list[Remark]":
     """Say what a column of dates is NOT spread by (landing 2b.6).
 
@@ -31341,8 +33643,9 @@ def _spread_remarks(
     spread = _clock_fields_spread(facts, spread)
     # -- the days of the month (3b.D3, P4-D368)
     spread = _day_of_month_spread(facts, spread, missed)
-    # -- the dates that stand out (3b.D4, P4-D369)
-    spread = _heavy_spread(facts, spread)
+    # -- the dates that stand out (3b.D4, P4-D369); `given_way` where
+    # G7.3j step 7 gave the list up for a census
+    spread = _heavy_spread(facts, spread, missed, given_way)
     held, said = _spread_written(spread)
     return [
         _remark(
@@ -32389,7 +34692,11 @@ def _spread_ordinals(layout: "_DateLayout", words: "list[int]") -> "list[int]":
     taken = 0
     if layout.low is not None:
         taken = _tail_words_spent(layout.low, parsed, words, taken, ordinals)
-    places, steps = _pin_places(layout.body)
+    # A COLUMN LISTING DATES THAT STAND OUT is drawn part by part
+    # (landing 3b.6, method G7.3j: `_heavy_drawn`), every other gap by gap.
+    places, steps = ([], []) if layout.listed else _pin_places(layout.body)
+    if layout.listed:
+        taken = _heavy_drawn(layout, words, taken, ordinals)
     for step in range(len(places) - 1):
         below = places[step]
         above = places[step + 1]
@@ -32413,6 +34720,191 @@ def _spread_ordinals(layout: "_DateLayout", words: "list[int]") -> "list[int]":
     if layout.high is not None:
         taken = _tail_words_spent(layout.high, parsed, words, taken, ordinals)
     return ordinals
+
+
+
+def _heavy_drawn(
+    layout: "_DateLayout", words: "list[int]", taken: int, ordinals: "list[int]"
+) -> int:
+    """Every ordinary rank of the body drawn in its cell (method G7.3j step 4).
+
+    THE BODY KEEPS ONE WORD PER ORDINARY RANK, in rank order, as the
+    body's gaps spend them, so the high tail reads the words it always
+    read. Before any body rank is drawn the days already held are known:
+    the listed dates, the knots' and both tails' (the high tail's spots
+    read off its own words, `_tail_spots`); `_heavy_values` draws the
+    rest, and each value is laid on the drawing unit (`_on_draw_unit`).
+
+    Guarantees: accepts the layout, the words, the words already taken
+    and the ordinals, which it fills; returns the words the body keeps.
+    Determinism: a function of the four. Raises nothing. No I/O.
+    """
+    parsed = layout.parsed
+    total = sum(part.count for part in layout.parts)
+    knots = frozenset(
+        layout.body[rank]
+        for rank in layout.body
+        if layout.body[rank] not in layout.listed
+    )
+    held = set(layout.listed) | set(knots)
+    if layout.low is not None:
+        held = held | {
+            ordinals[_tail_rank_of(layout.low, parsed, index)]
+            for index in range(layout.low.rows)
+        }
+    if layout.high is not None:
+        mine: "dict[int, int]" = {}
+        at = taken + total
+        if layout.high.shape is not None:
+            for index in range(layout.high.shape.grouped - 1, 0, -1):
+                mine[index] = words[at]
+                at = at + 1
+        held = held | set(_tail_spots(layout.high, mine))
+    values = _heavy_values(
+        layout.parts, layout.owed, knots,
+        (1 << 62) if layout.distinct < 0 else layout.distinct - len(held),
+        [words[taken + index] for index in range(total)],
+    )
+    for number in range(len(layout.parts)):
+        part = layout.parts[number]
+        for index in range(part.count):
+            ordinals[part.first + index] = _on_draw_unit(
+                values[number][index], layout.draw_unit, part.lo, part.hi
+            )
+    return taken + total
+
+
+def _heavy_days_opened(
+    keys: "list[tuple[int, int, int]]", left: int
+) -> "list[int]":
+    """How many new days each key opens (method G7.3j step 4).
+
+    `keys` holds each key's ranks, its knots' days and its free days that
+    are no knot's. A key holding ranks and no knot's day opens at least
+    one; past that, the `left` new days the count leaves go where the
+    ranks stand thickest: the least density of ranks per day -- a key's
+    knots' days and its new days together -- at which the keys need no
+    more than `left` new days is found by halving, each key opening as
+    many as that density asks, never more than its free days or its
+    ranks, and the days still left go one each to the keys whose ranks
+    then stand thickest, ties to the earlier key. Where even one new day
+    a key is more than `left`, each key takes its one.
+
+    Guarantees: returns one count per key. Linear in the keys, times the
+    halving. Determinism: a function of the two. Raises nothing.
+    """
+    least = [
+        1 if rows > 0 and fixed == 0 and free > 0 else 0
+        for rows, fixed, free in keys
+    ]
+    most = [min(free, rows) for rows, _fixed, free in keys]
+    if sum(least) >= left:
+        return least
+
+    def wanted(density: int) -> "list[int]":
+        found: "list[int]" = []
+        for index in range(len(keys)):
+            rows, fixed, _free = keys[index]
+            days = -((-rows * _HEAVY_WEIGHT_SCALE) // density) - fixed
+            found += [max(least[index], min(most[index], days))]
+        return found
+
+    tallest = max((rows for rows, _fixed, _free in keys), default=1)
+    low, high = 1, max(1, tallest) * _HEAVY_WEIGHT_SCALE
+    while high - low > 1:
+        middle = (low + high) // 2
+        if sum(wanted(middle)) <= left:
+            high = middle
+        else:
+            low = middle
+    opened = wanted(high)
+    spare = left - sum(opened)
+    order = [
+        index
+        for _density, index in sorted(
+            (
+                -(keys[index][0] * _HEAVY_WEIGHT_SCALE)
+                // max(1, keys[index][1] + opened[index]),
+                index,
+            )
+            for index in range(len(keys))
+        )
+    ]
+    for index in order:
+        if spare <= 0:
+            break
+        if opened[index] < most[index]:
+            opened[index] = opened[index] + 1
+            spare = spare - 1
+    return opened
+
+
+def _heavy_values(
+    parts: "tuple[_HeavyPart, ...]",
+    owed: "tuple[tuple[int, ...], ...]",
+    knots: "frozenset[int]",
+    left: int,
+    words: "list[int]",
+) -> "list[list[int]]":
+    """Each part's ordinary values, ascending (method G7.3j step 4).
+
+    `owed` is what each census's groups owe the ordinary ranks, `knots`
+    the unlisted knots' days, `left` the new days the count of different
+    days leaves once the listed dates, the knots and both tails hold
+    theirs, and `words` one word per ordinary rank in rank order. The
+    ranks are split by key (`_heavy_cells`) and each key's new days
+    counted (`_heavy_days_opened`). A key's new days are drawn among its free days,
+    one by the word of each of its first slots, no day drawn twice; each
+    takes that slot's rank, and every other rank of the key is drawn
+    uniformly over the key's new days and its knots' days by the word of
+    its slot -- a part's keys hold its slots in key order, one per rank.
+
+    Guarantees: returns one ascending list per part. Linear in the ranks
+    and the free days, times the sort inside each part. Determinism: a
+    function of the five. Raises nothing. No I/O of any kind.
+    """
+    shares = _heavy_cells(parts, owed, knots, left)
+    cells: "list[tuple[int, int, tuple[int, ...], tuple[int, ...]]]" = []
+    for number in range(len(parts)):
+        part = parts[number]
+        for key, days in part.keyed:
+            rows = shares[number][key] if key in shares[number] else 0
+            if rows <= 0:
+                continue
+            fixed = tuple(day for day in days if day in knots)
+            free = tuple(day for day in days if day not in knots)
+            cells += [(number, rows, fixed, free)]
+    opened = _heavy_days_opened(
+        [(rows, len(fixed), len(free)) for _number, rows, fixed, free in cells],
+        left,
+    )
+    values: "list[list[int]]" = [[] for _ in parts]
+    slots = [0 for _ in parts]
+    for number in range(1, len(parts)):
+        slots[number] = slots[number - 1] + parts[number - 1].count
+    for index in range(len(cells)):
+        number, rows, fixed, free = cells[index]
+        chosen = opened[index]
+        slot = slots[number]
+        # The key's new days: `chosen` of its free days, each the word of
+        # its slot drawing one of those not yet drawn (a partial shuffle,
+        # the swaps held aside so the free days are never copied).
+        swapped: "dict[int, int]" = {}
+        spread: "list[int]" = []
+        for place in range(chosen):
+            other = place + (words[slot + place] * (len(free) - place)) // _WORD_SCALE
+            here = swapped[place] if place in swapped else place
+            there = swapped[other] if other in swapped else other
+            swapped[other] = here
+            spread += [free[there]]
+        days = tuple(sorted(fixed + tuple(spread)))
+        drawn = [day for day in spread]
+        for place in range(chosen, rows):
+            word = words[slot + place]
+            drawn += [days[(word * len(days)) // _WORD_SCALE]]
+        slots[number] = slot + rows
+        values[number] += drawn
+    return [sorted(found) for found in values]
 
 
 def _midnight_offsets(
@@ -32931,8 +35423,10 @@ def _units_settled(
        (`_count_met_past_the_strata`).
        Too few: a rank sharing its unit moves to the nearest unit no rank
        holds inside its gap, of the same width kind, not onto a midnight
-       it did not stand at and not off one it did, nearest first, ties to
-       the lower rank and then to the earlier unit.
+       it did not stand at and not off one it did -- THE TWO TAILS' RANKS
+       FIRST (lane D4s, plan P4-D369 part one: `_tail_ranks`), then the
+       body's, each nearest first, ties to the lower rank and then to the
+       earlier unit.
 
     NO PASS OFFERS A HOLE (plan P4-D358): a unit an absent spelling of the
     run names (`_count_holes`, from ``holes``) is no merge's, trade's,
@@ -33030,13 +35524,14 @@ def _units_settled(
                 moved, pinned, gone, unit, layout
             )
     off = _counts_off(facts, moved, day, unit, word, distinct, widths)
+    tail_ranks = _tail_ranks(layout, parsed)
     stalled = 0
     for _round in range(_RESTORATION_ROUNDS):
         changed = False
         if distinct >= 0:
             changed = _distinct_reached(
                 facts, moved, pinned, gap_lows, gap_highs, day, step,
-                distinct, widths >= 0, word, gone,
+                distinct, widths >= 0, word, gone, tail_ranks,
             ) or changed
         if widths >= 0:
             changed = _widths_reached(
@@ -33570,10 +36065,23 @@ def _distinct_reached(
     widths: bool,
     word: str = "",
     gone: "frozenset[int]" = frozenset(),
+    tails: "frozenset[int]" = frozenset(),
 ) -> bool:
     """Step 2 of `_units_settled`: move ranks until the distinct count holds.
 
     No unit in ``gone`` is offered to any rank (`_count_holes`).
+
+    WHERE IT SPLITS, THE TAILS' RANKS SPLIT FIRST (lane D4s, plan P4-D369
+    part one): every rank in ``tails`` is offered its nearest free unit
+    before any other rank, then the rest, each nearest first and then the
+    lower rank. Split nearest first alone, a body rank one day from a free
+    day split before a high tail rank whose free day stood further, so the
+    body passed what the day pass's census lets it reach while the high
+    tail kept fewer days than its most, and the day pass then took the
+    body's extra days back: `_every_open_day(1.15, 52, 1002, Monday,
+    Wednesday and Friday)` at the floor of 20 came back 154 or 155 values
+    for 156 at seven seeds of ten (P4-D388's second verification). With
+    ``tails`` empty the order is the one before.
     """
     parsed = len(moved)
     unit = step if day == 86400 else 1
@@ -33740,7 +36248,10 @@ def _distinct_reached(
             count = wanted
             changed = True
         return changed
-    splits: "list[tuple[int, int, int]]" = []
+    # Each split offered: 0 for a tail rank and 1 for a body rank (THE
+    # TAILS FIRST, plan P4-D369 part one), the distance, the rank and the
+    # free unit found.
+    splits: "list[tuple[int, int, int, int]]" = []
     # A GAP WITH NO FREE UNIT STAYS WITHOUT ONE while ranks only split, so
     # it is searched once: a column of moments to the minute over months
     # would otherwise search every shared rank's whole gap again. A split
@@ -33762,16 +36273,16 @@ def _distinct_reached(
             if gap is not None:
                 full[gap] = True
             continue
-        splits += [(abs(found - moved[rank]), rank, found)]
+        splits += [(0 if rank in tails else 1, abs(found - moved[rank]), rank, found)]
     for split in sorted(splits):
         if count == wanted:
             break
-        rank = split[1]
+        rank = split[2]
         own = moved[rank] // unit
         if held[own] < 2:
             continue
-        found_now: "int | None" = split[2]
-        if split[2] // unit in held and held[split[2] // unit] > 0:
+        found_now: "int | None" = split[3]
+        if split[3] // unit in held and held[split[3] // unit] > 0:
             # TAKEN BY AN EARLIER SPLIT: the rank is offered the nearest
             # unit still free when its turn comes.
             found_now = None
@@ -51423,9 +53934,9 @@ def generate(profile: contract.Profile, seed: int) -> Twin:
         # with its cause.
         cause = ""
         for note in notes:
-            if note.note in _WEEKDAY_CAUSES:
+            if note.note in _COUNT_CAUSES:
                 cause = note.note
-        notes = [note for note in notes if note.note not in _WEEKDAY_CAUSES]
+        notes = [note for note in notes if note.note not in _COUNT_CAUSES]
         notes = (
             list(each.notes)
             + notes
@@ -51496,7 +54007,13 @@ def generate(profile: contract.Profile, seed: int) -> Twin:
         # block further down -- so a remark added to that list alone
         # makes the report promise a block it never writes.
         spread = _spread_remarks(
-            column, frozenset(note.fact for note in notes)
+            column,
+            frozenset(note.fact for note in notes),
+            any(
+                note.fact == calendar_rules.HEAVY_DATES
+                and note.note in _HEAVY_GIVEN_WAY_NOTES
+                for note in notes
+            ),
         )
         remarked = remarked + list(each.remarks)
         remarked = remarked + spread
@@ -51905,7 +54422,7 @@ def _recount_notes(
         # direction, a long cause was printed over by the long sentence
         # and could reach the report only over a count that was short
         # (review of landing 3b.D0, item 2).
-        if cause and (cause == _WEEKDAY_DAYS_LEFT_LONG) == (
+        if cause and (cause in _LONG_CAUSES) == (
             counted[2] > column.n_distinct
         ):
             reason = cause
@@ -51927,6 +54444,8 @@ def _recount_notes(
             reason = _folded_excess_reason(column)
             if cause == _WEEKDAY_DAYS_LEFT_LONG and counted[2] > column.n_distinct:
                 reason = _WEEKDAY_FOLDED_LEFT_LONG
+            if cause == _HEAVY_COUNT_LONG and counted[2] > column.n_distinct:
+                reason = _HEAVY_FOLDED_LONG
         notes += [
             _deviation(
                 column.name,
@@ -55166,6 +57685,111 @@ def _past_the_strata_windows(
     return (lows, highs)
 
 
+def _datetime_count_window(
+    column: contract.ColumnBlock,
+    facts: contract.DatetimeFacts,
+    layout: "_DateLayout",
+    present: int,
+    held: int,
+    floor: int,
+) -> "tuple[int, int]":
+    """G12.5's envelope of a column of dates' count of different values.
+
+    Its lower and upper end over `present` cells, `held` of them read as
+    dates, ON THE DESCRIPTION'S OWN GAPS (`_described_layout`): a column
+    listing dates that stand out draws its ordinary ranks in parts, but
+    the validator draws its window from the description alone, so the
+    envelope here is the one it judges by (the orchestrator's ruling (c)
+    of 2026-10-13, plan P4-D369). Asked by the report
+    (`_datetime_approximations`) and, through `contract.datetime_count_off`,
+    by method G7.3j's steps 5 and 7 (`_heavy_count_off`).
+
+    Guarantees: returns the two ends, the lower no higher than the upper.
+    Linear in the ranks, times the sort. Determinism: a function of the
+    six. Raises nothing. No I/O of any kind.
+    """
+    layout = _described_layout(layout)
+    # The number of different values, both ways of counting. A stand-in
+    # for a cell that did not read as a date is a different spelling
+    # from every other cell of the column, so both ends carry them.
+    stand_ins = present - held
+    lows, highs = _datetime_window(layout, facts, held)
+    if contract.datetime_counts_reachable(column):
+        lows, highs = _past_the_strata_windows(layout, lows, highs)
+    # -- 3b.R2c (the Codex review of landing R2c, item 8): a named partial
+    # form's cells repeat, so each promises one value at least -- the rule
+    # the validator asks (`contract.least_unread_values`). Counted as one
+    # value each, 400 cells of `2024` set the lower end at 414 where the
+    # validator set it at 15.
+    lowest_count = _forced_apart(lows, highs) + contract.least_unread_values(
+        facts, stand_ins
+    )
+    # THE UPPER END COUNTS THE BODY'S UNITS AND THE TAILS' CELLS (stage 3,
+    # G12.5): every body rank lies between the two boundaries, and each
+    # tail cell can be a value of its own. A column with no tails is its
+    # RAMP, which bounds itself: it spreads its ranks over its published
+    # count of different values from 1970-01-01, so the twin holds those
+    # instants and no others, each written the ways an instant can be.
+    # Read as the whole column instead, this promised a range of 2 to
+    # 124 on a ramp that can hold six.
+    highest_count = present
+    if layout.low is None or layout.high is None:
+        steps = max(1, min(present, column.n_distinct - facts.n_unparsed))
+        highest_count = min(
+            present, steps * _spellings_of_a_date(facts) + stand_ins
+        )
+    if layout.low is not None and layout.high is not None:
+        unit = _precision_slack(facts) + 1
+        reachable = layout.high.boundary - layout.low.boundary + 1
+        reachable = (reachable + unit - 1) // unit
+        highest_count = min(
+            present,
+            reachable * _spellings_of_a_date(facts)
+            + layout.low.rows
+            + layout.high.rows
+            + stand_ins,
+        )
+    # ...AND THE SPELLINGS G7.9 MAY BUY BESIDE THEM, BOUNDED BY THE
+    # SHORTFALL THE DESCRIPTION PUBLISHES. The pass spends ranks on a
+    # mark the census leaves unnamed, one different spelling each, and
+    # it stops the moment the folded count reaches `n_distinct_folded`.
+    # So the window reaches that count and no further. Measured before
+    # the term existed: a twin that met its published count of three
+    # exactly was reported as landing outside a range of 2 to 2, which
+    # is the method telling the person their conforming twin deviated.
+    #
+    # ADDING THE WHOLE BUDGET INSTEAD WAS MEASURED AND IS WRONG in two
+    # ways (skeptic finding 2 of 2026-09-21). It widened the promise on
+    # columns this pass never touches -- a census naming two marks over
+    # three days went from a range of 3 to 6 to one of 3 to 16 with the
+    # twin's bytes unchanged -- and on a census mixing `upper_t` with
+    # `lower_t` it made the report print `inside` for a count
+    # `synthtwin validate` reports MISSED, the two halves of the same
+    # run contradicting each other.
+    spendable = _marks_spendable(facts, floor)
+    if spendable >= 1 and column.n_distinct_folded > highest_count:
+        highest_count = min(
+            present,
+            min(highest_count + spendable, column.n_distinct_folded),
+        )
+    lowest_count = min(lowest_count, highest_count)
+    return lowest_count, highest_count
+
+
+def _described_layout(layout: "_DateLayout") -> "_DateLayout":
+    """The layout with every rank's gap as the description draws it.
+
+    Unchanged on a column listing no date; on one that lists dates that
+    stand out, the gaps from before the list's parts (`_heavy_layout`
+    keeps them in `described`), which are the gaps the validator's
+    windows are drawn from (`validation._pin_bounds_of`).
+    """
+    if layout.described is None:
+        return layout
+    return dataclasses.replace(
+        layout, lows=layout.described[0], highs=layout.described[1]
+    )
+
 def _marks_spendable(facts: contract.DatetimeFacts, floor: int) -> int:
     """How many more different spellings G7.9 may buy this column.
 
@@ -55621,69 +58245,11 @@ def _datetime_approximations(
             column.name, side, tail, ordinals, side.boundary, facts.tail_unit,
             contract.datetime_counts_reachable(column),
         )
-    # The number of different values, both ways of counting. A stand-in
-    # for a cell that did not read as a date is a different spelling
-    # from every other cell of the column, so both ends carry them.
-    stand_ins = len(present) - held
-    if contract.datetime_counts_reachable(column):
-        lows, highs = _past_the_strata_windows(layout, lows, highs)
-    # -- 3b.R2c (the Codex review of landing R2c, item 8): a named partial
-    # form's cells repeat, so each promises one value at least -- the rule
-    # the validator asks (`contract.least_unread_values`). Counted as one
-    # value each, 400 cells of `2024` set the lower end at 414 where the
-    # validator set it at 15.
-    lowest_count = _forced_apart(lows, highs) + contract.least_unread_values(
-        facts, stand_ins
+    # The number of different values, both ways of counting, against
+    # G12.5's envelope on the description's own gaps (`_datetime_count_window`).
+    lowest_count, highest_count = _datetime_count_window(
+        column, facts, layout, len(present), held, floor
     )
-    # THE UPPER END COUNTS THE BODY'S UNITS AND THE TAILS' CELLS (stage 3,
-    # G12.5): every body rank lies between the two boundaries, and each
-    # tail cell can be a value of its own. A column with no tails is its
-    # RAMP, which bounds itself: it spreads its ranks over its published
-    # count of different values from 1970-01-01, so the twin holds those
-    # instants and no others, each written the ways an instant can be.
-    # Read as the whole column instead, this promised a range of 2 to
-    # 124 on a ramp that can hold six.
-    highest_count = len(present)
-    if layout.low is None or layout.high is None:
-        steps = max(1, min(len(present), column.n_distinct - facts.n_unparsed))
-        highest_count = min(
-            len(present), steps * _spellings_of_a_date(facts) + stand_ins
-        )
-    if layout.low is not None and layout.high is not None:
-        unit = _precision_slack(facts) + 1
-        reachable = layout.high.boundary - layout.low.boundary + 1
-        reachable = (reachable + unit - 1) // unit
-        highest_count = min(
-            len(present),
-            reachable * _spellings_of_a_date(facts)
-            + layout.low.rows
-            + layout.high.rows
-            + stand_ins,
-        )
-    # ...AND THE SPELLINGS G7.9 MAY BUY BESIDE THEM, BOUNDED BY THE
-    # SHORTFALL THE DESCRIPTION PUBLISHES. The pass spends ranks on a
-    # mark the census leaves unnamed, one different spelling each, and
-    # it stops the moment the folded count reaches `n_distinct_folded`.
-    # So the window reaches that count and no further. Measured before
-    # the term existed: a twin that met its published count of three
-    # exactly was reported as landing outside a range of 2 to 2, which
-    # is the method telling the person their conforming twin deviated.
-    #
-    # ADDING THE WHOLE BUDGET INSTEAD WAS MEASURED AND IS WRONG in two
-    # ways (skeptic finding 2 of 2026-09-21). It widened the promise on
-    # columns this pass never touches -- a census naming two marks over
-    # three days went from a range of 3 to 6 to one of 3 to 16 with the
-    # twin's bytes unchanged -- and on a census mixing `upper_t` with
-    # `lower_t` it made the report print `inside` for a count
-    # `synthtwin validate` reports MISSED, the two halves of the same
-    # run contradicting each other.
-    spendable = _marks_spendable(facts, floor)
-    if spendable >= 1 and column.n_distinct_folded > highest_count:
-        highest_count = min(
-            len(present),
-            min(highest_count + spendable, column.n_distinct_folded),
-        )
-    lowest_count = min(lowest_count, highest_count)
     counted = _recounted(written, holes)
     for place, name in ((2, "n_distinct"), (3, "n_distinct_folded")):
         published = column.n_distinct
@@ -55696,9 +58262,8 @@ def _datetime_approximations(
         # measurement inside a range from 11 to 1460.
         lowest_here = lowest_count
         highest_here = highest_count
-        if (
-            contract.datetime_count_exact(column, published)
-            and lowest_count <= published <= highest_count
+        if contract.datetime_count_held_exactly(
+            column, published, (lowest_count, highest_count)
         ):
             lowest_here = published
             highest_here = published

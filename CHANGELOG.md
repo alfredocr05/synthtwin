@@ -6,6 +6,83 @@ exists).
 
 ## [Unreleased]
 
+### The count pass splits the tails first (2026-10-12)
+
+**Logs just above one row an open day keep their count beside a weekday
+census** (stage 3b lane D4s, plan P4-D369 part one). Where a column's
+different days were too few, the twin's count pass split ranks nearest
+first, so a body rank a day from a free day split before a high tail
+rank whose free day stood further; the body then passed what the weekday
+census lets it reach and the day pass took those days back. P4-D388's
+pinned clinic log came back 154 or 155 values for 156 at seven seeds of
+ten, and the same log at midnight a day or two short with nothing named
+on an ISO member (P4-D367). The pass now splits the two tails' ranks
+first, then the body's (method G7.3, the oracle and the frozen case
+`tails_split_first` with it). Measured at seeds 0 to 9: of the 24
+censuses whose twins missed the count at two seeds or more, 22 meet it
+at every seed, and the two left miss where the pass merges, the twin
+drawing past the rules' expectation; on the near-one logs written ISO at
+midnight the silent short twins fall from 81 of 2,360 to 5, and with
+both marks from 21 of 549 to 2. No description changes, and a twin
+changes only where the pass splits and the order moves a rank. On D0's
+26 date batteries at the four floors (6,512 censuses, 59,485 twins),
+D1b's 296 family logs and 26 cases, D3's day-of-month battery and D2's
+two-mark battery, no twin misses a check its base twin met, and the
+long twins P4-D388 recorded at 36 and 50 beside a census (fewdates, the
+hunt batteries, the Tuesday clinics) are each the twin of a3c1b33, the
+order moving no rank in any. Stated, each
+held by a strict expected failure with its measured cause: seven-day
+logs holding every day stay one to three values short (a rebuilt tail's
+end a day inside the real one, no step moving a tail rank past its
+stratum where the count is short), fifteen Mondays at 36 stay long
+(their tails rebuilt on at least 30 days), and a clinic whose body draws
+past the rules' expectation stays a value or two short at four seeds in
+ten.
+
+### The dates that stand out (2026-10-12)
+
+**A column of dates lists the dates that stand out, and its twin holds
+each at its exact count** (stage 3b landing 3b.6, plan P4-D369). Before,
+the day-of-month census brought back the 1st, the 15th and the 10th, but
+a 28-day cycle's days came back 0.245 to 0.266 of the cells against
+0.900, 1 January's births 0.012 to 0.015 against 0.066 to 0.076, and the
+cycle's heaviest date 180 to 190 rows against 378. Now a column of whole
+dates, or of moments every value of which stands at midnight on the
+local clock, publishes `heavy_dates`: every date between its tail
+boundaries holding at least eleven rows (or the census line) and at
+least three times the mean of the three days either side, each with its
+exact count (HD1 to HD5; NF105). The twin pins every listed date's rows
+and draws the rest part by part and key by key (method G7.3j), the
+validator counts the file's cells on each listed date (V5-D1), and the
+oracle and the nineteenth vectors file freeze the plan. Lane D3's two
+limits are lifted: quarter ends and one month a year at 10,000 rows meet
+every check, and six Mays generate in 96 s at 1,000,000 rows where the
+discarded joint plan took about 640 s. What gives way follows the
+orchestrator's rulings of 2026-10-13: beside a list the count of
+different values gives way, named as its cause; against a census the
+twin standing fewer rows off the census and the listed dates stands, a
+tie keeping the list; and the count is read as the validator judges it,
+exactly only inside G12.5's envelope (one test, stated in the contract
+module). Over the batteries every one of 1,395 listing twins holds its
+list: of the 19 that had given theirs way, 8 now give the count way and
+9 a census, each named, and 2 miss nothing (`K-S3-46`). Stated
+limits: clocked moments list nothing; the twin may heap dates it does
+not list, said in its report (`K-S3-47`). KPIs `K-S3-45` to `K-S3-47`.
+Its Codex review: a rank on a listed date whose spelling the table
+declares missing now trades its spelling rather than its date (G7.3j
+step 8), where 3 May's 52 rows had come back 31 under a report saying
+every listed count was met, and the listed counts are recounted on the
+written cells; HD3 bounds the list by the different values less one
+where any cell is unread, not less every unread row, so five copies of
+one unread text no longer withdraw a list of 57 dates; and V5-D1 prints
+80,000 listed dates in 0.04 s, where it took 2.4. The trade passes a
+refused date in one step: its work grows with the rows, not their square. Merged on the integration branch, the count is held
+exactly where lane R2c's rule holds it, counted columns step off their
+placeholder days before the list is judged, and lane D3's spelling
+repair never offers a listed date; a date whose other spelling is
+declared missing, alone in a tail, still keeps that spelling there
+(stated, older than this landing).
+
 ### Partial dates are read at their own precision, and a column mostly of dates is asked (2026-10-09)
 
 **Landing R2c, the layout reader's questions and partial dates** (plan

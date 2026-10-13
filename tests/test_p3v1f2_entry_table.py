@@ -974,12 +974,26 @@ def test_every_registry_fact_is_bound_to_one_of_the_three_kinds(
         stem="days",
     )
     days_twin = rendering.twin_csv(generation.generate(days, SEED))
+    # ...AND SO ARE THE DATES THAT STAND OUT (landing 3b.6, plan P4-D369), by
+    # one column of monthly visits on the 10th: no fixture of the coverage
+    # identity heaps a date, and the binding asked here is only that the
+    # fact is filed.
+    tenths = _described(
+        tmp_path,
+        "visited_on\n" + "".join(
+            f"{cell}\n" for cell in test_stage3b_gate._BATTERY["schedules"](400)["monthly_visit"]
+        ),
+        None,
+        stem="tenths",
+    )
+    tenths_twin = rendering.twin_csv(generation.generate(tenths, SEED))
     for name, described, twin in runs + [
         ("spelled-codes", spelled, spelled_twin),
         ("workbook", booked, book.read_bytes()),
         ("clock-census", clocked, clocked_twin),
         ("counted-dates", counted, counted_twin),
         ("days", days, days_twin),
+        ("tenths", tenths, tenths_twin),
     ]:
         outcome = _measured(tmp_path, described, twin, f"{name}.csv")
         for check in outcome.checks:

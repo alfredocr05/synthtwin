@@ -74,8 +74,10 @@ THE GATE'S CLAUSES, each beside what turns it red:
 A stated limit, pinned: `test_a_heap_beside_fewer_strays_than_the_line_cannot_stand_alone`
 -- 97 per cent on the 10th at a floor of 36 holds 30 other rows, fewer
 than the line, so the 10th shares its group (the dates that stand out
-are landing 3b.6's). Another, for lane D4: `test_quarter_ends_at_ten_thousand_rows_meet_every_check`,
-a strict xfail.
+are landing 3b.6's). The joint fix of lane D4 (plan P4-D369) lifted two
+others: `test_quarter_ends_at_ten_thousand_rows_meet_every_check` and
+`test_one_month_a_year_at_ten_thousand_rows_meets_every_check`, once
+strict xfails, pass; step 3 is asked on both columns with no date listed.
 
 Test-local mutants build the product's module with one source edit (one
 `compile` and one `exec` below), as the shared steps' test does; the
@@ -425,7 +427,9 @@ def test_the_few_dates_rule_keeps_tied_columns_their_count(tmp_path: pathlib.Pat
     """Sessions publish no day-of-month census; with the few-dates rule withdrawn they publish
     one, and the twins cannot keep both: before G7.3i step 3 a twin held more different values
     than the column (the skeptic's blocker 1); now the weekday pass's column keeps the count and
-    the census published is missed."""
+    the census published is missed. Asked with no date listed as standing out (landing 3b.6
+    lists 34 of the sessions' days, and its cells then meet both censuses and the count)."""
+    monkeypatch.setattr(taxonomy, "heavy_dates_decided", lambda *args: ())
     columns = {"sessions": _skeptic(ROWS)["sessions"]}
     described = kpi_shapes.describe(tmp_path / "with", "sessions", _text(columns), 11)
     assert _census(described.block("sessions")) == ()
@@ -1034,22 +1038,27 @@ def quarter_ends(tmp_path_factory: pytest.TempPathFactory) -> "tuple[kpi_shapes.
     return described, kpi_shapes.missed(kpi_shapes.measure(described, text, "twin.csv"))
 
 
-def test_quarter_ends_at_ten_thousand_rows_keep_their_count(quarter_ends: "tuple[kpi_shapes.Described, list[str]]") -> None:
+def test_quarter_ends_at_ten_thousand_rows_keep_their_count(tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """Skeptic 1's major 1: at 10,000 rows, half the rows on eight quarter ends, the joint plan
     met both censuses at seed 0 and gave the count of different days way, 717 to 726 of 730 at
-    three seeds of five, where the twin before this landing held it. G7.3i step 3 now takes the
-    weekday pass's column there: the count and the weekday census hold, and only the day of the
-    month, which the twin names given way, is missed. Red where step 3 is withdrawn."""
-    described, missed = quarter_ends
+    three seeds of five, where the twin before this landing held it. With no date listed as
+    standing out, G7.3i step 3 takes the weekday pass's column there: the count and the weekday
+    census hold, and only the day of the month, which the twin names given way, is missed. Red
+    where step 3 is withdrawn. (Landing 3b.6 lists the eight quarter ends, and the twin then
+    meets every check: `test_quarter_ends_at_ten_thousand_rows_meet_every_check`.)"""
+    monkeypatch.setattr(taxonomy, "heavy_dates_decided", lambda *args: ())
+    described = kpi_shapes.describe(tmp_path, "quarters", _text(_skeptic(10000, quarter_ends=True)), 11)
     assert _census(described.block("quarter_end")) != ()
+    missed = kpi_shapes.missed(kpi_shapes.measure(described, kpi_shapes.twin_text(described, 0), "twin.csv"))
     assert missed == ["quarter_end:day_of_month_census.groups"]
 
 
-@pytest.mark.xfail(strict=True, reason="P4-D368: lane D4 owns the joint fix")
 def test_quarter_ends_at_ten_thousand_rows_meet_every_check(quarter_ends: "tuple[kpi_shapes.Described, list[str]]") -> None:
-    """A STATED LIMIT, pinned for lane D4 (heavy dates, its joint fix): the quarter ends' twin at
-    seed 0 meets every check, its day-of-month census among them."""
-    _described, missed = quarter_ends
+    """THE JOINT FIX OF LANE D4 (plan P4-D369, lifting P4-D368's limit): the quarter ends are
+    listed as dates that stand out, their rows pinned, and the twin at seed 0 meets every check,
+    its day-of-month census among them."""
+    described, missed = quarter_ends
+    assert len(described.block("quarter_end")["heavy_dates"]) >= 7
     assert missed == []
 
 
@@ -1063,20 +1072,23 @@ def six_mays(tmp_path_factory: pytest.TempPathFactory) -> "tuple[kpi_shapes.Desc
     return described, kpi_shapes.missed(kpi_shapes.measure(described, text, "twin.csv"))
 
 
-def test_one_month_a_year_at_ten_thousand_rows_gives_only_the_day_of_month_way(six_mays: "tuple[kpi_shapes.Described, list[str]]") -> None:
-    """Skeptic 2's item 2: six Mays at 10,000 rows publish the census, and G7.3i step 3 takes the
-    weekday pass's column (13 of 24 such twins measured): the twin misses the day-of-month census
-    alone, named given way, and nothing else."""
-    described, missed = six_mays
+def test_one_month_a_year_at_ten_thousand_rows_gives_only_the_day_of_month_way(tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Skeptic 2's item 2: six Mays at 10,000 rows publish the census, and with no date listed as
+    standing out G7.3i step 3 takes the weekday pass's column (13 of 24 such twins measured): the
+    twin misses the day-of-month census alone, named given way, and nothing else."""
+    monkeypatch.setattr(taxonomy, "heavy_dates_decided", lambda *args: ())
+    described = kpi_shapes.describe(tmp_path, "mays", _text({"visit": _mays(range(2019, 2025), 10000, 1606, 0.4)}), 11)
     assert _census(described.block("visit")) != ()
+    missed = kpi_shapes.missed(kpi_shapes.measure(described, kpi_shapes.twin_text(described, 0), "twin.csv"))
     assert missed == ["visit:day_of_month_census.groups"]
 
 
-@pytest.mark.xfail(strict=True, reason="P4-D368: lane D4 owns the joint fix")
 def test_one_month_a_year_at_ten_thousand_rows_meets_every_check(six_mays: "tuple[kpi_shapes.Described, list[str]]") -> None:
-    """A STATED LIMIT, pinned for lane D4 (heavy dates, its joint fix): the six Mays' twin at seed
-    0 meets every check, its day-of-month census among them."""
-    _described, missed = six_mays
+    """THE JOINT FIX OF LANE D4 (plan P4-D369, lifting P4-D368's limit): the six Mays' 1sts and
+    15ths are listed as dates that stand out, and the twin at seed 0 meets every check, its
+    day-of-month census among them."""
+    described, missed = six_mays
+    assert len(described.block("visit")["heavy_dates"]) >= 12
     assert missed == []
 
 
@@ -1088,7 +1100,9 @@ def test_the_core_holds_where_the_joint_plan_cannot(tmp_path: pathlib.Path, monk
     weekday census and the count hold and the day of the month is named given way (the oracle,
     measured once on this column, moves it alike; its walk of the written width takes minutes,
     so `test_step_three_moves_a_column_as_the_oracle_does` asks it on billing). Red where step 3
-    is withdrawn."""
+    is withdrawn. Asked with no date listed as standing out: landing 3b.6 lists the 1sts and the
+    15ths, and its cells then meet both censuses (`test_whole_columns_are_the_oracle_s[mays]`)."""
+    monkeypatch.setattr(taxonomy, "heavy_dates_decided", lambda *args: ())
     cells = _mays(range(2019, 2025), 1000, 1600, 0.4)
     described = kpi_shapes.describe(tmp_path, "mays", _text({"visit": cells}), 11)
     block = described.block("visit")
@@ -1350,6 +1364,8 @@ def test_a_census_the_twin_misses_is_named_and_said(battery: "dict[int, dict[str
     Red where either is withdrawn."""
     run = battery[11]["heaps"]
     monkeypatch.setattr(generation, "_day_found", lambda *args: False)
+    # ...the joint plan asked, not the cells of landing 3b.6 left as drawn.
+    monkeypatch.setattr(generation, "_heavy_met", lambda *args: False)
     twin = generation.generate(run.described.loaded, 0)
     notes = [d.note for d in twin.deviations if d.column == "billing_date" and d.fact == "day_of_month_census"]
     assert notes == [generation._DAY_OF_MONTH_MISSED]
@@ -1428,6 +1444,25 @@ def codex_missing(tmp_path_factory: pytest.TempPathFactory) -> kpi_shapes.Descri
     return kpi_shapes.Described(folder, table, document, contract.load_profile(str(written)))
 
 
+@pytest.fixture(scope="module")
+def codex_missing_unlisted(tmp_path_factory: pytest.TempPathFactory) -> kpi_shapes.Described:
+    """`codex_missing` described listing no date that stands out (plan P4-D369; batch 3b's
+    integration): with its 1sts listed, G7.3j step 8 keeps every listed rank through the spelling
+    and the absent-spelling fallback never moves one onto another date, so the recount below would
+    have nothing to name."""
+    folder = tmp_path_factory.mktemp("codex-missing-unlisted")
+    table = fixtures.write(folder, "codex.csv", _codex_table())
+    settings = taxonomy.Settings(small_cell_floor=11, declared_missing_values=("01/01/2020",))
+    listing = taxonomy.heavy_dates_decided
+    taxonomy.heavy_dates_decided = lambda *arguments: ()  # type: ignore[assignment]
+    try:
+        document = profile.build_document(reading.read_table(str(table), small_cell_floor=11), settings, [], [], [])
+    finally:
+        taxonomy.heavy_dates_decided = listing  # type: ignore[assignment]
+    written = fixtures.write_profile(folder, "codex-profile.json", document)
+    return kpi_shapes.Described(folder, table, document, contract.load_profile(str(written)))
+
+
 def _spread_of(twin: generation.Twin, name: str) -> generation.Remark:
     [said] = [remark for remark in twin.remarks if remark.column == name and remark.subject == generation._SPREAD_SUBJECT]
     return said
@@ -1449,21 +1484,23 @@ def test_the_spelling_repair_keeps_the_published_groups(codex_missing: kpi_shape
     assert generation._SPREAD_DAY_OF_MONTH_MET in _spread_of(twin, "a").held
 
 
-def test_a_census_the_finished_cells_miss_is_named_and_said(codex_missing: kpi_shapes.Described, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_a_census_the_finished_cells_miss_is_named_and_said(codex_missing_unlisted: kpi_shapes.Described, monkeypatch: pytest.MonkeyPatch) -> None:
     """Codex's item 1, the recount: with the repair moving cells as it did before (no day keeping
     the groups), the finished cells miss the census at seed 0, and generation now names it
     (`_day_of_month_count_notes`) and the sentence says missed, as V5-W2 does. Red on a3c1b33,
-    and red here with the recount withdrawn (nothing named, the sentence says met)."""
+    and red here with the recount withdrawn (nothing named, the sentence says met). Described
+    listing no date that stands out (`codex_missing_unlisted`): the list's own step 8 keeps the 1sts
+    since batch 3b's integration, so the repair withdrawn alone no longer moves one."""
     monkeypatch.setattr(generation, "_day_repaired_cell", lambda *args: "")
-    missed = kpi_shapes.missed(kpi_shapes.measure(codex_missing, kpi_shapes.twin_text(codex_missing, 0), "t0.csv"))
+    missed = kpi_shapes.missed(kpi_shapes.measure(codex_missing_unlisted, kpi_shapes.twin_text(codex_missing_unlisted, 0), "t0.csv"))
     assert "a:day_of_month_census.groups" in missed, missed
-    twin = generation.generate(codex_missing.loaded, 0)
+    twin = generation.generate(codex_missing_unlisted.loaded, 0)
     notes = [d.note for d in twin.deviations if d.column == "a" and d.fact == "day_of_month_census"]
     assert notes == [generation._DAY_OF_MONTH_MISSED]
     said = _spread_of(twin, "a")
     assert generation._SPREAD_DAY_OF_MONTH_MISSED in said.note and generation._SPREAD_DAY_OF_MONTH_MET not in said.held
     monkeypatch.setattr(generation, "_day_of_month_count_notes", lambda *args: [])
-    silent = generation.generate(codex_missing.loaded, 0)
+    silent = generation.generate(codex_missing_unlisted.loaded, 0)
     assert [d for d in silent.deviations if d.column == "a" and d.fact == "day_of_month_census"] == []
     assert generation._SPREAD_DAY_OF_MONTH_MET in _spread_of(silent, "a").held
 

@@ -481,7 +481,6 @@ INPUT_SIDE_ENTRIES = (
     ("datetime", "second_heaps"),
     # -- 3b.D3 (P4-D368)
     # -- 3b.D4 (P4-D369)
-    ("datetime", "heavy_dates"),
     # -- 3b.C1 (P4-D373)
     # -- 3b.C2 (P4-D374)
     ("clock", "minute_census"),
@@ -9538,10 +9537,7 @@ def _distinctness_checks(
             window = _datetime_distinct_window(
                 column, facts, floor, date_system
             )
-            if (
-                contract.datetime_count_exact(column, published)
-                and window[0] <= published <= window[1]
-            ):
+            if contract.datetime_count_held_exactly(column, published, window):
                 checks += [
                     _exact(
                         name,
@@ -18621,15 +18617,59 @@ def _heavy_checks(
     cells: "list[str]",
     declared_days: "tuple[str, ...]" = (),
 ) -> "list[Check]":
-    """Every date that stands out, holding its count exactly.
+    """Every date that stands out, holding its count exactly (landing 3b.6,
+    validation V5-D1).
 
-    THE STUB OF LANDING 3b.6 (lane D4, plan P4-D369), which fills this
-    check and nothing beside it (plan P4-D364); nothing to check until
-    then.
+    The file's own parsed cells, in any spelling -- read as the day-of-
+    month check reads them (`_dates_the_file_reads`, the fold of
+    `_folded_by_the_file`), each on the day its text names -- counted on
+    each listed date of `heavy_dates`. HELD where every listed date holds
+    its published count, MISSED otherwise; printed through the one
+    printing rule of every census check (`_census_lines`, plan P4-D347),
+    so a MISSED line prints a count of one to the heavy line less one as
+    fewer than the line, never the count. Counted here from the cells,
+    never produced. EXACT-OBSERVABLE.
 
     Guarantees: as `_hour_checks`. No I/O of any kind.
     """
-    return []
+    listed = facts.heavy_dates
+    if not listed:
+        return []
+    days: "dict[int, int]" = {}
+    failing: "list[str]" = []
+    for cell in _dates_the_file_reads(block, facts, cells):
+        read = parsing.parse_datetime(cell, facts.parser_family)
+        if read is None:
+            failing += [cell]
+            continue
+        day = _weekday_day(read[0])
+        days[day] = (days[day] if day in days else 0) + 1
+    if _folded_by_the_file(block, facts.parser_family, failing):
+        for cell in failing:
+            folded_day = _day_as_counted(cell)
+            if folded_day is not None:
+                days[folded_day] = (days[folded_day] if folded_day in days else 0) + 1
+    named: "list[tuple[str, int]]" = []
+    for day, count in listed:
+        year, month, date = parsing.civil_from_days(day)
+        named += [(f"{year:04d}-{month:02d}-{date:02d}", count)]
+    found = [days[day] if day in days else 0 for day, _count in listed]
+    asked, shown, lines = _census_lines(
+        named, found, calendar_rules.heavy_line(floor)
+    )
+    wanted = [count for _day, count in listed]
+    return [
+        Check(
+            column.name,
+            "datetime.heavy_dates",
+            "heavy_dates.counts",
+            HELD if found == wanted else MISSED,
+            asked,
+            shown,
+            "",
+            tuple(lines),
+        )
+    ]
 
 
 # The names a weekday census's groups are printed with, Monday first.
@@ -18881,19 +18921,27 @@ def _census_lines(
     """
     short = [index for index in range(len(found)) if 0 < found[index] < line]
     named_short = bool(short) and not _short_counts_pinned(found, short, line)
-    asked = ""
-    shown = ""
+    # NEAR LINEAR IN THE GROUPS (the Codex review of landing 3b.6, item 3):
+    # a list of heavy dates is one group per listed date, tens of
+    # thousands on a large column, so each side is joined from its pieces
+    # in pairs (`_comma_joined`) and the short groups are asked as a set;
+    # rebuilding the cumulative text per group and scanning a list per
+    # group took 2.4 seconds at 80,000.
+    shorts = set(short)
+    asked_parts: "list[str]" = []
+    shown_parts: "list[str]" = []
     for index in range(len(groups)):
         named, count = groups[index]
-        between = ", " if index else ""
-        asked = f"{asked}{between}{named} {_shown_count(count)}"
+        asked_parts += [f"{named} {_shown_count(count)}"]
         held = found[index]
         if not short:
-            shown = f"{shown}{between}{named} {_shown_count(held)}"
-        elif index in short and named_short:
-            shown = f"{shown}{between}{named} {_below_the_floor(line)}"
+            shown_parts += [f"{named} {_shown_count(held)}"]
+        elif index in shorts and named_short:
+            shown_parts += [f"{named} {_below_the_floor(line)}"]
         else:
-            shown = f"{shown}{between}{named} {_KEPT_BACK}"
+            shown_parts += [f"{named} {_KEPT_BACK}"]
+    asked = _comma_joined(asked_parts)
+    shown = _comma_joined(shown_parts)
     lines: "list[str]" = []
     if short and named_short:
         lines += [
@@ -18949,6 +18997,33 @@ def _published_holes(
 _KEPT_BACK = "kept back"
 
 
+def _comma_joined(parts: "list[str]") -> str:
+    """The parts in order, each pair separated by a comma and a space.
+
+    Joined IN PAIRS, level by level (the Codex review of landing 3b.6, item
+    3): each character is copied once per level, so the work is the text's
+    length times the levels, about the logarithm of the parts, where
+    adding each part to the text so far copied that text once per part.
+    No text method is asked: the offline audit accepts `str.join` only on
+    arguments it resolved, and a list built while the program runs is
+    not one (plan D6.2).
+
+    Guarantees: accepts text parts; returns "" for none. Determinism: a
+    function of the parts. Raises nothing. No I/O of any kind.
+    """
+    if not parts:
+        return ""
+    level = parts
+    while len(level) > 1:
+        paired: "list[str]" = []
+        for index in range(0, len(level) - 1, 2):
+            paired += [f"{level[index]}, {level[index + 1]}"]
+        if len(level) % 2:
+            paired += [level[len(level) - 1]]
+        level = paired
+    return level[0]
+
+
 def _short_counts_pinned(
     found: "list[int]", short: "list[int]", line: int
 ) -> bool:
@@ -18962,23 +19037,44 @@ def _short_counts_pinned(
     where every group is short); a short count is pinned where those
     totals leave one group a single possible value.
 
+    IN CLOSED FORM (the Codex review of landing 3b.6, item 3). The totals
+    `s` a reader allows are at most two runs -- `[k, min(k * (line - 1),
+    total - line)]` where some group is not short, and `total` itself --
+    and one short group's possible values beside a total `s` are the run
+    `[s - (k - 1) * (line - 1), s - (k - 1)]` within `[1, line - 1]`, which
+    moves up by one as `s` does; so each run of totals gives one run of
+    values, and the answer is whether the two runs of values hold at most
+    one value together. Walking every total and every value was
+    `k * line * line` steps, beside a list of 80,000 heavy dates.
+
     Guarantees: accepts the counts, the short groups and the line;
-    returns the answer. Determinism: a function of the three. Raises
-    nothing. No I/O of any kind.
+    returns the answer, the walk's own. Determinism: a function of the
+    three. Raises nothing. No I/O of any kind.
     """
     total = sum(found)
     many = len(short)
     others = len(found) - many
-    possible: "set[int]" = set()
-    for together in range(many, many * (line - 1) + 1):
-        rest = total - together
-        if rest < 0 or (rest != 0 and (others == 0 or rest < line)):
+    top = many * (line - 1)
+    totals: "list[tuple[int, int]]" = []
+    if others > 0:
+        totals += [(many, min(top, total - line))]
+    if many <= total <= top:
+        totals += [(total, total)]
+    values: "list[tuple[int, int]]" = []
+    for first, last in totals:
+        if first > last:
             continue
-        for value in range(1, line):
-            left = together - value
-            if (many - 1) <= left <= (many - 1) * (line - 1):
-                possible = possible | {value}
-    return len(possible) <= 1
+        low = max(1, first - (many - 1) * (line - 1))
+        high = min(line - 1, last - (many - 1))
+        if low <= high:
+            values += [(low, high)]
+    held = 0
+    for low, high in values:
+        held = held + high - low + 1
+    if len(values) == 2:
+        overlap = min(values[0][1], values[1][1]) - max(values[0][0], values[1][0]) + 1
+        held = held - max(0, overlap)
+    return held <= 1
 
 
 def _weekday_day(text: str) -> int:

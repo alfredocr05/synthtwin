@@ -1005,6 +1005,10 @@ REMARK_DAY_OF_MONTH_EACH = "day_of_month_census_counts_each_day"
 REMARK_DAY_OF_MONTH_TOGETHER = "day_of_month_census_counts_days_together"
 NOTE_DAY_OF_MONTH_WITHHELD = "day_of_month_census_withheld"
 # anchor 3b-D4 (P4-D369)
+# WHAT A COLUMN OF DATES SAYS ABOUT ITS DATES THAT STAND OUT (landing 3b.6,
+# plan P4-D369, contract HD1 to HD5): a published list carries one remark,
+# which takes the heavy line as its argument.
+REMARK_HEAVY_DATES = "heavy_dates_each_count_exact"
 # anchor 3b-T1 (P4-D370)
 # anchor 3b-T2 (P4-D371)
 # THE HOUR CENSUS'S SENTENCES (landing 3b.2-H, plan P4-D371, contract NF88
@@ -1225,6 +1229,9 @@ NOTE_ARITY: "dict[str, int]" = {
     REMARK_DAY_OF_MONTH_TOGETHER: 1,
     NOTE_DAY_OF_MONTH_WITHHELD: 0,
     # anchor 3b-D4 (P4-D369)
+    # THE HEAVY LINE, where the remark of the dates that stand out names a
+    # number (plan P4-D369).
+    REMARK_HEAVY_DATES: 1,
     # anchor 3b-T1 (P4-D370)
     # anchor 3b-T2 (P4-D371)
     REMARK_HOUR_CENSUS: 1,
@@ -1468,6 +1475,7 @@ ARGUMENT_BINDINGS: "dict[tuple[str, int], tuple[object, ...]]" = {
     (REMARK_DAY_OF_MONTH_EACH, 0): (BIND_SETTING, "census line"),
     (REMARK_DAY_OF_MONTH_TOGETHER, 0): (BIND_SETTING, "census line"),
     # anchor 3b-D4 (P4-D369)
+    (REMARK_HEAVY_DATES, 0): (BIND_SETTING, "heavy line"),
     # anchor 3b-T1 (P4-D370)
     # anchor 3b-T2 (P4-D371)
     (REMARK_HOUR_CENSUS, 0): (BIND_SETTING, "census line"),
@@ -2197,6 +2205,12 @@ def rendered(form: str, arguments: "tuple[object, ...]") -> str:
             "description holds empty"
         )
     # anchor 3b-D4 (P4-D369)
+    if form == REMARK_HEAVY_DATES:
+        return (
+            f"these dates each hold at least {_whole(arguments, 0)} rows and "
+            f"at least three times the average of the three days either "
+            f"side; each count is exact"
+        )
     # anchor 3b-T1 (P4-D370)
     # anchor 3b-T2 (P4-D371)
     if form == REMARK_HOUR_CENSUS:
@@ -18476,6 +18490,135 @@ def _day_of_month_published(
     return block, [], [note(form, (line,))]
 
 
+def heavy_dates_decided(
+    details: "dict[str, object]",
+    days: "tuple[int, ...]",
+    settings: Settings,
+    n_distinct: int,
+) -> "tuple[tuple[int, int], ...]":
+    """The dates of one column that stand out, with their counts (plan P4-D369).
+
+    THE PRODUCER of landing 3b.6. `details` is the column's published
+    block, its weekday and day-of-month censuses already decided, and
+    `days` the day of every parsed cell ascending (`_census_days`). In
+    order:
+
+    * the scope, asked of `calendar_rules.heavy_scope` (the 3b.6
+      skeptic's M1): whole dates, or moments every value of which stands
+      at midnight, on the local clock, not in the joint member, with
+      both tails; anywhere else nothing is listed;
+    * every date from the low boundary to the high one that holds at
+      least the heavy line (`calendar_rules.heavy_line`, eleven or the
+      census line) and at least three times the mean of the three days
+      either side, counting every parsed cell, tail cells included
+      (`calendar_rules.heavy_listed`); a boundary day on which a tail
+      cell also stands is not listed, so every cell of a listed date is
+      a body cell, and no hole of the description is listed;
+    * last, the loader's own check (`calendar_rules.heavy_breach`), so
+      the producer never writes what the loader refuses: on a breach the
+      list is empty.
+
+    Guarantees: accepts the block, the days, the settings and the
+    column's different values; returns `(day, count)` ascending.
+    Determinism: a function of the four. Raises nothing. No I/O.
+    """
+    low_tail = details["low_tail"]
+    high_tail = details["high_tail"]
+    format_name = details["format"]
+    if (
+        not days
+        or not isinstance(low_tail, dict)
+        or not isinstance(high_tail, dict)
+        or not isinstance(format_name, str)
+        or not calendar_rules.heavy_scope(
+            str(details["resolution"]),
+            details["all_at_midnight"] is True,
+            str(details["datetimes_read_at"]),
+            format_name,
+            True,
+        )
+    ):
+        return ()
+    rows_low = low_tail["rows"]
+    rows_high = high_tail["rows"]
+    if not isinstance(rows_low, int) or not isinstance(rows_high, int):
+        return ()
+    parsed = len(days)
+    if rows_low + rows_high >= parsed:
+        return ()
+    low = days[rows_low]
+    high = days[parsed - 1 - rows_high]
+    counts: "dict[int, int]" = {}
+    for day in days:
+        counts[day] = (counts[day] if day in counts else 0) + 1
+    first = low
+    if rows_low > 0 and days[rows_low - 1] == low:
+        first = low + 1
+    last = high
+    if rows_high > 0 and days[parsed - rows_high] == high:
+        last = high - 1
+    forms: "dict[str, dict[str, int]]" = {}
+    for name in calendar_rules.FORM_CENSUSES:
+        census = details[name]
+        forms[name] = {}
+        if isinstance(census, dict):
+            forms[name] = {
+                str(key): census[key]
+                for key in census
+                if isinstance(census[key], int)
+            }
+    judged: "tuple[str, ...]" = ()
+    if "sentinel_verdicts" in details:
+        judged = _read_as_missing(details["sentinel_verdicts"])
+    holes = frozenset(
+        calendar_rules.public_holes(
+            forms, format_name, low, high, judged,
+            published_absent(details, settings),
+        )
+    )
+    line = calendar_rules.heavy_line(settings.small_cell_floor)
+    listed = calendar_rules.heavy_listed(counts, first, last, line, holes)
+    if not listed:
+        return ()
+    rungs = details["date_percentiles"] if "date_percentiles" in details else None
+    percents: "list[int]" = []
+    if isinstance(rungs, dict):
+        for label, num, den in LADDER:
+            if label in rungs and rungs[label] is not None:
+                percents += [(100 * num) // den]
+    unread = details["n_unparsed"] if "n_unparsed" in details else 0
+    # THE BOUND ON DIFFERENT VALUES IS THE LOADER'S OWN (contract HD3; the
+    # Codex review of landing 3b.6, item 2): `n_unparsed` counts rows.
+    different = calendar_rules.heavy_different(
+        n_distinct, unread if isinstance(unread, int) else 0
+    )
+    broken = calendar_rules.heavy_breach(
+        listed,
+        line,
+        (low, high, parsed - rows_low - rows_high, different),
+        holes,
+        calendar_rules.body_pins(days, rows_low, rows_high, percents),
+        (_published_groups(details, calendar_rules.WEEKDAY_CENSUS),
+         _published_groups(details, calendar_rules.DAY_OF_MONTH_CENSUS)),
+    )
+    if broken is not None:
+        return ()
+    return listed
+
+
+def _published_groups(
+    details: "dict[str, object]", key: str
+) -> "tuple[tuple[int, int, int], ...]":
+    """One published census of a block as `(first, last, count)` groups."""
+    found: "list[tuple[int, int, int]]" = []
+    published = details[key] if key in details else None
+    if isinstance(published, list):
+        for entry in published:
+            if isinstance(entry, dict):
+                found += [(int(entry["first"]), int(entry["last"]), int(entry["count"]))]
+    return tuple(found)
+
+
 def _heavy_published(
     details: "dict[str, object]",
     verdict: "_Verdict",
@@ -18488,13 +18631,47 @@ def _heavy_published(
 ) -> "tuple[dict[str, object], list[Note], list[Note]]":
     """A column block of dates with its `heavy_dates`, and its sentences.
 
-    THE STUB OF LANDING 3b.6 (lane D4, plan P4-D369), which fills this
-    producer and nothing beside it; until then the list is `[]` on every
-    block and no sentence is said.
+    Landing 3b.6 (plan P4-D369). Every block of the datetime role carries
+    the key; it is `[]` where no date stands out (`heavy_dates_decided`),
+    outside the scope, and on the validator's own re-description of a
+    file (`produced` false), which asks nothing. A published list carries
+    one remark (NF105), which takes the heavy line as its argument.
 
     Guarantees: as `_hour_published`. No I/O of any kind.
     """
-    return _reserved_lists(details, (calendar_rules.HEAVY_DATES,))
+    block = dict(details)
+    block[calendar_rules.HEAVY_DATES] = []
+    if not produced:
+        return block, [], []
+    listed = heavy_dates_decided(
+        dict(details, sentinel_verdicts=verdicts, missing_by_source=absent),
+        verdict.days,
+        settings,
+        _column_distinct(cells, verdict.role, details),
+    )
+    if not listed:
+        return block, [], []
+    entries: "list[dict[str, object]]" = []
+    for day, count in listed:
+        year, month, date = parsing.civil_from_days(day)
+        entries += [{"date": f"{year:04d}-{month:02d}-{date:02d}", "count": count}]
+    block[calendar_rules.HEAVY_DATES] = entries
+    line = calendar_rules.heavy_line(settings.small_cell_floor)
+    return block, [], [note(REMARK_HEAVY_DATES, (line,))]
+
+
+def _heavy_unsaid(
+    remarks: "list[Note]", details: "dict[str, object]"
+) -> "list[Note]":
+    """The remarks less NF71 where the block lists dates that stand out.
+
+    Beside a list, a weekday group less its listed dates can be read
+    off, so NF71's "never of one date" would not hold (the 3b.6 design,
+    section 3 (a)); every other remark stands.
+    """
+    if calendar_rules.HEAVY_DATES not in details or not details[calendar_rules.HEAVY_DATES]:
+        return remarks
+    return [remark for remark in remarks if remark.form != REMARK_WEEKDAY_FLOOR]
 
 
 # -- 3b.R4 (P4-D384): numbers that are dates ---------------------------
@@ -25653,6 +25830,7 @@ def profile_column(
         )
         publication_notes = publication_notes + census_notes
         weekday_remarks = weekday_remarks + census_remarks
+        weekday_remarks = _heavy_unsaid(weekday_remarks, details)
         # -- how dates written as counts spell them (3b.R4, P4-D384)
         details, census_notes, census_remarks = _count_form_published(
             details, verdict, cells, settings, calendar_census,

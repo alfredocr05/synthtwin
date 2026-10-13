@@ -96,7 +96,7 @@
       "justification": "The twin cells synthtwin's generation method requires for the three cases docs/spec/generation-method-v1.md section G14.3 adds with the end floor of a date or clock tail (plan P4-D375): tail_end_least_reach, 105 dates over 21 days, and tail_end_least_reach_months, 105 months over 21 months, each with one cell on its end units, whose tails' shape puts the end two units out where G7.3b step 5's Bhatia-Davis reach of the pair puts it three out; and tail_end_least_reach_slack, 79 dates over 21 days whose tails hold ten rows one day out and one four out, a reach of exactly 4 that binary64 puts at 4.000000000000001, so only the slack the floor gives up to that rounding keeps the end on the real end day (the lane's repair round: no frozen case held that slack up). Every branch file stands past plan P4-D295's 200000-byte line, so they open a sixteenth rather than raise a cap. Computed from that specification alone by the same oracle and the same proof layer as every other vector file here, which imports neither synthtwin nor numpy nor pandas; no value in it comes from any table, and every number it publishes carries the exact value it was proved against.",
       "path": "tests/reference/generation-branch-vectors-14.json",
       "seed": 0,
-      "sha256": "a0e13eefbad742fd68b81edecd82d8331e62272023e68a02bee290aaf31e9666"
+      "sha256": "072e0e6b0f7397154b766d81777fab847dcad975c12493e4dc504c6eb5b60dab"
     },
     {
       "generator": "tools/reference/make_generation_branch_vectors_15.py",
@@ -139,6 +139,13 @@
       "path": "tests/reference/generation-branch-vectors-18.json",
       "seed": 0,
       "sha256": "6133a5158602944340eb4be980ad4ed137739a1a845280a49525f3e7f95292da"
+    },
+    {
+      "generator": "tools/reference/make_generation_branch_vectors_19.py",
+      "justification": "The states synthtwin's generation method freezes the dates that stand out on (landing 3b.6, plan P4-D369, method section G7.3j): steps 1 to 3, each listed date's run of ranks pinned on it and every ordinary rank's part, the split repaired by a flow to the censuses' groups and to the count's new days, and step 4, each part's values drawn by key -- a covered run, two loose dates, a listed boundary day, two listed dates with a hole between them, Monday and Thursday sessions whose split the census repair moves, sessions with stray rows whose split the repair moves for the count's new days, and six Mays beside both censuses -- each with the answer the oracle computes from the method's text; held by tests/test_stage3b_heavy_dates.py, each red on its own mutant. Plan P4-D364's numbering table gives the landing this file. Whole numbers only; the oracle imports neither synthtwin, nor numpy, nor pandas.",
+      "path": "tests/reference/generation-branch-vectors-19.json",
+      "seed": 0,
+      "sha256": "5c3635381836b8a0766489dd96e21bad9e96438d6ec738f3c54deef07bbd61e2"
     },
     {
       "generator": "tools/reference/make_generation_branch_vectors_22.py",

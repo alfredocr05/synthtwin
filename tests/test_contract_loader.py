@@ -1766,11 +1766,6 @@ def battery() -> list[Mutation]:
         ),
         # -- 3b.D3 (P4-D368)
         # -- 3b.D4 (P4-D369)
-        Mutation(
-            "R16", "a heavy_dates this version of synthtwin publishes none of",
-            edit("recorded_on", heavy_dates=[{"date": "2024-01-01", "count": 30}]),
-            names="heavy_dates",
-        ),
         # -- 3b.C1 (P4-D373)
         # The base's `seen_at` publishes a step of 60 seconds, no heap, no
         # code, and a census of 214 body cells from bin 42 to bin 53.
@@ -2399,6 +2394,93 @@ def battery() -> list[Mutation]:
             names="day_of_month_census",
         ),
         # anchor 3b-D4 (P4-D369)
+        # -- 3b.D4 (P4-D369): `recorded_on`'s 217 body values, 12 below the
+        # low boundary of 2024-01-17 and 11 above the high one of
+        # 2024-12-12, its rungs at ranks 23 (02-06), 59 (03-27), 119
+        # (06-26), 179 (09-25), 215 (11-23) and 227 (12-12); the list asked
+        # HD1 to HD5, the scope on the two columns of moments.
+        Mutation(
+            "HD1", "listed dates out of order",
+            edit(
+                "recorded_on",
+                heavy_dates=[
+                    {"date": "2024-05-10", "count": 11},
+                    {"date": "2024-04-10", "count": 11},
+                ],
+            ),
+        ),
+        Mutation(
+            "HD1", "a listed date before the low boundary",
+            edit("recorded_on", heavy_dates=[{"date": "2024-01-10", "count": 11}]),
+        ),
+        Mutation(
+            "HD1", "a listed date that is no canonical date",
+            edit("recorded_on", heavy_dates=[{"date": "2024-4-10", "count": 11}]),
+        ),
+        Mutation(
+            "HD1", "dates that stand out on a column of moments with a clock",
+            edit("admitted_at", heavy_dates=[{"date": "2024-04-10", "count": 11}]),
+        ),
+        Mutation(
+            "HD1", "dates that stand out on a column of moments on the shared clock",
+            edit("logged_at", heavy_dates=[{"date": "2024-04-10", "count": 11}]),
+        ),
+        Mutation(
+            "HD2", "a listed date below the heavy line",
+            edit("recorded_on", heavy_dates=[{"date": "2024-04-10", "count": 5}]),
+        ),
+        Mutation(
+            "HD3", "a listed date holding more than the body",
+            edit("recorded_on", heavy_dates=[{"date": "2024-04-10", "count": 300}]),
+        ),
+        Mutation(
+            "HD3", "three listed dates on a column of two different values",
+            edit(
+                "recorded_on",
+                n_distinct=2,
+                n_distinct_folded=2,
+                heavy_dates=[
+                    {"date": "2024-04-10", "count": 11},
+                    {"date": "2024-05-10", "count": 11},
+                    {"date": "2024-06-12", "count": 11},
+                ],
+            ),
+        ),
+        Mutation(
+            "HD3", "two listed Wednesdays holding more than the Wednesday group",
+            edit(
+                "recorded_on",
+                heavy_dates=[
+                    {"date": "2024-04-10", "count": 20},
+                    {"date": "2024-04-17", "count": 20},
+                ],
+            ),
+        ),
+        Mutation(
+            "HD4", "two listed dates between the p10 and p25 rungs holding more ranks than lie between them",
+            edit(
+                "recorded_on",
+                heavy_dates=[
+                    {"date": "2024-02-20", "count": 20},
+                    {"date": "2024-02-28", "count": 20},
+                ],
+            ),
+        ),
+        Mutation(
+            "HD5", "a listed date beside a listed neighbour more than twice its count",
+            edit(
+                "recorded_on",
+                heavy_dates=[
+                    {"date": "2024-04-10", "count": 11},
+                    {"date": "2024-04-11", "count": 30},
+                ],
+            ),
+        ),
+        Mutation(
+            "R15", "a list of dates that stand out that is no list",
+            edit("recorded_on", heavy_dates={"date": "2024-04-10"}),
+            names="heavy_dates",
+        ),
         # anchor 3b-T1 (P4-D370)
         # anchor 3b-T2 (P4-D371)
         # THE HOUR CENSUS (landing 3b.2-H): `logged_at` swapped for moments
