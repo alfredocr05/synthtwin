@@ -14094,6 +14094,7 @@ class WeekdayWalk:
         # group's carried shares, at the share scale.
         self.no_midnight = seams.get("no_midnight", False)
         self.kin_carry = {}
+        self.kin_members = {}
         # G7.3h: whether a shared written unit moves whole (the lane's second
         # skeptic, item 1).
         self.whole_units = seams.get("whole_units", False)
@@ -14780,13 +14781,16 @@ def bins_settled(walk, first, last, pinned, wanted, reachable):
         have = [0] * len(owed)
         for rank in ranks:
             have[walk.group(walk.days[rank])] += 1
-        if walk.kin_of is not None and kin_shares_moved(walk, ranks, shares[j]):
+        split = walk.kin_of is not None and kin_shares_moved(walk, ranks, shares[j])
+        if split:
             have = [0] * len(owed)
             for rank in ranks:
                 have[walk.group(walk.days[rank])] += 1
         else:
             weekday_runs(walk, ranks, have, shares[j])
         weekday_singles(walk, ranks, have, shares[j], 16, False)
+        if split:
+            kin_carry_reconciled(walk, len(owed))
     weekday_leftover(walk, movable, owed)
     weekday_chain(walk, movable, owed)
     if reachable:
@@ -14883,9 +14887,22 @@ def kin_shares_moved(walk, ranks, want):
         weekday_runs(walk, members[kin], have, share)
         weekday_singles(walk, members[kin], have, share, 16, False, False)
         for g in groups:
-            walk.kin_carry[(kin, g)] = carried[g] + own[g] - share[g] * WEEKDAY_SHARE_SCALE
+            walk.kin_carry[(kin, g)] = carried[g] + own[g]
         taken = [taken[g] + share[g] for g in groups]
+    walk.kin_members = members
     return True
+
+
+def kin_carry_reconciled(walk, groups):
+    """KIN SHARES' carry reconciled once the gap's own moves are done (the Codex
+    review of landing 3b.4, item 3): each kin group carries what it is owed of
+    each group less what its ranks there now hold, not less the share it was
+    given."""
+    for kin, ranks in walk.kin_members.items():
+        for g in range(groups):
+            held = sum(1 for rank in ranks if walk.group(walk.days[rank]) == g)
+            walk.kin_carry[(kin, g)] -= held * WEEKDAY_SHARE_SCALE
+    walk.kin_members = {}
 
 
 def weekday_count_kept(walk, movable, wanted):
@@ -16973,6 +16990,33 @@ def field_kin_carry_case():
     )
 
 
+def field_kin_blocked_case():
+    m = HOUR_MONDAY
+    ordinals = []
+    pins = set()
+    for day in range(m, m + 4):
+        pins |= {len(ordinals)}
+        ordinals += [hour_at(day, 8, 10) if day == m + 1 else hour_at(day, 7, 50)]
+        for hour in (8, 9):
+            ordinals += [hour_at(day, hour, 20, second) for second in range(30)]
+            ordinals += [hour_at(day, hour, 40, second) for second in range(30, 60)]
+        pins |= {len(ordinals)}
+        ordinals += [hour_at(day, 10, 0)]
+    where = [1 if minute == 0 else 2 if minute == 20 else 3 if minute == 40 else 0 for minute in range(60)]
+    return field_case(
+        "KIN SHARES' carry reconciled against what each kin group holds (the Codex review "
+        "of landing 3b.4, item 3): four daily gaps of 120 stamps, hours 8 and 9 each with "
+        "minute 20 at seconds 0 to 29 and minute 40 at 30 to 59, each gap from 07:50 to "
+        "10:00 but the second's from 08:10; minutes 0, 20 and 40 owed 240, 120 and 120. "
+        "In the second gap hour 8 can stand on no minute 0, so the gap's own moves take "
+        "its share from hour 9; carried as given, both balances stood at nought and hour "
+        "8 ended with 90 on minute 0 to hour 9's 150. Reconciled, hour 8 carries the "
+        "share it did not hold and takes it in the two gaps after: 120 each.",
+        "field", ordinals, pins, [4, 244, 120, 120], where, 60, written_unit=1,
+        kin=[0] * 8 + [1, 2] + [3] * 14,
+    )
+
+
 def field_seconds_case():
     m = HOUR_MONDAY
     ordinals = [
@@ -17348,6 +17392,7 @@ CLOCK_FIELD_STEP_CASES = {
     "field_kin_shares": field_kin_shares_case,
     "field_kin_no_split": field_kin_no_split_case,
     "field_kin_carry": field_kin_carry_case,
+    "field_kin_blocked": field_kin_blocked_case,
     "field_exchange_stays": field_exchange_case,
     "field_exchange_swap": field_exchange_swap_case,
     "field_exchange_kin": field_exchange_kin_case,

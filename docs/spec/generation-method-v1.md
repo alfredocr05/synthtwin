@@ -7449,11 +7449,15 @@ split bursts of check-ins to meet its own shares: 1,000 of them at a
 floor of 36 came back 108 values long); single ranks over the whole gap
 follow. A kin group's IDEAL share of each group G is its R of the gap's S
 ranks times G over S, in 2**20ths of a rank, plus what it CARRIES from the
-gaps before -- the ideal it was owed there less what it took -- so the
-rounding is made over the whole body (CONTROLLED ROUNDING, the lane's
-skeptic, item 4: rounded gap by gap, hour 8 of 10,000 admissions took
-minute 6's remainder in most of 38 gaps and came back with 36 cells there
-against 11). The kin groups so far take together, of each group, their
+gaps before -- the ideal it was owed there less what its ranks there HOLD
+once the gap's moves are done, its own and the gap's single moves after
+them, not less the share it was given -- so the rounding is made over the
+whole body (CONTROLLED ROUNDING, the lane's skeptic, item 4: rounded gap by
+gap, hour 8 of 10,000 admissions took minute 6's remainder in most of 38
+gaps and came back with 36 cells there against 11; and the Codex review,
+item 3: four daily gaps of 120 stamps, the second's hour 8 standing on no
+minute 0, carried as given came back with 94 of hour 8's and 146 of hour
+9's on minute 0 where 120 each could stand). The kin groups so far take together, of each group, their
 ideals summed, rounded down, never less than they took, never more than
 the gap's G nor than this kin group's ranks beyond what was taken; the
 ranks still unplaced go one each, as often as it takes, to the groups of
@@ -7482,7 +7486,9 @@ rank in order -- not pinned, of a group over its count -- whose place on
 value 0 of its own parent (its place in the bin kept) is a written
 midnight inside its gap and no hole, takes it, while the first tail rank
 not yet stepped, not pinned by its tail, at a written midnight, that can
-step off it inside its stratum does so, as the tails keep their count
+step off it inside its stratum does so -- the search starting past the
+tails taken (the Codex review, item 6: started at the first, t ranks made
+t(t+1)/2 checks, 50,005,000 at a million rows) -- as the tails keep their count
 below -- where the count of different values is reachable, only a tail
 whose step and the rank's move together do not raise that count, the
 first keeping it where any does, and SPREAD then puts back a value lost.
@@ -7512,7 +7518,10 @@ ranks then putting both back; else not at all (the lane's second
 skeptic, item 1: check-ins in bursts at 200 to 500 rows and a floor of
 36, their minute census holding empty groups, came back 157 values long
 over 45 twins, the gap's single moves splitting bursts, and 105 long
-over 90 twins at floors 11 and 36 with the rule, none at 11). After the
+over 90 twins at floors 11 and 36 with the rule, none at 11). Each unit
+is judged once for each place, group and question while nothing moves
+(the Codex review, item 5: each of a unit's 400 ranks judged it over all
+400, and a 10,000-row burst in a million rows asked some 100 million). After the
 clock pass, for the field:
 
 1. *The exchange off midnight.* The ranks the pass left on a written
@@ -7578,10 +7587,11 @@ nearest midnight inside its stratum; each tail's ranks are then sorted.
 
 **Its frozen cases** are states of ranks and drawing units: the twentieth
 vectors file, `tests/reference/generation-branch-vectors-20.json`, holds
-twenty-nine -- the pass on a field of minutes with heaps and on a field of
+thirty -- the pass on a field of minutes with heaps and on a field of
 seconds with a kin group of minutes, KIN SHARES over two hours,
-carried from gap to gap over four days and never splitting a unit two
-tied ranks of an hour share, a written midnight a kind of its
+carried from gap to gap over four days, reconciled against what each hour
+holds where a gap's hour 8 can stand on no minute 0, and never splitting
+a unit two tied ranks of an hour share, a written midnight a kind of its
 own (85 days, where by nearness 85 ranks took a midnight and 21 stayed
 there), KIN SHARES keeping the cells at midnight with hour 0 a kin group
 alone and beside hour 1, the exchange's three answers,

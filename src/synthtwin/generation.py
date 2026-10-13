@@ -22969,6 +22969,10 @@ class _WeekdayPass:
     # in `_KIN_SCALE`ths of a rank: what its shares so far fell short of
     # the ideal, carried from gap to gap (`_clock_kin_shares_moved`).
     kin_carry: "dict[tuple[int, int], int]" = dataclasses.field(default_factory=dict)
+    # ...and the ranks of each kin group of the gap last split, whose carry
+    # is reconciled against where they stand once the gap's moves are done
+    # (`_clock_kin_carry_reconciled`; the Codex review of landing 3b.4, item 3).
+    kin_members: "dict[int, list[int]]" = dataclasses.field(default_factory=dict)
     # ...and whether a field pass MOVES A SHARED WRITTEN UNIT WHOLE: where
     # the count of different values is one the construction reaches, a rank
     # whose single move would take it off a written unit it shares onto one
@@ -25474,7 +25478,8 @@ def _bins_settled(
             have[group] = have[group] + 1
         want = quota[index]
         # -- a field's gap split over its kin groups (3b.T3, P4-D372)
-        if state.kin and _clock_kin_shares_moved(state, ranks, want):
+        split = bool(state.kin) and _clock_kin_shares_moved(state, ranks, want)
+        if split:
             have = [0 for _ in counts]
             for rank in ranks:
                 group = _weekday_group(state, state.moved[rank])
@@ -25484,6 +25489,8 @@ def _bins_settled(
         _weekday_singles_moved(
             state, ranks, have, want, _WEEKDAY_SINGLE_ROUNDS, False
         )
+        if split:
+            _clock_kin_carry_reconciled(state, len(counts))
     everything = [rank for ranks in gaps for rank in ranks]
     have = [0 for _ in counts]
     for rank in everything:
@@ -26388,10 +26395,42 @@ def _clock_kin_shares_moved(state: _WeekdayPass, ranks: "list[int]", want: "list
             have[group] = have[group] + 1
         _weekday_runs_moved(state, members, have, share)
         _weekday_singles_moved(state, members, have, share, _WEEKDAY_SINGLE_ROUNDS, False, False)
+        # What the kin group is owed so far; what it holds is taken off once
+        # the gap's own moves are done (`_clock_kin_carry_reconciled`).
         for group in range(groups):
-            state.kin_carry[(kin, group)] = carried[group] + own[group] - share[group] * _KIN_SCALE
+            state.kin_carry[(kin, group)] = carried[group] + own[group]
         taken = [taken[group] + share[group] for group in range(groups)]
+    for key in [key for key in state.kin_members]:
+        del state.kin_members[key]
+    for kin in order:
+        state.kin_members[kin] = rows[kin]
     return True
+
+
+def _clock_kin_carry_reconciled(state: _WeekdayPass, groups: int) -> None:
+    """KIN SHARES' CARRY, reconciled against what each kin group holds (method
+    G7.3h; the Codex review of landing 3b.4, item 3).
+
+    Once a gap split over its kin groups (`_clock_kin_shares_moved`) has
+    made its own moves too -- G7.3f's single moves over the whole gap,
+    which meet the shares a kin group's moves could not -- each kin group
+    carries what it is owed of each group of the field less what its ranks
+    there NOW HOLD, not less the share it was given: a kin group whose gap
+    began past every place of a group took none of its share there, the
+    gap's moves took it from another kin group, and carried as given both
+    balances stood at nought -- four daily gaps of 120 stamps came back with
+    94 of hour 8's and 146 of hour 9's on minute 0 where 120 each could
+    stand. Raises nothing. No I/O.
+    """
+    for kin in state.kin_members:
+        held = [0 for _group in range(groups)]
+        for rank in state.kin_members[kin]:
+            group = _weekday_group(state, state.moved[rank])
+            held[group] = held[group] + 1
+        for group in range(groups):
+            state.kin_carry[(kin, group)] = state.kin_carry[(kin, group)] - held[group] * _KIN_SCALE
+    for key in [key for key in state.kin_members]:
+        del state.kin_members[key]
 
 
 def _clock_rotated(units: "list[list[int]]", leaving: int) -> "list[list[int]]":

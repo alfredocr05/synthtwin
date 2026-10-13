@@ -1238,8 +1238,8 @@ STEP_MUTANTS = {
     ),
     "a gap's shares not split over its kin groups": (
         "field_kin_shares",
-        "        if state.kin and _clock_kin_shares_moved(state, ranks, want):",
-        "        if False and _clock_kin_shares_moved(state, ranks, want):",
+        "        split = bool(state.kin) and _clock_kin_shares_moved(state, ranks, want)",
+        "        split = False and _clock_kin_shares_moved(state, ranks, want)",
     ),
     "a kin group's rank may split a unit it shares": (
         "field_kin_no_split",
@@ -1250,6 +1250,11 @@ STEP_MUTANTS = {
         "field_kin_carry",
         "            state.kin_carry[(kin, group)] if (kin, group) in state.kin_carry else 0\n",
         "            0\n",
+    ),
+    "a kin group's carry not reconciled against what it holds": (
+        "field_kin_blocked",
+        "        if split:\n            _clock_kin_carry_reconciled(state, len(counts))\n",
+        "        if False:\n            _clock_kin_carry_reconciled(state, len(counts))\n",
     ),
     "no PUT BACK after the exchange": (
         "field_exchange_put_back",
