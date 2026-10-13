@@ -1711,6 +1711,67 @@ def test_dates_folded_inside_the_low_tail_are_recounted_in_the_tails(tmp_path: p
     assert {"low:tails.low.boundary", "low:tails.low.rows"} <= set(missed), missed
 
 
+def _offset_stamps(days: int, clock: str, offsets: "tuple[str, str]") -> "list[str]":
+    """Three stamps at `clock` + the first offset and two at the second on each of `days` days
+    from 2024-01-01."""
+    cells: "list[str]" = []
+    for step in range(days):
+        day = (datetime.date(2024, 1, 1) + datetime.timedelta(days=step)).isoformat()
+        cells += [f"{day}T{clock}{offsets[0]}"] * 3 + [f"{day}T{clock}{offsets[1]}"] * 2
+    return cells
+
+
+def _folded_at_utc_midnight(
+    facts: contract.DatetimeFacts, cells: "list[str]", block: "dict[str, object] | None" = None
+) -> "list[int]":
+    """689d405's tails reader: a folded cell at its midnight on the UTC clock, no offset worn."""
+    found: "list[int]" = []
+    failing: "list[str]" = []
+    for cell, placed in zip(cells, validation._tail_readings_of(facts, cells)):
+        if placed is None:
+            failing += [cell]
+            continue
+        found += [placed[0]]
+    if block is not None and validation._folded_by_the_file(block, facts.parser_family, failing):
+        for cell in failing:
+            read = parsing.parse_datetime(cell, "iso-mixed")
+            if read is not None:
+                found += [taxonomy.tail_ordinal(read[0], facts.tail_unit, facts.datetimes_read_at)]
+    return sorted(found)
+
+
+@pytest.mark.parametrize("floor", (11, 36))
+def test_dates_folded_into_the_tails_wear_the_offset_the_census_absorbed_them_into(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch, floor: int
+) -> None:
+    """Codex's review of lane J, item 2 (High). The tails recount read a folded bare date at
+    its midnight on the UTC clock, where the producer reads it as every cell: worn at the offset
+    its census absorbed `(none)` into, then converted. 120 days of three `T05:00:00+05:00` and
+    two `T05:00:00+04:00` stamps: in a checked file the `+05:00` stamps of the first 3 dates
+    (11 at 36) written bare stand at 19:00 UTC the day before, and the low tail's mean and RMS
+    distances -- 114,646.15 and 131,387.67 seconds at 11 -- lie outside their windows; on
+    689d405 every check was HELD. And an unchanged source of 118 days at `23:00:00-05:00` and
+    `-04:00` beside ten bare `2024-01-04` publishes a low tail of 12 rows that 689d405
+    recounted as 22, MISSED (at 36, 37 rows and its RMS distance MISSED). Mutant: 689d405's
+    reader."""
+    cells = _offset_stamps(120, "05:00:00", ("+05:00", "+04:00"))
+    described = _described(tmp_path, "early", cells, floor)
+    days = 3 if floor == 11 else 11
+    checked = [cell[:10] if index // 5 < days and cell.endswith("+05:00") else cell for index, cell in enumerate(cells)]
+    text = _text("early", checked)
+    missed = kpi_shapes.missed(kpi_shapes.measure(described, text, "checked.csv"))
+    assert missed == ["early:tails.low.mean_distance", "early:tails.low.rms_distance"], missed
+    late = _described(tmp_path, "late", _offset_stamps(118, "23:00:00", ("-05:00", "-04:00")) + ["2024-01-04"] * 10, floor)
+    block = late.block("late")
+    assert (block["format"], block["n_unparsed"], block["low_tail"]["rows"]) == ("iso-datetime", 0, 12 if floor == 11 else 37)  # type: ignore[index]
+    source = late.table.read_text(encoding="utf-8")
+    assert kpi_shapes.missed(kpi_shapes.measure(late, source, "source.csv")) == []
+    monkeypatch.setattr(validation, "_file_tail_units", _folded_at_utc_midnight)
+    assert kpi_shapes.missed(kpi_shapes.measure(described, text, "mutant-checked.csv")) == []
+    mutant = kpi_shapes.missed(kpi_shapes.measure(late, source, "mutant-source.csv"))
+    assert ("late:tails.low.rows" in mutant) if floor == 11 else ("late:tails.low.rms_distance" in mutant), mutant
+
+
 def _hour_short_seeds(described: kpi_shapes.Described, seeds: "range") -> "tuple[list[int], list[int]]":
     """The seeds whose twin misses its hour census in validate, and those whose twin files a
     deviation naming it."""

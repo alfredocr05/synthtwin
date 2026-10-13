@@ -16477,7 +16477,7 @@ def _tail_units_of(
 
 
 def _tail_readings_of(
-    facts: contract.DatetimeFacts, cells: "list[str]"
+    facts: contract.DatetimeFacts, cells: "list[str]", folded: bool = False
 ) -> "list[tuple[int, str] | None]":
     """One reading per cell, in tail units with the canonical text it was
     counted from, or null where it is not a date.
@@ -16493,6 +16493,18 @@ def _tail_readings_of(
     (`_offset_absorbed_into`) and put on the clock the description
     publishes, exactly as the producer describes a table -- this is
     describing the file, not the twin's construction.
+
+    `folded` says the file's own description folded the cells the member
+    fails into its moments (`_folded_by_the_file`): each such cell is read
+    under the joint ISO reading, a whole date at its midnight, as the
+    producer counted it, and from there exactly as every other cell --
+    worn at the offset the census absorbed it into and put on the
+    published clock (Codex's review of lane J, item 2: nine bare dates
+    read at midnight UTC where the producer read them at midnight
+    `+05:00`, 19:00 UTC the day before, reported a low tail HELD whose
+    mean and RMS distances stood outside their windows, and ten bare
+    `2024-01-04` beside `23:00:00-05:00` stamps made the unchanged source
+    miss its low tail, published 12 and recounted 22).
 
     THE READING STAYS WITH ITS OWN CELL here, and the caller below sorts
     the readings it keeps. The tails are counted over sorted values and
@@ -16523,6 +16535,8 @@ def _tail_readings_of(
             and _stamp_off_its_face(cell, face)
         ):
             read = None
+        if read is None and folded:
+            read = parsing.parse_datetime(cell, taxonomy.FORMAT_ISO_MIXED)
         if read is None:
             read_cells += [None]
             continue
@@ -16587,27 +16601,24 @@ def _file_tail_units(
     counted there, and the unchanged source, read without them, missed
     `tails.low.boundary`, `rows` and `values`. Each folded cell is read
     under the joint ISO reading, a whole date at its midnight, as the
-    producer counted it; a cell its description left unparsed stays out.
+    producer counted it, and then as every other cell is: worn at the
+    offset the census absorbed it into and on the published clock
+    (`_tail_readings_of`'s `folded`; Codex's review of lane J, item 2); a
+    cell its description left unparsed stays out.
     """
-    found: "list[int]" = []
+    readings = _tail_readings_of(facts, cells)
     failing: "list[str]" = []
-    for cell, placed in zip(cells, _tail_readings_of(facts, cells)):
+    for cell, placed in zip(cells, readings):
         if placed is None:
             failing += [cell]
-            continue
-        found += [placed[0]]
     if block is not None and _folded_by_the_file(
         block, facts.parser_family, failing
     ):
-        for cell in failing:
-            read = parsing.parse_datetime(cell, taxonomy.FORMAT_ISO_MIXED)
-            if read is None:
-                continue
-            found += [
-                taxonomy.tail_ordinal(
-                    read[0], facts.tail_unit, facts.datetimes_read_at
-                )
-            ]
+        readings = _tail_readings_of(facts, cells, True)
+    found: "list[int]" = []
+    for placed in readings:
+        if placed is not None:
+            found += [placed[0]]
     return sorted(found)
 
 
