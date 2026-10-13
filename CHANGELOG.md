@@ -27,9 +27,10 @@ a stamp: not on the dial, so as free text, and the command names it;
 R2a read it on the 24-hour clock. A description written before this
 landing of a column named with `--twelve-hour` and read on the 24-hour
 clock still loads and is checked on that clock. A declared dial's twin
-may miss its rungs until landing T2's half-day draw, as a declared
-stamp's does, and a column mixing the narrow and the ordinary space
-before its marker is not read. After the Codex review, a column R2a's layouts
+is drawn on landing T2's half day since batch 3's integration, as a
+declared stamp's is: 1,000 such stamps at seeds 0 to 2 had missed their
+tails and both censuses at exit 3, and miss nothing now. A column mixing
+the narrow and the ordinary space before its marker is not read. After the Codex review, a column R2a's layouts
 read at the line keeps R2a's layout even where the clock half would read
 a few more of its cells: 990 SAS stamps at hour 14 beside ten at hour 4
 stay at `{HH}` with ten cells unread, and R2a's own description of them

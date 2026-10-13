@@ -6690,7 +6690,9 @@ unit by DT3.
 
 10. **The dial's half day** (landing 3b.2-H, plan P4-D371; plan P4-D370's
    carve-out). On a slashed stamp the person declared a 12-hour clock
-   written with no marker (`--twelve-hour`), every value the column holds
+   written with no marker (`--twelve-hour`) -- or a layout whose hour is
+   that dial's, `{hh}`, `{h}` or `{_h}`, beside no marker field (landing
+   R2b, at batch 3's integration) -- every value the column holds
    reads from 00:00 to 11:59 of its day, and a twin instant past noon is
    written on the dial and reads twelve hours earlier. So every distance
    of such a tail -- counted in seconds and minutes as every other moment

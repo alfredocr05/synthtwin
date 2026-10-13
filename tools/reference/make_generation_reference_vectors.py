@@ -10312,8 +10312,18 @@ CLOCK_PAYER_REACH = 1024
 
 def on_the_half_day(column):
     """Whether a column's moments stand on the dial's half day: a slashed
-    stamp written on the declared 12-hour face, counted in seconds."""
-    return ordinal_space(column) == "datetime" and stamp_clock_style(column)[1] == " twelve-hour"
+    stamp written on the declared 12-hour face, counted in seconds -- or a
+    layout whose hour is the dial's, `{hh}`, `{h}` or `{_h}`, with no
+    marker field beside it (landing R2b, at batch 3's integration)."""
+    if ordinal_space(column) != "datetime":
+        return False
+    member = column.get("format") or ""
+    if member.startswith(LAYOUT_PREFIX):
+        fields = [name for kind, name in layout_parts(member) if kind == "f"]
+        return any(name in ("hh", "h", "_h") for name in fields) and not any(
+            name in ("AM", "am", "A.M.", "a.m.") for name in fields
+        )
+    return stamp_clock_style(column)[1] == " twelve-hour"
 
 
 def hour_settled(column, ordinals, parsed, whole, lows, highs, holes):

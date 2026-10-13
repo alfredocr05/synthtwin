@@ -2941,11 +2941,15 @@ def test_r2b_c7_red_when_a_padded_hour_is_read(monkeypatch: pytest.MonkeyPatch) 
 
 
 def test_r2b_c8_a_declared_dial_says_what_it_cannot_hold(tmp_path: pathlib.Path) -> None:
-    """C8: T1's stated limit, on a layout (P4-D370): every cell on the dial, the miss named.
+    """C8: a layout on the declared dial, drawn on the dial's half day (P4-D370, P4-D371).
 
     A declared layout column's twin writes every cell in the table's own
-    format, `%d%b%Y:%I:%M:%S`, and its report says a time drawn after noon
-    reads twelve hours earlier on the dial, as a declared stamp's does.
+    format, `%d%b%Y:%I:%M:%S`. Since batch 3's integration it is drawn on
+    landing 3b.2-H's half day as a declared stamp is, so its report says
+    where the time of day is drawn and the twin misses nothing: drawn
+    over the whole day (b48b0e0, T1's stated limit as R2b kept it), its
+    twins at seeds 0 to 2 missed their tails, weekday census and hour
+    census at exit 3.
     """
     _block, profile, _questions = _described(
         tmp_path, _morning_stamps(1000), "--twelve-hour", "seen_at"
@@ -2954,20 +2958,17 @@ def test_r2b_c8_a_declared_dial_says_what_it_cannot_hold(tmp_path: pathlib.Path)
     for cell in written:
         datetime.datetime.strptime(cell, "%d%b%Y:%I:%M:%S")
     report = (twin.parent / "real-twin-report.txt").read_text(encoding="utf-8")
-    assert generation._SPREAD_TWELVE_HOUR_HELD in report
+    assert generation._SPREAD_HALF_DAY in report
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason=(
-        "P4-D370's stated limit, on a layout as on a stamp, owned by landing T2: a "
-        "column declared a 12-hour clock draws its time of day over the whole day, "
-        "and a time after noon reads twelve hours earlier on the dial; the half-day "
-        "draw belongs to T2's hour census, which must take the layout's dial too"
-    ),
-)
 def test_r2b_c8_a_declared_dial_validates_clean(tmp_path: pathlib.Path) -> None:
-    """Strict, and owned by landing T2 (P4-D370's carve-out), beside T1's R9."""
+    """Beside T1's R9: P4-D370's stated limit, met at batch 3's integration.
+
+    A strict xfail owned by landing T2 on R2b's branch: the half-day draw
+    is T2's (P4-D371), and it now takes the layout's dial too
+    (`generation._on_the_half_day`, the validator's tails and the
+    oracle's `on_the_half_day`).
+    """
     _block, profile, _questions = _described(
         tmp_path, _morning_stamps(1000), "--twelve-hour", "seen_at"
     )
@@ -3234,7 +3235,10 @@ def test_r2b_x1_r2a_description_of_the_column_holds_on_the_unchanged_source(
     loads; its twin at seed 0 is the file a7c9d75 wrote, byte for byte;
     the unchanged source validates against it with exit 0 (on 67341d4,
     exit 3: the unread count, the format, the offset count and five
-    percentiles MISSED); and this producer writes the same description.
+    percentiles MISSED); and this producer writes the same description,
+    save what landings merged beside R2b since publish (batch 3's
+    integration): lane T2's hour census and its remark (plan P4-D371)
+    and lane D2's note on the weekday census kept back (plan P4-D367).
     """
     folder = tmp_path / "late-fours"
     folder.mkdir()
@@ -3252,7 +3256,14 @@ def test_r2b_x1_r2a_description_of_the_column_holds_on_the_unchanged_source(
     code, report = _validated(profile, table)
     assert code == 0, report
     _block, fresh, _questions = _described(tmp_path / "fresh", _late_fours())
-    assert hashlib.sha256(fresh.read_bytes()).hexdigest() == r2a_written.LATE_FOURS_SHA256
+    written_now = json.loads(fresh.read_text(encoding="utf-8"))
+    written_then = json.loads(r2a_written.LATE_FOURS)
+    assert written_now["columns"][0]["format"] == written_then["columns"][0]["format"]
+    assert written_now["columns"][0]["hour_census"] != []
+    for key in ("hour_census", "remarks"):
+        written_now["columns"][0][key] = written_then["columns"][0][key]
+    written_now["publication_notes"] = written_then["publication_notes"]
+    assert written_now == written_then
 
 
 def test_r2b_x3_the_method_says_what_the_layout_reads_after_an_iso_date() -> None:

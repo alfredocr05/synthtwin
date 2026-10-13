@@ -16485,12 +16485,18 @@ def _date_tail_windows(
             anchor = taxonomy.tail_ordinal(tail.boundary, parsing.TAIL_UNIT_SECOND, reading)
             where = (anchor, seconds_per_unit, 0, tuple(shifts))
         # THE DIAL'S HALF DAY (G7.3b step 10, landing 3b.2-H): a stamp
-        # declared a 12-hour clock with no marker draws its tails there.
+        # declared a 12-hour clock with no marker draws its tails there,
+        # and so does a layout on that dial (landing R2b, met at batch 3's
+        # integration), whose clock its format names.
         half_day: "tuple[int, int, bool] | None" = None
+        face_style = _stamp_style_of(facts)
+        if parsing.is_layout_name(facts.parser_family):
+            laid = parsing.layout_clock_style(facts.parser_family)
+            face_style = parsing.DEFAULT_CLOCK_STYLE if laid is None else laid
         if (
             facts.resolution == taxonomy.RESOLUTION_DATETIME
             and not facts.all_at_midnight
-            and parsing.clock_face(_stamp_style_of(facts)) == parsing.CLOCK_TWELVE_HOUR
+            and parsing.clock_face(face_style) == parsing.CLOCK_TWELVE_HOUR
         ):
             half_day = (calendar_clock.seconds_of(tail.boundary), seconds_per_unit, low_side)
         found[key] = _tail_construction(
