@@ -17607,19 +17607,26 @@ def _census_lines(
     """
     short = [index for index in range(len(found)) if 0 < found[index] < line]
     named_short = bool(short) and not _short_counts_pinned(found, short, line)
-    asked = ""
-    shown = ""
+    # LINEAR IN THE GROUPS (the Codex review of landing D4, item 3): a
+    # list of heavy dates is one group per listed date, tens of thousands
+    # on a large column, so each side is joined once from its pieces and
+    # the short groups are asked as a set; rebuilding the cumulative text
+    # per group and scanning a list per group took 2.4 seconds at 80,000.
+    shorts = set(short)
+    asked_parts: "list[str]" = []
+    shown_parts: "list[str]" = []
     for index in range(len(groups)):
         named, count = groups[index]
-        between = ", " if index else ""
-        asked = f"{asked}{between}{named} {_shown_count(count)}"
+        asked_parts += [f"{named} {_shown_count(count)}"]
         held = found[index]
         if not short:
-            shown = f"{shown}{between}{named} {_shown_count(held)}"
-        elif index in short and named_short:
-            shown = f"{shown}{between}{named} {_below_the_floor(line)}"
+            shown_parts += [f"{named} {_shown_count(held)}"]
+        elif index in shorts and named_short:
+            shown_parts += [f"{named} {_below_the_floor(line)}"]
         else:
-            shown = f"{shown}{between}{named} {_KEPT_BACK}"
+            shown_parts += [f"{named} {_KEPT_BACK}"]
+    asked = ", ".join(asked_parts)
+    shown = ", ".join(shown_parts)
     lines: "list[str]" = []
     if short and named_short:
         lines += [
@@ -17688,23 +17695,44 @@ def _short_counts_pinned(
     where every group is short); a short count is pinned where those
     totals leave one group a single possible value.
 
+    IN CLOSED FORM (the Codex review of landing D4, item 3). The totals
+    `s` a reader allows are at most two runs -- `[k, min(k * (line - 1),
+    total - line)]` where some group is not short, and `total` itself --
+    and one short group's possible values beside a total `s` are the run
+    `[s - (k - 1) * (line - 1), s - (k - 1)]` within `[1, line - 1]`, which
+    moves up by one as `s` does; so each run of totals gives one run of
+    values, and the answer is whether the two runs of values hold at most
+    one value together. Walking every total and every value was
+    `k * line * line` steps, beside a list of 80,000 heavy dates.
+
     Guarantees: accepts the counts, the short groups and the line;
-    returns the answer. Determinism: a function of the three. Raises
-    nothing. No I/O of any kind.
+    returns the answer, the walk's own. Determinism: a function of the
+    three. Raises nothing. No I/O of any kind.
     """
     total = sum(found)
     many = len(short)
     others = len(found) - many
-    possible: "set[int]" = set()
-    for together in range(many, many * (line - 1) + 1):
-        rest = total - together
-        if rest < 0 or (rest != 0 and (others == 0 or rest < line)):
+    top = many * (line - 1)
+    totals: "list[tuple[int, int]]" = []
+    if others > 0:
+        totals += [(many, min(top, total - line))]
+    if many <= total <= top:
+        totals += [(total, total)]
+    values: "list[tuple[int, int]]" = []
+    for first, last in totals:
+        if first > last:
             continue
-        for value in range(1, line):
-            left = together - value
-            if (many - 1) <= left <= (many - 1) * (line - 1):
-                possible = possible | {value}
-    return len(possible) <= 1
+        low = max(1, first - (many - 1) * (line - 1))
+        high = min(line - 1, last - (many - 1))
+        if low <= high:
+            values += [(low, high)]
+    held = 0
+    for low, high in values:
+        held = held + high - low + 1
+    if len(values) == 2:
+        overlap = min(values[0][1], values[1][1]) - max(values[0][0], values[1][0]) + 1
+        held = held - max(0, overlap)
+    return held <= 1
 
 
 def _weekday_day(text: str) -> int:

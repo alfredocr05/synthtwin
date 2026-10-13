@@ -3043,6 +3043,29 @@ def heavy_line(floor: int) -> int:
     return max(HEAVY_FLOOR, census_line(floor))
 
 
+def heavy_different(n_distinct: int, n_unparsed: int) -> int:
+    """The most different parsed values a column can hold, as HD3 reads it.
+
+    THE ONE BOUND the producer and the loader both ask (contract HD3; the
+    Codex review of landing D4, item 2). `n_distinct` counts the parsed
+    values and the unparsed spellings together, and `n_unparsed` counts
+    ROWS: five cells of one unread text are one different value, so
+    `n_distinct - n_unparsed` was no bound -- sixty weekly dates beside
+    five copies of `2020-07-09T00:00:00` (61 different values) gave 56,
+    and the producer withdrew a list of 57 dates that five different
+    unread texts let it publish. What the published counts do fix is that
+    unread cells, where there are any, spell at least one value no
+    parsed cell does: `n_distinct` less one where `n_unparsed` is not
+    nought, else `n_distinct`.
+
+    Guarantees: accepts the two published counts; returns a whole number.
+    Determinism: a fixed function. Raises nothing. No I/O of any kind.
+    """
+    if n_unparsed > 0:
+        return n_distinct - 1
+    return n_distinct
+
+
 def heavy_scope(
     resolution: str,
     all_at_midnight: bool,
@@ -3225,7 +3248,7 @@ def heavy_breach(
       nought;
     * HD3 the counts add to at most the body (`room`'s third), the list
       holds at most as many dates as the column's different parsed
-      values (its fourth), and beside a weekday census or a day-of-month
+      values can number (its fourth, `heavy_different`), and beside a weekday census or a day-of-month
       census (`censuses`) no group's listed rows exceed its count;
     * HD4 the knots and the runs fit one rank order (`heavy_runs`);
     * HD5 every listed date holds at least half the listed rows within

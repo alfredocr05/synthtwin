@@ -1192,3 +1192,230 @@ def test_the_plan_and_the_draw_count_no_more_as_rows_grow(monkeypatch: pytest.Mo
     assert large[1] == small[1]
     for name in small[0]:
         assert large[0].get(name, 0) <= small[0][name] + 2, (name, small, large)
+
+
+# -- the Codex review of landing D4 (2026-10-13) -----------------------------------------
+
+
+def _absent_third_of_may() -> "list[str]":
+    """Codex's item 1: 900 dates cycling daily through 2022, then 100 copies of 3 May, written
+    alternately padded and unpadded day first, then twenty `3/5/2022` cells."""
+    days = [parsing.days_from_civil(2022, 1, 1) + step % 365 for step in range(900)]
+    days += [parsing.days_from_civil(2022, 5, 3)] * 100
+    cells: "list[str]" = []
+    for index in range(len(days)):
+        year, month, day = parsing.civil_from_days(days[index])
+        cells += [f"{day:02d}/{month:02d}/{year}" if index % 2 == 0 else f"{day}/{month}/{year}"]
+    return cells + ["3/5/2022"] * 20
+
+
+def _described_missing(folder: pathlib.Path, cells: "list[str]", floor: int, missing: "tuple[str, ...]") -> kpi_shapes.Described:
+    """One column described with `missing` declared as no value, as `synthtwin describe
+    --missing` declares it."""
+    import fixtures
+    from synthtwin import contract, profile, reading
+
+    folder.mkdir(parents=True, exist_ok=True)
+    table = fixtures.write(folder, "visits.csv", gate._table_text({"visit": cells}))
+    settings = taxonomy.Settings(small_cell_floor=floor, declared_missing_values=missing)
+    document = profile.build_document(
+        reading.read_table(str(table), small_cell_floor=floor, missing_under=settings), settings, [], [], [],
+    )
+    written = fixtures.write_profile(folder, "visits-profile.json", document)
+    return kpi_shapes.Described(folder, table, document, contract.load_profile(str(written)))
+
+
+@pytest.mark.parametrize("floor", (11, 36))
+def test_a_listed_date_keeps_its_rows_through_an_absent_spelling(tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch, floor: int) -> None:
+    """THE CODEX REVIEW OF LANDING D4, ITEM 1 (G7.3j step 8). 3 May lists 52 rows; half the ranks
+    the spelling allocation put there were `3/5/2022`, which the table declares missing, and
+    the step off an absent spelling moved 21 of them to other dates after the ranks held 52: the
+    twin at seed 0 held 31, V5-D1 MISSED, and the report said every listed count was met. Now
+    each such rank trades its spelling with a rank of its class on an ordinary date
+    (`_listed_date_respelled`): the twin holds 52, nothing the source meets is missed (the
+    width census included), and the report says the listed dates are met. Mutant: the
+    trade withdrawn -- the cells miss 3 May again and the recount on the written cells
+    (`_heavy_written_notes`) names `heavy_dates`, so the sentence says they are not met."""
+    described = _described_missing(tmp_path, _absent_third_of_may(), floor, ("3/5/2022",))
+    assert described.block("visit")["heavy_dates"] == [{"date": "2022-05-03", "count": 52}]
+    source = kpi_shapes.missed(kpi_shapes.measure(described, described.table.read_text(encoding="utf-8"), "source.csv"))
+    text = kpi_shapes.twin_text(described, 0)
+    assert _column(text, "visit").count("03/05/2022") == 52
+    assert kpi_shapes.missed(kpi_shapes.measure(described, text, "twin.csv")) == source == []
+    twin = generation.generate(described.loaded, 0)
+    # the one thing the report names is the width census's own spread, named on ba02cd8 too
+    assert {d.fact for d in twin.deviations if d.column == "visit"} == {"date_field_widths"}
+    said = [r for r in twin.remarks if r.column == "visit" and r.subject == generation._SPREAD_SUBJECT]
+    assert len(said) == 1 and generation._SPREAD_HEAVY_MET in said[0].held, said
+    monkeypatch.setattr(generation, "_listed_date_respelled", lambda keep, rank: False)
+    text = kpi_shapes.twin_text(described, 0)
+    assert _column(text, "visit").count("03/05/2022") < 52
+    missed = kpi_shapes.missed(kpi_shapes.measure(described, text, "mutant.csv"))
+    assert "visit:heavy_dates.counts" in missed, missed
+    twin = generation.generate(described.loaded, 0)
+    notes = [d.note for d in twin.deviations if d.column == "visit" and d.fact == "heavy_dates"]
+    assert notes == [generation._HEAVY_WRITTEN_MISSED], notes
+    said = [r.note for r in twin.remarks if r.column == "visit" and r.subject == generation._SPREAD_SUBJECT]
+    assert len(said) == 1 and generation._SPREAD_HEAVY_MISSED in said[0], said
+
+
+def test_the_oracle_keeps_a_listed_date_through_its_spelling(tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """A-P4-59 for G7.3j step 8: on item 1's column at a floor of 11 the oracle's content, from
+    the same words, is the product's cell for cell; mutant: the oracle's trade withdrawn."""
+    described = _described_missing(tmp_path, _absent_third_of_may(), 11, ("3/5/2022",))
+    seen: "list[tuple[list[int], list[str]]]" = []
+    content = generation._datetime_content
+
+    def captured(plan, words, settled=None):  # type: ignore[no-untyped-def]
+        found = content(plan, words, settled)
+        seen[:] = [(list(words), list(found[0]))]
+        return found
+
+    monkeypatch.setattr(generation, "_datetime_content", captured)
+    kpi_shapes.twin_text(described, 0)
+    words, ours = seen[0]
+    block = copy.deepcopy(described.block("visit"))
+    assert ours[:1000].count("03/05/2022") == 52
+    theirs = _oracle()["_datetime_content"](dict(block, _content_words=words))  # type: ignore[operator]
+    assert theirs == ours
+    mutant = _oracle_mutant("        spellings = listed_dates_kept_in_spelling(\n", "        spellings = spellings if True else listed_dates_kept_in_spelling(\n")
+    assert mutant["_datetime_content"](dict(block, _content_words=words)) != ours  # type: ignore[operator]
+
+
+def _weekly_with_unread(unread: "list[str]", replaced: bool) -> "list[str]":
+    """Codex's item 2: sixty weekly dates from 2020-01-02, each eleven times, with `unread`
+    texts in place of cells 300 onward (`replaced`) or after them."""
+    cells: "list[str]" = []
+    for week in range(60):
+        year, month, day = parsing.civil_from_days(parsing.days_from_civil(2020, 1, 2) + 7 * week)
+        cells += [f"{year:04d}-{month:02d}-{day:02d}"] * 11
+    if replaced:
+        return cells[:300] + unread + cells[300 + len(unread):]
+    return cells + unread
+
+
+def test_repeated_unread_text_keeps_the_list(tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """THE CODEX REVIEW OF LANDING D4, ITEM 2 (contract HD3, amended). Five copies of one unread
+    text in place of cells 300 to 304: 60 dates, 61 different values, five unread rows; 57
+    dates stand out, and the producer withdrew the whole list against 61 - 5 = 56, where five
+    different unread texts kept all 57. The bound is now the column's different values less
+    one where any cell is unread (`calendar_rules.heavy_different`), asked by the producer and
+    the loader alike: both columns list the same 57 dates. Mutant: rows subtracted again."""
+    same = kpi_shapes.describe(tmp_path / "same", "same", gate._table_text({"visit": _weekly_with_unread(["2020-07-09T00:00:00"] * 5, True)}), 11)
+    other = kpi_shapes.describe(tmp_path / "other", "other", gate._table_text({"visit": _weekly_with_unread([f"2020-07-0{k}T00:00:00" for k in range(5)], True)}), 11)
+    assert (same.block("visit")["n_distinct"], same.block("visit")["n_unparsed"]) == (61, 5)
+    assert len(same.block("visit")["heavy_dates"]) == 57
+    assert same.block("visit")["heavy_dates"] == other.block("visit")["heavy_dates"]
+    assert calendar_rules.heavy_different(61, 5) == 60 and calendar_rules.heavy_different(61, 0) == 61
+    monkeypatch.setattr(calendar_rules, "heavy_different", lambda n_distinct, n_unparsed: n_distinct - n_unparsed)
+    mutant = kpi_shapes.describe(tmp_path / "mutant", "same", gate._table_text({"visit": _weekly_with_unread(["2020-07-09T00:00:00"] * 5, True)}), 11)
+    assert mutant.block("visit")["heavy_dates"] == []
+
+
+def test_the_amended_bound_refuses_one_date_more_than_the_values() -> None:
+    """HD3 as the loader asks it: a list as long as the bound passes, one date more is refused,
+    with and without unread cells."""
+    first = parsing.days_from_civil(2020, 1, 2)
+    listed = tuple((first + 7 * week, 11) for week in range(1, 4))
+    knots = ((0, first), (200, first + 7 * 10))
+    for n_distinct, n_unparsed in ((4, 3), (3, 0)):
+        room = (first, first + 70, 180, calendar_rules.heavy_different(n_distinct, n_unparsed))
+        assert calendar_rules.heavy_breach(listed, 11, room, frozenset(), knots, ((), ())) is None
+        room = (first, first + 70, 180, calendar_rules.heavy_different(n_distinct - 1, n_unparsed))
+        broken = calendar_rules.heavy_breach(listed, 11, room, frozenset(), knots, ((), ()))
+        assert broken is not None and broken[0] == "HD3", broken
+
+
+def test_every_description_with_unread_text_the_producer_writes_loads(tmp_path: pathlib.Path) -> None:
+    """THE PRODUCER-ALWAYS-LOADS BATTERY OF THE AMENDED HD3: the weekly column beside unread
+    text repeated in every way a column of dates keeps it -- one text five times in place of
+    cells, six times after the dates, two texts three times each, three texts twice each in
+    place of cells, a text no member reads five times -- at floors 1, 11 and 36, described by
+    the shipped producer and loaded by the shipped loader (`kpi_shapes.describe` loads each);
+    at floors 1 and 11 each lists dates (four of the five lists the rows bound withdrew), and
+    at 11 the twin at seed 0 holds every listed date (V5-D1 HELD)."""
+    tables = {
+        "five_same": _weekly_with_unread(["2020-07-09T00:00:00"] * 5, True),
+        "six_after": _weekly_with_unread(["2020-07-09T00:00:00"] * 6, False),
+        "two_by_three": _weekly_with_unread(["2020-07-09T00:00:00", "2020-08-13T00:00:00"] * 3, False),
+        "three_by_two": _weekly_with_unread(["2020-07-09T00:00:00", "2020-02-06T00:00:00", "2020-03-05T00:00:00"] * 2, True),
+        "garbled": _weekly_with_unread(["2020-13-45"] * 5, False),
+    }
+    listed = 0
+    withdrawn = 0
+    for floor in (1, 11, 36):
+        for label, cells in tables.items():
+            described = kpi_shapes.describe(tmp_path / f"{label}-{floor}", label, gate._table_text({"visit": cells}), floor)
+            block = described.block("visit")
+            assert block["n_unparsed"] > 0, label
+            if not block["heavy_dates"]:
+                assert floor == 36, label
+                continue
+            listed += 1
+            withdrawn += len(block["heavy_dates"]) > block["n_distinct"] - block["n_unparsed"]
+            if floor != 11:
+                continue
+            text = kpi_shapes.twin_text(described, 0)
+            outcome = kpi_shapes.measure(described, text, f"{label}.csv")
+            held = [c for c in outcome.checks if c.column == "visit" and c.subcheck == "heavy_dates.counts"]
+            assert len(held) == 1 and held[0].verdict == validation.HELD, label
+    assert (listed, withdrawn) == (10, 8)
+
+
+def _pinned_by_walking(found: "list[int]", short: "list[int]", line: int) -> bool:
+    """`validation._short_counts_pinned` as 64c452c wrote it, every total and value walked."""
+    total = sum(found)
+    many = len(short)
+    others = len(found) - many
+    possible: "set[int]" = set()
+    for together in range(many, many * (line - 1) + 1):
+        rest = total - together
+        if rest < 0 or (rest != 0 and (others == 0 or rest < line)):
+            continue
+        for value in range(1, line):
+            left = together - value
+            if (many - 1) <= left <= (many - 1) * (line - 1):
+                possible = possible | {value}
+    return len(possible) <= 1
+
+
+def test_the_short_counts_rule_in_closed_form_is_the_walk_s() -> None:
+    """THE CODEX REVIEW OF LANDING D4, ITEM 3: the closed form of `_short_counts_pinned` answers
+    as the walk did on 6,000 random censuses of one to nine groups, lines 2 to 12."""
+    chooser = random.Random(20261013)
+    for _ in range(6000):
+        line = chooser.randint(2, 12)
+        groups = chooser.randint(1, 9)
+        found = [chooser.choice([0, chooser.randint(1, line - 1), chooser.randint(line, 3 * line)]) for _ in range(groups)]
+        short = [index for index in range(groups) if 0 < found[index] < line]
+        if not short:
+            continue
+        assert validation._short_counts_pinned(found, short, line) == _pinned_by_walking(found, short, line), (found, line)
+
+
+def _census_seconds(entries: int, short: bool) -> float:
+    """The least of three timings of `_census_lines` over `entries` listed dates."""
+    import time
+
+    groups = [(f"date {index}", 40) for index in range(entries)]
+    found = [5 if short and index % 2 == 0 else 40 for index in range(entries)]
+    least = 0.0
+    for attempt in range(3):
+        started = time.process_time()
+        validation._census_lines(groups, found, 11)
+        spent = time.process_time() - started
+        least = spent if attempt == 0 else min(least, spent)
+    return least
+
+
+def test_the_census_lines_grow_with_the_list_and_no_faster() -> None:
+    """THE CODEX REVIEW OF LANDING D4, ITEM 3: V5-D1 prints one group per listed date, and
+    `_census_lines` rebuilt its cumulative text per group and scanned the short groups' list
+    per group -- 0.014 seconds at 5,000 entries, 2.4 at 80,000 (ten at 80,000 with half of
+    them short). Eight times the entries now take less than twenty times the time, met and
+    short, and 80,000 short entries print in under a second; the walk restored is red."""
+    for short in (False, True):
+        small = _census_seconds(10000, short)
+        large = _census_seconds(80000, short)
+        assert large < 20 * max(small, 0.002), (short, small, large)
+        assert large < 1.0, (short, large)

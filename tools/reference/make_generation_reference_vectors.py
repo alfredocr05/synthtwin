@@ -9294,6 +9294,79 @@ def heavy_sorted(column, ordinals, parsed, whole, lows, highs, holes):
     return ordinals
 
 
+# G7.3j step 8's bound: dates refused per spelling before a trade gives up.
+LISTED_PROBES = 64
+
+
+def listed_dates_kept_in_spelling(column, ordinals, spellings, fields, whole, offsets, written_in, absent):
+    """A listed date keeps its rows through the spelling -- G7.3j step 8
+    (the Codex review of landing D4, item 1).
+
+    Read from the step's text.  Ranks are taken in ascending order; one on
+    a listed date whose cell, as written, is an absent spelling first
+    TRADES: for each spelling the column wears (first worn first) other
+    than its own, under which its date is not absent, it scans the ranks
+    of that spelling as allocated, ascending, standing on no listed date,
+    not yet traded, whose month and day show the same conventions as its
+    own (the same form and offset; a textual member's same month, another
+    member's month below ten or not; the day below ten or not), and swaps
+    spellings with the first whose own date, in the listed rank's
+    spelling, is not absent.  A refused date's following ranks are passed
+    over and at most LISTED_PROBES dates are refused per spelling.  With
+    no trade, the first such spelling alone; with none, the rank keeps
+    its spelling and the cell loop moves it.
+    """
+    listed = set(heavy_days(column))
+    textual = column["format"] in TEXTUAL_MEMBERS
+
+    def shows(rank):
+        month, day = fields[rank]
+        return (whole[rank], offsets[rank], month if textual else month < 10, day < 10)
+
+    order = []
+    for style in spellings:
+        if style not in order:
+            order.append(style)
+    allocated = list(spellings)
+    spellings = list(spellings)
+    traded = set()
+    for rank in range(len(spellings)):
+        if ordinals[rank] not in listed or not absent(written_in(rank, spellings[rank])):
+            continue
+        own = spellings[rank]
+        possible = []
+        done = False
+        for style in order:
+            if style == own or absent(written_in(rank, style)):
+                continue
+            possible.append(style)
+            refused = 0
+            last_refused = None
+            for other in range(len(spellings)):
+                if refused >= LISTED_PROBES:
+                    break
+                if ordinals[other] in listed or other in traded:
+                    continue
+                if allocated[other] != style or shows(other) != shows(rank):
+                    continue
+                if ordinals[other] == last_refused:
+                    continue
+                if absent(written_in(other, own)):
+                    refused += 1
+                    last_refused = ordinals[other]
+                    continue
+                spellings[rank] = style
+                spellings[other] = own
+                traded.add(other)
+                done = True
+                break
+            if done:
+                break
+        if not done and possible:
+            spellings[rank] = possible[0]
+    return spellings
+
+
 # THE DATES THAT STAND OUT (landing 3b.6, plan P4-D369), written from
 # method section G7.3j: each listed date's rows pinned on it, every other
 # body rank an ORDINARY rank of a PART -- the stretches between the
@@ -10514,6 +10587,53 @@ def _datetime_content(column, settled=None):
         offsets,
         days=written_days(column, ordinals, offsets, parsed, space, resolution),
     )
+    holes_folded = {hole.strip().lower() for hole in holes}
+    if space != "datetime" and heavy_days(column) and holes_folded:
+        # A listed date keeps its rows through the spelling (G7.3j step 8):
+        # each cell is written here as the loop below writes it.
+        def written_in(rank, style):
+            width, name_style, marker, zulu = style
+            member = column["format"]
+            clock = stamp_clock_style(column) if member in SLASHED_STAMPS else ("hh", "")
+            suffix, shift = offset_form(offsets[rank])
+            if suffix == "Z" and zulu == "lower":
+                suffix = "z"
+            unit = ordinals[rank]
+            moved = shift if (
+                column["datetimes_read_at"] == "utc"
+                and resolution == "datetime"
+                and not midnight
+            ) else 0
+            if whole[rank]:
+                day = unit if space == "date" else (unit + moved) // 86400
+                body = precision_form(
+                    day, "date", "date", 0, mark=marks[rank], member=member,
+                    width=width, name_style=name_style, marker=marker,
+                )
+            elif midnight:
+                body = precision_form(
+                    unit * 86400, "datetime", column["time_precision"],
+                    column["subsecond_digits"], mark=marks[rank], member=member,
+                    width=width, name_style=name_style, marker=marker, clock=clock,
+                )
+            else:
+                body = precision_form(
+                    unit + moved, resolution, column["time_precision"],
+                    column["subsecond_digits"], mark=marks[rank], member=member,
+                    width=width, name_style=name_style, marker=marker, clock=clock,
+                )
+            return kept_cell(body + suffix, holes, sorted(mark_weights(column)), member)
+
+        spellings = listed_dates_kept_in_spelling(
+            column,
+            ordinals,
+            spellings,
+            written_fields(column, ordinals, offsets, parsed, space, resolution),
+            whole,
+            offsets,
+            written_in,
+            lambda text: text.strip().lower() in holes_folded,
+        )
     content = []
     for rank in range(parsed):
         # A PINNED RANK CARRYING A SIXTIETH SECOND is written from its own

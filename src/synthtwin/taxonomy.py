@@ -17283,7 +17283,11 @@ def heavy_dates_decided(
             if label in rungs and rungs[label] is not None:
                 percents += [(100 * num) // den]
     unread = details["n_unparsed"] if "n_unparsed" in details else 0
-    different = n_distinct - (unread if isinstance(unread, int) else 0)
+    # THE BOUND ON DIFFERENT VALUES IS THE LOADER'S OWN (contract HD3; the
+    # Codex review of landing D4, item 2): `n_unparsed` counts rows.
+    different = calendar_rules.heavy_different(
+        n_distinct, unread if isinstance(unread, int) else 0
+    )
     broken = calendar_rules.heavy_breach(
         listed,
         line,

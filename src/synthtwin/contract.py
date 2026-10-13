@@ -1762,7 +1762,8 @@ INVARIANTS = {
     "HD3": (
         "the listed counts add up to at most the values between the two "
         "tail boundaries, the list is no longer than the column's "
-        "different parsed values, and no weekday or day-of-month group "
+        "different values, less one where any cell did not read as a "
+        "date, and no weekday or day-of-month group "
         "holds fewer rows than its listed dates"
     ),
     "HD4": (
@@ -9439,7 +9440,12 @@ def _heavy_dates(
     broken = calendar_rules.heavy_breach(
         tuple(found),
         calendar_rules.heavy_line(floor),
-        (first, last, parsed - low.rows - high.rows, n_distinct - facts.n_unparsed),
+        (
+            first,
+            last,
+            parsed - low.rows - high.rows,
+            calendar_rules.heavy_different(n_distinct, facts.n_unparsed),
+        ),
         holes,
         tuple(knots),
         (facts.weekday_census, facts.day_of_month_census),
