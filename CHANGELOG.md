@@ -26,7 +26,12 @@ review keeps a twin of clock times beside rare words and other clock
 forms clock times (30 of 288 such twins came back as free text), and
 counts a time of day written on many rows as many events, so night
 readings repeated a hundred times no longer hide how the minute follows
-the hour (the twin's day cells on minute 0: 589 of 4,320 against 72).
+the hour (the twin's day cells on minute 0: 589 of 4,320 against 72). Its
+verification holds each hour to the cells off the heaps, which the twin
+draws the same in every hour, so a heap on every hour no longer makes a
+flat day publish its minutes (252 of 4,800 day cells on minute 0 against
+72), and lets a twin past 2.27 million rows keep its clock type by
+writing its stand-in times again, each fewer times than the floor.
 
 ### The minutes and seconds of a timestamp come back (2026-10-12)
 
