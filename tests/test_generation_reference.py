@@ -6639,6 +6639,19 @@ def test_the_rounding_meets_a_table_reached_only_at_its_edge(monkeypatch: pytest
         ),
     )
     wanted = ([[0, 1000], [1000]], [[0, 0, 1000], [0, 1000], [1000]])
+    # The order a row's floors are lowered in, its last cell first (lane
+    # C2's leftover round, its second skeptic's item 1): both tables above
+    # have one solution, so any order met them; this one, from 2,894 random
+    # tables, is written otherwise when the first cell is lowered first
+    # (``[[763, 63], [254, 319], [782]]``), in the oracle as in the product.
+    cases = cases + (
+        (
+            [826, 573, 782],
+            [1799, 382],
+            [[(0, 7, 1148), (1, 3, 651)], [(0, 1, 915), (1, 11, 319)], [(0, 0, 782)]],
+        ),
+    )
+    wanted = wanted + ([[475, 351], [542, 31], [782]],)
     for (rows, columns, entries), table in zip(cases, wanted):
         assert generation._clock_minute_rounding(rows, columns, entries) == table
         assert gen.clock_minute_round(rows, columns, entries) == table
@@ -6670,3 +6683,119 @@ def test_the_rounding_meets_a_table_reached_only_at_its_edge(monkeypatch: pytest
     monkeypatch.setattr(generation, "_clock_minute_path", one_cell_at_a_time)
     assert generation._clock_minute_rounding(rows, columns, entries) == [[0, big], [big]]
     assert searches[0] > 100, searches[0]
+
+
+def _a_table_exists(rows, columns, entries):  # type: ignore[no-untyped-def]
+    """Whether any table of whole cells, each from nought to its capacity,
+    adds to `rows` and `columns`: a plain largest flow, found by breadth
+    first augmenting paths, independent of G7A.4c's rounding."""
+    flow = [[0 for _entry in row] for row in entries]
+    row_left = [count for count in rows]
+    column_left = [count for count in columns]
+    while True:
+        came_row = {place: None for place in range(len(rows)) if row_left[place] > 0}
+        came_column = {}  # type: ignore[var-annotations]
+        queue = [place for place in came_row]
+        end = None
+        while queue and end is None:
+            place = queue[0]
+            queue = queue[1:]
+            for entry, (column, _weight, capacity) in enumerate(entries[place]):
+                if column in came_column or flow[place][entry] >= capacity:
+                    continue
+                came_column[column] = (place, entry)
+                if column_left[column] > 0:
+                    end = column
+                    break
+                for back_place, row in enumerate(entries):
+                    for back_entry, (back_column, _w, _c) in enumerate(row):
+                        if back_column == column and back_place not in came_row and flow[back_place][back_entry] > 0:
+                            came_row[back_place] = back_entry
+                            queue += [back_place]
+        if end is None:
+            return sum(row_left) == 0 and sum(column_left) == 0
+        amount = column_left[end]
+        column = end
+        while True:
+            place, entry = came_column[column]
+            amount = min(amount, entries[place][entry][2] - flow[place][entry])
+            if came_row[place] is None:
+                amount = min(amount, row_left[place])
+                break
+            amount = min(amount, flow[place][came_row[place]])
+            column = entries[place][came_row[place]][0]
+        column = end
+        while True:
+            place, entry = came_column[column]
+            flow[place][entry] = flow[place][entry] + amount
+            if came_row[place] is None:
+                row_left[place] = row_left[place] - amount
+                column_left[end] = column_left[end] - amount
+                break
+            back = came_row[place]
+            flow[place][back] = flow[place][back] - amount
+            column = entries[place][back][0]
+
+
+def test_the_rounding_lowers_no_column_and_meets_every_table_that_exists() -> None:
+    """G7A.4c step 3, lane C2's leftover round (its second skeptic's item
+    2), product and oracle alike (A-P4-59). Each round of the fit ends on
+    the columns' scaling, so a column's floors never add to more than its
+    count and only a row's floors are ever lowered: the column lowering
+    the repair round wrote ran on none of 2,894 random tables and is gone.
+    On 400 tables drawn here (one to five rows and columns, counts to
+    100,000, some margins made unmeetable), the product and the oracle
+    write the same table, every table written keeps both margins and
+    every capacity, and a table is written wherever a plain largest flow
+    says one exists. Red on its mutant: the fit ending on the rows'
+    scaling (in product and oracle), which leaves a column's floors above
+    its count and so refuses tables that exist."""
+    state = [20261013]
+
+    def draw(bound: int) -> int:
+        state[0] = (state[0] * 6364136223846793005 + 1442695040888963407) % 2**64
+        return (state[0] >> 33) % bound
+
+    laid = 0
+    for _case in range(400):
+        n_rows = 1 + draw(5)
+        n_columns = 1 + draw(5)
+        scale = (10, 100, 1000, 10000, 100000)[draw(5)]
+        entries: "list[list[tuple[int, int, int]]]" = []
+        cells: "list[list[int]]" = []
+        for _row in range(n_rows):
+            row: "list[tuple[int, int, int]]" = []
+            values: "list[int]" = []
+            for column in range(n_columns):
+                if draw(3) == 0 and column < n_columns - 1:
+                    continue
+                weight = (0, 1, 1, 2, 3, 5, 7, 11, 60)[draw(9)]
+                value = draw(scale) if draw(10) < 7 else 0
+                capacity = max(1, value + (draw(scale) if draw(10) < 6 else 0))
+                row += [(column, weight, capacity)]
+                values += [value]
+            entries += [row]
+            cells += [values]
+        rows = [sum(values) for values in cells]
+        columns = [0 for _column in range(n_columns)]
+        for place, row in enumerate(entries):
+            for entry, (column, _weight, _capacity) in enumerate(row):
+                columns[column] = columns[column] + cells[place][entry]
+        if n_columns > 1 and draw(7) == 0 and columns[1] > 0:
+            columns[0] = columns[0] + 1
+            columns[1] = columns[1] - 1
+        product = generation._clock_minute_rounding(rows, columns, entries)
+        assert product == gen.clock_minute_round(rows, columns, entries), (rows, columns, entries)
+        exists = _a_table_exists(rows, columns, entries)
+        assert (product is not None) == exists, (rows, columns, entries)
+        if product is None:
+            continue
+        laid = laid + 1
+        assert [sum(values) for values in product] == rows
+        sums = [0 for _column in columns]
+        for place, row in enumerate(entries):
+            for entry, (column, _weight, capacity) in enumerate(row):
+                assert 0 <= product[place][entry] <= capacity
+                sums[column] = sums[column] + product[place][entry]
+        assert sums == columns
+    assert laid >= 300, laid

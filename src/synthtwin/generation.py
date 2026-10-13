@@ -21675,10 +21675,12 @@ def _clock_minute_rounding(
     table only reachable at its edge -- rows `[n, n]`, columns `[n, n]`,
     one row free to give to both columns and the other to the first
     alone -- does not settle in `_MINUTE_FIT_ROUNDS` rounds, and its
-    floors may add to more than a row's or a column's count. Such a row's
-    cells are lowered, its last first, until they add to its count, then
-    such a column's, its last row first; the lowered values are those
-    cells' floors. So every cell is the floor or the ceiling of its
+    floors may add to more than a row's count. Such a row's cells are
+    lowered, its last first, until they add to its count; the lowered
+    values are those cells' floors. No column needs it: each round of the
+    fit ends on the columns' scaling, so a column's floors add to at most
+    its count, and lowering a row's floors only raises a column's debt
+    (lane C2's leftover round). So every cell is the floor or the ceiling of its
     fitted value wherever such a table exists and no floor was lowered,
     and both margins are met wherever any table does: the paths are a
     largest flow from a flow that keeps every bound, the bottleneck's
@@ -21742,7 +21744,8 @@ def _clock_minute_rounding(
         for entry in range(len(entries[place])):
             into[entries[place][entry][0]] += [(place, entry)]
     # A fit stopped before it settled: a row's floors above its count are
-    # lowered, its last cell first, then a column's, its last row first.
+    # lowered, its last cell first. A column's floors never pass its count:
+    # the fit ends on the columns' scaling.
     for place in range(len(rows)):
         entry = len(entries[place]) - 1
         while row_left[place] < 0 and entry >= 0:
@@ -21752,15 +21755,6 @@ def _clock_minute_rounding(
             row_left[place] = row_left[place] + lowered
             column_left[column] = column_left[column] + lowered
             entry = entry - 1
-    for column in range(len(columns)):
-        member = len(into[column]) - 1
-        while column_left[column] < 0 and member >= 0:
-            place, entry = into[column][member]
-            lowered = min(taken[place][entry], -column_left[column])
-            taken[place][entry] = taken[place][entry] - lowered
-            row_left[place] = row_left[place] + lowered
-            column_left[column] = column_left[column] + lowered
-            member = member - 1
     if any(left < 0 for left in row_left) or any(left < 0 for left in column_left):
         return None
     for place in range(len(rows)):

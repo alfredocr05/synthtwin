@@ -24653,9 +24653,10 @@ def clock_minute_round(rows, columns, entries):
     path's bottleneck allows: the row's debt, the column's, and each
     step's room (lane C2's repair round, item 3).  Before any of that, a
     fit stopped before it settled: a row whose floors add to more than its
-    count has its cells lowered, its last first, until they add to it,
-    then a column so, its last row first; the lowered values are those
-    cells' floors.  None where any debt is left.
+    count has its cells lowered, its last first, until they add to it;
+    the lowered values are those cells' floors.  No column is lowered: the
+    fit ends on the columns' scaling, so a column's floors never pass its
+    count (lane C2's leftover round).  None where any debt is left.
     """
     fitted = [[float(weight) for _c, weight, _cap in row] for row in entries]
     largest = max([1] + list(rows))
@@ -24705,14 +24706,6 @@ def clock_minute_round(rows, columns, entries):
             taken[r][e] -= cut
             owe_row[r] += cut
             owe_col[entries[r][e][0]] += cut
-    for c in range(len(columns)):
-        for r, e in reversed(into[c]):
-            if owe_col[c] >= 0:
-                break
-            cut = min(taken[r][e], -owe_col[c])
-            taken[r][e] -= cut
-            owe_row[r] += cut
-            owe_col[c] += cut
     if min(owe_row + owe_col + [0]) < 0:
         return None
     floor = [list(row) for row in taken]
