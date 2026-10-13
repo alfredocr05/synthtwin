@@ -25514,14 +25514,14 @@ def _units_settled(
                 moved, pinned, gone, unit, layout
             )
     off = _counts_off(facts, moved, day, unit, word, distinct, widths)
-    tails = _tail_ranks(layout, parsed)
+    tail_ranks = _tail_ranks(layout, parsed)
     stalled = 0
     for _round in range(_RESTORATION_ROUNDS):
         changed = False
         if distinct >= 0:
             changed = _distinct_reached(
                 facts, moved, pinned, gap_lows, gap_highs, day, step,
-                distinct, widths >= 0, word, gone, tails,
+                distinct, widths >= 0, word, gone, tail_ranks,
             ) or changed
         if widths >= 0:
             changed = _widths_reached(
