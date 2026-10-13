@@ -26375,6 +26375,152 @@ def _clock_kin_ideal(
     ]
 
 
+def _clock_parent_kind(state: _WeekdayPass, ordinal: int) -> _WeekdayKind:
+    """A unit's kind (`_weekday_kind`), a written midnight read as the kind
+    of its parent rather than one of its own. Raises nothing. No I/O."""
+    width, keep, pair = _weekday_kind(state, ordinal)
+    if state.no_midnight and _written_at_midnight(ordinal, 0, state.step):
+        return (width, -1 - keep, pair)
+    return (width, keep, pair)
+
+
+def _clock_kin_reach(state: _WeekdayPass, members: "list[int]", groups: int) -> "list[int]":
+    """How many of a kin group's ranks can stand on each group of the field
+    in their gap (method G7.3h, KIN SHARES' REACH; the verifier's item 10 on
+    the Codex round of landing 3b.4): a rank reaches the group it stands in,
+    and each group of a place G7.3f's single move could offer it -- a place
+    on its own place in the unit, `_WEEKDAY_REACH` units each side at most,
+    inside its gap and its parent (`_weekday_span`), on no hole, of its own
+    kind -- a written midnight read as the kind of its parent, as value 0's
+    own rule asks it (`_clock_kin_shares_moved`'s FREE ranks). Ranks asking
+    the same places share one answer. Raises nothing. No I/O."""
+    reach = [0 for _group in range(groups)]
+    answers: "dict[tuple[int, int, _WeekdayKind], list[int]]" = {}
+    unit = state.unit
+    for rank in members:
+        ordinal = state.moved[rank]
+        low, high = _weekday_span(state, ordinal, state.lows[rank], state.highs[rank])
+        first = ordinal - min(_WEEKDAY_REACH, max(0, (ordinal - low) // unit)) * unit
+        last = ordinal + min(_WEEKDAY_REACH, max(0, (high - ordinal) // unit)) * unit
+        kind = _clock_parent_kind(state, ordinal)
+        key = (first, last, kind)
+        if key not in answers:
+            found: "list[int]" = []
+            for place in range(first, last + 1, unit):
+                group = _weekday_group(state, place)
+                if (
+                    group not in found
+                    and not _weekday_hole(state, place)
+                    and _clock_parent_kind(state, place) == kind
+                ):
+                    found += [group]
+            answers[key] = found
+        own = _weekday_group(state, ordinal)
+        if own not in answers[key]:
+            reach[own] = reach[own] + 1
+        for group in answers[key]:
+            reach[group] = reach[group] + 1
+    return reach
+
+
+def _clock_kin_parts(
+    order: "list[int]",
+    sizes: "dict[int, int]",
+    owns: "dict[int, list[int]]",
+    carries: "dict[int, list[int]]",
+    reach: "dict[int, list[int]]",
+    able: "dict[int, list[int]]",
+    want: "list[int]",
+) -> "dict[int, list[int]]":
+    """Each kin group's PART of the gap's running ideal of each group, in
+    `_KIN_SCALE`ths of a rank (method G7.3h, KIN SHARES' REACH; the
+    verifier's item 10 on the Codex round of landing 3b.4).
+
+    Where every kin group's ranks reach every group the gap wants
+    (`_clock_kin_reach`), its part is what it is owed, `owns`
+    (`_clock_kin_ideal`), and what it carries, `carries`. Where some kin
+    group reaches none of a wanted group, every such group is shared as
+    value 0 alone is: its want over the kin groups by their ranks ABLE to
+    take it (`able`: reaching it, and free to take value 0 alone), and the
+    rest of each kin group's ranks over the other groups as they want, so
+    every kin group's parts add to its ranks; and the carry of a kin group
+    reaching none of some wanted group is offered, group by group, to the
+    other kin groups, in proportion to their ranks able to take it,
+    rounded down. Last, a part beyond what the kin group's ranks able to
+    take the group can take is offered the same way. Carried as owed and
+    asked of the kin group itself, the share of a group it never reached
+    grew gap by gap and was handed every share of that group, taken from
+    the kin groups after it: four gaps of three hours, hour 8 off minute 0
+    in each, gave hours 9 and 10 200 and 40 cells there where 120 each
+    could stand. What each kin group carries stays its own -- owed as
+    `owns` has it, less what it holds -- and is taken where it reaches
+    again. Raises nothing. No I/O."""
+    groups = len(want)
+    blocked = [
+        kin for kin in order
+        if [group for group in range(groups) if want[group] > 0 and reach[kin][group] == 0]
+    ]
+    if not blocked:
+        parts = {
+            kin: [owns[kin][group] + carries[kin][group] for group in range(groups)]
+            for kin in order
+        }
+    else:
+        shared = [
+            group for group in range(groups)
+            if want[group] > 0 and [kin for kin in order if able[kin][group] < sizes[kin]]
+        ]
+        rest = sum(want) - sum(want[group] for group in shared)
+        parts = {}
+        for kin in order:
+            parts[kin] = [0 for _group in range(groups)]
+        for group in shared:
+            total = sum(able[kin][group] for kin in order)
+            if total > 0:
+                for kin in order:
+                    parts[kin][group] = want[group] * able[kin][group] * _KIN_SCALE // total
+        for kin in order:
+            left = sizes[kin] * _KIN_SCALE - sum(parts[kin][group] for group in shared)
+            for group in range(groups):
+                if group not in shared and rest > 0:
+                    parts[kin][group] = left * want[group] // rest
+        for kin in order:
+            if kin not in blocked:
+                parts[kin] = [parts[kin][group] + carries[kin][group] for group in range(groups)]
+        for kin in blocked:
+            for group in range(groups):
+                _clock_kin_offered(order, parts, able, kin, group, carries[kin][group])
+    for group in range(groups):
+        for kin in order:
+            room = able[kin][group] * _KIN_SCALE
+            if parts[kin][group] > room:
+                excess = parts[kin][group] - room
+                parts[kin][group] = room
+                _clock_kin_offered(order, parts, able, kin, group, excess)
+    return parts
+
+
+def _clock_kin_offered(
+    order: "list[int]",
+    parts: "dict[int, list[int]]",
+    reach: "dict[int, list[int]]",
+    giver: int,
+    group: int,
+    amount: int,
+) -> None:
+    """`amount` of a group's running ideal offered by kin group `giver` to the
+    other kin groups reaching the group, in proportion to their ranks
+    reaching it, rounded down; nowhere where none does. Raises nothing."""
+    if amount == 0:
+        return
+    total = sum(reach[kin][group] for kin in order if kin != giver)
+    if total <= 0:
+        return
+    for kin in order:
+        if kin != giver and reach[kin][group] > 0:
+            parts[kin][group] = parts[kin][group] + amount * reach[kin][group] // total
+
+
 def _clock_kin_shares_moved(state: _WeekdayPass, ranks: "list[int]", want: "list[int]") -> bool:
     """G7.3h's KIN SHARES: a field's gap moved kin group by kin group.
 
@@ -26454,18 +26600,32 @@ def _clock_kin_shares_moved(state: _WeekdayPass, ranks: "list[int]", want: "list
     taken = [0 for _group in want]
     ideal = [0 for _group in want]
     placed = 0
+    owns: "dict[int, list[int]]" = {}
+    carries: "dict[int, list[int]]" = {}
+    reach: "dict[int, list[int]]" = {}
+    able: "dict[int, list[int]]" = {}
     for kin in order:
-        members = rows[kin]
-        placed = placed + len(members)
-        own = _clock_kin_ideal(len(members), free[kin], eligible, want, size, zero)
-        carried = [
+        owns[kin] = _clock_kin_ideal(len(rows[kin]), free[kin], eligible, want, size, zero)
+        carries[kin] = [
             state.kin_carry[(kin, group)] if (kin, group) in state.kin_carry else 0
             for group in range(groups)
         ]
-        room = [len(members) for _group in want]
-        if zero >= 0:
-            room[zero] = free[kin]
-        ideal = [ideal[group] + own[group] + carried[group] for group in range(groups)]
+        reach[kin] = _clock_kin_reach(state, rows[kin], groups)
+        # ABLE: its ranks reaching each group, and free to take value 0 alone.
+        able[kin] = [
+            min(free[kin], reach[kin][group]) if group == zero else reach[kin][group]
+            for group in range(groups)
+        ]
+    parts = _clock_kin_parts(
+        order, {kin: len(rows[kin]) for kin in order}, owns, carries, reach, able, want
+    )
+    for kin in order:
+        members = rows[kin]
+        placed = placed + len(members)
+        own = owns[kin]
+        carried = carries[kin]
+        room = [min(len(members), able[kin][group]) for group in range(groups)]
+        ideal = [ideal[group] + parts[kin][group] for group in range(groups)]
         share = _clock_kin_share(ideal, want, taken, placed, room)
         have = [0 for _group in want]
         for rank in members:

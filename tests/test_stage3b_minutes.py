@@ -1277,6 +1277,16 @@ STEP_MUTANTS = {
         "        if split:\n            _clock_kin_carry_reconciled(state, len(counts))\n",
         "        if False:\n            _clock_kin_carry_reconciled(state, len(counts))\n",
     ),
+    "a kin group asked the parts of a group its ranks never reach": (
+        "field_kin_unreachable",
+        "    if not blocked:\n        parts = {",
+        "    if True:\n        parts = {",
+    ),
+    "a part past the ranks able to take its group asked of the kin group": (
+        "field_midnight_zero_room",
+        "            if parts[kin][group] > room:\n                excess",
+        "            if False:\n                excess",
+    ),
     "no PUT BACK after the exchange": (
         "field_exchange_put_back",
         "    for last_resort in (False, True):\n        if state.keep_units and _weekday_count(state) > wanted and",
@@ -1311,11 +1321,6 @@ STEP_MUTANTS = {
         "field_midnight_share",
         "                    if not _written_at_midnight(\n",
         "                    if False and not _written_at_midnight(\n",
-    ),
-    "a kin group given room on value 0 beyond its free ranks": (
-        "field_midnight_zero_room",
-        "            room[zero] = free[kin]",
-        "            room[zero] = len(members)",
     ),
     "the tails make room raising the count": (
         "field_midnight_room_keep",
