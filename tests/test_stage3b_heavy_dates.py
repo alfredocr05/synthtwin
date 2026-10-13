@@ -78,15 +78,15 @@ THE GATE'S CLAUSES, each beside what turns it red:
 * each part holds exactly its ranks: `test_each_part_holds_exactly_its_ranks` (mutant: the
   ranks a rounding placed beyond a part's own not trimmed).
 * the Codex review of landing 3b.6 (2026-10-13): the spelling keeps the date (G7.3j step 8),
-  `test_a_listed_date_keeps_its_rows_through_an_absent_spelling` at floors 11 and 36 (mutant:
+  `test_the_spelling_keeps_the_date` at floors 11 and 36 (mutant:
   the trade withdrawn, and the recount on the written cells names it) and
-  `test_the_oracle_keeps_a_listed_date_through_its_spelling` (mutant: the oracle's trade
+  `test_the_oracle_s_spelling_keeps_the_date` (mutant: the oracle's trade
   withdrawn); HD3's bound on different values, `test_repeated_unread_text_keeps_the_list`
-  (mutant: rows subtracted again), `test_the_amended_bound_refuses_one_date_more_than_the_values`
+  (mutant: rows subtracted again), `test_hd3_refuses_one_date_more`
   and its producer-always-loads battery,
-  `test_every_description_with_unread_text_the_producer_writes_loads`; the census lines in
-  near-linear work, `test_the_short_counts_rule_in_closed_form_is_the_walk_s` and
-  `test_the_census_lines_grow_with_the_list_and_no_faster`.
+  `test_unread_text_always_loads`; the census lines in
+  near-linear work, `test_short_counts_in_closed_form` and
+  `test_census_lines_grow_with_the_list`.
 
 Test-local mutants build the product's module, and the oracle's
 namespace, with one source edit (one `compile` and one `exec` each
@@ -1236,7 +1236,7 @@ def _described_missing(folder: pathlib.Path, cells: "list[str]", floor: int, mis
 
 
 @pytest.mark.parametrize("floor", (11, 36))
-def test_a_listed_date_keeps_its_rows_through_an_absent_spelling(tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch, floor: int) -> None:
+def test_the_spelling_keeps_the_date(tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch, floor: int) -> None:
     """THE CODEX REVIEW OF LANDING 3b.6, ITEM 1 (G7.3j step 8). 3 May lists 52 rows; half the ranks
     the spelling allocation put there were `3/5/2022`, which the table declares missing, and
     the step off an absent spelling moved 21 of them to other dates after the ranks held 52: the
@@ -1269,7 +1269,7 @@ def test_a_listed_date_keeps_its_rows_through_an_absent_spelling(tmp_path: pathl
     assert len(said) == 1 and generation._SPREAD_HEAVY_MISSED in said[0], said
 
 
-def test_the_oracle_keeps_a_listed_date_through_its_spelling(tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_the_oracle_s_spelling_keeps_the_date(tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """A-P4-59 for G7.3j step 8: on item 1's column at a floor of 11 the oracle's content, from
     the same words, is the product's cell for cell; mutant: the oracle's trade withdrawn."""
     described = _described_missing(tmp_path, _absent_third_of_may(), 11, ("3/5/2022",))
@@ -1322,7 +1322,7 @@ def test_repeated_unread_text_keeps_the_list(tmp_path: pathlib.Path, monkeypatch
     assert mutant.block("visit")["heavy_dates"] == []
 
 
-def test_the_amended_bound_refuses_one_date_more_than_the_values() -> None:
+def test_hd3_refuses_one_date_more() -> None:
     """HD3 as the loader asks it: a list as long as the bound passes, one date more is refused,
     with and without unread cells."""
     first = parsing.days_from_civil(2020, 1, 2)
@@ -1336,7 +1336,7 @@ def test_the_amended_bound_refuses_one_date_more_than_the_values() -> None:
         assert broken is not None and broken[0] == "HD3", broken
 
 
-def test_every_description_with_unread_text_the_producer_writes_loads(tmp_path: pathlib.Path) -> None:
+def test_unread_text_always_loads(tmp_path: pathlib.Path) -> None:
     """THE PRODUCER-ALWAYS-LOADS BATTERY OF THE AMENDED HD3: the weekly column beside unread
     text repeated in every way a column of dates keeps it -- one text five times in place of
     cells, six times after the dates, two texts three times each, three texts twice each in
@@ -1389,7 +1389,7 @@ def _pinned_by_walking(found: "list[int]", short: "list[int]", line: int) -> boo
     return len(possible) <= 1
 
 
-def test_the_short_counts_rule_in_closed_form_is_the_walk_s() -> None:
+def test_short_counts_in_closed_form() -> None:
     """THE CODEX REVIEW OF LANDING 3b.6, ITEM 3: the closed form of `_short_counts_pinned` answers
     as the walk did on 6,000 random censuses of one to nine groups, lines 2 to 12."""
     chooser = random.Random(20261013)
@@ -1418,7 +1418,7 @@ def _census_seconds(entries: int, short: bool) -> float:
     return least
 
 
-def test_the_census_lines_grow_with_the_list_and_no_faster() -> None:
+def test_census_lines_grow_with_the_list() -> None:
     """THE CODEX REVIEW OF LANDING 3b.6, ITEM 3: V5-D1 prints one group per listed date, and
     `_census_lines` rebuilt its cumulative text per group and scanned the short groups' list
     per group -- 0.014 seconds at 5,000 entries, 2.4 at 80,000 (ten at 80,000 with half of
