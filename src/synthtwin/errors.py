@@ -1474,6 +1474,22 @@ def century_not_supported(given: str) -> str:
     )
 
 
+def the_dates_declaration_did_not_reach(name: str, role: str) -> str:
+    """Message when `--date-column` names a column it cannot read as dates (landing R2c).
+
+    NOT A REFUSAL, for the century declaration's reason: whether half of a
+    column's values read as dates is known only once the table is read.
+    """
+    return (
+        f"The column '{_shown(name)}' was named with --date-column, but "
+        f"fewer than half of its values read as dates written one way, so "
+        f"synthtwin read it as {role}. The description that was written is "
+        f"correct about everything else, and says which columns were "
+        f"declared. Check that the name is the column you meant, and run "
+        f"the command again without --date-column for this one."
+    )
+
+
 def the_century_declaration_did_not_reach(name: str, role: str) -> str:
     """Message when `--century` names a column it cannot change (landing R2a).
 
@@ -1868,7 +1884,12 @@ def profile_version_is_older(found: int, reads: int) -> str:
     value" the person named -- and what to do, which is to describe the
     table again UNDER THE SAME OPTIONS.
 
-    IT NAMES SIXTEEN OPTIONS. `--date-count` joined with landing R4 (plan
+    IT NAMES SEVENTEEN OPTIONS. `--date-column` joined with landing R2c
+    (plan P4-D383): left out, a column holding dates beside values written
+    another way, or written as a year and a day of the year, is described
+    as text or numbers, and none of its dates is published; question Q6
+    answers it, so the `--answers` clause names it too. Before it named
+    sixteen. `--date-count` joined with landing R4 (plan
     P4-D384): left out, a column whose dates are written as counts is
     described as numbers, so its twin keeps how they spread and loses the
     day of the week and the time of day each date falls on; question Q3
@@ -1983,7 +2004,8 @@ def profile_version_is_older(found: int, reads: int) -> str:
         f"table, giving it every option you gave the first time: "
         f"--keep-value, --missing-value, --identifier, --code, --date-count, "
         f"--measurement, --decimal-comma, --smallest-group, --first-row, "
-        f"--day-first, --twelve-hour, --century, --metadata-rows, --sheet, "
+        f"--day-first, --twelve-hour, --century, --date-column, "
+        f"--metadata-rows, --sheet, "
         f"--delimiter and "
         f"--answers. "
         f"Every one of them changes what the "
@@ -2013,7 +2035,11 @@ def profile_version_is_older(found: int, reads: int) -> str:
         f"the --century you gave, a date whose year is written with "
         f"two figures is read as one of 1969 to 2068, so a birth date "
         f"of 1931 written 31 is read as 2031, which changes the dates "
-        f"the description publishes; without "
+        f"the description publishes; without the --date-column you gave, "
+        f"a column holding dates beside values written another way, or "
+        f"dates written as a year and a day of the year, is described as "
+        f"text or numbers, so none of its dates is published and its twin "
+        f"writes none; without "
         f"the --metadata-rows you "
         f"gave, the rows under your column names that describe your "
         f"columns are read as records of your table, so their text is "
@@ -2029,7 +2055,8 @@ def profile_version_is_older(found: int, reads: int) -> str:
         f"each of them was a --code, an --identifier, a --date-count, a "
         f"--measurement, "
         f"a --decimal-comma, a --metadata-rows, a --delimiter, a "
-        f"--twelve-hour, a --century, a --day-first, a --missing-value "
+        f"--twelve-hour, a --century, a --date-column, a --day-first, "
+        f"a --missing-value "
         f"or a "
         f"--keep-value, "
         f"so leaving the file out costs whichever of those you had "

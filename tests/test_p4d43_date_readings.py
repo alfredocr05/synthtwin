@@ -334,20 +334,27 @@ def test_a_mixed_column_of_two_other_families_is_not_read() -> None:
     assert document["columns"][0]["role"] != "datetime"
 
 
-def test_a_month_beside_a_day_stays_unread() -> None:
-    """The residual the decision names, asserted as the residual it is.
+def test_a_month_beside_a_day_is_read_at_each_cells_own_precision() -> None:
+    """The residual the decision named, lifted by landing R2c (plan P4-D383).
 
-    `2024-03` beside `2024-03-17` is not read, and now that the month
-    resolution IS built the reason is the one the decision gives rather
-    than an absence: neither form reaches the parse line alone, and the
-    only joint reading there is joins the two ISO instant forms. A
-    month is a span and a date is a day, so a joint reading of them
-    would have to choose which of the two the column publishes at, and
-    the decision declines to choose.
+    `2024-03` beside `2024-03-17` was not read: neither form reaches the
+    parse line alone, and a joint reading would have to choose which of a
+    span and a day the column publishes at. Partial dates choose neither:
+    the column is read at the day under the layout `{YYYY}-{MM}-{DD}`,
+    which reads half its cells whole, and each month is counted at its own
+    precision, under the partial form `{YYYY}-{MM}` and inside
+    `n_unparsed`, reaching no fact of the day.
     """
     values = ["2024-03"] * 60 + _dates(60)
     document, _loaded, _table = _described(values)
-    assert document["columns"][0]["role"] != "datetime"
+    block = document["columns"][0]
+    assert block["role"] == "datetime"
+    assert block["format"] == "layout {YYYY}-{MM}-{DD}"
+    assert block["n_unparsed"] == 60
+    assert block["resolution_mix"] == {
+        "layout {YYYY}-{MM}": 60,
+        "layout {YYYY}-{MM}-{DD}": 60,
+    }
 
 
 # -- item 2: the month resolution -------------------------------------

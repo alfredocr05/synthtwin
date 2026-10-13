@@ -5986,6 +5986,9 @@ def layout_written(member, year, month, day, second, offset, width, figures):
             out.append(f"{month:02d}")
         elif field == "DD":
             out.append(f"{day:02d}")
+        elif field == "DDD":
+            # The day of the year, an ask-first field (landing R2c).
+            out.append(f"{days_from_civil(year, month, day) - days_from_civil(year, 1, 1) + 1:03d}")
         elif field in ("M", "D"):
             value = month if field == "M" else day
             out.append(field_text(value, padding[shown_flexible]))
@@ -6041,7 +6044,7 @@ def layout_day(member, text):
     """
     items = layout_parts(member)
     at = 0
-    year = month = day = weekday = None
+    year = month = day = weekday = yearday = None
     optional = items and items[-1][1].endswith("?")
     tail = len(items)
     if optional:
@@ -6059,7 +6062,7 @@ def layout_day(member, text):
         field = field.rstrip("?")
         sizes = {"YYYY": (4, 4), "MM": (2, 2), "DD": (2, 2), "HH": (2, 2), "MI": (2, 2),
                  "SS": (2, 2), "M": (1, 2), "D": (1, 2), "F": (1, 9),
-                 "hh": (2, 2), "H": (1, 2), "h": (1, 2)}
+                 "hh": (2, 2), "H": (1, 2), "h": (1, 2), "DDD": (3, 3)}
         for window in LAYOUT_WINDOWS:
             sizes[window] = (2, 2)
         if field in sizes:
@@ -6084,6 +6087,8 @@ def layout_day(member, text):
                 month = value
             elif field in ("DD", "D"):
                 day = value
+            elif field == "DDD":
+                yearday = value
             continue
         if field in ("_D", "_H", "_h"):
             pair = text[at:at + 2]
@@ -6125,10 +6130,431 @@ def layout_day(member, text):
         at += size
     if at != len(text) or year is None or not 1800 <= year <= 2299:
         return None
+    if yearday is not None:
+        # An ordinal day names its month and day (landing R2c).
+        if not 1 <= yearday <= days_from_civil(year + 1, 1, 1) - days_from_civil(year, 1, 1):
+            return None
+        return days_from_civil(year, 1, 1) + yearday - 1
     found = calendar_day(year, month, day)
     if found is None or (weekday is not None and (found + 3) % 7 != weekday):
         return None
     return found
+
+
+# THE PARTIAL FORMS (G7.5's partial dates, landing R2c): a partial cell
+# writes the fields its form keeps and each unknown marker as itself.
+LAYOUT_UNKNOWN_MARKERS = ("UN", "UNK", "--", "XX")
+
+
+def layout_moment(member, text):
+    """The instant one full cell names under a layout, as (year, month, day, hour, minute, second).
+
+    Read off the cell field by field, the day through `layout_day`, the
+    clock's two-figure fields by their place; None where the layout does
+    not read the cell.
+    """
+    found = layout_day(member, text)
+    if found is None:
+        return None
+    year, month, day = civil_from_days(found)
+    clock = {"HH": 0, "MI": 0, "SS": 0}
+    at = 0
+    for kind, field in layout_parts(member):
+        if at >= len(text):
+            break
+        if kind == "l":
+            at += 1
+            continue
+        field = field.rstrip("?")
+        if field in ("YYYY",):
+            at += 4
+        elif field in LAYOUT_WINDOWS or field in ("MM", "DD", "HH", "MI", "SS"):
+            if field in clock:
+                clock[field] = int(text[at:at + 2])
+            at += 2
+        elif field == "DDD":
+            at += 3
+        elif field in ("M", "D", "F"):
+            end = at
+            while end < len(text) and text[end].isdigit() and text[end].isascii() and (field == "F" or end - at < 2):
+                end += 1
+            at = end
+        elif field == "_D":
+            at += 2
+        elif field in LAYOUT_NAME_WORDS:
+            while at < len(text) and text[at].isascii() and text[at].isalpha():
+                at += 1
+        else:
+            break
+    return year, month, day, clock["HH"], clock["MI"], clock["SS"]
+
+
+def partial_written(key, year, month, day, hour, minute, second):
+    """One instant written under a partial form: the fields it keeps, the markers as themselves."""
+    out = []
+    for kind, field in layout_parts(key):
+        if kind == "l" or field in LAYOUT_UNKNOWN_MARKERS:
+            out.append(field)
+        elif field == "YYYY":
+            out.append(f"{year:04d}")
+        elif field in LAYOUT_WINDOWS:
+            out.append(f"{year % 100:02d}")
+        elif field == "MM":
+            out.append(f"{month:02d}")
+        elif field == "DD":
+            out.append(f"{day:02d}")
+        elif field == "M":
+            out.append(f"{month}")
+        elif field == "D":
+            out.append(f"{day}")
+        elif field == "_D":
+            out.append(f"{day:>2d}")
+        elif field == "HH":
+            out.append(f"{hour:02d}")
+        elif field == "MI":
+            out.append(f"{minute:02d}")
+        elif field == "SS":
+            out.append(f"{second:02d}")
+        elif field in LAYOUT_NAME_WORDS:
+            out.append(LAYOUT_NAME_WORDS[field][month - 1])
+        else:
+            raise AssertionError(f"{field!r} is no field of a partial form")
+    return "".join(out)
+
+
+def partial_forms(column):
+    """A layout column's partial forms and their counts, in the order of their names."""
+    member = column.get("format")
+    if not is_layout(member):
+        return []
+    mix = column.get("resolution_mix") or {}
+    return [(key, mix[key]) for key in sorted(mix) if key != member and mix[key] > 0]
+
+
+def partial_rank(turn, ranks, total):
+    """The full rank the turn-th of ``total`` partial cells takes: evenly spaced."""
+    return turn * ranks // total
+
+
+def partial_form_of(forms, given, turn, total):
+    """The form the turn-th partial cell is written in: the one furthest behind its share."""
+    best = 0
+    lag = None
+    for place, (_key, rows) in enumerate(forms):
+        behind = rows * (turn + 1) - given[place] * total
+        if lag is None or behind > lag:
+            best, lag = place, behind
+    return best
+
+
+def partial_numbers(column):
+    """The partial cells that are runs of figures: every field fixed-width figures, no mark."""
+    count = 0
+    for key, rows in partial_forms(column):
+        parts = layout_parts(key)
+        if all(kind == "f" and field in ("YYYY", "MM", "DD", "HH", "MI", "SS") for kind, field in parts):
+            count += rows
+    return count
+
+
+def partial_cells(column, written, holes=(), apart=False, held=()):
+    """G7.5's partial cells: the k-th of n takes the full rank at k times the ranks over n.
+
+    Read back under the layout (the next rank that reads, where one does
+    not), and written under the form furthest behind its share, the lowest
+    on a tie; none at all where no rank reads back.  A cell that is one of
+    the column's absent spellings, or -- where G11's all-different
+    obligation binds (``apart``) -- one the column already holds, takes
+    the nearest unit of its form's precision that is neither, the earlier
+    first, inside the year band 1800 to 2299 (the Codex review of landing
+    R2c, items 3 and 4); none at all where no unit is.
+    """
+    forms = partial_forms(column)
+    if not forms or not written:
+        return []
+    absent = {hole.strip().lower() for hole in holes}
+    taken = set(held)
+    total = sum(rows for _key, rows in forms)
+    given = [0] * len(forms)
+    out = []
+    # Each form's units found taken or absent, walked past in one hop
+    # (`partial_stepped`; open item 2 of the verification of the Codex
+    # review's repair of landing R2c).
+    skips = [({}, {}) for _form in forms]
+    for turn in range(total):
+        best = partial_form_of(forms, given, turn, total)
+        given[best] += 1
+        rank = partial_rank(turn, len(written), total)
+        moment = None
+        for step in range(len(written)):
+            moment = layout_moment(column["format"], written[(rank + step) % len(written)])
+            if moment is not None:
+                break
+        if moment is None:
+            return []
+        cell = partial_stepped(forms[best][0], moment, absent, taken, apart, skips[best])
+        if cell is None:
+            return []
+        taken.add(cell)
+        out.append(cell)
+    return out
+
+
+# The precision of a partial form, as the units it counts: the fields it
+# keeps, coarsest first (G7.5's partial forms, landing R2c).
+PARTIAL_PRECISIONS = ("year", "month", "day", "hour", "minute", "second")
+PARTIAL_FIELD_PRECISION = {
+    "YYYY": "year", "MM": "month", "M": "month", "DD": "day", "D": "day",
+    "_D": "day", "HH": "hour", "MI": "minute", "SS": "second",
+}
+
+
+def partial_precision(key):
+    """The finest field a partial form keeps: year, month, day, hour, minute or second."""
+    finest = 0
+    for kind, field in layout_parts(key):
+        if kind != "f" or field in LAYOUT_UNKNOWN_MARKERS:
+            continue
+        name = PARTIAL_FIELD_PRECISION.get(field)
+        if name is None and field in LAYOUT_WINDOWS:
+            name = "year"
+        if name is None and field in LAYOUT_NAME_WORDS:
+            name = "month"
+        if name is not None:
+            finest = max(finest, PARTIAL_PRECISIONS.index(name))
+    return PARTIAL_PRECISIONS[finest]
+
+
+def partial_unit(precision, year, month, day, hour, minute, second):
+    """One instant's place among the units of a precision: years, months, days, then the clock's."""
+    if precision == "year":
+        return year
+    if precision == "month":
+        return year * 12 + month - 1
+    days = days_from_civil(year, month, day)
+    if precision == "day":
+        return days
+    hours = days * 24 + hour
+    if precision == "hour":
+        return hours
+    minutes = hours * 60 + minute
+    if precision == "minute":
+        return minutes
+    return minutes * 60 + second
+
+
+def partial_instant(precision, unit):
+    """The instant (year, month, day, hour, minute, second) one unit of a precision starts at."""
+    if precision == "year":
+        return unit, 1, 1, 0, 0, 0
+    if precision == "month":
+        return unit // 12, unit % 12 + 1, 1, 0, 0, 0
+    second = minute = hour = 0
+    if precision == "second":
+        second, unit = unit % 60, unit // 60
+    if precision in ("minute", "second"):
+        minute, unit = unit % 60, unit // 60
+    if precision in ("hour", "minute", "second"):
+        hour, unit = unit % 24, unit // 24
+    year, month, day = civil_from_days(unit)
+    return year, month, day, hour, minute, second
+
+
+def partial_stepped(key, moment, absent, taken, apart, skips=None):
+    """The partial cell of one instant under a form, stepped off what it may not be, or None.
+
+    It stands where it is no absent spelling and, where ``apart``, held by
+    no other cell; else it takes the nearest unit of the form's precision
+    whose cell is free, the earlier on a tie, inside the year band -- the
+    unit a walk outward from its own, the earlier first at each distance,
+    reaches first.  A unit found taken or absent stays so for the rest of
+    the column, so ``skips`` (one map below, one above, per form) carries
+    it to the next unit not yet ruled out and the walk crosses it in one
+    hop: a step one unit at a time asked 500,359 times for 1,000 partial
+    days of a 20,000-row column (open item 2 of the verification of the
+    Codex review's repair of landing R2c).
+    """
+
+    def free(text):
+        if folded(text) in NO_VALUE_SPELLINGS or text.strip().lower() in absent:
+            return False
+        return not apart or text not in taken
+
+    def nearest(start, toward, bound, skip):
+        passed = []
+        place = start
+        while (bound - place) * toward >= 0:
+            if place in skip:
+                passed.append(place)
+                place = skip[place]
+                continue
+            written = partial_written(key, *partial_instant(precision, place))
+            if free(written):
+                for unit in passed:
+                    skip[unit] = place
+                return place, written
+            passed.append(place)
+            place += toward
+        for unit in passed:
+            skip[unit] = place
+        return place, None
+
+    cell = partial_written(key, *moment)
+    if free(cell):
+        return cell
+    precision = partial_precision(key)
+    first = partial_unit(precision, 1800, 1, 1, 0, 0, 0)
+    last = partial_unit(precision, 2299, 12, 31, 23, 59, 59)
+    unit = partial_unit(precision, *moment)
+    if skips is None:
+        skips = ({}, {})
+    below, lower = nearest(min(unit - 1, last), -1, first, skips[0])
+    above, upper = nearest(max(unit + 1, first), 1, last, skips[1])
+    if lower is not None and (upper is None or unit - below <= above - unit):
+        return lower
+    return upper
+
+
+# The level each field of a layout stands at, for its cuts (G7.5's partial
+# forms, landing R2c): a field of no level here -- a weekday, a day of the
+# year -- leaves the layout with no partial form at all.
+PARTIAL_LEVELS = {"year": 1, "month": 2, "day": 3, "hour": 4, "minute": 5, "second": 6, "fraction": 7}
+
+
+def layout_field_level(field):
+    """Which part of an instant one layout field names, as the cuts count it."""
+    bare = field.rstrip("?")
+    if bare == "YYYY" or bare in LAYOUT_WINDOWS:
+        return "year"
+    if bare in ("MM", "M") or (bare in LAYOUT_NAME_WORDS and bare not in LAYOUT_WEEKDAY_FIELDS):
+        return "month"
+    if bare in ("DD", "D", "_D"):
+        return "day"
+    if bare == "DDD":
+        return "yearday"
+    if bare in LAYOUT_WEEKDAY_FIELDS:
+        return "weekday"
+    return {"HH": "hour", "MI": "minute", "SS": "second", "F": "fraction"}.get(bare, "offset")
+
+
+def layout_cuts(member):
+    """The partial forms that cut a layout after a field, finest first (G7.5, landing R2c).
+
+    The layout's core -- its offset and the marks before it set aside --
+    keeping only the fields at or above one level, wherever those fields
+    stand side by side.  The forms that mask a day or a month with a
+    marker are the other partial forms; a marker reads no run of figures,
+    so `figure_stand_ins` asks these alone.
+    """
+    items = layout_parts(member)
+    end = len(items)
+    for place, (kind, field) in enumerate(items):
+        if kind == "f" and layout_field_level(field) == "offset":
+            end = place
+            while end > 0 and items[end - 1][0] == "l":
+                end -= 1
+            break
+    core = items[:end]
+    levels = []
+    for kind, field in core:
+        if kind != "f":
+            levels.append(0)
+            continue
+        level = layout_field_level(field)
+        if level not in PARTIAL_LEVELS:
+            return []
+        levels.append(PARTIAL_LEVELS[level])
+    found = []
+    for cut in range(max(levels, default=0) - 1, 0, -1):
+        kept = [place for place in range(len(core)) if 0 < levels[place] <= cut]
+        if not kept:
+            continue
+        if any(levels[place] > cut for place in range(kept[0], kept[-1] + 1)):
+            continue
+        text = LAYOUT_PREFIX + "".join(
+            "{" + field + "}" if kind == "f" else field for kind, field in core[kept[0]:kept[-1] + 1]
+        )
+        if text not in found:
+            found.append(text)
+    return found
+
+
+def partial_reading(key, text):
+    """One cell read under a partial form, as its fields, or None (G7.5, landing R2c).
+
+    Field by field, nothing trimmed: figures at each fixed field's width,
+    one or two at a flexible one, a name from its own word list, each
+    marker as itself, a year in 1800 to 2299, a month, a day in its month
+    and the clock's fields in range; a form whose fields stop short of a
+    finer one reads no finer field.
+    """
+    fixed = {"YYYY": 4, "MM": 2, "DD": 2, "HH": 2, "MI": 2, "SS": 2}
+    for window in LAYOUT_WINDOWS:
+        fixed[window] = 2
+    found = {}
+    at = 0
+    for kind, field in layout_parts(key):
+        if kind == "l" or field in LAYOUT_UNKNOWN_MARKERS:
+            if text[at:at + len(field)] != field:
+                return None
+            at += len(field)
+            continue
+        if field in fixed or field in ("M", "D"):
+            least, most = (fixed[field], fixed[field]) if field in fixed else (1, 2)
+            end = at
+            while end < len(text) and end - at < most and text[end].isdigit() and text[end].isascii():
+                end += 1
+            if end - at < least:
+                return None
+            value = int(text[at:end])
+            at = end
+            if field in LAYOUT_WINDOWS:
+                first = LAYOUT_WINDOWS[field]
+                value = first // 100 * 100 + value
+                if value < first:
+                    value += 100
+            found[PARTIAL_FIELD_PRECISION.get(field, "year")] = value
+            continue
+        if field == "_D":
+            pair = text[at:at + 2]
+            if len(pair) != 2 or not pair[1].isdigit() or not (pair[0] == " " or pair[0] in "123456789"):
+                return None
+            found["day"] = int(pair.strip())
+            at += 2
+            continue
+        if field in LAYOUT_NAME_WORDS and field not in LAYOUT_WEEKDAY_FIELDS:
+            end = at
+            while end < len(text) and text[end].isascii() and text[end].isalpha():
+                end += 1
+            if text[at:end] not in LAYOUT_NAME_WORDS[field]:
+                return None
+            found["month"] = LAYOUT_NAME_WORDS[field].index(text[at:end]) + 1
+            at = end
+            continue
+        return None
+    if at != len(text) or not 1800 <= found.get("year", 0) <= 2299:
+        return None
+    depth = 0
+    while depth + 1 < len(PARTIAL_PRECISIONS) and PARTIAL_PRECISIONS[depth + 1] in found:
+        depth += 1
+    if any(name in found for name in PARTIAL_PRECISIONS[depth + 1:]):
+        return None
+    if "month" in found and not 1 <= found["month"] <= 12:
+        return None
+    if "day" in found and calendar_day(found["year"], found["month"], found["day"]) is None:
+        return None
+    if found.get("hour", 0) > 23 or found.get("minute", 0) > 59 or found.get("second", 0) > 59:
+        return None
+    return found
+
+
+def read_by_the_layout(member, text):
+    """Whether a layout, or one of its cuts, reads one stand-in (G10.3; the Codex review of landing R2c, item 2)."""
+    if not is_layout(member):
+        return False
+    if layout_day(member, text) is not None:
+        return True
+    return any(partial_reading(cut, text) is not None for cut in layout_cuts(member))
 
 
 def width_fields(member):
@@ -9733,6 +10159,42 @@ def text_stand_ins(used, wanted):
     return produced
 
 
+def figures_owed(column, content, stand_ins):
+    """How many of a date column's stand-ins the count of numbers owes (landing R2c).
+
+    ``n_numeric`` less the cells already written that read as a number,
+    at most every stand-in and at least none.
+    """
+    numbers = sum(1 for text in content if _is_a_number(text))
+    return max(0, min(column["n_numeric"] - numbers, stand_ins))
+
+
+def figure_stand_ins(column, content, holes, stand_ins):
+    """``1``, ``2``, … -- the stand-ins written as figures (G10.3, landing R2c).
+
+    Stepped from one past every spelling already used in the column, the
+    spellings that mean "no value" and the column's absent spellings; no
+    figure reads as a date under any format the profiler tries, and none
+    is one the column's layout or a partial form of it reads (the Codex
+    review of landing R2c, item 2: `10` to `99` beside a `{YY}` form).
+    """
+    seen = set(content)
+    absent = {hole.strip().lower() for hole in holes}
+    produced = []
+    owed = figures_owed(column, content, stand_ins)
+    counter = 1
+    while len(produced) < owed:
+        candidate = str(counter)
+        counter += 1
+        if candidate in seen or folded(candidate) in NO_VALUE_SPELLINGS or candidate in absent:
+            continue
+        if read_by_the_layout(column["format"], candidate):
+            continue
+        seen.add(candidate)
+        produced.append(candidate)
+    return produced
+
+
 def csv_field(text, one_column, absent):
     """One CSV field, under the byte rules of method section G2.
 
@@ -11339,7 +11801,18 @@ def _datetime_content(column):
     # ...and the offsets a column of figure runs owes its count of cells
     # that are not numbers (G7.9b, landing R2a's repair round).
     content = offsets_paid_to_the_classes(column, content, holes)
-    content.extend(text_stand_ins(content, column["n_unparsed"]))
+    # ...and a partial-date column's partial cells, each a full rank written
+    # short, before the stand-ins (G7.5, landing R2c).
+    partial = partial_cells(
+        column, content[:parsed], holes, all_different_reached(column), content
+    )
+    content.extend(partial)
+    # ...the stand-ins the published count of numbers still owes written
+    # as made-up figures (G10.3, skeptic 2 of the R2c repair, item 1)...
+    stand_ins = column["n_unparsed"] - len(partial)
+    figures = figure_stand_ins(column, content, holes, stand_ins)
+    content.extend(figures)
+    content.extend(text_stand_ins(content, stand_ins - len(figures)))
     return content
 
 
@@ -11596,7 +12069,12 @@ def offsets_paid_to_the_classes(column, cells, holes, floor=CASE_SMALL_CELL_FLOO
         if a_number(cells[rank]) and a_text_worn_once(cells, rank)
     ]
     line = census_line(floor)
-    debt = column["n_not_numeric"] - not_numbers - column["n_unparsed"]
+    # A partial form written as a run of figures is a number (landing R2c).
+    # ...and so is a stand-in written as a figure (skeptic 2 of the R2c
+    # repair, item 1): the figures the count of numbers owes.
+    stand_ins = max(column["n_unparsed"] - sum(rows for _key, rows in partial_forms(column)), 0)
+    owed = max(0, min(column["n_numeric"] - (len(cells) - not_numbers + partial_numbers(column)), stand_ins))
+    debt = column["n_not_numeric"] - not_numbers - (column["n_unparsed"] - partial_numbers(column) - owed)
     payments = max(payments_owed(debt, len(eligible), len(cells) - not_numbers, line, len(offer)), 0)
     bound = payments_owed(debt, len(cells), len(cells) - not_numbers, line, len(offer))
 
@@ -13016,7 +13494,7 @@ def kept_off_midnight(column, ordinals, parsed, whole, lows, highs, floor=CASE_S
     return ordinals
 
 
-def date_counts_reachable(column):
+def date_counts_reachable(column, declared_short=None):
     """Where method G7.3's count pass reaches the count of different values
     (plan P4-D192): read on the column's own clock, at a resolution whose
     unit the layout steps by one, publishing at most one offset key and
@@ -13028,7 +13506,105 @@ def date_counts_reachable(column):
     G7.3's two amendments of the stage-3 review's dates pass are both
     here: a month and a quarter are units of one like a day, and ONE
     published offset is one way of writing an instant, being written
-    after every moment of the column."""
+    after every moment of the column.
+
+    ``declared_short`` is the loader's mark of a column the person said
+    holds dates (question Q6) with more cells unread than the date rule's
+    line leaves room for (landing R2c): those cells may repeat one word,
+    so the count less the unread cells is no count of different dates.
+    It is a fact of the settings, which a case carries as the block's
+    private mark ``_declared_short`` (`declared_short_of`); where the
+    argument is not given, that mark is read (the Codex review of landing
+    R2c, item 9: the call that dropped it aimed a declared column of 13
+    values at -787)."""
+    if declared_short is None:
+        declared_short = column.get("_declared_short", False)
+    # A partial-date column's partial cells repeat (landing R2c)...
+    if partial_forms(column):
+        return False
+    # ...and so may a declared column's unread cells.
+    if declared_short:
+        return False
+    return count_pass_open(column)
+
+
+def short_of_the_count(column):
+    """A partial-date column, or a declared one short of the date rule's line (landing R2c)."""
+    return bool(partial_forms(column)) or bool(column.get("_declared_short", False))
+
+
+def all_different_reached(column):
+    """G11's all-different obligation on a column short of the count (the Codex review of landing R2c, item 4).
+
+    As many different values published as present ones, no offset
+    withheld, and every other condition of the count pass: the full ranks
+    are then held all different -- the target raised to as well as
+    lowered to -- and no partial cell repeats another.
+    """
+    if not short_of_the_count(column):
+        return False
+    if column["n_present"] < 1 or column["n_distinct"] != column["n_present"]:
+        return False
+    if WITHHELD in column.get("utc_offsets", {}):
+        return False
+    return count_pass_open(column)
+
+
+def upper_target(column):
+    """Whether G7.3's target is one the pass lowers to and never raises to (landing R2c)."""
+    return short_of_the_count(column) and not all_different_reached(column)
+
+
+# The date rule's line every case is described at (the cases' settings),
+# which the loader's declared mark is drawn against (`declared_short_of`).
+# It is the binary64 the settings carry, `0.9`, a shade above nine in ten,
+# and not nine in ten itself: the loader reads that number exactly
+# (`contract._line_count`), so sixty present cells reach the line at 55,
+# where nine in ten would put it at 54 (open item 1 of the verification of
+# the Codex review's repair of landing R2c; `fitted_power` reads its rate
+# the same way).
+CASE_MINIMUM_PARSE_RATE = fractions.Fraction(0.9)
+
+
+def declared_short_of(spec):
+    """The loader's mark of a declared column read short of the date rule's line (landing R2c).
+
+    A case whose column the person said holds dates (``dates_declared``)
+    with more cells unread than the line leaves room for: the present
+    cells less the least whole number of them that reaches nine in ten.
+    """
+    column = spec["column"]
+    if not spec.get("dates_declared", False):
+        return False
+    present = column["n_present"]
+    rate = CASE_MINIMUM_PARSE_RATE
+    line = -((-rate.numerator * present) // rate.denominator)
+    return column["n_unparsed"] > present - line
+
+
+def date_count_target(column, parsed, declared_short=None):
+    """The count of different units G7.3's pass reaches for, or None for none.
+
+    Exact where ``date_counts_reachable``: the count less the unread
+    cells.  Where only a partial form or the declared mark keeps it out
+    of reach (skeptic 2 of the R2c repair, item 3), an UPPER target: the
+    count less one for each named partial form and one more where any
+    cell is left a stand-in, clamped to one and the ``parsed`` full
+    ranks -- each of those holds one spelling at least."""
+    if declared_short is None:
+        declared_short = column.get("_declared_short", False)
+    if not count_pass_open(column):
+        return None
+    forms = partial_forms(column)
+    if not forms and not declared_short:
+        return column["n_distinct"] - column["n_unparsed"]
+    stand_ins = column["n_unparsed"] - sum(rows for _key, rows in forms)
+    target = column["n_distinct"] - len(forms) - (1 if stand_ins > 0 else 0)
+    return max(1, min(target, parsed))
+
+
+def count_pass_open(column):
+    """Every condition of G7.3's count pass but the partial and declared ones."""
     if column["datetimes_read_at"] != "local" or column["resolution"] not in RESOLUTIONS:
         return False
     offsets = column.get("utc_offsets", {})
@@ -13440,14 +14016,25 @@ def units_settled(column, ordinals, parsed, whole, lows, highs):
         width_fields(column["format"]) > 0
     ):
         widths = next(iter(census.values()))
-    distinct = None
-    if date_counts_reachable(column):
-        distinct = column["n_distinct"] - column["n_unparsed"]
+    # Exact where reachable, an upper target on a partial-date column (R2c).
+    distinct = date_count_target(column, parsed)
     if widths is None and distinct is None:
         return ordinals
 
     word = next(iter(census)) if widths is not None else ""
     unit = step if space == "datetime" else 1
+    # An upper target lowers and never raises (the R2c leftover verify,
+    # finding 1): where the full ranks hold no more units than it, no pass.
+    # A declared-short column's target is upper too (the Codex review of
+    # landing R2c, item 9), and neither is where G11 binds (item 4).
+    if (
+        upper_target(column)
+        and distinct is not None
+        and len({value // unit for value in ordinals}) <= distinct
+    ):
+        distinct = None
+        if widths is None:
+            return ordinals
     stepped_off_absent_days(
         column, ordinals, pinned, lows, highs, day, step, unit, widths is not None, word,
     )
@@ -13537,7 +14124,15 @@ def group_gives_way(column, ordinals, parsed, whole):
     space = ordinal_space(column)
     if parsed < 3 or column["datetimes_read_at"] != "local" or any(whole):
         return ordinals
-    if space not in RESOLUTIONS or not date_counts_reachable(column):
+    # The count pass's own target: exact only. An upper target, on a
+    # partial column, is one the pass lowers to and never raises to (R2c,
+    # its leftover verify, finding 1), so no group gives way for it -- nor
+    # for a declared-short column's (the Codex review of landing R2c, item
+    # 9), and a column G11 binds has no upper target (item 4).
+    if upper_target(column):
+        return ordinals
+    target = date_count_target(column, parsed) if space in RESOLUTIONS else None
+    if target is None or target < 0:
         return ordinals
     day = 86400 if space == "datetime" else 1
     step = 60 if space == "datetime" and column["time_precision"] == "minute" else 1
@@ -13547,7 +14142,7 @@ def group_gives_way(column, ordinals, parsed, whole):
         width_fields(column["format"]) > 0
     )
     word = next(iter(census)) if widths else ""
-    owed = column["n_distinct"] - column["n_unparsed"] - len({v // unit for v in ordinals})
+    owed = target - len({v // unit for v in ordinals})
     if absent_units(column):
         # ...the published count with the absent days stuck tail ranks hold
         # added, as ``units_settled`` reaches it (plan P4-D358).
@@ -29123,6 +29718,238 @@ def _layout_dial_spaced_offset():
     )
 
 
+# -- landing R2c's partial dates and ask-first layouts (plan P4-D383) ----
+
+
+def _r2c_layout(member, resolution, precision, full, forms, why, numeric=0,
+                distinct=None, stand_ins=0):
+    """A column read under a layout, some of its cells only in part (G7.5, landing R2c).
+
+    ``full`` cells read whole -- the ramp's days or moments from 1970-01-01
+    -- and each partial form counts cells left unread, written short of a
+    full rank; the column's different values are the full ones and one
+    for each form, since every partial cell of the ramp's twelve days
+    names one year and one month, and one for each of ``stand_ins`` more
+    unread cells -- unless ``distinct`` says otherwise.
+    """
+    cut = sum(rows for _key, rows in forms)
+    rows = full + cut + stand_ins
+    mix = {member: full}
+    for key, count in forms:
+        mix[key] = count
+    clocked = resolution != "date"
+    if distinct is None:
+        distinct = full + len(forms) + stand_ins
+    facts = dict(
+        n_present=rows, n_missing=0, n_distinct=distinct,
+        n_distinct_folded=distinct,
+        n_numeric=numeric, n_not_numeric=rows - numeric, n_out_of_range=0,
+        n_contradictory=0,
+        format=member, resolution=resolution, time_precision=precision,
+        subsecond_digits=0, datetimes_read_at="local",
+        earliest="1970-01-01 00:00:00" if clocked else "1970-01-01",
+        latest="1970-01-12 21:45:00" if clocked else "1970-01-12",
+        earliest_utc_offset="(none)", latest_utc_offset="(none)",
+        date_percentiles={key: None for key in LADDER_KEYS},
+        n_unparsed=cut + stand_ins, utc_offsets={"(none)": full},
+        resolution_mix=mix,
+        datetime_separators={},
+        all_at_midnight=False, n_at_midnight=None,
+    )
+    column = _universal("column_1", "datetime", "datetime", "data", "ok", **facts)
+    return {"why": why, "column": column, "rows": rows, "identifier_declared": False}
+
+
+def _layout_partial_all_different():
+    return _r2c_layout(
+        "layout {YYYY}-{MM}-{DD}", "date", "date", 12,
+        [("layout {YYYY}", 11)], numeric=11, distinct=23,
+        why="G7.5's partial dates where G11 binds (the Codex review of landing "
+        "R2c, item 4): twelve days of the ramp written whole beside eleven "
+        "cells written to the year, and as many different values published "
+        "as present ones. The full ranks are held all different and each "
+        "partial cell that would repeat a held one steps to the nearest year "
+        "no cell holds, the earlier first: 1970, 1969, 1971, 1968 and on. The "
+        "mutant reads no obligation, and every partial cell is `1970`.",
+    )
+
+
+def _layout_partial_absent_month():
+    case = _r2c_layout(
+        "layout {YYYY}-{MM}-{DD}", "date", "date", 12,
+        [("layout {YYYY}-{MM}", 11)],
+        why="G7.5's partial dates beside an absent spelling (the Codex review "
+        "of landing R2c, item 3): twelve days of January 1970 written whole "
+        "beside eleven cells written to the month, and eleven absent cells "
+        "the table wrote `1970-01`, declared missing. Every partial cell "
+        "would be `1970-01`, which the column's own description reads as no "
+        "value, so each steps to the nearest month that is not, the earlier "
+        "first: `1969-12`. The mutant leaves them on the absent spelling.",
+    )
+    column = case["column"]
+    column["n_missing"] = 11
+    column["missing_by_source"] = {"1970-01": 11}
+    column["missing_by_class"] = dict(column["missing_by_class"])
+    column["missing_by_class"]["(declared-missing)"] = 11
+    case["rows"] = column["n_present"] + 11
+    return case
+
+
+def _layout_partial_figures():
+    return _r2c_layout(
+        "layout {DD}-{Mon}-{YY}", "date", "date", 12,
+        [("layout {YY}", 11)], numeric=23, stand_ins=12,
+        why="G10.3's figure stand-ins beside a partial form of figures (the "
+        "Codex review of landing R2c, item 2): twelve days of the ramp "
+        "written `01-Jan-70`, eleven cells written to the year, `70`, and "
+        "twelve more unread cells the count of numbers owes as figures. The "
+        "figures step from 1 past every spelling the layout or a partial "
+        "form of it reads, so `10` to `99`, each a year to `{YY}`, are passed "
+        "over: 1 to 9, then 100, 101 and 102. The mutant reads no partial "
+        "form there, and writes 10, 11 and 12.",
+    )
+
+
+def _layout_declared_short():
+    tails, tail_claims = _tail_fields(
+        {"boundary": "1970-01-12", "rows": 11, "mean_distance": "2", "rms_distance": "2", "values": None},
+        {"boundary": "1970-02-20", "rows": 11, "mean_distance": "2", "rms_distance": "2", "values": None},
+    )
+    rows = 46
+    ladder = {key: None for key in LADDER_KEYS}
+    ladder["p50"] = "1970-01-30"
+    column = _universal(
+        "column_1", "datetime", "datetime", "data", "ok",
+        n_present=rows, n_missing=0, n_distinct=13, n_distinct_folded=13,
+        n_numeric=0, n_not_numeric=rows, n_out_of_range=0, n_contradictory=0,
+        format="iso-date", resolution="date", time_precision="date",
+        subsecond_digits=0, datetimes_read_at="local",
+        tail_unit="day", date_percentiles=ladder,
+        n_unparsed=6, utc_offsets={"(none)": 40},
+        resolution_mix={"iso-date": 40},
+        **tails,
+    )
+    return {
+        "why": "G7.3's upper target on a column the person said holds dates "
+        "(landing R2c, question Q6; the Codex review of it, item 9): forty "
+        "dates read whole, eleven in each tail two days past its boundary "
+        "and eighteen between the boundaries, the median published, beside "
+        "six cells left unread, "
+        "more than the date rule's line of nine in ten leaves room for, so "
+        "the loader marks the column short of it; thirteen different values "
+        "are published, one of them the unread word. The pass lowers the "
+        "full ranks to twelve different days -- the count less the one "
+        "stand-in spelling -- and never raises them. The mutant drops the "
+        "mark, as the oracle's own call once did, and aims at seven, the "
+        "count less every unread cell.",
+        "column": column,
+        "rows": rows,
+        "identifier_declared": False,
+        "dates_declared": True,
+        "claims": tail_claims,
+    }
+
+
+def _layout_declared_short_at_the_line():
+    tails, tail_claims = _tail_fields(
+        {"boundary": "1970-01-12", "rows": 11, "mean_distance": "2", "rms_distance": "2", "values": None},
+        {"boundary": "1970-02-20", "rows": 11, "mean_distance": "2", "rms_distance": "2", "values": None},
+    )
+    rows = 60
+    ladder = {key: None for key in LADDER_KEYS}
+    ladder["p25"] = "1970-01-20"
+    ladder["p50"] = "1970-01-30"
+    ladder["p75"] = "1970-02-10"
+    column = _universal(
+        "column_1", "datetime", "datetime", "data", "ok",
+        n_present=rows, n_missing=0, n_distinct=13, n_distinct_folded=13,
+        n_numeric=0, n_not_numeric=rows, n_out_of_range=0, n_contradictory=0,
+        format="iso-date", resolution="date", time_precision="date",
+        subsecond_digits=0, datetimes_read_at="local",
+        tail_unit="day", date_percentiles=ladder,
+        n_unparsed=6, utc_offsets={"(none)": 54},
+        resolution_mix={"iso-date": 54},
+        **tails,
+    )
+    return {
+        "why": "G7.3's upper target on a declared column ON the date rule's "
+        "line (the verification of the Codex review's repair of landing "
+        "R2c, open item 1): sixty cells, fifty-four dates read whole and six "
+        "left unread. The line is the binary64 `0.9` the settings carry, a "
+        "shade above nine in ten, so it falls at fifty-five read cells and "
+        "six unread are one more than it leaves room for: the loader marks "
+        "the column short, and the pass lowers the full ranks to twelve "
+        "different days, the published thirteen less the one stand-in "
+        "spelling. The mutant draws the line at nine in ten exactly, where "
+        "six unread just fit, drops the mark and aims at seven.",
+        "column": column,
+        "rows": rows,
+        "identifier_declared": False,
+        "dates_declared": True,
+        "claims": tail_claims,
+    }
+
+
+def _layout_partial_fhir():
+    return _r2c_layout(
+        "layout {YYYY}-{MM}-{DD}", "date", "date", 12,
+        [("layout {YYYY}", 11), ("layout {YYYY}-{MM}", 11)],
+        numeric=11,
+        why="G7.5's partial dates (landing R2c, plan P4-D383): a FHIR `date` "
+        "column, twelve days of the ramp written whole beside eleven cells "
+        "written to the month, `1970-01`, and eleven to the year, `1970`. "
+        "Each partial cell is a full rank written short -- the k-th of the "
+        "22 takes the rank at k times 12 over 22 -- under the form furthest "
+        "behind its share, so the two forms alternate; they stand inside "
+        "`n_unparsed`, after the full ranks and before any stand-in. The "
+        "mutant withdraws them, and every partial cell becomes a made-up "
+        "text stand-in.",
+    )
+
+
+def _layout_partial_markers():
+    return _r2c_layout(
+        "layout {DD} {MON} {YYYY}", "date", "date", 14,
+        [("layout {UN} {MON} {YYYY}", 12), ("layout {UN} {UNK} {YYYY}", 11)],
+        why="G7.5's partial dates with unknown markers (landing R2c): a "
+        "Medidata export, fourteen days written `01 JAN 1970`, twelve with an "
+        "unknown day, `UN JAN 1970`, and eleven with an unknown day and "
+        "month, `UN UNK 1970`; each marker written as itself. The mutant "
+        "writes the forms one after the other rather than each where it "
+        "falls furthest behind its share.",
+    )
+
+
+def _layout_partial_hl7():
+    return _r2c_layout(
+        "layout {YYYY}{MM}{DD}{HH}{MI}{SS}", "datetime", "second", 24,
+        [("layout {YYYY}{MM}{DD}{HH}{MI}", 11)],
+        numeric=35,
+        why="G7.5's partial dates on the clock (landing R2c; the R2 design "
+        "skeptic, M2): an HL7 v2 feed writing 24 stamps to the second, "
+        "`19700101000000`, beside eleven to the minute, `197001010000`, one "
+        "family of figure runs; each minute cell is the stamp of every "
+        "other full rank with its seconds cut. The mutant takes the first ranks rather than "
+        "ranks spread over the column, so the partial cells crowd its "
+        "earliest moments.",
+    )
+
+
+def _layout_ordinal_declared():
+    case = _r2a_layout(
+        "layout {YYYY}{DDD}", "date", "date", 0, 12, {"(none)": 12}, "local",
+        numeric=12,
+        why="G7.5's ask-first layout (landing R2c, question Q6): a seven-figure "
+        "Julian date, `1970001`, the year and the day of the year in three "
+        "figures, read only because the person said the column holds dates "
+        "(`forced_date_columns`). Twelve dates of the ramp from 1970-01-01. "
+        "The mutant writes the month and day in place of the day of the "
+        "year, eight figures the column does not write.",
+    )
+    case["dates_declared"] = True
+    return case
+
+
 R2A_BRANCH_CASE_BUILDERS = {
     "layout_century_window": _layout_century_window,
     "layout_dial_hour_offset": _layout_dial_hour_offset,
@@ -29140,6 +29967,17 @@ R2A_BRANCH_CASE_BUILDERS = {
     "layout_one_figure_hour_offset": _layout_one_figure_hour_offset,
     "layout_optional_offset": _layout_optional_offset,
     "layout_oracle_timestamp": _layout_oracle_timestamp,
+    # Landing R2c (plan P4-D383): partial dates and an ask-first layout.
+    "layout_ordinal_declared": _layout_ordinal_declared,
+    "layout_partial_fhir": _layout_partial_fhir,
+    "layout_partial_hl7": _layout_partial_hl7,
+    "layout_partial_markers": _layout_partial_markers,
+    # ...and the Codex review of it (items 2, 3, 4 and 9).
+    "layout_declared_short": _layout_declared_short,
+    "layout_declared_short_at_the_line": _layout_declared_short_at_the_line,
+    "layout_partial_absent_month": _layout_partial_absent_month,
+    "layout_partial_all_different": _layout_partial_all_different,
+    "layout_partial_figures": _layout_partial_figures,
     "layout_sas_date9": _layout_sas_date9,
     "layout_space_padded_day": _layout_space_padded_day,
     "layout_spaced_hour_offset": _layout_spaced_hour_offset,
@@ -38905,7 +39743,16 @@ _TWENTY_FIFTH_BRANCH_ACCOUNT = (
     "with a space on the 12-hour dial, Oracle's TIMESTAMP with its dotted "
     "clock and marker, and JavaScript's marker after a narrow no-break "
     "space, and, from its Codex review, each of its five hour fields "
-    "beside a signed offset. They "
+    "beside a signed offset; and, from "
+    "landing R2c, partial dates -- a FHIR column written to the month and "
+    "to the year, a Medidata export's unknown markers, and an HL7 feed's "
+    "stamps cut to the minute -- each partial cell a full rank written "
+    "short, and a Julian date read under the person's declaration; and, "
+    "from its Codex review, partial years held all different where G11 "
+    "binds, partial months stepped off an absent spelling, figure "
+    "stand-ins passing over every year a partial form reads, and a "
+    "declared column's upper count target, also on the date rule's line "
+    "as the settings' binary64 `0.9` draws it. They "
     "are computed by the same oracle and the same proof layer "
     "as tests/reference/generation-reference-vectors.json, "
     "tests/reference/generation-branch-vectors.json, "
@@ -39070,6 +39917,191 @@ GIVEN_WORDS = {
         9213522701579239083, 2237586379985893855, 5409939493312163917,
         4818688549573789359, 1374560235761214722, 12784525271776797639,
         2399933901210253423, 12441549709505334164,
+    ),
+    # LANDING R2c'S PARTIAL DATES AND ASK-FIRST LAYOUT (plan P4-D383), at
+    # seeds 501 to 504.
+    "layout_partial_fhir": (
+        18380822024704857928, 11797919708178811593, 7727550627415729441,
+        10317943722155990284, 15888530597617818655, 18324729865822202900,
+        1351937573056690339, 15290186447478217998, 2806018439696684441,
+        13384600056488658498, 8479884669426085021, 15671117021955673546,
+        5778532698520374658, 7158379469740917738, 3749920839945677826,
+        10496813349879183289, 14401536797924660973, 16206967443602513318,
+        13187170080067546724, 2733833880354428748, 14888773607843962985,
+        7916156496752891862, 12887025864214105594, 16523084138597244065,
+        16884913412591514234, 6895323784423150072, 3749636634744175654,
+        7604667993042267766, 11391187168944948144, 10122385621025838619,
+        9680742252603307850, 7380764703343430266, 1504792963931255489,
+        3333302463182350968, 1302632461445439844, 17024089065444809034,
+        1466955053703505091, 12386241767145332068, 13833619713619809271,
+        18381844222760247610, 5107310812152891075, 6063486940171435495,
+        1781728479936929520,
+    ),
+    "layout_partial_markers": (
+        2575067159548560437, 6972474459821800897, 15031418171607533864,
+        8596116315103302523, 9186708196278846737, 1234659500581055861,
+        13449145032143053286, 17233213253395579703, 11222888773930642924,
+        7830675635770476398, 4876905973536617287, 8282137705711695145,
+        7170134165179981684, 2643789860449374318, 1425066133857123059,
+        14473259324571007101, 14802928709226612986, 3763821558443607299,
+        9693556802854278443, 16813875182228923576, 15984684221105268271,
+        5145054421937062417, 147654519018414561, 16772290225101046418,
+        15986823220180709283, 3722985930888006621, 11372008997870297960,
+        5871677474513552975, 3123674879989688888, 15054807183047634105,
+        14223654936939517478, 17603265174537616076, 5030973919586009480,
+        2867653792105730342, 14439855596519739096, 11509829646464680471,
+        15297053894852731335, 11722460700603148143, 76008301632846095,
+        14669445881901897450, 10768298187126572366, 13676685789554721751,
+        14858603955856093131, 17463272785748703263, 15220637805517612679,
+        16204367962293110242, 15702783750625097505, 14887112896885061914,
+    ),
+    "layout_partial_hl7": (
+        7592829519848911912, 4567695046604238773, 13011781549568349088,
+        9490558785582088595, 16624151467612538638, 2796393445194225495,
+        15219425728104854608, 6738272193223633706, 18316948909710305892,
+        11445249139633650894, 6807913721618683999, 11833792854416213822,
+        18079366409534208799, 1418851332767534783, 5863000435083649578,
+        11394691207954627536, 6991605864611128825, 16314712781844111710,
+        10941140317265926152, 10173448828010710914, 6857950989201061335,
+        6967890580076528470, 2866259837199095729, 15628228088705583013,
+        2494917030319990054, 11560787981583817543, 2968945985242887720,
+        9889622623589988170, 5801730306789031540, 15324010166888749390,
+        11114043593144734225, 18207773444740128896, 12366121270510357877,
+        12660633959088946597, 11862327159974342987, 667907265415886403,
+        1671601727265095117, 8992741300890453715, 12386657608249604306,
+        15215478062359622452, 14713694288789114094, 7201905763622817110,
+        10011926774265576329, 2324688995857234214, 15181890351525070097,
+        16890026491608339752, 9843327357202976499, 16920202985205210478,
+        4930181151552338714, 17959302454850209251, 11245080140656701239,
+        13477730888645117078, 7074425258959350594, 3230132732559454281,
+        14379678461963801634, 10978567873978262413,
+    ),
+    "layout_ordinal_declared": (
+        239227225453719322, 441982603460781010, 10953772628306499271,
+        13207625757319245687, 16689215645206259872, 17652116830551546884,
+        15990534388124213028, 17323428132498888293, 13916985530069061864,
+        16351205780719121944, 14129904191734577060, 12175605597609020520,
+        10342208710448199381, 11624629650217498867, 3389581236629595852,
+        14991417207331088513, 9508298259164827306, 10693923869598270887,
+        17629261710852928474, 8921404860925028322, 5648318112095227251,
+    ),
+    # ...AND THE CODEX REVIEW OF LANDING R2c (items 2, 3, 4 and 9), at seeds
+    # 505 to 508, and its verification's case on the line at 509.
+    "layout_partial_all_different": (
+        15687534829998396551, 12974298219080184765, 321440990617450745,
+        18432371671366723983, 14375434756672700726, 9409930922464867812,
+        1444281037899039801, 6043868105742789434, 14866975158260190844,
+        12475635351811057625, 14805999958066764676, 17981386580422175593,
+        10597319459666094842, 4289170445859635703, 5452152386041838248,
+        15621979992939734483, 9423079171132971528, 12065562401757718049,
+        6807346746785270856, 15025530282434068078, 8449143698913155991,
+        7686688428554584652, 17994207801696621655, 9032126988247061150,
+        7493649977122100672, 15096417762268027182, 9573213108223554227,
+        17526610120716437437, 17134552212552950884, 1613689417193885354,
+        14392655371808192990, 16701366709299697908,
+    ),
+    "layout_partial_absent_month": (
+        5553546424556694543, 7146464702232592880, 8472614222910672945,
+        5981684754982621498, 10174226596819515509, 9677518598780386404,
+        18323941315818901812, 4033757620102395738, 10015600678826478269,
+        8480005505009584897, 9702737418384317914, 10138711300123603877,
+        18233622141585467640, 6790911666953028722, 12236359700013133164,
+        14695922059819404593, 8643387482977392492, 11044128457388789779,
+        14123188638625097794, 17001281985891255567, 2653011180163224357,
+        7873935360608228691, 9699546504173889644, 18069018788719754797,
+        4205908153278938465, 1475056554703968906, 595391321072578740,
+        17620393772113823734, 10955929829275142694, 3449945908779340897,
+        10682130270196675072, 14525810966206279653, 15625113058949429339,
+        4847138361488239935, 8853620508847172827, 16224602773895660799,
+        11470515004973223753, 15137149504638999445, 14290062868934487694,
+        7458391365226293224, 7461147255438160413, 16503847880043950564,
+        3942080282952907257,
+    ),
+    "layout_partial_figures": (
+        4961416549749273567, 4356194271166786211, 11038452468700949672,
+        9181699595553390306, 206523755542230482, 2066316887148121284,
+        10484142334727822690, 3240173822841596359, 15268664310935590451,
+        3771376440694295705, 13912407468738688213, 17381092014974234446,
+        67518916787399149, 7508472770806787538, 1428877211679383057,
+        5821567341894583745, 496160938174537647, 11389860011347622682,
+        4819845355510333136, 4172650936993271842, 18298578948704597481,
+        14863211957108905389, 17557664543286717569, 9039889314575327548,
+        897334708537781272, 13801614777901304374, 16374018428945940741,
+        14824867078513924371, 16808792423730031244, 15170000100235828881,
+        3417905704222949000, 3410297488945874520, 7494058760021842647,
+        7793174242275548085, 1019151653184096691, 9187645553503573508,
+        9705715740070358608, 5023106215216152555, 8476378178880866384,
+        9440373232335472500, 3629472498122158586, 14007141225695753997,
+        7160101812454880970, 14427873047316832840,
+    ),
+    "layout_declared_short": (
+        15603320291073739936, 4042787282943164803, 17265563704739730082,
+        2795881687464554735, 5903988495000827551, 9802805692495724885,
+        17171910933874696584, 7754837963164901320, 7631037970608795398,
+        1425684978261737825, 6670429536377905905, 14724506970445341950,
+        5254018544549586140, 1639445041538842343, 1533385291449994095,
+        13495089585269123734, 4292444893500671488, 17204048063689759820,
+        5252158217673864052, 15075367165332281059, 534312964947345262,
+        9476637575970981610, 15905998238418112143, 14108155681877025801,
+        16938383381414397479, 11876607712005427442, 12785899408628013210,
+        15239724809116085438, 6295012457318019750, 10843319204369518351,
+        11952406766592145123, 11998497515887857710, 2503497276790705936,
+        15522819340509149457, 2234868577786907638, 14347685507705349793,
+        1702639913467132078, 6770197150195714731, 15565128252989696952,
+        8343018108413742304, 2480204468180625773, 17500534586151513396,
+        13310814672506842939, 10602660782344955675, 1077981515187676445,
+        5008337968054685483, 16240109538367400196, 4103073053499891203,
+        15277533402938553868, 5267552348282674002, 18136232375329403019,
+        7940318722992792951, 9852760548521445350, 3463017518265144045,
+        13881530132424691594, 7301966531341662307, 10251906183936538825,
+        8552374656842663182, 11922848633004758699, 2671422749792908293,
+        9884344448632978671, 9692882633060691339, 4338173695871803706,
+        12878037035100308450, 5045548246894905697, 7671078648377436985,
+        16484608933517917321, 15852514067155071821, 153966123007167833,
+        16333059280786424382, 15533461237067485489, 7092377270454413126,
+        9643425553545188742, 8397715906309699155, 9540655167867871359,
+        101512836819752361, 17803179548418910149, 18017108676538127405,
+        14486967310408463970, 17007950450292675060, 11791658848451944864,
+        2814028930679688439, 5667749131236449788,
+    ),
+    "layout_declared_short_at_the_line": (
+        6961257146149223316, 17442447891661100734, 11541653545286615824,
+        11784624891152989266, 17736330156169033569, 3142751672274540016,
+        2155989604557712643, 3908818404593684910, 3183998443655847728,
+        13840524091643631521, 8260261970093710525, 7273173847351881812,
+        11334211069074223747, 12935270808199412774, 14767645012063611557,
+        10515363715087128777, 4217112941575818777, 15463165137411556692,
+        16636683247581803133, 3052613016153351694, 16724742939755718407,
+        15130081806885615217, 5197927861880007464, 6655132057438473794,
+        2826497486766970596, 15808896209367773544, 5701325989116867928,
+        16850085571812120051, 18252394028684593477, 13454318221331237326,
+        788975922685752672, 14497911304822232076, 9207411497067874609,
+        977324044526273046, 979974978948619591, 674906671582795716,
+        2420622586682041666, 7770543754016230241, 9387965419872662315,
+        5247372153476799509, 9045389023019421154, 12182669709696174221,
+        15101507936451358263, 8738727748169959154, 9591145585066469535,
+        4445212843130324878, 6708782937021253915, 13200200704066976837,
+        17500616860397526895, 6977788917293318412, 14552548387708636005,
+        3370350942179381060, 5588193482085383272, 7243724256035019230,
+        15451538005799894130, 395752500663329559, 5928202999421708340,
+        9622134178964300834, 1913946756509309944, 12854917885654736062,
+        11137189337094397473, 18416522090595151584, 6205099658485488754,
+        7084976054201236904, 9354210577168961641, 16951830867306279074,
+        16206019233686464775, 16508474306173433158, 15774155927522163837,
+        5377192394473270265, 11178745289704916507, 614598457872063161,
+        5875526916671563601, 7907907618882149462, 352793005963923405,
+        14055927104103253420, 12247365185102428320, 9730022164855343653,
+        18121560458224632597, 3165915808291357472, 11752813403260205570,
+        4415185208555662479, 750832653139176114, 9804395687289401630,
+        12356070669892864393, 4482098184154565496, 1201406557999622202,
+        15345068317956299088, 6188195144405444011, 5893680538508326962,
+        10705081234292574565, 3513959763650493666, 9517619105542140963,
+        5494362479314627312, 2312322447882735206, 8292446544688166235,
+        13075865988359227099, 12643370106275811721, 10937744563371554432,
+        17449191856251605992, 4137298229667222342, 10003927095516802923,
+        14470889184565189292, 5336911696049023243, 17023368630998646807,
+        3444446660952091973, 2078953268586753110, 13763200788364623634,
+        15352267313325070515, 17290241874050536745, 11420716489608989430,
     ),
     # THE END FLOOR OF PLAN P4-D375, at seeds 416 and 417.
     "tail_end_least_reach": (
@@ -44878,6 +45910,9 @@ def build_case(name):
         )
     working = dict(column)
     working["_content_words"] = words[:content_words]
+    # The declared mark, a fact of the settings the loader carries beside
+    # the block (landing R2c; the Codex review of it, item 9).
+    working["_declared_short"] = declared_short_of(spec)
     working["_rungs"] = spec.get("rungs")
     # A WORKBOOK COLUMN'S CENSUS OF TRUTH VALUES (plan P4-D198), which a
     # case carries beside its column because it is a workbook fact.

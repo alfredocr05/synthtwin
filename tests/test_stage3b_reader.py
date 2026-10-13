@@ -884,7 +884,9 @@ def test_every_answer_a_column_question_offers_has_a_key() -> None:
     alone, so its answers `missing` and `real-value` need no key. AND SO IS
     QUESTION Q5 OF LANE R2a (plan P4-D383): `century_questions` puts each
     column whose years are two figures in the questions file alone, so its
-    four answers need no key either.
+    four answers need no key either. AND QUESTION Q6 OF LANE R2c (plan
+    P4-D383): `date_column_questions` puts each column mostly of dates in
+    the questions file alone, so `dates` needs no key.
     """
     from synthtwin import cli
 
@@ -892,8 +894,9 @@ def test_every_answer_a_column_question_offers_has_a_key() -> None:
     assert {"_day_first_questions", "_first_row_questions", "_delimiter_questions"} <= to_the_file
     assert callable(asking._date_code_choices)
     assert callable(asking._century_choices)
+    assert callable(asking._date_column_choices)
     offered = _offered_by_each_builder(
-        to_the_file | {"_date_code_choices", "_century_choices"}
+        to_the_file | {"_date_code_choices", "_century_choices", "_date_column_choices"}
     )
     assert "_clock_question" in offered and "_person_choices" in offered
     column_answers: "set[str]" = set()

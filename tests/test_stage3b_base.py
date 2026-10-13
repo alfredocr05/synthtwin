@@ -80,7 +80,7 @@ _RESERVED_SETTINGS: "dict[str, object]" = {
     # -- 3b.R2b (P4-D383)
     # No key of its own: the clock half reads layouts under 3b.T1's key.
     # -- 3b.R2c (P4-D383)
-    "forced_date_columns": [],
+    # Filled by its landing (question Q6): no longer reserved.
     # -- 3b.R4 (P4-D384)
 }
 
@@ -110,7 +110,7 @@ _GUARDED_SETTINGS = (
     # -- 3b.R2a (P4-D383)
     # Filled by its landing (question Q5): its rows admit a declared window.
     # -- 3b.R2c (P4-D383)
-    ("forced_date_columns", ["seen_on"]),
+    # Filled by its landing (question Q6): its row admits a column's name.
     # -- 3b.R4 (P4-D384)
 )
 

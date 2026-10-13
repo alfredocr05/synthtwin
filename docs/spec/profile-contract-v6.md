@@ -1334,7 +1334,7 @@ no other.
 
 | key | JSON type | range / permitted values | meaning |
 |---|---|---|---|
-| `forced_date_columns` | array of strings | `[]` only, in this version | RESERVED by the second key cut (plan P4-D386) for lane R2c (plan P4-D383, question Q6): the columns the person said are dates whatever else some of their cells hold, in rising order, each of them once. Empty in every description this version writes, and refused as anything else (R16) after its names are read and held to S8d |
+| `forced_date_columns` | array of strings | names of columns of this table, in rising order, each of them once; possibly empty | THE COLUMNS THE PERSON SAID HOLD DATES (landing R2c, plan P4-D383, question Q6; the key the second key cut, plan P4-D386, reserved): each column the person said holds dates whatever else some of its cells hold. Typed as `--date-column NAME`, or answered `dates` in the questions file, where Q6 is asked of a column one reading reads on half its cells or more but not the date rule's line, or that only a layout of the day of the year reads -- and not of a column of dates beside a few codes, which is question Q2's (plan P4-D381); a first look takes the readings 64 evenly spaced cells and 64 scattered ones show and counts the cells they read over the whole column, so no sample decides that a column falls below the half, and the classifier decides the rest (the Codex review of landing R2c, item 6). Q6 stands beside the column's other questions: the reading its answer proposes joins Q1's and Q5's in the same file (item 7). Enter keeps the reading the column has. A column named here is read as dates on half its present cells rather than `minimum_parse_rate`'s line, the reading that reads the most winning, a layout's named partial forms counted as read, and the cells it leaves are counted in `n_unparsed` and written in the twin as made-up stand-ins -- where they pass the date rule's line's room they are often one word (`pending`), so the twin's count of different dates is not aimed at `n_distinct` less `n_unparsed` (`datetime_counts_reachable`) but lowered, never raised, to `n_distinct` less one where its full dates hold more (`datetime_count_target`) -- unless every present value is different, where G11 binds and the count is held exactly (`all_different_reached`; the Codex review of landing R2c, item 4); and only such a column is read under a layout of the day of the year, `{YYYY}-{DDD}` or `{YYYY}{DDD}` (S8f). The validator reads a checked file under the same declaration. A name matching no column is refused (S8), and S8d still keeps a column whose dates are counts off this key |
 
 <!-- -- 3b.R4 (P4-D384) -->
 
@@ -1651,7 +1651,7 @@ on and would be recorded and ignored. `forced_decimal_commas` is not on
 the list: the numbers a count is written in may carry a decimal comma,
 and that declaration says how they are spelled, not what they are. It
 carries its own code for S8a's reason. A loader of this version holds
-it BEFORE it refuses the three reserved declarations as not empty, so
+it BEFORE it refuses the declarations still reserved as not empty, so
 the rule stands before the landing that fills `forced_date_counts`,
 which removes only that refusal.
 
@@ -5831,7 +5831,13 @@ The fields, a closed table: `YYYY` (1800 to 2299 -- a four-figure year outside t
 
 **Invariant LY5 (a layout's widths).** `date_field_widths` counts the widths of the flexible `M` and `D` fields, in the layout's own order, and is `{}` on a layout with neither; one flexible field takes the two words `padded` and `unpadded`.
 
-**Invariant LY6 (a layout's forms).** `resolution_mix` counts every parsed cell under the layout's own name, and under no other key.
+**Invariant LY6 (a layout's forms).** `resolution_mix` counts every parsed cell under the layout's own name, and under no other key -- but the layout's own PARTIAL FORMS (landing R2c, plan P4-D383): the layout cut after a field, wherever the fields it keeps stand side by side (`{YYYY}-{MM}` and `{YYYY}` of `{YYYY}-{MM}-{DD}`; HL7's 12, 10, 8, 6 and 4 figures of its 14; a clock cut to the minute), its offset set aside; or, on a layout of a date alone, its day -- or its day and its month -- written as one of the unknown markers `UN`, `UNK`, `--` and `XX` (`{UN} {MON} {YYYY}`, `{UN} {UNK} {YYYY}`). None on a layout with a weekday or a day of the year.
+
+**Partial dates** (landing R2c; the R2 design, section 4, and its review). A column no layout reads at the line is read under the layout that reads at least half its present cells whole, where that layout and its partial forms together reach the line -- the one reading the most cells winning, then the one reading the most whole, then the tie rules above -- its candidates the layouts of 64 evenly spaced cells -- and, where those name no winner, of as many cells at scattered places no period of the rows lines up with (the Codex review of landing R2c, item 5: `2023` on every fifteenth row put a year on each evenly spaced cell of 933 whole dates) -- each grown from the texts it missed into the optional-offset layouts they write, as the layout member's own are: a FHIR `date` column of `2023`, `2023-03` and `2023-03-17`, an HL7 feed of 14, 12 and 10 figures, a Medidata export writing `UN MAR 2023`. A column the layout reads at the line counts no partial form, so no column landing R2a reads moves for its forms (a date column whose unread cells owe its count of numbers writes them as figures since the landing's second skeptic, G10.3, which moves those twins on purpose). A PARTIAL CELL IS READ AT ITS OWN PRECISION AND AT NO OTHER: it is counted in `n_unparsed` and, where its form stands on at least the census line, under that form's name in `resolution_mix` -- a form on fewer cells is named nowhere and its cells are stand-ins (P4-D250's absorption), so a form below the census line does not count toward the line -- and it reaches no fact of the day, the clock or the spread, so no partial cell is read at the start of its span (read there, the 1st of the month held 44.2 % of a FHIR column against 4.1 % of its full dates). A column of years alone or of months alone, or one whose full dates are fewer than half its cells, is not read so. THE VALIDATOR HOLDS EACH NAMED FORM EXACTLY over the checked file's cells, each cell the layout does not read counted under the first form that reads it (the Codex review of landing R2c, item 1). The twin writes no partial cell in an absent spelling, and none twice where every present value is different (G7.5; items 3 and 4), and no figure stand-in a partial form reads (G10.3; item 2). Limits: a partial cell carries no offset; a flexible field of a partial cell is written in as few figures as it takes; the 12-hour dial of landing R2b has no partial form; and a column whose whole dates both looks see on no cell is still missed.
+
+**Invariant LY7 (a layout's partial forms count unread cells).** The counts `resolution_mix` gives a layout's partial forms come to at most `n_unparsed`; the layout's own count is the parsed cells (RM2) and each form is named at the census line (RM3).
+
+**Invariant S8f (a day of the year is a declaration's).** A column written in a layout of the day of the year -- `{YYYY}-{DDD}`, ISO's ordinal date, or `{YYYY}{DDD}`, the seven-figure Julian date -- stands under `settings.forced_date_columns`. Nothing in `2023076` tells it from an accession number, so no column is read so unless the person said it holds dates (question Q6), and a reader rebuilding the reading from the settings -- the validator above all -- reads an undeclared one as figures. It carries its own code for S8a's reason.
 
 **Twin and check.** The twin writes every cell whole through the layout it was read under, field by field (method G7.5), so a person's own parsing code reads the twin as it reads the source; and the validator holds a layout BY FIT (the validation method's entry table).
 
@@ -6084,7 +6090,10 @@ feasibility rule and window family for one reading — cost out of
 proportion to a fact the reader still receives. The mix is recorded and
 not reproduced, on the precedent of the `format` fact itself, and the
 twin's report names it as such per column, every run (residual
-R-P4-12).
+R-P4-12). A layout column's PARTIAL FORMS are the exception (landing
+R2c): each counts unread cells of its own, which no other fact holds, so
+each is EXACT-OBSERVABLE over the checked file's cells (the Codex review
+of that landing, item 1).
 
 **C6-25a (`datetime_separators`).** Every datetime block carries
 `datetime_separators`, a mapping from the name of the mark a parsed
@@ -12599,6 +12608,7 @@ a document, so no document can violate it.
 | S8b | every name under `settings.person_columns` is also under `settings.forced_identifiers` | yes |
 | S8c | a column whose written clock is on the ` twelve-hour` face is named under `settings.forced_twelve_hour_clocks`, and a column named there whose written clock writes no marker is on that face (C6-10a); a layout's clock is its fields, held one way: a declared layout at a 24-hour hour field is not reached (landing R2b) | yes |
 | S8d | no name under `settings.forced_date_counts` is also under `forced_date_columns`, `century_windows`, `forced_twelve_hour_clocks`, `forced_codes`, `forced_identifiers` or `forced_measurements` | yes |
+| S8f | a column written in a layout of the day of the year, `{YYYY}-{DDD}` or `{YYYY}{DDD}`, stands under `settings.forced_date_columns` (landing R2c) | yes |
 | S8e | a column read in a century window of its own -- a layout whose year field is `{YY1900}`, `{YY1930}` or `{YY1940}` -- stands under `settings.century_windows` beside that window's first year, and a column standing there that is read with a two-figure year is read in that window, by such a layout (landing R2a) | yes |
 | C6-53 | a column block's key set is exactly the twenty-two universal keys plus the marked cells of its role's column in the forbidden-key matrix; every other key is FORBIDDEN, and refused by name | yes |
 
@@ -12913,7 +12923,8 @@ it answers to.
 | LY3 | its `time_precision` is the finest its layout writes: `subsecond`, `second`, `minute` or `date`; its fraction holds at most nine figures, and every moment it publishes is one its layout reads back -- a year in its band or window, no sixtieth second | yes |
 | LY4 | its `datetime_separators` and `zulu_case` are `{}`, and `utc_offsets` names an offset only where the layout's offset field can write it -- `Z` on a zulu field alone -- `(none)` only where it has none or one some cells omit, and `(withheld)` on any layout | yes |
 | LY5 | its `date_field_widths` counts the widths of its flexible fields and is `{}` on a layout with none | yes |
-| LY6 | its `resolution_mix` counts every parsed cell under the layout's own name alone | yes |
+| LY6 | its `resolution_mix` counts every parsed cell under the layout's own name, and the cells it read only in part under that layout's own partial forms (landing R2c) | yes |
+| LY7 | the counts its partial forms carry come to at most `n_unparsed` (landing R2c) | yes |
 
 <!-- anchor 3b-R2b (P4-D383) -->
 <!-- anchor 3b-R2c (P4-D383) -->
@@ -13467,9 +13478,9 @@ form, the stand-in is written in it (7.9.1).
 | `resolution`, `time_precision`, `subsecond_digits`, `utc_offsets` | EXACT-OBSERVABLE, outside the withheld-offset corner below |
 | `datetimes_read_at` | EXACT-OBSERVABLE outside that corner — derived from the offset diversity present in the cells, so it is recomputable from the written twin and must be checked that way. A dispatch assertion cannot detect a twin that reprofiles from `utc` to `local` because one invented rare offset changed the diversity while the pooled offset map and the endpoints still matched |
 | `format` | EXACT-OBSERVABLE since the owner reversed decision 5 on 2026-09-15 (landing 2b.6) — the twin is written in the member that read the REAL column, at that member's own field order, delimiter, field widths, year length, month-name case and length, marks and marker cases, so describing the twin again names the same member. While decision 5 stood the twin was written in ISO syntax at the recorded precision, a month-first column's twin reprofiled as `iso-date`, and the field could not be reproduced at all (residual R-P2-7, now retired). ONE CORNER, and it is the same one `resolution_mix` carries: on an `iso-mixed` column NOT wholly at midnight the twin writes every value with a time of day, so its twin reads back as `iso-datetime` and the member is listed rather than checked (residual R-P4-12). A LAYOUT (landing R2a, LY1) is recounted BY FIT: a faithful twin may be described again under another layout or member that reads the same cells -- a twin of `{D}-{M}-{YYYY}` that drew no day below ten reads as `{DD}-{MM}-{YYYY}` -- so the published layout is held where it reads every cell the re-description reads, and MISSED where it does not (the validation method's entry table) |
-| `resolution_mix` | REPORT-ONLY — the twin writes every parsed cell at the column's finest recorded precision, exactly as the datetime rule writes every column, and the report names the recorded mix as not reproduced, per column, every run (residual R-P4-12); since landing 2b.3 a column whose `all_at_midnight` is `true` writes its whole-date ranks as whole dates, and the report names nothing |
+| `resolution_mix` | REPORT-ONLY — the twin writes every parsed cell at the column's finest recorded precision, exactly as the datetime rule writes every column, and the report names the recorded mix as not reproduced, per column, every run (residual R-P4-12); since landing 2b.3 a column whose `all_at_midnight` is `true` writes its whole-date ranks as whole dates, and the report names nothing; a layout column's partial forms (landing R2c) are each held exactly to their published counts over the file's cells, the mix itself still named and not reproduced (the Codex review of landing R2c, item 1) |
 | `n_unparsed` | EXACT-OBSERVABLE as counted neutral stand-ins, explicitly OUTSIDE the parsed-value representation obligation |
-| `n_distinct`, `n_distinct_folded` | APPROXIMATED — the envelope is G12.5, and it is stated there that it need not contain the published count; held to the published count itself where that count lies inside the envelope on a column method G7.3's count pass applies to (`contract.datetime_counts_reachable`), which the pass reaches (plan P4-D192) |
+| `n_distinct`, `n_distinct_folded` | APPROXIMATED — the envelope is G12.5, and it is stated there that it need not contain the published count; held to the published count itself where that count lies inside the envelope on a column method G7.3's count pass applies to (`contract.datetime_counts_reachable`), which the pass reaches (plan P4-D192), and on a partial or declared-short column G11's all-different obligation binds (`contract.datetime_count_exact`; the Codex review of landing R2c, item 4) |
 | `date_field_widths`, `month_name_styles`, `quarter_marker_case`, `zulu_case` | EXACT-OBSERVABLE IN THEIR KEY SET for the first two and EXACT for the last two (landing 2b.6, plan P4-D61, the reversal of owner decision 5; plan P4-D134). Every convention the description names must come back on at least a floor's worth of the file's own cells — on the two marker censuses at exactly its published count, since every cell they count over shows the marker — and no convention it does not name beyond the cells the named counts leave over. On the first two each convention is counted on the file's own cells as the producer folds them, and a one-field width or an `either` name is owed on a floor's worth or on every cell of that kind the file holds, whichever is fewer (plan P4-D139). On the first two the COUNTS are not compared, and that is the rule rather than a weaker reading of it: whether a cell can show a convention depends on its own value — a day above the ninth shows no field width, a month of May shows no name length — so how many of a file's cells could carry one is a fact about that file's values, and a twin whose interior instants fall a day either side of the real ones carries a different number of them. C6-25d to C6-25g state each census and D17 to D20 hold them |
 
 | `weekday_census` | EXACT-OBSERVABLE (landing 3b.1, plan P4-D355): the file's own cells between the two PUBLISHED boundaries, both included, hold every group's published count exactly; on a column of moments they are compared as instants, read as the tails read them (plan P4-D367). A MISSED line keeps its verdict and prints a group the file holds one to the line less one of as fewer than the line (plan P4-D347). The validator counts the file's body against the published groups and never produces a census of its own |
@@ -14137,8 +14148,8 @@ version 5 document reads "version 5":
 > giving it every option you gave the first time: --keep-value,
 > --missing-value, --identifier, --code, --date-count, --measurement,
 > --decimal-comma, --smallest-group, --first-row, --day-first,
-> --twelve-hour, --century, --metadata-rows, --sheet, --delimiter and
-> --answers.
+> --twelve-hour, --century, --date-column, --metadata-rows, --sheet,
+> --delimiter and --answers.
 > Every one of them changes what the description PUBLISHES about your
 > table, so any option you leave out can put something into the new
 > description that the old one held back: without the --smallest-group
@@ -14178,6 +14189,10 @@ version 5 document reads "version 5":
 > whose year is written with two figures is read as one of 1969 to
 > 2068, so a birth date of 1931 written 31 is read as 2031, which
 > changes the dates the description publishes; without the
+> --date-column you gave, a column holding dates beside values written
+> another way, or dates written as a year and a day of the year, is
+> described as text or numbers, so none of its dates is published and
+> its twin writes none; without the
 > --metadata-rows you gave, the
 > rows under your column names that describe your columns are read as
 > records of your table, so their text is counted and described as
@@ -14191,14 +14206,21 @@ version 5 document reads "version 5":
 > questions file is gone — each of them was a --code, an --identifier, a
 > --date-count,
 > a --measurement, a --decimal-comma, a --metadata-rows, a
-> --delimiter, a --twelve-hour, a --century, a --day-first, a
-> --missing-value or a
+> --delimiter, a --twelve-hour, a --century, a --date-column, a
+> --day-first, a --missing-value or a
 > --keep-value, so leaving the file out costs whichever of those you
 > had given, and this same sentence says what each one costs. If you
 > do not hold the table yourself, ask whoever made this description to
 > run it again for you. Read the summary page synthtwin writes beside
 > the new description before either file goes anywhere, and use the
 > description exactly as synthtwin writes it.
+
+**Why it names sixteen options and prices each.** `--date-column`
+joined them with landing R2c (plan P4-D383): a re-run without it reads
+a column holding dates beside values written another way, or dates
+written as a year and a day of the year, as text or numbers, so none of
+its dates is published. Question Q6 answers it in a questions file, so
+the `--answers` clause names it too.
 
 **Why it names fifteen options and prices each.** `--century` joined
 them with landing R2a (plan P4-D383): a re-run without it reads a date

@@ -340,6 +340,9 @@ CASES: "dict[str, tuple[object, ...]]" = {
     # declaration's reason, with the role synthtwin read it as.
     "century_not_supported": ("birth_date=1950",),
     "the_century_declaration_did_not_reach": ("birth_date", "free_text"),
+    # ...and `--date-column` (landing R2c, question Q6): a column fewer than
+    # half of whose values read as dates, said and not refused.
+    "the_dates_declaration_did_not_reach": ("visit_date", "free_text"),
     # Also not a refusal: an ANSWER to a question can create the pair
     # the flags refuse, and the answer is the newer statement, so the
     # comma declaration is dropped rather than the run stopped. It

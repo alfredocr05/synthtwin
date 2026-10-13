@@ -6233,9 +6233,32 @@ that way.
   instant is written one way (`contract.datetime_counts_reachable`: at
   most one offset KEY and none pooled, one mark at most and none pooled,
   each written-form census naming at most one form, no bare date beside
-  moments) and the two published counts agree: the different
+  moments, no partial form beside a layout's own count, and no column
+  the person declared dates read short of the date rule's line, whose
+  unread cells may repeat one word -- landing R2c) and the two published
+  counts agree: the different
   written units -- a day, a month or a quarter, or minutes or seconds at
   the column's precision -- must number `n_distinct` less the stand-ins.
+  Where only a partial form or the declared mark keeps a column out,
+  the pass aims at an UPPER target instead (the second skeptic of
+  landing R2c's repair, item 3): `n_distinct` less one for each named
+  partial form and one more where a stand-in is written, clamped to one
+  and the full ranks, under every other condition here; the validator
+  keeps its envelope. With none, 27 different FHIR values of 2,000 rows
+  came back as 275 to 280. It is a target the pass lowers the twin to,
+  never raises it to (that repair's verification, finding 1): where the
+  full ranks hold no more units than it, no count pass runs and no tie
+  group gives way (G7.3b step 9). Reached exactly, it raised 534
+  different FHIR values of 1,000 rows to 586. *Amended by the Codex
+  review of landing R2c (item 4).* Where G11's all-different obligation
+  binds such a column -- as many different values published as present
+  ones, no offset withheld, every other condition here
+  (`contract.all_different_reached`) -- the target is no upper one: the
+  full ranks are raised to it as well as lowered to it, every one on a
+  unit of its own, and the validator holds the count exactly
+  (`contract.datetime_count_exact`). 120 different dates beside 80
+  different years came back as 91 to 94 different values with the
+  upper target, and nothing was missed.
 
   *Amended by the dates pass of the stage-3 review (items 4).* Two
   narrowings of this clause were narrower than its own reason, and
@@ -7920,6 +7943,48 @@ A rank allocated `(none)` under an offset some cells omit
 that must write one and is handed none writes the shared clock's,
 `+00:00` in its spelling. The ranks, the tails, the precision and the
 allocation of the offsets are every member's.
+
+**THE DAY OF THE YEAR AND THE PARTIAL FORMS** (landing R2c, plan
+P4-D383). `{DDD}`, the ask-first field of a column the person said holds
+dates (contract S8f), is the day of the year in three figures, `001` to
+`366`. A column some of whose cells were read only in part publishes each
+PARTIAL FORM it wore in `resolution_mix` beside the layout's own count
+(contract LY6, LY7): the layout cut after a field -- `{YYYY}-{MM}`,
+`{YYYY}`, HL7's twelve figures under its fourteen -- or its day, or its
+day and month, written as an unknown marker (`{UN} {MON} {YYYY}`,
+`{UN} {UNK} {YYYY}`). Those cells stand inside `n_unparsed` and reach no
+other fact, so the full ranks are drawn as every member's are, and the
+partial cells are written after them and before the stand-ins, each a
+FULL RANK WRITTEN SHORT: the forms are taken in the order of their names,
+and the k-th of the n partial cells takes the full rank at k times the
+count of full ranks over n, rounded down, reads that rank's written cell
+back under the layout -- the next rank that reads where one does not --
+and writes its instant under the form furthest behind its share (its
+count times k + 1, less the cells it has taken times n), the first form
+on a tie: the fields the form keeps from the instant, a flexible field in
+as few figures as it takes, and each marker as itself. Where no full rank
+reads back there are no partial cells, and the stand-ins take every
+unread cell. No word is drawn. A form written as figures alone is a
+number, so G7.9b's debt counts only the stand-ins that are not.
+
+*Amended by the Codex review of landing R2c (items 3 and 4).* A partial
+cell that is one of the column's absent spellings -- `2024-03` declared
+missing beside published partial months -- and, where G11's
+all-different obligation binds the column (G7.3's amendment of that
+review), one the column already holds, a full rank's cell or an earlier
+partial cell, is not written there: the units of its form's precision --
+years, months, days, hours, minutes or seconds -- are walked outward from
+its own, the earlier first at each distance, inside the layout's year
+band of 1800 to 2299, and the first unit that is neither is written. So
+each form keeps its published count. Where no unit is left there are no
+partial cells, and the stand-ins take every unread cell. Measured on the
+reviewed head: the absent month came back on 74, 65 and 63 present cells
+at three seeds, and 80 different years as one, `2024`, written 80 times.
+The walk says which unit is written, not how it is found: a unit found
+taken or absent stays so for the rest of the column, so it may be
+crossed in one hop (the verification of that repair, open item 2; one
+unit at a time asked 500,359 times for 1,000 partial days of a
+20,000-row column of different HL7 stamps).
 
 A month NAME is built by `month_spelling`, the one inverse of the
 reader's own `month_of_name`, so a producer counting names and a
@@ -12700,6 +12765,22 @@ additionally against every date format the shipped `parsing.DATE_FORMATS`
 names so that a stand-in cannot accidentally parse as a date and change
 `n_unparsed`.
 
+*Amended by the second skeptic of landing R2c's repair (item 1).* The
+stand-ins the published `n_numeric` still owes -- `n_numeric` less the
+cells already written that read as a number, at most every stand-in and
+at least none -- are written first as made-up figures, `1`, `2`, …,
+stepped past every spelling used, every absent spelling and anything a
+date format reads; the rest are `text-N`. A form of figures below the
+census line (FHIR's `2023`, HL7's ten-figure runs) was written as text
+and its twin missed `n_numeric` and `n_not_numeric` at every seed.
+G7.9b's debt counts these figures among the numbers. Nothing new is
+published. *Amended by the Codex review of landing R2c (item 2).* Nor is
+a figure one the column's layout or any of its partial forms reads: a
+`DD-Mon-YY` column publishing 200 partial years `24` beside figure
+stand-ins wrote 289 cells a `{YY}` reads, `10` to `99` among its
+stand-ins. A form that writes an unknown marker reads no figure, so the
+forms that cut the layout after a field are the ones that count.
+
 ### G10.5 The `numeric_unrepresentable` role
 
 The column publishes `n_whole`, `n_fraction`, `n_whole_unknown`,
@@ -13377,7 +13458,14 @@ found a defect in itself. A column read under ONE format has no such
 line — its census restates that format's own name beside the parsed
 total, and `format` is already disclosed as recorded-not-reproduced, so
 a second line would tell a reader there were two losses where there is
-one.
+one. *Amended by the Codex review of landing R2c (item 1).* A column
+written in a layout that publishes partial forms (G7.5) has its census
+CHECKED and not listed: each form's count is a count of its own, inside
+`n_unparsed`, and the validator counts the file's cells under the
+layout's partial forms as the describing step does -- each cell the
+layout does not read under the first form that reads it -- and holds
+each published form exactly (`datetime.resolution_mix`). A file holding
+none of 200 published partial years passed with nothing missed before.
 
 **THE KEY INDEX, so that "complete" is a claim a machine can check.**
 The prose above names each deviation by the SHAPE of what happened,
@@ -14018,6 +14106,18 @@ column (G10.4). So
 ```
 F + n_unparsed   <=   n_distinct(twin)
 ```
+
+*Amended by landing R2c and its Codex review (item 8).* A partial
+form's cells repeat -- `2024` on every cell of that year -- so on a
+partial-date column each named form promises one value at least and
+every other unread cell one of its own: with `K` the forms named and
+`Q` the cells they count, the lower end is `F + n_unparsed - Q + K`
+(`contract.least_unread_values`). The twin's own report and the
+validator both draw it so; the report once counted every unread cell
+apart, and called a twin of 600 ISO dates beside 400 `2024` outside a
+range of 414 to 599 that the validator held within 15 to 599. Where
+G11's all-different obligation binds a partial or declared-short column
+the count is held exactly instead (G7.3's amendment by that review).
 
 **The upper end.** Every cell of the BODY carries an instant between
 the two published tail boundaries, written at the published precision,
@@ -15359,7 +15459,7 @@ that happens -- and the clause beside it, `--missing-value`'s "CAN be
 published as the column's smallest value", is exactly right under the
 new rule.
 
-**All one hundred and ninety-four are required.** The count is taken off the committed
+**All two hundred and three are required.** The count is taken off the committed
 case sets and not carried forward: this sentence said fifty-two and a
 split of nine, twenty, sixteen and seven while the six files held
 seventy-three, because each repair that added a case added a clause to
@@ -15401,16 +15501,21 @@ TWENTY-THIRD, `tests/reference/generation-branch-vectors-23.json`,
 holds one -- lane G2's width rule, G6.6.8 -- in the file that table
 gives lane G2; and the
 TWENTY-FIFTH, `tests/reference/generation-branch-vectors-25.json`,
-holds twenty-three -- landing R2a's layouts, the century a person chose,
+holds thirty-two -- landing R2a's layouts, the century a person chose,
 from its repair round a day padded with a space and the offsets a
 column of figure runs owes its class count, beside repeated texts too,
 from its second skeptic those offsets beside a named one, from its
 Codex review the rest of them paid with whole repeated texts, and from
 that repair's verification those texts placed over two offsets toward
-one aim, and landing R2b's clock half -- SQL Server's style 100, Oracle's
+one aim; landing R2b's clock half -- SQL Server's style 100, Oracle's
 TIMESTAMP and JavaScript's narrow space before its marker, and from
-its Codex review each of its five hour fields beside a signed offset
-(plan P4-D383) --
+its Codex review each of its five hour fields beside a signed offset;
+and landing R2c's partial dates and a Julian date read under the
+person's declaration, and from its Codex review partial years held all
+different, partial months stepped off an absent spelling, figure
+stand-ins past the years a partial form reads and a declared column's
+upper target, and from that repair's verification the same target on
+the date rule's line (plan P4-D383) --
 and a test holds this sentence to those files. The tenth grew by the
 two cases the GOVERNANCE PASS of stage 3's review added and the
 eleventh by the two the dates pass added; each number here is read off
@@ -15579,6 +15684,15 @@ case passed, which is the failure the count exists to prevent:
 | `layout_offsets_owed_whole_texts` | G7.9b step 5, the rest owed paid with whole repeated texts (the Codex review of landing R2a, item 4): twenty-four HL7 stamps over eight different values whose census counted seven offsets into `(none)`. Two texts stand alone between the ends and take two offsets at `+0000`; every other text repeats, so the other five are paid with a text of five ranks written again whole, every rank at `+0000`, and the column keeps its eight values. Its mutant withdraws the step, and the twin holds two cells that are not numbers for seven |
 | `layout_offsets_owed_across_offsets` | G7.9b step 5's aim and its look ahead at each offset (the verification of the Codex review's repair of landing R2a, open item 1): twenty-four HL7 stamps over eight different values whose census counted eleven offsets into `(none)`. Step 4 writes the two texts standing alone between the ends at `+0000`, which leaves room for eight more there; every other text repeats, so the other nine are written on whole texts, and step 5 aims at nine: a text of five copies at `+0000` and one of four at `+0100`, since taking the most `+0000` holds, two texts of four, would leave one cell owed that no text fits. Its mutant takes at each offset the most it holds, and the twin holds ten cells that are not numbers for eleven |
 | `layout_space_padded_day` | G7.5's space-padded day `{_D}` (landing R2a's repair round, item 6): SQL Server's `Mon dd yyyy` style, twelve dates of January 1970 written `Jan  1 1970` to `Jan 12 1970`, a day below ten written after a space in place of its first figure. Its mutant writes the day zero-padded, `Jan 01 1970` |
+| `layout_partial_fhir` | G7.5's partial forms (landing R2c, plan P4-D383): a FHIR `date` column, twelve days of the ramp written whole beside eleven cells published under `{YYYY}-{MM}` and eleven under `{YYYY}`, all twenty-two inside `n_unparsed`. Each is a full rank written short, the k-th taking the rank at k times twelve over twenty-two, and the two forms alternate. Its mutant withdraws them, and every partial cell is a made-up text stand-in |
+| `layout_partial_markers` | G7.5's unknown markers (landing R2c): a Medidata export, fourteen days written `01 JAN 1970`, twelve under `{UN} {MON} {YYYY}` and eleven under `{UN} {UNK} {YYYY}`, each marker written as itself and each form placed where it falls furthest behind its share. Its mutant writes the forms one after the other |
+| `layout_partial_hl7` | G7.5's cut on the clock (landing R2c; the R2 design skeptic, M2): an HL7 feed of twenty-four stamps to the second beside eleven to the minute, one family of figure runs, every cell a number; the minute cells take every other full rank's stamp with its seconds cut. Its mutant takes the first ranks, and the minute cells crowd the column's earliest moments |
+| `layout_ordinal_declared` | G7.5's day of the year (landing R2c, question Q6): a seven-figure Julian date, `1970001`, read only because the person said the column holds dates (contract S8f). Its mutant writes the month and day in place of the day of the year |
+| `layout_partial_all_different` | G7.5's partial cells where G11 binds (the Codex review of landing R2c, item 4): twelve days of the ramp written whole beside eleven cells written to the year, as many different values published as present ones, so the full ranks are held all different and each partial year that would repeat a held one steps to the nearest year no cell holds, the earlier first. Its mutant reads no obligation, and every partial cell is `1970`. |
+| `layout_partial_absent_month` | G7.5's partial cell stepped off an absent spelling (the Codex review of landing R2c, item 3): twelve days of January 1970 beside eleven cells written to the month and eleven absent cells written `1970-01`, declared missing; each partial month steps to `1969-12`. Its mutant writes the absent spelling as a present cell. |
+| `layout_partial_figures` | G10.3's figure stand-ins past every spelling a partial form reads (the Codex review of landing R2c, item 2): a `DD-Mon-YY` column with eleven partial years `70` and twelve figures owed, written 1 to 9, then 100 to 102, since `10` to `99` are years to `{YY}`. Its mutant writes 10, 11 and 12. |
+| `layout_declared_short` | G7.3's upper target on a declared column short of the date rule's line (landing R2c, question Q6; the Codex review of it, item 9): forty dates, eleven in each tail, beside six unread cells, thirteen different values published; the pass lowers the full ranks to twelve different days and never raises them. Its mutant drops the declared mark and aims at seven, the count less every unread cell. |
+| `layout_declared_short_at_the_line` | G7.3's declared mark on the date rule's line (the verification of the Codex review's repair of landing R2c, open item 1): sixty cells, fifty-four dates read whole beside six unread, thirteen different values published. The line is the binary64 `0.9` the settings carry, a shade above nine in ten, as the loader reads it exactly: it falls at fifty-five read cells, six unread are one past its room, the column is marked short and the pass lowers the full ranks to twelve different days. Its mutant draws the line at nine in ten, where six unread just fit, and aims at seven. |
 | `layout_century_window` | G7.3e's window a person chose (landing R2a, question Q5): twenty-four `mm/dd/yy` birth dates of January 1940 read under `{YY1930}`, a tail at either end, the days a tail may reach bounded by 1930 to 2029. Its mutant reads every two-figure year in the POSIX window, 1969 to 2068, and the column's own days fall outside what its spelling writes back |
 | `layout_style_100` | G7.5's clock half (landing R2b, plan P4-D383): SQL Server's CONVERT style 100, `Jan  6 1970  4:37AM`, twelve moments of the ramp from midnight, the day and the hour on the 12-hour dial each padded with a space below ten and the marker straight after the minutes; midnight is `12:00AM`, the top of the dial. Its mutant pads the hour with a nought, `04:37AM` |
 | `layout_oracle_timestamp` | G7.5's dotted clock on the 12-hour dial (landing R2b): Oracle's TIMESTAMP default, `08-JAN-70 09.59.29.000000 PM`, two figures of hour on the dial, six of fraction as zeros, the marker after one space. Its mutant writes the 24-hour clock's hour beside the marker, `21.59.29.000000 PM` |

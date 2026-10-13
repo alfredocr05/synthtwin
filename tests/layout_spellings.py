@@ -264,6 +264,67 @@ SPELLINGS = {
     ),
 }
 
+# -- 3b.R2c (P4-D383) ---------------------------------------------------
+# THE PARTIAL DATES AND THE DAYS OF THE YEAR landing R2c reads: four
+# columns some of whose cells stop short of the layout -- each cell's
+# precision drawn from its seeded moment's microsecond, so the shares are
+# fixed -- and two written as a year and its day of the year, read only
+# under `--date-column` (question Q6). Their strptime formats are given as
+# alternatives, `|` between them, one for each precision a cell may have.
+_UPPER = tuple(word.upper() for word in _MON)
+
+
+def _cut(moment: datetime.datetime, whole: str, *shorter: str) -> str:
+    """One cell of a partial column: whole on 58 in 100, then each shorter form in turn."""
+    share = moment.microsecond % 100
+    if share < 58 or not shorter:
+        return moment.strftime(whole)
+    if share < 85 or len(shorter) == 1:
+        return moment.strftime(shorter[0])
+    return moment.strftime(shorter[1])
+
+
+def _medidata(moment: datetime.datetime) -> str:
+    """`17 MAR 2023`, `UN MAR 2023` on 7 in 100, `UN UNK 2023` on 4 in 100."""
+    share = moment.microsecond % 100
+    month = _UPPER[moment.month - 1]
+    if share < 89:
+        return f"{moment.day:02d} {month} {moment.year}"
+    if share < 96:
+        return f"UN {month} {moment.year}"
+    return f"UN UNK {moment.year}"
+
+
+PARTIAL_SPELLINGS = {
+    "fhir_partial": (
+        lambda m: _cut(m, "%Y-%m-%d", "%Y-%m", "%Y"),
+        _Y4 + "(?:-" + _MM + "(?:-" + _DD + ")?)?", "%Y-%m-%d|%Y-%m|%Y",
+    ),
+    "medidata_unknown": (
+        _medidata,
+        "(?:" + _DD + "|UN) (?:" + _words(_UPPER) + "|UNK) " + _Y4, None,
+    ),
+    "hl7_mixed_precision": (
+        lambda m: _cut(m, "%Y%m%d%H%M%S", "%Y%m%d%H%M", "%Y%m%d%H"),
+        _Y4 + _MM + _DD + r"(?:[01]\d|2[0-3])(?:[0-5]\d(?:[0-5]\d)?)?",
+        "%Y%m%d%H%M%S|%Y%m%d%H%M|%Y%m%d%H",
+    ),
+    "oracle_seconds_some_omit": (
+        lambda m: f"{m.day:02d}-{_UPPER[m.month - 1]}-{m.year} "
+        + m.strftime("%H:%M:%S" if m.microsecond % 100 < 80 else "%H:%M"),
+        _DD + "-" + _words(_UPPER) + "-" + _Y4 + " " + _T + "(?::[0-5]\\d)?", None,
+    ),
+}
+DECLARED_SPELLINGS = {
+    "iso_ordinal": (lambda m: m.strftime("%Y-%j"), _Y4 + r"-\d{3}", "%Y-%j"),
+    "julian_seven": (lambda m: m.strftime("%Y%j"), _Y4 + r"\d{3}", "%Y%j"),
+}
+EVERY_SPELLING = dict(SPELLINGS)
+for _name in PARTIAL_SPELLINGS:
+    EVERY_SPELLING[_name] = PARTIAL_SPELLINGS[_name]
+for _name in DECLARED_SPELLINGS:
+    EVERY_SPELLING[_name] = DECLARED_SPELLINGS[_name]
+
 # THE SPELLINGS WHOSE YEAR IS TWO FIGURES, which question Q5 asks about.
 TWO_FIGURE_YEARS = (
     "excel_d_mmm_yy", "oracle_dd_mon_rr", "sas_datetime16",
@@ -280,26 +341,32 @@ CLOCK_HALF = (
 
 def cells(name: str, rows: int = ROWS, seed: int = 50003) -> "list[str]":
     """The cells of one named spelling."""
-    writer = SPELLINGS[name][0]
+    writer = EVERY_SPELLING[name][0]
     return [writer(moment) for moment in moments(rows, seed)]
 
 
 def written_as_the_source(name: str, cell: str) -> bool:
     """Whether one cell is written exactly in the source's own spelling."""
-    return re.fullmatch(SPELLINGS[name][1], cell) is not None
+    return re.fullmatch(EVERY_SPELLING[name][1], cell) is not None
 
 
 def format_of(name: str) -> "str | None":
     """The `strptime` format a person's own code would read the shape with."""
-    return SPELLINGS[name][2]
+    return EVERY_SPELLING[name][2]
 
 
 def parses(cell: str, fmt: "str | None") -> bool:
-    """Whether a person's own `strptime` reads one cell (True where it has no directive)."""
+    """Whether a person's own `strptime` reads one cell (True where it has no directive).
+
+    A format of alternatives, `|` between them (landing R2c's partial
+    dates), reads a cell where any one of them does.
+    """
     if fmt is None:
         return True
-    try:
-        datetime.datetime.strptime(cell, fmt)
-    except ValueError:
-        return False
-    return True
+    for one in fmt.split("|"):
+        try:
+            datetime.datetime.strptime(cell, one)
+        except ValueError:
+            continue
+        return True
+    return False

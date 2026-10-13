@@ -1892,10 +1892,20 @@ INVARIANTS = {
     ),
     "LY6": (
         "a column written in a layout counts its values by form under the "
-        "layout's own name"
+        "layout's own name, and the cells it reads only in part under "
+        "that layout's own partial forms"
     ),
     # anchor 3b-R2b (P4-D383)
     # anchor 3b-R2c (P4-D383)
+    # Landing R2c (plan P4-D383): partial dates and the ask-first layouts.
+    "LY7": (
+        "the cells a column written in a layout counts under its partial "
+        "forms are among the cells it left unread"
+    ),
+    "S8f": (
+        "a column is written in a layout of the day of the year exactly "
+        "where the block of rules names it as a column of dates"
+    ),
     # anchor 3b-R4 (P4-D384)
     # NUMBERS THAT ARE DATES (landing R4, plan P4-D384): a column declared
     # to write its dates as counts, and the form of its counts.
@@ -2919,6 +2929,14 @@ class DatetimeFacts:
     # (plan P4-D384): how a column whose dates are written as counts spells
     # them, and `None` on every other column.
     count_form: "date_counts.CountForm | None" = None
+    # -- 3b.R2c (P4-D383): NO KEY OF THE BLOCK, carried by the loader from
+    # the settings beside it. True where the person said the column holds
+    # dates (`forced_date_columns`, question Q6) and more of its cells were
+    # left unread than the date rule's line leaves room for: those cells
+    # stand as the source wrote them and may repeat one word, so the count
+    # of different dates is not `n_distinct` less `n_unparsed`
+    # (`datetime_counts_reachable`).
+    declared_short_of_the_line: bool = False
 
 
 @dataclasses.dataclass(frozen=True)
@@ -3629,6 +3647,9 @@ class _Frame:
     # its form, and CC5 asks for room beside them (the round-2 fix of
     # landing 3b.5, method G7A.4b).
     table_holes: "tuple[str, ...]" = ()
+    # -- 3b.R2c (P4-D383): the columns the person said hold dates
+    # (`forced_date_columns`), whose blocks `_declared_short` marks.
+    declared_dates: "tuple[str, ...]" = ()
 
 
 def _category_ceiling(frame: _Frame) -> int:
@@ -6465,15 +6486,8 @@ def _settings(value: object) -> SettingsBlock:
         centuries += [(name, first_year)]
         place = place + 1
     # -- 3b.R2c (P4-D383)
-    if date_columns:
-        raise _out_of_range(
-            "forced_date_columns",
-            where,
-            "a list that is not empty",
-            "an empty list: this version of synthtwin takes no such "
-            "declaration, so a description holding one was written by a "
-            "newer synthtwin",
-        )
+    # Filled by its landing (question Q6): S8 holds each name to a column
+    # of the table and S8f the ask-first layouts to the declaration.
     # -- 3b.R4 (P4-D384)
     # THE SYSTEM IS ONE OF THE TWELVE (`date_counts.MEMBERS`), and the
     # names stand in rising order, as every declaration of names does.
@@ -6595,6 +6609,36 @@ def _settings(value: object) -> SettingsBlock:
         block.kept_values, block.declared_missing_values, where
     )
     return block
+
+
+def _ask_first_declared(
+    columns: "tuple[ColumnBlock, ...]", settings: SettingsBlock
+) -> None:
+    """S8f: a column read under an ask-first layout was declared dates (landing R2c).
+
+    Nothing in `2023076` tells a Julian date from an accession number, so
+    no column is read under a layout of the day of the year unless the
+    person said it holds dates (question Q6), and everything that rebuilds
+    the reading from the settings -- the validator above all -- reads it
+    only under that declaration: a description publishing such a layout
+    without it would have its unchanged source read as numbers.
+    """
+    for column in columns:
+        facts = column.facts
+        if not isinstance(facts, (DatetimeFacts,)):
+            continue
+        if not parsing.is_layout_name(facts.parser_family):
+            continue
+        if not parsing.layout_asks_first(facts.parser_family):
+            continue
+        if column.name not in settings.forced_date_columns:
+            raise _broken(
+                "S8f",
+                f"in the block for the column named '{column.name}'",
+                f"the column is written as '{facts.parser_family}'",
+                "the block of rules that produced the description does not "
+                "name it as a column of dates",
+            )
 
 
 def _centuries_declared(
@@ -7859,7 +7903,7 @@ def _facts(
         )
         return tail
     if role == ROLE_DATETIME:
-        return _datetime_facts(
+        dated = _datetime_facts(
             mapping,
             where,
             frame.floor,
@@ -7872,6 +7916,8 @@ def _facts(
             ),
             _absent_spellings(mapping, frame.declared_days),
         )
+        # -- 3b.R2c (P4-D383)
+        return _declared_short(dated, mapping, frame, n_present)
     if role == ROLE_COUNT or role == ROLE_CONTINUOUS:
         numeric = _numeric_facts(
             mapping,
@@ -8750,6 +8796,7 @@ def _resolution_mix(
     parser_family: str,
     parsed: int,
     floor: int,
+    unread: int = 0,
 ) -> "dict[str, int]":
     """How many parsed cells wore each form (contract C6-25).
 
@@ -8778,9 +8825,14 @@ def _resolution_mix(
     wanted: "tuple[str, ...]" = ISO_MEMBERS
     if parser_family != FORMAT_ISO_MIXED:
         wanted = (parser_family,)
+    # -- 3b.R2c (P4-D383): A PARTIAL-DATE COLUMN (LY6, LY7): the layout's
+    # own count is the cells read, and each partial form counts cells
+    # among those left unread.
+    if parsing.is_layout_name(parser_family) and parser_family in mix and len(mix) > 1:
+        return _partial_mix(mix, where, parser_family, parsed, floor, unread)
     if parsing.is_layout_name(parser_family) and sorted(mix) != sorted(wanted):
-        # LY6 (landing R2a): one key, the layout's own name; the leading
-        # truncations of a partial-date column are landing R2c's.
+        # LY6 (landing R2a): one key, the layout's own name, or its
+        # partial forms beside it (landing R2c).
         raise _broken(
             "LY6",
             where,
@@ -8830,6 +8882,89 @@ def _resolution_mix(
                 f"{parsing.census_floor(floor)} of them",
             )
     return mix
+
+
+def _partial_mix(
+    mix: "dict[str, int]",
+    where: str,
+    parser_family: str,
+    parsed: int,
+    floor: int,
+    unread: int,
+) -> "dict[str, int]":
+    """A partial-date column's census of forms (landing R2c; rules LY6, LY7, RM2, RM3).
+
+    THE LAYOUT AND ITS PARTIAL FORMS AND NOTHING ELSE (LY6): every key
+    beside the layout's own name is one of `parsing.layout_truncations`
+    for it. THE LAYOUT'S OWN COUNT IS THE CELLS READ (RM2), and THE
+    PARTIAL FORMS COUNT CELLS LEFT UNREAD (LY7): a partial cell is read at
+    its own precision and at no other, so it stands inside `n_unparsed`
+    and reaches no fact of the day, the clock or the spread (the R2
+    design skeptic, M5). EACH FORM NAMED AT THE LINE (RM3): the producer
+    leaves a form on fewer cells among the stand-ins.
+    """
+    allowed = parsing.layout_truncations(parser_family)
+    for key in sorted(mix):
+        if key != parser_family and key not in allowed:
+            raise _broken(
+                "LY6",
+                where,
+                f"the forms it counts are {_listed(tuple(sorted(mix)))}",
+                f"a column written as '{parser_family}' counts its values "
+                f"under that name and its own partial forms alone",
+            )
+    if mix[parser_family] != parsed:
+        raise _broken(
+            "RM2",
+            where,
+            f"the values counted under '{parser_family}' come to "
+            f"{mix[parser_family]}",
+            f"{parsed} of the column's values were read as dates",
+        )
+    cut = _added(mix) - mix[parser_family]
+    if cut > unread:
+        raise _broken(
+            "LY7",
+            where,
+            f"its partial forms count {cut} values",
+            f"{unread} of the column's values were left unread",
+        )
+    for key in sorted(mix):
+        if 0 < mix[key] < parsing.census_floor(floor):
+            raise _broken(
+                "RM3",
+                where,
+                f"the form '{key}' was written by {mix[key]} of the "
+                f"column's values",
+                f"a published count names at least "
+                f"{parsing.census_floor(floor)} of them",
+            )
+    return mix
+
+
+def _declared_short(
+    facts: DatetimeFacts,
+    mapping: "dict[str, object]",
+    frame: _Frame,
+    n_present: int,
+) -> DatetimeFacts:
+    """A declared column's facts, marked where it was read short of the date rule's line (landing R2c).
+
+    `--date-column` reads a column at half its present cells, and the
+    cells it leaves unread are often one word (`pending`, `not done`)
+    repeated: `n_distinct` counts that word once, so `n_distinct` less
+    `n_unparsed` is not the count of different dates, and method G7.3's
+    count pass, aiming at it, squeezed 138 different dates of a 240-row
+    column into 43 (the R2c repair, item 2). The line is the producer's
+    own (`_line_count` of `minimum_parse_rate`), and only a declared
+    column is marked, so no column read without the declaration moves.
+    """
+    named = mapping["name"] if "name" in mapping else None
+    if not isinstance(named, str) or named not in frame.declared_dates:
+        return facts
+    if facts.n_unparsed <= n_present - _line_count(frame.parse_rate, n_present):
+        return facts
+    return dataclasses.replace(facts, declared_short_of_the_line=True)
 
 
 def _datetime_facts(
@@ -9012,6 +9147,8 @@ def _datetime_facts(
         parser_family,
         n_present - unparsed,
         floor,
+        # -- 3b.R2c (P4-D383): what its partial forms may count.
+        unparsed,
     )
     offsets = _counts(mapping["utc_offsets"], "utc_offsets", where, 1)
     named = 0
@@ -10172,6 +10309,149 @@ def datetime_counts_reachable(column: "ColumnBlock") -> bool:
     facts = column.facts
     if not isinstance(facts, (DatetimeFacts,)):
         return False
+    if short_of_the_count(facts):
+        return False
+    return _count_pass_open(column, facts, column.n_distinct - facts.n_unparsed)
+
+
+def short_of_the_count(facts: "DatetimeFacts") -> bool:
+    """A partial-date column, or a declared one short of the line (landing R2c).
+
+    -- 3b.R2c (P4-D383): a partial-date column's partial cells repeat, and
+    so may a declared column's unread cells, so the count less the unread
+    cells is no count of different dates. Public since the R2c leftover
+    verify: `generation._units_settled` asks it to keep the target upper.
+
+    Guarantees: accepts a column's datetime facts; returns a bool; a
+    function of the facts. Raises nothing. No I/O of any kind.
+    """
+    if len(facts.resolution_mix) > 1 and parsing.is_layout_name(facts.parser_family):
+        return True
+    return facts.declared_short_of_the_line
+
+
+def datetime_count_target(column: "ColumnBlock", parsed: int) -> int:
+    """The count of different units method G7.3's pass reaches for, or -1 for none.
+
+    EXACT where `datetime_counts_reachable` holds: `n_distinct` less
+    `n_unparsed`. -- 3b.R2c (P4-D383; skeptic 2 of the R2c repair, item
+    3): AN UPPER TARGET where only a partial form or the declared mark
+    keeps the count out of reach. With no target at all the pass never
+    ran and the twin spread its ranks over the whole range: 2,000 FHIR
+    cells of 27 different values came back as 275 to 280, and 2,000
+    declared cells of 12 dates beside `pending` as 262 to 267 dates. The
+    target is `n_distinct` less one for each named partial form and one
+    more where any cell is left a stand-in -- each holds one spelling at
+    least -- clamped to one and the ``parsed`` full ranks, under every
+    other condition of the pass. It is a target the pass lowers the twin
+    to, never raises it to (the R2c leftover verify, finding 1:
+    `generation._units_settled` runs no pass where the full ranks hold
+    no more units than it). The validator keeps its envelope here: the
+    published count is not the full ranks' own.
+
+    Guarantees: accepts a loaded column block and its count of full
+    ranks; returns -1 for any column not of dates. Raises nothing. No
+    I/O of any kind.
+    """
+    facts = column.facts
+    if not isinstance(facts, (DatetimeFacts,)):
+        return -1
+    if not short_of_the_count(facts):
+        # Asked through the one statement of reach, so a mutant of it
+        # reaches the pass (tests/test_stage3_review_dates.py).
+        if not datetime_counts_reachable(column):
+            return -1
+        return column.n_distinct - facts.n_unparsed
+    forms = 0
+    partial = 0
+    if parsing.is_layout_name(facts.parser_family):
+        for key in facts.resolution_mix:
+            if key != facts.parser_family and facts.resolution_mix[key] > 0:
+                forms = forms + 1
+                partial = partial + facts.resolution_mix[key]
+    target = column.n_distinct - forms - (1 if facts.n_unparsed > partial else 0)
+    target = max(1, min(target, parsed))
+    return target if _count_pass_open(column, facts, target) else -1
+
+
+def all_different_reached(column: "ColumnBlock") -> bool:
+    """Whether G11's all-different obligation binds a partial or declared-short column (landing R2c).
+
+    THE CODEX REVIEW OF LANDING R2c, ITEM 4. `short_of_the_count` takes
+    such a column off the exact count, since its partial cells repeat and
+    so may its unread ones -- but a column publishing as many different
+    values as present ones repeats nothing, and G11 names no exception
+    for it. Measured on f4623cc: 120 different ISO dates beside 80
+    different years publish 200 of 200, and the twins held 93, 94 and 91
+    with every partial year `2024` and nothing missed. Here the count
+    pass holds the full ranks all different (`generation._units_settled`
+    raises to them as well as lowering), each partial cell steps to a
+    unit no cell holds (method G7.5), and the validator holds the count
+    exactly (`datetime_count_exact`).
+
+    Guarantees: accepts a loaded column block; returns False for every
+    column not of dates and for every column `short_of_the_count` does
+    not mark. A function of the block. Raises nothing. No I/O of any kind.
+    """
+    facts = column.facts
+    if not isinstance(facts, (DatetimeFacts,)) or not short_of_the_count(facts):
+        return False
+    if not all_different_binds(column, column.n_distinct):
+        return False
+    return _count_pass_open(column, facts, column.n_present - facts.n_unparsed)
+
+
+def datetime_count_exact(column: "ColumnBlock", published: int) -> bool:
+    """Whether a column of dates owes one published count of different values exactly (landing R2c).
+
+    Where G7.3's pass reaches the count (`datetime_counts_reachable`), and
+    where G11's all-different obligation binds a partial or declared-short
+    column (`all_different_reached`; the Codex review of landing R2c, item
+    4). The generation's own account and the validator both ask this, so
+    the two say one thing of the same twin (item 8).
+
+    Guarantees: a function of the block and the count. Raises nothing. No
+    I/O of any kind.
+    """
+    if datetime_counts_reachable(column):
+        return True
+    return all_different_reached(column) and all_different_binds(column, published)
+
+
+def least_unread_values(facts: "DatetimeFacts", unread: int) -> int:
+    """The fewest different values ``unread`` cells a date column left unread can hold (G12.5, landing R2c).
+
+    THE ONE METHOD RULE FOR BOTH ACCOUNTS (the Codex review of landing
+    R2c, item 8). A named partial form's cells repeat -- `2024` on every
+    cell of that year -- so each form promises one value at least, and
+    every other unread cell is a stand-in spelled apart from every other.
+    Before this, only the validator counted a form once: 600 ISO dates
+    beside 400 `2024` were promised 15 to 599 different values by the
+    validator and 414 to 599 by the twin's own report, which then called
+    a twin of 175 outside a range the validator held it within.
+
+    Guarantees: accepts a column's datetime facts and a count of unread
+    cells; returns a whole number from 0 to ``unread``. Raises nothing.
+    No I/O of any kind.
+    """
+    partial = 0
+    forms = 0
+    if parsing.is_layout_name(facts.parser_family):
+        for key in facts.resolution_mix:
+            if key != facts.parser_family and facts.resolution_mix[key] > 0:
+                partial = partial + facts.resolution_mix[key]
+                forms = forms + 1
+    if unread < 1:
+        return 0
+    return max(unread - partial, 0) + min(forms, unread)
+
+
+def _count_pass_open(column: "ColumnBlock", facts: "DatetimeFacts", wanted: int) -> bool:
+    """Every condition of G7.3's count pass but the partial and declared ones (landing R2c).
+
+    ``wanted`` is the count of different units the pass reaches for,
+    held against what the tails leave it below.
+    """
     if facts.datetimes_read_at != "local":
         return False
     if facts.resolution not in RESOLUTIONS:
@@ -10214,7 +10494,7 @@ def datetime_counts_reachable(column: "ColumnBlock") -> bool:
         reach = reach + (
             len(high.values) if high.values is not None else high.rows
         )
-        if column.n_distinct - facts.n_unparsed > reach:
+        if wanted > reach:
             return False
     return True
 
@@ -19005,6 +19285,16 @@ def _cross_checks(
                 "this table has no column of that name",
             )
     _centuries_declared(columns, settings)
+    # -- 3b.R2c (P4-D383)
+    for name in settings.forced_date_columns:
+        if name not in places:
+            raise _broken(
+                "S8",
+                "in the block of rules that produced the description",
+                f"'{name}' is named as a column of dates",
+                "this table has no column of that name",
+            )
+    _ask_first_declared(columns, settings)
     # S8c (the T1 review's item 7): THE 12-HOUR FACE WITH NO MARKER IS A
     # DECLARATION'S, and nothing else's (C6-10a). No cell says which clock
     # wrote `12:15`, so a description publishing that face without the
@@ -19437,6 +19727,7 @@ def _validated(document: "dict[str, object]") -> Profile:
             category_ceiling=settings.categorical_ceiling,
             category_floor=settings.categorical_floor,
             declared_days=settings.declared_missing_values.built_in_dates,
+            declared_dates=settings.forced_date_columns,
         ),
     )
     _cross_checks(columns, settings, notes)

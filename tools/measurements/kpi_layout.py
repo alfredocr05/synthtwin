@@ -32,6 +32,16 @@ generator and checker:
   in turn, so a moment of load on the machine falls on one run rather
   than on the ratio -- and the ratio is judged on any machine.
 
+AND LANDING R2c'S SIX (plan P4-D383): four columns of partial dates --
+FHIR's `2023`, `2023-03` and `2023-03-17`, a Medidata export's `UN MAR
+2023` and `UN UNK 2023`, an HL7 feed's 14, 12 and 10 figures, and an
+Oracle export some of whose stamps stop at the minute -- read when every
+cell reads at some precision (`n_unparsed` is the count the partial forms
+name), and two written as a year and its day of the year, described under
+`--date-column` (question Q6). A twin rewritten in ISO is asked to be
+missed only where the rewrite moves a cell: a FHIR column's full dates are
+ISO's own spelling.
+
 Before R2a (9cb2eb5, base 2, the thirty-nine spellings of the date half
 at 1,000 rows and seed 0 through the base tree's own CLI): none read --
 thirty-six were free text, two counts and one an affixed number -- their
@@ -105,29 +115,35 @@ def _in_iso(cell: str, items: "tuple[tuple[str, str], ...]") -> str:
 def measure(home: pathlib.Path) -> "tuple[dict[str, int], list[str]]":
     """Every spelling at every size and seed; the totals and what failed."""
     totals = {
-        "spellings": len(spellings.SPELLINGS),
+        "spellings": len(spellings.EVERY_SPELLING),
         "read": 0,
         "twin_cells_unwritten": 0,
         "missed": 0,
         "iso_rewrites_held": 0,
     }
     notes: "list[str]" = []
-    read_everywhere = {name: True for name in spellings.SPELLINGS}
+    read_everywhere = {name: True for name in spellings.EVERY_SPELLING}
     for rows, seeds in RUNS:
-        for name in sorted(spellings.SPELLINGS):
+        for name in sorted(spellings.EVERY_SPELLING):
             folder = home / f"{name}-{rows}"
             folder.mkdir()
             table = folder / "real.csv"
             names, built = fixtures.rows_at_the_floor("seen_at", spellings.cells(name, rows))
             table.write_text(fixtures.rows_to_csv(names, built), encoding="utf-8", newline="\n")
-            if _quiet(["profile", str(table), "--out-dir", str(folder), "--replace"]) != 0:
+            # -- 3b.R2c: a day of the year is read only where declared (Q6).
+            declared = ["--date-column", "seen_at"] if name in spellings.DECLARED_SPELLINGS else []
+            if _quiet(["profile", str(table), "--out-dir", str(folder), "--replace"] + declared) != 0:
                 read_everywhere[name] = False
                 notes += [f"{name} at {rows}: not described"]
                 continue
             profile = folder / "real-profile.json"
             block = json.loads(profile.read_text(encoding="utf-8"))["columns"][0]
             layout = f"{block.get('format', '')}"
-            if block["role"] != "datetime" or not parsing.is_layout_format(layout) or block["n_unparsed"] != 0:
+            # -- 3b.R2c: every cell read at some precision, the partial
+            # forms naming each cell the layout left unread.
+            mix = block.get("resolution_mix") or {}
+            partial = sum(mix[key] for key in mix if key != layout)
+            if block["role"] != "datetime" or not parsing.is_layout_format(layout) or block["n_unparsed"] != partial:
                 read_everywhere[name] = False
                 notes += [f"{name} at {rows}: read as {block['role']} {layout}"]
                 continue
@@ -149,9 +165,14 @@ def measure(home: pathlib.Path) -> "tuple[dict[str, int], list[str]]":
                     notes += [f"{name} at {rows}, seed {seed}: MISSED"]
                 if seed != seeds[0] or items is None:
                     continue
+                moved = False
                 for row in lines[1:]:
                     if row and row[0]:
+                        before = row[0]
                         row[0] = _in_iso(row[0], items)
+                        moved = moved or row[0] != before
+                if not moved:
+                    continue
                 rewritten = out / "iso.csv"
                 rewritten.write_text(fixtures.rows_to_csv(lines[0], lines[1:]), encoding="utf-8", newline="\n")
                 checked = out / "iso-check"

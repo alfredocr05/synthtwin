@@ -1790,6 +1790,10 @@ def settings_for(description: contract.Profile) -> taxonomy.Settings:
         # two-figure years are read in the windows the description's were.
         century_windows=block.century_windows,
         # -- 3b.R2c (P4-D383)
+        # THE COLUMNS THE PERSON SAID HOLD DATES (question Q6), so a
+        # checked file's are read at the half line, and under the ask-first
+        # layouts, as the description's were.
+        forced_date_columns=block.forced_date_columns,
         # -- 3b.R4 (P4-D384)
         # THE COLUMNS WHOSE DATES ARE WRITTEN AS COUNTS (question Q3), each
         # read in its system -- at the precision its description published,
@@ -9526,11 +9530,16 @@ def _distinctness_checks(
             # different, with `{"+02:00": 200}` published in full, were
             # met by a file holding 29 of those values while the
             # envelope of G12.5 stood in the obligation's place.
+            #
+            # ...AND WHERE G11 BINDS A PARTIAL OR DECLARED-SHORT COLUMN
+            # (`contract.datetime_count_exact`; the Codex review of landing
+            # R2c, item 4): 200 values all different came back as 93 with
+            # this envelope standing in the obligation's place.
             window = _datetime_distinct_window(
                 column, facts, floor, date_system
             )
             if (
-                contract.datetime_counts_reachable(column)
+                contract.datetime_count_exact(column, published)
                 and window[0] <= published <= window[1]
             ):
                 checks += [
@@ -18148,6 +18157,10 @@ def _datetime_checks(
                 name, facts.parser_family, _text_at(block, "format"), cells
             )
         ]
+    # -- 3b.R2c (P4-D383): A PARTIAL-DATE COLUMN'S FORMS ARE CHECKED, each
+    # exactly (the Codex review of landing R2c, item 1), and the narrowing
+    # below holds for every other column.
+    checks = checks + _partial_form_checks(column, facts, block, cells)
     # `resolution_mix` IS NOT CHECKED, AND THAT IS A REASONED NARROWING
     # rather than an oversight (landing 2b.6). The spelling audit asked
     # for it to become exact beside `format`. On every column read under
@@ -18190,6 +18203,86 @@ def _datetime_checks(
         column, facts, block, floor, cells, declared_days
     )
     return checks
+
+
+def _partial_forms_published(facts: contract.DatetimeFacts) -> "list[tuple[str, int]]":
+    """A partial-date column's published partial forms and their counts, in the order of their names."""
+    family = facts.parser_family
+    if not parsing.is_layout_name(family):
+        return []
+    found: "list[tuple[str, int]]" = []
+    for key in sorted(facts.resolution_mix):
+        if key != family and facts.resolution_mix[key] > 0:
+            found += [(key, facts.resolution_mix[key])]
+    return found
+
+
+def _partial_form_checks(
+    column: contract.ColumnBlock,
+    facts: contract.DatetimeFacts,
+    block: "dict[str, object]",
+    cells: "list[str]",
+) -> "list[Check]":
+    """Each published partial form of a column of dates, held exactly (landing R2c).
+
+    THE CODEX REVIEW OF LANDING R2c, ITEM 1. `resolution_mix` stood
+    REPORT-ONLY because, on a column read under one member, its census
+    restates `format` and `n_unparsed`; a partial-date column's forms are
+    counts of their own, inside `n_unparsed`, and nothing else held them.
+    Measured on f4623cc: a file keeping the twin's 600 whole dates and
+    writing `123456+i` in every other cell held none of the 200 published
+    partial years, and validate exited 0. Each form is now counted over
+    the file's present cells as the describing step counts it -- a cell
+    the layout does not read is tallied under the first of the layout's
+    partial forms (`parsing.layout_truncations`) that reads it -- and its
+    count is held exactly to the published one. A column with no
+    published partial form is checked here not at all, so no other
+    column's report moves. Both sides are counts of this file and of the
+    description, so both print; where the file's column was not described
+    as dates at all, the gate is closed and each is WITHHELD, as every
+    other count of this role is.
+    """
+    published = _partial_forms_published(facts)
+    family = facts.parser_family
+    items = parsing.layout_items(family)
+    if not published or items is None:
+        return []
+    forms: "list[tuple[str, tuple[tuple[str, str], ...]]]" = []
+    for name in parsing.layout_truncations(family):
+        compiled = parsing.partial_items(name)
+        if compiled is not None:
+            forms += [(name, compiled)]
+    tallies: "dict[str, int]" = {}
+    seen: "dict[str, str]" = {}
+    for cell in cells:
+        if cell in seen:
+            form = seen[cell]
+        else:
+            form = ""
+            if parsing.layout_reading(cell, items) is None:
+                for name, compiled in forms:
+                    if parsing.layout_partial_reading(cell, compiled) is not None:
+                        form = name
+                        break
+            if len(seen) < taxonomy.LAYOUT_MEMO_TEXTS:
+                seen[cell] = form
+        if form:
+            tallies[form] = (tallies[form] if form in tallies else 0) + 1
+    gate_open = _text_at(block, "format") is not None
+    found: "list[Check]" = []
+    for key, count in published:
+        found += [
+            _exact(
+                column.name,
+                "datetime.resolution_mix",
+                f"resolution_mix.{key}",
+                _shown_count(count),
+                _shown_count(tallies[key] if key in tallies else 0)
+                if gate_open
+                else None,
+            )
+        ]
+    return found
 
 
 def _format_check(
@@ -20080,7 +20173,14 @@ def _datetime_distinct_window(
             + facts.high_tail.rows
             + facts.n_unparsed,
         )
-    lower = min(separate + facts.n_unparsed, upper)
+    # -- 3b.R2c (P4-D383): A PARTIAL FORM'S CELLS REPEAT, as `2023` does on
+    # every cell of that year, so each form promises one value at least
+    # and the other stand-ins one each -- the rule the twin's own report
+    # asks too (`contract.least_unread_values`; the Codex review of
+    # landing R2c, item 8).
+    lower = min(
+        separate + contract.least_unread_values(facts, facts.n_unparsed), upper
+    )
     return (float(lower), float(upper))
 
 
@@ -21504,14 +21604,17 @@ def _listings(
             # whatever the source wrote, so no file could show the member
             # that read the real column; the twin is written in that
             # member now, so describing it again names it.
-            listings += [
-                Listing(
-                    column.name,
-                    "datetime.resolution_mix",
-                    "",
-                    _NOT_CHECKABLE_RESOLUTION_MIX,
-                )
-            ]
+            # ...BUT A PARTIAL-DATE COLUMN'S FORMS ARE CHECKED (the Codex
+            # review of landing R2c, item 1), so its census is not listed.
+            if not _partial_forms_published(facts):
+                listings += [
+                    Listing(
+                        column.name,
+                        "datetime.resolution_mix",
+                        "",
+                        _NOT_CHECKABLE_RESOLUTION_MIX,
+                    )
+                ]
             if _mixed_forms_unwritten(facts):
                 listings += [
                     Listing(

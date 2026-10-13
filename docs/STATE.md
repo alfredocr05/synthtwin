@@ -300,9 +300,14 @@ cannot get worse unseen.
   meridiem (`9:15 AM`, `08:15:30.123 AM`) publishes no forms, so beside
   rare words its twin writes 0 of 969 clock cells in their shape:
   measured by lane R2b and held as its strict xfail X4 (P4-D383), since
-  a form holding a space moves every role's form census; R1's
-  codes-question silence lane R2c's, and dates mixing offsets that miss
-  `n_at_midnight` (4 of 600) landing 3b.7's (P4-D373).
+  a form holding a space moves every role's form census; R1's codes
+  question follows the classifier on a clock column (P4-D383's Codex
+  paragraph), and on the merged classifier the 10,000-row `HH:MM` column
+  with 203 `UNK` is read as clock times under the answer `missing` and
+  asked at floors 11 and 36; at a floor of 36 at 300 and 1,000 rows
+  `UNK` stands on 11 and 25 cells, under the census line its question
+  would print, and it is not put (strict xfail); and dates mixing
+  offsets that miss `n_at_midnight` (4 of 600) landing 3b.7's (P4-D373).
 - **Codes and tables written or read unlike the source, older than this
   week** (recorded 2026-10-09; `K-S3-61`'s note carries them). Made-up
   figure codes lose their leading zeros, and exponent-shaped codes

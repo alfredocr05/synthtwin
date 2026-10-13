@@ -6,6 +6,50 @@ exists).
 
 ## [Unreleased]
 
+### Partial dates are read at their own precision, and a column mostly of dates is asked (2026-10-09)
+
+**Landing R2c, the layout reader's questions and partial dates** (plan
+P4-D383). A FHIR `date` column writing `2023`, `2023-03` and
+`2023-03-17`, a Medidata export writing `UN MAR 2023` beside `17 MAR
+2023`, an HL7 feed whose stamps stop at the minute or the hour, and an
+Oracle export some of whose stamps leave out the seconds were labels,
+counts or free text; each now reads under its layout, every cell at its
+own precision. A partial cell is counted in `n_unparsed` and under its
+form in `resolution_mix`, and nothing else is taken from it, so the
+spread, the tails and every fact of the day are the full dates' own; the
+twin writes each partial cell in its source's spelling, each form at its
+published count. A column one reading reads on half its cells or more but
+not enough, or written as a year and its day of the year (`2023076`,
+which an accession number writes alike), is asked in the questions file
+whether it holds dates (Q6, `--date-column`, `forced_date_columns`), and
+answered so it is read at half its cells, the rest left unread; a column
+of dates beside a few codes is asked R1's codes question instead. The
+reach battery's other 168 columns kept every file byte for byte but six
+questions files that now ask Q6 (measured before its second review, whose
+made-up figures for a date column's unread cells move, on purpose, the
+twins of columns that owe their count of numbers). A partial-date column is described in 0.73 to 1.09 times the
+CPU time ISO's spelling of the same moments takes at 300,000 rows, and a
+column that is no date costs what it cost. After its review, a partial
+form on fewer cells than the census line no longer counts toward the
+date rule's line, so no such column is read as dates whose twin is not;
+a declared column beside a repeated word such as `pending` keeps its
+different dates (149 of 240 had come back as 70); and Q6 is worked out
+once a run. After its second review, a date column's unread figures are
+written as made-up figures, a declared column keeps a layout's named
+months, and repeating partial or declared dates keep near their count of
+different values (27 had come back as 275), without partial dates that
+do not repeat rising past theirs. After its Codex review, every published
+partial form is checked exactly; no made-up figure or partial cell is
+one a partial form reads or the table declared missing; a partial column
+whose values are all different keeps them so; row order no longer hides
+a column of partial dates or a column mostly of dates from Q6; Q6 is
+asked beside the century and day-or-month questions its answer raises;
+the twin's report and the validator agree on the range of different
+values; and R1's codes question follows the classifier on a column of
+clock times. After its verification, a column of different stamps
+beside different partial days generates in time linear in its rows
+again (60,000 rows: 4.7 seconds, not 36.6), writing the same twin.
+
 ### Clock times no member read are read by their shape too (2026-10-09)
 
 **Landing R2b, the clock half of the layout reader** (plan P4-D383).

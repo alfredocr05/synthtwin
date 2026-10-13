@@ -3493,6 +3493,13 @@ class Settings:
     # `CENTURY_HERE` and the column's own first year, or to nothing.
     century_windows: "tuple[tuple[str, int], ...]" = ()
     # -- 3b.R2c (P4-D383)
+    # THE COLUMNS THE PERSON SAID HOLD DATES WHATEVER ELSE SOME OF THEIR
+    # CELLS HOLD (`--date-column`, question Q6): each is read as dates at
+    # half its cells rather than the date rule's line, the reading that
+    # reads the most winning, and the ask-first layouts (`{YYYY}{DDD}`)
+    # are open to it. A column is READ under `for_the_column`'s view of
+    # these settings, which narrows this to `DATES_HERE` or to nothing.
+    forced_date_columns: "tuple[str, ...]" = ()
     # -- 3b.R4 (P4-D384)
     # THE COLUMNS WHOSE DATES ARE WRITTEN AS COUNTS (`--date-count COLUMN
     # MEMBER`, question Q3): `(column, member)` for each, the member one
@@ -3522,7 +3529,12 @@ def for_the_column(settings: Settings, name: str) -> Settings:
 
     Guarantees: a function of the two. Raises nothing. No I/O.
     """
-    if not settings.forced_twelve_hour_clocks and not settings.century_windows:
+    if (
+        not settings.forced_twelve_hour_clocks
+        and not settings.century_windows
+        # -- 3b.R2c (P4-D383)
+        and not settings.forced_date_columns
+    ):
         return settings
     narrowed: "tuple[str, ...]" = ()
     if name in settings.forced_twelve_hour_clocks:
@@ -3532,8 +3544,15 @@ def for_the_column(settings: Settings, name: str) -> Settings:
     for column, first_year in settings.century_windows:
         if column == name:
             windows = ((CENTURY_HERE, first_year),)
+    # -- 3b.R2c (P4-D383)
+    dates: "tuple[str, ...]" = ()
+    if name in settings.forced_date_columns:
+        dates = (DATES_HERE,)
     return dataclasses.replace(
-        settings, forced_twelve_hour_clocks=narrowed, century_windows=windows
+        settings,
+        forced_twelve_hour_clocks=narrowed,
+        century_windows=windows,
+        forced_date_columns=dates,
     )
 
 
@@ -3546,6 +3565,24 @@ def reads_twelve_hours(settings: Settings) -> bool:
 # century was declared (landing R2a): a word of this package's own, as
 # `TWELVE_HOUR_HERE` is.
 CENTURY_HERE = "(this column's two-figure years)"
+
+# -- 3b.R2c (P4-D383)
+# What `for_the_column` leaves in `forced_date_columns` for a column the
+# person said holds dates (question Q6): a word of this package's own.
+DATES_HERE = "(this column holds dates)"
+
+# THE LINE OF A COLUMN THE PERSON SAID HOLDS DATES (question Q6): half its
+# present cells, where the date rule asks ninety-nine in a hundred. And
+# the share the full layout of a partial-date column reads at least (the
+# R2 design, section 4): the same half, so a column of years or months
+# with a few full dates is never read as one.
+DECLARED_DATE_SHARE = 0.5
+PARTIAL_FULL_SHARE = 0.5
+
+
+def dates_declared(settings: Settings) -> bool:
+    """Whether the column these settings were narrowed for was said to hold dates (Q6)."""
+    return DATES_HERE in settings.forced_date_columns
 
 
 def century_window_of(settings: Settings) -> int:
@@ -4556,6 +4593,17 @@ def _exact_ratio(share: float) -> "tuple[int, int]":
     if place >= 0:
         return numerator << place, 1
     return numerator, 1 << -place
+
+
+def declared_line(total: int) -> int:
+    """How many of ``total`` present cells a column the person said holds dates is read on (landing R2c).
+
+    `DECLARED_DATE_SHARE` taken as `_needed` takes every line: the half,
+    exactly. Question Q6's first look counts a column against it (the
+    Codex review of landing R2c, item 6). Guarantees: a function of the
+    count. Raises nothing. No I/O of any kind.
+    """
+    return _needed(DECLARED_DATE_SHARE, total)
 
 
 def _needed(share: float, total: int) -> int:
@@ -7878,15 +7926,13 @@ def reading_of_the_rest(
     the rules before and after the date rule -- one value, two values,
     a list of categories -- decide a column here too.
 
-    THE CLOCK RULE STANDS AFTER THE CATEGORIES RULE, and so does this
-    function's clock half: a column of four different times beside
-    `99:99`, its code taken out, is a set of four categories to the
-    classifier (rule 7 claims it before rule 8 is asked), so it is not a
-    column of times here either, and the question that would promise
-    "read as times of day" is not put. The line is the classifier's own
-    (`categories_ceiling` over the table's ``n_rows``), against the
-    different spellings left counted as rule 7 counts them, trimmed and
-    case-folded. Dates need no such test: rule 5 stands ahead of rule 7.
+    THE CLOCK RULE STANDS AFTER THE CATEGORIES RULE, but this function's
+    clock half does not draw that line itself (landing R2c): a column of
+    four different times beside `99:99`, its code taken out, is a set of
+    four categories to the classifier (rule 7 claims it before rule 8 is
+    asked), and the question that would promise "read as times of day" is
+    not put because `role_read`, asked next, says so -- where a
+    classifier reads such a column as clock times, the question is put.
 
     Guarantees: accepts each different spelling with the rows that wore
     it, in the column's own order, the settings and the table's rows;
@@ -7937,11 +7983,15 @@ def reading_of_the_rest(
     )
     if layout is not None:
         return parsing.layout_format(layout[0]), layout[1]
-    folded: "dict[str, int]" = {}
-    for spelling in counted:
-        folded[parsing.folded(spelling)] = 1
-    if len(folded) <= categories_ceiling(n_rows, settings):
-        return None
+    # -- 3b.R2c (P4-D373's stated limit, owned by lane R2c): THE CATEGORIES
+    # LINE IS THE CLASSIFIER'S TO DRAW, NOT THIS FUNCTION'S. It was drawn
+    # here too, so where the classifier reads a column of few different
+    # times as clock times -- the integration's since lane C1, 606
+    # appointment times beside 203 `UNK` at 10,000 rows -- the question was
+    # never put, though its answer `missing` read the column so. The
+    # question still promises only what the classifier delivers:
+    # `asking._as_the_classifier_reads` asks `role_read`, so four times
+    # beside `99:99`, categories there, are asked nothing.
     # THE CLOCK RULE AS LANDING T1 READS IT (the Codex review of lane R1,
     # item 4): `_clock_candidates` over different spellings weighed by
     # their rows -- at the second, then at the minute, the face most of
@@ -16136,6 +16186,24 @@ def _matching_layout(
         counted, total, needed, settings.day_first, contradicted, window,
         twelve=reads_twelve_hours(settings),
     )
+    # -- 3b.R2c (P4-D383): A COLUMN OF PARTIAL DATES, where no layout reads
+    # it whole; then, where the person said it holds dates, the ask-first
+    # layouts. The full layout of a partial column reads half its cells.
+    least = needed
+    if chosen is None:
+        chosen = _partial_layout(
+            present,
+            counted,
+            needed,
+            settings.day_first,
+            contradicted,
+            window,
+            parsing.census_floor(settings.small_cell_floor),
+        )
+        if chosen is not None:
+            least = _needed(PARTIAL_FULL_SHARE, total)
+    if chosen is None and dates_declared(settings):
+        chosen = _ask_first_layout(counted, total, needed)
     if chosen is None:
         return None
     layout, _rows, _reached = chosen
@@ -16156,7 +16224,7 @@ def _matching_layout(
         if found is not None:
             pairs += [found]
             sources += [value]
-    if len(pairs) < needed:
+    if len(pairs) < least:
         return None
     return (
         parsing.layout_format(layout),
@@ -16166,6 +16234,366 @@ def _matching_layout(
         _layout_evidence(layout, counted, settings.day_first),
         _StampClock(),
     )
+
+
+# -- 3b.R2c (P4-D383) ------------------------------------------------------
+# THE CELLS A PARTIAL-DATE COLUMN'S CANDIDATES ARE TAKEN FROM: this many,
+# evenly spaced over the column. A layout reading half the cells reads one
+# of them unless the column alternates its precisions with that very
+# period, which is the one shape the choice can miss; a column whose sample
+# shows no layout at all costs this many productions and nothing more.
+PARTIAL_SAMPLE_CELLS = 64
+# The multiplier of `scattered_places`: 2**32 over the golden ratio, odd,
+# so its multiples modulo 2**32 fall as evenly as any sequence can and no
+# period of a column's rows lines up with them.
+_SCATTERED_STEP = 2654435769
+_SCATTERED_SPAN = 4294967296
+
+
+def scattered_places(total: int, count: int) -> "list[int]":
+    """``count`` places among ``total`` cells that no period of the rows lines up with (landing R2c).
+
+    THE SECOND LOOK OF A SAMPLE TAKEN EVENLY (the Codex review of landing
+    R2c, items 5 and 6). Cells evenly spaced share one period, so a column
+    that alternates its writing with that very period shows the sample one
+    writing alone: `2023` on every fifteenth row of 1,000 put a year on
+    each of the 64 cells `_partial_layout` read, and a column of 933 whole
+    dates was read as labels. The k-th place here is the k-th multiple of
+    `_SCATTERED_STEP` modulo 2**32, scaled to the column -- a Weyl
+    sequence, which no row period follows -- each place once, in that
+    order. Whole-number arithmetic only, so every platform takes the same
+    places.
+
+    Guarantees: a function of the two; returns places in 0 to ``total``
+    less one, each once, at most ``count`` of them. Raises nothing. No I/O.
+    """
+    found: "list[int]" = []
+    if total < 1:
+        return found
+    taken: "dict[int, int]" = {}
+    for turn in range(1, count + 1):
+        place = ((turn * _SCATTERED_STEP) % _SCATTERED_SPAN) * total // _SCATTERED_SPAN
+        if place not in taken:
+            taken[place] = 1
+            found += [place]
+    return found
+
+
+def _partial_layout(
+    present: "list[str]",
+    counted: "dict[str, int]",
+    needed: int,
+    day_first: bool,
+    contradicted: bool,
+    window: int,
+    line: int,
+) -> "tuple[str, int, dict[str, int]] | None":
+    """The layout a column of partial dates is read under, its full rows, or None (landing R2c).
+
+    THE R2 DESIGN, SECTION 4, AND ITS SKEPTIC'S M2. A FHIR `date` column
+    writes `2023`, `2023-03` and `2023-03-17`, an HL7 feed 14, 12 and 10
+    figures, a Medidata export `UN MAR 2023` beside `17 MAR 2023`: no one
+    layout reads the line, so `_chosen_layout` finds none. Such a column is
+    read under the layout that reads at least half its cells whole
+    (`PARTIAL_FULL_SHARE`) where that layout and its partial forms
+    (`parsing.layout_truncations`) together reach the date rule's line;
+    the one reading the most cells wins, then the one reading the most
+    whole, then `parsing.layout_order_key`. Each candidate stops as soon
+    as its misses pass the line's room, and the candidates are the layouts
+    of `PARTIAL_SAMPLE_CELLS` evenly spaced cells, each grown from the texts
+    it missed by `_layout_extended`, as `_chosen_layout` grows its own: an
+    HL7 feed of 1,000 cells, seven of them ending `-0500`, was read under
+    the optional-offset layout only where the sample held one of the seven,
+    so its twin, whose seven fell elsewhere, missed `n_unparsed` at two
+    seeds of three.
+
+    A FORM BELOW THE CENSUS LINE DOES NOT COUNT TOWARD THE LINE (the R2c
+    repair, item 1). `line` is `parsing.census_floor`: each cell the
+    layout does not read is tallied under the first partial form that
+    reads it, as `layout_partial_counts` tallies it, and a form on fewer
+    cells than `line` is not named there, so its cells are written as
+    stand-ins and count among the misses here. Counted as read, they let
+    a 240-row FHIR column with thirty cells written to the year be read as
+    dates at a floor of 36, and its twin, thirty stand-ins in place of
+    those years, was read as no date and missed its role on every seed.
+
+    Returns `_chosen_layout`'s triple -- the layout text, the rows it reads
+    whole, and no candidate's count -- or None. A function of the
+    arguments. Raises nothing. No I/O of any kind.
+    """
+    total = len(present)
+    if total < 2:
+        return None
+    step = max(1, total // PARTIAL_SAMPLE_CELLS)
+    chosen = _partial_choice(
+        present, counted, needed, day_first, contradicted, window, line,
+        list(range(0, total, step)), [],
+    )
+    if chosen is not None:
+        return chosen
+    # -- 3b.R2c (the Codex review of landing R2c, item 5): WHERE THE EVENLY
+    # SPACED CELLS NAME NO WINNER, A SECOND LOOK AT SCATTERED PLACES. On
+    # f4623cc a column of 933 whole dates beside `2023` on every fifteenth
+    # row was read as labels, every sampled cell a year; reversed, it was
+    # dates. Only a column the first look reads as no partial dates takes
+    # this one, so no column that look reads moves.
+    tried: "list[str]" = []
+    for place in range(0, total, step):
+        tried += [present[place]]
+    return _partial_choice(
+        present, counted, needed, day_first, contradicted, window, line,
+        scattered_places(total, PARTIAL_SAMPLE_CELLS), tried,
+    )
+
+
+def _partial_choice(
+    present: "list[str]",
+    counted: "dict[str, int]",
+    needed: int,
+    day_first: bool,
+    contradicted: bool,
+    window: int,
+    line: int,
+    places: "list[int]",
+    tried: "list[str]",
+) -> "tuple[str, int, dict[str, int]] | None":
+    """`_partial_layout`'s choice over the layouts of the cells at ``places`` (landing R2c).
+
+    A cell among ``tried`` -- the texts a first look already produced
+    from -- gives no candidate again. Returns `_partial_layout`'s triple
+    or None. A function of the arguments. Raises nothing. No I/O.
+    """
+    total = len(present)
+    room = total - needed
+    half = _needed(PARTIAL_FULL_SHARE, total)
+    found: "list[str]" = []
+    for place in places:
+        if present[place] in tried:
+            continue
+        for layout in _layouts_of_text(present[place], window):
+            if window:
+                layout = parsing.layout_in_window(layout, window)
+            if _layout_guarded(layout, contradicted):
+                continue
+            for one in (layout, parsing.layout_optional(layout)):
+                if one not in found:
+                    found += [one]
+    if not found:
+        return None
+    keyed = sorted(
+        [(parsing.layout_order_key(one, day_first), one) for one in found]
+    )
+    best = ""
+    best_rows = (-1, -1)
+    later: "list[str]" = []
+    for _key, layout in keyed:
+        read = _partial_reads(layout, counted, room, line)
+        if read is None:
+            continue
+        whole, cut, missed, failing = read
+        # Grown from the texts it missed, as `_chosen_layout` grows its own
+        # (the R2c repair): a few cells writing an offset are read by the
+        # optional-offset layout whether or not the sample held one.
+        for one in _layout_extended(layout, failing, window, contradicted):
+            if one not in later and one not in found:
+                later += [one]
+        if missed > room or whole < half or cut < 1:
+            continue
+        if (whole + cut, whole) > best_rows:
+            best = layout
+            best_rows = (whole + cut, whole)
+    for layout in later:
+        read = _partial_reads(layout, counted, room, line)
+        if read is None:
+            continue
+        whole, cut, missed, _failing = read
+        if missed > room or whole < half or cut < 1:
+            continue
+        if (whole + cut, whole) > best_rows or (
+            (whole + cut, whole) == best_rows
+            and parsing.layout_order_key(layout, day_first)
+            < parsing.layout_order_key(best, day_first)
+        ):
+            best = layout
+            best_rows = (whole + cut, whole)
+    if not best:
+        return None
+    return best, best_rows[1], {}
+
+
+def _partial_reads(
+    layout: str, counted: "dict[str, int]", room: int, line: int
+) -> "tuple[int, int, int, list[str]] | None":
+    """How one candidate of `_partial_layout` reads a column, or None where it has no partial form.
+
+    Returns the rows it reads whole, the rows its partial forms at the
+    census line read, the rows it misses -- with those of every form
+    below the line among them -- and the texts no form reads. Each unread
+    cell is tallied under the first form that reads it, as
+    `layout_partial_counts` tallies it. Stops once the texts no form reads
+    pass ``room``. A function of the arguments. Raises nothing. No I/O.
+    """
+    items = parsing.compiled_layout(layout)
+    forms: "list[tuple[tuple[str, str], ...]]" = []
+    for name in parsing.layout_truncations(parsing.layout_format(layout)):
+        compiled = parsing.partial_items(name)
+        if compiled is not None:
+            forms += [compiled]
+    if items is None or not forms:
+        return None
+    whole = 0
+    missed = 0
+    failing: "list[str]" = []
+    tallies = [0 for _form in forms]
+    for text in counted:
+        rows = counted[text]
+        if parsing.layout_reading(text, items) is not None:
+            whole = whole + rows
+            continue
+        place = -1
+        for spot, form in enumerate(forms):
+            if parsing.layout_partial_reading(text, form) is not None:
+                place = spot
+                break
+        if place >= 0:
+            tallies[place] = tallies[place] + rows
+            continue
+        missed = missed + rows
+        failing += [text]
+        if missed > room:
+            break
+    cut = 0
+    for tally in tallies:
+        if tally >= line:
+            cut = cut + tally
+        else:
+            missed = missed + tally
+    return whole, cut, missed, failing
+
+
+def _ask_first_layout(
+    counted: "dict[str, int]", total: int, needed: int
+) -> "tuple[str, int, dict[str, int]] | None":
+    """The ask-first layout a column declared dates is read under, or None (landing R2c).
+
+    Asked only of a column the person said holds dates (question Q6): the
+    candidates are the ask-first productions of the texts on the column's
+    first `n - needed + 1` rows, each read over the different texts and
+    dropped once its misses pass the line's room, the one reading the most
+    winning. Returns `_chosen_layout`'s triple or None.
+    """
+    room = total - needed
+    found: "list[str]" = []
+    rows = 0
+    for text in counted:
+        if rows > room:
+            break
+        rows = rows + counted[text]
+        for layout in parsing.ask_first_layouts_of(text):
+            if layout not in found:
+                found += [layout]
+    best = ""
+    best_rows = -1
+    for layout in found:
+        items = parsing.compiled_layout(layout)
+        if items is None:
+            continue
+        read, missed, _failing = _layout_reads(items, counted, room)
+        if missed > room or read <= best_rows:
+            continue
+        best = layout
+        best_rows = read
+    if not best:
+        return None
+    return best, best_rows, {}
+
+
+def _declared_date_reading(
+    present: "list[str]", settings: Settings
+) -> (
+    "tuple[str, list[tuple[str, str]], list[str], int, "
+    "_SlashedEvidence | None, _StampClock] | None"
+):
+    """How a column the person said holds dates is read (question Q6, landing R2c).
+
+    `--date-column`: where no reading reaches the date rule's line, the
+    column is read at half its present cells (`DECLARED_DATE_SHARE`) and
+    the reading that reads the most wins -- the first member of the walk
+    that reaches the half, or the layout reading more than it, its named
+    partial forms counted among what it reads. The cells
+    it leaves are counted in `n_unparsed` and written as stand-ins, which
+    the question's answer says in its own words. Returns
+    `_matching_date_format`'s tuple, or None.
+    """
+    half = dataclasses.replace(settings, minimum_parse_rate=DECLARED_DATE_SHARE)
+    found = _matching_date_format(present, half)
+    if found is None or parsing.is_layout_name(found[0]):
+        return found
+    contradicted = False
+    for value in present:
+        if parsing.names_a_zero_field(value):
+            contradicted = True
+            break
+    layout = _matching_layout(present, half, contradicted)
+    if layout is None:
+        return found
+    if len(layout[1]) > len(found[1]):
+        return layout
+    # -- 3b.R2c (skeptic 2 of the repair, item 2): THE LAYOUT'S NAMED
+    # PARTIAL FORMS COUNT AS READ. A FHIR column of days, months and a
+    # few years ties the member on its whole pairs, and the member names
+    # no partial form, so every month cell was written `text-N` and the
+    # twin missed its checks at every seed.
+    named = layout_partial_counts(layout[0], present, len(layout[1]), settings)
+    partial = 0
+    for name in named:
+        partial = partial + named[name]
+    if len(layout[1]) + partial > len(found[1]):
+        return layout
+    return found
+
+
+def layout_partial_counts(
+    format_name: str, present: "list[str]", read: int, settings: Settings
+) -> "dict[str, int]":
+    """How many of a layout column's unread cells each of its partial forms reads (landing R2c).
+
+    Counted only where the layout read fewer cells than the date rule's
+    line -- a column of partial dates, or one the person said holds dates
+    -- so no column a layout reads whole moves by a byte. Each cell the
+    layout does not read is counted under the first of
+    `parsing.layout_truncations` that reads it, and a form on fewer cells
+    than the census line is not named: its cells stay among the stand-ins
+    (P4-D250's absorption). Returns the named forms in that order.
+    """
+    if not parsing.is_layout_name(format_name):
+        return {}
+    if read >= _needed(settings.minimum_parse_rate, len(present)):
+        return {}
+    items = parsing.layout_items(format_name)
+    if items is None:
+        return {}
+    forms: "list[tuple[str, tuple[tuple[str, str], ...]]]" = []
+    for name in parsing.layout_truncations(format_name):
+        compiled = parsing.partial_items(name)
+        if compiled is not None:
+            forms += [(name, compiled)]
+    counts: "dict[str, int]" = {}
+    spellings = _spelling_rows(present)
+    for text in spellings:
+        rows = spellings[text]
+        if parsing.layout_reading(text, items) is not None:
+            continue
+        for name, form in forms:
+            if parsing.layout_partial_reading(text, form) is not None:
+                counts[name] = (counts[name] if name in counts else 0) + rows
+                break
+    line = parsing.census_floor(settings.small_cell_floor)
+    named: "dict[str, int]" = {}
+    for name, _form in forms:
+        if name in counts and counts[name] >= line:
+            named[name] = counts[name]
+    return named
 
 
 @dataclasses.dataclass(frozen=True)
@@ -16533,6 +16961,7 @@ def _datetime_details(
     settings: Settings,
     distinct: bool = False,
     clock_style: str = parsing.DEFAULT_CLOCK_STYLE,
+    truncated: "dict[str, int] | None" = None,
 ) -> dict[str, object]:
     """The published description of a datetime column.
 
@@ -16627,7 +17056,7 @@ def _datetime_details(
     )
     return {
         "format": format_name,
-        "resolution_mix": _resolution_mix(format_name, sources),
+        "resolution_mix": _resolution_mix(format_name, sources, truncated),
         "resolution": resolution,
         "time_precision": precision,
         "subsecond_digits": digits,
@@ -19251,7 +19680,9 @@ ISO_FORMS = ("iso-date", "iso-datetime")
 
 
 def _resolution_mix(
-    format_name: str, sources: "list[str]"
+    format_name: str,
+    sources: "list[str]",
+    truncated: "dict[str, int] | None" = None,
 ) -> "dict[str, int]":
     """How many parsed cells of this column wore each form (C6-25).
 
@@ -19288,7 +19719,12 @@ def _resolution_mix(
     table's own order. Raises nothing. No I/O of any kind.
     """
     if format_name != FORMAT_ISO_MIXED:
-        return {format_name: len(sources)}
+        # -- 3b.R2c (P4-D383): a layout's partial forms after its own count,
+        # each counting cells `n_unparsed` holds (rule LY6).
+        mix = {format_name: len(sources)}
+        for name in truncated or {}:
+            mix[name] = (truncated or {})[name]
+        return mix
     counted = {ISO_FORMS[0]: 0, ISO_FORMS[1]: 0}
     for value in sources:
         if parsing.parse_datetime(value, ISO_FORMS[1]) is not None:
@@ -22567,6 +23003,9 @@ def _decide(
         matched = (
             None if labels_only else _matching_date_format(present, settings)
         )
+        # -- 3b.R2c (P4-D383): a column the person said holds dates (Q6).
+        if matched is None and not labels_only and dates_declared(settings):
+            matched = _declared_date_reading(present, settings)
         # A COLUMN THE WORKBOOK STORES AS DATES IS READ AS DATES BESIDE A
         # FEW TEXT CELLS (plan P4-D382, `_stored_date_format`).
         if (
@@ -22585,6 +23024,8 @@ def _decide(
                 settings,
                 cells.raw_distinct == len(cells.present),
                 written.style,
+                # -- 3b.R2c (P4-D383): the partial forms of its unread cells.
+                layout_partial_counts(format_name, present, len(pairs), settings),
             )
             remarks += _clock_style_remarks(
                 written.other_faces, written.widths_in

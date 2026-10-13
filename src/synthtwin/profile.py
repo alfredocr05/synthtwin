@@ -581,7 +581,11 @@ def _settings_block(
             for name, first_year in sorted(settings.century_windows)
         ],
         # -- 3b.R2c (P4-D383)
-        "forced_date_columns": [],
+        # THE COLUMNS THE PERSON SAID HOLD DATES (question Q6,
+        # `--date-column`), in rising order. Recorded because the validator
+        # must re-read a checked file at the same half line, and S8f holds
+        # every layout of the day of the year to it.
+        "forced_date_columns": _named_once(list(settings.forced_date_columns)),
         # -- 3b.R4 (P4-D384)
         # THE COLUMNS WHOSE DATES ARE WRITTEN AS COUNTS (question Q3,
         # `--date-count`): `[column, member]` in the columns' rising order.
@@ -1087,6 +1091,7 @@ _STATED_RULES: "dict[tuple[str, ...], str]" = {
     ("settings", "century_windows", _EACH, _EACH): _CENTURY_PART,
     # -- 3b.R2c (P4-D383)
     ("settings", "forced_date_columns"): _ARRAY,
+    ("settings", "forced_date_columns", _EACH): _KNOWN_NAME,
     # -- 3b.R4 (P4-D384)
     ("settings", "forced_date_counts"): _ARRAY,
     ("settings", "forced_date_counts", _EACH): _ARRAY,
@@ -2926,6 +2931,14 @@ def _check_word(
         path in _LAYOUT_WORD_PATHS
         and isinstance(value, str)
         and parsing.is_layout_format(value)
+    ):
+        return
+    # -- 3b.R2c (P4-D383): A PARTIAL FORM a census of forms counts, built of
+    # the same closed tables and the unknown markers alone.
+    if (
+        path == _LAYOUT_WORD_PATHS[1]
+        and isinstance(value, str)
+        and parsing.is_partial_layout_format(value)
     ):
         return
     if not isinstance(value, str) or value not in PUBLICATION_WORDS[path]:

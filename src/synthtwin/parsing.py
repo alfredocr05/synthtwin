@@ -8125,6 +8125,8 @@ _LAYOUT_OFFSET_FIELDS = _LAYOUT_ZULU_FIELDS + _LAYOUT_SIGNED_FIELDS
 _LAYOUT_FIXED_FIELDS = {
     "YYYY": 4, "YY": 2, "YY1900": 2, "YY1930": 2, "YY1940": 2,
     "MM": 2, "DD": 2, "HH": 2, "hh": 2, "MI": 2, "SS": 2,
+    # -- 3b.R2c (P4-D383): the day of the year, an ask-first field.
+    "DDD": 3,
 }
 _LAYOUT_FLEXIBLE_FIELDS = ("M", "D")
 _LAYOUT_SPACED_FIELDS = ("_D", "_H", "_h")
@@ -8241,7 +8243,14 @@ def compiled_layout(text: str) -> "tuple[tuple[str, str], ...] | None":
             return None
         items += [("l", character)]
         place = place + 1
-    if "year" not in kinds or "month" not in kinds or "day" not in kinds:
+    # -- 3b.R2c (P4-D383): a day of the year stands for both month and day.
+    if "yearday" in kinds and ("month" in kinds or "day" in kinds):
+        return None
+    if "yearday" in kinds and ("hour" in kinds or "weekday" in kinds):
+        return None
+    if "year" not in kinds or (
+        ("month" not in kinds or "day" not in kinds) and "yearday" not in kinds
+    ):
         return None
     if "minute" in kinds and "hour" not in kinds:
         return None
@@ -8288,6 +8297,9 @@ def _layout_field_kind(name: str) -> str:
         return "month"
     if bare in ("DD", "D", "_D"):
         return "day"
+    # -- 3b.R2c (P4-D383)
+    if bare == "DDD":
+        return "yearday"
     if bare in _LAYOUT_WEEKDAY_FIELDS:
         return "weekday"
     if bare in _LAYOUT_HOUR_FIELDS:
@@ -8440,6 +8452,7 @@ def layout_reading(
     second = 0
     fraction = ""
     offset = ""
+    yearday = -1
     shows: "list[str]" = []
     # -- 3b.R2b (P4-D383): the hour's dial and the half of the day its
     # marker names, `''` where no marker is written.
@@ -8478,6 +8491,9 @@ def layout_reading(
                 month = value
             elif name == "DD":
                 day = value
+            elif name == "DDD":
+                # -- 3b.R2c (P4-D383): the day of the year, 001 to 366.
+                yearday = value
             elif name == "HH":
                 hour = value
             elif name == "hh":
@@ -8623,6 +8639,11 @@ def layout_reading(
         return None
     if year < LAYOUT_FIRST_YEAR or year > LAYOUT_LAST_YEAR:
         return None
+    if yearday >= 0:
+        # -- 3b.R2c (P4-D383): an ordinal day names its month and day.
+        if yearday < 1 or yearday > days_from_civil(year + 1, 1, 1) - days_from_civil(year, 1, 1):
+            return None
+        _year, month, day = civil_from_days(days_from_civil(year, 1, 1) + yearday - 1)
     if not valid_date(year, month, day):
         return None
     if weekday >= 0 and (days_from_civil(year, month, day) + 3) % 7 != weekday:
@@ -8703,6 +8724,10 @@ def layout_cell(
             written = f"{written}{month:02d}"
         elif bare == "DD":
             written = f"{written}{day:02d}"
+        elif bare == "DDD":
+            # -- 3b.R2c (P4-D383): the day of the year, three figures.
+            ordinal = days_from_civil(year, month, day) - days_from_civil(year, 1, 1) + 1
+            written = f"{written}{ordinal:03d}"
         elif bare == "M" or bare == "D":
             value = month if bare == "M" else day
             padded = True
@@ -9736,7 +9761,9 @@ def is_layout_format(name: str) -> bool:
     if field:
         offset = "Z" if field in _LAYOUT_ZULU_FIELDS else "+01:00"
     cell = layout_cell(items, _LAYOUT_SAMPLE, offset, (), 3)
-    return plain in layouts_of(cell)
+    # -- 3b.R2c (P4-D383): ...or the ask-first productions, which no column
+    # is read under unless the person said it holds dates.
+    return plain in layouts_of(cell) or plain in ask_first_layouts_of(cell)
 
 
 def layout_without_offset(layout: str) -> str:
@@ -9992,3 +10019,417 @@ def layout_before_its_offset(name: str) -> str:
         else:
             text = f"{text}{field}"
     return layout_format(text)
+
+
+# -- 3b.R2c (P4-D383): ASK-FIRST LAYOUTS AND PARTIAL DATES -----------------
+#
+# THE ASK-FIRST LAYOUTS (the R2 design, section 3). A day of the year after
+# a four-figure year -- ISO 8601's ordinal date `2023-076` and the
+# seven-figure Julian date mainframe exports write, `2023076` -- is written
+# exactly as an accession number or a lot is, and nothing in the cells can
+# tell the two apart. So `layouts_of` never offers one, and a column is read
+# under one only where the person said it holds dates (question Q6,
+# `--date-column`, the settings key `forced_date_columns`); rule LY1 admits
+# them through their own productions, `ask_first_layouts_of`.
+#
+# PARTIAL DATES (the R2 design, section 4; its skeptic, M2, M5 and M6). A
+# FHIR `date` is written `2023`, `2023-03` or `2023-03-17`; an HL7 v2 DTM
+# stops at any field, so one feed holds 14, 12 and 10 figures; a CDISC or
+# Medidata export writes `UN MAR 2023` and `UN UNK 2023` where the day, or
+# the day and the month, are unknown. Each such cell is a TRUNCATION of the
+# column's one layout: the layout cut after a field (`layout_truncations`),
+# or its day -- or its day and month -- written as one of the closed
+# unknown markers. A truncated cell is read at its own precision and at no
+# other: it is counted in `resolution_mix` under its truncation's own name
+# and inside `n_unparsed`, and reaches no fact of the day, the clock or the
+# spread, so no partial cell is ever read at the start of its span (M5:
+# read there, the 1st of the month held 44.2 % of a FHIR column against
+# 4.1 % of its full dates).
+
+# The markers a partial date writes in place of its day, or its day and
+# month: the closed set the R2 design names.
+LAYOUT_UNKNOWN_MARKERS = ("UN", "UNK", "--", "XX")
+
+# The order a layout's fields are cut in, finest last: a truncation keeps
+# the fields at or above one of these levels.
+_PARTIAL_LEVELS = {
+    "year": 1, "month": 2, "day": 3, "hour": 4,
+    "minute": 5, "second": 6, "fraction": 7,
+}
+
+
+def _figures_only(text: str, start: int, size: int) -> bool:
+    """Whether ``size`` ASCII figures stand at ``start`` and the text ends there."""
+    return len(text) == start + size and _layout_digits(text, start, size, size) == start + size
+
+
+def ask_first_layouts_of(text: str) -> "tuple[str, ...]":
+    """The ask-first layouts one cell's shape is read under (landing R2c).
+
+    `{YYYY}-{DDD}` for a four-figure year, a hyphen and three figures, and
+    `{YYYY}{DDD}` for a run of seven figures. Whether the cell reads as a
+    date -- the year band, a day of the year that year has -- is
+    `layout_reading`'s question. Guarantees: a function of the text; raises
+    TypeError for anything that is not text. No I/O of any kind.
+    """
+    if not isinstance(text, str):
+        raise TypeError(_NOT_TEXT)
+    if len(text) == 8 and text[4:5] == "-":
+        if _figures_only(text[0:4], 0, 4) and _figures_only(text, 5, 3):
+            return ("{YYYY}-{DDD}",)
+        return ()
+    if _figures_only(text, 0, 7):
+        return ("{YYYY}{DDD}",)
+    return ()
+
+
+def layout_asks_first(name: str) -> bool:
+    """Whether a layout is one no column is read under unless declared dates (rule LY7)."""
+    if not isinstance(name, str):
+        raise TypeError(_NOT_TEXT)
+    return "DDD" in _layout_fields(name)
+
+
+def _layout_core_end(items: "tuple[tuple[str, str], ...]") -> int:
+    """Where a layout's date-and-clock core ends: before an offset and the literals before it."""
+    end = len(items)
+    for place in range(len(items)):
+        kind, name = items[place]
+        if kind == "f" and _layout_field_kind(name) == "offset":
+            end = place
+            while end > 0 and items[end - 1][0] == "l":
+                end = end - 1
+            return end
+    return end
+
+
+def _items_text(items: "list[tuple[str, str]]") -> str:
+    """Compiled or partial items written back as a layout text."""
+    text = ""
+    for kind, name in items:
+        text = f"{text}{{{name}}}" if kind == "f" else f"{text}{name}"
+    return text
+
+
+def layout_truncations(name: str) -> "tuple[str, ...]":
+    """Every partial form of a layout, as format names, in one fixed order (rule LY6).
+
+    First the CUTS, finest first: the layout's core -- its offset set aside --
+    keeping only the fields at or above one level (year, month, day, hour,
+    minute, second), wherever those fields stand side by side in the text:
+    `{YYYY}-{MM}-{DD}` gives `{YYYY}-{MM}` and `{YYYY}`; HL7's
+    `{YYYY}{MM}{DD}{HH}{MI}{SS}` gives its 12, 10, 8, 6 and 4 figures;
+    `{DD}-{MON}-{YYYY}` gives `{MON}-{YYYY}` and `{YYYY}`; and `{MM}/{DD}/
+    {YYYY}`, whose month and year stand apart, gives `{YYYY}` alone. Then,
+    on a layout of a date alone with a day and a month, the MASKS: its day
+    written as each unknown marker, then its day and its month
+    (`{UN} {MON} {YYYY}`, `{UN} {UNK} {YYYY}`). None for a layout with a
+    weekday or an ordinal day, and none for a name that is not a layout.
+
+    Guarantees: a function of the name; returns format names, each once.
+    Raises TypeError for anything that is not text. No I/O of any kind.
+    """
+    if not isinstance(name, str):
+        raise TypeError(_NOT_TEXT)
+    items = layout_items(name)
+    if items is None:
+        return ()
+    core = items[0 : _layout_core_end(items)]
+    levels: "list[int]" = []
+    for kind, field in core:
+        if kind != "f":
+            levels += [0]
+            continue
+        part = _layout_field_kind(field)
+        if part not in _PARTIAL_LEVELS:
+            return ()
+        levels += [_PARTIAL_LEVELS[part]]
+    finest = 0
+    for level in levels:
+        finest = max(finest, level)
+    found: "list[str]" = []
+    for cut in range(finest - 1, 0, -1):
+        kept = [place for place in range(len(core)) if 0 < levels[place] <= cut]
+        if not kept:
+            continue
+        first = kept[0]
+        last = kept[len(kept) - 1]
+        apart = False
+        for place in range(first, last + 1):
+            if levels[place] > cut:
+                apart = True
+        if apart:
+            continue
+        text = layout_format(_items_text(list(core[first : last + 1])))
+        if text not in found:
+            found += [text]
+    if finest == _PARTIAL_LEVELS["day"] and len(core) == len(items):
+        day_at = -1
+        month_at = -1
+        for place in range(len(core)):
+            kind, field = core[place]
+            if kind == "f" and _layout_field_kind(field) == "day":
+                day_at = place
+            if kind == "f" and _layout_field_kind(field) == "month":
+                month_at = place
+        if day_at >= 0 and month_at >= 0:
+            for day_marker in LAYOUT_UNKNOWN_MARKERS:
+                masked = list(core)
+                masked[day_at] = ("f", day_marker)
+                found += [layout_format(_items_text(masked))]
+            for day_marker in LAYOUT_UNKNOWN_MARKERS:
+                for month_marker in LAYOUT_UNKNOWN_MARKERS:
+                    masked = list(core)
+                    masked[day_at] = ("f", day_marker)
+                    masked[month_at] = ("f", month_marker)
+                    found += [layout_format(_items_text(masked))]
+    return tuple(found)
+
+
+def partial_items(name: str) -> "tuple[tuple[str, str], ...] | None":
+    """The items of a partial form (`layout_truncations`), or None.
+
+    Its fields come from the closed table -- a year, a month, a day, the
+    clock's hour, minute and second -- or are unknown markers, its literals
+    from the closed set, it holds a year, and it is no more than
+    `LAYOUT_TEXT_LIMIT` characters: nothing out of a cell can stand in one.
+    Guarantees: a function of the name. Raises TypeError for anything that
+    is not text. No I/O of any kind.
+    """
+    if not isinstance(name, str):
+        raise TypeError(_NOT_TEXT)
+    if not is_layout_name(name):
+        return None
+    text = name[len(LAYOUT_PREFIX) :]
+    if not text or len(text) > LAYOUT_TEXT_LIMIT:
+        return None
+    items: "list[tuple[str, str]]" = []
+    kinds: "dict[str, int]" = {}
+    place = 0
+    while place < len(text):
+        character = text[place]
+        if character == "{":
+            end = place + 1
+            while end < len(text) and text[end] != "}":
+                end = end + 1
+            if end >= len(text):
+                return None
+            field = text[place + 1 : end]
+            if field in LAYOUT_UNKNOWN_MARKERS:
+                items += [("f", field)]
+                place = end + 1
+                continue
+            if (
+                field not in _LAYOUT_FIXED_FIELDS
+                and field not in _LAYOUT_FLEXIBLE_FIELDS
+                and field not in _LAYOUT_SPACED_FIELDS
+                and field not in _LAYOUT_MONTH_FIELDS
+            ) or field == "DDD":
+                return None
+            kind = _layout_field_kind(field)
+            if kind in kinds:
+                return None
+            kinds[kind] = 1
+            items += [("f", field)]
+            place = end + 1
+            continue
+        if character not in _LAYOUT_LITERALS:
+            return None
+        items += [("l", character)]
+        place = place + 1
+    if "year" not in kinds:
+        return None
+    return tuple(items)
+
+
+def is_partial_layout_format(name: str) -> bool:
+    """Whether a name is a partial form a `resolution_mix` may count (the publication guard).
+
+    A name `partial_items` compiles that is not itself a layout of the
+    grammar -- or one that is, as HL7's eight figures are both a date and a
+    cut of a stamp. Which layout a column's partial forms belong to is the
+    loader's question (rule LY6, `layout_truncations`).
+    """
+    if not isinstance(name, str):
+        return False
+    return partial_items(name) is not None
+
+
+def layout_partial_reading(
+    text: str, items: "tuple[tuple[str, str], ...]"
+) -> "str | None":
+    """One cell read under a partial form, as the canonical text of its precision, or None.
+
+    `YYYY`, `YYYY-MM`, `YYYY-MM-DD`, `YYYY-MM-DD HH`, `YYYY-MM-DD HH:MM` or
+    `YYYY-MM-DD HH:MM:SS`, as far as the form's fields reach; a marker reads
+    its own text and nothing else. The year band, the month, the day in its
+    month and the clock are checked as `layout_reading` checks them, and
+    nothing is trimmed. Guarantees: a function of the two; raises TypeError
+    for a cell that is not text. No I/O of any kind.
+    """
+    if not isinstance(text, str):
+        raise TypeError(_NOT_TEXT)
+    size = len(text)
+    at = 0
+    year = -1
+    month = -1
+    day = -1
+    hour = -1
+    minute = -1
+    second = -1
+    for kind, name in items:
+        if kind == "l":
+            if at >= size or text[at] != name:
+                return None
+            at = at + 1
+            continue
+        if name in LAYOUT_UNKNOWN_MARKERS:
+            if text[at : at + len(name)] != name:
+                return None
+            at = at + len(name)
+            continue
+        if name in _LAYOUT_FIXED_FIELDS:
+            width = _LAYOUT_FIXED_FIELDS[name]
+            if _layout_digits(text, at, width, width) != at + width:
+                return None
+            value = int(text[at : at + width])
+            at = at + width
+            if name == "YYYY":
+                year = value
+            elif name in _LAYOUT_YEAR_WINDOWS:
+                first = _LAYOUT_YEAR_WINDOWS[name]
+                year = (first // 100) * 100 + value
+                if year < first:
+                    year = year + 100
+            elif name == "MM":
+                month = value
+            elif name == "DD":
+                day = value
+            elif name == "HH":
+                hour = value
+            elif name == "MI":
+                minute = value
+            elif name == "SS":
+                second = value
+            continue
+        if name == "M" or name == "D":
+            end = _layout_digits(text, at, 1, 2)
+            if end < 0:
+                return None
+            value = int(text[at:end])
+            at = end
+            if name == "M":
+                month = value
+            else:
+                day = value
+            continue
+        if name == "_D":
+            if at + 2 > size or not ("0" <= text[at + 1] <= "9"):
+                return None
+            if text[at] == " ":
+                day = ord(text[at + 1]) - 48
+            elif "1" <= text[at] <= "9":
+                day = int(text[at : at + 2])
+            else:
+                return None
+            at = at + 2
+            continue
+        if name in _LAYOUT_MONTH_FIELDS:
+            end = _layout_letters(text, at)
+            table = _LAYOUT_MONTH_FIELDS[name]
+            if text[at:end] not in table:
+                return None
+            month = table[text[at:end]]
+            at = end
+            continue
+        return None
+    if at != size or year < LAYOUT_FIRST_YEAR or year > LAYOUT_LAST_YEAR:
+        return None
+    canonical = f"{year:04d}"
+    if month < 0:
+        return canonical if day < 0 and hour < 0 else None
+    if month < 1 or month > 12:
+        return None
+    canonical = f"{canonical}-{month:02d}"
+    if day < 0:
+        return canonical if hour < 0 else None
+    if not valid_date(year, month, day):
+        return None
+    canonical = f"{canonical}-{day:02d}"
+    if hour < 0:
+        return canonical
+    if hour > 23:
+        return None
+    canonical = f"{canonical} {hour:02d}"
+    if minute < 0:
+        return canonical if second < 0 else None
+    if minute > 59:
+        return None
+    canonical = f"{canonical}:{minute:02d}"
+    if second < 0:
+        return canonical
+    if second > 59:
+        return None
+    return f"{canonical}:{second:02d}"
+
+
+def layout_partial_cell(
+    items: "tuple[tuple[str, str], ...]", canonical: str
+) -> str:
+    """One instant written under a partial form: `layout_partial_reading` reversed.
+
+    Every field the form keeps comes from the canonical instant (`YYYY-MM-DD`
+    or `YYYY-MM-DD HH:MM:SS`), a flexible field in as few figures as it
+    takes, and each marker is written as itself. Guarantees: returns the
+    cell, which `layout_partial_reading` reads back at the form's own
+    precision. Raises TypeError for a canonical text that is not text. No
+    I/O of any kind.
+    """
+    if not isinstance(canonical, str):
+        raise TypeError(_NOT_TEXT)
+    year = int(canonical[0:4])
+    month = int(canonical[5:7])
+    day = int(canonical[8:10])
+    hour = int(canonical[11:13]) if len(canonical) >= 19 else 0
+    minute = int(canonical[14:16]) if len(canonical) >= 19 else 0
+    second = int(canonical[17:19]) if len(canonical) >= 19 else 0
+    written = ""
+    for kind, name in items:
+        if kind == "l" or name in LAYOUT_UNKNOWN_MARKERS:
+            written = f"{written}{name}"
+        elif name == "YYYY":
+            written = f"{written}{year:04d}"
+        elif name in _LAYOUT_YEAR_WINDOWS:
+            written = f"{written}{year % 100:02d}"
+        elif name == "MM":
+            written = f"{written}{month:02d}"
+        elif name == "DD":
+            written = f"{written}{day:02d}"
+        elif name == "M":
+            written = f"{written}{month}"
+        elif name == "D":
+            written = f"{written}{day}"
+        elif name == "_D":
+            written = f"{written}{day:>2d}"
+        elif name == "HH":
+            written = f"{written}{hour:02d}"
+        elif name == "MI":
+            written = f"{written}{minute:02d}"
+        elif name == "SS":
+            written = f"{written}{second:02d}"
+        elif name in _LAYOUT_MONTH_FIELDS:
+            written = f"{written}{_layout_word(_LAYOUT_MONTH_FIELDS[name], month)}"
+    return written
+
+
+def layout_partial_writes_numbers(name: str) -> bool:
+    """Whether every cell a partial form writes is a run of figures (a reader of numbers takes it)."""
+    items = partial_items(name)
+    if items is None:
+        return False
+    for kind, field in items:
+        if kind == "l" or field in LAYOUT_UNKNOWN_MARKERS:
+            return False
+        if field not in _LAYOUT_FIXED_FIELDS:
+            return False
+    return True
