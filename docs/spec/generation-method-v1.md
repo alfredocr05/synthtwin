@@ -7420,11 +7420,13 @@ boundaries and every value a tail lists stand on it, each draw inside its
 stratum, and on the written unit elsewhere; a tail's outermost rank,
 standing where its published distances put it, is not moved. Both steps at midnight step a
 body rank off a midnight by the drawing unit and a tail rank by its
-tail's. Where every body rank stands on the drawing unit, the count pass
-steps and counts in it, its published count less the tail values sharing
-a unit with another; and the hour pass (G7.3g) steps in it, up to a
-minute. Where no minute or second fact is published the unit is one and
-every draw is the one before this landing.
+tail's (with G7.3h withheld, 10,000 cells written `HH:MM:00` stood seven
+body cells off second 0 when stepped by the written second). The count
+pass and the hour pass (G7.3g) step by the written unit, as before this
+landing: stepped by the drawing unit, no twin of the lane's batteries met
+or missed anything else, nor stood a body cell off the lattice (the
+lane's skeptic, item 5). Where no minute or second fact is published the
+unit is one and every draw is the one before this landing.
 
 **THE PASS.** After G7.3g, under its run conditions, G7.3g's clock pass
 runs once for the minute and then once for the second. The minute's bins
@@ -7465,7 +7467,25 @@ other ranks over the other groups as they want, and no kin group takes
 more of it than its free ranks (the lane's skeptic, item 1: 200,000 cells
 written `HH:MM:00`, hour 0 given its share in proportion, had 327 ranks
 moved onto a midnight, 217 of which stayed, and came back 602 at midnight
-against 385).
+against 385). And on such a pass A WRITTEN MIDNIGHT IS A KIND OF ITS OWN
+(G7.3f's kind, its keep read as a kind apart): its ranks are pinned and
+every step of G7.3f keeps the kind, so none moves a rank onto it (the
+lane's repair: 1,000 check-ins in bursts, drawn on the second, had four
+ranks of hour 0 moved onto 00:00 by the gap's single moves after KIN
+SHARES; the exchange took two back, and the twin came back 13 at midnight
+against 12). After each field's pass THE TAILS MAKE ROOM AT MIDNIGHT: with
+value 0 a group alone holding fewer body ranks than its count, each body
+rank in order -- not pinned, of a group over its count -- whose place on
+value 0 of its own parent (its place in the bin kept) is a written
+midnight inside its gap and no hole, takes it, while the first tail rank
+not yet stepped, not pinned by its tail, at a written midnight, that can
+step off it inside its stratum does so, as the tails keep their count
+below -- where the count of different values is reachable, only a tail
+whose step and the rank's move together do not raise that count, the
+first keeping it where any does, and SPREAD then puts back a value lost.
+The count at midnight is kept (a column on the hour at 1,000 and 10,000
+rows: the hour pass stepped a rank of hour 0 to 00:01 while a tail held a
+midnight, and the heap at minute 0 came back one short).
 Filled nearest first and whole runs first over the whole gap, 10,000
 clinic slots came back with 20 per cent of hour 8 on :00 and 47 per cent
 of hour 10, against 35 in every hour of the real column; kin group by kin
@@ -7535,14 +7555,17 @@ nearest midnight inside its stratum; each tail's ranks are then sorted.
 
 **Its frozen cases** are states of ranks and drawing units: the twentieth
 vectors file, `tests/reference/generation-branch-vectors-20.json`, holds
-twenty-one -- the pass on a field of minutes with heaps and on a field of
-seconds with a kin group of minutes, KIN SHARES over two hours and
-carried from gap to gap over four days, KIN SHARES
-keeping the cells at midnight with hour 0 a kin group alone (85 days whose
-shares in proportion stood 68 ranks at midnight) and beside hour 1, the exchange's three answers,
+twenty-four -- the pass on a field of minutes with heaps and on a field of
+seconds with a kin group of minutes, KIN SHARES over two hours,
+carried from gap to gap over four days and never splitting a unit two
+tied ranks of an hour share, a written midnight a kind of its
+own (85 days, where by nearness 85 ranks took a midnight and 21 stayed
+there), KIN SHARES keeping the cells at midnight with hour 0 a kin group
+alone and beside hour 1, the exchange's three answers,
 PUT BACK once more after it, SUBSTITUTE, SPREAD, the tails keeping the count at midnight by their
 drawing unit and, in a stratum narrower than it, by the written unit, and
-taking a midnight where the count there is short, a draw laid
+taking a midnight where the count there is short, the tails making room at
+midnight for a rank of the body, a draw laid
 on its unit, and the drawing units of a half-hour grid, a column on the
 hour, a column whose seconds alone are pinned, one census group
 holding minute 0 and heaps beside a withheld census of the rest, which

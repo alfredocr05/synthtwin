@@ -4,14 +4,16 @@ This is the TWENTIETH entry point of one oracle, not a twentieth oracle.
 It asks `make_generation_reference_vectors.py` for the states landing
 3b.4 (plan P4-D372) freezes method section G7.3h's own steps on -- the
 clock pass on a field of minutes and on a field of seconds with their
-heaps and their kin groups, KIN SHARES over two hours and carried
-from gap to gap over four days, and keeping the
-cells at midnight -- hour 0 not free to take a heap at minute 0, alone and beside
-hour 1 -- the exchange off a written midnight (its
+heaps and their kin groups, KIN SHARES over two hours, carried
+from gap to gap over four days and splitting no unit tied ranks share,
+and keeping the
+cells at midnight -- a written midnight a kind of its own, and hour 0 not
+free to take a heap at minute 0, alone and beside hours 1 and 5 -- the exchange off a written midnight (its
 first answer in the kin group, a swap with a lone rank, and a rank that
 stays), PUT BACK once more after it, SUBSTITUTE, SPREAD and the tails
 keeping the count at midnight, in a stratum narrower than their drawing
-unit by the written unit, and taking a midnight where it is short -- and the drawing units G7.3's drawing rule gives: a half-hour grid, a
+unit by the written unit, and taking a midnight where it is short, and
+making room at midnight for a rank of the body -- and the drawing units G7.3's drawing rule gives: a half-hour grid, a
 column on the hour, a column whose seconds alone are pinned, one
 census group holding minute 0 and heaps beside a withheld census of the
 rest, which pin nothing; and a draw laid on its unit: each with what the

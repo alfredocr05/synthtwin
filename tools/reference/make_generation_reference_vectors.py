@@ -10301,9 +10301,6 @@ def hour_settled(column, ordinals, parsed, whole, lows, highs, holes):
     if not groups:
         groups = [(0, 11, last - first + 1), (12, 23, 0)]
     step = 60 if column["time_precision"] == "minute" else 1
-    # ...stepped by the drawing unit where every body rank stands on it, up
-    # to a minute (landing 3b.4).
-    step = min(count_step(column, ordinals, step), max(step, 60))
     group_of_hour = [0] * 24
     for index, (low_hour, high_hour, _count) in enumerate(groups):
         for hour in range(low_hour, high_hour + 1):
@@ -11212,6 +11209,71 @@ def clock_midnight_count_kept(counted, ordinals, pinned, first, last, step, away
     sort_unpinned_runs(ordinals, [pinned[rank] or first <= rank <= last for rank in range(parsed)])
 
 
+
+def clock_midnight_room_made(walk, first, last, pinned, tail_pins, written, away):
+    """G7.3h, the tails make room at midnight: on a walk keeping its cells at
+    midnight, with value 0 a group alone holding fewer body ranks than its
+    count, each body rank in order -- not pinned, of a group over its count
+    -- whose place on value 0 of its own parent, its place in the bin kept,
+    is a written midnight inside its gap and no hole, takes it, while the
+    first tail rank not yet stepped, not pinned by its tail, at a written
+    midnight, that can step off inside its stratum does so (``away`` later,
+    else earlier, else ``written`` later, else earlier) -- where the count
+    of different values is reachable, only one whose step and the body
+    rank's move together do not raise that count, the first keeping it
+    where any does; a value lost is put back by SPREAD after."""
+    zero = walk.group_of_bin[0]
+    if not walk.no_midnight or walk.group_of_bin.count(zero) != 1:
+        return
+    found = clock_have(walk, first, last)
+    if found[zero] >= walk.counts[zero]:
+        return
+    tails = [
+        rank for rank in range(len(walk.days))
+        if not first <= rank <= last and not tail_pins[rank]
+        and written_at_midnight(walk.days[rank], 0, written)
+    ]
+    span = clock_span(walk)
+    used = [False] * len(tails)
+    for rank in range(first, last + 1):
+        if found[zero] >= walk.counts[zero]:
+            return
+        ordinal = walk.days[rank]
+        group = walk.group(ordinal)
+        if pinned[rank] or group == zero or found[group] <= walk.counts[group]:
+            continue
+        target = ordinal - ordinal % span + ordinal % walk.unit
+        if (
+            not written_at_midnight(target, 0, walk.step)
+            or not walk.lows[rank] <= target <= walk.highs[rank]
+            or walk.hole(target)
+        ):
+            continue
+        change = (walk.holding(target) == 0) - (walk.holding(ordinal) == 1)
+        chosen = None
+        for index, tail in enumerate(tails):
+            if used[index]:
+                continue
+            value, low, high = walk.days[tail], walk.lows[tail], walk.highs[tail]
+            off = next((c for c in (value + away, value - away, value + written, value - written) if low <= c <= high), None)
+            if off is None:
+                continue
+            shift = (walk.holding(off) == 0) - (walk.holding(value) == 1)
+            if not walk.keeps_always and change + shift > 0:
+                continue
+            if chosen is None or (change + shift == 0 and chosen[2] < 0):
+                chosen = (index, off, change + shift)
+            if chosen[2] == 0 or walk.keeps_always:
+                break
+        if chosen is None:
+            continue
+        used[chosen[0]] = True
+        walk.move(tails[chosen[0]], chosen[1])
+        walk.move(rank, target)
+        found[zero] += 1
+        found[group] -= 1
+
+
 def clock_fields_settled(column, ordinals, parsed, whole, lows, highs, holes):
     """G7.3h, from the method's text: the minute and second censuses and heaps
     met (landing 3b.4, plan P4-D372).
@@ -11315,6 +11377,12 @@ def clock_fields_settled(column, ordinals, parsed, whole, lows, highs, holes):
             walk, first, last, pinned, wanted, standing, not census_of_days, kin,
             reachable, column["n_distinct"],
         )
+        clock_midnight_room_made(
+            walk, first, last, pinned, ranks_the_tail_pins(column, parsed),
+            written, max(written, tail_unit_of(column)),
+        )
+        if reachable and walk.different() < wanted:
+            clock_short_spread(walk, first, last, pinned, wanted, standing, not census_of_days, kin)
         ordinals = walk.days
         if field == "minute":
             minute_of = list(group_of_value)
@@ -13749,11 +13817,6 @@ def units_settled(column, ordinals, parsed, whole, lows, highs):
         return ordinals
     day = 86400 if space == "datetime" else 1
     step = 60 if space == "datetime" and column["time_precision"] == "minute" else 1
-    # ...stepped and counted by the drawing unit where every body rank
-    # stands on it (landing 3b.4).
-    written = step
-    if space == "datetime":
-        step = count_step(column, ordinals, step)
     pinned = [
         flag or lows[rank] >= highs[rank]
         for rank, flag in enumerate(ranks_the_tail_pins(column, parsed))
@@ -13769,8 +13832,6 @@ def units_settled(column, ordinals, parsed, whole, lows, highs):
         distinct = column["n_distinct"] - column["n_unparsed"]
     if widths is None and distinct is None:
         return ordinals
-    if distinct is not None and step != written:
-        distinct -= len({o // written for o in ordinals}) - len({o // step for o in ordinals})
 
     word = next(iter(census)) if widths is not None else ""
     unit = step if space == "datetime" else 1
@@ -14029,9 +14090,14 @@ class WeekdayWalk:
         return self.group_of_bin[self.bin_of(ordinal)]
 
     def kind(self, ordinal):
+        keep = self.keep_of(ordinal) if self.keep_of is not None else 0
+        if self.no_midnight and written_at_midnight(ordinal, 0, self.step):
+            # G7.3h: a written midnight a kind of its own where the pass keeps
+            # its cells at midnight, so no step moves a rank onto it.
+            keep = -1 - keep
         return (
             self.width_of(ordinal // self.day),
-            self.keep_of(ordinal) if self.keep_of is not None else 0,
+            keep,
             self.pair_of(ordinal) if self.pair_of is not None else 0,
         )
 
@@ -16794,6 +16860,24 @@ def field_kin_shares_case():
 
 
 
+
+def field_kin_no_split_case():
+    m = HOUR_MONDAY
+    ordinals = [
+        hour_at(m, 7, 50), hour_at(m, 8, 10), hour_at(m, 8, 10), hour_at(m, 9, 40),
+        hour_at(m, 9, 40), hour_at(m, 10, 10),
+    ]
+    return field_case(
+        "KIN SHARES never split a written unit a kin group's rank shares (the lane's skeptic, "
+        "item 5): a heap at minute 0 counting 1, hours 8 and 9 kin groups of their own, each "
+        "holding two ranks tied on one minute. Owed half a place each, the tie goes to the rest "
+        "for hour 8 and hour 9 is owed the heap, but neither rank at 09:40 may leave the unit it "
+        "shares by a move changing the count; the gap's own single moves then take the nearest, "
+        "08:10 to 08:00. Split within its kin group, 09:40 took 09:00.",
+        "field", ordinals, {0, 5}, [5, 1], HEAP_ZERO, 60, kin=[0] * 8 + [1, 2] + [3] * 14,
+    )
+
+
 def field_kin_carry_case():
     m = HOUR_MONDAY
     days = 4
@@ -16942,20 +17026,40 @@ def field_midnight_kin_case():
     ordinals = [hour_at(m - 1, 23, 50)]
     for day in range(m, m + days):
         ordinals += [
-            hour_at(day, 0, 17), hour_at(day, 5, 0), hour_at(day, 5, 0), hour_at(day, 6, 0),
-            hour_at(day, 6, 0),
+            hour_at(day, 0, 17), hour_at(day, 5, 0), hour_at(day, 5, 0), hour_at(day, 6, 20),
+            hour_at(day, 6, 40),
         ]
     ordinals += [hour_at(m + days, 7, 10)]
     return field_case(
-        "KIN SHARES keeping the cells at midnight (the lane's skeptic, item 1): 85 days, each with one "
-        "rank at 00:17 and pairs at 05:00 and 06:00, minute 0 a heap counting the 340 ranks of "
-        "the pairs, hour 0 a kin group of its own, the count at midnight published. Hour 0's "
-        "ranks are not free to take the heap -- its minute 0 is the day's midnight -- so the "
-        "heap's share goes to the other kin group, which holds it already, and no rank moves. "
-        "Shared in proportion, hour 0 took 68 places at midnight, more than SUBSTITUTE asks "
-        "for each, and they stayed there.",
-        "field", ordinals, {0, len(ordinals) - 1}, [days + 2, 4 * days], HEAP_ZERO, 60,
-        kin=[0] + [1] * 23, no_midnight=True,
+        "No step puts a rank onto a written midnight where the pass keeps its cells there (the "
+        "lane's skeptic, item 1): 85 days, each with one rank at 00:17, a pair at 05:00 and ranks "
+        "at 06:20 and 06:40, one kin group, minute 0 a heap counting the pairs and one rank more "
+        "a day, the count at midnight published. A written midnight is a kind of its own, so the "
+        "rank at 06:20 takes 06:00 and the rank at 00:17 stays. Kept by no kind, the nearer "
+        "00:17 took 00:00 on all 85 days; the exchange, asking 64 runs at most, took 64 back "
+        "to 00:01, and 21 stayed at midnight.",
+        "field", ordinals, {0, len(ordinals) - 1}, [2 * days + 2, 3 * days], HEAP_ZERO, 60,
+        no_midnight=True,
+    )
+
+
+def field_midnight_spread_case():
+    m = HOUR_MONDAY
+    days = 6
+    ordinals = [hour_at(m - 1, 23, 50)]
+    for day in range(m, m + days):
+        ordinals += [hour_at(day, 0, 17), hour_at(day, 1, 5), hour_at(day, 5, 25)]
+    ordinals += [hour_at(m + days, 7, 10)]
+    return field_case(
+        "KIN SHARES keeping the cells at midnight (the lane's skeptic, item 1): six days, each "
+        "with a rank at 00:17, 01:05 and 05:25, hours 0, 1 and 5 kin groups of their own, "
+        "minute 0 a heap counting 6 of the 18 movable ranks, the count at midnight published. "
+        "Hour 0's ranks are not free to take the heap -- its minute 0 is the day's midnight -- "
+        "so its share goes to hours 1 and 5 by their free ranks, three each. Shared in "
+        "proportion, hour 0's two could not be taken and went to the nearest, hour 1, four "
+        "against two.",
+        "field", ordinals, {0, len(ordinals) - 1}, [2 * days + 2, days], HEAP_ZERO, 60,
+        kin=[0, 1, 2, 2, 2, 3] + [4] * 18, no_midnight=True,
     )
 
 
@@ -16993,6 +17097,28 @@ def field_midnight_short_case():
         "lows": [hour_at(m - 2, 0, 0), hour_at(m - 2, 0, 0)] + [0] * 3,
         "highs": [hour_at(m - 2, 0, 0), hour_at(m - 1, 23, 0)] + [0] * 3,
     }
+
+
+
+def field_midnight_room_case():
+    m = HOUR_MONDAY
+    ordinals = [
+        hour_at(m - 1, 0, 0), hour_at(m, 0, 0), hour_at(m + 1, 0, 1), hour_at(m + 1, 5, 0),
+        hour_at(m + 1, 6, 0), hour_at(m + 2, 9, 0),
+    ]
+    case = field_case(
+        "The tails make room at midnight: a column on the hour, minute 0 a heap counting the "
+        "four body ranks, the count at midnight published. The hour pass left rank 2 at 00:01, "
+        "whose only place on minute 0 is the day's midnight, which no step moves a rank onto; "
+        "the low tail's rank at a midnight steps an hour off it inside its stratum, and rank 2 "
+        "takes 00:00 of its own day -- the count at midnight kept, the heap met.",
+        "room", ordinals, {0, 1, 5}, [0, 4], HEAP_ZERO, 60, no_midnight=True,
+    )
+    case["body"] = [1, 4]
+    case["lows"][0], case["highs"][0] = hour_at(m - 2, 0, 0), hour_at(m - 1, 12, 0)
+    case["tail_pins"] = [False, False, False, False, False, True]
+    case["away"] = 3600
+    return case
 
 
 def field_midnight_narrow_case():
@@ -17036,6 +17162,7 @@ CLOCK_FIELD_STEP_CASES = {
     "field_minute_heaps": field_heaps_case,
     "field_second_zero": field_seconds_case,
     "field_kin_shares": field_kin_shares_case,
+    "field_kin_no_split": field_kin_no_split_case,
     "field_kin_carry": field_kin_carry_case,
     "field_exchange_stays": field_exchange_case,
     "field_exchange_swap": field_exchange_swap_case,
@@ -17046,7 +17173,9 @@ CLOCK_FIELD_STEP_CASES = {
     "field_midnight_tails": field_midnight_tails_case,
     "field_midnight_kin": field_midnight_kin_case,
     "field_midnight_share": field_midnight_share_case,
+    "field_midnight_spread": field_midnight_spread_case,
     "field_midnight_narrow": field_midnight_narrow_case,
+    "field_midnight_room": field_midnight_room_case,
     "field_midnight_short": field_midnight_short_case,
     "field_floor": field_floor_case,
     "lattice_half_hour": lambda: field_lattice_case(
@@ -17132,6 +17261,10 @@ def clock_field_step_answer(case):
     elif step == "spread":
         clock_short_spread(
             walk, first, last, pinned, case["wanted"], case["standing"], case["anyday"], kin
+        )
+    elif step == "room":
+        clock_midnight_room_made(
+            walk, first, last, pinned, case["tail_pins"], case["written_unit"], case["away"]
         )
     return walk.days
 

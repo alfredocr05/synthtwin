@@ -23090,6 +23090,17 @@ def _weekday_kind(state: _WeekdayPass, ordinal: int) -> _WeekdayKind:
             _weekday_keep(state, ordinal),
             _weekday_pair(state, ordinal),
         )
+    # -- a WRITTEN MIDNIGHT a kind of its own, on a field pass keeping its
+    # cells at midnight (3b.T3, P4-D372; the lane's skeptic, item 1a): its
+    # ranks there are pinned, and no step of G7.3f moves a rank onto it, as
+    # every step keeps the kind -- 1,000 check-ins in bursts had four ranks
+    # of hour 0 moved onto 00:00 by the gap's single moves, the exchange
+    # took two back, and the twin came back 13 at midnight against 12. A
+    # body rank whose only place on value 0 is a midnight takes it where a
+    # tail gives its own way (`_clock_midnight_room_made`).
+    if state.no_midnight and _written_at_midnight(ordinal, 0, state.step):
+        width, keep, pair = state.kinds[grain]
+        return (width, -1 - keep, pair)
     return state.kinds[grain]
 
 
@@ -23773,6 +23784,7 @@ def _weekday_singles_moved(
             if allow:
                 return
             allow = True
+
 
 
 def _weekday_holes_swept(state: _WeekdayPass, gaps: "list[list[int]]") -> None:
@@ -25649,12 +25661,6 @@ def _hour_settled(
         )
     moved = [value for value in ordinals]
     step = 60 if facts.time_precision == "minute" else 1
-    # -- the drawing unit (3b.T3, P4-D372): stepped by it where every body
-    # rank stands on it, so no move leaves the lattice the second's census
-    # pins -- up to a minute: a move of the hour keeps its rank's minute,
-    # and a rank stepped off midnight inside hour 0 must find a place there,
-    # which the minute's pass then moves within its kin group.
-    step = min(_count_step(layout, moved, step), max(step, 60))
     # The count of different written units the pass keeps, built once:
     # a union taken value by value copied the set each time, which on
     # 10,000 moments was most of the pass.
@@ -27053,6 +27059,15 @@ def _clock_fields_settled(
             state, counts, body_low, body_high, pinned, wanted,
             _clock_day_standing(facts), not facts.weekday_census, kin, column.n_distinct,
         )
+        _clock_midnight_room_made(
+            state, counts, body_low, body_high, pinned, _ranks_the_tail_pins(layout),
+            written, max(written, layout.tail_unit),
+        )
+        if state.keep_units and _weekday_count(state) < wanted:
+            _clock_short_spread(
+                state, body_low, body_high, pinned, wanted, _clock_day_standing(facts),
+                not facts.weekday_census, kin,
+            )
         if _clock_found(state, len(counts), body_low, body_high) != counts:
             notes += [_clock_field_deviation(column.name, field)]
         if field == calendar_clock.MINUTE:
@@ -27071,6 +27086,112 @@ def _clock_fields_settled(
             body_high, written, max(written, layout.tail_unit), gap_lows, gap_highs,
         )
     return moved, notes
+
+
+
+def _clock_midnight_room_made(
+    state: _WeekdayPass,
+    counts: "list[int]",
+    body_low: int,
+    body_high: int,
+    pinned: "list[bool]",
+    tail_pins: "list[bool]",
+    written: int,
+    away: int,
+) -> None:
+    """THE TAILS MAKE ROOM AT MIDNIGHT (method G7.3h; the lane's repair).
+
+    On a field pass keeping its cells at midnight, a written midnight is a
+    kind of its own and no step moves a rank onto it (`_weekday_kind`). So
+    a body rank whose only place on value 0 is a midnight -- a rank of
+    hour 0 the hour pass stepped off midnight to 00:01 while a tail held a
+    midnight the real column's tails do not: a column on the hour at 1,000
+    rows came back with its heap at minute 0 one short -- waits here.
+    Where value 0 is a group alone and holds fewer body ranks than its
+    count: each body rank in order, not pinned, of a group holding more
+    than its count, whose place on value 0 of its own parent -- its place
+    in the bin kept -- is a written midnight inside its gap and no hole,
+    takes it, while the first tail rank not yet stepped, not pinned by its
+    tail, at a written midnight, that can step off it inside its stratum
+    does so: `away` -- its drawing unit -- later, else earlier, else the
+    written unit later, else earlier, as the tails keep their count
+    (`_clock_midnight_count_kept`); where the count of different values is
+    one the construction reaches, only a tail rank whose step and the
+    body rank's move together do not raise that count, the first keeping
+    it where any does (at 10,000 rows the rank at 00:01 joined a cell
+    already at its day's midnight, a value lost, which SPREAD puts back
+    after this step). The count at midnight is kept; value 0 gains a rank
+    and the rank's own group loses one.
+
+    Guarantees: moves ranks only as stated. Raises nothing. No I/O.
+    """
+    if not state.no_midnight or state.where.count(state.where[0]) != 1:
+        return
+    zero = state.where[0]
+    found = _clock_found(state, len(counts), body_low, body_high)
+    if found[zero] >= counts[zero]:
+        return
+    tails: "list[int]" = []
+    for rank in range(len(state.moved)):
+        if body_low <= rank <= body_high or tail_pins[rank]:
+            continue
+        if _written_at_midnight(state.moved[rank], 0, written):
+            tails += [rank]
+    span = _clock_span(state)
+    used = [False for _tail in tails]
+    for rank in range(body_low, body_high + 1):
+        if found[zero] >= counts[zero]:
+            return
+        ordinal = state.moved[rank]
+        group = state.where[_clock_bin(state, ordinal)]
+        if pinned[rank] or group == zero or found[group] <= counts[group]:
+            continue
+        target = ordinal - ordinal % span + ordinal % state.unit
+        if (
+            not _written_at_midnight(target, 0, state.step)
+            or not state.lows[rank] <= target <= state.highs[rank]
+            or _weekday_hole(state, target)
+        ):
+            continue
+        # What the move does to the count of different written units...
+        change = (1 if _weekday_there(state, target) == 0 else 0) - (
+            1 if _weekday_there(state, ordinal) == 1 else 0
+        )
+        chosen = -1
+        off = 0
+        lost = 0
+        for index in range(len(tails)):
+            if used[index]:
+                continue
+            value = state.moved[tails[index]]
+            low, high = state.lows[tails[index]], state.highs[tails[index]]
+            step_off: "int | None" = None
+            for candidate in (value + away, value - away, value + written, value - written):
+                if step_off is None and low <= candidate <= high:
+                    step_off = candidate
+            if step_off is None:
+                continue
+            # ...and the tail's step: where the count is one the construction
+            # reaches, never past it, and kept where any tail keeps it -- a
+            # value lost is put back by SPREAD after.
+            shift = (1 if _weekday_there(state, step_off) == 0 else 0) - (
+                1 if _weekday_there(state, value) == 1 else 0
+            )
+            if state.keep_units and change + shift > 0:
+                continue
+            if chosen < 0 or (change + shift == 0 and lost < 0):
+                chosen = index
+                off = step_off
+                lost = change + shift
+            if lost == 0 or not state.keep_units:
+                break
+        if chosen < 0:
+            continue
+        used[chosen] = True
+        _weekday_step(state, tails[chosen], off)
+        _weekday_step(state, rank, target)
+        found[zero] = found[zero] + 1
+        found[group] = found[group] - 1
 
 
 def _clock_second_kin(
@@ -31554,9 +31675,6 @@ def _units_settled(
     step = 1
     if space == "datetime" and facts.time_precision == "minute":
         step = 60
-    # -- the drawing unit (3b.T3, P4-D372)
-    written = step
-    step = _count_step(layout, moved, step)
     pinned = [False for _rank in range(parsed)]
     if layout is not None:
         pinned = _ranks_the_tail_pins(layout)
@@ -31581,12 +31699,6 @@ def _units_settled(
         distinct = column.n_distinct - facts.n_unparsed
     if widths < 0 and distinct < 0:
         return moved
-    if distinct >= 0 and step != written:
-        # Counted in the drawing unit, the published count less the tail
-        # values that share one with another (`_count_step`).
-        distinct = distinct - (
-            len({value // written for value in moved}) - len({value // step for value in moved})
-        )
     unit = step if space == "datetime" else 1
     gone = _count_holes(facts, holes)
     if gone:
@@ -31657,13 +31769,16 @@ def _count_step(layout: "_DateLayout | None", moved: "list[int]", step: int) -> 
     """The step a pass over a column of moments walks and counts in
     (landing 3b.4, plan P4-D372).
 
-    THE DRAWING UNIT, READ BY THE COUNT PASS AND THE CLOCK PASSES (the
-    3b.4 design skeptic's m2): where every BODY rank stands on the body's
-    drawing unit (`_DateLayout.draw_unit`), they step by it and count the
-    written units in it, so a rank split off a shared unit lands on the
-    lattice the censuses pin -- stepping a second, 104 of 10,000 cells
-    written `HH:MM:00` came back at second 1, and the second census's own
-    pass then joined them to their neighbours and lost 91 values. A tail
+    THE DRAWING UNIT, READ BY THE CLOCK PASSES (the 3b.4 design skeptic's
+    m2): where every BODY rank stands on the body's drawing unit
+    (`_DateLayout.draw_unit`), a field pass steps by it, so a rank split
+    off a shared unit lands on the lattice the censuses pin -- stepping a
+    second, 104 of 10,000 cells written `HH:MM:00` came back at second 1,
+    and the second census's own pass then joined them to their neighbours
+    and lost 91 values. The count pass and the hour pass, read by it at
+    first, step by the written unit again: withdrawn there, no twin of the
+    lane's batteries changed what it missed, nor stood a body cell off the
+    lattice (the lane's skeptic, item 5). A tail
     rank whose stratum holds no point of that lattice stays where it was
     drawn (`_on_draw_unit`); it is counted in the unit it stands in.
     Elsewhere the written unit `step`, as before.

@@ -30,7 +30,7 @@ beside a few timed cells -- publish nothing and say why; a column written
 finer than the second publishes no seconds, its twin writing none; every
 column publishing no such fact writes the twin it wrote before. Its review
 round kept 200,000 cells written `HH:MM:00` at their published count at
-midnight (602 against 385 before), each hour's share of the heaps rounded
+midnight (602 against 385 before), no rank moved onto a midnight there, each hour's share of the heaps rounded
 over the whole column rather than gap by gap, and small bursty tables and
 randomly drawn columns at their count of different values.
 

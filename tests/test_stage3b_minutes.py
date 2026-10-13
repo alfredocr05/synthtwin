@@ -626,19 +626,28 @@ def test_cells_written_on_the_minute_keep_their_seconds(tmp_path: pathlib.Path, 
 
 
 def test_a_step_off_midnight_keeps_the_drawing_unit(tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """Cells written `HH:MM:00` at 10,000 rows -- the gate's table drawn at seed
-    82001 -- keep their count at midnight: both steps at midnight step a body
-    rank off one by the drawing unit, a minute, and a tail rank by its tail's
-    (`_midnight_step_of`, the design skeptic's m2); stepped by the written
-    second, the count at midnight is missed (the lane's skeptic, item 5:
-    at seeds 0 and 1, and on the near-pure sibling)."""
-    cells, _form = shapes.thousand(10000, 82001)["zero_seconds"]
+    """Cells written `HH:MM:00` at 10,000 rows -- the gate's table -- miss nothing,
+    and with G7.3h withheld every body cell already stands on second 0: both
+    steps at midnight step a body rank off one by the drawing unit, a minute,
+    and a tail rank by its tail's (`_midnight_step_of`, the design skeptic's
+    m2). Stepped by the written second, seven body cells stood at second 1
+    for G7.3h's own passes to take back (the lane's skeptic, item 5: since
+    the repair round those passes take them back, and the twin's counts are
+    met either way)."""
+    cells, _form = shapes.thousand(10000)["zero_seconds"]
     described = _one_column(tmp_path, "rounds", cells)
-    written = kpi_shapes.twin_text(described, 0)
-    assert kpi_shapes.missed(kpi_shapes.measure(described, written, "t.csv")) == []
+    assert kpi_shapes.missed(kpi_shapes.measure(described, kpi_shapes.twin_text(described, 0), "t.csv")) == []
+    block = described.block("rounds")
+    low, high = block["low_tail"]["rows"], block["high_tail"]["rows"]
+
+    def off_the_lattice() -> int:
+        written = sorted(shapes.cells_of(kpi_shapes.twin_text(described, 0), "rounds"))
+        return sum(1 for cell in written[low: len(written) - high] if not cell.endswith(":00"))
+
+    monkeypatch.setattr(generation, "_clock_fields_settled", lambda _column, _facts, ordinals, *_rest, **_named: (list(ordinals), []))
+    assert off_the_lattice() == 0
     monkeypatch.setattr(generation, "_midnight_step_of", lambda _layout, _rank, step: step)
-    written = kpi_shapes.twin_text(described, 0)
-    assert "rounds:midnight.count" in kpi_shapes.missed(kpi_shapes.measure(described, written, "m.csv"))
+    assert off_the_lattice() > 0
 
 
 def test_a_pure_grid_is_drawn_on_its_lattice(tmp_path: pathlib.Path) -> None:
@@ -1016,6 +1025,11 @@ def _answer(case: dict, module=generation, clock=calendar_clock) -> object:
         module._clock_split_substituted(state, first, last, pinned, case["wanted"], standing, case["anyday"], kin)
     elif step == "spread":
         module._clock_short_spread(state, first, last, pinned, case["wanted"], standing, case["anyday"], kin)
+    elif step == "room":
+        module._clock_midnight_room_made(
+            state, list(case["counts"]), first, last, pinned, list(case["tail_pins"]),
+            case["written_unit"], case["away"],
+        )
     return state.moved
 
 
@@ -1108,6 +1122,11 @@ STEP_MUTANTS = {
         "        if state.kin and _clock_kin_shares_moved(state, ranks, want):",
         "        if False and _clock_kin_shares_moved(state, ranks, want):",
     ),
+    "a kin group's rank may split a unit it shares": (
+        "field_kin_no_split",
+        "        _weekday_singles_moved(state, members, have, share, _WEEKDAY_SINGLE_ROUNDS, False, False)",
+        "        _weekday_singles_moved(state, members, have, share, _WEEKDAY_SINGLE_ROUNDS, False, True)",
+    ),
     "a kin group's rounding not carried to the next gap": (
         "field_kin_carry",
         "            state.kin_carry[(kin, group)] if (kin, group) in state.kin_carry else 0\n",
@@ -1117,6 +1136,11 @@ STEP_MUTANTS = {
         "field_exchange_put_back",
         "    for last_resort in (False, True):\n        if state.keep_units and _weekday_count(state) > wanted and",
         "    for last_resort in ():\n        if state.keep_units and _weekday_count(state) > wanted and",
+    ),
+    "the tails make no room at midnight": (
+        "field_midnight_room",
+        "    if not state.no_midnight or state.where.count(state.where[0]) != 1:\n        return\n    zero = state.where[0]\n    found = _clock_found(",
+        "    if True:\n        return\n    zero = state.where[0]\n    found = _clock_found(",
     ),
     "a narrow stratum keeps its midnight": (
         "field_midnight_narrow",
@@ -1128,8 +1152,13 @@ STEP_MUTANTS = {
         "        elif at < counted and not here:",
         "        elif False:",
     ),
-    "hour 0 takes its share of a heap at minute 0": (
+    "a written midnight no kind of its own": (
         "field_midnight_kin",
+        "    if state.no_midnight and _written_at_midnight(ordinal, 0, state.step):\n        width, keep, pair = state.kinds[grain]\n",
+        "    if False:\n        width, keep, pair = state.kinds[grain]\n",
+    ),
+    "hour 0 takes its share of a heap at minute 0": (
+        "field_midnight_spread",
         "    if state.no_midnight and state.where.count(state.where[0]) == 1:\n        zero = state.where[0]",
         "    if False:\n        zero = state.where[0]",
     ),
