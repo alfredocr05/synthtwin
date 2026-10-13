@@ -1282,10 +1282,15 @@ STEP_MUTANTS = {
         "    if not blocked:\n        parts = {",
         "    if True:\n        parts = {",
     ),
-    "a part past the ranks able to take its group asked of the kin group": (
+    "a kin group given room on value 0 beyond its free ranks": (
         "field_midnight_zero_room",
-        "            if parts[kin][group] > room:\n                excess",
-        "            if False:\n                excess",
+        "            min(free[kin], reach[kin][group]) if group == zero else reach[kin][group]\n            for group in range(groups)\n        ]\n    parts",
+        "            reach[kin][group]\n            for group in range(groups)\n        ]\n    parts",
+    ),
+    "a part its room held it below passed on to the kin group after it": (
+        "field_kin_partial",
+        "            if share[group] >= room[group] and ideal[group] >= (taken[group] + 1) * _KIN_SCALE:",
+        "            if False:",
     ),
     "no PUT BACK after the exchange": (
         "field_exchange_put_back",

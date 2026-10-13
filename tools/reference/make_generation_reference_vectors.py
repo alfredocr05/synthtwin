@@ -14975,8 +14975,7 @@ def kin_parts(order, sizes, owns, carries, reach, able, want):
     able to take shared by the ranks able to take it, the rest of each kin
     group's ranks over the other groups as they want, and the carry of a
     kin group reaching none of some wanted group offered to the others by
-    their ranks able to take each group; last, a part beyond its ranks able
-    to take the group offered the same way."""
+    their ranks able to take each group."""
     groups = range(len(want))
     blocked = [kin for kin in order if any(want[g] > 0 and reach[kin][g] == 0 for g in groups)]
     if not blocked:
@@ -15000,13 +14999,6 @@ def kin_parts(order, sizes, owns, carries, reach, able, want):
         for kin in blocked:
             for g in groups:
                 kin_offered(order, parts, able, kin, g, carries[kin][g])
-    for g in groups:
-        for kin in order:
-            room = able[kin][g] * WEEKDAY_SHARE_SCALE
-            if parts[kin][g] > room:
-                excess = parts[kin][g] - room
-                parts[kin][g] = room
-                kin_offered(order, parts, able, kin, g, excess)
     return parts
 
 
@@ -15064,6 +15056,14 @@ def kin_shares_moved(walk, ranks, want):
         for g in groups:
             walk.kin_carry[(kin, g)] = carried[g] + own[g]
         taken = [taken[g] + share[g] for g in groups]
+        # The whole ranks of a part its room held it below leave the running
+        # ideal, offered to the kin groups after it by their able ranks.
+        later = order[order.index(kin) + 1:]
+        for g in groups:
+            if share[g] >= room[g] and ideal[g] >= (taken[g] + 1) * WEEKDAY_SHARE_SCALE:
+                excess = (ideal[g] - taken[g] * WEEKDAY_SHARE_SCALE) // WEEKDAY_SHARE_SCALE * WEEKDAY_SHARE_SCALE
+                ideal[g] -= excess
+                kin_offered(later, parts, able, kin, g, excess)
     walk.kin_members = members
     return True
 
@@ -17200,20 +17200,51 @@ def field_kin_unreachable_case():
         pins |= {len(ordinals)}
         ordinals += [hour_at(day, 8, 10)]
         for hour in (8, 9, 10):
-            ordinals += [hour_at(day, hour, 20, second) for second in range(30)]
-            ordinals += [hour_at(day, hour, 40, second) for second in range(30, 60)]
+            ordinals += [hour_at(day, hour, 20, second) for second in range(10)]
+            ordinals += [hour_at(day, hour, 40, second) for second in range(30, 40)]
         pins |= {len(ordinals)}
         ordinals += [hour_at(day, 11, 0)]
     where = [1 if minute == 0 else 2 if minute == 20 else 3 if minute == 40 else 0 for minute in range(60)]
     return field_case(
         "KIN SHARES' REACH (the verifier's item 10 on the Codex round of landing 3b.4): four "
-        "daily gaps of 180 stamps, hours 8, 9 and 10 each with minute 20 at seconds 0 to 29 and "
-        "minute 40 at 30 to 59, every gap from 08:10 to 11:00, so hour 8 never reaches minute "
-        "0; minutes 0, 20 and 40 owed 244, 240 and 240. Minute 0 is shared by the ranks reaching "
+        "daily gaps of 60 stamps, hours 8, 9 and 10 each with minute 20 at seconds 0 to 9 and "
+        "minute 40 at 30 to 39, every gap from 08:10 to 11:00, so hour 8 never reaches minute "
+        "0; minutes 0, 20 and 40 owed 84, 80 and 80. Minute 0 is shared by the ranks reaching "
         "it, the rest of each kin group's ranks over minutes 20 and 40, and hour 8's carry offered "
-        "to hours 9 and 10: 120 each on minute 0. Its carry asked of hour 8 itself grew gap by gap "
-        "and took every share of minute 0 from the hours after it: 200 and 40.",
-        "field", ordinals, pins, [4, 244, 240, 240], where, 60, written_unit=1,
+        "to hours 9 and 10: 40 each on minute 0. Its carry asked of hour 8 itself grew gap by gap "
+        "and took the shares of minute 0 from the hours after it (on 180 stamps a gap, 200 and "
+        "40 where 120 each could stand).",
+        "field", ordinals, pins, [4, 84, 80, 80], where, 60, written_unit=1,
+        kin=[0] * 8 + [1, 2, 3] + [4] * 13,
+    )
+
+
+def field_kin_partial_case():
+    m = HOUR_MONDAY
+    ordinals = []
+    pins = set()
+    for gap in range(4):
+        pins |= {len(ordinals)}
+        ordinals += [hour_at(m + 2 * gap, 8, 10)]
+        for day in (m + 2 * gap, m + 2 * gap + 1):
+            for hour in (8, 9, 10):
+                size = 3 if hour != 8 else 9 if day == m + 2 * gap else 1
+                ordinals += [hour_at(day, hour, 20, second) for second in range(size)]
+                ordinals += [hour_at(day, hour, 40, second) for second in range(30, 30 + size)]
+        pins |= {len(ordinals)}
+        ordinals += [hour_at(m + 2 * gap + 1, 11, 0)]
+    where = [1 if minute == 0 else 2 if minute == 20 else 3 if minute == 40 else 0 for minute in range(60)]
+    return field_case(
+        "KIN SHARES' REACH where a kin group's room holds it below its part (the verifier's "
+        "item 10 on the Codex round of landing 3b.4): four gaps of two days from 08:10 to 11:00, "
+        "hour 8 with 18 stamps on the first day and 2 on the second, hours 9 and 10 with 6 "
+        "on each, every hour's at minutes 20 and 40; minutes 0, 20 and 40 owed 64, 58 and "
+        "58. Hour 8 reaches minute 0 with its 2 second-day ranks alone and is owed near 7 a "
+        "gap: the whole ranks its room holds it below leave the running ideal, offered to "
+        "hours 9 and 10 by their ranks able to take minute 0, so hour 8 takes 8, hours 9 and "
+        "10 29 and 23. Passed on whole, hour 8's growing carry fell on hour 9 alone: 36 "
+        "against hour 10's 16.",
+        "field", ordinals, pins, [4, 64, 58, 58], where, 60, written_unit=1,
         kin=[0] * 8 + [1, 2, 3] + [4] * 13,
     )
 
@@ -17495,13 +17526,10 @@ def field_midnight_zero_room_case():
         "skeptic, item 3): hours 0 and 1 one kin group, 2 and 3 another, 4 to 7 a third; "
         "minute 0 a heap counting 8 of the 14 body ranks, the count at midnight published; "
         "noon of day 8 pinned, parting two gaps. In the second gap minute 0 is owed five: "
-        "hours 4 to 7 take three, the one rank of hour 0 -- its place on minute 0 the day's "
-        "midnight -- none, and hours 2 and 3 the other two: hour 0's kin group carries from "
-        "the first gap a share of minute 0 it had no free rank for, offered to the other two "
-        "by their ranks free there, five and four (KIN SHARES' REACH, the verifier's item 10 "
-        "on the Codex round of landing 3b.4); the leftover gives hours 4 to 7 one more. Given "
-        "room for its rank on minute 0, hour 0's kin group took a place there by the largest "
-        "remainder, which its rank cannot stand on.",
+        "hours 4 to 7 take two, the one rank of hour 0 -- its place on minute 0 the day's "
+        "midnight -- none, and hours 2 and 3 the other three. Given room for its rank on "
+        "minute 0, hour 0's kin group took one place there by the largest remainder, which "
+        "its rank cannot stand on, and hours 2 and 3 came back with two of the five.",
         "field", ordinals, {0, 4, len(ordinals) - 1}, [6, 8], HEAP_ZERO, 60,
         kin=[1, 1, 0, 0, 2, 2, 2, 2] + [3] * 16, no_midnight=True,
     )
@@ -17640,6 +17668,7 @@ CLOCK_FIELD_STEP_CASES = {
     "field_kin_carry": field_kin_carry_case,
     "field_kin_blocked": field_kin_blocked_case,
     "field_kin_unreachable": field_kin_unreachable_case,
+    "field_kin_partial": field_kin_partial_case,
     "tail_end": tail_end_case,
     "tail_end_listed": tail_end_listed_case,
     "field_exchange_stays": field_exchange_case,
