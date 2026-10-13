@@ -320,3 +320,61 @@ def test_a_ragged_row_among_trailing_rows_keeps_the_ragged_reason(tmp_path: path
     code, said = _said(["profile", str(real), "--out-dir", str(tmp_path), "--replace"])
     assert code == 1, said
     assert "The first row names 4 columns, but row 51 has 6" in said, said
+
+
+def _with_rows(data: bytes, rows: "dict[int, str]") -> bytes:
+    """``data`` with the data rows numbered in ``rows`` (1-based, after the header) replaced."""
+    lines = data.decode("utf-8").split("\n")
+    for number, text in rows.items():
+        lines[number] = text
+    return "\n".join(lines).encode("utf-8")
+
+
+@pytest.mark.parametrize(
+    ("label", "rows", "shown", "hidden"),
+    [
+        (
+            "probe A: row 51 holds three values and ends in the semicolon",
+            {51: "P0051;age;arm;"},
+            "The first row names 4 columns, but row 51 has 3.",
+            "does not end in",
+        ),
+        (
+            "probe E: row 51 ends in two semicolons",
+            {51: "P0051;30;F;55.0;;"},
+            "The first row names 4 columns, but row 51 has 5.",
+            "row 51 has 6",
+        ),
+        (
+            "probe F: row 51 is unclosed and row 61 holds two values",
+            {51: "P0051;30;F;55.0", 61: "P0061;30;"},
+            "The first row names 4 columns, but row 61 has 2 (2 rows in total).",
+            "row 51 has 4",
+        ),
+    ],
+    ids=["probe-A-three-values-closed", "probe-E-two-closing", "probe-F-mixed"],
+)
+def test_a_row_the_reading_cannot_read_is_named_by_its_own_values(
+    tmp_path: pathlib.Path, label: str, rows: "dict[int, str]", shown: str, hidden: str,
+) -> None:
+    """THE RAGGED SENTENCE COUNTS A ROW'S OWN VALUES (lane R5's second
+    repair, skeptic 2 items 1 and 2).
+
+    Rows ending in `;` over a header that does not. A row that ends in
+    the semicolon like the others but holds three values was filed as
+    lacking the trailing semicolon ("row 51 does not end in a
+    semicolon", false), red here on that filing (mutant
+    ``kind0_any_count``: any row of ``count <= width`` fields so filed).
+    The closing empty field is the delimiter, not a value, so the ragged
+    sentence counts 3 and 5, not 4 and 6. And in a file mixing an
+    unclosed row with a ragged one, the unclosed row of four values is
+    left out of the ragged listing ("names 4 columns, but row 51 has 4"
+    contradicts itself) yet counted in the total; red on mutant
+    ``any_uneven_not_every``, which names row 51 alone and hides row 61."""
+    real = tmp_path / "real.csv"
+    real.write_bytes(_with_rows(_uneven(False, {}, "", 120), rows))
+    code, said = _said(["profile", str(real), "--out-dir", str(tmp_path), "--replace"])
+    assert code == 1, (label, code, said)
+    assert shown in said, (label, said)
+    assert hidden not in said, (label, said)
+    assert "Make every row end the same way" not in said, (label, said)

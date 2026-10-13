@@ -5201,7 +5201,16 @@ def survey(
             else:
                 if header_trailing:
                     trailing_broken = True
-                if count == width:
+                # THE ROW'S OWN VALUES (lane R5's second repair, skeptic
+                # 2 items 1 and 2): a closing empty field is the
+                # delimiter that ends the row, not a value. A row of
+                # `count == width` fields that ends in the delimiter
+                # (`P0051;age;arm;` under four columns) DOES end like the
+                # others and lacks a value; only a row whose last field
+                # holds something lacks the trailing delimiter.
+                closed = fields[count - 1] == ""
+                values = count - 1 if closed else count
+                if count == width and not closed:
                     uneven = uneven + 1
                     if len(uneven_rows) < 3:
                         uneven_rows += [
@@ -5217,8 +5226,12 @@ def survey(
                             )
                         ]
                 ragged = ragged + 1
-                if len(offenders) < 3:
-                    offenders += [(n_rows + 1, len(fields))]
+                # A row of exactly `width` values is listed only by the
+                # trailing-delimiter sentence: in the ragged sentence it
+                # would read "names 4 columns, but row 51 has 4". It
+                # still counts in the total.
+                if len(offenders) < 3 and values != width:
+                    offenders += [(n_rows + 1, values)]
                 n_rows = n_rows + 1
                 continue
         if count > width:
