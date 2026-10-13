@@ -28,7 +28,11 @@ A class of files goes from described to refused. Any semicolon, tab or
 bar table whose rows (or header alone) end in the delimiter and that
 holds a row the reading cannot read was described as one column at exit
 0 before; it is now refused at exit 1, as the same file without trailing
-delimiters is. That covers a row that does not end in the delimiter, or
+delimiters is, except where a row inside the sample holds a value after
+the closing delimiter: detection then does not line up and the file is
+still read as one column at exit 0, as on 0ecc82d (row 51 `...;x`, alone
+or beside a row 61 of two values). That covers a row that does not end in
+the delimiter, or
 that holds a value after it (row 501, past the sample, too), the header
 and some row alone ending in it, and a row of too few or too many values
 (row 51 `P0051;age;arm;`, row 51 ending `;;`, or an unclosed row 51 with
@@ -38,7 +42,10 @@ refusal names the row and the trailing delimiter it lacks or carries
 way, where the ragged-rows sentence had said "names 4 columns, but row 51
 has 4" and blamed quotation marks. A ragged row is counted by its own
 values, the closing delimiter left out ("row 51 has 3"), and a row that
-only lacks the closing delimiter is not listed beside a ragged one.
+only lacks the closing delimiter is not listed beside a ragged one. A
+quoted empty last value is a value, not the closing delimiter
+(`P0051;30;F;""` reads "row 51 does not end in a semicolon"), and a short
+row that does not close reads by its count ("row 51 has 2").
 
 ### Numbers that are dates are read as dates and written back as the same numbers (2026-10-07)
 
