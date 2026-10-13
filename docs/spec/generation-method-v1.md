@@ -5964,7 +5964,9 @@ that way.
   most, and the day pass (G7.3f) took the body's extra days back: a log
   of 1.15 rows a clinic day over 52 weeks at a floor of 20 came back 154
   or 155 different days for 156 at seven seeds of ten, where it now
-  keeps all 156 at every seed (frozen case `tails_split_first`).
+  keeps all 156 at every seed (`tests/test_stage3b_count_room.py`; the
+  frozen case `tails_split_first` holds the order on 72 dates of a
+  13-week log).
 
 **NO PASS OFFERS A HOLE, AND NONE COUNTS ONE A RANK CANNOT LEAVE** (plan
 P4-D358; the review of landing 3b.0, items 2 and 4). A HOLE is a unit an

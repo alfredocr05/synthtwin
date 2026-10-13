@@ -111,9 +111,11 @@ def test_the_split_order_s_work_grows_with_the_shared_ranks_not_the_column(monke
     and last 1,000 ranks two tails: the count wants the fifty days back.
     `_tail_rank_of` runs once per tail row whatever N is, and the free-unit
     search once per shared rank and once more per split taken, at 1,000,
-    10,000, 100,000 and 1,000,000 ranks alike. Mutation: the tail set
-    rebuilt per round or per rank, or a search restarted per split, turns
-    this red.
+    10,000, 100,000 and 1,000,000 ranks alike. Mutation: the tail set's
+    walk visiting more than its tail rows, or the shared ranks searched
+    afresh per split taken, turns this red. The test builds the tail set
+    by hand and runs no `_units_settled`, so it does not see where that
+    function builds the set.
     """
     calls = {"rank_of": 0, "search": 0}
     rank_of = generation._tail_rank_of

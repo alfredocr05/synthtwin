@@ -27,7 +27,10 @@ both marks from 21 of 549 to 2. No description changes, and a twin
 changes only where the pass splits and the order moves a rank. On D0's
 26 date batteries at the four floors (6,512 censuses, 59,485 twins),
 D1b's 296 family logs and 26 cases, D3's day-of-month battery and D2's
-two-mark battery, no twin misses a check its base twin met. Stated, each
+two-mark battery, no twin misses a check its base twin met, and the
+long twins P4-D388 recorded at 36 and 50 beside a census (fewdates, the
+hunt batteries, the Tuesday clinics) are each the twin of a3c1b33, the
+order moving no rank in any. Stated, each
 held by a strict expected failure with its measured cause: seven-day
 logs holding every day stay one to three values short (a rebuilt tail's
 end a day inside the real one, no step moving a tail rank past its
