@@ -347,7 +347,7 @@ def test_s6_an_all_different_joint_column_comes_back_all_different(
 ) -> None:
     """Item (b), as the construction reaches it: every value of the twin different -- 1,000 of
     1,000 at seeds 0 to 2 and 10,000 of 10,000, where 973 to 992 of 1,000 came back before the
-    landing (100,000 of 100,000 measured on both columns by the landing's skeptic) -- the count
+    landing (99,997 to 100,000 of 100,000 measured at the repair, said where short) -- the count
     held to G12.5's envelope, as the base holds it (the repair's item 1: the contract's one
     statement of reach is the only statement of exactness), and the report saying nothing of it."""
     described = _described(tmp_path_factory, name, 11, rows)
