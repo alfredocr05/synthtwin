@@ -24640,7 +24640,7 @@ def clock_minute_round(rows, columns, entries):
     """G7A.4c step 3, from the method's text: the fitted table and its rounding.
 
     Each cell starts at its weight; rows then columns are scaled to their
-    counts, at most 64 sweeps, stopping once every row lies within 1e-9
+    counts, at most 64 rounds, ending once every row lies within 1e-9
     times the largest row count (at least one) of its count.  Each cell
     takes its floor (never past its capacity); then, first with every
     cell between its floor and its ceiling and then with every cell free
@@ -24654,7 +24654,7 @@ def clock_minute_round(rows, columns, entries):
     """
     fitted = [[float(weight) for _c, weight, _cap in row] for row in entries]
     largest = max([1] + list(rows))
-    for _sweep in range(64):
+    for _round in range(64):
         for r, row in enumerate(fitted):
             total = 0.0
             for value in row:

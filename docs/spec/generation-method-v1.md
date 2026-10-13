@@ -9124,8 +9124,8 @@ reads no sixtieth second: `23:59:60` is unparsed). With `k` the step:
    minute groups, each owed its published count less the heaps' cells
    and the pins' in it. Each cell starts at its lane's step count -- a
    lane on absent places at nought, unless its stretch has no other step
-   -- and, at most 64 sweeps, the rows and then the columns are scaled
-   to their counts in binary64, stopping once every row lies within
+   -- and, at most 64 rounds, the rows and then the columns are scaled
+   to their counts in binary64, ending once every row lies within
    `1e-9` times the largest row count (at least one) of its count. Each
    cell takes its floor, never past its capacity (its steps on a column
    whose values all differ, its row's count otherwise). Then, first with

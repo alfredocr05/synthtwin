@@ -21336,9 +21336,9 @@ class _ClockMinutePlan:
     wide: "tuple[int, ...]"
 
 
-# How many sweeps the fitted table of G7A.4c takes at most, and how close
-# its rows must come to their counts for it to stop sooner.
-_MINUTE_SWEEPS = 64
+# How many rounds of scaling the fitted table of G7A.4c takes at most, and
+# how close its rows must come to their counts for it to end sooner.
+_MINUTE_FIT_ROUNDS = 64
 _MINUTE_FIT = 1e-9
 
 
@@ -21536,7 +21536,8 @@ def _clock_minute_plan(
     absent_list = tuple(
         at for at in absent if at % stride == 0 and at not in heap_at
     )
-    for index in sorted(reach, key=lambda place: reach[place][0]):
+    # The census groups' indexes are in bin order, which is rank order.
+    for index in sorted(reach):
         start, ranks = reach[index]
         span = spans[index]
         mine: "tuple[tuple[int, int], ...]" = ()
@@ -21655,7 +21656,7 @@ def _clock_minute_rounding(
     `entries[r]` are row r's cells as `(column, weight, capacity)`. THE
     FITTED TABLE: each cell starts at its weight and the rows, then the
     columns, are scaled to their counts, in binary64 and in that order,
-    for at most `_MINUTE_SWEEPS` sweeps or until every row lies within
+    for at most `_MINUTE_FIT_ROUNDS` rounds or until every row lies within
     `_MINUTE_FIT` of its count. THE ROUNDING: each cell takes the floor of
     its fitted value (never past its capacity); then, while a row and a
     column are owed cells, one is moved along the shortest path of cells
@@ -21676,7 +21677,7 @@ def _clock_minute_rounding(
     for row in entries:
         fitted += [[float(weight) for _column, weight, _capacity in row]]
     largest = max([1] + rows)
-    for _sweep in range(_MINUTE_SWEEPS):
+    for _round in range(_MINUTE_FIT_ROUNDS):
         for place in range(len(rows)):
             total = 0.0
             for value in fitted[place]:

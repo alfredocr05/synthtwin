@@ -478,8 +478,7 @@ INPUT_SIDE_ENTRIES = (
     # -- 3b.D4 (P4-D369)
     ("datetime", "heavy_dates"),
     # -- 3b.C1 (P4-D373)
-    # -- 3b.C2 (P4-D374)
-    ("clock", "minute_census"),
+    # -- 3b.C2 (P4-D374): filled, `minute_census.groups` (V5-C2).
     # -- 3b.R4 (P4-D384), reserved by the second cut (P4-D386)
     ("datetime", "count_form"),
 )
