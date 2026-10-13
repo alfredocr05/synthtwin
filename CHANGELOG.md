@@ -32,7 +32,12 @@ column publishing no such fact writes the twin it wrote before. Its review
 round kept 200,000 cells written `HH:MM:00` at their published count at
 midnight (602 against 385 before), no rank moved onto a midnight there, each hour's share of the heaps rounded
 over the whole column rather than gap by gap, and small bursty tables and
-randomly drawn columns at their count of different values.
+randomly drawn columns at their count of different values. Its second review round
+moves a burst of cells written alike whole, so small bursty tables keep
+their count where a whole move can meet the minute census, and say in the
+twin's report that the census stood where none can; a column written finer
+than the second publishes its minutes only where cutting it to the second
+keeps its count.
 
 ### Time of day comes back on moments (2026-10-06)
 

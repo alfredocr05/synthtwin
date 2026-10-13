@@ -23849,11 +23849,12 @@ def _weekday_whole_units(state: _WeekdayPass, ranks: "list[int]") -> "dict[int, 
             members += [rank]
         else:
             found[key] = [rank]
-    return {
-        key: members
-        for key, members in found.items()
-        if len(members) > 1 and state.held[key] == len(members)
-    }
+    shared: "dict[int, list[int]]" = {}
+    for key in found:
+        members = found[key]
+        if len(members) > 1 and state.held[key] == len(members):
+            shared[key] = members
+    return shared
 
 
 def _weekday_unit_room(
