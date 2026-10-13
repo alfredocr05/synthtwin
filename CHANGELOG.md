@@ -75,7 +75,8 @@ every listed count was met, and the listed counts are recounted on the
 written cells; HD3 bounds the list by the different values less one
 where any cell is unread, not less every unread row, so five copies of
 one unread text no longer withdraw a list of 57 dates; and V5-D1 prints
-80,000 listed dates in 0.04 s, where it took 2.4.
+80,000 listed dates in 0.04 s, where it took 2.4. The trade passes a
+refused date in one step: its work grows with the rows, not their square.
 
 ### The day-of-month census (2026-10-09)
 
