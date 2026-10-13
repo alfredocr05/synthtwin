@@ -4783,22 +4783,27 @@ def test_r1_codes_question_follows_the_classifier_on_a_clock_column(
     no question either, because `reading_of_the_rest` refused the clock
     half below the ceiling on its own account. It now leaves that to the
     classifier, which `_as_the_classifier_reads` asks. Red on f4623cc.
+
+    AT BATCH 3'S INTEGRATION the shipped classifier is the integration's:
+    it reads the column as clock times under the answer `missing`, so the
+    question is put, at floors 11 and 36 alike; a classifier reading it
+    as labels puts none.
     """
     shipped = taxonomy.role_read
 
-    def clocks_first(name: str, values: "list[str]", settings: taxonomy.Settings, *rest: object) -> "tuple[str, str, int, int]":
+    def labels_first(name: str, values: "list[str]", settings: taxonomy.Settings, *rest: object) -> "tuple[str, str, int, int]":
         found = shipped(name, values, settings, *rest)  # type: ignore[arg-type]
-        if "UNK" in settings.declared_missing_values and found[0] == taxonomy.ROLE_CATEGORICAL:
-            held = len(values) - values.count("UNK")
-            return taxonomy.ROLE_CLOCK, "hh-mm", held, held
+        if "UNK" in settings.declared_missing_values and found[0] == taxonomy.ROLE_CLOCK:
+            return taxonomy.ROLE_CATEGORICAL, "", found[2], found[3]
         return found
 
     cells = _appointments(10000)
-    _block, _profile, questions = _described(tmp_path / "shipped", cells)
+    for floor in (11, 36):
+        _block, _profile, questions = _described(tmp_path / f"shipped-{floor}", cells, floor=floor)
+        assert _codes_asked(questions), floor
+    monkeypatch.setattr(taxonomy, "role_read", labels_first)
+    _block, _profile, questions = _described(tmp_path / "labels", cells)
     assert not _codes_asked(questions)
-    monkeypatch.setattr(taxonomy, "role_read", clocks_first)
-    _block, _profile, questions = _described(tmp_path / "clocks", cells)
-    assert _codes_asked(questions)
 
 
 @pytest.mark.parametrize("rows, floor", [(300, 11), (1000, 11), (3000, 11), (3000, 36)])
