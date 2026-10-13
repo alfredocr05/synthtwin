@@ -414,3 +414,202 @@ def test_a_quoted_empty_last_value_is_a_value_not_the_closing_delimiter(
     assert code == 1, (code, said)
     assert "row 51 does not end in a semicolon" in said, said
     assert "row 51 has 3" not in said, said
+
+
+# -- Codex's review of landing R5 (head 3215f2e), 2026-10-13 -----------
+
+
+def _read(text: str) -> "dialect.Survey":
+    """The reader's settled survey of a text, its first row the names."""
+    return dialect.settle(text, "utf-8", False, False, "t.csv")
+
+
+def _competing() -> str:
+    """Codex item 1: a comma table the baseline read right, with a short
+    row 51, whose header also ends in a semicolon."""
+    lines = ["id,notes,measure;type;unit;"]
+    for index in range(1, 121):
+        lines += [f"{index},x;y;z,6" if index != 51 else "51,x;y;z"]
+    return "\n".join(lines) + "\n"
+
+
+def test_a_reading_read_right_before_is_not_taken_by_a_lined_up_one() -> None:
+    """A STRAIGHT READING COMES BEFORE A LINED-UP ONE (Codex item 1).
+
+    Under the comma the header and 119 rows are three fields and row 51
+    is a supported short row (an empty last cell left out): 120 of 121.
+    Under the semicolon the header ends in `;` and lines up with rows of
+    three, every one: 121 of 121. On 3215f2e the lined-up reading won on
+    that share and the table was read as `id,notes,measure`, `type`,
+    `unit` over rows such as `1,x`, `y`, `z,6`, with no question. A
+    reading whose first record already has the table's width is the one
+    0ecc82d took, and it stands; the lined-up reading reads the file at
+    least as consistently, so it is recorded as the competitor and the
+    person is asked. Red on 3215f2e (`(";", ())`)."""
+    text = _competing()
+    assert dialect.delimiter_reading(text, 0) == (",", (",", ";"))
+    found = _read(text)
+    assert found.form.delimiter == ","
+    assert list(found.header) == ["id", "notes", "measure;type;unit;"]
+    assert [column[0] for column in found.columns] == ["1", "x;y;z", "6"]
+    assert [column[50] for column in found.columns] == ["51", "x;y;z", ""]
+    assert found.form.short_rows
+    assert not found.form.header_trailing_delimiter
+    assert found.delimiter_tie == (",", ";")
+
+
+def test_the_tie_notice_says_why_the_straight_reading_was_taken(tmp_path: pathlib.Path) -> None:
+    """The notice printed for Codex item 1's file names the reason the
+    comma was taken -- its first row is as wide as the rows -- and not a
+    count of columns or of numbers, which are the same or not asked."""
+    real = tmp_path / "real.csv"
+    real.write_bytes(_competing().encode("utf-8"))
+    code, said = _said(["profile", str(real), "--out-dir", str(tmp_path), "--replace"])
+    assert code == 0, said
+    assert "READS EQUALLY WELL WITH MORE THAN ONE DELIMITER" in said, said
+    assert "as many fields as the rows" in said, said
+
+
+def _rows_of(header: str, rows: "list[str]") -> str:
+    return header + "\n" + "".join(row + "\n" for row in rows)
+
+
+@pytest.mark.parametrize(
+    ("label", "text", "header", "cell"),
+    [
+        ("rows end in a quoted empty value", _rows_of("a;b", ['1;2;""'] * 120), "a;b", '1;2;""'),
+        ("the header ends in a quoted empty name", _rows_of('a;b;""', ["1;2"] * 120), 'a;b;""', "1;2"),
+        (
+            "rows end in a bare and a quoted empty field by turns",
+            _rows_of("a;b", ['1;2;""', "1;2;"] * 60),
+            "a;b",
+            '1;2;""',
+        ),
+    ],
+    ids=["rows-quoted", "header-quoted", "mixed"],
+)
+def test_a_quoted_empty_last_field_does_not_line_a_reading_up(
+    label: str, text: str, header: str, cell: str
+) -> None:
+    """A QUOTED EMPTY FIELD IS A VALUE, NOT A TRAILING DELIMITER (Codex
+    item 2). On 3215f2e each of these was read under the semicolon with
+    the quoted field taken off as a trailing delimiter: the twin wrote
+    `1;2;` where the source wrote `1;2;""`, and `a;b;` where it wrote
+    `a;b;""`. The rows hold one value more than the header names (or
+    the header one name more than the rows hold), so no trailing
+    delimiter lines them up, and each is read as on 0ecc82d. Red on
+    3215f2e (`(";", ())`)."""
+    assert dialect.delimiter_reading(text, 0) == (",", ()), label
+    found = _read(text)
+    assert list(found.header) == [header], label
+    assert found.columns[0][0] == cell, label
+    assert not found.form.header_trailing_delimiter, label
+    assert not found.form.rows_trailing_delimiter, label
+
+
+def test_the_comma_forms_the_walk_read_before_are_read_as_before() -> None:
+    """The comma form of Codex item 2's shapes never needed detection to
+    line it up: the comma is the fall-back, and the walk's own guess
+    about a trailing delimiter read them on 0ecc82d. That guess is kept
+    as it was, quoted field or not -- held to the quoting, `a,b` over
+    `1,2,""` went from described to refused and `a,b,""` over `1,2`
+    read three columns whose twin was read back as two (measured) -- so
+    these pin that nothing here moved."""
+    rows = _read(_rows_of("a,b", ['1,2,""'] * 120))
+    assert list(rows.header) == ["a", "b"]
+    assert rows.form.rows_trailing_delimiter
+    header = _read(_rows_of('a,b,""', ["1,2"] * 120))
+    assert list(header.header) == ["a", "b"]
+    assert header.form.header_trailing_delimiter
+
+
+@pytest.mark.parametrize(
+    ("label", "text", "cell"),
+    [
+        ("quoted values, rows ending in the semicolon", '"id"; "note"\n' + '"1"; "alpha";\n' * 120, "alpha"),
+        (
+            "a quoted value holding the semicolon",
+            '"id"; "note"\n' + '"1"; "alpha; beta";\n' * 120,
+            "alpha; beta",
+        ),
+        ("the header ending in the semicolon", '"id"; "note";\n' + '"1"; "alpha"\n' * 120, "alpha"),
+        ("both ending in the semicolon", '"id"; "note";\n' + '"1"; "alpha; beta";\n' * 120, "alpha; beta"),
+    ],
+    ids=["rows", "rows-holding-the-delimiter", "header", "both"],
+)
+def test_the_closing_delimiter_is_not_asked_for_a_space(label: str, text: str, cell: str) -> None:
+    """THE SPACING READS THE CLOSING DELIMITER AS THE ADMISSION DOES
+    (Codex item 3). `"id"; "note"` over `"1"; "alpha";` lines up under
+    the semicolon read with the space after it skipped; on 3215f2e
+    `detected_initial_space` then asked the closing delimiter's empty
+    field for its space, found none, and read the file without the
+    space: names `id` and ` "note"`, values ` "alpha"`, a twin header
+    naming ` "note"` with its quotation marks; holding `alpha; beta`, the record split into four
+    and the file was refused. `_spaces_broken` asked the same of the
+    walk's records. The closing delimiter has no field after it to
+    carry a space, and neither asks it now. Red on 3215f2e."""
+    found = _read(text)
+    assert found.form.delimiter == ";", label
+    assert found.form.initial_space, label
+    assert list(found.header) == ["id", "note"], label
+    assert [column[0] for column in found.columns] == ["1", cell], label
+
+
+def test_the_spaced_twin_is_written_and_read_back_as_its_source(tmp_path: pathlib.Path) -> None:
+    """Codex item 3's round trip: the twin's header is `"id"; "note"` as
+    the source wrote it, each row ends in the semicolon, the twin reads
+    back to the same form, and both validate at exit 0."""
+    rows = [f'"{index}"; "note {index % 9}";' for index in range(120)]
+    data = ('"id"; "note"\n' + "\n".join(rows) + "\n").encode("utf-8")
+    result = _round_trip(tmp_path, data)
+    assert result["names"] == ["id", "note"], result["names"]
+    assert result["form"]["initial_space"], result["form"]
+    assert result["twin"].split(b"\n")[0] == b'"id"; "note"', result["twin"][:40]
+    assert result["twin_form"] == result["form"]
+    assert result["exits"] == {"twin": 0, "real": 0}, result["exits"]
+
+
+def _header_closed(delimiter: str, row_51: str) -> bytes:
+    lines = [delimiter.join(["col_a", "col_b", "col_c"]) + delimiter]
+    for index in range(1, 121):
+        lines += [delimiter.join(["31", "72", "Q"]) if index != 51 else row_51]
+    return ("\n".join(lines) + "\n").encode("utf-8")
+
+
+_WORDS = {",": "comma", ";": "semicolon", "\t": "tab", "|": "vertical bar"}
+
+
+@pytest.mark.parametrize("delimiter", [",", ";", "\t", "|"], ids=["comma", "semicolon", "tab", "bar"])
+def test_a_quoted_empty_value_after_a_closed_header_is_a_fourth_value(
+    tmp_path: pathlib.Path, delimiter: str
+) -> None:
+    """THE REFUSAL'S REASON IS THE ROW'S (Codex item 4). The header ends
+    in the delimiter and the rows do not; row 51 is `31,72,Q,""`: four
+    values, the last quoted and empty, so it holds a value more than the
+    header names, which is what 0ecc82d said of the comma form. 3215f2e
+    said "row 51 ends in a comma" and asked for uniform endings, though
+    the row ends in quotation marks. Red on 3215f2e, all four
+    delimiters."""
+    real = tmp_path / "real.csv"
+    real.write_bytes(_header_closed(delimiter, delimiter.join(["31", "72", "Q", '""'])))
+    code, said = _said(["profile", str(real), "--out-dir", str(tmp_path), "--replace"])
+    assert code == 1, (delimiter, code, said)
+    assert "The first row names 3 columns, but row 51 has 4" in said, said
+    assert "ends in a" not in said, said
+    assert "Make every row end the same way" not in said, said
+
+
+@pytest.mark.parametrize("delimiter", [",", ";", "\t", "|"], ids=["comma", "semicolon", "tab", "bar"])
+def test_a_bare_closing_delimiter_after_a_closed_header_keeps_its_reason(
+    tmp_path: pathlib.Path, delimiter: str
+) -> None:
+    """The header-only trailing case beside item 4: row 51 ends in a bare
+    delimiter, so it does end in it, and the trailing-delimiter sentence
+    stands, for each of the four delimiters."""
+    real = tmp_path / "real.csv"
+    real.write_bytes(_header_closed(delimiter, delimiter.join(["31", "72", "Q"]) + delimiter))
+    code, said = _said(["profile", str(real), "--out-dir", str(tmp_path), "--replace"])
+    assert code == 1, (delimiter, code, said)
+    word = _WORDS[delimiter]
+    assert f"row 51 ends in a {word}" in said, said
+    assert "Make every row end the same way" in said, said

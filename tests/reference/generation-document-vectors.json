@@ -13,6 +13,7 @@
             ";": {
               "at_that_width": 4,
               "records": 4,
+              "straight": false,
               "width": 5
             },
             "|": null
@@ -25,6 +26,7 @@
             "\t": {
               "at_that_width": 4,
               "records": 4,
+              "straight": false,
               "width": 3
             },
             ",": null,
@@ -52,6 +54,46 @@
             "|": null
           },
           "text": "id|age|site\n1|20|N|x\n2|30|S|\n3|40|E|y\n"
+        },
+        {
+          "delimiter": ",",
+          "readings": {
+            "\t": null,
+            ",": {
+              "at_that_width": 4,
+              "records": 5,
+              "straight": true,
+              "width": 3
+            },
+            ";": {
+              "at_that_width": 5,
+              "records": 5,
+              "straight": false,
+              "width": 3
+            },
+            "|": null
+          },
+          "text": "id,notes,measure;type;unit;\n1,x;y;z,6\n2,x;y;z,6\n3,x;y;z\n4,x;y;z,6\n"
+        },
+        {
+          "delimiter": ",",
+          "readings": {
+            "\t": null,
+            ",": null,
+            ";": null,
+            "|": null
+          },
+          "text": "a;b\n1;2;\"\"\n3;4;\"\"\n5;6;\"\"\n"
+        },
+        {
+          "delimiter": ",",
+          "readings": {
+            "\t": null,
+            ",": null,
+            ";": null,
+            "|": null
+          },
+          "text": "a;b;\"\"\n1;2\n3;4\n5;6\n"
         }
       ],
       "readings": {
@@ -60,12 +102,13 @@
         ";": {
           "at_that_width": 3,
           "records": 3,
+          "straight": true,
           "width": 2
         },
         "|": null
       },
       "text": "\"id\"; \"note\"\n\"1\"; \"alpha; beta\"\n\"2\"; \"gamma\"\n",
-      "why": "review item CODEX-5: every setting is scored WITH the delimiter, because the settings decide what a delimiter reads as. This is the file that measurement was taken on. Read with the semicolon and no space skipped, its header is two fields and its rows are three -- the space before the quotation mark makes that mark an ordinary character, so the semicolon inside the note splits the field -- and that reading is rejected as ragged; nothing else reads as two fields at all, so the file was described as ONE column whose name held a semicolon. Read with the space skipped it is the two columns it is. The case freezes the reading every candidate delimiter reaches and the one the file is settled to be written with. Its mutant scores each candidate ONE way, which is the rule this one replaced, and the file is then read as one column under the comma. Since plan P4-D387 the case also reads, under `lined_up`, four files a trailing delimiter on one side does or does not line up with their first record; its second mutant withdraws that lining up, and the first two are read as one column."
+      "why": "review item CODEX-5: every setting is scored WITH the delimiter, because the settings decide what a delimiter reads as. This is the file that measurement was taken on. Read with the semicolon and no space skipped, its header is two fields and its rows are three -- the space before the quotation mark makes that mark an ordinary character, so the semicolon inside the note splits the field -- and that reading is rejected as ragged; nothing else reads as two fields at all, so the file was described as ONE column whose name held a semicolon. Read with the space skipped it is the two columns it is. The case freezes the reading every candidate delimiter reaches and the one the file is settled to be written with. Its mutant scores each candidate ONE way, which is the rule this one replaced, and the file is then read as one column under the comma. Since plan P4-D387 the case also reads, under `lined_up`, four files a trailing delimiter on one side does or does not line up with their first record; its second mutant withdraws that lining up, and the first two are read as one column. Since Codex's review of landing R5 it reads three more: a comma table whose header also ends in a semicolon, which the comma reads straight with one short row and the semicolon only lined up, so the comma stands (third mutant: the share alone ranks, and the semicolon takes it); and rows, then a header, ending in a QUOTED empty field, which lines nothing up (fourth mutant: the quotation marks ignored, and the semicolon takes both)."
     },
     "row_arrangement": {
       "arrangements": [

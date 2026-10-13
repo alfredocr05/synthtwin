@@ -4000,6 +4000,14 @@ def opening_lines_up(sample: "list[Record]", opening: int, width: int) -> bool:
     A one-field first record never lines up this way, so a one-column
     table whose cells end in a delimiter stays one column as before.
 
+    THE EMPTY FIELD IS UNQUOTED (Codex's review of landing R5, item 2).
+    A delimiter with nothing after it reads as an empty last field, and
+    so does `""`, a value the line wrote empty: `1;2;""` under a header
+    `a;b` holds three values, not two and a closing delimiter, and taken
+    off as one it was written back `1;2;`. So a last field lines a
+    record up only where it is empty AND unquoted (`_closes`), the test
+    `survey` asks of the same field.
+
     ONE KIND OF FILE GOES FROM DESCRIBED TO REFUSED, and says why (lane
     R5's repair). Where the rows mostly end in the delimiter and some
     row does not, or holds a value after it (past the sample too), the
@@ -4010,16 +4018,41 @@ def opening_lines_up(sample: "list[Record]", opening: int, width: int) -> bool:
     """
     if opening >= len(sample):
         return False
-    first = sample[opening].fields
-    if len(first) == width + 1:
-        return first[width] == ""
-    if len(first) != width - 1 or width - 1 < 2:
+    first = sample[opening]
+    if len(first.fields) == width + 1:
+        return _closes(first)
+    if len(first.fields) != width - 1 or width - 1 < 2:
         return False
     for record in sample:
-        fields = record.fields
-        if len(fields) == width and fields[width - 1] != "":
+        if len(record.fields) == width and not _closes(record):
             return False
     return True
+
+
+def _closes(record: Record) -> bool:
+    """Whether a record ends in a delimiter with nothing after it.
+
+    Its last field is empty and was not quoted: `1;2;` closes, `1;2;""`
+    holds an empty value (Codex's review of landing R5, item 2).
+    """
+    count = len(record.fields)
+    if not count:
+        return False
+    return record.fields[count - 1] == "" and not record.quoted[count - 1]
+
+
+def _reads_straight(sample: "list[Record]", width: int) -> bool:
+    """Whether a reading's first record has the reading's width.
+
+    The table's first record, after any line before the table, stands at
+    ``width`` -- or there is none. A reading of which this is false was
+    admitted only by a trailing delimiter lining that record up
+    (`opening_lines_up`).
+    """
+    opening = 0
+    while opening < len(sample) and _leads_the_table(sample[opening]):
+        opening = opening + 1
+    return opening >= len(sample) or len(sample[opening].fields) == width
 
 
 def delimiter_reading(
@@ -4087,32 +4120,54 @@ def delimiter_reading(
     ``opening`` is the opening lines `opening_lines` cuts, where the
     caller holds them already, and each candidate's best reading is read
     once and asked again from there (plan P4-D387).
+
+    A STRAIGHT READING COMES BEFORE A LINED-UP ONE (Codex's review of
+    landing R5, item 1). A reading whose first record stands at its
+    width (`_reads_straight`) is the only kind 0ecc82d had, so wherever
+    a candidate reads the file that way the choice among such readings
+    is 0ecc82d's, shares, widths, numbers and ties alike; a reading
+    admitted only by a trailing delimiter lining its first record up
+    (`opening_lines_up`) is taken only where no candidate reads
+    straight. Ranked on the share alone it took a file 0ecc82d read
+    right: `id,notes,measure;type;unit;` over 120 rows `i,x;y;z,6`,
+    row 51 `51,x;y;z`, reads under the comma as three columns with one
+    supported short row (120 of 121 records at the width) and under the
+    semicolon, lined up, as 121 of 121; the semicolon won, and the
+    names became `id,notes,measure`, `type` and `unit` over values such
+    as `1,x` and `z,6`, with no question asked. A lined-up reading that
+    reads the file at least as consistently as the straight one taken
+    is a competitor all the same, so it is recorded with the winner and
+    the person is asked.
     """
     if opening is None:
         opening = opening_lines(text, at)
     chosen = ","
+    best_straight = False
     best_share = 0.0
     best_width = 0
     best_numbers = -1
     best_sample: "list[Record]" = []
     readings: "list[tuple[float, int, list[Record]] | None]" = []
+    straights: "list[bool]" = []
     for candidate in DELIMITERS:
         found = _best_reading(text, candidate, at, opening)
         readings += [found]
+        straights += [found is not None and _reads_straight(found[2], found[1])]
         if found is None:
             continue
         share, width, sample = found
+        straight = straights[len(straights) - 1]
         numbers = -1
-        if share == best_share and width == best_width:
+        if (straight, share, width) == (best_straight, best_share, best_width):
             numbers = _numbers_read(sample)
             if best_numbers < 0:
                 best_numbers = _numbers_read(best_sample)
-        if (
-            share > best_share
-            or (share == best_share and width > best_width)
-            or (share == best_share and width == best_width and numbers > best_numbers)
+        if (straight, share, width) > (best_straight, best_share, best_width) or (
+            (straight, share, width) == (best_straight, best_share, best_width)
+            and numbers > best_numbers
         ):
             chosen = candidate
+            best_straight = straight
             best_share = share
             best_width = width
             best_numbers = numbers
@@ -4125,7 +4180,9 @@ def delimiter_reading(
         found = readings[place]
         if found is None:
             continue
-        if found[0] == best_share:
+        if found[0] == best_share or (
+            best_straight and not straights[place] and found[0] > best_share
+        ):
             tied += [candidate]
     if not tied:
         return chosen, ()
@@ -4175,6 +4232,7 @@ def _best_reading(
     holds them already (plan P4-D387).
     """
     best: "tuple[float, int, list[Record]] | None" = None
+    best_straight = False
     for spaced in (False, True):
         for escaping in ESCAPES:
             sample = records(
@@ -4186,15 +4244,22 @@ def _best_reading(
             opening = 0
             while opening < len(sample) and _leads_the_table(sample[opening]):
                 opening = opening + 1
-            if opening < len(sample) and len(sample[opening].fields) != width:
+            straight = opening >= len(sample) or len(sample[opening].fields) == width
+            if not straight:
                 # ...unless a trailing delimiter on one side lines it up
                 # (plan P4-D387), and then it counts at the table's width.
                 if not opening_lines_up(sample, opening, width):
                     continue
                 at_width = at_width + 1
             share = at_width / total
-            if best is None or (share, width) > (best[0], best[1]):
+            # A straight reading comes before a lined-up one here too
+            # (Codex's review of landing R5, item 1), so a candidate's
+            # best is 0ecc82d's wherever 0ecc82d read it at all.
+            if best is None or (straight, share, width) > (
+                best_straight, best[0], best[1]
+            ):
                 best = (share, width, sample)
+                best_straight = straight
     return best
 
 
@@ -4221,6 +4286,20 @@ def detected_initial_space(
     That is the comma-space writing (`"a", "b"`), read with the standard
     reader's `skipinitialspace`. A padded field, which begins with
     several, is not it. ``opening`` is as `delimiter_reading` takes it.
+
+    THE CLOSING DELIMITER IS NOT ASKED FOR A SPACE (Codex's review of
+    landing R5, item 3). A record that ends in the delimiter with
+    nothing after it (`_closes`) reads as an empty last field, and the
+    writing puts no space there: `"1"; "alpha";`. Asked for its space,
+    that field said the file was not written comma-space, and a file
+    the semicolon lined up only once the space was skipped was read
+    without it -- names `id` and ` "note"`, values ` "alpha"`, and with
+    `"alpha; beta"` a record of four fields, refused. So a last field
+    that closes the record is not asked here; whether it closes it is
+    the walk's to say, and `_spaces_broken` holds every field the walk
+    does not take off as the closing delimiter to one space, so a
+    comma-space guess about an empty last VALUE is walked again without
+    the space, as before.
     """
     sample = records(
         text, delimiter, ESCAPE_DOUBLED, False, at, _SAMPLE_RECORDS, opening
@@ -4229,7 +4308,8 @@ def detected_initial_space(
     for record in sample:
         if len(record.fields) < 2:
             continue
-        for index in range(1, len(record.fields)):
+        asked = len(record.fields) - 1 if _closes(record) else len(record.fields)
+        for index in range(1, asked):
             value = record.fields[index]
             if value[:1] != _SPACE or value[1:2] == _SPACE:
                 return False
@@ -5033,6 +5113,7 @@ def survey(
     malformed = 0
     escapes = 0
     spaces_broken = False
+    header_record: "Record | None" = None
     header: list[str] = []
     header_flags: list[bool] = []
     header_rows: list[tuple[str, ...]] = []
@@ -5048,7 +5129,10 @@ def survey(
         header_flags = [bool(flag) for flag in found.quoted]
         malformed = malformed + found.malformed
         escapes = escapes + found.escapes
-        spaces_broken = spaces_broken or _spaces_broken(found, spaced)
+        # Its spaces are asked once the walk knows whether its last
+        # field is the closing delimiter (Codex's review of landing R5,
+        # item 3), below.
+        header_record = found
         _add_ending(walk, found.ending, shown)
         first = _peek(stream, 0)
         second = _peek(stream, 1)
@@ -5162,7 +5246,6 @@ def survey(
             _add_ending(walk, found.ending, shown)
             _blank(blanks, n_rows, found.raw, shown)
             continue
-        spaces_broken = spaces_broken or _spaces_broken(found, spaced)
         _add_ending(walk, found.ending, shown)
         if not decided:
             decided = True
@@ -5170,6 +5253,16 @@ def survey(
                 width = len(fields)
             else:
                 named = len(header)
+                # THE WALK'S OWN GUESS IS 0ecc82d's, quoted or not
+                # (Codex's review of landing R5, item 2). Detection no
+                # longer lines a reading up by a quoted empty field
+                # (`_closes`), so no reading this walk is handed is
+                # admitted by one; the comma form of those shapes, which
+                # 0ecc82d read here, is read as it was. Holding this
+                # guess to the quoting as well was measured: `a,b` over
+                # rows `1,2,""` went from described to refused, and
+                # `a,b,""` over rows `1,2` read three columns whose
+                # twin wrote its header `a,b,` and was read back as two.
                 last_empty = fields[len(fields) - 1] == ""
                 header_last_empty = named >= 2 and header[named - 1] == ""
                 if (
@@ -5192,11 +5285,17 @@ def survey(
                 if header_trailing:
                     header = header[: named - 1]
                     header_flags = header_flags[: named - 1]
+            if header_record is not None:
+                spaces_broken = spaces_broken or _spaces_broken(
+                    header_record, spaced, header_trailing
+                )
             columns = [[] for _place in range(width)]
             flags = [bytearray() for _place in range(width)]
+        closing = rows_trailing and len(fields) == width + 1 and fields[len(fields) - 1] == ""
+        spaces_broken = spaces_broken or _spaces_broken(found, spaced, closing)
         count = len(fields)
         if rows_trailing:
-            if count == width + 1 and fields[count - 1] == "":
+            if closing:
                 count = width
             else:
                 if header_trailing:
@@ -5211,7 +5310,7 @@ def survey(
                 # empty last field (`P0051;30;F;""`) is a value the row
                 # wrote, not the closing delimiter (lane R5's third
                 # repair, verifier item 2).
-                closed = fields[count - 1] == "" and not found.quoted[count - 1]
+                closed = _closes(found)
                 values = count - 1 if closed else count
                 if count == width and not closed:
                     uneven = uneven + 1
@@ -5238,7 +5337,10 @@ def survey(
                 n_rows = n_rows + 1
                 continue
         if count > width:
-            if header_trailing and count == width + 1 and fields[count - 1] == "":
+            # A quoted empty last value is a value (Codex's review of
+            # landing R5, item 4): `31,72,Q,""` holds four, and does not
+            # end in the delimiter.
+            if header_trailing and count == width + 1 and _closes(found):
                 uneven = uneven + 1
                 if len(uneven_rows) < 3:
                     uneven_rows += [
@@ -5286,6 +5388,8 @@ def survey(
             empty_rows += [n_rows]
         n_rows = n_rows + 1
     _flush_ending(walk, shown)
+    if header_record is not None and not decided:
+        spaces_broken = spaces_broken or _spaces_broken(header_record, spaced)
 
     if first_row_is_data and not decided:
         raise errors.shape_refusal(
@@ -5651,11 +5755,18 @@ def spread_endings(census: "tuple[EndingRun, ...]") -> "list[str]":
     return endings
 
 
-def _spaces_broken(record: Record, spaced: bool) -> bool:
-    """True when a comma-space reading skipped other than one space in a field."""
+def _spaces_broken(record: Record, spaced: bool, closing: bool = False) -> bool:
+    """True when a comma-space reading skipped other than one space in a field.
+
+    ``closing`` says the walk took the record's last field off as the
+    delimiter that closes it (`survey`'s trailing delimiter), which has
+    no value after it to carry a space, so it is not asked (Codex's
+    review of landing R5, item 3).
+    """
     if not spaced:
         return False
-    for index in range(1, len(record.spaces)):
+    asked = len(record.spaces) - 1 if closing else len(record.spaces)
+    for index in range(1, asked):
         if record.spaces[index] != 1:
             return True
     return False
