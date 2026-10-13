@@ -814,8 +814,10 @@ def test_the_passes_move_whole_columns_as_the_oracle_does(tmp_path: pathlib.Path
     seen: "list[tuple[tuple, list[int]]]" = []
     settled = generation._day_settled
 
-    def captured(column, facts, ordinals, parsed, whole, lows, highs, layout, holes, declared=()):  # type: ignore[no-untyped-def]
-        answer = settled(column, facts, list(ordinals), parsed, whole, lows, highs, layout, holes, declared)
+    def captured(column, facts, ordinals, parsed, whole, lows, highs, layout, holes, declared=(), counted=()):  # type: ignore[no-untyped-def]
+        # ``counted``: the days a column of counted dates holds no date on
+        # (landing R4, met at batch 3's integration); none on these columns.
+        answer = settled(column, facts, list(ordinals), parsed, whole, lows, highs, layout, holes, declared, counted)
         seen[:] = [((list(ordinals), parsed, list(whole), list(lows), list(highs)), list(answer[0]))]
         return answer
 
@@ -1122,8 +1124,10 @@ def test_step_three_moves_a_column_as_the_oracle_does(tmp_path: pathlib.Path, mo
     seen: "list[tuple[tuple, list[int], list]]" = []
     settled = generation._day_settled
 
-    def captured(column, facts, ordinals, parsed, whole, lows, highs, layout, holes, declared=()):  # type: ignore[no-untyped-def]
-        answer = settled(column, facts, list(ordinals), parsed, whole, lows, highs, layout, holes, declared)
+    def captured(column, facts, ordinals, parsed, whole, lows, highs, layout, holes, declared=(), counted=()):  # type: ignore[no-untyped-def]
+        # ``counted``: the days a column of counted dates holds no date on
+        # (landing R4, met at batch 3's integration); none on these columns.
+        answer = settled(column, facts, list(ordinals), parsed, whole, lows, highs, layout, holes, declared, counted)
         seen[:] = [((list(ordinals), parsed, list(whole), list(lows), list(highs)), list(answer[0]), answer[1])]
         return answer
 
