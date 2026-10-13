@@ -483,6 +483,11 @@ PLAN4_REGIONS = {
     # anchor 3b-G3 (P4-D376)
     # anchor 3b-G2 (P4-D377)
     # anchor 3b-7 (P4-D378)
+    # The joint member's forms, disposed in the landing that writes them.
+    "shared-clock": (
+        "## Decision P4-D378 — the calendar on each value's own clock: two "
+        "offsets and the joint member (stage 3b landing 3b.7, 2026-10-13)"
+    ),
     # anchor 3b-J (P4-D379)
     # anchor 3b-R2a (P4-D383)
     # anchor 3b-R2b (P4-D383)
@@ -1879,13 +1884,15 @@ REGISTRY += [
     ),
 ]
 REGISTRY += [
+    # -- 3b.7 (P4-D378): REPORT-ONLY until the landing; the twin of a joint
+    # column writes the published count of bare dates now.
     Fact(
         "datetime",
         "resolution_mix",
-        REPORT_ONLY,
-        plan_region="date-readings",
-        plan_words="And it is REPORT-ONLY, deliberately, on the exact "
-        "precedent of the `format` fact itself",
+        EXACT_OBSERVABLE,
+        plan_region="shared-clock",
+        plan_words="`resolution_mix` and `format` are EXACT-OBSERVABLE on the "
+        "joint member",
         aliases=("form census", "how many wore each form"),
     ),
 ]

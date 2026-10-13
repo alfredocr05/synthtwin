@@ -17162,14 +17162,86 @@ def _layout_census(
     return _LayoutCensus(digits=digits, widths=widths, cells_at_midnight=cells_at_midnight)
 
 
-def _census_days(
+def _on_own_clocks(details: "dict[str, object]") -> bool:
+    """Whether a column's cells are counted each on its OWN clock apart from
+    the clock the column is published on (landing 3b.7, plan P4-D378): a
+    column published on the shared clock, whose cells wear more than one
+    offset, or one mixing bare dates and moments. Every other column is
+    counted as it was before the landing, by the same code."""
+    return (
+        details["datetimes_read_at"] != READ_AT_LOCAL
+        or details["format"] == FORMAT_ISO_MIXED
+    )
+
+
+def _census_ranked(
     details: "dict[str, object]", pairs: "list[tuple[str, str]]"
+) -> "list[int] | None":
+    """The places of the parsed pairs in the order the description RANKS
+    them, on a column counted on its cells' own clocks (`_on_own_clocks`;
+    landing 3b.7, plan P4-D378), or None elsewhere and where a pair names
+    no instant.
+
+    RANK BY THE INSTANT, COUNT BY THE TEXT. The order is `ordered_moments`'
+    one tie rule (plan P4-D255): the instant each pair names, then the text
+    published for it -- its conversion to the shared clock where the column
+    is published there -- then its offset. The published tails' rows then
+    cut this order exactly where they cut the column: sorting the written
+    texts instead put two cells of one instant under two offsets apart,
+    and every census would have counted a body the tails do not leave. A
+    bare date of the joint member names its midnight with no offset, as
+    `ordered_moments` ranks it. Each census then counts a cell at the day,
+    hour, minute and second its own text is WRITTEN at (`_census_days`,
+    `_census_hours`, `_census_clock_fields`).
+
+    Computed once a column and handed to every census (the 3b.7 design
+    skeptic's minor 7: one instant key a pair, about 2.5 seconds a million
+    pairs). Guarantees: accepts the published details and the parsed
+    pairs; returns a permutation of their places or None. Determinism: a
+    function of the two. Raises nothing. No I/O of any kind.
+    """
+    if not _on_own_clocks(details):
+        return None
+    if details["resolution"] not in (RESOLUTION_DATE, RESOLUTION_DATETIME):
+        return None
+    shared = details["datetimes_read_at"] == READ_AT_UTC
+    keyed: "list[tuple[int, str, str, int]]" = []
+    place = 0
+    for canonical, offset in pairs:
+        instant = parsing.instant_key(canonical, offset)
+        if instant is None:
+            return None
+        shown = canonical
+        if shared:
+            at_utc = parsing.utc_moment(canonical, offset)
+            if at_utc is not None:
+                shown = at_utc
+        keyed += [(instant, shown, offset, place)]
+        place = place + 1
+    keyed.sort()
+    return [entry[3] for entry in keyed]
+
+
+def _clock_text(canonical: str) -> str:
+    """A canonical text as the censuses of the clock count it: a bare date
+    of the joint member AT ITS MIDNIGHT (landing 3b.7, the fold: hour 0,
+    minute 0, second 0, as the dates folded into a member's moments are
+    already counted), every other text as it is written."""
+    if len(canonical) < 19:
+        return canonical[0:10] + " 00:00:00"
+    return canonical
+
+
+def _census_days(
+    details: "dict[str, object]",
+    pairs: "list[tuple[str, str]]",
+    ranked: "list[int] | None" = None,
 ) -> "tuple[int, ...]":
     """The day of every parsed (canonical, offset) pair, ascending, where
     a weekday census may stand: a column of whole dates or of moments
-    read on the local clock, in any member but the joint one (landing
-    3b.1, plan P4-D355; moments since landing 3b.D2, plan P4-D367, whose
-    instants `_census_moments` gives beside). Empty elsewhere.
+    (landing 3b.1, plan P4-D355; moments since landing 3b.D2, plan
+    P4-D367, whose instants `_census_moments` gives beside; every clock
+    and member since landing 3b.7). Empty elsewhere.
 
     Each is the day the cell is WRITTEN on (`calendar_rules.written_day`),
     never its instant's: a sixtieth second, `23:59:60`, is its own day's
@@ -17179,16 +17251,28 @@ def _census_days(
     instant lies from its written day's first second to the next day's
     first, so a later instant is never on an earlier written day.
 
-    Guarantees: accepts the published details and the parsed pairs;
-    returns the days. Determinism: a function of the two. Raises nothing.
-    No I/O of any kind.
+    ON EACH CELL'S OWN CLOCK (landing 3b.7, plan P4-D378): on a column of
+    two offsets or of the joint member (`_on_own_clocks`) the days are the
+    written days IN RANK ORDER (`_census_ranked`), which on such a column
+    need not ascend -- `23:30-06:00` is written a day before the
+    `05:00+05:30` its instant follows -- so the tails' rows cut them where
+    they cut the column. Every other column is counted as before.
+
+    Guarantees: accepts the published details, the parsed pairs and their
+    ranking where the caller has it; returns the days. Determinism: a
+    function of the three. Raises nothing. No I/O of any kind.
     """
-    if (
-        details["resolution"] not in (RESOLUTION_DATE, RESOLUTION_DATETIME)
-        or details["datetimes_read_at"] != READ_AT_LOCAL
-        or details["format"] == FORMAT_ISO_MIXED
+    if not calendar_rules.census_scope(
+        calendar_rules.SCOPE_DAYS,
+        str(details["resolution"]),
+        details["all_at_midnight"] is True,
     ):
         return ()
+    if _on_own_clocks(details):
+        order = ranked if ranked is not None else _census_ranked(details, pairs)
+        if order is None:
+            return ()
+        return tuple(calendar_rules.written_day(pairs[place][0]) for place in order)
     days: "list[int]" = []
     for canonical, _offset in pairs:
         days += [calendar_rules.written_day(canonical)]
@@ -17196,7 +17280,9 @@ def _census_days(
 
 
 def _census_moments(
-    details: "dict[str, object]", pairs: "list[tuple[str, str]]"
+    details: "dict[str, object]",
+    pairs: "list[tuple[str, str]]",
+    ranked: "list[int] | None" = None,
 ) -> "tuple[int, ...]":
     """The instant of every parsed pair, in whole seconds of the local clock,
     ascending, where a weekday census of MOMENTS may stand (landing 3b.D2,
@@ -17208,16 +17294,31 @@ def _census_moments(
     census counts it, so a cell sharing a boundary's day but standing
     before its instant is a tail cell, never a body cell (contract WC3).
 
-    Guarantees: accepts the published details and the parsed pairs;
-    returns the instants. Determinism: a function of the two. Raises
-    nothing. No I/O of any kind.
+    ON EACH CELL'S OWN CLOCK (landing 3b.7, plan P4-D378): on a column of
+    two offsets the instants are on the clock the column is published on,
+    the shared one, in rank order (`_census_ranked`), ascending; WC10's
+    middle half is a difference, the same on either clock. A bare date of
+    the joint member stands at its midnight.
+
+    Guarantees: accepts the published details, the parsed pairs and their
+    ranking where the caller has it; returns the instants. Determinism: a
+    function of the three. Raises nothing. No I/O of any kind.
     """
-    if (
-        details["resolution"] != RESOLUTION_DATETIME
-        or details["datetimes_read_at"] != READ_AT_LOCAL
-        or details["format"] == FORMAT_ISO_MIXED
-    ):
+    if details["resolution"] != RESOLUTION_DATETIME:
         return ()
+    if _on_own_clocks(details):
+        order = ranked if ranked is not None else _census_ranked(details, pairs)
+        if order is None:
+            return ()
+        shared = details["datetimes_read_at"] == READ_AT_UTC
+        found: "list[int]" = []
+        for place in order:
+            canonical, offset = pairs[place]
+            instant = parsing.instant_key(canonical, offset if shared else "")
+            if instant is None:
+                return ()
+            found += [instant]
+        return tuple(found)
     moments: "list[int]" = []
     for canonical, _offset in pairs:
         instant = parsing.instant_key(canonical, "")
@@ -17391,7 +17492,9 @@ def weekday_decision(
     body = days[rows_low : parsed - rows_high]
     if not body:
         return withheld(calendar_rules.REASON_NO_TAILS)
-    low, high = body[0], body[len(body) - 1]
+    # -- 3b.7 (P4-D378): the body's first and last WRITTEN day, which on a
+    # column of two offsets need not be its first and last rank's.
+    low, high = min(body), max(body)
     judged: "tuple[str, ...]" = ()
     if "sentinel_verdicts" in details:
         judged = _read_as_missing(details["sentinel_verdicts"])
@@ -17419,7 +17522,9 @@ def weekday_decision(
         return withheld(calendar_rules.REASON_MENU)
     if calendar_rules.few_dates(groups, list(body)):
         return withheld(calendar_rules.REASON_FEW_DATES, entry)
-    counted = _count_rules_reason(details, days, n_distinct, settings, groups, holes)
+    counted = _count_rules_reason(
+        details, _days_ascending(details, days), n_distinct, settings, groups, holes
+    )
     if counted:
         return withheld(counted, entry)
     # THE ROOM RULE BESIDE EVERY PUBLISHED HOLE BUT A WIDTH HOLE (second
@@ -17438,6 +17543,20 @@ def weekday_decision(
     if calendar_rules.shape_breach(groups, len(body), line, one_spelling):
         return withheld(calendar_rules.REASON_NARROWED, entry)
     return WeekdayDecision(groups, "", entry)
+
+
+def _days_ascending(
+    details: "dict[str, object]", days: "tuple[int, ...]"
+) -> "tuple[int, ...]":
+    """The written days as the count rules read them: ascending (landing
+    3b.7). On a column counted on its cells' own clocks the days stand in
+    rank order (`_census_days`), which need not ascend; the count rules
+    rebuild the tails from the days in order, so they are handed them
+    sorted. Every other column's days already ascend and are handed as
+    they are. Raises nothing. No I/O of any kind."""
+    if _on_own_clocks(details):
+        return tuple(sorted(days))
+    return days
 
 
 def _count_rules_reason(
@@ -17698,7 +17817,9 @@ def moments_weekday_decision(
             }
     if not stored_one_way:
         return withheld(calendar_rules.REASON_WORKBOOK)
-    low, high = body[0], body[len(body) - 1]
+    # -- 3b.7 (P4-D378): the body's first and last WRITTEN day, which on a
+    # column of two offsets need not be its first and last rank's.
+    low, high = min(body), max(body)
     judged: "tuple[str, ...]" = ()
     if "sentinel_verdicts" in details:
         judged = _read_as_missing(details["sentinel_verdicts"])
@@ -17732,7 +17853,9 @@ def moments_weekday_decision(
     # written at noon, publish at 11, and its twins came back 26 values
     # for 24 at every seed.
     if step == 86400:
-        counted = _count_rules_reason(details, days, n_distinct, settings, groups, holes)
+        counted = _count_rules_reason(
+            details, _days_ascending(details, days), n_distinct, settings, groups, holes
+        )
         if counted:
             return withheld(counted, entry)
     else:
@@ -17926,8 +18049,8 @@ def _hour_published(
     census WITHHELD says why in one publication note of its own
     (`_HOUR_WITHHELD_NOTES`), and a census PUBLISHED says what its groups
     are in one remark (`REMARK_HOUR_CENSUS`). A column the census cannot
-    stand on at all -- not of moments, on the shared clock, in the joint
-    member or wholly at midnight -- says nothing. `produced` false -- the
+    stand on at all -- not of moments, or wholly at midnight -- says
+    nothing. `produced` false -- the
     validator's own re-description of a file, which never reads the
     census -- asks nothing and publishes `[]` with no sentence.
 
@@ -17968,14 +18091,16 @@ _HOUR_WITHHELD_NOTES = {
 
 
 def _census_hours(
-    details: "dict[str, object]", pairs: "list[tuple[str, str]]"
+    details: "dict[str, object]",
+    pairs: "list[tuple[str, str]]",
+    ranked: "list[int] | None" = None,
 ) -> "tuple[int, ...]":
     """The WRITTEN hour of every parsed (canonical, offset) pair, in the
     order the description ranks them, where an hour census may stand: a
-    column of moments read on the local clock, in any member but the joint
-    one, and not wholly at midnight (landing 3b.2-H, contract HC3). Empty
-    elsewhere. A canonical text is the wall clock as written, so the
-    offset is not read.
+    column of moments not wholly at midnight (landing 3b.2-H, contract
+    HC3; every clock and member since landing 3b.7). Empty elsewhere. A
+    canonical text is the wall clock as written, so the offset is not
+    read.
 
     RANKED BY THE INSTANT, COUNTED BY THE TEXT (Codex's review of the
     landing, item 1). The cells are ordered as `ordered_moments` orders
@@ -17988,17 +18113,30 @@ def _census_hours(
     so a sixtieth second, whose instant is the next minute's first, stays
     in its own hour: `23:59:60` in hour 23, never hour 0.
 
-    Guarantees: accepts the published details and the parsed pairs;
-    returns one hour, 0 to 23, per pair. Determinism: a function of the
-    two. Raises nothing. No I/O of any kind.
+    ON EACH CELL'S OWN CLOCK (landing 3b.7, plan P4-D378): on a column of
+    two offsets or of the joint member the cells are ranked by
+    `_census_ranked` and each counted in the hour its own text is written
+    in -- a `+05:30` cell at its own hour, never the shared clock's -- and
+    a bare date at its midnight, hour 0 (`_clock_text`).
+
+    Guarantees: accepts the published details, the parsed pairs and their
+    ranking where the caller has it; returns one hour, 0 to 23, per pair.
+    Determinism: a function of the three. Raises nothing. No I/O of any
+    kind.
     """
-    if (
-        details["resolution"] != RESOLUTION_DATETIME
-        or details["datetimes_read_at"] != READ_AT_LOCAL
-        or details["format"] == FORMAT_ISO_MIXED
-        or details["all_at_midnight"] is True
+    if not calendar_rules.census_scope(
+        calendar_rules.SCOPE_CLOCK,
+        str(details["resolution"]),
+        details["all_at_midnight"] is True,
     ):
         return ()
+    if _on_own_clocks(details):
+        order = ranked if ranked is not None else _census_ranked(details, pairs)
+        if order is None:
+            return ()
+        return tuple(
+            calendar_clock.written_hour(_clock_text(pairs[place][0])) for place in order
+        )
     ordered = sorted(canonical for canonical, _offset in pairs)
     return tuple(calendar_clock.written_hour(canonical) for canonical in ordered)
 
@@ -18038,6 +18176,9 @@ def hour_published_values(
     (`calendar_clock.rung_rank`), as the canonical text the block writes:
     what `calendar_clock.hour_sure` places in its WRITTEN hour. Empty
     where the block has no two tails.
+
+    On the shared clock the sure-cell rules read none of them
+    (`calendar_clock.own_clock_sure`, landing 3b.7).
 
     Guarantees: accepts the published block and the parsed count;
     returns (rank, canonical text) pairs. Determinism: a function of the
@@ -18147,11 +18288,18 @@ def hour_decision(
         return HourDecision(empty, calendar_clock.HOUR_REASON_WORKBOOK)
     line = parsing.census_floor(settings.small_cell_floor)
     counted = details["n_at_midnight"] if "n_at_midnight" in details else None
-    sure = calendar_clock.hour_sure(
+    # -- 3b.7 (P4-D378): on the shared clock the sure cells are rule 4's
+    # alone (`calendar_clock.own_clock_sure`).
+    published, listed = calendar_clock.own_clock_sure(
         hour_published_values(details, parsed),
+        hour_tails_listed(details),
+        str(details["datetimes_read_at"]),
+    )
+    sure = calendar_clock.hour_sure(
+        published,
         calendar_clock.midnight_sure(
             counted if isinstance(counted, int) else None,
-            hour_tails_listed(details),
+            listed,
         ),
     )
     groups = calendar_clock.hour_groups(calendar_clock.hour_bins(list(body)), sure, line)
@@ -18225,7 +18373,7 @@ def day_of_month_decision(
     * DM5, WC3's scope and nothing more (the 3b.3 skeptic's major 3): a
       column of whole dates, or of moments every value of which stands
       at midnight (major 4: the twin counts and moves those in days),
-      read on the local clock, not in the joint member, with both tails.
+      with both tails, on any clock and in any member since landing 3b.7.
       Anywhere else nothing is decided and nothing is said: a column of
       moments with a clock is outside this landing.
     * Its BODY's days are counted in the thirty-four bins
@@ -18264,12 +18412,14 @@ def day_of_month_decision(
     empty: "tuple[tuple[int, int, int], ...]" = ()
     nothing = DayOfMonthDecision(empty, "")
     resolution = details["resolution"]
-    if not days or details["datetimes_read_at"] != READ_AT_LOCAL:
+    if not days:
         return nothing
-    if details["format"] == FORMAT_ISO_MIXED:
-        return nothing
-    if resolution != RESOLUTION_DATE and not (
-        resolution == RESOLUTION_DATETIME and details["all_at_midnight"] is True
+    # -- 3b.7 (P4-D378): DM5 asks the one scope predicate, no clock and no
+    # member; each cell is counted on the day it is written on.
+    if not calendar_rules.census_scope(
+        calendar_rules.SCOPE_MONTH_DAYS,
+        str(resolution),
+        details["all_at_midnight"] is True,
     ):
         return nothing
     low_tail = details["low_tail"]
@@ -18303,7 +18453,9 @@ def day_of_month_decision(
                 for key in census
                 if isinstance(census[key], int)
             }
-    low, high = body[0], body[len(body) - 1]
+    # -- 3b.7 (P4-D378): the body's first and last WRITTEN day, which on a
+    # column of two offsets need not be its first and last rank's.
+    low, high = min(body), max(body)
     judged: "tuple[str, ...]" = ()
     if "sentinel_verdicts" in details:
         judged = _read_as_missing(details["sentinel_verdicts"])
@@ -18329,7 +18481,10 @@ def day_of_month_decision(
         return DayOfMonthDecision(empty, calendar_rules.REASON_MONTH_SPAN, scores)
     if calendar_rules.few_month_dates(groups, body, table):
         return DayOfMonthDecision(empty, calendar_rules.REASON_MONTH_FEW_DATES, scores)
-    if _month_reach_reason(details, days, n_distinct, settings, groups, tuple(weekdays), holes):
+    if _month_reach_reason(
+        details, _days_ascending(details, days), n_distinct, settings, groups,
+        tuple(weekdays), holes,
+    ):
         return DayOfMonthDecision(empty, calendar_rules.REASON_MONTH_REACH, scores)
     if calendar_rules.day_census_breach(groups, len(body), line, p25, p75):
         return DayOfMonthDecision(empty, calendar_rules.REASON_NARROWED, scores)
@@ -23096,6 +23251,16 @@ def _decide(
             elif window:
                 # -- 3b.R2a (P4-D383): the window the person chose (NF112).
                 remarks += [note(REMARK_CENTURY_DECLARED, (window,))]
+            # -- 3b.7 (P4-D378): one ranking a column, every census's, over the
+            # pairs as the offset census speaks of them -- a value whose offset
+            # it absorbed wears the commonest, as the tails were cut
+            # (`_offsets_published`): ten folded `2024-01-04` read at `(none)`
+            # ranked apart from the tails that read them at `-05:00`, and
+            # the unchanged source missed its weekday census by two.
+            counted = pairs
+            if _on_own_clocks(details):
+                counted = _offsets_published(format_name, pairs, sources, settings)[1]
+            ranked = _census_ranked(details, counted)
             return _Verdict(
                 role=ROLE_DATETIME,
                 evidence=note(
@@ -23104,10 +23269,10 @@ def _decide(
                 notes=notes,
                 remarks=remarks,
                 details=details,
-                days=_census_days(details, pairs),
+                days=_census_days(details, counted, ranked),
                 texts=len(set(sources)),
-                hours=_census_hours(details, pairs),
-                moments=_census_moments(details, pairs),
+                hours=_census_hours(details, counted, ranked),
+                moments=_census_moments(details, counted, ranked),
             )
 
         # RULE 6 -- numbers, at the one parse rate there is. A column that

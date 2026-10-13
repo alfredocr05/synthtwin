@@ -1,0 +1,681 @@
+{
+  "fields": {
+    "half_hour_east": {
+      "answer": {
+        "day_of_month": 3,
+        "hour": 15,
+        "minute": 30,
+        "second": 0,
+        "weekday": 0
+      },
+      "instant": 1709546400,
+      "key": "+05:30",
+      "sixtieth": false,
+      "why": "10:00 on the shared clock written 15:30+05:30: its own minute 30, never the shared clock's 0"
+    },
+    "leap_east": {
+      "answer": {
+        "day_of_month": 33,
+        "hour": 23,
+        "minute": 59,
+        "second": 59,
+        "weekday": 5
+      },
+      "instant": 1483221600,
+      "key": "+02:00",
+      "sixtieth": true,
+      "why": "2016-12-31T23:59:60+02:00, its instant 2016-12-31 22:00:00 on the shared clock: written on 31 December, hour 23, minute 59, second 59"
+    },
+    "sunday_night_west": {
+      "answer": {
+        "day_of_month": 2,
+        "hour": 23,
+        "minute": 30,
+        "second": 0,
+        "weekday": 6
+      },
+      "instant": 1709530200,
+      "key": "-06:00",
+      "sixtieth": false,
+      "why": "2024-03-03 23:30-06:00, Monday 05:30 on the shared clock: written on Sunday, at hour 23 (mutant: the shared clock's Monday and hour 5)"
+    }
+  },
+  "form_days": {
+    "days_apart": {
+      "answer": [
+        0,
+        950400,
+        1036800,
+        1123200,
+        1728000
+      ],
+      "apart": true,
+      "highs": [
+        0,
+        1728000,
+        1728000,
+        1728000,
+        1728000
+      ],
+      "lows": [
+        0,
+        864000,
+        864000,
+        864000,
+        1728000
+      ],
+      "ordinals": [
+        0,
+        869000,
+        870000,
+        871000,
+        1728000
+      ],
+      "shut_bins": [],
+      "shut_weekdays": [],
+      "whole": [
+        false,
+        true,
+        true,
+        true,
+        false
+      ],
+      "why": "three bare dates of an all-different gap on three days, never stacked on one (item (b))"
+    },
+    "off_the_weekend": {
+      "answer": [
+        0,
+        345600,
+        1728000
+      ],
+      "apart": true,
+      "highs": [
+        0,
+        1641600,
+        1728000
+      ],
+      "lows": [
+        0,
+        86400,
+        1728000
+      ],
+      "ordinals": [
+        0,
+        177800,
+        1728000
+      ],
+      "shut_bins": [],
+      "shut_weekdays": [
+        5,
+        6
+      ],
+      "whole": [
+        false,
+        true,
+        false
+      ],
+      "why": "1970-01-03, a Saturday, where the weekday census counts the weekend nought: the bare date stands on the Monday after"
+    }
+  },
+  "forms": {
+    "not_all_different": {
+      "answer": [
+        true,
+        false,
+        true,
+        false,
+        false,
+        false,
+        true,
+        true,
+        false,
+        false,
+        false,
+        true,
+        true
+      ],
+      "apart": false,
+      "dates": 6,
+      "highs": [
+        0,
+        957600,
+        957600,
+        957600,
+        957600,
+        957600,
+        957600,
+        1036800,
+        3369600,
+        3369600,
+        3369600,
+        3369600,
+        3456000
+      ],
+      "lows": [
+        0,
+        867600,
+        867600,
+        867600,
+        867600,
+        867600,
+        867600,
+        1036800,
+        2592000,
+        2592000,
+        2592000,
+        2592000,
+        3456000
+      ],
+      "moments": 8,
+      "why": "values that repeat: a gap holding a midnight takes as many as the rotation offers"
+    },
+    "tight_gap_capped": {
+      "answer": [
+        true,
+        false,
+        true,
+        false,
+        false,
+        false,
+        false,
+        true,
+        true,
+        false,
+        false,
+        true,
+        true
+      ],
+      "apart": true,
+      "dates": 6,
+      "highs": [
+        0,
+        957600,
+        957600,
+        957600,
+        957600,
+        957600,
+        957600,
+        1036800,
+        3369600,
+        3369600,
+        3369600,
+        3369600,
+        3456000
+      ],
+      "lows": [
+        0,
+        867600,
+        867600,
+        867600,
+        867600,
+        867600,
+        867600,
+        1036800,
+        2592000,
+        2592000,
+        2592000,
+        2592000,
+        3456000
+      ],
+      "moments": 8,
+      "why": "an all-different column: a gap of one midnight takes one bare date and its turn passes on to a gap of nine, never two in the first (mutant: no cap)"
+    }
+  },
+  "frames": {
+    "days_of_a_cet_column": {
+      "answer": {
+        "offsets": [
+          "",
+          "+01:00",
+          "+02:00",
+          ""
+        ],
+        "ordinals": [
+          0,
+          1699916400,
+          1699999200,
+          1800000000
+        ]
+      },
+      "before": [
+        0,
+        1699996400,
+        1700079200,
+        1800000000
+      ],
+      "body": [
+        1,
+        2
+      ],
+      "framed": [
+        0,
+        19676,
+        19675,
+        1800000000
+      ],
+      "highs": [
+        0,
+        1750000000,
+        1750000000,
+        1800000000
+      ],
+      "lows": [
+        0,
+        1600000000,
+        1600000000,
+        1800000000
+      ],
+      "offsets": [
+        "",
+        "+01:00",
+        "+02:00",
+        ""
+      ],
+      "pinned": [
+        true,
+        false,
+        false,
+        true
+      ],
+      "scale": 86400,
+      "shifts": [
+        0,
+        3600,
+        7200,
+        0
+      ],
+      "whole": [
+        false,
+        false,
+        false,
+        false
+      ],
+      "why": "a column all at a local midnight in days of the frame: each day a midnight of its own offset"
+    },
+    "east_beside_west": {
+      "answer": {
+        "offsets": [
+          "",
+          "-06:00",
+          "+05:30",
+          "+05:30",
+          ""
+        ],
+        "ordinals": [
+          10,
+          141400,
+          158600,
+          300000,
+          400000
+        ]
+      },
+      "before": [
+        10,
+        100000,
+        200000,
+        300000,
+        400000
+      ],
+      "body": [
+        1,
+        3
+      ],
+      "framed": [
+        10,
+        119800,
+        178400,
+        319800,
+        400000
+      ],
+      "highs": [
+        10,
+        350000,
+        350000,
+        350000,
+        400000
+      ],
+      "lows": [
+        10,
+        50000,
+        50000,
+        50000,
+        400000
+      ],
+      "offsets": [
+        "",
+        "+05:30",
+        "-06:00",
+        "+05:30",
+        ""
+      ],
+      "pinned": [
+        true,
+        false,
+        false,
+        false,
+        true
+      ],
+      "scale": 1,
+      "shifts": [
+        0,
+        19800,
+        -21600,
+        19800,
+        0
+      ],
+      "whole": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "why": "+05:30 beside -06:00 in one gap: the least offset whose instant stays under the gap's top"
+    },
+    "two_offsets_one_run": {
+      "answer": {
+        "offsets": [
+          "",
+          "-06:00",
+          "-06:00",
+          "-05:00",
+          "-05:00",
+          ""
+        ],
+        "ordinals": [
+          1000,
+          1700000000,
+          1700003600,
+          1700007200,
+          1700010800,
+          1800000000
+        ]
+      },
+      "before": [
+        1000,
+        1700000000,
+        1700003600,
+        1700007200,
+        1700010800,
+        1800000000
+      ],
+      "body": [
+        1,
+        4
+      ],
+      "framed": [
+        1000,
+        1699978400,
+        1699989200,
+        1699982000,
+        1699992800,
+        1800000000
+      ],
+      "highs": [
+        1000,
+        1750000000,
+        1750000000,
+        1750000000,
+        1750000000,
+        1800000000
+      ],
+      "lows": [
+        1000,
+        1600000000,
+        1600000000,
+        1600000000,
+        1600000000,
+        1800000000
+      ],
+      "offsets": [
+        "",
+        "-06:00",
+        "-06:00",
+        "-05:00",
+        "-05:00",
+        ""
+      ],
+      "pinned": [
+        true,
+        false,
+        false,
+        false,
+        false,
+        true
+      ],
+      "scale": 1,
+      "shifts": [
+        0,
+        -21600,
+        -21600,
+        -18000,
+        -18000,
+        0
+      ],
+      "whole": [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "why": "a pass sorted a run of four ranks by their written places across two offsets: each place keeps its offset's ranks inside the gap, the run written in the order of its instants"
+    }
+  },
+  "pins": {
+    "c551_listed_tail": {
+      "answer": [
+        "+02:00"
+      ],
+      "blocks": [
+        [
+          0,
+          12,
+          1603839600
+        ]
+      ],
+      "body": [
+        12,
+        160
+      ],
+      "censuses": [],
+      "keys": [
+        "+01:00",
+        "+02:00"
+      ],
+      "left": {
+        "+01:00": 90,
+        "+02:00": 87
+      },
+      "off_midnight": true,
+      "step": 60,
+      "why": "C1's c551: twelve listed rows at 2020-10-27 23:00 on the shared clock, the count at midnight withheld for its size, take +02:00, off a local midnight, never +01:00 writing them at one (mutant: the midnight clause off)"
+    },
+    "few_off_rung": {
+      "answer": [
+        "-06:00"
+      ],
+      "blocks": [
+        [
+          99,
+          100,
+          1699309800
+        ]
+      ],
+      "body": [
+        12,
+        987
+      ],
+      "censuses": [
+        [
+          "hour",
+          [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1,
+            2,
+            2,
+            2,
+            2,
+            2,
+            2,
+            2,
+            2,
+            3,
+            4,
+            4,
+            4,
+            4,
+            4,
+            4,
+            4
+          ],
+          [
+            0,
+            30,
+            600,
+            100,
+            0
+          ]
+        ],
+        [
+          "weekday",
+          [
+            0,
+            0,
+            0,
+            0,
+            0,
+            1,
+            1
+          ],
+          [
+            730,
+            0
+          ]
+        ]
+      ],
+      "keys": [
+        "+05:30",
+        "-06:00"
+      ],
+      "left": {
+        "+05:30": 18,
+        "-06:00": 982
+      },
+      "off_midnight": false,
+      "step": 60,
+      "why": "the skeptic's few_off: a 99th percentile the source wrote 16:30-06:00 takes -06:00, its hour in a counted group, never the first sorted key +05:30 writing it 04:00 in a group of nought (mutant: G7.4's lexical keys)"
+    }
+  },
+  "spreads": {
+    "few_off_spread": {
+      "answer": [
+        "-06:00",
+        "-06:00",
+        "-06:00",
+        "-06:00",
+        "-06:00",
+        "-06:00",
+        "+05:30",
+        "+05:30",
+        "+05:30",
+        "+05:30",
+        "-06:00",
+        "-06:00",
+        "-06:00",
+        "-06:00",
+        "-06:00",
+        "-06:00",
+        "-06:00",
+        "-06:00",
+        "-06:00",
+        "-06:00"
+      ],
+      "highs": [
+        0,
+        9,
+        9,
+        9,
+        9,
+        9,
+        9,
+        19,
+        19,
+        19,
+        19,
+        29,
+        29,
+        29,
+        29,
+        39,
+        39,
+        39,
+        39,
+        39,
+        39
+      ],
+      "keys": [
+        "+05:30",
+        "-06:00"
+      ],
+      "left": {
+        "+05:30": 4,
+        "-06:00": 16
+      },
+      "lows": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        10,
+        10,
+        10,
+        10,
+        20,
+        20,
+        20,
+        20,
+        30,
+        30,
+        30,
+        30,
+        30,
+        30
+      ],
+      "open_ranks": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20
+      ],
+      "why": "four ranks at +05:30 beside sixteen at -06:00 over four gaps: the rare key takes a whole gap inside the column, never the first ranks' block (mutant: the keys spent in rank order)"
+    }
+  },
+  "what": "Landing 3b.7's readings on each rank's own clock and its steps (plan P4-D378, method G7.3k and G7.4 step 1a), computed from the method's text alone."
+}

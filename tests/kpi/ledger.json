@@ -6544,7 +6544,7 @@
    "nodes": [
     "tests/test_stage3b_weekday_moments.py::test_moments_publish_their_census_where_the_rules_allow",
     "tests/test_stage3b_weekday_moments.py::test_a_census_the_rules_keep_back_is_withheld_with_nf74",
-    "tests/test_stage3b_weekday_moments.py::test_a_column_on_the_shared_clock_publishes_nothing_and_says_nothing",
+    "tests/test_stage3b_weekday_moments.py::test_a_column_on_the_shared_clock_counts_each_value_on_its_own_clock",
     "tests/test_stage3b_weekday_moments.py::test_each_rule_withholds_its_own_shapes",
     "tests/test_stage3b_weekday_moments.py::test_the_rules_give_their_stated_answers_on_hand_made_bodies",
     "tests/test_stage3b_weekday_moments.py::test_a_body_day_on_a_published_hole_withholds_the_census_of_moments",
@@ -7395,6 +7395,49 @@
      "rewrites_held": 0,
      "spellings": 20,
      "twin_cells_unread": 0
+    }
+   }
+  },
+  {
+   "id": "K-S3-53",
+   "phase_stage": "Stage 3b landing 3b.7, the calendar on each value's own clock (plan P4-D378)",
+   "category": "STATS",
+   "headline": false,
+   "name": "The calendar comes back on columns of two offsets and of the joint member",
+   "status": "GREEN",
+   "rule": "the pinned nodes pass: columns of two offsets read on the shared clock and of the joint member publish their weekday and hour censuses and load at floors 11 and 36; cells rank by their instant and count where written; nine battery columns' twins at floors 11 and 36, seeds 0 to 2, miss nothing -- every census met, offsets and forms exact; the source holds its censuses recounted on its own clock; C1's two columns keep a withheld count at midnight; an all-different joint column comes back all different, checked exactly; the forms are written as published; the form step and the frame cost linear work; every battery description loads; and every case of vectors file 24, each red on its mutant",
+   "rule_kind": "exact",
+   "expected": {
+    "pinned_nodes_failing": 0
+   },
+   "tier": "FAST",
+   "source": "pytest",
+   "nodes": [
+    "tests/test_stage3b_shared_clock.py::test_s1_a_column_of_two_offsets_or_of_the_joint_member_publishes_its_censuses",
+    "tests/test_stage3b_shared_clock.py::test_s1_red_with_the_clock_and_the_member_clauses_restored",
+    "tests/test_stage3b_shared_clock.py::test_s2_cells_are_ranked_by_their_instant_and_counted_where_written",
+    "tests/test_stage3b_shared_clock.py::test_s3_every_census_is_met_and_every_offset_and_form_kept",
+    "tests/test_stage3b_shared_clock.py::test_s3_red_without_the_frame",
+    "tests/test_stage3b_shared_clock.py::test_s4_the_source_holds_its_censuses_and_red_counted_on_the_shared_clock",
+    "tests/test_stage3b_shared_clock.py::test_s5_a_withheld_count_at_midnight_is_kept",
+    "tests/test_stage3b_shared_clock.py::test_s6_an_all_different_joint_column_is_held_exactly",
+    "tests/test_stage3b_shared_clock.py::test_s7_the_bare_dates_are_written_as_published",
+    "tests/test_stage3b_shared_clock.py::test_s8_the_form_step_asks_each_day_a_bounded_number_of_times",
+    "tests/test_stage3b_shared_clock.py::test_s9_the_producer_always_loads",
+    "tests/test_stage3b_shared_clock.py::test_vectors_pins"
+   ],
+   "test": null,
+   "driver": null,
+   "pin_strength": "WEAKER",
+   "measured_on": "eighteen columns of the 3b.7 design and its skeptic at 1,000 rows through the real producer, generator and checker, floors 11 and 36, seeds 0 to 2",
+   "evidence": "On b48b0e0, at 1,000 rows and seed 0, the battery's columns of two offsets and of the joint member published no weekday or hour census and their twins stood 0.007 to 0.292 off by written weekday and up to 0.543 by written hour, wrote no bare date of 88 to 200, C1's c0 and c551 missed midnight.withheld at 11, and an all-different joint column held 973 and 992 of 1,000. On 109d6e5, 21 columns at floors 11 and 36, seeds 0 to 4: at 1,000 rows all 170 published weekday and 175 hour censuses met, every offset count exact, the forms exact but on the tight joint column (196 of 200, named; strict xfail), the weekday 0.000 to 0.035 off; at 10,000 rows all 185 and 175 met, the weekday at most 0.0011 off, the tight column short at 36 alone; 20 local column cases' twins byte for byte the base's. At 1,000,000 rows dst_ed generated in 98.7 s against 55.1, isomix_admit 142.0 against 142.1, peak 1,122 MB.",
+   "nodes_min_collected": 39,
+   "value_at": {
+    "commit": "TBD",
+    "date": "2026-10-13",
+    "measured_by": "tools/measurements/kpi_run.py --only K-S3-53 --print-values",
+    "value": {
+     "pinned_nodes_failing": 0
     }
    }
   },

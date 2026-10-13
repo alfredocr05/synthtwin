@@ -494,21 +494,10 @@ _NOT_CHECKABLE_REPORT_ONLY = (
     "no CSV can evidence this fact: the description records how the "
     "real table was read, and a written file cannot show it"
 )
-# THE MEMBER OF A COLUMN READ JOINTLY, which is the one column whose
-# member its own twin cannot show (landing 2b.6, residual R-P4-12). The
-# twin of a joint column that mixes whole dates with real times of day
-# writes every value with a time of day, because a date-form cell cannot
-# spell an interior value published at the second -- so describing that
-# twin again reads it as `iso-datetime`, not as the joint member, and
-# holding it to `format` would report a miss against the tool's own
-# output for a loss the description already names. A joint column wholly
-# at midnight writes its whole dates bare and IS held to its member.
-_NOT_CHECKABLE_JOINT_MEMBER = (
-    "the description records that the real column mixed whole dates "
-    "with values carrying a time of day, and the twin of such a column "
-    "writes every value with a time of day, so no file is asked to be "
-    "read back as that same mixture"
-)
+# THE MEMBER OF A COLUMN READ JOINTLY was a listing until landing 3b.7
+# (plan P4-D378), its twin writing every value with a time of day
+# (residual R-P4-12); the twin writes the published count of bare dates
+# now, and `format` is held there as everywhere.
 _NOT_CHECKABLE_RESOLUTION_MIX = (
     "the description records which written form each of the real "
     "table's dates wore, and how many wore each, and it asks no file "
@@ -9541,7 +9530,7 @@ def _distinctness_checks(
             if (
                 contract.datetime_count_exact(column, published)
                 and window[0] <= published <= window[1]
-            ):
+            ) or _joint_all_different(column, facts):
                 checks += [
                     _exact(
                         name,
@@ -16845,7 +16834,10 @@ def _tail_units_of(
 
 
 def _tail_readings_of(
-    facts: contract.DatetimeFacts, cells: "list[str]", folded: bool = False
+    facts: contract.DatetimeFacts,
+    cells: "list[str]",
+    folded: bool = False,
+    written: bool = False,
 ) -> "list[tuple[int, str] | None]":
     """One reading per cell, in tail units with the canonical text it was
     counted from, or null where it is not a date.
@@ -16873,6 +16865,13 @@ def _tail_readings_of(
     mean and RMS distances stood outside their windows, and ten bare
     `2024-01-04` beside `23:00:00-05:00` stamps made the unchanged source
     miss its low tail, published 12 and recounted 22).
+
+    `written` hands back, beside the unit, the text AS WRITTEN -- the
+    cell's own wall clock, never its conversion to the shared clock, a
+    bare date as its date -- which every census counts a cell at (landing
+    3b.7, plan P4-D378: each cell placed by its instant on the published
+    clock and counted on the clock it is written on). On a column read on
+    its own clock the two texts are one.
 
     THE READING STAYS WITH ITS OWN CELL here, and the caller below sorts
     the readings it keeps. The tails are counted over sorted values and
@@ -16947,10 +16946,83 @@ def _tail_readings_of(
                 taxonomy.tail_ordinal(
                     moment, facts.tail_unit, facts.datetimes_read_at
                 ),
-                moment,
+                canonical if written else moment,
             )
         ]
     return found
+
+
+def _on_own_clocks(facts: contract.DatetimeFacts) -> bool:
+    """Whether a column's censuses count each cell on its own clock apart
+    from the published one (landing 3b.7, plan P4-D378): a column published
+    on the shared clock, or one of the joint member, whose bare dates count
+    at their midnight. Every other column is recounted as before."""
+    return (
+        facts.datetimes_read_at != "local"
+        or facts.parser_family == contract.FORMAT_ISO_MIXED
+    )
+
+
+def _own_clock_readings(
+    facts: contract.DatetimeFacts,
+    block: "dict[str, object] | None",
+    cells: "list[str]",
+) -> "list[tuple[int, str]]":
+    """Every cell the file reads, on its own clock (landing 3b.7, plan
+    P4-D378; validation V5-W1, V5-W2, V5-H1, V5-M1 and V5-S1): its unit on
+    the clock the column is published on, which places it between the two
+    published boundaries as the producer cut the body, and the text it is
+    WRITTEN in, at which each census counts it -- a bare date at its
+    midnight, hour, minute and second 0 (the fold). The cells the file's
+    own description folded into its moments are read under the joint
+    reading, worn at the offset the census absorbed them into
+    (`_tail_readings_of`, Codex's review of lane J, item 2).
+
+    Guarantees: accepts the facts, the file's own description block and
+    the cells; returns (unit, written text) pairs, the text 19 characters
+    long. Determinism: a function of the three. Raises nothing. No I/O of
+    any kind.
+    """
+    found: "list[tuple[int, str]]" = []
+    failing: "list[str]" = []
+    for cell, placed in zip(cells, _tail_readings_of(facts, cells, False, True)):
+        if placed is None:
+            failing += [cell]
+            continue
+        found += [placed]
+    if block is not None and _folded_by_the_file(block, facts.parser_family, failing):
+        for placed in _tail_readings_of(facts, failing, True, True):
+            if placed is not None:
+                found += [placed]
+    clocked: "list[tuple[int, str]]" = []
+    for unit, text in found:
+        if len(text) < 19:
+            text = text[0:10] + " 00:00:00"
+        clocked += [(unit, text)]
+    return clocked
+
+
+def _own_clock_body(
+    facts: contract.DatetimeFacts,
+    block: "dict[str, object] | None",
+    cells: "list[str]",
+) -> "list[str]":
+    """The written texts of the file's body on its own clocks (landing 3b.7):
+    the cells `_own_clock_readings` places between the two published
+    boundaries, both included, in the published clock's units."""
+    if facts.low_tail is None or facts.high_tail is None:
+        return []
+    low = taxonomy.tail_ordinal(
+        facts.low_tail.boundary, facts.tail_unit, facts.datetimes_read_at
+    )
+    high = taxonomy.tail_ordinal(
+        facts.high_tail.boundary, facts.tail_unit, facts.datetimes_read_at
+    )
+    return [
+        text
+        for unit, text in _own_clock_readings(facts, block, cells)
+        if low <= unit <= high
+    ]
 
 
 def _file_tail_units(
@@ -18151,27 +18223,31 @@ def _datetime_checks(
     # it. The twin is written in the source's own member now, so
     # describing it again must name that member -- and this is the one
     # check that turns red on a writer that quietly goes back to ISO.
-    if not _mixed_forms_unwritten(facts):
-        checks += [
-            _format_check(
-                name, facts.parser_family, _text_at(block, "format"), cells
-            )
-        ]
+    # ...AND ON A COLUMN READ JOINTLY TOO since landing 3b.7 (plan P4-D378):
+    # its twin writes the published count of bare dates, so it is read back
+    # under the joint member.
+    checks += [
+        _format_check(
+            name, facts.parser_family, _text_at(block, "format"), cells
+        )
+    ]
     # -- 3b.R2c (P4-D383): A PARTIAL-DATE COLUMN'S FORMS ARE CHECKED, each
     # exactly (the Codex review of landing R2c, item 1), and the narrowing
     # below holds for every other column.
     checks = checks + _partial_form_checks(column, facts, block, cells)
-    # `resolution_mix` IS NOT CHECKED, AND THAT IS A REASONED NARROWING
-    # rather than an oversight (landing 2b.6). The spelling audit asked
-    # for it to become exact beside `format`. On every column read under
-    # ONE member its census is, by the contract's RM1 and RM2, exactly
-    # that member carrying every parsed cell -- so a check of it would
-    # restate `format.member` and `counts.n_unparsed`, both of which are
-    # checked above, and a check that cannot fail on its own is the
-    # thing this validator is least allowed to add. On a column read
-    # JOINTLY it is unreachable for the other reason: the twin writes
-    # every value with a time of day (residual R-P4-12). Listed in both
-    # cases, never silent.
+    # `resolution_mix` IS NOT CHECKED ON A COLUMN READ UNDER ONE MEMBER,
+    # AND THAT IS A REASONED NARROWING rather than an oversight (landing
+    # 2b.6): its census is, by the contract's RM1 and RM2, exactly that
+    # member carrying every parsed cell -- so a check of it would restate
+    # `format.member` and `counts.n_unparsed`, both of which are checked
+    # above, and a check that cannot fail on its own is the thing this
+    # validator is least allowed to add. Listed, never silent. ON A COLUMN
+    # READ JOINTLY IT IS EXACT since landing 3b.7 (plan P4-D378): the twin
+    # writes the published count of bare dates (`generation._form_step`;
+    # residual R-P4-12 closed on clocked columns), so the file's own count
+    # of each form is held to the published one.
+    if facts.parser_family == contract.FORMAT_ISO_MIXED:
+        checks += [_resolution_mix_check(name, facts, block)]
     checks = checks + _offset_checks(column, facts, block, floor, mine)
     checks = checks + _mark_checks(column, facts, block, floor, cells)
     checks = checks + _written_form_checks(column, facts, block, floor, cells)
@@ -18285,6 +18361,27 @@ def _partial_form_checks(
     return found
 
 
+def _resolution_mix_check(
+    name: str, facts: contract.DatetimeFacts, block: "dict[str, object]"
+) -> Check:
+    """How many of a joint column's dates were written as bare dates and how
+    many with a time of day, held exactly (landing 3b.7, plan P4-D378): the
+    file's own description's `resolution_mix` against the published one,
+    both printed as `iso-date N, iso-datetime M` -- each count at least the
+    census line or the form absorbed (`taxonomy._forms_as_published`), so
+    neither names a row. A file whose description reads it under another
+    member counts its forms under that member's key and is MISSED.
+    Raises nothing. No I/O of any kind."""
+    published = ", ".join(
+        f"{key} {facts.resolution_mix[key]}" for key in sorted(facts.resolution_mix)
+    )
+    found = block["resolution_mix"] if "resolution_mix" in block else None
+    shown: "str | None" = None
+    if isinstance(found, dict):
+        shown = ", ".join(f"{key} {found[key]}" for key in sorted(found))
+    return _exact(name, "datetime.resolution_mix", "resolution_mix.counts", published, shown)
+
+
 def _format_check(
     name: str, published: str, found: "str | None", cells: "list[str]"
 ) -> Check:
@@ -18365,10 +18462,17 @@ def _hour_checks(
     low = calendar_clock.seconds_of(facts.low_tail.boundary)
     high = calendar_clock.seconds_of(facts.high_tail.boundary)
     read_cells = _dates_the_file_reads(block, facts, cells)
-    instants = _hour_instants_of(facts, read_cells) + _folded_hour_instants(
-        block, facts, read_cells
-    )
-    body = [hour for instant, hour in instants if low <= instant <= high]
+    if _on_own_clocks(facts):
+        # -- 3b.7 (P4-D378): each cell in the hour its own clock writes.
+        body = [
+            calendar_clock.written_hour(text)
+            for text in _own_clock_body(facts, block, read_cells)
+        ]
+    else:
+        instants = _hour_instants_of(facts, read_cells) + _folded_hour_instants(
+            block, facts, read_cells
+        )
+        body = [hour for instant, hour in instants if low <= instant <= high]
     found = calendar_rules.group_counts(census, calendar_clock.hour_bins(body))
     line = parsing.census_floor(floor)
     asked, shown, lines = _census_lines(
@@ -18519,7 +18623,13 @@ def _day_of_month_checks(
     high = _weekday_day(facts.high_tail.boundary)
     holes = set(_published_holes(column, facts, low, high, declared_days))
     days: "list[int]" = []
-    if facts.resolution == taxonomy.RESOLUTION_DATETIME:
+    if facts.resolution == taxonomy.RESOLUTION_DATETIME and _on_own_clocks(facts):
+        # -- 3b.7 (P4-D378): each cell on the day its own clock writes.
+        days = [
+            calendar_rules.written_day(text)
+            for text in _own_clock_body(facts, block, _dates_the_file_reads(block, facts, cells))
+        ]
+    elif facts.resolution == taxonomy.RESOLUTION_DATETIME:
         first = taxonomy.tail_ordinal(
             facts.low_tail.boundary, facts.tail_unit, facts.datetimes_read_at
         )
@@ -18813,6 +18923,19 @@ def _moments_tallied(
     )
     found: "list[tuple[int, str]]" = []
     failing: "list[str]" = []
+    # -- 3b.7 (P4-D378): each cell counted on the day it is WRITTEN on, its
+    # own clock's, placed by its unit on the published clock.
+    if _on_own_clocks(facts):
+        on_own = 0
+        for unit, moment in _own_clock_readings(facts, block, cells):
+            if unit < low or unit > high:
+                continue
+            day = calendar_rules.written_day(moment)
+            weekday = calendar_rules.weekday_of(day)
+            bins[weekday] = bins[weekday] + 1
+            if day in holes:
+                on_own = on_own + 1
+        return on_own
     for cell, placed in zip(cells, _tail_readings_of(facts, cells)):
         if placed is None:
             failing += [cell]
@@ -19050,23 +19173,6 @@ def _day_as_counted(cell: str) -> "int | None":
     if read is None:
         return None
     return _weekday_day(read[0])
-
-
-def _mixed_forms_unwritten(facts: contract.DatetimeFacts) -> bool:
-    """Whether this column's own member is one no twin of it can show.
-
-    A column read jointly that mixes whole dates with real times of day:
-    the twin writes every value with a time of day, because a date-form
-    cell cannot spell an interior value published at the second
-    (residual R-P4-12), so describing that twin again reads it as
-    `iso-datetime` rather than as the joint member. Every other column
-    -- including a joint column wholly at midnight, which writes its
-    whole dates bare -- is written in its own member and read back as it.
-    """
-    return (
-        facts.parser_family == contract.FORMAT_ISO_MIXED
-        and not facts.all_at_midnight
-    )
 
 
 # The four censuses of how a column's dates were WRITTEN, with the key
@@ -20113,6 +20219,23 @@ def _clock_distinct_window(
         upper = min(column.n_present, room + stand_ins)
     lower = min(separate + stand_ins, upper)
     return (float(lower), float(upper))
+
+
+def _joint_all_different(column: contract.ColumnBlock, facts: contract.DatetimeFacts) -> bool:
+    """Whether a joint column on its own clock publishes every parsed value
+    different (landing 3b.7, plan P4-D378; item (b), the design skeptic's
+    major 3): G11's all-different obligation, held EXACTLY there -- the
+    form step stands each bare date on a day of its own and the rest stay
+    where they were drawn apart -- where before it fell to G12.5's envelope
+    and 800 different stamps beside 200 different dates came back 881 of
+    1,000 with validate passing. On the shared clock the count stays in the
+    envelope (stated limit): there the construction does not reach it.
+    Raises nothing. No I/O of any kind."""
+    return (
+        facts.parser_family == contract.FORMAT_ISO_MIXED
+        and facts.datetimes_read_at == "local"
+        and column.n_distinct >= column.n_present - facts.n_unparsed
+    )
 
 
 def _datetime_distinct_window(
@@ -21605,23 +21728,20 @@ def _listings(
             # that read the real column; the twin is written in that
             # member now, so describing it again names it.
             # ...BUT A PARTIAL-DATE COLUMN'S FORMS ARE CHECKED (the Codex
-            # review of landing R2c, item 1), so its census is not listed.
-            if not _partial_forms_published(facts):
+            # review of landing R2c, item 1), and on a column read jointly
+            # `resolution_mix` and `format` are both checked since landing 3b.7
+            # (plan P4-D378), the twin writing the published count of bare dates;
+            # every other census is listed.
+            if (
+                not _partial_forms_published(facts)
+                and facts.parser_family != contract.FORMAT_ISO_MIXED
+            ):
                 listings += [
                     Listing(
                         column.name,
                         "datetime.resolution_mix",
                         "",
                         _NOT_CHECKABLE_RESOLUTION_MIX,
-                    )
-                ]
-            if _mixed_forms_unwritten(facts):
-                listings += [
-                    Listing(
-                        column.name,
-                        "datetime.format",
-                        "",
-                        _NOT_CHECKABLE_JOINT_MEMBER,
                     )
                 ]
             listings += _written_form_listings(column, facts)

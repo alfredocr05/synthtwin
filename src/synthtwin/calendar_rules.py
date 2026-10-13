@@ -218,6 +218,46 @@ def weekday_of(day: int) -> int:
     return (day + 3) % WEEKDAYS
 
 
+SCOPE_DAYS = "days"
+SCOPE_MONTH_DAYS = "month_days"
+SCOPE_CLOCK = "clock"
+
+
+def census_scope(scope: str, resolution: str, all_at_midnight: "bool | None") -> bool:
+    """Whether a census of the calendar may stand on a column: THE ONE
+    STATEMENT OF ITS SCOPE (landing 3b.7, plan P4-D378; contract WC3, HC3
+    and DM5, MC3 and SE3 by reference).
+
+    `SCOPE_DAYS` is the weekday census's: a column of whole dates or of
+    moments. `SCOPE_MONTH_DAYS` is the day-of-month census's (DM5, WC3's
+    scope as landing 3b.3 ruled): whole dates, or moments every value of
+    which stands at midnight. `SCOPE_CLOCK` is the hour census's and,
+    through it, the minute's and the second's: moments not every one of
+    which stands at midnight. THE CLOCK THE COLUMN IS PUBLISHED ON AND THE
+    JOINT MEMBER ARE NOT ASKED: each cell is counted on the clock it is
+    WRITTEN on (`written_day`, `calendar_clock.written_hour`), so a column
+    of two offsets and a column mixing bare dates and moments are in scope
+    like any other. Both tails are each rule's own clause, asked where the
+    census is read.
+
+    The producer (`taxonomy`), the loader (`contract`) and the generator
+    ask this one predicate, so the scope cannot drift between them.
+
+    Guarantees: accepts the scope name, the column's resolution and its
+    all-at-midnight flag; returns the answer. Determinism: a fixed
+    function of the three. Raises nothing. No I/O of any kind.
+    """
+    if scope == SCOPE_DAYS:
+        return resolution in ("date", "datetime")
+    if scope == SCOPE_MONTH_DAYS:
+        return resolution == "date" or (
+            resolution == "datetime" and all_at_midnight is True
+        )
+    if scope == SCOPE_CLOCK:
+        return resolution == "datetime" and all_at_midnight is not True
+    return False
+
+
 def written_day(canonical: str) -> int:
     """The day a canonical date or moment is WRITTEN on: the day number of
     `canonical[0:10]`, counted from 1970-01-01.

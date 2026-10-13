@@ -194,6 +194,41 @@ def midnight_sure(
     return max(left, 0)
 
 
+def own_clock_sure(
+    published: "list[tuple[int, str]]",
+    tails: "list[tuple[int, tuple[str, ...] | None]]",
+    clock: str,
+) -> "tuple[list[tuple[int, str]], list[tuple[int, tuple[str, ...] | None]]]":
+    """What the sure-cell rules read on a column's clock (landing 3b.7, plan
+    P4-D378; the design skeptic's blocker 1): the published body values and
+    each tail's listed values, as `hour_sure`, `field_sure` and rule 4
+    (`midnight_sure`) take them.
+
+    On the local clock, both as they are. ON THE SHARED CLOCK, NO PUBLISHED
+    VALUE AND NO LISTED VALUE: each is published as its instant on the
+    shared clock, and the hour, minute and second it is WRITTEN at -- the
+    only ones a census counts -- are the offset's the twin gives its rank
+    among the published keys, which no published fact fixes. Read off the
+    shared clock's text, `few_off`'s 99th percentile, written
+    `16:30:00-06:00` and published `22:30:00`, merged hours the source never
+    wrote into counted groups, and the twin, writing it `04:00:00+05:30`,
+    put it in a group of nought (the skeptic's measurement). So only rule
+    4's count at midnight stays, and no tail's rows come out of it: it
+    counts more cells at midnight than the body can hold, never fewer. The
+    twin places each pinned rank's written hour in a published group with
+    room (`generation._pinned_offsets`, method G7.4).
+
+    One function, four callers: the hour and field producers (`taxonomy`)
+    and their loader rules (HC5, MC5 and SE5 in `contract`). Guarantees:
+    accepts the pairs, the tails and the clock word; returns the two lists
+    the rules read. Determinism: a function of the three. Raises nothing.
+    No I/O of any kind.
+    """
+    if clock == "local":
+        return published, tails
+    return [], [(rows, None) for rows, _values in tails]
+
+
 def hour_sure(
     published: "list[tuple[int, str]]", at_midnight: "int | None"
 ) -> "list[int]":

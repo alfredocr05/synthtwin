@@ -1698,8 +1698,8 @@ INVARIANTS = {
     ),
     "WC3": (
         "a weekday census stands only on a column of whole dates or of "
-        "moments read on the local clock, not in the joint member, with "
-        "both tails, and its groups add up to the values between the two "
+        "moments with both tails, each value counted on the day it is "
+        "written on, and its groups add up to the values between the two "
         "tail boundaries, both included, compared as instants on a column "
         "of moments"
     ),
@@ -1756,8 +1756,8 @@ INVARIANTS = {
     ),
     "DM5": (
         "a day-of-month census stands only on a column of whole dates, or "
-        "of moments every value of which stands at midnight, read on the "
-        "local clock, not in the joint member, and with both tails"
+        "of moments every value of which stands at midnight, with both "
+        "tails, each value counted on the day it is written on"
     ),
     # anchor 3b-D4 (P4-D369)
     # anchor 3b-T1 (P4-D370)
@@ -1780,10 +1780,10 @@ INVARIANTS = {
         "census line, the smallest group size and never fewer than two"
     ),
     "HC3": (
-        "an hour census stands only on a column of moments read on the "
-        "local clock, not in the joint member, not wholly at midnight and "
-        "with both tails, and its groups add up to the values between the "
-        "two tail boundaries"
+        "an hour census stands only on a column of moments not wholly at "
+        "midnight and with both tails, each value counted in the hour it is "
+        "written in, and its groups add up to the values between the two "
+        "tail boundaries"
     ),
     "HC4": (
         "an hour census stands only where the published 25th and 75th "
@@ -9500,9 +9500,9 @@ def _hour_census(
     """A column's `hour_census`, read and held to HC1 to HC5 (plan P4-D371).
 
     Landing 3b.2-H (lane T2). An empty census is always legal. A
-    published one must stand on a column of moments read on the local
-    clock, not in the joint member, not wholly at midnight, with both
-    tails (HC3), whose published p25 and p75 lie at least four days apart
+    published one must stand on a column of moments not wholly at
+    midnight, with both tails, on any clock and in any member since
+    landing 3b.7 (HC3, `calendar_rules.census_scope`), whose published p25 and p75 lie at least four days apart
     (HC4); then `calendar_clock.hour_breach` asks the groups' cover over
     hours 0 to 23 on a line (HC1), the floor (HC2), their total against
     the body (HC3) and the sure cells (HC5: every published body value
@@ -9532,11 +9532,11 @@ def _hour_census(
         return ()
     low = facts.low_tail
     high = facts.high_tail
+    # -- 3b.7 (P4-D378): the one scope predicate, no clock and no member.
     if (
-        facts.resolution != "datetime"
-        or facts.datetimes_read_at != "local"
-        or facts.parser_family == FORMAT_ISO_MIXED
-        or facts.all_at_midnight
+        not calendar_rules.census_scope(
+            calendar_rules.SCOPE_CLOCK, facts.resolution, facts.all_at_midnight
+        )
         or low is None
         or high is None
     ):
@@ -9544,9 +9544,9 @@ def _hour_census(
             "HC3",
             where,
             "an hour census is published",
-            "only a column of moments read on the local clock, not in the "
-            "joint member, not wholly at midnight and with both tails "
-            "publishes one",
+            "only a column of moments not wholly at midnight and with both "
+            "tails publishes one, each cell counted on the clock it is "
+            "written on",
         )
     parsed = n_present - facts.n_unparsed
     rungs = facts.date_percentiles.rungs
@@ -9578,12 +9578,16 @@ def _hour_census(
         if rung is None or percent in (0, 100):
             continue
         published += [(calendar_clock.rung_rank(percent, parsed), rung)]
+    # -- 3b.7 (P4-D378): on the shared clock rule 4's cells alone
+    # (`calendar_clock.own_clock_sure`).
+    published, listed = calendar_clock.own_clock_sure(
+        published,
+        [(low.rows, low.values), (high.rows, high.values)],
+        facts.datetimes_read_at,
+    )
     sure = calendar_clock.hour_sure(
         published,
-        calendar_clock.midnight_sure(
-            facts.n_at_midnight,
-            [(low.rows, low.values), (high.rows, high.values)],
-        ),
+        calendar_clock.midnight_sure(facts.n_at_midnight, listed),
     )
     broken = calendar_clock.hour_breach(
         tuple(found),
@@ -9635,8 +9639,8 @@ def _day_of_month_census(
 
     Landing 3b.3 (plan P4-D368). An empty census is always legal. A
     published one must stand on a column of whole dates, or of moments
-    every value of which stands at midnight, read on the local clock,
-    not in the joint member, with both tails (DM5, WC3's scope alone:
+    every value of which stands at midnight, with both tails, on any
+    clock and in any member since landing 3b.7 (DM5, WC3's scope alone:
     the 3b.3 skeptic's majors 3 and 4); then
     `calendar_rules.day_census_breach` asks the groups' cover of the
     thirty-four bins on their cycle (DM1), the floor (DM2), their total
@@ -9664,13 +9668,11 @@ def _day_of_month_census(
     if not found:
         return ()
     low, high = facts.low_tail, facts.high_tail
+    # -- 3b.7 (P4-D378): the one scope predicate, no clock and no member.
     if (
-        not (
-            facts.resolution == "date"
-            or (facts.resolution == "datetime" and facts.all_at_midnight)
+        not calendar_rules.census_scope(
+            calendar_rules.SCOPE_MONTH_DAYS, facts.resolution, facts.all_at_midnight
         )
-        or facts.datetimes_read_at != "local"
-        or facts.parser_family == FORMAT_ISO_MIXED
         or low is None
         or high is None
     ):
@@ -9679,8 +9681,8 @@ def _day_of_month_census(
             where,
             "a day-of-month census is published",
             "only a column of whole dates, or of moments every value of "
-            "which stands at midnight, read on the local clock, not in the "
-            "joint member, and with both tails publishes one",
+            "which stands at midnight, with both tails publishes one, each "
+            "cell counted on the day it is written on",
         )
     first, last = facts.date_percentiles.p25, facts.date_percentiles.p75
     broken = calendar_rules.day_census_breach(
@@ -9843,8 +9845,8 @@ def _weekday_census(
     P4-D367). `reading` is the column's parser family, resolution and
     clock, and `middle` its published `p25` and `p75` (None where
     withheld). An empty census is always legal. A published one must
-    stand on a column of whole dates or of moments read on the local
-    clock, not in the joint member, with both tails (WC3). On whole dates
+    stand on a column of whole dates or of moments with both tails, on
+    any clock and in any member since landing 3b.7 (WC3). On whole dates
     `calendar_rules.shape_breach` then asks the groups' cover (WC1), the
     floor (WC2), their total against the body (WC3), the menu (WC4) and
     one spelling per day (WC6); on moments
@@ -9875,10 +9877,9 @@ def _weekday_census(
     if not found:
         return ()
     parser_family, resolution, clock = reading
+    # -- 3b.7 (P4-D378): the one scope predicate, no clock and no member.
     if (
-        resolution not in ("date", "datetime")
-        or clock != "local"
-        or parser_family == FORMAT_ISO_MIXED
+        not calendar_rules.census_scope(calendar_rules.SCOPE_DAYS, resolution, None)
         or low is None
         or high is None
     ):
@@ -9886,9 +9887,8 @@ def _weekday_census(
             "WC3",
             where,
             "a weekday census is published",
-            "only a column of whole dates or of moments read on the local "
-            "clock, not in the joint member, and with both tails publishes "
-            "one",
+            "only a column of whole dates or of moments with both tails "
+            "publishes one, each cell counted on the day it is written on",
         )
     if resolution == "datetime":
         first, last = middle

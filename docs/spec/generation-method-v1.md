@@ -7654,6 +7654,69 @@ to business days beside an empty weekend, births with a weekend dip, and
 the 1st heaped beside a hole on each 15th, and one state of step 4's
 repair -- each with the answer this section gives it, and no G14.3 case.
 
+#### G7.3k The calendar on each rank's own clock, and the form step
+
+(Landing 3b.7, plan P4-D378.) The censuses of the calendar -- the weekday
+(G7.3f), the day of the month (G7.3i) and the hour (G7.3g) -- stand on a
+column whose cells wear more than one offset, read on the shared clock,
+and on a column of the joint member, each cell counted at the day and
+hour it is WRITTEN at, on its own clock, and a bare date at its midnight.
+The order of G7 is unchanged: forms, instants, offsets (G7.4, its step 1a
+fixing the pinned ranks' keys), the move to midnight with the FORM STEP
+first, the step off midnight, the count pass, then the day, hour and
+minute passes; offsets and forms come before the passes because a pass
+can read a rank's clock only once its offset is known.
+
+1. **THE FRAME.** Each rank's SHIFT is its offset in seconds east of the
+   shared clock (nought for a rank written with none, and everywhere on
+   a column read on its own clock). On the shared clock, where a census
+   of the calendar is published, every place a pass reads -- each rank's
+   ordinal, its gap, and the layout's pins and boundaries -- is put on the
+   rank's own clock by adding its shift, so every bin a pass reads is the
+   field the cell is written at, and a move of whole days or hours moves
+   the written field by as much, the rank's offset fixed. A column all at
+   a LOCAL midnight is put in days of the frame and read as on its own
+   clock, so the joint day plan of G7.3i meets its day of the month;
+   where a rank is not on a midnight of its own clock the frame stays in
+   seconds. Every other column needs no frame and every pass runs on it
+   exactly as before.
+2. **THE FRAME TAKEN BACK, RUN BY RUN.** A pass keeps each rank inside
+   its own gap on its own clock and then sorts each run of the ranks it
+   moved by the written place, which may hand one rank's place to a rank
+   of another offset. So within each run of body ranks between two pins
+   -- one gap, no bare date -- the written places are kept and the run's
+   offsets matched to them: the places ascending, each taking the least
+   offset left whose instant is not past the gap's top (the largest left
+   where none is); the run is then written in the order of its instants,
+   each place with its offset. Every written field a census counts, every
+   offset count and every gap stands. Tail ranks, pinned ranks and bare
+   dates are given back as they were.
+3. **BARE DATES.** On a clocked column of the joint member the passes of
+   G7.3g pin every bare-date rank, which counts at hour 0, and so does
+   the weekday pass where the column is counted in seconds or published
+   on the shared clock; a column counted in days moves its bare dates as
+   days.
+4. **THE FORM STEP** (the design's decision D4, its skeptic's major 2 and
+   minor 4; residual R-P4-12 closed on clocked columns). G7.5's form
+   allocation spends `resolution_mix`'s count of `iso-date` on a clocked
+   column of the joint member: first on the ranks the layout fixes at a
+   midnight of a rank written with no offset, in rank order, while it
+   lasts, every other fixed rank a moment; then over the other ranks by
+   the smooth rotation of the all-midnight column, CAPPED PER GAP at the
+   days whose midnight lies in the gap -- less those fixed ranks hold,
+   where the column's values are all different; every rank where they
+   repeat, and none where the gap holds no midnight -- a gap at its cap
+   passing its turn on, the credit carried, and the credit left at the end
+   given to the first ranks with room, never more ranks than the count.
+   Then, as the first part of the move to midnight, each gap's
+   bare-date ranks in rank order are stood on midnights of the gap: off a
+   day a published census counts nought on, where one of the gap's first
+   400 days is not; each the first at or after its instant, else the
+   nearest before; where the column is all different, on days of their
+   own no fixed rank holds, the run laid back from the gap's top where it
+   went past it. The move to midnight then counts every bare date as
+   standing at midnight and owes only the rest.
+
 ### G7.4 Offsets: only where recorded
 
 `utc_offsets` maps an offset text to a count, under the small-cell
@@ -7685,9 +7748,38 @@ Allocation, over the `P` parsed cells in ascending rank:
    of landing 2b.3: a rung at a midnight of the shared clock whose `Z` was
    spent takes `(none)`, and ranks between p90 and the end on one such
    midnight were written `T02:00:00+02:00`).
+1a. **THE PINNED OFFSETS** (landing 3b.7, plan P4-D378; the design
+   skeptic's blocker 1 and item (a)). On the shared clock, where a census
+   of the calendar is published, or where `n_at_midnight` is withheld for
+   its size and some block of ranks the layout fixes at one instant stands
+   at a midnight of the first sorted key: each such block -- a boundary, a
+   rung, a tail's listed values, and the ranks between two pins of one
+   instant -- in rank order, not taken by step 1, takes among the keys
+   with as many ranks left as it holds, in this step's order, the first
+   that breaks the fewest of two asks: off a local midnight where the
+   count at midnight is withheld for its size; and, for a body block, its
+   WRITTEN day, day of the month and hour in a group of every published
+   census with room left for it, room being the group's count less the
+   blocks already placed there. A pinned rank never moves, so the field it
+   is written at is its key's alone; the source's own offsets prove a
+   choice keeping every census exists. The keys' counts and the groups'
+   room are spent as each block takes its key, and the block's other keys
+   follow as step 1's fallbacks. Every other column takes no key here and
+   is allocated exactly as before.
 2. The remaining counts are spent over the remaining ranks, taking the
    offset keys in the profile's own sorted key order, `(none)` and
-   `(withheld)` last. The ranks are visited in ascending rank order,
+   `(withheld)` last. ON THE SHARED CLOCK WHERE A CENSUS OF THE CALENDAR IS
+   PUBLISHED (landing 3b.7, plan P4-D378) the keys are spread over the
+   GAPS instead: the open ranks of each gap of the body take one key
+   together where its count left holds them, the gaps in rank order
+   taking the keys by the smooth rotation of the counts left weighted by
+   each gap's size -- the largest credit with room, the earlier key on a
+   tie -- and a gap no key holds whole is filled key by key, the largest
+   credit first. So each key's ranks stand across the column and each
+   gap's ranks read one clock (G7.3k): spent in one block, the skeptic's
+   `few_off` wrote its 196 cells at `+05:30` on the body's first ranks,
+   whose first gap of 8.25 hours holds no hour the census counts on that
+   clock, and 87 missed the hour census at 10,000 rows. The ranks are visited in ascending rank order,
    except on a column moved onto a midnight, where they are visited
    **SCARCEST FIRST** (stage 3, repairing plan P4-D254): each remaining
    rank is counted for how many keys both have a count left AND put a

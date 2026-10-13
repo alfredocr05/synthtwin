@@ -274,7 +274,8 @@ def _payroll(clock: str, rows: int = 1000) -> "list[str]":
 
 
 def _shared_clock(rows: int = 1000, seed: int = 676) -> "list[str]":
-    """Arrivals written in two offsets, so read on the shared clock: no census stands (WC3)."""
+    """Arrivals written in two offsets, so read on the shared clock: until landing 3b.7 no
+    census stood there (WC3)."""
     draw = random.Random(seed)
     found: "list[str]" = []
     for day in draw.choices(_YEAR, k=rows):
@@ -418,12 +419,17 @@ def test_a_census_the_rules_keep_back_is_withheld_with_nf74(tmp_path: pathlib.Pa
     assert any(NOTE_NF74 in sentence for sentence in said), said
 
 
-def test_a_column_on_the_shared_clock_publishes_nothing_and_says_nothing() -> None:
-    """Two offsets read on the shared clock: WC3 keeps the census to the local clock, and a
-    census that cannot stand on the column is no withholding to speak of."""
+def test_a_column_on_the_shared_clock_counts_each_value_on_its_own_clock() -> None:
+    """Two offsets read on the shared clock: WC3 kept the census to the local clock until
+    landing 3b.7 (plan P4-D378), which widens it to every clock -- each value counted on the
+    day it is written on, its own clock's -- so the census the rules publish there is the one
+    the written days give (tests/test_stage3b_shared_clock.py holds the rest)."""
     described = _block("arrived_at", _shared_clock())
     assert described.details["datetimes_read_at"] == "utc"
-    assert described.details["weekday_census"] == []
+    census = described.details["weekday_census"]
+    assert isinstance(census, list) and census, census
+    body = 1000 - described.details["low_tail"]["rows"] - described.details["high_tail"]["rows"]  # type: ignore[index]
+    assert sum(group["count"] for group in census) == body
 
 
 def _decided(monkeypatch: pytest.MonkeyPatch, cells: "list[str]", floor: int = FLOOR) -> "tuple[taxonomy.WeekdayDecision, taxonomy.ColumnProfile]":
@@ -1762,14 +1768,19 @@ def test_dates_folded_into_the_tails_wear_the_offset_the_census_absorbed_them_in
     checked = [cell[:10] if index // 5 < days and cell.endswith("+05:00") else cell for index, cell in enumerate(cells)]
     text = _text("early", checked)
     missed = kpi_shapes.missed(kpi_shapes.measure(described, text, "checked.csv"))
-    assert missed == ["early:tails.low.mean_distance", "early:tails.low.rms_distance"], missed
+    # ...and since landing 3b.7 (plan P4-D378) the column publishes its hour census on the
+    # shared clock, each cell in the hour it is written in: at 36 the checked file's eleven days
+    # of `+05:00` stamps written bare reach past the low tail's 38 rows into the body at hour 0,
+    # and that census is MISSED too (at 11 the nine stand in the tail and it is HELD).
+    hours = ["early:hour_census.groups"] if floor == 36 else []
+    assert missed == hours + ["early:tails.low.mean_distance", "early:tails.low.rms_distance"], missed
     late = _described(tmp_path, "late", _offset_stamps(118, "23:00:00", ("-05:00", "-04:00")) + ["2024-01-04"] * 10, floor)
     block = late.block("late")
     assert (block["format"], block["n_unparsed"], block["low_tail"]["rows"]) == ("iso-datetime", 0, 12 if floor == 11 else 37)  # type: ignore[index]
     source = late.table.read_text(encoding="utf-8")
     assert kpi_shapes.missed(kpi_shapes.measure(late, source, "source.csv")) == []
     monkeypatch.setattr(validation, "_file_tail_units", _folded_at_utc_midnight)
-    assert kpi_shapes.missed(kpi_shapes.measure(described, text, "mutant-checked.csv")) == []
+    assert kpi_shapes.missed(kpi_shapes.measure(described, text, "mutant-checked.csv")) == hours
     mutant = kpi_shapes.missed(kpi_shapes.measure(late, source, "mutant-source.csv"))
     assert ("late:tails.low.rows" in mutant) if floor == 11 else ("late:tails.low.rms_distance" in mutant), mutant
 

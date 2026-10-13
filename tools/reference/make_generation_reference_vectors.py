@@ -14284,6 +14284,8 @@ class WeekdayWalk:
         self.keep_of = seams.get("keep_of")
         self.pair_of = seams.get("pair_of")
         self.keeps_always = seams.get("keeps_always", False)
+        # Landing 3b.7: the pinned bare dates a gap of movable ranks runs across.
+        self.see_through = frozenset(seams.get("see_through", ()))
 
     def group(self, ordinal):
         return self.group_of_bin[self.bin_of(ordinal)]
@@ -15075,7 +15077,12 @@ def bins_settled(walk, first, last, pinned, wanted, reachable):
             owed[walk.group(walk.days[rank])] -= 1
     gaps = []
     for rank in movable:
-        if gaps and gaps[-1][-1] == rank - 1 and (walk.lows[gaps[-1][0]], walk.highs[gaps[-1][0]]) == (walk.lows[rank], walk.highs[rank]):
+        # A gap runs over consecutive movable ranks, and since landing 3b.7
+        # across pinned ranks every one of which is a bare date it sees through.
+        bridged = bool(walk.see_through) and gaps and all(
+            between in walk.see_through for between in range(gaps[-1][-1] + 1, rank)
+        )
+        if gaps and (gaps[-1][-1] == rank - 1 or bridged) and (walk.lows[gaps[-1][0]], walk.highs[gaps[-1][0]]) == (walk.lows[rank], walk.highs[rank]):
             gaps[-1] += [rank]
         else:
             gaps += [[rank]]
@@ -46420,6 +46427,522 @@ def _counts_published(document, section_fields=frozenset()):
     )
 
 
+# -- landing 3b.7 (plan P4-D378): the shared clock and the joint member -----
+#
+# The twenty-fourth file freezes G7.3k's reading on each rank's OWN clock
+# and the two steps the landing adds, each computed here from the method's
+# text, never imported: the written field of an instant under its offset
+# (counted on the clock it is written on, a sixtieth second on the second
+# before its instant); the frame taken back run by run (the run's written
+# places kept, its offsets matched to them inside the run's gap, the least
+# offset whose instant is not past the gap's top first, then the run in the
+# order of its instants); G7.4 step 1a, each fixed block's key; and the form
+# step on a clocked column of the joint member, the count of bare dates
+# spent by the smooth rotation capped per gap and each bare date stood on a
+# midnight of its gap, a day of its own where the column is all different.
+
+TWENTY_FOURTH_BRANCH_PART = "branches-24"
+
+
+def own_clock_seconds(key):
+    """How far a key's clock stands east of the shared one, in seconds: a key
+    naming no offset, `Z`, `(none)` and `(withheld)` none."""
+    if key in ("", "Z", "(none)", "(withheld)"):
+        return 0
+    seconds = int(key[1:3]) * 3600 + int(key[4:6]) * 60
+    return -seconds if key[0] == "-" else seconds
+
+
+def own_clock_field(rule, instant, key, sixtieth=False):
+    """The bin of a census an instant is WRITTEN in under a key: its own
+    clock's day's weekday (Monday nought), its day of the month's bin less
+    one, its hour, its minute or its second; a sixtieth second is read on
+    the second before its instant, the one it is written in."""
+    local = instant + own_clock_seconds(key) - (1 if sixtieth else 0)
+    day = local // 86400
+    if rule == "weekday":
+        return (day + 3) % 7
+    if rule == "day_of_month":
+        return month_bin(day) - 1
+    if rule == "hour":
+        return (local // 3600) % 24
+    if rule == "minute":
+        return (local // 60) % 60
+    return local % 60
+
+
+def own_clock_unframed(before, framed, shifts, offsets, whole, pinned, body, lows, highs, scale):
+    """The frame taken back onto the shared clock, run by run: in each run of
+    body ranks neither pinned nor bare dates with one gap, the written
+    places (framed times the scale) ascending, each the least offset left
+    whose instant is not past the gap's top (else the largest left), then
+    the run written in the order of its instants with each place's offset.
+    Every other rank as it was before the passes."""
+    moved = list(before)
+    given = list(offsets)
+    rank = body[0]
+    while rank <= body[1]:
+        if pinned[rank] or whole[rank] or lows[rank] >= highs[rank]:
+            rank += 1
+            continue
+        end = rank
+        while (
+            end <= body[1] and not pinned[end] and not whole[end]
+            and lows[end] == lows[rank] and highs[end] == highs[rank]
+        ):
+            end += 1
+        places = sorted(framed[member] * scale for member in range(rank, end))
+        pool = {}
+        for member in range(rank, end):
+            pool.setdefault(shifts[member], []).append(offsets[member])
+        order = sorted(pool)
+        used = {shift: 0 for shift in order}
+        pairs = []
+        for place in places:
+            chosen = next(
+                (shift for shift in order if used[shift] < len(pool[shift]) and place - shift <= highs[rank]),
+                None,
+            )
+            if chosen is None:
+                chosen = next(shift for shift in reversed(order) if used[shift] < len(pool[shift]))
+            pairs.append((place - chosen, pool[chosen][used[chosen]]))
+            used[chosen] += 1
+        pairs.sort()
+        for index, (instant, key) in enumerate(pairs):
+            moved[rank + index] = instant
+            given[rank + index] = key
+        rank = end
+    return moved, given
+
+
+def pinned_offset_choice(left, keys, blocks, body, censuses, off_midnight, step):
+    """G7.4 step 1a: each fixed block (first rank, end, instant), in order,
+    takes the first key in G7.4's order with as many ranks left as it
+    holds that breaks the fewest of -- off a local midnight where the count
+    at midnight is withheld for its size, and, inside the body, a group of
+    every census with room left for it at its written place -- spending the
+    key's count and the groups' room; "" where no key has its ranks left."""
+    left = dict(left)
+    room = [list(counts) for _rule, _where, counts in censuses]
+    chosen_keys = []
+    for start, end, instant in blocks:
+        size = end - start
+        inside = body[0] <= start and end - 1 <= body[1]
+        best = None
+        for index, key in enumerate(keys):
+            if left[key] < size:
+                continue
+            broken = 0
+            local = instant + own_clock_seconds(key)
+            if off_midnight and (local - local % step) % 86400 == 0:
+                broken += 1
+            if inside:
+                for place, (rule, where, _counts) in enumerate(censuses):
+                    if room[place][where[own_clock_field(rule, instant, key)]] < size:
+                        broken += 1
+            if best is None or broken < best[0]:
+                best = (broken, index)
+            if broken == 0:
+                break
+        if best is None:
+            chosen_keys.append("")
+            continue
+        key = keys[best[1]]
+        left[key] -= size
+        if inside:
+            for place, (rule, where, _counts) in enumerate(censuses):
+                room[place][where[own_clock_field(rule, instant, key)]] -= size
+        chosen_keys.append(key)
+    return chosen_keys
+
+
+def keys_by_gap(keys, left, open_ranks, lows, highs):
+    """G7.4 step 2 on the shared clock where a census of the calendar stands:
+    each run of open ranks sharing one gap takes one key where a key's count
+    left holds it, the runs in rank order taking the keys by the smooth
+    rotation of the counts left weighted by the run's size (the largest
+    credit with room, the earlier key on a tie); a run no key holds whole is
+    filled key by key, the largest credit first."""
+    runs = []
+    for rank in sorted(open_ranks):
+        if runs and runs[-1][-1] == rank - 1 and lows[runs[-1][0]] == lows[rank] and highs[runs[-1][0]] == highs[rank]:
+            runs[-1].append(rank)
+        else:
+            runs.append([rank])
+    spare = dict(left)
+    total = sum(spare[key] for key in keys)
+    weight = dict(spare)
+    credit = {key: 0 for key in keys}
+    found = {}
+    for run in runs:
+        size = len(run)
+        best = None
+        for key in keys:
+            credit[key] += weight[key] * size
+            if spare[key] >= size and (best is None or credit[key] > credit[best]):
+                best = key
+        if best is not None:
+            credit[best] -= total * size
+            spare[best] -= size
+            for rank in run:
+                found[rank] = best
+            continue
+        place = 0
+        for _negative, index in sorted((-credit[key], index) for index, key in enumerate(keys)):
+            key = keys[index]
+            while place < size and spare[key] > 0:
+                found[run[place]] = key
+                spare[key] -= 1
+                place += 1
+    return [found.get(rank, "") for rank in sorted(open_ranks)]
+
+
+def clocked_form_choice(lows, highs, dates, moments, apart):
+    """Which ranks of a clocked column of the joint member are bare dates:
+    each rank fixed at a midnight one while the count lasts, every other
+    fixed rank a moment; then the smooth rotation over the rest, capped per
+    gap at the days whose midnight lies in it -- less those fixed ranks
+    hold, where the column is all different; every rank the rotation offers
+    where it is not, and none where the gap holds no midnight -- a gap at
+    its cap passing its turn on, the credit left at the end to the first
+    ranks with room, never more than the count."""
+    parsed = len(lows)
+    whole = [False] * parsed
+    settled = [False] * parsed
+    held = set()
+    for rank in range(parsed):
+        if lows[rank] != highs[rank]:
+            continue
+        settled[rank] = True
+        if lows[rank] % 86400 == 0:
+            held.add(lows[rank] // 86400)
+            if dates > 0:
+                whole[rank] = True
+                dates -= 1
+                continue
+        moments = max(0, moments - 1)
+    room = {}
+    for rank in range(parsed):
+        if settled[rank] or (lows[rank], highs[rank]) in room:
+            continue
+        first = -((-lows[rank]) // 86400)
+        last = highs[rank] // 86400
+        days = max(0, last - first + 1)
+        if apart:
+            days -= len([day for day in held if first <= day <= last])
+        elif days > 0:
+            days = parsed
+        room[(lows[rank], highs[rank])] = max(days, 0)
+    total = dates + moments
+    credit_dates = credit_moments = 0
+    left = dates
+    for rank in range(parsed):
+        if settled[rank] or total <= 0:
+            continue
+        credit_dates += dates
+        credit_moments += moments
+        spot = (lows[rank], highs[rank])
+        if credit_dates >= credit_moments and room[spot] > 0 and left > 0:
+            whole[rank] = True
+            room[spot] -= 1
+            left -= 1
+            credit_dates -= total
+        else:
+            credit_moments -= total
+    # The credit left at the end goes to the first ranks with room, in order.
+    for rank in range(parsed):
+        if left <= 0:
+            break
+        spot = (lows[rank], highs[rank])
+        if settled[rank] or whole[rank] or room[spot] <= 0:
+            continue
+        whole[rank] = True
+        room[spot] -= 1
+        left -= 1
+    return whole
+
+
+def form_day_closed(day, shut_weekdays, shut_bins):
+    """Whether a census counts nought on this day: its weekday or its day of
+    the month's bin."""
+    return (day + 3) % 7 in shut_weekdays or (bool(shut_bins) and month_bin(day) in shut_bins)
+
+
+def form_days_placed(ordinals, lows, highs, whole, apart, shut_weekdays, shut_bins):
+    """The form step: each gap's bare-date ranks, in rank order, onto
+    midnights of the gap -- off a day a census counts nought on where one of
+    the gap's first 400 days is not -- each the first at or after its
+    instant (else the nearest before); where the column is all different on
+    days of their own no fixed rank holds, the run laid back from the gap's
+    top where it went past it. A gap holding no midnight leaves its ranks."""
+    moved = list(ordinals)
+    parsed = len(moved)
+    taken = {lows[rank] // 86400 for rank in range(parsed) if lows[rank] == highs[rank] and lows[rank] % 86400 == 0}
+    rank = 0
+    while rank < parsed:
+        if not whole[rank] or lows[rank] == highs[rank]:
+            rank += 1
+            continue
+        end = rank
+        members = []
+        while end < parsed and lows[end] == lows[rank] and highs[end] == highs[rank]:
+            if whole[end]:
+                members.append(end)
+            end += 1
+        first = -((-lows[rank]) // 86400)
+        last = highs[rank] // 86400
+        if first <= last:
+            closed_weekdays, closed_bins = shut_weekdays, shut_bins
+            if all(
+                form_day_closed(day, shut_weekdays, shut_bins)
+                for day in range(first, min(last, first + 400) + 1)
+            ):
+                closed_weekdays, closed_bins = set(), set()
+
+            def shut(day):
+                return form_day_closed(day, closed_weekdays, closed_bins)
+
+            if not apart:
+                for member in members:
+                    start = max(first, min(-((-moved[member]) // 86400), last))
+                    ahead = start
+                    while ahead <= last and shut(ahead):
+                        ahead += 1
+                    if ahead > last:
+                        ahead = start
+                        while ahead >= first and shut(ahead):
+                            ahead -= 1
+                        if ahead < first:
+                            ahead = start
+                    moved[member] = ahead * 86400
+            else:
+                days = []
+                previous = first - 1
+                for member in members:
+                    day = max(-((-moved[member]) // 86400), previous + 1, first)
+                    while day <= last and (day in taken or shut(day)):
+                        day += 1
+                    days.append(day)
+                    previous = day
+                ceiling = last
+                for place in range(len(days) - 1, -1, -1):
+                    while ceiling >= first and (ceiling in taken or shut(ceiling)):
+                        ceiling -= 1
+                    days[place] = min(days[place], ceiling)
+                    ceiling = days[place] - 1
+                for place, member in enumerate(members):
+                    if first <= days[place] <= last:
+                        taken.add(days[place])
+                        moved[member] = days[place] * 86400
+        rank = end
+    return moved
+
+
+def _hour_where(groups):
+    where = [0] * 24
+    for index, (first, last, _count) in enumerate(groups):
+        for hour in range(first, last + 1):
+            where[hour] = index
+    return tuple(where)
+
+
+def _weekday_where(groups):
+    where = [0] * 7
+    for index, (first, last, _count) in enumerate(groups):
+        for day in range(first, last + 1):
+            where[day] = index
+    return tuple(where)
+
+
+_FEW_OFF_HOURS = ((0, 6, 0), (7, 7, 30), (8, 15, 600), (16, 16, 100), (17, 23, 0))
+_FEW_OFF_WEEKDAYS = ((0, 4, 730), (5, 6, 0))
+
+SHARED_CLOCK_FIELDS = {
+    "sunday_night_west": (
+        1709530200, "-06:00", False,
+        "2024-03-03 23:30-06:00, Monday 05:30 on the shared clock: written on Sunday, at hour 23 "
+        "(mutant: the shared clock's Monday and hour 5)",
+    ),
+    "half_hour_east": (
+        1709546400, "+05:30", False,
+        "10:00 on the shared clock written 15:30+05:30: its own minute 30, never the shared clock's 0",
+    ),
+    "leap_east": (
+        1483221600, "+02:00", True,
+        "2016-12-31T23:59:60+02:00, its instant 2016-12-31 22:00:00 on the shared clock: written on "
+        "31 December, hour 23, minute 59, second 59",
+    ),
+}
+
+SHARED_CLOCK_FRAMES = {
+    "two_offsets_one_run": (
+        [1000, 1700000000, 1700003600, 1700007200, 1700010800, 1800000000],
+        [1000 + 0, 1700000000 - 21600, 1700007200 - 18000, 1700003600 - 21600, 1700010800 - 18000, 1800000000],
+        [0, -21600, -21600, -18000, -18000, 0],
+        ["", "-06:00", "-06:00", "-05:00", "-05:00", ""],
+        [False] * 6, [True, False, False, False, False, True], (1, 4),
+        [1000, 1600000000, 1600000000, 1600000000, 1600000000, 1800000000],
+        [1000, 1750000000, 1750000000, 1750000000, 1750000000, 1800000000],
+        1,
+        "a pass sorted a run of four ranks by their written places across two offsets: each place "
+        "keeps its offset's ranks inside the gap, the run written in the order of its instants",
+    ),
+    "east_beside_west": (
+        [10, 100000, 200000, 300000, 400000],
+        [10, 100000 + 19800, 200000 - 21600, 300000 + 19800, 400000],
+        [0, 19800, -21600, 19800, 0],
+        ["", "+05:30", "-06:00", "+05:30", ""],
+        [False] * 5, [True, False, False, False, True], (1, 3),
+        [10, 50000, 50000, 50000, 400000],
+        [10, 350000, 350000, 350000, 400000],
+        1,
+        "+05:30 beside -06:00 in one gap: the least offset whose instant stays under the gap's top",
+    ),
+    "days_of_a_cet_column": (
+        [0, 1700000000 - 3600, 1700086400 - 7200, 1800000000],
+        [0, 1700000000 // 86400 + 1, 1700000000 // 86400, 1800000000],
+        [0, 3600, 7200, 0],
+        ["", "+01:00", "+02:00", ""],
+        [False] * 4, [True, False, False, True], (1, 2),
+        [0, 1600000000, 1600000000, 1800000000],
+        [0, 1750000000, 1750000000, 1800000000],
+        86400,
+        "a column all at a local midnight in days of the frame: each day a midnight of its own offset",
+    ),
+}
+
+SHARED_CLOCK_PINS = {
+    "few_off_rung": (
+        {"+05:30": 18, "-06:00": 982}, ["+05:30", "-06:00"],
+        [(99, 100, 1699309800)], (12, 987),
+        [("hour", _FEW_OFF_HOURS), ("weekday", _FEW_OFF_WEEKDAYS)], False, 60,
+        "the skeptic's few_off: a 99th percentile the source wrote 16:30-06:00 takes -06:00, its "
+        "hour in a counted group, never the first sorted key +05:30 writing it 04:00 in a group of "
+        "nought (mutant: G7.4's lexical keys)",
+    ),
+    "c551_listed_tail": (
+        {"+01:00": 90, "+02:00": 87}, ["+01:00", "+02:00"],
+        [(0, 12, 1603839600)], (12, 160), [], True, 60,
+        "C1's c551: twelve listed rows at 2020-10-27 23:00 on the shared clock, the count at midnight "
+        "withheld for its size, take +02:00, off a local midnight, never +01:00 writing them at one "
+        "(mutant: the midnight clause off)",
+    ),
+}
+
+SHARED_CLOCK_SPREADS = {
+    "few_off_spread": (
+        ["+05:30", "-06:00"], {"+05:30": 4, "-06:00": 16}, list(range(1, 21)),
+        [0] * 6 + [10] * 4 + [20] * 4 + [30] * 6,
+        [9] * 6 + [19] * 4 + [29] * 4 + [39] * 6,
+        "four ranks at +05:30 beside sixteen at -06:00 over four gaps: the rare key takes a whole "
+        "gap inside the column, never the first ranks' block (mutant: the keys spent in rank order)",
+    ),
+}
+
+
+SHARED_CLOCK_FORMS = {
+    "tight_gap_capped": (
+        [0] + [86400 * 10 + 3600] * 6 + [86400 * 12] + [86400 * 30] * 4 + [86400 * 40],
+        [0] + [86400 * 11 + 7200] * 6 + [86400 * 12] + [86400 * 39] * 4 + [86400 * 40],
+        6, 8, True,
+        "an all-different column: a gap of one midnight takes one bare date and its turn passes on "
+        "to a gap of nine, never two in the first (mutant: no cap)",
+    ),
+    "not_all_different": (
+        [0] + [86400 * 10 + 3600] * 6 + [86400 * 12] + [86400 * 30] * 4 + [86400 * 40],
+        [0] + [86400 * 11 + 7200] * 6 + [86400 * 12] + [86400 * 39] * 4 + [86400 * 40],
+        6, 8, False,
+        "values that repeat: a gap holding a midnight takes as many as the rotation offers",
+    ),
+}
+
+SHARED_CLOCK_FORM_DAYS = {
+    "days_apart": (
+        [0, 86400 * 10 + 5000, 86400 * 10 + 6000, 86400 * 10 + 7000, 86400 * 20],
+        [0, 86400 * 10, 86400 * 10, 86400 * 10, 86400 * 20],
+        [0, 86400 * 20, 86400 * 20, 86400 * 20, 86400 * 20],
+        [False, True, True, True, False], True, [], [],
+        "three bare dates of an all-different gap on three days, never stacked on one (item (b))",
+    ),
+    "off_the_weekend": (
+        [0, 86400 * 2 + 5000, 86400 * 20],
+        [0, 86400 * 1, 86400 * 20],
+        [0, 86400 * 19, 86400 * 20],
+        [False, True, False], True, [5, 6], [],
+        "1970-01-03, a Saturday, where the weekday census counts the weekend nought: the bare date "
+        "stands on the Monday after",
+    ),
+}
+
+
+def shared_clock_document():
+    """The twenty-fourth file: landing 3b.7's readings and steps, each with its answer."""
+    fields = {}
+    for name in sorted(SHARED_CLOCK_FIELDS):
+        instant, key, sixtieth, why = SHARED_CLOCK_FIELDS[name]
+        fields[name] = {
+            "instant": instant, "key": key, "sixtieth": sixtieth, "why": why,
+            "answer": {
+                rule: own_clock_field(rule, instant, key, sixtieth)
+                for rule in ("weekday", "day_of_month", "hour", "minute", "second")
+            },
+        }
+    frames = {}
+    for name in sorted(SHARED_CLOCK_FRAMES):
+        before, framed, shifts, offsets, whole, pinned, body, lows, highs, scale, why = SHARED_CLOCK_FRAMES[name]
+        moved, given = own_clock_unframed(before, framed, shifts, offsets, whole, pinned, body, lows, highs, scale)
+        frames[name] = {
+            "before": before, "framed": framed, "shifts": shifts, "offsets": offsets, "whole": whole,
+            "pinned": pinned, "body": list(body), "lows": lows, "highs": highs, "scale": scale, "why": why,
+            "answer": {"ordinals": moved, "offsets": given},
+        }
+    pins = {}
+    for name in sorted(SHARED_CLOCK_PINS):
+        left, keys, blocks, body, censuses, off_midnight, step, why = SHARED_CLOCK_PINS[name]
+        laid = []
+        for rule, groups in censuses:
+            where = _hour_where(groups) if rule == "hour" else _weekday_where(groups)
+            laid.append((rule, where, [count for _first, _last, count in groups]))
+        pins[name] = {
+            "left": left, "keys": keys, "blocks": [list(block) for block in blocks], "body": list(body),
+            "censuses": [[rule, list(where), counts] for rule, where, counts in laid],
+            "off_midnight": off_midnight, "step": step, "why": why,
+            "answer": pinned_offset_choice(left, keys, blocks, body, laid, off_midnight, step),
+        }
+    spreads = {}
+    for name in sorted(SHARED_CLOCK_SPREADS):
+        keys, left, open_ranks, lows, highs, why = SHARED_CLOCK_SPREADS[name]
+        full_lows = [0] + lows
+        full_highs = [0] + highs
+        spreads[name] = {
+            "keys": keys, "left": left, "open_ranks": open_ranks, "lows": full_lows, "highs": full_highs,
+            "why": why, "answer": keys_by_gap(keys, left, open_ranks, full_lows, full_highs),
+        }
+    forms = {}
+    for name in sorted(SHARED_CLOCK_FORMS):
+        lows, highs, dates, moments, apart, why = SHARED_CLOCK_FORMS[name]
+        forms[name] = {
+            "lows": lows, "highs": highs, "dates": dates, "moments": moments, "apart": apart, "why": why,
+            "answer": clocked_form_choice(lows, highs, dates, moments, apart),
+        }
+    days = {}
+    for name in sorted(SHARED_CLOCK_FORM_DAYS):
+        ordinals, lows, highs, whole, apart, weekdays, bins, why = SHARED_CLOCK_FORM_DAYS[name]
+        days[name] = {
+            "ordinals": ordinals, "lows": lows, "highs": highs, "whole": whole, "apart": apart,
+            "shut_weekdays": weekdays, "shut_bins": bins, "why": why,
+            "answer": form_days_placed(ordinals, lows, highs, whole, apart, set(weekdays), set(bins)),
+        }
+    return {
+        "what": (
+            "Landing 3b.7's readings on each rank's own clock and its steps (plan P4-D378, method "
+            "G7.3k and G7.4 step 1a), computed from the method's text alone."
+        ),
+        "fields": fields, "frames": frames, "pins": pins, "spreads": spreads, "forms": forms,
+        "form_days": days,
+    }
+
+
 def main(argv=None, part=None):
     """Write the vectors to the path given by --out.
 
@@ -46473,6 +46996,14 @@ def main(argv=None, part=None):
         }
         written_document = step_documents[part]()
         text = json.dumps(written_document, indent=2, sort_keys=True, allow_nan=False)
+        with open(args.out, "w", encoding="utf-8", newline="\n") as handle:
+            handle.write(text + "\n")
+        print(f"wrote {args.out}", file=sys.stderr)
+        return 0
+    if part == TWENTY_FOURTH_BRANCH_PART:
+        # Whole numbers and words only, landing 3b.7's readings and steps:
+        # no binary64 here for the proof layer to certify.
+        text = json.dumps(shared_clock_document(), indent=2, sort_keys=True, allow_nan=False)
         with open(args.out, "w", encoding="utf-8", newline="\n") as handle:
             handle.write(text + "\n")
         print(f"wrote {args.out}", file=sys.stderr)

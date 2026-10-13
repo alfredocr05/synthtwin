@@ -6,6 +6,29 @@ exists).
 
 ## [Unreleased]
 
+### The calendar comes back on columns of two offsets and of dates beside moments (2026-10-13)
+
+**Landing 3b.7, the shared clock and the joint member** (plan P4-D378).
+A column whose dates wear two UTC offsets -- a clinic across a change of
+daylight saving time, two sites, an instrument writing `Z` beside a ward
+-- and a column mixing bare dates with moments published no weekday,
+day-of-month or hour census, and their twins came back up to 0.29 of the
+cells off by weekday and 0.54 by hour. Now each census is published
+there, every cell counted at the day and hour it is WRITTEN at on its
+own clock, a bare date at its midnight; the twin writes every cell at
+its source's offset and form, the offset counts and the counts of bare
+dates and moments exact, and meets every census: on the landing's
+battery of 21 columns at 1,000 and 10,000 rows, floors 11 and 36, seeds
+0 to 4, every published weekday and hour census is met, the weekday at
+most 0.035 off at 1,000 rows and 0.0011 at 10,000. The twin of a column
+of dates beside moments now writes its bare dates, where it wrote every
+one as a `00:00:00` stamp, so `resolution_mix` and `format` are checked
+exactly there; an all-different column of 200 dates beside 800 stamps
+comes back all different and the count is checked exactly, where 881 of
+1,000 passed before. Two columns of C1's battery that missed their
+withheld count at midnight hold it. The minute and second censuses of
+lane T3 are not widened: T3 is not merged, and its merge beside lane
+D2's weekday census on moments is a question of its own.
 ### Partial dates are read at their own precision, and a column mostly of dates is asked (2026-10-09)
 
 **Landing R2c, the layout reader's questions and partial dates** (plan
