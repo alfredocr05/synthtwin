@@ -24168,8 +24168,9 @@ _HEAVY_WRITTEN_MISSED = (
     "counts."
 )
 # How many dates a listed rank's trade (`_listed_date_respelled`) tries,
-# per spelling, before it gives up on that spelling: each refused date's
-# ranks are passed over together, so the work per rank is bounded.
+# per spelling, before it gives up on that spelling: each refused date is
+# passed over in one step, its ranks unread (`_ListedSpelling.runs`), so
+# the work per rank traded is bounded however many rows a date holds.
 _LISTED_PROBES = 64
 
 
@@ -24181,8 +24182,10 @@ class _ListedSpelling:
     every spelling the column's ranks wear, the first worn first, and
     `queues` the ranks standing on no listed date, ascending, by class
     and spelling, each queue's ranks already traded passed over through
-    `skips` (`_listed_free`), and `absent` each cell's answer asked so
-    far (`_listed_absent`). `spellings` is a copy of the column's,
+    `skips` (`_listed_free`), `runs` where each queue's runs of one date
+    start, the queue's length last, each run every rank of which is
+    traded passed over through `spent` (`_listed_free` again), and
+    `absent` each cell's answer asked so far (`_listed_absent`). `spellings` is a copy of the column's,
     changed by each trade; a bare view (no queues) only answers
     `_listed_absent`.
     """
@@ -24199,6 +24202,12 @@ class _ListedSpelling:
     queues: "dict[tuple[object, ...], list[int]]"
     skips: "dict[tuple[object, ...], dict[int, int]]"
     absent: "dict[tuple[object, ...], bool]"
+    runs: "dict[tuple[object, ...], list[int]]" = dataclasses.field(
+        default_factory=dict
+    )
+    spent: "dict[tuple[object, ...], dict[int, int]]" = dataclasses.field(
+        default_factory=dict
+    )
 
 
 def _listed_class(
@@ -24279,7 +24288,11 @@ def _listed_date_respelled(keep: _ListedSpelling, rank: int) -> bool:
     own date wears no absent spelling in this rank's spelling: the two
     swap spellings, so every census of spellings keeps its counts and no
     date moves; a date refused passes over all its ranks, and at most
-    `_LISTED_PROBES` dates are refused per spelling; else (b) the first
+    `_LISTED_PROBES` dates are refused per spelling, each passed over in
+    one step (`keep.runs`: the Codex review's verifier measured the walk
+    over a refused date's ranks, asked again by every listed rank, at 11
+    seconds for 2,290 trades beside a tail date of 64,000 rows); else
+    (b) the first
     such spelling alone, the date kept and the census of spellings
     recounted on the written cells (`_date_count_notes`); else (c)
     False: the rank's date has no spelling the column wears that is not
@@ -24287,9 +24300,11 @@ def _listed_date_respelled(keep: _ListedSpelling, rank: int) -> bool:
     recounted on the written cells (`_heavy_written_notes`).
 
     Guarantees: returns whether the rank keeps its date; changes
-    `keep.spellings` (and the queue it traded from) only. Draws no word.
-    Determinism: a function of `keep` and the rank. Raises nothing. No
-    I/O of any kind.
+    `keep.spellings` (and the queue it traded from) only. At most
+    `_LISTED_PROBES` dates read per spelling, whatever their rows (plus
+    the runs of a refused date's day a queue out of order splits). Draws
+    no word. Determinism: a function of `keep` and the rank. Raises
+    nothing. No I/O of any kind.
     """
     own = keep.spellings[rank]
     key = keep.keys[rank]
@@ -24305,19 +24320,29 @@ def _listed_date_respelled(keep: _ListedSpelling, rank: int) -> bool:
             continue
         queue = keep.queues[place]
         skip = keep.skips[place]
-        at = _listed_free(skip, 0)
+        starts = keep.runs[place]
+        spent = keep.spent[place]
+        last = len(starts) - 1
+        run = _listed_free(spent, 0)
         refused = 0
-        while at < len(queue) and refused < _LISTED_PROBES:
+        while run < last and refused < _LISTED_PROBES:
+            # The run's first rank not yet traded: a run in `spent` has none.
+            at = _listed_free(skip, starts[run])
             other = queue[at]
             if not _listed_absent(keep, other, own):
                 keep.spellings[rank] = style
                 keep.spellings[other] = own
                 skip[at] = at + 1
+                if _listed_free(skip, at + 1) >= starts[run + 1]:
+                    spent[run] = run + 1
                 return True
             refused = refused + 1
             day = keep.ordinals[other]
-            while at < len(queue) and keep.ordinals[queue[at]] == day:
-                at = _listed_free(skip, at + 1)
+            # A refused date's following ranks are passed over: its run,
+            # and any run of the same day its traded neighbours now join.
+            run = _listed_free(spent, run + 1)
+            while run < last and keep.ordinals[queue[starts[run]]] == day:
+                run = _listed_free(spent, run + 1)
     if allowed:
         keep.spellings[rank] = allowed[0]
         return True
@@ -24349,7 +24374,8 @@ def _listed_spellings(
 
     Guarantees: returns the spellings, `spellings` itself where no listed
     rank wears an absent spelling. Linear in the ranks, plus
-    `_LISTED_PROBES` dates per spelling per rank traded; each cell is
+    `_LISTED_PROBES` dates per spelling per rank traded, each read in one
+    step whatever its rows (`_listed_date_respelled`); each cell is
     written once per date, offset, mark, form and spelling. Draws no word. Determinism: a function of the eight. Raises
     nothing. No I/O of any kind.
     """
@@ -24402,6 +24428,8 @@ def _listed_setup(
     seen: "set[_DateStyle]" = set()
     queues: "dict[tuple[object, ...], list[int]]" = {}
     skips: "dict[tuple[object, ...], dict[int, int]]" = {}
+    runs: "dict[tuple[object, ...], list[int]]" = {}
+    spent: "dict[tuple[object, ...], dict[int, int]]" = {}
     for rank in range(parsed):
         key = _listed_class(facts, fields[rank], whole[rank], offsets[rank])
         keys += [key]
@@ -24415,7 +24443,14 @@ def _listed_setup(
         if place not in queues:
             queues[place] = []
             skips[place] = {}
+            runs[place] = []
+            spent[place] = {}
+        queue = queues[place]
+        if not queue or ordinals[queue[-1]] != ordinals[rank]:
+            runs[place] += [len(queue)]
         queues[place] += [rank]
+    for place in queues:
+        runs[place] += [len(queues[place])]
     return dataclasses.replace(
         bare,
         spellings=[style for style in spellings],
@@ -24423,6 +24458,8 @@ def _listed_setup(
         order=order,
         queues=queues,
         skips=skips,
+        runs=runs,
+        spent=spent,
     )
 
 
@@ -24443,9 +24480,9 @@ def _heavy_written_notes(
     spread sentence, read off the deviations, never says the listed
     counts are met while the cells miss one.
 
-    Guarantees: returns nought or one deviation. Linear in the cells.
-    Determinism: a function of the arguments. Raises nothing. No I/O of
-    any kind.
+    Guarantees: returns nought or one deviation. Linear in the cells,
+    each different text read once. Determinism: a function of the
+    arguments. Raises nothing. No I/O of any kind.
     """
     if not facts.heavy_dates:
         return []
@@ -24453,16 +24490,22 @@ def _heavy_written_notes(
         if note.fact == calendar_rules.HEAVY_DATES:
             return []
     held: "dict[int, int]" = {}
+    # Each different text read once: a column of dates repeats its texts.
+    read_as: "dict[str, int | None]" = {}
     for cell in cells:
-        if _wears_a_published_hole(cell, holes):
+        if cell not in read_as:
+            read_as[cell] = None
+            read = None
+            if not _wears_a_published_hole(cell, holes):
+                read = parsing.parse_datetime(cell, facts.parser_family)
+            if read is not None:
+                canonical = read[0]
+                read_as[cell] = parsing.days_from_civil(
+                    int(canonical[0:4]), int(canonical[5:7]), int(canonical[8:10])
+                )
+        day = read_as[cell]
+        if day is None:
             continue
-        read = parsing.parse_datetime(cell, facts.parser_family)
-        if read is None:
-            continue
-        canonical = read[0]
-        day = parsing.days_from_civil(
-            int(canonical[0:4]), int(canonical[5:7]), int(canonical[8:10])
-        )
         held[day] = (held[day] if day in held else 0) + 1
     for day, count in facts.heavy_dates:
         if (held[day] if day in held else 0) != count:

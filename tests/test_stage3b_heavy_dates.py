@@ -86,7 +86,11 @@ THE GATE'S CLAUSES, each beside what turns it red:
   and its producer-always-loads battery,
   `test_unread_text_always_loads`; the census lines in
   near-linear work, `test_short_counts_in_closed_form` and
-  `test_census_lines_grow_with_the_list`.
+  `test_census_lines_grow_with_the_list`; and, from the verifier of
+  those fixes (item 4), the trade passing a refused date in one step,
+  its spellings the oracle's (`test_trades_are_the_oracle_s`) and its
+  reads growing with the rows, not with the rows squared
+  (`test_trades_read_dates_not_ranks`).
 
 Test-local mutants build the product's module, and the oracle's
 namespace, with one source edit (one `compile` and one `exec` each
@@ -1433,3 +1437,231 @@ def test_census_lines_grow_with_the_list() -> None:
         large = _census_seconds(80000, short)
         assert large < 20 * max(small, 0.002), (short, small, large)
         assert large < 1.0, (short, large)
+
+
+
+# -- the verifier of the Codex review's fixes (2026-10-13): the trade reads a date in one step --
+
+_TRADE_FORMAT = "trade-test-numeric"
+
+
+def _trade_case(chooser: random.Random) -> "dict[str, object]":
+    """A random column for G7.3j step 8's trade: up to 150 dates of one to six ranks, two or
+    three spellings, two marks, sometimes two offsets and bare dates, and each date, mark and
+    spelling absent at a random rate; or, a third of the time, a few dates out of order, each
+    split into short runs in shuffled order, the listed ones into more."""
+    ordinals: "list[int]" = []
+    if chooser.random() < 0.3:
+        days = sorted(chooser.sample(range(18000, 18400), chooser.randint(3, 8)))
+        listed = chooser.sample(days, chooser.randint(1, 2))
+        runs: "list[list[int]]" = []
+        for day in days:
+            many = chooser.randint(6, 12) if day in listed else chooser.randint(2, 5)
+            runs += [[day] * chooser.randint(1, 3) for _ in range(many)]
+        chooser.shuffle(runs)
+        for run in runs:
+            ordinals += run
+    else:
+        days = sorted(chooser.sample(range(18000, 18400), chooser.randint(3, 150)))
+        listed = chooser.sample(days, chooser.randint(1, min(3, len(days))))
+        for day in days:
+            ordinals += [day] * chooser.randint(1, 6)
+    ranks = range(len(ordinals))
+    styles = ("padded", "bare", "named")[: chooser.randint(2, 3)]
+    spread = chooser.random() < 0.3
+    rate = chooser.choice((0.3, 0.8, 0.97, 0.99))
+    return {
+        "ordinals": ordinals,
+        "offsets": [chooser.choice(("", "+01:00")) if spread else "" for _ in ranks],
+        "marks": [chooser.choice(("", "pm")) for _ in ranks],
+        "whole": [spread and chooser.random() < 0.2 for _ in ranks],
+        "spellings": [chooser.choice(styles) for _ in ranks],
+        "listed": listed,
+        "absent": {(day, mark, style): chooser.random() < rate for day in days for mark in ("", "pm") for style in styles},
+    }
+
+
+def _rejoined_case() -> "dict[str, object]":
+    """A refused day rejoined: D (marks none, then `pm`), X twice, D again, then three ranks of a
+    listed date L wearing an absent spelling. The trades take both X; D's later run then joins
+    its refused first, so the third rank finds no partner and takes the spelling alone."""
+    days = [18000, 18002, 18002, 18000, 18004, 18004, 18004]
+    absent = {(day, mark, style): False for day in (18000, 18002, 18004) for mark in ("", "pm") for style in ("padded", "bare")}
+    absent.update({(18004, "", "bare"): True, (18000, "", "bare"): True})
+    return {
+        "ordinals": days,
+        "offsets": [""] * 7,
+        "marks": ["", "", "", "pm", "", "", ""],
+        "whole": [False] * 7,
+        "spellings": ["padded"] * 4 + ["bare"] * 3,
+        "listed": [18004],
+        "absent": absent,
+    }
+
+
+def _limit_case() -> "dict[str, object]":
+    """Sixty-four dates refused, then one that would take the trade, then a listed date's rank
+    wearing an absent spelling: the trade gives up at the limit and takes the spelling alone."""
+    days = [18000 + 2 * step for step in range(66)]
+    absent = {(day, mark, style): day != days[64] and style == "bare" for day in days for mark in ("", "pm") for style in ("padded", "bare")}
+    return {
+        "ordinals": days,
+        "offsets": [""] * 66,
+        "marks": [""] * 66,
+        "whole": [False] * 66,
+        "spellings": ["padded"] * 65 + ["bare"],
+        "listed": [days[65]],
+        "absent": absent,
+    }
+
+
+def _traded(case: "dict[str, object]", module: types.ModuleType, monkeypatch: pytest.MonkeyPatch, oracle: "dict[str, object] | None" = None) -> "list[object]":
+    """The spellings `_listed_spellings` gives the case (or the oracle's step, `oracle`), every
+    cell's absence read off the case: a written cell is `(day, offset, mark, form, spelling)`."""
+    ordinals, offsets, marks, whole = case["ordinals"], case["offsets"], case["marks"], case["whole"]
+    absent = case["absent"]
+    fields = [(1 + 10 * (day % 2), 5) for day in ordinals]  # type: ignore[union-attr]
+
+    def asked(written: "tuple[object, ...]") -> bool:
+        return absent[(written[0], written[2], written[4])]  # type: ignore[index]
+
+    if oracle is not None:
+        listed = [parsing.civil_from_days(day) for day in case["listed"]]  # type: ignore[union-attr]
+        column = {"format": _TRADE_FORMAT, "heavy_dates": [{"date": f"{y:04d}-{m:02d}-{d:02d}", "count": 1} for y, m, d in listed]}
+        return oracle["listed_dates_kept_in_spelling"](  # type: ignore[operator]
+            column, ordinals, list(case["spellings"]), fields, whole, offsets,  # type: ignore[call-overload]
+            lambda rank, style: (ordinals[rank], offsets[rank], marks[rank], whole[rank], style), asked,  # type: ignore[index]
+        )
+    monkeypatch.setattr(module, "_written_fields", lambda facts, ordinals, offsets, parsed: fields)
+    monkeypatch.setattr(module, "_listed_absent", lambda keep, rank, style: asked((keep.ordinals[rank], keep.offsets[rank], keep.marks[rank], keep.whole[rank], style)))
+    facts = types.SimpleNamespace(parser_family=_TRADE_FORMAT)
+    return module._listed_spellings(facts, ordinals, offsets, marks, whole, list(case["spellings"]), ("x",), frozenset(case["listed"]))  # type: ignore[call-overload]
+
+
+_TRADE_SCAN_NEW = """        starts = keep.runs[place]
+        spent = keep.spent[place]
+        last = len(starts) - 1
+        run = _listed_free(spent, 0)
+        refused = 0
+        while run < last and refused < _LISTED_PROBES:
+            # The run's first rank not yet traded: a run in `spent` has none.
+            at = _listed_free(skip, starts[run])
+            other = queue[at]
+            if not _listed_absent(keep, other, own):
+                keep.spellings[rank] = style
+                keep.spellings[other] = own
+                skip[at] = at + 1
+                if _listed_free(skip, at + 1) >= starts[run + 1]:
+                    spent[run] = run + 1
+                return True
+            refused = refused + 1
+            day = keep.ordinals[other]
+            # A refused date's following ranks are passed over: its run,
+            # and any run of the same day its traded neighbours now join.
+            run = _listed_free(spent, run + 1)
+            while run < last and keep.ordinals[queue[starts[run]]] == day:
+                run = _listed_free(spent, run + 1)
+"""
+# The rank walk of 9a0338d, which the verifier measured.
+_TRADE_SCAN_OLD = """        at = _listed_free(skip, 0)
+        refused = 0
+        while at < len(queue) and refused < _LISTED_PROBES:
+            other = queue[at]
+            if not _listed_absent(keep, other, own):
+                keep.spellings[rank] = style
+                keep.spellings[other] = own
+                skip[at] = at + 1
+                return True
+            refused = refused + 1
+            day = keep.ordinals[other]
+            while at < len(queue) and keep.ordinals[queue[at]] == day:
+                at = _listed_free(skip, at + 1)
+"""
+
+
+def test_trades_are_the_oracle_s(monkeypatch: pytest.MonkeyPatch) -> None:
+    """THE VERIFIER OF THE CODEX REVIEW'S FIXES, ITEM 4 (G7.3j step 8): the trade now passes a
+    refused date in one step (`keep.runs`, `keep.spent`) where it walked the date's ranks. On
+    700 random columns -- dates out of order, runs emptied by trades, several spellings of
+    listed ranks seeking one queue -- and two built ones (a refused day's run rejoining it
+    once the runs between are traded, `_rejoined_case`; a date past the limit of 64,
+    `_limit_case`), the product's spellings are
+    the oracle's rank walk's and 9a0338d's; each mutant (a refused day's later runs read
+    again, a run emptied still read, one date more than the limit) is red."""
+    oracle = _oracle()
+    chooser = random.Random(19)
+    cases = [_trade_case(chooser) for _ in range(700)] + [_rejoined_case(), _limit_case()]
+    theirs = [_traded(case, generation, monkeypatch, oracle) for case in cases]
+    walk = _mutant(monkeypatch, _TRADE_SCAN_NEW, _TRADE_SCAN_OLD)
+    changed = 0
+    for index in range(len(cases)):
+        ours = _traded(cases[index], generation, monkeypatch)
+        assert ours == theirs[index], index
+        assert _traded(cases[index], walk, monkeypatch) == ours, index
+        changed += ours != cases[index]["spellings"]
+    assert changed > 250, changed
+    assert theirs[-2] == ["padded", "bare", "bare", "padded", "padded", "padded", "padded"], theirs[-2]
+    assert theirs[-1] == ["padded"] * 66, theirs[-1]
+    for before, after in (
+        ("            while run < last and keep.ordinals[queue[starts[run]]] == day:\n", "            while False:\n"),
+        ("                    spent[run] = run + 1\n", "                    pass\n"),
+        ("        while run < last and refused < _LISTED_PROBES:\n", "        while run < last and refused <= _LISTED_PROBES:\n"),
+    ):
+        mutant = _mutant(monkeypatch, before, after)
+        assert any(_traded(cases[index], mutant, monkeypatch) != theirs[index] for index in range(len(cases))), before
+
+
+def _trade_shape(scale: int) -> "dict[str, object]":
+    """The verifier's shape at `scale`: a tail date of 400 * `scale` ranks spelled padded, whose
+    unpadded spelling is absent, then 900 * `scale` ranks cycling over 362 days and 100 *
+    `scale` on 3 May, whose unpadded spelling is absent, spelled alternately padded and not;
+    the tail date (1 January) shows the conventions 3 May shows (`_traded`'s fields)."""
+    front = parsing.days_from_civil(2022, 1, 1)
+    listed = parsing.days_from_civil(2022, 5, 3)
+    days = [front] * (400 * scale)
+    days += sorted([parsing.days_from_civil(2022, 1, 3) + step % 362 for step in range(900 * scale)] + [listed] * (100 * scale))
+    return {
+        "ordinals": days,
+        "offsets": [""] * len(days),
+        "marks": [""] * len(days),
+        "whole": [False] * len(days),
+        "spellings": ["padded" if rank < 400 * scale or rank % 2 == 0 else "bare" for rank in range(len(days))],
+        "listed": [listed],
+        "absent": {(day, "", style): style == "bare" and day in (front, listed) for day in set(days) for style in ("padded", "bare")},
+    }
+
+
+def _trade_reads(module: types.ModuleType, monkeypatch: pytest.MonkeyPatch, case: "dict[str, object]") -> "tuple[int, list[object]]":
+    """How many queue places the trade reads (`_listed_free`) on `case`, and the spellings given."""
+    reads = [0]
+    free = module._listed_free
+
+    def counted(skip: "dict[int, int]", at: int) -> int:
+        reads[0] += 1
+        return free(skip, at)
+
+    monkeypatch.setattr(module, "_listed_free", counted)
+    found = _traded(case, module, monkeypatch)
+    monkeypatch.setattr(module, "_listed_free", free)
+    return reads[0], found
+
+
+def test_trades_read_dates_not_ranks(monkeypatch: pytest.MonkeyPatch) -> None:
+    """THE VERIFIER OF THE CODEX REVIEW'S FIXES, ITEM 4: beside a tail date whose other spelling
+    is absent, every listed rank's trade walked that date's ranks again -- 11 seconds of trades
+    at 227,220 rows, 3.7 times as long for twice the rows. Four times the rows now read fewer
+    than six times the queue places, every rank of the listed date kept in the spelling not
+    absent and the census of spellings unchanged; the rank walk restored reads more than
+    twelve times as many, and gives the same spellings."""
+    small, _found = _trade_reads(generation, monkeypatch, _trade_shape(1))
+    case = _trade_shape(4)
+    large, found = _trade_reads(generation, monkeypatch, case)
+    assert large < 6 * small, (small, large)
+    ordinals, before = case["ordinals"], case["spellings"]
+    held = {found[rank] for rank in range(len(found)) if ordinals[rank] == case["listed"][0]}  # type: ignore[index]
+    assert held == {"padded"} and found.count("bare") == before.count("bare")  # type: ignore[union-attr]
+    walk = _mutant(monkeypatch, _TRADE_SCAN_NEW, _TRADE_SCAN_OLD)
+    slow_small, _found = _trade_reads(walk, monkeypatch, _trade_shape(1))
+    slow_large, slow = _trade_reads(walk, monkeypatch, case)
+    assert slow == found
+    assert slow_large > 12 * slow_small, (slow_small, slow_large)
