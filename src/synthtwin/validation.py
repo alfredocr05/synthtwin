@@ -18567,11 +18567,11 @@ def _clock_field_checks(
         return []
     low = calendar_clock.seconds_of(facts.low_tail.boundary)
     high = calendar_clock.seconds_of(facts.high_tail.boundary)
+    read_cells = _dates_the_file_reads(block, facts, cells)
     body = [
         texts
-        for instant, texts in _clock_field_instants_of(
-            facts, _dates_the_file_reads(block, facts, cells)
-        )
+        for instant, texts in _clock_field_instants_of(facts, read_cells)
+        + _folded_clock_field_instants(block, facts, read_cells)
         if low <= instant <= high
     ]
     line = parsing.census_floor(floor)
@@ -18615,6 +18615,48 @@ def _clock_field_checks(
                 )
             ]
     return checks
+
+
+def _folded_clock_field_instants(
+    block: "dict[str, object]",
+    facts: contract.DatetimeFacts,
+    cells: "list[str]",
+) -> "list[tuple[int, tuple[int, int]]]":
+    """The whole dates the file's own description folded into its moments,
+    each as the instant of its midnight with the minute and second it is
+    written at (validation V5-M1 and V5-S1; lane J2, the merge of landing
+    3b.4 beside landing 3b.D2).
+
+    THE FOLD IS ASKED OF THE MINUTE'S AND SECOND'S FACTS AS OF THE HOUR'S
+    (`_folded_hour_instants`): the producer counts each such date with the
+    parsed cells (`taxonomy._census_clock_fields`), so ten bare
+    `2024-03-05` among 590 noon stamps published heaps at minute 0 and at
+    second 0 holding 570 of the body, and the unchanged source, recounted
+    without them, was told 560 at each, MISSED. The cells folded are
+    `_folded_by_the_file`'s, asked of the cells the tails do not read, as
+    the hour's recount asks it.
+
+    Guarantees: as `_folded_hour_instants`, each pair (instant in seconds,
+    (minute, second)). Raises nothing. No I/O of any kind.
+    """
+    failing: "list[str]" = []
+    for cell, placed in zip(cells, _tail_readings_of(facts, cells)):
+        if placed is None:
+            failing += [cell]
+    if not _folded_by_the_file(block, facts.parser_family, failing):
+        return []
+    found: "list[tuple[int, tuple[int, int]]]" = []
+    for cell in failing:
+        read = parsing.parse_datetime(cell, taxonomy.FORMAT_ISO_MIXED)
+        if read is None or len(read[0]) < 19:
+            continue
+        found += [
+            (
+                calendar_clock.seconds_of(read[0]),
+                (calendar_clock.written_minute(read[0]), calendar_clock.written_second(read[0])),
+            )
+        ]
+    return found
 
 
 def _clock_field_value_named(field: str, first: int, last: int) -> str:

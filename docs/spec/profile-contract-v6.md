@@ -13620,7 +13620,7 @@ form, the stand-in is written in it (7.9.1).
 
 <!-- anchor 3b-T3 (P4-D372) -->
 
-| `minute_census`, `minute_heaps` | EXACT-OBSERVABLE (landing 3b.4, plan P4-D372; validation V5-M1): the file's own moments between the two PUBLISHED boundaries, both included, read as the hour census's are, hold every heap's count on its minute and every group's count on its minutes off the heaps exactly, each cell at the minute it is written at. Printed through the census lines of P4-D347, as the hour's |
+| `minute_census`, `minute_heaps` | EXACT-OBSERVABLE (landing 3b.4, plan P4-D372; validation V5-M1): the file's own moments between the two PUBLISHED boundaries, both included, read as the hour census's are, hold every heap's count on its minute and every group's count on its minutes off the heaps exactly, each cell at the minute it is written at, and a whole date the file's own description folded into its moments at its midnight, minute 0 and second 0, as the hour census reads it in hour 0 (lane J2, plan P4-D391). Printed through the census lines of P4-D347, as the hour's |
 | `second_census`, `second_heaps` | EXACT-OBSERVABLE (landing 3b.4, plan P4-D372; validation V5-S1): the same over the seconds, a sixtieth second at 59 |
 
 <!-- anchor 3b-C1 (P4-D373) -->

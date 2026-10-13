@@ -1583,7 +1583,13 @@ rather than in ISO:
   every heap or group holds its published count and MISSED otherwise,
   printed through the same census line. Counted here,
   never PRODUCED. Beside heaps with no census, the rest of the body is
-  the body less the heaps, which the tails' checks already hold.
+  the body less the heaps, which the tails' checks already hold. The fold
+  is asked as V5-H1 asks it: a whole date the file's own description
+  folded into its moments is counted at its midnight, minute 0 and second
+  0, and one it left unparsed is not (lane J2, plan P4-D391, the merge of
+  landing 3b.4 beside landing 3b.D2: ten bare `2024-03-05` among noon
+  stamps published heaps at minute 0 and second 0 holding 570, and the
+  unchanged source, counted without them, was told 560 at each).
 - each of the four is LISTED where the column's member cannot show that
   convention at all: the widths on a member of fixed field width, the
   name styles outside the two textual members, the marker outside

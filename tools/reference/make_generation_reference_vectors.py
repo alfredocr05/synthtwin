@@ -11169,7 +11169,7 @@ def clock_payer_candidates(walk, centre, standing, into, home):
         away += 1
 
 
-def clock_payers(walk, unit, origin, into, standing, home):
+def clock_payers(walk, unit, origin, into, standing, home, strict=False, avoid=-1):
     """THE PAYERS of a unit's move from a day of standing ``origin`` to
     one of ``into``: one for each of its ranks, each a movable body rank
     not of the unit, still on the day it stood on as the round began, of
@@ -11179,25 +11179,34 @@ def clock_payers(walk, unit, origin, into, standing, home):
     sharing its own onto one a rank holds -- among the first and the
     CLOCK_PAYER_REACH asked after it, else the first; each moves before
     the next is asked. Where fewer are found than the unit has ranks,
-    every payer goes back. Returns how many were found."""
+    every payer goes back. Returns how many were found.
+
+    STRICT PAYERS (lane J2): where ``strict``, only a payer keeping the
+    count is taken, among the first with a place and the CLOCK_PAYER_REACH
+    after it; and no rank on the written unit ``avoid`` is a payer."""
     taken = []
     asked = set(unit)
     centre = walk.days[unit[0]] // walk.day
     for _payer in unit:
         chosen = None
         after = 0
+        met = False
         for rank, day in clock_payer_candidates(walk, centre, standing, into, home):
             if walk.days[rank] // walk.day != day or rank in asked:
                 continue
             place = clock_payer_place(walk, rank, origin, standing)
             if place is None:
                 continue
+            if avoid >= 0 and walk.days[rank] // walk.step == avoid:
+                continue
             alone = walk.holding(walk.days[rank]) == 1
             if alone != (walk.holding(place) > 0):
                 chosen = (rank, place)
                 break
-            if chosen is None:
-                chosen = (rank, place)
+            if not met:
+                met = True
+                if not strict:
+                    chosen = (rank, place)
                 continue
             after += 1
             if after >= CLOCK_PAYER_REACH:
@@ -11212,14 +11221,16 @@ def clock_payers(walk, unit, origin, into, standing, home):
     return len(taken)
 
 
-def clock_paid_escape(walk, unit, low, high, have, standing, refused, home):
+def clock_paid_escape(walk, unit, low, high, have, standing, refused, home, strict=False, group=None):
     """THE ESCAPE PAID BACK (G7.3g step 3; lane J, plan P4-D367): the other
     days of the unit's gap, nearest first, the earlier on a tie, no hole,
     of its width kind, whose standing is another; on each, SAMEPARENT's
     place at the unit's own seat, taken only where as many payers as the
     unit has ranks are found and moved (``clock_payers``). A standing is
     asked once for the unit; a pair of standings no payer at all was found
-    for goes into ``refused`` and is not asked again in the step."""
+    for goes into ``refused`` and is not asked again in the step. Lane J2:
+    ``strict`` asks strict payers, and ``group``, where given, asks the
+    place in that group alone (``clock_place_in_group``), as SPREAD does."""
     ordinal = walk.days[unit[0]]
     day = ordinal // walk.day
     per_day = walk.day // clock_span(walk)
@@ -11235,10 +11246,13 @@ def clock_paid_escape(walk, unit, low, high, have, standing, refused, home):
                 continue
             if walk.width_of(other) != walk.width_of(day):
                 continue
-            target = clock_place_on(walk, other * per_day + seat, ordinal, low, high, len(unit), have)
+            if group is None:
+                target = clock_place_on(walk, other * per_day + seat, ordinal, low, high, len(unit), have)
+            else:
+                target = clock_place_in_group(walk, other * per_day + seat, ordinal, low, high, len(unit), group)
             if target is None:
                 continue
-            found = clock_payers(walk, unit, own, into, standing, home)
+            found = clock_payers(walk, unit, own, into, standing, home, strict)
             if found == len(unit):
                 return target
             asked.add(into)
@@ -11843,6 +11857,220 @@ def clock_short_spread(walk, first, last, pinned, wanted, standing, anyday=False
         count += 1
 
 
+def clock_paid_spread(walk, first, last, pinned, wanted, standing, kin=()):
+    """G7.3h's SPREAD PAID BACK where a weekday census stands and SPREAD left
+    the count short (lane J2): each rank sharing its unit, in rank order,
+    takes SPREAD's place -- its own group's on its own parent, else the
+    escape's in that group -- else its own group's free place at its own
+    parent's place on a day of another standing, paid back by strict payers
+    (``clock_paid_escape``); a group, place in the day, gap and day standing
+    that found none, unpaid or paid, are not asked so again."""
+    count = walk.different()
+    if count >= wanted:
+        return
+    span = clock_span(walk)
+    unpaid = set()
+    full = set()
+    home = None
+    refused = set()
+    for rank in range(first, last + 1):
+        if count >= wanted:
+            return
+        here = walk.days[rank]
+        if pinned[rank] or walk.holding(here) < 2:
+            continue
+        own = walk.group(here)
+        low, high = walk.lows[rank], walk.highs[rank]
+        asked = (own, clock_seat(walk, here), low, high, standing[(here // walk.day + 3) % 7])
+        if asked in full:
+            continue
+        target = None
+        if asked not in unpaid:
+            target = clock_place_in_group(walk, here // span, here, low, high, 1, own)
+            if target is None:
+                target = clock_escape_in_group(walk, here, low, high, 1, own, standing, False, kin)
+            if target is None:
+                unpaid.add(asked)
+        if target is None:
+            if home is None:
+                home = clock_homes(walk, first, last, pinned)
+            target = clock_paid_escape(walk, [rank], low, high, None, standing, refused, home, True, own)
+        if target is None:
+            full.add(asked)
+            continue
+        walk.move(rank, target)
+        count += 1
+
+
+def clock_spread_substituted(walk, first, last, pinned, wanted):
+    """G7.3h's SPREAD BY SUBSTITUTE where a weekday census stands and the count
+    is still short (lane J2): each rank sharing its unit, in rank order, takes
+    the free place of another group G on its own parent nearest its own,
+    inside its gap and at no written midnight, while a run of G holding one
+    rank, in rank order, takes the free place of the rank's own group on its
+    own parent nearest its own; else the next place. Each pair of groups
+    keeps a cursor past the runs it has asked, and a group, place in the
+    day, gap and parent that found none are not asked again."""
+    count = walk.different()
+    if count >= wanted:
+        return
+    span = clock_span(walk)
+    whole, by_kind = clock_whole_runs(walk, first, last, pinned)
+    failed = set()
+    cursor = {}
+    for rank in range(first, last + 1):
+        if count >= wanted:
+            return
+        here = walk.days[rank]
+        if pinned[rank] or walk.holding(here) < 2:
+            continue
+        own = walk.group(here)
+        low, high = walk.lows[rank], walk.highs[rank]
+        parent = here // span
+        asked = (own, clock_seat(walk, here), low, high, parent)
+        if asked in failed:
+            continue
+        options = []
+        for field in range(len(walk.group_of_bin)):
+            other = walk.group_of_bin[field]
+            if other == own or cursor.get((other, own), 0) >= len(by_kind.get((other, 1), [])):
+                continue
+            start = parent * span + field * walk.unit
+            target = clock_nearest_free(
+                walk, start + here % walk.unit, max(start, low), min(start + walk.unit - 1, high)
+            )
+            if target is not None:
+                options.append((abs(target % span - here % span), target))
+        placed = False
+        for _distance, target in sorted(options):
+            other = walk.group(target)
+            listed = by_kind.get((other, 1), [])
+            at = cursor.get((other, own), 0)
+            while at < len(listed) and not placed:
+                swap = whole[listed[at]][0]
+                at += 1
+                spot = walk.days[swap]
+                if walk.holding(spot) != 1 or walk.group(spot) != other:
+                    continue
+                into = clock_place_in_group(walk, spot // span, spot, walk.lows[swap], walk.highs[swap], 1, own)
+                if into is None:
+                    continue
+                walk.move(swap, into)
+                walk.move(rank, target)
+                count += 1
+                placed = True
+            cursor[(other, own)] = at
+            if placed:
+                break
+        if not placed:
+            failed.add(asked)
+
+
+def clock_paid_merge_place(walk, members, held, standing, refused, home):
+    """PUT BACK's merge PAID BACK (lane J2): the other days of the run's gap,
+    nearest first, the earlier on a tie, no hole and of its width kind, whose
+    standing is another; on each, PUT BACK's place at the run's own parent's
+    place in that day, taken only where as many strict payers as the run has
+    ranks, none on the unit it joins, are found and moved. A standing is
+    asked once for the run; a pair no payer at all was found for is refused
+    for the step."""
+    first = members[0]
+    ordinal = walk.days[first]
+    group = walk.group(ordinal)
+    low, high = walk.lows[first], walk.highs[first]
+    day = ordinal // walk.day
+    per_day = walk.day // clock_span(walk)
+    seat = clock_seat(walk, ordinal)
+    own = standing[(day + 3) % 7]
+
+    def nearest_on(parent):
+        best = None
+        for unit in held.get(parent, ()):
+            if unit == ordinal // walk.step or walk.holding(unit * walk.step) == 0:
+                continue
+            target = unit * walk.step + ordinal % walk.step
+            if not low <= target <= high or walk.group(target) != group:
+                continue
+            if written_at_midnight(target, 0, walk.step):
+                continue
+            if best is None or (abs(target - ordinal), target) < best:
+                best = (abs(target - ordinal), target)
+        return None if best is None else best[1]
+
+    asked = set()
+    for away in range(1, max(day - low // walk.day, high // walk.day - day) + 1):
+        for other in (day - away, day + away):
+            if not low // walk.day <= other <= high // walk.day or other in walk.holes:
+                continue
+            into = standing[(other + 3) % 7]
+            if into == own or into in asked or (own, into) in refused:
+                continue
+            if walk.width_of(other) != walk.width_of(day):
+                continue
+            target = nearest_on(other * per_day + seat)
+            if target is None:
+                continue
+            found = clock_payers(walk, members, own, into, standing, home, True, target // walk.step)
+            if found == len(members):
+                return target
+            asked.add(into)
+            if found == 0:
+                refused.add((own, into))
+    return None
+
+
+def clock_paid_put_back(walk, first, last, pinned, wanted, standing):
+    """G7.3h's PUT BACK PAID BACK where a weekday census stands and the count
+    is still long (lane J2): PUT BACK's whole runs, smallest first, in
+    proportional order within a size, each asked as it stands and merged
+    onto its own group's held unit on a day of another standing, paid back
+    (``clock_paid_merge_place``); a group, place in the day, gap and day
+    standing that found none are not asked again."""
+    count = walk.different()
+    if count <= wanted:
+        return
+    held = {}
+    for unit in sorted({ordinal // walk.step for ordinal in walk.days}):
+        held.setdefault(unit * walk.step // clock_span(walk), []).append(unit)
+    runs = {}
+    for rank in range(first, last + 1):
+        if not pinned[rank]:
+            runs.setdefault(walk.days[rank] // walk.step, []).append(rank)
+    whole = sorted(
+        (len(members), unit)
+        for unit, members in runs.items()
+        if walk.holding(walk.days[members[0]]) == len(members)
+        and len({(walk.lows[rank], walk.highs[rank]) for rank in members}) == 1
+    )
+    order = []
+    for size in sorted({size for size, _unit in whole}):
+        order += clock_rotated([runs[unit] for each, unit in whole if each == size], count - wanted)
+    order = [(walk.days[members[0]] // walk.step, members) for members in order]
+    home = clock_homes(walk, first, last, pinned)
+    refused = set()
+    failed = set()
+    for key, listed in order:
+        if count <= wanted:
+            return
+        members = [rank for rank in listed if walk.days[rank] // walk.step == key]
+        if not members or walk.holding(key * walk.step) != len(members):
+            continue
+        here = walk.days[members[0]]
+        asked = (
+            walk.group(here), clock_seat(walk, here), walk.lows[members[0]], walk.highs[members[0]],
+            standing[(here // walk.day + 3) % 7],
+        )
+        if asked in failed:
+            continue
+        target = clock_paid_merge_place(walk, members, held, standing, refused, home)
+        if target is None:
+            failed.add(asked)
+            continue
+        for rank in members:
+            walk.move(rank, target)
+        count -= 1
+
+
 def clock_field_settled(walk, first, last, pinned, wanted, standing, anyday, kin, reachable, published=None):
     """G7.3h for one field: the clock pass, then the exchange off midnight,
     G7.3g's PUT BACK once more where the exchange left the count long and it
@@ -11856,6 +12084,9 @@ def clock_field_settled(walk, first, last, pinned, wanted, standing, anyday, kin
     for last_resort in (False, True):
         if reachable and walk.different() > wanted and (anyday or not last_resort):
             clock_put_back(walk, first, last, pinned, wanted, standing, last_resort, kin)
+    # ...and PAID BACK where a weekday census stands (lane J2).
+    if reachable and not anyday and walk.different() > wanted:
+        clock_paid_put_back(walk, first, last, pinned, wanted, standing)
     # SUBSTITUTE, round after round while one puts a value back, three at most.
     for _round in range(3):
         count = walk.different()
@@ -11866,6 +12097,10 @@ def clock_field_settled(walk, first, last, pinned, wanted, standing, anyday, kin
             break
     if walk.different() < wanted and (reachable or published is None or wanted <= published):
         clock_short_spread(walk, first, last, pinned, wanted, standing, anyday, kin)
+    # ...and SPREAD PAID BACK where a weekday census stands (lane J2).
+    if not anyday and walk.different() < wanted and (reachable or published is None or wanted <= published):
+        clock_paid_spread(walk, first, last, pinned, wanted, standing, kin)
+        clock_spread_substituted(walk, first, last, pinned, wanted)
     sort_unpinned_runs(walk.days, pinned)
     return walk.days
 
@@ -11976,6 +12211,9 @@ def clock_midnight_room_kept(walk, first, last, pinned, tail_pins, written, away
     clock_midnight_room_made(walk, first, last, pinned, tail_pins, written, away)
     if reachable and walk.different() < wanted:
         clock_short_spread(walk, first, last, pinned, wanted, standing, anyday, kin)
+    if reachable and not anyday and walk.different() < wanted:
+        clock_paid_spread(walk, first, last, pinned, wanted, standing, kin)
+        clock_spread_substituted(walk, first, last, pinned, wanted)
 
 
 def clock_fields_settled(column, ordinals, parsed, whole, lows, highs, holes):
@@ -18801,6 +19039,115 @@ def field_spread_case():
     )
 
 
+def field_paid_spread_case():
+    m = HOUR_MONDAY
+    ordinals = [
+        hour_at(m, 8, 0), hour_at(m, 9, 0), hour_at(m, 9, 0), hour_at(m + 1, 9, 30),
+        hour_at(m + 1, 11, 0),
+    ]
+    return field_case(
+        "SPREAD PAID BACK where a weekday census stands (lane J2): one value too few, each "
+        "weekday its own standing, each hour its own kin group, one gap from Monday 08:00 to "
+        "Tuesday 11:00. The pair at Monday 09:00 shares minute 0 of hour 9, which holds no "
+        "other place, and the gap no other Monday, so its first rank takes Tuesday 09:00 while "
+        "Tuesday's 09:30, alone, moves a whole day onto Monday 09:30, a value no rank holds: "
+        "Monday's 3 and Tuesday's 2 kept, and the count put back. Unpaid, the pair stayed.",
+        "paid_spread", ordinals, {0, 4}, [2, 3], HEAP_ZERO, 60, wanted=5,
+        kin=list(range(24)),
+    )
+
+
+def field_paid_spread_strict_case():
+    m = HOUR_MONDAY
+    ordinals = [
+        hour_at(m, 8, 0), hour_at(m, 9, 0), hour_at(m, 9, 0), hour_at(m + 1, 9, 30),
+        hour_at(m + 1, 9, 30), hour_at(m + 1, 11, 0),
+    ]
+    return field_case(
+        "SPREAD's payers keep the count (lane J2's STRICT PAYERS): as above, but Tuesday's only "
+        "movable ranks are a pair at 09:30, so a payer leaving it for Monday 09:30 would write "
+        "one value more, and none is taken; nor does a Monday rank of the pair at 09:00 pay "
+        "for the Tuesday pair. Nothing moves, the count one short. Taken as lane J's round "
+        "takes a payer, the first, a rank and its payer each wrote a value more, one too many.",
+        "paid_spread", ordinals, {0, 5}, [3, 3], HEAP_ZERO, 60, wanted=5,
+        kin=list(range(24)),
+    )
+
+
+def field_paid_put_back_case():
+    m = HOUR_MONDAY
+    ordinals = [
+        hour_at(m, 8, 0), hour_at(m, 9, 20), hour_at(m + 1, 9, 20), hour_at(m + 1, 10, 40),
+        hour_at(m + 1, 11, 0),
+    ]
+    return field_case(
+        "PUT BACK PAID BACK where a weekday census stands (lane J2): one value too many, each "
+        "weekday its own standing, each hour its own kin group, one gap from Monday 08:00 to "
+        "Tuesday 11:00. Monday's 09:20, alone, has no unit of its group to join on its own "
+        "hour nor on another Monday, so it joins Tuesday's 09:20 while Tuesday's 10:40, alone, "
+        "moves a whole day onto Monday 10:40, which no rank holds: every weekday count kept and "
+        "the count put back. Unpaid, the count stayed long.",
+        "paid_put_back", ordinals, {0, 4}, [5, 0], HEAP_ZERO, 60, wanted=4,
+        kin=list(range(24)),
+    )
+
+
+def field_paid_put_back_avoid_case():
+    m = HOUR_MONDAY
+    ordinals = [
+        hour_at(m, 8, 0), hour_at(m, 9, 20), hour_at(m + 1, 9, 25), hour_at(m + 1, 10, 40),
+        hour_at(m + 1, 11, 0),
+    ]
+    return field_case(
+        "PUT BACK's payers stand off the unit the run joins (lane J2): as above, but Tuesday's "
+        "unit of the run's group on hour 9 is 09:25, whose rank, alone, could itself pay by "
+        "moving a whole day onto Monday 09:25, which no rank holds. It is passed over, so the "
+        "unit is still held when the run gets there, and Tuesday's 10:40 pays instead. Taken, "
+        "it left 09:25 empty, the run joined no one and the count stayed long.",
+        "paid_put_back", ordinals, {0, 4}, [5, 0], HEAP_ZERO, 60, wanted=4,
+        kin=list(range(24)),
+    )
+
+
+def field_paid_put_back_standing_case():
+    m = HOUR_MONDAY
+    ordinals = [
+        hour_at(m, 8, 0), hour_at(m, 9, 20), hour_at(m, 10, 40), hour_at(m + 1, 9, 20),
+        hour_at(m + 1, 10, 40), hour_at(m + 1, 10, 40), hour_at(m + 1, 10, 50),
+        hour_at(m + 1, 10, 55), hour_at(m + 1, 11, 0),
+    ]
+    return field_case(
+        "PUT BACK PAID BACK asks a run as it stands (lane J2; lane J's Codex review, item 1): "
+        "two values too many over Monday 08:00 to Tuesday 11:00. Monday's 09:20 joins "
+        "Tuesday's 09:20, paid by the first of Tuesday's pair at 10:40, which moves a whole day "
+        "onto Monday 10:40, a unit a rank holds. The pair, listed before, is asked as it stands: "
+        "its second rank alone, whose merge onto Monday finds no payer, and Monday 10:40, "
+        "which the payer joined, is no run. Asked as listed, Monday's 10:40 was taken for a run "
+        "and moved onto Tuesday 10:40, paid by 10:50, splitting a written unit: seven values "
+        "either way, the step counting one more put back than it made.",
+        "paid_put_back", ordinals, {0, len(ordinals) - 1}, [9, 0], HEAP_ZERO, 60, wanted=6,
+        kin=list(range(24)),
+    )
+
+
+def field_spread_substitute_case():
+    m = HOUR_MONDAY
+    ordinals = [
+        hour_at(m, 8, 59), hour_at(m, 9, 0), hour_at(m, 9, 0), hour_at(m, 9, 20),
+        hour_at(m, 10, 7), hour_at(m, 10, 59),
+    ]
+    return field_case(
+        "SPREAD BY SUBSTITUTE (lane J2): one value too few on one day, a weekday census "
+        "standing, each hour its own kin group, minute 0 the heap's group. The pair at 09:00 "
+        "shares minute 0 of hour 9, which holds no other place, and no other day lies in the "
+        "gap, so its first rank takes 09:01, the rest's group's nearest free place, while 10:07, "
+        "alone in the rest, takes 10:00, the heap's free place on its own hour: each group keeps "
+        "its count and the count is put back. Without it the pair stayed and the count was short.",
+        "spread_substitute", ordinals, {0, 5}, [3, 2], HEAP_ZERO, 60, wanted=6,
+        kin=list(range(24)),
+    )
+
+
 def field_midnight_share_case():
     m = HOUR_MONDAY
     days = 6
@@ -19084,6 +19431,12 @@ CLOCK_FIELD_STEP_CASES = {
     "field_exchange_put_back": field_exchange_put_back_case,
     "field_substitute": field_substitute_case,
     "field_spread": field_spread_case,
+    "field_paid_spread": field_paid_spread_case,
+    "field_paid_spread_strict": field_paid_spread_strict_case,
+    "field_paid_put_back": field_paid_put_back_case,
+    "field_spread_substitute": field_spread_substitute_case,
+    "field_paid_put_back_avoid": field_paid_put_back_avoid_case,
+    "field_paid_put_back_standing": field_paid_put_back_standing_case,
     "field_midnight_tails": field_midnight_tails_case,
     "field_midnight_kin": field_midnight_kin_case,
     "field_midnight_share": field_midnight_share_case,
@@ -19187,6 +19540,12 @@ def clock_field_step_answer(case):
         clock_short_spread(
             walk, first, last, pinned, case["wanted"], case["standing"], case["anyday"], kin
         )
+    elif step == "paid_spread":
+        clock_paid_spread(walk, first, last, pinned, case["wanted"], case["standing"], kin)
+    elif step == "paid_put_back":
+        clock_paid_put_back(walk, first, last, pinned, case["wanted"], case["standing"])
+    elif step == "spread_substitute":
+        clock_spread_substituted(walk, first, last, pinned, case["wanted"])
     elif step == "room":
         clock_midnight_room_made(
             walk, first, last, pinned, case["tail_pins"], case["written_unit"], case["away"]

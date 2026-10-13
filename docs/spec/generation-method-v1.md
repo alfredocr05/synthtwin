@@ -7887,6 +7887,59 @@ clock pass, for the field:
    not asked again.
 5. Each run of unpinned ranks is sorted.
 
+THE COUNT STEPS PAID BACK BESIDE A WEEKDAY CENSUS (lane J2, plan
+P4-D391). Where a weekday census stands, the steps above move a rank
+only to a day of its own standing, and a gap of about a week holds none:
+merged beside lane D2's weekday census on moments, a ten-week clinic of
+10,000 visits on the half hour came back 1,621 values of a published
+2,175, and 1,000 check-ins in bursts 298 for 279. So two steps are paid
+back, as G7.3g step 3's escape is. Each asks STRICT PAYERS: G7.3g step
+3's payers -- ranks of the other standing moving by whole days onto the
+nearest day of the unit's own, every field of their clocks kept -- but
+only one whose move keeps the count of different values, among the first
+with a place and the 1,024 asked after it, none standing on the written
+unit a run joins, and every payer given back where fewer are found than
+the unit has ranks; so every weekday count is kept and each step counts
+its own moves exactly.
+- *PUT BACK PAID BACK*, after step 2, where the count is still long and
+  reachable: PUT BACK's runs, the fewest ranks first and in proportional
+  order within a size, each ASKED AS IT STANDS (its ranks still on the
+  written unit it was listed on, whole only where they are every rank
+  there; lane J's Codex review, item 1), each merged onto the nearest
+  unit another rank holds of its own group at its own parent's place on
+  the other days of its gap, nearest first, the earlier on a tie, no hole
+  and of its width kind, whose standing is another -- taken only where as
+  many strict payers as the run has ranks are found and moved.
+- *SPREAD PAID BACK*, after step 4, where the count is still short and
+  step 4's condition holds: each rank sharing its written unit, in rank
+  order, takes step 4's place -- its own group's free place nearest its
+  own on its parent, else the escape's in that group -- and else its own
+  group's free place at its own parent's place on those days, paid back
+  alike. Step 4's place is asked again, as step 4 passes over a group, a
+  parent's place and a gap that found none on a day of another standing,
+  whose own days it never asked.
+- *SPREAD BY SUBSTITUTE*, after it, where the count is still short: each
+  rank sharing its written unit, in rank order, takes the free place of
+  ANOTHER group G of the field on its own parent nearest its own, inside
+  its gap and at no written midnight, while a run of G holding one rank,
+  in rank order, takes the free place of the rank's own group on its own
+  parent nearest its own inside its gap; where no run of G has one, the
+  next place is asked. Every group's count, parent and day is kept. Each
+  pair of groups keeps a cursor past the runs it has asked, so no run is
+  asked twice for one pair. (The ten-week clinic of 10,000 weekday visits,
+  minutes' heaps at 0, 15, 30 and 45, came back 2,100 to 2,161 values of
+  2,175 at a floor of 11 without it: every free place of its groups at
+  their hours stood on the weekend, which its census counts nought.)
+In each a standing is asked once for a unit, a pair of standings no payer
+at all was found for is not asked again in the step, and a group, a
+parent's place in the day, a gap and a day standing (for SPREAD BY
+SUBSTITUTE, a parent) that found nothing are not asked again, so each
+step's work grows with the rows. The tails making room at midnight are
+followed by SPREAD PAID BACK and SPREAD BY SUBSTITUTE too. Where no
+weekday census stands none of the three runs, and every twin is as
+before: the last resorts of steps 2 and 3 and G7.3g's free a run to a day
+of another weekday there.
+
 Where a field's groups still do not hold, one deviation names its census;
 where they hold and the reachable count is left long, THE CENSUS STANDS
 AND THE COUNT GIVES WAY, and the report says so in place of its long
@@ -7906,7 +7959,11 @@ nearest midnight inside its stratum; each tail's ranks are then sorted.
 
 **Its frozen cases** are states of ranks and drawing units: the twentieth
 vectors file, `tests/reference/generation-branch-vectors-20.json`, holds
-thirty-four -- the pass on a field of minutes with heaps and on a field of
+forty -- SPREAD and PUT BACK paid back beside a weekday census, a
+payer that would change the count passed over, SPREAD by substitute, a
+payer standing on the
+unit a run joins passed over and a run asked as it stands (lane J2), the
+pass on a field of minutes with heaps and on a field of
 seconds with a kin group of minutes, KIN SHARES over two hours,
 carried from gap to gap over four days, reconciled against what each hour
 holds where a gap's hour 8 can stand on no minute 0, and never splitting

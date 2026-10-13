@@ -881,9 +881,12 @@ def _minutes_past_the_body(document: Document) -> None:
 
 
 def _a_middle_half_of_one_instant(document: Document) -> None:
-    """The middle half at one instant, its hour census taken out first (HC4's)."""
+    """The middle half at one instant, its hour census taken out first (HC4's),
+    and its weekday census (WC10's, landing 3b.D2, met at 3b.7's merge of lane
+    T3: the weekday census is read first)."""
     block = at(document, "logged_at")
     block["hour_census"] = []
+    block["weekday_census"] = []
     ladder = block["date_percentiles"]
     ladder["p50"] = ladder["p25"]
     ladder["p75"] = ladder["p25"]
@@ -910,8 +913,10 @@ def _minutes_short_of_their_sure_cells(document: Document) -> None:
 
 
 def _clock_fields_stored_two_ways(document: Document) -> None:
-    """Two storages, the hour census taken out first (HC6's)."""
+    """Two storages, the hour census taken out first (HC6's), and the weekday
+    census (its workbook rule, landing 3b.D2, met at 3b.7's merge of lane T3)."""
     at(document, "logged_at")["hour_census"] = []
+    at(document, "logged_at")["weekday_census"] = []
     form = _workbook_block(document, 16, 120)
     place = [block["name"] for block in document["columns"]].index("logged_at")
     rows = typing.cast(int, document["n_rows"])

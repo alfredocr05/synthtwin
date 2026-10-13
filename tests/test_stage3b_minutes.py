@@ -56,6 +56,7 @@ Every table is built here or in `clock_field_shapes`, seeded and neutral
 
 from __future__ import annotations
 
+import collections
 import copy
 import dataclasses
 import datetime
@@ -1164,6 +1165,12 @@ def _answer(case: dict, module=generation, clock=calendar_clock) -> object:
         module._clock_split_substituted(state, first, last, pinned, case["wanted"], standing, case["anyday"], kin)
     elif step == "spread":
         module._clock_short_spread(state, first, last, pinned, case["wanted"], standing, case["anyday"], kin)
+    elif step == "paid_spread":
+        module._clock_paid_spread(state, first, last, pinned, case["wanted"], standing, kin)
+    elif step == "paid_put_back":
+        module._clock_paid_put_back(state, first, last, pinned, case["wanted"], standing)
+    elif step == "spread_substitute":
+        module._clock_spread_substituted(state, first, last, pinned, case["wanted"])
     elif step == "room":
         module._clock_midnight_room_made(
             state, list(case["counts"]), first, last, pinned, list(case["tail_pins"]),
@@ -1338,8 +1345,39 @@ STEP_MUTANTS = {
     ),
     "no SPREAD after the tails make room": (
         "field_midnight_room_spread",
-        "    if state.keep_units and _weekday_count(state) < wanted:\n        _clock_short_spread(\n            state, body_low, body_high, pinned, wanted, standing, anyday, kin\n        )\n\n\ndef _clock_second_kin(",
-        "    if False:\n        _clock_short_spread(\n            state, body_low, body_high, pinned, wanted, standing, anyday, kin\n        )\n\n\ndef _clock_second_kin(",
+        "    if state.keep_units and _weekday_count(state) < wanted:\n        _clock_short_spread(\n            state, body_low, body_high, pinned, wanted, standing, anyday, kin\n        )\n    # ...and paid back where a weekday census stands (lane J2).\n    if state.keep_units and not anyday and _weekday_count(state) < wanted:\n        _clock_paid_spread(state, body_low, body_high, pinned, wanted, standing, kin)\n        _clock_spread_substituted(state, body_low, body_high, pinned, wanted)\n\n\ndef _clock_second_kin(",
+        "    if False:\n        pass\n\n\ndef _clock_second_kin(",
+    ),
+    # -- lane J2: the field passes' count steps paid back beside a weekday census
+    "SPREAD not paid back": (
+        "field_paid_spread",
+        "            target = _clock_paid_escape(\n                state, book, [rank], low, high, have, want, standing, refused, True\n            )\n",
+        "            target = None\n",
+    ),
+    "a payer taken that changes the count": (
+        "field_paid_spread_strict",
+        "                    if not strict:\n                        chosen = (rank, place)\n",
+        "                    if True:\n                        chosen = (rank, place)\n",
+    ),
+    "PUT BACK not paid back": (
+        "field_paid_put_back",
+        "        target = _clock_paid_merge_target(state, book, members, by_parent, standing, refused)\n",
+        "        target = None\n",
+    ),
+    "a payer taken off the unit a run joins": (
+        "field_paid_put_back_avoid",
+        "                if avoid >= 0 and state.moved[rank] // state.step == avoid:\n",
+        "                if False:\n",
+    ),
+    "no SPREAD by substitute": (
+        "field_spread_substitute",
+        "                if into is None:\n                    continue\n                _weekday_step(state, swap, into)\n",
+        "                if True:\n                    continue\n                _weekday_step(state, swap, into)\n",
+    ),
+    "a run asked as listed": (
+        "field_paid_put_back_standing",
+        "        members, whole_now = _clock_unit_standing(state, listed, key)\n",
+        "        members, whole_now = listed, True\n",
     ),
     "a shared unit split by a single move": (
         "field_whole_unit",
@@ -1575,6 +1613,106 @@ def test_spread_grows_with_the_rows() -> None:
             tuple(range(7)), True, tuple([0] * 24),
         )]
     assert spent[1] <= 1.25 * 9 * spent[0], spent
+
+
+def _paid_state(weeks: int, merging: bool):
+    """Lane J2: `weeks` weeks of minutes in one gap from a Sunday, a weekday census standing
+    (each weekday its own standing), each hour its own kin group, minute 0 the heap's group.
+    For SPREAD each Monday's hours 1 to 6 hold two ranks sharing minute 0 and each Sunday's a
+    rank alone at minute 40; for PUT BACK each Monday's hours hold a rank alone at minute 20
+    and each Sunday's one at 20 and one at 40. No Monday holds a place for them, so each
+    takes one on the Sunday before, paid by a Sunday rank moving a whole day onto Monday."""
+    moved: "list[int]" = []
+    for week in range(weeks):
+        sunday = 19725 + 7 * week  # 2024-01-07, a Sunday
+        for hour in range(1, 7):
+            moved += [sunday * DAY + hour * 3600 + minute * 60 for minute in ((20, 40) if merging else (40,))]
+        for hour in range(1, 7):
+            moved += [(sunday + 1) * DAY + hour * 3600 + (20 * 60 if merging else 0)] * (1 if merging else 2)
+    moved = sorted(moved)
+    rows = len(moved)
+    state = generation._WeekdayPass(
+        moved=moved, held={}, where=tuple([1] + [0] * 59), facts=None, word="", widths=False,
+        kinds={}, holes=frozenset(), lows=[moved[0] - 3600] * rows, highs=[moved[-1] + 3600] * rows,
+        keep_units=True, unit=60, step=60, day=DAY, bins="minute", period=60, keeps="hour",
+        count_steps=False, kin=tuple(range(24)),
+    )
+    for ordinal in moved:
+        generation._weekday_tally(state.held, ordinal // 60, 1)
+    return state, rows
+
+
+def _substitute_spread_state(days: int):
+    """Lane J2: `days` days each its own gap, a weekday census standing, each hour its own kin
+    group, minute 0 the heap's group. Each day's hours 1 to 6 hold two ranks sharing minute 0,
+    with no other place of the heap's on their hour nor another day in the gap; hours 7 to 12
+    each hold one rank alone at minute 30, the rest's group, minute 0 free."""
+    moved: "list[int]" = []
+    lows: "list[int]" = []
+    highs: "list[int]" = []
+    for day in range(days):
+        start = (19724 + day) * DAY
+        cells = [start + hour * 3600 for hour in range(1, 7) for _copy in range(2)]
+        cells += [start + hour * 3600 + 30 * 60 for hour in range(7, 13)]
+        moved += cells
+        lows += [start] * len(cells)
+        highs += [start + DAY - 1] * len(cells)
+    rows = len(moved)
+    state = generation._WeekdayPass(
+        moved=moved, held={}, where=tuple([1] + [0] * 59), facts=None, word="", widths=False,
+        kinds={}, holes=frozenset(), lows=lows, highs=highs, keep_units=True, unit=60, step=60,
+        day=DAY, bins="minute", period=60, keeps="hour", count_steps=False, kin=tuple(range(24)),
+    )
+    for ordinal in moved:
+        generation._weekday_tally(state.held, ordinal // 60, 1)
+    return state, rows
+
+
+def test_spread_by_substitute_grows_with_the_rows() -> None:
+    """Lane J2: SPREAD BY SUBSTITUTE at 3 and 27 days, one value put back for each of every day's
+    six pairs, a run of the rest taking the heap's free place on its own hour each time: the
+    lines run grow no faster than the rows (within 1.25 times nine), every group's count kept and
+    the count met -- machine-free. Each pair of groups keeps a cursor past the runs it asked."""
+    spent: "list[int]" = []
+    for days in (3, 27):
+        state, rows = _substitute_spread_state(days)
+        count = generation._weekday_count(state)
+        groups = collections.Counter((ordinal // 60) % 60 == 0 for ordinal in state.moved)
+        spent += [_lines_run(
+            generation._clock_spread_substituted, state, 0, rows - 1, [False] * rows, count + 6 * days,
+        )]
+        assert generation._weekday_count(state) == count + 6 * days, days
+        assert collections.Counter((ordinal // 60) % 60 == 0 for ordinal in state.moved) == groups, days
+    assert spent[1] <= 1.25 * 9 * spent[0], spent
+
+
+def test_the_paid_count_steps_grow_with_the_rows() -> None:
+    """Lane J2: SPREAD and PUT BACK paid back at 3 and 27 weeks, every Monday rank placed on the
+    Sunday before it while a Sunday rank moves onto Monday -- the lines run grow no faster than
+    the rows (within 1.25 times nine; measured 9,291 and 85,755 lines for SPREAD's 54 and 486
+    ranks, 12,117 and 117,033 for PUT BACK's), so a million ranks cost about two thousand times
+    27 weeks', and the count asked is met with every weekday count kept -- machine-free. Each
+    step's failed searches are not asked again: without that, PUT BACK's runs on the Sundays
+    walked every day of the gap and 27 weeks cost 55 times 3 weeks'."""
+    for merging in (False, True):
+        spent: "list[int]" = []
+        for weeks in (3, 27):
+            state, rows = _paid_state(weeks, merging)
+            count = generation._weekday_count(state)
+            weekdays = collections.Counter((ordinal // DAY + 3) % 7 for ordinal in state.moved)
+            wanted = count - 6 * weeks if merging else count + 6 * weeks
+            pinned = [False] * rows
+            if merging:
+                spent += [_lines_run(
+                    generation._clock_paid_put_back, state, 0, rows - 1, pinned, wanted, tuple(range(7)),
+                )]
+            else:
+                spent += [_lines_run(
+                    generation._clock_paid_spread, state, 0, rows - 1, pinned, wanted, tuple(range(7)),
+                )]
+            assert generation._weekday_count(state) == wanted, (merging, weeks)
+            assert collections.Counter((ordinal // DAY + 3) % 7 for ordinal in state.moved) == weekdays, (merging, weeks)
+        assert spent[1] <= 1.25 * 9 * spent[0], (merging, spent)
 
 
 def _substitute_state(days: int):
