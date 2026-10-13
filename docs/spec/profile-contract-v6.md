@@ -6667,8 +6667,12 @@ body's drawn days and it gives some up too. Where they fall short it
 SPLITS ranks onto free days, the two tails' ranks first, then the
 body's, each nearest first, then the lower rank (since plan P4-D369
 part one): a tail splits a rank only onto a free day inside that
-rank's own stratum, and only while the count wants more, so no body rank
-splits while a tail rank still can. Until then it split nearest first
+rank's own stratum, and only while the count wants more, so the body
+splits only once no tail rank sharing a day can split directly onto a
+free day of its own stratum -- which is not the most the tails could
+hold: moving another tail rank onto a free day first could free a day
+for a rank that has none, a chain the pass does not make (the Codex review of lane D4s: `_every_open_day(1.1, 26, 900, Monday to Friday)` at the floor of 36, seed 3, keeps its high tail on 35 days of the 36 its strata hold, the body taking the day, and its twin the column's 130 under either order),
+while the count rules read the tails at their most. Until then it split nearest first
 alone: a body rank one day from a free day split before any high tail
 rank whose free day was further, so the high tail kept the days it drew
 unless the body's nearer splits ran out first, and the low tail, first
@@ -6703,7 +6707,8 @@ land, in expectation, on n(1 - (1 - 1/n)^r) of a gap's n days that are
 no hole, r its ranks -- with the pin days, the body's DRAW. Where the
 draw and the tails' most fall short of the count the pass only splits,
 and the rule reads the body's NEED as what the tails at their most leave
-it: the body splits only once the tails can split no further (until
+it: the body splits only once no tail rank sharing a day can split
+directly, which is not the most the tails could hold (above; until
 then, where the body's nearer splits did not run out before the high
 tail's, the high tail kept the days it drew and the body needed more
 than that, the risk above); otherwise it merges, which only

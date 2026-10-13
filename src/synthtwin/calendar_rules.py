@@ -2008,8 +2008,13 @@ def tails_kept(
     RANKS FIRST, then the body's, each nearest first and then the LOWER
     rank (since lane D4s, plan P4-D369 part one); a tail splits a rank
     only onto a free day inside that rank's own stratum, and only while
-    the count wants more, so no body rank splits while a tail rank still
-    can. Until lane D4s it split nearest first alone: a body rank one day
+    the count wants more, so the body splits only once no tail rank
+    sharing a day can split directly -- which is not the most the tails
+    could hold: moving another tail rank onto a free day first could free
+    one for a rank that has none, a chain the pass does not make (the
+    Codex review of lane D4s: a Monday-to-Friday log of 1.1 rows a day
+    over 26 weeks at 36, seed 3, its high tail on 35 days of the 36 its
+    strata hold, its twin still the column's 130). Until lane D4s it split nearest first alone: a body rank one day
     from a free day split before any high tail rank whose free day was
     further, so the high tail kept the days it drew unless the body's
     nearer splits ran out first, and the low tail, first at each
@@ -2033,8 +2038,9 @@ def tails_kept(
     moves tail ranks out of their strata to meet it; and the high tail gave
     up days where the pass took more than a quarter of the body's drawn
     days, which the fewest does not count. Splitting, both are read at the
-    two tails' most, and the body passes its draw only once the tails hold
-    every day their strata give: on the 90 logs just above one row an
+    two tails' most, and the body passes its draw only once no tail rank
+    sharing a day can split directly, which is not the most the tails
+    could hold (above): on the 90 logs just above one row an
     open day of P4-D388's second verification, the censuses whose twins
     miss the count at two seeds or more fell from 21 of 310 published to
     1, and their twins short of the count from 97 to 7, each of the 7
@@ -2111,8 +2117,10 @@ def count_reach_short(
     nearest first and then the lower rank (since lane D4s, plan P4-D369
     part one), and the rule reads the tails at their most: a tail splits
     a rank only onto a free day inside that rank's own stratum, and only
-    while the count wants more, so no body rank splits while a tail rank
-    still can -- one row a
+    while the count wants more, so the body splits only once no tail rank
+    sharing a day can split directly, which is not the most the tails
+    could hold (a chain moving another tail rank first could free one
+    more, `tails_kept`) -- one row a
     business day over four and a half years draws about 830 of its 1,180
     days and comes back holding every one. Until lane D4s it split
     nearest first alone, and the low tail, first at each distance, ended

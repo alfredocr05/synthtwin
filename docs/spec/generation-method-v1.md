@@ -5957,7 +5957,11 @@ that way.
   and midnight standing, earlier first -- **THE TWO TAILS' RANKS
   FIRST**, then the body's, each nearest first, ties to the lower rank
   (lane D4s, plan P4-D369 part one). A tail's ranks are the first and
-  the last as many ranks as its published rows. Split nearest first
+  the last as many ranks as its published rows. So the body splits only
+  once no tail rank sharing a day can split directly onto a free unit of
+  its own span, which is not the most the tails could hold: moving
+  another tail rank onto a free unit first could free one for a rank
+  that has none, a chain no step makes (the Codex review of lane D4s: `_every_open_day(1.1, 26, 900, Monday to Friday)` at the floor of 36, seed 3, keeps its high tail on 35 days of the 36 its strata hold, the body taking the day, and its twin the column's 130 under either order). Split nearest first
   alone, a body rank a day from a free day split ahead of a high tail
   rank whose free day stood further, so the body passed what a weekday
   census lets it reach while the high tail kept fewer days than its
