@@ -24,6 +24,16 @@ byte-identical descriptions, questions and twins; the reference
 generator mirrors the rule and the document vectors gain four files
 and a mutant.
 
+One kind of file goes from described to refused. Where the rows end in
+the delimiter except some row that does not, or that holds a value after
+it (row 501, past the sample, too), or where the header and some row
+alone end in it, the table was described as one column at exit 0 before;
+it is now refused at exit 1, measured on four such made-up tables. The
+refusal names the row and the trailing delimiter it lacks or carries
+(`errors.trailing_delimiter_uneven`) and asks that every row end the same
+way, where the ragged-rows sentence had said "names 4 columns, but row 51
+has 4" and blamed quotation marks.
+
 ### Numbers that are dates are read as dates and written back as the same numbers (2026-10-07)
 
 **Landing R4** (plan P4-D384), with its review's nine items, its

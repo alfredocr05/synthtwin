@@ -252,7 +252,9 @@ def _uneven(header_ends: bool, row_end: "dict[int, str]", default: "str | None",
             f"P{index + 1:04d}",
             f"{18 + (index * 13) % 70}",
             ("F", "M")[index % 2],
-            f"{50 + (index * 7) % 40},{index % 10}",
+            # Decimal POINTS, as in skeptic 1's probes: with decimal
+            # commas the baseline refused these files anyway.
+            f"{50 + (index * 7) % 40}.{index % 10}",
         ]
         ending = row_end[index] if index in row_end else default
         lines += [";".join(cells) + ("" if ending is None else ";" + ending)]
@@ -292,7 +294,7 @@ def test_a_row_that_does_not_close_like_the_others_is_refused_for_that_reason(
     """THE REFUSAL STATES ITS TRUE REASON (lane R5's repair, skeptic item 1).
 
     These semicolon tables were described as ONE column before the
-    lining-up rule (exit 0, measured by skeptic 1's probes); read now
+    lining-up rule (exit 0 on 0ecc82d, measured); read now
     under the semicolon, a row that does not close the way the others
     do cannot be read, and the file is refused. The ragged-rows sentence
     said "The first row names 4 columns, but row 51 has 4" and blamed a

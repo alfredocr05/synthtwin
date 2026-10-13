@@ -3999,6 +3999,14 @@ def opening_lines_up(sample: "list[Record]", opening: int, width: int) -> bool:
 
     A one-field first record never lines up this way, so a one-column
     table whose cells end in a delimiter stays one column as before.
+
+    ONE KIND OF FILE GOES FROM DESCRIBED TO REFUSED, and says why (lane
+    R5's repair). Where the rows mostly end in the delimiter and some
+    row does not, or holds a value after it (past the sample too), the
+    lined-up reading cannot read that row; the baseline described such
+    a file as ONE column. `survey` refuses it with
+    `errors.trailing_delimiter_uneven`, which names the row and the
+    trailing delimiter it lacks or carries.
     """
     if opening >= len(sample):
         return False
