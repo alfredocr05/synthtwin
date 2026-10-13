@@ -475,10 +475,6 @@ INPUT_SIDE_ENTRIES = (
     # out, below its own line.
     # -- 3b.T2 (P4-D371)
     # -- 3b.T3 (P4-D372)
-    ("datetime", "minute_census"),
-    ("datetime", "second_census"),
-    ("datetime", "minute_heaps"),
-    ("datetime", "second_heaps"),
     # -- 3b.D3 (P4-D368)
     # -- 3b.D4 (P4-D369)
     ("datetime", "heavy_dates"),
@@ -16029,8 +16025,16 @@ def _tail_construction(
     widened: bool = False,
     half_day: "tuple[int, int, bool] | None" = None,
     islands: "tuple[tuple[int, int], ...]" = (),
+    end_room: "tuple[list[int], int] | None" = None,
 ) -> "tuple[list[int], list[int]]":
     """Every rank's nearest and furthest distance, outermost first (G7.3b).
+
+    `end_room` is, where the END is held off a midnight the count at
+    midnight leaves it none of, (how many cells at midnight are left, as the
+    one-place list `generation._date_tail_plan` spends, the seconds of one
+    tail unit): an END written at midnight takes one where one is left and
+    otherwise steps inward off it (`calendar_clock.end_stepped_off`; the
+    Codex review of landing 3b.4, item 4).
 
     `end_step` is the set of tail units the column's own absent spellings
     name, off which the outermost rank and the group step inward.
@@ -16131,6 +16135,15 @@ def _tail_construction(
                 least = least + 1
         end_whole = max(end_whole, min(max(least, 0), edge))
     end_whole = _stepped_off(end_whole, boundary, low_side, end_step)
+    if end_room is not None and calendar_clock.tail_end_at_midnight(
+        end_whole, boundary, low_side, end_room[1]
+    ):
+        if end_room[0][0] <= 0:
+            end_whole = calendar_clock.end_stepped_off(
+                end_whole, boundary, low_side, end_step, end_room[1], True
+            )
+        else:
+            end_room[0][0] = end_room[0][0] - 1
     end_whole = date_counts.off_the_islands(end_whole, islands, edge)
     if grouped < rows:
         if group_midnight is not None:
@@ -16453,6 +16466,10 @@ def _date_tail_windows(
             if key != contract.WITHHELD
         ]
     seconds_per_unit = 60 if facts.tail_unit == parsing.TAIL_UNIT_MINUTE else 1
+    # THE ENDS HELD OFF A MIDNIGHT THE COUNT LEAVES THEM NONE OF, as the
+    # construction holds them (`generation._tail_ends_room`; the Codex review
+    # of landing 3b.4, item 4), low tail first.
+    room = _tail_ends_room(column, facts)
     for key, tail, low_side in (
         ("low", facts.low_tail, True),
         ("high", facts.high_tail, False),
@@ -16518,8 +16535,44 @@ def _date_tail_windows(
             where, summed and contract.datetime_counts_reachable(column),
             half_day,
             islands,
+            None if room is None or facts.tail_unit == parsing.TAIL_UNIT_DAY else (room, seconds_per_unit),
         )
     return found
+
+
+def _tail_ends_room(
+    column: contract.ColumnBlock, facts: contract.DatetimeFacts
+) -> "list[int] | None":
+    """How many cells at midnight the published count leaves the tails' ENDS, read as
+    the construction reads it (`generation._tail_ends_room`, the same
+    `calendar_clock` rules); None where no END is held off one."""
+    if (
+        facts.resolution != taxonomy.RESOLUTION_DATETIME
+        or facts.all_at_midnight
+        or facts.n_at_midnight is None
+        or facts.datetimes_read_at == "utc"
+        or facts.low_tail is None
+        or facts.high_tail is None
+    ):
+        return None
+    body = column.n_present - facts.n_unparsed - facts.low_tail.rows - facts.high_tail.rows
+    forced = calendar_clock.body_sure_at_midnight(
+        facts.hour_census,
+        (facts.minute_census, facts.minute_heaps),
+        (facts.second_census, facts.second_heaps),
+        facts.time_precision,
+        body,
+    )
+    return [
+        calendar_clock.tail_ends_midnight_room(
+            facts.n_at_midnight,
+            forced,
+            [
+                (facts.low_tail.rows, facts.low_tail.values),
+                (facts.high_tail.rows, facts.high_tail.values),
+            ],
+        )
+    ]
 
 
 def _clock_tail_windows(
@@ -18481,15 +18534,119 @@ def _clock_field_checks(
     cells: "list[str]",
     declared_days: "tuple[str, ...]" = (),
 ) -> "list[Check]":
-    """The minute and second censuses and heaps, held exactly.
+    """The minute and second censuses and heaps, held exactly (landing 3b.4,
+    validation V5-M1 and V5-S1).
 
-    THE STUB OF LANDING 3b.4 (lane T3, plan P4-D372), which fills this
-    check and nothing beside it (plan P4-D364); nothing to check until
-    then.
+    The file's own BODY, as V5-H1 reads it (`_hour_checks`): its moments
+    between the two PUBLISHED tail boundaries, both included, less the
+    days its own description reads as holes, each read under the member
+    that read the real column and on its published face, placed by its
+    instant and counted at the minute and second it is WRITTEN at
+    (`calendar_clock.written_minute`, `calendar_clock.written_second`: a
+    sixtieth second in its own minute, at second 59). Per field up to two
+    checks, the heaps' (`minute_heaps.counts`) and the census's
+    (`minute_census.groups`): each heap's value, and each census group's
+    values off the heaps, HELD where every one holds its count, MISSED
+    otherwise; printed
+    through `_census_lines` (plan P4-D347), so no count below the line is
+    printed beside the others. The file's censuses are counted here and
+    never produced (`profile.build_document`'s `calendar_censuses`).
 
-    Guarantees: as `_hour_checks`. No I/O of any kind.
+    Guarantees: accepts what `_weekday_checks` accepts; returns one check
+    per published census and one per field's published heaps, none
+    otherwise. Determinism:
+    a function of the arguments. Raises nothing. No I/O of any kind.
     """
-    return []
+    published = [
+        (calendar_clock.MINUTE, facts.minute_census, facts.minute_heaps),
+        (calendar_clock.SECOND, facts.second_census, facts.second_heaps),
+    ]
+    if facts.low_tail is None or facts.high_tail is None:
+        return []
+    if not any(census or heaps for _field, census, heaps in published):
+        return []
+    low = calendar_clock.seconds_of(facts.low_tail.boundary)
+    high = calendar_clock.seconds_of(facts.high_tail.boundary)
+    body = [
+        texts
+        for instant, texts in _clock_field_instants_of(
+            facts, _dates_the_file_reads(block, facts, cells)
+        )
+        if low <= instant <= high
+    ]
+    line = parsing.census_floor(floor)
+    checks: "list[Check]" = []
+    for field, census, heaps in published:
+        if not census and not heaps:
+            continue
+        place = 0 if field == calendar_clock.MINUTE else 1
+        bins = calendar_clock.field_bins([fields[place] for fields in body])
+        heap_values = {value for value, _count in heaps}
+        census_key, heaps_key = calendar_clock.FIELD_KEYS[field]
+        for key, subcheck, groups in (
+            (heaps_key, "counts", tuple((value, value, count) for value, count in heaps)),
+            (census_key, "groups", census),
+        ):
+            if not groups:
+                continue
+            named: "list[tuple[str, int]]" = []
+            found: "list[int]" = []
+            for first, last, count in groups:
+                named += [(_clock_field_value_named(field, first, last), count)]
+                found += [
+                    sum(
+                        bins[value]
+                        for value in range(first, last + 1)
+                        if key == heaps_key or value not in heap_values
+                    )
+                ]
+            asked, shown, lines = _census_lines(named, found, line)
+            wanted = [count for _named, count in named]
+            checks += [
+                Check(
+                    column.name,
+                    f"datetime.{key}",
+                    f"{key}.{subcheck}",
+                    HELD if found == wanted else MISSED,
+                    asked,
+                    shown,
+                    "",
+                    tuple(lines),
+                )
+            ]
+    return checks
+
+
+def _clock_field_value_named(field: str, first: int, last: int) -> str:
+    """A heap or group of a field as the report names it: `minute :00`,
+    `minutes :01-:27`, `second :00`, `seconds :31-:59`."""
+    if first == last:
+        return f"{field} :{first:02d}"
+    return f"{field}s :{first:02d}-:{last:02d}"
+
+
+def _clock_field_instants_of(
+    facts: contract.DatetimeFacts, cells: "list[str]"
+) -> "list[tuple[int, tuple[int, int]]]":
+    """The instant of every cell that reads as a moment, with the minute and
+    second it is WRITTEN at, read as `_hour_instants_of` reads it."""
+    style = _stamp_style_of(facts)
+    faced = facts.parser_family in contract.CLOCK_FORM_MEMBERS
+    face = parsing.clock_face(style) if faced else ""
+    found: "list[tuple[int, tuple[int, int]]]" = []
+    for cell in cells:
+        read = parsing.parse_datetime(cell, facts.parser_family)
+        if read is None or (faced and _stamp_off_its_face(cell, face)):
+            continue
+        written = parsing.stamp_canonical(read[0], style)
+        if len(written) >= 19:
+            found += [
+                (
+                    calendar_clock.seconds_of(written),
+                    (calendar_clock.written_minute(written), calendar_clock.written_second(written)),
+                )
+            ]
+    return found
 
 
 def _day_of_month_checks(

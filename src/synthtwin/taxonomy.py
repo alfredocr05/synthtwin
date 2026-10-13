@@ -1030,6 +1030,34 @@ NOTE_HOUR_WITHHELD_UNPUBLISHED_SPAN = "hour_census_withheld_unpublished_span"
 NOTE_HOUR_WITHHELD_TWO_STORAGES = "hour_census_withheld_two_storages"
 NOTE_HOUR_WITHHELD_NO_GROUPING = "hour_census_withheld_no_grouping"
 # anchor 3b-T3 (P4-D372)
+# THE MINUTE AND SECOND CENSUSES' SENTENCES (landing 3b.4, plan P4-D372,
+# contract NF93 to NF100): a field PUBLISHING its heaps or its census says
+# what they are in one remark; a field WITHHELD for a reason of its own says
+# why in one publication note -- a middle half too short (MC4, SE4), no
+# heap and no grouping the merge rule publishes (MC5, SE5), and how the
+# values fall on the field changing with the hour (the design skeptic's
+# M3), for the minute, a census of the rest standing on a few different
+# values beside no heap, and counts away from value 0 that a body could be
+# left too few cells off a midnight to hold. The reasons every census of the clock
+# shares -- no tails, an unpublished span, two storages -- are said once,
+# in the hour census's own sentence; a field whose counts do not depart
+# from flat says nothing, nor a second census left out for a few values.
+REMARK_MINUTE_CENSUS = "minute_census_counts_minutes"
+REMARK_SECOND_CENSUS = "second_census_counts_seconds"
+NOTE_MINUTE_WITHHELD_SHORT_SPAN = "minute_census_withheld_short_span"
+NOTE_SECOND_WITHHELD_SHORT_SPAN = "second_census_withheld_short_span"
+NOTE_MINUTE_WITHHELD_NO_GROUPING = "minute_census_withheld_no_grouping"
+NOTE_SECOND_WITHHELD_NO_GROUPING = "second_census_withheld_no_grouping"
+NOTE_MINUTE_WITHHELD_WITH_THE_HOUR = "minute_census_withheld_with_the_hour"
+NOTE_SECOND_WITHHELD_WITH_THE_HOUR = "second_census_withheld_with_the_hour"
+NOTE_MINUTE_WITHHELD_FEW_VALUES = "minute_census_withheld_few_values"
+# NF120: the second's own (the lane's skeptic, item 6: a second census of
+# the rest withheld for its few values beside no heap had said nothing).
+NOTE_SECOND_WITHHELD_FEW_VALUES = "second_census_withheld_few_values"
+# NF118 and NF119: counts away from value 0 a body could be left too few
+# cells off a midnight to hold (`calendar_clock.off_midnight_short`).
+NOTE_MINUTE_WITHHELD_OFF_MIDNIGHT = "minute_census_withheld_off_midnight"
+NOTE_SECOND_WITHHELD_OFF_MIDNIGHT = "second_census_withheld_off_midnight"
 # anchor 3b-C1 (P4-D373)
 # THE CLOCK CENSUS'S TWO SENTENCES (landing 3b.5, plan P4-D373; contract
 # NF106 and NF107), each naming the census line and no count of rows.
@@ -1234,6 +1262,18 @@ NOTE_ARITY: "dict[str, int]" = {
     NOTE_HOUR_WITHHELD_TWO_STORAGES: 0,
     NOTE_HOUR_WITHHELD_NO_GROUPING: 1,
     # anchor 3b-T3 (P4-D372)
+    REMARK_MINUTE_CENSUS: 1,
+    REMARK_SECOND_CENSUS: 1,
+    NOTE_MINUTE_WITHHELD_SHORT_SPAN: 0,
+    NOTE_SECOND_WITHHELD_SHORT_SPAN: 0,
+    NOTE_MINUTE_WITHHELD_NO_GROUPING: 1,
+    NOTE_SECOND_WITHHELD_NO_GROUPING: 1,
+    NOTE_MINUTE_WITHHELD_WITH_THE_HOUR: 0,
+    NOTE_SECOND_WITHHELD_WITH_THE_HOUR: 0,
+    NOTE_MINUTE_WITHHELD_FEW_VALUES: 0,
+    NOTE_SECOND_WITHHELD_FEW_VALUES: 0,
+    NOTE_MINUTE_WITHHELD_OFF_MIDNIGHT: 0,
+    NOTE_SECOND_WITHHELD_OFF_MIDNIGHT: 0,
     # anchor 3b-C1 (P4-D373)
     NOTE_CLOCK_CENSUS_LEFT_OUT: 1,
     REMARK_CLOCK_CODES_WRITTEN: 1,
@@ -1473,6 +1513,10 @@ ARGUMENT_BINDINGS: "dict[tuple[str, int], tuple[object, ...]]" = {
     (REMARK_HOUR_CENSUS, 0): (BIND_SETTING, "census line"),
     (NOTE_HOUR_WITHHELD_NO_GROUPING, 0): (BIND_SETTING, "census line"),
     # anchor 3b-T3 (P4-D372)
+    (REMARK_MINUTE_CENSUS, 0): (BIND_SETTING, "census line"),
+    (REMARK_SECOND_CENSUS, 0): (BIND_SETTING, "census line"),
+    (NOTE_MINUTE_WITHHELD_NO_GROUPING, 0): (BIND_SETTING, "census line"),
+    (NOTE_SECOND_WITHHELD_NO_GROUPING, 0): (BIND_SETTING, "census line"),
     # anchor 3b-C1 (P4-D373)
     (NOTE_CLOCK_CENSUS_LEFT_OUT, 0): (BIND_SETTING, "census line"),
     (REMARK_CLOCK_CODES_WRITTEN, 0): (BIND_SETTING, "census line"),
@@ -2260,6 +2304,84 @@ def rendered(form: str, arguments: "tuple[object, ...]") -> str:
             f"leaves one group over the whole day"
         )
     # anchor 3b-T3 (P4-D372)
+    if form in (REMARK_MINUTE_CENSUS, REMARK_SECOND_CENSUS):
+        # The heaps and the census of the rest, in one remark: the stand-out
+        # rule with its sure-cell remainder (MH1, SH1; the Codex review of
+        # landing 3b.4, item 7: a minute standing out whose count less its
+        # sure cells is one to the line less one is not counted alone), and
+        # the one merge rule in the words NF88 states it in.
+        values, one, whole = _clock_field_words(form)
+        line = _whole(arguments, 0)
+        return (
+            f"which {values} this column's values fall on is counted over the "
+            f"values between its two tail boundaries: each {one} holding at "
+            f"least {line} rows, written at {line} different values or more, "
+            f"at least three times the median of the five on either side of "
+            f"it and, besides the rows the rest of this description places "
+            f"there for certain, nought or at least {line} rows is counted "
+            f"alone, and the rest "
+            f"together, each {one} alone or, where that would name fewer than "
+            f"{line} rows in all or besides the rows the rest of this "
+            f"description places in it for certain -- at the values it "
+            f"publishes between the two tail boundaries, and at midnight where "
+            f"it counts rows there -- or fewer rows than those, together with "
+            f"its neighbours, never past the {whole}'s last; every count is "
+            f"nought or at least {line} rows, a count of several does not say "
+            f"how its rows fall among them, and where the rest have no count, "
+            f"how they fall is not said"
+        )
+    if form in (NOTE_MINUTE_WITHHELD_SHORT_SPAN, NOTE_SECOND_WITHHELD_SHORT_SPAN):
+        values, _one, whole = _clock_field_words(form)
+        return (
+            f"the {values} this column's values fall on are not counted: the "
+            f"middle half of its values spans fewer than four {whole}s, so the "
+            f"counts would be those of a few {whole}s"
+        )
+    if form in (NOTE_MINUTE_WITHHELD_NO_GROUPING, NOTE_SECOND_WITHHELD_NO_GROUPING):
+        values, one, whole = _clock_field_words(form)
+        line = _whole(arguments, 0)
+        return (
+            f"the {values} this column's values fall on are not counted: no "
+            f"{one} is counted alone -- one holding at least {line} rows, at "
+            f"least three times the median of the five on either side of it "
+            f"and, besides the rows the rest of this description places there "
+            f"for certain, nought or at least {line} rows -- and joining each "
+            f"{one} or group that would name fewer than {line} rows in all or "
+            f"besides the rows the rest of this description places in it for "
+            f"certain -- at the values it publishes between the two tail "
+            f"boundaries, and at midnight where it counts rows there -- or "
+            f"fewer rows than those, to its smaller neighbour, leaves one group "
+            f"over the whole {whole}"
+        )
+    if form in (NOTE_MINUTE_WITHHELD_FEW_VALUES, NOTE_SECOND_WITHHELD_FEW_VALUES):
+        # NF101, NF120.
+        values, one, _whole_word = _clock_field_words(form)
+        return (
+            f"the {values} this column's values fall on are not "
+            f"counted: no {one} stands out on its own, and its values "
+            f"between the two tail boundaries are written at too few "
+            f"different values -- fewer than {calendar_clock.FEW_VALUES_LEAST} "
+            f"in a group, or fewer than {calendar_clock.FEW_VALUES_MEAN} a "
+            f"group on average -- for counts of them to say more than where "
+            f"a few events fell"
+        )
+    if form in (NOTE_MINUTE_WITHHELD_OFF_MIDNIGHT, NOTE_SECOND_WITHHELD_OFF_MIDNIGHT):
+        # NF118, NF119.
+        values, one, _whole_word = _clock_field_words(form)
+        return (
+            f"the {values} this column's values fall on are not counted: so "
+            f"many of its values are at midnight that, were every one of them "
+            f"between the two tail boundaries, fewer values off a midnight "
+            f"would be left there than its counts at each {one} other than 0 "
+            f"name"
+        )
+    if form in (NOTE_MINUTE_WITHHELD_WITH_THE_HOUR, NOTE_SECOND_WITHHELD_WITH_THE_HOUR):
+        values, _one, _whole_word = _clock_field_words(form)
+        return (
+            f"the {values} this column's values fall on are not counted: how "
+            f"they fall changes with the hour of the day, which one count over "
+            f"every hour would not say"
+        )
     # anchor 3b-C1 (P4-D373)
     if form == NOTE_CLOCK_CENSUS_LEFT_OUT:
         return (
@@ -18162,6 +18284,304 @@ def hour_decision(
     return HourDecision(groups, "")
 
 
+def _census_clock_fields(
+    details: "dict[str, object]",
+    pairs: "list[tuple[str, str]]",
+    sources: "list[str] | tuple[str, ...]" = (),
+) -> "tuple[tuple[int, ...], tuple[int, ...], tuple[bool, ...], tuple[bool, ...]]":
+    """The WRITTEN minute and second of every parsed cell, ranked as
+    `_census_hours` ranks them, where the hour census may stand (landing
+    3b.4, plan P4-D372); the seconds only on a column written to the
+    second or finer, and whether each is written differently from the one
+    before it; and, on a column written finer than the second only, whether
+    each one's TEXT differs from the one before it -- the canonical text
+    stops at the second, its fraction left in the text
+    (`clock_field_decision`'s minute finer than the second). Each is read
+    off the canonical text
+    (`calendar_clock.written_minute`, `calendar_clock.written_second`), so
+    a sixtieth second stays in the minute it is written in. Empty where
+    no census of the clock stands.
+
+    Guarantees: accepts the published details and the parsed pairs;
+    returns the minutes, the seconds and the flags. Determinism: a
+    function of the two. Raises nothing. No I/O of any kind.
+    """
+    if (
+        details["resolution"] != RESOLUTION_DATETIME
+        or details["datetimes_read_at"] != READ_AT_LOCAL
+        or details["format"] == FORMAT_ISO_MIXED
+        or details["all_at_midnight"] is True
+    ):
+        return (), (), (), ()
+    ordered = sorted(canonical for canonical, _offset in pairs)
+    minutes = tuple(calendar_clock.written_minute(canonical) for canonical in ordered)
+    fresh = tuple(
+        place == 0 or ordered[place] != ordered[place - 1]
+        for place in range(len(ordered))
+    )
+    if details["time_precision"] not in ("second", "subsecond"):
+        return minutes, (), fresh, ()
+    seconds = tuple(calendar_clock.written_second(canonical) for canonical in ordered)
+    if details["time_precision"] != "subsecond" or len(sources) != len(pairs):
+        return minutes, seconds, fresh, ()
+    # Ranked as above -- the canonical text first, its ties by their own
+    # text, which leaves every field and flag above as it is.
+    texts = sorted(
+        (pairs[place][0], sources[place]) for place in range(len(pairs))
+    )
+    written = tuple(
+        place == 0 or texts[place] != texts[place - 1] for place in range(len(texts))
+    )
+    return minutes, seconds, fresh, written
+
+
+def _cut_to_the_second_merges(
+    fresh: "tuple[bool, ...]", fresh_written: "tuple[bool, ...]", first: int, end: int
+) -> bool:
+    """Whether the ranks `first` to `end` (not counted) hold fewer different
+    values once cut to the second than as written: some rank after the first
+    differs from the one before it in its text but not in its canonical
+    text, which stops at the second (landing 3b.4, the lane's second
+    skeptic, item 2). Raises nothing. No I/O."""
+    for rank in range(first + 1, end):
+        if fresh_written[rank] and not fresh[rank]:
+            return True
+    return False
+
+
+@dataclasses.dataclass(frozen=True)
+class ClockFieldDecision:
+    """What the producer decided for one field of the clock (landing 3b.4).
+
+    `groups` is the published census of the cells on no heap and `heaps`
+    each heap's value and count, both empty where nothing is published;
+    `reason` the `calendar_clock` word of the rule that withheld them, and
+    empty where no census of the clock stands on the column at all.
+    """
+
+    groups: "tuple[tuple[int, int, int], ...]"
+    heaps: "tuple[tuple[int, int], ...]"
+    reason: str
+
+
+def clock_field_decision(
+    details: "dict[str, object]",
+    hours: "tuple[int, ...]",
+    minutes: "tuple[int, ...]",
+    seconds: "tuple[int, ...]",
+    field: str,
+    settings: Settings,
+    stored_one_way: bool = True,
+    fresh: "tuple[bool, ...]" = (),
+    fresh_written: "tuple[bool, ...]" = (),
+) -> ClockFieldDecision:
+    """Whether a column of moments publishes a field's census and heaps.
+
+    Landing 3b.4 (plan P4-D372). `field` is `calendar_clock.MINUTE` or
+    `calendar_clock.SECOND`, and `hours`, `minutes` and `seconds` the
+    written fields of every parsed cell in rank order (`_census_hours`,
+    `_census_clock_fields`), and `fresh` whether each is written
+    differently from the one before it, so the flatness test counts each
+    different value once and the hour test weighs its cells by their ties;
+    no seconds, no second census, and on a column written finer than the
+    second no second census, nor a minute fact where the body cut to the
+    second holds fewer different values than its texts (`fresh_written`), each withheld
+    with nothing said. In order, as
+    the hour census asks them: two tails (MC3), a published middle half
+    -- p75 less p25 -- of four hours for minutes, four minutes for seconds
+    (MC4), and one storage (MC6), each reason the hour census shares said
+    in its sentence alone; then the body's sixty counts departing from
+    flat (`calendar_clock.departs_from_flat`), else nothing is published
+    and nothing said; then M3, how the body falls on the field not
+    depending on the hour (`calendar_clock.depends_on_the_hour`, the cells
+    at a published midnight left out) or, where it does, one count over
+    every hour misleading no hour group more than a flat field would
+    (`calendar_clock.misled_by_the_count`); then the HEAPS
+    (`calendar_clock.field_heaps`) and the CENSUS of the rest
+    (`calendar_clock.field_groups`), each held to its sure cells
+    (`calendar_clock.field_sure`, rule 4's cells at midnight in value 0);
+    none of either is a reason of its own; then the counts away from value
+    0 a body could be left too few cells off a midnight to hold
+    (`calendar_clock.off_midnight_short`). Last, the loader's own checks
+    (`calendar_clock.field_breach`, `calendar_clock.heaps_breach`). No
+    rule asks what a reader could work out from the census (the owner's
+    principle of 2026-10-01).
+
+    Guarantees: accepts the published block, the written fields, the
+    field, the settings and the storage flag; returns the decision.
+    Determinism: a function of the arguments. Raises nothing. No I/O.
+    """
+    groups: "tuple[tuple[int, int, int], ...]" = ()
+    heaps: "tuple[tuple[int, int], ...]" = ()
+    values = seconds if field == calendar_clock.SECOND else minutes
+    if not values or len(hours) != len(values):
+        return ClockFieldDecision(groups, heaps, "")
+    if field == calendar_clock.SECOND and details["time_precision"] != "second":
+        # NO SECOND CENSUS FINER THAN THE SECOND (SE3; the lane's skeptic,
+        # item 3): the twin writes no figure below the second, so cells the
+        # real column tells apart by the millisecond, moved onto one second
+        # of one minute to meet a census, are written alike -- 300 of them,
+        # every one different, came back as 249 values. Nothing is said:
+        # the column is not one the census describes.
+        return ClockFieldDecision(groups, heaps, "")
+    low_tail = details["low_tail"]
+    high_tail = details["high_tail"]
+    if not isinstance(low_tail, dict) or not isinstance(high_tail, dict):
+        return ClockFieldDecision(groups, heaps, calendar_clock.HOUR_REASON_NO_TAILS)
+    rows_low = low_tail["rows"]
+    rows_high = high_tail["rows"]
+    if not isinstance(rows_low, int) or not isinstance(rows_high, int):
+        return ClockFieldDecision(groups, heaps, calendar_clock.HOUR_REASON_NO_TAILS)
+    parsed = len(values)
+    body = values[rows_low : parsed - rows_high]
+    if not body:
+        return ClockFieldDecision(groups, heaps, calendar_clock.HOUR_REASON_NO_TAILS)
+    if (
+        field == calendar_clock.MINUTE
+        and details["time_precision"] == "subsecond"
+        and len(fresh_written) == parsed
+        and len(fresh) == parsed
+        and _cut_to_the_second_merges(fresh, fresh_written, rows_low, parsed - rows_high)
+    ):
+        # NO MINUTE FACT FINER THAN THE SECOND WHERE THE SECOND MERGES
+        # VALUES (the lane's second skeptic, item 2): the twin writes no
+        # figure below the second, so cells of one minute that the real
+        # column tells apart only by the fraction come back alike -- 2,126
+        # cells on a heap at minute 21 of one day had 1,440 seconds to stand
+        # on, and the count of different values fell from 2,960 to 2,315.
+        # Where the body cut to the second keeps its count, the real column
+        # so cut is itself a twin meeting both, and the facts stand. Nothing
+        # is said, as SE3 says nothing.
+        return ClockFieldDecision(groups, heaps, "")
+    quarter = _ladder_seconds(details, "p25")
+    third = _ladder_seconds(details, "p75")
+    if quarter is None or third is None:
+        return ClockFieldDecision(
+            groups, heaps, calendar_clock.HOUR_REASON_SPAN_UNPUBLISHED
+        )
+    if not calendar_clock.span_long_enough_for(quarter, third, field):
+        return ClockFieldDecision(groups, heaps, calendar_clock.HOUR_REASON_SPAN)
+    if not stored_one_way:
+        return ClockFieldDecision(groups, heaps, calendar_clock.HOUR_REASON_WORKBOOK)
+    bins = calendar_clock.field_bins(body)
+    # FLAT IS ASKED OF THE DIFFERENT VALUES, NOT THE CELLS (the builder's
+    # measurement of 2026-10-12): a value written on several rows -- a
+    # burst of check-ins, a panel of results -- is one event, and counted
+    # row by row a column at any minute written in panels looks heaped. The
+    # hour's test counts events too, in the table the cells draw
+    # (`calendar_clock.depends_on_the_hour`).
+    units = [0 for _value in range(calendar_clock.FIELD_VALUES)]
+    for place in range(len(body)):
+        rank = rows_low + place
+        if place == 0 or rank >= len(fresh) or fresh[rank]:
+            units[body[place]] = units[body[place]] + 1
+    if not calendar_clock.departs_from_flat(units):
+        return ClockFieldDecision(groups, heaps, calendar_clock.FIELD_REASON_FLAT)
+    line = parsing.census_floor(settings.small_cell_floor)
+    counted = details["n_at_midnight"] if "n_at_midnight" in details else None
+    body_hours = hours[rows_low : parsed - rows_high]
+    body_minutes = minutes[rows_low : parsed - rows_high]
+    body_seconds = seconds[rows_low : parsed - rows_high]
+    kept_hours: "list[int]" = []
+    kept_values: "list[int]" = []
+    # Each kept cell's mark as the first of its different written value:
+    # M3 counts events, each value once (`calendar_clock.depends_on_the_hour`).
+    starts: "list[bool]" = []
+    for place in range(len(body)):
+        rank = rows_low + place
+        first = not (place > 0 and rank < len(fresh) and not fresh[rank])
+        if (
+            isinstance(counted, int)
+            and body_hours[place] == 0
+            and body_minutes[place] == 0
+            and (not body_seconds or body_seconds[place] == 0)
+        ):
+            # A CELL AT A PUBLISHED MIDNIGHT is placed by that count, not by
+            # the field: left out of M3's table (the skeptic measured
+            # admissions at 17.2 with them and below the bar without).
+            continue
+        kept_hours += [body_hours[place]]
+        kept_values += [body[place]]
+        starts += [first]
+    # M3 over both tables, coarse and fine (`calendar_clock._hour_table`; the
+    # Codex review of landing 3b.4, item 2): each asks both questions.
+    for fine in (False, True):
+        if calendar_clock.depends_on_the_hour(
+            kept_hours, kept_values, line, 0, fine, starts
+        ) and calendar_clock.misled_by_the_count(kept_hours, kept_values, line, fine):
+            return ClockFieldDecision(groups, heaps, calendar_clock.FIELD_REASON_HOUR)
+    at_midnight = calendar_clock.midnight_sure(
+        counted if isinstance(counted, int) else None,
+        hour_tails_listed(details),
+    )
+    sure = calendar_clock.field_sure(
+        hour_published_values(details, parsed), at_midnight, field
+    )
+    heaps = calendar_clock.field_heaps(bins, sure, line, units)
+    rest_sure = calendar_clock.field_off_the_heaps(sure, heaps)
+    groups = calendar_clock.field_groups(
+        calendar_clock.field_off_the_heaps(bins, heaps), rest_sure, line
+    )
+    if groups and calendar_clock.few_values(groups, units, heaps):
+        # THE CENSUS OF THE REST OF A FEW EVENTS IS LEFT OUT, its heaps kept
+        # (`calendar_clock.few_values`).
+        groups = ()
+        if not heaps:
+            return ClockFieldDecision((), (), calendar_clock.FIELD_REASON_FEW_VALUES)
+    if not heaps and not groups:
+        return ClockFieldDecision((), (), calendar_clock.HOUR_REASON_GROUPING)
+    if calendar_clock.off_midnight_short(groups, heaps, len(body), at_midnight):
+        # COUNTS AWAY FROM VALUE 0 THE BODY MAY BE LEFT TOO FEW CELLS OFF A
+        # MIDNIGHT TO HOLD (`calendar_clock.off_midnight_short`).
+        return ClockFieldDecision((), (), calendar_clock.FIELD_REASON_OFF_MIDNIGHT)
+    held = sum(count for _value, count in heaps)
+    if (
+        groups
+        and calendar_clock.field_breach(groups, len(body) - held, line, rest_sure, field)
+        is not None
+    ) or calendar_clock.heaps_breach(
+        heaps, len(body), line, sure, field, bool(groups)
+    ) is not None:
+        return ClockFieldDecision((), (), calendar_clock.HOUR_REASON_GROUPING)
+    return ClockFieldDecision(groups, heaps, "")
+
+
+def _clock_field_words(form: str) -> "tuple[str, str, str]":
+    """What a sentence of the minute or second census calls its values, one
+    of them, and the turn they make: `minutes of the hour`, `minute`,
+    `hour`; or `seconds of the minute`, `second`, `minute`."""
+    if form in (
+        REMARK_SECOND_CENSUS,
+        NOTE_SECOND_WITHHELD_SHORT_SPAN,
+        NOTE_SECOND_WITHHELD_NO_GROUPING,
+        NOTE_SECOND_WITHHELD_WITH_THE_HOUR,
+        NOTE_SECOND_WITHHELD_OFF_MIDNIGHT,
+        NOTE_SECOND_WITHHELD_FEW_VALUES,
+    ):
+        return "seconds of the minute", "second", "minute"
+    return "minutes of the hour", "minute", "hour"
+
+
+# THE SENTENCES OF EACH FIELD (landing 3b.4, contract NF93 to NF101, NF118 to NF120): its
+# remark where it publishes, and the note of each reason of its own.
+_FIELD_REMARKS = {
+    calendar_clock.MINUTE: REMARK_MINUTE_CENSUS,
+    calendar_clock.SECOND: REMARK_SECOND_CENSUS,
+}
+_FIELD_WITHHELD_NOTES = {
+    (calendar_clock.MINUTE, calendar_clock.HOUR_REASON_SPAN): NOTE_MINUTE_WITHHELD_SHORT_SPAN,
+    (calendar_clock.SECOND, calendar_clock.HOUR_REASON_SPAN): NOTE_SECOND_WITHHELD_SHORT_SPAN,
+    (calendar_clock.MINUTE, calendar_clock.HOUR_REASON_GROUPING): NOTE_MINUTE_WITHHELD_NO_GROUPING,
+    (calendar_clock.SECOND, calendar_clock.HOUR_REASON_GROUPING): NOTE_SECOND_WITHHELD_NO_GROUPING,
+    (calendar_clock.MINUTE, calendar_clock.FIELD_REASON_HOUR): NOTE_MINUTE_WITHHELD_WITH_THE_HOUR,
+    (calendar_clock.SECOND, calendar_clock.FIELD_REASON_HOUR): NOTE_SECOND_WITHHELD_WITH_THE_HOUR,
+    (calendar_clock.MINUTE, calendar_clock.FIELD_REASON_FEW_VALUES): NOTE_MINUTE_WITHHELD_FEW_VALUES,
+    (calendar_clock.SECOND, calendar_clock.FIELD_REASON_FEW_VALUES): NOTE_SECOND_WITHHELD_FEW_VALUES,
+    (calendar_clock.MINUTE, calendar_clock.FIELD_REASON_OFF_MIDNIGHT): NOTE_MINUTE_WITHHELD_OFF_MIDNIGHT,
+    (calendar_clock.SECOND, calendar_clock.FIELD_REASON_OFF_MIDNIGHT): NOTE_SECOND_WITHHELD_OFF_MIDNIGHT,
+}
+
+
 def _clock_fields_published(
     details: "dict[str, object]",
     verdict: "_Verdict",
@@ -18174,22 +18594,51 @@ def _clock_fields_published(
 ) -> "tuple[dict[str, object], list[Note], list[Note]]":
     """A column block of moments with its minute and second censuses and heaps.
 
-    THE STUB OF LANDING 3b.4 (lane T3, plan P4-D372), which fills this
-    producer and nothing beside it; until then `minute_census`,
-    `second_census`, `minute_heaps` and `second_heaps` are `[]` on every
-    block and no sentence is said.
+    Landing 3b.4 (lane T3, plan P4-D372). Every block of the datetime role
+    carries the four keys, `[]` where nothing is published. Each field --
+    the minute, then the second -- decided by `clock_field_decision`:
+    published, its census groups as `{first, last, count}` and its heaps
+    as `{value, count}`, and one remark (NF93, NF94); withheld for a
+    reason of its own, one publication note (NF95 to NF100); withheld for
+    a reason the hour census shares, or flat, nothing. `produced` false --
+    the validator's own re-description of a file -- asks nothing and
+    publishes `[]` with no sentence.
 
     Guarantees: as `_hour_published`. No I/O of any kind.
     """
-    return _reserved_lists(
-        details,
-        (
-            calendar_clock.MINUTE_CENSUS,
-            calendar_clock.SECOND_CENSUS,
-            calendar_clock.MINUTE_HEAPS,
-            calendar_clock.SECOND_HEAPS,
-        ),
-    )
+    block = dict(details)
+    for key in calendar_clock.DATETIME_CLOCK_LISTS:
+        if key != calendar_clock.HOUR_CENSUS:
+            block[key] = []
+    if not produced:
+        return block, [], []
+    line = parsing.census_floor(settings.small_cell_floor)
+    notes: "list[Note]" = []
+    remarks: "list[Note]" = []
+    for field in (calendar_clock.MINUTE, calendar_clock.SECOND):
+        decided = clock_field_decision(
+            block, verdict.hours, verdict.minutes, verdict.seconds, field,
+            settings, stored_one_way, verdict.fresh, verdict.fresh_written,
+        )
+        census_key, heaps_key = calendar_clock.FIELD_KEYS[field]
+        if decided.groups or decided.heaps:
+            block[census_key] = [
+                {"first": first, "last": last, "count": count}
+                for first, last, count in decided.groups
+            ]
+            block[heaps_key] = [
+                {"value": value, "count": count} for value, count in decided.heaps
+            ]
+            remarks += [note(_FIELD_REMARKS[field], (line,))]
+            continue
+        if (field, decided.reason) not in _FIELD_WITHHELD_NOTES:
+            continue
+        form = _FIELD_WITHHELD_NOTES[(field, decided.reason)]
+        if NOTE_ARITY[form] == 1:
+            notes += [note(form, (line,))]
+        else:
+            notes += [note(form)]
+    return block, notes, remarks
 
 
 @dataclasses.dataclass(frozen=True)
@@ -19875,6 +20324,21 @@ class _Verdict:
     # instant, and the written units its few-units rule counts. Never
     # published.
     moments: "tuple[int, ...]" = ()
+    # THE WRITTEN MINUTE AND SECOND OF EVERY PARSED CELL, in the order the
+    # hours are kept, where the hour census may stand -- the second only on
+    # a column written to the second or finer (landing 3b.4, plan P4-D372;
+    # `_census_clock_fields`): what the minute and second censuses and
+    # heaps are counted from (`_clock_fields_published`). Never published.
+    minutes: "tuple[int, ...]" = ()
+    seconds: "tuple[int, ...]" = ()
+    # Whether each of those cells is written differently from the one ranked
+    # before it: where the different values at each minute and second are
+    # counted from (`clock_field_decision`'s heaps). Never published.
+    fresh: "tuple[bool, ...]" = ()
+    # ...and, on a column written finer than the second, whether each one's
+    # text differs from the one ranked before it, its fraction counted
+    # (`clock_field_decision`). Never published.
+    fresh_written: "tuple[bool, ...]" = ()
 
 
 def _all_different(cells: _Cells) -> bool:
@@ -23096,6 +23560,8 @@ def _decide(
             elif window:
                 # -- 3b.R2a (P4-D383): the window the person chose (NF112).
                 remarks += [note(REMARK_CENTURY_DECLARED, (window,))]
+            # -- the minute and the second (3b.T3, P4-D372)
+            clock_fields = _census_clock_fields(details, pairs, sources)
             return _Verdict(
                 role=ROLE_DATETIME,
                 evidence=note(
@@ -23108,6 +23574,10 @@ def _decide(
                 texts=len(set(sources)),
                 hours=_census_hours(details, pairs),
                 moments=_census_moments(details, pairs),
+                minutes=clock_fields[0],
+                seconds=clock_fields[1],
+                fresh=clock_fields[2],
+                fresh_written=clock_fields[3],
             )
 
         # RULE 6 -- numbers, at the one parse rate there is. A column that

@@ -297,8 +297,9 @@ def _loaded_with(
 
     A case moving the column onto the shared clock (`datetimes_read_at`
     `utc`) empties its `hour_census` too, as a description read there
-    publishes none (contract HC3, landing 3b.2-H): the rule under test is
-    then the first one the loader meets.
+    publishes none (contract HC3, landing 3b.2-H), and its minute and
+    second censuses and heaps (MC3 and SE3, landing 3b.4): the rule under
+    test is then the first one the loader meets.
 
     Read on the local clock, those moments publish a weekday census since
     landing 3b.D2 (plan P4-D367), and a column read at `utc` publishes
@@ -333,6 +334,10 @@ def test_the_loader_names_no_count_of_one_at_a_floor_of_one(tmp_path: pathlib.Pa
         weekday_census=[],
         zulu_case={},
         hour_census=[],
+        minute_census=[],
+        minute_heaps=[],
+        second_census=[],
+        second_heaps=[],
     )
 
 
@@ -347,6 +352,10 @@ def test_a_pool_stands_only_alone_and_only_where_it_names_no_one(
         weekday_census=[],
         zulu_case={},
         hour_census=[],
+        minute_census=[],
+        minute_heaps=[],
+        second_census=[],
+        second_heaps=[],
     )
     _refused_by(
         tmp_path / "mark-pool", 11, "D12",
@@ -369,6 +378,10 @@ def test_a_pool_stands_only_alone_and_only_where_it_names_no_one(
         weekday_census=[],
         zulu_case={},
         hour_census=[],
+        minute_census=[],
+        minute_heaps=[],
+        second_census=[],
+        second_heaps=[],
     )
 
 

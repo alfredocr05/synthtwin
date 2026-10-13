@@ -737,12 +737,13 @@ def test_any_other_absent_key_is_still_refused(tmp_path, where, key) -> None:
 def test_a_reserve_that_is_present_is_still_read_by_its_reader(tmp_path) -> None:
     """A reserve present and not empty is refused as before: absent is relieved, present is not.
 
-    Asked of `minute_census`, a reserve still (landing 3b.4's): the hour
+    Asked of `heavy_dates`, a reserve still (landing 3b.D4's): the hour
     census this case first asked is published since landing 3b.2-H (plan
-    P4-D371), and the loader holds it to its own rules.
+    P4-D371), and the minute census it asked next since landing 3b.4 (plan
+    P4-D372), and the loader holds each to its own rules.
     """
     document = json.loads(EARLIER["fa00321"])
-    document["columns"][0]["minute_census"] = [{"count": 11, "first": 0, "last": 0}]
+    document["columns"][0]["heavy_dates"] = [{"count": 11, "value": "2024-01-01"}]
     path = fixtures.write_profile(tmp_path, "three-profile.json", document)
-    with pytest.raises(errors.ProfileError, match="minute_census"):
+    with pytest.raises(errors.ProfileError, match="heavy_dates"):
         contract.load_profile(str(path))

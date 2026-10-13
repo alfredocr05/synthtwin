@@ -868,6 +868,13 @@ def test_the_ledger_file_is_canonical_json() -> None:
     # to 525,444 and then 530,107; the rest is the entries' own rules and
     # nodes, which are not trimmed.
     #
+    # 524,000 from 520,000, FOR LANDING 3b.4 (lane T3, plan P4-D372), on its
+    # branch and for the integrator to fold: the lane adds `K-S3-42` and
+    # widens `K-S3-41` to minutes and seconds, each stamped with its note
+    # clause, its prose trimmed first; the ledger stood 3,415 bytes under
+    # the cap. A MEASUREMENT IS NEVER TRIMMED TO FIT: the cap moves, and
+    # the prose is trimmed before it moves again.
+    #
     # 520,000 from 460,000, AT THE INTEGRATION OF WAVE 2'S BATCH 2A
     # (2026-10-09), the integrator's call, as the orchestrator asked: raised
     # only as far as the merged ledger needs. Landing R2a adds `K-S3-58`

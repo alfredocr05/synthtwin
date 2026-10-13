@@ -1721,8 +1721,18 @@ def test_a_twelve_hour_clinic_keeps_its_count_at_midnight(tmp_path: pathlib.Path
         "        elif first <= rank <= last:\n            free += [rank]",
         "        else:\n            free += [rank]",
     )
+    _without_the_minutes(mutant)
     found = _twelve_hour_run(tmp_path / "mutant", cells, (0, 1), mutant.generate)
     assert any("seen_at:midnight.count" in missed for missed in found), found
+
+
+def _without_the_minutes(module: types.ModuleType) -> None:
+    """A mutant with G7.3h withdrawn. SINCE LANDING 3b.4 (plan P4-D372) these
+    clinics' quarter hours publish their minute heaps, and G7.3h's tails give
+    back a cell left at midnight (`_clock_midnight_count_kept`), which hides
+    the move onto a midnight's own rule; withdrawn, the rule is held alone,
+    as it was written."""
+    module._clock_fields_settled = lambda column, facts, ordinals, *rest, **named: (ordinals, [])
 
 
 def _twelve_hour_lunch(rows: int, seed: int) -> "list[str]":
@@ -1772,7 +1782,9 @@ def test_a_twelve_hour_lunch_clinic_is_red_on_each_mutant(
     """Each edit of the half day's rule in the move onto a midnight misses the lunch clinic's
     count at midnight at seeds 0 and 1."""
     before, after = _HALF_DAY_BODY_MUTANTS[name]
-    found = _twelve_hour_run(tmp_path, _twelve_hour_lunch(300, 40043), (0, 1), _mutant(monkeypatch, before, after).generate)
+    mutant = _mutant(monkeypatch, before, after)
+    _without_the_minutes(mutant)
+    found = _twelve_hour_run(tmp_path, _twelve_hour_lunch(300, 40043), (0, 1), mutant.generate)
     assert all("seen_at:midnight.count" in missed for missed in found), (name, found)
 
 

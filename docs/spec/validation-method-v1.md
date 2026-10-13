@@ -1571,6 +1571,19 @@ rather than in ISO:
   P4-D347). The file's census is counted here, never PRODUCED: both
   re-descriptions of the file skip the census producer. A description
   publishing `[]` obliges nothing and lists nothing.
+- `minute_census` with `minute_heaps`, and `second_census` with
+  `second_heaps`, are compared HEAP FOR HEAP AND GROUP FOR GROUP
+  (`minute_heaps.counts` and `minute_census.groups`, V5-M1, and
+  `second_heaps.counts` and `second_census.groups`, V5-S1, landing 3b.4,
+  plan P4-D372): the same moments V5-H1 reads, each counted at the minute
+  and the second it is WRITTEN at, `canonical[14:16]` and
+  `canonical[17:19]`, a sixtieth second in its own minute at second 59;
+  each heap is its value's count, and each census group the count of its
+  values that are no heap. One obligation per published list, HELD where
+  every heap or group holds its published count and MISSED otherwise,
+  printed through the same census line. Counted here,
+  never PRODUCED. Beside heaps with no census, the rest of the body is
+  the body less the heaps, which the tails' checks already hold.
 - each of the four is LISTED where the column's member cannot show that
   convention at all: the widths on a member of fixed field width, the
   name styles outside the two textual members, the marker outside

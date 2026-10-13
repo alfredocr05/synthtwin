@@ -6661,7 +6661,25 @@ unit by DT3.
      unit INWARD until it is not, never below one unit. A derived end
      that is a declared missing value would be written as a cell the
      twin's own description reads as absent (the skeptic of the tail
-     design, B8).
+     design, B8);
+   - the END of a column of moments whose count at midnight is published,
+     read on its own clock, its unit a minute or a second, standing at a
+     written midnight -- after the step off the holes -- takes one of the
+     cells at midnight the count leaves the ends, the low tail's first: the
+     published count less the body's cells at midnight for certain (hour
+     0's count where the hour census counts it alone, less the body's
+     cells off minute 0 -- the body less the minute's heap or lone census
+     group at 0 -- and less those off second 0, none written to the minute;
+     nought where below nought, finer than the second or hour 0 grouped)
+     and less the rows each tail listing its values holds at midnight for
+     certain (all, where every listed value is one; else one for each
+     that is). Where none is left it steps one unit INWARD, as off a hole,
+     until it stands at no midnight and on no hole, never below one unit;
+     the checker's window reads the same (G12.14). A column on the hour
+     at 1,000 rows owed 11 cells at midnight, all of them its body's hour 0, and
+     its high tail's end derived at 2024-12-31 00:00 held a twelfth: the
+     heap at minute 0 came back one short at every seed (the Codex review
+     of landing 3b.4, item 4).
 
    The end is then raised to the group's distance where the group is
    further out, so the two stay in rank order.
@@ -7661,6 +7679,258 @@ weekday groups, month ends on each month's own last day, billing rolled
 to business days beside an empty weekend, births with a weekend dip, and
 the 1st heaped beside a hole on each 15th, and one state of step 4's
 repair -- each with the answer this section gives it, and no G14.3 case.
+
+#### G7.3h The minute and second censuses: the clock pass on two fields, and the drawing rule
+
+*Stage 3b, landing 3b.4, plan P4-D372.* A column of moments may publish,
+beside its hour census, each FIELD's HEAPS -- values standing out, each
+with its count -- and its CENSUS of the cells on no heap: `minute_heaps`
+and `minute_census` over the minutes of the hour, and, written to the
+second -- not finer, as the twin writes no figure below the second (SE3)
+-- `second_heaps` and `second_census` over the seconds of the minute
+(contract 6.6.2, MC1 to MC6, MH1, MH2, SE1 to SE6, SH1, SH2).
+For the same reason a column written finer than the second publishes its
+minute's facts only where its body, cut to the second, keeps its count
+of different values: the real column so cut is then a twin meeting both.
+A cell counts at the minute and second it is WRITTEN at,
+`canonical[14:16]` and `canonical[17:19]`; a sixtieth second, `HH:MM:60`,
+counts in its own minute at second 59.
+
+**THE DRAWING RULE (G7.3's body draw, the design skeptic's M2, m2 and
+m3).** Where a minute or second census or heap is published, the body is
+drawn on a LATTICE of the clock its facts pin: the seconds are pinned on
+a column written to the minute, or where the second publishes heaps and
+no census and the body's cells off them are fewer than the census line --
+a rest the merge rule could only have withheld, not a census withheld for
+its few values (the lane's skeptic, item 2: bursts of check-ins a third
+off their heaps at 0 and 30, drawn on half hours, came back with that third
+on :01 and :29) -- the lattice the greatest step dividing sixty and every
+heap's value; or a census and no heap whose one non-zero group holds second 0,
+every published body value on second 0; a lattice finer than the minute
+is the DRAWING UNIT. With the seconds on 0, the minute's own lattice,
+found the same way, widens it to sixty seconds times its step -- the
+hour for a column on the hour, half an hour for a half-hour grid --
+sixty where the minute pins nothing (one on a column written to the
+minute). Every unpinned body draw is floored to the unit, or set on the
+next multiple where its floor leaves the rank's gap, and left where no
+multiple lies inside it. Each TAIL draws on the same unit where both
+boundaries and every value a tail lists stand on it, each draw inside its
+stratum, and on the written unit elsewhere; a tail's outermost rank,
+standing where its published distances put it, is not moved. Both steps at midnight step a
+body rank off a midnight by the drawing unit and a tail rank by its
+tail's (with G7.3h withheld, 10,000 cells written `HH:MM:00` stood seven
+body cells off second 0 when stepped by the written second). The count
+pass and the hour pass (G7.3g) step by the written unit, as before this
+landing: stepped by the drawing unit, no twin of the lane's batteries met
+or missed anything else, nor stood a body cell off the lattice (the
+lane's skeptic, item 5). Where no minute or second fact is published the
+unit is one and every draw is the one before this landing.
+
+**THE PASS.** After G7.3g, under its run conditions, G7.3g's clock pass
+runs once for the minute and then once for the second. The minute's bins
+are 60 seconds, 60 a turn, its parent the hour, and its kin each hour's
+group in the hour census -- one group over the day where none is
+published. The second's bins are one second, its parent the minute, and
+its kin each minute of the day's pair of hour group and minute group,
+the minute's groups those of its own pass, one group where it publishes
+none -- each pair its own kin group, however many groups the minute has.
+KIN SHARES: where G7.3f's moves fill a gap's shares (steps 5 and 6) and
+the gap's ranks stand in two kin groups or more, by their parents' places
+in the day, each kin group, in the order its first rank stands in the
+gap, takes its own shares of the gap's, and its ranks move to them as a
+gap's do, whole runs and then single ranks, but no rank leaves a written
+unit it shares by a move changing the count (a kin group's few ranks
+split bursts of check-ins to meet its own shares: 1,000 of them at a
+floor of 36 came back 108 values long); single ranks over the whole gap
+follow. A kin group's IDEAL share of each group G is its R of the gap's S
+ranks times G over S, in 2**20ths of a rank, plus what it CARRIES from the
+gaps before -- the ideal it was owed there less what its ranks there HOLD
+once the gap's moves are done, its own and the gap's single moves after
+them, not less the share it was given -- so the rounding is made over the
+whole body (CONTROLLED ROUNDING, the lane's skeptic, item 4: rounded gap by
+gap, hour 8 of 10,000 admissions took minute 6's remainder in most of 38
+gaps and came back with 36 cells there against 11; and the Codex review,
+item 3: four daily gaps of 120 stamps, the second's hour 8 standing on no
+minute 0, carried as given came back with 94 of hour 8's and 146 of hour
+9's on minute 0 where 120 each could stand). The kin groups so far take together, of each group, their
+ideals summed, rounded down, never less than they took, never more than
+the gap's G nor than this kin group's ranks beyond what was taken; the
+ranks still unplaced go one each, as often as it takes, to the groups of
+the largest remainder, the lower group on a tie; ranks placed beyond
+come back from the groups raised above what was taken, the smallest
+remainder first, the lower group on a tie; a kin group takes the
+difference. WHERE THE COUNT AT MIDNIGHT IS PUBLISHED and value 0 is a
+group alone, a rank whose place on value 0 of its own parent is written
+at midnight -- on a column written to the minute, every rank of hour 0 --
+is not FREE to take it, as the real column's own cells there are those at
+midnight: that group's ideal is its want spread over the kin groups by
+their free ranks, where these number at least its want, each kin group's
+other ranks over the other groups as they want, and no kin group takes
+more of it than its free ranks (the lane's skeptic, item 1: 200,000 cells
+written `HH:MM:00`, hour 0 given its share in proportion, had 327 ranks
+moved onto a midnight, 217 of which stayed, and came back 602 at midnight
+against 385). And on such a pass A WRITTEN MIDNIGHT IS A KIND OF ITS OWN
+(G7.3f's kind, its keep read as a kind apart): its ranks are pinned and
+every step of G7.3f keeps the kind, so none moves a rank onto it (the
+lane's repair: 1,000 check-ins in bursts, drawn on the second, had four
+ranks of hour 0 moved onto 00:00 by the gap's single moves after KIN
+SHARES; the exchange took two back, and the twin came back 13 at midnight
+against 12). KIN SHARES' REACH (the verifier's item 10 on the Codex round):
+a kin group's rank REACHES a group where it stands in it or a place of it
+on its own place in the unit, inside its gap and its parent, on no hole,
+is of its kind (a written midnight read as of its parent's); its ranks
+ABLE to take a group are those reaching it, and of value 0 alone those
+free to take it too. Where some kin group reaches none of a group the gap
+wants, every wanted group whose kin groups are not all able to take it
+with every rank is shared as value 0 alone is -- its want over the kin
+groups by their able ranks, each kin group's other ranks over the other
+groups as they want -- and the carry of a kin group reaching none of
+some wanted group is offered, group by group, to the other kin groups by
+their ranks able to take the group, rounded down, its own carry kept and
+taken where it reaches again. A kin group takes no more of a group than
+its able ranks, and none of what the kin groups after it CLAIM: of each
+group, the whole ranks of their parts that those carrying a whole rank
+or more of it are able to take (four gaps
+of three hours, hour 8 off minute 0 in each: its carry, asked of hour 8
+itself, grew gap by gap and handed it every share of minute 0, which the
+gap's single moves gave hour 9 -- 200 against hour 10's 40 where 120
+each could stand; hour 8 reaching minute 0 with 4 of its 34 ranks a gap
+passed its growing carry to hour 9 alone, 57 against hour 10's 27, where
+the claims leave 51 and 33; and taken first by the earlier kin groups'
+largest remainders, the want of minute 0 left hour 23 of cells written
+`HH:MM:00` at 10,000 rows none of its carried share in twelve gaps
+running, 6 of its 45 cells on minute 0 against 16). After each field's pass THE TAILS MAKE ROOM AT MIDNIGHT: with
+value 0 a group alone holding fewer body ranks than its count, each body
+rank in order -- not pinned, of a group over its count -- whose place on
+value 0 of its own parent (its place in the bin kept) is a written
+midnight inside its gap and no hole, takes it, while the first tail rank
+not yet stepped, not pinned by its tail, at a written midnight, that can
+step off it inside its stratum does so -- the search starting past the
+tails taken (the Codex review, item 6: started at the first, t ranks made
+t(t+1)/2 checks, 50,005,000 at a million rows) -- as the tails keep their count
+below -- where the count of different values is reachable, only a tail
+whose step and the rank's move together do not raise that count, the
+first keeping it where any does, and SPREAD then puts back a value lost.
+The count at midnight is kept (a column on the hour at 1,000 and 10,000
+rows: the hour pass stepped a rank of hour 0 to 00:01 while a tail held a
+midnight, and the heap at minute 0 came back one short).
+Filled nearest first and whole runs first over the whole gap, 10,000
+clinic slots came back with 20 per cent of hour 8 on :00 and 47 per cent
+of hour 10, against 35 in every hour of the real column; kin group by kin
+group, every hour stands within its sampling scale.
+The pass asks no count step of G7.3f (8.1 to 8.6): over sixty
+values they ask cycles among as many groups, and the count is put back
+by G7.3g's PUT BACK and the steps below. A field's GROUPS are its
+census's, in order, each over its values,
+or, beside heaps with no census, one group of every value counting the
+body less the heaps; then each heap, its value alone, at its count. A
+field whose ranks already meet its groups is not passed. Where the
+column's count is reachable, A SHARED WRITTEN UNIT MOVES WHOLE in G7.3f's
+single moves (steps 6 and 7, and KIN SHARES' own): a rank whose move
+would take it off a written unit it shares onto a free one moves only
+with every rank of that unit, onto the same place -- as a move keeping
+the count where every rank of it is among the ranks moved and finds the
+place inside its gap, its group can give them all and the place's group
+take them all; in the leftover, where none fits, once per unit past that
+room, its group over and the place's under, whole units and single
+ranks then putting both back; else not at all (the lane's second
+skeptic, item 1: check-ins in bursts at 200 to 500 rows and a floor of
+36, their minute census holding empty groups, came back 157 values long
+over 45 twins, the gap's single moves splitting bursts, and 105 long
+over 90 twins at floors 11 and 36 with the rule, none at 11). Each unit
+is judged once for each place, group and question while nothing moves
+(the Codex review, item 5: each of a unit's 400 ranks judged it over all
+400, and a 10,000-row burst in a million rows asked some 100 million). After the
+clock pass, for the field:
+
+1. *The exchange off midnight.* The ranks the pass left on a written
+   midnight that stood off one before it, unit by unit in rank order,
+   take together the place of their own group on another parent of their
+   day in their kin group, the nearest first, the earlier on a tie;
+   where none has one, the free place of another group G of the field on
+   their own parent nearest their own, inside the gap they share and at
+   no written midnight, while runs of G holding as many ranks -- each run
+   every movable rank of one written unit, no other rank on it, one gap;
+   the longest first, each length's in rank order, at most 64 asked --
+   each take the free place of the ranks' old group on its own parent
+   inside its gap; where they fall short, every run goes back and the
+   next place is asked.
+2. *PUT BACK once more*, where the exchange left the count of different
+   written units long and the column's count is reachable: G7.3g's PUT
+   BACK, its merges keeping the day standing first and, where no weekday
+   census stands, its last resort. A pass that moved one rank of a tied
+   pair onto a held midnight kept the count; the exchange that took it
+   off wrote one value more (a column on the hour beside three cells off
+   it, at 10,000 rows and a floor of 36).
+3. *SUBSTITUTE*, where the count of different written units is still
+   long and the column's count is reachable: each run in rank order joins
+   a unit another rank holds in another group G of the field, inside its
+   gap and at no written midnight, on its own parent, else on another
+   parent of its day in its kin group, else at its own parent's place on
+   another day of its day standing and width kind, nearest first, and
+   where no weekday census stands on a day of another weekday, else, on
+   those days in the same order, at the other places of its kin group,
+   nearest its own first, 400 parents asked at most; and runs of G
+   holding as many ranks take free places of its old group, as in step 1.
+   Each pair puts back one unit. A group, a parent's place in the day and
+   a gap whose search found no unit to join are not asked again in the
+   round; SUBSTITUTE runs again while a round puts a value back, three
+   rounds at most (the lane's skeptic, item 3: 300 check-ins in bursts
+   came back 5 or 6 values long after one round and met their count
+   after two; 200 of them, about one burst a day, a value long without
+   the kin on other days).
+4. *SPREAD*, where the count is still short and reachable, or the count
+   drawn is not above the published one: each rank sharing its written
+   unit, in rank order, takes the free place of its own group nearest its
+   own on its parent, else the escape's (G7.3g step 3) in its own group;
+   a group, a parent's place in the day and a gap that found none are
+   not asked again.
+5. Each run of unpinned ranks is sorted.
+
+Where a field's groups still do not hold, one deviation names its census;
+where they hold and the reachable count is left long, THE CENSUS STANDS
+AND THE COUNT GIVES WAY, and the report says so in place of its long
+sentence: no placement keeping each burst of cells written alike together
+met both (the plan's RESIDUAL; a burst holding a tail's pinned boundary
+cannot move whole, and bursts larger than what a group owes cannot be
+carried in whole units -- 7 of the 90 twins above, against 2341173,
+which publishes no minute census).
+Last, where the column publishes its count at midnight -- or withholds it
+for its size, and so still owes the count it held before these passes
+(plan P4-D191) -- THE TAILS KEEP IT:
+while more ranks than it stand at a written midnight, the first unpinned
+tail rank at one steps off it by its tail's drawing unit inside its
+stratum, or by the written unit where the stratum is narrower than that;
+while fewer, the first unpinned tail rank off one takes the
+nearest midnight inside its stratum; each tail's ranks are then sorted.
+
+**Its frozen cases** are states of ranks and drawing units: the twentieth
+vectors file, `tests/reference/generation-branch-vectors-20.json`, holds
+thirty-four -- the pass on a field of minutes with heaps and on a field of
+seconds with a kin group of minutes, KIN SHARES over two hours,
+carried from gap to gap over four days, reconciled against what each hour
+holds where a gap's hour 8 can stand on no minute 0, and never splitting
+a unit two tied ranks of an hour share, a written midnight a kind of its
+own (85 days, where by nearness 85 ranks took a midnight and 21 stayed
+there), KIN SHARES keeping the cells at midnight with hour 0 a kin group
+alone and beside hour 1, the exchange's three answers,
+PUT BACK once more after it, SUBSTITUTE, SPREAD, the tails keeping the count at midnight by their
+drawing unit and, in a stratum narrower than it, by the written unit, and
+taking a midnight where the count there is short, the tails making room at
+midnight for a rank of the body, never by a tail step raising the count
+and with SPREAD after them where the step left it short, KIN SHARES
+giving no kin group more of minute 0 than its ranks free to stand there,
+and none a part of a group its ranks never reach (hour 8 off minute 0 in
+every gap, hours 9 and 10 an even split) nor what the kin groups after
+it claim,
+a shared written unit moved whole, and past its groups' room in the
+leftover, a draw laid
+on its unit, G7.3b step 7's tail END held off a midnight the count leaves
+it none of, a tail listing a value written 00:00:00 on any day charged
+for it, and the drawing units of a half-hour grid, a column on the
+hour, a column whose seconds alone are pinned, one census group
+holding minute 0 and heaps beside a withheld census of the rest, which
+pin nothing -- each with the answer this section gives it.
 
 ### G7.4 Offsets: only where recorded
 

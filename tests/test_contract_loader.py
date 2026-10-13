@@ -813,6 +813,182 @@ def _hours_stored_two_ways(document: Document) -> None:
     form["columns"][place]["cell_classes"]["text"] = 12
 
 
+# -- 3b.T3 (P4-D372): THE MINUTE AND SECOND CENSUSES' RULES need a column of
+# moments on its own clock whose minutes and seconds heap. Each of them swaps
+# the base's `logged_at` for the block the producer writes for 240 moments
+# of 2024 written `HH:MM:00`, seven in ten on :00 or :30 -- its minute heaps
+# and census and its second heap published -- and then breaks one rule.
+_MINUTE_BLOCK: "list[Document]" = []
+
+
+def _moments_on_the_minute() -> Document:
+    """The block `synthtwin profile` writes for 240 moments `HH:MM:00`, floor 11."""
+    if not _MINUTE_BLOCK:
+        import random
+        import tempfile
+
+        draw = random.Random(372)
+        cells = []
+        for _row in range(240):
+            minute = draw.choice((0, 30)) if draw.random() < 0.7 else draw.randrange(60)
+            cells += [
+                f"2024-{draw.randrange(12) + 1:02d}-{1 + draw.randrange(28):02d} "
+                f"{6 + draw.randrange(16):02d}:{minute:02d}:00"
+            ]
+        with tempfile.TemporaryDirectory() as folder:
+            path = fixtures.write(pathlib.Path(folder), "moments.csv", "logged_at\n" + "\n".join(cells) + "\n")
+            document = profile.build_document(
+                reading.read_table(str(path), small_cell_floor=11),
+                taxonomy.Settings(small_cell_floor=11), [], [], [],
+            )
+        _MINUTE_BLOCK.append(json.loads(json.dumps(document["columns"][0])))
+    return copy.deepcopy(_MINUTE_BLOCK[0])
+
+
+def a_clock_field_census(change: "typing.Callable[[Document], None]") -> Change:
+    """`logged_at` swapped for moments on the minute, its censuses published, then changed."""
+
+    def swapped(document: Document) -> None:
+        for place in range(len(document["columns"])):
+            if document["columns"][place]["name"] == "logged_at":
+                block = _moments_on_the_minute()
+                block["position"] = document["columns"][place]["position"]
+                document["columns"][place] = block
+        change(document)
+
+    return swapped
+
+
+def _minute_groups(document: Document) -> "list[Document]":
+    return typing.cast("list[Document]", at(document, "logged_at")["minute_census"])
+
+
+def _minutes_shifted(document: Document) -> None:
+    _minute_groups(document)[0]["first"] = 1
+
+
+def _minutes_below_the_line(document: Document) -> None:
+    groups = _minute_groups(document)
+    first = next(index for index in range(len(groups)) if groups[index]["count"] > 16)
+    moved = groups[first]["count"] - 5
+    groups[first]["count"] = 5
+    groups[first - 1 if first else first + 1]["count"] += moved
+
+
+def _minutes_past_the_body(document: Document) -> None:
+    groups = _minute_groups(document)
+    next(group for group in groups if group["count"] > 0)["count"] += 11
+
+
+def _a_middle_half_of_one_instant(document: Document) -> None:
+    """The middle half at one instant, its hour census taken out first (HC4's)."""
+    block = at(document, "logged_at")
+    block["hour_census"] = []
+    ladder = block["date_percentiles"]
+    ladder["p50"] = ladder["p25"]
+    ladder["p75"] = ladder["p25"]
+
+
+def _minutes_short_of_their_sure_cells(document: Document) -> None:
+    block = at(document, "logged_at")
+    groups = _minute_groups(document)
+    on_heaps = {heap["value"] for heap in block["minute_heaps"]}
+    published = [block[side]["boundary"] for side in ("low_tail", "high_tail")]
+    published += [rung for rung in block["date_percentiles"].values() if isinstance(rung, str)]
+    for value in published:
+        minute = int(value[14:16])
+        if minute in on_heaps:
+            continue
+        for place in range(len(groups)):
+            group = groups[place]
+            if group["first"] <= minute <= group["last"] and group["count"] > 11:
+                other = next(index for index in range(len(groups)) if index != place and groups[index]["count"] > 0)
+                groups[other]["count"] += group["count"] - 11
+                group["count"] = 11
+                return
+    raise AssertionError("no published value off the heaps in a group of its own")
+
+
+def _clock_fields_stored_two_ways(document: Document) -> None:
+    """Two storages, the hour census taken out first (HC6's)."""
+    at(document, "logged_at")["hour_census"] = []
+    form = _workbook_block(document, 16, 120)
+    place = [block["name"] for block in document["columns"]].index("logged_at")
+    rows = typing.cast(int, document["n_rows"])
+    form["columns"][place]["cell_classes"]["number"] = rows - 12
+    form["columns"][place]["cell_classes"]["text"] = 12
+
+
+def _minute_heaps_reversed(document: Document) -> None:
+    block = at(document, "logged_at")
+    block["minute_heaps"] = list(reversed(block["minute_heaps"]))
+
+
+def _minute_heaps_past_the_body(document: Document) -> None:
+    at(document, "logged_at")["minute_heaps"][0]["count"] += 5000
+
+
+def _seconds_only(document: Document) -> None:
+    """The minute's facts emptied, the seconds' heap written as a census."""
+    block = at(document, "logged_at")
+    block["minute_census"] = []
+    block["minute_heaps"] = []
+    held = block["second_heaps"][0]["count"]
+    block["second_heaps"] = []
+    block["second_census"] = [
+        {"first": 0, "last": 0, "count": held}, {"first": 1, "last": 59, "count": 0},
+    ]
+
+
+def _second_groups(document: Document) -> "list[Document]":
+    _seconds_only(document)
+    return typing.cast("list[Document]", at(document, "logged_at")["second_census"])
+
+
+def _seconds_shifted(document: Document) -> None:
+    _second_groups(document)[1]["first"] = 2
+
+
+def _seconds_below_the_line(document: Document) -> None:
+    groups = _second_groups(document)
+    groups[0]["count"] -= 5
+    groups[1]["count"] = 5
+
+
+def _seconds_past_the_body(document: Document) -> None:
+    _second_groups(document)[0]["count"] += 11
+
+
+def _seconds_of_one_instant(document: Document) -> None:
+    _second_groups(document)
+    _a_middle_half_of_one_instant(document)
+
+
+def _seconds_short_of_their_sure_cells(document: Document) -> None:
+    groups = _second_groups(document)
+    groups[1]["count"] = groups[0]["count"]
+    groups[0]["count"] = 0
+
+
+def _seconds_stored_two_ways(document: Document) -> None:
+    _second_groups(document)
+    _clock_fields_stored_two_ways(document)
+
+
+def _second_heaps_twice(document: Document) -> None:
+    block = at(document, "logged_at")
+    block["minute_census"] = []
+    block["minute_heaps"] = []
+    block["second_heaps"] = block["second_heaps"] * 2
+
+
+def _second_heaps_past_the_body(document: Document) -> None:
+    block = at(document, "logged_at")
+    block["minute_census"] = []
+    block["minute_heaps"] = []
+    block["second_heaps"][0]["count"] += 5000
+
+
 @dataclasses.dataclass(frozen=True)
 class Mutation:
     """One document with exactly one thing wrong, and what must be said.
@@ -1744,26 +1920,7 @@ def battery() -> list[Mutation]:
         # edits no other.
         # -- 3b.T2 (P4-D371)
         # -- 3b.T3 (P4-D372)
-        Mutation(
-            "R16", "a minute_census this version of synthtwin publishes none of",
-            edit("logged_at", minute_census=[{"first": 0, "last": 59, "count": 218}]),
-            names="minute_census",
-        ),
-        Mutation(
-            "R16", "a second_census this version of synthtwin publishes none of",
-            edit("logged_at", second_census=[{"first": 0, "last": 59, "count": 218}]),
-            names="second_census",
-        ),
-        Mutation(
-            "R16", "a minute_heaps this version of synthtwin publishes none of",
-            edit("logged_at", minute_heaps=[{"value": 0, "count": 30}]),
-            names="minute_heaps",
-        ),
-        Mutation(
-            "R16", "a second_heaps this version of synthtwin publishes none of",
-            edit("logged_at", second_heaps=[{"value": 0, "count": 30}]),
-            names="second_heaps",
-        ),
+        # Filled by its landing: its rules' mutations stand below its anchor.
         # -- 3b.D3 (P4-D368)
         # -- 3b.D4 (P4-D369)
         Mutation(
@@ -2414,6 +2571,29 @@ def battery() -> list[Mutation]:
         Mutation("HC5", "an hour group short of the boundary standing in it", an_hour_census(_hours_short_of_their_sure_cells)),
         Mutation("HC6", "an hour census beside values a workbook stores two ways", an_hour_census(_hours_stored_two_ways)),
         # anchor 3b-T3 (P4-D372)
+        # THE MINUTE AND SECOND CENSUSES AND HEAPS (landing 3b.4): `logged_at`
+        # swapped for moments on the minute, its censuses published
+        # (`a_clock_field_census`).
+        Mutation("MC1", "minute groups starting past minute 0", a_clock_field_census(_minutes_shifted)),
+        Mutation("MC2", "a minute group counting fewer than the census line", a_clock_field_census(_minutes_below_the_line)),
+        Mutation("MC3", "minute counts adding to more than the body", a_clock_field_census(_minutes_past_the_body)),
+        Mutation(
+            "MC3", "a minute census on a column read on the shared clock",
+            edit("logged_at", minute_heaps=[{"value": 0, "count": 30}]),
+        ),
+        Mutation("MC4", "a minute census over a middle half of one instant", a_clock_field_census(_a_middle_half_of_one_instant)),
+        Mutation("MC5", "a minute group short of the boundary standing in it", a_clock_field_census(_minutes_short_of_their_sure_cells)),
+        Mutation("MC6", "a minute census beside values a workbook stores two ways", a_clock_field_census(_clock_fields_stored_two_ways)),
+        Mutation("MH1", "minute heaps out of order", a_clock_field_census(_minute_heaps_reversed)),
+        Mutation("MH2", "minute heaps holding more than the body", a_clock_field_census(_minute_heaps_past_the_body)),
+        Mutation("SE1", "second groups leaving second 1 out", a_clock_field_census(_seconds_shifted)),
+        Mutation("SE2", "a second group counting fewer than the census line", a_clock_field_census(_seconds_below_the_line)),
+        Mutation("SE3", "second counts adding to more than the body", a_clock_field_census(_seconds_past_the_body)),
+        Mutation("SE4", "a second census over a middle half of one instant", a_clock_field_census(_seconds_of_one_instant)),
+        Mutation("SE5", "a second group short of the values standing in it", a_clock_field_census(_seconds_short_of_their_sure_cells)),
+        Mutation("SE6", "a second census beside values a workbook stores two ways", a_clock_field_census(_seconds_stored_two_ways)),
+        Mutation("SH1", "a second heap listed twice", a_clock_field_census(_second_heaps_twice)),
+        Mutation("SH2", "second heaps holding more than the body", a_clock_field_census(_second_heaps_past_the_body)),
         # anchor 3b-C1 (P4-D373)
         # anchor 3b-C2 (P4-D374)
         # anchor 3b-G1 (P4-D375)
