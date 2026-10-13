@@ -1293,8 +1293,8 @@ STEP_MUTANTS = {
     ),
     "the tails make room raising the count": (
         "field_midnight_room_keep",
-        "            if state.keep_units and change + shift > 0:",
-        "            if False:",
+        "            if not (state.keep_units and change + shift > 0):",
+        "            if True:",
     ),
     "no SPREAD after the tails make room": (
         "field_midnight_room_spread",
@@ -1308,8 +1308,8 @@ STEP_MUTANTS = {
     ),
     "no unit carried past its groups' room": (
         "field_whole_unit_past",
-        "                elif allow and changing and _weekday_unit_room(\n                    state, whole, rank, offer[1], have, want, overshot\n                ):\n                    offers +=",
-        "                elif False and _weekday_unit_room(\n                    state, whole, rank, offer[1], have, want, overshot\n                ):\n                    offers +=",
+        "                elif allow and changing and _weekday_unit_judged(\n                    state, judged, whole, rank, offer[1], have, want, overshot\n                ):\n                    offers +=",
+        "                elif False and _weekday_unit_judged(\n                    state, judged, whole, rank, offer[1], have, want, overshot\n                ):\n                    offers +=",
     ),
     "a draw laid on no unit": (
         "field_floor",
@@ -1727,3 +1727,76 @@ def test_the_heap_remark_names_its_sure_cell_remainder(tmp_path: pathlib.Path) -
             "the rest of this description places there for certain, nought or at least 11 rows is "
             "counted alone"
         ) in remark, form
+
+
+def _burst_state(module, size: int):
+    """The Codex review, item 5: `size` movable ranks sharing 08:30, one written
+    unit, in a gap of 08:00 to 08:59, minute 0 owed half of them -- the unit may
+    not move whole, and every one of its ranks asks."""
+    at = 19000 * DAY + 8 * 3600
+    moved = [at + 30 * 60] * size
+    state = module._WeekdayPass(
+        moved=moved, held={}, where=tuple([1] + [0] * 59), facts=None, word="", widths=False,
+        kinds={}, holes=frozenset(), lows=[at] * size, highs=[at + 59 * 60] * size,
+        keep_units=True, unit=60, step=60, day=DAY, bins="minute", period=60, keeps="hour",
+        count_steps=False, whole_units=True,
+    )
+    for ordinal in moved:
+        module._weekday_tally(state.held, ordinal // 60, 1)
+    return state, list(range(size)), [size, 0], [size - size // 2, size // 2]
+
+
+def test_a_shared_unit_is_judged_once_a_round() -> None:
+    """The Codex review, item 5: a burst of 100, 200 and 400 ranks on one written
+    unit, which may not move whole -- each rank asked the whole unit's move and
+    walked all its members (21,000, 82,000 and 324,000 lines; a 10,000-row burst in
+    a million rows, some 100 million checks a round). A unit is judged once for
+    each place it is offered in a round, so the lines grow no faster than the
+    ranks (within 1.25 times four from 100 to 400; 707cf99 ran 294,944, 669,844
+    and 1,659,644, 5.6 times), and nothing moves."""
+    spent: "list[int]" = []
+    for size in (100, 200, 400):
+        state, ranks, have, want = _burst_state(generation, size)
+        spent += [_lines_run(
+            generation._weekday_singles_moved, state, ranks, have, want,
+            generation._WEEKDAY_SINGLE_ROUNDS, False,
+        )]
+        assert state.moved == [19000 * DAY + 8 * 3600 + 30 * 60] * size
+    assert spent[2] <= 1.25 * 4 * spent[0], spent
+
+
+def _room_state(tails: int):
+    """The Codex review, item 6: `tails` tail ranks at midnights of their own days,
+    each free to step a minute off, then as many body ranks at 00:01 of later
+    days, each owed its day's midnight by a heap at minute 0 alone."""
+    moved = [(18000 + day) * DAY for day in range(tails)]
+    moved += [(19000 + day) * DAY + 60 for day in range(tails)]
+    rows = len(moved)
+    lows = [ordinal - 3600 for ordinal in moved[:tails]] + [ordinal - 60 for ordinal in moved[tails:]]
+    highs = [ordinal + 3600 for ordinal in moved[:tails]] + [ordinal + 3540 for ordinal in moved[tails:]]
+    state = generation._WeekdayPass(
+        moved=moved, held={}, where=tuple([1] + [0] * 59), facts=None, word="", widths=False,
+        kinds={}, holes=frozenset(), lows=lows, highs=highs, keep_units=True, unit=60, step=60,
+        day=DAY, bins="minute", period=60, keeps="hour", count_steps=False, no_midnight=True,
+    )
+    for ordinal in moved:
+        generation._weekday_tally(state.held, ordinal // 60, 1)
+    return state, rows
+
+
+def test_midnight_room_grows_with_the_rows() -> None:
+    """The Codex review, item 6: 200, 400 and 800 tails stepping off midnight for as
+    many body ranks -- each body rank's search started at the first tail and walked
+    every one taken (t(t+1)/2 checks, 50,005,000 at a million rows). It starts past
+    the tails taken, so the lines grow no faster than the ranks (within 1.25 times
+    four from 200 to 800), and every body rank takes its midnight."""
+    spent: "list[int]" = []
+    for tails in (200, 800):
+        state, rows = _room_state(tails)
+        spent += [_lines_run(
+            generation._clock_midnight_room_made, state, [0, tails], tails, rows - 1,
+            [False] * rows, [False] * rows, 60, 60,
+        )]
+        assert all(ordinal % DAY == 0 for ordinal in state.moved[tails:]), tails
+        assert all(ordinal % DAY == 60 for ordinal in state.moved[:tails]), tails
+    assert spent[1] <= 1.25 * 4 * spent[0], spent

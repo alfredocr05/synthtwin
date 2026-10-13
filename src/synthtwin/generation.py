@@ -23772,6 +23772,11 @@ def _weekday_singles_moved(
     units_whole = state.whole_units and state.keep_units
     whole = _weekday_whole_units(state, ranks) if units_whole else {}
     overshot: "dict[int, bool]" = {}
+    # EACH SHARED UNIT JUDGED ONCE A ROUND (the Codex review of landing
+    # 3b.4, item 5): a unit's every rank asks the same whole-unit move, and
+    # each answer walked all its ranks -- 400 ranks on one unit ran 324,000
+    # lines. An answer stands while nothing moves; any move clears them.
+    judged: "dict[tuple[int, int, int, bool], bool]" = {}
     for _round in range(rounds):
         if have == want:
             return
@@ -23785,10 +23790,10 @@ def _weekday_singles_moved(
                 # A SHARED UNIT MOVES WHOLE OR NOT AT ALL (G7.3h): offered as
                 # a move keeping the count where it can go whole; past its
                 # groups' room only in the leftover, once.
-                if _weekday_unit_room(state, whole, rank, offer[1], have, want):
+                if _weekday_unit_judged(state, judged, whole, rank, offer[1], have, want, None):
                     offers += [(0, abs(offer[1] - state.moved[rank]), rank)]
-                elif allow and changing and _weekday_unit_room(
-                    state, whole, rank, offer[1], have, want, overshot
+                elif allow and changing and _weekday_unit_judged(
+                    state, judged, whole, rank, offer[1], have, want, overshot
                 ):
                     offers += [(1, abs(offer[1] - state.moved[rank]), rank)]
                 continue
@@ -23809,14 +23814,16 @@ def _weekday_singles_moved(
                 continue
             offer = _weekday_single_target(state, rank, have, want)
             if offer is not None and offer[0] and units_whole and _weekday_there(state, state.moved[rank]) > 1:
-                if _weekday_unit_room(state, whole, rank, offer[1], have, want):
+                if _weekday_unit_judged(state, judged, whole, rank, offer[1], have, want, None):
                     _weekday_unit_moved(state, whole, rank, offer[1], have)
+                    judged.clear()
                     changed = True
-                elif allow and changing and _weekday_unit_room(
-                    state, whole, rank, offer[1], have, want, overshot
+                elif allow and changing and _weekday_unit_judged(
+                    state, judged, whole, rank, offer[1], have, want, overshot
                 ):
                     overshot[offer[1] // state.step] = True
                     _weekday_unit_moved(state, whole, rank, offer[1], have)
+                    judged.clear()
                     changed = True
                 continue
             if offer is None or (offer[0] and not allow):
@@ -23824,6 +23831,7 @@ def _weekday_singles_moved(
             if offer[0] and not splits and _weekday_there(state, state.moved[rank]) > 1:
                 continue
             target = offer[1]
+            judged.clear()
             _weekday_step(state, rank, target)
             have[source] = have[source] - 1
             have[_weekday_group(state, target)] = (
@@ -23892,6 +23900,30 @@ def _weekday_unit_room(
         if not state.lows[member] <= target <= state.highs[member]:
             return False
     return True
+
+
+def _weekday_unit_judged(
+    state: _WeekdayPass,
+    judged: "dict[tuple[int, int, int, bool], bool]",
+    whole: "dict[int, list[int]]",
+    rank: int,
+    target: int,
+    have: "list[int]",
+    want: "list[int]",
+    overshot: "dict[int, bool] | None",
+) -> bool:
+    """`_weekday_unit_room`, answered once for each unit, place, group and
+    question while nothing moves (`judged`, which every move clears; the
+    Codex review of landing 3b.4, item 5). Raises nothing. No I/O."""
+    asked = (
+        state.moved[rank] // state.step,
+        target,
+        _weekday_group(state, state.moved[rank]),
+        overshot is None,
+    )
+    if asked not in judged:
+        judged[asked] = _weekday_unit_room(state, whole, rank, target, have, want, overshot)
+    return judged[asked]
 
 
 def _weekday_unit_moved(
@@ -27284,14 +27316,31 @@ def _clock_midnight_room_made(
     found = _clock_found(state, len(counts), body_low, body_high)
     if found[zero] >= counts[zero]:
         return
+    # THE TAILS THAT MAY STEP OFF A MIDNIGHT, each with its step, found once:
+    # no step here moves a tail it does not take, so neither changes (the
+    # Codex review of landing 3b.4, item 6).
     tails: "list[int]" = []
+    offs: "list[int]" = []
     for rank in range(len(state.moved)):
         if body_low <= rank <= body_high or tail_pins[rank]:
             continue
-        if _written_at_midnight(state.moved[rank], 0, written):
+        if not _written_at_midnight(state.moved[rank], 0, written):
+            continue
+        value = state.moved[rank]
+        low, high = state.lows[rank], state.highs[rank]
+        step_off: "int | None" = None
+        for candidate in (value + away, value - away, value + written, value - written):
+            if step_off is None and low <= candidate <= high:
+                step_off = candidate
+        if step_off is not None:
             tails += [rank]
+            offs += [step_off]
     span = _clock_span(state)
-    used = [False for _tail in tails]
+    # The next tail not yet taken at or after each index (`_clock_untaken`):
+    # each body rank's search starts past the tails taken, never at the
+    # first -- t ranks each rescanning the taken ones made t(t+1)/2 checks,
+    # 50,005,000 at a million rows.
+    after = [index for index in range(len(tails) + 1)]
     for rank in range(body_low, body_high + 1):
         if found[zero] >= counts[zero]:
             return
@@ -27313,38 +27362,42 @@ def _clock_midnight_room_made(
         chosen = -1
         off = 0
         lost = 0
-        for index in range(len(tails)):
-            if used[index]:
-                continue
+        index = _clock_untaken(after, 0)
+        while index < len(tails):
             value = state.moved[tails[index]]
-            low, high = state.lows[tails[index]], state.highs[tails[index]]
-            step_off: "int | None" = None
-            for candidate in (value + away, value - away, value + written, value - written):
-                if step_off is None and low <= candidate <= high:
-                    step_off = candidate
-            if step_off is None:
-                continue
+            step_off = offs[index]
             # ...and the tail's step: where the count is one the construction
             # reaches, never past it, and kept where any tail keeps it -- a
             # value lost is put back by SPREAD after.
             shift = (1 if _weekday_there(state, step_off) == 0 else 0) - (
                 1 if _weekday_there(state, value) == 1 else 0
             )
-            if state.keep_units and change + shift > 0:
-                continue
-            if chosen < 0 or (change + shift == 0 and lost < 0):
-                chosen = index
-                off = step_off
-                lost = change + shift
-            if lost == 0 or not state.keep_units:
-                break
+            if not (state.keep_units and change + shift > 0):
+                if chosen < 0 or (change + shift == 0 and lost < 0):
+                    chosen = index
+                    off = step_off
+                    lost = change + shift
+                if lost == 0 or not state.keep_units:
+                    break
+            index = _clock_untaken(after, index + 1)
         if chosen < 0:
             continue
-        used[chosen] = True
+        after[chosen] = chosen + 1
         _weekday_step(state, tails[chosen], off)
         _weekday_step(state, rank, target)
         found[zero] = found[zero] + 1
         found[group] = found[group] - 1
+
+
+def _clock_untaken(after: "list[int]", index: int) -> int:
+    """The first tail not yet taken at or after `index` (`_clock_midnight_room_made`):
+    `after` points each taken index past it, and the walk halves every path it
+    follows, so finding them all costs about one step each. Raises nothing.
+    No I/O."""
+    while after[index] != index:
+        after[index] = after[after[index]]
+        index = after[index]
+    return index
 
 
 def _clock_midnight_room_kept(
