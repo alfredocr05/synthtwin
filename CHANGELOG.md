@@ -28,7 +28,16 @@ further off than the pass without it -- ward rounds at a million rows
 came back with 260 of a published 150 -- it is given back, and that
 column misses its hour census alone, as before. The tails' recount reads the whole dates a column's own
 description folded into its moments, which made the unchanged source
-miss its low tail. `K-S3-62` holds it.
+miss its low tail. Codex's review of the lane found three faults, each
+fixed: a unit one of whose ranks had paid another's move was later moved
+whole across weekdays (an internal state of 108 ranks came back with
+Monday 24 and Sunday 60 as 36 and 48), so a unit is now asked as it
+stands; a whole date folded into moments was read in the tails at
+midnight UTC, not at its column's absorbed offset, which reported a low
+tail HELD outside its window and made an unchanged source miss its low
+tail; and finding payers cost the square of a unit's size, 6.3 CPU
+seconds for 32,000 ranks, now 0.14. The lane's 880 battery twins are byte
+for byte as before. `K-S3-62` holds it.
 
 ### G5.5's sign repairs without the square of the strata (2026-10-09)
 

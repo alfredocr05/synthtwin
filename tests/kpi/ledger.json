@@ -7798,7 +7798,7 @@
    "headline": false,
    "name": "A column of moments publishing a weekday census beside its hour census meets both",
    "status": "GREEN",
-   "rule": "the pinned nodes pass: OR starts, admissions, the 10,000-row clinic, five noon stamps a day for 118 days, two clocks a day, D2's leap column and T2's eleven 23:59:60 a date publish both censuses at floors 11 and 36 (the last its weekday census at 11 alone), and the source and every twin at seeds 0 to 9 miss nothing and file no deviation; G7.3g's escape paid back withdrawn, the four last have twins short of the hour census at 11, each saying so; with one census alone the round changes no twin; and bare dates folded into moments inside the low tail are recounted in the tails",
+   "rule": "the pinned nodes pass: OR starts, admissions, the 10,000-row clinic, five noon stamps a day for 118 days, two clocks a day, D2's leap column and T2's eleven 23:59:60 a date publish both censuses at floors 11 and 36 (the last its weekday census at 11 alone), and the source and every twin at seeds 0 to 9 miss nothing and file no deviation; G7.3g's escape paid back withdrawn, the four last have twins short of the hour census at 11, each saying so; with one census alone the round changes no twin; and bare dates folded into moments inside the low tail are recounted in the tails; frozen states beside a weekday census keep their weekday counts, folded tails wear their offset, and payers cost linear work (Codex's review)",
    "rule_kind": "exact",
    "expected": {
     "pinned_nodes_failing": 0
@@ -7813,14 +7813,18 @@
     "tests/test_stage3b_weekday_moments.py::test_the_hour_census_holds_beside_a_weekday_census_on_moments",
     "tests/test_stage3b_weekday_moments.py::test_a_twin_short_of_its_hour_census_beside_a_weekday_census_says_so",
     "tests/test_stage3b_weekday_moments.py::test_dates_folded_inside_the_low_tail_are_recounted_in_the_tails",
-    "tests/test_stage3b_hour_review.py::test_codex_column_holds_its_hours_beside_its_weekday_census"
+    "tests/test_stage3b_hour_review.py::test_codex_column_holds_its_hours_beside_its_weekday_census",
+    "tests/test_stage3b_weekday_moments.py::test_dates_folded_into_the_tails_wear_the_offset_the_census_absorbed_them_into",
+    "tests/test_stage3b_hour.py::test_every_frozen_state_beside_a_weekday_census_keeps_its_weekday_counts",
+    "tests/test_stage3b_hour.py::test_the_payers_work_grows_with_the_rows_alone",
+    "tests/test_stage3b_hour.py::test_the_payers_work_does_not_grow_with_the_empty_calendar"
    ],
    "test": null,
    "driver": null,
    "pin_strength": "WEAKER",
    "measured_on": "seven columns of moments at 1,000 to 11,000 rows through the real producer, generator and checker, floors 11 and 36, seeds 0 to 9",
-   "evidence": "Before (ad6487a), twins of the four last columns missed the hour census at 4, 7, 5 and 10 seeds of 10 at floor 11, T2's column its count of different values and at midnight too; none with the weekday census withdrawn. After, none at either floor; 394 twins with one census alone or met before, of 420, are byte for byte ad6487a's. At a million rows the round took 0.7 s of a 124 s generate on the clinic and 26.6 s of 213 on noon stamps over 118 days, both still short where no free value is left in a gap (767 and 2,344 ranks). Ward rounds at a million rows, which the round had left at 260 different values of a published 150, now have it given back and miss the hour census alone, as ad6487a does.",
-   "nodes_min_collected": 24,
+   "evidence": "Before (ad6487a), twins of the four last columns missed the hour census at 4, 7, 5 and 10 seeds of 10 at floor 11, T2's column its count of different values and at midnight too; none with the weekday census withdrawn. After, none at either floor; 394 twins with one census alone or met before, of 420, are byte for byte ad6487a's. At a million rows the round took 0.7 s of a 124 s generate on the clinic and 26.6 s of 213 on noon stamps over 118 days, both still short where no free value is left in a gap (767 and 2,344 ranks). Ward rounds at a million rows, which the round had left at 260 different values of a published 150, now have it given back and miss the hour census alone, as ad6487a does. Codex (689d405): Monday 24 to 36 at 108 ranks; a source's low tail 12 recounted 22; payers 6.3 s at 32,000 ranks, now 0.14 s; 880 battery twins unchanged.",
+   "nodes_min_collected": 29,
    "value_at": {
     "commit": "e72272f",
     "date": "2026-10-12",
