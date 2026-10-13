@@ -332,6 +332,9 @@ CASES: "dict[str, tuple[object, ...]]" = {
     # ...and the one it was honoured on, whose written clock was pooled
     # (the T1 review's item 9): told so, rather than told to drop it.
     "the_twelve_hour_style_was_held_back": ("seen_at",),
+    # ...and a layout column read in part, which the partial reader takes
+    # on the 24-hour clock alone (the Codex review of landing I3a, item 2).
+    "the_twelve_hour_declaration_did_not_reach_in_part": ("seen_at",),
     # ...and `--century` (landing R2a, plan P4-D383): a value that is not
     # a column's name, an equals sign and a year question Q5 offers is
     # refused before the table is opened, and it takes what the person

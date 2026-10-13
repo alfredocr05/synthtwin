@@ -899,6 +899,8 @@ TWENTY_FIFTH_BRANCH_CASES = (
     "layout_dial_hour_offset",
     "layout_dial_one_figure_offset",
     "layout_dial_spaced_offset",
+    # The Codex review of landing I3a, item 1: the dial read at UTC.
+    "layout_dial_utc_offsets",
     "layout_flexible_widths",
     "layout_hl7_fraction_offset",
     "layout_hour_offset",
@@ -1040,6 +1042,9 @@ SEEDS = {
     # ...and the verification of its repair, the declared mark on the
     # line (open item 1), at the next seed.
     "layout_declared_short_at_the_line": 509,
+    # The Codex review of landing I3a, item 1: an unmarked dial read at
+    # UTC, at a seed no lane of its wave has taken.
+    "layout_dial_utc_offsets": 531,
     # Landing T1's written clocks take the next seeds after the highest in
     # use below 34041 (plan P4-D370).
     "stamp_unpadded_hour": 416,
@@ -1274,6 +1279,10 @@ DECLARED_CENTURIES = {"layout_century_window": 1930}
 DECLARED_DATES = frozenset(
     {"layout_ordinal_declared", "layout_declared_short", "layout_declared_short_at_the_line"}
 )
+# The case on the 12-hour dial with no marker (the Codex review of landing
+# I3a, item 1), which the contract's invariant S8c binds to
+# settings.forced_twelve_hour_clocks.
+DECLARED_TWELVE_HOURS = frozenset({"layout_dial_utc_offsets"})
 
 DECLARED_IDENTIFIERS = frozenset(
     {
@@ -1359,6 +1368,7 @@ def _settings(
     rate: float = 0.9,
     centuries: "list | None" = None,
     dates: "list | None" = None,
+    twelve: "list | None" = None,
 ) -> dict:
     dates = [] if dates is None else dates
     return {
@@ -1417,8 +1427,10 @@ def _settings(
         # delimited cases read their own published one.
         "forced_delimiter": "",
         # The seventh (landing T1, plan P4-D370). The oracle declares no
-        # 12-hour clock: a column on that face states it in its own form.
-        "forced_twelve_hour_clocks": [],
+        # 12-hour clock: a column on that face states it in its own form;
+        # the one layout case on the dial with no marker is declared, as
+        # S8c asks (the Codex review of landing I3a, item 1).
+        "forced_twelve_hour_clocks": [] if twelve is None else twelve,
         # The three the second cut reserves (plan P4-D386), empty in every
         # description until the landing that fills each; landing R2a fills
         # the first, for its one case read in a century of its own.
@@ -1469,6 +1481,7 @@ def _profile_document(case: dict, name: str) -> dict:
         "settings": _settings(
             declared, commas, codes, rate, centuries,
             [column["name"]] if name in DECLARED_DATES else None,
+            [column["name"]] if name in DECLARED_TWELVE_HOURS else None,
         ),
         "source": {
             "dialect": dialect.document_of(
@@ -2711,6 +2724,24 @@ def _the_most_each_offset_holds(here, by_size, cap, left, later):
         (total for total in _SUMS_OF_SIZES(counts, cap) if total >= 2), reverse=True
     )
     return _AMOUNT_COUNTED(counts, amounts[0]) if amounts else {}
+
+
+_ORDINAL_SPACE = gen.ordinal_space
+_LAYOUT_PARTS = gen.layout_parts
+_STAMP_CLOCK_STYLE = gen.stamp_clock_style
+
+
+def _half_day_on_any_seconds(column):
+    """G7.3b step 10's wall clock withdrawn: e0d82e1's half day, a column read at UTC's too."""
+    if _ORDINAL_SPACE(column) != "datetime":
+        return False
+    member = column.get("format") or ""
+    if member.startswith(gen.LAYOUT_PREFIX):
+        fields = [name for kind, name in _LAYOUT_PARTS(member) if kind == "f"]
+        return any(name in ("hh", "h", "_h") for name in fields) and not any(
+            name in ("AM", "am", "A.M.", "a.m.") for name in fields
+        )
+    return _STAMP_CLOCK_STYLE(column)[1] == " twelve-hour"
 
 
 def _layout_rewritten(old: str, new: str):
@@ -4146,6 +4177,14 @@ CASE_MUTANTS = {
         "writes the 24-hour clock's hour",
         attribute="layout_written",
         replacement=_layout_rewritten("{_h}", "{_H}"),
+        outcome=CHANGES_THE_CELLS,
+    ),
+    "layout_dial_utc_offsets": Mutant(
+        branch="G7.3b step 10's half day taken on a column's own wall clock "
+        "(the Codex review of landing I3a, item 1); the mutant takes it on "
+        "the UTC seconds of a column read at UTC, e0d82e1's rule",
+        attribute="on_the_half_day",
+        replacement=_half_day_on_any_seconds,
         outcome=CHANGES_THE_CELLS,
     ),
     "layout_space_padded_day": Mutant(

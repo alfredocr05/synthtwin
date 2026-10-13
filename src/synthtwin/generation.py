@@ -23135,6 +23135,16 @@ def _on_the_half_day(facts: contract.DatetimeFacts) -> bool:
     reads stands from 00:00 to 11:59 too. Drawn over the whole day, 1,000
     such stamps came back at exit 3 at seeds 0 to 2, their tails, weekday
     census and hour census missed.
+
+    ONLY ON A COLUMN READ AT ITS OWN WALL CLOCK (the Codex review of
+    landing I3a, item 1). The half day is a half of the day each cell
+    writes; a column of several offsets is read at UTC
+    (`taxonomy.READ_AT_UTC`), its moments count UTC seconds, and a local
+    morning there can be a UTC afternoon: 1,000 SAS stamps written 10:00
+    to 10:08 at -0500 and -0400 had their low tail taken onto the UTC
+    morning, `10MAR2024:07:00:10-0500`, and missed 15 obligations. Such a
+    column is drawn over its UTC day, T1's stated limit
+    (`_SPREAD_TWELVE_HOUR_HELD`).
     """
     style = _stamp_clock_style(facts)
     if parsing.is_layout_name(facts.parser_family):
@@ -23142,6 +23152,7 @@ def _on_the_half_day(facts: contract.DatetimeFacts) -> bool:
         style = parsing.DEFAULT_CLOCK_STYLE if laid is None else laid
     return (
         _ordinal_space(facts) == "datetime"
+        and facts.datetimes_read_at == taxonomy.READ_AT_LOCAL
         and parsing.clock_face(style) == parsing.CLOCK_TWELVE_HOUR
     )
 
@@ -31211,9 +31222,35 @@ _SPREAD_HALF_DAY = (
 )
 
 
+# T1'S STATED LIMIT ON THE DIAL, where the half day does not reach
+# (`_on_the_half_day`): a layout on the declared 12-hour dial read at UTC
+# (the Codex review of landing I3a, item 1).
+_SPREAD_TWELVE_HOUR_HELD = (
+    "the days are drawn between the published rungs, and between them "
+    "independently; a time drawn after noon is written on the 12-hour "
+    "dial, which reads it twelve hours earlier, so a rung or a tail can "
+    "be missed, and each one missed is named above"
+)
+
+
 def _spread_held(facts: contract.DatetimeFacts, held: str) -> str:
     """The spread sentence's held clause (landing T1, as 3b.2-H left it): the
-    column's own, a declared 12-hour stamp's included."""
+    column's own, a declared 12-hour stamp's included.
+
+    SAVE A LAYOUT'S ON THE DECLARED DIAL READ AT UTC (the Codex review of
+    landing I3a, item 1): its moments count UTC seconds, so the dial's
+    half day (`_on_the_half_day`) is no window on them, and a time drawn
+    after noon on a cell's own clock is written on the dial, which reads
+    it twelve hours earlier -- T1's stated limit, said as R2b said it.
+    """
+    if (
+        parsing.is_layout_name(facts.parser_family)
+        and _ordinal_space(facts) == "datetime"
+        and not _on_the_half_day(facts)
+    ):
+        laid = parsing.layout_clock_style(facts.parser_family)
+        if laid is not None and parsing.clock_face(laid) == parsing.CLOCK_TWELVE_HOUR:
+            return _SPREAD_TWELVE_HOUR_HELD
     return held
 
 

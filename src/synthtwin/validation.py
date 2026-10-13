@@ -16496,7 +16496,11 @@ def _date_tail_windows(
         # THE DIAL'S HALF DAY (G7.3b step 10, landing 3b.2-H): a stamp
         # declared a 12-hour clock with no marker draws its tails there,
         # and so does a layout on that dial (landing R2b, met at batch 3's
-        # integration), whose clock its format names.
+        # integration), whose clock its format names -- each read at its
+        # own wall clock: the half day is a half of the day each cell
+        # writes, and a column read at UTC counts UTC seconds, where a
+        # local morning can be an afternoon (the Codex review of landing
+        # I3a, item 1; `generation._on_the_half_day`).
         half_day: "tuple[int, int, bool] | None" = None
         face_style = _stamp_style_of(facts)
         if parsing.is_layout_name(facts.parser_family):
@@ -16505,6 +16509,7 @@ def _date_tail_windows(
         if (
             facts.resolution == taxonomy.RESOLUTION_DATETIME
             and not facts.all_at_midnight
+            and reading == taxonomy.READ_AT_LOCAL
             and parsing.clock_face(face_style) == parsing.CLOCK_TWELVE_HOUR
         ):
             half_day = (calendar_clock.seconds_of(tail.boundary), seconds_per_unit, low_side)

@@ -10776,8 +10776,11 @@ def on_the_half_day(column):
     """Whether a column's moments stand on the dial's half day: a slashed
     stamp written on the declared 12-hour face, counted in seconds -- or a
     layout whose hour is the dial's, `{hh}`, `{h}` or `{_h}`, with no
-    marker field beside it (landing R2b, at batch 3's integration)."""
-    if ordinal_space(column) != "datetime":
+    marker field beside it (landing R2b, at batch 3's integration) -- read
+    at its own wall clock (G7.3b step 10): the half day is a half of the
+    day each cell writes, and a column read at UTC counts UTC seconds (the
+    Codex review of landing I3a, item 1)."""
+    if ordinal_space(column) != "datetime" or column["datetimes_read_at"] != "local":
         return False
     member = column.get("format") or ""
     if member.startswith(LAYOUT_PREFIX):
@@ -29718,6 +29721,54 @@ def _layout_dial_spaced_offset():
     )
 
 
+# -- the Codex review of landing I3a, item 1: an unmarked dial read at
+# UTC, which G7.3b step 10's half day does not reach.
+
+
+def _layout_dial_utc_offsets():
+    tails, tail_claims = _tail_fields(
+        {"boundary": "2024-03-10 14:00:11", "rows": 11, "mean_distance": "6",
+         "rms_distance": "6.782329983125268", "values": None},
+        {"boundary": "2024-03-10 15:00:38", "rows": 11, "mean_distance": "6",
+         "rms_distance": "6.782329983125268", "values": None},
+    )
+    rows = 100
+    member = "layout {DD}{MON}{YYYY}:{hh}:{MI}:{SS}{+HHMM}"
+    ladder = {key: None for key in LADDER_KEYS}
+    ladder["p25"] = "2024-03-10 14:00:24"
+    ladder["p50"] = "2024-03-10 14:00:49"
+    ladder["p75"] = "2024-03-10 15:00:24"
+    column = _universal(
+        "column_1", "datetime", "datetime", "data", "ok",
+        n_present=rows, n_missing=0, n_distinct=rows, n_distinct_folded=rows,
+        n_numeric=0, n_not_numeric=rows, n_out_of_range=0, n_contradictory=0,
+        format=member, resolution="datetime", time_precision="second",
+        subsecond_digits=0, datetimes_read_at="utc",
+        tail_unit="second", date_percentiles=ladder,
+        n_unparsed=0, utc_offsets={"-04:00": 50, "-05:00": 50},
+        resolution_mix={member: rows},
+        datetime_separators={},
+        all_at_midnight=False, n_at_midnight=None,
+        **tails,
+    )
+    return {
+        "why": "G7.3b step 10's half day on a column's own wall clock (the "
+        "Codex review of landing I3a, item 1): SAS stamps on the 12-hour "
+        "dial with no marker, `10MAR2024:10:00:05-0400`, written 10:00 to "
+        "10:00:49 at -0500 and -0400, so the column is read at UTC and its "
+        "moments stand from 14:00 to 15:00:49 there, a UTC afternoon. The "
+        "half day is a half of the day each cell writes, which UTC seconds "
+        "do not count, so neither the tails nor the hour pass take it here: "
+        "the twin stands where its rungs and tails do. The mutant takes the "
+        "half day on the UTC seconds, e0d82e1's rule, and the 22 ranks of "
+        "the two tails go to the UTC morning, `10MAR2024:07:00:08-0500`.",
+        "column": column,
+        "rows": rows,
+        "identifier_declared": False,
+        "claims": tail_claims,
+    }
+
+
 # -- landing R2c's partial dates and ask-first layouts (plan P4-D383) ----
 
 
@@ -29955,6 +30006,8 @@ R2A_BRANCH_CASE_BUILDERS = {
     "layout_dial_hour_offset": _layout_dial_hour_offset,
     "layout_dial_one_figure_offset": _layout_dial_one_figure_offset,
     "layout_dial_spaced_offset": _layout_dial_spaced_offset,
+    # The Codex review of landing I3a, item 1: the dial read at UTC.
+    "layout_dial_utc_offsets": _layout_dial_utc_offsets,
     "layout_flexible_widths": _layout_flexible_widths,
     "layout_hl7_fraction_offset": _layout_hl7_fraction_offset,
     "layout_hour_offset": _layout_hour_offset,
@@ -39752,7 +39805,10 @@ _TWENTY_FIFTH_BRANCH_ACCOUNT = (
     "binds, partial months stepped off an absent spelling, figure "
     "stand-ins passing over every year a partial form reads, and a "
     "declared column's upper count target, also on the date rule's line "
-    "as the settings' binary64 `0.9` draws it. They "
+    "as the settings' binary64 `0.9` draws it; and, from the Codex review "
+    "of landing I3a, a column on the 12-hour dial with no marker read at "
+    "UTC beside two offsets, which G7.3b step 10's half day does not "
+    "reach. They "
     "are computed by the same oracle and the same proof layer "
     "as tests/reference/generation-reference-vectors.json, "
     "tests/reference/generation-branch-vectors.json, "
@@ -41365,6 +41421,75 @@ GIVEN_WORDS = {
         7924447393048879550, 9075192529004776072, 5305215818650342463,
         2615150498167026646, 18316698381913234361, 3161296679347398272,
         238468329361296891, 10545809742624038117, 17848599439088029970,
+    ),
+    # The Codex review of landing I3a, item 1, at seed 531.
+    "layout_dial_utc_offsets": (
+        15407966641469787121, 17204198735955618987, 9174680805363554446,
+        14601555658041654905, 6376971323881435453, 7437956509196642075,
+        14419793496609322123, 15727741487103903489, 11529709873998255965,
+        16388079154325181617, 7874643961942007980, 5596184356121997963,
+        2184008631898702974, 17751185309469189747, 7333537324964674410,
+        3831464271319135897, 9823966971220674879, 6863800358971878653,
+        2424509201195059946, 18342231109857683970, 17989086276023350583,
+        16016968101505448102, 2621941504910702015, 18316952390520485886,
+        4338600680943644338, 18158171385787016044, 2973615413941408017,
+        397020085165265201, 8651024184676613056, 5203921070978708641,
+        8233982369415411516, 985584355181609813, 12670975680741323662,
+        4584660325842296851, 1020612210402748588, 304074118585371970,
+        5508630971769437349, 2327647662665414380, 8134775971755758516,
+        12314055780176057499, 14139806532767540151, 14629773952679525071,
+        1742214008912686489, 14939054532177475384, 1869591919433828402,
+        4972143975637807403, 3208831309148988279, 4212110106027462281,
+        1525941777083586957, 12415459811243839873, 3157974571770461116,
+        17415835422546397803, 4603720823097104418, 16537783635716199321,
+        1917672867562186430, 4966947174714155633, 9276512812887316956,
+        17506161359655246507, 16861990673940767579, 9243331326302045345,
+        9013391124422597555, 602557186523723576, 18313212053927185752,
+        11610421443277912665, 5356784533029801200, 4674018386436660123,
+        2503165173651624184, 7964685702772177507, 10184107341276176329,
+        10555159432860379490, 5171030750793666724, 2690618015121775791,
+        9332942483214520238, 12792063506637005956, 18097357412528312498,
+        12762810989502615190, 809732107300128253, 16843702029189168591,
+        11118690035043977164, 2812631090356491573, 12452711380356434272,
+        16977328341818183036, 16460858088158865097, 8717689655464066196,
+        10779267658276836623, 9238351654233835414, 5713235477633267565,
+        11932111733403581407, 17365176893198358933, 12195299677432803458,
+        5760477173479003052, 8146842365905603241, 4057902345583783479,
+        11740131193503629707, 372412638516198860, 16850307738817132837,
+        9759782429096681481, 7555404839770757825, 11899206830050132219,
+        7040415406840045086, 8186426661793701768, 11484344023978855081,
+        9868002995861036140, 13563006912315242208, 12168861847795080608,
+        1096820482052157648, 69455553021924020, 3688150391873326638,
+        5824566982488692549, 12397809537832056031, 2562847593005826923,
+        5257854394203531202, 652769974338284878, 15783301193911054624,
+        8579338833242990725, 17727783445387287379, 11598976056875741051,
+        4573203285228568245, 162444387045575161, 16108936855433966496,
+        7830586274081537266, 18291928673478191407, 6942226318977508342,
+        2030073266684741844, 14423811959475470101, 862828089619086561,
+        3930911381683692268, 12107586108725601974, 16694355845786983156,
+        3180706016009009035, 13583473798287396027, 17946749199452648676,
+        4337786004957186941, 14983472758582371530, 14650106732478291184,
+        16823761720740990957, 5099834531553490630, 299009650254316385,
+        5705063048396834956, 3615475225684925389, 18340478544806441164,
+        8200706992900544291, 5494436857103062819, 14090786716384553981,
+        14229945948061892498, 3087767482666988984, 1341739111992102929,
+        12000918604872200357, 5878111090329296086, 2998883798638415838,
+        6094105550912631342, 6079473467484626709, 7912262459314081436,
+        2411088394722106649, 17230425578336775071, 2301189094944796735,
+        9321467215529107824, 7542648450913644565, 1351691561194112201,
+        17765464761210172444, 3009959427036816712, 15480832705437458179,
+        11609087048863525912, 14779268972285280210, 3966780630607415261,
+        17811513076277031456, 1104901593871364950, 3917703023212634720,
+        11930424318903610119, 5390154002067957378, 1907198747525107167,
+        12381573455979452307, 17783737658202844551, 10443796641006422652,
+        10939706890232608566, 15693357847342500558, 1988044813599811311,
+        14237016917719737511, 13383654754187528831, 12927513706486602684,
+        13016356158347857110, 11560774970479723090, 8122043133414579084,
+        1674851587232271198, 12544711515052018221, 8913251108528303925,
+        4471647870856618232, 9984468407908405896, 730520052079758967,
+        14384426057332144719, 14212277364247313775, 6784509963353336785,
+        7296631975328887755, 9576018914281788194, 12673549996050381814,
+        4722072616687784441, 3329152750409201333,
     ),
     "layout_dial_spaced_offset": (
         14656496037287454600, 16754134800389862215, 7396592763845958987,

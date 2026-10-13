@@ -2992,6 +2992,143 @@ def test_r2b_c8_a_declared_dial_validates_clean(tmp_path: pathlib.Path) -> None:
     assert code == 0
 
 
+# -- the Codex review of landing I3a, item 1: the dial's half day is a
+# half of the LOCAL day, which a column read at UTC does not count in.
+
+
+def _dial_beside_two_offsets(rows: int) -> "list[str]":
+    """SAS stamps on the dial a second apart in pairs, -0500 on even rows and -0400 on odd.
+
+    Every cell is written between 10:00:00 and 10:08:19 on its own wall
+    clock, so the column is read at UTC (two offsets), from 14:00:00 to
+    15:08:19 there: a local morning that is a UTC afternoon.
+    """
+    start = datetime.datetime(2024, 3, 10, 10, 0, 0)
+    cells: "list[str]" = []
+    for place in range(rows):
+        moment = start + datetime.timedelta(seconds=place // 2)
+        offset = "-0500" if place % 2 == 0 else "-0400"
+        cells += [moment.strftime("%d%b%Y:%H:%M:%S").upper() + offset]
+    return cells
+
+
+def _utc_instants(written: "list[str]") -> "list[datetime.datetime]":
+    """Each twin cell read on the dial, `12` its midnight, and moved to UTC by its own offset."""
+    found: "list[datetime.datetime]" = []
+    for cell in written:
+        moment = datetime.datetime.strptime(cell, "%d%b%Y:%I:%M:%S%z")
+        found += [moment.astimezone(datetime.timezone.utc)]
+    return found
+
+
+def test_i3a_codex1_a_dial_read_at_utc_is_drawn_over_its_utc_day(tmp_path: pathlib.Path) -> None:
+    """Codex item 1 on I3a: a dial beside two offsets keeps its tails where they stand.
+
+    The column is read at UTC, so its moments count UTC seconds and the
+    dial's half day -- a half of each cell's own wall-clock day -- is not
+    a window on them (G7.3b step 10). Derived by hand, not from either
+    construction: the source spans 14:00:00 to 15:08:19 UTC; each tail of
+    11 ranks with a root mean square distance of 6.78 seconds holds no
+    rank further than 6.78 x sqrt(11) = 22.5 seconds past its boundary,
+    14:00:11 and 15:08:08, so every twin instant lies in 13:59:48 to
+    15:08:31 UTC. On e0d82e1 the low tail held 22 ranks, one of them
+    10MAR2024:07:00:10-0500 (12:00:10 UTC), and the twin missed 15
+    obligations at exit 3.
+    """
+    block, profile, _questions = _described(
+        tmp_path, _dial_beside_two_offsets(1000), "--twelve-hour", "seen_at"
+    )
+    assert block["format"] == "layout {DD}{MON}{YYYY}:{hh}:{MI}:{SS}{+HHMM}"
+    assert block["datetimes_read_at"] == taxonomy.READ_AT_UTC
+    twin, written = _twin(profile, 0)
+    instants = _utc_instants(written)
+    utc = datetime.timezone.utc
+    assert min(instants) >= datetime.datetime(2024, 3, 10, 13, 59, 48, tzinfo=utc)
+    assert max(instants) <= datetime.datetime(2024, 3, 10, 15, 8, 31, tzinfo=utc)
+    code, report = _validated(profile, twin)
+    assert code == 0, report
+    # The report states T1's limit for such a column, not the half day.
+    said = " ".join((twin.parent / "real-twin-report.txt").read_text(encoding="utf-8").split())
+    assert " ".join(generation._SPREAD_HALF_DAY.split()) not in said
+    assert " ".join(generation._SPREAD_TWELVE_HOUR_HELD.split()[:8]) in said
+
+
+def test_i3a_codex1_red_when_the_half_day_counts_utc_seconds(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Item 1's mutant: e0d82e1's predicate, the half day taken on any column's seconds."""
+
+    def any_basis(facts: contract.DatetimeFacts) -> bool:
+        laid = parsing.layout_clock_style(facts.parser_family)
+        style = parsing.DEFAULT_CLOCK_STYLE if laid is None else laid
+        return (
+            generation._ordinal_space(facts) == "datetime"
+            and parsing.clock_face(style) == parsing.CLOCK_TWELVE_HOUR
+        )
+
+    monkeypatch.setattr(generation, "_on_the_half_day", any_basis)
+    _block, profile, _questions = _described(
+        tmp_path, _dial_beside_two_offsets(1000), "--twelve-hour", "seen_at"
+    )
+    _twin_file, written = _twin(profile, 0)
+    utc = datetime.timezone.utc
+    assert min(_utc_instants(written)) < datetime.datetime(2024, 3, 10, 13, 59, 48, tzinfo=utc)
+
+
+# -- the Codex review of landing I3a, item 2: a column read in part
+# (landing R2c) is not read on the dial, so it is not offered it.
+
+
+def _partial_noon_stamps() -> "list[str]":
+    """800 SAS stamps at 12:15:30 over ten days of March 2023, then 200 at 12:15, short of seconds."""
+    days = [f"{day:02d}MAR2023" for day in range(17, 27)]
+    return [days[place % 10] + ":12:15:30" for place in range(800)] + [
+        days[place % 10] + ":12:15" for place in range(200)
+    ]
+
+
+def test_i3a_codex2_a_column_read_in_part_is_not_offered_the_dial(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Codex item 2 on I3a: the 12-hour answer is offered only where the reader honours it.
+
+    R2c reads this column in part, under `{HH}` with a form short of
+    its seconds, and `taxonomy._partial_layout` reads every hour on the
+    24-hour clock: declared `--twelve-hour`, it still publishes the
+    median 2023-03-21 12:15:30. On e0d82e1 R2b's question was put on it
+    all the same, promising that the answer reads 12:15 as a quarter past
+    midnight. The question is not put, and the declaration's notice says
+    why it reached nothing.
+    """
+    block, _profile, questions = _described(tmp_path / "asked", _partial_noon_stamps())
+    assert block["format"] == "layout {DD}{MON}{YYYY}:{HH}:{MI}:{SS}"
+    assert block["resolution_mix"] == {
+        "layout {DD}{MON}{YYYY}:{HH}:{MI}": 200,
+        "layout {DD}{MON}{YYYY}:{HH}:{MI}:{SS}": 800,
+    }
+    assert not _twelve_hour_asked(questions)
+    capsys.readouterr()
+    block, _profile, _questions = _described(
+        tmp_path / "declared", _partial_noon_stamps(), "--twelve-hour", "seen_at"
+    )
+    assert block["format"] == "layout {DD}{MON}{YYYY}:{HH}:{MI}:{SS}"
+    told = " ".join(capsys.readouterr().err.split())
+    notice = errors.the_twelve_hour_declaration_did_not_reach_in_part("seen_at")
+    assert " ".join(notice.split()) in told
+    # A column the dial reads whole is still asked (R2b's C4).
+    _block, _profile, questions = _described(tmp_path / "whole", _morning_stamps(ROWS))
+    assert _twelve_hour_asked(questions)
+
+
+def test_i3a_codex2_red_when_a_column_read_in_part_is_asked(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Item 2's mutant: no column taken to be read in part, and the question is put again."""
+    monkeypatch.setattr(asking, "layout_read_in_part", lambda block: False)
+    _block, _profile, questions = _described(tmp_path, _partial_noon_stamps())
+    assert _twelve_hour_asked(questions)
+
+
 
 def _space_padded_clocks(rows: int) -> "list[str]":
     """SQL Server's style 100 on the 24-hour clock: a day and an hour padded with a space."""

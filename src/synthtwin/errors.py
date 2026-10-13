@@ -1461,6 +1461,27 @@ def the_twelve_hour_declaration_did_not_reach(name: str, role: str) -> str:
     )
 
 
+def the_twelve_hour_declaration_did_not_reach_in_part(name: str) -> str:
+    """Message when `--twelve-hour` names a layout column read in part (the Codex review of landing I3a, item 2).
+
+    NOT A REFUSAL, for the same reason as
+    `the_twelve_hour_declaration_did_not_reach`: which cells are written
+    short of a full date and time is known only once the table is read.
+    """
+    return (
+        f"The column '{_shown(name)}' was named with --twelve-hour, and "
+        f"synthtwin read it as dates with a time of day written without AM "
+        f"or PM, but some of its cells are written short of the full date "
+        f"and time -- without their seconds, say -- and a column read that "
+        f"way is read on the 24-hour clock only: a 12-hour reading of it is "
+        f"not supported, so 12:15 in it is a quarter past noon, in the "
+        f"description and in its twin. The description that was written is "
+        f"correct about everything else, and says which columns were "
+        f"declared. Run the command again without --twelve-hour for this "
+        f"one."
+    )
+
+
 def century_not_supported(given: str) -> str:
     """Message for a --century value that is not COLUMN=YEAR with a window it offers (landing R2a)."""
     return (

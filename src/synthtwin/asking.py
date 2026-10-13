@@ -1137,6 +1137,31 @@ def _layout_clock_hours(present: "list[str]", format_name: str) -> bool:
     return seen
 
 
+def layout_read_in_part(block: "dict[str, object]") -> bool:
+    """Whether a described column was read under a layout in part (landing R2c).
+
+    Its `resolution_mix` counts cells under a form other than its format:
+    the partial forms `taxonomy._partial_layout` read short of a full
+    rank, `17MAR2023:12:15` beside `17MAR2023:12:15:30`. Such a column is
+    read on the 24-hour clock whatever is declared, since the partial
+    reader takes no dial; the 12-hour question is not put on it
+    (`_clock_question`), and a `--twelve-hour` naming it is told why it
+    reached nothing (the Codex review of landing I3a, item 2). False for
+    a column under no layout. Guarantees: a function of the block. Raises
+    nothing. No I/O of any kind.
+    """
+    if "format" not in block or not parsing.is_layout_name(f"{block['format']}"):
+        return False
+    mix = block["resolution_mix"] if "resolution_mix" in block else None
+    if not isinstance(mix, dict):
+        return False
+    for key in mix:
+        count = mix[key]
+        if f"{key}" != f"{block['format']}" and isinstance(count, int) and count > 0:
+            return True
+    return False
+
+
 def _clock_question(
     block: "dict[str, object]",
     present: "list[str]",
@@ -1175,6 +1200,13 @@ def _clock_question(
     if role != taxonomy.ROLE_CLOCK and not stamps and not laid:
         return None
     if name in twelve_hours:
+        return None
+    # -- the Codex review of landing I3a, item 2: NOT ON A LAYOUT COLUMN
+    # READ IN PART. The partial reader takes no dial, so the answer that
+    # reads 12:15 as a quarter past midnight would reach nothing: 800
+    # stamps at 12:15:30 beside 200 at 12:15 were offered it and, answered,
+    # still published the median 2023-03-21 12:15:30.
+    if laid and layout_read_in_part(block):
         return None
     if laid:
         unmarked = True

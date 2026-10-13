@@ -3666,6 +3666,14 @@ def _run_profile(
             ):
                 _warn(errors.the_twelve_hour_style_was_held_back(name))
                 continue
+            # A LAYOUT COLUMN READ IN PART is a time of day without a
+            # marker the partial reader takes on the 24-hour clock alone
+            # (the Codex review of landing I3a, item 2), said so.
+            if asking.layout_read_in_part(described_column) and parsing.layout_asks_twelve_hours(
+                f"{described_column['format']}"
+            ):
+                _warn(errors.the_twelve_hour_declaration_did_not_reach_in_part(name))
+                continue
             _warn(
                 errors.the_twelve_hour_declaration_did_not_reach(
                     name, f"{described_column['role']}"
