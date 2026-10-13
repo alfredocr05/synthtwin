@@ -6897,10 +6897,14 @@ pins: the two tail boundaries and each published rung, at its rank.
 7. **The list gives way.** Where the sorted ranks miss a group of the
    weekday or the day-of-month census beside the list, or the count of
    different days where the count pass reaches it, the column is drawn
-   again from the same words as if it listed no date: its twin is, byte
-   for byte, the twin of the column without `heavy_dates`, so every
-   check that twin meets stands, and one deviation names the list
-   (`heavy_dates`, "as if no date were listed"). The pass draws no word of its own. Its
+   again from the same words as if it listed no date. That twin is
+   taken where it meets a census the listed one misses, or meets the
+   censuses as the listed one does and holds the count nearer -- a
+   census first, then the count's distance -- and one deviation names
+   the list (`heavy_dates`, "as if no date were listed"); elsewhere the
+   listed twin stands. The list so never costs a census or a day of the
+   count that the twin of the column without `heavy_dates`, taken byte
+   for byte, holds; at most twice the column's work. The pass draws no word of its own. Its
 frozen cases are states in the nineteenth vectors file,
 `tests/reference/generation-branch-vectors-19.json`: a covered run, two
 loose dates, a listed boundary day, two listed dates with a hole between

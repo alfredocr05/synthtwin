@@ -610,8 +610,8 @@ def test_whole_columns_are_the_oracle_s(tmp_path: pathlib.Path, monkeypatch: pyt
     seen: "list[tuple[list[int], list[str]]]" = []
     content = generation._datetime_content
 
-    def captured(plan, words):  # type: ignore[no-untyped-def]
-        found = content(plan, words)
+    def captured(plan, words, settled=None):  # type: ignore[no-untyped-def]
+        found = content(plan, words, settled)
         seen[:] = [(list(words), list(found[0]))]
         return found
 
@@ -700,10 +700,11 @@ def test_a_list_that_costs_a_census_or_the_count_gives_way(
     tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch, label: str
 ) -> None:
     """G7.3j step 7: where the twin drawn with the list misses a group of a census beside it,
-    or the count of different days, the column is drawn as if it listed no date. The twin at
-    seed 0 is the twin of the same column described listing nothing, byte for byte; only the
-    list is MISSED, and the report names it. Red when the census is not asked (`census`) or
-    the count is not asked (`count`): that check is MISSED beside the list."""
+    or the count of different days, that the twin drawn as if it listed no date holds, the
+    column is drawn so. The twin at seed 0 is the twin of the same column described listing
+    nothing, byte for byte; only the list is MISSED, and the report names it. Red when the
+    census is not asked (`census`) or the count is not asked (`count`): that check is MISSED
+    beside the list."""
     cells = _GIVING_WAY[label]()
     text = gate._table_text({"visit": cells})
     described = kpi_shapes.describe(tmp_path / "listed", "listed", text, 11)
@@ -725,8 +726,8 @@ def test_a_list_that_costs_a_census_or_the_count_gives_way(
         return
     module = _mutant(
         monkeypatch,
-        "and (layout.distinct < 0 or len(set(ordinals)) == layout.distinct)",
-        "and True",
+        "    return census, abs(len(set(ordinals)) - layout.distinct)",
+        "    return census, 0",
     )
     kept = rendering.twin_csv(module.generate(described.loaded, 0))
     assert "visit:distinct.n_distinct" in kpi_shapes.missed(kpi_shapes.measure(described, kept, "kept.csv"))

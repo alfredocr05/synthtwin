@@ -9429,6 +9429,17 @@ def heavy_census_met(column, ordinals, parsed):
     return True
 
 
+def heavy_standing(column, ordinals, parsed):
+    """G7.3j step 7: how far the ranks stand from the censuses and the
+    count -- (0 where every group of both censuses holds its count, else
+    1; how many different days more or fewer than the count asks where
+    it is reached, else 0) -- a census first, lower nearer."""
+    census = 0 if heavy_census_met(column, ordinals, parsed) else 1
+    if not date_counts_reachable(column):
+        return (census, 0)
+    return (census, abs(len(set(ordinals)) - (column["n_distinct"] - column["n_unparsed"])))
+
+
 def heavy_met(column, ordinals, parsed, holes):
     """Whether the ranks already meet every census beside the list, hold the
     count of different days where it is reached, and keep off every hole
@@ -10324,7 +10335,7 @@ def heavy_runs(knots, listed, holes):
     return tuple(found)
 
 
-def _datetime_content(column):
+def _datetime_content(column, settled=None):
     """The content list of a datetime column -- method sections G7.2 to G7.5.
 
     The parsed cells come first, in ascending rank, and the unparsed
@@ -10397,14 +10408,18 @@ def _datetime_content(column):
     ordinals = clock_fields_settled(column, ordinals, parsed, whole, gap_lows, gap_highs, holes)
     # -- the dates that stand out, after every other pass (3b.D4, P4-D369)
     ordinals = heavy_sorted(column, ordinals, parsed, whole, gap_lows, gap_highs, holes)
-    # ...and where the list costs a group of a census beside it or the
-    # count of different days, the list gives way (G7.3j step 7): the
-    # column drawn as if it listed none.
-    if heavy_planned(column, parsed, body_pins, _sides) is not None and not (
-        heavy_census_met(column, ordinals, parsed)
-        and (not date_counts_reachable(column) or len(set(ordinals)) == column["n_distinct"] - column["n_unparsed"])
-    ):
-        return _datetime_content(dict(column, heavy_dates=[]))
+    # ...and where the list costs a group of a census beside it or a day
+    # of the count that the twin listing nothing holds, the list gives
+    # way (G7.3j step 7): the column drawn as if it listed none.
+    if heavy_planned(column, parsed, body_pins, _sides) is not None:
+        listed = heavy_standing(column, ordinals, parsed)
+        if listed != (0, 0):
+            kept = []
+            bare = _datetime_content(dict(column, heavy_dates=[]), kept)
+            if heavy_standing(column, kept[0], parsed) < listed:
+                return bare
+    if settled is not None:
+        settled.append(ordinals)
     # HOW EVERY RANK IS SPELLED (method G7.5, landing 2b.6). Allocated
     # after the instants and the offsets, because which conventions a
     # cell can show depends on the day it writes and the clock it writes

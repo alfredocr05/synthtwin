@@ -20453,38 +20453,76 @@ def _heavy_census_met(
 
 
 _HEAVY_GIVEN_WAY = (
-    "The twin could not hold the dates that stand out at their published "
-    "counts beside every count per day of the week and of the month and "
-    "the count of different values, so it holds those counts and draws "
-    "its dates as if no date were listed."
+    "Drawn holding the dates that stand out at their published counts, "
+    "the twin missed a count per day of the week or of the month, or the "
+    "count of different values, that it holds drawn as if no date were "
+    "listed, so it is drawn so and those dates hold other counts."
 )
 
 
+def _heavy_standing(
+    facts: contract.DatetimeFacts,
+    ordinals: "list[int]",
+    layout: "_DateLayout",
+) -> "tuple[int, int]":
+    """How far the ranks stand from the censuses and the count (G7.3j step 7).
+
+    `(0, distance)` where every group of both censuses holds its count,
+    `(1, distance)` where one does not; the distance is how many
+    different days the ranks hold more or fewer than the count asks
+    where the count pass reaches it (`layout.distinct`), else nought.
+    Lower is nearer: a census first, then the count.
+
+    Guarantees: returns the pair. Linear in the ranks. Determinism: a
+    function of the three. Raises nothing. No I/O of any kind.
+    """
+    census = 0 if _heavy_census_met(facts, ordinals, layout) else 1
+    if layout.distinct < 0:
+        return census, 0
+    return census, abs(len(set(ordinals)) - layout.distinct)
+
+
 def _heavy_given_way(
-    plan: "_ColumnPlan", words: "list[int]"
-) -> "tuple[list[str], list[Deviation]]":
-    """The column drawn as if it listed no date, the list named (G7.3j step 7).
+    plan: "_ColumnPlan",
+    words: "list[int]",
+    ordinals: "list[int]",
+    layout: "_DateLayout",
+) -> "tuple[list[str], list[Deviation]] | None":
+    """The column drawn as if it listed no date where that twin stands
+    nearer, the list named (G7.3j step 7); None where the list stands.
 
-    Where the twin drawn with the list misses a group of the weekday or
-    the day-of-month census beside it, or the count of different days
-    where the count pass reaches it, the list gives way: the column is
-    drawn from the same words with `heavy_dates` empty -- the very twin of
-    a column listing nothing -- and one deviation names the list.
+    Where the twin drawn with the list (`ordinals`) misses a group of the
+    weekday or the day-of-month census beside it, or the count of
+    different days where the count pass reaches it, the column is drawn
+    again from the same words with `heavy_dates` empty -- the very twin
+    of a column listing nothing. Where that twin meets a census the
+    listed one misses, or meets the censuses as the listed one does and
+    holds the count nearer (`_heavy_standing`), it is taken and one
+    deviation names the list; elsewhere the listed twin stands, so the
+    list never costs a check or a day of the count that the twin listing
+    nothing holds.
 
-    Guarantees: returns the cells and the deviations. Determinism: a
-    function of the two. Raises nothing. No I/O of any kind.
+    Guarantees: returns the cells and the deviations, or None. Twice the
+    column's work at most. Determinism: a function of the four. Raises
+    nothing. No I/O of any kind.
     """
     column = plan.column
     facts = column.facts
     if not isinstance(facts, contract.DatetimeFacts):
         raise _wrong_facts(column.name)
+    listed = _heavy_standing(facts, ordinals, layout)
+    if listed == (0, 0):
+        return None
     bare = dataclasses.replace(
         plan,
         column=dataclasses.replace(
             column, facts=dataclasses.replace(facts, heavy_dates=())
         ),
     )
-    cells, notes = _datetime_content(bare, words)
+    settled: "list[list[int]]" = []
+    cells, notes = _datetime_content(bare, words, settled)
+    if _heavy_standing(facts, settled[0], layout) >= listed:
+        return None
     return cells, notes + [
         _deviation(
             column.name,
@@ -23882,7 +23920,9 @@ def _heavy_sorted(
 
 
 def _datetime_content(
-    plan: "_ColumnPlan", words: "list[int]"
+    plan: "_ColumnPlan",
+    words: "list[int]",
+    settled: "list[list[int]] | None" = None,
 ) -> "tuple[list[str], list[Deviation]]":
     """Every present cell of a column of dates (method G7, G10.4).
 
@@ -23892,6 +23932,9 @@ def _datetime_content(
     rank's place comes from the layout (`_date_layout`): the two tail
     boundaries and the rungs between them pinned, each tail drawn through
     its published shape or set on its published values (stage 3).
+    `settled`, where given, receives the ranks' days as the last pass
+    left them, before any cell is spelled (method G7.3j step 7 asks them
+    of a column drawn as if it listed no date).
     """
     column = plan.column
     facts = column.facts
@@ -23984,14 +24027,15 @@ def _datetime_content(
         column, facts, ordinals, parsed, whole, gap_lows, gap_highs, layout,
         holes, plan.declared_days,
     )
-    # ...and where the list costs a group of a census beside it or the
-    # count of different days, the list gives way (G7.3j step 7): the
-    # column is drawn as if it listed none.
-    if layout.listed and not (
-        _heavy_census_met(facts, ordinals, layout)
-        and (layout.distinct < 0 or len(set(ordinals)) == layout.distinct)
-    ):
-        return _heavy_given_way(plan, words)
+    # ...and where the list costs a group of a census beside it or a day
+    # of the count that the twin listing nothing holds, the list gives
+    # way (G7.3j step 7): the column is drawn as if it listed none.
+    if layout.listed:
+        given = _heavy_given_way(plan, words, ordinals, layout)
+        if given is not None:
+            return given
+    if settled is not None:
+        settled += [ordinals]
     # HOW EVERY RANK IS SPELLED (landing 2b.6, the reversal of owner
     # decision 5). Allocated after the instants and the offsets, because
     # which conventions a cell can show depends on the day it writes and
