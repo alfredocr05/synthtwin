@@ -63,6 +63,12 @@ other work was loading: lane R4's two files, numbers that are dates,
 213.21 s and its Codex review's 71.62 s, and lane D0's shared steps,
 26.37 s, which had had no row since it landed.
 
+ROWS ADDED 2026-10-13, at the integration of batch 3's first part, each
+file timed ON ITS OWN on the integrated tree as above, on a machine
+other work was loading: lane D3's day-of-month census, 44.68 s; and the
+layout file, which lanes R2b and R2c took from 32.30 s to 145.56 s,
+re-measured the same way.
+
 A FILE WITH NO ROW weighs `DEFAULT_SECONDS`. Two kinds of file have
 none: one added since the last measurement, which is then placed like
 an ordinary small file and runs in its shard from the commit that adds
@@ -332,11 +338,12 @@ SECONDS = {
     "tests/test_stage3b_count_room.py": 19.99,
     "tests/test_stage3b_counted.py": 213.21,
     "tests/test_stage3b_counted_codex.py": 71.62,
+    "tests/test_stage3b_day_of_month.py": 44.68,
     "tests/test_stage3b_gate.py": 194.66,
     "tests/test_stage3b_hour.py": 124.4,
     "tests/test_stage3b_hour_review.py": 8.36,
     "tests/test_stage3b_joint.py": 120.05,
-    "tests/test_stage3b_layout.py": 32.3,
+    "tests/test_stage3b_layout.py": 145.56,
     "tests/test_stage3b_route2.py": 26.16,
     "tests/test_stage3b_shared_steps.py": 26.37,
     "tests/test_stage3b_weekday_moments.py": 78.96,

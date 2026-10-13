@@ -831,9 +831,9 @@ def test_the_ledger_file_is_canonical_json() -> None:
     # first, every figure and its source kept (855 to 784, 1,486 to 1,305,
     # and R2b's and R2c's clauses of it 411 to 360 and 1,457 to 1,351
     # characters), and the note clauses keep only the figures of the trees
-    # they were read on, to 553,466, 563,187, 567,364 and then 573,965
-    # bytes; the rest is the entries' own rules and pinned nodes, which
-    # are not trimmed.
+    # they were read on, to 553,466, 563,187, 567,364 and 573,965 bytes,
+    # and 573,939 once `K-S3-58` was stamped on the merged tree; the rest
+    # is the entries' own rules and pinned nodes, which are not trimmed.
     #
     # 550,000 from 531,000, AT THE INTEGRATION OF BATCH 2B'S SECOND PART
     # (2026-10-12), the integrator's call, as the orchestrator asked: the
