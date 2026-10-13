@@ -9140,10 +9140,12 @@ reads no sixtieth second: `23:59:60` is unparsed). With `k` the step:
    room): the table moving one cell at a time writes, in searches
    bounded by the table and not its counts. Before any of it, where the
    fit stopped short of settling and a row's floors add to more than its
-   count, its cells are lowered, its last first, until they add to it,
-   then a column's so, its last row first; the lowered values are those
-   cells' floors (lane C2's repair round: rows and columns `[1000, 1000]`,
-   one row bound to the first column, settle only at the table's edge).
+   count, its cells are lowered, its last first, until they add to it;
+   the lowered values are those cells' floors (lane C2's repair round:
+   rows and columns `[1000, 1000]`, one row bound to the first column,
+   settle only at the table's edge). No column is lowered: each round
+   ends on the columns' scaling, so a column's floors never add to more
+   than its count.
    So every cell is the floor or ceiling of its fitted value wherever
    such a table exists and no floor was lowered, and both counts are met
    wherever any table meets them. Where none does -- a description no
