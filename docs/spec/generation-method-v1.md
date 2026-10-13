@@ -12404,6 +12404,15 @@ two ends are that rank's own two ends above.
 
 ### G12.5 The envelope on datetime `n_distinct` and `n_distinct_folded`
 
+**One test, asked everywhere** (the orchestrator's ruling (c) of
+2026-10-13, plan P4-D369). The count is held EXACTLY where it is
+reachable and the published count lies inside this envelope, and the
+envelope stands in its place elsewhere: `contract.datetime_count_held_exactly`
+states it once, and the validator, the report and G7.3j's steps 5 and 7
+ask it. On a column listing dates that stand out the windows of G12.4
+are the description's own gaps, before G7.3j's parts, since the
+validator draws its window from the description alone.
+
 **The lower end.** Two ranks whose windows of G12.4 do not overlap
 cannot hold the same instant. Where the column's count is reachable
 (contract `datetime_counts_reachable`), G7.3 may meet it with an

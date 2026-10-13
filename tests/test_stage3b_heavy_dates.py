@@ -62,6 +62,8 @@ THE GATE'S CLAUSES, each beside what turns it red:
   the list way); `test_a_count_left_off_is_the_day_pass_s_to_repair` (mutant: step 5 no
   longer asks the count); `test_every_listed_date_is_a_hole_of_the_count_pass` (mutant: the
   holes dropped on midnight moments in a member with a mark).
+* each part holds exactly its ranks: `test_each_part_holds_exactly_its_ranks` (mutant: the
+  ranks a rounding placed beyond a part's own not trimmed).
 
 Test-local mutants build the product's module with one source edit (one
 `compile` and one `exec` below); the oracle is run by path (one
@@ -601,7 +603,8 @@ _WHOLE = {
     "clinic": ("weekly_clinic", lambda: gate._BATTERY["schedules"](1000)["weekly_clinic"]),
     "sessions": ("sessions", lambda: dom._skeptic(1000)["sessions"]),
     "mays": ("visit", lambda: dom._mays(range(2019, 2025), 1000, 1600, 0.4)),
-    # ...and two whose list gives way (G7.3j step 7)
+    # ...and two of step 7 (the orchestrator's rulings of 2026-10-13): a census that gives way
+    # to the list, and the count that gives way to it
     "firsts": ("visit", lambda: _monthly_firsts()),
     "ties": ("visit", lambda: gate._tie_days(1000, 60, 83060)),
 }
@@ -610,7 +613,11 @@ _WHOLE = {
 @pytest.mark.parametrize("label", sorted(_WHOLE))
 def test_whole_columns_are_the_oracle_s(tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch, label: str) -> None:
     """A-P4-59: the cells the generator writes for a column listing dates that stand out, through
-    the oracle's own content (method G7.3j and every pass beside it), from the same words."""
+    the oracle's own content (method G7.3j and every pass beside it), from the same words; and
+    the lower end of G12.5's envelope on the description's own gaps that steps 5 and 7 read the
+    count by (the orchestrator's ruling (c) of 2026-10-13), the oracle's `count_lower_end`
+    against the product's `_DateLayout.count_window`. The oracle draws tails at a floor of 11,
+    so the cases stand there."""
     name, build = _WHOLE[label]
     described = kpi_shapes.describe(tmp_path, label, gate._table_text({name: build()}), 11)
     assert described.block(name)["heavy_dates"] != []
@@ -628,6 +635,11 @@ def test_whole_columns_are_the_oracle_s(tmp_path: pathlib.Path, monkeypatch: pyt
     block = copy.deepcopy(described.block(name))
     theirs = _oracle()["_datetime_content"](dict(block, _content_words=words))  # type: ignore[operator]
     assert theirs == ours, label
+    column = described.loaded.columns[[one.name for one in described.loaded.columns].index(name)]
+    parsed = block["n_present"] - block["n_unparsed"]
+    layout = generation._date_layout(column, column.facts, parsed, 11)  # type: ignore[arg-type]
+    lowest = _oracle()["count_lower_end"](block, parsed)  # type: ignore[operator]
+    assert layout.count_window[0] == lowest, label
 
 
 # -- the producer always loads -----------------------------------------------------------
@@ -887,6 +899,44 @@ def test_every_listed_date_is_a_hole_of_the_count_pass(tmp_path: pathlib.Path) -
         facts = described.loaded.columns[0].facts
         held = generation._count_holes(facts, ())
         assert {parsing.days_from_civil(*map(int, entry["date"].split("-"))) for entry in listed} <= set(held), label
+
+
+def test_each_part_holds_exactly_its_ranks(tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """G7.3j step 4: each part's shares hold exactly its ranks (`_heavy_whole`) -- a rank no
+    flow placed goes to the part's widest key, and ranks a rounding placed beyond the part's own
+    leave its fullest key. Asked of every call on a weekly schedule of 2 at a floor of 11, whose
+    rake places more than a part's own at seed 0 (the repair round of plan P4-D369: 31 columns of
+    the batteries reach it, 193 times). Red when the excess is not trimmed."""
+    text = gate._table_text({"visit": _weekly_schedule(2)})
+    described = kpi_shapes.describe(tmp_path, "schedule2", text, 11)
+    assert described.block("visit")["heavy_dates"]
+    seen: "list[tuple[object, ...]]" = []
+    real = generation._heavy_whole
+
+    def captured(shares, days_of, supply):  # type: ignore[no-untyped-def]
+        seen[len(seen):] = [(copy.deepcopy(shares), days_of, list(supply))]
+        return real(shares, days_of, supply)
+
+    with monkeypatch.context() as patch:
+        patch.setattr(generation, "_heavy_whole", captured)
+        generation.generate(described.loaded, 0)
+
+    def beyond(shares, days_of, supply) -> bool:  # type: ignore[no-untyped-def]
+        return any(
+            sum(count for key, count in shares[place].items() if key in days_of[place] and count > 0) > supply[place]
+            for place in range(len(shares))
+        )
+
+    assert any(beyond(*call) for call in seen)
+    module = _mutant(monkeypatch, "        while short < 0:\n", "        while False:\n")
+    for whole, holds in ((generation._heavy_whole, True), (module._heavy_whole, False)):
+        found = [whole(copy.deepcopy(shares), days_of, supply) for shares, days_of, supply in seen]
+        exact = all(
+            sum(parts[place].values()) == supply[place]
+            for parts, (_shares, _days, supply) in zip(found, seen)
+            for place in range(len(supply))
+        )
+        assert exact is holds
 
 
 # -- the work is bounded -----------------------------------------------------------------

@@ -6724,7 +6724,7 @@
    "headline": false,
    "name": "Dates that stand out come back at their exact counts",
    "status": "GREEN",
-   "rule": "the twenty-one pinned nodes pass: the gate's battery lists what the design measured and admissions none (H4), every twin holds every listed date and misses nothing (H1), the heaps come back within their bounds (H2), no listed count is below max(11, line) (H3); the rule, HD4 against brute force, the scope, file 19's seven states each red on its mutant, whole columns through the oracle, the producer always loading, the report, NF71, eight seeds of the 10th on business days, the work counted to 1,000,000 rows, lane D3's two limits lifted, and the list giving way where it would cost a census or the count (G7.3j step 7)",
+   "rule": "the twenty-five pinned nodes pass: the gate's battery lists what the design measured and admissions none (H4), every twin holds every listed date and misses nothing (H1), the heaps come back within their bounds (H2), no listed count is below max(11, line) (H3); the rule, HD4 against brute force, the scope, file 19's seven states each red on its mutant, whole columns through the oracle, the producer always loading, the report, NF71, eight seeds of the 10th on business days, the work counted to 1,000,000 rows, lane D3's two limits lifted, step 7 under the orchestrator's rulings of 2026-10-13 (the count gives way beside a list; against a census the fewer rows off stands, a tie keeping the list; the count read as the validator judges it), the tie, step 5's count, the listed dates as holes of the count pass, and each part holding exactly its ranks",
    "rule_kind": "exact",
    "expected": {
     "pinned_nodes_failing": 0
@@ -6750,7 +6750,11 @@
     "tests/test_stage3b_heavy_dates.py::test_every_description_the_producer_writes_loads",
     "tests/test_stage3b_heavy_dates.py::test_the_tenth_on_business_days_meets_every_check_at_eight_seeds",
     "tests/test_stage3b_heavy_dates.py::test_the_plan_and_the_draw_count_no_more_as_rows_grow",
-    "tests/test_stage3b_heavy_dates.py::test_a_list_that_costs_a_census_or_the_count_gives_way",
+    "tests/test_stage3b_heavy_dates.py::test_the_list_stands_and_what_gave_way_is_named",
+    "tests/test_stage3b_heavy_dates.py::test_the_weighing_keeps_the_list_on_a_tie_and_gives_it_way_below",
+    "tests/test_stage3b_heavy_dates.py::test_a_count_left_off_is_the_day_pass_s_to_repair",
+    "tests/test_stage3b_heavy_dates.py::test_every_listed_date_is_a_hole_of_the_count_pass",
+    "tests/test_stage3b_heavy_dates.py::test_each_part_holds_exactly_its_ranks",
     "tests/test_stage3b_day_of_month.py::test_quarter_ends_at_ten_thousand_rows_meet_every_check",
     "tests/test_stage3b_day_of_month.py::test_one_month_a_year_at_ten_thousand_rows_meets_every_check"
    ],
