@@ -606,6 +606,21 @@ def test_the_comma_forms_of_a_quoted_empty_last_field_are_refused(
     assert said in refused, (label, refused)
 
 
+def test_two_wider_rows_among_rows_at_the_header_width_keep_the_ragged_reason() -> None:
+    """The quoted rows are named only where every row is one field
+    wider than the header and ends empty, the mix above. Where the rows
+    mostly have the header's width and one ends `,""` and another `,`,
+    the rows do not end in the comma, and the ragged sentence names both
+    (red on the mutant that names the quoted row whenever both kinds
+    stand)."""
+    body = ["1,2"] * 120
+    body[4] = '1,2,""'
+    body[8] = "1,2,"
+    said = _refusal(_rows_of("a,b", body))
+    assert "The first row names 2 columns, but row 5 has 3, row 9 has 3" in said, said
+    assert _QUOTED_SENTENCE not in said, said
+
+
 _DELIMITERS = [",", ";", "\t", "|"]
 _DELIMITER_IDS = ["comma", "semicolon", "tab", "bar"]
 

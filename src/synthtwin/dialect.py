@@ -5380,9 +5380,11 @@ def survey(
                 # Rows one field wider than the header that end empty,
                 # read without a trailing delimiter because the first
                 # of them ended in `""` (Codex's mix, `1,2,""` then
-                # `1,2,` under `a,b`): counted, so that where both kinds
-                # stand and nothing else is ragged, the quoted ones are
-                # named as in the trailing walk.
+                # `1,2,` under `a,b`): counted, so that where every row
+                # is one of the two kinds and both stand, the quoted
+                # ones are named as in the trailing walk. A table whose
+                # rows mostly have the header's width keeps the ragged
+                # sentence.
                 if found.quoted[count - 1]:
                     quoted_wider = quoted_wider + 1
                     if len(quoted_rows) < 3:
@@ -5456,7 +5458,7 @@ def survey(
                 shown, uneven_rows, uneven, DELIMITER_WORDS[delimiter]
             )
         )
-    if quoted_wider and closing_wider and ragged == quoted_wider + closing_wider:
+    if quoted_wider and closing_wider and ragged == n_rows == quoted_wider + closing_wider:
         raise errors.ProfileError(
             errors.trailing_delimiter_uneven(
                 shown, quoted_rows, quoted_wider, DELIMITER_WORDS[delimiter]
