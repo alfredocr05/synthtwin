@@ -420,6 +420,75 @@ def test_s6_the_tight_column_red_with_its_leftover_dates_written_as_moments(
     assert checks["resolution_mix.counts"].verdict == validation.MISSED
 
 
+# The repair's second skeptic, item 1: where hour 0's group caps the body and the twin's tails
+# hold fewer midnights than the source's tails held bare dates, the leftover pass stops at the cap:
+# the hour census holds and `resolution_mix` gives way, named in the twin's report.
+_ENDS = 400
+
+
+@pytest.mark.parametrize("floor", FLOORS)
+def test_s6_the_cap_at_hour_zero_holds_against_the_leftover_dates(tmp_path_factory: pytest.TempPathFactory, floor: int) -> None:
+    """`noon_ends` at 400 rows: the body holds as many bare dates as hour 0's group counts (83
+    at the floor of 11) and the twin's tails take 15 of the source's 17, so 98 (97 at the floor
+    of 36) of 100 bare dates are written; `hour_census.groups` is HELD, `resolution_mix.counts`
+    is the one check MISSED, and the twin names it."""
+    described = _described(tmp_path_factory, "noon_ends", floor, _ENDS)
+    twin = generation.generate(described.loaded, 0)
+    text = rendering.twin_csv(twin)
+    checks = _checks(described, text, f"e{floor}.csv")
+    assert checks["hour_census.groups"].verdict == validation.HELD
+    assert [name for name, check in checks.items() if check.verdict == validation.MISSED] == ["resolution_mix.counts"]
+    assert "resolution_mix" in {deviation.fact for deviation in twin.deviations}
+
+
+def _leftover_without_the_cap(flags: typing.Callable[..., "list[bool]"]) -> typing.Callable[..., "list[bool]"]:
+    """The mutant `leftover_nocap`: the bare dates the capped passes leave over written on the first
+    unsettled ranks whose gap holds a midnight, the body's cap at hour 0 ignored."""
+
+    def mutant(gaps: "tuple[list[int], list[int]]", dates: int, moments: int, apart: bool, cap: "tuple[int, int, int] | None" = None) -> "list[bool]":
+        whole = flags(gaps, dates, moments, apart, cap)
+        lows, highs = gaps
+        left = dates - len([rank for rank in range(len(whole)) if whole[rank]])
+        for rank in range(len(whole)):
+            if left <= 0:
+                break
+            first, last = generation._midnight_room(lows[rank], highs[rank])
+            if whole[rank] or lows[rank] == highs[rank] or first > last:
+                continue
+            whole[rank] = True
+            left = left - 1
+        return whole
+
+    return mutant
+
+
+def test_s6_the_cap_at_hour_zero_red_with_the_leftover_dates_past_it(
+    tmp_path_factory: pytest.TempPathFactory, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Mutant: the leftover pass ignores the cap -- every bare date is written and hour 0's group
+    takes 85 for 83 (62 for 59 at the floor of 36): `hour_census.groups` is MISSED."""
+    monkeypatch.setattr(generation, "_clocked_form_flags", _leftover_without_the_cap(generation._clocked_form_flags))
+    for floor in FLOORS:
+        described = _described(tmp_path_factory, "noon_ends", floor, _ENDS)
+        checks = _checks(described, kpi_shapes.twin_text(described, 0), f"m{floor}.csv")
+        assert checks["hour_census.groups"].verdict == validation.MISSED, floor
+
+
+@pytest.mark.xfail(strict=True, reason=(
+    "the repair's second skeptic, item 1, measured: `noon_ends` -- bare dates on the first and "
+    "last eighth of a span of noon stamps, every value different -- writes 98 of 100 bare dates at "
+    "400 rows (97 at the floor of 36), 248 of 250 at 1,000, 2,498 of 2,500 at 10,000: hour 0's "
+    "group caps the body at 83 and the twin's tails, their extremes drawn off midnight, hold 15 of "
+    "the source's 17, so `resolution_mix` gives way, named; with the cap off the hour census "
+    "misses instead"
+))
+@pytest.mark.parametrize("floor", FLOORS)
+def test_s6_the_cap_at_hour_zero_writes_every_bare_date(tmp_path_factory: pytest.TempPathFactory, floor: int) -> None:
+    described = _described(tmp_path_factory, "noon_ends", floor, _ENDS)
+    checks = _checks(described, kpi_shapes.twin_text(described, 0), f"x{floor}.csv")
+    assert checks["resolution_mix.counts"].verdict == validation.HELD
+
+
 @pytest.mark.xfail(strict=True, reason=(
     "the repair's item 1, measured: stamps on consecutive minutes beside bare dates, every value "
     "different, come back 778 to 805 of 1,000 -- method G7.3's count pass never runs on a clocked "
@@ -729,6 +798,13 @@ def test_vectors_forms() -> None:
     # among them.
     leftover = _FILE["forms"]["leftover_stays_a_date"]
     assert sum(leftover["answer"]) == leftover["dates"]
+    # Its second skeptic's item 1: the leftover pass stops at the body's cap at hour 0, so a bare
+    # date is left unwritten (red on `leftover_nocap`, the oracle's mirror of the clause pinned).
+    capped = _FILE["forms"]["leftover_capped_at_hour_zero"]
+    assert sum(capped["answer"]) < capped["dates"]
+    assert _leftover_without_the_cap(generation._clocked_form_flags)(
+        (capped["lows"], capped["highs"]), capped["dates"], capped["moments"], capped["apart"], tuple(capped["cap"]),
+    ) != capped["answer"]
 
 
 def _days(case: "dict[str, typing.Any]", apart: bool, shut: bool) -> "list[int]":

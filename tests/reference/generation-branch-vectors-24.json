@@ -204,6 +204,41 @@
       "moments": 5,
       "why": "an hour census counting two cells at hour 0 in a body of ranks 0 to 6: the body takes two bare dates and the rest go to the ranks after it (mutant: no cap from the hour census)"
     },
+    "leftover_capped_at_hour_zero": {
+      "answer": [
+        true,
+        true,
+        false,
+        false,
+        false,
+        true
+      ],
+      "apart": true,
+      "cap": [
+        0,
+        4,
+        2
+      ],
+      "dates": 4,
+      "highs": [
+        0,
+        957600,
+        957600,
+        957600,
+        957600,
+        1728000
+      ],
+      "lows": [
+        0,
+        867600,
+        867600,
+        867600,
+        867600,
+        1728000
+      ],
+      "moments": 2,
+      "why": "an all-different column of four bare dates whose body, ranks 0 to 4, the hour census caps at two at hour 0: the body's fixed midnight and its gap's one free day take two, so the date left over is not written past the cap -- the hour census holds and the forms give way, named (the repair's second skeptic, item 1; mutant: the leftover pass ignoring the cap)"
+    },
     "leftover_stays_a_date": {
       "answer": [
         true,

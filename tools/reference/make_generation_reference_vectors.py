@@ -46910,8 +46910,17 @@ SHARED_CLOCK_FORMS = {
         "three fixed ones: the two left over are still bare dates, on the first ranks whose gap "
         "holds a midnight, never moments (the repair's item 2; mutant: no pass for what is left)",
     ),
+    "leftover_capped_at_hour_zero": (
+        [0] + [86400 * 10 + 3600] * 4 + [86400 * 20],
+        [0] + [86400 * 11 + 7200] * 4 + [86400 * 20],
+        4, 2, True,
+        "an all-different column of four bare dates whose body, ranks 0 to 4, the hour census caps at "
+        "two at hour 0: the body's fixed midnight and its gap's one free day take two, so the date "
+        "left over is not written past the cap -- the hour census holds and the forms give way, "
+        "named (the repair's second skeptic, item 1; mutant: the leftover pass ignoring the cap)",
+    ),
 }
-SHARED_CLOCK_FORM_CAPS = {"body_capped_by_hour_zero": (0, 6, 2)}
+SHARED_CLOCK_FORM_CAPS = {"body_capped_by_hour_zero": (0, 6, 2), "leftover_capped_at_hour_zero": (0, 4, 2)}
 
 SHARED_CLOCK_FORM_DAYS = {
     "days_apart": (

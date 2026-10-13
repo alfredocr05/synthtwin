@@ -9,7 +9,8 @@ beside moments, every value different, and two columns of the C1 date
 battery (seed 77, cases 0 and 551) that missed a withheld count at midnight;
 and, from the repair of the landing, all-different stamps on consecutive
 minutes beside bare dates (local, and at two offsets) and bare dates beside
-noon stamps.
+noon stamps; and, from its second skeptic, bare dates at both ends of a span
+of noon stamps.
 Every cell is made up here; none is a real row. Standard library only.
 """
 
@@ -409,6 +410,22 @@ def noon_dates(n: int, _draw: random.Random) -> "list[str]":
     return found
 
 
+def noon_ends(n: int, _draw: random.Random) -> "list[str]":
+    """An eighth of the rows bare dates on the span's first days and an eighth on its last, noon
+    stamps on every day between and one stamp at midnight on the sixth day, every value different
+    (the repair's second skeptic, item 1): at 400 rows the hour census caps the body at 83 bare
+    dates at hour 0 while the source's tails held 17 and the twin's tails hold 15, so two bare
+    dates have no place (G7.3k's cap at hour 0 against `resolution_mix`)."""
+    dates = n // 8
+    first = datetime.date(2021, 1, 1)
+    span = n - 2 * dates + 10
+    found = [(first + datetime.timedelta(days=place)).isoformat() for place in range(dates)]
+    found += [(first + datetime.timedelta(days=span - dates + place)).isoformat() for place in range(dates)]
+    found += [f"{(first + datetime.timedelta(days=place)).isoformat()}T12:00:00" for place in range(n - 2 * dates - 1)]
+    found += [f"{(first + datetime.timedelta(days=5)).isoformat()}T00:00:00"]
+    return found
+
+
 def c0(_n: int, _draw: random.Random) -> "list[str]":
     return [value for value, count in C0_CELLS for _ in range(count)]
 
@@ -433,6 +450,7 @@ SHAPES = {
     "sparse_local": sparse_local,
     "dense_two_off": dense_two_off,
     "noon_dates": noon_dates,
+    "noon_ends": noon_ends,
     "c0": c0,
     "c551": c551,
 }
