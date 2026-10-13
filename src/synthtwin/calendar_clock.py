@@ -455,11 +455,12 @@ def half_day_distances(
 # on the hour of the day (the design skeptic's M3: night charting on the
 # hour beside day entries at any minute came back with the comparison
 # reversed): the same statistic over the body's hour groups crossed with
-# the field's single values holding a twentieth of the body and the rest,
-# the cells at a published midnight left out, of `HOUR_DEPENDENCE` or more
-# withholds it -- where one count over every hour would also put some hour
-# group farther from its own shares than a flat field (`misled_by_the_count`,
-# the lane's skeptic, item 7).
+# the field's groups by the one merge rule on the line (the Codex review of
+# landing 3b.4, item 2) -- and over the single values holding a twentieth
+# of the body and the rest -- the cells at a published midnight left out, of
+# `HOUR_DEPENDENCE` or more withholds it -- where one count over every hour
+# would also put some hour group farther from its own shares than a flat
+# field (`misled_by_the_count`, the lane's skeptic, item 7).
 
 MINUTE = "minute"
 SECOND = "second"
@@ -474,8 +475,9 @@ FIELD_SPAN_SECONDS = {MINUTE: 4 * HOUR_SECONDS, SECOND: 4 * 60}
 FLAT_DEPARTURE = 4
 HOUR_DEPENDENCE = 4
 DEPENDENCE_STRENGTH = 20
-# M3's columns: the single values holding at least this share of the body,
-# in hundredths, and the rest as one.
+# M3's COARSE columns: the single values holding at least this share of the
+# body, in hundredths, and the rest as one; its FINE columns are the field's
+# groups by the one merge rule on the line (`_hour_table`).
 DEPENDENCE_SHARE_PERCENT = 5
 # How many values on each side the stand-out rule reads (median and three
 # times, `calendar_rules.CENTRE_MEDIAN`).
@@ -619,65 +621,110 @@ def departs_from_flat(bins: "list[int]") -> bool:
     return size * squares - total * total >= FLAT_DEPARTURE * (size - 1) * total
 
 
-def depends_on_the_hour(
+def _hour_table(
     hours: "list[int] | tuple[int, ...]",
     values: "list[int] | tuple[int, ...]",
     line: int,
-    squares: int = 0,
-) -> bool:
-    """M3: whether how a body falls on a field depends on the hour of the day.
+    fine: bool,
+) -> "tuple[list[list[int]], list[int]]":
+    """One of M3's two TABLES: the body's hour groups crossed with the field.
 
-    The table: the body's HOUR GROUPS -- the one merge rule over its
-    twenty-four hour counts at the census line with no sure cells
-    (`hour_groups`) -- crossed with the field's single values each holding
-    at least `DEPENDENCE_SHARE_PERCENT` hundredths of the body, and the
-    rest as one. Its chi-squared per degree of freedom, asked exactly in
-    fractions, of `HOUR_DEPENDENCE` or more is a dependence -- where its
-    STRENGTH, Cramer's V, the square root of chi-squared over the cells
-    times one less than the table's shorter side, is also at least
-    `DEPENDENCE_STRENGTH` hundredths (the builder's measurement of
-    2026-10-12: chi-squared grows with the rows, so 10,000 cells written
-    `HH:MM:00` whose minute does not follow the hour scored 3.9 counted by
-    value, at a V of 0.11; night charting on the hour beside day entries
-    scores a V near 0.98). Cells written alike are one event written on
-    several rows, so both statistics are divided by the DESIGN EFFECT of
-    those ties, `squares` -- the sum of the squared number of cells each
-    different value holds -- over the cells (one where `squares` is
-    nought: no ties): 1,000 check-ins in bursts of one to six, counted
-    cell by cell, scored 3.4 to 4.7 against the hour at a V of 0.27 to
-    0.33, and counted value by value instead, 40,000 cells written
-    `HH:MM:00`, whose busy hours hold far fewer values on :00 than cells,
-    scored a V above 0.2. Where the hours merge to one group, or the field
-    to one column, there is no table and no dependence. The caller leaves
-    out the cells at a published midnight. `hours` and `values` are the
-    cells' written hour and value, pair by pair.
-
-    Guarantees: a function of the three. Raises nothing. No I/O.
+    Its rows are the HOUR GROUPS -- the one merge rule over the twenty-four
+    hour counts at the census line with no sure cells (`hour_groups`). Its
+    columns are COARSE -- the field's single values each holding at least
+    `DEPENDENCE_SHARE_PERCENT` hundredths of the body, and the rest as one
+    -- or, `fine`, the FIELD GROUPS, the same merge rule over the sixty
+    counts of the field (`field_groups`), so every value holding the line's
+    cells is a column of its own. M3 asks both (the Codex review of landing
+    3b.4, item 2: coarse alone pooled every minute of 3,600 rows under a
+    twentieth of the body into one column, and the dependence it hid
+    doubled a morning's share on twenty minutes in the twin; fine alone
+    spreads night charting on the hour over some 27 columns of a thousand
+    cells, where its chi-squared per degree of freedom falls to 1.6).
+    Returns the table, row by row, and each column's width in values;
+    `([], [])` where the hours merge to one group or the field to one
+    column. Raises nothing. No I/O.
     """
     total = len(values)
     if total <= 0 or len(hours) != total:
-        return False
+        return [], []
     groups = hour_groups(hour_bins(list(hours)), [], line)
     if not groups:
-        return False
+        return [], []
     row_of = [0 for _hour in range(HOURS)]
     for index in range(len(groups)):
         for hour in range(groups[index][0], groups[index][1] + 1):
             row_of[hour] = index
     bins = field_bins(values)
     column_of = [0 for _value in range(FIELD_VALUES)]
-    columns = 1
-    for value in range(FIELD_VALUES):
-        if 100 * bins[value] >= DEPENDENCE_SHARE_PERCENT * total:
-            column_of[value] = columns
-            columns = columns + 1
-    table = [[0 for _column in range(columns)] for _row in range(len(groups))]
+    widths: "list[int]" = []
+    if fine:
+        for first, last, _count in field_groups(bins, [], line):
+            for value in range(first, last + 1):
+                column_of[value] = len(widths)
+            widths += [last - first + 1]
+    else:
+        widths = [FIELD_VALUES]
+        for value in range(FIELD_VALUES):
+            if 100 * bins[value] >= DEPENDENCE_SHARE_PERCENT * total:
+                column_of[value] = len(widths)
+                widths += [1]
+                widths[0] = widths[0] - 1
+    if len(widths) < 2:
+        return [], []
+    table = [[0 for _column in widths] for _row in range(len(groups))]
     for place in range(total):
         row = row_of[hours[place]]
         column = column_of[values[place]]
         table[row][column] = table[row][column] + 1
-    rows = [sum(table[row]) for row in range(len(groups))]
-    sums = [sum(table[row][column] for row in range(len(groups))) for column in range(columns)]
+    return table, widths
+
+
+def depends_on_the_hour(
+    hours: "list[int] | tuple[int, ...]",
+    values: "list[int] | tuple[int, ...]",
+    line: int,
+    squares: int = 0,
+    fine: bool = False,
+) -> bool:
+    """M3: whether how a body falls on a field depends on the hour of the day.
+
+    The table (`_hour_table`): the body's hour groups crossed with the
+    field's coarse columns, or its `fine` ones. Its
+    chi-squared per degree of freedom, asked exactly in fractions, of
+    `HOUR_DEPENDENCE` or more is a dependence -- where its STRENGTH,
+    Cramer's V, is also at least `DEPENDENCE_STRENGTH` hundredths (the
+    builder's measurement of 2026-10-12: chi-squared grows with the rows,
+    so 10,000 cells written `HH:MM:00` whose minute does not follow the
+    hour scored 3.9 counted by value, at a V of 0.11; night charting on the
+    hour beside day entries scores a V near 0.98). Cells written alike are
+    one event written on several rows, so the chi-squared the test asks is
+    divided by the DESIGN EFFECT of those ties, `squares` -- the sum of the
+    squared number of cells each different value holds -- over the cells
+    (one where `squares` is nought: no ties): 1,000 check-ins in bursts of
+    one to six, counted cell by cell, scored 3.4 to 4.7 against the hour.
+    THE STRENGTH IS NOT DIVIDED BY IT (the Codex review of landing 3b.4,
+    item 1: divided, every timestamp repeated 30 times sank a complete
+    dependence below 0.2, and the twin put 5,556 of 10,800 daytime cells on
+    minute 0 against 180): it is chi-squared over the cells, LESS what ties
+    of that design effect give a table with no dependence -- the design
+    effect times the degrees of freedom -- over the cells times one less
+    than the table's shorter side, so bursts of check-ins whose minute does
+    not follow the hour score near nought however many their rows, and a
+    complete dependence scores near one however often each value repeats.
+    Where the hours merge to one group, or the field to one column, there
+    is no table and no dependence. The caller leaves out the cells at a
+    published midnight. `hours` and `values` are the cells' written hour
+    and value, pair by pair.
+
+    Guarantees: a function of the five. Raises nothing. No I/O.
+    """
+    table, _widths = _hour_table(hours, values, line, fine)
+    if not table:
+        return False
+    total = len(values)
+    rows = [sum(row) for row in table]
+    sums = [sum(table[row][column] for row in range(len(table))) for column in range(len(table[0]))]
     kept_rows = len([count for count in rows if count > 0])
     kept_columns = len([count for count in sums if count > 0])
     freedom = (kept_rows - 1) * (kept_columns - 1)
@@ -686,8 +733,8 @@ def depends_on_the_hour(
     # chi-squared = n * (sum of O * O / (row * column) - 1), in fractions.
     numerator = 0
     denominator = 1
-    for row in range(len(groups)):
-        for column in range(columns):
+    for row in range(len(table)):
+        for column in range(len(sums)):
             count = table[row][column]
             if count <= 0:
                 continue
@@ -698,17 +745,18 @@ def depends_on_the_hour(
             common = common_divisor(numerator, denominator)
             numerator = numerator // common
             denominator = denominator // common
-    # chi-squared = total * (numerator / denominator - 1), divided by the
-    # design effect squares / total: over freedom at least HOUR_DEPENDENCE,
-    # and V squared, that over total * (the shorter side less one), at
-    # least the strength squared, in hundredths.
+    # chi-squared = total * excess / denominator, the design effect weight /
+    # total. The test: chi-squared over the design effect, over freedom, at
+    # least HOUR_DEPENDENCE. The strength: (chi-squared - the design effect
+    # times freedom) over total times (the shorter side less one) at least
+    # the strength squared, in hundredths -- each times total * denominator.
     weight = squares if squares > 0 else total
     shorter = min(kept_rows, kept_columns) - 1
     excess = numerator - denominator
     return (
         total * total * excess >= HOUR_DEPENDENCE * freedom * weight * denominator
-        and 10000 * total * excess
-        >= DEPENDENCE_STRENGTH * DEPENDENCE_STRENGTH * shorter * weight * denominator
+        and 10000 * (total * total * excess - weight * freedom * denominator)
+        >= DEPENDENCE_STRENGTH * DEPENDENCE_STRENGTH * shorter * total * total * denominator
     )
 
 
@@ -716,6 +764,7 @@ def misled_by_the_count(
     hours: "list[int] | tuple[int, ...]",
     values: "list[int] | tuple[int, ...]",
     line: int,
+    fine: bool = False,
 ) -> bool:
     """M3's second question: whether one count over every hour would mislead.
 
@@ -726,44 +775,24 @@ def misled_by_the_count(
     and 4.4 withheld -- closer published in both -- while night charting on
     the hour beside day entries at any minute came back with its days at 42
     per cent on :00 published, against 1.8 real and 1.1 withheld. So M3
-    withholds only where some HOUR GROUP -- `depends_on_the_hour`'s rows,
-    each holding at least the census `line` of cells -- lies FARTHER from
-    the field's published shares than from a flat field's, distance the
-    total variation over M3's columns (each single value holding
-    `DEPENDENCE_SHARE_PERCENT` hundredths of the body, and the rest as one;
-    flat gives a single value a sixtieth and the rest what is left). Asked
-    in whole numbers. `hours` and `values` as `depends_on_the_hour` reads
-    them, the cells at a published midnight already left out.
+    withholds only where some HOUR GROUP -- a row of `depends_on_the_hour`'s
+    table (`_hour_table`), holding at least the census `line` of cells --
+    lies FARTHER from the field's published shares than from a flat field's,
+    distance the total variation over the table's columns, coarse or
+    `fine` as `depends_on_the_hour` asks them (a flat field gives a column
+    of w values w sixtieths). Asked in whole numbers. `hours` and `values`
+    as `depends_on_the_hour` reads them, the cells at a published midnight
+    already left out.
 
-    Guarantees: a function of the three. Raises nothing. No I/O.
+    Guarantees: a function of the four. Raises nothing. No I/O.
     """
+    table, widths = _hour_table(hours, values, line, fine)
+    if not table:
+        return False
     total = len(values)
-    if total <= 0 or len(hours) != total:
-        return False
-    groups = hour_groups(hour_bins(list(hours)), [], line)
-    if not groups:
-        return False
-    row_of = [0 for _hour in range(HOURS)]
-    for index in range(len(groups)):
-        for hour in range(groups[index][0], groups[index][1] + 1):
-            row_of[hour] = index
-    bins = field_bins(values)
-    column_of = [0 for _value in range(FIELD_VALUES)]
-    columns = 1
-    for value in range(FIELD_VALUES):
-        if 100 * bins[value] >= DEPENDENCE_SHARE_PERCENT * total:
-            column_of[value] = columns
-            columns = columns + 1
-    table = [[0 for _column in range(columns)] for _row in range(len(groups))]
-    for place in range(total):
-        row = row_of[hours[place]]
-        column = column_of[values[place]]
-        table[row][column] = table[row][column] + 1
-    sums = [sum(table[row][column] for row in range(len(groups))) for column in range(columns)]
-    # A flat field's share of each column, in sixtieths: one for each single
-    # value, the rest what is left.
-    flat = [FIELD_VALUES - (columns - 1)] + [1 for _column in range(columns - 1)]
-    for row in range(len(groups)):
+    columns = len(widths)
+    sums = [sum(table[row][column] for row in range(len(table))) for column in range(columns)]
+    for row in range(len(table)):
         size = sum(table[row])
         if size < line:
             continue
@@ -773,7 +802,7 @@ def misled_by_the_count(
             for column in range(columns)
         )
         drawn_flat = sum(
-            abs(FIELD_VALUES * total * table[row][column] - total * size * flat[column])
+            abs(FIELD_VALUES * total * table[row][column] - total * size * widths[column])
             for column in range(columns)
         )
         if published > drawn_flat:

@@ -2228,15 +2228,20 @@ def rendered(form: str, arguments: "tuple[object, ...]") -> str:
     # anchor 3b-T3 (P4-D372)
     if form in (REMARK_MINUTE_CENSUS, REMARK_SECOND_CENSUS):
         # The heaps and the census of the rest, in one remark: the stand-out
-        # rule, and the one merge rule in the words NF88 states it in.
+        # rule with its sure-cell remainder (MH1, SH1; the Codex review of
+        # landing 3b.4, item 7: a minute standing out whose count less its
+        # sure cells is one to the line less one is not counted alone), and
+        # the one merge rule in the words NF88 states it in.
         values, one, whole = _clock_field_words(form)
         line = _whole(arguments, 0)
         return (
             f"which {values} this column's values fall on is counted over the "
             f"values between its two tail boundaries: each {one} holding at "
             f"least {line} rows, written at {line} different values or more, "
-            f"and at least three times the median of the five on either side "
-            f"of it is counted alone, and the rest "
+            f"at least three times the median of the five on either side of "
+            f"it and, besides the rows the rest of this description places "
+            f"there for certain, nought or at least {line} rows is counted "
+            f"alone, and the rest "
             f"together, each {one} alone or, where that would name fewer than "
             f"{line} rows in all or besides the rows the rest of this "
             f"description places in it for certain -- at the values it "
@@ -17485,10 +17490,13 @@ def clock_field_decision(
         kept_hours += [body_hours[place]]
         kept_values += [body[place]]
     squares = squares + run * run
-    if calendar_clock.depends_on_the_hour(
-        kept_hours, kept_values, line, squares
-    ) and calendar_clock.misled_by_the_count(kept_hours, kept_values, line):
-        return ClockFieldDecision(groups, heaps, calendar_clock.FIELD_REASON_HOUR)
+    # M3 over both tables, coarse and fine (`calendar_clock._hour_table`; the
+    # Codex review of landing 3b.4, item 2): each asks both questions.
+    for fine in (False, True):
+        if calendar_clock.depends_on_the_hour(
+            kept_hours, kept_values, line, squares, fine
+        ) and calendar_clock.misled_by_the_count(kept_hours, kept_values, line, fine):
+            return ClockFieldDecision(groups, heaps, calendar_clock.FIELD_REASON_HOUR)
     at_midnight = calendar_clock.midnight_sure(
         counted if isinstance(counted, int) else None,
         hour_tails_listed(details),

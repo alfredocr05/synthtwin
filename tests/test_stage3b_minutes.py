@@ -1616,3 +1616,114 @@ def test_kin_shares_grow_with_the_rows() -> None:
                 on_zero[(ordinal // 3600) % 24] += 1
         assert on_zero[8:17] == [days] * 9, on_zero
     assert spent[1] <= 1.25 * 9 * spent[0], spent
+
+
+# -- the Codex review of landing 3b.4 (plan P4-D372) -----------------------------------------
+
+
+def _repeated_stamps() -> "list[str]":
+    """Item 1: 30 days, one stamp an hour, hours before 07 and from 19 on minute
+    00, the others at (day index * 12 + hour - 7) % 60, each written 30 times."""
+    start = datetime.datetime(2023, 3, 1)
+    cells: "list[str]" = []
+    for day in range(30):
+        for hour in range(24):
+            minute = 0 if (hour < 7 or hour >= 19) else (day * 12 + hour - 7) % 60
+            moment = start + datetime.timedelta(days=day, hours=hour, minutes=minute)
+            cells += [moment.strftime("%Y-%m-%d %H:%M")] * 30
+    return cells
+
+
+def _two_hours() -> "list[str]":
+    """Item 2: 30 days, every minute of hour 08 once a day and minutes 00 to 19 of
+    hour 20 three times a day, written to the second at second 00: 3,600 rows,
+    every minute under a twentieth of the body."""
+    start = datetime.datetime(2023, 3, 1)
+    cells: "list[str]" = []
+    for day in range(30):
+        for minute in range(60):
+            cells += [(start + datetime.timedelta(days=day, hours=8, minutes=minute)).strftime("%Y-%m-%d %H:%M:%S")]
+        for minute in range(20):
+            cells += [(start + datetime.timedelta(days=day, hours=20, minutes=minute)).strftime("%Y-%m-%d %H:%M:%S")] * 3
+    return cells
+
+
+def test_m3_keeps_a_complete_dependence_however_often_each_stamp_repeats(tmp_path: pathlib.Path) -> None:
+    """The Codex review, item 1: the design effect of the ties divides the
+    chi-squared M3 asks, never the strength -- divided, 30 copies of every stamp
+    sank a complete dependence of the minute on the hour below 0.2, the minute's
+    heap of 10,920 was published and the twin put 5,192 to 5,556 of its 10,800
+    daytime cells on minute 0 against 180 real. Withheld, it says why (NF99) and
+    the twin keeps its days near 180."""
+    cells = _repeated_stamps()
+    hours = [int(cell[11:13]) for cell in cells]
+    minutes = [int(cell[14:16]) for cell in cells]
+    assert calendar_clock.depends_on_the_hour(hours, minutes, LINE, 30 * len(cells))
+    described = _one_column(tmp_path, "stamps", cells)
+    block = described.block("stamps")
+    assert block["minute_heaps"] == [] and block["minute_census"] == []
+    said = [note["note"] for note in described.document["publication_notes"] if note["column"] == "stamps"]
+    assert taxonomy.rendered(taxonomy.NOTE_MINUTE_WITHHELD_WITH_THE_HOUR, ()) in said
+    twin = shapes.cells_of(kpi_shapes.twin_text(described, 0), "stamps")
+    days = [cell for cell in twin if 7 <= int(cell[11:13]) < 19]
+    assert sum(1 for cell in days if cell[14:16] == "00") < 2 * 180, len(days)
+
+
+def test_m3_bursts_whose_minute_does_not_follow_the_hour_score_no_strength() -> None:
+    """The strength less what the ties give a table with no dependence: bursts of
+    one to six check-ins at any minute of any hour score below 0.2 whatever the
+    design effect, where 30 copies of night on the hour beside days at any minute
+    score near one (`test_m3_keeps_a_complete_dependence_however_often_each_stamp_repeats`)."""
+    draw = random.Random(91001)
+    hours: "list[int]" = []
+    minutes: "list[int]" = []
+    squares = 0
+    while len(hours) < 1000:
+        size = 1 + draw.randrange(6)
+        hour, minute = draw.randrange(24), draw.randrange(60)
+        hours += [hour] * size
+        minutes += [minute] * size
+        squares += size * size
+    assert not calendar_clock.depends_on_the_hour(hours, minutes, LINE, squares)
+
+
+def test_m3_sees_dependence_spread_over_minutes_each_under_a_twentieth(tmp_path: pathlib.Path) -> None:
+    """The Codex review, item 2: M3's columns are the field's groups by the one
+    merge rule on the line, as its rows are the hour's. Pooled under a twentieth of
+    the body, every minute of 3,600 rows fell in one column, both questions said
+    no, 60 minute groups were published and the twin put 1,209 of its 1,800 morning
+    cells on minutes 00 to 19 against 600 real (583 on 2341173). Now withheld,
+    said why, and the twin's mornings stand near 600."""
+    cells = _two_hours()
+    described = _one_column(tmp_path, "rounds", cells)
+    block = described.block("rounds")
+    assert block["minute_heaps"] == [] and block["minute_census"] == []
+    said = [note["note"] for note in described.document["publication_notes"] if note["column"] == "rounds"]
+    assert taxonomy.rendered(taxonomy.NOTE_MINUTE_WITHHELD_WITH_THE_HOUR, ()) in said
+    twin = shapes.cells_of(kpi_shapes.twin_text(described, 0), "rounds")
+    mornings = [cell for cell in twin if cell[11:13] == "08"]
+    early = sum(1 for cell in mornings if int(cell[14:16]) < 20)
+    assert abs(early - len(mornings) / 3) < 100, (early, len(mornings))
+
+
+def test_the_heap_remark_names_its_sure_cell_remainder(tmp_path: pathlib.Path) -> None:
+    """The Codex review, item 7: 1,000 dates from 2023-01-01 at 09:30:00, day
+    indexes 11 to 21 at 09:00:00, at floor 11 -- the 11 values on minute 0 stand
+    out at the line's values and rows, but the low boundary is a sure cell of
+    theirs, leaving 10, so the producer withholds that heap and publishes minute
+    30 alone; the remark (NF93, and NF94 in the same words) says a value counted
+    alone also holds, besides its sure cells, nought or at least the line."""
+    start = datetime.datetime(2023, 1, 1, 9, 30)
+    cells = [
+        (start + datetime.timedelta(days=day, minutes=-30 if 11 <= day <= 21 else 0)).strftime("%Y-%m-%d %H:%M:%S")
+        for day in range(1000)
+    ]
+    described = _one_column(tmp_path, "visits", cells)
+    assert [heap["value"] for heap in described.block("visits")["minute_heaps"]] == [30]
+    for form in (taxonomy.REMARK_MINUTE_CENSUS, taxonomy.REMARK_SECOND_CENSUS):
+        remark = taxonomy.rendered(form, (LINE,))
+        assert (
+            "at least three times the median of the five on either side of it and, besides the rows "
+            "the rest of this description places there for certain, nought or at least 11 rows is "
+            "counted alone"
+        ) in remark, form
