@@ -20901,10 +20901,6 @@ _HEAVY_FOLDED_LONG = (
     "spacing, than the description records, for the same reason: the "
     "count of different values gave way to the listed dates."
 )
-_FOLDED_LEFT_LONG = {
-    _WEEKDAY_DAYS_LEFT_LONG: _WEEKDAY_FOLDED_LEFT_LONG,
-    _HEAVY_COUNT_LONG: _HEAVY_FOLDED_LONG,
-}
 
 # A unit's KIND (method G7.3f): whether a date on it counts into the
 # width census's one word, then what a move must keep besides
@@ -45018,8 +45014,10 @@ def _recount_notes(
         )
         if counted[3] > column.n_distinct_folded:
             reason = _folded_excess_reason(column)
-            if cause in _LONG_CAUSES and counted[2] > column.n_distinct:
-                reason = _FOLDED_LEFT_LONG[cause]
+            if cause == _WEEKDAY_DAYS_LEFT_LONG and counted[2] > column.n_distinct:
+                reason = _WEEKDAY_FOLDED_LEFT_LONG
+            if cause == _HEAVY_COUNT_LONG and counted[2] > column.n_distinct:
+                reason = _HEAVY_FOLDED_LONG
         notes += [
             _deviation(
                 column.name,

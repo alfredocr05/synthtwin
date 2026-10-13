@@ -163,7 +163,7 @@ import types
 
 import pytest
 
-from synthtwin import calendar_rules, generation
+from synthtwin import calendar_rules, generation, taxonomy
 
 REPOSITORY = pathlib.Path(__file__).resolve().parent.parent
 VECTORS = REPOSITORY / "tests" / "reference" / "generation-branch-vectors-15.json"
@@ -1352,17 +1352,23 @@ def _sessions(tmp_path: pathlib.Path):
     because its twins come back long -- 52 different days for 46 -- which is the very count
     these nodes hold step 8.5 and the report's long cause to: a census of whole dates the
     producer publishes or withholds is held by tests/test_stage3b_count_room.py, and the pass
-    meets one the loader accepts however it came to be published."""
+    meets one the loader accepts however it came to be published. Described listing no date
+    that stands out (plan P4-D369): the producer lists two of its days, and beside that list the
+    count gives way, named as the list's (method G7.3j step 7, the orchestrator's ruling (a) of
+    2026-10-13), as tests/test_stage3b_heavy_dates.py measures."""
     import kpi_shapes
     import test_stage3b_weekday_review as review
 
     cells = review._weekly_schedule(92)
     rule = calendar_rules.count_room_short
+    listing = taxonomy.heavy_dates_decided
     calendar_rules.count_room_short = lambda *arguments: False
+    taxonomy.heavy_dates_decided = lambda *arguments: ()
     try:
         return kpi_shapes.describe(tmp_path, "sessions", "visit\n" + "".join(f"{cell}\n" for cell in cells), 36)
     finally:
         calendar_rules.count_room_short = rule
+        taxonomy.heavy_dates_decided = listing
 
 
 def test_a_schedule_at_floor_36_reaches_step_8_5(tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch) -> None:
