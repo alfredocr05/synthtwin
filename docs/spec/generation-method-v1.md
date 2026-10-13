@@ -7498,7 +7498,24 @@ every step of G7.3f keeps the kind, so none moves a rank onto it (the
 lane's repair: 1,000 check-ins in bursts, drawn on the second, had four
 ranks of hour 0 moved onto 00:00 by the gap's single moves after KIN
 SHARES; the exchange took two back, and the twin came back 13 at midnight
-against 12). After each field's pass THE TAILS MAKE ROOM AT MIDNIGHT: with
+against 12). KIN SHARES' REACH (the verifier's item 10 on the Codex round):
+a kin group's rank REACHES a group where it stands in it or a place of it
+on its own place in the unit, inside its gap and its parent, on no hole,
+is of its kind (a written midnight read as of its parent's); its ranks
+ABLE to take a group are those reaching it, and of value 0 alone those
+free to take it too. Where some kin group reaches none of a group the gap
+wants, every wanted group whose kin groups are not all able to take it
+with every rank is shared as value 0 alone is -- its want over the kin
+groups by their able ranks, each kin group's other ranks over the other
+groups as they want -- and the carry of a kin group reaching none of
+some wanted group is offered, group by group, to the other kin groups by
+their ranks able to take the group, rounded down, its own carry kept and
+taken where it reaches again; last, a kin group's ideal of a group past
+its able ranks is offered the same way, and it takes no more of a group
+than its able ranks (four gaps of three hours, hour 8 off minute 0 in
+each: its carry, asked of hour 8 itself, grew gap by gap and handed it
+every share of minute 0, which the gap's single moves gave hour 9 --
+200 against hour 10's 40 where 120 each could stand). After each field's pass THE TAILS MAKE ROOM AT MIDNIGHT: with
 value 0 a group alone holding fewer body ranks than its count, each body
 rank in order -- not pinned, of a group over its count -- whose place on
 value 0 of its own parent (its place in the bin kept) is a written
@@ -7605,7 +7622,7 @@ nearest midnight inside its stratum; each tail's ranks are then sorted.
 
 **Its frozen cases** are states of ranks and drawing units: the twentieth
 vectors file, `tests/reference/generation-branch-vectors-20.json`, holds
-thirty-one -- the pass on a field of minutes with heaps and on a field of
+thirty-three -- the pass on a field of minutes with heaps and on a field of
 seconds with a kin group of minutes, KIN SHARES over two hours,
 carried from gap to gap over four days, reconciled against what each hour
 holds where a gap's hour 8 can stand on no minute 0, and never splitting
@@ -7619,10 +7636,13 @@ taking a midnight where the count there is short, the tails making room at
 midnight for a rank of the body, never by a tail step raising the count
 and with SPREAD after them where the step left it short, KIN SHARES
 giving no kin group more of minute 0 than its ranks free to stand there,
+and none a part of a group its ranks never reach (hour 8 off minute 0 in
+every gap, hours 9 and 10 an even split),
 a shared written unit moved whole, and past its groups' room in the
 leftover, a draw laid
 on its unit, G7.3b step 7's tail END held off a midnight the count leaves
-it none of, and the drawing units of a half-hour grid, a column on the
+it none of, a tail listing a value written 00:00:00 on any day charged
+for it, and the drawing units of a half-hour grid, a column on the
 hour, a column whose seconds alone are pinned, one census group
 holding minute 0 and heaps beside a withheld census of the rest, which
 pin nothing -- each with the answer this section gives it.
