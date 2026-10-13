@@ -11274,6 +11274,14 @@ def clock_midnight_room_made(walk, first, last, pinned, tail_pins, written, away
         found[group] -= 1
 
 
+def clock_midnight_room_kept(walk, first, last, pinned, tail_pins, written, away, wanted, standing, anyday, kin, reachable):
+    """G7.3h, the tails make room at midnight, and SPREAD after it where the
+    count of different values is reachable and the step left it short."""
+    clock_midnight_room_made(walk, first, last, pinned, tail_pins, written, away)
+    if reachable and walk.different() < wanted:
+        clock_short_spread(walk, first, last, pinned, wanted, standing, anyday, kin)
+
+
 def clock_fields_settled(column, ordinals, parsed, whole, lows, highs, holes):
     """G7.3h, from the method's text: the minute and second censuses and heaps
     met (landing 3b.4, plan P4-D372).
@@ -11377,12 +11385,11 @@ def clock_fields_settled(column, ordinals, parsed, whole, lows, highs, holes):
             walk, first, last, pinned, wanted, standing, not census_of_days, kin,
             reachable, column["n_distinct"],
         )
-        clock_midnight_room_made(
+        clock_midnight_room_kept(
             walk, first, last, pinned, ranks_the_tail_pins(column, parsed),
-            written, max(written, tail_unit_of(column)),
+            written, max(written, tail_unit_of(column)), wanted, standing,
+            not census_of_days, kin, reachable,
         )
-        if reachable and walk.different() < wanted:
-            clock_short_spread(walk, first, last, pinned, wanted, standing, not census_of_days, kin)
         ordinals = walk.days
         if field == "minute":
             minute_of = list(group_of_value)
@@ -17121,6 +17128,76 @@ def field_midnight_room_case():
     return case
 
 
+def field_midnight_zero_room_case():
+    m = HOUR_MONDAY
+    ordinals = [hour_at(m - 1, 23, 50)]
+    for day, hour, minute in (
+        (3, 0, 41), (3, 0, 42), (3, 6, 25), (8, 12, 0), (9, 6, 44), (10, 0, 41), (12, 3, 51),
+        (12, 3, 56), (14, 3, 38), (14, 3, 57), (14, 6, 47), (14, 6, 49), (14, 6, 53), (14, 6, 58),
+    ):
+        ordinals += [hour_at(m + day, hour, minute)]
+    ordinals += [hour_at(m + 15, 13, 10)]
+    case = field_case(
+        "KIN SHARES give no kin group more of value 0 than its free ranks (the lane's second "
+        "skeptic, item 3): hours 0 and 1 one kin group, 2 and 3 another, 4 to 7 a third; "
+        "minute 0 a heap counting 8 of the 14 body ranks, the count at midnight published; "
+        "noon of day 8 pinned, parting two gaps. In the second gap minute 0 is owed five: "
+        "hours 4 to 7 take two, the one rank of hour 0 -- its place on minute 0 the day's "
+        "midnight -- none, and hours 2 and 3 the other three. Given room for its rank on "
+        "minute 0, hour 0's kin group took one place there by the largest remainder, which "
+        "its rank cannot stand on, and hours 2 and 3 came back with two of the five.",
+        "field", ordinals, {0, 4, len(ordinals) - 1}, [6, 8], HEAP_ZERO, 60,
+        kin=[1, 1, 0, 0, 2, 2, 2, 2] + [3] * 16, no_midnight=True,
+    )
+    case["body"] = [1, len(ordinals) - 2]
+    return case
+
+
+def field_midnight_room_keep_case():
+    m = HOUR_MONDAY
+    ordinals = [
+        hour_at(m - 2, 0, 0), hour_at(m - 2, 0, 0), hour_at(m - 1, 0, 0), hour_at(m, 0, 0),
+        hour_at(m + 1, 0, 1), hour_at(m + 1, 5, 0), hour_at(m + 1, 6, 0), hour_at(m + 2, 9, 0),
+    ]
+    case = field_case(
+        "The tails make room at midnight without raising the count (the lane's second "
+        "skeptic, item 3): rank 4, alone at 00:01, takes its day's midnight, and of the low "
+        "tail's three ranks at a midnight the first two share one written unit, so either "
+        "stepping an hour off it writes one value more; the third, alone at its midnight, "
+        "steps instead and the count of different values is kept. With no such guard the "
+        "first tail rank stepped and the count rose by one.",
+        "room", ordinals, {0, 1, 2, 3, 7}, [0, 4], HEAP_ZERO, 60, no_midnight=True,
+    )
+    case["body"] = [3, 6]
+    for rank in (0, 1, 2):
+        case["lows"][rank], case["highs"][rank] = hour_at(m - 3, 0, 0), hour_at(m - 1, 12, 0)
+    case["tail_pins"] = [False] * 7 + [True]
+    case["away"] = 3600
+    return case
+
+
+def field_midnight_room_spread_case():
+    m = HOUR_MONDAY
+    ordinals = [
+        hour_at(m - 1, 0, 0), hour_at(m + 1, 0, 0), hour_at(m + 1, 0, 1), hour_at(m + 1, 5, 20),
+        hour_at(m + 1, 5, 20), hour_at(m + 2, 9, 0),
+    ]
+    case = field_case(
+        "SPREAD after the tails make room (the lane's second skeptic, item 3; the repair's "
+        "10,000-row rank at 00:01 that joined a cell already at its day's midnight): rank 2, "
+        "alone at 00:01, takes its day's midnight beside rank 1, a value lost, and the tail "
+        "rank's step off its own midnight keeps the count; SPREAD then moves the second of "
+        "the two ranks at 05:20 to 05:19, its group's nearest free place, and the count is "
+        "kept. Without SPREAD after the step the twin came back one value short.",
+        "room_kept", ordinals, {0, 1, 5}, [2, 2], HEAP_ZERO, 60, no_midnight=True,
+    )
+    case["body"] = [1, 4]
+    case["lows"][0], case["highs"][0] = hour_at(m - 2, 0, 0), hour_at(m - 1, 12, 0)
+    case["tail_pins"] = [False] * 5 + [True]
+    case["away"] = 3600
+    return case
+
+
 def field_midnight_narrow_case():
     m = HOUR_MONDAY
     return {
@@ -17177,6 +17254,9 @@ CLOCK_FIELD_STEP_CASES = {
     "field_midnight_narrow": field_midnight_narrow_case,
     "field_midnight_room": field_midnight_room_case,
     "field_midnight_short": field_midnight_short_case,
+    "field_midnight_zero_room": field_midnight_zero_room_case,
+    "field_midnight_room_keep": field_midnight_room_keep_case,
+    "field_midnight_room_spread": field_midnight_room_spread_case,
     "field_floor": field_floor_case,
     "lattice_half_hour": lambda: field_lattice_case(
         "A half-hour grid written to the minute: heaps at minutes 0 and 30 and no census, "
@@ -17265,6 +17345,11 @@ def clock_field_step_answer(case):
     elif step == "room":
         clock_midnight_room_made(
             walk, first, last, pinned, case["tail_pins"], case["written_unit"], case["away"]
+        )
+    elif step == "room_kept":
+        clock_midnight_room_kept(
+            walk, first, last, pinned, case["tail_pins"], case["written_unit"], case["away"],
+            case["wanted"], case["standing"], case["anyday"], kin, case["reachable"],
         )
     return walk.days
 

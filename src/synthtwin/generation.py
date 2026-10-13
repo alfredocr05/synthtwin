@@ -27059,15 +27059,11 @@ def _clock_fields_settled(
             state, counts, body_low, body_high, pinned, wanted,
             _clock_day_standing(facts), not facts.weekday_census, kin, column.n_distinct,
         )
-        _clock_midnight_room_made(
+        _clock_midnight_room_kept(
             state, counts, body_low, body_high, pinned, _ranks_the_tail_pins(layout),
-            written, max(written, layout.tail_unit),
+            written, max(written, layout.tail_unit), wanted, _clock_day_standing(facts),
+            not facts.weekday_census, kin,
         )
-        if state.keep_units and _weekday_count(state) < wanted:
-            _clock_short_spread(
-                state, body_low, body_high, pinned, wanted, _clock_day_standing(facts),
-                not facts.weekday_census, kin,
-            )
         if _clock_found(state, len(counts), body_low, body_high) != counts:
             notes += [_clock_field_deviation(column.name, field)]
         if field == calendar_clock.MINUTE:
@@ -27204,6 +27200,37 @@ def _clock_midnight_room_made(
         _weekday_step(state, rank, target)
         found[zero] = found[zero] + 1
         found[group] = found[group] - 1
+
+
+def _clock_midnight_room_kept(
+    state: _WeekdayPass,
+    counts: "list[int]",
+    body_low: int,
+    body_high: int,
+    pinned: "list[bool]",
+    tail_pins: "list[bool]",
+    written: int,
+    away: int,
+    wanted: int,
+    standing: "tuple[int, ...]",
+    anyday: bool,
+    kin: "tuple[int, ...]",
+) -> None:
+    """THE TAILS MAKE ROOM AT MIDNIGHT (`_clock_midnight_room_made`), and SPREAD
+    after it where the count of different values is one the construction
+    reaches and the step left it short (`_clock_short_spread`): a body rank
+    alone at 00:01 that takes its day's midnight beside a cell already there
+    loses a value, and a tail's step may lose another (method G7.3h; the
+    lane's repair, its second skeptic's item 3).
+
+    Guarantees: as the two steps. Raises nothing. No I/O."""
+    _clock_midnight_room_made(
+        state, counts, body_low, body_high, pinned, tail_pins, written, away
+    )
+    if state.keep_units and _weekday_count(state) < wanted:
+        _clock_short_spread(
+            state, body_low, body_high, pinned, wanted, standing, anyday, kin
+        )
 
 
 def _clock_second_kin(

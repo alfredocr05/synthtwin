@@ -1072,6 +1072,11 @@ def _answer(case: dict, module=generation, clock=calendar_clock) -> object:
             state, list(case["counts"]), first, last, pinned, list(case["tail_pins"]),
             case["written_unit"], case["away"],
         )
+    elif step == "room_kept":
+        module._clock_midnight_room_kept(
+            state, list(case["counts"]), first, last, pinned, list(case["tail_pins"]),
+            case["written_unit"], case["away"], case["wanted"], standing, case["anyday"], kin,
+        )
     return state.moved
 
 
@@ -1208,6 +1213,21 @@ STEP_MUTANTS = {
         "field_midnight_share",
         "                    if not _written_at_midnight(\n",
         "                    if False and not _written_at_midnight(\n",
+    ),
+    "a kin group given room on value 0 beyond its free ranks": (
+        "field_midnight_zero_room",
+        "            room[zero] = free[kin]",
+        "            room[zero] = len(members)",
+    ),
+    "the tails make room raising the count": (
+        "field_midnight_room_keep",
+        "            if state.keep_units and change + shift > 0:",
+        "            if False:",
+    ),
+    "no SPREAD after the tails make room": (
+        "field_midnight_room_spread",
+        "    if state.keep_units and _weekday_count(state) < wanted:\n        _clock_short_spread(\n            state, body_low, body_high, pinned, wanted, standing, anyday, kin\n        )\n\n\ndef _clock_second_kin(",
+        "    if False:\n        _clock_short_spread(\n            state, body_low, body_high, pinned, wanted, standing, anyday, kin\n        )\n\n\ndef _clock_second_kin(",
     ),
     "a draw laid on no unit": (
         "field_floor",

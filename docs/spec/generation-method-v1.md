@@ -7558,7 +7558,7 @@ nearest midnight inside its stratum; each tail's ranks are then sorted.
 
 **Its frozen cases** are states of ranks and drawing units: the twentieth
 vectors file, `tests/reference/generation-branch-vectors-20.json`, holds
-twenty-four -- the pass on a field of minutes with heaps and on a field of
+twenty-seven -- the pass on a field of minutes with heaps and on a field of
 seconds with a kin group of minutes, KIN SHARES over two hours,
 carried from gap to gap over four days and never splitting a unit two
 tied ranks of an hour share, a written midnight a kind of its
@@ -7568,7 +7568,10 @@ alone and beside hour 1, the exchange's three answers,
 PUT BACK once more after it, SUBSTITUTE, SPREAD, the tails keeping the count at midnight by their
 drawing unit and, in a stratum narrower than it, by the written unit, and
 taking a midnight where the count there is short, the tails making room at
-midnight for a rank of the body, a draw laid
+midnight for a rank of the body, never by a tail step raising the count
+and with SPREAD after them where the step left it short, KIN SHARES
+giving no kin group more of minute 0 than its ranks free to stand there,
+a draw laid
 on its unit, and the drawing units of a half-hour grid, a column on the
 hour, a column whose seconds alone are pinned, one census group
 holding minute 0 and heaps beside a withheld census of the rest, which
