@@ -52,9 +52,10 @@ has its width comes before one lined up by a trailing delimiter, so a
 comma table with a short row and a header ending in a semicolon reads
 as before and the semicolon is asked about. A quoted empty last field
 (`1;2;""`, `a;b;""`) is a value and lines nothing up, so it is no
-longer written back as `1;2;`, and a header-closed table's row 51
-`31,72,Q,""` is refused as holding 4 values, not as ending in the
-delimiter. A comma-space table whose rows end in the semicolon
+longer written back as `1;2;`, in the sample or past it; a quoted empty
+where the other lines close is refused with that reason, and a
+header-closed table's row 51 `31,72,Q,""` is refused as holding 4
+values, not as ending in the delimiter. A comma-space table whose rows end in the semicolon
 (`"1"; "alpha";`) reads with its spaces skipped, as without the
 trailing semicolon. The 63-table battery's descriptions, questions and
 twins are byte-identical before and after.
