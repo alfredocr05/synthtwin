@@ -5951,6 +5951,24 @@ def test_the_delimiter_is_settled_the_way_the_method_settles_it() -> None:
             candidate
         )
     assert dialect.detected_delimiter(text, 0) == case["delimiter"]
+    # A TRAILING DELIMITER ON ONE SIDE ONLY (plan P4-D387): each file the
+    # case reads under `lined_up`, the same way.
+    assert len(case["lined_up"]) == 4
+    for entry in case["lined_up"]:
+        more = entry["text"]
+        for candidate in dialect.DELIMITERS:
+            found = dialect._best_reading(more, candidate, 0)
+            published = entry["readings"][candidate]
+            if published is None:
+                assert found is None, (more, candidate)
+                continue
+            assert found is not None, (more, candidate)
+            share, width, _sample = found
+            assert width == published["width"], (more, candidate)
+            assert share == published["at_that_width"] / published["records"], (
+                more, candidate,
+            )
+        assert dialect.detected_delimiter(more, 0) == entry["delimiter"], more
 
 
 def _workbook_profile(case: dict, folder: pathlib.Path) -> contract.Profile:
@@ -6134,6 +6152,16 @@ DOCUMENT_MUTANTS = {
             "rule it replaced, and the file is read as one column",
             attribute="best_reading",
             replacement=_one_reading_for_each_candidate,
+            outcome=CHANGES_THE_CELLS,
+        ),
+        Mutant(
+            branch="plan P4-D387's rule that a trailing delimiter on one "
+            "side lines the first record up with the reading; the mutant "
+            "withdraws it, which is the rule it replaced, and the "
+            "semicolon file whose rows end in `;` and the tab file whose "
+            "header ends in a tab are read as one column under the comma",
+            attribute="opening_lines_up",
+            replacement=lambda sample, opening, width: False,
             outcome=CHANGES_THE_CELLS,
         ),
     ),

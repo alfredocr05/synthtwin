@@ -3938,6 +3938,19 @@ def _width_share(sample: "list[Record]") -> "tuple[float, int]":
     Blank lines and lines of nothing but spaces are not counted: they are
     not records of any width.
     """
+    at_width, total, width = _width_counts(sample)
+    if not total:
+        return (0.0, 0)
+    return (at_width / total, width)
+
+
+def _width_counts(sample: "list[Record]") -> "tuple[int, int, int]":
+    """How many records sit at their most common width, of how many, and that width.
+
+    The counts `_width_share` divides (plan P4-D387), kept whole so that
+    a reading which lines a record up by its trailing delimiter can count
+    that record at the table's width.
+    """
     counted: dict[int, int] = {}
     total = 0
     for record in sample:
@@ -3949,14 +3962,56 @@ def _width_share(sample: "list[Record]") -> "tuple[float, int]":
         counted[width] = (counted[width] if width in counted else 0) + 1
         total = total + 1
     if not total:
-        return (0.0, 0)
+        return (0, 0, 0)
     best = 0
     best_count = 0
     for width in sorted(counted):
         if counted[width] >= best_count:
             best = width
             best_count = counted[width]
-    return (best_count / total, best)
+    return (best_count, total, best)
+
+
+def opening_lines_up(sample: "list[Record]", opening: int, width: int) -> bool:
+    """Whether the table's first record lines up with a reading ``width`` wide
+    through a trailing delimiter that one side carries and the other does not.
+
+    A TRAILING DELIMITER ON ONE SIDE ONLY IS STILL THE TABLE'S DELIMITER
+    (plan P4-D387). A semicolon export whose rows end in `;` and whose
+    header does not reads, under the semicolon, as a header of four
+    fields over rows of five, the fifth empty; the rule that the table's
+    first record has the table's width rejected that reading, no other
+    candidate read two fields, and the file was described as ONE column
+    named by its whole header line (measured: 120 rows, 1 column, exit
+    0, no question). Its comma form read right only because the comma is
+    what a table no candidate reads falls back to. The walk in `survey`
+    already reads both shapes -- rows one field wider than the header,
+    every one ending empty, as `rows_trailing_delimiter`; a header one
+    field wider than the rows, its last field empty, as
+    `header_trailing_delimiter` -- so detection accepts exactly those two
+    and no other:
+
+    - the first record is one field NARROWER than ``width``, at least
+      two fields wide, and every record of the sample at ``width`` ends
+      with an empty field; or
+    - the first record is one field WIDER than ``width`` and its last
+      field is empty.
+
+    A one-field first record never lines up this way, so a one-column
+    table whose cells end in a delimiter stays one column as before.
+    """
+    if opening >= len(sample):
+        return False
+    first = sample[opening].fields
+    if len(first) == width + 1:
+        return first[width] == ""
+    if len(first) != width - 1 or width - 1 < 2:
+        return False
+    for record in sample:
+        fields = record.fields
+        if len(fields) == width and fields[width - 1] != "":
+            return False
+    return True
 
 
 def delimiter_reading(
@@ -4117,14 +4172,19 @@ def _best_reading(
             sample = records(
                 text, candidate, escaping, spaced, at, _SAMPLE_RECORDS, lines
             )
-            share, width = _width_share(sample)
+            at_width, total, width = _width_counts(sample)
             if width < 2:
                 continue
             opening = 0
             while opening < len(sample) and _leads_the_table(sample[opening]):
                 opening = opening + 1
             if opening < len(sample) and len(sample[opening].fields) != width:
-                continue
+                # ...unless a trailing delimiter on one side lines it up
+                # (plan P4-D387), and then it counts at the table's width.
+                if not opening_lines_up(sample, opening, width):
+                    continue
+                at_width = at_width + 1
+            share = at_width / total
             if best is None or (share, width) > (best[0], best[1]):
                 best = (share, width, sample)
     return best
@@ -4485,13 +4545,22 @@ def _sequence_of(cells: "list[str]") -> int:
     """The start of the row sequence a column holds, or -1."""
     if len(cells) < 2:
         return -1
+    # NO CELL IS TURNED INTO A WHOLE NUMBER (plan P4-D387). `int()` of a
+    # cell of 5,001 figures raises ValueError past Python's limit on the
+    # digits of an int read from text, and a column whose first cell was
+    # one crashed the reader. A sequence cell is plain figures with no
+    # leading nought, so it IS the number written in figures, and each is
+    # compared as text with the figures of the number it must be.
     first = _text(cells[0])
-    if not _is_sequence_number(first) or int(first) not in SEQUENCE_STARTS:
+    start = -1
+    for allowed in SEQUENCE_STARTS:
+        if first == f"{allowed}":
+            start = allowed
+    if start < 0:
         return -1
-    start = int(first)
     for index in range(len(cells)):
         found = _text(cells[index])
-        if not _is_sequence_number(found) or int(found) != start + index:
+        if found != f"{start + index}":
             return -1
     return start
 
