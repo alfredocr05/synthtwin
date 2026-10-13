@@ -6,6 +6,27 @@ exists).
 
 ## [Unreleased]
 
+### Codes and long cells written as the source wrote them (2026-10-13)
+
+**Lane L1** (plans P4-D390 and P4-D384; `K-S3-61`). Made-up figure codes
+keep the source's width and leading noughts (`0414`, not `414`) where every
+published code of figures shares one width; a number wearing no named form
+steps from the published numbers written without an exponent, so codes
+such as `5E77` no longer make the twin write integers of 78 to 300 figures;
+a code form of one letter among figures (`12A345`, `52E638`) is worn by the
+words and the numbers too large to hold as well as by the numbers, so its
+count is met and no `1e999` stands in for such a code; free text keeps its
+form past 4,096 different values (10,000 durations `HH:MM:SS` written once,
+5,904 of which were written `!!!!!!"N`) and pays a form no more than its
+count; a column written to 5,000 places no longer stops `synthtwin
+generate`, and Excel serials written to 50 places, or a nought written
+`0E15588`, meet `styles.spelled` on their own source. On the lane's battery
+of 38 code, number and duration tables at floors 11 and 36 and seeds 0 to 4,
+no twin or table misses a check 45191fa met, 35 twins and four tables stop
+missing one, and 330 of 380 twins are byte for byte as before. Stated: a
+column of numbers beside labels still writes its number half's exponent
+codes by G6, as integers or in G6.3's own spelling.
+
 ### Partial dates are read at their own precision, and a column mostly of dates is asked (2026-10-09)
 
 **Landing R2c, the layout reader's questions and partial dates** (plan
