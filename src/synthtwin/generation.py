@@ -19129,9 +19129,9 @@ _WeekdayKind = tuple[bool, int, int]
 _PLAIN_KIND: _WeekdayKind = (True, 0, 0)
 
 # THE DAY-OF-MONTH PASS'S TWO BOUNDS (the Codex review of landing 3b.3,
-# item 3): the most days `_WeekdayPass.month_bins` keeps before it starts
-# again, so a sparse column over two thousand years keeps no more than a
-# dense one over two hundred; and the widest gap whose prior is walked day
+# item 3): the most days `_WeekdayPass.month_bins` keeps (a day asked
+# once it is full is reckoned each time, never kept), so a sparse column
+# over two thousand years keeps no more than a dense one over two hundred; and the widest gap whose prior is walked day
 # by day -- a wider one is counted by the calendar (`_month_day_prior`),
 # so no prior asks every day of a gap spanning centuries.
 _MONTH_BINS_HELD = 65536
@@ -19252,12 +19252,14 @@ def _weekday_bin(state: _WeekdayPass, rule: str, ordinal: int) -> int:
         # The day-of-month census's thirty-four bins (landing 3b.3, plan
         # P4-D368): bin 1 nought, the month's last day in bins 31 to 34.
         day = ordinal // state.day
-        if day not in state.month_bins:
-            if len(state.month_bins) >= _MONTH_BINS_HELD:
-                # BOUNDED (the Codex review of landing 3b.3, item 3): a
-                # day asked again after this is reckoned again, the same.
-                state.month_bins.clear()
-            state.month_bins[day] = calendar_rules.month_bin(day) - 1
+        if day in state.month_bins:
+            return state.month_bins[day]
+        if len(state.month_bins) >= _MONTH_BINS_HELD:
+            # BOUNDED (the Codex review of landing 3b.3, item 3): once the
+            # memo is full a day not in it is reckoned each time it is
+            # asked, the same bin, and is not kept.
+            return calendar_rules.month_bin(day) - 1
+        state.month_bins[day] = calendar_rules.month_bin(day) - 1
         return state.month_bins[day]
     return calendar_rules.weekday_of(ordinal // state.day)
 

@@ -752,8 +752,8 @@ MUTANTS = {
     ),
     # the month's last day read as its plain day of the month
     "day_of_month_month_end": (
-        "            state.month_bins[day] = calendar_rules.month_bin(day) - 1\n",
-        "            state.month_bins[day] = min(parsing.civil_from_days(day)[2], 30) - 1\n",
+        "        state.month_bins[day] = calendar_rules.month_bin(day) - 1\n",
+        "        state.month_bins[day] = min(parsing.civil_from_days(day)[2], 30) - 1\n",
     ),
     # the spelling repair's keep of the count of different days (the Codex review's item 1)
     "day_of_month_repair": (

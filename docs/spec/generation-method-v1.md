@@ -6786,7 +6786,8 @@ days. The bins follow one another with no period, so G7.3f counts a
 gap's days one by one -- and a gap wider than 1,024 days by the
 calendar, in 400-year cycles and whole months, the same counts without
 asking each day (the Codex review of landing 3b.3, item 3); a day's bin
-is kept once asked, at most 65,536 days at a time.
+is kept once asked, at most 65,536 days; past them a day is reckoned
+each time it is asked, never kept.
 
 1. **Pass A** is G7.3f over the day-of-month census: each day's group
    is its bin's, and every day between the two tail boundaries whose
