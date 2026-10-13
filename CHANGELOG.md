@@ -21,7 +21,12 @@ round the whole day, its hour of day 0.11 off at 1,000 rows: no label
 publishes hours. Its repair round draws the checker's windows over a
 census group's whole span, as the twin is laid (a p75 at the second was
 MISSED in 5 of 420 small twins), and lets the rounding meet every table
-any rounding meets, a whole path's worth of cells at a time.
+any rounding meets, a whole path's worth of cells at a time. Its Codex
+review keeps a twin of clock times beside rare words and other clock
+forms clock times (30 of 288 such twins came back as free text), and
+counts a time of day written on many rows as many events, so night
+readings repeated a hundred times no longer hide how the minute follows
+the hour (the twin's day cells on minute 0: 589 of 4,320 against 72).
 
 ### The minutes and seconds of a timestamp come back (2026-10-12)
 
