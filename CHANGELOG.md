@@ -6,6 +6,20 @@ exists).
 
 ## [Unreleased]
 
+### The minute of the hour comes back on clock-only columns (2026-10-13)
+
+**A column of clock times publishes the minute of the hour its cells fall
+on, and its twin meets it** (plan P4-D374, stage 3b landing 3b.5's second
+step). Appointment times typed on `:00` or `:30` at a fifth to a quarter
+of their rows came back at 8 to 16 per cent there; now within 0.005 of
+the table at 1,000 rows (method G7A.4c, validation V5-C2). Columns whose
+minutes are flat off their heaps publish nothing and write the twin they
+wrote before. Rare words beside clock times stay in the twin as words,
+never blanks, and twelve real `8:00` beside `08:00` declared missing come
+back as `8:00`. A label column's twin still steps its held-back times
+round the whole day, its hour of day 0.11 off at 1,000 rows: no label
+publishes hours.
+
 ### The minutes and seconds of a timestamp come back (2026-10-12)
 
 **A column of moments publishes its minutes and seconds, and the twin

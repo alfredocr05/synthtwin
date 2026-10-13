@@ -4472,10 +4472,16 @@ COLUMN (the level pass's own route until plan P4-D390 deleted that
 pass, a pass of its own since, gated as it was): where the levels
 below the floor no spelling of which a
 clock reader takes hold at most one present cell in fifty, and the
-column without exactly those cells reads as clock times, only those are
-counted missing and every rule reads the column again -- 296 shift
-starts beside four `UNK` are clock times with four cells absent, not
-labels whose twin reads back as clock times. It is asked of every first
+column without exactly those cells reads as clock times, the clock line
+is asked without those cells and every rule reads the column again --
+296 shift starts beside four `UNK` are clock times, not labels whose
+twin reads back as clock times. SINCE LANDING 3b.5's SECOND STEP THOSE
+CELLS STAY PRESENT (plan P4-D374): the clock leaves them unread, counted
+in `n_unparsed`, and the twin writes a word in each, where counted
+missing they were blanks the source never left -- 198 cells over 2 of
+lane C1's 112 columns of times beside notes, which the route-2
+correction's ruling ("no cell blank that the source never left blank")
+removes. It is asked of every first
 reading as labels or free text, not only where a level is counted out
 (the repair round of landing 3b.5): a column of `7:30 AM` beside 0.6 %
 `UNK` and 0.3 % `99:99` was free text at 300 and 1,000 rows at a floor
@@ -9222,8 +9228,8 @@ description written before plan P4-D364 carries none of the five, and
 each absent one is read as `[]`, `clock_step` as `null` (C6-45a). Each
 landing restates its own rows below its own line. Landing 3b.5 (plan
 P4-D373) fills four of them -- the step, the heaps, the census and the
-codes -- held to CC1 to CC5, CH1 and CH2; `minute_census` waits for its
-second step.
+codes -- held to CC1 to CC5, CH1 and CH2; its second step (plan
+P4-D374) fills `minute_census`, held to MC1 to MC3 and MC5.
 
 <!-- anchor 3b-D1 (P4-D365) -->
 <!-- anchor 3b-D0 (P4-D366) -->
@@ -9238,7 +9244,7 @@ second step.
 | key | JSON type | permitted values | meaning | disposition |
 |---|---|---|---|---|
 | `clock_step` | integer or `null` | a whole number of seconds dividing the dial (86,400, or 43,200 on the declared 12-hour face) and a whole number of the form's own unit | the step every parsed value stands on: the greatest common divisor of the dial and every value's second of it -- 60 on a column of minutes, 300 on a five-minute grid, 1 on a column of seconds; `null` on a block its producer was not asked for, every one written before landing 3b.5, and then the other three are `[]` (CC4) | EXACT-OBSERVABLE: every parsed cell of the file stands on it |
-| `clock_heaps` | array of `{value, count}` | `value` a time in `clock_form` on the step, ascending; `count` at least the census line | every step whose count over EVERY parsed cell -- the tails' too -- stands out from the five steps on each side of it: at least the census line and at least three times their median (`calendar_clock.heaps_on_the_step`, the day read as a line) | EXACT-OBSERVABLE: the file holds each value exactly that many times |
+| `clock_heaps` | array of `{value, count}` | `value` a time in `clock_form` on the step, ascending; `count` at least the census line | every step whose count over EVERY parsed cell -- the tails' too -- stands out from the five steps on each side of it: at least the census line and at least three times their median (`calendar_clock.heaps_on_the_step`, the day read as a line); and, since landing 3b.5's second step (plan P4-D374), every place a spelling the table calls absent names in the column's form holding at least the census line in present cells, which showed the hour's other width and are written in it | EXACT-OBSERVABLE: the file holds each value exactly that many times |
 | `clock_census` | array of `{first, last, count}` | ten-minute bins of the dial from `0`, covering every bin in order; each count nought or at least the census line | how many cells of the BODY -- between the two tail boundaries, both included, or every parsed cell where there are no tails -- that stand on no heap fall in each group of bins; the hours are merged first and the bins inside each hour group then (`calendar_clock.nested_groups`, both through `calendar_rules.merged_groups`); `[]` where nothing is left beside the heaps, or fewer than the census line (NF106) | EXACT-OBSERVABLE: the file's own body, less its cells on a heap, holds each group's count exactly |
 | `clock_codes` | array of `{spelling, count}` | a spelling `clock_form` does not read, in text order; `count` at least the census line | every such spelling at least the census line's rows wrote, with its count (NF107); the twin writes each that many times | EXACT-OBSERVABLE: the file holds each spelling exactly that many times |
 
@@ -9246,7 +9252,7 @@ second step.
 
 | key | JSON type | permitted values | meaning | disposition |
 |---|---|---|---|---|
-| `minute_census` | array | `[]` | reserved for how many cells between the two tail boundaries fall on each group of minutes of the hour | LOADER-ONLY until landing 3b.5's second step fills it |
+| `minute_census` | array of `{first, last, count}` | `[]`, or groups of minutes 0 to 59 in order, each count nought or at least the census line (MC1 to MC3, MC5) | landing 3b.5's second step (plan P4-D374): how many cells of the BODY -- between the two tail boundaries, both included, or every parsed cell where there are no tails -- the heaps' among them, fall on each group of minutes of the hour each is written at, by the one merge rule over the minutes on the census line beside the sure cells; published beside a `clock_step` alone, and `[]` where the body's cells on no heap are flat over the minutes the step reaches, where how they fall follows the hour of the day so that one count over every hour misleads (M3), or where the merge rule leaves one group; no sentence is said | EXACT-OBSERVABLE: the file's own body holds each group's count exactly |
 
 <!-- anchor 3b-G1 (P4-D375) -->
 <!-- anchor 3b-G3 (P4-D376) -->
@@ -9337,9 +9343,13 @@ A column with no parsed cell cannot reach this role at all, so both
 endpoints are always real values.
 
 **T5 (the detection line, checkable afterwards).** `n_present -
-n_unparsed` is at least the parse-line count of `n_present` — the
-count `minimum_parse_rate` fixes, applied as a count — so a block
-whose one form never cleared the detection line cannot conform.
+n_unparsed` is at least the parse-line count of `n_present` less one
+fiftieth of it, rounded down -- the count `minimum_parse_rate` fixes,
+applied as a count, over the present cells less the most rare words
+beside clock times the clock line may be asked without (section 5.2,
+kept present since plan P4-D374), which a loader cannot tell from
+other unread cells -- so a block whose one form never cleared the
+detection line cannot conform.
 
 **T-P (a producer obligation, stated because a loader cannot check
 it).** Every published clock value is a value some cell of the source
@@ -9415,8 +9425,8 @@ reader will expect them and their absence is a decision.
   `zulu_case`, `weekday_census`, the seven keys stage 3b reserves
   there (plan P4-D364) and `count_form`, which the second key cut
   reserves (plan P4-D386), are `datetime`'s too -- all but
-  `minute_census`, which this role reserves under the same name: a
-  clock time has no date to write or to count.
+  `minute_census`, which this role publishes under the same name (plan
+  P4-D374): a clock time has no date to write or to count.
 - **Every quantitative key.** `percentiles`, `mean`, `std`, `skew`,
   `numeric_styles`, `fraction_widths`, `integer_valued` and the rest
   belong to `count`, `continuous` and `affixed_number`, as does the
@@ -12799,6 +12809,20 @@ census of spellings.
 | CH2 | the codes are spellings `clock_form` does not read, strictly in text order, each counting at least the census line, and together no more than `n_unparsed` | yes |
 
 <!-- anchor 3b-C2 (P4-D374) -->
+
+On a column of clock times (landing 3b.5's second step, plan P4-D374)
+`minute_census` publishes no heaps beside it -- the clock heaps are its
+heaps, counted in its groups -- and MC1, MC2 and MC5 read as above, the
+sure cells being each boundary and published rung (every rank between
+two of one value written alike) and every clock heap inside the body,
+each at the minute it is written at. MC3 reads: a non-empty minute
+census stands only beside a `clock_step`, and its groups add up to the
+body, `P - low_tail.rows - high_tail.rows` (`P` where there are no
+tails), the heaps' cells among them. MC4 does not apply (the 3b.5
+skeptic's MINOR 3): a clock column has no date axis, so no census is
+the minutes of a few hours of a few days. MC6 does not apply: no
+workbook storage reads this role's census.
+
 <!-- anchor 3b-G1 (P4-D375) -->
 <!-- anchor 3b-G3 (P4-D376) -->
 <!-- anchor 3b-G2 (P4-D377) -->
@@ -12895,7 +12919,7 @@ part one's (8.3, 8.4).
 | T2 | the ladder around its tails, exactly as D11 states it for a column of dates: the two ends `null`, an interior rung `null` exactly inside a tail, a rung read off a boundary's rank that boundary, and every published rung between the two |
 | T3 | read in ladder order the rungs never decrease in the form's unit; on `hh-mm` and `hh-mm-ss` that agrees with text comparison, and on the other forms it does not (landing T1); a tail's `values` ascend, and lie beyond its boundary, in the same order |
 | T4 | `n_unparsed < n_present`. NOT implied by T5: at `minimum_parse_rate` `0.0` the parse line is zero and T5 vacuous, T4 alone keeping a cell for the endpoints |
-| T5 | `n_present - n_unparsed` is at least the parse-line count of `n_present`, applied as a count |
+| T5 | `n_present - n_unparsed` is at least the parse-line count of `n_present - floor(n_present / 50)`, applied as a count: the clock line, asked without the most rare words beside clock times it may be (plan P4-D374) |
 
 ### 8.x The long-tail label role — LT
 
@@ -13524,7 +13548,7 @@ table means exactly what its disposition says.
 
 <!-- anchor 3b-C2 (P4-D374) -->
 
-| `minute_census` | LOADER-ONLY (plan P4-D364): `[]` on every block, refused as anything else, and no output obligation until landing 3b.5's second step fills it |
+| `minute_census` | EXACT-OBSERVABLE (landing 3b.5's second step, plan P4-D374; validation V5-C2): the file's own cells between the two PUBLISHED boundaries, both included -- every parsed cell, with no tails -- the heaps' among them, hold every group's count exactly, each cell at the minute of the hour it is written at. A MISSED line keeps its verdict and prints a group the file holds one to the line less one of as fewer than the line (plan P4-D347). The file's census is counted, never produced |
 
 <!-- anchor 3b-G1 (P4-D375) -->
 <!-- anchor 3b-G3 (P4-D376) -->

@@ -1430,7 +1430,15 @@ rather than in ISO:
   file could spell alike, and a MISSED line keeps its verdict and prints
   a count under the line as fewer than it, by the one printing rule of
   every census check (plan P4-D347). A description publishing no step
-  obliges none of the four.
+  obliges none of the four. *Widened by landing 3b.5's second step
+  (plan P4-D374):* **V5-C2** also holds a published `minute_census`: the
+  cells between the two published boundaries -- every parsed cell with
+  no tails -- the heaps' among them, counted at the minute of the hour
+  each is written at and summed per published group
+  (`minute_census.groups`), HELD where every group holds its count,
+  each group named by its minutes as V5-M1 names them; and on such a
+  block a heap's ranks are windowed as its group's (G12.10b), as the
+  generator lays them.
 - `weekday_census` is compared GROUP FOR GROUP (`weekday_census.groups`,
   landing 3b.1, plan P4-D355): the file's own dates between the two
   PUBLISHED tail boundaries, both included, less the days its own

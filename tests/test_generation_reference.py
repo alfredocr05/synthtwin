@@ -6572,3 +6572,47 @@ def test_the_method_states_the_count_the_committed_files_hold() -> None:
         if line.startswith("| `")
     )
     assert tuple(rows) == EVERY_CASE
+
+
+# ------------------------------------- landing 3b.5's second step (P4-D374)
+
+
+def test_the_oracle_lays_every_battery_minute_census_as_the_product(tmp_path: pathlib.Path) -> None:
+    """G7A.4c beyond its six frozen cases (A-P4-59): every column of the clock
+    battery (`tests/clock_census_shapes.py`) publishing a minute census at 300
+    and 1,000 rows and a floor of eleven -- eleven of them -- is laid by the
+    oracle, from the opening words of seed 0's stream, into exactly the cells
+    the product's twin holds at seed 0. The oracle's tails assume the floor
+    of eleven, so a raised floor is not asked here."""
+    import csv
+    import io
+
+    import clock_census_shapes
+
+    from synthtwin import profile, reading
+
+    laid_columns = 0
+    for rows in (300, 1000):
+        for name in clock_census_shapes.CLOCKS:
+            cells = clock_census_shapes.cells(name, rows)
+            folder = tmp_path / f"{name}-{rows}"
+            folder.mkdir()
+            table = fixtures.write(folder, "t.csv", "\n".join([name] + cells) + "\n")
+            document = profile.build_document(
+                reading.read_table(str(table), small_cell_floor=11),
+                taxonomy.Settings(small_cell_floor=11),
+                [],
+                [],
+            )
+            column = dict(document["columns"][0])
+            if not column.get("minute_census"):
+                continue
+            loaded = contract.load_profile(str(fixtures.write_profile(folder, "p.json", document)))
+            content, _placement = gen.word_budget(column, len(cells))
+            column["_content_words"] = _words(content, 0)
+            laid = gen._clock_content(column)
+            text = rendering.twin_csv(generation.generate(loaded, 0))
+            twin = [row[0] for row in csv.reader(io.StringIO(text)) if row][1:]
+            assert sorted(laid) == sorted(cell for cell in twin if cell), (name, rows)
+            laid_columns = laid_columns + 1
+    assert laid_columns >= 10, laid_columns

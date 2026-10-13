@@ -86,7 +86,9 @@ holds the whole battery, and NF106's sentence:
   hold stands beside the published words (mutant: counted among the
   stand-ins, and the twin is read back as clock times);
 * W `test_w_rare_words_beside_clock_times_keep_the_clock` -- 296 shift
-  starts beside four `UNK` are clock times, the words counted missing,
+  starts beside four `UNK` are clock times, the words -- counted missing
+  until landing 3b.5's second step, kept present and unread by the clock
+  since (plan P4-D374), so the twin writes a word in each and no blank --
   and the twin reads back the same way (mutant: the level pass keeps the
   labels); and, since the second repair round, the route to clock times
   stands only where the column it leaves is clock times, so one time on
@@ -109,6 +111,17 @@ holds the whole battery, and NF106's sentence:
 * and NF106, `test_the_description_says_so_where_the_census_is_left_out`
   -- fewer than the line left beside the heaps leaves the census out
   and the description says so, the fold-back the 3b.5 skeptic dropped.
+
+And the clause of landing 3b.5's second step (lane C2, plan P4-D374):
+
+* U `test_u_the_minute_of_the_hour_comes_back` -- triage times typed on
+  `:00` and `:30` at a quarter of their rows and walk-ins booked on a
+  ten-minute grid, at 1,000 rows and a floor of eleven, publish their
+  minute census, and every twin's share on `:00` or `:30` is within 0.02
+  of the table's (before it, 0.08 to 0.09 against 0.28, and 0.16 against
+  0.21), nothing missed (mutant: the minute census withdrawn from the
+  layout). The landing's own rules are held in
+  `tests/test_stage3b_clock_minutes.py`.
 """
 
 from __future__ import annotations
@@ -861,6 +874,41 @@ def test_n_red_without_the_census_of_a_column_with_no_tails(monkeypatch: pytest.
         assert not _no_tails_kept(300)
     finally:
         _described.cache_clear()
+        _twin.cache_clear()
+
+
+# -- U: the minute of the hour comes back (landing 3b.5's second step) -----
+
+_MINUTE_CLAUSE = ("ed_triage_s", "walkin")
+
+
+def _on_the_slots(cells: "list[str]") -> float:
+    """The share of the cells read as times that stand on minute 0 or 30."""
+    read = [second for second in (_second(cell) for cell in cells) if second is not None]
+    return sum(1 for second in read if (second // 60) % 60 in (0, 30)) / max(1, len(read))
+
+
+def test_u_the_minute_of_the_hour_comes_back() -> None:
+    _folder, columns, document, _loaded, _table = _described(_CLOCKS, 1000, 11)
+    for name in _MINUTE_CLAUSE:
+        assert _block(document, name)["minute_census"], name
+        for seed in _SEEDS:
+            cells, missed = _twin(_CLOCKS, 1000, 11, seed)
+            gap = abs(_on_the_slots(cells[name]) - _on_the_slots(columns[name]))
+            assert gap <= 0.02 and missed == [], (name, seed, gap, missed)
+
+
+def test_u_red_without_the_minute_census(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(
+        generation, "_clock_minutes_laid", lambda column, facts, floor, layout, holes=(): layout
+    )
+    _twin.cache_clear()
+    try:
+        _folder, columns, _document, _loaded, _table = _described(_CLOCKS, 1000, 11)
+        cells, _missed_now = _twin(_CLOCKS, 1000, 11, 0)
+        gaps = [abs(_on_the_slots(cells[name]) - _on_the_slots(columns[name])) for name in _MINUTE_CLAUSE]
+        assert all(gap > 0.02 for gap in gaps), gaps
+    finally:
         _twin.cache_clear()
 
 
