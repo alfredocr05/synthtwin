@@ -6671,7 +6671,7 @@ rank's own stratum, and only while the count wants more, so the body
 splits only once no tail rank sharing a day can split directly onto a
 free day of its own stratum -- which is not the most the tails could
 hold: moving another tail rank onto a free day first could free a day
-for a rank that has none, a chain the pass does not make (the Codex review of lane D4s: `_every_open_day(1.1, 26, 900, Monday to Friday)` at the floor of 36, seed 3, keeps its high tail on 35 days of the 36 its strata hold, the body taking the day, and its twin the column's 130 under either order),
+for a rank that has none, a chain the pass does not make (the Codex review of plan P4-D369 part one: `_every_open_day(1.1, 26, 900, Monday to Friday)` at the floor of 36, seed 3, keeps its high tail on 35 days of the 36 its strata hold, the body taking the day, and its twin the column's 130 under either order),
 while the count rules read the tails at their most. Until then it split nearest first
 alone: a body rank one day from a free day split before any high tail
 rank whose free day was further, so the high tail kept the days it drew
