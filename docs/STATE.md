@@ -307,7 +307,8 @@ cannot get worse unseen.
   3b.7, P4-D378, 2026-10-13). The weekday, day-of-month and hour censuses
   stand on columns of two offsets and of dates beside moments, each cell
   counted on its own clock. Stated: the count of different values there
-  stays in G12.5's envelope; a daylight-saving column's twin writes the
+  stays in G12.5's envelope, but on a clocked joint column on the local
+  clock whose only cells at midnight are its bare dates; a daylight-saving column's twin writes the
   offset not in force on its date for about a third of its rows (no
   published fact pairs offset and season); a joint column holding one bare
   date on every day of its span writes the dates its gaps have midnight days

@@ -268,7 +268,10 @@ def test_s6_red_without_the_cap_or_the_exact_check(
     described = _described(tmp_path_factory, "isomix_alldiff_b", 11)
     flags = generation._clocked_form_flags
     with monkeypatch.context() as patch:
-        patch.setattr(generation, "_clocked_form_flags", lambda gaps, dates, moments, _apart: flags(gaps, dates, moments, False))
+        patch.setattr(
+            generation, "_clocked_form_flags",
+            lambda gaps, dates, moments, _apart, cap=None: flags(gaps, dates, moments, False, cap),
+        )
         text = kpi_shapes.twin_text(described, 0)
         assert len(set(text.split("\n")[1:]) - {""}) < ROWS
     monkeypatch.setattr(validation, "_joint_all_different", lambda *_arguments: False)

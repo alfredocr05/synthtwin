@@ -20236,12 +20236,18 @@ def _joint_all_different(column: contract.ColumnBlock, facts: contract.DatetimeF
     envelope (stated limit): there the construction does not reach it; and
     so it does on a joint column wholly at midnight, which the form step
     does not place (220 different days stored three ways in a workbook come
-    back 163 there, as before the landing). Raises nothing. No I/O of any
-    kind."""
+    back 163 there, as before the landing); and so it does where the
+    column's stamps stand at midnight too -- its count at midnight above its
+    bare dates -- since the move to midnight stands those on the nearest
+    midnight, not one of their own (100 dates beside 150 stamps at midnight
+    and 150 at noon, all different, come back 371 of 400). Raises nothing.
+    No I/O of any kind."""
+    dates = facts.resolution_mix["iso-date"] if "iso-date" in facts.resolution_mix else 0
     return (
         facts.parser_family == contract.FORMAT_ISO_MIXED
         and facts.datetimes_read_at == "local"
         and not facts.all_at_midnight
+        and facts.n_at_midnight == dates
         and column.n_distinct >= column.n_present - facts.n_unparsed
     )
 

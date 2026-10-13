@@ -53907,19 +53907,15 @@ def _mix_notes(
 ) -> "list[Deviation]":
     """Name the form census a column read under the joint ISO reading loses.
 
-    `resolution_mix` is REPORT-ONLY and the plan says why: the twin
-    writes every parsed cell of such a column at the column's finest
-    recorded precision, exactly as the ratified rule writes every
-    column of dates today, because a cell spelled as a whole date
-    cannot carry an interior value of a column published at the
-    second. So the census is recorded and not reproduced -- and this is
-    where the report says so, per column, every run (plan P4-D4.3).
+    Since landing 3b.7 (plan P4-D378) the twin writes the published count
+    of bare dates on a clocked column too (method G7.3k) and the census is
+    held exactly; this line names the twin whose count still falls short --
+    a gap holding too few days for its bare dates -- and is said wherever
+    the recount differs (plan P4-D4.3's line, kept for that case).
 
     IT IS RECOUNTED RATHER THAN PREDICTED, like every other count in
-    this part of the report. The rule above says the twin writes no
-    whole dates at all, and a run that finds otherwise has found a
-    defect in itself; recounting is what lets the line say which it
-    was.
+    this part of the report; recounting is what lets the line say how far
+    the twin fell short.
 
     Only the joint reading reaches here. On a column read under one
     format the census restates that format's own name beside the parsed
@@ -53992,6 +53988,17 @@ def _mix_reason(facts: contract.DatetimeFacts) -> str:
             f"{head} Every value of the real column stood at midnight, and "
             "every value of the twin does too, so code that reads them as "
             "dates reads the same days."
+        )
+    if _ordinal_space(facts) == "datetime":
+        # -- 3b.7 (P4-D378): the form step writes the bare dates; where it
+        # falls short, the gaps held too few days for them.
+        return (
+            "The real column mixed the two ways of writing a date, and the "
+            "twin could not stand every whole date on a day of its own inside "
+            "the stretch it was drawn in, so it writes the rest with a time "
+            "of day: code that reads these cells as text -- taking the first "
+            "ten characters, or testing how long a cell is -- can behave "
+            "differently here than on the real table."
         )
     return (
         f"{head} Code that reads them as dates can differ too: a whole date "

@@ -13534,19 +13534,20 @@ last two were missing from this list from the landing that authorized
 them until 2026-09-04, which is a list that calls itself complete and
 was not.
 
-**The census entry, in full, because it is the one entry on this list
-that is named on EVERY run of the column it belongs to.**
-`resolution_mix` is REPORT-ONLY: it records how many of the real
-column's parsed cells were written as a whole date and how many carried
-a time of day, and the twin writes every one of them at the column's
-finest recorded precision, because a cell spelled as a whole date
-cannot carry an interior value of a column published at the second. So
-the achieved side is not a shortfall a rule failed to reach; it is what
-the rule above says the twin writes, and the entry exists so the reader
-is told rather than left to work it out. It is RECOUNTED from the
-finished cells like every count below, not predicted: the rule says the
-twin writes no whole dates at all, and a run that finds otherwise has
-found a defect in itself. A column read under ONE format has no such
+**The census entry, in full.** `resolution_mix` records how many of
+the real column's parsed cells were written as a whole date and how many
+carried a time of day. Until landing 3b.7 the twin wrote every one of
+them at the column's finest recorded precision, because a cell spelled
+as a whole date cannot carry an interior value of a column published at
+the second, and the entry was named on every run of such a column.
+*Amended by landing 3b.7 (plan P4-D378).* The twin of a column of the
+joint member writes the published count of bare dates, each on a
+midnight of its gap (G7.3k), so its census is CHECKED and not listed
+(`datetime.resolution_mix`), and the entry is named only where the
+twin's count falls short -- a gap holding too few days for its bare
+dates -- saying so. It is RECOUNTED from the
+finished cells like every count below, not predicted, so the line says
+how far the twin fell short. A column read under ONE format has no such
 line — its census restates that format's own name beside the parsed
 total, and `format` is already disclosed as recorded-not-reproduced, so
 a second line would tell a reader there were two losses where there is
