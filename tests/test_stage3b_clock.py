@@ -390,15 +390,26 @@ def test_r_times_beside_notes_or_another_face_are_labels(
 
 
 def test_r_red_when_their_odd_levels_are_counted_out(monkeypatch: pytest.MonkeyPatch) -> None:
+    """MUTATION: the route back -- the producer reads every such column as
+    clock times again. Since plan P4-D374 the route keeps the cells it sets
+    apart present, so the loader's line (T5), asked beside one cell in
+    fifty at most, refuses those descriptions: the producer's reading alone
+    is asked here."""
     monkeypatch.setattr(taxonomy, "_rare_beside_clocks", _route_2)
-    _described.cache_clear()
-    _twin.cache_clear()
-    try:
-        for rows, floor, names in _LEVEL_PASS_CASES:
-            assert tuple(_counted_out(names, rows, floor)) == names, (rows, floor)
-    finally:
-        _described.cache_clear()
-        _twin.cache_clear()
+    for rows, floor, names in _LEVEL_PASS_CASES:
+        folder = pathlib.Path(tempfile.mkdtemp(dir=_HOME[0]))
+        columns = {name: shapes.cells(name, rows) for name in names}
+        lines = [",".join(names)] + [
+            ",".join(columns[name][index] for name in names) for index in range(rows)
+        ]
+        table = fixtures.write(folder, "routed.csv", "\n".join(lines) + "\n")
+        document = profile.build_document(
+            reading.read_table(str(table), small_cell_floor=floor),
+            taxonomy.Settings(small_cell_floor=floor),
+            [],
+        )
+        read = tuple(name for name in names if _block(document, name)["role"] == taxonomy.ROLE_CLOCK)
+        assert read == names, (rows, floor, read)
 
 
 # -- F: the floor, the loader, and nothing missed ---------------------
@@ -837,8 +848,8 @@ def test_n_a_column_with_no_tails_publishes_its_census(rows: int) -> None:
 def test_n_red_without_the_census_of_a_column_with_no_tails(monkeypatch: pytest.MonkeyPatch) -> None:
     built = calendar_clock.clock_census_of
 
-    def withdrawn(ordinals, form, line, body):  # type: ignore[no-untyped-def]
-        found = built(ordinals, form, line, body)
+    def withdrawn(ordinals, form, line, body, absent=()):  # type: ignore[no-untyped-def]
+        found = built(ordinals, form, line, body, absent)
         if body is None:
             return calendar_clock.ClockCensus(found.step, found.heaps, (), bool(found.groups))
         return found
@@ -993,7 +1004,13 @@ def test_t_the_step_is_kept() -> None:
 
 
 def test_t_red_on_the_forms_own_step(monkeypatch: pytest.MonkeyPatch) -> None:
+    """MUTATION: the step of the form -- and, since landing 3b.5's second step
+    (plan P4-D374), no minute census, which on a step of a minute holds a
+    five-minute grid's twin to its minutes and would hide the step's loss."""
     monkeypatch.setattr(calendar_clock, "written_step", lambda _seconds, _day: 60)
+    monkeypatch.setattr(
+        calendar_clock, "clock_minute_decision", lambda *_arguments: ((), calendar_clock.FIELD_REASON_FLAT)
+    )
     _described.cache_clear()
     _twin.cache_clear()
     try:
@@ -1247,12 +1264,17 @@ def test_m_red_when_another_keys_stand_ins_are_rare_words(monkeypatch: pytest.Mo
 
 
 def test_w_rare_words_beside_clock_times_keep_the_clock() -> None:
+    """Four `UNK` beside 296 shift starts: clock times, the words KEPT PRESENT and
+    unread by the clock since landing 3b.5's second step (plan P4-D374) --
+    counted missing before, the twin wrote four blanks the source never
+    left -- and every twin writes a word in each and misses nothing."""
     _folder, _columns, document, _loaded, _table = _described(("unk4",), 300, 11)
     block = _block(document, "unk4")
-    assert block["role"] == taxonomy.ROLE_CLOCK and block["n_missing"] == 4
+    assert block["role"] == taxonomy.ROLE_CLOCK and block["n_missing"] == 0 and block["n_unparsed"] == 4
     for seed in _SEEDS:
-        _cells_now, missed = _twin(("unk4",), 300, 11, seed)
-        assert missed == []
+        cells_now, missed = _twin(("unk4",), 300, 11, seed)
+        assert missed == [] and "" not in cells_now["unk4"]
+        assert sum(1 for cell in cells_now["unk4"] if _second(cell) is None) == 4
 
 
 def _codes_beside(column: "list[str]", floor: int) -> "int | None":
@@ -1287,7 +1309,9 @@ def _rare_codes_kept(rows: int, floor: int) -> "tuple[int, list[str]]":
             continue
         asked = asked + 1
         block = _block(document, name)
-        if block["role"] != taxonomy.ROLE_CLOCK or block["n_missing"] != held:
+        # Kept present and unread by the clock since plan P4-D374, never
+        # counted missing.
+        if block["role"] != taxonomy.ROLE_CLOCK or block["n_missing"] != 0 or block["n_unparsed"] != held:
             broken += [name]
     return asked, broken
 
@@ -1350,16 +1374,15 @@ _ONE_TIME = {
 }
 
 
-def _counted_out_of_labels(column: "list[str]") -> int:
-    """How many cells the description of a column read as labels counts as missing."""
+def _read_beside_its_words(column: "list[str]") -> "tuple[str, int]":
+    """The role a column's description reads it as, and how many cells it counts missing."""
     folder = pathlib.Path(tempfile.mkdtemp(dir=_HOME[0]))
     table = fixtures.write(folder, "one.csv", "c\n" + "\n".join(column) + "\n")
     document = profile.build_document(
         reading.read_table(str(table), small_cell_floor=11), taxonomy.Settings(small_cell_floor=11), []
     )
     block = document["columns"][0]  # type: ignore[index]
-    assert block["role"] != taxonomy.ROLE_CLOCK, block["role"]
-    return int(block["n_missing"] or 0)
+    return str(block["role"]), int(block["n_missing"] or 0)
 
 
 @pytest.mark.parametrize("name", sorted(_ONE_TIME))
@@ -1368,12 +1391,17 @@ def test_w_a_route_to_clock_times_leaves_no_pool_that_names_a_count(name: str) -
     level pass to count the lone row out; since that plan a held-back pool is
     published like any other, and what a route must not do is count out a
     cell of a column it leaves as labels. `K-S3-49` pins this node by name."""
-    assert _counted_out_of_labels(_ONE_TIME[name]) == 0
+    role, missing = _read_beside_its_words(_ONE_TIME[name])
+    assert role != taxonomy.ROLE_CLOCK and missing == 0, (role, missing)
 
 
 def test_w_red_when_a_route_stands_on_labels(monkeypatch: pytest.MonkeyPatch) -> None:
+    """MUTATION: the route stands whatever the column it leaves is -- the one
+    time on every row but one is read as clock times beside its words (since
+    plan P4-D374 the words stay present, so it shows in the role, not in a
+    count of missing cells)."""
     monkeypatch.setattr(taxonomy, "_read_as_clock_times", lambda *_a: True)
-    assert _counted_out_of_labels(_ONE_TIME["words"]) > 0
+    assert _read_beside_its_words(_ONE_TIME["words"])[0] == taxonomy.ROLE_CLOCK
 
 
 # -- Q: a few shared times are asked about --------------------------------

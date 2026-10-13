@@ -529,6 +529,13 @@ COMPOUND_LABEL_KEYS = LABEL_KEYS + (
 # adds to the universal keys, and the forbidden-key rule is what stops
 # an eleventh. STAGE 3 (plan P4-D328): the earliest and latest time went,
 # and the two tails took their places.
+# HOW FEW RARE WORDS A COLUMN OF CLOCK TIMES MAY HOLD and still be read as
+# clock times, at most one present cell in this many (route 1, plan
+# P4-D373; kept present since plan P4-D374): the producer's own
+# `taxonomy.RARE_WORDS_BESIDE_CLOCKS`, written again here because the
+# loader may not import the describing side, and held equal by the suite.
+RARE_WORDS_BESIDE_CLOCKS = 50
+
 CLOCK_KEYS = (
     "clock_form",
     "clock_percentiles",
@@ -16465,8 +16472,16 @@ def _clock_facts(
             f"the column holds {n_present} values in all",
         )
     # T5. Enough of them parsed -- the parse line, applied as a COUNT
-    # and never as a compared share, exactly as the producer applied it.
-    line = _line_count(frame.parse_rate, n_present)
+    # and never as a compared share, exactly as the producer applied it:
+    # over the present cells less the rare words beside clock times the
+    # producer may ask it without, at most one in fifty of them (route 1,
+    # kept present since landing 3b.5's second step, plan P4-D374:
+    # `taxonomy._Cells.clock_line_exempt`). The loader cannot tell those
+    # words from other unread cells, so it asks the line the producer's
+    # widest exemption leaves.
+    line = _line_count(
+        frame.parse_rate, n_present - n_present // RARE_WORDS_BESIDE_CLOCKS
+    )
     if n_present - unparsed < line:
         raise _broken(
             "T5",
@@ -17006,17 +17021,92 @@ def _clock_minute_census(
     n_present: int,
     facts: ClockFacts,
 ) -> "tuple[tuple[int, int, int], ...]":
-    """A clock column's `minute_census`, reserved: `[]` and nothing else.
+    """A clock column's `minute_census`, read and held (plan P4-D374).
 
-    THE STUB OF LANDING 3b.5's second step (lane C2, plan P4-D374), which
-    fills this reader and nothing beside it (plan P4-D364). Handed what
-    `_clock_census` is handed, and every fact that reader read.
+    LANDING 3b.5's SECOND STEP (lane C2; contract 6.13). An empty census
+    is always legal. A published one is the moments' key on the clock
+    role, read as `_clock_field_read` reads it -- groups `{first, last,
+    count}` over the minutes of the hour -- and held to:
 
-    Guarantees: returns the census, empty. Raises ProfileError for any
-    other value (`_reserved_list`). No I/O of any kind.
+    - MC3's scope on this role: only a column publishing its step
+      (`clock_step`), the census and heaps its cells are laid on (method
+      G7A.4c), publishes one;
+    - MC1, MC2, MC3 and MC5 through the one check the producer asks
+      (`calendar_clock.clock_minute_breach`): the groups cover minutes 0
+      to 59 in order, each count nought or at least the census line, the
+      counts add to the body -- the cells between the two boundaries, or
+      every parsed cell of a column with no tails, the clock heaps' cells
+      among them -- and each group holds its sure cells, the boundaries'
+      and the rungs' (with every rank between two ranks of one value) and
+      every heap's inside the body, with what is left nought or at least
+      the line.
+
+    MC4 is not asked: a clock column has no date axis, so no census here
+    is the minutes of a few hours of a few days (the 3b.5 skeptic's
+    MINOR 3). Nothing asks what a reader could work out.
+
+    Guarantees: returns the groups as `(first, last, count)`. Raises
+    ProfileError for a wrong type and for the first rule broken. No I/O
+    of any kind.
     """
-    _reserved_list(mapping["minute_census"], "minute_census", where)
-    return ()
+    key = calendar_clock.MINUTE_CENSUS
+    found: "list[tuple[int, int, int]]" = []
+    for entry in _listing(mapping[key], key, where):
+        group = _mapping(entry, key, where)
+        _keys(group, where, ("count", "first", "last"), "every minute group")
+        found += [
+            (
+                _whole(group["first"], f"{key} -> first", where, 0),
+                _whole(group["last"], f"{key} -> last", where, 0),
+                _whole(group["count"], f"{key} -> count", where, 0),
+            )
+        ]
+    if not found:
+        return ()
+    if facts.clock_step is None:
+        raise _broken(
+            "MC3",
+            where,
+            "a minute census is published and no step is",
+            "a column of clock times publishes its minute census only beside "
+            "the step, census and heaps its values are laid on",
+        )
+    form = facts.clock_form
+    parsed = n_present - facts.n_unparsed
+    tails: "tuple[tuple[int, int], tuple[int, int]] | None" = None
+    body: "tuple[int, int] | None" = None
+    rungs: "list[tuple[int, int]]" = []
+    low = facts.low_tail
+    high = facts.high_tail
+    if low is not None and high is not None:
+        low_at = parsing.clock_ordinal(low.boundary, form)
+        high_at = parsing.clock_ordinal(high.boundary, form)
+        if low_at is not None and high_at is not None:
+            body = (low_at, high_at)
+            tails = ((low.rows, low_at), (high.rows, high_at))
+        for index in range(1, len(LADDER_KEYS) - 1):
+            rung = facts.clock_percentiles[LADDER_KEYS[index]]
+            at = None if rung is None else parsing.clock_ordinal(rung, form)
+            if at is not None:
+                rungs += [(LADDER_PERCENTS[index], at)]
+    heaps: "list[tuple[int, int]]" = []
+    for value, count in facts.clock_heaps:
+        at = parsing.clock_ordinal(value, form)
+        if at is not None:
+            heaps += [(at, count)]
+    broken = calendar_clock.clock_minute_breach(
+        tuple(found),
+        form,
+        parsing.census_floor(frame.floor),
+        parsed,
+        None if tails is None else (tails[0][0], tails[1][0]),
+        body,
+        tuple(heaps),
+        calendar_clock.clock_published_ranks(parsed, tails, rungs),
+    )
+    if broken is not None:
+        raise _broken(broken[0], where, broken[1], broken[2])
+    return tuple(found)
 
 
 def _identifier_facts(

@@ -20613,7 +20613,7 @@ def _clock_layout(
     # -- the census of ten-minute bins and the heaps (3b.C1, P4-D373)
     layout = _clock_census_laid(column, facts, floor, layout, holes)
     # -- the minute census of a column of clock times (3b.C2, P4-D374)
-    layout = _clock_minutes_laid(column, facts, floor, layout)
+    layout = _clock_minutes_laid(column, facts, floor, layout, holes)
     return layout
 
 
@@ -20655,6 +20655,10 @@ class _ClockCensus:
     low_skipped: "tuple[int, ...]" = ()
     high_skipped: "tuple[int, ...]" = ()
     stood_beyond: "tuple[int, ...]" = ()
+    # -- the minute census of clock times (3b.C2, P4-D374): the plan a
+    # column publishing its minute census lays its body by (method G7A.4c),
+    # or None where it publishes none or no such plan meets it.
+    minutes: "_ClockMinutePlan | None" = None
 
 
 def _clock_census_laid(
@@ -21060,7 +21064,9 @@ def _clock_census_content(
     is_wide: "dict[int, int]" = {
         at: 1 for at in calendar_clock.absent_with_another_width(absent_at, form)
     }
-    for block in census.blocks:
+    # A body laid on its minute census (3b.C2, P4-D374) is laid by its plan
+    # (`_clock_minute_body`), and its blocks' runs are not walked.
+    for block in census.blocks if census.minutes is None else ():
         start = block.first_rank
         if block.heap:
             for rank in range(start, start + block.cells):
@@ -21126,8 +21132,14 @@ def _clock_census_content(
     # The steps the description stands present cells on beside its
     # published values: a run laid on absent places alone, and a drawn
     # tail's room on them (`_ClockCensus.stood_beyond`).
+    if census.minutes is not None:
+        _clock_minute_body(census.minutes, stride, form, layout.apart, word_of, ordinals)
     stood = _clock_runs_on_absent_places(census, form, holes)
     for at in census.stood_beyond:
+        stood += [at]
+    # ...and the absent places a minute-laid lane stands its cells on
+    # (3b.C2, P4-D374).
+    for at in census.minutes.wide if census.minutes is not None else ():
         stood += [at]
     cells = _clock_cells_written(ordinals, facts, holes, stood)
     used: "dict[str, int]" = {cell: 1 for cell in cells}
@@ -21145,7 +21157,7 @@ def _clock_census_content(
         if _is_a_hole_spelling(candidate, hole_spellings):
             continue
         cells += [_take(candidate, used)]
-    return cells, []
+    return cells, _clock_minutes_missed(column, facts, census)
 
 
 def _clock_run_at(knots: "list[tuple[int, int]]", position: int) -> int:
@@ -21270,21 +21282,645 @@ def _clock_onto_room(
     return place
 
 
+@dataclasses.dataclass(frozen=True)
+class _ClockMinuteLane:
+    """One lane of a stretch laid on the minute census (method G7A.4c).
+
+    The stretch's steps written at a minute from `first` to `last`: on the
+    step's multiples less the stretch's `excluded` places, or, where
+    `places` is not empty, those places alone -- absent places the hour's
+    other width spells another way, written in it. `steps` counts them and
+    `cells` is how many of the stretch's cells the rounding gave the lane.
+    """
+
+    first: int
+    last: int
+    steps: int
+    cells: int
+    places: "tuple[int, ...]" = ()
+
+
+@dataclasses.dataclass(frozen=True)
+class _ClockMinuteStretch:
+    """The cells of one census group between two of its walls (method G7A.4c).
+
+    A wall is a pinned rank -- a boundary, or a published rung standing on
+    a step of its group -- or an end of the group. `low` and `high` are
+    the values the stretch's cells may take, `excluded` the places among
+    them none stands on (the heaps' values and the places the table calls
+    absent), ascending, and `lanes` its cells by the minute groups.
+    """
+
+    group: int
+    low: int
+    high: int
+    excluded: "tuple[int, ...]"
+    lanes: "tuple[_ClockMinuteLane, ...]"
+
+
+@dataclasses.dataclass(frozen=True)
+class _ClockMinutePlan:
+    """What a column publishing its minute census lays its body by (G7A.4c).
+
+    `groups` are each census group's first rank, its ranks and its heaps
+    `(ordinal, count)`, in rank order; `pins` the pinned ranks with their
+    values; `stretches` every stretch holding cells, group by group in
+    rank order, each naming its group by its place in `groups`; `wide`
+    the absent places a lane stands cells on, which the twin writes in
+    the hour's other width.
+    """
+
+    groups: "tuple[tuple[int, int, tuple[tuple[int, int], ...]], ...]"
+    pins: "tuple[tuple[int, int], ...]"
+    stretches: "tuple[_ClockMinuteStretch, ...]"
+    wide: "tuple[int, ...]"
+
+
+# How many sweeps the fitted table of G7A.4c takes at most, and how close
+# its rows must come to their counts for it to stop sooner.
+_MINUTE_SWEEPS = 64
+_MINUTE_FIT = 1e-9
+
+
 def _clock_minutes_laid(
     column: contract.ColumnBlock,
     facts: contract.ClockFacts,
     floor: int,
     layout: "_ClockLayout",
+    holes: "tuple[str, ...]" = (),
 ) -> "_ClockLayout":
     """The layout of a column of clock times, laid on its minute census.
 
-    THE STUB OF LANDING 3b.5's second step (lane C2, plan P4-D374), which
-    fills this step and nothing beside it (plan P4-D364): the layout is
-    handed back unchanged until then.
+    LANDING 3b.5's SECOND STEP (lane C2, plan P4-D374; method G7A.4c). A
+    description publishing no minute census -- or no step, beside which
+    none is published (MC3) -- is laid exactly as G7A.4b lays it, and the
+    layout is handed back unchanged, so its twin is byte for byte the one
+    landing 3b.5's first step wrote. Otherwise the body is laid by
+    `_clock_minute_plan`: each census group's cells split between its
+    pinned ranks into stretches, the table of stretches by minute groups
+    fitted to both margins and rounded with both kept, every rank of a
+    group then reading its value off the group's sorted cells -- so every
+    clock group, heap and boundary is met as G7A.4b meets it, and every
+    minute group too. A body rank's window is then its census group's
+    whole reach, a heap's ranks too, since how many of a group's cells
+    stand below a heap is the minute census's to say
+    (`calendar_clock.clock_rank_windows`). Where no plan meets the census
+    -- which no description the producer writes has -- the layout is
+    handed back unchanged and the twin's report names the census
+    (`_clock_census_content`).
 
-    Guarantees: as `_clock_census_laid`. No I/O.
+    Guarantees: as `_clock_census_laid`; draws no word. Raises nothing
+    beyond what it calls. No I/O.
     """
-    return layout
+    census = layout.census
+    if not facts.minute_census or census is None:
+        return layout
+    tails, body = _clock_minute_body_ends(facts, layout, census.stride)
+    plan = _clock_minute_plan(column, facts, layout, census, holes, tails, body)
+    if plan is None:
+        return layout
+    form = facts.clock_form
+    heaps = tuple(
+        (_clock_ordinal_of(value, form), count) for value, count in facts.clock_heaps
+    )
+    absent = calendar_clock.absent_places(_hole_spellings(column) + holes, form)
+    windows = calendar_clock.clock_rank_windows(
+        layout.parsed, tails, body, facts.clock_census, heaps, form,
+        census.stride, absent, True,
+    )
+    if windows is None:
+        return layout
+    laid = dataclasses.replace(
+        census, minutes=plan, lows=tuple(windows[0]), highs=tuple(windows[1])
+    )
+    return _ClockLayout(
+        layout.parsed, layout.low, layout.high, layout.knots, layout.apart,
+        layout.ramp, laid,
+    )
+
+
+def _clock_minute_body_ends(
+    facts: contract.ClockFacts, layout: "_ClockLayout", stride: int
+) -> "tuple[tuple[int, int] | None, tuple[int, int]]":
+    """Both tails' rows and the body's two ends, as `_clock_census_laid`
+    reads them: the boundaries, or the whole dial on the step where the
+    column has no tails."""
+    capacity = parsing.CLOCK_CAPACITY[facts.clock_form]
+    if (
+        facts.low_tail is not None
+        and facts.high_tail is not None
+        and layout.low is not None
+        and layout.high is not None
+    ):
+        return (
+            (facts.low_tail.rows, facts.high_tail.rows),
+            (layout.low.boundary, layout.high.boundary),
+        )
+    return None, (0, ((capacity - 1) // stride) * stride)
+
+
+def _clock_minute_plan(
+    column: contract.ColumnBlock,
+    facts: contract.ClockFacts,
+    layout: "_ClockLayout",
+    census: "_ClockCensus",
+    holes: "tuple[str, ...]",
+    tails: "tuple[int, int] | None",
+    body: "tuple[int, int]",
+) -> "_ClockMinutePlan | None":
+    """The plan a body is laid by on its minute census (method G7A.4c, steps 1 to 3).
+
+    1. PINS. The two boundaries, each on no heap, and each published
+       interior rung whose value is a step of the census group its rank
+       lies in -- on no heap, and on no absent place but one the hour's
+       other width spells another way -- in rank order, a rung whose value
+       would fall below a pin before it left out.
+    2. STRETCHES. Each census group's ranks (`census.blocks`) are cut at
+       its pins; a stretch's cells are its ranks less the heaps' cells
+       between its two walls, and stand on the steps from one wall's value
+       to the other's -- both kept on a column whose values were all
+       different -- on no heap and no absent place. Its LANES are those
+       steps by the published minute groups (`calendar_clock.
+       minute_lane_count`); a minute group none of whose steps there is
+       usable has a lane on the absent places the other width spells
+       another way, which carries cells only where nothing else can.
+    3. THE TABLE. Stretches by minute groups, each minute group owed its
+       count less the heaps' and the pins' cells in it, is fitted to both
+       margins from the lanes' steps (`_clock_minute_rounding`) and
+       rounded with both kept.
+
+    Guarantees: returns the plan, or None where the pins, stretches or
+    table cannot be laid -- counts that do not add up, a stretch with
+    fewer ranks than heap cells, or no rounding -- which no description
+    the producer writes has. Draws no word. Raises nothing. No I/O.
+    """
+    form = facts.clock_form
+    stride = census.stride
+    parsed = layout.parsed
+    heap_at: "dict[int, int]" = {}
+    for value, count in facts.clock_heaps:
+        at = _clock_ordinal_of(value, form)
+        if body[0] <= at <= body[1]:
+            heap_at[at] = count
+    absent = calendar_clock.absent_places(_hole_spellings(column) + holes, form)
+    wide_at: "dict[int, int]" = {
+        at: 1 for at in calendar_clock.absent_with_another_width(absent, form)
+    }
+    is_absent: "dict[int, int]" = {at: 1 for at in absent}
+    # Each census group's first rank and ranks, read off the blocks.
+    reach: "dict[int, tuple[int, int]]" = {}
+    for block in census.blocks:
+        if block.group in reach:
+            start, ranks = reach[block.group]
+            reach[block.group] = (start, ranks + block.cells)
+        else:
+            reach[block.group] = (block.first_rank, block.cells)
+    published = facts.clock_census or (
+        (0, calendar_clock.clock_bin_count(form) - 1, 0),
+    )
+    spans: "dict[int, tuple[int, int] | None]" = {}
+    for index in reach:
+        first_bin, last_bin, _count = published[index]
+        spans[index] = calendar_clock.group_span(first_bin, last_bin, form, stride, body)
+    # 1. PINS.
+    pins: "list[tuple[int, int]]" = []
+    if tails is not None:
+        for rank, at in ((tails[0], body[0]), (parsed - 1 - tails[1], body[1])):
+            if at not in heap_at:
+                pins += [(rank, at)]
+        for step in range(1, len(_PCT) - 1):
+            rung = facts.clock_percentiles[_LADDER_NAMES[step]]
+            if rung is None:
+                continue
+            rank = _rung_rank(_PCT[step], parsed)
+            at = _clock_ordinal_of(rung, form)
+            if at in heap_at or at % stride != 0 or (at in is_absent and at not in wide_at):
+                continue
+            if rank in [pinned for pinned, _value in pins]:
+                continue
+            for index in reach:
+                start, ranks = reach[index]
+                span = spans[index]
+                if start <= rank < start + ranks and span is not None and span[0] <= at <= span[1]:
+                    pins += [(rank, at)]
+    kept: "list[tuple[int, int]]" = []
+    for rank, at in sorted(pins):
+        if kept and at < kept[len(kept) - 1][1]:
+            continue
+        kept += [(rank, at)]
+    # 2. STRETCHES, and the minute groups' margins less the heaps and pins.
+    minute_of: "list[int]" = [0 for _minute in range(calendar_clock.FIELD_VALUES)]
+    owed: "list[int]" = []
+    for index in range(len(facts.minute_census)):
+        first, last, count = facts.minute_census[index]
+        for minute in range(first, last + 1):
+            minute_of[minute] = index
+        owed += [count]
+    for at in heap_at:
+        place = minute_of[calendar_clock.clock_minute_of(at, form)]
+        owed[place] = owed[place] - heap_at[at]
+    for _rank, at in kept:
+        place = minute_of[calendar_clock.clock_minute_of(at, form)]
+        owed[place] = owed[place] - 1
+    if any(count < 0 for count in owed):
+        return None
+    rows: "list[int]" = []
+    entries: "list[list[tuple[int, int, int]]]" = []
+    shapes: "list[tuple[int, int, int, tuple[int, ...], list[_ClockMinuteLane]]]" = []
+    groups: "list[tuple[int, int, tuple[tuple[int, int], ...]]]" = []
+    wide: "list[int]" = []
+    # THE HEAPS AND THE ABSENT STEPS, SORTED ONCE and sliced by value for
+    # every group and stretch, never filtered whole per stretch: a million
+    # cells at the second may stand some 28,800 heaps.
+    heap_list = tuple(sorted(heap_at))
+    absent_list = tuple(
+        at for at in absent if at % stride == 0 and at not in heap_at
+    )
+    for index in sorted(reach, key=lambda place: reach[place][0]):
+        start, ranks = reach[index]
+        span = spans[index]
+        mine: "tuple[tuple[int, int], ...]" = ()
+        if span is not None:
+            mine = tuple(
+                (at, heap_at[at])
+                for at in heap_list[
+                    _first_past(heap_list, span[0] - 1) : _first_past(heap_list, span[1])
+                ]
+            )
+        position = len(groups)
+        groups += [(start, ranks, mine)]
+        walls: "list[tuple[int, int, bool]]" = [
+            (start - 1, span[0] if span is not None else 0, False)
+        ]
+        for rank, at in kept:
+            if start <= rank < start + ranks:
+                walls += [(rank, at, True)]
+        walls += [(start + ranks, span[1] if span is not None else 0, False)]
+        for place in range(len(walls) - 1):
+            below, low, pinned_below = walls[place]
+            above, high, pinned_above = walls[place + 1]
+            if layout.apart and pinned_below:
+                low = low + stride
+            if layout.apart and pinned_above:
+                high = high - stride
+            heaped = heap_list[_first_past(heap_list, low - 1) : _first_past(heap_list, high)]
+            held = sum(heap_at[at] for at in heaped)
+            cells = above - below - 1 - held
+            if cells < 0:
+                return None
+            if cells == 0:
+                continue
+            if span is None or low > high:
+                return None
+            absent_here = absent_list[
+                _first_past(absent_list, low - 1) : _first_past(absent_list, high)
+            ]
+            excluded = sorted(list(heaped) + list(absent_here))
+            off_by_minute = [0 for _minute in range(calendar_clock.FIELD_VALUES)]
+            for at in excluded:
+                minute = calendar_clock.clock_minute_of(at, form)
+                off_by_minute[minute] = off_by_minute[minute] + 1
+            lanes: "list[_ClockMinuteLane]" = []
+            row: "list[tuple[int, int, int]]" = []
+            lattice = 0
+            for minute_index in range(len(facts.minute_census)):
+                first, last, _count = facts.minute_census[minute_index]
+                steps = calendar_clock.minute_lane_count(low, high, stride, form, first, last)
+                steps = steps - sum(off_by_minute[first : last + 1])
+                lattice = lattice + steps
+                lanes += [_ClockMinuteLane(first, last, steps, 0)]
+            for minute_index in range(len(lanes)):
+                lane = lanes[minute_index]
+                if lane.steps <= 0:
+                    places = tuple(
+                        at
+                        for at in absent_here
+                        if at in wide_at
+                        and lane.first <= calendar_clock.clock_minute_of(at, form) <= lane.last
+                    )
+                    lanes[minute_index] = _ClockMinuteLane(
+                        lane.first, lane.last, len(places), 0, places
+                    )
+                lane = lanes[minute_index]
+                if lane.steps <= 0:
+                    continue
+                # A lane on absent places carries cells only where its
+                # stretch has no other step (weight nought), save a stretch
+                # with none at all, laid on them as G7A.4b lays such a run.
+                weight = lane.steps if (not lane.places or lattice <= 0) else 0
+                capacity = lane.steps if layout.apart else cells
+                row += [(minute_index, weight, capacity)]
+            rows += [cells]
+            entries += [row]
+            shapes += [(position, low, high, tuple(excluded), lanes)]
+    if sum(rows) != sum(owed):
+        return None
+    # 3. THE TABLE.
+    rounded = _clock_minute_rounding(rows, owed, entries)
+    if rounded is None:
+        return None
+    stretches: "list[_ClockMinuteStretch]" = []
+    for place in range(len(shapes)):
+        index, low, high, excluded, lanes = shapes[place]
+        for entry in range(len(entries[place])):
+            minute_index = entries[place][entry][0]
+            lane = lanes[minute_index]
+            lanes[minute_index] = _ClockMinuteLane(
+                lane.first, lane.last, lane.steps, rounded[place][entry], lane.places
+            )
+            if rounded[place][entry] > 0:
+                for at in lane.places:
+                    wide += [at]
+        stretches += [
+            _ClockMinuteStretch(
+                index, low, high, excluded,
+                tuple(lane for lane in lanes if lane.cells > 0),
+            )
+        ]
+    return _ClockMinutePlan(
+        groups=tuple(groups),
+        pins=tuple(kept),
+        stretches=tuple(stretches),
+        wide=tuple(sorted(set(wide))),
+    )
+
+
+def _clock_minute_rounding(
+    rows: "list[int]",
+    columns: "list[int]",
+    entries: "list[list[tuple[int, int, int]]]",
+) -> "list[list[int]] | None":
+    """A table of whole counts with both margins kept (method G7A.4c, step 3).
+
+    `entries[r]` are row r's cells as `(column, weight, capacity)`. THE
+    FITTED TABLE: each cell starts at its weight and the rows, then the
+    columns, are scaled to their counts, in binary64 and in that order,
+    for at most `_MINUTE_SWEEPS` sweeps or until every row lies within
+    `_MINUTE_FIT` of its count. THE ROUNDING: each cell takes the floor of
+    its fitted value (never past its capacity); then, while a row and a
+    column are owed cells, one is moved along the shortest path of cells
+    from an owing row to an owing column -- each step into a column on a
+    cell below its ceiling, each step back out of one on a cell above its
+    floor -- the rows and cells taken in their order; and where no such
+    path is left, once more with every cell free from nought to its
+    capacity. A cell first takes what its row and column both owe, each
+    owing row in order, before any path is searched. So every cell is the
+    floor or the ceiling of its fitted value wherever such a table
+    exists, and both margins are met wherever any table does.
+
+    Guarantees: returns each row's counts in its entries' order, adding to
+    the margins, or None where no table meets them. Determinism: a
+    function of the three. Raises nothing. No I/O.
+    """
+    fitted: "list[list[float]]" = []
+    for row in entries:
+        fitted += [[float(weight) for _column, weight, _capacity in row]]
+    largest = max([1] + rows)
+    for _sweep in range(_MINUTE_SWEEPS):
+        for place in range(len(rows)):
+            total = 0.0
+            for value in fitted[place]:
+                total = total + value
+            if total > 0.0:
+                scale = rows[place] / total
+                for entry in range(len(fitted[place])):
+                    fitted[place][entry] = fitted[place][entry] * scale
+        sums = [0.0 for _column in columns]
+        for place in range(len(rows)):
+            for entry in range(len(entries[place])):
+                column = entries[place][entry][0]
+                sums[column] = sums[column] + fitted[place][entry]
+        for place in range(len(rows)):
+            for entry in range(len(entries[place])):
+                column = entries[place][entry][0]
+                if sums[column] > 0.0:
+                    fitted[place][entry] = fitted[place][entry] * (columns[column] / sums[column])
+        worst = 0.0
+        for place in range(len(rows)):
+            total = 0.0
+            for value in fitted[place]:
+                total = total + value
+            worst = max(worst, abs(total - rows[place]))
+        if worst <= _MINUTE_FIT * largest:
+            break
+    taken: "list[list[int]]" = []
+    floors: "list[list[int]]" = []
+    ceilings: "list[list[int]]" = []
+    row_left = [count for count in rows]
+    column_left = [count for count in columns]
+    for place in range(len(rows)):
+        mine: "list[int]" = []
+        ceiling: "list[int]" = []
+        for entry in range(len(entries[place])):
+            column, _weight, capacity = entries[place][entry]
+            value = fitted[place][entry]
+            whole = min(int(value), capacity)
+            mine += [whole]
+            ceiling += [min(whole + (1 if value > whole else 0), capacity)]
+            row_left[place] = row_left[place] - whole
+            column_left[column] = column_left[column] - whole
+        taken += [mine]
+        floors += [[whole for whole in mine]]
+        ceilings += [ceiling]
+    if any(left < 0 for left in row_left) or any(left < 0 for left in column_left):
+        return None
+    into: "list[list[tuple[int, int]]]" = [[] for _column in columns]
+    for place in range(len(rows)):
+        for entry in range(len(entries[place])):
+            into[entries[place][entry][0]] += [(place, entry)]
+    for phase in (0, 1):
+        upper = ceilings
+        lower = floors
+        if phase == 1:
+            upper = [
+                [capacity for _column, _weight, capacity in row] for row in entries
+            ]
+            lower = [[0 for _entry in row] for row in entries]
+        # What a row and a column both owe, taken first, each owing row in
+        # order.
+        for place in range(len(rows)):
+            for entry in range(len(entries[place])):
+                column = entries[place][entry][0]
+                room = upper[place][entry] - taken[place][entry]
+                moved = min(room, row_left[place], column_left[column])
+                if moved > 0:
+                    taken[place][entry] = taken[place][entry] + moved
+                    row_left[place] = row_left[place] - moved
+                    column_left[column] = column_left[column] - moved
+        while sum(row_left) > 0:
+            if not _clock_minute_path(
+                entries, taken, upper, lower, row_left, column_left, into
+            ):
+                break
+    if sum(row_left) > 0 or sum(column_left) > 0:
+        return None
+    return taken
+
+
+def _clock_minute_path(
+    entries: "list[list[tuple[int, int, int]]]",
+    taken: "list[list[int]]",
+    upper: "list[list[int]]",
+    lower: "list[list[int]]",
+    row_left: "list[int]",
+    column_left: "list[int]",
+    into: "list[list[tuple[int, int]]]",
+) -> bool:
+    """One cell moved along the shortest path from an owing row to an owing
+    column (method G7A.4c, step 3): breadth first from every owing row in
+    order, into a column through a cell below its `upper` and back out of
+    one through a cell above its `lower`, each row and column visited
+    once. Changes `taken` and the two debts in place; returns whether a
+    path was found. Raises nothing. No I/O."""
+    reached_row: "dict[int, tuple[int, int]]" = {}
+    reached_column: "dict[int, tuple[int, int]]" = {}
+    queue: "list[int]" = []
+    for place in range(len(row_left)):
+        if row_left[place] > 0:
+            reached_row[place] = (-1, -1)
+            queue += [place]
+    head = 0
+    found = -1
+    while head < len(queue) and found < 0:
+        place = queue[head]
+        head = head + 1
+        for entry in range(len(entries[place])):
+            column = entries[place][entry][0]
+            if column in reached_column or taken[place][entry] >= upper[place][entry]:
+                continue
+            reached_column[column] = (place, entry)
+            if column_left[column] > 0:
+                found = column
+                break
+            for other, back in into[column]:
+                if other in reached_row or taken[other][back] <= lower[other][back]:
+                    continue
+                reached_row[other] = (column, back)
+                queue += [other]
+    if found < 0:
+        return False
+    column = found
+    while True:
+        place, entry = reached_column[column]
+        taken[place][entry] = taken[place][entry] + 1
+        previous, back = reached_row[place]
+        if previous < 0:
+            row_left[place] = row_left[place] - 1
+            column_left[found] = column_left[found] - 1
+            return True
+        taken[place][back] = taken[place][back] - 1
+        column = previous
+
+
+def _clock_minute_body(
+    plan: "_ClockMinutePlan",
+    stride: int,
+    form: str,
+    apart: bool,
+    word_of: "list[int]",
+    ordinals: "list[int]",
+) -> None:
+    """Every body rank of a column laid on its minute census (method G7A.4c, step 4).
+
+    Group by group: the group's ranks off its pins read their words in
+    rank order, and its stretches take them in turn, lane by lane; a
+    lane of `n` cells over `U` steps stands its i-th cell at step
+
+        ((i * 2**64 + w) * U) // (n * 2**64)
+
+    of its lane -- stepped apart, then kept below the steps left, on a
+    column whose values were all different -- read off the lane by
+    `calendar_clock.minute_lane_points`, or its places where it lies on
+    absent places. The group's cells -- these, its heaps' and its pins'
+    -- are then sorted, and each of its ranks takes the value at its
+    place: every pin stands at its own rank, since its stretches' cells
+    lie on its two sides.
+
+    Guarantees: changes `ordinals` in place at every body rank. Raises
+    ProfileError where a group's cells do not fill its ranks, which no
+    plan `_clock_minute_plan` returns does. No I/O.
+    """
+    pinned: "dict[int, int]" = {}
+    for rank, at in plan.pins:
+        pinned[rank] = at
+    stretch = 0
+    for index in range(len(plan.groups)):
+        start, ranks, heaps = plan.groups[index]
+        words: "list[int]" = []
+        values: "list[int]" = []
+        for rank in range(start, start + ranks):
+            if rank in pinned:
+                values += [pinned[rank]]
+            else:
+                words += [word_of[rank]]
+        for at, count in heaps:
+            for _cell in range(count):
+                values += [at]
+        read = 0
+        while stretch < len(plan.stretches) and plan.stretches[stretch].group == index:
+            here = plan.stretches[stretch]
+            stretch = stretch + 1
+            for lane in here.lanes:
+                wanted: "list[int]" = []
+                for cell in range(lane.cells):
+                    word = words[read] if read < len(words) else 0
+                    read = read + 1
+                    wanted += [
+                        ((cell * _WORD_SCALE + word) * lane.steps)
+                        // (lane.cells * _WORD_SCALE)
+                    ]
+                if apart:
+                    last = -1
+                    for cell in range(lane.cells):
+                        wanted[cell] = max(wanted[cell], last + 1)
+                        last = wanted[cell]
+                    ceiling = lane.steps
+                    for cell in range(lane.cells - 1, -1, -1):
+                        wanted[cell] = min(wanted[cell], ceiling - 1)
+                        ceiling = wanted[cell]
+                if lane.places:
+                    for place in wanted:
+                        values += [lane.places[min(place, len(lane.places) - 1)]]
+                    continue
+                for at in calendar_clock.minute_lane_points(
+                    here.low, here.high, stride, form, lane.first, lane.last,
+                    list(here.excluded), wanted,
+                ):
+                    values += [at]
+        if len(values) != ranks:
+            raise errors.ProfileError(_INTERNAL_CLOCK)
+        ordered = sorted(values)
+        for place in range(ranks):
+            ordinals[start + place] = ordered[place]
+
+
+def _clock_minutes_missed(
+    column: contract.ColumnBlock,
+    facts: contract.ClockFacts,
+    census: "_ClockCensus",
+) -> "list[Deviation]":
+    """The minute census a census-laid column could not be laid on, named (G7A.4c).
+
+    Empty wherever the column publishes no minute census or its body was
+    laid on it. Otherwise -- a description no producer wrote, whose counts
+    no plan meets -- the body was laid by G7A.4b alone and the census is
+    filed as not held. Raises nothing. No I/O.
+    """
+    if not facts.minute_census or census.minutes is not None:
+        return []
+    return [
+        Deviation(
+            column=column.name,
+            fact="minute_census",
+            published=f"{len(facts.minute_census)} groups of minutes of the hour",
+            achieved="not laid: no table of the census groups by minute groups meets both counts",
+            note=(
+                "The published counts per minute of the hour are not met: "
+                "counts per minute computed on this twin are not the real "
+                "column's."
+            ),
+        )
+    ]
 
 
 def _clock_knots_laid(

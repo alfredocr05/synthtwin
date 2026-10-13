@@ -127,6 +127,13 @@
       "sha256": "44653d463605a6d2191a66c2d4569027f8640b110b0d75d2def8d9cf939663b9"
     },
     {
+      "generator": "tools/reference/make_generation_branch_vectors_27.py",
+      "justification": "The twin cells synthtwin's generation method requires for the six cases docs/spec/generation-method-v1.md section G14.3 adds with landing 3b.5's second step, the minute census of a column of clock times (lane C2, plan P4-D374): G7A.4c's layout of a body on its minute census -- a clinic's slots, a column at the second, a column whose values all differ, rungs pinned in their census groups, a column with no tails whose heap's cells come off the minute groups' counts, and the rounding of a walk-in grid with both counts kept. Each column is the description the producer writes of a small table built by the standard library's own seeded generator for this purpose, and each case carries a mutant that moves its cells. The twenty-first file, the landing's first step's, stands at 247,663 bytes against this manifest's 250,000-byte cap, so the six open the first number no lane holds. Computed from that specification alone by the same oracle and the same proof layer as every other vector file here, which imports neither synthtwin nor numpy nor pandas; no value in it comes from any real table, and every number it publishes carries the exact value it was proved against.",
+      "path": "tests/reference/generation-branch-vectors-27.json",
+      "seed": 0,
+      "sha256": "96c96ec4f8cbb7520461fa1313d72206a71ba3ec0a2246a1559aead258e055b8"
+    },
+    {
       "generator": "tools/reference/make_generation_branch_vectors_22.py",
       "justification": "The twin cells synthtwin's generation method requires for the five cases docs/spec/generation-method-v1.md section G14.3 adds with landing T1's written clocks (plan P4-D370): stamp_unpadded_hour, G7.5's clock of a slashed stamp with the hour in one figure; stamp_twelve_hour_top, the 12-hour face with its marker after a space, midnight written 12:00 AM; stamp_dotted_seconds, a dotted marker after one space at the second on a day-first stamp; clock_unpadded_twelve_hour, G7A.1's 12-hour form of a column of clock times; and date_remainder_one_joint, G7.5 step 5, the width census's unnamed remainder written on whole days. Plan P4-D364's numbering table gives the landing this file of its own. Computed from that specification alone by the same oracle and the same proof layer as every other vector file here, which imports neither synthtwin nor numpy nor pandas; no value in it comes from any table, and every number it publishes carries the exact value it was proved against.",
       "path": "tests/reference/generation-branch-vectors-22.json",

@@ -115,15 +115,17 @@ And its note on K-S3-11's driver:
 `test_round_2_the_tail_leak_driver_draws_its_windows_beside_the_tables_absences`
 -- the driver drew a clock tail's window beside the column's own absent
 spellings alone, where the checker draws it beside every column's.
-And the limit that repair states, a strict xfail:
-`test_round_2_limit_cells_of_the_other_width_the_description_stands_nowhere_keep_their_spelling`
+And the limit that repair stated, a strict xfail until landing 3b.5's
+second step (lane C2, plan P4-D374) repaired it:
+`test_round_2_cells_of_the_other_width_on_an_absent_place_keep_their_spelling`
 -- twelve real `8:00` beside `08:00` declared missing, on a place the
-description stands nothing present on, are written on their group's
-other step in the column's width, as NF109 writes every cell of the
-other width (plan P4-D370), so no twin writes `8:00` -- and so are cells
-on a place it stands only a rung on whose run does not hold its value;
-its owner is lane C2, stage 3b.5 step 2, by the owner's ruling of
-2026-09-15.
+description stood nothing present on, were written on their group's
+other step in the column's width, so no twin wrote `8:00`; such a place
+holding at least the line in present cells is now a heap, written in
+the other width (mutant: no absent place made a heap). Fewer than the
+line there, and cells on a place it stands only a rung on whose run
+does not hold its value, are still counted in their group: no count
+below the line is printed.
 And one the second verification of that repair found, at 49d170b:
 `test_round_2_the_other_widths_remark_says_the_times_its_twin_keeps`
 -- NF109's remark, the summary's line and the twin report's note said
@@ -616,16 +618,18 @@ def _distinct_windows(tmp_path: pathlib.Path) -> "tuple[list[tuple[str, str, str
 
 
 def test_item_4_the_report_counts_a_code_once(tmp_path: pathlib.Path) -> None:
-    """The report's window for the different values is validation's, 14 to 306, and holds 111.
+    """The report's window for the different values is validation's, 14 to 306, and holds 110.
 
     At 90466b2 it counted each of the 100 `UNK` cells as a value of its
     own, drew 113 to 405, and said the twin's 111 -- and the table's 102
     -- lay outside, where validation held the twin inside its 14 to 306.
+    Since landing 3b.5's second step (plan P4-D374) the column publishes
+    its minute census and its twin, laid on it, holds 110.
     """
     reported, checked = _distinct_windows(tmp_path)
     assert reported == [
-        ("n_distinct", "111", "14", "306", True),
-        ("n_distinct_folded", "111", "14", "306", True),
+        ("n_distinct", "110", "14", "306", True),
+        ("n_distinct_folded", "110", "14", "306", True),
     ]
     assert checked == [
         ("distinct.n_distinct", validation.WITHIN_BOUND),
@@ -1323,13 +1327,22 @@ def test_round_2_an_absence_declared_on_a_laid_column_stays_absent(tmp_path: pat
 def test_round_2_red_when_a_run_counts_its_absent_steps(
     tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """MUTATION: a run's share counted over every step, the absent one too, as at d4f5ee4."""
+    """MUTATION: a run's share counted over every step, the absent one too, as at d4f5ee4.
+
+    With no minute census published: since landing 3b.5's second step
+    (plan P4-D374) `afternoon` publishes one, and a body laid on it is
+    laid by its lanes, which keep off the absent places on their own
+    (`tests/test_stage3b_clock_minutes.py` holds that rule to its mutant).
+    """
     built = calendar_clock.clock_body_blocks
 
     def every_step(parsed, tails, body, groups, heaps, form, stride, absent=()):  # type: ignore[no-untyped-def]
         return built(parsed, tails, body, groups, heaps, form, stride)
 
     monkeypatch.setattr(calendar_clock, "clock_body_blocks", every_step)
+    monkeypatch.setattr(
+        calendar_clock, "clock_minute_decision", lambda *_arguments: ((), calendar_clock.FIELD_REASON_FLAT)
+    )
     for name in ("slots", "afternoon", "hourly"):
         _block_of, real, twins, _table = _absence_twins(tmp_path, name, (0,))
         assert twins[0][1] > real and twins[0][2] != [], (name, real, twins)
@@ -1841,15 +1854,43 @@ def test_round_2_a_group_whose_every_step_is_an_absent_spelling_holds_the_tables
     """
     block, twins, table = _other_width_twins(tmp_path, "group")
     assert block["missing_by_source"] == {"01:15": 15}, block["missing_by_source"]
+    # Since landing 3b.5's second step (plan P4-D374) a place the table
+    # calls absent holding at least the line in present cells is a heap,
+    # written in the other width, so the twenty `1:15` stand on one ...
+    assert {"count": 20, "value": "01:15"} in block["clock_heaps"], block["clock_heaps"]
+    assert table == [] and twins == [(seed, 15, 20, []) for seed in (0, 1, 2)], (table, twins)
+
+
+def test_round_2_a_group_on_absent_places_alone_holds_them_beside_no_such_heap(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """... and the group laid on absent places alone still holds them where no
+    such heap stands -- here with that heap withdrawn (plan P4-D374): the
+    census group of 20 on `01:15` alone, every twin writing them `1:15`."""
+    _without_absent_heaps(monkeypatch)
+    block, twins, table = _other_width_twins(tmp_path, "group")
     assert {"count": 20, "first": 7, "last": 7} in [dict(group) for group in block["clock_census"]], block["clock_census"]
     assert all(heap["value"] != "01:15" for heap in block["clock_heaps"]), block["clock_heaps"]
     assert table == [] and twins == [(seed, 15, 20, []) for seed in (0, 1, 2)], (table, twins)
 
 
+def _without_absent_heaps(monkeypatch: pytest.MonkeyPatch) -> None:
+    """No place the table calls absent made a heap for holding the line
+    (`calendar_clock.clock_census_of` as landing 3b.5's first step left it),
+    so a census group on absent places alone stands as it did."""
+    built = calendar_clock.clock_census_of
+    monkeypatch.setattr(
+        calendar_clock,
+        "clock_census_of",
+        lambda ordinals, form, line, body, absent=(): built(ordinals, form, line, body),
+    )
+
+
 def test_round_2_red_when_an_absent_place_of_the_other_width_is_no_room(
     tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """MUTATION: no absent place spelled another way by the other width -- CC5 refuses the producer's own description again."""
+    """MUTATION: no absent place spelled another way by the other width -- CC5 refuses the producer's own description again (beside no heap on it, plan P4-D374)."""
+    _without_absent_heaps(monkeypatch)
     monkeypatch.setattr(calendar_clock, "absent_with_another_width", lambda *_a: ())
     cells, hole, _other = _other_width_shape("group")
     folder = tmp_path / "group"
@@ -1864,7 +1905,8 @@ def test_round_2_red_when_an_absent_place_of_the_other_width_is_no_room(
 def test_round_2_red_when_a_run_on_absent_places_is_written_in_the_forms(
     tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """MUTATION: a run laid on absent places written in the form's own spelling -- the twin writes 35 `01:15`."""
+    """MUTATION: a run laid on absent places written in the form's own spelling -- the twin writes 35 `01:15` (beside no heap on it, plan P4-D374)."""
+    _without_absent_heaps(monkeypatch)
     monkeypatch.setattr(generation, "_clock_runs_on_absent_places", lambda *_a: [])
     _block_of, twins, _table = _other_width_twins(tmp_path, "group", (0,))
     assert twins[0][1:3] == (35, 0) and twins[0][3] != [], twins
@@ -2024,64 +2066,52 @@ def _stood_on(block: "dict[str, typing.Any]") -> "list[str]":
     return stood
 
 
-@pytest.mark.xfail(
-    strict=True,
-    raises=AssertionError,
-    reason=(
-        "plan P4-D373's stated limit, NF109's rule above the line (P4-D370): twelve "
-        "real `8:00` beside 25 `08:00` declared missing, on a place the description "
-        "stands nothing present on, are counted in their census group and written on "
-        "its other steps in the column's width, so no twin writes `8:00`; its owner is "
-        "lane C2 (stage 3b.5 step 2, the clock role's next landing), by the owner's "
-        "ruling of 2026-09-15 that the twin writes every value as the source wrote it"
-    ),
-)
-def test_round_2_limit_cells_of_the_other_width_the_description_stands_nowhere_keep_their_spelling(
+def test_round_2_cells_of_the_other_width_on_an_absent_place_keep_their_spelling(
     tmp_path: pathlib.Path,
 ) -> None:
-    """THE LIMIT, stated as what should hold (the verification of round 2, plan P4-D373).
+    """THE LIMIT P4-D373 STATED, REPAIRED (landing 3b.5's second step, plan P4-D374).
 
     Twelve rows wrote `8:00`, above the line, on the place `08:00` names,
-    and `08:00` is declared missing: the description counts them in their
-    census group and stands nothing present on `08:00`, so every twin
-    writes 25 `08:00` and misses nothing, but lays the twelve on the
-    group's other steps written `hh:mm`, and the table's `8:00` is gone.
-    Of this repair's 240 such columns (seeds 71 to 73), 87 stood nothing
-    present on the place, and their twins wrote none of its 385 cells in
-    the other width. The limit reaches a place the description stands
-    only a rung on whose run does not hold its value (G7A.4b step 3), a
-    rung held by its group alone: of the third verification's 450 random
-    columns, 3 stand only such a rung, and their twins write none of its
-    18 cells in the other width. And cells of the other width beyond a
-    drawn tail's boundary where a step there is no heap and no absent
-    place are drawn onto such steps in the column's width, the tail's
-    two distances printed WITHIN-BOUND (G7A.4b step 1): of the fourth
-    verification's 100 such drawn tails (seed 4411), 261 of 300 twins
-    write none of those cells in the other width and 27 fewer than their
-    tables, the tail's mean distance is WITHIN-BOUND on 272, and every
-    twin validates. Strict, so a repair turns it red; a shape that moves
-    fails outright.
-
-    ITS OWNER IS LANE C2, stage 3b.5 step 2, the clock role's next
-    landing, which touches only clock-role code: the owner ruled on
-    2026-09-15 that the twin writes every value as the source wrote it,
-    and this is NF109's rule above the line (P4-D370's half from the T1
-    skeptic's item 2), which writes these cells in the column's width
-    where the table wrote the other.
+    and `08:00` is declared missing. Until this landing the description
+    counted them in their census group and stood nothing present on
+    `08:00`, so every twin wrote 25 `08:00` and missed nothing but laid
+    the twelve on the group's other steps written `hh:mm`, and the
+    table's `8:00` was gone -- a strict xfail here, owned by lane C2 by
+    the owner's ruling of 2026-09-15 that the twin writes every value as
+    the source wrote it. Now a place the table calls absent holding at
+    least the line in present cells is a heap
+    (`calendar_clock.clock_census_of`), and a heap on such a place is
+    written in the hour's other width (`calendar_clock.
+    present_spellings`): every twin writes the twelve `8:00` and the 25
+    `08:00`, and misses nothing. Fewer than the line on such a place are
+    still counted in their group, since no count below it is printed.
     """
     cells, hole, other = _other_width_in_a_group()
     document, loaded = _described(tmp_path, cells, declared=(hole,))
     block = _block(document)
-    table = _missed(loaded, tmp_path / "table.csv")
-    if block["clock_form"] != "hh-mm" or block["missing_by_source"] != {hole: 25} or hole in _stood_on(block) or table:
-        pytest.fail(f"the shape the limit was measured on moved: {block['missing_by_source']}, {_stood_on(block)}, {table}")
-    twins: "list[tuple[int, int, int, list[str]]]" = []
+    assert block["clock_form"] == "hh-mm" and block["missing_by_source"] == {hole: 25}
+    assert {"value": hole, "count": 12} in block["clock_heaps"], block["clock_heaps"]
+    assert _missed(loaded, tmp_path / "table.csv") == []
     for seed in (0, 1, 2):
         twin, path = _twin(loaded, seed, tmp_path)
-        twins += [(seed, twin.count(hole), twin.count(other), _missed(loaded, path))]
-    if [(seed, absent, missed) for seed, absent, _written, missed in twins] != [(seed, 25, []) for seed in (0, 1, 2)]:
-        pytest.fail(f"the twins the limit was measured on moved: {twins}")
-    assert [written for _seed, _absent, written, _missed_checks in twins] == [12, 12, 12], twins
+        assert (twin.count(hole), twin.count(other), _missed(loaded, path)) == (25, 12, []), seed
+
+
+def test_round_2_red_when_an_absent_place_holding_the_line_is_no_heap(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """MUTATION: no absent place made a heap -- the twelve `8:00` are counted in
+    their group again, and no twin writes one."""
+    built = calendar_clock.clock_census_of
+    monkeypatch.setattr(
+        calendar_clock,
+        "clock_census_of",
+        lambda ordinals, form, line, body, absent=(): built(ordinals, form, line, body),
+    )
+    cells, hole, other = _other_width_in_a_group()
+    _document, loaded = _described(tmp_path, cells, declared=(hole,))
+    twin, _path = _twin(loaded, 0, tmp_path)
+    assert twin.count(other) == 0 and twin.count(hole) == 25
 
 
 # -- the second verification of that repair: NF109's words -------------

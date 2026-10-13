@@ -279,6 +279,15 @@ TWENTY_FIRST_BRANCH_VECTORS = (
     / "generation-branch-vectors-21.json"
 )
 # anchor 3b-C2 (P4-D374)
+# THE TWENTY-SEVENTH FILE (landing 3b.5's second step, the minute census of
+# a column of clock times, plan P4-D374): the twenty-first stands at its
+# cap, so G7A.4c's six cases open the first number no lane holds.
+TWENTY_SEVENTH_BRANCH_GENERATOR = (
+    REPOSITORY / "tools" / "reference" / "make_generation_branch_vectors_27.py"
+)
+TWENTY_SEVENTH_BRANCH_VECTORS = (
+    REPOSITORY / "tests" / "reference" / "generation-branch-vectors-27.json"
+)
 # anchor 3b-G1 (P4-D375)
 # THE SIXTEENTH FILE (the end floor of a date or clock tail, plan P4-D375):
 # every branch file stands past plan P4-D295's line.
@@ -348,6 +357,9 @@ gen_clock_census_runs = gen.clock_census_runs
 gen_clock_run_shares = gen.clock_run_shares
 gen_clock_filled_form = gen.clock_filled_form
 gen_clock_reads = gen.clock_reads
+gen_clock_minute_laid = gen.clock_minute_laid
+gen_clock_minute_pins = gen.clock_minute_pins
+gen_clock_minute_owed = gen.clock_minute_owed
 gen_numeric_content = gen._numeric_content
 gen_grouped_enough = gen.grouped_enough
 gen_layout_preferences = gen.layout_preferences
@@ -428,6 +440,10 @@ def _twenty_second_branch_document() -> dict:
 
 def _twenty_first_branch_document() -> dict:
     return json.loads(TWENTY_FIRST_BRANCH_VECTORS.read_text(encoding="utf-8"))
+
+
+def _twenty_seventh_branch_document() -> dict:
+    return json.loads(TWENTY_SEVENTH_BRANCH_VECTORS.read_text(encoding="utf-8"))
 
 
 def _twenty_third_branch_document() -> dict:
@@ -872,6 +888,17 @@ TWENTY_FIRST_BRANCH_CASES = (
     "labels_clock_shaped",
 )
 
+# THE TWENTY-SEVENTH FILE: landing 3b.5's second step, G7A.4c's minute
+# census of a column of clock times (plan P4-D374).
+TWENTY_SEVENTH_BRANCH_CASES = (
+    "clock_minutes_all_different",
+    "clock_minutes_no_tails",
+    "clock_minutes_rounding",
+    "clock_minutes_rung_pins",
+    "clock_minutes_seconds",
+    "clock_minutes_slots",
+)
+
 # THE TWENTY-THIRD FILE: lane G2's width rule, G6.6.8's reach (plan
 # P4-D377).
 TWENTY_THIRD_BRANCH_CASES = ("tail_width_past_the_reach",)
@@ -914,6 +941,7 @@ ALL_CASES = tuple(
         + FOURTEENTH_BRANCH_CASES
         + TWENTY_SECOND_BRANCH_CASES
         + TWENTY_FIRST_BRANCH_CASES
+        + TWENTY_SEVENTH_BRANCH_CASES
         + TWENTY_THIRD_BRANCH_CASES
         + TWENTY_FIFTH_BRANCH_CASES
     )
@@ -942,6 +970,14 @@ SEEDS = {
     # and the second repair round's line held key by key the one after.
     "labels_clock_line": 434,
     "labels_clock_forms": 435,
+    # Landing 3b.5's second step, the minute census of a column of clock
+    # times (lane C2, plan P4-D374), the next seeds.
+    "clock_minutes_slots": 436,
+    "clock_minutes_seconds": 437,
+    "clock_minutes_all_different": 438,
+    "clock_minutes_rung_pins": 439,
+    "clock_minutes_no_tails": 440,
+    "clock_minutes_rounding": 441,
     # Landing R2a's layout member takes the next seeds after T1's (plan
     # P4-D383).
     "layout_century_window": 421,
@@ -1237,6 +1273,8 @@ def _case(name: str) -> dict:
         document = _twenty_second_branch_document()
     elif name in TWENTY_FIRST_BRANCH_CASES:
         document = _twenty_first_branch_document()
+    elif name in TWENTY_SEVENTH_BRANCH_CASES:
+        document = _twenty_seventh_branch_document()
     elif name in TWENTY_THIRD_BRANCH_CASES:
         document = _twenty_third_branch_document()
     elif name in TWENTY_FIFTH_BRANCH_CASES:
@@ -1517,6 +1555,7 @@ def test_the_branch_file_is_the_same_oracle_and_says_which_half_it_is() -> None:
     twenty_first = _twenty_first_branch_document()
     twenty_third = _twenty_third_branch_document()
     twenty_fifth = _twenty_fifth_branch_document()
+    twenty_seventh = _twenty_seventh_branch_document()
     papers = _document_document()
     assert tuple(sorted(branch["cases"])) == BRANCH_CASES
     assert tuple(sorted(second["cases"])) == SECOND_BRANCH_CASES
@@ -1536,11 +1575,13 @@ def test_the_branch_file_is_the_same_oracle_and_says_which_half_it_is() -> None:
     assert tuple(sorted(twenty_first["cases"])) == TWENTY_FIRST_BRANCH_CASES
     assert tuple(sorted(twenty_third["cases"])) == TWENTY_THIRD_BRANCH_CASES
     assert tuple(sorted(twenty_fifth["cases"])) == TWENTY_FIFTH_BRANCH_CASES
+    assert tuple(sorted(twenty_seventh["cases"])) == TWENTY_SEVENTH_BRANCH_CASES
     assert tuple(sorted(papers["cases"])) == DOCUMENT_CASES
     every = (
         named, branch, second, third, fourth, fifth, sixth, seventh,
         eighth, ninth, tenth, eleventh, twelfth, thirteenth, fourteenth,
-        twenty_second, twenty_first, twenty_third, twenty_fifth, papers,
+        twenty_second, twenty_first, twenty_third, twenty_fifth,
+        twenty_seventh, papers,
     )
     for index in range(len(every)):
         for other in range(index + 1, len(every)):
@@ -1580,6 +1621,13 @@ def test_the_branch_file_is_the_same_oracle_and_says_which_half_it_is() -> None:
         for _other, path in files:
             if path != own:
                 assert f"tests/reference/{path.name}" in document["case_set"]
+    # The twenty-seventh (plan P4-D374) names every file above; theirs are
+    # left as they stand, as the seventeenth's and eighteenth's are.
+    assert twenty_seventh["never_imports"] == ["synthtwin", "numpy", "pandas"]
+    assert twenty_seventh["method"] == "docs/spec/generation-method-v1.md"
+    assert twenty_seventh["generated_by"] == "tools/reference/make_generation_reference_vectors.py"
+    for _other, path in files:
+        assert f"tests/reference/{path.name}" in twenty_seventh["case_set"], path.name
 
 
 @pytest.mark.parametrize(
@@ -1605,6 +1653,7 @@ def test_the_branch_file_is_the_same_oracle_and_says_which_half_it_is() -> None:
         FIFTEENTH_BRANCH_GENERATOR,
         TWENTY_FIRST_BRANCH_GENERATOR,
         TWENTY_THIRD_BRANCH_GENERATOR,
+        TWENTY_SEVENTH_BRANCH_GENERATOR,
         DOCUMENT_GENERATOR,
     ],
 )
@@ -1902,6 +1951,9 @@ TWENTY_SECOND_BRANCH_NAMED_COUNTS = 122
 # The twenty-first, at its own generator's line ("proved 40 ... beside 629").
 TWENTY_FIRST_BRANCH_PUBLISHED_NUMBERS = 40
 TWENTY_FIRST_BRANCH_NAMED_COUNTS = 629
+# The twenty-seventh, at its own generator's line ("proved 18 ... beside 461").
+TWENTY_SEVENTH_BRANCH_PUBLISHED_NUMBERS = 18
+TWENTY_SEVENTH_BRANCH_NAMED_COUNTS = 461
 # The twenty-third, at its own generator's line ("proved N ... beside M").
 TWENTY_THIRD_BRANCH_PUBLISHED_NUMBERS = 542
 TWENTY_THIRD_BRANCH_NAMED_COUNTS = 205
@@ -2032,6 +2084,12 @@ COMMITTED_FILES = (
         TWENTY_FIFTH_BRANCH_NAMED_COUNTS,
     ),
     (
+        TWENTY_SEVENTH_BRANCH_VECTORS,
+        gen.TWENTY_SEVENTH_BRANCH_PART,
+        TWENTY_SEVENTH_BRANCH_PUBLISHED_NUMBERS,
+        TWENTY_SEVENTH_BRANCH_NAMED_COUNTS,
+    ),
+    (
         DOCUMENT_VECTORS,
         gen.DOCUMENT_PART,
         DOCUMENT_PUBLISHED_NUMBERS,
@@ -2045,7 +2103,7 @@ def _fields(document: dict) -> frozenset:
 
 
 @pytest.mark.parametrize(
-    "committed,part,published,named", COMMITTED_FILES, ids=["named", "branches", "branches-2", "branches-3", "branches-4", "branches-5", "branches-6", "branches-8", "branches-7", "branches-9", "branches-10", "branches-11", "branches-12", "branches-13", "branches-14", "branches-22", "branches-21", "branches-23", "branches-25", "documents"]
+    "committed,part,published,named", COMMITTED_FILES, ids=["named", "branches", "branches-2", "branches-3", "branches-4", "branches-5", "branches-6", "branches-8", "branches-7", "branches-9", "branches-10", "branches-11", "branches-12", "branches-13", "branches-14", "branches-22", "branches-21", "branches-23", "branches-25", "branches-27", "documents"]
 )
 def test_the_committed_file_publishes_no_number_that_escapes_the_proof(
     committed, part, published, named
@@ -2087,7 +2145,7 @@ def test_the_committed_file_publishes_no_number_that_escapes_the_proof(
 
 
 @pytest.mark.parametrize(
-    "committed,part,published,named", COMMITTED_FILES, ids=["named", "branches", "branches-2", "branches-3", "branches-4", "branches-5", "branches-6", "branches-8", "branches-7", "branches-9", "branches-10", "branches-11", "branches-12", "branches-13", "branches-14", "branches-22", "branches-21", "branches-23", "branches-25", "documents"]
+    "committed,part,published,named", COMMITTED_FILES, ids=["named", "branches", "branches-2", "branches-3", "branches-4", "branches-5", "branches-6", "branches-8", "branches-7", "branches-9", "branches-10", "branches-11", "branches-12", "branches-13", "branches-14", "branches-22", "branches-21", "branches-23", "branches-25", "branches-27", "documents"]
 )
 def test_the_committed_bytes_are_proved_against_the_recorded_exact_values(
     committed, part, published, named
@@ -2106,7 +2164,7 @@ def test_the_committed_bytes_are_proved_against_the_recorded_exact_values(
 
 
 @pytest.mark.parametrize(
-    "committed,part,published,named", COMMITTED_FILES, ids=["named", "branches", "branches-2", "branches-3", "branches-4", "branches-5", "branches-6", "branches-8", "branches-7", "branches-9", "branches-10", "branches-11", "branches-12", "branches-13", "branches-14", "branches-22", "branches-21", "branches-23", "branches-25", "documents"]
+    "committed,part,published,named", COMMITTED_FILES, ids=["named", "branches", "branches-2", "branches-3", "branches-4", "branches-5", "branches-6", "branches-8", "branches-7", "branches-9", "branches-10", "branches-11", "branches-12", "branches-13", "branches-14", "branches-22", "branches-21", "branches-23", "branches-25", "branches-27", "documents"]
 )
 def test_the_generator_says_how_many_numbers_it_proved(
     tmp_path, capsys, committed, part, published, named
@@ -3737,7 +3795,87 @@ def _clock_supply_on_the_hour(form, step):
     return text[: colon + 1] + "00" + text[colon + 3 :]
 
 
+def _minute_layout_withdrawn(*_arguments):
+    """G7A.4c withdrawn: the body is laid by G7A.4b's runs."""
+    return None
+
+
+def _minute_as_the_second(ordinal, form):
+    """G7A.4c's minute of the hour read as the second of the minute."""
+    return ordinal * gen.clock_step_of(form) % 60
+
+
+def _minute_lanes_not_apart(column, parsed, tails, body, heaps, stride, runs, word_of, apart):
+    """G7A.4c's lanes on a column whose values all differ, left as read."""
+    return gen_clock_minute_laid(column, parsed, tails, body, heaps, stride, runs, word_of, False)
+
+
+def _minute_boundaries_pinned_alone(column, parsed, tails, body, heap_at, stride, groups, spans, is_absent, wide):
+    """G7A.4c's pins, the two boundaries alone."""
+    kept = gen_clock_minute_pins(column, parsed, tails, body, heap_at, stride, groups, spans, is_absent, wide)
+    ends = () if tails is None else (tails[0], parsed - 1 - tails[1])
+    return [(rank, at) for rank, at in kept if rank in ends]
+
+
+def _minute_heaps_left_in(minute_groups, _heap_at, kept, form):
+    """G7A.4c's column counts with the heaps' cells left in."""
+    return gen_clock_minute_owed(minute_groups, {}, kept, form)
+
+
+def _minute_rows_rounded_alone(rows, _columns, entries):
+    """G7A.4c's rounding of each row alone, by largest remainders of its
+    cells' weights, the columns' counts unasked."""
+    table = []
+    for count, row in zip(rows, entries):
+        total = sum(weight for _c, weight, _cap in row) or 1
+        shares = [count * weight / total for _c, weight, _cap in row]
+        whole = [int(share) for share in shares]
+        order = sorted(range(len(row)), key=lambda e: (-(shares[e] - whole[e]), e))
+        for e in order[: count - sum(whole)]:
+            whole[e] += 1
+        table.append(whole)
+    return table
+
+
 CASE_MUTANTS = {
+    # LANDING 3b.5's SECOND STEP, the minute census of a column of clock
+    # times (lane C2, plan P4-D374), each case's own rule of G7A.4c.
+    "clock_minutes_slots": Mutant(
+        branch="G7A.4c's minute census; the mutant withdraws it from the layout, and the body is laid by G7A.4b's runs",
+        attribute="clock_minute_laid",
+        replacement=_minute_layout_withdrawn,
+        outcome=CHANGES_THE_CELLS,
+    ),
+    "clock_minutes_seconds": Mutant(
+        branch="G7A.4c's minute of the hour at the second; the mutant reads the second of the minute, and the lanes move",
+        attribute="clock_minute_of",
+        replacement=_minute_as_the_second,
+        outcome=CHANGES_THE_CELLS,
+    ),
+    "clock_minutes_all_different": Mutant(
+        branch="G7A.4c's lanes stepped apart on a column whose values all differ; the mutant leaves them as read, and cells share a second",
+        attribute="clock_minute_laid",
+        replacement=_minute_lanes_not_apart,
+        outcome=CHANGES_THE_CELLS,
+    ),
+    "clock_minutes_rung_pins": Mutant(
+        branch="G7A.4c's pins, the walls a group's cells are cut at; the mutant pins the two boundaries alone, and the cells between the rungs move",
+        attribute="clock_minute_pins",
+        replacement=_minute_boundaries_pinned_alone,
+        outcome=CHANGES_THE_CELLS,
+    ),
+    "clock_minutes_no_tails": Mutant(
+        branch="G7A.4c's column counts less the heaps' cells; the mutant leaves them in, no table meets the counts, and G7A.4b lays the body",
+        attribute="clock_minute_owed",
+        replacement=_minute_heaps_left_in,
+        outcome=CHANGES_THE_CELLS,
+    ),
+    "clock_minutes_rounding": Mutant(
+        branch="G7A.4c's rounding with both counts kept; the mutant rounds each row alone, and the minute groups' counts move",
+        attribute="clock_minute_round",
+        replacement=_minute_rows_rounded_alone,
+        outcome=CHANGES_THE_CELLS,
+    ),
     # LANDING 3b.5'S CENSUS OF A COLUMN OF CLOCK TIMES (plan P4-D373), each
     # case's own rule.
     "clock_census_absent_inside": Mutant(
@@ -6419,6 +6557,7 @@ def test_the_method_states_the_count_the_committed_files_hold() -> None:
         (TWENTY_FIRST_BRANCH_VECTORS, _twenty_first_branch_document()),
         (TWENTY_THIRD_BRANCH_VECTORS, _twenty_third_branch_document()),
         (TWENTY_FIFTH_BRANCH_VECTORS, _twenty_fifth_branch_document()),
+        (TWENTY_SEVENTH_BRANCH_VECTORS, _twenty_seventh_branch_document()),
     )
     flat = " ".join(section.split())
     for path, document in held:

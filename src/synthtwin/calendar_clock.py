@@ -1560,6 +1560,7 @@ def clock_census_of(
     form: str,
     line: int,
     body: "tuple[int, int] | None",
+    absent: "tuple[int, ...]" = (),
 ) -> ClockCensus:
     """A column's step, heaps and census, from its parsed values (G7A.4b).
 
@@ -1569,9 +1570,21 @@ def clock_census_of(
     over every cell; the census over the body's cells that stand on no
     heap.
 
-    Guarantees: accepts the counts, the form, the census line and the
-    body; returns the census. Determinism: a function of the four.
-    Raises nothing. No I/O of any kind.
+    AND EVERY PLACE THE TABLE CALLS ABSENT HOLDING AT LEAST THE LINE IN
+    PRESENT CELLS IS A HEAP (landing 3b.5's second step, plan P4-D374;
+    `absent`, the places `absent_places` gives): its form's spelling is
+    one the column's reader counts as no value, so those cells showed
+    the hour's other width -- twelve `8:00` beside `08:00` declared
+    missing -- and a heap is a place the twin writes in that width
+    (`present_spellings`), as the source wrote it (the owner's ruling of
+    2026-09-15). Counted in a group instead, they were written on its
+    other steps in the column's width, and no twin wrote `8:00`. Fewer
+    than the line are counted in their group, since no count below it is
+    printed.
+
+    Guarantees: accepts the counts, the form, the census line, the body
+    and the absent places; returns the census. Determinism: a function of
+    the five. Raises nothing. No I/O of any kind.
     """
     unit = parsing.clock_step(form)
     day = clock_day(form)
@@ -1581,7 +1594,11 @@ def clock_census_of(
     for ordinal in sorted(ordinals):
         counts[ordinal // stride] = ordinals[ordinal]
     standing = heaps_on_the_step(counts, day // step, line)
-    heaps = tuple((index * stride, count) for index, count in standing)
+    found: "dict[int, int]" = {index * stride: count for index, count in standing}
+    for at in absent:
+        if at in ordinals and ordinals[at] >= line and at % stride == 0:
+            found[at] = ordinals[at]
+    heaps = tuple((at, found[at]) for at in sorted(found))
     on_a_heap: "dict[int, bool]" = {}
     for value, _count in heaps:
         on_a_heap[value] = True
@@ -1802,6 +1819,7 @@ def clock_rank_windows(
     form: str,
     stride: int,
     absent: "tuple[int, ...]" = (),
+    minutes: bool = False,
 ) -> "tuple[list[int], list[int]] | None":
     """The window every rank of a census-laid clock column stands in (G12.10).
 
@@ -1809,7 +1827,12 @@ def clock_rank_windows(
     boundary; every other body rank inside its census GROUP's steps in the
     body -- the group's, not its run's, so a real column whose rung stands
     on the far side of a heap from where the twin's share put it is still
-    inside. Ordinals in the form's own unit.
+    inside. Ordinals in the form's own unit. On a body laid on its minute
+    census (`minutes`; landing 3b.5's second step, plan P4-D374, method
+    G7A.4c) a heap's ranks too: how many of its group's cells stand below
+    the heap is the minute census's to say, so the ranks a heap holds
+    move inside its group as the real column's do, and are drawn as the
+    construction draws them.
 
     Guarantees: as `clock_body_blocks`, whose stretches it reads over the
     same absent places; None where that is None. Determinism: a function
@@ -1835,7 +1858,7 @@ def clock_rank_windows(
             lows[rank] = min(top, body[1] + 1)
     for block in blocks:
         low, high = reach[block.group]
-        if block.heap:
+        if block.heap and not minutes:
             low, high = block.low, block.high
         for rank in range(block.first_rank, block.first_rank + block.cells):
             lows[rank] = low
@@ -1911,6 +1934,347 @@ def tail_less_heaps(
 
 
 # anchor 3b-C2 (P4-D374)
+# THE MINUTE CENSUS OF A COLUMN OF CLOCK TIMES (landing 3b.5's second step,
+# lane C2, plan P4-D374; method G7A.4c). The moments' key, `minute_census`,
+# counted over a clock body's cells by the minute of the hour each is
+# written at: every cell between the two boundaries, both included -- or
+# every parsed cell of a column with no tails -- the clock heaps' cells
+# among them, grouped by the one merge rule the moments' census asks
+# (`field_groups`) on their sure cells (`clock_minute_sure`). MC4 does not
+# apply: a clock column has no date axis, so no census is the minutes of
+# a few hours of a few days.
+
+
+def clock_minute_of(ordinal: int, form: str) -> int:
+    """The minute of the hour one ordinal of a form is written at, 0 to 59.
+
+    A column of clock times reads no sixtieth second (`parsing.clock_parts`
+    refuses `23:59:60`, so such a cell is unparsed), so every ordinal is a
+    whole second or minute below the form's capacity. Raises ValueError
+    for a form `parsing` does not know. No I/O.
+    """
+    return ((ordinal * parsing.clock_step(form)) // 60) % FIELD_VALUES
+
+
+def clock_hour_of(ordinal: int, form: str) -> int:
+    """The hour of the dial one ordinal of a form is written in: 0 to 23,
+    or 0 to 11 on the declared 12-hour face. Raises ValueError for a form
+    `parsing` does not know. No I/O."""
+    return (ordinal * parsing.clock_step(form)) // HOUR_SECONDS
+
+
+def clock_minutes_reached(step: int) -> "tuple[bool, ...]":
+    """Which minutes of the hour a value on a step of `step` seconds can be
+    written at: sixty answers, minute 0 first.
+
+    Values on the step are multiples of it from midnight (CC4: the step
+    divides the dial), and their minute repeats every hour, so the
+    multiples inside one hour's cycle -- `3600 / gcd(step, 3600)` of them,
+    at most 3,600 -- name every minute reached; a step of five minutes
+    reaches the twelve multiples of five, any step up to a minute every
+    minute. Raises nothing for a step of at least one. No I/O.
+    """
+    reached = [False for _minute in range(FIELD_VALUES)]
+    period = HOUR_SECONDS // common_divisor(step, HOUR_SECONDS)
+    for multiple in range(period):
+        reached[((multiple * step) // 60) % FIELD_VALUES] = True
+    return tuple(reached)
+
+
+def clock_minute_sure(
+    published: "list[tuple[int, int]]",
+    heaps: "tuple[tuple[int, int], ...] | list[tuple[int, int]]",
+    form: str,
+) -> "list[int]":
+    """The SURE cells of each minute of a clock body (MC5), sixty counts.
+
+    As the moments' `field_sure`: every published body value -- each tail
+    boundary and each published rung, as `(rank, ordinal)`, with every
+    rank between two ranks of one value -- in the minute it is written at,
+    and each heap inside the body (`(ordinal, count)`) with all its cells
+    there; a published rank on a heap's value is among that heap's cells
+    and is not counted twice.
+
+    Guarantees: a function of the three. Raises nothing for ordinals of
+    the form. No I/O of any kind.
+    """
+    on_a_heap: "dict[int, int]" = {}
+    for at, count in heaps:
+        on_a_heap[at] = count
+    known: "dict[int, int]" = {}
+    ordered = sorted(published)
+    for rank, at in ordered:
+        known[rank] = at
+    for place in range(len(ordered) - 1):
+        first, here = ordered[place]
+        last, there = ordered[place + 1]
+        if here == there:
+            for rank in range(first, last + 1):
+                known[rank] = here
+    sure = [0 for _minute in range(FIELD_VALUES)]
+    for rank in sorted(known):
+        at = known[rank]
+        if at in on_a_heap:
+            continue
+        minute = clock_minute_of(at, form)
+        sure[minute] = sure[minute] + 1
+    for at in sorted(on_a_heap):
+        minute = clock_minute_of(at, form)
+        sure[minute] = sure[minute] + on_a_heap[at]
+    return sure
+
+
+def clock_published_ranks(
+    parsed: int,
+    tails: "tuple[tuple[int, int], tuple[int, int]] | None",
+    rungs: "list[tuple[int, int]]",
+) -> "list[tuple[int, int]]":
+    """The ranks and values a clock body publishes, for its sure cells (MC5).
+
+    `tails` are each tail's `(rows, boundary ordinal)`, low then high, or
+    None on a column with no tails; `rungs` each published rung's
+    `(percent, ordinal)`. Each boundary at the body's first and last rank,
+    each rung at the rank it is read off (`rung_rank`). Raises nothing.
+    No I/O of any kind.
+    """
+    found: "list[tuple[int, int]]" = []
+    if tails is not None:
+        found += [(tails[0][0], tails[0][1])]
+        found += [(parsed - 1 - tails[1][0], tails[1][1])]
+    for percent, at in rungs:
+        found += [(rung_rank(percent, parsed), at)]
+    return found
+
+
+def clock_minute_decision(
+    ordinals: "dict[int, int]",
+    form: str,
+    step: int,
+    line: int,
+    body: "tuple[int, int] | None",
+    heaps: "tuple[tuple[int, int], ...]",
+    published: "list[tuple[int, int]]",
+    size: int,
+) -> "tuple[tuple[tuple[int, int, int], ...], str]":
+    """Whether a column of clock times publishes its minute census (plan P4-D374).
+
+    `ordinals` counts every parsed cell by its place in the form's unit,
+    `body` the two boundaries as ordinals or None on a column with no
+    tails, `heaps` the published clock heaps as ordinals, `published` the
+    body's published ranks and values (the boundaries, the rungs) and
+    `size` the body's published count of cells -- the parsed cells less
+    both tails' rows. Asked in the moments' order (`clock_field_decision`)
+    of the cells it can say something about, the body's cells on NO clock
+    heap, which the heaps already place exactly:
+
+    - they must depart from flat over the minutes the step reaches
+      (`departs_from_flat`, `clock_minutes_reached`), else nothing is
+      published -- the twin's even draw inside each group is their shape.
+      CELLS, NOT DIFFERENT VALUES, the moments' measure: a time of day
+      repeats across the days a column spans, so its cells are the
+      events and its different values are not -- counted by value, the
+      design's triage times typed on `:00` and `:30` at a quarter of
+      1,000 rows (about 36 different values on minute 0 against 12 on
+      another) and walk-ins booked on a ten-minute grid at more than half
+      were both flat (the builder's measurement of 2026-10-13);
+    - how they fall on the minute must not follow the hour of the day so
+      that one count over every hour misleads an hour group more than a
+      flat field would (M3: `depends_on_the_hour`, `misled_by_the_count`);
+    - the census -- of EVERY body cell, the heaps' among them -- is the
+      one merge rule over the sixty minutes on the line beside the sure
+      cells (`field_groups`, `clock_minute_sure`), withheld where it
+      leaves one group and where the loader's own check refuses it
+      (`field_breach`: MC1, MC2, MC3, MC5).
+
+    No middle-half rule (MC4): a clock column has no date axis. And no
+    few-values rule (`few_values`): a time of day held by several rows is
+    a place on the dial the column's rows return to, not a few events,
+    and the twin spreads a group's cells over its steps as G7A.4b does --
+    clinic slots of 14 to 35 rows each, below a raised floor of 36, left
+    the census out by that rule and their twin wrote 51 per cent on
+    `:00` or `:30` against the table's 71; published, 67, every check
+    held (the builder's measurement of 2026-10-13, 1,000 rows, seeds 0 to
+    4). Returns
+    the groups `(first, last, count)` and an empty reason, or no groups
+    and the `calendar_clock` word of the rule that withheld them -- empty
+    where the body's cells do not add to `size`, which no column the
+    producer describes has.
+
+    Guarantees: a function of the arguments. Raises nothing for ordinals
+    of the form. No I/O of any kind.
+    """
+    heap_at: "dict[int, int]" = {}
+    for at, count in heaps:
+        if body is None or body[0] <= at <= body[1]:
+            heap_at[at] = count
+    reached = clock_minutes_reached(step)
+    bins = [0 for _minute in range(FIELD_VALUES)]
+    rest = [0 for _minute in range(FIELD_VALUES)]
+    hours: "list[int]" = []
+    values: "list[int]" = []
+    squares = 0
+    total = 0
+    for at in sorted(ordinals):
+        if body is not None and not body[0] <= at <= body[1]:
+            continue
+        count = ordinals[at]
+        minute = clock_minute_of(at, form)
+        bins[minute] = bins[minute] + count
+        total = total + count
+        if at in heap_at:
+            continue
+        rest[minute] = rest[minute] + count
+        squares = squares + count * count
+        hour = clock_hour_of(at, form)
+        for _cell in range(count):
+            hours += [hour]
+            values += [minute]
+    if total != size or total <= 0:
+        return (), ""
+    if not departs_from_flat(
+        [rest[minute] for minute in range(FIELD_VALUES) if reached[minute]]
+    ):
+        return (), FIELD_REASON_FLAT
+    if depends_on_the_hour(hours, values, line, squares) and misled_by_the_count(
+        hours, values, line
+    ):
+        return (), FIELD_REASON_HOUR
+    inside = tuple((at, heap_at[at]) for at in sorted(heap_at))
+    sure = clock_minute_sure(published, inside, form)
+    groups = field_groups(bins, sure, line)
+    if not groups:
+        return (), HOUR_REASON_GROUPING
+    if field_breach(groups, size, line, sure, MINUTE) is not None:
+        return (), HOUR_REASON_GROUPING
+    return groups, ""
+
+
+def clock_minute_breach(
+    groups: "tuple[tuple[int, int, int], ...]",
+    form: str,
+    line: int,
+    parsed: int,
+    tails: "tuple[int, int] | None",
+    body: "tuple[int, int] | None",
+    heaps: "tuple[tuple[int, int], ...]",
+    published: "list[tuple[int, int]]",
+) -> "tuple[str, str, str] | None":
+    """A clock column's published minute census held to MC1, MC2, MC3 and MC5, or None.
+
+    THE ONE CHECK THE PRODUCER AND THE LOADER BOTH ASK of the clock role
+    (`field_breach` over the body): the groups cover minutes 0 to 59 in
+    order (MC1), each count is nought or at least the line (MC2), the
+    counts add to the body -- the parsed cells less both tails' rows, the
+    clock heaps' cells among them (MC3) -- and each group holds its sure
+    cells with what is left nought or at least the line (MC5,
+    `clock_minute_sure`). `heaps` are every published clock heap as
+    ordinals; those inside the body are sure. Raises nothing. No I/O.
+    """
+    size = parsed - (0 if tails is None else tails[0] + tails[1])
+    inside = tuple(
+        (at, count)
+        for at, count in heaps
+        if body is None or body[0] <= at <= body[1]
+    )
+    sure = clock_minute_sure(published, inside, form)
+    return field_breach(groups, size, line, sure, MINUTE)
+
+
+def minute_lane_count(
+    low: int, high: int, stride: int, form: str, first: int, last: int
+) -> int:
+    """How many steps from `low` to `high`, both included, are written at a
+    minute from `first` to `last` (method G7A.4c): ordinals in the form's
+    unit, on multiples of `stride`.
+
+    COUNTED HOUR BY HOUR, never step by step: at most one window per hour
+    of the dial, so a group of seconds spanning the night is counted in
+    25 sums and not 30,000 steps. Raises nothing. No I/O of any kind.
+    """
+    unit = parsing.clock_step(form)
+    per_minute = 60 // unit
+    per_hour = HOUR_SECONDS // unit
+    found = 0
+    for hour in range(low // per_hour, high // per_hour + 1):
+        start = max(low, hour * per_hour + first * per_minute)
+        stop = min(high, hour * per_hour + (last + 1) * per_minute - 1)
+        if start > stop:
+            continue
+        lowest = -(-start // stride) * stride
+        highest = (stop // stride) * stride
+        if lowest <= highest:
+            found = found + (highest - lowest) // stride + 1
+    return found
+
+
+def minute_lane_points(
+    low: int,
+    high: int,
+    stride: int,
+    form: str,
+    first: int,
+    last: int,
+    excluded: "list[int]",
+    wanted: "list[int]",
+) -> "list[int]":
+    """The steps a lane's cells stand on, read at their indexes (method G7A.4c).
+
+    A LANE is the steps from `low` to `high` on multiples of `stride`
+    written at a minute from `first` to `last`, less `excluded` (sorted:
+    the heaps' values and the places the table calls absent among them).
+    `wanted` are indexes into the lane's steps in ascending order, and
+    each is answered with its step, in order: the lane is walked once,
+    hour window by hour window, and only the windows an index falls in
+    are read (`minute_lane_count`'s windows), so the work grows with the
+    hours spanned and the indexes asked -- an index asked again is
+    answered from the one before -- and never with the steps passed.
+
+    Guarantees: accepts indexes below the lane's count; returns one
+    ordinal per index, non-decreasing. Raises nothing. No I/O.
+    """
+    unit = parsing.clock_step(form)
+    per_minute = 60 // unit
+    per_hour = HOUR_SECONDS // unit
+    found: "list[int]" = []
+    passed = 0
+    asked = 0
+    cursor = 0
+    previous = -1
+    answer = 0
+    for hour in range(low // per_hour, high // per_hour + 1):
+        if asked >= len(wanted):
+            break
+        start = max(low, hour * per_hour + first * per_minute)
+        stop = min(high, hour * per_hour + (last + 1) * per_minute - 1)
+        if start > stop:
+            continue
+        lowest = -(-start // stride) * stride
+        highest = (stop // stride) * stride
+        if lowest > highest:
+            continue
+        while cursor < len(excluded) and excluded[cursor] < lowest:
+            cursor = cursor + 1
+        inside: "list[int]" = []
+        ahead = cursor
+        while ahead < len(excluded) and excluded[ahead] <= highest:
+            if (excluded[ahead] - lowest) % stride == 0:
+                inside += [excluded[ahead]]
+            ahead = ahead + 1
+        count = (highest - lowest) // stride + 1 - len(inside)
+        while asked < len(wanted) and wanted[asked] < passed + count:
+            index = wanted[asked]
+            if index != previous:
+                answer = lowest + (index - passed) * stride
+                for skipped in inside:
+                    if skipped <= answer:
+                        answer = answer + stride
+                previous = index
+            found += [answer]
+            asked = asked + 1
+        passed = passed + count
+    return found
+
+
 # anchor 3b-G1 (P4-D375)
 # anchor 3b-G3 (P4-D376)
 # anchor 3b-G2 (P4-D377)
