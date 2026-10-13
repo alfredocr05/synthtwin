@@ -7995,14 +7995,14 @@ unit at a time asked 500,359 times for 1,000 partial days of a
 20,000-row column of different HL7 stamps).
 
 *Amended by the fifth push's critic (MAJOR 4).* The walk keeps first
-between the units of the earliest and the latest instant the full ranks
-that read back write -- the span the published tails set, the cell's own
-unit always inside it. Where no unit there is free, the nearest free
+inside the span of the full ranks that read back, from the unit of the
+first instant they write to the unit of the last -- the span the
+published tails set, the cell's own unit always inside it. Where no unit there is free, the nearest free
 unit below the span is written, the walk going down toward 1800, and
 only where none is, the nearest above it. Measured on 45191fa: 120 ISO
 dates from 2024-01-01 beside 80 different years 1900 to 1979 came back
 with years 1984 to 2063, 39 of them after the column's last date, and
-validate missed nothing; they are now 1945 to 2024. The source's own
+validate raised nothing; they are now 1945 to 2024. The source's own
 partial years are published nowhere, so the twin cannot put them where
 the source had them.
 
