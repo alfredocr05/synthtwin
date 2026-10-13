@@ -73,7 +73,16 @@ landing of a column named with `--twelve-hour` and read on the 24-hour
 clock still loads and is checked on that clock. A declared dial's twin
 is drawn on landing T2's half day since batch 3's integration, as a
 declared stamp's is: 1,000 such stamps at seeds 0 to 2 had missed their
-tails and both censuses at exit 3, and miss nothing now. A column mixing
+tails and both censuses at exit 3, and miss nothing now. After the Codex
+review of that integration the half day is taken only on a column read
+at its own wall clock: a dial beside two offsets is read at UTC, where a
+morning written at -0500 is an afternoon, and 1,000 such stamps taken
+onto the UTC morning missed 15 obligations at seed 0; drawn over their
+UTC day, as before the integration, they miss nothing at seeds 0 to 2,
+and the report states T1's limit for them. A column read in part
+(landing R2c) is read on the 24-hour clock whatever is declared, so it
+is no longer asked the 12-hour question, and `--twelve-hour` naming it
+says why it reached nothing. A column mixing
 the narrow and the ordinary space before its marker is not read. After the Codex review, a column R2a's layouts
 read at the line keeps R2a's layout even where the clock half would read
 a few more of its cells: 990 SAS stamps at hour 14 beside ten at hour 4
