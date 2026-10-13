@@ -185,12 +185,14 @@ def test_the_body_splits_once_no_tail_rank_can_split_directly_which_is_not_the_m
     the column's 130 days, and the order before lane D4s gives 130 too.
     The texts that state the order -- the contract, P4-D369, G7.3, the
     docstrings of `tails_kept`, `count_reach_short` and
-    `_distinct_reached`, the count-room module, K-S3-59's evidence and the
-    changelog -- say the body splits only once no tail rank sharing a day
-    can split directly, which is not the most the tails could hold, and no
-    longer that no body rank splits while a tail rank still can. Red where
-    a text claims that again or drops the difference, or where the pass
-    starts making the chain (the high tail reaching 36).
+    `_distinct_reached`, the count-room module, K-S3-59's evidence, the
+    changelog and the oracle's why of the frozen case `tails_split_first`
+    (from the verification of the Codex fix) -- say the body splits only
+    once no tail rank sharing a day can split directly, which is not the
+    most the tails could hold, and no longer that no body rank splits
+    while a tail rank still can. Red where a text claims that again or
+    drops the difference, or where the pass starts making the chain (the
+    high tail reaching 36).
     """
     cells = count_room._every_open_day(1.1, 26, 900, frozenset(range(5)))
     assert (len(cells), len(set(cells))) == (142, 130)
@@ -238,6 +240,9 @@ def test_the_body_splits_once_no_tail_rank_can_split_directly_which_is_not_the_m
     start = changelog.index("### The count pass splits the tails first")
     ledger = json.loads((_ROOT / "tests" / "kpi" / "ledger.json").read_text(encoding="utf-8"))
     entry = [item for item in ledger["entries"] if item["id"] == "K-S3-59"][0]
+    vectors = json.loads(
+        (_ROOT / "tests" / "reference" / "generation-branch-vectors-14.json").read_text(encoding="utf-8")
+    )
     texts = (
         ("the contract", (_ROOT / "docs" / "spec" / "profile-contract-v6.md").read_text(encoding="utf-8")),
         ("P4-D369", plan[begin : plan.index("\n## ", begin)]),
@@ -248,12 +253,18 @@ def test_the_body_splits_once_no_tail_rank_can_split_directly_which_is_not_the_m
         ("the count-room module", count_room.__doc__ or ""),
         ("K-S3-59", entry["evidence"]),
         ("the changelog", changelog[start : changelog.index("\n### ", start)]),
+        ("the oracle's why", vectors["cases"]["tails_split_first"]["why"]),
     )
     for name, text in texts:
         flat = " ".join(text.split())
         assert "no tail rank sharing a day can split directly" in flat, name
         assert "not the most the tails could hold" in flat, name
-        for old in ("while a tail rank still can", "the tails can split no further", "every day their strata give"):
+        for old in (
+            "while a tail rank still can",
+            "the tails can split no further",
+            "every day their strata give",
+            "so the tails reach their most before the body",
+        ):
             assert old not in flat, (name, old)
 
 
