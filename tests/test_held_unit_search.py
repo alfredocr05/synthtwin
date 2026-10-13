@@ -63,7 +63,7 @@ import typing
 
 import pytest
 
-from synthtwin import contract, generation
+from synthtwin import contract, generation, taxonomy
 from tests.test_stage2_round_trip import _round_trip
 from tests.test_stage2_timestamp_spellings import _days, _partly
 
@@ -690,6 +690,10 @@ def test_a_full_gap_of_a_width_census_is_searched_once_a_pass(
     from them, and from nothing in the generator, which this pass did
     not touch.
     """
+    # One date of this column holds 11 rows among sparse neighbours and
+    # stands out (plan P4-D369); it is left unlisted, so the count pass's
+    # search runs as it was measured and the twin's bytes are its own.
+    monkeypatch.setattr(taxonomy, "heavy_dates_decided", lambda *arguments: ())
     search = generation._nearest_free_unit
     reached = generation._distinct_reached
     passes = {"now": 0, "none": 0, "again": 0}

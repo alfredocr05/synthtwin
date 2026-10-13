@@ -10397,9 +10397,13 @@ def _datetime_content(column):
     ordinals = clock_fields_settled(column, ordinals, parsed, whole, gap_lows, gap_highs, holes)
     # -- the dates that stand out, after every other pass (3b.D4, P4-D369)
     ordinals = heavy_sorted(column, ordinals, parsed, whole, gap_lows, gap_highs, holes)
-    # ...and where the list costs a group of a census beside it, the list
-    # gives way (G7.3j step 7): the column drawn as if it listed none.
-    if heavy_planned(column, parsed, body_pins, _sides) is not None and not heavy_census_met(column, ordinals, parsed):
+    # ...and where the list costs a group of a census beside it or the
+    # count of different days, the list gives way (G7.3j step 7): the
+    # column drawn as if it listed none.
+    if heavy_planned(column, parsed, body_pins, _sides) is not None and not (
+        heavy_census_met(column, ordinals, parsed)
+        and (not date_counts_reachable(column) or len(set(ordinals)) == column["n_distinct"] - column["n_unparsed"])
+    ):
         return _datetime_content(dict(column, heavy_dates=[]))
     # HOW EVERY RANK IS SPELLED (method G7.5, landing 2b.6). Allocated
     # after the instants and the offsets, because which conventions a

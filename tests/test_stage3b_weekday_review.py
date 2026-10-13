@@ -717,10 +717,13 @@ def test_where_the_census_costs_a_day_the_report_says_the_count_gave_way(
     its body still free, so the note blames no tail (a column that reaches
     it with step 8.3 in place is the next test's). Red when the day pass
     names no cause, the recount prints its own over it, or the note blames
-    the tails while a day the census allows stands free.
+    the tails while a day the census allows stands free. Described listing
+    no date that stands out (plan P4-D369), so the probe's heaps reach the
+    day pass as they were measured here.
     """
     from synthtwin import generation
 
+    monkeypatch.setattr(taxonomy, "heavy_dates_decided", lambda *arguments: ())
     cells = _heaped_visits(8442)
     described = kpi_shapes.describe(tmp_path, "heaped", "visit\n" + "".join(f"{cell}\n" for cell in cells), 11)
     kept = generation.generate(described.loaded, 1)

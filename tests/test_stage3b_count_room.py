@@ -827,7 +827,9 @@ def test_a_raised_floor_withholds_a_schedule_whose_twin_would_go_long(
     _restored_twins_long(tmp_path, f"schedule{shape}", described, cells, 36)
 
 
-def test_one_date_a_month_at_the_floor_of_50_is_withheld_and_restored_comes_back_long(tmp_path: pathlib.Path) -> None:
+def test_one_date_a_month_at_the_floor_of_50_is_withheld_and_restored_comes_back_long(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     """One date a month over 60 months (`_monthly(1, 2017, 60, 9740)`): published to the floor of 36, withheld at 50.
 
     Every weekday its own group, so a census asks the body for nearly a
@@ -838,8 +840,14 @@ def test_one_date_a_month_at_the_floor_of_50_is_withheld_and_restored_comes_back
     its tails, which leaves the body too few for its census: withheld,
     `count_room`, and restored its twins at seeds 0 to 2 hold 75 to 77
     different values for 60. Red when the rule is not asked or a listed
-    tail is read as distances.
+    tail is read as distances. Described listing no date that stands out
+    (plan P4-D369): 55 of its 60 firsts stand out, and the three left
+    unlisted fall on a Wednesday, a Saturday and a Sunday in three parts
+    of the body that G7.3j's split does not open together, so the list
+    gives way (method G7.3j step 7) and the census is measured here as it
+    was.
     """
+    monkeypatch.setattr(taxonomy, "heavy_dates_decided", lambda *arguments: ())
     cells = _monthly(1, 2017, 60, 9740)
     for floor in (11, 36):
         described = _described(tmp_path, f"monthly{floor}", cells, floor)

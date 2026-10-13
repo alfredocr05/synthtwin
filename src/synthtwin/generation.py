@@ -20454,9 +20454,9 @@ def _heavy_census_met(
 
 _HEAVY_GIVEN_WAY = (
     "The twin could not hold the dates that stand out at their published "
-    "counts and every count per day of the week and of the month beside "
-    "them, so it holds those counts and draws its dates as if no date "
-    "were listed."
+    "counts beside every count per day of the week and of the month and "
+    "the count of different values, so it holds those counts and draws "
+    "its dates as if no date were listed."
 )
 
 
@@ -20466,7 +20466,8 @@ def _heavy_given_way(
     """The column drawn as if it listed no date, the list named (G7.3j step 7).
 
     Where the twin drawn with the list misses a group of the weekday or
-    the day-of-month census beside it, the list gives way: the column is
+    the day-of-month census beside it, or the count of different days
+    where the count pass reaches it, the list gives way: the column is
     drawn from the same words with `heavy_dates` empty -- the very twin of
     a column listing nothing -- and one deviation names the list.
 
@@ -23983,9 +23984,13 @@ def _datetime_content(
         column, facts, ordinals, parsed, whole, gap_lows, gap_highs, layout,
         holes, plan.declared_days,
     )
-    # ...and where the list costs a group of a census beside it, the list
-    # gives way (G7.3j step 7): the column is drawn as if it listed none.
-    if layout.listed and not _heavy_census_met(facts, ordinals, layout):
+    # ...and where the list costs a group of a census beside it or the
+    # count of different days, the list gives way (G7.3j step 7): the
+    # column is drawn as if it listed none.
+    if layout.listed and not (
+        _heavy_census_met(facts, ordinals, layout)
+        and (layout.distinct < 0 or len(set(ordinals)) == layout.distinct)
+    ):
         return _heavy_given_way(plan, words)
     # HOW EVERY RANK IS SPELLED (landing 2b.6, the reversal of owner
     # decision 5). Allocated after the instants and the offsets, because
