@@ -10,7 +10,7 @@ the three days either side, counting every parsed cell, tail cells
 included, each with its exact count (contract HD1 to HD5). The twin
 holds every listed date at its count (method G7.3j): the listed rows are
 pinned, every other rank of the body is drawn in a PART between the
-unlisted knots and the covered runs, the split repaired by flows to the
+unlisted knots and the covered runs, the split repaired by a flow to the
 censuses' groups and to the count's new days, and drawn by key, as many
 new days as the count leaves. The validator counts the file's parsed
 cells on each listed date (V5-D1).
@@ -702,7 +702,7 @@ def _scaled_state(rows: int) -> "dict[str, object]":
 
 def test_the_plan_and_the_draw_count_no_more_as_rows_grow(monkeypatch: pytest.MonkeyPatch) -> None:
     """MACHINE-FREE, UP TO 1,000,000 ROWS: on one shape at 10,000, 100,000 and 1,000,000 rows the
-    plan runs as many flows and as many augmenting rounds whatever the rows -- they are bounded
+    plan runs as many flow searches and as many augmenting rounds whatever the rows -- they are bounded
     by the parts and the groups -- and the draw reads one word per ordinary rank, no step
     restarting a search per rank or rebuilding a list per part. Red where the draw reads a word
     per rank per part."""

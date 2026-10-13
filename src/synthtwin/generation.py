@@ -19971,16 +19971,16 @@ def _heavy_rounded(
     marks no cell), and the ranks it could not place: each share's floor,
     then one more rank on the cells with a remainder by a unit-capacity
     flow, then the rest on any cell by an unbounded one."""
-    height = len(values)
+    tall = len(values)
     width = len(columns)
     table = [
         [max(0, values[row][column]) // _WEEKDAY_SCALE for column in range(width)]
-        for row in range(height)
+        for row in range(tall)
     ]
     for limit, wanted in ((1, True), (1 << 62, False)):
-        short = [max(0, rows[row] - sum(table[row])) for row in range(height)]
+        short = [max(0, rows[row] - sum(table[row])) for row in range(tall)]
         want = [
-            max(0, columns[column] - sum(table[row][column] for row in range(height)))
+            max(0, columns[column] - sum(table[row][column] for row in range(tall)))
             for column in range(width)
         ]
         reach = [
@@ -19990,13 +19990,13 @@ def _heavy_rounded(
                 if values[row][column] >= 0
                 and (not wanted or values[row][column] % _WEEKDAY_SCALE > 0)
             ]
-            for row in range(height)
+            for row in range(tall)
         ]
         _flow, placed = _heavy_flow(short, reach, want, limit)
-        for row in range(height):
+        for row in range(tall):
             for column in range(width):
                 table[row][column] = table[row][column] + placed[row][column]
-    unplaced = sum(max(0, rows[row] - sum(table[row])) for row in range(height))
+    unplaced = sum(max(0, rows[row] - sum(table[row])) for row in range(tall))
     return table, unplaced
 
 
@@ -20297,11 +20297,14 @@ def _heavy_cells(
     its free days are. Where that fills more keys holding no knot's day
     than `left` new days, the keys with the least raked weight, as many
     as are over, take none and the rest are raked again, at most
-    `_HEAVY_PRUNES` times while every owed row is placed, and then FEW
-    (`_heavy_few_cells`) puts the ranks on as few keys as one flow per
-    census finds. Where SPREAD cannot open `left` new days -- a key opens
-    no more than its ranks or its free days -- WIDE (`_heavy_wide_cells`)
-    puts as many ranks on days of their own as the flows allow. The first
+    `_HEAVY_PRUNES` times while every owed row is placed. Where SPREAD
+    cannot open `left` new days -- a key opens no more than its ranks or
+    its free days -- or leaves an owed row unplaced (a key whose one free
+    day is the part's shared knot day takes none of its rake), WIDE
+    (`_heavy_wide_cells`) puts as many ranks on days of their own as the
+    flows allow. Last, wherever another was asked or SPREAD left a row
+    unplaced, FEW (`_heavy_few_cells`) puts the ranks on as few keys as
+    one flow per census finds. The first
     split that places every owed row and can open exactly `left` new days
     is taken; failing that, the one placing the most owed rows, then the
     one nearest `left`.
@@ -20331,11 +20334,12 @@ def _heavy_cells(
             over = _heavy_opened(pruned, days_of, knots) - left
             if over <= 0 or short > 0:
                 break
-        few, short = _heavy_few_cells(days_of, supply, demands)
-        tried += [(short, few)]
-    elif _heavy_reach(spread, days_of, knots) < left:
+    if tried[0][0] > 0 or _heavy_reach(spread, days_of, knots) < left:
         wide, short = _heavy_wide_cells(days_of, supply, demands)
         tried += [(short, wide)]
+    if tried[0][0] > 0 or len(tried) > 1:
+        few, short = _heavy_few_cells(days_of, supply, demands)
+        tried += [(short, few)]
     ranked: "list[tuple[int, int, int]]" = []
     for order in range(len(tried)):
         short, shares = tried[order]
@@ -20355,9 +20359,11 @@ def _heavy_whole(
     days_of: "list[dict[tuple[int, ...], tuple[int, ...]]]",
     supply: "list[int]",
 ) -> "list[dict[tuple[int, ...], int]]":
-    """Each part's shares holding every one of its ranks on keys it has: a
-    rank a flow or a rounding left unplaced goes to the part's key with
-    the most free days, the first on a tie."""
+    """Each part's shares holding exactly its ranks on keys it has: a rank a
+    flow or a rounding left unplaced goes to the part's key with the most
+    free days, the first on a tie, and ranks a rounding placed beyond the
+    part's own -- a rake stopped before its margins meet -- leave its
+    keys holding the most, the first on a tie."""
     found: "list[dict[tuple[int, ...], int]]" = []
     for place in range(len(shares)):
         widest: "tuple[int, ...] | None" = None
@@ -20372,7 +20378,12 @@ def _heavy_whole(
         short = supply[place] - sum(kept[key] for key in kept)
         if short > 0 and widest is not None:
             kept[widest] = (kept[widest] if widest in kept else 0) + short
-        found += [kept]
+        while short < 0:
+            most = sorted((-kept[key], key) for key in kept)[0][1]
+            taken = min(kept[most], -short)
+            kept[most] = kept[most] - taken
+            short = short + taken
+        found += [{key: kept[key] for key in kept if kept[key] > 0}]
     return found
 
 
@@ -20386,21 +20397,49 @@ def _heavy_met(
     """Whether the cells already meet every census beside the list (G7.3j).
 
     Every group of the weekday census and of the day-of-month census, as
-    published, holds its count over the body's ranks, and no body rank
+    published, holds its count over the body's ranks, no body rank
     stands on a hole of the run (`_count_holes`) or of the description
-    (`_published_holes`). The count of different days is the count pass's
-    already, so it is not asked again.
+    (`_published_holes`), and the ranks hold as many different days as
+    the column's count asks where it can be reached (`layout.distinct`):
+    a count the count pass left long is the day pass's to repair (G7.3f
+    step 8.5), so the pass is not skipped then.
 
     Guarantees: returns the answer. Linear in the ranks. Determinism: a
     function of the five. Raises nothing. No I/O of any kind.
     """
     if layout.low is None or layout.high is None:
         return False
+    if layout.distinct >= 0 and len(set(ordinals)) != layout.distinct:
+        return False
+    if not _heavy_census_met(facts, ordinals, layout):
+        return False
     body_low = layout.low.rows
     body_high = layout.parsed - 1 - layout.high.rows
     kept_off = set(_count_holes(facts, holes)) | set(
         _published_holes(column, facts, ())
     )
+    for rank in range(body_low, body_high + 1):
+        if ordinals[rank] in kept_off and ordinals[rank] not in layout.listed:
+            return False
+    return True
+
+
+def _heavy_census_met(
+    facts: contract.DatetimeFacts,
+    ordinals: "list[int]",
+    layout: "_DateLayout",
+) -> bool:
+    """Whether every group of the weekday census and of the day-of-month
+    census, as published, holds its count over the body's ranks (G7.3j).
+
+    Guarantees: returns the answer; True where the column publishes
+    neither census. Linear in the ranks. Determinism: a function of the
+    three. Raises nothing. No I/O of any kind.
+    """
+    if layout.low is None or layout.high is None:
+        return False
+    body_low = layout.low.rows
+    body_high = layout.parsed - 1 - layout.high.rows
     for groups, where, bins in _heavy_censuses(
         facts.weekday_census, facts.day_of_month_census
     ):
@@ -20410,10 +20449,50 @@ def _heavy_met(
             found[group] = found[group] + 1
         if found != [count for _first, _last, count in groups]:
             return False
-    for rank in range(body_low, body_high + 1):
-        if ordinals[rank] in kept_off and ordinals[rank] not in layout.listed:
-            return False
     return True
+
+
+_HEAVY_GIVEN_WAY = (
+    "The twin could not hold the dates that stand out at their published "
+    "counts and every count per day of the week and of the month beside "
+    "them, so it holds those counts and draws its dates as if no date "
+    "were listed."
+)
+
+
+def _heavy_given_way(
+    plan: "_ColumnPlan", words: "list[int]"
+) -> "tuple[list[str], list[Deviation]]":
+    """The column drawn as if it listed no date, the list named (G7.3j step 7).
+
+    Where the twin drawn with the list misses a group of the weekday or
+    the day-of-month census beside it, the list gives way: the column is
+    drawn from the same words with `heavy_dates` empty -- the very twin of
+    a column listing nothing -- and one deviation names the list.
+
+    Guarantees: returns the cells and the deviations. Determinism: a
+    function of the two. Raises nothing. No I/O of any kind.
+    """
+    column = plan.column
+    facts = column.facts
+    if not isinstance(facts, contract.DatetimeFacts):
+        raise _wrong_facts(column.name)
+    bare = dataclasses.replace(
+        plan,
+        column=dataclasses.replace(
+            column, facts=dataclasses.replace(facts, heavy_dates=())
+        ),
+    )
+    cells, notes = _datetime_content(bare, words)
+    return cells, notes + [
+        _deviation(
+            column.name,
+            calendar_rules.HEAVY_DATES,
+            "the published counts",
+            "the counts of a twin listing no date",
+            _HEAVY_GIVEN_WAY,
+        )
+    ]
 
 
 def _heavy_holes(facts: contract.DatetimeFacts) -> "frozenset[int]":
@@ -23904,6 +23983,10 @@ def _datetime_content(
         column, facts, ordinals, parsed, whole, gap_lows, gap_highs, layout,
         holes, plan.declared_days,
     )
+    # ...and where the list costs a group of a census beside it, the list
+    # gives way (G7.3j step 7): the column is drawn as if it listed none.
+    if layout.listed and not _heavy_census_met(facts, ordinals, layout):
+        return _heavy_given_way(plan, words)
     # HOW EVERY RANK IS SPELLED (landing 2b.6, the reversal of owner
     # decision 5). Allocated after the instants and the offsets, because
     # which conventions a cell can show depends on the day it writes and
@@ -26478,7 +26561,8 @@ def _heavy_days_opened(
             found += [max(least[index], min(most[index], days))]
         return found
 
-    low, high = 1, max(1, max(rows for rows, _fixed, _free in keys)) * _HEAVY_WEIGHT_SCALE
+    tallest = max((rows for rows, _fixed, _free in keys), default=1)
+    low, high = 1, max(1, tallest) * _HEAVY_WEIGHT_SCALE
     while high - low > 1:
         middle = (low + high) // 2
         if sum(wanted(middle)) <= left:

@@ -4050,8 +4050,8 @@ NF102 and NF103 take one argument, the census line; NF104 none.
 
 <!-- anchor 3b-D4 (P4-D369) -->
 
-**NF105 — what a column of dates says about its dates that stand out**
-(landing 3b.6, plan P4-D369). A PUBLISHED list carries one remark, which
+What a column of dates says about its dates that stand out (landing
+3b.6, plan P4-D369): a PUBLISHED list carries the one remark below, which
 takes the heavy line as its argument; a column listing nothing says
 nothing. Beside a list, NF71 is not said: a weekday group less its
 listed dates' rows can be read off the two, so "never of one date" would

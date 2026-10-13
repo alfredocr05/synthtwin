@@ -301,10 +301,12 @@ def _restored(
 ) -> contract.Profile:
     """The description with the census the menu offers written back into it, loaded.
 
-    Its day-of-month census is taken out (landing 3b.3, plan P4-D368), so
-    each witness stands as it was measured: on the 15th of every month at
-    36 the two censuses together keep the twin's 60 days, and the weekday
-    census alone does not."""
+    Its day-of-month census is taken out (landing 3b.3, plan P4-D368), and
+    so is its list of dates that stand out (landing 3b.6, plan P4-D369),
+    so each witness stands as it was measured: on the 15th of every month
+    at 36 the two censuses together keep the twin's 60 days, and the
+    weekday census alone does not; one date a month, each a date that
+    stands out, is held at its count by the list."""
     block = described.block("visit")
     body = sorted(_day(cell) for cell in cells)[block["low_tail"]["rows"] : len(cells) - block["high_tail"]["rows"]]
     groups, _entry = calendar_rules.menu_groups(calendar_rules.body_bins(body), parsing.census_floor(floor))
@@ -314,6 +316,7 @@ def _restored(
             block,
             weekday_census=[{"first": first, "last": last, "count": count} for first, last, count in groups],
             day_of_month_census=[],
+            heavy_dates=[],
         )
     ]
     return contract.load_profile(str(fixtures.write_profile(tmp_path, f"{name}-restored.json", document)))

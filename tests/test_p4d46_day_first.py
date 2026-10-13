@@ -67,8 +67,15 @@ def _own(remarks: "list[object]") -> "list[object]":
 
     Since plan P4-D365 these columns publish their weekday census, whose
     remarks stand beside the reading's; the pins below are the reading's.
+    Since plan P4-D369 their nine dates of eleven rows each, among empty
+    days, are dates that stand out, whose one remark (NF105) is left out
+    too.
     """
-    census = ("which days of the week this column's values fall on", "these counts are of days of the week")
+    census = (
+        "which days of the week this column's values fall on",
+        "these counts are of days of the week",
+        "these dates each hold at least",
+    )
     return [remark for remark in remarks if not f"{remark}".startswith(census)]
 
 

@@ -9298,7 +9298,7 @@ def heavy_sorted(column, ordinals, parsed, whole, lows, highs, holes):
 # method section G7.3j: each listed date's rows pinned on it, every other
 # body rank an ORDINARY rank of a PART -- the stretches between the
 # unlisted knots and the covered runs -- split by the parts' weighted room
-# and repaired by flows to the censuses' groups and to the count's new
+# and repaired by a flow to the censuses' groups and to the count's new
 # days, then drawn by key with as many new days as the count leaves.
 
 
@@ -9411,10 +9411,9 @@ def heavy_drawn(column, parsed, planned, knots_of, held, words):
     return found
 
 
-def heavy_met(column, ordinals, parsed, holes):
-    """Whether the ranks already meet every census beside the list and keep
-    off every hole -- the run's absent days and the description's -- but
-    the listed dates: G7.3j step 5 leaves such a column as drawn."""
+def heavy_census_met(column, ordinals, parsed):
+    """Whether every group of the weekday census and of the day-of-month
+    census holds its published count over the body's ranks (G7.3j)."""
     first = column["low_tail"]["rows"]
     last = parsed - 1 - column["high_tail"]["rows"]
     for key, bins in (("weekday_census", "weekday"), ("day_of_month_census", "month_day")):
@@ -9427,6 +9426,20 @@ def heavy_met(column, ordinals, parsed, holes):
             found[heavy_group(where, bins, ordinals[rank])] += 1
         if found != [count for _first, _last, count in groups]:
             return False
+    return True
+
+
+def heavy_met(column, ordinals, parsed, holes):
+    """Whether the ranks already meet every census beside the list, hold the
+    count of different days where it is reached, and keep off every hole
+    -- the run's absent days and the description's -- but the listed
+    dates: G7.3j step 5 leaves such a column as drawn."""
+    first = column["low_tail"]["rows"]
+    last = parsed - 1 - column["high_tail"]["rows"]
+    if date_counts_reachable(column) and len(set(ordinals)) != column["n_distinct"] - column["n_unparsed"]:
+        return False
+    if not heavy_census_met(column, ordinals, parsed):
+        return False
     listed = heavy_days(column)
     kept_off = (absent_units(column) | weekday_hole_days(dict(column, _declared_days=()), set(column.get("missing_by_source", {})))) - listed
     return not any(ordinals[rank] in kept_off for rank in range(first, last + 1))
@@ -9921,18 +9934,18 @@ def heavy_few_cells(days_of, supply, demands):
 
 def heavy_rounded(values, rows, columns):
     """A table of shares rounded to whole ranks with its row and column sums: floors, then a unit-capacity flow on the remainders, then an unbounded one."""
-    height = len(values)
+    tall = len(values)
     width = len(columns)
-    table = [[max(0, values[row][column]) // WEEKDAY_SHARE_SCALE for column in range(width)] for row in range(height)]
+    table = [[max(0, values[row][column]) // WEEKDAY_SHARE_SCALE for column in range(width)] for row in range(tall)]
     for limit, wanted in ((1, True), (1 << 62, False)):
-        short = [max(0, rows[row] - sum(table[row])) for row in range(height)]
-        want = [max(0, columns[column] - sum((table[row][column] for row in range(height)))) for column in range(width)]
-        reach = [[column for column in range(width) if values[row][column] >= 0 and (not wanted or values[row][column] % WEEKDAY_SHARE_SCALE > 0)] for row in range(height)]
+        short = [max(0, rows[row] - sum(table[row])) for row in range(tall)]
+        want = [max(0, columns[column] - sum((table[row][column] for row in range(tall)))) for column in range(width)]
+        reach = [[column for column in range(width) if values[row][column] >= 0 and (not wanted or values[row][column] % WEEKDAY_SHARE_SCALE > 0)] for row in range(tall)]
         _flow, placed = heavy_flow(short, reach, want, limit)
-        for row in range(height):
+        for row in range(tall):
             for column in range(width):
                 table[row][column] = table[row][column] + placed[row][column]
-    unplaced = sum((max(0, rows[row] - sum(table[row])) for row in range(height)))
+    unplaced = sum((max(0, rows[row] - sum(table[row])) for row in range(tall)))
     return (table, unplaced)
 
 def heavy_spread_cells(days_of, supply, demands, dropped, lent):
@@ -10127,7 +10140,7 @@ def heavy_opened(shares, days_of, knots):
     return count
 
 def heavy_cells(parts, demands, knots, left):
-    """G7.3j step 3: SPREAD, SPREAD less its lightest keys, then FEW, or WIDE; the first placing every owed row and able to open exactly the new days the count leaves."""
+    """G7.3j step 3: SPREAD, SPREAD less its lightest keys, WIDE, then FEW; the first placing every owed row and able to open exactly the new days the count leaves."""
     days_of = [{key: days for key, days in part.keyed} for part in parts]
     supply = [part.count for part in parts]
     nothing = [frozenset() for _ in parts]
@@ -10146,11 +10159,12 @@ def heavy_cells(parts, demands, knots, left):
             over = heavy_opened(pruned, days_of, knots) - left
             if over <= 0 or short > 0:
                 break
-        few, short = heavy_few_cells(days_of, supply, demands)
-        tried += [(short, few)]
-    elif heavy_reach(spread, days_of, knots) < left:
+    if tried[0][0] > 0 or heavy_reach(spread, days_of, knots) < left:
         wide, short = heavy_wide_cells(days_of, supply, demands)
         tried += [(short, wide)]
+    if tried[0][0] > 0 or len(tried) > 1:
+        few, short = heavy_few_cells(days_of, supply, demands)
+        tried += [(short, few)]
     ranked = []
     for order in range(len(tried)):
         short, shares = tried[order]
@@ -10162,9 +10176,10 @@ def heavy_cells(parts, demands, knots, left):
 
 
 def heavy_whole(shares, days_of, supply):
-    """Each part's shares holding every one of its ranks on keys it has: a
-    rank a flow or a rounding left unplaced goes to the part's key with the
-    most free days, the first on a tie."""
+    """Each part's shares holding exactly its ranks on keys it has: a rank a
+    flow or a rounding left unplaced goes to the part's key with the most
+    free days, the first on a tie, and ranks a rounding placed beyond the
+    part's own leave its keys holding the most, the first on a tie."""
     found = []
     for place in range(len(shares)):
         widest = None
@@ -10175,7 +10190,12 @@ def heavy_whole(shares, days_of, supply):
         short = supply[place] - sum(kept.values())
         if short > 0 and widest is not None:
             kept[widest] = kept.get(widest, 0) + short
-        found.append(kept)
+        while short < 0:
+            most = sorted((-kept[key], key) for key in kept)[0][1]
+            taken = min(kept[most], -short)
+            kept[most] -= taken
+            short += taken
+        found.append({key: kept[key] for key in kept if kept[key] > 0})
     return found
 
 
@@ -10193,7 +10213,7 @@ def heavy_days_opened(keys, left):
             days = -(-rows * HEAVY_WEIGHT_SCALE // density) - fixed
             found += [max(least[index], min(most[index], days))]
         return found
-    low, high = (1, max(1, max((rows for rows, _fixed, _free in keys))) * HEAVY_WEIGHT_SCALE)
+    low, high = (1, max(1, max((rows for rows, _fixed, _free in keys), default=1)) * HEAVY_WEIGHT_SCALE)
     while high - low > 1:
         middle = (low + high) // 2
         if sum(wanted(middle)) <= left:
@@ -10377,6 +10397,10 @@ def _datetime_content(column):
     ordinals = clock_fields_settled(column, ordinals, parsed, whole, gap_lows, gap_highs, holes)
     # -- the dates that stand out, after every other pass (3b.D4, P4-D369)
     ordinals = heavy_sorted(column, ordinals, parsed, whole, gap_lows, gap_highs, holes)
+    # ...and where the list costs a group of a census beside it, the list
+    # gives way (G7.3j step 7): the column drawn as if it listed none.
+    if heavy_planned(column, parsed, body_pins, _sides) is not None and not heavy_census_met(column, ordinals, parsed):
+        return _datetime_content(dict(column, heavy_dates=[]))
     # HOW EVERY RANK IS SPELLED (method G7.5, landing 2b.6). Allocated
     # after the instants and the offsets, because which conventions a
     # cell can show depends on the day it writes and the clock it writes

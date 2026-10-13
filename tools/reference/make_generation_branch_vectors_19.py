@@ -4,8 +4,8 @@ This is the NINETEENTH entry point of one oracle, not a nineteenth
 oracle. It asks `make_generation_reference_vectors.py` for the states
 landing 3b.6 (plan P4-D369) freezes method section G7.3j, the dates that
 stand out, on: steps 1 to 3, every body rank's gap -- a listed rank on
-its own date, an ordinary rank in its part -- with the split repaired by
-flows to the censuses' groups and to the count's new days, and step 4,
+its own date, an ordinary rank in its part -- with the split repaired by a
+flow to the censuses' groups and to the count's new days, and step 4,
 each part's values drawn by key. Seven states -- a covered run, two
 loose dates, a listed boundary day, two listed dates with a hole between
 them, Monday and Thursday sessions over 104 weeks whose split the census
