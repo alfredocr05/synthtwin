@@ -37,7 +37,13 @@ moves a burst of cells written alike whole, so small bursty tables keep
 their count where a whole move can meet the minute census, and say in the
 twin's report that the census stood where none can; a column written finer
 than the second publishes its minutes only where cutting it to the second
-keeps its count.
+keeps its count. Its Codex round withholds minutes that follow the hour
+however often each stamp repeats and however thinly they spread (a
+morning share the twin had doubled now comes back at 572 of 1,800
+against 600), balances each hour's share of the heaps by what it holds,
+keeps a tail's end off a midnight the count leaves no room for (a column
+on the hour now meets its minute 0 at every seed), and keeps two of the
+pass's searches growing with the rows rather than their square.
 
 ### Time of day comes back on moments (2026-10-06)
 
