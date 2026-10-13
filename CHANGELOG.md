@@ -6,6 +6,39 @@ exists).
 
 ## [Unreleased]
 
+### The count pass splits the tails first (2026-10-12)
+
+**Logs just above one row an open day keep their count beside a weekday
+census** (stage 3b lane D4s, plan P4-D369 part one). Where a column's
+different days were too few, the twin's count pass split ranks nearest
+first, so a body rank a day from a free day split before a high tail
+rank whose free day stood further; the body then passed what the weekday
+census lets it reach and the day pass took those days back. P4-D388's
+pinned clinic log came back 154 or 155 values for 156 at seven seeds of
+ten, and the same log at midnight a day or two short with nothing named
+on an ISO member (P4-D367). The pass now splits the two tails' ranks
+first, then the body's (method G7.3, the oracle and the frozen case
+`tails_split_first` with it). Measured at seeds 0 to 9: of the 24
+censuses whose twins missed the count at two seeds or more, 22 meet it
+at every seed, and the two left miss where the pass merges, the twin
+drawing past the rules' expectation; on the near-one logs written ISO at
+midnight the silent short twins fall from 81 of 2,360 to 5, and with
+both marks from 21 of 549 to 2. No description changes, and a twin
+changes only where the pass splits and the order moves a rank. On D0's
+26 date batteries at the four floors (6,512 censuses, 59,485 twins),
+D1b's 296 family logs and 26 cases, D3's day-of-month battery and D2's
+two-mark battery, no twin misses a check its base twin met, and the
+long twins P4-D388 recorded at 36 and 50 beside a census (fewdates, the
+hunt batteries, the Tuesday clinics) are each the twin of a3c1b33, the
+order moving no rank in any. Stated, each
+held by a strict expected failure with its measured cause: seven-day
+logs holding every day stay one to three values short (a rebuilt tail's
+end a day inside the real one, no step moving a tail rank past its
+stratum where the count is short), fifteen Mondays at 36 stay long
+(their tails rebuilt on at least 30 days), and a clinic whose body draws
+past the rules' expectation stays a value or two short at four seeds in
+ten.
+
 ### The dates that stand out (2026-10-12)
 
 **A column of dates lists the dates that stand out, and its twin holds

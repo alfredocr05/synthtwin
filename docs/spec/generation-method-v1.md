@@ -5954,8 +5954,19 @@ that way.
   them over; otherwise nothing moves. Too few: each
   unpinned rank sharing its unit is offered
   the nearest unit no rank holds inside its gap, of the same width kind
-  and midnight standing, earlier first, nearest first, ties to the lower
-  rank.
+  and midnight standing, earlier first -- **THE TWO TAILS' RANKS
+  FIRST**, then the body's, each nearest first, ties to the lower rank
+  (lane D4s, plan P4-D369 part one). A tail's ranks are the first and
+  the last as many ranks as its published rows. Split nearest first
+  alone, a body rank a day from a free day split ahead of a high tail
+  rank whose free day stood further, so the body passed what a weekday
+  census lets it reach while the high tail kept fewer days than its
+  most, and the day pass (G7.3f) took the body's extra days back: a log
+  of 1.15 rows a clinic day over 52 weeks at a floor of 20 came back 154
+  or 155 different days for 156 at seven seeds of ten, where it now
+  keeps all 156 at every seed (`tests/test_stage3b_count_room.py`; the
+  frozen case `tails_split_first` holds the order on 72 dates of a
+  13-week log).
 
 **NO PASS OFFERS A HOLE, AND NONE COUNTS ONE A RANK CANNOT LEAVE** (plan
 P4-D358; the review of landing 3b.0, items 2 and 4). A HOLE is a unit an
@@ -13713,7 +13724,7 @@ that happens -- and the clause beside it, `--missing-value`'s "CAN be
 published as the column's smallest value", is exactly right under the
 new rule.
 
-**All one hundred and fifty-four are required.** The count is taken off the committed
+**All one hundred and fifty-five are required.** The count is taken off the committed
 case sets and not carried forward: this sentence said fifty-two and a
 split of nine, twenty, sixteen and seven while the six files held
 seventy-three, because each repair that added a case added a clause to
@@ -13742,7 +13753,8 @@ holds three; the FOURTEENTH,
 `tests/reference/generation-branch-vectors-12.json`, holds four; and the
 FIFTEENTH, `tests/reference/generation-branch-vectors-13.json`, holds
 thirteen; the SIXTEENTH,
-`tests/reference/generation-branch-vectors-14.json`, holds three; and the
+`tests/reference/generation-branch-vectors-14.json`, holds four (its
+fourth, `tails_split_first`, lane D4s's, plan P4-D369 part one); and the
 TWENTY-SECOND, `tests/reference/generation-branch-vectors-22.json`,
 holds five -- landing T1's written clocks and G7.5 step 5, in the file
 plan P4-D364's table gives that landing (G14.2),
@@ -13888,6 +13900,7 @@ case passed, which is the failure the count exists to prevent:
 | `tail_end_least_reach` | G7.3b step 5's end floor (plan P4-D375): 105 ISO dates over the 21 days from 2024-05-06, one cell on each end day, at seed 416. Each tail holds nineteen rows at one, two and three days out, a mean of 28/19 and a root-mean-square of the square root of 48/19; the shape puts each end two days out, and the Bhatia-Davis reach of the pair, 20/9 rounded up, puts it three out, on the column's own first and last days. Its mutant withdraws the floor: both ends stand two days out and the twin writes neither end day |
 | `tail_end_least_reach_months` | G7.3b step 5's end floor counted in months (plan P4-D375): the same counts over the 21 months from 2019-03, written `yyyy-mm`, at seed 417, the tail unit a month. Its mutant withdraws the floor and both ends stand two months out |
 | `tail_end_least_reach_slack` | G7.3b step 5's slack (plan P4-D375; the repair round of its landing): 79 ISO dates over the 21 days from 2024-05-06, one cell on each end day and none on the two days inside it, at seed 418. Each tail holds ten rows one day out and one four days out, a mean of 14/11 and a root-mean-square of the square root of 26/11, so the reach of the pair is exactly 4 and binary64 takes it, in the step's order, as 4.000000000000001; lowered by `2**-24` of itself plus one before it is rounded up, it puts each end four days out, on the column's own first and last days, where the shape alone puts it three out. Its mutant rounds the reach up with no slack: both ends stand five days out, a day past the column's real range. Before this case no frozen case held the slack up: the two above have a reach of 20/9, which rounds up to three with or without it |
+| `tails_split_first` | G7.3's count pass splitting the two tails' ranks first (lane D4s, plan P4-D369 part one): 72 ISO dates of a log just above one row an open day -- one row and a Poisson draw of 0.1 more on every Monday to Friday of the 13 weeks from 2022-01-03 -- on 65 days, its weekday census Monday to Friday 50 and Saturday and Sunday 0, at seed 422. The body draws fewer days than the count, so the pass splits: the two tails' ranks first, each onto the nearest free day inside its stratum, then the body's, and the twin holds all 65 days, the high tail's eleven ranks on eleven. Its mutant splits nearest first alone, as the pass did before: body ranks split ahead of high tail ranks whose free days stand further, the high tail ends on 9 days and the twin holds 64, both distinct counts MISSED |
 | `tie_group_off_the_hole` | G7.3b step 7 for a tie group (plan P4-D358; the second review of landing 3b.0): 111 ISO dates over 40 days from 2020-02-09, 11 of them written 2020-03-10 and declared absent, at seed 0. The high tail's tie group of five ranks stands five days past its boundary, on 2020-03-10, and steps one day inward off it. Its mutant steps the tail's end and leaves the group there: its five cells are written with the absent spelling, 16 read back absent where the column holds 11 |
 | `weekday_count_put_back` | G7.3f step 8.1 (plan P4-D355): 120 whole dates over four weeks with no weekend, published `[Mon-Fri] 92, [Sat-Sun] 0`, whose day pass leaves the count of different days off what it was before the pass. Single ranks, in rank order and inside their own group, put it back. Its mutant withdraws those moves |
 | `weekday_days_moved` | G7.3f (plan P4-D355): 100 whole dates over seven weeks published `[Mon-Fri] 66, [Sat-Sun] 12`, so body ranks move inside their own gaps until the cells between the two boundaries fall on those groups. Its mutant withdraws the pass, as the twin was written before this decision |

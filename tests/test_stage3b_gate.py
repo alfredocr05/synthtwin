@@ -3165,8 +3165,10 @@ def test_declared_days_beside_a_date_on_every_other_day_withhold_by_the_room_rul
     hole, so the room rule is asked and withholds the census in the one
     shared sentence, and the real table validates with nothing missed.
     With the room rule withdrawn the seven counts publish and the twins
-    of seeds 0, 1 and 4 hold 234 different days for 235, both distinct
-    counts MISSED: 668f276 withheld this census and its twins met every
+    of seeds 8 and 9 hold 234 different days for 235, both distinct
+    counts MISSED -- those of seeds 0, 1, 4, 8 and 9 until the count pass
+    split the two tails' ranks first (plan P4-D369 part one, measured at
+    seeds 0 to 9): 668f276 withheld this census and its twins met every
     check. A twin must pass its own checks, so the census stays withheld
     until the shared count steps can keep both it and the count of
     different days. Red when the room rule is asked beside May's holes
@@ -3200,7 +3202,7 @@ def test_declared_days_beside_a_date_on_every_other_day_withhold_by_the_room_rul
         roomy.setattr(calendar_rules, "room_short", lambda *_arguments: False)
         unruled = _described_with_declared(tmp_path / "unruled", "declared_room", text, declared)
         assert calendar_rules.entry_of(_groups(unruled.block("seen_on"))) == calendar_rules.ENTRY_SEVEN
-        missed = kpi_shapes.missed(kpi_shapes.measure(unruled, kpi_shapes.twin_text(unruled, 0), "unruled-0.csv"))
+        missed = kpi_shapes.missed(kpi_shapes.measure(unruled, kpi_shapes.twin_text(unruled, 8), "unruled-8.csv"))
     assert "seen_on:distinct.n_distinct" in missed, missed
 
 

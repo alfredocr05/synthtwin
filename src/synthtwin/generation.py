@@ -23442,6 +23442,28 @@ def _tail_rank_of(plan: "_TailPlan", parsed: int, index: int) -> int:
     return parsed - 1 - index
 
 
+def _tail_ranks(layout: "_DateLayout | None", parsed: int) -> "frozenset[int]":
+    """Every rank of the column's two tails, the ranks G7.3's count pass splits first.
+
+    The low tail's ranks are the first `layout.low.rows`, the high tail's
+    the last `layout.high.rows` (`_tail_rank_of`); a column laid out with
+    no tails, or none, has none (lane D4s, plan P4-D369 part one).
+
+    Guarantees: a set of ranks inside `range(parsed)`. Linear in the two
+    tails' rows. Determinism: a fixed function of its arguments; draws no
+    word. Raises nothing. No I/O of any kind.
+    """
+    found: "dict[int, bool]" = {}
+    if layout is None:
+        return frozenset()
+    for plan in (layout.low, layout.high):
+        if plan is None:
+            continue
+        for index in range(min(plan.rows, parsed)):
+            found[_tail_rank_of(plan, parsed, index)] = True
+    return frozenset(found)
+
+
 # THE DAY OF THE MONTH (landing 3b.3, plan P4-D368, method G7.3i): the
 # joint day plan in the day pass's own slot. A column publishing no
 # day-of-month census is moved by the weekday pass exactly as before.
@@ -27206,8 +27228,10 @@ def _units_settled(
        (`_count_met_past_the_strata`).
        Too few: a rank sharing its unit moves to the nearest unit no rank
        holds inside its gap, of the same width kind, not onto a midnight
-       it did not stand at and not off one it did, nearest first, ties to
-       the lower rank and then to the earlier unit.
+       it did not stand at and not off one it did -- THE TWO TAILS' RANKS
+       FIRST (lane D4s, plan P4-D369 part one: `_tail_ranks`), then the
+       body's, each nearest first, ties to the lower rank and then to the
+       earlier unit.
 
     NO PASS OFFERS A HOLE (plan P4-D358): a unit an absent spelling of the
     run names (`_count_holes`, from ``holes``) is no merge's, trade's,
@@ -27293,13 +27317,14 @@ def _units_settled(
                 moved, pinned, gone, unit, layout
             )
     off = _counts_off(facts, moved, day, unit, word, distinct, widths)
+    tail_ranks = _tail_ranks(layout, parsed)
     stalled = 0
     for _round in range(_RESTORATION_ROUNDS):
         changed = False
         if distinct >= 0:
             changed = _distinct_reached(
                 facts, moved, pinned, gap_lows, gap_highs, day, step,
-                distinct, widths >= 0, word, gone,
+                distinct, widths >= 0, word, gone, tail_ranks,
             ) or changed
         if widths >= 0:
             changed = _widths_reached(
@@ -27811,10 +27836,23 @@ def _distinct_reached(
     widths: bool,
     word: str = "",
     gone: "frozenset[int]" = frozenset(),
+    tails: "frozenset[int]" = frozenset(),
 ) -> bool:
     """Step 2 of `_units_settled`: move ranks until the distinct count holds.
 
     No unit in ``gone`` is offered to any rank (`_count_holes`).
+
+    WHERE IT SPLITS, THE TAILS' RANKS SPLIT FIRST (lane D4s, plan P4-D369
+    part one): every rank in ``tails`` is offered its nearest free unit
+    before any other rank, then the rest, each nearest first and then the
+    lower rank. Split nearest first alone, a body rank one day from a free
+    day split before a high tail rank whose free day stood further, so the
+    body passed what the day pass's census lets it reach while the high
+    tail kept fewer days than its most, and the day pass then took the
+    body's extra days back: `_every_open_day(1.15, 52, 1002, Monday,
+    Wednesday and Friday)` at the floor of 20 came back 154 or 155 values
+    for 156 at seven seeds of ten (P4-D388's second verification). With
+    ``tails`` empty the order is the one before.
     """
     parsed = len(moved)
     unit = step if day == 86400 else 1
@@ -27981,7 +28019,10 @@ def _distinct_reached(
             count = wanted
             changed = True
         return changed
-    splits: "list[tuple[int, int, int]]" = []
+    # Each split offered: 0 for a tail rank and 1 for a body rank (THE
+    # TAILS FIRST, plan P4-D369 part one), the distance, the rank and the
+    # free unit found.
+    splits: "list[tuple[int, int, int, int]]" = []
     # A GAP WITH NO FREE UNIT STAYS WITHOUT ONE while ranks only split, so
     # it is searched once: a column of moments to the minute over months
     # would otherwise search every shared rank's whole gap again. A split
@@ -28003,16 +28044,16 @@ def _distinct_reached(
             if gap is not None:
                 full[gap] = True
             continue
-        splits += [(abs(found - moved[rank]), rank, found)]
+        splits += [(0 if rank in tails else 1, abs(found - moved[rank]), rank, found)]
     for split in sorted(splits):
         if count == wanted:
             break
-        rank = split[1]
+        rank = split[2]
         own = moved[rank] // unit
         if held[own] < 2:
             continue
-        found_now: "int | None" = split[2]
-        if split[2] // unit in held and held[split[2] // unit] > 0:
+        found_now: "int | None" = split[3]
+        if split[3] // unit in held and held[split[3] // unit] > 0:
             # TAKEN BY AN EARLIER SPLIT: the rank is offered the nearest
             # unit still free when its turn comes.
             found_now = None

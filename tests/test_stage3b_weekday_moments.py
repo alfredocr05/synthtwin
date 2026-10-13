@@ -39,14 +39,13 @@ The gate's clauses, each beside the mutant that turns it red:
   -- lane D1b's business year at midnight, ISO and month first, floors 11 and 20, withheld, its
   twins 260 values on 260 days in the column's own spellings; mutant: the count-reach rule
   withdrawn, 259 values, or 259 days and a `T` the column never wrote;
-* the risk the orchestrator's ruling of 2026-10-08 lets stand, on midnight moments:
-  `test_a_log_just_above_one_row_an_open_day_at_midnight_keeps_its_census_and_comes_back_short`
-  -- lane D1b's pinned near-one log at 20, published, its twins at seven seeds of ten 154 or 155
-  days for 156, both distinct counts MISSED month first and, ISO, the count made up by G7.9's
-  `T` with nothing named; written with both marks, one cell `T`, the count made up in the `T`
-  the column wrote, so no new spelling shows either; mutants: the tails split first, standing
-  in for the split order owed to lane D4 (all three cases), and G7.9 spending no mark on a
-  column counted in days that publishes a census (ISO, and both marks, every twin MISSED);
+* the risk the orchestrator's ruling of 2026-10-08 let stand, on midnight moments, removed by
+  the count pass's split order (lane D4s, plan P4-D369 part one):
+  `test_a_log_just_above_one_row_an_open_day_at_midnight_keeps_its_census_and_every_day`
+  -- lane D1b's pinned near-one log at 20, published, its twins at seeds 0 to 9 holding the 156
+  days ISO, month first and with both marks, nothing missed and no spelling the column never
+  wrote; until lane D4s seven seeds of ten came back 154 or 155 days, MISSED month first and
+  silent ISO; mutant: the split order back to nearest first (all three cases);
 * the count rules read every parsed day: `test_midnight_moments_decide_as_the_same_days_written_as_dates`
   -- seven of lane D1b's shapes, at midnight and as dates, one census and one reason; mutant: the
   rules handed the body's days alone (skeptic 2 of the landing's N3);
@@ -636,28 +635,24 @@ def test_a_census_that_keeps_midnight_moments_from_a_day_their_tail_lost_is_with
 
 
 @pytest.mark.parametrize("spelling", ("iso", "month first", "two marks"))
-def test_a_log_just_above_one_row_an_open_day_at_midnight_keeps_its_census_and_comes_back_short(tmp_path: pathlib.Path, spelling: str) -> None:
-    """The risk the orchestrator's ruling of 2026-10-08 lets stand on a column of dates, reaching
-    midnight moments, pinned as it stands (skeptic 2 of the landing, item 1). Lane D1b's pinned
-    near-one log, `_every_open_day(1.15, 52, 1002, Monday, Wednesday and Friday)` -- 177 rows over
-    156 clinic days -- written at midnight, at the floor of 20: a column every value of which
-    stands at midnight asks the count rules of a column of dates, which read both tails at their
-    most where the count pass splits, and the census -- Monday, Wednesday and Friday 45 each, the
-    other days 0 -- is published. The pass splits nearest first, so the high tail keeps the days it
-    drew, and the twins at seeds 0, 1, 3, 4, 6, 7 and 8 hold 154 or 155 days for 156. Written
-    `MM/DD/YYYY 00:00`, validation names each: both distinct counts MISSED. Written ISO, G7.9
-    makes up the count of texts with one cell written `T` for each day lost, a mark the column
-    never wrote, below the census line, and validation names nothing (P4-D367 states it). At seeds
-    2, 5 and 9 the twins hold the 156 days and meet every check. Written ISO with both marks --
-    the second `2022-04-20` cell written `T`, 157 texts on 156 days (the leftover verification's
-    two marks) -- G7.9 makes up the count in the `T` the census leaves unnamed, one the column
-    did write: the twins at the same seven seeds hold 154 or 155 days and all 157 texts, one cell
-    written `T` for each day beyond the column's one, each on a day also written with a space, so
-    no new spelling shows either and nothing is named; at seeds 2, 5 and 9, 156 days and one `T`.
-    Red when the census is withheld, when an ISO twin's shortfall is named or a month-first one's
-    goes unnamed, or when lane D4's owed split order brings the tails to their most first -- that
-    fix shows here, in all three cases -- and, with both marks, when G7.9 spends no unnamed mark
-    on a column counted in days that publishes a census: every twin then MISSES both counts."""
+def test_a_log_just_above_one_row_an_open_day_at_midnight_keeps_its_census_and_every_day(tmp_path: pathlib.Path, spelling: str) -> None:
+    """The risk the orchestrator's ruling of 2026-10-08 let stand on a column of dates, reaching
+    midnight moments (skeptic 2 of the landing, item 1), removed by the count pass's split order
+    (lane D4s, plan P4-D369 part one). Lane D1b's pinned near-one log,
+    `_every_open_day(1.15, 52, 1002, Monday, Wednesday and Friday)` -- 177 rows over 156 clinic
+    days -- written at midnight, at the floor of 20: a column every value of which stands at
+    midnight asks the count rules of a column of dates, which read both tails at their most where
+    the count pass splits, and the census -- Monday, Wednesday and Friday 45 each, the other days
+    0 -- is published. Until lane D4s the pass split nearest first, so the high tail kept the days
+    it drew and the twins at seeds 0, 1, 3, 4, 6, 7 and 8 held 154 or 155 days for 156: written
+    `MM/DD/YYYY 00:00`, both distinct counts MISSED; written ISO, G7.9 made up the count of texts
+    with one cell written `T` for each day lost and nothing was named (P4-D367). The pass now
+    splits the two tails' ranks first, and at seeds 0 to 9 every twin holds the 156 days and meets
+    every check: ISO and month first with no `T`, and written ISO with both marks -- the second
+    `2022-04-20` cell written `T`, 157 texts on 156 days (the leftover verification's two marks)
+    -- with one `T`, on a day also written with a space, and no spelling the column never wrote.
+    Red when the census is withheld, a twin comes back short of a day, or the split order goes
+    back to nearest first."""
     import test_stage3b_count_room as count_room
 
     cells = count_room._every_open_day(1.15, 52, 1002, frozenset({0, 2, 4}))
@@ -675,23 +670,17 @@ def test_a_log_just_above_one_row_an_open_day_at_midnight_keeps_its_census_and_c
     block = described.block("visit")
     groups = [(group["first"], group["last"], group["count"]) for group in block["weekday_census"]]
     assert groups == [(0, 0, 45), (1, 1, 0), (2, 2, 45), (3, 3, 0), (4, 4, 45), (5, 6, 0)], groups
-    both = ["visit:distinct.n_distinct", "visit:distinct.n_distinct_folded"]
     for seed in (0, 1, 2, 3, 4, 5, 6, 7, 8, 9):
         values, missed = _twin_values(described, seed)
         days = len({_instant(value, str(block["format"])) // DAY for value in values})
         marked = sum("T" in value for value in values)
         if spelling == "two marks":
             spaced = {value[0:10] for value in values if "T" not in value}
-            wanted = (156,) if seed in (2, 5, 9) else (154, 155)
-            assert days in wanted and len(set(values)) == 157 and marked == 157 - days and missed == [], (seed, days, marked, missed)
+            assert (days, len(set(values)), marked, missed) == (156, 157, 1, []), (seed, days, marked, missed)
             assert all(value[0:10] in spaced for value in values if "T" in value), seed
-            assert {re.sub("[0-9]", "9", value) for value in values} <= shapes, seed
-        elif seed in (2, 5, 9):
-            assert (days, marked, missed) == (156, 0, []), (seed, days, marked, missed)
-        elif spelling == "iso":
-            assert days in (154, 155) and len(set(values)) == 156 and marked == 156 - days and missed == [], (seed, days, marked, missed)
         else:
-            assert days in (154, 155) and len(set(values)) == days and marked == 0 and missed == both, (seed, days, missed)
+            assert (days, len(set(values)), marked, missed) == (156, 156, 0, []), (seed, days, marked, missed)
+        assert {re.sub("[0-9]", "9", value) for value in values} <= shapes, seed
 
 
 def _count_room_shape(builder: str, *arguments: object) -> "list[str]":
