@@ -2004,17 +2004,19 @@ def tails_kept(
     column's lowest, so it is merged first, at most down to its fewest
     days (`_side_counted`), and the high tail's are the highest, so it
     keeps the days it drew -- each with the measured exceptions below.
-    Where they fall short it SPLITS ranks onto free days, nearest first,
-    then the LOWER rank: a body rank one day from a free day splits before
-    any high tail rank whose free day is further, so the high tail keeps
-    the days it drew unless the body's nearer splits run out first; and
-    the low tail comes first at each distance, but it splits a rank only
-    onto a free day inside that rank's own stratum, and only while the
-    count wants more: on Monday-to-Friday logs it ended
-    below its most (`tails_most_rebuilt`) at two seeds or more on 10 of
-    272 censuses of logs just above one row an open day and 64 of 125 of
-    fresh logs where the pass split, none of them costing the count (plan
-    P4-D388). So, merging, the
+    Where they fall short it SPLITS ranks onto free days, THE TWO TAILS'
+    RANKS FIRST, then the body's, each nearest first and then the LOWER
+    rank (since lane D4s, plan P4-D369 part one); a tail splits a rank
+    only onto a free day inside that rank's own stratum, and only while
+    the count wants more, so no body rank splits while a tail rank still
+    can. Until lane D4s it split nearest first alone: a body rank one day
+    from a free day split before any high tail rank whose free day was
+    further, so the high tail kept the days it drew unless the body's
+    nearer splits ran out first, and the low tail, first at each
+    distance, ended below its most (`tails_most_rebuilt`) at two seeds or
+    more on 10 of 272 censuses of logs just above one row an open day and
+    64 of 125 of fresh logs where the pass split, none of them costing the
+    count (plan P4-D388). So, merging, the
     FEWEST is the low tail's fewest and the least count
     the high tail draws with a chance above `KEPT_MISS` of drawing no
     more; and the MOST counts no merge at all -- the least count the two
@@ -2031,15 +2033,16 @@ def tails_kept(
     moves tail ranks out of their strata to meet it; and the high tail gave
     up days where the pass took more than a quarter of the body's drawn
     days, which the fewest does not count. Splitting, both are read at the
-    two tails' most, which the high tail reaches only where the body's
-    nearer splits run out first: one row a business day spends its body's
-    spare ranks first and its tails reach their most, but on logs just
-    above one row an open day the high tail keeps the days it drew at more
-    than a tenth of seeds, and a census the reach rule publishes can come
-    back short at up to seven seeds in ten (plan P4-D388: 21 of 313 such
-    censuses, one to four values short, each miss named by validation) --
-    a risk the orchestrator's ruling of 2026-10-08 lets stand, P4-D388
-    naming the fix it waits on.
+    two tails' most, and the body passes its draw only once the tails hold
+    every day their strata give: on the 90 logs just above one row an
+    open day of P4-D388's second verification, the censuses whose twins
+    miss the count at two seeds or more fell from 21 of 310 published to
+    1, and their twins short of the count from 97 to 7, each of the 7
+    where the pass merges (plan P4-D369 part one, seeds 0 to 9); until
+    lane D4s, the high tail kept the days it drew at more than a tenth of
+    seeds there and a census the reach rule published could come back
+    short at up to seven seeds in ten, the risk the orchestrator's ruling
+    of 2026-10-08 let stand.
 
     Guarantees: accepts what `tails_fewest` accepts, the pins and the
     holes; returns the fewest and the most, the fewest never above the
@@ -2104,17 +2107,18 @@ def count_reach_short(
     (`body_draw`, beside the holes). Where the draw and the tails' most
     fall short of the count, the pass only SPLITS, moving ranks that share
     a day onto days no rank holds -- a tail's ranks onto free days of
-    their own spans -- nearest first, then the lower rank, and the rule
-    reads the tails at their most, which the high tail reaches where the
-    body's nearer splits run out first -- one row a business day over
-    four and a half years draws about 830 of its 1,180 days and comes back
-    holding every one -- and the low tail, the column's lowest ranks,
-    comes first at each distance, but it splits a rank only onto a free
-    day inside that rank's own stratum, and only while the count wants
-    more: on Monday-to-Friday logs it ended below its most at two
-    seeds or more on 10 of 272 censuses of logs just above one row an open
-    day and 64 of 125 of fresh logs where the pass split, none of them
-    costing the count (plan P4-D388).
+    their own spans -- the two tails' ranks first, then the body's, each
+    nearest first and then the lower rank (since lane D4s, plan P4-D369
+    part one), and the rule reads the tails at their most: a tail splits
+    a rank only onto a free day inside that rank's own stratum, and only
+    while the count wants more, so no body rank splits while a tail rank
+    still can -- one row a
+    business day over four and a half years draws about 830 of its 1,180
+    days and comes back holding every one. Until lane D4s it split
+    nearest first alone, and the low tail, first at each distance, ended
+    below its most at two seeds or more on 10 of 272 censuses of logs
+    just above one row an open day and 64 of 125 of fresh logs where the
+    pass split, none of them costing the count (plan P4-D388).
     Otherwise it MERGES, and merging only takes days away: the body keeps
     no more than its draw, and the tails no fewer than `fewest`. So the
     body's NEED is what the tails at their most leave it, and, where its
@@ -2135,13 +2139,17 @@ def count_reach_short(
     censuses their twins meet; and the tails are read at the share of
     seeds the ruling allows, and the draw at its expectation, so a twin of
     a census it publishes can still come back a value short at that share
-    of seeds -- and at more where the pass splits and the body's nearer
-    splits do not run out before the high tail's: on logs just above one
-    row an open day the high tail keeps the days it drew, the body needs
-    more than the tails' most leave it, and 21 of 313 such censuses
-    published came back one to four values short at two to seven seeds of
-    ten, a risk the orchestrator's ruling of 2026-10-08 lets stand. Each
-    miss is one the twin's report and validation name.
+    of seeds, and at more where its body draws past that expectation and
+    the pass merges where the rule read a split: a Tuesday-to-Thursday
+    clinic of 1.15 rows a clinic day over 45 weeks at the floor of 11
+    draws 137 to 139 days for its 135 at seeds 2, 4, 6 and 8 and comes
+    back one or two values short there (plan P4-D369 part one). Until lane
+    D4s split the two tails' ranks first, 21 of the 310 censuses published
+    on the 90 logs just above one row an open day came back one to four
+    values short at two to seven seeds of ten, the high tail keeping the
+    days it drew, a risk the orchestrator's ruling of 2026-10-08 let
+    stand; 1 does now, where the pass merges.
+    Each miss is one the twin's report and validation name.
     No day of the body's span is walked: the days of each weekday in a
     gap are counted, and the holes inside it set aside one by one.
 

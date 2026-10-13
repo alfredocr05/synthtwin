@@ -42,23 +42,27 @@ law worked out exactly from method G7.3b (`tail_days_law`, held to the
 generator's own words here); so the reach rule reads the fewest the
 tails keep -- the low tail at its fewest beside the days the high tail
 draws -- and the room rule the most, the days the two tails draw with no
-merge counted. Where the pass splits, both read the two tails' most,
-which the high tail reaches only where the body's nearer splits run out
-first; the low tail comes first at each distance, but it splits a rank
-only onto a free day inside that rank's own stratum, and only while the
-count wants more: on Monday-to-Friday logs it ended below
-its most at two seeds or more on 10 of 272 censuses of logs just above
-one row an open day and 64 of 125 of fresh logs where the pass split,
-none of them costing the count. The price left and
+merge counted. Where the pass splits, both read the two tails' most:
+since lane D4s (plan P4-D369 part one) the pass splits the two tails'
+ranks first, and a tail splits a rank only onto a free day inside that
+rank's own stratum, and only while the count wants more, so no body rank
+splits while a tail rank still can. Until then it split nearest first alone, and the low
+tail, first at each distance, ended below its most at two seeds or more
+on 10 of 272 censuses of logs just above one row an open day and 64 of
+125 of fresh logs where the pass split, none of them costing the count.
+The price left and
 the risks accepted are all measured and stated: a census its twins meet
 is still withheld where the low tail keeps more days than its fewest and
 the margin is narrow, or where a merge the room rule does not count takes
 days from the tails; a census published can miss at one seed in ten, and
-on logs just above one row an open day, whose count pass splits the
-body's nearer ranks before the high tail's, at up to seven seeds in ten
-(the orchestrator's ruling of 2026-10-08 lets that risk stand), each miss
-reported; and seven-day logs holding every day come back short with or
-without their census, a limit named for lane D4.
+at more where its twin draws past the rules' expectation and the pass
+merges where they read a split; on logs just above one row an open day,
+whose count pass split the body's nearer ranks before the high tail's
+until lane D4s, 21 censuses missed at up to seven seeds in ten (the
+orchestrator's ruling of 2026-10-08 let that risk stand) and 1 does now,
+where the pass merges, each miss reported; and seven-day logs holding
+every day come back short with or without their census, their rebuilt
+tails ending inside the real ones (P4-D369 part one).
 
 Each test names the mutation that turns it red.
 """
@@ -1777,12 +1781,16 @@ def test_a_log_just_above_one_row_an_open_day_keeps_its_census_and_its_twins_mee
 
 
 def test_seven_day_logs_holding_every_day_come_back_short_with_or_without_their_census(tmp_path: pathlib.Path) -> None:
-    """A stated limit, already present before landing 3b.D1b and named for the heavy-dates lane D4 (plan P4-D369).
+    """A stated limit, already present before landing 3b.D1b, its cause measured by lane D4s (plan P4-D369 part one).
 
     `_every_open_day(2.0, 52, 91, every day)`, 779 rows over all 364 days
     of 52 weeks: the twin rebuilds its tails on fewer days than the real
-    ones hold, and the body already holds every day between its boundaries,
-    so no day is free to make them up. Its census, each weekday its own
+    ones hold -- at 11 the low tail's end (G7.3b step 5) stands five days
+    out where its real outermost row stands six -- and the body already
+    holds every day between its boundaries, so no day is free to make them
+    up; the split order of lane D4s does not reach it, and
+    `tests/test_stage3b_split_order.py` holds the fix owed as a strict
+    expected failure. Its census, each weekday its own
     group, is published at the floors of 11, 20 and 36, and its twins at
     seeds 0 to 9 hold 363 different values for 364 at 11, 362 at 20 and 361
     at 36 -- with the census and with it emptied alike, both distinct counts
@@ -2031,7 +2039,10 @@ def test_k_s3_59_claims_what_was_measured_and_states_the_limit_beside_it() -> No
     stratum, and only while the count wants more, with the figures;
     P4-D388 tells the two merges from the 22 the split order costs and
     gives the cuts' totals, and the evidence and the changelog count
-    the 22. Red when the name claims every published census again, the
+    the 22. Since lane D4s built that fix (P4-D369 part one), its part of
+    the plan, the contract and the entry's evidence say the pass splits
+    the two tails' ranks first and that 22 of the 24 now meet the count
+    at every seed. Red when the name claims every published census again, the
     limit goes unnamed, the ruling or the price's columns go unnamed, the
     price is put back on rows a business day, the near-one risk or the fix
     owed goes unnamed, the old claim that the split brings both tails to
@@ -2102,3 +2113,8 @@ def test_k_s3_59_claims_what_was_measured_and_states_the_limit_beside_it() -> No
     assert "76, 72 and 12 in all" in flat and "67, 66 and 12 more --" not in flat
     assert "2 of them where the count pass splits" in evidence and "There the pass splits" not in evidence
     assert "22 of them where the pass splits" in " ".join(section.split())
+    begin = plan.index("## Decision P4-D369")
+    part = " ".join(plan[begin : plan.index("\n## ", begin)].split())
+    assert "PART ONE (lane D4s)" in part and "the two tails' ranks first" in part
+    assert "22 meet it at every seed" in part and "22 meet it at every seed" in evidence
+    assert "the two tails' ranks first" in " ".join(contract_text.split())

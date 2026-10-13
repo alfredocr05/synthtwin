@@ -5954,8 +5954,17 @@ that way.
   them over; otherwise nothing moves. Too few: each
   unpinned rank sharing its unit is offered
   the nearest unit no rank holds inside its gap, of the same width kind
-  and midnight standing, earlier first, nearest first, ties to the lower
-  rank.
+  and midnight standing, earlier first -- **THE TWO TAILS' RANKS
+  FIRST**, then the body's, each nearest first, ties to the lower rank
+  (lane D4s, plan P4-D369 part one). A tail's ranks are the first and
+  the last as many ranks as its published rows. Split nearest first
+  alone, a body rank a day from a free day split ahead of a high tail
+  rank whose free day stood further, so the body passed what a weekday
+  census lets it reach while the high tail kept fewer days than its
+  most, and the day pass (G7.3f) took the body's extra days back: a log
+  of 1.15 rows a clinic day over 52 weeks at a floor of 20 came back 154
+  or 155 different days for 156 at seven seeds of ten, where it now
+  keeps all 156 at every seed (frozen case `tails_split_first`).
 
 **NO PASS OFFERS A HOLE, AND NONE COUNTS ONE A RANK CANNOT LEAVE** (plan
 P4-D358; the review of landing 3b.0, items 2 and 4). A HOLE is a unit an

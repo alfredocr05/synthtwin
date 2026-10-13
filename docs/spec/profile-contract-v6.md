@@ -6623,11 +6623,15 @@ they withhold only where, read off the description, a twin would miss
 with a chance above one in ten -- and since how far the count pass
 merges is not read, some they withhold are met, a price P4-D388
 measures -- and a census they publish may still be missed at that share
-of seeds, and at more where the count pass splits on logs just above one
-row an open day: there its twins came back one to four values short at
-two to seven seeds in ten, a risk the orchestrator's ruling of 2026-10-08
-lets stand beside the first (P4-D388). Each miss is one the twin's report
-and validation name. A census is
+of seeds, and at more where a twin draws past the expectation the rules
+read and the count pass merges where they read a split: a
+Tuesday-to-Thursday clinic at the floor of 11 at four seeds in ten (P4-D369
+part one). Until lane D4s split the two tails' ranks first, twins of 21
+censuses on logs just above one row an open day came back one to four
+values short at two to seven seeds in ten where the count pass split, a
+risk the orchestrator's ruling of 2026-10-08 let stand beside the first
+(P4-D388); 1 of them does now, where the pass merges. Each miss is one
+the twin's report and validation name. A census is
 withheld where a non-empty group holds fewer than
 three different dates of the body, or where two or more groups are
 non-empty and they hold fewer than seven and a half different dates
@@ -6660,13 +6664,15 @@ to its fewest -- below it only where the count leaves the body a few days
 or none beside the two tails' fewest -- while the high tail keeps the
 days it drew, except where the pass takes more than a quarter of the
 body's drawn days and it gives some up too. Where they fall short it
-SPLITS ranks onto free days, nearest first, then the lower rank: a body
-rank one day from a free day splits before any high tail rank whose free
-day is further, so the high tail keeps the days it drew unless the
-body's nearer splits run out first; and the low tail comes first at each
-distance, but it splits a rank only onto a free day inside that rank's
-own stratum, and only while the count wants more: on Monday-to-Friday
-logs it ended below its most at two seeds or more on 10 of 272
+SPLITS ranks onto free days, the two tails' ranks first, then the
+body's, each nearest first, then the lower rank (since lane D4s, plan
+P4-D369 part one): a tail splits a rank only onto a free day inside that
+rank's own stratum, and only while the count wants more, so no body rank
+splits while a tail rank still can. Until lane D4s it split nearest first
+alone: a body rank one day from a free day split before any high tail
+rank whose free day was further, so the high tail kept the days it drew
+unless the body's nearer splits ran out first, and the low tail, first
+at each distance, ended below its most at two seeds or more on 10 of 272
 censuses of logs just above one row an open day and 64 of 125 of the
 fresh logs P4-D388 measures where the pass split, none of them costing
 the count. Where the pass merges, each count rule
@@ -6697,9 +6703,10 @@ land, in expectation, on n(1 - (1 - 1/n)^r) of a gap's n days that are
 no hole, r its ranks -- with the pin days, the body's DRAW. Where the
 draw and the tails' most fall short of the count the pass only splits,
 and the rule reads the body's NEED as what the tails at their most leave
-it, which holds where the body's nearer splits run out before the high
-tail's; where they do not, the high tail keeps the days it drew and the
-body needs more than that, the risk above; otherwise it merges, which only
+it: the body splits only once the tails can split no further (until lane
+D4s, where the body's nearer splits did not run out before the high
+tail's, the high tail kept the days it drew and the body needed more
+than that, the risk above); otherwise it merges, which only
 takes days away, so the body keeps no more than its draw and the tails
 no fewer than the fewest they keep, and the need is the draw, no more
 than what the tails' fewest kept leave and no less than what their most
@@ -6796,10 +6803,14 @@ a business year written `MM/DD/YYYY 00:00`, every weekday once and 740
 rows more, published its census at the floors of 11 and 20 and its
 twins came back 259 different values for 260, its rebuilt high tail on
 one day fewer than the real one and no free weekday left in its body.
-Such a column carries the near-one risk of a column of dates, which
-P4-D388 lets stand: on a log just above one row an open day, where the
-count pass splits, a published census can leave twins a day or two
-short at some seeds. Validation names that miss on a member writing
+Such a column carried the near-one risk of a column of dates, which
+P4-D388 let stand: on a log just above one row an open day, where the
+count pass split a body rank before the high tail's, a published census
+could leave twins a day or two short at some seeds -- 81 of 2,360 twins
+of the 90 near-one logs written ISO at midnight. Since lane D4s splits
+the two tails' ranks first (P4-D369 part one) 5 are, each where the
+count pass merges, the draw past the rules' expectation. Validation names
+that miss on a member writing
 the month first or a 12-hour clock, both distinct counts MISSED; on an
 ISO member, writing a space or a `T`, G7.9 makes up the count of texts
 with a cell in a mark the census leaves unnamed (one the column never
