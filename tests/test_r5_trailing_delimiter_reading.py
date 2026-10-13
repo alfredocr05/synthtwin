@@ -154,6 +154,13 @@ def test_detection_lines_up_only_the_two_shapes_the_survey_reads() -> None:
     # A header one field wider whose last field holds a name does not
     # line up either.
     assert dialect._best_reading("a;b;c;d\n1;2;3\n4;5;6\n", ";", 0) is None
+    # EXACTLY ONE FIELD, EITHER WAY (lane R5's repair, skeptic item 2).
+    # A header two fields narrower than rows that end empty, and a
+    # header two fields wider whose last field is empty, line up with
+    # nothing. Red on the mutants that accept one OR TWO either way.
+    assert dialect._best_reading("a;b\n1;2;3;\n4;5;6;\n", ";", 0) is None
+    assert dialect.delimiter_reading("a;b\n1;2;3;\n4;5;6;\n", 0) == (",", ())
+    assert dialect._best_reading("a;b;c;;\n1;2;3\n4;5;6\n", ";", 0) is None
 
 
 def test_tables_read_right_before_are_read_as_before() -> None:
@@ -217,3 +224,97 @@ def test_a_whole_number_of_5001_figures_reads_without_a_crash(tmp_path: pathlib.
         real = folder / "real.csv"
         real.write_bytes(("\n".join(lines) + "\n").encode())
         assert _exit_of(["profile", str(real), "--out-dir", str(folder), "--replace"]) == 0
+
+
+def _said(argv: "list[str]") -> "tuple[int, str]":
+    """Run one synthtwin command in this process and return its exit code and what it printed."""
+    from synthtwin import cli
+
+    before = sys.argv
+    sys.argv = ["synthtwin"] + argv
+    sink = io.StringIO()
+    code = 0
+    try:
+        with contextlib.redirect_stdout(sink), contextlib.redirect_stderr(sink):
+            code = cli.main()
+    except SystemExit as stop:
+        code = 0 if stop.code is None else int(stop.code)
+    finally:
+        sys.argv = before
+    return (code, " ".join(sink.getvalue().split()))
+
+
+def _uneven(header_ends: bool, row_end: "dict[int, str]", default: "str | None", rows: int) -> bytes:
+    """A semicolon table whose rows end as ``row_end`` says (index -> ending, None for none)."""
+    lines = [";".join(NAMES) + (";" if header_ends else "")]
+    for index in range(rows):
+        cells = [
+            f"P{index + 1:04d}",
+            f"{18 + (index * 13) % 70}",
+            ("F", "M")[index % 2],
+            f"{50 + (index * 7) % 40},{index % 10}",
+        ]
+        ending = row_end[index] if index in row_end else default
+        lines += [";".join(cells) + ("" if ending is None else ";" + ending)]
+    return ("\n".join(lines) + "\n").encode("utf-8")
+
+
+@pytest.mark.parametrize(
+    ("label", "data", "reason"),
+    [
+        (
+            "one row in ten does not end in the semicolon",
+            _uneven(False, {index: None for index in range(3, 120, 10)}, "", 120),
+            "row 4 does not end in a semicolon, row 14 does not end in a "
+            "semicolon, row 24 does not end in a semicolon (12 rows in total)",
+        ),
+        (
+            "row 501, past the sample, does not end in the semicolon",
+            _uneven(False, {500: None}, "", 600),
+            "row 501 does not end in a semicolon.",
+        ),
+        (
+            "row 501, past the sample, holds a value after its last semicolon",
+            _uneven(False, {500: "x"}, "", 600),
+            "row 501 has a value after the semicolon that ends the other rows.",
+        ),
+        (
+            "the header ends in the semicolon and row 51 does too",
+            _uneven(True, {50: ""}, None, 120),
+            "row 51 ends in a semicolon.",
+        ),
+    ],
+    ids=["one-in-ten-unclosed", "row-501-unclosed", "row-501-value-after", "header-closed-row-51-closed"],
+)
+def test_a_row_that_does_not_close_like_the_others_is_refused_for_that_reason(
+    tmp_path: pathlib.Path, label: str, data: bytes, reason: str,
+) -> None:
+    """THE REFUSAL STATES ITS TRUE REASON (lane R5's repair, skeptic item 1).
+
+    These semicolon tables were described as ONE column before the
+    lining-up rule (exit 0, measured by skeptic 1's probes); read now
+    under the semicolon, a row that does not close the way the others
+    do cannot be read, and the file is refused. The ragged-rows sentence
+    said "The first row names 4 columns, but row 51 has 4" and blamed a
+    value needing quotation marks; red on that message, this one names
+    the row and the trailing semicolon it lacks or carries."""
+    real = tmp_path / "real.csv"
+    real.write_bytes(data)
+    code, said = _said(["profile", str(real), "--out-dir", str(tmp_path), "--replace"])
+    assert code == 1, (label, code, said)
+    assert reason in said, (label, said)
+    assert "Make every row end the same way" in said, (label, said)
+    assert "quotation marks" not in said, (label, said)
+    assert "names 4 columns" not in said, (label, said)
+
+
+def test_a_ragged_row_among_trailing_rows_keeps_the_ragged_reason(tmp_path: pathlib.Path) -> None:
+    """Only a file whose EVERY offender differs by the trailing delimiter
+    alone gets the new sentence: one row of six fields among rows that
+    end in `;` is still ragged, and says so as before."""
+    data = _uneven(False, {50: "x;y"}, "", 120)
+    real = tmp_path / "real.csv"
+    real.write_bytes(data)
+    code, said = _said(["profile", str(real), "--out-dir", str(tmp_path), "--replace"])
+    assert code == 1, said
+    assert "The first row names 4 columns, but row 51 has 6" in said, said

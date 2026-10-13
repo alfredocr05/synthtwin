@@ -5112,6 +5112,13 @@ def survey(
     n_rows = 0
     offenders: list[tuple[int, int]] = []
     ragged = 0
+    # ROWS THAT DIFFER ONLY BY THE TRAILING DELIMITER (plan P4-D387,
+    # lane R5's repair): counted apart so that a file whose only fault
+    # is a row that does not close the way the others do is refused for
+    # that reason, by `errors.trailing_delimiter_uneven`, and not by the
+    # ragged-rows sentence about quotation marks.
+    uneven = 0
+    uneven_rows: list[tuple[int, int]] = []
     short = 0
     short_inconsistent = False
     full_ending_empty = 0
@@ -5186,12 +5193,33 @@ def survey(
             else:
                 if header_trailing:
                     trailing_broken = True
+                if count == width:
+                    uneven = uneven + 1
+                    if len(uneven_rows) < 3:
+                        uneven_rows += [
+                            (n_rows + 1, errors.ROW_LACKS_THE_TRAILING_DELIMITER)
+                        ]
+                elif count == width + 1:
+                    uneven = uneven + 1
+                    if len(uneven_rows) < 3:
+                        uneven_rows += [
+                            (
+                                n_rows + 1,
+                                errors.ROW_HAS_A_VALUE_AFTER_THE_LAST_DELIMITER,
+                            )
+                        ]
                 ragged = ragged + 1
                 if len(offenders) < 3:
                     offenders += [(n_rows + 1, len(fields))]
                 n_rows = n_rows + 1
                 continue
         if count > width:
+            if header_trailing and count == width + 1 and fields[count - 1] == "":
+                uneven = uneven + 1
+                if len(uneven_rows) < 3:
+                    uneven_rows += [
+                        (n_rows + 1, errors.ROW_CARRIES_A_TRAILING_DELIMITER)
+                    ]
             ragged = ragged + 1
             if len(offenders) < 3:
                 offenders += [(n_rows + 1, count)]
@@ -5246,6 +5274,15 @@ def survey(
         else:
             short_rows = True
             offenders = []
+    # Every offender differs only by the trailing delimiter, and no retry
+    # without the trailing guess is owed: the true reason is named
+    # (plan P4-D387, lane R5's repair).
+    if ragged and uneven == ragged and not (trailing_broken and trailing_guess):
+        raise errors.ProfileError(
+            errors.trailing_delimiter_uneven(
+                shown, uneven_rows, uneven, DELIMITER_WORDS[delimiter]
+            )
+        )
     if ragged:
         if trailing_broken and trailing_guess:
             return survey(

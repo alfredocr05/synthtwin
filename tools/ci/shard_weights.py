@@ -293,6 +293,7 @@ SECONDS = {
     "tests/test_profile_version_4.py": 1.16,
     "tests/test_profile_version_5.py": 1.54,
     "tests/test_provenance.py": 37.25,
+    "tests/test_r5_trailing_delimiter_reading.py": 5.09,
     "tests/test_r6_taxonomy_contract.py": 59.23,
     "tests/test_r6f5_write_transaction.py": 0.01,
     "tests/test_reading.py": 6.71,
