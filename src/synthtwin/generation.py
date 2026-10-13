@@ -23898,14 +23898,14 @@ def _weekday_singles_moved(
             if offer is not None and offer[0] and units_whole and _weekday_there(state, state.moved[rank]) > 1:
                 if _weekday_unit_judged(state, judged, whole, rank, offer[1], have, want, None):
                     _weekday_unit_moved(state, whole, rank, offer[1], have)
-                    judged.clear()
+                    judged = {}
                     changed = True
                 elif allow and changing and _weekday_unit_judged(
                     state, judged, whole, rank, offer[1], have, want, overshot
                 ):
                     overshot[offer[1] // state.step] = True
                     _weekday_unit_moved(state, whole, rank, offer[1], have)
-                    judged.clear()
+                    judged = {}
                     changed = True
                 continue
             if offer is None or (offer[0] and not allow):
@@ -23913,7 +23913,7 @@ def _weekday_singles_moved(
             if offer[0] and not splits and _weekday_there(state, state.moved[rank]) > 1:
                 continue
             target = offer[1]
-            judged.clear()
+            judged = {}
             _weekday_step(state, rank, target)
             have[source] = have[source] - 1
             have[_weekday_group(state, target)] = (
