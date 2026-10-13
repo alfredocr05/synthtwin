@@ -1981,6 +1981,125 @@
       "why": "The whole pass beside a weekday census (lane J): the escape paid back's state, both censuses met where the pass with the round withdrawn left 05:23 in hour 5.",
       "written_unit": 60
     },
+    "hour_paid_unit_standing": {
+      "answer": [
+        1709294400,
+        1709468580,
+        1709468580,
+        1709469000,
+        1709553600,
+        1710075540,
+        1710159000,
+        1710591000,
+        1710676800
+      ],
+      "before": [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "body": [
+        0,
+        8
+      ],
+      "counts": [
+        0,
+        9,
+        0
+      ],
+      "half_day": false,
+      "highs": [
+        1709294400,
+        1709553600,
+        1709553600,
+        1709553600,
+        1709553600,
+        1710075540,
+        1710676800,
+        1710676800,
+        1710676800
+      ],
+      "holes": [],
+      "lows": [
+        1709294400,
+        1709294400,
+        1709294400,
+        1709294400,
+        1709553600,
+        1710075540,
+        1710075540,
+        1710075540,
+        1710676800
+      ],
+      "ordinals": [
+        1709294400,
+        1709382000,
+        1709469000,
+        1709529780,
+        1709553600,
+        1710075540,
+        1710652200,
+        1710652200,
+        1710676800
+      ],
+      "pinned": [
+        true,
+        false,
+        false,
+        false,
+        true,
+        true,
+        false,
+        false,
+        true
+      ],
+      "reachable": true,
+      "standing": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6
+      ],
+      "step": "pass",
+      "wanted": 8,
+      "where": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2
+      ],
+      "why": "A UNIT ASKED AS IT STANDS (the whole pass, Codex's review of lane J, item 1): hour 12 alone counted beside seven single weekdays, eight different values. The Monday rank at 05:23 takes Sunday's 12:23, paid by the first of a Sunday pair at 05:10, which goes to the Monday between at its own 05:10. The pair, listed before, is asked as it stands: the Sunday rank left on its minute takes the Saturday's 12:10, paid by the Saturday rank at 12:20, which goes to Sunday's 12:20 and is merged onto 12:23; the Monday rank, asked in the next round, takes the Monday's 12:10. Asked as listed, the pair moved whole onto the Monday and Monday's 2 and Sunday's 5 came back 3 and 4.",
+      "written_unit": 60
+    },
     "hour_proportional": {
       "answer": [
         1709496000,

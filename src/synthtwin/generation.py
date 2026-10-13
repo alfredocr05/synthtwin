@@ -26912,7 +26912,10 @@ def _clock_left_their_groups(
     that group room, which a unit asked earlier may take in the next.
     `paid` says a weekday census stands and RELIEF has had its turn: a
     unit with neither place takes one on a day of another standing, paid
-    back (`_clock_paid_escape`; lane J, plan P4-D367).
+    back (`_clock_paid_escape`; lane J, plan P4-D367). A payer moves a
+    rank by whole days, perhaps a rank of a unit listed and not yet
+    asked, so each unit is asked as it stands at its turn
+    (`_clock_unit_standing`).
     """
     span = state.unit * state.period
     refused: "set[tuple[int, int]]" = set()
@@ -26923,16 +26926,21 @@ def _clock_left_their_groups(
             if have[group] <= counts[group]:
                 continue
             units = _clock_units(state, group, body_low, body_high, pinned)
+            listed = {unit[0]: state.moved[unit[0]] // state.step for unit in units}
             for unit in _clock_rotated(units, have[group] - counts[group]):
                 if have[group] <= counts[group]:
                     break
+                unit, whole = _clock_unit_standing(state, unit, listed[unit[0]])
+                if not unit:
+                    continue
                 first = unit[0]
                 ordinal = state.moved[first]
                 low, high = state.lows[first], state.highs[first]
                 size = len(unit)
                 # SPLIT: a unit no group has room for whole leaves rank by
                 # rank, each to its own place (the design skeptic's B1).
-                for members in [unit] + ([[rank] for rank in unit] if size > 1 else []):
+                tries = [unit] if whole or size == 1 else []
+                for members in tries + ([[rank] for rank in unit] if size > 1 else []):
                     if have[group] <= counts[group]:
                         break
                     here = state.moved[members[0]]
@@ -26963,6 +26971,28 @@ def _clock_left_their_groups(
                         break
         if not changed:
             return
+
+
+def _clock_unit_standing(
+    state: _WeekdayPass, unit: "list[int]", key: int
+) -> "tuple[list[int], bool]":
+    """A listed unit as it stands at its turn (G7.3g step 3; Codex's review
+    of lane J, item 1).
+
+    A payer of THE ESCAPE PAID BACK moves a rank by whole days, so it can
+    take a rank of a unit its group listed and has not yet asked. Asked as
+    listed, the unit moved whole onto its first rank's day and took the
+    others off theirs: a Monday 05:23 paid by one of a Sunday pair at
+    05:10, both then moved to the Monday at 12:10, turned Monday 2 and
+    Sunday 5 into 3 and 4, every hour met and the count kept. So the unit
+    is its ranks still on the written unit `key` it was listed on -- none
+    where a payer took them all -- and whole only where they are every
+    rank standing there; a rank a payer moved off is asked in a later
+    round, where its group is listed again. Returns the ranks and whether
+    they are whole.
+    """
+    standing = [rank for rank in unit if state.moved[rank] // state.step == key]
+    return standing, bool(standing) and state.held[key] == len(standing)
 
 
 def _clock_relieved(

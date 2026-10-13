@@ -10783,12 +10783,23 @@ def clock_groups_left(walk, have, first, last, pinned, standing, anyday=False, k
             if have[group] <= walk.counts[group]:
                 continue
             units = clock_units(walk, group, first, last, pinned)
+            listed = {unit[0]: walk.days[unit[0]] // walk.step for unit in units}
             for unit in clock_rotated(units, have[group] - walk.counts[group]):
                 if have[group] <= walk.counts[group]:
                     break
+                # A unit is asked as it stands (Codex's review of lane J,
+                # item 1): its ranks still on the written unit it was listed
+                # on, whole only where they are every rank standing there,
+                # else each alone; none left, it is not asked.
+                key = listed[unit[0]]
+                unit = [rank for rank in unit if walk.days[rank] // walk.step == key]
+                if not unit:
+                    continue
+                whole = walk.holding(key * walk.step) == len(unit)
                 ordinal = walk.days[unit[0]]
                 low, high = walk.lows[unit[0]], walk.highs[unit[0]]
-                tries = [unit] + ([[rank] for rank in unit] if len(unit) > 1 else [])
+                tries = [unit] if whole or len(unit) == 1 else []
+                tries += [[rank] for rank in unit] if len(unit) > 1 else []
                 for members in tries:
                     if have[group] <= walk.counts[group]:
                         break
@@ -16433,8 +16444,29 @@ def hour_paid_count_nearer_case():
     )
 
 
+def hour_paid_unit_standing_case():
+    m = HOUR_MONDAY
+    ordinals = [
+        hour_at(m - 3, 12), hour_at(m - 2, 12, 20), hour_at(m - 1, 12, 30), hour_at(m, 5, 23),
+        hour_at(m, 12), hour_at(m + 6, 12, 59), hour_at(m + 13, 5, 10), hour_at(m + 13, 5, 10),
+        hour_at(m + 13, 12),
+    ]
+    return hour_case(
+        "A UNIT ASKED AS IT STANDS (the whole pass, Codex's review of lane J, item 1): hour 12 "
+        "alone counted beside seven single weekdays, eight different values. The Monday rank at "
+        "05:23 takes Sunday's 12:23, paid by the first of a Sunday pair at 05:10, which goes to "
+        "the Monday between at its own 05:10. The pair, listed before, is asked as it stands: "
+        "the Sunday rank left on its minute takes the Saturday's 12:10, paid by the Saturday "
+        "rank at 12:20, which goes to Sunday's 12:20 and is merged onto 12:23; the Monday rank, "
+        "asked in the next round, takes the Monday's 12:10. Asked as listed, the pair moved "
+        "whole onto the Monday and Monday's 2 and Sunday's 5 came back 3 and 4.",
+        "pass", ordinals, {0, 4, 5, 8}, [0, 9, 0], HOUR_NOON, standing=HOUR_WEEK,
+    )
+
+
 HOUR_STEP_CASES = {
     "hour_paid_escape": hour_paid_case,
+    "hour_paid_unit_standing": hour_paid_unit_standing_case,
     "hour_paid_hole": hour_paid_hole_case,
     "hour_paid_count_given_back": hour_paid_count_given_back_case,
     "hour_paid_count_tied": hour_paid_count_tied_case,

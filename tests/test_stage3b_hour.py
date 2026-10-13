@@ -1128,7 +1128,7 @@ STEP_MUTANTS = {
     ),
     "no SPLIT": (
         "hour_split",
-        "for members in [unit] + ([[rank] for rank in unit] if size > 1 else []):\n                    if have[group] <= counts[group]:\n                        break\n                    here",
+        "for members in tries + ([[rank] for rank in unit] if size > 1 else []):\n                    if have[group] <= counts[group]:\n                        break\n                    here",
         "for members in [unit]:\n                    if have[group] <= counts[group]:\n                        break\n                    here",
     ),
     "RELIEF asks no full group": (
@@ -1296,6 +1296,12 @@ STEP_MUTANTS = {
         "        if _clock_count_off(state, wanted, published) >= off:\n            _clock_restored(state, paid)",
         "        if _clock_count_off(state, wanted, published) > off:\n            _clock_restored(state, paid)",
     ),
+    # Codex's review of lane J, item 1: a unit a payer took a rank of is asked as it stands.
+    "a unit is asked as listed": (
+        "hour_paid_unit_standing",
+        "                unit, whole = _clock_unit_standing(state, unit, listed[unit[0]])\n",
+        "                whole = True\n",
+    ),
     # Lane J's second skeptic, finding 1: the round given back where steps 4 to 6 come
     # nearer the count without it though they still miss it, not only where they meet it.
     "the round given back only where the count is met without it": (
@@ -1330,7 +1336,7 @@ CASES = [
     "hour_half_day_tails", "hour_half_day_tails_stratum", "hour_off_a_hole", "hour_off_midnight",
     "hour_paid_count_given_back", "hour_paid_count_nearer", "hour_paid_count_tied", "hour_paid_escape",
     "hour_paid_given_back",
-    "hour_paid_hole", "hour_paid_keeping", "hour_paid_pass",
+    "hour_paid_hole", "hour_paid_keeping", "hour_paid_pass", "hour_paid_unit_standing",
     "hour_proportional", "hour_put_back", "hour_put_back_any_day", "hour_put_back_off_midnight",
     "hour_put_back_short", "hour_put_back_short_shared", "hour_relief", "hour_relief_given_back",
     "hour_rounds", "hour_same_day_clock", "hour_sixtieth_second", "hour_sixtieth_ties", "hour_split",
@@ -1349,6 +1355,54 @@ def test_every_case_is_asked_and_the_oracle_agrees() -> None:
     assert sorted(oracle.HOUR_STEP_CASES) == sorted(_FILE["cases"])
     for name, case in _FILE["cases"].items():
         assert oracle.hour_step_answer(case) == case["answer"], name
+
+
+def _weekday_counts(case: dict, ordinals: "list[int]") -> "list[int]":
+    """How many of a state's ranks stand on a day of each standing, read off the day number
+    alone (1970-01-01, day 0, a Thursday)."""
+    found = [0] * (max(case["standing"]) + 1)
+    for ordinal in ordinals:
+        found[case["standing"][(ordinal // DAY + 3) % 7]] += 1
+    return found
+
+
+def test_every_frozen_state_beside_a_weekday_census_keeps_its_weekday_counts() -> None:
+    """Codex's review of lane J, item 1: an assertion of the census itself, not of any step's
+    answer. Every frozen state whose weekday census stands (more than one standing) and whose
+    steps may not take a day of another standing (no LAST RESORT) comes back -- in the file
+    and from the product -- with as many ranks on the days of each standing as it began with.
+    The state Codex built, asked through the whole pass at nine ranks and each rank repeated
+    twelve times, keeps them too; 689d405 turned Monday 2 and Sunday 5 into 3 and 4, and 24
+    and 60 into 36 and 48."""
+    held = []
+    for name, case in sorted(_FILE["cases"].items()):
+        if "ordinals" not in case or len(set(case["standing"])) < 2 or case.get("anyday", False):
+            continue
+        before = _weekday_counts(case, case["ordinals"])
+        assert _weekday_counts(case, case["answer"]) == before, name
+        assert _weekday_counts(case, _answer(case)) == before, name
+        held += [name]
+    assert "hour_paid_unit_standing" in held and len(held) >= 10, held
+    case = _case("hour_paid_unit_standing")
+    oracle = _oracle()
+    ordinals: "list[int]" = []
+    pins: "set[int]" = set()
+    for rank, ordinal in enumerate(case["ordinals"]):
+        for _copy in range(12):
+            if case["pinned"][rank]:
+                pins |= {len(ordinals)}
+            ordinals += [ordinal]
+    repeated = oracle.hour_case(
+        "Codex's state, each rank and its pin twelve times", "pass", ordinals, pins, [0, 108, 0],
+        case["where"], standing=case["standing"],
+    )
+    assert repeated["wanted"] == 8
+    assert _weekday_counts(repeated, ordinals) == [24, 0, 0, 0, 12, 12, 60]
+    moved = _answer(repeated)
+    assert _weekday_counts(repeated, moved) == [24, 0, 0, 0, 12, 12, 60]
+    assert _weekday_counts(repeated, oracle.hour_step_answer(repeated)) == [24, 0, 0, 0, 12, 12, 60]
+    assert sorted({(ordinal % DAY) // 3600 for ordinal in moved}) == [12]
+    assert len({ordinal // 60 for ordinal in moved}) == 8
 
 
 @pytest.mark.parametrize("name", CASES)

@@ -7388,6 +7388,17 @@ every weekday count is kept.
    boundary's day, before its noon, its gap holding no other day of
    their weekday -- 4 twins of 10 short of the hour census).
 
+   A UNIT IS ASKED AS IT STANDS (Codex's review of lane J, item 1). A
+   payer moves a rank by whole days, perhaps a rank of a unit its group
+   listed and has not yet asked. So at its turn a unit is its ranks
+   still on the written unit it was listed on, whole only where they are
+   every rank standing there, else each alone, and it is not asked where
+   none is; a rank a payer moved off is asked in a later round, where
+   its group is listed again. Asked as listed, a Sunday pair at 05:10,
+   one of which paid a Monday 05:23 onto a Sunday, moved whole onto the
+   Monday at 12:10, and Monday's 2 and Sunday's 5 came back 3 and 4,
+   every hour met and the count kept.
+
    THE ROUND GIVEN BACK (lane J's skeptic, finding 1). Where that
    round placed a unit and, once steps 4 to 6 have run, the count of
    different values stands off the count step 6 asks -- by any distance
@@ -7506,13 +7517,14 @@ afternoon cells back twelve hours early and misses published facts).
 
 **Its frozen cases** are states of ranks, as G7.3f's are: the sixteenth
 vectors file, `tests/reference/generation-branch-vectors-16.json`, holds
-twenty-nine -- SAMEDAY, the escape with a weekday census's groups and its last
+thirty -- SAMEDAY, the escape with a weekday census's groups and its last
 resort, the escape paid back, its payer keeping the count asked past the
 first, its payers given back where too few are found, a payer kept off a
 hole, the whole pass beside a weekday census, and the whole pass with the
 round given back where it costs the count, given back where the count is
 nearer without it though still missed, and kept where the count is no
-nearer without it (lane J), SPLIT, RELIEF and its give-back where the room it made is not
+nearer without it (lane J), a unit a payer took a rank of asked as it
+stands (lane J's Codex review), SPLIT, RELIEF and its give-back where the room it made is not
 enough, PUT BACK long and short and its last resort, PUT BACK never onto
 a written midnight and its short count moving only a rank that shares
 its written unit, the proportional order, the step off midnight, the half
