@@ -6616,3 +6616,57 @@ def test_the_oracle_lays_every_battery_minute_census_as_the_product(tmp_path: pa
             assert sorted(laid) == sorted(cell for cell in twin if cell), (name, rows)
             laid_columns = laid_columns + 1
     assert laid_columns >= 10, laid_columns
+
+
+def test_the_rounding_meets_a_table_reached_only_at_its_edge(monkeypatch: pytest.MonkeyPatch) -> None:
+    """G7A.4c step 3, lane C2's repair round (its skeptic's item 3), product
+    and oracle alike (A-P4-59). Rows ``[n, n]`` and columns ``[n, n]``, one
+    row free to give to both columns and the other to the first alone, are
+    met only at the table's edge, which the fit does not reach in 64 rounds:
+    at n = 1,000 the floors added to more than the first row's count and
+    368d819 returned None, so a description reaching it would have been laid
+    by G7A.4b and its minute census MISSED; so did a three-by-three chain.
+    Both now lower the floors and meet the table. And the path moves its
+    BOTTLENECK, not one cell: at n = 100,000 the table is met in at most
+    four path searches, where a cell at a time (its mutant) took 776 -- the
+    cells the floors had to give back, which grow with n."""
+    cases = (
+        ([1000, 1000], [1000, 1000], [[(0, 1, 1000), (1, 1, 1000)], [(0, 1, 1000)]]),
+        (
+            [1000, 1000, 1000],
+            [1000, 1000, 1000],
+            [[(0, 1, 1000), (1, 1, 1000), (2, 1, 1000)], [(0, 1, 1000), (1, 1, 1000)], [(0, 1, 1000)]],
+        ),
+    )
+    wanted = ([[0, 1000], [1000]], [[0, 0, 1000], [0, 1000], [1000]])
+    for (rows, columns, entries), table in zip(cases, wanted):
+        assert generation._clock_minute_rounding(rows, columns, entries) == table
+        assert gen.clock_minute_round(rows, columns, entries) == table
+    searches = [0]
+    built = generation._clock_minute_path
+
+    def counted(*arguments):  # type: ignore[no-untyped-def]
+        searches[0] = searches[0] + 1
+        return built(*arguments)
+
+    monkeypatch.setattr(generation, "_clock_minute_path", counted)
+    big = 100000
+    rows, columns = [big, big], [big, big]
+    entries = [[(0, 1, big), (1, 1, big)], [(0, 1, big)]]
+    assert generation._clock_minute_rounding(rows, columns, entries) == [[0, big], [big]]
+    assert searches[0] <= 4, searches[0]
+
+    def one_cell_at_a_time(entries, taken, upper, lower, row_left, column_left, into):  # type: ignore[no-untyped-def]
+        searches[0] = searches[0] + 1
+        cut = [left for left in column_left]
+        # The bottleneck held to one: each column shown owing one cell at most.
+        capped = [min(left, 1) for left in column_left]
+        found = built(entries, taken, upper, lower, row_left, capped, into)
+        for place in range(len(column_left)):
+            column_left[place] = cut[place] - (min(cut[place], 1) - capped[place])
+        return found
+
+    searches[0] = 0
+    monkeypatch.setattr(generation, "_clock_minute_path", one_cell_at_a_time)
+    assert generation._clock_minute_rounding(rows, columns, entries) == [[0, big], [big]]
+    assert searches[0] > 100, searches[0]

@@ -21659,15 +21659,30 @@ def _clock_minute_rounding(
     for at most `_MINUTE_FIT_ROUNDS` rounds or until every row lies within
     `_MINUTE_FIT` of its count. THE ROUNDING: each cell takes the floor of
     its fitted value (never past its capacity); then, while a row and a
-    column are owed cells, one is moved along the shortest path of cells
-    from an owing row to an owing column -- each step into a column on a
-    cell below its ceiling, each step back out of one on a cell above its
-    floor -- the rows and cells taken in their order; and where no such
-    path is left, once more with every cell free from nought to its
-    capacity. A cell first takes what its row and column both owe, each
-    owing row in order, before any path is searched. So every cell is the
-    floor or the ceiling of its fitted value wherever such a table
-    exists, and both margins are met wherever any table does.
+    column are owed cells, cells are moved along the shortest path of
+    cells from an owing row to an owing column -- each step into a column
+    on a cell below its ceiling, each step back out of one on a cell above
+    its floor -- the rows and cells taken in their order, as many at once
+    as the path's BOTTLENECK allows (the row's debt, the column's, and
+    every step's room), which is the table the same path taken one cell
+    at a time writes, since the search finds that path again while every
+    step of it has room; and where no such path is left, once more with
+    every cell free from nought to its capacity. A cell first takes what
+    its row and column both owe, each owing row in order, before any
+    path is searched.
+
+    A FIT STOPPED BEFORE IT SETTLED (lane C2's repair round, item 3): a
+    table only reachable at its edge -- rows `[n, n]`, columns `[n, n]`,
+    one row free to give to both columns and the other to the first
+    alone -- does not settle in `_MINUTE_FIT_ROUNDS` rounds, and its
+    floors may add to more than a row's or a column's count. Such a row's
+    cells are lowered, its last first, until they add to its count, then
+    such a column's, its last row first; the lowered values are those
+    cells' floors. So every cell is the floor or the ceiling of its
+    fitted value wherever such a table exists and no floor was lowered,
+    and both margins are met wherever any table does: the paths are a
+    largest flow from a flow that keeps every bound, the bottleneck's
+    shortest paths bounded by the table and not by its counts.
 
     Guarantees: returns each row's counts in its entries' order, adding to
     the margins, or None where no table meets them. Determinism: a
@@ -21721,14 +21736,35 @@ def _clock_minute_rounding(
             row_left[place] = row_left[place] - whole
             column_left[column] = column_left[column] - whole
         taken += [mine]
-        floors += [[whole for whole in mine]]
         ceilings += [ceiling]
-    if any(left < 0 for left in row_left) or any(left < 0 for left in column_left):
-        return None
     into: "list[list[tuple[int, int]]]" = [[] for _column in columns]
     for place in range(len(rows)):
         for entry in range(len(entries[place])):
             into[entries[place][entry][0]] += [(place, entry)]
+    # A fit stopped before it settled: a row's floors above its count are
+    # lowered, its last cell first, then a column's, its last row first.
+    for place in range(len(rows)):
+        entry = len(entries[place]) - 1
+        while row_left[place] < 0 and entry >= 0:
+            lowered = min(taken[place][entry], -row_left[place])
+            column = entries[place][entry][0]
+            taken[place][entry] = taken[place][entry] - lowered
+            row_left[place] = row_left[place] + lowered
+            column_left[column] = column_left[column] + lowered
+            entry = entry - 1
+    for column in range(len(columns)):
+        member = len(into[column]) - 1
+        while column_left[column] < 0 and member >= 0:
+            place, entry = into[column][member]
+            lowered = min(taken[place][entry], -column_left[column])
+            taken[place][entry] = taken[place][entry] - lowered
+            row_left[place] = row_left[place] + lowered
+            column_left[column] = column_left[column] + lowered
+            member = member - 1
+    if any(left < 0 for left in row_left) or any(left < 0 for left in column_left):
+        return None
+    for place in range(len(rows)):
+        floors += [[whole for whole in taken[place]]]
     for phase in (0, 1):
         upper = ceilings
         lower = floors
@@ -21767,12 +21803,18 @@ def _clock_minute_path(
     column_left: "list[int]",
     into: "list[list[tuple[int, int]]]",
 ) -> bool:
-    """One cell moved along the shortest path from an owing row to an owing
+    """Cells moved along the shortest path from an owing row to an owing
     column (method G7A.4c, step 3): breadth first from every owing row in
     order, into a column through a cell below its `upper` and back out of
     one through a cell above its `lower`, each row and column visited
-    once. Changes `taken` and the two debts in place; returns whether a
-    path was found. Raises nothing. No I/O."""
+    once; as many cells as the path's bottleneck allows -- the row's debt,
+    the column's, each step in's room below its `upper` and each step
+    out's above its `lower` -- at least one (lane C2's repair round, item
+    3: the search finds the same path again while each of those has room,
+    so the table is the one moving a cell at a time writes, in as many
+    searches as the table's paths and never its counts). Changes `taken`
+    and the two debts in place; returns whether a path was found. Raises
+    nothing. No I/O."""
     reached_row: "dict[int, tuple[int, int]]" = {}
     reached_column: "dict[int, tuple[int, int]]" = {}
     queue: "list[int]" = []
@@ -21800,16 +21842,27 @@ def _clock_minute_path(
                 queue += [other]
     if found < 0:
         return False
+    moved = column_left[found]
     column = found
     while True:
         place, entry = reached_column[column]
-        taken[place][entry] = taken[place][entry] + 1
+        moved = min(moved, upper[place][entry] - taken[place][entry])
         previous, back = reached_row[place]
         if previous < 0:
-            row_left[place] = row_left[place] - 1
-            column_left[found] = column_left[found] - 1
+            moved = min(moved, row_left[place])
+            break
+        moved = min(moved, taken[place][back] - lower[place][back])
+        column = previous
+    column = found
+    while True:
+        place, entry = reached_column[column]
+        taken[place][entry] = taken[place][entry] + moved
+        previous, back = reached_row[place]
+        if previous < 0:
+            row_left[place] = row_left[place] - moved
+            column_left[found] = column_left[found] - moved
             return True
-        taken[place][back] = taken[place][back] - 1
+        taken[place][back] = taken[place][back] - moved
         column = previous
 
 

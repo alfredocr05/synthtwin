@@ -214,6 +214,60 @@ def test_no_middle_half_rule_on_clock_times() -> None:
     assert isinstance(contract.load_profile(str(path)), contract.Profile)
 
 
+_NIGHT = (22, 23, 0, 1, 2, 3, 4, 5)
+_DAY = tuple(range(6, 22))
+
+
+def _night_on_the_hour(rows: int, seed: int) -> "list[str]":
+    """Night entries charted in minute 0 at any second, three in ten, beside
+    day entries at any minute and second."""
+    draw = random.Random(seed)
+    cells: "list[str]" = []
+    for _row in range(rows):
+        if draw.random() < 0.3:
+            hour = _NIGHT[draw.randrange(len(_NIGHT))]
+            minute = 0
+        else:
+            hour = draw.randrange(6, 22)
+            minute = draw.randrange(60)
+        cells += [f"{hour:02d}:{minute:02d}:{draw.randrange(60):02d}"]
+    return cells
+
+
+def _minute_zero_share(cells: "list[str]", hours: "tuple[int, ...]") -> float:
+    read = [second for second in (_second(cell) for cell in cells) if second is not None]
+    mine = [second for second in read if second // 3600 in hours]
+    return sum(1 for second in mine if (second // 60) % 60 == 0) / max(1, len(mine))
+
+
+def test_m3_withholds_where_one_count_over_every_hour_misleads(monkeypatch: pytest.MonkeyPatch) -> None:
+    """M3 on this role (lane C2's repair round, its skeptic's item 2b). Night
+    charting in minute 0 at any second, beside day entries at any minute, at
+    1,000 rows: how the cells fall on the minute follows the hour, and the
+    census is withheld, so the day hours come back flat over the minute as
+    they are -- 0.017 on minute 0 against 0.018. The ten-minute census does
+    not carry it: G7A.4c fits one table over every hour, so night and day
+    take one share of minute 0 inside their first ten minutes. MUTATION: no
+    dependence found -- the census is published, every check holds, and the
+    twin writes the day hours on minute 0 at 0.108, six times the table's."""
+    cells = _night_on_the_hour(1000, 1000)
+    columns = {"charted": cells}
+    real = _minute_zero_share(cells, _DAY)
+    document, path, _table = _document(columns)
+    assert _block(document, "charted")["minute_census"] == []
+    loaded = contract.load_profile(str(path))
+    twin, twin_path = _twin(loaded, 0)
+    assert _missed(loaded, twin_path) == []
+    assert abs(_minute_zero_share(twin["charted"], _DAY) - real) <= 0.01
+    monkeypatch.setattr(calendar_clock, "depends_on_the_hour", lambda *_arguments: False)
+    document, path, _table = _document(columns)
+    assert _block(document, "charted")["minute_census"]
+    loaded = contract.load_profile(str(path))
+    twin, twin_path = _twin(loaded, 0)
+    assert _missed(loaded, twin_path) == []
+    assert _minute_zero_share(twin["charted"], _DAY) >= 4 * real
+
+
 # -- the loader ---------------------------------------------------------------
 
 
@@ -289,6 +343,19 @@ def _below_the_heaps(block: "dict[str, typing.Any]") -> None:
     raise AssertionError("no group holds the heap")
 
 
+def _two_rungs_on_one_value(block: "dict[str, typing.Any]") -> None:
+    """MC5's ranks between two rungs of one value (the skeptic's item 2c):
+    p95 written at p90's time, on no heap, so the 50 ranks between them are
+    all sure cells of its minute -- whose group holds 16."""
+    ladder = block["clock_percentiles"]
+    assert ladder["p90"] not in [heap["value"] for heap in block["clock_heaps"]]
+    minute = (_second(ladder["p90"]) // 60) % 60  # type: ignore[operator]
+    for group in block["minute_census"]:
+        if group["first"] <= minute <= group["last"]:
+            assert 2 + parsing.census_floor(11) <= group["count"] < 50, group
+    ladder["p95"] = ladder["p90"]
+
+
 @pytest.mark.parametrize(
     "rule,change",
     [
@@ -298,6 +365,7 @@ def _below_the_heaps(block: "dict[str, typing.Any]") -> None:
         ("MC3", _one_off),
         ("MC3", _no_step),
         ("MC5", _below_the_heaps),
+        ("MC5", _two_rungs_on_one_value),
     ],
 )
 def test_the_loader_refuses_a_broken_minute_census(
@@ -419,6 +487,77 @@ def test_the_heap_ranks_are_windowed_by_their_group(monkeypatch: pytest.MonkeyPa
 
     monkeypatch.setattr(validation.calendar_clock, "clock_rank_windows", as_before)
     assert "ampm:clock-ladder.p75" in _missed(loaded, twin_path)
+
+
+def _all_seconds(rows: int, seed: int) -> "list[str]":
+    """Times at the second, a fifth of them in minute 0 (the skeptic's
+    `allsec`)."""
+    draw = random.Random(seed)
+    cells: "list[str]" = []
+    for _row in range(rows):
+        share = draw.random()
+        hour = draw.randrange(24)
+        minute = 0 if share < 0.2 else draw.randrange(60)
+        cells += [f"{hour:02d}:{minute:02d}:{draw.randrange(60):02d}"]
+    return cells
+
+
+def test_a_heap_whose_run_below_held_no_cells_is_windowed_over_its_group(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """G12.10b, the lane's repair round (its skeptic's item 1): 150 times at
+    the second, floor 2, data seed 49. p75 is `17:00:32`, a heap of two in a
+    group from 17:00:00 to 17:19:59 holding four cells; G7A.4b gave the 32
+    units below the heap no cells, but G7A.4c lays the group over its whole
+    span, and the twin at seed 1 stands rank 111 at `17:00:15`. The windows
+    are drawn over the group's span (`calendar_clock.clock_minute_reach`),
+    and nothing is missed. MUTATION: the reach of G7A.4b's blocks alone, as
+    368d819 drew it -- p75 is MISSED, which 707cf99 held."""
+    columns = {"c": _all_seconds(150, 49)}
+    document, path, _table = _document(columns, floor=2)
+    block = _block(document, "c")
+    assert block["minute_census"] and block["clock_percentiles"]["p75"] == "17:00:32"
+    loaded = contract.load_profile(str(path))
+    _cells, twin_path = _twin(loaded, 1)
+    assert _missed(loaded, twin_path) == []
+    monkeypatch.setattr(calendar_clock, "clock_minute_reach", lambda reach, *_arguments: reach)
+    assert "c:clock-ladder.p75" in _missed(loaded, twin_path)
+
+
+def test_a_column_of_different_times_keeps_them_different(monkeypatch: pytest.MonkeyPatch) -> None:
+    """G7A.4c step 4's stepping apart (the skeptic's item 2a): 1,000 times at
+    the second, all different, three in ten in minute 0 or 30. Each lane's
+    cells are stepped past the one before and kept below the steps left, so
+    the twin holds 1,000 different times and nothing is missed. MUTATION:
+    the lanes' steps left as read -- cells share a second, the twin holds
+    fewer different times and `distinct.n_distinct` is MISSED."""
+    draw = random.Random(1)
+    used: "dict[int, int]" = {}
+    cells: "list[str]" = []
+    while len(cells) < 1000:
+        hour = draw.randrange(7, 19)
+        minute = draw.choice((0, 30)) if draw.random() < 0.3 else draw.randrange(60)
+        second = draw.randrange(60)
+        at = hour * 3600 + minute * 60 + second
+        if at in used:
+            continue
+        used[at] = 1
+        cells += [f"{hour:02d}:{minute:02d}:{second:02d}"]
+    document, path, _table = _document({"c": cells})
+    assert _block(document, "c")["minute_census"]
+    loaded = contract.load_profile(str(path))
+    twin, twin_path = _twin(loaded, 0)
+    assert len(set(twin["c"])) == 1000
+    assert _missed(loaded, twin_path) == []
+    built = generation._clock_minute_body
+
+    def as_read(plan, stride, form, _apart, word_of, ordinals):  # type: ignore[no-untyped-def]
+        return built(plan, stride, form, False, word_of, ordinals)
+
+    monkeypatch.setattr(generation, "_clock_minute_body", as_read)
+    twin, twin_path = _twin(loaded, 0)
+    assert len(set(twin["c"])) < 1000
+    assert "c:distinct.n_distinct" in _missed(loaded, twin_path)
 
 
 def test_one_cell_moved_off_its_minute_is_missed(monkeypatch: pytest.MonkeyPatch) -> None:

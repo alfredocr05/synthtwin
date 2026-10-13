@@ -1832,7 +1832,10 @@ def clock_rank_windows(
     G7A.4c) a heap's ranks too: how many of its group's cells stand below
     the heap is the minute census's to say, so the ranks a heap holds
     move inside its group as the real column's do, and are drawn as the
-    construction draws them.
+    construction draws them: over the group's WHOLE span in the body
+    (`clock_minute_reach`), since G7A.4c cuts a group at its pins and
+    walls it at its span's two ends, not at its runs' -- a run G7A.4b
+    gave no cells still holds G7A.4c's (the lane's repair round, item 1).
 
     Guarantees: as `clock_body_blocks`, whose stretches it reads over the
     same absent places; None where that is None. Determinism: a function
@@ -1849,6 +1852,8 @@ def clock_rank_windows(
             low = min(low, reach[block.group][0])
             high = max(high, reach[block.group][1])
         reach[block.group] = (low, high)
+    if minutes:
+        reach = clock_minute_reach(reach, groups, form, stride, body)
     lows = [0 for _rank in range(parsed)]
     highs = [top for _rank in range(parsed)]
     if tails is not None:
@@ -1871,6 +1876,44 @@ def clock_rank_windows(
             lows[last] = body[1]
             highs[last] = body[1]
     return (lows, highs)
+
+
+def clock_minute_reach(
+    reach: "dict[int, tuple[int, int]]",
+    groups: "tuple[tuple[int, int, int], ...]",
+    form: str,
+    stride: int,
+    body: "tuple[int, int]",
+) -> "dict[int, tuple[int, int]]":
+    """Each census group's reach on a body laid on its minute census (G12.10b).
+
+    LANE C2'S REPAIR ROUND, item 1 (plan P4-D374). G7A.4c lays a group's
+    cells between its pins and its span's two ends (`group_span` of the
+    published group, the whole dial on the step where the census is
+    empty, as `generation._clock_minute_plan` reads it), so a run G7A.4b
+    gave no cells -- the 32 units below a heap of two at `17:00:32`, of
+    the 1,200 its group spans -- may still hold cells there. `reach` is
+    each group's reach over G7A.4b's blocks; each is widened to its
+    group's span, never narrowed. Measured: 150 times at the second,
+    floor 2, data seed 49, generation seed 1 -- the twin's rank 111 at
+    `17:00:15`, below the window `17:00:32` to `17:19:59` the blocks
+    drew, so the p75 the base held was MISSED; drawn over the span, none
+    of 420 such twins misses.
+
+    Guarantees: a new mapping, the same keys. Determinism: a function of
+    the arguments. Raises nothing. No I/O of any kind.
+    """
+    laid = groups or ((0, clock_bin_count(form) - 1, 0),)
+    widened: "dict[int, tuple[int, int]]" = {}
+    for index in sorted(reach):
+        low, high = reach[index]
+        if 0 <= index < len(laid):
+            span = group_span(laid[index][0], laid[index][1], form, stride, body)
+            if span is not None:
+                low = min(low, span[0])
+                high = max(high, span[1])
+        widened[index] = (low, high)
+    return widened
 
 
 def off_the_heaps(distance: int, heaps: "list[int] | tuple[int, ...]") -> int:
@@ -2079,7 +2122,15 @@ def clock_minute_decision(
       were both flat (the builder's measurement of 2026-10-13);
     - how they fall on the minute must not follow the hour of the day so
       that one count over every hour misleads an hour group more than a
-      flat field would (M3: `depends_on_the_hour`, `misled_by_the_count`);
+      flat field would (M3: `depends_on_the_hour`, `misled_by_the_count`).
+      The ten-minute census does not carry it: G7A.4c fits one table of
+      stretches by minute groups over every hour, so hours sharing a
+      ten-minute bin take one share of its minutes. Measured (lane C2's
+      repair round, item 2b): night entries charted in minute 0 at any
+      second beside day entries at any minute, 1,000 and 3,000 rows --
+      withheld, the day hours came back 0.017 and 0.0155 on minute 0
+      against 0.018 and 0.015; published, 0.108 and 0.110. On the
+      design's battery it withholds none;
     - the census -- of EVERY body cell, the heaps' among them -- is the
       one merge rule over the sixty minutes on the line beside the sure
       cells (`field_groups`, `clock_minute_sure`), withheld where it

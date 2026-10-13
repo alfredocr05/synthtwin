@@ -24646,11 +24646,16 @@ def clock_minute_round(rows, columns, entries):
     cell between its floor and its ceiling and then with every cell free
     from nought to its capacity: each owing row in order gives what it and
     a column both owe through each of its cells in order; then, while a
-    row owes, one cell moves along the shortest path from the owing rows,
-    in order, into a column through a cell below its upper bound and back
+    row owes, cells move along the shortest path from the owing rows, in
+    order, into a column through a cell below its upper bound and back
     out through a cell above its lower bound, each row and column reached
-    once, ending at the first owing column reached.  None where any debt
-    is left.
+    once, ending at the first owing column reached -- as many as the
+    path's bottleneck allows: the row's debt, the column's, and each
+    step's room (lane C2's repair round, item 3).  Before any of that, a
+    fit stopped before it settled: a row whose floors add to more than its
+    count has its cells lowered, its last first, until they add to it,
+    then a column so, its last row first; the lowered values are those
+    cells' floors.  None where any debt is left.
     """
     fitted = [[float(weight) for _c, weight, _cap in row] for row in entries]
     largest = max([1] + list(rows))
@@ -24688,12 +24693,29 @@ def clock_minute_round(rows, columns, entries):
     for r, row in enumerate(entries):
         for e, (c, _w, _cap) in enumerate(row):
             owe_col[c] -= taken[r][e]
-    if min(owe_row + owe_col + [0]) < 0:
-        return None
     into = [[] for _c in columns]
     for r, row in enumerate(entries):
         for e, (c, _w, _cap) in enumerate(row):
             into[c].append((r, e))
+    for r in range(len(rows)):
+        for e in reversed(range(len(entries[r]))):
+            if owe_row[r] >= 0:
+                break
+            cut = min(taken[r][e], -owe_row[r])
+            taken[r][e] -= cut
+            owe_row[r] += cut
+            owe_col[entries[r][e][0]] += cut
+    for c in range(len(columns)):
+        for r, e in reversed(into[c]):
+            if owe_col[c] >= 0:
+                break
+            cut = min(taken[r][e], -owe_col[c])
+            taken[r][e] -= cut
+            owe_row[r] += cut
+            owe_col[c] += cut
+    if min(owe_row + owe_col + [0]) < 0:
+        return None
+    floor = [list(row) for row in taken]
     for phase in (0, 1):
         if phase == 0:
             upper, lower = ceiling, floor
@@ -24728,16 +24750,25 @@ def clock_minute_round(rows, columns, entries):
                         queue.append(other)
             if end is None:
                 break
+            amount, c = owe_col[end], end
+            while True:
+                r, e = from_col[c]
+                amount = min(amount, upper[r][e] - taken[r][e])
+                if from_row[r] is None:
+                    amount = min(amount, owe_row[r])
+                    break
+                c, back = from_row[r]
+                amount = min(amount, taken[r][back] - lower[r][back])
             c = end
             while True:
                 r, e = from_col[c]
-                taken[r][e] += 1
+                taken[r][e] += amount
                 if from_row[r] is None:
-                    owe_row[r] -= 1
-                    owe_col[end] -= 1
+                    owe_row[r] -= amount
+                    owe_col[end] -= amount
                     break
                 c, back = from_row[r]
-                taken[r][back] -= 1
+                taken[r][back] -= amount
     if sum(owe_row) or sum(owe_col):
         return None
     return taken
