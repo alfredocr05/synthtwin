@@ -10151,7 +10151,7 @@ def heavy_opened(shares, days_of, knots):
     return count
 
 def heavy_cells(parts, demands, knots, left):
-    """G7.3j step 3: SPREAD, SPREAD less its lightest keys, WIDE, then FEW; the first placing every owed row and able to open exactly the new days the count leaves."""
+    """G7.3j step 3: SPREAD, SPREAD less its lightest keys, then FEW, or WIDE; the first placing every owed row and able to open exactly the new days the count leaves."""
     days_of = [{key: days for key, days in part.keyed} for part in parts]
     supply = [part.count for part in parts]
     nothing = [frozenset() for _ in parts]
@@ -10170,12 +10170,11 @@ def heavy_cells(parts, demands, knots, left):
             over = heavy_opened(pruned, days_of, knots) - left
             if over <= 0 or short > 0:
                 break
-    if tried[0][0] > 0 or heavy_reach(spread, days_of, knots) < left:
-        wide, short = heavy_wide_cells(days_of, supply, demands)
-        tried += [(short, wide)]
-    if tried[0][0] > 0 or len(tried) > 1:
         few, short = heavy_few_cells(days_of, supply, demands)
         tried += [(short, few)]
+    elif heavy_reach(spread, days_of, knots) < left:
+        wide, short = heavy_wide_cells(days_of, supply, demands)
+        tried += [(short, wide)]
     ranked = []
     for order in range(len(tried)):
         short, shares = tried[order]

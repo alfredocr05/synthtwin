@@ -20297,14 +20297,11 @@ def _heavy_cells(
     its free days are. Where that fills more keys holding no knot's day
     than `left` new days, the keys with the least raked weight, as many
     as are over, take none and the rest are raked again, at most
-    `_HEAVY_PRUNES` times while every owed row is placed. Where SPREAD
-    cannot open `left` new days -- a key opens no more than its ranks or
-    its free days -- or leaves an owed row unplaced (a key whose one free
-    day is the part's shared knot day takes none of its rake), WIDE
-    (`_heavy_wide_cells`) puts as many ranks on days of their own as the
-    flow allows. Last, wherever another was asked or SPREAD left a row
-    unplaced, FEW (`_heavy_few_cells`) puts the ranks on as few keys as
-    one flow per census finds. The first
+    `_HEAVY_PRUNES` times while every owed row is placed, and then FEW
+    (`_heavy_few_cells`) puts the ranks on as few keys as one flow per
+    census finds. Where SPREAD cannot open `left` new days -- a key opens
+    no more than its ranks or its free days -- WIDE (`_heavy_wide_cells`)
+    puts as many ranks on days of their own as the flow allows. The first
     split that places every owed row and can open exactly `left` new days
     is taken; failing that, the one placing the most owed rows, then the
     one nearest `left`.
@@ -20334,12 +20331,11 @@ def _heavy_cells(
             over = _heavy_opened(pruned, days_of, knots) - left
             if over <= 0 or short > 0:
                 break
-    if tried[0][0] > 0 or _heavy_reach(spread, days_of, knots) < left:
-        wide, short = _heavy_wide_cells(days_of, supply, demands)
-        tried += [(short, wide)]
-    if tried[0][0] > 0 or len(tried) > 1:
         few, short = _heavy_few_cells(days_of, supply, demands)
         tried += [(short, few)]
+    elif _heavy_reach(spread, days_of, knots) < left:
+        wide, short = _heavy_wide_cells(days_of, supply, demands)
+        tried += [(short, wide)]
     ranked: "list[tuple[int, int, int]]" = []
     for order in range(len(tried)):
         short, shares = tried[order]

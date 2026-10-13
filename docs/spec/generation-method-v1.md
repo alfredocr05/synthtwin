@@ -6869,15 +6869,14 @@ pins: the two tail boundaries and each published rung, at its rank.
    SPREAD fills more keys holding no knot's day than the new days the
    count leaves -- the twin's count of different days less those the
    listed dates, the knots and both tails already hold -- the lightest
-   keys take none and the rest are raked again, at most eight times.
-   Where SPREAD cannot open the new days the count leaves, or leaves an
-   owed row unplaced, WIDE puts as many ranks on days of their own as a
-   min-cost flow allows; then, wherever another split was asked or
-   SPREAD left a row unplaced, FEW puts the ranks on as few keys as one
-   flow per census finds. The first split placing every owed row and
-   able to open exactly the new days left is taken, a rank no flow
-   placed going to its part's widest key and a rank a rounding placed
-   beyond the part's own leaving its fullest key. Each key opens at least one new day where it holds ranks
+   keys take none and the rest are raked again, at most eight times,
+   and then FEW puts the ranks on as few keys as one flow per census
+   finds; where SPREAD cannot open the new days the count leaves, WIDE
+   puts as many ranks on days of their own as a min-cost flow allows.
+   The first split placing every owed row and able to open exactly the
+   new days left is taken, a rank no flow placed going to its part's
+   widest key and a rank a rounding placed beyond the part's own leaving
+   its fullest key. Each key opens at least one new day where it holds ranks
    and no knot's day, and the rest go where the ranks stand thickest (a
    density found by halving); its new days are drawn among its free days
    by the words of its first slots, no day twice, each taking that
