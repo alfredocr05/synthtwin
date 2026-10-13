@@ -2106,11 +2106,10 @@ def clock_minute_decision(
     tails, `heaps` the published clock heaps as ordinals, `published` the
     body's published ranks and values (the boundaries, the rungs) and
     `size` the body's published count of cells -- the parsed cells less
-    both tails' rows. Asked in the moments' order (`clock_field_decision`)
-    of the cells it can say something about, the body's cells on NO clock
-    heap, which the heaps already place exactly:
+    both tails' rows. Asked in the moments' order (`clock_field_decision`):
 
-    - they must depart from flat over the minutes the step reaches
+    - the body's cells on NO clock heap -- which the heaps already place
+      exactly -- must depart from flat over the minutes the step reaches
       (`departs_from_flat`, `clock_minutes_reached`), else nothing is
       published -- the twin's even draw inside each group is their shape.
       CELLS, NOT DIFFERENT VALUES, the moments' measure: a time of day
@@ -2120,9 +2119,24 @@ def clock_minute_decision(
       1,000 rows (about 36 different values on minute 0 against 12 on
       another) and walk-ins booked on a ten-minute grid at more than half
       were both flat (the builder's measurement of 2026-10-13);
-    - how they fall on the minute must not follow the hour of the day so
-      that one count over every hour misleads an hour group more than a
-      flat field would (M3: `depends_on_the_hour`, `misled_by_the_count`).
+    - how the body's cells fall on the minute must not follow the hour of
+      the day so that one count over every hour misleads an hour group
+      more than a flat field would (M3: `depends_on_the_hour`,
+      `misled_by_the_count`, its coarse table). ASKED OF EVERY BODY CELL,
+      the heaps' among them, as the census counts them, and with NO
+      DISCOUNT FOR TIES (`squares` nought): a time of day written on
+      several rows is one place on the dial on several days, several
+      events, not one event written several times as a repeated
+      timestamp is. The Codex review of landing C2, item 2: discounted as
+      a timestamp's ties, 7,920 readings -- 36 night readings on minute 0,
+      each written a hundred times, beside day hours at every minute --
+      scored no dependence, 60 minute groups were published, and the twin
+      wrote 589 of 4,320 day cells on minute 0 against 72. Asked of the
+      cells off the heaps alone, a heap's place taken out of some hours
+      and not others reads as a dependence the lanes, which keep off the
+      heaps, already hold: a clinic's slots at 1,000 rows and a floor of
+      eleven, `:15` off a heap only from 14:00 on, were withheld. The
+      design effect stays the timestamps' (`taxonomy._clock_field_decision`).
       The ten-minute census does not carry it: G7A.4c fits one table of
       stretches by minute groups over every hour, so hours sharing a
       ten-minute bin take one share of its minutes. Measured (lane C2's
@@ -2163,7 +2177,6 @@ def clock_minute_decision(
     rest = [0 for _minute in range(FIELD_VALUES)]
     hours: "list[int]" = []
     values: "list[int]" = []
-    squares = 0
     total = 0
     for at in sorted(ordinals):
         if body is not None and not body[0] <= at <= body[1]:
@@ -2172,21 +2185,20 @@ def clock_minute_decision(
         minute = clock_minute_of(at, form)
         bins[minute] = bins[minute] + count
         total = total + count
-        if at in heap_at:
-            continue
-        rest[minute] = rest[minute] + count
-        squares = squares + count * count
         hour = clock_hour_of(at, form)
         for _cell in range(count):
             hours += [hour]
             values += [minute]
+        if at in heap_at:
+            continue
+        rest[minute] = rest[minute] + count
     if total != size or total <= 0:
         return (), ""
     if not departs_from_flat(
         [rest[minute] for minute in range(FIELD_VALUES) if reached[minute]]
     ):
         return (), FIELD_REASON_FLAT
-    if depends_on_the_hour(hours, values, line, squares) and misled_by_the_count(
+    if depends_on_the_hour(hours, values, line) and misled_by_the_count(
         hours, values, line
     ):
         return (), FIELD_REASON_HOUR

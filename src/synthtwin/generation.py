@@ -21147,16 +21147,9 @@ def _clock_census_content(
         for _copy in range(count):
             cells += [spelling]
         used[spelling] = 1
-    hole_spellings = _hole_spellings(column)
-    step = 1
-    while len(cells) < column.n_present:
-        candidate = _text_spelling(step, used, hole_spellings)
-        step = step + 1
-        if _reads_as_a_clock(candidate):
-            continue
-        if _is_a_hole_spelling(candidate, hole_spellings):
-            continue
-        cells += [_take(candidate, used)]
+    cells += _clock_stand_ins(
+        column, facts, len(cells), used, _hole_spellings(column), plan.parse_rate
+    )
     return cells, _clock_minutes_missed(column, facts, census)
 
 
@@ -22122,16 +22115,9 @@ def _clock_content(
     # than count as text -- and a spelling this column publishes as a
     # hole.
     used: "dict[str, int]" = {cell: 1 for cell in cells}
-    holes = _hole_spellings(column)
-    step = 1
-    while len(cells) < column.n_present:
-        candidate = _text_spelling(step, used, holes)
-        step = step + 1
-        if _reads_as_a_clock(candidate):
-            continue
-        if _is_a_hole_spelling(candidate, holes):
-            continue
-        cells += [_take(candidate, used)]
+    cells += _clock_stand_ins(
+        column, facts, len(cells), used, _hole_spellings(column), plan.parse_rate
+    )
     return cells, []
 
 
@@ -22316,6 +22302,126 @@ def _reads_as_a_clock(text: str) -> bool:
     text is weighed by none (method G7A.5).
     """
     return parsing.clock_form(text) is not None
+
+
+def _clock_stand_ins(
+    column: contract.ColumnBlock,
+    facts: contract.ClockFacts,
+    written: int,
+    used: "dict[str, int]",
+    holes: "tuple[str, ...]",
+    rate: "float | None",
+) -> "list[str]":
+    """Every stand-in of a column of clock times (method G7A.5).
+
+    The cells left once `written` cells -- the parsed values and the codes
+    -- are laid. Words (`_text_spelling`), each stepped past a spelling
+    the column already wrote, a word read as "no value", a spelling any
+    clock reading takes (`_reads_as_a_clock`) and a hole; save where the
+    twin's own description would count every word among ROUTE 1's rare
+    words beside clock times and find more than it allows
+    (`_clock_stand_in_words`): there the stand-ins past that allowance are
+    times at the column's other precision (`_clock_times_unread`), cells a
+    clock reader takes -- so no rare word -- and the column's reading does
+    not -- so still unparsed (the Codex review of landing C2, item 1: 972
+    minutes beside nine times at the second and 19 notes were clock times,
+    and their twin's 28 words, more than one present cell in fifty, read
+    back as free text). Where those times run out, words again.
+
+    Guarantees: a function of the arguments; `used` records each spelling
+    handed back. Raises nothing. No I/O of any kind.
+    """
+    wanted = column.n_present - written
+    words = _clock_stand_in_words(
+        column.n_present,
+        column.n_present - facts.n_unparsed,
+        wanted,
+        facts.clock_form,
+        rate,
+    )
+    cells: "list[str]" = []
+    step = 1
+    while len(cells) < wanted:
+        if len(cells) == words:
+            cells += _clock_times_unread(facts.clock_form, wanted - words, used, holes)
+            words = wanted
+            continue
+        candidate = _text_spelling(step, used, holes)
+        step = step + 1
+        if _reads_as_a_clock(candidate):
+            continue
+        if _is_a_hole_spelling(candidate, holes):
+            continue
+        cells += [_take(candidate, used)]
+    return cells
+
+
+def _clock_stand_in_words(
+    present: int, parsed: int, wanted: int, form: str, rate: "float | None"
+) -> int:
+    """How many of a column of clock times' `wanted` stand-ins are words (G7A.5).
+
+    All of them, save where the twin's description would need ROUTE 1 to
+    read the column as clock times -- its `parsed` cells below the clock
+    line of every `present` cell (`taxonomy.clock_line`) -- and the words
+    would be more than route 1 counts out: at most one present cell in
+    `taxonomy.RARE_WORDS_BESIDE_CLOCKS`. There as many words as that
+    allowance, and the rest times at the other precision, wherever the
+    parsed cells clear the line of the present cells less the allowance
+    (the loader's T5 holds every description to it) and, on a column
+    written to the minute, the times at the second, which the reader asks
+    first, stay below that line -- at the default parse rate of 0.99, and
+    at any above one half, they always do.
+
+    Guarantees: a function of the five, between nought and `wanted`.
+    Raises nothing for a form of `parsing.CLOCK_FORMS`. No I/O.
+    """
+    most = present // taxonomy.RARE_WORDS_BESIDE_CLOCKS
+    if rate is None or most <= 0 or wanted <= most:
+        return wanted
+    if parsed >= taxonomy.clock_line(rate, present):
+        return wanted
+    line = taxonomy.clock_line(rate, present - most)
+    if parsed < line:
+        return wanted
+    if parsing.clock_step(form) == 60 and wanted - most >= line:
+        return wanted
+    return most
+
+
+def _clock_times_unread(
+    form: str, wanted: int, used: "dict[str, int]", holes: "tuple[str, ...]"
+) -> "list[str]":
+    """Up to `wanted` times a column of clock times leaves unparsed (G7A.5).
+
+    Each written at the precision the column's form does not write: in
+    the column's own style first, from its first place upward, then in
+    every other form of that precision in `parsing.CLOCK_FORMS`' order,
+    each stepped past a spelling already written and a hole. Fewer only
+    where every such spelling is taken.
+
+    Guarantees: a function of the arguments; `used` records each one.
+    Raises nothing for a form of `parsing.CLOCK_FORMS`. No I/O.
+    """
+    found: "list[str]" = []
+    if wanted <= 0:
+        return found
+    seconds = parsing.clock_step(form) == 60
+    own = parsing.clock_form_of(parsing.clock_style_of(form), seconds)
+    forms = [own] + [
+        other
+        for other in parsing.CLOCK_FORMS
+        if other != own and (parsing.clock_step(other) == 1) == seconds
+    ]
+    for other in forms:
+        for ordinal in range(parsing.CLOCK_CAPACITY[other]):
+            if len(found) >= wanted:
+                return found
+            spelling = parsing.clock_spelling(ordinal, other)
+            if not _unused(spelling, used) or _is_a_hole_spelling(spelling, holes):
+                continue
+            found += [_take(spelling, used)]
+    return found
 
 
 def _clock_ordinal_of(text: str, form: str) -> int:

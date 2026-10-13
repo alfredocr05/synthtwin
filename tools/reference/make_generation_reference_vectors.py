@@ -24627,7 +24627,7 @@ def clock_census_content(column):
                for ordinal in ordinals]
     codes = clock_codes_of(column)
     content.extend(codes)
-    content.extend(text_stand_ins(content, column["n_unparsed"] - len(codes)))
+    content.extend(clock_stand_ins(column, content, column["n_unparsed"] - len(codes)))
     return content
 
 
@@ -25209,9 +25209,70 @@ def _clock_content(column):
     # G7A.5.  The stand-ins this file builds are `text-N`, which reads
     # as a clock time in none of the forty forms (contract C6-10a), so
     # the exclusion that belongs to this role is met by construction
-    # rather than by a search.
-    content.extend(text_stand_ins(content, column["n_unparsed"]))
+    # rather than by a search -- and past route 1's allowance, times at
+    # the column's other precision (`clock_stand_ins`).
+    content.extend(clock_stand_ins(column, content, column["n_unparsed"]))
     return content
+
+
+def clock_stand_ins(column, used, wanted):
+    """G7A.5's stand-ins of a column of clock times (the Codex review of landing C2, item 1).
+
+    ``text-N`` -- save where the twin's description would need route 1 to
+    read it as clock times (its parsed cells below the clock line of every
+    present cell) and more words than one present cell in fifty: there as
+    many words as that, and the rest times at the precision the column's
+    form does not write, in its own style from its first place upward and
+    then in every other form of that precision in the forms' order (faces
+    none, ` twelve-hour`, then each marker pair after a space and after
+    nothing; widths `hh` then `h`; each before its seconds), each past a
+    spelling already written and one the column calls absent.  Not where
+    the parsed cells miss the line of the present cells less that
+    allowance, nor, on a column written to the minute, where the times at
+    the second would reach it.
+    """
+    form = column["clock_form"]
+    present = column["n_present"]
+    parsed = present - column["n_unparsed"]
+    rate = column.get("_parse_rate", MINIMUM_PARSE_RATE)
+    most = present // RARE_WORDS_BESIDE_CLOCKS
+    words = wanted
+    if 0 < most < wanted and parsed < clock_line(present, rate):
+        line = clock_line(present - most, rate)
+        if parsed >= line and not (clock_step_of(form) == 60 and wanted - most >= line):
+            words = most
+    produced = text_stand_ins(used, words)
+    if words == wanted:
+        return produced
+    width, seconds, face = clock_form_fields(form)
+    fields = "-mm" if seconds else "-mm-ss"
+    faces = ["", " twelve-hour"]
+    for pair in CLOCK_PAIRS:
+        faces += [" " + pair, pair]
+    own = width + fields + face
+    forms = [own] + [
+        other_width + fields + other_face
+        for other_face in faces
+        for other_width in ("hh", "h")
+        if other_width + fields + other_face != own
+    ]
+    seen = set(used) | set(produced)
+    absent = clock_absent_of(column)
+    times = []
+    for other in forms:
+        for ordinal in range(clock_capacity(other)):
+            if len(times) >= wanted - words:
+                break
+            spelling = clock_spelling_of(ordinal, other)
+            if spelling in seen or spelling.strip().lower() in absent:
+                continue
+            if folded(spelling) in NO_VALUE_SPELLINGS:
+                continue
+            seen.add(spelling)
+            times.append(spelling)
+    produced.extend(times)
+    produced.extend(text_stand_ins(list(seen), wanted - len(produced)))
+    return produced
 
 
 def _date_only():
@@ -37491,6 +37552,40 @@ def _clock_minutes_rounding():
 
 
 
+def _clock_stand_ins_past_route_one():
+    tails, tail_claims = _tail_fields(
+        {"boundary": '09:17', "rows": 11, "mean_distance": '42.0', "rms_distance": '47.47630988187688', "values": None},
+        {"boundary": '16:59', "rows": 11, "mean_distance": '42.0', "rms_distance": '47.47630988187688', "values": None},
+    )
+    column = _universal(
+        "column_1", 'time_of_day', 'time_of_day', "data", "ok",
+        clock_census=[{'count': 0, 'first': 0, 'last': 54}, {'count': 15, 'first': 55, 'last': 65}, {'count': 17, 'first': 66, 'last': 77}, {'count': 17, 'first': 78, 'last': 89}, {'count': 18, 'first': 90, 'last': 101}, {'count': 0, 'first': 102, 'last': 143}],
+        clock_codes=[],
+        clock_form='hh-mm',
+        clock_heaps=[],
+        clock_percentiles={'max': None, 'min': None, 'p01': None, 'p05': None, 'p10': None, 'p25': '10:34', 'p50': '13:08', 'p75': '15:42', 'p90': None, 'p95': None, 'p99': None},
+        clock_step=60,
+        minute_census=[],
+        n_contradictory=0,
+        n_distinct=100,
+        n_distinct_folded=100,
+        n_missing=0,
+        n_not_numeric=100,
+        n_numeric=0,
+        n_out_of_range=0,
+        n_present=100,
+        n_unparsed=11,
+        detection_evidence='89 value(s) are clock times written as hours and minutes, `09:30`, and 11 value(s) are not',
+        **tails,
+    )
+    return {
+        "why": "G7A.5's stand-ins past route 1's allowance (the Codex review of landing C2, item 1): 89 times every seven minutes from 08:00, nine at the second and two notes, described at the reference parse rate of 0.9. The 89 parsed cells miss the clock line of 100 (90) and clear that of 98 (89), so the column is clock times only by route 1, which counts out at most two rare words. Two stand-ins are words and the other nine times at the second, 00:00:00 upward, which a clock reader takes and the column's form leaves unparsed. The mutant writes all eleven as words, and the twin's own description reads it as free text.",
+        "column": column,
+        "rows": 100,
+        "identifier_declared": False,
+        "claims": tail_claims,
+    }
+
 FOURTEENTH_BRANCH_CASE_BUILDERS = {
     "tail_end_least_reach": _tail_end_least_reach,
     "tail_end_least_reach_months": _tail_end_least_reach_months,
@@ -37535,6 +37630,7 @@ TWENTY_SEVENTH_BRANCH_CASE_BUILDERS = {
     "clock_minutes_rung_pins": _clock_minutes_rung_pins,
     "clock_minutes_no_tails": _clock_minutes_no_tails,
     "clock_minutes_rounding": _clock_minutes_rounding,
+    "clock_stand_ins_past_route_one": _clock_stand_ins_past_route_one,
 }
 
 # THE TWENTY-THIRD FILE: G6.6.8's reach (lane G2, plan P4-D377).
@@ -38433,7 +38529,9 @@ _TWENTY_SEVENTH_BRANCH_ACCOUNT = (
     "at the second, a column whose values all differ, rungs pinned in "
     "their census groups, a column with no tails whose heap's cells come "
     "off the minute groups' counts, and the rounding of a walk-in grid "
-    "with both counts kept. They "
+    "with both counts kept -- and G7A.5's stand-ins past route 1's "
+    "allowance, written as times at the column's other precision (the "
+    "Codex review of the landing, item 1). They "
     "are computed by the same oracle and the same proof layer "
     "as tests/reference/generation-reference-vectors.json, "
     "tests/reference/generation-branch-vectors.json, "
@@ -39097,6 +39195,70 @@ GIVEN_WORDS = {
         5666484191547644784, 12809071105349310258, 17261635236044409023,
         1503711734766025401, 6638444779102212066, 14766159953212488909,
         17240140873589421673,
+    ),
+    "clock_stand_ins_past_route_one": (
+        10234438611006787843, 9839146010938063604, 1151468569878544781,
+        3856890310119195095, 2195970959792675907, 17436177329677995684,
+        5178932396239935979, 15311461962375797048, 2861790515949771266,
+        3372785282959164504, 14202470440531499707, 16796100521412342735,
+        2421065896171430404, 16560414834324209524, 16586975279809237510,
+        9391880235640391354, 9664721470721029016, 7824565903130589716,
+        16628287874653640612, 10860158417663958156, 2847621835618455050,
+        3323290860524215660, 2655706762455298895, 18253307455465693813,
+        10501906120523052090, 11296840414051832982, 8534925589165585084,
+        263602969320287919, 6694116608501196422, 18293444029009259236,
+        9558429254274486525, 5416963929742065153, 5891457486006675054,
+        15806368619633755847, 637515375250002118, 3768313940582346350,
+        10666860008890146956, 10073524452148324143, 17270961354405965920,
+        6484115760526212163, 712145306251813712, 15935225421584427087,
+        15558818676963902869, 13683332834418273956, 2164180418429241182,
+        6742953982854606885, 1745001589607448992, 1095360051433782086,
+        5308045408343532698, 18325476916481837671, 6820131702196996351,
+        3654818051598695137, 2271757296915660789, 11723480480340318498,
+        5401510470129477876, 8194265792830867747, 11887649900651414766,
+        5509856471584352306, 9617510078591016557, 1959510138378283834,
+        679407576006801159, 7736480708004192611, 15623081423681242911,
+        15685120965427190478, 8643533164409779913, 10175338643639265185,
+        14493672895111095773, 12440146573392890309, 335265498363221333,
+        10482945353841791620, 14447218515833558781, 13146745958938388197,
+        7453270742057970429, 17808512487929667305, 8306598566387139592,
+        9641693140157941728, 1610868749543502450, 16511322520796668867,
+        829443916023926293, 4624928564025709068, 14538812598130282448,
+        1526143397206820820, 15438233370458092963, 10805600082647613448,
+        8623319841759832969, 11846710306108376387, 17286412141906404161,
+        1284154456220336935, 4030635108500953831, 9639880957061958315,
+        8271663308531019290, 908425199789522605, 17547330997214703263,
+        14345666316189988237, 9702927273724253608, 5046627805685730,
+        2711204307876562477, 2238709149091183179, 5499176710903581981,
+        16539514055183243265, 3469038771700910739, 3038729031059679929,
+        16999974476271593398, 10350678377089453621, 14433494591654027341,
+        2924603338487312406, 4515045509718724294, 1048508344500125722,
+        4136171123832854886, 2442045814281663527, 9368510102912667145,
+        18318760745989352913, 868687004122567921, 14064379352364616878,
+        5982952035649312654, 12900740686786159742, 4702081822695296106,
+        9521428738049855273, 11285195249586043439, 11477422832670566065,
+        9708768650012607263, 15319507003595281875, 6359892844471518899,
+        5283038276080906379, 5405969497541555193, 7164080680198621973,
+        1870353604851031288, 16909998255331918302, 10816080482455229617,
+        4570255342006348051, 1846924497530230716, 13818441207388103761,
+        16766298726593275739, 8137529436179317593, 7561329442848892323,
+        14973185416658331013, 4997367365555380637, 10045277881907814797,
+        13184489516949982730, 13248504831994560834, 7704570560928572607,
+        6074845079584676545, 13348397766383475175, 12799640011823673656,
+        7597860246534056419, 1613020119646157934, 8938921073539194654,
+        6150209342333532667, 1212091307522775653, 3164245958530228799,
+        5779235905474473484, 4033888769431676714, 2655431148364534439,
+        9058505243771809542, 5216766430086168531, 9486879450545552418,
+        1203554547393879837, 561378765626772780, 8446143193684072889,
+        11273088470315466962, 14843989613907099068, 6574077762021285744,
+        15442162849631476843, 15837781149280234242, 16525167377588524990,
+        13558793392440985760, 1565552485949268419, 10429295959561364547,
+        8361766492559191462, 17272439409759998410, 4761821774335114540,
+        272337783228550155, 15900867286870208814, 11854447097578672851,
+        7148919711803504026, 5969283063087981349, 11874766939322571458,
+        14686982608452525131, 11584313767674322687, 3421873191145910488,
+        6103003384694281542, 413800784699453877, 13347365837469445304,
+        16044034590318970212, 3329695240072399472, 5006664455913738150,
     ),
     "clock_minutes_rounding": (
         3782760511115679186, 10111134617660443044, 10319860922049069289,

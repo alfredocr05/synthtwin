@@ -4481,7 +4481,13 @@ in `n_unparsed`, and the twin writes a word in each, where counted
 missing they were blanks the source never left -- 198 cells over 2 of
 lane C1's 112 columns of times beside notes, which the route-2
 correction's ruling ("no cell blank that the source never left blank")
-removes. It is asked of every first
+removes. Where the column's unread cells are more than those words --
+times at the other precision or on another face beside them -- the
+twin's own stand-ins past one cell in fifty are times at the other
+precision, so its description too reads it as clock times (method
+G7A.5; the Codex review of landing 3b.5's second step, item 1: 972
+minutes beside nine times at the second and 19 notes read back as free
+text, every twin's 28 stand-ins words). It is asked of every first
 reading as labels or free text, not only where a level is counted out
 (the repair round of landing 3b.5): a column of `7:30 AM` beside 0.6 %
 `UNK` and 0.3 % `99:99` was free text at 300 and 1,000 rows at a floor
@@ -9252,7 +9258,7 @@ P4-D374) fills `minute_census`, held to MC1 to MC3 and MC5.
 
 | key | JSON type | permitted values | meaning | disposition |
 |---|---|---|---|---|
-| `minute_census` | array of `{first, last, count}` | `[]`, or groups of minutes 0 to 59 in order, each count nought or at least the census line (MC1 to MC3, MC5) | landing 3b.5's second step (plan P4-D374): how many cells of the BODY -- between the two tail boundaries, both included, or every parsed cell where there are no tails -- the heaps' among them, fall on each group of minutes of the hour each is written at, by the one merge rule over the minutes on the census line beside the sure cells; published beside a `clock_step` alone, and `[]` where the body's cells on no heap are flat over the minutes the step reaches, where how they fall follows the hour of the day so that one count over every hour misleads (M3), or where the merge rule leaves one group; no sentence is said | EXACT-OBSERVABLE: the file's own body holds each group's count exactly |
+| `minute_census` | array of `{first, last, count}` | `[]`, or groups of minutes 0 to 59 in order, each count nought or at least the census line (MC1 to MC3, MC5) | landing 3b.5's second step (plan P4-D374): how many cells of the BODY -- between the two tail boundaries, both included, or every parsed cell where there are no tails -- the heaps' among them, fall on each group of minutes of the hour each is written at, by the one merge rule over the minutes on the census line beside the sure cells; published beside a `clock_step` alone, and `[]` where the body's cells on no heap are flat over the minutes the step reaches, where how the body's cells -- the heaps' among them, each cell counted, no tie discounted, a time of day written on several rows being several days' events -- fall follows the hour of the day so that one count over every hour misleads (M3; the Codex review of the step, item 2), or where the merge rule leaves one group; no sentence is said | EXACT-OBSERVABLE: the file's own body holds each group's count exactly |
 
 <!-- anchor 3b-G1 (P4-D375) -->
 <!-- anchor 3b-G3 (P4-D376) -->

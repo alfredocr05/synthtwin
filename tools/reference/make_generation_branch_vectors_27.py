@@ -6,7 +6,9 @@ It asks `make_generation_reference_vectors.py` for the cases landing
 G7A.4c's layout of a column of clock times on its minute census --
 `clock_minutes_slots`, `clock_minutes_seconds`,
 `clock_minutes_all_different`, `clock_minutes_rung_pins`,
-`clock_minutes_no_tails` and `clock_minutes_rounding`.
+`clock_minutes_no_tails` and `clock_minutes_rounding` -- and G7A.5's
+stand-ins past route 1's allowance, `clock_stand_ins_past_route_one`
+(the Codex review of the landing, item 1).
 
 **Why a twenty-seventh file.**  Plan P4-D364's numbering table gave this
 landing no file, its cases to stand in the twenty-first; that file stands

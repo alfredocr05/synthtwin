@@ -897,6 +897,7 @@ TWENTY_SEVENTH_BRANCH_CASES = (
     "clock_minutes_rung_pins",
     "clock_minutes_seconds",
     "clock_minutes_slots",
+    "clock_stand_ins_past_route_one",
 )
 
 # THE TWENTY-THIRD FILE: lane G2's width rule, G6.6.8's reach (plan
@@ -978,6 +979,9 @@ SEEDS = {
     "clock_minutes_rung_pins": 439,
     "clock_minutes_no_tails": 440,
     "clock_minutes_rounding": 441,
+    # ...and the Codex review of the landing, item 1: G7A.5's stand-ins past
+    # route 1's allowance, at a seed no other lane holds.
+    "clock_stand_ins_past_route_one": 642,
     # Landing R2a's layout member takes the next seeds after T1's (plan
     # P4-D383).
     "layout_century_window": 421,
@@ -3817,6 +3821,11 @@ def _minute_boundaries_pinned_alone(column, parsed, tails, body, heap_at, stride
     return [(rank, at) for rank, at in kept if rank in ends]
 
 
+def _stand_ins_all_words(_column, used, wanted):
+    """G7A.5's stand-ins past route 1's allowance withdrawn: every one a word."""
+    return gen.text_stand_ins(used, wanted)
+
+
 def _minute_heaps_left_in(minute_groups, _heap_at, kept, form):
     """G7A.4c's column counts with the heaps' cells left in."""
     return gen_clock_minute_owed(minute_groups, {}, kept, form)
@@ -3868,6 +3877,12 @@ CASE_MUTANTS = {
         branch="G7A.4c's column counts less the heaps' cells; the mutant leaves them in, no table meets the counts, and G7A.4b lays the body",
         attribute="clock_minute_owed",
         replacement=_minute_heaps_left_in,
+        outcome=CHANGES_THE_CELLS,
+    ),
+    "clock_stand_ins_past_route_one": Mutant(
+        branch="G7A.5's stand-ins past route 1's allowance written as times at the other precision; the mutant writes them all as words, and the twin reads back as free text",
+        attribute="clock_stand_ins",
+        replacement=_stand_ins_all_words,
         outcome=CHANGES_THE_CELLS,
     ),
     "clock_minutes_rounding": Mutant(

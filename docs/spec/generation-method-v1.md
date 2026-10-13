@@ -9195,6 +9195,36 @@ document exists to prevent.
 *Restated by the T1 review's item 11:* this section stepped a stand-in
 past a clock time "in EITHER form" while the reader had two.
 
+**Past route 1's allowance, times at the other precision** (the Codex
+review of landing 3b.5's second step, item 1; plan P4-D374). The
+producer reads a column as clock times through route 1 where its parsed
+cells `P` miss the clock line of `n_present` but clear it once the rare
+words beside them -- at most `floor(n_present / 50)` cells -- are set
+aside; the loader's T5 holds every description to that lower line. The
+twin's own description asks the same, and every stand-in written as a
+word is such a word. So with `m = floor(n_present / 50)` and `S` the
+stand-ins (`n_unparsed` less the codes' cells): where `m >= 1`, `S > m`,
+`P` is below the line of `n_present` and at least the line of
+`n_present - m`, the first `m` stand-ins are words as above and the
+other `S - m` are TIMES AT THE PRECISION THE COLUMN'S FORM DOES NOT
+WRITE -- cells a clock reader takes, so no rare word, and the column's
+reading does not, so still counted in `n_unparsed`. They are spelled in
+the column's own style at that precision from its first place upward
+(`00:00:00`, `00:00:01`, ... beside `hh-mm`), then in every other form
+of that precision in `parsing.CLOCK_FORMS`' order (faces none,
+` twelve-hour`, then each marker pair after a space and after nothing;
+widths `hh` then `h`), each stepped past a spelling already written and
+past a hole; where every such spelling is taken, the rest are words
+again. Not on a column written to the minute whose `S - m` would reach
+the line of `n_present - m`: the reader asks the second first, and would
+read the column at the second -- never at the default parse rate of
+0.99 or at any rate above one half. Everywhere else every stand-in is a
+word, byte for byte as before. Measured: 972 minutes beside nine times
+at the second and 19 notes, at floors 11 and 36, seeds 0, 1 and 4 --
+every twin's 28 stand-ins words, more than one present cell in fifty,
+read back as free text, `axes.role` and `axes.statistical_type` MISSED;
+20 words and eight times at the second, nothing missed.
+
 ## G8. Label columns (`constant`, `binary`, `categorical`, `long_tail_labels`)
 
 A label column consumes no content words. Everything is fixed by
@@ -15457,6 +15487,7 @@ case passed, which is the failure the count exists to prevent:
 | `clock_minutes_rung_pins` | G7A.4c's pins: 170 afternoon times whose rungs each stand on a step of the census group their rank lies in, so each is a wall the group's cells are cut at and stands at its own rank once they are sorted. Its mutant pins the two boundaries alone, and the cells between the rungs move |
 | `clock_minutes_no_tails` | G7A.4c on a column with no tails: 150 of 170 cells at 08:00, a heap, and 20 on the hour, all 170 in minute 0. The heap's cells come off the minute groups' counts before the table is fitted. Its mutant leaves them in, no table meets the counts, and G7A.4b lays the body |
 | `clock_minutes_rounding` | G7A.4c's rounding: 200 walk-in times, 55 % on a ten-minute grid, fourteen minute groups. Each fitted cell takes its floor and the cells still owed move along shortest paths between an owing row and an owing column, so every count is met. Its mutant rounds each row alone, and the minute groups' counts move |
+| `clock_stand_ins_past_route_one` | G7A.5's stand-ins past route 1's allowance (the Codex review of landing 3b.5's second step, item 1): 89 times every seven minutes from 08:00 beside nine at the second and two notes, described at the reference parse rate of 0.9. The 89 parsed cells miss the line of 100 and clear that of 98, so two stand-ins are words and the other nine times at the second from `00:00:00` upward. Its mutant writes all eleven as words, and the twin's own description reads it as free text |
 | `weekday_whole_runs` | G7.3f step 5 (plan P4-D355): 100 whole dates over three weeks with no weekend, published `[Mon-Fri] 77, [Sat-Sun] 0`, whose ranks of one day move whole onto a free day of a group with room for all of them before any single rank moves. Its mutant withdraws the step |
 | `plus_padded_field` | G6.3's second tier of named field widths (plan P4-D145): twenty-two cells of twelve thousand three hundred and forty-five published `leading_plus` with `pad_widths: {"7": 22}`, every one written `+0012345` |
 | `saturated_integers` | G6.5a's fill of a saturated integer grid (plan P4-D147): thirty-three whole numbers publishing twenty-two different values between the ends one and twenty-two, so the strata take those integers in order, each once, and all twenty-two are written |

@@ -837,3 +837,99 @@ def test_red_when_the_minute_group_lookup_names_its_last_minute_l() -> None:
     its `l`, so the tree-wide test above goes red on it."""
     mutant = "def group_of(minute):\n    return next(i for i, (f, l, _c) in enumerate(groups) if f <= minute <= l)\n"
     assert _ambiguous_names(mutant) == [(2, "l")]
+
+
+# -- the Codex review of landing C2 ---------------------------------------------
+
+
+def _beside_other_forms() -> "list[str]":
+    """Item 1's column: the 972 successive minutes 00:00 to 16:11, nine times
+    at the second 12:00:00 to 12:00:08, and 19 one-off notes."""
+    cells = [f"{minute // 60:02d}:{minute % 60:02d}" for minute in range(972)]
+    cells += [f"12:00:{second:02d}" for second in range(9)]
+    return cells + [f"note{word}" for word in range(19)]
+
+
+@pytest.mark.parametrize("floor", (11, 36))
+def test_a_route_one_column_beside_other_clock_forms_keeps_its_type(floor: int) -> None:
+    """The Codex review of landing C2, item 1. Route 1 counts out the 19 notes,
+    one present cell in fifty at most, and the nine times at the second stay
+    unread by the column's form: 28 present and unread, no cell blank. The
+    twin wrote all 28 as words, more than route 1 lets its own description
+    count out, so it read back as free text and `axes.role` and
+    `axes.statistical_type` were MISSED at seeds 0, 1 and 4. G7A.5 now writes
+    the twin's stand-ins past that allowance -- 20 words here -- as times at
+    the column's other precision: unread, and no rare word."""
+    document, path, _table = _document({"c": _beside_other_forms()}, floor=floor)
+    block = document["columns"][0]
+    assert (block["role"], block["n_missing"], block["n_unparsed"]) == (taxonomy.ROLE_CLOCK, 0, 28)
+    loaded = contract.load_profile(str(path))
+    for seed in (0, 1, 4):
+        twin, twin_path = _twin(loaded, seed)
+        assert _missed(loaded, twin_path) == []
+        unread = [cell for cell in twin["c"] if parsing.clock_ordinal(cell, "hh-mm") is None]
+        assert "" not in twin["c"] and len(unread) == 28
+        assert sum(1 for cell in unread if parsing.clock_parts(cell) is None) == 20
+
+
+def test_red_when_every_stand_in_is_a_word(monkeypatch: pytest.MonkeyPatch) -> None:
+    """MUTATION: G7A.5's split withdrawn, every stand-in a word -- the twin of
+    item 1's column reads back as free text, as on dc8f481."""
+    monkeypatch.setattr(generation, "_clock_stand_in_words", lambda _present, _parsed, wanted, _form, _rate: wanted)
+    _document_built, path, _table = _document({"c": _beside_other_forms()}, floor=11)
+    loaded = contract.load_profile(str(path))
+    _twin_cells, twin_path = _twin(loaded, 0)
+    assert "c:axes.role" in _missed(loaded, twin_path)
+
+
+def _night_readings_repeated() -> "list[str]":
+    """Item 2's column, 7,920 `HH:MM:SS` cells: hours 00 to 05 at minute 00
+    with seconds 00 to 05, each reading a hundred times, and hours 06 to 17
+    at every minute with seconds 00 to 05, each once."""
+    cells: "list[str]" = []
+    for hour in range(6):
+        for second in range(6):
+            cells += [f"{hour:02d}:00:{second:02d}"] * 100
+    for hour in range(6, 18):
+        for minute in range(60):
+            cells += [f"{hour:02d}:{minute:02d}:{second:02d}" for second in range(6)]
+    return cells
+
+
+@pytest.mark.parametrize("floor", (11, 36))
+def test_m3_counts_recurring_clock_readings_as_events(floor: int) -> None:
+    """The Codex review of landing C2, item 2. A time of day written on many
+    rows is that place on the dial on many days, so M3 counts the cells.
+    Discounted as a timestamp's ties, the dependence on the hour vanished, 60
+    minute groups were published, and the twin wrote 589 of the 4,320 day
+    cells on minute 0 against 72 -- every check held. Withheld, the day hours
+    come back on minute 0 as the table holds them."""
+    cells = _night_readings_repeated()
+    document, path, _table = _document({"c": cells}, floor=floor)
+    assert _block(document, "c")["minute_census"] == []
+    loaded = contract.load_profile(str(path))
+    day = tuple(range(6, 18))
+    real = _minute_zero_share(cells, day)
+    for seed in (0, 1, 4):
+        twin, twin_path = _twin(loaded, seed)
+        assert _missed(loaded, twin_path) == []
+        assert abs(_minute_zero_share(twin["c"], day) - real) <= 0.01
+
+
+def test_red_when_recurring_clock_readings_are_discounted_as_ties(monkeypatch: pytest.MonkeyPatch) -> None:
+    """MUTATION: M3 on clock cells divided by the design effect of their ties,
+    the squared cells each (hour, minute) holds -- the minute census is
+    published, and the twin's day cells on minute 0 rise past a tenth."""
+    built = calendar_clock.depends_on_the_hour
+
+    def discounted(hours: "list[int]", values: "list[int]", line: int, squares: int = 0) -> bool:
+        counts = collections.Counter(zip(hours, values))
+        return built(hours, values, line, sum(count * count for count in counts.values()))
+
+    monkeypatch.setattr(calendar_clock, "depends_on_the_hour", discounted)
+    cells = _night_readings_repeated()
+    document, path, _table = _document({"c": cells}, floor=11)
+    assert len(_block(document, "c")["minute_census"]) > 1
+    loaded = contract.load_profile(str(path))
+    twin, _twin_path = _twin(loaded, 0)
+    assert _minute_zero_share(twin["c"], tuple(range(6, 18))) > 0.1
