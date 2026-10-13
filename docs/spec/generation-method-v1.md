@@ -7994,6 +7994,18 @@ crossed in one hop (the verification of that repair, open item 2; one
 unit at a time asked 500,359 times for 1,000 partial days of a
 20,000-row column of different HL7 stamps).
 
+*Amended by the fifth push's critic (MAJOR 4).* The walk keeps first
+between the units of the earliest and the latest instant the full ranks
+that read back write -- the span the published tails set, the cell's own
+unit always inside it. Where no unit there is free, the nearest free
+unit below the span is written, the walk going down toward 1800, and
+only where none is, the nearest above it. Measured on 45191fa: 120 ISO
+dates from 2024-01-01 beside 80 different years 1900 to 1979 came back
+with years 1984 to 2063, 39 of them after the column's last date, and
+validate missed nothing; they are now 1945 to 2024. The source's own
+partial years are published nowhere, so the twin cannot put them where
+the source had them.
+
 A month NAME is built by `month_spelling`, the one inverse of the
 reader's own `month_of_name`, so a producer counting names and a
 generator writing them cannot spell one month two ways — as
@@ -15698,7 +15710,7 @@ case passed, which is the failure the count exists to prevent:
 | `layout_partial_markers` | G7.5's unknown markers (landing R2c): a Medidata export, fourteen days written `01 JAN 1970`, twelve under `{UN} {MON} {YYYY}` and eleven under `{UN} {UNK} {YYYY}`, each marker written as itself and each form placed where it falls furthest behind its share. Its mutant writes the forms one after the other |
 | `layout_partial_hl7` | G7.5's cut on the clock (landing R2c; the R2 design skeptic, M2): an HL7 feed of twenty-four stamps to the second beside eleven to the minute, one family of figure runs, every cell a number; the minute cells take every other full rank's stamp with its seconds cut. Its mutant takes the first ranks, and the minute cells crowd the column's earliest moments |
 | `layout_ordinal_declared` | G7.5's day of the year (landing R2c, question Q6): a seven-figure Julian date, `1970001`, read only because the person said the column holds dates (contract S8f). Its mutant writes the month and day in place of the day of the year |
-| `layout_partial_all_different` | G7.5's partial cells where G11 binds (the Codex review of landing R2c, item 4): twelve days of the ramp written whole beside eleven cells written to the year, as many different values published as present ones, so the full ranks are held all different and each partial year that would repeat a held one steps to the nearest year no cell holds, the earlier first. Its mutant reads no obligation, and every partial cell is `1970`. |
+| `layout_partial_all_different` | G7.5's partial cells where G11 binds (the Codex review of landing R2c, item 4): twelve days of the ramp written whole beside eleven cells written to the year, as many different values published as present ones, so the full ranks are held all different and each partial year that would repeat a held one steps to the nearest year no cell holds inside the full ranks' span (1970 alone), then below it: 1969, 1968 and on (the fifth push's critic, MAJOR 4). Its mutant reads no obligation, and every partial cell is `1970`. |
 | `layout_partial_absent_month` | G7.5's partial cell stepped off an absent spelling (the Codex review of landing R2c, item 3): twelve days of January 1970 beside eleven cells written to the month and eleven absent cells written `1970-01`, declared missing; each partial month steps to `1969-12`. Its mutant writes the absent spelling as a present cell. |
 | `layout_partial_figures` | G10.3's figure stand-ins past every spelling a partial form reads (the Codex review of landing R2c, item 2): a `DD-Mon-YY` column with eleven partial years `70` and twelve figures owed, written 1 to 9, then 100 to 102, since `10` to `99` are years to `{YY}`. Its mutant writes 10, 11 and 12. |
 | `layout_declared_short` | G7.3's upper target on a declared column short of the date rule's line (landing R2c, question Q6; the Codex review of it, item 9): forty dates, eleven in each tail, beside six unread cells, thirteen different values published; the pass lowers the full ranks to twelve different days and never raises them. Its mutant drops the declared mark and aims at seven, the count less every unread cell. |

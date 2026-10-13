@@ -2936,6 +2936,9 @@ def _run_profile(
     answered_code_shapes: "dict[str, str]" = {}
     # ...and the columns whose centuries the file answered (landing R2a).
     answered_centuries: "list[str]" = []
+    # ...and the columns whose Q6 the file answered `keep` (landing R2c):
+    # nothing is declared, and Q6 is not put to them again.
+    dates_kept: "list[str]" = []
     if answers_path is not None:
         try:
             written = asking.answers_in(
@@ -3001,8 +3004,9 @@ def _run_profile(
             # reading would find them in a different column.
             + list(written.missing_date_columns)
             + list(written.real_value_columns)
-            # ...and the columns answered `dates` (landing R2c).
+            # ...and the columns answered `dates` (landing R2c), or `keep`.
             + list(written.date_columns)
+            + list(written.date_columns_kept)
         ):
             # Each name once: a column answered in both sections of the
             # file would otherwise stand twice in one sentence.
@@ -3092,6 +3096,8 @@ def _run_profile(
         date_columns = sorted(
             {one: 1 for one in date_columns + list(written.date_columns)}
         )
+        # ...and those answered `keep`, carried so Q6 is not put again.
+        dates_kept = list(written.date_columns_kept)
         # ...AND THE ORDER OF DAY AND MONTH (plan P4-D381): an answer of
         # `day-first` is `--day-first`, and it is applied before the read
         # because it decides how the columns of dates are read. It goes
@@ -4028,7 +4034,7 @@ def _run_profile(
         document,
         read.columns,
         settings,
-        settled + date_columns,
+        settled + date_columns + dates_kept,
         split_columns,
         tuple(forced_decimal_commas),
         storage,
@@ -4037,7 +4043,7 @@ def _run_profile(
     dates_of = (
         document,
         settings,
-        list(settled + date_columns),
+        list(settled + date_columns + dates_kept),
         list(forced_decimal_commas),
     )
     # -- 3b.R2a (P4-D383): question Q5, said as the date questions are --
@@ -4377,7 +4383,7 @@ def _run_profile(
     dates_moved = not (
         document is dates_of[0]
         and settings == dates_of[1]
-        and settled + date_columns == dates_of[2]
+        and settled + date_columns + dates_kept == dates_of[2]
         and list(forced_decimal_commas) == dates_of[3]
     )
     if dates_moved:
@@ -4385,7 +4391,7 @@ def _run_profile(
             document,
             read.columns,
             settings,
-            settled + date_columns,
+            settled + date_columns + dates_kept,
             split_columns,
             tuple(forced_decimal_commas),
             storage,

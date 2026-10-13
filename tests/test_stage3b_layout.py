@@ -4582,6 +4582,53 @@ def test_r2c_codex_item4_a_partial_column_keeps_its_values_all_different(tmp_pat
     assert "n_distinct" in report
 
 
+def test_r2c_partial_years_step_inside_the_column_range_first(tmp_path: pathlib.Path) -> None:
+    """The fifth push's critic, MAJOR 4: the 80 stepped partial years stay at or before the column's last date.
+
+    Measured on 45191fa: the twin's 80 years were 1984 to 2063, none in
+    the source's 1900 to 1979 and 39 after the column's last date of
+    2024, while validate said nothing was missed. A partial cell now
+    steps inside the full ranks' span first, then below it, then above
+    it (`generation._partial_stepped` given `_full_span`), so the years
+    are 1945 to 2024, all different, every count as before. Mutant, run:
+    no span handed to the step, red here (1984 to 2063 again).
+    """
+    block, profile, _questions = _described(tmp_path, _codex_all_different())
+    assert block["n_present"] == block["n_distinct"] == 200
+    for seed in SEEDS:
+        twin, written = _twin(profile, seed)
+        assert len(set(written)) == 200, (seed, len(set(written)))
+        years = sorted(int(cell) for cell in written if len(cell) == 4)
+        dates = sorted(cell for cell in written if len(cell) == 10)
+        assert len(years) == 80 and len(dates) == 120
+        assert years[-1] <= int(dates[-1][0:4]), (seed, years[-1], dates[-1])
+        assert (years[0], years[-1]) == (1945, 2024), (seed, years[0], years[-1])
+        assert _validated(profile, twin)[0] == 0
+
+
+def test_r2c_the_step_keeps_inside_the_span_then_goes_below_it() -> None:
+    """The fifth push's critic, MAJOR 4: inside the span, the nearest free unit; past it, below before above.
+
+    Months of 2024 March to May held, `2024-04` asked again: no month
+    inside the span is free, so the step writes `2024-02`, the nearest
+    below it. With February held too it writes `2024-01`, below the span,
+    where the walk with no span (the year band's, as before) writes
+    `2024-06`, nearer. Inside a span of the whole year, `2024-06` is the
+    nearest free month and is written.
+    """
+    shape = parsing.partial_items("layout {YYYY}-{MM}")
+    assert shape is not None
+    held = {"2024-03": 1, "2024-04": 1, "2024-05": 1}
+    span = ("2024-03-01", "2024-05-31")
+    assert generation._partial_stepped(shape, "2024-04", (), dict(held), True, ({}, {}), span) == "2024-02"
+    held = {"2024-04": 1, "2024-05": 1, "2024-03": 1, "2024-02": 1}
+    assert generation._partial_stepped(shape, "2024-04", (), dict(held), True, ({}, {}), span) == "2024-01"
+    assert generation._partial_stepped(shape, "2024-04", (), dict(held), True, ({}, {})) == "2024-06"
+    wide = ("2024-01-01", "2024-12-31")
+    held = {"2024-04": 1, "2024-05": 1, "2024-03": 1, "2024-02": 1, "2024-01": 1}
+    assert generation._partial_stepped(shape, "2024-04", (), dict(held), True, ({}, {}), wide) == "2024-06"
+
+
 def _codex_years_every_fifteenth() -> "list[str]":
     """Item 5: `2023` on every fifteenth row, an ISO date of 2023 on the rest: 933 days, 67 years (made up)."""
     start = datetime.date(2023, 1, 1)
@@ -4627,6 +4674,34 @@ def test_r2c_codex_item6_the_sample_does_not_put_q6_below_the_half(tmp_path: pat
         cells = cells[::-1]
     _block, _profile, questions = _described(tmp_path, cells)
     assert "q6" in _asked(questions)
+
+
+def test_r2c_q6_answered_keep_is_not_put_again(tmp_path: pathlib.Path) -> None:
+    """Q6 answered `keep` is not put again by the run reading that answer (the R2c verifier's carried item).
+
+    Measured on 45191fa: 500 `state-i` before 500 ISO dates, asked Q6 and
+    answered `keep`, were asked Q6 once more in the questions file the
+    answering run wrote, so the person could never be done with it. The
+    answer now declares nothing and carries the column past Q6
+    (`asking.Answers.date_columns_kept`), as Q5's kept window is carried.
+    The column is read as it was. Mutant, run: the kept columns not
+    carried to `date_columns_seen`, red here.
+    """
+    cells = [f"state-{place}" for place in range(500)] + [
+        (_DAY_ONE + datetime.timedelta(days=place)).isoformat() for place in range(500)
+    ]
+    block, _profile, questions = _described(tmp_path / "asked", cells)
+    entries = questions["asked"]
+    assert isinstance(entries, list)
+    dated = [entry for entry in entries if _reason_of(entry) == "q6"]
+    assert len(dated) == 1
+    dated[0]["your_answer"] = asking.ANSWER_KEEP
+    answers = tmp_path / "answers.json"
+    answers.write_text(json.dumps(questions), encoding="utf-8", newline="\n")
+    again_block, _again_profile, again = _described(tmp_path / "answered", cells, "--answers", str(answers))
+    assert "q6" not in _asked(again)
+    assert again_block["role"] == block["role"]
+    assert asking.answers_in(questions, "answers.json").date_columns_kept == ("seen_at",)
 
 
 def _births_beside_text() -> "list[str]":
@@ -4799,8 +4874,9 @@ def _walked_one_unit_at_a_time(
     taken: "dict[str, int]",
     apart: bool,
     skips: object = None,
+    span: "tuple[str, str] | None" = None,
 ) -> str:
-    """c8f86ff's `generation._partial_stepped`: the units walked outward one at a time, the earlier first."""
+    """c8f86ff's `generation._partial_stepped`, one unit at a time, the earlier first -- inside the span first since push 5's critic."""
     if generation._partial_unit_free(cell, holes, taken, apart):
         return cell
     canonical = parsing.layout_partial_reading(cell, shape)
@@ -4810,14 +4886,28 @@ def _walked_one_unit_at_a_time(
     first = generation._partial_unit(f"{parsing.LAYOUT_FIRST_YEAR:04d}-01-01 00:00:00"[0:size])
     last = generation._partial_unit(f"{parsing.LAYOUT_LAST_YEAR:04d}-12-31 23:59:59"[0:size])
     unit = generation._partial_unit(canonical)
+    low = first
+    high = last
+    if span is not None and span[0] and span[1]:
+        low = max(first, min(unit, generation._partial_unit(span[0][0:size])))
+        high = min(last, max(unit, generation._partial_unit(span[1][0:size])))
+
+    def free(other: int) -> str:
+        written = parsing.layout_partial_cell(shape, generation._partial_moment(other, size))
+        return written if generation._partial_unit_free(written, holes, taken, apart) else ""
+
     away = 1
-    while unit - away >= first or unit + away <= last:
+    while unit - away >= low or unit + away <= high:
         for other in (unit - away, unit + away):
-            if first <= other <= last:
-                written = parsing.layout_partial_cell(shape, generation._partial_moment(other, size))
-                if generation._partial_unit_free(written, holes, taken, apart):
-                    return written
+            if low <= other <= high and free(other):
+                return free(other)
         away = away + 1
+    for other in range(low - 1, first - 1, -1):
+        if free(other):
+            return free(other)
+    for other in range(high + 1, last + 1):
+        if free(other):
+            return free(other)
     return ""
 
 
@@ -4865,19 +4955,23 @@ def test_r2c_cxv_item2_the_hop_lands_where_the_walk_does() -> None:
     shape = parsing.partial_items("layout {YYYY}")
     assert shape is not None
     draw = random.Random(11)
-    for apart in (True, False):
-        for holes in ((), ("1803",), ("2297", "1800")):
-            hopped: "dict[str, int]" = {"1801": 1, "2298": 1}
-            walked: "dict[str, int]" = dict(hopped)
-            skips: "tuple[dict[int, int], dict[int, int]]" = ({}, {})
-            for _turn in range(60):
-                year = draw.choice((1800, 1801, 1802, 1810, 2050, 2297, 2298, 2299))
-                cell = f"{year:04d}"
-                one = generation._partial_stepped(shape, cell, holes, hopped, apart, skips)
-                two = _walked_one_unit_at_a_time(shape, cell, holes, walked, apart)
-                assert one == two, (apart, holes, cell)
-                hopped[one] = 1
-                walked[two] = 1
+    # ...and with the full ranks' span the step keeps inside first (the
+    # fifth push's critic, MAJOR 4): one span inside the crowd, one
+    # holding a single year.
+    for span in (None, ("1802-03-01", "2297-05-01"), ("2050-01-01", "2050-12-31")):
+        for apart in (True, False):
+            for holes in ((), ("1803",), ("2297", "1800")):
+                hopped: "dict[str, int]" = {"1801": 1, "2298": 1}
+                walked: "dict[str, int]" = dict(hopped)
+                skips: "tuple[dict[int, int], dict[int, int]]" = ({}, {})
+                for _turn in range(60):
+                    year = draw.choice((1800, 1801, 1802, 1810, 2050, 2297, 2298, 2299))
+                    cell = f"{year:04d}"
+                    one = generation._partial_stepped(shape, cell, holes, hopped, apart, skips, span)
+                    two = _walked_one_unit_at_a_time(shape, cell, holes, walked, apart, None, span)
+                    assert one == two, (span, apart, holes, cell)
+                    hopped[one] = 1
+                    walked[two] = 1
 
 
 # -- R1's codes question on a column of clock times (P4-D373's stated limit) --
