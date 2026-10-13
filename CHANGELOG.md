@@ -24,8 +24,10 @@ which an accession number writes alike), is asked in the questions file
 whether it holds dates (Q6, `--date-column`, `forced_date_columns`), and
 answered so it is read at half its cells, the rest left unread; a column
 of dates beside a few codes is asked R1's codes question instead. The
-reach battery's other 168 columns keep every file byte for byte but six
-questions files that now ask Q6. A partial-date column is described in 0.73 to 1.09 times the
+reach battery's other 168 columns kept every file byte for byte but six
+questions files that now ask Q6 (measured before its second review, whose
+made-up figures for a date column's unread cells move, on purpose, the
+twins of columns that owe their count of numbers). A partial-date column is described in 0.73 to 1.09 times the
 CPU time ISO's spelling of the same moments takes at 300,000 rows, and a
 column that is no date costs what it cost. After its review, a partial
 form on fewer cells than the census line no longer counts toward the
@@ -36,7 +38,15 @@ once a run. After its second review, a date column's unread figures are
 written as made-up figures, a declared column keeps a layout's named
 months, and repeating partial or declared dates keep near their count of
 different values (27 had come back as 275), without partial dates that
-do not repeat rising past theirs.
+do not repeat rising past theirs. After its Codex review, every published
+partial form is checked exactly; no made-up figure or partial cell is
+one a partial form reads or the table declared missing; a partial column
+whose values are all different keeps them so; row order no longer hides
+a column of partial dates or a column mostly of dates from Q6; Q6 is
+asked beside the century and day-or-month questions its answer raises;
+the twin's report and the validator agree on the range of different
+values; and R1's codes question follows the classifier on a column of
+clock times.
 
 ### Dates no member read are read by their shape, and written back as written (2026-10-05)
 
