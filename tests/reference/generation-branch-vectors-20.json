@@ -9771,6 +9771,63 @@
       "seconds": 60,
       "step": "tail_end",
       "why": "G7.3b step 7's END held off a midnight the count leaves it none of (the Codex review of landing 3b.4, item 4): a column on the hour owing 12 cells at midnight, 11 of them its body's for certain -- hour 0 counts 11 alone, minute 0 the whole body of 978, written to the minute. Both ENDs stand at a written midnight: the low tail's takes the one left, and the high tail's steps inward off it and off the hole the minute before names, two minutes in. Without the rule both ends stood at midnight, 13 in all."
+    },
+    "tail_end_listed": {
+      "answer": [
+        238
+      ],
+      "column": {
+        "all_at_midnight": false,
+        "datetimes_read_at": "local",
+        "high_tail": {
+          "rows": 11,
+          "values": null
+        },
+        "hour_census": [
+          {
+            "count": 11,
+            "first": 0,
+            "last": 0
+          },
+          {
+            "count": 967,
+            "first": 1,
+            "last": 23
+          }
+        ],
+        "low_tail": {
+          "rows": 11,
+          "values": [
+            "2024-06-01 00:00:00"
+          ]
+        },
+        "minute_census": [],
+        "minute_heaps": [
+          {
+            "count": 978,
+            "value": 0
+          }
+        ],
+        "n_at_midnight": 22,
+        "resolution": "datetime",
+        "second_census": [],
+        "second_heaps": [],
+        "time_precision": "minute"
+      },
+      "ends": [
+        [
+          240,
+          29521200,
+          false
+        ]
+      ],
+      "holes": [
+        29521439
+      ],
+      "parsed": 1000,
+      "seconds": 60,
+      "step": "tail_end",
+      "why": "G7.3b step 7's room charges a tail listing its values every midnight it lists, any value written 00:00:00 (the verifier's item 11 on the Codex round of landing 3b.4): tail_end's column, its low tail listing 2024-06-01 00:00:00 on its 11 rows and a count at midnight of 22 -- 11 the body's for certain, 11 the low tail's -- so none is left the high tail's END, which steps off its midnight and the hole the minute before names, two minutes in. Asked as nought seconds from 1970, only the epoch counted, and the END stood at midnight."
     }
   },
   "generated_by": "tools/reference/make_generation_reference_vectors.py",

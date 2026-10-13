@@ -17134,6 +17134,23 @@ def tail_end_case():
     }
 
 
+def tail_end_listed_case():
+    case = tail_end_case()
+    case["why"] = (
+        "G7.3b step 7's room charges a tail listing its values every midnight it lists, "
+        "any value written 00:00:00 (the verifier's item 11 on the Codex round of landing "
+        "3b.4): tail_end's column, its low tail listing 2024-06-01 00:00:00 on its 11 rows "
+        "and a count at midnight of 22 -- 11 the body's for certain, 11 the low tail's -- "
+        "so none is left the high tail's END, which steps off its midnight and the hole the "
+        "minute before names, two minutes in. Asked as nought seconds from 1970, only the "
+        "epoch counted, and the END stood at midnight."
+    )
+    case["column"]["low_tail"] = {"rows": 11, "values": ["2024-06-01 00:00:00"]}
+    case["column"]["n_at_midnight"] = 22
+    case["ends"] = [case["ends"][1]]
+    return case
+
+
 def field_seconds_case():
     m = HOUR_MONDAY
     ordinals = [
@@ -17511,6 +17528,7 @@ CLOCK_FIELD_STEP_CASES = {
     "field_kin_carry": field_kin_carry_case,
     "field_kin_blocked": field_kin_blocked_case,
     "tail_end": tail_end_case,
+    "tail_end_listed": tail_end_listed_case,
     "field_exchange_stays": field_exchange_case,
     "field_exchange_swap": field_exchange_swap_case,
     "field_exchange_kin": field_exchange_kin_case,

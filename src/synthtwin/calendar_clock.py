@@ -947,14 +947,18 @@ def tail_ends_midnight_room(
     `counted` less the body's cells at midnight for certain (`forced`,
     `body_sure_at_midnight`) and less the rows each tail listing its values
     holds at midnight for certain -- all its rows where every listed value
-    is a midnight, else one for each that is. `listed` is each tail's rows
-    and listed values, None where it lists none. May be below nought.
-    Raises nothing. No I/O."""
+    is a midnight, else one for each that is; a midnight any value written
+    `00:00:00`, as `midnight_sure` reads it (the verifier's item 11 on the
+    Codex round of landing 3b.4: asked as nought seconds from 1970, only
+    the epoch counted, and a low tail listing 2024-06-01 00:00:00 left the
+    high tail's END at a midnight the count had already spent). `listed` is
+    each tail's rows and listed values, None where it lists none. May be
+    below nought. Raises nothing. No I/O."""
     left = counted - forced
     for rows, values in listed:
         if values is None:
             continue
-        at = [value for value in values if len(value) >= 16 and seconds_of(value) == 0]
+        at = [value for value in values if value[11:19] == "00:00:00"]
         left = left - (rows if values and len(at) == len(values) else len(at))
     return left
 

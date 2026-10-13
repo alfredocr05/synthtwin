@@ -1350,6 +1350,11 @@ STEP_MUTANTS = {
 }
 
 CLOCK_MUTANTS = {
+    "a listed tail charged only for the epoch's midnight": (
+        "tail_end_listed",
+        '        at = [value for value in values if value[11:19] == "00:00:00"]',
+        "        at = [value for value in values if len(value) >= 16 and seconds_of(value) == 0]",
+    ),
     "a rest of the line or more pins a lattice": (
         "lattice_rest_withheld",
         "        if body < 0 or body - sum(count for _value, count in heaps) >= line:\n            return 0",
