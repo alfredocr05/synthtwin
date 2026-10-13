@@ -762,6 +762,48 @@ def test_the_fuzzed_columns_keep_their_count(tmp_path: pathlib.Path, number: int
     assert kpi_shapes.missed(kpi_shapes.measure(described, written, "t.csv")) == [], number
 
 
+# THE SECOND SKEPTIC'S SUBSECOND COLUMNS (`clock_field_shapes.fuzzed`, seed 3, item 2)
+# that published a minute fact their twin, writing no figure below the second, could
+# not meet beside the count -- a heap at minute 21 holding 2,126 cells of one day
+# came back 2,960 values to 2,315 -- with what 2341173 missed on each, the ceiling.
+SUBSECOND_MINUTES = {
+    76: [],
+    136: [],
+    147: ["c:distinct.n_distinct", "c:distinct.n_distinct_folded"],
+}
+
+
+@pytest.mark.parametrize("number", sorted(SUBSECOND_MINUTES))
+def test_subsecond_minutes_stand_only_where_the_second_keeps_the_count(
+    tmp_path: pathlib.Path, number: int
+) -> None:
+    """A column written finer than the second whose body, cut to the second,
+    holds fewer different values publishes no minute fact, says nothing, and
+    its twin at seed 0 misses nothing 2341173 held (the lane's second
+    skeptic, item 2)."""
+    cells, floor, precision = shapes.fuzzed(3, number)
+    assert precision == "subsecond"
+    described = _one_column(tmp_path, "c", cells, floor)
+    block = described.block("c")
+    assert block["minute_heaps"] == [] and block["minute_census"] == [], number
+    written = kpi_shapes.twin_text(described, 0)
+    missed = kpi_shapes.missed(kpi_shapes.measure(described, written, "t.csv"))
+    assert set(missed) <= set(SUBSECOND_MINUTES[number]), (number, missed)
+
+
+def test_red_when_the_subsecond_minute_rule_is_withdrawn(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Withdrawn, the 1,500 cells each written apart by the millisecond publish a
+    heap at minute 14 and come back about two hundred values short."""
+    monkeypatch.setattr(taxonomy, "_cut_to_the_second_merges", lambda *_arguments: False)
+    cells, floor, _precision = shapes.fuzzed(3, 136)
+    described = _one_column(tmp_path, "c", cells, floor)
+    assert described.block("c")["minute_heaps"]
+    written = kpi_shapes.twin_text(described, 0)
+    assert "c:distinct.n_distinct" in kpi_shapes.missed(kpi_shapes.measure(described, written, "t.csv"))
+
+
 # What 2341173 missed on the small bursty tables of the lane's skeptic (item 3):
 # the ceiling, by rows and seed.
 SMALL_BURSTS_CEILING = {(300, 2): ["bursts:distinct.n_distinct", "bursts:distinct.n_distinct_folded"]}

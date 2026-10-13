@@ -7394,6 +7394,9 @@ and `minute_census` over the minutes of the hour, and, written to the
 second -- not finer, as the twin writes no figure below the second (SE3)
 -- `second_heaps` and `second_census` over the seconds of the minute
 (contract 6.6.2, MC1 to MC6, MH1, MH2, SE1 to SE6, SH1, SH2).
+For the same reason a column written finer than the second publishes its
+minute's facts only where its body, cut to the second, keeps its count
+of different values: the real column so cut is then a twin meeting both.
 A cell counts at the minute and second it is WRITTEN at,
 `canonical[14:16]` and `canonical[17:19]`; a sixtieth second, `HH:MM:60`,
 counts in its own minute at second 59.

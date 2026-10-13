@@ -17262,13 +17262,19 @@ def hour_decision(
 
 
 def _census_clock_fields(
-    details: "dict[str, object]", pairs: "list[tuple[str, str]]"
-) -> "tuple[tuple[int, ...], tuple[int, ...], tuple[bool, ...]]":
+    details: "dict[str, object]",
+    pairs: "list[tuple[str, str]]",
+    sources: "list[str] | tuple[str, ...]" = (),
+) -> "tuple[tuple[int, ...], tuple[int, ...], tuple[bool, ...], tuple[bool, ...]]":
     """The WRITTEN minute and second of every parsed cell, ranked as
     `_census_hours` ranks them, where the hour census may stand (landing
     3b.4, plan P4-D372); the seconds only on a column written to the
     second or finer, and whether each is written differently from the one
-    before it. Each is read off the canonical text
+    before it; and, on a column written finer than the second only, whether
+    each one's TEXT differs from the one before it -- the canonical text
+    stops at the second, its fraction left in the text
+    (`clock_field_decision`'s minute finer than the second). Each is read
+    off the canonical text
     (`calendar_clock.written_minute`, `calendar_clock.written_second`), so
     a sixtieth second stays in the minute it is written in. Empty where
     no census of the clock stands.
@@ -17283,7 +17289,7 @@ def _census_clock_fields(
         or details["format"] == FORMAT_ISO_MIXED
         or details["all_at_midnight"] is True
     ):
-        return (), (), ()
+        return (), (), (), ()
     ordered = sorted(canonical for canonical, _offset in pairs)
     minutes = tuple(calendar_clock.written_minute(canonical) for canonical in ordered)
     fresh = tuple(
@@ -17291,9 +17297,33 @@ def _census_clock_fields(
         for place in range(len(ordered))
     )
     if details["time_precision"] not in ("second", "subsecond"):
-        return minutes, (), fresh
+        return minutes, (), fresh, ()
     seconds = tuple(calendar_clock.written_second(canonical) for canonical in ordered)
-    return minutes, seconds, fresh
+    if details["time_precision"] != "subsecond" or len(sources) != len(pairs):
+        return minutes, seconds, fresh, ()
+    # Ranked as above -- the canonical text first, its ties by their own
+    # text, which leaves every field and flag above as it is.
+    texts = sorted(
+        (pairs[place][0], sources[place]) for place in range(len(pairs))
+    )
+    written = tuple(
+        place == 0 or texts[place] != texts[place - 1] for place in range(len(texts))
+    )
+    return minutes, seconds, fresh, written
+
+
+def _cut_to_the_second_merges(
+    fresh: "tuple[bool, ...]", fresh_written: "tuple[bool, ...]", first: int, end: int
+) -> bool:
+    """Whether the ranks `first` to `end` (not counted) hold fewer different
+    values once cut to the second than as written: some rank after the first
+    differs from the one before it in its text but not in its canonical
+    text, which stops at the second (landing 3b.4, the lane's second
+    skeptic, item 2). Raises nothing. No I/O."""
+    for rank in range(first + 1, end):
+        if fresh_written[rank] and not fresh[rank]:
+            return True
+    return False
 
 
 @dataclasses.dataclass(frozen=True)
@@ -17320,6 +17350,7 @@ def clock_field_decision(
     settings: Settings,
     stored_one_way: bool = True,
     fresh: "tuple[bool, ...]" = (),
+    fresh_written: "tuple[bool, ...]" = (),
 ) -> ClockFieldDecision:
     """Whether a column of moments publishes a field's census and heaps.
 
@@ -17329,7 +17360,10 @@ def clock_field_decision(
     `_census_clock_fields`), and `fresh` whether each is written
     differently from the one before it, so the flatness test counts each
     different value once and the hour test weighs its cells by their ties;
-    no seconds, no second census. In order, as
+    no seconds, no second census, and on a column written finer than the
+    second no second census, nor a minute fact where the body cut to the
+    second holds fewer different values than its texts (`fresh_written`), each withheld
+    with nothing said. In order, as
     the hour census asks them: two tails (MC3), a published middle half
     -- p75 less p25 -- of four hours for minutes, four minutes for seconds
     (MC4), and one storage (MC6), each reason the hour census shares said
@@ -17379,6 +17413,23 @@ def clock_field_decision(
     body = values[rows_low : parsed - rows_high]
     if not body:
         return ClockFieldDecision(groups, heaps, calendar_clock.HOUR_REASON_NO_TAILS)
+    if (
+        field == calendar_clock.MINUTE
+        and details["time_precision"] == "subsecond"
+        and len(fresh_written) == parsed
+        and len(fresh) == parsed
+        and _cut_to_the_second_merges(fresh, fresh_written, rows_low, parsed - rows_high)
+    ):
+        # NO MINUTE FACT FINER THAN THE SECOND WHERE THE SECOND MERGES
+        # VALUES (the lane's second skeptic, item 2): the twin writes no
+        # figure below the second, so cells of one minute that the real
+        # column tells apart only by the fraction come back alike -- 2,126
+        # cells on a heap at minute 21 of one day had 1,440 seconds to stand
+        # on, and the count of different values fell from 2,960 to 2,315.
+        # Where the body cut to the second keeps its count, the real column
+        # so cut is itself a twin meeting both, and the facts stand. Nothing
+        # is said, as SE3 says nothing.
+        return ClockFieldDecision(groups, heaps, "")
     quarter = _ladder_seconds(details, "p25")
     third = _ladder_seconds(details, "p75")
     if quarter is None or third is None:
@@ -17546,7 +17597,7 @@ def _clock_fields_published(
     for field in (calendar_clock.MINUTE, calendar_clock.SECOND):
         decided = clock_field_decision(
             block, verdict.hours, verdict.minutes, verdict.seconds, field,
-            settings, stored_one_way, verdict.fresh,
+            settings, stored_one_way, verdict.fresh, verdict.fresh_written,
         )
         census_key, heaps_key = calendar_clock.FIELD_KEYS[field]
         if decided.groups or decided.heaps:
@@ -18396,6 +18447,10 @@ class _Verdict:
     # before it: where the different values at each minute and second are
     # counted from (`clock_field_decision`'s heaps). Never published.
     fresh: "tuple[bool, ...]" = ()
+    # ...and, on a column written finer than the second, whether each one's
+    # text differs from the one ranked before it, its fraction counted
+    # (`clock_field_decision`). Never published.
+    fresh_written: "tuple[bool, ...]" = ()
 
 
 def _all_different(cells: _Cells) -> bool:
@@ -21613,7 +21668,7 @@ def _decide(
                 # -- 3b.R2a (P4-D383): the window the person chose (NF112).
                 remarks += [note(REMARK_CENTURY_DECLARED, (window,))]
             # -- the minute and the second (3b.T3, P4-D372)
-            clock_fields = _census_clock_fields(details, pairs)
+            clock_fields = _census_clock_fields(details, pairs, sources)
             return _Verdict(
                 role=ROLE_DATETIME,
                 evidence=note(
@@ -21628,6 +21683,7 @@ def _decide(
                 minutes=clock_fields[0],
                 seconds=clock_fields[1],
                 fresh=clock_fields[2],
+                fresh_written=clock_fields[3],
             )
 
         # RULE 6 -- numbers, at the one parse rate there is. A column that

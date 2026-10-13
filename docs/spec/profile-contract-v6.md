@@ -5793,7 +5793,7 @@ tail whose every listed value is at midnight (NF118, NF119).
 
 | key | JSON type | permitted values | meaning |
 |---|---|---|---|
-| `minute_heaps` | array of `{value, count}` | `[]`, or minutes 0 to 59 in ascending order, each count at least the census line (MH1, MH2) | the minutes of the written clock the body's cells stand out on, each with how many cells it holds |
+| `minute_heaps` | array of `{value, count}` | `[]`, or minutes 0 to 59 in ascending order, each count at least the census line (MH1, MH2) | the minutes of the written clock the body's cells stand out on, each with how many cells it holds; on a column written finer than the second, published -- with `minute_census` -- only where the body cut to the second keeps its count of different values, as its twin writes no figure below the second |
 | `minute_census` | array of `{first, last, count}` | `[]`, or groups of minutes 0 to 59 in order, each count nought or at least the census line (MC1 to MC6) | how many of the body's cells on no minute heap fall on each group of minutes; with the heaps, the body; `[]` where nothing is left beside the heaps, the merge rule leaves one group over the hour, or the groups stand on a few different values |
 | `second_heaps` | array of `{value, count}` | `[]`, or seconds 0 to 59 in ascending order, each count at least the census line (SH1, SH2) | as `minute_heaps`, over the seconds of the written clock, on a column written to the second -- not finer: its twin writes no figure below the second (SE3) |
 | `second_census` | array of `{first, last, count}` | `[]`, or groups of seconds 0 to 59 in order, each count nought or at least the census line (SE1 to SE6) | as `minute_census`, over the seconds, on a column written to the second -- not finer (SE3) |
