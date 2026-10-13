@@ -26392,8 +26392,10 @@ def _clock_kin_reach(state: _WeekdayPass, members: "list[int]", groups: int) -> 
     on its own place in the unit, `_WEEKDAY_REACH` units each side at most,
     inside its gap and its parent (`_weekday_span`), on no hole, of its own
     kind -- a written midnight read as the kind of its parent, as value 0's
-    own rule asks it (`_clock_kin_shares_moved`'s FREE ranks). Ranks asking
-    the same places share one answer. Raises nothing. No I/O."""
+    own rule asks it (`_clock_kin_shares_moved`'s FREE ranks). A group is
+    read off the unit, a hole off the day and that kind off the parent, so
+    ranks asking the same units share one answer, asked once a parent of
+    the gap rather than once a place in the unit. Raises nothing. No I/O."""
     reach = [0 for _group in range(groups)]
     answers: "dict[tuple[int, int, _WeekdayKind], list[int]]" = {}
     unit = state.unit
@@ -26403,7 +26405,7 @@ def _clock_kin_reach(state: _WeekdayPass, members: "list[int]", groups: int) -> 
         first = ordinal - min(_WEEKDAY_REACH, max(0, (ordinal - low) // unit)) * unit
         last = ordinal + min(_WEEKDAY_REACH, max(0, (high - ordinal) // unit)) * unit
         kind = _clock_parent_kind(state, ordinal)
-        key = (first, last, kind)
+        key = (first // unit, last // unit, kind)
         if key not in answers:
             found: "list[int]" = []
             for place in range(first, last + 1, unit):
