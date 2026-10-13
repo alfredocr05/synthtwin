@@ -17223,7 +17223,9 @@ def _census_ranked(
             return None
         shown = canonical
         if shared:
-            shown = _utc_text_of(canonical, instant)
+            at_utc = _utc_text_of(canonical, instant, offset)
+            if at_utc is not None:
+                shown = at_utc
         keyed += [(instant, shown, offset, place)]
         place = place + 1
     ordered = sorted(keyed)
@@ -17239,29 +17241,27 @@ def _census_ranked(
     return [entry[3] for entry in ordered]
 
 
-def _utc_text_of(canonical: str, instant: int) -> str:
+def _utc_text_of(canonical: str, instant: int, offset: str) -> "str | None":
     """`parsing.utc_moment` of a pair whose instant key is already known
-    (the repair of landing 3b.7, item 5): the same text, the same clamp to
-    the calendar the canonical form can spell, from the key rather than a
-    second reading of it. Raises nothing. No I/O of any kind."""
+    (the repair of landing 3b.7, item 5): the same text, spelled from the
+    key rather than a second reading of it, wherever the instant lies in
+    the years the canonical form can spell; at the calendar's two edges
+    the clamp is `parsing.utc_moment`'s own, asked of the pair, so the one
+    clamp keeps every description loadable (the dates pass of the stage-3
+    review, item 7). Raises nothing. No I/O of any kind."""
     days = instant // 86400
     rest = instant - days * 86400
     year, month, day = parsing.civil_from_days(days)
-    if 1 <= year <= 9999:
-        if len(canonical) < 19:
-            return f"{year:04d}-{month:02d}-{day:02d}"
-        hours = rest // 3600
-        minutes = (rest - hours * 3600) // 60
-        return (
-            f"{year:04d}-{month:02d}-{day:02d} "
-            f"{hours:02d}:{minutes:02d}:{rest - hours * 3600 - minutes * 60:02d}"
-        )
-    first = 86400 * parsing.days_from_civil(1, 1, 1)
+    if year < 1 or year > 9999:
+        return parsing.utc_moment(canonical, offset)
     if len(canonical) < 19:
-        return "0001-01-01" if instant < first else "9999-12-31"
-    if instant < first:
-        return "0001-01-01 00:00:00"
-    return "9999-12-31 23:59:59"
+        return f"{year:04d}-{month:02d}-{day:02d}"
+    hours = rest // 3600
+    minutes = (rest - hours * 3600) // 60
+    return (
+        f"{year:04d}-{month:02d}-{day:02d} "
+        f"{hours:02d}:{minutes:02d}:{rest - hours * 3600 - minutes * 60:02d}"
+    )
 
 
 def _clock_text(canonical: str) -> str:
@@ -19996,7 +19996,7 @@ def ordered_moments(
             # spelled from the key just computed (`_utc_text_of`), the same
             # text, so each pair is keyed once.
             at_utc = (
-                _utc_text_of(canonical, instant)
+                _utc_text_of(canonical, instant, offset)
                 if instant is not None
                 else parsing.utc_moment(canonical, offset)
             )

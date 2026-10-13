@@ -623,13 +623,13 @@ def test_s8_one_instant_key_a_pair(tmp_path: pathlib.Path, monkeypatch: pytest.M
 
 
 def test_s8_the_shared_clock_text_spelled_from_the_key() -> None:
-    """`taxonomy._utc_text_of` is `parsing.utc_moment` from a key already computed, its clamp at
-    the calendar's two edges included."""
+    """`taxonomy._utc_text_of` is `parsing.utc_moment` from a key already computed, the clamp at
+    the calendar's two edges `parsing.utc_moment`'s own."""
     for canonical in ("2024-03-10 02:30:00", "2024-02-29", "0001-01-01 00:30:00", "0001-01-01", "9999-12-31 23:30:00", "9999-12-31", "2016-12-31 23:59:60"):
         for offset in ("", "Z", "+05:30", "-06:00", "+14:00", "-12:00"):
             instant = parsing.instant_key(canonical, offset)
             assert instant is not None
-            assert taxonomy._utc_text_of(canonical, instant) == parsing.utc_moment(canonical, offset), (canonical, offset)
+            assert taxonomy._utc_text_of(canonical, instant, offset) == parsing.utc_moment(canonical, offset), (canonical, offset)
 
 
 # -- S9: every description loads ------------------------------------------------
