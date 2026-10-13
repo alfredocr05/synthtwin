@@ -525,7 +525,7 @@ def _past_the_sample(quoted: "range") -> str:
     lines = []
     for number in range(1, 601):
         lines += [f"P{number:04d};30;F;" + ('""' if number in quoted else "")]
-    return _rows_of("id;age;sex", lines)
+    return _rows_of("id;age;arm", lines)
 
 
 @pytest.mark.parametrize(
