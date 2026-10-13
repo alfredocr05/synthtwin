@@ -46597,7 +46597,7 @@ def keys_by_gap(keys, left, open_ranks, lows, highs):
     return [found.get(rank, "") for rank in sorted(open_ranks)]
 
 
-def clocked_form_choice(lows, highs, dates, moments, apart):
+def clocked_form_choice(lows, highs, dates, moments, apart, cap=None):
     """Which ranks of a clocked column of the joint member are bare dates:
     each rank fixed at a midnight one while the count lasts, every other
     fixed rank a moment; then the smooth rotation over the rest, capped per
@@ -46605,11 +46605,16 @@ def clocked_form_choice(lows, highs, dates, moments, apart):
     hold, where the column is all different; every rank the rotation offers
     where it is not, and none where the gap holds no midnight -- a gap at
     its cap passing its turn on, the credit left at the end to the first
-    ranks with room, never more than the count."""
+    ranks with room, never more than the count; where an hour census stands
+    (``cap``: the body's first and last rank and hour 0's group's count) the
+    body holds no more bare dates than that count."""
     parsed = len(lows)
     whole = [False] * parsed
     settled = [False] * parsed
     held = set()
+    in_body = 0
+    def inside(rank):
+        return cap is not None and cap[0] <= rank <= cap[1]
     for rank in range(parsed):
         if lows[rank] != highs[rank]:
             continue
@@ -46619,6 +46624,7 @@ def clocked_form_choice(lows, highs, dates, moments, apart):
             if dates > 0:
                 whole[rank] = True
                 dates -= 1
+                in_body += 1 if inside(rank) else 0
                 continue
         moments = max(0, moments - 1)
     room = {}
@@ -46642,11 +46648,13 @@ def clocked_form_choice(lows, highs, dates, moments, apart):
         credit_dates += dates
         credit_moments += moments
         spot = (lows[rank], highs[rank])
-        if credit_dates >= credit_moments and room[spot] > 0 and left > 0:
+        open_body = not inside(rank) or in_body < cap[2]
+        if credit_dates >= credit_moments and room[spot] > 0 and left > 0 and open_body:
             whole[rank] = True
             room[spot] -= 1
             left -= 1
             credit_dates -= total
+            in_body += 1 if inside(rank) else 0
         else:
             credit_moments -= total
     # The credit left at the end goes to the first ranks with room, in order.
@@ -46656,9 +46664,12 @@ def clocked_form_choice(lows, highs, dates, moments, apart):
         spot = (lows[rank], highs[rank])
         if settled[rank] or whole[rank] or room[spot] <= 0:
             continue
+        if inside(rank) and in_body >= cap[2]:
+            continue
         whole[rank] = True
         room[spot] -= 1
         left -= 1
+        in_body += 1 if inside(rank) else 0
     return whole
 
 
@@ -46854,7 +46865,15 @@ SHARED_CLOCK_FORMS = {
         6, 8, False,
         "values that repeat: a gap holding a midnight takes as many as the rotation offers",
     ),
+    "body_capped_by_hour_zero": (
+        [0, 86400, 86400, 86400, 86400, 86400, 86400, 86400 * 10, 86400 * 10, 86400 * 10, 86400 * 20],
+        [0, 86400 * 9, 86400 * 9, 86400 * 9, 86400 * 9, 86400 * 9, 86400 * 9, 86400 * 19, 86400 * 19, 86400 * 19, 86400 * 20],
+        6, 5, False,
+        "an hour census counting two cells at hour 0 in a body of ranks 0 to 6: the body takes two "
+        "bare dates and the rest go to the ranks after it (mutant: no cap from the hour census)",
+    ),
 }
+SHARED_CLOCK_FORM_CAPS = {"body_capped_by_hour_zero": (0, 6, 2)}
 
 SHARED_CLOCK_FORM_DAYS = {
     "days_apart": (
@@ -46921,9 +46940,11 @@ def shared_clock_document():
     forms = {}
     for name in sorted(SHARED_CLOCK_FORMS):
         lows, highs, dates, moments, apart, why = SHARED_CLOCK_FORMS[name]
+        cap = SHARED_CLOCK_FORM_CAPS.get(name)
         forms[name] = {
             "lows": lows, "highs": highs, "dates": dates, "moments": moments, "apart": apart, "why": why,
-            "answer": clocked_form_choice(lows, highs, dates, moments, apart),
+            "cap": list(cap) if cap else None,
+            "answer": clocked_form_choice(lows, highs, dates, moments, apart, cap),
         }
     days = {}
     for name in sorted(SHARED_CLOCK_FORM_DAYS):

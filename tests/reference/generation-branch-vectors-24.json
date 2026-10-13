@@ -118,6 +118,56 @@
     }
   },
   "forms": {
+    "body_capped_by_hour_zero": {
+      "answer": [
+        true,
+        false,
+        true,
+        false,
+        false,
+        false,
+        false,
+        true,
+        true,
+        true,
+        true
+      ],
+      "apart": false,
+      "cap": [
+        0,
+        6,
+        2
+      ],
+      "dates": 6,
+      "highs": [
+        0,
+        777600,
+        777600,
+        777600,
+        777600,
+        777600,
+        777600,
+        1641600,
+        1641600,
+        1641600,
+        1728000
+      ],
+      "lows": [
+        0,
+        86400,
+        86400,
+        86400,
+        86400,
+        86400,
+        86400,
+        864000,
+        864000,
+        864000,
+        1728000
+      ],
+      "moments": 5,
+      "why": "an hour census counting two cells at hour 0 in a body of ranks 0 to 6: the body takes two bare dates and the rest go to the ranks after it (mutant: no cap from the hour census)"
+    },
     "not_all_different": {
       "answer": [
         true,
@@ -135,6 +185,7 @@
         true
       ],
       "apart": false,
+      "cap": null,
       "dates": 6,
       "highs": [
         0,
@@ -186,6 +237,7 @@
         true
       ],
       "apart": true,
+      "cap": null,
       "dates": 6,
       "highs": [
         0,

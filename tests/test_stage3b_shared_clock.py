@@ -502,12 +502,20 @@ def test_vectors_spreads() -> None:
     assert in_rank_order != case["answer"]
 
 
+def _forms(case: "dict[str, typing.Any]", apart: bool, cap: "typing.Any") -> "list[bool]":
+    return generation._clocked_form_flags(
+        (case["lows"], case["highs"]), case["dates"], case["moments"], apart,
+        None if cap is None else tuple(cap),
+    )
+
+
 def test_vectors_forms() -> None:
     for name, case in _FILE["forms"].items():
-        found = generation._clocked_form_flags((case["lows"], case["highs"]), case["dates"], case["moments"], case["apart"])
-        assert found == case["answer"], name
+        assert _forms(case, case["apart"], case["cap"]) == case["answer"], name
     capped = _FILE["forms"]["tight_gap_capped"]
-    assert generation._clocked_form_flags((capped["lows"], capped["highs"]), capped["dates"], capped["moments"], False) != capped["answer"]
+    assert _forms(capped, False, None) != capped["answer"]
+    hour_zero = _FILE["forms"]["body_capped_by_hour_zero"]
+    assert _forms(hour_zero, hour_zero["apart"], None) != hour_zero["answer"]
 
 
 def _days(case: "dict[str, typing.Any]", apart: bool, shut: bool) -> "list[int]":

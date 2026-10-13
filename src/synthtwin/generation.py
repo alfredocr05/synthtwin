@@ -36568,24 +36568,40 @@ def _clocked_forms(
     moments = mix["iso-datetime"] if "iso-datetime" in mix else 0
     if dates <= 0 or facts.resolution != "datetime":
         return [False for _rank in range(layout.parsed)]
+    # THE BODY HOLDS NO MORE BARE DATES THAN THE HOUR CENSUS COUNTS AT HOUR 0:
+    # a bare date counts at its midnight and never moves off it, so a body
+    # given more than hour 0's group can never meet the census -- 100 dates
+    # beside 300 noon stamps published hour 0 at 94, and the rotation put 96
+    # in the body.
+    cap: "tuple[int, int, int] | None" = None
+    if facts.hour_census and layout.low is not None and layout.high is not None:
+        for first, last, count in facts.hour_census:
+            if first <= 0 <= last:
+                cap = (layout.low.rows, layout.parsed - 1 - layout.high.rows, count)
     return _clocked_form_flags(
         (list(layout.lows), list(layout.highs)), dates, moments,
-        distinct is not None and distinct >= layout.parsed,
+        distinct is not None and distinct >= layout.parsed, cap,
     )
 
 
 def _clocked_form_flags(
-    gaps: "tuple[list[int], list[int]]", dates: int, moments: int, apart: bool
+    gaps: "tuple[list[int], list[int]]",
+    dates: int,
+    moments: int,
+    apart: bool,
+    cap: "tuple[int, int, int] | None" = None,
 ) -> "list[bool]":
     """`_clocked_forms` on plain numbers: each rank's gap in seconds of the
-    clock a bare date is written on, the published counts of the two forms
-    and whether the column's values are all different. Raises nothing. No
-    I/O of any kind."""
+    clock a bare date is written on, the published counts of the two forms,
+    whether the column's values are all different, and the body's first and
+    last rank with the most bare dates it may hold (hour 0's group's count),
+    where an hour census stands. Raises nothing. No I/O of any kind."""
     lows, highs = gaps
     parsed = len(lows)
     whole = [False for _rank in range(parsed)]
     settled = [False for _rank in range(parsed)]
     held: "set[int]" = set()
+    in_body = 0
     for rank in range(parsed):
         if lows[rank] != highs[rank]:
             continue
@@ -36595,6 +36611,8 @@ def _clocked_form_flags(
             if dates > 0:
                 whole[rank] = True
                 dates = dates - 1
+                if cap is not None and cap[0] <= rank <= cap[1]:
+                    in_body = in_body + 1
                 continue
         moments = max(0, moments - 1)
     room: "dict[tuple[int, int], int]" = {}
@@ -36626,11 +36644,15 @@ def _clocked_form_flags(
         credit_dates = credit_dates + dates
         credit_moments = credit_moments + moments
         spot = (lows[rank], highs[rank])
-        if credit_dates >= credit_moments and room[spot] > 0 and left > 0:
+        body = cap is not None and cap[0] <= rank <= cap[1]
+        open_body = cap is None or not body or in_body < cap[2]
+        if credit_dates >= credit_moments and room[spot] > 0 and left > 0 and open_body:
             whole[rank] = True
             room[spot] = room[spot] - 1
             left = left - 1
             credit_dates = credit_dates - total
+            if body:
+                in_body = in_body + 1
         else:
             credit_moments = credit_moments - total
     # THE CREDIT LEFT AT THE END, where a gap at its cap or a stratum holding
@@ -36641,11 +36663,16 @@ def _clocked_form_flags(
         if left <= 0:
             break
         spot = (lows[rank], highs[rank])
+        body = cap is not None and cap[0] <= rank <= cap[1]
         if settled[rank] or whole[rank] or room[spot] <= 0:
+            continue
+        if body and cap is not None and in_body >= cap[2]:
             continue
         whole[rank] = True
         room[spot] = room[spot] - 1
         left = left - 1
+        if body:
+            in_body = in_body + 1
     return whole
 
 

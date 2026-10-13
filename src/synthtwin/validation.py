@@ -20233,11 +20233,15 @@ def _joint_all_different(column: contract.ColumnBlock, facts: contract.DatetimeF
     where they were drawn apart -- where before it fell to G12.5's envelope
     and 800 different stamps beside 200 different dates came back 881 of
     1,000 with validate passing. On the shared clock the count stays in the
-    envelope (stated limit): there the construction does not reach it.
-    Raises nothing. No I/O of any kind."""
+    envelope (stated limit): there the construction does not reach it; and
+    so it does on a joint column wholly at midnight, which the form step
+    does not place (220 different days stored three ways in a workbook come
+    back 163 there, as before the landing). Raises nothing. No I/O of any
+    kind."""
     return (
         facts.parser_family == contract.FORMAT_ISO_MIXED
         and facts.datetimes_read_at == "local"
+        and not facts.all_at_midnight
         and column.n_distinct >= column.n_present - facts.n_unparsed
     )
 
