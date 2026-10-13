@@ -6179,6 +6179,10 @@ def partial_cells(column, written, holes=(), apart=False, held=()):
     total = sum(rows for _key, rows in forms)
     given = [0] * len(forms)
     out = []
+    # Each form's units found taken or absent, walked past in one hop
+    # (`partial_stepped`; open item 2 of the verification of the Codex
+    # review's repair of landing R2c).
+    skips = [({}, {}) for _form in forms]
     for turn in range(total):
         best = partial_form_of(forms, given, turn, total)
         given[best] += 1
@@ -6190,7 +6194,7 @@ def partial_cells(column, written, holes=(), apart=False, held=()):
                 break
         if moment is None:
             return []
-        cell = partial_stepped(forms[best][0], moment, absent, taken, apart)
+        cell = partial_stepped(forms[best][0], moment, absent, taken, apart, skips[best])
         if cell is None:
             return []
         taken.add(cell)
@@ -6258,19 +6262,44 @@ def partial_instant(precision, unit):
     return year, month, day, hour, minute, second
 
 
-def partial_stepped(key, moment, absent, taken, apart):
+def partial_stepped(key, moment, absent, taken, apart, skips=None):
     """The partial cell of one instant under a form, stepped off what it may not be, or None.
 
     It stands where it is no absent spelling and, where ``apart``, held by
-    no other cell; else the units of the form's precision are walked
-    outward from its own, the earlier first at each distance, inside the
-    year band, and the first one free is written.
+    no other cell; else it takes the nearest unit of the form's precision
+    whose cell is free, the earlier on a tie, inside the year band -- the
+    unit a walk outward from its own, the earlier first at each distance,
+    reaches first.  A unit found taken or absent stays so for the rest of
+    the column, so ``skips`` (one map below, one above, per form) carries
+    it to the next unit not yet ruled out and the walk crosses it in one
+    hop: a step one unit at a time asked 500,359 times for 1,000 partial
+    days of a 20,000-row column (open item 2 of the verification of the
+    Codex review's repair of landing R2c).
     """
 
     def free(text):
         if folded(text) in NO_VALUE_SPELLINGS or text.strip().lower() in absent:
             return False
         return not apart or text not in taken
+
+    def nearest(start, toward, bound, skip):
+        passed = []
+        place = start
+        while (bound - place) * toward >= 0:
+            if place in skip:
+                passed.append(place)
+                place = skip[place]
+                continue
+            written = partial_written(key, *partial_instant(precision, place))
+            if free(written):
+                for unit in passed:
+                    skip[unit] = place
+                return place, written
+            passed.append(place)
+            place += toward
+        for unit in passed:
+            skip[unit] = place
+        return place, None
 
     cell = partial_written(key, *moment)
     if free(cell):
@@ -6279,15 +6308,13 @@ def partial_stepped(key, moment, absent, taken, apart):
     first = partial_unit(precision, 1800, 1, 1, 0, 0, 0)
     last = partial_unit(precision, 2299, 12, 31, 23, 59, 59)
     unit = partial_unit(precision, *moment)
-    away = 1
-    while unit - away >= first or unit + away <= last:
-        for other in (unit - away, unit + away):
-            if first <= other <= last:
-                written = partial_written(key, *partial_instant(precision, other))
-                if free(written):
-                    return written
-        away += 1
-    return None
+    if skips is None:
+        skips = ({}, {})
+    below, lower = nearest(min(unit - 1, last), -1, first, skips[0])
+    above, upper = nearest(max(unit + 1, first), 1, last, skips[1])
+    if lower is not None and (upper is None or unit - below <= above - unit):
+        return lower
+    return upper
 
 
 # The level each field of a layout stands at, for its cuts (G7.5's partial
@@ -11871,7 +11898,13 @@ def upper_target(column):
 
 # The date rule's line every case is described at (the cases' settings),
 # which the loader's declared mark is drawn against (`declared_short_of`).
-CASE_MINIMUM_PARSE_RATE = fractions.Fraction(9, 10)
+# It is the binary64 the settings carry, `0.9`, a shade above nine in ten,
+# and not nine in ten itself: the loader reads that number exactly
+# (`contract._line_count`), so sixty present cells reach the line at 55,
+# where nine in ten would put it at 54 (open item 1 of the verification of
+# the Codex review's repair of landing R2c; `fitted_power` reads its rate
+# the same way).
+CASE_MINIMUM_PARSE_RATE = fractions.Fraction(0.9)
 
 
 def declared_short_of(spec):
@@ -23936,6 +23969,46 @@ def _layout_declared_short():
     }
 
 
+def _layout_declared_short_at_the_line():
+    tails, tail_claims = _tail_fields(
+        {"boundary": "1970-01-12", "rows": 11, "mean_distance": "2", "rms_distance": "2", "values": None},
+        {"boundary": "1970-02-20", "rows": 11, "mean_distance": "2", "rms_distance": "2", "values": None},
+    )
+    rows = 60
+    ladder = {key: None for key in LADDER_KEYS}
+    ladder["p25"] = "1970-01-20"
+    ladder["p50"] = "1970-01-30"
+    ladder["p75"] = "1970-02-10"
+    column = _universal(
+        "column_1", "datetime", "datetime", "data", "ok",
+        n_present=rows, n_missing=0, n_distinct=13, n_distinct_folded=13,
+        n_numeric=0, n_not_numeric=rows, n_out_of_range=0, n_contradictory=0,
+        format="iso-date", resolution="date", time_precision="date",
+        subsecond_digits=0, datetimes_read_at="local",
+        tail_unit="day", date_percentiles=ladder,
+        n_unparsed=6, utc_offsets={"(none)": 54},
+        resolution_mix={"iso-date": 54},
+        **tails,
+    )
+    return {
+        "why": "G7.3's upper target on a declared column ON the date rule's "
+        "line (the verification of the Codex review's repair of landing "
+        "R2c, open item 1): sixty cells, fifty-four dates read whole and six "
+        "left unread. The line is the binary64 `0.9` the settings carry, a "
+        "shade above nine in ten, so it falls at fifty-five read cells and "
+        "six unread are one more than it leaves room for: the loader marks "
+        "the column short, and the pass lowers the full ranks to twelve "
+        "different days, the published thirteen less the one stand-in "
+        "spelling. The mutant draws the line at nine in ten exactly, where "
+        "six unread just fit, drops the mark and aims at seven.",
+        "column": column,
+        "rows": rows,
+        "identifier_declared": False,
+        "dates_declared": True,
+        "claims": tail_claims,
+    }
+
+
 def _layout_partial_fhir():
     return _r2c_layout(
         "layout {YYYY}-{MM}-{DD}", "date", "date", 12,
@@ -24014,6 +24087,7 @@ R2A_BRANCH_CASE_BUILDERS = {
     "layout_partial_markers": _layout_partial_markers,
     # ...and the Codex review of it (items 2, 3, 4 and 9).
     "layout_declared_short": _layout_declared_short,
+    "layout_declared_short_at_the_line": _layout_declared_short_at_the_line,
     "layout_partial_absent_month": _layout_partial_absent_month,
     "layout_partial_all_different": _layout_partial_all_different,
     "layout_partial_figures": _layout_partial_figures,
@@ -33545,7 +33619,8 @@ _TWENTY_FIFTH_BRANCH_ACCOUNT = (
     "from its Codex review, partial years held all different where G11 "
     "binds, partial months stepped off an absent spelling, figure "
     "stand-ins passing over every year a partial form reads, and a "
-    "declared column's upper count target. They "
+    "declared column's upper count target, also on the date rule's line "
+    "as the settings' binary64 `0.9` draws it. They "
     "are computed by the same oracle and the same proof layer "
     "as tests/reference/generation-reference-vectors.json, "
     "tests/reference/generation-branch-vectors.json, "
@@ -33700,7 +33775,7 @@ GIVEN_WORDS = {
         17629261710852928474, 8921404860925028322, 5648318112095227251,
     ),
     # ...AND THE CODEX REVIEW OF LANDING R2c (items 2, 3, 4 and 9), at seeds
-    # 505 to 508.
+    # 505 to 508, and its verification's case on the line at 509.
     "layout_partial_all_different": (
         15687534829998396551, 12974298219080184765, 321440990617450745,
         18432371671366723983, 14375434756672700726, 9409930922464867812,
@@ -33777,6 +33852,45 @@ GIVEN_WORDS = {
         101512836819752361, 17803179548418910149, 18017108676538127405,
         14486967310408463970, 17007950450292675060, 11791658848451944864,
         2814028930679688439, 5667749131236449788,
+    ),
+    "layout_declared_short_at_the_line": (
+        6961257146149223316, 17442447891661100734, 11541653545286615824,
+        11784624891152989266, 17736330156169033569, 3142751672274540016,
+        2155989604557712643, 3908818404593684910, 3183998443655847728,
+        13840524091643631521, 8260261970093710525, 7273173847351881812,
+        11334211069074223747, 12935270808199412774, 14767645012063611557,
+        10515363715087128777, 4217112941575818777, 15463165137411556692,
+        16636683247581803133, 3052613016153351694, 16724742939755718407,
+        15130081806885615217, 5197927861880007464, 6655132057438473794,
+        2826497486766970596, 15808896209367773544, 5701325989116867928,
+        16850085571812120051, 18252394028684593477, 13454318221331237326,
+        788975922685752672, 14497911304822232076, 9207411497067874609,
+        977324044526273046, 979974978948619591, 674906671582795716,
+        2420622586682041666, 7770543754016230241, 9387965419872662315,
+        5247372153476799509, 9045389023019421154, 12182669709696174221,
+        15101507936451358263, 8738727748169959154, 9591145585066469535,
+        4445212843130324878, 6708782937021253915, 13200200704066976837,
+        17500616860397526895, 6977788917293318412, 14552548387708636005,
+        3370350942179381060, 5588193482085383272, 7243724256035019230,
+        15451538005799894130, 395752500663329559, 5928202999421708340,
+        9622134178964300834, 1913946756509309944, 12854917885654736062,
+        11137189337094397473, 18416522090595151584, 6205099658485488754,
+        7084976054201236904, 9354210577168961641, 16951830867306279074,
+        16206019233686464775, 16508474306173433158, 15774155927522163837,
+        5377192394473270265, 11178745289704916507, 614598457872063161,
+        5875526916671563601, 7907907618882149462, 352793005963923405,
+        14055927104103253420, 12247365185102428320, 9730022164855343653,
+        18121560458224632597, 3165915808291357472, 11752813403260205570,
+        4415185208555662479, 750832653139176114, 9804395687289401630,
+        12356070669892864393, 4482098184154565496, 1201406557999622202,
+        15345068317956299088, 6188195144405444011, 5893680538508326962,
+        10705081234292574565, 3513959763650493666, 9517619105542140963,
+        5494362479314627312, 2312322447882735206, 8292446544688166235,
+        13075865988359227099, 12643370106275811721, 10937744563371554432,
+        17449191856251605992, 4137298229667222342, 10003927095516802923,
+        14470889184565189292, 5336911696049023243, 17023368630998646807,
+        3444446660952091973, 2078953268586753110, 13763200788364623634,
+        15352267313325070515, 17290241874050536745, 11420716489608989430,
     ),
     # THE END FLOOR OF PLAN P4-D375, at seeds 416 and 417.
     "tail_end_least_reach": (

@@ -3587,6 +3587,140 @@ def test_r2c_codex_item9_the_oracle_carries_the_declaration(tmp_path: pathlib.Pa
     assert oracle.short_of_the_count(marked)  # type: ignore[attr-defined]
 
 
+def test_r2c_cxv_item1_the_oracle_draws_the_declared_line_where_the_loader_does() -> None:
+    """The verification's open item 1: the oracle's declared mark agrees with the loader's on the line itself.
+
+    The loader draws the date rule's line from the binary64 `0.9` the
+    cases' settings carry, read exactly (`contract._line_count`): sixty
+    present cells reach it at 55. c8f86ff's oracle drew it at nine in ten
+    exactly, 54, so a declared case of sixty cells with six unread was
+    short to the product (target 12) and not to the oracle (target 7),
+    and no frozen case could stand on the line. Every present count to
+    3,000 is asked here at the last unread count inside the line and the
+    first past it; vectors file 25's `layout_declared_short_at_the_line`
+    freezes the case. Mutant, run: `CASE_MINIMUM_PARSE_RATE` back at
+    nine in ten, red at sixty.
+    """
+    oracle = _oracle()
+    for present in range(1, 3001):
+        room = present - contract._line_count(0.9, present)
+        for unread in (room, room + 1):
+            if unread > present:
+                continue
+            spec = {"column": {"n_present": present, "n_unparsed": unread}, "dates_declared": True}
+            assert oracle.declared_short_of(spec) == (unread > room), (present, unread)  # type: ignore[attr-defined]
+    case = oracle.CASE_BUILDERS["layout_declared_short_at_the_line"]()  # type: ignore[attr-defined]
+    assert (case["rows"], case["column"]["n_unparsed"]) == (60, 6)
+    assert oracle.declared_short_of(case)  # type: ignore[attr-defined]
+
+
+def _stamps_beside_days(rows: int) -> "list[str]":
+    """Different HL7 stamps five minutes apart from 2015, every twentieth row a different day of 1990 on (made up).
+
+    The verifier's `hl7diff` shape: the days are a partial form of the
+    stamps' layout, all different, and lie outside the stamps' span, so
+    G11 binds and every partial day the full ranks give must step off the
+    days already written.
+    """
+    first_day = datetime.date(1990, 1, 1)
+    first_stamp = datetime.datetime(2015, 1, 1)
+    cells: "list[str]" = []
+    for place in range(rows):
+        if place % 20 == 0:
+            cells += [(first_day + datetime.timedelta(days=place // 20)).strftime("%Y%m%d")]
+        else:
+            cells += [(first_stamp + datetime.timedelta(seconds=300 * place)).strftime("%Y%m%d%H%M%S")]
+    return cells
+
+
+def _walked_one_unit_at_a_time(
+    shape: "tuple[tuple[str, str], ...]",
+    cell: str,
+    holes: "tuple[str, ...]",
+    taken: "dict[str, int]",
+    apart: bool,
+    skips: object = None,
+) -> str:
+    """c8f86ff's `generation._partial_stepped`: the units walked outward one at a time, the earlier first."""
+    if generation._partial_unit_free(cell, holes, taken, apart):
+        return cell
+    canonical = parsing.layout_partial_reading(cell, shape)
+    if canonical is None:
+        return ""
+    size = len(canonical)
+    first = generation._partial_unit(f"{parsing.LAYOUT_FIRST_YEAR:04d}-01-01 00:00:00"[0:size])
+    last = generation._partial_unit(f"{parsing.LAYOUT_LAST_YEAR:04d}-12-31 23:59:59"[0:size])
+    unit = generation._partial_unit(canonical)
+    away = 1
+    while unit - away >= first or unit + away <= last:
+        for other in (unit - away, unit + away):
+            if first <= other <= last:
+                written = parsing.layout_partial_cell(shape, generation._partial_moment(other, size))
+                if generation._partial_unit_free(written, holes, taken, apart):
+                    return written
+        away = away + 1
+    return ""
+
+
+def test_r2c_cxv_item2_a_partial_step_asks_a_few_questions_a_cell(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The verification's open item 2: G11's partial steps cost a few questions a cell, and write what the walk wrote.
+
+    c8f86ff walked one unit at a time: 500,359 questions for 1,000 partial
+    days at 20,000 rows, and 36.6 seconds of generation at 60,000 rows
+    where 3.6 had been. A unit once ruled out is now crossed in one hop
+    (`generation._partial_free_unit`). At 4,000 rows the 200 partial days
+    ask at most six questions each, and the twin is the one the walk
+    writes, byte for byte. Mutant, run: the walk put back, red on the count.
+    """
+    block, profile, _questions = _described(tmp_path, _stamps_beside_days(4000))
+    assert block["n_present"] == block["n_distinct"] == 4000
+    assert _partial_forms_of(block) == {"layout {YYYY}{MM}{DD}": 200}
+    asked = [0]
+    shipped = generation._partial_unit_free
+
+    def counted(cell: str, holes: "tuple[str, ...]", taken: "dict[str, int]", apart: bool) -> bool:
+        asked[0] = asked[0] + 1
+        return shipped(cell, holes, taken, apart)
+
+    monkeypatch.setattr(generation, "_partial_unit_free", counted)
+    twin, written = _twin(profile, 0)
+    stepped = twin.read_bytes()
+    assert len(set(written)) == 4000
+    assert asked[0] <= 6 * 200, asked[0]
+    monkeypatch.setattr(generation, "_partial_stepped", _walked_one_unit_at_a_time)
+    walked, _cells = _twin(profile, 0)
+    assert walked.read_bytes() == stepped
+
+
+def test_r2c_cxv_item2_the_hop_lands_where_the_walk_does() -> None:
+    """The verification's open item 2: the hop and the one-unit walk write the same cells, holes and band ends included.
+
+    Years crowded at both ends of the layout's band (1800 and 2299), one
+    absent spelling inside the crowd, and the cells asked in an order that
+    leaves ties to break: each cell `_partial_stepped` writes, with the
+    skip maps kept across the column, is the one the walk writes. Mutant:
+    the hop takes the later unit on a tie, red at the first tie.
+    """
+    shape = parsing.partial_items("layout {YYYY}")
+    assert shape is not None
+    draw = random.Random(11)
+    for apart in (True, False):
+        for holes in ((), ("1803",), ("2297", "1800")):
+            hopped: "dict[str, int]" = {"1801": 1, "2298": 1}
+            walked: "dict[str, int]" = dict(hopped)
+            skips: "tuple[dict[int, int], dict[int, int]]" = ({}, {})
+            for _turn in range(60):
+                year = draw.choice((1800, 1801, 1802, 1810, 2050, 2297, 2298, 2299))
+                cell = f"{year:04d}"
+                one = generation._partial_stepped(shape, cell, holes, hopped, apart, skips)
+                two = _walked_one_unit_at_a_time(shape, cell, holes, walked, apart)
+                assert one == two, (apart, holes, cell)
+                hopped[one] = 1
+                walked[two] = 1
+
+
 # -- R1's codes question on a column of clock times (P4-D373's stated limit) --
 
 

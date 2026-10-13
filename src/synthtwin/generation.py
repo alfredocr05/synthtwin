@@ -21864,6 +21864,10 @@ def _partial_cells(
     given = [0 for _form in forms]
     cells: "list[str]" = []
     taken: "dict[str, int]" = dict(held) if held is not None else {}
+    # Each form's units already found taken or absent, walked past in one
+    # hop from then on (`_partial_stepped`; the verification of the Codex
+    # review's repair of landing R2c, open item 2).
+    skips: "list[tuple[dict[int, int], dict[int, int]]]" = [({}, {}) for _form in forms]
     for turn in range(total):
         best = 0
         lag = -1
@@ -21888,6 +21892,7 @@ def _partial_cells(
             holes,
             taken,
             apart,
+            skips[best],
         )
         if not cell:
             return []
@@ -21962,14 +21967,33 @@ def _partial_stepped(
     holes: "tuple[str, ...]",
     taken: "dict[str, int]",
     apart: bool,
+    skips: "tuple[dict[int, int], dict[int, int]] | None" = None,
 ) -> str:
     """One partial cell, stepped to the nearest free unit of its precision, or '' (landing R2c).
 
-    The cell stands where `_partial_unit_free` lets it; otherwise the
-    units of its form's precision are walked outward from its own, the
-    earlier first at each distance, inside the layout's year band
-    (`parsing.LAYOUT_FIRST_YEAR` to `parsing.LAYOUT_LAST_YEAR`), and the
-    first one free is written. '' where none is.
+    The cell stands where `_partial_unit_free` lets it; otherwise it takes
+    the nearest unit of its form's precision whose cell is free, the
+    earlier on a tie, inside the layout's year band
+    (`parsing.LAYOUT_FIRST_YEAR` to `parsing.LAYOUT_LAST_YEAR`) -- the
+    unit a walk outward from its own, the earlier first at each distance,
+    would reach first. '' where none is.
+
+    THE WALK IS NOT TAKEN ONE UNIT AT A TIME (the verification of the
+    Codex review's repair of landing R2c, open item 2). Stepping one unit
+    at a time asked 500,359 times for 1,000 partial days of a 20,000-row
+    column of different HL7 stamps, and 36.6 seconds of generation at
+    60,000 rows where 3.6 had been. A unit once found taken or absent stays
+    so for the rest of the column -- `taken` only grows and the absent
+    spellings are fixed -- so ``skips`` (one map below, one above, for each
+    form, kept by `_partial_cells`) carries every such unit to the next one
+    not yet ruled out, the paths shortened as they are walked. The nearest
+    free unit below and the nearest above are each found in a few
+    questions, and the nearer is written: the same cell the walk writes.
+
+    Guarantees: accepts the form's shape, its cell, the absent spellings,
+    the cells already held, whether G11 binds, and the form's skip maps;
+    returns the cell to write, or ''. Writes only into ``skips``. A
+    function of the first five. No I/O of any kind.
     """
     if _partial_unit_free(cell, holes, taken, apart):
         return cell
@@ -21980,15 +22004,54 @@ def _partial_stepped(
     first = _partial_unit(f"{parsing.LAYOUT_FIRST_YEAR:04d}-01-01 00:00:00"[0:size])
     last = _partial_unit(f"{parsing.LAYOUT_LAST_YEAR:04d}-12-31 23:59:59"[0:size])
     unit = _partial_unit(canonical)
-    away = 1
-    while unit - away >= first or unit + away <= last:
-        for other in (unit - away, unit + away):
-            if first <= other <= last:
-                written = parsing.layout_partial_cell(shape, _partial_moment(other, size))
-                if _partial_unit_free(written, holes, taken, apart):
-                    return written
-        away = away + 1
-    return ""
+    if skips is None:
+        skips = ({}, {})
+    lower = _partial_free_unit(
+        shape, size, min(unit - 1, last), -1, first, holes, taken, apart, skips[0]
+    )
+    upper = _partial_free_unit(
+        shape, size, max(unit + 1, first), 1, last, holes, taken, apart, skips[1]
+    )
+    if lower[1] and (not upper[1] or unit - lower[0] <= upper[0] - unit):
+        return lower[1]
+    return upper[1]
+
+
+def _partial_free_unit(
+    shape: "tuple[tuple[str, str], ...]",
+    size: int,
+    start: int,
+    toward: int,
+    bound: int,
+    holes: "tuple[str, ...]",
+    taken: "dict[str, int]",
+    apart: bool,
+    skip: "dict[int, int]",
+) -> "tuple[int, str]":
+    """The nearest unit from ``start`` toward ``bound`` whose cell is free, and that cell; '' for none.
+
+    ``skip`` carries a unit found taken or absent to the next unit past it
+    in the walk's direction (``toward``, -1 or 1); every unit this call
+    walks past is carried straight to where it stopped. Writes only into
+    ``skip``.
+    """
+    passed: "list[int]" = []
+    place = start
+    found = ""
+    while (bound - place) * toward >= 0:
+        if place in skip:
+            passed += [place]
+            place = skip[place]
+            continue
+        written = parsing.layout_partial_cell(shape, _partial_moment(place, size))
+        if _partial_unit_free(written, holes, taken, apart):
+            found = written
+            break
+        passed += [place]
+        place = place + toward
+    for unit in passed:
+        skip[unit] = place
+    return place, found
 
 
 def _interior_cell(

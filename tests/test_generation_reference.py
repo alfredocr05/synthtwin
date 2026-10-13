@@ -78,6 +78,7 @@ its own window admits.
 """
 
 import ast
+import fractions
 import importlib.util
 import json
 import math
@@ -847,8 +848,10 @@ TWENTY_FIFTH_BRANCH_CASES = tuple(
             "layout_partial_fhir",
             "layout_partial_hl7",
             "layout_partial_markers",
-            # ...and the Codex review of landing R2c (items 2, 3, 4 and 9).
+            # ...and the Codex review of landing R2c (items 2, 3, 4 and 9),
+            # and the verification of its repair (open item 1).
             "layout_declared_short",
+            "layout_declared_short_at_the_line",
             "layout_partial_absent_month",
             "layout_partial_all_different",
             "layout_partial_figures",
@@ -917,6 +920,9 @@ SEEDS = {
     "layout_partial_absent_month": 506,
     "layout_partial_figures": 507,
     "layout_declared_short": 508,
+    # ...and the verification of its repair, the declared mark on the
+    # line (open item 1), at the next seed.
+    "layout_declared_short_at_the_line": 509,
     # Landing T1's written clocks take the next seeds after the highest in
     # use below 34041 (plan P4-D370).
     "stamp_unpadded_hour": 416,
@@ -1136,7 +1142,9 @@ DECLARED_DECIMAL_COMMAS = frozenset({"grouped_decimal_comma", "spaced_decimal_co
 DECLARED_CENTURIES = {"layout_century_window": 1930}
 # -- 3b.R2c (P4-D383): the case read under an ask-first layout, which the
 # contract's invariant S8f binds to settings.forced_date_columns.
-DECLARED_DATES = frozenset({"layout_ordinal_declared", "layout_declared_short"})
+DECLARED_DATES = frozenset(
+    {"layout_ordinal_declared", "layout_declared_short", "layout_declared_short_at_the_line"}
+)
 
 DECLARED_IDENTIFIERS = frozenset(
     {
@@ -3572,7 +3580,7 @@ def _partial_forms_in_blocks(forms, given, turn, total):
     return len(forms) - 1
 
 
-def _partial_never_stepped(key, moment, absent, taken, apart):
+def _partial_never_stepped(key, moment, absent, taken, apart, skips=None):
     """G7.5's step withdrawn: a partial cell is written where its rank puts it, whatever it is."""
     return _PARTIAL_WRITTEN(key, *moment)
 
@@ -3615,6 +3623,15 @@ CASE_MUTANTS = {
         "count less every unread cell",
         attribute="declared_short_of",
         replacement=lambda spec: False,
+        outcome=CHANGES_THE_CELLS,
+    ),
+    "layout_declared_short_at_the_line": Mutant(
+        branch="G7.3's declared mark drawn at the binary64 `0.9` the settings "
+        "carry, as the loader reads it; the mutant draws it at nine in ten "
+        "exactly, where six unread cells of sixty just fit, drops the mark "
+        "and aims at the count less every unread cell",
+        attribute="CASE_MINIMUM_PARSE_RATE",
+        replacement=fractions.Fraction(9, 10),
         outcome=CHANGES_THE_CELLS,
     ),
     "layout_partial_markers": Mutant(
