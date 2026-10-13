@@ -19123,7 +19123,7 @@ def _heavy_plan(
     order holds the list.
 
     Guarantees: a function of the five; draws no word. Linear in the
-    ranks and the days between the boundaries; the flows are bounded by
+    ranks and the days between the boundaries; each flow is bounded by
     the parts and the groups. Raises nothing. No I/O of any kind.
     """
     segments = _heavy_segments(knots, listed, holes)
@@ -19914,7 +19914,7 @@ def _heavy_few_cells(
     demands: "tuple[tuple[int, ...], ...]",
 ) -> "tuple[list[dict[tuple[int, ...], int]], int]":
     """FEW: each part's ranks per key by one capacity flow per census, and
-    the owed rows the flows could not place."""
+    the owed rows no flow could place."""
     shares: "list[dict[tuple[int, ...], int]]" = [
         {(): supply[place]} for place in range(len(days_of))
     ]
@@ -20302,7 +20302,7 @@ def _heavy_cells(
     its free days -- or leaves an owed row unplaced (a key whose one free
     day is the part's shared knot day takes none of its rake), WIDE
     (`_heavy_wide_cells`) puts as many ranks on days of their own as the
-    flows allow. Last, wherever another was asked or SPREAD left a row
+    flow allows. Last, wherever another was asked or SPREAD left a row
     unplaced, FEW (`_heavy_few_cells`) puts the ranks on as few keys as
     one flow per census finds. The first
     split that places every owed row and can open exactly `left` new days

@@ -6724,7 +6724,7 @@
    "headline": false,
    "name": "Dates that stand out come back at their exact counts",
    "status": "GREEN",
-   "rule": "the twenty pinned nodes pass: the gate's battery lists what the design measured and admissions none (H4), every twin holds every listed date and misses nothing (H1), the heaps come back within their bounds (H2), no listed count is below max(11, line) (H3); the rule, HD4 against brute force, the scope, file 19's seven states each red on its mutant, whole columns through the oracle, the producer always loading, the report, NF71, eight seeds of the 10th on business days, the work counted to 1,000,000 rows, and lane D3's two limits lifted",
+   "rule": "the twenty-one pinned nodes pass: the gate's battery lists what the design measured and admissions none (H4), every twin holds every listed date and misses nothing (H1), the heaps come back within their bounds (H2), no listed count is below max(11, line) (H3); the rule, HD4 against brute force, the scope, file 19's seven states each red on its mutant, whole columns through the oracle, the producer always loading, the report, NF71, eight seeds of the 10th on business days, the work counted to 1,000,000 rows, lane D3's two limits lifted, and the list giving way where it would cost a census or the count (G7.3j step 7)",
    "rule_kind": "exact",
    "expected": {
     "pinned_nodes_failing": 0
@@ -6750,6 +6750,7 @@
     "tests/test_stage3b_heavy_dates.py::test_every_description_the_producer_writes_loads",
     "tests/test_stage3b_heavy_dates.py::test_the_tenth_on_business_days_meets_every_check_at_eight_seeds",
     "tests/test_stage3b_heavy_dates.py::test_the_plan_and_the_draw_count_no_more_as_rows_grow",
+    "tests/test_stage3b_heavy_dates.py::test_a_list_that_costs_a_census_or_the_count_gives_way",
     "tests/test_stage3b_day_of_month.py::test_quarter_ends_at_ten_thousand_rows_meet_every_check",
     "tests/test_stage3b_day_of_month.py::test_one_month_a_year_at_ten_thousand_rows_meets_every_check"
    ],

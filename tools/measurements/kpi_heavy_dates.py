@@ -20,7 +20,11 @@ sizes (the skeptic's M3 and m1):
   with three in a hundred on any day, at 300, 2,000 and 5,000 rows, a
   floor of eleven and seeds 0 and 4: `census_missed`, twins missing
   their weekday census, and `count_missed`, twins missing their count
-  of different values -- the count giving way, named (plan P4-D369);
+  of different values;
+* `lists_given_way`, over both: twins whose list gave way (method G7.3j
+  step 7: the twin drawn with it missed a census or the count, so the
+  column is drawn as if it listed no date, named) -- the price of
+  holding every other check, which `listed_off` counts in dates;
 * `generate_seconds_40k`: recorded, never judged.
 
 K-S3-47 (PRIVACY, an accepted limit under the owner's principle of
@@ -53,7 +57,7 @@ import kpi_rules  # noqa: E402
 import kpi_shapes  # noqa: E402
 import test_stage3b_gate as gate  # noqa: E402
 
-from synthtwin import calendar_rules, parsing  # noqa: E402
+from synthtwin import calendar_rules, generation, parsing, rendering  # noqa: E402
 
 kpi_rules.guard_this_tree()
 
@@ -129,7 +133,13 @@ def _narrowed(block: dict) -> int:
     return sum(1 for count in left if 0 < count < line)
 
 
+def _given_way(twin: generation.Twin) -> int:
+    """1 where the twin's list gave way (method G7.3j step 7), else 0."""
+    return 1 if any(note.note == generation._HEAVY_GIVEN_WAY for note in twin.deviations) else 0
+
+
 def measure(home: pathlib.Path) -> "tuple[dict[str, int], dict[str, int], str]":
+    given_way = 0
     listed_off = 0
     missed_40k = 0
     seconds_40k = 0.0
@@ -141,8 +151,10 @@ def measure(home: pathlib.Path) -> "tuple[dict[str, int], dict[str, int], str]":
             columns = gate._BATTERY[shape](rows)
             described = kpi_shapes.describe(home / f"{shape}-{rows}", shape, gate._table_text(columns), FLOOR)
             started = time.perf_counter()
-            text = kpi_shapes.twin_text(described, 0)
+            twin = generation.generate(described.loaded, 0)
+            text = rendering.twin_csv(twin)
             if rows == 40000:
+                given_way += _given_way(twin)
                 seconds_40k += time.perf_counter() - started
                 missed_40k += len(kpi_shapes.missed(kpi_shapes.measure(described, text, "twin.csv")))
             for name in columns:
@@ -162,7 +174,9 @@ def measure(home: pathlib.Path) -> "tuple[dict[str, int], dict[str, int], str]":
                 label = f"sessions-{weekdays[0]}{weekdays[1]}-{noise}-{rows}"
                 described = kpi_shapes.describe(home / label, label, gate._table_text({"visit": cells}), FLOOR)
                 for seed in (0, 4):
-                    text = kpi_shapes.twin_text(described, seed)
+                    twin = generation.generate(described.loaded, seed)
+                    text = rendering.twin_csv(twin)
+                    given_way += _given_way(twin)
                     missed = kpi_shapes.missed(kpi_shapes.measure(described, text, f"t{seed}.csv"))
                     twins += 1
                     listed_off += _off(described.block("visit"), _column(text, "visit"))
@@ -173,6 +187,7 @@ def measure(home: pathlib.Path) -> "tuple[dict[str, int], dict[str, int], str]":
         "missed_40k": missed_40k,
         "census_missed": census_missed,
         "count_missed": count_missed,
+        "lists_given_way": given_way,
         "generate_seconds_40k": int(round(seconds_40k)),
     }
     privacy = {
@@ -183,8 +198,8 @@ def measure(home: pathlib.Path) -> "tuple[dict[str, int], dict[str, int], str]":
     }
     detail = (
         f"40,000 rows: {missed_40k} missed, {seconds_40k:.1f} s generating; sessions: {twins} twins, "
-        f"{census_missed} missing the weekday census, {count_missed} the count; listed dates off: "
-        f"{listed_off}"
+        f"{census_missed} missing the weekday census, {count_missed} the count; lists given way: "
+        f"{given_way}; listed dates off: {listed_off}"
     )
     return stats, privacy, detail
 

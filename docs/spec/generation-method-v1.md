@@ -6865,7 +6865,7 @@ pins: the two tail boundaries and each published rung, at its rank.
    ranks are split by KEY, its free days of one group of each census
    beside the list: SPREAD rakes the keys' free days (a day the part
    shares with the part before it not counted) to the parts' ranks and
-   each census's owed rows sixty times and rounds them by flows; where
+   each census's owed rows sixty times and rounds them by a flow; where
    SPREAD fills more keys holding no knot's day than the new days the
    count leaves -- the twin's count of different days less those the
    listed dates, the knots and both tails already hold -- the lightest
