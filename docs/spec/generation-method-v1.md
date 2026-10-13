@@ -15242,7 +15242,7 @@ that happens -- and the clause beside it, `--missing-value`'s "CAN be
 published as the column's smallest value", is exactly right under the
 new rule.
 
-**All one hundred and ninety-two are required.** The count is taken off the committed
+**All one hundred and ninety-three are required.** The count is taken off the committed
 case sets and not carried forward: this sentence said fifty-two and a
 split of nine, twenty, sixteen and seven while the six files held
 seventy-three, because each repair that added a case added a clause to
@@ -15291,10 +15291,11 @@ from its second skeptic those offsets beside a named one, from its
 Codex review the rest of them paid with whole repeated texts, and from
 that repair's verification those texts placed over two offsets toward
 one aim (plan P4-D383) --; and the TWENTY-SEVENTH,
-`tests/reference/generation-branch-vectors-27.json`, holds six --
+`tests/reference/generation-branch-vectors-27.json`, holds seven --
 landing 3b.5's second step, G7A.4c's minute census of a column of clock
 times (plan P4-D374), in a file of its own because the twenty-first
-stands at the manifest's cap --
+stands at the manifest's cap, and from its Codex review G7A.5's
+stand-ins past route 1's allowance --
 and a test holds this sentence to those files. The tenth grew by the
 two cases the GOVERNANCE PASS of stage 3's review added and the
 eleventh by the two the dates pass added; each number here is read off
