@@ -307,14 +307,17 @@ cannot get worse unseen.
   3b.7, P4-D378, 2026-10-13). The weekday, day-of-month and hour censuses
   stand on columns of two offsets and of dates beside moments, each cell
   counted on its own clock. Stated: the count of different values there
-  stays in G12.5's envelope, but on a clocked joint column on the local
-  clock whose only cells at midnight are its bare dates; a daylight-saving column's twin writes the
-  offset not in force on its date for about a third of its rows (no
-  published fact pairs offset and season); a joint column holding one bare
-  date on every day of its span writes the dates its gaps have midnight days
-  for and the rest as moments, MISSED and named (strict xfail); and the
-  minute and second censuses wait for lane T3's merge, whose meeting with
-  lane D2's weekday census on moments is an open question (P4-D378).
+  stays in G12.5's envelope, an all-different joint column's too, its
+  shortfall said (consecutive-minute stamps beside bare dates: 754 to
+  805 of 1,000, strict xfail); a daylight-saving column's twin writes the
+  offset not in force on its date for 50 to 52 per cent of its rows (35
+  to 39 before the landing: G7.4's spread meets the censuses at the cost
+  of season; publishing each key's first and last day is the follow-up);
+  `z_plus` withholds its weekday census at 1,000 rows and at 10,000 at
+  the floor of 36; C1's c0 and c551 hold 99 to 177 different values for
+  63 and 83, inside the envelope; and the minute and second censuses wait
+  for lane T3's merge, whose meeting with lane D2's weekday census on
+  moments is an open question (P4-D378).
 - **Codes and tables written or read unlike the source, older than this
   week** (recorded 2026-10-09; `K-S3-61`'s note carries them). Made-up
   figure codes lose their leading zeros, and exponent-shaped codes

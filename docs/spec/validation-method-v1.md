@@ -1545,12 +1545,13 @@ rather than in ISO:
   joint reading, worn at the offset the census absorbed it into
   (`_own_clock_readings`). Every other column is recounted as before.
   On the joint member `resolution_mix` is held exactly
-  (`resolution_mix.counts`) and so is `format`, and where a clocked joint
-  column on the local clock whose count at midnight is its bare dates'
-  publishes its count of different values equal to its parsed count (G11's
-  all-different obligation) `distinct.n_distinct` is EXACT; on the shared
-  clock, on a joint column wholly at midnight, and where stamps stand at
-  midnight too, it stays inside G12.5's envelope.
+  (`resolution_mix.counts`) and so is `format`; `distinct.n_distinct`
+  stays inside G12.5's envelope there, all different or not, exactly as
+  `contract.datetime_counts_reachable` -- the one statement of where the
+  count pass reaches the count -- leaves it (the landing's repair, item 1:
+  a second statement held 800 stamps on consecutive minutes beside 200
+  dates EXACT and MISSED twins of 778 to 805 of 1,000 that the envelope
+  holds).
 - `hour_census` is compared GROUP FOR GROUP (`hour_census.groups`,
   V5-H1, landing 3b.2-H, plan P4-D371): the file's own moments between
   the two PUBLISHED tail boundaries, both included, less the days its own

@@ -6089,10 +6089,12 @@ member its census is RM1's one key carrying every parsed cell, which
 each on a midnight of its own clock inside its rank's gap, on a day of
 its own where the column's values are all different (the generation
 method's G7.3k) -- so the file's own count of each form is held to the
-published one, and so is `format`. Where a gap holds too few midnight days
-for the bare dates the rotation would give it, the rest are written as
-moments and the check is MISSED, never silent (residual R-P4-12, closed
-on clocked columns but for that case).
+published one, and so is `format`. Where the gaps hold too few free
+midnight days for the bare dates, the rest stand on a midnight another
+value holds, so the forms, the offsets and the count at midnight are held
+and the count of different values falls short inside G12.5's envelope,
+said by the twin's report (residual R-P4-12 closed on clocked columns; the
+landing's repair, item 2).
 
 **C6-25a (`datetime_separators`).** Every datetime block carries
 `datetime_separators`, a mapping from the name of the mark a parsed

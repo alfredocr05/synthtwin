@@ -7707,15 +7707,22 @@ can read a rank's clock only once its offset is known.
    where the column's values are all different; every rank where they
    repeat, and none where the gap holds no midnight -- a gap at its cap
    passing its turn on, the credit carried, and the credit left at the end
-   given to the first ranks with room, never more ranks than the count.
-   Then, as the first part of the move to midnight, each gap's
+   given to the first ranks with room; what every gap's free days still
+   leave over goes to the first ranks whose gap holds any midnight, so
+   every bare date the count names is written as one (the landing's
+   repair, item 2: written as moments they took real offset keys and
+   missed `utc_offsets` and `n_at_midnight`); never more ranks than the
+   count. Then, as the first part of the move to midnight, each gap's
    bare-date ranks in rank order are stood on midnight days of the gap: off a
    day a published census counts nought on, where one of the gap's first
    400 days is not; each the first at or after its instant, else the
    nearest before; where the column is all different, on days of their
    own no fixed rank holds, the run laid back from the gap's top where it
-   went past it. The move to midnight then counts every bare date as
-   standing at midnight and owes only the rest.
+   went past it, and a rank the free days cannot hold stood on its nearest
+   midnight of the gap as where the values repeat, a day another value
+   holds: the count of different values then falls short, inside G12.5's
+   envelope, and the twin's report says so. The move to midnight then
+   counts every bare date as standing at midnight and owes only the rest.
 
 ### G7.4 Offsets: only where recorded
 

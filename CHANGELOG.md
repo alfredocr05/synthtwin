@@ -23,9 +23,13 @@ battery of 21 columns at 1,000 and 10,000 rows, floors 11 and 36, seeds
 most 0.035 off at 1,000 rows and 0.0011 at 10,000. The twin of a column
 of dates beside moments now writes its bare dates, where it wrote every
 one as a `00:00:00` stamp, so `resolution_mix` and `format` are checked
-exactly there; an all-different column of 200 dates beside 800 stamps
-comes back all different and the count is checked exactly, where 881 of
-1,000 passed before. Two columns of C1's battery that missed their
+exactly there, every bare date written as one; an all-different column
+of 200 dates beside 800 stamps comes back all different, where 881 of
+1,000 came back before, its count checked inside G12.5's envelope as
+before and any shortfall said in the twin's report. A twin of a
+daylight-saving column writes the offset not in force on its date for
+about half its rows (about a third before): the censuses are met at the
+cost of pairing season and offset. Two columns of C1's battery that missed their
 withheld count at midnight hold it. The minute and second censuses of
 lane T3 are not widened: T3 is not merged, and its merge beside lane
 D2's weekday census on moments is a question of its own.
