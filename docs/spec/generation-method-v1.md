@@ -7511,9 +7511,11 @@ groups as they want -- and the carry of a kin group reaching none of
 some wanted group is offered, group by group, to the other kin groups by
 their ranks able to take the group, rounded down, its own carry kept and
 taken where it reaches again. A kin group takes no more of a group than
-its able ranks, and where they hold it below its share, the whole ranks
-of the running ideal past what the kin groups so far took leave it and
-are offered to the kin groups after it by their able ranks (four gaps of
+its able ranks, and where these, fewer than its ranks, hold it below its
+share, the whole ranks of the running ideal past what the kin groups so
+far took leave it and are offered to the kin groups after it by their
+able ranks; a kin group every rank of which is able keeps its part in
+the running ideal, as before (four gaps of
 three hours, hour 8 off minute 0 in each: its carry, asked of hour 8
 itself, grew gap by gap and handed it every share of minute 0, which the
 gap's single moves gave hour 9 -- 200 against hour 10's 40 where 120

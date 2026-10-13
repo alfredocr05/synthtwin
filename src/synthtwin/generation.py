@@ -26453,8 +26453,9 @@ def _clock_kin_parts(
     in each, gave hours 9 and 10 200 and 40 cells there where 120 each
     could stand. What each kin group carries stays its own -- owed as
     `owns` has it, less what it holds -- and is taken where it reaches
-    again; where its room held it below its part, the gap's running ideal
-    keeps no whole rank past what it took (`_clock_kin_shares_moved`).
+    again; where its able ranks, fewer than its ranks, held it below its
+    part, the whole ranks of the running ideal past what was taken are
+    offered to the kin groups after it (`_clock_kin_shares_moved`).
     Raises nothing. No I/O."""
     groups = len(want)
     blocked = [
@@ -26633,13 +26634,19 @@ def _clock_kin_shares_moved(state: _WeekdayPass, ranks: "list[int]", want: "list
         for group in range(groups):
             state.kin_carry[(kin, group)] = carried[group] + own[group]
         taken = [taken[group] + share[group] for group in range(groups)]
-        # KIN SHARES' REACH: the whole ranks of a part its room held it below
-        # leave the running ideal and are OFFERED to the kin groups after it
-        # by their ranks able to take the group, so a share it cannot take
-        # falls on no one kin group after it.
+        # KIN SHARES' REACH: the whole ranks of a part its ABLE ranks held it
+        # below -- fewer than its ranks -- leave the running ideal and are
+        # OFFERED to the kin groups after it by their ranks able to take the
+        # group, so a share it cannot reach falls on no one kin group after
+        # it. A kin group whose every rank is able keeps G7.3h's rule: its
+        # part past its ranks stays in the running ideal.
         later = order[position + 1 :]
         for group in range(groups):
-            if share[group] >= room[group] and ideal[group] >= (taken[group] + 1) * _KIN_SCALE:
+            if (
+                room[group] < len(members)
+                and share[group] >= room[group]
+                and ideal[group] >= (taken[group] + 1) * _KIN_SCALE
+            ):
                 excess = (ideal[group] - taken[group] * _KIN_SCALE) // _KIN_SCALE * _KIN_SCALE
                 ideal[group] = ideal[group] - excess
                 _clock_kin_offered(later, parts, able, kin, group, excess)

@@ -1289,8 +1289,8 @@ STEP_MUTANTS = {
     ),
     "a part its room held it below passed on to the kin group after it": (
         "field_kin_partial",
-        "            if share[group] >= room[group] and ideal[group] >= (taken[group] + 1) * _KIN_SCALE:",
-        "            if False:",
+        "                room[group] < len(members)\n                and share[group]",
+        "                False\n                and share[group]",
     ),
     "no PUT BACK after the exchange": (
         "field_exchange_put_back",

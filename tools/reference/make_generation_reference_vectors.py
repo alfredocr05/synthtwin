@@ -15056,11 +15056,12 @@ def kin_shares_moved(walk, ranks, want):
         for g in groups:
             walk.kin_carry[(kin, g)] = carried[g] + own[g]
         taken = [taken[g] + share[g] for g in groups]
-        # The whole ranks of a part its room held it below leave the running
-        # ideal, offered to the kin groups after it by their able ranks.
+        # The whole ranks of a part its able ranks -- fewer than its ranks --
+        # held it below leave the running ideal, offered to the kin groups
+        # after it by their able ranks.
         later = order[order.index(kin) + 1:]
         for g in groups:
-            if share[g] >= room[g] and ideal[g] >= (taken[g] + 1) * WEEKDAY_SHARE_SCALE:
+            if room[g] < len(members[kin]) and share[g] >= room[g] and ideal[g] >= (taken[g] + 1) * WEEKDAY_SHARE_SCALE:
                 excess = (ideal[g] - taken[g] * WEEKDAY_SHARE_SCALE) // WEEKDAY_SHARE_SCALE * WEEKDAY_SHARE_SCALE
                 ideal[g] -= excess
                 kin_offered(later, parts, able, kin, g, excess)
