@@ -818,10 +818,10 @@ def test_the_ledger_file_is_canonical_json() -> None:
     # 579,000 from 574,000, LANDING 3b.7 (plan P4-D378, 2026-10-13), the
     # least round figure the ledger fits under once the landing adds
     # `K-S3-53` (the calendar on two offsets and the joint member) and its
-    # note clause, 3,904 bytes over 573,939, and its repair's nodes and
-    # sentence, 927 more; its evidence was written short first, every
-    # figure and its source kept, and no other entry's prose is the
-    # landing's.
+    # note clause, 3,904 bytes over 573,939, and its repair's nodes,
+    # sentence and note clause, 966 more; its evidence was written short
+    # first, every figure and its source kept, and no other entry's prose
+    # is the landing's.
     #
     # 574,000 from 550,000, AT THE INTEGRATION OF BATCH 3'S FIRST PART
     # (2026-10-13), the integrator's call under the orchestrator's rule: the
