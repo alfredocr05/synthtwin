@@ -24,12 +24,13 @@ and 36, seeds 0 to 4, now miss nothing; 458 of the 480 at 1,000 rows are
 byte for byte as before. The minute and second checks count whole dates a
 column's description folded into its moments, which made an unchanged
 source miss its heap at minute 0, and the minute and second passes keep
-off a column of counted dates' placeholder days. Two limits older than
+off a column of counted dates' placeholder days. Three limits older than
 this change are measured and carried: beside a weekday census the hour
 pass leaves small bursty tables' count long (85 of 105 such twins before
-this change, 83 after), and a column nine in ten at midnight with a heap
-at minute 0 writes one fewer midnight than its count withheld for its
-size. `K-S3-41`, `K-S3-42` and `K-S3-62` are restamped.
+this change, 83 after); a column nine in ten at midnight with a heap at
+minute 0 writes one fewer midnight than its count withheld for its size;
+and 3,800 all-different stamps five minutes apart come back 327 to 380
+values short and miss their heap at second 0. `K-S3-41`, `K-S3-42` and `K-S3-62` are restamped.
 
 ### Partial dates are read at their own precision, and a column mostly of dates is asked (2026-10-09)
 

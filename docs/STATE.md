@@ -314,8 +314,10 @@ cannot get worse unseen.
   on 45191fa, 83 since the minute and second passes pay their count steps
   back (P4-D391); owner lane J's family (G7.3g step 6). And a column nine
   in ten at midnight, its count there withheld for its size, beside a heap
-  at minute 0, writes one midnight fewer (989 of 990), lane T3's own
-  (P4-D372), named in R4's c4 test.
+  at minute 0, writes one midnight fewer (989 of 990), and 3,800
+  all-different stamps five minutes apart come back 3,420 to 3,473
+  different values, missing the second's heap -- both lane T3's own
+  (P4-D372), named in R4's c4 and R2c's partial-step tests.
 - **Codes and tables written or read unlike the source, older than this
   week** (recorded 2026-10-09; `K-S3-61`'s note carries them). Made-up
   figure codes lose their leading zeros, and exponent-shaped codes

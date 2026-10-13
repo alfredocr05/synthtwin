@@ -3414,6 +3414,13 @@ def test_r2b_x1_r2a_description_of_the_column_holds_on_the_unchanged_source(
     assert written_now["columns"][0]["hour_census"] != []
     for key in ("hour_census", "remarks"):
         written_now["columns"][0][key] = written_then["columns"][0][key]
+    # ...and lane T3's minutes and seconds (plan P4-D372), met at lane J2's
+    # merge of it, which a7c9d75's description has no place for.
+    for key in ("minute_census", "minute_heaps", "second_census", "second_heaps"):
+        if key in written_then["columns"][0]:
+            written_now["columns"][0][key] = written_then["columns"][0][key]
+        else:
+            written_now["columns"][0].pop(key, None)
     written_now["publication_notes"] = written_then["publication_notes"]
     assert written_now == written_then
 
@@ -4836,6 +4843,16 @@ def test_r2c_cxv_item2_a_partial_step_asks_a_few_questions_a_cell(
     block, profile, _questions = _described(tmp_path, _stamps_beside_days(4000))
     assert block["n_present"] == block["n_distinct"] == 4000
     assert _partial_forms_of(block) == {"layout {YYYY}{MM}{DD}": 200}
+    # Read without its minute's and second's facts (landing 3b.4), as this lane measured
+    # it: the stamps five minutes apart publish twelve minute heaps and a heap at second 0,
+    # and lane T3's passes leave such a grid of 3,800 all-different stamps short of its
+    # count, written ISO too (3,435 and 3,473 at seeds 1 and 0 on 71ff1b0, T3 alone; here
+    # 3,620 of 4,000; a limit carried by lane J2, plan P4-D391).
+    document = json.loads(profile.read_text(encoding="utf-8"))
+    for key in ("minute_census", "minute_heaps", "second_census", "second_heaps"):
+        document["columns"][0][key] = []
+    (tmp_path / "unclocked").mkdir()
+    profile = fixtures.write_profile(tmp_path / "unclocked", "real-profile.json", document)
     asked = [0]
     shipped = generation._partial_unit_free
 
