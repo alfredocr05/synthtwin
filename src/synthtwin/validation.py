@@ -9527,10 +9527,18 @@ def _distinctness_checks(
             window = _datetime_distinct_window(
                 column, facts, floor, date_system
             )
+            # -- 3b.7 repair (skeptic 1, item 1): THE ONE STATEMENT OF
+            # EXACTNESS IS THE CONTRACT'S. A second one held an all-different
+            # joint column exactly where the construction does not reach
+            # it: 800 stamps on consecutive minutes beside 200 dates every
+            # third day came back 778 to 805 of 1,000, MISSED, where this
+            # envelope had held them WITHIN-BOUND. The envelope stands
+            # there, and the twin's own report names the shortfall
+            # (`generation._joint_count_remarks`).
             if (
                 contract.datetime_count_exact(column, published)
                 and window[0] <= published <= window[1]
-            ) or _joint_all_different(column, facts):
+            ):
                 checks += [
                     _exact(
                         name,
@@ -20223,33 +20231,6 @@ def _clock_distinct_window(
         upper = min(column.n_present, room + stand_ins)
     lower = min(separate + stand_ins, upper)
     return (float(lower), float(upper))
-
-
-def _joint_all_different(column: contract.ColumnBlock, facts: contract.DatetimeFacts) -> bool:
-    """Whether a joint column on its own clock publishes every parsed value
-    different (landing 3b.7, plan P4-D378; item (b), the design skeptic's
-    major 3): G11's all-different obligation, held EXACTLY there -- the
-    form step stands each bare date on a day of its own and the rest stay
-    where they were drawn apart -- where before it fell to G12.5's envelope
-    and 800 different stamps beside 200 different dates came back 881 of
-    1,000 with validate passing. On the shared clock the count stays in the
-    envelope (stated limit): there the construction does not reach it; and
-    so it does on a joint column wholly at midnight, which the form step
-    does not place (220 different days stored three ways in a workbook come
-    back 163 there, as before the landing); and so it does where the
-    column's stamps stand at midnight too -- its count at midnight above its
-    bare dates -- since the move to midnight stands those on the nearest
-    midnight, not one of their own (100 dates beside 150 stamps at midnight
-    and 150 at noon, all different, come back 371 of 400). Raises nothing.
-    No I/O of any kind."""
-    dates = facts.resolution_mix["iso-date"] if "iso-date" in facts.resolution_mix else 0
-    return (
-        facts.parser_family == contract.FORMAT_ISO_MIXED
-        and facts.datetimes_read_at == "local"
-        and not facts.all_at_midnight
-        and facts.n_at_midnight == dates
-        and column.n_distinct >= column.n_present - facts.n_unparsed
-    )
 
 
 def _datetime_distinct_window(

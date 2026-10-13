@@ -17175,7 +17175,9 @@ def _on_own_clocks(details: "dict[str, object]") -> bool:
 
 
 def _census_ranked(
-    details: "dict[str, object]", pairs: "list[tuple[str, str]]"
+    details: "dict[str, object]",
+    pairs: "list[tuple[str, str]]",
+    instants: "list[int] | None" = None,
 ) -> "list[int] | None":
     """The places of the parsed pairs in the order the description RANKS
     them, on a column counted on its cells' own clocks (`_on_own_clocks`;
@@ -17199,6 +17201,14 @@ def _census_ranked(
     pairs). Guarantees: accepts the published details and the parsed
     pairs; returns a permutation of their places or None. Determinism: a
     function of the two. Raises nothing. No I/O of any kind.
+
+    ONE INSTANT KEY A PAIR (the repair of landing 3b.7, skeptic 1's item
+    5): the conversion to the shared clock is spelled from the key already
+    computed (`_utc_text_of`), and where the caller hands ``instants`` it is
+    filled, in rank order, with each pair's instant on the clock
+    `_census_moments` reads, so that census computes none of its own. Three
+    keys a pair before: `parsing.instant_key` ran 1,000,002 times in one
+    describe of 200,000 pairs, against 400,000 before the landing.
     """
     if not _on_own_clocks(details):
         return None
@@ -17213,12 +17223,45 @@ def _census_ranked(
             return None
         shown = canonical
         if shared:
-            at_utc = parsing.utc_moment(canonical, offset)
-            if at_utc is not None:
-                shown = at_utc
+            shown = _utc_text_of(canonical, instant)
         keyed += [(instant, shown, offset, place)]
         place = place + 1
-    return [entry[3] for entry in sorted(keyed)]
+    ordered = sorted(keyed)
+    if instants is not None:
+        for instant, _shown, offset, at in ordered:
+            if shared or offset == "":
+                instants += [instant]
+                continue
+            # On the column's own clock `_census_moments` reads the wall
+            # clock, with no offset: the one pair a second key is asked of.
+            local = parsing.instant_key(pairs[at][0], "")
+            instants += [instant if local is None else local]
+    return [entry[3] for entry in ordered]
+
+
+def _utc_text_of(canonical: str, instant: int) -> str:
+    """`parsing.utc_moment` of a pair whose instant key is already known
+    (the repair of landing 3b.7, item 5): the same text, the same clamp to
+    the calendar the canonical form can spell, from the key rather than a
+    second reading of it. Raises nothing. No I/O of any kind."""
+    days = instant // 86400
+    rest = instant - days * 86400
+    year, month, day = parsing.civil_from_days(days)
+    if 1 <= year <= 9999:
+        if len(canonical) < 19:
+            return f"{year:04d}-{month:02d}-{day:02d}"
+        hours = rest // 3600
+        minutes = (rest - hours * 3600) // 60
+        return (
+            f"{year:04d}-{month:02d}-{day:02d} "
+            f"{hours:02d}:{minutes:02d}:{rest - hours * 3600 - minutes * 60:02d}"
+        )
+    first = 86400 * parsing.days_from_civil(1, 1, 1)
+    if len(canonical) < 19:
+        return "0001-01-01" if instant < first else "9999-12-31"
+    if instant < first:
+        return "0001-01-01 00:00:00"
+    return "9999-12-31 23:59:59"
 
 
 def _clock_text(canonical: str) -> str:
@@ -17282,6 +17325,7 @@ def _census_moments(
     details: "dict[str, object]",
     pairs: "list[tuple[str, str]]",
     ranked: "list[int] | None" = None,
+    instants: "list[int] | None" = None,
 ) -> "tuple[int, ...]":
     """The instant of every parsed pair, in whole seconds of the local clock,
     ascending, where a weekday census of MOMENTS may stand (landing 3b.D2,
@@ -17297,7 +17341,8 @@ def _census_moments(
     two offsets the instants are on the clock the column is published on,
     the shared one, in rank order (`_census_ranked`), ascending; WC10's
     middle half is a difference, the same on either clock. A bare date of
-    the joint member stands at its midnight.
+    the joint member stands at its midnight. ``instants`` are those
+    `_census_ranked` filled beside ``ranked``, used as given.
 
     Guarantees: accepts the published details, the parsed pairs and their
     ranking where the caller has it; returns the instants. Determinism: a
@@ -17309,6 +17354,10 @@ def _census_moments(
         order = ranked if ranked is not None else _census_ranked(details, pairs)
         if order is None:
             return ()
+        # The instants `_census_ranked` filled beside the ranking, where
+        # the caller has them (the repair of landing 3b.7, item 5).
+        if ranked is not None and instants is not None and len(instants) == len(order):
+            return tuple(instants)
         shared = details["datetimes_read_at"] == READ_AT_UTC
         found: "list[int]" = []
         for place in order:
@@ -19943,8 +19992,14 @@ def ordered_moments(
             # this function returns is compared as plain text by
             # everything that reads it, so one local text among the
             # instants made the order and the texts disagree and published
-            # a tail whose own loader refused it.
-            at_utc = parsing.utc_moment(canonical, offset)
+            # a tail whose own loader refused it. -- 3b.7 repair (item 5):
+            # spelled from the key just computed (`_utc_text_of`), the same
+            # text, so each pair is keyed once.
+            at_utc = (
+                _utc_text_of(canonical, instant)
+                if instant is not None
+                else parsing.utc_moment(canonical, offset)
+            )
             if at_utc is not None:
                 shown = at_utc
         if instant is None:
@@ -23259,7 +23314,8 @@ def _decide(
             counted = pairs
             if _on_own_clocks(details):
                 counted = _offsets_published(format_name, pairs, sources, settings)[1]
-            ranked = _census_ranked(details, counted)
+            instants: "list[int]" = []
+            ranked = _census_ranked(details, counted, instants)
             return _Verdict(
                 role=ROLE_DATETIME,
                 evidence=note(
@@ -23271,7 +23327,7 @@ def _decide(
                 days=_census_days(details, counted, ranked),
                 texts=len(set(sources)),
                 hours=_census_hours(details, counted, ranked),
-                moments=_census_moments(details, counted, ranked),
+                moments=_census_moments(details, counted, ranked, instants),
             )
 
         # RULE 6 -- numbers, at the one parse rate there is. A column that

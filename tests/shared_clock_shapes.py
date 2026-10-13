@@ -6,7 +6,10 @@ daylight saving time, two sites at -06:00 and +05:30, an instrument writing
 UTC beside a ward at +02:00, three offsets, a -06:00 clinic with one cell in
 fifty at +05:30, sixtieth seconds at +05:30, admissions with bare dates
 beside moments, every value different, and two columns of the C1 date
-battery (seed 77, cases 0 and 551) that missed a withheld count at midnight.
+battery (seed 77, cases 0 and 551) that missed a withheld count at midnight;
+and, from the repair of the landing, all-different stamps on consecutive
+minutes beside bare dates (local, and at two offsets) and bare dates beside
+noon stamps.
 Every cell is made up here; none is a real row. Standard library only.
 """
 
@@ -355,6 +358,57 @@ C551_CELLS: "tuple[tuple[str, int], ...]" = (
 )
 
 
+def _dense_joint(n: int, draw: random.Random, offsets: "list[str]", every: int) -> "list[str]":
+    """Every value different: four fifths of the rows stamps on consecutive minutes from 08:00
+    to 19:59 each day, written at ``offsets`` in turn (none where empty), and a fifth bare dates
+    ``every`` days apart from 2023-06-01 (the repair of landing 3b.7, skeptic 1's probe)."""
+    dates = n // 5
+    found: "list[str]" = []
+    start = datetime.datetime(2024, 3, 1, 8, 0)
+    day = 0
+    minute = 0
+    while len(found) < n - dates:
+        moment = start + datetime.timedelta(days=day, minutes=minute)
+        if moment.hour >= 20:
+            day = day + 1
+            minute = 0
+            continue
+        text = moment.strftime("%Y-%m-%dT%H:%M")
+        if offsets:
+            text = text + offsets[len(found) % len(offsets)]
+        found += [text]
+        minute = minute + 1
+    first = datetime.date(2023, 6, 1)
+    found += [(first + datetime.timedelta(days=place * every)).isoformat() for place in range(dates)]
+    draw.shuffle(found)
+    return found
+
+
+def sparse_local(n: int, draw: random.Random) -> "list[str]":
+    """Item 1 of the repair: all different on the local clock, the stamps on consecutive minutes
+    and the bare dates every third day -- moments the construction cannot keep apart."""
+    return _dense_joint(n, draw, [], 3)
+
+
+def dense_two_off(n: int, draw: random.Random) -> "list[str]":
+    """Item 2 of the repair: the stamps at +01:00 and +02:00 in turn, a bare date on every day
+    -- on the shared clock, more bare dates than its gaps have free midnight days."""
+    return _dense_joint(n, draw, ["+01:00", "+02:00"], 1)
+
+
+def noon_dates(n: int, _draw: random.Random) -> "list[str]":
+    """A quarter of the rows bare dates on consecutive days from 2021-01-01, the rest stamps at
+    noon over consecutive days but one, at midnight on the sixth day: 100 beside 299 and one at
+    400 rows (the disclosure pass's joint column), whose hour census publishes hour 0 at 94 at a
+    floor of 11, fewer than the dates (the cap at hour 0 of G7.3k)."""
+    dates = n // 4
+    first = datetime.date(2021, 1, 1)
+    found = [(first + datetime.timedelta(days=place)).isoformat() for place in range(dates)]
+    found += [f"{(first + datetime.timedelta(days=place)).isoformat()}T12:00:00" for place in range(n - dates - 1)]
+    found += [f"{(first + datetime.timedelta(days=5)).isoformat()}T00:00:00"]
+    return found
+
+
 def c0(_n: int, _draw: random.Random) -> "list[str]":
     return [value for value, count in C0_CELLS for _ in range(count)]
 
@@ -376,6 +430,9 @@ SHAPES = {
     "isomix_alldiff": isomix_alldiff,
     "isomix_alldiff_b": isomix_alldiff_b,
     "consec_hours_off": consec_hours_off,
+    "sparse_local": sparse_local,
+    "dense_two_off": dense_two_off,
+    "noon_dates": noon_dates,
     "c0": c0,
     "c551": c551,
 }

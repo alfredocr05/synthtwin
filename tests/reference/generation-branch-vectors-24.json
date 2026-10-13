@@ -82,6 +82,42 @@
       ],
       "why": "three bare dates of an all-different gap on three days, never stacked on one (item (b))"
     },
+    "leftover_on_a_held_day": {
+      "answer": [
+        0,
+        950400,
+        950400,
+        1728000
+      ],
+      "apart": true,
+      "highs": [
+        0,
+        950500,
+        950500,
+        1728000
+      ],
+      "lows": [
+        0,
+        867600,
+        867600,
+        1728000
+      ],
+      "ordinals": [
+        0,
+        869000,
+        870000,
+        1728000
+      ],
+      "shut_bins": [],
+      "shut_weekdays": [],
+      "whole": [
+        false,
+        true,
+        true,
+        false
+      ],
+      "why": "two bare dates of an all-different gap holding one midnight: the second takes it, and the first stands on it too, a day another value holds, never left off midnight (the repair's item 2)"
+    },
     "off_the_weekend": {
       "answer": [
         0,
@@ -167,6 +203,58 @@
       ],
       "moments": 5,
       "why": "an hour census counting two cells at hour 0 in a body of ranks 0 to 6: the body takes two bare dates and the rest go to the ranks after it (mutant: no cap from the hour census)"
+    },
+    "leftover_stays_a_date": {
+      "answer": [
+        true,
+        true,
+        true,
+        true,
+        false,
+        false,
+        false,
+        true,
+        true,
+        true,
+        false,
+        false,
+        true
+      ],
+      "apart": true,
+      "cap": null,
+      "dates": 8,
+      "highs": [
+        0,
+        957600,
+        957600,
+        957600,
+        957600,
+        957600,
+        957600,
+        1036800,
+        2678400,
+        2678400,
+        2678400,
+        2678400,
+        3456000
+      ],
+      "lows": [
+        0,
+        867600,
+        867600,
+        867600,
+        867600,
+        867600,
+        867600,
+        1036800,
+        2592000,
+        2592000,
+        2592000,
+        2592000,
+        3456000
+      ],
+      "moments": 5,
+      "why": "an all-different column of eight bare dates whose gaps hold three free midnight days beside three fixed ones: the two left over are still bare dates, on the first ranks whose gap holds a midnight, never moments (the repair's item 2; mutant: no pass for what is left)"
     },
     "not_all_different": {
       "answer": [

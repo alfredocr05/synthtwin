@@ -46605,7 +46605,8 @@ def clocked_form_choice(lows, highs, dates, moments, apart, cap=None):
     hold, where the column is all different; every rank the rotation offers
     where it is not, and none where the gap holds no midnight -- a gap at
     its cap passing its turn on, the credit left at the end to the first
-    ranks with room, never more than the count; where an hour census stands
+    ranks with room, then what is still left to the first ranks whose gap
+    holds any midnight, never more than the count; where an hour census stands
     (``cap``: the body's first and last rank and hour 0's group's count) the
     body holds no more bare dates than that count."""
     parsed = len(lows)
@@ -46668,6 +46669,21 @@ def clocked_form_choice(lows, highs, dates, moments, apart, cap=None):
             continue
         whole[rank] = True
         room[spot] -= 1
+        left -= 1
+        in_body += 1 if inside(rank) else 0
+    # What the free days still leave over (the repair of landing 3b.7, item
+    # 2): the first ranks whose gap holds any midnight, under the body's cap,
+    # each to stand on a day another value holds -- never a moment.
+    for rank in range(parsed):
+        if left <= 0:
+            break
+        if settled[rank] or whole[rank]:
+            continue
+        if -((-lows[rank]) // 86400) > highs[rank] // 86400:
+            continue
+        if inside(rank) and in_body >= cap[2]:
+            continue
+        whole[rank] = True
         left -= 1
         in_body += 1 if inside(rank) else 0
     return whole
@@ -46745,6 +46761,20 @@ def form_days_placed(ordinals, lows, highs, whole, apart, shut_weekdays, shut_bi
                     if first <= days[place] <= last:
                         taken.add(days[place])
                         moved[member] = days[place] * 86400
+                        continue
+                    # No free day left: the nearest midnight, as a column
+                    # not all different places it (the repair's item 2).
+                    start = max(first, min(-((-moved[member]) // 86400), last))
+                    ahead = start
+                    while ahead <= last and shut(ahead):
+                        ahead += 1
+                    if ahead > last:
+                        ahead = start
+                        while ahead >= first and shut(ahead):
+                            ahead -= 1
+                        if ahead < first:
+                            ahead = start
+                    moved[member] = ahead * 86400
         rank = end
     return moved
 
@@ -46872,6 +46902,14 @@ SHARED_CLOCK_FORMS = {
         "an hour census counting two cells at hour 0 in a body of ranks 0 to 6: the body takes two "
         "bare dates and the rest go to the ranks after it (mutant: no cap from the hour census)",
     ),
+    "leftover_stays_a_date": (
+        [0] + [86400 * 10 + 3600] * 6 + [86400 * 12] + [86400 * 30] * 4 + [86400 * 40],
+        [0] + [86400 * 11 + 7200] * 6 + [86400 * 12] + [86400 * 31] * 4 + [86400 * 40],
+        8, 5, True,
+        "an all-different column of eight bare dates whose gaps hold three free midnight days beside "
+        "three fixed ones: the two left over are still bare dates, on the first ranks whose gap "
+        "holds a midnight, never moments (the repair's item 2; mutant: no pass for what is left)",
+    ),
 }
 SHARED_CLOCK_FORM_CAPS = {"body_capped_by_hour_zero": (0, 6, 2)}
 
@@ -46890,6 +46928,15 @@ SHARED_CLOCK_FORM_DAYS = {
         [False, True, False], True, [5, 6], [],
         "1970-01-03, a Saturday, where the weekday census counts the weekend nought: the bare date "
         "stands on the Monday after",
+    ),
+    "leftover_on_a_held_day": (
+        [0, 86400 * 10 + 5000, 86400 * 10 + 6000, 86400 * 20],
+        [0, 86400 * 10 + 3600, 86400 * 10 + 3600, 86400 * 20],
+        [0, 86400 * 11 + 100, 86400 * 11 + 100, 86400 * 20],
+        [False, True, True, False], True, [], [],
+        "two bare dates of an all-different gap holding one midnight: the second takes it, and the "
+        "first stands on it too, a day another value holds, never left off midnight (the repair's "
+        "item 2)",
     ),
 }
 

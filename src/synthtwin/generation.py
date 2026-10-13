@@ -31991,6 +31991,60 @@ def _date_count_notes(
     return notes
 
 
+def _joint_count_remarks(
+    column: contract.ColumnBlock, different: int
+) -> "list[Remark]":
+    """Say how many different values an all-different joint column came back with (landing 3b.7).
+
+    THE SHORTFALL THE ENVELOPE ADMITS, SAID (the repair of landing 3b.7,
+    skeptic 1's items 1 and 2). On a clocked column of the joint member
+    whose values were all different, the count pass does not run
+    (`contract.datetime_counts_reachable` refuses a bare date beside
+    moments), and the validator and this report hold the count to G12.5's
+    envelope, as before the landing. The form step stands every bare date
+    on a day of its own where the gaps have free midnight days, and the
+    battery's all-different columns come back all different there -- but a
+    bare date the free days cannot hold stands on a day another value
+    holds, and moments drawn close together at minute precision can meet:
+    800 stamps on consecutive minutes beside 200 dates every third day came
+    back 778 to 805 of 1,000, and the report said nothing beyond the
+    approximation line. A REMARK, NOT A DEVIATION (residual R-P4-152): the
+    count landed inside the range the method promises, so a deviation for
+    it would tell the reader a published fact failed.
+
+    Guarantees: accepts a column block and the different present values
+    its twin holds (`_recounted`); returns one remark where the column is a
+    clocked joint column publishing every present value different and the
+    twin holds fewer, and none elsewhere. Determinism: a function of the
+    two. Raises nothing. No I/O of any kind.
+    """
+    facts = column.facts
+    if (
+        not isinstance(facts, contract.DatetimeFacts)
+        or facts.parser_family != contract.FORMAT_ISO_MIXED
+        or facts.all_at_midnight
+        or column.n_present < 1
+        or column.n_distinct < column.n_present
+        or different >= column.n_distinct
+        or contract.datetime_counts_reachable(column)
+    ):
+        return []
+    return [
+        _remark(
+            column.name,
+            "how many of these values are different",
+            f"{different} different values of {column.n_present}, where every "
+            "value of the real column was different",
+            "The twin could not keep every value apart: a whole date its "
+            "stretch had no free day for stands on a day another value "
+            "holds, and moments drawn close together can meet at the "
+            "precision the column is written at. The count is inside the "
+            "range the method promises, and code counting the different "
+            "values of this column meets fewer here than in your table.",
+        )
+    ]
+
+
 def _subsecond_notes(
     column: contract.ColumnBlock,
     facts: contract.DatetimeFacts,
@@ -36304,9 +36358,12 @@ def _form_step(
     are ALL DIFFERENT each takes a day no other bare date of its gap and no
     pinned rank holds, the next free one at or after the last taken, and
     where those run past the gap's top the run is laid back from it --
-    `_form_allocation` gives no gap more bare dates than it holds such days,
-    so every one finds a day. A rank whose gap holds no midnight stays where
-    it is. Before this step the midnight move stacked the bare dates'
+    `_form_allocation` gives a gap more bare dates than it holds such days
+    only where every gap's free days are spent, and each such date stands on
+    its nearest midnight, a day another value holds (the repair of the
+    landing, skeptic 1's item 2: the count of different values falls short
+    and is named, never the forms). A rank whose gap holds no midnight stays
+    where it is. Before this step the midnight move stacked the bare dates'
     midnight days on days a midnight already held: 800 different stamps beside
     200 different dates came back 973 to 992 values of 1,000 (item (b) of
     the landing).
@@ -36414,17 +36471,7 @@ def _form_days(
         closed = (frozenset(), frozenset())
     if not apart:
         for member in members:
-            start = max(first, min(-((-moved[member]) // 86400), last))
-            day = start
-            while day <= last and _form_day_shut(day, closed):
-                day = day + 1
-            if day > last:
-                day = start
-                while day >= first and _form_day_shut(day, closed):
-                    day = day - 1
-                if day < first:
-                    day = start
-            moved[member] = day * 86400
+            moved[member] = _form_nearest_day(moved[member], room, closed) * 86400
         return
     days: "list[int]" = []
     previous = first - 1
@@ -36446,6 +36493,36 @@ def _form_days(
         if first <= days[place] <= last:
             taken |= {days[place]}
             moved[members[place]] = days[place] * 86400
+        else:
+            # -- 3b.7 repair (skeptic 1, item 2): a bare date the gap's free
+            # days cannot hold (`_clocked_form_flags` gave it one past them)
+            # stands on its nearest midnight, a day another value holds.
+            moved[members[place]] = (
+                _form_nearest_day(moved[members[place]], room, closed) * 86400
+            )
+
+
+def _form_nearest_day(
+    instant: int,
+    room: "tuple[int, int]",
+    closed: "tuple[frozenset[int], frozenset[int]]",
+) -> int:
+    """The day of `room` a bare date at ``instant`` stands on where it need
+    not stand apart (`_form_days`): the first midnight at or after the
+    instant, else the last before, walked up off the days a census counts
+    nought on, else down, else that day. Raises nothing. No I/O."""
+    first, last = room
+    start = max(first, min(-((-instant) // 86400), last))
+    day = start
+    while day <= last and _form_day_shut(day, closed):
+        day = day + 1
+    if day > last:
+        day = start
+        while day >= first and _form_day_shut(day, closed):
+            day = day - 1
+        if day < first:
+            day = start
+    return day
 
 
 # How many of a gap's first days `_form_days` asks for one no census counts
@@ -36560,7 +36637,10 @@ def _clocked_forms(
     all different, a gap at its cap passing its turn to the next rank and
     the credit carried -- the rotation alone gave one gap of
     `isomix_alldiff_b` 30 dates for 27 such days, and no matching can
-    place more dates than a gap has days. Never more ranks than the count.
+    place more dates than a gap has days. What the free days still leave
+    over goes to the first ranks whose gap holds any midnight, under the
+    same cap at hour 0 (the repair's item 2), to stand on a day another
+    value holds. Never more ranks than the count.
     Raises nothing. No I/O of any kind.
     """
     mix = facts.resolution_mix
@@ -36670,6 +36750,28 @@ def _clocked_form_flags(
             continue
         whole[rank] = True
         room[spot] = room[spot] - 1
+        left = left - 1
+        if body:
+            in_body = in_body + 1
+    # -- 3b.7 repair (skeptic 1, item 2): A BARE DATE THE FREE DAYS CANNOT
+    # PLACE STAYS A BARE DATE, on its gap's nearest midnight even where that
+    # day already holds one (the design's section 5): written as a moment it
+    # took a real offset key, so `utc_offsets`, `n_at_midnight` and
+    # `resolution_mix` were missed (`dense_two_off` at 10,000 rows: 1,998 of
+    # 2,000 placed, `offsets.(none)` 1,998 for 2,000) and only the forms were
+    # named. Now only the count of different values falls short, and it is
+    # said (`_joint_count_remarks`). The first ranks whose gap holds any
+    # midnight, in rank order, under the body's cap at hour 0.
+    for rank in range(parsed):
+        if left <= 0:
+            break
+        if settled[rank] or whole[rank]:
+            continue
+        first, last = _midnight_room(lows[rank], highs[rank])
+        body = cap is not None and cap[0] <= rank <= cap[1]
+        if first > last or (body and cap is not None and in_body >= cap[2]):
+            continue
+        whole[rank] = True
         left = left - 1
         if body:
             in_body = in_body + 1
@@ -52347,6 +52449,10 @@ def generate(profile: contract.Profile, seed: int) -> Twin:
         )
         remarked = remarked + list(each.remarks)
         remarked = remarked + spread
+        # -- 3b.7 repair (skeptic 1, item 1): an all-different joint
+        # column's shortfall, said (`_joint_count_remarks`).
+        joint = _joint_count_remarks(column, counted[2])
+        remarked = remarked + joint
         remarked = remarked + _held_back_absence_remarks(column, profile)
         outcomes += [
             ColumnOutcome(
@@ -52364,7 +52470,7 @@ def generate(profile: contract.Profile, seed: int) -> Twin:
                 placement_words=each.placement_words,
                 deviations=tuple(notes),
                 approximations=tuple(approximated_here),
-                remarks=each.remarks + tuple(spread),
+                remarks=each.remarks + tuple(spread) + tuple(joint),
             )
         ]
     # WHERE THE ROWS STAND (plan P4-D86): the order the real table was

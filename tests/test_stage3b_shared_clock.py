@@ -26,7 +26,7 @@ import pytest
 
 import kpi_shapes
 import shared_clock_shapes
-from synthtwin import calendar_clock, calendar_rules, generation, parsing, taxonomy, validation
+from synthtwin import calendar_clock, calendar_rules, generation, parsing, rendering, taxonomy, validation
 
 REPOSITORY = pathlib.Path(__file__).resolve().parent.parent
 VECTORS = REPOSITORY / "tests" / "reference" / "generation-branch-vectors-24.json"
@@ -245,49 +245,210 @@ def test_s5_red_without_the_pinned_offsets(tmp_path_factory: pytest.TempPathFact
     assert any(check.endswith(":midnight.withheld") for check in missed), missed
 
 
+# -- The repair's item 4: each new rule at its use site, end to end -----------
+
+
+def test_s3_the_spread_meets_few_off_hour_census_at_ten_thousand_rows(
+    tmp_path_factory: pytest.TempPathFactory, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """G7.4 step 2 on the shared clock spreads the keys gap by gap (beyond the design): `few_off`
+    at 10,000 rows, floor 11, seed 0, meets its hour census; red with the spread off at its call
+    (the 196 `+05:30` cells in one block on the body's first ranks missed it at every seed)."""
+    described = _described(tmp_path_factory, "few_off", 11, 10000)
+    assert described.block("t")["hour_census"]
+    held = _checks(described, kpi_shapes.twin_text(described, 0), "f.csv")["hour_census.groups"]
+    assert held.verdict == validation.HELD
+    allocation = generation._offset_allocation
+
+    def unspread(*arguments: object) -> "tuple[list[str], list[generation.Deviation]]":
+        given = list(arguments)
+        given[6] = False
+        return allocation(*given)  # type: ignore[arg-type]
+
+    monkeypatch.setattr(generation, "_offset_allocation", unspread)
+    missed = _checks(described, kpi_shapes.twin_text(described, 0), "m.csv")["hour_census.groups"]
+    assert missed.verdict == validation.MISSED
+
+
+def test_s7_the_body_holds_no_more_bare_dates_than_hour_zero(
+    tmp_path_factory: pytest.TempPathFactory, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """100 bare dates beside 299 noon stamps and one at midnight publish hour 0 at 94, fewer
+    than the dates: the twins at seeds 0 to 2 meet the hour census; red with the cap at hour 0
+    off in `_clocked_forms`."""
+    described = _described(tmp_path_factory, "noon_dates", 11, 400)
+    assert described.block("t")["hour_census"]
+    for seed in SEEDS:
+        held = _checks(described, kpi_shapes.twin_text(described, seed), f"n{seed}.csv")["hour_census.groups"]
+        assert held.verdict == validation.HELD, seed
+    flags = generation._clocked_form_flags
+    monkeypatch.setattr(
+        generation, "_clocked_form_flags",
+        lambda gaps, dates, moments, apart, _cap=None: flags(gaps, dates, moments, apart, None),
+    )
+    missed = _checks(described, kpi_shapes.twin_text(described, 0), "m.csv")["hour_census.groups"]
+    assert missed.verdict == validation.MISSED
+
+
+def _joins(cells: "list[str]", groups: "list[dict[str, int]]") -> "list[dict[str, int]]":
+    """The published hour groups joining an hour no cell is written at to one some cell is."""
+    written = {int(cell[11:13]) for cell in cells if len(cell) >= 13}
+    return [
+        group for group in groups
+        if group["first"] < group["last"]
+        and len({hour in written for hour in range(group["first"], group["last"] + 1)}) > 1
+    ]
+
+
+def test_s4_no_hour_group_joins_an_hour_never_written(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Blocker 1's producer half: on the shared clock the hour census's sure cells are rule 4's
+    alone, so `dst_clinic` at 1,000 rows publishes no group joining an hour the source never
+    writes to an hour it does, at either floor; red with the producer reading the sure cells
+    as the local clock does (the design skeptic measured 5 such joins)."""
+    cells = shared_clock_shapes.build("dst_clinic", ROWS)
+    text = "t\n" + "".join(f"{cell}\n" for cell in cells)
+    for floor in FLOORS:
+        groups = kpi_shapes.describe(tmp_path / f"h{floor}", "c", text, floor).block("t")["hour_census"]
+        assert groups and _joins(cells, groups) == [], floor
+    sure = calendar_clock.own_clock_sure
+    monkeypatch.setattr(
+        calendar_clock, "own_clock_sure",
+        lambda published, tails, _reading: sure(published, tails, "local"),
+    )
+    joined = [
+        _joins(cells, kpi_shapes.describe(tmp_path / f"m{floor}", "c", text, floor).block("t")["hour_census"])
+        for floor in FLOORS
+    ]
+    assert joined != [[], []]
+
+
 # -- S6: item (b), an all-different joint column ------------------------------
 
 
-def test_s6_an_all_different_joint_column_is_held_exactly(tmp_path_factory: pytest.TempPathFactory) -> None:
-    """800 ISO stamps beside 200 consecutive ISO dates, all different: every twin at seeds 0 to
-    2 holds 1,000 different values, and `distinct.n_distinct` is checked EXACTLY (HELD, never
-    WITHIN-BOUND), where 881 of 1,000 passed validate before the landing."""
-    described = _described(tmp_path_factory, "isomix_alldiff_b", 11)
-    assert described.block("t")["n_distinct"] == ROWS
-    for seed in SEEDS:
+def _different(text: str) -> int:
+    return len(set(text.split("\n")[1:]) - {""})
+
+
+def _shortfall_said(described: kpi_shapes.Described, seed: int) -> "tuple[int, list[str]]":
+    """The twin's count of different values and the remarks its report makes of that count."""
+    twin = generation.generate(described.loaded, seed)
+    text = rendering.twin_csv(twin)
+    said = [remark.held for remark in twin.remarks if remark.subject == "how many of these values are different"]
+    return _different(text), said
+
+
+@pytest.mark.parametrize(("name", "rows", "seeds"), (
+    ("isomix_alldiff", ROWS, SEEDS), ("isomix_alldiff", 10000, (0,)), ("isomix_alldiff_b", 10000, (0,)),
+))
+def test_s6_an_all_different_joint_column_comes_back_all_different(
+    tmp_path_factory: pytest.TempPathFactory, name: str, rows: int, seeds: "tuple[int, ...]"
+) -> None:
+    """Item (b), as the construction reaches it: every value of the twin different -- 1,000 of
+    1,000 at seeds 0 to 2 and 10,000 of 10,000, where 973 to 992 of 1,000 came back before the
+    landing (100,000 of 100,000 measured on both columns by the landing's skeptic) -- the count
+    held to G12.5's envelope, as the base holds it (the repair's item 1: the contract's one
+    statement of reach is the only statement of exactness), and the report saying nothing of it."""
+    described = _described(tmp_path_factory, name, 11, rows)
+    assert described.block("t")["n_distinct"] == rows
+    for seed in seeds:
+        different, said = _shortfall_said(described, seed)
+        assert (different, said) == (rows, []), (name, rows, seed)
         held = _checks(described, kpi_shapes.twin_text(described, seed), f"b{seed}.csv")["distinct.n_distinct"]
-        # EXACT: the count printed as the published one, never a measure inside a window.
-        assert (held.verdict, held.achieved) == (validation.HELD, held.published), seed
+        assert held.verdict != validation.MISSED, (name, rows, seed)
 
 
-def test_s6_red_without_the_cap_or_the_exact_check(
+def test_s6_red_without_the_cap(tmp_path_factory: pytest.TempPathFactory, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Mutant: the bare dates spent with no cap per gap, as the rotation alone spends them --
+    the tight column comes back shorter than the cap leaves it (999 of 1,000)."""
+    described = _described(tmp_path_factory, "isomix_alldiff_b", 11)
+    capped = _different(kpi_shapes.twin_text(described, 0))
+    flags = generation._clocked_form_flags
+    monkeypatch.setattr(
+        generation, "_clocked_form_flags",
+        lambda gaps, dates, moments, _apart, cap=None: flags(gaps, dates, moments, False, cap),
+    )
+    assert _different(kpi_shapes.twin_text(described, 0)) < capped
+
+
+def test_s6_the_tight_column_keeps_its_forms_and_says_its_shortfall(tmp_path_factory: pytest.TempPathFactory) -> None:
+    """The repair's item 2: the tight column (a bare date on every day of its span) writes all
+    200 of its bare dates -- the ones its gaps have no free midnight day for on a day another
+    value holds -- so it misses nothing at either floor (`resolution_mix`, `n_at_midnight` and
+    every offset held), where 196 of 200 were written as moments and two checks were MISSED;
+    its count of different values falls inside G12.5's envelope, 998 or 999 of 1,000, and the
+    twin's report says so (`generation._joint_count_remarks`)."""
+    for floor in FLOORS:
+        described = _described(tmp_path_factory, "isomix_alldiff_b", floor)
+        text = kpi_shapes.twin_text(described, 0)
+        checks = _checks(described, text, f"t{floor}.csv")
+        assert [name for name, check in checks.items() if check.verdict == validation.MISSED] == [], floor
+        assert checks["resolution_mix.counts"].verdict == validation.HELD
+        different, said = _shortfall_said(described, 0)
+        assert different < ROWS and said == [f"{different} different values of {ROWS}, where every value of the real column was different"]
+
+
+def test_s6_the_tight_column_red_with_its_leftover_dates_written_as_moments(
     tmp_path_factory: pytest.TempPathFactory, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """Mutants: the bare dates spent with no cap per gap, as the rotation alone spends them, and
-    the check widened back to the envelope."""
+    """Mutant: a bare date the free days cannot place is written as a moment, as before the
+    repair -- `resolution_mix` is MISSED."""
     described = _described(tmp_path_factory, "isomix_alldiff_b", 11)
     flags = generation._clocked_form_flags
-    with monkeypatch.context() as patch:
-        patch.setattr(
-            generation, "_clocked_form_flags",
-            lambda gaps, dates, moments, _apart, cap=None: flags(gaps, dates, moments, False, cap),
-        )
-        text = kpi_shapes.twin_text(described, 0)
-        assert len(set(text.split("\n")[1:]) - {""}) < ROWS
-    monkeypatch.setattr(validation, "_joint_all_different", lambda *_arguments: False)
-    widened = _checks(described, kpi_shapes.twin_text(described, 0), "w.csv")["distinct.n_distinct"]
-    assert widened.achieved != widened.published, widened
+
+    def no_leftover(gaps: "tuple[list[int], list[int]]", dates: int, moments: int, apart: bool, cap: "tuple[int, int, int] | None" = None) -> "list[bool]":
+        whole = flags(gaps, dates, moments, apart, cap)
+        lows, highs = gaps
+        room: "dict[tuple[int, int], int]" = {}
+        held = {lows[rank] // 86400 for rank in range(len(lows)) if lows[rank] == highs[rank] and lows[rank] % 86400 == 0}
+        for rank in range(len(whole)):
+            if not whole[rank] or lows[rank] == highs[rank]:
+                continue
+            spot = (lows[rank], highs[rank])
+            if spot not in room:
+                first, last = generation._midnight_room(spot[0], spot[1])
+                room[spot] = max(0, last - first + 1) - len([day for day in held if first <= day <= last])
+            if room[spot] <= 0:
+                whole[rank] = False
+                continue
+            room[spot] = room[spot] - 1
+        return whole
+
+    monkeypatch.setattr(generation, "_clocked_form_flags", no_leftover)
+    checks = _checks(described, kpi_shapes.twin_text(described, 0), "m.csv")
+    assert checks["resolution_mix.counts"].verdict == validation.MISSED
 
 
 @pytest.mark.xfail(strict=True, reason=(
-    "measured on the landing's build: the tight column's gaps hold fewer free midnight days than "
-    "its 200 dates at 1,000 rows and a floor of 11, so 4 of its bare dates are written as "
-    "moments (196 of 200), resolution_mix and n_at_midnight are MISSED and the twin names "
-    "resolution_mix -- never silent (the design's stated limit)"
+    "the repair's item 1, measured: stamps on consecutive minutes beside bare dates, every value "
+    "different, come back 778 to 805 of 1,000 -- method G7.3's count pass never runs on a clocked "
+    "column of the joint member (`contract.datetime_counts_reachable` refuses a bare date beside "
+    "moments), so moments drawn in dense gaps meet at minute precision; the count stays in "
+    "G12.5's envelope and the twin's report says the shortfall"
 ))
-def test_s6_the_tight_column_writes_every_bare_date(tmp_path_factory: pytest.TempPathFactory) -> None:
-    described = _described(tmp_path_factory, "isomix_alldiff_b", 11)
-    assert _missed(described, 0) == []
+def test_s6_moments_on_consecutive_minutes_come_back_all_different(tmp_path_factory: pytest.TempPathFactory) -> None:
+    described = _described(tmp_path_factory, "sparse_local", 11)
+    assert _different(kpi_shapes.twin_text(described, 0)) == ROWS
+
+
+def test_s6_moments_on_consecutive_minutes_stay_in_the_envelope_and_are_said(
+    tmp_path_factory: pytest.TempPathFactory, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Item 1: `sparse_local`'s twins are WITHIN-BOUND, never MISSED, and the report says the
+    count; red with a second statement of exactness for the joint member (the mutant: every
+    joint column's count held exactly), as the landing had it."""
+    described = _described(tmp_path_factory, "sparse_local", 11)
+    text = kpi_shapes.twin_text(described, 0)
+    assert _checks(described, text, "s.csv")["distinct.n_distinct"].verdict == validation.WITHIN_BOUND
+    different, said = _shortfall_said(described, 0)
+    assert different < ROWS and len(said) == 1
+    exact = validation.contract.datetime_count_exact
+    monkeypatch.setattr(
+        validation.contract, "datetime_count_exact",
+        lambda column, published: True if column.name == "t" else exact(column, published),
+    )
+    assert _checks(described, text, "e.csv")["distinct.n_distinct"].verdict == validation.MISSED
 
 
 def test_s6_the_shared_clock_keeps_its_envelope(tmp_path_factory: pytest.TempPathFactory) -> None:
@@ -416,14 +577,59 @@ def test_s8_one_ranking_a_column(tmp_path: pathlib.Path, monkeypatch: pytest.Mon
     calls = [0]
     ranked = taxonomy._census_ranked
 
-    def counted(details: "dict[str, object]", pairs: "list[tuple[str, str]]") -> "list[int] | None":
+    def counted(
+        details: "dict[str, object]", pairs: "list[tuple[str, str]]", instants: "list[int] | None" = None
+    ) -> "list[int] | None":
         calls[0] = calls[0] + 1
-        return ranked(details, pairs)
+        return ranked(details, pairs, instants)
 
     monkeypatch.setattr(taxonomy, "_census_ranked", counted)
     cells = shared_clock_shapes.build("two_sites", ROWS)
     kpi_shapes.describe(tmp_path, "one", "t\n" + "".join(f"{cell}\n" for cell in cells), 11)
     assert calls[0] == 1
+
+
+@pytest.mark.parametrize("name", ("dst_ed", "two_sites", "isomix_admit"))
+def test_s8_one_instant_key_a_pair(tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch, name: str) -> None:
+    """The censuses compute at most one instant key a pair, n a column (the design skeptic's
+    minor 7; the repair's item 5): the ranking fills the instants the census of moments reads,
+    and spells the shared clock's text from the key. Three keys a pair before the repair --
+    `parsing.instant_key` ran 1,000,002 times in one describe of 200,000 pairs."""
+    inside = [0]
+    calls = [0]
+    key = parsing.instant_key
+
+    def counted_key(canonical: str, offset: str) -> "int | None":
+        if inside[0] > 0:
+            calls[0] = calls[0] + 1
+        return key(canonical, offset)
+
+    def entered(census: "typing.Callable[..., typing.Any]") -> "typing.Callable[..., typing.Any]":
+        def run(*arguments: object, **named: object) -> object:
+            inside[0] = inside[0] + 1
+            try:
+                return census(*arguments, **named)
+            finally:
+                inside[0] = inside[0] - 1
+        return run
+
+    monkeypatch.setattr(parsing, "instant_key", counted_key)
+    for census in ("_census_ranked", "_census_moments", "_census_days", "_census_hours"):
+        monkeypatch.setattr(taxonomy, census, entered(getattr(taxonomy, census)))
+    cells = shared_clock_shapes.build(name, ROWS)
+    block = kpi_shapes.describe(tmp_path, name, "t\n" + "".join(f"{cell}\n" for cell in cells), 11).block("t")
+    assert block["hour_census"], name
+    assert 0 < calls[0] <= ROWS, (name, calls[0])
+
+
+def test_s8_the_shared_clock_text_spelled_from_the_key() -> None:
+    """`taxonomy._utc_text_of` is `parsing.utc_moment` from a key already computed, its clamp at
+    the calendar's two edges included."""
+    for canonical in ("2024-03-10 02:30:00", "2024-02-29", "0001-01-01 00:30:00", "0001-01-01", "9999-12-31 23:30:00", "9999-12-31", "2016-12-31 23:59:60"):
+        for offset in ("", "Z", "+05:30", "-06:00", "+14:00", "-12:00"):
+            instant = parsing.instant_key(canonical, offset)
+            assert instant is not None
+            assert taxonomy._utc_text_of(canonical, instant) == parsing.utc_moment(canonical, offset), (canonical, offset)
 
 
 # -- S9: every description loads ------------------------------------------------
@@ -519,6 +725,10 @@ def test_vectors_forms() -> None:
     assert _forms(capped, False, None) != capped["answer"]
     hour_zero = _FILE["forms"]["body_capped_by_hour_zero"]
     assert _forms(hour_zero, hour_zero["apart"], None) != hour_zero["answer"]
+    # The repair's item 2: every published bare date is spent, the two the free days leave over
+    # among them.
+    leftover = _FILE["forms"]["leftover_stays_a_date"]
+    assert sum(leftover["answer"]) == leftover["dates"]
 
 
 def _days(case: "dict[str, typing.Any]", apart: bool, shut: bool) -> "list[int]":
@@ -532,6 +742,10 @@ def test_vectors_form_days() -> None:
     assert _days(_FILE["form_days"]["days_apart"], False, True) != _FILE["form_days"]["days_apart"]["answer"]
     weekend = _FILE["form_days"]["off_the_weekend"]
     assert _days(weekend, weekend["apart"], False) != weekend["answer"]
+    # The repair's item 2: the bare date the gap's one free day cannot hold stands on that
+    # midnight too, never off midnight.
+    held = _FILE["form_days"]["leftover_on_a_held_day"]["answer"]
+    assert held[1] == held[2] and held[1] % 86400 == 0
 
 
 def test_the_shared_sure_cells() -> None:
