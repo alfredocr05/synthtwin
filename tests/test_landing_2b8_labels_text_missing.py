@@ -17,6 +17,7 @@ Every table is built by seeded neutral code at runtime (plan D13).
 import itertools
 import pathlib
 import random
+import re
 
 import pytest
 
@@ -233,10 +234,13 @@ def test_a_text_stand_in_is_never_a_number_of_another_class(
     assert second["n_not_numeric"] == first["n_not_numeric"] == 20
     assert second["n_numeric"] == first["n_numeric"]
     assert second["n_contradictory"] == first["n_contradictory"]
-    # No cell written for the text class reads as any numeric class.
+    # No cell written for the text class reads as any numeric class: an
+    # out-of-range cell is G10.3's construction or, since lane L1 (plan
+    # P4-D390), a spelling of the published out-of-range codes' own form
+    # `%%&%%%`, which that class now wears where it overflows.
     for cell in written:
         if parsing.classify_number(cell) == parsing.NUMBER_OUT_OF_RANGE:
-            assert cell.endswith("e999"), cell
+            assert cell.endswith("e999") or re.fullmatch(r"\d\de\d\d\d", cell), cell
 
 
 # -- the items of that review this landing found already repaired ------

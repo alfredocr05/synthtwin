@@ -15278,19 +15278,36 @@ def _wears_figures_past_binary64(
     returns whether it is that shape. Determinism: a fixed function of
     the three. Raises nothing. No I/O of any kind.
     """
-    body = text
-    if body[:1] == "-":
-        body = body[1:]
-    whole, point, fraction = body.partition(".")
-    if not point or not whole or not fraction:
-        return False
-    if len(fraction) not in widths:
-        return False
-    for character in whole + fraction:
-        if character < "0" or character > "9":
+    if not isinstance(text, str):
+        raise TypeError("internal check: a cell reached the style check as something else")
+    start = 1 if text[:1] == "-" else 0
+    point = -1
+    for index in range(start, len(text)):
+        character = text[index]
+        if character == "." and point < 0:
+            point = index
+        elif character < "0" or character > "9":
             return False
-    figures = (whole + fraction).lstrip("0").rstrip("0")
-    if len(figures) <= _BINARY64_FIGURES:
+    if point <= start or point == len(text) - 1:
+        return False
+    if len(text) - point - 1 not in widths:
+        return False
+    # THE SIGNIFICANT FIGURES: from the first figure that is not a nought
+    # to the last, the point stepped over.
+    first = -1
+    last = -1
+    for index in range(start, len(text)):
+        character = text[index]
+        if character != "." and character != "0":
+            if first < 0:
+                first = index
+            last = index
+    if first < 0:
+        return False
+    figures = last - first + 1
+    if first < point < last:
+        figures = figures - 1
+    if figures <= _BINARY64_FIGURES:
         return False
     try:
         return float(text) == value

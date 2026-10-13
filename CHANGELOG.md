@@ -17,7 +17,7 @@ a code form of one letter among figures (`12A345`, `52E638`) is worn by the
 words and the numbers too large to hold as well as by the numbers, so its
 count is met and no `1e999` stands in for such a code; free text keeps its
 form past 4,096 different values (10,000 durations `HH:MM:SS` written once,
-5,904 of which were written `!!!!!!"N`) and pays a form no more than its
+5,904 of which were written `!!!!!!"N`) and is written in a form no more often than its
 count; a column written to 5,000 places no longer stops `synthtwin
 generate`, and Excel serials written to 50 places, or a nought written
 `0E15588`, meet `styles.spelled` on their own source. On the lane's battery

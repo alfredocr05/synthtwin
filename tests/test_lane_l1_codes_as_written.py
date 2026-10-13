@@ -254,7 +254,7 @@ def test_one_letter_among_figures_red_on_each_mutant(tmp_path: pathlib.Path, mon
 
 
 def _numbers_beside_exponent_codes_wide() -> "list[str]":
-    """The lane's battery table `code_expo_10k`: at a floor of 36 the words'
+    """The lane's battery table of numbers beside exponent codes: at a floor of 36 the words'
     own form `%%%%@` owes every word cell the column holds back."""
     draw = random.Random(52008)
     cells = [f"{draw.randrange(20, 90)}" for _row in range(6000)]
@@ -381,7 +381,7 @@ def _face(share: float, rows: int, floor: int) -> "list[str]":
     return cells
 
 
-def test_a_free_text_face_column_pays_its_form_exactly(tmp_path: pathlib.Path) -> None:
+def test_a_free_text_face_column_meets_its_form_exactly(tmp_path: pathlib.Path) -> None:
     twin, source_missed, twin_missed = _round(tmp_path, _face(0.10, 1000, 36), 36)
     assert source_missed == [] and twin_missed == []
     assert sum(1 for cell in twin if re.fullmatch(r"\d\d:\d\d", cell)) == 887
