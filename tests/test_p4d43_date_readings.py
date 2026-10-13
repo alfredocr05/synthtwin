@@ -604,27 +604,26 @@ def test_a_census_is_refused_before_it_can_be_a_share() -> None:
     assert "resolution_mix" in said
 
 
-# -- the census as a fact: REPORT-ONLY, and said so -------------------
+# -- the census as a fact: EXACT on the joint member since landing 3b.7 --
 
 
-def test_the_twin_report_names_the_census_as_not_reproduced() -> None:
-    """Per column, every run -- and both sides recounted.
+def test_the_twin_writes_the_census_of_a_joint_column() -> None:
+    """Per column, every run -- recounted, and kept (landing 3b.7, plan P4-D378).
 
-    The published side comes from the description and the achieved side
-    is counted off the cells this run wrote, so the line can say which
-    it was rather than restate a rule.
+    The REPORT-ONLY line this test held until the landing named the census
+    as not reproduced on every run; the twin now writes the published
+    count of bare dates (generation G7.3k), so the recount finds 60 and no
+    line is said.
     """
     _document, described, _table = _described(_dates(60) + _stamps(60))
     for seed in (1, 2, 3):
         twin = generation.generate(described, seed)
-        named = [
+        assert sum(1 for cell in twin.columns[0] if cell and len(cell) == 10) == 60
+        assert [
             deviation
             for deviation in twin.deviations
             if deviation.fact == "resolution_mix"
-        ]
-        assert len(named) == 1
-        assert "60" in named[0].published
-        assert "120 carry a time of day" in named[0].achieved
+        ] == []
 
 
 def test_a_column_read_under_one_format_has_no_census_line() -> None:
@@ -642,14 +641,16 @@ def test_a_column_read_under_one_format_has_no_census_line() -> None:
 
 
 def test_the_quality_report_lists_the_census_in_its_own_words() -> None:
-    """And the words are true of THIS fact.
+    """And the words are true of THIS fact, on a column read under one member.
 
     The sentence the format fact carries says a written file cannot
     show the fact. Of this one that would be false -- anybody can count
     the two shapes in a CSV -- so the census carries its own reason: the
-    description asks no file to match it.
+    description asks no file to match it. On the joint member it is
+    checked since landing 3b.7 (plan P4-D378), so the listing is asked of a
+    column of one member.
     """
-    _document, described, _table = _described(_dates(60) + _stamps(60))
+    _document, described, _table = _described(_dates(120))
     twin = generation.generate(described, 9)
     folder = pathlib.Path(tempfile.mkdtemp())
     written = fixtures.write(folder, "twin.csv", rendering.twin_csv(twin))
@@ -670,20 +671,28 @@ def test_the_quality_report_lists_the_census_in_its_own_words() -> None:
     assert "which written form each of your dates wore" in page
 
 
-def test_the_census_is_never_a_verdict() -> None:
-    """It is a listing, and a listing is not a check that passed.
+def test_the_census_is_a_verdict_on_the_joint_member_alone() -> None:
+    """A listing where it restates the member, a check where it is a count.
 
-    A REPORT-ONLY fact counted as a passed check would inflate the one
-    number the quality report exists to make honest.
+    On a column of one member the census restates `format` and counted as
+    a passed check it would inflate the one number the quality report
+    exists to make honest, so it stays a listing; on the joint member it is
+    a count of its own, written by the twin since landing 3b.7 (plan
+    P4-D378), and held exactly.
     """
-    _document, described, _table = _described(_dates(60) + _stamps(60))
-    twin = generation.generate(described, 11)
-    folder = pathlib.Path(tempfile.mkdtemp())
-    written = fixtures.write(folder, "twin.csv", rendering.twin_csv(twin))
-    outcome = validation.measure(described, f"{written}")
-    assert [
-        check for check in outcome.checks if "resolution_mix" in check.fact
-    ] == []
+    for cells, checked in ((_dates(120), False), (_dates(60) + _stamps(60), True)):
+        _document, described, _table = _described(cells)
+        twin = generation.generate(described, 11)
+        folder = pathlib.Path(tempfile.mkdtemp())
+        written = fixtures.write(folder, "twin.csv", rendering.twin_csv(twin))
+        outcome = validation.measure(described, f"{written}")
+        found = [check for check in outcome.checks if "resolution_mix" in check.fact]
+        if not checked:
+            assert found == []
+            continue
+        assert [(check.subcheck, check.verdict) for check in found] == [
+            ("resolution_mix.counts", validation.HELD)
+        ]
 
 
 def test_a_twin_of_a_mixed_column_still_meets_every_obligation() -> None:
@@ -968,15 +977,19 @@ def test_the_census_recount_does_not_count_an_absent_cell() -> None:
         ["2024-01-01T00:00:00"] * 11 + ["2024-01-01 00:00:00"] * 11,
     )
     twin = generation.generate(described, 1)
-    named = [
-        deviation
-        for deviation in twin.deviations
-        if deviation.fact == "resolution_mix"
-    ]
+    # Since landing 3b.7 the twin writes the published count of bare dates
+    # and says no line; five of them written with a time of day make one,
+    # and its recount counts the cells that READ as dates -- 55 and 65 --
+    # never the twenty-two cells wearing a declared spelling.
+    cells = list(twin.columns[0])
+    turned = 0
+    for place in range(len(cells)):
+        if turned < 5 and cells[place] and len(cells[place]) == 10:
+            cells[place] = cells[place] + " 12:00:00"
+            turned = turned + 1
+    named = generation._mix_notes(described.columns[0], cells)
     assert len(named) == 1
-    # The recount counts the cells that READ as dates: 120, the parsed
-    # count, and not the twenty-two cells wearing a declared spelling.
-    assert "120 carry a time of day" in named[0].achieved
+    assert "55 of the twin's are written as a whole date and 65 carry a time of day" in named[0].achieved
 
 
 def test_the_recount_of_present_cells_reads_through_the_declaration() -> None:
@@ -1005,7 +1018,7 @@ def test_the_method_names_the_census_among_its_deviations(  # P4-DATE-F3
     )
     flat = " ".join(body.split())
     assert "the form census of a column of dates read under the joint" in flat
-    assert "`resolution_mix` is REPORT-ONLY" in flat
+    assert "`resolution_mix` records how many of the real column's parsed cells" in flat
 
 
 def test_a_declared_number_is_matched_exactly_by_the_recount() -> None:
