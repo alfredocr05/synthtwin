@@ -24,15 +24,21 @@ byte-identical descriptions, questions and twins; the reference
 generator mirrors the rule and the document vectors gain four files
 and a mutant.
 
-One kind of file goes from described to refused. Where the rows end in
-the delimiter except some row that does not, or that holds a value after
-it (row 501, past the sample, too), or where the header and some row
-alone end in it, the table was described as one column at exit 0 before;
-it is now refused at exit 1, measured on four such made-up tables. The
+A class of files goes from described to refused. Any semicolon, tab or
+bar table whose rows (or header alone) end in the delimiter and that
+holds a row the reading cannot read was described as one column at exit
+0 before; it is now refused at exit 1, as the same file without trailing
+delimiters is. That covers a row that does not end in the delimiter, or
+that holds a value after it (row 501, past the sample, too), the header
+and some row alone ending in it, and a row of too few or too many values
+(row 51 `P0051;age;arm;`, row 51 ending `;;`, or an unclosed row 51 with
+a row 61 of two values), measured on seven such made-up tables. The
 refusal names the row and the trailing delimiter it lacks or carries
 (`errors.trailing_delimiter_uneven`) and asks that every row end the same
 way, where the ragged-rows sentence had said "names 4 columns, but row 51
-has 4" and blamed quotation marks.
+has 4" and blamed quotation marks. A ragged row is counted by its own
+values, the closing delimiter left out ("row 51 has 3"), and a row that
+only lacks the closing delimiter is not listed beside a ragged one.
 
 ### Numbers that are dates are read as dates and written back as the same numbers (2026-10-07)
 
