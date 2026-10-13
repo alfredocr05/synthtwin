@@ -16793,6 +16793,29 @@ def field_kin_shares_case():
     )
 
 
+
+def field_kin_carry_case():
+    m = HOUR_MONDAY
+    days = 4
+    ordinals = [hour_at(m - 1, 7, 50)]
+    pins = {0}
+    for day in range(m, m + days):
+        ordinals += [
+            hour_at(day, 8, 20), hour_at(day, 8, 40), hour_at(day, 9, 20), hour_at(day, 9, 40),
+            hour_at(day, 12, 10),
+        ]
+        pins |= {len(ordinals) - 1}
+    return field_case(
+        "KIN SHARES carried from gap to gap (the lane's skeptic, item 4): four days, each a "
+        "gap of two ranks in hour 8 and two in hour 9, minute 0 a heap counting one a day. "
+        "Each hour is owed half a place a day; rounded gap by gap, the tie went to the rest "
+        "for hour 8 and hour 9 took the heap every day. Carried, hour 8 is owed a whole place "
+        "on the second day, so the two hours take it on alternate days.",
+        "field", ordinals, pins, [len(ordinals) - days, days], HEAP_ZERO, 60,
+        kin=[0] * 8 + [1, 2] + [3] * 14,
+    )
+
+
 def field_seconds_case():
     m = HOUR_MONDAY
     ordinals = [
@@ -16994,6 +17017,7 @@ CLOCK_FIELD_STEP_CASES = {
     "field_minute_heaps": field_heaps_case,
     "field_second_zero": field_seconds_case,
     "field_kin_shares": field_kin_shares_case,
+    "field_kin_carry": field_kin_carry_case,
     "field_exchange_stays": field_exchange_case,
     "field_exchange_swap": field_exchange_swap_case,
     "field_exchange_kin": field_exchange_kin_case,

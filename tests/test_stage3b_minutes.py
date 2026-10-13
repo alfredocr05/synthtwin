@@ -1108,6 +1108,11 @@ STEP_MUTANTS = {
         "        if state.kin and _clock_kin_shares_moved(state, ranks, want):",
         "        if False and _clock_kin_shares_moved(state, ranks, want):",
     ),
+    "a kin group's rounding not carried to the next gap": (
+        "field_kin_carry",
+        "            state.kin_carry[(kin, group)] if (kin, group) in state.kin_carry else 0\n",
+        "            0\n",
+    ),
     "no PUT BACK after the exchange": (
         "field_exchange_put_back",
         "    for last_resort in (False, True):\n        if state.keep_units and _weekday_count(state) > wanted and",
