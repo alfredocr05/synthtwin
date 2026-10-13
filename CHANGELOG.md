@@ -46,7 +46,9 @@ a column of partial dates or a column mostly of dates from Q6; Q6 is
 asked beside the century and day-or-month questions its answer raises;
 the twin's report and the validator agree on the range of different
 values; and R1's codes question follows the classifier on a column of
-clock times.
+clock times. After its verification, a column of different stamps
+beside different partial days generates in time linear in its rows
+again (60,000 rows: 4.7 seconds, not 36.6), writing the same twin.
 
 ### Dates no member read are read by their shape, and written back as written (2026-10-05)
 
