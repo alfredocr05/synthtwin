@@ -6,6 +6,24 @@ exists).
 
 ## [Unreleased]
 
+### A trailing delimiter on one side is read as the table's delimiter (2026-10-13)
+
+**Lane R5, reading** (plan P4-D387). A semicolon, tab or bar table whose
+rows end in the delimiter and whose header does not, or whose header
+ends in it and whose rows do not, was read as ONE column named by its
+whole header line, or refused where decimal commas split it again;
+`profile` asked nothing, and code written on the twin could not run on
+the real table. Detection now lines such a header up with its records
+(`dialect.opening_lines_up`), the table is read as its columns, and the
+twin writes each line's trailing delimiter where the source wrote one.
+A one-column table whose cells end in `;` stays one column. A column
+whose first or a later cell is a whole number of more than 4,300
+figures no longer crashes the reader (`dialect._sequence_of`). On a
+battery of 63 made-up tables the 39 the change does not reach keep
+byte-identical descriptions, questions and twins; the reference
+generator mirrors the rule and the document vectors gain four files
+and a mutant.
+
 ### Numbers that are dates are read as dates and written back as the same numbers (2026-10-07)
 
 **Landing R4** (plan P4-D384), with its review's nine items, its
