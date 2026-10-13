@@ -22848,6 +22848,24 @@ _WEEKDAY_DAYS_LEFT_LONG = (
 _WEEKDAY_CAUSES = (
     _WEEKDAY_DAYS_GIVEN_WAY, _WEEKDAY_DAYS_IN_THE_TAILS, _WEEKDAY_DAYS_LEFT_LONG,
 )
+# ...and the minute and second passes' (method G7.3h; the lane's second
+# skeptic, item 1): where a field's census is met and the count of
+# different values is reachable but left long, the census stood and the
+# count gave way -- a small bursty table whose published minute census
+# holds empty groups has bursts no whole move can carry into the groups
+# that want them -- and the report says so in place of its long sentence.
+_CLOCK_FIELDS_LEFT_LONG = (
+    "The clock pass found no placement of the twin's moments, keeping "
+    "each burst of cells written alike together, that meets both the "
+    "published counts per minute or second and the count of different "
+    "values, so the twin kept the published counts per minute or second "
+    "and holds more different values than the description records."
+)
+_CLOCK_FOLDED_LEFT_LONG = (
+    "The twin holds MORE different values, ignoring case and edge "
+    "spacing, than the description records, for the same reason: the "
+    "clock pass kept the published counts per minute or second."
+)
 # ...and the folded count's line beside it, where that count is long too:
 # "for the same reason" names the day pass's, not the long sentence's
 # claim that the column's rule holds on to no repetition, which is false
@@ -22951,6 +22969,13 @@ class _WeekdayPass:
     # in `_KIN_SCALE`ths of a rank: what its shares so far fell short of
     # the ideal, carried from gap to gap (`_clock_kin_shares_moved`).
     kin_carry: "dict[tuple[int, int], int]" = dataclasses.field(default_factory=dict)
+    # ...and whether a field pass MOVES A SHARED WRITTEN UNIT WHOLE: where
+    # the count of different values is one the construction reaches, a rank
+    # whose single move would take it off a written unit it shares onto one
+    # no rank holds moves only with every other rank of that unit, onto the
+    # same place (`_weekday_unit_moved`); set by G7.3h alone, so no other
+    # pass changes.
+    whole_units: bool = False
 
 
 @dataclasses.dataclass(frozen=True)
@@ -23744,6 +23769,9 @@ def _weekday_singles_moved(
     taking a rank off a written unit it shares.
     """
     allow = changing
+    units_whole = state.whole_units and state.keep_units
+    whole = _weekday_whole_units(state, ranks) if units_whole else {}
+    overshot: "dict[int, bool]" = {}
     for _round in range(rounds):
         if have == want:
             return
@@ -23753,6 +23781,17 @@ def _weekday_singles_moved(
             if have[source] <= want[source]:
                 continue
             offer = _weekday_single_target(state, rank, have, want)
+            if offer is not None and offer[0] and units_whole and _weekday_there(state, state.moved[rank]) > 1:
+                # A SHARED UNIT MOVES WHOLE OR NOT AT ALL (G7.3h): offered as
+                # a move keeping the count where it can go whole; past its
+                # groups' room only in the leftover, once.
+                if _weekday_unit_room(state, whole, rank, offer[1], have, want):
+                    offers += [(0, abs(offer[1] - state.moved[rank]), rank)]
+                elif allow and changing and _weekday_unit_room(
+                    state, whole, rank, offer[1], have, want, overshot
+                ):
+                    offers += [(1, abs(offer[1] - state.moved[rank]), rank)]
+                continue
             if offer is None or (offer[0] and not allow):
                 continue
             if offer[0] and not splits and _weekday_there(state, state.moved[rank]) > 1:
@@ -23769,6 +23808,17 @@ def _weekday_singles_moved(
             if have[source] <= want[source]:
                 continue
             offer = _weekday_single_target(state, rank, have, want)
+            if offer is not None and offer[0] and units_whole and _weekday_there(state, state.moved[rank]) > 1:
+                if _weekday_unit_room(state, whole, rank, offer[1], have, want):
+                    _weekday_unit_moved(state, whole, rank, offer[1], have)
+                    changed = True
+                elif allow and changing and _weekday_unit_room(
+                    state, whole, rank, offer[1], have, want, overshot
+                ):
+                    overshot[offer[1] // state.step] = True
+                    _weekday_unit_moved(state, whole, rank, offer[1], have)
+                    changed = True
+                continue
             if offer is None or (offer[0] and not allow):
                 continue
             if offer[0] and not splits and _weekday_there(state, state.moved[rank]) > 1:
@@ -23785,6 +23835,84 @@ def _weekday_singles_moved(
                 return
             allow = True
 
+
+
+def _weekday_whole_units(state: _WeekdayPass, ranks: "list[int]") -> "dict[int, list[int]]":
+    """Every written unit two ranks or more of `ranks` share, each with its
+    ranks, where `ranks` holds every rank of the column standing on it
+    (G7.3h; the lane's second skeptic, item 1). Raises nothing. No I/O."""
+    found: "dict[int, list[int]]" = {}
+    for rank in ranks:
+        key = state.moved[rank] // state.step
+        if key in found:
+            members = found[key]
+            members += [rank]
+        else:
+            found[key] = [rank]
+    return {
+        key: members
+        for key, members in found.items()
+        if len(members) > 1 and state.held[key] == len(members)
+    }
+
+
+def _weekday_unit_room(
+    state: _WeekdayPass,
+    whole: "dict[int, list[int]]",
+    rank: int,
+    target: int,
+    have: "list[int]",
+    want: "list[int]",
+    overshot: "dict[int, bool] | None" = None,
+) -> bool:
+    """Whether the written unit `rank` shares may move whole onto `target`, a
+    place no rank holds (G7.3h): every rank of it is in the call's ranks
+    and finds `target` inside its gap, its group can give all of them and
+    the target's group take all of them -- or, given `overshot`, the units
+    already moved past their groups' room, its group is over and the
+    target's under and it is not one of those. Raises nothing. No I/O."""
+    key = state.moved[rank] // state.step
+    if key not in whole or _weekday_there(state, target) != 0:
+        return False
+    members = whole[key]
+    if state.held[key] != len(members):
+        return False
+    for member in members:
+        if state.moved[member] // state.step != key:
+            return False
+    source = _weekday_group(state, state.moved[rank])
+    taking = _weekday_group(state, target)
+    if overshot is not None:
+        if key in overshot or have[source] <= want[source] or have[taking] >= want[taking]:
+            return False
+    elif have[source] - want[source] < len(members) or want[taking] - have[taking] < len(members):
+        return False
+    for member in members:
+        if not state.lows[member] <= target <= state.highs[member]:
+            return False
+    return True
+
+
+def _weekday_unit_moved(
+    state: _WeekdayPass,
+    whole: "dict[int, list[int]]",
+    rank: int,
+    target: int,
+    have: "list[int]",
+) -> None:
+    """Move every rank of the written unit `rank` shares onto `target`
+    (`_weekday_unit_room` said it may), and file the unit under its new
+    key. Raises nothing. No I/O."""
+    key = state.moved[rank] // state.step
+    members = whole[key]
+    source = _weekday_group(state, state.moved[rank])
+    taking = _weekday_group(state, target)
+    for member in members:
+        _weekday_step(state, member, target)
+    have[source] = have[source] - len(members)
+    have[taking] = have[taking] + len(members)
+    del whole[key]
+    whole[target // state.step] = members
 
 
 def _weekday_holes_swept(state: _WeekdayPass, gaps: "list[list[int]]") -> None:
@@ -27026,6 +27154,9 @@ def _clock_fields_settled(
             # -- the cells at midnight kept, where their count is published (the
             # lane's skeptic, item 1)
             no_midnight=facts.n_at_midnight is not None,
+            # -- a shared written unit moved whole (the lane's second skeptic,
+            # item 1)
+            whole_units=True,
         )
         pinned = _ranks_the_tail_pins(layout)
         for rank in range(parsed):
@@ -27066,6 +27197,19 @@ def _clock_fields_settled(
         )
         if _clock_found(state, len(counts), body_low, body_high) != counts:
             notes += [_clock_field_deviation(column.name, field)]
+        elif state.keep_units and _weekday_count(state) > wanted:
+            # THE CENSUS STOOD AND THE COUNT GAVE WAY, named (the lane's
+            # second skeptic, item 1; the plan's RESIDUAL, as the day
+            # pass's `_WEEKDAY_DAYS_LEFT_LONG`).
+            notes += [
+                _deviation(
+                    column.name,
+                    "n_distinct",
+                    f"{wanted} different values",
+                    f"{_weekday_count(state)} different values",
+                    _CLOCK_FIELDS_LEFT_LONG,
+                )
+            ]
         if field == calendar_clock.MINUTE:
             minute_where = where
     # THE COUNT AT MIDNIGHT THE TAILS KEEP: the published one; or, where it
@@ -50137,7 +50281,11 @@ def generate(profile: contract.Profile, seed: int) -> Twin:
         for note in notes:
             if note.note in _WEEKDAY_CAUSES:
                 cause = note.note
+            # ...and the clock pass's, where no day pass named one (3b.T3)
+            if note.note == _CLOCK_FIELDS_LEFT_LONG and not cause:
+                cause = note.note
         notes = [note for note in notes if note.note not in _WEEKDAY_CAUSES]
+        notes = [note for note in notes if note.note != _CLOCK_FIELDS_LEFT_LONG]
         notes = (
             list(each.notes)
             + notes
@@ -50617,7 +50765,12 @@ def _recount_notes(
         # direction, a long cause was printed over by the long sentence
         # and could reach the report only over a count that was short
         # (review of landing 3b.D0, item 2).
-        if cause and (cause == _WEEKDAY_DAYS_LEFT_LONG) == (
+        if cause == _CLOCK_FIELDS_LEFT_LONG:
+            # THE CLOCK PASS'S CAUSE IS A LONG ONE (3b.T3): over a long
+            # count only.
+            if counted[2] > column.n_distinct:
+                reason = cause
+        elif cause and (cause == _WEEKDAY_DAYS_LEFT_LONG) == (
             counted[2] > column.n_distinct
         ):
             reason = cause
@@ -50639,6 +50792,8 @@ def _recount_notes(
             reason = _folded_excess_reason(column)
             if cause == _WEEKDAY_DAYS_LEFT_LONG and counted[2] > column.n_distinct:
                 reason = _WEEKDAY_FOLDED_LEFT_LONG
+            if cause == _CLOCK_FIELDS_LEFT_LONG and counted[2] > column.n_distinct:
+                reason = _CLOCK_FOLDED_LEFT_LONG
         notes += [
             _deviation(
                 column.name,

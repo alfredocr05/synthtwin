@@ -7499,8 +7499,21 @@ by G7.3g's PUT BACK and the steps below. A field's GROUPS are its
 census's, in order, each over its values,
 or, beside heaps with no census, one group of every value counting the
 body less the heaps; then each heap, its value alone, at its count. A
-field whose ranks already meet its groups is not passed. After the clock
-pass, for the field:
+field whose ranks already meet its groups is not passed. Where the
+column's count is reachable, A SHARED WRITTEN UNIT MOVES WHOLE in G7.3f's
+single moves (steps 6 and 7, and KIN SHARES' own): a rank whose move
+would take it off a written unit it shares onto a free one moves only
+with every rank of that unit, onto the same place -- as a move keeping
+the count where every rank of it is among the ranks moved and finds the
+place inside its gap, its group can give them all and the place's group
+take them all; in the leftover, where none fits, once per unit past that
+room, its group over and the place's under, whole units and single
+ranks then putting both back; else not at all (the lane's second
+skeptic, item 1: check-ins in bursts at 200 to 500 rows and a floor of
+36, their minute census holding empty groups, came back 157 values long
+over 45 twins, the gap's single moves splitting bursts, and 105 long
+over 90 twins at floors 11 and 36 with the rule, none at 11). After the
+clock pass, for the field:
 
 1. *The exchange off midnight.* The ranks the pass left on a written
    midnight that stood off one before it, unit by unit in rank order,
@@ -7546,7 +7559,14 @@ pass, for the field:
    not asked again.
 5. Each run of unpinned ranks is sorted.
 
-Where a field's groups still do not hold, one deviation names its census.
+Where a field's groups still do not hold, one deviation names its census;
+where they hold and the reachable count is left long, THE CENSUS STANDS
+AND THE COUNT GIVES WAY, and the report says so in place of its long
+sentence: no placement keeping each burst of cells written alike together
+met both (the plan's RESIDUAL; a burst holding a tail's pinned boundary
+cannot move whole, and bursts larger than what a group owes cannot be
+carried in whole units -- 7 of the 90 twins above, against 2341173,
+which publishes no minute census).
 Last, where the column publishes its count at midnight -- or withholds it
 for its size, and so still owes the count it held before these passes
 (plan P4-D191) -- THE TAILS KEEP IT:
@@ -7558,7 +7578,7 @@ nearest midnight inside its stratum; each tail's ranks are then sorted.
 
 **Its frozen cases** are states of ranks and drawing units: the twentieth
 vectors file, `tests/reference/generation-branch-vectors-20.json`, holds
-twenty-seven -- the pass on a field of minutes with heaps and on a field of
+twenty-nine -- the pass on a field of minutes with heaps and on a field of
 seconds with a kin group of minutes, KIN SHARES over two hours,
 carried from gap to gap over four days and never splitting a unit two
 tied ranks of an hour share, a written midnight a kind of its
@@ -7571,7 +7591,8 @@ taking a midnight where the count there is short, the tails making room at
 midnight for a rank of the body, never by a tail step raising the count
 and with SPREAD after them where the step left it short, KIN SHARES
 giving no kin group more of minute 0 than its ranks free to stand there,
-a draw laid
+a shared written unit moved whole, and past its groups' room in the
+leftover, a draw laid
 on its unit, and the drawing units of a half-hour grid, a column on the
 hour, a column whose seconds alone are pinned, one census group
 holding minute 0 and heaps beside a withheld census of the rest, which

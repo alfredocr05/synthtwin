@@ -79,6 +79,7 @@ from synthtwin import (
     generation,
     profile,
     reading,
+    rendering,
     taxonomy,
     validation,
 )
@@ -824,6 +825,76 @@ def test_small_bursty_tables_keep_their_count(tmp_path: pathlib.Path) -> None:
             assert set(missed) <= set(ceiling), (rows, seed, missed)
 
 
+# THE SECOND SKEPTIC'S SMALL BURSTY TABLES (item 1): check-ins in bursts from tables
+# 95000, 96000 and 97000 at 200, 300 and 500 rows, floors 11 and 36, seeds 0 to 4.
+# What 2341173 missed on them (its twins missing the count of different values),
+# measured by the skeptic -- the ceiling, beside the twins whose census stood and
+# whose count gave way, named (the plan's RESIDUAL; method G7.3h) -- and the values
+# off over each table's thirty twins at a floor of 36, measured with the whole-unit
+# rule (fcfc8ef: 157 over the three tables; 2341173, publishing no minute census: 74).
+BURSTS_BASE_MISSED = (
+    {(95000, 200, 36, seed) for seed in range(5)}
+    | {(95000, 300, 36, seed) for seed in (2, 3, 4)}
+    | {(96000, 200, 36, seed) for seed in range(5)}
+    | {(96000, 300, 36, seed) for seed in range(5)}
+    | {(97000, 200, 11, 1)}
+)
+BURSTS_COUNT_GIVES_WAY = {(97000, 200, 36, seed) for seed in range(5)} | {(97000, 300, 36, 2), (97000, 300, 36, 4)}
+BURSTS_VALUES_OFF = {95000: 23, 96000: 74, 97000: 8}
+COUNT_ONLY = {"bursts:distinct.n_distinct", "bursts:distinct.n_distinct_folded"}
+
+
+def _twin_and_cause(described: kpi_shapes.Described, seed: int) -> "tuple[str, bool]":
+    """The twin's bytes, and whether its report names the clock pass's long cause."""
+    twin = generation.generate(described.loaded, seed)
+    named = any(
+        deviation.fact == "n_distinct" and deviation.note == generation._CLOCK_FIELDS_LEFT_LONG
+        for deviation in twin.deviations
+    )
+    return rendering.twin_csv(twin), named
+
+
+@pytest.mark.parametrize("table", sorted(BURSTS_VALUES_OFF))
+def test_small_bursty_tables_keep_their_count_at_both_floors(tmp_path: pathlib.Path, table: int) -> None:
+    """Each twin misses at most the count of different values, and only where
+    2341173 missed it or the census stood and the count gave way, named in the
+    report; the values off at a floor of 36 stay within what the whole-unit rule
+    measured (the lane's second skeptic, item 1: fcfc8ef newly missed the count on
+    11 of the 45 twins at 36, 87 to 88, 49 to 52, 90 to 94; red with a shared unit
+    split by a single move, or no unit carried past its groups' room)."""
+    off = 0
+    for rows in (200, 300, 500):
+        cells = shapes.bursts(random.Random(table + rows), rows)
+        for floor in (11, 36):
+            described = _one_column(tmp_path / f"b{rows}-{floor}", "bursts", cells, floor)
+            for seed in range(5):
+                key = (table, rows, floor, seed)
+                written, named = _twin_and_cause(described, seed)
+                missed = set(kpi_shapes.missed(kpi_shapes.measure(described, written, f"t{seed}.csv")))
+                assert missed <= COUNT_ONLY, (key, missed)
+                if missed:
+                    assert key in BURSTS_BASE_MISSED | BURSTS_COUNT_GIVES_WAY, (key, missed)
+                if missed and key not in BURSTS_BASE_MISSED:
+                    assert named, key
+                if floor == 36:
+                    off = off + abs(len(set(shapes.cells_of(written, "bursts"))) - len(set(cells)))
+    assert off <= BURSTS_VALUES_OFF[table], (table, off)
+
+
+def test_a_fuzzed_column_of_heaps_names_its_count(tmp_path: pathlib.Path) -> None:
+    """The second skeptic's fuzz seed 3, case 111 (minute precision, 60 rows, three
+    heaps, floor 1): its heaps are met, and the count of different values the
+    census cost, 27 to 29, is named in the report as the clock pass's."""
+    cells, floor, _precision = shapes.fuzzed(3, 111)
+    described = _one_column(tmp_path, "c", cells, floor)
+    assert described.block("c")["minute_heaps"]
+    written, named = _twin_and_cause(described, 0)
+    missed = set(kpi_shapes.missed(kpi_shapes.measure(described, written, "t.csv")))
+    assert missed <= {"c:distinct.n_distinct", "c:distinct.n_distinct_folded"}, missed
+    if missed:
+        assert named
+
+
 def test_heaps_beside_a_withheld_rest_pin_no_lattice(tmp_path: pathlib.Path) -> None:
     """Bursts of check-ins publish heaps at minutes 0 and 30 beside a census of the
     rest withheld for its few values, a third of the body off them: no lattice
@@ -1015,6 +1086,7 @@ def _state(case: dict, module=generation):
         step=case["written_unit"], day=DAY, bins="minute" if field == 60 else "second",
         period=60, keeps="hour" if field == 60 else "minute", count_steps=False,
         kin=tuple(case["kin"]), no_midnight=case["no_midnight"],
+        whole_units=case.get("whole_units", False),
     )
     for ordinal in state.moved:
         module._weekday_tally(state.held, ordinal // state.step, 1)
@@ -1228,6 +1300,16 @@ STEP_MUTANTS = {
         "field_midnight_room_spread",
         "    if state.keep_units and _weekday_count(state) < wanted:\n        _clock_short_spread(\n            state, body_low, body_high, pinned, wanted, standing, anyday, kin\n        )\n\n\ndef _clock_second_kin(",
         "    if False:\n        _clock_short_spread(\n            state, body_low, body_high, pinned, wanted, standing, anyday, kin\n        )\n\n\ndef _clock_second_kin(",
+    ),
+    "a shared unit split by a single move": (
+        "field_whole_unit",
+        "    units_whole = state.whole_units and state.keep_units\n",
+        "    units_whole = False\n",
+    ),
+    "no unit carried past its groups' room": (
+        "field_whole_unit_past",
+        "                elif allow and changing and _weekday_unit_room(\n                    state, whole, rank, offer[1], have, want, overshot\n                ):\n                    offers +=",
+        "                elif False and _weekday_unit_room(\n                    state, whole, rank, offer[1], have, want, overshot\n                ):\n                    offers +=",
     ),
     "a draw laid on no unit": (
         "field_floor",

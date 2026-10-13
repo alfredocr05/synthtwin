@@ -11360,6 +11360,8 @@ def clock_fields_settled(column, ordinals, parsed, whole, lows, highs, holes):
         counted = column.get("n_at_midnight") is not None
         # The cells at midnight kept where their count is published.
         seams["no_midnight"] = counted
+        # A shared written unit moved whole (the lane's second skeptic, item 1).
+        seams["whole_units"] = True
         pinned = [
             fixed[rank] or lows[rank] >= highs[rank]
             or (counted and written_at_midnight(ordinals[rank], 0, step))
@@ -14092,6 +14094,9 @@ class WeekdayWalk:
         # group's carried shares, at the share scale.
         self.no_midnight = seams.get("no_midnight", False)
         self.kin_carry = {}
+        # G7.3h: whether a shared written unit moves whole (the lane's second
+        # skeptic, item 1).
+        self.whole_units = seams.get("whole_units", False)
 
     def group(self, ordinal):
         return self.group_of_bin[self.bin_of(ordinal)]
@@ -14341,41 +14346,102 @@ def weekday_offer(walk, rank, have, want):
 def weekday_singles(walk, ranks, have, want, rounds, changing, splits=True):
     """G7.3f steps 6 and 7: single ranks, up to `rounds` rounds; where not
     `splits` (G7.3h's KIN SHARES), no rank leaves a written unit it shares
-    by a move changing the count."""
+    by a move changing the count. On a G7.3h pass keeping the count, a
+    rank whose move would take it off a written unit it shares onto a free
+    one moves only with every rank of the unit, onto the same place: as a
+    move keeping the count where its group can give them all and the
+    target's take them all; in the leftover, past that room once per unit,
+    its group over and the target's under; else not at all."""
+    whole = None
+    if walk.whole_units and not walk.keeps_always:
+        whole = {"units": weekday_whole_units(walk, ranks), "overshot": set(), "leftover": changing}
     for _ in range(rounds):
-        if (changing := weekday_single_round(walk, ranks, have, want, changing, splits)) is None:
+        if (changing := weekday_single_round(walk, ranks, have, want, changing, splits, whole)) is None:
             return
+
+
+def weekday_whole_units(walk, ranks):
+    """Each written unit two ranks or more of `ranks` share and no other rank holds."""
+    found = {}
+    for rank in ranks:
+        key = walk.days[rank] // walk.step
+        found[key] = found.get(key, []) + [rank]
+    return {
+        key: members for key, members in found.items()
+        if len(members) > 1 and walk.holding(key * walk.step) == len(members)
+    }
+
+
+def weekday_unit_room(walk, whole, rank, target, have, want, past):
+    """Whether the unit `rank` shares may move whole onto the free `target`."""
+    key = walk.days[rank] // walk.step
+    members = whole["units"].get(key)
+    if members is None or walk.holding(target) != 0:
+        return False
+    if walk.holding(walk.days[rank]) != len(members) or any(walk.days[m] // walk.step != key for m in members):
+        return False
+    source, taking = walk.group(walk.days[rank]), walk.group(target)
+    if past:
+        if key in whole["overshot"] or have[source] <= want[source] or have[taking] >= want[taking]:
+            return False
+    elif have[source] - want[source] < len(members) or want[taking] - have[taking] < len(members):
+        return False
+    return all(walk.lows[m] <= target <= walk.highs[m] for m in members)
+
+
+def weekday_unit_carried(walk, whole, rank, target, have):
+    """Move the unit `rank` shares whole onto `target` and file it there."""
+    key = walk.days[rank] // walk.step
+    members = whole["units"].pop(key)
+    weekday_moved_whole(walk, members, target, have)
+    whole["units"][target // walk.step] = members
+    return True
 
 
 # One round: None where the step ends, else whether changing offers are
 # taken from the next round on.
-def weekday_single_round(walk, ranks, have, want, changing, splits=True):
+def weekday_single_round(walk, ranks, have, want, changing, splits=True, whole=None):
     if have == want:
         return None
-    offers = sorted(weekday_offers_made(walk, ranks, have, want, changing, splits))
-    stalled = not offers or not any([weekday_offer_taken(walk, rank, have, want, changing, splits) for _kind, _distance, rank in offers])
+    offers = sorted(weekday_offers_made(walk, ranks, have, want, changing, splits, whole))
+    stalled = not offers or not any([weekday_offer_taken(walk, rank, have, want, changing, splits, whole) for _kind, _distance, rank in offers])
     return None if stalled and changing else (changing or stalled)
 
 
 # Every rank whose group holds more than its share, offered against the
 # holdings as the round begins: (changing, distance, rank).
-def weekday_offers_made(walk, ranks, have, want, changing, splits=True):
-    return [
-        (offer[0], abs(offer[1] - walk.days[rank]), rank)
-        for rank, offer in (
-            (rank, weekday_offer(walk, rank, have, want))
-            for rank in ranks
-            if have[walk.group(walk.days[rank])] > want[walk.group(walk.days[rank])]
-        )
-        if offer is not None and (offer[0] == 0 or changing)
-        and not (offer[0] == 1 and not splits and walk.holding(walk.days[rank]) > 1)
-    ]
+def weekday_offers_made(walk, ranks, have, want, changing, splits=True, whole=None):
+    made = []
+    for rank in ranks:
+        if have[walk.group(walk.days[rank])] <= want[walk.group(walk.days[rank])]:
+            continue
+        offer = weekday_offer(walk, rank, have, want)
+        distance = abs(offer[1] - walk.days[rank]) if offer is not None else 0
+        if whole is not None and offer is not None and offer[0] == 1 and walk.holding(walk.days[rank]) > 1:
+            # G7.3h: the shared unit moves whole or not at all.
+            if weekday_unit_room(walk, whole, rank, offer[1], have, want, False):
+                made += [(0, distance, rank)]
+            elif changing and whole["leftover"] and weekday_unit_room(walk, whole, rank, offer[1], have, want, True):
+                made += [(1, distance, rank)]
+            continue
+        if offer is not None and (offer[0] == 0 or changing) and not (
+            offer[0] == 1 and not splits and walk.holding(walk.days[rank]) > 1
+        ):
+            made += [(offer[0], distance, rank)]
+    return made
 
 
 # Each offer is asked again when its turn comes.
-def weekday_offer_taken(walk, rank, have, want, changing, splits=True):
+def weekday_offer_taken(walk, rank, have, want, changing, splits=True, whole=None):
     group = walk.group(walk.days[rank])
     offer = weekday_offer(walk, rank, have, want) if have[group] > want[group] else None
+    if whole is not None and offer is not None and offer[0] == 1 and walk.holding(walk.days[rank]) > 1:
+        if weekday_unit_room(walk, whole, rank, offer[1], have, want, False):
+            return weekday_unit_carried(walk, whole, rank, offer[1], have)
+        if changing and whole["leftover"] and weekday_unit_room(walk, whole, rank, offer[1], have, want, True):
+            whole["overshot"].add(offer[1] // walk.step)
+            return weekday_unit_carried(walk, whole, rank, offer[1], have)
+        return False
     if offer is None or (offer[0] == 1 and not changing):
         return False
     if offer[0] == 1 and not splits and walk.holding(walk.days[rank]) > 1:
@@ -17198,6 +17264,47 @@ def field_midnight_room_spread_case():
     return case
 
 
+def field_whole_unit_case():
+    m = HOUR_MONDAY
+    ordinals = [hour_at(m - 1, 23, 50)]
+    for day, hour, minute, ranks in (
+        (0, 12, 34, 1), (0, 13, 34, 1), (0, 16, 25, 4), (1, 10, 2, 3), (1, 11, 49, 2),
+        (2, 12, 42, 1), (2, 16, 30, 2),
+    ):
+        ordinals += [hour_at(m + day, hour, minute)] * ranks
+    ordinals += [hour_at(m + 3, 7, 10)]
+    where = [0] * 21 + [1] * 12 + [2] * 21 + [3] * 6
+    return field_case(
+        "A shared written unit moves whole or not at all (the lane's second skeptic, item "
+        "1): minutes 0 to 20, 21 to 32, 33 to 53 and 54 to 59 counting 4, 5, 3 and 4 of the "
+        "16 ranks; the pair at 11:49 and the pair at 16:30 each move whole onto minute 54 "
+        "of their own hour, and 12:42 to 12:32, so the nine values stay nine. Moved one rank "
+        "at a time, one rank of the pair at 16:30 stayed and the twin wrote ten.",
+        "field", ordinals, {0, len(ordinals) - 1}, [4, 5, 3, 4], where, 60, whole_units=True,
+    )
+
+
+def field_whole_unit_past_case():
+    m = HOUR_MONDAY
+    ordinals = [hour_at(m - 1, 23, 50)]
+    for day, hour, minute, ranks in (
+        (0, 13, 40, 3), (1, 9, 10, 4), (1, 10, 23, 1), (2, 12, 42, 3),
+    ):
+        ordinals += [hour_at(m + day, hour, minute)] * ranks
+    ordinals += [hour_at(m + 3, 7, 10)]
+    where = [0] * 36 + [1] * 23 + [2]
+    return field_case(
+        "In the leftover a shared unit moves whole past its groups' room, once (the lane's "
+        "second skeptic, item 1): minutes 0 to 35 owe one rank more and 36 to 58 one less, "
+        "and every unit of the second is a triple. The triple at 13:40 moves whole onto "
+        "13:35, two over; the four at 09:10 and the one at 10:23 then move to minute 36 of "
+        "their hours and the triple at 12:42 whole to 12:35, and both groups hold: the six "
+        "values stay six. With no unit carried past its room, one rank of 13:40 moved alone and the "
+        "twin wrote seven.",
+        "field", ordinals, {0, len(ordinals) - 1}, [7, 6, 0], where, 60, whole_units=True,
+    )
+
+
 def field_midnight_narrow_case():
     m = HOUR_MONDAY
     return {
@@ -17254,6 +17361,8 @@ CLOCK_FIELD_STEP_CASES = {
     "field_midnight_narrow": field_midnight_narrow_case,
     "field_midnight_room": field_midnight_room_case,
     "field_midnight_short": field_midnight_short_case,
+    "field_whole_unit": field_whole_unit_case,
+    "field_whole_unit_past": field_whole_unit_past_case,
     "field_midnight_zero_room": field_midnight_zero_room_case,
     "field_midnight_room_keep": field_midnight_room_keep_case,
     "field_midnight_room_spread": field_midnight_room_spread_case,
@@ -17315,7 +17424,7 @@ def clock_field_step_answer(case):
         "bin_of": lambda ordinal: (ordinal // unit) % CLOCK_FIELD_VALUES,
         "keep_of": lambda ordinal: ordinal // (unit * CLOCK_FIELD_VALUES),
         "keeps_always": not case["reachable"], "count_steps": False,
-        "no_midnight": case["no_midnight"],
+        "no_midnight": case["no_midnight"], "whole_units": case.get("whole_units", False),
     }
     if case["kin"]:
         span = unit * CLOCK_FIELD_VALUES
