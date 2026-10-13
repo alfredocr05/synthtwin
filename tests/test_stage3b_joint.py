@@ -199,7 +199,7 @@ def test_with_one_census_alone_the_round_changes_no_twin(
     """With either census withdrawn from the four columns' descriptions, every twin at seeds 0
     to 9 is byte for byte the twin the round withdrawn writes. The hour census goes with the
     minute's and second's facts, so the weekday census stands alone: beside a minute's heaps the
-    round pays the field passes' moves too (lane J2's merge of lane T3)."""
+    round settles the field passes' moves too (lane J2's merge of lane T3)."""
     for name in INTEGRATION:
         more = CLOCK_FIELDS if withdrawn == "hour_census" else ()
         table = _one_census(described(name, 11), withdrawn, *more)

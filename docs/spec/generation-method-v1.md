@@ -7891,9 +7891,11 @@ THE COUNT STEPS PAID BACK BESIDE A WEEKDAY CENSUS (lane J2, plan
 P4-D391). Where a weekday census stands, the steps above move a rank
 only to a day of its own standing, and a gap of about a week holds none:
 merged beside lane D2's weekday census on moments, a ten-week clinic of
-10,000 visits on the half hour came back 1,621 values of a published
-2,175, and 1,000 check-ins in bursts 298 for 279. So two steps are paid
-back, as G7.3g step 3's escape is. Each asks STRICT PAYERS: G7.3g step
+10,000 weekday visits heaped at minutes 0, 15, 30 and 45 came back 1,563 to 1,609
+values of a published 2,175 at a floor of 11, and 1,000 check-ins in
+bursts 288 to 295 for 285. So two steps are paid back, as G7.3g step
+3's escape is, and a third swaps on the rank's own parent. The two paid
+steps ask STRICT PAYERS: G7.3g step
 3's payers -- ranks of the other standing moving by whole days onto the
 nearest day of the unit's own, every field of their clocks kept -- but
 only one whose move keeps the count of different values, among the first

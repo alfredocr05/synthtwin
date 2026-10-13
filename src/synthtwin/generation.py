@@ -30453,9 +30453,10 @@ def _clock_paid_spread(
     lanes D2 and J).
 
     SPREAD's escape keeps the day standing, and a gap of about a week holds
-    no other day of it: a ten-week clinic of 10,000 visits on the half hour,
-    its minutes' heaps beside its weekday census, came back 1,621 values of
-    a published 2,175. So SPREAD runs once more, its ESCAPE PAID BACK: each
+    no other day of it: a ten-week clinic of 10,000 weekday visits, its
+    minutes' heaps beside its weekday census, came back 1,563 to 1,609
+    values of a published 2,175 at a floor of 11. So SPREAD runs once more,
+    its ESCAPE PAID BACK: each
     rank sharing its written unit, in rank order, takes SPREAD's place --
     its own group's free place nearest its own on its parent, else the
     escape's in that group, its kin and the days of its standing -- and
@@ -30668,7 +30669,8 @@ def _clock_paid_merge_target(
     Where a weekday census stands, PUT BACK merges a run only onto a day of
     its own standing, and a gap of about a week holds none: a run of
     check-ins in bursts, split to meet the minute census, stayed apart and
-    the count long (1,000 of them at a floor of 11: 298 values for 279).
+    the count long (1,000 of them at a floor of 11: 288 to 295 values for
+    285).
     So: the other days of the run's gap, nearest first, the earlier on a
     tie, no hole and of its width kind, whose standing is another; on each,
     PUT BACK's place at the run's own parent's place in that day

@@ -19102,7 +19102,7 @@ def field_paid_put_back_avoid_case():
         "PUT BACK's payers stand off the unit the run joins (lane J2): as above, but Tuesday's "
         "unit of the run's group on hour 9 is 09:25, whose rank, alone, could itself pay by "
         "moving a whole day onto Monday 09:25, which no rank holds. It is passed over, so the "
-        "unit is still held when the run gets there, and Tuesday's 10:40 pays instead. Taken, "
+        "unit is still held when the run gets there, and Tuesday's 10:40 is the payer instead. Taken, "
         "it left 09:25 empty, the run joined no one and the count stayed long.",
         "paid_put_back", ordinals, {0, 4}, [5, 0], HEAP_ZERO, 60, wanted=4,
         kin=list(range(24)),

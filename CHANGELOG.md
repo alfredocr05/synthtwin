@@ -6,6 +6,31 @@ exists).
 
 ## [Unreleased]
 
+### The minutes and seconds of a timestamp, met beside its weekday census (2026-10-13)
+
+**A column of moments publishing a weekday census beside its minutes' and
+seconds' facts now meets both and its count of different values** (plan
+P4-D391, stage 3b lane J2). Lane T3's minutes and seconds, merged beside
+lane D2's weekday census and lane J's round, moved a rank only to a day of
+its own weekday where a census stands, so the count of different values
+came back short or long: 16 of 480 battery twins at 1,000 rows (bursts of
+check-ins 288 to 295 for 285, nightly batches, noon stamps, eleven
+`23:59:60` a date), and a ten-week clinic of 10,000 visits 1,563 to 1,609
+of 2,175. The minute and second passes now put the count back by moves to
+days of another weekday paid for by whole-day moves the other way, every
+weekday count and clock kept, and by a swap on the rank's own hour where
+no such day has room. All 520 twins of the lanes' batteries at floors 11
+and 36, seeds 0 to 4, now miss nothing; 458 of the 480 at 1,000 rows are
+byte for byte as before. The minute and second checks count whole dates a
+column's description folded into its moments, which made an unchanged
+source miss its heap at minute 0, and the minute and second passes keep
+off a column of counted dates' placeholder days. Two limits older than
+this change are measured and carried: beside a weekday census the hour
+pass leaves small bursty tables' count long (85 of 105 such twins before
+this change, 83 after), and a column nine in ten at midnight with a heap
+at minute 0 writes one fewer midnight than its count withheld for its
+size. `K-S3-41`, `K-S3-42` and `K-S3-62` are restamped.
+
 ### Partial dates are read at their own precision, and a column mostly of dates is asked (2026-10-09)
 
 **Landing R2c, the layout reader's questions and partial dates** (plan
