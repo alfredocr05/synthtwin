@@ -1115,6 +1115,27 @@ def _answer(case: dict, module=generation, clock=calendar_clock) -> object:
         )
     if step == "floor":
         return [module._on_draw_unit(value, case["unit"], low, high) for value, low, high in case["draws"]]
+    if step == "tail_end":
+        column = case["column"]
+        body = case["parsed"] - column["low_tail"]["rows"] - column["high_tail"]["rows"]
+
+        def kept(name: str, field: str) -> tuple:
+            if name == "heaps":
+                return tuple((h["value"], h["count"]) for h in column[f"{field}_heaps"])
+            return tuple((g["first"], g["last"], g["count"]) for g in column[f"{field}_census"])
+
+        room = [clock.tail_ends_midnight_room(
+            column["n_at_midnight"],
+            clock.body_sure_at_midnight(
+                [(g["first"], g["last"], g["count"]) for g in column["hour_census"]],
+                (kept("census", "minute"), kept("heaps", "minute")),
+                (kept("census", "second"), kept("heaps", "second")),
+                column["time_precision"], body,
+            ),
+            [(column[side]["rows"], column[side]["values"]) for side in ("low_tail", "high_tail")],
+        )]
+        holes = {unit: True for unit in case["holes"]}
+        return [module._tail_end_held(end, at, low, holes, case["seconds"], room) for end, at, low in case["ends"]]
     if step == "midnight_count":
         moved = list(case["ordinals"])
         first, last = case["body"]
@@ -1315,6 +1336,11 @@ STEP_MUTANTS = {
         "field_whole_unit_past",
         "                elif allow and changing and _weekday_unit_judged(\n                    state, judged, whole, rank, offer[1], have, want, overshot\n                ):\n                    offers +=",
         "                elif False and _weekday_unit_judged(\n                    state, judged, whole, rank, offer[1], have, want, overshot\n                ):\n                    offers +=",
+    ),
+    "a tail's END left at a midnight the count leaves it none of": (
+        "tail_end",
+        "    if room[0] <= 0:\n        return calendar_clock.end_stepped_off(end, at, low_side, holes, seconds, True)\n",
+        "    if False:\n        return calendar_clock.end_stepped_off(end, at, low_side, holes, seconds, True)\n",
     ),
     "a draw laid on no unit": (
         "field_floor",
@@ -1771,7 +1797,7 @@ def test_a_shared_unit_is_judged_once_a_round() -> None:
 
 
 def _room_state(tails: int):
-    """The Codex review, item 6: `tails` tail ranks at midnights of their own days,
+    """The Codex review, item 6: `tails` tail ranks at midnight on days of their own,
     each free to step a minute off, then as many body ranks at 00:01 of later
     days, each owed its day's midnight by a heap at minute 0 alone."""
     moved = [(18000 + day) * DAY for day in range(tails)]
@@ -1805,3 +1831,43 @@ def test_midnight_room_grows_with_the_rows() -> None:
         assert all(ordinal % DAY == 0 for ordinal in state.moved[tails:]), tails
         assert all(ordinal % DAY == 60 for ordinal in state.moved[:tails]), tails
     assert spent[1] <= 1.25 * 4 * spent[0], spent
+
+
+def test_a_tail_end_leaves_the_body_its_cells_at_midnight(tmp_path: pathlib.Path) -> None:
+    """The Codex review, item 4: a column on the hour at 1,000 rows and floor 11
+    owes 11 cells at midnight, and its body holds all of them for certain -- hour 0 counts
+    11 alone, minute 0 the whole body of 978, every cell on second 0 -- while its
+    high tail's END was derived at 2024-12-31 00:00 and pinned: room-making left a
+    body cell at 00:01 and the heap at minute 0 came back 977 at seeds 0 to 4. The
+    END now steps a unit inward off a midnight the count leaves it none of, as off
+    a hole, and the checker's window reads it so: 978 on minute 0, 11 at midnight,
+    nothing missed."""
+    cells = shapes.on_the_hour(random.Random(42), 1000)
+    described = _one_column(tmp_path, "hours", cells)
+    block = described.block("hours")
+    body = len(cells) - block["low_tail"]["rows"] - block["high_tail"]["rows"]
+    assert block["minute_heaps"] == [{"value": 0, "count": body}] and block["n_at_midnight"] == 11
+    for seed in range(5):
+        written = kpi_shapes.twin_text(described, seed)
+        assert kpi_shapes.missed(kpi_shapes.measure(described, written, f"t{seed}.csv")) == [], seed
+        twin = sorted(shapes.cells_of(written, "hours"))
+        inside = twin[block["low_tail"]["rows"] : len(twin) - block["high_tail"]["rows"]]
+        assert sum(1 for cell in inside if cell[14:16] == "00") == body, seed
+        assert sum(1 for cell in twin if cell[11:16] == "00:00") == 11, seed
+    assert calendar_clock.body_sure_at_midnight(
+        [(group["first"], group["last"], group["count"]) for group in block["hour_census"]],
+        ((), ((0, body),)), ((), ()), "minute", body,
+    ) == 11
+
+
+def test_the_body_sure_at_midnight_by_hand() -> None:
+    """`calendar_clock.body_sure_at_midnight`: hour 0's count alone less the body's
+    cells off minute 0 and off second 0, never below nought; nought where hour 0 is
+    grouped or the column is written finer than the second."""
+    hours = [(0, 0, 11), (1, 23, 989)]
+    assert calendar_clock.body_sure_at_midnight(hours, ((), ((0, 1000),)), ((), ()), "minute", 1000) == 11
+    assert calendar_clock.body_sure_at_midnight(hours, ((), ((0, 995),)), ((), ()), "minute", 1000) == 6
+    assert calendar_clock.body_sure_at_midnight(hours, (((0, 0, 995), (1, 59, 5)), ()), ((), ((0, 998),)), "second", 1000) == 4
+    assert calendar_clock.body_sure_at_midnight(hours, ((), ((0, 980),)), ((), ()), "minute", 1000) == 0
+    assert calendar_clock.body_sure_at_midnight([(0, 1, 30), (2, 23, 970)], ((), ((0, 1000),)), ((), ()), "minute", 1000) == 0
+    assert calendar_clock.body_sure_at_midnight(hours, ((), ((0, 1000),)), ((), ((0, 1000),)), "subsecond", 1000) == 0

@@ -810,6 +810,109 @@ def misled_by_the_count(
     return False
 
 
+def _count_at_zero(
+    census: "tuple[tuple[int, int, int], ...] | list[tuple[int, int, int]]",
+    heaps: "tuple[tuple[int, int], ...] | list[tuple[int, int]]",
+) -> int:
+    """The cells a field's published facts place on its value 0 for certain:
+    the heap at 0, or a census group of value 0 alone; nought elsewhere."""
+    for value, count in heaps:
+        if value == 0:
+            return count
+    for first, last, count in census:
+        if first == 0 and last == 0:
+            return count
+    return 0
+
+
+def body_sure_at_midnight(
+    hour_census: "tuple[tuple[int, int, int], ...] | list[tuple[int, int, int]]",
+    minute: "tuple[tuple[tuple[int, int, int], ...], tuple[tuple[int, int], ...]]",
+    second: "tuple[tuple[tuple[int, int, int], ...], tuple[tuple[int, int], ...]]",
+    precision: str,
+    body: int,
+) -> int:
+    """How many body cells the clock's published facts put at midnight for
+    certain (method G7.3b step 7; the Codex review of landing 3b.4, item 4).
+
+    Hour 0's count where the hour census counts it alone, less the body's
+    cells off minute 0 -- its `body` less the minute's count at 0
+    (`_count_at_zero`) -- and less those off second 0, none on a column
+    written to the minute; nought where that is below nought, on a column
+    written finer than the second, or where hour 0 is counted with other
+    hours. `minute` and `second` are each field's (census, heaps).
+    Guarantees: a function of the five. Raises nothing. No I/O.
+    """
+    if precision not in ("minute", "second"):
+        return 0
+    hour_zero = 0
+    for first, last, count in hour_census:
+        if first == 0 and last == 0:
+            hour_zero = count
+    on_minute = _count_at_zero(minute[0], minute[1])
+    on_second = body if precision == "minute" else _count_at_zero(second[0], second[1])
+    return max(0, hour_zero - (body - on_minute) - (body - on_second))
+
+
+def end_stepped_off(
+    distance: int,
+    boundary: int,
+    low_side: bool,
+    holes: "dict[int, bool]",
+    unit_seconds: int,
+    off_midnight: bool,
+) -> int:
+    """A tail's END, its outermost word-less rank (G7.3b step 7), stepped
+    inward off every unit a hole names and, `off_midnight`, every unit
+    written at midnight -- `boundary` and the units in tail units of
+    `unit_seconds` seconds, a midnight a unit whose seconds a day divides.
+    Never below one. Read alike by the generator's construction and the
+    checker's window (the Codex review of landing 3b.4, item 4: a column on
+    the hour whose high tail ended at 2024-12-31 00:00 held one midnight
+    more than its published count left the tails, and its body's heap at
+    minute 0 came back one short at every seed). Raises nothing. No I/O.
+    """
+    while distance > 1:
+        unit = boundary - distance if low_side else boundary + distance
+        if unit in holes:
+            distance = distance - 1
+            continue
+        if off_midnight and (unit * unit_seconds) % DAY_SECONDS == 0:
+            distance = distance - 1
+            continue
+        break
+    return distance
+
+
+def tail_end_at_midnight(distance: int, boundary: int, low_side: bool, unit_seconds: int) -> bool:
+    """Whether a tail's END at `distance` units from `boundary` is written at
+    midnight (`end_stepped_off`'s test). Raises nothing. No I/O."""
+    unit = boundary - distance if low_side else boundary + distance
+    return (unit * unit_seconds) % DAY_SECONDS == 0
+
+
+def tail_ends_midnight_room(
+    counted: int,
+    forced: int,
+    listed: "list[tuple[int, tuple[str, ...] | None]]",
+) -> int:
+    """How many cells at midnight the published count at midnight leaves the tails'
+    ENDS (method G7.3b step 7; the Codex review of landing 3b.4, item 4):
+    `counted` less the body's cells at midnight for certain (`forced`,
+    `body_sure_at_midnight`) and less the rows each tail listing its values
+    holds at midnight for certain -- all its rows where every listed value
+    is a midnight, else one for each that is. `listed` is each tail's rows
+    and listed values, None where it lists none. May be below nought.
+    Raises nothing. No I/O."""
+    left = counted - forced
+    for rows, values in listed:
+        if values is None:
+            continue
+        at = [value for value in values if len(value) >= 16 and seconds_of(value) == 0]
+        left = left - (rows if values and len(at) == len(values) else len(at))
+    return left
+
+
 def common_divisor(first: int, second: int) -> int:
     """The greatest common divisor of two whole numbers, by Euclid's rule
     (the offline scan admits no divisor helper of the math module); nought's

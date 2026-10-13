@@ -12354,7 +12354,7 @@ def least_end(mean, root, edge):
     return min(max(math.ceil(reach - ((1.0 + reach) * (1.0 / 16777216.0))), 0), edge)
 
 
-def tail_distances(rows, mean, root, floor, edge, apart, words, off=None, half_day=None):
+def tail_distances(rows, mean, root, floor, edge, apart, words, off=None, half_day=None, end_midnight=None):
     """Every rank's whole distance beyond the boundary, outermost first (G7.3b).
 
     ``words`` maps an outer index to the word that rank read; an index
@@ -12375,6 +12375,13 @@ def tail_distances(rows, mean, root, floor, edge, apart, words, off=None, half_d
     the boundary in seconds, the seconds of one tail unit and the side:
     step 10 (`half_day_distances`) then takes every distance onto the
     dial's half day (landing 3b.2-H).
+    ``end_midnight`` is, where the END is held off a midnight the count at
+    midnight leaves it none of, (the boundary's tail unit, the side, the
+    seconds of one tail unit, the cells at midnight left as a one-place list): an
+    END standing at a written midnight after the step off the holes takes
+    one where one is left, else steps one unit inward until it stands at no
+    midnight and on no hole, never below one (the Codex review of landing
+    3b.4, item 4).
     """
     shape = mixture_of(rows, mean, root)
     stretch, end = stretched_end(shape, rows, mean, root, edge)
@@ -12401,6 +12408,10 @@ def tail_distances(rows, mean, root, floor, edge, apart, words, off=None, half_d
         found[0] = stepped(found[0])
         if grouped < rows:
             group = stepped(group)
+    if end_midnight is not None:
+        at, low_side, seconds, room = end_midnight
+        found[0] = end_held(found[0], at, low_side, off[2] if off is not None else set(), seconds, room)
+    if off is not None:
         found[0] = max(found[0], group)
     for index in range(1, rows):
         if index >= grouped:
@@ -12604,7 +12615,75 @@ def tail_holes_named(column, at, low_side):
     return (at, low_side, days_named(member, spellings))
 
 
-def tail_side_plan(column, side, low_side, parsed, words):
+def end_held(end, at, low_side, named, seconds, room):
+    """G7.3b step 7's END held off a midnight (the Codex review of landing 3b.4,
+    item 4): standing at a written midnight -- its tail unit's seconds a day
+    divides -- it takes one of the cells at midnight ``room`` holds, else steps one
+    unit inward until it stands at no midnight and on no unit ``named``,
+    never below one."""
+
+    def midnight(distance):
+        return ((at - distance if low_side else at + distance) * seconds) % 86400 == 0
+
+    if not midnight(end):
+        return end
+    if room[0] > 0:
+        room[0] -= 1
+        return end
+    while end > 1 and (midnight(end) or (at - end if low_side else at + end) in named):
+        end -= 1
+    return end
+
+
+def tail_ends_room(column, parsed):
+    """How many cells at midnight the published count at midnight leaves the tails'
+    ENDS, as a one-place list spent low tail first (G7.3b step 7; the Codex
+    review of landing 3b.4, item 4); None where no END is held off one: a
+    column of moments not all at midnight, publishing its count there, read
+    on its own clock, with both tails. The count less the body's cells at
+    midnight for certain -- hour 0's count alone, less the body's cells off
+    minute 0 and off second 0 (none on a column written to the minute),
+    never below nought, nought finer than the second -- and less the rows
+    each tail listing its values holds at midnight for certain."""
+    low, high = column.get("low_tail"), column.get("high_tail")
+    counted = column.get("n_at_midnight")
+    if (
+        ordinal_space(column) != "datetime"
+        or column.get("all_at_midnight", False)
+        or counted is None
+        or column.get("datetimes_read_at") == "utc"
+        or not low
+        or not high
+    ):
+        return None
+    body = parsed - low["rows"] - high["rows"]
+
+    def at_zero(field):
+        for heap in column.get(field + "_heaps") or []:
+            if heap["value"] == 0:
+                return heap["count"]
+        for group in column.get(field + "_census") or []:
+            if group["first"] == 0 and group["last"] == 0:
+                return group["count"]
+        return 0
+
+    forced = 0
+    precision = column.get("time_precision")
+    if precision in ("minute", "second"):
+        zero = sum(g["count"] for g in column.get("hour_census") or [] if g["first"] == 0 and g["last"] == 0)
+        second = body if precision == "minute" else at_zero("second")
+        forced = max(0, zero - (body - at_zero("minute")) - (body - second))
+    left = counted - forced
+    for side in (low, high):
+        values = side.get("values")
+        if values is None:
+            continue
+        at = [v for v in values if len(v) >= 16 and v[11:13] == "00" and v[14:16] == "00" and (len(v) < 19 or v[17:19] == "00")]
+        left -= side["rows"] if values and len(at) == len(values) else len(at)
+    return [left]
+
+
+def tail_side_plan(column, side, low_side, parsed, words, room=None):
     """One tail of a column of dates, laid out in the column's own space.
 
     Returns the ordinal of every rank of the tail, outermost first, the
@@ -12657,16 +12736,26 @@ def tail_side_plan(column, side, low_side, parsed, words):
     # STEP 10: a stamp declared a 12-hour clock with no marker draws its
     # tail on the dial's half day (landing 3b.2-H).
     half_day = (anchor, unit, low_side) if on_the_half_day(column) and not half else None
+    # THE END HELD OFF A MIDNIGHT THE COUNT LEAVES IT NONE OF (step 7; the
+    # Codex review of landing 3b.4, item 4): ``room`` is spent once, by the
+    # rank's own distances; its strata read the same answer.
+    seconds = 60 if column["tail_unit"] == "minute" else 1
+    held = None
+    if room is not None and not half:
+        held = [room[0]]
     stood = tail_distances(
-        rows, mean, root, CASE_SMALL_CELL_FLOOR, edge, apart, words, off, half_day
+        rows, mean, root, CASE_SMALL_CELL_FLOOR, edge, apart, words, off, half_day,
+        None if held is None else (at, low_side, seconds, room),
     )
     near = tail_distances(
         rows, mean, root, CASE_SMALL_CELL_FLOOR, edge, apart,
         {index: 0 for index in drawn}, off, half_day,
+        None if held is None else (at, low_side, seconds, [held[0]]),
     )
     far = tail_distances(
         rows, mean, root, CASE_SMALL_CELL_FLOOR, edge, apart,
         {index: TWO64 - 1 for index in drawn}, off, half_day,
+        None if held is None else (at, low_side, seconds, [held[0]]),
     )
     places = [
         anchor - distance * unit if low_side else anchor + distance * unit
@@ -12742,6 +12831,7 @@ def date_pins(column, parsed, words=None):
     high_rank = parsed - 1 - high_side["rows"]
     pins, texts = {}, {}
     sides = {}
+    room = tail_ends_room(column, parsed)
     for name, side, is_low in (("low", low_side, True), ("high", high_side, False)):
         mine = {}
         if words is not None:
@@ -12749,7 +12839,7 @@ def date_pins(column, parsed, words=None):
                 rank = index if is_low else parsed - 1 - index
                 if rank in words:
                     mine[index] = words[rank]
-        plan = tail_side_plan(column, side, is_low, parsed, mine)
+        plan = tail_side_plan(column, side, is_low, parsed, mine, room)
         sides[name] = plan
         for index in range(side["rows"]):
             rank = index if is_low else parsed - 1 - index
@@ -17017,6 +17107,31 @@ def field_kin_blocked_case():
     )
 
 
+def tail_end_case():
+    day = 1440
+    return {
+        "why": "G7.3b step 7's END held off a midnight the count leaves it none of (the Codex "
+        "review of landing 3b.4, item 4): a column on the hour owing 12 cells at midnight, 11 of them "
+        "its body's for certain -- hour 0 counts 11 alone, minute 0 the whole body of 978, "
+        "written to the minute. Both ENDs stand at a written midnight: the low tail's takes "
+        "the one left, and the high tail's steps inward off it and off the hole the minute "
+        "before names, two minutes in. Without the rule both ends stood at midnight, 13 in all.",
+        "step": "tail_end",
+        "column": {
+            "resolution": "datetime", "all_at_midnight": False, "n_at_midnight": 12,
+            "datetimes_read_at": "local", "time_precision": "minute",
+            "hour_census": [{"first": 0, "last": 0, "count": 11}, {"first": 1, "last": 23, "count": 967}],
+            "minute_heaps": [{"value": 0, "count": 978}], "minute_census": [],
+            "second_heaps": [], "second_census": [],
+            "low_tail": {"rows": 11, "values": None}, "high_tail": {"rows": 11, "values": None},
+        },
+        "parsed": 1000,
+        "ends": [[600, 20000 * day + 600, True], [240, 20500 * day + 1200, False]],
+        "holes": [20501 * day - 1],
+        "seconds": 60,
+    }
+
+
 def field_seconds_case():
     m = HOUR_MONDAY
     ordinals = [
@@ -17393,6 +17508,7 @@ CLOCK_FIELD_STEP_CASES = {
     "field_kin_no_split": field_kin_no_split_case,
     "field_kin_carry": field_kin_carry_case,
     "field_kin_blocked": field_kin_blocked_case,
+    "tail_end": tail_end_case,
     "field_exchange_stays": field_exchange_case,
     "field_exchange_swap": field_exchange_swap_case,
     "field_exchange_kin": field_exchange_kin_case,
@@ -17455,6 +17571,12 @@ def clock_field_step_answer(case):
     if step == "floor":
         unit = case["unit"]
         return [on_draw_unit(None, value, low, high, unit) for value, low, high in case["draws"]]
+    if step == "tail_end":
+        room = tail_ends_room(case["column"], case["parsed"])
+        return [
+            end_held(end, at, low_side, set(case["holes"]), case["seconds"], room)
+            for end, at, low_side in case["ends"]
+        ]
     if step == "midnight_count":
         ordinals = list(case["ordinals"])
         first, last = case["body"]

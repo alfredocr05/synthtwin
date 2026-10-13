@@ -6638,7 +6638,25 @@ unit by DT3.
      unit INWARD until it is not, never below one unit. A derived end
      that is a declared missing value would be written as a cell the
      twin's own description reads as absent (the skeptic of the tail
-     design, B8).
+     design, B8);
+   - the END of a column of moments whose count at midnight is published,
+     read on its own clock, its unit a minute or a second, standing at a
+     written midnight -- after the step off the holes -- takes one of the
+     cells at midnight the count leaves the ends, the low tail's first: the
+     published count less the body's cells at midnight for certain (hour
+     0's count where the hour census counts it alone, less the body's
+     cells off minute 0 -- the body less the minute's heap or lone census
+     group at 0 -- and less those off second 0, none written to the minute;
+     nought where below nought, finer than the second or hour 0 grouped)
+     and less the rows each tail listing its values holds at midnight for
+     certain (all, where every listed value is one; else one for each
+     that is). Where none is left it steps one unit INWARD, as off a hole,
+     until it stands at no midnight and on no hole, never below one unit;
+     the checker's window reads the same (G12.14). A column on the hour
+     at 1,000 rows owed 11 cells at midnight, all of them its body's hour 0, and
+     its high tail's end derived at 2024-12-31 00:00 held a twelfth: the
+     heap at minute 0 came back one short at every seed (the Codex review
+     of landing 3b.4, item 4).
 
    The end is then raised to the group's distance where the group is
    further out, so the two stay in rank order.
@@ -7587,7 +7605,7 @@ nearest midnight inside its stratum; each tail's ranks are then sorted.
 
 **Its frozen cases** are states of ranks and drawing units: the twentieth
 vectors file, `tests/reference/generation-branch-vectors-20.json`, holds
-thirty -- the pass on a field of minutes with heaps and on a field of
+thirty-one -- the pass on a field of minutes with heaps and on a field of
 seconds with a kin group of minutes, KIN SHARES over two hours,
 carried from gap to gap over four days, reconciled against what each hour
 holds where a gap's hour 8 can stand on no minute 0, and never splitting
@@ -7603,7 +7621,8 @@ and with SPREAD after them where the step left it short, KIN SHARES
 giving no kin group more of minute 0 than its ranks free to stand there,
 a shared written unit moved whole, and past its groups' room in the
 leftover, a draw laid
-on its unit, and the drawing units of a half-hour grid, a column on the
+on its unit, G7.3b step 7's tail END held off a midnight the count leaves
+it none of, and the drawing units of a half-hour grid, a column on the
 hour, a column whose seconds alone are pinned, one census group
 holding minute 0 and heaps beside a withheld census of the rest, which
 pin nothing -- each with the answer this section gives it.

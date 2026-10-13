@@ -22408,8 +22408,14 @@ def _date_tail_plan(
     floor: int,
     edges: "tuple[int, int]",
     apart: bool = False,
+    room: "list[int] | None" = None,
 ) -> "_TailPlan":
     """One side of a column of dates, laid out (method G7.3b, G7.3c).
+
+    `room` holds how many cells at midnight the count still leaves the
+    tails' ENDS (`_tail_ends_room`), None where no END is held off one: a
+    shape-drawn END written at midnight takes one where one is left, and
+    otherwise steps inward off it, as off a hole (step 7).
 
     `apart` says the column's own values ALL DIFFER, so no two ranks of
     this tail may stand on one unit: the shape keeps each distance one
@@ -22468,6 +22474,11 @@ def _date_tail_plan(
     shape = _tail_shape(rows, mean, root, floor, edge, apart, True)
     holes = _hole_units(column, facts)
     end = _off_the_holes(shape.end, at, low_side, holes)
+    # -- the END held off a midnight the count leaves it none of (the Codex
+    # review of landing 3b.4, item 4)
+    if room is not None and half == 0:
+        seconds = 60 if facts.tail_unit == parsing.TAIL_UNIT_MINUTE else 1
+        end = _tail_end_held(end, at, low_side, holes, seconds, room)
     group = shape.group
     if shape.grouped < rows:
         if _snaps_to_midnight(facts) and half == 0 and _midnight_past_the_listed(facts):
@@ -22496,6 +22507,72 @@ def _date_tail_plan(
         rows, low_side, boundary, anchor, unit, half, shape,
         (), (), (), tuple(near), tuple(far),
     )
+
+
+def _tail_end_held(
+    end: int,
+    at: int,
+    low_side: bool,
+    holes: "dict[int, bool]",
+    seconds: int,
+    room: "list[int]",
+) -> int:
+    """A tail's END held off a midnight the count leaves it none of (method
+    G7.3b step 7; the Codex review of landing 3b.4, item 4): standing at a
+    written midnight, it takes one of the `room` left, else steps inward
+    off it as off a hole (`calendar_clock.end_stepped_off`). `at` is the
+    boundary in tail units of `seconds` seconds. Raises nothing. No I/O."""
+    if not calendar_clock.tail_end_at_midnight(end, at, low_side, seconds):
+        return end
+    if room[0] <= 0:
+        return calendar_clock.end_stepped_off(end, at, low_side, holes, seconds, True)
+    room[0] = room[0] - 1
+    return end
+
+
+def _tail_ends_room(facts: contract.DatetimeFacts, parsed: int) -> "list[int] | None":
+    """How many cells at midnight the published count leaves the tails' ENDS, as a
+    one-place list `_date_tail_plan` spends low tail first (method G7.3b
+    step 7; the Codex review of landing 3b.4, item 4); None where no END is
+    held off one: a column of moments not all at midnight, publishing its
+    count there, read on its own clock (not as UTC), with both tails.
+
+    A column on the hour at 1,000 rows owed 11 cells at midnight, all 11 cells of
+    hour 0 in its body on minute 0 and second 0, and its high tail's END
+    was derived at 2024-12-31 00:00, pinned: the body's heap at minute 0
+    came back one short at every seed. The body's sure cells at midnight
+    are `calendar_clock.body_sure_at_midnight`'s, and the rows of a tail
+    listing its values `calendar_clock.tail_ends_midnight_room`'s; the
+    checker reads the same (`validation._date_tail_windows`).
+    Raises nothing. No I/O.
+    """
+    if (
+        _ordinal_space(facts) != "datetime"
+        or facts.all_at_midnight
+        or facts.n_at_midnight is None
+        or facts.datetimes_read_at == "utc"
+        or facts.low_tail is None
+        or facts.high_tail is None
+    ):
+        return None
+    body = parsed - facts.low_tail.rows - facts.high_tail.rows
+    forced = calendar_clock.body_sure_at_midnight(
+        facts.hour_census,
+        (facts.minute_census, facts.minute_heaps),
+        (facts.second_census, facts.second_heaps),
+        facts.time_precision,
+        body,
+    )
+    return [
+        calendar_clock.tail_ends_midnight_room(
+            facts.n_at_midnight,
+            forced,
+            [
+                (facts.low_tail.rows, facts.low_tail.values),
+                (facts.high_tail.rows, facts.high_tail.values),
+            ],
+        )
+    ]
 
 
 def _on_the_half_day(facts: contract.DatetimeFacts) -> bool:
@@ -22597,9 +22674,10 @@ def _date_layout(
         # the clock role reads it (`_clock_layout`): the cells that
         # parsed are as many as the spellings that are not stand-ins.
         apart = column.n_distinct - facts.n_unparsed >= parsed
-        low = _date_tail_plan(column, facts, low_facts, True, floor, edges, apart)
+        room = _tail_ends_room(facts, parsed)
+        low = _date_tail_plan(column, facts, low_facts, True, floor, edges, apart, room)
         high = _date_tail_plan(
-            column, facts, high_facts, False, floor, edges, apart
+            column, facts, high_facts, False, floor, edges, apart, room
         )
         pins[low_rank] = low.boundary
         texts[low_rank] = low_facts.boundary

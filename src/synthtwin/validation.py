@@ -15719,8 +15719,16 @@ def _tail_construction(
     group_midnight: "tuple[int, int, int, tuple[int, ...]] | None",
     widened: bool = False,
     half_day: "tuple[int, int, bool] | None" = None,
+    end_room: "tuple[list[int], int] | None" = None,
 ) -> "tuple[list[int], list[int]]":
     """Every rank's nearest and furthest distance, outermost first (G7.3b).
+
+    `end_room` is, where the END is held off a midnight the count at
+    midnight leaves it none of, (how many cells at midnight are left, as the
+    one-place list `generation._date_tail_plan` spends, the seconds of one
+    tail unit): an END written at midnight takes one where one is left and
+    otherwise steps inward off it (`calendar_clock.end_stepped_off`; the
+    Codex review of landing 3b.4, item 4).
 
     `end_step` is the set of tail units the column's own absent spellings
     name, off which the outermost rank and the group step inward.
@@ -15814,6 +15822,15 @@ def _tail_construction(
                 least = least + 1
         end_whole = max(end_whole, min(max(least, 0), edge))
     end_whole = _stepped_off(end_whole, boundary, low_side, end_step)
+    if end_room is not None and calendar_clock.tail_end_at_midnight(
+        end_whole, boundary, low_side, end_room[1]
+    ):
+        if end_room[0][0] <= 0:
+            end_whole = calendar_clock.end_stepped_off(
+                end_whole, boundary, low_side, end_step, end_room[1], True
+            )
+        else:
+            end_room[0][0] = end_room[0][0] - 1
     if grouped < rows:
         if group_midnight is not None:
             furthest = max(
@@ -16114,6 +16131,10 @@ def _date_tail_windows(
             if key != contract.WITHHELD
         ]
     seconds_per_unit = 60 if facts.tail_unit == parsing.TAIL_UNIT_MINUTE else 1
+    # THE ENDS HELD OFF A MIDNIGHT THE COUNT LEAVES THEM NONE OF, as the
+    # construction holds them (`generation._tail_ends_room`; the Codex review
+    # of landing 3b.4, item 4), low tail first.
+    room = _tail_ends_room(column, facts)
     for key, tail, low_side in (
         ("low", facts.low_tail, True),
         ("high", facts.high_tail, False),
@@ -16141,8 +16162,44 @@ def _date_tail_windows(
             tail.rows, mean, root, floor, edge, apart, holes, at, low_side,
             where, summed and contract.datetime_counts_reachable(column),
             half_day,
+            None if room is None or facts.tail_unit == parsing.TAIL_UNIT_DAY else (room, seconds_per_unit),
         )
     return found
+
+
+def _tail_ends_room(
+    column: contract.ColumnBlock, facts: contract.DatetimeFacts
+) -> "list[int] | None":
+    """How many cells at midnight the published count leaves the tails' ENDS, read as
+    the construction reads it (`generation._tail_ends_room`, the same
+    `calendar_clock` rules); None where no END is held off one."""
+    if (
+        facts.resolution != taxonomy.RESOLUTION_DATETIME
+        or facts.all_at_midnight
+        or facts.n_at_midnight is None
+        or facts.datetimes_read_at == "utc"
+        or facts.low_tail is None
+        or facts.high_tail is None
+    ):
+        return None
+    body = column.n_present - facts.n_unparsed - facts.low_tail.rows - facts.high_tail.rows
+    forced = calendar_clock.body_sure_at_midnight(
+        facts.hour_census,
+        (facts.minute_census, facts.minute_heaps),
+        (facts.second_census, facts.second_heaps),
+        facts.time_precision,
+        body,
+    )
+    return [
+        calendar_clock.tail_ends_midnight_room(
+            facts.n_at_midnight,
+            forced,
+            [
+                (facts.low_tail.rows, facts.low_tail.values),
+                (facts.high_tail.rows, facts.high_tail.values),
+            ],
+        )
+    ]
 
 
 def _clock_tail_windows(
