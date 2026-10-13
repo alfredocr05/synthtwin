@@ -23,7 +23,7 @@ and draws the rest part by part and key by key (method G7.3j), the
 validator counts the file's cells on each listed date (V5-D1), and the
 oracle and the nineteenth vectors file freeze the plan. Lane D3's two
 limits are lifted: quarter ends and one month a year at 10,000 rows meet
-every check, and six Mays generate in 73 s at 1,000,000 rows where the
+every check, and six Mays generate in 96 s at 1,000,000 rows where the
 discarded joint plan took about 640 s. No check the twin of a column
 listing nothing meets is lost: where the twin drawn with the list would
 miss a census or the count that twin holds, the list gives way, named
