@@ -1296,6 +1296,13 @@ STEP_MUTANTS = {
         "        if _clock_count_off(state, wanted, published) >= off:\n            _clock_restored(state, paid)",
         "        if _clock_count_off(state, wanted, published) > off:\n            _clock_restored(state, paid)",
     ),
+    # Lane J's second skeptic, finding 1: the round given back where steps 4 to 6 come
+    # nearer the count without it though they still miss it, not only where they meet it.
+    "the round given back only where the count is met without it": (
+        "hour_paid_count_nearer",
+        "        if _clock_count_off(state, wanted, published) >= off:\n            _clock_restored(state, paid)",
+        "        if _clock_count_off(state, wanted, published) > 0:\n            _clock_restored(state, paid)",
+    ),
 }
 
 # ...and step 10's, edits of `calendar_clock`.
@@ -1321,7 +1328,8 @@ CASES = [
     "clock_minute_kin_escape", "clock_minute_kin_kept", "clock_minute_put_back_kin",
     "half_day_apart", "half_day_high", "half_day_low", "hour_escape_any_day", "hour_escape_weekday",
     "hour_half_day_tails", "hour_half_day_tails_stratum", "hour_off_a_hole", "hour_off_midnight",
-    "hour_paid_count_given_back", "hour_paid_count_tied", "hour_paid_escape", "hour_paid_given_back",
+    "hour_paid_count_given_back", "hour_paid_count_nearer", "hour_paid_count_tied", "hour_paid_escape",
+    "hour_paid_given_back",
     "hour_paid_hole", "hour_paid_keeping", "hour_paid_pass",
     "hour_proportional", "hour_put_back", "hour_put_back_any_day", "hour_put_back_off_midnight",
     "hour_put_back_short", "hour_put_back_short_shared", "hour_relief", "hour_relief_given_back",

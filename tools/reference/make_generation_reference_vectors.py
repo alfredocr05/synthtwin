@@ -16421,11 +16421,24 @@ def hour_paid_count_tied_case():
     )
 
 
+def hour_paid_count_nearer_case():
+    return hour_case(
+        "THE ROUND GIVEN BACK WHERE THE COUNT IS NEARER WITHOUT IT, THOUGH STILL OFF (the "
+        "whole pass, lane J's second skeptic, finding 1): the state the round is given back "
+        "on, its count drawn seven. With the round the count stands at nine, two long; "
+        "without it, at eight, one long, so the round is given back although the count is "
+        "missed either way.",
+        "pass", hour_paid_count_ordinals(), {0, 5, 6, 8}, [0, 6, 3], HOUR_THREE,
+        standing=HOUR_WEEK, wanted=7,
+    )
+
+
 HOUR_STEP_CASES = {
     "hour_paid_escape": hour_paid_case,
     "hour_paid_hole": hour_paid_hole_case,
     "hour_paid_count_given_back": hour_paid_count_given_back_case,
     "hour_paid_count_tied": hour_paid_count_tied_case,
+    "hour_paid_count_nearer": hour_paid_count_nearer_case,
     "hour_paid_keeping": hour_paid_keeping_case,
     "hour_paid_given_back": hour_paid_given_back_case,
     "hour_paid_pass": hour_paid_pass_case,

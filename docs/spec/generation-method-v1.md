@@ -7506,11 +7506,12 @@ afternoon cells back twelve hours early and misses published facts).
 
 **Its frozen cases** are states of ranks, as G7.3f's are: the sixteenth
 vectors file, `tests/reference/generation-branch-vectors-16.json`, holds
-twenty-eight -- SAMEDAY, the escape with a weekday census's groups and its last
+twenty-nine -- SAMEDAY, the escape with a weekday census's groups and its last
 resort, the escape paid back, its payer keeping the count asked past the
 first, its payers given back where too few are found, a payer kept off a
 hole, the whole pass beside a weekday census, and the whole pass with the
-round given back where it costs the count and kept where the count is no
+round given back where it costs the count, given back where the count is
+nearer without it though still missed, and kept where the count is no
 nearer without it (lane J), SPLIT, RELIEF and its give-back where the room it made is not
 enough, PUT BACK long and short and its last resort, PUT BACK never onto
 a written midnight and its short count moving only a rank that shares

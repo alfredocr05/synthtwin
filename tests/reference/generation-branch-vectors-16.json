@@ -1158,6 +1158,125 @@
       "why": "THE ROUND GIVEN BACK WHERE IT COSTS THE COUNT (the whole pass, lane J's skeptic, finding 1): hours 12 to 17 counted six and 18 to 23 three beside seven single weekdays. The pair at 05:23 finds one payer, so it SPLITs: one rank takes Sunday's 12:23, paid, and the other stays. Sunday's own value stands at 18:30, in the other group, so no merge keeping the day and the group takes the new value back and the count stands one long; without the round it is met, so the round is given back.",
       "written_unit": 60
     },
+    "hour_paid_count_nearer": {
+      "answer": [
+        1709294400,
+        1709403600,
+        1709490600,
+        1709529780,
+        1709529780,
+        1709553600,
+        1709812800,
+        1710094200,
+        1710331200
+      ],
+      "before": [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "body": [
+        0,
+        8
+      ],
+      "counts": [
+        0,
+        6,
+        3
+      ],
+      "half_day": false,
+      "highs": [
+        1709294400,
+        1709553600,
+        1709553600,
+        1709553600,
+        1709553600,
+        1709553600,
+        1709812800,
+        1710331200,
+        1710331200
+      ],
+      "holes": [],
+      "lows": [
+        1709294400,
+        1709294400,
+        1709294400,
+        1709294400,
+        1709294400,
+        1709553600,
+        1709812800,
+        1709812800,
+        1710331200
+      ],
+      "ordinals": [
+        1709294400,
+        1709403600,
+        1709490600,
+        1709529780,
+        1709529780,
+        1709553600,
+        1709812800,
+        1710094200,
+        1710331200
+      ],
+      "pinned": [
+        true,
+        false,
+        false,
+        false,
+        false,
+        true,
+        true,
+        false,
+        true
+      ],
+      "reachable": true,
+      "standing": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6
+      ],
+      "step": "pass",
+      "wanted": 7,
+      "where": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2
+      ],
+      "why": "THE ROUND GIVEN BACK WHERE THE COUNT IS NEARER WITHOUT IT, THOUGH STILL OFF (the whole pass, lane J's second skeptic, finding 1): the state the round is given back on, its count drawn seven. With the round the count stands at nine, two long; without it, at eight, one long, so the round is given back although the count is missed either way.",
+      "written_unit": 60
+    },
     "hour_paid_count_tied": {
       "answer": [
         1709294400,
