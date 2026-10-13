@@ -626,6 +626,7 @@ def _hour_table(
     values: "list[int] | tuple[int, ...]",
     line: int,
     fine: bool,
+    starts: "list[bool] | tuple[bool, ...] | None" = None,
 ) -> "tuple[list[list[int]], list[int]]":
     """One of M3's two TABLES: the body's hour groups crossed with the field.
 
@@ -641,9 +642,12 @@ def _hour_table(
     doubled a morning's share on twenty minutes in the twin; fine alone
     spreads night charting on the hour over some 27 columns of a thousand
     cells, where its chi-squared per degree of freedom falls to 1.6).
-    Returns the table, row by row, and each column's width in values;
-    `([], [])` where the hours merge to one group or the field to one
-    column. Raises nothing. No I/O.
+    Given `starts` -- whether each cell is the first of its different
+    written value -- the table counts EVENTS, each different value once,
+    in the rows and columns the cells draw (the verifier's item 8 on the
+    Codex round of landing 3b.4). Returns the table, row by row, and each
+    column's width in values; `([], [])` where the hours merge to one
+    group or the field to one column. Raises nothing. No I/O.
     """
     total = len(values)
     if total <= 0 or len(hours) != total:
@@ -674,6 +678,8 @@ def _hour_table(
         return [], []
     table = [[0 for _column in widths] for _row in range(len(groups))]
     for place in range(total):
+        if starts is not None and place < len(starts) and not starts[place]:
+            continue
         row = row_of[hours[place]]
         column = column_of[values[place]]
         table[row][column] = table[row][column] + 1
@@ -686,6 +692,7 @@ def depends_on_the_hour(
     line: int,
     squares: int = 0,
     fine: bool = False,
+    starts: "list[bool] | tuple[bool, ...] | None" = None,
 ) -> bool:
     """M3: whether how a body falls on a field depends on the hour of the day.
 
@@ -698,66 +705,105 @@ def depends_on_the_hour(
     so 10,000 cells written `HH:MM:00` whose minute does not follow the
     hour scored 3.9 counted by value, at a V of 0.11; night charting on the
     hour beside day entries scores a V near 0.98). Cells written alike are
-    one event written on several rows, so the chi-squared the test asks is
-    divided by the DESIGN EFFECT of those ties, `squares` -- the sum of the
-    squared number of cells each different value holds -- over the cells
-    (one where `squares` is nought: no ties): 1,000 check-ins in bursts of
-    one to six, counted cell by cell, scored 3.4 to 4.7 against the hour.
-    THE STRENGTH IS NOT DIVIDED BY IT (the Codex review of landing 3b.4,
-    item 1: divided, every timestamp repeated 30 times sank a complete
-    dependence below 0.2, and the twin put 5,556 of 10,800 daytime cells on
-    minute 0 against 180): it is chi-squared over the cells, LESS what ties
-    of that design effect give a table with no dependence -- the design
-    effect times the degrees of freedom -- over the cells times one less
-    than the table's shorter side, so bursts of check-ins whose minute does
-    not follow the hour score near nought however many their rows, and a
-    complete dependence scores near one however often each value repeats.
-    Where the hours merge to one group, or the field to one column, there
-    is no table and no dependence. The caller leaves out the cells at a
-    published midnight. `hours` and `values` are the cells' written hour
-    and value, pair by pair.
+    one event written on several rows, so THE TABLE COUNTS EVENTS: given
+    `starts`, whether each cell is the first of its different written
+    value, each different value is counted once, in the rows and columns
+    the cells draw (the verifier's item 8 on the Codex round of landing
+    3b.4: one global design effect -- the squared ties over the cells --
+    sank a strong dependence under one stamp written a hundred times, the
+    twin then putting 205 of 459 daytime cells on minute 0 against 6, and
+    under day stamps written thirty times beside night stamps once; and
+    divided row by row it still called one burst among independent minutes
+    a dependence). Without `starts`, the cells are counted, and `squares`
+    -- the sum of the squared number of cells each different value holds,
+    nought for none -- over the cells is an even DESIGN EFFECT dividing
+    the test, as the events would under ties all alike. The strength is
+    chi-squared over the counts, LESS what a table with no dependence gives
+    -- the design effect times the degrees of freedom -- over the counts
+    times one less than the table's shorter side (the Codex review of
+    landing 3b.4, item 1), so ties alone neither sink a complete dependence
+    nor raise none; and it is the larger of that and the strongest HOUR
+    GROUP's against the rest of the body, the two-row table's chi-squared
+    less the design effect times one less than its columns, over the counts
+    (the verifier's item 9: 40,800 cells over fourteen hour groups and
+    sixty minute groups held one morning's dependence to a V squared of
+    0.017, and the twin put 2,282 of 5,400 cells of hour 08 on minutes 00
+    to 19 against 1,800). Where the hours merge to one group, or the field
+    to one column, there is no table and no dependence. The caller leaves
+    out the cells at a published midnight. `hours` and `values` are the
+    cells' written hour and value, pair by pair.
 
-    Guarantees: a function of the five. Raises nothing. No I/O.
+    Guarantees: a function of the six. Raises nothing. No I/O.
     """
-    table, _widths = _hour_table(hours, values, line, fine)
+    table, _widths = _hour_table(hours, values, line, fine, starts)
     if not table:
         return False
-    total = len(values)
     rows = [sum(row) for row in table]
+    total = sum(rows)
     sums = [sum(table[row][column] for row in range(len(table))) for column in range(len(table[0]))]
     kept_rows = len([count for count in rows if count > 0])
     kept_columns = len([count for count in sums if count > 0])
     freedom = (kept_rows - 1) * (kept_columns - 1)
     if freedom <= 0:
         return False
-    # chi-squared = n * (sum of O * O / (row * column) - 1), in fractions.
+    # chi-squared = n * (sum of O * O / (row * column) - 1), in fractions;
+    # each row's sum of O * O / column kept for its own two-row table.
     numerator = 0
     denominator = 1
+    parts: "list[tuple[int, int]]" = []
     for row in range(len(table)):
+        part_top = 0
+        part_bottom = 1
         for column in range(len(sums)):
             count = table[row][column]
-            if count <= 0:
-                continue
-            part_top = count * count
-            part_bottom = rows[row] * sums[column]
-            numerator = numerator * part_bottom + part_top * denominator
-            denominator = denominator * part_bottom
-            common = common_divisor(numerator, denominator)
-            numerator = numerator // common
-            denominator = denominator // common
+            if count > 0:
+                part_top, part_bottom = _fraction_sum(
+                    part_top, part_bottom, count * count, sums[column]
+                )
+        parts += [(part_top, part_bottom)]
+        if rows[row] > 0:
+            numerator, denominator = _fraction_sum(
+                numerator, denominator, part_top, part_bottom * rows[row]
+            )
     # chi-squared = total * excess / denominator, the design effect weight /
     # total. The test: chi-squared over the design effect, over freedom, at
     # least HOUR_DEPENDENCE. The strength: (chi-squared - the design effect
     # times freedom) over total times (the shorter side less one) at least
     # the strength squared, in hundredths -- each times total * denominator.
-    weight = squares if squares > 0 else total
+    weight = squares if starts is None and squares > 0 else total
     shorter = min(kept_rows, kept_columns) - 1
     excess = numerator - denominator
-    return (
-        total * total * excess >= HOUR_DEPENDENCE * freedom * weight * denominator
-        and 10000 * (total * total * excess - weight * freedom * denominator)
-        >= DEPENDENCE_STRENGTH * DEPENDENCE_STRENGTH * shorter * total * total * denominator
-    )
+    floor = DEPENDENCE_STRENGTH * DEPENDENCE_STRENGTH
+    if total * total * excess >= HOUR_DEPENDENCE * freedom * weight * denominator and (
+        10000 * (total * total * excess - weight * freedom * denominator)
+        >= floor * shorter * total * total * denominator
+    ):
+        return True
+    # One hour group of R against the rest: chi-squared = n (n a - R * R)
+    # over R (n - R), a its row's sum of O * O / column; the test and the
+    # strength each asked times n * R * (n - R) * a's denominator.
+    for row in range(len(table)):
+        size = rows[row]
+        if size <= 0 or size >= total:
+            continue
+        part_top, part_bottom = parts[row]
+        spread = size * (total - size) * part_bottom
+        scaled = total * total * (total * part_top - size * size * part_bottom)
+        if scaled >= HOUR_DEPENDENCE * (kept_columns - 1) * weight * spread and (
+            10000 * (scaled - weight * (kept_columns - 1) * spread)
+            >= floor * total * total * spread
+        ):
+            return True
+    return False
+
+
+def _fraction_sum(top: int, bottom: int, part_top: int, part_bottom: int) -> "tuple[int, int]":
+    """`top / bottom` plus `part_top / part_bottom`, lowest terms, both
+    bottoms above nought. Raises nothing. No I/O."""
+    top = top * part_bottom + part_top * bottom
+    bottom = bottom * part_bottom
+    common = common_divisor(top, bottom)
+    return top // common, bottom // common
 
 
 def misled_by_the_count(

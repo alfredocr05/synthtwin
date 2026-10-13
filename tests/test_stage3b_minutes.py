@@ -1737,6 +1737,120 @@ def test_m3_sees_dependence_spread_over_minutes_each_under_a_twentieth(tmp_path:
     assert abs(early - len(mornings) / 3) < 100, (early, len(mornings))
 
 
+def _hourly(night_copies: int, day_copies: int, burst: int) -> "list[str]":
+    """The verifier's item 8: item 1's 30 days, night stamps written
+    `night_copies` times and day stamps `day_copies` times, and one stamp at
+    14:37 on day 15 written `burst` times."""
+    start = datetime.datetime(2023, 3, 1)
+    cells: "list[str]" = []
+    for day in range(30):
+        for hour in range(24):
+            night = hour < 7 or hour >= 19
+            minute = 0 if night else (day * 12 + hour - 7) % 60
+            moment = start + datetime.timedelta(days=day, hours=hour, minutes=minute)
+            cells += [moment.strftime("%Y-%m-%d %H:%M")] * (night_copies if night else day_copies)
+    cells += [(start + datetime.timedelta(days=15, hours=14, minutes=37)).strftime("%Y-%m-%d %H:%M")] * burst
+    return cells
+
+
+def _events_of(cells: "list[str]") -> "tuple[list[int], list[int], list[bool]]":
+    """The cells' hours, minutes and marks as the first of their written value,
+    in written order -- as the producer hands them to M3."""
+    ordered = sorted(cells)
+    starts = [place == 0 or ordered[place] != ordered[place - 1] for place in range(len(ordered))]
+    return [int(cell[11:13]) for cell in ordered], [int(cell[14:16]) for cell in ordered], starts
+
+
+@pytest.mark.parametrize(
+    ("night_copies", "day_copies", "burst", "real", "bound"),
+    [(1, 1, 100, 6, 30), (1, 30, 0, 180, 360)],
+    ids=["one_burst", "days_in_panels"],
+)
+def test_m3_counts_each_written_value_once(
+    tmp_path: pathlib.Path, night_copies: int, day_copies: int, burst: int, real: int, bound: int
+) -> None:
+    """The verifier's item 8 on the Codex round: M3's table counts events, each
+    different written value once, in the rows and columns the cells draw. One
+    global design effect over uneven ties sank a strong dependence -- one stamp
+    written 100 times among 720 (design effect 13.07) and day stamps written 30
+    times beside night stamps once -- the minute's facts were published and the
+    twin put 205 of 459, and 436 of 10,792, daytime cells on minute 0 against 6
+    and 180 real. Now withheld, said why, the twin's days near the real."""
+    cells = _hourly(night_copies, day_copies, burst)
+    described = _one_column(tmp_path, "stamps", cells)
+    block = described.block("stamps")
+    assert block["minute_heaps"] == [] and block["minute_census"] == []
+    said = [note["note"] for note in described.document["publication_notes"] if note["column"] == "stamps"]
+    assert taxonomy.rendered(taxonomy.NOTE_MINUTE_WITHHELD_WITH_THE_HOUR, ()) in said
+    days = [cell for cell in cells if 7 <= int(cell[11:13]) < 19]
+    assert sum(1 for cell in days if cell[14:16] == "00") == real
+    twin = shapes.cells_of(kpi_shapes.twin_text(described, 0), "stamps")
+    days = [cell for cell in twin if 7 <= int(cell[11:13]) < 19]
+    assert sum(1 for cell in days if cell[14:16] == "00") < bound, len(days)
+
+
+def test_m3_calls_no_burst_among_independent_minutes_a_dependence() -> None:
+    """Counted by event, one stamp written 1,000 times among a year of stamps
+    at any minute is one event: no table says the minute follows the hour (each
+    hour group divided by its own design effect, the rest of the hours' cells
+    against the burst's column still scored 36.3 and 0.54)."""
+    draw = random.Random(1)
+    start = datetime.datetime(2023, 3, 1)
+    cells: "list[str]" = []
+    for day in range(365):
+        for hour in range(24):
+            cells += [(start + datetime.timedelta(days=day, hours=hour, minutes=draw.randrange(60))).strftime("%Y-%m-%d %H:%M")]
+    cells += [(start + datetime.timedelta(days=182, hours=14, minutes=37)).strftime("%Y-%m-%d %H:%M")] * 1000
+    hours, minutes, starts = _events_of(cells)
+    for fine in (False, True):
+        assert not calendar_clock.depends_on_the_hour(hours, minutes, LINE, 0, fine, starts), fine
+    hours, minutes, starts = _events_of(_hourly(1, 1, 1000))
+    assert calendar_clock.depends_on_the_hour(hours, minutes, LINE, 0, False, starts)
+
+
+def _rounds(noise: int) -> "list[str]":
+    """The verifier's item 9: item 2's rounds, hour 20's at seconds 00, 20 and 40,
+    beside `noise` cells at any minute of twelve other hours, 30 days."""
+    draw = random.Random(5)
+    start = datetime.datetime(2023, 3, 1)
+    cells: "list[str]" = []
+    for day in range(30):
+        for minute in range(60):
+            cells += [(start + datetime.timedelta(days=day, hours=8, minutes=minute)).strftime("%Y-%m-%d %H:%M:%S")]
+        for minute in range(20):
+            for second in (0, 20, 40):
+                moment = start + datetime.timedelta(days=day, hours=20, minutes=minute, seconds=second)
+                cells += [moment.strftime("%Y-%m-%d %H:%M:%S")]
+    for _cell in range(noise):
+        moment = start + datetime.timedelta(
+            days=draw.randrange(30),
+            hours=draw.choice((1, 2, 3, 4, 5, 11, 12, 13, 14, 15, 16, 17)),
+            minutes=draw.randrange(60),
+            seconds=draw.randrange(60),
+        )
+        cells += [moment.strftime("%Y-%m-%d %H:%M:%S")]
+    return cells
+
+
+def test_m3_reads_each_hour_group_against_the_rest(tmp_path: pathlib.Path) -> None:
+    """The verifier's item 9 on the Codex round: over fourteen hour groups and
+    sixty minute groups the whole table's strength fell under the bar -- one less
+    than its shorter side, 13, divides it -- 60 minute groups were published and
+    the twin put 828 of its 1,800 cells of hour 08 on minutes 00 to 19 against
+    600 real. M3 also asks each hour group against the rest of the body, test and
+    strength: withheld, said why, the twin's hour 08 near 600."""
+    cells = _rounds(6000)
+    described = _one_column(tmp_path, "rounds", cells)
+    block = described.block("rounds")
+    assert block["minute_heaps"] == [] and block["minute_census"] == []
+    said = [note["note"] for note in described.document["publication_notes"] if note["column"] == "rounds"]
+    assert taxonomy.rendered(taxonomy.NOTE_MINUTE_WITHHELD_WITH_THE_HOUR, ()) in said
+    twin = shapes.cells_of(kpi_shapes.twin_text(described, 0), "rounds")
+    mornings = [cell for cell in twin if cell[11:13] == "08"]
+    early = sum(1 for cell in mornings if int(cell[14:16]) < 20)
+    assert abs(early - len(mornings) / 3) < 100, (early, len(mornings))
+
+
 def test_the_heap_remark_names_its_sure_cell_remainder(tmp_path: pathlib.Path) -> None:
     """The Codex review, item 7: 1,000 dates from 2023-01-01 at 09:30:00, day
     indexes 11 to 21 at 09:00:00, at floor 11 -- the 11 values on minute 0 stand

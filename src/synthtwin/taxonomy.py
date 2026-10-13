@@ -17450,8 +17450,8 @@ def clock_field_decision(
     # measurement of 2026-10-12): a value written on several rows -- a
     # burst of check-ins, a panel of results -- is one event, and counted
     # row by row a column at any minute written in panels looks heaped. The
-    # hour's test asks the cells, its statistics divided by the ties'
-    # design effect (`calendar_clock.depends_on_the_hour`).
+    # hour's test counts events too, in the table the cells draw
+    # (`calendar_clock.depends_on_the_hour`).
     units = [0 for _value in range(calendar_clock.FIELD_VALUES)]
     for place in range(len(body)):
         rank = rows_low + place
@@ -17466,16 +17466,12 @@ def clock_field_decision(
     body_seconds = seconds[rows_low : parsed - rows_high]
     kept_hours: "list[int]" = []
     kept_values: "list[int]" = []
-    # The design effect of the ties: each different value's cells, squared.
-    squares = 0
-    run = 0
+    # Each kept cell's mark as the first of its different written value:
+    # M3 counts events, each value once (`calendar_clock.depends_on_the_hour`).
+    starts: "list[bool]" = []
     for place in range(len(body)):
         rank = rows_low + place
-        if place > 0 and rank < len(fresh) and not fresh[rank]:
-            run = run + 1
-        else:
-            squares = squares + run * run
-            run = 1
+        first = not (place > 0 and rank < len(fresh) and not fresh[rank])
         if (
             isinstance(counted, int)
             and body_hours[place] == 0
@@ -17485,16 +17481,15 @@ def clock_field_decision(
             # A CELL AT A PUBLISHED MIDNIGHT is placed by that count, not by
             # the field: left out of M3's table (the skeptic measured
             # admissions at 17.2 with them and below the bar without).
-            run = run - 1
             continue
         kept_hours += [body_hours[place]]
         kept_values += [body[place]]
-    squares = squares + run * run
+        starts += [first]
     # M3 over both tables, coarse and fine (`calendar_clock._hour_table`; the
     # Codex review of landing 3b.4, item 2): each asks both questions.
     for fine in (False, True):
         if calendar_clock.depends_on_the_hour(
-            kept_hours, kept_values, line, squares, fine
+            kept_hours, kept_values, line, 0, fine, starts
         ) and calendar_clock.misled_by_the_count(kept_hours, kept_values, line, fine):
             return ClockFieldDecision(groups, heaps, calendar_clock.FIELD_REASON_HOUR)
     at_midnight = calendar_clock.midnight_sure(
