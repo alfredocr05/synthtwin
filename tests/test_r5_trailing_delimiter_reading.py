@@ -351,8 +351,19 @@ def _with_rows(data: bytes, rows: "dict[int, str]") -> bytes:
             "The first row names 4 columns, but row 61 has 2 (2 rows in total).",
             "row 51 has 4",
         ),
+        (
+            "probe K: row 51 holds two values and does not end in the semicolon",
+            {51: "P0051;30"},
+            "The first row names 4 columns, but row 51 has 2.",
+            "does not end in",
+        ),
     ],
-    ids=["probe-A-three-values-closed", "probe-E-two-closing", "probe-F-mixed"],
+    ids=[
+        "probe-A-three-values-closed",
+        "probe-E-two-closing",
+        "probe-F-mixed",
+        "probe-K-two-values-unclosed",
+    ],
 )
 def test_a_row_the_reading_cannot_read_is_named_by_its_own_values(
     tmp_path: pathlib.Path, label: str, rows: "dict[int, str]", shown: str, hidden: str,
@@ -364,7 +375,11 @@ def test_a_row_the_reading_cannot_read_is_named_by_its_own_values(
     the semicolon like the others but holds three values was filed as
     lacking the trailing semicolon ("row 51 does not end in a
     semicolon", false), red here on that filing (mutant
-    ``kind0_any_count``: any row of ``count <= width`` fields so filed).
+    ``kind0_no_closed_check``). A row of two values that does not close
+    (probe K, `P0051;30`) is short, not merely unclosed: "row 51 has 2",
+    red on mutant ``kind0_count_only`` (``count <= width and not
+    closed``), which files it as lacking the semicolon and hides its
+    missing values.
     The closing empty field is the delimiter, not a value, so the ragged
     sentence counts 3 and 5, not 4 and 6. And in a file mixing an
     unclosed row with a ragged one, the unclosed row of four values is
@@ -378,3 +393,24 @@ def test_a_row_the_reading_cannot_read_is_named_by_its_own_values(
     assert shown in said, (label, said)
     assert hidden not in said, (label, said)
     assert "Make every row end the same way" not in said, (label, said)
+
+
+def test_a_quoted_empty_last_value_is_a_value_not_the_closing_delimiter(
+    tmp_path: pathlib.Path,
+) -> None:
+    """A QUOTED EMPTY LAST VALUE IS NOT THE CLOSING DELIMITER (lane R5's
+    third repair, verifier item 2, probe Q).
+
+    Rows ending in `;` over a header that does not; row 51 is
+    `P0051;30;F;""`: four values, the last one quoted and empty, and no
+    closing semicolon. The row holds every value and lacks only the
+    trailing semicolon, so that is the sentence; reading the quoted
+    empty field as the delimiter said "row 51 has 3", which is false
+    (red on mutant ``closed_ignores_quote``: ``closed`` without the
+    ``found.quoted`` test)."""
+    real = tmp_path / "real.csv"
+    real.write_bytes(_with_rows(_uneven(False, {}, "", 120), {51: 'P0051;30;F;""'}))
+    code, said = _said(["profile", str(real), "--out-dir", str(tmp_path), "--replace"])
+    assert code == 1, (code, said)
+    assert "row 51 does not end in a semicolon" in said, said
+    assert "row 51 has 3" not in said, said

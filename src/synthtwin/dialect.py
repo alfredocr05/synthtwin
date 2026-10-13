@@ -5207,8 +5207,11 @@ def survey(
                 # `count == width` fields that ends in the delimiter
                 # (`P0051;age;arm;` under four columns) DOES end like the
                 # others and lacks a value; only a row whose last field
-                # holds something lacks the trailing delimiter.
-                closed = fields[count - 1] == ""
+                # holds something lacks the trailing delimiter. A QUOTED
+                # empty last field (`P0051;30;F;""`) is a value the row
+                # wrote, not the closing delimiter (lane R5's third
+                # repair, verifier item 2).
+                closed = fields[count - 1] == "" and not found.quoted[count - 1]
                 values = count - 1 if closed else count
                 if count == width and not closed:
                     uneven = uneven + 1
