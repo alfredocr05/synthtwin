@@ -29,7 +29,7 @@ import sys
 
 import pytest
 
-from synthtwin import dialect
+from synthtwin import dialect, errors
 
 ROWS = 400
 NAMES = ("record_id", "age", "arm", "weight")
@@ -507,20 +507,168 @@ def test_a_quoted_empty_last_field_does_not_line_a_reading_up(
     assert not found.form.rows_trailing_delimiter, label
 
 
-def test_the_comma_forms_the_walk_read_before_are_read_as_before() -> None:
-    """The comma form of Codex item 2's shapes never needed detection to
-    line it up: the comma is the fall-back, and the walk's own guess
-    about a trailing delimiter read them on 0ecc82d. That guess is kept
-    as it was, quoted field or not -- held to the quoting, `a,b` over
-    `1,2,""` went from described to refused and `a,b,""` over `1,2`
-    read three columns whose twin was read back as two (measured) -- so
-    these pin that nothing here moved."""
-    rows = _read(_rows_of("a,b", ['1,2,""'] * 120))
-    assert list(rows.header) == ["a", "b"]
-    assert rows.form.rows_trailing_delimiter
-    header = _read(_rows_of('a,b,""', ["1,2"] * 120))
-    assert list(header.header) == ["a", "b"]
-    assert header.form.header_trailing_delimiter
+_QUOTED_SENTENCE = 'ends in an empty value in quotation marks ("")'
+_NAME_SENTENCE = 'The first row of t.csv ends in an empty name in quotation marks ("")'
+
+
+def _refusal(text: str, mark: bool = False) -> str:
+    """The reader's refusal of a text, its first row the names, on one
+    line; ``mark`` says a byte-order mark led the file."""
+    with pytest.raises(errors.ProfileError) as refused:
+        dialect.settle(text, "utf-8", mark, False, "t.csv")
+    return " ".join(str(refused.value).split())
+
+
+def _past_the_sample(quoted: "range") -> str:
+    """600 rows ending in `;` under a header that does not; the rows
+    numbered in ``quoted`` end in `;""` instead (the verifier's probe)."""
+    lines = []
+    for number in range(1, 601):
+        lines += [f"P{number:04d};30;F;" + ('""' if number in quoted else "")]
+    return _rows_of("id;age;sex", lines)
+
+
+@pytest.mark.parametrize(
+    ("label", "text", "listed"),
+    [
+        ("row 501 alone", _past_the_sample(range(501, 502)), "but row 501 " + _QUOTED_SENTENCE + "."),
+        (
+            "rows 451 to 600",
+            _past_the_sample(range(451, 601)),
+            "row 453 " + _QUOTED_SENTENCE + " (150 rows in total).",
+        ),
+        (
+            "row 501 alone, CRLF and a byte-order mark",
+            "\ufeff" + _past_the_sample(range(501, 502)).replace("\n", "\r\n"),
+            "but row 501 " + _QUOTED_SENTENCE + ".",
+        ),
+    ],
+    ids=["row-501", "rows-451-600", "row-501-crlf-bom"],
+)
+def test_a_quoted_empty_value_where_the_rows_close_is_refused_past_the_sample(
+    label: str, text: str, listed: str
+) -> None:
+    """A QUOTED EMPTY PAST THE SAMPLE IS NOT TAKEN FOR THE CLOSING
+    DELIMITER (Codex item 2, its verifier's open half (a)). Rows ending
+    in `;` under a header that does not line up under the semicolon; row
+    501, past the 400-record sample, ends `;""`. bbce243 asked only
+    whether that last field was empty, took the `""` off as the closing
+    delimiter, and its twin wrote `P0501;30;F;` with twin and table
+    validating at 0 -- the spelling lost silently (0ecc82d read the file
+    as one column, losing nothing). The row holds one value more than
+    the rows that close, so the file is refused with that reason. Red on
+    bbce243, and on the mutant whose `closing` asks the empty field
+    alone."""
+    mark = text[:1] == "\ufeff"
+    said = _refusal(text[1:] if mark else text, mark)
+    assert listed in said, (label, said)
+    assert "Rows of t.csv end in a semicolon with nothing after it" in said, said
+    assert 'take the "" off' in said, said
+
+
+@pytest.mark.parametrize(
+    ("label", "text", "said"),
+    [
+        (
+            "rows end in a quoted empty value",
+            _rows_of("a,b", ['1,2,""'] * 120),
+            "The first row names 2 columns, but row 1 has 3",
+        ),
+        ("the header ends in a quoted empty name", _rows_of('a,b,""', ["1,2"] * 120), _NAME_SENTENCE),
+        (
+            "rows end in a quoted empty value and a bare comma by turns",
+            _rows_of("a,b", ['1,2,""', "1,2,"] * 60),
+            "but row 1 " + _QUOTED_SENTENCE,
+        ),
+        (
+            "rows end in a bare comma and a quoted empty value by turns",
+            _rows_of("a,b", ["1,2,", '1,2,""'] * 60),
+            "but row 2 " + _QUOTED_SENTENCE,
+        ),
+    ],
+    ids=["rows-quoted", "header-quoted", "mixed-quoted-first", "mixed-bare-first"],
+)
+def test_the_comma_forms_of_a_quoted_empty_last_field_are_refused(
+    label: str, text: str, said: str
+) -> None:
+    """THE WALK'S OWN GUESS ASKS THE QUOTING (Codex item 2, its
+    verifier's open half (b)). The comma is the fall-back, so these
+    never needed detection: the walk guessed a trailing delimiter from
+    an empty last field, quoted or not. bbce243 read `a,b` over
+    `1,2,""` as two columns closed by the comma and wrote `1,2,`, `a,b,""`
+    over `1,2` as a header closed by it, and lost which rows ended in
+    `""` in the mix. A quoted empty field is a value: the first is
+    ragged (two names, three values), the second names a column no row
+    fills that a twin would close, and in the mix the quoted rows are
+    named. Red on bbce243, and on the mutant whose first-row guess asks
+    the empty field alone."""
+    refused = _refusal(text)
+    assert said in refused, (label, refused)
+
+
+_DELIMITERS = [",", ";", "\t", "|"]
+_DELIMITER_IDS = ["comma", "semicolon", "tab", "bar"]
+
+
+@pytest.mark.parametrize("delimiter", _DELIMITERS, ids=_DELIMITER_IDS)
+def test_a_closed_header_over_quoted_empty_values_reads_three_columns(delimiter: str) -> None:
+    """Both sides end at the same place, the header in a bare delimiter
+    and every row in `""` (`a;b;` over `1;2;""`). bbce243 took both for
+    closing delimiters and its twin wrote `1;2;`. Every row holds a
+    third value, so the header's closing delimiter names a third column
+    with no name, and nothing is taken off; the twin writes `""` back
+    (the round trip below). Red on bbce243 under all four delimiters."""
+    found = _read(_rows_of(f"a{delimiter}b{delimiter}", [f'1{delimiter}2{delimiter}""'] * 120))
+    assert found.form.delimiter == delimiter
+    assert list(found.header) == ["a", "b", ""]
+    assert [column[0] for column in found.columns] == ["1", "2", ""]
+    assert not found.form.header_trailing_delimiter
+    assert not found.form.rows_trailing_delimiter
+
+
+@pytest.mark.parametrize("delimiter", _DELIMITERS, ids=_DELIMITER_IDS)
+def test_a_quoted_empty_against_a_closing_delimiter_on_both_sides_is_refused(delimiter: str) -> None:
+    """THE QUOTED EMPTY WHERE THE OTHER LINES CLOSE (Codex item 2, its
+    verifier's step (iii)). Header and rows end at the same place, one
+    side in `""` and the other in a bare delimiter, or the rows in both
+    by turns. bbce243 read the header `a;b;""` over `1;2;` as `a;b;`,
+    and the mixes by their first row, losing which rows wrote `""`. Read
+    as three columns, a twin writes the empty name or value bare and is
+    read back as two; read as two, the `""` is lost. Each is refused
+    with the reason, under all four delimiters. Red on bbce243, and on
+    the mutant without `_refuse_a_quoted_empty_against_closing`."""
+    d = delimiter
+    header = _refusal(_rows_of(f'a{d}b{d}""', [f"1{d}2{d}"] * 120))
+    assert _NAME_SENTENCE in header, header
+    for first, row in (("1", [f'1{d}2{d}""', f"1{d}2{d}"]), ("2", [f"1{d}2{d}", f'1{d}2{d}""'])):
+        mixed = _refusal(_rows_of(f"a{d}b{d}", row * 60))
+        assert f"but row {first} " + _QUOTED_SENTENCE in mixed, mixed
+        assert "(60 rows in total)" in mixed, mixed
+    quoted_header = _refusal(_rows_of(f'a{d}b{d}""', [f'1{d}2{d}""', f"1{d}2{d}"] * 60))
+    assert "but row 1 " + _QUOTED_SENTENCE in quoted_header, quoted_header
+
+
+def test_a_quoted_empty_name_written_quoted_throughout_is_read() -> None:
+    """The refusal is owed only where the twin would close the line: a
+    header quoted throughout (`"a";"b";""`) is written so, `""` and
+    all, and reads as three columns over rows `1;2;`."""
+    found = _read(_rows_of('"a";"b";""', ["1;2;"] * 120))
+    assert list(found.header) == ["a", "b", ""]
+    assert found.form.header_quoting == dialect.QUOTE_ALWAYS
+
+
+@pytest.mark.parametrize(("delimiter", "word"), [(",", "comma"), (";", "semicolon")], ids=["comma", "semicolon"])
+def test_the_quoted_empty_values_are_written_back(tmp_path: pathlib.Path, delimiter: str, word: str) -> None:
+    """The round trip of `a;b;` over `1;2;""`: the twin writes `""` at
+    the end of every row as the source did, reads back to the same
+    form, and twin and table validate at 0. On bbce243 it wrote `1;2;`."""
+    data = _rows_of(f"a{delimiter}b{delimiter}", [f'{index}{delimiter}{index % 7}{delimiter}""' for index in range(120)])
+    result = _round_trip(tmp_path, data.encode("utf-8"))
+    twin = result["twin"].split(b"\n")
+    assert twin[0] == f"a{delimiter}b{delimiter}".encode(), (word, twin[:2])
+    assert twin[1].endswith(f'{delimiter}""'.encode()), (word, twin[:2])
+    assert result["twin_form"] == result["form"]
+    assert result["exits"] == {"twin": 0, "real": 0}, result["exits"]
 
 
 @pytest.mark.parametrize(

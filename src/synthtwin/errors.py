@@ -445,6 +445,9 @@ def ragged_rows(
 ROW_LACKS_THE_TRAILING_DELIMITER = 0
 ROW_HAS_A_VALUE_AFTER_THE_LAST_DELIMITER = 1
 ROW_CARRIES_A_TRAILING_DELIMITER = 2
+# A row whose last field, where the other rows close, is an empty value
+# in quotation marks (Codex's review of landing R5, item 2).
+ROW_ENDS_IN_A_QUOTED_EMPTY_VALUE = 3
 
 
 def trailing_delimiter_uneven(
@@ -468,6 +471,7 @@ def trailing_delimiter_uneven(
     """
     described: list[str] = []
     header_side = False
+    quoted = False
     # "a semicolon" names the character; "the semicolon" points at one.
     bare = delimiter[2:] if delimiter[:2] == "a " else delimiter
     for number, kind in offenders:
@@ -478,11 +482,31 @@ def trailing_delimiter_uneven(
                 f"row {number} has a value after the {bare} "
                 f"that ends the other rows"
             ]
+        elif kind == ROW_ENDS_IN_A_QUOTED_EMPTY_VALUE:
+            quoted = True
+            described += [
+                f'row {number} ends in an empty value in quotation marks ("")'
+            ]
         else:
             header_side = True
             described += [f"row {number} ends in {delimiter}"]
     listed = _listed(described)
     tail = "" if total <= len(offenders) else f" ({total} rows in total)"
+    if quoted:
+        # A QUOTED EMPTY VALUE WHERE THE OTHER ROWS CLOSE (Codex's
+        # review of landing R5, item 2): `""` is a value, so the row
+        # holds one more than the rows that close, and a twin, which
+        # writes an empty value bare, would end it like them.
+        return (
+            f"Rows of {path} end in {delimiter} with nothing after it, "
+            f"which reads as ending the row, but {listed}{tail}. That "
+            f"empty value cannot be told apart from the rows that end in "
+            f"{delimiter} once it is written without its quotation marks. "
+            f"Rows are counted after the first row, leaving out blank "
+            f'lines. Make every row end the same way: take the "" off, or '
+            f"name a column for it in the first row and write it on every "
+            f"row. {_CHECK_AND_RETRY}"
+        )
     if header_side:
         lead = (
             f"The first row of {path} ends in {delimiter} and the rows "
@@ -499,6 +523,28 @@ def trailing_delimiter_uneven(
         f"{lead}{tail}. Rows are counted after the first row, leaving out "
         f"blank lines. Make every row end the same way, with {delimiter} "
         f"at the end of every row or of none. {_CHECK_AND_RETRY}"
+    )
+
+
+def quoted_empty_name_over_an_empty_column(path: str, delimiter: str = "a comma") -> str:
+    """Message for a first row ending in a quoted empty name no row fills.
+
+    A QUOTED EMPTY NAME OVER NOTHING (Codex's review of landing R5, item
+    2). `a;b;""` over rows `1;2;` or `1;2` names a third column that
+    holds no value. Read that way, its twin writes the empty name
+    without its quotation marks, `a;b;`, which reads as the delimiter
+    that ends the row: the twin would read as two columns and the table
+    as three. Read the other way, the quotation marks would be lost. The
+    file is refused with the reason rather than read either way.
+    """
+    return (
+        f'The first row of {path} ends in an empty name in quotation '
+        f'marks (""), and no row after it holds a value under that name. '
+        f"Written without the quotation marks, that row would end in "
+        f"{delimiter} with nothing after it, which reads as ending the "
+        f"row, so a twin could not be read the way this file is. Give "
+        f'the last column a name, or take the "" off the end of the first '
+        f"row. {_CHECK_AND_RETRY}"
     )
 
 

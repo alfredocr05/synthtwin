@@ -5211,6 +5211,9 @@ def survey(
     # ragged-rows sentence about quotation marks.
     uneven = 0
     uneven_rows: list[tuple[int, int]] = []
+    quoted_wider = 0
+    closing_wider = 0
+    quoted_rows: list[tuple[int, int]] = []
     short = 0
     short_inconsistent = False
     full_ending_empty = 0
@@ -5253,18 +5256,22 @@ def survey(
                 width = len(fields)
             else:
                 named = len(header)
-                # THE WALK'S OWN GUESS IS 0ecc82d's, quoted or not
-                # (Codex's review of landing R5, item 2). Detection no
-                # longer lines a reading up by a quoted empty field
-                # (`_closes`), so no reading this walk is handed is
-                # admitted by one; the comma form of those shapes, which
-                # 0ecc82d read here, is read as it was. Holding this
-                # guess to the quoting as well was measured: `a,b` over
-                # rows `1,2,""` went from described to refused, and
-                # `a,b,""` over rows `1,2` read three columns whose
-                # twin wrote its header `a,b,` and was read back as two.
-                last_empty = fields[len(fields) - 1] == ""
-                header_last_empty = named >= 2 and header[named - 1] == ""
+                # THE WALK'S OWN GUESS ASKS THE QUOTING TOO (Codex's
+                # review of landing R5, item 2, and its verifier). Only
+                # an empty, UNQUOTED last field is the delimiter that
+                # closes a line (`_closes`); `""` is a value. Guessing
+                # from the empty field alone read `a,b` over rows
+                # `1,2,""` as two columns closed by the comma and wrote
+                # `1,2,`, and `a,b,""` over `1,2` as a header closed by
+                # it, written `a,b,`. The first is now refused as ragged
+                # (two names, three values); the second by the check
+                # below on a quoted empty name over nothing.
+                last_empty = _closes(found)
+                header_last_empty = (
+                    named >= 2
+                    and header[named - 1] == ""
+                    and not header_flags[named - 1]
+                )
                 if (
                     trailing_guess
                     and header_last_empty
@@ -5291,14 +5298,26 @@ def survey(
                 )
             columns = [[] for _place in range(width)]
             flags = [bytearray() for _place in range(width)]
-        closing = rows_trailing and len(fields) == width + 1 and fields[len(fields) - 1] == ""
+        closing = rows_trailing and len(fields) == width + 1 and _closes(found)
         spaces_broken = spaces_broken or _spaces_broken(found, spaced, closing)
         count = len(fields)
         if rows_trailing:
             if closing:
                 count = width
             else:
-                if header_trailing:
+                # A QUOTED EMPTY VALUE WHERE THE OTHER ROWS CLOSE (Codex's
+                # review of landing R5, item 2, and its verifier): row
+                # 501 `P0501;30;F;""` among rows ending `;` holds one
+                # value more than they do, which a twin, writing an
+                # empty value bare, would end like them -- `P0501;30;F;`,
+                # the spelling silently lost. It is refused with that
+                # reason, and no retry reads it as one more column.
+                quoted_empty = (
+                    count == width + 1
+                    and fields[count - 1] == ""
+                    and bool(found.quoted[count - 1])
+                )
+                if header_trailing and not quoted_empty:
                     trailing_broken = True
                 # THE ROW'S OWN VALUES (lane R5's second repair, skeptic
                 # 2 items 1 and 2): a closing empty field is the
@@ -5312,7 +5331,13 @@ def survey(
                 # repair, verifier item 2).
                 closed = _closes(found)
                 values = count - 1 if closed else count
-                if count == width and not closed:
+                if quoted_empty:
+                    uneven = uneven + 1
+                    if len(uneven_rows) < 3:
+                        uneven_rows += [
+                            (n_rows + 1, errors.ROW_ENDS_IN_A_QUOTED_EMPTY_VALUE)
+                        ]
+                elif count == width and not closed:
                     uneven = uneven + 1
                     if len(uneven_rows) < 3:
                         uneven_rows += [
@@ -5346,6 +5371,26 @@ def survey(
                     uneven_rows += [
                         (n_rows + 1, errors.ROW_CARRIES_A_TRAILING_DELIMITER)
                     ]
+            elif (
+                not header_trailing
+                and not first_row_is_data
+                and count == width + 1
+                and fields[count - 1] == ""
+            ):
+                # Rows one field wider than the header that end empty,
+                # read without a trailing delimiter because the first
+                # of them ended in `""` (Codex's mix, `1,2,""` then
+                # `1,2,` under `a,b`): counted, so that where both kinds
+                # stand and nothing else is ragged, the quoted ones are
+                # named as in the trailing walk.
+                if found.quoted[count - 1]:
+                    quoted_wider = quoted_wider + 1
+                    if len(quoted_rows) < 3:
+                        quoted_rows += [
+                            (n_rows + 1, errors.ROW_ENDS_IN_A_QUOTED_EMPTY_VALUE)
+                        ]
+                else:
+                    closing_wider = closing_wider + 1
             ragged = ragged + 1
             if len(offenders) < 3:
                 offenders += [(n_rows + 1, count)]
@@ -5411,6 +5456,12 @@ def survey(
                 shown, uneven_rows, uneven, DELIMITER_WORDS[delimiter]
             )
         )
+    if quoted_wider and closing_wider and ragged == quoted_wider + closing_wider:
+        raise errors.ProfileError(
+            errors.trailing_delimiter_uneven(
+                shown, quoted_rows, quoted_wider, DELIMITER_WORDS[delimiter]
+            )
+        )
     if ragged:
         if trailing_broken and trailing_guess:
             return survey(
@@ -5466,6 +5517,10 @@ def survey(
     header_rule, header_held = _header_census(
         list(header), list(header_flags), delimiter, escaping, spaced
     )
+    if header_record is not None and not header_trailing and not rows_trailing:
+        _refuse_a_quoted_empty_against_closing(
+            header, header_flags, header_rule, columns, flags, n_rows, delimiter, shown
+        )
     metadata_cells: list[str] = []
     for row in header_rows:
         metadata_cells += list(row)
@@ -5753,6 +5808,65 @@ def spread_endings(census: "tuple[EndingRun, ...]") -> "list[str]":
             endings[at] = census[index].ending
             cursor = at + 1
     return endings
+
+
+def _refuse_a_quoted_empty_against_closing(
+    header: "list[str]",
+    header_flags: "list[bool]",
+    header_rule: str,
+    columns: "list[list[str]]",
+    flags: "list[bytearray]",
+    n_rows: int,
+    delimiter: str,
+    shown: str,
+) -> None:
+    """Refuse a last column a twin could not write back the way it reads.
+
+    A QUOTED EMPTY WHERE THE OTHER LINES CLOSE (Codex's review of landing
+    R5, item 2, and its verifier). A reading without a trailing delimiter
+    whose last column has an empty name and holds no value, with `""`
+    in some of its places and nothing quoted in others: the header
+    `a;b;""` over rows `1;2;` or `1;2`, or the header `a;b;` over rows
+    ending `;""` and `;` by turns. The twin writes an empty name or value
+    without quotation marks unless every one of them was quoted, so its
+    lines would end in the delimiter with nothing after it, which reads
+    as closing them, and the twin would be read as one column fewer than
+    the table -- or, read that way here, the quotation marks would be
+    lost. Where every row's last cell is `""` the twin writes it so, and
+    the header `a;b;` over rows `1;2;""` reads as three columns both
+    ways; a header written quoted throughout keeps its `""` too.
+    """
+    width = len(columns)
+    if width < 2 or len(header) != width or not n_rows:
+        return
+    last = width - 1
+    if header[last] != "" or header_rule == QUOTE_ALWAYS:
+        return
+    for cell in columns[last]:
+        if cell != "":
+            return
+    marks = flags[last]
+    quoted_rows: list[tuple[int, int]] = []
+    quoted = 0
+    for row in range(len(marks)):
+        if marks[row]:
+            quoted = quoted + 1
+            if len(quoted_rows) < 3:
+                quoted_rows += [(row + 1, errors.ROW_ENDS_IN_A_QUOTED_EMPTY_VALUE)]
+    if quoted == len(marks):
+        return
+    if quoted:
+        raise errors.ProfileError(
+            errors.trailing_delimiter_uneven(
+                shown, quoted_rows, quoted, DELIMITER_WORDS[delimiter]
+            )
+        )
+    if header_flags[last]:
+        raise errors.ProfileError(
+            errors.quoted_empty_name_over_an_empty_column(
+                shown, DELIMITER_WORDS[delimiter]
+            )
+        )
 
 
 def _spaces_broken(record: Record, spaced: bool, closing: bool = False) -> bool:
