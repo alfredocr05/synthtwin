@@ -681,7 +681,10 @@ def test_or_starts_meet_their_census_through_relief(tmp_path: pathlib.Path, monk
     day of its weekday inside the gap, so SAMEDAY and the escape leave it
     where it is; RELIEF moves a unit of hour 7 to a later hour of its own
     day and the rank into hour 7 (G7.3g step 3). Seeds 0 and 1 at a floor
-    of 11, nothing missed. Mutant: RELIEF withdrawn, the census missed.
+    of 11, nothing missed. Mutant: RELIEF withdrawn, the census missed --
+    with the round paid back after it withdrawn too, since the OR starts
+    publish a weekday census and lane J's escape paid back (plan P4-D379)
+    meets their hours another way where RELIEF has not.
     """
     columns = _or_starts()
     cells, form = columns["or_start"]
@@ -692,6 +695,7 @@ def test_or_starts_meet_their_census_through_relief(tmp_path: pathlib.Path, monk
         assert kpi_shapes.missed(kpi_shapes.measure(described, written, f"twin-{seed}.csv")) == [], seed
         assert _statistics_failures(described.block("or_start"), cells, _cells(written, "or_start"), form) == [], seed
     monkeypatch.setattr(generation, "_clock_relieved", lambda *_arguments: None)
+    monkeypatch.setattr(generation, "_clock_paid_escape", lambda *_arguments: None)
     written = kpi_shapes.twin_text(described, 0)
     missed = kpi_shapes.missed(kpi_shapes.measure(described, written, "mutant.csv"))
     assert "or_start:hour_census.groups" in missed, missed
@@ -1017,6 +1021,12 @@ def _answer(case: dict, module=generation) -> list:
     elif step == "relief":
         have = module._clock_found(state, len(case["counts"]), first, last)
         module._clock_relieved(state, list(case["counts"]), have, first, last, pinned)
+    elif step == "paid":
+        # THE ESCAPE PAID BACK (lane J): step 3's round where a weekday census stands.
+        have = module._clock_found(state, len(case["counts"]), first, last)
+        module._clock_left_their_groups(
+            state, list(case["counts"]), have, first, last, pinned, standing, False, kin, True
+        )
     elif step == "put_back":
         module._clock_count_put_back(state, first, last, pinned, case["wanted"], standing, anyday, kin)
     elif step == "midnight":
@@ -1079,6 +1089,22 @@ class _Distances:
 
 # Each case's mutant: the one edit that withdraws or bends the step the
 # case freezes, and the case it turns red.
+# Step 3 and RELIEF in the clock pass, and the round paid back after them where a weekday
+# census stands (lane J), which would otherwise ask step 3's places once more.
+_OWN_STEPS = (
+    "    if found != counts:\n        _clock_left_their_groups(\n"
+    "            state, counts, found, body_low, body_high, pinned, standing, False, kin\n"
+    "        )\n    if found != counts:\n        _clock_relieved(state, counts, found, body_low, body_high, pinned)\n"
+    "    if found != counts and anyday:\n"
+    "        # THE LAST RESORT, where no weekday census stands: step 3 once more,\n"
+    "        # its escape free at last to take a day of another weekday, once\n"
+    "        # RELIEF, which keeps every day, has had its turn.\n"
+    "        _clock_left_their_groups(\n"
+    "            state, counts, found, body_low, body_high, pinned, standing, True, kin\n"
+    "        )\n    elif found != counts:\n"
+)
+
+
 STEP_MUTANTS = {
     "SAMEDAY withdrawn": (
         "hour_same_day_clock",
@@ -1102,7 +1128,7 @@ STEP_MUTANTS = {
     ),
     "no SPLIT": (
         "hour_split",
-        "for members in [unit] + ([[rank] for rank in unit] if size > 1 else []):\n                    if have[group] <= counts[group]:\n                        break\n                    here",
+        "for members in tries + ([[rank] for rank in unit] if size > 1 else []):\n                    if have[group] <= counts[group]:\n                        break\n                    here",
         "for members in [unit]:\n                    if have[group] <= counts[group]:\n                        break\n                    here",
     ),
     "RELIEF asks no full group": (
@@ -1147,8 +1173,10 @@ STEP_MUTANTS = {
     ),
     "the whole pass without its own steps": (
         "hour_whole_pass",
-        "    if found != counts:\n        _clock_left_their_groups(\n            state, counts, found, body_low, body_high, pinned, standing, False, kin\n        )\n    if found != counts:\n        _clock_relieved(",
-        "    if found != counts and False:\n        _clock_left_their_groups(\n            state, counts, found, body_low, body_high, pinned, standing, False, kin\n        )\n    if found != counts and False:\n        _clock_relieved(",
+        _OWN_STEPS,
+        _OWN_STEPS.replace("    if found != counts:\n", "    if found != counts and False:\n").replace(
+            "    elif found != counts:\n", "    elif False:\n"
+        ),
     ),
     # THE STEP DETAILS no other state turned red (the lane's skeptic, finding 3 (h)).
     "PUT BACK merges onto a written midnight": (
@@ -1223,6 +1251,64 @@ STEP_MUTANTS = {
         "    if kin:\n        for away in range(1, per_day):\n            for other in (seat - away, seat + away):\n                if other < 0 or other >= per_day or kin[other] != kin[seat]:\n                    continue\n                target = nearest_on(",
         "    if False:\n        for away in range(1, per_day):\n            for other in (seat - away, seat + away):\n                if other < 0 or other >= per_day or kin[other] != kin[seat]:\n                    continue\n                target = nearest_on(",
     ),
+    # THE ESCAPE PAID BACK (lane J, plan P4-D367): where a weekday census stands, a unit
+    # with no place on a day of its standing takes one on a day of another, as many ranks
+    # of that standing moved by whole days onto days of its own.
+    "step 3 is never paid back": (
+        "hour_paid_escape",
+        "                    if target is None and book is not None:\n",
+        "                    if target is None and False:\n",
+    ),
+    "a payer takes a day of any standing": (
+        "hour_paid_escape",
+        "            if standing[calendar_rules.weekday_of(target // state.day)] != origin:\n                continue\n            if _weekday_width_kind(state, target) == width:",
+        "            if _weekday_width_kind(state, target) == width:",
+    ),
+    "the first payer goes, keeping the count or not": (
+        "hour_paid_keeping",
+        "                if alone != _weekday_holds(state, place):\n                    chosen = (rank, place)",
+        "                if False:\n                    chosen = (rank, place)",
+    ),
+    "payers too few are never given back": (
+        "hour_paid_given_back",
+        "        if chosen is None:\n            for rank, before in reversed(taken):\n                _clock_book_moved(state, book, rank, before)\n            return len(taken)",
+        "        if chosen is None:\n            return len(taken)",
+    ),
+    "the whole pass without its paid round": (
+        "hour_paid_pass",
+        "    elif found != counts:\n        # ...AND PAID BACK where one stands",
+        "    elif False:\n        # ...AND PAID BACK where one stands",
+    ),
+    # Lane J's skeptic: finding 3, a payer's place asks no hole; finding 1, the round
+    # given back where steps 4 to 6 come nearer the count without it, and kept on a tie.
+    "a payer lands on a hole": (
+        "hour_paid_hole",
+        "            if target < low or target > high or _weekday_hole(state, target):\n                continue\n            if standing[calendar_rules.weekday_of(target // state.day)] != origin:",
+        "            if target < low or target > high:\n                continue\n            if standing[calendar_rules.weekday_of(target // state.day)] != origin:",
+    ),
+    "the round kept where it costs the count": (
+        "hour_paid_count_given_back",
+        "    if unpaid is not None and _clock_count_off(state, wanted, published) > 0:",
+        "    if False:",
+    ),
+    "the round given back where the count is no nearer without it": (
+        "hour_paid_count_tied",
+        "        if _clock_count_off(state, wanted, published) >= off:\n            _clock_restored(state, paid)",
+        "        if _clock_count_off(state, wanted, published) > off:\n            _clock_restored(state, paid)",
+    ),
+    # Codex's review of lane J, item 1: a unit a payer took a rank of is asked as it stands.
+    "a unit is asked as listed": (
+        "hour_paid_unit_standing",
+        "                unit, whole = _clock_unit_standing(state, unit, listed[unit[0]])\n",
+        "                whole = True\n",
+    ),
+    # Lane J's second skeptic, finding 1: the round given back where steps 4 to 6 come
+    # nearer the count without it though they still miss it, not only where they meet it.
+    "the round given back only where the count is met without it": (
+        "hour_paid_count_nearer",
+        "        if _clock_count_off(state, wanted, published) >= off:\n            _clock_restored(state, paid)",
+        "        if _clock_count_off(state, wanted, published) > 0:\n            _clock_restored(state, paid)",
+    ),
 }
 
 # ...and step 10's, edits of `calendar_clock`.
@@ -1248,6 +1334,9 @@ CASES = [
     "clock_minute_kin_escape", "clock_minute_kin_kept", "clock_minute_put_back_kin",
     "half_day_apart", "half_day_high", "half_day_low", "hour_escape_any_day", "hour_escape_weekday",
     "hour_half_day_tails", "hour_half_day_tails_stratum", "hour_off_a_hole", "hour_off_midnight",
+    "hour_paid_count_given_back", "hour_paid_count_nearer", "hour_paid_count_tied", "hour_paid_escape",
+    "hour_paid_given_back",
+    "hour_paid_hole", "hour_paid_keeping", "hour_paid_pass", "hour_paid_unit_standing",
     "hour_proportional", "hour_put_back", "hour_put_back_any_day", "hour_put_back_off_midnight",
     "hour_put_back_short", "hour_put_back_short_shared", "hour_relief", "hour_relief_given_back",
     "hour_rounds", "hour_same_day_clock", "hour_sixtieth_second", "hour_sixtieth_ties", "hour_split",
@@ -1266,6 +1355,156 @@ def test_every_case_is_asked_and_the_oracle_agrees() -> None:
     assert sorted(oracle.HOUR_STEP_CASES) == sorted(_FILE["cases"])
     for name, case in _FILE["cases"].items():
         assert oracle.hour_step_answer(case) == case["answer"], name
+
+
+def _weekday_counts(case: dict, ordinals: "list[int]") -> "list[int]":
+    """How many of a state's ranks stand on a day of each standing, read off the day number
+    alone (1970-01-01, day 0, a Thursday)."""
+    found = [0] * (max(case["standing"]) + 1)
+    for ordinal in ordinals:
+        found[case["standing"][(ordinal // DAY + 3) % 7]] += 1
+    return found
+
+
+def test_every_frozen_state_beside_a_weekday_census_keeps_its_weekday_counts() -> None:
+    """Codex's review of lane J, item 1: an assertion of the census itself, not of any step's
+    answer. Every frozen state whose weekday census stands (more than one standing) and whose
+    steps may not take a day of another standing (no LAST RESORT) comes back -- in the file
+    and from the product -- with as many ranks on the days of each standing as it began with.
+    The state Codex built, asked through the whole pass at nine ranks and each rank repeated
+    twelve times, keeps them too; 689d405 turned Monday 2 and Sunday 5 into 3 and 4, and 24
+    and 60 into 36 and 48."""
+    held = []
+    for name, case in sorted(_FILE["cases"].items()):
+        if "ordinals" not in case or len(set(case["standing"])) < 2 or case.get("anyday", False):
+            continue
+        before = _weekday_counts(case, case["ordinals"])
+        assert _weekday_counts(case, case["answer"]) == before, name
+        assert _weekday_counts(case, _answer(case)) == before, name
+        held += [name]
+    assert "hour_paid_unit_standing" in held and len(held) >= 10, held
+    case = _case("hour_paid_unit_standing")
+    oracle = _oracle()
+    ordinals: "list[int]" = []
+    pins: "set[int]" = set()
+    for rank, ordinal in enumerate(case["ordinals"]):
+        for _copy in range(12):
+            if case["pinned"][rank]:
+                pins |= {len(ordinals)}
+            ordinals += [ordinal]
+    repeated = oracle.hour_case(
+        "Codex's state, each rank and its pin twelve times", "pass", ordinals, pins, [0, 108, 0],
+        case["where"], standing=case["standing"],
+    )
+    assert repeated["wanted"] == 8
+    assert _weekday_counts(repeated, ordinals) == [24, 0, 0, 0, 12, 12, 60]
+    moved = _answer(repeated)
+    assert _weekday_counts(repeated, moved) == [24, 0, 0, 0, 12, 12, 60]
+    assert _weekday_counts(repeated, oracle.hour_step_answer(repeated)) == [24, 0, 0, 0, 12, 12, 60]
+    assert sorted({(ordinal % DAY) // 3600 for ordinal in moved}) == [12]
+    assert len({ordinal // 60 for ordinal in moved}) == 8
+
+
+class _CountedSet(set):  # type: ignore[type-arg]
+    """A set counting the entries every union it takes part in writes (Codex's review of
+    lane J, item 3): a copy `a | b` writes both, an update in place `a |= b` the new ones."""
+
+    written = 0
+
+    def __or__(self, other):  # type: ignore[no-untyped-def,override]
+        _CountedSet.written += len(self) + len(other)
+        return _CountedSet(set.__or__(self, other))
+
+    def __ior__(self, other):  # type: ignore[no-untyped-def,override,misc]
+        _CountedSet.written += len(other)
+        return set.__ior__(self, other)
+
+
+def _paid_work(case: dict, monkeypatch: pytest.MonkeyPatch) -> "dict[str, int]":
+    """Step 3's round paid back run on a state, with its work counted, machine-free: the set
+    entries its unions write, the days its walks read a weekday of, the payers' places asked
+    and the days the payer book keeps a cursor for."""
+    books: "list[generation._ClockPayerBook]" = []
+    found = {"set entries": 0, "days read": 0, "places asked": 0}
+    booked = generation._clock_payer_book
+    weekday = calendar_rules.weekday_of
+    place = generation._clock_payer_place
+
+    def book(*args):  # type: ignore[no-untyped-def]
+        books.append(booked(*args))
+        return books[-1]
+
+    def read(day: int) -> int:
+        found["days read"] += 1
+        return weekday(day)
+
+    def asked(*args):  # type: ignore[no-untyped-def]
+        found["places asked"] += 1
+        return place(*args)
+
+    _CountedSet.written = 0
+    with monkeypatch.context() as patch:
+        patch.setattr(generation, "set", _CountedSet, raising=False)
+        patch.setattr(generation, "_clock_payer_book", book)
+        patch.setattr(generation, "_clock_payer_place", asked)
+        patch.setattr(calendar_rules, "weekday_of", read)
+        state = _state(case)
+        first, last = case["body"]
+        have = generation._clock_found(state, len(case["counts"]), first, last)
+        generation._clock_left_their_groups(
+            state, list(case["counts"]), have, first, last, list(case["pinned"]), tuple(case["standing"]),
+            False, (), True,
+        )
+    found["set entries"] = _CountedSet.written
+    found["cursors"] = len(books[0].cursor)
+    found["hour 12"] = sum(1 for ordinal in state.moved if (ordinal % DAY) // 3600 == 12)
+    return found
+
+
+def _paid_state(departing: int, apart_weeks: int) -> dict:
+    """`hour_paid_pass`'s state with its Monday rank at 05:23 and its Sunday payer repeated
+    `departing` times each, the payer's side `apart_weeks` weeks further off, nothing between."""
+    oracle = _oracle()
+    m, w = oracle.HOUR_MONDAY, 7 * apart_weeks
+    ordinals = [oracle.hour_at(m - 3, 12), oracle.hour_at(m - 2, 12, 20), oracle.hour_at(m - 1, 12, 30)]
+    ordinals += [oracle.hour_at(m, 5, 23)] * departing + [oracle.hour_at(m, 12)]
+    ordinals += [oracle.hour_at(m + w + 3, 12)] + [oracle.hour_at(m + w + 6, 12, 10)] * departing
+    ordinals += [oracle.hour_at(m + w + 9, 12)]
+    pins = {0, 3 + departing, 4 + departing, len(ordinals) - 1}
+    return oracle.hour_case(
+        "work", "paid", ordinals, pins, [0, len(ordinals), 0], oracle.HOUR_NOON, standing=oracle.HOUR_WEEK
+    )
+
+
+def test_the_payers_work_grows_with_the_rows_alone(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Codex's review of lane J, item 3 (High), over the rows. A unit of k ranks needs k
+    payers. 689d405 took `asked = asked | {payer}` once a payer, a copy of a growing set:
+    60,100 entries written for a unit of 200 and 240,200 for 400 (Codex timed k = 8,000 to
+    32,000 at 0.44 to 6.54 CPU seconds), and read 3,206 and 6,406 days. Each payer now joins
+    the set in place -- 200 and 400 entries -- and the days are met once for the unit (809
+    and 1,609), so doubling the unit at most doubles every count: the set entries, the days
+    read and the places asked (400 and 800). Every rank still meets hour 12."""
+    small = _paid_work(_paid_state(200, 0), monkeypatch)
+    large = _paid_work(_paid_state(400, 0), monkeypatch)
+    assert (small["hour 12"], large["hour 12"]) == (406, 806)
+    for key in ("set entries", "days read", "places asked"):
+        assert large[key] <= 2 * small[key] + 8, (key, small, large)
+    assert large["set entries"] <= 400 and large["places asked"] <= 800, large
+
+
+def test_the_payers_work_does_not_grow_with_the_empty_calendar(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Codex's review of lane J, item 3 (High), over the calendar span. 689d405's walk for
+    each payer restarted at the unit's own day and read every day out to the payers' --
+    1,000 and 2,000 weeks of nothing between, 12 departing ranks: 168,198 and 336,198 days
+    read -- and kept a cursor for each day of the payers' standing it read, empty or not
+    (2,002 and 4,002, Codex's own counts). The walk now steps over the days holding ranks
+    alone, outward from the unit's day, once for the unit: 57 days read and 2 cursors at
+    both spans, every count at 2,000 weeks that at 1,000."""
+    near = _paid_work(_paid_state(12, 1000), monkeypatch)
+    far = _paid_work(_paid_state(12, 2000), monkeypatch)
+    assert near["hour 12"] == far["hour 12"] == 30
+    assert far == near, (near, far)
+    assert near["cursors"] <= 4 and near["days read"] <= 100, near
 
 
 @pytest.mark.parametrize("name", CASES)

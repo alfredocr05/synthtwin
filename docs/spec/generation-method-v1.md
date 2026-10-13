@@ -7291,7 +7291,10 @@ weekday's group in the column's `weekday_census` where one stands, and
 its weekday itself where none does. No step below moves a rank to a day
 of another standing, but for two LAST RESORTS where no weekday census
 stands (steps 3 and 6), each taken only once every move keeping the
-standing has been made: nothing published then counts a weekday.
+standing has been made: nothing published then counts a weekday. Where
+one stands, the one such move is step 3's ESCAPE PAID BACK, which moves
+as many ranks of the other standing onto days of the unit's own, so
+every weekday count is kept.
 
 1. **Pinned.** No rank the layout pins moves (G7.3), nor one whose gap is
    a single place, nor -- where `n_at_midnight` is published -- one
@@ -7358,6 +7361,65 @@ standing has been made: nothing published then counts a weekday.
    measured baseline: a cell on a rung's day may move to the nearest
    other day inside its gap where same-day moves cannot meet the
    census).
+
+   And where a weekday census stands and a group is still over its
+   count, the rounds above once more with THE ESCAPE PAID BACK (lane J,
+   plan P4-D367), asked of a unit SAMEPARENT and the ESCAPE leave with
+   no place: the other days of its gap, nearest first, the earlier on a
+   tie, no hole and of its width kind, whose day standing is another,
+   and on each SAMEPARENT's place at its own seat, taken only where as
+   many PAYERS as the unit has ranks are found and moved. A payer is a
+   movable body rank, not of the unit, still on the day of that other
+   standing it stood on as the round began, whose PLACE is its own
+   clock on the nearest day of its gap of the unit's standing, no hole
+   and of its width kind, the earlier on a tie. The days of that
+   standing are asked nearest the unit's own day first, the earlier on
+   a tie, each day's ranks in rank order; of the ranks with a place,
+   the first whose move keeps the count of different values -- alone on
+   its written unit onto one no rank holds, or sharing its own onto one
+   a rank holds -- among the first and the 1,024 asked after it is
+   taken, else the first, and each moves before the next is asked.
+   Where fewer are found than the unit has ranks, every payer goes back.
+   A standing is asked once for a unit, and a pair of standings for
+   which no payer at all was found is not asked again in the step.
+   The walk reads only the days holding movable ranks as the round
+   began, once for a unit, each payer starting past the days whose
+   ranks are spent (Codex's review of lane J, item 3: a unit of 32,000
+   ranks took 6.3 CPU seconds for its payers, and a walk restarted for
+   each payer read every empty day between, both now linear). The
+   unit leaving its standing while as many payers enter it keeps every
+   weekday count, and a payer moving whole days keeps every field of its
+   clock, so both censuses hold (batch 2b's integration: five noon
+   stamps a day for 118 days, a weekday census of seven single days
+   beside hour 12 alone, wrote five cells at 05:23:40 on the high
+   boundary's day, before its noon, its gap holding no other day of
+   their weekday -- 4 twins of 10 short of the hour census).
+
+   A UNIT IS ASKED AS IT STANDS (Codex's review of lane J, item 1). A
+   payer moves a rank by whole days, perhaps a rank of a unit its group
+   listed and has not yet asked. So at its turn a unit is its ranks
+   still on the written unit it was listed on, whole only where they are
+   every rank standing there, else each alone, and it is not asked where
+   none is; a rank a payer moved off is asked in a later round, where
+   its group is listed again. Asked as listed, a Sunday pair at 05:10,
+   one of which paid a Monday 05:23 onto a Sunday, moved whole onto the
+   Monday at 12:10, and Monday's 2 and Sunday's 5 came back 3 and 4,
+   every hour met and the count kept.
+
+   THE ROUND GIVEN BACK (lane J's skeptic, finding 1). Where that
+   round placed a unit and, once steps 4 to 6 have run, the count of
+   different values stands off the count step 6 asks -- by any distance
+   where the count is one the construction reaches, else by its
+   shortness alone, and that only where the count drawn is not above
+   the published one -- steps 4 to 6 run again on the state the round
+   began from, and that state stands where it comes nearer the count;
+   on a tie the round stands. A SPLIT rank the round puts on a day of
+   another standing whose own values stand in another group of the
+   field writes a value no merge of step 6, which keeps the day
+   standing and the group, takes back: ward rounds at 08:00 on weekdays
+   and 10:30 at weekends, a million rows over 150 days, came back with
+   260 different values of a published 150 and the hour census missed
+   all the same.
 4. **Off midnight.** A movable rank the steps above left written at
    midnight that was not there when the pass began, with every such rank
    of its written unit, takes the free place of the day's first bin --
@@ -7462,8 +7524,14 @@ afternoon cells back twelve hours early and misses published facts).
 
 **Its frozen cases** are states of ranks, as G7.3f's are: the sixteenth
 vectors file, `tests/reference/generation-branch-vectors-16.json`, holds
-twenty-one -- SAMEDAY, the escape with a weekday census's groups and its last
-resort, SPLIT, RELIEF and its give-back where the room it made is not
+thirty -- SAMEDAY, the escape with a weekday census's groups and its last
+resort, the escape paid back, its payer keeping the count asked past the
+first, its payers given back where too few are found, a payer kept off a
+hole, the whole pass beside a weekday census, and the whole pass with the
+round given back where it costs the count, given back where the count is
+nearer without it though still missed, and kept where the count is no
+nearer without it (lane J), a unit a payer took a rank of asked as it
+stands (lane J's Codex review), SPLIT, RELIEF and its give-back where the room it made is not
 enough, PUT BACK long and short and its last resort, PUT BACK never onto
 a written midnight and its short count moving only a rank that shares
 its written unit, the proportional order, the step off midnight, the half

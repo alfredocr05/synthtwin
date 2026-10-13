@@ -815,6 +815,14 @@ def test_the_ledger_file_is_canonical_json() -> None:
     text = kpi_rules.LEDGER_PATH.read_text(encoding="utf-8")
     assert text.endswith("\n")
     assert json.loads(text) == LEDGER
+    # 554,000 from 550,000, AT THE INTEGRATION OF BATCH 3'S FIRST PART
+    # (2026-10-13), the integrator's call under the orchestrator's rule: the
+    # least round figure the merged ledger fits under. Lane J adds `K-S3-62`
+    # and its note clause, 3,887 bytes over 549,650: its evidence was
+    # trimmed first, every figure and its source kept (855 to 784
+    # characters), to 553,466 bytes; the rest is its rule and its pinned
+    # nodes, which are not trimmed.
+    #
     # 550,000 from 531,000, AT THE INTEGRATION OF BATCH 2B'S SECOND PART
     # (2026-10-12), the integrator's call, as the orchestrator asked: the
     # least round figure the merged ledger fits under. Lane R4 adds
@@ -824,6 +832,12 @@ def test_the_ledger_file_is_canonical_json() -> None:
     # clause were trimmed first, every figure and its source kept (4,620
     # to 4,370 and 1,174 to 995 characters), to 549,650 bytes; the rest is
     # the entry's own rule and nodes, which are not trimmed.
+    #
+    # 534,000 from 531,000, LANE J OF STAGE 3B (2026-10-12, plan P4-D379):
+    # the least round figure the ledger fits under once lane J adds
+    # `K-S3-62` and its note clause, about 2,900 bytes, to the 530,107 the
+    # integration left; the entry's own rule and evidence were written short
+    # first, every figure kept, and no other entry's prose is the lane's.
     #
     # 531,000 from 520,000, AT THE INTEGRATION OF BATCH 2B'S FIRST PART
     # (2026-10-12), the integrator's call, as the orchestrator asked: the
@@ -931,7 +945,7 @@ def test_the_ledger_file_is_canonical_json() -> None:
     # its bytes are K-P4-20's new value and the notes of the ceilings and
     # re-measurements its repair pass recorded. The cap is still a cap; the
     # prose is trimmed before it is raised again.
-    assert pathlib.Path(kpi_rules.LEDGER_PATH).stat().st_size < 550_000
+    assert pathlib.Path(kpi_rules.LEDGER_PATH).stat().st_size < 554_000
 
 
 def test_a_fast_pinned_entry_with_no_collection_floor_is_named() -> None:

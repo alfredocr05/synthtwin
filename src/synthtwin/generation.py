@@ -26845,7 +26845,13 @@ def _clock_pass(
     runs once more with an escape free to take a day of another weekday
     (`_clock_escape`), and, once PUT BACK has made every merge keeping the
     day standing, it runs once more free to merge onto such a day
-    (`_clock_merge_target`).
+    (`_clock_merge_target`); where one stands, step 3 runs once more with
+    THE ESCAPE PAID BACK (`_clock_paid_escape`; lane J, plan P4-D367), a
+    unit taking a day of another standing while as many ranks of that
+    standing take days of its own -- and given back where, once steps 4
+    to 6 have run, the count of different values stands further from the
+    count PUT BACK asks than it does with steps 4 to 6 run without it
+    (`_clock_count_off`; lane J's skeptic, finding 1).
 
     Draws no word. Guarantees: moves body ranks the layout does not pin
     inside their own gaps, and on the half day tail ranks inside their
@@ -26854,6 +26860,7 @@ def _clock_pass(
     before = [_written_at_midnight(value, 0, state.step) for value in state.moved]
     _bins_settled(state, counts, body_low, body_high, pinned, wanted)
     found = _clock_found(state, len(counts), body_low, body_high)
+    unpaid: "tuple[list[int], dict[int, int], dict[int, int]] | None" = None
     if found != counts:
         _clock_left_their_groups(
             state, counts, found, body_low, body_high, pinned, standing, False, kin
@@ -26867,6 +26874,60 @@ def _clock_pass(
         _clock_left_their_groups(
             state, counts, found, body_low, body_high, pinned, standing, True, kin
         )
+    elif found != counts:
+        # ...AND PAID BACK where one stands (lane J, plan P4-D367): step 3
+        # once more, a unit with no place on a day of its standing taking
+        # one on a day of another, as many ranks of that standing moved by
+        # whole days onto days of its own, so both censuses hold.
+        unpaid = _clock_saved(state)
+        asked = [value for value in found]
+        _clock_left_their_groups(
+            state, counts, found, body_low, body_high, pinned, standing, False, kin, True
+        )
+        if found == asked:
+            unpaid = None
+    _clock_put_back_after(
+        state, before, body_low, body_high, pinned, wanted, standing, half_day, anyday, kin,
+        published,
+    )
+    if unpaid is not None and _clock_count_off(state, wanted, published) > 0:
+        # THE ROUND GIVEN BACK WHERE IT COSTS THE COUNT (lane J's skeptic,
+        # finding 1): a SPLIT rank the round placed on a day of another
+        # standing whose own values stand in another group of the field
+        # writes a value no merge keeping the day standing and the group
+        # can take back. Ward rounds at 08:00 on weekdays and 10:30 at
+        # weekends, a million rows over 150 days, came back with 260
+        # different values of a published 150, the hour census missed
+        # either way. So steps 4 to 6 run again on the state the round
+        # began from, and the round stands unless they come nearer the
+        # count without it.
+        paid = _clock_saved(state)
+        off = _clock_count_off(state, wanted, published)
+        _clock_restored(state, unpaid)
+        _clock_put_back_after(
+            state, before, body_low, body_high, pinned, wanted, standing, half_day, anyday,
+            kin, published,
+        )
+        if _clock_count_off(state, wanted, published) >= off:
+            _clock_restored(state, paid)
+    _runs_sorted(state.moved, pinned)
+
+
+def _clock_put_back_after(
+    state: _WeekdayPass,
+    before: "list[bool]",
+    body_low: int,
+    body_high: int,
+    pinned: "list[bool]",
+    wanted: int,
+    standing: "tuple[int, ...]",
+    half_day: bool,
+    anyday: bool,
+    kin: "tuple[int, ...]",
+    published: "int | None",
+) -> None:
+    """G7.3g steps 4 to 6 (`_clock_pass`): off a written midnight, the
+    half day's tail ranks, and PUT BACK."""
     _clock_off_midnight(state, before, body_low, body_high, pinned)
     if half_day:
         _hour_tails_on_the_half_day(state, body_low, body_high, state.step)
@@ -26896,7 +26957,46 @@ def _clock_pass(
             _clock_count_put_back(
                 state, body_low, body_high, pinned, wanted, standing, True, kin
             )
-    _runs_sorted(state.moved, pinned)
+
+
+def _clock_count_off(state: _WeekdayPass, wanted: int, published: "int | None") -> int:
+    """How far the count of different written units stands from the one
+    PUT BACK asks (G7.3g step 6; lane J's skeptic, finding 1): any distance
+    where the count is one the construction reaches (`keep_units`), else
+    only a short count's, and that only where the count drawn is not
+    above `published`; else none."""
+    count = _weekday_count(state)
+    if state.keep_units:
+        return abs(count - wanted)
+    if published is None or wanted <= published:
+        return max(wanted - count, 0)
+    return 0
+
+
+def _clock_saved(
+    state: _WeekdayPass,
+) -> "tuple[list[int], dict[int, int], dict[int, int]]":
+    """Every rank's ordinal and the counts kept on each written unit and
+    each unit, as they stand (lane J's round, given back or kept)."""
+    return (
+        [value for value in state.moved],
+        {key: state.held[key] for key in state.held},
+        {key: state.units_held[key] for key in state.units_held},
+    )
+
+
+def _clock_restored(
+    state: _WeekdayPass, saved: "tuple[list[int], dict[int, int], dict[int, int]]"
+) -> None:
+    """The state as `_clock_saved` kept it, each count in its own order."""
+    moved, held, units_held = saved
+    for rank in range(len(moved)):
+        state.moved[rank] = moved[rank]
+    for counts, kept in ((state.held, held), (state.units_held, units_held)):
+        for key in [key for key in counts]:
+            del counts[key]
+        for key in kept:
+            counts[key] = kept[key]
 
 
 def _clock_day_standing(facts: contract.DatetimeFacts) -> "tuple[int, ...]":
@@ -27115,6 +27215,281 @@ def _clock_escape(
     return None
 
 
+# THE ESCAPE PAID BACK (lane J, plan P4-D367, method G7.3g step 3): how
+# many ranks with a place, past the nearest payer, are asked for one whose
+# move keeps the count of different values.
+_CLOCK_PAYER_REACH = 1024
+
+
+@dataclasses.dataclass(frozen=True)
+class _ClockPayerBook:
+    """Where the payers of THE ESCAPE PAID BACK are looked for (lane J).
+
+    `days` holds, for each day, the movable body ranks standing on it when
+    step 3's paid round began, in rank order -- the only ranks a payer is
+    asked among, each while it still stands on that day (`home`). `cursor`
+    holds, for each day and each standing a payer may be asked to go to,
+    how many of the day's ranks, from its first, have left it or have no
+    place there: none of them is asked again until a rank of the day moves
+    back onto it, which clears the day's cursors. `occupied` holds the
+    days of `days`, ascending: the only days the walk reads (Codex's
+    review of lane J, item 3), so no cursor is kept for a day no rank
+    stands on and no empty stretch of the calendar is walked. It changes
+    which ranks are asked never, only how often one with no place is.
+    """
+
+    days: "dict[int, list[int]]"
+    home: "dict[int, int]"
+    cursor: "dict[int, dict[int, int]]"
+    occupied: "list[int]"
+
+
+def _clock_payer_book(
+    state: _WeekdayPass, body_low: int, body_high: int, pinned: "list[bool]"
+) -> _ClockPayerBook:
+    """The movable body ranks of each day, in rank order (lane J)."""
+    days: "dict[int, list[int]]" = {}
+    home: "dict[int, int]" = {}
+    for rank in range(body_low, body_high + 1):
+        if pinned[rank]:
+            continue
+        day = state.moved[rank] // state.day
+        home[rank] = day
+        if day in days:
+            listed = days[day]
+            listed += [rank]
+        else:
+            days[day] = [rank]
+    return _ClockPayerBook(days=days, home=home, cursor={}, occupied=sorted(days))
+
+
+def _clock_book_moved(
+    state: _WeekdayPass, book: "_ClockPayerBook | None", rank: int, target: int
+) -> None:
+    """Move one rank (`_weekday_step`); in step 3's paid round, a rank moving
+    onto the day it stood on when the round began clears that day's cursors."""
+    _weekday_step(state, rank, target)
+    if book is None:
+        return
+    day = target // state.day
+    if rank in book.home and book.home[rank] == day and day in book.cursor:
+        del book.cursor[day]
+
+
+def _clock_payers(
+    state: _WeekdayPass,
+    book: _ClockPayerBook,
+    unit: "list[int]",
+    origin: int,
+    into: int,
+    standing: "tuple[int, ...]",
+) -> int:
+    """THE PAYERS of a unit's move from a day of standing `origin` to one of `into`.
+
+    Lane J (plan P4-D367, method G7.3g step 3). One PAYER for each rank
+    of the unit: a movable body rank, not of the unit, standing on a day
+    of standing `into` that it stood on when the paid round began
+    (`_ClockPayerBook`), with a place (`_clock_payer_place`) -- its own
+    clock on the nearest day of its gap of standing `origin`. The days of
+    standing `into` are asked nearest the unit's own day first, the
+    earlier on a tie, and on each its ranks in rank order. Of the payers,
+    the first whose move keeps the count of different values -- alone on
+    its written unit onto one no rank holds, sharing its own onto one a
+    rank holds -- among the first and the `_CLOCK_PAYER_REACH` asked
+    after it, else the first; each is moved before the next is asked. It
+    moves a whole number of days, so every field of its clock and every
+    census of the written clock is kept, and the unit's ranks leaving
+    `origin` for `into` while the payers go the other way keeps every
+    weekday count. Returns how many payers it found: the unit's size, or
+    fewer, every payer then moved back.
+
+    ITS WORK (Codex's review of lane J, item 3): the days are met once for
+    the unit, not once a payer -- outward from its day over the book's
+    `occupied` days alone, the nearer first, the earlier on a tie, each of
+    standing `into` kept in `order` as it is met -- and each payer's walk
+    starts past the kept days whose ranks are spent for `origin` (their
+    cursor at their end), which no payer of the unit can make good again;
+    the unit's ranks and its payers are kept in one set, joined in place.
+    So a unit of k ranks costs work in k and the days holding ranks, never
+    k squared nor the calendar's empty days. The ranks asked and their
+    order are the walk's of every day from the unit's own.
+    """
+    taken: "list[tuple[int, int]]" = []
+    asked = set(unit)
+    centre = state.moved[unit[0]] // state.day
+    occupied = book.occupied
+    above = _clock_days_before(occupied, centre)
+    below = above - 1
+    if above < len(occupied) and occupied[above] == centre:
+        above = above + 1
+    order: "list[int]" = []
+    start = 0
+    for _payer in range(len(unit)):
+        chosen: "tuple[int, int] | None" = None
+        keeping = False
+        after = 0
+        at = start
+        while not keeping and after < _CLOCK_PAYER_REACH:
+            while at == len(order) and (below >= 0 or above < len(occupied)):
+                if above >= len(occupied) or (
+                    below >= 0 and centre - occupied[below] <= occupied[above] - centre
+                ):
+                    met = occupied[below]
+                    below = below - 1
+                else:
+                    met = occupied[above]
+                    above = above + 1
+                if standing[calendar_rules.weekday_of(met)] == into:
+                    order += [met]
+            if at == len(order):
+                break
+            day = order[at]
+            at = at + 1
+            ranks = book.days[day]
+            marks = book.cursor[day] if day in book.cursor else {}
+            skipped = marks[origin] if origin in marks else 0
+            leading = True
+            index = skipped
+            while index < len(ranks):
+                rank = ranks[index]
+                index = index + 1
+                place: "int | None" = None
+                if state.moved[rank] // state.day == day and rank not in asked:
+                    place = _clock_payer_place(state, rank, origin, standing)
+                if place is None:
+                    if leading:
+                        skipped = index
+                    continue
+                leading = False
+                alone = state.held[state.moved[rank] // state.step] == 1
+                if alone != _weekday_holds(state, place):
+                    chosen = (rank, place)
+                    keeping = True
+                    break
+                if chosen is None:
+                    chosen = (rank, place)
+                    continue
+                after = after + 1
+                if after >= _CLOCK_PAYER_REACH:
+                    break
+            marks[origin] = skipped
+            book.cursor[day] = marks
+        if chosen is None:
+            for rank, before in reversed(taken):
+                _clock_book_moved(state, book, rank, before)
+            return len(taken)
+        taken += [(chosen[0], state.moved[chosen[0]])]
+        asked |= {chosen[0]}
+        _clock_book_moved(state, book, chosen[0], chosen[1])
+        while start < len(order) and _clock_day_spent(book, order[start], origin):
+            start = start + 1
+    return len(taken)
+
+
+def _clock_day_spent(book: _ClockPayerBook, day: int, origin: int) -> bool:
+    """Whether every rank of `day` has left it or has no place of standing
+    `origin` (its cursor at its end): no payer is found there again until a
+    rank of the day moves back onto it (THE PAYERS' walk)."""
+    marks = book.cursor[day] if day in book.cursor else {}
+    return origin in marks and marks[origin] >= len(book.days[day])
+
+
+def _clock_days_before(days: "list[int]", centre: int) -> int:
+    """How many of the ascending `days` fall before `centre` (a halving
+    search; THE PAYERS' walk, Codex's review of lane J, item 3)."""
+    low, high = 0, len(days)
+    while low < high:
+        middle = (low + high) // 2
+        if days[middle] < centre:
+            low = middle + 1
+        else:
+            high = middle
+    return low
+
+
+def _clock_payer_place(
+    state: _WeekdayPass, rank: int, origin: int, standing: "tuple[int, ...]"
+) -> "int | None":
+    """A payer's place (G7.3g step 3, lane J): its own clock on the nearest
+    day of its gap whose standing is `origin`, no hole and of its width
+    kind, the earlier on a tie; None where its gap holds no such day."""
+    ordinal = state.moved[rank]
+    low, high = state.lows[rank], state.highs[rank]
+    width = _weekday_width_kind(state, ordinal)
+    away = 1
+    while ordinal - away * state.day >= low or ordinal + away * state.day <= high:
+        for target in (ordinal - away * state.day, ordinal + away * state.day):
+            if target < low or target > high or _weekday_hole(state, target):
+                continue
+            if standing[calendar_rules.weekday_of(target // state.day)] != origin:
+                continue
+            if _weekday_width_kind(state, target) == width:
+                return target
+        away = away + 1
+    return None
+
+
+def _clock_paid_escape(
+    state: _WeekdayPass,
+    book: _ClockPayerBook,
+    unit: "list[int]",
+    low: int,
+    high: int,
+    have: "list[int]",
+    want: "list[int]",
+    standing: "tuple[int, ...]",
+    refused: "set[tuple[int, int]]",
+) -> "int | None":
+    """THE ESCAPE PAID BACK (G7.3g step 3; lane J, plan P4-D367).
+
+    Where a weekday census stands the escape keeps the unit's day
+    standing, and a gap shorter than a week may hold no other day of it:
+    a unit the construction drew on its gap's end day, on the closed side
+    of a rung, at a clock no published hour reaches there, stayed off its
+    hour (batch 2b's integration: five noon stamps a day for 118 days,
+    five cells at 05:23:40 on the day of a rung at noon, 4 twins of 10).
+    The other days of its gap, nearest first, the earlier on a tie, no
+    hole and of its width kind, whose standing is another: SAMEPARENT's
+    place there (`_clock_target_on`), taken only where as many payers as
+    the unit has ranks are found and moved (`_clock_payers`). A standing
+    is asked once for the unit; a pair of standings no payer at all was
+    found for goes into `refused` and is not asked again in the step.
+    Returns the place, its payers moved, or None with nothing moved.
+    """
+    ordinal = state.moved[unit[0]]
+    size = len(unit)
+    span = state.unit * state.period
+    per_day = state.day // span
+    day = ordinal // state.day
+    seat = _clock_seat(state, ordinal)
+    own = standing[calendar_rules.weekday_of(day)]
+    width = _weekday_width_kind(state, ordinal)
+    first = low // state.day
+    last = high // state.day
+    asked: "set[int]" = set()
+    for away in range(1, max(day - first, last - day) + 1):
+        for other in (day - away, day + away):
+            if other < first or other > last or other in state.holes:
+                continue
+            into = standing[calendar_rules.weekday_of(other)]
+            if into == own or into in asked or (own, into) in refused:
+                continue
+            if _weekday_width_kind(state, other * state.day) != width:
+                continue
+            target = _clock_target_on(
+                state, other * per_day + seat, ordinal, low, high, size, have, want
+            )
+            if target is None:
+                continue
+            found = _clock_payers(state, book, unit, own, into, standing)
+            if found == size:
+                return target
+            asked |= {into}
+            if found == 0:
+                refused |= {(own, into)}
+    return None
+
+
 def _clock_left_their_groups(
     state: _WeekdayPass,
     counts: "list[int]",
@@ -27125,6 +27500,7 @@ def _clock_left_their_groups(
     standing: "tuple[int, ...]",
     anyday: bool = False,
     kin: "tuple[int, ...]" = (),
+    paid: bool = False,
 ) -> None:
     """G7.3g step 3: what the shared pass left over, moved off.
 
@@ -27141,24 +27517,37 @@ def _clock_left_their_groups(
     Up to `_CLOCK_ROUNDS` rounds, a round that moves nothing ending the
     step: a whole unit leaving a group over by fewer than its ranks gives
     that group room, which a unit asked earlier may take in the next.
+    `paid` says a weekday census stands and RELIEF has had its turn: a
+    unit with neither place takes one on a day of another standing, paid
+    back (`_clock_paid_escape`; lane J, plan P4-D367). A payer moves a
+    rank by whole days, perhaps a rank of a unit listed and not yet
+    asked, so each unit is asked as it stands at its turn
+    (`_clock_unit_standing`).
     """
     span = state.unit * state.period
+    refused: "set[tuple[int, int]]" = set()
+    book = _clock_payer_book(state, body_low, body_high, pinned) if paid else None
     for _round in range(_CLOCK_ROUNDS):
         changed = False
         for group in range(len(counts)):
             if have[group] <= counts[group]:
                 continue
             units = _clock_units(state, group, body_low, body_high, pinned)
+            listed = {unit[0]: state.moved[unit[0]] // state.step for unit in units}
             for unit in _clock_rotated(units, have[group] - counts[group]):
                 if have[group] <= counts[group]:
                     break
+                unit, whole = _clock_unit_standing(state, unit, listed[unit[0]])
+                if not unit:
+                    continue
                 first = unit[0]
                 ordinal = state.moved[first]
                 low, high = state.lows[first], state.highs[first]
                 size = len(unit)
                 # SPLIT: a unit no group has room for whole leaves rank by
                 # rank, each to its own place (the design skeptic's B1).
-                for members in [unit] + ([[rank] for rank in unit] if size > 1 else []):
+                tries = [unit] if whole or size == 1 else []
+                for members in tries + ([[rank] for rank in unit] if size > 1 else []):
                     if have[group] <= counts[group]:
                         break
                     here = state.moved[members[0]]
@@ -27173,10 +27562,14 @@ def _clock_left_their_groups(
                             state, here, low, high, len(members), have, counts, standing,
                             anyday, kin,
                         )
+                    if target is None and book is not None:
+                        target = _clock_paid_escape(
+                            state, book, members, low, high, have, counts, standing, refused,
+                        )
                     if target is None:
                         continue
                     for rank in members:
-                        _weekday_step(state, rank, target)
+                        _clock_book_moved(state, book, rank, target)
                     have[group] = have[group] - len(members)
                     into = state.where[_clock_bin(state, target)]
                     have[into] = have[into] + len(members)
@@ -27185,6 +27578,28 @@ def _clock_left_their_groups(
                         break
         if not changed:
             return
+
+
+def _clock_unit_standing(
+    state: _WeekdayPass, unit: "list[int]", key: int
+) -> "tuple[list[int], bool]":
+    """A listed unit as it stands at its turn (G7.3g step 3; Codex's review
+    of lane J, item 1).
+
+    A payer of THE ESCAPE PAID BACK moves a rank by whole days, so it can
+    take a rank of a unit its group listed and has not yet asked. Asked as
+    listed, the unit moved whole onto its first rank's day and took the
+    others off theirs: a Monday 05:23 paid by one of a Sunday pair at
+    05:10, both then moved to the Monday at 12:10, turned Monday 2 and
+    Sunday 5 into 3 and 4, every hour met and the count kept. So the unit
+    is its ranks still on the written unit `key` it was listed on -- none
+    where a payer took them all -- and whole only where they are every
+    rank standing there; a rank a payer moved off is asked in a later
+    round, where its group is listed again. Returns the ranks and whether
+    they are whole.
+    """
+    standing = [rank for rank in unit if state.moved[rank] // state.step == key]
+    return standing, bool(standing) and state.held[key] == len(standing)
 
 
 def _clock_relieved(

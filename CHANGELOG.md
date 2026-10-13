@@ -6,6 +6,39 @@ exists).
 
 ## [Unreleased]
 
+### The weekday and the hour of a moment, met together (2026-10-12)
+
+**Twins of a column of moments publishing both a weekday census and an
+hour census now meet both** (plan P4-D379, stage 3b lane J). The hour
+pass kept each rank's day standing, so a rank the weekday pass left on
+its gap's end day, before a noon rung, stayed off its hour: five noon
+stamps a day for 118 days, two clocks a day, D2's leap column and T2's
+column of eleven `23:59:60` a date came back short at 4, 7, 5 and 10
+seeds of 10. Method G7.3g step 3 now lets such a rank take the nearest
+day of another standing while as many ranks of that standing move by
+whole days onto days of its own, so every weekday count and every
+clock is kept. With these four, OR starts, admissions and a clinic of
+10,000 rows meet both at seeds 0 to 9 and floors 11 and 36, and every
+twin with one census alone is byte for byte as before. At a million
+rows a column whose needed hours hold no free value anywhere in a
+rank's gap still comes back short, now 767 ranks of a clinic's million
+where it was 2,070, a limit the hour pass has without a weekday census
+too. Where the new move would leave the count of different values
+further off than the pass without it -- ward rounds at a million rows
+came back with 260 of a published 150 -- it is given back, and that
+column misses its hour census alone, as before. The tails' recount reads the whole dates a column's own
+description folded into its moments, which made the unchanged source
+miss its low tail. Codex's review of the lane found three faults, each
+fixed: a unit one of whose ranks had paid another's move was later moved
+whole across weekdays (an internal state of 108 ranks came back with
+Monday 24 and Sunday 60 as 36 and 48), so a unit is now asked as it
+stands; a whole date folded into moments was read in the tails at
+midnight UTC, not at its column's absorbed offset, which reported a low
+tail HELD outside its window and made an unchanged source miss its low
+tail; and finding payers cost the square of a unit's size, 6.3 CPU
+seconds for 32,000 ranks, now 0.14. The lane's 880 battery twins are byte
+for byte as before. `K-S3-62` holds it.
+
 ### Numbers that are dates are read as dates and written back as the same numbers (2026-10-07)
 
 **Landing R4** (plan P4-D384), with its review's nine items, its

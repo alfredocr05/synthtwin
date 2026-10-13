@@ -1602,8 +1602,8 @@ def test_a_sixtieth_second_counts_on_the_day_it_is_written_on(tmp_path: pathlib.
     ordinal -- the twin writes 131 Saturdays, and validate says MISSED, never HELD.
 
     Since the integration beside landing 3b.2-H the column also publishes an hour census, which
-    its twins at seeds 0 and 2 miss, said by a deviation: the interaction
-    `test_the_hour_census_holds_beside_a_weekday_census_on_moments` states, not this node's."""
+    its twins at seeds 0 and 2 missed there, said by a deviation; since lane J (plan P4-D367,
+    G7.3g's escape paid back) they meet it too, and nothing is missed."""
     cells = _leap_column()
     described = _described(tmp_path, "leap", cells)
     block = described.block("leap")
@@ -1615,7 +1615,7 @@ def test_a_sixtieth_second_counts_on_the_day_it_is_written_on(tmp_path: pathlib.
     for seed in (0, 1, 2):
         values, missed = _twin_values(described, seed)
         assert _written_weekdays(block, values) == _census_counts(block), seed
-        assert [check for check in missed if check != "leap:hour_census.groups"] == [], (seed, missed)
+        assert missed == [], (seed, missed)
         assert values.count("2016-12-31 23:59:60") >= 1, seed
     monkeypatch.setattr(generation, "_weekday_counts_as_written", lambda state, counts, sixtieths: counts)
     values, missed = _twin_values(described, 0)
@@ -1660,12 +1660,14 @@ def test_dates_folded_into_moments_are_recounted_and_unparsed_ones_are_not(tmp_p
     distinction of a column of dates (`validation._folded_by_the_file`) is asked of moments:
     the dates the producer absorbed are counted, at their midnight. Five bare dates are left
     unparsed by the producer (`n_unparsed` 5, Tuesday 80) and stay out of the recount. Twins
-    at seeds 0 to 2 miss nothing either way but the hour census beside the weekday's (seed 1 at
-    five, the interaction `test_the_hour_census_holds_beside_a_weekday_census_on_moments`
-    states). Mutants: the fold never asked (ten: MISSED), and asked of every failing cell
-    (five: MISSED). And the hour census's recount asks the same fold since the integration
-    beside landing 3b.2-H (`validation._folded_hour_instants`): the ten folded dates publish
-    hours 0 to 12 holding 570, and without them the unchanged source was told 560, MISSED."""
+    at seeds 0 to 2 miss nothing either way (seed 1 at five missed its hour census beside the
+    weekday's until lane J, plan P4-D367). Mutants: the fold never asked (ten: MISSED), and
+    asked of every failing cell (five: MISSED). And the hour census's recount asks the same
+    fold since the integration beside landing 3b.2-H (`validation._folded_hour_instants`): the
+    ten folded dates publish hours 0 to 12 holding 570, and without them the unchanged source
+    was told 560, MISSED; lane J's review pins it both ways -- the fold asked of no cell, or of
+    every failing one, misses the hour census as it does the weekday's -- and asks it of the
+    tails too (`test_dates_folded_inside_the_low_tail_are_recounted_in_the_tails`)."""
     described = _described(tmp_path, "folded", _with_bare_dates(bare))
     block = described.block("folded")
     assert block["format"] == "iso-datetime"
@@ -1675,10 +1677,11 @@ def test_dates_folded_into_moments_are_recounted_and_unparsed_ones_are_not(tmp_p
     assert kpi_shapes.missed(kpi_shapes.measure(described, source, "source.csv")) == []
     for seed in (0, 1, 2):
         missed = _twin_values(described, seed)[1]
-        assert [check for check in missed if check != "folded:hour_census.groups"] == [], (seed, missed)
+        assert missed == [], (seed, missed)
     folded = validation._folded_by_the_file
     monkeypatch.setattr(validation, "_folded_by_the_file", lambda block, member, failing: bare != 10)
-    assert "folded:weekday_census.groups" in kpi_shapes.missed(kpi_shapes.measure(described, source, "mutant.csv"))
+    mutant = kpi_shapes.missed(kpi_shapes.measure(described, source, "mutant.csv"))
+    assert {"folded:weekday_census.groups", "folded:hour_census.groups"} <= set(mutant), mutant
     monkeypatch.setattr(validation, "_folded_by_the_file", folded)
     if bare == 10:
         monkeypatch.setattr(validation, "_folded_hour_instants", lambda block, facts, cells: [])
@@ -1686,6 +1689,89 @@ def test_dates_folded_into_moments_are_recounted_and_unparsed_ones_are_not(tmp_p
             kpi_shapes.measure(described, source, "hour-mutant.csv")
         )
 
+
+
+def test_dates_folded_inside_the_low_tail_are_recounted_in_the_tails(tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """D2's verifier, an older fault routed to lane J (plan P4-D367). Ten bare `2024-01-02`
+    beside five noon stamps a day for 118 days from 2024-01-01 are folded into midnight moments
+    inside the low tail and counted there: the tails recount read the timestamps alone and told
+    the unchanged source it missed `tails.low.boundary`, `rows` and `values`. The fold the two
+    censuses ask is asked of the tails too (`validation._file_tail_units` given the file's
+    block): the source misses nothing, nor do twins at seeds 0 to 2. Mutant: the tails read
+    without the block, and the source misses its low tail again."""
+    cells = _noon_stamps(datetime.date(2024, 1, 1), 118) + ["2024-01-02"] * 10
+    described = _described(tmp_path, "low", cells)
+    block = described.block("low")
+    assert block["format"] == "iso-datetime" and block["n_unparsed"] == 0
+    source = described.table.read_text(encoding="utf-8")
+    assert kpi_shapes.missed(kpi_shapes.measure(described, source, "source.csv")) == []
+    for seed in (0, 1, 2):
+        assert _twin_values(described, seed)[1] == [], seed
+    reader = validation._file_tail_units
+    monkeypatch.setattr(validation, "_file_tail_units", lambda facts, cells, block=None: reader(facts, cells))
+    missed = kpi_shapes.missed(kpi_shapes.measure(described, source, "unfolded.csv"))
+    assert {"low:tails.low.boundary", "low:tails.low.rows"} <= set(missed), missed
+
+
+def _offset_stamps(days: int, clock: str, offsets: "tuple[str, str]") -> "list[str]":
+    """Three stamps at `clock` + the first offset and two at the second on each of `days` days
+    from 2024-01-01."""
+    cells: "list[str]" = []
+    for step in range(days):
+        day = (datetime.date(2024, 1, 1) + datetime.timedelta(days=step)).isoformat()
+        cells += [f"{day}T{clock}{offsets[0]}"] * 3 + [f"{day}T{clock}{offsets[1]}"] * 2
+    return cells
+
+
+def _folded_at_utc_midnight(
+    facts: contract.DatetimeFacts, cells: "list[str]", block: "dict[str, object] | None" = None
+) -> "list[int]":
+    """689d405's tails reader: a folded cell at its midnight on the UTC clock, no offset worn."""
+    found: "list[int]" = []
+    failing: "list[str]" = []
+    for cell, placed in zip(cells, validation._tail_readings_of(facts, cells)):
+        if placed is None:
+            failing += [cell]
+            continue
+        found += [placed[0]]
+    if block is not None and validation._folded_by_the_file(block, facts.parser_family, failing):
+        for cell in failing:
+            read = parsing.parse_datetime(cell, "iso-mixed")
+            if read is not None:
+                found += [taxonomy.tail_ordinal(read[0], facts.tail_unit, facts.datetimes_read_at)]
+    return sorted(found)
+
+
+@pytest.mark.parametrize("floor", (11, 36))
+def test_dates_folded_into_the_tails_wear_the_offset_the_census_absorbed_them_into(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch, floor: int
+) -> None:
+    """Codex's review of lane J, item 2 (High). The tails recount read a folded bare date at
+    its midnight on the UTC clock, where the producer reads it as every cell: worn at the offset
+    its census absorbed `(none)` into, then converted. 120 days of three `T05:00:00+05:00` and
+    two `T05:00:00+04:00` stamps: in a checked file the `+05:00` stamps of the first 3 dates
+    (11 at 36) written bare stand at 19:00 UTC the day before, and the low tail's mean and RMS
+    distances -- 114,646.15 and 131,387.67 seconds at 11 -- lie outside their windows; on
+    689d405 every check was HELD. And an unchanged source of 118 days at `23:00:00-05:00` and
+    `-04:00` beside ten bare `2024-01-04` publishes a low tail of 12 rows that 689d405
+    recounted as 22, MISSED (at 36, 37 rows and its RMS distance MISSED). Mutant: 689d405's
+    reader."""
+    cells = _offset_stamps(120, "05:00:00", ("+05:00", "+04:00"))
+    described = _described(tmp_path, "early", cells, floor)
+    days = 3 if floor == 11 else 11
+    checked = [cell[:10] if index // 5 < days and cell.endswith("+05:00") else cell for index, cell in enumerate(cells)]
+    text = _text("early", checked)
+    missed = kpi_shapes.missed(kpi_shapes.measure(described, text, "checked.csv"))
+    assert missed == ["early:tails.low.mean_distance", "early:tails.low.rms_distance"], missed
+    late = _described(tmp_path, "late", _offset_stamps(118, "23:00:00", ("-05:00", "-04:00")) + ["2024-01-04"] * 10, floor)
+    block = late.block("late")
+    assert (block["format"], block["n_unparsed"], block["low_tail"]["rows"]) == ("iso-datetime", 0, 12 if floor == 11 else 37)  # type: ignore[index]
+    source = late.table.read_text(encoding="utf-8")
+    assert kpi_shapes.missed(kpi_shapes.measure(late, source, "source.csv")) == []
+    monkeypatch.setattr(validation, "_file_tail_units", _folded_at_utc_midnight)
+    assert kpi_shapes.missed(kpi_shapes.measure(described, text, "mutant-checked.csv")) == []
+    mutant = kpi_shapes.missed(kpi_shapes.measure(late, source, "mutant-source.csv"))
+    assert ("late:tails.low.rows" in mutant) if floor == 11 else ("late:tails.low.rms_distance" in mutant), mutant
 
 
 def _hour_short_seeds(described: kpi_shapes.Described, seeds: "range") -> "tuple[list[int], list[int]]":
@@ -1703,33 +1789,41 @@ def _hour_short_seeds(described: kpi_shapes.Described, seeds: "range") -> "tuple
     return missed, said
 
 
-def test_a_twin_short_of_its_hour_census_beside_a_weekday_census_says_so(tmp_path: pathlib.Path) -> None:
+def _without_the_paid_round(monkeypatch: pytest.MonkeyPatch) -> None:
+    """G7.3g step 3 as it stood before lane J: no escape paid back (plan P4-D367)."""
+    monkeypatch.setattr(generation, "_clock_paid_escape", lambda *_args: None)
+
+
+def test_a_twin_short_of_its_hour_census_beside_a_weekday_census_says_so(tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """THE INTEGRATION OF 3b.D2 BESIDE 3b.2-H (batch 2b, 2026-10-12), what holds: five noon stamps
     a day for 118 days publish both censuses, and every twin at seeds 0 to 9 that validate finds
-    short of its hour census files the deviation naming it -- never a silent miss."""
+    short of its hour census files the deviation naming it -- never a silent miss. Since lane J
+    no twin is short, so the round paid back is withdrawn here and the twins it would have
+    held, seeds 1, 4, 7 and 9, are short and say so."""
     described = _described(tmp_path, "noon", _noon_stamps(datetime.date(2024, 1, 1), 118))
     block = described.block("noon")
     assert block["weekday_census"] and block["hour_census"]
+    _without_the_paid_round(monkeypatch)
     missed, said = _hour_short_seeds(described, range(10))
-    assert missed == said, (missed, said)
+    assert missed == said == [1, 4, 7, 9], (missed, said)
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="stated limit of the integration of 3b.D2 beside 3b.2-H (plan P4-D367): the hour pass "
-    "keeps each rank's weekday where a weekday census stands, so a rank the weekday pass leaves on "
-    "a gap's end day at a clock no published hour reaches there stays off its hour",
-)
 def test_the_hour_census_holds_beside_a_weekday_census_on_moments(tmp_path: pathlib.Path) -> None:
-    """STATED, NOT YET MET (batch 2b's integration, 2026-10-12; plan P4-D367). Five noon stamps
-    a day for 118 days publish a weekday census of seven single days and an hour census of hour
-    12 alone. Measured on the merged tree, seeds 0 to 9: 4 twins miss the hour census (seed 1
-    writes five body cells at `2024-04-24 05:23:40`, the high boundary's day before its noon),
-    none with the weekday census withdrawn; two clocks a day, 7 of 10. Strict: the day both hold,
-    this node turns red and the limit is withdrawn."""
+    """LANE J OF STAGE 3b (plan P4-D367, method G7.3g step 3's ESCAPE PAID BACK). Five noon
+    stamps a day for 118 days publish a weekday census of seven single days and an hour census
+    of hour 12 alone. At batch 2b's integration 4 twins of 10 missed the hour census -- seed 1
+    wrote five body cells at `2024-04-24 05:23:40`, the high boundary's day before its noon, its
+    gap holding no other Wednesday -- none with the weekday census withdrawn. Now such a rank
+    takes the nearest day of another standing, as many ranks of that standing moving by whole
+    days onto days of its own: every twin at seeds 0 to 9 meets both censuses and misses
+    nothing. Red with the round withdrawn (the node above)."""
     described = _described(tmp_path, "noon", _noon_stamps(datetime.date(2024, 1, 1), 118))
-    missed, _said = _hour_short_seeds(described, range(10))
-    assert missed == []
+    block = described.block("noon")
+    for seed in range(10):
+        values, missed = _twin_values(described, seed)
+        assert missed == [], (seed, missed)
+        assert _written_weekdays(block, values) == _census_counts(block), seed
+
 
 def _unequal_clocks(turn: int, days: int = 57) -> "list[str]":
     """Codex's item 3: twenty stamps a day for `days` days from 2024-01-01, seconds 00 to 19

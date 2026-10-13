@@ -49,7 +49,7 @@ stays in scope.
 | phase | **Phase 4 REOPENED 2026-09-12** — it closed on 2026-09-11 with silent within-column defects live inside its own charter. Phase 5 does not start until the ordered list below reaches it |
 | plan | This page is the plan of record. `docs/plans/phase-5-relationships.md` is a DRAFT whose scope is superseded: it deferred correlation, and correlation is now mandatory |
 | suite | 10,837 collected. One process took about 66 minutes when the suite held 9,138 cases (ledger `K-P0-10` carries the seconds); at 10,513, on `ad6487a`, the five shards took 17.2 to 21.3 minutes each, 93 minutes summed and 22 end to end, on a loaded machine. In CI it runs as **five shards**, the heaviest about 20 minutes. Re-measure here whenever the count moves |
-| KPIs | `tests/kpi/ledger.json`: 203 KPIs over phases 0-4 and stages 1, 2, 2b, 3, 3b and 4, 31 of them headlines under a cap of 31 (raised from 30 by the orchestrator at 3b.K, plan P4-D364, for `K-S3-38`, time of day, which landed with 3b.2-H); 176 green, 13 open (8 with the stage or lane that owns each, 5 with none set), 14 limits the owner accepted. Stage 3's are `K-S3-01` to `K-S3-25`, one of them a headline (`K-S3-11`, the tail leak); stage 3b's `K-S3-30` to `K-S3-32`, `K-S3-34` to `K-S3-41`, `K-S3-48` to `K-S3-52`, `K-S3-54` to `K-S3-61` (`K-S3-33` retired with the weekday certificate), `K-S3-31` (the weekday) a headline in `K-2B-22b`'s place and `K-S3-38` (time of day) a headline; stage 4's `K-S4-02` to `K-S4-05`, `K-S4-03` a headline in `K-2B-14`'s place. **One command re-measures them all:** `.venv/bin/python tools/measurements/kpi_run.py` (add `--slow` for timings and scale). Run it at every stage close: **a KPI that drops is a regression even when every test is green** |
+| KPIs | `tests/kpi/ledger.json`: 204 KPIs over phases 0-4 and stages 1, 2, 2b, 3, 3b and 4, 31 of them headlines under a cap of 31 (raised from 30 by the orchestrator at 3b.K, plan P4-D364, for `K-S3-38`, time of day, which landed with 3b.2-H); 177 green, 13 open (8 with the stage or lane that owns each, 5 with none set), 14 limits the owner accepted. Stage 3's are `K-S3-01` to `K-S3-25`, one of them a headline (`K-S3-11`, the tail leak); stage 3b's `K-S3-30` to `K-S3-32`, `K-S3-34` to `K-S3-41`, `K-S3-48` to `K-S3-52`, `K-S3-54` to `K-S3-62` (`K-S3-33` retired with the weekday certificate), `K-S3-31` (the weekday) a headline in `K-2B-22b`'s place and `K-S3-38` (time of day) a headline; stage 4's `K-S4-02` to `K-S4-05`, `K-S4-03` a headline in `K-2B-14`'s place. **One command re-measures them all:** `.venv/bin/python tools/measurements/kpi_run.py` (add `--slow` for timings and scale). Run it at every stage close: **a KPI that drops is a regression even when every test is green** |
 | checks | `ruff check .`, `mypy --strict src/`, the offline import scan, the provenance check, the decontamination scan, the signed attestation and the disposition seal — all clean |
 | CI | runs on every pull request, five Pythons across Ubuntu, Windows and macOS. **It saw stages 1, 2 and 2b for the first time on 2026-09-20 (PR #6, run 35508922164): every static check green, every test cell red on three defects, all three repaired.** Its **second** run (35541541720) was red again on a deeper layer, all of it in the tests: two that asserted the answer for the machine they ran on, a `Path.read_text(newline=)` that exists only on 3.13 while the floor is 3.10, seventeen Windows failures caused by a temporary path containing `AppData` (which contains a sheet name the test forbade), and about 25 workbook cases that failed instead of skipping where openpyxl is absent. All repaired, each with a guard that now fails HERE rather than in CI. The suite is sharded five ways since, so a cell should cost about 13 minutes rather than up to three hours. **Its third run (35670708722, on `eaff15f`, 2026-09-22) passed 69 of 69 jobs, and run 36743015674 on `82b1f1a`, stages 3 and 3b, passed 69 of 69 on 2026-09-30.** A green local suite is not a green CI. Check `gh pr checks` before believing a branch is done |
 | review | **ONE round per landing** (owner, 2026-09-12), `codex exec -m gpt-6-astra -c model_reasoning_effort="ultra" -s read-only`. Fix what it raises; never send the fixes back |
@@ -273,14 +273,17 @@ cannot get worse unseen.
   stands; the fix is owed to lane D4's split order (tails split first,
   76 of the 81 and 19 of the 21 come back whole), and these columns join
   D4's acceptance battery.
-- **Moments publishing both a weekday and an hour census can come back
-  short of their hours** (plan P4-D367, the integration of 2026-10-12).
-  The hour pass keeps each rank's weekday, so a rank left on a gap's end
-  day at a clock no published hour reaches there stays off its hour: five
-  noon stamps a day, 4 twins of 10; two clocks a day, 7 of 10; eleven
-  `23:59:60` a date, every twin, its count of values and at midnight too;
-  none with the weekday census withdrawn. Each is said by a deviation and
-  MISSED; the fix is owed to a lane the orchestrator names (strict xfail).
+- **Moments at a million rows can come back short of their hours**
+  (plan P4-D379, lane J, merged 2026-10-13). Beside a weekday census,
+  G7.3g step 3's escape paid back now meets both censuses on every
+  measured column at floors 11 and 36, seeds 0 to 9 (P4-D367's limit;
+  its two strict xfails pass). At a million rows a group the hour census
+  still needs can hold no free written unit on any day of a rank's gap,
+  and G7.3g asks free places only: a clinic comes back 767 ranks of
+  1,000,000 off its hours (2,070 before), noon stamps over 118 days 2,344
+  (2,908 with the weekday census withdrawn), and ward rounds give the
+  round back and miss their hour census alone. Each miss is said by a
+  deviation; the remedy is owed to a lane the orchestrator names.
 - **Stated limits added 2026-10-07 to 09, each with its owner.** A
   published weekday census on logs just above one row an open day can
   cost its twin one to four different values at 2 to 7 seeds in ten
