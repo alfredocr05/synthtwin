@@ -9986,6 +9986,50 @@ def datetime_counts_reachable(column: "ColumnBlock") -> bool:
     return True
 
 
+def datetime_count_held_exactly(
+    column: "ColumnBlock", published: int, window: "tuple[float, float]"
+) -> bool:
+    """Whether a date column's count of different values is held EXACTLY.
+
+    THE ONE STATEMENT OF HOW THE COUNT IS JUDGED (plan P4-D192; the
+    orchestrator's ruling (c) of 2026-10-13, plan P4-D369): exactly where
+    the count pass reaches it (`datetime_counts_reachable`) AND the
+    published count lies inside G12.5's envelope (`window`, its lower and
+    upper end); elsewhere the envelope stands in its place. Asked by the
+    validator, by the generator's report and by method G7.3j's steps 5
+    and 7 (`datetime_count_off`); the oracle states it again.
+
+    Guarantees: returns the answer. A function of the three. Raises
+    nothing. No I/O of any kind.
+    """
+    return datetime_counts_reachable(column) and (
+        window[0] <= published <= window[1]
+    )
+
+
+def datetime_count_off(
+    column: "ColumnBlock", published: int, held: int,
+    window: "tuple[float, float]",
+) -> int:
+    """How far a count of different values stands from the count as judged.
+
+    The distance from the published count where it is held exactly
+    (`datetime_count_held_exactly`); elsewhere the distance outside the
+    envelope, nought inside it (the orchestrator's ruling (c) of
+    2026-10-13, plan P4-D369).
+
+    Guarantees: returns a whole number of nought or more. A function of
+    the four. Raises nothing. No I/O of any kind.
+    """
+    if datetime_count_held_exactly(column, published, window):
+        return abs(held - published)
+    if held < window[0]:
+        return int(window[0] - held)
+    if held > window[1]:
+        return int(held - window[1])
+    return 0
+
+
 def _units_between(low: str, high: str, facts: "DatetimeFacts") -> int:
     """How many different instants the two boundaries hold between them.
 

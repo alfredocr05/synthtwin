@@ -22,9 +22,12 @@ sizes (the skeptic's M3 and m1):
   their weekday census, and `count_missed`, twins missing their count
   of different values;
 * `lists_given_way`, over both: twins whose list gave way (method G7.3j
-  step 7: the twin drawn with it missed a census or the count, so the
-  column is drawn as if it listed no date, named) -- the price of
-  holding every other check, which `listed_off` counts in dates;
+  step 7 under the orchestrator's rulings of 2026-10-13: the twin drawn
+  with it missed a census by more rows than the twin of the column
+  listing nothing stands off the census and the listed dates, so the
+  column is drawn so, named), which `listed_off` counts in dates; and
+  `counts_given_way`, twins whose count of different values gave way to
+  the list, named as the count's cause (ruling (a));
 * `generate_seconds_40k`: recorded, never judged.
 
 K-S3-47 (PRIVACY, an accepted limit under the owner's principle of
@@ -34,6 +37,9 @@ gate's battery at 1,000, 10,000 and 40,000 rows, seed 0:
 * `narrowed`: weekday groups whose published count less their listed
   dates' rows is one to the census line less one -- a count a reader can
   work out from two published facts (the 3b.6 design, section 3 (a));
+* `narrowed_day_of_month`: the same of day-of-month groups, over the
+  gate's battery and lane D3's day-of-month battery at 1,000 rows (the
+  3b.6 skeptic 1's item 5);
 * `unlisted_standing_1k`, `_10k`, `_40k`: dates of the twin, not listed,
   that stand out by the rule the producer lists by -- the twin's own
   heaps, which counts per single day computed on it must not be read
@@ -55,6 +61,7 @@ sys.path.insert(0, str(ROOT / "tests"))
 sys.path.insert(0, str(ROOT))
 import kpi_rules  # noqa: E402
 import kpi_shapes  # noqa: E402
+import test_stage3b_day_of_month as dom  # noqa: E402
 import test_stage3b_gate as gate  # noqa: E402
 
 from synthtwin import calendar_rules, generation, parsing, rendering  # noqa: E402
@@ -133,17 +140,42 @@ def _narrowed(block: dict) -> int:
     return sum(1 for count in left if 0 < count < line)
 
 
+def _narrowed_days(block: dict) -> int:
+    """Day-of-month groups whose count less their listed rows is one to the line less one."""
+    line = calendar_rules.census_line(FLOOR)
+    groups = [(group["first"], group["last"], group["count"]) for group in block.get("day_of_month_census") or []]
+    if not groups:
+        return 0
+    where = calendar_rules.month_where(tuple(groups))
+    left = [count for _first, _last, count in groups]
+    for entry in block["heavy_dates"]:
+        group = where[calendar_rules.month_bin(_day(entry["date"])) - 1]
+        left[group] = left[group] - entry["count"]
+    return sum(1 for count in left if 0 < count < line)
+
+
 def _given_way(twin: generation.Twin) -> int:
     """1 where the twin's list gave way (method G7.3j step 7), else 0."""
-    return 1 if any(note.note == generation._HEAVY_GIVEN_WAY for note in twin.deviations) else 0
+    return 1 if any(
+        note.fact == calendar_rules.HEAVY_DATES and note.note.startswith(generation._HEAVY_GIVEN_WAY_HEAD)
+        for note in twin.deviations
+    ) else 0
+
+
+def _count_given_way(twin: generation.Twin) -> int:
+    """1 where the twin's count of different values gave way to its list (ruling (a)), else 0."""
+    causes = (generation._HEAVY_COUNT_SHORT, generation._HEAVY_COUNT_LONG)
+    return 1 if any(note.fact == "n_distinct" and note.note in causes for note in twin.deviations) else 0
 
 
 def measure(home: pathlib.Path) -> "tuple[dict[str, int], dict[str, int], str]":
     given_way = 0
+    counts_given_way = 0
     listed_off = 0
     missed_40k = 0
     seconds_40k = 0.0
     narrowed = 0
+    narrowed_days = 0
     standing: "dict[int, int]" = {}
     for rows in (1000, 10000, 40000):
         standing[rows] = 0
@@ -155,6 +187,7 @@ def measure(home: pathlib.Path) -> "tuple[dict[str, int], dict[str, int], str]":
             text = rendering.twin_csv(twin)
             if rows == 40000:
                 given_way += _given_way(twin)
+                counts_given_way += _count_given_way(twin)
                 seconds_40k += time.perf_counter() - started
                 missed_40k += len(kpi_shapes.missed(kpi_shapes.measure(described, text, "twin.csv")))
             for name in columns:
@@ -162,8 +195,15 @@ def measure(home: pathlib.Path) -> "tuple[dict[str, int], dict[str, int], str]":
                 cells = _column(text, name)
                 standing[rows] += _standing(block, cells)
                 narrowed += _narrowed(block)
+                narrowed_days += _narrowed_days(block)
                 if rows == 40000:
                     listed_off += _off(block, cells)
+    for label, columns in sorted(dom._tables(1000).items()):
+        if label in gate._BATTERY:
+            continue
+        described = kpi_shapes.describe(home / f"dom-{label}", label, gate._table_text(columns), FLOOR)
+        for name in columns:
+            narrowed_days += _narrowed_days(described.block(name))
     census_missed = 0
     count_missed = 0
     twins = 0
@@ -177,6 +217,7 @@ def measure(home: pathlib.Path) -> "tuple[dict[str, int], dict[str, int], str]":
                     twin = generation.generate(described.loaded, seed)
                     text = rendering.twin_csv(twin)
                     given_way += _given_way(twin)
+                    counts_given_way += _count_given_way(twin)
                     missed = kpi_shapes.missed(kpi_shapes.measure(described, text, f"t{seed}.csv"))
                     twins += 1
                     listed_off += _off(described.block("visit"), _column(text, "visit"))
@@ -188,10 +229,12 @@ def measure(home: pathlib.Path) -> "tuple[dict[str, int], dict[str, int], str]":
         "census_missed": census_missed,
         "count_missed": count_missed,
         "lists_given_way": given_way,
+        "counts_given_way": counts_given_way,
         "generate_seconds_40k": int(round(seconds_40k)),
     }
     privacy = {
         "narrowed": narrowed,
+        "narrowed_day_of_month": narrowed_days,
         "unlisted_standing_1k": standing[1000],
         "unlisted_standing_10k": standing[10000],
         "unlisted_standing_40k": standing[40000],
@@ -199,7 +242,7 @@ def measure(home: pathlib.Path) -> "tuple[dict[str, int], dict[str, int], str]":
     detail = (
         f"40,000 rows: {missed_40k} missed, {seconds_40k:.1f} s generating; sessions: {twins} twins, "
         f"{census_missed} missing the weekday census, {count_missed} the count; lists given way: "
-        f"{given_way}; listed dates off: {listed_off}"
+        f"{given_way}; counts given way to a list: {counts_given_way}; listed dates off: {listed_off}"
     )
     return stats, privacy, detail
 
@@ -211,7 +254,8 @@ def main() -> int:
         kpi_rules.emit(
             "K-S3-47",
             privacy,
-            f"weekday groups narrowed by a list to 1 to 10: {privacy['narrowed']}; twin dates "
+            f"weekday groups narrowed by a list to 1 to 10: {privacy['narrowed']}; day-of-month "
+            f"groups: {privacy['narrowed_day_of_month']}; twin dates "
             f"standing out unlisted at 1,000, 10,000 and 40,000 rows: {privacy['unlisted_standing_1k']}, "
             f"{privacy['unlisted_standing_10k']}, {privacy['unlisted_standing_40k']}",
         )

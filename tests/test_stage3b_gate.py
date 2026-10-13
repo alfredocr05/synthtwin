@@ -2689,13 +2689,16 @@ def test_each_rule_publishes_what_it_derives(tmp_path: pathlib.Path, monkeypatch
     Every published census here is met by the twins of seeds 0 to 2 with
     nothing missed, and the real table validates; every withheld one says
     so in the one sentence every rule the table's own numbers decide
-    shares. The columns are described listing no date that stands out
-    (plan P4-D369), so each witness stands as these rules were measured:
-    `ties60_1000` lists 53 of its 60 days, and its twins hold that list
-    only by giving way on the count, so the list gives way (method G7.3j
-    step 7), which tests/test_stage3b_heavy_dates.py measures.
+    shares. `ties60_1000` is described listing no date that stands out
+    (plan P4-D369), so it stands as these rules were measured: it lists
+    53 of its 60 days, and its twins hold that list only by giving way on
+    the count, which then gives way, named (method G7.3j step 7; the
+    orchestrator's ruling (a) of 2026-10-13), as
+    tests/test_stage3b_heavy_dates.py measures. Every other witness is
+    described as the producer writes it.
     """
-    monkeypatch.setattr(taxonomy, "heavy_dates_decided", lambda *arguments: ())
+    if name == "ties60_1000":
+        monkeypatch.setattr(taxonomy, "heavy_dates_decided", lambda *arguments: ())
     column, build, expected, reason = _EXPECTED[name]
     cells = build()
     text = f"{column}\n" + "".join(f"{cell}\n" for cell in cells)
@@ -3600,13 +3603,16 @@ def test_a_folded_moment_is_counted_where_the_census_counted_it(
     (`validation._day_as_counted`) wherever the file's own description
     folded it -- here `n_unparsed` 4 for five present cells the member
     fails (`validation._folded_by_the_file`). The real file validates
-    with nothing missed, and the twins of seeds 0 and 1 too. Described
-    listing no date that stands out (plan P4-D369): every Tuesday of the
-    clinic stands out, and 18 listed dates beside two tail days are more
-    days than the count leaves the twin once its four stand-ins take
-    theirs, so the list would give way (method G7.3j step 7).
+    with nothing missed, and the twins of seeds 0 and 1 too. The Tuesday
+    clinic is described listing no date that stands out (plan P4-D369):
+    every Tuesday of it stands out, and 18 listed dates beside two tail
+    days are more days than the count leaves the twin once its four
+    stand-ins take theirs, so beside the list the count gives way, named
+    (method G7.3j step 7; the orchestrator's ruling (a) of 2026-10-13).
+    The other two are described as the producer writes them.
     """
-    monkeypatch.setattr(taxonomy, "heavy_dates_decided", lambda *arguments: ())
+    if name == "tuesday_clinic_20w":
+        monkeypatch.setattr(taxonomy, "heavy_dates_decided", lambda *arguments: ())
     cells = _FOLDED[name](random.Random(5))
     moment = "2020-05-03T00:00:00" if name == "every_day_395" else sorted(cells)[len(cells) // 2] + "T00:00:00"
     cells = cells + [moment] + ["unparsed"] * 4

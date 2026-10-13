@@ -9411,11 +9411,14 @@ def heavy_drawn(column, parsed, planned, knots_of, held, words):
     return found
 
 
-def heavy_census_met(column, ordinals, parsed):
-    """Whether every group of the weekday census and of the day-of-month
-    census holds its published count over the body's ranks (G7.3j)."""
+def heavy_census_off(column, ordinals, parsed):
+    """G7.3j step 7: how many rows the body's ranks stand off the censuses
+    beside the list -- over every group of the weekday census and of the
+    day-of-month census, the rows it holds more or fewer than its count,
+    summed -- and the census each missed group is of, in that order."""
     first = column["low_tail"]["rows"]
     last = parsed - 1 - column["high_tail"]["rows"]
+    off, missed = 0, []
     for key, bins in (("weekday_census", "weekday"), ("day_of_month_census", "month_day")):
         groups = heavy_groups(column, key)
         if not groups:
@@ -9424,30 +9427,105 @@ def heavy_census_met(column, ordinals, parsed):
         found = [0] * len(groups)
         for rank in range(first, last + 1):
             found[heavy_group(where, bins, ordinals[rank])] += 1
-        if found != [count for _first, _last, count in groups]:
-            return False
-    return True
+        here = sum(abs(found[place] - groups[place][2]) for place in range(len(groups)))
+        if here:
+            off += here
+            missed.append(key)
+    return off, tuple(missed)
+
+
+def heavy_census_met(column, ordinals, parsed):
+    """Whether every group of the weekday census and of the day-of-month
+    census holds its published count over the body's ranks (G7.3j)."""
+    return heavy_census_off(column, ordinals, parsed)[0] == 0
+
+
+def heavy_listed_off(column, ordinals):
+    """G7.3j step 7: how many rows the ranks stand off the listed dates'
+    published counts, summed over the listed dates."""
+    held = {}
+    for value in ordinals:
+        held[value] = held.get(value, 0) + 1
+    return sum(abs(held.get(day, 0) - count) for day, count in heavy_listed(column))
 
 
 def heavy_standing(column, ordinals, parsed):
-    """G7.3j step 7: how far the ranks stand from the censuses and the
-    count -- (0 where every group of both censuses holds its count, else
-    1; how many different days more or fewer than the count asks where
-    it is reached, else 0) -- a census first, lower nearer."""
-    census = 0 if heavy_census_met(column, ordinals, parsed) else 1
+    """G7.3j step 7 (the orchestrator's ruling (b) of 2026-10-13): how many
+    rows the ranks stand off the censuses' groups beside the list and the
+    listed dates' counts, together; the count of different values does
+    not enter it (ruling (a): beside a list that count gives way)."""
+    return heavy_census_off(column, ordinals, parsed)[0] + heavy_listed_off(column, ordinals)
+
+
+def count_lower_end(column, parsed):
+    """The lower end of G12.5's envelope of the count of different values,
+    on the description's own gaps -- the list's parts left out, as the
+    validator draws its window from the description alone (the
+    orchestrator's ruling (c) of 2026-10-13): every rank's gap
+    (``pin_bounds``) less the reading allowance on a rank with room (one
+    unit: a column counted in days loses nothing to its precision), past
+    the strata where the count is reached (a shape-drawn tail's ranks out
+    to its outermost rank's window and in to the unit next to its
+    boundary), then the ranks whose windows stand pairwise apart, taken
+    in the order of their upper ends, and the stand-ins."""
+    plain = dict(column, heavy_dates=[])
+    lows, highs = pin_bounds(plain, parsed)
+    lows = [lows[rank] - (0 if lows[rank] == highs[rank] else 1) for rank in range(parsed)]
+    if date_counts_reachable(column):
+        sides = date_pins(plain, parsed)[3]
+        for name in ("low", "high"):
+            plan = sides.get(name)
+            if not plan or plan.get("shape") is None or not plan["spots"] or parsed < 1:
+                continue
+            low_side = name == "low"
+            rows = len(plan["spots"])
+            outermost = 0 if low_side else parsed - 1
+            inner = plan["anchor"] - plan["unit"] if low_side else plan["anchor"] + plan["unit"]
+            for rank in range(parsed):
+                index = rank if low_side else parsed - 1 - rank
+                if index >= rows or lows[rank] >= highs[rank]:
+                    continue
+                if low_side:
+                    lows[rank] = min(lows[rank], lows[outermost])
+                    highs[rank] = max(highs[rank], inner + max(plan["half"] - 1, 0))
+                else:
+                    lows[rank] = min(lows[rank], inner - plan["half"])
+                    highs[rank] = max(highs[rank], highs[outermost])
+    count, frontier = 0, 0
+    for high, low in sorted(zip(highs, lows)):
+        if count == 0 or low > frontier:
+            count, frontier = count + 1, high
+    return count + column["n_unparsed"]
+
+
+def heavy_count_off(column, ordinals, parsed):
+    """How far the ranks stand from the count of different values as the
+    validator judges it (G7.3j; the orchestrator's ruling (c) of
+    2026-10-13): where the count is reached, the distance from the
+    published count if it stands at or above G12.5's lower end
+    (``count_lower_end``), else the distance below that end, nought at or
+    above it; nought where the count is not reached.  The upper end is
+    not asked: where the count is reached, the published count and every
+    count the ranks can hold lie under it (the reach rule bounds the
+    count by the days between the boundaries and the tails' rows)."""
     if not date_counts_reachable(column):
-        return (census, 0)
-    return (census, abs(len(set(ordinals)) - (column["n_distinct"] - column["n_unparsed"])))
+        return 0
+    held = len(set(ordinals)) + column["n_unparsed"]
+    lowest = count_lower_end(column, parsed)
+    if column["n_distinct"] >= lowest:
+        return abs(held - column["n_distinct"])
+    return max(0, lowest - held)
 
 
 def heavy_met(column, ordinals, parsed, holes):
     """Whether the ranks already meet every census beside the list, hold the
-    count of different days where it is reached, and keep off every hole
-    -- the run's absent days and the description's -- but the listed
-    dates: G7.3j step 5 leaves such a column as drawn."""
+    count of different values as the validator judges it
+    (``heavy_count_off``), and keep off every hole -- the run's absent
+    days and the description's -- but the listed dates: G7.3j step 5
+    leaves such a column as drawn."""
     first = column["low_tail"]["rows"]
     last = parsed - 1 - column["high_tail"]["rows"]
-    if date_counts_reachable(column) and len(set(ordinals)) != column["n_distinct"] - column["n_unparsed"]:
+    if heavy_count_off(column, ordinals, parsed) > 0:
         return False
     if not heavy_census_met(column, ordinals, parsed):
         return False
@@ -10410,9 +10488,14 @@ def _datetime_content(column, settled=None):
     # ...and where the list costs a group of a census beside it or a day
     # of the count that the twin listing nothing holds, the list gives
     # way (G7.3j step 7): the column drawn as if it listed none.
+    # Where the list's twin meets every census it stands (the
+    # orchestrator's ruling (a) of 2026-10-13: the count gives way); where
+    # it misses a group, the twin standing FEWER rows off the censuses and
+    # the listed dates is taken, a tie keeping the list (ruling (b)).
     if heavy_planned(column, parsed, body_pins, _sides) is not None:
-        listed = heavy_standing(column, ordinals, parsed)
-        if listed != (0, 0):
+        census_off = heavy_census_off(column, ordinals, parsed)[0]
+        if census_off:
+            listed = census_off + heavy_listed_off(column, ordinals)
             kept = []
             bare = _datetime_content(dict(column, heavy_dates=[]), kept)
             if heavy_standing(column, kept[0], parsed) < listed:

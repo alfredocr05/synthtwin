@@ -9068,10 +9068,7 @@ def _distinctness_checks(
             window = _datetime_distinct_window(
                 column, facts, floor, date_system
             )
-            if (
-                contract.datetime_counts_reachable(column)
-                and window[0] <= published <= window[1]
-            ):
+            if contract.datetime_count_held_exactly(column, published, window):
                 checks += [
                     _exact(
                         name,

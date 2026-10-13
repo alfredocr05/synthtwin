@@ -6897,24 +6897,38 @@ pins: the two tail boundaries and each published rung, at its rank.
 5. **The passes.** Every listed date is a hole of the count pass, of the
    day pass and of the step off an absent spelling, which offer it to no
    other rank. Where the drawn ranks already meet every census beside
-   the list, keep off every hole and hold the count of different days
-   where the count pass reaches it, the day pass leaves them as drawn;
-   elsewhere it runs as before, its step 8.5 included.
+   the list, keep off every hole and hold the count of different values
+   as the validator judges it, the day pass leaves them as drawn;
+   elsewhere it runs as before, its step 8.5 included. THE COUNT AS THE
+   VALIDATOR JUDGES IT (the orchestrator's ruling (c) of 2026-10-13):
+   exactly where the count pass reaches it and the published count lies
+   inside G12.5's envelope drawn on the description's own gaps (the
+   list's parts left out, as the validator draws it); elsewhere the
+   distance outside that envelope, nought inside it
+   (`contract.datetime_count_held_exactly`, the one statement the
+   validator, the report and this section ask).
 6. **The sort.** After every other pass the body's ranks are sorted
    again; every value stayed inside its part, so each boundary and rung
    reads its own value. A listed date not holding its count is named
    (`heavy_dates`).
-7. **The list gives way.** Where the sorted ranks miss a group of the
-   weekday or the day-of-month census beside the list, or the count of
-   different days where the count pass reaches it, the column is drawn
-   again from the same words as if it listed no date. That twin is
-   taken where it meets a census the listed one misses, or meets the
-   censuses as the listed one does and holds the count nearer -- a
-   census first, then the count's distance -- and one deviation names
-   the list (`heavy_dates`, "as if no date were listed"); elsewhere the
-   listed twin stands. The list so never costs a census or a day of the
-   count that the twin of the column without `heavy_dates`, taken byte
-   for byte, holds; at most twice the column's work. The pass draws no word of its own. Its
+7. **What gives way** (the orchestrator's rulings (a) and (b) of
+   2026-10-13). Where the sorted ranks meet every group of the weekday
+   and the day-of-month census beside the list, the listed twin stands,
+   whatever the count of different values holds: beside a list the
+   count gives way, and where it is off as step 5 judges it one
+   deviation says the count gave way to the listed dates, read as the
+   count's cause. Where they miss a group, the column is drawn again
+   from the same words as if it listed no date -- the twin of the
+   column without `heavy_dates`, byte for byte -- and the two are
+   weighed by ROWS OFF the published counts: over every group of both
+   censuses and every listed date, the rows a twin holds more or fewer
+   than its count, summed. That twin is taken only where it stands
+   fewer rows off, and one deviation names the list and the census it
+   gave way to (`heavy_dates`, "as if no date were listed"); a tie
+   keeps the list, and then each missed census's deviation says it
+   gave way to the listed dates. The count of different values does
+   not enter the weighing. At most twice the column's work. The pass
+   draws no word of its own. Its
 frozen cases are states in the nineteenth vectors file,
 `tests/reference/generation-branch-vectors-19.json`: a covered run, two
 loose dates, a listed boundary day, two listed dates with a hole between

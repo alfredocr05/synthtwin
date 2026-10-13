@@ -1886,6 +1886,19 @@ def battery() -> list[Mutation]:
             edit("recorded_on", heavy_dates=[{"date": "2024-04-10", "count": 300}]),
         ),
         Mutation(
+            "HD3", "three listed dates on a column of two different values",
+            edit(
+                "recorded_on",
+                n_distinct=2,
+                n_distinct_folded=2,
+                heavy_dates=[
+                    {"date": "2024-04-10", "count": 11},
+                    {"date": "2024-05-10", "count": 11},
+                    {"date": "2024-06-12", "count": 11},
+                ],
+            ),
+        ),
+        Mutation(
             "HD3", "two listed Wednesdays holding more than the Wednesday group",
             edit(
                 "recorded_on",

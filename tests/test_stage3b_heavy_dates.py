@@ -52,9 +52,16 @@ THE GATE'S CLAUSES, each beside what turns it red:
 * the work is bounded: `test_the_plan_and_the_draw_count_no_more_as_rows_grow`,
   machine-free, up to 1,000,000 rows.
 * NF71 is dropped beside a list: `test_the_weekday_floor_remark_stands_only_without_a_list`.
-* the list gives way (G7.3j step 7): `test_a_list_that_costs_a_census_or_the_count_gives_way`
-  -- one date a month and sixty tie days, each twin the twin of its column listing nothing,
-  byte for byte; mutants: the census not asked, the count not asked.
+* what gives way (G7.3j step 7, the orchestrator's rulings of 2026-10-13):
+  `test_the_list_stands_and_what_gave_way_is_named` -- sixty tie days (the count gives
+  way, named; mutant: the count weighed as e34b853 weighed it), one date a month (the
+  day-of-month census gives way, named; mutant: the listed dates' rows left out of the
+  weighing) and a weekly schedule of 33 at a floor of 36 (the count read as the validator
+  judges it, a window; mutant: the count read exactly wherever it is reached);
+  `test_the_weighing_keeps_the_list_on_a_tie_and_gives_it_way_below` (mutant: a tie gives
+  the list way); `test_a_count_left_off_is_the_day_pass_s_to_repair` (mutant: step 5 no
+  longer asks the count); `test_every_listed_date_is_a_hole_of_the_count_pass` (mutant: the
+  holes dropped on midnight moments in a member with a mark).
 
 Test-local mutants build the product's module with one source edit (one
 `compile` and one `exec` below); the oracle is run by path (one
@@ -675,17 +682,63 @@ def test_the_tenth_on_business_days_meets_every_check_at_eight_seeds(tmp_path: p
         assert kpi_shapes.missed(kpi_shapes.measure(described, text, f"t{seed}.csv")) == [], seed
 
 
-# -- the list gives way ------------------------------------------------------------------
+# -- what gives way (G7.3j step 7, the orchestrator's rulings of 2026-10-13) -------------
 
-_GIVING_WAY = {
+_STANDING = {
+    # sixty tie days (tests/test_stage3b_gate.py's `_tie_days`): 53 listed, and the twin drawn
+    # with the list holds 68 different days for 60, a count held exactly: the count gives way
+    "count": (lambda: gate._tie_days(1000, 60, 83060), 11),
     # one date a month over 60 months (tests/test_stage3b_count_room.py's `_monthly`): 55 of
     # its 60 firsts listed, the three left a Wednesday, a Saturday and a Sunday in three parts
-    # of the body the split does not open together, so the twin drawn with the list misses
-    # the day-of-month census
-    "census": lambda: _monthly_firsts(),
-    # sixty tie days (tests/test_stage3b_gate.py's `_tie_days`): 53 listed, and the twin drawn
-    # with the list holds 68 different days for 60
-    "count": lambda: gate._tie_days(1000, 60, 83060),
+    # the split does not open together, so the twin drawn with the list misses the
+    # day-of-month census by a few rows, where the twin listing nothing misses the listed dates
+    # by hundreds: the census gives way
+    "census": (lambda: _monthly_firsts(), 11),
+    # a weekly schedule of 33 dates at a floor of 36 (tests/test_stage3b_weekday_review.py's
+    # `_weekly_schedule`): its published count of 24 stands below G12.5's lower end, so the
+    # count is a window, which the listed twin's 26 days meet (the 3b.6 skeptic's sched33)
+    "window": (lambda: _weekly_schedule(33), 36),
+}
+
+# Each case's source edit of the product, red there.
+_STANDING_MUTANTS = {
+    # the count weighed as e34b853 weighed it: a census first, then the count's distance
+    "count": (
+        """    census_off, missed = _heavy_census_off(facts, ordinals, layout)
+    if census_off == 0:
+        return None, None
+    listed = census_off + _heavy_listed_off(facts, ordinals)
+""",
+        """    census_off, missed = _heavy_census_off(facts, ordinals, layout)
+    missed = missed or (calendar_rules.WEEKDAY_CENSUS,)
+    listed = (min(census_off, 1), abs(len(set(ordinals)) - layout.distinct))
+    if listed == (0, 0):
+        return None, None
+    def _heavy_standing(facts, ordinals, layout):  # noqa: E306
+        return (min(_heavy_census_off(facts, ordinals, layout)[0], 1), abs(len(set(ordinals)) - layout.distinct))
+""",
+    ),
+    # the listed dates' rows left out of the weighing
+    "census": (
+        """    return _heavy_census_off(facts, ordinals, layout)[0] + _heavy_listed_off(
+        facts, ordinals
+    )
+""",
+        """    return _heavy_census_off(facts, ordinals, layout)[0]
+""",
+    ),
+    # the count read exactly wherever the count pass reaches it
+    "window": (
+        """    return contract.datetime_count_off(
+        column,
+        column.n_distinct,
+        len(set(ordinals)) + facts.n_unparsed,
+        layout.count_window,
+    )
+""",
+        """    return abs(len(set(ordinals)) - layout.distinct)
+""",
+    ),
 }
 
 
@@ -695,42 +748,145 @@ def _monthly_firsts() -> "list[str]":
     return room._monthly(1, 2017, 60, 9740)
 
 
-@pytest.mark.parametrize("label", sorted(_GIVING_WAY))
-def test_a_list_that_costs_a_census_or_the_count_gives_way(
+def _weekly_schedule(shape: int) -> "list[str]":
+    import test_stage3b_weekday_review as review
+
+    return review._weekly_schedule(shape)
+
+
+def _gave_way(twin: "generation.Twin", fact: str) -> "list[str]":
+    """The deviations of one fact naming the listed dates as what it gave way to."""
+    return [note.note for note in twin.deviations if note.fact == fact and "gave way to the listed dates" in note.note]
+
+
+@pytest.mark.parametrize("label", sorted(_STANDING))
+def test_the_list_stands_and_what_gave_way_is_named(
     tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch, label: str
 ) -> None:
-    """G7.3j step 7: where the twin drawn with the list misses a group of a census beside it,
-    or the count of different days, that the twin drawn as if it listed no date holds, the
-    column is drawn so. The twin at seed 0 is the twin of the same column described listing
-    nothing, byte for byte; only the list is MISSED, and the report names it. Red when the
-    census is not asked (`census`) or the count is not asked (`count`): that check is MISSED
-    beside the list."""
-    cells = _GIVING_WAY[label]()
-    text = gate._table_text({"visit": cells})
-    described = kpi_shapes.describe(tmp_path / "listed", "listed", text, 11)
+    """G7.3j step 7 under the orchestrator's rulings of 2026-10-13. (a) Where the twin drawn
+    with the list meets every census, the list stands and the count of different values gives
+    way, named as the count's cause (`count`: `distinct.n_distinct` and its folded twin the only
+    misses). (b) Where it misses a census by fewer rows than the twin listing nothing stands off
+    the listed dates, the list stands and the census gives way, named (`census`). (c) The count
+    is read as the validator judges it: a published count outside G12.5's envelope is a window,
+    and a twin inside it misses nothing and names nothing (`window`). Red on each case's source
+    edit: the list given way, or a count named given way that the validator holds."""
+    build, floor = _STANDING[label]
+    text = gate._table_text({"visit": build()})
+    described = kpi_shapes.describe(tmp_path / "listed", "listed", text, floor)
     assert described.block("visit")["heavy_dates"], label
     twin = generation.generate(described.loaded, 0)
-    ours = kpi_shapes.twin_text(described, 0)
-    assert kpi_shapes.missed(kpi_shapes.measure(described, ours, "twin.csv")) == ["visit:heavy_dates.counts"], label
-    named = [note for note in twin.deviations if note.fact == calendar_rules.HEAVY_DATES]
-    assert [note.note for note in named] == [generation._HEAVY_GIVEN_WAY], label
-    with monkeypatch.context() as patch:
-        patch.setattr(taxonomy, "heavy_dates_decided", lambda *arguments: ())
-        bare = kpi_shapes.describe(tmp_path / "bare", "bare", text, 11)
-    assert bare.block("visit")["heavy_dates"] == []
-    assert kpi_shapes.twin_text(bare, 0) == ours, label
+    missed = kpi_shapes.missed(kpi_shapes.measure(described, rendering.twin_csv(twin), "twin.csv"))
+    assert not [note for note in twin.deviations if note.fact == calendar_rules.HEAVY_DATES], label
+    expected = {
+        "count": ["visit:distinct.n_distinct", "visit:distinct.n_distinct_folded"],
+        "census": ["visit:day_of_month_census.groups"],
+        "window": [],
+    }
+    assert missed == expected[label], label
+    if label == "count":
+        assert _gave_way(twin, "n_distinct") == [generation._HEAVY_COUNT_LONG]
     if label == "census":
-        monkeypatch.setattr(generation, "_heavy_census_met", lambda *arguments: True)
-        kept = kpi_shapes.twin_text(described, 0)
-        assert "visit:day_of_month_census.groups" in kpi_shapes.missed(kpi_shapes.measure(described, kept, "kept.csv"))
+        assert _gave_way(twin, calendar_rules.DAY_OF_MONTH_CENSUS) == [
+            generation._HEAVY_CENSUS_GIVEN_WAY.format(check="the published counts per day of the month")
+        ]
+    if label == "window":
+        assert _gave_way(twin, "n_distinct") == []
+    module = _mutant(monkeypatch, *_STANDING_MUTANTS[label])
+    mutated = module.generate(described.loaded, 0)
+    if label == "window":
+        assert _gave_way(mutated, "n_distinct") != []
         return
+    kept = kpi_shapes.missed(kpi_shapes.measure(described, rendering.twin_csv(mutated), "kept.csv"))
+    assert "visit:heavy_dates.counts" in kept, (label, kept)
+
+
+def _step_seven(described: "kpi_shapes.Described", monkeypatch: pytest.MonkeyPatch) -> "tuple[object, ...]":
+    """What step 7 is handed on the first twin of a description: the plan, the words, the
+    listed twin's ranks and the layout."""
+    seen: "list[tuple[object, ...]]" = []
+    real = generation._heavy_given_way
+
+    def captured(plan, words, ordinals, layout):  # type: ignore[no-untyped-def]
+        if not seen:
+            seen[:] = [(plan, list(words), list(ordinals), layout)]
+        return real(plan, words, ordinals, layout)
+
+    with monkeypatch.context() as patch:
+        patch.setattr(generation, "_heavy_given_way", captured)
+        generation.generate(described.loaded, 0)
+    return seen[0]
+
+
+def test_the_weighing_keeps_the_list_on_a_tie_and_gives_it_way_below(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Ruling (b) at its edge, on the one-date-a-month column: the twin drawn as if no date
+    were listed is taken only where it stands FEWER rows off the censuses and the listed dates
+    than the listed twin, which here misses the day-of-month census alone; at as many rows the
+    list stands. Taken, its deviation names the list and the census it gave way to. Red when a
+    tie gives the list way."""
+    text = gate._table_text({"visit": _monthly_firsts()})
+    described = kpi_shapes.describe(tmp_path, "firsts", text, 11)
+    plan, words, ordinals, layout = _step_seven(described, monkeypatch)
+    facts = plan.column.facts  # type: ignore[attr-defined]
+    census, missed = generation._heavy_census_off(facts, ordinals, layout)  # type: ignore[arg-type]
+    assert census > 0 and missed == (calendar_rules.DAY_OF_MONTH_CENSUS,)
+    assert generation._heavy_listed_off(facts, ordinals) == 0  # type: ignore[arg-type]
+    for module, tie_stands in (
+        (generation, True),
+        (_mutant(monkeypatch, "    if _heavy_standing(facts, ranks, layout) >= listed:\n", "    if _heavy_standing(facts, ranks, layout) > listed:\n"), False),
+    ):
+        for weight, stands in ((census, tie_stands), (census - 1, False)):
+            with monkeypatch.context() as patch:
+                patch.setattr(module, "_heavy_standing", lambda *arguments, weight=weight: weight)
+                found = module._heavy_given_way(plan, words, ordinals, layout)[0]
+            assert (found is None) is stands, (module.__name__, weight)
+            if found is not None:
+                assert found[1][-1].fact == calendar_rules.HEAVY_DATES
+                assert found[1][-1].note == generation._HEAVY_GIVEN_WAY.format(
+                    check="the published counts per day of the month"
+                )
+
+
+def test_a_count_left_off_is_the_day_pass_s_to_repair(tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """G7.3j step 5: drawn ranks that meet every census beside the list and keep off every hole
+    but hold the count of different values off, as the validator judges it, are not left as
+    drawn: the day pass runs, its step 8.5 included. Asked of the sixty tie days' finished
+    ranks, which meet every census and hold 68 different days for 60. Red when step 5 no
+    longer asks the count. Over the session family, the gate's battery at 1,000 rows, the
+    joint shapes and lane D3's battery at 1,000 rows, floors 11 and 36, seeds 0 and 1, no twin
+    moves when it is not asked (the repair round of plan P4-D369): a guard, the day pass
+    finding no move there."""
+    text = gate._table_text({"visit": gate._tie_days(1000, 60, 83060)})
+    described = kpi_shapes.describe(tmp_path, "ties", text, 11)
+    plan, _words, ordinals, layout = _step_seven(described, monkeypatch)
+    column = plan.column  # type: ignore[attr-defined]
+    facts = column.facts
+    holes = generation._all_holes_of(plan)  # type: ignore[arg-type]
+    assert generation._heavy_census_met(facts, ordinals, layout)  # type: ignore[arg-type]
+    assert generation._heavy_count_off(column, facts, ordinals, layout) > 0  # type: ignore[arg-type]
+    assert not generation._heavy_met(column, facts, ordinals, layout, holes)  # type: ignore[arg-type]
     module = _mutant(
         monkeypatch,
-        "    return census, abs(len(set(ordinals)) - layout.distinct)",
-        "    return census, 0",
+        "    if _heavy_count_off(column, facts, ordinals, layout) > 0:\n        return False\n    if not _heavy_census_met(",
+        "    if not _heavy_census_met(",
     )
-    kept = rendering.twin_csv(module.generate(described.loaded, 0))
-    assert "visit:distinct.n_distinct" in kpi_shapes.missed(kpi_shapes.measure(described, kept, "kept.csv"))
+    assert module._heavy_met(column, facts, ordinals, layout, holes)
+
+
+def test_every_listed_date_is_a_hole_of_the_count_pass(tmp_path: pathlib.Path) -> None:
+    """G7.3j step 5: every listed date is a unit the count pass offers no rank
+    (`_count_holes`), on whole dates and on moments at midnight in a member with a mark,
+    where no absent spelling names one. Red when the holes are dropped on the second."""
+    days = gate._BATTERY["heaps"](1000)["billing_date"]
+    for label, cells in (("dates", days), ("midnight", [cell + "T00:00:00" for cell in days])):
+        described = kpi_shapes.describe(tmp_path / label, label, gate._table_text({"billed": cells}), 11)
+        listed = described.block("billed")["heavy_dates"]
+        assert listed, label
+        facts = described.loaded.columns[0].facts
+        held = generation._count_holes(facts, ())
+        assert {parsing.days_from_civil(*map(int, entry["date"].split("-"))) for entry in listed} <= set(held), label
 
 
 # -- the work is bounded -----------------------------------------------------------------

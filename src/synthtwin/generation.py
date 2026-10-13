@@ -18579,6 +18579,13 @@ class _DateLayout:
     listed: "frozenset[int]" = frozenset()
     distinct: int = -1
     owed: "tuple[tuple[int, ...], ...]" = ()
+    # ...the gaps as the description draws them, before the list's parts
+    # (None where nothing is listed), and G12.5's envelope of the count
+    # of different values on them (`_datetime_count_window`), which the
+    # validator judges the count by (the orchestrator's ruling (c) of
+    # 2026-10-13): the count method G7.3j steps 5 and 7 read.
+    described: "tuple[tuple[int, ...], tuple[int, ...]] | None" = None
+    count_window: "tuple[int, int]" = (0, -1)
 
 
 def _tail_step(facts: contract.DatetimeFacts) -> "tuple[int, int]":
@@ -18995,7 +19002,16 @@ def _date_layout(
     )
     # THE DATES THAT STAND OUT, PINNED (3b.D4, P4-D369; plan P4-D364's
     # seam): unchanged until that landing fills `_heavy_layout`.
-    return _heavy_layout(column, facts, layout)
+    listing = _heavy_layout(column, facts, layout)
+    if not listing.listed:
+        return listing
+    # ...with the count's envelope as the validator draws it (G7.3j).
+    return dataclasses.replace(
+        listing,
+        count_window=_datetime_count_window(
+            column, facts, listing, column.n_present, parsed, floor
+        ),
+    )
 
 
 def _draw_unit(facts: contract.DatetimeFacts) -> int:
@@ -19096,6 +19112,7 @@ def _heavy_layout(
         parts=parts,
         owed=owed,
         listed=frozenset(day for day, _count in listed),
+        described=(layout.lows, layout.highs),
         distinct=(
             column.n_distinct - facts.n_unparsed
             if contract.datetime_counts_reachable(column)
@@ -20395,17 +20412,18 @@ def _heavy_met(
     Every group of the weekday census and of the day-of-month census, as
     published, holds its count over the body's ranks, no body rank
     stands on a hole of the run (`_count_holes`) or of the description
-    (`_published_holes`), and the ranks hold as many different days as
-    the column's count asks where it can be reached (`layout.distinct`):
-    a count the count pass left long is the day pass's to repair (G7.3f
-    step 8.5), so the pass is not skipped then.
+    (`_published_holes`), and the ranks hold the count of different
+    values as the validator judges it (`_heavy_count_off`): a count the
+    count pass left long is the day pass's to repair (G7.3f step 8.5),
+    so the pass is not skipped then.
 
-    Guarantees: returns the answer. Linear in the ranks. Determinism: a
-    function of the five. Raises nothing. No I/O of any kind.
+    Guarantees: returns the answer. Linear in the ranks, times the sort
+    of the count's envelope. Determinism: a function of the five. Raises
+    nothing. No I/O of any kind.
     """
     if layout.low is None or layout.high is None:
         return False
-    if layout.distinct >= 0 and len(set(ordinals)) != layout.distinct:
+    if _heavy_count_off(column, facts, ordinals, layout) > 0:
         return False
     if not _heavy_census_met(facts, ordinals, layout):
         return False
@@ -20418,6 +20436,84 @@ def _heavy_met(
         if ordinals[rank] in kept_off and ordinals[rank] not in layout.listed:
             return False
     return True
+
+
+def _heavy_count_off(
+    column: contract.ColumnBlock,
+    facts: contract.DatetimeFacts,
+    ordinals: "list[int]",
+    layout: "_DateLayout",
+) -> int:
+    """How far the ranks stand from the count of different values AS THE
+    VALIDATOR JUDGES IT (G7.3j; the orchestrator's ruling (c) of
+    2026-10-13, plan P4-D369).
+
+    `contract.datetime_count_off` over the different days the ranks hold
+    and the stand-ins beside them, against G12.5's envelope on the
+    description's own gaps (`layout.count_window`): the distance from the
+    published count where the count is reachable and inside that
+    envelope, the distance outside the envelope elsewhere. Nought where
+    the count pass does not reach the count (`layout.distinct` is -1):
+    there the spellings drawn after the ranks decide it and no pass of
+    the ranks steers it.
+
+    Guarantees: returns a whole number of nought or more. Linear in the
+    ranks. Determinism: a function of the four. Raises nothing. No I/O
+    of any kind.
+    """
+    if layout.distinct < 0:
+        return 0
+    return contract.datetime_count_off(
+        column,
+        column.n_distinct,
+        len(set(ordinals)) + facts.n_unparsed,
+        layout.count_window,
+    )
+
+
+def _heavy_census_off(
+    facts: contract.DatetimeFacts,
+    ordinals: "list[int]",
+    layout: "_DateLayout",
+) -> "tuple[int, tuple[str, ...]]":
+    """How many rows the body's ranks stand off the censuses beside the
+    list (G7.3j step 7), and which census each missed group is of.
+
+    Over every group of the weekday census and of the day-of-month
+    census, as published, the rows the group holds more or fewer than
+    its count, summed; with the facts of the censuses that miss a group
+    (`calendar_rules.WEEKDAY_CENSUS`, `DAY_OF_MONTH_CENSUS`), in that
+    order.
+
+    Guarantees: returns the rows and the facts; (0, ()) where every
+    group holds or no census is published. Linear in the ranks.
+    Determinism: a function of the three. Raises nothing. No I/O of any
+    kind.
+    """
+    if layout.low is None or layout.high is None:
+        return 0, ()
+    body_low = layout.low.rows
+    body_high = layout.parsed - 1 - layout.high.rows
+    off = 0
+    missed: "list[str]" = []
+    for groups, where, bins in _heavy_censuses(
+        facts.weekday_census, facts.day_of_month_census
+    ):
+        found = [0 for _ in groups]
+        for rank in range(body_low, body_high + 1):
+            group = _heavy_group(where, bins, ordinals[rank])
+            found[group] = found[group] + 1
+        here = 0
+        for place in range(len(groups)):
+            here = here + abs(found[place] - groups[place][2])
+        if here > 0:
+            off = off + here
+            missed += [
+                calendar_rules.WEEKDAY_CENSUS
+                if bins == "weekday"
+                else calendar_rules.DAY_OF_MONTH_CENSUS
+            ]
+    return off, tuple(missed)
 
 
 def _heavy_census_met(
@@ -20434,25 +20530,64 @@ def _heavy_census_met(
     """
     if layout.low is None or layout.high is None:
         return False
-    body_low = layout.low.rows
-    body_high = layout.parsed - 1 - layout.high.rows
-    for groups, where, bins in _heavy_censuses(
-        facts.weekday_census, facts.day_of_month_census
-    ):
-        found = [0 for _ in groups]
-        for rank in range(body_low, body_high + 1):
-            group = _heavy_group(where, bins, ordinals[rank])
-            found[group] = found[group] + 1
-        if found != [count for _first, _last, count in groups]:
-            return False
-    return True
+    return _heavy_census_off(facts, ordinals, layout)[0] == 0
 
 
+def _heavy_listed_off(
+    facts: contract.DatetimeFacts, ordinals: "list[int]"
+) -> int:
+    """How many rows the ranks stand off the listed dates' published
+    counts (G7.3j step 7): over every listed date, the rows it holds more
+    or fewer than its count, summed.
+
+    Guarantees: returns a whole number of nought or more. Linear in the
+    ranks. Determinism: a function of the two. Raises nothing. No I/O of
+    any kind.
+    """
+    held: "dict[int, int]" = {}
+    for value in ordinals:
+        held[value] = (held[value] if value in held else 0) + 1
+    off = 0
+    for day, count in facts.heavy_dates:
+        off = off + abs((held[day] if day in held else 0) - count)
+    return off
+
+
+# WHAT GAVE WAY, NAMED (G7.3j step 7; the orchestrator's rulings (a) and
+# (b) of 2026-10-13): the check the list gave way to, or the census or
+# the count that gave way to the list.
+_HEAVY_CHECK_NAMES = {
+    (calendar_rules.WEEKDAY_CENSUS,): "the published counts per day of the week",
+    (calendar_rules.DAY_OF_MONTH_CENSUS,): "the published counts per day of the month",
+    (
+        calendar_rules.WEEKDAY_CENSUS,
+        calendar_rules.DAY_OF_MONTH_CENSUS,
+    ): "the published counts per day of the week and per day of the month",
+}
 _HEAVY_GIVEN_WAY = (
     "Drawn holding the dates that stand out at their published counts, "
-    "the twin missed a count per day of the week or of the month, or the "
-    "count of different values, that it holds drawn as if no date were "
-    "listed, so it is drawn so and those dates hold other counts."
+    "the twin missed {check}; drawn as if no date were listed it stands "
+    "fewer rows off the published counts, the listed dates' and the "
+    "census's together, so it is drawn so: the listed dates gave way to "
+    "{check} and hold other counts."
+)
+# How every deviation naming the list given way begins (`_spread_remarks`).
+_HEAVY_GIVEN_WAY_HEAD = _HEAVY_GIVEN_WAY.split("{check}")[0]
+_HEAVY_CENSUS_GIVEN_WAY = (
+    "The twin holds the dates that stand out at their published counts "
+    "and, drawn so, misses {check}; drawn as if no date were listed it "
+    "would stand as many rows off the published counts or more, the "
+    "listed dates' among them, so {check} gave way to the listed dates."
+)
+_HEAVY_COUNT_SHORT = (
+    "The twin holds the dates that stand out at their published counts "
+    "and, drawn so, holds fewer different values than the description "
+    "records: the count of different values gave way to the listed dates."
+)
+_HEAVY_COUNT_LONG = (
+    "The twin holds the dates that stand out at their published counts "
+    "and, drawn so, holds more different values than the description "
+    "records: the count of different values gave way to the listed dates."
 )
 
 
@@ -20460,22 +20595,21 @@ def _heavy_standing(
     facts: contract.DatetimeFacts,
     ordinals: "list[int]",
     layout: "_DateLayout",
-) -> "tuple[int, int]":
-    """How far the ranks stand from the censuses and the count (G7.3j step 7).
+) -> int:
+    """How many rows the ranks stand off the published counts that step 7
+    weighs (G7.3j; the orchestrator's ruling (b) of 2026-10-13): the
+    censuses' groups beside the list (`_heavy_census_off`) and the listed
+    dates (`_heavy_listed_off`), together. The count of different values
+    does not enter it: beside a list that count gives way, named
+    (ruling (a)).
 
-    `(0, distance)` where every group of both censuses holds its count,
-    `(1, distance)` where one does not; the distance is how many
-    different days the ranks hold more or fewer than the count asks
-    where the count pass reaches it (`layout.distinct`), else nought.
-    Lower is nearer: a census first, then the count.
-
-    Guarantees: returns the pair. Linear in the ranks. Determinism: a
-    function of the three. Raises nothing. No I/O of any kind.
+    Guarantees: returns a whole number of nought or more. Linear in the
+    ranks. Determinism: a function of the three. Raises nothing. No I/O
+    of any kind.
     """
-    census = 0 if _heavy_census_met(facts, ordinals, layout) else 1
-    if layout.distinct < 0:
-        return census, 0
-    return census, abs(len(set(ordinals)) - layout.distinct)
+    return _heavy_census_off(facts, ordinals, layout)[0] + _heavy_listed_off(
+        facts, ordinals
+    )
 
 
 def _heavy_given_way(
@@ -20483,22 +20617,25 @@ def _heavy_given_way(
     words: "list[int]",
     ordinals: "list[int]",
     layout: "_DateLayout",
-) -> "tuple[list[str], list[Deviation]] | None":
+) -> "tuple[tuple[list[str], list[Deviation]] | None, list[int] | None]":
     """The column drawn as if it listed no date where that twin stands
-    nearer, the list named (G7.3j step 7); None where the list stands.
+    fewer rows off, the list named (G7.3j step 7); None where the list
+    stands -- each beside that twin's ranks where it was drawn.
 
-    Where the twin drawn with the list (`ordinals`) misses a group of the
-    weekday or the day-of-month census beside it, or the count of
-    different days where the count pass reaches it, the column is drawn
+    THE ORCHESTRATOR'S RULINGS OF 2026-10-13 (plan P4-D369). Where the
+    twin drawn with the list (`ordinals`) meets every group of the
+    censuses beside it, it stands, whatever the count of different values
+    holds (ruling (a): that count gives way, named by
+    `_heavy_kept_notes`). Where it misses a group, the column is drawn
     again from the same words with `heavy_dates` empty -- the very twin
-    of a column listing nothing. Where that twin meets a census the
-    listed one misses, or meets the censuses as the listed one does and
-    holds the count nearer (`_heavy_standing`), it is taken and one
-    deviation names the list; elsewhere the listed twin stands, so the
-    list never costs a check or a day of the count that the twin listing
-    nothing holds.
+    of a column listing nothing -- and the two are weighed by rows off
+    the published counts (`_heavy_standing`: the censuses' groups and
+    the listed dates): that twin is taken only where it stands FEWER
+    rows off, and one deviation names the list and the census it gave
+    way to; a tie keeps the list (ruling (b)).
 
-    Guarantees: returns the cells and the deviations, or None. Twice the
+    Guarantees: returns the cells and the deviations, or None, and the
+    ranks of the twin listing nothing where it was drawn. Twice the
     column's work at most. Determinism: a function of the four. Raises
     nothing. No I/O of any kind.
     """
@@ -20506,9 +20643,42 @@ def _heavy_given_way(
     facts = column.facts
     if not isinstance(facts, contract.DatetimeFacts):
         raise _wrong_facts(column.name)
-    listed = _heavy_standing(facts, ordinals, layout)
-    if listed == (0, 0):
-        return None
+    census_off, missed = _heavy_census_off(facts, ordinals, layout)
+    if census_off == 0:
+        return None, None
+    listed = census_off + _heavy_listed_off(facts, ordinals)
+    cells, notes, ranks = _heavy_bare(plan, words)
+    if _heavy_standing(facts, ranks, layout) >= listed:
+        return None, ranks
+    return (
+        cells,
+        notes + [
+            _deviation(
+                column.name,
+                calendar_rules.HEAVY_DATES,
+                "the published counts",
+                "the counts of a twin listing no date",
+                _HEAVY_GIVEN_WAY.format(check=_HEAVY_CHECK_NAMES[missed]),
+            )
+        ],
+    ), ranks
+
+
+def _heavy_bare(
+    plan: "_ColumnPlan", words: "list[int]"
+) -> "tuple[list[str], list[Deviation], list[int]]":
+    """The column drawn from the same words as if it listed no date -- the
+    twin of the column without `heavy_dates`, byte for byte -- with its
+    ranks before any cell is spelled (G7.3j step 7).
+
+    Guarantees: returns the cells, the deviations and the ranks. The
+    column's work. Determinism: a function of the two. Raises nothing.
+    No I/O of any kind.
+    """
+    column = plan.column
+    facts = column.facts
+    if not isinstance(facts, contract.DatetimeFacts):
+        raise _wrong_facts(column.name)
     bare = dataclasses.replace(
         plan,
         column=dataclasses.replace(
@@ -20517,17 +20687,76 @@ def _heavy_given_way(
     )
     settled: "list[list[int]]" = []
     cells, notes = _datetime_content(bare, words, settled)
-    if _heavy_standing(facts, settled[0], layout) >= listed:
-        return None
-    return cells, notes + [
-        _deviation(
-            column.name,
-            calendar_rules.HEAVY_DATES,
-            "the published counts",
-            "the counts of a twin listing no date",
-            _HEAVY_GIVEN_WAY,
-        )
-    ]
+    return cells, notes, settled[0]
+
+
+def _heavy_kept_notes(
+    plan: "_ColumnPlan",
+    words: "list[int]",
+    ordinals: "list[int]",
+    layout: "_DateLayout",
+    notes: "list[Deviation]",
+    bare: "list[int] | None",
+) -> "list[Deviation]":
+    """The day pass's deviations where the list stands, naming the list
+    where it is what the check gave way to (G7.3j step 7; the
+    orchestrator's rulings (a) and (b) of 2026-10-13).
+
+    Measured against the twin of the column listing nothing (`bare`, its
+    ranks where step 7 drew it, else drawn here only where the count is
+    off): a census deviation says the census gave way to the listed
+    dates (`_HEAVY_CENSUS_GIVEN_WAY`) where that twin meets the census;
+    and where the count of different values is off as the validator
+    judges it (`_heavy_count_off`) and that twin stands nearer it, one
+    deviation says the count gave way to the listed dates
+    (`_HEAVY_COUNT_SHORT`, `_HEAVY_COUNT_LONG`), which the recount reads
+    as the count's cause (`_COUNT_CAUSES`) in place of the day pass's.
+    Elsewhere the day pass's own words stand: the twin listing nothing
+    misses the same check, so the list is not its cause.
+
+    Guarantees: returns the deviations. At most the column's work again.
+    Determinism: a function of the six. Raises nothing. No I/O of any
+    kind.
+    """
+    column = plan.column
+    facts = column.facts
+    if not isinstance(facts, contract.DatetimeFacts):
+        raise _wrong_facts(column.name)
+    off = _heavy_count_off(column, facts, ordinals, layout)
+    if bare is None and off > 0:
+        bare = _heavy_bare(plan, words)[2]
+    if bare is None:
+        return notes
+    bare_missed = _heavy_census_off(facts, bare, layout)[1]
+    caused = off > 0 and _heavy_count_off(column, facts, bare, layout) < off
+    found: "list[Deviation]" = []
+    for note in notes:
+        if note.fact in (
+            calendar_rules.WEEKDAY_CENSUS, calendar_rules.DAY_OF_MONTH_CENSUS
+        ) and note.fact not in bare_missed:
+            note = dataclasses.replace(
+                note,
+                note=_HEAVY_CENSUS_GIVEN_WAY.format(
+                    check=_HEAVY_CHECK_NAMES[(note.fact,)]
+                ),
+            )
+        if caused and note.fact == "n_distinct" and note.note in _COUNT_CAUSES:
+            continue
+        found += [note]
+    if caused:
+        held = len(set(ordinals)) + facts.n_unparsed
+        found += [
+            _deviation(
+                column.name,
+                "n_distinct",
+                f"{column.n_distinct} different values",
+                f"{held} different values",
+                _HEAVY_COUNT_SHORT
+                if held < column.n_distinct
+                else _HEAVY_COUNT_LONG,
+            )
+        ]
+    return found
 
 
 def _heavy_holes(facts: contract.DatetimeFacts) -> "frozenset[int]":
@@ -20618,6 +20847,9 @@ _WEEKDAY_DAYS_LEFT_LONG = (
 _WEEKDAY_CAUSES = (
     _WEEKDAY_DAYS_GIVEN_WAY, _WEEKDAY_DAYS_IN_THE_TAILS, _WEEKDAY_DAYS_LEFT_LONG,
 )
+# ...and every cause a pass names for the count, the list's beside the
+# day pass's (G7.3j step 7, plan P4-D369): the recount reads each.
+_COUNT_CAUSES = _WEEKDAY_CAUSES + (_HEAVY_COUNT_SHORT, _HEAVY_COUNT_LONG)
 # ...and the folded count's line beside it, where that count is long too:
 # "for the same reason" names the day pass's, not the long sentence's
 # claim that the column's rule holds on to no repetition, which is false
@@ -20628,6 +20860,17 @@ _WEEKDAY_FOLDED_LEFT_LONG = (
     "spacing, than the description records, for the same reason: the day "
     "pass kept the published counts per day of the week."
 )
+# ...those saying the twin holds MORE, each with the folded count's line.
+_LONG_CAUSES = (_WEEKDAY_DAYS_LEFT_LONG, _HEAVY_COUNT_LONG)
+_HEAVY_FOLDED_LONG = (
+    "The twin holds MORE different values, ignoring case and edge "
+    "spacing, than the description records, for the same reason: the "
+    "count of different values gave way to the listed dates."
+)
+_FOLDED_LEFT_LONG = {
+    _WEEKDAY_DAYS_LEFT_LONG: _WEEKDAY_FOLDED_LEFT_LONG,
+    _HEAVY_COUNT_LONG: _HEAVY_FOLDED_LONG,
+}
 
 # A unit's KIND (method G7.3f): whether a date on it counts into the
 # width census's one word, then what a move must keep besides
@@ -24049,9 +24292,12 @@ def _datetime_content(
     # of the count that the twin listing nothing holds, the list gives
     # way (G7.3j step 7): the column is drawn as if it listed none.
     if layout.listed:
-        given = _heavy_given_way(plan, words, ordinals, layout)
+        given, bare = _heavy_given_way(plan, words, ordinals, layout)
         if given is not None:
             return given
+        weekday_notes = _heavy_kept_notes(
+            plan, words, ordinals, layout, weekday_notes, bare
+        )
     if settled is not None:
         settled += [ordinals]
     # HOW EVERY RANK IS SPELLED (landing 2b.6, the reversal of owner
@@ -25322,19 +25568,30 @@ _SPREAD_HEAVY_MISSED = (
     "hold exactly, and counts per single day computed on this twin are "
     "not the real column's."
 )
+# ...and where the list gave way to a census beside it (G7.3j step 7):
+# the twin held every listed count drawn with the list, and gave the list
+# up for the census the deviation names (the 3b.6 skeptic's item 4).
+_SPREAD_HEAVY_GIVEN_WAY = (
+    "The listed dates that stand out gave way to a census beside them: "
+    "heavy_dates is named among the facts given way, with the census it "
+    "gave way to, and counts per single day computed on this twin are "
+    "not the real column's."
+)
 
 
 def _heavy_spread(
     facts: contract.DatetimeFacts,
     spread: _Spread,
     missed: "frozenset[str]" = frozenset(),
+    given_way: bool = False,
 ) -> _Spread:
     """The sentence with the clause of the dates that stand out (landing 3b.6).
 
     Unchanged where no date is listed. Where the twin missed a listed
-    count (`missed`, the completed measurement's), said beside; else the
-    heaps and the schedule leave the things not reproduced, the listed
-    counts are said to be met, and the twin's other days its own.
+    count (`missed`, the completed measurement's), said beside -- as
+    given way where step 7 of G7.3j gave the list up (`given_way`); else
+    the heaps and the schedule leave the things not reproduced, the
+    listed counts are said to be met, and the twin's other days its own.
     """
     if not facts.heavy_dates:
         return spread
@@ -25342,7 +25599,10 @@ def _heavy_spread(
         return _Spread(
             held=spread.held,
             missing=spread.missing,
-            beside=tuple(list(spread.beside) + [_SPREAD_HEAVY_MISSED]),
+            beside=tuple(
+                list(spread.beside)
+                + [_SPREAD_HEAVY_GIVEN_WAY if given_way else _SPREAD_HEAVY_MISSED]
+            ),
         )
     return _Spread(
         held=tuple(list(spread.held) + [_SPREAD_HEAVY_MET]),
@@ -25380,6 +25640,7 @@ def _spread_held(facts: contract.DatetimeFacts, held: str) -> str:
 def _spread_remarks(
     column: contract.ColumnBlock,
     missed: "frozenset[str]" = frozenset(),
+    given_way: bool = False,
 ) -> "list[Remark]":
     """Say what a column of dates is NOT spread by (landing 2b.6).
 
@@ -25463,8 +25724,9 @@ def _spread_remarks(
     spread = _clock_fields_spread(facts, spread)
     # -- the days of the month (3b.D3, P4-D368)
     spread = _day_of_month_spread(facts, spread, missed)
-    # -- the dates that stand out (3b.D4, P4-D369)
-    spread = _heavy_spread(facts, spread, missed)
+    # -- the dates that stand out (3b.D4, P4-D369); `given_way` where
+    # G7.3j step 7 gave the list up for a census
+    spread = _heavy_spread(facts, spread, missed, given_way)
     held, said = _spread_written(spread)
     return [
         _remark(
@@ -44214,9 +44476,9 @@ def generate(profile: contract.Profile, seed: int) -> Twin:
         # with its cause.
         cause = ""
         for note in notes:
-            if note.note in _WEEKDAY_CAUSES:
+            if note.note in _COUNT_CAUSES:
                 cause = note.note
-        notes = [note for note in notes if note.note not in _WEEKDAY_CAUSES]
+        notes = [note for note in notes if note.note not in _COUNT_CAUSES]
         notes = (
             list(each.notes)
             + notes
@@ -44287,7 +44549,13 @@ def generate(profile: contract.Profile, seed: int) -> Twin:
         # block further down -- so a remark added to that list alone
         # makes the report promise a block it never writes.
         spread = _spread_remarks(
-            column, frozenset(note.fact for note in notes)
+            column,
+            frozenset(note.fact for note in notes),
+            any(
+                note.fact == calendar_rules.HEAVY_DATES
+                and note.note.startswith(_HEAVY_GIVEN_WAY_HEAD)
+                for note in notes
+            ),
         )
         remarked = remarked + list(each.remarks)
         remarked = remarked + spread
@@ -44696,7 +44964,7 @@ def _recount_notes(
         # direction, a long cause was printed over by the long sentence
         # and could reach the report only over a count that was short
         # (review of landing 3b.D0, item 2).
-        if cause and (cause == _WEEKDAY_DAYS_LEFT_LONG) == (
+        if cause and (cause in _LONG_CAUSES) == (
             counted[2] > column.n_distinct
         ):
             reason = cause
@@ -44716,8 +44984,8 @@ def _recount_notes(
         )
         if counted[3] > column.n_distinct_folded:
             reason = _folded_excess_reason(column)
-            if cause == _WEEKDAY_DAYS_LEFT_LONG and counted[2] > column.n_distinct:
-                reason = _WEEKDAY_FOLDED_LEFT_LONG
+            if cause in _LONG_CAUSES and counted[2] > column.n_distinct:
+                reason = _FOLDED_LEFT_LONG[cause]
         notes += [
             _deviation(
                 column.name,
@@ -47914,6 +48182,104 @@ def _past_the_strata_windows(
     return (lows, highs)
 
 
+def _datetime_count_window(
+    column: contract.ColumnBlock,
+    facts: contract.DatetimeFacts,
+    layout: "_DateLayout",
+    present: int,
+    held: int,
+    floor: int,
+) -> "tuple[int, int]":
+    """G12.5's envelope of a column of dates' count of different values.
+
+    Its lower and upper end over `present` cells, `held` of them read as
+    dates, ON THE DESCRIPTION'S OWN GAPS (`_described_layout`): a column
+    listing dates that stand out draws its ordinary ranks in parts, but
+    the validator draws its window from the description alone, so the
+    envelope here is the one it judges by (the orchestrator's ruling (c)
+    of 2026-10-13, plan P4-D369). Asked by the report
+    (`_datetime_approximations`) and, through `contract.datetime_count_off`,
+    by method G7.3j's steps 5 and 7 (`_heavy_count_off`).
+
+    Guarantees: returns the two ends, the lower no higher than the upper.
+    Linear in the ranks, times the sort. Determinism: a function of the
+    six. Raises nothing. No I/O of any kind.
+    """
+    layout = _described_layout(layout)
+    # The number of different values, both ways of counting. A stand-in
+    # for a cell that did not read as a date is a different spelling
+    # from every other cell of the column, so both ends carry them.
+    stand_ins = present - held
+    lows, highs = _datetime_window(layout, facts, held)
+    if contract.datetime_counts_reachable(column):
+        lows, highs = _past_the_strata_windows(layout, lows, highs)
+    lowest_count = _forced_apart(lows, highs) + stand_ins
+    # THE UPPER END COUNTS THE BODY'S UNITS AND THE TAILS' CELLS (stage 3,
+    # G12.5): every body rank lies between the two boundaries, and each
+    # tail cell can be a value of its own. A column with no tails is its
+    # RAMP, which bounds itself: it spreads its ranks over its published
+    # count of different values from 1970-01-01, so the twin holds those
+    # instants and no others, each written the ways an instant can be.
+    # Read as the whole column instead, this promised a range of 2 to
+    # 124 on a ramp that can hold six.
+    highest_count = present
+    if layout.low is None or layout.high is None:
+        steps = max(1, min(present, column.n_distinct - facts.n_unparsed))
+        highest_count = min(
+            present, steps * _spellings_of_a_date(facts) + stand_ins
+        )
+    if layout.low is not None and layout.high is not None:
+        unit = _precision_slack(facts) + 1
+        reachable = layout.high.boundary - layout.low.boundary + 1
+        reachable = (reachable + unit - 1) // unit
+        highest_count = min(
+            present,
+            reachable * _spellings_of_a_date(facts)
+            + layout.low.rows
+            + layout.high.rows
+            + stand_ins,
+        )
+    # ...AND THE SPELLINGS G7.9 MAY BUY BESIDE THEM, BOUNDED BY THE
+    # SHORTFALL THE DESCRIPTION PUBLISHES. The pass spends ranks on a
+    # mark the census leaves unnamed, one different spelling each, and
+    # it stops the moment the folded count reaches `n_distinct_folded`.
+    # So the window reaches that count and no further. Measured before
+    # the term existed: a twin that met its published count of three
+    # exactly was reported as landing outside a range of 2 to 2, which
+    # is the method telling the person their conforming twin deviated.
+    #
+    # ADDING THE WHOLE BUDGET INSTEAD WAS MEASURED AND IS WRONG in two
+    # ways (skeptic finding 2 of 2026-09-21). It widened the promise on
+    # columns this pass never touches -- a census naming two marks over
+    # three days went from a range of 3 to 6 to one of 3 to 16 with the
+    # twin's bytes unchanged -- and on a census mixing `upper_t` with
+    # `lower_t` it made the report print `inside` for a count
+    # `synthtwin validate` reports MISSED, the two halves of the same
+    # run contradicting each other.
+    spendable = _marks_spendable(facts, floor)
+    if spendable >= 1 and column.n_distinct_folded > highest_count:
+        highest_count = min(
+            present,
+            min(highest_count + spendable, column.n_distinct_folded),
+        )
+    lowest_count = min(lowest_count, highest_count)
+    return lowest_count, highest_count
+
+
+def _described_layout(layout: "_DateLayout") -> "_DateLayout":
+    """The layout with every rank's gap as the description draws it.
+
+    Unchanged on a column listing no date; on one that lists dates that
+    stand out, the gaps from before the list's parts (`_heavy_layout`
+    keeps them in `described`), which are the gaps the validator's
+    windows are drawn from (`validation._pin_bounds_of`).
+    """
+    if layout.described is None:
+        return layout
+    return dataclasses.replace(
+        layout, lows=layout.described[0], highs=layout.described[1]
+    )
+
 def _marks_spendable(facts: contract.DatetimeFacts, floor: int) -> int:
     """How many more different spellings G7.9 may buy this column.
 
@@ -48347,62 +48713,11 @@ def _datetime_approximations(
             column.name, side, tail, ordinals, side.boundary, facts.tail_unit,
             contract.datetime_counts_reachable(column),
         )
-    # The number of different values, both ways of counting. A stand-in
-    # for a cell that did not read as a date is a different spelling
-    # from every other cell of the column, so both ends carry them.
-    stand_ins = len(present) - held
-    if contract.datetime_counts_reachable(column):
-        lows, highs = _past_the_strata_windows(layout, lows, highs)
-    lowest_count = _forced_apart(lows, highs) + stand_ins
-    # THE UPPER END COUNTS THE BODY'S UNITS AND THE TAILS' CELLS (stage 3,
-    # G12.5): every body rank lies between the two boundaries, and each
-    # tail cell can be a value of its own. A column with no tails is its
-    # RAMP, which bounds itself: it spreads its ranks over its published
-    # count of different values from 1970-01-01, so the twin holds those
-    # instants and no others, each written the ways an instant can be.
-    # Read as the whole column instead, this promised a range of 2 to
-    # 124 on a ramp that can hold six.
-    highest_count = len(present)
-    if layout.low is None or layout.high is None:
-        steps = max(1, min(len(present), column.n_distinct - facts.n_unparsed))
-        highest_count = min(
-            len(present), steps * _spellings_of_a_date(facts) + stand_ins
-        )
-    if layout.low is not None and layout.high is not None:
-        unit = _precision_slack(facts) + 1
-        reachable = layout.high.boundary - layout.low.boundary + 1
-        reachable = (reachable + unit - 1) // unit
-        highest_count = min(
-            len(present),
-            reachable * _spellings_of_a_date(facts)
-            + layout.low.rows
-            + layout.high.rows
-            + stand_ins,
-        )
-    # ...AND THE SPELLINGS G7.9 MAY BUY BESIDE THEM, BOUNDED BY THE
-    # SHORTFALL THE DESCRIPTION PUBLISHES. The pass spends ranks on a
-    # mark the census leaves unnamed, one different spelling each, and
-    # it stops the moment the folded count reaches `n_distinct_folded`.
-    # So the window reaches that count and no further. Measured before
-    # the term existed: a twin that met its published count of three
-    # exactly was reported as landing outside a range of 2 to 2, which
-    # is the method telling the person their conforming twin deviated.
-    #
-    # ADDING THE WHOLE BUDGET INSTEAD WAS MEASURED AND IS WRONG in two
-    # ways (skeptic finding 2 of 2026-09-21). It widened the promise on
-    # columns this pass never touches -- a census naming two marks over
-    # three days went from a range of 3 to 6 to one of 3 to 16 with the
-    # twin's bytes unchanged -- and on a census mixing `upper_t` with
-    # `lower_t` it made the report print `inside` for a count
-    # `synthtwin validate` reports MISSED, the two halves of the same
-    # run contradicting each other.
-    spendable = _marks_spendable(facts, floor)
-    if spendable >= 1 and column.n_distinct_folded > highest_count:
-        highest_count = min(
-            len(present),
-            min(highest_count + spendable, column.n_distinct_folded),
-        )
-    lowest_count = min(lowest_count, highest_count)
+    # The number of different values, both ways of counting, against
+    # G12.5's envelope on the description's own gaps (`_datetime_count_window`).
+    lowest_count, highest_count = _datetime_count_window(
+        column, facts, layout, len(present), held, floor
+    )
     counted = _recounted(written, holes)
     for place, name in ((2, "n_distinct"), (3, "n_distinct_folded")):
         published = column.n_distinct
@@ -48415,9 +48730,8 @@ def _datetime_approximations(
         # measurement inside a range from 11 to 1460.
         lowest_here = lowest_count
         highest_here = highest_count
-        if (
-            contract.datetime_counts_reachable(column)
-            and lowest_count <= published <= highest_count
+        if contract.datetime_count_held_exactly(
+            column, published, (lowest_count, highest_count)
         ):
             lowest_here = published
             highest_here = published
