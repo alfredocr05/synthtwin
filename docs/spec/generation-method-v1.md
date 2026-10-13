@@ -9214,8 +9214,15 @@ the column's own style at that precision from its first place upward
 of that precision in `parsing.CLOCK_FORMS`' order (faces none,
 ` twelve-hour`, then each marker pair after a space and after nothing;
 widths `hh` then `h`), each stepped past a spelling already written and
-past a hole; where every such spelling is taken, the rest are words
-again. Not on a column written to the minute whose `S - m` would reach
+past a hole; where every such spelling is taken, the ones found are
+written again in the same order, pass after pass, each at most the
+floor less one times in all -- a count the twin's description publishes
+none of -- and only past that are the rest words again (the
+verification of the Codex round on P4-D374: a column written to the
+second has 22,200 spellings at the minute, and past about 2.27 million
+rows at 0.99 its twin wrote more words than `m` and read back as free
+text; repeated, the times reach about 22 million rows at a floor of 11).
+Not on a column written to the minute whose `S - m` would reach
 the line of `n_present - m`: the reader asks the second first, and would
 read the column at the second -- never at the default parse rate of
 0.99 or at any rate above one half. Everywhere else every stand-in is a

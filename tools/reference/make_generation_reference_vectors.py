@@ -25215,7 +25215,7 @@ def _clock_content(column):
     return content
 
 
-def clock_stand_ins(column, used, wanted):
+def clock_stand_ins(column, used, wanted, floor=CASE_SMALL_CELL_FLOOR):
     """G7A.5's stand-ins of a column of clock times (the Codex review of landing C2, item 1).
 
     ``text-N`` -- save where the twin's description would need route 1 to
@@ -25229,7 +25229,11 @@ def clock_stand_ins(column, used, wanted):
     spelling already written and one the column calls absent.  Not where
     the parsed cells miss the line of the present cells less that
     allowance, nor, on a column written to the minute, where the times at
-    the second would reach it.
+    the second would reach it.  Where every such time is written, the
+    ones found again in the same order, pass after pass, each at most
+    ``floor`` less one times (the verification of the Codex round: 22,200
+    spellings at the minute run out past about 2.27 million rows); only
+    then ``text-N`` again.
     """
     form = column["clock_form"]
     present = column["n_present"]
@@ -25270,6 +25274,12 @@ def clock_stand_ins(column, used, wanted):
                 continue
             seen.add(spelling)
             times.append(spelling)
+    fresh = list(times)
+    for _again in range(floor - 2):
+        for spelling in fresh:
+            if len(times) >= wanted - words:
+                break
+            times += [spelling]
     produced.extend(times)
     produced.extend(text_stand_ins(list(seen), wanted - len(produced)))
     return produced

@@ -21148,7 +21148,8 @@ def _clock_census_content(
             cells += [spelling]
         used[spelling] = 1
     cells += _clock_stand_ins(
-        column, facts, len(cells), used, _hole_spellings(column), plan.parse_rate
+        column, facts, len(cells), used, _hole_spellings(column), plan.parse_rate,
+        plan.small_cell_floor,
     )
     return cells, _clock_minutes_missed(column, facts, census)
 
@@ -22116,7 +22117,8 @@ def _clock_content(
     # hole.
     used: "dict[str, int]" = {cell: 1 for cell in cells}
     cells += _clock_stand_ins(
-        column, facts, len(cells), used, _hole_spellings(column), plan.parse_rate
+        column, facts, len(cells), used, _hole_spellings(column), plan.parse_rate,
+        plan.small_cell_floor,
     )
     return cells, []
 
@@ -22311,6 +22313,7 @@ def _clock_stand_ins(
     used: "dict[str, int]",
     holes: "tuple[str, ...]",
     rate: "float | None",
+    floor: int,
 ) -> "list[str]":
     """Every stand-in of a column of clock times (method G7A.5).
 
@@ -22326,7 +22329,12 @@ def _clock_stand_ins(
     not -- so still unparsed (the Codex review of landing C2, item 1: 972
     minutes beside nine times at the second and 19 notes were clock times,
     and their twin's 28 words, more than one present cell in fifty, read
-    back as free text). Where those times run out, words again.
+    back as free text). Where every such time is written, each is written
+    again, never `floor` times or more (the verification of the Codex
+    round: a column written to the second has 22,200 spellings at the
+    minute, and past about 2.27 million rows at a rate of 0.99 their
+    twin wrote more words than route 1 allows and read back as free
+    text); only past `floor` less one copies of each, words again.
 
     Guarantees: a function of the arguments; `used` records each spelling
     handed back. Raises nothing. No I/O of any kind.
@@ -22343,7 +22351,7 @@ def _clock_stand_ins(
     step = 1
     while len(cells) < wanted:
         if len(cells) == words:
-            cells += _clock_times_unread(facts.clock_form, wanted - words, used, holes)
+            cells += _clock_times_unread(facts.clock_form, wanted - words, used, holes, floor)
             words = wanted
             continue
         candidate = _text_spelling(step, used, holes)
@@ -22390,15 +22398,18 @@ def _clock_stand_in_words(
 
 
 def _clock_times_unread(
-    form: str, wanted: int, used: "dict[str, int]", holes: "tuple[str, ...]"
+    form: str, wanted: int, used: "dict[str, int]", holes: "tuple[str, ...]", floor: int
 ) -> "list[str]":
     """Up to `wanted` times a column of clock times leaves unparsed (G7A.5).
 
     Each written at the precision the column's form does not write: in
     the column's own style first, from its first place upward, then in
     every other form of that precision in `parsing.CLOCK_FORMS`' order,
-    each stepped past a spelling already written and a hole. Fewer only
-    where every such spelling is taken.
+    each stepped past a spelling already written and a hole. Where every
+    such spelling is taken, the ones found are written again in the same
+    order, pass after pass, each at most `floor` less one times -- a
+    count the twin's description publishes none of. Fewer only past
+    that.
 
     Guarantees: a function of the arguments; `used` records each one.
     Raises nothing for a form of `parsing.CLOCK_FORMS`. No I/O.
@@ -22421,6 +22432,12 @@ def _clock_times_unread(
             if not _unused(spelling, used) or _is_a_hole_spelling(spelling, holes):
                 continue
             found += [_take(spelling, used)]
+    fresh = len(found)
+    for _again in range(floor - 2):
+        for place in range(fresh):
+            if len(found) >= wanted:
+                return found
+            found += [found[place]]
     return found
 
 

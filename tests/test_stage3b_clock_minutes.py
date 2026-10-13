@@ -998,3 +998,50 @@ def test_red_when_the_hours_are_compared_with_the_heaps_cells(monkeypatch: pytes
     assert _missed(loaded, twin_path) == []
     day = tuple(range(6, 18))
     assert _minute_zero_share(twin["c"], day) > 3 * _minute_zero_share(cells, day)
+
+
+_PAST_THE_TIMES = 2_500_000
+
+
+def _stand_ins_at_two_and_a_half_million(floor: int) -> "list[str]":
+    """G7A.5's stand-ins of a column written to the second at 2,500,000 present
+    cells and the default rate of 0.99, its parsed cells 2,425,500 -- the
+    line of the present cells less route 1's allowance of 50,000 words --
+    so 74,500 stand-ins, more than the 22,200 spellings at the minute."""
+    column = typing.cast("contract.ColumnBlock", dataclasses.make_dataclass("C", ["n_present"])(_PAST_THE_TIMES))
+    parsed = taxonomy.clock_line(0.99, _PAST_THE_TIMES - _PAST_THE_TIMES // taxonomy.RARE_WORDS_BESIDE_CLOCKS)
+    facts = typing.cast(
+        "contract.ClockFacts",
+        dataclasses.make_dataclass("F", ["n_unparsed", "clock_form"])(_PAST_THE_TIMES - parsed, "hh-mm-ss"),
+    )
+    return generation._clock_stand_ins(column, facts, parsed, {}, (), 0.99, floor)
+
+
+def test_route_one_stand_ins_repeat_the_times_below_the_floor() -> None:
+    """The verification of the Codex round, its open item 2. A column written
+    to the second has 22,200 spellings at the minute; past about 2.27
+    million rows at 0.99 the stand-ins needed outran them, the rest fell
+    back to words -- 52,300 at 2,500,000 present cells against route 1's
+    allowance of 50,000 -- and the twin would read back as free text, as
+    item 1's did. G7A.5 now writes those times again, each below the
+    floor: the words are exactly the allowance."""
+    cells = _stand_ins_at_two_and_a_half_million(11)
+    words = [cell for cell in cells if parsing.clock_form(cell) is None]
+    times = collections.Counter(cell for cell in cells if parsing.clock_form(cell) is not None)
+    assert len(cells) == 74_500 and len(words) == _PAST_THE_TIMES // taxonomy.RARE_WORDS_BESIDE_CLOCKS
+    assert sum(times.values()) == 24_500 and max(times.values()) <= 10
+    assert all(parsing.clock_ordinal(cell, "hh-mm-ss") is None for cell in times)
+
+
+def test_red_when_the_stand_in_times_are_never_repeated(monkeypatch: pytest.MonkeyPatch) -> None:
+    """MUTATION: every spelling at the minute written once, as on 7acac9b --
+    the words outrun route 1's allowance."""
+    built = generation._clock_times_unread
+    monkeypatch.setattr(
+        generation,
+        "_clock_times_unread",
+        lambda form, wanted, used, holes, _floor: built(form, wanted, used, holes, 2),
+    )
+    cells = _stand_ins_at_two_and_a_half_million(11)
+    words = [cell for cell in cells if parsing.clock_form(cell) is None]
+    assert len(words) > _PAST_THE_TIMES // taxonomy.RARE_WORDS_BESIDE_CLOCKS
