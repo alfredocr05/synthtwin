@@ -7511,17 +7511,17 @@ groups as they want -- and the carry of a kin group reaching none of
 some wanted group is offered, group by group, to the other kin groups by
 their ranks able to take the group, rounded down, its own carry kept and
 taken where it reaches again. A kin group takes no more of a group than
-its able ranks, and where these, fewer than its ranks, hold it below its
-share, the whole ranks of the running ideal past what the kin groups so
-far took leave it and are offered to the kin groups after it by their
-able ranks; a kin group every rank of which is able keeps its part in
-the running ideal, as before (four gaps of
-three hours, hour 8 off minute 0 in each: its carry, asked of hour 8
+its able ranks, and none of what the kin groups after it CLAIM: of each
+group, the whole ranks of their parts they are able to take (four gaps
+of three hours, hour 8 off minute 0 in each: its carry, asked of hour 8
 itself, grew gap by gap and handed it every share of minute 0, which the
 gap's single moves gave hour 9 -- 200 against hour 10's 40 where 120
-each could stand; and hour 8 reaching minute 0 with 4 of its 34 ranks a
-gap passed its growing carry to hour 9 alone, 57 against hour 10's 27,
-where offered the two take 47 and 37). After each field's pass THE TAILS MAKE ROOM AT MIDNIGHT: with
+each could stand; hour 8 reaching minute 0 with 4 of its 34 ranks a gap
+passed its growing carry to hour 9 alone, 57 against hour 10's 27, where
+the claims leave 44 and 40; and taken first by the earlier kin groups'
+largest remainders, the want of minute 0 left hour 23 of cells written
+`HH:MM:00` at 10,000 rows none of its carried share in twelve gaps
+running, 6 of its 45 cells on minute 0 against 16). After each field's pass THE TAILS MAKE ROOM AT MIDNIGHT: with
 value 0 a group alone holding fewer body ranks than its count, each body
 rank in order -- not pinned, of a group over its count -- whose place on
 value 0 of its own parent (its place in the bin kept) is a written
@@ -7643,8 +7643,8 @@ midnight for a rank of the body, never by a tail step raising the count
 and with SPREAD after them where the step left it short, KIN SHARES
 giving no kin group more of minute 0 than its ranks free to stand there,
 and none a part of a group its ranks never reach (hour 8 off minute 0 in
-every gap, hours 9 and 10 an even split) nor passes on whole to the next
-the part its room holds it below,
+every gap, hours 9 and 10 an even split) nor what the kin groups after
+it claim,
 a shared written unit moved whole, and past its groups' room in the
 leftover, a draw laid
 on its unit, G7.3b step 7's tail END held off a midnight the count leaves

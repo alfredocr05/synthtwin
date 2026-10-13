@@ -26453,9 +26453,8 @@ def _clock_kin_parts(
     in each, gave hours 9 and 10 200 and 40 cells there where 120 each
     could stand. What each kin group carries stays its own -- owed as
     `owns` has it, less what it holds -- and is taken where it reaches
-    again; where its able ranks, fewer than its ranks, held it below its
-    part, the whole ranks of the running ideal past what was taken are
-    offered to the kin groups after it (`_clock_kin_shares_moved`).
+    again, no kin group before it taking what it claims
+    (`_clock_kin_shares_moved`).
     Raises nothing. No I/O."""
     groups = len(want)
     blocked = [
@@ -26614,6 +26613,24 @@ def _clock_kin_shares_moved(state: _WeekdayPass, ranks: "list[int]", want: "list
     parts = _clock_kin_parts(
         order, {kin: len(rows[kin]) for kin in order}, owns, carries, reach, able, want
     )
+    # CLAIMS KEPT FOR THE KIN GROUPS AFTER (KIN SHARES' REACH; the
+    # verifier's item 10 on the Codex round): of each group, the whole
+    # ranks of their parts the kin groups after this one are able to take,
+    # which no kin group before them takes -- taken first by the earlier
+    # kin groups' largest remainders, a group's want left a small kin group
+    # late in the gap none of the share it carried, and the night hours of
+    # cells written `HH:MM:00` at 10,000 rows came back a third short of
+    # minute 0 (hour 23 holding none in twelve gaps running).
+    after: "list[list[int]]" = [[0 for _group in range(groups)]]
+    for position in range(len(order) - 1, 0, -1):
+        kin = order[position]
+        after = [
+            [
+                after[0][group]
+                + min(len(rows[kin]), able[kin][group], max(0, parts[kin][group]) // _KIN_SCALE)
+                for group in range(groups)
+            ]
+        ] + after
     for position in range(len(order)):
         kin = order[position]
         members = rows[kin]
@@ -26622,7 +26639,8 @@ def _clock_kin_shares_moved(state: _WeekdayPass, ranks: "list[int]", want: "list
         carried = carries[kin]
         room = [min(len(members), able[kin][group]) for group in range(groups)]
         ideal = [ideal[group] + parts[kin][group] for group in range(groups)]
-        share = _clock_kin_share(ideal, want, taken, placed, room)
+        kept = [max(taken[group], want[group] - after[position][group]) for group in range(groups)]
+        share = _clock_kin_share(ideal, kept, taken, placed, room)
         have = [0 for _group in want]
         for rank in members:
             group = _weekday_group(state, state.moved[rank])
@@ -26634,22 +26652,6 @@ def _clock_kin_shares_moved(state: _WeekdayPass, ranks: "list[int]", want: "list
         for group in range(groups):
             state.kin_carry[(kin, group)] = carried[group] + own[group]
         taken = [taken[group] + share[group] for group in range(groups)]
-        # KIN SHARES' REACH: the whole ranks of a part its ABLE ranks held it
-        # below -- fewer than its ranks -- leave the running ideal and are
-        # OFFERED to the kin groups after it by their ranks able to take the
-        # group, so a share it cannot reach falls on no one kin group after
-        # it. A kin group whose every rank is able keeps G7.3h's rule: its
-        # part past its ranks stays in the running ideal.
-        later = order[position + 1 :]
-        for group in range(groups):
-            if (
-                room[group] < len(members)
-                and share[group] >= room[group]
-                and ideal[group] >= (taken[group] + 1) * _KIN_SCALE
-            ):
-                excess = (ideal[group] - taken[group] * _KIN_SCALE) // _KIN_SCALE * _KIN_SCALE
-                ideal[group] = ideal[group] - excess
-                _clock_kin_offered(later, parts, able, kin, group, excess)
     for key in [key for key in state.kin_members]:
         del state.kin_members[key]
     for kin in order:

@@ -1287,10 +1287,10 @@ STEP_MUTANTS = {
         "            min(free[kin], reach[kin][group]) if group == zero else reach[kin][group]\n            for group in range(groups)\n        ]\n    parts",
         "            reach[kin][group]\n            for group in range(groups)\n        ]\n    parts",
     ),
-    "a part its room held it below passed on to the kin group after it": (
+    "no claims kept for the kin groups after": (
         "field_kin_partial",
-        "                room[group] < len(members)\n                and share[group]",
-        "                False\n                and share[group]",
+        "        kept = [max(taken[group], want[group] - after[position][group]) for group in range(groups)]",
+        "        kept = [want[group] for group in range(groups)]",
     ),
     "no PUT BACK after the exchange": (
         "field_exchange_put_back",

@@ -15041,13 +15041,17 @@ def kin_shares_moved(walk, ranks, want):
     reach = {kin: kin_reach(walk, members[kin], len(want)) for kin in order}
     able = {kin: [min(free[kin], reach[kin][g]) if g == zero else reach[kin][g] for g in groups] for kin in order}
     parts = kin_parts(order, {kin: len(members[kin]) for kin in order}, owns, carries, reach, able, want)
-    for kin in order:
+    # Claims kept for the kin groups after: the whole ranks of their parts
+    # they are able to take, which no kin group before them takes.
+    claim = {kin: [min(len(members[kin]), able[kin][g], max(0, parts[kin][g]) // WEEKDAY_SHARE_SCALE) for g in groups] for kin in order}
+    for position, kin in enumerate(order):
         placed += len(members[kin])
         own = owns[kin]
         carried = carries[kin]
         room = [min(len(members[kin]), able[kin][g]) for g in groups]
         ideal = [ideal[g] + parts[kin][g] for g in groups]
-        share = kin_share(ideal, want, taken, placed, room)
+        kept = [max(taken[g], want[g] - sum(claim[later][g] for later in order[position + 1:])) for g in groups]
+        share = kin_share(ideal, kept, taken, placed, room)
         have = [0] * len(want)
         for rank in members[kin]:
             have[walk.group(walk.days[rank])] += 1
@@ -15056,15 +15060,6 @@ def kin_shares_moved(walk, ranks, want):
         for g in groups:
             walk.kin_carry[(kin, g)] = carried[g] + own[g]
         taken = [taken[g] + share[g] for g in groups]
-        # The whole ranks of a part its able ranks -- fewer than its ranks --
-        # held it below leave the running ideal, offered to the kin groups
-        # after it by their able ranks.
-        later = order[order.index(kin) + 1:]
-        for g in groups:
-            if room[g] < len(members[kin]) and share[g] >= room[g] and ideal[g] >= (taken[g] + 1) * WEEKDAY_SHARE_SCALE:
-                excess = (ideal[g] - taken[g] * WEEKDAY_SHARE_SCALE) // WEEKDAY_SHARE_SCALE * WEEKDAY_SHARE_SCALE
-                ideal[g] -= excess
-                kin_offered(later, parts, able, kin, g, excess)
     walk.kin_members = members
     return True
 
@@ -17236,15 +17231,14 @@ def field_kin_partial_case():
         ordinals += [hour_at(m + 2 * gap + 1, 11, 0)]
     where = [1 if minute == 0 else 2 if minute == 20 else 3 if minute == 40 else 0 for minute in range(60)]
     return field_case(
-        "KIN SHARES' REACH where a kin group's room holds it below its part (the verifier's "
+        "KIN SHARES' CLAIMS where a kin group's able ranks hold it below its part (the verifier's "
         "item 10 on the Codex round of landing 3b.4): four gaps of two days from 08:10 to 11:00, "
         "hour 8 with 18 stamps on the first day and 2 on the second, hours 9 and 10 with 6 "
         "on each, every hour's at minutes 20 and 40; minutes 0, 20 and 40 owed 64, 58 and "
         "58. Hour 8 reaches minute 0 with its 2 second-day ranks alone and is owed near 7 a "
-        "gap: the whole ranks its room holds it below leave the running ideal, offered to "
-        "hours 9 and 10 by their ranks able to take minute 0, so hour 8 takes 8, hours 9 and "
-        "10 29 and 23. Passed on whole, hour 8's growing carry fell on hour 9 alone: 36 "
-        "against hour 10's 16.",
+        "gap; the whole ranks of their parts hours 9 and 10 are able to take are kept from "
+        "the kin groups before them, so hour 8 takes 8, hours 9 and 10 28 and 24. With no "
+        "claims kept, hour 8's growing carry fell on hour 9 alone: 36 against hour 10's 16.",
         "field", ordinals, pins, [4, 64, 58, 58], where, 60, written_unit=1,
         kin=[0] * 8 + [1, 2, 3] + [4] * 13,
     )
