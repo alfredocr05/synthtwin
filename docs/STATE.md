@@ -286,20 +286,23 @@ cannot get worse unseen.
   deviation; the remedy is owed to a lane the orchestrator names.
 - **Stated limits added 2026-10-07 to 09, each with its owner.** A
   published weekday census on logs just above one row an open day can
-  cost its twin one to four different values at 2 to 7 seeds in ten
-  (21 of 313; ruled 2026-10-08, P4-D388, `K-S3-59`); the split order
-  that would remove it, and the seven-day logs one to three values
-  short, are owed to lane D4 (P4-D369), with D1b's recorded items (the
-  body draw read at its expectation, the workbook date system, the long
-  twins at floors 36 and 50). A clock column's cells of the other hour
-  width on an absent place nothing present stands on are written in the
-  column's width, owed to lane C2 (P4-D373, strict xfail), as are route
-  1's 198 blank cells over 2 columns, to be removed under the corrected
-  route-2 ruling (no cell blank that the source never left blank), and
-  the label twins' hour-of-day distance at small tables (P4-D390). The
-  spaced meridiem (`9:15 AM`, `08:15:30.123 AM`) publishing no forms is
-  lane R2b's, R1's codes-question silence lane R2c's, and dates mixing
-  offsets that miss `n_at_midnight` (4 of 600) landing 3b.7's (P4-D373).
+  cost its twin one to four different values at 2 to 7 seeds in ten (21
+  of 313; ruled 2026-10-08, P4-D388, `K-S3-59`); the split order that
+  would remove it, and the seven-day logs one to three values short, are
+  owed to lane D4 (P4-D369), with D1b's recorded items (the body draw
+  read at its expectation, the workbook date system, the long twins at
+  floors 36 and 50). A clock column's cells of the other hour width on
+  an absent place nothing present stands on are written in the column's
+  width, owed to lane C2 (P4-D373, strict xfail), as are route 1's 198
+  blank cells over 2 columns, to be removed under the corrected route-2
+  ruling (no cell blank that the source never left blank), and the label
+  twins' hour-of-day distance at small tables (P4-D390). The spaced
+  meridiem (`9:15 AM`, `08:15:30.123 AM`) publishes no forms, so beside
+  rare words its twin writes 0 of 969 clock cells in their shape:
+  measured by lane R2b and held as its strict xfail X4 (P4-D383), since
+  a form holding a space moves every role's form census; R1's
+  codes-question silence lane R2c's, and dates mixing offsets that miss
+  `n_at_midnight` (4 of 600) landing 3b.7's (P4-D373).
 - **Codes and tables written or read unlike the source, older than this
   week** (recorded 2026-10-09; `K-S3-61`'s note carries them). Made-up
   figure codes lose their leading zeros, and exponent-shaped codes

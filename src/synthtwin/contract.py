@@ -18756,12 +18756,17 @@ def _written_clock_style(column: ColumnBlock) -> "str | None":
     """The written clock one column publishes, or None where it names none.
 
     A column of clock times names it in `clock_form`; a slashed stamp in
-    its one `datetime_separators` word, unless that census was pooled.
+    its one `datetime_separators` word, unless that census was pooled; a
+    layout in its own fields (landing R2b).
     Determinism: a function of the block. Raises nothing. No I/O.
     """
     facts = column.facts
     if isinstance(facts, (ClockFacts,)):
         return parsing.clock_style_of(facts.clock_form)
+    # -- 3b.R2b (P4-D383): A LAYOUT NAMES ITS CLOCK IN ITS FORMAT, on its
+    # face: the 24-hour clock, the declared dial, or a marker's.
+    if isinstance(facts, (DatetimeFacts,)) and parsing.is_layout_name(facts.parser_family):
+        return parsing.layout_clock_style(facts.parser_family)
     if isinstance(facts, (DatetimeFacts,)) and facts.parser_family in CLOCK_FORM_MEMBERS:
         for word in sorted(facts.datetime_separators):
             if word == WITHHELD:
@@ -18942,8 +18947,8 @@ def _cross_checks(
     this table -- a name that matches no column means the description
     and the schema disagree about which columns were declared. S8c: a
     column written on the 12-hour face with no marker is declared one, and
-    a declared column with no marker is written on that face. S10:
-    every note is about a column of this table. S11: the notes are
+    a declared column with no marker that is no layout is written on that
+    face. S10: every note is about a column of this table. S11: the notes are
     grouped by column, in the order the columns come in the table.
     """
     places: dict[str, int] = {}
@@ -19014,12 +19019,22 @@ def _cross_checks(
     # stamp of `12:00` to `4:59` with its word moved to that face loaded,
     # and the unchanged source missed 10 checks. A declared column whose
     # clocks write AM or PM keeps their face, and is not reached.
+    # -- 3b.R2b (P4-D383): A LAYOUT NAMES ITS FACE IN ITS OWN FIELDS, so the
+    # second way round does not reach one: a declared layout read at
+    # `{HH}` was read on the 24-hour face (R2a's producer wrote such
+    # descriptions, the notice saying the declaration reached nothing),
+    # and the validator reads it there (`validation.declared_twelve_hour_
+    # clocks`). The first way round stands: `{hh}` with no marker is the
+    # dial, which only the declaration reads.
     for column in columns:
         style = _written_clock_style(column)
         if style is None:
             continue
         face = parsing.clock_face(style)
         declared = column.name in settings.forced_twelve_hour_clocks
+        laid_out = isinstance(column.facts, (DatetimeFacts,)) and parsing.is_layout_name(
+            column.facts.parser_family
+        )
         if face == parsing.CLOCK_TWELVE_HOUR and not declared:
             raise _broken(
                 "S8c",
@@ -19028,7 +19043,7 @@ def _cross_checks(
                 "the block of rules that produced the description does not "
                 "name it as a 12-hour clock",
             )
-        if face == "" and declared:
+        if face == "" and declared and not laid_out:
             raise _broken(
                 "S8c",
                 f"in the block for the column named '{column.name}'",

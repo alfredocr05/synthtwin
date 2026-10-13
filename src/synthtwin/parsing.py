@@ -7996,10 +7996,13 @@ def tail_rows(count: int, percent: int, side: str) -> int:
 # three cases, with the CLDR en-GB and en-AU short sets), day (padded, one
 # or two figures, or padded with a space), an optional weekday lead, a
 # two-figure 24-hour clock on `:` or `.`, a fraction of 1 to 9 figures, and
-# an offset that may be absent from some cells. THE CLOCK HALF -- one-figure
-# and space-padded hours, the 12-hour face and its markers -- is landing
-# R2b's, and partial dates with their question are R2c's; each widens the
-# field table and the productions below and nothing else.
+# an offset that may be absent from some cells. THE CLOCK HALF IS BUILT
+# (R2b): an hour in one figure below ten or padded with a space, the
+# 12-hour face with its markers -- `AM`, `am`, `A.M.`, `a.m.` and their
+# afternoon pairs, after no gap, a space or a narrow no-break space -- and
+# T1's declared 12-hour face with no marker. Partial dates with their
+# question are R2c's; each widens the field table and the productions
+# below and nothing else.
 
 LAYOUT_PREFIX = "layout "
 LAYOUT_TEXT_LIMIT = 80
@@ -8121,15 +8124,48 @@ _LAYOUT_OFFSET_FIELDS = _LAYOUT_ZULU_FIELDS + _LAYOUT_SIGNED_FIELDS
 # The fixed-width numeric fields, by width, and the flexible ones.
 _LAYOUT_FIXED_FIELDS = {
     "YYYY": 4, "YY": 2, "YY1900": 2, "YY1930": 2, "YY1940": 2,
-    "MM": 2, "DD": 2, "HH": 2, "MI": 2, "SS": 2,
+    "MM": 2, "DD": 2, "HH": 2, "hh": 2, "MI": 2, "SS": 2,
 }
 _LAYOUT_FLEXIBLE_FIELDS = ("M", "D")
-_LAYOUT_SPACED_FIELDS = ("_D",)
+_LAYOUT_SPACED_FIELDS = ("_D", "_H", "_h")
 _LAYOUT_CLOCK_FIELDS = ("HH", "MI", "SS", "F")
 
+# THE HOURS OF THE CLOCK HALF (landing R2b), on T1's semantics (plan
+# P4-D370). `HH` is two figures on the 24-hour clock; `H` is one figure
+# below ten and two from ten, never a padded `09`, so a cell read under
+# it is written back exactly; `_H` pads one figure with a space, as SQL
+# Server's style 100 does. `hh`, `h` and `_h` are the same three widths
+# on the 12-hour dial, 1 to 12: with a marker they read the marker's half
+# of the day (`12:30 AM` is 00:30, `12:30 PM` 12:30), and with none they
+# are T1's DECLARED face (`--twelve-hour`), where 12 is the top of the
+# dial and `12:15` is 00:15. The producer makes the unmarked 12-hour
+# fields only for a column the person declared, as it makes `{YY1930}`
+# only for a century they chose.
+_LAYOUT_TWENTY_FOUR_HOURS = ("HH", "H", "_H")
+_LAYOUT_TWELVE_HOURS = ("hh", "h", "_h")
+_LAYOUT_HOUR_FIELDS = _LAYOUT_TWENTY_FOUR_HOURS + _LAYOUT_TWELVE_HOURS
+# Each 24-hour field's 12-hour twin, the same width on the dial.
+_LAYOUT_ON_THE_DIAL = {"HH": "hh", "H": "h", "_H": "_h"}
+
+# THE MARKERS OF THE HALF OF THE DAY (landing R2b): each field reads its
+# morning word and its afternoon word, in its own case and points, and
+# writes the one its instant's half takes -- T1's four pairs.
+_LAYOUT_MERIDIEMS = {
+    "AM": ("AM", "PM"),
+    "am": ("am", "pm"),
+    "A.M.": ("A.M.", "P.M."),
+    "a.m.": ("a.m.", "p.m."),
+}
+
+# THE NARROW NO-BREAK SPACE, a literal only directly before a marker: what
+# JavaScript's `toLocaleString` writes in its recent releases between `2:05:00` and
+# `PM`, and nowhere else in a date.
+LAYOUT_NARROW_SPACE = " "
+
 # THE LITERALS, a closed set: the marks a date or a clock is written with,
-# the space, and the ISO joint letter in either case.
-_LAYOUT_LITERALS = ("-", "/", ".", ",", ":", " ", "T", "t")
+# the space, the ISO joint letter in either case, and the narrow no-break
+# space before a marker.
+_LAYOUT_LITERALS = ("-", "/", ".", ",", ":", " ", "T", "t", LAYOUT_NARROW_SPACE)
 
 # The joints between a date and its clock, in the order they are tried.
 _LAYOUT_JOINTS = (" ", "T", "t", ":", "-", ", ", "  ")
@@ -8148,6 +8184,8 @@ def _layout_field_known(name: str) -> bool:
         or bare in _LAYOUT_FLEXIBLE_FIELDS
         or bare in _LAYOUT_SPACED_FIELDS
         or bare == "F"
+        or bare in _LAYOUT_HOUR_FIELDS
+        or bare in _LAYOUT_MERIDIEMS
         or bare in _LAYOUT_MONTH_FIELDS
         or bare in _LAYOUT_WEEKDAY_FIELDS
         or bare in _LAYOUT_OFFSET_FIELDS
@@ -8160,8 +8198,10 @@ def compiled_layout(text: str) -> "tuple[tuple[str, str], ...] | None":
     None for a text over `LAYOUT_TEXT_LIMIT` characters, an unbalanced or
     empty brace, a field outside the closed table, a literal outside the
     closed set, two fields of one kind (a second year, month, day, weekday
-    or offset), a clock field before any date field, and an optional offset
-    that is not the last item. This is the shape half of rule LY1;
+    or offset), a clock field before any date field, an optional offset
+    that is not the last item, a marker with no 12-hour hour beside it, and
+    a narrow no-break space anywhere but directly before a marker (landing
+    R2b). This is the shape half of rule LY1;
     `is_layout_format` adds the other half, that the grammar's own
     productions make it.
 
@@ -8209,6 +8249,22 @@ def compiled_layout(text: str) -> "tuple[tuple[str, str], ...] | None":
         return None
     if "fraction" in kinds and "second" not in kinds:
         return None
+    # -- 3b.R2b (P4-D383): a marker stands only beside a 12-hour hour, and
+    # the narrow no-break space only directly before a marker.
+    if "meridiem" in kinds:
+        twelve = False
+        for kind_of, name in items:
+            if kind_of == "f" and name in _LAYOUT_TWELVE_HOURS:
+                twelve = True
+        if not twelve:
+            return None
+    place = 0
+    for kind_of, name in items:
+        if kind_of == "l" and name == LAYOUT_NARROW_SPACE:
+            following = items[place + 1] if place + 1 < len(items) else ("", "")
+            if following[0] != "f" or following[1] not in _LAYOUT_MERIDIEMS:
+                return None
+        place = place + 1
     last = len(items) - 1
     index = 0
     for kind_of, name in items:
@@ -8234,8 +8290,10 @@ def _layout_field_kind(name: str) -> str:
         return "day"
     if bare in _LAYOUT_WEEKDAY_FIELDS:
         return "weekday"
-    if bare == "HH":
+    if bare in _LAYOUT_HOUR_FIELDS:
         return "hour"
+    if bare in _LAYOUT_MERIDIEMS:
+        return "meridiem"
     if bare == "MI":
         return "minute"
     if bare == "SS":
@@ -8357,8 +8415,10 @@ def layout_reading(
     cell's surrounding whitespace aside as that member does
     (`_LAYOUTS_READ_AS_MEMBERS`). The calendar is checked, a
     four-figure year outside `LAYOUT_FIRST_YEAR` to `LAYOUT_LAST_YEAR` is
-    unread, a weekday must be the date's own, an hour runs 0 to 23 and a
-    minute or second 0 to 59, and an offset is at most 14 hours.
+    unread, a weekday must be the date's own, an hour runs 0 to 23 -- 1 to
+    12 on the dial, where a marker names its half of the day and no marker
+    is T1's declared face, 12 the hour before one (landing R2b) -- a minute
+    or second 0 to 59, and an offset is at most 14 hours.
 
     Guarantees: accepts a cell and the items `compiled_layout` made;
     returns the reading or None. Determinism: a function of the two. Raises
@@ -8381,6 +8441,10 @@ def layout_reading(
     fraction = ""
     offset = ""
     shows: "list[str]" = []
+    # -- 3b.R2b (P4-D383): the hour's dial and the half of the day its
+    # marker names, `''` where no marker is written.
+    twelve = False
+    half = ""
     index = 0
     for kind, name in items:
         if index == tail and at == size:
@@ -8416,6 +8480,9 @@ def layout_reading(
                 day = value
             elif name == "HH":
                 hour = value
+            elif name == "hh":
+                hour = value
+                twelve = True
             elif name == "MI":
                 minute = value
             else:
@@ -8438,6 +8505,44 @@ def layout_reading(
                 month = value
             else:
                 day = value
+            continue
+        if name == "H" or name == "h":
+            # -- 3b.R2b: one figure below ten, two from ten, never `09`.
+            end = _layout_digits(text, at, 1, 2)
+            if end < 0 or (end - at == 2 and text[at] == "0"):
+                return None
+            hour = int(text[at:end])
+            twelve = name == "h"
+            at = end
+            continue
+        if name == "_H" or name == "_h":
+            # -- 3b.R2b: two places, one figure below ten after a space.
+            if at + 2 > size:
+                return None
+            first_figure = text[at]
+            second_figure = text[at + 1]
+            if second_figure < "0" or second_figure > "9":
+                return None
+            if first_figure == " ":
+                hour = ord(second_figure) - 48
+            elif "1" <= first_figure <= "9":
+                hour = (ord(first_figure) - 48) * 10 + ord(second_figure) - 48
+            else:
+                return None
+            twelve = name == "_h"
+            at = at + 2
+            continue
+        if name in _LAYOUT_MERIDIEMS:
+            # -- 3b.R2b: the marker's morning or afternoon word, exactly.
+            morning, evening = _LAYOUT_MERIDIEMS[name]
+            if text[at : at + len(morning)] == morning:
+                half = "am"
+                at = at + len(morning)
+            elif text[at : at + len(evening)] == evening:
+                half = "pm"
+                at = at + len(evening)
+            else:
+                return None
             continue
         if name == "_D":
             if at + 2 > size:
@@ -8523,6 +8628,12 @@ def layout_reading(
     if weekday >= 0 and (days_from_civil(year, month, day) + 3) % 7 != weekday:
         return None
     canonical = f"{year:04d}-{month:02d}-{day:02d}"
+    if twelve:
+        # -- 3b.R2b: on the dial, 1 to 12; a marker's afternoon adds
+        # twelve, and the top of the dial is the hour before one.
+        if hour < 1 or hour > 12:
+            return None
+        hour = hour % 12 + (12 if half == "pm" else 0)
     if hour >= 0:
         if hour > 23 or minute < 0 or minute > 59 or second > 59:
             return None
@@ -8540,7 +8651,8 @@ def layout_cell(
     """One instant written under one compiled layout: `layout_reading` reversed.
 
     THE TWIN'S CELL, WRITTEN AS ITS SOURCE WROTE IT. Every field comes from
-    the canonical instant; a flexible field is written padded where its
+    the canonical instant -- an hour on the dial as its top, 12, and the
+    marker of its half of the day (landing R2b); a flexible field is written padded where its
     entry in ``widths`` (layout order) is true or missing, and in as few
     figures as it takes otherwise; the fraction is ``figures`` zeros, as
     every member writes it until its own census is published; and the
@@ -8605,6 +8717,20 @@ def layout_cell(
             written = f"{written}{day:>2d}"
         elif bare == "HH":
             written = f"{written}{hour:02d}"
+        elif bare in _LAYOUT_HOUR_FIELDS:
+            # -- 3b.R2b: the other widths, and the dial, whose top is 12.
+            shown = hour
+            if bare in _LAYOUT_TWELVE_HOURS:
+                shown = hour % 12 if hour % 12 else 12
+            if bare == "hh":
+                written = f"{written}{shown:02d}"
+            elif bare == "H" or bare == "h":
+                written = f"{written}{shown}"
+            else:
+                written = f"{written}{shown:>2d}"
+        elif bare in _LAYOUT_MERIDIEMS:
+            morning, evening = _LAYOUT_MERIDIEMS[bare]
+            written = f"{written}{morning if hour < 12 else evening}"
         elif bare == "MI":
             written = f"{written}{minute:02d}"
         elif bare == "SS":
@@ -8661,7 +8787,7 @@ def _layout_tokens(text: str) -> "list[tuple[str, str]] | None":
             runs += [("a", text[place:end])]
             place = end
             continue
-        if character in "-/.,: +":
+        if character in "-/.,: +" or character == LAYOUT_NARROW_SPACE:
             runs += [("s", character)]
             place = place + 1
             continue
@@ -8866,28 +8992,93 @@ def _layout_fractions(
     return found
 
 
+def _layout_hours(
+    runs: "list[tuple[str, str]]", place: int
+) -> "list[tuple[str, int]]":
+    """Every hour field one run starts: (24-hour field, next run).
+
+    Two figures are `HH`; and, unless the first is a nought, `H` and `_H`
+    too, which write an hour from ten in two figures (landing R2b). One
+    figure is `H`, and a space before one figure is `_H`.
+    """
+    found: "list[tuple[str, int]]" = []
+    kind, text = _run(runs, place)
+    if kind == "d" and len(text) == 2:
+        found += [("HH", place + 1)]
+        if text[0] != "0":
+            found += [("H", place + 1), ("_H", place + 1)]
+    if kind == "d" and len(text) == 1:
+        found += [("H", place + 1)]
+    if _mark(runs, place, " ") and _figures(runs, place + 1, (1,)):
+        found += [("_H", place + 2)]
+    return found
+
+
+def _layout_markers(
+    runs: "list[tuple[str, str]]", place: int
+) -> "list[tuple[str, int]]":
+    """A marker of the half of the day at one run, after no gap, a space or a narrow one.
+
+    (`{AM}`-style text with its gap, next run) for each; none where the
+    runs there are no marker (landing R2b). `a.m.` and `A.M.` are four
+    runs, a letter, a point, a letter and a point.
+    """
+    found: "list[tuple[str, int]]" = []
+    for gap in ("", " ", LAYOUT_NARROW_SPACE):
+        at = place
+        if gap:
+            if not _mark(runs, at, gap):
+                continue
+            at = at + 1
+        kind, word = _run(runs, at)
+        if kind != "a":
+            continue
+        for name in _LAYOUT_MERIDIEMS:
+            morning, evening = _LAYOUT_MERIDIEMS[name]
+            if "." not in name:
+                if word == morning or word == evening:
+                    found += [(f"{gap}{{{name}}}", at + 1)]
+                continue
+            if (
+                (word == morning[0:1] or word == evening[0:1])
+                and _mark(runs, at + 1, ".")
+                and _run(runs, at + 2) == ("a", morning[2:3])
+                and _mark(runs, at + 3, ".")
+            ):
+                found += [(f"{gap}{{{name}}}", at + 4)]
+    return found
+
+
 def _layout_clocks(
     runs: "list[tuple[str, str]]", place: int, joint: str
 ) -> "list[tuple[str, int]]":
-    """Every clock of the date half at one run: two-figure 24-hour clocks.
+    """Every clock at one run: its hour, minutes, seconds, fraction and marker.
 
-    `HH:MI`, `HH:MI:SS` and `HH.MI.SS` (a dotted clock writes its seconds),
-    each with any fraction; and a compact `HHMI` or `HHMISS` after `T` or one
-    space. The clock half of the grammar (one-figure and space-padded hours,
-    the 12-hour face and its markers) is landing R2b's.
+    `H:MI`, `H:MI:SS` and `H.MI.SS` (a dotted clock writes its seconds),
+    each with any fraction, for every hour field the run starts
+    (`_layout_hours`) -- and, with a marker after it (`_layout_markers`),
+    the same clock on the dial, `hh`, `h` or `_h` (landing R2b); and a
+    compact `HHMI` or `HHMISS` after `T` or one space, which no marker
+    follows.
     """
     found: "list[tuple[str, int]]" = []
-    if _figures(runs, place, (2,)):
+    for hour, start in _layout_hours(runs, place):
         for mark in (":", "."):
-            if not (_mark(runs, place + 1, mark) and _figures(runs, place + 2, (2,))):
+            if not (_mark(runs, start, mark) and _figures(runs, start + 1, (2,))):
                 continue
-            base = f"{{HH}}{mark}{{MI}}"
-            after = place + 3
+            base = f"{{{hour}}}{mark}{{MI}}"
+            after = start + 2
+            plain: "list[tuple[str, int]]" = []
             if mark == ":":
-                found += [(base, after)]
+                plain += [(base, after)]
             if _mark(runs, after, mark) and _figures(runs, after + 1, (2,)):
                 for fraction, end in _layout_fractions(runs, after + 2):
-                    found += [(f"{base}{mark}{{SS}}{fraction}", end)]
+                    plain += [(f"{base}{mark}{{SS}}{fraction}", end)]
+            dial = f"{{{_LAYOUT_ON_THE_DIAL[hour]}}}"
+            for text, end in plain:
+                found += [(text, end)]
+                for marker, last in _layout_markers(runs, end):
+                    found += [(f"{dial}{text[len(hour) + 2 :]}{marker}", last)]
     if joint in ("T", "t", " ") and _figures(runs, place, (4, 6)):
         text = "{HH}{MI}" + ("{SS}" if len(runs[place][1]) == 6 else "")
         if len(runs[place][1]) == 6:
@@ -9067,7 +9258,132 @@ def layout_has_clock(name: str) -> bool:
     """Whether a layout writes a time of day (rule LY2: `datetime` iff so)."""
     if not isinstance(name, str):
         raise TypeError(_NOT_TEXT)
-    return "HH" in _layout_fields(name)
+    for field in _layout_fields(name):
+        if field in _LAYOUT_HOUR_FIELDS:
+            return True
+    return False
+
+
+def layout_asks_twelve_hours(name: str) -> bool:
+    """Whether a layout's clock could be a 12-hour clock written with no marker (landing R2b).
+
+    True for a layout whose hour is a 24-hour field (`HH`, `H`, `_H`)
+    with a mark after it, `14:05` or `14.05.09`: nothing in `8:34` says
+    which clock wrote it, so where every hour of such a column lies in 1
+    to 12 the person is asked T1's question, and a column they declare is
+    read on the dial (`layout_on_twelve_hours`). False for a compact clock
+    (`{HH}{MI}`), which HL7, ISO's basic form and a military clock write
+    on the 24-hour clock alone, for a layout with a marker, and for every
+    name that is no layout. Guarantees: a function of the name. Raises
+    TypeError for anything that is not text. No I/O of any kind.
+    """
+    if not isinstance(name, str):
+        raise TypeError(_NOT_TEXT)
+    items = layout_items(name)
+    if items is None:
+        return False
+    place = 0
+    for kind, field in items:
+        place = place + 1
+        if kind != "f" or field not in _LAYOUT_TWENTY_FOUR_HOURS:
+            continue
+        if place < len(items) and items[place] in (("l", ":"), ("l", ".")):
+            return True
+    return False
+
+
+def layout_on_twelve_hours(name: str) -> str:
+    """A layout read on T1's declared 12-hour face: `{HH}:{MI}` becomes `{hh}:{MI}`.
+
+    The column the person answered `twelve-hour` about (`--twelve-hour`):
+    its 24-hour hour field becomes the same width on the dial, which reads
+    1 to 12 with 12 the hour before one and writes every instant on the
+    dial it shows. The name itself where `layout_asks_twelve_hours` is
+    false, as `layout_in_window` leaves a four-figure year. Guarantees: a
+    function of the name. Raises TypeError for anything that is not text.
+    No I/O of any kind.
+    """
+    if not isinstance(name, str):
+        raise TypeError(_NOT_TEXT)
+    if not layout_asks_twelve_hours(name):
+        return name
+    return name.replace("{HH}", "{hh}").replace("{H}", "{h}").replace("{_H}", "{_h}")
+
+
+def _layout_off_the_dial(text: str) -> str:
+    """A layout on the declared face taken back to the production it stands for.
+
+    `{hh}:{MI}` with no marker is `{HH}:{MI}` read on the dial, which only
+    a declaration makes (rule LY1, landing R2b); a text with a marker, or
+    with no 12-hour field, is its own production.
+    """
+    if not isinstance(text, str):
+        raise TypeError(_NOT_TEXT)
+    for name in _LAYOUT_MERIDIEMS:
+        if f"{{{name}}}" in text:
+            return text
+    return text.replace("{hh}", "{HH}").replace("{h}", "{H}").replace("{_h}", "{_H}")
+
+
+def layout_of_the_clock_half(name: str) -> bool:
+    """Whether a layout names a field only the clock half writes (Codex review of landing R2b, item 1).
+
+    An hour field other than `HH` -- `H`, `_H`, `hh`, `h`, `_h` -- or a
+    marker, once the layout is taken back off T1's declared dial
+    (`_layout_off_the_dial`), where `{hh}` with no marker stands for R2a's
+    `{HH}`. A layout naming none of them is one R2a's grammar writes, and
+    the choice weighs such a layout first (`taxonomy._chosen_layout`).
+    Guarantees: a function of the name; False for anything that is not a
+    layout. Raises TypeError for anything that is not text. No I/O.
+    """
+    if not isinstance(name, str):
+        raise TypeError(_NOT_TEXT)
+    for field in _layout_fields(_layout_off_the_dial(name)):
+        if field in _LAYOUT_MERIDIEMS:
+            return True
+        if field in _LAYOUT_HOUR_FIELDS and field != "HH":
+            return True
+    return False
+
+
+def layout_clock_style(name: str) -> "str | None":
+    """The written clock a layout names, as T1's styles say it, or None where it writes none.
+
+    Its face -- `''` on the 24-hour clock, `CLOCK_TWELVE_HOUR` on the
+    declared dial with no marker, and a marker's pair otherwise, after a
+    space where a space or a narrow one is written -- with `h` for an hour
+    shown in one figure below ten and `hh` for two (landing R2b). The one
+    statement contract rule S8c and the command's notice ask of a layout
+    column, as they ask a stamp's mark word. Guarantees: a member of
+    `CLOCK_STYLES` or None. Raises TypeError for anything that is not
+    text. No I/O of any kind.
+    """
+    if not isinstance(name, str):
+        raise TypeError(_NOT_TEXT)
+    items = layout_items(name)
+    if items is None:
+        return None
+    width = ""
+    twelve = False
+    face = ""
+    before = ""
+    for kind, field in items:
+        if kind == "l":
+            before = field
+            continue
+        if field in _LAYOUT_HOUR_FIELDS:
+            width = "hh" if field in ("HH", "hh") else "h"
+            twelve = field in _LAYOUT_TWELVE_HOURS
+        if field in _LAYOUT_MERIDIEMS:
+            morning, evening = _LAYOUT_MERIDIEMS[field]
+            spaced = " " if before in (" ", LAYOUT_NARROW_SPACE) else ""
+            face = f"{spaced}{morning}-{evening}"
+        before = ""
+    if not width:
+        return None
+    if twelve and not face:
+        face = CLOCK_TWELVE_HOUR
+    return f"{width}{face}"
 
 
 def layout_precision(name: str) -> str:
@@ -9313,7 +9629,8 @@ def layout_order_key(name: str, day_first: bool) -> "tuple[int, int, int, int, i
     Month first before day first unless the person said the day comes first;
     then a layout whose offset every cell writes before one some omit; then
     fewer space-padded fields; then fewer flexible fields, so a padded
-    dotted date keeps its padding; then the standard month names before the
+    dotted date keeps its padding and a clock whose hours all show two
+    figures keeps `{HH}` (landing R2b); then the standard month names before the
     CLDR sets; then the shorter text; then the text.
     """
     if not isinstance(name, str):
@@ -9331,7 +9648,9 @@ def layout_order_key(name: str, day_first: bool) -> "tuple[int, int, int, int, i
     for field in _layout_fields(name):
         if field in _LAYOUT_SPACED_FIELDS:
             spaced = spaced + 1
-        if field in _LAYOUT_FLEXIBLE_FIELDS:
+        # -- 3b.R2b: an hour in one figure below ten is flexible too, so
+        # a column whose every hour shows two figures keeps `{HH}`.
+        if field in _LAYOUT_FLEXIBLE_FIELDS or field in ("H", "h"):
             flexible = flexible + 1
         if field in _LAYOUT_MONTH_FIELDS:
             suffix = field[len(field) - 2 : len(field)]
@@ -9386,7 +9705,10 @@ def is_layout_format(name: str) -> bool:
     answers for it. That last clause is what keeps out a text built only of
     known fields that no production makes -- two flexible fields side by
     side, which a lucky date reads -- and it is exact: what the producer
-    can publish and what this admits are one set.
+    can publish and what this admits are one set. A clock on T1's declared
+    dial with no marker stands for the 24-hour production it was declared
+    from (`layout_on_twelve_hours`, landing R2b), as `{YY1930}` stands for
+    `{YY}`.
 
     Guarantees: accepts any object; returns a bool; raises nothing. No I/O
     of any kind.
@@ -9399,6 +9721,13 @@ def is_layout_format(name: str) -> bool:
     if compiled_layout(text) is None:
         return False
     plain = _layout_produced(text)
+    # -- 3b.R2b (P4-D383): a clock on the declared dial is the 24-hour
+    # production read there, and only where that production could be.
+    off = _layout_off_the_dial(plain)
+    if off != plain:
+        if not layout_asks_twelve_hours(off):
+            return False
+        plain = off
     items = compiled_layout(plain)
     if items is None:
         return False

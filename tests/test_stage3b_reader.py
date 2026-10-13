@@ -209,7 +209,12 @@ def _two_forms_only(text: str) -> "str | None":
 def test_r1_red_on_its_mutant(tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(parsing, "_stamp_clock", _two_forms_only)
     block, _profile, _questions = _described(tmp_path, spellings.cells("excel_twelve_hour", ROWS))
-    assert block["role"] != taxonomy.ROLE_DATETIME
+    # Since landing R2b (plan P4-D383) the layout member, last in the walk,
+    # reads what the stamp members leave -- `{M}/{D}/{YYYY} {h}:{MI} {AM}` --
+    # so the mutant shows as the stamp member lost, not as the dates lost.
+    assert block["role"] != taxonomy.ROLE_DATETIME or parsing.is_layout_name(
+        f"{block.get('format', '')}"
+    )
 
 
 # -- R2 and R3: written back as written, and checked ------------------

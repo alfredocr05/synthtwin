@@ -7933,7 +7933,7 @@ def reading_of_the_rest(
     # beside a few codes is asked R1's question, and no second one.
     layout = _chosen_layout(
         counted, total, needed, settings.day_first, contradicted,
-        century_window_of(settings),
+        century_window_of(settings), twelve=reads_twelve_hours(settings),
     )
     if layout is not None:
         return parsing.layout_format(layout[0]), layout[1]
@@ -15694,6 +15694,12 @@ def _matching_date_format(
 # text at 100,000 different texts and 30.8 at 1,000,000 (tracemalloc, up
 # to 58 while the dict grows), about 31 MB for a column of a million
 # different texts, made for the column and dropped with it.
+#
+# AND THE CHOICE'S PRODUCTIONS MEMO (landing R2b, `_layout_extended`), held
+# to this bound too: each text's layouts, about 0.4 to 1.4 KB a text and
+# up to about 90 MB at the bound -- 1,357 bytes a text for SQL Server's
+# style 100 on the 24-hour clock, 88.9 MB at 65,536 texts (tracemalloc,
+# skeptic 1 of landing R2b, item 5) -- made for one column, dropped with it.
 LAYOUT_MEMO_TEXTS = 65536
 
 # What the layout member's helpers say when handed something that is not
@@ -15783,6 +15789,7 @@ def _layout_candidates(
     room: int,
     contradicted: bool,
     window: int,
+    twelve: bool = False,
 ) -> "list[str]":
     """Every layout the column's first cells can be read under, each once.
 
@@ -15791,8 +15798,10 @@ def _layout_candidates(
     it reads at least one of ANY ``room + 1`` cells -- the texts standing
     on the column's first ``room + 1`` rows hold every layout that can
     win. A layout with an offset brings its optional twin (`{+HHMM?}`), a
-    two-figure year takes the column's declared window, and the member
-    walk's guards hold.
+    two-figure year takes the column's declared window, a clock with no
+    marker takes the declared 12-hour dial where ``twelve`` says the person
+    declared one (`parsing.layout_on_twelve_hours`, landing R2b), and the
+    member walk's guards hold.
 
     IN A DECLARED CENTURY A TEXT IS READ WITH ITS SURROUNDING WHITESPACE SET
     ASIDE (skeptic 1 of landing R2a, item 1): there the layouts standing in
@@ -15811,6 +15820,8 @@ def _layout_candidates(
         for layout in _layouts_of_text(text, window):
             if window:
                 layout = parsing.layout_in_window(layout, window)
+            if twelve:
+                layout = parsing.layout_on_twelve_hours(layout)
             if _layout_guarded(layout, contradicted):
                 continue
             for one in (layout, parsing.layout_optional(layout)):
@@ -15820,8 +15831,20 @@ def _layout_candidates(
     return found
 
 
+# THE LAST CHARACTER EVERY OFFSET FIELD ENDS A CELL WITH (landing R2b): a
+# signed offset's figure, or the last letter of `Z`, `z`, `UTC` and `GMT`.
+# A text ending in anything else has no layout with an offset, so
+# `_layout_extended` need not ask the grammar for its productions.
+_OFFSET_LAST_CHARACTERS = "0123456789ZzCT"
+
+
 def _layout_extended(
-    layout: str, failing: "list[str]", window: int, contradicted: bool
+    layout: str,
+    failing: "list[str]",
+    window: int,
+    contradicted: bool,
+    twelve: bool = False,
+    productions: "dict[str, tuple[str, ...]] | None" = None,
 ) -> "list[str]":
     """The optional-offset layouts a layout with no offset grows into (skeptic M2).
 
@@ -15836,6 +15859,19 @@ def _layout_extended(
     cell it missed WITH its offset, so the texts it missed hold every such
     layout too: 7 of 1,000 HL7 stamps ending `-0400` or `-0500` were the
     seven stand-ins of a twin read 993 under the offset-free layout.
+
+    ONE TEXT'S PRODUCTIONS ARE ASKED FOR ONCE A CHOICE (landing R2b): the
+    clock half gives a column of SQL Server's style 100 forty-five
+    candidates, each missing about a thousand of the same first texts, and
+    asking the grammar again for each made the choice cost 1.48 times
+    ISO's describe at 100,000 rows. ``productions`` is the choice's own
+    dict of each text's layouts, made for one column and dropped with it,
+    holding at most `LAYOUT_MEMO_TEXTS`: about 0.4 to 1.4 KB a text, up to
+    about 90 MB at the bound (skeptic 1 of landing R2b, item 5; tracemalloc
+    at 65,536 texts: 409 bytes a text for one-figure hours, 445 for
+    `m/d/yy H:MI`, 1,357 for style 100 on the 24-hour clock, a median of
+    18 productions a text, 88.9 MB). A text whose last character no offset
+    field writes is passed by, having no layout with an offset.
     """
     if not isinstance(layout, str):
         raise TypeError(_LAYOUT_NOT_TEXT)
@@ -15843,9 +15879,19 @@ def _layout_extended(
         return []
     found: "list[str]" = []
     for text in failing:
-        for one in parsing.layouts_of(text):
+        if text[len(text) - 1 : len(text)] not in _OFFSET_LAST_CHARACTERS or not text:
+            continue
+        if productions is not None and text in productions:
+            made = productions[text]
+        else:
+            made = parsing.layouts_of(text)
+            if productions is not None and len(productions) < LAYOUT_MEMO_TEXTS:
+                productions[text] = made
+        for one in made:
             if window:
                 one = parsing.layout_in_window(one, window)
+            if twelve:
+                one = parsing.layout_on_twelve_hours(one)
             if parsing.layout_without_offset(one) != layout:
                 continue
             if _layout_guarded(one, contradicted):
@@ -15863,6 +15909,7 @@ def _chosen_layout(
     day_first: bool,
     contradicted: bool,
     window: int,
+    twelve: bool = False,
 ) -> "tuple[str, int, dict[str, int]] | None":
     """The layout reading the most cells at the line, its rows, and every candidate's.
 
@@ -15878,14 +15925,68 @@ def _chosen_layout(
     of SAS stamps, which item 1's flexible day gives three candidates
     more, reads one of its six.
 
+    R2a'S GRAMMAR FIRST (the Codex review of landing R2b, item 1): the
+    layouts naming no field of the clock half
+    (`parsing.layout_of_the_clock_half`) are walked alone, and only where
+    none of them reaches the line are the clock half's weighed. A column
+    R2a read at the line keeps R2a's layout: 990 SAS stamps at hour 14 and
+    ten at hour 4 stay `{HH}` with ten cells unread, where `{H}`, reading
+    all 1,000, had moved five published percentiles and left R2a's own
+    description of the unchanged source eight checks MISSED. Where none of
+    R2a's reaches the line, the second walk chooses exactly as one walk of
+    every candidate did, the first walk's layouts all falling short.
+
     Determinism: a function of the arguments. Raises nothing. No I/O of
     any kind.
     """
     room = total - needed
-    candidates = _layout_candidates(counted, room, contradicted, window)
+    # -- 3b.R2b: the declaration passed only where there is one, so R2a's
+    # four-argument seam stands as it was.
+    if twelve:
+        candidates = _layout_candidates(counted, room, contradicted, window, twelve)
+    else:
+        candidates = _layout_candidates(counted, room, contradicted, window)
     keyed = sorted(
         [(parsing.layout_order_key(one, day_first), one) for one in candidates]
     )
+    # -- 3b.R2b: each failing text's productions, asked once a choice.
+    productions: "dict[str, tuple[str, ...]]" = {}
+    # -- 3b.R2b, Codex item 1: R2a's grammar alone first.
+    dated: "list[tuple[tuple[int, int, int, int, int, int, str], str]]" = []
+    clocked: "list[tuple[tuple[int, int, int, int, int, int, str], str]]" = []
+    for pair in keyed:
+        if parsing.layout_of_the_clock_half(pair[1]):
+            clocked += [pair]
+        else:
+            dated += [pair]
+    chosen = _layout_walk(
+        dated, counted, total, room, day_first, (window, contradicted, twelve), productions
+    )
+    if chosen is None and clocked:
+        chosen = _layout_walk(
+            clocked, counted, total, room, day_first, (window, contradicted, twelve), productions
+        )
+    return chosen
+
+
+def _layout_walk(
+    keyed: "list[tuple[tuple[int, int, int, int, int, int, str], str]]",
+    counted: "dict[str, int]",
+    total: int,
+    room: int,
+    day_first: bool,
+    reading: "tuple[int, bool, bool]",
+    productions: "dict[str, tuple[str, ...]]",
+) -> "tuple[str, int, dict[str, int]] | None":
+    """One walk of `_chosen_layout` over candidates in key order (landing R2a's walk, R2b's split).
+
+    ``reading`` is the column's century window, whether its dotted triples
+    name a zero field, and whether it is declared on the 12-hour dial;
+    ``productions`` is the choice's own memo (`_layout_extended`), shared
+    by its walks. Returns what `_chosen_layout` returns, for these
+    candidates and the layouts grown from them. No I/O of any kind.
+    """
+    window, contradicted, twelve = reading
     reached: "dict[str, int]" = {}
     best = ""
     best_rows = -1
@@ -15899,7 +16000,10 @@ def _chosen_layout(
         # line (skeptic 1 of landing R2a, item 2): a layout that reaches it
         # missing a few cells that write an offset reads fewer than its
         # optional-offset twin, which wins only by reading strictly more.
-        for one in _layout_extended(layout, failing, window, contradicted):
+        grown = _layout_extended(
+            layout, failing, window, contradicted, twelve, productions
+        )
+        for one in grown:
             if one not in later and one not in reached:
                 later += [one]
         if missed > room:
@@ -16029,7 +16133,8 @@ def _matching_layout(
     counted = _spelling_rows(present)
     window = century_window_of(settings)
     chosen = _chosen_layout(
-        counted, total, needed, settings.day_first, contradicted, window
+        counted, total, needed, settings.day_first, contradicted, window,
+        twelve=reads_twelve_hours(settings),
     )
     if chosen is None:
         return None

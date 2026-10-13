@@ -6,6 +6,38 @@ exists).
 
 ## [Unreleased]
 
+### Clock times no member read are read by their shape too (2026-10-09)
+
+**Landing R2b, the clock half of the layout reader** (plan P4-D383).
+A date followed by an hour in one figure below ten (`2023-03-17 9:05`,
+`3/17/23 9:05`), by a 12-hour clock with `AM` or `PM`
+(`2023-03-17 03:56 PM`, `Mar 17, 2023 3:56 PM`), by JavaScript's narrow
+no-break space before its marker, by Oracle's TIMESTAMP
+(`17-MAR-23 02.05.37.123456 PM`) or by SQL Server's style 100
+(`Mar  1 2021  1:52PM`) used to be described as free text. Each is now read under a
+layout and its twin writes every cell in the source's own spelling,
+the hour at its width and on its dial. A layout column whose every hour
+lies 1 to 12 is asked whether it is a 12-hour clock written without AM
+or PM; Enter keeps the 24-hour reading, and `--twelve-hour` reads it on
+the dial. When nothing is declared, no column R2a's layouts or T1's stamps read moves: R2a's
+reach battery of 169 columns moved those seven alone, and the other 162
+kept every file byte for byte. A column named with `--twelve-hour`
+whose layout writes an hour of 0 or 13 to 23 is read as T1 reads such
+a stamp: not on the dial, so as free text, and the command names it;
+R2a read it on the 24-hour clock. A description written before this
+landing of a column named with `--twelve-hour` and read on the 24-hour
+clock still loads and is checked on that clock. A declared dial's twin
+may miss its rungs until landing T2's half-day draw, as a declared
+stamp's does, and a column mixing the narrow and the ordinary space
+before its marker is not read. After the Codex review, a column R2a's layouts
+read at the line keeps R2a's layout even where the clock half would read
+a few more of its cells: 990 SAS stamps at hour 14 beside ten at hour 4
+stay at `{HH}` with ten cells unread, and R2a's own description of them
+again validates its unchanged source. A clock column writing a space or
+a narrow space before its marker (`9:15 AM`) beside more than one cell
+in fifty of rare words stays free text whose twin is made-up text: such
+a cell has no written form, since a form holds no space.
+
 ### The day-of-month census (2026-10-09)
 
 **A column of dates publishes which days of the month it falls on**

@@ -7904,6 +7904,15 @@ own set and case, the weekday the date's own; `{F}` as zeros at
 `subsecond_digits`; and the offset the rank wears in its field's own
 spelling, at the place the layout puts it -- `+0100` under `{+HHMM}`,
 `-05` under `{+HH}`, the word itself under `{Z}`, `{UTC}` or `{GMT}`.
+THE CLOCK HALF (landing R2b): `{H}` writes the hour in one figure below
+ten and `{_H}` pads it with a space; `{hh}`, `{h}` and `{_h}` write the
+same three widths on the 12-hour dial, the hour less twelve after noon
+and 12 at the top of the dial, never 0; a marker field -- `{AM}`, `{am}`,
+`{A.M.}`, `{a.m.}` -- writes its morning word before noon and its
+afternoon word from noon on, after the gap the layout writes: none, a
+space, or the narrow no-break space U+202F. A dial field with no marker
+is T1's declared face (`--twelve-hour`), written on the dial it shows as
+the stamps are.
 A rank allocated `(none)` under an offset some cells omit
 (`{+HHMM?}`) writes no offset and none of the marks before it; a field
 that must write one and is handed none writes the shared clock's,
@@ -7928,10 +7937,14 @@ are read since landing T1, on a slashed stamp: a 12-hour clock
 (`3/17/2023 9:30 PM`) and Excel's unpadded hour (`3/17/2023 9:30`),
 whose clock half the stamp members read in the forty forms of the
 `time_of_day` role (contract C6-10a, D12a) and the twin writes in its
-style (the T1 paragraph above). An ISO stamp still reads its clock with
-two figures a field on the 24-hour clock (the contract's `iso-datetime`
-row), so a 12-hour clock or a one-figure hour after an ISO date is not
-read (the T1 review's item 11).
+style (the T1 paragraph above). The `iso-datetime` member still reads
+its clock with two figures a field on the 24-hour clock (the contract's
+`iso-datetime` row), so that MEMBER reads no 12-hour clock and no
+one-figure hour after an ISO date (the T1 review's item 11). Such a
+column falls to the layout member of G7.5 (landing R2b, plan P4-D383),
+which reads `2024-03-17 9:30` under `{YYYY}-{MM}-{DD} {H}:{MI}` and
+`2024-03-17 09:30 PM` under `{YYYY}-{MM}-{DD} {hh}:{MI} {AM}`, and writes
+each cell back in that layout (the Codex review of landing R2b, item 3).
 
 Then the clock half, exactly:
 
@@ -15344,7 +15357,7 @@ that happens -- and the clause beside it, `--missing-value`'s "CAN be
 published as the column's smallest value", is exactly right under the
 new rule.
 
-**All one hundred and eighty-six are required.** The count is taken off the committed
+**All one hundred and ninety-four are required.** The count is taken off the committed
 case sets and not carried forward: this sentence said fifty-two and a
 split of nine, twenty, sixteen and seven while the six files held
 seventy-three, because each repair that added a case added a clause to
@@ -15386,13 +15399,16 @@ TWENTY-THIRD, `tests/reference/generation-branch-vectors-23.json`,
 holds one -- lane G2's width rule, G6.6.8 -- in the file that table
 gives lane G2; and the
 TWENTY-FIFTH, `tests/reference/generation-branch-vectors-25.json`,
-holds fifteen -- landing R2a's layouts, the century a person chose,
+holds twenty-three -- landing R2a's layouts, the century a person chose,
 from its repair round a day padded with a space and the offsets a
 column of figure runs owes its class count, beside repeated texts too,
 from its second skeptic those offsets beside a named one, from its
 Codex review the rest of them paid with whole repeated texts, and from
 that repair's verification those texts placed over two offsets toward
-one aim (plan P4-D383) --
+one aim, and landing R2b's clock half -- SQL Server's style 100, Oracle's
+TIMESTAMP and JavaScript's narrow space before its marker, and from
+its Codex review each of its five hour fields beside a signed offset
+(plan P4-D383) --
 and a test holds this sentence to those files. The tenth grew by the
 two cases the GOVERNANCE PASS of stage 3's review added and the
 eleventh by the two the dates pass added; each number here is read off
@@ -15562,6 +15578,14 @@ case passed, which is the failure the count exists to prevent:
 | `layout_offsets_owed_across_offsets` | G7.9b step 5's aim and its look ahead at each offset (the verification of the Codex review's repair of landing R2a, open item 1): twenty-four HL7 stamps over eight different values whose census counted eleven offsets into `(none)`. Step 4 writes the two texts standing alone between the ends at `+0000`, which leaves room for eight more there; every other text repeats, so the other nine are written on whole texts, and step 5 aims at nine: a text of five copies at `+0000` and one of four at `+0100`, since taking the most `+0000` holds, two texts of four, would leave one cell owed that no text fits. Its mutant takes at each offset the most it holds, and the twin holds ten cells that are not numbers for eleven |
 | `layout_space_padded_day` | G7.5's space-padded day `{_D}` (landing R2a's repair round, item 6): SQL Server's `Mon dd yyyy` style, twelve dates of January 1970 written `Jan  1 1970` to `Jan 12 1970`, a day below ten written after a space in place of its first figure. Its mutant writes the day zero-padded, `Jan 01 1970` |
 | `layout_century_window` | G7.3e's window a person chose (landing R2a, question Q5): twenty-four `mm/dd/yy` birth dates of January 1940 read under `{YY1930}`, a tail at either end, the days a tail may reach bounded by 1930 to 2029. Its mutant reads every two-figure year in the POSIX window, 1969 to 2068, and the column's own days fall outside what its spelling writes back |
+| `layout_style_100` | G7.5's clock half (landing R2b, plan P4-D383): SQL Server's CONVERT style 100, `Jan  6 1970  4:37AM`, twelve moments of the ramp from midnight, the day and the hour on the 12-hour dial each padded with a space below ten and the marker straight after the minutes; midnight is `12:00AM`, the top of the dial. Its mutant pads the hour with a nought, `04:37AM` |
+| `layout_oracle_timestamp` | G7.5's dotted clock on the 12-hour dial (landing R2b): Oracle's TIMESTAMP default, `08-JAN-70 09.59.29.000000 PM`, two figures of hour on the dial, six of fraction as zeros, the marker after one space. Its mutant writes the 24-hour clock's hour beside the marker, `21.59.29.000000 PM` |
+| `layout_narrow_space_marker` | G7.5's narrow no-break space before a marker (landing R2b): JavaScript's `toLocaleString` for en-US, `1/10/1970, 7:17:10` U+202F `PM`, the month and day unpadded as `{"unpadded": 12}` allocates and the hour in one figure below ten on the dial. Its mutant writes an ordinary space before the marker |
+| `layout_one_figure_hour_offset` | G7.5's hour in one figure below ten beside a signed offset (the Codex review of landing R2b, item 2): `1970-01-10 8:27:11+05:30`, twelve moments of the ramp, the offset at half an hour with its colon straight after the seconds. Its mutant writes the hour in two figures, `08:27:11+05:30` |
+| `layout_spaced_hour_offset` | G7.5's hour padded with a space below ten beside a signed offset (the Codex review of landing R2b): `Jan  7 1970  9:12 -0400`, the day and the 24-hour clock's hour each padded with a space, the offset after one space without its colon. Its mutant pads the hour with a nought, `09:12` |
+| `layout_dial_hour_offset` | G7.5's two-figure hour on the 12-hour dial beside a signed offset (the Codex review of landing R2b): `1970-01-02 01:51 PM -09:30`, the marker after one space and the offset after another. Its mutant writes the 24-hour clock's hour beside the marker, `13:51 PM` |
+| `layout_dial_one_figure_offset` | G7.5's one-figure hour on the 12-hour dial beside a signed offset (the Codex review of landing R2b, the layout it named): `1970-01-07 7:23 PM+0530`, the offset straight after the marker. Its mutant writes the 24-hour clock's hour, `19:23 PM+0530` |
+| `layout_dial_spaced_offset` | G7.5's hour on the 12-hour dial padded with a space beside a whole-hour offset (the Codex review of landing R2b): `Jan 11 1970  2:51PM-05`, style 100 with `-05` after its marker; midnight is `12:00AM-05`. Its mutant writes the 24-hour clock's hour, `14:51PM-05` |
 | `date_remainder_one_joint` | G7.5 step 5 (landing T1; plan l.17955's carried case (a)): twenty-two month-first dates over twelve days publishing `{"padded": 11}`, eleven values' widths left out. The step writes those eleven ranks on whole days, the days holding the fewest of the class's ranks first, in widths the census does not name -- nine `unpadded` and two `first-padded`, each fewer than the line and than the named word -- and the named word keeps its eleven. Its mutant withdraws the step |
 | `clock_census_slots` | G7A.4b (landing 3b.5, plan P4-D373): a clinic's slots, 100 times from 08:00 to 11:59 with 30 at 08:00 and 25 at 08:30. Both stand out from the five minutes either side and are published as heaps over every cell: 08:00 fills the low tail, which lists it, and 08:30 is a stretch of its own inside the body; the census counts the body's other cells in ten-minute bins nested in hours. Every heap, group and boundary is met by construction. Its mutant counts the census in fifteen-minute bins, and the runs move |
 | `clock_census_heap_splits_group` | G7A.4b's runs: a heap at 07:25 holding 15 of 84 cells stands inside the census group 07:20 to 07:39, whose 15 other cells are shared over the steps on each side of the heap -- 07:20 to 07:24 and 07:26 to 07:39 -- by how many steps each run holds. Its mutant gives the whole count to the group's first run, and the cells move |

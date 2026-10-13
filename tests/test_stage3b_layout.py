@@ -1,4 +1,38 @@
-"""THE LAYOUT MEMBER'S GATE (stage 3b landing R2a, plan P4-D383): the date half.
+"""THE LAYOUT MEMBER'S GATE (stage 3b landings R2a and R2b, plan P4-D383).
+
+THE CLOCK HALF (landing R2b) is at the end of this file: the seven spellings
+of `layout_spellings.CLOCK_HALF` -- an hour in one figure below ten, the
+12-hour dial with its markers, JavaScript's narrow no-break space, Oracle's
+TIMESTAMP and SQL Server's style 100 -- are among L1's, L2's and L6's
+parameters, and its own clauses, each red on the mutant its docstring
+names, are C1 the seven read (mutant: R2a's productions alone); C2 written
+back field by field (mutants: the dial, the narrow space, the space pad,
+the width); C3 no member reading moves -- T1's three stamps and R2a's
+thirty-nine layouts, two-figure hours keeping `{HH}` (mutant: `{H}` not
+flexible in the tie); C4 T1's 12-hour question asked of a layout clock
+that cannot say, and answered (mutants: no layout asked; any hour taken
+for the dial); C5 every description the producer writes loads, and S8c
+holds a layout's declaration both ways (mutant: S8c blind to a layout);
+C6 LY1 admits the clock half exactly, discovery and LY1 one set (mutant: a
+declared dial not taken back); C7 a padded hour is not read as one figure
+(mutant: the nought set aside); C8 a declared dial's twin says what it
+cannot hold, beside a strict expected failure owned by landing T2; and C9
+a choice asks one text's productions at most twice (mutants: the memo
+dropped; the last-character test withdrawn).
+
+And R2b's skeptic 1, each clause run against the mutant its docstring
+names: C5 holds S8c one way on a layout, and two descriptions R2a's
+producer wrote of a declared SAS column read at `{HH}`, frozen in
+`tests/layout_r2a_descriptions.py`, load, generate and validate, twin and
+table (item 1; mutants: S8c reaching a layout's 24-hour face; the
+validator handing the declaration on whole); C1b every cell of the seven
+read as the moment that wrote it, C7b no hour field reading a nought it
+does not write, C4c a clock writing a nought hour not asked and C4d the
+command's notice silent where the declaration reached the dial (item 2);
+and C4e and C4f the declared dial's optional offset and R1's Q2 read on
+the dial (item 3).
+
+THE DATE HALF (landing R2a):
 
 Before this landing 60 of the 116 health-export spellings of the reach
 audit were read as no date at all -- SAS, Stata, SPSS, HL7, REDCap's
@@ -92,6 +126,7 @@ import collections
 import csv
 import dataclasses
 import datetime
+import hashlib
 import io
 import json
 import pathlib
@@ -105,6 +140,7 @@ from synthtwin import (
     asking, contract, errors, generation, parsing, taxonomy, validation,
 )
 from tests import fixtures
+from tests import layout_r2a_descriptions as r2a_written
 from tests import layout_spellings as spellings
 
 ROWS = 300
@@ -177,7 +213,7 @@ def _validated(profile: pathlib.Path, checked: pathlib.Path) -> "tuple[int, str]
 
 @pytest.mark.parametrize("name", sorted(spellings.SPELLINGS))
 def test_l1_every_spelling_is_read(name: str) -> None:
-    """Before R2a none of these thirty-nine was a date."""
+    """Before R2a and R2b none of these forty-six was a date."""
     cells = spellings.cells(name, ROWS)
     described = taxonomy.profile_column("seen_at", 1, cells, ROWS, taxonomy.Settings())
     details = described.details or {}
@@ -2313,3 +2349,978 @@ def test_cxv_item3_step5_respells_only_the_texts_it_writes(
     assert _not_numbers(paid) == 140
     assert sorted(set(worn.values())) == [f"+{hour:02d}00" for hour in range(14)]
     assert writes == len(worn)
+
+
+# == LANDING R2b: THE CLOCK HALF (plan P4-D383) ===========================
+#
+# The seven spellings of `spellings.CLOCK_HALF` are among L1's, L2's and
+# L6's parameters; these clauses are the clock half's own, each red on the
+# mutant its docstring names.
+
+
+def _clock_half_unread(cells_of: "dict[str, list[str]]") -> int:
+    """How many of the clock half's columns are not read whole under a layout."""
+    unread = 0
+    for name in sorted(cells_of):
+        cells = cells_of[name]
+        described = taxonomy.profile_column("seen_at", 1, cells, len(cells), taxonomy.Settings())
+        details = described.details or {}
+        if described.role != taxonomy.ROLE_DATETIME or details.get("n_unparsed") != 0:
+            unread = unread + 1
+    return unread
+
+
+def test_r2b_c1_red_without_the_clock_half(monkeypatch: pytest.MonkeyPatch) -> None:
+    """C1's mutant: the productions cut back to R2a's two-figure 24-hour clock.
+
+    L1 reads all seven of the clock half whole; with no marker and no hour
+    but two figures, none of the seven is read.
+    """
+    cells_of = {name: spellings.cells(name, ROWS) for name in spellings.CLOCK_HALF}
+    assert _clock_half_unread(cells_of) == 0
+    monkeypatch.setattr(parsing, "_layout_markers", lambda runs, place: [])
+    monkeypatch.setattr(
+        parsing, "_layout_hours",
+        lambda runs, place: [("HH", place + 1)] if parsing._figures(runs, place, (2,)) else [],
+    )
+    assert _clock_half_unread(cells_of) == len(spellings.CLOCK_HALF)
+
+
+@pytest.mark.parametrize(
+    "name, old, new",
+    (
+        ("oracle_timestamp", "{hh}", "{HH}"),
+        ("javascript_locale", " ", " "),
+        ("sqlserver_style_100", "{_h}", "{hh}"),
+        ("iso_one_figure_hour", "{H}", "{HH}"),
+    ),
+)
+def test_r2b_c2_red_when_the_clock_is_written_another_way(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch, name: str, old: str, new: str
+) -> None:
+    """C2's mutants, one a field: the dial, the narrow space, the space pad, the width.
+
+    L2 writes every twin cell of the seven in its source's spelling; with the
+    hour on the 24-hour clock beside its marker, an ordinary space before
+    the marker, the hour padded with a nought or every hour in two figures,
+    some cell is not.
+    """
+    _block, profile, _questions = _described(tmp_path, spellings.cells(name, ROWS))
+    _twin_path, shipped = _twin(profile, 0)
+    assert shipped and all(spellings.written_as_the_source(name, cell) for cell in shipped)
+    monkeypatch.setattr(
+        parsing, "written_layout_date",
+        lambda format_name, canonical, offset="", width="padded", figures=0: _WRITTEN(
+            format_name.replace(old, new), canonical, offset, width, figures
+        ),
+    )
+    _twin_path, written = _twin(profile, 1)
+    assert not all(spellings.written_as_the_source(name, cell) for cell in written)
+
+
+# T1's three slashed stamps the reach audit counted among the clock half's
+# ten, which T1 reads: the layout, last in the walk, never reaches them.
+_T1_STAMPS = {
+    "excel_unpadded_hour": lambda m: f"{m.month}/{m.day}/{m.year} {m.hour}:{m.minute:02d}",
+    "excel_twelve_hour": lambda m: (
+        f"{m.month}/{m.day}/{m.year} {m.hour % 12 or 12}:{m.minute:02d} "
+        f"{'AM' if m.hour < 12 else 'PM'}"
+    ),
+    "excel_unpadded_seconds": lambda m: (
+        f"{m.month}/{m.day}/{m.year} {m.hour}:{m.minute:02d}:{m.second:02d}"
+    ),
+}
+
+
+@pytest.mark.parametrize("name", sorted(_T1_STAMPS))
+def test_r2b_c3_t1_stamps_keep_their_member(name: str) -> None:
+    """C3: the three stamps T1 reads stay T1's, `month-first-datetime`."""
+    cells = [_T1_STAMPS[name](moment) for moment in spellings.moments(ROWS, 11)]
+    described = taxonomy.profile_column("seen_at", 1, cells, ROWS, taxonomy.Settings())
+    assert (described.details or {})["format"] == "month-first-datetime", name
+
+
+_CLOCK_HALF_FIELDS = ("{H}", "{_H}", "{hh}", "{h}", "{_h}", "{AM}", "{am}", "{A.M.}", "{a.m.}")
+
+
+def _date_half_layouts() -> "dict[str, str]":
+    """The layout each of R2a's thirty-nine spellings is read under."""
+    found: "dict[str, str]" = {}
+    for name in sorted(spellings.SPELLINGS):
+        if name in spellings.CLOCK_HALF:
+            continue
+        cells = spellings.cells(name, ROWS)
+        described = taxonomy.profile_column("seen_at", 1, cells, ROWS, taxonomy.Settings())
+        found[name] = f"{(described.details or {}).get('format', '')}"
+    return found
+
+
+def test_r2b_c3_the_date_half_keeps_every_layout() -> None:
+    """C3: R2a's thirty-nine keep their layouts, no clock-half field among them.
+
+    Measured on the whole `ColumnProfile` of each at 300 and 1,000 rows
+    against R2a's head a7c9d75: 78 of 78 byte-identical (plan P4-D383).
+    """
+    layouts = _date_half_layouts()
+    assert len(layouts) == 39
+    for name in sorted(layouts):
+        assert parsing.is_layout_format(layouts[name]), name
+        for field in _CLOCK_HALF_FIELDS:
+            assert field not in layouts[name], (name, layouts[name])
+
+
+def _afternoon_stamps(rows: int) -> "list[str]":
+    """SAS stamps whose every hour lies 10 to 23, which `{HH}` and `{H}` both read."""
+    draw = random.Random(13)
+    return [
+        f"{draw.randrange(1, 29):02d}MAR2024:{draw.randrange(10, 24):02d}:"
+        f"{draw.randrange(60):02d}:{draw.randrange(60):02d}"
+        for _row in range(rows)
+    ]
+
+
+def test_r2b_c3_two_figure_hours_keep_hh_on_the_tie() -> None:
+    """C3: a column every hour of which shows two figures keeps `{HH}`, as R2a read it."""
+    cells = _afternoon_stamps(ROWS)
+    described = taxonomy.profile_column("seen_at", 1, cells, ROWS, taxonomy.Settings())
+    assert (described.details or {})["format"] == "layout {DD}{MON}{YYYY}:{HH}:{MI}:{SS}"
+
+
+def _marked_late_mornings(rows: int) -> "list[str]":
+    """ISO dates with a marked clock whose every hour lies 10 to 12, which `{hh}` and `{h}` both read."""
+    draw = random.Random(14)
+    return [
+        f"2024-03-{draw.randrange(1, 29):02d} {draw.randrange(10, 13)}:"
+        f"{draw.randrange(60):02d} {('AM', 'PM')[draw.randrange(2)]}"
+        for _row in range(rows)
+    ]
+
+
+def test_r2b_c3_two_figure_hours_on_the_dial_keep_hh_on_the_tie() -> None:
+    """C3: a marked clock every hour of which shows two figures keeps `{hh}`.
+
+    Both are the clock half's, so the tie is the key's alone; R2a's `{HH}`
+    on an unmarked column is held by the choice's split as well (X1).
+    """
+    cells = _marked_late_mornings(ROWS)
+    described = taxonomy.profile_column("seen_at", 1, cells, ROWS, taxonomy.Settings())
+    assert (described.details or {})["format"] == "layout {YYYY}-{MM}-{DD} {hh}:{MI} {AM}"
+
+
+def test_r2b_c3_red_when_a_one_figure_hour_wins_the_tie(monkeypatch: pytest.MonkeyPatch) -> None:
+    """C3's mutant: `{H}` and `{h}` not counted flexible in the tie, and a marked column moves.
+
+    The column of afternoons no longer moves under it, its `{HH}` being
+    R2a's and weighed first (the Codex review of landing R2b, item 1).
+    """
+    real = parsing.layout_order_key
+
+    def without_the_hour(name: str, day_first: bool) -> "tuple[int, int, int, int, int, int, str]":
+        key = real(name, day_first)
+        hours = 0
+        for field in parsing._layout_fields(name):
+            if field in ("H", "h"):
+                hours = hours + 1
+        return key[0:3] + (key[3] - hours,) + key[4:]
+
+    monkeypatch.setattr(parsing, "layout_order_key", without_the_hour)
+    cells = _marked_late_mornings(ROWS)
+    described = taxonomy.profile_column("seen_at", 1, cells, ROWS, taxonomy.Settings())
+    assert "{h}" in f"{(described.details or {}).get('format', '')}"
+
+
+def _morning_stamps(rows: int) -> "list[str]":
+    """SAS stamps whose every hour lies 1 to 12, which both clocks write."""
+    draw = random.Random(9)
+    months = ("JAN", "FEB", "MAR", "APR")
+    return [
+        f"{draw.randrange(1, 29):02d}{months[draw.randrange(4)]}2024:"
+        f"{draw.randrange(1, 13):02d}:{draw.randrange(60):02d}:{draw.randrange(60):02d}"
+        for _row in range(rows)
+    ]
+
+
+def _compact_mornings(rows: int) -> "list[str]":
+    """HL7 stamps whose every hour lies 1 to 12: a compact clock, 24-hour by its spelling."""
+    draw = random.Random(10)
+    return [
+        f"2024{draw.randrange(1, 13):02d}{draw.randrange(1, 29):02d}"
+        f"{draw.randrange(1, 13):02d}{draw.randrange(60):02d}{draw.randrange(60):02d}"
+        for _row in range(rows)
+    ]
+
+
+def _twelve_hour_asked(questions: "dict[str, object]") -> bool:
+    asked = questions["asked"]
+    assert isinstance(asked, list)
+    for question in asked:
+        for answer in question["answers_you_can_give"]:
+            if answer["answer"] == asking.ANSWER_TWELVE_HOUR:
+                return True
+    return False
+
+
+def test_r2b_c4_the_twelve_hour_question_on_a_layout(tmp_path: pathlib.Path) -> None:
+    """C4: T1's 12-hour question, asked of a layout clock that cannot say, and answered.
+
+    A column of SAS stamps whose every hour lies 1 to 12 is asked; one of
+    the twenty-four hours is not, nor is a compact HL7 clock of morning
+    hours, which writes the 24-hour clock by its spelling. Answered
+    `--twelve-hour`, the column is read on the dial, `{hh}`, and its
+    `12:15` is a quarter past midnight. Enter keeps the 24-hour reading.
+    """
+    block, _profile, questions = _described(tmp_path / "asked", _morning_stamps(ROWS))
+    assert block["format"] == "layout {DD}{MON}{YYYY}:{HH}:{MI}:{SS}"
+    assert _twelve_hour_asked(questions)
+    _block, _profile, questions = _described(
+        tmp_path / "whole-day", spellings.cells("sas_datetime20", ROWS)
+    )
+    assert not _twelve_hour_asked(questions)
+    block, _profile, questions = _described(tmp_path / "compact", _compact_mornings(ROWS))
+    assert block["format"] == "layout {YYYY}{MM}{DD}{HH}{MI}{SS}"
+    assert not _twelve_hour_asked(questions)
+    block, _profile, questions = _described(
+        tmp_path / "declared", _morning_stamps(ROWS), "--twelve-hour", "seen_at"
+    )
+    assert block["format"] == "layout {DD}{MON}{YYYY}:{hh}:{MI}:{SS}"
+    assert not _twelve_hour_asked(questions)
+    assert parsing.parse_datetime("17MAR2024:12:15:00", block["format"]) == ("2024-03-17 00:15:00", "")
+    assert parsing.parse_datetime("17MAR2024:13:15:00", block["format"]) is None
+
+
+def test_r2b_c4_red_when_no_layout_is_asked(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """C4's first mutant: no layout's clock taken for one that could be 12-hour."""
+    monkeypatch.setattr(parsing, "layout_asks_twelve_hours", lambda name: False)
+    _block, _profile, questions = _described(tmp_path, _morning_stamps(ROWS))
+    assert not _twelve_hour_asked(questions)
+
+
+def test_r2b_c4_red_when_any_hour_is_taken_for_the_dial(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """C4's second mutant: every layout clock's hours taken to lie 1 to 12."""
+    monkeypatch.setattr(asking, "_layout_clock_hours", lambda present, format_name: True)
+    _block, _profile, questions = _described(tmp_path, spellings.cells("sas_datetime20", ROWS))
+    assert _twelve_hour_asked(questions)
+
+
+def _one_figure_mornings(rows: int) -> "list[str]":
+    """ISO dates with an hour in one figure below ten, every hour 1 to 12."""
+    draw = random.Random(12)
+    return [
+        f"2024-{draw.randrange(1, 13):02d}-{draw.randrange(1, 29):02d} "
+        f"{draw.randrange(1, 13)}:{draw.randrange(60):02d}"
+        for _row in range(rows)
+    ]
+
+
+def _spaced_mornings(rows: int) -> "list[str]":
+    """SQL Server style 100 on the 24-hour clock, no marker: every hour 1 to 12, spaced below ten."""
+    draw = random.Random(13)
+    months = ("Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec")
+    return [
+        f"{months[draw.randrange(12)]} {draw.randrange(1, 29):>2d} 2024 "
+        f"{draw.randrange(1, 13):>2d}:{draw.randrange(60):02d}"
+        for _row in range(rows)
+    ]
+
+
+# THE PRODUCER-ALWAYS-LOADS BATTERY of the clock half's loader refusals
+# (S8c on a layout): every description `synthtwin profile` writes here
+# loads, and its twin is generated, declared or not. Each carries the
+# format it must publish and whether the command says the declaration
+# reached nothing (skeptic 2's item 1): S8c no longer reaches a layout,
+# so these are the only clauses on the dial's move of each hour field.
+_LOADS = {
+    "morning stamps": (_morning_stamps, (), "layout {DD}{MON}{YYYY}:{HH}:{MI}:{SS}", False),
+    "morning stamps declared": (
+        _morning_stamps, ("--twelve-hour", "seen_at"), "layout {DD}{MON}{YYYY}:{hh}:{MI}:{SS}", False
+    ),
+    "one-figure mornings declared": (
+        _one_figure_mornings, ("--twelve-hour", "seen_at"), "layout {YYYY}-{MM}-{DD} {h}:{MI}", False
+    ),
+    "spaced mornings declared": (
+        _spaced_mornings, ("--twelve-hour", "seen_at"), "layout {Mon} {_D} {YYYY} {_h}:{MI}", False
+    ),
+    "compact mornings declared": (
+        _compact_mornings, ("--twelve-hour", "seen_at"), "layout {YYYY}{MM}{DD}{HH}{MI}{SS}", True
+    ),
+    "a marked clock declared": (
+        lambda rows: spellings.cells("iso_twelve_hour", rows),
+        ("--twelve-hour", "seen_at"),
+        "layout {YYYY}-{MM}-{DD} {hh}:{MI} {AM}",
+        True,
+    ),
+}
+
+
+@pytest.mark.parametrize("name", sorted(spellings.CLOCK_HALF) + sorted(_LOADS))
+def test_r2b_c5_every_description_the_producer_writes_loads(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str], name: str
+) -> None:
+    """C5: the producer's own clock-half descriptions load and are generated.
+
+    A battery case publishes its own format, and the notice that the
+    declaration reached nothing prints exactly where it should (skeptic
+    2's item 1). Mutants, run: `on_dial_misses_one_figure` (the dial
+    leaves `{H}`) and `on_dial_misses_spaced` (the dial leaves `{_H}`),
+    each published at the 24-hour hour and told it reached nothing.
+    """
+    told = errors.the_twelve_hour_declaration_did_not_reach("seen_at", "datetime")
+    if name in _LOADS:
+        make, flags, published, notice = _LOADS[name]
+        cells = make(ROWS)
+    else:
+        cells, flags, published, notice = spellings.cells(name, ROWS), (), None, False
+    capsys.readouterr()
+    block, profile, _questions = _described(tmp_path, cells, *flags)
+    said = capsys.readouterr()
+    if published is not None:
+        assert block["format"] == published, name
+    assert (told[:60] in f"{said.out}{said.err}") == notice, name
+    contract.load_profile(str(profile))
+    _twin_path, written = _twin(profile, 0)
+    assert len(written) == ROWS, name
+
+
+def _s8c_edits(tmp_path: pathlib.Path) -> "tuple[pathlib.Path, pathlib.Path]":
+    """A declared dial with its declaration taken out, and a 24-hour clock declared."""
+    _block, declared, _questions = _described(
+        tmp_path / "declared", _morning_stamps(ROWS), "--twelve-hour", "seen_at"
+    )
+    document = json.loads(declared.read_text(encoding="utf-8"))
+    document["settings"]["forced_twelve_hour_clocks"] = []
+    undeclared = fixtures.write_profile(tmp_path, "undeclared-profile.json", document)
+    _block, plain, _questions = _described(tmp_path / "plain", _morning_stamps(ROWS))
+    document = json.loads(plain.read_text(encoding="utf-8"))
+    document["settings"]["forced_twelve_hour_clocks"] = ["seen_at"]
+    (tmp_path / "named").mkdir()
+    named = fixtures.write_profile(tmp_path / "named", "real-profile.json", document)
+    return undeclared, named
+
+
+def test_r2b_c5_s8c_holds_the_declaration_on_a_layout_one_way(tmp_path: pathlib.Path) -> None:
+    """C5: S8c one way on a layout -- the dial only with its declaration.
+
+    The other way round does not reach a layout, whose fields name its
+    face (skeptic 1's item 1): a declared column published at `{HH}` loads
+    and is read on the 24-hour face, its twin and the unchanged source
+    each validating with nothing missed. On 3247f33 it was refused.
+    """
+    undeclared, named = _s8c_edits(tmp_path)
+    with pytest.raises(errors.ProfileError) as refused:
+        contract.load_profile(str(undeclared))
+    assert "S8c" in str(refused.value)
+    contract.load_profile(str(named))
+    twin, _written = _twin(named, 0)
+    assert _validated(named, twin)[0] == 0
+    assert _validated(named, tmp_path / "plain" / "real.csv")[0] == 0
+
+
+def test_r2b_c5_red_without_the_layout_in_s8c(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """C5's mutant: S8c blind to a layout's clock, and the undeclared dial loads."""
+    real = contract._written_clock_style
+    monkeypatch.setattr(
+        contract, "_written_clock_style",
+        lambda column: None
+        if isinstance(column.facts, contract.DatetimeFacts)
+        and parsing.is_layout_name(column.facts.parser_family)
+        else real(column),
+    )
+    undeclared, _named = _s8c_edits(tmp_path)
+    contract.load_profile(str(undeclared))
+
+
+def _r2a_wrote(folder: pathlib.Path, name: str) -> "tuple[pathlib.Path, pathlib.Path]":
+    """One frozen description R2a's producer wrote, and the table it was written from."""
+    folder.mkdir(parents=True)
+    cells = _morning_stamps(ROWS) if name == "MORNING" else spellings.cells("sas_datetime20", ROWS)
+    names, rows = fixtures.rows_at_the_floor("seen_at", cells)
+    table = folder / "real.csv"
+    table.write_text(fixtures.rows_to_csv(names, rows), encoding="utf-8", newline="\n")
+    profile = fixtures.write_profile(
+        folder, "real-profile.json", json.loads(getattr(r2a_written, name))
+    )
+    assert hashlib.sha256(profile.read_bytes()).hexdigest() == getattr(
+        r2a_written, f"{name}_SHA256"
+    )
+    return profile, table
+
+
+@pytest.mark.parametrize("name", ("MORNING", "WHOLE_DAY"))
+def test_r2b_c5_every_description_r2a_wrote_loads_and_validates(
+    tmp_path: pathlib.Path, name: str
+) -> None:
+    """C5, skeptic 1's item 1: R2a's declared descriptions load, generate and validate.
+
+    R2a's producer read a SAS column named with `--twelve-hour` at
+    `{HH}`, said the declaration reached nothing, and named the column
+    under `forced_twelve_hour_clocks` (the two frozen in
+    `tests/layout_r2a_descriptions.py`, byte for byte). On 3247f33 S8c
+    refused both and `generate` exited 1; with S8c alone eased, the
+    validator re-read the column under the declaration at `{hh}` and
+    exited 3 on the twin and on the table. Mutants, run: S8c's second way
+    round reaching a layout (refused); the validator passing the
+    declaration whole (`test_r2b_c5_red_when_the_validator_keeps_the_declaration`).
+    """
+    profile, table = _r2a_wrote(tmp_path / name, name)
+    loaded = contract.load_profile(str(profile))
+    assert loaded.settings.forced_twelve_hour_clocks == ("seen_at",)
+    assert validation.declared_twelve_hour_clocks(loaded) == ()
+    twin, written = _twin(profile, 0)
+    assert len(written) == ROWS
+    assert _validated(profile, twin)[0] == 0
+    assert _validated(profile, table)[0] == 0
+
+
+def test_r2b_c5_red_when_the_validator_keeps_the_declaration(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """C5's mutant: the declaration handed to the re-description whole, and the table misses."""
+    monkeypatch.setattr(
+        validation, "declared_twelve_hour_clocks",
+        lambda description: description.settings.forced_twelve_hour_clocks,
+    )
+    profile, table = _r2a_wrote(tmp_path / "MORNING", "MORNING")
+    assert _validated(profile, table)[0] == 3
+
+
+def test_r2b_c5c_a_declared_dial_is_checked_on_the_dial(tmp_path: pathlib.Path) -> None:
+    """C5c (skeptic 2's item 2): a declared dial layout is carried to the checker as written.
+
+    A SAS column named with `--twelve-hour` publishes `{hh}`; the
+    validator reads the checked file under the declaration, so the
+    unchanged source validates with nothing missed. Mutant, run
+    (`carry_drops_every_layout`): every layout with a clock dropped from
+    the declaration, and the source is read at `{HH}` and misses.
+    """
+    block, profile, _questions = _described(
+        tmp_path, _morning_stamps(ROWS), "--twelve-hour", "seen_at"
+    )
+    assert block["format"] == "layout {DD}{MON}{YYYY}:{hh}:{MI}:{SS}"
+    loaded = contract.load_profile(str(profile))
+    assert validation.declared_twelve_hour_clocks(loaded) == ("seen_at",)
+    assert _validated(profile, tmp_path / "real.csv")[0] == 0
+
+
+def test_r2b_c5c_red_when_every_layout_with_a_clock_is_dropped(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """C5c's mutant: the declaration loses every layout with a clock, and the source misses."""
+    real = validation.declared_twelve_hour_clocks
+
+    def without_layouts(description: contract.Profile) -> "tuple[str, ...]":
+        found: "list[str]" = []
+        for name in real(description):
+            for column in description.columns:
+                if column.name != name:
+                    continue
+                if isinstance(column.facts, contract.DatetimeFacts) and parsing.is_layout_name(
+                    column.facts.parser_family
+                ) and parsing.layout_clock_style(column.facts.parser_family) is not None:
+                    break
+                found += [name]
+        return tuple(found)
+
+    monkeypatch.setattr(validation, "declared_twelve_hour_clocks", without_layouts)
+    _block, profile, _questions = _described(
+        tmp_path, _morning_stamps(ROWS), "--twelve-hour", "seen_at"
+    )
+    assert _validated(profile, tmp_path / "real.csv")[0] == 3
+
+
+def test_r2b_c5d_a_declared_whole_day_layout_is_read_as_t1_reads_it(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """C5d (skeptic 2's item 3): a declared layout writing hours off the dial is free text, and told.
+
+    `--twelve-hour` takes every `{HH}:` layout onto the dial, which has no
+    hour 0 or 13 to 23: a SAS DATETIME20 column of the whole day, named
+    with the flag, is read as T1 reads such a stamp (P4-D370) -- not on
+    the dial, so free text with a made-up twin -- and the command says the
+    declaration reached nothing. R2a read it at `{HH}`.
+    """
+    told = errors.the_twelve_hour_declaration_did_not_reach("seen_at", "free_text")
+    capsys.readouterr()
+    block, _profile, _questions = _described(
+        tmp_path, spellings.cells("sas_datetime20", ROWS), "--twelve-hour", "seen_at"
+    )
+    said = capsys.readouterr()
+    assert block["role"] == "free_text"
+    assert told[:60] in f"{said.out}{said.err}"
+
+
+_ADMITTED = (
+    "layout {YYYY}-{MM}-{DD} {H}:{MI}",
+    "layout {YYYY}-{MM}-{DD} {hh}:{MI}",
+    "layout {DD}{MON}{YYYY}:{h}:{MI}:{SS}",
+    "layout {Mon} {_D} {YYYY} {_h}:{MI}{AM}",
+    "layout {DD}-{MON}-{YY} {hh}.{MI}.{SS}.{F} {AM}",
+    "layout {M}/{D}/{YYYY}, {h}:{MI}:{SS} {AM}",
+    "layout {Mon} {D}, {YYYY} {h}:{MI} {a.m.}",
+)
+_REFUSED = (
+    "layout {YYYY}-{MM}-{DD} {HH}:{MI} {AM}",
+    "layout {YYYY}{MM}{DD}{hh}{MI}",
+    "layout {YYYY}-{MM}-{DD} {HH}:{MI}",
+    "layout {YYYY}-{MM}-{DD} {hh}:{MI}{AM}{am}",
+    "layout {YYYY}-{MM}-{DD} {AM} {hh}:{MI}",
+    "layout {YYYY}-{MM}-{DD} {_h}{MI}",
+)
+
+
+def test_r2b_c6_ly1_admits_the_clock_half_exactly() -> None:
+    """C6: LY1 admits what the grammar makes or a declaration reads on the dial, and no more.
+
+    And discovery and LY1 are one set (the Codex review of landing R2a,
+    item 1): every layout any cell of the seven is read under is admitted.
+    """
+    for name in _ADMITTED:
+        assert parsing.is_layout_format(name), name
+    for name in _REFUSED:
+        assert not parsing.is_layout_format(name), name
+    for spelling in spellings.CLOCK_HALF:
+        for cell in spellings.cells(spelling, 60):
+            for layout in parsing.layouts_of(cell):
+                assert parsing.is_layout_format(parsing.layout_format(layout)), (cell, layout)
+
+
+def test_r2b_c6_red_when_the_dial_is_not_taken_back(monkeypatch: pytest.MonkeyPatch) -> None:
+    """C6's mutant: a declared dial not taken back to its production, and LY1 refuses it."""
+    monkeypatch.setattr(parsing, "_layout_off_the_dial", lambda text: text)
+    assert not parsing.is_layout_format("layout {YYYY}-{MM}-{DD} {hh}:{MI}")
+
+
+def _padded_now_and_then(rows: int) -> "list[str]":
+    """One-figure hours, one cell in twenty of those below ten written padded."""
+    cells = spellings.cells("iso_one_figure_hour", rows)
+    found: "list[str]" = []
+    place = 0
+    for cell in cells:
+        date, clock = cell.split(" ")
+        if place % 20 == 0 and len(clock) == 4:
+            clock = f"0{clock}"
+        found += [f"{date} {clock}"]
+        place = place + 1
+    return found
+
+
+def test_r2b_c7_a_padded_hour_is_not_read_as_one_figure() -> None:
+    """C7: `{H}` reads no `09`, so every cell it reads is written back as it was.
+
+    A column writing its hours in one figure but padding one in twenty is
+    read by no layout at the line -- the twin would otherwise write every
+    `09:05` as `9:05`.
+    """
+    items = parsing.layout_items("layout {YYYY}-{MM}-{DD} {H}:{MI}")
+    assert items is not None
+    assert parsing.layout_reading("2024-03-17 09:05", items) is None
+    assert parsing.layout_reading("2024-03-17 9:05", items) is not None
+    cells = _padded_now_and_then(1000)
+    described = taxonomy.profile_column("seen_at", 1, cells, 1000, taxonomy.Settings())
+    assert not parsing.is_layout_format(f"{(described.details or {}).get('format', '')}")
+
+
+def test_r2b_c7_red_when_a_padded_hour_is_read(monkeypatch: pytest.MonkeyPatch) -> None:
+    """C7's mutant: the nought before a one-figure hour set aside, and the column reads."""
+    real = parsing.layout_reading
+
+    def padded_read(text: str, items: "tuple[tuple[str, str], ...]") -> object:
+        if ("f", "H") in items and len(text) == 16 and text[11] == "0":
+            text = f"{text[0:11]}{text[12:]}"
+        return real(text, items)
+
+    monkeypatch.setattr(parsing, "layout_reading", padded_read)
+    cells = _padded_now_and_then(1000)
+    described = taxonomy.profile_column("seen_at", 1, cells, 1000, taxonomy.Settings())
+    assert parsing.is_layout_format(f"{(described.details or {}).get('format', '')}")
+
+
+def test_r2b_c8_a_declared_dial_says_what_it_cannot_hold(tmp_path: pathlib.Path) -> None:
+    """C8: T1's stated limit, on a layout (P4-D370): every cell on the dial, the miss named.
+
+    A declared layout column's twin writes every cell in the table's own
+    format, `%d%b%Y:%I:%M:%S`, and its report says a time drawn after noon
+    reads twelve hours earlier on the dial, as a declared stamp's does.
+    """
+    _block, profile, _questions = _described(
+        tmp_path, _morning_stamps(1000), "--twelve-hour", "seen_at"
+    )
+    twin, written = _twin(profile, 0)
+    for cell in written:
+        datetime.datetime.strptime(cell, "%d%b%Y:%I:%M:%S")
+    report = (twin.parent / "real-twin-report.txt").read_text(encoding="utf-8")
+    assert generation._SPREAD_TWELVE_HOUR_HELD in report
+
+
+@pytest.mark.xfail(
+    strict=True,
+    reason=(
+        "P4-D370's stated limit, on a layout as on a stamp, owned by landing T2: a "
+        "column declared a 12-hour clock draws its time of day over the whole day, "
+        "and a time after noon reads twelve hours earlier on the dial; the half-day "
+        "draw belongs to T2's hour census, which must take the layout's dial too"
+    ),
+)
+def test_r2b_c8_a_declared_dial_validates_clean(tmp_path: pathlib.Path) -> None:
+    """Strict, and owned by landing T2 (P4-D370's carve-out), beside T1's R9."""
+    _block, profile, _questions = _described(
+        tmp_path, _morning_stamps(1000), "--twelve-hour", "seen_at"
+    )
+    twin, _written = _twin(profile, 0)
+    code, _report = _validated(profile, twin)
+    assert code == 0
+
+
+
+def _space_padded_clocks(rows: int) -> "list[str]":
+    """SQL Server's style 100 on the 24-hour clock: a day and an hour padded with a space."""
+    names = ("Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec")
+    return [
+        f"{names[m.month - 1]} {m.day:>2d} {m.year} {m.hour:>2d}:{m.minute:02d}"
+        for m in spellings.moments(rows, 17)
+    ]
+
+
+def _productions_asked(
+    cells: "list[str]", monkeypatch: pytest.MonkeyPatch
+) -> "tuple[str, int]":
+    """The layout a column is read under, and the most times one choice asked one text's productions."""
+    asked: "collections.Counter[str]" = collections.Counter()
+    most = [0]
+    real = parsing.layouts_of
+    choose = taxonomy._chosen_layout
+
+    def counted(text: str) -> "tuple[str, ...]":
+        asked[text] += 1
+        return real(text)
+
+    def one_choice(*arguments: object, **named: object) -> object:
+        asked.clear()
+        found = choose(*arguments, **named)  # type: ignore[arg-type]
+        if asked:
+            most[0] = max(most[0], max(asked.values()))
+        return found
+
+    monkeypatch.setattr(parsing, "layouts_of", counted)
+    monkeypatch.setattr(taxonomy, "_chosen_layout", one_choice)
+    described = taxonomy.profile_column("seen_at", 1, cells, len(cells), taxonomy.Settings())
+    monkeypatch.setattr(parsing, "layouts_of", real)
+    monkeypatch.setattr(taxonomy, "_chosen_layout", choose)
+    return f"{(described.details or {}).get('format', '')}", most[0]
+
+
+def test_r2b_c9_the_choice_asks_each_text_once(monkeypatch: pytest.MonkeyPatch) -> None:
+    """C9: a choice asks one text's productions at most twice, and once where no offset ends it.
+
+    The clock half gives SQL Server's style 100 forty-five candidates, each
+    missing about a thousand of the same first texts, and growing each one's
+    optional offset asked the grammar again for every text it missed: 1.48
+    times ISO's describe at 100,000 rows, 1.01 since. Once for the
+    candidates and once for the optional offsets, at most. Mutants, run:
+    the choice's memo dropped, and style 100 on the 24-hour clock, whose
+    texts end in a figure, asks one text many times; the last-character
+    test withdrawn, and a text ending in its marker is asked twice.
+    """
+    layout, most = _productions_asked(spellings.cells("sqlserver_style_100", 3000), monkeypatch)
+    assert layout == "layout {Mon} {_D} {YYYY} {_h}:{MI}{AM}"
+    assert most == 1
+    layout, most = _productions_asked(_space_padded_clocks(3000), monkeypatch)
+    assert layout == "layout {Mon} {_D} {YYYY} {_H}:{MI}"
+    assert most <= 2
+
+
+def test_r2b_c9_red_without_the_memo(monkeypatch: pytest.MonkeyPatch) -> None:
+    real = taxonomy._layout_extended
+    monkeypatch.setattr(
+        taxonomy, "_layout_extended",
+        lambda layout, failing, window, contradicted, twelve=False, productions=None: real(
+            layout, failing, window, contradicted, twelve, None
+        ),
+    )
+    _layout, most = _productions_asked(_space_padded_clocks(3000), monkeypatch)
+    assert most > 2
+
+
+def test_r2b_c9_red_without_the_last_character(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(taxonomy, "_OFFSET_LAST_CHARACTERS", "0123456789ZzCTM")
+    _layout, most = _productions_asked(spellings.cells("sqlserver_style_100", 3000), monkeypatch)
+    assert most == 2
+
+
+# -- lane R2b's repair round (skeptic 1, items 2 and 3) ---------------------
+#
+# One clause for each clock-half rule no test turned red, each run against
+# the mutant its docstring names (the mutants of `R2b-sk1/mutate.py`).
+
+
+def test_r2b_c1b_the_clock_half_reads_each_moment_right() -> None:
+    """C1b: every cell of the seven reads as the moment that wrote it, to the minute.
+
+    Mutant, run (`marker_half_swapped`): `AM` read as the afternoon, and
+    five of the seven read right on 0.645 of their cells -- every morning
+    cell twelve hours late, the twin's markers flipped, the spelling
+    check passing still.
+    """
+    for name in spellings.CLOCK_HALF:
+        moments = spellings.moments(ROWS, 50003)
+        cells = [spellings.SPELLINGS[name][0](moment) for moment in moments]
+        described = taxonomy.profile_column("seen_at", 1, cells, ROWS, taxonomy.Settings())
+        layout = f"{(described.details or {}).get('format', '')}"
+        right = 0
+        for cell, moment in zip(cells, moments):
+            reading = parsing.parse_datetime(cell, layout)
+            if reading is not None and reading[0][:16] == moment.strftime("%Y-%m-%d %H:%M"):
+                right = right + 1
+        assert right == ROWS, (name, layout, right)
+
+
+def test_r2b_c7b_no_hour_field_reads_a_nought_it_does_not_write() -> None:
+    """C7b: the dial reads no `00` beside its marker, and `{_H}` no padded `05`.
+
+    Mutants, run: `dial_reads_nought`, and `00:05 AM` reads, which the twin
+    would write back `12:05 AM`; `_H_reads_nought`, and `05` reads under the
+    space pad, which the twin writes ` 5`.
+    """
+    marked = parsing.layout_items("layout {YYYY}-{MM}-{DD} {hh}:{MI} {AM}")
+    spaced = parsing.layout_items("layout {Mon} {_D} {YYYY} {_H}:{MI}")
+    assert marked is not None and spaced is not None
+    assert parsing.layout_reading("2024-03-17 00:05 AM", marked) is None
+    assert parsing.layout_reading("2024-03-17 12:05 AM", marked) is not None
+    assert parsing.layout_reading("Mar 17 2024 05:05", spaced) is None
+    assert parsing.layout_reading("Mar 17 2024  5:05", spaced) is not None
+
+
+def _stamps_from_midnight(rows: int) -> "list[str]":
+    """SAS stamps whose hours lie 0 to 12, the first hour among them."""
+    draw = random.Random(14)
+    return [
+        f"{draw.randrange(1, 29):02d}MAR2024:{draw.randrange(0, 13):02d}:"
+        f"{draw.randrange(60):02d}:{draw.randrange(60):02d}"
+        for _row in range(rows)
+    ]
+
+
+def test_r2b_c4c_a_layout_clock_writing_a_nought_hour_is_not_asked(tmp_path: pathlib.Path) -> None:
+    """C4c: a layout column with hours 0 to 12 is not asked the 12-hour question.
+
+    No dial writes `00`. Mutant, run (`layout_hours_from_nought`): the
+    hours counted from nought, and the column is asked.
+    """
+    block, _profile, questions = _described(tmp_path, _stamps_from_midnight(ROWS))
+    assert block["format"] == "layout {DD}{MON}{YYYY}:{HH}:{MI}:{SS}"
+    assert not _twelve_hour_asked(questions)
+
+
+def test_r2b_c4d_the_notice_speaks_only_where_the_declaration_reached_nothing(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """C4d: a declared layout read on the dial is told nothing; a compact clock is told.
+
+    Mutant, run (`cli_notice_blind_to_layout`): the command's notice blind
+    to a layout, and the declared SAS morning column, read on the dial, is
+    told the declaration reached nothing.
+    """
+    told = errors.the_twelve_hour_declaration_did_not_reach("seen_at", "datetime")
+    capsys.readouterr()
+    block, _profile, _questions = _described(
+        tmp_path / "dial", _morning_stamps(ROWS), "--twelve-hour", "seen_at"
+    )
+    assert block["format"] == "layout {DD}{MON}{YYYY}:{hh}:{MI}:{SS}"
+    said = capsys.readouterr()
+    assert told[:60] not in f"{said.out}{said.err}"
+    block, _profile, _questions = _described(
+        tmp_path / "compact", _compact_mornings(ROWS), "--twelve-hour", "seen_at"
+    )
+    assert block["format"] == "layout {YYYY}{MM}{DD}{HH}{MI}{SS}"
+    said = capsys.readouterr()
+    assert told[:60] in f"{said.out}{said.err}"
+
+
+def _declared_dial_with_offsets(rows: int, worn: int) -> "list[str]":
+    """SAS stamps every hour of which lies 1 to 12, ``worn`` interior ones ending in an offset."""
+    cells = _morning_stamps(rows)
+    draw = random.Random(33)
+    for place in draw.sample(range(1, rows - 1), worn):
+        cells[place] = cells[place] + draw.choice(("-0400", "-0500"))
+    return cells
+
+
+def test_r2b_c4e_a_declared_dial_reads_the_offset_some_cells_omit() -> None:
+    """C4e (skeptic 1's item 3): a declared dial grows its optional offset on the dial.
+
+    Mutant, run (`extended_ignore_declared`): the offset layouts the
+    missed texts give are not taken onto the dial, and the column is read
+    at `{HH}`, not the face it was declared on.
+    """
+    declared = taxonomy.Settings(forced_twelve_hour_clocks=("seen_at",))
+    cells = _declared_dial_with_offsets(ROWS, 2)
+    described = taxonomy.profile_column("seen_at", 1, cells, ROWS, declared)
+    details = described.details or {}
+    assert details["format"] == "layout {DD}{MON}{YYYY}:{hh}:{MI}:{SS}{+HHMM?}"
+    assert details["n_unparsed"] == 0
+
+
+def test_r2b_c4f_a_declared_dial_with_codes_is_asked_through_the_dial() -> None:
+    """C4f (skeptic 1's item 3): R1's Q2 reads a declared column's rest on the dial.
+
+    Mutant, run (`rest_ignores_declared`): the rest read with the
+    declaration dropped, at `{HH}`.
+    """
+    counted = taxonomy._spelling_rows(_morning_stamps(970) + ["UNK"] * 30)
+    rest = dict(counted)
+    del rest["UNK"]
+    declared = taxonomy.Settings(forced_twelve_hour_clocks=(taxonomy.TWELVE_HOUR_HERE,))
+    found = taxonomy.reading_of_the_rest(rest, declared, 1000)
+    assert found is not None and found[0] == "layout {DD}{MON}{YYYY}:{hh}:{MI}:{SS}"
+    found = taxonomy.reading_of_the_rest(rest, taxonomy.Settings(), 1000)
+    assert found is not None and found[0] == "layout {DD}{MON}{YYYY}:{HH}:{MI}:{SS}"
+
+
+# -- the Codex review of landing R2b ----------------------------------------
+#
+# Item 1: a column R2a read at the line keeps R2a's layout. Each clause
+# below was red on 67341d4, the head Codex reviewed.
+
+_LATE_FOURS = 1000
+
+
+def _late_fours() -> "list[str]":
+    """Codex's 1,000 SAS stamps: 990 at hour 14, ten at a one-figure 4."""
+    return [
+        f"{i % 28 + 1:02d}MAR2024:{14 if i < 990 else 4}:{i % 60:02d}:{i // 60:02d}"
+        for i in range(_LATE_FOURS)
+    ]
+
+
+def test_r2b_x1_r2a_keeps_its_layout_where_it_meets_the_line() -> None:
+    """X1 (Codex item 1): `{HH}` reads 990 of 1,000, at the line, and stays chosen.
+
+    On 67341d4 `{H}` read all 1,000 and won; `parsing.layout_of_the_clock_half`
+    now holds the clock half's layouts back until none of R2a's reaches the
+    line. The clock half still reads what R2a left unread (C1).
+    """
+    cells = _late_fours()
+    described = taxonomy.profile_column("seen_at", 1, cells, _LATE_FOURS, taxonomy.Settings())
+    details = described.details or {}
+    assert details["format"] == "layout {DD}{MON}{YYYY}:{HH}:{MI}:{SS}"
+    assert details["n_unparsed"] == 10
+    assert parsing.layout_of_the_clock_half("{DD}{MON}{YYYY}:{H}:{MI}:{SS}")
+    assert parsing.layout_of_the_clock_half("{YYYY}-{MM}-{DD} {hh}:{MI} {AM}")
+    assert not parsing.layout_of_the_clock_half("{DD}{MON}{YYYY}:{hh}:{MI}:{SS}")
+    assert not parsing.layout_of_the_clock_half("{DD}{MON}{YYYY}:{HH}:{MI}:{SS}")
+
+
+def test_r2b_x1_red_when_the_clock_half_is_weighed_with_r2a(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """X1's mutant: one walk of every candidate, 67341d4's choice, and `{H}` wins."""
+    monkeypatch.setattr(parsing, "layout_of_the_clock_half", lambda name: False)
+    cells = _late_fours()
+    described = taxonomy.profile_column("seen_at", 1, cells, _LATE_FOURS, taxonomy.Settings())
+    assert (described.details or {})["format"] == "layout {DD}{MON}{YYYY}:{H}:{MI}:{SS}"
+
+
+def test_r2b_x1_r2a_description_of_the_column_holds_on_the_unchanged_source(
+    tmp_path: pathlib.Path,
+) -> None:
+    """X1 (Codex item 1): R2a's own description loads, generates as R2a did, and validates.
+
+    The description a7c9d75 wrote (`layout_r2a_descriptions.LATE_FOURS`)
+    loads; its twin at seed 0 is the file a7c9d75 wrote, byte for byte;
+    the unchanged source validates against it with exit 0 (on 67341d4,
+    exit 3: the unread count, the format, the offset count and five
+    percentiles MISSED); and this producer writes the same description.
+    """
+    folder = tmp_path / "late-fours"
+    folder.mkdir()
+    names, rows = fixtures.rows_at_the_floor("seen_at", _late_fours())
+    table = folder / "real.csv"
+    table.write_text(fixtures.rows_to_csv(names, rows), encoding="utf-8", newline="\n")
+    profile = fixtures.write_profile(
+        folder, "real-profile.json", json.loads(r2a_written.LATE_FOURS)
+    )
+    assert hashlib.sha256(profile.read_bytes()).hexdigest() == r2a_written.LATE_FOURS_SHA256
+    contract.load_profile(str(profile))
+    twin, written = _twin(profile, 0)
+    assert len(written) == _LATE_FOURS
+    assert hashlib.sha256(twin.read_bytes()).hexdigest() == r2a_written.LATE_FOURS_TWIN_SHA256
+    code, report = _validated(profile, table)
+    assert code == 0, report
+    _block, fresh, _questions = _described(tmp_path / "fresh", _late_fours())
+    assert hashlib.sha256(fresh.read_bytes()).hexdigest() == r2a_written.LATE_FOURS_SHA256
+
+
+def test_r2b_x3_the_method_says_what_the_layout_reads_after_an_iso_date() -> None:
+    """X3 (Codex item 3): the method's ISO sentence names the member, and its examples read.
+
+    On 67341d4 the method said a 12-hour clock or a one-figure hour after
+    an ISO date is not read, which R2b's layouts read. The sentence now
+    speaks of the `iso-datetime` member alone and names each layout that
+    reads such a cell; every `<cell> under <layout>` it states is checked
+    on the reader, over a column of its clock on 28 days.
+    """
+    method = pathlib.Path(__file__).resolve().parents[1] / "docs" / "spec" / "generation-method-v1.md"
+    flat = " ".join(method.read_text(encoding="utf-8").split())
+    assert "so a 12-hour clock or a one-figure hour after an ISO date is not read" not in flat
+    assert "so that MEMBER reads no 12-hour clock and no one-figure hour after an ISO date" in flat
+    stated = re.findall(r"`(2024-03-17 [^`]+)` under `(\{[^`]+)`", flat)
+    assert len(stated) == 2
+    for cell, layout in stated:
+        cells = [f"2024-03-{row % 28 + 1:02d}{cell[10:]}" for row in range(ROWS)]
+        described = taxonomy.profile_column("seen_at", 1, cells, ROWS, taxonomy.Settings())
+        details = described.details or {}
+        assert details.get("format") == f"layout {layout}", (cell, details.get("format"))
+        assert details.get("n_unparsed") == 0, cell
+
+
+def _clock_beside_rare_words(gap: str, rows: int) -> "list[str]":
+    """Marked clocks with ``gap`` before the marker, one cell in 33 a rare text of its own."""
+    draw = random.Random(5)
+    cells: "list[str]" = []
+    for row in range(rows):
+        if row % 33 == 7:
+            cells += [f"pending review {row}"]
+            continue
+        clock = f"{draw.randrange(1, 13)}:{draw.randrange(60):02d}"
+        cells += [f"{clock}{gap}{('AM', 'PM')[draw.randrange(2)]}"]
+    return cells
+
+
+def _in_the_clock_shape(cells: "list[str]", gap: str) -> int:
+    pattern = re.compile(r"^\d{1,2}:\d{2}" + re.escape(gap) + r"[A-Za-z]{2}$")
+    return sum(1 for cell in cells if pattern.match(cell))
+
+
+def test_r2b_x4_a_joined_meridiem_beside_rare_words_keeps_its_shape(tmp_path: pathlib.Path) -> None:
+    """X4's control: `9:15AM` beside rare words is free text whose forms keep the clock's shape."""
+    cells = _clock_beside_rare_words("", 1000)
+    _block, profile, _questions = _described(tmp_path, cells)
+    _twin_path, written = _twin(profile, 0)
+    assert _in_the_clock_shape(written, "") == _in_the_clock_shape(cells, "") == 969
+
+
+@pytest.mark.xfail(
+    strict=True,
+    reason="Owned by lane R2b (the records round of 2026-10-09, STATE's limits): "
+    "parsing.shape_form gives no form to a cell holding a space or U+202F "
+    "(contract C6-97, section 7.9), so `9:15 AM` and `08:15:30.123 AM` publish no "
+    "forms and the twin of such a column beside rare words writes 0 of its 969 "
+    "clock cells in their shape (`9:15AM`: 969 of 969). A form holding the one "
+    "space or U+202F before the marker moves the form census of every role "
+    "(C6-97 and 7.9, method G9.5, the oracle's form filler): measured, not built "
+    "in the Codex fix stream of landing R2b.",
+)
+@pytest.mark.parametrize("gap", (" ", parsing.LAYOUT_NARROW_SPACE))
+def test_r2b_x4_a_spaced_meridiem_beside_rare_words_keeps_its_shape(
+    tmp_path: pathlib.Path, gap: str
+) -> None:
+    """X4: `9:15 AM` beside rare words keeps the clock's shape in its twin, as `9:15AM` does."""
+    cells = _clock_beside_rare_words(gap, 1000)
+    _block, profile, _questions = _described(tmp_path, cells)
+    _twin_path, written = _twin(profile, 0)
+    assert _in_the_clock_shape(written, gap) == _in_the_clock_shape(cells, gap) == 969

@@ -30793,6 +30793,16 @@ def _heavy_spread(facts: contract.DatetimeFacts, spread: _Spread) -> _Spread:
     return spread
 
 
+# T1'S STATED LIMIT ON A LAYOUT (landing R2b, P4-D383; P4-D370): a
+# layout on the declared 12-hour dial is not drawn on 3b.2-H's half day.
+_SPREAD_TWELVE_HOUR_HELD = (
+    "the days are drawn between the published rungs, and between them "
+    "independently; a time drawn after noon is written on the 12-hour "
+    "dial, which reads it twelve hours earlier, so a rung or a tail can "
+    "be missed, and each one missed is named above"
+)
+
+
 # THE SENTENCE FOR A STAMP DECLARED A 12-HOUR CLOCK WITH NO AM OR PM. Until
 # landing 3b.2-H its twin drew the time of day over the whole day, a time
 # after noon was written on the dial and read twelve hours earlier, and
@@ -30809,7 +30819,18 @@ _SPREAD_HALF_DAY = (
 
 def _spread_held(facts: contract.DatetimeFacts, held: str) -> str:
     """The spread sentence's held clause (landing T1, as 3b.2-H left it): the
-    column's own, a declared 12-hour stamp's included."""
+    column's own, a declared 12-hour stamp's included.
+
+    SAVE A LAYOUT'S ON THE DECLARED DIAL (landing R2b, met at batch 3's
+    integration): its clock is in its format, not in a mark word, so
+    3b.2-H's half day (`_on_the_half_day`) does not reach it, and a time
+    drawn after noon is written on the dial, which reads it twelve hours
+    earlier -- T1's stated limit, said as before.
+    """
+    if parsing.is_layout_name(facts.parser_family):
+        laid = parsing.layout_clock_style(facts.parser_family)
+        if laid is not None and parsing.clock_face(laid) == parsing.CLOCK_TWELVE_HOUR:
+            return _SPREAD_TWELVE_HOUR_HELD
     return held
 
 

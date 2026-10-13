@@ -10,11 +10,15 @@ source's own spelling matches -- padding, case and marks exact -- and the
 fractions, `+HH` and `UTC` offsets, the CLDR month words, an offset some
 cells omit).
 
-THE THIRTY-NINE SPELLINGS of the gate and of `K-S3-58`: the thirty-two of
+THE FORTY-SIX SPELLINGS of the gate and of `K-S3-58`: the thirty-two of
 the date half that no named member read before R2a -- twenty-seven of the
-reach audit's 116 and five of its skeptic's -- and the seven the R2 design
+reach audit's 116 and five of its skeptic's -- the seven the R2 design
 skeptic added (M2's offset some cells omit, M3's unpadded dotted dates with
-a four-figure year, M4's en-GB and en-AU month words).
+a four-figure year, M4's en-GB and en-AU month words), and the seven of the
+clock half that no member read before R2b (plan P4-D383): an hour in one
+figure below ten after an ISO date and after `m/d/yy`, the 12-hour dial
+after an ISO date and after `Mon d, yyyy`, JavaScript's narrow no-break
+space before its marker, Oracle's TIMESTAMP and SQL Server's style 100.
 """
 
 import datetime
@@ -54,6 +58,16 @@ def moments(rows: int, seed: int) -> "list[datetime.datetime]":
     return found
 
 
+def _dial(moment: datetime.datetime) -> int:
+    """A moment's hour on the 12-hour dial, 12 at its top."""
+    return moment.hour % 12 or 12
+
+
+def _half(moment: datetime.datetime) -> str:
+    """A moment's marker, `AM` before noon and `PM` from noon on."""
+    return "AM" if moment.hour < 12 else "PM"
+
+
 def _dst(moment: datetime.datetime) -> bool:
     """Whether a moment falls in the United States' summer time."""
     march = datetime.date(moment.year, 3, 8)
@@ -70,6 +84,10 @@ _M = r"(?:[1-9]|1[0-2])"
 _D = r"(?:[1-9]|[12]\d|3[01])"
 _T = r"(?:[01]\d|2[0-3]):[0-5]\d"
 _TS = _T + r":[0-5]\d"
+_H = r"(?:\d|1\d|2[0-3])"
+_I = r"(?:[1-9]|1[0-2])"
+_II = r"(?:0[1-9]|1[0-2])"
+_AP = r"[AP]M"
 
 
 def _words(names: "tuple[str, ...]") -> str:
@@ -212,10 +230,52 @@ SPELLINGS = {
         lambda m: m.strftime("%Y%m%d%H%M%S") + (("-0400" if _dst(m) else "-0500") if m.microsecond % 2 else ""),
         _Y4 + _MM + _DD + r"(?:[01]\d|2[0-3])[0-5]\d[0-5]\d(?:-0[45]00)?", None,
     ),
+    # -- the seven of the clock half (landing R2b) ---------------------------
+    "iso_twelve_hour": (
+        lambda m: f"{m:%Y-%m-%d} {_dial(m):02d}:{m.minute:02d} {_half(m)}",
+        _Y4 + "-" + _MM + "-" + _DD + " " + _II + r":[0-5]\d " + _AP, "%Y-%m-%d %I:%M %p",
+    ),
+    "iso_one_figure_hour": (
+        lambda m: f"{m:%Y-%m-%d} {m.hour}:{m.minute:02d}",
+        _Y4 + "-" + _MM + "-" + _DD + " " + _H + r":[0-5]\d", "%Y-%m-%d %H:%M",
+    ),
+    "javascript_locale": (
+        lambda m: f"{m.month}/{m.day}/{m.year}, {_dial(m)}:{m.minute:02d}:{m.second:02d}\u202f{_half(m)}",
+        _M + "/" + _D + "/" + _Y4 + ", " + _I + r":[0-5]\d:[0-5]\d\u202f" + _AP, "%m/%d/%Y, %I:%M:%S %p",
+    ),
+    "short_year_one_figure_hour": (
+        lambda m: f"{m.month}/{m.day}/{m:%y} {m.hour}:{m.minute:02d}",
+        _M + "/" + _D + r"/\d\d " + _H + r":[0-5]\d", "%m/%d/%y %H:%M",
+    ),
+    "month_word_twelve_hour": (
+        lambda m: f"{_MON[m.month - 1]} {m.day}, {m.year} {_dial(m)}:{m.minute:02d} {_half(m)}",
+        _words(_MON) + " " + _D + ", " + _Y4 + " " + _I + r":[0-5]\d " + _AP, "%b %d, %Y %I:%M %p",
+    ),
+    "oracle_timestamp": (
+        lambda m: f"{m.day:02d}-{_MON[m.month - 1].upper()}-{m:%y} "
+        f"{_dial(m):02d}.{m.minute:02d}.{m.second:02d}.{m.microsecond:06d} {_half(m)}",
+        _DD + "-" + _words(tuple(name.upper() for name in _MON)) + r"-\d\d " + _II
+        + r"\.[0-5]\d\.[0-5]\d\.\d{6} " + _AP, "%d-%b-%y %I.%M.%S.%f %p",
+    ),
+    "sqlserver_style_100": (
+        lambda m: f"{_MON[m.month - 1]} {m.day:>2d} {m.year} {_dial(m):>2d}:{m.minute:02d}{_half(m)}",
+        _words(_MON) + r" (?: [1-9]|[12]\d|3[01]) " + _Y4 + r" (?: [1-9]|1[0-2]):[0-5]\d" + _AP,
+        "%b %d %Y %I:%M%p",
+    ),
 }
 
 # THE SPELLINGS WHOSE YEAR IS TWO FIGURES, which question Q5 asks about.
-TWO_FIGURE_YEARS = ("excel_d_mmm_yy", "oracle_dd_mon_rr", "sas_datetime16")
+TWO_FIGURE_YEARS = (
+    "excel_d_mmm_yy", "oracle_dd_mon_rr", "sas_datetime16",
+    "oracle_timestamp", "short_year_one_figure_hour",
+)
+
+# THE SEVEN OF THE CLOCK HALF (landing R2b), which its own clauses name.
+CLOCK_HALF = (
+    "iso_one_figure_hour", "iso_twelve_hour", "javascript_locale",
+    "month_word_twelve_hour", "oracle_timestamp", "short_year_one_figure_hour",
+    "sqlserver_style_100",
+)
 
 
 def cells(name: str, rows: int = ROWS, seed: int = 50003) -> "list[str]":

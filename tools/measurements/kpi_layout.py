@@ -1,12 +1,13 @@
-"""K-S3-58: spellings no named member read come back as written (landing R2a).
+"""K-S3-58: spellings no named member read come back as written (landings R2a and R2b).
 
-PLAN P4-D383. The thirty-nine spellings of `tests/layout_spellings.py` --
-the thirty-two of the date half no named member read before R2a, and the
-seven the R2 design skeptic added -- at 1,000 rows (seeds 0 to 2) and
+PLAN P4-D383. The forty-six spellings of `tests/layout_spellings.py` --
+the thirty-two of the date half no named member read before R2a, the
+seven the R2 design skeptic added, and the seven of the clock half no
+member read before R2b -- at 1,000 rows (seeds 0 to 2) and
 10,000 rows (seed 0), a floor of eleven, through the real producer,
 generator and checker:
 
-* `spellings`: how many were measured (thirty-nine);
+* `spellings`: how many were measured (forty-six);
 * `read`: how many were read under a layout of the closed grammar, with no
   cell left over;
 * `twin_cells_unwritten`: twin cells not written exactly in the source's
@@ -19,9 +20,11 @@ generator and checker:
   scale nodes (the R2 design, section 7, and its skeptic, m2) -- the CPU
   time describing a column costs when it is written in a layout, over
   the time an ISO column of the same moments at the same precision
-  costs, the largest of four such pairs (SPSS's DATETIME20, DB2's
-  timestamp, HL7's fourteen figures, a Dutch `d-m-yyyy` date), at
-  100,000 and at 300,000 rows. The bounds are 1.3 and 1.6: the skeptic
+  costs, the largest of seven such pairs (SPSS's DATETIME20, DB2's
+  timestamp, HL7's fourteen figures, a Dutch `d-m-yyyy` date, and since
+  R2b Oracle's TIMESTAMP, SQL Server's style 100 on the 12-hour dial and
+  JavaScript's locale string, the clock half's slowest), at 100,000 and
+  at 300,000 rows. The bounds are 1.3 and 1.6: the skeptic
   measured the prototype's layouts costing 7 to 10 per cent more a cell
   each time the rows tripled while ISO stayed flat, so the larger node
   is what a million rows is projected from. Both times are taken in
@@ -29,12 +32,13 @@ generator and checker:
   in turn, so a moment of load on the machine falls on one run rather
   than on the ratio -- and the ratio is judged on any machine.
 
-Before R2a (9cb2eb5, base 2, these thirty-nine spellings at 1,000 rows
-and seed 0 through the base tree's own CLI): none read -- thirty-six
-were free text, two counts and one an affixed number -- their twins were
-in the source's spelling on at most 29.2 per cent of cells, by accident,
-and validate exited 0 on all but one, free text publishing next to
-nothing to miss.
+Before R2a (9cb2eb5, base 2, the thirty-nine spellings of the date half
+at 1,000 rows and seed 0 through the base tree's own CLI): none read --
+thirty-six were free text, two counts and one an affixed number -- their
+twins were in the source's spelling on at most 29.2 per cent of cells, by
+accident, and validate exited 0 on all but one, free text publishing next
+to nothing to miss. Before R2b (a7c9d75, R2a's head): the seven of the
+clock half were free text, at 300 and at 1,000 rows.
 
     .venv/bin/python tools/measurements/kpi_layout.py --kpi
 """
@@ -70,6 +74,11 @@ SCALE_PAIRS = (
     ("db2_timestamp", "%Y-%m-%d %H:%M:%S.%f"),
     ("hl7_ts14", "%Y-%m-%d %H:%M:%S"),
     ("dutch_unpadded", "%Y-%m-%d"),
+    # -- 3b.R2b (P4-D383): the clock half's three, JavaScript's the slowest
+    # (1.17 times ISO at 100,000 rows, skeptic 1 of landing R2b, item 4).
+    ("oracle_timestamp", "%Y-%m-%d %H:%M:%S.%f"),
+    ("sqlserver_style_100", "%Y-%m-%d %H:%M"),
+    ("javascript_locale", "%Y-%m-%d %H:%M:%S"),
 )
 SCALE_SEED = 7
 SCALE_ROUNDS = 2
