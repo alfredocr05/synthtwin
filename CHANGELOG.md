@@ -21,11 +21,18 @@ taking its own share of every minute that stands out, as in the real
 column (method G7.3h), and validation recounts them (V5-M1, V5-S1). On the lane's battery of sixteen
 columns at 1,000 and 10,000 rows, floors 11 and 36, seeds 0 to 4, all 320
 twins validate with nothing missed; at 10,000 rows the minute TVD falls
-from 0.3 to 0.9 to 0.0005 to 0.0092. Columns whose minutes follow the hour,
-whose middle half is shorter than four hours, or whose cells at midnight
+from 0.3 to 0.9 to 0.0005 to 0.0092. Columns whose minutes follow the hour
+so far that one count over every hour would mislead some hour more than an
+even draw, whose middle half is shorter than four hours, whose census of
+the rest stands on a few values, or whose cells at midnight
 could leave the body too few others for its counts -- days at midnight
-beside a few timed cells -- publish nothing and say why; every column
-publishing no such fact writes the twin it wrote before.
+beside a few timed cells -- publish nothing and say why; a column written
+finer than the second publishes no seconds, its twin writing none; every
+column publishing no such fact writes the twin it wrote before. Its review
+round kept 200,000 cells written `HH:MM:00` at their published count at
+midnight (602 against 385 before), each hour's share of the heaps rounded
+over the whole column rather than gap by gap, and small bursty tables and
+randomly drawn columns at their count of different values.
 
 ### Time of day comes back on moments (2026-10-06)
 

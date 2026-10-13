@@ -206,6 +206,20 @@ WITH_THE_HOUR = ("night_and_day",)
 SECONDS_PUBLISHED = ("zero_seconds", "near_pure_seconds")
 
 
+def two_shifts(draw: random.Random, rows: int) -> "list[str]":
+    """Clinic hours 8 to 16 on weekdays: mornings seven in ten on :00 or :30,
+    afternoons four in ten -- minutes depending on the hour, where one count
+    over every hour is still closer to each than a flat field (the lane's
+    skeptic, item 7)."""
+    found: "list[str]" = []
+    for _row in range(rows):
+        hour = draw.choice(range(8, 17))
+        share = 0.70 if hour < 12 else 0.40
+        minute = draw.choice((0, 30)) if draw.random() < share else draw.randrange(60)
+        found += [_at(draw.choice(_WEEKDAYS), hour, minute).strftime(ISO_M)]
+    return found
+
+
 def second_few(draw: random.Random, rows: int) -> "list[str]":
     """Seventy moments of the day hours on seconds 0 to 9, each written five
     times over: a second census of the rest standing on a few values (the

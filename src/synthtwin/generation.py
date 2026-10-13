@@ -26994,16 +26994,7 @@ def _clock_fields_settled(
             kin = hour_where
             unit, rule, keeps = 60, "minute", "hour"
         else:
-            # Each minute of the day keyed by its hour's group and its own,
-            # the hour's group counted in as many keys as the minute has
-            # groups: heaps beside a census of single minutes number more
-            # than sixty, and keyed by sixty, 07:30 of one hour group shared
-            # a key with 08:01 of the next, and PUT BACK moved a rank across.
-            kin = tuple(
-                hour_where[place // 60] * (max(minute_where) + 1)
-                + minute_where[place % 60]
-                for place in range(calendar_clock.HOURS * 60)
-            )
+            kin = _clock_second_kin(hour_where, minute_where)
             unit, rule, keeps = 1, "second", "minute"
         step = calendar_clock.common_divisor(step, unit) if step > unit else step
         state = _WeekdayPass(
@@ -27080,6 +27071,21 @@ def _clock_fields_settled(
             body_high, written, max(written, layout.tail_unit), gap_lows, gap_highs,
         )
     return moved, notes
+
+
+def _clock_second_kin(
+    hour_where: "tuple[int, ...]", minute_where: "tuple[int, ...]"
+) -> "tuple[int, ...]":
+    """The second's KIN (method G7.3h): each minute of the day keyed by its
+    hour's group and its minute's group, the hour's group counted in as many
+    keys as the minute has groups -- heaps beside a census of single minutes
+    number more than sixty, and keyed by sixty, 07:30 of one hour group
+    shared a key with 08:01 of the next, and PUT BACK moved a rank across an
+    hour (the build's defect 4). Raises nothing. No I/O."""
+    return tuple(
+        hour_where[place // 60] * (max(minute_where) + 1) + minute_where[place % 60]
+        for place in range(calendar_clock.HOURS * 60)
+    )
 
 
 def _clock_field_settled(

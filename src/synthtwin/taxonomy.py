@@ -17337,7 +17337,9 @@ def clock_field_decision(
     flat (`calendar_clock.departs_from_flat`), else nothing is published
     and nothing said; then M3, how the body falls on the field not
     depending on the hour (`calendar_clock.depends_on_the_hour`, the cells
-    at a published midnight left out); then the HEAPS
+    at a published midnight left out) or, where it does, one count over
+    every hour misleading no hour group more than a flat field would
+    (`calendar_clock.misled_by_the_count`); then the HEAPS
     (`calendar_clock.field_heaps`) and the CENSUS of the rest
     (`calendar_clock.field_groups`), each held to its sure cells
     (`calendar_clock.field_sure`, rule 4's cells at midnight in value 0);
@@ -17432,7 +17434,9 @@ def clock_field_decision(
         kept_hours += [body_hours[place]]
         kept_values += [body[place]]
     squares = squares + run * run
-    if calendar_clock.depends_on_the_hour(kept_hours, kept_values, line, squares):
+    if calendar_clock.depends_on_the_hour(
+        kept_hours, kept_values, line, squares
+    ) and calendar_clock.misled_by_the_count(kept_hours, kept_values, line):
         return ClockFieldDecision(groups, heaps, calendar_clock.FIELD_REASON_HOUR)
     at_midnight = calendar_clock.midnight_sure(
         counted if isinstance(counted, int) else None,

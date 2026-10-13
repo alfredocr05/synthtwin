@@ -6767,7 +6767,7 @@
    "headline": false,
    "name": "The minutes and seconds of a timestamp come back, met with the hour",
    "status": "GREEN",
-   "rule": "over the minute gate's shapes (tests/clock_field_shapes.py) at 1,000 rows (sixteen columns) and 10,000 rows (fourteen), floor 11, seeds 0 to 4: no twin or real table missing a checkable obligation; no field failing BOUND, CAP or SHAPE on its minute or second TVD or the INDEPENDENCE clause (tests/test_stage3b_minutes.py); no twin at 1,000 rows whose hour or weekday census groups move against the same seed with G7.3h withdrawn; and the design skeptic's node, 40,000 cells written HH:MM:00 at floor 11, seed 0, missing nothing, its G7.3h seconds judged on the quiet reference machine alone. `censuses` and `cases` may not shrink, and the pinned nodes pass",
+   "rule": "over the minute gate's shapes (tests/clock_field_shapes.py) at 1,000 rows (sixteen columns) and 10,000 rows (fourteen), floor 11, seeds 0 to 4: no twin or real table missing a checkable obligation; no field failing BOUND, CAP or SHAPE on its minute or second TVD or the INDEPENDENCE clause (tests/test_stage3b_minutes.py); no twin at 1,000 rows whose hour or weekday census groups move against the same seed with G7.3h withdrawn; a second sample, the 10,000-row table drawn at seed 82001 -- admissions, cells written HH:MM:00 and their near-pure sibling, each alone -- at floors 11 and 36, seeds 0 to 4, missing nothing and failing no INDEPENDENCE clause (`fresh_cases` twins); the design skeptic's node, 40,000 cells written HH:MM:00 at floor 11, seed 0, missing nothing, its G7.3h seconds judged on the quiet reference machine alone; and the lane's skeptic's node, 200,000 cells written HH:MM:00, missing nothing. INDEPENDENCE asks a value of an hour group only where the group expects at least the line's cells of it and off it; it leaves out cells at a written midnight, and, where the column's seconds are pinned to 0, asks minute 0's share of the cells off hour 0 alone, a cell of hour 0 on minute 0 being a written midnight; and it does not ask a column written in bursts, more than one and a half cells to each different value, whose shares swing burst by burst. `censuses`, `cases` and `fresh_cases` may not shrink, and the pinned nodes pass",
    "rule_kind": "at_most",
    "expected": {
     "censuses": 30,
@@ -6780,12 +6780,15 @@
     "weekday_changed": 0,
     "cases": 150,
     "pinned_nodes_failing": 0,
+    "fresh_cases": 30,
     "rounds_40k_missed": 0,
-    "rounds_40k_pass_seconds": 10.0
+    "rounds_40k_pass_seconds": 5.0,
+    "rounds_200k_missed": 0
    },
    "key_kinds": {
     "censuses": "at_least",
     "cases": "at_least",
+    "fresh_cases": "at_least",
     "pinned_nodes_failing": "exact",
     "rounds_40k_pass_seconds": "seconds_below"
    },
@@ -6797,14 +6800,16 @@
     "tests/test_stage3b_minutes.py::test_the_product_gives_every_case_its_answer",
     "tests/test_stage3b_minutes.py::test_each_step_case_is_red_on_its_mutant",
     "tests/test_stage3b_minutes.py::test_the_real_table_meets_the_independence_clause",
-    "tests/test_stage3b_minutes.py::test_each_hour_takes_its_share_of_the_heaps"
+    "tests/test_stage3b_minutes.py::test_each_hour_takes_its_share_of_the_heaps",
+    "tests/test_stage3b_minutes.py::test_the_fuzzed_columns_keep_their_count",
+    "tests/test_stage3b_minutes.py::test_small_bursty_tables_keep_their_count"
    ],
    "test": null,
    "driver": "tools/measurements/kpi_clock_census.py --kpi",
    "pin_strength": "WEAKER",
-   "measured_on": "the minute gate's shapes at 1,000 and 10,000 rows, floor 11, seeds 0 to 4, through the real producer, generator and checker, and 40,000 cells written HH:MM:00 at seed 0, timed",
-   "evidence": "Before (2341173), no column of moments published its minutes or seconds and the twin drew them evenly: clinic slots 71 per cent on :00 or :30 came back at 3 to 4, cells written HH:MM:00 at random seconds. After, every field in scope is met; the battery's numbers are plan P4-D372's. At 10,000 rows the independence clause failed 1,482 times on be06ecc, the shared pass filling each gap's shares nearest first and whole runs first, and holds since KIN SHARES (method G7.3h), each hour group taking its own share of every group of the field; the clause itself leaves out cells at a written midnight and a value an hour group expects fewer than the line's cells of, or off, which the real table failed.",
-   "nodes_min_collected": 6,
+   "measured_on": "the minute gate's shapes at 1,000 and 10,000 rows, floor 11, seeds 0 to 4, and three of them drawn again at 10,000 rows from seed 82001 at floors 11 and 36, through the real producer, generator and checker; 40,000 cells written HH:MM:00 at seed 0, timed; and 200,000 such cells at seed 0",
+   "evidence": "Before (2341173), no column of moments published its minutes or seconds and the twin drew them evenly: clinic slots 71 per cent on :00 or :30 came back at 3 to 4, cells written HH:MM:00 at random seconds. After, every field in scope is met; the battery's numbers are plan P4-D372's. At 10,000 rows the independence clause failed 1,482 times on be06ecc, the shared pass filling each gap's shares nearest first and whole runs first, and holds since KIN SHARES (method G7.3h), each hour group taking its own share of every group of the field; the clause itself leaves out cells at a written midnight and a value an hour group expects fewer than the line's cells of, or off, which the real table failed. The lane's skeptic then found, on bc3f006: 200,000 cells written HH:MM:00 came back 602 at midnight against 385 -- hour 0 given its share of minute 0 in proportion, its cells there midnight cells -- met since a rank whose place on value 0 is written at midnight is not free to take it; admissions drawn at seed 82001 failed INDEPENDENCE at 9 of 10 twins, hour 8 taking minute 6's rounding remainder in most of 38 gaps, met since each kin group's shares carry their rounding from gap to gap; and the clause's own reading of hour 0 failed cells written HH:MM:00 at floor 36, which now expect no minute 0 in hour 0. The 40,000-row node's seconds, measured 1.6 to 2.7 under load, are bounded at 5.",
+   "nodes_min_collected": 8,
    "value_at": {
     "commit": "33dd126",
     "date": "2026-10-12",

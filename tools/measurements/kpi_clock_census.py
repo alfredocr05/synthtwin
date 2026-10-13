@@ -25,7 +25,15 @@ rows (the fourteen the gate's growth asks), at a floor of eleven and seeds
 * `rounds_40k_missed` and `rounds_40k_pass_seconds`, the design skeptic's
   B1 node: 40,000 cells written `HH:MM:00`, described at floor 11 and
   generated at seed 0, its obligations MISSED and the seconds G7.3h takes
-  (seconds judged on the quiet reference machine alone).
+  (seconds judged on the quiet reference machine alone);
+* `rounds_200k_missed`, the lane's skeptic's item 1: 200,000 cells written
+  `HH:MM:00` (the sample whose count at midnight came back 602 against
+  385), at floor 11 and seed 0, its obligations MISSED;
+* `fresh_cases`: a second sample, the 10,000-row table drawn at seed 82001
+  (the lane's skeptic, item 4) -- admissions, cells written `HH:MM:00` and
+  their near-pure sibling, each alone, at floors 11 and 36, seeds 0 to 4 --
+  how many twins were judged; their MISSED obligations count in `missed`
+  and their INDEPENDENCE failures in `independence`.
 
     .venv/bin/python tools/measurements/kpi_clock_census.py --kpi
 """
@@ -127,6 +135,42 @@ def battery(home: pathlib.Path) -> "tuple[dict[str, int], list[str]]":
     return totals, notes
 
 
+# The second sample's columns (the lane's skeptic, item 4 and item 8).
+FRESH = ("admissions", "zero_seconds", "near_pure_seconds")
+
+
+def fresh(home: pathlib.Path) -> "tuple[dict[str, int], list[str]]":
+    """The second sample: FRESH at 10,000 rows from table seed 82001, floors
+    11 and 36, seeds 0 to 4, each column described alone."""
+    found = {"fresh_cases": 0, "missed": 0, "independence": 0}
+    notes: "list[str]" = []
+    columns = shapes.thousand(10000, 82001)
+    for name in FRESH:
+        cells, form = columns[name]
+        for floor in (gate.LINE, 36):
+            described = kpi_shapes.describe(home / f"fresh-{name}-{floor}", name, f"{name}\n" + "\n".join(cells) + "\n", floor)
+            block = described.block(name)
+            for seed in SEEDS:
+                written = kpi_shapes.twin_text(described, seed)
+                found["fresh_cases"] += 1
+                for line in kpi_shapes.missed(kpi_shapes.measure(described, written, f"fresh-{seed}.csv")):
+                    found["missed"] += 1
+                    notes += [f"fresh {name} floor {floor} seed {seed}: {line}"]
+                for failure in gate._independence_failures(block, cells, shapes.cells_of(written, name), form):
+                    found["independence"] += 1
+                    notes += [f"fresh {name} floor {floor} seed {seed}: INDEPENDENCE {failure}"]
+    return found, notes
+
+
+def rounds_200k(home: pathlib.Path) -> "tuple[dict[str, float], list[str]]":
+    """The lane's skeptic's item 1: 200,000 cells written `HH:MM:00`, seed 0."""
+    cells = shapes.zero_seconds(random.Random(274000), 200000)
+    described = kpi_shapes.describe(home / "rounds-200k", "rounds", "rounds\n" + "\n".join(cells) + "\n", gate.LINE)
+    written = kpi_shapes.twin_text(described, 0)
+    missed = kpi_shapes.missed(kpi_shapes.measure(described, written, "rounds-200k.csv"))
+    return {"rounds_200k_missed": len(missed)}, [f"rounds 200k seed 0: {line}" for line in missed]
+
+
 def rounds_40k(home: pathlib.Path, rows: int = 40000) -> "tuple[dict[str, float], list[str]]":
     """The B1 node: `rows` cells written `HH:MM:00`, G7.3h's seconds at seed 0."""
     cells = shapes.zero_seconds(random.Random(72040), rows)
@@ -156,9 +200,16 @@ def rounds_40k(home: pathlib.Path, rows: int = 40000) -> "tuple[dict[str, float]
 def main() -> int:
     with tempfile.TemporaryDirectory() as folder:
         totals, notes = battery(pathlib.Path(folder))
+        sampled, said = fresh(pathlib.Path(folder))
+        for key in sampled:
+            totals[key] = totals[key] + sampled[key] if key in totals else sampled[key]
+        notes += said
         timed, said = rounds_40k(pathlib.Path(folder))
         value: "dict[str, float]" = dict(totals)
         value.update(timed)
+        notes += said
+        large, said = rounds_200k(pathlib.Path(folder))
+        value.update(large)
         notes += said
         kpi_rules.emit("K-S3-42", value, "; ".join(notes) if notes else "every twin and table held, no clause failed")
     return 0

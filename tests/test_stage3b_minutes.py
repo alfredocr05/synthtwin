@@ -41,7 +41,14 @@ The clauses, each red on its own mutant (named beside it):
   description the producer writes on the battery loads at floors 1, 11
   and 36 (the producer-always-loads battery);
 * the work: the producer's tests and the field passes are counted in
-  operations up to 1,000,000 rows, machine-free.
+  operations up to 1,000,000 rows, machine-free;
+* the review round's witnesses (the lane's skeptic 1): minutes depending
+  on the hour publish where one count is closer to every hour than an even
+  draw (M3's second question); a second census of a few values says so
+  (NF120); the skeptic's fuzzed columns and small bursty tables keep their
+  count, 2341173's misses the ceiling; heaps beside a withheld rest pin no
+  lattice; a step off midnight keeps the drawing unit; and the second's kin
+  keys hold each pair of groups apart -- each red on its own withdrawal.
 
 Every table is built here or in `clock_field_shapes`, seeded and neutral
 (plan D13).
@@ -618,6 +625,22 @@ def test_cells_written_on_the_minute_keep_their_seconds(tmp_path: pathlib.Path, 
     assert not all(cell.endswith(":00") for cell in twin[1:-1])
 
 
+def test_a_step_off_midnight_keeps_the_drawing_unit(tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Cells written `HH:MM:00` at 10,000 rows -- the gate's table drawn at seed
+    82001 -- keep their count at midnight: both steps at midnight step a body
+    rank off one by the drawing unit, a minute, and a tail rank by its tail's
+    (`_midnight_step_of`, the design skeptic's m2); stepped by the written
+    second, the count at midnight is missed (the lane's skeptic, item 5:
+    at seeds 0 and 1, and on the near-pure sibling)."""
+    cells, _form = shapes.thousand(10000, 82001)["zero_seconds"]
+    described = _one_column(tmp_path, "rounds", cells)
+    written = kpi_shapes.twin_text(described, 0)
+    assert kpi_shapes.missed(kpi_shapes.measure(described, written, "t.csv")) == []
+    monkeypatch.setattr(generation, "_midnight_step_of", lambda _layout, _rank, step: step)
+    written = kpi_shapes.twin_text(described, 0)
+    assert "rounds:midnight.count" in kpi_shapes.missed(kpi_shapes.measure(described, written, "m.csv"))
+
+
 def test_a_pure_grid_is_drawn_on_its_lattice(tmp_path: pathlib.Path) -> None:
     """A half-hour grid is drawn on thirty minutes and every twin cell stands on :00 or :30."""
     described = _one_column(tmp_path, "grid", shapes.grid(random.Random(72014), 1000, 30))
@@ -666,6 +689,33 @@ def test_days_beside_a_few_timed_cells_withhold_their_minutes(tmp_path: pathlib.
     assert described.block("days")["minute_heaps"] == [{"value": 30, "count": 11}]
     written = kpi_shapes.twin_text(described, 0)
     assert "days:minute_heaps.counts" in kpi_shapes.missed(kpi_shapes.measure(described, written, "m.csv"))
+
+
+def test_minutes_on_the_hour_publish_where_one_count_is_closer(tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Mornings 70 per cent on :00 or :30 beside afternoons at 40 depend on the
+    hour, yet one count over every hour is closer to each than a flat field:
+    they publish at 1,000 rows and floors 11 and 36 and their twins miss
+    nothing, mornings and afternoons both nearer their real share than a flat
+    twin (the lane's skeptic, item 7: withheld, both came back at 4 to 5 per
+    cent against 73.5 and 41.5); with M3's second question withdrawn they are
+    withheld (night charting beside day entries is withheld either way, in
+    `test_the_clock_battery_publishes_its_census`)."""
+    cells = shapes.two_shifts(random.Random(76000), 1000)
+
+    def morning_share(written: "list[str]", morning: bool) -> float:
+        inside = [cell for cell in written if (int(cell[11:13]) < 12) == morning]
+        return sum(1 for cell in inside if cell[14:16] in ("00", "30")) / len(inside)
+
+    for floor in (11, 36):
+        described = _one_column(tmp_path / f"f{floor}", "shifts", cells, floor)
+        assert described.block("shifts")["minute_heaps"], floor
+        written = kpi_shapes.twin_text(described, 0)
+        assert kpi_shapes.missed(kpi_shapes.measure(described, written, "t.csv")) == [], floor
+        twin = shapes.cells_of(written, "shifts")
+        for morning in (True, False):
+            assert abs(morning_share(twin, morning) - morning_share(cells, morning)) < morning_share(cells, morning) - 2 / 60, (floor, morning)
+    monkeypatch.setattr(calendar_clock, "misled_by_the_count", lambda *_arguments: True)
+    assert _one_column(tmp_path / "withdrawn", "shifts", cells).block("shifts")["minute_heaps"] == []
 
 
 def test_a_second_census_of_a_few_values_says_so(tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -1164,6 +1214,30 @@ def test_the_tests_of_flat_and_of_the_hour_by_hand() -> None:
     assert calendar_clock.depends_on_the_hour(night, minutes, LINE)
     even = [(hour * 7 + copy) % 60 for hour in range(24) for copy in range(20)]
     assert not calendar_clock.depends_on_the_hour(night, even, LINE)
+
+
+def test_the_seconds_kin_keys_each_pair_apart(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The second's kin keys hold each pair of hour group and minute group apart
+    (the build's defect 4; the lane's skeptic, item 5, found no twin of the
+    battery red without it): heaps at minutes 0 and 30 beside a census of
+    sixty single minutes make sixty-two minute groups, and keyed by sixty,
+    07:30 of one hour group and 08:01 of the next shared a key."""
+    hour_where = tuple(0 if hour < 8 else 1 for hour in range(24))
+    where, _counts = generation._clock_field_where(
+        tuple((value, value, 10) for value in range(60)), ((0, 50), (30, 50)), 800
+    )
+    assert max(where) + 1 == 62
+    pairs = {(hour_where[place // 60], where[place % 60]) for place in range(1440)}
+    kin = generation._clock_second_kin(hour_where, where)
+    assert kin[7 * 60 + 30] != kin[8 * 60 + 1]
+    assert len(set(kin)) == len(pairs)
+    bent = _mutant(
+        monkeypatch,
+        "        hour_where[place // 60] * (max(minute_where) + 1) + minute_where[place % 60]",
+        "        hour_where[place // 60] * 60 + minute_where[place % 60]",
+    )
+    kin = bent._clock_second_kin(hour_where, where)
+    assert kin[7 * 60 + 30] == kin[8 * 60 + 1]
 
 
 def test_a_heap_needs_the_lines_different_values() -> None:

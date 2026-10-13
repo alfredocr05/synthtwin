@@ -4151,7 +4151,7 @@ argument, the census line; the others none.
 
 > the seconds of the minute this column's values fall on are not counted: no second is counted alone -- one holding at least «1» rows, at least three times the median of the five on either side of it and, besides the rows the rest of this description places there for certain, nought or at least «1» rows -- and joining each second or group that would name fewer than «1» rows in all or besides the rows the rest of this description places in it for certain -- at the values it publishes between the two tail boundaries, and at midnight where it counts rows there -- or fewer rows than those, to its smaller neighbour, leaves one group over the whole minute
 
-**NF99. `minute_census_withheld_with_the_hour`** — arity 0. M3: how the different values fall on the minutes depends on the hour of the day -- chi-squared per degree of freedom of 4 or more and a Cramer's V of 0.2 or more over the body's hour groups crossed with the single minutes holding a twentieth of its values and the rest, both statistics divided by the design effect of the cells written alike, the values at a published midnight left out.
+**NF99. `minute_census_withheld_with_the_hour`** — arity 0. M3: how the different values fall on the minutes depends on the hour of the day -- chi-squared per degree of freedom of 4 or more and a Cramer's V of 0.2 or more over the body's hour groups crossed with the single minutes holding a twentieth of its values and the rest, both statistics divided by the design effect of the cells written alike, the values at a published midnight left out -- and, over the same table, some hour group holding at least the census line's values lies farther, in total variation, from the shares one count over every hour would publish than from a flat field's (a single minute a sixtieth, the rest what is left; the landing's repair, item 7: mornings 70 per cent on :00 or :30 beside afternoons at 40 were withheld at 1,000 rows and their twins came back at 4 to 5 per cent in both, where published they came back near 53 in both; night charting on the hour beside day entries stays withheld, its days farther from the published shares than from flat).
 
 > the minutes of the hour this column's values fall on are not counted: how they fall changes with the hour of the day, which one count over every hour would not say
 
@@ -5778,7 +5778,8 @@ BODY the hour census counts, read off the text: a cell's minute is
 second 59, never in the next minute. A field publishes only where its
 body's different values depart from flat (chi-squared per degree of
 freedom of 4 or more over the sixty values) and do not follow the hour of
-the day (M3, NF99, NF100); its HEAPS are the values standing out -- at
+the day so far that one count over every hour would mislead (M3, NF99,
+NF100); its HEAPS are the values standing out -- at
 least the census line in rows, at least three times the median of the
 five values on each side on the cycle of sixty, written at the line's
 different values or more, and, besides their sure cells, nought or at

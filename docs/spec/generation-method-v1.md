@@ -7391,8 +7391,9 @@ and no G14.3 case.
 beside its hour census, each FIELD's HEAPS -- values standing out, each
 with its count -- and its CENSUS of the cells on no heap: `minute_heaps`
 and `minute_census` over the minutes of the hour, and, written to the
-second or finer, `second_heaps` and `second_census` over the seconds of
-the minute (contract 6.6.2, MC1 to MC6, MH1, MH2, SE1 to SE6, SH1, SH2).
+second -- not finer, as the twin writes no figure below the second (SE3)
+-- `second_heaps` and `second_census` over the seconds of the minute
+(contract 6.6.2, MC1 to MC6, MH1, MH2, SE1 to SE6, SH1, SH2).
 A cell counts at the minute and second it is WRITTEN at,
 `canonical[14:16]` and `canonical[17:19]`; a sixtieth second, `HH:MM:60`,
 counts in its own minute at second 59.
@@ -7401,8 +7402,12 @@ counts in its own minute at second 59.
 m3).** Where a minute or second census or heap is published, the body is
 drawn on a LATTICE of the clock its facts pin: the seconds are pinned on
 a column written to the minute, or where the second publishes heaps and
-no census (the lattice the greatest step dividing sixty and every heap's
-value), or a census and no heap whose one non-zero group holds second 0,
+no census and the body's cells off them are fewer than the census line --
+a rest the merge rule could only have withheld, not a census withheld for
+its few values (the lane's skeptic, item 2: bursts of check-ins a third
+off their heaps at 0 and 30, drawn on half hours, came back with that third
+on :01 and :29) -- the lattice the greatest step dividing sixty and every
+heap's value; or a census and no heap whose one non-zero group holds second 0,
 every published body value on second 0; a lattice finer than the minute
 is the DRAWING UNIT. With the seconds on 0, the minute's own lattice,
 found the same way, widens it to sixty seconds times its step -- the
@@ -7437,13 +7442,30 @@ gap's do, whole runs and then single ranks, but no rank leaves a written
 unit it shares by a move changing the count (a kin group's few ranks
 split bursts of check-ins to meet its own shares: 1,000 of them at a
 floor of 36 came back 108 values long); single ranks over the whole gap
-follow. The kin groups so far, holding P of the gap's S ranks, take
-together of each group G its share P x G / S rounded down, never less
-than they took; the ranks still unplaced go one each to the groups of the
-largest remainder, the lower group on a tie, none past its share rounded
-up; ranks placed beyond P come back from the groups raised above what
-was taken, the smallest remainder first, the lower group on a tie; a kin
-group takes the difference, and the last takes every share exactly.
+follow. A kin group's IDEAL share of each group G is its R of the gap's S
+ranks times G over S, in 2**20ths of a rank, plus what it CARRIES from the
+gaps before -- the ideal it was owed there less what it took -- so the
+rounding is made over the whole body (CONTROLLED ROUNDING, the lane's
+skeptic, item 4: rounded gap by gap, hour 8 of 10,000 admissions took
+minute 6's remainder in most of 38 gaps and came back with 36 cells there
+against 11). The kin groups so far take together, of each group, their
+ideals summed, rounded down, never less than they took, never more than
+the gap's G nor than this kin group's ranks beyond what was taken; the
+ranks still unplaced go one each, as often as it takes, to the groups of
+the largest remainder, the lower group on a tie; ranks placed beyond
+come back from the groups raised above what was taken, the smallest
+remainder first, the lower group on a tie; a kin group takes the
+difference. WHERE THE COUNT AT MIDNIGHT IS PUBLISHED and value 0 is a
+group alone, a rank whose place on value 0 of its own parent is written
+at midnight -- on a column written to the minute, every rank of hour 0 --
+is not FREE to take it, as the real column's own cells there are those at
+midnight: that group's ideal is its want spread over the kin groups by
+their free ranks, where these number at least its want, each kin group's
+other ranks over the other groups as they want, and no kin group takes
+more of it than its free ranks (the lane's skeptic, item 1: 200,000 cells
+written `HH:MM:00`, hour 0 given its share in proportion, had 327 ranks
+moved onto a midnight, 217 of which stayed, and came back 602 at midnight
+against 385).
 Filled nearest first and whole runs first over the whole gap, 10,000
 clinic slots came back with 20 per cent of hour 8 on :00 and 47 per cent
 of hour 10, against 35 in every hour of the real column; kin group by kin
@@ -7482,11 +7504,17 @@ pass, for the field:
    gap and at no written midnight, on its own parent, else on another
    parent of its day in its kin group, else at its own parent's place on
    another day of its day standing and width kind, nearest first, and
-   where no weekday census stands on a day of another weekday; and runs
-   of G holding as many ranks take free places of its old group, as in
-   step 1. Each pair puts back one unit. A group, a parent's place in
-   the day and a gap whose search found no unit to join are not asked
-   again.
+   where no weekday census stands on a day of another weekday, else, on
+   those days in the same order, at the other places of its kin group,
+   nearest its own first, 400 parents asked at most; and runs of G
+   holding as many ranks take free places of its old group, as in step 1.
+   Each pair puts back one unit. A group, a parent's place in the day and
+   a gap whose search found no unit to join are not asked again in the
+   round; SUBSTITUTE runs again while a round puts a value back, three
+   rounds at most (the lane's skeptic, item 3: 300 check-ins in bursts
+   came back 5 or 6 values long after one round and met their count
+   after two; 200 of them, about one burst a day, a value long without
+   the kin on other days).
 4. *SPREAD*, where the count is still short and reachable, or the count
    drawn is not above the published one: each rank sharing its written
    unit, in rank order, takes the free place of its own group nearest its
@@ -7507,13 +7535,16 @@ nearest midnight inside its stratum; each tail's ranks are then sorted.
 
 **Its frozen cases** are states of ranks and drawing units: the twentieth
 vectors file, `tests/reference/generation-branch-vectors-20.json`, holds
-sixteen -- the pass on a field of minutes with heaps and on a field of
-seconds with a kin group of minutes, KIN SHARES over two hours, the exchange's three answers,
+nineteen -- the pass on a field of minutes with heaps and on a field of
+seconds with a kin group of minutes, KIN SHARES over two hours, KIN SHARES
+keeping the cells at midnight with hour 0 a kin group alone (85 days whose
+shares in proportion stood 68 ranks at midnight) and beside hour 1, the exchange's three answers,
 PUT BACK once more after it, SUBSTITUTE, SPREAD, the tails keeping the count at midnight by their
 drawing unit and, in a stratum narrower than it, by the written unit, a draw laid
 on its unit, and the drawing units of a half-hour grid, a column on the
-hour, a column whose seconds alone are pinned and one census group
-holding minute 0 -- each with the answer this section gives it.
+hour, a column whose seconds alone are pinned, one census group
+holding minute 0 and heaps beside a withheld census of the rest, which
+pin nothing -- each with the answer this section gives it.
 
 ### G7.4 Offsets: only where recorded
 

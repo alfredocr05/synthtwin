@@ -457,7 +457,9 @@ def half_day_distances(
 # reversed): the same statistic over the body's hour groups crossed with
 # the field's single values holding a twentieth of the body and the rest,
 # the cells at a published midnight left out, of `HOUR_DEPENDENCE` or more
-# withholds it.
+# withholds it -- where one count over every hour would also put some hour
+# group farther from its own shares than a flat field (`misled_by_the_count`,
+# the lane's skeptic, item 7).
 
 MINUTE = "minute"
 SECOND = "second"
@@ -708,6 +710,75 @@ def depends_on_the_hour(
         and 10000 * total * excess
         >= DEPENDENCE_STRENGTH * DEPENDENCE_STRENGTH * shorter * weight * denominator
     )
+
+
+def misled_by_the_count(
+    hours: "list[int] | tuple[int, ...]",
+    values: "list[int] | tuple[int, ...]",
+    line: int,
+) -> bool:
+    """M3's second question: whether one count over every hour would mislead.
+
+    THE LANE'S SKEPTIC, item 7: where how a body falls on a field depends
+    on the hour, a published census is drawn the same in every hour, and
+    withholding it draws the field flat. Mornings 70 per cent on :00 or :30
+    beside afternoons at 40 came back at 52.5 and 54.9 published and at 4.6
+    and 4.4 withheld -- closer published in both -- while night charting on
+    the hour beside day entries at any minute came back with its days at 42
+    per cent on :00 published, against 1.8 real and 1.1 withheld. So M3
+    withholds only where some HOUR GROUP -- `depends_on_the_hour`'s rows,
+    each holding at least the census `line` of cells -- lies FARTHER from
+    the field's published shares than from a flat field's, distance the
+    total variation over M3's columns (each single value holding
+    `DEPENDENCE_SHARE_PERCENT` hundredths of the body, and the rest as one;
+    flat gives a single value a sixtieth and the rest what is left). Asked
+    in whole numbers. `hours` and `values` as `depends_on_the_hour` reads
+    them, the cells at a published midnight already left out.
+
+    Guarantees: a function of the three. Raises nothing. No I/O.
+    """
+    total = len(values)
+    if total <= 0 or len(hours) != total:
+        return False
+    groups = hour_groups(hour_bins(list(hours)), [], line)
+    if not groups:
+        return False
+    row_of = [0 for _hour in range(HOURS)]
+    for index in range(len(groups)):
+        for hour in range(groups[index][0], groups[index][1] + 1):
+            row_of[hour] = index
+    bins = field_bins(values)
+    column_of = [0 for _value in range(FIELD_VALUES)]
+    columns = 1
+    for value in range(FIELD_VALUES):
+        if 100 * bins[value] >= DEPENDENCE_SHARE_PERCENT * total:
+            column_of[value] = columns
+            columns = columns + 1
+    table = [[0 for _column in range(columns)] for _row in range(len(groups))]
+    for place in range(total):
+        row = row_of[hours[place]]
+        column = column_of[values[place]]
+        table[row][column] = table[row][column] + 1
+    sums = [sum(table[row][column] for row in range(len(groups))) for column in range(columns)]
+    # A flat field's share of each column, in sixtieths: one for each single
+    # value, the rest what is left.
+    flat = [FIELD_VALUES - (columns - 1)] + [1 for _column in range(columns - 1)]
+    for row in range(len(groups)):
+        size = sum(table[row])
+        if size < line:
+            continue
+        # Both distances times size * total * 60, in whole numbers.
+        published = sum(
+            abs(FIELD_VALUES * total * table[row][column] - FIELD_VALUES * size * sums[column])
+            for column in range(columns)
+        )
+        drawn_flat = sum(
+            abs(FIELD_VALUES * total * table[row][column] - total * size * flat[column])
+            for column in range(columns)
+        )
+        if published > drawn_flat:
+            return True
+    return False
 
 
 def common_divisor(first: int, second: int) -> int:
