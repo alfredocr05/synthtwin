@@ -933,3 +933,68 @@ def test_red_when_recurring_clock_readings_are_discounted_as_ties(monkeypatch: p
     loaded = contract.load_profile(str(path))
     twin, _twin_path = _twin(loaded, 0)
     assert _minute_zero_share(twin["c"], tuple(range(6, 18))) > 0.1
+
+
+def _heaps_on_every_hour() -> "list[str]":
+    """The verification of the Codex round's column, 5,400 `HH:MM:SS` cells:
+    hours 00 to 05 at minute 00 with seconds 00 to 59, each once, hours 06
+    to 17 at every minute with seconds 00 to 05, each once, and `HH:30:30`
+    written 40 times in each of hours 00 to 17 -- 18 heaps."""
+    cells: "list[str]" = []
+    for hour in range(6):
+        cells += [f"{hour:02d}:00:{second:02d}" for second in range(60)]
+    for hour in range(6, 18):
+        for minute in range(60):
+            cells += [f"{hour:02d}:{minute:02d}:{second:02d}" for second in range(6)]
+    for hour in range(18):
+        cells += [f"{hour:02d}:30:30"] * 40
+    return cells
+
+
+@pytest.mark.parametrize("floor", (11, 36))
+def test_m3_compares_the_hours_by_the_cells_off_the_heaps(floor: int) -> None:
+    """The verification of the Codex round, its open item 1. The heaps are
+    placed exactly and the lanes draw only the cells off them, from the
+    census less the heaps, the same in every hour -- so M3's "misled"
+    comparison holds each hour group to those cells. Asked with the heaps'
+    cells, a heap on every hour made the flat day look far from the pooled
+    shares: 60 minute groups were published and the twin wrote 252 to 256
+    of the 4,800 day cells on minute 0 against 72, every check held.
+    Withheld, the day hours come back on minute 0 as the table holds them."""
+    cells = _heaps_on_every_hour()
+    document, path, _table = _document({"c": cells}, floor=floor)
+    assert _block(document, "c")["minute_census"] == []
+    loaded = contract.load_profile(str(path))
+    day = tuple(range(6, 18))
+    real = _minute_zero_share(cells, day)
+    for seed in (0, 1, 4):
+        twin, twin_path = _twin(loaded, seed)
+        assert _missed(loaded, twin_path) == []
+        assert abs(_minute_zero_share(twin["c"], day) - real) <= 0.01
+
+
+def test_red_when_the_hours_are_compared_with_the_heaps_cells(monkeypatch: pytest.MonkeyPatch) -> None:
+    """MUTATION: M3's "misled" comparison asked of every body cell, the heaps'
+    among them, as the dependence is -- the minute census is published, and
+    the twin's day cells on minute 0 rise past three times the table's."""
+    asked: "list[tuple[list[int], list[int]]]" = []
+    depends = calendar_clock.depends_on_the_hour
+    misled = calendar_clock.misled_by_the_count
+
+    def remembered(hours: "list[int]", values: "list[int]", line: int, *rest: int) -> bool:
+        asked[:] = [(list(hours), list(values))]
+        return depends(hours, values, line, *rest)
+
+    def with_the_heaps(_hours: "list[int]", _values: "list[int]", line: int) -> bool:
+        return misled(asked[0][0], asked[0][1], line)
+
+    monkeypatch.setattr(calendar_clock, "depends_on_the_hour", remembered)
+    monkeypatch.setattr(calendar_clock, "misled_by_the_count", with_the_heaps)
+    cells = _heaps_on_every_hour()
+    document, path, _table = _document({"c": cells}, floor=11)
+    assert len(_block(document, "c")["minute_census"]) > 1
+    loaded = contract.load_profile(str(path))
+    twin, twin_path = _twin(loaded, 0)
+    assert _missed(loaded, twin_path) == []
+    day = tuple(range(6, 18))
+    assert _minute_zero_share(twin["c"], day) > 3 * _minute_zero_share(cells, day)

@@ -2122,20 +2122,33 @@ def clock_minute_decision(
     - how the body's cells fall on the minute must not follow the hour of
       the day so that one count over every hour misleads an hour group
       more than a flat field would (M3: `depends_on_the_hour`,
-      `misled_by_the_count`, its coarse table). ASKED OF EVERY BODY CELL,
-      the heaps' among them, as the census counts them, and with NO
-      DISCOUNT FOR TIES (`squares` nought): a time of day written on
-      several rows is one place on the dial on several days, several
-      events, not one event written several times as a repeated
-      timestamp is. The Codex review of landing C2, item 2: discounted as
-      a timestamp's ties, 7,920 readings -- 36 night readings on minute 0,
-      each written a hundred times, beside day hours at every minute --
-      scored no dependence, 60 minute groups were published, and the twin
-      wrote 589 of 4,320 day cells on minute 0 against 72. Asked of the
-      cells off the heaps alone, a heap's place taken out of some hours
-      and not others reads as a dependence the lanes, which keep off the
-      heaps, already hold: a clinic's slots at 1,000 rows and a floor of
-      eleven, `:15` off a heap only from 14:00 on, were withheld. The
+      `misled_by_the_count`, its coarse table). THE DEPENDENCE IS ASKED
+      OF EVERY BODY CELL, the heaps' among them, as the census counts
+      them, and with NO DISCOUNT FOR TIES (`squares` nought): a time of
+      day written on several rows is one place on the dial on several
+      days, several events, not one event written several times as a
+      repeated timestamp is. The Codex review of landing C2, item 2:
+      discounted as a timestamp's ties, 7,920 readings -- 36 night
+      readings on minute 0, each written a hundred times, beside day
+      hours at every minute -- scored no dependence, 60 minute groups
+      were published, and the twin wrote 589 of 4,320 day cells on minute
+      0 against 72. Asked of the cells off the heaps alone, a heap's
+      place taken out of some hours and not others reads as a dependence
+      the lanes, which keep off the heaps, already hold: a clinic's slots
+      at 1,000 rows and a floor of eleven, `:15` off a heap only from
+      14:00 on, were withheld. THE "MISLED" COMPARISON IS ASKED OF THE
+      CELLS OFF THE HEAPS: the heaps are placed exactly, and the lanes
+      draw only the cells off them, from the census less the heaps, the
+      same in every hour -- so that is the count an hour group is held
+      to. Asked with the heaps' cells, a heap on every hour made a flat
+      day look far from the pooled shares: 5,400 readings, night hours on
+      minute 0 at every second and day hours at every minute on seconds
+      0 to 5, beside `HH:30:30` written 40 times in each of 18 hours,
+      published 60 groups and the twin wrote 252 to 256 of 4,800 day
+      cells on minute 0 against 72 (the verification of the Codex round,
+      2026-10-13); and night readings on `HH:00:00` written 300 times
+      beside day hours 30 per cent on `:15` or `:45` lost a census that
+      held, the twin's day share there falling from 0.30 to 0.053. The
       design effect stays the timestamps' (`taxonomy._clock_field_decision`).
       The ten-minute census does not carry it: G7A.4c fits one table of
       stretches by minute groups over every hour, so hours sharing a
@@ -2177,6 +2190,8 @@ def clock_minute_decision(
     rest = [0 for _minute in range(FIELD_VALUES)]
     hours: "list[int]" = []
     values: "list[int]" = []
+    off_hours: "list[int]" = []
+    off_values: "list[int]" = []
     total = 0
     for at in sorted(ordinals):
         if body is not None and not body[0] <= at <= body[1]:
@@ -2192,6 +2207,9 @@ def clock_minute_decision(
         if at in heap_at:
             continue
         rest[minute] = rest[minute] + count
+        for _cell in range(count):
+            off_hours += [hour]
+            off_values += [minute]
     if total != size or total <= 0:
         return (), ""
     if not departs_from_flat(
@@ -2199,7 +2217,7 @@ def clock_minute_decision(
     ):
         return (), FIELD_REASON_FLAT
     if depends_on_the_hour(hours, values, line) and misled_by_the_count(
-        hours, values, line
+        off_hours, off_values, line
     ):
         return (), FIELD_REASON_HOUR
     inside = tuple((at, heap_at[at]) for at in sorted(heap_at))
