@@ -17607,11 +17607,12 @@ def _census_lines(
     """
     short = [index for index in range(len(found)) if 0 < found[index] < line]
     named_short = bool(short) and not _short_counts_pinned(found, short, line)
-    # LINEAR IN THE GROUPS (the Codex review of landing D4, item 3): a
-    # list of heavy dates is one group per listed date, tens of thousands
-    # on a large column, so each side is joined once from its pieces and
-    # the short groups are asked as a set; rebuilding the cumulative text
-    # per group and scanning a list per group took 2.4 seconds at 80,000.
+    # NEAR LINEAR IN THE GROUPS (the Codex review of landing 3b.6, item 3):
+    # a list of heavy dates is one group per listed date, tens of
+    # thousands on a large column, so each side is joined from its pieces
+    # in pairs (`_comma_joined`) and the short groups are asked as a set;
+    # rebuilding the cumulative text per group and scanning a list per
+    # group took 2.4 seconds at 80,000.
     shorts = set(short)
     asked_parts: "list[str]" = []
     shown_parts: "list[str]" = []
@@ -17625,8 +17626,8 @@ def _census_lines(
             shown_parts += [f"{named} {_below_the_floor(line)}"]
         else:
             shown_parts += [f"{named} {_KEPT_BACK}"]
-    asked = ", ".join(asked_parts)
-    shown = ", ".join(shown_parts)
+    asked = _comma_joined(asked_parts)
+    shown = _comma_joined(shown_parts)
     lines: "list[str]" = []
     if short and named_short:
         lines += [
@@ -17682,6 +17683,33 @@ def _published_holes(
 _KEPT_BACK = "kept back"
 
 
+def _comma_joined(parts: "list[str]") -> str:
+    """The parts in order, each pair separated by a comma and a space.
+
+    Joined IN PAIRS, level by level (the Codex review of landing 3b.6, item
+    3): each character is copied once per level, so the work is the text's
+    length times the levels, about the logarithm of the parts, where
+    adding each part to the text so far copied that text once per part.
+    No text method is asked: the offline audit accepts `str.join` only on
+    arguments it resolved, and a list built while the program runs is
+    not one (plan D6.2).
+
+    Guarantees: accepts text parts; returns "" for none. Determinism: a
+    function of the parts. Raises nothing. No I/O of any kind.
+    """
+    if not parts:
+        return ""
+    level = parts
+    while len(level) > 1:
+        paired: "list[str]" = []
+        for index in range(0, len(level) - 1, 2):
+            paired += [f"{level[index]}, {level[index + 1]}"]
+        if len(level) % 2:
+            paired += [level[len(level) - 1]]
+        level = paired
+    return level[0]
+
+
 def _short_counts_pinned(
     found: "list[int]", short: "list[int]", line: int
 ) -> bool:
@@ -17695,7 +17723,7 @@ def _short_counts_pinned(
     where every group is short); a short count is pinned where those
     totals leave one group a single possible value.
 
-    IN CLOSED FORM (the Codex review of landing D4, item 3). The totals
+    IN CLOSED FORM (the Codex review of landing 3b.6, item 3). The totals
     `s` a reader allows are at most two runs -- `[k, min(k * (line - 1),
     total - line)]` where some group is not short, and `total` itself --
     and one short group's possible values beside a total `s` are the run

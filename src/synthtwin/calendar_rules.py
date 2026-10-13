@@ -3047,7 +3047,7 @@ def heavy_different(n_distinct: int, n_unparsed: int) -> int:
     """The most different parsed values a column can hold, as HD3 reads it.
 
     THE ONE BOUND the producer and the loader both ask (contract HD3; the
-    Codex review of landing D4, item 2). `n_distinct` counts the parsed
+    Codex review of landing 3b.6, item 2). `n_distinct` counts the parsed
     values and the unparsed spellings together, and `n_unparsed` counts
     ROWS: five cells of one unread text are one different value, so
     `n_distinct - n_unparsed` was no bound -- sixty weekly dates beside

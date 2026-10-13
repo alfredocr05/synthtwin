@@ -9300,7 +9300,7 @@ LISTED_PROBES = 64
 
 def listed_dates_kept_in_spelling(column, ordinals, spellings, fields, whole, offsets, written_in, absent):
     """A listed date keeps its rows through the spelling -- G7.3j step 8
-    (the Codex review of landing D4, item 1).
+    (the Codex review of landing 3b.6, item 1).
 
     Read from the step's text.  Ranks are taken in ascending order; one on
     a listed date whose cell, as written, is an absent spelling first

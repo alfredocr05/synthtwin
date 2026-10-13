@@ -12605,7 +12605,7 @@ it answers to.
 |---|---|---|
 | HD1 | the listed dates are canonical, strictly ascending, from the low tail boundary to the high one, on no day the description holds empty (its written forms, its decisions and its absent spellings), on a column of whole dates or of moments every value of which stands at midnight, read on the local clock, not in the joint member, with both tails (landing 3b.6, plan P4-D369) | yes |
 | HD2 | every listed count is at least the heavy line, `max(11, max(2, small_cell_floor))`, and never nought | yes |
-| HD3 | the listed counts add up to at most `P - low_tail.rows - high_tail.rows`; the list holds at most `n_distinct - n_unparsed` dates; beside a weekday census or a day-of-month census, no group's listed rows exceed its count | yes |
+| HD3 | the listed counts add up to at most `P - low_tail.rows - high_tail.rows`; the list holds at most `n_distinct - 1` dates where `n_unparsed > 0`, else `n_distinct` (`n_unparsed` counts rows, and unread cells spell at least one value no parsed cell does; amended by the Codex review of landing 3b.6, item 2); beside a weekday census or a day-of-month census, no group's listed rows exceed its count | yes |
 | HD4 | the two tail boundaries and the published rungs, each at its rank, and each listed date's run of rows stand in one rank order: every boundary or rung on a listed date inside its run, every one on an earlier date before it and on a later date after it, and two listed dates with no day between them but holes and no boundary or rung between them adjacent | yes |
 | HD5 | every listed date holds at least half the rows listed on the dates within three days of it | yes |
 <!-- anchor 3b-T1 (P4-D370) -->

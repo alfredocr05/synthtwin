@@ -24158,7 +24158,7 @@ _HEAVY_MISSED = (
     "count, so some of those dates hold other counts."
 )
 # ...and where the cells as written miss a listed count the ranks held (the
-# Codex review of landing D4, item 1): a rank whose date no spelling the
+# Codex review of landing 3b.6, item 1): a rank whose date no spelling the
 # column writes can show without wearing an absent spelling is written on
 # another date.
 _HEAVY_WRITTEN_MISSED = (
@@ -24181,8 +24181,10 @@ class _ListedSpelling:
     every spelling the column's ranks wear, the first worn first, and
     `queues` the ranks standing on no listed date, ascending, by class
     and spelling, each queue's ranks already traded passed over through
-    `skips` (`_listed_free`). `spellings` is the column's, changed in
-    place by each trade.
+    `skips` (`_listed_free`), and `absent` each cell's answer asked so
+    far (`_listed_absent`). `spellings` is a copy of the column's,
+    changed by each trade; a bare view (no queues) only answers
+    `_listed_absent`.
     """
 
     facts: contract.DatetimeFacts
@@ -24196,6 +24198,7 @@ class _ListedSpelling:
     order: "list[_DateStyle]"
     queues: "dict[tuple[object, ...], list[int]]"
     skips: "dict[tuple[object, ...], dict[int, int]]"
+    absent: "dict[tuple[object, ...], bool]"
 
 
 def _listed_class(
@@ -24218,20 +24221,37 @@ def _listed_class(
     return (whole, offset, month < 10, day < 10)
 
 
-def _listed_cell(
+def _listed_absent(
     keep: _ListedSpelling, rank: int, style: _DateStyle
-) -> str:
-    """The cell `rank` writes on its own date in `style`, as the cell loop
-    writes it (`_interior_cell`)."""
-    return _interior_cell(
-        keep.facts,
+) -> bool:
+    """Whether the cell `rank` writes on its own date in `style`, as the
+    cell loop writes it (`_interior_cell`), wears an absent spelling.
+
+    Asked once per date, offset, mark, form and spelling (`keep.absent`):
+    the cell is a function of the five, and a listed date's ranks share
+    them.
+    """
+    asked = (
         keep.ordinals[rank],
         keep.offsets[rank],
         keep.marks[rank],
-        keep.holes,
         keep.whole[rank],
         style,
     )
+    if asked not in keep.absent:
+        keep.absent[asked] = _is_a_hole_spelling(
+            _interior_cell(
+                keep.facts,
+                keep.ordinals[rank],
+                keep.offsets[rank],
+                keep.marks[rank],
+                keep.holes,
+                keep.whole[rank],
+                style,
+            ),
+            keep.holes,
+        )
+    return keep.absent[asked]
 
 
 def _listed_free(skip: "dict[int, int]", at: int) -> int:
@@ -24250,7 +24270,7 @@ def _listed_date_respelled(keep: _ListedSpelling, rank: int) -> bool:
     """Keep `rank` on its listed date in a spelling the run does not read
     as absent: THE ONE HELPER every step that would move a rank off a
     listed date for its spelling asks first (method G7.3j step 8; the
-    Codex review of landing D4, item 1).
+    Codex review of landing 3b.6, item 1).
 
     In order: (a) a TRADE -- for each other spelling the column wears, in
     `keep.order`, under which this rank's date wears no absent spelling,
@@ -24277,7 +24297,7 @@ def _listed_date_respelled(keep: _ListedSpelling, rank: int) -> bool:
     for style in keep.order:
         if style == own:
             continue
-        if _is_a_hole_spelling(_listed_cell(keep, rank, style), keep.holes):
+        if _listed_absent(keep, rank, style):
             continue
         allowed += [style]
         place = (key, style)
@@ -24289,7 +24309,7 @@ def _listed_date_respelled(keep: _ListedSpelling, rank: int) -> bool:
         refused = 0
         while at < len(queue) and refused < _LISTED_PROBES:
             other = queue[at]
-            if not _is_a_hole_spelling(_listed_cell(keep, other, own), keep.holes):
+            if not _listed_absent(keep, other, own):
                 keep.spellings[rank] = style
                 keep.spellings[other] = own
                 skip[at] = at + 1
@@ -24315,7 +24335,7 @@ def _listed_spellings(
     listed: "frozenset[int]",
 ) -> "list[_DateStyle]":
     """Every rank of a listed date kept on it through the spelling (G7.3j
-    step 8; the Codex review of landing D4, item 1).
+    step 8; the Codex review of landing 3b.6, item 1).
 
     THE LISTED COUNT IS THE RANKS', AND THE CELLS MUST CARRY IT. 900
     dates through 2022 and a hundred more on 3 May, written alternately
@@ -24328,51 +24348,53 @@ def _listed_spellings(
     asks `_listed_date_respelled`, ascending, before any cell is written.
 
     Guarantees: returns the spellings, `spellings` itself where no listed
-    rank wears an absent spelling (no allocation is made then). Linear
-    in the ranks, plus `_LISTED_PROBES` dates per spelling per rank
-    traded. Draws no word. Determinism: a function of the eight. Raises
+    rank wears an absent spelling. Linear in the ranks, plus
+    `_LISTED_PROBES` dates per spelling per rank traded; each cell is
+    written once per date, offset, mark, form and spelling. Draws no word. Determinism: a function of the eight. Raises
     nothing. No I/O of any kind.
     """
     if not listed or not holes:
         return spellings
-    keep: "_ListedSpelling | None" = None
+    # The view is built at the first listed rank wearing an absent
+    # spelling: until then each check reads a bare view of no queues.
+    keep = _ListedSpelling(
+        facts=facts,
+        ordinals=ordinals,
+        offsets=offsets,
+        marks=marks,
+        whole=whole,
+        spellings=spellings,
+        holes=holes,
+        keys=[],
+        order=[],
+        queues={},
+        skips={},
+        absent={},
+    )
+    built = False
     for rank in range(len(spellings)):
         if ordinals[rank] not in listed:
             continue
-        if keep is None:
-            if not _is_a_hole_spelling(
-                _interior_cell(
-                    facts, ordinals[rank], offsets[rank], marks[rank],
-                    holes, whole[rank], spellings[rank],
-                ),
-                holes,
-            ):
-                continue
-            keep = _listed_setup(
-                facts, ordinals, offsets, marks, whole, spellings, holes, listed
-            )
-        elif not _is_a_hole_spelling(
-            _listed_cell(keep, rank, keep.spellings[rank]), holes
-        ):
+        if not _listed_absent(keep, rank, keep.spellings[rank]):
             continue
+        if not built:
+            keep = _listed_setup(keep, listed)
+            built = True
         _listed_date_respelled(keep, rank)
-    if keep is None:
-        return spellings
     return keep.spellings
 
 
 def _listed_setup(
-    facts: contract.DatetimeFacts,
-    ordinals: "list[int]",
-    offsets: "list[str]",
-    marks: "list[str]",
-    whole: "list[bool]",
-    spellings: "list[_DateStyle]",
-    holes: "tuple[str, ...]",
-    listed: "frozenset[int]",
+    bare: _ListedSpelling, listed: "frozenset[int]"
 ) -> _ListedSpelling:
     """The view `_listed_date_respelled` reads (`_ListedSpelling`), built
-    once per column, in one walk of the ranks."""
+    once per column from the bare view of `_listed_spellings`, in one
+    walk of the ranks; the spellings are a copy, changed by each trade."""
+    facts = bare.facts
+    ordinals = bare.ordinals
+    offsets = bare.offsets
+    whole = bare.whole
+    spellings = bare.spellings
     parsed = len(spellings)
     fields = _written_fields(facts, ordinals, offsets, parsed)
     keys: "list[tuple[object, ...]]" = []
@@ -24394,14 +24416,9 @@ def _listed_setup(
             queues[place] = []
             skips[place] = {}
         queues[place] += [rank]
-    return _ListedSpelling(
-        facts=facts,
-        ordinals=ordinals,
-        offsets=offsets,
-        marks=marks,
-        whole=whole,
+    return dataclasses.replace(
+        bare,
         spellings=[style for style in spellings],
-        holes=holes,
         keys=keys,
         order=order,
         queues=queues,
@@ -24417,7 +24434,7 @@ def _heavy_written_notes(
     said: "list[Deviation]",
 ) -> "list[Deviation]":
     """THE LISTED COUNTS AS WRITTEN (method G7.3j step 8; the Codex review
-    of landing D4, item 1): each listed date's rows recounted on the
+    of landing 3b.6, item 1): each listed date's rows recounted on the
     finished parsed cells, as validation V5-D1 counts them -- a cell
     wearing no published absent spelling (`_wears_a_published_hole`),
     read under the column's own member, on the day its text names. Where
@@ -24640,7 +24657,7 @@ def _datetime_content(
         facts, ordinals, offsets, parsed, plan.small_cell_floor
     )
     # ...AND A LISTED DATE KEEPS ITS ROWS THROUGH THE SPELLING (method
-    # G7.3j step 8; the Codex review of landing D4, item 1): a rank on a
+    # G7.3j step 8; the Codex review of landing 3b.6, item 1): a rank on a
     # listed date whose cell would wear an absent spelling trades its
     # spelling rather than its date, before any cell is written.
     if space != "datetime":
@@ -24770,7 +24787,7 @@ def _datetime_content(
     notes = notes + clock_field_notes
     notes = notes + heavy_notes
     # ...and the listed counts recounted on the cells as written, before
-    # any sentence says they are met (the Codex review of landing D4,
+    # any sentence says they are met (the Codex review of landing 3b.6,
     # item 1).
     notes = notes + _heavy_written_notes(column, facts, cells, holes, heavy_notes)
     used: dict[str, int] = {cell: 1 for cell in cells}

@@ -6930,7 +6930,25 @@ pins: the two tail boundaries and each published rung, at its rank.
    gave way to the listed dates wherever the twin listing nothing meets
    that census. The count of different values does
    not enter the weighing. At most twice the column's work. The pass
-   draws no word of its own. Its
+   draws no word of its own.
+8. **The spelling keeps the date** (the Codex review of landing 3b.6,
+   item 1). Once G7.5 has allocated every rank's spelling and before any
+   cell is written, each rank on a listed date, ascending, whose cell
+   would wear an absent spelling keeps its date (`_listed_date_respelled`,
+   the one rule every step that would move such a rank asks first): it
+   TRADES spellings with the first rank, ascending, standing on no
+   listed date, not yet traded, of its convention class (the same form
+   and offset; on a textual member the same month, elsewhere the month
+   below ten or not; the day below ten or not) and wearing another
+   spelling the column allocates, first allocated first, under which its
+   date wears no absent spelling, where that rank's own date wears none
+   in its spelling -- so every census of spellings keeps its counts; a
+   refused date's ranks are passed over together, at most 64 dates per
+   spelling. With no such rank it takes the first such spelling alone,
+   the spelling censuses recounted on the cells; with none, G7.5's step
+   off an absent spelling moves it as before. The listed counts are then
+   recounted on the written cells as V5-D1 counts them, and a miss is
+   named (`heavy_dates`) before any sentence says they are met. Its
 frozen cases are states in the nineteenth vectors file,
 `tests/reference/generation-branch-vectors-19.json`: a covered run, two
 loose dates, a listed boundary day, two listed dates with a hole between

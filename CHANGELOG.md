@@ -68,6 +68,14 @@ list: of the 19 that had given theirs way, 8 now give the count way and
 9 a census, each named, and 2 miss nothing (`K-S3-46`). Stated
 limits: clocked moments list nothing; the twin may heap dates it does
 not list, said in its report (`K-S3-47`). KPIs `K-S3-45` to `K-S3-47`.
+Its Codex review: a rank on a listed date whose spelling the table
+declares missing now trades its spelling rather than its date (G7.3j
+step 8), where 3 May's 52 rows had come back 31 under a report saying
+every listed count was met, and the listed counts are recounted on the
+written cells; HD3 bounds the list by the different values less one
+where any cell is unread, not less every unread row, so five copies of
+one unread text no longer withdraw a list of 57 dates; and V5-D1 prints
+80,000 listed dates in 0.04 s, where it took 2.4.
 
 ### The day-of-month census (2026-10-09)
 

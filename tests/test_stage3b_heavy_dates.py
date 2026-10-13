@@ -77,6 +77,16 @@ THE GATE'S CLAUSES, each beside what turns it red:
   (mutant: the oracle's tie gives the list way).
 * each part holds exactly its ranks: `test_each_part_holds_exactly_its_ranks` (mutant: the
   ranks a rounding placed beyond a part's own not trimmed).
+* the Codex review of landing 3b.6 (2026-10-13): the spelling keeps the date (G7.3j step 8),
+  `test_a_listed_date_keeps_its_rows_through_an_absent_spelling` at floors 11 and 36 (mutant:
+  the trade withdrawn, and the recount on the written cells names it) and
+  `test_the_oracle_keeps_a_listed_date_through_its_spelling` (mutant: the oracle's trade
+  withdrawn); HD3's bound on different values, `test_repeated_unread_text_keeps_the_list`
+  (mutant: rows subtracted again), `test_the_amended_bound_refuses_one_date_more_than_the_values`
+  and its producer-always-loads battery,
+  `test_every_description_with_unread_text_the_producer_writes_loads`; the census lines in
+  near-linear work, `test_the_short_counts_rule_in_closed_form_is_the_walk_s` and
+  `test_the_census_lines_grow_with_the_list_and_no_faster`.
 
 Test-local mutants build the product's module, and the oracle's
 namespace, with one source edit (one `compile` and one `exec` each
@@ -1194,7 +1204,7 @@ def test_the_plan_and_the_draw_count_no_more_as_rows_grow(monkeypatch: pytest.Mo
         assert large[0].get(name, 0) <= small[0][name] + 2, (name, small, large)
 
 
-# -- the Codex review of landing D4 (2026-10-13) -----------------------------------------
+# -- the Codex review of landing 3b.6 (2026-10-13) -----------------------------------------
 
 
 def _absent_third_of_may() -> "list[str]":
@@ -1227,7 +1237,7 @@ def _described_missing(folder: pathlib.Path, cells: "list[str]", floor: int, mis
 
 @pytest.mark.parametrize("floor", (11, 36))
 def test_a_listed_date_keeps_its_rows_through_an_absent_spelling(tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch, floor: int) -> None:
-    """THE CODEX REVIEW OF LANDING D4, ITEM 1 (G7.3j step 8). 3 May lists 52 rows; half the ranks
+    """THE CODEX REVIEW OF LANDING 3b.6, ITEM 1 (G7.3j step 8). 3 May lists 52 rows; half the ranks
     the spelling allocation put there were `3/5/2022`, which the table declares missing, and
     the step off an absent spelling moved 21 of them to other dates after the ranks held 52: the
     twin at seed 0 held 31, V5-D1 MISSED, and the report said every listed count was met. Now
@@ -1295,7 +1305,7 @@ def _weekly_with_unread(unread: "list[str]", replaced: bool) -> "list[str]":
 
 
 def test_repeated_unread_text_keeps_the_list(tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """THE CODEX REVIEW OF LANDING D4, ITEM 2 (contract HD3, amended). Five copies of one unread
+    """THE CODEX REVIEW OF LANDING 3b.6, ITEM 2 (contract HD3, amended). Five copies of one unread
     text in place of cells 300 to 304: 60 dates, 61 different values, five unread rows; 57
     dates stand out, and the producer withdrew the whole list against 61 - 5 = 56, where five
     different unread texts kept all 57. The bound is now the column's different values less
@@ -1380,7 +1390,7 @@ def _pinned_by_walking(found: "list[int]", short: "list[int]", line: int) -> boo
 
 
 def test_the_short_counts_rule_in_closed_form_is_the_walk_s() -> None:
-    """THE CODEX REVIEW OF LANDING D4, ITEM 3: the closed form of `_short_counts_pinned` answers
+    """THE CODEX REVIEW OF LANDING 3b.6, ITEM 3: the closed form of `_short_counts_pinned` answers
     as the walk did on 6,000 random censuses of one to nine groups, lines 2 to 12."""
     chooser = random.Random(20261013)
     for _ in range(6000):
@@ -1409,11 +1419,15 @@ def _census_seconds(entries: int, short: bool) -> float:
 
 
 def test_the_census_lines_grow_with_the_list_and_no_faster() -> None:
-    """THE CODEX REVIEW OF LANDING D4, ITEM 3: V5-D1 prints one group per listed date, and
+    """THE CODEX REVIEW OF LANDING 3b.6, ITEM 3: V5-D1 prints one group per listed date, and
     `_census_lines` rebuilt its cumulative text per group and scanned the short groups' list
     per group -- 0.014 seconds at 5,000 entries, 2.4 at 80,000 (ten at 80,000 with half of
     them short). Eight times the entries now take less than twenty times the time, met and
     short, and 80,000 short entries print in under a second; the walk restored is red."""
+    chooser = random.Random(7)
+    for many in range(0, 40):
+        parts = [f"date {chooser.randint(0, 99)}" for _ in range(many)]
+        assert validation._comma_joined(parts) == ", ".join(parts)
     for short in (False, True):
         small = _census_seconds(10000, short)
         large = _census_seconds(80000, short)
