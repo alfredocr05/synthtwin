@@ -6750,7 +6750,7 @@
    "status_note": "THE ORCHESTRATOR'S READING OF THE OWNER'S CLASS OF 2026-09-30 ('Accept the class', plan P4-D363), NOT a new ruling and NOT to be re-asked: a count below 11 worked out within one column -- here, that one hour, minute or second of a merged group holds 1 to 10 rows -- is accepted; it is a range, never a value, a date or a row, and never about another column.",
    "nodes_min_collected": 0,
    "value_at": {
-    "commit": "6dfbb77",
+    "commit": "353f99b",
     "date": "2026-10-13",
     "measured_by": "tools/measurements/kpi_run.py --slow --only K-S3-41 --only K-S3-42 --print-values",
     "value": {
@@ -6811,7 +6811,7 @@
    "evidence": "Before (2341173), no column of moments published its minutes or seconds and the twin drew them evenly: clinic slots 71 per cent on :00 or :30 came back at 3 to 4, cells written HH:MM:00 at random seconds. After, every field in scope is met; the battery's numbers are plan P4-D372's. At 10,000 rows the independence clause failed 1,482 times on be06ecc, the shared pass filling each gap's shares nearest first and whole runs first, and holds since KIN SHARES (method G7.3h), each hour group taking its own share of every group of the field; the clause itself leaves out cells at a written midnight and a value an hour group expects fewer than the line's cells of, or off, which the real table failed. The lane's skeptic then found, on bc3f006: 200,000 cells written HH:MM:00 came back 602 at midnight against 385 -- hour 0 given its share of minute 0 in proportion, its cells there midnight cells -- met since a rank whose place on value 0 is written at midnight is not free to take it; admissions drawn at seed 82001 failed INDEPENDENCE at 9 of 10 twins, hour 8 taking minute 6's rounding remainder in most of 38 gaps, met since each kin group's shares carry their rounding from gap to gap; and the clause's own reading of hour 0 failed cells written HH:MM:00 at floor 36, which now expect no minute 0 in hour 0. The repair's own battery then found 1,000 check-ins in bursts drawn at seed 82001 one cell long at midnight, the gap's single moves putting ranks of hour 0 onto 00:00, met since a written midnight is a kind of its own on such a pass; and a column on the hour at 1,000 and 10,000 rows one cell short on its heap at minute 0 under that rule alone, met since the tails make room at midnight. The 40,000-row node's seconds, measured 1.6 to 2.7 under load, are bounded at 5.",
    "nodes_min_collected": 8,
    "value_at": {
-    "commit": "6dfbb77",
+    "commit": "353f99b",
     "date": "2026-10-13",
     "measured_by": "tools/measurements/kpi_run.py --slow --only K-S3-41 --only K-S3-42 --print-values",
     "value": {
@@ -6826,7 +6826,7 @@
      "pinned_nodes_failing": 0,
      "rounds_200k_missed": 0,
      "rounds_40k_missed": 0,
-     "rounds_40k_pass_seconds": 1.99,
+     "rounds_40k_pass_seconds": 3.78,
      "shape": 0,
      "weekday_changed": 0
     }
