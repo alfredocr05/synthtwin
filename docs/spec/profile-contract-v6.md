@@ -6626,7 +6626,7 @@ measures -- and a census they publish may still be missed at that share
 of seeds, and at more where a twin draws past the expectation the rules
 read and the count pass merges where they read a split: a
 Tuesday-to-Thursday clinic at the floor of 11 at four seeds in ten (P4-D369
-part one). Until lane D4s split the two tails' ranks first, twins of 21
+part one). Until the count pass split the two tails' ranks first, twins of 21
 censuses on logs just above one row an open day came back one to four
 values short at two to seven seeds in ten where the count pass split, a
 risk the orchestrator's ruling of 2026-10-08 let stand beside the first
@@ -6665,10 +6665,10 @@ or none beside the two tails' fewest -- while the high tail keeps the
 days it drew, except where the pass takes more than a quarter of the
 body's drawn days and it gives some up too. Where they fall short it
 SPLITS ranks onto free days, the two tails' ranks first, then the
-body's, each nearest first, then the lower rank (since lane D4s, plan
-P4-D369 part one): a tail splits a rank only onto a free day inside that
+body's, each nearest first, then the lower rank (since plan P4-D369
+part one): a tail splits a rank only onto a free day inside that
 rank's own stratum, and only while the count wants more, so no body rank
-splits while a tail rank still can. Until lane D4s it split nearest first
+splits while a tail rank still can. Until then it split nearest first
 alone: a body rank one day from a free day split before any high tail
 rank whose free day was further, so the high tail kept the days it drew
 unless the body's nearer splits ran out first, and the low tail, first
@@ -6703,8 +6703,8 @@ land, in expectation, on n(1 - (1 - 1/n)^r) of a gap's n days that are
 no hole, r its ranks -- with the pin days, the body's DRAW. Where the
 draw and the tails' most fall short of the count the pass only splits,
 and the rule reads the body's NEED as what the tails at their most leave
-it: the body splits only once the tails can split no further (until lane
-D4s, where the body's nearer splits did not run out before the high
+it: the body splits only once the tails can split no further (until
+then, where the body's nearer splits did not run out before the high
 tail's, the high tail kept the days it drew and the body needed more
 than that, the risk above); otherwise it merges, which only
 takes days away, so the body keeps no more than its draw and the tails
@@ -6807,7 +6807,7 @@ Such a column carried the near-one risk of a column of dates, which
 P4-D388 let stand: on a log just above one row an open day, where the
 count pass split a body rank before the high tail's, a published census
 could leave twins a day or two short at some seeds -- 81 of 2,360 twins
-of the 90 near-one logs written ISO at midnight. Since lane D4s splits
+of the 90 near-one logs written ISO at midnight. Since the count pass splits
 the two tails' ranks first (P4-D369 part one) 5 are, each where the
 count pass merges, the draw past the rules' expectation. Validation names
 that miss on a member writing
