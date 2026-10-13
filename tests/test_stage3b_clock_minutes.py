@@ -40,6 +40,7 @@ this file holds the landing's own rules, each red on its mutant:
 
 from __future__ import annotations
 
+import ast
 import collections
 import csv
 import dataclasses
@@ -800,3 +801,39 @@ def test_red_when_the_clock_line_is_asked_with_the_rare_words(monkeypatch: pytes
     cells = _capsweep(0.025, 1000, 36)
     document, _path, _table = _document({"c": cells}, floor=36)
     assert document["columns"][0]["role"] != taxonomy.ROLE_CLOCK
+
+
+_AMBIGUOUS_NAMES = frozenset({"l", "O", "I"})
+
+
+def _ambiguous_names(source: str) -> "list[tuple[int, str]]":
+    """The names ruff's E741 reports in one file: a variable, a loop or
+    comprehension target, or an argument spelled l, O or I."""
+    found: "list[tuple[int, str]]" = []
+    for node in ast.walk(ast.parse(source)):
+        if isinstance(node, ast.Name) and isinstance(node.ctx, ast.Store) and node.id in _AMBIGUOUS_NAMES:
+            found += [(node.lineno, node.id)]
+        elif isinstance(node, ast.arg) and node.arg in _AMBIGUOUS_NAMES:
+            found += [(node.lineno, node.arg)]
+    return found
+
+
+def test_no_ambiguous_name_in_the_tree_ruff_reads() -> None:
+    """CI runs `ruff check .`, and its E741 went red on the oracle's minute-group
+    lookup (`(f, l, _c)`, lane C2's landing 32cec7d) while every test stayed
+    green; the suite now asks the same of src, tests and tools."""
+    root = pathlib.Path(__file__).resolve().parents[1]
+    reported = [
+        (str(path.relative_to(root)), line, name)
+        for folder in ("src", "tests", "tools")
+        for path in sorted((root / folder).rglob("*.py"))
+        for line, name in _ambiguous_names(path.read_text(encoding="utf-8"))
+    ]
+    assert reported == []
+
+
+def test_red_when_the_minute_group_lookup_names_its_last_minute_l() -> None:
+    """MUTATION: the oracle's lookup as 32cec7d wrote it -- the check reports
+    its `l`, so the tree-wide test above goes red on it."""
+    mutant = "def group_of(minute):\n    return next(i for i, (f, l, _c) in enumerate(groups) if f <= minute <= l)\n"
+    assert _ambiguous_names(mutant) == [(2, "l")]

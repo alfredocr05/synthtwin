@@ -24806,7 +24806,11 @@ def clock_minute_owed(minute_groups, heap_at, kept, form):
     owed = [count for _f, _l, count in minute_groups]
 
     def group_of(minute):
-        return next(i for i, (f, l, _c) in enumerate(minute_groups) if f <= minute <= l)
+        return next(
+            i
+            for i, (first, last, _c) in enumerate(minute_groups)
+            if first <= minute <= last
+        )
 
     for at, count in heap_at.items():
         owed[group_of(clock_minute_of(at, form))] -= count
