@@ -8904,7 +8904,9 @@ a comma. R's rule writes an exponent only where it is the shorter, so a
 column of whole counts written with a needless one, `1704067200e+0` or
 `1704067200000e-3`, is held by its form and written back in full,
 `1704067200`: the one spelling of such a column the twin does not keep
-(the verification of the Codex review of landing R4, item 8). A `days-since-1840` column writes its day count alone where
+(the verification of the Codex review of landing R4, item 8), against
+the owner's rule that every spelling comes back as written: owned by
+lane L1, its item 2 (the orchestrator, 2026-10-13). A `days-since-1840` column writes its day count alone where
 no census of contact numbers is published -- none reaching the line
 (the second review of landing R4, item 1) -- and otherwise its day count
 and, after the point, the contact number the census gives the cell,

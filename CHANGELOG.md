@@ -6,6 +6,21 @@ exists).
 
 ## [Unreleased]
 
+### Partial dates that step stay inside the column's dates, and Q6 answered `keep` stays answered (2026-10-13)
+
+**The fifth push's critic** (plan P4-D383; the orchestrator's rulings of
+2026-10-13). A partial-date column whose values are all different, 120
+ISO dates of 2024 beside 80 different years 1900 to 1979, came back with
+years 1984 to 2063, 39 of them after the column's last date, and
+`validate` said nothing was missed. A partial cell that has to step now
+looks inside the span the full dates cover first, then before it, then
+after it: the years come back 1945 to 2024, all 200 values different.
+Where the source's own partial dates lay is published nowhere, so the
+twin does not put them there. A column whose question Q6 was answered
+`keep` is no longer asked Q6 again by the run reading that answer. The
+records now name an owner, or an acceptance, for every stated limit of
+the week: lane S4b, lane J2, lane L1, lane L2, landing 3b.7 and lane D4.
+
 ### Partial dates are read at their own precision, and a column mostly of dates is asked (2026-10-09)
 
 **Landing R2c, the layout reader's questions and partial dates** (plan
@@ -132,7 +147,7 @@ spelling the run declares absent keeps its published groups, and the
 finished cells are recounted, so a census missed after the day pass is
 named and never said met; a column over centuries no longer stores
 every weekend day or every day's bin (1,000 rows over two thousand
-years: 85.6 MB traced to 4.2 MB, the same twin); and the note on a
+years: 85.7 MB traced to 4.2 MB, the same twin); and the note on a
 census kept back says it could cost a fact, or that a conservative rule
 keeps it back.
 
@@ -228,6 +243,9 @@ another; a rare count read as no value is no longer held to the form;
 `17e+8` is a count; a cell `1e+9999` no longer costs kilobytes, nor
 `45042.` with four thousand zeros an internal fault; and Q3 asks Unix
 counts at midnight written `.0` or crossing from nine figures to ten.
+A stated limit: whole counts written with a needless exponent,
+`1704067200e+0` or `1704067200000e-3`, come back written in full,
+`1704067200`, owned by lane L1 (the orchestrator, 2026-10-13).
 
 At integration (batch 2b's second part), the weekday census on moments
 holds both placeholder days of a column of counted dates as holes, as the
@@ -354,7 +372,8 @@ its hour census, said by a deviation: five noon stamps a day, 4 twins of
 10; two clocks a day, 7 of 10; eleven `23:59:60` a date, every twin, its
 count of values and its count at midnight too; none without the weekday
 census.
-A stated limit in P4-D367, owed to a lane still to be named.
+A stated limit in P4-D367, owed to a lane still to be named -- closed by
+lane J (P4-D379).
 KPIs `K-S3-36` (new) and `K-S3-37` (new, an accepted limit, status only).
 
 ### Time of day comes back on moments (2026-10-06)

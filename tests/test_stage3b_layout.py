@@ -16,7 +16,7 @@ holds a layout's declaration both ways (mutant: S8c blind to a layout);
 C6 LY1 admits the clock half exactly, discovery and LY1 one set (mutant: a
 declared dial not taken back); C7 a padded hour is not read as one figure
 (mutant: the nought set aside); C8 a declared dial's twin says what it
-cannot hold, beside a strict expected failure owned by landing T2; and C9
+cannot hold, beside a test that passes since batch 3's integration; and C9
 a choice asks one text's productions at most twice (mutants: the memo
 dropped; the last-character test withdrawn).
 
@@ -2979,10 +2979,11 @@ def test_r2b_c8_a_declared_dial_says_what_it_cannot_hold(tmp_path: pathlib.Path)
 def test_r2b_c8_a_declared_dial_validates_clean(tmp_path: pathlib.Path) -> None:
     """Beside T1's R9: P4-D370's stated limit, met at batch 3's integration.
 
-    A strict xfail owned by landing T2 on R2b's branch: the half-day draw
-    is T2's (P4-D371), and it now takes the layout's dial too
-    (`generation._on_the_half_day`, the validator's tails and the
-    oracle's `on_the_half_day`).
+    It was a strict xfail on R2b's branch, waiting on landing T2's
+    half-day draw (P4-D371); since batch 3's integration (integration fix
+    4) that draw takes the layout's dial too (`generation._on_the_half_day`,
+    the validator's tails and the oracle's `on_the_half_day`), and this
+    is an ordinary passing test.
     """
     _block, profile, _questions = _described(
         tmp_path, _morning_stamps(1000), "--twelve-hour", "seen_at"
@@ -3469,7 +3470,8 @@ def test_r2b_x4_a_joined_meridiem_beside_rare_words_keeps_its_shape(tmp_path: pa
 
 @pytest.mark.xfail(
     strict=True,
-    reason="Owned by lane R2b (the records round of 2026-10-09, STATE's limits): "
+    reason="Owned by lane L2, forms that hold a space (the orchestrator, 2026-10-13; "
+    "measured by lane R2b, which has landed; STATE's limits): "
     "parsing.shape_form gives no form to a cell holding a space or U+202F "
     "(contract C6-97, section 7.9), so `9:15 AM` and `08:15:30.123 AM` publish no "
     "forms and the twin of such a column beside rare words writes 0 of its 969 "
@@ -5049,7 +5051,8 @@ def test_r1_codes_question_is_put_where_the_code_clears_the_line(
 @pytest.mark.xfail(
     strict=True,
     reason=(
-        "P4-D373's stated limit, measured cause: at a floor of 36 the code `UNK` "
+        "P4-D373's stated limit, ACCEPTED by the orchestrator on 2026-10-13; "
+        "measured cause: at a floor of 36 the code `UNK` "
         "is on 11 cells (300 rows) and 25 (1,000 rows), under the census line, "
         "and R1's question names its code; naming it would print a spelling the "
         "floor holds back, and no settings key declares unnamed cells missing"
