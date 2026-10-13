@@ -39,6 +39,10 @@ tail; and finding payers cost the square of a unit's size, 6.3 CPU
 seconds for 32,000 ranks, now 0.14. The lane's 880 battery twins are byte
 for byte as before. `K-S3-62` holds it.
 
+At integration (batch 3's first part), the hour pass holds a column of
+counted dates' placeholder days as holes too, as the weekday pass and
+the reference do, since the round moves ranks by whole days.
+
 ### Numbers that are dates are read as dates and written back as the same numbers (2026-10-07)
 
 **Landing R4** (plan P4-D384), with its review's nine items, its

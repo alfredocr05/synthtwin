@@ -26515,6 +26515,7 @@ def _hour_settled(
     layout: "_DateLayout",
     holes: "tuple[str, ...]",
     declared_days: "tuple[str, ...]" = (),
+    counted_holes: "tuple[str, ...]" = (),
 ) -> "tuple[list[int], list[Deviation]]":
     """Meet the published hour census of a column of moments (method G7.3g).
 
@@ -26585,6 +26586,14 @@ def _hour_settled(
         }
     hole_days = hole_days | set(_published_holes(column, facts, declared_days))
     hole_days = hole_days | set(_heavy_holes(facts))
+    # -- 3b.R4 (P4-D384) beside lane J (P4-D379), met at batch 3's
+    # integration: the placeholder days of a column of counted dates
+    # (``counted_holes``, G7.10) are holes here too, as in the weekday
+    # pass and in the oracle's `hour_settled`. G7.3g step 3's escape paid
+    # back moves ranks by whole days, and a rank it left on such a day
+    # would be read back as no value, or moved off it by G7.10's last
+    # pass after both censuses were met.
+    hole_days = hole_days | set(_hole_days(counted_holes))
     where = [0 for _hour in range(calendar_clock.HOURS)]
     for index in range(len(census)):
         for hour in range(census[index][0], census[index][1] + 1):
@@ -28149,7 +28158,7 @@ def _datetime_content(
     # -- the hour of the written clock (3b.T2, P4-D371)
     ordinals, hour_notes = _hour_settled(
         column, facts, ordinals, parsed, whole, gap_lows, gap_highs, layout,
-        holes, plan.declared_days,
+        holes, plan.declared_days, plan.counted_holes,
     )
     # -- the minute and the second (3b.T3, P4-D372)
     ordinals, clock_field_notes = _clock_fields_settled(

@@ -8676,7 +8676,10 @@ weekday pass holds each a hole, as it holds both placeholder days on a
 column of moments (at this landing's integration beside landing 3b.D2:
 1,000 SAS seconds across 1 January 1900, a Monday, came out of the
 last pass below with seven Monday ranks on Sunday and missed the weekday
-census at seed 0). NO TAIL REACHES A WALL OF THEM: the
+census at seed 0), and so does the hour pass, whose escape paid back
+(G7.3g step 3) moves ranks by whole days (at batch 3's integration
+beside lane J; the reference's hour pass always held them). NO TAIL
+REACHES A WALL OF THEM: the
 stretches beyond a tail's boundary the column's counts cannot hold --
 either placeholder day, the day or the instant serial 2 names (on a
 column of moments, the written unit's span of it), and on Excel's two

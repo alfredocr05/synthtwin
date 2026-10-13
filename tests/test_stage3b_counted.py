@@ -1468,6 +1468,65 @@ def test_c5_a_counted_column_crossing_1_january_1900_twins_no_date_on_it(tmp_pat
         assert list(date_counts.hole_words(system)) == wanted, system
 
 
+def test_c5_the_hour_pass_holds_the_placeholder_days_of_counted_moments(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Batch 3's integration, lane J beside lane R4 (plans P4-D379 and P4-D384).
+
+    G7.3g step 3's escape paid back moves ranks by whole days, so the hour
+    pass now holds a column of counted dates' placeholder days as holes, as
+    the weekday pass does (G7.10) and as the oracle's `hour_settled` always
+    did (`weekday_hole_days`). Five SAS seconds at noon on each of 118 days
+    from 1 November 1899, none on 1 January 1900, publish a weekday census
+    and an hour census of hour 12; the round moves payers at seeds 1 and
+    2. Every clock pass holds the day, no twin cell names it, and every
+    twin is at exit 0. THE MUTANT: the hour pass handed no counted holes,
+    whose state then holds no hole at all.
+    """
+    system = "seconds-since-1960"
+    cells: "list[str]" = []
+    for step in range(118):
+        day = datetime.date(1899, 11, 1) + datetime.timedelta(days=step)
+        if day != datetime.date(1900, 1, 1):
+            cells += [_counted_from(system, datetime.datetime.combine(day, datetime.time(12)))] * 5
+    path = _table_of(tmp_path, {"t": cells})
+    code, said = _exit_of(["profile", str(path), "--date-count", "t", system, "--out-dir", str(tmp_path), "--replace"])
+    assert code == 0, said[-600:]
+    described = tmp_path / "table-profile.json"
+    block = json.loads(described.read_text(encoding="utf-8"))["columns"][0]
+    assert block["role"] == "datetime" and block["weekday_census"] and block["hour_census"]
+    placeholder = parsing.days_from_civil(1900, 1, 1)
+    held: "list[bool]" = []
+    real_pass = generation._clock_pass
+
+    def watched(state: "generation._WeekdayPass", *rest: object, **named: object) -> object:
+        nonlocal held
+        held += [placeholder in state.holes]
+        return real_pass(state, *rest, **named)  # type: ignore[arg-type]
+
+    monkeypatch.setattr(generation, "_clock_pass", watched)
+    for seed in (0, 1, 2):
+        held.clear()
+        code, said = _exit_of(["generate", str(described), "--seed", f"{seed}", "--out-dir", str(tmp_path), "--replace"])
+        assert code == 0, said[-600:]
+        assert held == [True], (seed, held)
+        twin = [row[0] for row in csv.reader(io.StringIO((tmp_path / "table-twin.csv").read_text(encoding="utf-8")))][1:]
+        assert [cell for cell in twin if cell and _day_written(system, cell) == datetime.date(1900, 1, 1)] == [], seed
+        out = tmp_path / f"check-{seed}"
+        out.mkdir()
+        assert _exit_of(["validate", str(described), "--twin", str(tmp_path / "table-twin.csv"), "--out-dir", str(out), "--replace"])[0] == 0, seed
+    real_hours = generation._hour_settled
+
+    def no_counted(*arguments: object, **named: object) -> object:
+        return real_hours(*arguments[:10], **named)  # type: ignore[arg-type]
+
+    monkeypatch.setattr(generation, "_hour_settled", no_counted)
+    held.clear()
+    code, said = _exit_of(["generate", str(described), "--seed", "1", "--out-dir", str(tmp_path), "--replace"])
+    assert code == 0, said[-600:]
+    assert held == [False]
+
+
 def _excel_births_from_1900(drawn_by: str) -> "list[str]":
     """Ten thousand Excel date-times `%.15g` at whole minutes, births from 1 January 1900 to 1935."""
     draw = random.Random(drawn_by)
