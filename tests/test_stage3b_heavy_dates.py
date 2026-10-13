@@ -800,7 +800,7 @@ def test_the_list_stands_and_what_gave_way_is_named(
         assert _gave_way(twin, "n_distinct") == [generation._HEAVY_COUNT_LONG]
     if label == "census":
         assert _gave_way(twin, calendar_rules.DAY_OF_MONTH_CENSUS) == [
-            generation._HEAVY_CENSUS_GIVEN_WAY.format(check="the published counts per day of the month")
+            generation._HEAVY_CENSUS_GIVEN_WAY[calendar_rules.DAY_OF_MONTH_CENSUS]
         ]
     if label == "window":
         assert _gave_way(twin, "n_distinct") == []
@@ -856,9 +856,7 @@ def test_the_weighing_keeps_the_list_on_a_tie_and_gives_it_way_below(
             assert (found is None) is stands, (module.__name__, weight)
             if found is not None:
                 assert found[1][-1].fact == calendar_rules.HEAVY_DATES
-                assert found[1][-1].note == generation._HEAVY_GIVEN_WAY.format(
-                    check="the published counts per day of the month"
-                )
+                assert found[1][-1].note == generation._HEAVY_GIVEN_WAY[(calendar_rules.DAY_OF_MONTH_CENSUS,)]
 
 
 def test_a_count_left_off_is_the_day_pass_s_to_repair(tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch) -> None:

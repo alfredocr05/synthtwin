@@ -57,10 +57,15 @@ validator counts the file's cells on each listed date (V5-D1), and the
 oracle and the nineteenth vectors file freeze the plan. Lane D3's two
 limits are lifted: quarter ends and one month a year at 10,000 rows meet
 every check, and six Mays generate in 96 s at 1,000,000 rows where the
-discarded joint plan took about 640 s. No check the twin of a column
-listing nothing meets is lost: where the twin drawn with the list would
-miss a census or the count that twin holds, the list gives way, named
-(19 of 1,395 listing twins over the batteries; `K-S3-46`). Stated
+discarded joint plan took about 640 s. What gives way follows the
+orchestrator's rulings of 2026-10-13: beside a list the count of
+different values gives way, named as its cause; against a census the
+twin standing fewer rows off the census and the listed dates stands, a
+tie keeping the list; and the count is read as the validator judges it,
+exactly only inside G12.5's envelope (one test, stated in the contract
+module). Over the batteries every one of 1,395 listing twins holds its
+list: of the 19 that had given theirs way, 8 now give the count way and
+9 a census, each named, and 2 miss nothing (`K-S3-46`). Stated
 limits: clocked moments list nothing; the twin may heap dates it does
 not list, said in its report (`K-S3-47`). KPIs `K-S3-45` to `K-S3-47`.
 

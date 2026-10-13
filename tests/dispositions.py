@@ -462,7 +462,8 @@ PLAN4_REGIONS = {
     ),
     # anchor 3b-D4 (P4-D369)
     "heavy-dates": (
-        "## Decision P4-D369 — the dates that stand out (2026-10-12)"
+        "## Decision P4-D369 — the count pass splits the tails first, and "
+        "dates that stand out (stage 3b lanes D4s and D4, 2026-10-12)"
     ),
     # anchor 3b-T1 (P4-D370)
     # anchor 3b-T2 (P4-D371)

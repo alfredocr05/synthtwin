@@ -6915,9 +6915,10 @@ pins: the two tail boundaries and each published rung, at its rank.
    2026-10-13). Where the sorted ranks meet every group of the weekday
    and the day-of-month census beside the list, the listed twin stands,
    whatever the count of different values holds: beside a list the
-   count gives way, and where it is off as step 5 judges it one
-   deviation says the count gave way to the listed dates, read as the
-   count's cause. Where they miss a group, the column is drawn again
+   count gives way, and where it is off as step 5 judges it and the
+   twin of the column listing nothing stands nearer it, one deviation
+   says the count gave way to the listed dates, read as the count's
+   cause. Where they miss a group, the column is drawn again
    from the same words as if it listed no date -- the twin of the
    column without `heavy_dates`, byte for byte -- and the two are
    weighed by ROWS OFF the published counts: over every group of both
@@ -6926,7 +6927,8 @@ pins: the two tail boundaries and each published rung, at its rank.
    fewer rows off, and one deviation names the list and the census it
    gave way to (`heavy_dates`, "as if no date were listed"); a tie
    keeps the list, and then each missed census's deviation says it
-   gave way to the listed dates. The count of different values does
+   gave way to the listed dates wherever the twin listing nothing meets
+   that census. The count of different values does
    not enter the weighing. At most twice the column's work. The pass
    draws no word of its own. Its
 frozen cases are states in the nineteenth vectors file,

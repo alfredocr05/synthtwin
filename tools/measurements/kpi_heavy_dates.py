@@ -157,7 +157,7 @@ def _narrowed_days(block: dict) -> int:
 def _given_way(twin: generation.Twin) -> int:
     """1 where the twin's list gave way (method G7.3j step 7), else 0."""
     return 1 if any(
-        note.fact == calendar_rules.HEAVY_DATES and note.note.startswith(generation._HEAVY_GIVEN_WAY_HEAD)
+        note.fact == calendar_rules.HEAVY_DATES and note.note in generation._HEAVY_GIVEN_WAY_NOTES
         for note in twin.deviations
     ) else 0
 

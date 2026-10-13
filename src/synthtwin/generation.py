@@ -20554,31 +20554,68 @@ def _heavy_listed_off(
 
 
 # WHAT GAVE WAY, NAMED (G7.3j step 7; the orchestrator's rulings (a) and
-# (b) of 2026-10-13): the check the list gave way to, or the census or
-# the count that gave way to the list.
-_HEAVY_CHECK_NAMES = {
-    (calendar_rules.WEEKDAY_CENSUS,): "the published counts per day of the week",
-    (calendar_rules.DAY_OF_MONTH_CENSUS,): "the published counts per day of the month",
+# (b) of 2026-10-13): the census the list gave way to, or the census or
+# the count that gave way to the list, each sentence whole.
+_HEAVY_WEEKDAYS_NAMED = "the published counts per day of the week"
+_HEAVY_MONTH_DAYS_NAMED = "the published counts per day of the month"
+_HEAVY_BOTH_NAMED = (
+    "the published counts per day of the week and per day of the month"
+)
+_HEAVY_LIST_OPEN = (
+    "Drawn holding the dates that stand out at their published counts, "
+    "the twin missed "
+)
+_HEAVY_LIST_MIDDLE = (
+    "; drawn as if no date were listed it stands fewer rows off the "
+    "published counts, the listed dates' and the census's together, so it "
+    "is drawn so: the listed dates gave way to "
+)
+_HEAVY_LIST_CLOSE = " and hold other counts."
+_HEAVY_LIST_TO_WEEKDAYS = (
+    _HEAVY_LIST_OPEN + _HEAVY_WEEKDAYS_NAMED + _HEAVY_LIST_MIDDLE
+    + _HEAVY_WEEKDAYS_NAMED + _HEAVY_LIST_CLOSE
+)
+_HEAVY_LIST_TO_MONTH_DAYS = (
+    _HEAVY_LIST_OPEN + _HEAVY_MONTH_DAYS_NAMED + _HEAVY_LIST_MIDDLE
+    + _HEAVY_MONTH_DAYS_NAMED + _HEAVY_LIST_CLOSE
+)
+_HEAVY_LIST_TO_BOTH = (
+    _HEAVY_LIST_OPEN + _HEAVY_BOTH_NAMED + _HEAVY_LIST_MIDDLE
+    + _HEAVY_BOTH_NAMED + _HEAVY_LIST_CLOSE
+)
+# The sentence naming the list given way, by the censuses the listed twin
+# missed (`_heavy_census_off`), and every such sentence.
+_HEAVY_GIVEN_WAY = {
+    (calendar_rules.WEEKDAY_CENSUS,): _HEAVY_LIST_TO_WEEKDAYS,
+    (calendar_rules.DAY_OF_MONTH_CENSUS,): _HEAVY_LIST_TO_MONTH_DAYS,
     (
         calendar_rules.WEEKDAY_CENSUS,
         calendar_rules.DAY_OF_MONTH_CENSUS,
-    ): "the published counts per day of the week and per day of the month",
+    ): _HEAVY_LIST_TO_BOTH,
 }
-_HEAVY_GIVEN_WAY = (
-    "Drawn holding the dates that stand out at their published counts, "
-    "the twin missed {check}; drawn as if no date were listed it stands "
-    "fewer rows off the published counts, the listed dates' and the "
-    "census's together, so it is drawn so: the listed dates gave way to "
-    "{check} and hold other counts."
+_HEAVY_GIVEN_WAY_NOTES = (
+    _HEAVY_LIST_TO_WEEKDAYS, _HEAVY_LIST_TO_MONTH_DAYS, _HEAVY_LIST_TO_BOTH,
 )
-# How every deviation naming the list given way begins (`_spread_remarks`).
-_HEAVY_GIVEN_WAY_HEAD = _HEAVY_GIVEN_WAY.split("{check}")[0]
-_HEAVY_CENSUS_GIVEN_WAY = (
+_HEAVY_CENSUS_OPEN = (
     "The twin holds the dates that stand out at their published counts "
-    "and, drawn so, misses {check}; drawn as if no date were listed it "
-    "would stand as many rows off the published counts or more, the "
-    "listed dates' among them, so {check} gave way to the listed dates."
+    "and, drawn so, misses "
 )
+_HEAVY_CENSUS_MIDDLE = (
+    "; drawn as if no date were listed it would stand as many rows off the "
+    "published counts or more, the listed dates' among them, so "
+)
+_HEAVY_CENSUS_CLOSE = " gave way to the listed dates."
+# The sentence of a census that gave way to the list, by its fact.
+_HEAVY_CENSUS_GIVEN_WAY = {
+    calendar_rules.WEEKDAY_CENSUS: (
+        _HEAVY_CENSUS_OPEN + _HEAVY_WEEKDAYS_NAMED + _HEAVY_CENSUS_MIDDLE
+        + _HEAVY_WEEKDAYS_NAMED + _HEAVY_CENSUS_CLOSE
+    ),
+    calendar_rules.DAY_OF_MONTH_CENSUS: (
+        _HEAVY_CENSUS_OPEN + _HEAVY_MONTH_DAYS_NAMED + _HEAVY_CENSUS_MIDDLE
+        + _HEAVY_MONTH_DAYS_NAMED + _HEAVY_CENSUS_CLOSE
+    ),
+}
 _HEAVY_COUNT_SHORT = (
     "The twin holds the dates that stand out at their published counts "
     "and, drawn so, holds fewer different values than the description "
@@ -20658,7 +20695,7 @@ def _heavy_given_way(
                 calendar_rules.HEAVY_DATES,
                 "the published counts",
                 "the counts of a twin listing no date",
-                _HEAVY_GIVEN_WAY.format(check=_HEAVY_CHECK_NAMES[missed]),
+                _HEAVY_GIVEN_WAY[missed],
             )
         ],
     ), ranks
@@ -20735,10 +20772,7 @@ def _heavy_kept_notes(
             calendar_rules.WEEKDAY_CENSUS, calendar_rules.DAY_OF_MONTH_CENSUS
         ) and note.fact not in bare_missed:
             note = dataclasses.replace(
-                note,
-                note=_HEAVY_CENSUS_GIVEN_WAY.format(
-                    check=_HEAVY_CHECK_NAMES[(note.fact,)]
-                ),
+                note, note=_HEAVY_CENSUS_GIVEN_WAY[note.fact]
             )
         if caused and note.fact == "n_distinct" and note.note in _COUNT_CAUSES:
             continue
@@ -44553,7 +44587,7 @@ def generate(profile: contract.Profile, seed: int) -> Twin:
             frozenset(note.fact for note in notes),
             any(
                 note.fact == calendar_rules.HEAVY_DATES
-                and note.note.startswith(_HEAVY_GIVEN_WAY_HEAD)
+                and note.note in _HEAVY_GIVEN_WAY_NOTES
                 for note in notes
             ),
         )
