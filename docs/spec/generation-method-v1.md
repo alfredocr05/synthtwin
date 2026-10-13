@@ -6869,13 +6869,15 @@ pins: the two tail boundaries and each published rung, at its rank.
    SPREAD fills more keys holding no knot's day than the new days the
    count leaves -- the twin's count of different days less those the
    listed dates, the knots and both tails already hold -- the lightest
-   keys take none and the rest are raked again, at most eight times,
-   and then FEW puts the ranks on as few keys as one flow per census
-   finds; where SPREAD cannot open the new days the count leaves, WIDE
-   puts as many ranks on days of their own as a min-cost flow allows.
-   The first split placing every owed row and able to open exactly the
-   new days left is taken, a rank no flow placed going to its part's
-   widest key. Each key opens at least one new day where it holds ranks
+   keys take none and the rest are raked again, at most eight times.
+   Where SPREAD cannot open the new days the count leaves, or leaves an
+   owed row unplaced, WIDE puts as many ranks on days of their own as a
+   min-cost flow allows; then, wherever another split was asked or
+   SPREAD left a row unplaced, FEW puts the ranks on as few keys as one
+   flow per census finds. The first split placing every owed row and
+   able to open exactly the new days left is taken, a rank no flow
+   placed going to its part's widest key and a rank a rounding placed
+   beyond the part's own leaving its fullest key. Each key opens at least one new day where it holds ranks
    and no knot's day, and the rest go where the ranks stand thickest (a
    density found by halving); its new days are drawn among its free days
    by the words of its first slots, no day twice, each taking that
@@ -6885,15 +6887,20 @@ pins: the two tail boundaries and each published rung, at its rank.
 5. **The passes.** Every listed date is a hole of the count pass, of the
    day pass and of the step off an absent spelling, which offer it to no
    other rank. Where the drawn ranks already meet every census beside
-   the list and keep off every hole, the day pass leaves them as drawn;
-   elsewhere it runs as before.
+   the list, keep off every hole and hold the count of different days
+   where the count pass reaches it, the day pass leaves them as drawn;
+   elsewhere it runs as before, its step 8.5 included.
 6. **The sort.** After every other pass the body's ranks are sorted
    again; every value stayed inside its part, so each boundary and rung
    reads its own value. A listed date not holding its count is named
-   (`heavy_dates`); none was measured.
-
-Where the count of different values still does not hold, the day pass's
-own cause is named, as before. The pass draws no word of its own. Its
+   (`heavy_dates`).
+7. **The list gives way.** Where the sorted ranks miss a group of the
+   weekday or the day-of-month census beside the list, or the count of
+   different days where the count pass reaches it, the column is drawn
+   again from the same words as if it listed no date: its twin is, byte
+   for byte, the twin of the column without `heavy_dates`, so every
+   check that twin meets stands, and one deviation names the list
+   (`heavy_dates`, "as if no date were listed"). The pass draws no word of its own. Its
 frozen cases are states in the nineteenth vectors file,
 `tests/reference/generation-branch-vectors-19.json`: a covered run, two
 loose dates, a listed boundary day, two listed dates with a hole between

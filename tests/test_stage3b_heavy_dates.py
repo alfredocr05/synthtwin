@@ -52,6 +52,9 @@ THE GATE'S CLAUSES, each beside what turns it red:
 * the work is bounded: `test_the_plan_and_the_draw_count_no_more_as_rows_grow`,
   machine-free, up to 1,000,000 rows.
 * NF71 is dropped beside a list: `test_the_weekday_floor_remark_stands_only_without_a_list`.
+* the list gives way (G7.3j step 7): `test_a_list_that_costs_a_census_or_the_count_gives_way`
+  -- one date a month and sixty tie days, each twin the twin of its column listing nothing,
+  byte for byte; mutants: the census not asked, the count not asked.
 
 Test-local mutants build the product's module with one source edit (one
 `compile` and one `exec` below); the oracle is run by path (one
@@ -78,6 +81,7 @@ from synthtwin import (
     calendar_rules,
     generation,
     parsing,
+    rendering,
     taxonomy,
     validation,
 )
@@ -590,6 +594,9 @@ _WHOLE = {
     "clinic": ("weekly_clinic", lambda: gate._BATTERY["schedules"](1000)["weekly_clinic"]),
     "sessions": ("sessions", lambda: dom._skeptic(1000)["sessions"]),
     "mays": ("visit", lambda: dom._mays(range(2019, 2025), 1000, 1600, 0.4)),
+    # ...and two whose list gives way (G7.3j step 7)
+    "firsts": ("visit", lambda: _monthly_firsts()),
+    "ties": ("visit", lambda: gate._tie_days(1000, 60, 83060)),
 }
 
 
@@ -666,6 +673,63 @@ def test_the_tenth_on_business_days_meets_every_check_at_eight_seeds(tmp_path: p
     for seed in range(8):
         text = kpi_shapes.twin_text(described, seed)
         assert kpi_shapes.missed(kpi_shapes.measure(described, text, f"t{seed}.csv")) == [], seed
+
+
+# -- the list gives way ------------------------------------------------------------------
+
+_GIVING_WAY = {
+    # one date a month over 60 months (tests/test_stage3b_count_room.py's `_monthly`): 55 of
+    # its 60 firsts listed, the three left a Wednesday, a Saturday and a Sunday in three parts
+    # of the body the split does not open together, so the twin drawn with the list misses
+    # the day-of-month census
+    "census": lambda: _monthly_firsts(),
+    # sixty tie days (tests/test_stage3b_gate.py's `_tie_days`): 53 listed, and the twin drawn
+    # with the list holds 68 different days for 60
+    "count": lambda: gate._tie_days(1000, 60, 83060),
+}
+
+
+def _monthly_firsts() -> "list[str]":
+    import test_stage3b_count_room as room
+
+    return room._monthly(1, 2017, 60, 9740)
+
+
+@pytest.mark.parametrize("label", sorted(_GIVING_WAY))
+def test_a_list_that_costs_a_census_or_the_count_gives_way(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch, label: str
+) -> None:
+    """G7.3j step 7: where the twin drawn with the list misses a group of a census beside it,
+    or the count of different days, the column is drawn as if it listed no date. The twin at
+    seed 0 is the twin of the same column described listing nothing, byte for byte; only the
+    list is MISSED, and the report names it. Red when the census is not asked (`census`) or
+    the count is not asked (`count`): that check is MISSED beside the list."""
+    cells = _GIVING_WAY[label]()
+    text = gate._table_text({"visit": cells})
+    described = kpi_shapes.describe(tmp_path / "listed", "listed", text, 11)
+    assert described.block("visit")["heavy_dates"], label
+    twin = generation.generate(described.loaded, 0)
+    ours = kpi_shapes.twin_text(described, 0)
+    assert kpi_shapes.missed(kpi_shapes.measure(described, ours, "twin.csv")) == ["visit:heavy_dates.counts"], label
+    named = [note for note in twin.deviations if note.fact == calendar_rules.HEAVY_DATES]
+    assert [note.note for note in named] == [generation._HEAVY_GIVEN_WAY], label
+    with monkeypatch.context() as patch:
+        patch.setattr(taxonomy, "heavy_dates_decided", lambda *arguments: ())
+        bare = kpi_shapes.describe(tmp_path / "bare", "bare", text, 11)
+    assert bare.block("visit")["heavy_dates"] == []
+    assert kpi_shapes.twin_text(bare, 0) == ours, label
+    if label == "census":
+        monkeypatch.setattr(generation, "_heavy_census_met", lambda *arguments: True)
+        kept = kpi_shapes.twin_text(described, 0)
+        assert "visit:day_of_month_census.groups" in kpi_shapes.missed(kpi_shapes.measure(described, kept, "kept.csv"))
+        return
+    module = _mutant(
+        monkeypatch,
+        "and (layout.distinct < 0 or len(set(ordinals)) == layout.distinct)",
+        "and True",
+    )
+    kept = rendering.twin_csv(module.generate(described.loaded, 0))
+    assert "visit:distinct.n_distinct" in kpi_shapes.missed(kpi_shapes.measure(described, kept, "kept.csv"))
 
 
 # -- the work is bounded -----------------------------------------------------------------
