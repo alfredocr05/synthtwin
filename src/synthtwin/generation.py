@@ -29594,6 +29594,7 @@ def _clock_fields_settled(
     layout: "_DateLayout",
     holes: "tuple[str, ...]",
     declared_days: "tuple[str, ...]" = (),
+    counted_holes: "tuple[str, ...]" = (),
 ) -> "tuple[list[int], list[Deviation]]":
     """Meet the published minute and second censuses and heaps (method G7.3h).
 
@@ -29640,6 +29641,11 @@ def _clock_fields_settled(
         for key in facts.date_field_widths:
             word = key
     hole_days = _clock_hole_days(column, facts, holes, declared_days)
+    # -- the placeholder days of a column of counted dates (G7.10) are holes
+    # here too, as in the hour pass (lane J beside lane R4): the field
+    # passes' payers move ranks by whole days (lane J2), and the reference's
+    # `clock_fields_settled` reads them as holes (`weekday_hole_days`).
+    hole_days = hole_days | set(_hole_days(counted_holes))
     body_low = layout.low.rows
     body_high = parsed - 1 - layout.high.rows
     body = body_high - body_low + 1
@@ -31109,7 +31115,7 @@ def _datetime_content(
     # -- the minute and the second (3b.T3, P4-D372)
     ordinals, clock_field_notes = _clock_fields_settled(
         column, facts, ordinals, parsed, whole, gap_lows, gap_highs, layout,
-        holes, plan.declared_days,
+        holes, plan.declared_days, plan.counted_holes,
     )
     # -- the dates that stand out, after every other pass (3b.D4, P4-D369)
     ordinals, heavy_notes = _heavy_sorted(

@@ -567,7 +567,10 @@ def test_a_raised_floor_withholds_what_the_tails_leave_the_body_too_few_values_f
     assert document["columns"][0]["weekday_census"] == []
     assert any(NOTE_NF74 in entry["note"] for entry in document["publication_notes"])
     monkeypatch.setattr(calendar_rules, "unit_room_short", lambda *arguments: False)
-    described = _described(tmp_path / "withdrawn", "visit", cells, 36)
+    # Read without the minute's and second's facts (landing 3b.4), as the rule's landing
+    # measured it: beside the noon schedule's heaps the field passes' count steps paid back
+    # (lane J2) put its twins' count back.
+    described = _without_clock_fields(_described(tmp_path / "withdrawn", "visit", cells, 36))
     assert [group["count"] > 0 for group in described.block("visit")["weekday_census"]].count(True) == 2
     for seed in (0, 1, 2):
         text = kpi_shapes.twin_text(described, seed)

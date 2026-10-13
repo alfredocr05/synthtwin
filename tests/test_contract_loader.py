@@ -917,7 +917,9 @@ def _clock_fields_stored_two_ways(document: Document) -> None:
     census (its workbook rule, landing 3b.D2, met at 3b.7's merge of lane T3)."""
     at(document, "logged_at")["hour_census"] = []
     at(document, "logged_at")["weekday_census"] = []
-    form = _workbook_block(document, 16, 120)
+    # Seventeen columns since landing 3b.D2 added one to the base, as every
+    # other workbook mutation counts them (lane J2's merge of lane T3).
+    form = _workbook_block(document, 17, 120)
     place = [block["name"] for block in document["columns"]].index("logged_at")
     rows = typing.cast(int, document["n_rows"])
     form["columns"][place]["cell_classes"]["number"] = rows - 12
