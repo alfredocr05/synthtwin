@@ -1139,7 +1139,7 @@ STEP_MUTANTS = {
     ),
     "the tails make no room at midnight": (
         "field_midnight_room",
-        "    if not state.no_midnight or state.where.count(state.where[0]) != 1:\n        return\n    zero = state.where[0]\n    found = _clock_found(",
+        "    if not state.no_midnight or not _clock_zero_alone(state):\n        return\n    zero = state.where[0]\n    found = _clock_found(",
         "    if True:\n        return\n    zero = state.where[0]\n    found = _clock_found(",
     ),
     "a narrow stratum keeps its midnight": (
@@ -1159,7 +1159,7 @@ STEP_MUTANTS = {
     ),
     "hour 0 takes its share of a heap at minute 0": (
         "field_midnight_spread",
-        "    if state.no_midnight and state.where.count(state.where[0]) == 1:\n        zero = state.where[0]",
+        "    if state.no_midnight and _clock_zero_alone(state):\n        zero = state.where[0]",
         "    if False:\n        zero = state.where[0]",
     ),
     "the ranks free to take value 0 not counted": (

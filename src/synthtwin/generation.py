@@ -26180,7 +26180,7 @@ def _clock_kin_shares_moved(state: _WeekdayPass, ranks: "list[int]", want: "list
     size = len(ranks)
     groups = len(want)
     zero = -1
-    if state.no_midnight and state.where.count(state.where[0]) == 1:
+    if state.no_midnight and _clock_zero_alone(state):
         zero = state.where[0]
     free: "dict[int, int]" = {}
     eligible = 0
@@ -27089,6 +27089,18 @@ def _clock_fields_settled(
 
 
 
+
+def _clock_zero_alone(state: _WeekdayPass) -> bool:
+    """Whether value 0 of the field is a group of its own (method G7.3h): no
+    other value of the field shares its group. Counted by a walk -- the
+    offline scan traces no method of the bins. Raises nothing. No I/O."""
+    holding = 0
+    for group in state.where:
+        if group == state.where[0]:
+            holding = holding + 1
+    return holding == 1
+
+
 def _clock_midnight_room_made(
     state: _WeekdayPass,
     counts: "list[int]",
@@ -27125,7 +27137,7 @@ def _clock_midnight_room_made(
 
     Guarantees: moves ranks only as stated. Raises nothing. No I/O.
     """
-    if not state.no_midnight or state.where.count(state.where[0]) != 1:
+    if not state.no_midnight or not _clock_zero_alone(state):
         return
     zero = state.where[0]
     found = _clock_found(state, len(counts), body_low, body_high)
