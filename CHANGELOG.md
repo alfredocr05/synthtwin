@@ -45,10 +45,10 @@ keeps a tail's end off a midnight the count leaves no room for (a column
 on the hour now meets its minute 0 at every seed), and keeps two of the
 pass's searches growing with the rows rather than their square; it also
 counts each written value once when asking whether minutes follow the
-hour, asks each hour against the rest, and gives no hour a share of
-minutes its stamps can never reach (an hour shut out of minute 0 in every
-gap no longer leaves the next hour 200 of minute 0's cells to the one
-after's 40).
+hour, asks each hour against the rest, gives no hour a share of minutes
+its stamps can never reach (an hour shut out of minute 0 in every gap no
+longer leaves the next hour 200 of minute 0's cells to the one after's
+40), and keeps an hour owed its share from the hours before it.
 
 ### Time of day comes back on moments (2026-10-06)
 
