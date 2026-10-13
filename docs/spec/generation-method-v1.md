@@ -10580,8 +10580,9 @@ oracle's too:
   but for the words only where a published label of the form is a word
   or none is published, so `%.%@%` beside `1.1e6` and `1.2e6` is the
   numbers' first as it was. The number class is offered the rest; each
-  class is offered what the classes before it left; the words take what
-  the classes left. The out-of-range class writes such a form's spellings
+  class is offered what the classes before it left; the words take, of
+  what the classes left, no more than was kept for them, so a shared form
+  the numbers leave unpaid takes no word a form only words wear is owed. The out-of-range class writes such a form's spellings
   outright on a cursor of its own: `E` in the letter place, a nought-padded
   mantissa from one up before it and an exponent from 309 up after it --
   one more for each mantissa figure after its mark -- stepped round the

@@ -36609,8 +36609,14 @@ def _label_content(
         # WHAT IS LEFT FOR WORDS, and only the forms words can wear: a
         # number-reading form is paid inside the number class or not at
         # all -- except a form whose first filling is text (`12A345`),
-        # which words also wear and which keeps for them what the classes
-        # left of its count (lane L1, plan P4-D390, `K-S3-61`).
+        # which words also wear: of what the classes left of its count,
+        # the words take what `_shared_forms_kept` kept for them and no
+        # more, so a shared form left unpaid takes no word a form only
+        # words wear is owed (lane L1, plan P4-D390, `K-S3-61`).
+        kept = _shared_forms_kept(cells, sizes, classes, owing, comma)
+        for_words: "dict[str, int]" = {}
+        if _OWED_TEXT in kept:
+            for_words = kept[_OWED_TEXT]
         paid: "dict[str, int]" = {}
         for place in written_as:
             worn = parsing.census_form(written_as[place], owing)
@@ -36622,7 +36628,8 @@ def _label_content(
             if _form_reading(form, comma) != parsing.NOT_A_NUMBER:
                 if _form_also_reads(form, parsing.NOT_A_NUMBER, comma):
                     spent = paid[form] if form in paid else 0
-                    owing[form] = max(0, owing[form] - spent)
+                    words_kept = for_words[form] if form in for_words else 0
+                    owing[form] = min(max(0, owing[form] - spent), words_kept)
                 else:
                     owing[form] = 0
     # NAMED FOR ITSELF rather than reusing `wanted`, which this module

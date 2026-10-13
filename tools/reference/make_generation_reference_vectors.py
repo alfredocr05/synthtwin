@@ -8516,7 +8516,7 @@ def shared_out(sizes, owing, seen, folds, supplied=None, past=()):
 
 def invented_levels(
     used, sizes, census=None, written=(), placed=None, level_shape="",
-    line=None, past=None,
+    line=None, past=None, classes=None,
 ):
     """The stand-in labels of method sections G8.3 and G8.3a.
 
@@ -8577,12 +8577,19 @@ def invented_levels(
             worn = census_form(spelling, owing)
             if worn in owing:
                 paid[worn] = paid.get(worn, 0) + sizes[place]
+        # Of what the classes left of a form whose first filling is text,
+        # the words take what shared_forms_kept kept for them (lane L1,
+        # K-S3-61).
+        for_words = shared_forms_kept(
+            written, sizes, classes or {}, owing
+        ).get(OWED_TEXT, {})
         for form in sorted(owing):
             if form_reading(form) != NOTATION_TEXT:
-                # A form whose first filling is text keeps for the words
-                # what the classes left of it (lane L1, K-S3-61).
                 if form_also_reads(form, NOTATION_TEXT):
-                    owing[form] = max(0, owing[form] - paid.get(form, 0))
+                    owing[form] = min(
+                        max(0, owing[form] - paid.get(form, 0)),
+                        for_words.get(form, 0),
+                    )
                 else:
                     owing[form] = 0
         wordy = [place for place in range(len(sizes)) if place not in placed]
@@ -10072,8 +10079,8 @@ def class_stand_ins(column, written, used, sizes, census):
                 column, written, used, sizes, census, bounded, True
             )
             if numbers_paid(sizes, wider_classes, wider) > paid:
-                return wider, wider_debts
-    return placed, debts
+                return wider, wider_debts, wider_classes
+    return placed, debts, classes
 
 
 def numbers_paid(sizes, classes, placed):
@@ -10950,7 +10957,7 @@ def _label_content(column):
     # class count unpaid, those levels are written as numbers first.
     placed = None
     if sizes and max(classes_owed(column, content).values()) > 0:
-        placed, _debts = class_stand_ins(column, content, used, sizes, census)
+        placed, _debts, classes = class_stand_ins(column, content, used, sizes, census)
     # THE SHAPE A STAND-IN OWED NO NAMED FORM TAKES (landing 2b.18 part 2).
     level_shape = published_level_shape(column)
     # THE CLOCK LINE THE TWIN IS HELD BELOW (the repair round of landing
@@ -10968,7 +10975,7 @@ def _label_content(column):
     else:
         stand_ins = invented_levels(
             used, sizes, census, content, placed=placed,
-            level_shape=level_shape, line=line, past=past,
+            level_shape=level_shape, line=line, past=past, classes=classes,
         )
     for spelling, size in stand_ins:
         content.extend([spelling] * size)

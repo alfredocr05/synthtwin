@@ -253,6 +253,53 @@ def test_one_letter_among_figures_red_on_each_mutant(tmp_path: pathlib.Path, mon
     assert any(name.startswith("forms.published.") for name in missed)
 
 
+def _numbers_beside_exponent_codes_wide() -> "list[str]":
+    """The lane's battery table `code_expo_10k`: at a floor of 36 the words'
+    own form `%%%%@` owes every word cell the column holds back."""
+    draw = random.Random(52008)
+    cells = [f"{draw.randrange(20, 90)}" for _row in range(6000)]
+    shaped: "list[str]" = []
+    for _code in range(400):
+        kind = draw.randrange(4)
+        if kind == 0:
+            shaped += [f"{draw.randrange(10)}E{draw.randrange(100000):05d}"]
+        elif kind == 1:
+            shaped += [f"0{draw.randrange(1000000):06d}"]
+        elif kind == 2:
+            shaped += [f"{draw.randrange(1, 10)}E{draw.randrange(10, 99)}"]
+        else:
+            shaped += [f"{draw.randrange(10000):04d}A"]
+    cells += _zipf(draw, shaped, 4000)
+    draw.shuffle(cells)
+    return cells
+
+
+def test_words_take_of_a_shared_form_only_what_was_kept_for_them(tmp_path: pathlib.Path) -> None:
+    """A shared form the number class leaves unpaid takes no word the
+    words' own form is owed: `%%%%@` met at a floor of 36, as on 45191fa
+    (`%@%%`, missed before and after, is the number class's supply)."""
+    _twin_cells, source_missed, twin_missed = _round(tmp_path, _numbers_beside_exponent_codes_wide(), 36)
+    assert source_missed == []
+    assert "forms.published.%%%%@" not in twin_missed
+
+
+def test_words_red_when_they_take_a_shared_form_s_whole_remainder(tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """MUTATION: the words handed all a shared form's remainder, as this
+    lane first wrote it: 186 groups to `%%%%@` and 54 to `%@%%`."""
+    kept = generation._shared_forms_kept
+
+    def greedy(*args: typing.Any) -> "dict[str, dict[str, int]]":
+        answer = kept(*args)
+        if generation._OWED_TEXT in answer:
+            for form in args[3]:
+                answer[generation._OWED_TEXT][form] = 10**9
+        return answer
+
+    monkeypatch.setattr(generation, "_shared_forms_kept", greedy)
+    _twin_cells, _source, twin_missed = _round(tmp_path, _numbers_beside_exponent_codes_wide(), 36)
+    assert "forms.published.%%%%@" in twin_missed
+
+
 def test_an_overflowing_spelling_reads_as_out_of_range_and_wears_its_form() -> None:
     for form in ("%%@%%%", "%@%%%%%", "%.%@%%%"):
         room = generation._overflow_room(form)
