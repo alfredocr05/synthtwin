@@ -62,17 +62,31 @@ THE GATE'S CLAUSES, each beside what turns it red:
   the list way); `test_a_count_left_off_is_the_day_pass_s_to_repair` (mutant: step 5 no
   longer asks the count); `test_every_listed_date_is_a_hole_of_the_count_pass` (mutant: the
   holes dropped on midnight moments in a member with a mark).
+  The report's sentences (D4 skeptic 2, item 1): the count case's one `n_distinct` line is the
+  list's and its folded line says so (mutants: the list's causes left out of `_COUNT_CAUSES`,
+  the folded line's never chosen); a weekly schedule of 0 at a floor of 36, whose twin listing
+  nothing misses the day-of-month census by as many rows, keeps the day pass's own sentence
+  (mutant: the census named given way where the bare twin misses it too);
+  `test_the_count_s_cause_stays_the_day_pass_s_where_the_bare_twin_is_as_far` (mutant: the
+  count named given way whatever the bare twin holds); `test_a_list_given_way_is_said_so_beside_the_spread`
+  (mutants: the spread's missed clause in place of its given-way clause, and the given-way
+  flag never raised).
+* the oracle's rulings against the product's (D4 skeptic 2, item 2):
+  `test_the_oracle_reads_the_count_as_the_product_does` (mutant: the oracle reads the count
+  exactly below G12.5's lower end) and `test_the_oracle_weighs_a_tie_as_the_product_does`
+  (mutant: the oracle's tie gives the list way).
 * each part holds exactly its ranks: `test_each_part_holds_exactly_its_ranks` (mutant: the
   ranks a rounding placed beyond a part's own not trimmed).
 
-Test-local mutants build the product's module with one source edit (one
-`compile` and one `exec` below); the oracle is run by path (one
-`runpy.run_path`).
+Test-local mutants build the product's module, and the oracle's
+namespace, with one source edit (one `compile` and one `exec` each
+below); the oracle is run by path (one `runpy.run_path`).
 """
 
 from __future__ import annotations
 
 import copy
+import dataclasses
 import itertools
 import json
 import pathlib
@@ -710,6 +724,11 @@ _STANDING = {
     # `_weekly_schedule`): its published count of 24 stands below G12.5's lower end, so the
     # count is a window, which the listed twin's 26 days meet (the 3b.6 skeptic's sched33)
     "window": (lambda: _weekly_schedule(33), 36),
+    # a weekly schedule of 0 at a floor of 36 (the D4 skeptic 2's sched0@36): one date listed,
+    # and the twins drawn with the list and listing nothing miss the day-of-month census by as
+    # many rows, so the list stands and the census is not named given way to it: the day
+    # pass's own sentence stands
+    "both": (lambda: _weekly_schedule(0), 36),
 }
 
 # Each case's source edit of the product, red there.
@@ -751,6 +770,8 @@ _STANDING_MUTANTS = {
         """    return abs(len(set(ordinals)) - layout.distinct)
 """,
     ),
+    # the census named given way to the list where the bare twin misses it too
+    "both": ("        ) and note.fact not in bare_missed:\n", "        ):\n"),
 }
 
 
@@ -764,6 +785,16 @@ def _weekly_schedule(shape: int) -> "list[str]":
     import test_stage3b_weekday_review as review
 
     return review._weekly_schedule(shape)
+
+
+def _lines(twin: "generation.Twin", fact: str) -> "list[str]":
+    """The sentences of one fact's deviations, but an approximated fact's line outside its
+    bound (`generation._bound_notes`), which every count landing outside G12.1's range prints."""
+    return [
+        note.note
+        for note in twin.deviations
+        if note.fact == fact and not note.note.startswith("This fact is approximate by construction")
+    ]
 
 
 def _gave_way(twin: "generation.Twin", fact: str) -> "list[str]":
@@ -794,20 +825,29 @@ def test_the_list_stands_and_what_gave_way_is_named(
         "count": ["visit:distinct.n_distinct", "visit:distinct.n_distinct_folded"],
         "census": ["visit:day_of_month_census.groups"],
         "window": [],
+        "both": ["visit:day_of_month_census.groups"],
     }
     assert missed == expected[label], label
     if label == "count":
-        assert _gave_way(twin, "n_distinct") == [generation._HEAVY_COUNT_LONG]
+        # one line of the count, the list's, read by the recount as the count's cause, and
+        # the folded count's line saying so
+        assert _lines(twin, "n_distinct") == [generation._HEAVY_COUNT_LONG]
+        assert _lines(twin, "n_distinct_folded") == [generation._HEAVY_FOLDED_LONG]
     if label == "census":
         assert _gave_way(twin, calendar_rules.DAY_OF_MONTH_CENSUS) == [
             generation._HEAVY_CENSUS_GIVEN_WAY[calendar_rules.DAY_OF_MONTH_CENSUS]
         ]
     if label == "window":
         assert _gave_way(twin, "n_distinct") == []
+    if label == "both":
+        assert _lines(twin, calendar_rules.DAY_OF_MONTH_CENSUS) == [generation._DAY_OF_MONTH_GIVEN_WAY]
     module = _mutant(monkeypatch, *_STANDING_MUTANTS[label])
     mutated = module.generate(described.loaded, 0)
     if label == "window":
         assert _gave_way(mutated, "n_distinct") != []
+        return
+    if label == "both":
+        assert _gave_way(mutated, calendar_rules.DAY_OF_MONTH_CENSUS) != []
         return
     kept = kpi_shapes.missed(kpi_shapes.measure(described, rendering.twin_csv(mutated), "kept.csv"))
     assert "visit:heavy_dates.counts" in kept, (label, kept)
@@ -883,6 +923,146 @@ def test_a_count_left_off_is_the_day_pass_s_to_repair(tmp_path: pathlib.Path, mo
         "    if not _heavy_census_met(",
     )
     assert module._heavy_met(column, facts, ordinals, layout, holes)
+
+
+def test_the_count_s_cause_stays_the_day_pass_s_where_the_bare_twin_is_as_far(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Ruling (a)'s naming at its edge (the D4 skeptic 2's item 1, F): the count is named given way
+    to the list only where the twin listing nothing stands NEARER the count as the validator
+    judges it. Asked of the sixty tie days' kept notes, `_heavy_count_off` held at one distance
+    for both twins and the day pass's own cause of a long count among the notes: that cause is
+    kept and the list is not named. Red when the count is named given way whatever the twin
+    listing nothing holds."""
+    text = gate._table_text({"visit": gate._tie_days(1000, 60, 83060)})
+    described = kpi_shapes.describe(tmp_path, "ties", text, 11)
+    plan, words, ordinals, layout = _step_seven(described, monkeypatch)
+    name = plan.column.name  # type: ignore[attr-defined]
+    own = generation._deviation(name, "n_distinct", "60 different values", "68 different values", generation._WEEKDAY_DAYS_LEFT_LONG)
+    named = (generation._HEAVY_COUNT_SHORT, generation._HEAVY_COUNT_LONG)
+    edit = ("    caused = off > 0 and _heavy_count_off(column, facts, bare, layout) < off\n", "    caused = off > 0\n")
+    # the product first, then the mutant built from its source
+    for kept in (True, False):
+        module = generation if kept else _mutant(monkeypatch, *edit)
+        with monkeypatch.context() as patch:
+            patch.setattr(module, "_heavy_count_off", lambda *arguments: 5)
+            found = [note.note for note in module._heavy_kept_notes(plan, words, ordinals, layout, [own], None)]
+        assert (found == [own.note]) is kept, module.__name__
+        assert (not [note for note in found if note in named]) is kept, module.__name__
+
+
+def test_a_list_given_way_is_said_so_beside_the_spread(tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Where step 7 gives the list way, the column's sentence on its spread says the listed dates
+    gave way to a census beside them (`_SPREAD_HEAVY_GIVEN_WAY`), not that the twin missed them
+    (the D4 skeptic 2's item 1, N and T). No column of the batteries gives its list way under the
+    rulings of 2026-10-13, so the weighing is held one row below the listed twin's, as the tie
+    test holds it, on the one-date-a-month column. Red when the spread's missed clause is said in
+    its place, and when the given-way flag is never raised."""
+    text = gate._table_text({"visit": _monthly_firsts()})
+    described = kpi_shapes.describe(tmp_path, "firsts", text, 11)
+    plan, _words, ordinals, layout = _step_seven(described, monkeypatch)
+    census = generation._heavy_census_off(plan.column.facts, ordinals, layout)[0]  # type: ignore[attr-defined]
+    edits = (
+        ("                + [_SPREAD_HEAVY_GIVEN_WAY if given_way else _SPREAD_HEAVY_MISSED]\n", "                + [_SPREAD_HEAVY_MISSED]\n"),
+        ("                and note.note in _HEAVY_GIVEN_WAY_NOTES\n", "                and False\n"),
+    )
+    # the product first, then each mutant built from its source
+    for edit in (None, *edits):
+        module, said = (generation, True) if edit is None else (_mutant(monkeypatch, *edit), False)
+        with monkeypatch.context() as patch:
+            patch.setattr(module, "_heavy_standing", lambda *arguments: census - 1)
+            twin = module.generate(described.loaded, 0)
+        assert [note.fact for note in twin.deviations] == [calendar_rules.HEAVY_DATES], module.__name__
+        spread = [remark.note for remark in twin.remarks if remark.column == "visit" and "spread across the calendar" in remark.subject]
+        assert len(spread) == 1, module.__name__
+        assert (generation._SPREAD_HEAVY_GIVEN_WAY in spread[0]) is said, module.__name__
+        assert (generation._SPREAD_HEAVY_MISSED in spread[0]) is not said, module.__name__
+
+
+def _oracle_mutant(before: str, after: str) -> "dict[str, object]":
+    """The oracle's namespace with ONE source edit, built as the product's mutants are (an edit
+    that no longer applies turns the test red)."""
+    text = ORACLE.read_text(encoding="utf-8")
+    assert text.count(before) == 1, before
+    found: "dict[str, object]" = {"__name__": "oracle_mutant", "__file__": str(ORACLE)}
+    exec(compile(text.replace(before, after), str(ORACLE), "exec"), found)
+    return found
+
+
+def test_the_oracle_reads_the_count_as_the_product_does(tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """A-P4-59 on ruling (c) (the D4 skeptic 2's item 2, O): the oracle's `heavy_count_off`
+    against the product's `_heavy_count_off` on hand-built ranks of the sixty tie days at a floor
+    of 11 -- their ranks folded onto fewer and fewer of their own days -- with the published
+    count where the description puts it (inside G12.5's envelope: read exactly) and two below the
+    envelope's lower end (a window: the distance below that end, nought at or above it), the
+    folded count published beside it as raw so that the count stays reached. The
+    oracle's whole columns stand at a floor of 11, where no column of the batteries publishes a
+    count below that end, so the window is asked here. Red when the oracle reads the count
+    exactly below the lower end."""
+    text = gate._table_text({"visit": gate._tie_days(1000, 60, 83060)})
+    described = kpi_shapes.describe(tmp_path, "ties", text, 11)
+    plan, _words, ordinals, layout = _step_seven(described, monkeypatch)
+    column = plan.column  # type: ignore[attr-defined]
+    block = copy.deepcopy(described.block("visit"))
+    parsed = block["n_present"] - block["n_unparsed"]
+    lowest = int(layout.count_window[0])  # type: ignore[attr-defined]
+    assert column.n_distinct >= lowest > 3
+    days = sorted(set(ordinals))  # type: ignore[arg-type]
+    place = {day: index for index, day in enumerate(days)}
+    asked = []
+    for published in (column.n_distinct, lowest - 2):
+        changed = dataclasses.replace(column, n_distinct=published, n_distinct_folded=published)
+        for held in (lowest - 3, lowest - 2, lowest, len(days)):
+            ranks = [days[min(place[day], held - 1)] for day in ordinals]  # type: ignore[union-attr]
+            asked += [(published, ranks, generation._heavy_count_off(changed, column.facts, ranks, layout))]  # type: ignore[arg-type]
+    assert [off for published, _ranks, off in asked if published < lowest] == [3, 2, 0, 0]
+    edit = ('    if column["n_distinct"] >= lowest:\n', "    if True:\n")
+    # the oracle first, then its mutant
+    for agrees in (True, False):
+        oracle = _oracle() if agrees else _oracle_mutant(*edit)
+        assert oracle["count_lower_end"](block, parsed) == lowest  # type: ignore[operator]
+        theirs = [oracle["heavy_count_off"](dict(block, n_distinct=published, n_distinct_folded=published), ranks, parsed) for published, ranks, _off in asked]  # type: ignore[operator]
+        assert (theirs == [off for _published, _ranks, off in asked]) is agrees
+
+
+def test_the_oracle_weighs_a_tie_as_the_product_does(tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """A-P4-59 on ruling (b) (the D4 skeptic 2's item 2, Q): step 7's weighing in the oracle's
+    content against the product's, on the one-date-a-month column at a floor of 11, the twin
+    listing nothing held at as many rows off as the listed twin (the list stands) and at one
+    fewer (it gives way), in both. No column of the batteries ties. Red when the oracle's tie
+    gives the list way."""
+    text = gate._table_text({"visit": _monthly_firsts()})
+    described = kpi_shapes.describe(tmp_path, "firsts", text, 11)
+    plan, _words, ordinals, layout = _step_seven(described, monkeypatch)
+    facts = plan.column.facts  # type: ignore[attr-defined]
+    census = generation._heavy_census_off(facts, ordinals, layout)[0]  # type: ignore[arg-type]
+    assert census > 0 and generation._heavy_listed_off(facts, ordinals) == 0  # type: ignore[arg-type]
+    content = generation._datetime_content
+    drawn = []
+    for weight in (census, census - 1):
+        seen: "list[tuple[list[int], list[str]]]" = []
+
+        def captured(plan, words, settled=None, seen=seen):  # type: ignore[no-untyped-def]
+            found = content(plan, words, settled)
+            seen[:] = [(list(words), list(found[0]))]
+            return found
+
+        with monkeypatch.context() as patch:
+            patch.setattr(generation, "_datetime_content", captured)
+            patch.setattr(generation, "_heavy_standing", lambda *arguments, weight=weight: weight)
+            generation.generate(described.loaded, 0)
+        drawn += [(weight, *seen[0])]
+    assert drawn[0][2] != drawn[1][2]
+    block = copy.deepcopy(described.block("visit"))
+    edit = ("            if heavy_standing(column, kept[0], parsed) < listed:\n", "            if heavy_standing(column, kept[0], parsed) <= listed:\n")
+    # the oracle first, then its mutant
+    for agrees in (True, False):
+        oracle = _oracle() if agrees else _oracle_mutant(*edit)
+        found = []
+        for weight, words, ours in drawn:
+            oracle["_datetime_content"].__globals__["heavy_standing"] = lambda *arguments, weight=weight: weight  # type: ignore[attr-defined]
+            found += [oracle["_datetime_content"](dict(block, _content_words=words)) == ours]  # type: ignore[operator]
+        assert all(found) is agrees
 
 
 def test_every_listed_date_is_a_hole_of_the_count_pass(tmp_path: pathlib.Path) -> None:
