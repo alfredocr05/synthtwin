@@ -18372,13 +18372,17 @@ def _resolution_mix_check(
     neither names a row. A file whose description reads it under another
     member counts its forms under that member's key and is MISSED.
     Raises nothing. No I/O of any kind."""
-    published = ", ".join(
-        f"{key} {facts.resolution_mix[key]}" for key in sorted(facts.resolution_mix)
-    )
+    published = ""
+    for key in sorted(facts.resolution_mix):
+        between = ", " if published else ""
+        published = f"{published}{between}{key} {facts.resolution_mix[key]}"
     found = block["resolution_mix"] if "resolution_mix" in block else None
     shown: "str | None" = None
     if isinstance(found, dict):
-        shown = ", ".join(f"{key} {found[key]}" for key in sorted(found))
+        shown = ""
+        for key in sorted(found):
+            between = ", " if shown else ""
+            shown = f"{shown}{between}{key} {found[key]}"
     return _exact(name, "datetime.resolution_mix", "resolution_mix.counts", published, shown)
 
 

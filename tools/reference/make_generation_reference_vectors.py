@@ -46670,7 +46670,7 @@ def form_day_closed(day, shut_weekdays, shut_bins):
 
 def form_days_placed(ordinals, lows, highs, whole, apart, shut_weekdays, shut_bins):
     """The form step: each gap's bare-date ranks, in rank order, onto
-    midnights of the gap -- off a day a census counts nought on where one of
+    midnight days of the gap -- off a day a census counts nought on where one of
     the gap's first 400 days is not -- each the first at or after its
     instant (else the nearest before); where the column is all different on
     days of their own no fixed rank holds, the run laid back from the gap's

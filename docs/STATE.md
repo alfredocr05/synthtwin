@@ -310,7 +310,7 @@ cannot get worse unseen.
   stays in G12.5's envelope; a daylight-saving column's twin writes the
   offset not in force on its date for about a third of its rows (no
   published fact pairs offset and season); a joint column holding one bare
-  date on every day of its span writes the dates its gaps have midnights
+  date on every day of its span writes the dates its gaps have midnight days
   for and the rest as moments, MISSED and named (strict xfail); and the
   minute and second censuses wait for lane T3's merge, whose meeting with
   lane D2's weekday census on moments is an open question (P4-D378).

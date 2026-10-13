@@ -7709,7 +7709,7 @@ can read a rank's clock only once its offset is known.
    passing its turn on, the credit carried, and the credit left at the end
    given to the first ranks with room, never more ranks than the count.
    Then, as the first part of the move to midnight, each gap's
-   bare-date ranks in rank order are stood on midnights of the gap: off a
+   bare-date ranks in rank order are stood on midnight days of the gap: off a
    day a published census counts nought on, where one of the gap's first
    400 days is not; each the first at or after its instant, else the
    nearest before; where the column is all different, on days of their

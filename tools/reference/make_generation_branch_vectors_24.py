@@ -8,7 +8,7 @@ is WRITTEN at under its offset, a sixtieth second on the second before
 its instant; the passes' frame taken back onto the shared clock run by
 run; G7.4 step 1a's key for each block the layout fixes; and the form
 step's bare dates on a clocked column of the joint member, capped per
-gap and stood on midnights, on days of their own where the column is all
+gap and stood on midnight days, on days of their own where the column is all
 different.
 
 **Why it is not a file of columns.**  Each case is one reading or one

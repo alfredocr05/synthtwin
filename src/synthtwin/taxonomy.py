@@ -17218,8 +17218,7 @@ def _census_ranked(
                 shown = at_utc
         keyed += [(instant, shown, offset, place)]
         place = place + 1
-    keyed.sort()
-    return [entry[3] for entry in keyed]
+    return [entry[3] for entry in sorted(keyed)]
 
 
 def _clock_text(canonical: str) -> str:

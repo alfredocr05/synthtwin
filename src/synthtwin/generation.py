@@ -29040,7 +29040,7 @@ def _own_clock_run(
             return
         found += [(place - chosen, keys[chosen][taken[chosen]])]
         taken[chosen] = taken[chosen] + 1
-    found.sort()
+    found = sorted(found)
     for index in range(len(found)):
         moved[first + index] = found[index][0]
         given[first + index] = found[index][1]
@@ -29118,7 +29118,7 @@ def _datetime_content(
     # then counts them as standing there.
     ordinals = _form_step(facts, ordinals, layout, whole, column.n_distinct)
     if snapping:
-        # ...whose bare dates the form step stood on their midnights: on a
+        # ...whose bare dates the form step stood on their midnight: on a
         # column all at midnight the move to midnight places them, as before.
         ordinals = _snapped_to_midnight(
             facts, ordinals, offsets, layout, None if facts.all_at_midnight else whole
@@ -36307,7 +36307,7 @@ def _form_step(
     `_form_allocation` gives no gap more bare dates than it holds such days,
     so every one finds a day. A rank whose gap holds no midnight stays where
     it is. Before this step the midnight move stacked the bare dates'
-    midnights on days a midnight already held: 800 different stamps beside
+    midnight days on days a midnight already held: 800 different stamps beside
     200 different dates came back 973 to 992 values of 1,000 (item (b) of
     the landing).
 
@@ -36396,7 +36396,7 @@ def _form_days(
     apart: bool,
     shut: "tuple[frozenset[int], frozenset[int]]" = (frozenset(), frozenset()),
 ) -> None:
-    """One gap of `_form_step`: its bare-date ranks onto midnights of `room`,
+    """One gap of `_form_step`: its bare-date ranks onto midnight days of `room`,
     its first and last day, off the days a published census counts nought
     (`_form_day_shut`) where the gap holds another day -- asked of its first
     `_FORM_DAYS_ASKED` days, more than a year's weekdays and month days. Each

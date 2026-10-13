@@ -277,7 +277,7 @@ def test_s6_red_without_the_cap_or_the_exact_check(
 
 
 @pytest.mark.xfail(strict=True, reason=(
-    "measured on the landing's build: the tight column's gaps hold fewer free midnights than "
+    "measured on the landing's build: the tight column's gaps hold fewer free midnight days than "
     "its 200 dates at 1,000 rows and a floor of 11, so 4 of its bare dates are written as "
     "moments (196 of 200), resolution_mix and n_at_midnight are MISSED and the twin names "
     "resolution_mix -- never silent (the design's stated limit)"

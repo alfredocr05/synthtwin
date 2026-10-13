@@ -6089,7 +6089,7 @@ member its census is RM1's one key carrying every parsed cell, which
 each on a midnight of its own clock inside its rank's gap, on a day of
 its own where the column's values are all different (the generation
 method's G7.3k) -- so the file's own count of each form is held to the
-published one, and so is `format`. Where a gap holds too few midnights
+published one, and so is `format`. Where a gap holds too few midnight days
 for the bare dates the rotation would give it, the rest are written as
 moments and the check is MISSED, never silent (residual R-P4-12, closed
 on clocked columns but for that case).
