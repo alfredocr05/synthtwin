@@ -9132,14 +9132,23 @@ reads no sixtieth second: `23:59:60` is unparsed). With `k` the step:
    every cell between its floor and its ceiling and then with every cell
    free from nought to its capacity: each owing row in order gives what
    it and a column both owe through each of its cells in order; and while
-   a row owes, one cell moves along the shortest path from the owing
-   rows, in order -- into a column through a cell below its upper bound,
-   back out through a cell above its lower bound, each row and column
-   reached once -- ending at the first owing column reached. So every
-   cell is the floor or ceiling of its fitted value wherever such a table
-   exists and both counts are met wherever any is. Where none is -- a
-   description no producer writes -- the body is laid by G7A.4b and the
-   twin's report names `minute_census` as not held.
+   a row owes, cells move along the shortest path from the owing rows,
+   in order -- into a column through a cell below its upper bound, back
+   out through a cell above its lower bound, each row and column reached
+   once -- ending at the first owing column reached, as many as the
+   path's bottleneck allows (the row's debt, the column's, each step's
+   room): the table moving one cell at a time writes, in searches
+   bounded by the table and not its counts. Before any of it, where the
+   fit stopped short of settling and a row's floors add to more than its
+   count, its cells are lowered, its last first, until they add to it,
+   then a column's so, its last row first; the lowered values are those
+   cells' floors (lane C2's repair round: rows and columns `[1000, 1000]`,
+   one row bound to the first column, settle only at the table's edge).
+   So every cell is the floor or ceiling of its fitted value wherever
+   such a table exists and no floor was lowered, and both counts are met
+   wherever any table meets them. Where none does -- a description no
+   producer writes -- the body is laid by G7A.4b and the twin's report
+   names `minute_census` as not held.
 4. **The cells.** Group by group: the group's unpinned ranks read their
    words in rank order (G7A.4b step 5's words), taken stretch by stretch
    and lane by lane; a lane of `n` cells over `U` steps stands its cell
@@ -14317,7 +14326,11 @@ other width spells another way are the draw's room (G7A.4b step 1).
 laid on its minute census (G7A.4c) a heap's ranks too are its group's
 window: how many of the group's cells stand below the heap is the
 minute census's to say, so the ranks a heap holds move inside its group
-as the real column's do.
+as the real column's do. And a group's window there is its whole span
+inside the body (`group_span`; the whole dial on the step where the
+census is empty), not its runs' reach, since G7A.4c walls a group at its
+span's ends and a run G7A.4b gave no cells may hold its cells
+(`calendar_clock.clock_minute_reach`, lane C2's repair round).
 
 ### G12.11 The envelope on a clock column's two distinctness counts
 

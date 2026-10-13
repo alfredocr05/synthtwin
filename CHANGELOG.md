@@ -18,7 +18,10 @@ wrote before. Rare words beside clock times stay in the twin as words,
 never blanks, and twelve real `8:00` beside `08:00` declared missing come
 back as `8:00`. A label column's twin still steps its held-back times
 round the whole day, its hour of day 0.11 off at 1,000 rows: no label
-publishes hours.
+publishes hours. Its repair round draws the checker's windows over a
+census group's whole span, as the twin is laid (a p75 at the second was
+MISSED in 5 of 420 small twins), and lets the rounding meet every table
+any rounding meets, a whole path's worth of cells at a time.
 
 ### The minutes and seconds of a timestamp come back (2026-10-12)
 

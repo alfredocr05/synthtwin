@@ -1437,8 +1437,8 @@ rather than in ISO:
   each is written at and summed per published group
   (`minute_census.groups`), HELD where every group holds its count,
   each group named by its minutes as V5-M1 names them; and on such a
-  block a heap's ranks are windowed as its group's (G12.10b), as the
-  generator lays them.
+  block a heap's ranks are windowed as its group's, over the group's
+  whole span in the body (G12.10b), as the generator lays them.
 - `weekday_census` is compared GROUP FOR GROUP (`weekday_census.groups`,
   landing 3b.1, plan P4-D355): the file's own dates between the two
   PUBLISHED tail boundaries, both included, less the days its own
