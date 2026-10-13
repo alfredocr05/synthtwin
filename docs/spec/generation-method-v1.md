@@ -7558,6 +7558,77 @@ Wednesdays, and alone taking the nearest free minute of a rank's own
 day, the earlier on a tie, inside its gap and off midnight -- each with
 the answer this section gives it, and no G14.3 case.
 
+#### G7.3i The day of the month: the joint day plan
+
+(Landing 3b.3, plan P4-D368.) A column counted in days -- whole dates,
+and moments every value of which stands at midnight on the local clock
+(G7.1's ordinal space `date`) -- that publishes a `day_of_month_census`
+is moved in the day pass's own slot by two passes of G7.3f's shared
+steps, in place of the weekday pass alone; every other column, a column
+of moments with a clock among them, is moved by G7.3f exactly as before,
+so its twin is unchanged byte for byte. Each day falls in one of the
+census's thirty-four BINS: the day of its month from 1 to 27; the 28th,
+29th and 30th where that day is not its month's last; and the month's
+last day in bins 31, 32, 33 and 34 by its month's length of 28 to 31
+days. The bins follow one another with no period, so G7.3f counts a
+gap's days one by one -- and a gap wider than 1,024 days by the
+calendar, in 400-year cycles and whole months, the same counts without
+asking each day (the Codex review of landing 3b.3, item 3); a day's bin
+is kept once asked, at most 65,536 days; past them a day is reckoned
+each time it is asked, never kept.
+
+1. **Pass A** is G7.3f over the day-of-month census: each day's group
+   is its bin's, and every day between the two tail boundaries whose
+   weekday the weekday census counts nought is added to the holes, so
+   no rank is put where pass B would have to take it off -- read as a
+   rule on the day's weekday, never stored day by day (the Codex review,
+   item 2: a business-day column over years 0001 to 2000 stored 202,436
+   such days). Every other
+   seam is the weekday pass's: the width kind of the column's one width
+   word, the description's holes and the count of different days the
+   ranks held before the pass, kept where it is reachable.
+2. **Pass B**, where a weekday census is published, is G7.3f over it,
+   each move keeping the rank's day-of-month group as G7.3f keeps a
+   second census's group, so the day-of-month counts pass A met stand;
+   step 8.6 trades two ranks across those groups where the weekday
+   totals are still off, each second group keeping its count.
+3. **The core holds.** Where the two passes leave the weekday census
+   missed over the body, or the count of different days off where it
+   is kept, G7.3f alone is run from the same ranks; where its days miss
+   neither of the two the passes met and meet one they missed, the
+   column takes them -- its twin before this landing, byte for byte --
+   and the twin names `day_of_month_census` given way to the weekday
+   census and the count.
+
+4. **The spelling repair keeps the groups** (the Codex review, item
+   1). A cell G7.5 writes in a spelling the run declares absent moves
+   after the census is met. On a column publishing a day-of-month census
+   the repair first asks, inside each window it asks (the rank's gap,
+   then the body), the days at most 400 away, nearest first and the
+   earlier first at one distance, that are no hole, keep the rank's
+   day-of-month group and, where one is published, its weekday group,
+   keep its width kind where the column keeps one, and write no absent
+   spelling: a rank alone on its day takes the first no rank holds, one
+   sharing its day the first a rank holds, else the first found. Only
+   where none is found does it move as G7.5 always did.
+5. **The census as written.** The finished cells are recounted as V5-W2
+   counts them; where they miss the census and nothing above names it,
+   the twin names `day_of_month_census`, and the sentence on its spread
+   says missed, never met.
+
+Where a census still does not hold, the twin names it
+(`day_of_month_census`, or `weekday_census`); where both hold and the
+count of different days does not, the weekday pass's own cause is named,
+the tails' only where every day both censuses allow between the two
+boundaries holds a rank. The pass draws no word. Its frozen cases are
+states of ranks in the eighteenth vectors file,
+`tests/reference/generation-branch-vectors-18.json`: billing on the 1st
+and the 15th with no weekday census, a visit on the 10th beside seven
+weekday groups, month ends on each month's own last day, billing rolled
+to business days beside an empty weekend, births with a weekend dip, and
+the 1st heaped beside a hole on each 15th, and one state of step 4's
+repair -- each with the answer this section gives it, and no G14.3 case.
+
 ### G7.4 Offsets: only where recorded
 
 `utc_offsets` maps an offset text to a count, under the small-cell
@@ -8676,9 +8747,10 @@ weekday pass holds each a hole, as it holds both placeholder days on a
 column of moments (at this landing's integration beside landing 3b.D2:
 1,000 SAS seconds across 1 January 1900, a Monday, came out of the
 last pass below with seven Monday ranks on Sunday and missed the weekday
-census at seed 0), and so does the hour pass, whose escape paid back
-(G7.3g step 3) moves ranks by whole days (at batch 3's integration
-beside lane J; the reference's hour pass always held them). NO TAIL
+census at seed 0), and so do the hour pass, whose escape paid back
+(G7.3g step 3) moves ranks by whole days, and G7.3i's joint day plan
+(at batch 3's integration beside lanes J and D3; the reference's hour
+and day passes always held them). NO TAIL
 REACHES A WALL OF THEM: the
 stretches beyond a tail's boundary the column's counts cannot hold --
 either placeholder day, the day or the instant serial 2 names (on a

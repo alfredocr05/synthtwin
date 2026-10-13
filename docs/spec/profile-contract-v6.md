@@ -2064,8 +2064,8 @@ contract:
    widening it to arbitrary strings would be exactly the hole that lets
    a source-derived value into a sentence and be rebuilt successfully.
 
-**The census.** The table holds 98 forms and 120 argument positions.
-Of those, 84 are whole numbers, 14 are package words, 17 are nested
+**The census.** The table holds 101 forms and 122 argument positions.
+Of those, 86 are whole numbers, 14 are package words, 17 are nested
 forms, and 5 are bound affix strings. No position is a string of any
 other kind. The hour census (landing 3b.2-H, plan P4-D371) added the
 six forms NF88 to NF92 and NF117 -- the last at its review, the first
@@ -2077,7 +2077,9 @@ those positions (plan P4-D359), and the weekday guard drop a fourth,
 `weekday_census_withheld_too_few_repeats`, with another (plan P4-D365);
 plan P4-D357 A added the
 eight forms NF79 to NF86 and no position, and plan P4-D356 the form NF87
-and no position. Landing 3b.5 (plan P4-D373) added NF106 and NF107 and
+and no position; the day-of-month census (landing 3b.3, plan P4-D368)
+added the three forms NF102 to NF104 and two whole-number positions,
+each the census line. Landing 3b.5 (plan P4-D373) added NF106 and NF107 and
 two whole-number positions, each the census line; landing R2a (plan
 P4-D383) added NF112 and one whole-number position, the century the
 person gave, a setting.
@@ -2120,8 +2122,8 @@ shipped. `tests/test_p4d334_sentence_arguments.py` re-measures the
 class over a committed battery, so it is a number a reader can run.
 
 So every argument position of every form is bound to WHAT IT IS, and
-the table below is closed over all 120 of them exactly as the form table
-is closed over the 98 forms. A position nobody bound is a number a
+the table below is closed over all 122 of them exactly as the form table
+is closed over the 101 forms. A position nobody bound is a number a
 sentence may print that no rule governs, and a producer that adds one
 is a producer this contract does not describe. The bindings are these:
 
@@ -2314,6 +2316,8 @@ and why the sentence that cannot be withdrawn now has NF61 to say.
 | `clock_codes_written_back` | 1 | setting (census line) |
 | `hour_census_counts_hours` | 1 | setting (census line) |
 | `hour_census_withheld_no_grouping` | 1 | setting (census line) |
+| `day_of_month_census_counts_each_day` | 1 | setting (census line) |
+| `day_of_month_census_counts_days_together` | 1 | setting (census line) |
 | `said_read_as_dates` | 1 | floored against `n_present` |
 | `said_read_as_dates` | 2 | package word |
 | `said_written_as_numbers` | 1 | sum `n_numeric` + `n_out_of_range` + `n_contradictory` |
@@ -3714,7 +3718,7 @@ names:
 
 | id | statement |
 |---|---|
-| NG14 | the form is one of the 98 in section 4.5.1 |
+| NG14 | the form is one of the 101 in section 4.5.1 |
 | NG15 | the argument count equals that form's arity |
 | NG16 | every argument is of one of C6-119's four classes |
 | NG17 | re-rendering the form with those arguments writes the leaf's text character for character |
@@ -4068,6 +4072,38 @@ back-solve beside the sentence correctly assumed they did not.
 <!-- anchor 3b-D0 (P4-D366) -->
 <!-- anchor 3b-D2 (P4-D367) -->
 <!-- anchor 3b-D3 (P4-D368) -->
+
+**NF102, NF103 and NF104 — what a column of dates says about its
+day-of-month census** (landing 3b.3, plan P4-D368). A PUBLISHED census
+carries one remark: NF102 where every group that holds rows is one bin,
+NF103 where some neighbouring bins are counted together. A census the
+day of the month asks for -- it departs as the rule of 6.6.2 says --
+but the producer keeps back carries one publication note, NF104, which
+names no rule and claims no established loss -- counting the days could
+cost the count of different values or the counts per weekday, or a
+conservative rule keeps the census back (the Codex review of landing
+3b.3, item 4: four Mays at a floor of 36 withheld by the few-dates rule
+publish twelve groups every twin meets once the rule is set aside): a body day on a published hole, a middle half spanning
+fewer than 124 days (DM4), a group holding rows on fewer than four
+different dates unless it counts only a month's last day and holds rows
+on every one its calendar offers, the two censuses
+leaving the body too few days for the count of different values once
+the twin's rebuilt tails are set aside (plan P4-D388's count-reach rule,
+asked of both), or the loader's own check. A column whose day of the month does not depart says nothing.
+NF102 and NF103 take one argument, the census line; NF104 none.
+
+**NF102. `day_of_month_census_counts_each_day` — the census of a column of dates counted for each day of the month** — arity 1. Argument 1: the census line.
+
+> which days of the month this column's values fall on is counted for each day, over the values between its two tail boundaries, a month's last day apart from the 28th, 29th and 30th of a longer month; every day that holds rows holds them on at least four different dates, or is a month's last day holding rows on every one the calendar gives between the boundaries, and every count is nought or at least «1» rows
+
+**NF103. `day_of_month_census_counts_days_together` — some neighbouring days of the month counted together** — arity 1. Argument 1: the census line.
+
+> which days of the month this column's values fall on is counted over the values between its two tail boundaries, some neighbouring days together, a month's last day apart from the 28th, 29th and 30th of a longer month; every group that holds rows holds them on at least four different dates, or counts only a month's last day and holds rows on every one the calendar gives between the boundaries, and every count is nought or at least «1» rows
+
+**NF104. `day_of_month_census_withheld` — why a column of dates publishes no day-of-month census** — arity 0.
+
+> the days of the month this column's values fall on are not counted, though they depart from the calendar, because counting them could cost the twin its count of different values or its counts per weekday, or because a conservative rule keeps them back: the column's middle half spans too few months, a day of the month holds its rows on too few different dates, or some of its dates fall on days the description holds empty
+
 <!-- anchor 3b-D4 (P4-D369) -->
 <!-- anchor 3b-T1 (P4-D370) -->
 <!-- anchor 3b-T2 (P4-D371) -->
@@ -5732,7 +5768,7 @@ landing restates its own rows below its own line.
 
 | key | JSON type | permitted values | meaning |
 |---|---|---|---|
-| `day_of_month_census` | array | `[]` | reserved for how many cells between the two tail boundaries fall on each group of days of the month; landing 3b.3 fills it |
+| `day_of_month_census` | array | groups `{first, last, count}`, bins 1 to 34 | how many cells between the two tail boundaries, both included, fall on each group of days of the month (landing 3b.3, plan P4-D368, DM1 to DM5): THIRTY-FOUR BINS on a cycle -- bins 1 to 27 the days 1 to 27, bins 28 to 30 the 28th to the 30th where that day is not the month's last, and bins 31, 32, 33 and 34 the month's last day in a month of 28, 29, 30 and 31 days, bin 34 neighbouring bin 1 -- in groups of consecutive bins, the last of which alone may run past bin 34 back to bin 1, each count nought or at least the census line; `[]` where no census is published, and always on a column that is not whole dates or moments every value of which stands at midnight, read on the local clock, not in the joint member, with both tails. Published beside the weekday census where the day of the month departs from the calendar weighted by that census's groups by at least four chi-squared per degree of freedom and by more than the weekday departs beyond it; with no weekday census, where it departs by four from the plain calendar; the weekday census is never withdrawn |
 
 <!-- anchor 3b-D4 (P4-D369) -->
 
@@ -12814,6 +12850,15 @@ it answers to.
 | WC10 | a non-empty census on a column of moments stands only where its published `p25` and `p75` are both named and the `p75` stands at least 28 days of 86,400 seconds after the `p25`, each read as a whole local instant, clock and day together, so the column's middle half spans at least four weeks (landing 3b.D2, plan P4-D367; its Codex review, item 3); WC6's half on written forms is not asked of moments, its half on a workbook's cell classes is | yes |
 
 <!-- anchor 3b-D3 (P4-D368) -->
+
+| id | statement | loader? |
+|---|---|---|
+| DM1 | the groups of `day_of_month_census` cover bins 1 to 34 in order, each exactly once, and only the last group may run past bin 34 back to bin 1 (landing 3b.3, plan P4-D368) | yes |
+| DM2 | every group counts nought or at least `max(2, small_cell_floor)` | yes |
+| DM3 | the groups add up to `P - low_tail.rows - high_tail.rows`, the cells between the two tail boundaries, both included | yes |
+| DM4 | a non-empty census stands only where the published `p25` and `p75` are both named and the `p75` stands at least 124 days after the `p25`, so the column's middle half spans at least four months | yes |
+| DM5 | a non-empty census stands only on a column of whole dates, or of moments every value of which stands at midnight, read on the local clock, not in the joint member, with both tails -- WC3's scope and nothing more: the censuses of written forms and a workbook's cell classes are not asked | yes |
+
 <!-- anchor 3b-D4 (P4-D369) -->
 <!-- anchor 3b-T1 (P4-D370) -->
 <!-- anchor 3b-T2 (P4-D371) -->
@@ -13026,7 +13071,7 @@ month-first parsed.
 | NG11 | on `remark_affixed_numbers_may_be_codes`: argument 3 equals the named block's `n_affixed` |
 | NG12 | argument 1 is character-for-character that block's `affix_prefix` and argument 2 its `affix_suffix`, AT THOSE POSITIONS, not merely as members of the pair |
 | NG13 | on `remark_a_label_is_a_built_in_stand_in`: argument 1 is 1, 2 or 3 |
-| NG14 | for every form: one of the 98 the note grammar enumerates |
+| NG14 | for every form: one of the 101 the note grammar enumerates |
 | NG15 | the argument count equals that form's arity |
 | NG16 | every argument is of one of the four argument classes |
 | NG17 | re-rendering the form with those arguments writes the leaf's text character for character |
@@ -13421,7 +13466,7 @@ form, the stand-in is written in it (7.9.1).
 <!-- anchor 3b-D2 (P4-D367) -->
 <!-- anchor 3b-D3 (P4-D368) -->
 
-| `day_of_month_census` | LOADER-ONLY (plan P4-D364): `[]` on every block, refused as anything else, and no output obligation until landing 3b.3 fills it |
+| `day_of_month_census` | EXACT-OBSERVABLE (landing 3b.3, plan P4-D368): the file's own cells between the two PUBLISHED boundaries, both included, hold every day-of-month group's published count exactly, each cell counted in its bin -- the month's last day in bins 31 to 34 -- and a cell on a day the description holds empty misses the census whatever its counts; on a column of moments every value of which stands at midnight they are compared as instants, read as the tails read them. A MISSED line keeps its verdict and prints no count below the line (plan P4-D347). The validator counts the file's body against the published groups and never produces a census of its own |
 
 <!-- anchor 3b-D4 (P4-D369) -->
 
@@ -14340,7 +14385,7 @@ this document, and the battery the plan requires turns red on it.
 | nothing-class blocks (`numeric_unrepresentable`, `identifier`, `free_text`) | lengths, word statistics, digit and code-alphabet counts, the whole-number test, the repetition multiset, on `numeric_unrepresentable` the whole-number and sign counts, on `free_text` the census of WRITTEN FORMS its cells wore (`shape_forms`), and on `identifier` the census of LAYOUTS (`layout_forms`, 7.12) and, by the owner's ruling of 2026-09-17, the literal PREFIX every cell of the column or of one named layout opens with (`layout_prefixes`, 7.12a, row 22) | no value, no spelling, no fragment of one but the prefix of row 22 — the form census included, whose every key is built from `%`, `@` and thirteen named marks -- characters no cell that has a form may contain, so a key can carry no letter and no figure of any cell; the multiplicity map publishes SIZES of unnamed groups under no floor, the form census under the floor with a `(withheld)` pool |
 | `empty` columns nobody declared | the absent SPELLINGS their cells wore and the two absence counts, exactly as any column that is not nothing-publishing | floor-governed |
 | `settings` | the rules the run applied, the floor's own value, how many values each declaration named, and which of THIS package's published words were among them | carries no cell, no column and no count of the table; a person's own spelling never enters |
-| `source.header_evidence`, `publication_notes[].note`, `detection_evidence`, `remarks` | sentences of the 98 closed forms: 120 argument positions, of which 84 are whole numbers, 14 package words, 17 nested forms and 5 bound affix strings | the whole numbers are counts the block beside them already publishes, EXCEPT the positions priced at rows 16 and 18 |
+| `source.header_evidence`, `publication_notes[].note`, `detection_evidence`, `remarks` | sentences of the 101 closed forms: 122 argument positions, of which 86 are whole numbers, 14 package words, 17 nested forms and 5 bound affix strings | the whole numbers are counts the block beside them already publishes, EXCEPT the positions priced at rows 16 and 18 |
 | `relationships` | nothing: eight nulls | — |
 
 ### 12.3 The rows, each priced
@@ -15404,10 +15449,10 @@ width at least ONE (`1`, `2`, `10`), a cell written as a whole number
 writing at least one figure (C6-29c). `(withheld)` is again the only
 non-numeric key permitted.
 
-### 14.8 The note grammar — 98 forms
+### 14.8 The note grammar — 101 forms
 
 Defined in 4.5.1, which is the authority on every rendering and every
-argument. 120 argument positions: 84 whole numbers, 14 package words, 17
+argument. 122 argument positions: 86 whole numbers, 14 package words, 17
 nested forms, 5 bound affix strings.
 
 > **THE CENSUS IS RECOMPUTED FROM THE CODE, NOT TAKEN FROM EITHER
@@ -15510,6 +15555,9 @@ nested forms, 5 bound affix strings.
 | NG87 | `said_some` | 0 |
 | NG108 | `remark_some_clocks_written_another_way` | 0 |
 | NG109 | `remark_some_hours_written_another_width` | 0 |
+| NG102 | `day_of_month_census_counts_each_day` | 1 |
+| NG103 | `day_of_month_census_counts_days_together` | 1 |
+| NG104 | `day_of_month_census_withheld` | 0 |
 
 <!-- anchor 3b-D1 (P4-D365) -->
 <!-- anchor 3b-D0 (P4-D366) -->

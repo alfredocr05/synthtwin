@@ -1527,6 +1527,77 @@ def test_c5_the_hour_pass_holds_the_placeholder_days_of_counted_moments(
     assert held == [False]
 
 
+def test_c5_the_day_pass_holds_the_placeholder_days_of_counted_dates(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Batch 3's integration, lane D3 beside lane R4 (plans P4-D368 and P4-D384).
+
+    The joint day plan of G7.3i holds a column of counted dates'
+    placeholder days as holes, as the weekday pass does (G7.10). A
+    thousand SAS seconds at midnight from 1898 to 1901, four in ten on the
+    1st of a month and none on 1 January 1900, publish a day-of-month
+    census heaped on the 1st beside a weekday census: the day pass holds
+    the day, no twin cell names it, and every twin is at exit 0. THE
+    MUTANT: the day pass's holes without that day, whose twins at seeds 0
+    to 2 missed both censuses and the count of different values at exit
+    3, no cell left on the day.
+    """
+    system = "seconds-since-1960"
+    draw = random.Random(1900)
+    days = [datetime.date(1898, 1, 1) + datetime.timedelta(days=step) for step in range(365 * 4 + 1)]
+    cells: "list[str]" = []
+    while len(cells) < 1000:
+        day = datetime.date(draw.randrange(1898, 1902), draw.randint(1, 12), 1) if draw.random() < 0.4 else draw.choice(days)
+        if day != datetime.date(1900, 1, 1):
+            cells += [_counted_from(system, datetime.datetime.combine(day, datetime.time()))]
+    path = _table_of(tmp_path, {"t": cells})
+    code, said = _exit_of(["profile", str(path), "--date-count", "t", system, "--out-dir", str(tmp_path), "--replace"])
+    assert code == 0, said[-600:]
+    described = tmp_path / "table-profile.json"
+    block = json.loads(described.read_text(encoding="utf-8"))["columns"][0]
+    assert block["day_of_month_census"][0] == {"count": 410, "first": 1, "last": 1} and block["weekday_census"]
+    placeholder = parsing.days_from_civil(1900, 1, 1)
+    held: "list[bool]" = []
+    real_passes = generation._day_passes
+
+    def watched(*arguments: object, **named: object) -> object:
+        nonlocal held
+        held += [placeholder in arguments[7][3]]  # type: ignore[index]
+        return real_passes(*arguments, **named)  # type: ignore[arg-type]
+
+    monkeypatch.setattr(generation, "_day_passes", watched)
+
+    def exits(folder: pathlib.Path) -> "list[int]":
+        found: "list[int]" = []
+        folder.mkdir()
+        for seed in (0, 1, 2):
+            code, said = _exit_of(["generate", str(described), "--seed", f"{seed}", "--out-dir", str(folder), "--replace"])
+            assert code == 0, said[-600:]
+            twin = [row[0] for row in csv.reader(io.StringIO((folder / "table-twin.csv").read_text(encoding="utf-8")))][1:]
+            assert [cell for cell in twin if cell and _day_written(system, cell) == datetime.date(1900, 1, 1)] == [], seed
+            out = folder / f"check-{seed}"
+            out.mkdir()
+            found += [_exit_of(["validate", str(described), "--twin", str(folder / "table-twin.csv"), "--out-dir", str(out), "--replace"])[0]]
+        return found
+
+    assert exits(tmp_path / "head") == [0, 0, 0] and held == [True, True, True]
+    real_setup = generation._day_pass_setup
+
+    def without_the_day(*arguments: object, **named: object) -> "tuple[str, bool, frozenset[int]]":
+        word, widths, holes = real_setup(*arguments, **named)  # type: ignore[arg-type]
+        return word, widths, frozenset(day for day in holes if day != placeholder)
+
+    monkeypatch.setattr(generation, "_day_pass_setup", without_the_day)
+    real_day = generation._day_settled
+
+    def no_counted(*arguments: object, **named: object) -> object:
+        return real_day(*arguments[:10], **named)  # type: ignore[arg-type]
+
+    monkeypatch.setattr(generation, "_day_settled", no_counted)
+    held = []
+    assert exits(tmp_path / "mutant") == [3, 3, 3] and held == [False, False, False]
+
+
 def _excel_births_from_1900(drawn_by: str) -> "list[str]":
     """Ten thousand Excel date-times `%.15g` at whole minutes, births from 1 January 1900 to 1935."""
     draw = random.Random(drawn_by)

@@ -815,13 +815,18 @@ def test_the_ledger_file_is_canonical_json() -> None:
     text = kpi_rules.LEDGER_PATH.read_text(encoding="utf-8")
     assert text.endswith("\n")
     assert json.loads(text) == LEDGER
-    # 554,000 from 550,000, AT THE INTEGRATION OF BATCH 3'S FIRST PART
+    # 564,000 from 550,000, AT THE INTEGRATION OF BATCH 3'S FIRST PART
     # (2026-10-13), the integrator's call under the orchestrator's rule: the
-    # least round figure the merged ledger fits under. Lane J adds `K-S3-62`
-    # and its note clause, 3,887 bytes over 549,650: its evidence was
-    # trimmed first, every figure and its source kept (855 to 784
-    # characters), to 553,466 bytes; the rest is its rule and its pinned
-    # nodes, which are not trimmed.
+    # least round figure the merged ledger fits under, raised to 554,000
+    # with lane J and to 564,000 with lane D3. Lane J adds `K-S3-62`, its
+    # note clause and a clause of `K-S3-40`'s rule, 3,887 bytes over
+    # 549,650; lane D3 adds `K-S3-43` and `K-S3-44` (the day-of-month
+    # census, plan P4-D368), a clause of `K-S3-31`'s rule and its note
+    # clause, 9,902 bytes. The evidence of `K-S3-62` and `K-S3-44` was
+    # trimmed first, every figure and its source kept (855 to 784 and
+    # 1,486 to 1,305 characters), to 553,466 and then 563,187 bytes; the
+    # rest is the entries' own rules and pinned nodes, which are not
+    # trimmed.
     #
     # 550,000 from 531,000, AT THE INTEGRATION OF BATCH 2B'S SECOND PART
     # (2026-10-12), the integrator's call, as the orchestrator asked: the
@@ -945,7 +950,7 @@ def test_the_ledger_file_is_canonical_json() -> None:
     # its bytes are K-P4-20's new value and the notes of the ceilings and
     # re-measurements its repair pass recorded. The cap is still a cap; the
     # prose is trimmed before it is raised again.
-    assert pathlib.Path(kpi_rules.LEDGER_PATH).stat().st_size < 554_000
+    assert pathlib.Path(kpi_rules.LEDGER_PATH).stat().st_size < 564_000
 
 
 def test_a_fast_pinned_entry_with_no_collection_floor_is_named() -> None:

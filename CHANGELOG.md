@@ -6,6 +6,54 @@ exists).
 
 ## [Unreleased]
 
+### The day-of-month census (2026-10-09)
+
+**A column of dates publishes which days of the month it falls on**
+(stage 3b landing 3b.3, plan P4-D368). Before, the twin drew each gap
+evenly and lost every day-of-month heap: billing on the 1st and the 15th
+came back 0.068 to 0.089 of the cells against a real 0.456, a monthly
+visit on the 10th 0.080 to 0.154 against 0.915, month ends 0.027 to
+0.065 against 0.609. Now a column of whole dates, or of moments every
+value of which stands at midnight on the local clock, publishes
+`day_of_month_census` -- its body counted over thirty-four bins on a
+cycle, the month's last day apart by its month's length -- beside its
+weekday census where the day of the month departs beyond the weekday,
+or, with no weekday census, from the calendar; the weekday census is
+never withdrawn. A short middle half (DM4), a hole under a body day, a
+group of too few dates, or too few days left for the count of different
+values keeps it back, said in one note (NF104); a published census says
+NF102 or NF103. The loader holds DM1 to DM5. The generator meets both
+censuses by the joint day plan (method G7.3i); where the plan would
+cost the weekday census or the count of different values, the column
+keeps the weekday pass's days and the twin names the day of the month
+given way. The validator counts the file per bin (V5-W2), and the
+oracle and the eighteenth vectors file freeze the plan. On the lane's
+battery at 1,000 rows each heap comes back exactly, no twin misses a
+check, and every twin of a column publishing no census is the base's
+byte for byte; at 10,000 rows the heaps come back exactly, and quarter
+ends keep their count at every seed but miss their day-of-month census
+at three of five, named, until lane D4's heavy dates, as do columns of
+one month a year (six and ten Mays: 13 of 24 twins), each such twin the
+base's byte for byte. Where the generator so keeps the weekday pass's
+days, the joint plan's time is spent for nothing: six Mays take about
+three times the base's time to generate at 100,000 and 400,000 rows.
+Stated limits: a heap beside a stronger weekday pattern (Monday
+billing, first Mondays) is not published; nor are three or four Mays at
+a floor of 36, a group holding fewer than four dates; business-day
+heaps come back at about four fifths of their joint share; a clocked
+column publishes none. After the Codex review, a date moved off a
+spelling the run declares absent keeps its published groups, and the
+finished cells are recounted, so a census missed after the day pass is
+named and never said met; a column over centuries no longer stores
+every weekend day or every day's bin (1,000 rows over two thousand
+years: 85.6 MB traced to 4.2 MB, the same twin); and the note on a
+census kept back says it could cost a fact, or that a conservative rule
+keeps it back.
+
+At integration (batch 3's first part), the day pass hands the weekday
+pass a counted column's placeholder days and holds them itself, beside
+lane R4's numbers that are dates.
+
 ### The weekday and the hour of a moment, met together (2026-10-12)
 
 **Twins of a column of moments publishing both a weekday census and an

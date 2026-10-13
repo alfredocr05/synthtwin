@@ -2552,6 +2552,510 @@ def moments_breach(
 
 
 # anchor 3b-D3 (P4-D368)
+
+
+# THE DAY-OF-MONTH CENSUS (landing 3b.3, plan P4-D368, contract DM1 to
+# DM5). A column of whole dates -- or of moments every value of which
+# stands at midnight on the local clock, which the twin counts and moves
+# in days (the 3b.3 skeptic's major 4) -- publishes `day_of_month_census`:
+# how many cells of its BODY, the cells between the two tail boundaries,
+# both included, fall on each day of the month, in GROUPS of consecutive
+# BINS whose count is nought or at least the census line. Thirty-four
+# bins, numbered from 1: bins 1 to 27 the days 1 to 27; bins 28, 29 and
+# 30 the 28th, 29th and 30th of a month where that day is NOT the last;
+# and bins 31, 32, 33 and 34 the month's LAST day, in a month of 28, 29,
+# 30 and 31 days. A month-end heap so comes back on the month's last day,
+# never on a 31st a 30-day month does not hold (the design measured 0.43
+# of 0.612 with plain days), and a heap on the 30th never puts one on the
+# 31st (the skeptic's minor 2: 0.13 against a real 0.009). The bins are a
+# CYCLE: bin 34, the last day of a long month, neighbours bin 1.
+
+MONTH_DAY_BINS = 34
+# The first bin of the month's last day: a month of 28 days's.
+MONTH_LAST_FIRST_BIN = 31
+# THE FEW-DATES RULE OF THE DAY OF THE MONTH (the 3b.3 skeptic's blocker
+# 1 (a), measured): a group that holds rows holds them on at least four
+# different body dates, or no census is published. Every column whose
+# twins missed their count of different values had a group of one to
+# three dates; every column whose twins held it had four or more.
+FEWEST_MONTH_DATES = 4
+# DM4: the days the middle half of the column spans at least, from its
+# published `p25` to its published `p75` (four months), so no census of
+# days of the month is a census of a few dates.
+MONTH_SPAN_DAYS = 124
+# THE LINE A DAY OF THE MONTH DEPARTS BY, in chi-squared per degree of
+# freedom, before a census of it is published (plan P4-D368).
+MONTH_SCORE_LINE = 4.0
+# The days of a 400-year Gregorian cycle: a whole number of weeks, so the
+# weekday of every day of the month repeats with it.
+_CYCLE_DAYS = 146097
+_CYCLE_MONTHS = 4800
+
+# WHY A COLUMN WHOSE DAY OF THE MONTH DEPARTS PUBLISHES NO CENSUS OF IT:
+# a body day stands on a published hole, its middle half spans fewer than
+# `MONTH_SPAN_DAYS` days (DM4), a group holds fewer than
+# `FEWEST_MONTH_DATES` different dates, the two censuses leave the body
+# too few days for the count (`month_reach_short`), or the loader's own
+# check refuses the census (`REASON_NARROWED`). Said in one publication
+# note.
+REASON_MONTH_HOLE = "month_hole"
+REASON_MONTH_SPAN = "month_span"
+REASON_MONTH_FEW_DATES = "month_few_dates"
+REASON_MONTH_REACH = "month_reach"
+MONTH_REASONS = (
+    REASON_MONTH_HOLE, REASON_MONTH_SPAN, REASON_MONTH_FEW_DATES,
+    REASON_MONTH_REACH, REASON_NARROWED,
+)
+# The names `day_census_breach` reports its rules under.
+MONTH_CENSUS_RULES = ("DM1", "DM2", "DM3", "DM2")
+
+
+def month_length(year: int, month: int) -> int:
+    """How many days a month of the proleptic Gregorian calendar holds.
+
+    Guarantees: accepts a year and a month from 1 to 12; returns 28 to
+    31. Determinism: a fixed function. Raises nothing. No I/O.
+    """
+    if month == 2:
+        leap = year % 4 == 0 and (year % 100 != 0 or year % 400 == 0)
+        return 29 if leap else 28
+    if month in (4, 6, 9, 11):
+        return 30
+    return 31
+
+
+def month_bin_of(date: int, length: int) -> int:
+    """The bin, from 1 to 34, of the `date`-th day of a month of `length` days.
+
+    Guarantees: accepts a day of the month and its month's length;
+    returns its bin. Determinism: a fixed function. Raises nothing. No
+    I/O of any kind.
+    """
+    if date == length:
+        return length + MONTH_LAST_FIRST_BIN - 28
+    return date
+
+
+def month_bin(day: int) -> int:
+    """The bin, from 1 to 34, a day number falls in (module text above).
+
+    Guarantees: accepts a day number counted from 1970-01-01; returns its
+    bin. Determinism: a fixed function. Raises nothing. No I/O of any
+    kind.
+    """
+    year, month, date = parsing.civil_from_days(day)
+    return month_bin_of(date, month_length(year, month))
+
+
+def month_bins(days: "list[int]") -> "list[int]":
+    """How many of these days fall in each bin, bin 1 first.
+
+    Guarantees: accepts day numbers; returns thirty-four counts.
+    Determinism: a function of the days. Raises nothing. No I/O.
+    """
+    bins = [0 for _ in range(MONTH_DAY_BINS)]
+    for day in days:
+        index = month_bin(day) - 1
+        bins[index] = bins[index] + 1
+    return bins
+
+
+def month_where(groups: "tuple[tuple[int, int, int], ...]") -> "tuple[int, ...]":
+    """Each bin's group, bin 1 first, on a census that may wrap past bin 34.
+
+    Guarantees: accepts the groups, bins from 1; returns thirty-four
+    group indices. Determinism: a function of the groups. Raises
+    nothing. No I/O of any kind.
+    """
+    where = [0 for _ in range(MONTH_DAY_BINS)]
+    for index in range(len(groups)):
+        first, last, _count = groups[index]
+        position = first
+        while True:
+            if 1 <= position <= MONTH_DAY_BINS:
+                where[position - 1] = index
+            if position == last or not 1 <= position <= MONTH_DAY_BINS:
+                break
+            position = position % MONTH_DAY_BINS + 1
+    return tuple(where)
+
+
+def month_groups(bins: "list[int]", line: int) -> "tuple[tuple[int, int, int], ...]":
+    """The groups a day-of-month census publishes, or none (plan P4-D368).
+
+    The one merge rule of every census of bins (`merged_groups`), on a
+    CYCLE (the skeptic's major 1): a bin at the line stands alone, a run
+    of empty bins is one group of nought, and a short group joins its
+    smaller NON-ZERO neighbour, so a heap day is never folded into the
+    empty run beside it; where everything merges into one group, no
+    census. Numbered from 1.
+
+    Guarantees: accepts thirty-four counts and the line; returns
+    `(first, last, count)` per group, or `()`. Determinism: a function
+    of the two. Raises nothing. No I/O of any kind.
+    """
+    merged = merged_groups(bins, [], line, cyclic=True)
+    return tuple((first + 1, last + 1, count) for first, last, count in merged)
+
+
+def month_calendar(
+    low: int, high: int, holes: "tuple[int, ...]" = ()
+) -> "list[list[int]]":
+    """How many calendar days from `low` to `high` fall on each weekday and bin.
+
+    COUNTED, NEVER WALKED DAY BY DAY (review of landing 3b.1, finding
+    10): whole 400-year cycles at once, then month by month, every whole
+    month by its length and the weekday of its first day, so a span of
+    6,000 years costs at most two cycles' months, as 800 years do; a day
+    of `holes` between the two is taken off. Each weekday is reckoned
+    here, `weekday_of`'s own sum, never asked of it day by day.
+    `[weekday][bin - 1]`, Monday nought.
+
+    Guarantees: accepts two day numbers and the holes; returns seven
+    rows of thirty-four counts. Determinism: a function of the three.
+    Raises nothing. No I/O of any kind.
+    """
+    table = [[0 for _ in range(MONTH_DAY_BINS)] for _ in range(WEEKDAYS)]
+    if high < low:
+        return table
+    kinds: "dict[tuple[int, int], int]" = {}
+    cycles = (high - low + 1) // _CYCLE_DAYS
+    start = low + cycles * _CYCLE_DAYS
+    if cycles:
+        year, month, _date = parsing.civil_from_days(low)
+        for _month in range(_CYCLE_MONTHS):
+            first = parsing.days_from_civil(year, month, 1)
+            key = (month_length(year, month), (first + 3) % WEEKDAYS)
+            kinds[key] = (kinds[key] if key in kinds else 0) + cycles
+            year, month = (year + 1, 1) if month == 12 else (year, month + 1)
+    year, month, _date = parsing.civil_from_days(start)
+    while True:
+        first = parsing.days_from_civil(year, month, 1)
+        if first > high:
+            break
+        length = month_length(year, month)
+        begin = max(1, start - first + 1)
+        end = min(length, high - first + 1)
+        if begin == 1 and end == length:
+            key = (length, (first + 3) % WEEKDAYS)
+            kinds[key] = (kinds[key] if key in kinds else 0) + 1
+        else:
+            for date in range(begin, end + 1):
+                row = table[(first + date + 2) % WEEKDAYS]
+                index = month_bin_of(date, length) - 1
+                row[index] = row[index] + 1
+        year, month = (year + 1, 1) if month == 12 else (year, month + 1)
+    for length, weekday in sorted(kinds):
+        count = kinds[(length, weekday)]
+        for date in range(1, length + 1):
+            row = table[(weekday + date - 1) % WEEKDAYS]
+            index = month_bin_of(date, length) - 1
+            row[index] = row[index] + count
+    for hole in sorted(set(holes)):
+        if low <= hole <= high:
+            row = table[(hole + 3) % WEEKDAYS]
+            index = month_bin(hole) - 1
+            row[index] = row[index] - 1
+    return table
+
+
+def _per_freedom(observed: "list[int]", weights: "list[float]") -> float:
+    """Chi-squared per degree of freedom of these counts against weights.
+
+    Each count's expectation is the counts' total shared out in
+    proportion to the weights; a cell of no weight is not asked. Nought
+    where fewer than two cells are asked or nothing is counted.
+    """
+    asked = [index for index in range(len(observed)) if weights[index] > 0]
+    total = sum(observed[index] for index in asked)
+    mass = sum(weights[index] for index in asked)
+    if len(asked) < 2 or total <= 0 or mass <= 0:
+        return 0.0
+    score = 0.0
+    for index in asked:
+        expected = total * weights[index] / mass
+        score = score + (observed[index] - expected) ** 2 / expected
+    return score / (len(asked) - 1)
+
+
+def day_scores(
+    groups: "tuple[tuple[int, int, int], ...]",
+    weekdays: "tuple[tuple[int, int, int], ...]",
+    table: "list[list[int]]",
+) -> "tuple[float, float]":
+    """How far the day of the month and the weekday each depart beyond the other.
+
+    THE PRODUCER'S TWO SCORES (plan P4-D368), both on the PUBLISHED
+    groups (the 3b.3 skeptic's major 2), over the calendar `table`
+    (`month_calendar`, the holes taken off): the day-of-month groups'
+    chi-squared per degree of freedom against the calendar weighted by
+    the weekday census's rate per calendar day of each weekday group --
+    by nothing where no weekday census is published -- and the weekday
+    groups' that hold rows, against the calendar weighted by the
+    day-of-month census's rate per calendar day of each of its groups.
+
+    Guarantees: accepts the two censuses (bins from 1, weekdays from 0)
+    and the calendar; returns the two scores. Determinism: a function
+    of the three. Raises nothing. No I/O of any kind.
+    """
+    where_days = month_where(groups)
+    week_rate = [1.0 for _ in range(WEEKDAYS)]
+    if weekdays:
+        where_week = where_of(weekdays)
+        held = [0 for _ in weekdays]
+        for weekday in range(WEEKDAYS):
+            held[where_week[weekday]] = held[where_week[weekday]] + sum(table[weekday])
+        for weekday in range(WEEKDAYS):
+            group = where_week[weekday]
+            week_rate[weekday] = (
+                weekdays[group][2] / held[group] if held[group] > 0 else 0.0
+            )
+    weights = [0.0 for _ in groups]
+    for weekday in range(WEEKDAYS):
+        for index in range(MONTH_DAY_BINS):
+            group = where_days[index]
+            weights[group] = weights[group] + table[weekday][index] * week_rate[weekday]
+    month_score = _per_freedom([count for _first, _last, count in groups], weights)
+    if not weekdays:
+        return month_score, 0.0
+    held_days = [0 for _ in groups]
+    for weekday in range(WEEKDAYS):
+        for index in range(MONTH_DAY_BINS):
+            group = where_days[index]
+            held_days[group] = held_days[group] + table[weekday][index]
+    where_week = where_of(weekdays)
+    week_weights = [0.0 for _ in weekdays]
+    for weekday in range(WEEKDAYS):
+        group = where_week[weekday]
+        if weekdays[group][2] <= 0:
+            continue
+        for index in range(MONTH_DAY_BINS):
+            place = where_days[index]
+            if held_days[place] > 0:
+                week_weights[group] = (
+                    week_weights[group]
+                    + table[weekday][index] * groups[place][2] / held_days[place]
+                )
+    week_score = _per_freedom([count for _first, _last, count in weekdays], week_weights)
+    return month_score, week_score
+
+
+def day_of_month_stands(month_score: float, week_score: float, weekdays: bool) -> bool:
+    """Whether the day of the month departs enough to be published (plan P4-D368).
+
+    (a) Beside a published weekday census: it departs by at least
+    `MONTH_SCORE_LINE` beyond the weekday AND more than the weekday
+    departs beyond it. (b) With none: it departs by at least the line
+    from the plain calendar. The weekday census is never withdrawn (the
+    design's 2.2: CA6 read literally lost 7 of 10 weekday censuses).
+    """
+    if month_score < MONTH_SCORE_LINE:
+        return False
+    return not weekdays or month_score > week_score
+
+
+def few_month_dates(
+    groups: "tuple[tuple[int, int, int], ...]",
+    body: "list[int]",
+    table: "list[list[int]]",
+) -> bool:
+    """Whether a group holding rows holds too few different body dates.
+
+    THE PRODUCER'S RULE (the 3b.3 skeptic's blocker 1 (a)), on the REAL
+    body's days: true where a group holding rows holds them on fewer than
+    `FEWEST_MONTH_DATES` different dates, unless the group counts only a
+    month's last day (bins 31 to 34, never wrapping) and holds a date on
+    every one the calendar `table` (`month_calendar`, the holes taken
+    off) gives it between the two boundaries. Below four the day pass
+    meets the census by splitting a date's rows across the group's other
+    days, and the twins measured that did held more different values than
+    the column (sessions, forty tied dates); a month's last day whose
+    every calendar date holds rows has no other day to split onto -- the
+    last day of February, one date a year, is such a group on a short
+    column. Any other group of fewer than four dates leaves the weekday
+    pass, which keeps each rank's group, too few dates to move between
+    weekdays: May alone over three years, its other months empty by its
+    written month names, held every bin's three dates and its twins
+    missed the weekday census at every seed the weekday pass alone had
+    met (repair of landing 3b.3). ITS PRICE, STATED (P4-D368): three and
+    four Mays at 1,000 rows and a floor of 36 publish no census, where
+    every group standing on its calendar published 11 and 12 groups, the
+    heaps on the 1st and the 15th among them, and every twin met both
+    censuses. A conservative rule set on the measured
+    cases, never a rule of what a reader could work out, so the loader
+    cannot ask it, and need not.
+
+    Guarantees: accepts the census, the body's days and the calendar;
+    returns the answer. Determinism: a function of the three. Raises
+    nothing. No I/O of any kind.
+    """
+    where = month_where(groups)
+    held = [0 for _ in groups]
+    for day in sorted(set(body)):
+        index = where[month_bin(day) - 1]
+        held[index] = held[index] + 1
+    days = [0 for _ in groups]
+    for row in table:
+        for index in range(MONTH_DAY_BINS):
+            days[where[index]] = days[where[index]] + row[index]
+    for index in range(len(groups)):
+        first, last, count = groups[index]
+        month_ends = MONTH_LAST_FIRST_BIN <= first <= last
+        if (
+            count > 0
+            and held[index] < FEWEST_MONTH_DATES
+            and (held[index] < days[index] or not month_ends)
+        ):
+            return True
+    return False
+
+
+def _month_allowed(
+    table: "list[list[int]]",
+    groups: "tuple[tuple[int, int, int], ...]",
+    weekdays: "tuple[tuple[int, int, int], ...]",
+) -> "tuple[int, int, list[int]]":
+    """Of a calendar table (`month_calendar`): every day, the days both
+    censuses allow -- a bin of a group counting rows and a weekday of a
+    group counting rows (any weekday where none is published) -- and the
+    allowed days of each day-of-month group."""
+    where = month_where(groups)
+    week = where_of(weekdays) if weekdays else ()
+    every = 0
+    allowed = 0
+    per = [0 for _ in groups]
+    for weekday in range(WEEKDAYS):
+        open_day = not weekdays or weekdays[week[weekday]][2] > 0
+        for index in range(MONTH_DAY_BINS):
+            count = table[weekday][index]
+            every = every + count
+            if open_day and groups[where[index]][2] > 0:
+                allowed = allowed + count
+                per[where[index]] = per[where[index]] + count
+    return every, allowed, per
+
+
+def month_reach_short(
+    groups: "tuple[tuple[int, int, int], ...]",
+    weekdays: "tuple[tuple[int, int, int], ...]",
+    pins: "tuple[tuple[int, int], ...]",
+    days: int,
+    fewest: int,
+    most: int,
+    holes: "frozenset[int]" = frozenset(),
+) -> bool:
+    """Whether the two censuses leave the body too few days for the count (plan P4-D368).
+
+    THE COUNT-REACH RULE OF A COLUMN OF DAYS (`count_reach_short`, plan
+    P4-D388 and its Codex review, item 2), asked of the day-of-month
+    census beside the weekday census: the body REACHES its distinct pin
+    days and, inside each gap, as many of the days strictly inside it
+    that both censuses allow -- a bin of a day-of-month group counting
+    rows, on a weekday of a weekday group counting rows, no hole -- as
+    the gap has ranks, and no more different days of a day-of-month group
+    than its count; it NEEDS what the twin's rebuilt tails at their most
+    (`most`) leave of the column's count of different days (`days`), and,
+    where its draw passes that, as much of the draw as the tails at their
+    fewest (`fewest`) leave room for. True where the need is more than
+    the reach and the censuses narrow it. Measured on a monthly visit at
+    10,000 rows and a floor of 36: its body held every one of the 160
+    days of the 7th to the 13th, its rebuilt tails two days fewer than
+    the real ones, and every twin came back 166 days for 168. The calendar
+    is counted, never walked (`month_calendar`). A conservative rule of
+    what the twin is sure to meet, never of what a reader could work out.
+
+    Guarantees: accepts the two censuses, the pins, the count, the
+    tails' fewest and most and the holes; returns the answer.
+    Determinism: a function of the seven, in binary64 where the draw is
+    reckoned. Raises nothing. No I/O of any kind.
+    """
+    if not pins:
+        return False
+    held: "list[int]" = []
+    for _rank, day in pins:
+        if day not in held:
+            held += [day]
+    first_day = pins[0][1]
+    last_day = pins[len(pins) - 1][1]
+    inside = tuple(day for day in holes if first_day <= day <= last_day)
+    reach = len(held)
+    free = len(held)
+    for place in range(len(pins) - 1):
+        rank, first = pins[place]
+        following, last = pins[place + 1]
+        inner = following - rank - 1
+        if inner < 1 or last - first < 2:
+            continue
+        every, allowed, _per = _month_allowed(
+            month_calendar(first + 1, last - 1, inside), groups, weekdays
+        )
+        reach = reach + min(inner, allowed)
+        free = free + min(inner, every)
+    _every, _allowed, per = _month_allowed(
+        month_calendar(first_day, last_day, inside), groups, weekdays
+    )
+    room = 0
+    for index in range(len(groups)):
+        room = room + min(groups[index][2], per[index])
+    reach = min(reach, room)
+    draw = body_draw(pins, holes)
+    need = max(float(days - most), min(float(days - fewest), draw))
+    return reach < free and need > reach
+
+
+def month_span_short(p25: "int | None", p75: "int | None") -> bool:
+    """DM4: whether the column's middle half spans fewer than `MONTH_SPAN_DAYS` days.
+
+    A middle half no reader can measure, a rung withheld, is held short.
+    """
+    if p25 is None or p75 is None:
+        return True
+    return p75 - p25 < MONTH_SPAN_DAYS
+
+
+def day_census_breach(
+    groups: "tuple[tuple[int, int, int], ...]",
+    body: int,
+    line: int,
+    p25: "int | None",
+    p75: "int | None",
+) -> "tuple[str, str, str] | None":
+    """The loader's check of one published day-of-month census, or None (P4-D368).
+
+    DM1 the groups cover bins 1 to 34 in order, each once, the last
+    alone running past bin 34 back to bin 1; DM2 every count is nought
+    or at least the line (`calendar_floor_ok`); DM3 the counts add to
+    the body -- the three asked through the one checker of every census
+    of stage 3b (`census_breach`); then DM4, the middle half spanning
+    at least `MONTH_SPAN_DAYS` days. DM5, the column's scope, is the
+    loader's, read off the block. An empty census breaks nothing.
+
+    Guarantees: accepts the census, the body, the census line and the
+    days of the published `p25` and `p75` (None where withheld);
+    returns None or the broken rule as (rule, what the census says,
+    what the rule asks). Determinism: a function of the five. Raises
+    nothing. No I/O of any kind.
+    """
+    if not groups:
+        return None
+    broken = census_breach(
+        groups, MONTH_DAY_BINS, line, body, cyclic=True, low=1, unit="bin",
+        rules=MONTH_CENSUS_RULES,
+    )
+    if broken is not None:
+        return broken
+    if month_span_short(p25, p75):
+        return (
+            "DM4",
+            "a day-of-month census is published on a column whose middle "
+            "half spans fewer than four months",
+            f"the column's p75 stands at least {MONTH_SPAN_DAYS} days after "
+            f"its p25, both published",
+        )
+    return None
+
+
+
 # anchor 3b-D4 (P4-D369)
 # anchor 3b-T1 (P4-D370)
 # anchor 3b-T2 (P4-D371)

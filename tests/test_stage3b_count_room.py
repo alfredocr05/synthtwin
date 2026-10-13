@@ -299,13 +299,22 @@ def _seven(counts: "tuple[int, ...]") -> "tuple[tuple[int, int, int], ...]":
 def _restored(
     tmp_path: pathlib.Path, name: str, described: kpi_shapes.Described, cells: "list[str]", floor: int
 ) -> contract.Profile:
-    """The description with the census the menu offers written back into it, loaded."""
+    """The description with the census the menu offers written back into it, loaded.
+
+    Its day-of-month census is taken out (landing 3b.3, plan P4-D368), so
+    each witness stands as it was measured: on the 15th of every month at
+    36 the two censuses together keep the twin's 60 days, and the weekday
+    census alone does not."""
     block = described.block("visit")
     body = sorted(_day(cell) for cell in cells)[block["low_tail"]["rows"] : len(cells) - block["high_tail"]["rows"]]
     groups, _entry = calendar_rules.menu_groups(calendar_rules.body_bins(body), parsing.census_floor(floor))
     document = dict(described.document)
     document["columns"] = [
-        dict(block, weekday_census=[{"first": first, "last": last, "count": count} for first, last, count in groups])
+        dict(
+            block,
+            weekday_census=[{"first": first, "last": last, "count": count} for first, last, count in groups],
+            day_of_month_census=[],
+        )
     ]
     return contract.load_profile(str(fixtures.write_profile(tmp_path, f"{name}-restored.json", document)))
 
@@ -919,6 +928,12 @@ def test_the_producer_hands_both_rules_the_block_s_pins_and_tails(
     monkeypatch.setattr(calendar_rules, "count_room_short", recorded)
     monkeypatch.setattr(calendar_rules, "count_reach_short", recorded_reach)
     monkeypatch.setattr(calendar_rules, "tails_kept", recorded_kept)
+    # ...the weekday census's rules alone: the day-of-month census asks the
+    # tails it keeps too (landing 3b.3, plan P4-D368), on its own path.
+    monkeypatch.setattr(
+        taxonomy, "_day_of_month_published",
+        lambda details, *rest: taxonomy._reserved_lists(details, (calendar_rules.DAY_OF_MONTH_CENSUS,)),
+    )
     cells = _weekly_schedule(0)
     ordered = sorted(_day(cell) for cell in cells)
     for floor, ranks, least, most, widest in (

@@ -899,6 +899,11 @@ _WEEKDAY_COUNT = "a-weekday-group-count-zero-or-at-the-census-line"
 # anchor 3b-D0 (P4-D366)
 # anchor 3b-D2 (P4-D367)
 # anchor 3b-D3 (P4-D368)
+# THE DAY-OF-MONTH CENSUS OF A COLUMN OF DATES (landing 3b.3, plan
+# P4-D368): a group's first and last bin, 1 to 34 (contract DM1), and its
+# count, nought or at the census line (DM2).
+_MONTH_DAY = "a-day-of-month-bin-number"
+_MONTH_DAY_COUNT = "a-day-of-month-group-count-zero-or-at-the-census-line"
 # anchor 3b-D4 (P4-D369)
 # anchor 3b-T1 (P4-D370)
 # anchor 3b-T2 (P4-D371)
@@ -1792,6 +1797,12 @@ _STATED_RULES: "dict[tuple[str, ...], str]" = {
     # anchor 3b-D0 (P4-D366)
     # anchor 3b-D2 (P4-D367)
     # anchor 3b-D3 (P4-D368)
+    # WHICH DAYS OF THE MONTH THE BODY FALLS ON (landing 3b.3): groups of
+    # bins, each counted nought or at the census line.
+    ("columns", _EACH, "day_of_month_census", _EACH): _OBJECT,
+    ("columns", _EACH, "day_of_month_census", _EACH, "first"): _MONTH_DAY,
+    ("columns", _EACH, "day_of_month_census", _EACH, "last"): _MONTH_DAY,
+    ("columns", _EACH, "day_of_month_census", _EACH, "count"): _MONTH_DAY_COUNT,
     # anchor 3b-D4 (P4-D369)
     # anchor 3b-T1 (P4-D370)
     # anchor 3b-T2 (P4-D371)
@@ -2709,6 +2720,17 @@ def _leaf_is_published(
     # anchor 3b-D0 (P4-D366)
     # anchor 3b-D2 (P4-D367)
     # anchor 3b-D3 (P4-D368)
+    if kind == _MONTH_DAY:
+        if isinstance(value, bool) or not isinstance(value, int):
+            return False
+        return 1 <= value <= calendar_rules.MONTH_DAY_BINS
+    if kind == _MONTH_DAY_COUNT:
+        if isinstance(value, bool) or not isinstance(value, int):
+            return False
+        # DM2, asked of the one statement every census shares.
+        return calendar_rules.calendar_floor_ok(
+            value, parsing.census_floor(context.floor)
+        )
     # anchor 3b-D4 (P4-D369)
     # anchor 3b-T1 (P4-D370)
     # anchor 3b-T2 (P4-D371)

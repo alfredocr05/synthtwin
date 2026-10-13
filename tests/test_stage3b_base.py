@@ -57,7 +57,6 @@ REPO = pathlib.Path(__file__).resolve().parent.parent
 # each, and the one value it holds until its landing fills it.
 _RESERVED: "dict[tuple[str, str], object]" = {
     # -- 3b.D3 (P4-D368)
-    ("datetime", "day_of_month_census"): [],
     # -- 3b.D4 (P4-D369)
     ("datetime", "heavy_dates"): [],
     # -- 3b.T2 (P4-D371)
@@ -89,7 +88,6 @@ _RESERVED_SETTINGS: "dict[str, object]" = {
 # lane's keys, and a value the key may not hold until its landing.
 _GUARDED = (
     # -- 3b.D3 (P4-D368)
-    ("seen_on", "day_of_month_census", [{"first": 1, "last": 31, "count": 300}]),
     # -- 3b.D4 (P4-D369)
     ("seen_on", "heavy_dates", [{"date": "2023-02-01", "count": 30}]),
     # -- 3b.T2 (P4-D371)
@@ -120,8 +118,6 @@ _GUARDED_SETTINGS = (
 # `test_the_stubs_and_seams_hand_back_what_they_are_handed`) and the stub.
 _STUBS = (
     # -- 3b.D3 (P4-D368)
-    ("spread", generation._day_of_month_spread),
-    ("check", validation._day_of_month_checks),
     # -- 3b.D4 (P4-D369)
     ("layout", generation._heavy_layout),
     ("holes", generation._heavy_holes),
