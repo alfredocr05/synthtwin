@@ -12739,23 +12739,25 @@ def tail_side_plan(column, side, low_side, parsed, words, room=None):
     # THE END HELD OFF A MIDNIGHT THE COUNT LEAVES IT NONE OF (step 7; the
     # Codex review of landing 3b.4, item 4): ``room`` is spent once, by the
     # rank's own distances; its strata read the same answer.
+    # Passed only where it applies, so a stand-in for `tail_distances` taking
+    # the arguments before it still runs every other tail.
     seconds = 60 if column["tail_unit"] == "minute" else 1
-    held = None
+    stood_end, near_end, far_end = {}, {}, {}
     if room is not None and not half:
-        held = [room[0]]
+        stood_end = {"end_midnight": (at, low_side, seconds, room)}
+        near_end = {"end_midnight": (at, low_side, seconds, [room[0]])}
+        far_end = {"end_midnight": (at, low_side, seconds, [room[0]])}
     stood = tail_distances(
         rows, mean, root, CASE_SMALL_CELL_FLOOR, edge, apart, words, off, half_day,
-        None if held is None else (at, low_side, seconds, room),
+        **stood_end,
     )
     near = tail_distances(
         rows, mean, root, CASE_SMALL_CELL_FLOOR, edge, apart,
-        {index: 0 for index in drawn}, off, half_day,
-        None if held is None else (at, low_side, seconds, [held[0]]),
+        {index: 0 for index in drawn}, off, half_day, **near_end,
     )
     far = tail_distances(
         rows, mean, root, CASE_SMALL_CELL_FLOOR, edge, apart,
-        {index: TWO64 - 1 for index in drawn}, off, half_day,
-        None if held is None else (at, low_side, seconds, [held[0]]),
+        {index: TWO64 - 1 for index in drawn}, off, half_day, **far_end,
     )
     places = [
         anchor - distance * unit if low_side else anchor + distance * unit
