@@ -3558,6 +3558,52 @@
       "why": "KIN SHARES on a pass barring midnight: hours 0 and 1 one kin group, hours 5 and 6 another, minute 0 a heap counting 12 of the 24 movable ranks. Of the first kin group only the six ranks of hour 1 are free to take the heap, so it takes 12 x 6 / 18 = 4 places and the other kin group 8, in proportion to the ranks free to stand there.",
       "written_unit": 60
     },
+    "field_midnight_short": {
+      "answer": [
+        1709337600,
+        1709424000,
+        1709528400,
+        1709532000,
+        1709596800
+      ],
+      "away": 60,
+      "body": [
+        2,
+        3
+      ],
+      "counted": 3,
+      "highs": [
+        1709337600,
+        1709506800,
+        0,
+        0,
+        0
+      ],
+      "lows": [
+        1709337600,
+        1709337600,
+        0,
+        0,
+        0
+      ],
+      "ordinals": [
+        1709337600,
+        1709435400,
+        1709528400,
+        1709532000,
+        1709596800
+      ],
+      "pinned": [
+        true,
+        false,
+        false,
+        false,
+        true
+      ],
+      "step": "midnight_count",
+      "why": "The tails take a midnight where the count at midnight is short (the lane's skeptic, item 5): two ranks at a written midnight where three are published; the unpinned tail rank at 03:10, rank 1, takes the nearest midnight inside its stratum, 00:00 of its own day.",
+      "written_unit": 60
+    },
     "field_midnight_tails": {
       "answer": [
         1709337600,

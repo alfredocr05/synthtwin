@@ -1123,6 +1123,11 @@ STEP_MUTANTS = {
         "            elif moved[rank] + step <= gap_highs[rank]:\n                # A STRATUM",
         "            elif False:\n                # A STRATUM",
     ),
+    "the tails take no midnight where the count is short": (
+        "field_midnight_short",
+        "        elif at < counted and not here:",
+        "        elif False:",
+    ),
     "hour 0 takes its share of a heap at minute 0": (
         "field_midnight_kin",
         "    if state.no_midnight and state.where.count(state.where[0]) == 1:\n        zero = state.where[0]",

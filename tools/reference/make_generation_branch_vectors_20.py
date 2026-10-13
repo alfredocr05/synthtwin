@@ -11,7 +11,7 @@ hour 1 -- the exchange off a written midnight (its
 first answer in the kin group, a swap with a lone rank, and a rank that
 stays), PUT BACK once more after it, SUBSTITUTE, SPREAD and the tails
 keeping the count at midnight, in a stratum narrower than their drawing
-unit by the written unit -- and the drawing units G7.3's drawing rule gives: a half-hour grid, a
+unit by the written unit, and taking a midnight where it is short -- and the drawing units G7.3's drawing rule gives: a half-hour grid, a
 column on the hour, a column whose seconds alone are pinned, one
 census group holding minute 0 and heaps beside a withheld census of the
 rest, which pin nothing; and a draw laid on its unit: each with what the

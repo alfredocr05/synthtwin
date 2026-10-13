@@ -16976,6 +16976,25 @@ def field_midnight_tails_case():
     }
 
 
+
+def field_midnight_short_case():
+    m = HOUR_MONDAY
+    return {
+        "why": "The tails take a midnight where the count at midnight is short (the lane's "
+        "skeptic, item 5): two ranks at a written midnight where three are published; the "
+        "unpinned tail rank at 03:10, rank 1, takes the nearest midnight inside its stratum, "
+        "00:00 of its own day.",
+        "step": "midnight_count", "ordinals": [
+            hour_at(m - 2, 0, 0), hour_at(m - 1, 3, 10), hour_at(m, 5, 0), hour_at(m, 6, 0),
+            hour_at(m + 1, 0, 0),
+        ],
+        "pinned": [True, False, False, False, True], "body": [2, 3], "counted": 3,
+        "written_unit": 60, "away": 60,
+        "lows": [hour_at(m - 2, 0, 0), hour_at(m - 2, 0, 0)] + [0] * 3,
+        "highs": [hour_at(m - 2, 0, 0), hour_at(m - 1, 23, 0)] + [0] * 3,
+    }
+
+
 def field_midnight_narrow_case():
     m = HOUR_MONDAY
     return {
@@ -17028,6 +17047,7 @@ CLOCK_FIELD_STEP_CASES = {
     "field_midnight_kin": field_midnight_kin_case,
     "field_midnight_share": field_midnight_share_case,
     "field_midnight_narrow": field_midnight_narrow_case,
+    "field_midnight_short": field_midnight_short_case,
     "field_floor": field_floor_case,
     "lattice_half_hour": lambda: field_lattice_case(
         "A half-hour grid written to the minute: heaps at minutes 0 and 30 and no census, "
