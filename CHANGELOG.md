@@ -23,7 +23,11 @@ battery of 21 columns at 1,000 and 10,000 rows, floors 11 and 36, seeds
 most 0.035 off at 1,000 rows and 0.0011 at 10,000. The twin of a column
 of dates beside moments now writes its bare dates, where it wrote every
 one as a `00:00:00` stamp, so `resolution_mix` and `format` are checked
-exactly there, every bare date written as one; an all-different column
+exactly there, every bare date written as one save where the hour
+census's cap at hour 0 leaves it no midnight day (bare dates at both
+ends of a span of noon stamps: 98 of 100, `resolution_mix` missed and
+named, the hour census held), and spread evenly over the span where
+dates and stamps share days; an all-different column
 of 200 dates beside 800 stamps comes back all different, where 881 of
 1,000 came back before, its count checked inside G12.5's envelope as
 before and any shortfall said in the twin's report. A twin of a

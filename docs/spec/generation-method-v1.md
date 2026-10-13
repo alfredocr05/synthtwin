@@ -7712,7 +7712,20 @@ can read a rank's clock only once its offset is known.
    every bare date the count names is written as one (the landing's
    repair, item 2: written as moments they took real offset keys and
    missed `utc_offsets` and `n_at_midnight`); never more ranks than the
-   count. Then, as the first part of the move to midnight, each gap's
+   count, and never more in the body than hour 0's group counts, this
+   pass too: where that cap stands and the tails' gaps hold fewer
+   midnight days than the source's tails held bare dates, the dates left
+   over are written as moments and `resolution_mix` gives way, named,
+   the hour census held (its second skeptic, item 1: `noon_ends`, bare
+   dates on the first and last eighth of a span of noon stamps with
+   every value different, writes 98 of 100 at 400 rows, 248 of 250 at
+   1,000 and 2,498 of 2,500 at 10,000 -- 97, 247 and 2,497 at the floor
+   of 36; with the cap off the hour census misses instead; vectors case
+   `leftover_capped_at_hour_zero`). The ranks are spent in rank order,
+   so where bare dates and stamps share days the twin spreads the bare
+   dates evenly over the span, wherever in time the source held them
+   (P4-D378's stated limits). Then, as the first part of the move to
+   midnight, each gap's
    bare-date ranks in rank order are stood on midnight days of the gap: off a
    day a published census counts nought on, where one of the gap's first
    400 days is not; each the first at or after its instant, else the

@@ -6094,7 +6094,12 @@ midnight days for the bare dates, the rest stand on a midnight another
 value holds, so the forms, the offsets and the count at midnight are held
 and the count of different values falls short inside G12.5's envelope,
 said by the twin's report (residual R-P4-12 closed on clocked columns; the
-landing's repair, item 2).
+landing's repair, item 2) -- except where hour 0's group of the hour
+census caps the body and the tails' gaps hold fewer midnight days than
+the source's tails held bare dates: there the dates left over are written
+as moments, `resolution_mix` is MISSED and named in the twin's report,
+and the hour census is held (its second skeptic, item 1: 98 of 100 bare
+dates at 400 rows on bare dates at both ends of a span of noon stamps).
 
 **C6-25a (`datetime_separators`).** Every datetime block carries
 `datetime_separators`, a mapping from the name of the mark a parsed

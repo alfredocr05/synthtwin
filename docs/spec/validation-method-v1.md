@@ -1545,7 +1545,10 @@ rather than in ISO:
   joint reading, worn at the offset the census absorbed it into
   (`_own_clock_readings`). Every other column is recounted as before.
   On the joint member `resolution_mix` is held exactly
-  (`resolution_mix.counts`) and so is `format`; `distinct.n_distinct`
+  (`resolution_mix.counts`) and so is `format`, save where G7.3k's cap at
+  hour 0 leaves bare dates no midnight day: there it is MISSED and named
+  (98 of 100 at 400 rows on bare dates at both ends of noon stamps; the
+  repair's second skeptic, item 1); `distinct.n_distinct`
   stays inside G12.5's envelope there, all different or not, exactly as
   `contract.datetime_counts_reachable` -- the one statement of where the
   count pass reaches the count -- leaves it (the landing's repair, item 1:

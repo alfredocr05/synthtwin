@@ -421,7 +421,7 @@ def test_s6_the_tight_column_red_with_its_leftover_dates_written_as_moments(
 
 
 # The repair's second skeptic, item 1: where hour 0's group caps the body and the twin's tails
-# hold fewer midnights than the source's tails held bare dates, the leftover pass stops at the cap:
+# hold fewer midnight days than the source's tails held bare dates, the leftover pass stops at the cap:
 # the hour census holds and `resolution_mix` gives way, named in the twin's report.
 _ENDS = 400
 

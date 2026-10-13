@@ -314,7 +314,12 @@ cannot get worse unseen.
   to 39 before the landing: G7.4's spread meets the censuses at the cost
   of season; publishing each key's first and last day is the follow-up);
   `z_plus` withholds its weekday census at 1,000 rows and at 10,000 at
-  the floor of 36; C1's c0 and c551 hold 99 to 177 different values for
+  the floor of 36; where the hour census caps the body at hour 0 and the
+  tails' gaps hold too few midnight days, bare dates are written as
+  moments (98 of 100 at 400 rows, 2,498 of 2,500 at 10,000;
+  `resolution_mix` missed and named, strict xfail); where dates and
+  stamps share days the twin spreads the dates evenly over the span (20
+  per cent in every fifth where the source held 10 to 57); C1's c0 and c551 hold 99 to 177 different values for
   63 and 83, inside the envelope; and the minute and second censuses wait
   for lane T3's merge, whose meeting with lane D2's weekday census on
   moments is an open question (P4-D378).
