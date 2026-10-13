@@ -24,7 +24,13 @@ at every seed, and the two left miss where the pass merges, the twin
 drawing past the rules' expectation; on the near-one logs written ISO at
 midnight the silent short twins fall from 81 of 2,360 to 5, and with
 both marks from 21 of 549 to 2. No description changes, and a twin
-changes only where the pass splits and the order moves a rank. On D0's
+changes only where the pass splits and the order moves a rank. The body splits only once
+no tail rank sharing a day can split directly, which is not the most the
+tails could hold: a chain moving another tail rank onto a free day first
+could free one more, a move the pass does not make (its Codex review: a
+Monday-to-Friday log at 36, seed 3, keeps its high tail on 35 of the 36
+days its strata hold, its twin the column's 130 under either order;
+`tests/test_stage3b_split_order.py`). On D0's
 26 date batteries at the four floors (6,512 censuses, 59,485 twins),
 D1b's 296 family logs and 26 cases, D3's day-of-month battery and D2's
 two-mark battery, no twin misses a check its base twin met, and the

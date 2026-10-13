@@ -30,14 +30,18 @@ Each test names the mutation that turns it red.
 
 from __future__ import annotations
 
+import json
+import pathlib
 import types
 import typing
 
 import pytest
 
 import kpi_shapes
-from synthtwin import contract, generation
+from synthtwin import calendar_rules, contract, generation
 import test_stage3b_count_room as count_room
+
+_ROOT = pathlib.Path(__file__).resolve().parents[1]
 
 
 def _layout(low: int, high: int) -> "generation._DateLayout":
@@ -150,6 +154,118 @@ def test_the_split_order_s_work_grows_with_the_shared_ranks_not_the_column(monke
         )
         assert len(set(moved)) == size, size
         assert calls["search"] <= 2 * 2 * len(shared), (size, calls)
+
+
+def _most_held(ranks: "list[int]", lows: "list[int]", highs: "list[int]") -> int:
+    """The most different days `ranks` can stand on, each inside its own span: earliest end first, earliest free day."""
+    taken: "dict[int, bool]" = {}
+    for rank in sorted(ranks, key=lambda each: (highs[each], lows[each])):
+        for day in range(lows[rank], highs[rank] + 1):
+            if day not in taken:
+                taken[day] = True
+                break
+    return len(taken)
+
+
+def test_the_body_splits_once_no_tail_rank_can_split_directly_which_is_not_the_most_the_tails_could_hold(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The Codex review of lane D4s: the tails first exhaust their DIRECT splits, not the most their strata hold.
+
+    `_every_open_day(1.1, 26, 900, Monday to Friday)` at the floor of 36,
+    seed 3: 142 rows on 130 days, its weekday census published. The count
+    pass splits, and the two tails' 36 ranks each could stand on 36
+    different days inside their own spans; the pass takes (low, body,
+    high) from (34, 48, 35) to (36, 59, 35). High tail rank 107 shares day
+    19129 with pinned rank 106, and its one other day, 19130, holds rank
+    108 alone, whose span reaches the free day 19131: moving 108 there
+    would let 107 split onto 19130, a chain the pass does not make, so the
+    body takes the day the high tail could have held. No tail rank left
+    sharing a day has a free day inside its own span, the twin still holds
+    the column's 130 days, and the order before lane D4s gives 130 too.
+    The texts that state the order -- the contract, P4-D369, G7.3, the
+    docstrings of `tails_kept`, `count_reach_short` and
+    `_distinct_reached`, the count-room module, K-S3-59's evidence, the
+    changelog and the oracle's why of the frozen case `tails_split_first`
+    (from the verification of the Codex fix) -- say the body splits only
+    once no tail rank sharing a day can split directly, which is not the
+    most the tails could hold, and no longer that no body rank splits
+    while a tail rank still can. Red where a text claims that again or
+    drops the difference, or where the pass starts making the chain (the
+    high tail reaching 36).
+    """
+    cells = count_room._every_open_day(1.1, 26, 900, frozenset(range(5)))
+    assert (len(cells), len(set(cells))) == (142, 130)
+    described = count_room._described(tmp_path, "chain", cells, 36)
+    assert described.block("visit")["weekday_census"]
+    reached = generation._distinct_reached
+    seen: "list[tuple[typing.Any, ...]]" = []
+
+    def watched(*arguments: typing.Any) -> bool:
+        before = list(arguments[1])
+        changed = reached(*arguments)
+        seen.append((before, list(arguments[1]), *arguments[2:5], arguments[11]))
+        return changed
+
+    monkeypatch.setattr(generation, "_distinct_reached", watched)
+    twin = generation.generate(described.loaded, 3)
+    assert len(set(cell for cell in twin.columns[0] if cell)) == 130
+    before, after, pinned, lows, highs, tails = seen[0]
+    low = sorted(rank for rank in tails if rank < len(after) // 2)
+    high = sorted(rank for rank in tails if rank >= len(after) // 2)
+    body = [rank for rank in range(len(after)) if rank not in tails]
+
+    def parts(moved: "list[int]") -> "tuple[int, int, int]":
+        return tuple(len({moved[rank] for rank in group}) for group in (low, body, high))  # type: ignore[return-value]
+
+    assert (len(low), len(high)) == (36, 36)
+    assert (parts(before), parts(after)) == ((34, 48, 35), (36, 59, 35))
+    assert (_most_held(low, lows, highs), _most_held(high, lows, highs)) == (36, 36)
+    held: "dict[int, int]" = {}
+    for day in after:
+        held[day] = (held[day] if day in held else 0) + 1
+    for rank in low + high:
+        if held[after[rank]] > 1 and not pinned[rank]:
+            assert all(day in held for day in range(lows[rank], highs[rank] + 1)), rank
+    assert (after[106], after[107], pinned[106], highs[107]) == (19129, 19129, True, 19130)
+    assert (after[108], held[19130], highs[108], 19131 in held) == (19130, 1, 19131, False)
+    monkeypatch.setattr(generation, "_distinct_reached", reached)
+    monkeypatch.setattr(generation, "_tail_ranks", lambda layout, parsed: frozenset())
+    before_d4s = generation.generate(described.loaded, 3)
+    assert len(set(cell for cell in before_d4s.columns[0] if cell)) == 130
+    plan = (_ROOT / "docs" / "plans" / "phase-4-columns.md").read_text(encoding="utf-8")
+    begin = plan.index("## Decision P4-D369")
+    method = (_ROOT / "docs" / "spec" / "generation-method-v1.md").read_text(encoding="utf-8")
+    changelog = (_ROOT / "CHANGELOG.md").read_text(encoding="utf-8")
+    start = changelog.index("### The count pass splits the tails first")
+    ledger = json.loads((_ROOT / "tests" / "kpi" / "ledger.json").read_text(encoding="utf-8"))
+    entry = [item for item in ledger["entries"] if item["id"] == "K-S3-59"][0]
+    vectors = json.loads(
+        (_ROOT / "tests" / "reference" / "generation-branch-vectors-14.json").read_text(encoding="utf-8")
+    )
+    texts = (
+        ("the contract", (_ROOT / "docs" / "spec" / "profile-contract-v6.md").read_text(encoding="utf-8")),
+        ("P4-D369", plan[begin : plan.index("\n## ", begin)]),
+        ("G7.3", [part for part in method.split("\n\n") if "THE TWO TAILS' RANKS" in part][0]),
+        ("tails_kept", calendar_rules.tails_kept.__doc__ or ""),
+        ("count_reach_short", calendar_rules.count_reach_short.__doc__ or ""),
+        ("_distinct_reached", reached.__doc__ or ""),
+        ("the count-room module", count_room.__doc__ or ""),
+        ("K-S3-59", entry["evidence"]),
+        ("the changelog", changelog[start : changelog.index("\n### ", start)]),
+        ("the oracle's why", vectors["cases"]["tails_split_first"]["why"]),
+    )
+    for name, text in texts:
+        flat = " ".join(text.split())
+        assert "no tail rank sharing a day can split directly" in flat, name
+        assert "not the most the tails could hold" in flat, name
+        for old in (
+            "while a tail rank still can",
+            "the tails can split no further",
+            "every day their strata give",
+            "so the tails reach their most before the body",
+        ):
+            assert old not in flat, (name, old)
 
 
 # THE ITEMS THE SPLIT ORDER DOES NOT REACH (P4-D369 part one), each a

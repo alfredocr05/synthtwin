@@ -36080,8 +36080,13 @@ def _distinct_reached(
     tail kept fewer days than its most, and the day pass then took the
     body's extra days back: `_every_open_day(1.15, 52, 1002, Monday,
     Wednesday and Friday)` at the floor of 20 came back 154 or 155 values
-    for 156 at seven seeds of ten (P4-D388's second verification). With
-    ``tails`` empty the order is the one before.
+    for 156 at seven seeds of ten (P4-D388's second verification). So the
+    body splits only once no tail rank sharing a day can split directly,
+    which is not the most the tails could hold: moving another tail rank
+    onto a free unit first could free one for a rank that has none, a
+    chain this pass does not make (the Codex review of lane D4s,
+    `tests/test_stage3b_split_order.py`). With ``tails`` empty the order
+    is the one before.
     """
     parsed = len(moved)
     unit = step if day == 86400 else 1

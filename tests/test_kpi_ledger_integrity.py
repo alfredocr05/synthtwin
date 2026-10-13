@@ -822,7 +822,8 @@ def test_the_ledger_file_is_canonical_json() -> None:
     # three note clauses and lane D4s's clauses of `K-S3-36` and `K-S3-59`,
     # from 574,683 to 587,306 bytes as merged; the D4s clause of `K-S3-36`'s
     # evidence and the note's history of `K-S3-59` were trimmed first,
-    # every figure and its source kept, to 586,690. The lane's own entries
+    # every figure and its source kept, to 586,690 (586,946 once lane D4s's
+    # Codex fix joined). The lane's own entries
     # were written short on its branch (its cap 460,000); the rest is
     # their rules and pinned nodes, which are not trimmed.
     #

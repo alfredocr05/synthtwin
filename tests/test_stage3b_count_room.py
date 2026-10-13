@@ -45,8 +45,11 @@ draws -- and the room rule the most, the days the two tails draw with no
 merge counted. Where the pass splits, both read the two tails' most:
 since lane D4s (plan P4-D369 part one) the pass splits the two tails'
 ranks first, and a tail splits a rank only onto a free day inside that
-rank's own stratum, and only while the count wants more, so no body rank
-splits while a tail rank still can. Until then it split nearest first alone, and the low
+rank's own stratum, and only while the count wants more, so the body
+splits only once no tail rank sharing a day can split directly, which is
+not the most the tails could hold (a chain moving another tail rank
+first could free one more; the Codex review of lane D4s). Until then it
+split nearest first alone, and the low
 tail, first at each distance, ended below its most at two seeds or more
 on 10 of 272 censuses of logs just above one row an open day and 64 of
 125 of fresh logs where the pass split, none of them costing the count.

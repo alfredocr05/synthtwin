@@ -264,15 +264,14 @@ cannot get worse unseen.
   on its batteries; none is wider than 110cb46's (`K-S3-22` holds that at
   nought on its own battery) -- so code reading such a column at a fixed
   width may meet one wider far cell.
-- **ISO moments at midnight can come back a day or two short, and
-  validate cannot report it** (plan P4-D367, the orchestrator's ruling
-  of 2026-10-09). Where a weekday census publishes on near-one logs
-  written `YYYY-MM-DD 00:00:00`, 81 of 2,360 twins with one mark and 21
-  of 549 written with both hold one or two days fewer while G7.9 makes
-  up the count of texts with a mark, so no check is MISSED. The risk
-  stands; the fix is owed to lane D4's split order (tails split first,
-  76 of the 81 and 19 of the 21 come back whole), and these columns join
-  D4's acceptance battery.
+- **ISO moments at midnight can come back a day short where the count
+  pass merges, and validate cannot report it** (plans P4-D367 and P4-D369
+  part one). Since the count pass splits the two tails' ranks first, 5 of
+  2,360 twins with one mark (from 81) and 2 of 549 with both (from 21)
+  hold a day fewer while G7.9 makes up the count of texts with a mark, so
+  no check is MISSED; each is where the twin draws past the rules'
+  expectation and the pass merges (strict xfail in
+  tests/test_stage3b_split_order.py).
 - **Moments at a million rows can come back short of their hours**
   (plan P4-D379, lane J, merged 2026-10-13). Beside a weekday census,
   G7.3g step 3's escape paid back now meets both censuses on every
@@ -284,14 +283,23 @@ cannot get worse unseen.
   (2,908 with the weekday census withdrawn), and ward rounds give the
   round back and miss their hour census alone. Each miss is said by a
   deviation; the remedy is owed to a lane the orchestrator names.
-- **Stated limits added 2026-10-07 to 09, each with its owner.** A
-  published weekday census on logs just above one row an open day can
-  cost its twin one to four different values at 2 to 7 seeds in ten (21
-  of 313; ruled 2026-10-08, P4-D388, `K-S3-59`); the split order that
-  would remove it, and the seven-day logs one to three values short, are
-  owed to lane D4 (P4-D369), with D1b's recorded items (the body draw
-  read at its expectation, the workbook date system, the long twins at
-  floors 36 and 50). A clock column's cells of the other hour width on
+- **Stated limits added 2026-10-07 to 09, each with its owner.**
+  A published weekday census on logs just above one row an open day cost
+  its twin one to four different values at 2 to 7 seeds in ten on 21 of
+  313 censuses (ruled 2026-10-08, P4-D388, `K-S3-59`); since lane D4s
+  split the two tails' ranks first (P4-D369 part one) 1 of them still
+  does, beside the fresh Tuesday-to-Thursday clinic at 11, both where the
+  body draws past the rules' expectation and the pass merges. Seven-day
+  logs holding every day stay one to three values short (a rebuilt tail
+  ending inside the real one) and fifteen Mondays at 36 stay long (each
+  tail rebuilt on at least 15 days), each a strict xfail naming its
+  cause; the workbook date system moves the rules only where a column's
+  first value is the system's first day, not built. A date whose other
+  spelling is declared missing, alone in a tail's stratum, keeps that
+  spelling on its tail ranks and misses presence, holes, the low tail
+  and the ladder, each said by the twin's report (older than lane D4;
+  P4-D369's integration paragraph; its owner to be named).
+  A clock column's cells of the other hour width on
   an absent place nothing present stands on are written in the column's
   width, owed to lane C2 (P4-D373, strict xfail), as are route 1's 198
   blank cells over 2 columns, to be removed under the corrected route-2
