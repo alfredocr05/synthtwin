@@ -840,7 +840,11 @@ BURSTS_BASE_MISSED = (
     | {(97000, 200, 11, 1)}
 )
 BURSTS_COUNT_GIVES_WAY = {(97000, 200, 36, seed) for seed in range(5)} | {(97000, 300, 36, 2), (97000, 300, 36, 4)}
-BURSTS_VALUES_OFF = {95000: 23, 96000: 74, 97000: 8}
+# 97000 at 9: KIN SHARES' CLAIMS (the verifier's item 10 on the Codex round)
+# keep a kin group's carried share from the kin groups before it, and the
+# fifteen twins at 36 come back 9 values off where ddc5263's came back 6,
+# the one more twin missing its count named, as 707cf99's was.
+BURSTS_VALUES_OFF = {95000: 23, 96000: 74, 97000: 9}
 COUNT_ONLY = {"bursts:distinct.n_distinct", "bursts:distinct.n_distinct_folded"}
 
 

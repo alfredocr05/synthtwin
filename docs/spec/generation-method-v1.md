@@ -7512,13 +7512,14 @@ some wanted group is offered, group by group, to the other kin groups by
 their ranks able to take the group, rounded down, its own carry kept and
 taken where it reaches again. A kin group takes no more of a group than
 its able ranks, and none of what the kin groups after it CLAIM: of each
-group, the whole ranks of their parts they are able to take (four gaps
+group, the whole ranks of their parts that those carrying a whole rank
+or more of it are able to take (four gaps
 of three hours, hour 8 off minute 0 in each: its carry, asked of hour 8
 itself, grew gap by gap and handed it every share of minute 0, which the
 gap's single moves gave hour 9 -- 200 against hour 10's 40 where 120
 each could stand; hour 8 reaching minute 0 with 4 of its 34 ranks a gap
 passed its growing carry to hour 9 alone, 57 against hour 10's 27, where
-the claims leave 44 and 40; and taken first by the earlier kin groups'
+the claims leave 51 and 33; and taken first by the earlier kin groups'
 largest remainders, the want of minute 0 left hour 23 of cells written
 `HH:MM:00` at 10,000 rows none of its carried share in twelve gaps
 running, 6 of its 45 cells on minute 0 against 16). After each field's pass THE TAILS MAKE ROOM AT MIDNIGHT: with

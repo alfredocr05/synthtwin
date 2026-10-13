@@ -26615,8 +26615,10 @@ def _clock_kin_shares_moved(state: _WeekdayPass, ranks: "list[int]", want: "list
     )
     # CLAIMS KEPT FOR THE KIN GROUPS AFTER (KIN SHARES' REACH; the
     # verifier's item 10 on the Codex round): of each group, the whole
-    # ranks of their parts the kin groups after this one are able to take,
-    # which no kin group before them takes -- taken first by the earlier
+    # ranks of their parts the kin groups after this one carrying a whole
+    # rank or more of it are able to take, which no kin group before them
+    # takes -- asked of every kin group, the claims held bursts of check-ins
+    # off whole units and their count gave way more often; taken first by the earlier
     # kin groups' largest remainders, a group's want left a small kin group
     # late in the gap none of the share it carried, and the night hours of
     # cells written `HH:MM:00` at 10,000 rows came back a third short of
@@ -26627,7 +26629,11 @@ def _clock_kin_shares_moved(state: _WeekdayPass, ranks: "list[int]", want: "list
         after = [
             [
                 after[0][group]
-                + min(len(rows[kin]), able[kin][group], max(0, parts[kin][group]) // _KIN_SCALE)
+                + (
+                    min(len(rows[kin]), able[kin][group], max(0, parts[kin][group]) // _KIN_SCALE)
+                    if carries[kin][group] >= _KIN_SCALE
+                    else 0
+                )
                 for group in range(groups)
             ]
         ] + after

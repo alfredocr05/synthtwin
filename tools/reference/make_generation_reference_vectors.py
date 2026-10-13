@@ -15042,8 +15042,9 @@ def kin_shares_moved(walk, ranks, want):
     able = {kin: [min(free[kin], reach[kin][g]) if g == zero else reach[kin][g] for g in groups] for kin in order}
     parts = kin_parts(order, {kin: len(members[kin]) for kin in order}, owns, carries, reach, able, want)
     # Claims kept for the kin groups after: the whole ranks of their parts
-    # they are able to take, which no kin group before them takes.
-    claim = {kin: [min(len(members[kin]), able[kin][g], max(0, parts[kin][g]) // WEEKDAY_SHARE_SCALE) for g in groups] for kin in order}
+    # that those carrying a whole rank or more of a group are able to take,
+    # which no kin group before them takes.
+    claim = {kin: [min(len(members[kin]), able[kin][g], max(0, parts[kin][g]) // WEEKDAY_SHARE_SCALE) if carries[kin][g] >= WEEKDAY_SHARE_SCALE else 0 for g in groups] for kin in order}
     for position, kin in enumerate(order):
         placed += len(members[kin])
         own = owns[kin]
@@ -17236,9 +17237,10 @@ def field_kin_partial_case():
         "hour 8 with 18 stamps on the first day and 2 on the second, hours 9 and 10 with 6 "
         "on each, every hour's at minutes 20 and 40; minutes 0, 20 and 40 owed 64, 58 and "
         "58. Hour 8 reaches minute 0 with its 2 second-day ranks alone and is owed near 7 a "
-        "gap; the whole ranks of their parts hours 9 and 10 are able to take are kept from "
-        "the kin groups before them, so hour 8 takes 8, hours 9 and 10 28 and 24. With no "
-        "claims kept, hour 8's growing carry fell on hour 9 alone: 36 against hour 10's 16.",
+        "gap; the whole ranks of its part hour 10, carrying a whole rank or more of minute "
+        "0, is able to take are kept from the kin groups before it, so hour 8 takes 8, hours "
+        "9 and 10 31 and 21. With no claims kept, hour 8's growing carry fell on hour 9 "
+        "alone: 36 against hour 10's 16.",
         "field", ordinals, pins, [4, 64, 58, 58], where, 60, written_unit=1,
         kin=[0] * 8 + [1, 2, 3] + [4] * 13,
     )
