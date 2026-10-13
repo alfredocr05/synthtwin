@@ -1266,8 +1266,8 @@ STEP_MUTANTS = {
     ),
     "the first payer goes, keeping the count or not": (
         "hour_paid_keeping",
-        "                    if alone != _weekday_holds(state, place):\n                        chosen = (rank, place)",
-        "                    if False:\n                        chosen = (rank, place)",
+        "                if alone != _weekday_holds(state, place):\n                    chosen = (rank, place)",
+        "                if False:\n                    chosen = (rank, place)",
     ),
     "payers too few are never given back": (
         "hour_paid_given_back",
@@ -1403,6 +1403,108 @@ def test_every_frozen_state_beside_a_weekday_census_keeps_its_weekday_counts() -
     assert _weekday_counts(repeated, oracle.hour_step_answer(repeated)) == [24, 0, 0, 0, 12, 12, 60]
     assert sorted({(ordinal % DAY) // 3600 for ordinal in moved}) == [12]
     assert len({ordinal // 60 for ordinal in moved}) == 8
+
+
+class _CountedSet(set):  # type: ignore[type-arg]
+    """A set counting the entries every union it takes part in writes (Codex's review of
+    lane J, item 3): a copy `a | b` writes both, an update in place `a |= b` the new ones."""
+
+    written = 0
+
+    def __or__(self, other):  # type: ignore[no-untyped-def,override]
+        _CountedSet.written += len(self) + len(other)
+        return _CountedSet(set.__or__(self, other))
+
+    def __ior__(self, other):  # type: ignore[no-untyped-def,override,misc]
+        _CountedSet.written += len(other)
+        return set.__ior__(self, other)
+
+
+def _paid_work(case: dict, monkeypatch: pytest.MonkeyPatch) -> "dict[str, int]":
+    """Step 3's round paid back run on a state, with its work counted, machine-free: the set
+    entries its unions write, the days its walks read a weekday of, the payers' places asked
+    and the days the payer book keeps a cursor for."""
+    books: "list[generation._ClockPayerBook]" = []
+    found = {"set entries": 0, "days read": 0, "places asked": 0}
+    booked = generation._clock_payer_book
+    weekday = calendar_rules.weekday_of
+    place = generation._clock_payer_place
+
+    def book(*args):  # type: ignore[no-untyped-def]
+        books.append(booked(*args))
+        return books[-1]
+
+    def read(day: int) -> int:
+        found["days read"] += 1
+        return weekday(day)
+
+    def asked(*args):  # type: ignore[no-untyped-def]
+        found["places asked"] += 1
+        return place(*args)
+
+    _CountedSet.written = 0
+    with monkeypatch.context() as patch:
+        patch.setattr(generation, "set", _CountedSet, raising=False)
+        patch.setattr(generation, "_clock_payer_book", book)
+        patch.setattr(generation, "_clock_payer_place", asked)
+        patch.setattr(calendar_rules, "weekday_of", read)
+        state = _state(case)
+        first, last = case["body"]
+        have = generation._clock_found(state, len(case["counts"]), first, last)
+        generation._clock_left_their_groups(
+            state, list(case["counts"]), have, first, last, list(case["pinned"]), tuple(case["standing"]),
+            False, (), True,
+        )
+    found["set entries"] = _CountedSet.written
+    found["cursors"] = len(books[0].cursor)
+    found["hour 12"] = sum(1 for ordinal in state.moved if (ordinal % DAY) // 3600 == 12)
+    return found
+
+
+def _paid_state(departing: int, apart_weeks: int) -> dict:
+    """`hour_paid_pass`'s state with its Monday rank at 05:23 and its Sunday payer repeated
+    `departing` times each, the payer's side `apart_weeks` weeks further off, nothing between."""
+    oracle = _oracle()
+    m, w = oracle.HOUR_MONDAY, 7 * apart_weeks
+    ordinals = [oracle.hour_at(m - 3, 12), oracle.hour_at(m - 2, 12, 20), oracle.hour_at(m - 1, 12, 30)]
+    ordinals += [oracle.hour_at(m, 5, 23)] * departing + [oracle.hour_at(m, 12)]
+    ordinals += [oracle.hour_at(m + w + 3, 12)] + [oracle.hour_at(m + w + 6, 12, 10)] * departing
+    ordinals += [oracle.hour_at(m + w + 9, 12)]
+    pins = {0, 3 + departing, 4 + departing, len(ordinals) - 1}
+    return oracle.hour_case(
+        "work", "paid", ordinals, pins, [0, len(ordinals), 0], oracle.HOUR_NOON, standing=oracle.HOUR_WEEK
+    )
+
+
+def test_the_payers_work_grows_with_the_rows_alone(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Codex's review of lane J, item 3 (High), over the rows. A unit of k ranks needs k
+    payers. 689d405 took `asked = asked | {payer}` once a payer, a copy of a growing set:
+    60,100 entries written for a unit of 200 and 240,200 for 400 (Codex timed k = 8,000 to
+    32,000 at 0.44 to 6.54 CPU seconds), and read 3,206 and 6,406 days. Each payer now joins
+    the set in place -- 200 and 400 entries -- and the days are met once for the unit (809
+    and 1,609), so doubling the unit at most doubles every count: the set entries, the days
+    read and the places asked (400 and 800). Every rank still meets hour 12."""
+    small = _paid_work(_paid_state(200, 0), monkeypatch)
+    large = _paid_work(_paid_state(400, 0), monkeypatch)
+    assert (small["hour 12"], large["hour 12"]) == (406, 806)
+    for key in ("set entries", "days read", "places asked"):
+        assert large[key] <= 2 * small[key] + 8, (key, small, large)
+    assert large["set entries"] <= 400 and large["places asked"] <= 800, large
+
+
+def test_the_payers_work_does_not_grow_with_the_empty_calendar(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Codex's review of lane J, item 3 (High), over the calendar span. 689d405's walk for
+    each payer restarted at the unit's own day and read every day out to the payers' --
+    1,000 and 2,000 weeks of nothing between, 12 departing ranks: 168,198 and 336,198 days
+    read -- and kept a cursor for each day of the payers' standing it read, empty or not
+    (2,002 and 4,002, Codex's own counts). The walk now steps over the days holding ranks
+    alone, outward from the unit's day, once for the unit: 57 days read and 2 cursors at
+    both spans, every count at 2,000 weeks that at 1,000."""
+    near = _paid_work(_paid_state(12, 1000), monkeypatch)
+    far = _paid_work(_paid_state(12, 2000), monkeypatch)
+    assert near["hour 12"] == far["hour 12"] == 30
+    assert far == near, (near, far)
+    assert near["cursors"] <= 4 and near["days read"] <= 100, near
 
 
 @pytest.mark.parametrize("name", CASES)

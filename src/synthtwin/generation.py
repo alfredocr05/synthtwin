@@ -26671,16 +26671,17 @@ class _ClockPayerBook:
     holds, for each day and each standing a payer may be asked to go to,
     how many of the day's ranks, from its first, have left it or have no
     place there: none of them is asked again until a rank of the day moves
-    back onto it, which clears the day's cursors. `first` and `last` bound
-    the days the walk asks. It changes which ranks are asked never, only
-    how often one with no place is.
+    back onto it, which clears the day's cursors. `occupied` holds the
+    days of `days`, ascending: the only days the walk reads (Codex's
+    review of lane J, item 3), so no cursor is kept for a day no rank
+    stands on and no empty stretch of the calendar is walked. It changes
+    which ranks are asked never, only how often one with no place is.
     """
 
     days: "dict[int, list[int]]"
     home: "dict[int, int]"
     cursor: "dict[int, dict[int, int]]"
-    first: int
-    last: int
+    occupied: "list[int]"
 
 
 def _clock_payer_book(
@@ -26699,9 +26700,7 @@ def _clock_payer_book(
             listed += [rank]
         else:
             days[day] = [rank]
-    first = min(days) if days else 0
-    last = max(days) if days else -1
-    return _ClockPayerBook(days=days, home=home, cursor={}, first=first, last=last)
+    return _ClockPayerBook(days=days, home=home, cursor={}, occupied=sorted(days))
 
 
 def _clock_book_moved(
@@ -26743,61 +26742,109 @@ def _clock_payers(
     `origin` for `into` while the payers go the other way keeps every
     weekday count. Returns how many payers it found: the unit's size, or
     fewer, every payer then moved back.
+
+    ITS WORK (Codex's review of lane J, item 3): the days are met once for
+    the unit, not once a payer -- outward from its day over the book's
+    `occupied` days alone, the nearer first, the earlier on a tie, each of
+    standing `into` kept in `order` as it is met -- and each payer's walk
+    starts past the kept days whose ranks are spent for `origin` (their
+    cursor at their end), which no payer of the unit can make good again;
+    the unit's ranks and its payers are kept in one set, joined in place.
+    So a unit of k ranks costs work in k and the days holding ranks, never
+    k squared nor the calendar's empty days. The ranks asked and their
+    order are the walk's of every day from the unit's own.
     """
     taken: "list[tuple[int, int]]" = []
     asked = set(unit)
     centre = state.moved[unit[0]] // state.day
+    occupied = book.occupied
+    above = _clock_days_before(occupied, centre)
+    below = above - 1
+    if above < len(occupied) and occupied[above] == centre:
+        above = above + 1
+    order: "list[int]" = []
+    start = 0
     for _payer in range(len(unit)):
         chosen: "tuple[int, int] | None" = None
         keeping = False
         after = 0
-        away = 1
-        while not keeping and after < _CLOCK_PAYER_REACH and (
-            centre - away >= book.first or centre + away <= book.last
-        ):
-            for day in (centre - away, centre + away):
-                if keeping or after >= _CLOCK_PAYER_REACH:
+        at = start
+        while not keeping and after < _CLOCK_PAYER_REACH:
+            while at == len(order) and (below >= 0 or above < len(occupied)):
+                if above >= len(occupied) or (
+                    below >= 0 and centre - occupied[below] <= occupied[above] - centre
+                ):
+                    met = occupied[below]
+                    below = below - 1
+                else:
+                    met = occupied[above]
+                    above = above + 1
+                if standing[calendar_rules.weekday_of(met)] == into:
+                    order += [met]
+            if at == len(order):
+                break
+            day = order[at]
+            at = at + 1
+            ranks = book.days[day]
+            marks = book.cursor[day] if day in book.cursor else {}
+            skipped = marks[origin] if origin in marks else 0
+            leading = True
+            index = skipped
+            while index < len(ranks):
+                rank = ranks[index]
+                index = index + 1
+                place: "int | None" = None
+                if state.moved[rank] // state.day == day and rank not in asked:
+                    place = _clock_payer_place(state, rank, origin, standing)
+                if place is None:
+                    if leading:
+                        skipped = index
                     continue
-                if standing[calendar_rules.weekday_of(day)] != into:
+                leading = False
+                alone = state.held[state.moved[rank] // state.step] == 1
+                if alone != _weekday_holds(state, place):
+                    chosen = (rank, place)
+                    keeping = True
+                    break
+                if chosen is None:
+                    chosen = (rank, place)
                     continue
-                ranks = book.days[day] if day in book.days else []
-                marks = book.cursor[day] if day in book.cursor else {}
-                skipped = marks[origin] if origin in marks else 0
-                leading = True
-                index = skipped
-                while index < len(ranks):
-                    rank = ranks[index]
-                    index = index + 1
-                    place: "int | None" = None
-                    if state.moved[rank] // state.day == day and rank not in asked:
-                        place = _clock_payer_place(state, rank, origin, standing)
-                    if place is None:
-                        if leading:
-                            skipped = index
-                        continue
-                    leading = False
-                    alone = state.held[state.moved[rank] // state.step] == 1
-                    if alone != _weekday_holds(state, place):
-                        chosen = (rank, place)
-                        keeping = True
-                        break
-                    if chosen is None:
-                        chosen = (rank, place)
-                        continue
-                    after = after + 1
-                    if after >= _CLOCK_PAYER_REACH:
-                        break
-                marks[origin] = skipped
-                book.cursor[day] = marks
-            away = away + 1
+                after = after + 1
+                if after >= _CLOCK_PAYER_REACH:
+                    break
+            marks[origin] = skipped
+            book.cursor[day] = marks
         if chosen is None:
             for rank, before in reversed(taken):
                 _clock_book_moved(state, book, rank, before)
             return len(taken)
         taken += [(chosen[0], state.moved[chosen[0]])]
-        asked = asked | {chosen[0]}
+        asked |= {chosen[0]}
         _clock_book_moved(state, book, chosen[0], chosen[1])
+        while start < len(order) and _clock_day_spent(book, order[start], origin):
+            start = start + 1
     return len(taken)
+
+
+def _clock_day_spent(book: _ClockPayerBook, day: int, origin: int) -> bool:
+    """Whether every rank of `day` has left it or has no place of standing
+    `origin` (its cursor at its end): no payer is found there again until a
+    rank of the day moves back onto it (THE PAYERS' walk)."""
+    marks = book.cursor[day] if day in book.cursor else {}
+    return origin in marks and marks[origin] >= len(book.days[day])
+
+
+def _clock_days_before(days: "list[int]", centre: int) -> int:
+    """How many of the ascending `days` fall before `centre` (a halving
+    search; THE PAYERS' walk, Codex's review of lane J, item 3)."""
+    low, high = 0, len(days)
+    while low < high:
+        middle = (low + high) // 2
+        if days[middle] < centre:
+            low = middle + 1
+        else:
+            high = middle
+    return low
 
 
 def _clock_payer_place(
@@ -26877,7 +26924,7 @@ def _clock_paid_escape(
             found = _clock_payers(state, book, unit, own, into, standing)
             if found == size:
                 return target
-            asked = asked | {into}
+            asked |= {into}
             if found == 0:
                 refused |= {(own, into)}
     return None

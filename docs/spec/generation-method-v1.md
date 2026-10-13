@@ -7379,7 +7379,12 @@ every weekday count is kept.
    taken, else the first, and each moves before the next is asked.
    Where fewer are found than the unit has ranks, every payer goes back.
    A standing is asked once for a unit, and a pair of standings for
-   which no payer at all was found is not asked again in the step. The
+   which no payer at all was found is not asked again in the step.
+   The walk reads only the days holding movable ranks as the round
+   began, once for a unit, each payer starting past the days whose
+   ranks are spent (Codex's review of lane J, item 3: a unit of 32,000
+   ranks took 6.3 CPU seconds for its payers, and a walk restarted for
+   each payer read every empty day between, both now linear). The
    unit leaving its standing while as many payers enter it keeps every
    weekday count, and a payer moving whole days keeps every field of its
    clock, so both censuses hold (batch 2b's integration: five noon
