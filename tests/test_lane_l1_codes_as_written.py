@@ -1248,7 +1248,7 @@ def test_a_pooled_placement_red_when_published_values_are_not_asked(
 
 
 def _durations_beside_worded_notes(kind: str, rows: int) -> "list[str]":
-    """Item 3's mixtures, Random(7): a tenth notes over rows/20 numbers, half
+    """Item 3's tables, Random(7): a tenth notes over rows/20 numbers, half
     upper-cased; `hmm4` beside `H:MM` durations, `min3` beside `HH:MM:SS`
     and, three in ten, `N min`; `done3` beside `HH:MM:SS`."""
     draw = random.Random(7)

@@ -12006,7 +12006,8 @@ published labels wear, and the numbers take the rest. A
 made-up code of figures alone is written at the width every published
 one shares where one opens with a nought; such a spelling wears no
 form, so no count of this section moves. A made-up number never takes a
-value a published number holds, however that number is written, and
+value a published number holds, however that number is written, on
+method G8.3a's walk and in G8.3c's pooled placement alike, and
 where every published number wears an exponent none is written with more
 figures than the longest published label has characters (Codex's review
 of lane L1). No field of the description is added or read differently.
