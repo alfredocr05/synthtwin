@@ -30,7 +30,13 @@ halves: a register of 50,000 consecutive codes validates in 59.5 s and
 in 123.5 s. Each is pinned by a count that needs no clock, up to a
 million rows, in `tests/test_stage4_numbers_and_codes.py`, where the
 replaced functions are kept as frozen text and must give the same
-answers.
+answers. After Codex's review of the lane, the push's heap is rebuilt
+from its live entries once it holds twice as many and 64 more, where
+stale entries had piled up below a lasting collision (118,804 at 402
+strata, 1,915,204 at 1,602; now 470 and 1,670), and the pooled
+placement reads the width's largest place off at once rather than
+halving for it at every group (400,200 width questions for 200 groups
+of codes of 300 places; now 1,001), the twins the same bytes.
 
 ### A trailing delimiter on one side is read as the table's delimiter (2026-10-13)
 

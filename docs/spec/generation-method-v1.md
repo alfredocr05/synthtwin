@@ -4101,8 +4101,12 @@ the found way passes downward, one fewer upward -- or in full where the
 found way has no mover. Holders of one kind share one walk. Where a
 collision's holders are of two kinds, each way is walked in full: a
 mover whose walk is too long may be refused, and the next mover's walk
-be short. The push taken and every stratum it moves are those of the
-rule above.
+be short. The heap is rebuilt from its live entries whenever it holds
+more than twice those it was last left with, and 64: a push upward
+leaves every stratum it passes stale in it twice over, below a
+collision that may stay first for many pushes (Codex's review of the
+lane, item 1). The push taken and every stratum it moves are those of
+the rule above.
 
 **WHICH OF THE THREE REFUSALS CAN DECIDE A PUSH, measured** (the skeptic
 of the oracle's independence repair, 2026-09-19). Two of them never
@@ -10815,7 +10819,10 @@ census decides how it is WRITTEN.
    rule that does not change while it runs refused and the spellings it
    has written, and steps over a run of refused places in one move;
    each group takes the place the stepping just stated would take
-   (stage 4 lane S4b-num, plan P4-D390).
+   (stage 4 lane S4b-num, plan P4-D390). The largest place the width
+   rule allows is read off at once -- one less than ten raised to the
+   tier's places plus the width's figures -- rather than found again
+   for every group (Codex's review of the lane, item 2).
 4. **The offers, and which one is written.** Steps 1 to 3 ask each
    group for its own value and let the written mean fall where it may,
    and where a rule of step 3 refuses every spelling near a group's
