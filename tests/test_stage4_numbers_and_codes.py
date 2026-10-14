@@ -355,9 +355,50 @@ def walk_spellings(handed: "tuple[object, ...]", as_built: bool = False, cap: in
     return counted[0]
 
 
+# One value written four ways, two identities owed: each pair of cells
+# differs in one field of the key a walk resumes by -- style, field width,
+# notation, plus -- so a key without that field begins the second pair's
+# walk where the first pair's stopped and skips an order it could take.
+# Skeptic 1 of lane S4b-num drew them at random (its walk_probe.py) and the
+# repair shrank each to four cells (wave5/S4bn/repair/shrink_walk.py).
+_WALKS_BY_KEY = {
+    "style": (
+        [-0.0, -0.0, -0.0, -0.0], ["leading_plus", "leading_zero", "leading_zero", "leading_plus"],
+        ["+0", "00", "00", "+0"], [-1, -1, -1, -1], [-1, -1, -1, -1], [",", ",", ",", ","],
+        ["trailing_minus", "trailing_minus", "brackets", "brackets"], [False, False, False, False], True, 2,
+    ),
+    "width": (
+        [0.25, 0.25, 0.25, 0.25], ["plain", "decimal", "decimal", "decimal"],
+        ["0.25", "0.2500", "0.25", "0.2500"], [5, 4, -1, 4], [-1, -1, -1, -1], [",", ",", ",", ""],
+        ["minus", "brackets", "brackets", "trailing_minus"], [False, False, False, False], False, 2,
+    ),
+    "notation": (
+        [-0.0, -0.0, -0.0, -0.0], ["decimal", "decimal", "decimal", "decimal"],
+        ["(0.0)", "0.0-", "(0.0)", "0.0-"], [-1, -1, -1, -1], [-1, -1, -1, -1], [",", ",", ",", ""],
+        ["brackets", "trailing_minus", "brackets", "trailing_minus"], [False, False, False, False], True, 2,
+    ),
+    "plus": (
+        [7.5, 7.5, 7.5, 7.5], ["leading_plus", "plain", "decimal", "decimal"],
+        ["+7.5", "7.5", "+7.5", "7.5"], [4, -1, -1, -1], [-1, -1, -1, -1], ["", "", "", ""],
+        ["trailing_minus", "minus_sign", "brackets", "brackets"], [False, False, True, False], False, 2,
+    ),
+}
+
+
 def test_each_cell_takes_the_spelling_the_walk_as_built_gave(tmp_path: pathlib.Path) -> None:
-    """The Codex column, leading zeros, marks and pluses at floors 11 and 36: the same spellings."""
+    """The Codex column, leading zeros, marks and pluses at floors 11 and 36: the same spellings.
+
+    And, handed to the walk directly, one value written in several styles,
+    widths, notations and pluses, every pair owing identities
+    (`_WALKS_BY_KEY`): each field of the key a walk resumes by is needed
+    for the same spellings.
+    """
     built, _names = _walk_as_built()
+    for field, handed in _WALKS_BY_KEY.items():
+        ours = generation._identity_walk(*copy.deepcopy(handed))  # type: ignore[arg-type]
+        theirs = built(*copy.deepcopy(handed))  # type: ignore[operator]
+        assert list(ours.items()) == list(theirs.items()), field
+        assert [ours[index] for index in range(4)] != handed[2], f"premise: {field} raises an order"
     shapes = {
         "codex": (_codex_cells(1500), 11),
         "zeros": ([("0" * (place % 4)) + str(place % 90) for place in range(900)], 11),
@@ -481,6 +522,30 @@ def _staircase(strata: int, figures: int = 0) -> "tuple[object, ...]":
     return (facts, layout, rungs, moved, texts, held, figures, False)
 
 
+def _two_kinds() -> "tuple[object, ...]":
+    """A collision held by a whole and a fractional value, in a column that writes some cells with no point.
+
+    Figures 1; whole strata 1.0 to 50.0, a second stratum of 50.04 on the
+    text "50.0", and a last stratum at 60.0. Downward the whole mover
+    walks the 49 whole points below and leaves the band, while the
+    fractional mover's 49.9 is free; upward 50.1 is. The tie is taken
+    downward, by the fractional mover -- which only a way walked in full
+    finds: under a budget the whole mover's walk answers TOO LONG before
+    the fractional mover is asked (skeptic 1 of lane S4b-num, p5_probe.py).
+    """
+    values = [float(value) for value in range(1, 51)] + [50.04, 60.0]
+    texts = [generation._grid_text(value, 1) for value in values]
+    texts[50] = texts[49]
+    held: "dict[str, int]" = {}
+    for text in texts:
+        held[text] = held.get(text, 0) + 1
+    facts = types.SimpleNamespace(
+        n_distinct_values=len(values), empty_edges=(), kept_stand_ins=(), integer_valued=False, numeric_styles={}
+    )
+    layout = types.SimpleNamespace(bands=("positive",) * len(values))
+    return (facts, layout, (values[0], values[-1]), values, texts, held, 1, True)
+
+
 def _push_codes(as_built: bool) -> "tuple[object, set[object]]":
     if as_built:
         function, names = _push_as_built()
@@ -496,8 +561,12 @@ def push_lines(handed: "tuple[object, ...]", as_built: bool = False) -> int:
 
 
 def test_the_push_moves_what_the_push_as_built_moved(tmp_path: pathlib.Path) -> None:
-    """Dense tails, stand-ins, whole and fractional heaps, staircases: the same values, texts and counts."""
+    """Dense tails, stand-ins, whole and fractional heaps, staircases, two kinds: the same values, texts and counts."""
     built, _names = _push_as_built()
+    two_kinds = _two_kinds()
+    ours = _pushed(generation._pushed_apart, two_kinds)
+    assert ours == _pushed(built, two_kinds), "two kinds"
+    assert ours[1][50] == "49.9", f"premise: the fractional mover is taken downward, {ours[1][48:]}"  # type: ignore[index]
     shapes = (
         ("tail2000", _dense_tail(2000), 11, ["value"]),
         ("tail3000", _dense_tail(3000), 36, ["value"]),
@@ -715,6 +784,36 @@ def test_each_pool_is_placed_where_the_placement_as_built_placed_it(tmp_path: pa
                 placements += 1
     assert placements == 2 * len(shapes), placements
     assert asked["_pooled_carried"] >= 1 and asked["_pooled_offered"] > placements + 2, f"premise: {asked}"
+    _offers_below_the_width_are_refused_as_built(_names)
+
+
+def _offers_below_the_width_are_refused_as_built(names: "dict[str, object]") -> None:
+    """An anchored ladder of -9 to 9 at places 0 holding both signs, every one of its spellings used, one figure wide.
+
+    Where every place the stepping reaches inside the width is used, each
+    offer is refused -- also one wanted at -50 or at 5, whose stepping
+    reaches two-figure places below the width's lower edge, -9; where -7
+    alone is free, it is taken. Asked one at a time with an offer's
+    memory each, and all with one memory, the answers are the stepping's
+    as built (skeptic 1 of lane S4b-num, q3_probe.py).
+    """
+    fields = [field.name for field in dataclasses.fields(generation._Ladder)]
+    values = {
+        "lowest": -9, "highest": 9, "places": 0, "signs": 7, "anchored": True, "published": {-9: 1, 9: 1},
+        "tiers": (0,), "least": -9.0, "greatest": 9.0, "spanned": True,
+    }
+    ladder = generation._Ladder(**{name: values[name] for name in fields})  # type: ignore[arg-type]
+    full = {str(units): 1 for units in range(-9, 10)}
+    holed = {spelling: 1 for spelling in full if spelling != "-7"}
+    for used, refused in ((full, True), (holed, False)):
+        shared = generation._pooled_search()
+        for wanted in (-50.0, -30.0, 5.0, -9.4):
+            arguments = (ladder, wanted, "", {}, dict(used), {}, (), False, 0, None, 1)
+            theirs = names["_pooled_spelling"](*copy.deepcopy(arguments))  # type: ignore[operator]
+            assert (theirs == "") is refused and theirs in ("", "-7"), f"premise: {wanted} as built gives {theirs!r}"
+            fresh = generation._pooled_spelling(*copy.deepcopy(arguments), generation._pooled_search())  # type: ignore[arg-type]
+            assert fresh == theirs, (wanted, refused)
+            assert generation._pooled_spelling(*arguments, shared) == theirs, (wanted, refused)  # type: ignore[arg-type]
 
 
 def test_the_twin_of_a_decimal_register_is_the_twin_the_placement_as_built_wrote(tmp_path: pathlib.Path) -> None:
