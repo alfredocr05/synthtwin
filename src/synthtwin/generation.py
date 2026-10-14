@@ -46684,8 +46684,17 @@ def _partner_of(
     holes: "tuple[str, ...]" = (),
     prefixes: "tuple[str, dict[str, str]] | None" = None,
     barred: "frozenset[int]" = frozenset(),
+    parents: "dict[tuple[str, bool, bool, int | None], list[int]] | None" = None,
+    spent: "dict[tuple[int, int, int | None], bool] | None" = None,
 ) -> "str | None":
     """The fold-collision partner this value carries, when one is owed.
+
+    ``parents`` and ``spent``, where a caller hands two dicts it keeps
+    for one walk, make the search cost what it finds (lane L1 leftover,
+    skeptic 2 item 1; `_partner_indexed`): the answer is the one the
+    walk below gives, byte for byte, and only the parents that cannot
+    answer are no longer visited. A caller handing neither walks exactly
+    as before.
 
     ``barred`` names the parents asked a form with no letter place
     (`_text_cells`, lane L1 repair): a partner of one is an edge-spaced
@@ -46813,6 +46822,17 @@ def _partner_of(
     barred_passes: "tuple[bool, ...]" = (False,)
     if barred:
         barred_passes = (True, False)
+    if (
+        parents is not None
+        and spent is not None
+        and worn is None
+        and prefixes is None
+    ):
+        return _partner_indexed(
+            index, folded, spellings, families, used, (shortest, longest),
+            sizes, long_tail_line, carried, holes, barred, under_first,
+            (parents, spent),
+        )
     for unbarred in barred_passes:
         for named_first in named_passes:
             for under in under_first:
@@ -46848,6 +46868,132 @@ def _partner_of(
                                 already = carried[parent_place]
                             carried[parent_place] = already + sizes[index]
                         return found
+    return None
+
+
+def _partner_indexed(
+    index: int,
+    folded: int,
+    spellings: "list[str]",
+    families: "list[str]",
+    used: "dict[str, int]",
+    window: "tuple[int, int | None]",
+    sizes: "list[int] | None",
+    long_tail_line: int,
+    carried: "dict[int, int] | None",
+    holes: "tuple[str, ...]",
+    barred: "frozenset[int]",
+    under_first: "tuple[bool, ...]",
+    kept: "tuple[dict[tuple[str, bool, bool, int | None], list[int]], dict[tuple[int, int, int | None], bool]]",
+) -> "str | None":
+    """`_partner_of`'s walk over the parents that can answer, and no other.
+
+    THE SAME ANSWER, AT THE COST OF WHAT IT FINDS (lane L1 leftover,
+    skeptic 2 item 1). The walk of `_partner_of` visits every parent of
+    the column in up to sixteen passes for every slot. Durations
+    `HH:MM:SS` beside notes in two cases, 5,000 rows at a floor of 36:
+    2,885 slots made 2,304,853 parent visits, 2,303,534 of them on a
+    parent whose trimmed text is longer than the slot's window, which
+    `_partner_at` answers with None; the time grew four-fold with each
+    doubling of the rows and 100,000 rows did not finish in 900 s. Here
+    the parents are kept by family, by whether they hold a letter and by
+    whether they are barred, and for each window by the trimmed length
+    the window admits, so a slot visits only parents that can answer.
+
+    WHY THE ANSWER IS UNCHANGED. Every pass walks the parents in the
+    cyclic order from the slot's own place, and so does each list here.
+    A parent of another family, of the other lettered kind or barred in
+    the unbarred pass is passed over by the walk, and is in no list
+    this pass reads. A parent the barred-last pass would visit unbarred
+    was asked the same question by the first pass, with the same
+    ``used``, and answered None, so the second pass reads only the
+    barred. A parent longer than the window has no partner in it
+    (`_partner_at`). And ``spent`` records a parent and window that
+    answered None because its family ended inside the walk (its member
+    at the walk's last step is None): ``used`` only grows inside one
+    walk and the members before that end stay refused, so it answers
+    None again. A walk cut by its step bound is not recorded.
+
+    ``kept`` is the caller's two dicts: the parents, by family, letter,
+    bar and window (built on the first call, when every parent is
+    written), and the spent pairs. Guarantees: the value `_partner_of`'s
+    own walk returns for these arguments, with no ``worn`` and no
+    ``prefixes``. Raises nothing of its own. No I/O.
+    """
+    parents = kept[0]
+    spent = kept[1]
+    shortest = window[0]
+    longest = window[1]
+    if not parents:
+        for place in range(folded):
+            lettered = False
+            for character in spellings[place]:
+                if character in _LETTERS:
+                    lettered = True
+                    break
+            key = (families[place], lettered, place in barred, None)
+            if key not in parents:
+                parents[key] = []
+            parents[key] += [place]
+    family = families[index]
+    start = (index - folded) % folded
+    kinds: "tuple[bool, ...]" = (False,)
+    if barred:
+        kinds = (False, True)
+    for barred_kind in kinds:
+        for under in under_first:
+            for lettered in (True, False):
+                whole = (family, lettered, barred_kind, None)
+                if whole not in parents:
+                    continue
+                key = (family, lettered, barred_kind, longest)
+                if key not in parents:
+                    fitting: "list[int]" = []
+                    for place in parents[whole]:
+                        if longest is None or len(
+                            parsing.trimmed(spellings[place])
+                        ) <= longest:
+                            fitting += [place]
+                    parents[key] = fitting
+                places = parents[key]
+                low = 0
+                high = len(places)
+                while low < high:
+                    middle = (low + high) // 2
+                    if places[middle] < start:
+                        low = middle + 1
+                    else:
+                        high = middle
+                for step in range(len(places)):
+                    parent_place = places[(low + step) % len(places)]
+                    if (parent_place, shortest, longest) in spent:
+                        continue
+                    if under and sizes is not None:
+                        already = sizes[parent_place]
+                        if carried is not None and parent_place in carried:
+                            already = carried[parent_place]
+                        if already + sizes[index] >= long_tail_line:
+                            continue
+                    found = _partner_from(
+                        parent_place, index, spellings, used, shortest, longest,
+                        None, holes, None, False,
+                    )
+                    if found is None:
+                        # SPENT ONLY WHERE THE FAMILY ENDED INSIDE THE
+                        # WALK: a walk cut by its step bound (a hole
+                        # refused) may reach further once ``used`` grows.
+                        if _partner_at(
+                            spellings[parent_place], len(used) + 1,
+                            shortest, longest,
+                        ) is None:
+                            spent[(parent_place, shortest, longest)] = True
+                        continue
+                    if carried is not None and sizes is not None:
+                        already = sizes[parent_place]
+                        if parent_place in carried:
+                            already = carried[parent_place]
+                        carried[parent_place] = already + sizes[index]
+                    return found
     return None
 
 
@@ -47353,6 +47499,13 @@ def _text_cells(
         asked_families[place] = f"{families[place]}/no letter place"
     asks = _letter_asks(asked_families, folded)
     parents_last = frozenset(barred)
+    # THE PARENTS BY FAMILY, AND THE PARENT AND WINDOW PAIRS FOUND SPENT,
+    # kept for this walk so a slot visits only parents that can answer
+    # (`_partner_indexed`, lane L1 leftover); and the group sizes made a
+    # list once rather than once a slot.
+    parent_lists: "dict[tuple[str, bool, bool, int | None], list[int]]" = {}
+    spent: "dict[tuple[int, int, int | None], bool]" = {}
+    sized = list(groups)
     made: dict[str, int] = {}
     # How many rows each parent's folded level covers so far, so the
     # preference reads the level rather than the pair.
@@ -47380,15 +47533,15 @@ def _text_cells(
             windows[index] = (lengths[index], lengths[index])
             partner = _partner_of(
                 index, folded, spellings, families, used, windows,
-                list(groups), long_tail_line, carried, holes=holes,
-                barred=parents_last,
+                sized, long_tail_line, carried, holes=holes,
+                barred=parents_last, parents=parent_lists, spent=spent,
             )
             windows[index] = whole
         if partner is None:
             partner = _partner_of(
                 index, folded, spellings, families, used, windows,
-                list(groups), long_tail_line, carried, holes=holes,
-                barred=parents_last,
+                sized, long_tail_line, carried, holes=holes,
+                barred=parents_last, parents=parent_lists, spent=spent,
             )
         if partner is not None:
             taken = _take(partner, used)
