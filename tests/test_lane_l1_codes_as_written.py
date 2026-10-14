@@ -1102,7 +1102,8 @@ def test_a_fold_slot_takes_a_partner_of_its_planned_words(tmp_path: pathlib.Path
 
 
 def test_a_fold_slot_red_when_its_planned_words_are_not_asked(tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """MUTATION: the slot's planned words dropped before the partner search."""
+    """MUTATION: the slot's planned words dropped before the partner search,
+    and the words they cost not paid back."""
     original = generation._partner_of
 
     def wordless(*args: typing.Any, **named: typing.Any) -> "str | None":
@@ -1110,13 +1111,15 @@ def test_a_fold_slot_red_when_its_planned_words_are_not_asked(tmp_path: pathlib.
         return original(*args, **named)
 
     monkeypatch.setattr(generation, "_partner_of", wordless)
+    monkeypatch.setattr(generation, "_words_paid_back", lambda *args: args[5])
     deviated, _cells = _word_mean_deviated(tmp_path, 849)
     assert deviated
 
 
 def test_the_indexed_partner_walk_answers_as_the_plain_walk_when_words_are_asked() -> None:
-    """GATE CASE of `_partner_indexed` with ``words``: the plain walk's answer,
-    a parent of the asked words first and any other after it."""
+    """GATE CASE of `_partner_indexed` with ``words`` and ``held``: the plain
+    walk's answer, a parent of the asked words first and any other after it,
+    in the held window first and the whole one after it."""
     draw = random.Random(11)
     for _case in range(40):
         folded = draw.randrange(2, 9)
@@ -1133,9 +1136,10 @@ def test_the_indexed_partner_walk_answers_as_the_plain_walk_when_words_are_asked
             answers = []
             for index in range(folded, total):
                 windows = [(1, 5)] * total
+                held = (2, 2) if index % 3 else None
                 found = generation._partner_of(
                     index, folded, written, families, used, windows, sizes, 8, carried,
-                    parents=kept[0], spent=kept[1], words=1 + index % 2,
+                    parents=kept[0], spent=kept[1], words=1 + index % 2, held=held,
                 )
                 if found is not None:
                     used[found] = generation._WRITTEN
@@ -1194,3 +1198,143 @@ def test_the_past_binary64_boundary_red_at_sixteen(monkeypatch: pytest.MonkeyPat
     """MUTATION: the boundary moved to sixteen figures admits the seventeen-figure cell."""
     monkeypatch.setattr(validation, "_BINARY64_FIGURES", 16)
     assert validation._cells_outside_the_styles(["45000.123456789012"], False, (12,)) == 0
+
+
+# -- the verifier's open items after the Codex fix (head b7bc72b) -----------
+
+
+def _pooled_numbers_beside_an_exponent_hundred() -> "list[str]":
+    """Item 6: `alpha` x100, `1E2` x20, `2E2` x20 and twenty plain numbers
+    from 80 to 120, none of them 100, drawn by random.Random(11)."""
+    draw = random.Random(11)
+    held: "list[str]" = []
+    while len(held) < 20:
+        value = draw.randint(80, 120)
+        if value != 100:
+            held += [f"{value}"]
+    return ["alpha"] * 100 + ["1E2"] * 20 + ["2E2"] * 20 + held
+
+
+def test_a_pooled_placement_never_writes_a_published_value(tmp_path: pathlib.Path) -> None:
+    """VERIFIER ITEM 6. G8.3c's pooled placement refused spellings the column
+    uses but not values, so beside `1E2` x20 it wrote `100` (the verifier's
+    draw once, on b7bc72b and 45191fa alike, product and oracle; this draw
+    twice): numeric conversion read 22 values of 100 where the table held
+    20, and every check reported HELD. Step 3 now refuses a value a
+    published number holds, however it is written."""
+    document, loaded = _described(tmp_path, _pooled_numbers_beside_an_exponent_hundred(), 11, ("t",))
+    twin, path = _twin(loaded, 0, tmp_path)
+    values = [float(cell) for cell in twin if cell != "alpha"]
+    assert values.count(100.0) == 20 and values.count(200.0) == 20
+    assert "100" not in twin
+    assert _missed(loaded, path) == []
+    oracle = _oracle()
+    assert _held_back_counted(oracle._label_content(document["columns"][0])) == _held_back_counted(twin)
+
+
+def test_a_pooled_placement_red_when_published_values_are_not_asked(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """MUTATION: the pooled placement handed a ladder that publishes no value."""
+    original = generation._pooled_spelling
+
+    def valueless(ladder: typing.Any, *args: typing.Any) -> str:
+        return original(generation.dataclasses.replace(ladder, published={}), *args)
+
+    monkeypatch.setattr(generation, "_pooled_spelling", valueless)
+    _document, loaded = _described(tmp_path, _pooled_numbers_beside_an_exponent_hundred(), 11, ("t",))
+    twin, _path = _twin(loaded, 0, tmp_path)
+    assert [float(cell) for cell in twin if cell != "alpha"].count(100.0) == 22
+
+
+def _durations_beside_worded_notes(kind: str, rows: int) -> "list[str]":
+    """Item 3's mixtures, Random(7): a tenth notes over rows/20 numbers, half
+    upper-cased; `hmm4` beside `H:MM` durations, `min3` beside `HH:MM:SS`
+    and, three in ten, `N min`; `done3` beside `HH:MM:SS`."""
+    draw = random.Random(7)
+    words = {"hmm4": "note {} done today", "min3": "call back {}", "done3": "note {} done"}[kind]
+    cells: "list[str]" = []
+    for _row in range(rows):
+        if draw.random() < 0.1:
+            cell = words.format(draw.randrange(max(15, rows // 20)))
+            if draw.random() < 0.5:
+                cell = cell.upper()
+        elif kind == "hmm4":
+            minute = draw.randrange(600)
+            cell = f"{minute // 60}:{minute % 60:02d}"
+        elif kind == "min3" and draw.random() < 0.3:
+            cell = f"{draw.randrange(120)} min"
+        else:
+            minute = draw.randrange(2880)
+            cell = f"{minute // 60:02d}:{minute % 60:02d}:{draw.randrange(60):02d}"
+        cells += [cell]
+    return cells
+
+
+def _words_written(tmp_path: pathlib.Path, kind: str, rows: int) -> "tuple[int, list[str], list[str]]":
+    """(twin words less source words, the report's deviations, the validator's misses)."""
+    cells = _durations_beside_worded_notes(kind, rows)
+    _document, loaded = _described(tmp_path, cells, 11)
+    built = generation.generate(loaded, 0)
+    text = rendering.twin_csv(built)
+    path = fixtures.write(tmp_path, "twin-0.csv", text)
+    written = sum(parsing.token_count(cell) for cell in built.columns[0] if cell is not None)
+    source = sum(parsing.token_count(cell) for cell in cells)
+    return written - source, sorted(deviation.fact for deviation in built.deviations), _missed(loaded, path)
+
+
+@pytest.mark.parametrize(
+    ("kind", "off", "misses"),
+    [("hmm4", -2, ["forms.published.%:%%", "length.mean"]), ("min3", 0, [])],
+)
+def test_a_fold_slot_carries_its_planned_words_through_every_window(
+    tmp_path: pathlib.Path, kind: str, off: int, misses: "list[str]"
+) -> None:
+    """VERIFIER ITEM 3. On b7bc72b a slot asked its planned words only at its
+    planned length: `H:MM` durations beside four-word notes (1,200 rows) took
+    four-word partners in the whole window, 417 words over, and durations
+    and `N min` beside three-word notes took one-word partners of their
+    length, 42 words short; both named `words.mean`. Now the whole window
+    asks the planned words too, and what is still off is paid back
+    (`_words_paid_back`): two words of 1,548 short, and none. What is
+    missed is what 45191fa missed on the same tables."""
+    words_off, deviations, missed = _words_written(tmp_path, kind, 1200)
+    assert words_off == off
+    assert "words.mean" not in deviations
+    assert missed == misses
+
+
+def test_a_fold_slot_red_when_the_whole_window_asks_no_words(tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """MUTATION: the planned words asked at the planned length alone, as on b7bc72b."""
+    original = generation._partner_of
+
+    def held_only(*args: typing.Any, **named: typing.Any) -> "str | None":
+        held = named.pop("held", None)
+        words = named.pop("words", None)
+        if held is not None:
+            windows = list(args[5])
+            windows[args[0]] = held
+            found = original(*args[:5], windows, *args[6:], words=words, **named)
+            if found is not None:
+                return found
+        return original(*args, **named)
+
+    monkeypatch.setattr(generation, "_partner_of", held_only)
+    monkeypatch.setattr(generation, "_words_paid_back", lambda *args: args[5])
+    words_off, deviations, _missed_now = _words_written(tmp_path, "hmm4", 1200)
+    assert words_off == 417 and "words.mean" in deviations
+
+
+def test_a_fold_slot_red_when_its_words_are_not_paid_back(tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """MUTATION: `_words_paid_back` withdrawn; the slots' 42 words short stay."""
+    monkeypatch.setattr(generation, "_words_paid_back", lambda *args: args[5])
+    words_off, deviations, _missed_now = _words_written(tmp_path, "min3", 1200)
+    assert words_off == -42 and "words.mean" in deviations
+
+
+def test_a_fold_slot_keeps_its_words_at_100000_rows(tmp_path: pathlib.Path) -> None:
+    """VERIFIER ITEM 3's gate case: 100,000 durations beside `note N done` in
+    two cases wrote 11,234 words over on b7bc72b (`words.mean` 1.31024 against
+    1.1979, named); 45191fa six. Now none over, no `words.mean` named."""
+    words_off, deviations, _missed_now = _words_written(tmp_path, "done3", 100_000)
+    assert words_off == 0 and "words.mean" not in deviations

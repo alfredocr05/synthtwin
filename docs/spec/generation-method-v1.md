@@ -10699,9 +10699,13 @@ census decides how it is WRITTEN.
    dressed into a different number. Where a rule refuses a spelling —
    it wears a form the census names while the group was asked for none,
    the census pooled nothing for a counted form it does not name, it is
-   a spelling the column already uses, it fails the neutrality tests of
-   G8.3a, it carries a sign no published number has, or it is too wide
-   under the rule below — the offer steps one place outward, below then
+   a spelling the column already uses, it holds a value a published
+   number holds however that number is written (as on G8.3a's walk; the
+   L1 Codex repair: beside `1E2` x20 a pooled group wrote `100`, and a
+   reader converting to numbers counted 21 hundreds where the table held
+   20), it fails the neutrality tests of G8.3a, it carries a sign no
+   published number has, or it is too wide under the rule below — the
+   offer steps one place outward, below then
    above, and on outward until one is accepted. One place is the
    smallest move there is, so a short walk keeps the group at the scale
    it was asked for; a LONG one does not, which is why step 4 exists.
@@ -12122,13 +12126,23 @@ for.
    barred one shorter than the longest published length), the family's
    last barred parents freed where it falls short; and where any parent
    is so barred, a partner takes the slot's planned length first and, of
-   the parents giving it, one of the slot's planned words first inside
-   each pass that keeps the long-tail line (Codex's review of lane L1,
-   item 3: two slots planned one word took two-word partners, and 400
+   the parents giving it, one of the slot's planned words first; then, in
+   the slot's whole window, again one of its planned words first; all
+   inside each pass that keeps the long-tail line (Codex's review of lane
+   L1, item 3: two slots planned one word took two-word partners, and 400
    durations beside notes wrote `words.mean` 1.135 against a window of
-   1.105 to 1.13; now 1.115). Where the only such parent would carry its
-   level to the line, the words give way and the report names
-   `words.mean` where it is missed. The
+   1.105 to 1.13; and its verifier: 100,000 durations beside `note N
+   done` wrote 11,234 words over, slots planned one word taking
+   three-word partners in the whole window). The words any slot's
+   partner still writes off its plan are PAID BACK once the walk is done,
+   as its characters are below: groups before the slots that wrote a
+   made-up spelling in no form, are no parent of a partner and carry no
+   published end and no truth value are re-made one word shorter (or
+   longer, where the slots wrote too few), at the length they were
+   written at, the smallest first, while words stay inside the published
+   least and greatest and those two counts stay held; durations and
+   `N min` beside three-word notes, 1,200 rows, came back 42 words short
+   and now exact. The
    table now writes all 27,037. A column where no slot is asked such a
    form walks exactly as before.
 

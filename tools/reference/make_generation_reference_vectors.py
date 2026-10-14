@@ -9603,6 +9603,7 @@ def pooled_step(ladder, wanted, asked, named, seen, folds, needed, pool, widest)
     offered; each refusal steps one place outward, below then above, and
     on outward.  The refusals are G8.3a's own, read from the method: a
     sign no published number has, a spelling the column already uses, a
+    value a published number holds however that number is written, a
     form the census names where the group was asked for none, a counted
     form the census pooled nothing for, the neutrality tests, and a
     whole figure wider than the width rule allows.
@@ -9648,6 +9649,12 @@ def pooled_step(ladder, wanted, asked, named, seen, folds, needed, pool, widest)
             if not asked and ladder.get("cap", 0) and (
                 whole_figures(units, places) > ladder["cap"]
             ):
+                continue
+            # Nor at a value a published number holds, however that
+            # number is written (G8.3c step 3, the L1 Codex repair): the
+            # value placed, read exactly, against every published value.
+            held = F(units, 10 ** places) * 10 ** ladder["places"]
+            if held.denominator == 1 and held.numerator in ladder["published"]:
                 continue
             plain = units_spelled(units, places)
             worn = census_form(plain, named)
