@@ -42,6 +42,7 @@ import typing
 import pytest
 
 import fixtures
+import test_commonest_width_grid as width_grid
 import test_files_review_repairs as review_repairs
 from synthtwin import contract, generation, parsing, profile, reading, rendering, taxonomy, validation
 
@@ -985,17 +986,9 @@ def test_shared_forms_kept_last_gives_numbers_too_large_a_form_numbers_wear() ->
 
 # -- Codex's review of lane L1 (head e994b5f), five items ---------------
 
-_ORACLE_PATH = pathlib.Path(__file__).resolve().parent.parent / "tools" / "reference" / "make_generation_reference_vectors.py"
-
-
 def _oracle() -> typing.Any:
-    import importlib.util
-
-    spec = importlib.util.spec_from_file_location("oracle_lane_l1_codex", _ORACLE_PATH)
-    assert spec is not None and spec.loader is not None
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    return module
+    """The oracle, loaded by the width-grid tests' own loader (no new file load)."""
+    return width_grid._oracle()
 
 
 def _held_back_counted(cells: "typing.Iterable[str]") -> "dict[str, int]":
@@ -1180,22 +1173,24 @@ def test_the_oracle_reads_and_writes_its_own_overflow_spelling(tmp_path: pathlib
     assert _held_back_counted(content) == _held_back_counted(twin)
 
 
-def test_a_fraction_of_more_figures_than_its_value_needs_is_its_own_spelling() -> None:
-    """CODEX ITEM 5 (LOW). `45000.123456789012` has seventeen significant
-    figures and reads back as `45000.12345678901`, sixteen; at a published
-    width of twelve it was outside the styles on e994b5f (the rule asked for
-    more than seventeen, a refusal older than lane L1). The boundary is the
-    value's shortest spelling."""
-    assert validation._cells_outside_the_styles(["45000.123456789012"], False, (12,)) == 0
-    assert validation._shortest_figures(45000.123456789012) == 16
-    assert validation._shortest_figures(0.1) == 1
-    assert validation._shortest_figures(1e-05) == 1
-    assert validation._cells_outside_the_styles(["0.10000000000000001"], False, (17,)) == 0
-    assert validation._cells_outside_the_styles(["45000.123456789012"], False, (11,)) == 1
-    assert not validation._wears_figures_past_binary64("45000.123456789010", 45000.12345678901, (12,))
-
-
-def test_a_fraction_of_more_figures_red_at_seventeen(monkeypatch: pytest.MonkeyPatch) -> None:
-    """MUTATION: the boundary read as seventeen figures, as on e994b5f."""
-    monkeypatch.setattr(validation, "_shortest_figures", lambda _value: 17)
+def test_the_past_binary64_shape_states_the_boundary_it_holds() -> None:
+    """CODEX ITEM 5 (LOW). The shape's own statement said that at seventeen
+    figures or fewer the family offers a cell's spelling at a width; it does
+    not: `45000.123456789012`, seventeen figures, reads back as
+    `45000.12345678901` and is outside the styles at a published width of
+    twelve (older than lane L1). The boundary stays where P3-V4-F1's near
+    neighbours need it, past seventeen, and the statement now says what it
+    leaves outside. Red on e994b5f, whose docstring claimed the false
+    guarantee."""
+    statement = " ".join((validation._wears_figures_past_binary64.__doc__ or "").split())
+    assert "at seventeen figures or fewer one spelling at a width is the value's own" not in statement
+    assert "`45000.123456789012` reads back as `45000.12345678901`" in statement
     assert validation._cells_outside_the_styles(["45000.123456789012"], False, (12,)) == 1
+    assert validation._cells_outside_the_styles(["45000.1234567890123"], False, (13,)) == 0
+    assert validation._cells_outside_the_styles(["45000.1234567890123"], False, (12,)) == 1
+
+
+def test_the_past_binary64_boundary_red_at_sixteen(monkeypatch: pytest.MonkeyPatch) -> None:
+    """MUTATION: the boundary moved to sixteen figures admits the seventeen-figure cell."""
+    monkeypatch.setattr(validation, "_BINARY64_FIGURES", 16)
+    assert validation._cells_outside_the_styles(["45000.123456789012"], False, (12,)) == 0

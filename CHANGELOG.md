@@ -36,8 +36,8 @@ partner; long whole numbers are written faster. Its Codex review (2026-10-14): a
 made-up code never takes a value a published code writes with an exponent
 (`0` beside `0E2`), a pooled code is no wider than the longest published
 label, a fold partner keeps its slot's planned words (`words.mean` back
-inside its window), and `styles.spelled` admits a fraction written past its
-value's shortest figures at a published width, seventeen figures included.
+inside its window), and the statement of what `styles.spelled` admits past
+binary64 names the seventeen-figure cells it leaves outside.
 
 ### Partial dates are read at their own precision, and a column mostly of dates is asked (2026-10-09)
 

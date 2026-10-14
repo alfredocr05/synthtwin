@@ -15246,30 +15246,9 @@ def _wears_a_whole_number_text(body: str, value: float) -> bool:
     return float(body) == value
 
 
-def _shortest_figures(value: float) -> int:
-    """How many significant figures a value's shortest spelling has.
-
-    The figures `repr` writes, which read back as the value and are the
-    fewest that do (at most seventeen), noughts at either end not
-    counted. Guarantees: a fixed function of the value; raises nothing;
-    no I/O.
-    """
-    figures = 0
-    noughts = 0
-    started = False
-    for character in repr(abs(value)):
-        if character == "e":
-            break
-        if character < "0" or character > "9":
-            continue
-        if character == "0":
-            if started:
-                noughts = noughts + 1
-            continue
-        started = True
-        figures = figures + noughts + 1
-        noughts = 0
-    return figures
+# THE MOST SIGNIFICANT FIGURES A BINARY64 VALUE NEEDS TO BE READ BACK AS
+# ITSELF: seventeen, so a spelling of more says figures no binary64 keeps.
+_BINARY64_FIGURES = 17
 
 
 def _wears_figures_past_binary64(
@@ -15285,20 +15264,19 @@ def _wears_figures_past_binary64(
     with zeros. So a column of Excel serials written to 50 places failed
     its own description on `styles.spelled`, exit 3, every cell outside.
 
-    THE RULE ANSWERS ONLY WHERE THE CELL SAYS MORE SIGNIFICANT FIGURES
-    THAN ITS VALUE'S SHORTEST SPELLING HAS (`_shortest_figures`), and
-    only at a width the description publishes. The family writes those
-    shortest figures and pads the rest with noughts, so a cell saying
-    more is no spelling the family offers however few figures it has:
-    `45000.123456789012`, seventeen figures, reads back as
-    `45000.12345678901`, sixteen, and at a published width of twelve it
-    was refused while the rule asked for more than seventeen (Codex's
-    review of lane L1, item 5, a refusal older than the lane). A cell
-    of no more figures than that is the family's to offer, and a cell
-    at a width the census does not name is the width census's to count.
-    What it does not admit, stated: a cell of as many figures as the
-    shortest spelling but other ones, which some seventeen-figure values
-    allow. Asked of the text and answered by the number, as
+    THE RULE ANSWERS ONLY PAST SEVENTEEN SIGNIFICANT FIGURES and only at a
+    width the description publishes: past seventeen a cell says figures
+    no binary64 keeps, so no spelling of any value writes them, and a
+    cell at a width the census does not name is the width census's to
+    count. WHAT IT LEAVES OUTSIDE, stated (Codex's review of lane L1,
+    item 5; older than the lane): a cell of sixteen or seventeen figures
+    that says figures its value lost. `45000.123456789012` reads back as
+    `45000.12345678901`, and at a published width of twelve it is
+    outside the styles; so is `9999.0000000000001` beside a declared
+    `9999`, which P3-V4-F1 pins as a genuine miss of `styles.spelled`.
+    At seventeen figures or fewer this rule cannot tell a source's long
+    spelling from a near neighbour of a declared number, and it admits
+    neither. Asked of the text and answered by the number, as
     `_wears_a_whole_number_text` is: the cell reads back as the value it
     was read as, or it is not admitted.
 
@@ -15337,7 +15315,7 @@ def _wears_figures_past_binary64(
     figures = last - first + 1
     if first < point < last:
         figures = figures - 1
-    if figures <= _shortest_figures(value):
+    if figures <= _BINARY64_FIGURES:
         return False
     try:
         return float(text) == value
