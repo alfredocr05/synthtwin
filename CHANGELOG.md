@@ -36,10 +36,12 @@ partner; long whole numbers are written faster. Its Codex review (2026-10-14): a
 made-up code never takes a value a published code holds, however it is
 written (`0` beside `0E2` on the walk, `100` beside `1E2` in the pooled
 placement), a pooled code is no wider than the longest published label, a
-fold partner keeps its slot's planned words in every window and the words
-still off are made up by other made-up cells (`words.mean` back inside its
-window: 100,000 durations beside three-word notes wrote 11,234 words over,
-now none), and the statement of what `styles.spelled` admits past binary64
+fold slot asks its planned words first at its planned length and again in
+its whole window, frees a parent of its planned length and words before it
+takes a partner of other words, and the words still off are made up by
+other made-up cells (100,000 durations beside three-word notes wrote 11,234
+words over, now none; durations beside `ok N` and `call back N`, 27 words
+short at 800 rows, now none), and the statement of what `styles.spelled` admits past binary64
 names the seventeen-figure cells it leaves outside.
 
 ### Partial dates are read at their own precision, and a column mostly of dates is asked (2026-10-09)
