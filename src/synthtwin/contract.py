@@ -8334,7 +8334,9 @@ def _shape_form_cells(
 
     **AND A LABEL WITH NO FORM CARRIES 0.** A spelling belongs to this
     level when trimming and folding it gives the label; a spelling that
-    has a form holds no space, so trimming changes nothing, and folding
+    has a form holds no space at either end -- its one gap, where it has
+    one, stands between a clock's figures and its marker (plan P4-D392)
+    -- so trimming changes nothing, and folding
     an ASCII letter leaves an ASCII letter in place -- so a
     form-bearing spelling and its fold wear the same form, which is the
     label's. A label with no form of its own therefore has no

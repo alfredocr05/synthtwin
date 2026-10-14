@@ -514,14 +514,22 @@ def test_a_free_text_face_column_meets_its_form_exactly(tmp_path: pathlib.Path) 
 
 
 def test_a_free_text_face_column_red_when_a_group_overpays(tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """MUTATION: `_form_asks` never told the census pools nothing: 888 in the form."""
+    """MUTATION: `_form_asks` never told the census pools nothing: 888 in the form.
+
+    The minority is written with a no-break space U+00A0 before its marker,
+    which holds no form. Since lane L2 (plan P4-D392) `9:15 AM` with a plain
+    space has the form `%:%% @@`, and on that table the census and the walk
+    leave this mutant nothing to overpay (measured: 887 in `%%:%%` either
+    way); with U+00A0 the table is the one this clause was measured on.
+    """
     asked = generation._form_asks
 
     def blind(*args: typing.Any) -> "list[str]":
         return asked(*args[:11])
 
     monkeypatch.setattr(generation, "_form_asks", blind)
-    twin, _source, twin_missed = _round(tmp_path, _face(0.10, 1000, 36), 36)
+    cells = [cell.replace(" ", "\u00a0") for cell in _face(0.10, 1000, 36)]
+    twin, _source, twin_missed = _round(tmp_path, cells, 36)
     assert sum(1 for cell in twin if re.fullmatch(r"\d\d:\d\d", cell)) == 888
     assert "forms.published.%%:%%" in twin_missed
 

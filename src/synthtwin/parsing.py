@@ -1481,6 +1481,28 @@ SHAPE_LETTER = "@"
 # like a key carrying it, which is the property the other two buy.
 SHAPE_LOWER = "&"
 
+# THE ONE GAP A FORM MAY HOLD, AND ONLY BEFORE A CLOCK'S MARKER (lane L2,
+# plan P4-D392, contract C6-31a). The space stays excluded on its own
+# ground (above), with one exception that is no sentence: a clock time
+# written with ONE space or ONE narrow no-break space U+202F between its
+# figures and a meridiem marker -- `9:15 AM`, `08:15:30.123 AM`, and
+# `9:15\u202fAM` as Excel's and macOS's exports write it. Before this, such
+# a cell had no form, so a column of them beside rare words published
+# none and its twin wrote 0 of its 969 clock cells in their shape where
+# `9:15AM` kept 969. The gap stands as itself in the form (`%:%% @@`,
+# `%:%%\u202f@@`), because the twin writes every value as the source
+# wrote it. Admitted only where the cell holds no other space, the text
+# after the gap is one of the eight marker words, and the text before it
+# is a clock: an hour of one or two figures, a colon and two figures,
+# optionally a colon and two more and then optionally a point and a
+# fraction of the second: so every form holding a gap is a clock's form,
+# which G8.3's clock supply fills with times (method G9.5). A key of such
+# a form carries the marker as `@@` or `@.@.` -- or, lower case, `&&` or
+# `&.&.` -- and so names no marker word.
+SHAPE_GAPS = (" ", "\u202f")
+_SHAPE_MERIDIEM_WORDS = ("AM", "PM", "am", "pm", "A.M.", "P.M.", "a.m.", "p.m.")
+_SHAPE_MERIDIEM_KEYS = ("@@", "&&", "@.@.", "&.&.")
+
 
 def _is_a_digit(character: str) -> bool:
     """Whether one character is a figure `0` to `9`.
@@ -1521,6 +1543,99 @@ def _is_a_letter(character: str) -> bool:
     return ("a" <= character <= "z") or ("A" <= character <= "Z")
 
 
+def _is_a_clock_body_form(head: str) -> bool:
+    """Whether a run of `%`, `:` and `.` is a clock's figures (P4-D392).
+
+    `%:%%` or `%%:%%`, optionally `:%%` after, and after the seconds
+    optionally a point and one figure or more: the bodies G8.3's clock
+    supply writes (`generation._clock_shape`). Raises nothing.
+    """
+    digit = SHAPE_DIGIT
+    body = head
+    cut = len(body)
+    while cut > 0 and body[cut - 1 : cut] == digit:
+        cut = cut - 1
+    places = 0
+    if cut < len(body) and body[cut - 1 : cut] == ".":
+        places = len(body) - cut
+        body = body[: cut - 1]
+    minutes = (digit + ":" + digit + digit, digit + digit + ":" + digit + digit)
+    seconds = (
+        digit + ":" + digit + digit + ":" + digit + digit,
+        digit + digit + ":" + digit + digit + ":" + digit + digit,
+    )
+    if body in seconds:
+        return True
+    return body in minutes and not places
+
+
+def _clock_head_form(head: str) -> str:
+    """The figures and marks of a clock written before its gap, or "".
+
+    Every figure becomes `SHAPE_DIGIT` and a colon or a point stands;
+    anything else -- a letter, another mark, a placeholder -- answers "".
+    """
+    built = ""
+    for character in head:
+        if _is_a_digit(character):
+            built = built + SHAPE_DIGIT
+        elif character == ":" or character == ".":
+            built = built + character
+        else:
+            return ""
+    return built
+
+
+def meridiem_gap_at(text: str) -> int:
+    """Where the one gap a form may hold sits in a cell, or -1 (P4-D392).
+
+    The place of the one space or U+202F (`SHAPE_GAPS`) of a cell that is
+    a clock's figures, that gap and a meridiem marker word -- `9:15 AM`,
+    `08:15:30.123 p.m.` -- and -1 for every other cell, a cell with no
+    gap and a cell with two among them. One pass over the cell and no
+    other work, so a census of a million cells costs a million such
+    passes. Raises TypeError if handed anything that is not a string
+    instance. No I/O of any kind.
+    """
+    if not isinstance(text, str):
+        raise TypeError(_NOT_TEXT)
+    place = -1
+    for index in range(len(text)):
+        if text[index] in SHAPE_GAPS:
+            if place >= 0:
+                return -1
+            place = index
+    if place < 0:
+        return -1
+    if text[place + 1 :] not in _SHAPE_MERIDIEM_WORDS:
+        return -1
+    head = _clock_head_form(text[:place])
+    if not head or not _is_a_clock_body_form(head):
+        return -1
+    return place
+
+
+def _key_gap_at(name: str) -> int:
+    """Where the one gap of a census key sits, or -1 (P4-D392).
+
+    The key twin of `meridiem_gap_at`: a clock body of `%`, `:` and `.`,
+    one gap, and a marker key `@@`, `&&`, `@.@.` or `&.&.`.
+    """
+    place = -1
+    for index in range(len(name)):
+        if name[index] in SHAPE_GAPS:
+            if place >= 0:
+                return -1
+            place = index
+    if place < 0:
+        return -1
+    if name[place + 1 :] not in _SHAPE_MERIDIEM_KEYS:
+        return -1
+    if not _is_a_clock_body_form(name[:place]):
+        return -1
+    return place
+
+
 def shape_form(text: str) -> str:
     """The shape of one cell: its figures and letters, its marks kept.
 
@@ -1557,7 +1672,10 @@ def shape_form(text: str) -> str:
     WHAT IT DELIBERATELY WILL NOT DO. A cell has NO FORM when it is
     empty, when it is longer than `SHAPE_FORM_LIMIT`, or when it holds
     any character that is neither a letter, nor a digit, nor one of
-    `SHAPE_MARKS` -- a space among them. On a note or an address a form
+    `SHAPE_MARKS` -- a space among them, save the one gap a clock's
+    marker stands behind (`meridiem_gap_at`, plan P4-D392): `9:15 AM`
+    has the form `%:%% @@`, its space kept, and `9:15\u202fAM` the form
+    with U+202F kept. On a note or an address a form
     would carry where the spaces and the commas fall and how long each
     word is, which is a fact about a sentence rather than about a code,
     and this census is not the place to decide whether that may be
@@ -1580,7 +1698,19 @@ def shape_form(text: str) -> str:
     figures = 0
     letters = 0
     marks = 0
+    # The one gap a clock's marker may stand behind (P4-D392): looked for
+    # only where the cell ends in a letter or a point, as every marker
+    # word does, so a cell ending in a figure pays nothing for it.
+    gap = -1
+    if text[len(text) - 1] in "Mm.":
+        gap = meridiem_gap_at(text)
+    place = -1
     for character in text:
+        place = place + 1
+        if place == gap:
+            form = form + character
+            marks = 1
+            continue
         if character == SHAPE_DIGIT or character == SHAPE_LETTER:
             # A CELL CARRYING A PLACEHOLDER HAS NO FORM. This is what
             # makes the disjointness above a property and not a hope:
@@ -1678,7 +1808,14 @@ def is_a_written_form(name: str) -> bool:
     letters = 0
     lower = 0
     marks = 0
+    # A key may hold the one gap a clock's marker stands behind (P4-D392).
+    gap = _key_gap_at(name)
+    place = -1
     for character in name:
+        place = place + 1
+        if place == gap:
+            marks = 1
+            continue
         if character == SHAPE_DIGIT:
             figures = 1
         elif character == SHAPE_LETTER:

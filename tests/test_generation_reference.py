@@ -929,6 +929,8 @@ TWENTY_FIFTH_BRANCH_CASES = (
     "layout_style_100",
     "layout_utc_word",
     "layout_weekday_long_date",
+    # Lane L2 (plan P4-D392): the gap before a clock's marker, U+202F.
+    "labels_clock_narrow_gap",
 )
 # -- 3b.R2c (P4-D383): partial dates and an ask-first layout, in the same
 # file, added beside the date half's cases.
@@ -998,6 +1000,8 @@ SEEDS = {
     # and the second repair round's line held key by key the one after.
     "labels_clock_line": 434,
     "labels_clock_forms": 435,
+    # Lane L2's gap before a clock's marker (plan P4-D392).
+    "labels_clock_narrow_gap": 551,
     # Landing R2a's layout member takes the next seeds after T1's (plan
     # P4-D383).
     "layout_century_window": 421,
@@ -3866,6 +3870,14 @@ def _clock_supply_on_the_hour(form, step):
     return text[: colon + 1] + "00" + text[colon + 3 :]
 
 
+def _clock_gap_plain(form, step):
+    """C6-31a's gap withdrawn: a time of a U+202F form written with a plain space."""
+    text = gen_clock_filled_form(form, step)
+    if text is None:
+        return None
+    return text.replace("\u202f", " ")
+
+
 def _partial_forms_in_blocks(forms, given, turn, total):
     """G7.5's interleaving withdrawn: each partial form written after the one before it."""
     reached = 0
@@ -3972,6 +3984,12 @@ CASE_MUTANTS = {
         branch="G8.3's clock line held key by key (the second repair round of landing 3b.5), which holds a label column's held-back levels against the one form its twin could be read in; the mutant holds every clock time against one line, as before, and the last held-back rows are filled figure by figure",
         attribute="clock_key",
         replacement=_every_clock_one_key,
+        outcome=CHANGES_THE_CELLS,
+    ),
+    "labels_clock_narrow_gap": Mutant(
+        branch="C6-31a's one gap before a clock's marker (lane L2, plan P4-D392), kept as the source wrote it, U+202F; the mutant writes every time of such a form with a plain space before its marker",
+        attribute="clock_filled_form",
+        replacement=_clock_gap_plain,
         outcome=CHANGES_THE_CELLS,
     ),
     "labels_clock_line": Mutant(

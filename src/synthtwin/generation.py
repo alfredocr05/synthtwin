@@ -42333,7 +42333,7 @@ def _clock_shape(form: str) -> "_ClockShape | None":
     An hour of one or two figures, a colon and two figures, optionally a
     colon and two more, optionally after those a point and a fraction of
     the second in one figure or more, and optionally a marker after one
-    space or none (`_CLOCK_FORM_MARKS`): hours 0 to 23 (one figure: 0 to
+    space, one U+202F or none (`_CLOCK_FORM_MARKS`): hours 0 to 23 (one figure: 0 to
     9), or 1 to 12 behind a marker (one figure: 1 to 9). A fraction after
     the minutes is no clock's: `%%:%%.%` is how a stopwatch writes minutes
     and seconds. Guarantees: a function of the form. Raises nothing. No
@@ -42346,9 +42346,11 @@ def _clock_shape(form: str) -> "_ClockShape | None":
         if len(body) > len(mark) and body[len(body) - len(mark) :] == mark:
             body = body[: len(body) - len(mark)]
             marked = (morning, evening)
-            if body[len(body) - 1 :] == " ":
+            # One space, or one narrow no-break space U+202F as Excel and
+            # macOS write it (lane L2, plan P4-D392), stands before it.
+            if body[len(body) - 1 :] in parsing.SHAPE_GAPS:
+                space = body[len(body) - 1 :]
                 body = body[: len(body) - 1]
-                space = " "
             break
     digit = parsing.SHAPE_DIGIT
     # A fraction of the second, read off the end: a point and its figures.
@@ -42843,7 +42845,9 @@ def _form_words(form: str) -> int:
     words = 0
     inside = False
     for character in form:
-        if character == _SPACE or character == "\t":
+        # U+202F parts two words as `parsing.token_count` counts them, and
+        # since plan P4-D392 a clock's form may hold it before its marker.
+        if character == _SPACE or character == "\t" or character == "\u202f":
             inside = False
             continue
         if not inside:
@@ -43448,12 +43452,15 @@ def _level_key(spelling: str) -> str:
 
     A CLOCK TIME WITH ONE SPACE BEFORE ITS MARKER KEEPS THE SPACE (the
     repair round of landing 3b.5, plan P4-D373; contract 7.9.1). Such a
-    spelling has no form (section 7.9), so a column of `7:30 AM` read as
+    spelling had no form (section 7.9), so a column of `7:30 AM` read as
     labels wrote every held-back time `group-N`: 632 of 3,000 twin cells
     at a floor of 36. Its key is the clock's form with the space and the
     marker's own marks -- `%:%% @@`, `%%:%%:%% &&`, `%:%% @.@.` -- which
-    no census names, since a census form never holds a space, and which
-    G8.3's clock supply fills with times of that face.
+    G8.3's clock supply fills with times of that face. Since lane L2
+    (plan P4-D392) that key IS the spelling's form, its space or U+202F
+    kept (`parsing.meridiem_gap_at`), and a census may name it; every
+    clock `parsing.clock_parts` reads with a space before its marker now
+    has that form, so the branch below, kept, is reached by none.
     """
     form = parsing.shape_form(spelling)
     if not form:
@@ -43855,9 +43862,11 @@ def _made_up_label(
 # -- the classes a column of labels still owes (method G8.3a) ---------
 
 # THE THREE CLASSES A HELD-BACK GROUP CAN OWE BESIDES TEXT, each keyed
-# with a leading SPACE. A written form holds no space -- a space is not
-# one of the thirteen marks -- so no key here can be mistaken for a form
-# of the census these debts are settled beside.
+# with a leading SPACE. A written form never begins with a space -- a
+# space is not one of the thirteen marks, and the one gap a clock's
+# marker may stand behind (plan P4-D392) follows the clock's figures --
+# so no key here can be mistaken for a form of the census these debts
+# are settled beside.
 _OWED_NUMBER = " number"
 _OWED_OUT_OF_RANGE = " out_of_range"
 _OWED_CONTRADICTORY = " contradictory"

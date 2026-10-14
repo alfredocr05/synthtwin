@@ -3468,27 +3468,32 @@ def test_r2b_x4_a_joined_meridiem_beside_rare_words_keeps_its_shape(tmp_path: pa
     assert _in_the_clock_shape(written, "") == _in_the_clock_shape(cells, "") == 969
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="Owned by lane L2, forms that hold a space (the orchestrator, 2026-10-13; "
-    "measured by lane R2b, which has landed; STATE's limits): "
-    "parsing.shape_form gives no form to a cell holding a space or U+202F "
-    "(contract C6-97, section 7.9), so `9:15 AM` and `08:15:30.123 AM` publish no "
-    "forms and the twin of such a column beside rare words writes 0 of its 969 "
-    "clock cells in their shape (`9:15AM`: 969 of 969). A form holding the one "
-    "space or U+202F before the marker moves the form census of every role "
-    "(C6-97 and 7.9, method G9.5, the oracle's form filler): measured, not built "
-    "in the Codex fix stream of landing R2b.",
-)
 @pytest.mark.parametrize("gap", (" ", parsing.LAYOUT_NARROW_SPACE))
 def test_r2b_x4_a_spaced_meridiem_beside_rare_words_keeps_its_shape(
     tmp_path: pathlib.Path, gap: str
 ) -> None:
-    """X4: `9:15 AM` beside rare words keeps the clock's shape in its twin, as `9:15AM` does."""
+    """X4: `9:15 AM` beside rare words keeps the clock's shape in its twin, as `9:15AM` does.
+
+    Lane L2 (plan P4-D392): a form holds the one space or U+202F between a
+    clock's figures and its marker (contract C6-31a), so the column
+    publishes `%:%% @@` (or with U+202F) and its twin writes all 969 clock
+    cells in that shape, each a time of the day, the gap as the source wrote
+    it: U+202F is never written as a plain space, nor a plain space as
+    U+202F. Measured on 6a248e7: 0 of 969 for both gaps (a strict expected
+    failure until L2). Red where `parsing.shape_form` gives a gapped cell no
+    form, as before L2.
+    """
     cells = _clock_beside_rare_words(gap, 1000)
-    _block, profile, _questions = _described(tmp_path, cells)
+    block, profile, _questions = _described(tmp_path, cells)
+    assert sorted(block["shape_forms"]) == [f"%%:%%{gap}@@", f"%:%%{gap}@@"]
     _twin_path, written = _twin(profile, 0)
     assert _in_the_clock_shape(written, gap) == _in_the_clock_shape(cells, gap) == 969
+    other = " " if gap != " " else parsing.LAYOUT_NARROW_SPACE
+    assert _in_the_clock_shape(written, other) == 0
+    for cell in written:
+        if _in_the_clock_shape([cell], gap):
+            hour, rest = cell.split(":")
+            assert 1 <= int(hour) <= 12 and int(rest[:2]) <= 59, cell
 
 
 # -- 3b.R2c (P4-D383): THE LAYOUT READER'S QUESTIONS AND PARTIAL DATES ----

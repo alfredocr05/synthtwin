@@ -83,6 +83,7 @@ import fractions
 import itertools
 import json
 import math
+import re
 import struct
 import sys
 
@@ -7649,6 +7650,16 @@ def usable_stand_in(candidate):
     # colon, and no date form this file states is a time of day alone.
     if fraction_clock(candidate):
         return candidate[0] not in "=+-@"
+    # ...AND NEITHER IS A TIME WITH U+202F BEFORE ITS MARKER (lane L2, plan
+    # P4-D392): the clock supply of a form holding that gap writes it, no
+    # number grammar reads a colon, and no date form this file states
+    # reads U+202F.  With the gap a plain space it is a clock read above.
+    if "\u202f" in candidate and (
+        clock_reads(candidate.replace("\u202f", " "), False)
+        or figure_filled_clock(candidate.replace("\u202f", " "))
+        or fraction_clock(candidate.replace("\u202f", " "))
+    ):
+        return candidate[0] not in "=+-@"
     for character in candidate:
         if character == "," or character == '"':
             return False
@@ -7663,18 +7674,46 @@ def usable_stand_in(candidate):
     return candidate[0] not in "=+-@"
 
 
+# THE ONE GAP A FORM MAY HOLD (contract C6-31a, method G9.5, plan
+# P4-D392), written here from the method's sentence and not from the
+# producer: one space or one U+202F, the cell's only one, between a
+# clock's figures -- an hour of one or two figures, a colon and two, a
+# colon and two more optionally, and after those optionally a point and
+# one figure or more -- and a marker word of the eight.
+FORM_GAPS = (" ", "\u202f")
+GAP_CLOCK = re.compile(r"[0-9]{1,2}:[0-9]{2}(:[0-9]{2}(\.[0-9]+)?)?")
+GAP_WORDS = ("AM", "PM", "am", "pm", "A.M.", "P.M.", "a.m.", "p.m.")
+
+
+def form_gap(text):
+    """Where the one gap of a clock's marker sits in a cell, or -1."""
+    places = [index for index, character in enumerate(text) if character in FORM_GAPS]
+    if len(places) != 1:
+        return -1
+    head, tail = text[: places[0]], text[places[0] + 1 :]
+    if tail in GAP_WORDS and GAP_CLOCK.fullmatch(head):
+        return places[0]
+    return -1
+
+
 def written_form(text):
     """The written form of one cell -- contract C6-31a.
 
     Every ASCII digit becomes ``9``, every ASCII letter ``A``, and every
     other character stands as itself.  A cell that is empty or longer
-    than the limit has no form at all.
+    than the limit has no form at all, and neither has one holding a
+    space or U+202F but the one gap before a clock's marker (P4-D392).
     """
     if not text or len(text) > SHAPE_FORM_LIMIT:
         return ""
     built = ""
     figures = letters = marks = 0
-    for character in text:
+    gap = form_gap(text)
+    for place, character in enumerate(text):
+        if place == gap:
+            built += character
+            marks = 1
+            continue
         if character in (SHAPE_DIGIT, SHAPE_LETTER):
             return ""
         if character.isdigit():
@@ -7756,7 +7795,8 @@ def clock_shape(form):
     two more, optionally after the seconds a point and a fraction of the
     second in one figure or more, optionally a marker -- AM/PM as ``@@``,
     am/pm as ``&&``, A.M./P.M. as ``@.@.``, a.m./p.m. as ``&.&.`` -- after
-    one space or none.  Answered as (the hour's figures, whether it writes
+    one space, one U+202F (P4-D392) or none.  Answered as (the hour's
+    figures, whether it writes
     seconds, the fraction's figures or 0, the marker pair or None, the
     space before it, the first hour, how many hours, how many times of the
     day it writes with no fraction).  A fraction after the minutes alone
@@ -7767,8 +7807,8 @@ def clock_shape(form):
                        ("@.@.", ("A.M.", "P.M.")), ("&.&.", ("a.m.", "p.m."))):
         if len(body) > len(mark) and body.endswith(mark):
             body, words = body[: len(body) - len(mark)], pair
-            if body.endswith(" "):
-                body, space = body[:-1], " "
+            if body.endswith(FORM_GAPS):
+                body, space = body[:-1], body[-1]
             break
     d = SHAPE_DIGIT
     places = 0
@@ -8071,9 +8111,11 @@ SPACED_CLOCK_MARKS = {
 def spaced_clock_key(text):
     """The level key of a clock time with one space before its marker, or "".
 
-    Such a cell has no written form -- a form holds no space -- so the
-    clock's own form is its key with the space and the marker's marks
-    kept: `%:%% @@` for `7:30 AM`, `%%:%%:%% &&` for `07:30:15 pm`.
+    The clock's own form with the space and the marker's marks kept:
+    `%:%% @@` for `7:30 AM`, `%%:%%:%% &&` for `07:30:15 pm`.  Since plan
+    P4-D392 that is the cell's written form too (``written_form``), so
+    this key is asked only of a cell that has none, and such a clock has
+    one.
     """
     if not clock_reads(text, False):
         return ""
@@ -31189,6 +31231,32 @@ def _labels_clock_forms():
     }
 
 
+def _labels_clock_narrow_gap():
+    column = _universal(
+        "column_1", 'categorical', 'categorical', "data", "ok",
+        level_ceiling=50,
+        levels=[{'count': 20, 'label': '10:30\u202fam', 'shape_form_cells': 20, 'variants': {'10:30\u202fAM': 20}, 'variants_withheld': {}}, {'count': 20, 'label': '1:30\u202fpm', 'shape_form_cells': 20, 'variants': {'1:30\u202fPM': 20}, 'variants_withheld': {}}, {'count': 20, 'label': '7:30\u202fam', 'shape_form_cells': 20, 'variants': {'7:30\u202fAM': 20}, 'variants_withheld': {}}, {'count': 20, 'label': '8:00\u202fam', 'shape_form_cells': 20, 'variants': {'8:00\u202fAM': 20}, 'variants_withheld': {}}],
+        n_contradictory=0,
+        n_distinct=14,
+        n_distinct_folded=14,
+        n_missing=0,
+        n_not_numeric=100,
+        n_numeric=0,
+        n_out_of_range=0,
+        n_present=100,
+        shape_forms={'%%:%%\u202f@@': 26, '%:%%\u202f@@': 74},
+        suppressed_levels=10,
+        suppressed_numbers={'mean': None, 'n_cells': 0},
+        suppressed_rows=20,
+        detection_evidence='there are 14 different values, which is within the 50 a set of categories may have in a table of 100 rows under these settings, so this column is a set of categories',
+    )
+    return {
+        "why": "C6-31a's one gap before a clock's marker and G8.3's clock supply behind it (lane L2, plan P4-D392): 100 appointment times written as Excel and macOS export them, the narrow no-break space U+202F between the minutes and `AM` or `PM`, are a set of 14 categories, four published at 20 rows. Each cell has a form that keeps its U+202F, `%:%%\u202f@@` (74) or `%%:%%\u202f@@` (26), so the 20 held-back rows owe those forms, and every held-back row is a time of its face written with U+202F before its marker, as the source wrote it; no clock reader takes U+202F, so no clock line holds them. The mutant writes the gap as a plain space, and the twin's held-back times are no longer the source's spelling.",
+        "column": column,
+        "rows": 100,
+        "identifier_declared": False,
+    }
+
 def _r2a_layout(member, resolution, precision, digits, rows, offsets, read_at,
                 widths=None, earliest=None, latest=None, why="", numeric=0,
                 distinct=None):
@@ -31864,6 +31932,8 @@ R2A_BRANCH_CASE_BUILDERS = {
     "layout_style_100": _layout_style_100,
     "layout_utc_word": _layout_utc_word,
     "layout_weekday_long_date": _layout_weekday_long_date,
+    # Lane L2 (plan P4-D392): the gap before a clock's marker, U+202F.
+    "labels_clock_narrow_gap": _labels_clock_narrow_gap,
 }
 
 
@@ -41820,7 +41890,9 @@ _TWENTY_FIFTH_BRANCH_ACCOUNT = (
     "as the settings' binary64 `0.9` draws it; and, from the Codex review "
     "of landing I3a, a column on the 12-hour dial with no marker read at "
     "UTC beside two offsets, which G7.3b step 10's half day does not "
-    "reach. They "
+    "reach; and, from lane L2 (plan P4-D392), a set of clock times "
+    "written with U+202F before their marker, whose held-back rows are "
+    "times of that form written with that gap. They "
     "are computed by the same oracle and the same proof layer "
     "as tests/reference/generation-reference-vectors.json, "
     "tests/reference/generation-branch-vectors.json, "
@@ -43177,6 +43249,42 @@ GIVEN_WORDS = {
         9120290185916536888, 6994342431886251008, 16196746810711034644,
         8509437690836477963, 6804130648959594893, 10549130603238973507,
         5272371200732293213, 11624598269994319921, 330501688981110632,
+    ),
+    # Lane L2's gap before a clock's marker (plan P4-D392), at seed 551.
+    "labels_clock_narrow_gap": (
+        17770706403801613085, 4034738531282018390, 14406923401486492117,
+        3003091967138730571, 14121481121441558840, 9229823668288826102,
+        7579761765419004346, 9343170531056237318, 4419988854468490782,
+        8143972068004010145, 7240997155242029775, 1082756111388416135,
+        8129063499792600271, 1308072290874298078, 12071506819470161175,
+        13475890570186609712, 8756906517781705342, 2736816184065708299,
+        196302934640347005, 7009004133173890611, 8522128230870175493,
+        335123179929059252, 13705549138608955315, 16332055468360655792,
+        2761136085463424585, 16163329031052062606, 13457643203247283735,
+        10619809377020878316, 3672936542063436832, 17750111424922339561,
+        17693208511503568924, 6826642820670889029, 391415090359452888,
+        10488810308658111082, 14880160217945878100, 6792091863134599480,
+        7654503186321142874, 16475167133918886876, 8240188703467985711,
+        7692410351755920998, 16165580224415356159, 3390005754091466857,
+        1006953540470378980, 3321663939783053910, 13539421306974492048,
+        536990750063867227, 12284821938723822006, 17113868591222519726,
+        16088265345368242206, 8818130646635911785, 16079454016050858624,
+        5597276328447942485, 18379068063708835288, 6445825564020638961,
+        18008856378009144094, 10653146167587083392, 10431474653928591117,
+        2885850318357676048, 9518339789663779320, 17578624547789836065,
+        9414377021172544358, 6085617551192432515, 18056149217958464045,
+        8147139037355099073, 8738977471099135599, 10213310184259094505,
+        8166041943393422611, 2256605218157920455, 15308345425683785722,
+        16774041655507632592, 10959402897160125118, 4643840624102255949,
+        15441555392717856317, 11856348224919876140, 13119445428718949860,
+        18360852900835437338, 16895616301547274608, 11759802192008191735,
+        16286821018250466211, 10586402743375755049, 3710741682801604483,
+        884939301411078852, 11237429267468210569, 1360129944831012947,
+        6896708408306310867, 13607912953270341670, 5457858820622014346,
+        7740887916700560620, 8574502168037584605, 18341384787051157695,
+        8743950369608242756, 15533346753200272180, 6683759387759283820,
+        17654150438954071008, 7252592057326197190, 15228461060722062397,
+        1894219577017088473, 15182380792646647531, 14455721379006563457,
     ),
     # ...and its second repair round's clock line held key by key, at
     # seed 435.
