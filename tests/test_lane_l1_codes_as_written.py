@@ -500,6 +500,68 @@ def test_the_free_text_form_walk_is_bounded_by_what_it_writes_to_a_million(
     assert counted["filled"] <= 2 * 10000 + generation._STAND_IN_STEPS
 
 
+
+def _text_beside_formula_codes(rows: int) -> "list[str]":
+    """Skeptic 1's refused-form table (item 1): free text beside held-back
+    codes `-abcde`, every spelling of whose form `-&&&&&` a spreadsheet
+    reads as a formula, so the form's walk refuses every spelling."""
+    draw = random.Random(5)
+    letters = "abcdefghijklmnopqrstuvwxyz"
+    cells: "list[str]" = []
+    for _row in range(rows):
+        if draw.random() < 0.3:
+            cells += ["-" + "".join(draw.choice(letters) for _letter in range(5))]
+        else:
+            cells += [
+                " ".join(
+                    "".join(draw.choice(letters) for _letter in range(draw.randrange(3, 8)))
+                    for _word in range(draw.randrange(2, 5))
+                )
+            ]
+    return cells
+
+
+def test_a_form_whose_every_spelling_is_refused_costs_the_bound_and_no_more(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """MACHINE-FREE: every form state's walk tries at most twice what it
+    writes plus `_STAND_IN_STEPS` spellings. The form `-&&&&&` holds 26**5
+    spellings and the walk takes none of them, so it gives the form up
+    after 4,096; unbounded it walks them all (killed at 300 s unfinished at
+    6,000 rows). A cap raises rather than hangs, so the mutant fails."""
+    cap = 200000
+    counted = {"filled": 0}
+    walked: "dict[int, list[int]]" = {}
+    filled = generation._filled_form
+    walk = generation._walked_cell
+
+    def counting(form: str, step: int, clocks: bool = True) -> str:
+        if sys._getframe(1).f_code.co_name == "_walked_cell":
+            counted["filled"] = counted["filled"] + 1
+            if counted["filled"] > cap:
+                raise RuntimeError("the form walk went past its bound")
+        return filled(form, step, clocks)
+
+    def watching(*args: typing.Any, **named: typing.Any) -> "str | None":
+        answer = walk(*args, **named)
+        form = args[7] if len(args) > 7 else (named["form"] if "form" in named else "")
+        if form:
+            walked[id(args[5])] = args[5]
+        return answer
+
+    monkeypatch.setattr(generation, "_filled_form", counting)
+    monkeypatch.setattr(generation, "_walked_cell", watching)
+    document, loaded = _described(tmp_path, _text_beside_formula_codes(2000), 11)
+    assert document["columns"][0]["role"] == "free_text"
+    assert document["columns"][0]["shape_forms"] == {"-&&&&&": 616}
+    _twin(loaded, 0, tmp_path)
+    assert walked
+    for state in walked.values():
+        assert len(state) > 1
+        assert state[0] <= 2 * state[1] + generation._STAND_IN_STEPS
+    assert counted["filled"] == generation._STAND_IN_STEPS
+
+
 # -- (5) no source crashes the writer; every published style is held ---
 
 
