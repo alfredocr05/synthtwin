@@ -21,8 +21,10 @@ second beside Z and +00:00.
 
 from __future__ import annotations
 
+import datetime
 import json
 import pathlib
+import random
 import typing
 
 import pytest
@@ -921,3 +923,55 @@ def test_the_shared_sure_cells() -> None:
     tails: "list[tuple[int, tuple[str, ...] | None]]" = [(3, ("2024-01-01 00:00:00",))]
     assert calendar_clock.own_clock_sure(published, tails, "utc") == ([], [(3, None)])
     assert calendar_clock.own_clock_sure(published, tails, "local") == (published, tails)
+
+
+# -- Batch 3b part 2b: the shared clock meets the dates that stand out -------
+
+
+def _heavy_column(kind: str) -> "list[str]":
+    """1,000 cells at midnight over 2023, 81 of them on 15 June, a date that stands out.
+
+    `local` writes bare dates (G7.1's ordinal space `date`); `shared` writes
+    each day's local midnight on the central European clock, `+01:00` in
+    winter and `+02:00` in summer; `joint` writes bare dates beside
+    `T00:00:00-03:00` stamps of the same days."""
+    draw = random.Random(5)
+    start = datetime.date(2023, 1, 2)
+    heavy = datetime.date(2023, 6, 15)
+    days = [heavy] * 80 + [start + datetime.timedelta(days=draw.randrange(364)) for _ in range(920)]
+    cells: "list[str]" = []
+    for place, day in enumerate(days):
+        if kind == "local" or (kind == "joint" and place % 2):
+            cells += [day.isoformat()]
+        elif kind == "joint":
+            cells += [day.isoformat() + "T00:00:00-03:00"]
+        else:
+            local = datetime.datetime(day.year, day.month, day.day)
+            cells += [local.isoformat() + shared_clock_shapes.off_text(shared_clock_shapes.eu_central(local))]
+    return cells
+
+
+@pytest.mark.parametrize("kind", ("local", "shared", "joint"))
+def test_a_midnight_column_with_a_date_that_stands_out_meets_both(
+    tmp_path: pathlib.Path, kind: str
+) -> None:
+    """Heavy dates keep their scope (G7.3j: `_ordinal_space` "date", the local clock); 3b.7's
+    censuses stand beside them.
+
+    The bare dates list 15 June with its 81 rows and their twin meets the list and the
+    censuses together; the same days at local midnight on two offsets, or as bare dates
+    beside -03:00 midnight stamps, are counted on the shared clock and in seconds, list
+    nothing, and their twins meet every census 3b.7 publishes there, at floors 11 and 36,
+    seeds 0 to 2."""
+    text = "t\n" + "".join(f"{cell}\n" for cell in _heavy_column(kind))
+    for floor in (11, 36):
+        described = kpi_shapes.describe(tmp_path / f"{kind}{floor}", kind, text, floor)
+        block = described.block("t")
+        if kind == "local":
+            assert block["heavy_dates"] == [{"date": "2023-06-15", "count": 81}], floor
+        else:
+            assert block["datetimes_read_at"] == "utc" and block["all_at_midnight"] is True, floor
+            assert block["heavy_dates"] == [], floor
+        assert block["weekday_census"], (kind, floor)
+        for seed in SEEDS:
+            assert _missed(described, seed) == [], (kind, floor, seed)
