@@ -9,13 +9,17 @@ exists).
 ### Numbers and codes at a million rows, without their square (2026-10-14)
 
 **Stage 4 lane S4b-num** (plans P4-D377, P4-D387 and P4-D390). Four paths
-whose work grew faster than the table now grow with it, and none writes
-a different byte: every twin, twin report and quality report measured
-is the one 3434682 wrote. G6.5a's push finds its collisions in a heap
-and its strata by grid unit, and walks each way only as far as could
-still be taken: consecutive whole numbers beside five far ones, declared
-a measurement, generate in 13.7 s at 100,000 rows where they took 494
-s, and in 207 s at 1,000,000. G6.6's identity walk begins each cell's
+whose work grew faster than the table now grow with it on the shapes
+STATE named, and none writes a different byte: every twin, twin report
+and quality report measured is the one 3434682 wrote. G6.5a's push
+finds its collisions in a heap and its strata by grid unit, and walks
+each way only as far as could still be taken: consecutive whole numbers
+beside five far ones, declared a measurement, generate in 13.7 s at
+100,000 rows where they took 494 s, and in 207 s at 1,000,000. The push
+still moves each stratum it passes one point at a time, so on long runs
+its work is the strata times the pushes (about 4 times a doubling,
+measured to 4,000 strata), and where a collision's holders are of two
+kinds each way is walked in full. G6.6's identity walk begins each cell's
 walk where the last one of its kind stopped: 1,001 spellings asked at
 100,000 rows of the Codex column where 501,501 were. G8.3c's pooled
 placement keeps one memory an offer, so each place's rules are asked

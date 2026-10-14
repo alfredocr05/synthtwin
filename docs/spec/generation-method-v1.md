@@ -4098,8 +4098,11 @@ stratum. Each way is walked under a budget of strata, raised fourfold
 until one way finds its free point or leaves the band; the other way is
 then walked only as far as it could still be taken -- as many strata as
 the found way passes downward, one fewer upward -- or in full where the
-found way has no mover. Holders of one kind share one walk. The push
-taken and every stratum it moves are those of the rule above.
+found way has no mover. Holders of one kind share one walk. Where a
+collision's holders are of two kinds, each way is walked in full: a
+mover whose walk is too long may be refused, and the next mover's walk
+be short. The push taken and every stratum it moves are those of the
+rule above.
 
 **WHICH OF THE THREE REFUSALS CAN DECIDE A PUSH, measured** (the skeptic
 of the oracle's independence repair, 2026-09-19). Two of them never

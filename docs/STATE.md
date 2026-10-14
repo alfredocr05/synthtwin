@@ -351,19 +351,23 @@ cannot get worse unseen.
 - **The largest tables** are measured to about 1,000,000 rows on
   identifiers (P4-D389); the end-to-end 2M x 50 run is `K-S1-06`.
   Landing 4. Lane S4b-num (2026-10-14) brought four of lane S4b's
-  costs to work that grows with the rows, every twin the same bytes:
-  the dense tail's push (494 s to 13.7 s at 100,000 rows, 207 s at
-  1,000,000), the identity walk (501,501 spellings asked to 1,001 at
-  100,000 rows of the Codex column), G4's decimal codes (803 s to 32.6
-  s at 1,000,000 rows) and a register's quality report (50,000
-  consecutive codes validate in 59.5 s, 997,770 rows in 123.5 s)
-  (P4-D377, P4-D387, P4-D390). Left to S4b's calendar half, after
-  stage 3b's last merge: G3's trade on a few instants held thousands of
-  times (about 40 minutes at 1,000,000 rows by the x3.4 a doubling
-  measured to 200,184) and its stall on wide gaps (four 10-day clusters
-  a decade apart: 200,000 rows unfinished after 20.5 minutes of CPU),
-  the weekday census's target search on sparse dates (103.8 of 163.6 s
-  at 200,000 rows), J's million-row hours and `K-S3-44` (P4-D376).
+  costs, on the shapes named here, to work that grows with the rows,
+  every twin the same bytes: the dense tail's push (494 s to 13.7 s at
+  100,000 rows, 207 s at 1,000,000), the identity walk (501,501
+  spellings asked to 1,001 at 100,000 rows of the Codex column), G4's
+  decimal codes (803 s to 32.6 s at 1,000,000 rows) and a register's
+  quality report (50,000 consecutive codes validate in 59.5 s, 997,770
+  rows in 123.5 s) (P4-D377, P4-D387, P4-D390). Left, and not
+  calendar: the push still moves each stratum it passes one point at a
+  time, so on long runs its work is the strata times the pushes (about
+  4 times a doubling, measured to 4,000 strata; P4-D377). Left to
+  S4b's calendar half, after stage 3b's last merge: G3's trade on a few
+  instants held thousands of times (about 40 minutes at 1,000,000 rows
+  by the x3.4 a doubling measured to 200,184) and its stall on wide
+  gaps (four 10-day clusters a decade apart: 200,000 rows unfinished
+  after 20.5 minutes of CPU), the weekday census's target search on
+  sparse dates (103.8 of 163.6 s at 200,000 rows), J's million-row hours
+  and `K-S3-44` (P4-D376).
 - **The packing walk can still take a long time on a few identifiers
   written in several forms.** Stage 4 bounds what the walk remembers at
   64 MB and has it read the counts together, so Codex's identifier of
