@@ -35,8 +35,9 @@ from its live entries once it holds twice as many and 64 more, where
 stale entries had piled up below a lasting collision (118,804 at 402
 strata, 1,915,204 at 1,602; now 470 and 1,670), and the pooled
 placement reads the width's largest place off at once rather than
-halving for it at every group (400,200 width questions for 200 groups
-of codes of 300 places; now 1,001), the twins the same bytes.
+halving for it at every group (800,801 whole-figure counts and powers
+of ten for 200 groups of codes of 300 places; now 1,001), the twins the
+same bytes.
 
 ### A trailing delimiter on one side is read as the table's delimiter (2026-10-13)
 
