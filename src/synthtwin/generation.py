@@ -41271,6 +41271,14 @@ def _outward_at(
     both outward sides have left the signs the column holds the walk
     has ENDED, because a side that has crossed into a sign never comes
     back out of it.
+
+    A PUBLISHED VALUE IS SKIPPED ON THE OUTWARD WALK TOO (Codex's review
+    of lane L1, item 1). Stepping from every published number, no
+    outward step can reach one. Stepping from the numbers written
+    without an exponent (`_walk_ladder`) it can: `1` and `2` beside
+    `0E2` stepped down to `0` and wrote seven cells of it, so the twin
+    read 27 noughts where the table held 20 and every check held. The
+    side is not ended there, as it is not at a value of the gaps.
     """
     floor = _rescaled(ladder.lowest, ladder.places, places, False)
     ceiling = _rescaled(ladder.highest, ladder.places, places, True)
@@ -41303,10 +41311,10 @@ def _outward_at(
     if not low_held and not high_held:
         return _LADDER_END, 0, _SIDE_GAP
     if (position - 2 * half) % 2 == 0:
-        if low_held:
+        if low_held and not _is_published_at(ladder, low, places):
             return _LADDER_HERE, low, _SIDE_LOW
         return _LADDER_SKIP, 0, _SIDE_LOW
-    if high_held:
+    if high_held and not _is_published_at(ladder, high, places):
         return _LADDER_HERE, high, _SIDE_HIGH
     return _LADDER_SKIP, 0, _SIDE_HIGH
 
@@ -42097,6 +42105,8 @@ def _pooled_spelling(
     is offered -- exactly the rule the ordinary walk is held to. A
     scale whose ends lie outside that width is met as far as the width
     allows and no further, and the groups it cannot place fall through.
+    A group that owes no form is held to `_Ladder.figures_cap` as well,
+    where every published number wears an exponent (lane L1).
 
     ``asked`` IS THE FORM THE GROUP OWES THE CENSUS, where it owes one.
     The scale places the VALUE and the census decides how it is
@@ -42180,6 +42190,17 @@ def _pooled_spelling(
                 continue
             if reach_figures > 0 and _whole_figures(units, places) > (
                 reach_figures
+            ):
+                continue
+            # NO WIDER THAN ANY CELL THE COLUMN SHOWS (`_Ladder.figures_cap`,
+            # Codex's review of lane L1, item 2), as on step 3's walk: codes
+            # `1.0E7` to `1.9E7`, `10E6` to `19E6`, `1E2` and `3E7`, every
+            # cell at most five characters, were placed as eight-figure
+            # integers near 14,500,000.
+            if (
+                not asked
+                and ladder.figures_cap > 0
+                and _whole_figures(units, places) > ladder.figures_cap
             ):
                 continue
             candidate = _units_spelled(units, places, decimal_comma)
@@ -46677,8 +46698,15 @@ def _partner_of(
     prefixes: "tuple[str, dict[str, str]] | None" = None,
     parents: "dict[tuple[str, bool, int | None], list[int]] | None" = None,
     spent: "dict[tuple[int, int, int | None], bool] | None" = None,
+    words: "int | None" = None,
 ) -> "str | None":
     """The fold-collision partner this value carries, when one is owed.
+
+    ``words``, where given, asks first for a parent of that many words
+    (`parsing.token_count`), which is how many its partner has -- a case
+    flip and an edge space move no word -- and then for any, inside each
+    pass that keeps a folded level under the long-tail line (Codex's
+    review of lane L1, item 3). None asks nothing of the words, as before.
 
     ``parents`` and ``spent``, where a caller hands two dicts it keeps
     for one walk, make the search cost what it finds (lane L1 leftover,
@@ -46809,40 +46837,48 @@ def _partner_of(
         return _partner_indexed(
             index, folded, spellings, families, used, (shortest, longest),
             sizes, long_tail_line, carried, holes, under_first,
-            (parents, spent),
+            (parents, spent), words,
         )
+    worded_passes: "tuple[int | None, ...]" = (None,)
+    if words is not None:
+        worded_passes = (words, None)
     for named_first in named_passes:
         for under in under_first:
-            for lettered in (True, False):
-                for step in range(folded):
-                    parent_place = (place + step) % folded
-                    if families[parent_place] != families[index]:
-                        continue
-                    if under and sizes is not None:
-                        already = sizes[parent_place]
-                        if carried is not None and parent_place in carried:
-                            already = carried[parent_place]
-                        if already + sizes[index] >= long_tail_line:
+            for worded in worded_passes:
+                for lettered in (True, False):
+                    for step in range(folded):
+                        parent_place = (place + step) % folded
+                        if families[parent_place] != families[index]:
                             continue
-                    has_letter = False
-                    for character in spellings[parent_place]:
-                        if character in _LETTERS:
-                            has_letter = True
-                            break
-                    if has_letter != lettered:
-                        continue
-                    found = _partner_from(
-                        parent_place, index, spellings, used, shortest, longest,
-                        worn, holes, prefixes, named_first,
-                    )
-                    if found is None:
-                        continue
-                    if carried is not None and sizes is not None:
-                        already = sizes[parent_place]
-                        if parent_place in carried:
-                            already = carried[parent_place]
-                        carried[parent_place] = already + sizes[index]
-                    return found
+                        if under and sizes is not None:
+                            already = sizes[parent_place]
+                            if carried is not None and parent_place in carried:
+                                already = carried[parent_place]
+                            if already + sizes[index] >= long_tail_line:
+                                continue
+                        has_letter = False
+                        for character in spellings[parent_place]:
+                            if character in _LETTERS:
+                                has_letter = True
+                                break
+                        if has_letter != lettered:
+                            continue
+                        if worded is not None and parsing.token_count(
+                            spellings[parent_place]
+                        ) != worded:
+                            continue
+                        found = _partner_from(
+                            parent_place, index, spellings, used, shortest, longest,
+                            worn, holes, prefixes, named_first,
+                        )
+                        if found is None:
+                            continue
+                        if carried is not None and sizes is not None:
+                            already = sizes[parent_place]
+                            if parent_place in carried:
+                                already = carried[parent_place]
+                            carried[parent_place] = already + sizes[index]
+                        return found
     return None
 
 
@@ -46859,6 +46895,7 @@ def _partner_indexed(
     holes: "tuple[str, ...]",
     under_first: "tuple[bool, ...]",
     kept: "tuple[dict[tuple[str, bool, int | None], list[int]], dict[tuple[int, int, int | None], bool]]",
+    words: "int | None" = None,
 ) -> "str | None":
     """`_partner_of`'s walk over the parents that can answer, and no other.
 
@@ -46888,9 +46925,11 @@ def _partner_indexed(
 
     ``kept`` is the caller's two dicts: the parents, by family, letter
     and window (built on the first call, when every parent is
-    written), and the spent pairs. Guarantees: the value `_partner_of`'s
-    own walk returns for these arguments, with no ``worn`` and no
-    ``prefixes``. Raises nothing of its own. No I/O.
+    written), and the spent pairs; ``words`` is `_partner_of`'s, a
+    parent of another count passed over and recorded nowhere.
+    Guarantees: the value `_partner_of`'s own walk returns for these
+    arguments, with no ``worn`` and no ``prefixes``. Raises nothing of
+    its own. No I/O.
     """
     parents = kept[0]
     spent = kept[1]
@@ -46909,59 +46948,67 @@ def _partner_indexed(
             parents[key] += [place]
     family = families[index]
     start = (index - folded) % folded
+    worded_passes: "tuple[int | None, ...]" = (None,)
+    if words is not None:
+        worded_passes = (words, None)
     for under in under_first:
-        for lettered in (True, False):
-            whole = (family, lettered, None)
-            if whole not in parents:
-                continue
-            key = (family, lettered, longest)
-            if key not in parents:
-                fitting: "list[int]" = []
-                for place in parents[whole]:
-                    if longest is None or len(
-                        parsing.trimmed(spellings[place])
-                    ) <= longest:
-                        fitting += [place]
-                parents[key] = fitting
-            places = parents[key]
-            low = 0
-            high = len(places)
-            while low < high:
-                middle = (low + high) // 2
-                if places[middle] < start:
-                    low = middle + 1
-                else:
-                    high = middle
-            for step in range(len(places)):
-                parent_place = places[(low + step) % len(places)]
-                if (parent_place, shortest, longest) in spent:
+        for worded in worded_passes:
+            for lettered in (True, False):
+                whole = (family, lettered, None)
+                if whole not in parents:
                     continue
-                if under and sizes is not None:
-                    already = sizes[parent_place]
-                    if carried is not None and parent_place in carried:
-                        already = carried[parent_place]
-                    if already + sizes[index] >= long_tail_line:
+                key = (family, lettered, longest)
+                if key not in parents:
+                    fitting: "list[int]" = []
+                    for place in parents[whole]:
+                        if longest is None or len(
+                            parsing.trimmed(spellings[place])
+                        ) <= longest:
+                            fitting += [place]
+                    parents[key] = fitting
+                places = parents[key]
+                low = 0
+                high = len(places)
+                while low < high:
+                    middle = (low + high) // 2
+                    if places[middle] < start:
+                        low = middle + 1
+                    else:
+                        high = middle
+                for step in range(len(places)):
+                    parent_place = places[(low + step) % len(places)]
+                    if (parent_place, shortest, longest) in spent:
                         continue
-                found = _partner_from(
-                    parent_place, index, spellings, used, shortest, longest,
-                    None, holes, None, False,
-                )
-                if found is None:
-                    # SPENT ONLY WHERE THE FAMILY ENDED INSIDE THE
-                    # WALK: a walk cut by its step bound (a hole
-                    # refused) may reach further once ``used`` grows.
-                    if _partner_at(
-                        spellings[parent_place], len(used) + 1,
-                        shortest, longest,
-                    ) is None:
-                        spent[(parent_place, shortest, longest)] = True
-                    continue
-                if carried is not None and sizes is not None:
-                    already = sizes[parent_place]
-                    if parent_place in carried:
-                        already = carried[parent_place]
-                    carried[parent_place] = already + sizes[index]
-                return found
+                    if worded is not None and parsing.token_count(
+                        spellings[parent_place]
+                    ) != worded:
+                        continue
+                    if under and sizes is not None:
+                        already = sizes[parent_place]
+                        if carried is not None and parent_place in carried:
+                            already = carried[parent_place]
+                        if already + sizes[index] >= long_tail_line:
+                            continue
+                    found = _partner_from(
+                        parent_place, index, spellings, used, shortest, longest,
+                        None, holes, None, False,
+                    )
+                    if found is None:
+                        # SPENT ONLY WHERE THE FAMILY ENDED INSIDE THE
+                        # WALK: a walk cut by its step bound (a hole
+                        # refused) may reach further once ``used`` grows.
+                        if _partner_at(
+                            spellings[parent_place], len(used) + 1,
+                            shortest, longest,
+                        ) is None:
+                            spent[(parent_place, shortest, longest)] = True
+                        continue
+                    if carried is not None and sizes is not None:
+                        already = sizes[parent_place]
+                        if parent_place in carried:
+                            already = carried[parent_place]
+                        carried[parent_place] = already + sizes[index]
+                    return found
     return None
 
 
@@ -47640,12 +47687,22 @@ def _text_cells(
             # slots come last, and nothing after them can pay a length
             # the plan did not lay out -- measured, the published average
             # of 8.0258 came back 8.0447 when any length was taken.
+            #
+            # AND ITS PLANNED WORDS BEFORE THAT (Codex's review of lane L1,
+            # item 3). A partner has its parent's words, and a slot planned
+            # one word that took a two-word partner of its planned length
+            # moved `words.mean` as surely: 400 durations and notes wrote
+            # 1.135 against a window of 1.105 to 1.13, two slots of four
+            # and five rows each a word over. Of the parents giving the
+            # slot's planned length, one of its planned words is asked
+            # first wherever the long-tail line is kept, then the whole
+            # window as before.
             whole = windows[index]
             windows[index] = (lengths[index], lengths[index])
             partner = _partner_of(
                 index, folded, spellings, families, used, windows,
                 sized, long_tail_line, carried, holes=holes,
-                parents=parent_lists, spent=spent,
+                parents=parent_lists, spent=spent, words=counts[index],
             )
             windows[index] = whole
         if partner is None:

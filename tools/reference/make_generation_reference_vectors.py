@@ -674,7 +674,7 @@ def decimal_to_fraction(text):
     binary64 beside each one is a claim the proof layer re-derives
     rather than a transcription of whatever a Python literal happened to
     produce.  The grammar is the one this file writes: an optional sign,
-    digits, an optional fraction, an optional ``e`` exponent.
+    digits, an optional fraction, an optional ``e`` or ``E`` exponent.
     """
     body = text
     sign = 1
@@ -683,8 +683,11 @@ def decimal_to_fraction(text):
     elif body.startswith("+"):
         body = body[1:]
     exponent = 0
-    if "e" in body:
-        body, _, power = body.partition("e")
+    # THE EXPONENT MARK IS READ IN EITHER CASE (Codex's review of lane L1,
+    # item 4): G8.3a writes `E` in a case-blind letter place, and `01E309`
+    # is a number too large to hold exactly as `01e309` is.
+    if "e" in body or "E" in body:
+        body, _, power = body.replace("E", "e").partition("e")
         exponent = int(power)
     if "." in body:
         whole, _, fraction = body.partition(".")
@@ -9286,9 +9289,21 @@ def outward_at(ladder, places, position, low_ended=False, high_ended=False):
     high_held = not high_ended and sign_held(high, ladder["signs"])
     if not low_held and not high_held:
         return ("end", None, None)
+    # A PUBLISHED VALUE IS SKIPPED ON THE OUTWARD STEPS TOO (G8.3a, lane L1:
+    # every published number marks its value taken), which a walk stepping
+    # from the numbers written without an exponent can reach.
     if (position - 2 * half) % 2 == 0:
-        return ("here", low, "low") if low_held else ("skip", None, "low")
-    return ("here", high, "high") if high_held else ("skip", None, "high")
+        mine, side = low, "low"
+        held = low_held
+    else:
+        mine, side = high, "high"
+        held = high_held
+    if held and places >= ladder["places"]:
+        factor = 10 ** (places - ladder["places"])
+        held = not (mine % factor == 0 and mine // factor in ladder["published"])
+    elif held:
+        held = mine * 10 ** (ladder["places"] - places) not in ladder["published"]
+    return ("here", mine, side) if held else ("skip", None, side)
 
 
 def whole_figures(units, places):
@@ -9625,6 +9640,13 @@ def pooled_step(ladder, wanted, asked, named, seen, folds, needed, pool, widest)
         for units in offers:
             if not sign_held(units, ladder["signs"]) or (
                 reach > 0 and whole_figures(units, places) > reach
+            ):
+                continue
+            # No group owing no form is placed wider than the longest
+            # published label where every published number wears an
+            # exponent (G8.3a's cap, lane L1), as on the walk.
+            if not asked and ladder.get("cap", 0) and (
+                whole_figures(units, places) > ladder["cap"]
             ):
                 continue
             plain = units_spelled(units, places)

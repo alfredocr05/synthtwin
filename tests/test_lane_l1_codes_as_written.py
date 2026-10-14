@@ -981,3 +981,221 @@ def test_shared_forms_kept_last_gives_numbers_too_large_a_form_numbers_wear() ->
     out_of_range = generation._OWED_OUT_OF_RANGE
     kept = generation._shared_forms_kept(["1E100"] * 15, (12,), {0: out_of_range}, {"%@%%%": 12}, False)
     assert kept == {out_of_range: {"%@%%%": 12}, generation._OWED_TEXT: {}}
+
+
+# -- Codex's review of lane L1 (head e994b5f), five items ---------------
+
+_ORACLE_PATH = pathlib.Path(__file__).resolve().parent.parent / "tools" / "reference" / "make_generation_reference_vectors.py"
+
+
+def _oracle() -> typing.Any:
+    import importlib.util
+
+    spec = importlib.util.spec_from_file_location("oracle_lane_l1_codex", _ORACLE_PATH)
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def _held_back_counted(cells: "typing.Iterable[str]") -> "dict[str, int]":
+    counted: "dict[str, int]" = {}
+    for cell in cells:
+        counted[cell] = (counted[cell] if cell in counted else 0) + 1
+    return counted
+
+
+def _exponent_nought_beside_numbers(letter: str) -> "list[str]":
+    """Codex item 1: `alpha` x100, `1` x20, `2` x20, `0E2` x20, `3` x5, `4` x5."""
+    return ["alpha"] * 100 + ["1"] * 20 + ["2"] * 20 + [f"0{letter}2"] * 20 + ["3"] * 5 + ["4"] * 5
+
+
+@pytest.mark.parametrize("letter", ["E", "e"])
+def test_a_published_exponent_value_is_never_written_on_the_outward_walk(tmp_path: pathlib.Path, letter: str) -> None:
+    """CODEX ITEM 1 (HIGH). The walk stepping from `1` and `2` reached `0`,
+    the value `0E2` publishes, and wrote seven cells of it on e994b5f: 27
+    noughts read where the table held 20, four values where it held five.
+    G8.3a's exclusion holds on the outward walk too, in product and oracle."""
+    document, _loaded = _described(tmp_path, _exponent_nought_beside_numbers(letter), 11, ("t",))
+    twin, _path = _twin(_loaded, 0, tmp_path)
+    values = [float(cell) for cell in twin if cell != "alpha"]
+    assert values.count(0.0) == 20
+    assert sorted(set(values)) == [0.0, 1.0, 2.0, 3.0, 4.0]
+    oracle = _oracle()
+    assert _held_back_counted(oracle._label_content(document["columns"][0])) == _held_back_counted(twin)
+
+
+def test_the_outward_walk_skips_a_published_value_and_steps_on() -> None:
+    """GATE CASE of `_outward_at`: on the ladder stepping from `1` and `2`, the
+    low side's first step is `0`, published as `0E2`, so it holds no value
+    and the side is not ended; red where the outward walk asks nothing."""
+    ladder = generation._number_ladder(["1", "2", "0E2"], False, [])
+    walk = generation._walk_ladder(ladder)
+    assert (walk.lowest, walk.highest) == (1, 2)
+    states = [generation._outward_at(walk, 0, position) for position in range(4)]
+    assert states[0][0] == generation._LADDER_SKIP
+    assert states[1] == (generation._LADDER_HERE, 3, generation._SIDE_HIGH)
+
+
+def _exponent_codes_of_eight_figures() -> "list[str]":
+    """Codex item 2: every cell at most five characters, values near 1.45e7."""
+    cells = ["alpha"] * 100 + ["1E2"] * 11 + ["3E7"] * 11
+    cells += [f"1.{step}E7" for step in range(10)] + [f"1{step}E6" for step in range(10)]
+    return cells
+
+
+def test_a_pooled_placement_is_no_wider_than_any_published_label(tmp_path: pathlib.Path) -> None:
+    """CODEX ITEM 2 (MEDIUM). `_pooled_spelling` never asked `figures_cap`, so
+    the pool's twenty cells were written as eight-figure integers 14499952
+    to 14500048 beside labels of five characters at most (e994b5f, and wide
+    at the base too). The pool's mean is then missed, named: the stated
+    limit of G8.3a's cap. Product and oracle alike."""
+    document, loaded = _described(tmp_path, _exponent_codes_of_eight_figures(), 11, ("t",))
+    twin, path = _twin(loaded, 0, tmp_path)
+    assert max(len(cell) for cell in twin) <= 5
+    assert "suppressed.numbers.mean" in _missed(loaded, path)
+    oracle = _oracle()
+    assert _held_back_counted(oracle._label_content(document["columns"][0])) == _held_back_counted(twin)
+
+
+def test_a_pooled_placement_red_without_the_cap(tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """MUTATION: every ladder's cap read as nought by the pooled placement alone."""
+    original = generation._pooled_spelling
+
+    def uncapped(ladder: typing.Any, *args: typing.Any) -> str:
+        return original(generation.dataclasses.replace(ladder, figures_cap=0), *args)
+
+    monkeypatch.setattr(generation, "_pooled_spelling", uncapped)
+    _document, loaded = _described(tmp_path, _exponent_codes_of_eight_figures(), 11, ("t",))
+    twin, _path = _twin(loaded, 0, tmp_path)
+    assert sum(1 for cell in twin if len(cell) == 8) == 20
+
+
+def _durations_beside_notes_of_two_words(seed: int) -> "list[str]":
+    """Codex item 3: 400 cells, a tenth `note N` (half upper-cased), the rest
+    durations `HH:MM:SS`."""
+    draw = random.Random(seed)
+    cells: "list[str]" = []
+    for _row in range(400):
+        if draw.random() < 0.1:
+            cell = f"note {draw.randrange(15)}"
+            if draw.random() < 0.5:
+                cell = cell.upper()
+        else:
+            minute = draw.randrange(2880)
+            cell = f"{minute // 60:02d}:{minute % 60:02d}:{draw.randrange(60):02d}"
+        cells += [cell]
+    return cells
+
+
+def _word_mean_deviated(tmp_path: pathlib.Path, seed: int) -> "tuple[bool, list[str]]":
+    _document, loaded = _described(tmp_path, _durations_beside_notes_of_two_words(seed), 11)
+    built = generation.generate(loaded, 0)
+    return any(deviation.fact == "words.mean" for deviation in built.deviations), list(built.columns[0])
+
+
+@pytest.mark.parametrize("seed", [849, 1, 3, 8, 21])
+def test_a_fold_slot_takes_a_partner_of_its_planned_words(tmp_path: pathlib.Path, seed: int) -> None:
+    """CODEX ITEM 3 (MEDIUM). Seed 849: two slots of four and five rows planned
+    one word took two-word partners and `words.mean` came back 1.135 against
+    1.105 to 1.13 on e994b5f, a deviation the base did not have; seeds 1, 3, 8
+    and 21 the same. The slot's planned words are asked first inside each
+    pass keeping the long-tail line, and the form's 344 durations stay."""
+    deviated, cells = _word_mean_deviated(tmp_path, seed)
+    assert not deviated
+    if seed == 849:
+        assert sum(parsing.token_count(cell) for cell in cells) == 446
+        assert sum(1 for cell in cells if re.fullmatch(r"\d\d:\d\d:\d\d", cell)) == 344
+
+
+def test_a_fold_slot_red_when_its_planned_words_are_not_asked(tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """MUTATION: the slot's planned words dropped before the partner search."""
+    original = generation._partner_of
+
+    def wordless(*args: typing.Any, **named: typing.Any) -> "str | None":
+        named.pop("words", None)
+        return original(*args, **named)
+
+    monkeypatch.setattr(generation, "_partner_of", wordless)
+    deviated, _cells = _word_mean_deviated(tmp_path, 849)
+    assert deviated
+
+
+def test_the_indexed_partner_walk_answers_as_the_plain_walk_when_words_are_asked() -> None:
+    """GATE CASE of `_partner_indexed` with ``words``: the plain walk's answer,
+    a parent of the asked words first and any other after it."""
+    draw = random.Random(11)
+    for _case in range(40):
+        folded = draw.randrange(2, 9)
+        total = folded + draw.randrange(1, 9)
+        spellings = ["".join(draw.choice("ab1 -") for _each in range(draw.randrange(1, 5))) for _each in range(folded)]
+        families = [draw.choice(["f", "g"]) for _each in range(total)]
+        sizes = [draw.randrange(1, 6) for _each in range(total)]
+        results: "list[list[str | None]]" = []
+        for indexed in (False, True):
+            used = {spelling: generation._WRITTEN for spelling in spellings}
+            carried: "dict[int, int]" = {}
+            written = list(spellings)
+            kept = ({}, {}) if indexed else (None, None)
+            answers = []
+            for index in range(folded, total):
+                windows = [(1, 5)] * total
+                found = generation._partner_of(
+                    index, folded, written, families, used, windows, sizes, 8, carried,
+                    parents=kept[0], spent=kept[1], words=1 + index % 2,
+                )
+                if found is not None:
+                    used[found] = generation._WRITTEN
+                answers += [found]
+                written += [found or f"made{index}"]
+            results += [answers]
+        assert results[0] == results[1]
+
+
+@pytest.mark.parametrize("place", ["@", "&"])
+def test_the_oracle_reads_and_writes_its_own_overflow_spelling(tmp_path: pathlib.Path, place: str) -> None:
+    """CODEX ITEM 4 (MEDIUM). Method-derived witnesses of G8.3a's overflow
+    spelling: `1` nought-padded before the letter, `E` in a case-blind place
+    and `e` in a lower-case one, `309` after it, a number too large to hold.
+    On e994b5f the oracle read `01E309` as a word, so `%%@%%%` was not shared
+    and its held-back codes were written `1` and `2`."""
+    oracle = _oracle()
+    form = f"%%{place}%%%"
+    letter = "E" if place == "@" else "e"
+    assert oracle.overflow_spelling(form, 0) == f"01{letter}309"
+    assert oracle.notation_reading(f"01{letter}309")[0] == oracle.NOTATION_OUT_OF_RANGE
+    assert oracle.notation_reading(f"12{letter}005")[0] == oracle.NOTATION_NUMBER
+    assert oracle.form_also_reads(form, oracle.NOTATION_OUT_OF_RANGE)
+    cells = ["alpha"] * 100 + [f"12{letter}005"] * 20 + [f"13{letter}005"] * 20 + [f"52{letter}638"] * 5 + [f"41{letter}626"] * 5
+    document, loaded = _described(tmp_path, cells, 11, ("t",))
+    content = oracle._label_content(document["columns"][0])
+    stand_ins = [cell for cell in content if cell not in ("alpha", f"12{letter}005", f"13{letter}005")]
+    assert len(stand_ins) == 10
+    for cell in stand_ins:
+        assert oracle.notation_reading(cell)[0] == oracle.NOTATION_OUT_OF_RANGE
+        assert parsing.census_form(cell, {form: 1}) == form
+    assert document["columns"][0]["shape_forms"] == {form: 50}
+    assert f"01{letter}309" in stand_ins
+    twin, _path = _twin(loaded, 0, tmp_path)
+    assert _held_back_counted(content) == _held_back_counted(twin)
+
+
+def test_a_fraction_of_more_figures_than_its_value_needs_is_its_own_spelling() -> None:
+    """CODEX ITEM 5 (LOW). `45000.123456789012` has seventeen significant
+    figures and reads back as `45000.12345678901`, sixteen; at a published
+    width of twelve it was outside the styles on e994b5f (the rule asked for
+    more than seventeen, a refusal older than lane L1). The boundary is the
+    value's shortest spelling."""
+    assert validation._cells_outside_the_styles(["45000.123456789012"], False, (12,)) == 0
+    assert validation._shortest_figures(45000.123456789012) == 16
+    assert validation._shortest_figures(0.1) == 1
+    assert validation._shortest_figures(1e-05) == 1
+    assert validation._cells_outside_the_styles(["0.10000000000000001"], False, (17,)) == 0
+    assert validation._cells_outside_the_styles(["45000.123456789012"], False, (11,)) == 1
+    assert not validation._wears_figures_past_binary64("45000.123456789010", 45000.12345678901, (12,))
+
+
+def test_a_fraction_of_more_figures_red_at_seventeen(monkeypatch: pytest.MonkeyPatch) -> None:
+    """MUTATION: the boundary read as seventeen figures, as on e994b5f."""
+    monkeypatch.setattr(validation, "_shortest_figures", lambda _value: 17)
+    assert validation._cells_outside_the_styles(["45000.123456789012"], False, (12,)) == 1
