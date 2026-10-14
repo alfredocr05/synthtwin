@@ -20184,7 +20184,7 @@ def _identity_walk(
         ):
             key = (
                 holds[index],
-                math.copysign(1.0, holds[index]),
+                repr(holds[index]),
                 style,
                 widths[index],
                 pads[index],
@@ -45018,8 +45018,11 @@ def _pooled_pushed_first(
     for step in range(len(groups)):
         if pushed[step] < 0.0:
             order += [step]
-    rest = [step for step in range(len(groups)) if not pushed[step] < 0.0]
-    for step in sorted(rest, key=lambda place: (0.0 - pushed[place], place)):
+    keyed: "list[tuple[float, int]]" = []
+    for step in range(len(groups)):
+        if not pushed[step] < 0.0:
+            keyed += [(0.0 - pushed[step], step)]
+    for _distance, step in sorted(keyed):
         order += [step]
     return order
 
