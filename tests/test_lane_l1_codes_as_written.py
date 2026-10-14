@@ -1522,3 +1522,66 @@ def test_the_words_no_freed_parent_covers_red_when_not_paid_back(
     monkeypatch.setattr(generation, "_words_paid_back", lambda *args: args[5])
     words_off, deviations, _missed_now = _minutes_written(tmp_path)
     assert words_off == -106 and "words.mean" in deviations
+
+
+# -- (7) at the merge with lane R5: a semicolon table's codes ----------
+
+
+def _semicolon_codes_table() -> bytes:
+    """A semicolon table whose rows end in `;` and whose header does not
+    (lane R5's reading), holding a column of four-figure codes with
+    leading noughts beside one of numbers with exponent-shaped codes
+    (lane L1's items (i) and (ii))."""
+    codes = _four_figure_codes()
+    shaped = _numbers_beside_exponent_codes()
+    lines = ["site;dx"]
+    for index in range(len(codes)):
+        lines += [f"{codes[index]};{shaped[index]};"]
+    return ("\n".join(lines) + "\n").encode("utf-8")
+
+
+def _semicolon_twin(folder: pathlib.Path, data: bytes) -> "tuple[list[str], list[list[str]], int]":
+    """Describe the table with `site` declared a code, build seed 4, and
+    validate the source: (twin lines, twin rows, the source's exit)."""
+    import test_r5_trailing_delimiter_reading as r5
+
+    folder.mkdir(parents=True, exist_ok=True)
+    real = folder / "real.csv"
+    real.write_bytes(data)
+    assert r5._exit_of(["profile", str(real), "--out-dir", str(folder), "--code", "site", "--replace"]) == 0
+    described = folder / "real-profile.json"
+    assert r5._exit_of(["generate", str(described), "--out-dir", str(folder), "--seed", "4", "--replace"]) == 0
+    checked = folder / "check-real"
+    checked.mkdir()
+    exit_real = r5._exit_of(["validate", str(described), "--twin", str(real), "--out-dir", str(checked), "--replace"])
+    lines = (folder / "real-twin.csv").read_text(encoding="utf-8").split("\n")
+    lines = [line for line in lines if line]
+    rows = [line.split(";") for line in lines[1:]]
+    return lines, rows, exit_real
+
+
+def test_a_semicolon_table_writes_its_codes_as_the_source_wrote_them(tmp_path: pathlib.Path) -> None:
+    """Lane R5 reads the trailing `;` as the delimiter and writes it back on
+    every row; lane L1 writes the made-up leading-nought codes at their
+    width and no exponent code as an integer of many figures. Both hold
+    together on one table (the batch-3b part-2c merge)."""
+    lines, rows, exit_real = _semicolon_twin(tmp_path, _semicolon_codes_table())
+    assert exit_real == 0
+    assert lines[0] == "site;dx"
+    assert all(line.endswith(";") for line in lines[1:])
+    assert {len(row) for row in rows} == {3}
+    site = [row[0] for row in rows]
+    dx = [row[1] for row in rows]
+    assert {len(cell) for cell in site} == {4}
+    assert all(parsing.is_digit_text(cell) for cell in site)
+    assert any(cell.startswith("0") for cell in site)
+    assert _wild(dx) == []
+    assert any("E" in cell for cell in dx)
+
+
+def test_a_semicolon_table_s_codes_red_without_the_width(tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """MUTATION: a made-up code written plainly, as on 45191fa: the
+    semicolon twin writes codes narrower than four figures."""
+    monkeypatch.setattr(generation, "_padded_to_the_source", lambda candidate, _ladder: candidate)
+    _lines, rows, _exit_real = _semicolon_twin(tmp_path, _semicolon_codes_table())
+    assert any(len(row[0]) < 4 for row in rows)
