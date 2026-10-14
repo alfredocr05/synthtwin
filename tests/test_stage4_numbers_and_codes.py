@@ -289,7 +289,8 @@ def test_the_report_of_a_million_row_register_copies_each_character_a_bounded_nu
     loaded, outcome = _register(tmp_path, 300, False)
     codes = 1000000 * 25 // (24 * 11 + 1)
     count = len(outcome.checks) * codes // 300
-    copied, length = report_copied(loaded, _with_checks(outcome, count))
+    tenth = report_copied(loaded, _with_checks(outcome, count // 10), cap=30 * 1000000)[1]
+    copied, length = report_copied(loaded, _with_checks(outcome, count), cap=30 * 11 * tenth)
     assert length <= copied < 30 * length, (count, copied, length)
     with pytest.raises(_TooMuchWork):
         report_copied(loaded, _with_checks(outcome, count // 10), True, cap=30 * length)
@@ -420,7 +421,7 @@ def test_a_million_cells_spelling_one_value_twenty_thousand_ways_ask_no_more_spe
         grown[0][step] = float(step)
         grown[2][step] = str(step)
     million = tuple(grown) + (whole, 20000)
-    asked = walk_spellings(million)
+    asked = walk_spellings(million, cap=1000000)
     assert 19999 <= asked < 1000000, asked
     with pytest.raises(_TooMuchWork):
         walk_spellings(million, True, cap=1000000)
@@ -577,7 +578,7 @@ def test_a_million_strata_ask_the_push_a_bounded_number_of_questions() -> None:
     the bound within its first collisions.
     """
     strata = 1000000
-    asked = push_calls(_staircase(strata))
+    asked = push_calls(_staircase(strata), cap=6 * strata)
     assert asked < 6 * strata, asked
     with pytest.raises(_TooMuchWork):
         push_calls(_staircase(strata), True, cap=6 * strata)
@@ -756,7 +757,7 @@ def test_each_offer_asks_each_place_its_rules_once(tmp_path: pathlib.Path) -> No
     for rows in (2500, 5000, 10000):
         handed = _placements_handed(tmp_path, f"q{rows}", _decimal_codes(rows, rows * 2 // 5), 11, ["value"], (0,))[0]
         groups = len(handed[2])  # type: ignore[arg-type]
-        asked = placement_questions(handed)
+        asked = placement_questions(handed, cap=64 * groups)
         assert asked < 64 * groups, (rows, groups, asked)
         if rows == 2500:
             assert placement_questions(handed, True) > 700 * groups, rows
@@ -791,7 +792,7 @@ def test_the_pool_of_a_million_row_register_is_placed_in_a_bounded_number_of_que
     handed = _placements_handed(tmp_path, "million", cells, 11, ["value"], (0,))[0]
     groups = len(handed[2])  # type: ignore[arg-type]
     assert groups == 46581, f"premise: {groups} groups"
-    asked = placement_questions(handed)
+    asked = placement_questions(handed, cap=16 * groups)
     assert asked < 16 * groups, (groups, asked)
     with pytest.raises(_TooMuchWork):
         placement_questions(handed, True, cap=16 * groups)
