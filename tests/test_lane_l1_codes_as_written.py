@@ -887,7 +887,7 @@ def test_durations_beside_notes_keep_their_form_and_average_past_30000_rows(tmp_
 def test_durations_beside_notes_red_when_the_slots_extra_characters_are_not_paid_back(
     tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """MUTATION: `_paid_back` pays nothing; the slots' edge-spaced partners one
+    """MUTATION: `_paid_back` returns at once; the slots' edge-spaced partners one
     character over their plan move `length.mean` out of its window."""
     monkeypatch.setattr(generation, "_paid_back", lambda *args: args[5])
     _twin_cells, _source, twin_missed = _round(tmp_path, _durations_beside_notes(50_000, 4242), 11)

@@ -29,7 +29,10 @@ codes by G6, as integers or in G6.3's own spelling. Its repair round: each
 class takes a shared code form first where its own published labels wear
 it, so held-back words keep their only form; durations beside notes written
 in two cases keep their `HH:MM:SS` form at 30,000 rows (24,572 of 27,037
-before); long whole numbers are written faster.
+before), and their form and average at 50,000 and 100,000 rows, where the
+fold partner search now costs what it finds (100,000 rows in 29 s, where
+7b28976 did not finish in 900 s); a truth value is never written as a fold
+partner; long whole numbers are written faster.
 
 ### Partial dates are read at their own precision, and a column mostly of dates is asked (2026-10-09)
 

@@ -12110,13 +12110,32 @@ for.
    24,572 of 27,037 durations in their form. So, where a slot would be
    asked such a form, it changes places with the last earlier group of
    its own planned length that is asked none and carries no published
-   end, the walk runs in that order and the cells come back in the
-   column's own; a slot is offered only forms with a letter place; a
-   group asked a form with none is a parent only where no other parent of
-   its family is left, and is asked for no letter; and where any parent
-   is so barred, a partner takes the slot's planned length first, so the
-   published average holds. The table now writes all 27,037. A column
-   where no slot is asked such a form walks exactly as before.
+   end, and is no truth value (P4-D198), the walk runs in that order and
+   the cells come back in the column's own; a group asked a form with
+   none is BARRED, asked for no letter, while its family keeps as many
+   parents able to serve as it has slots (an unbarred parent, or a
+   barred one shorter than the longest published length), the family's
+   last barred parents freed where it falls short; and where any parent
+   is so barred, a partner takes the slot's planned length first. The
+   table now writes all 27,037. A column where no slot is asked such a
+   form walks exactly as before.
+
+   **WHAT THE SLOTS WRITE OVER THEIR PLAN IS PAID BACK** (lane L1
+   leftover, 2026-10-14). Where parents are barred the slots come last,
+   and a slot whose family has no flip of its planned length left writes
+   an edge-spaced partner one character over it: 1,755 at 100,000 rows of
+   the same table, `length.mean` 8.09453 against a window of 8.07689 to
+   8.07707. Once the walk is done, groups before the slots that wrote a
+   made-up spelling in no form and no clock, gave no partner, carry no
+   published end and no truth value are re-made one character shorter,
+   by the same class, band, words and letter ask, smallest group first,
+   from above the published middle length to no lower, until the
+   characters over are paid. The table meets every check at 50,000 and
+   100,000 rows. The partner search visits only the parents of the
+   slot's family and lettered kind whose trimmed text fits its window,
+   and skips a parent whose family ended inside an earlier walk in that
+   window; it answers as the full walk does, in time that grows with
+   what it finds.
 
    **THE FORM IS AN ASK AND NOT A PROMISE**, exactly as the fold
    collision of G9.3 is. The candidate is still checked against the

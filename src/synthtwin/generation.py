@@ -46864,7 +46864,7 @@ def _partner_indexed(
 
     THE SAME ANSWER, AT THE COST OF WHAT IT FINDS (lane L1 leftover,
     skeptic 2 item 1). The walk of `_partner_of` visits every parent of
-    the column in up to sixteen passes for every slot (the lane L1
+    the column in up to sixteen walks for every slot (the lane L1
     repair's walk, which took parents barred by a form last). Durations
     `HH:MM:SS` beside notes in two cases, 5,000 rows at a floor of 36:
     2,885 slots made 2,304,853 parent visits, 2,303,534 of them on a
