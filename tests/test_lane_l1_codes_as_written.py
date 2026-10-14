@@ -363,6 +363,57 @@ def test_each_class_red_when_the_shared_forms_are_served_in_their_order(tmp_path
     assert parsing.NUMBER_OUT_OF_RANGE in _census_by_class(twin, "%%@%%%")
 
 
+def test_a_later_class_is_offered_only_what_the_number_class_left_of_a_shared_form(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """GATE CASE of `_class_stand_ins_walked`: a class after the number
+    class is offered of a shared form only what the form still owes once
+    the numbers are written, so the two never pay it past its count. On
+    the overflow table the numbers write 5 cells of `%@%%%`; the
+    out-of-range class is offered 1,006 of its 1,011, and 1,011 where the
+    written numbers are not taken off (`left` not decremented)."""
+    walks: "list[dict[str, typing.Any]]" = []
+    walked = generation._class_stand_ins_walked
+    kept = generation._shared_forms_kept
+    shared_out = generation._shared_out
+
+    def walking(*args: typing.Any, **named: typing.Any) -> typing.Any:
+        walks += [{"offers": [], "owing": {}, "sizes": args[2]}]
+        answer = walked(*args, **named)
+        walks[-1]["answer"] = answer
+        return answer
+
+    def keeping(*args: typing.Any) -> "dict[str, dict[str, int]]":
+        if walks:
+            walks[-1]["owing"] = dict(args[3])
+        return kept(*args)
+
+    def offering(sub: typing.Any, mine: "dict[str, int]", *rest: typing.Any) -> typing.Any:
+        if walks:
+            walks[-1]["offers"] += [dict(mine)]
+        return shared_out(sub, mine, *rest)
+
+    monkeypatch.setattr(generation, "_class_stand_ins_walked", walking)
+    monkeypatch.setattr(generation, "_shared_forms_kept", keeping)
+    monkeypatch.setattr(generation, "_shared_out", offering)
+    _round(tmp_path, _overflow_beside_words(), 11)
+    checked = 0
+    for walk in walks:
+        if "answer" not in walk or "%@%%%" not in walk["owing"]:
+            continue
+        classes, written_as = walk["answer"][0], walk["answer"][1]
+        numbers = sum(
+            walk["sizes"][place]
+            for place in written_as
+            if classes.get(place) == generation._OWED_NUMBER and parsing.shape_form(written_as[place]) == "%@%%%"
+        )
+        for offer in walk["offers"][1:]:
+            if "%@%%%" in offer:
+                assert offer["%@%%%"] + numbers <= walk["owing"]["%@%%%"]
+                checked = checked + 1
+    assert checked > 0
+
+
 def test_shared_forms_kept_reads_each_form_s_own_labels_first() -> None:
     """GATE CASES of `_shared_forms_kept` (method G8.3a): a class is served
     first from the forms its own labels wear; a form whose published labels
@@ -469,6 +520,21 @@ def test_a_free_text_face_column_red_when_a_group_overpays(tmp_path: pathlib.Pat
     twin, _source, twin_missed = _round(tmp_path, _face(0.10, 1000, 36), 36)
     assert sum(1 for cell in twin if re.fullmatch(r"\d\d:\d\d", cell)) == 888
     assert "forms.published.%%:%%" in twin_missed
+
+
+def test_form_asks_passes_over_a_large_group_only_while_later_groups_cover_the_form() -> None:
+    """GATE CASES of `_form_asks` on an exact census (method G9.5 step 7):
+    a group of 2 is not asked for a form owing 1 while a group of 1 comes
+    after it; a group of 5 IS asked for a form owing 3 where only a group of
+    1 comes after, which could not cover it. Red where the rule passes over
+    every group larger than the debt (`after[step] >= left[form]` dropped)."""
+    form = "%%:%%"
+    assert generation._form_asks(
+        {form: 1}, (2, 1), [5, 5], [1, 1], (0, 1), 5, 5, [0, 0], None, None, False, True
+    ) == ["", form]
+    assert generation._form_asks(
+        {form: 3}, (5, 1), [5, 5], [1, 1], (0, 1), 5, 5, [0, 0], None, None, False, True
+    ) == [form, ""]
 
 
 def test_the_free_text_form_walk_is_bounded_by_what_it_writes_to_a_million(
