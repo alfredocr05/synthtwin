@@ -36,7 +36,17 @@ about half its rows (about a third before): the censuses are met at the
 cost of pairing season and offset. Two columns of C1's battery that missed their
 withheld count at midnight hold it. The minute and second censuses of
 lane T3 are not widened: T3 is not merged, and its merge beside lane
-D2's weekday census on moments is a question of its own.
+D2's weekday census on moments is a question of its own. Its Codex
+review found three columns whose twins still missed a census, each now
+met at floors 11 and 36, every other battery twin unchanged byte for
+byte: a block of identical cells two rungs fix, which two offsets
+share, is now split between them (an hour census 132, 251, 297, 298 for
+150, 150, 339, 339 before); bare dates beside `-03:00` midnight stamps,
+all on the 15th, now move as days (654 on the 15th and 622 elsewhere
+for 1,276 and nought before); and a leap second `23:59:60Z` beside
+`+00:00` stamps, which the description publishes at its instant,
+midnight, is written at `:60` again (251 midnights in hour 0 and on a
+Sunday before, where the census counts hour 23 and the Saturday).
 ### Partial dates are read at their own precision, and a column mostly of dates is asked (2026-10-09)
 
 **Landing R2c, the layout reader's questions and partial dates** (plan

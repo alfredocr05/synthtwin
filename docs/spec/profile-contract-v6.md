@@ -4127,8 +4127,10 @@ are in one remark, NF88; a census WITHHELD says why in one publication
 note of its own for each reason -- under the owner's principle of
 2026-10-01 no reason is pooled into a sentence that keeps it back, as
 NF74 pools the weekday's. A column the census cannot stand on at all --
-not of moments, on the shared clock, in the joint member or wholly at
-midnight -- says nothing. NF88 and NF92 take one argument, the census
+not of moments, or wholly at midnight -- says nothing; since landing
+3b.7 (HC3, plan P4-D378) a column on the shared clock or in the joint
+member is one it can stand on, each cell counted in the hour it is
+written in, on its own clock, a bare date at hour 0. NF88 and NF92 take one argument, the census
 line; the others none. HC4's two cases are two sentences (the landing's
 review, item 4): a published middle half shorter than four days, NF90,
 and one whose 25th or 75th percentile lies inside a tail and is not
@@ -5748,7 +5750,7 @@ vocabularies below).
 | `month_name_styles` | object | one of the THIRTY-SIX joint style words → count | how many parsed cells wrote a month NAME in each joint style — case, length, field mark, and whether a comma followed the day — a name of May counted under the length its column's other cells of that case, mark and comma wrote, or as `either` where none did (P4-D133, P4-D139), under the disclosure rule of P4-D131; `{}` outside the two textual members, and where the census is withheld whole (landing 2b.6) |
 | `quarter_marker_case` | object | `upper` or `lower` → count | how many parsed cells wrote a quarter's marker as `Q` and how many as `q`, under the disclosure rule of P4-D131; `{}` outside `year-quarter`, and where the census is withheld whole (landing 2b.6) |
 | `zulu_case` | object | `upper` or `lower` → count | how many parsed cells wrote a zulu offset marker as `Z` and how many as `z`, under the disclosure rule of P4-D131; `{}` unless `utc_offsets` NAMES `Z`, and where the census is withheld whole (landing 2b.6) |
-| `weekday_census` | array | groups `{first, last, count}`, weekdays 0 (Monday) to 6 (Sunday) | how many cells between the two tail boundaries, both included, fall on each group of weekdays -- one of the three groupings WC4 names, each count nought or at least the census line; `[]` where no census is published, and always on a column that is not whole dates or moments read on the local clock (landing 3b.1, WC1 to WC4 and WC6, plan P4-D365; moments since landing 3b.D2, WC3 and WC10, plan P4-D367) |
+| `weekday_census` | array | groups `{first, last, count}`, weekdays 0 (Monday) to 6 (Sunday) | how many cells between the two tail boundaries, both included, fall on each group of weekdays -- one of the three groupings WC4 names, each count nought or at least the census line; `[]` where no census is published, and always on a column that is not whole dates or moments with both tails -- on any clock and in any member since landing 3b.7, each body cell counted on the day it is written on, on its own clock, a bare date of the joint member on its date (landing 3b.1, WC1 to WC4 and WC6, plan P4-D365; moments since landing 3b.D2, WC3 and WC10, plan P4-D367; the shared clock and the joint member since landing 3b.7, WC3, plan P4-D378) |
 
 **Eight closed vocabularies stand in that table** — `format` with
 TWENTY members, `resolution` with FOUR, `time_precision` with SIX,
@@ -5781,7 +5783,7 @@ landing restates its own rows below its own line.
 
 | key | JSON type | permitted values | meaning |
 |---|---|---|---|
-| `day_of_month_census` | array | groups `{first, last, count}`, bins 1 to 34 | how many cells between the two tail boundaries, both included, fall on each group of days of the month (landing 3b.3, plan P4-D368, DM1 to DM5): THIRTY-FOUR BINS on a cycle -- bins 1 to 27 the days 1 to 27, bins 28 to 30 the 28th to the 30th where that day is not the month's last, and bins 31, 32, 33 and 34 the month's last day in a month of 28, 29, 30 and 31 days, bin 34 neighbouring bin 1 -- in groups of consecutive bins, the last of which alone may run past bin 34 back to bin 1, each count nought or at least the census line; `[]` where no census is published, and always on a column that is not whole dates or moments every value of which stands at midnight, read on the local clock, not in the joint member, with both tails. Published beside the weekday census where the day of the month departs from the calendar weighted by that census's groups by at least four chi-squared per degree of freedom and by more than the weekday departs beyond it; with no weekday census, where it departs by four from the plain calendar; the weekday census is never withdrawn |
+| `day_of_month_census` | array | groups `{first, last, count}`, bins 1 to 34 | how many cells between the two tail boundaries, both included, fall on each group of days of the month (landing 3b.3, plan P4-D368, DM1 to DM5): THIRTY-FOUR BINS on a cycle -- bins 1 to 27 the days 1 to 27, bins 28 to 30 the 28th to the 30th where that day is not the month's last, and bins 31, 32, 33 and 34 the month's last day in a month of 28, 29, 30 and 31 days, bin 34 neighbouring bin 1 -- in groups of consecutive bins, the last of which alone may run past bin 34 back to bin 1, each count nought or at least the census line; `[]` where no census is published, and always on a column that is not whole dates or moments every value of which stands at midnight, with both tails -- on any clock and in any member since landing 3b.7, each cell counted on the day it is written on, on its own clock (DM5, plan P4-D378). Published beside the weekday census where the day of the month departs from the calendar weighted by that census's groups by at least four chi-squared per degree of freedom and by more than the weekday departs beyond it; with no weekday census, where it departs by four from the plain calendar; the weekday census is never withdrawn |
 
 <!-- anchor 3b-D4 (P4-D369) -->
 
@@ -6802,7 +6804,8 @@ POOLED `Z` would hand back in one field the count another field of the
 same block promises to withhold.
 
 **The weekday census, WC1 to WC4 and WC6 (landing 3b.1, plans P4-D355, P4-D359 and P4-D365).** A
-column of whole dates read on the local clock, not in the joint member,
+column of whole dates read on the local clock, not in the joint member
+(on any clock and in any member since landing 3b.7, below),
 with both tails, may publish `weekday_census`: groups of weekdays
 covering Monday (0) to Sunday (6) in order, each once (WC1), each
 counting nought or at least the census line `max(2, small_cell_floor)`
@@ -6971,7 +6974,8 @@ the week and never of one date (NF71).
 
 **The weekday census of a column of moments, WC3 widened and WC10
 (landing 3b.D2, plan P4-D367).** A column of dates AND TIMES read on the
-local clock, not in the joint member, with both tails, publishes the
+local clock, not in the joint member (on any clock and in any member
+since landing 3b.7, below), with both tails, publishes the
 same census: its BODY is the cells between the two boundaries, both
 included, COMPARED AS INSTANTS -- so a cell on a boundary's day but
 before its instant is a tail cell -- each counted on the weekday of the
