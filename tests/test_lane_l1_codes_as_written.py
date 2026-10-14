@@ -378,6 +378,7 @@ def test_a_later_class_is_offered_only_what_the_number_class_left_of_a_shared_fo
     shared_out = generation._shared_out
 
     def walking(*args: typing.Any, **named: typing.Any) -> typing.Any:
+        nonlocal walks
         walks += [{"offers": [], "owing": {}, "sizes": args[2]}]
         answer = walked(*args, **named)
         walks[-1]["answer"] = answer
