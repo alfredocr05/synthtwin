@@ -32,7 +32,12 @@ in two cases keep their `HH:MM:SS` form at 30,000 rows (24,572 of 27,037
 before), and their form and average at 50,000 and 100,000 rows, where the
 fold partner search now costs what it finds (100,000 rows in 29 s, where
 7b28976 did not finish in 900 s); a truth value is never written as a fold
-partner; long whole numbers are written faster.
+partner; long whole numbers are written faster. Its Codex review (2026-10-14): a
+made-up code never takes a value a published code writes with an exponent
+(`0` beside `0E2`), a pooled code is no wider than the longest published
+label, a fold partner keeps its slot's planned words (`words.mean` back
+inside its window), and `styles.spelled` admits a fraction written past its
+value's shortest figures at a published width, seventeen figures included.
 
 ### Partial dates are read at their own precision, and a column mostly of dates is asked (2026-10-09)
 

@@ -10559,9 +10559,14 @@ oracle's too:
   codes of 232 to 237. Where some published number is written plainly,
   that walk's ends, and the widest number the narrow walk may write, are
   those numbers'; every published number still marks its value taken,
-  and a form's own walk keeps every published number's ends. Where every
+  on the outward walk as in the gaps -- `1` and `2` beside `0E2` stepped
+  down to `0` and wrote seven cells of it, 27 noughts where the table held
+  20, every check held (Codex's review of lane L1, item 1) -- and a form's
+  own walk keeps every published number's ends. Where every
   published number wears an exponent, no plain number is written with
-  more figures than the longest published label has characters, and
+  more figures than the longest published label has characters, in step
+  3's walk and G8.3c's placement alike (the placement wrote eight-figure
+  integers beside labels of five characters at most; item 2), and
   where the published number nearest nought is already wider, the walk
   steps up from nought, as where none was published. The pooled mean of
   such numbers, an exponent's own magnitude, is then no longer met by
@@ -12116,7 +12121,14 @@ for.
    parents able to serve as it has slots (an unbarred parent, or a
    barred one shorter than the longest published length), the family's
    last barred parents freed where it falls short; and where any parent
-   is so barred, a partner takes the slot's planned length first. The
+   is so barred, a partner takes the slot's planned length first and, of
+   the parents giving it, one of the slot's planned words first inside
+   each pass that keeps the long-tail line (Codex's review of lane L1,
+   item 3: two slots planned one word took two-word partners, and 400
+   durations beside notes wrote `words.mean` 1.135 against a window of
+   1.105 to 1.13; now 1.115). Where the only such parent would carry its
+   level to the line, the words give way and the report names
+   `words.mean` where it is missed. The
    table now writes all 27,037. A column where no slot is asked such a
    form walks exactly as before.
 

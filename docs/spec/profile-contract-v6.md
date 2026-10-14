@@ -12005,8 +12005,11 @@ kept the cells they need of it first, each first from the forms its own
 published labels wear, and the numbers take the rest. A
 made-up code of figures alone is written at the width every published
 one shares where one opens with a nought; such a spelling wears no
-form, so no count of this section moves. No field of the description
-is added or read differently.
+form, so no count of this section moves. A made-up number never takes a
+value a published number holds, however that number is written, and
+where every published number wears an exponent none is written with more
+figures than the longest published label has characters (Codex's review
+of lane L1). No field of the description is added or read differently.
 
 ---
 
