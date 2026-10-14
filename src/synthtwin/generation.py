@@ -23746,6 +23746,11 @@ class _WeekdayPass:
     # same place (`_weekday_unit_moved`); set by G7.3h alone, so no other
     # pass changes.
     whole_units: bool = False
+    # The body's drawing unit, where the hour pass runs on a column drawn on
+    # a lattice of the clock coarser than its written unit: G7.3g step 4
+    # takes a rank off a written midnight onto it first (Codex's review of
+    # lane J2, the leftover regression); 0 elsewhere, every other pass.
+    lattice: int = 0
 
 
 @dataclasses.dataclass(frozen=True)
@@ -27741,6 +27746,7 @@ def _hour_settled(
         bins="hour",
         period=calendar_clock.HOURS,
         keeps="day",
+        lattice=layout.draw_unit if layout.draw_unit > step else 0,
     )
     pinned = _ranks_the_tail_pins(layout)
     for rank in range(parsed):
@@ -29945,6 +29951,15 @@ def _clock_off_midnight(
     nearest free place of the day's first bin -- hour 0, for the hour --
     inside its gap (`_clock_nearest_free`), the census and its parent
     kept; where that bin of its gap holds none, it stays.
+
+    ON THE BODY'S LATTICE FIRST (Codex's review of lane J2, the leftover
+    regression): where the column is drawn on a lattice of the clock
+    coarser than its written unit (`lattice`), the nearest free place on
+    it is asked first, and the written unit's only where the bin of the
+    gap holds none. Stamps every fifteen minutes, half the slots kept,
+    each written three or four times, had a pair the hour pass moved onto
+    midnight put at `00:00:01`, where no field pass could put it on second
+    0 again -- midnight excepted -- and the second's heap missed.
     """
     runs: "dict[int, list[int]]" = {}
     order: "list[int]" = []
@@ -29968,11 +29983,32 @@ def _clock_off_midnight(
         for rank in members:
             low = max(low, state.lows[rank])
             high = min(high, state.highs[rank])
-        target = _clock_nearest_free(state, start, low, high, len(members))
+        target: "int | None" = None
+        if state.lattice > state.step:
+            target = _clock_nearest_on(state, start, low, high, state.lattice)
+        if target is None:
+            target = _clock_nearest_free(state, start, low, high, len(members))
         if target is None:
             continue
         for rank in members:
             _weekday_step(state, rank, target)
+
+
+def _clock_nearest_on(
+    state: _WeekdayPass, start: int, low: int, high: int, lattice: int
+) -> "int | None":
+    """The free place of the lattice from `start` nearest it inside `low`
+    to `high`, the earlier on a tie; None where none is (G7.3g step 4 on
+    the body's lattice, Codex's review of lane J2)."""
+    if low > high:
+        return None
+    away = 0
+    while start - away * lattice >= low or start + away * lattice <= high:
+        for target in (start - away * lattice, start + away * lattice):
+            if _clock_free(state, target, low, high, 1):
+                return target
+        away = away + 1
+    return None
 
 
 def _clock_off_midnight_elsewhere(

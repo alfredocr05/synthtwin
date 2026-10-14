@@ -1039,6 +1039,101 @@
       "why": "Step 4: a rank the shared pass put at 00:00:20, written 00:00 on a column of minutes, takes the free minute of hour 0 nearest midnight, 00:01:00.",
       "written_unit": 60
     },
+    "hour_off_midnight_lattice": {
+      "answer": [
+        1709503200,
+        1709512200,
+        1709512200,
+        1709511300,
+        1709521200
+      ],
+      "before": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "body": [
+        0,
+        4
+      ],
+      "counts": [
+        4,
+        1
+      ],
+      "half_day": false,
+      "highs": [
+        1709503200,
+        1709521200,
+        1709521200,
+        1709521200,
+        1709521200
+      ],
+      "holes": [],
+      "lattice": 900,
+      "lows": [
+        1709503200,
+        1709503200,
+        1709503200,
+        1709503200,
+        1709521200
+      ],
+      "ordinals": [
+        1709503200,
+        1709510400,
+        1709510400,
+        1709511300,
+        1709521200
+      ],
+      "pinned": [
+        true,
+        false,
+        false,
+        false,
+        true
+      ],
+      "reachable": true,
+      "standing": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "step": "midnight",
+      "wanted": 4,
+      "where": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1
+      ],
+      "why": "Step 4 on the body's lattice (Codex's review of lane J2, the leftover regression): a pair the shared pass put at midnight, on a column of seconds drawn on fifteen minutes, takes 00:30:00, the free place of that lattice nearest midnight, 00:15:00 held; a written unit at a time it took 00:00:01, off second 0, where no field pass could put it back but at midnight.",
+      "written_unit": 1
+    },
     "hour_paid_count_given_back": {
       "answer": [
         1709294400,

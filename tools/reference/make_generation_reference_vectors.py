@@ -10835,6 +10835,10 @@ def hour_settled(column, ordinals, parsed, whole, lows, highs, holes):
         "keep_of": lambda ordinal: ordinal // HOUR_DAY,
         "keeps_always": not date_counts_reachable(column),
     }
+    # Step 4 on the body's lattice first, where it is coarser than the
+    # written unit (Codex's review of lane J2).
+    if drawing_unit_of(column) > step:
+        seams["lattice"] = drawing_unit_of(column)
     if word is not None:
         seams["width_of"] = lambda day: counts_into_width(column, day, word)
     fixed = ranks_the_tail_pins(column, parsed)
@@ -11537,7 +11541,10 @@ def clock_off_midnight(walk, before, first, last, pinned):
     """G7.3g step 4: every movable rank the pass left written at midnight,
     with every such rank of its written unit, takes the free place of the
     day's first bin -- hour 0, for the hour -- nearest midnight inside all
-    their gaps; where none is, they stay."""
+    their gaps; where none is, they stay. Where the walk has a lattice
+    coarser than its written unit (the hour pass on a column drawn on one),
+    the free place of the lattice nearest midnight is asked first (Codex's
+    review of lane J2)."""
     runs = {}
     for rank in range(first, last + 1):
         ordinal = walk.days[rank]
@@ -11548,10 +11555,28 @@ def clock_off_midnight(walk, before, first, last, pinned):
         start = unit * walk.step
         low = max([start] + [walk.lows[rank] for rank in members])
         high = min([start + walk.unit - 1] + [walk.highs[rank] for rank in members])
-        target = clock_nearest_free(walk, start, low, high)
+        target = None
+        if walk.lattice > walk.step:
+            target = clock_nearest_on_lattice(walk, start, low, high)
+        if target is None:
+            target = clock_nearest_free(walk, start, low, high)
         if target is not None:
             for rank in members:
                 walk.move(rank, target)
+
+
+def clock_nearest_on_lattice(walk, start, low, high):
+    """The free place of the walk's lattice from ``start`` nearest it in
+    [low, high], the earlier on a tie; None where none is."""
+    if low > high:
+        return None
+    away = 0
+    while start - away * walk.lattice >= low or start + away * walk.lattice <= high:
+        for target in (start - away * walk.lattice, start + away * walk.lattice):
+            if clock_free(walk, target, low, high):
+                return target
+        away += 1
+    return None
 
 
 def clock_place_in_group(walk, parent, ordinal, low, high, size, group, have=None):
@@ -15349,6 +15374,7 @@ class WeekdayWalk:
         # G7.3h: whether a shared written unit moves whole (the lane's second
         # skeptic, item 1).
         self.whole_units = seams.get("whole_units", False)
+        self.lattice = seams.get("lattice", 0)
 
     def group(self, ordinal):
         return self.group_of_bin[self.bin_of(ordinal)]
@@ -18261,6 +18287,22 @@ def hour_midnight_case():
     return case
 
 
+def hour_midnight_lattice_case():
+    m = HOUR_MONDAY
+    ordinals = [hour_at(m - 1, 22), hour_at(m, 0), hour_at(m, 0), hour_at(m, 0, 15), hour_at(m, 3)]
+    case = hour_case(
+        "Step 4 on the body's lattice (Codex's review of lane J2, the leftover regression): "
+        "a pair the shared pass put at midnight, on a column of seconds drawn on fifteen "
+        "minutes, takes 00:30:00, the free place of that lattice nearest midnight, 00:15:00 "
+        "held; a written unit at a time it took 00:00:01, off second 0, where no field pass "
+        "could put it back but at midnight.",
+        "midnight", ordinals, {0, 4}, [4, 1], [0] * 12 + [1] * 12, written_unit=1,
+        lattice=900,
+    )
+    case["before"] = [False] * 5
+    return case
+
+
 def hour_tails_case():
     m = HOUR_MONDAY
     ordinals = [
@@ -18659,6 +18701,7 @@ HOUR_STEP_CASES = {
     "hour_put_back_short": hour_put_back_short_case,
     "hour_proportional": hour_proportional_case,
     "hour_off_midnight": hour_midnight_case,
+    "hour_off_midnight_lattice": hour_midnight_lattice_case,
     "hour_half_day_tails": hour_tails_case,
     "hour_whole_pass": hour_pass_case,
     "hour_put_back_off_midnight": hour_put_back_off_midnight_case,
@@ -18714,6 +18757,7 @@ def hour_step_answer(case):
         "bin_of": lambda ordinal: (ordinal // unit) % bins,
         "keep_of": lambda ordinal: ordinal // (unit * bins),
         "keeps_always": not case["reachable"],
+        "lattice": case.get("lattice", 0),
     }
     counts = case["counts"]
     if "sixtieths" in case:

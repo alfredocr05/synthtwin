@@ -973,6 +973,7 @@ def _state(case: dict, module=generation):
         word="", widths=False, kinds={}, holes=frozenset(case["holes"]), lows=list(case["lows"]),
         highs=list(case["highs"]), keep_units=case["reachable"], unit=case.get("field_unit", 3600),
         step=case["written_unit"], day=DAY, bins="hour", period=len(case["where"]), keeps="day",
+        lattice=case.get("lattice", 0),
     )
     for ordinal in state.moved:
         module._weekday_tally(state.held, ordinal // state.step, 1)
@@ -1163,8 +1164,14 @@ STEP_MUTANTS = {
     ),
     "a written midnight is left": (
         "hour_off_midnight",
-        "        target = _clock_nearest_free(state, start, low, high, len(members))\n        if target is None:\n            continue\n        for rank in members:",
+        "        if target is None:\n            target = _clock_nearest_free(state, start, low, high, len(members))\n        if target is None:\n            continue\n        for rank in members:",
         "        target = None\n        if target is None:\n            continue\n        for rank in members:",
+    ),
+    # Codex's review of lane J2 (the leftover regression): step 4 asks the body's lattice first.
+    "step 4 asks no lattice": (
+        "hour_off_midnight_lattice",
+        "        if state.lattice > state.step:\n            target = _clock_nearest_on(",
+        "        if False:\n            target = _clock_nearest_on(",
     ),
     "the half day's tail ranks are left": (
         "hour_half_day_tails",
@@ -1334,6 +1341,7 @@ CASES = [
     "clock_minute_kin_escape", "clock_minute_kin_kept", "clock_minute_put_back_kin",
     "half_day_apart", "half_day_high", "half_day_low", "hour_escape_any_day", "hour_escape_weekday",
     "hour_half_day_tails", "hour_half_day_tails_stratum", "hour_off_a_hole", "hour_off_midnight",
+    "hour_off_midnight_lattice",
     "hour_paid_count_given_back", "hour_paid_count_nearer", "hour_paid_count_tied", "hour_paid_escape",
     "hour_paid_given_back",
     "hour_paid_hole", "hour_paid_keeping", "hour_paid_pass", "hour_paid_unit_standing",

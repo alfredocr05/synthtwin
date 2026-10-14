@@ -775,6 +775,44 @@ _DENSE_GRIDS = (
 )
 
 
+def _half_kept_series(step: int, rows: int, times: int) -> "list[str]":
+    """Stamps `step` minutes apart from 2015-01-01, each slot kept with chance one half
+    (`random.Random(5)`), each kept slot written `times` times."""
+    pick = random.Random(5)
+    start = datetime.datetime(2015, 1, 1)
+    cells: "list[str]" = []
+    place = 0
+    while len(cells) < rows:
+        text = (start + datetime.timedelta(minutes=step * place)).strftime("%Y-%m-%d %H:%M:%S")
+        place = place + 1
+        if pick.random() < 0.5:
+            continue
+        cells += [text] * times
+    return cells[:rows]
+
+
+def test_a_half_kept_quarter_hour_series_meets_its_count_at_midnight(tmp_path: pathlib.Path) -> None:
+    """Codex's review of lane J2, the leftover regression: 4,000 stamps every fifteen
+    minutes, half the slots kept, each written 3, 4 or 6 times, publish their minute's and
+    second's heaps on a fifteen-minute lattice. On e69e534 5 of these 12 twins missed
+    `midnight.count` and `second_heaps.counts` (45191fa, publishing no clock facts, met all
+    12): a pair the hour pass moved onto midnight took `00:00:01` (G7.3g step 4, a written
+    unit at a time), where no field pass could put it on second 0 but at midnight, and the
+    count there came back a cell long. Step 4 now asks the body's lattice first
+    (`_clock_nearest_on`): every twin misses nothing, 30 of 30 at seeds 0 to 4; with that
+    withdrawn, 2 of these 12 miss `second_heaps.counts`."""
+    for times in (3, 4, 6):
+        cells = _half_kept_series(15, 4000, times)
+        for floor in (11, 36):
+            described = _one_column(tmp_path / f"x{times}-{floor}", "c", cells, floor)
+            block = described.block("c")
+            assert block["minute_heaps"] and block["second_heaps"], (times, floor)
+            assert block.get("n_at_midnight") is not None, (times, floor)
+            for seed in (0, 1):
+                written = kpi_shapes.twin_text(described, seed)
+                assert kpi_shapes.missed(kpi_shapes.measure(described, written, f"t{seed}.csv")) == [], (times, floor, seed)
+
+
 def test_a_dense_grid_of_random_times_keeps_its_clock_facts(tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """Lane J2's second skeptic, item 1 (NF121, NF122): random times on the hour, on 30-, 15-
     and 5-minute slots, and stamps written to the minute with seconds `:00`, 3,000 to 10,000
