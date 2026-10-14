@@ -1346,7 +1346,8 @@ def lattice_crowded(
     1). Where `parsed`, the column's count of parsed cells, is given, the
     values crowd the lattice only where they also fill it more than
     `parsed` cells drawn uniformly over its points would -- `distinct /
-    points` at least `CROWDED_EXCESS` above `1 - exp(-parsed / points)`.
+    points` at least `CROWDED_EXCESS` above `1 - (1 - 1 / points) **
+    parsed`, about `1 - exp(-parsed / points)`.
     Random times on the hour, on 5-, 15- and 30-minute slots, and stamps
     written to the minute with seconds `:00`, 3,000 to 100,000 rows, fill
     half to nine tenths of their lattice yet stand within 0.01 of such a
@@ -1369,7 +1370,8 @@ def lattice_crowded(
     if parsed <= 0:
         return True
     above, over = CROWDED_EXCESS
-    drawn = 1.0 - math.exp(-parsed / points)
+    # The share of the points `parsed` uniform draws fill, on average.
+    drawn = 1.0 - (1.0 - 1.0 / points) ** parsed
     return distinct / points - drawn >= above / over
 
 # anchor 3b-C1 (P4-D373)

@@ -843,7 +843,7 @@ def test_dates_written_as_datetimes_keep_a_count_at_midnight_withheld(tmp_path: 
     """Lane J2's second skeptic, item 2 (NF118, NF119): a column mostly at midnight whose
     count there is withheld for its size -- fewer cells than the line off 00:00:00 -- withholds
     its minute's and second's facts as off midnight, so the twin is not left whole hours to
-    stand its owed midnights on; every column of this battery 45191fa met is met at seeds 0 to
+    stand the ranks it owes a midnight on; every column of this battery 45191fa met is met at seeds 0 to
     2. Mutant: the rule withdrawn, the 1,000 dates over 60 days with 10 timed publish both
     heaps and their twin misses `midnight.withheld` with 983 of 990 at midnight."""
     for rows, days, timed, heavy, drawn, floor in _MOSTLY_AT_MIDNIGHT:
@@ -1515,7 +1515,7 @@ STEP_MUTANTS = {
         "    if owed and at < counted and 2 * counted > parsed:\n        _clock_owed_midnight(",
         "    if False:\n        _clock_owed_midnight(",
     ),
-    "the tails' owed midnights land on a hole day": (
+    "the owed step stands a tail rank on a hole day": (
         "field_midnight_owed_hole",
         "    hole_days: \"set[int]\",\n) -> None:\n    \"\"\"A count at midnight withheld for its size",
         "    hole_days: \"set[int]\",\n) -> None:\n    hole_days = set()\n    \"\"\"A count at midnight withheld for its size",
