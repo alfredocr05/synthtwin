@@ -29106,15 +29106,146 @@ def _clock_full_skips(
 
 
 @dataclasses.dataclass(frozen=True)
-class _ClockWalk:
-    """The occupied days of one day standing, ascending, each day's place
-    among them, and for each standing a payer may be asked to go to the
-    skips passing over each day whose ranks are spent for it (Codex's
-    review of lane J2, item 3)."""
+class _ClockOpen:
+    """Places of a fixed list, some OPEN, asked for the first open place at
+    or after one, the last at or before one, and how many lie open between
+    two (lane J2's Codex verifier, item 3).
+
+    `length` is the list's length, `size` the least power of two at least
+    it, `count` for each node of a halving tree over the places (the root
+    1, a leaf `size` plus its place) how many places below it are open. A
+    mark (`_open_mark`) and each question (`_open_after`, `_open_before`,
+    `_open_count`) cost the logarithm of the length, however many places
+    lie closed between.
+    """
+
+    length: int
+    size: int
+    count: "list[int]"
+
+
+def _clock_open(length: int) -> _ClockOpen:
+    """A list of `length` places, none open yet."""
+    size = 1
+    while size < length:
+        size = size * 2
+    return _ClockOpen(length=length, size=size, count=[0 for _node in range(2 * size)])
+
+
+def _open_mark(tree: _ClockOpen, index: int, change: int) -> None:
+    """Open place `index` (`change` 1) or close it (-1); the caller says
+    only what changes."""
+    node = tree.size + index
+    while node >= 1:
+        tree.count[node] = tree.count[node] + change
+        node = node // 2
+
+
+def _open_count(tree: _ClockOpen, low: int, high: int) -> int:
+    """How many places from `low` up to `high`, `high` left out, are open."""
+    total = 0
+    low = tree.size + max(low, 0)
+    high = tree.size + min(high, tree.length)
+    while low < high:
+        if low % 2 == 1:
+            total = total + tree.count[low]
+            low = low + 1
+        if high % 2 == 1:
+            high = high - 1
+            total = total + tree.count[high]
+        low = low // 2
+        high = high // 2
+    return total
+
+
+def _open_after(tree: _ClockOpen, index: int) -> int:
+    """The first open place at or after `index`; the length where none is."""
+    if index >= tree.length:
+        return tree.length
+    node = tree.size + max(index, 0)
+    if tree.count[node]:
+        return node - tree.size
+    while node > 1:
+        if node % 2 == 0 and tree.count[node + 1]:
+            node = node + 1
+            while node < tree.size:
+                node = 2 * node if tree.count[2 * node] else 2 * node + 1
+            return node - tree.size
+        node = node // 2
+    return tree.length
+
+
+def _open_before(tree: _ClockOpen, index: int) -> int:
+    """The last open place at or before `index`; -1 where none is."""
+    if index < 0 or tree.length == 0:
+        return -1
+    node = tree.size + min(index, tree.length - 1)
+    if tree.count[node]:
+        return node - tree.size
+    while node > 1:
+        if node % 2 == 1 and tree.count[node - 1]:
+            node = node - 1
+            while node < tree.size:
+                node = 2 * node + 1 if tree.count[2 * node + 1] else 2 * node
+            return node - tree.size
+        node = node // 2
+    return -1
+
+
+@dataclasses.dataclass(frozen=True)
+class _ClockLayout:
+    """THE PAYERS' WALK laid out for one day standing (lane J2's Codex
+    verifier, item 3): `days` the book's days of that standing, ascending,
+    `index` each day's place among them, `ranks` the movable body ranks of
+    those days that stood on them when the round began, day by day and in
+    rank order within a day -- each rank's PLACE in the walk -- `first`
+    each day's first place, then their number, and `position` each rank's
+    place."""
 
     days: "list[int]"
-    place: "dict[int, int]"
-    skips: "dict[int, _ClockDaySkips]"
+    index: "dict[int, int]"
+    first: "list[int]"
+    ranks: "list[int]"
+    position: "dict[int, int]"
+
+
+@dataclasses.dataclass(frozen=True)
+class _ClockKeeps:
+    """The payers of one walk for one standing they go to (lane J2's Codex
+    verifier, item 3: a wall of ranks with a place whose move would not
+    keep the count of different values, standing between a run and its
+    keeping payers, was read again for every payer -- 23,375 / 93,314 /
+    374,626 places asked at 125 / 250 / 500 runs).
+
+    Each place of the walk (`layout`) whose day is READ (`done`, `read`
+    passing over each day read) holds what `_clock_payers`' walk asks of
+    its rank: `away`, the days from the rank to its place
+    (`_clock_payer_place`, 0 for none or a rank off its day), and `status`
+    -- 0 no payer, 1 a payer whose move does not keep the count, 2 one whose
+    move does. `keeping` is open at each place of status 2, `waiting` at
+    each of status 1. A status changes only when the rank moves, or when
+    the count of ranks on its written unit leaves or reaches one, or on
+    its place's unit leaves or reaches nothing; `_clock_book_moved` sees
+    every move, and the units' ranks are in the book (`units`), so each is
+    kept as it changes. `mask` holds the call's unit a run joins and unit
+    it leaves (`avoid`, `leaving`): a rank there has status 0 while the
+    call runs. `reach` holds the farthest any read rank's place is, in
+    days, so the ranks placed on a unit are found among the ranks of the
+    units that many days on each side.
+    """
+
+    layout: _ClockLayout
+    origin: int
+    into: int
+    standing: "tuple[int, ...]"
+    away: "list[int]"
+    status: "list[int]"
+    keeping: _ClockOpen
+    waiting: _ClockOpen
+    read: _ClockDaySkips
+    done: "dict[int, bool]"
+    mask: "dict[str, int]"
+    reach: "list[int]"
 
 
 @dataclasses.dataclass(frozen=True)
@@ -29123,36 +29254,32 @@ class _ClockPayerBook:
 
     `days` holds, for each day, the movable body ranks standing on it when
     step 3's paid round began, in rank order -- the only ranks a payer is
-    asked among, each while it still stands on that day (`home`). `cursor`
-    holds, for each day and each standing a payer may be asked to go to,
-    how many of the day's ranks, from its first, have left it or have no
-    place there: none of them is asked again until a rank of the day moves
-    back onto it, which clears the day's cursors. `occupied` holds the
-    days of `days`, ascending: the only days the walk reads (Codex's
-    review of lane J, item 3), so no cursor is kept for a day no rank
-    stands on and no empty stretch of the calendar is walked. It changes
-    which ranks are asked never, only how often one with no place is.
+    asked among, each while it still stands on that day (`home`).
+    `occupied` holds the days of `days`, ascending: the only days the walk
+    reads (Codex's review of lane J, item 3), so no empty stretch of the
+    calendar is walked.
 
-    NO DAY READ TWICE IN VAIN (Codex's review of lane J2, item 3: a run
-    `weeks` days from its payers walked every occupied day of the other
-    standings between, once for each run). `walks` holds, for each day
-    standing and each standing a payer may be asked to go to, the occupied
-    days of the first, ascending, and a `_ClockDaySkips` passing over each
-    whose cursor for the second is at its end -- marked as its cursor
-    reaches it, cleared with its cursors -- so the walk reads only days of
-    the standing it asks that still hold a rank to ask, each found by
-    halving. `joins` and `full` hold the step's own indexes (`_ClockJoins`,
-    `_ClockFullDays`), kept as each rank moves. Neither changes which rank
-    is asked, nor in what order.
+    NO PAYER READ TWICE IN VAIN (lane J2's Codex verifier, item 3). `keeps`
+    holds, for each day standing, standing the payers go to and standing
+    they go from, what the walk asks of each rank (`_ClockKeeps`), laid out
+    once a standing (`layouts`) and read a day at a time as the walk first
+    reaches it; `units` the ranks on each written unit of the day they
+    stood on when the round began -- the only ranks a payer is asked among
+    -- kept as each rank moves. `joins` and `full` hold the step's own indexes (`_ClockJoins`,
+    `_ClockFullDays`), kept as each rank moves. None of them changes which
+    rank is asked, nor in what order.
     """
 
     days: "dict[int, list[int]]"
     home: "dict[int, int]"
-    cursor: "dict[int, dict[int, int]]"
     occupied: "list[int]"
-    walks: "dict[tuple[tuple[int, ...], int], _ClockWalk]" = dataclasses.field(
+    layouts: "dict[tuple[tuple[int, ...], int], _ClockLayout]" = dataclasses.field(
         default_factory=dict
     )
+    keeps: "dict[tuple[tuple[int, ...], int, int], _ClockKeeps]" = dataclasses.field(
+        default_factory=dict
+    )
+    units: "dict[int, set[int]]" = dataclasses.field(default_factory=dict)
     joins: "dict[str, _ClockJoins]" = dataclasses.field(default_factory=dict)
     full: "dict[str, _ClockFullDays]" = dataclasses.field(default_factory=dict)
 
@@ -29173,25 +29300,21 @@ def _clock_payer_book(
             listed += [rank]
         else:
             days[day] = [rank]
-    return _ClockPayerBook(days=days, home=home, cursor={}, occupied=sorted(days))
+    return _ClockPayerBook(days=days, home=home, occupied=sorted(days))
 
 
 def _clock_book_moved(
     state: _WeekdayPass, book: "_ClockPayerBook | None", rank: int, target: int
 ) -> None:
-    """Move one rank (`_weekday_step`); in step 3's paid round, a rank moving
-    onto the day it stood on when the round began clears that day's cursors."""
+    """Move one rank (`_weekday_step`); in a paid round, every index of the
+    book kept (`_clock_keeps_moved`, `_clock_joins_moved`,
+    `_clock_full_moved`)."""
     before = state.moved[rank] // state.step
     _weekday_step(state, rank, target)
     if book is None:
         return
-    day = target // state.day
-    if rank in book.home and book.home[rank] == day and day in book.cursor:
-        del book.cursor[day]
-        for listed in book.walks:
-            walk = book.walks[listed]
-            for origin in walk.skips:
-                _skips_mark(walk.skips[origin], day, False)
+    if book.keeps:
+        _clock_keeps_moved(state, book, rank, before, target // state.step)
     for name in book.joins:
         _clock_joins_moved(book.joins[name], state, before, target // state.step)
     for name in book.full:
@@ -29228,17 +29351,6 @@ def _clock_payers(
     weekday count. Returns how many payers it found: the unit's size, or
     fewer, every payer then moved back.
 
-    ITS WORK (Codex's review of lane J, item 3): the days are met once for
-    the unit, not once a payer -- outward from its day over the book's
-    `occupied` days alone, the nearer first, the earlier on a tie, each of
-    standing `into` kept in `order` as it is met -- and each payer's walk
-    starts past the kept days whose ranks are spent for `origin` (their
-    cursor at their end), which no payer of the unit can make good again;
-    the unit's ranks and its payers are kept in one set, joined in place.
-    So a unit of k ranks costs work in k and the days holding ranks, never
-    k squared nor the calendar's empty days. The ranks asked and their
-    order are the walk's of every day from the unit's own.
-
     STRICT PAYERS (lane J2, G7.3h's count steps paid back): where `strict`,
     only a payer whose move keeps the count of different values is taken,
     among the first with a place and the `_CLOCK_PAYER_REACH` asked after
@@ -29253,118 +29365,331 @@ def _clock_payers(
     there is no such unit: a written unit before 1970 is negative (Codex's
     review of lane J2, item 1: `-1` for none disabled both exclusions there,
     and a 1947 payer vacated the very unit its run joined).
+
+    ITS WORK (Codex's review of lane J, item 3; lane J2's Codex verifier,
+    item 3). The walk's ranks are laid out once a standing and read a day
+    at a time, each day once, as the walk first reaches it; each rank's
+    payer status is then kept as the ranks move (`_ClockKeeps`), so each
+    payer is found by halving -- the nearest day holding a keeping payer
+    or not yet read, on each side, and how many payers that keep nothing
+    stand before it in the walk's order -- never by reading again the ranks
+    with no place, the ranks spent, or the wall of payers that keep nothing.
+    The ranks asked, their order and the `_CLOCK_PAYER_REACH` cut are the
+    walk's of every day from the unit's own.
     """
+    keeps = _clock_payer_keeps(state, book, standing, into, origin)
+    _clock_keeps_mask(state, book, keeps, avoid, leaving)
+    found = _clock_payers_taken(state, book, keeps, unit, strict)
+    _clock_keeps_mask(state, book, keeps, None, None)
+    return found
+
+
+def _clock_payers_taken(
+    state: _WeekdayPass,
+    book: _ClockPayerBook,
+    keeps: _ClockKeeps,
+    unit: "list[int]",
+    strict: bool,
+) -> int:
+    """THE PAYERS found and moved, one a rank of the unit (`_clock_payers`)."""
     taken: "list[tuple[int, int]]" = []
-    asked = set(unit)
+    days = keeps.layout.days
     centre = state.moved[unit[0]] // state.day
-    occupied, skips = _clock_payer_walk(book, standing, into, origin)
-    above = _clock_days_before(occupied, centre)
+    above = _clock_days_before(days, centre)
     below = above - 1
-    if above < len(occupied) and occupied[above] == centre:
+    if above < len(days) and days[above] == centre:
         above = above + 1
-    order: "list[int]" = []
-    start = 0
     for _payer in range(len(unit)):
-        chosen: "tuple[int, int] | None" = None
-        keeping = False
-        after = 0
-        seen = False
-        at = start
-        while not keeping and after < _CLOCK_PAYER_REACH:
-            while at == len(order):
-                below = _skips_before(skips, below)
-                above = _skips_after(skips, above)
-                if below < 0 and above >= len(occupied):
-                    break
-                if above >= len(occupied) or (
-                    below >= 0 and centre - occupied[below] <= occupied[above] - centre
-                ):
-                    met = occupied[below]
-                    below = below - 1
-                else:
-                    met = occupied[above]
-                    above = above + 1
-                order += [met]
-            if at == len(order):
-                break
-            day = order[at]
-            at = at + 1
-            ranks = book.days[day]
-            marks = book.cursor[day] if day in book.cursor else {}
-            skipped = marks[origin] if origin in marks else 0
-            leading = True
-            index = skipped
-            while index < len(ranks):
-                rank = ranks[index]
-                index = index + 1
-                place: "int | None" = None
-                if state.moved[rank] // state.day == day and rank not in asked:
-                    place = _clock_payer_place(state, rank, origin, standing)
-                if place is None:
-                    if leading:
-                        skipped = index
-                    continue
-                leading = False
-                if avoid is not None and state.moved[rank] // state.step == avoid:
-                    continue
-                if leaving is not None and place // state.step == leaving:
-                    continue
-                alone = state.held[state.moved[rank] // state.step] == 1
-                if alone != _weekday_holds(state, place):
-                    chosen = (rank, place)
-                    keeping = True
-                    break
-                if not seen:
-                    seen = True
-                    if not strict:
-                        chosen = (rank, place)
-                    continue
-                after = after + 1
-                if after >= _CLOCK_PAYER_REACH:
-                    break
-            marks[origin] = skipped
-            book.cursor[day] = marks
-            if skipped >= len(ranks):
-                _skips_mark(skips, day, True)
+        chosen = _clock_payer_search(state, keeps, centre, below, above, strict)
         if chosen is None:
             for rank, before in reversed(taken):
                 _clock_book_moved(state, book, rank, before)
             return len(taken)
         taken += [(chosen[0], state.moved[chosen[0]])]
-        asked |= {chosen[0]}
         _clock_book_moved(state, book, chosen[0], chosen[1])
-        while start < len(order) and _clock_day_spent(book, order[start], origin):
-            start = start + 1
     return len(taken)
 
 
-def _clock_payer_walk(
-    book: _ClockPayerBook, standing: "tuple[int, ...]", into: int, origin: int
-) -> "tuple[list[int], _ClockDaySkips]":
-    """The occupied days of standing `into`, ascending, and the skips passing
-    over each whose ranks are spent for `origin` (`_ClockPayerBook.walks`),
-    each made once a book (Codex's review of lane J2, item 3)."""
-    if (standing, into) not in book.walks:
+def _clock_payer_search(
+    state: _WeekdayPass,
+    keeps: _ClockKeeps,
+    centre: int,
+    below: int,
+    above: int,
+    strict: bool,
+) -> "tuple[int, int] | None":
+    """One payer and its place (`_clock_payers`), or None.
+
+    The walk's days before `centre` end at `below`, those after it start
+    at `above`. Nearest the centre first, the earlier on a tie, the next
+    day either holding a keeping payer or not yet read (read, and asked
+    again); before it, the payers that keep nothing are counted, and more
+    than `_CLOCK_PAYER_REACH` of them end the walk, as the walk read rank
+    by rank ends after the first and that many more. Else the day's first
+    keeping payer. Where none is found, a walk not `strict` takes the
+    first payer of all.
+    """
+    layout = keeps.layout
+    days, first = layout.days, layout.first
+    total = first[len(days)]
+    low_end = first[below + 1]
+    high_start = first[above]
+    while True:
+        near_below = _skips_before(keeps.read, below)
+        found = _open_before(keeps.keeping, low_end - 1)
+        if found >= 0:
+            near_below = max(near_below, _clock_days_before(first, found + 1) - 1)
+        near_above = _skips_after(keeps.read, above)
+        found = _open_after(keeps.keeping, high_start)
+        if found < total:
+            near_above = min(near_above, _clock_days_before(first, found + 1) - 1)
+        if near_below < 0 and near_above >= len(days):
+            break
+        if near_above >= len(days) or (
+            near_below >= 0 and centre - days[near_below] <= days[near_above] - centre
+        ):
+            event = near_below
+            far = max(_clock_days_before(days, 2 * centre - days[event]), above)
+            passed = _open_count(keeps.waiting, first[event + 1], low_end) + _open_count(
+                keeps.waiting, high_start, first[far]
+            )
+        else:
+            event = near_above
+            far = _clock_days_before(days, 2 * centre - days[event])
+            passed = _open_count(keeps.waiting, high_start, first[event]) + _open_count(
+                keeps.waiting, first[min(far, below + 1)], low_end
+            )
+        if passed > _CLOCK_PAYER_REACH:
+            break
+        if event not in keeps.done:
+            _clock_keeps_read(state, keeps, event)
+            continue
+        payer = _open_after(keeps.keeping, first[event])
+        if passed + _open_count(keeps.waiting, first[event], payer) > _CLOCK_PAYER_REACH:
+            break
+        return (layout.ranks[payer], _clock_keeps_place(state, keeps, payer))
+    if strict:
+        return None
+    near_below = -1
+    found = _open_before(keeps.waiting, low_end - 1)
+    if found >= 0:
+        near_below = _clock_days_before(first, found + 1) - 1
+    near_above = len(days)
+    found = _open_after(keeps.waiting, high_start)
+    if found < total:
+        near_above = _clock_days_before(first, found + 1) - 1
+    if near_below < 0 and near_above >= len(days):
+        return None
+    if near_above >= len(days) or (
+        near_below >= 0 and centre - days[near_below] <= days[near_above] - centre
+    ):
+        payer = _open_after(keeps.waiting, first[near_below])
+    else:
+        payer = _open_after(keeps.waiting, first[near_above])
+    return (layout.ranks[payer], _clock_keeps_place(state, keeps, payer))
+
+
+def _clock_payer_keeps(
+    state: _WeekdayPass,
+    book: _ClockPayerBook,
+    standing: "tuple[int, ...]",
+    into: int,
+    origin: int,
+) -> _ClockKeeps:
+    """The walk of standing `into`'s days for payers going to `origin`
+    (`_ClockKeeps`), made once a book, nothing read yet."""
+    if (standing, into, origin) in book.keeps:
+        return book.keeps[(standing, into, origin)]
+    if not book.keeps:
+        for rank in book.home:
+            if state.moved[rank] // state.day != book.home[rank]:
+                continue
+            key = state.moved[rank] // state.step
+            if key in book.units:
+                book.units[key] |= {rank}
+            else:
+                book.units[key] = {rank}
+    if (standing, into) not in book.layouts:
         days = [day for day in book.occupied if standing[calendar_rules.weekday_of(day)] == into]
-        book.walks[(standing, into)] = _ClockWalk(
-            days=days, place={day: index for index, day in enumerate(days)}, skips={}
+        first: "list[int]" = []
+        ranks: "list[int]" = []
+        for day in days:
+            first += [len(ranks)]
+            ranks += book.days[day]
+        first += [len(ranks)]
+        book.layouts[(standing, into)] = _ClockLayout(
+            days=days, index={day: index for index, day in enumerate(days)}, first=first,
+            ranks=ranks, position={rank: index for index, rank in enumerate(ranks)},
         )
-    walk = book.walks[(standing, into)]
-    if origin not in walk.skips:
-        made = _clock_day_skips(walk.days, walk.place)
-        for day in walk.days:
-            if _clock_day_spent(book, day, origin):
-                _skips_mark(made, day, True)
-        walk.skips[origin] = made
-    return walk.days, walk.skips[origin]
+    layout = book.layouts[(standing, into)]
+    made = _ClockKeeps(
+        layout=layout, origin=origin, into=into, standing=standing,
+        away=[0 for _rank in layout.ranks], status=[0 for _rank in layout.ranks],
+        keeping=_clock_open(len(layout.ranks)), waiting=_clock_open(len(layout.ranks)),
+        read=_clock_day_skips(layout.days, layout.index), done={}, mask={}, reach=[0],
+    )
+    book.keeps[(standing, into, origin)] = made
+    return made
 
 
-def _clock_day_spent(book: _ClockPayerBook, day: int, origin: int) -> bool:
-    """Whether every rank of `day` has left it or has no place of standing
-    `origin` (its cursor at its end): no payer is found there again until a
-    rank of the day moves back onto it (THE PAYERS' walk)."""
-    marks = book.cursor[day] if day in book.cursor else {}
-    return origin in marks and marks[origin] >= len(book.days[day])
+def _clock_keeps_read(state: _WeekdayPass, keeps: _ClockKeeps, index: int) -> None:
+    """Read the walk's day at `index`: each rank's place and status."""
+    layout = keeps.layout
+    for position in range(layout.first[index], layout.first[index + 1]):
+        _clock_keeps_placed(state, keeps, position)
+        _clock_keeps_set(state, keeps, position)
+    keeps.done[index] = True
+    _skips_mark(keeps.read, layout.days[index], True)
+
+
+def _clock_keeps_placed(state: _WeekdayPass, keeps: _ClockKeeps, position: int) -> None:
+    """A rank's place asked anew (`_clock_payer_place`), only while it
+    stands on the day it stood on when the round began."""
+    rank = keeps.layout.ranks[position]
+    day = keeps.layout.days[_clock_days_before(keeps.layout.first, position + 1) - 1]
+    keeps.away[position] = 0
+    if state.moved[rank] // state.day != day:
+        return
+    place = _clock_payer_place(state, rank, keeps.origin, keeps.standing)
+    if place is None:
+        return
+    away = (place - state.moved[rank]) // state.day
+    keeps.away[position] = away
+    if abs(away) > keeps.reach[0]:
+        keeps.reach[0] = abs(away)
+
+
+def _clock_keeps_place(state: _WeekdayPass, keeps: _ClockKeeps, position: int) -> int:
+    """The place of the rank at `position` (`_clock_keeps_placed`)."""
+    return state.moved[keeps.layout.ranks[position]] + keeps.away[position] * state.day
+
+
+def _clock_keeps_status(state: _WeekdayPass, keeps: _ClockKeeps, position: int) -> int:
+    """0 no payer, 1 a payer whose move keeps nothing, 2 one whose move
+    keeps the count of different values (THE PAYERS)."""
+    if keeps.away[position] == 0:
+        return 0
+    rank = keeps.layout.ranks[position]
+    place = _clock_keeps_place(state, keeps, position)
+    avoid = keeps.mask["avoid"] if "avoid" in keeps.mask else None
+    leaving = keeps.mask["leaving"] if "leaving" in keeps.mask else None
+    if avoid is not None and state.moved[rank] // state.step == avoid:
+        return 0
+    if leaving is not None and place // state.step == leaving:
+        return 0
+    alone = state.held[state.moved[rank] // state.step] == 1
+    if alone != _weekday_holds(state, place):
+        return 2
+    return 1
+
+
+def _clock_keeps_set(state: _WeekdayPass, keeps: _ClockKeeps, position: int) -> None:
+    """A read rank's status asked anew and its marks kept."""
+    old = keeps.status[position]
+    new = _clock_keeps_status(state, keeps, position)
+    if old == new:
+        return
+    if old == 2:
+        _open_mark(keeps.keeping, position, -1)
+    if old == 1:
+        _open_mark(keeps.waiting, position, -1)
+    if new == 2:
+        _open_mark(keeps.keeping, position, 1)
+    if new == 1:
+        _open_mark(keeps.waiting, position, 1)
+    keeps.status[position] = new
+
+
+def _clock_keeps_on(
+    state: _WeekdayPass, book: _ClockPayerBook, keeps: _ClockKeeps, unit: int, placed: bool
+) -> "list[int]":
+    """The read places of the walk whose rank stands on written unit `unit`,
+    or, `placed`, whose rank's place does."""
+    found: "list[int]" = []
+    layout = keeps.layout
+    per = state.day // state.step
+    shifts = [0]
+    if placed:
+        shifts = [
+            away for away in range(-keeps.reach[0], keeps.reach[0] + 1) if away != 0
+        ]
+    for away in shifts:
+        key = unit - away * per
+        if key not in book.units:
+            continue
+        if keeps.standing[calendar_rules.weekday_of(key // per)] != keeps.into:
+            continue
+        for rank in book.units[key]:
+            if rank not in layout.position:
+                continue
+            position = layout.position[rank]
+            if layout.index[book.home[rank]] not in keeps.done:
+                continue
+            if placed and keeps.away[position] != away:
+                continue
+            found += [position]
+    return found
+
+
+def _clock_keeps_moved(
+    state: _WeekdayPass, book: _ClockPayerBook, rank: int, before: int, after: int
+) -> None:
+    """A rank moved from written unit `before` to `after`: the book's units,
+    and each walk's status of every rank that changes with it -- the rank
+    itself, a rank its move leaves alone or no longer alone, and a rank
+    placed on a unit it leaves empty or no longer empty."""
+    per = state.day // state.step
+    if before != after and rank in book.home:
+        if before // per == book.home[rank]:
+            book.units[before] -= {rank}
+            if not book.units[before]:
+                del book.units[before]
+        if after // per == book.home[rank]:
+            if after in book.units:
+                book.units[after] |= {rank}
+            else:
+                book.units[after] = {rank}
+    left = state.held[before] if before in state.held else 0
+    came = state.held[after] if after in state.held else 0
+    for listed in book.keeps:
+        keeps = book.keeps[listed]
+        layout = keeps.layout
+        touched: "list[int]" = []
+        if rank in layout.position and layout.index[book.home[rank]] in keeps.done:
+            _clock_keeps_placed(state, keeps, layout.position[rank])
+            touched += [layout.position[rank]]
+        if before != after:
+            if left == 1:
+                touched += _clock_keeps_on(state, book, keeps, before, False)
+            if left == 0:
+                touched += _clock_keeps_on(state, book, keeps, before, True)
+            if came == 2:
+                touched += _clock_keeps_on(state, book, keeps, after, False)
+            if came == 1:
+                touched += _clock_keeps_on(state, book, keeps, after, True)
+        for position in touched:
+            _clock_keeps_set(state, keeps, position)
+
+
+def _clock_keeps_mask(
+    state: _WeekdayPass,
+    book: _ClockPayerBook,
+    keeps: _ClockKeeps,
+    avoid: "int | None",
+    leaving: "int | None",
+) -> None:
+    """The call's unit a run joins and unit it leaves set (None for none),
+    and the status of every rank on the old ones and the new asked anew."""
+    touched: "list[int]" = []
+    for name, unit in (("avoid", avoid), ("leaving", leaving)):
+        if name in keeps.mask:
+            touched += _clock_keeps_on(state, book, keeps, keeps.mask[name], name == "leaving")
+            del keeps.mask[name]
+        if unit is not None:
+            keeps.mask[name] = unit
+            touched += _clock_keeps_on(state, book, keeps, unit, name == "leaving")
+    for position in touched:
+        _clock_keeps_set(state, keeps, position)
 
 
 def _clock_days_before(days: "list[int]", centre: int) -> int:

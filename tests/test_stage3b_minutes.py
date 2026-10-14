@@ -1672,8 +1672,8 @@ STEP_MUTANTS = {
     ),
     "a payer taken that changes the count": (
         "field_paid_spread_strict",
-        "                    if not strict:\n                        chosen = (rank, place)\n",
-        "                    if True:\n                        chosen = (rank, place)\n",
+        "    if strict:\n        return None\n",
+        "    if False:\n        return None\n",
     ),
     "PUT BACK not paid back": (
         "field_paid_put_back",
@@ -1682,24 +1682,24 @@ STEP_MUTANTS = {
     ),
     "a payer taken off the unit a run joins": (
         "field_paid_put_back_avoid",
-        "                if avoid is not None and state.moved[rank] // state.step == avoid:\n",
-        "                if False:\n",
+        "    if avoid is not None and state.moved[rank] // state.step == avoid:\n",
+        "    if False:\n",
     ),
     "a payer placed on the unit a run leaves": (
         "field_paid_put_back_leaving",
-        "                if leaving is not None and place // state.step == leaving:\n",
-        "                if False:\n",
+        "    if leaving is not None and place // state.step == leaving:\n",
+        "    if False:\n",
     ),
     # Codex's review of lane J2, item 1: -1 for no unit reads every unit before 1970 as none.
     "the unit a run joins excluded only after 1970": (
         "field_paid_put_back_avoid_1947",
-        "                if avoid is not None and state.moved[rank] // state.step == avoid:\n",
-        "                if avoid is not None and avoid >= 0 and state.moved[rank] // state.step == avoid:\n",
+        "    if avoid is not None and state.moved[rank] // state.step == avoid:\n",
+        "    if avoid is not None and avoid >= 0 and state.moved[rank] // state.step == avoid:\n",
     ),
     "the unit a run leaves excluded only after 1970": (
         "field_paid_put_back_leaving_1947",
-        "                if leaving is not None and place // state.step == leaving:\n",
-        "                if leaving is not None and leaving >= 0 and place // state.step == leaving:\n",
+        "    if leaving is not None and place // state.step == leaving:\n",
+        "    if leaving is not None and leaving >= 0 and place // state.step == leaving:\n",
     ),
     "no SPREAD by substitute": (
         "field_spread_substitute",
@@ -2171,6 +2171,67 @@ def test_the_paid_searches_grow_with_the_rows_however_far(merging: bool, payers:
     they ask that hold a place, a unit to join or a payer not yet spent, each found by halving,
     so doubling the rows at most a little more than doubles the lines run (n log n)."""
     spent = [_far_lines(weeks, merging, payers, blocked) for weeks in (40, 80, 160)]
+    assert spent[1] <= 2.4 * spent[0] and spent[2] <= 2.4 * spent[1], spent
+
+
+def _wall_state(weeks: int, merging: bool):
+    """Lane J2's Codex verifier, item 3: `_far_state`'s runs (PUT BACK, `merging`: one rank
+    alone at 01:20 each Monday, a pinned final-Monday 01:40 and final-Tuesday 01:20; SPREAD:
+    two ranks at 01:00 each Monday, a pinned final-Monday 01:30), and, nearer than every payer
+    that keeps the count, a WALL: `weeks` Tuesdays from the last on, each holding a pair at the
+    payers' clock (01:40, 01:30 for SPREAD) whose place on the Monday before is free -- a pair's
+    rank moving there keeps no count -- then `weeks + 1` Tuesdays each holding one payer alone.
+    SPREAD's Mondays after the last hold a pinned 01:00 each. Asked: `weeks` values fewer (PUT
+    BACK) or more (SPREAD)."""
+    first = 19730  # 2024-01-08, a Monday
+    last = first + 7 * (weeks - 1)
+    clock = 1 * 3600 + (20 if merging else 0) * 60
+    pay = 1 * 3600 + (40 if merging else 30) * 60
+    cells: "list[tuple[int, bool]]" = []
+    for week in range(weeks):
+        cells += [((first + 7 * week) * DAY + clock, False)] * (1 if merging else 2)
+    cells += [(last * DAY + pay, True)]
+    start = last + 8 if merging else last + 1
+    if merging:
+        cells += [((last + 1) * DAY + clock, True)]
+    for week in range(weeks):
+        cells += [((start + 7 * week) * DAY + pay, False)] * 2
+    cells += [((start + 7 * (weeks + week)) * DAY + pay, False) for week in range(weeks + 1)]
+    if not merging:
+        cells += [((last + 7 * week) * DAY + 3600, True) for week in range(1, 2 * weeks + 3)]
+    cells = sorted(cells)
+    moved = [cell[0] for cell in cells]
+    rows = len(moved)
+    state = generation._WeekdayPass(
+        moved=moved, held={}, where=tuple([1] + [0] * 59), facts=None, word="", widths=False,
+        kinds={}, holes=frozenset(), lows=[moved[0] - 3600] * rows, highs=[moved[-1] + 3600] * rows,
+        keep_units=True, unit=60, step=60, day=DAY, bins="minute", period=60, keeps="hour",
+        count_steps=False, kin=tuple(range(24)),
+    )
+    for ordinal in moved:
+        generation._weekday_tally(state.held, ordinal // 60, 1)
+    return state, rows, [cell[1] for cell in cells]
+
+
+@pytest.mark.parametrize("merging", [True, False])
+def test_the_paid_searches_grow_with_the_rows_behind_a_wall(merging: bool) -> None:
+    """Lane J2's Codex verifier, item 3: a wall of pairs whose moves keep no count stands
+    between the runs and the payers that keep it; every merge and spread succeeds. On cdd3add
+    each payer read the wall again -- `_clock_payer_place` asked 23,375 / 93,314 / 374,626
+    times (PUT BACK) and 31,001 / 124,501 / 499,001 (SPREAD) at 125 / 250 / 500 weeks, the
+    lines run 3.4 to 3.9 times as the rows doubled. Each payer's status is now kept as the
+    ranks move and each payer found by halving (`_ClockKeeps`): doubling the rows at most a
+    little more than doubles the lines run, the count met and every weekday count kept."""
+    spent: "list[int]" = []
+    for weeks in (40, 80, 160):
+        state, rows, pinned = _wall_state(weeks, merging)
+        count = generation._weekday_count(state)
+        weekdays = collections.Counter((ordinal // DAY + 3) % 7 for ordinal in state.moved)
+        wanted = count - weeks if merging else count + weeks
+        step = generation._clock_paid_put_back if merging else generation._clock_paid_spread
+        spent += [_lines_run(step, state, 0, rows - 1, pinned, wanted, tuple(range(7)))]
+        assert generation._weekday_count(state) == wanted, (weeks, merging)
+        assert collections.Counter((ordinal // DAY + 3) % 7 for ordinal in state.moved) == weekdays
     assert spent[1] <= 2.4 * spent[0] and spent[2] <= 2.4 * spent[1], spent
 
 

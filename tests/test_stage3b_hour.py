@@ -1273,8 +1273,8 @@ STEP_MUTANTS = {
     ),
     "the first payer goes, keeping the count or not": (
         "hour_paid_keeping",
-        "                if alone != _weekday_holds(state, place):\n                    chosen = (rank, place)",
-        "                if False:\n                    chosen = (rank, place)",
+        "    if alone != _weekday_holds(state, place):\n        return 2",
+        "    if False:\n        return 2",
     ),
     "payers too few are never given back": (
         "hour_paid_given_back",
@@ -1464,7 +1464,7 @@ def _paid_work(case: dict, monkeypatch: pytest.MonkeyPatch) -> "dict[str, int]":
             False, (), True,
         )
     found["set entries"] = _CountedSet.written
-    found["cursors"] = len(books[0].cursor)
+    found["days laid out"] = sum(len(layout.days) for layout in books[0].layouts.values())
     found["hour 12"] = sum(1 for ordinal in state.moved if (ordinal % DAY) // 3600 == 12)
     return found
 
@@ -1491,7 +1491,9 @@ def test_the_payers_work_grows_with_the_rows_alone(monkeypatch: pytest.MonkeyPat
     32,000 at 0.44 to 6.54 CPU seconds), and read 3,206 and 6,406 days. Each payer now joins
     the set in place -- 200 and 400 entries -- and the days are met once for the unit (809
     and 1,609), so doubling the unit at most doubles every count: the set entries, the days
-    read and the places asked (400 and 800). Every rank still meets hour 12."""
+    read and the places asked (400 and 800). Every rank still meets hour 12. Laid out once
+    a standing (lane J2's Codex verifier, item 3): 415 and 815 days read, 201 and 401
+    places asked."""
     small = _paid_work(_paid_state(200, 0), monkeypatch)
     large = _paid_work(_paid_state(400, 0), monkeypatch)
     assert (small["hour 12"], large["hour 12"]) == (406, 806)
@@ -1507,12 +1509,14 @@ def test_the_payers_work_does_not_grow_with_the_empty_calendar(monkeypatch: pyte
     read -- and kept a cursor for each day of the payers' standing it read, empty or not
     (2,002 and 4,002, Codex's own counts). The walk now steps over the days holding ranks
     alone, outward from the unit's day, once for the unit: 57 days read and 2 cursors at
-    both spans, every count at 2,000 weeks that at 1,000."""
+    both spans, every count at 2,000 weeks that at 1,000. Since lane J2's Codex verifier
+    (item 3) the walk is laid out once a standing and each payer found by halving: 39 days
+    read and 2 days laid out at both spans."""
     near = _paid_work(_paid_state(12, 1000), monkeypatch)
     far = _paid_work(_paid_state(12, 2000), monkeypatch)
     assert near["hour 12"] == far["hour 12"] == 30
     assert far == near, (near, far)
-    assert near["cursors"] <= 4 and near["days read"] <= 100, near
+    assert near["days laid out"] <= 4 and near["days read"] <= 100, near
 
 
 @pytest.mark.parametrize("name", CASES)
