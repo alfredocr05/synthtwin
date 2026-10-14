@@ -1482,7 +1482,7 @@ STEP_MUTANTS = {
     ),
     "SPREAD's escape withdrawn": (
         "field_spread",
-        "            target = _clock_escape(\n                state, here, low, high, 1, have, want, standing, anyday, kin\n            )",
+        "            target = _clock_escape(\n                state, here, low, high, 1, have, want, standing, anyday, kin, days\n            )",
         "            target = None",
     ),
     "the tails keep no count at midnight": (
@@ -2016,6 +2016,78 @@ def test_the_paid_count_steps_grow_with_the_rows() -> None:
         )]
         assert generation._weekday_count(state) == count, weeks
     assert spent[1] <= 1.25 * 9 * spent[0], ("failing", spent)
+
+
+def _far_state(weeks: int, merging: bool, payers: str, blocked: bool = False):
+    """Codex's review of lane J2, item 3: `weeks` Mondays from 2024-01-08 in one gap, each
+    weekday its own standing, each hour its own kin group, minute 0 the heap's group. PUT
+    BACK (`merging`): each Monday holds one rank alone at 01:20; the last of them a pinned
+    01:40, and the Tuesday after it a pinned 01:20, the one unit of another standing each run
+    can join, `weeks` days away and more. SPREAD: each Monday holds two ranks at 01:00; the last
+    a pinned 01:30. The payers stand at 01:40 (01:30 for SPREAD): `weeks + 1` of them on that
+    last Tuesday (`payers` "one"), or one alone on each of the `weeks + 1` Tuesdays after it
+    ("each"), every payer far from most runs. Where `blocked` (SPREAD), a pinned rank holds
+    01:00 on each Tuesday before the last, so each run's place is far too. Asked: `weeks`
+    values fewer (PUT BACK) or more (SPREAD)."""
+    first = 19730  # 2024-01-08, a Monday
+    last = first + 7 * (weeks - 1)
+    cells: "list[tuple[int, bool]]" = []
+    clock = 1 * 3600 + (20 if merging else 0) * 60
+    pay = 1 * 3600 + (40 if merging else 30) * 60
+    for week in range(weeks):
+        monday = first + 7 * week
+        cells += [(monday * DAY + clock, False)] * (1 if merging else 2)
+        if blocked and week < weeks - 1:
+            cells += [((monday + 1) * DAY + 3600, True)]
+    cells += [(last * DAY + pay, True)]
+    if merging:
+        cells += [((last + 1) * DAY + clock, True)]
+    if payers == "one":
+        cells += [((last + 1) * DAY + pay, False)] * (weeks + 1)
+    else:
+        cells += [((last + 1 + 7 * week) * DAY + pay, False) for week in range(1, weeks + 2)]
+    cells = sorted(cells)
+    moved = [cell[0] for cell in cells]
+    rows = len(moved)
+    state = generation._WeekdayPass(
+        moved=moved, held={}, where=tuple([1] + [0] * 59), facts=None, word="", widths=False,
+        kinds={}, holes=frozenset(), lows=[moved[0] - 3600] * rows, highs=[moved[-1] + 3600] * rows,
+        keep_units=True, unit=60, step=60, day=DAY, bins="minute", period=60, keeps="hour",
+        count_steps=False, kin=tuple(range(24)),
+    )
+    for ordinal in moved:
+        generation._weekday_tally(state.held, ordinal // 60, 1)
+    return state, rows, [cell[1] for cell in cells]
+
+
+def _far_lines(weeks: int, merging: bool, payers: str, blocked: bool = False) -> int:
+    """The lines one far state's paid step runs, its count met and every weekday count kept."""
+    state, rows, pinned = _far_state(weeks, merging, payers, blocked)
+    count = generation._weekday_count(state)
+    weekdays = collections.Counter((ordinal // DAY + 3) % 7 for ordinal in state.moved)
+    wanted = count - weeks if merging else count + weeks
+    step = generation._clock_paid_put_back if merging else generation._clock_paid_spread
+    spent = _lines_run(step, state, 0, rows - 1, pinned, wanted, tuple(range(7)))
+    assert generation._weekday_count(state) == wanted, (weeks, merging, payers, blocked)
+    assert collections.Counter((ordinal // DAY + 3) % 7 for ordinal in state.moved) == weekdays
+    return spent
+
+
+@pytest.mark.parametrize(
+    "merging, payers, blocked",
+    [(True, "one", False), (True, "each", False), (False, "one", False), (False, "each", False),
+     (False, "each", True)],
+)
+def test_the_paid_searches_grow_with_the_rows_however_far(merging: bool, payers: str, blocked: bool) -> None:
+    """Codex's review of lane J2, item 3: PUT BACK's runs join a unit of another standing
+    `weeks` days away and more, and SPREAD's payers -- and, `blocked`, its places -- stand as
+    far; every merge and spread succeeds. On e69e534 the day checks grew four times as the rows
+    doubled (PUT BACK 1,990 / 8,180 / 33,160 / 133,520 at 43 / 83 / 163 / 323 rows; SPREAD
+    3W^2/4 + W occupied-day comparisons). The searches now read only the days of the standing
+    they ask that hold a place, a unit to join or a payer not yet spent, each found by halving,
+    so doubling the rows at most a little more than doubles the lines run (n log n)."""
+    spent = [_far_lines(weeks, merging, payers, blocked) for weeks in (40, 80, 160)]
+    assert spent[1] <= 2.4 * spent[0] and spent[2] <= 2.4 * spent[1], spent
 
 
 def _substitute_state(days: int):

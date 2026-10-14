@@ -140,6 +140,7 @@ structure arrives in a later phase (Phase 5).
 
 import dataclasses
 import math
+import typing
 from synthtwin import calendar_clock, calendar_rules, contract, dialect, errors, parsing, taxonomy
 # -- 3b.R4 (P4-D384): the twelve systems that write dates as counts.
 from synthtwin import date_counts
@@ -28693,6 +28694,7 @@ def _clock_escape(
     standing: "tuple[int, ...]",
     anyday: bool = False,
     kin: "tuple[int, ...]" = (),
+    full: "_ClockFullDays | None" = None,
 ) -> "int | None":
     """THE ESCAPE (G7.3g step 3): SAMEPARENT's place on another parent.
 
@@ -28706,6 +28708,12 @@ def _clock_escape(
     (`anyday`) and no day of its standing has a place, the nearest day of
     another weekday on the same terms. On each, SAMEPARENT's place
     (`_clock_target_on`); None where no parent of the gap has one.
+
+    Given SPREAD's index of full days (`full`; Codex's review of lane J2,
+    item 3) and one group with room, the days are those of the index not
+    full for that group, each standing's nearest found by halving, the
+    nearer first and the earlier on a tie: the same day, asked in the same
+    order, never a day passed over again.
     """
     span = state.unit * state.period
     per_day = state.day // span
@@ -28725,6 +28733,29 @@ def _clock_escape(
     width = _weekday_width_kind(state, ordinal)
     first = low // state.day
     last = high // state.day
+    rooms = [group for group in range(len(want)) if have[group] + size <= want[group]]
+    if full is not None and len(rooms) == 1:
+        for kept in [True, False] if anyday else [True]:
+            near: "tuple[int, int, int] | None" = None
+            for into in sorted(set(standing)):
+                if (into == own) != kept:
+                    continue
+                skips = full.skips_for(state, seat, rooms[0], into, width)
+                if skips is None:
+                    continue
+                for forward in (False, True):
+                    for other in _clock_skip_days(skips, day, first, last, forward):
+                        if near is not None and (abs(other - day), other) >= (near[0], near[1]):
+                            break
+                        target = _clock_target_on(
+                            state, other * per_day + seat, ordinal, low, high, size, have, want
+                        )
+                        if target is not None:
+                            near = (abs(other - day), other, target)
+                            break
+            if near is not None:
+                return near[2]
+        return None
     for kept in [True, False] if anyday else [True]:
         for away in range(1, max(day - first, last - day) + 1):
             for other in (day - away, day + away):
@@ -28748,6 +28779,313 @@ def _clock_escape(
 _CLOCK_PAYER_REACH = 1024
 
 
+class _ClockDaySkips:
+    """Days of a fixed ascending list, some PASSED OVER, asked for the nearest
+    day not passed over at or after, or at or before, a place in the list
+    (Codex's review of lane J2, item 3).
+
+    `days` is the list, `place` each day's index in it, which several
+    skips over one list may share. Only the marks are stored: `marked`
+    holds, for each node of a halving tree over the places, how many places
+    below it are passed over, so a mark and a question each cost the
+    logarithm of the list's length, however many days lie passed over
+    between a place and its answer. Raises nothing. No I/O.
+    """
+
+    def __init__(self, days: "list[int]", place: "dict[int, int]") -> None:
+        self.days = days
+        self.place = place
+        size = 1
+        while size < len(days):
+            size = size * 2
+        self.size = size
+        self.marked: "dict[int, int]" = {}
+
+    def mark(self, day: int, passed: bool) -> None:
+        """Pass `day` over, or no longer; a day not in the list is ignored."""
+        if day not in self.place:
+            return
+        node = self.size + self.place[day]
+        if (node in self.marked) == passed:
+            return
+        change = 1 if passed else -1
+        while node >= 1:
+            count = (self.marked[node] if node in self.marked else 0) + change
+            if count:
+                self.marked[node] = count
+            else:
+                del self.marked[node]
+            node = node // 2
+
+    def _whole(self, node: int) -> bool:
+        """Whether every place below `node` is passed over."""
+        width = self.size >> (node.bit_length() - 1)
+        return (self.marked[node] if node in self.marked else 0) >= width
+
+    def after(self, index: int) -> int:
+        """The first place at or after `index` not passed over; the list's
+        length where none is."""
+        length = len(self.days)
+        if index >= length:
+            return length
+        node = self.size + max(index, 0)
+        if node not in self.marked:
+            return node - self.size
+        found = False
+        while node > 1 and not found:
+            if node % 2 == 0 and not self._whole(node + 1):
+                node = node + 1
+                found = True
+            else:
+                node = node // 2
+        if not found:
+            return length
+        while node < self.size:
+            node = 2 * node if not self._whole(2 * node) else 2 * node + 1
+        return min(node - self.size, length)
+
+    def before(self, index: int) -> int:
+        """The last place at or before `index` not passed over; -1 where none is."""
+        if index < 0:
+            return -1
+        node = self.size + min(index, len(self.days) - 1)
+        if node not in self.marked:
+            return node - self.size
+        found = False
+        while node > 1 and not found:
+            if node % 2 == 1 and not self._whole(node - 1):
+                node = node - 1
+                found = True
+            else:
+                node = node // 2
+        if not found:
+            return -1
+        while node < self.size:
+            node = 2 * node + 1 if not self._whole(2 * node + 1) else 2 * node
+        return node - self.size
+
+
+class _ClockJoins:
+    """PUT BACK PAID BACK's units to join, by day (Codex's review of lane
+    J2, item 3: a run `weeks` days from the one unit of another standing it
+    could join asked every day between, once for each run).
+
+    Made once a step from `by_parent` -- the written units ranks held as
+    the step began, the only units `_clock_merge_on` asks -- leaving out a
+    unit at a written midnight and a parent on a hole day, neither ever
+    joined: for each parent's place in the day, group of the field, day
+    standing and width kind, the days whose parent holds such a unit,
+    ascending, and a `_ClockDaySkips` passing over each whose units no rank
+    holds now, kept as each rank moves (`moved`). So the days asked are
+    those `_clock_merge_on` would answer, each found by halving.
+    Raises nothing. No I/O.
+    """
+
+    def __init__(
+        self, state: "_WeekdayPass", by_parent: "dict[int, list[int]]", standing: "tuple[int, ...]"
+    ) -> None:
+        span = state.unit * state.period
+        self.per_day = state.day // span
+        self.lists: "dict[tuple[int, int, int, bool], _ClockDaySkips]" = {}
+        self.where: "dict[int, tuple[int, int]]" = {}
+        self.live: "dict[tuple[int, int], int]" = {}
+        self.listed: "dict[tuple[int, int], tuple[int, int, int, bool]]" = {}
+        self.held: "set[int]" = set()
+        grouped: "dict[tuple[int, int, int, bool], list[int]]" = {}
+        for parent in sorted(by_parent):
+            day = parent // self.per_day
+            if day in state.holes:
+                continue
+            seat = parent - day * self.per_day
+            into = standing[calendar_rules.weekday_of(day)]
+            width = _weekday_width_kind(state, day * state.day)
+            for key in by_parent[parent]:
+                if _written_at_midnight(key * state.step, 0, state.step):
+                    continue
+                group = state.where[_clock_bin(state, key * state.step)]
+                self.where[key] = (parent, group)
+                if (parent, group) not in self.live:
+                    self.live[(parent, group)] = 0
+                    listed = (seat, group, into, width)
+                    self.listed[(parent, group)] = listed
+                    if listed in grouped:
+                        days = grouped[listed]
+                        days += [day]
+                    else:
+                        grouped[listed] = [day]
+                if key in state.held and state.held[key] > 0:
+                    self.live[(parent, group)] = self.live[(parent, group)] + 1
+                    self.held |= {key}
+        for listed in grouped:
+            days = grouped[listed]
+            self.lists[listed] = _ClockDaySkips(
+                days, {day: index for index, day in enumerate(days)}
+            )
+        for key_pair in self.live:
+            if self.live[key_pair] == 0:
+                self.lists[self.listed[key_pair]].mark(key_pair[0] // self.per_day, True)
+
+    def moved(self, state: "_WeekdayPass", before: int, after: int) -> None:
+        """A rank moved from written unit `before` to `after`: each listed
+        unit whose holding changed, its day passed over or no longer."""
+        for key in (before, after):
+            if key not in self.where:
+                continue
+            now = key in state.held and state.held[key] > 0
+            if now == (key in self.held):
+                continue
+            if now:
+                self.held |= {key}
+            else:
+                self.held -= {key}
+            parent_group = self.where[key]
+            count = self.live[parent_group] + (1 if now else -1)
+            self.live[parent_group] = count
+            if count == 0 or (now and count == 1):
+                self.lists[self.listed[parent_group]].mark(
+                    parent_group[0] // self.per_day, count == 0
+                )
+
+
+class _ClockFullDays:
+    """SPREAD PAID BACK's days with no free place, by day (Codex's review
+    of lane J2, item 3: a run whose nearer days of another standing held
+    no place for it asked each of them again, once for each run).
+
+    A parent is FULL for a group of the field where every written unit of
+    that group's bins there is held or at a written midnight: no rank of
+    the group finds a free place on it (`_clock_free`). `fill` counts the
+    held units of each parent and group, kept as each rank moves
+    (`moved`). Asked for a parent's place in the day, a group, a day
+    standing and a width kind, the days of the step from its first gap's
+    first day to its last gap's last, no hole, of that standing and kind,
+    ascending (made once a standing and kind), and a `_ClockDaySkips` over
+    them passing over each full day (made once a place, group, standing
+    and kind). So the days asked are those `_clock_target_on` would give a
+    place on for that group alone, each found by halving.
+    Raises nothing. No I/O.
+    """
+
+    def __init__(
+        self, state: "_WeekdayPass", standing: "tuple[int, ...]", first: int, last: int
+    ) -> None:
+        span = state.unit * state.period
+        self.per_day = state.day // span
+        self.standing = standing
+        self.first = first
+        self.last = last
+        self.fill: "dict[tuple[int, int], int]" = {}
+        self.by_seat: "dict[tuple[int, int], dict[int, int]]" = {}
+        self.held: "set[int]" = set()
+        self.days: "dict[tuple[int, bool], tuple[list[int], dict[int, int]]]" = {}
+        self.skips: "dict[tuple[int, int, int, bool], _ClockDaySkips | None]" = {}
+        self.wholes: "dict[tuple[int, int], int]" = {}
+        for key in state.held:
+            if state.held[key] > 0:
+                self.moved(state, key, key)
+
+    def _counted(self, state: "_WeekdayPass", key: int) -> "tuple[int, int] | None":
+        """A written unit's parent and group, None at a written midnight."""
+        if _written_at_midnight(key * state.step, 0, state.step):
+            return None
+        return (key * state.step) // (state.unit * state.period), state.where[
+            _clock_bin(state, key * state.step)
+        ]
+
+    def capacity(self, state: "_WeekdayPass", seat: int, group: int) -> int:
+        """How many written units a parent at `seat` holds in `group`'s
+        bins, the written midnight's left out."""
+        if (seat, group) in self.wholes:
+            return self.wholes[(seat, group)]
+        bins = 0
+        for field in range(state.period):
+            if state.where[field] == group:
+                bins = bins + 1
+        whole = bins * (state.unit // state.step)
+        if seat == 0 and state.where[0] == group:
+            whole = whole - 1
+        self.wholes[(seat, group)] = whole
+        return whole
+
+    def moved(self, state: "_WeekdayPass", before: int, after: int) -> None:
+        """A rank moved from written unit `before` to `after`: each parent
+        whose fullness changed, its day passed over or no longer."""
+        for key in (before, after):
+            now = key in state.held and state.held[key] > 0
+            if now == (key in self.held):
+                continue
+            counted = self._counted(state, key)
+            if now:
+                self.held |= {key}
+            else:
+                self.held -= {key}
+            if counted is None:
+                continue
+            parent, group = counted
+            count = (self.fill[counted] if counted in self.fill else 0) + (1 if now else -1)
+            self.fill[counted] = count
+            day = parent // self.per_day
+            seat = parent - day * self.per_day
+            if (seat, group) in self.by_seat:
+                filled = self.by_seat[(seat, group)]
+                filled[day] = count
+            else:
+                self.by_seat[(seat, group)] = {day: count}
+            whole = self.capacity(state, seat, group)
+            if (count >= whole) == (count - (1 if now else -1) >= whole):
+                continue
+            listed = (
+                seat, group, self.standing[calendar_rules.weekday_of(day)],
+                _weekday_width_kind(state, day * state.day),
+            )
+            if listed in self.skips:
+                skips = self.skips[listed]
+                if skips is not None:
+                    skips.mark(day, count >= whole)
+
+    def skips_for(
+        self, state: "_WeekdayPass", seat: int, group: int, into: int, width: bool
+    ) -> "_ClockDaySkips | None":
+        """The skips over the days of standing `into` and kind `width`
+        passing over each whose parent at `seat` is full for `group`; None
+        where every such parent is full however the ranks stand."""
+        listed = (seat, group, into, width)
+        if listed in self.skips:
+            return self.skips[listed]
+        whole = self.capacity(state, seat, group)
+        if whole <= 0:
+            self.skips[listed] = None
+            return None
+        if (into, width) not in self.days:
+            days = [
+                day for day in range(self.first, self.last + 1)
+                if self.standing[calendar_rules.weekday_of(day)] == into
+                and _weekday_width_kind(state, day * state.day) == width
+                and not _weekday_hole(state, day * state.day)
+            ]
+            self.days[(into, width)] = (days, {day: index for index, day in enumerate(days)})
+        days, place = self.days[(into, width)]
+        made = _ClockDaySkips(days, place)
+        filled = self.by_seat[(seat, group)] if (seat, group) in self.by_seat else {}
+        for day in filled:
+            if filled[day] >= whole:
+                made.mark(day, True)
+        self.skips[listed] = made
+        return made
+
+
+@dataclasses.dataclass(frozen=True)
+class _ClockWalk:
+    """The occupied days of one day standing, ascending, each day's place
+    among them, and for each standing a payer may be asked to go to the
+    skips passing over each day whose ranks are spent for it (Codex's
+    review of lane J2, item 3)."""
+
+    days: "list[int]"
+    place: "dict[int, int]"
+    skips: "dict[int, _ClockDaySkips]"
+
+
 @dataclasses.dataclass(frozen=True)
 class _ClockPayerBook:
     """Where the payers of THE ESCAPE PAID BACK are looked for (lane J).
@@ -28763,12 +29101,28 @@ class _ClockPayerBook:
     review of lane J, item 3), so no cursor is kept for a day no rank
     stands on and no empty stretch of the calendar is walked. It changes
     which ranks are asked never, only how often one with no place is.
+
+    NO DAY READ TWICE IN VAIN (Codex's review of lane J2, item 3: a run
+    `weeks` days from its payers walked every occupied day of the other
+    standings between, once for each run). `walks` holds, for each day
+    standing and each standing a payer may be asked to go to, the occupied
+    days of the first, ascending, and a `_ClockDaySkips` passing over each
+    whose cursor for the second is at its end -- marked as its cursor
+    reaches it, cleared with its cursors -- so the walk reads only days of
+    the standing it asks that still hold a rank to ask, each found by
+    halving. `watch` holds the step's own indexes (`_ClockJoins`,
+    `_ClockFullDays`), kept as each rank moves. Neither changes which rank
+    is asked, nor in what order.
     """
 
     days: "dict[int, list[int]]"
     home: "dict[int, int]"
     cursor: "dict[int, dict[int, int]]"
     occupied: "list[int]"
+    walks: "dict[tuple[tuple[int, ...], int], _ClockWalk]" = dataclasses.field(
+        default_factory=dict
+    )
+    watch: "dict[str, _ClockJoins | _ClockFullDays]" = dataclasses.field(default_factory=dict)
 
 
 def _clock_payer_book(
@@ -28795,12 +29149,18 @@ def _clock_book_moved(
 ) -> None:
     """Move one rank (`_weekday_step`); in step 3's paid round, a rank moving
     onto the day it stood on when the round began clears that day's cursors."""
+    before = state.moved[rank] // state.step
     _weekday_step(state, rank, target)
     if book is None:
         return
     day = target // state.day
     if rank in book.home and book.home[rank] == day and day in book.cursor:
         del book.cursor[day]
+        for walk in book.walks.values():
+            for skips in walk.skips.values():
+                skips.mark(day, False)
+    for index in book.watch.values():
+        index.moved(state, before, target // state.step)
 
 
 def _clock_payers(
@@ -28862,7 +29222,7 @@ def _clock_payers(
     taken: "list[tuple[int, int]]" = []
     asked = set(unit)
     centre = state.moved[unit[0]] // state.day
-    occupied = book.occupied
+    occupied, skips = _clock_payer_walk(book, standing, into, origin)
     above = _clock_days_before(occupied, centre)
     below = above - 1
     if above < len(occupied) and occupied[above] == centre:
@@ -28876,7 +29236,11 @@ def _clock_payers(
         seen = False
         at = start
         while not keeping and after < _CLOCK_PAYER_REACH:
-            while at == len(order) and (below >= 0 or above < len(occupied)):
+            while at == len(order):
+                below = skips.before(below)
+                above = skips.after(above)
+                if below < 0 and above >= len(occupied):
+                    break
                 if above >= len(occupied) or (
                     below >= 0 and centre - occupied[below] <= occupied[above] - centre
                 ):
@@ -28885,8 +29249,7 @@ def _clock_payers(
                 else:
                     met = occupied[above]
                     above = above + 1
-                if standing[calendar_rules.weekday_of(met)] == into:
-                    order += [met]
+                order += [met]
             if at == len(order):
                 break
             day = order[at]
@@ -28926,6 +29289,8 @@ def _clock_payers(
                     break
             marks[origin] = skipped
             book.cursor[day] = marks
+            if skipped >= len(ranks):
+                skips.mark(day, True)
         if chosen is None:
             for rank, before in reversed(taken):
                 _clock_book_moved(state, book, rank, before)
@@ -28936,6 +29301,27 @@ def _clock_payers(
         while start < len(order) and _clock_day_spent(book, order[start], origin):
             start = start + 1
     return len(taken)
+
+
+def _clock_payer_walk(
+    book: _ClockPayerBook, standing: "tuple[int, ...]", into: int, origin: int
+) -> "tuple[list[int], _ClockDaySkips]":
+    """The occupied days of standing `into`, ascending, and the skips passing
+    over each whose ranks are spent for `origin` (`_ClockPayerBook.walks`),
+    each made once a book (Codex's review of lane J2, item 3)."""
+    if (standing, into) not in book.walks:
+        days = [day for day in book.occupied if standing[calendar_rules.weekday_of(day)] == into]
+        book.walks[(standing, into)] = _ClockWalk(
+            days=days, place={day: index for index, day in enumerate(days)}, skips={}
+        )
+    walk = book.walks[(standing, into)]
+    if origin not in walk.skips:
+        made = _ClockDaySkips(walk.days, walk.place)
+        for day in walk.days:
+            if _clock_day_spent(book, day, origin):
+                made.mark(day, True)
+        walk.skips[origin] = made
+    return walk.days, walk.skips[origin]
 
 
 def _clock_day_spent(book: _ClockPayerBook, day: int, origin: int) -> bool:
@@ -28957,6 +29343,25 @@ def _clock_days_before(days: "list[int]", centre: int) -> int:
         else:
             high = middle
     return low
+
+
+def _clock_skip_days(
+    skips: _ClockDaySkips, day: int, first: int, last: int, forward: bool
+) -> "typing.Iterator[int]":
+    """The days of `skips` not passed over, from `day` outward on one side --
+    after it to `last`, or before it to `first` -- the nearer first (Codex's
+    review of lane J2, item 3)."""
+    days = skips.days
+    if forward:
+        at = skips.after(_clock_days_before(days, day + 1))
+        while at < len(days) and days[at] <= last:
+            yield days[at]
+            at = skips.after(at + 1)
+    else:
+        at = skips.before(_clock_days_before(days, day) - 1)
+        while at >= 0 and days[at] >= first:
+            yield days[at]
+            at = skips.before(at - 1)
 
 
 def _clock_payer_place(
@@ -29021,6 +29426,40 @@ def _clock_paid_escape(
     width = _weekday_width_kind(state, ordinal)
     first = low // state.day
     last = high // state.day
+    full = book.watch["full"] if "full" in book.watch else None
+    rooms = [group for group in range(len(want)) if have[group] + size <= want[group]]
+    if isinstance(full, _ClockFullDays) and len(rooms) == 1:
+        # SPREAD's own (Codex's review of lane J2, item 3): each other
+        # standing's nearest day with a place, found by halving over its
+        # days not full for the group (`_ClockFullDays`), asked in the
+        # walk's order -- the nearer first, the earlier on a tie.
+        found: "list[tuple[int, int, int, int]]" = []
+        for into in sorted(set(standing)):
+            if into == own or (own, into) in refused:
+                continue
+            skips = full.skips_for(state, seat, rooms[0], into, width)
+            if skips is None:
+                continue
+            near: "tuple[int, int] | None" = None
+            for forward in (False, True):
+                for other in _clock_skip_days(skips, day, first, last, forward):
+                    if near is not None and other - day >= day - near[0]:
+                        break
+                    target = _clock_target_on(
+                        state, other * per_day + seat, ordinal, low, high, size, have, want
+                    )
+                    if target is not None:
+                        near = (other, target)
+                        break
+            if near is not None:
+                found += [(abs(near[0] - day), near[0], into, near[1])]
+        for _distance, _other, into, target in sorted(found):
+            paid = _clock_payers(state, book, unit, own, into, standing, strict)
+            if paid == size:
+                return target
+            if paid == 0:
+                refused |= {(own, into)}
+        return None
     asked: "set[int]" = set()
     for away in range(1, max(day - first, last - day) + 1):
         for other in (day - away, day + away):
@@ -30513,6 +30952,9 @@ def _clock_short_spread(
     span = state.unit * state.period
     groups = max(state.where) + 1
     full: "set[tuple[int, int, int, int]]" = set()
+    days: "_ClockFullDays | None" = None
+    if count < wanted and state.unit % state.step == 0:
+        days = _clock_full_days(state, body_low, body_high, standing)
     for rank in range(body_low, body_high + 1):
         if count >= wanted:
             return
@@ -30530,12 +30972,14 @@ def _clock_short_spread(
         target = _clock_target_on(state, here // span, here, low, high, 1, have, want)
         if target is None:
             target = _clock_escape(
-                state, here, low, high, 1, have, want, standing, anyday, kin
+                state, here, low, high, 1, have, want, standing, anyday, kin, days
             )
         if target is None:
             full |= {asked}
             continue
         _weekday_step(state, rank, target)
+        if days is not None:
+            days.moved(state, here // state.step, target // state.step)
         count = count + 1
 
 
@@ -30585,6 +31029,9 @@ def _clock_paid_spread(
     full: "set[tuple[int, int, int, int, int]]" = set()
     book: "_ClockPayerBook | None" = None
     refused: "set[tuple[int, int]]" = set()
+    days: "_ClockFullDays | None" = None
+    if state.unit % state.step == 0:
+        days = _clock_full_days(state, body_low, body_high, standing)
     for rank in range(body_low, body_high + 1):
         if count >= wanted:
             return
@@ -30604,12 +31051,16 @@ def _clock_paid_spread(
         if asked not in unpaid:
             target = _clock_target_on(state, here // span, here, low, high, 1, have, want)
             if target is None:
-                target = _clock_escape(state, here, low, high, 1, have, want, standing, False, kin)
+                target = _clock_escape(
+                    state, here, low, high, 1, have, want, standing, False, kin, days
+                )
             if target is None:
                 unpaid |= {asked}
         if target is None:
             if book is None:
                 book = _clock_payer_book(state, body_low, body_high, pinned)
+                if days is not None:
+                    book.watch["full"] = days
             target = _clock_paid_escape(
                 state, book, [rank], low, high, have, want, standing, refused, True
             )
@@ -30617,7 +31068,22 @@ def _clock_paid_spread(
             full |= {asked}
             continue
         _clock_book_moved(state, book, rank, target)
+        if book is None and days is not None:
+            days.moved(state, here // state.step, target // state.step)
         count = count + 1
+
+
+def _clock_full_days(
+    state: _WeekdayPass, body_low: int, body_high: int, standing: "tuple[int, ...]"
+) -> _ClockFullDays:
+    """SPREAD PAID BACK's index of full days over every body gap's days
+    (Codex's review of lane J2, item 3)."""
+    first = state.lows[body_low]
+    last = state.highs[body_low]
+    for rank in range(body_low, body_high + 1):
+        first = min(first, state.lows[rank])
+        last = max(last, state.highs[rank])
+    return _ClockFullDays(state, standing, first // state.day, last // state.day)
 
 
 def _clock_spread_substituted(
@@ -30793,6 +31259,41 @@ def _clock_paid_merge_target(
     width = _weekday_width_kind(state, ordinal)
     earliest = low // state.day
     latest = high // state.day
+    joins = book.watch["joins"] if "joins" in book.watch else None
+    if isinstance(joins, _ClockJoins):
+        # Codex's review of lane J2, item 3: each other standing's nearest
+        # day holding a unit to join, found by halving over the days whose
+        # parent at the run's place holds one of its group (`_ClockJoins`),
+        # asked in the walk's order -- the nearer first, the earlier on a tie.
+        group = state.where[_clock_bin(state, ordinal)]
+        found: "list[tuple[int, int, int, int]]" = []
+        for into in sorted(set(standing)):
+            if into == own or (own, into) in refused:
+                continue
+            if (seat, group, into, width) not in joins.lists:
+                continue
+            skips = joins.lists[(seat, group, into, width)]
+            near: "tuple[int, int] | None" = None
+            for forward in (False, True):
+                for other in _clock_skip_days(skips, day, earliest, latest, forward):
+                    if near is not None and other - day >= day - near[0]:
+                        break
+                    target = _clock_merge_on(state, first, by_parent, other * per_day + seat)
+                    if target is not None:
+                        near = (other, target)
+                        break
+            if near is not None:
+                found += [(abs(near[0] - day), near[0], into, near[1])]
+        for _distance, _other, into, target in sorted(found):
+            paid = _clock_payers(
+                state, book, members, own, into, standing, True, target // state.step,
+                ordinal // state.step,
+            )
+            if paid == len(members):
+                return target
+            if paid == 0:
+                refused |= {(own, into)}
+        return None
     asked: "set[int]" = set()
     for away in range(1, max(day - earliest, latest - day) + 1):
         for other in (day - away, day + away):
@@ -30885,6 +31386,8 @@ def _clock_paid_put_back(
             for members in _clock_rotated(alike, count - wanted)
         ]
     book = _clock_payer_book(state, body_low, body_high, pinned)
+    if state.unit % state.step == 0:
+        book.watch["joins"] = _ClockJoins(state, by_parent, standing)
     refused: "set[tuple[int, int]]" = set()
     failed: "set[tuple[int, int, int, int, int]]" = set()
     for key, listed in order:
