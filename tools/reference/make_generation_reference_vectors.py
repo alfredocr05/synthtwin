@@ -674,7 +674,7 @@ def decimal_to_fraction(text):
     binary64 beside each one is a claim the proof layer re-derives
     rather than a transcription of whatever a Python literal happened to
     produce.  The grammar is the one this file writes: an optional sign,
-    digits, an optional fraction, an optional ``e`` exponent.
+    digits, an optional fraction, an optional ``e`` or ``E`` exponent.
     """
     body = text
     sign = 1
@@ -683,8 +683,11 @@ def decimal_to_fraction(text):
     elif body.startswith("+"):
         body = body[1:]
     exponent = 0
-    if "e" in body:
-        body, _, power = body.partition("e")
+    # THE EXPONENT MARK IS READ IN EITHER CASE (Codex's review of lane L1,
+    # item 4): G8.3a writes `E` in a case-blind letter place, and `01E309`
+    # is a number too large to hold exactly as `01e309` is.
+    if "e" in body or "E" in body:
+        body, _, power = body.replace("E", "e").partition("e")
         exponent = int(power)
     if "." in body:
         whole, _, fraction = body.partition(".")
@@ -7898,13 +7901,16 @@ def clock_forms_past_their_times(owing, counts, most):
 
 def form_walk_bounds(form, figured=False):
     """(how many steps a walk of one form may take in all, how many one
-    pass may try): the form's room up to STAND_IN_STEPS for both, or, for
+    pass may try): the form's room for both, bounded by walk_goes_on
+    since lane L1, or, for
     a clock's form written to a fraction of the second and not filled
     figure by figure, its whole supply and STAND_IN_STEPS."""
     supply = 0 if figured else fraction_clock_supply(form)
     if supply:
         return supply, STAND_IN_STEPS
-    room = min(form_room(form), STAND_IN_STEPS)
+    # The form's whole room: the walk goes on while walk_goes_on says
+    # (lane L1, method G9.5), as a held-back label's does.
+    room = form_room(form)
     return room, room
 
 
@@ -8135,6 +8141,87 @@ def within_the_published_ends(candidate, ladder):
     )
 
 
+def overflow_parts(form):
+    """(figures before the letter, figures after it, the least exponent that
+    overflows: 309 plus the mantissa's figures after its mark) -- lane L1."""
+    at = min(i for i, ch in enumerate(form) if ch in (SHAPE_LETTER, SHAPE_LOWER))
+    head = form[:at]
+    marks = [i for i, ch in enumerate(head) if ch in ".,"]
+    pointed = head[marks[-1] + 1:].count(SHAPE_DIGIT) if marks else 0
+    return head.count(SHAPE_DIGIT), form[at + 1:].count(SHAPE_DIGIT), 309 + pointed
+
+
+def overflow_room(form):
+    """How many spellings overflow_spelling writes of one form, or 0 (lane L1)."""
+    letters = sum(1 for ch in form if ch in (SHAPE_LETTER, SHAPE_LOWER))
+    if letters != 1:
+        return 0
+    before, after, least = overflow_parts(form)
+    if before < 1 or 10 ** after <= least:
+        return 0
+    return (10 ** before - 1) * (10 ** after - least)
+
+
+def overflow_spelling(form, step):
+    """One spelling of a form too large for binary64 -- G8.3a (lane L1).
+
+    `E` (`e` in a lower-case place) in the one letter place, a mantissa of
+    nought-padded figures from one up before it and an exponent from 309
+    up after it, stepped round the room by `stepped_around`.
+    """
+    room = overflow_room(form)
+    if room < 1:
+        return ""
+    before, after, least = overflow_parts(form)
+    place = stepped_around(step % room, room)
+    count = 10 ** after - least
+    figures = "%0*d" % (before, 1 + place // count) + "%0*d" % (after, least + place % count)
+    out = []
+    taken = 0
+    for ch in form:
+        if ch == SHAPE_DIGIT:
+            out.append(figures[taken])
+            taken += 1
+        elif ch == SHAPE_LETTER:
+            out.append("E")
+        elif ch == SHAPE_LOWER:
+            out.append("e")
+        else:
+            out.append(ch)
+    return "".join(out)
+
+
+def overflow_filling(form):
+    """`1`, noughts, `E`, then nines -- the probe of form_also_reads (lane L1)."""
+    if sum(1 for ch in form if ch in (SHAPE_LETTER, SHAPE_LOWER)) != 1:
+        return ""
+    out, after, first = [], False, True
+    for ch in form:
+        if ch == SHAPE_DIGIT:
+            out.append("9" if after else ("1" if first else "0"))
+            first = False
+        elif ch in (SHAPE_LETTER, SHAPE_LOWER):
+            out.append("E" if ch == SHAPE_LETTER else "e")
+            after = True
+        else:
+            out.append(ch)
+    return "".join(out)
+
+
+def form_also_reads(form, reads):
+    """Whether a form read as a number can ALSO write ``reads`` -- G8.3a
+    (lane L1, K-S3-61): words where its first filling is text, numbers too
+    large to hold where its overflow filling is one."""
+    if form_reading(form) != NOTATION_NUMBER:
+        return False
+    if reads == NOTATION_TEXT:
+        return notation_reading(filled_form(form, 0))[0] == NOTATION_TEXT
+    if reads == NOTATION_OUT_OF_RANGE:
+        probe = overflow_filling(form)
+        return bool(probe) and notation_reading(probe)[0] == NOTATION_OUT_OF_RANGE
+    return False
+
+
 def usable_room(form, wanted, seen, folds, reads=None, ladder=None, whole=False):
     """How many spellings of one form a stand-in could still wear, up to
     ``wanted`` -- method section G8.3's supply rule.
@@ -8152,6 +8239,9 @@ def usable_room(form, wanted, seen, folds, reads=None, ladder=None, whole=False)
     """
     supply = 0 if whole else clock_supply(form)
     room = supply if supply else form_room(form)
+    overflowing = reads == NOTATION_OUT_OF_RANGE and form_also_reads(form, reads)
+    if overflowing:
+        room = overflow_room(form)
     usable = refused = 0
     step = 0
     while (
@@ -8162,7 +8252,7 @@ def usable_room(form, wanted, seen, folds, reads=None, ladder=None, whole=False)
         if usable >= wanted:
             return usable
         refused += 1
-        candidate = filled_form(form, step)
+        candidate = overflow_spelling(form, step) if overflowing else filled_form(form, step)
         step += 1
         if candidate in seen or folded(candidate) in folds:
             continue
@@ -8448,7 +8538,7 @@ def shared_out(sizes, owing, seen, folds, supplied=None, past=()):
 
 def invented_levels(
     used, sizes, census=None, written=(), placed=None, level_shape="",
-    line=None, past=None,
+    line=None, past=None, classes=None,
 ):
     """The stand-in labels of method sections G8.3 and G8.3a.
 
@@ -8504,9 +8594,26 @@ def invented_levels(
         for spelling in placed.values():
             seen.add(spelling)
             folds.add(folded(spelling))
+        paid = {}
+        for place, spelling in placed.items():
+            worn = census_form(spelling, owing)
+            if worn in owing:
+                paid[worn] = paid.get(worn, 0) + sizes[place]
+        # Of what the classes left of a form whose first filling is text,
+        # the words take what shared_forms_kept kept for them (lane L1,
+        # K-S3-61).
+        for_words = shared_forms_kept(
+            written, sizes, classes or {}, owing
+        ).get(OWED_TEXT, {})
         for form in sorted(owing):
             if form_reading(form) != NOTATION_TEXT:
-                owing[form] = 0
+                if form_also_reads(form, NOTATION_TEXT):
+                    owing[form] = min(
+                        max(0, owing[form] - paid.get(form, 0)),
+                        for_words.get(form, 0),
+                    )
+                else:
+                    owing[form] = 0
         wordy = [place for place in range(len(sizes)) if place not in placed]
     settled = shared_out(
         [sizes[place] for place in wordy], owing, seen, folds,
@@ -9067,15 +9174,27 @@ def number_ladder(written, forms):
     # is the same reading; `plain_units` answers for the SPELLINGS the
     # walk of step 3 can step from, which is the narrower question.
     span = []
+    # WHICH PUBLISHED NUMBERS ARE WRITTEN WITHOUT AN EXPONENT, and the
+    # width every published number of figures alone shares where one of
+    # them opens with a nought (lane L1, plan P4-D390).
+    plain = []
+    widths = set()
+    zero_led = False
     for cell in dict.fromkeys(written):
         if notation_reading(cell)[0] != NOTATION_NUMBER:
             continue
+        bare = cell.strip()
+        if bare and all(ch in "0123456789" for ch in bare):
+            widths.add(len(bare))
+            zero_led = zero_led or (len(bare) > 1 and bare[0] == "0")
         span.append(float(decimal_to_fraction(cell.strip())))
         # EVERY ACCEPTED SPELLING ANCHORS THE LADDER (plan P4-D268), read
         # a second way where the plain reading refuses it.
         units = anchor_units(cell, span[-1])
         if units is not None:
             parsed.append(units)
+            plain.append("e" not in bare and "E" not in bare)
+    padded = sorted(widths)[0] if zero_led and len(widths) == 1 else 0
     ends = {"least": min(span) if span else 0.0,
             "greatest": max(span) if span else 0.0,
             "spanned": bool(span)}
@@ -9086,7 +9205,8 @@ def number_ladder(written, forms):
         tiers = (places, 0) if places > 0 else (0,)
         return {"lowest": 0, "highest": 0, "places": places,
                 "signs": {"positive"}, "anchored": False, "published": set(),
-                "tiers": tiers, **ends}
+                "tiers": tiers, "padded": padded, "steps": None, "cap": 0,
+                **ends}
     places = max(pair[1] for pair in parsed)
     values = [value * 10 ** (places - own) for value, own in parsed]
     signs = set()
@@ -9095,9 +9215,40 @@ def number_ladder(written, forms):
     # EVERY COUNT OF PLACES A PUBLISHED NUMBER WAS WRITTEN WITH, finest
     # first: a number wearing no named form walks them in turn.
     tiers = tuple(sorted({own for _value, own in parsed}, reverse=True))
-    return {"lowest": min(values), "highest": max(values), "places": places,
-            "signs": signs, "anchored": True, "published": set(values),
-            "tiers": tiers, **ends}
+    built = {"lowest": min(values), "highest": max(values), "places": places,
+             "signs": signs, "anchored": True, "published": set(values),
+             "tiers": tiers, "padded": padded, "steps": None, "cap": 0, **ends}
+    # THE OUTWARD WALK OF A NUMBER WEARING NO NAMED FORM steps from the
+    # published numbers written without an exponent (lane L1, plan
+    # P4-D390); where every one wears an exponent, no plain number is
+    # wider than the longest published label, and where even the number
+    # nearest nought is wider, that walk steps up from nought.
+    if any(plain):
+        own = [value for value, bare in zip(values, plain) if bare]
+        ends_of = (min(own), max(own))
+    else:
+        built["cap"] = max(len(cell.strip()) for cell in dict.fromkeys(written))
+        nearest = min(abs(value) for value in values)
+        ends_of = None
+        if whole_figures(nearest, places) > built["cap"]:
+            ends_of = (0, 0)
+    if ends_of is not None and ends_of != (built["lowest"], built["highest"]):
+        built["steps"] = dict(built, lowest=ends_of[0], highest=ends_of[1])
+    return built
+
+
+def walk_ladder(ladder):
+    """The ladder a number wearing no named form walks outward on (lane L1)."""
+    return ladder["steps"] if ladder.get("steps") is not None else ladder
+
+
+def padded_to_the_source(candidate, ladder):
+    """A made-up whole number at the published codes' own width (lane L1):
+    figures alone narrower than ``ladder["padded"]`` take noughts in front."""
+    width = ladder.get("padded", 0)
+    if width <= len(candidate) or not candidate.isdigit():
+        return candidate
+    return "0" * (width - len(candidate)) + candidate
 
 
 def sign_held(value, signs):
@@ -9157,9 +9308,21 @@ def outward_at(ladder, places, position, low_ended=False, high_ended=False):
     high_held = not high_ended and sign_held(high, ladder["signs"])
     if not low_held and not high_held:
         return ("end", None, None)
+    # A PUBLISHED VALUE IS SKIPPED ON THE OUTWARD STEPS TOO (G8.3a, lane L1:
+    # every published number marks its value taken), which a walk stepping
+    # from the numbers written without an exponent can reach.
     if (position - 2 * half) % 2 == 0:
-        return ("here", low, "low") if low_held else ("skip", None, "low")
-    return ("here", high, "high") if high_held else ("skip", None, "high")
+        mine, side = low, "low"
+        held = low_held
+    else:
+        mine, side = high, "high"
+        held = high_held
+    if held and places >= ladder["places"]:
+        factor = 10 ** (places - ladder["places"])
+        held = not (mine % factor == 0 and mine // factor in ladder["published"])
+    elif held:
+        held = mine * 10 ** (ladder["places"] - places) not in ladder["published"]
+    return ("here", mine, side) if held else ("skip", None, side)
 
 
 def whole_figures(units, places):
@@ -9280,11 +9443,12 @@ def next_on_ladder(ladder, name, cursor, named, seen, folds, needed=0, pool=None
     # published, or the widest plain form the census names, bounds a
     # counted form the census does not name, pool or no pool.
     widest = -1
+    walk = walk_ladder(ladder)
     if bounded:
         widest = max(
-            [whole_figures(ladder["lowest"], ladder["places"]),
-             whole_figures(ladder["highest"], ladder["places"])]
-            if ladder["anchored"] else [0]
+            [whole_figures(walk["lowest"], walk["places"]),
+             whole_figures(walk["highest"], walk["places"])]
+            if walk["anchored"] else [0]
         )
         widest = max([widest] + [form_whole_figures(form) for form in named])
     for places in tiers:
@@ -9302,7 +9466,8 @@ def next_on_ladder(ladder, name, cursor, named, seen, folds, needed=0, pool=None
             cursor[key] - cursor[empty], cursor[given]
         ):
             state, units, side = outward_at(
-                ladder, places, cursor[key], low in cursor, high in cursor
+                walk if name == OWED_NUMBER else ladder, places, cursor[key],
+                low in cursor, high in cursor,
             )
             if state == "end":
                 cursor[ended] = 1
@@ -9311,7 +9476,19 @@ def next_on_ladder(ladder, name, cursor, named, seen, folds, needed=0, pool=None
             if state == "skip":
                 cursor[empty] += 1
                 continue
+            if name == OWED_NUMBER and ladder.get("cap", 0) and (
+                whole_figures(units, places) > ladder["cap"]
+            ):
+                # Wider than any cell the column shows (lane L1): a side
+                # only widens past here, so it ends.
+                if side == "high" and units > 0:
+                    cursor[high] = 1
+                if side == "low" and units < 0:
+                    cursor[low] = 1
+                continue
             candidate = units_spelled(units, places)
+            if name == OWED_NUMBER:
+                candidate = padded_to_the_source(candidate, ladder)
             wearing = ""
             form = census_form(candidate, named)
             if name == OWED_NUMBER:
@@ -9445,6 +9622,7 @@ def pooled_step(ladder, wanted, asked, named, seen, folds, needed, pool, widest)
     offered; each refusal steps one place outward, below then above, and
     on outward.  The refusals are G8.3a's own, read from the method: a
     sign no published number has, a spelling the column already uses, a
+    value a published number holds however that number is written, a
     form the census names where the group was asked for none, a counted
     form the census pooled nothing for, the neutrality tests, and a
     whole figure wider than the width rule allows.
@@ -9484,6 +9662,19 @@ def pooled_step(ladder, wanted, asked, named, seen, folds, needed, pool, widest)
                 reach > 0 and whole_figures(units, places) > reach
             ):
                 continue
+            # No group owing no form is placed wider than the longest
+            # published label where every published number wears an
+            # exponent (G8.3a's cap, lane L1), as on the walk.
+            if not asked and ladder.get("cap", 0) and (
+                whole_figures(units, places) > ladder["cap"]
+            ):
+                continue
+            # Nor at a value a published number holds, however that
+            # number is written (G8.3c step 3, the L1 Codex repair): the
+            # value placed, read exactly, against every published value.
+            held = F(units, 10 ** places) * 10 ** ladder["places"]
+            if held.denominator == 1 and held.numerator in ladder["published"]:
+                continue
             plain = units_spelled(units, places)
             worn = census_form(plain, named)
             # A candidate that already WEARS the form the group owes is
@@ -9502,6 +9693,8 @@ def pooled_step(ladder, wanted, asked, named, seen, folds, needed, pool, widest)
             )
             if not spelling or (not asked and (worn in named or overpaid)):
                 continue
+            if not asked:
+                spelling = padded_to_the_source(spelling, ladder)
             taken = spelling in seen or folded(spelling) in folds
             if not taken and usable_of_class(
                 spelling, NOTATION_NUMBER, asked if dressing else ""
@@ -9737,12 +9930,13 @@ def pooled_placements(
     """
     middle = wire_value(scale["mean"])
     widest = 0
+    walk = walk_ladder(ladder)
     if bounded:
         widest = max(
             (
-                [whole_figures(ladder["lowest"], ladder["places"]),
-                 whole_figures(ladder["highest"], ladder["places"])]
-                if ladder["anchored"] else [0]
+                [whole_figures(walk["lowest"], walk["places"]),
+                 whole_figures(walk["highest"], walk["places"])]
+                if walk["anchored"] else [0]
             )
             + [form_whole_figures(form) for form in named]
         )
@@ -9933,8 +10127,8 @@ def class_stand_ins(column, written, used, sizes, census):
                 column, written, used, sizes, census, bounded, True
             )
             if numbers_paid(sizes, wider_classes, wider) > paid:
-                return wider, wider_debts
-    return placed, debts
+                return wider, wider_debts, wider_classes
+    return placed, debts, classes
 
 
 def numbers_paid(sizes, classes, placed):
@@ -9960,19 +10154,94 @@ def class_form_stand_in(form, reads, walked, taken, seen, folds, ladder=None):
     numbers' own ends (P4-D92).
     """
     room_left = form_room(form)
-    walked.setdefault(form, 0)
-    taken.setdefault(form, 0)
-    while walk_goes_on(walked[form], taken[form], room_left):
-        trial = filled_form(form, walked[form])
-        walked[form] += 1
+    overflowing = reads == NOTATION_OUT_OF_RANGE and form_also_reads(form, reads)
+    key = form
+    if overflowing:
+        # The out-of-range class walks a form it shares on a cursor of its
+        # own, every spelling too large to hold (lane L1).
+        room_left = overflow_room(form)
+        key = form + OWED_OUT_OF_RANGE
+    walked.setdefault(key, 0)
+    taken.setdefault(key, 0)
+    while walk_goes_on(walked[key], taken[key], room_left):
+        trial = (
+            overflow_spelling(form, walked[key]) if overflowing
+            else filled_form(form, walked[key])
+        )
+        walked[key] += 1
         if trial in seen or folded(trial) in folds:
             continue
         if usable_of_class(trial, reads) and (
             ladder is None or within_the_published_ends(trial, ladder)
         ):
-            taken[form] += 1
+            taken[key] += 1
             return trial
     return ""
+
+
+def shared_forms_kept(written, sizes, classes, owing):
+    """{class: {form: cells}} kept of each shared form before the number
+    class is offered it -- G8.3a (lane L1, K-S3-61): the out-of-range class
+    up to its held-back cells, then the words up to what their own text
+    forms leave, where a published label of the form is a word or none is.
+    """
+    shared = [
+        form for form in sorted(owing)
+        if owing[form] > 0 and form_reading(form) == NOTATION_NUMBER
+        and (form_also_reads(form, NOTATION_TEXT)
+             or form_also_reads(form, NOTATION_OUT_OF_RANGE))
+    ]
+    if not shared:
+        return {}
+    reading = {}
+    for cell in written:
+        form = census_form(cell, owing)
+        if form in owing:
+            reading.setdefault(form, set()).add(notation_reading(cell)[0])
+    out_of_range = sum(
+        sizes[place] for place in classes if classes[place] == OWED_OUT_OF_RANGE
+    )
+    words = sum(sizes[place] for place in range(len(sizes)) if place not in classes)
+    words -= sum(
+        owing[form] for form in owing
+        if owing[form] > 0 and form_reading(form) == NOTATION_TEXT
+    )
+    kept = {OWED_OUT_OF_RANGE: {}, OWED_TEXT: {}}
+    room = {form: owing[form] for form in shared}
+    # Three rounds (lane L1 repair): each class first from the forms its
+    # own published labels wear, then from the forms no label wears, and
+    # last the out-of-range class from the forms labelled otherwise.
+    for rounded in range(3):
+        for form in shared:
+            seen_as = reading.get(form, set())
+            if rounded == 0:
+                beyond = NOTATION_OUT_OF_RANGE in seen_as
+                worded = NOTATION_TEXT in seen_as
+            elif rounded == 1:
+                beyond = worded = not seen_as
+            else:
+                beyond = bool(seen_as) and NOTATION_OUT_OF_RANGE not in seen_as
+                worded = False
+            if out_of_range > 0 and beyond and (
+                form_also_reads(form, NOTATION_OUT_OF_RANGE)
+            ):
+                given = min(room[form], out_of_range)
+                if given > 0:
+                    kept[OWED_OUT_OF_RANGE][form] = (
+                        kept[OWED_OUT_OF_RANGE].get(form, 0) + given
+                    )
+                out_of_range -= given
+                room[form] -= given
+            if words > 0 and worded and form_also_reads(form, NOTATION_TEXT):
+                given = min(room[form], words)
+                if given > 0:
+                    kept[OWED_TEXT][form] = kept[OWED_TEXT].get(form, 0) + given
+                words -= given
+                room[form] -= given
+    return kept
+
+
+OWED_TEXT = " text"
 
 
 def class_stand_ins_walked(
@@ -10012,15 +10281,24 @@ def class_stand_ins_walked(
     counters = {}
     walked = {}
     taken = {}
+    # What each form still owes once the classes before have written, and
+    # the cells of a shared form kept for the classes after (lane L1).
+    left = dict(owing)
+    kept = shared_forms_kept(written, sizes, classes, owing)
     for name in OWED_CLASSES:
         reads = owed_reading(name)
         mine = [place for place in range(len(sizes)) if classes.get(place) == name]
         if not mine:
             continue
-        mine_forms = {
-            form: owing[form] for form in sorted(owing)
-            if owing[form] > 0 and form_reading(form) == reads
-        }
+        mine_forms = {}
+        for form in sorted(left):
+            if form_reading(form) != reads and not form_also_reads(form, reads):
+                continue
+            here = left[form] - sum(
+                kept[later].get(form, 0) for later in kept if later != name
+            )
+            if here > 0:
+                mine_forms[form] = here
         sub = [sizes[place] for place in mine]
         room = {}
         for form in sorted(mine_forms):
@@ -10146,6 +10424,9 @@ def class_stand_ins_walked(
                 seen.add(found)
                 folds.add(folded(found))
                 placed[place] = found
+                worn = census_form(found, left)
+                if worn in left:
+                    left[worn] = max(0, left[worn] - sizes[place])
     return placed, debts, classes
 
 
@@ -10741,7 +11022,7 @@ def _label_content(column):
     # class count unpaid, those levels are written as numbers first.
     placed = None
     if sizes and max(classes_owed(column, content).values()) > 0:
-        placed, _debts = class_stand_ins(column, content, used, sizes, census)
+        placed, _debts, classes = class_stand_ins(column, content, used, sizes, census)
     # THE SHAPE A STAND-IN OWED NO NAMED FORM TAKES (landing 2b.18 part 2).
     level_shape = published_level_shape(column)
     # THE CLOCK LINE THE TWIN IS HELD BELOW (the repair round of landing
@@ -10759,7 +11040,7 @@ def _label_content(column):
     else:
         stand_ins = invented_levels(
             used, sizes, census, content, placed=placed,
-            level_shape=level_shape, line=line, past=past,
+            level_shape=level_shape, line=line, past=past, classes=classes,
         )
     for spelling, size in stand_ins:
         content.extend([spelling] * size)

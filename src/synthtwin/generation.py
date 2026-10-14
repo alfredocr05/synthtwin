@@ -13385,13 +13385,62 @@ def _grid_units(text: str, figures: int) -> "int | None":
     for character in digits:
         if character < "0" or character > "9":
             return None
-    return sign * int(digits)
+    # READ IN PIECES (lane L1, plan P4-D384): Python refuses to read an
+    # integer of more than 4,300 figures from text, and a column whose
+    # cells are written to 5,000 places raised `ValueError` here out of
+    # `synthtwin generate`.
+    return sign * _whole_of_figures(digits)
+
+
+# THE MOST FIGURES READ OR WRITTEN AS ONE PIECE: below Python's default
+# limit on the length of integer text, 4,300 (lane L1, plan P4-D384).
+_PIECE_FIGURES = 4000
+
+# THE LEAST WHOLE NUMBER WRITTEN IN PIECES, `10 ** _PIECE_FIGURES`, worked
+# out once: worked out on every call it cost about 21 microseconds, 1.67 s
+# of a 20.4 s generate over 80,316 calls (lane L1 repair).
+_PIECE_LIMIT = 10**_PIECE_FIGURES
+
+
+def _whole_of_figures(digits: str) -> int:
+    """Figures as a whole number, read in pieces of at most `_PIECE_FIGURES`.
+
+    Exact: the halves are joined by a power of ten, so the number is as
+    long as the text and no piece meets Python's limit on integer text.
+    Guarantees: accepts a string of figures; returns its whole number.
+    Determinism: a function of the text. Raises ValueError where the
+    text holds anything but figures. No I/O of any kind.
+    """
+    if len(digits) <= _PIECE_FIGURES:
+        return int(digits)
+    half = len(digits) // 2
+    head: int = _whole_of_figures(digits[:half])
+    scale: int = 10 ** (len(digits) - half)
+    return head * scale + _whole_of_figures(digits[half:])
+
+
+def _figures_of_whole(number: int) -> str:
+    """A whole number of nought or more as its figures, written in pieces.
+
+    The inverse of `_whole_of_figures`: past `_PIECE_FIGURES` figures the
+    number is split by a power of ten and each half written, the lower
+    half padded to its width. Guarantees: a function of the number.
+    Raises nothing for a number of nought or more. No I/O of any kind.
+    """
+    if number < _PIECE_LIMIT:
+        return str(number)
+    figures = _PIECE_FIGURES
+    while number >= 10 ** (figures * 2):
+        figures = figures * 2
+    head, tail = divmod(number, 10 ** figures)
+    low = _figures_of_whole(tail)
+    return _figures_of_whole(head) + ("0" * (figures - len(low))) + low
 
 
 def _grid_at(units: int, figures: int) -> str:
     """The grid text a whole number of grid units names."""
     sign = "-" if units < 0 else ""
-    digits = str(abs(units))
+    digits = _figures_of_whole(abs(units))
     if figures == 0:
         return f"{sign}{digits}."
     if len(digits) < figures + 1:
@@ -40445,10 +40494,30 @@ def _label_content(
         )
         # WHAT IS LEFT FOR WORDS, and only the forms words can wear: a
         # number-reading form is paid inside the number class or not at
-        # all.
+        # all -- except a form whose first filling is text (`12A345`),
+        # which words also wear: of what the classes left of its count,
+        # the words take what `_shared_forms_kept` kept for them and no
+        # more, so a shared form left unpaid takes no word a form only
+        # words wear is owed (lane L1, plan P4-D390, `K-S3-61`).
+        shared_kept = _shared_forms_kept(cells, sizes, classes, owing, comma)
+        for_words: "dict[str, int]" = {}
+        if _OWED_TEXT in shared_kept:
+            for_words = shared_kept[_OWED_TEXT]
+        paid: "dict[str, int]" = {}
+        for place in written_as:
+            worn = parsing.census_form(written_as[place], owing)
+            if worn in owing:
+                if worn not in paid:
+                    paid[worn] = 0
+                paid[worn] = paid[worn] + sizes[place]
         for form in sorted(owing):
             if _form_reading(form, comma) != parsing.NOT_A_NUMBER:
-                owing[form] = 0
+                if _form_also_reads(form, parsing.NOT_A_NUMBER, comma):
+                    spent = paid[form] if form in paid else 0
+                    words_kept = for_words[form] if form in for_words else 0
+                    owing[form] = min(max(0, owing[form] - spent), words_kept)
+                else:
+                    owing[form] = 0
     # NAMED FOR ITSELF rather than reusing `wanted`, which this module
     # already binds to a COUNT and to a STYLE NAME elsewhere: the strict
     # type check reads one name as one type per scope, and three
@@ -40874,17 +40943,35 @@ def _class_stand_ins_walked(
     taken: "dict[str, int]" = {}
     numbers_made = 0
     scaled = 0
+    # WHAT EACH FORM STILL OWES once the classes before have written
+    # (lane L1, plan P4-D390): a form one class shares with another
+    # (`_form_also_reads`) is offered to the second for what the first
+    # left, so the two together pay its count and never more.
+    left = dict(owing)
+    kept = _shared_forms_kept(
+        written, sizes, classes, owing, decimal_comma
+    )
     for name in _OWED_CLASSES:
         reads_as = _owed_reading(name)
         mine = [place for place in range(len(sizes)) if place in classes
                 and classes[place] == name]
         if not mine:
             continue
-        mine_forms = {
-            form: owing[form]
-            for form in sorted(owing)
-            if owing[form] > 0 and _form_reading(form, decimal_comma) == reads_as
-        }
+        mine_forms: "dict[str, int]" = {}
+        for form in sorted(left):
+            if _form_reading(form, decimal_comma) == reads_as:
+                owed_here = left[form]
+            elif _form_also_reads(form, reads_as, decimal_comma):
+                owed_here = left[form]
+            else:
+                continue
+            # THE CELLS KEPT FOR THE CLASSES AFTER THIS ONE are not
+            # offered to it (`_shared_forms_kept`).
+            for later in kept:
+                if later != name and form in kept[later]:
+                    owed_here = owed_here - kept[later][form]
+            if owed_here > 0:
+                mine_forms[form] = owed_here
         sub = tuple([sizes[place] for place in mine])
         room: "dict[str, int]" = {}
         for form in sorted(mine_forms):
@@ -41038,6 +41125,9 @@ def _class_stand_ins_walked(
             owners[parsing.folded(found)] = found
             written_as[place] = found
             asked[place] = form
+            worn = parsing.census_form(found, left)
+            if worn in left:
+                left[worn] = max(0, left[worn] - sizes[place])
             if name == _OWED_NUMBER:
                 numbers_made = numbers_made + 1
             if at_the_scale:
@@ -42066,6 +42156,11 @@ def _usable_room(
     """
     supply = 0 if whole else _clock_supply(form)
     room = supply if supply else _form_room(form)
+    overflowing = reads_as == parsing.NUMBER_OUT_OF_RANGE and _form_also_reads(
+        form, reads_as, decimal_comma
+    )
+    if overflowing:
+        room = _overflow_room(form)
     usable = 0
     refused = 0
     step = 0
@@ -42077,7 +42172,7 @@ def _usable_room(
         if usable >= wanted:
             return usable
         refused = refused + 1
-        candidate = _filled_form(form, step)
+        candidate = _class_filling(form, step, overflowing)
         step = step + 1
         if candidate in used or parsing.folded(candidate) in owners:
             continue
@@ -42448,9 +42543,14 @@ def _form_walk_bounds(form: str, figured: bool = False) -> "tuple[int, int]":
     """How many steps the free text's walk of one form's spellings may
     take in all, and how many one pass of it may try (G8.3, G9.5).
 
-    A held-back label's walk is bounded by what it refuses instead
-    (`_walk_goes_on`, plan P4-D390). Every form: its room, and never more
-    than `_STAND_IN_STEPS`, for both. A clock's form written to a fraction of the second, unless it
+    Every form: its room, for both, the walk itself going on only while
+    `_walk_goes_on` says -- bounded by what it refuses, as a held-back
+    label's walk is (plan P4-D390). It was the room and never more than
+    `_STAND_IN_STEPS` in all, so a free-text column of 10,000 durations
+    `HH:MM:SS`, each written once, wrote 4,096 in their form and the other
+    5,904 as made-up text such as `!!!!!!"N`, missing the form's count and
+    stopping code that splits every cell on its colons (lane L1, method
+    G9.5). A clock's form written to a fraction of the second, unless it
     is filled figure by figure: its whole clock supply in all, and
     `_STAND_IN_STEPS` a pass (`_fraction_clock_supply`).
 
@@ -42460,7 +42560,7 @@ def _form_walk_bounds(form: str, figured: bool = False) -> "tuple[int, int]":
     supply = 0 if figured else _fraction_clock_supply(form)
     if supply:
         return supply, _STAND_IN_STEPS
-    room = min(_form_room(form), _STAND_IN_STEPS)
+    room = _form_room(form)
     return room, room
 
 
@@ -42985,8 +43085,18 @@ def _form_asks(
     kinds: "list[int] | None" = None,
     bands: "list[int] | None" = None,
     rewording: bool = False,
+    exact: bool = False,
 ) -> "list[str]":
     """One form asked of each group, decided LARGEST GROUP FIRST.
+
+    ``exact`` says the census pools no cell (no withheld key), so a form
+    paid past its count is MISSED. There, A GROUP LARGER THAN WHAT ITS
+    FORM STILL OWES IS NOT ASKED FOR IT while the groups after it --
+    smaller, in this order -- cover what the form still owes (lane L1,
+    method G9.5 step 7): a free-text column of 887 `HH:MM` times beside
+    113 spaced `9:15 AM` at 1,000 rows and a floor of 36 asked its last
+    form debt of one cell of a group of two, wrote 888 times and missed
+    the form's count, with 98 groups of one still to come.
 
     ``kinds``, where given, is each group's class, and a group is offered
     only forms whose spellings read as that class (`_wanted_form`).
@@ -43029,7 +43139,14 @@ def _form_asks(
     left = dict(owing)
     spare = list(budget)
     order = sorted([(0 - groups[place], place) for place in range(total)])
-    for pair in order:
+    # THE CELLS OF THE GROUPS STILL TO COME after each step of the order.
+    after: "list[int]" = [0 for _each in order]
+    running = 0
+    for step in range(len(order) - 1, -1, -1):
+        after[step] = running
+        running = running + groups[order[step][1]]
+    for step in range(len(order)):
+        pair = order[step]
         place = pair[1]
         reads: "str | None" = None
         if kinds is not None:
@@ -43059,11 +43176,112 @@ def _form_asks(
             stands,
             rewords,
         )
+        if (
+            exact
+            and form
+            and groups[place] > left[form]
+            and after[step] >= left[form]
+        ):
+            form = ""
         asks[place] = form
         if form:
             left[form] = max(0, left[form] - groups[place])
             _spend_length(spare, len(form) - lengths[place], groups[place])
     return asks
+
+
+def _fold_slot_order(
+    facts: "contract.TextFacts",
+    groups: "tuple[int, ...]",
+    lengths: "list[int]",
+    counts: "list[int]",
+    carriers: "tuple[int, int]",
+    kinds: "list[int]",
+    bands: "list[int]",
+    folded: int,
+    truth_places: "frozenset[int]" = frozenset(),
+) -> "list[int] | None":
+    """The order a free-text walk takes its groups in, where the fold slots move (G9.3, G9.5).
+
+    ``truth_places`` are the groups a workbook writes as truth values
+    (plan P4-D198): none of them moves into a slot, where it would be
+    written as a partner and its truth value lost (lane L1 leftover,
+    skeptic 2 item 2).
+
+    The groups from ``folded`` on carry the fold-collision partners
+    (`_partner_of`). A slot `_form_asks` would ask a form with no letter
+    place changes places with the last group before ``folded`` of its own
+    planned length that is asked no such form and carries no published
+    end, one slot to one group, so the slots are groups a case flip can serve and the form is
+    paid by the groups that write their own spellings (lane L1 repair).
+    Position ``p`` of the answer holds the group ``answer[p]``. None
+    where no slot is so asked, and the walk keeps the column's order.
+
+    Guarantees: a fixed function of the eight. Raises nothing. No I/O
+    of any kind.
+    """
+    total = len(groups)
+    if folded < 1 or folded >= total:
+        return None
+    owing = _text_debt(facts)
+    if not [form for form in owing if not _form_holds_a_letter(form)]:
+        return None
+    first = _form_asks(
+        owing,
+        groups,
+        lengths,
+        counts,
+        carriers,
+        facts.length.minimum,
+        facts.length.maximum,
+        _length_budget(facts, groups, lengths),
+        kinds,
+        bands,
+        False,
+        contract.WITHHELD not in facts.shape_forms,
+    )
+    bare: "dict[int, bool]" = {}
+    for place in range(total):
+        if first[place] and not _form_holds_a_letter(first[place]):
+            bare[place] = True
+    # THE GROUPS THAT MAY MOVE, by their planned length: a slot takes one
+    # of its own length where one is left, so the lengths the plan laid
+    # out stay where they were and the published average with them.
+    movable: "dict[int, list[int]]" = {}
+    for place in range(folded):
+        if place in truth_places:
+            continue
+        if place not in bare and place not in carriers:
+            if lengths[place] not in movable:
+                movable[lengths[place]] = []
+            movable[lengths[place]] += [place]
+    cursors: "dict[int, int]" = {}
+    for length in movable:
+        cursors[length] = len(movable[length]) - 1
+    order = [place for place in range(total)]
+    changed = False
+    for slot in range(folded, total):
+        if slot not in bare or slot in carriers:
+            continue
+        want = lengths[slot]
+        if want not in cursors or cursors[want] < 0:
+            continue
+        other = movable[want][cursors[want]]
+        cursors[want] = cursors[want] - 1
+        order[slot] = other
+        order[other] = slot
+        changed = True
+    if not changed:
+        return None
+    return order
+
+
+def _form_holds_a_letter(form: str) -> bool:
+    """Whether a form has a place for a letter, so a case flip can wear it."""
+    for character in form:
+        if character == parsing.SHAPE_LETTER or character == parsing.SHAPE_LOWER:
+            return True
+    return False
 
 
 def _length_affords(moved: int, budget: "list[int]") -> bool:
@@ -44048,6 +44266,297 @@ def _exponent_filling(form: str) -> str:
     return spelled
 
 
+def _overflow_filling(form: str) -> str:
+    """One filling of a form of one letter place that overflows binary64, or "".
+
+    `E` in the letter place, `1` in the first figure place and `0` in the
+    others before it, and `9` in every figure place after it: `%@%%%%%`
+    fills to `1E99999`, a number too large to hold, and `%@%%` to `1E99`,
+    which is not one. Empty where the form holds no letter place or more
+    than one. It carries no fragment of any real value, on the ground
+    `_exponent_filling` states.
+
+    Guarantees: a function of the form. Raises nothing. No I/O.
+    """
+    letters = 0
+    for character in form:
+        if character == parsing.SHAPE_LETTER or character == parsing.SHAPE_LOWER:
+            letters = letters + 1
+    if letters != 1:
+        return ""
+    spelled = ""
+    after = False
+    first = True
+    for character in form:
+        if character == parsing.SHAPE_DIGIT:
+            if after:
+                spelled = spelled + "9"
+            elif first:
+                spelled = spelled + "1"
+            else:
+                spelled = spelled + "0"
+            first = False
+        elif character == parsing.SHAPE_LETTER:
+            spelled = spelled + "E"
+            after = True
+        elif character == parsing.SHAPE_LOWER:
+            spelled = spelled + "e"
+            after = True
+        else:
+            spelled = spelled + character
+    return spelled
+
+
+def _overflow_parts(form: str) -> "tuple[int, int, int]":
+    """A form of one letter place as (figures before it, figures after it,
+    the least exponent that overflows): 309, and one more for each figure
+    of the mantissa after its mark, since `0.1E309` is a number."""
+    before = 0
+    after = 0
+    pointed = 0
+    lettered = False
+    for character in form:
+        if character == parsing.SHAPE_DIGIT:
+            if lettered:
+                after = after + 1
+            else:
+                before = before + 1
+                if pointed:
+                    pointed = pointed + 1
+        elif character == parsing.SHAPE_LETTER or character == parsing.SHAPE_LOWER:
+            lettered = True
+        elif not lettered and (character == "." or character == ","):
+            pointed = 1
+    return before, after, 309 + max(pointed - 1, 0)
+
+
+def _overflow_room(form: str) -> int:
+    """How many spellings `_overflow_spelling` writes of one form, or nought."""
+    if not _overflow_filling(form):
+        return 0
+    before, after, least = _overflow_parts(form)
+    if before < 1 or _ten_to(after) <= least:
+        return 0
+    return (_ten_to(before) - 1) * (_ten_to(after) - least)
+
+
+def _overflow_spelling(form: str, step: int) -> str:
+    """One spelling of a form that overflows binary64 (lane L1, plan P4-D390).
+
+    THE OUT-OF-RANGE CLASS'S OWN WALK OF A SHARED FORM. `_filled_form`
+    steps every letter through fifty-two, so a filling of `%%@%%%` that
+    overflows -- an `E` with an exponent of 309 or more -- came about one
+    step in forty, and the walk, giving up where `_walk_goes_on` says,
+    found 112 of them for 353 held-back codes of that kind. This writes
+    them outright: `E` (or `e` in a lower-case place) in the letter place,
+    a mantissa of nought-padded figures from one up before it, and an
+    exponent from 309 up after it -- one more for each figure of the
+    mantissa after its mark -- stepped round the room
+    (`_stepped_around`) so successive spellings differ in their leading
+    figures. Every spelling reads as a number too large to hold. Empty
+    where `_overflow_room` is nought.
+
+    Guarantees: a function of the two. Raises nothing. No I/O.
+    """
+    room = _overflow_room(form)
+    if room < 1:
+        return ""
+    before, after, least = _overflow_parts(form)
+    place = _stepped_around(step % room, room)
+    exponents = _ten_to(after) - least
+    mantissa = 1 + place // exponents
+    exponent = least + place % exponents
+    head = f"{mantissa:0{before}d}"
+    tail = f"{exponent:0{after}d}"
+    spelled = ""
+    taken = 0
+    lettered = False
+    for character in form:
+        if character == parsing.SHAPE_DIGIT:
+            if lettered:
+                spelled = spelled + tail[taken - before]
+            else:
+                spelled = spelled + head[taken]
+            taken = taken + 1
+        elif character == parsing.SHAPE_LETTER:
+            spelled = spelled + "E"
+            lettered = True
+        elif character == parsing.SHAPE_LOWER:
+            spelled = spelled + "e"
+            lettered = True
+        else:
+            spelled = spelled + character
+    return spelled
+
+
+def _class_filling(form: str, step: int, overflowing: bool) -> str:
+    """One spelling of a form a class walk writes: `_overflow_spelling` where
+    ``overflowing`` -- the out-of-range class walking a form it shares
+    (`_form_also_reads`) -- and `_filled_form` everywhere else."""
+    if overflowing:
+        return _overflow_spelling(form, step)
+    return _filled_form(form, step)
+
+
+def _form_also_reads(form: str, reads_as: str, decimal_comma: bool) -> bool:
+    """Whether a form `_form_reading` gives another class can ALSO write ``reads_as``.
+
+    A FORM WITH ONE LETTER AMONG FIGURES IS NOT ONE CLASS (lane L1, plan
+    P4-D390, `K-S3-61`). `_form_reading` answers one class per form, and
+    a form whose first filling is text but whose exponent filling is a
+    number -- `%%@%%%` -- was answered NUMBER, so only the number class
+    was offered it. The table's own cells of that form were words
+    (`12A345`), numbers (`12E005`) and numbers too large to hold
+    (`52E638`) alike, and the twin wrote its held-back words in no form
+    and its held-back out-of-range codes as `1e999`, missing the form's
+    count the table meets. Such a form is now offered to the
+    out-of-range class where it overflows (`_overflow_filling`) and to
+    the words where its first filling is text, each paying what the
+    classes before it left of the form's debt.
+
+    Guarantees: a function of the three. Raises nothing. No I/O.
+    """
+    if _form_reading(form, decimal_comma) != parsing.NUMBER:
+        return False
+    if reads_as == parsing.NOT_A_NUMBER:
+        first = _filled_form(form, 0)
+        return parsing.classify_number(
+            _read_in_grammar(first, decimal_comma)
+        ) == parsing.NOT_A_NUMBER
+    if reads_as == parsing.NUMBER_OUT_OF_RANGE:
+        overflow = _overflow_filling(form)
+        return bool(overflow) and parsing.classify_number(
+            _read_in_grammar(overflow, decimal_comma)
+        ) == parsing.NUMBER_OUT_OF_RANGE
+    return False
+
+
+def _shared_forms_kept(
+    written: "list[str]",
+    sizes: "tuple[int, ...]",
+    classes: "dict[int, str]",
+    owing: "dict[str, int]",
+    decimal_comma: bool,
+) -> "dict[str, dict[str, int]]":
+    """How many cells of each shared form are kept for the classes that need it most.
+
+    A FORM WITH ONE LETTER AMONG FIGURES IS SHARED (`_form_also_reads`;
+    lane L1, plan P4-D390, `K-S3-61`), and the number class, settled
+    first, could write the whole of its count, leaving the held-back
+    words and the numbers too large to hold none: a number can always be
+    written plainly, the others cannot be written in such a form any
+    other way. So, before any class is walked:
+
+    - OUT OF RANGE: each form a number too large to hold can wear is kept
+      for that class up to its held-back cells;
+    - WORDS (``" text"``): each form whose first filling is text is kept
+      for the words up to the cells their held-back groups have left
+      once the forms only words can wear are paid -- but only where a
+      published label of that form is a word, or none is published: a
+      form whose published labels are numbers alone (`1.1e6` beside
+      `1.2e6`) is the numbers' first, as it was.
+
+    Each class is served first from the forms whose published labels
+    read as that class, then from the forms no published label wears
+    (the out-of-range class first there), and last the out-of-range
+    class from the forms whose labels read otherwise.
+
+    The number class is offered what is left of each such form. Guarantees:
+    a fixed function of the five. Raises nothing. No I/O of any kind.
+    """
+    kept: "dict[str, dict[str, int]]" = {}
+    shared = [
+        form for form in sorted(owing)
+        if owing[form] > 0
+        and _form_reading(form, decimal_comma) == parsing.NUMBER
+        and (
+            _form_also_reads(form, parsing.NOT_A_NUMBER, decimal_comma)
+            or _form_also_reads(
+                form, parsing.NUMBER_OUT_OF_RANGE, decimal_comma
+            )
+        )
+    ]
+    if not shared:
+        return kept
+    reading: "dict[str, dict[str, int]]" = {}
+    for cell in written:
+        form = parsing.census_form(cell, owing)
+        if form not in owing:
+            continue
+        if form not in reading:
+            reading[form] = {}
+        kind = parsing.classify_number(_read_in_grammar(cell, decimal_comma))
+        reading[form][kind] = 1
+    out_of_range = 0
+    words = 0
+    for place in range(len(sizes)):
+        if place not in classes:
+            words = words + sizes[place]
+        elif classes[place] == _OWED_OUT_OF_RANGE:
+            out_of_range = out_of_range + sizes[place]
+    for form in sorted(owing):
+        if owing[form] > 0 and _form_reading(
+            form, decimal_comma
+        ) == parsing.NOT_A_NUMBER:
+            words = words - owing[form]
+    kept[_OWED_OUT_OF_RANGE] = {}
+    kept[_OWED_TEXT] = {}
+    room: "dict[str, int]" = {}
+    for form in shared:
+        room[form] = owing[form]
+    # THREE ROUNDS, A FORM'S OWN LABELS FIRST (lane L1 repair, skeptic 1
+    # item 2). Walked once in the forms' order, the out-of-range class
+    # took all of `%%@%%%` -- a form no published label wears, the 163
+    # held-back words' only form -- before reaching `%@%%%`, the form its
+    # published labels wear, and the words came out `group-N`: both
+    # forms MISSED. So each class is served first from the forms whose
+    # published labels read as that class, then from the forms no
+    # published label wears; last, the numbers too large to hold, which
+    # can be written no other way, from the forms whose labels read
+    # otherwise, as they were before. The words never take a form whose
+    # labels are numbers alone.
+    for rounded in range(3):
+        for form in shared:
+            seen = reading[form] if form in reading else {}
+            if rounded == 0:
+                beyond = parsing.NUMBER_OUT_OF_RANGE in seen
+                worded = parsing.NOT_A_NUMBER in seen
+            elif rounded == 1:
+                beyond = not seen
+                worded = not seen
+            else:
+                beyond = bool(seen) and parsing.NUMBER_OUT_OF_RANGE not in seen
+                worded = False
+            if out_of_range > 0 and beyond and _form_also_reads(
+                form, parsing.NUMBER_OUT_OF_RANGE, decimal_comma
+            ):
+                given = min(room[form], out_of_range)
+                if given > 0:
+                    kept[_OWED_OUT_OF_RANGE][form] = given + (
+                        kept[_OWED_OUT_OF_RANGE][form]
+                        if form in kept[_OWED_OUT_OF_RANGE] else 0
+                    )
+                out_of_range = out_of_range - given
+                room[form] = room[form] - given
+            if words > 0 and worded and _form_also_reads(
+                form, parsing.NOT_A_NUMBER, decimal_comma
+            ):
+                given = min(room[form], words)
+                if given > 0:
+                    kept[_OWED_TEXT][form] = given + (
+                        kept[_OWED_TEXT][form]
+                        if form in kept[_OWED_TEXT] else 0
+                    )
+                words = words - given
+                room[form] = room[form] - given
+    return kept
+
+
+# THE KEY `_shared_forms_kept` KEEPS THE WORDS' CELLS UNDER: no class debt
+# of `_OWED_CLASSES`, and like them it opens with a space no form holds.
+_OWED_TEXT = " text"
+
+
 def _plain_units(spelling: str) -> "tuple[int, int] | None":
     """A plain decimal spelling as a whole number of its last places.
 
@@ -44233,6 +44742,26 @@ class _Ladder:
     it is absent from `lowest`, `highest` and `published` and present
     here. What they are for is the BOUND of G8.3a step 2, which asks
     only how large a made-up number may be.
+
+    `padded` is the width every published number of figures alone is
+    written at, where they share one and at least one of them opens
+    with a nought -- the code `0468` beside `0830` -- and nought
+    otherwise (lane L1, plan P4-D390): a made-up whole number narrower
+    than it is written at that width, `0414`, as the source wrote its
+    codes.
+
+    `steps` is the same ladder with its ends at the published numbers
+    written WITHOUT an exponent, where those ends differ, and None
+    otherwise (lane L1, plan P4-D390): the outward walk of a number
+    wearing no named form steps from them (`_walk_ladder`).
+
+    `figures_cap` is, where the column published numbers and wrote every
+    one of them with an exponent, the most characters any published
+    label has, and nought otherwise: no number wearing no named form is
+    written plainly with more figures than that, and where even the
+    published number nearest nought is wider, that walk steps up from
+    nought (`steps`), as a column publishing no number does (lane L1,
+    plan P4-D390).
     """
 
     lowest: int
@@ -44245,6 +44774,30 @@ class _Ladder:
     least: float
     greatest: float
     spanned: bool
+    padded: int = 0
+    steps: "_Ladder | None" = None
+    figures_cap: int = 0
+
+
+def _walk_ladder(ladder: "_Ladder") -> "_Ladder":
+    """The ladder a number wearing no named form is walked outward on.
+
+    A NUMBER THE COLUMN WROTE ONLY WITH AN EXPONENT IS NO END TO STEP FROM
+    (lane L1, plan P4-D390). The outward walk steps from the smallest and
+    the largest published number, and a code `5E77` beside two-figure
+    readings set the largest at five followed by seventy-seven noughts:
+    the walk wrote integers of seventy-eight figures and more, which no
+    cell of the table holds. Where some published number is written
+    plainly, this walk's ends -- and the widest number it may write
+    (`_widest_whole_figures`) -- are those numbers' own; every published
+    number still marks its value as taken, and a form's own walk is held
+    to every published number's ends as before.
+
+    Guarantees: a function of the ladder. Raises nothing. No I/O.
+    """
+    if ladder.steps is None:
+        return ladder
+    return ladder.steps
 
 
 def _number_ladder(
@@ -44277,6 +44830,18 @@ def _number_ladder(
     # unpayable: an exponent, a grouped number or a leading plus is a
     # magnitude the description states and a rung the ladder lacks.
     span: "list[float]" = []
+    # WHICH PUBLISHED NUMBERS ARE WRITTEN WITHOUT AN EXPONENT (lane L1,
+    # plan P4-D390). The outward walk steps from the smallest and the
+    # largest published number, and a number the column wrote ONLY with
+    # an exponent -- the code `5E77` beside two-figure readings -- set
+    # the largest at five followed by seventy-seven noughts, so the walk
+    # wrote integers of seventy-eight figures and more, which no cell of
+    # the table holds. Where some published number is written plainly,
+    # the walk's ends are those numbers' own; every published number
+    # still marks its value as taken.
+    plain: "list[bool]" = []
+    widths: "dict[int, int]" = {}
+    zero_led = False
     for cell in written:
         if cell in seen:
             continue
@@ -44284,6 +44849,11 @@ def _number_ladder(
         read = _read_in_grammar(cell, decimal_comma)
         if parsing.classify_number(read) != parsing.NUMBER:
             continue
+        bare = parsing.trimmed(read)
+        if bare and parsing.is_digit_text(bare):
+            widths[len(bare)] = 1
+            if len(bare) > 1 and bare[:1] == "0":
+                zero_led = True
         size = parsing.parse_number(read)
         if size is not None:
             span += [size]
@@ -44291,6 +44861,10 @@ def _number_ladder(
         if units is None:
             continue
         parsed += [units]
+        plain += ["e" not in bare and "E" not in bare]
+    padded = 0
+    if zero_led and len(widths) == 1:
+        padded = sorted(widths)[0]
     least = 0.0
     greatest = 0.0
     for step in range(len(span)):
@@ -44319,6 +44893,10 @@ def _number_ladder(
     highest = 0
     signs = 0
     published: "dict[int, int]" = {}
+    ends_plain = True in plain
+    plain_low = 0
+    plain_high = 0
+    ended = False
     for step in range(len(parsed)):
         value = parsed[step][0] * _ten_to(places - parsed[step][1])
         published[value] = 1
@@ -44326,16 +44904,43 @@ def _number_ladder(
             lowest = value
         if step == 0 or value > highest:
             highest = value
+        if ends_plain and plain[step]:
+            if not ended or value < plain_low:
+                plain_low = value
+            if not ended or value > plain_high:
+                plain_high = value
+            ended = True
         if value < 0:
             signs = signs | _SIGN_NEGATIVE_BIT
         elif value == 0:
             signs = signs | _SIGN_ZERO_BIT
         else:
             signs = signs | _SIGN_POSITIVE_BIT
-    return _Ladder(
+    # WHERE EVERY PUBLISHED NUMBER WEARS AN EXPONENT, NO END IS PLAIN, and
+    # the widest a plain number may be is the longest published label:
+    # codes `52E638` and `41E026` alone published, the walk wrote integers
+    # of 28 and 300 figures stepping out from 4.1e27 (lane L1).
+    cap = 0
+    if not ends_plain:
+        for cell in seen:
+            cap = max(cap, len(parsing.trimmed(cell)))
+        nearest = abs(parsed[0][0] * _ten_to(places - parsed[0][1]))
+        for pair in parsed:
+            nearest = min(nearest, abs(pair[0] * _ten_to(places - pair[1])))
+        if _whole_figures(nearest, places) > cap:
+            plain_low = 0
+            plain_high = 0
+            ends_plain = True
+    built = _Ladder(
         lowest, highest, places, signs, True, published, finest_first,
-        least, greatest, spanned,
+        least, greatest, spanned, padded, None, cap,
     )
+    if ends_plain and (plain_low != lowest or plain_high != highest):
+        built = dataclasses.replace(
+            built,
+            steps=dataclasses.replace(built, lowest=plain_low, highest=plain_high),
+        )
+    return built
 
 
 def _form_places(form: str, decimal_comma: bool = False) -> int:
@@ -44547,6 +45152,14 @@ def _outward_at(
     both outward sides have left the signs the column holds the walk
     has ENDED, because a side that has crossed into a sign never comes
     back out of it.
+
+    A PUBLISHED VALUE IS SKIPPED ON THE OUTWARD WALK TOO (Codex's review
+    of lane L1, item 1). Stepping from every published number, no
+    outward step can reach one. Stepping from the numbers written
+    without an exponent (`_walk_ladder`) it can: `1` and `2` beside
+    `0E2` stepped down to `0` and wrote seven cells of it, so the twin
+    read 27 noughts where the table held 20 and every check held. The
+    side is not ended there, as it is not at a value of the gaps.
     """
     floor = _rescaled(ladder.lowest, ladder.places, places, False)
     ceiling = _rescaled(ladder.highest, ladder.places, places, True)
@@ -44579,10 +45192,10 @@ def _outward_at(
     if not low_held and not high_held:
         return _LADDER_END, 0, _SIDE_GAP
     if (position - 2 * half) % 2 == 0:
-        if low_held:
+        if low_held and not _is_published_at(ladder, low, places):
             return _LADDER_HERE, low, _SIDE_LOW
         return _LADDER_SKIP, 0, _SIDE_LOW
-    if high_held:
+    if high_held and not _is_published_at(ladder, high, places):
         return _LADDER_HERE, high, _SIDE_HIGH
     return _LADDER_SKIP, 0, _SIDE_HIGH
 
@@ -44646,10 +45259,11 @@ def _widest_whole_figures(
     and the spread of the twin's numbers was 2.4 times the table's.
     """
     widest = 0
-    if ladder.anchored:
+    walk = _walk_ladder(ladder)
+    if walk.anchored:
         widest = max(
-            _whole_figures(ladder.lowest, ladder.places),
-            _whole_figures(ladder.highest, ladder.places),
+            _whole_figures(walk.lowest, walk.places),
+            _whole_figures(walk.highest, walk.places),
         )
     for form in sorted(named):
         widest = max(widest, _form_whole_figures(form, decimal_comma))
@@ -44679,6 +45293,31 @@ def _units_spelled(units: int, places: int, decimal_comma: bool) -> str:
     part = size - whole * scale
     mark = "," if decimal_comma else "."
     return f"{lead}{whole}{mark}{part:0{places}d}"
+
+
+def _padded_to_the_source(candidate: str, ladder: "_Ladder") -> str:
+    """A made-up whole number written at the published codes' own width.
+
+    MADE-UP FIGURE CODES KEEP THEIR LEADING NOUGHTS (lane L1, plan
+    P4-D390). A column of four-figure codes `0100` to `0999` declared a
+    code held its rare codes back, and the walk wrote their stand-ins
+    plainly, `414` and `57`: 1,448 of 5,000 twin cells came back one to
+    three figures wide where every cell of the table was four, so code
+    keyed on the width, or joining on the code as text, ran on the twin
+    and not on the table. Where every published number of figures alone
+    shares one width and one of them opens with a nought
+    (`_Ladder.padded`), a narrower whole number is written at that width.
+
+    A spelling of figures alone wears no form (`parsing.shape_form`), so
+    no census count moves, and it reads back as the same value.
+
+    Guarantees: a function of the two; ``candidate`` unchanged where it
+    is not figures alone or the ladder publishes no width. Raises nothing.
+    No I/O of any kind.
+    """
+    if ladder.padded <= len(candidate) or not parsing.is_digit_text(candidate):
+        return candidate
+    return ("0" * (ladder.padded - len(candidate))) + candidate
 
 
 def _dressed_in_form(
@@ -45019,8 +45658,8 @@ def _next_on_ladder(
             cursor[key] - cursor[empty_key], cursor[taken_key]
         ):
             state, units, side = _outward_at(
-                ladder, places, cursor[key], low_key in cursor,
-                high_key in cursor,
+                _walk_ladder(ladder) if name == _OWED_NUMBER else ladder,
+                places, cursor[key], low_key in cursor, high_key in cursor,
             )
             if state == _LADDER_END:
                 cursor[ended_key] = 1
@@ -45029,7 +45668,21 @@ def _next_on_ladder(
             if state == _LADDER_SKIP:
                 cursor[empty_key] = cursor[empty_key] + 1
                 continue
+            if (
+                name == _OWED_NUMBER
+                and ladder.figures_cap > 0
+                and _whole_figures(units, places) > ladder.figures_cap
+            ):
+                # WIDER THAN ANY CELL THE COLUMN SHOWS (`_Ladder.figures_cap`):
+                # a side only widens past here, so it ends.
+                if side == _SIDE_HIGH and units > 0:
+                    cursor[high_key] = 1
+                if side == _SIDE_LOW and units < 0:
+                    cursor[low_key] = 1
+                continue
             candidate = _units_spelled(units, places, decimal_comma)
+            if name == _OWED_NUMBER:
+                candidate = _padded_to_the_source(candidate, ladder)
             wearing = ""
             form = parsing.census_form(candidate, named)
             if name == _OWED_NUMBER:
@@ -45320,10 +45973,11 @@ def _pooled_spelling(
     The value the scale asks for is rounded to a whole number of the
     tier's last place, and that spelling is offered first. Where a rule
     refuses it -- it wears a form the census names while the group was
-    asked for none, it is a spelling the column already uses, it reads
-    as a date, it carries a sign no published number has -- the offer
-    steps one place outward, above then below, until one is accepted or
-    the bound is reached. Stepping rather than giving up keeps the
+    asked for none, it is a spelling the column already uses, it holds
+    a value a published number holds however that number is written,
+    it reads as a date, it carries a sign no published number has --
+    the offer steps one place outward, above then below, until one is
+    accepted or the bound is reached. Stepping rather than giving up keeps the
     placement at the scale it was asked for: one place is the smallest
     move there is.
 
@@ -45333,6 +45987,8 @@ def _pooled_spelling(
     is offered -- exactly the rule the ordinary walk is held to. A
     scale whose ends lie outside that width is met as far as the width
     allows and no further, and the groups it cannot place fall through.
+    A group that owes no form is held to `_Ladder.figures_cap` as well,
+    where every published number wears an exponent (lane L1).
 
     ``asked`` IS THE FORM THE GROUP OWES THE CENSUS, where it owes one.
     The scale places the VALUE and the census decides how it is
@@ -45418,6 +46074,24 @@ def _pooled_spelling(
                 reach_figures
             ):
                 continue
+            # NO WIDER THAN ANY CELL THE COLUMN SHOWS (`_Ladder.figures_cap`,
+            # Codex's review of lane L1, item 2), as on step 3's walk: codes
+            # `1.0E7` to `1.9E7`, `10E6` to `19E6`, `1E2` and `3E7`, every
+            # cell at most five characters, were placed as eight-figure
+            # integers near 14,500,000.
+            if (
+                not asked
+                and ladder.figures_cap > 0
+                and _whole_figures(units, places) > ladder.figures_cap
+            ):
+                continue
+            # NO VALUE A PUBLISHED NUMBER HOLDS, however it is written
+            # (G8.3c step 3, as G8.3a's walk; the L1 Codex repair, item 6):
+            # beside `1E2` x20 a pooled group asked near 100 wrote `100`,
+            # and numeric conversion read 21 values of 100 for 20. The
+            # dressing keeps the value, so the units are what is asked.
+            if _is_published_at(ladder, units, places):
+                continue
             candidate = _units_spelled(units, places, decimal_comma)
             form = parsing.census_form(candidate, named)
             wearing = ""
@@ -45442,6 +46116,8 @@ def _pooled_spelling(
                 and pool[0] < 1
             ):
                 continue
+            if not asked:
+                candidate = _padded_to_the_source(candidate, ladder)
             if candidate in used or parsing.folded(candidate) in owners:
                 continue
             if not _is_a_usable_stand_in(
@@ -46256,13 +46932,22 @@ def _class_form_stand_in(
     if taken is None:
         taken = {}
     room = _form_room(form)
-    if form not in walked:
-        walked[form] = 0
-    if form not in taken:
-        taken[form] = 0
-    while _walk_goes_on(walked[form], taken[form], room):
-        candidate = _filled_form(form, walked[form])
-        walked[form] = walked[form] + 1
+    overflowing = reads_as == parsing.NUMBER_OUT_OF_RANGE and _form_also_reads(
+        form, reads_as, decimal_comma
+    )
+    # THE OUT-OF-RANGE CLASS WALKS A SHARED FORM ON A CURSOR OF ITS OWN
+    # (`_overflow_spelling`; lane L1, plan P4-D390).
+    key = form
+    if overflowing:
+        room = _overflow_room(form)
+        key = f"{form}{_OWED_OUT_OF_RANGE}"
+    if key not in walked:
+        walked[key] = 0
+    if key not in taken:
+        taken[key] = 0
+    while _walk_goes_on(walked[key], taken[key], room):
+        candidate = _class_filling(form, walked[key], overflowing)
+        walked[key] = walked[key] + 1
         if candidate in used or parsing.folded(candidate) in owners:
             continue
         if not _is_a_usable_stand_in(candidate, holes, reads_as, decimal_comma):
@@ -46271,7 +46956,7 @@ def _class_form_stand_in(
             candidate, ladder, decimal_comma
         ):
             continue
-        taken[form] = taken[form] + 1
+        taken[key] = taken[key] + 1
         return candidate
     return ""
 
@@ -49900,8 +50585,40 @@ def _partner_of(
     worn: "tuple[str, dict[str, int], int] | None" = None,
     holes: "tuple[str, ...]" = (),
     prefixes: "tuple[str, dict[str, str]] | None" = None,
+    parents: "dict[tuple[str, bool, int | None], list[int]] | None" = None,
+    spent: "dict[tuple[int, int, int | None], bool] | None" = None,
+    words: "int | None" = None,
+    held: "tuple[int, int] | None" = None,
 ) -> "str | None":
     """The fold-collision partner this value carries, when one is owed.
+
+    ``words``, where given, asks first for a parent of that many words
+    (`parsing.token_count`), which is how many its partner has -- a case
+    flip and an edge space move no word -- and then for any, inside each
+    pass that keeps a folded level under the long-tail line (Codex's
+    review of lane L1, item 3). None asks nothing of the words, as before.
+
+    ``held``, where given, is a narrower window asked before the value's
+    own, inside each of those, in this order: the planned words in the
+    held window, any words in the held window, the planned words in the
+    whole window, any words in the whole window (the L1 Codex repair).
+    LENGTH BEFORE WORDS, because words can be paid back and characters
+    often cannot: words publish no middle, so `_words_paid_back` may move
+    a group in no form a word either way, while `_paid_back` moves one
+    only from above the published middle length. Asking the planned
+    words in the whole window before any words in the held one left 46
+    characters that nothing could pay back, on durations and `N min`
+    beside three-word notes. Where the answer has other words, the
+    caller frees a parent of the slot's planned length and words first
+    if one can be (`_parent_freed`). None asks the value's own window
+    alone, as before.
+
+    ``parents`` and ``spent``, where a caller hands two dicts it keeps
+    for one walk, make the search cost what it finds (lane L1 leftover,
+    skeptic 2 item 1; `_partner_indexed`): the answer is the one the
+    walk below gives, byte for byte, and only the parents that cannot
+    answer are no longer visited. A caller handing neither walks exactly
+    as before.
 
     Where a column publishes fewer folded identities than spellings, the
     difference is exactly the number of values that must fold onto one
@@ -49958,6 +50675,15 @@ def _partner_of(
         return None
     place = index - folded
     shortest, longest = windows[index]
+    worded_passes: "tuple[int | None, ...]" = (None,)
+    if words is not None:
+        worded_passes = (words, None)
+    reaches: "list[tuple[int, int | None, int | None]]" = []
+    if held is not None:
+        for worded in worded_passes:
+            reaches += [(held[0], held[1], worded)]
+    for worded in worded_passes:
+        reaches += [(shortest, longest, worded)]
     # A PARENT THAT CAN BE CASE-FLIPPED IS TAKEN FIRST (review item
     # P3-C6-F1). The partner that keeps the length exactly where it was
     # is a case flip, and it needs a letter; a parent holding none can
@@ -50016,12 +50742,174 @@ def _partner_of(
     named_passes: "tuple[bool, ...]" = (False,)
     if prefixes is not None and worn is not None:
         named_passes = (True, False)
+    if (
+        parents is not None
+        and spent is not None
+        and worn is None
+        and prefixes is None
+    ):
+        return _partner_indexed(
+            index, folded, spellings, families, used, (shortest, longest),
+            sizes, long_tail_line, carried, holes, under_first,
+            (parents, spent), words, held,
+        )
     for named_first in named_passes:
         for under in under_first:
+            for low, high, worded in reaches:
+                for lettered in (True, False):
+                    for step in range(folded):
+                        parent_place = (place + step) % folded
+                        if families[parent_place] != families[index]:
+                            continue
+                        if under and sizes is not None:
+                            already = sizes[parent_place]
+                            if carried is not None and parent_place in carried:
+                                already = carried[parent_place]
+                            if already + sizes[index] >= long_tail_line:
+                                continue
+                        has_letter = False
+                        for character in spellings[parent_place]:
+                            if character in _LETTERS:
+                                has_letter = True
+                                break
+                        if has_letter != lettered:
+                            continue
+                        if worded is not None and parsing.token_count(
+                            spellings[parent_place]
+                        ) != worded:
+                            continue
+                        found = _partner_from(
+                            parent_place, index, spellings, used, low, high,
+                            worn, holes, prefixes, named_first,
+                        )
+                        if found is None:
+                            continue
+                        if carried is not None and sizes is not None:
+                            already = sizes[parent_place]
+                            if parent_place in carried:
+                                already = carried[parent_place]
+                            carried[parent_place] = already + sizes[index]
+                        return found
+    return None
+
+
+def _partner_indexed(
+    index: int,
+    folded: int,
+    spellings: "list[str]",
+    families: "list[str]",
+    used: "dict[str, int]",
+    window: "tuple[int, int | None]",
+    sizes: "list[int] | None",
+    long_tail_line: int,
+    carried: "dict[int, int] | None",
+    holes: "tuple[str, ...]",
+    under_first: "tuple[bool, ...]",
+    kept: "tuple[dict[tuple[str, bool, int | None], list[int]], dict[tuple[int, int, int | None], bool]]",
+    words: "int | None" = None,
+    held: "tuple[int, int] | None" = None,
+) -> "str | None":
+    """`_partner_of`'s walk over the parents that can answer, and no other.
+
+    THE SAME ANSWER, AT THE COST OF WHAT IT FINDS (lane L1 leftover,
+    skeptic 2 item 1). The walk of `_partner_of` visits every parent of
+    the column in up to sixteen walks for every slot (the lane L1
+    repair's walk, which took parents barred by a form last). Durations
+    `HH:MM:SS` beside notes in two cases, 5,000 rows at a floor of 36:
+    2,885 slots made 2,304,853 parent visits, 2,303,534 of them on a
+    parent whose trimmed text is longer than the slot's window, which
+    `_partner_at` answers with None; the time grew four-fold with each
+    doubling of the rows and 100,000 rows did not finish in 900 s. Here
+    the parents are kept by family and by whether they hold a letter,
+    and for each window by the trimmed length the window admits, so a
+    slot visits only parents that can answer.
+
+    WHY THE ANSWER IS UNCHANGED. Every pass walks the parents in the
+    cyclic order from the slot's own place, and so does each list here.
+    A parent of another family or of the other lettered kind is passed
+    over by the walk, and is in no list this pass reads. A parent
+    longer than the window has no partner in it
+    (`_partner_at`). And ``spent`` records a parent and window that
+    answered None because its family ended inside the walk (its member
+    at the walk's last step is None): ``used`` only grows inside one
+    walk and the members before that end stay refused, so it answers
+    None again. A walk cut by its step bound is not recorded.
+
+    ``kept`` is the caller's two dicts: the parents, by family, letter
+    and window (built on the first call, when every parent is
+    written), and the spent pairs; ``words`` and ``held`` are
+    `_partner_of`'s, and a worded pass reads a list of the parents of
+    that count alone, kept beside the others.
+    Guarantees: the value `_partner_of`'s own walk returns for these
+    arguments, with no ``worn`` and no ``prefixes``. Raises nothing of
+    its own. No I/O.
+    """
+    parents = kept[0]
+    spent = kept[1]
+    if not parents:
+        for place in range(folded):
+            lettered = False
+            for character in spellings[place]:
+                if character in _LETTERS:
+                    lettered = True
+                    break
+            key: "tuple[str, bool, int | None]" = (
+                families[place], lettered, None
+            )
+            if key not in parents:
+                parents[key] = []
+            parents[key] += [place]
+    family = families[index]
+    start = (index - folded) % folded
+    worded_passes: "tuple[int | None, ...]" = (None,)
+    if words is not None:
+        worded_passes = (words, None)
+    reaches: "list[tuple[int, int | None, int | None]]" = []
+    if held is not None:
+        for worded in worded_passes:
+            reaches += [(held[0], held[1], worded)]
+    for worded in worded_passes:
+        reaches += [(window[0], window[1], worded)]
+    for under in under_first:
+        for shortest, longest, worded in reaches:
             for lettered in (True, False):
-                for step in range(folded):
-                    parent_place = (place + step) % folded
-                    if families[parent_place] != families[index]:
+                whole = (family, lettered, None)
+                if whole not in parents:
+                    continue
+                key = (family, lettered, longest)
+                if key not in parents:
+                    fitting: "list[int]" = []
+                    for place in parents[whole]:
+                        if longest is None or len(
+                            parsing.trimmed(spellings[place])
+                        ) <= longest:
+                            fitting += [place]
+                    parents[key] = fitting
+                places = parents[key]
+                if worded is not None:
+                    # THE WORDED PASS VISITS ONLY PARENTS OF THOSE WORDS
+                    # (the L1 Codex repair, item 3): their list is kept
+                    # under the family with the count after a line break,
+                    # which no family name holds, in the same cyclic order.
+                    counted = (f"{family}\n{worded}", lettered, longest)
+                    if counted not in parents:
+                        holding: "list[int]" = []
+                        for place in places:
+                            if parsing.token_count(spellings[place]) == worded:
+                                holding += [place]
+                        parents[counted] = holding
+                    places = parents[counted]
+                low = 0
+                high = len(places)
+                while low < high:
+                    middle = (low + high) // 2
+                    if places[middle] < start:
+                        low = middle + 1
+                    else:
+                        high = middle
+                for step in range(len(places)):
+                    parent_place = places[(low + step) % len(places)]
+                    if (parent_place, shortest, longest) in spent:
                         continue
                     if under and sizes is not None:
                         already = sizes[parent_place]
@@ -50029,18 +50917,19 @@ def _partner_of(
                             already = carried[parent_place]
                         if already + sizes[index] >= long_tail_line:
                             continue
-                    has_letter = False
-                    for character in spellings[parent_place]:
-                        if character in _LETTERS:
-                            has_letter = True
-                            break
-                    if has_letter != lettered:
-                        continue
                     found = _partner_from(
                         parent_place, index, spellings, used, shortest, longest,
-                        worn, holes, prefixes, named_first,
+                        None, holes, None, False,
                     )
                     if found is None:
+                        # SPENT ONLY WHERE THE FAMILY ENDED INSIDE THE
+                        # WALK: a walk cut by its step bound (a hole
+                        # refused) may reach further once ``used`` grows.
+                        if _partner_at(
+                            spellings[parent_place], len(used) + 1,
+                            shortest, longest,
+                        ) is None:
+                            spent[(parent_place, shortest, longest)] = True
                         continue
                     if carried is not None and sizes is not None:
                         already = sizes[parent_place]
@@ -50174,6 +51063,433 @@ def _length_windows(
     if total >= 2 and pinned and longest is not None:
         windows[carriers[1]] = (longest, longest)
     return windows
+
+
+def _barred_kept(
+    barred: "list[int]",
+    families: "list[str]",
+    lengths: "list[int]",
+    span: "tuple[int, int]",
+    longest: "int | None",
+) -> "list[int]":
+    """The parents left barred once every family can still serve its slots.
+
+    A BARRED PARENT IS ASKED NO LETTER (`_text_cells`, lane L1 repair),
+    so where every parent of a family is barred and each is already as
+    long as the column's longest published length, a slot of that family
+    has no flip and no room for an edge-spaced copy, writes a made-up
+    spelling, and the published count of folded identities is missed --
+    an exact count lost for a form's (lane L1 leftover). Measured: 4,000
+    rows, durations `HH:MM:SS` beside one tenth `x12`/`X12`; 70 slots of
+    the durations' family found no partner and `n_distinct_folded` came
+    back 3,663 against 3,593, where 45191fa held it.
+
+    So each family keeps as many parents able to serve as it has slots:
+    an unbarred parent counts one, and so does a barred one shorter than
+    ``longest`` (an edge-spaced copy fits); where that falls short, the
+    family's LAST barred parents -- its smallest groups, so the fewest
+    cells leave the form -- are barred no more, as many as it falls
+    short. ``span`` is the number of folded identities and of groups.
+    Guarantees: a sublist of ``barred``, in its order. Raises nothing.
+    No I/O.
+    """
+    folded = span[0]
+    total = span[1]
+    if not barred:
+        return barred
+    wanted: "dict[str, int]" = {}
+    for index in range(folded, total):
+        family = families[index]
+        wanted[family] = (wanted[family] if family in wanted else 0) + 1
+    held: "dict[int, bool]" = {}
+    for place in barred:
+        held[place] = True
+    for place in range(folded):
+        family = families[place]
+        if family not in wanted:
+            continue
+        if place not in held or (longest is not None and lengths[place] < longest):
+            wanted[family] = wanted[family] - 1
+    freed: "dict[int, bool]" = {}
+    for step in range(len(barred) - 1, -1, -1):
+        place = barred[step]
+        family = families[place]
+        if family in wanted and wanted[family] > 0:
+            wanted[family] = wanted[family] - 1
+            freed[place] = True
+    if not freed:
+        return barred
+    return [place for place in barred if place not in freed]
+
+
+def _paid_back(
+    facts: "contract.TextFacts",
+    spellings: "list[str]",
+    planned: "tuple[tuple[int, ...], list[int], list[int]]",
+    shapes: "tuple[list[int], list[int], list[bool]]",
+    kept: "tuple[dict[int, bool], dict[int, int], tuple[int, int], dict[int, str]]",
+    over: int,
+    making: "tuple[dict[str, list[int]], dict[str, int], tuple[str, ...]]",
+) -> int:
+    """Pay back the characters the fold slots' partners wrote over their plan.
+
+    WHERE PARENTS ARE BARRED THE SLOTS COME LAST, and a slot whose family
+    has no flip of its planned length left writes an edge-spaced partner
+    one character over it, which nothing after it can pay back (lane L1
+    leftover, skeptic 2 item 1). Durations `HH:MM:SS` beside notes in two
+    cases, 100,000 rows: 1,755 such partners, and `length.mean` came back
+    8.09453 against 8.07698, a window of 8.07689 to 8.07707.
+
+    So once the walk is done, groups before the slots that wrote a
+    made-up spelling in no form, are no parent of a partner, carry no
+    published end and no truth value, are re-made one character shorter,
+    the smallest groups first, until the characters over are paid or no
+    such group is left. A group is re-made only from above the published
+    middle length to no lower than it, so `length.p50` stays where it
+    was; only where the old and new spelling both wear no published form
+    and no clock, so no form's count and no clock line moves; and only by
+    `_made_up_cell` with the group's own class, band, words and letter
+    ask, so every count of different values holds (the old spelling's
+    identity was folded onto by nothing).
+
+    ``planned`` is the group sizes, planned lengths and word counts;
+    ``shapes`` the classes, bands and letter asks; ``kept`` the groups
+    written in no form, the parents that took a partner (`carried`), the
+    two carriers and the truth values; ``making`` the walk's cursors,
+    its ``used`` and the hole spellings. Guarantees: changes
+    ``spellings``, ``making[0]`` and ``making[1]`` alone; returns the
+    characters still over. Raises nothing of its own. No I/O.
+    """
+    groups = planned[0]
+    lengths = planned[1]
+    counts = planned[2]
+    published = facts.shape_forms
+    middle = facts.length.p50
+    if middle is None:
+        return over
+    for place in range(len(spellings) - 1, -1, -1):
+        if over <= 0:
+            break
+        if place not in kept[0] or place in kept[1] or place in kept[3]:
+            continue
+        if place == kept[2][0] or place == kept[2][1]:
+            continue
+        if groups[place] > over:
+            continue
+        old = spellings[place]
+        shorter = len(old) - 1
+        if len(old) != lengths[place] or len(old) <= middle or shorter < middle:
+            continue
+        if shorter < facts.length.minimum:
+            continue
+        if parsing.census_form(old, published) in published or _clock_key(old) is not None:
+            continue
+        new = _made_up_cell(
+            _CLASSES[shapes[0][place]], _BANDS[shapes[1][place]], shorter,
+            counts[place], shapes[2][place], making[0], making[1], "",
+            making[2], False,
+        )
+        if new is None:
+            continue
+        if parsing.census_form(new, published) in published or _clock_key(new) is not None:
+            continue
+        spellings[place] = new
+        over = over - groups[place]
+    return over
+
+
+def _words_paid_back(
+    facts: "contract.TextFacts",
+    spellings: "list[str]",
+    planned: "tuple[tuple[int, ...], list[int], list[int]]",
+    shapes: "tuple[list[int], list[int], list[bool]]",
+    kept: "tuple[dict[int, bool], dict[int, int], tuple[int, int], dict[int, str]]",
+    over: int,
+    making: "tuple[dict[str, list[int]], dict[str, int], tuple[str, ...]]",
+) -> int:
+    """Pay back the words the fold slots' partners wrote off their plan.
+
+    A PARTNER HAS ITS PARENT'S WORDS (the L1 Codex repair, item 3). A
+    slot asks a parent of its planned length first and of its planned
+    words first within that (`_partner_of`); where no parent of that
+    length has those words and none can be freed (`_parent_freed`), the
+    slot's partner writes each of its rows a word or more off the plan,
+    and nothing after the slots can pay that back. Durations and `N min` beside three-word notes, 1,200 rows at a
+    floor of eleven: slots planned at eight characters and three words
+    found only one-word parents of eight characters, and `words.mean`
+    came back 1.44 against a published 1.475.
+
+    So once the walk is done, groups before the slots that wrote a
+    made-up spelling in no form, are no parent of a partner and carry no
+    published end and no truth value, are re-made with one word fewer
+    (``over`` above nought) or one more (below), at the length they
+    were written at, the smallest groups first, until the words off are
+    paid or no such group is left. Words publish no middle, so any such
+    group may move; but a group whose word count is the published least
+    or greatest is moved only while other rows still hold that count,
+    and no group moves outside them. Only where the old and new spelling
+    both wear no published form and no clock, by `_made_up_cell` with
+    the group's own class, band and letter ask, so no form's count, no
+    clock line and no count of different values moves; and the length,
+    asked of the new spelling exactly, leaves every length fact where
+    it was.
+
+    The arguments are `_paid_back`'s, with ``over`` the words off, as
+    rows times words, signed. Guarantees: changes ``spellings``,
+    ``making[0]`` and ``making[1]`` alone; returns the words still off.
+    Raises nothing of its own. No I/O.
+    """
+    groups = planned[0]
+    published = facts.shape_forms
+    least = facts.words.minimum
+    greatest = facts.words.maximum
+    rows_at: "dict[int, int]" = {}
+    for place in range(len(spellings)):
+        count = parsing.token_count(spellings[place])
+        if count not in rows_at:
+            rows_at[count] = 0
+        rows_at[count] = rows_at[count] + groups[place]
+    for place in range(len(spellings) - 1, -1, -1):
+        if over == 0:
+            break
+        if place not in kept[0] or place in kept[1] or place in kept[3]:
+            continue
+        if place == kept[2][0] or place == kept[2][1]:
+            continue
+        if groups[place] > abs(over):
+            continue
+        old = spellings[place]
+        count = parsing.token_count(old)
+        step = 1
+        if over > 0:
+            step = -1
+        wanted = count + step
+        if wanted < 1 or wanted < least or wanted > greatest:
+            continue
+        if (count == least or count == greatest) and rows_at[count] <= groups[place]:
+            continue
+        if parsing.census_form(old, published) in published or _clock_key(old) is not None:
+            continue
+        new = _made_up_cell(
+            _CLASSES[shapes[0][place]], _BANDS[shapes[1][place]], len(old),
+            wanted, shapes[2][place], making[0], making[1], "",
+            making[2], False,
+        )
+        if new is None:
+            continue
+        if len(new) != len(old) or parsing.token_count(new) != wanted:
+            continue
+        if parsing.census_form(new, published) in published or _clock_key(new) is not None:
+            continue
+        spellings[place] = new
+        rows_at[count] = rows_at[count] - groups[place]
+        if wanted not in rows_at:
+            rows_at[wanted] = 0
+        rows_at[wanted] = rows_at[wanted] + groups[place]
+        over = over + step * groups[place]
+    return over
+
+
+def _parent_freed(
+    index: int,
+    partner: "str | None",
+    walk: "tuple[list[str], list[str], list[int], int, int, list[tuple[int, int | None]]]",
+    planned: "tuple[list[int], list[int], list[int], list[int]]",
+    kept: "tuple[dict[int, bool], dict[int, int], tuple[int, int], dict[int, str]]",
+    making: "tuple[dict[str, list[int]], dict[str, int], tuple[str, ...], dict[str, int]]",
+    found: "tuple[dict[tuple[str, bool, int | None], list[int]], dict[tuple[int, int, int | None], bool]]",
+    freeing: "tuple[dict[tuple[str, int, int], list[int]], dict[str, int], dict[tuple[int, int | None], bool]]",
+) -> "str | None":
+    """A partner of the slot's planned length and words, by freeing a parent.
+
+    A SLOT THAT TAKES A PARTNER OF OTHER WORDS writes every one of its
+    rows a word or more off the plan, and `_words_paid_back` covers only
+    what groups in no form can make up (Codex's review of lane L1, its
+    second verifier, item 3). Durations `HH:MM:SS` beside notes `ok N`
+    and `call back N`, 800 rows: nineteen slots planned at eight
+    characters and three words found no parent answering in their
+    window, took one-word partners, and the payback paid 11 of their 38
+    words; `words.mean` was named where 45191fa held it. Parents of those
+    words and that length were there -- `!! !! !!` -- holding no letter,
+    since a family's letter asks go to its earliest parents whatever
+    their shape (`_letter_asks`), so their only partners were edge-spaced
+    copies a character too long.
+
+    So, before the slot accepts the walk's answer of other words (or
+    none), the family's LAST parent of the slot's planned length and
+    words that holds no letter, wrote a made-up spelling in no form and
+    no clock, gave no partner, carries no published end and no truth
+    value, and keeps the folded level under the long-tail line, is
+    re-made with a letter at its own length and words (`_made_up_cell`,
+    its own class and band) -- freed, as `_barred_kept` frees a family's
+    last barred parents -- and the slot takes its case flip. Nothing the
+    column publishes moves: the parent's class, band, length and words
+    are its own, and neither spelling wears a published form or a clock.
+    A parent asked a form is never freed, since that would miss the
+    form's count. Where no parent can be freed the walk's answer stands
+    and `_words_paid_back` makes up what it can; a slot is never written a
+    made-up spelling instead, which misses the folded count the column
+    publishes exactly (measured on the second verifier's 32 twins: 22
+    missed `distinct.n_distinct_folded`).
+
+    ``walk`` is the spellings, families, group sizes, the folded count,
+    the long-tail line and the length windows; ``planned`` the planned
+    lengths, words, classes and bands; ``kept`` the groups in no form,
+    ``carried``, the carriers and the truth values; ``making`` the
+    walk's cursors, its ``used``, the hole spellings and the published
+    forms; ``found`` the walk's parent lists and spent pairs
+    (`_partner_indexed`), which a freed parent is moved within so the
+    indexed walk still gives the plain walk's answer (`_parent_lettered`);
+    ``freeing`` this function's own, kept across the column's slots and
+    filled on the first call: the parents that may be freed by family,
+    length and words, each parent's folded identity, and the windows the
+    walk asks. Guarantees: returns None, having changed nothing but the
+    cursors, ``used`` and its own lists, or returns the freed parent's
+    partner with ``spellings``, ``carried`` and the walk's lists updated
+    too -- the slot's earlier answer handed back to its parent. Raises
+    nothing of its own. No I/O.
+    """
+    spellings = walk[0]
+    families = walk[1]
+    sizes = walk[2]
+    folded = walk[3]
+    line = walk[4]
+    lengths = planned[0]
+    counts = planned[1]
+    carried = kept[1]
+    published = making[3]
+    lists = freeing[0]
+    identity = freeing[1]
+    if not identity:
+        # THE PARENTS THAT MAY BE FREED, by family, length and words,
+        # taken once every parent is written; each parent's folded
+        # identity, so the walk's answer can be handed back; and the
+        # windows the walk asks, which a freed parent is open in again.
+        for place in range(len(lengths)):
+            freeing[2][(lengths[place], lengths[place])] = True
+            freeing[2][walk[5][place]] = True
+        for place in range(folded):
+            identity[parsing.folded(spellings[place])] = place
+            if place not in kept[0] or place in kept[3]:
+                continue
+            if place == kept[2][0] or place == kept[2][1]:
+                continue
+            text = spellings[place]
+            lettered = False
+            for character in text:
+                if character in _LETTERS:
+                    lettered = True
+                    break
+            if lettered:
+                continue
+            if parsing.census_form(text, published) in published or _clock_key(text) is not None:
+                continue
+            key = (families[place], len(text), parsing.token_count(text))
+            if key not in lists:
+                lists[key] = []
+            lists[key] += [place]
+    key = (families[index], lengths[index], counts[index])
+    if key not in lists:
+        return None
+    places = lists[key]
+    step = len(places) - 1
+    while step >= 0:
+        place = places[step]
+        if place in carried:
+            # A PARENT THAT GAVE A PARTNER STAYS ONE: it leaves the list.
+            del places[step]
+            step = step - 1
+            continue
+        if line >= 1 and sizes[place] + sizes[index] >= line:
+            step = step - 1
+            continue
+        old = spellings[place]
+        new = _made_up_cell(
+            _CLASSES[planned[2][place]], _BANDS[planned[3][place]], len(old),
+            parsing.token_count(old), True, making[0], making[1], "",
+            making[2], False,
+        )
+        del places[step]
+        step = step - 1
+        if new is None or len(new) != len(old):
+            continue
+        if parsing.token_count(new) != parsing.token_count(old):
+            continue
+        if parsing.census_form(new, published) in published or _clock_key(new) is not None:
+            continue
+        spellings[place] = new
+        flip = _partner_from(
+            place, index, spellings, making[1], lengths[index], lengths[index],
+            None, making[2], None, False,
+        )
+        if flip is None:
+            spellings[place] = old
+            continue
+        before = -1
+        if partner is not None and parsing.folded(partner) in identity:
+            before = identity[parsing.folded(partner)]
+        if before in carried:
+            # THE WALK'S ANSWER IS HANDED BACK TO ITS PARENT.
+            left = carried[before] - sizes[index]
+            if left == sizes[before]:
+                del carried[before]
+            else:
+                carried[before] = left
+        carried[place] = sizes[place] + sizes[index]
+        del identity[parsing.folded(old)]
+        identity[parsing.folded(new)] = place
+        _parent_lettered(found[0], found[1], place, families[place], new, freeing[2])
+        return flip
+    return None
+
+
+def _parent_lettered(
+    parents: "dict[tuple[str, bool, int | None], list[int]]",
+    spent: "dict[tuple[int, int, int | None], bool]",
+    place: int,
+    family: str,
+    spelling: str,
+    reaches: "dict[tuple[int, int | None], bool]",
+) -> None:
+    """Move a freed parent to the lettered lists of `_partner_indexed`.
+
+    `_parent_freed` re-makes a parent holding no letter as one holding
+    one, so the indexed walk keeps it where the plain walk now visits it:
+    out of each list of its family's unlettered parents and into the
+    lettered list its length and words admit, in its cyclic place; and
+    every window of ``reaches`` it was found spent in is open again,
+    since its case flips are new.
+    Guarantees: changes ``parents`` and ``spent`` alone. Raises nothing.
+    No I/O.
+    """
+    counted = f"{family}\n{parsing.token_count(spelling)}"
+    width = len(parsing.trimmed(spelling))
+    whole = (family, True, None)
+    if parents and whole not in parents:
+        parents[whole] = []
+    for key in parents:
+        if key[0] != family and key[0] != counted:
+            continue
+        holding = parents[key]
+        low = 0
+        high = len(holding)
+        while low < high:
+            middle = (low + high) // 2
+            if holding[middle] < place:
+                low = middle + 1
+            else:
+                high = middle
+        there = low < len(holding) and holding[low] == place
+        if not key[1]:
+            if there:
+                del holding[low]
+            continue
+        if there or (key[2] is not None and width > key[2]):
+            continue
+        holding[low:low] = [place]
+    for pair in reaches:
+        if (place, pair[0], pair[1]) in spent:
+            del spent[(place, pair[0], pair[1])]
 
 
 def _letter_asks(families: "list[str]", folded: int) -> "list[bool]":
@@ -50457,15 +51773,44 @@ def _text_cells(
                 "many the description records.",
             )
         ]
+    folded = min(column.n_distinct_folded, total)
+    # THE FOLD SLOTS GO TO GROUPS A CASE FLIP CAN SERVE (lane L1 repair,
+    # skeptic 1 item 3). The groups from `folded` on carry the partners,
+    # and a partner is built from its parent's spelling, so a slot whose
+    # shape a form with no letter place would be asked for writes no
+    # spelling of that form: 30,000 durations `HH:MM:SS` beside notes in
+    # two cases wrote 1,896 cells off the form so. Each such slot changes
+    # places with the last earlier group no such form is asked of, the
+    # walk runs in that order, and the cells come back in the column's
+    # own. A column where no slot is so asked keeps its order.
+    order = _fold_slot_order(
+        facts, groups, lengths, counts, carriers, kinds, bands, folded,
+        frozenset(truth),
+    )
+    own_groups = groups
+    own_kinds = kinds
+    if order is not None:
+        groups = tuple([own_groups[place] for place in order])
+        lengths = [lengths[place] for place in order]
+        counts = [counts[place] for place in order]
+        kinds = [own_kinds[place] for place in order]
+        bands = [bands[place] for place in order]
+        moved: "dict[int, str]" = {}
+        for position in range(total):
+            if order[position] in truth:
+                moved[position] = truth[order[position]]
+        truth = moved
+        placed: "dict[int, int]" = {}
+        for position in range(total):
+            placed[order[position]] = position
+        carriers = (placed[carriers[0]], placed[carriers[1]])
     used: dict[str, int] = {}
     states: dict[str, list[int]] = {}
     spellings: list[str] = []
-    folded = min(column.n_distinct_folded, total)
     families = [
         f"{_CLASSES[kinds[index]]}/{_BANDS[bands[index]]}"
         for index in range(total)
     ]
-    asks = _letter_asks(families, folded)
     windows = _length_windows(
         total,
         facts.length.minimum,
@@ -50501,10 +51846,48 @@ def _text_cells(
         budget,
         kinds,
         bands,
+        False,
+        contract.WITHHELD not in facts.shape_forms,
     )
     worn = _number_forms(facts, groups, lengths, kinds, bands, carriers)
     for place in sorted(worn):
         form_asks[place] = worn[place]
+    # A GROUP ASKED A FORM WITH NO LETTER PLACE IS ASKED FOR NO LETTER
+    # (lane L1 repair, skeptic 1 item 3), as `_caseless_slots` does for
+    # identifiers -- BARRED, while its family keeps enough parents for its
+    # slots (`_barred_kept`). Durations `HH:MM:SS` beside notes in two
+    # cases: 569 letter asks fell on duration groups, whose every spelling
+    # holds no letter, so the walk gave up and wrote made-up text, and the
+    # form was missed, 24,572 written of 27,037. (Taking a barred parent
+    # last in `_partner_of`, the repair's other half, changed no measured
+    # twin and is withdrawn: lane L1 leftover, skeptic 2 item 3b.)
+    barred: "list[int]" = []
+    if 0 < folded < total:
+        for place in range(folded):
+            if form_asks[place] and not _form_holds_a_letter(form_asks[place]):
+                barred += [place]
+        barred = _barred_kept(
+            barred, families, lengths, (folded, total), facts.length.maximum
+        )
+    asked_families = list(families)
+    for place in barred:
+        asked_families[place] = f"{families[place]}/no letter place"
+    asks = _letter_asks(asked_families, folded)
+    parents_last = frozenset(barred)
+    # THE PARENTS BY FAMILY, AND THE PARENT AND WINDOW PAIRS FOUND SPENT,
+    # kept for this walk so a slot visits only parents that can answer
+    # (`_partner_indexed`, lane L1 leftover); and the group sizes made a
+    # list once rather than once a slot.
+    parent_lists: "dict[tuple[str, bool, int | None], list[int]]" = {}
+    spent: "dict[tuple[int, int, int | None], bool]" = {}
+    sized = list(groups)
+    freeing: "tuple[dict[tuple[str, int, int], list[int]], dict[str, int], dict[tuple[int, int | None], bool]]" = ({}, {}, {})
+    # THE SLOTS' PARTNERS' CHARACTERS OVER THEIR PLAN, and the groups
+    # written in no form that may pay them back (`_paid_back`, lane L1
+    # leftover), kept only where parents are barred; and their WORDS off
+    # their plan, signed (`_words_paid_back`, the L1 Codex repair).
+    over = [0, 0]
+    plain: "dict[int, bool]" = {}
     made: dict[str, int] = {}
     # How many rows each parent's folded level covers so far, so the
     # preference reads the level rather than the pair.
@@ -50521,14 +51904,67 @@ def _text_cells(
     timed: "dict[tuple[bool, str], int]" = {}
     figured: "dict[tuple[bool, str], bool]" = {}
     for index in range(total):
+        held: "tuple[int, int] | None" = None
+        worded: "int | None" = None
+        if parents_last and folded <= index and index not in carriers:
+            # THE SLOT'S OWN PLANNED LENGTH FIRST where parents are barred
+            # (lane L1 repair): a partner takes its parent's length, the
+            # slots come last, and nothing after them can pay a length
+            # the plan did not lay out -- measured, the published average
+            # of 8.0258 came back 8.0447 when any length was taken.
+            #
+            # AND ITS PLANNED WORDS FIRST IN EACH WINDOW (Codex's review of
+            # lane L1, item 3, and its repair). A partner has its parent's
+            # words, and a slot that took a partner of other words moved
+            # `words.mean`: 400 durations and notes wrote 1.135 against a
+            # window of 1.105 to 1.13. So, wherever the long-tail line is
+            # kept, the slot asks a parent of its planned words at its
+            # planned length, then one of any words there, then one of its
+            # planned words in its whole window, then one of any words
+            # there (`_partner_of`): length before words, since asking the
+            # planned words in the whole window first left 46 characters
+            # nothing could pay back, and words can be paid back
+            # (`_words_paid_back`). MEASURED: 100,000 durations beside
+            # `note N done` wrote 11,234 words over while the whole window
+            # asked no words, every one from slots planned at one word that
+            # took three-word partners there. An answer of other words is
+            # kept only where no parent of the slot's planned length and
+            # words can be freed (`_parent_freed`, below).
+            held = (lengths[index], lengths[index])
+            worded = counts[index]
         partner = _partner_of(
             index, folded, spellings, families, used, windows,
-            list(groups), long_tail_line, carried, holes=holes,
+            sized, long_tail_line, carried, holes=holes,
+            parents=parent_lists, spent=spent, words=worded, held=held,
         )
+        if worded is not None and (
+            partner is None or parsing.token_count(partner) != worded
+        ):
+            # A PARENT OF THE SLOT'S PLANNED LENGTH AND WORDS IS FREED
+            # before the slot takes other words or none (`_parent_freed`,
+            # the L1 Codex repair's second verifier, item 3).
+            freed = _parent_freed(
+                index, partner,
+                (spellings, families, sized, folded, long_tail_line, windows),
+                (lengths, counts, kinds, bands),
+                (plain, carried, carriers, truth),
+                (
+                    states, used, holes if holes else _hole_spellings(column),
+                    facts.shape_forms,
+                ),
+                (parent_lists, spent), freeing,
+            )
+            if freed is not None:
+                partner = freed
         if partner is not None:
             taken = _take(partner, used)
             _settle(owing, taken, groups[index])
             _spend_length(budget, len(taken) - lengths[index], groups[index])
+            if parents_last and folded <= index:
+                over[0] = over[0] + (len(taken) - lengths[index]) * groups[index]
+                over[1] = over[1] + (
+                    parsing.token_count(taken) - counts[index]
+                ) * groups[index]
             spellings += [taken]
             _clock_cells_counted(timed, taken, groups[index])
             continue
@@ -50591,15 +52027,15 @@ def _text_cells(
             form_key in figured,
         )
         if spelling is None:
-            held = 0
+            made_held = 0
             if key in made:
-                held = made[key]
+                made_held = made[key]
             raise errors.ProfileError(
                 _domain_too_small(
                     column.name,
                     _shape_words(kind, band, lengths[index]),
                     wanted[key],
-                    held,
+                    made_held,
                 )
             )
         if key not in made:
@@ -50607,8 +52043,31 @@ def _text_cells(
         made[key] = made[key] + 1
         _settle(owing, spelling, groups[index])
         _spend_length(budget, len(spelling) - lengths[index], groups[index])
+        if parents_last and not asked_form and index < folded:
+            plain[index] = True
         spellings += [spelling]
         _clock_cells_counted(timed, spelling, groups[index])
+    if parents_last and over[0] > 0:
+        _paid_back(
+            facts, spellings, (groups, lengths, counts), (kinds, bands, asks),
+            (plain, carried, carriers, truth), over[0],
+            (states, used, holes if holes else _hole_spellings(column)),
+        )
+    if parents_last and over[1] != 0:
+        _words_paid_back(
+            facts, spellings, (groups, lengths, counts), (kinds, bands, asks),
+            (plain, carried, carriers, truth), over[1],
+            (states, used, holes if holes else _hole_spellings(column)),
+        )
+    if order is not None:
+        # BACK IN THE COLUMN'S OWN ORDER (`_fold_slot_order`).
+        back = ["" for _each in range(total)]
+        for position in range(total):
+            back[order[position]] = spellings[position]
+        spellings = back
+        groups = own_groups
+        kinds = own_kinds
+        carriers = (order[carriers[0]], order[carriers[1]])
     # THE TWIN CAN REPROFILE INTO A DIFFERENT ROLE, AND NOW IT SAYS SO
     # (residual R-P4-36). A fold-collision partner folds onto its
     # parent, so the pair makes a level covering BOTH their rows -- and
@@ -51932,6 +53391,7 @@ def _form_lengths(
         kinds,
         bands,
         True,
+        contract.WITHHELD not in facts.shape_forms,
     )
     held: "dict[int, int]" = {}
     worded: "dict[int, int]" = {}
@@ -52928,7 +54388,9 @@ def _made_up_cell(
             # A FORM HOLDS NO SPACE, so this key is no other form's.
             shaped = f"{shaped} figures"
         if shaped not in states:
-            states[shaped] = [0]
+            # Where the form's walk stands, and how many cells it has
+            # written (`_walk_goes_on`; lane L1).
+            states[shaped] = [0, 0]
         # THE FORM IS AN ASK TOO, AND IT IS ASKED FIRST. Where the
         # column published one that fits this value, the value is
         # written in it; where the form's own spellings cannot satisfy
@@ -53022,9 +54484,18 @@ def _walked_cell(
         # without the form.
         reach, tries = _form_walk_bounds(form, figures)
         room = min(room, reach)
+    # A FORM'S WALK GOES ON WHILE WHAT IT REFUSES STAYS BOUNDED BY WHAT IT
+    # WRITES (`_walk_goes_on`; lane L1), its written count in `state[1]`.
+    bounded = (
+        bool(form)
+        and len(state) > 1
+        and (figures or not _fraction_clock_supply(form))
+    )
     asked = 0
     tried = 0
-    while state[0] < room and tried < tries:
+    while state[0] < room and tried < tries and (
+        not bounded or _walk_goes_on(state[0], state[1], room)
+    ):
         tried = tried + 1
         index = state[0]
         state[0] = state[0] + 1
@@ -53093,6 +54564,8 @@ def _walked_cell(
             # reads as formulas. The four properties are asked here on
             # the same terms the label walk asks them.
             continue
+        if bounded:
+            state[1] = state[1] + 1
         return _claim(candidate, used)
     return None
 

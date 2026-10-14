@@ -10863,6 +10863,75 @@ places the numbers, the report says so, and the location is invented:
 at a floor of fifty a column of readings near seven came back with a
 mean near 3.4 and whole numbers up to seventy-eight.
 
+**Written as the source wrote its codes (lane L1, plan P4-D390,
+2026-10-13; the owner's ruling of 2026-09-15).** Four rules, each the
+oracle's too:
+
+- **A MADE-UP FIGURE CODE KEEPS THE PUBLISHED WIDTH.** Where every
+  published number of figures alone has one width and one of them opens
+  with a nought (`0468` beside `0830`), a made-up whole number narrower
+  than that width is written with noughts in front up to it (`414` is
+  written `0414`), in step 3's walk and G8.3c's placement alike. Such a
+  spelling wears no form and reads back as the same value, so no count
+  moves. Codes `0100` to `0999` declared a code at 5,000 rows came back
+  with 1,448 cells one to three figures wide; now none.
+- **A NUMBER WEARING NO NAMED FORM STEPS FROM THE PUBLISHED NUMBERS
+  WRITTEN WITHOUT AN EXPONENT.** Step 3's outward walk took its ends from
+  every published number, so a code `5E77` beside two-figure readings
+  made the largest end five followed by seventy-seven noughts and the
+  walk wrote integers of 78 figures, and on a register of seven-character
+  codes of 232 to 237. Where some published number is written plainly,
+  that walk's ends, and the widest number the narrow walk may write, are
+  those numbers'; every published number still marks its value taken,
+  on the outward walk as in the gaps -- `1` and `2` beside `0E2` stepped
+  down to `0` and wrote seven cells of it, 27 noughts where the table held
+  20, every check held (Codex's review of lane L1, item 1) -- and a form's
+  own walk keeps every published number's ends. Where every
+  published number wears an exponent, no plain number is written with
+  more figures than the longest published label has characters, in step
+  3's walk and G8.3c's placement alike (the placement wrote eight-figure
+  integers beside labels of five characters at most; item 2), and
+  where the published number nearest nought is already wider, the walk
+  steps up from nought, as where none was published. The pooled mean of
+  such numbers, an exponent's own magnitude, is then no longer met by
+  integers of that size: on the battery's table of readings beside
+  `%E%%%%%` codes it was missed before and after.
+- **A FORM OF ONE LETTER AMONG FIGURES IS SHARED** (`K-S3-61`). Step 2
+  answered one class per form, so `%%@%%%` -- `12E005` a number,
+  `52E638` a number too large to hold, `12A345` a word -- was the number
+  class's alone, the held-back words and out-of-range codes wore no form,
+  and the latter were written `1e999`. Such a form is now also offered
+  to the out-of-range class where its OVERFLOW filling (`1`, noughts,
+  `E`, nines) is out of range, and to the words where its first filling
+  is text. Before any class is walked, each such form keeps for the
+  out-of-range class up to that class's held-back cells, then for the
+  words up to what the forms only words wear leave of the words' cells --
+  but for the words only where a published label of the form is a word
+  or none is published, so `%.%@%` beside `1.1e6` and `1.2e6` is the
+  numbers' first as it was. Each class is served first from the forms
+  its own published labels wear, then from forms no label wears, and
+  last the out-of-range class from forms labelled otherwise (lane L1
+  repair): served in the forms' order, the out-of-range class took
+  `%%@%%%`, the 163 held-back words' only form, before `%@%%%`, the form
+  its own labels wear, and the words came out `group-N`. The number class is offered the rest; each
+  class is offered what the classes before it left; the words take, of
+  what the classes left, no more than was kept for them, so a shared form
+  the numbers leave unpaid takes no word a form only words wear is owed. The out-of-range class writes such a form's spellings
+  outright on a cursor of its own: `E` in the letter place, a nought-padded
+  mantissa from one up before it and an exponent from 309 up after it --
+  one more for each mantissa figure after its mark -- stepped round the
+  room (`_overflow_spelling`), each a number too large to hold.
+- **What stays.** A form whose letter places would have to differ is
+  answered as before (step 2's stated limit), and a column read as
+  numbers beside labels writes its NUMBER half by G6, untouched here: on
+  a register of seven-character codes beside numbers that half still
+  writes values of exponent codes such as `7E279` as integers of 280
+  figures, and exponent cells in G6.3's own spelling padded with noughts
+  (`00009.700353E+06`), its description met (lane L1's measurement); and
+  a count column written `%03d` at 4,000 rows still gets 2 cells written
+  `2` where the source always wrote `002` (skeptic 1 of lane L1, the same
+  on 45191fa), G6's writer and not this one.
+
 ### G8.3c The pool's own scale
 
 **WHERE THE COLUMN PUBLISHES A MEAN FOR ITS HELD-BACK NUMBERS, the
@@ -10954,9 +11023,13 @@ census decides how it is WRITTEN.
    dressed into a different number. Where a rule refuses a spelling —
    it wears a form the census names while the group was asked for none,
    the census pooled nothing for a counted form it does not name, it is
-   a spelling the column already uses, it fails the neutrality tests of
-   G8.3a, it carries a sign no published number has, or it is too wide
-   under the rule below — the offer steps one place outward, below then
+   a spelling the column already uses, it holds a value a published
+   number holds however that number is written (as on G8.3a's walk; the
+   L1 Codex repair: beside `1E2` x20 a pooled group wrote `100`, and a
+   reader converting to numbers counted 21 hundreds where the table held
+   20), it fails the neutrality tests of G8.3a, it carries a sign no
+   published number has, or it is too wide under the rule below — the
+   offer steps one place outward, below then
    above, and on outward until one is accepted. One place is the
    smallest move there is, so a short walk keeps the group at the scale
    it was asked for; a LONG one does not, which is why step 4 exists.
@@ -12339,6 +12412,94 @@ for.
    The debt is over cells and a
    group covers its own number of them, so the walk settles the form
    owing the most cells, ties broken by the form's own spelling.
+
+   **A GROUP LARGER THAN WHAT ITS FORM STILL OWES IS NOT ASKED FOR IT
+   while the groups after it cover what the form still owes, where the
+   census pools no cell** (lane L1, 2026-10-13). The groups are asked
+   largest first, so those after a group are no larger. A free-text face
+   column of 887 `HH:MM` times beside 113 spaced `9:15 AM` at 1,000 rows
+   and a floor of 36 asked its form's last cell of a group of two with 98
+   groups of one still to come, wrote 888 times and missed the form's
+   count; it now writes 887. Where the census pools cells the count is a
+   window, and the ask is as before.
+
+   **A FORM'S WALK GOES ON WHILE WHAT IT REFUSES STAYS BOUNDED BY WHAT IT
+   WRITES** (lane L1): G8.3's rule (`_walk_goes_on`, plan P4-D390), the
+   walk trying one spelling more while it has refused fewer than it has
+   written plus 4,096, never past the form's room. It stopped at 4,096
+   spellings in all, so 10,000 durations `HH:MM:SS` each written once, a
+   free-text column, wrote 4,096 in their form and 5,904 such as
+   `!!!!!!"N`, missing the form's count, and code splitting every cell on
+   its colons stopped on the twin; now all 10,000 wear the form. A form
+   whose every spelling is refused still costs 4,096 steps, and a walk
+   whose first 4,096 steps wrote what it needed writes what it wrote
+   before.
+
+   **A FOLD SLOT IS NEVER A GROUP ASKED A FORM WITH NO LETTER PLACE**
+   (lane L1 repair, 2026-10-13). G9.3's partners are the groups from the
+   folded count on, and a partner is its parent's case flip or edge-spaced
+   copy, so it wears no form without a letter place. 30,000 cells of
+   durations `HH:MM:SS` beside notes written `note N` and `NOTE N` wrote
+   24,572 of 27,037 durations in their form. So, where a slot would be
+   asked such a form, it changes places with the last earlier group of
+   its own planned length that is asked none and carries no published
+   end, and is no truth value (P4-D198), the walk runs in that order and
+   the cells come back in the column's own; a group asked a form with
+   none is BARRED, asked for no letter, while its family keeps as many
+   parents able to serve as it has slots (an unbarred parent, or a
+   barred one shorter than the longest published length), the family's
+   last barred parents freed where it falls short; and where any parent
+   is so barred, a partner takes the slot's planned length first and, of
+   the parents giving it, one of the slot's planned words first; then, in
+   the slot's whole window, again one of its planned words first; all
+   inside each pass that keeps the long-tail line (Codex's review of lane
+   L1, item 3: two slots planned one word took two-word partners, and 400
+   durations beside notes wrote `words.mean` 1.135 against a window of
+   1.105 to 1.13; and its verifier: 100,000 durations beside `note N
+   done` wrote 11,234 words over, slots planned one word taking
+   three-word partners in the whole window). Before a slot keeps an
+   answer of other words, or none, a parent is FREED: the family's last
+   parent of the slot's planned length and words that holds no letter,
+   wrote a made-up spelling in no form and no clock, gave no partner,
+   carries no published end and no truth value and keeps the folded
+   level under the long-tail line is re-made with a letter at its own
+   length and words, by its own class and band, and the slot takes its
+   case flip, the earlier answer handed back (the verifier's second
+   pass: a family's letter asks go to its earliest parents whatever
+   their shape, so durations beside `ok N` and `call back N`, 800 rows,
+   had nineteen slots of eight characters and three words take one-word
+   partners and wrote 27 words short, `words.mean` named; now none). A
+   parent asked a form is not freed, and no slot writes a made-up
+   spelling in place of other words, which would miss the folded count.
+   The words any slot's
+   partner still writes off its plan are PAID BACK once the walk is done,
+   as its characters are below: groups before the slots that wrote a
+   made-up spelling in no form, are no parent of a partner and carry no
+   published end and no truth value are re-made one word shorter (or
+   longer, where the slots wrote too few), at the length they were
+   written at, the smallest first, while words stay inside the published
+   least and greatest and those two counts stay held; durations and
+   `N min` beside three-word notes, 1,200 rows, came back 42 words short
+   and now exact. The
+   table now writes all 27,037. A column where no slot is asked such a
+   form walks exactly as before.
+
+   **WHAT THE SLOTS WRITE OVER THEIR PLAN IS PAID BACK** (lane L1
+   leftover, 2026-10-14). Where parents are barred the slots come last,
+   and a slot whose family has no flip of its planned length left writes
+   an edge-spaced partner one character over it: 1,755 at 100,000 rows of
+   the same table, `length.mean` 8.09453 against a window of 8.07689 to
+   8.07707. Once the walk is done, groups before the slots that wrote a
+   made-up spelling in no form and no clock, gave no partner, carry no
+   published end and no truth value are re-made one character shorter,
+   by the same class, band, words and letter ask, smallest group first,
+   from above the published middle length to no lower, until the
+   characters over are paid. The table meets every check at 50,000 and
+   100,000 rows. The partner search visits only the parents of the
+   slot's family and lettered kind whose trimmed text fits its window,
+   and skips a parent whose family ended inside an earlier walk in that
+   window; it answers as the full walk does, in time that grows with
+   what it finds.
 
    **THE FORM IS AN ASK AND NOT A PROMISE**, exactly as the fold
    collision of G9.3 is. The candidate is still checked against the

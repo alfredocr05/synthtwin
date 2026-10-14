@@ -12054,6 +12054,22 @@ goes, and the twin's own report names the rest; no producer writes such
 a description, because a source that spelled those groups had the
 spellings to do it.
 
+**A FORM OF ONE LETTER AMONG FIGURES IS WORN BY EVERY CLASS ITS CELLS
+READ AS** (lane L1, plan P4-D390, `K-S3-61`; generation method G8.3a).
+`%%@%%%` holds a number (`12E005`), a number too large to hold
+(`52E638`) and a word (`12A345`) alike, so its count is paid by the
+held-back groups of all three: the out-of-range groups and the words are
+kept the cells they need of it first, each first from the forms its own
+published labels wear, and the numbers take the rest. A
+made-up code of figures alone is written at the width every published
+one shares where one opens with a nought; such a spelling wears no
+form, so no count of this section moves. A made-up number never takes a
+value a published number holds, however that number is written, on
+method G8.3a's walk and in G8.3c's pooled placement alike, and
+where every published number wears an exponent none is written with more
+figures than the longest published label has characters (Codex's review
+of lane L1). No field of the description is added or read differently.
+
 ---
 
 <!-- a7h: the layout of a record number -->

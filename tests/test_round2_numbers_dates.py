@@ -22,7 +22,7 @@ import zipfile
 
 import pytest
 
-from synthtwin import contract, generation, sheetwriting
+from synthtwin import contract, generation, parsing, sheetwriting
 from tests import fixtures, workbooks
 from tests.test_extra_round_numbers import _exit_of, _round_trip
 from tests.test_stage2_round_trip import describe_with_the_producer
@@ -357,8 +357,13 @@ def test_the_mutant_walks_the_mantissas_bare_places(
         cell for cell in written if re.fullmatch(r"\d\.\d\de\+\d", cell)
     ]
     assert len(wearing) == 20
-    assert "10999999" in written
-    assert "11000001" in written
+    # The other twenty are plain numbers. Since lane L1 (plan P4-D390) a
+    # column whose every published number wears an exponent writes no
+    # plain number wider than its longest published label, seven
+    # characters here, where this mutant once wrote `10999999` and
+    # `11000001`.
+    plain = [cell for cell in written if parsing.is_digit_text(cell)]
+    assert len(plain) == 20 and max(len(cell) for cell in plain) <= 7
     assert twin_exit == 3
     assert real_exit == 0
 

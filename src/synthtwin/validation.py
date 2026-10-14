@@ -15055,7 +15055,8 @@ def _body_without_sign_or_zeros(text: str, sign: str) -> "str | None":
     spelling of a value that does not.
 
     The run of zeros stops at a point, because the `0` of `0.5` is a
-    figure of the number and not an invented one.
+    figure of the number and not an invented one, and at an exponent
+    mark, because the `0` of `0E5` is the whole mantissa.
     """
     body = text
     if sign == "-":
@@ -15066,7 +15067,17 @@ def _body_without_sign_or_zeros(text: str, sign: str) -> "str | None":
         body = body[1:]
     elif body[:1] == "-":
         return None
-    while body[:1] == "0" and len(body) > 1 and body[1:2] != ".":
+    # NOR AT AN EXPONENT (lane L1, plan P4-D390): the `0` of `0E15588`
+    # is the mantissa of a nought written with an exponent, and taking it
+    # off left `E15588`, no spelling at all, so a register of codes beside
+    # numbers failed `styles.spelled` on its own description.
+    while (
+        body[:1] == "0"
+        and len(body) > 1
+        and body[1:2] != "."
+        and body[1:2] != "e"
+        and body[1:2] != "E"
+    ):
         body = body[1:]
     if not body:
         return None
@@ -15226,6 +15237,83 @@ def _wears_a_whole_number_text(body: str, value: float) -> bool:
     if value > -9007199254740992.0 and value < 9007199254740992.0:
         return False
     return float(body) == value
+
+
+# THE MOST SIGNIFICANT FIGURES A BINARY64 VALUE NEEDS TO BE READ BACK AS
+# ITSELF: seventeen, so a spelling of more says figures no binary64 keeps.
+_BINARY64_FIGURES = 17
+
+
+def _wears_figures_past_binary64(
+    text: str, value: float, widths: "tuple[int, ...]"
+) -> bool:
+    """Whether one cell is a fraction written past what binary64 keeps.
+
+    A FOURTH SHAPE A REAL EXPORTER WRITES (lane L1, plan P4-D384). A
+    count of days written to fifty places past the point -- `45000.`
+    and fifty figures -- reads back as the binary64 value nearest it, and
+    no spelling the family offers at fifty places writes those figures:
+    the family writes the value's own shortest figures and pads the rest
+    with zeros. So a column of Excel serials written to 50 places failed
+    its own description on `styles.spelled`, exit 3, every cell outside.
+
+    THE RULE ANSWERS ONLY PAST SEVENTEEN SIGNIFICANT FIGURES and only at a
+    width the description publishes: past seventeen a cell says figures
+    no binary64 keeps, so no spelling of any value writes them, and a
+    cell at a width the census does not name is the width census's to
+    count. WHAT IT LEAVES OUTSIDE, stated (Codex's review of lane L1,
+    item 5; older than the lane): a cell of sixteen or seventeen figures
+    that says figures its value lost. `45000.123456789012` reads back as
+    `45000.12345678901`, and at a published width of twelve it is
+    outside the styles; so is `9999.0000000000001` beside a declared
+    `9999`, which P3-V4-F1 pins as a genuine miss of `styles.spelled`.
+    At seventeen figures or fewer this rule cannot tell a source's long
+    spelling from a near neighbour of a declared number, and it admits
+    neither. Asked of the text and answered by the number, as
+    `_wears_a_whole_number_text` is: the cell reads back as the value it
+    was read as, or it is not admitted.
+
+    Guarantees: accepts one cell's text with its negative written as a
+    leading minus, the value it read back as and the published widths;
+    returns whether it is that shape. Determinism: a fixed function of
+    the three. Raises TypeError, as an internal check, where ``text``
+    is not a string; nothing otherwise. No I/O of any kind.
+    """
+    if not isinstance(text, str):
+        raise TypeError("internal check: a cell reached the style check as something else")
+    start = 1 if text[:1] == "-" else 0
+    point = -1
+    for index in range(start, len(text)):
+        character = text[index]
+        if character == "." and point < 0:
+            point = index
+        elif character < "0" or character > "9":
+            return False
+    if point <= start or point == len(text) - 1:
+        return False
+    if len(text) - point - 1 not in widths:
+        return False
+    # THE SIGNIFICANT FIGURES: from the first figure that is not a nought
+    # to the last, the point stepped over.
+    first = -1
+    last = -1
+    for index in range(start, len(text)):
+        character = text[index]
+        if character != "." and character != "0":
+            if first < 0:
+                first = index
+            last = index
+    if first < 0:
+        return False
+    figures = last - first + 1
+    if first < point < last:
+        figures = figures - 1
+    if figures <= _BINARY64_FIGURES:
+        return False
+    try:
+        return float(text) == value
+    except ValueError:
+        return False
 
 
 def _wears_a_source_spelling(text: str, value: float, mark: str) -> bool:
@@ -15388,6 +15476,8 @@ def _cells_outside_the_styles(
         # admitted here too, measured over 264,387 such texts with no
         # exception, so one rule answers and the duplicate was removed.
         if not worn and _wears_a_source_spelling(signed, value, offered):
+            worn = True
+        if not worn and _wears_figures_past_binary64(signed, value, widths):
             worn = True
         if not worn and spent < pooled_widths:
             unnamed = parsing.fraction_width(body)

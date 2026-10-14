@@ -6,6 +6,44 @@ exists).
 
 ## [Unreleased]
 
+### Codes and long cells written as the source wrote them (2026-10-13)
+
+**Lane L1** (plans P4-D390 and P4-D384; `K-S3-61`). Made-up figure codes
+keep the source's width and leading noughts (`0414`, not `414`) where every
+published code of figures shares one width; a number wearing no named form
+steps from the published numbers written without an exponent, so codes
+such as `5E77` no longer make the twin write integers of 78 to 300 figures;
+a code form of one letter among figures (`12A345`, `52E638`) is worn by the
+words and the numbers too large to hold as well as by the numbers, so its
+count is met and no `1e999` stands in for such a code; free text keeps its
+form past 4,096 different values (10,000 durations `HH:MM:SS` written once,
+5,904 of which were written `!!!!!!"N`) and is written in a form no more often than its
+count; a column written to 5,000 places no longer stops `synthtwin
+generate`, and Excel serials written to 50 places, or a nought written
+`0E15588`, meet `styles.spelled` on their own source. On the lane's battery
+of 38 code, number and duration tables at floors 11 and 36 and seeds 0 to 4,
+no twin or table misses a check 45191fa met, 35 twins and four tables stop
+missing one, and 330 of 380 twins are byte for byte as before. Stated: a
+column of numbers beside labels still writes its number half's exponent
+codes by G6, as integers or in G6.3's own spelling. Its repair round: each
+class takes a shared code form first where its own published labels wear
+it, so held-back words keep their only form; durations beside notes written
+in two cases keep their `HH:MM:SS` form at 30,000 rows (24,572 of 27,037
+before), and their form and average at 50,000 and 100,000 rows, where the
+fold partner search now costs what it finds (100,000 rows in 29 s, where
+7b28976 did not finish in 900 s); a truth value is never written as a fold
+partner; long whole numbers are written faster. Its Codex review (2026-10-14): a
+made-up code never takes a value a published code holds, however it is
+written (`0` beside `0E2` on the walk, `100` beside `1E2` in the pooled
+placement), a pooled code is no wider than the longest published label, a
+fold slot asks its planned words first at its planned length and again in
+its whole window, frees a parent of its planned length and words before it
+takes a partner of other words, and the words still off are made up by
+other made-up cells (100,000 durations beside three-word notes wrote 11,234
+words over, now none; durations beside `ok N` and `call back N`, 27 words
+short at 800 rows, now none), and the statement of what `styles.spelled` admits past binary64
+names the seventeen-figure cells it leaves outside.
+
 ### The calendar comes back on columns of two offsets and of dates beside moments (2026-10-13)
 
 **Landing 3b.7, the shared clock and the joint member** (plan P4-D378).

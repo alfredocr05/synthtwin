@@ -362,12 +362,14 @@ cannot get worse unseen.
   for lane T3's merge, whose meeting with lane D2's weekday census on
   moments is an open question (P4-D378).
 - **Codes and tables written or read unlike the source, older than this
-  week** (recorded 2026-10-09; `K-S3-61`'s note carries them). Made-up
-  figure codes lose their leading zeros, and exponent-shaped codes
-  beside numbers are written `0`, `1e999` or integers of 232 to 237
-  figures (P4-D390); a code with one letter among figures misses its
-  form (`K-S3-61`); free text written on `HH:MM:SS` durations and a
-  face column misses its form (G9.5, `!!!!!!"N`): lane L1 owns them.
+  week** (recorded 2026-10-09; `K-S3-61`'s note carries them). Lane L1
+  (P4-D390, P4-D384, `K-S3-61`) writes made-up figure codes at the
+  source's width, label columns' exponent codes in their forms and range,
+  a code with one letter among figures in its form, and free text's
+  durations and face columns in theirs. Still so: a column of numbers
+  beside labels writes its number half's exponent codes as integers of up
+  to 280 figures or in G6.3's own spelling (P4-D390), which needs a
+  published fact of the spelling.
   A table whose rows end in its delimiter and whose header does not,
   or the reverse, is read as its columns since lane R5 (P4-D387); a
   headerless one still reads an empty last column, written back empty.

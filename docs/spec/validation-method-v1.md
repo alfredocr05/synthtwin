@@ -1857,6 +1857,29 @@ at its edge: on a three-hundred-cell column at a floor of eleven the
 allowance is `min(289, 50)`, so fifty odd cells pass and fifty-one do
 not.
 
+**Amended 2026-10-13 (lane L1, plans P4-D384 and P4-D390): two more
+spellings a source writes of its own value.** (a) A FRACTION PAST WHAT
+BINARY64 KEEPS: a cell of more than seventeen significant figures,
+written at a width `fraction_widths` publishes, that reads back as the
+value it was read as. Excel serials written to 50 places -- `45000.` and
+fifty figures -- failed `styles.spelled` on their own source, exit 3,
+since the family writes a value's own shortest figures and pads the rest
+with noughts. Past seventeen figures a cell says figures no binary64
+keeps, and at an unnamed width the width census counts the cell. What
+it leaves outside, stated (Codex's review of lane L1, item 5; older than
+the lane): a cell of sixteen or seventeen figures that says figures its
+value lost -- `45000.123456789012` reads back as `45000.12345678901` and
+is outside the styles at a published width of twelve, as
+`9999.0000000000001` beside a declared `9999` is (P3-V4-F1, a genuine
+miss): at seventeen figures or fewer the rule cannot tell a source's
+long spelling from a near neighbour of a declared number, and admits
+neither. (b) A NOUGHT WRITTEN
+WITH AN EXPONENT: the run of invented noughts taken off before the
+exponent shape is asked stops at an exponent mark as it stops at a
+point, since the `0` of `0E15588` is its whole mantissa; a register of
+seven-character codes beside numbers holding such codes failed its own
+description on this subcheck and meets it now.
+
 **Amended 2026-09-15 (landing 2b.7, plan P4-D66.2): `styles.spelled`
 admits the spellings a real exporter writes that G6.3 does not choose.**
 The family of G6.1 is what this method's own generator may write, and
