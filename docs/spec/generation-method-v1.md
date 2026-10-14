@@ -10569,7 +10569,7 @@ oracle's too:
   `%E%%%%%` codes it was missed before and after.
 - **A FORM OF ONE LETTER AMONG FIGURES IS SHARED** (`K-S3-61`). Step 2
   answered one class per form, so `%%@%%%` -- `12E005` a number,
-  `52E638` a number too large to hold, `123D45` a word -- was the number
+  `52E638` a number too large to hold, `12A345` a word -- was the number
   class's alone, the held-back words and out-of-range codes wore no form,
   and the latter were written `1e999`. Such a form is now also offered
   to the out-of-range class where its OVERFLOW filling (`1`, noughts,
@@ -10579,7 +10579,12 @@ oracle's too:
   words up to what the forms only words wear leave of the words' cells --
   but for the words only where a published label of the form is a word
   or none is published, so `%.%@%` beside `1.1e6` and `1.2e6` is the
-  numbers' first as it was. The number class is offered the rest; each
+  numbers' first as it was. Each class is served first from the forms
+  its own published labels wear, then from forms no label wears, and
+  last the out-of-range class from forms labelled otherwise (lane L1
+  repair): served in the forms' order, the out-of-range class took
+  `%%@%%%`, the 163 held-back words' only form, before `%@%%%`, the form
+  its own labels wear, and the words came out `group-N`. The number class is offered the rest; each
   class is offered what the classes before it left; the words take, of
   what the classes left, no more than was kept for them, so a shared form
   the numbers leave unpaid takes no word a form only words wear is owed. The out-of-range class writes such a form's spellings
@@ -10593,7 +10598,10 @@ oracle's too:
   a register of seven-character codes beside numbers that half still
   writes values of exponent codes such as `7E279` as integers of 280
   figures, and exponent cells in G6.3's own spelling padded with noughts
-  (`00009.700353E+06`), its description met (lane L1's measurement).
+  (`00009.700353E+06`), its description met (lane L1's measurement); and
+  a count column written `%03d` at 4,000 rows still gets 2 cells written
+  `2` where the source always wrote `002` (skeptic 1 of lane L1, the same
+  on 45191fa), G6's writer and not this one.
 
 ### G8.3c The pool's own scale
 
@@ -12093,6 +12101,22 @@ for.
    whose every spelling is refused still costs 4,096 steps, and a walk
    whose first 4,096 steps wrote what it needed writes what it wrote
    before.
+
+   **A FOLD SLOT IS NEVER A GROUP ASKED A FORM WITH NO LETTER PLACE**
+   (lane L1 repair, 2026-10-13). G9.3's partners are the groups from the
+   folded count on, and a partner is its parent's case flip or edge-spaced
+   copy, so it wears no form without a letter place. 30,000 cells of
+   durations `HH:MM:SS` beside notes written `note N` and `NOTE N` wrote
+   24,572 of 27,037 durations in their form. So, where a slot would be
+   asked such a form, it changes places with the last earlier group of
+   its own planned length that is asked none and carries no published
+   end, the walk runs in that order and the cells come back in the
+   column's own; a slot is offered only forms with a letter place; a
+   group asked a form with none is a parent only where no other parent of
+   its family is left, and is asked for no letter; and where any parent
+   is so barred, a partner takes the slot's planned length first, so the
+   published average holds. The table now writes all 27,037. A column
+   where no slot is asked such a form walks exactly as before.
 
    **THE FORM IS AN ASK AND NOT A PROMISE**, exactly as the fold
    collision of G9.3 is. The candidate is still checked against the

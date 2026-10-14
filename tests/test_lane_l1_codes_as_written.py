@@ -523,11 +523,11 @@ def test_a_free_text_face_column_red_when_a_group_overpays(tmp_path: pathlib.Pat
     assert "forms.published.%%:%%" in twin_missed
 
 
-def test_form_asks_passes_over_a_large_group_only_while_later_groups_cover_the_form() -> None:
+def test_form_asks_skips_a_large_group_only_while_later_groups_cover_the_form() -> None:
     """GATE CASES of `_form_asks` on an exact census (method G9.5 step 7):
     a group of 2 is not asked for a form owing 1 while a group of 1 comes
     after it; a group of 5 IS asked for a form owing 3 where only a group of
-    1 comes after, which could not cover it. Red where the rule passes over
+    1 comes after, which could not cover it. Red where the rule skips
     every group larger than the debt (`after[step] >= left[form]` dropped)."""
     form = "%%:%%"
     assert generation._form_asks(
@@ -569,7 +569,7 @@ def test_the_free_text_form_walk_is_bounded_by_what_it_writes_to_a_million(
 
 
 def _durations_beside_notes(rows: int) -> "list[str]":
-    """Skeptic 1's fold_dur table (item 3): 90 % durations `HH:MM:SS`, 10 %
+    """Skeptic 1's table of durations beside notes (item 3): 90 % durations `HH:MM:SS`, 10 %
     notes written `note N` or `NOTE N`, so the column folds."""
     draw = random.Random(9)
     cells: "list[str]" = []

@@ -25,7 +25,11 @@ of 38 code, number and duration tables at floors 11 and 36 and seeds 0 to 4,
 no twin or table misses a check 45191fa met, 35 twins and four tables stop
 missing one, and 330 of 380 twins are byte for byte as before. Stated: a
 column of numbers beside labels still writes its number half's exponent
-codes by G6, as integers or in G6.3's own spelling.
+codes by G6, as integers or in G6.3's own spelling. Its repair round: each
+class takes a shared code form first where its own published labels wear
+it, so held-back words keep their only form; durations beside notes written
+in two cases keep their `HH:MM:SS` form at 30,000 rows (24,572 of 27,037
+before); long whole numbers are written faster.
 
 ### Partial dates are read at their own precision, and a column mostly of dates is asked (2026-10-09)
 
