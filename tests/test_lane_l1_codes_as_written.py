@@ -42,6 +42,7 @@ import typing
 import pytest
 
 import fixtures
+import test_files_review_repairs as review_repairs
 from synthtwin import contract, generation, parsing, profile, reading, rendering, taxonomy, validation
 
 
@@ -50,10 +51,11 @@ def _described(
     cells: "list[str]",
     floor: int = 11,
     codes: "tuple[str, ...]" = (),
+    name: str = "t",
 ) -> "tuple[dict[str, typing.Any], contract.Profile]":
-    """One column `t` described by the real producer, written and loaded."""
+    """One column (`t` unless named) described by the real producer, written and loaded."""
     folder.mkdir(parents=True, exist_ok=True)
-    table = fixtures.write(folder, "table.csv", "\n".join(["t"] + cells) + "\n")
+    table = fixtures.write(folder, "table.csv", "\n".join([name] + cells) + "\n")
     settings = taxonomy.Settings(small_cell_floor=floor)
     document = profile.build_document(
         reading.read_table(str(table), small_cell_floor=floor), settings, [], list(codes)
@@ -568,10 +570,10 @@ def test_the_free_text_form_walk_is_bounded_by_what_it_writes_to_a_million(
 
 
 
-def _durations_beside_notes(rows: int) -> "list[str]":
+def _durations_beside_notes(rows: int, seed: int = 9) -> "list[str]":
     """Skeptic 1's table of durations beside notes (item 3): 90 % durations `HH:MM:SS`, 10 %
-    notes written `note N` or `NOTE N`, so the column folds."""
-    draw = random.Random(9)
+    notes written `note N` or `NOTE N`, so the column folds. Skeptic 2 drew it with seed 4242."""
+    draw = random.Random(seed)
     cells: "list[str]" = []
     for _row in range(rows):
         if draw.random() < 0.10:
@@ -602,21 +604,15 @@ def test_durations_beside_notes_in_two_cases_keep_their_form(tmp_path: pathlib.P
 @pytest.mark.parametrize("mutant", ["slot", "parent"])
 def test_durations_beside_notes_red_on_each_mutant(tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch, mutant: str) -> None:
     """MUTATIONS: the fold slots kept where they were; a parent asked a form
-    with no letter place taken like any other and asked for a letter."""
+    with no letter place asked for a letter like any other."""
     if mutant == "slot":
         monkeypatch.setattr(generation, "_fold_slot_order", lambda *_args: None)
     else:
-        partner = generation._partner_of
         asks = generation._letter_asks
-
-        def any_parent(*args: typing.Any, **named: typing.Any) -> "str | None":
-            named["barred"] = frozenset()
-            return partner(*args, **named)
 
         def every_ask(families: "list[str]", folded: int) -> "list[bool]":
             return asks([family.split("/no letter place")[0] for family in families], folded)
 
-        monkeypatch.setattr(generation, "_partner_of", any_parent)
         monkeypatch.setattr(generation, "_letter_asks", every_ask)
     cells = _durations_beside_notes(4000)
     twin, _source, twin_missed = _round(tmp_path, cells, 11)
@@ -779,3 +775,209 @@ def test_a_nought_written_with_an_exponent_red_when_its_mantissa_is_stripped(tmp
     _document, loaded = _described(tmp_path, _figure_codes_beside_a_nought_exponent(), 11)
     source = fixtures.write(tmp_path, "source.csv", "\n".join(["t"] + _figure_codes_beside_a_nought_exponent()) + "\n")
     assert "styles.spelled" in _missed(loaded, source)
+
+
+# -- (6) skeptic 2's leftover items: fold slots at scale ---------------
+
+
+def _notes_majority(rows: int) -> "list[str]":
+    """Skeptic 2's notes_majority table (item 1): 70 % notes `obs N word`, half
+    in capitals, 30 % durations `HH:MM:SS`."""
+    draw = random.Random(61000 + 8)
+    scale = max(200, rows // 25)
+    cells: "list[str]" = []
+    for _row in range(rows):
+        if draw.random() < 0.70:
+            word = f"obs {draw.randrange(scale)} {draw.choice(['ok', 'high', 'low'])}"
+            cells += [word.upper() if draw.random() < 0.5 else word]
+        else:
+            minutes = int(draw.lognormvariate(0.0, 0.7) * 480) % (48 * 60)
+            cells += [f"{minutes // 60:02d}:{minutes % 60:02d}:{draw.randrange(60):02d}"]
+    return cells
+
+
+def test_the_fold_partner_search_costs_what_it_finds(tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """MACHINE-FREE (skeptic 2 item 1): on notes_majority at 10,000 rows and a
+    floor of 36, the parents asked for a partner number at most four per
+    slot. 7b28976 asked 2,304,853 at 5,000 rows, 8,820,368 at 10,000 with
+    `_partner_indexed` off; this head asks 1,084 for 1,623 slots."""
+    _document, loaded = _described(tmp_path, _notes_majority(10_000), 36)
+    asked = {"parents": 0, "slots": 0}
+    partner_of = generation._partner_of
+    partner_from = generation._partner_from
+
+    def counted_of(index: int, folded: int, *args: typing.Any, **named: typing.Any) -> "str | None":
+        if 0 < folded <= index:
+            asked["slots"] += 1
+        return partner_of(index, folded, *args, **named)
+
+    def counted_from(*args: typing.Any, **named: typing.Any) -> "str | None":
+        asked["parents"] += 1
+        return partner_from(*args, **named)
+
+    monkeypatch.setattr(generation, "_partner_of", counted_of)
+    monkeypatch.setattr(generation, "_partner_from", counted_from)
+    generation.generate(loaded, 0)
+    assert asked["slots"] > 1000
+    assert asked["parents"] <= 4 * asked["slots"]
+
+
+def test_the_indexed_partner_walk_answers_as_the_plain_walk() -> None:
+    """GATE CASES of `_partner_indexed` (skeptic 2 item 1): the same partner as
+    `_partner_of`'s own walk, call after call, where a walk is cut by its step
+    bound on a hole (`NaT`, the one member matched byte for byte) and reaches
+    further once `used` grows. Red where every parent and window that
+    answered None is recorded spent."""
+    families = ["f", "f", "f"]
+    windows = [(3, 3), (3, 3), (3, 3)]
+
+    def walked(indexed: bool) -> "list[str | None]":
+        used: "dict[str, int]" = {}
+        kept: "tuple[typing.Any, typing.Any]" = ({}, {}) if indexed else (None, None)
+        answers: "list[str | None]" = []
+        for extra in ["", "zz", "yy"]:
+            if extra:
+                used[extra] = generation._WRITTEN
+            answers += [generation._partner_of(1, 1, ["naT"], families, used, windows, holes=("NaT",), parents=kept[0], spent=kept[1])]
+        return answers
+
+    assert walked(False) == [None, "nAT", "nAT"]
+    assert walked(True) == walked(False)
+    draw = random.Random(5)
+    for _case in range(40):
+        folded = draw.randrange(2, 9)
+        total = folded + draw.randrange(1, 9)
+        spellings = ["".join(draw.choice("ab1-") for _each in range(draw.randrange(1, 4))) for _each in range(folded)]
+        families = [draw.choice(["f", "g"]) for _each in range(total)]
+        sizes = [draw.randrange(1, 6) for _each in range(total)]
+        results: "list[list[str | None]]" = []
+        for indexed in (False, True):
+            used = {spelling: generation._WRITTEN for spelling in spellings}
+            carried: "dict[int, int]" = {}
+            written = list(spellings)
+            kept = ({}, {}) if indexed else (None, None)
+            answers = []
+            for index in range(folded, total):
+                windows = [(1, 4)] * total
+                found = generation._partner_of(
+                    index, folded, written, families, used, windows, sizes, 8, carried,
+                    parents=kept[0], spent=kept[1],
+                )
+                if found is not None:
+                    used[found] = generation._WRITTEN
+                answers += [found]
+                written += [found or f"made{index}"]
+            results += [answers]
+        assert results[0] == results[1]
+
+
+@pytest.mark.parametrize("rows", [50_000, 100_000])
+def test_durations_beside_notes_keep_their_form_and_average_past_30000_rows(tmp_path: pathlib.Path, rows: int) -> None:
+    """SKEPTIC 2 ITEM 1, BY COUNTS: durations beside notes in two cases meet
+    their duration form and `length.mean` at 50,000 and 100,000 rows. On
+    7b28976 `length.mean` was missed at 50,000 rows (8.06626 against
+    8.05436 on skeptic 2's draw) and 100,000 rows did not finish in 900 s."""
+    cells = _durations_beside_notes(rows, 4242)
+    twin, source_missed, twin_missed = _round(tmp_path, cells, 11)
+    assert source_missed == []
+    assert twin_missed == []
+    assert len(twin) == rows
+
+
+def test_durations_beside_notes_red_when_the_slots_extra_characters_are_not_paid_back(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """MUTATION: `_paid_back` pays nothing; the slots' edge-spaced partners one
+    character over their plan move `length.mean` out of its window."""
+    monkeypatch.setattr(generation, "_paid_back", lambda *args: args[5])
+    _twin_cells, _source, twin_missed = _round(tmp_path, _durations_beside_notes(50_000, 4242), 11)
+    assert "length.mean" in twin_missed
+
+
+def _workbook_truths_beside_folding_notes() -> bytes:
+    """Skeptic 2's workbook column (item 2): `noteNN`/`NOTENN`, times `HH:MM`
+    as text, and one TRUE and one FALSE, 400 rows."""
+    draw = random.Random(900)
+    rows = 400
+    values: "list[typing.Any]" = []
+    for _row in range(rows - 2):
+        if draw.random() < 0.45:
+            word = f"note{draw.randrange(10, 99)}"
+            values += [word.upper() if draw.random() < 0.5 else word]
+        else:
+            values += ["%02d:%02d" % (draw.randrange(24), draw.randrange(60))]
+    values += [True, False]
+    draw.shuffle(values)
+    strings = ["flag", "arm"]
+    grid = {1: [review_repairs._cell("A1", "0", "s"), review_repairs._cell("B1", "1", "s")]}
+    for place in range(rows):
+        number = 2 + place
+        value = values[place]
+        if isinstance(value, bool):
+            cell = review_repairs._cell(f"A{number}", "1" if value else "0", "b")
+        else:
+            strings += [value]
+            cell = review_repairs._cell(f"A{number}", f"{len(strings) - 1}", "s")
+        grid[number] = [cell, review_repairs._cell(f"B{number}", f"{place % 3}")]
+    return review_repairs._book([("Data", review_repairs._rows(grid))], strings)
+
+
+def _cell_classes_missed(folder: pathlib.Path) -> bool:
+    result = review_repairs._trip(folder, "flags", _workbook_truths_beside_folding_notes(), ("--smallest-group", "1"), seed=4)
+    return any("workbook.cell-classes" in line for line in typing.cast("list[str]", result["twin_missed"]))
+
+
+def test_a_truth_group_never_moves_into_a_fold_slot(tmp_path: pathlib.Path) -> None:
+    """SKEPTIC 2 ITEM 2: the FALSE group is not moved into a fold slot and
+    written as a partner, so `workbook.cell-classes` holds (P4-D198)."""
+    assert not _cell_classes_missed(tmp_path)
+
+
+def test_a_truth_group_red_when_it_may_move_into_a_fold_slot(tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """MUTATION: `_fold_slot_order` handed no truth places, as on 7b28976."""
+    order = generation._fold_slot_order
+    monkeypatch.setattr(generation, "_fold_slot_order", lambda *args: order(*args[:8]))
+    assert _cell_classes_missed(tmp_path)
+
+
+def _durations_beside_single_letter_codes() -> "list[str]":
+    """Durations `HH:MM:SS` beside one tenth `x12`/`X12`, 4,000 rows: every
+    parent of the durations' family is barred and already as long as the
+    longest published length."""
+    draw = random.Random(7)
+    cells: "list[str]" = []
+    for _row in range(4000):
+        if draw.random() < 0.1:
+            word = f"x{draw.randrange(100)}"
+            cells += [word.upper() if draw.random() < 0.5 else word]
+        else:
+            minutes = int(draw.lognormvariate(0.0, 0.7) * 480) % (48 * 60)
+            cells += [f"{minutes // 60:02d}:{minutes % 60:02d}:{draw.randrange(60):02d}"]
+    return cells
+
+
+def test_a_family_keeps_parents_for_its_slots(tmp_path: pathlib.Path) -> None:
+    """GATE CASE of `_barred_kept`: the folded count holds (70 slots found no
+    partner on 7b28976 and `n_distinct_folded` was missed; 45191fa held it)."""
+    _twin_cells, source_missed, twin_missed = _round(tmp_path, _durations_beside_single_letter_codes(), 11)
+    assert source_missed == []
+    assert "distinct.n_distinct_folded" not in twin_missed
+
+
+def test_a_family_keeps_parents_red_when_every_asked_parent_stays_barred(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """MUTATION: `_barred_kept` frees no parent."""
+    monkeypatch.setattr(generation, "_barred_kept", lambda barred, *_args: barred)
+    _twin_cells, _source, twin_missed = _round(tmp_path, _durations_beside_single_letter_codes(), 11)
+    assert "distinct.n_distinct_folded" in twin_missed
+
+
+def test_shared_forms_kept_last_gives_numbers_too_large_a_form_numbers_wear() -> None:
+    """GATE CASE of `_shared_forms_kept`'s third round (skeptic 2 item 3c): a
+    form whose published labels are numbers alone (`1E100`) is still kept for
+    the numbers too large to hold, which can be written no other way, as on
+    45191fa. Red where the third round gives nothing."""
+    out_of_range = generation._OWED_OUT_OF_RANGE
+    kept = generation._shared_forms_kept(["1E100"] * 15, (12,), {0: out_of_range}, {"%@%%%": 12}, False)
+    assert kept == {out_of_range: {"%@%%%": 12}, generation._OWED_TEXT: {}}
