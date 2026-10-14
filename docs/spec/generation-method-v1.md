@@ -7476,7 +7476,14 @@ every weekday count is kept.
    of its written unit, takes the free place of the day's first bin --
    hour 0, for the hour -- nearest midnight inside all their gaps; where
    there is none, they stay. A published count at midnight stays exact,
-   and a withheld one only falls (plan P4-D191).
+   and a withheld one only falls (plan P4-D191). Where the hour pass runs
+   on a column whose body is drawn on a lattice of the clock coarser than
+   its written unit (G7.3's drawing rule), the free place of that lattice
+   nearest midnight is asked first, and a written unit at a time only
+   where the bin of their gaps holds none (lane J2's Codex review, the
+   leftover: stamps every fifteen minutes, half the slots kept, each
+   written three or four times, had a pair put at `00:00:01`, which no
+   field pass could put on second 0 but at midnight).
 5. **The half day's tails** (the hour's alone). On the dial's half day,
    each tail rank past noon or written at midnight takes the nearer of
    the half day's places on either side of it inside its stratum, the
@@ -7575,7 +7582,7 @@ afternoon cells back twelve hours early and misses published facts).
 
 **Its frozen cases** are states of ranks, as G7.3f's are: the sixteenth
 vectors file, `tests/reference/generation-branch-vectors-16.json`, holds
-thirty -- SAMEDAY, the escape with a weekday census's groups and its last
+thirty-three -- SAMEDAY, the escape with a weekday census's groups and its last
 resort, the escape paid back, its payer keeping the count asked past the
 first, its payers given back where too few are found, a payer kept off a
 hole, the whole pass beside a weekday census, and the whole pass with the
@@ -7585,7 +7592,8 @@ nearer without it (lane J), a unit a payer took a rank of asked as it
 stands (lane J's Codex review), SPLIT, RELIEF and its give-back where the room it made is not
 enough, PUT BACK long and short and its last resort, PUT BACK never onto
 a written midnight and its short count moving only a rank that shares
-its written unit, the proportional order, the step off midnight, the half
+its written unit, the proportional order, the step off midnight and the
+step off midnight on the body's lattice (lane J2's Codex review), the half
 day's tail ranks and a tail rank kept inside its stratum, SAMEPARENT
 asking no place of a hole, step 3's later round, where a whole unit's
 leaving gave a group room, and the whole pass, and, on a field of minutes
@@ -7906,7 +7914,9 @@ it while its payers are asked, so a sharing rank there read as keeping the
 count, and once the run had gone the unit stayed held -- a merge counted
 that removed no value), and every payer given back where fewer are found
 than the unit has ranks; so every weekday count is kept and each step
-counts its own moves exactly.
+counts its own moves exactly. Where no unit is joined or left, none is
+named -- never a unit number standing for none, which a written unit
+before 1970, negative, would be (its Codex review, item 1).
 - *PUT BACK PAID BACK*, after step 2, where the count is still long and
   reachable: PUT BACK's runs, the fewest ranks first and in proportional
   order within a size, each ASKED AS IT STANDS (its ranks still on the
@@ -7940,7 +7950,20 @@ In each a standing is asked once for a unit, a pair of standings no payer
 at all was found for is not asked again in the step, and a group, a
 parent's place in the day, a gap and a day standing (for SPREAD BY
 SUBSTITUTE, a parent) that found nothing are not asked again, so each
-step's work grows with the rows. The tails making room at midnight are
+step's work grows with the rows. NO DAY IS READ TWICE IN VAIN (its Codex
+review, item 3: a run `weeks` days from the one unit of another standing
+it could join walked every day between, and every search for payers the
+occupied days of the other standings between, once a run, the work four
+times over as the rows doubled): each search reads, outward from the
+unit's day in the order above, only days that can answer it -- the
+payers' walk the occupied days of the standing it asks, passing over
+each whose ranks are spent; PUT BACK PAID BACK the days whose parent at
+the run's place holds a unit of its group that some rank still holds;
+SPREAD's escapes, paid and not, the days whose parent has a free place
+of the rank's group -- each next such day found by halving, and each
+index kept as ranks move. The days asked, and their order, are those
+above; doubling the rows doubles the work, the unit to join, the place
+and the payers near or far. The tails making room at midnight are
 followed by SPREAD PAID BACK and SPREAD BY SUBSTITUTE too. Where no
 weekday census stands none of the three runs, and every twin is as
 before: the last resorts of steps 2 and 3 and G7.3g's free a run to a day
@@ -7963,7 +7986,13 @@ different values crowd the lattice its minute's and second's facts would
 pin publishes neither (contract NF121 and NF122), so no field pass runs
 on it; a dense grid of random times, filling it no more than a uniform
 draw of its rows would, is not crowded and keeps them (lane J2's second
-skeptic, item 1).
+skeptic, item 1), nor is a grid some value of which repeats, publishing
+no count at midnight, that fills it less than a fifth more than that draw
+(its Codex review, item 2: 1,000 stamps five minutes or a minute apart,
+each written twice, met every fact; where a count at midnight is
+published such grids, written twice from five minutes up, missed and stay
+withheld). The rule claims no impossibility: it withholds where twins
+were measured to miss.
 Last, where the column publishes its count at midnight -- or withholds it
 for its size, and so still owes the count it held before these passes
 (plan P4-D191) -- THE TAILS KEEP IT:
@@ -7988,10 +8017,12 @@ profile that publishes them beside it.
 
 **Its frozen cases** are states of ranks and drawing units: the twentieth
 vectors file, `tests/reference/generation-branch-vectors-20.json`, holds
-forty-three -- SPREAD and PUT BACK paid back beside a weekday census, a
+forty-five -- SPREAD and PUT BACK paid back beside a weekday census, a
 payer that would change the count passed over, SPREAD by substitute, a
 payer standing on the
-unit a run joins passed over and a run asked as it stands (lane J2), the
+unit a run joins passed over and a run asked as it stands (lane J2), both
+payer exclusions moved back 28,000 days to 1947 (its Codex review, item
+1), the
 pass on a field of minutes with heaps and on a field of
 seconds with a kin group of minutes, KIN SHARES over two hours,
 carried from gap to gap over four days, reconciled against what each hour

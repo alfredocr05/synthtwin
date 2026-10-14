@@ -1314,6 +1314,10 @@ CROWDED_SHARE_ALL_DIFFERENT = (1, 3)
 # before they crowd it (`lattice_crowded`, lane J2's second skeptic, item
 # 1): a twentieth of its points.
 CROWDED_EXCESS = (1, 20)
+# ...and a fifth where some value is written more than once and the
+# column's count at midnight is not published (Codex's review of lane J2,
+# item 2): a short grid with repeats keeps its facts there.
+CROWDED_EXCESS_REPEATED = (1, 5)
 
 
 def lattice_crowded(
@@ -1323,6 +1327,7 @@ def lattice_crowded(
     distinct: int,
     all_different: bool = False,
     parsed: int = 0,
+    midnight_counted: bool = True,
 ) -> bool:
     """Whether a column's different values crowd the lattice its clock facts pin.
 
@@ -1364,6 +1369,28 @@ def lattice_crowded(
     stands 0.111 to 0.382 above it and stays withheld. `parsed` 0 asks the
     fill alone.
 
+    A GRID WITH REPEATS AND NO COUNT AT MIDNIGHT IS NOT CROWDED UNDER A
+    FIFTH (Codex's review of lane J2, item 2). Where some value is written
+    more than once and the column publishes no count at midnight
+    (`midnight_counted` false), the excess must reach
+    `CROWDED_EXCESS_REPEATED`. 1,000 stamps five minutes or a minute apart,
+    each written twice, stand 0.144 above the draw, and with their facts
+    their twins met the count and every heap at floors 11 and 36 (the
+    twentieth had withheld them): of 35 such grids and floors measured --
+    written twice or three times, or a tenth to a quarter of their values
+    once, one to fifteen minutes apart, 2,000 to 40,000 rows -- every twin
+    met them. Where a count at midnight is published the twin holds it
+    exactly, and on a lattice its values fill the ranks there find no free
+    place: written twice, 10,000 stamps five minutes apart came back 34 to
+    90 values short, 4,000 ten minutes apart 53 to 56 short, 2,000 fifteen
+    minutes apart and coarser off their count or their second's heap,
+    40,000 a minute apart off the second's heap in one twin of two, and
+    10,000 written three times five or sixty minutes apart off their count
+    or their count at midnight -- so the twentieth stands there, as it does
+    for a column every value of which is different, and from a fifth on
+    (every second stamp written twice, 0.227 above, missed its count
+    either way).
+
     Guarantees: a function of the arguments; raises nothing. No I/O.
     """
     if unit <= 1:
@@ -1377,6 +1404,8 @@ def lattice_crowded(
     if parsed <= 0:
         return True
     above, over = CROWDED_EXCESS
+    if not all_different and not midnight_counted:
+        above, over = CROWDED_EXCESS_REPEATED
     # The share of the points `parsed` uniform draws fill, on average.
     drawn = 1.0 - (1.0 - 1.0 / points) ** parsed
     return distinct / points - drawn >= above / over

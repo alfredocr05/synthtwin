@@ -775,6 +775,50 @@ _DENSE_GRIDS = (
 )
 
 
+def _twice_series(step: int, rows: int) -> "list[str]":
+    """Codex's review of lane J2, item 2: `rows // 2` stamps `step` minutes apart from
+    2015-01-01 00:00:00, each written twice."""
+    start = datetime.datetime(2015, 1, 1)
+    cells: "list[str]" = []
+    for place in range(rows // 2):
+        cells += [(start + datetime.timedelta(minutes=step * place)).strftime("%Y-%m-%d %H:%M:%S")] * 2
+    return cells
+
+
+def test_a_short_grid_written_twice_keeps_its_clock_facts(tmp_path: pathlib.Path) -> None:
+    """Codex's review of lane J2, item 2 (NF121, NF122): 2,000 rows, 1,000 stamps from
+    2015-01-01 00:00:00 five minutes apart -- and a minute apart -- each written twice, fill
+    their lattice 0.144 above a uniform draw of their rows; e69e534 withheld their minute's and
+    second's facts as crowded, and its seed-0 twin wrote 49 cells at second 0. Where some value
+    repeats and no count at midnight is published, the rule asks a fifth: both publish, the
+    second's heap at 0 holding every body cell, and their twins at seeds 0 to 2, floors 11 and
+    36, miss nothing. The protection stands where a count at midnight is published: 10,000 rows
+    five minutes apart, each written twice -- whose twins with the facts came back 34 to 90
+    values short -- stay withheld and meet their count."""
+    for step in (5, 1):
+        cells = _twice_series(step, 2000)
+        for floor in (11, 36):
+            described = _one_column(tmp_path / f"twice-{step}-{floor}", "c", cells, floor)
+            block = described.block("c")
+            assert block.get("n_at_midnight") is None, (step, floor)
+            heaps = block["second_heaps"]
+            body = 2000 - block["low_tail"]["rows"] - block["high_tail"]["rows"]
+            assert heaps == [{"value": 0, "count": body}], (step, floor, heaps)
+            for seed in (0, 1, 2):
+                written = kpi_shapes.twin_text(described, seed)
+                assert kpi_shapes.missed(kpi_shapes.measure(described, written, f"t{seed}.csv")) == [], (step, floor, seed)
+    described = _one_column(tmp_path / "twice-5-10000", "c", _twice_series(5, 10000))
+    block = described.block("c")
+    assert block.get("n_at_midnight") is not None
+    assert block["second_heaps"] == [] and block["minute_heaps"] == []
+    written = kpi_shapes.twin_text(described, 0)
+    assert kpi_shapes.missed(kpi_shapes.measure(described, written, "t.csv")) == []
+    # By hand: 1,000 values on 1,000 points of 300 seconds, 2,000 rows, 0.135 above the draw.
+    assert not calendar_clock.lattice_crowded(300, 0, 299_700, 1000, False, 2000, False)
+    assert calendar_clock.lattice_crowded(300, 0, 299_700, 1000, False, 2000, True)
+    assert calendar_clock.lattice_crowded(300, 0, 299_700, 1000, True, 1000, False)
+
+
 def _half_kept_series(step: int, rows: int, times: int) -> "list[str]":
     """Stamps `step` minutes apart from 2015-01-01, each slot kept with chance one half
     (`random.Random(5)`), each kept slot written `times` times."""
@@ -843,7 +887,9 @@ def test_a_dense_grid_of_random_times_keeps_its_clock_facts(tmp_path: pathlib.Pa
     plain = calendar_clock.lattice_crowded
     monkeypatch.setattr(
         calendar_clock, "lattice_crowded",
-        lambda unit, low, high, distinct, all_different=False, parsed=0: plain(unit, low, high, distinct, all_different),
+        lambda unit, low, high, distinct, all_different=False, parsed=0, midnight_counted=True: plain(
+            unit, low, high, distinct, all_different
+        ),
     )
     described = _one_column(tmp_path / "fill-alone", "c", _dense_grid("hour", 3000, 60))
     assert described.block("c")["second_heaps"] == []

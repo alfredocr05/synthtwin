@@ -2395,8 +2395,9 @@ def rendered(form: str, arguments: "tuple[object, ...]") -> str:
             f"different values stand so close together on the clock -- "
             f"filling half or more of the places those counts would leave "
             f"them between the two tail boundaries, or a third where every "
-            f"value is different -- that a twin keeping its percentiles could "
-            f"not keep them apart there"
+            f"value is different, and more of them than its values drawn at "
+            f"random would -- that a twin keeping its percentiles may not "
+            f"keep them all apart there"
         )
     if form in (NOTE_MINUTE_WITHHELD_MIDNIGHT_UNCOUNTED, NOTE_SECOND_WITHHELD_MIDNIGHT_UNCOUNTED):
         # NF123, NF124.
@@ -18684,8 +18685,11 @@ def clock_lattice_crowded(
     third or more where every parsed cell is one, and a twentieth more
     of them than `parsed` cells drawn uniformly over those points would
     (`calendar_clock.lattice_crowded`, lane J2's second skeptic, item 1:
-    a dense grid of random times is not crowded). False where neither
-    field publishes, or where the block has no two tails.
+    a dense grid of random times is not crowded) -- a fifth where some
+    value repeats and the block publishes no count at midnight (Codex's
+    review of lane J2, item 2: a short grid with repeats meets its
+    facts). False where neither field publishes, or where the block has
+    no two tails.
 
     Guarantees: a function of the arguments; raises nothing. No I/O.
     """
@@ -18715,8 +18719,10 @@ def clock_lattice_crowded(
         if flag:
             distinct = distinct + 1
     instants = [calendar_clock.seconds_of(text) for text in texts]
+    counted = details["n_at_midnight"] if "n_at_midnight" in details else None
     return calendar_clock.lattice_crowded(
-        unit, min(instants), max(instants), distinct, parsed > 1 and distinct == parsed, parsed
+        unit, min(instants), max(instants), distinct, parsed > 1 and distinct == parsed, parsed,
+        isinstance(counted, int),
     )
 
 
