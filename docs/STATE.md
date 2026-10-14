@@ -48,7 +48,7 @@ stays in scope.
 | branch | `phase-5-relationships`, cut from `main`. `main` is pull-request only. Stage 2b was built on `carried-2b-integration`, cut from it at `53bb012`, and lands on it whole |
 | phase | **Phase 4 REOPENED 2026-09-12** — it closed on 2026-09-11 with silent within-column defects live inside its own charter. Phase 5 does not start until the ordered list below reaches it |
 | plan | This page is the plan of record. `docs/plans/phase-5-relationships.md` is a DRAFT whose scope is superseded: it deferred correlation, and correlation is now mandatory |
-| suite | 11,497 collected. One process took about 66 minutes when the suite held 9,138 cases (ledger `K-P0-10` carries the seconds); at 11,496, on `9bbe5d2`, the five shards took 14.5 to 25.5 minutes each, 95.7 minutes summed and 25.5 end to end. In CI it runs as **five shards**, the heaviest about 20 minutes. Re-measure here whenever the count moves |
+| suite | 11,513 collected. One process took about 66 minutes when the suite held 9,138 cases (ledger `K-P0-10` carries the seconds); at 11,496, on `9bbe5d2`, the five shards took 14.5 to 25.5 minutes each, 95.7 minutes summed and 25.5 end to end. In CI it runs as **five shards**, the heaviest about 20 minutes. Re-measure here whenever the count moves |
 | KPIs | `tests/kpi/ledger.json`: 209 KPIs over phases 0-4 and stages 1, 2, 2b, 3, 3b and 4, 31 of them headlines under a cap of 31 (raised from 30 by the orchestrator at 3b.K, plan P4-D364, for `K-S3-38`, time of day, which landed with 3b.2-H); 179 green, 14 open (9 with the stage or lane that owns each, 5 with none set), 16 limits the owner accepted. Stage 3's are `K-S3-01` to `K-S3-25`, one of them a headline (`K-S3-11`, the tail leak); stage 3b's `K-S3-30` to `K-S3-32`, `K-S3-34` to `K-S3-41`, `K-S3-43` to `K-S3-52`, `K-S3-54` to `K-S3-62` (`K-S3-33` retired with the weekday certificate), `K-S3-31` (the weekday) a headline in `K-2B-22b`'s place and `K-S3-38` (time of day) a headline; stage 4's `K-S4-02` to `K-S4-05`, `K-S4-03` a headline in `K-2B-14`'s place. **One command re-measures them all:** `.venv/bin/python tools/measurements/kpi_run.py` (add `--slow` for timings and scale). Run it at every stage close: **a KPI that drops is a regression even when every test is green** |
 | checks | `ruff check .`, `mypy --strict src/`, the offline import scan, the provenance check, the decontamination scan, the signed attestation and the disposition seal — all clean |
 | CI | runs on every pull request, five Pythons across Ubuntu, Windows and macOS. **It saw stages 1, 2 and 2b for the first time on 2026-09-20 (PR #6, run 35508922164): every static check green, every test cell red on three defects, all three repaired.** Its **second** run (35541541720) was red again on a deeper layer, all of it in the tests: two that asserted the answer for the machine they ran on, a `Path.read_text(newline=)` that exists only on 3.13 while the floor is 3.10, seventeen Windows failures caused by a temporary path containing `AppData` (which contains a sheet name the test forbade), and about 25 workbook cases that failed instead of skipping where openpyxl is absent. All repaired, each with a guard that now fails HERE rather than in CI. The suite is sharded five ways since, so a cell should cost about 13 minutes rather than up to three hours. **Its third run (35670708722, on `eaff15f`, 2026-09-22) passed 69 of 69 jobs, and run 36743015674 on `82b1f1a`, stages 3 and 3b, passed 69 of 69 on 2026-09-30.** A green local suite is not a green CI. Check `gh pr checks` before believing a branch is done |
@@ -350,18 +350,20 @@ cannot get worse unseen.
   silent (plans P4-D352, P4-D356).
 - **The largest tables** are measured to about 1,000,000 rows on
   identifiers (P4-D389); the end-to-end 2M x 50 run is `K-S1-06`.
-  Landing 4. Lane S4b, named by the orchestrator on 2026-10-09, owns
-  the next million-row costs: G3's trade on a few instants held
-  thousands of times (about 40 minutes at 1,000,000 rows by the x3.4 a
-  doubling measured to 200,184) and its stall on wide gaps (four
-  10-day clusters a decade apart: 200,000 rows unfinished after 20.5
-  minutes of CPU), the weekday census's target search on sparse dates
-  (103.8 of 163.6 s at 200,000 rows), G2's dense-tail grid passes
-  (about x3 a doubling), the number cells' identity walk (249 of 624 s
-  at 1,000,000 rows, measured by lane S4a), G4's decimal codes (13 to
-  22 minutes to generate at 1,000,000 rows) and validating a register
-  of 50,000 consecutive codes (killed at 960 s and 1.7 GB) (P4-D376,
-  P4-D377, P4-D390).
+  Landing 4. Lane S4b-num (2026-10-14) brought four of lane S4b's
+  costs to work that grows with the rows, every twin the same bytes:
+  the dense tail's push (494 s to 13.7 s at 100,000 rows, 207 s at
+  1,000,000), the identity walk (501,501 spellings asked to 1,001 at
+  100,000 rows of the Codex column), G4's decimal codes (803 s to 32.6
+  s at 1,000,000 rows) and a register's quality report (50,000
+  consecutive codes validate in 59.5 s, 997,770 rows in 123.5 s)
+  (P4-D377, P4-D387, P4-D390). Left to S4b's calendar half, after
+  stage 3b's last merge: G3's trade on a few instants held thousands of
+  times (about 40 minutes at 1,000,000 rows by the x3.4 a doubling
+  measured to 200,184) and its stall on wide gaps (four 10-day clusters
+  a decade apart: 200,000 rows unfinished after 20.5 minutes of CPU),
+  the weekday census's target search on sparse dates (103.8 of 163.6 s
+  at 200,000 rows), J's million-row hours and `K-S3-44` (P4-D376).
 - **The packing walk can still take a long time on a few identifiers
   written in several forms.** Stage 4 bounds what the walk remembers at
   64 MB and has it read the counts together, so Codex's identifier of

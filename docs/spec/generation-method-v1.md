@@ -2959,6 +2959,16 @@ because a zero in front of a plain spelling is what makes it
 reaches its published distinctness only as far as its different values
 carry it (G12.8).
 
+**EACH CELL'S WALK OF ORDERS BEGINS WHERE THE LAST ONE OF ITS KIND
+STOPPED** (stage 4 lane S4b-num, plan P4-D387). A cell that owes an
+identity is raised an order at a time until its spelling is one the
+column has not yet written. The walk of a cell of the same value, style,
+field width, pad, mark, notation and plus begins at the order the last
+such walk took, since every order below it writes an identity already
+taken; so each cell takes the order it took when every walk began at the
+first, and a value written n ways asks for about n spellings rather than
+n squared over two.
+
 **A NAMED FIELD WIDTH SPENDS THE FAMILY, and this is the one bound the
 family has** (plan P4-D14). Where `pad_widths` names a width, the cells
 it counts are written AT that width: the order is not one, and not
@@ -4078,6 +4088,18 @@ published empty stretch stay as they were. What it cannot mend is a band
 given more strata than it has points -- G5.2 divides the strata between
 the bands by their cells, not by their different numbers, which the
 description does not publish per band -- and that shortfall is named.
+
+**HOW THE PUSH IS FOUND, which changes no push** (stage 4 lane S4b-num,
+plan P4-D377). The pass keeps each stratum's place by its grid unit and
+its collisions in a heap ordered by grid unit and then position, so the
+lowest collision is the heap's first live entry, and its holders and the
+strata a walk passes are read off that index rather than off every
+stratum. Each way is walked under a budget of strata, raised fourfold
+until one way finds its free point or leaves the band; the other way is
+then walked only as far as it could still be taken -- as many strata as
+the found way passes downward, one fewer upward -- or in full where the
+found way has no mover. Holders of one kind share one walk. The push
+taken and every stratum it moves are those of the rule above.
 
 **WHICH OF THE THREE REFUSALS CAN DECIDE A PUSH, measured** (the skeptic
 of the oracle's independence repair, 2026-09-19). Two of them never
@@ -10786,6 +10808,11 @@ census decides how it is WRITTEN.
    above, and on outward until one is accepted. One place is the
    smallest move there is, so a short walk keeps the group at the scale
    it was asked for; a LONG one does not, which is why step 4 exists.
+   An offer remembers, for its whole pass over the groups, the places a
+   rule that does not change while it runs refused and the spellings it
+   has written, and steps over a run of refused places in one move;
+   each group takes the place the stepping just stated would take
+   (stage 4 lane S4b-num, plan P4-D390).
 4. **The offers, and which one is written.** Steps 1 to 3 ask each
    group for its own value and let the written mean fall where it may,
    and where a rule of step 3 refuses every spelling near a group's

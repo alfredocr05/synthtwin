@@ -16,6 +16,11 @@ nothing reads the product's source to build them:
   down to `_cell_walk`, the oracle of the bounded walk of plan P4-D389
   (`tests/test_stage4_allocator_walk.py`): the answers must be its
   answers wherever it finishes.
+- `PUSHED_APART`, `IDENTITY_WALK`, `POOLED_PLACED` and `QUALITY_REPORT`
+  are G6.5a's push, G6.6's identity walk, G8.3c's pooled placement and
+  the quality report as 3434682 shipped them, the oracles of lane
+  S4b-num (`tests/test_stage4_numbers_and_codes.py`, plans P4-D377,
+  P4-D387 and P4-D390).
 
 `READ_THE_COLUMN`, `taxonomy._read_the_column` with its level pass as
 668f276 shipped it, stood here too until plan P4-D390 deleted that pass.

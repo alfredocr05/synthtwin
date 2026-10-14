@@ -6,6 +6,28 @@ exists).
 
 ## [Unreleased]
 
+### Numbers and codes at a million rows, without their square (2026-10-14)
+
+**Stage 4 lane S4b-num** (plans P4-D377, P4-D387 and P4-D390). Four paths
+whose work grew faster than the table now grow with it, and none writes
+a different byte: every twin, twin report and quality report measured
+is the one 3434682 wrote. G6.5a's push finds its collisions in a heap
+and its strata by grid unit, and walks each way only as far as could
+still be taken: consecutive whole numbers beside five far ones, declared
+a measurement, generate in 13.7 s at 100,000 rows where they took 494
+s, and in 207 s at 1,000,000. G6.6's identity walk begins each cell's
+walk where the last one of its kind stopped: 1,001 spellings asked at
+100,000 rows of the Codex column where 501,501 were. G8.3c's pooled
+placement keeps one memory an offer, so each place's rules are asked
+once: 1,000,000 rows of decimal codes generate in 32.6 s where they took
+803. And the quality report grows its lines in place and joins them in
+halves: a register of 50,000 consecutive codes validates in 59.5 s and
+815 MB where it was killed at 960 s and 1.7 GB, and one of 997,770 rows
+in 123.5 s. Each is pinned by a count that needs no clock, up to a
+million rows, in `tests/test_stage4_numbers_and_codes.py`, where the
+replaced functions are kept as frozen text and must give the same
+answers.
+
 ### A trailing delimiter on one side is read as the table's delimiter (2026-10-13)
 
 **Lane R5, reading** (plan P4-D387). A semicolon, tab or bar table whose
