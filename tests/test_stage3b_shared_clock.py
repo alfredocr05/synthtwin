@@ -43,7 +43,7 @@ SEEDS = (0, 1, 2)
 # fifty at +05:30, an instrument writing Z beside a ward at +02:00, sixtieth
 # seconds at +05:30, and three columns of the joint member; and, from the
 # landing's Codex review, a fixed block two keys share (item 1), bare dates
-# beside -03:00 midnights all on the 15th, the all-midnight DM5 case (item 2),
+# beside -03:00 midnight stamps all on the 15th, the all-midnight DM5 case (item 2),
 # and a leap second beside Z and +00:00 (item 3).
 MET = (
     "dst_clinic", "dst_ed", "two_sites", "few_off", "z_plus", "leap_shared",
@@ -806,10 +806,19 @@ def test_vectors_frames(monkeypatch: pytest.MonkeyPatch) -> None:
             moved[rank] = framed[rank] * scale - shifts[rank]
             given[rank] = offsets[rank]
 
-    # Codex's item 2: a bare date in the frame's days given back where it stood (mutant).
+    # Codex's item 2: a bare date in the frame's days given back where it stood, or rank by rank
+    # at the day the pass handed it, past the gap's top (mutants).
     days = _FILE["frames"]["bare_dates_in_days"]
     stood = dict(days, pinned=[days["pinned"][rank] or days["whole"][rank] for rank in range(len(days["whole"]))])
     assert _unframed(stood) != days["answer"]
+
+    def handed(moved: "list[int]", framed: "list[int]", shifts: "list[int]", _whole: "list[bool]", span: "tuple[int, int]", _high: int, scale: int) -> None:
+        for rank in range(span[0], span[1]):
+            moved[rank] = framed[rank] * scale - shifts[rank]
+
+    with monkeypatch.context() as patched:
+        patched.setattr(generation, "_own_clock_days", handed)
+        assert _unframed(days) != days["answer"]
     monkeypatch.setattr(generation, "_own_clock_run", rank_by_rank)
     assert any(_unframed(case) != case["answer"] for case in _FILE["frames"].values())
 

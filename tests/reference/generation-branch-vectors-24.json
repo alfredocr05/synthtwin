@@ -402,26 +402,26 @@
         "offsets": [
           "",
           "",
-          "-03:00",
+          "+02:00",
           "",
-          "-03:00",
+          "+02:00",
           ""
         ],
         "ordinals": [
           0,
-          9849600,
-          9860400,
-          9849600,
-          9860400,
+          10368000,
+          12088800,
+          11232000,
+          12952800,
           17280000
         ]
       },
       "before": [
         0,
         8640000,
-        8650800,
-        8726400,
-        8737200,
+        8719200,
+        8812800,
+        8892000,
         17280000
       ],
       "body": [
@@ -430,18 +430,18 @@
       ],
       "framed": [
         0,
-        114,
-        114,
-        114,
-        114,
+        150,
+        120,
+        130,
+        140,
         200
       ],
       "highs": [
         0,
-        12960000,
-        12960000,
-        12960000,
-        12960000,
+        12952800,
+        12952800,
+        12952800,
+        12952800,
         17280000
       ],
       "lows": [
@@ -455,9 +455,9 @@
       "offsets": [
         "",
         "",
-        "-03:00",
+        "+02:00",
         "",
-        "-03:00",
+        "+02:00",
         ""
       ],
       "pinned": [
@@ -472,9 +472,9 @@
       "shifts": [
         0,
         0,
-        -10800,
+        7200,
         0,
-        -10800,
+        7200,
         0
       ],
       "whole": [
@@ -485,7 +485,7 @@
         false,
         false
       ],
-      "why": "Codex's item 2: a column all at a local midnight in days of the frame, two bare dates beside two -03:00 midnights, every rank moved to day 114 by the day pass: each bare date given back at that day's midnight, each -03:00 stamp at its own (mutant: the bare dates given back where they stood)"
+      "why": "Codex's item 2: a column all at a local midnight in days of the frame, two bare dates beside two +02:00 midnight stamps, under a gap whose top is a +02:00 midnight; the day pass handed the first bare date the top's day 150, a day past the top for a bare date: the days 120, 130, 140 and 150 go to the bare dates first and day 150 to a +02:00 stamp, each rank keeping its form and offset (mutants: the bare dates given back where they stood, or at the day handed)"
     },
     "days_of_a_cet_column": {
       "answer": {

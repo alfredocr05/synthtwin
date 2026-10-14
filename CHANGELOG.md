@@ -45,7 +45,7 @@ share, is now split between them (an hour census 132, 251, 297, 298 for
 all on the 15th, now move as days (654 on the 15th and 622 elsewhere
 for 1,276 and nought before); and a leap second `23:59:60Z` beside
 `+00:00` stamps, which the description publishes at its instant,
-midnight, is written at `:60` again (251 midnights in hour 0 and on a
+midnight, is written at `:60` again (251 cells at midnight in hour 0 and on a
 Sunday before, where the census counts hour 23 and the Saturday).
 ### Partial dates are read at their own precision, and a column mostly of dates is asked (2026-10-09)
 

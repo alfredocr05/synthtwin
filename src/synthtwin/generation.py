@@ -28977,9 +28977,9 @@ def _off_own_clocks(
     counts, every offset count and every place's gap stand. A tail rank
     and a pinned rank never move and are given back as they were, and so
     is a bare date in a frame of seconds; in a frame of days a bare date
-    of the body, neither pinned nor in a gap of one place, moved as a day
-    (`_whole_pinned`), is given back at its day's midnight, with no offset
-    to match (Codex's item 2 of landing 3b.7).
+    moves as a day (`_whole_pinned`), and a run holding one hands its days
+    to its ranks, each keeping its form and offset (`_own_clock_days`,
+    Codex's item 2 of landing 3b.7).
 
     Guarantees: returns the instants and the offsets, one per rank.
     O(n log n) over the ranks, the offsets of a run matched by a walk
@@ -28989,30 +28989,90 @@ def _off_own_clocks(
     given = [key for key in offsets]
     gap_lows, gap_highs = gaps
     body_low, body_high = body
+    # In a frame of days a bare date moves as a day (`_whole_pinned`), so it
+    # stands in its gap's run; in a frame of seconds it is pinned.
+    stays = [whole[rank] and scale == 1 for rank in range(len(whole))]
     rank = body_low
     while rank <= body_high:
-        if whole[rank] and scale > 1 and not pinned[rank] and gap_lows[rank] < gap_highs[rank]:
-            moved[rank] = framed[rank] * scale - shifts[rank]
-            rank = rank + 1
-            continue
-        if pinned[rank] or whole[rank] or gap_lows[rank] >= gap_highs[rank]:
+        if pinned[rank] or stays[rank] or gap_lows[rank] >= gap_highs[rank]:
             rank = rank + 1
             continue
         end = rank
+        dated = False
         while (
             end <= body_high
             and not pinned[end]
-            and not whole[end]
+            and not stays[end]
             and gap_lows[end] == gap_lows[rank]
             and gap_highs[end] == gap_highs[rank]
         ):
+            dated = dated or whole[end]
             end = end + 1
-        _own_clock_run(
-            moved, given, framed, shifts, offsets, (rank, end),
-            (gap_lows[rank], gap_highs[rank]), scale,
-        )
+        if dated:
+            _own_clock_days(
+                moved, framed, shifts, whole, (rank, end), gap_highs[rank], scale
+            )
+        else:
+            _own_clock_run(
+                moved, given, framed, shifts, offsets, (rank, end),
+                (gap_lows[rank], gap_highs[rank]), scale,
+            )
         rank = end
     return moved, given
+
+
+def _own_clock_days(
+    moved: "list[int]",
+    framed: "list[int]",
+    shifts: "list[int]",
+    whole: "list[bool]",
+    span: "tuple[int, int]",
+    high: int,
+    scale: int,
+) -> None:
+    """One run of `_off_own_clocks` in a frame of days that holds a bare
+    date (Codex's item 2 of landing 3b.7): its written days kept and
+    handed to its ranks, each rank keeping its own form and offset.
+
+    A pass sorts a run by the day it reads, so it may hand a moment's day
+    to a bare date: a `+02:00` midnight's day at the gap's top is a day
+    past the top for a bare date, whose midnight is two hours later on the
+    shared clock. The run's ranks fall in KINDS -- each offset's moments,
+    and the bare dates, ordered by their shift, a moment before a bare date
+    of the same shift -- and the days ascending each go to the next rank,
+    in rank order, of the least kind left whose instant is not past the
+    gap's top (the largest left where none is), as `_own_clock_run`
+    matches offsets. Every written day stands, so every census of the
+    calendar counts as the passes left it, and every rank keeps the form
+    and offset its row is written in; the run is not re-sorted, as a bare
+    date's form cannot move to another rank. Raises nothing. No I/O."""
+    first, end = span
+    places = sorted(framed[rank] for rank in range(first, end))
+    kinds: "dict[tuple[int, bool], list[int]]" = {}
+    for rank in range(first, end):
+        kind = (shifts[rank], whole[rank])
+        if kind in kinds:
+            kinds[kind] += [rank]
+        else:
+            kinds[kind] = [rank]
+    order = sorted(kinds)
+    taken = {kind: 0 for kind in order}
+    for place in places:
+        chosen = None
+        for kind in order:
+            if taken[kind] < len(kinds[kind]) and place * scale - kind[0] <= high:
+                chosen = kind
+                break
+        if chosen is None:
+            for kind in reversed(order):
+                if taken[kind] < len(kinds[kind]):
+                    chosen = kind
+                    break
+        if chosen is None:
+            return
+        rank = kinds[chosen][taken[chosen]]
+        moved[rank] = place * scale - chosen[0]
+        taken[chosen] = taken[chosen] + 1
 
 
 def _own_clock_run(

@@ -7690,10 +7690,19 @@ can read a rank's clock only once its offset is known.
    where none is); the run is then written in the order of its instants,
    each place with its offset. Every written field a census counts, every
    offset count and every gap stands. Tail ranks and pinned ranks are
-   given back as they were, and so are bare dates in a frame of seconds;
-   in a frame of DAYS a bare date of the body, neither pinned nor in a gap
-   of one place, is given back at the day the passes moved it to, its
-   midnight with no offset (the landing's Codex review, item 2).
+   given back as they were, and so are bare dates in a frame of seconds.
+   In a frame of DAYS a bare date moves as a day and stands in its gap's
+   run, and a run holding one keeps every rank's form and offset, as a
+   bare date's form cannot pass to another rank (the landing's Codex
+   review, item 2): its ranks fall in KINDS, each offset's moments and the
+   bare dates, ordered by shift, a moment before a bare date of one shift;
+   its days ascending each go to the next rank, in rank order, of the
+   least kind left whose instant is not past the gap's top, else of the
+   largest kind left. A pass may hand a `+02:00` midnight's day at the
+   gap's top to a bare date, whose midnight that day is past the top: an
+   export of bare dates beside `T00:00:00+02:00` stamps then wrote a bare
+   date beyond its high boundary, and the twin's boundary came back two
+   hours late. The run is not re-sorted by instant.
 3. **BARE DATES.** On a clocked column of the joint member the passes of
    G7.3g pin every bare-date rank, which counts at hour 0, and so does
    the weekday pass where the column is counted in seconds or published
@@ -7807,21 +7816,21 @@ Allocation, over the `P` parsed cells in ascending rank:
    those two keys: two rungs fixed 251 ranks at that instant, `+01:00`
    wrote them all in hour 10, which holds 150, and the twin's hours came
    back 132, 251, 297, 298 for 150, 150, 339, 339 at every seed).
-   **AND WRITTEN AT A SIXTIETH SECOND** (item 3): where no share breaks
+   **AND WRITTEN AT `:60`** (item 3): where no share breaks
    nothing either, a body block at a minute's first second, between two
    published values of one text on a column written to the second, asks
    the same two -- one key, then a split -- of the place one second
    earlier, the minute before's `HH:MM:60`, whose instant is the block's
-   (G7.1): the shared clock publishes a sixtieth second's instant, never
-   the `:60` the source wrote, and a leap second counts on the day, hour
+   (G7.1): the shared clock publishes the instant of a cell written `:60`,
+   never the `:60` the source wrote, and a leap second counts on the day, hour
    and minute it is WRITTEN. Where that breaks nothing the block's pins
-   take that sixtieth second's text, so every pass counts the block where
+   take that `HH:MM:60` as their text, so every pass counts the block where
    it is written and G7.5 writes it from those fields (400 cells at
    `2016-12-31T23:59:60Z` among 600 noon stamps at `Z` and `+00:00` in
    turn: the rungs fixed 251 ranks at the instant published as
    `2017-01-01 00:00:00`, written at midnight on a Sunday in hour 0, a
-   group of nought, and the twin missed the hour and weekday censuses
-   and the withheld count at midnight at every seed). Where nothing
+   group of nought, and no twin held the hour and weekday censuses or
+   the withheld count at midnight at any seed). Where nothing
    breaks nothing, the one key breaking the fewest at the ordinary place
    takes the block whole, as before.
 2. The remaining counts are spent over the remaining ranks, taking the

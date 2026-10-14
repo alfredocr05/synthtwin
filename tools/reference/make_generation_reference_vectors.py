@@ -46477,32 +46477,44 @@ def own_clock_unframed(before, framed, shifts, offsets, whole, pinned, body, low
     places (framed times the scale) ascending, each the least offset left
     whose instant is not past the gap's top (else the largest left), then
     the run written in the order of its instants with each place's offset.
-    In a frame of days a bare date of the body, neither pinned nor in a
-    gap of one place, is given back at its day times the scale less its
-    shift (Codex's item 2 of landing 3b.7). Every other rank as it was
-    before the passes."""
+    In a frame of days a bare date moves as a day and stands in its gap's
+    run, and a run holding one keeps every rank's form and offset: its
+    days ascending each go to the next rank, in rank order, of the least
+    kind left -- the ranks of one shift and one form, by shift, a moment
+    before a bare date -- whose instant is not past the gap's top, else of
+    the largest kind left (Codex's item 2 of landing 3b.7). Every other
+    rank as it was before the passes."""
     moved = list(before)
     given = list(offsets)
+    stays = [flag and scale == 1 for flag in whole]
     rank = body[0]
     while rank <= body[1]:
-        if whole[rank] and scale > 1 and not pinned[rank] and lows[rank] < highs[rank]:
-            # A bare date of a column in days of the frame moved as a day:
-            # given back at its own midnight, no offset to match.
-            moved[rank] = framed[rank] * scale - shifts[rank]
-            rank += 1
-            continue
-        if pinned[rank] or whole[rank] or lows[rank] >= highs[rank]:
+        if pinned[rank] or stays[rank] or lows[rank] >= highs[rank]:
             rank += 1
             continue
         end = rank
         while (
-            end <= body[1] and not pinned[end] and not whole[end]
+            end <= body[1] and not pinned[end] and not stays[end]
             and lows[end] == lows[rank] and highs[end] == highs[rank]
         ):
             end += 1
-        places = sorted(framed[member] * scale for member in range(rank, end))
+        members = range(rank, end)
+        if any(whole[member] for member in members):
+            kinds = {}
+            for member in members:
+                kinds.setdefault((shifts[member], whole[member]), []).append(member)
+            order = sorted(kinds)
+            used = {kind: 0 for kind in order}
+            for day in sorted(framed[member] for member in members):
+                left = [kind for kind in order if used[kind] < len(kinds[kind])]
+                kind = next((kind for kind in left if day * scale - kind[0] <= highs[rank]), left[-1])
+                moved[kinds[kind][used[kind]]] = day * scale - kind[0]
+                used[kind] += 1
+            rank = end
+            continue
+        places = sorted(framed[member] * scale for member in members)
         pool = {}
-        for member in range(rank, end):
+        for member in members:
             pool.setdefault(shifts[member], []).append(offsets[member])
         order = sorted(pool)
         used = {shift: 0 for shift in order}
@@ -46914,18 +46926,19 @@ SHARED_CLOCK_FRAMES = {
         "a column all at a local midnight in days of the frame: each day a midnight of its own offset",
     ),
     "bare_dates_in_days": (
-        [0, 86400 * 100, 86400 * 100 + 10800, 86400 * 101, 86400 * 101 + 10800, 86400 * 200],
-        [0, 114, 114, 114, 114, 200],
-        [0, 0, -10800, 0, -10800, 0],
-        ["", "", "-03:00", "", "-03:00", ""],
+        [0, 86400 * 100, 86400 * 101 - 7200, 86400 * 102, 86400 * 103 - 7200, 86400 * 200],
+        [0, 150, 120, 130, 140, 200],
+        [0, 0, 7200, 0, 7200, 0],
+        ["", "", "+02:00", "", "+02:00", ""],
         [False, True, False, True, False, False], [True, False, False, False, False, True], (1, 4),
         [0, 86400 * 99, 86400 * 99, 86400 * 99, 86400 * 99, 86400 * 200],
-        [0, 86400 * 150, 86400 * 150, 86400 * 150, 86400 * 150, 86400 * 200],
+        [0, 86400 * 150 - 7200, 86400 * 150 - 7200, 86400 * 150 - 7200, 86400 * 150 - 7200, 86400 * 200],
         86400,
         "Codex's item 2: a column all at a local midnight in days of the frame, two bare dates beside "
-        "two -03:00 midnights, every rank moved to day 114 by the day pass: each bare date given back "
-        "at that day's midnight, each -03:00 stamp at its own (mutant: the bare dates given back where "
-        "they stood)",
+        "two +02:00 midnight stamps, under a gap whose top is a +02:00 midnight; the day pass handed "
+        "the first bare date the top's day 150, a day past the top for a bare date: the days 120, 130, "
+        "140 and 150 go to the bare dates first and day 150 to a +02:00 stamp, each rank keeping its "
+        "form and offset (mutants: the bare dates given back where they stood, or at the day handed)",
     ),
 }
 
