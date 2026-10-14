@@ -39334,8 +39334,14 @@ def _fold_slot_order(
     kinds: "list[int]",
     bands: "list[int]",
     folded: int,
+    truth_places: "frozenset[int]" = frozenset(),
 ) -> "list[int] | None":
     """The order a free-text walk takes its groups in, where the fold slots move (G9.3, G9.5).
+
+    ``truth_places`` are the groups a workbook writes as truth values
+    (plan P4-D198): none of them moves into a slot, where it would be
+    written as a partner and its truth value lost (lane L1 leftover,
+    skeptic 2 item 2).
 
     The groups from ``folded`` on carry the fold-collision partners
     (`_partner_of`). A slot `_form_asks` would ask a form with no letter
@@ -39378,6 +39384,8 @@ def _fold_slot_order(
     # out stay where they were and the published average with them.
     movable: "dict[int, list[int]]" = {}
     for place in range(folded):
+        if place in truth_places:
+            continue
         if place not in bare and place not in carriers:
             if lengths[place] not in movable:
                 movable[lengths[place]] = []
@@ -47122,6 +47130,82 @@ def _length_windows(
     return windows
 
 
+def _paid_back(
+    facts: "contract.TextFacts",
+    spellings: "list[str]",
+    planned: "tuple[tuple[int, ...], list[int], list[int]]",
+    shapes: "tuple[list[int], list[int], list[bool]]",
+    kept: "tuple[dict[int, bool], dict[int, int], tuple[int, int], dict[int, str]]",
+    over: int,
+    making: "tuple[dict[str, list[int]], dict[str, int], tuple[str, ...]]",
+) -> int:
+    """Pay back the characters the fold slots' partners wrote over their plan.
+
+    WHERE PARENTS ARE BARRED THE SLOTS COME LAST, and a slot whose family
+    has no flip of its planned length left writes an edge-spaced partner
+    one character over it, which nothing after it can pay back (lane L1
+    leftover, skeptic 2 item 1). Durations `HH:MM:SS` beside notes in two
+    cases, 100,000 rows: 1,755 such partners, and `length.mean` came back
+    8.09453 against 8.07698, a window of 8.07689 to 8.07707.
+
+    So once the walk is done, groups before the slots that wrote a
+    made-up spelling in no form, are no parent of a partner, carry no
+    published end and no truth value, are re-made one character shorter,
+    the smallest groups first, until the characters over are paid or no
+    such group is left. A group is re-made only from above the published
+    middle length to no lower than it, so `length.p50` stays where it
+    was; only where the old and new spelling both wear no published form
+    and no clock, so no form's count and no clock line moves; and only by
+    `_made_up_cell` with the group's own class, band, words and letter
+    ask, so every count of different values holds (the old spelling's
+    identity was folded onto by nothing).
+
+    ``planned`` is the group sizes, planned lengths and word counts;
+    ``shapes`` the classes, bands and letter asks; ``kept`` the groups
+    written in no form, the parents that took a partner (`carried`), the
+    two carriers and the truth values; ``making`` the walk's cursors,
+    its ``used`` and the hole spellings. Guarantees: changes
+    ``spellings``, ``making[0]`` and ``making[1]`` alone; returns the
+    characters still over. Raises nothing of its own. No I/O.
+    """
+    groups = planned[0]
+    lengths = planned[1]
+    counts = planned[2]
+    published = facts.shape_forms
+    middle = facts.length.p50
+    if middle is None:
+        return over
+    for place in range(len(spellings) - 1, -1, -1):
+        if over <= 0:
+            break
+        if place not in kept[0] or place in kept[1] or place in kept[3]:
+            continue
+        if place == kept[2][0] or place == kept[2][1]:
+            continue
+        if groups[place] > over:
+            continue
+        old = spellings[place]
+        shorter = len(old) - 1
+        if len(old) != lengths[place] or len(old) <= middle or shorter < middle:
+            continue
+        if shorter < facts.length.minimum:
+            continue
+        if parsing.census_form(old, published) in published or _clock_key(old) is not None:
+            continue
+        new = _made_up_cell(
+            _CLASSES[shapes[0][place]], _BANDS[shapes[1][place]], shorter,
+            counts[place], shapes[2][place], making[0], making[1], "",
+            making[2], False,
+        )
+        if new is None:
+            continue
+        if parsing.census_form(new, published) in published or _clock_key(new) is not None:
+            continue
+        spellings[place] = new
+        over = over - groups[place]
+    return over
+
+
 def _letter_asks(families: "list[str]", folded: int) -> "list[bool]":
     """Which identities are asked to hold a letter (method G9.3 step 1).
 
@@ -47414,7 +47498,8 @@ def _text_cells(
     # walk runs in that order, and the cells come back in the column's
     # own. A column where no slot is so asked keeps its order.
     order = _fold_slot_order(
-        facts, groups, lengths, counts, carriers, kinds, bands, folded
+        facts, groups, lengths, counts, carriers, kinds, bands, folded,
+        frozenset(truth),
     )
     own_groups = groups
     own_kinds = kinds
@@ -47506,6 +47591,11 @@ def _text_cells(
     parent_lists: "dict[tuple[str, bool, bool, int | None], list[int]]" = {}
     spent: "dict[tuple[int, int, int | None], bool]" = {}
     sized = list(groups)
+    # THE SLOTS' PARTNERS' CHARACTERS OVER THEIR PLAN, and the groups
+    # written in no form that may pay them back (`_paid_back`, lane L1
+    # leftover), kept only where parents are barred.
+    over = [0]
+    plain: "dict[int, bool]" = {}
     made: dict[str, int] = {}
     # How many rows each parent's folded level covers so far, so the
     # preference reads the level rather than the pair.
@@ -47547,6 +47637,8 @@ def _text_cells(
             taken = _take(partner, used)
             _settle(owing, taken, groups[index])
             _spend_length(budget, len(taken) - lengths[index], groups[index])
+            if parents_last and folded <= index:
+                over[0] = over[0] + (len(taken) - lengths[index]) * groups[index]
             spellings += [taken]
             _clock_cells_counted(timed, taken, groups[index])
             continue
@@ -47625,8 +47717,16 @@ def _text_cells(
         made[key] = made[key] + 1
         _settle(owing, spelling, groups[index])
         _spend_length(budget, len(spelling) - lengths[index], groups[index])
+        if parents_last and not asked_form and index < folded:
+            plain[index] = True
         spellings += [spelling]
         _clock_cells_counted(timed, spelling, groups[index])
+    if parents_last and over[0] > 0:
+        _paid_back(
+            facts, spellings, (groups, lengths, counts), (kinds, bands, asks),
+            (plain, carried, carriers, truth), over[0],
+            (states, used, holes if holes else _hole_spellings(column)),
+        )
     if order is not None:
         # BACK IN THE COLUMN'S OWN ORDER (`_fold_slot_order`).
         back = ["" for _each in range(total)]
