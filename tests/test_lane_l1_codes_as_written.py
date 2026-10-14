@@ -501,6 +501,62 @@ def test_the_free_text_form_walk_is_bounded_by_what_it_writes_to_a_million(
 
 
 
+def _durations_beside_notes(rows: int) -> "list[str]":
+    """Skeptic 1's fold_dur table (item 3): 90 % durations `HH:MM:SS`, 10 %
+    notes written `note N` or `NOTE N`, so the column folds."""
+    draw = random.Random(9)
+    cells: "list[str]" = []
+    for _row in range(rows):
+        if draw.random() < 0.10:
+            word = f"note {draw.randrange(rows // 20)}"
+            cells += [word.upper() if draw.random() >= 0.5 else word]
+        else:
+            minutes = int(draw.lognormvariate(0.0, 0.7) * 480) % (48 * 60)
+            cells += [f"{minutes // 60:02d}:{minutes % 60:02d}:{draw.randrange(60):02d}"]
+    return cells
+
+
+def _in_duration_form(cells: "list[str]") -> int:
+    return sum(1 for cell in cells if re.fullmatch(r"\d\d:\d\d:\d\d", cell))
+
+
+@pytest.mark.parametrize(("rows", "floor"), [(4000, 11), (4000, 36), (30000, 11)])
+def test_durations_beside_notes_in_two_cases_keep_their_form(tmp_path: pathlib.Path, rows: int, floor: int) -> None:
+    """A fold slot is never a group asked a form with no letter place, such a
+    group is no parent while another is left and is asked for no letter: the
+    duration form is met (45191fa and ffc3904 wrote 24,572 of 27,037 at
+    30,000 rows, 3,281 of 3,585 at 4,000)."""
+    cells = _durations_beside_notes(rows)
+    twin, source_missed, twin_missed = _round(tmp_path, cells, floor)
+    assert source_missed == [] and twin_missed == []
+    assert _in_duration_form(twin) == _in_duration_form(cells)
+
+
+@pytest.mark.parametrize("mutant", ["slot", "parent"])
+def test_durations_beside_notes_red_on_each_mutant(tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch, mutant: str) -> None:
+    """MUTATIONS: the fold slots kept where they were; a parent asked a form
+    with no letter place taken like any other and asked for a letter."""
+    if mutant == "slot":
+        monkeypatch.setattr(generation, "_fold_slot_order", lambda *_args: None)
+    else:
+        partner = generation._partner_of
+        asks = generation._letter_asks
+
+        def any_parent(*args: typing.Any, **named: typing.Any) -> "str | None":
+            named["barred"] = frozenset()
+            return partner(*args, **named)
+
+        def every_ask(families: "list[str]", folded: int) -> "list[bool]":
+            return asks([family.split("/no letter place")[0] for family in families], folded)
+
+        monkeypatch.setattr(generation, "_partner_of", any_parent)
+        monkeypatch.setattr(generation, "_letter_asks", every_ask)
+    cells = _durations_beside_notes(4000)
+    twin, _source, twin_missed = _round(tmp_path, cells, 11)
+    assert _in_duration_form(twin) < _in_duration_form(cells)
+    assert "forms.published.%%:%%:%%" in twin_missed
+
+
 def _text_beside_formula_codes(rows: int) -> "list[str]":
     """Skeptic 1's refused-form table (item 1): free text beside held-back
     codes `-abcde`, every spelling of whose form `-&&&&&` a spreadsheet

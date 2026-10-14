@@ -39200,8 +39200,14 @@ def _form_asks(
     bands: "list[int] | None" = None,
     rewording: bool = False,
     exact: bool = False,
+    slots: "frozenset[int]" = frozenset(),
 ) -> "list[str]":
     """One form asked of each group, decided LARGEST GROUP FIRST.
+
+    ``slots`` names the groups that will carry a fold-collision partner
+    (`_text_cells`, lane L1 repair): a partner is built from its parent's
+    spelling, so such a group is offered only forms with a letter place,
+    and a form with none is paid by the groups that are not slots.
 
     ``exact`` says the census pools no cell (no withheld key), so a form
     paid past its count is MISSED. There, A GROUP LARGER THAN WHAT ITS
@@ -39277,8 +39283,18 @@ def _form_asks(
             # the caller writes that answer in; offering it here as well
             # would spend the same debt twice.
             continue
+        offered = left
+        if place in slots:
+            # A PARTNER SLOT IS OFFERED ONLY FORMS WITH A LETTER PLACE
+            # (lane L1 repair, skeptic 1 item 3): 30,000 durations
+            # `HH:MM:SS` beside notes in two cases asked the duration form
+            # of slots whose partners wear none, and missed it.
+            offered = {}
+            for owed in sorted(left):
+                if _form_holds_a_letter(owed):
+                    offered[owed] = left[owed]
         form = _wanted_form(
-            left,
+            offered,
             lengths[place],
             counts[place],
             place in carriers,
@@ -39302,6 +39318,92 @@ def _form_asks(
             left[form] = max(0, left[form] - groups[place])
             _spend_length(spare, len(form) - lengths[place], groups[place])
     return asks
+
+
+def _fold_slot_order(
+    facts: "contract.TextFacts",
+    groups: "tuple[int, ...]",
+    lengths: "list[int]",
+    counts: "list[int]",
+    carriers: "tuple[int, int]",
+    kinds: "list[int]",
+    bands: "list[int]",
+    folded: int,
+) -> "list[int] | None":
+    """The order a free-text walk takes its groups in, where the fold slots move (G9.3, G9.5).
+
+    The groups from ``folded`` on carry the fold-collision partners
+    (`_partner_of`). A slot `_form_asks` would ask a form with no letter
+    place changes places with the last group before ``folded`` of its own
+    planned length that is asked no such form and carries no published
+    end, one slot to one group, so the slots are groups a case flip can serve and the form is
+    paid by the groups that write their own spellings (lane L1 repair).
+    Position ``p`` of the answer holds the group ``answer[p]``. None
+    where no slot is so asked, and the walk keeps the column's order.
+
+    Guarantees: a fixed function of the eight. Raises nothing. No I/O
+    of any kind.
+    """
+    total = len(groups)
+    if folded < 1 or folded >= total:
+        return None
+    owing = _text_debt(facts)
+    if not [form for form in owing if not _form_holds_a_letter(form)]:
+        return None
+    first = _form_asks(
+        owing,
+        groups,
+        lengths,
+        counts,
+        carriers,
+        facts.length.minimum,
+        facts.length.maximum,
+        _length_budget(facts, groups, lengths),
+        kinds,
+        bands,
+        False,
+        contract.WITHHELD not in facts.shape_forms,
+    )
+    bare: "dict[int, bool]" = {}
+    for place in range(total):
+        if first[place] and not _form_holds_a_letter(first[place]):
+            bare[place] = True
+    # THE GROUPS THAT MAY MOVE, by their planned length: a slot takes one
+    # of its own length where one is left, so the lengths the plan laid
+    # out stay where they were and the published average with them.
+    movable: "dict[int, list[int]]" = {}
+    for place in range(folded):
+        if place not in bare and place not in carriers:
+            if lengths[place] not in movable:
+                movable[lengths[place]] = []
+            movable[lengths[place]] += [place]
+    cursors: "dict[int, int]" = {}
+    for length in movable:
+        cursors[length] = len(movable[length]) - 1
+    order = [place for place in range(total)]
+    changed = False
+    for slot in range(folded, total):
+        if slot not in bare or slot in carriers:
+            continue
+        want = lengths[slot]
+        if want not in cursors or cursors[want] < 0:
+            continue
+        other = movable[want][cursors[want]]
+        cursors[want] = cursors[want] - 1
+        order[slot] = other
+        order[other] = slot
+        changed = True
+    if not changed:
+        return None
+    return order
+
+
+def _form_holds_a_letter(form: str) -> bool:
+    """Whether a form has a place for a letter, so a case flip can wear it."""
+    for character in form:
+        if character == parsing.SHAPE_LETTER or character == parsing.SHAPE_LOWER:
+            return True
+    return False
 
 
 def _length_affords(moved: int, budget: "list[int]") -> bool:
@@ -46576,8 +46678,14 @@ def _partner_of(
     worn: "tuple[str, dict[str, int], int] | None" = None,
     holes: "tuple[str, ...]" = (),
     prefixes: "tuple[str, dict[str, str]] | None" = None,
+    barred: "frozenset[int]" = frozenset(),
 ) -> "str | None":
     """The fold-collision partner this value carries, when one is owed.
+
+    ``barred`` names the parents asked a form with no letter place
+    (`_text_cells`, lane L1 repair): a partner of one is an edge-spaced
+    copy that wears no published form, so every other parent of the
+    family is tried first and a barred one only where none is left.
 
     Where a column publishes fewer folded identities than spellings, the
     difference is exactly the number of values that must fold onto one
@@ -46692,38 +46800,49 @@ def _partner_of(
     named_passes: "tuple[bool, ...]" = (False,)
     if prefixes is not None and worn is not None:
         named_passes = (True, False)
-    for named_first in named_passes:
-        for under in under_first:
-            for lettered in (True, False):
-                for step in range(folded):
-                    parent_place = (place + step) % folded
-                    if families[parent_place] != families[index]:
-                        continue
-                    if under and sizes is not None:
-                        already = sizes[parent_place]
-                        if carried is not None and parent_place in carried:
-                            already = carried[parent_place]
-                        if already + sizes[index] >= long_tail_line:
+    # A PARENT ASKED A FORM WITH NO LETTER PLACE IS TAKEN LAST (lane L1
+    # repair, skeptic 1 item 3). Durations `HH:MM:SS` beside notes
+    # written in two cases: a partner built on a duration is ` 01:02:03`,
+    # which wears no form, and 1,896 of 30,000 cells left the form so.
+    # A column barring no parent walks exactly as it did.
+    barred_passes: "tuple[bool, ...]" = (False,)
+    if barred:
+        barred_passes = (True, False)
+    for unbarred in barred_passes:
+        for named_first in named_passes:
+            for under in under_first:
+                for lettered in (True, False):
+                    for step in range(folded):
+                        parent_place = (place + step) % folded
+                        if families[parent_place] != families[index]:
                             continue
-                    has_letter = False
-                    for character in spellings[parent_place]:
-                        if character in _LETTERS:
-                            has_letter = True
-                            break
-                    if has_letter != lettered:
-                        continue
-                    found = _partner_from(
-                        parent_place, index, spellings, used, shortest, longest,
-                        worn, holes, prefixes, named_first,
-                    )
-                    if found is None:
-                        continue
-                    if carried is not None and sizes is not None:
-                        already = sizes[parent_place]
-                        if parent_place in carried:
-                            already = carried[parent_place]
-                        carried[parent_place] = already + sizes[index]
-                    return found
+                        if unbarred and parent_place in barred:
+                            continue
+                        if under and sizes is not None:
+                            already = sizes[parent_place]
+                            if carried is not None and parent_place in carried:
+                                already = carried[parent_place]
+                            if already + sizes[index] >= long_tail_line:
+                                continue
+                        has_letter = False
+                        for character in spellings[parent_place]:
+                            if character in _LETTERS:
+                                has_letter = True
+                                break
+                        if has_letter != lettered:
+                            continue
+                        found = _partner_from(
+                            parent_place, index, spellings, used, shortest, longest,
+                            worn, holes, prefixes, named_first,
+                        )
+                        if found is None:
+                            continue
+                        if carried is not None and sizes is not None:
+                            already = sizes[parent_place]
+                            if parent_place in carried:
+                                already = carried[parent_place]
+                            carried[parent_place] = already + sizes[index]
+                        return found
     return None
 
 
@@ -47133,15 +47252,40 @@ def _text_cells(
                 "many the description records.",
             )
         ]
+    folded = min(column.n_distinct_folded, total)
+    # THE FOLD SLOTS GO TO GROUPS A CASE FLIP CAN SERVE (lane L1 repair,
+    # skeptic 1 item 3). The groups from `folded` on carry the partners,
+    # and a partner is built from its parent's spelling, so a slot whose
+    # shape a form with no letter place would be asked for writes no
+    # spelling of that form: 30,000 durations `HH:MM:SS` beside notes in
+    # two cases wrote 1,896 cells off the form so. Each such slot changes
+    # places with the last earlier group no such form is asked of, the
+    # walk runs in that order, and the cells come back in the column's
+    # own. A column where no slot is so asked keeps its order.
+    order = _fold_slot_order(
+        facts, groups, lengths, counts, carriers, kinds, bands, folded
+    )
+    own_groups = groups
+    own_kinds = kinds
+    if order is not None:
+        groups = tuple([own_groups[place] for place in order])
+        lengths = [lengths[place] for place in order]
+        counts = [counts[place] for place in order]
+        kinds = [own_kinds[place] for place in order]
+        bands = [bands[place] for place in order]
+        moved: "dict[int, str]" = {}
+        for position in range(total):
+            if order[position] in truth:
+                moved[position] = truth[order[position]]
+        truth = moved
+        carriers = (order.index(carriers[0]), order.index(carriers[1]))
     used: dict[str, int] = {}
     states: dict[str, list[int]] = {}
     spellings: list[str] = []
-    folded = min(column.n_distinct_folded, total)
     families = [
         f"{_CLASSES[kinds[index]]}/{_BANDS[bands[index]]}"
         for index in range(total)
     ]
-    asks = _letter_asks(families, folded)
     windows = _length_windows(
         total,
         facts.length.minimum,
@@ -47179,10 +47323,28 @@ def _text_cells(
         bands,
         False,
         contract.WITHHELD not in facts.shape_forms,
+        frozenset(range(folded, total)) if 0 < folded < total else frozenset(),
     )
     worn = _number_forms(facts, groups, lengths, kinds, bands, carriers)
     for place in sorted(worn):
         form_asks[place] = worn[place]
+    # A GROUP ASKED A FORM WITH NO LETTER PLACE IS NO FOLD PARENT WHILE
+    # ANOTHER IS LEFT, AND IS ASKED FOR NO LETTER (lane L1 repair, skeptic 1
+    # item 3), as `_caseless_slots` does for identifiers. Durations
+    # `HH:MM:SS` beside notes in two cases: 569 letter asks fell on
+    # duration groups, whose every spelling holds no letter, so the walk
+    # gave up and wrote made-up text; partners built on durations wore no
+    # form; and the form was missed, 24,572 written of 27,037.
+    barred: "list[int]" = []
+    if 0 < folded < total:
+        for place in range(folded):
+            if form_asks[place] and not _form_holds_a_letter(form_asks[place]):
+                barred += [place]
+    asked_families = list(families)
+    for place in barred:
+        asked_families[place] = f"{families[place]}/no letter place"
+    asks = _letter_asks(asked_families, folded)
+    parents_last = frozenset(barred)
     made: dict[str, int] = {}
     # How many rows each parent's folded level covers so far, so the
     # preference reads the level rather than the pair.
@@ -47199,10 +47361,27 @@ def _text_cells(
     timed: "dict[tuple[bool, str], int]" = {}
     figured: "dict[tuple[bool, str], bool]" = {}
     for index in range(total):
-        partner = _partner_of(
-            index, folded, spellings, families, used, windows,
-            list(groups), long_tail_line, carried, holes=holes,
-        )
+        partner: "str | None" = None
+        if parents_last and folded <= index and index not in carriers:
+            # THE SLOT'S OWN PLANNED LENGTH FIRST where parents are barred
+            # (lane L1 repair): a partner takes its parent's length, the
+            # slots come last, and nothing after them can pay a length
+            # the plan did not lay out -- measured, the published average
+            # of 8.0258 came back 8.0447 when any length was taken.
+            whole = windows[index]
+            windows[index] = (lengths[index], lengths[index])
+            partner = _partner_of(
+                index, folded, spellings, families, used, windows,
+                list(groups), long_tail_line, carried, holes=holes,
+                barred=parents_last,
+            )
+            windows[index] = whole
+        if partner is None:
+            partner = _partner_of(
+                index, folded, spellings, families, used, windows,
+                list(groups), long_tail_line, carried, holes=holes,
+                barred=parents_last,
+            )
         if partner is not None:
             taken = _take(partner, used)
             _settle(owing, taken, groups[index])
@@ -47287,6 +47466,15 @@ def _text_cells(
         _spend_length(budget, len(spelling) - lengths[index], groups[index])
         spellings += [spelling]
         _clock_cells_counted(timed, spelling, groups[index])
+    if order is not None:
+        # BACK IN THE COLUMN'S OWN ORDER (`_fold_slot_order`).
+        back = ["" for _each in range(total)]
+        for position in range(total):
+            back[order[position]] = spellings[position]
+        spellings = back
+        groups = own_groups
+        kinds = own_kinds
+        carriers = (order[carriers[0]], order[carriers[1]])
     # THE TWIN CAN REPROFILE INTO A DIFFERENT ROLE, AND NOW IT SAYS SO
     # (residual R-P4-36). A fold-collision partner folds onto its
     # parent, so the pair makes a level covering BOTH their rows -- and
