@@ -6,6 +6,24 @@ exists).
 
 ## [Unreleased]
 
+### A trailing delimiter closed with `""` is read and written back (2026-10-14)
+
+**Lane R6** (plan P4-D387). A table whose header is `site;dx`, whose first
+record is `0100;1E22;""` and whose other 119 records are `0100;1E22;` was
+described as one comma-delimited column; it is now its two columns closed
+by the semicolon. A line may close its trailing delimiter bare or with
+`""`, on the header, on some records or on all of them, and the
+description says how: `trailing_delimiter` takes `true` (bare, as every
+description before this), `"quoted"`, or on the rows the closings' runs,
+published only where each run and each closing's total reach the census
+line, as line endings are; otherwise the commonest closing is written
+throughout. The twin closes each line that way, the loader reads it (and
+refuses runs below the line, FD2), and the validator checks it. Files the
+reader read before are read exactly as before: on a battery of 193 tables
+the 89 read before are byte-identical, and the 104 that were refused or
+read as one column are read. Measured on the codex table at 1,000,000 rows:
+98 s and 1,013 MB to describe.
+
 ### Codes and long cells written as the source wrote them (2026-10-13)
 
 **Lane L1** (plans P4-D390 and P4-D384; `K-S3-61`). Made-up figure codes
