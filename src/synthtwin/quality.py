@@ -614,7 +614,7 @@ def _detail_lines(outcome: validation.Outcome) -> "list[str]":
         "",
     ]
     # EACH COLUMN'S CHECKS ARE GATHERED ONCE AND THE LINES GROW IN PLACE
-    # (stage 4 lane S4b-num, plan P4-D391). Every check's lines were added
+    # (stage 4 lane S4b-num, plan P4-D390). Every check's lines were added
     # to a copy of every line before them, and every column walked every
     # check: a register of 10,000 published codes spent 35 of the 73 s
     # `validate` took here and in `quality_report`'s join below.
@@ -1233,7 +1233,7 @@ def quality_report(
 
 
 def _lines_joined(lines: "list[str]") -> str:
-    """The lines, each ended by a line feed, as one text.
+    """The lines, each ended by a line feed, as one text; ``lines`` is used up.
 
     JOINED BY HAND, IN HALVES. The offline policy accepts a text method
     only with arguments it has resolved, and a list built while the
@@ -1242,18 +1242,22 @@ def _lines_joined(lines: "list[str]") -> str:
     text before it, the square of the report's length; joined pairwise,
     level by level, each character is copied once a level, and there
     are as many levels as the line count has binary digits (stage 4
-    lane S4b-num, plan P4-D391). The bytes are the same.
+    lane S4b-num, plan P4-D390). Each level is written over the first
+    half of the list it reads, so the report is held about twice at
+    most. The bytes are the same.
     """
-    pieces: "list[str]" = []
-    for line in lines:
-        pieces += [line + _NEWLINE]
-    while len(pieces) > 1:
-        paired: "list[str]" = []
-        for index in range(0, len(pieces) - 1, 2):
-            paired += [pieces[index] + pieces[index + 1]]
-        if len(pieces) % 2 == 1:
-            paired += [pieces[len(pieces) - 1]]
-        pieces = paired
-    if not pieces:
+    count = len(lines)
+    for index in range(count):
+        lines[index] = lines[index] + _NEWLINE
+    while count > 1:
+        half = count // 2
+        for index in range(half):
+            lines[index] = lines[2 * index] + lines[2 * index + 1]
+        if count % 2 == 1:
+            lines[half] = lines[count - 1]
+            half = half + 1
+        del lines[half:]
+        count = half
+    if count == 0:
         return ""
-    return pieces[0]
+    return lines[0]

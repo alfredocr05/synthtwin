@@ -14200,8 +14200,8 @@ def _pushed_apart(
     )
     point_free = _whole_demand(facts) > 0
     immovable: "dict[str, int]" = {}
-    # EVERY STRATUM IS FOUND BY ITS TEXT AND BY ITS GRID UNIT, AND THE
-    # COLLISIONS WAIT IN A HEAP (stage 4 lane S4b-num, plan P4-D391). The
+    # EVERY STRATUM IS FOUND BY ITS GRID UNIT, AND THE COLLISIONS WAIT IN
+    # A HEAP (stage 4 lane S4b-num, plan P4-D377). The
     # pass found the lowest collision, the holders of its text and the
     # strata each push passes by reading every stratum again, and walked
     # each way to its free point in full however far the other way's
@@ -14217,21 +14217,14 @@ def _pushed_apart(
     # settled, and the other then only as far as could still win: the
     # push taken, and every stratum it moves, are the ones the pass took
     # when it walked both ways in full.
-    by_text: "dict[str, dict[int, int]]" = {}
-    by_units: "dict[int, dict[int, int]]" = {}
+    by_units: "dict[int, int | dict[int, int]]" = {}
     units_of: "list[int | None]" = []
     for place in range(total):
-        text = texts[place]
-        if text not in by_text:
-            by_text[text] = {}
-        by_text[text][place] = 1
-        units = _grid_units(text, figures)
+        units = _grid_units(texts[place], figures)
         units_of += [units]
         if units is None:
             continue
-        if units not in by_units:
-            by_units[units] = {}
-        by_units[units][place] = 1
+        _unit_added(by_units, units, place)
     waiting: "list[tuple[int, int]]" = []
     size = 0
     for place in range(total):
@@ -14266,7 +14259,9 @@ def _pushed_apart(
         if band == _BAND_POSITIVE and lowest < 1:
             lowest = 1
         holders: "list[int]" = []
-        for place in sorted(by_text[collision]):
+        for place in sorted(_unit_places(by_units, target_units)):
+            if texts[place] != collision:
+                continue
             if layout.bands[place] == _BAND_ZERO:
                 continue
             if place == 0 or place == total - 1:
@@ -14314,14 +14309,9 @@ def _pushed_apart(
             held[old] = held[old] - 1
             if held[old] == 0:
                 del held[old]
-            del by_text[old][place]
-            if not by_text[old]:
-                del by_text[old]
             was = units_of[place]
             if was is not None:
-                del by_units[was][place]
-                if not by_units[was]:
-                    del by_units[was]
+                _unit_dropped(by_units, was, place)
             seen = 0
             if fresh_text in held:
                 seen = held[fresh_text]
@@ -14330,20 +14320,17 @@ def _pushed_apart(
             moved[place] = fresh
             fresh_units = _grid_units(fresh_text, figures)
             units_of[place] = fresh_units
-            if fresh_text not in by_text:
-                by_text[fresh_text] = {}
-            by_text[fresh_text][place] = 1
             if fresh_units is None:
                 continue
-            if fresh_units not in by_units:
-                by_units[fresh_units] = {}
-            by_units[fresh_units][place] = 1
+            _unit_added(by_units, fresh_units, place)
             if held[fresh_text] < 2:
                 continue
             # A text with a second holder now: every holder is a
             # collision the heap must hold, the one just come and, where
             # this made the second, the one that was there.
-            for holder in by_text[fresh_text]:
+            for holder in _unit_places(by_units, fresh_units):
+                if texts[holder] != fresh_text:
+                    continue
                 if holder != place and held[fresh_text] > 2:
                     continue
                 if layout.bands[holder] == _BAND_ZERO:
@@ -14374,7 +14361,7 @@ class _PushAsked:
     highest: int
     figures: int
     gaps: "tuple[tuple[float, float], ...]"
-    by_units: "dict[int, dict[int, int]]"
+    by_units: "dict[int, int | dict[int, int]]"
     holders: "list[int]"
     keep_whole: bool
     point_free: bool
@@ -14544,7 +14531,7 @@ def _push_plan(
     gaps: "tuple[tuple[float, float], ...]",
     whole: "bool | None",
     kept: "tuple[float, ...]" = (),
-    by_units: "dict[int, dict[int, int]] | None" = None,
+    by_units: "dict[int, int | dict[int, int]] | None" = None,
     budget: "int | None" = None,
     over: "list[int] | None" = None,
 ) -> "tuple[list[tuple[int, int]], int] | None":
@@ -14560,7 +14547,7 @@ def _push_plan(
     ``by_units``, where handed, is every stratum's place by its grid
     unit, kept by the caller as the strata move, and the strata passed
     are read off it in place order rather than found by reading every
-    stratum (stage 4 lane S4b-num, plan P4-D391); with it, ``budget``
+    stratum (stage 4 lane S4b-num, plan P4-D377); with it, ``budget``
     is the most strata the walk may pass: past it the walk stops,
     answers None and puts a mark in ``over``.
 
@@ -14592,7 +14579,7 @@ def _push_plan(
         for point in passed:
             if point not in by_units:
                 continue
-            for place in by_units[point]:
+            for place in _unit_places(by_units, point):
                 if texts[place] == collision:
                     continue
                 found += [(place, passed[point])]
@@ -14610,7 +14597,7 @@ def _push_plan(
 
 
 def _strata_passed(
-    by_units: "dict[int, dict[int, int]]",
+    by_units: "dict[int, int | dict[int, int]]",
     texts: "list[str]",
     collision: str,
     units: int,
@@ -14622,10 +14609,49 @@ def _strata_passed(
     if units not in by_units:
         return 0
     count = 0
-    for place in by_units[units]:
+    for place in _unit_places(by_units, units):
         if texts[place] != collision:
             count = count + 1
     return count
+
+
+def _unit_added(
+    by_units: "dict[int, int | dict[int, int]]", units: int, place: int
+) -> None:
+    """Record one stratum at a grid unit: a place alone, or the places by a dict once two share it."""
+    if units not in by_units:
+        by_units[units] = place
+        return
+    found = by_units[units]
+    if isinstance(found, int):
+        by_units[units] = {found: 1, place: 1}
+        return
+    found[place] = 1
+
+
+def _unit_dropped(
+    by_units: "dict[int, int | dict[int, int]]", units: int, place: int
+) -> None:
+    """Forget one stratum at a grid unit."""
+    found = by_units[units]
+    if isinstance(found, int):
+        del by_units[units]
+        return
+    del found[place]
+    if not found:
+        del by_units[units]
+
+
+def _unit_places(
+    by_units: "dict[int, int | dict[int, int]]", units: int
+) -> "list[int]":
+    """The places of the strata at one grid unit."""
+    if units not in by_units:
+        return []
+    found = by_units[units]
+    if isinstance(found, int):
+        return [found]
+    return list(found)
 
 
 def _saturated_integers(
@@ -20108,7 +20134,7 @@ def _identity_walk(
     """Each number cell's spelling, raising the leading-zero order where an identity is owed (G6.6).
 
     The identity walk of `_number_cells`, split out of it unchanged but
-    for where each walk begins (stage 4 lane S4b-num, plan P4-D391): a
+    for where each walk begins (stage 4 lane S4b-num, plan P4-D387): a
     cell that owes an identity begins its walk at the order the last
     walk of a cell of the same value, style, width, pad, mark, notation
     and plus took, where the walk from the first order tried every
@@ -20201,7 +20227,7 @@ def _identity_walk(
             # count of numbers.
             #
             # AND EACH WALK BEGINS WHERE THE LAST ONE OF ITS CELL'S KIND
-            # STOPPED (stage 4 lane S4b-num, plan P4-D391). Begun again at
+            # STOPPED (stage 4 lane S4b-num, plan P4-D387). Begun again at
             # the first order for every repeated spelling of a value, the
             # walk tried every order an earlier cell of that value had
             # already taken: the square of the value's spellings, 249 of
@@ -44360,7 +44386,7 @@ def _pooled_spelling(
     plain spelling, which is what the value reads as.
 
     ``search``, where handed, is one offer's memory (stage 4 lane
-    S4b-num, plan P4-D391): what each spelling's rules answered, and
+    S4b-num, plan P4-D390): what each spelling's rules answered, and
     which places stood refused when last asked. A place refused stays
     refused for the rest of the offer -- what the offer has written only
     grows -- so the offer steps over it, and the place returned is the
@@ -44487,7 +44513,7 @@ def _pooled_spelling(
 
 @dataclasses.dataclass(frozen=True)
 class _PooledSearch:
-    """One offer's memory for `_pooled_spelling` (stage 4 lane S4b-num, plan P4-D391).
+    """One offer's memory for `_pooled_spelling` (stage 4 lane S4b-num, plan P4-D390).
 
     ``rules`` is what the spelling rules answered for a place of one
     tier and form -- the spelling and its folded key, or None where a
@@ -44747,7 +44773,7 @@ def _pooled_offered(
     """
     taken = dict(used)
     answered = dict(owners)
-    # ONE MEMORY FOR THE WHOLE OFFER (plan P4-D391): what it has written
+    # ONE MEMORY FOR THE WHOLE OFFER (plan P4-D390): what it has written
     # only grows, so a place refused stays refused until the offer ends.
     search = _pooled_search()
     written: "dict[int, str]" = {}
@@ -44846,7 +44872,7 @@ def _pooled_carried(
     )
     taken = dict(used)
     answered = dict(owners)
-    # ONE MEMORY FOR THE WHOLE OFFER (plan P4-D391): what it has written
+    # ONE MEMORY FOR THE WHOLE OFFER (plan P4-D390): what it has written
     # only grows, so a place refused stays refused until the offer ends.
     search = _pooled_search()
     written: "dict[int, str]" = {}
@@ -44858,7 +44884,7 @@ def _pooled_carried(
         owed = owed + middle * float(groups[step][0])
         left = left + groups[step][0]
     # EACH TURN'S REST IS READ OFF SUMS TAKEN ONCE, FROM THE LAST TURN
-    # BACK (plan P4-D391), where every turn added up every turn after it:
+    # BACK (plan P4-D390), where every turn added up every turn after it:
     # the square of the groups. The weights are whole numbers, so every
     # float sum of them is exact, and the same in any order, wherever
     # their sizes add up to less than 2**53; past that the turns add
@@ -44956,7 +44982,7 @@ def _pooled_pushed_first(
     """
     taken = dict(used)
     answered = dict(owners)
-    # ONE MEMORY FOR THE WHOLE OFFER (plan P4-D391): what it has written
+    # ONE MEMORY FOR THE WHOLE OFFER (plan P4-D390): what it has written
     # only grows, so a place refused stays refused until the offer ends.
     search = _pooled_search()
     pushed: "list[float]" = []
@@ -44981,7 +45007,7 @@ def _pooled_pushed_first(
             away = 0.0 - away
         pushed += [away]
     order: "list[int]" = []
-    # THE SEATING IS A SORT (plan P4-D391), where it was a search of every
+    # THE SEATING IS A SORT (plan P4-D390), where it was a search of every
     # group still standing for each seat, the square of the groups: a
     # group nothing was accepted for first, in the walk's order, then
     # the furthest pushed, ties in the walk's order. A distance that is
@@ -44999,7 +45025,7 @@ def _pooled_pushed_first(
 
 
 def _pooled_seated_one_by_one(pushed: "list[float]") -> "list[int]":
-    """`_pooled_pushed_first`'s seating searched seat by seat, as it was before plan P4-D391.
+    """`_pooled_pushed_first`'s seating, searched seat by seat as it was before lane S4b-num.
 
     Kept for a distance that is not a number, which a sort and this
     search would not order alike.
