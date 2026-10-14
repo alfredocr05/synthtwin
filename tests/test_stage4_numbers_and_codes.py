@@ -546,6 +546,30 @@ def _two_kinds() -> "tuple[object, ...]":
     return (facts, layout, (values[0], values[-1]), values, texts, held, 1, True)
 
 
+def _two_kinds_upward() -> "tuple[object, ...]":
+    """The same collision with the tie taken upward: the guard is owed in both ways.
+
+    Figures 1; strata 1.0, 9.7, 9.8, 9.9, a fractional 9.96 on the text
+    "10.0", then whole strata 10.0 to 30.0. Upward the whole mover is
+    asked first and walks the 20 whole points above out of the band,
+    while the fractional mover's 10.1 is free with no stratum passed;
+    downward the fractional mover must pass 9.9, 9.8 and 9.7. The tie is
+    taken upward -- which only an upward way walked in full finds: under
+    a budget the whole mover's walk answers TOO LONG and the push goes
+    down (skeptic 2 of lane S4b-num, p5c_probe.py).
+    """
+    values = [1.0, 9.7, 9.8, 9.9, 9.96] + [float(value) for value in range(10, 31)]
+    texts = [generation._grid_text(value, 1) for value in values]
+    held: "dict[str, int]" = {}
+    for text in texts:
+        held[text] = held.get(text, 0) + 1
+    facts = types.SimpleNamespace(
+        n_distinct_values=len(values), empty_edges=(), kept_stand_ins=(), integer_valued=False, numeric_styles={}
+    )
+    layout = types.SimpleNamespace(bands=("positive",) * len(values))
+    return (facts, layout, (values[0], values[-1]), values, texts, held, 1, True)
+
+
 def _push_codes(as_built: bool) -> "tuple[object, set[object]]":
     if as_built:
         function, names = _push_as_built()
@@ -567,6 +591,11 @@ def test_the_push_moves_what_the_push_as_built_moved(tmp_path: pathlib.Path) -> 
     ours = _pushed(generation._pushed_apart, two_kinds)
     assert ours == _pushed(built, two_kinds), "two kinds"
     assert ours[1][50] == "49.9", f"premise: the fractional mover is taken downward, {ours[1][48:]}"  # type: ignore[index]
+    upward = _two_kinds_upward()
+    assert upward[4][4] == upward[4][5] == "10.0", f"premise: 9.96 and 10.0 share a text, {upward[4][:6]}"  # type: ignore[index]
+    ours = _pushed(generation._pushed_apart, upward)
+    assert ours == _pushed(built, upward), "two kinds, upward"
+    assert ours[1][4] == "10.1", f"premise: the fractional mover is taken upward, {ours[1][:6]}"  # type: ignore[index]
     shapes = (
         ("tail2000", _dense_tail(2000), 11, ["value"]),
         ("tail3000", _dense_tail(3000), 36, ["value"]),
