@@ -7987,11 +7987,13 @@ pin publishes neither (contract NF121 and NF122), so no field pass runs
 on it; a dense grid of random times, filling it no more than a uniform
 draw of its rows would, is not crowded and keeps them (lane J2's second
 skeptic, item 1), nor is a grid some value of which repeats, publishing
-no count at midnight, that fills it less than a fifth more than that draw
-(its Codex review, item 2: 1,000 stamps five minutes or a minute apart,
-each written twice, met every fact; where a count at midnight is
-published such grids, written twice from five minutes up, missed and stay
-withheld). The rule claims no impossibility: it withholds where twins
+no count at midnight and parsing no more than 4,500 cells, that fills it
+less than a fifth more than that draw (its Codex review, item 2: 1,000
+stamps five minutes or a minute apart, each written twice, met every
+fact; where a count at midnight is published such grids, written twice
+from five minutes up, missed and stay withheld, and so do larger grids,
+whose twins from 5,000 rows came back short of their count -- its
+verifier). The rule claims no impossibility: it withholds where twins
 were measured to miss.
 Last, where the column publishes its count at midnight -- or withholds it
 for its size, and so still owes the count it held before these passes

@@ -817,6 +817,28 @@ def test_a_short_grid_written_twice_keeps_its_clock_facts(tmp_path: pathlib.Path
     assert not calendar_clock.lattice_crowded(300, 0, 299_700, 1000, False, 2000, False)
     assert calendar_clock.lattice_crowded(300, 0, 299_700, 1000, False, 2000, True)
     assert calendar_clock.lattice_crowded(300, 0, 299_700, 1000, True, 1000, False)
+    # ...and above `CROWDED_REPEATED_ROWS` the twentieth stands (its verifier).
+    assert not calendar_clock.lattice_crowded(300, 0, 674_700, 2250, False, 4500, False)
+    assert calendar_clock.lattice_crowded(300, 0, 749_700, 2500, False, 5000, False)
+
+
+def test_a_long_grid_written_twice_withholds_its_clock_facts(tmp_path: pathlib.Path) -> None:
+    """Lane J2's Codex verifier, item 2: the narrowed rule published the clock facts of
+    stamps five minutes apart, each written twice, at any size, and from 5,000 rows their
+    twins missed the count of different values with them -- 6,000, 8,000 and 9,000 rows at
+    floor 36 came back 2,973 to 2,990 of 3,000, 3,996 to 4,000 of 4,000 and 4,487 to 4,492 of
+    4,500 (cdd3add). A grid of more than `CROWDED_REPEATED_ROWS` rows is held to the
+    twentieth: these withhold their minute's and second's facts, as e69e534 did, and every
+    twin at seeds 0 to 2 misses nothing; Codex's 2,000-row grids still publish
+    (`test_a_short_grid_written_twice_keeps_its_clock_facts`)."""
+    for rows in (6000, 8000, 9000):
+        described = _one_column(tmp_path / f"twice-5-{rows}", "c", _twice_series(5, rows), 36)
+        block = described.block("c")
+        assert block.get("n_at_midnight") is None, rows
+        assert block["second_heaps"] == [] and block["minute_heaps"] == [], rows
+        for seed in (0, 1, 2):
+            written = kpi_shapes.twin_text(described, seed)
+            assert kpi_shapes.missed(kpi_shapes.measure(described, written, f"t{seed}.csv")) == [], (rows, seed)
 
 
 def _half_kept_series(step: int, rows: int, times: int) -> "list[str]":
