@@ -31579,6 +31579,17 @@ def _partial_cells(
     neither, the earlier on a tie (`_partial_stepped`), so each form
     keeps its published count; where no unit is left, there are none.
 
+    THE STEP STAYS INSIDE THE COLUMN'S RANGE FIRST (the fifth push's
+    critic, MAJOR 4; the R2c verifier's suggestion). The nearest free unit
+    is looked for first between the earliest and the latest instant the
+    full ranks write (`_full_span`, the span the published tails set),
+    then below that span, then above it. Measured on 45191fa: 120 ISO
+    dates from 2024-01-01 beside 80 different years 1900 to 1979 came
+    back as years 1984 to 2063, 39 of them after the column's last date,
+    and validate said nothing was missed; they are now 1945 to 2024. The
+    source's own partial years are published nowhere, so the twin cannot
+    put them where the source had them.
+
     Guarantees: accepts the datetime facts, the full ranks' cells as
     written, the absent spellings, whether the values are all different
     and the cells already written; returns the partial cells, as many as
@@ -31604,6 +31615,8 @@ def _partial_cells(
     # hop from then on (`_partial_stepped`; the verification of the Codex
     # review's repair of landing R2c, open item 2).
     skips: "list[tuple[dict[int, int], dict[int, int]]]" = [({}, {}) for _form in forms]
+    # The full ranks' span, read only once a cell has to step.
+    span: "tuple[str, str] | None" = None
     for turn in range(total):
         best = 0
         lag = -1
@@ -31622,19 +31635,38 @@ def _partial_cells(
                 break
         if not moment:
             return []
-        cell = _partial_stepped(
-            shapes[best],
-            parsing.layout_partial_cell(shapes[best], moment),
-            holes,
-            taken,
-            apart,
-            skips[best],
-        )
+        cell = parsing.layout_partial_cell(shapes[best], moment)
+        if span is None and not _partial_unit_free(cell, holes, taken, apart):
+            span = _full_span(written, items)
+        cell = _partial_stepped(shapes[best], cell, holes, taken, apart, skips[best], span)
         if not cell:
             return []
         taken[cell] = 1
         cells += [cell]
     return cells
+
+
+def _full_span(
+    written: "list[str]", items: "tuple[tuple[str, str], ...]"
+) -> "tuple[str, str]":
+    """The earliest and the latest canonical instant of the full ranks that read back (landing R2c).
+
+    Where a partial cell has to step, it steps inside this span first
+    (`_partial_stepped`; the fifth push's critic, MAJOR 4). Read once a
+    column, and only where some cell steps. ``('', '')`` where no cell
+    reads back.
+    """
+    low = ""
+    high = ""
+    for cell in written:
+        read = parsing.layout_reading(cell, items)
+        if read is None:
+            continue
+        if not low or read[0] < low:
+            low = read[0]
+        if not high or read[0] > high:
+            high = read[0]
+    return low, high
 
 
 def _partial_unit(canonical: str) -> int:
@@ -31704,6 +31736,7 @@ def _partial_stepped(
     taken: "dict[str, int]",
     apart: bool,
     skips: "tuple[dict[int, int], dict[int, int]] | None" = None,
+    span: "tuple[str, str] | None" = None,
 ) -> str:
     """One partial cell, stepped to the nearest free unit of its precision, or '' (landing R2c).
 
@@ -31726,10 +31759,19 @@ def _partial_stepped(
     free unit below and the nearest above are each found in a few
     questions, and the nearer is written: the same cell the walk writes.
 
+    INSIDE THE FULL RANKS' SPAN FIRST (the fifth push's critic, MAJOR 4).
+    Given ``span`` (`_full_span`), the walk keeps between the units of its
+    earliest and its latest instant, the cell's own unit always inside;
+    where no unit there is free, the nearest free unit below the span is
+    written, and only where none is, the nearest above it -- a partial
+    date the column's last whole date does not reach is the last one
+    taken. No span is the year band alone.
+
     Guarantees: accepts the form's shape, its cell, the absent spellings,
-    the cells already held, whether G11 binds, and the form's skip maps;
-    returns the cell to write, or ''. Writes only into ``skips``. A
-    function of the first five. No I/O of any kind.
+    the cells already held, whether G11 binds, the form's skip maps and
+    the full ranks' span; returns the cell to write, or ''. Writes only
+    into ``skips``. A function of the first five and the span. No I/O of
+    any kind.
     """
     if _partial_unit_free(cell, holes, taken, apart):
         return cell
@@ -31742,15 +31784,29 @@ def _partial_stepped(
     unit = _partial_unit(canonical)
     if skips is None:
         skips = ({}, {})
+    low = first
+    high = last
+    if span is not None and span[0] and span[1]:
+        low = max(first, min(unit, _partial_unit(span[0][0:size])))
+        high = min(last, max(unit, _partial_unit(span[1][0:size])))
     lower = _partial_free_unit(
-        shape, size, min(unit - 1, last), -1, first, holes, taken, apart, skips[0]
+        shape, size, min(unit - 1, high), -1, low, holes, taken, apart, skips[0]
     )
     upper = _partial_free_unit(
-        shape, size, max(unit + 1, first), 1, last, holes, taken, apart, skips[1]
+        shape, size, max(unit + 1, low), 1, high, holes, taken, apart, skips[1]
     )
     if lower[1] and (not upper[1] or unit - lower[0] <= upper[0] - unit):
         return lower[1]
-    return upper[1]
+    if upper[1]:
+        return upper[1]
+    below = _partial_free_unit(
+        shape, size, low - 1, -1, first, holes, taken, apart, skips[0]
+    )
+    if below[1]:
+        return below[1]
+    return _partial_free_unit(
+        shape, size, high + 1, 1, last, holes, taken, apart, skips[1]
+    )[1]
 
 
 def _partial_free_unit(

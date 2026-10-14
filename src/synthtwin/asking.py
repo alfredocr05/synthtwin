@@ -4745,6 +4745,10 @@ class Answers:
     # -- 3b.R2c (P4-D383): ...and the eleventh (question Q6): the columns
     # the person said hold dates, which is `--date-column`.
     date_columns: "tuple[str, ...]" = ()
+    # ...and those answered `keep`, which declare nothing and are carried
+    # so the run reading the answer does not put Q6 again (the R2c
+    # verifier's carried item, fixed after the fifth push's critic).
+    date_columns_kept: "tuple[str, ...]" = ()
 
 
 def _entry_answer(
@@ -4903,6 +4907,7 @@ def answers_in(document: object, shown: str) -> Answers:
     centuries: "list[tuple[str, int]]" = []
     centuries_kept: "list[str]" = []
     date_columns: "list[str]" = []
+    date_columns_kept: "list[str]" = []
     for entry, place in _entries_of(document, shown):
         read = _entry_answer(entry, place)
         if read is None:
@@ -4977,6 +4982,11 @@ def answers_in(document: object, shown: str) -> Answers:
         elif written == ANSWER_DATES:
             # Question Q6 (landing R2c): `--date-column NAME`.
             date_columns += [name]
+        elif written == ANSWER_KEEP and ANSWER_DATES in offered:
+            # ...and Q6 answered `keep`: nothing declared, and the column
+            # carried so the question is not put again. Measured on
+            # 45191fa: the run reading that answer asked Q6 once more.
+            date_columns_kept += [name]
         elif written != ANSWER_KEEP:
             # Offered by the file but not a word this module acts on,
             # which a questions file synthtwin wrote cannot contain and
@@ -5012,5 +5022,6 @@ def answers_in(document: object, shown: str) -> Answers:
         date_code_shapes=tuple(code_shapes),
         century_windows=tuple(centuries),
         centuries_kept=tuple(centuries_kept),
+        date_columns_kept=tuple(date_columns_kept),
         date_columns=tuple(date_columns),
     )

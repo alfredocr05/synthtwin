@@ -3876,7 +3876,7 @@ def _partial_forms_in_blocks(forms, given, turn, total):
     return len(forms) - 1
 
 
-def _partial_never_stepped(key, moment, absent, taken, apart, skips=None):
+def _partial_never_stepped(key, moment, absent, taken, apart, skips=None, span=None):
     """G7.5's step withdrawn: a partial cell is written where its rank puts it, whatever it is."""
     return _PARTIAL_WRITTEN(key, *moment)
 

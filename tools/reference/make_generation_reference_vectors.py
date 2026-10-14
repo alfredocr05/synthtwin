@@ -6267,11 +6267,16 @@ def partial_cells(column, written, holes=(), apart=False, held=()):
     obligation binds (``apart``) -- one the column already holds, takes
     the nearest unit of its form's precision that is neither, the earlier
     first, inside the year band 1800 to 2299 (the Codex review of landing
-    R2c, items 3 and 4); none at all where no unit is.
+    R2c, items 3 and 4); none at all where no unit is.  The step looks
+    inside the span of the full ranks that read back first, then below
+    it, then above it (the fifth push's critic, MAJOR 4).
     """
     forms = partial_forms(column)
     if not forms or not written:
         return []
+    read = [layout_moment(column["format"], cell) for cell in written]
+    read = [moment for moment in read if moment is not None]
+    span = (min(read), max(read)) if read else None
     absent = {hole.strip().lower() for hole in holes}
     taken = set(held)
     total = sum(rows for _key, rows in forms)
@@ -6292,7 +6297,7 @@ def partial_cells(column, written, holes=(), apart=False, held=()):
                 break
         if moment is None:
             return []
-        cell = partial_stepped(forms[best][0], moment, absent, taken, apart, skips[best])
+        cell = partial_stepped(forms[best][0], moment, absent, taken, apart, skips[best], span)
         if cell is None:
             return []
         taken.add(cell)
@@ -6360,7 +6365,7 @@ def partial_instant(precision, unit):
     return year, month, day, hour, minute, second
 
 
-def partial_stepped(key, moment, absent, taken, apart, skips=None):
+def partial_stepped(key, moment, absent, taken, apart, skips=None, span=None):
     """The partial cell of one instant under a form, stepped off what it may not be, or None.
 
     It stands where it is no absent spelling and, where ``apart``, held by
@@ -6372,7 +6377,12 @@ def partial_stepped(key, moment, absent, taken, apart, skips=None):
     it to the next unit not yet ruled out and the walk crosses it in one
     hop: a step one unit at a time asked 500,359 times for 1,000 partial
     days of a 20,000-row column (open item 2 of the verification of the
-    Codex review's repair of landing R2c).
+    Codex review's repair of landing R2c).  Given ``span``, the earliest
+    and the latest instant of the full ranks, the walk keeps inside its
+    units first (the cell's own always inside), then takes the nearest
+    free unit below it, and only then the nearest above it (the fifth
+    push's critic, MAJOR 4: 80 partial years beside dates of 2024 came
+    back 1984 to 2063, 39 of them after the column's last date).
     """
 
     def free(text):
@@ -6408,11 +6418,20 @@ def partial_stepped(key, moment, absent, taken, apart, skips=None):
     unit = partial_unit(precision, *moment)
     if skips is None:
         skips = ({}, {})
-    below, lower = nearest(min(unit - 1, last), -1, first, skips[0])
-    above, upper = nearest(max(unit + 1, first), 1, last, skips[1])
+    low, high = first, last
+    if span is not None:
+        low = max(first, min(unit, partial_unit(precision, *span[0])))
+        high = min(last, max(unit, partial_unit(precision, *span[1])))
+    below, lower = nearest(min(unit - 1, high), -1, low, skips[0])
+    above, upper = nearest(max(unit + 1, low), 1, high, skips[1])
     if lower is not None and (upper is None or unit - below <= above - unit):
         return lower
-    return upper
+    if upper is not None:
+        return upper
+    _below, outside = nearest(low - 1, -1, first, skips[0])
+    if outside is not None:
+        return outside
+    return nearest(high + 1, 1, last, skips[1])[1]
 
 
 # The level each field of a layout stands at, for its cuts (G7.5's partial
@@ -31337,8 +31356,10 @@ def _layout_partial_all_different():
         "cells written to the year, and as many different values published "
         "as present ones. The full ranks are held all different and each "
         "partial cell that would repeat a held one steps to the nearest year "
-        "no cell holds, the earlier first: 1970, 1969, 1971, 1968 and on. The "
-        "mutant reads no obligation, and every partial cell is `1970`.",
+        "no cell holds inside the full ranks' span, then below it: the span "
+        "is 1970 alone, so 1970, 1969, 1968 and on, none after the column's "
+        "last date (the fifth push's critic, MAJOR 4). The mutant reads no "
+        "obligation, and every partial cell is `1970`.",
     )
 
 
