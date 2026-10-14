@@ -46477,11 +46477,20 @@ def own_clock_unframed(before, framed, shifts, offsets, whole, pinned, body, low
     places (framed times the scale) ascending, each the least offset left
     whose instant is not past the gap's top (else the largest left), then
     the run written in the order of its instants with each place's offset.
-    Every other rank as it was before the passes."""
+    In a frame of days a bare date of the body, neither pinned nor in a
+    gap of one place, is given back at its day times the scale less its
+    shift (Codex's item 2 of landing 3b.7). Every other rank as it was
+    before the passes."""
     moved = list(before)
     given = list(offsets)
     rank = body[0]
     while rank <= body[1]:
+        if whole[rank] and scale > 1 and not pinned[rank] and lows[rank] < highs[rank]:
+            # A bare date of a column in days of the frame moved as a day:
+            # given back at its own midnight, no offset to match.
+            moved[rank] = framed[rank] * scale - shifts[rank]
+            rank += 1
+            continue
         if pinned[rank] or whole[rank] or lows[rank] >= highs[rank]:
             rank += 1
             continue
@@ -46516,44 +46525,98 @@ def own_clock_unframed(before, framed, shifts, offsets, whole, pinned, body, low
 
 
 def pinned_offset_choice(left, keys, blocks, body, censuses, off_midnight, step):
+    """G7.4 step 1a's first key of each fixed block: its first share
+    (`pinned_offset_shares`, no block written at a sixtieth second), ""
+    where it takes none."""
+    return [
+        shares[0][0] if shares else ""
+        for shares, _sixtieth in pinned_offset_shares(left, keys, blocks, body, censuses, off_midnight, step)
+    ]
+
+
+def pinned_offset_shares(left, keys, blocks, body, censuses, off_midnight, step, leaps=None):
     """G7.4 step 1a: each fixed block (first rank, end, instant), in order,
     takes the first key in G7.4's order with as many ranks left as it
-    holds that breaks the fewest of -- off a local midnight where the count
-    at midnight is withheld for its size, and, inside the body, a group of
-    every census with room left for it at its written place -- spending the
-    key's count and the groups' room; "" where no key has its ranks left."""
+    holds that breaks nothing -- off a local midnight where the count at
+    midnight is withheld for its size, and, inside the body, a group of
+    every census with room left for it at its written place. Where no key
+    breaks nothing, a block inside the body, under a census, is split: the
+    keys in G7.4's order, each written off a withheld midnight, take as
+    many of its ranks as their count left and every group their written
+    place falls in have room for, until it is spent. Where no split
+    breaks nothing either and the block may be written at a sixtieth
+    second (``leaps``), the same two are asked of the written place one
+    second before its instant, the minute before's HH:MM:60. Where none
+    breaks nothing, the one key breaking the fewest at the ordinary place
+    takes it whole. Each block's keys with their counts, in rank order,
+    and whether it is written at a sixtieth second, spending the keys'
+    counts and the groups' room at the place written; no keys where no
+    key has its ranks left."""
     left = dict(left)
     room = [list(counts) for _rule, _where, counts in censuses]
-    chosen_keys = []
-    for start, end, instant in blocks:
-        size = end - start
-        inside = body[0] <= start and end - 1 <= body[1]
+
+    def groups(at, key):
+        return [where[own_clock_field(rule, at, key)] for rule, where, _counts in censuses]
+
+    def at_midnight(at, key):
+        local = at + own_clock_seconds(key)
+        return off_midnight and (local - local % step) % 86400 == 0
+
+    def single(at, size, inside):
         best = None
         for index, key in enumerate(keys):
             if left[key] < size:
                 continue
-            broken = 0
-            local = instant + own_clock_seconds(key)
-            if off_midnight and (local - local % step) % 86400 == 0:
-                broken += 1
+            broken = 1 if at_midnight(at, key) else 0
             if inside:
-                for place, (rule, where, _counts) in enumerate(censuses):
-                    if room[place][where[own_clock_field(rule, instant, key)]] < size:
-                        broken += 1
+                broken += sum(1 for place, group in enumerate(groups(at, key)) if room[place][group] < size)
             if best is None or broken < best[0]:
                 best = (broken, index)
             if broken == 0:
                 break
-        if best is None:
-            chosen_keys.append("")
-            continue
-        key = keys[best[1]]
-        left[key] -= size
-        if inside:
-            for place, (rule, where, _counts) in enumerate(censuses):
-                room[place][where[own_clock_field(rule, instant, key)]] -= size
-        chosen_keys.append(key)
-    return chosen_keys
+        return best
+
+    def split(at, size):
+        spare = [list(counts) for counts in room]
+        shares = []
+        wanted = size
+        for key in keys:
+            if wanted == 0:
+                break
+            if at_midnight(at, key):
+                continue
+            taken = min([wanted, left[key]] + [spare[place][group] for place, group in enumerate(groups(at, key))])
+            if taken <= 0:
+                continue
+            for place, group in enumerate(groups(at, key)):
+                spare[place][group] -= taken
+            shares.append((key, taken))
+            wanted -= taken
+        return shares if wanted == 0 else []
+
+    found = []
+    for number, (start, end, instant) in enumerate(blocks):
+        size = end - start
+        inside = body[0] <= start and end - 1 <= body[1]
+        best = single(instant, size, inside)
+        shares = []
+        sixtieth = False
+        if inside and censuses and (best is None or best[0] > 0):
+            shares = split(instant, size)
+            if not shares and leaps and leaps[number]:
+                leap = single(instant - 1, size, True)
+                shares = [(keys[leap[1]], size)] if leap is not None and leap[0] == 0 else split(instant - 1, size)
+                sixtieth = bool(shares)
+        if not shares and best is not None:
+            shares = [(keys[best[1]], size)]
+        written = instant - 1 if sixtieth else instant
+        for key, taken in shares:
+            left[key] -= taken
+            if inside:
+                for place, group in enumerate(groups(written, key)):
+                    room[place][group] -= taken
+        found.append((shares, sixtieth))
+    return found
 
 
 def keys_by_gap(keys, left, open_ranks, lows, highs):
@@ -46850,6 +46913,20 @@ SHARED_CLOCK_FRAMES = {
         86400,
         "a column all at a local midnight in days of the frame: each day a midnight of its own offset",
     ),
+    "bare_dates_in_days": (
+        [0, 86400 * 100, 86400 * 100 + 10800, 86400 * 101, 86400 * 101 + 10800, 86400 * 200],
+        [0, 114, 114, 114, 114, 200],
+        [0, 0, -10800, 0, -10800, 0],
+        ["", "", "-03:00", "", "-03:00", ""],
+        [False, True, False, True, False, False], [True, False, False, False, False, True], (1, 4),
+        [0, 86400 * 99, 86400 * 99, 86400 * 99, 86400 * 99, 86400 * 200],
+        [0, 86400 * 150, 86400 * 150, 86400 * 150, 86400 * 150, 86400 * 200],
+        86400,
+        "Codex's item 2: a column all at a local midnight in days of the frame, two bare dates beside "
+        "two -03:00 midnights, every rank moved to day 114 by the day pass: each bare date given back "
+        "at that day's midnight, each -03:00 stamp at its own (mutant: the bare dates given back where "
+        "they stood)",
+    ),
 }
 
 SHARED_CLOCK_PINS = {
@@ -46869,6 +46946,33 @@ SHARED_CLOCK_PINS = {
         "(mutant: the midnight clause off)",
     ),
 }
+
+# Codex's item 1 of landing 3b.7: 700 daily stamps at 13:00:00+01:00 and 12:00:00Z in turn beside
+# 150 copies each of 2024-07-19T09:00:00Z and T10:00:00+01:00, the hour census at a floor of 11.
+_SPLIT_HOURS = ((0, 8, 0), (9, 9, 150), (10, 10, 150), (11, 11, 0), (12, 12, 339), (13, 13, 339), (14, 23, 0))
+
+SHARED_CLOCK_PINS["split_hour_block"] = (
+    {"+01:00": 500, "Z": 500}, ["+01:00", "Z"],
+    [(500, 751, 1721379600)], (11, 988), [("hour", _SPLIT_HOURS)], False, 1,
+    "Codex's item 1: two rungs fix 251 ranks at 2024-07-19 09:00 on the shared clock, which hour 10 "
+    "holds 150 of under +01:00 and hour 9 150 under Z: the block is split, 150 at +01:00 and 101 "
+    "at Z, never all 251 at +01:00 (mutant: one key a block)",
+)
+
+# Codex's item 3 of landing 3b.7: 600 noon stamps from 2016-01-01 at Z and +00:00 in turn beside 400
+# copies of 2016-12-31T23:59:60Z, the hour and weekday censuses at a floor of 11.
+_LEAP_HOURS = ((0, 11, 0), (12, 12, 578), (13, 22, 0), (23, 23, 400))
+_LEAP_WEEKDAYS = ((0, 0, 82), (1, 1, 83), (2, 2, 83), (3, 3, 83), (4, 4, 83), (5, 5, 482), (6, 6, 82))
+
+SHARED_CLOCK_PINS["leap_block_at_sixty"] = (
+    {"+00:00": 300, "Z": 700}, ["+00:00", "Z"],
+    [(499, 750, 1483228800)], (11, 988), [("hour", _LEAP_HOURS), ("weekday", _LEAP_WEEKDAYS)], False, 1,
+    "Codex's item 3: two rungs fix 251 ranks at 2017-01-01 00:00:00 on the shared clock, the instant "
+    "of 2016-12-31T23:59:60, which both keys write at midnight on a Sunday in hour 0, a group of "
+    "nought: the block is written at the sixtieth second of the minute before, in hour 23 on the "
+    "Saturday (mutant: no sixtieth spelling)",
+)
+SHARED_CLOCK_PIN_LEAPS = {"leap_block_at_sixty": [True]}
 
 SHARED_CLOCK_SPREADS = {
     "few_off_spread": (
@@ -46974,6 +47078,7 @@ def shared_clock_document():
     pins = {}
     for name in sorted(SHARED_CLOCK_PINS):
         left, keys, blocks, body, censuses, off_midnight, step, why = SHARED_CLOCK_PINS[name]
+        leaps = SHARED_CLOCK_PIN_LEAPS.get(name, [False] * len(blocks))
         laid = []
         for rule, groups in censuses:
             where = _hour_where(groups) if rule == "hour" else _weekday_where(groups)
@@ -46983,6 +47088,11 @@ def shared_clock_document():
             "censuses": [[rule, list(where), counts] for rule, where, counts in laid],
             "off_midnight": off_midnight, "step": step, "why": why,
             "answer": pinned_offset_choice(left, keys, blocks, body, laid, off_midnight, step),
+            "leaps": leaps,
+            "shares": [
+                [[list(share) for share in shares], sixtieth]
+                for shares, sixtieth in pinned_offset_shares(left, keys, blocks, body, laid, off_midnight, step, leaps)
+            ],
         }
     spreads = {}
     for name in sorted(SHARED_CLOCK_SPREADS):

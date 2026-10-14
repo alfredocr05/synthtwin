@@ -397,6 +397,96 @@
     }
   },
   "frames": {
+    "bare_dates_in_days": {
+      "answer": {
+        "offsets": [
+          "",
+          "",
+          "-03:00",
+          "",
+          "-03:00",
+          ""
+        ],
+        "ordinals": [
+          0,
+          9849600,
+          9860400,
+          9849600,
+          9860400,
+          17280000
+        ]
+      },
+      "before": [
+        0,
+        8640000,
+        8650800,
+        8726400,
+        8737200,
+        17280000
+      ],
+      "body": [
+        1,
+        4
+      ],
+      "framed": [
+        0,
+        114,
+        114,
+        114,
+        114,
+        200
+      ],
+      "highs": [
+        0,
+        12960000,
+        12960000,
+        12960000,
+        12960000,
+        17280000
+      ],
+      "lows": [
+        0,
+        8553600,
+        8553600,
+        8553600,
+        8553600,
+        17280000
+      ],
+      "offsets": [
+        "",
+        "",
+        "-03:00",
+        "",
+        "-03:00",
+        ""
+      ],
+      "pinned": [
+        true,
+        false,
+        false,
+        false,
+        false,
+        true
+      ],
+      "scale": 86400,
+      "shifts": [
+        0,
+        0,
+        -10800,
+        0,
+        -10800,
+        0
+      ],
+      "whole": [
+        false,
+        true,
+        false,
+        true,
+        false,
+        false
+      ],
+      "why": "Codex's item 2: a column all at a local midnight in days of the frame, two bare dates beside two -03:00 midnights, every rank moved to day 114 by the day pass: each bare date given back at that day's midnight, each -03:00 stamp at its own (mutant: the bare dates given back where they stood)"
+    },
     "days_of_a_cet_column": {
       "answer": {
         "offsets": [
@@ -659,11 +749,25 @@
         "+01:00",
         "+02:00"
       ],
+      "leaps": [
+        false
+      ],
       "left": {
         "+01:00": 90,
         "+02:00": 87
       },
       "off_midnight": true,
+      "shares": [
+        [
+          [
+            [
+              "+02:00",
+              12
+            ]
+          ],
+          false
+        ]
+      ],
       "step": 60,
       "why": "C1's c551: twelve listed rows at 2020-10-27 23:00 on the shared clock, the count at midnight withheld for its size, take +02:00, off a local midnight, never +01:00 writing them at one (mutant: the midnight clause off)"
     },
@@ -740,13 +844,211 @@
         "+05:30",
         "-06:00"
       ],
+      "leaps": [
+        false
+      ],
       "left": {
         "+05:30": 18,
         "-06:00": 982
       },
       "off_midnight": false,
+      "shares": [
+        [
+          [
+            [
+              "-06:00",
+              1
+            ]
+          ],
+          false
+        ]
+      ],
       "step": 60,
       "why": "the skeptic's few_off: a 99th percentile the source wrote 16:30-06:00 takes -06:00, its hour in a counted group, never the first sorted key +05:30 writing it 04:00 in a group of nought (mutant: G7.4's lexical keys)"
+    },
+    "leap_block_at_sixty": {
+      "answer": [
+        "+00:00"
+      ],
+      "blocks": [
+        [
+          499,
+          750,
+          1483228800
+        ]
+      ],
+      "body": [
+        11,
+        988
+      ],
+      "censuses": [
+        [
+          "hour",
+          [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1,
+            2,
+            2,
+            2,
+            2,
+            2,
+            2,
+            2,
+            2,
+            2,
+            2,
+            3
+          ],
+          [
+            0,
+            578,
+            0,
+            400
+          ]
+        ],
+        [
+          "weekday",
+          [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6
+          ],
+          [
+            82,
+            83,
+            83,
+            83,
+            83,
+            482,
+            82
+          ]
+        ]
+      ],
+      "keys": [
+        "+00:00",
+        "Z"
+      ],
+      "leaps": [
+        true
+      ],
+      "left": {
+        "+00:00": 300,
+        "Z": 700
+      },
+      "off_midnight": false,
+      "shares": [
+        [
+          [
+            [
+              "+00:00",
+              251
+            ]
+          ],
+          true
+        ]
+      ],
+      "step": 1,
+      "why": "Codex's item 3: two rungs fix 251 ranks at 2017-01-01 00:00:00 on the shared clock, the instant of 2016-12-31T23:59:60, which both keys write at midnight on a Sunday in hour 0, a group of nought: the block is written at the sixtieth second of the minute before, in hour 23 on the Saturday (mutant: no sixtieth spelling)"
+    },
+    "split_hour_block": {
+      "answer": [
+        "+01:00"
+      ],
+      "blocks": [
+        [
+          500,
+          751,
+          1721379600
+        ]
+      ],
+      "body": [
+        11,
+        988
+      ],
+      "censuses": [
+        [
+          "hour",
+          [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            6,
+            6,
+            6,
+            6,
+            6,
+            6,
+            6,
+            6,
+            6
+          ],
+          [
+            0,
+            150,
+            150,
+            0,
+            339,
+            339,
+            0
+          ]
+        ]
+      ],
+      "keys": [
+        "+01:00",
+        "Z"
+      ],
+      "leaps": [
+        false
+      ],
+      "left": {
+        "+01:00": 500,
+        "Z": 500
+      },
+      "off_midnight": false,
+      "shares": [
+        [
+          [
+            [
+              "+01:00",
+              150
+            ],
+            [
+              "Z",
+              101
+            ]
+          ],
+          false
+        ]
+      ],
+      "step": 1,
+      "why": "Codex's item 1: two rungs fix 251 ranks at 2024-07-19 09:00 on the shared clock, which hour 10 holds 150 of under +01:00 and hour 9 150 under Z: the block is split, 150 at +01:00 and 101 at Z, never all 251 at +01:00 (mutant: one key a block)"
     }
   },
   "spreads": {

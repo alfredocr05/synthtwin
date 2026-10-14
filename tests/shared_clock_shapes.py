@@ -10,7 +10,8 @@ battery (seed 77, cases 0 and 551) that missed a withheld count at midnight;
 and, from the repair of the landing, all-different stamps on consecutive
 minutes beside bare dates (local, and at two offsets) and bare dates beside
 noon stamps; and, from its second skeptic, bare dates at both ends of a span
-of noon stamps.
+of noon stamps; and, from its Codex review, a fixed block two keys share, bare dates beside
+midnight stamps all on the 15th, and a leap second beside Z and +00:00.
 Every cell is made up here; none is a real row. Standard library only.
 """
 
@@ -426,6 +427,48 @@ def noon_ends(n: int, _draw: random.Random) -> "list[str]":
     return found
 
 
+def split_block(_n: int, _draw: random.Random) -> "list[str]":
+    """Codex's item 1 of landing 3b.7: 700 daily stamps from 2024-01-01 at 13:00:00+01:00 and
+    12:00:00Z in turn, beside 150 copies each of 2024-07-19T09:00:00Z and 2024-07-19T10:00:00+01:00
+    (1,000 rows): two percentile rungs fix 251 ranks at that one instant, a block the hour census
+    holds 150 of under each key and no more (G7.4 step 1a splits it)."""
+    first = datetime.date(2024, 1, 1)
+    found: "list[str]" = []
+    for place in range(700):
+        day = (first + datetime.timedelta(days=place)).isoformat()
+        found += [f"{day}T13:00:00+01:00" if place % 2 == 0 else f"{day}T12:00:00Z"]
+    found += ["2024-07-19T09:00:00Z"] * 150
+    found += ["2024-07-19T10:00:00+01:00"] * 150
+    return found
+
+
+def midnight_dates(_n: int, _draw: random.Random) -> "list[str]":
+    """Codex's item 2 of landing 3b.7, the all-midnight DM5 case: every month from January 2020 to
+    December 2024, eleven bare dates on the 15th and eleven stamps at midnight of that day at
+    -03:00 (1,320 rows, every cell at a local midnight): the day of the month's census counts every
+    body cell on the 15th, the bare dates moved as days in the frame's days."""
+    found: "list[str]" = []
+    for year in range(2020, 2025):
+        for month in range(1, 13):
+            day = datetime.date(year, month, 15).isoformat()
+            found += [day] * 11
+            found += [f"{day}T00:00:00-03:00"] * 11
+    return found
+
+
+def leap_noon(_n: int, _draw: random.Random) -> "list[str]":
+    """Codex's item 3 of landing 3b.7: 600 consecutive days from 2016-01-01 at noon, Z and +00:00
+    in turn, beside 400 copies of 2016-12-31T23:59:60Z (1,000 rows): the leap second counts on the
+    day, hour and minute it is WRITTEN, so the rungs fixed at its instant are written as it was."""
+    first = datetime.date(2016, 1, 1)
+    found: "list[str]" = []
+    for place in range(600):
+        day = (first + datetime.timedelta(days=place)).isoformat()
+        found += [f"{day}T12:00:00Z" if place % 2 == 0 else f"{day}T12:00:00+00:00"]
+    found += ["2016-12-31T23:59:60Z"] * 400
+    return found
+
+
 def c0(_n: int, _draw: random.Random) -> "list[str]":
     return [value for value, count in C0_CELLS for _ in range(count)]
 
@@ -453,6 +496,9 @@ SHAPES = {
     "noon_ends": noon_ends,
     "c0": c0,
     "c551": c551,
+    "split_block": split_block,
+    "midnight_dates": midnight_dates,
+    "leap_noon": leap_noon,
 }
 
 

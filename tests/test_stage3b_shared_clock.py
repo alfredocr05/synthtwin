@@ -13,7 +13,10 @@ as written. Each clause below is red on its mutant (`_red_on`).
 
 S1 the scope, S2 the ranking, S3 the censuses met, S4 the recount, S5 item
 (a), S6 item (b), S7 the forms, S8 the work, S9 every description loads,
-and the twenty-fourth vectors file, each case red on its mutant.
+and the twenty-fourth vectors file, each case red on its mutant. The
+landing's Codex review added three columns to S3, each red on its mutant:
+a fixed block two keys share, bare dates in the frame's days, and a leap
+second beside Z and +00:00.
 """
 
 from __future__ import annotations
@@ -38,10 +41,14 @@ SEEDS = (0, 1, 2)
 # The battery's columns the censuses are met on (S3): two offsets across both
 # changes of daylight saving time, two sites, a -06:00 clinic with one cell in
 # fifty at +05:30, an instrument writing Z beside a ward at +02:00, sixtieth
-# seconds at +05:30, and three columns of the joint member.
+# seconds at +05:30, and three columns of the joint member; and, from the
+# landing's Codex review, a fixed block two keys share (item 1), bare dates
+# beside -03:00 midnights all on the 15th, the all-midnight DM5 case (item 2),
+# and a leap second beside Z and +00:00 (item 3).
 MET = (
     "dst_clinic", "dst_ed", "two_sites", "few_off", "z_plus", "leap_shared",
     "isomix_admit", "isomix_offsets", "clinic_isomix",
+    "split_block", "midnight_dates", "leap_noon",
 )
 
 _DESCRIBED: "dict[tuple[str, int], kpi_shapes.Described]" = {}
@@ -199,6 +206,62 @@ def test_s3_red_with_the_whole_guard_restored(tmp_path_factory: pytest.TempPathF
     monkeypatch.setattr(generation, "_hour_settled", guarded(hour))
     described = _described(tmp_path_factory, "isomix_admit", 11)
     assert any(check.endswith("_census.groups") for check in _missed(described, 0))
+
+
+# -- S3, from the landing's Codex review: each item red on its mutant ----------
+
+
+def test_s3_red_with_one_key_a_block(tmp_path_factory: pytest.TempPathFactory, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Codex's item 1. Mutant: G7.4 step 1a never splits a fixed block -- the 251 ranks two rungs
+    fix at 2024-07-19 09:00 on the shared clock all take +01:00, writing them in hour 10, which
+    holds 150, and the twin misses its hour census (132, 251, 297, 298 for 150, 150, 339, 339)."""
+    monkeypatch.setattr(generation, "_pinned_split", lambda *_arguments: [])
+    for floor in FLOORS:
+        missed = _missed(_described(tmp_path_factory, "split_block", floor), 0)
+        assert "t:hour_census.groups" in missed, (floor, missed)
+
+
+def test_s3_red_with_the_bare_dates_frozen_in_days(
+    tmp_path_factory: pytest.TempPathFactory, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Codex's item 2. Mutant: the passes pin a bare date by the column's own facts on the shared
+    clock even in the frame's days -- the bare dates stay where the form step put them, and the
+    twin writes about 620 cells off the 15th the day of the month's census counts nought."""
+    pinned = generation._whole_pinned
+
+    def frozen(column: object, whole: "list[bool]", flags: "list[bool]", _read: object = None) -> None:
+        pinned(column, whole, flags)  # type: ignore[arg-type]
+
+    monkeypatch.setattr(generation, "_whole_pinned", frozen)
+    for floor in FLOORS:
+        missed = _missed(_described(tmp_path_factory, "midnight_dates", floor), 0)
+        assert "t:day_of_month_census.groups" in missed, (floor, missed)
+
+
+def test_s3_red_without_the_sixtieth_spelling(
+    tmp_path_factory: pytest.TempPathFactory, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Codex's item 3. Mutant: no fixed block is written at a sixtieth second -- the 251 ranks
+    two rungs fix at the instant of 2016-12-31T23:59:60Z, published as midnight, come back at
+    00:00:00 on the Sunday, and the twin misses its hour and weekday censuses."""
+    offsets = generation._pinned_offsets
+    monkeypatch.setattr(
+        generation, "_pinned_offsets",
+        lambda facts, layout, parsed, whole, _sixtieths=None: offsets(facts, layout, parsed, whole),
+    )
+    for floor in FLOORS:
+        missed = _missed(_described(tmp_path_factory, "leap_noon", floor), 0)
+        assert "t:hour_census.groups" in missed and "t:weekday_census.groups" in missed, (floor, missed)
+
+
+def test_s3_the_leap_block_is_written_at_sixty(tmp_path_factory: pytest.TempPathFactory) -> None:
+    """Codex's item 3, the cells: the twin writes the fixed block at the sixtieth second the source
+    wrote, 251 cells `2016-12-31T23:59:60` at an offset of nought, and none at midnight."""
+    for floor in FLOORS:
+        text = kpi_shapes.twin_text(_described(tmp_path_factory, "leap_noon", floor), 0)
+        cells = text.splitlines()[1:]
+        assert sum(1 for cell in cells if cell.startswith("2016-12-31T23:59:60")) >= 251, floor
+        assert not any("T00:00:00" in cell for cell in cells), floor
 
 
 # -- S4: the recount on each cell's own clock --------------------------------
@@ -743,6 +806,10 @@ def test_vectors_frames(monkeypatch: pytest.MonkeyPatch) -> None:
             moved[rank] = framed[rank] * scale - shifts[rank]
             given[rank] = offsets[rank]
 
+    # Codex's item 2: a bare date in the frame's days given back where it stood (mutant).
+    days = _FILE["frames"]["bare_dates_in_days"]
+    stood = dict(days, pinned=[days["pinned"][rank] or days["whole"][rank] for rank in range(len(days["whole"]))])
+    assert _unframed(stood) != days["answer"]
     monkeypatch.setattr(generation, "_own_clock_run", rank_by_rank)
     assert any(_unframed(case) != case["answer"] for case in _FILE["frames"].values())
 
@@ -755,13 +822,28 @@ def _pins(case: "dict[str, typing.Any]") -> "list[str]":
     )
 
 
+def _shares(case: "dict[str, typing.Any]") -> "list[typing.Any]":
+    found = generation._pinned_offset_shares(
+        dict(case["left"]), list(case["keys"]), [tuple(block) for block in case["blocks"]],
+        tuple(case["body"]), [(rule, tuple(where), list(counts)) for rule, where, counts in case["censuses"]],
+        case["off_midnight"], case["step"], list(case["leaps"]),
+    )
+    return [[[[key, count] for key, count in taken], sixtieth] for taken, sixtieth in found]
+
+
 def test_vectors_pins(monkeypatch: pytest.MonkeyPatch) -> None:
     for name, case in _FILE["pins"].items():
         assert _pins(case) == case["answer"], name
+        assert _shares(case) == case["shares"], name
     lexical = dict(_FILE["pins"]["few_off_rung"], censuses=[])
     assert _pins(lexical) != _FILE["pins"]["few_off_rung"]["answer"]
     blind = dict(_FILE["pins"]["c551_listed_tail"], off_midnight=False)
     assert _pins(blind) != _FILE["pins"]["c551_listed_tail"]["answer"]
+    # Codex's items 1 and 3: a block the keys share, and a block written at a sixtieth second.
+    no_leap = dict(_FILE["pins"]["leap_block_at_sixty"], leaps=[False])
+    assert _shares(no_leap) != _FILE["pins"]["leap_block_at_sixty"]["shares"]
+    monkeypatch.setattr(generation, "_pinned_split", lambda *_arguments: [])
+    assert _shares(_FILE["pins"]["split_hour_block"]) != _FILE["pins"]["split_hour_block"]["shares"]
 
 
 def _spread(case: "dict[str, typing.Any]") -> "list[str]":
