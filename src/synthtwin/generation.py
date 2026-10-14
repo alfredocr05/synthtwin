@@ -29193,7 +29193,7 @@ def _open_before(tree: _ClockOpen, index: int) -> int:
 
 
 @dataclasses.dataclass(frozen=True)
-class _ClockLayout:
+class _ClockPayerLayout:
     """THE PAYERS' WALK laid out for one day standing (lane J2's Codex
     verifier, item 3): `days` the book's days of that standing, ascending,
     `index` each day's place among them, `ranks` the movable body ranks of
@@ -29234,7 +29234,7 @@ class _ClockKeeps:
     units that many days on each side.
     """
 
-    layout: _ClockLayout
+    layout: _ClockPayerLayout
     origin: int
     into: int
     standing: "tuple[int, ...]"
@@ -29273,7 +29273,7 @@ class _ClockPayerBook:
     days: "dict[int, list[int]]"
     home: "dict[int, int]"
     occupied: "list[int]"
-    layouts: "dict[tuple[tuple[int, ...], int], _ClockLayout]" = dataclasses.field(
+    layouts: "dict[tuple[tuple[int, ...], int], _ClockPayerLayout]" = dataclasses.field(
         default_factory=dict
     )
     keeps: "dict[tuple[tuple[int, ...], int, int], _ClockKeeps]" = dataclasses.field(
@@ -29517,7 +29517,7 @@ def _clock_payer_keeps(
             first += [len(ranks)]
             ranks += book.days[day]
         first += [len(ranks)]
-        book.layouts[(standing, into)] = _ClockLayout(
+        book.layouts[(standing, into)] = _ClockPayerLayout(
             days=days, index={day: index for index, day in enumerate(days)}, first=first,
             ranks=ranks, position={rank: index for index, rank in enumerate(ranks)},
         )
