@@ -6,6 +6,48 @@ exists).
 
 ## [Unreleased]
 
+### The calendar comes back on columns of two offsets and of dates beside moments (2026-10-13)
+
+**Landing 3b.7, the shared clock and the joint member** (plan P4-D378).
+A column whose dates wear two UTC offsets -- a clinic across a change of
+daylight saving time, two sites, an instrument writing `Z` beside a ward
+-- and a column mixing bare dates with moments published no weekday,
+day-of-month or hour census, and their twins came back up to 0.29 of the
+cells off by weekday and 0.54 by hour. Now each census is published
+there, every cell counted at the day and hour it is WRITTEN at on its
+own clock, a bare date at its midnight; the twin writes every cell at
+its source's offset and form, the offset counts and the counts of bare
+dates and moments exact, and meets every census: on the landing's
+battery of 21 columns at 1,000 and 10,000 rows, floors 11 and 36, seeds
+0 to 4, every published weekday and hour census is met, the weekday at
+most 0.035 off at 1,000 rows and 0.0011 at 10,000. The twin of a column
+of dates beside moments now writes its bare dates, where it wrote every
+one as a `00:00:00` stamp, so `resolution_mix` and `format` are checked
+exactly there, every bare date written as one save where the hour
+census's cap at hour 0 leaves it no midnight day (bare dates at both
+ends of a span of noon stamps: 98 of 100, `resolution_mix` missed and
+named, the hour census held), and spread evenly over the span where
+dates and stamps share days; an all-different column
+of 200 dates beside 800 stamps comes back all different, where 881 of
+1,000 came back before, its count checked inside G12.5's envelope as
+before and any shortfall said in the twin's report. A twin of a
+daylight-saving column writes the offset not in force on its date for
+about half its rows (about a third before): the censuses are met at the
+cost of pairing season and offset. Two columns of C1's battery that missed their
+withheld count at midnight hold it. The minute and second censuses of
+lane T3 are not widened: T3 is not merged, and its merge beside lane
+D2's weekday census on moments is a question of its own. Its Codex
+review found three columns whose twins still missed a census, each now
+met at floors 11 and 36, every other battery twin unchanged byte for
+byte: a block of identical cells two rungs fix, which two offsets
+share, is now split between them (an hour census 132, 251, 297, 298 for
+150, 150, 339, 339 before); bare dates beside `-03:00` midnight stamps,
+all on the 15th, now move as days (654 on the 15th and 622 elsewhere
+for 1,276 and nought before); and a leap second `23:59:60Z` beside
+`+00:00` stamps, which the description publishes at its instant,
+midnight, is written at `:60` again (251 cells at midnight in hour 0 and on a
+Sunday before, where the census counts hour 23 and the Saturday).
+
 ### Partial dates that step stay inside the column's dates, and Q6 answered `keep` stays answered (2026-10-13)
 
 **The fifth push's critic** (plan P4-D383; the orchestrator's rulings of

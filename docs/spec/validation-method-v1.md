@@ -1534,6 +1534,27 @@ rather than in ISO:
   moments is counted at its midnight, and one it left unparsed is not
   (the same review, item 2: ten bare `2024-03-05` among noon stamps,
   published Tuesday 90, were recounted 80 on the unchanged source).
+- ON EACH CELL'S OWN CLOCK (landing 3b.7, plan P4-D378). On a column
+  published on the shared clock, and on one of the joint member, every
+  census recount above and below -- V5-W1, V5-W2 and V5-H1 -- places
+  each cell between the two published boundaries by its unit on the
+  published clock, as the tails count it, and counts it at the day and
+  hour of the text it is WRITTEN in, its own clock's, never its
+  conversion to the shared clock; a bare date counts on its date at hour
+  0, and a cell the file's own description folded is read under the
+  joint reading, worn at the offset the census absorbed it into
+  (`_own_clock_readings`). Every other column is recounted as before.
+  On the joint member `resolution_mix` is held exactly
+  (`resolution_mix.counts`) and so is `format`, save where G7.3k's cap at
+  hour 0 leaves bare dates no midnight day: there it is MISSED and named
+  (98 of 100 at 400 rows on bare dates at both ends of noon stamps; the
+  repair's second skeptic, item 1); `distinct.n_distinct`
+  stays inside G12.5's envelope there, all different or not, exactly as
+  `contract.datetime_counts_reachable` -- the one statement of where the
+  count pass reaches the count -- leaves it (the landing's repair, item 1:
+  a second statement held 800 stamps on consecutive minutes beside 200
+  dates EXACT and MISSED twins of 778 to 805 of 1,000 that the envelope
+  holds).
 - `hour_census` is compared GROUP FOR GROUP (`hour_census.groups`,
   V5-H1, landing 3b.2-H, plan P4-D371): the file's own moments between
   the two PUBLISHED tail boundaries, both included, less the days its own

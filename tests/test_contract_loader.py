@@ -1706,11 +1706,14 @@ def battery() -> list[Mutation]:
                 ],
             ),
         ),
+        # ...a column on the shared clock is in WC3's scope since landing 3b.7
+        # (plan P4-D378), each value counted on the day it is written on, so
+        # its census is held to the body like any other.
         Mutation(
-            "WC3", "a weekday census on a column of moments on the shared clock",
+            "WC3", "a weekday census on the shared clock adding to more than the body",
             edit(
                 "logged_at",
-                weekday_census=[{"first": 0, "last": 6, "count": 218}],
+                weekday_census=[{"first": 0, "last": 6, "count": 9218}],
             ),
         ),
         Mutation(
@@ -2489,8 +2492,8 @@ def battery() -> list[Mutation]:
         Mutation("HC2", "an hour group counting fewer than the census line", an_hour_census(_hours_below_the_line)),
         Mutation("HC3", "hour counts adding to more than the body", an_hour_census(_hours_past_the_body)),
         Mutation(
-            "HC3", "an hour census on a column read on the shared clock",
-            edit("logged_at", hour_census=[{"first": 0, "last": 23, "count": 218}]),
+            "HC3", "an hour census on the shared clock adding to more than the body",
+            edit("logged_at", hour_census=[{"first": 0, "last": 23, "count": 9218}]),
         ),
         Mutation("HC4", "an hour census over a middle half of one instant", an_hour_census(_hours_of_a_few_days)),
         Mutation("HC5", "an hour group short of the boundary standing in it", an_hour_census(_hours_short_of_their_sure_cells)),

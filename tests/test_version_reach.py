@@ -414,6 +414,9 @@ ROUTES_THAT_RUN_SOURCE = {
     # the same oracle by path, as every file above does.
     ("tools/reference/make_generation_branch_vectors_23.py", "runpy.run_path"): 1,
     # anchor 3b-7 (P4-D378)
+    # The twenty-fourth file, landing 3b.7's shared clock and joint member
+    # (plan P4-D378): it runs the same oracle by path, as every file above does.
+    ("tools/reference/make_generation_branch_vectors_24.py", "runpy.run_path"): 1,
     # anchor 3b-J (P4-D379)
     # anchor 3b-R2a (P4-D383)
     # The twenty-fifth file, landing R2a's layouts (plan P4-D383): it runs

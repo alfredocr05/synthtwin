@@ -7812,6 +7812,109 @@ sessions with stray rows whose split the repair moves for the count's
 new days, and six Mays beside both censuses -- each with the answer this
 section gives it, and no G14.3 case.
 
+#### G7.3k The calendar on each rank's own clock, and the form step
+
+(Landing 3b.7, plan P4-D378.) The censuses of the calendar -- the weekday
+(G7.3f), the day of the month (G7.3i) and the hour (G7.3g) -- stand on a
+column whose cells wear more than one offset, read on the shared clock,
+and on a column of the joint member, each cell counted at the day and
+hour it is WRITTEN at, on its own clock, and a bare date at its midnight.
+The order of G7 is unchanged: forms, instants, offsets (G7.4, its step 1a
+fixing the pinned ranks' keys), the move to midnight with the FORM STEP
+first, the step off midnight, the count pass, then the day, hour and
+minute passes; offsets and forms come before the passes because a pass
+can read a rank's clock only once its offset is known.
+
+1. **THE FRAME.** Each rank's SHIFT is its offset in seconds east of the
+   shared clock (nought for a rank written with none, and everywhere on
+   a column read on its own clock). On the shared clock, where a census
+   of the calendar is published, every place a pass reads -- each rank's
+   ordinal, its gap, and the layout's pins and boundaries -- is put on the
+   rank's own clock by adding its shift, so every bin a pass reads is the
+   field the cell is written at, and a move of whole days or hours moves
+   the written field by as much, the rank's offset fixed. A column all at
+   a LOCAL midnight is put in days of the frame and read as on its own
+   clock, so the joint day plan of G7.3i meets its day of the month;
+   where a rank is not on a midnight of its own clock the frame stays in
+   seconds. Every other column needs no frame and every pass runs on it
+   exactly as before.
+2. **THE FRAME TAKEN BACK, RUN BY RUN.** A pass keeps each rank inside
+   its own gap on its own clock and then sorts each run of the ranks it
+   moved by the written place, which may hand one rank's place to a rank
+   of another offset. So within each run of body ranks between two pins
+   -- one gap, no bare date -- the written places are kept and the run's
+   offsets matched to them: the places ascending, each taking the least
+   offset left whose instant is not past the gap's top (the largest left
+   where none is); the run is then written in the order of its instants,
+   each place with its offset. Every written field a census counts, every
+   offset count and every gap stands. Tail ranks and pinned ranks are
+   given back as they were, and so are bare dates in a frame of seconds.
+   In a frame of DAYS a bare date moves as a day and stands in its gap's
+   run, and a run holding one keeps every rank's form and offset, as a
+   bare date's form cannot pass to another rank (the landing's Codex
+   review, item 2): its days ascending each go to a rank of the least
+   shift left whose instant is not past the gap's top, else of the
+   largest shift left -- a bare date's shift nought -- and among one
+   shift's ranks to the next by the day the passes left it and then by
+   rank, so a rank whose day keeps it inside the gap keeps its day. A
+   pass may hand a `+02:00` midnight's day at the
+   gap's top to a bare date, whose midnight that day is past the top: an
+   export of bare dates beside `T00:00:00+02:00` stamps then wrote a bare
+   date beyond its high boundary, and the twin's boundary came back two
+   hours late. The run is not re-sorted by instant.
+3. **BARE DATES.** On a clocked column of the joint member the passes of
+   G7.3g pin every bare-date rank, which counts at hour 0, and so does
+   the weekday pass where the column is counted in seconds or published
+   on the shared clock; a column counted in days moves its bare dates as
+   days, and so does a column the frame puts in days: each pass asks this
+   of the facts it is handed, the frame's, never the column's own (the
+   landing's Codex review, item 2: every month of 2020 to 2024, eleven bare
+   dates on the 15th beside eleven `T00:00:00-03:00` stamps of that day,
+   1,320 rows; pinned by the column's own facts on the shared clock, the
+   bare dates stayed where the form step spread them, and the twin wrote
+   654 cells on the 15th and 622 elsewhere for a census of 1,276 and
+   nought at the floor of 11).
+4. **THE FORM STEP** (the design's decision D4, its skeptic's major 2 and
+   minor 4; residual R-P4-12 closed on clocked columns). G7.5's form
+   allocation spends `resolution_mix`'s count of `iso-date` on a clocked
+   column of the joint member: first on the ranks the layout fixes at a
+   midnight of a rank written with no offset, in rank order, while it
+   lasts, every other fixed rank a moment; then over the other ranks by
+   the smooth rotation of the all-midnight column, CAPPED PER GAP at the
+   days whose midnight lies in the gap -- less those fixed ranks hold,
+   where the column's values are all different; every rank where they
+   repeat, and none where the gap holds no midnight -- a gap at its cap
+   passing its turn on, the credit carried, and the credit left at the end
+   given to the first ranks with room; what every gap's free days still
+   leave over goes to the first ranks whose gap holds any midnight, so
+   every bare date the count names is written as one (the landing's
+   repair, item 2: written as moments they took real offset keys and
+   missed `utc_offsets` and `n_at_midnight`); never more ranks than the
+   count, and never more in the body than hour 0's group counts, this
+   pass too: where that cap stands and the tails' gaps hold fewer
+   midnight days than the source's tails held bare dates, the dates left
+   over are written as moments and `resolution_mix` gives way, named,
+   the hour census held (its second skeptic, item 1: `noon_ends`, bare
+   dates on the first and last eighth of a span of noon stamps with
+   every value different, writes 98 of 100 at 400 rows, 248 of 250 at
+   1,000 and 2,498 of 2,500 at 10,000 -- 97, 247 and 2,497 at the floor
+   of 36; with the cap off the hour census misses instead; vectors case
+   `leftover_capped_at_hour_zero`). The ranks are spent in rank order,
+   so where bare dates and stamps share days the twin spreads the bare
+   dates evenly over the span, wherever in time the source held them
+   (P4-D378's stated limits). Then, as the first part of the move to
+   midnight, each gap's
+   bare-date ranks in rank order are stood on midnight days of the gap: off a
+   day a published census counts nought on, where one of the gap's first
+   400 days is not; each the first at or after its instant, else the
+   nearest before; where the column is all different, on days of their
+   own no fixed rank holds, the run laid back from the gap's top where it
+   went past it, and a rank the free days cannot hold stood on its nearest
+   midnight of the gap as where the values repeat, a day another value
+   holds: the count of different values then falls short, inside G12.5's
+   envelope, and the twin's report says so. The move to midnight then
+   counts every bare date as standing at midnight and owes only the rest.
+
 ### G7.4 Offsets: only where recorded
 
 `utc_offsets` maps an offset text to a count, under the small-cell
@@ -7843,9 +7946,66 @@ Allocation, over the `P` parsed cells in ascending rank:
    of landing 2b.3: a rung at a midnight of the shared clock whose `Z` was
    spent takes `(none)`, and ranks between p90 and the end on one such
    midnight were written `T02:00:00+02:00`).
+1a. **THE PINNED OFFSETS** (landing 3b.7, plan P4-D378; the design
+   skeptic's blocker 1 and item (a)). On the shared clock, where a census
+   of the calendar is published, or where `n_at_midnight` is withheld for
+   its size and some block of ranks the layout fixes at one instant stands
+   at a midnight of the first sorted key: each such block -- a boundary, a
+   rung, a tail's listed values, and the ranks between two pins of one
+   instant -- in rank order, not taken by step 1, takes among the keys
+   with as many ranks left as it holds, in this step's order, the first
+   that breaks the fewest of two asks: off a local midnight where the
+   count at midnight is withheld for its size; and, for a body block, its
+   WRITTEN day, day of the month and hour in a group of every published
+   census with room left for it, room being the group's count less the
+   blocks already placed there. A pinned rank never moves, so the field it
+   is written at is its key's alone; the source's own offsets prove a
+   choice keeping every census exists. The keys' counts and the groups'
+   room are spent as each block takes its key, and the block's other keys
+   follow as step 1's fallbacks. Every other column takes no key here and
+   is allocated exactly as before.
+   **A BLOCK MAY BE SPLIT** (the landing's Codex review, item 1): where no
+   one key breaks nothing, a body block under a census is shared out --
+   the keys in this step's order, each written off a withheld midnight,
+   taking as many of its ranks as their count left and the room of every
+   group their written place falls in allow, until the block is spent,
+   the ranks in rank order; one key a block cannot keep a census whose
+   group under each key holds only part of it (150 cells each of
+   `2024-07-19T09:00:00Z` and `T10:00:00+01:00` among 700 daily stamps at
+   those two keys: two rungs fixed 251 ranks at that instant, `+01:00`
+   wrote them all in hour 10, which holds 150, and the twin's hours came
+   back 132, 251, 297, 298 for 150, 150, 339, 339 at every seed).
+   **AND WRITTEN AT `:60`** (item 3): where no share breaks
+   nothing either, a body block at a minute's first second, between two
+   published values of one text on a column written to the second, asks
+   the same two -- one key, then a split -- of the place one second
+   earlier, the minute before's `HH:MM:60`, whose instant is the block's
+   (G7.1): the shared clock publishes the instant of a cell written `:60`,
+   never the `:60` the source wrote, and a leap second counts on the day, hour
+   and minute it is WRITTEN. Where that breaks nothing the block's pins
+   take that `HH:MM:60` as their text, so every pass counts the block where
+   it is written and G7.5 writes it from those fields (400 cells at
+   `2016-12-31T23:59:60Z` among 600 noon stamps at `Z` and `+00:00` in
+   turn: the rungs fixed 251 ranks at the instant published as
+   `2017-01-01 00:00:00`, written at midnight on a Sunday in hour 0, a
+   group of nought, and no twin held the hour and weekday censuses or
+   the withheld count at midnight at any seed). Where nothing
+   breaks nothing, the one key breaking the fewest at the ordinary place
+   takes the block whole, as before.
 2. The remaining counts are spent over the remaining ranks, taking the
    offset keys in the profile's own sorted key order, `(none)` and
-   `(withheld)` last. The ranks are visited in ascending rank order,
+   `(withheld)` last. ON THE SHARED CLOCK WHERE A CENSUS OF THE CALENDAR IS
+   PUBLISHED (landing 3b.7, plan P4-D378) the keys are spread over the
+   GAPS instead: the open ranks of each gap of the body take one key
+   together where its count left holds them, the gaps in rank order
+   taking the keys by the smooth rotation of the counts left weighted by
+   each gap's size -- the largest credit with room, the earlier key on a
+   tie -- and a gap no key holds whole is filled key by key, the largest
+   credit first. So each key's ranks stand across the column and each
+   gap's ranks read one clock (G7.3k): spent in one block, the skeptic's
+   `few_off` wrote its 196 cells at `+05:30` on the body's first ranks,
+   whose first gap of 8.25 hours holds no hour the census counts on that
+   clock, and 87 missed the hour census at 10,000 rows. The ranks are visited in ascending rank order,
    except on a column moved onto a midnight, where they are visited
    **SCARCEST FIRST** (stage 3, repairing plan P4-D254): each remaining
    rank is counted for how many keys both have a count left AND put a
@@ -13614,19 +13774,20 @@ last two were missing from this list from the landing that authorized
 them until 2026-09-04, which is a list that calls itself complete and
 was not.
 
-**The census entry, in full, because it is the one entry on this list
-that is named on EVERY run of the column it belongs to.**
-`resolution_mix` is REPORT-ONLY: it records how many of the real
-column's parsed cells were written as a whole date and how many carried
-a time of day, and the twin writes every one of them at the column's
-finest recorded precision, because a cell spelled as a whole date
-cannot carry an interior value of a column published at the second. So
-the achieved side is not a shortfall a rule failed to reach; it is what
-the rule above says the twin writes, and the entry exists so the reader
-is told rather than left to work it out. It is RECOUNTED from the
-finished cells like every count below, not predicted: the rule says the
-twin writes no whole dates at all, and a run that finds otherwise has
-found a defect in itself. A column read under ONE format has no such
+**The census entry, in full.** `resolution_mix` records how many of
+the real column's parsed cells were written as a whole date and how many
+carried a time of day. Until landing 3b.7 the twin wrote every one of
+them at the column's finest recorded precision, because a cell spelled
+as a whole date cannot carry an interior value of a column published at
+the second, and the entry was named on every run of such a column.
+*Amended by landing 3b.7 (plan P4-D378).* The twin of a column of the
+joint member writes the published count of bare dates, each on a
+midnight of its gap (G7.3k), so its census is CHECKED and not listed
+(`datetime.resolution_mix`), and the entry is named only where the
+twin's count falls short -- a gap holding too few days for its bare
+dates -- saying so. It is RECOUNTED from the
+finished cells like every count below, not predicted, so the line says
+how far the twin fell short. A column read under ONE format has no such
 line — its census restates that format's own name beside the parsed
 total, and `format` is already disclosed as recorded-not-reproduced, so
 a second line would tell a reader there were two losses where there is

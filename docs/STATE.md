@@ -317,19 +317,20 @@ cannot get worse unseen.
   asked at floors 11 and 36; at a floor of 36 at 300 and 1,000 rows
   `UNK` stands on 11 and 25 cells, under the census line its question
   would print, and it is not put (strict xfail; ACCEPTED by the
-  orchestrator, 2026-10-13); and dates mixing offsets that miss
-  `n_at_midnight` (4 of 600) landing 3b.7's (P4-D373).
+  orchestrator, 2026-10-13); and dates mixing offsets that missed
+  `n_at_midnight` (4 of 600) hold it since landing 3b.7 (P4-D378).
 - **Stated limits added 2026-10-13 (the fifth push's critic), each with
   its owner** (the orchestrator's rulings of that day). D3's two strict
   xfails, quarter ends and six Mays at 10,000 rows (P4-D368), pass
   since lane D4 merged with batch 3b part 1 and are xfails no longer. The day pass at 67 per cent of
   generating against a budget of half at 40,000 rows (`K-S3-44`) is lane
-  S4b's. SILENT: an all-different column mixing 800 ISO datetimes with
-  200 ISO dates comes back 881 of 1,000 different (95,463 of 100,000)
-  while `validate` exits 0, landing 3b.7's; as is a 12-hour dial column
-  read at UTC whose offsets carry the drawn instant past local noon or
-  midnight (exit 3; offsets to be allocated before the instants are
-  drawn, P4-D383). R4's whole counts written with a needless exponent
+  S4b's. An all-different column mixing 800 ISO datetimes with 200 ISO
+  dates, which came back 881 of 1,000 different (95,463 of 100,000)
+  while `validate` exited 0, comes back 1,000 of 1,000 since landing
+  3b.7 (P4-D378); a 12-hour dial column read at UTC whose offsets carry
+  the drawn instant past local noon or midnight (exit 3; offsets to be
+  allocated before the instants are drawn, P4-D383) stays landing
+  3b.7's stated limit (P4-D378). R4's whole counts written with a needless exponent
   (`1704067200e+0`) come back written in full, lane L1's (P4-D384).
   D2's older fault (b), the leap-second columns' count of different
   values and count at midnight (P4-D379), and a local dial column just
@@ -340,6 +341,26 @@ cannot get worse unseen.
   full dates' span first, then before it (1945 to 2024; where the
   source's partial dates lay is published nowhere); and Q6 answered
   `keep` is no longer put again.
+- **The calendar on the shared clock and the joint member** (landing
+  3b.7, P4-D378, 2026-10-13). The weekday, day-of-month and hour censuses
+  stand on columns of two offsets and of dates beside moments, each cell
+  counted on its own clock. Stated: the count of different values there
+  stays in G12.5's envelope, an all-different joint column's too, its
+  shortfall said (consecutive-minute stamps beside bare dates: 754 to
+  805 of 1,000, strict xfail); a daylight-saving column's twin writes the
+  offset not in force on its date for 50 to 52 per cent of its rows (35
+  to 39 before the landing: G7.4's spread meets the censuses at the cost
+  of season; publishing each key's first and last day is the follow-up);
+  `z_plus` withholds its weekday census at 1,000 rows and at 10,000 at
+  the floor of 36; where the hour census caps the body at hour 0 and the
+  tails' gaps hold too few midnight days, bare dates are written as
+  moments (98 of 100 at 400 rows, 2,498 of 2,500 at 10,000;
+  `resolution_mix` missed and named, strict xfail); where dates and
+  stamps share days the twin spreads the dates evenly over the span (20
+  per cent in every fifth where the source held 10 to 57); C1's c0 and c551 hold 99 to 177 different values for
+  63 and 83, inside the envelope; and the minute and second censuses wait
+  for lane T3's merge, whose meeting with lane D2's weekday census on
+  moments is an open question (P4-D378).
 - **Codes and tables written or read unlike the source, older than this
   week** (recorded 2026-10-09; `K-S3-61`'s note carries them). Made-up
   figure codes lose their leading zeros, and exponent-shaped codes

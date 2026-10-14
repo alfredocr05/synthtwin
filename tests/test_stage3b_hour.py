@@ -812,8 +812,10 @@ def test_hc2_every_count_is_nought_or_at_the_line(thousand, tmp_path: pathlib.Pa
 
 
 def test_hc3_the_scope_and_the_total(thousand, tmp_path: pathlib.Path) -> None:
-    """A total off the body is refused; and a census on a column read on the shared clock,
-    or one wholly at midnight, is refused by the reader before any count is asked."""
+    """A total off the body is refused; and a census on a column wholly at midnight, or with a
+    tail withheld, is refused by the reader before any count is asked. A column read on the
+    shared clock is in scope since landing 3b.7 (plan P4-D378), each cell in the hour it is
+    written in (tests/test_stage3b_shared_clock.py)."""
     described, _columns, _text = thousand
     groups = copy.deepcopy(described.block("arrivals")["hour_census"])
     groups[0]["count"] += LINE
@@ -822,7 +824,7 @@ def test_hc3_the_scope_and_the_total(thousand, tmp_path: pathlib.Path) -> None:
     facts = column.facts
     assert isinstance(facts, contract.DatetimeFacts)
     mapping = {"hour_census": described.block("arrivals")["hour_census"]}
-    for scope in ({"datetimes_read_at": "utc"}, {"all_at_midnight": True}, {"low_tail": None}):
+    for scope in ({"all_at_midnight": True}, {"low_tail": None}):
         with pytest.raises(errors.ProfileError) as raised:
             contract._hour_census(
                 mapping, "here", LINE, column.n_present, column.n_distinct, (), (),

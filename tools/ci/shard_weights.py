@@ -347,6 +347,7 @@ SECONDS = {
     "tests/test_stage3b_joint.py": 120.05,
     "tests/test_stage3b_layout.py": 145.56,
     "tests/test_stage3b_route2.py": 26.16,
+    "tests/test_stage3b_shared_clock.py": 34.16,
     "tests/test_stage3b_shared_steps.py": 26.37,
     "tests/test_stage3b_split_order.py": 0.55,
     "tests/test_stage3b_weekday_moments.py": 78.96,

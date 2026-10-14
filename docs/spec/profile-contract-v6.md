@@ -4141,8 +4141,10 @@ are in one remark, NF88; a census WITHHELD says why in one publication
 note of its own for each reason -- under the owner's principle of
 2026-10-01 no reason is pooled into a sentence that keeps it back, as
 NF74 pools the weekday's. A column the census cannot stand on at all --
-not of moments, on the shared clock, in the joint member or wholly at
-midnight -- says nothing. NF88 and NF92 take one argument, the census
+not of moments, or wholly at midnight -- says nothing; since landing
+3b.7 (HC3, plan P4-D378) a column on the shared clock or in the joint
+member is one it can stand on, each cell counted in the hour it is
+written in, on its own clock, a bare date at hour 0. NF88 and NF92 take one argument, the census
 line; the others none. HC4's two cases are two sentences (the landing's
 review, item 4): a published middle half shorter than four days, NF90,
 and one whose 25th or 75th percentile lies inside a tail and is not
@@ -5762,7 +5764,7 @@ vocabularies below).
 | `month_name_styles` | object | one of the THIRTY-SIX joint style words → count | how many parsed cells wrote a month NAME in each joint style — case, length, field mark, and whether a comma followed the day — a name of May counted under the length its column's other cells of that case, mark and comma wrote, or as `either` where none did (P4-D133, P4-D139), under the disclosure rule of P4-D131; `{}` outside the two textual members, and where the census is withheld whole (landing 2b.6) |
 | `quarter_marker_case` | object | `upper` or `lower` → count | how many parsed cells wrote a quarter's marker as `Q` and how many as `q`, under the disclosure rule of P4-D131; `{}` outside `year-quarter`, and where the census is withheld whole (landing 2b.6) |
 | `zulu_case` | object | `upper` or `lower` → count | how many parsed cells wrote a zulu offset marker as `Z` and how many as `z`, under the disclosure rule of P4-D131; `{}` unless `utc_offsets` NAMES `Z`, and where the census is withheld whole (landing 2b.6) |
-| `weekday_census` | array | groups `{first, last, count}`, weekdays 0 (Monday) to 6 (Sunday) | how many cells between the two tail boundaries, both included, fall on each group of weekdays -- one of the three groupings WC4 names, each count nought or at least the census line; `[]` where no census is published, and always on a column that is not whole dates or moments read on the local clock (landing 3b.1, WC1 to WC4 and WC6, plan P4-D365; moments since landing 3b.D2, WC3 and WC10, plan P4-D367) |
+| `weekday_census` | array | groups `{first, last, count}`, weekdays 0 (Monday) to 6 (Sunday) | how many cells between the two tail boundaries, both included, fall on each group of weekdays -- one of the three groupings WC4 names, each count nought or at least the census line; `[]` where no census is published, and always on a column that is not whole dates or moments with both tails -- on any clock and in any member since landing 3b.7, each body cell counted on the day it is written on, on its own clock, a bare date of the joint member on its date (landing 3b.1, WC1 to WC4 and WC6, plan P4-D365; moments since landing 3b.D2, WC3 and WC10, plan P4-D367; the shared clock and the joint member since landing 3b.7, WC3, plan P4-D378) |
 
 **Eight closed vocabularies stand in that table** — `format` with
 TWENTY members, `resolution` with FOUR, `time_precision` with SIX,
@@ -5795,7 +5797,7 @@ landing restates its own rows below its own line.
 
 | key | JSON type | permitted values | meaning |
 |---|---|---|---|
-| `day_of_month_census` | array | groups `{first, last, count}`, bins 1 to 34 | how many cells between the two tail boundaries, both included, fall on each group of days of the month (landing 3b.3, plan P4-D368, DM1 to DM5): THIRTY-FOUR BINS on a cycle -- bins 1 to 27 the days 1 to 27, bins 28 to 30 the 28th to the 30th where that day is not the month's last, and bins 31, 32, 33 and 34 the month's last day in a month of 28, 29, 30 and 31 days, bin 34 neighbouring bin 1 -- in groups of consecutive bins, the last of which alone may run past bin 34 back to bin 1, each count nought or at least the census line; `[]` where no census is published, and always on a column that is not whole dates or moments every value of which stands at midnight, read on the local clock, not in the joint member, with both tails. Published beside the weekday census where the day of the month departs from the calendar weighted by that census's groups by at least four chi-squared per degree of freedom and by more than the weekday departs beyond it; with no weekday census, where it departs by four from the plain calendar; the weekday census is never withdrawn |
+| `day_of_month_census` | array | groups `{first, last, count}`, bins 1 to 34 | how many cells between the two tail boundaries, both included, fall on each group of days of the month (landing 3b.3, plan P4-D368, DM1 to DM5): THIRTY-FOUR BINS on a cycle -- bins 1 to 27 the days 1 to 27, bins 28 to 30 the 28th to the 30th where that day is not the month's last, and bins 31, 32, 33 and 34 the month's last day in a month of 28, 29, 30 and 31 days, bin 34 neighbouring bin 1 -- in groups of consecutive bins, the last of which alone may run past bin 34 back to bin 1, each count nought or at least the census line; `[]` where no census is published, and always on a column that is not whole dates or moments every value of which stands at midnight, with both tails -- on any clock and in any member since landing 3b.7, each cell counted on the day it is written on, on its own clock (DM5, plan P4-D378). Published beside the weekday census where the day of the month departs from the calendar weighted by that census's groups by at least four chi-squared per degree of freedom and by more than the weekday departs beyond it; with no weekday census, where it departs by four from the plain calendar; the weekday census is never withdrawn |
 
 <!-- anchor 3b-D4 (P4-D369) -->
 
@@ -6095,19 +6097,25 @@ and a 50/50 split of the same hundred cells satisfy both, so a loader
 cannot tell a true mix from a false one — the split itself is a
 producer obligation.
 
-**`resolution_mix` is REPORT-ONLY.** The twin writes every parsed cell
-at the column's finest recorded precision, exactly as the datetime rule
-writes every column: a date-form cell cannot spell a
-datetime-resolution interior value, and a construction that split the
-generated ordinals into two per-form lanes would need its own packing,
-feasibility rule and window family for one reading — cost out of
-proportion to a fact the reader still receives. The mix is recorded and
-not reproduced, on the precedent of the `format` fact itself, and the
-twin's report names it as such per column, every run (residual
-R-P4-12). A layout column's PARTIAL FORMS are the exception (landing
-R2c): each counts unread cells of its own, which no other fact holds, so
-each is EXACT-OBSERVABLE over the checked file's cells (the Codex review
-of that landing, item 1).
+**`resolution_mix` is EXACT-OBSERVABLE on the joint member** (landing
+3b.7, plan P4-D378; REPORT-ONLY before it). On a column read under one
+member its census is RM1's one key carrying every parsed cell, which
+`format` and `n_unparsed` already state, and it is listed there. On an
+`iso-mixed` column the twin writes the published count of bare dates --
+each on a midnight of its own clock inside its rank's gap, on a day of
+its own where the column's values are all different (the generation
+method's G7.3k) -- so the file's own count of each form is held to the
+published one, and so is `format`. Where the gaps hold too few free
+midnight days for the bare dates, the rest stand on a midnight another
+value holds, so the forms, the offsets and the count at midnight are held
+and the count of different values falls short inside G12.5's envelope,
+said by the twin's report (residual R-P4-12 closed on clocked columns; the
+landing's repair, item 2) -- except where hour 0's group of the hour
+census caps the body and the tails' gaps hold fewer midnight days than
+the source's tails held bare dates: there the dates left over are written
+as moments, `resolution_mix` is MISSED and named in the twin's report,
+and the hour census is held (its second skeptic, item 1: 98 of 100 bare
+dates at 400 rows on bare dates at both ends of a span of noon stamps).
 
 **C6-25a (`datetime_separators`).** Every datetime block carries
 `datetime_separators`, a mapping from the name of the mark a parsed
@@ -6810,7 +6818,8 @@ POOLED `Z` would hand back in one field the count another field of the
 same block promises to withhold.
 
 **The weekday census, WC1 to WC4 and WC6 (landing 3b.1, plans P4-D355, P4-D359 and P4-D365).** A
-column of whole dates read on the local clock, not in the joint member,
+column of whole dates read on the local clock, not in the joint member
+(on any clock and in any member since landing 3b.7, below),
 with both tails, may publish `weekday_census`: groups of weekdays
 covering Monday (0) to Sunday (6) in order, each once (WC1), each
 counting nought or at least the census line `max(2, small_cell_floor)`
@@ -6991,7 +7000,8 @@ the week and never of one date (NF71).
 
 **The weekday census of a column of moments, WC3 widened and WC10
 (landing 3b.D2, plan P4-D367).** A column of dates AND TIMES read on the
-local clock, not in the joint member, with both tails, publishes the
+local clock, not in the joint member (on any clock and in any member
+since landing 3b.7, below), with both tails, publishes the
 same census: its BODY is the cells between the two boundaries, both
 included, COMPARED AS INSTANTS -- so a cell on a boundary's day but
 before its instant is a tail cell -- each counted on the weekday of the
@@ -7063,6 +7073,24 @@ forms is NOT asked: the count of different values counts instants on a
 column of moments, never days, so two ways of writing an instant cost
 the day pass no day; its half on a workbook's storage is. Every
 withholding but a column without tails is said in NF74's one sentence.
+
+**The calendar on each value's own clock, WC3, DM5 and HC3 widened
+(landing 3b.7, plan P4-D378).** The weekday, day-of-month and hour
+censuses stand on every clock and in every member: a column whose cells
+wear more than one offset, published on the shared clock, and a column of
+the joint member mixing bare dates with moments publish them too. The
+BODY is cut by the order the description publishes the cells in -- each
+by its instant on the published clock, then its text there, then its
+offset (`ordered_moments`) -- so the tails' rows cut it where they cut
+the column, and each body cell is counted at the day and hour of its own
+text, WRITTEN on its own clock: a `+05:30` cell at its own hour, a
+sixtieth second on its own day and hour, a bare date of the joint member
+on its date at hour 0. On the shared clock the sure cells of HC5 are
+rule 4's alone, no listed value of a tail taken out of it: a published
+boundary or rung is the instant on the shared clock, and the hour it is
+written at is the offset's the twin gives its rank, which no published
+fact fixes. One predicate states the scope, asked by the producer, the
+loader and the generator alike (`calendar_rules.census_scope`).
 
 **A consequence, stated rather than left to be discovered.** The
 canonical `datetime` form carries seconds and no fractional part, so
@@ -12890,7 +12918,7 @@ it answers to.
 | D20 | every key of `zulu_case` is `upper` or `lower`; the census is held to D18's disclosure rule over `utc_offsets["Z"]`; the census is `{}` unless `utc_offsets` names `Z`; and its values sum to at most `utc_offsets["Z"]` (landing 2b.6) | yes |
 | WC1 | the groups of `weekday_census` cover weekdays 0 to 6 in order, each exactly once | yes |
 | WC2 | every group counts nought or at least `max(2, small_cell_floor)` | yes |
-| WC3 | a non-empty census stands only on a column of whole dates or of moments read on the local clock, not in the joint member, with both tails, and adds up to `P - low_tail.rows - high_tail.rows`, the body cut by instant on a column of moments, each body cell counted on the day it is written on (plan P4-D367; its Codex review, item 1) | yes |
+| WC3 | a non-empty census stands only on a column of whole dates or of moments with both tails, on any clock and in any member, and adds up to `P - low_tail.rows - high_tail.rows`, the body cut by instant on the published clock on a column of moments, each body cell counted on the day it is written on, on its own clock, a bare date of the joint member on its date (plans P4-D367 and P4-D378; its Codex review, item 1) | yes |
 | WC4 | the grouping is one of the menu's three: each weekday alone; Monday to Friday alone with `[Sat-Sun]` non-zero; `[Mon-Fri]` non-zero with `[Sat-Sun]` | yes |
 | WC6 | the five censuses of written forms give every date one text: each names at most one form holding every parsed cell, and a member that can show a width or a month name names its one form; and a workbook's published cell classes show at most one value class holding cells | yes |
 
@@ -12910,7 +12938,7 @@ it answers to.
 | DM2 | every group counts nought or at least `max(2, small_cell_floor)` | yes |
 | DM3 | the groups add up to `P - low_tail.rows - high_tail.rows`, the cells between the two tail boundaries, both included | yes |
 | DM4 | a non-empty census stands only where the published `p25` and `p75` are both named and the `p75` stands at least 124 days after the `p25`, so the column's middle half spans at least four months | yes |
-| DM5 | a non-empty census stands only on a column of whole dates, or of moments every value of which stands at midnight, read on the local clock, not in the joint member, with both tails -- WC3's scope and nothing more: the censuses of written forms and a workbook's cell classes are not asked | yes |
+| DM5 | a non-empty census stands only on a column of whole dates, or of moments every value of which stands at midnight, with both tails, on any clock and in any member, each cell counted on the day it is written on -- WC3's scope and nothing more: the censuses of written forms and a workbook's cell classes are not asked (plans P4-D368 and P4-D378) | yes |
 
 <!-- anchor 3b-D4 (P4-D369) -->
 
@@ -12928,7 +12956,7 @@ it answers to.
 |---|---|---|
 | HC1 | the groups of `hour_census` cover hour 0 to hour 23 in order, each exactly once, and no group runs past midnight | yes |
 | HC2 | every group counts nought or at least `max(2, small_cell_floor)` | yes |
-| HC3 | a non-empty census stands only on a column of moments read on the local clock, not in the joint member, not wholly at midnight, with both tails, and adds up to `P - low_tail.rows - high_tail.rows` | yes |
+| HC3 | a non-empty census stands only on a column of moments not wholly at midnight, with both tails, on any clock and in any member, and adds up to `P - low_tail.rows - high_tail.rows`, each body cell counted in the hour it is written in, on its own clock, a bare date of the joint member at hour 0 (plans P4-D371 and P4-D378) | yes |
 | HC4 | a non-empty census stands only where the published `p25` and `p75` lie at least four days apart | yes |
 | HC5 | every group holds at least its SURE cells -- each tail boundary and published rung in the hour it is written in, every rank between two of one value written alike, and in hour 0, in place of the published values written at 00:00:00 where it is more, `n_at_midnight` less the rows of every tail whose listed values all stand at midnight (rule 4) -- and what is left of it is nought or at least `max(2, small_cell_floor)` | yes |
 | HC6 | a workbook's published cell classes show at most one value class holding cells | yes |
@@ -13515,8 +13543,8 @@ form, the stand-in is written in it (7.9.1).
 | `date_percentiles` interior rungs | APPROXIMATED — the window is G12.4 — for each rung the tail rule publishes; a rung it withholds is `null` and is listed, never checked. THE LADDER'S TWO ENDS ARE NOT IN THIS TABLE since stage 3, and their absence is the disposition: the ranks they would be read off hold the column's outermost values, so D11 makes both of them `null` in every description, they oblige no cell of any file, and the validator lists them as withheld rather than comparing a null with a null |
 | `resolution`, `time_precision`, `subsecond_digits`, `utc_offsets` | EXACT-OBSERVABLE, outside the withheld-offset corner below |
 | `datetimes_read_at` | EXACT-OBSERVABLE outside that corner — derived from the offset diversity present in the cells, so it is recomputable from the written twin and must be checked that way. A dispatch assertion cannot detect a twin that reprofiles from `utc` to `local` because one invented rare offset changed the diversity while the pooled offset map and the endpoints still matched |
-| `format` | EXACT-OBSERVABLE since the owner reversed decision 5 on 2026-09-15 (landing 2b.6) — the twin is written in the member that read the REAL column, at that member's own field order, delimiter, field widths, year length, month-name case and length, marks and marker cases, so describing the twin again names the same member. While decision 5 stood the twin was written in ISO syntax at the recorded precision, a month-first column's twin reprofiled as `iso-date`, and the field could not be reproduced at all (residual R-P2-7, now retired). ONE CORNER, and it is the same one `resolution_mix` carries: on an `iso-mixed` column NOT wholly at midnight the twin writes every value with a time of day, so its twin reads back as `iso-datetime` and the member is listed rather than checked (residual R-P4-12). A LAYOUT (landing R2a, LY1) is recounted BY FIT: a faithful twin may be described again under another layout or member that reads the same cells -- a twin of `{D}-{M}-{YYYY}` that drew no day below ten reads as `{DD}-{MM}-{YYYY}` -- so the published layout is held where it reads every cell the re-description reads, and MISSED where it does not (the validation method's entry table) |
-| `resolution_mix` | REPORT-ONLY — the twin writes every parsed cell at the column's finest recorded precision, exactly as the datetime rule writes every column, and the report names the recorded mix as not reproduced, per column, every run (residual R-P4-12); since landing 2b.3 a column whose `all_at_midnight` is `true` writes its whole-date ranks as whole dates, and the report names nothing; a layout column's partial forms (landing R2c) are each held exactly to their published counts over the file's cells, the mix itself still named and not reproduced (the Codex review of landing R2c, item 1) |
+| `format` | EXACT-OBSERVABLE since the owner reversed decision 5 on 2026-09-15 (landing 2b.6) — the twin is written in the member that read the REAL column, at that member's own field order, delimiter, field widths, year length, month-name case and length, marks and marker cases, so describing the twin again names the same member. While decision 5 stood the twin was written in ISO syntax at the recorded precision, a month-first column's twin reprofiled as `iso-date`, and the field could not be reproduced at all (residual R-P2-7, now retired). The joint member is checked too since landing 3b.7 (plan P4-D378): the twin of an `iso-mixed` column not wholly at midnight writes the published count of bare dates and reads back as `iso-mixed`, where before it wrote every value with a time of day and the member was listed (residual R-P4-12). A LAYOUT (landing R2a, LY1) is recounted BY FIT: a faithful twin may be described again under another layout or member that reads the same cells -- a twin of `{D}-{M}-{YYYY}` that drew no day below ten reads as `{DD}-{MM}-{YYYY}` -- so the published layout is held where it reads every cell the re-description reads, and MISSED where it does not (the validation method's entry table) |
+| `resolution_mix` | EXACT-OBSERVABLE on the joint member since landing 3b.7 (plan P4-D378): the twin writes the published count of bare dates, on a clocked column by the form step (generation G7.3k) and on one wholly at midnight as since landing 2b.3, so the file's own count of each form is held to the published one (`resolution_mix.counts`); on a column read under one member its census restates `format` and `n_unparsed` and is listed |
 | `n_unparsed` | EXACT-OBSERVABLE as counted neutral stand-ins, explicitly OUTSIDE the parsed-value representation obligation |
 | `n_distinct`, `n_distinct_folded` | APPROXIMATED — the envelope is G12.5, and it is stated there that it need not contain the published count; held to the published count itself where that count lies inside the envelope on a column method G7.3's count pass applies to (`contract.datetime_counts_reachable`), which the pass reaches (plan P4-D192), and on a partial or declared-short column G11's all-different obligation binds (`contract.datetime_count_exact`; the Codex review of landing R2c, item 4) |
 | `date_field_widths`, `month_name_styles`, `quarter_marker_case`, `zulu_case` | EXACT-OBSERVABLE IN THEIR KEY SET for the first two and EXACT for the last two (landing 2b.6, plan P4-D61, the reversal of owner decision 5; plan P4-D134). Every convention the description names must come back on at least a floor's worth of the file's own cells — on the two marker censuses at exactly its published count, since every cell they count over shows the marker — and no convention it does not name beyond the cells the named counts leave over. On the first two each convention is counted on the file's own cells as the producer folds them, and a one-field width or an `either` name is owed on a floor's worth or on every cell of that kind the file holds, whichever is fewer (plan P4-D139). On the first two the COUNTS are not compared, and that is the rule rather than a weaker reading of it: whether a cell can show a convention depends on its own value — a day above the ninth shows no field width, a month of May shows no name length — so how many of a file's cells could carry one is a fact about that file's values, and a twin whose interior instants fall a day either side of the real ones carries a different number of them. C6-25d to C6-25g state each census and D17 to D20 hold them |
@@ -15151,12 +15179,12 @@ exception rather than a fourth publication class.** A fourth class
 would have to be given a meaning everywhere the three are enforced; an
 exception is confined by the forbidden-key matrix.
 
-**13.29 `resolution_mix` is REPORT-ONLY.** Reproducing a form mix would
-need a per-form construction with its own packing, feasibility rule and
-window family, for one reading — cost out of proportion to a fact the
-reader still receives. The twin writes the finest recorded form and the
-report says the mix was recorded and not kept, on the precedent of the
-`format` fact itself.
+**13.29 `resolution_mix` was REPORT-ONLY until landing 3b.7.** Reproducing
+a form mix was judged to need a per-form construction with its own
+packing, feasibility rule and window family. Landing 3b.7 (plan P4-D378)
+built the narrow form of it -- the count of bare dates spent by a rotation
+capped per gap and each stood on a midnight of its gap -- so the mix is
+now held exactly on the joint member and listed on every other member.
 
 **13.30 `long_tail_minimum_level` has one permitted value rather than a
 range.** The line it records is a privacy boundary; a settings key that

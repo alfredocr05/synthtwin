@@ -87,6 +87,7 @@ oracle is run by path (one `runpy.run_path`).
 from __future__ import annotations
 
 import copy
+import dataclasses
 import datetime
 import json
 import math
@@ -963,20 +964,26 @@ def test_the_loader_s_check_names_each_rule() -> None:
 
 def test_the_loader_reads_a_census_and_refuses_one_on_the_shared_clock(battery: "dict[int, dict[str, _Run]]", tmp_path: pathlib.Path) -> None:
     """A published census loads into the facts as published; moved onto a column the loader's
-    scope excludes, it is refused by DM5."""
+    scope excludes -- moments with a clock, or a tail withheld -- it is refused by DM5. The
+    shared clock and the joint member are in scope since landing 3b.7 (plan P4-D378), each
+    cell counted on the day it is written on (tests/test_stage3b_shared_clock.py)."""
     run = battery[11]["heaps"]
     loaded = {column.name: column for column in run.described.loaded.columns}
-    facts = loaded["billing_date"].facts
+    column = loaded["billing_date"]
+    facts = column.facts
     assert isinstance(facts, contract.DatetimeFacts)
     assert facts.day_of_month_census == _census(run.described.block("billing_date"))
-    document = copy.deepcopy(run.described.document)
-    for block in document["columns"]:
-        if block["name"] == "billing_date":
-            block["datetimes_read_at"] = "utc"
-            block["weekday_census"] = []
-    target = fixtures.write_profile(tmp_path, "shared.json", document)
-    with pytest.raises(errors.ProfileError, match="DM5|datetimes_read_at"):
-        contract.load_profile(str(target))
+    mapping = {"day_of_month_census": run.described.block("billing_date")["day_of_month_census"]}
+    for scope in (
+        {"resolution": "datetime", "all_at_midnight": False},
+        {"low_tail": None},
+    ):
+        with pytest.raises(errors.ProfileError) as raised:
+            contract._day_of_month_census(
+                mapping, "here", 11, column.n_present, column.n_distinct, (), (),
+                dataclasses.replace(facts, **scope),
+            )
+        assert contract.INVARIANTS["DM5"] in f"{raised.value}", scope
 
 
 def test_the_reach_rule_asks_both_censuses_for_the_count() -> None:

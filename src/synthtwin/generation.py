@@ -25323,6 +25323,13 @@ class _WeekdayPass:
     empty_weekdays: "frozenset[int]" = frozenset()
     empty_low: int = 0
     empty_high: int = -1
+    # -- 3b.7 (P4-D378): the pinned ranks a gap of movable ranks runs ACROSS
+    # (`_weekday_gaps`) -- a clocked column's bare dates (`_whole_pinned`),
+    # which stand inside their gaps and bound none. Broken at each, a column
+    # with one bare date in seven had its gaps cut to about six ranks, and
+    # G7.3f's shares, asked once a gap over the gap's whole span, took 39 of
+    # 77 seconds at 100,000 rows.
+    see_through: "frozenset[int]" = frozenset()
 
 
 @dataclasses.dataclass(frozen=True)
@@ -25512,20 +25519,28 @@ def _weekday_gaps(
 ) -> "list[list[int]]":
     """The body's movable ranks, as runs sharing one gap, in rank order."""
     gaps: "list[list[int]]" = []
+    # Whether every rank skipped since the last movable one is one a gap
+    # runs across (`_WeekdayPass.see_through`, landing 3b.7); with none, a
+    # gap runs over consecutive ranks alone, as it always has.
+    bridged = True
     for rank in range(body_low, body_high + 1):
         if pinned[rank]:
+            if rank not in state.see_through:
+                bridged = False
             continue
         if gaps:
             last = gaps[len(gaps) - 1]
             first = last[0]
             if (
-                last[len(last) - 1] == rank - 1
+                (last[len(last) - 1] == rank - 1 or (bridged and bool(state.see_through)))
                 and state.lows[first] == state.lows[rank]
                 and state.highs[first] == state.highs[rank]
             ):
                 last += [rank]
+                bridged = True
                 continue
         gaps += [[rank]]
+        bridged = True
     return gaps
 
 
@@ -28140,11 +28155,8 @@ def _weekday_settled(
         or layout.high is None
     ):
         return ordinals, []
-    for flag in whole:
-        if flag:
-            return ordinals, []
-    # ...and a column listing dates that stand out whose cells already
-    # meet every census is left as drawn (landing 3b.6, G7.3j step 5;
+    # A column listing dates that stand out whose cells already meet
+    # every census is left as drawn (landing 3b.6, G7.3j step 5;
     # `_day_settled` asks the same first).
     if layout.listed and _heavy_met(column, facts, ordinals, layout, holes):
         return ordinals, []
@@ -28203,11 +28215,15 @@ def _weekday_settled(
         unit=unit,
         step=step,
         day=unit,
+        see_through=_whole_seen_through(column, whole, facts),
     )
     pinned = _ranks_the_tail_pins(layout)
     for rank in range(parsed):
         if gap_lows[rank] >= gap_highs[rank]:
             pinned[rank] = True
+    # -- 3b.7 (P4-D378): a bare date of a clocked column stays where the
+    # form step put it (`_whole_pinned`).
+    _whole_pinned(column, whole, pinned, facts)
     body_low = layout.low.rows
     body_high = parsed - 1 - layout.high.rows
     # THE CENSUS AS WRITTEN (Codex's review of landing 3b.D2, item 1): a
@@ -28755,7 +28771,6 @@ def _day_settled(
         or _ordinal_space(facts) != "date"
         or layout.low is None
         or layout.high is None
-        or any(whole)
     ):
         return _weekday_settled(
             column, facts, ordinals, parsed, whole, gap_lows, gap_highs,
@@ -28774,6 +28789,10 @@ def _day_settled(
     for rank in range(parsed):
         if gap_lows[rank] >= gap_highs[rank]:
             pinned[rank] = True
+    # -- 3b.7 (P4-D378): bare dates pinned where the column is clocked or
+    # on the shared clock (`_whole_pinned`); a day of a column counted in
+    # days is a day whatever its form.
+    _whole_pinned(column, whole, pinned, facts)
     body_low = layout.low.rows
     body_high = parsed - 1 - layout.high.rows
     first_day, last_day = layout.low.boundary, layout.high.boundary
@@ -29088,9 +29107,6 @@ def _hour_settled(
         or layout.high is None
     ):
         return ordinals, []
-    for flag in whole:
-        if flag:
-            return ordinals, []
     if not census:
         # THE DIAL'S HALF DAY AS A CENSUS (landing 3b.2-H, plan P4-D370's
         # carve-out): a declared 12-hour stamp publishing no hour census
@@ -29158,6 +29174,7 @@ def _hour_settled(
         bins="hour",
         period=calendar_clock.HOURS,
         keeps="day",
+        see_through=_whole_seen_through(column, whole, facts),
     )
     pinned = _ranks_the_tail_pins(layout)
     for rank in range(parsed):
@@ -29165,6 +29182,9 @@ def _hour_settled(
             pinned[rank] = True
         if facts.n_at_midnight is not None and _written_at_midnight(moved[rank], 0, step):
             pinned[rank] = True
+    # -- 3b.7 (P4-D378): a bare date counts at its midnight, hour 0, and
+    # never moves here (`_whole_pinned`).
+    _whole_pinned(column, whole, pinned, facts)
     body_low = layout.low.rows
     body_high = parsed - 1 - layout.high.rows
     # THE CENSUS AS WRITTEN (Codex's review of the landing, item 1): a rank
@@ -31061,6 +31081,331 @@ def _heavy_sorted(
     return moved, []
 
 
+def _whole_pinned(
+    column: contract.ColumnBlock,
+    whole: "list[bool]",
+    pinned: "list[bool]",
+    read: "contract.DatetimeFacts | None" = None,
+) -> None:
+    """Pin every bare-date rank of a clocked column, or of one on the shared
+    clock, in place (landing 3b.7, plan P4-D378; method G7.3k).
+
+    A bare date stands at a midnight of its own clock where the form step
+    put it (`_form_step`); the clock passes count it at hour, minute and
+    second 0 (the fold) and the day pass counts it on its day, each as a
+    pinned rank whose group owes its count less its pins. A column counted
+    in days on its own clock moves its bare dates as days like any other,
+    a day being a day whatever its form, and so does a column the frame
+    puts in days (`_own_clock_frame`): `read` is the facts the pass is
+    handed, the column's own where none is given. Read off the column's
+    own facts, the day frame pinned its bare dates where the form step
+    spread them (Codex's item 2 of landing 3b.7: eleven bare dates and
+    eleven `T00:00:00-03:00` stamps on the 15th of every month of five
+    years came back 654 on the 15th and 622 elsewhere for a census of
+    1,276 and nought). Raises nothing. No I/O of any kind.
+    """
+    facts = column.facts if read is None else read
+    if not isinstance(facts, contract.DatetimeFacts):
+        return
+    if _ordinal_space(facts) != "datetime" and facts.datetimes_read_at != "utc":
+        return
+    for rank in range(min(len(whole), len(pinned))):
+        if whole[rank]:
+            pinned[rank] = True
+
+
+def _whole_seen_through(
+    column: contract.ColumnBlock,
+    whole: "list[bool]",
+    read: "contract.DatetimeFacts | None" = None,
+) -> "frozenset[int]":
+    """The bare-date ranks `_whole_pinned` pins under the facts a pass is
+    handed (`read`), which a gap of movable ranks runs across
+    (`_WeekdayPass.see_through`, landing 3b.7): empty wherever it pins
+    none. Raises nothing. No I/O."""
+    flags = [False for _flag in whole]
+    _whole_pinned(column, whole, flags, read)
+    return frozenset(rank for rank in range(len(flags)) if flags[rank])
+
+
+def _own_clock_shifts(
+    facts: contract.DatetimeFacts, offsets: "list[str]"
+) -> "list[int]":
+    """Each rank's OWN CLOCK, as seconds east of the shared one (landing 3b.7,
+    plan P4-D378, method G7.3k): the offset G7.4 gave the rank, nought
+    for a rank written with none, and nought everywhere on a column read
+    on its own clock. The rank's written day, hour, minute and second are
+    the fields of its instant plus this. Raises nothing. No I/O."""
+    shifts = [0 for _offset in offsets]
+    if facts.datetimes_read_at != "utc":
+        return shifts
+    for rank in range(len(offsets)):
+        shifts[rank] = _offset_seconds(offsets[rank])
+    return shifts
+
+
+def _own_clock_censuses(facts: contract.DatetimeFacts) -> bool:
+    """Whether a column publishes a census a pass of G7.3f, G7.3g or G7.3i meets."""
+    return bool(
+        facts.weekday_census
+        or facts.day_of_month_census
+        or facts.hour_census
+        or facts.minute_census
+        or facts.minute_heaps
+        or facts.second_census
+        or facts.second_heaps
+    )
+
+
+def _own_clock_frame(
+    facts: contract.DatetimeFacts,
+    layout: "_DateLayout",
+    ordinals: "list[int]",
+    gap_lows: "list[int]",
+    gap_highs: "list[int]",
+    shifts: "list[int]",
+) -> "tuple[contract.DatetimeFacts, _DateLayout, list[int], list[int], list[int], int] | None":
+    """The passes' FRAME on the shared clock: each rank on its own clock
+    (landing 3b.7, plan P4-D378, method G7.3k), or None where the column
+    needs none -- on its own clock, or publishing no census a pass meets --
+    and every pass then runs exactly as before.
+
+    Every place a pass reads -- each rank's ordinal, its gap and the
+    layout's pins and boundaries -- is put on the rank's own clock
+    (`_own_clock_shifts`), so every bin a pass reads is the field the cell
+    is WRITTEN at, and every move, of whole days, hours or minutes, moves
+    the written field by as much, the rank's offset fixed. A column all at
+    a LOCAL midnight is put in DAYS of the frame, its facts read as on
+    their own clock, so the joint day plan (G7.3i) meets its day of the
+    month as it meets a column of dates; this needs every rank on a
+    midnight of its own clock, which `_snapped_to_midnight` and
+    `_kept_off_midnight` have put it, and where one is not the frame stays
+    in seconds. Returns the facts the passes read, the layout, the
+    ordinals, the gaps and the frame's unit (1 or 86,400 seconds).
+
+    Linear in the ranks. Raises nothing. No I/O of any kind.
+    """
+    if facts.datetimes_read_at != "utc" or not _own_clock_censuses(facts):
+        return None
+    if layout.low is None or layout.high is None:
+        return None
+    parsed = len(ordinals)
+    scale = 1
+    if facts.all_at_midnight:
+        scale = calendar_clock.DAY_SECONDS
+        for rank in range(parsed):
+            if (ordinals[rank] + shifts[rank]) % scale != 0:
+                scale = 1
+                break
+    if scale == 1:
+        framed = [ordinals[rank] + shifts[rank] for rank in range(parsed)]
+        lows = [gap_lows[rank] + shifts[rank] for rank in range(parsed)]
+        highs = [gap_highs[rank] + shifts[rank] for rank in range(parsed)]
+        read = facts
+    else:
+        framed = [(ordinals[rank] + shifts[rank]) // scale for rank in range(parsed)]
+        lows = [-((-(gap_lows[rank] + shifts[rank])) // scale) for rank in range(parsed)]
+        highs = [(gap_highs[rank] + shifts[rank]) // scale for rank in range(parsed)]
+        read = dataclasses.replace(facts, datetimes_read_at="local")
+
+    def placed(value: int, rank: int) -> int:
+        return (value + shifts[rank]) // scale
+
+    low_rank = layout.low.rows
+    high_rank = parsed - 1 - layout.high.rows
+    framed_layout = dataclasses.replace(
+        layout,
+        pins={rank: placed(layout.pins[rank], rank) for rank in layout.pins},
+        body={rank: placed(layout.body[rank], rank) for rank in layout.body},
+        lows=tuple(lows),
+        highs=tuple(highs),
+        low=dataclasses.replace(layout.low, boundary=placed(layout.low.boundary, low_rank)),
+        high=dataclasses.replace(
+            layout.high, boundary=placed(layout.high.boundary, high_rank)
+        ),
+    )
+    return read, framed_layout, framed, lows, highs, scale
+
+
+def _off_own_clocks(
+    before: "list[int]",
+    framed: "list[int]",
+    shifts: "list[int]",
+    offsets: "list[str]",
+    whole: "list[bool]",
+    pinned: "list[bool]",
+    body: "tuple[int, int]",
+    gaps: "tuple[list[int], list[int]]",
+    scale: int,
+) -> "tuple[list[int], list[str]]":
+    """The passes' frame taken back onto the shared clock (landing 3b.7,
+    plan P4-D378, method G7.3k): every rank's instant and offset.
+
+    A pass keeps each rank inside its own gap on its own clock, and then
+    sorts each run of the ranks it moved by the place it reads -- the
+    WRITTEN field -- which on the shared clock may hand one rank's written
+    place to a rank of another offset. So the frame is taken back run by
+    run, never rank by rank: every written place of a run of the body
+    between two pins is kept, and the run's offsets are matched to them
+    -- the places ascending, each taking the least offset that keeps its
+    instant inside the run's gap, which is the matching a gap of one width
+    for all its ranks always finds where any is found, and the ranks
+    themselves found one -- then the run is written in the order of its
+    instants, each place with its offset. So every written field a census
+    counts, every offset count and every place's gap stand. A tail rank
+    and a pinned rank never move and are given back as they were, and so
+    is a bare date in a frame of seconds; in a frame of days a bare date
+    moves as a day (`_whole_pinned`), and a run holding one hands its days
+    to its ranks, each keeping its form and offset (`_own_clock_days`,
+    Codex's item 2 of landing 3b.7).
+
+    Guarantees: returns the instants and the offsets, one per rank.
+    O(n log n) over the ranks, the offsets of a run matched by a walk
+    over its distinct offsets. Raises nothing. No I/O of any kind.
+    """
+    moved = [value for value in before]
+    given = [key for key in offsets]
+    gap_lows, gap_highs = gaps
+    body_low, body_high = body
+    # In a frame of days a bare date moves as a day (`_whole_pinned`), so it
+    # stands in its gap's run; in a frame of seconds it is pinned.
+    stays = [whole[rank] and scale == 1 for rank in range(len(whole))]
+    rank = body_low
+    while rank <= body_high:
+        if pinned[rank] or stays[rank] or gap_lows[rank] >= gap_highs[rank]:
+            rank = rank + 1
+            continue
+        end = rank
+        dated = False
+        while (
+            end <= body_high
+            and not pinned[end]
+            and not stays[end]
+            and gap_lows[end] == gap_lows[rank]
+            and gap_highs[end] == gap_highs[rank]
+        ):
+            dated = dated or whole[end]
+            end = end + 1
+        if dated:
+            _own_clock_days(
+                moved, framed, shifts, whole, (rank, end), gap_highs[rank], scale
+            )
+        else:
+            _own_clock_run(
+                moved, given, framed, shifts, offsets, (rank, end),
+                (gap_lows[rank], gap_highs[rank]), scale,
+            )
+        rank = end
+    return moved, given
+
+
+def _own_clock_days(
+    moved: "list[int]",
+    framed: "list[int]",
+    shifts: "list[int]",
+    whole: "list[bool]",
+    span: "tuple[int, int]",
+    high: int,
+    scale: int,
+) -> None:
+    """One run of `_off_own_clocks` in a frame of days that holds a bare
+    date (Codex's item 2 of landing 3b.7): its written days kept and
+    handed to its ranks, each rank keeping its own form and offset.
+
+    A pass sorts a run by the day it reads, so it may hand a moment's day
+    to a bare date: a `+02:00` midnight's day at the gap's top is a day
+    past the top for a bare date, whose midnight is two hours later on the
+    shared clock. So the days ascending each go to a rank of the least
+    shift left whose instant is not past the gap's top (the largest left
+    where none is), as `_own_clock_run` matches offsets, and among one
+    shift's ranks -- its moments and, at nought, the bare dates -- to the
+    next in the order the passes left them, by day and then rank: where
+    every rank's day keeps it inside the gap, each keeps its own. Every
+    written day stands, so every census of the calendar counts as the
+    passes left it, and every rank keeps the form and offset its row is
+    written in; the run is not re-sorted by instant, as a bare date's form
+    cannot pass to another rank. `whole` is read for nothing but the
+    caller's choice of this run. Raises nothing. No I/O of any kind."""
+    first, end = span
+    places = sorted(framed[rank] for rank in range(first, end))
+    members: "dict[int, list[tuple[int, int]]]" = {}
+    for rank in range(first, end):
+        if shifts[rank] in members:
+            members[shifts[rank]] += [(framed[rank], rank)]
+        else:
+            members[shifts[rank]] = [(framed[rank], rank)]
+    order = sorted(members)
+    queues = {shift: sorted(members[shift]) for shift in order}
+    taken = {shift: 0 for shift in order}
+    for place in places:
+        chosen = None
+        for shift in order:
+            if taken[shift] < len(queues[shift]) and place * scale - shift <= high:
+                chosen = shift
+                break
+        if chosen is None:
+            for shift in reversed(order):
+                if taken[shift] < len(queues[shift]):
+                    chosen = shift
+                    break
+        if chosen is None:
+            return
+        rank = queues[chosen][taken[chosen]][1]
+        moved[rank] = place * scale - chosen
+        taken[chosen] = taken[chosen] + 1
+
+
+def _own_clock_run(
+    moved: "list[int]",
+    given: "list[str]",
+    framed: "list[int]",
+    shifts: "list[int]",
+    offsets: "list[str]",
+    span: "tuple[int, int]",
+    gap: "tuple[int, int]",
+    scale: int,
+) -> None:
+    """One run of `_off_own_clocks`: its written places matched to its
+    offsets inside its gap, then written in the order of their instants.
+    Raises nothing. No I/O of any kind."""
+    first, end = span
+    high = gap[1]
+    places = sorted(framed[rank] * scale for rank in range(first, end))
+    keys: "dict[int, list[str]]" = {}
+    for rank in range(first, end):
+        shift = shifts[rank]
+        if shift in keys:
+            keys[shift] += [offsets[rank]]
+        else:
+            keys[shift] = [offsets[rank]]
+    order = sorted(keys)
+    taken = {shift: 0 for shift in order}
+    found: "list[tuple[int, str]]" = []
+    for place in places:
+        # The least offset left whose instant is not past the gap's top; a
+        # larger one only lowers the instant, so where it stands below the
+        # gap's foot no offset left keeps it inside, and the ranks' own
+        # matching, which kept every place inside, rules that out.
+        chosen = None
+        for shift in order:
+            if taken[shift] < len(keys[shift]) and place - shift <= high:
+                chosen = shift
+                break
+        if chosen is None:
+            for shift in reversed(order):
+                if taken[shift] < len(keys[shift]):
+                    chosen = shift
+                    break
+        if chosen is None:
+            return
+        found += [(place - chosen, keys[chosen][taken[chosen]])]
+        taken[chosen] = taken[chosen] + 1
+    found = sorted(found)
+    for index in range(len(found)):
+        moved[first + index] = found[index][0]
+        given[first + index] = found[index][1]
+
+
 def _datetime_content(
     plan: "_ColumnPlan",
     words: "list[int]",
@@ -31087,7 +31432,7 @@ def _datetime_content(
     layout = _date_layout(
         column, facts, parsed, plan.small_cell_floor, plan.date_system
     )
-    whole = _form_allocation(facts, layout)
+    whole = _form_allocation(facts, layout, column.n_distinct)
     # EVERY RANK'S INSTANT FIRST, then the offsets, the marks and the
     # move to midnight, then the cells (landing 2b.3). The words are
     # spent in rank order.
@@ -31116,13 +31461,42 @@ def _datetime_content(
     room: "tuple[list[int], list[int]] | None" = None
     if snapping:
         room = (gap_lows, gap_highs)
+    # -- 3b.7 (P4-D378): G7.4 step 1a, each fixed block on the shared clock
+    # takes a key its written place is in a published group with room
+    # under, off a withheld midnight (`_pinned_offsets`); a rank the move
+    # to midnight already fixes keeps that key.
+    # ...and a fixed block it writes at a sixtieth second takes that
+    # second's text on its pins (Codex's item 3), which every pass and the
+    # writer read off the layout.
+    sixtieths: "dict[int, str]" = {}
+    fixed_keys = _pinned_offsets(facts, layout, parsed, whole, sixtieths)
+    for rank in sorted(fixed_keys):
+        if rank not in pins:
+            pins[rank] = fixed_keys[rank]
+    if sixtieths:
+        texts = {rank: layout.texts[rank] for rank in layout.texts}
+        for rank in sixtieths:
+            texts[rank] = sixtieths[rank]
+        layout = dataclasses.replace(layout, texts=texts)
     offsets, notes = _offset_allocation(
-        column, facts, parsed, whole, pins, room
+        column, facts, parsed, whole, pins, room,
+        facts.datetimes_read_at == "utc" and _own_clock_censuses(facts),
+        (gap_lows, gap_highs),
     )
     marks, marked = _clock_marks(column, facts, whole)
     notes = notes + marked
+    # -- 3b.7 (P4-D378): THE FORM STEP, step 4's first part (method G7.3k):
+    # every bare-date rank of a clocked column onto a midnight of its own
+    # clock inside its gap, on a day of its own where the column's values
+    # are all different (`_form_step`), before the move to midnight, which
+    # then counts them as standing there.
+    ordinals = _form_step(facts, ordinals, layout, whole, column.n_distinct)
     if snapping:
-        ordinals = _snapped_to_midnight(facts, ordinals, offsets, layout)
+        # ...whose bare dates the form step stood on their midnight: on a
+        # column all at midnight the move to midnight places them, as before.
+        ordinals = _snapped_to_midnight(
+            facts, ordinals, offsets, layout, None if facts.all_at_midnight else whole
+        )
     # A COUNT AT MIDNIGHT THE DESCRIPTION WITHHOLDS IS STILL A COUNT THE
     # TWIN OWES (plan P4-D191), and the date counts the construction can
     # reach are reached (plan P4-D192), each by moving ranks inside their
@@ -31147,8 +31521,18 @@ def _datetime_content(
     # ...and the day of the month beside it, where the column publishes
     # one (landing 3b.3, plan P4-D368, method G7.3i): `_day_settled` is
     # the weekday pass itself on every other column.
-    ordinals, weekday_notes = _day_settled(
-        column, facts, ordinals, parsed, whole, gap_lows, gap_highs, layout,
+    # -- 3b.7 (P4-D378): ON THE SHARED CLOCK EVERY PASS READS EACH RANK ON
+    # ITS OWN CLOCK (`_own_clock_frame`), and the frame is taken back run by
+    # run (`_off_own_clocks`); on a column read on its own clock the frame
+    # is the column itself and every pass runs as before.
+    shifts = _own_clock_shifts(facts, offsets)
+    frame = _own_clock_frame(facts, layout, ordinals, gap_lows, gap_highs, shifts)
+    read, framed_layout, framed = facts, layout, ordinals
+    lows, highs = gap_lows, gap_highs
+    if frame is not None:
+        read, framed_layout, framed, lows, highs, _scale = frame
+    framed, weekday_notes = _day_settled(
+        column, read, framed, parsed, whole, lows, highs, framed_layout,
         holes, plan.declared_days, plan.counted_holes,
     )
     # THE PASSES STAGE 3B RESERVES (plan P4-D364), in their order, each
@@ -31157,15 +31541,24 @@ def _datetime_content(
     # slot above (3b.D3, P4-D368). A landing edits its own pass, not
     # these calls.
     # -- the hour of the written clock (3b.T2, P4-D371)
-    ordinals, hour_notes = _hour_settled(
-        column, facts, ordinals, parsed, whole, gap_lows, gap_highs, layout,
+    framed, hour_notes = _hour_settled(
+        column, read, framed, parsed, whole, lows, highs, framed_layout,
         holes, plan.declared_days, plan.counted_holes,
     )
     # -- the minute and the second (3b.T3, P4-D372)
-    ordinals, clock_field_notes = _clock_fields_settled(
-        column, facts, ordinals, parsed, whole, gap_lows, gap_highs, layout,
+    framed, clock_field_notes = _clock_fields_settled(
+        column, read, framed, parsed, whole, lows, highs, framed_layout,
         holes, plan.declared_days,
     )
+    if frame is None:
+        ordinals = framed
+    else:
+        ordinals, offsets = _off_own_clocks(
+            ordinals, framed, shifts, offsets, whole, _ranks_the_tail_pins(layout),
+            (layout.low.rows if layout.low is not None else 0,
+             parsed - 1 - (layout.high.rows if layout.high is not None else 0)),
+            (gap_lows, gap_highs), frame[5],
+        )
     # -- the dates that stand out, after every other pass (3b.D4, P4-D369)
     ordinals, heavy_notes = _heavy_sorted(
         column, facts, ordinals, parsed, whole, gap_lows, gap_highs, layout,
@@ -34148,6 +34541,60 @@ def _date_count_notes(
     return notes
 
 
+def _joint_count_remarks(
+    column: contract.ColumnBlock, different: int
+) -> "list[Remark]":
+    """Say how many different values an all-different joint column came back with (landing 3b.7).
+
+    THE SHORTFALL THE ENVELOPE ADMITS, SAID (the repair of landing 3b.7,
+    skeptic 1's items 1 and 2). On a clocked column of the joint member
+    whose values were all different, the count pass does not run
+    (`contract.datetime_counts_reachable` refuses a bare date beside
+    moments), and the validator and this report hold the count to G12.5's
+    envelope, as before the landing. The form step stands every bare date
+    on a day of its own where the gaps have free midnight days, and the
+    battery's all-different columns come back all different there -- but a
+    bare date the free days cannot hold stands on a day another value
+    holds, and moments drawn close together at minute precision can meet:
+    800 stamps on consecutive minutes beside 200 dates every third day came
+    back 778 to 805 of 1,000, and the report said nothing beyond the
+    approximation line. A REMARK, NOT A DEVIATION (residual R-P4-152): the
+    count landed inside the range the method promises, so a deviation for
+    it would tell the reader a published fact failed.
+
+    Guarantees: accepts a column block and the different present values
+    its twin holds (`_recounted`); returns one remark where the column is a
+    clocked joint column publishing every present value different and the
+    twin holds fewer, and none elsewhere. Determinism: a function of the
+    two. Raises nothing. No I/O of any kind.
+    """
+    facts = column.facts
+    if (
+        not isinstance(facts, contract.DatetimeFacts)
+        or facts.parser_family != contract.FORMAT_ISO_MIXED
+        or facts.all_at_midnight
+        or column.n_present < 1
+        or column.n_distinct < column.n_present
+        or different >= column.n_distinct
+        or contract.datetime_counts_reachable(column)
+    ):
+        return []
+    return [
+        _remark(
+            column.name,
+            "how many of these values are different",
+            f"{different} different values of {column.n_present}, where every "
+            "value of the real column was different",
+            "The twin could not keep every value apart: a whole date its "
+            "stretch had no free day for stands on a day another value "
+            "holds, and moments drawn close together can meet at the "
+            "precision the column is written at. The count is inside the "
+            "range the method promises, and code counting the different "
+            "values of this column meets fewer here than in your table.",
+        )
+    ]
+
+
 def _subsecond_notes(
     column: contract.ColumnBlock,
     facts: contract.DatetimeFacts,
@@ -34230,6 +34677,8 @@ def _offset_allocation(
     whole: "list[bool] | None" = None,
     pins: "dict[int, tuple[str, ...]] | None" = None,
     bounds: "tuple[list[int], list[int]] | None" = None,
+    spread: bool = False,
+    gaps: "tuple[list[int], list[int]] | None" = None,
 ) -> "tuple[list[str], list[Deviation]]":
     """Which offset every parsed cell carries (method G7.4).
 
@@ -34314,8 +34763,24 @@ def _offset_allocation(
                     fit = fit + 1
             room += [(fit, rank)]
         open_ranks = [rank for _fit, rank in sorted(room)]
+    # SPREAD OVER THE GAPS where the passes read each rank on its own clock
+    # (landing 3b.7, plan P4-D378, method G7.4 step 2): the open ranks of each
+    # gap of the body take one key together where its count left holds
+    # them, the gaps in rank order taking the keys by the smooth rotation of
+    # the counts left, weighted by each gap's size (every key adds its count
+    # times the size to a credit, the largest credit with room is taken, the
+    # earlier key on a tie, and gives the total times the size back); a gap
+    # no key holds whole is filled key by key in that order. So each key's
+    # ranks stand across the column, not in one block at its start, and each
+    # gap's ranks read one clock. In one block, the skeptic's `few_off` wrote
+    # its 196 cells at +05:30 on the body's first ranks, where its first gap
+    # of 8.25 hours holds no hour the census counts on that clock, and 87 of
+    # them missed the hour census at every seed at 10,000 rows.
+    chosen_of: "dict[int, str]" = {}
+    if spread and bounds is None and gaps is not None:
+        chosen_of = _keys_by_gap(keys, left, open_ranks, gaps)
     for rank in open_ranks:
-        taken = ""
+        taken = chosen_of[rank] if rank in chosen_of else ""
         if bounds is not None:
             for key in keys:
                 if left[key] <= 0:
@@ -34350,6 +34815,420 @@ def _offset_allocation(
             )
         ]
     return given, notes
+
+
+def _bins_of_censuses(
+    facts: contract.DatetimeFacts,
+) -> "list[tuple[str, tuple[int, ...], list[int]]]":
+    """Every published census a pinned rank's written place falls in (landing
+    3b.7, `_pinned_offsets`): its rule name, each bin's group and each
+    group's count. The weekday's seven bins, the day of the month's
+    thirty-four and the hour's twenty-four. Raises nothing. No I/O."""
+    found: "list[tuple[str, tuple[int, ...], list[int]]]" = []
+    if facts.weekday_census:
+        found += [
+            (
+                "weekday",
+                calendar_rules.where_of(facts.weekday_census),
+                [count for _first, _last, count in facts.weekday_census],
+            )
+        ]
+    if facts.day_of_month_census:
+        found += [
+            (
+                "day_of_month",
+                calendar_rules.month_where(facts.day_of_month_census),
+                [count for _first, _last, count in facts.day_of_month_census],
+            )
+        ]
+    if facts.hour_census:
+        where = [0 for _hour in range(calendar_clock.HOURS)]
+        for index in range(len(facts.hour_census)):
+            first, last, _count = facts.hour_census[index]
+            for hour in range(first, last + 1):
+                where[hour] = index
+        found += [("hour", tuple(where), [count for _first, _last, count in facts.hour_census])]
+    return found
+
+
+def _census_bin_of(rule: str, local: int) -> int:
+    """The bin a written place falls in under a census's rule (landing 3b.7):
+    `local` is the place in seconds of the rank's own clock."""
+    if rule == "weekday":
+        return calendar_rules.weekday_of(local // 86400)
+    if rule == "day_of_month":
+        return calendar_rules.month_bin(local // 86400) - 1
+    if rule == "hour":
+        return (local // 3600) % 24
+    if rule == "minute":
+        return (local // 60) % 60
+    return local % 60
+
+
+def _pinned_offsets(
+    facts: contract.DatetimeFacts,
+    layout: "_DateLayout",
+    parsed: int,
+    whole: "list[bool]",
+    sixtieths: "dict[int, str] | None" = None,
+) -> "dict[int, tuple[str, ...]]":
+    """G7.4 STEP 1a, THE PINNED OFFSETS (landing 3b.7, plan P4-D378; the
+    design skeptic's blocker 1 and item 5, and item (a) of the landing):
+    each block of ranks the layout fixes at one instant on the shared clock,
+    in rank order, with the offset keys it takes, the first preferred.
+
+    A pinned rank never moves, so the day, hour, minute and second it is
+    WRITTEN at are its offset's alone, and no published fact fixes them
+    (`calendar_clock.own_clock_sure`). G7.4 spent the keys in sorted order
+    over ascending ranks, so the skeptic's `few_off` -- a -06:00 clinic
+    with one cell in fifty at +05:30 -- wrote its 99th percentile, the
+    source's `16:30:00-06:00`, at `04:00:00+05:30`, in an hour group the
+    census counts nought, and missed its hour census at every seed. So
+    each block takes, among the keys with as many ranks left as it holds,
+    in G7.4's order, the first that breaks the fewest of: a body block's
+    written place in a group of every published census with room left for
+    it (the source's own offsets prove such a choice exists); and, where
+    the count at midnight is withheld for its size, a written place off a
+    local midnight -- item (a): C1's two columns wrote a listed tail of
+    twelve and of sixteen rows at a midnight of the first sorted key, a
+    count the description withholds as fewer than the line, and missed
+    `n_at_midnight` at the floor of 11 in four twins of four. Room and
+    counts left are spent as each block takes its key.
+
+    A BLOCK MAY BE SPLIT between keys, and WRITTEN AT A SIXTIETH SECOND
+    (Codex's items 1 and 3 of landing 3b.7; `_pinned_offset_shares`):
+    where no one key breaks nothing, the block's ranks are shared out
+    among the keys; and where no share of the ordinary spelling breaks
+    nothing, a block of the body at a minute's first second, between two
+    published values, on a column written to the second, may be written
+    as the sixtieth second of the minute before -- the shared clock's
+    published text names its instant, `00:00:00`, and never the `23:59:60`
+    the source wrote there. Each such pin's text is then that sixtieth
+    second, put in `sixtieths` (rank to text) for the caller to give the
+    layout, so every pass counts its ranks where they are written
+    (`_sixtieth_seconds`) and the writer writes them from those fields
+    (G7.5).
+
+    Asked only on the shared clock, where a census of the calendar is
+    published or the count at midnight is withheld for its size and some
+    fixed block stands at a midnight of the first key; every other column
+    takes no pin here and is allocated exactly as before. Linear in the
+    ranks, the blocks times the keys times the censuses. Raises nothing.
+    No I/O of any kind beyond filling `sixtieths`.
+    """
+    if facts.datetimes_read_at != "utc" or layout.low is None or layout.high is None:
+        return {}
+    lows, highs = layout.lows, layout.highs
+    blocks: "list[tuple[int, int, int]]" = []
+    rank = 0
+    while rank < parsed:
+        if lows[rank] != highs[rank] or whole[rank]:
+            rank = rank + 1
+            continue
+        end = rank + 1
+        while end < parsed and lows[end] == highs[end] == lows[rank] and not whole[end]:
+            end = end + 1
+        blocks += [(rank, end, lows[rank])]
+        rank = end
+    if not blocks:
+        return {}
+    left = {key: facts.utc_offsets[key] for key in facts.utc_offsets}
+    for flag in whole:
+        if not flag:
+            continue
+        for key in (contract.NO_OFFSET, contract.WITHHELD):
+            if key in left and left[key] > 0:
+                left[key] = left[key] - 1
+                break
+    keys = [key for key in sorted(left) if _is_real_offset(key)]
+    keys += [key for key in sorted(left) if not _is_real_offset(key)]
+    if not keys:
+        return {}
+    step = 60 if facts.time_precision == "minute" else 1
+    off_midnight = facts.n_at_midnight is None and contract.midnight_withheld_for_its_size(facts)
+    if not _own_clock_censuses(facts):
+        if not off_midnight:
+            return {}
+        first = _offset_seconds(keys[0]) if _is_real_offset(keys[0]) else 0
+        if not any(_written_at_midnight(at, first, step) for _start, _end, at in blocks):
+            return {}
+    body_low = layout.low.rows
+    body_high = parsed - 1 - layout.high.rows
+    # A block may be written at a sixtieth second where it stands at a
+    # minute's first second between two published values of a column
+    # written to the second (Codex's item 3 of landing 3b.7).
+    leaps = [
+        facts.resolution == "datetime"
+        and step == 1
+        and at % 60 == 0
+        and start in layout.texts
+        and end - 1 in layout.texts
+        and layout.texts[start] == layout.texts[end - 1]
+        and len(layout.texts[start]) >= 19
+        for start, end, at in blocks
+    ]
+    shares = _pinned_offset_shares(
+        left, keys, blocks, (body_low, body_high),
+        _bins_of_censuses(facts), off_midnight, step, leaps,
+    )
+    found: "dict[int, tuple[str, ...]]" = {}
+    for place in range(len(blocks)):
+        start, end, at = blocks[place]
+        taken, sixtieth = shares[place]
+        member = start
+        for key, count in taken:
+            order = tuple([key] + [other for other in keys if other != key])
+            for _taken in range(count):
+                found[member] = order
+                member = member + 1
+        if sixtieth and sixtieths is not None:
+            text = _sixtieth_text(at)
+            for member in range(start, end):
+                if member in layout.texts:
+                    sixtieths[member] = text
+    return found
+
+
+def _sixtieth_text(at: int) -> str:
+    """The canonical text of the sixtieth second whose instant is `at`, a
+    minute's first second: the minute before's `HH:MM:60` (G7.1's ordinal
+    space puts that sixtieth second at `at`). Raises nothing. No I/O."""
+    days = (at - 60) // 86400
+    rest = (at - 60) - days * 86400
+    year, month, day = parsing.civil_from_days(days)
+    return f"{year:04d}-{month:02d}-{day:02d} {rest // 3600:02d}:{(rest % 3600) // 60:02d}:60"
+
+
+def _pinned_offset_keys(
+    left: "dict[str, int]",
+    keys: "list[str]",
+    blocks: "list[tuple[int, int, int]]",
+    body: "tuple[int, int]",
+    censuses: "list[tuple[str, tuple[int, ...], list[int]]]",
+    off_midnight: bool,
+    step: int,
+) -> "list[str]":
+    """G7.4 step 1a's choice (`_pinned_offsets`), on plain numbers: the key
+    each fixed block -- (first rank, end, instant) -- takes FIRST, its
+    first share (`_pinned_offset_shares`, no block written at a sixtieth
+    second), "" where none is given. Spends `left` as the shares do.
+    Raises nothing. No I/O of any kind."""
+    shares = _pinned_offset_shares(left, keys, blocks, body, censuses, off_midnight, step)
+    return [taken[0][0] if taken else "" for taken, _sixtieth in shares]
+
+
+def _pinned_offset_shares(
+    left: "dict[str, int]",
+    keys: "list[str]",
+    blocks: "list[tuple[int, int, int]]",
+    body: "tuple[int, int]",
+    censuses: "list[tuple[str, tuple[int, ...], list[int]]]",
+    off_midnight: bool,
+    step: int,
+    leaps: "list[bool] | None" = None,
+) -> "list[tuple[list[tuple[str, int]], bool]]":
+    """G7.4 step 1a's choice (`_pinned_offsets`), on plain numbers: the keys
+    each fixed block -- (first rank, end, instant) -- takes, each with how
+    many of its ranks, in rank order (empty where none has its ranks
+    left), and whether it is written at a sixtieth second. `left` is each
+    key's count still to spend, in `keys`' order G7.4's; `censuses` each
+    published census's rule, bins' groups and counts (`_bins_of_censuses`);
+    `leaps` whether each block may be written at a sixtieth second, none
+    where it is not given. Spends `left` and each group's room as it goes.
+
+    A block takes ONE key where one breaks nothing, the first such in
+    G7.4's order. Where none does, a block of the body under a census is
+    SPLIT where a split breaks nothing (Codex's item 1 of landing 3b.7):
+    the keys in G7.4's order, each written off a withheld midnight, take
+    as many of its ranks as their count left and every census group their
+    written place falls in have room for, until the block is spent.
+    Measured: 150 cells each of `2024-07-19T09:00:00Z` and
+    `T10:00:00+01:00` among 700 daily stamps at those two keys -- two
+    rungs fixed 251 ranks at that one instant, and the one key `+01:00`
+    wrote them all in hour 10, which holds 150, so the twin's hours came
+    back 132, 251, 297, 298 for 150, 150, 339, 339 at every seed.
+
+    Where no split does either and the block may be written at a
+    sixtieth second, the same two choices are asked of its written place
+    one second earlier, the minute before's `HH:MM:60` (Codex's item 3):
+    400 cells at `2016-12-31T23:59:60Z` among 600 noon stamps at `Z` and
+    `+00:00` -- the shared clock publishes their instant as midnight, and
+    251 fixed ranks written there came back in hour 0, which the census
+    counts nought, never in hour 23, which counts 400. Where none breaks
+    nothing, the one key that breaks the fewest at the ordinary place
+    takes the block, as before. Linear in the blocks times the keys times
+    the censuses. Raises nothing. No I/O of any kind."""
+    body_low, body_high = body
+    room = [[count for count in counts] for _rule, _where, counts in censuses]
+    found: "list[tuple[list[tuple[str, int]], bool]]" = []
+    for place in range(len(blocks)):
+        start, end, at = blocks[place]
+        size = end - start
+        in_body = body_low <= start and end - 1 <= body_high
+        best = _pinned_single(left, keys, at, size, room if in_body else [], censuses, off_midnight, step)
+        taken: "list[tuple[str, int]]" = []
+        sixtieth = False
+        if in_body and censuses and (best is None or best[0] > 0):
+            taken = _pinned_split(left, keys, at, size, room, censuses, off_midnight, step)
+            if not taken and leaps is not None and leaps[place]:
+                leap = _pinned_single(left, keys, at - 1, size, room, censuses, off_midnight, step)
+                if leap is not None and leap[0] == 0:
+                    taken = [(keys[leap[1]], size)]
+                else:
+                    taken = _pinned_split(left, keys, at - 1, size, room, censuses, off_midnight, step)
+                sixtieth = bool(taken)
+        if not taken and best is not None:
+            taken = [(keys[best[1]], size)]
+        written = at - 1 if sixtieth else at
+        for key, count in taken:
+            left[key] = left[key] - count
+            if in_body:
+                groups = _census_groups(censuses, written, key)
+                for index in range(len(censuses)):
+                    room[index][groups[index]] = room[index][groups[index]] - count
+        found += [(taken, sixtieth)]
+    return found
+
+
+def _pinned_single(
+    left: "dict[str, int]",
+    keys: "list[str]",
+    at: int,
+    size: int,
+    room: "list[list[int]]",
+    censuses: "list[tuple[str, tuple[int, ...], list[int]]]",
+    off_midnight: bool,
+    step: int,
+) -> "tuple[int, int] | None":
+    """One key for a whole fixed block written at `at` (`_pinned_offset_shares`):
+    (how much it breaks, its place in `keys`) for the first key in G7.4's
+    order with as many ranks left as the block holds that breaks the
+    fewest of -- a written place at a withheld midnight, and a census
+    group without room for the block (`room` empty: no census asked) --
+    None where no key has the ranks left. Spends nothing. Raises nothing.
+    No I/O of any kind."""
+    best: "tuple[int, int] | None" = None
+    for index in range(len(keys)):
+        key = keys[index]
+        if left[key] < size:
+            continue
+        shift = _offset_seconds(key) if _is_real_offset(key) else 0
+        broken = 0
+        if off_midnight and _written_at_midnight(at, shift, step):
+            broken = broken + 1
+        if room:
+            groups = _census_groups(censuses, at, key)
+            for place in range(len(censuses)):
+                if room[place][groups[place]] < size:
+                    broken = broken + 1
+        if best is None or broken < best[0]:
+            best = (broken, index)
+        if broken == 0:
+            break
+    return best
+
+
+def _census_groups(
+    censuses: "list[tuple[str, tuple[int, ...], list[int]]]", at: int, key: str
+) -> "list[int]":
+    """The group of every census an instant written under a key falls in
+    (`_pinned_offset_shares`). Raises nothing. No I/O of any kind."""
+    shift = _offset_seconds(key) if _is_real_offset(key) else 0
+    return [where[_census_bin_of(rule, at + shift)] for rule, where, _counts in censuses]
+
+
+def _pinned_split(
+    left: "dict[str, int]",
+    keys: "list[str]",
+    at: int,
+    size: int,
+    room: "list[list[int]]",
+    censuses: "list[tuple[str, tuple[int, ...], list[int]]]",
+    off_midnight: bool,
+    step: int,
+) -> "list[tuple[str, int]]":
+    """One fixed block written at `at` split between keys breaking nothing
+    (`_pinned_offset_shares`): each key in G7.4's order, written off a
+    withheld midnight, takes as many ranks as its count left and the room
+    of every group its written place falls in allow; empty where the keys
+    cannot hold the whole block so. Spends nothing. Linear in the keys
+    times the censuses. Raises nothing. No I/O of any kind."""
+    spare = [[count for count in counts] for counts in room]
+    shares: "list[tuple[str, int]]" = []
+    wanted = size
+    for key in keys:
+        if wanted <= 0:
+            break
+        shift = _offset_seconds(key) if _is_real_offset(key) else 0
+        if off_midnight and _written_at_midnight(at, shift, step):
+            continue
+        groups = _census_groups(censuses, at, key)
+        taken = min(wanted, left[key])
+        for place in range(len(spare)):
+            taken = min(taken, spare[place][groups[place]])
+        if taken <= 0:
+            continue
+        for place in range(len(spare)):
+            spare[place][groups[place]] = spare[place][groups[place]] - taken
+        shares += [(key, taken)]
+        wanted = wanted - taken
+    if wanted > 0:
+        return []
+    return shares
+
+
+def _keys_by_gap(
+    keys: "list[str]",
+    left: "dict[str, int]",
+    open_ranks: "list[int]",
+    gaps: "tuple[list[int], list[int]]",
+) -> "dict[int, str]":
+    """G7.4 step 2's spread over the gaps (`_offset_allocation`, landing 3b.7):
+    each open rank's key, every run of open ranks sharing one gap taking one
+    key where a key's count left holds it. Spends nothing of `left`: the
+    caller spends each rank's key as it gives it. Linear in the ranks and
+    the keys. Raises nothing. No I/O of any kind."""
+    lows, highs = gaps
+    runs: "list[list[int]]" = []
+    for rank in sorted(open_ranks):
+        if runs:
+            last = runs[len(runs) - 1]
+            first = last[0]
+            if (
+                last[len(last) - 1] == rank - 1
+                and lows[first] == lows[rank]
+                and highs[first] == highs[rank]
+            ):
+                last += [rank]
+                continue
+        runs += [[rank]]
+    spare = {key: left[key] for key in keys}
+    total = sum(spare[key] for key in keys)
+    credit = {key: 0 for key in keys}
+    weight = {key: spare[key] for key in keys}
+    found: "dict[int, str]" = {}
+    for run in runs:
+        size = len(run)
+        best = ""
+        for key in keys:
+            credit[key] = credit[key] + weight[key] * size
+            if spare[key] >= size and (not best or credit[key] > credit[best]):
+                best = key
+        if best:
+            credit[best] = credit[best] - total * size
+            spare[best] = spare[best] - size
+            for rank in run:
+                found[rank] = best
+            continue
+        place = 0
+        ordered = sorted((-credit[keys[index]], index) for index in range(len(keys)))
+        for _credit, index in ordered:
+            key = keys[index]
+            while place < size and spare[key] > 0:
+                found[run[place]] = key
+                spare[key] = spare[key] - 1
+                place = place + 1
+    return found
 
 
 def _values_by_midnight(
@@ -35138,6 +36017,7 @@ def _snapped_to_midnight(
     ordinals: "list[int]",
     offsets: "list[str]",
     layout: "_DateLayout",
+    whole: "list[bool] | None" = None,
 ) -> "list[int]":
     """Move the published count of ranks onto a midnight (landing 2b.3, P4-D39).
 
@@ -35211,8 +36091,14 @@ def _snapped_to_midnight(
     free: list[int] = []
     for rank in range(parsed):
         # A rank between two pinned ranks holding one value has nowhere
-        # else to stand, and counts exactly as they do.
-        if pinned[rank] or lows[rank] == highs[rank]:
+        # else to stand, and counts exactly as they do -- and so does a
+        # bare date of a clocked column, which the form step already stood
+        # on a midnight (landing 3b.7, `_form_step`).
+        if whole is not None and whole[rank]:
+            # Written as its date alone, it reads as midnight wherever it
+            # stands.
+            owed = owed - 1
+        elif pinned[rank] or lows[rank] == highs[rank]:
             if _written_at_midnight(moved[rank], shifts[rank], step):
                 owed = owed - 1
         elif first <= rank <= last:
@@ -38380,8 +39266,206 @@ def _nearest_free_unit(
         away = away + 1
 
 
+def _midnight_room(low: int, high: int) -> "tuple[int, int]":
+    """The first and last day whose midnight on the clock of a rank written
+    with no offset lies in [low, high], in days; first > last where none
+    does (landing 3b.7). Raises nothing. No I/O."""
+    return (-((-low) // 86400), high // 86400)
+
+
+def _form_step(
+    facts: contract.DatetimeFacts,
+    ordinals: "list[int]",
+    layout: "_DateLayout",
+    whole: "list[bool]",
+    distinct: "int | None" = None,
+) -> "list[int]":
+    """THE FORM STEP (landing 3b.7, plan P4-D378, method G7.3k step 4; the
+    design's decision D4 and its skeptic's major 2 and minor 4): every bare-date rank of a column of the joint member counted in seconds
+    stood on a midnight of its own clock -- a bare date is written with no
+    offset -- inside its own gap.
+
+    Its gap's ranks are taken in rank order, each to the first midnight at
+    or after its instant, else the last before; where the column's values
+    are ALL DIFFERENT each takes a day no other bare date of its gap and no
+    pinned rank holds, the next free one at or after the last taken, and
+    where those run past the gap's top the run is laid back from it --
+    `_form_allocation` gives a gap more bare dates than it holds such days
+    only where every gap's free days are spent, and each such date stands on
+    its nearest midnight, a day another value holds (the repair of the
+    landing, skeptic 1's item 2: the count of different values falls short
+    and is named, never the forms). A rank whose gap holds no midnight stays
+    where it is. Before this step the midnight move stacked the bare dates'
+    midnight days on days a midnight already held: 800 different stamps beside
+    200 different dates came back 973 to 992 values of 1,000 (item (b) of
+    the landing).
+
+    A column every value of which stands at midnight -- counted in days, or
+    on the shared clock in seconds -- is moved as before, its bare dates
+    placed by the move to midnight, and every other column has no
+    bare-date rank: both come back unchanged. Linear in the ranks plus the pins. Raises
+    nothing. No I/O of any kind.
+    """
+    if (
+        facts.parser_family != contract.FORMAT_ISO_MIXED
+        or _ordinal_space(facts) != "datetime"
+        or facts.all_at_midnight
+        or not any(whole)
+    ):
+        return [value for value in ordinals]
+    parsed = len(ordinals)
+    apart = distinct is not None and distinct >= parsed
+    # The weekdays and the days of the month a published census counts
+    # nought: a bare date stays where this step stands it, so it never
+    # stands there while its gap holds another day.
+    empty_weekdays: "set[int]" = set()
+    for first_day, last_day, count in facts.weekday_census:
+        if count == 0:
+            empty_weekdays |= set(range(first_day, last_day + 1))
+    empty_month_bins: "set[int]" = set()
+    if facts.day_of_month_census:
+        where = calendar_rules.month_where(facts.day_of_month_census)
+        for place in range(len(where)):
+            if facts.day_of_month_census[where[place]][2] == 0:
+                empty_month_bins |= {place + 1}
+    return _form_step_days(
+        ordinals, (list(layout.lows), list(layout.highs)), whole, apart,
+        (frozenset(empty_weekdays), frozenset(empty_month_bins)),
+    )
+
+
+def _form_step_days(
+    ordinals: "list[int]",
+    gaps: "tuple[list[int], list[int]]",
+    whole: "list[bool]",
+    apart: bool,
+    shut: "tuple[frozenset[int], frozenset[int]]",
+) -> "list[int]":
+    """`_form_step` on plain numbers: each rank's instant in seconds of the
+    clock a bare date is written on, its gap, the bare-date flags, whether
+    the column's values are all different, and the weekdays and month bins
+    a census counts nought (`_form_day_shut`). Raises nothing. No I/O."""
+    moved = [value for value in ordinals]
+    parsed = len(moved)
+    lows, highs = gaps
+    taken: "set[int]" = set()
+    for rank in range(parsed):
+        if lows[rank] == highs[rank] and lows[rank] % 86400 == 0:
+            taken |= {lows[rank] // 86400}
+    rank = 0
+    while rank < parsed:
+        if not whole[rank] or lows[rank] == highs[rank]:
+            rank = rank + 1
+            continue
+        end = rank
+        members: "list[int]" = []
+        while end < parsed and lows[end] == lows[rank] and highs[end] == highs[rank]:
+            if whole[end]:
+                members += [end]
+            end = end + 1
+        first, last = _midnight_room(lows[rank], highs[rank])
+        if first <= last:
+            _form_days(moved, members, (first, last), taken, apart, shut)
+        rank = end
+    return moved
+
+
+def _form_day_shut(day: int, shut: "tuple[frozenset[int], frozenset[int]]") -> bool:
+    """Whether a published census counts nought on this day (`_form_step`)."""
+    if shut[0] and calendar_rules.weekday_of(day) in shut[0]:
+        return True
+    return bool(shut[1]) and calendar_rules.month_bin(day) in shut[1]
+
+
+def _form_days(
+    moved: "list[int]",
+    members: "list[int]",
+    room: "tuple[int, int]",
+    taken: "set[int]",
+    apart: bool,
+    shut: "tuple[frozenset[int], frozenset[int]]" = (frozenset(), frozenset()),
+) -> None:
+    """One gap of `_form_step`: its bare-date ranks onto midnight days of `room`,
+    its first and last day, off the days a published census counts nought
+    (`_form_day_shut`) where the gap holds another day -- asked of its first
+    `_FORM_DAYS_ASKED` days, more than a year's weekdays and month days. Each
+    day is asked as the walk meets it and none is stored, and the walk of an
+    all-different gap passes each of its days at most twice. Raises nothing.
+    No I/O."""
+    first, last = room
+    closed = shut
+    open_day = False
+    for day in range(first, min(last, first + _FORM_DAYS_ASKED) + 1):
+        if not _form_day_shut(day, shut):
+            open_day = True
+            break
+    if not open_day:
+        closed = (frozenset(), frozenset())
+    if not apart:
+        for member in members:
+            moved[member] = _form_nearest_day(moved[member], room, closed) * 86400
+        return
+    days: "list[int]" = []
+    previous = first - 1
+    for member in members:
+        day = max(-((-moved[member]) // 86400), previous + 1, first)
+        while day <= last and (day in taken or _form_day_shut(day, closed)):
+            day = day + 1
+        days += [day]
+        previous = day
+    # Laid back from the gap's top where the run went past it.
+    ceiling = last
+    for place in range(len(days) - 1, -1, -1):
+        while ceiling >= first and (ceiling in taken or _form_day_shut(ceiling, closed)):
+            ceiling = ceiling - 1
+        if days[place] > ceiling:
+            days[place] = ceiling
+        ceiling = days[place] - 1
+    for place in range(len(members)):
+        if first <= days[place] <= last:
+            taken |= {days[place]}
+            moved[members[place]] = days[place] * 86400
+        else:
+            # -- 3b.7 repair (skeptic 1, item 2): a bare date the gap's free
+            # days cannot hold (`_clocked_form_flags` gave it one past them)
+            # stands on its nearest midnight, a day another value holds.
+            moved[members[place]] = (
+                _form_nearest_day(moved[members[place]], room, closed) * 86400
+            )
+
+
+def _form_nearest_day(
+    instant: int,
+    room: "tuple[int, int]",
+    closed: "tuple[frozenset[int], frozenset[int]]",
+) -> int:
+    """The day of `room` a bare date at ``instant`` stands on where it need
+    not stand apart (`_form_days`): the first midnight at or after the
+    instant, else the last before, walked up off the days a census counts
+    nought on, else down, else that day. Raises nothing. No I/O."""
+    first, last = room
+    start = max(first, min(-((-instant) // 86400), last))
+    day = start
+    while day <= last and _form_day_shut(day, closed):
+        day = day + 1
+    if day > last:
+        day = start
+        while day >= first and _form_day_shut(day, closed):
+            day = day - 1
+        if day < first:
+            day = start
+    return day
+
+
+# How many of a gap's first days `_form_days` asks for one no census counts
+# nought on: more than a year's weekdays and days of the month.
+_FORM_DAYS_ASKED = 400
+
+
 def _form_allocation(
-    facts: contract.DatetimeFacts, layout: "_DateLayout"
+    facts: contract.DatetimeFacts,
+    layout: "_DateLayout",
+    distinct: "int | None" = None,
 ) -> "list[bool]":
     """Which ranks a column mixing bare dates and moments writes as bare dates.
 
@@ -38428,7 +39512,7 @@ def _form_allocation(
     if facts.parser_family != contract.FORMAT_ISO_MIXED or parsed == 0:
         return whole
     if not facts.all_at_midnight:
-        return whole
+        return _clocked_forms(facts, layout, distinct)
     published = _instant_offsets(facts, layout)
     dates = facts.resolution_mix["iso-date"]
     moments = facts.resolution_mix["iso-datetime"]
@@ -38461,6 +39545,168 @@ def _form_allocation(
             credit_dates = credit_dates - total
         else:
             credit_moments = credit_moments - total
+    return whole
+
+
+def _clocked_forms(
+    facts: contract.DatetimeFacts,
+    layout: "_DateLayout",
+    distinct: "int | None",
+) -> "list[bool]":
+    """Which ranks of a CLOCKED column of the joint member are bare dates
+    (landing 3b.7, plan P4-D378, the design's decision D4; residual R-P4-12
+    closed there): before it every such column wrote none, each bare date
+    of the source coming back a `00:00:00` stamp -- 0 of 88 to 2,000 -- and
+    `resolution_mix` was held only as a reasoned narrowing.
+
+    `resolution_mix`'s count of `iso-date` is spent: first on the ranks the
+    layout fixes at a midnight of a rank written with no offset, in rank
+    order, while it lasts (the skeptic's major 2: three published values of
+    `isomix_alldiff_b` are bare dates); every other fixed rank is a moment.
+    Then over the other ranks by the smooth rotation of the all-midnight
+    column (`_form_allocation`), CAPPED PER GAP at the days whose midnight
+    lies in the gap and no fixed rank holds, where the column's values are
+    all different, a gap at its cap passing its turn to the next rank and
+    the credit carried -- the rotation alone gave one gap of
+    `isomix_alldiff_b` 30 dates for 27 such days, and no matching can
+    place more dates than a gap has days. What the free days still leave
+    over goes to the first ranks whose gap holds any midnight, under the
+    same cap at hour 0 (the repair's item 2), to stand on a day another
+    value holds. Never more ranks than the count.
+    Raises nothing. No I/O of any kind.
+    """
+    mix = facts.resolution_mix
+    dates = mix["iso-date"] if "iso-date" in mix else 0
+    moments = mix["iso-datetime"] if "iso-datetime" in mix else 0
+    if dates <= 0 or facts.resolution != "datetime":
+        return [False for _rank in range(layout.parsed)]
+    # THE BODY HOLDS NO MORE BARE DATES THAN THE HOUR CENSUS COUNTS AT HOUR 0:
+    # a bare date counts at its midnight and never moves off it, so a body
+    # given more than hour 0's group can never meet the census -- 100 dates
+    # beside 300 noon stamps published hour 0 at 94, and the rotation put 96
+    # in the body.
+    cap: "tuple[int, int, int] | None" = None
+    if facts.hour_census and layout.low is not None and layout.high is not None:
+        for first, last, count in facts.hour_census:
+            if first <= 0 <= last:
+                cap = (layout.low.rows, layout.parsed - 1 - layout.high.rows, count)
+    return _clocked_form_flags(
+        (list(layout.lows), list(layout.highs)), dates, moments,
+        distinct is not None and distinct >= layout.parsed, cap,
+    )
+
+
+def _clocked_form_flags(
+    gaps: "tuple[list[int], list[int]]",
+    dates: int,
+    moments: int,
+    apart: bool,
+    cap: "tuple[int, int, int] | None" = None,
+) -> "list[bool]":
+    """`_clocked_forms` on plain numbers: each rank's gap in seconds of the
+    clock a bare date is written on, the published counts of the two forms,
+    whether the column's values are all different, and the body's first and
+    last rank with the most bare dates it may hold (hour 0's group's count),
+    where an hour census stands. Raises nothing. No I/O of any kind."""
+    lows, highs = gaps
+    parsed = len(lows)
+    whole = [False for _rank in range(parsed)]
+    settled = [False for _rank in range(parsed)]
+    held: "set[int]" = set()
+    in_body = 0
+    for rank in range(parsed):
+        if lows[rank] != highs[rank]:
+            continue
+        settled[rank] = True
+        if lows[rank] % 86400 == 0:
+            held |= {lows[rank] // 86400}
+            if dates > 0:
+                whole[rank] = True
+                dates = dates - 1
+                if cap is not None and cap[0] <= rank <= cap[1]:
+                    in_body = in_body + 1
+                continue
+        moments = max(0, moments - 1)
+    room: "dict[tuple[int, int], int]" = {}
+    for rank in range(parsed):
+        if settled[rank]:
+            continue
+        spot = (lows[rank], highs[rank])
+        if spot in room:
+            continue
+        first, last = _midnight_room(spot[0], spot[1])
+        days = max(0, last - first + 1)
+        if apart:
+            for day in held:
+                if first <= day <= last:
+                    days = days - 1
+        elif days > 0:
+            # Not all different: a gap holding a midnight takes as many as
+            # the rotation gives it, sharing days; one holding none, none --
+            # a bare date there would be written on a day outside its gap.
+            days = parsed
+        room[spot] = max(days, 0)
+    total = dates + moments
+    credit_dates = 0
+    credit_moments = 0
+    left = dates
+    for rank in range(parsed):
+        if settled[rank] or total <= 0:
+            continue
+        credit_dates = credit_dates + dates
+        credit_moments = credit_moments + moments
+        spot = (lows[rank], highs[rank])
+        body = cap is not None and cap[0] <= rank <= cap[1]
+        open_body = cap is None or not body or in_body < cap[2]
+        if credit_dates >= credit_moments and room[spot] > 0 and left > 0 and open_body:
+            whole[rank] = True
+            room[spot] = room[spot] - 1
+            left = left - 1
+            credit_dates = credit_dates - total
+            if body:
+                in_body = in_body + 1
+        else:
+            credit_moments = credit_moments - total
+    # THE CREDIT LEFT AT THE END, where a gap at its cap or a stratum holding
+    # no midnight passed a turn the ranks after it could not take back (1,503
+    # of 1,505 at 10,000 admissions): the first ranks with room, in rank
+    # order, while it lasts.
+    for rank in range(parsed):
+        if left <= 0:
+            break
+        spot = (lows[rank], highs[rank])
+        body = cap is not None and cap[0] <= rank <= cap[1]
+        if settled[rank] or whole[rank] or room[spot] <= 0:
+            continue
+        if body and cap is not None and in_body >= cap[2]:
+            continue
+        whole[rank] = True
+        room[spot] = room[spot] - 1
+        left = left - 1
+        if body:
+            in_body = in_body + 1
+    # -- 3b.7 repair (skeptic 1, item 2): A BARE DATE THE FREE DAYS CANNOT
+    # PLACE STAYS A BARE DATE, on its gap's nearest midnight even where that
+    # day already holds one (the design's section 5): written as a moment it
+    # took a real offset key, so `utc_offsets`, `n_at_midnight` and
+    # `resolution_mix` were missed (`dense_two_off` at 10,000 rows: 1,998 of
+    # 2,000 placed, `offsets.(none)` 1,998 for 2,000) and only the forms were
+    # named. Now only the count of different values falls short, and it is
+    # said (`_joint_count_remarks`). The first ranks whose gap holds any
+    # midnight, in rank order, under the body's cap at hour 0.
+    for rank in range(parsed):
+        if left <= 0:
+            break
+        if settled[rank] or whole[rank]:
+            continue
+        first, last = _midnight_room(lows[rank], highs[rank])
+        body = cap is not None and cap[0] <= rank <= cap[1]
+        if first > last or (body and cap is not None and in_body >= cap[2]):
+            continue
+        whole[rank] = True
+        left = left - 1
+        if body:
+            in_body = in_body + 1
     return whole
 
 
@@ -54141,6 +55387,10 @@ def generate(profile: contract.Profile, seed: int) -> Twin:
         )
         remarked = remarked + list(each.remarks)
         remarked = remarked + spread
+        # -- 3b.7 repair (skeptic 1, item 1): an all-different joint
+        # column's shortfall, said (`_joint_count_remarks`).
+        joint = _joint_count_remarks(column, counted[2])
+        remarked = remarked + joint
         remarked = remarked + _held_back_absence_remarks(column, profile)
         outcomes += [
             ColumnOutcome(
@@ -54158,7 +55408,7 @@ def generate(profile: contract.Profile, seed: int) -> Twin:
                 placement_words=each.placement_words,
                 deviations=tuple(notes),
                 approximations=tuple(approximated_here),
-                remarks=each.remarks + tuple(spread),
+                remarks=each.remarks + tuple(spread) + tuple(joint),
             )
         ]
     # WHERE THE ROWS STAND (plan P4-D86): the order the real table was
@@ -55703,19 +56953,15 @@ def _mix_notes(
 ) -> "list[Deviation]":
     """Name the form census a column read under the joint ISO reading loses.
 
-    `resolution_mix` is REPORT-ONLY and the plan says why: the twin
-    writes every parsed cell of such a column at the column's finest
-    recorded precision, exactly as the ratified rule writes every
-    column of dates today, because a cell spelled as a whole date
-    cannot carry an interior value of a column published at the
-    second. So the census is recorded and not reproduced -- and this is
-    where the report says so, per column, every run (plan P4-D4.3).
+    Since landing 3b.7 (plan P4-D378) the twin writes the published count
+    of bare dates on a clocked column too (method G7.3k) and the census is
+    held exactly; this line names the twin whose count still falls short --
+    a gap holding too few days for its bare dates -- and is said wherever
+    the recount differs (plan P4-D4.3's line, kept for that case).
 
     IT IS RECOUNTED RATHER THAN PREDICTED, like every other count in
-    this part of the report. The rule above says the twin writes no
-    whole dates at all, and a run that finds otherwise has found a
-    defect in itself; recounting is what lets the line say which it
-    was.
+    this part of the report; recounting is what lets the line say how far
+    the twin fell short.
 
     Only the joint reading reaches here. On a column read under one
     format the census restates that format's own name beside the parsed
@@ -55788,6 +57034,17 @@ def _mix_reason(facts: contract.DatetimeFacts) -> str:
             f"{head} Every value of the real column stood at midnight, and "
             "every value of the twin does too, so code that reads them as "
             "dates reads the same days."
+        )
+    if _ordinal_space(facts) == "datetime":
+        # -- 3b.7 (P4-D378): the form step writes the bare dates; where it
+        # falls short, the gaps held too few days for them.
+        return (
+            "The real column mixed the two ways of writing a date, and the "
+            "twin could not stand every whole date on a day of its own inside "
+            "the stretch it was drawn in, so it writes the rest with a time "
+            "of day: code that reads these cells as text -- taking the first "
+            "ten characters, or testing how long a cell is -- can behave "
+            "differently here than on the real table."
         )
     return (
         f"{head} Code that reads them as dates can differ too: a whole date "
