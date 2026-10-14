@@ -15254,9 +15254,22 @@ def _shortest_figures(value: float) -> int:
     counted. Guarantees: a fixed function of the value; raises nothing;
     no I/O.
     """
-    mantissa = repr(abs(value)).partition("e")[0]
-    figures = mantissa.replace(".", "").lstrip("0").rstrip("0")
-    return len(figures)
+    figures = 0
+    noughts = 0
+    started = False
+    for character in repr(abs(value)):
+        if character == "e":
+            break
+        if character < "0" or character > "9":
+            continue
+        if character == "0":
+            if started:
+                noughts = noughts + 1
+            continue
+        started = True
+        figures = figures + noughts + 1
+        noughts = 0
+    return figures
 
 
 def _wears_figures_past_binary64(
