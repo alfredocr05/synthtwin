@@ -295,10 +295,10 @@ cannot get worse unseen.
   tail rebuilt on at least 15 days), each a strict xfail naming its
   cause; the workbook date system moves the rules only where a column's
   first value is the system's first day, not built. A date whose other
-  spelling is declared missing, alone in a tail's stratum, keeps that
-  spelling on its tail ranks and misses presence, holes, the low tail
-  and the ladder, each said by the twin's report (older than lane D4;
-  P4-D369's integration paragraph; its owner to be named).
+  spelling is declared missing, alone in a tail's stratum, now trades
+  that spelling (step 8; P4-D369's integration paragraph): the 30 of 90
+  battery twins that missed presence, holes, the tail and the ladder
+  miss nothing.
   A clock column's cells of the other hour width on
   an absent place nothing present stands on are written in the column's
   width, owed to lane C2 (P4-D373, strict xfail), as are route 1's 198

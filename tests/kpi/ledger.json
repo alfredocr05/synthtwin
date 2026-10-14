@@ -6743,7 +6743,7 @@
    "headline": false,
    "name": "Dates that stand out come back at their exact counts",
    "status": "GREEN",
-   "rule": "the thirty-eight pinned nodes pass: H1 to H4, the rule, HD4 by brute force, the scope, file 19 red on its mutants, the oracle on whole columns, the producer always loading, the report, NF71, the 10th on business days, the work to 1,000,000 rows, lane D3's limits lifted, step 7 under the rulings of 2026-10-13 with its tie, sentences and oracle, step 5's count, the holes, each part's ranks, and the Codex review's items (G7.3j step 8, HD3, V5-D1's growth)",
+   "rule": "the thirty-nine pinned nodes pass: H1 to H4, the rule, HD4 by brute force, the scope, file 19 red on its mutants, the oracle on whole columns, the producer always loading, the report, NF71, the 10th on business days, the work to 1,000,000 rows, lane D3's limits lifted, step 7 under the rulings of 2026-10-13 with its tie, sentences and oracle, step 5's count, the holes, each part's ranks, and the Codex review's items (G7.3j step 8, HD3, V5-D1's growth), and a tail date alone in its stratum (I3b1)",
    "rule_kind": "exact",
    "expected": {
     "pinned_nodes_failing": 0
@@ -6787,6 +6787,7 @@
     "tests/test_stage3b_heavy_dates.py::test_census_lines_grow_with_the_list",
     "tests/test_stage3b_heavy_dates.py::test_trades_are_the_oracle_s",
     "tests/test_stage3b_heavy_dates.py::test_trades_read_dates_not_ranks",
+    "tests/test_stage3b_heavy_dates.py::test_a_tail_date_alone_in_its_stratum_keeps_its_rows_through_the_spelling",
     "tests/test_stage3b_day_of_month.py::test_quarter_ends_at_ten_thousand_rows_meet_every_check",
     "tests/test_stage3b_day_of_month.py::test_one_month_a_year_at_ten_thousand_rows_meets_every_check"
    ],
@@ -6795,7 +6796,7 @@
    "pin_strength": "NONE",
    "measured_on": "tests/test_stage3b_heavy_dates.py and two joint-fix tests of tests/test_stage3b_day_of_month.py",
    "evidence": "Measured on 6620a31: the thirty-eight nodes and fifty-six cases pass. The gate's battery lists billing 17 dates and 211 rows, the clinic 25 and 295, the cycle 25 and 831, the visit 22 and 836 at 1,000 rows, and 47, 30, 103, 27 and 24 dates at 10,000; admissions none.",
-   "nodes_min_collected": 56,
+   "nodes_min_collected": 57,
    "value_at": {
     "commit": "6620a31",
     "date": "2026-10-13",

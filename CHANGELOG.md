@@ -139,9 +139,10 @@ one unread text no longer withdraw a list of 57 dates; and V5-D1 prints
 refused date in one step: its work grows with the rows, not their square. Merged on the integration branch, the count is held
 exactly where lane R2c's rule holds it, counted columns step off their
 placeholder days before the list is judged, and lane D3's spelling
-repair never offers a listed date; a date whose other spelling is
-declared missing, alone in a tail, still keeps that spelling there
-(stated, older than this landing).
+repair never offers a listed date. After the merge's Codex review a
+tail date alone in its stratum whose other spelling is declared missing
+trades that spelling too (step 8), where since before this landing its
+rows had been written in it and read back as no value.
 
 ### Partial dates are read at their own precision, and a column mostly of dates is asked (2026-10-09)
 
