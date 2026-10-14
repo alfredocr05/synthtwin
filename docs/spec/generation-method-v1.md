@@ -12133,7 +12133,21 @@ for.
    durations beside notes wrote `words.mean` 1.135 against a window of
    1.105 to 1.13; and its verifier: 100,000 durations beside `note N
    done` wrote 11,234 words over, slots planned one word taking
-   three-word partners in the whole window). The words any slot's
+   three-word partners in the whole window). Before a slot keeps an
+   answer of other words, or none, a parent is FREED: the family's last
+   parent of the slot's planned length and words that holds no letter,
+   wrote a made-up spelling in no form and no clock, gave no partner,
+   carries no published end and no truth value and keeps the folded
+   level under the long-tail line is re-made with a letter at its own
+   length and words, by its own class and band, and the slot takes its
+   case flip, the earlier answer handed back (the verifier's second
+   pass: a family's letter asks go to its earliest parents whatever
+   their shape, so durations beside `ok N` and `call back N`, 800 rows,
+   had nineteen slots of eight characters and three words take one-word
+   partners and wrote 27 words short, `words.mean` named; now none). A
+   parent asked a form is not freed, and no slot writes a made-up
+   spelling in place of other words, which would miss the folded count.
+   The words any slot's
    partner still writes off its plan are PAID BACK once the walk is done,
    as its characters are below: groups before the slots that wrote a
    made-up spelling in no form, are no parent of a partner and carry no

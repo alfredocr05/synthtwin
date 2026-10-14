@@ -46718,14 +46718,19 @@ def _partner_of(
     review of lane L1, item 3). None asks nothing of the words, as before.
 
     ``held``, where given, is a narrower window asked before the value's
-    own, inside each of those: the planned words in the held window, then
-    in the whole one, then any words in each (the L1 Codex repair). A
-    slot that took a partner of its planned length but other words wrote
-    every one of its rows a word or two off the plan, which nothing after
-    it paid back, while a partner of its planned words but another length
-    is paid back character for character (`_paid_back`): durations and
-    `N min` beside three-word notes, 1,200 rows, came back 42 words short.
-    None asks the value's own window alone, as before.
+    own, inside each of those, in this order: the planned words in the
+    held window, any words in the held window, the planned words in the
+    whole window, any words in the whole window (the L1 Codex repair).
+    LENGTH BEFORE WORDS, because words can be paid back and characters
+    often cannot: words publish no middle, so `_words_paid_back` may move
+    a group in no form a word either way, while `_paid_back` moves one
+    only from above the published middle length. Asking the planned
+    words in the whole window before any words in the held one left 46
+    characters that nothing could pay back, on durations and `N min`
+    beside three-word notes. Where the answer has other words, the
+    caller frees a parent of the slot's planned length and words first
+    if one can be (`_parent_freed`). None asks the value's own window
+    alone, as before.
 
     ``parents`` and ``spent``, where a caller hands two dicts it keeps
     for one walk, make the search cost what it finds (lane L1 leftover,
@@ -47324,9 +47329,9 @@ def _words_paid_back(
     A PARTNER HAS ITS PARENT'S WORDS (the L1 Codex repair, item 3). A
     slot asks a parent of its planned length first and of its planned
     words first within that (`_partner_of`); where no parent of that
-    length has those words, the slot's partner writes each of its rows a
-    word or more off the plan, and nothing after the slots can pay that
-    back. Durations and `N min` beside three-word notes, 1,200 rows at a
+    length has those words and none can be freed (`_parent_freed`), the
+    slot's partner writes each of its rows a word or more off the plan,
+    and nothing after the slots can pay that back. Durations and `N min` beside three-word notes, 1,200 rows at a
     floor of eleven: slots planned at eight characters and three words
     found only one-word parents of eight characters, and `words.mean`
     came back 1.44 against a published 1.475.
@@ -47400,6 +47405,208 @@ def _words_paid_back(
         rows_at[wanted] = rows_at[wanted] + groups[place]
         over = over + step * groups[place]
     return over
+
+
+def _parent_freed(
+    index: int,
+    partner: "str | None",
+    walk: "tuple[list[str], list[str], list[int], int, int, list[tuple[int, int | None]]]",
+    planned: "tuple[list[int], list[int], list[int], list[int]]",
+    kept: "tuple[dict[int, bool], dict[int, int], tuple[int, int], dict[int, str]]",
+    making: "tuple[dict[str, list[int]], dict[str, int], tuple[str, ...], dict[str, int]]",
+    found: "tuple[dict[tuple[str, bool, int | None], list[int]], dict[tuple[int, int, int | None], bool]]",
+    freeing: "tuple[dict[tuple[str, int, int], list[int]], dict[str, int], dict[tuple[int, int | None], bool]]",
+) -> "str | None":
+    """A partner of the slot's planned length and words, by freeing a parent.
+
+    A SLOT THAT TAKES A PARTNER OF OTHER WORDS writes every one of its
+    rows a word or more off the plan, and `_words_paid_back` covers only
+    what groups in no form can make up (Codex's review of lane L1, its
+    second verifier, item 3). Durations `HH:MM:SS` beside notes `ok N`
+    and `call back N`, 800 rows: nineteen slots planned at eight
+    characters and three words found no parent answering in their
+    window, took one-word partners, and the payback paid 11 of their 38
+    words; `words.mean` was named where 45191fa held it. Parents of those
+    words and that length were there -- `!! !! !!` -- holding no letter,
+    since a family's letter asks go to its earliest parents whatever
+    their shape (`_letter_asks`), so their only partners were edge-spaced
+    copies a character too long.
+
+    So, before the slot accepts the walk's answer of other words (or
+    none), the family's LAST parent of the slot's planned length and
+    words that holds no letter, wrote a made-up spelling in no form and
+    no clock, gave no partner, carries no published end and no truth
+    value, and keeps the folded level under the long-tail line, is
+    re-made with a letter at its own length and words (`_made_up_cell`,
+    its own class and band) -- freed, as `_barred_kept` frees a family's
+    last barred parents -- and the slot takes its case flip. Nothing the
+    column publishes moves: the parent's class, band, length and words
+    are its own, and neither spelling wears a published form or a clock.
+    A parent asked a form is never freed, since that would miss the
+    form's count. Where no parent can be freed the walk's answer stands
+    and `_words_paid_back` makes up what it can; a slot is never written a
+    made-up spelling instead, which misses the folded count the column
+    publishes exactly (measured on the second verifier's 32 twins: 22
+    missed `distinct.n_distinct_folded`).
+
+    ``walk`` is the spellings, families, group sizes, the folded count,
+    the long-tail line and the length windows; ``planned`` the planned
+    lengths, words, classes and bands; ``kept`` the groups in no form,
+    ``carried``, the carriers and the truth values; ``making`` the
+    walk's cursors, its ``used``, the hole spellings and the published
+    forms; ``found`` the walk's parent lists and spent pairs
+    (`_partner_indexed`), which a freed parent is moved within so the
+    indexed walk still gives the plain walk's answer (`_parent_lettered`);
+    ``freeing`` this function's own, kept across the column's slots and
+    filled on the first call: the parents that may be freed by family,
+    length and words, each parent's folded identity, and the windows the
+    walk asks. Guarantees: returns None, having changed nothing but the
+    cursors, ``used`` and its own lists, or returns the freed parent's
+    partner with ``spellings``, ``carried`` and the walk's lists updated
+    too -- the slot's earlier answer handed back to its parent. Raises
+    nothing of its own. No I/O.
+    """
+    spellings = walk[0]
+    families = walk[1]
+    sizes = walk[2]
+    folded = walk[3]
+    line = walk[4]
+    lengths = planned[0]
+    counts = planned[1]
+    carried = kept[1]
+    published = making[3]
+    lists = freeing[0]
+    identity = freeing[1]
+    if not identity:
+        # THE PARENTS THAT MAY BE FREED, by family, length and words,
+        # taken once every parent is written; each parent's folded
+        # identity, so the walk's answer can be handed back; and the
+        # windows the walk asks, which a freed parent is open in again.
+        for place in range(len(lengths)):
+            freeing[2][(lengths[place], lengths[place])] = True
+            freeing[2][walk[5][place]] = True
+        for place in range(folded):
+            identity[parsing.folded(spellings[place])] = place
+            if place not in kept[0] or place in kept[3]:
+                continue
+            if place == kept[2][0] or place == kept[2][1]:
+                continue
+            text = spellings[place]
+            lettered = False
+            for character in text:
+                if character in _LETTERS:
+                    lettered = True
+                    break
+            if lettered:
+                continue
+            if parsing.census_form(text, published) in published or _clock_key(text) is not None:
+                continue
+            key = (families[place], len(text), parsing.token_count(text))
+            if key not in lists:
+                lists[key] = []
+            lists[key] += [place]
+    key = (families[index], lengths[index], counts[index])
+    if key not in lists:
+        return None
+    places = lists[key]
+    step = len(places) - 1
+    while step >= 0:
+        place = places[step]
+        if place in carried:
+            # A PARENT THAT GAVE A PARTNER STAYS ONE: it leaves the list.
+            del places[step]
+            step = step - 1
+            continue
+        if line >= 1 and sizes[place] + sizes[index] >= line:
+            step = step - 1
+            continue
+        old = spellings[place]
+        new = _made_up_cell(
+            _CLASSES[planned[2][place]], _BANDS[planned[3][place]], len(old),
+            parsing.token_count(old), True, making[0], making[1], "",
+            making[2], False,
+        )
+        del places[step]
+        step = step - 1
+        if new is None or len(new) != len(old):
+            continue
+        if parsing.token_count(new) != parsing.token_count(old):
+            continue
+        if parsing.census_form(new, published) in published or _clock_key(new) is not None:
+            continue
+        spellings[place] = new
+        flip = _partner_from(
+            place, index, spellings, making[1], lengths[index], lengths[index],
+            None, making[2], None, False,
+        )
+        if flip is None:
+            spellings[place] = old
+            continue
+        before = -1
+        if partner is not None and parsing.folded(partner) in identity:
+            before = identity[parsing.folded(partner)]
+        if before in carried:
+            # THE WALK'S ANSWER IS HANDED BACK TO ITS PARENT.
+            left = carried[before] - sizes[index]
+            if left == sizes[before]:
+                del carried[before]
+            else:
+                carried[before] = left
+        carried[place] = sizes[place] + sizes[index]
+        del identity[parsing.folded(old)]
+        identity[parsing.folded(new)] = place
+        _parent_lettered(found[0], found[1], place, families[place], new, freeing[2])
+        return flip
+    return None
+
+
+def _parent_lettered(
+    parents: "dict[tuple[str, bool, int | None], list[int]]",
+    spent: "dict[tuple[int, int, int | None], bool]",
+    place: int,
+    family: str,
+    spelling: str,
+    reaches: "dict[tuple[int, int | None], bool]",
+) -> None:
+    """Move a freed parent to the lettered lists of `_partner_indexed`.
+
+    `_parent_freed` re-makes a parent holding no letter as one holding
+    one, so the indexed walk keeps it where the plain walk now visits it:
+    out of each list of its family's unlettered parents and into the
+    lettered list its length and words admit, in its cyclic place; and
+    every window of ``reaches`` it was found spent in is open again,
+    since its case flips are new.
+    Guarantees: changes ``parents`` and ``spent`` alone. Raises nothing.
+    No I/O.
+    """
+    counted = f"{family}\n{parsing.token_count(spelling)}"
+    width = len(parsing.trimmed(spelling))
+    whole = (family, True, None)
+    if parents and whole not in parents:
+        parents[whole] = []
+    for key in parents:
+        if key[0] != family and key[0] != counted:
+            continue
+        holding = parents[key]
+        low = 0
+        high = len(holding)
+        while low < high:
+            middle = (low + high) // 2
+            if holding[middle] < place:
+                low = middle + 1
+            else:
+                high = middle
+        there = low < len(holding) and holding[low] == place
+        if not key[1]:
+            if there:
+                del holding[low]
+            continue
+        if there or (key[2] is not None and width > key[2]):
+            continue
+        holding[low:low] = [place]
+    for pair in reaches:
+        if (place, pair[0], pair[1]) in spent:
+            del spent[(place, pair[0], pair[1])]
 
 
 def _letter_asks(families: "list[str]", folded: int) -> "list[bool]":
@@ -47791,6 +47998,7 @@ def _text_cells(
     parent_lists: "dict[tuple[str, bool, int | None], list[int]]" = {}
     spent: "dict[tuple[int, int, int | None], bool]" = {}
     sized = list(groups)
+    freeing: "tuple[dict[tuple[str, int, int], list[int]], dict[str, int], dict[tuple[int, int | None], bool]]" = ({}, {}, {})
     # THE SLOTS' PARTNERS' CHARACTERS OVER THEIR PLAN, and the groups
     # written in no form that may pay them back (`_paid_back`, lane L1
     # leftover), kept only where parents are barred; and their WORDS off
@@ -47822,19 +48030,23 @@ def _text_cells(
             # the plan did not lay out -- measured, the published average
             # of 8.0258 came back 8.0447 when any length was taken.
             #
-            # AND ITS PLANNED WORDS BEFORE ANY LENGTH (Codex's review of
+            # AND ITS PLANNED WORDS FIRST IN EACH WINDOW (Codex's review of
             # lane L1, item 3, and its repair). A partner has its parent's
             # words, and a slot that took a partner of other words moved
-            # `words.mean` as surely, with nothing after it to pay that
-            # back: 400 durations and notes wrote 1.135 against a window
-            # of 1.105 to 1.13. So, wherever the long-tail line is kept,
-            # a parent of the slot's planned words is asked at its planned
-            # length and then in its whole window -- the characters that
-            # costs are paid back by `_paid_back` -- and only then a parent
-            # of any words, in the same two windows (`_partner_of`).
-            # MEASURED: 100,000 durations beside `note N done` wrote 11,234
-            # words over, every one from slots planned at one word that
-            # took three-word partners in the whole window.
+            # `words.mean`: 400 durations and notes wrote 1.135 against a
+            # window of 1.105 to 1.13. So, wherever the long-tail line is
+            # kept, the slot asks a parent of its planned words at its
+            # planned length, then one of any words there, then one of its
+            # planned words in its whole window, then one of any words
+            # there (`_partner_of`): length before words, since asking the
+            # planned words in the whole window first left 46 characters
+            # nothing could pay back, and words can be paid back
+            # (`_words_paid_back`). MEASURED: 100,000 durations beside
+            # `note N done` wrote 11,234 words over while the whole window
+            # asked no words, every one from slots planned at one word that
+            # took three-word partners there. An answer of other words is
+            # kept only where no parent of the slot's planned length and
+            # words can be freed (`_parent_freed`, below).
             held = (lengths[index], lengths[index])
             worded = counts[index]
         partner = _partner_of(
@@ -47842,6 +48054,25 @@ def _text_cells(
             sized, long_tail_line, carried, holes=holes,
             parents=parent_lists, spent=spent, words=worded, held=held,
         )
+        if worded is not None and (
+            partner is None or parsing.token_count(partner) != worded
+        ):
+            # A PARENT OF THE SLOT'S PLANNED LENGTH AND WORDS IS FREED
+            # before the slot takes other words or none (`_parent_freed`,
+            # the L1 Codex repair's second verifier, item 3).
+            freed = _parent_freed(
+                index, partner,
+                (spellings, families, sized, folded, long_tail_line, windows),
+                (lengths, counts, kinds, bands),
+                (plain, carried, carriers, truth),
+                (
+                    states, used, holes if holes else _hole_spellings(column),
+                    facts.shape_forms,
+                ),
+                (parent_lists, spent), freeing,
+            )
+            if freed is not None:
+                partner = freed
         if partner is not None:
             taken = _take(partner, used)
             _settle(owing, taken, groups[index])

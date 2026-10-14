@@ -888,9 +888,12 @@ def test_durations_beside_notes_keep_their_form_and_average_past_30000_rows(tmp_
 def test_durations_beside_notes_red_when_the_slots_extra_characters_are_not_paid_back(
     tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """MUTATION: `_paid_back` returns at once; the slots' edge-spaced partners one
-    character over their plan move `length.mean` out of its window."""
+    """MUTATION: `_paid_back` returns at once, and `_parent_freed` is withdrawn,
+    which now gives 601 of these slots a flip of their planned length; the
+    slots' edge-spaced partners, 595 characters over their plan, move
+    `length.mean` out of its window."""
     monkeypatch.setattr(generation, "_paid_back", lambda *args: args[5])
+    monkeypatch.setattr(generation, "_parent_freed", lambda *args: None)
     _twin_cells, _source, twin_missed = _round(tmp_path, _durations_beside_notes(50_000, 4242), 11)
     assert "length.mean" in twin_missed
 
@@ -1326,8 +1329,11 @@ def test_a_fold_slot_red_when_the_whole_window_asks_no_words(tmp_path: pathlib.P
 
 
 def test_a_fold_slot_red_when_its_words_are_not_paid_back(tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """MUTATION: `_words_paid_back` withdrawn; the slots' 42 words short stay."""
+    """MUTATION: `_words_paid_back` withdrawn, and `_parent_freed`, which now
+    frees parents of the slots' planned words on this table; the slots' 42
+    words short stay."""
     monkeypatch.setattr(generation, "_words_paid_back", lambda *args: args[5])
+    monkeypatch.setattr(generation, "_parent_freed", lambda *args: None)
     words_off, deviations, _missed_now = _words_written(tmp_path, "min3", 1200)
     assert words_off == -42 and "words.mean" in deviations
 
@@ -1338,3 +1344,181 @@ def test_a_fold_slot_keeps_its_words_at_100000_rows(tmp_path: pathlib.Path) -> N
     1.1979, named); 45191fa six. Now none over, no `words.mean` named."""
     words_off, deviations, _missed_now = _words_written(tmp_path, "done3", 100_000)
     assert words_off == 0 and "words.mean" not in deviations
+
+
+def _durations_beside_two_kinds_of_notes(seed: int, rows: int) -> "list[str]":
+    """The second verifier's `mix23`: durations `HH:MM:SS`, 15 % notes, half
+    `ok N` and half `call back N` over rows/25 numbers, three in ten notes
+    upper-cased."""
+    draw = random.Random(seed)
+    cells: "list[str]" = []
+    span = max(15, rows // 25)
+    for _row in range(rows):
+        if draw.random() < 0.15:
+            cell = f"ok {draw.randrange(span)}" if draw.random() < 0.5 else f"call back {draw.randrange(span)}"
+        else:
+            minute = draw.randrange(1440)
+            cell = f"{minute // 60:02d}:{minute % 60:02d}:{draw.randrange(60):02d}"
+        if draw.random() < 0.3 and any(character.isalpha() for character in cell):
+            cell = cell.upper()
+        cells += [cell]
+    return cells
+
+
+def _two_kinds_written(tmp_path: pathlib.Path, seed: int, rows: int, floor: int) -> "tuple[int, list[str], list[str]]":
+    """(twin words less source words, the report's deviations, the validator's misses)."""
+    cells = _durations_beside_two_kinds_of_notes(seed, rows)
+    _document, loaded = _described(tmp_path, cells, floor)
+    built = generation.generate(loaded, 0)
+    path = fixtures.write(tmp_path, "twin-0.csv", rendering.twin_csv(built))
+    written = sum(parsing.token_count(cell) for cell in built.columns[0] if cell is not None)
+    source = sum(parsing.token_count(cell) for cell in cells)
+    return written - source, sorted(deviation.fact for deviation in built.deviations), _missed(loaded, path)
+
+
+@pytest.mark.parametrize(("seed", "rows", "floor"), [(3, 800, 11), (99, 3000, 21)])
+def test_a_fold_slot_frees_a_parent_of_its_planned_words(tmp_path: pathlib.Path, seed: int, rows: int, floor: int) -> None:
+    """SECOND VERIFIER ITEM 3. Durations beside `ok N` and `call back N`: on
+    3c094fb slots planned at eight characters and three words found no
+    parent answering at their length, took one-word partners, and the
+    payback left 27 and 99 words short with `words.mean` named, where
+    45191fa wrote 4 over and named none. Parents of those words and that
+    length were there holding no letter; one is now freed, re-made with a
+    letter, and the slot takes its flip (`_parent_freed`). Nothing is
+    missed, where 45191fa missed the durations' form."""
+    words_off, deviations, missed = _two_kinds_written(tmp_path, seed, rows, floor)
+    assert words_off == 0
+    assert "words.mean" not in deviations
+    assert missed == []
+
+
+def test_a_fold_slot_red_when_no_parent_is_freed(tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """MUTATION: `_parent_freed` withdrawn, as on 3c094fb: 27 words short."""
+    monkeypatch.setattr(generation, "_parent_freed", lambda *args: None)
+    words_off, deviations, _missed_now = _two_kinds_written(tmp_path, 3, 800, 11)
+    assert words_off == -27 and "words.mean" in deviations
+
+
+def test_a_fold_slot_red_when_a_made_up_spelling_replaces_other_words(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """MUTATION: where no parent answers in the slot's planned words, a
+    made-up spelling of its planned length and words is written instead of
+    the walk's answer; the folded count the column publishes exactly is
+    missed."""
+    original = generation._partner_of
+
+    def wordful(*args: typing.Any, **named: typing.Any) -> "str | None":
+        found = original(*args, **named)
+        words = named.get("words")
+        if found is not None and words is not None and parsing.token_count(found) != words:
+            return None
+        return found
+
+    monkeypatch.setattr(generation, "_partner_of", wordful)
+    monkeypatch.setattr(generation, "_parent_freed", lambda *args: None)
+    _words_off, deviations, missed = _two_kinds_written(tmp_path, 3, 800, 11)
+    assert "distinct.n_distinct_folded" in missed and "n_distinct_folded" in deviations
+
+
+def test_the_indexed_partner_walk_answers_as_the_plain_walk_after_a_parent_is_freed() -> None:
+    """GATE CASE of `_parent_lettered`: a parent holding no letter re-made with
+    one at its own length and words, then moved in the indexed walk's lists,
+    gives every later slot the plain walk's answer."""
+    draw = random.Random(5)
+    freed_any = 0
+    for _case in range(60):
+        folded = draw.randrange(3, 10)
+        total = folded + draw.randrange(2, 10)
+        spellings = ["".join(draw.choice("a1 -") for _each in range(draw.randrange(1, 5))) for _each in range(folded)]
+        families = [draw.choice(["f", "g"]) for _each in range(total)]
+        sizes = [draw.randrange(1, 6) for _each in range(total)]
+        windows = [(1, 5)] * total
+        unlettered = [
+            place for place in range(folded)
+            if not any(character in "ab" for character in spellings[place]) and "1" in spellings[place]
+        ]
+        results: "list[list[str | None]]" = []
+        for indexed in (False, True):
+            used = {spelling: generation._WRITTEN for spelling in spellings}
+            carried: "dict[int, int]" = {}
+            written = list(spellings)
+            kept: "tuple[typing.Any, typing.Any]" = ({}, {}) if indexed else (None, None)
+            answers = []
+            for index in range(folded, total):
+                if index == folded + 1 and unlettered:
+                    place = unlettered[-1]
+                    written[place] = written[place].replace("1", "b", 1)
+                    if indexed:
+                        generation._parent_lettered(
+                            kept[0], kept[1], place, families[place], written[place], {(2, 2): True, (1, 5): True}
+                        )
+                held = (2, 2) if index % 3 else None
+                found = generation._partner_of(
+                    index, folded, written, families, used, windows, sizes, 8, carried,
+                    parents=kept[0], spent=kept[1], words=1 + index % 2, held=held,
+                )
+                if found is not None:
+                    used[found] = generation._WRITTEN
+                answers += [found]
+                written += [found or f"made{index}"]
+            results += [answers]
+        freed_any += 1 if unlettered else 0
+        assert results[0] == results[1]
+    assert freed_any >= 20
+
+
+def test_the_indexed_walk_red_when_a_freed_parent_is_left_in_its_lists(monkeypatch: pytest.MonkeyPatch) -> None:
+    """MUTATION: `_parent_lettered` moves nothing; the indexed walk then
+    answers a later slot differently from the plain walk."""
+    monkeypatch.setattr(generation, "_parent_lettered", lambda *args: None)
+    with pytest.raises(AssertionError):
+        test_the_indexed_partner_walk_answers_as_the_plain_walk_after_a_parent_is_freed()
+
+
+def _durations_beside_minutes_and_four_word_notes(seed: int, rows: int) -> "list[str]":
+    """The second verifier's `min2four`: durations `HH:MM:SS`, 12 % `note N
+    done today` and 28 % `N min`, three in ten upper-cased."""
+    draw = random.Random(seed)
+    cells: "list[str]" = []
+    span = max(15, rows // 25)
+    for _row in range(rows):
+        share = draw.random()
+        if share < 0.12:
+            cell = f"note {draw.randrange(span)} done today"
+        elif share < 0.4:
+            cell = f"{draw.randrange(90)} min"
+        else:
+            minute = draw.randrange(1440)
+            cell = f"{minute // 60:02d}:{minute % 60:02d}:{draw.randrange(60):02d}"
+        if draw.random() < 0.3 and any(character.isalpha() for character in cell):
+            cell = cell.upper()
+        cells += [cell]
+    return cells
+
+
+def _minutes_written(tmp_path: pathlib.Path) -> "tuple[int, list[str], list[str]]":
+    cells = _durations_beside_minutes_and_four_word_notes(3, 800)
+    _document, loaded = _described(tmp_path, cells, 11)
+    built = generation.generate(loaded, 0)
+    path = fixtures.write(tmp_path, "twin-0.csv", rendering.twin_csv(built))
+    written = sum(parsing.token_count(cell) for cell in built.columns[0] if cell is not None)
+    source = sum(parsing.token_count(cell) for cell in cells)
+    return written - source, sorted(deviation.fact for deviation in built.deviations), _missed(loaded, path)
+
+
+def test_the_words_no_freed_parent_covers_are_paid_back(tmp_path: pathlib.Path) -> None:
+    """What the freed parents leave is still paid back (`_words_paid_back`):
+    durations beside `N min` and `note N done today`, 800 rows, the slots
+    106 words short before the payback, none after, nothing missed."""
+    words_off, deviations, missed = _minutes_written(tmp_path)
+    assert words_off == 0 and "words.mean" not in deviations and missed == []
+
+
+def test_the_words_no_freed_parent_covers_red_when_not_paid_back(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """MUTATION: `_words_paid_back` withdrawn alone: 106 words short, named."""
+    monkeypatch.setattr(generation, "_words_paid_back", lambda *args: args[5])
+    words_off, deviations, _missed_now = _minutes_written(tmp_path)
+    assert words_off == -106 and "words.mean" in deviations
