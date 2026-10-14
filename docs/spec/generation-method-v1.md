@@ -7970,10 +7970,19 @@ tail rank at one steps off it by its tail's drawing unit inside its
 stratum, or by the written unit where the stratum is narrower than that;
 while fewer, the first unpinned tail rank off one takes the
 nearest midnight inside its stratum; each tail's ranks are then sorted.
+Where the count is withheld for its size, most of the column stands at
+midnight and the strata leave it short, each tail rank still off a
+written midnight -- pinned or not, a tie of tail ranks together, in rank
+order -- takes its own day's midnight where that stands strictly after
+the rank before it, else the next day's where that stands strictly
+before the rank after it, never on a hole's day: no rank meets another
+and the body is not moved (lane J2's skeptic, item 3; R4's `%.15g`
+column nine in ten at midnight, its ENDs derived off midnight, came back
+at 989 of the 990 owed).
 
 **Its frozen cases** are states of ranks and drawing units: the twentieth
 vectors file, `tests/reference/generation-branch-vectors-20.json`, holds
-forty -- SPREAD and PUT BACK paid back beside a weekday census, a
+forty-two -- SPREAD and PUT BACK paid back beside a weekday census, a
 payer that would change the count passed over, SPREAD by substitute, a
 payer standing on the
 unit a run joins passed over and a run asked as it stands (lane J2), the
@@ -7987,7 +7996,8 @@ there), KIN SHARES keeping the cells at midnight with hour 0 a kin group
 alone and beside hour 1, the exchange's three answers,
 PUT BACK once more after it, SUBSTITUTE, SPREAD, the tails keeping the count at midnight by their
 drawing unit and, in a stratum narrower than it, by the written unit, and
-taking a midnight where the count there is short, the tails making room at
+taking a midnight where the count there is short, every tail rank giving
+way to a count owed for its size, the tails making room at
 midnight for a rank of the body, never by a tail step raising the count
 and with SPREAD after them where the step left it short, KIN SHARES
 giving no kin group more of minute 0 than its ranks free to stand there,

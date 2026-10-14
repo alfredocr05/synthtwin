@@ -12112,12 +12112,15 @@ def clock_field_settled(walk, first, last, pinned, wanted, standing, anyday, kin
     return walk.days
 
 
-def clock_midnight_count_kept(counted, ordinals, pinned, first, last, step, away, lows, highs):
+def clock_midnight_count_kept(counted, ordinals, pinned, first, last, step, away, lows, highs, owed=False, hole_days=None):
     """G7.3h: the published count at midnight kept by the tails. While more
     ranks than it stand at a written midnight, the first unpinned tail rank
     at one steps ``away`` -- its drawing unit -- off it inside its stratum,
     or ``step`` -- the written unit -- where the stratum is narrower; while fewer, the first unpinned tail rank off one takes the nearest
-    midnight inside its stratum. Each tail's ranks are then sorted."""
+    midnight inside its stratum. Each tail's ranks are then sorted. ``owed``:
+    the count is withheld for its size and held before the passes (P4-D191);
+    on the side most of the column stands, short, every tail rank gives way
+    (``clock_owed_midnight``)."""
     parsed = len(ordinals)
     at = sum(1 for value in ordinals if written_at_midnight(value, 0, step))
     for rank in range(parsed):
@@ -12145,6 +12148,38 @@ def clock_midnight_count_kept(counted, ordinals, pinned, first, last, step, away
                 ordinals[rank] = found
                 at += 1
     sort_unpinned_runs(ordinals, [pinned[rank] or first <= rank <= last for rank in range(parsed)])
+    if owed and at < counted and 2 * counted > parsed:
+        clock_owed_midnight(counted, ordinals, first, last, step, set() if hole_days is None else hole_days)
+
+
+def clock_owed_midnight(counted, ordinals, first, last, step, hole_days):
+    """G7.3h, lane J2's skeptic item 3: a count at midnight withheld for its
+    size kept by every tail rank. In rank order, each tail rank off a written
+    midnight -- a tie of tail ranks together -- takes its own day's midnight
+    where that stands strictly after the rank before it, else the next day's
+    where that stands strictly before the rank after it, never on a day of
+    ``hole_days``, until the count held is reached. The body is not moved."""
+    parsed = len(ordinals)
+    at = sum(1 for value in ordinals if written_at_midnight(value, 0, step))
+    rank = 0
+    while rank < parsed and at < counted:
+        if first <= rank <= last or written_at_midnight(ordinals[rank], 0, step):
+            rank += 1
+            continue
+        end = rank
+        while end + 1 < parsed and ordinals[end + 1] == ordinals[rank]:
+            end += 1
+        day = ordinals[rank] // 86400
+        found = None
+        if rank == 0 or ordinals[rank - 1] < day * 86400:
+            found = day
+        if (found is None or found in hole_days) and end + 1 < parsed and (day + 1) * 86400 < ordinals[end + 1]:
+            found = day + 1
+        if found is not None and found not in hole_days and not rank < first <= end:
+            for place in range(rank, end + 1):
+                ordinals[place] = found * 86400
+            at += end - rank + 1
+        rank = end + 1
 
 
 
@@ -12345,6 +12380,7 @@ def clock_fields_settled(column, ordinals, parsed, whole, lows, highs, holes):
         clock_midnight_count_kept(
             counted, ordinals, ranks_the_tail_pins(column, parsed), first, last,
             written, max(written, tail_unit_of(column)), lows, highs,
+            column.get("n_at_midnight") is None, hole_days,
         )
     return ordinals
 
@@ -19430,6 +19466,29 @@ def field_midnight_narrow_case():
     }
 
 
+def field_midnight_owed_case():
+    m = HOUR_MONDAY
+    return {
+        "why": "The tails give way to a count at midnight withheld for its size (lane J2's "
+        "skeptic, item 3): five of nine ranks at a written midnight where seven are owed and no "
+        "stratum holds one; the pinned END, rank 0, takes its own day's midnight, and rank 7, "
+        "its own day's taken by the body's last rank, takes the next day's, before the END "
+        "after it; the count reached, the END at 09:00 and the body stay.",
+        "step": "midnight_count", "ordinals": [
+            hour_at(m - 3, 6, 44), hour_at(m - 2, 0, 0), hour_at(m - 1, 0, 0), hour_at(m, 0, 0),
+            hour_at(m + 1, 0, 0), hour_at(m + 1, 5, 0), hour_at(m + 4, 0, 0), hour_at(m + 4, 13, 0),
+            hour_at(m + 5, 9, 0),
+        ],
+        "pinned": [True, False, False, False, False, False, False, False, True], "body": [2, 6],
+        "counted": 7, "owed": True, "hole_days": [],
+        "written_unit": 60, "away": 60,
+        "lows": [hour_at(m - 3, 6, 44), hour_at(m - 2, 0, 0)] + [0] * 5
+        + [hour_at(m + 4, 10, 0), hour_at(m + 5, 9, 0)],
+        "highs": [hour_at(m - 3, 6, 44), hour_at(m - 2, 0, 0)] + [0] * 5
+        + [hour_at(m + 4, 20, 0), hour_at(m + 5, 9, 0)],
+    }
+
+
 def field_lattice_case(why, precision, minute_census, minute_heaps, second_census, second_heaps, texts, body):
     return {
         "why": why, "step": "lattice", "precision": precision,
@@ -19478,6 +19537,7 @@ CLOCK_FIELD_STEP_CASES = {
     "field_midnight_share": field_midnight_share_case,
     "field_midnight_spread": field_midnight_spread_case,
     "field_midnight_narrow": field_midnight_narrow_case,
+    "field_midnight_owed": field_midnight_owed_case,
     "field_midnight_room": field_midnight_room_case,
     "field_midnight_short": field_midnight_short_case,
     "field_whole_unit": field_whole_unit_case,
@@ -19540,7 +19600,8 @@ def clock_field_step_answer(case):
         first, last = case["body"]
         clock_midnight_count_kept(
             case["counted"], ordinals, case["pinned"], first, last, case["written_unit"],
-            case["away"], case["lows"], case["highs"],
+            case["away"], case["lows"], case["highs"], case.get("owed", False),
+            set(case.get("hole_days", [])),
         )
         return ordinals
     unit = case["field_unit"]

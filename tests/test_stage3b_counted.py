@@ -2392,43 +2392,44 @@ def test_c4_longer_counts_carrying_the_time_of_day_are_read_with_the_rest(tmp_pa
             assert moment is not None
             assert date_counts.written_for("excel-1900", moment, date_counts.MINUTE, shaped) == cell, (name, cell)
     assert (came["generate"], came["source"]) == (0, 0), came
-    # A CARRIED LIMIT OF LANDING 3b.4 (plan P4-D372), met at lane J2's merge of it beside this
-    # lane: the two columns nine in ten at midnight, one in a hundred off it, withhold their
-    # count at midnight for its size (990 of 1,000) and publish a heap at minute 0 holding the
-    # body's 969; the minute pass holds the body there, and the tails' ENDs stand where their
-    # distances put them, off midnight, so the twin writes 989. Measured on 707cf99 and 71ff1b0,
-    # lane T3 alone, with the same moments written as ISO text: 989 at seeds 0 to 2, every other
-    # fact held. Those two lines alone are missed.
+    # ONE COLUMN, ONE LINE: `midnight_repr_10`'s count at midnight, withheld for its size, is the
+    # measured limit the strict xfail below carries; nothing else is missed.
     report = (tmp_path / "declared" / "check-twin" / "table-twin-quality.txt").read_text(encoding="utf-8")
     lines = [line.strip() for line in report.split("\n")]
     missed = [line for line in lines if line.endswith(": MISSED")]
-    assert came["twin"] in (0, 3) and set(missed) <= {"midnight.withheld [datetime.n_at_midnight]: MISSED"}, missed
+    assert came["twin"] == 3 and set(missed) == {"midnight.withheld [datetime.n_at_midnight]: MISSED"}, missed
     named = {lines[place - 1] for place in range(1, len(lines)) if lines[place].endswith(": MISSED") and lines[place - 1].startswith("'")}
-    assert named <= {"'midnight_g15_10'", "'midnight_repr_10'"}, named
+    assert named == {"'midnight_repr_10'"}, named
+    # EVERY OTHER COLUMN GENERATES, AND ITS TWIN AND SOURCE BOTH PASS (lane J2's skeptic, item 3).
+    # `midnight_g15_10`, nine in ten at midnight, missed `midnight.withheld` at lane J2's merge of
+    # landing 3b.4 (989 of 1,000, its heap at minute 0 held and both tails' ENDs derived off
+    # midnight); the tails now give way to the count owed for its size
+    # (`generation._clock_owed_midnight`) and it holds 990.
+    kept = {name: columns[name] for name in columns if name != "midnight_repr_10"}
+    again = _trip_of(tmp_path / "kept", kept, {name: "excel-1900" for name in kept})
+    assert (again["generate"], again["twin"], again["source"]) == (0, 0, 0), again
 
 
 @pytest.mark.xfail(
     strict=True,
     reason=(
         "A carried limit of landing 3b.4 (plan P4-D372), measured by lane J2's repair (plan "
-        "P4-D391): the count at midnight withheld because 10 of 1,000 stand off one, the heap "
-        "on minute 0 held exactly, and both tails' ends drawn off their midnights leave the "
-        "twin 11 cells off a midnight (g15) and 17 (repr), on the line -- 989 and 983 at "
-        "midnight at seeds 0 to 2, on 71ff1b0 alone as on the merge."
+        "P4-D391): the count at midnight withheld because 10 of 1,000 stand off one and the heap "
+        "on minute 0 held exactly, so every tail cell is owed a midnight; the source's high tail "
+        "ties its 12 rows on 8 days, the twin's, drawn in minutes, holds 11 different values "
+        "there, and 3 stand off a midnight whose own day and the next are taken by the ranks "
+        "either side -- tying them would cost the count of different values. 987 at midnight "
+        "where 990 are owed, at seeds 0 to 2 written as ISO text and in this trip; 983 before "
+        "the tails gave way."
     ),
 )
 def test_c4_columns_mostly_at_midnight_keep_their_withheld_count(tmp_path: pathlib.Path) -> None:
-    """Lane J2's skeptic, item 3: the two columns nine in ten at midnight, written `%.15g` and
-    `repr`, generate, and their twin and source both pass. Measured on the pushed head 45191fa,
-    the same moments written as ISO text, where no minute fact is published: they passed only
-    because the twin wrote 9 of its 1,000 cells at midnight for the column's 990 at five seeds
-    of six (seeds 0 to 2 of each) -- the check of a count withheld
-    for its size reads either side -- so the head's 989 and 983 are the nearer twins, one heap
-    and two ends from the line."""
-    columns = {
-        f"midnight_{writer}_10": _time_carried_by_the_few("midnight", writer, 0.01)
-        for writer in ("g15", "repr")
-    }
+    """Lane J2's skeptic, item 3: the column nine in ten at midnight written `repr` generates,
+    and its twin and source both pass. Measured on the pushed head 45191fa, the same moments
+    written as ISO text, where no minute fact is published: it passed only because the twin
+    wrote 9 of its 1,000 cells at midnight for the column's 990 -- the check of a count withheld
+    for its size reads either side. Its `%.15g` sibling is met (the test above)."""
+    columns = {"midnight_repr_10": _time_carried_by_the_few("midnight", "repr", 0.01)}
     came = _trip_of(tmp_path / "declared", columns, {name: "excel-1900" for name in columns})
     assert (came["generate"], came["twin"], came["source"]) == (0, 0, 0), came
 

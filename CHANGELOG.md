@@ -28,8 +28,10 @@ off a column of counted dates' placeholder days. Three limits older than
 this change are measured and carried: beside a weekday census the hour
 pass leaves small bursty tables' count long (85 of 105 such twins before
 this change, 83 after); a column nine in ten at midnight with a heap at
-minute 0 writes 989 or 983 midnights where its count withheld for its
-size asks 990; and the unit-room rule withholds a noon census these twins
+minute 0 wrote 989 or 983 cells at midnight where its count withheld for its
+size asks 990 -- its tails now give way to that count, so one such
+column holds 990 and one whose source ties its high tail writes 987;
+and the unit-room rule withholds a noon census these twins
 now meet. **Stamps at a regular step whose different values crowd the
 lattice their minutes and seconds would pin** -- vital signs every five
 minutes, hourly observations, filling half of that lattice or more, a

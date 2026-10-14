@@ -29811,6 +29811,7 @@ def _clock_fields_settled(
         _clock_midnight_count_kept(
             counted, moved, _ranks_the_tail_pins(layout), body_low,
             body_high, written, max(written, layout.tail_unit), gap_lows, gap_highs,
+            facts.n_at_midnight is None, hole_days,
         )
     return moved, notes
 
@@ -30095,6 +30096,8 @@ def _clock_midnight_count_kept(
     away: int,
     gap_lows: "list[int]",
     gap_highs: "list[int]",
+    owed: bool = False,
+    hole_days: "set[int] | None" = None,
 ) -> None:
     """The published count at midnight kept by the tails (method G7.3h).
 
@@ -30110,7 +30113,11 @@ def _clock_midnight_count_kept(
     first unpinned tail rank off one takes the nearest midnight inside its
     stratum. The body is not moved. Each tail's ranks are then sorted.
     `pinned` names the ranks that never move, `step` is the written unit
-    and `away` the tails' drawing unit, never less than it.
+    and `away` the tails' drawing unit, never less than it. `owed` says
+    the count is withheld for its size and held before the passes
+    (plan P4-D191): where most of the column stands at midnight and the
+    strata leave the count short, every tail rank then gives way
+    (`_clock_owed_midnight`), onto none of `hole_days`.
     """
     parsed = len(moved)
     at = 0
@@ -30147,6 +30154,63 @@ def _clock_midnight_count_kept(
                 at = at + 1
     sorted_pins = [pinned[rank] or body_low <= rank <= body_high for rank in range(parsed)]
     _runs_sorted(moved, sorted_pins)
+    # -- THE TAILS GIVE WAY TO A COUNT OWED FOR ITS SIZE (lane J2's skeptic,
+    # item 3), on the side most of the column stands.
+    if owed and at < counted and 2 * counted > parsed:
+        _clock_owed_midnight(
+            counted, moved, body_low, body_high, step,
+            set() if hole_days is None else hole_days,
+        )
+
+
+def _clock_owed_midnight(
+    counted: int,
+    moved: "list[int]",
+    body_low: int,
+    body_high: int,
+    step: int,
+    hole_days: "set[int]",
+) -> None:
+    """A count at midnight withheld for its size kept by every tail rank
+    (method G7.3h; lane J2's skeptic, item 3).
+
+    Withheld because fewer than the line stood off midnight (plan
+    P4-D191), the count the column held before the clock passes is
+    still owed on that side. Where the tails' strata leave it short,
+    each tail rank still off a written midnight -- pinned or not, a tie of
+    tail ranks together, in rank order -- takes the midnight of its own
+    day where that stands strictly after the rank before it, else the
+    next day's where that stands strictly before the rank after it, never
+    on a day of `hole_days`: no rank meets another, the order stands and
+    the body is not moved. R4's two columns nine in ten at midnight, 990
+    of 1,000, their heap at minute 0 holding the body's own, came back at
+    989 and 983, both tails' ENDs derived off midnight and three high-tail
+    ranks drawn in strata holding none: one off a midnight too many, on
+    the line, and seven. Raises nothing. No I/O."""
+    parsed = len(moved)
+    at = 0
+    for value in moved:
+        if _written_at_midnight(value, 0, step):
+            at = at + 1
+    rank = 0
+    while rank < parsed and at < counted:
+        if body_low <= rank <= body_high or _written_at_midnight(moved[rank], 0, step):
+            rank = rank + 1
+            continue
+        last = rank
+        while last + 1 < parsed and moved[last + 1] == moved[rank]:
+            last = last + 1
+        day = moved[rank] // 86400
+        found: "int | None" = None
+        if rank == 0 or moved[rank - 1] < day * 86400:
+            found = day
+        if (found is None or found in hole_days) and last + 1 < parsed and (day + 1) * 86400 < moved[last + 1]:
+            found = day + 1
+        if found is not None and found not in hole_days and not (rank < body_low <= last):
+            for place in range(rank, last + 1):
+                moved[place] = found * 86400
+            at = at + last - rank + 1
+        rank = last + 1
 
 
 # How many lone ranks of one group SUBSTITUTE asks for each rank it puts

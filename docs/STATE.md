@@ -314,8 +314,10 @@ cannot get worse unseen.
   on 45191fa, 83 since the minute and second passes pay their count steps
   back (P4-D391); owner lane J's family (G7.3g step 6). A column nine in
   ten at midnight, its count there withheld for its size, beside a heap at
-  minute 0, writes 989 and 983 midnights of 990 -- lane T3's own (P4-D372),
-  a strict xfail in R4's c4 tests; 45191fa passed it only with twins
+  minute 0, wrote 989 and 983 cells at midnight of 990 -- lane T3's own (P4-D372);
+  its tails now give way to that count and the one written `%.15g` holds
+  990, while the one written `repr`, its source's high tail tied, writes
+  987, a strict xfail in R4's c4 tests; 45191fa passed both only with twins
   writing 9 at midnight, the withheld check reading either side. Regular
   stamps crowding the lattice their clock facts pin -- every series
   measured one to sixty minutes apart, 1,000 to 100,000 rows, short of its

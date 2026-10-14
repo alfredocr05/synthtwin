@@ -1226,7 +1226,8 @@ def _answer(case: dict, module=generation, clock=calendar_clock) -> object:
         first, last = case["body"]
         module._clock_midnight_count_kept(
             case["counted"], moved, list(case["pinned"]), first, last, case["written_unit"],
-            case["away"], list(case["lows"]), list(case["highs"]),
+            case["away"], list(case["lows"]), list(case["highs"]), case.get("owed", False),
+            set(case.get("hole_days", [])),
         )
         return moved
     state = _state(case, module)
@@ -1397,6 +1398,11 @@ STEP_MUTANTS = {
         "field_midnight_narrow",
         "            elif moved[rank] + step <= gap_highs[rank]:\n                # A STRATUM",
         "            elif False:\n                # A STRATUM",
+    ),
+    "the tails never give way to a count owed for its size": (
+        "field_midnight_owed",
+        "    if owed and at < counted and 2 * counted > parsed:\n        _clock_owed_midnight(",
+        "    if False:\n        _clock_owed_midnight(",
     ),
     "the tails take no midnight where the count is short": (
         "field_midnight_short",

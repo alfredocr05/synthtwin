@@ -8420,6 +8420,74 @@
       "why": "The tails keep the count at midnight in a stratum narrower than the drawing unit: three ranks at a written midnight where two are published; the tail rank at one, rank 3, drawn on the hour, has 46 minutes after it and none before, so it steps one written unit, a minute, later.",
       "written_unit": 60
     },
+    "field_midnight_owed": {
+      "answer": [
+        1709251200,
+        1709337600,
+        1709424000,
+        1709510400,
+        1709596800,
+        1709614800,
+        1709856000,
+        1709942400,
+        1709974800
+      ],
+      "away": 60,
+      "body": [
+        2,
+        6
+      ],
+      "counted": 7,
+      "highs": [
+        1709275440,
+        1709337600,
+        0,
+        0,
+        0,
+        0,
+        0,
+        1709928000,
+        1709974800
+      ],
+      "hole_days": [],
+      "lows": [
+        1709275440,
+        1709337600,
+        0,
+        0,
+        0,
+        0,
+        0,
+        1709892000,
+        1709974800
+      ],
+      "ordinals": [
+        1709275440,
+        1709337600,
+        1709424000,
+        1709510400,
+        1709596800,
+        1709614800,
+        1709856000,
+        1709902800,
+        1709974800
+      ],
+      "owed": true,
+      "pinned": [
+        true,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        true
+      ],
+      "step": "midnight_count",
+      "why": "The tails give way to a count at midnight withheld for its size (lane J2's skeptic, item 3): five of nine ranks at a written midnight where seven are owed and no stratum holds one; the pinned END, rank 0, takes its own day's midnight, and rank 7, its own day's taken by the body's last rank, takes the next day's, before the END after it; the count reached, the END at 09:00 and the body stay.",
+      "written_unit": 60
+    },
     "field_midnight_room": {
       "answer": [
         1709427600,
