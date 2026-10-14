@@ -15276,7 +15276,8 @@ def _wears_figures_past_binary64(
     Guarantees: accepts one cell's text with its negative written as a
     leading minus, the value it read back as and the published widths;
     returns whether it is that shape. Determinism: a fixed function of
-    the three. Raises nothing. No I/O of any kind.
+    the three. Raises TypeError, as an internal check, where ``text``
+    is not a string; nothing otherwise. No I/O of any kind.
     """
     if not isinstance(text, str):
         raise TypeError("internal check: a cell reached the style check as something else")
