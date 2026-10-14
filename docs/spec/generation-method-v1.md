@@ -7982,8 +7982,9 @@ and the body is not moved (lane J2's skeptic, item 3; R4's `%.15g`
 column nine in ten at midnight, its ENDs derived off midnight, came back
 at 989 of the 990 owed). The producer now withholds both fields where
 fewer parsed cells than the line stand off 00:00:00 beside such a count
-(contract NF118 and NF119; lane J2's second skeptic, item 2), so the step
-serves a profile that publishes them beside it.
+(contract NF123 and NF124, a reason of its own since the lane's Codex
+review, item 4; lane J2's second skeptic, item 2), so the step serves a
+profile that publishes them beside it.
 
 **Its frozen cases** are states of ranks and drawing units: the twentieth
 vectors file, `tests/reference/generation-branch-vectors-20.json`, holds

@@ -840,9 +840,9 @@ _MOSTLY_AT_MIDNIGHT = (
 
 
 def test_dates_written_as_datetimes_keep_a_count_at_midnight_withheld(tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """Lane J2's second skeptic, item 2 (NF118, NF119): a column mostly at midnight whose
-    count there is withheld for its size -- fewer cells than the line off 00:00:00 -- withholds
-    its minute's and second's facts as off midnight, so the twin is not left whole hours to
+    """Lane J2's second skeptic, item 2 (NF123, NF124 since Codex's review, item 4): a column
+    mostly at midnight whose count there is withheld for its size -- fewer cells than the line
+    off 00:00:00 -- withholds its minute's and second's facts, so the twin is not left whole hours to
     stand the ranks it owes a midnight on; every column of this battery 45191fa met is met at seeds 0 to
     2. Mutant: the rule withdrawn, the 1,000 dates over 60 days with 10 timed publish both
     heaps and their twin misses `midnight.withheld` with 983 of 990 at midnight."""
@@ -862,6 +862,36 @@ def test_dates_written_as_datetimes_keep_a_count_at_midnight_withheld(tmp_path: 
     assert described.block("c")["minute_heaps"] and described.block("c")["second_heaps"]
     written = kpi_shapes.twin_text(described, 0)
     assert "c:midnight.withheld" in kpi_shapes.missed(kpi_shapes.measure(described, written, "m.csv"))
+
+
+def test_a_column_at_midnight_says_its_own_reason(tmp_path: pathlib.Path) -> None:
+    """Codex's review of lane J2, item 4 (NF123, NF124): 1,000 dates over 60 days from
+    2015-01-01 (each day `random.Random(3).randrange(60)`), the first ten at 09:00:00 and the
+    rest at midnight, floor 11: every minute and second is 0, so no count away from value 0
+    stands and NF118's reason is not this column's (e69e534 said it). Its count at midnight
+    withheld, both fields are withheld with the notes of their own, and the twins at seeds 0
+    to 2 miss nothing."""
+    pick = random.Random(3)
+    start = datetime.datetime(2015, 1, 1)
+    cells: "list[str]" = []
+    for row in range(1000):
+        moment = start + datetime.timedelta(days=pick.randrange(60))
+        if row < 10:
+            moment = moment + datetime.timedelta(hours=9)
+        cells += [moment.strftime("%Y-%m-%d %H:%M:%S")]
+    described = _one_column(tmp_path / "midnight", "c", sorted(cells))
+    block = described.block("c")
+    assert block.get("n_at_midnight") is None
+    for key in ("minute_census", "minute_heaps", "second_census", "second_heaps"):
+        assert block[key] == [], key
+    said = [note["note"] for note in described.document["publication_notes"] if note["column"] == "c"]
+    for form in (taxonomy.NOTE_MINUTE_WITHHELD_MIDNIGHT_UNCOUNTED, taxonomy.NOTE_SECOND_WITHHELD_MIDNIGHT_UNCOUNTED):
+        assert taxonomy.rendered(form, ()) in said, form
+    for form in (taxonomy.NOTE_MINUTE_WITHHELD_OFF_MIDNIGHT, taxonomy.NOTE_SECOND_WITHHELD_OFF_MIDNIGHT):
+        assert taxonomy.rendered(form, ()) not in said, form
+    for seed in (0, 1, 2):
+        written = kpi_shapes.twin_text(described, seed)
+        assert kpi_shapes.missed(kpi_shapes.measure(described, written, f"t{seed}.csv")) == [], seed
 
 
 def test_minutes_on_the_hour_publish_where_one_count_is_closer(tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch) -> None:

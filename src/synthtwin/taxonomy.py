@@ -1062,6 +1062,10 @@ NOTE_SECOND_WITHHELD_OFF_MIDNIGHT = "second_census_withheld_off_midnight"
 # crowd (`calendar_clock.lattice_crowded`; lane J2's skeptic, item 1).
 NOTE_MINUTE_WITHHELD_CROWDED = "minute_census_withheld_crowded_lattice"
 NOTE_SECOND_WITHHELD_CROWDED = "second_census_withheld_crowded_lattice"
+# NF123 and NF124: a column nearly every value of which is at midnight, its
+# count there withheld (Codex's review of lane J2, item 4).
+NOTE_MINUTE_WITHHELD_MIDNIGHT_UNCOUNTED = "minute_census_withheld_midnight_uncounted"
+NOTE_SECOND_WITHHELD_MIDNIGHT_UNCOUNTED = "second_census_withheld_midnight_uncounted"
 # anchor 3b-C1 (P4-D373)
 # THE CLOCK CENSUS'S TWO SENTENCES (landing 3b.5, plan P4-D373; contract
 # NF106 and NF107), each naming the census line and no count of rows.
@@ -1280,6 +1284,8 @@ NOTE_ARITY: "dict[str, int]" = {
     NOTE_SECOND_WITHHELD_OFF_MIDNIGHT: 0,
     NOTE_MINUTE_WITHHELD_CROWDED: 0,
     NOTE_SECOND_WITHHELD_CROWDED: 0,
+    NOTE_MINUTE_WITHHELD_MIDNIGHT_UNCOUNTED: 0,
+    NOTE_SECOND_WITHHELD_MIDNIGHT_UNCOUNTED: 0,
     # anchor 3b-C1 (P4-D373)
     NOTE_CLOCK_CENSUS_LEFT_OUT: 1,
     REMARK_CLOCK_CODES_WRITTEN: 1,
@@ -2391,6 +2397,16 @@ def rendered(form: str, arguments: "tuple[object, ...]") -> str:
             f"them between the two tail boundaries, or a third where every "
             f"value is different -- that a twin keeping its percentiles could "
             f"not keep them apart there"
+        )
+    if form in (NOTE_MINUTE_WITHHELD_MIDNIGHT_UNCOUNTED, NOTE_SECOND_WITHHELD_MIDNIGHT_UNCOUNTED):
+        # NF123, NF124.
+        values, one, _whole_word = _clock_field_words(form)
+        return (
+            f"the {values} this column's values fall on are not counted: "
+            f"nearly every one of its values is at midnight, and how many "
+            f"are there is not printed, so counts holding its values on "
+            f"{one} 0 would leave a twin free to move values written at "
+            f"midnight to another time of the day"
         )
     if form in (NOTE_MINUTE_WITHHELD_WITH_THE_HOUR, NOTE_SECOND_WITHHELD_WITH_THE_HOUR):
         values, _one, _whole_word = _clock_field_words(form)
@@ -18569,7 +18585,10 @@ def clock_field_decision(
         # holding the body on value 0 leave it whole hours to stand those
         # ranks on instead -- 1,000 dates over 60 days, 10 with times, came
         # back 979 to 984 at midnight of 990 beside the facts, 990 without.
-        return ClockFieldDecision((), (), calendar_clock.FIELD_REASON_OFF_MIDNIGHT)
+        # Its own reason, NF123 and NF124 (Codex's review of lane J2, item
+        # 4): with every minute and second at 0 no count away from value 0
+        # stands, which NF118's reason names.
+        return ClockFieldDecision((), (), calendar_clock.FIELD_REASON_MIDNIGHT_UNCOUNTED)
     return ClockFieldDecision(groups, heaps, "")
 
 
@@ -18612,12 +18631,13 @@ def _clock_field_words(form: str) -> "tuple[str, str, str]":
         NOTE_SECOND_WITHHELD_OFF_MIDNIGHT,
         NOTE_SECOND_WITHHELD_FEW_VALUES,
         NOTE_SECOND_WITHHELD_CROWDED,
+        NOTE_SECOND_WITHHELD_MIDNIGHT_UNCOUNTED,
     ):
         return "seconds of the minute", "second", "minute"
     return "minutes of the hour", "minute", "hour"
 
 
-# THE SENTENCES OF EACH FIELD (landing 3b.4, contract NF93 to NF101, NF118 to NF120): its
+# THE SENTENCES OF EACH FIELD (landing 3b.4, contract NF93 to NF101, NF118 to NF124): its
 # remark where it publishes, and the note of each reason of its own.
 _FIELD_REMARKS = {
     calendar_clock.MINUTE: REMARK_MINUTE_CENSUS,
@@ -18636,6 +18656,12 @@ _FIELD_WITHHELD_NOTES = {
     (calendar_clock.SECOND, calendar_clock.FIELD_REASON_OFF_MIDNIGHT): NOTE_SECOND_WITHHELD_OFF_MIDNIGHT,
     (calendar_clock.MINUTE, calendar_clock.FIELD_REASON_CROWDED): NOTE_MINUTE_WITHHELD_CROWDED,
     (calendar_clock.SECOND, calendar_clock.FIELD_REASON_CROWDED): NOTE_SECOND_WITHHELD_CROWDED,
+    (
+        calendar_clock.MINUTE, calendar_clock.FIELD_REASON_MIDNIGHT_UNCOUNTED
+    ): NOTE_MINUTE_WITHHELD_MIDNIGHT_UNCOUNTED,
+    (
+        calendar_clock.SECOND, calendar_clock.FIELD_REASON_MIDNIGHT_UNCOUNTED
+    ): NOTE_SECOND_WITHHELD_MIDNIGHT_UNCOUNTED,
 }
 
 

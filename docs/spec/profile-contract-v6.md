@@ -2077,11 +2077,12 @@ contract:
    widening it to arbitrary strings would be exactly the hole that lets
    a source-derived value into a sentence and be rebuilt successfully.
 
-**The census.** The table holds 115 forms and 126 argument positions.
+**The census.** The table holds 117 forms and 126 argument positions.
 Of those, 90 are whole numbers, 14 are package words, 17 are nested
 forms, and 5 are bound affix strings. No position is a string of any
 other kind. Lane J2 (plan P4-D391) added the two forms NF121 and NF122
-and no position. The minute and second censuses (landing 3b.4, plan P4-D372)
+and no position, and its Codex review the two forms NF123 and NF124 and
+no position. The minute and second censuses (landing 3b.4, plan P4-D372)
 added the twelve forms NF93 to NF101 and NF118 to NF120 and four
 whole-number positions, each the census line. The hour census (landing 3b.2-H, plan P4-D371) added the
 six forms NF88 to NF92 and NF117 -- the last at its review, the first
@@ -2139,7 +2140,7 @@ class over a committed battery, so it is a number a reader can run.
 
 So every argument position of every form is bound to WHAT IT IS, and
 the table below is closed over all 126 of them exactly as the form table
-is closed over the 115 forms. A position nobody bound is a number a
+is closed over the 117 forms. A position nobody bound is a number a
 sentence may print that no rule governs, and a producer that adds one
 is a producer this contract does not describe. The bindings are these:
 
@@ -3738,7 +3739,7 @@ names:
 
 | id | statement |
 |---|---|
-| NG14 | the form is one of the 115 in section 4.5.1 |
+| NG14 | the form is one of the 117 in section 4.5.1 |
 | NG15 | the argument count equals that form's arity |
 | NG16 | every argument is of one of C6-119's four classes |
 | NG17 | re-rendering the form with those arguments writes the leaf's text character for character |
@@ -4183,7 +4184,7 @@ them published rungs, is counted inside a group of four hours.
 
 <!-- anchor 3b-T3 (P4-D372) -->
 
-**NF93 to NF101 and NF118 to NF120 — the minute and second censuses and heaps of a column of moments**
+**NF93 to NF101 and NF118 to NF124 — the minute and second censuses and heaps of a column of moments**
 (landing 3b.4, plan P4-D372). A field PUBLISHING its heaps or its census says
 what they are in one remark, NF93 for the minutes and NF94 for the seconds;
 a field WITHHELD for a reason of its own says why in one publication note:
@@ -4195,7 +4196,9 @@ rest standing on a few different values beside no heap, NF101 and NF120
 and counts away from value 0 that its body could be left too few
 cells off a midnight to hold, NF118 and NF119; and, for both fields at
 once, a lattice of the clock the column's different values crowd, NF121
-and NF122 (lane J2, plan P4-D391). The
+and NF122 (lane J2, plan P4-D391), and a column nearly every value of
+which is at midnight, its count there withheld, NF123 and NF124 (its
+Codex review, item 4). The
 reasons every census of the clock shares -- no tails, an unpublished span,
 two storages -- are said once, in the hour census's own sentence (NF89,
 NF117, NF91), and a field whose counts do not depart from flat says nothing:
@@ -4238,7 +4241,7 @@ argument, the census line; the others none.
 
 > the minutes of the hour this column's values fall on are not counted: no minute stands out on its own, and its values between the two tail boundaries are written at too few different values -- fewer than 3 in a group, or fewer than 8 a group on average -- for counts of them to say more than where a few events fell
 
-**NF118. `minute_census_withheld_off_midnight`** — arity 0. Where the column publishes its count at midnight and the minute's counts away from minute 0 -- each heap on another minute, and each group of the rest where minute 0 is a heap or lies outside it -- add up to more than its body's cells less that count, less the rows of each tail whose every listed value is at midnight (rule 4): its twin may stand every other cell at midnight between the two tail boundaries, its tails drawing theirs where their published distances put them, and every cell at midnight falls on minute 0 (`calendar_clock.off_midnight_short`). Measured: 989 days at midnight beside 11 cells at 09:30 published a heap of 11 on minute 30 that its twins met with 6. Where the column withholds its count at midnight and fewer of its parsed cells than the line stand off 00:00:00, both fields are withheld with this note and NF119 (lane J2's second skeptic, item 2, plan P4-D391): the twin owes nearly every cell a midnight, and a heap at minute 0 left it whole hours to stand those ranks on -- 1,000 dates over 60 days, 10 with times, came back 979 to 984 at midnight of 990, missing that count; withheld, as before landing 3b.4, every such column measured that the pushed line met is met.
+**NF118. `minute_census_withheld_off_midnight`** — arity 0. Where the column publishes its count at midnight and the minute's counts away from minute 0 -- each heap on another minute, and each group of the rest where minute 0 is a heap or lies outside it -- add up to more than its body's cells less that count, less the rows of each tail whose every listed value is at midnight (rule 4): its twin may stand every other cell at midnight between the two tail boundaries, its tails drawing theirs where their published distances put them, and every cell at midnight falls on minute 0 (`calendar_clock.off_midnight_short`). Measured: 989 days at midnight beside 11 cells at 09:30 published a heap of 11 on minute 30 that its twins met with 6.
 
 > the minutes of the hour this column's values fall on are not counted: so many of its values are at midnight that, were every one of them between the two tail boundaries, fewer values off a midnight would be left there than its counts at each minute other than 0 name
 
@@ -4257,6 +4260,14 @@ argument, the census line; the others none.
 **NF122. `second_census_withheld_crowded_lattice`** — arity 0. NF121's rule, said of the seconds.
 
 > the seconds of the minute this column's values fall on are not counted: its different values stand so close together on the clock -- filling half or more of the places those counts would leave them between the two tail boundaries, or a third where every value is different -- that a twin keeping its percentiles could not keep them apart there
+
+**NF123. `minute_census_withheld_midnight_uncounted`** — arity 0. Lane J2 (plan P4-D391; its second skeptic, item 2; its Codex review, item 4): where the column withholds its count at midnight and fewer of its parsed cells than the line stand off 00:00:00, both fields are withheld, each with its own note: the twin owes nearly every cell a midnight, and a heap at minute 0 or second 0 left it whole hours to stand those ranks on -- 1,000 dates over 60 days, 10 with times, came back 979 to 984 at midnight of 990, missing that count; withheld, as before landing 3b.4, every such column measured that the pushed line met is met. Its reason is its own, not NF118's: 1,000 dates over 60 days, ten at 09:00:00 and the rest at midnight, write every minute and second at 0, and no count away from value 0 stands.
+
+> the minutes of the hour this column's values fall on are not counted: nearly every one of its values is at midnight, and how many are there is not printed, so counts holding its values on minute 0 would leave a twin free to move values written at midnight to another time of the day
+
+**NF124. `second_census_withheld_midnight_uncounted`** — arity 0. NF123's rule, said of the seconds.
+
+> the seconds of the minute this column's values fall on are not counted: nearly every one of its values is at midnight, and how many are there is not printed, so counts holding its values on second 0 would leave a twin free to move values written at midnight to another time of the day
 
 
 <!-- anchor 3b-C1 (P4-D373) -->
@@ -13223,7 +13234,7 @@ month-first parsed.
 | NG11 | on `remark_affixed_numbers_may_be_codes`: argument 3 equals the named block's `n_affixed` |
 | NG12 | argument 1 is character-for-character that block's `affix_prefix` and argument 2 its `affix_suffix`, AT THOSE POSITIONS, not merely as members of the pair |
 | NG13 | on `remark_a_label_is_a_built_in_stand_in`: argument 1 is 1, 2 or 3 |
-| NG14 | for every form: one of the 115 the note grammar enumerates |
+| NG14 | for every form: one of the 117 the note grammar enumerates |
 | NG15 | the argument count equals that form's arity |
 | NG16 | every argument is of one of the four argument classes |
 | NG17 | re-rendering the form with those arguments writes the leaf's text character for character |
@@ -14546,7 +14557,7 @@ this document, and the battery the plan requires turns red on it.
 | nothing-class blocks (`numeric_unrepresentable`, `identifier`, `free_text`) | lengths, word statistics, digit and code-alphabet counts, the whole-number test, the repetition multiset, on `numeric_unrepresentable` the whole-number and sign counts, on `free_text` the census of WRITTEN FORMS its cells wore (`shape_forms`), and on `identifier` the census of LAYOUTS (`layout_forms`, 7.12) and, by the owner's ruling of 2026-09-17, the literal PREFIX every cell of the column or of one named layout opens with (`layout_prefixes`, 7.12a, row 22) | no value, no spelling, no fragment of one but the prefix of row 22 — the form census included, whose every key is built from `%`, `@` and thirteen named marks -- characters no cell that has a form may contain, so a key can carry no letter and no figure of any cell; the multiplicity map publishes SIZES of unnamed groups under no floor, the form census under the floor with a `(withheld)` pool |
 | `empty` columns nobody declared | the absent SPELLINGS their cells wore and the two absence counts, exactly as any column that is not nothing-publishing | floor-governed |
 | `settings` | the rules the run applied, the floor's own value, how many values each declaration named, and which of THIS package's published words were among them | carries no cell, no column and no count of the table; a person's own spelling never enters |
-| `source.header_evidence`, `publication_notes[].note`, `detection_evidence`, `remarks` | sentences of the 115 closed forms: 126 argument positions, of which 90 are whole numbers, 14 package words, 17 nested forms and 5 bound affix strings | the whole numbers are counts the block beside them already publishes, EXCEPT the positions priced at rows 16 and 18 |
+| `source.header_evidence`, `publication_notes[].note`, `detection_evidence`, `remarks` | sentences of the 117 closed forms: 126 argument positions, of which 90 are whole numbers, 14 package words, 17 nested forms and 5 bound affix strings | the whole numbers are counts the block beside them already publishes, EXCEPT the positions priced at rows 16 and 18 |
 | `relationships` | nothing: eight nulls | — |
 
 ### 12.3 The rows, each priced
@@ -15610,7 +15621,7 @@ width at least ONE (`1`, `2`, `10`), a cell written as a whole number
 writing at least one figure (C6-29c). `(withheld)` is again the only
 non-numeric key permitted.
 
-### 14.8 The note grammar — 115 forms
+### 14.8 The note grammar — 117 forms
 
 Defined in 4.5.1, which is the authority on every rendering and every
 argument. 126 argument positions: 90 whole numbers, 14 package words, 17
@@ -15753,6 +15764,8 @@ nested forms, 5 bound affix strings.
 | NG120 | `second_census_withheld_few_values` | 0 |
 | NG121 | `minute_census_withheld_crowded_lattice` | 0 |
 | NG122 | `second_census_withheld_crowded_lattice` | 0 |
+| NG123 | `minute_census_withheld_midnight_uncounted` | 0 |
+| NG124 | `second_census_withheld_midnight_uncounted` | 0 |
 <!-- anchor 3b-C1 (P4-D373) -->
 
 | # | form | arity |

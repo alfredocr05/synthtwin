@@ -503,6 +503,11 @@ FIELD_REASON_OFF_MIDNIGHT = "off_midnight"
 # ...and, for both fields at once, a lattice the column's different values
 # crowd (`lattice_crowded`; lane J2's skeptic, item 1).
 FIELD_REASON_CROWDED = "crowded"
+# ...and, for both fields at once, a column nearly every value of which is
+# at midnight, its count there withheld (Codex's review of lane J2, item 4:
+# the fallback had said NF118's reason, though no count away from value 0
+# stood).
+FIELD_REASON_MIDNIGHT_UNCOUNTED = "midnight_uncounted"
 FIELD_REASONS = (
     HOUR_REASON_NO_TAILS,
     HOUR_REASON_SPAN,
@@ -514,6 +519,7 @@ FIELD_REASONS = (
     FIELD_REASON_FEW_VALUES,
     FIELD_REASON_OFF_MIDNIGHT,
     FIELD_REASON_CROWDED,
+    FIELD_REASON_MIDNIGHT_UNCOUNTED,
 )
 # The reasons said in a sentence of the field's own.
 FIELD_REASONS_SAID = (
@@ -523,6 +529,7 @@ FIELD_REASONS_SAID = (
     FIELD_REASON_FEW_VALUES,
     FIELD_REASON_OFF_MIDNIGHT,
     FIELD_REASON_CROWDED,
+    FIELD_REASON_MIDNIGHT_UNCOUNTED,
 )
 
 # The names `calendar_rules.census_breach` reports each field's census
