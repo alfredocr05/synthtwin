@@ -717,8 +717,8 @@ def test_a_whole_number_of_many_figures_round_trips_in_pieces() -> None:
         number = generation._whole_of_figures(digits)
         assert generation._figures_of_whole(number) == digits
     assert generation._figures_of_whole(10**8000) == "1" + "0" * 8000
-    # Either side of the bits written at once (`_PIECE_BITS`).
-    for number in (2**generation._PIECE_BITS - 1, 2**generation._PIECE_BITS, 10**generation._PIECE_FIGURES - 1):
+    # Either side of the least number written in pieces (`_PIECE_LIMIT`).
+    for number in (generation._PIECE_LIMIT - 1, generation._PIECE_LIMIT, generation._PIECE_LIMIT + 1):
         assert generation._whole_of_figures(generation._figures_of_whole(number)) == number
 
 

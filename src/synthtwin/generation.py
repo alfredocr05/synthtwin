@@ -13396,11 +13396,10 @@ def _grid_units(text: str, figures: int) -> "int | None":
 # limit on the length of integer text, 4,300 (lane L1, plan P4-D384).
 _PIECE_FIGURES = 4000
 
-# THE BITS A WHOLE NUMBER BELOW `10 ** _PIECE_FIGURES` CERTAINLY FITS IN:
-# 2**13000 is below 10**3914, so a number of no more bits is written at
-# once without working out a 4,000-figure power on every call, which
-# cost 1.67 s of a 20.4 s generate over 80,316 calls (lane L1 repair).
-_PIECE_BITS = 13000
+# THE LEAST WHOLE NUMBER WRITTEN IN PIECES, `10 ** _PIECE_FIGURES`, worked
+# out once: worked out on every call it cost about 21 microseconds, 1.67 s
+# of a 20.4 s generate over 80,316 calls (lane L1 repair).
+_PIECE_LIMIT = 10**_PIECE_FIGURES
 
 
 def _whole_of_figures(digits: str) -> int:
@@ -13428,7 +13427,7 @@ def _figures_of_whole(number: int) -> str:
     half padded to its width. Guarantees: a function of the number.
     Raises nothing for a number of nought or more. No I/O of any kind.
     """
-    if number.bit_length() <= _PIECE_BITS or number < 10 ** _PIECE_FIGURES:
+    if number < _PIECE_LIMIT:
         return str(number)
     figures = _PIECE_FIGURES
     while number >= 10 ** (figures * 2):
@@ -47284,7 +47283,10 @@ def _text_cells(
             if order[position] in truth:
                 moved[position] = truth[order[position]]
         truth = moved
-        carriers = (order.index(carriers[0]), order.index(carriers[1]))
+        placed: "dict[int, int]" = {}
+        for position in range(total):
+            placed[order[position]] = position
+        carriers = (placed[carriers[0]], placed[carriers[1]])
     used: dict[str, int] = {}
     states: dict[str, list[int]] = {}
     spellings: list[str] = []
