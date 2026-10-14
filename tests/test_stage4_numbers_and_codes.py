@@ -701,6 +701,99 @@ def test_the_push_on_the_dense_tail_asks_steps_that_grow_with_the_rows(tmp_path:
             assert old[0] > 8 * rows, old[0]
 
 
+def _shifting_staircase(strata: int) -> "tuple[object, ...]":
+    """A pinned first stratum, half the rest on the next unit, then one a unit up to a far last one (Codex's review of lane S4b-num, item 1).
+
+    Precision 0, every band positive, as many different numbers wanted
+    as strata. The first stratum keeps every push from going down, so
+    each pushes the run above the collision up a unit: each stratum it
+    passes lands on a point its neighbour still holds while the
+    collision below stays the heap's first entry.
+    """
+    half = (strata - 2) // 2
+    units = [1] + [2] * half + list(range(3, half + 3)) + [strata + 8]
+    texts = [generation._grid_at(unit, 0) for unit in units]
+    moved = [float(text) for text in texts]
+    held: "dict[str, int]" = {}
+    for text in texts:
+        held[text] = held.get(text, 0) + 1
+    facts = types.SimpleNamespace(
+        n_distinct_values=len(units), empty_edges=(), kept_stand_ins=(), integer_valued=True, numeric_styles={}
+    )
+    layout = types.SimpleNamespace(bands=("positive",) * len(units))
+    return (facts, layout, (moved[0], moved[-1]), moved, texts, held, 0, False)
+
+
+def _pinned_run(rows: int) -> "list[str]":
+    """Eleven rows of 1000, each of 1001 to 1000 + ``rows`` once, and five far above.
+
+    The published minimum is exact, so the walks leave five strata on it
+    below a run of strata that fills every point up to the top of the
+    run: each of their pushes goes up the whole run.
+    """
+    cells = ["1000"] * 11 + [str(value) for value in range(1001, 1001 + rows)]
+    return cells + [str(1001 + rows + int(1.56 * rows) + step) for step in range(5)]
+
+
+def push_storage(handed: "tuple[object, ...]") -> "tuple[int, int]":
+    """The most entries the push's heap holds on ``handed``, and how many strata collide when it begins."""
+    _facts, layout, _rungs, _moved, texts, held = handed[:6]
+    colliding = 0
+    for place in range(len(texts)):  # type: ignore[arg-type]
+        if held[texts[place]] >= 2 and layout.bands[place] != generation._BAND_ZERO:  # type: ignore[index]
+            colliding += 1
+    peak = [0]
+    shipped = generation._unit_heap_push
+
+    def counting(heap: "list[tuple[int, int]]", size: int, entry: "tuple[int, int]") -> int:
+        answer = shipped(heap, size, entry)
+        peak[0] = max(peak[0], len(heap))
+        return answer
+
+    with pytest.MonkeyPatch.context() as patch:
+        patch.setattr(generation, "_unit_heap_push", counting)
+        generation._pushed_apart(*copy.deepcopy(handed))  # type: ignore[arg-type]
+    return peak[0], colliding
+
+
+def test_the_push_on_a_shifting_staircase_holds_a_heap_bounded_by_its_collisions() -> None:
+    """Codex's staircase at 402 and 1,602 strata: never more than twice the strata colliding at the start, and 128, in the heap.
+
+    f334726 kept every entry a move left stale while the collision below
+    stayed first: 118,804 entries at 402 strata and 1,915,204 at 1,602
+    (Codex's review of lane S4b-num, item 1). The push moves what 3434682's
+    moved.
+    """
+    for strata in (402, 1602):
+        handed = _shifting_staircase(strata)
+        peak, colliding = push_storage(handed)
+        assert colliding == (strata - 2) // 2, f"premise: {colliding} strata collide"
+        assert peak <= 2 * colliding + 128, (strata, colliding, peak)
+    handed = _shifting_staircase(402)
+    assert _pushed(generation._pushed_apart, handed) == _pushed(_push_as_built()[0], handed)
+
+
+def test_the_push_on_a_pinned_run_holds_a_heap_bounded_by_its_collisions(tmp_path: pathlib.Path) -> None:
+    """Eleven rows of a published minimum below a run of 4,000 and 8,000 numbers, seeds 0 and 4: the same bound, and the twin as built.
+
+    f334726 held 3,203 entries for 127 strata colliding at 4,000 and 24,663
+    for 255 at 8,000 -- three times the 8,006 strata.
+    """
+    for rows in (4000, 8000):
+        pushes = _pushes_handed(tmp_path, f"pinned{rows}", _pinned_run(rows), 11, ["value"])
+        assert len(pushes) >= 2, f"premise: {len(pushes)} pushes"
+        for handed in pushes:
+            peak, colliding = push_storage(handed)
+            assert colliding >= 100, f"premise: {colliding} strata collide"
+            assert peak <= 2 * colliding + 128, (rows, colliding, peak)
+    described = kpi_shapes.describe(tmp_path / "pinned", "pinned", _table({"value": _pinned_run(4000)}), 11, measured=["value"])
+    ours = [kpi_shapes.twin_text(described, seed) for seed in (0, 4)]
+    with pytest.MonkeyPatch.context() as patch:
+        patch.setattr(generation, "_pushed_apart", _push_as_built()[0])
+        theirs = [kpi_shapes.twin_text(described, seed) for seed in (0, 4)]
+    assert ours == theirs
+
+
 # -- 3. the pooled placement --------------------------------------------------
 
 
@@ -924,3 +1017,49 @@ def test_the_pool_of_a_million_row_register_is_placed_in_a_bounded_number_of_que
     assert asked < 16 * groups, (groups, asked)
     with pytest.raises(_TooMuchWork):
         placement_questions(handed, True, cap=16 * groups)
+
+
+def _thin_codes(values: int) -> "list[str]":
+    """Eleven plain spellings of 1e-300, then ``values`` codes of 300 places, each on one row (Codex's review of lane S4b-num, item 2)."""
+    cells = ["0." + "0" * 299 + "1"] * 11
+    return cells + [generation._units_spelled(10**10 + 5 * step, 300, False) for step in range(values)]
+
+
+_WIDTH_HELPERS = ("_whole_figures", "_ten_to")
+
+
+def width_questions(handed: "tuple[object, ...]", cap: int = 0) -> int:
+    """How many whole-figure counts and powers of ten the placement asks for on ``handed``: the work of its width."""
+    counted = [0]
+    with pytest.MonkeyPatch.context() as patch:
+        where = dict(vars(generation))
+        _counted_calls(_WIDTH_HELPERS, counted, cap, where)
+        for name in _WIDTH_HELPERS:
+            patch.setattr(generation, name, where[name])
+        generation._pooled_numbers_placed(*copy.deepcopy(handed))  # type: ignore[arg-type]
+    return counted[0]
+
+
+def test_each_group_asks_the_width_a_bounded_number_of_questions(tmp_path: pathlib.Path) -> None:
+    """Codes of 300 places one figure wide, 200 and 400 groups: under eight width questions a group, and the twin as built.
+
+    f334726 found the widest place inside the width again for every
+    group by halving: 400,200 whole-figure counts for 200 groups, 3.67 s
+    where 3434682 took 200 and 0.05 s (Codex's review of lane S4b-num,
+    item 2). A census form is asked once a group either way, so only a
+    count of the width's own questions sees it.
+    """
+    asked: "list[int]" = []
+    for values in (200, 400):
+        handed = _placements_handed(tmp_path, f"thin{values}", _thin_codes(values), 11, ["value"], (0,))[0]
+        groups = len(handed[2])  # type: ignore[arg-type]
+        assert groups == values and handed[0].places == 300, f"premise: {groups} groups at {handed[0].places} places"  # type: ignore[attr-defined]
+        asked += [width_questions(handed, cap=8 * groups)]
+        assert asked[-1] < 8 * groups, (values, asked)
+    assert asked[1] / asked[0] < LINEAR_AT_MOST, asked
+    described = kpi_shapes.describe(tmp_path / "thin", "thin", _table({"value": _thin_codes(200)}), 11, codes=["value"])
+    ours = kpi_shapes.twin_text(described, 0)
+    with pytest.MonkeyPatch.context() as patch:
+        patch.setattr(generation, "_pooled_numbers_placed", _placed_as_built()[0])
+        theirs = kpi_shapes.twin_text(described, 0)
+    assert ours == theirs

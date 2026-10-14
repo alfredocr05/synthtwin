@@ -14233,6 +14233,20 @@ def _pushed_apart(
             continue
         if held[texts[place]] >= 2:
             size = _unit_heap_push(waiting, size, (units, place))
+    # AND THE HEAP KEEPS NO MORE THAN TWICE ITS LIVE ENTRIES (Codex's
+    # review of lane S4b-num, item 1). A push upward moves each stratum
+    # it passes onto a point its neighbour still holds, so both enter the
+    # heap and the next move leaves them stale; while a lower collision
+    # stays the heap's first entry they are never reached and never
+    # dropped. Measured on f334726: a pinned first stratum, half the
+    # strata on the next unit and one a unit above it to a far last one
+    # held 7,204, 29,404, 118,804 and 477,604 entries at 100, 200, 400
+    # and 800 strata, and eleven rows of a published minimum below a run
+    # of 8,000 numbers 24,663 for 8,006 strata. Once it holds more than
+    # twice the live entries it was last left with, and 64, it is
+    # rebuilt from its live entries alone: the lowest live entry is the
+    # same, so the same push is taken.
+    limit = 2 * size + _PUSH_HEAP_SLACK
     while len(held) < wanted:
         target = -1
         target_units = 0
@@ -14336,12 +14350,21 @@ def _pushed_apart(
                 if layout.bands[holder] == _BAND_ZERO:
                     continue
                 size = _unit_heap_push(waiting, size, (fresh_units, holder))
+            if size > limit:
+                waiting = _unit_heap_live(
+                    waiting, size, units_of, texts, held, immovable
+                )
+                size = len(waiting)
+                limit = 2 * size + _PUSH_HEAP_SLACK
     return (moved, texts, held)
 
 
 # The strata a way may pass before the push asks the other way first, and
 # what `_push_way` answers.
 _PUSH_FIRST_BUDGET = 8
+# How many entries past twice its live ones the push's heap may hold
+# before it is rebuilt from them (`_unit_heap_live`).
+_PUSH_HEAP_SLACK = 64
 _PUSH_FOUND = "found"
 _PUSH_NONE = "none"
 _PUSH_TOO_LONG = "too long"
@@ -14458,6 +14481,42 @@ def _unit_heap_push(
         else:
             break
     return size + 1
+
+
+def _unit_heap_live(
+    heap: "list[tuple[int, int]]",
+    size: int,
+    units_of: "list[int | None]",
+    texts: "list[str]",
+    held: "dict[str, int]",
+    immovable: "dict[str, int]",
+) -> "list[tuple[int, int]]":
+    """The live entries of the push's heap, each once, as a fresh heap.
+
+    An entry is live where its stratum still stands on its unit and its
+    text is still held twice or more and not found immovable -- the test
+    `_pushed_apart` asks of the heap's first entry. Every stratum a
+    collision holds has a live entry, since a stratum joins the heap
+    whenever a push brings its text to a second holder, so the lowest
+    live entry, and with it the push taken, is the one the whole heap
+    gave. Sorted, the entries are a heap.
+
+    Guarantees: a fixed function of its inputs. Raises nothing. No I/O.
+    """
+    kept: "list[tuple[int, int]]" = []
+    seen: "dict[tuple[int, int], int]" = {}
+    for spot in range(size):
+        entry = heap[spot]
+        units, place = entry
+        text = texts[place]
+        if units_of[place] != units or held[text] < 2 or text in immovable:
+            continue
+        if entry in seen:
+            continue
+        seen[entry] = 1
+        kept += [entry]
+    kept.sort()
+    return kept
 
 
 def _unit_heap_pop(heap: "list[tuple[int, int]]", size: int) -> int:
@@ -44597,23 +44656,19 @@ def _pooled_searched(
 def _pooled_widest_place(places: int, reach_figures: int) -> int:
     """The largest place size whose whole figures stay within ``reach_figures``, or -1 for none.
 
-    Found by halving, since a place's whole figures (`_whole_figures`)
-    never fall as its size grows.
+    A place's whole figures (`_whole_figures`) are those of its size with
+    its last ``places`` figures dropped -- or, for a negative ``places``,
+    with that many noughts written after it -- and one for a size that
+    leaves none, so a size has at most ``reach_figures`` of them exactly
+    where it is below ten to the ``places + reach_figures``, or is nought.
+    That edge is read off at once (Codex's review of lane S4b-num, item
+    2): found by halving it took about 6.6 whole-figure counts a figure
+    for every group, 400,200 for 200 groups of codes of 300 places one
+    figure wide on f334726, where 3434682 took 200.
     """
     if _whole_figures(0, places) > reach_figures:
         return -1
-    low = 0
-    high = 1
-    while _whole_figures(high, places) <= reach_figures:
-        low = high
-        high = high * 2
-    while high - low > 1:
-        middle = (low + high) // 2
-        if _whole_figures(middle, places) <= reach_figures:
-            low = middle
-        else:
-            high = middle
-    return low
+    return _ten_to(places + reach_figures) - 1
 
 
 def _pooled_nearest(
