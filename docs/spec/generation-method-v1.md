@@ -7796,7 +7796,14 @@ pins: the two tail boundaries and each published rung, at its rank.
    the spelling censuses recounted on the cells; with none, G7.5's step
    off an absent spelling moves it as before. The listed counts are then
    recounted on the written cells as V5-D1 counts them, and a miss is
-   named (`heavy_dates`) before any sentence says they are met. Its
+   named (`heavy_dates`) before any sentence says they are met. A TAIL
+   RANK the step off cannot move is offered the same trade in the same
+   walk (the Codex review of landing I3b1): one whose cell would wear an
+   absent spelling and for which no date 1 to (absent spellings + 1)
+   away, inside its own window (its stratum) and not listed, written in
+   its spelling, wears none (`_listed_stuck`) -- a tail date alone in its
+   stratum whose other spelling is declared missing, which kept that
+   spelling and read back as no value. Its
 frozen cases are states in the nineteenth vectors file,
 `tests/reference/generation-branch-vectors-19.json`: a covered run, two
 loose dates, a listed boundary day, two listed dates with a hole between

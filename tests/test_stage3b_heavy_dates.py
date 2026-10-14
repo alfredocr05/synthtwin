@@ -1334,6 +1334,64 @@ def test_a_listed_date_is_no_day_of_the_day_repair(tmp_path: pathlib.Path, monke
     assert generation._day_repaired_cell(opened, facts, fourth, window, rest) == "03/05/2022"  # type: ignore[arg-type]
 
 
+def _trapped_second_of_january() -> "list[str]":
+    """The verifier's tradecost shape (k=1, front=400): 400 copies of `02/01/2022` alone below
+    1,000 dates from 3 January 2022 (100 of them 3 May), written alternately padded and
+    unpadded, then twenty `3/5/2022` and twenty `2/1/2022` cells, both declared missing."""
+    days = [parsing.days_from_civil(2022, 1, 3) + step % 362 for step in range(900)]
+    days += [parsing.days_from_civil(2022, 5, 3)] * 100
+    cells: "list[str]" = []
+    for index in range(len(days)):
+        year, month, day = parsing.civil_from_days(days[index])
+        cells += [f"{day:02d}/{month:02d}/{year}" if index % 2 == 0 else f"{day}/{month}/{year}"]
+    return ["02/01/2022"] * 400 + cells + ["3/5/2022"] * 20 + ["2/1/2022"] * 20
+
+
+def test_a_tail_date_alone_in_its_stratum_keeps_its_rows_through_the_spelling(tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """THE CODEX REVIEW OF LANDING I3b1, the integrator's open item 2 (G7.3j step 8, plan
+    P4-D369). 2 January stands alone in the low tail's stratum (400 rows) and its other
+    spelling, `2/1/2022`, is declared missing. The spelling allocation gave some of its ranks
+    `2/1/2022`, and a tail rank steps off an absent spelling only inside its stratum, here
+    that one day: on 9bbe5d2 (and on 45191fa, which lists nothing) the twin wrote them as
+    `2/1/2022`, read back as no value, and missed n_not_numeric, the ladder p50 to p99,
+    holes.by_source.2/1/2022, offsets, the presence counts and the low tail's rows. Now such a
+    rank is offered step 8's trade (`_listed_date_respelled`) as a listed rank is: the twins
+    at seeds 0 and 1 hold 2 January at 400 rows and 3 May at 53 and miss nothing, and the
+    oracle writes the product's cells. MUTANTS: the step off read as always finding a date
+    (`_listed_stuck`), and the oracle's tail ranks withdrawn from the trade."""
+    described = _described_missing(tmp_path, _trapped_second_of_january(), 11, ("3/5/2022", "2/1/2022"))
+    block = described.block("visit")
+    assert block["heavy_dates"] == [{"date": "2022-05-03", "count": 53}]
+    assert block["low_tail"]["rows"] == 400
+    for seed in (0, 1):
+        text = kpi_shapes.twin_text(described, seed)
+        written = _column(text, "visit")
+        assert written.count("02/01/2022") == 400 and written.count("2/1/2022") == 20, seed
+        assert written.count("03/05/2022") == 53, seed
+        assert kpi_shapes.missed(kpi_shapes.measure(described, text, f"twin{seed}.csv")) == [], seed
+    seen: "list[tuple[list[int], list[str]]]" = []
+    content = generation._datetime_content
+
+    def captured(plan, words, settled=None):  # type: ignore[no-untyped-def]
+        found = content(plan, words, settled)
+        seen[:] = [(list(words), list(found[0]))]
+        return found
+
+    with monkeypatch.context() as patch:
+        patch.setattr(generation, "_datetime_content", captured)
+        kpi_shapes.twin_text(described, 0)
+    words, ours = seen[0]
+    theirs = _oracle()["_datetime_content"](dict(copy.deepcopy(block), _content_words=words))  # type: ignore[operator]
+    assert theirs == ours
+    mutant = _oracle_mutant("            tails=tails,\n", "            tails={},\n")
+    assert mutant["_datetime_content"](dict(copy.deepcopy(block), _content_words=words)) != ours  # type: ignore[operator]
+    monkeypatch.setattr(generation, "_listed_stuck", lambda *arguments: False)
+    text = kpi_shapes.twin_text(described, 0)
+    assert _column(text, "visit").count("2/1/2022") > 20
+    missed = kpi_shapes.missed(kpi_shapes.measure(described, text, "mutant.csv"))
+    assert "visit:tails.low.rows" in missed and "visit:presence.n_missing" in missed, missed
+
+
 def _weekly_with_unread(unread: "list[str]", replaced: bool) -> "list[str]":
     """Codex's item 2: sixty weekly dates from 2020-01-02, each eleven times, with `unread`
     texts in place of cells 300 onward (`replaced`) or after them."""

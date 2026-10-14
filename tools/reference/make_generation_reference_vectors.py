@@ -11587,7 +11587,7 @@ def heavy_sorted(column, ordinals, parsed, whole, lows, highs, holes):
 LISTED_PROBES = 64
 
 
-def listed_dates_kept_in_spelling(column, ordinals, spellings, fields, whole, offsets, written_in, absent):
+def listed_dates_kept_in_spelling(column, ordinals, spellings, fields, whole, offsets, written_in, absent, tails=None, reach=0):
     """A listed date keeps its rows through the spelling -- G7.3j step 8
     (the Codex review of landing 3b.6, item 1).
 
@@ -11604,6 +11604,12 @@ def listed_dates_kept_in_spelling(column, ordinals, spellings, fields, whole, of
     over and at most LISTED_PROBES dates are refused per spelling.  With
     no trade, the first such spelling alone; with none, the rank keeps
     its spelling and the cell loop moves it.
+
+    A tail rank (``tails``, each tail rank's window: its stratum) whose
+    cell is an absent spelling and which the cell loop's step off cannot
+    move -- no date 1 to ``reach`` - 1 away, inside the window and not
+    listed, written in its spelling, is not absent -- is offered the same
+    trade, in the same ascending walk (the Codex review of landing I3b1).
     """
     listed = set(heavy_days(column))
     textual = column["format"] in TEXTUAL_MEMBERS
@@ -11619,8 +11625,23 @@ def listed_dates_kept_in_spelling(column, ordinals, spellings, fields, whole, of
     allocated = list(spellings)
     spellings = list(spellings)
     traded = set()
+    tails = tails or {}
+
+    def stuck(rank):
+        low, high = tails[rank]
+        for away in range(1, reach):
+            for other in (ordinals[rank] - away, ordinals[rank] + away):
+                if low <= other <= high and other not in listed:
+                    if not absent(written_in(rank, spellings[rank], other)):
+                        return False
+        return True
+
     for rank in range(len(spellings)):
-        if ordinals[rank] not in listed or not absent(written_in(rank, spellings[rank])):
+        if ordinals[rank] not in listed and rank not in tails:
+            continue
+        if not absent(written_in(rank, spellings[rank])):
+            continue
+        if ordinals[rank] not in listed and not stuck(rank):
             continue
         own = spellings[rank]
         possible = []
@@ -12878,17 +12899,20 @@ def _datetime_content(column, settled=None):
         days=written_days(column, ordinals, offsets, parsed, space, resolution),
     )
     holes_folded = {hole.strip().lower() for hole in holes}
-    if space != "datetime" and heavy_days(column) and holes_folded:
+    # ...and so does a tail rank the step off cannot move (the Codex
+    # review of landing I3b1): its window is its stratum.
+    tails = {rank: (gap_lows[rank], gap_highs[rank]) for rank in tail_ranks(column, parsed)}
+    if space != "datetime" and (heavy_days(column) or tails) and holes_folded:
         # A listed date keeps its rows through the spelling (G7.3j step 8):
         # each cell is written here as the loop below writes it.
-        def written_in(rank, style):
+        def written_in(rank, style, unit=None):
             width, name_style, marker, zulu = style
             member = column["format"]
             clock = stamp_clock_style(column) if member in SLASHED_STAMPS else ("hh", "")
             suffix, shift = offset_form(offsets[rank])
             if suffix == "Z" and zulu == "lower":
                 suffix = "z"
-            unit = ordinals[rank]
+            unit = ordinals[rank] if unit is None else unit
             moved = shift if (
                 column["datetimes_read_at"] == "utc"
                 and resolution == "datetime"
@@ -12923,6 +12947,8 @@ def _datetime_content(column, settled=None):
             offsets,
             written_in,
             lambda text: text.strip().lower() in holes_folded,
+            tails=tails,
+            reach=len(holes) + 2,
         )
     content = []
     for rank in range(parsed):

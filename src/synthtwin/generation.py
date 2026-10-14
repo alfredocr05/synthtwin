@@ -30672,8 +30672,16 @@ def _listed_absent(
     the cell is a function of the five, and a listed date's ranks share
     them.
     """
+    return _listed_absent_on(keep, rank, keep.ordinals[rank], style)
+
+
+def _listed_absent_on(
+    keep: _ListedSpelling, rank: int, ordinal: int, style: _DateStyle
+) -> bool:
+    """`_listed_absent` with the rank written on `ordinal` (the step off
+    an absent spelling asks other dates, `_listed_stuck`), cached alike."""
     asked = (
-        keep.ordinals[rank],
+        ordinal,
         keep.offsets[rank],
         keep.marks[rank],
         keep.whole[rank],
@@ -30683,7 +30691,7 @@ def _listed_absent(
         keep.absent[asked] = _is_a_hole_spelling(
             _interior_cell(
                 keep.facts,
-                keep.ordinals[rank],
+                ordinal,
                 keep.offsets[rank],
                 keep.marks[rank],
                 keep.holes,
@@ -30705,6 +30713,38 @@ def _listed_free(skip: "dict[int, int]", at: int) -> int:
         skip[at] = root
         at = following
     return root
+
+
+def _listed_stuck(
+    keep: _ListedSpelling,
+    rank: int,
+    window: "tuple[int, int]",
+    listed: "frozenset[int]",
+) -> bool:
+    """Whether the cell loop's step off an absent spelling finds no date
+    for `rank` inside its own `window` (the batch 3b integrator's open
+    item 2, the Codex review of landing I3b1).
+
+    The loop's search, asked before any cell is written: each date 1 to
+    `len(keep.holes) + 1` away, earlier first, inside the window and on
+    no listed date, written in the rank's spelling. A tail rank's window
+    is its stratum, so a tail date alone in its stratum whose other
+    spelling is declared missing finds none, and step 8 offers it the
+    trade (`_listed_spellings`).
+
+    Guarantees: returns True where no date is found. Draws no word.
+    Determinism: a function of its arguments. Raises nothing. No I/O.
+    """
+    ordinal = keep.ordinals[rank]
+    style = keep.spellings[rank]
+    low, high = window
+    for away in range(1, len(keep.holes) + 2):
+        for other in (ordinal - away, ordinal + away):
+            if other < low or other > high or other in listed:
+                continue
+            if not _listed_absent_on(keep, rank, other, style):
+                return False
+    return True
 
 
 def _listed_date_respelled(keep: _ListedSpelling, rank: int) -> bool:
@@ -30790,9 +30830,12 @@ def _listed_spellings(
     spellings: "list[_DateStyle]",
     holes: "tuple[str, ...]",
     listed: "frozenset[int]",
+    tails: "dict[int, tuple[int, int]] | None" = None,
 ) -> "list[_DateStyle]":
     """Every rank of a listed date kept on it through the spelling (G7.3j
-    step 8; the Codex review of landing 3b.6, item 1).
+    step 8; the Codex review of landing 3b.6, item 1), and every tail
+    rank the step off an absent spelling cannot move (`tails`, each tail
+    rank's window; the Codex review of landing I3b1).
 
     THE LISTED COUNT IS THE RANKS', AND THE CELLS MUST CARRY IT. 900
     dates through 2022 and a hundred more on 3 May, written alternately
@@ -30804,6 +30847,15 @@ def _listed_spellings(
     date whose cell (`_interior_cell`) would wear an absent spelling now
     asks `_listed_date_respelled`, ascending, before any cell is written.
 
+    A TAIL DATE ALONE IN ITS STRATUM KEEPS ITS ROWS TOO. 400 copies of
+    `02/01/2022` below a year of dates, beside twenty `2/1/2022` declared
+    missing: a tail rank steps off an absent spelling only inside its
+    stratum, here that one day, so 114 of them were written `2/1/2022`
+    and read back as no value, and the twin missed the presence counts,
+    the ladder and the low tail's rows. A tail rank whose cell wears an
+    absent spelling and for which the step off finds no date
+    (`_listed_stuck`) now asks the same trade, in the same ascending walk.
+
     Guarantees: returns the spellings, `spellings` itself where no listed
     rank wears an absent spelling. Linear in the ranks, plus
     `_LISTED_PROBES` dates per spelling per rank traded, each read in one
@@ -30811,7 +30863,8 @@ def _listed_spellings(
     written once per date, offset, mark, form and spelling. Draws no word. Determinism: a function of the eight. Raises
     nothing. No I/O of any kind.
     """
-    if not listed or not holes:
+    held = tails if tails is not None else {}
+    if (not listed and not held) or not holes:
         return spellings
     # The view is built at the first listed rank wearing an absent
     # spelling: until then each check reads a bare view of no queues.
@@ -30831,9 +30884,13 @@ def _listed_spellings(
     )
     built = False
     for rank in range(len(spellings)):
-        if ordinals[rank] not in listed:
+        if ordinals[rank] not in listed and rank not in held:
             continue
         if not _listed_absent(keep, rank, keep.spellings[rank]):
+            continue
+        if ordinals[rank] not in listed and not _listed_stuck(
+            keep, rank, held[rank], listed
+        ):
             continue
         if not built:
             keep = _listed_setup(keep, listed)
@@ -31150,10 +31207,16 @@ def _datetime_content(
     # G7.3j step 8; the Codex review of landing 3b.6, item 1): a rank on a
     # listed date whose cell would wear an absent spelling trades its
     # spelling rather than its date, before any cell is written.
+    # ...AND SO DOES A TAIL DATE THE STEP OFF CANNOT MOVE (the Codex
+    # review of landing I3b1): a tail rank's window is its stratum.
     if space != "datetime":
         spellings = _listed_spellings(
             facts, ordinals, offsets, marks, whole, spellings, holes,
             layout.listed,
+            tails={
+                rank: (gap_lows[rank], gap_highs[rank])
+                for rank in _tail_ranks(layout, parsed)
+            } if holes else {},
         )
     if not remainder_placed:
         # G7.5 STEP 5 COULD NOT PLACE THE WIDTH CENSUS'S UNNAMED REMAINDER
