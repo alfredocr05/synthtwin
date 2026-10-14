@@ -40468,13 +40468,18 @@ def _shared_forms_kept(
     other way. So, before any class is walked:
 
     - OUT OF RANGE: each form a number too large to hold can wear is kept
-      for that class up to its held-back cells, in the forms' order;
+      for that class up to its held-back cells;
     - WORDS (``" text"``): each form whose first filling is text is kept
       for the words up to the cells their held-back groups have left
       once the forms only words can wear are paid -- but only where a
       published label of that form is a word, or none is published: a
       form whose published labels are numbers alone (`1.1e6` beside
       `1.2e6`) is the numbers' first, as it was.
+
+    Each class is served first from the forms whose published labels
+    read as that class, then from the forms no published label wears
+    (the out-of-range class first there), and last the out-of-range
+    class from the forms whose labels read otherwise.
 
     The number class is offered what is left of each such form. Guarantees:
     a fixed function of the five. Raises nothing. No I/O of any kind.
@@ -40516,23 +40521,54 @@ def _shared_forms_kept(
             words = words - owing[form]
     kept[_OWED_OUT_OF_RANGE] = {}
     kept[_OWED_TEXT] = {}
+    room: "dict[str, int]" = {}
     for form in shared:
-        room = owing[form]
-        if out_of_range > 0 and _form_also_reads(
-            form, parsing.NUMBER_OUT_OF_RANGE, decimal_comma
-        ):
-            given = min(room, out_of_range)
-            kept[_OWED_OUT_OF_RANGE][form] = given
-            out_of_range = out_of_range - given
-            room = room - given
-        seen = reading[form] if form in reading else {}
-        worded = parsing.NOT_A_NUMBER in seen or not seen
-        if words > 0 and worded and _form_also_reads(
-            form, parsing.NOT_A_NUMBER, decimal_comma
-        ):
-            given = min(room, words)
-            kept[_OWED_TEXT][form] = given
-            words = words - given
+        room[form] = owing[form]
+    # THREE ROUNDS, A FORM'S OWN LABELS FIRST (lane L1 repair, skeptic 1
+    # item 2). Walked once in the forms' order, the out-of-range class
+    # took all of `%%@%%%` -- a form no published label wears, the 163
+    # held-back words' only form -- before reaching `%@%%%`, the form its
+    # published labels wear, and the words came out `group-N`: both
+    # forms MISSED. So each class is served first from the forms whose
+    # published labels read as that class, then from the forms no
+    # published label wears; last, the numbers too large to hold, which
+    # can be written no other way, from the forms whose labels read
+    # otherwise, as they were before. The words never take a form whose
+    # labels are numbers alone.
+    for rounded in range(3):
+        for form in shared:
+            seen = reading[form] if form in reading else {}
+            if rounded == 0:
+                beyond = parsing.NUMBER_OUT_OF_RANGE in seen
+                worded = parsing.NOT_A_NUMBER in seen
+            elif rounded == 1:
+                beyond = not seen
+                worded = not seen
+            else:
+                beyond = bool(seen) and parsing.NUMBER_OUT_OF_RANGE not in seen
+                worded = False
+            if out_of_range > 0 and beyond and _form_also_reads(
+                form, parsing.NUMBER_OUT_OF_RANGE, decimal_comma
+            ):
+                given = min(room[form], out_of_range)
+                if given > 0:
+                    kept[_OWED_OUT_OF_RANGE][form] = given + (
+                        kept[_OWED_OUT_OF_RANGE][form]
+                        if form in kept[_OWED_OUT_OF_RANGE] else 0
+                    )
+                out_of_range = out_of_range - given
+                room[form] = room[form] - given
+            if words > 0 and worded and _form_also_reads(
+                form, parsing.NOT_A_NUMBER, decimal_comma
+            ):
+                given = min(room[form], words)
+                if given > 0:
+                    kept[_OWED_TEXT][form] = given + (
+                        kept[_OWED_TEXT][form]
+                        if form in kept[_OWED_TEXT] else 0
+                    )
+                words = words - given
+                room[form] = room[form] - given
     return kept
 
 

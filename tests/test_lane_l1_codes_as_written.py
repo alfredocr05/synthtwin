@@ -312,6 +312,77 @@ def test_an_overflowing_spelling_reads_as_out_of_range_and_wears_its_form() -> N
     assert generation._overflow_room("%@%@%%%") == 0
 
 
+
+def _overflow_beside_words() -> "list[str]":
+    """Skeptic 1's att_dec_overflow table (item 2): numbers 1-59, codes
+    `%dE%03d` too large to hold, and words `%02dA%03d` in a form no
+    published label wears."""
+    draw = random.Random(52043)
+    cells = [f"{draw.randrange(1, 60)}" for _row in range(4000)]
+    shaped = [f"{draw.randrange(1, 10)}E{draw.randrange(300, 1000):03d}" for _code in range(500)]
+    shaped += [f"{draw.randrange(100):02d}A{draw.randrange(1000):03d}" for _code in range(300)]
+    cells += _zipf(draw, shaped, 4000)
+    draw.shuffle(cells)
+    return cells
+
+
+def _census_by_class(cells: "list[str]", form: str) -> "dict[str, int]":
+    counted: "dict[str, int]" = {}
+    for cell in cells:
+        if parsing.shape_form(cell) == form:
+            kind = parsing.classify_number(cell)
+            counted[kind] = (counted[kind] if kind in counted else 0) + 1
+    return counted
+
+
+@pytest.mark.parametrize("floor", [11, 36])
+def test_each_class_takes_first_the_shared_forms_its_own_labels_wear(tmp_path: pathlib.Path, floor: int) -> None:
+    """The words' form `%%@%%%`, which no published label wears, goes to the
+    words, and the numbers too large to hold take `%@%%%`, the form their
+    published labels wear: 163 words and 3,817 such numbers, as the source
+    wrote them. The 20 held-back numbers of `%@%%%` are the number class's
+    supply, 5 of them written in the form here and on 45191fa alike."""
+    cells = _overflow_beside_words()
+    twin, source_missed, twin_missed = _round(tmp_path, cells, floor)
+    assert source_missed == []
+    assert _census_by_class(cells, "%%@%%%") == {parsing.NOT_A_NUMBER: 163}
+    assert _census_by_class(twin, "%%@%%%") == {parsing.NOT_A_NUMBER: 163}
+    assert _census_by_class(twin, "%@%%%")[parsing.NUMBER_OUT_OF_RANGE] == 3817
+    assert "forms.published.%%@%%%" not in twin_missed
+    assert [name for name in twin_missed if name != "forms.published.%@%%%"] == []
+
+
+def test_each_class_red_when_the_shared_forms_are_served_in_their_order(tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """MUTATION: no form's own labels read first, so the forms are served in
+    their sorted order, as this lane first wrote it: the out-of-range class
+    takes `%%@%%%` and its words come out `group-N`."""
+    kept = generation._shared_forms_kept
+    monkeypatch.setattr(generation, "_shared_forms_kept", lambda _written, *rest: kept([], *rest))
+    twin, _source, twin_missed = _round(tmp_path, _overflow_beside_words(), 11)
+    assert "forms.published.%%@%%%" in twin_missed
+    assert parsing.NUMBER_OUT_OF_RANGE in _census_by_class(twin, "%%@%%%")
+
+
+def test_shared_forms_kept_reads_each_form_s_own_labels_first() -> None:
+    """GATE CASES of `_shared_forms_kept` (method G8.3a): a class is served
+    first from the forms its own labels wear; a form whose published labels
+    are numbers alone (`1.1e6` beside `1.2e6`) is kept for no word."""
+    out_of_range = generation._OWED_OUT_OF_RANGE
+    words = generation._OWED_TEXT
+    kept = generation._shared_forms_kept(
+        ["5E400"] * 15, (12, 10), {0: out_of_range}, {"%%@%%%": 10, "%@%%%": 12}, False
+    )
+    assert kept == {out_of_range: {"%@%%%": 12}, words: {"%%@%%%": 10}}
+    numbers = ["1.1e6"] * 15 + ["1.2e6"] * 15
+    assert generation._shared_forms_kept(numbers, (12, 12), {}, {"%.%@%": 24}, False) == {
+        out_of_range: {},
+        words: {},
+    }
+    assert generation._shared_forms_kept(numbers, (12, 12), {}, {"%.%@%": 24, "%%@%%": 10}, False)[words] == {
+        "%%@%%": 10
+    }
+
+
 # -- (4) free text on durations and a face column ----------------------
 
 

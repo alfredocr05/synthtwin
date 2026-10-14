@@ -10159,20 +10159,37 @@ def shared_forms_kept(written, sizes, classes, owing):
         if owing[form] > 0 and form_reading(form) == NOTATION_TEXT
     )
     kept = {OWED_OUT_OF_RANGE: {}, OWED_TEXT: {}}
-    for form in shared:
-        room = owing[form]
-        if out_of_range > 0 and form_also_reads(form, NOTATION_OUT_OF_RANGE):
-            given = min(room, out_of_range)
-            kept[OWED_OUT_OF_RANGE][form] = given
-            out_of_range -= given
-            room -= given
-        seen_as = reading.get(form, set())
-        if words > 0 and (NOTATION_TEXT in seen_as or not seen_as) and (
-            form_also_reads(form, NOTATION_TEXT)
-        ):
-            given = min(room, words)
-            kept[OWED_TEXT][form] = given
-            words -= given
+    room = {form: owing[form] for form in shared}
+    # Three rounds (lane L1 repair): each class first from the forms its
+    # own published labels wear, then from the forms no label wears, and
+    # last the out-of-range class from the forms labelled otherwise.
+    for rounded in range(3):
+        for form in shared:
+            seen_as = reading.get(form, set())
+            if rounded == 0:
+                beyond = NOTATION_OUT_OF_RANGE in seen_as
+                worded = NOTATION_TEXT in seen_as
+            elif rounded == 1:
+                beyond = worded = not seen_as
+            else:
+                beyond = bool(seen_as) and NOTATION_OUT_OF_RANGE not in seen_as
+                worded = False
+            if out_of_range > 0 and beyond and (
+                form_also_reads(form, NOTATION_OUT_OF_RANGE)
+            ):
+                given = min(room[form], out_of_range)
+                if given > 0:
+                    kept[OWED_OUT_OF_RANGE][form] = (
+                        kept[OWED_OUT_OF_RANGE].get(form, 0) + given
+                    )
+                out_of_range -= given
+                room[form] -= given
+            if words > 0 and worded and form_also_reads(form, NOTATION_TEXT):
+                given = min(room[form], words)
+                if given > 0:
+                    kept[OWED_TEXT][form] = kept[OWED_TEXT].get(form, 0) + given
+                words -= given
+                room[form] -= given
     return kept
 
 
