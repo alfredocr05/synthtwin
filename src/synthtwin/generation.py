@@ -39205,14 +39205,8 @@ def _form_asks(
     bands: "list[int] | None" = None,
     rewording: bool = False,
     exact: bool = False,
-    slots: "frozenset[int]" = frozenset(),
 ) -> "list[str]":
     """One form asked of each group, decided LARGEST GROUP FIRST.
-
-    ``slots`` names the groups that will carry a fold-collision partner
-    (`_text_cells`, lane L1 repair): a partner is built from its parent's
-    spelling, so such a group is offered only forms with a letter place,
-    and a form with none is paid by the groups that are not slots.
 
     ``exact`` says the census pools no cell (no withheld key), so a form
     paid past its count is MISSED. There, A GROUP LARGER THAN WHAT ITS
@@ -39288,18 +39282,8 @@ def _form_asks(
             # the caller writes that answer in; offering it here as well
             # would spend the same debt twice.
             continue
-        offered = left
-        if place in slots:
-            # A PARTNER SLOT IS OFFERED ONLY FORMS WITH A LETTER PLACE
-            # (lane L1 repair, skeptic 1 item 3): 30,000 durations
-            # `HH:MM:SS` beside notes in two cases asked the duration form
-            # of slots whose partners wear none, and missed it.
-            offered = {}
-            for owed in sorted(left):
-                if _form_holds_a_letter(owed):
-                    offered[owed] = left[owed]
         form = _wanted_form(
-            offered,
+            left,
             lengths[place],
             counts[place],
             place in carriers,
@@ -47130,6 +47114,63 @@ def _length_windows(
     return windows
 
 
+def _barred_kept(
+    barred: "list[int]",
+    families: "list[str]",
+    lengths: "list[int]",
+    span: "tuple[int, int]",
+    longest: "int | None",
+) -> "list[int]":
+    """The parents left barred once every family can still serve its slots.
+
+    A BARRED PARENT IS ASKED NO LETTER (`_text_cells`, lane L1 repair),
+    so where every parent of a family is barred and each is already as
+    long as the column's longest published length, a slot of that family
+    has no flip and no room for an edge-spaced copy, writes a made-up
+    spelling, and the published count of folded identities is missed --
+    an exact count lost for a form's (lane L1 leftover). Measured: 4,000
+    rows, durations `HH:MM:SS` beside one tenth `x12`/`X12`; 70 slots of
+    the durations' family found no partner and `n_distinct_folded` came
+    back 3,663 against 3,593, where 45191fa held it.
+
+    So each family keeps as many parents able to serve as it has slots:
+    an unbarred parent counts one, and so does a barred one shorter than
+    ``longest`` (an edge-spaced copy fits); where that falls short, the
+    family's LAST barred parents -- its smallest groups, so the fewest
+    cells leave the form -- are barred no more, as many as it falls
+    short. ``span`` is the number of folded identities and of groups.
+    Guarantees: a sublist of ``barred``, in its order. Raises nothing.
+    No I/O.
+    """
+    folded = span[0]
+    total = span[1]
+    if not barred:
+        return barred
+    wanted: "dict[str, int]" = {}
+    for index in range(folded, total):
+        family = families[index]
+        wanted[family] = (wanted[family] if family in wanted else 0) + 1
+    held: "dict[int, bool]" = {}
+    for place in barred:
+        held[place] = True
+    for place in range(folded):
+        family = families[place]
+        if family not in wanted:
+            continue
+        if place not in held or (longest is not None and lengths[place] < longest):
+            wanted[family] = wanted[family] - 1
+    freed: "dict[int, bool]" = {}
+    for step in range(len(barred) - 1, -1, -1):
+        place = barred[step]
+        family = families[place]
+        if family in wanted and wanted[family] > 0:
+            wanted[family] = wanted[family] - 1
+            freed[place] = True
+    if not freed:
+        return barred
+    return [place for place in barred if place not in freed]
+
+
 def _paid_back(
     facts: "contract.TextFacts",
     spellings: "list[str]",
@@ -47562,7 +47603,6 @@ def _text_cells(
         bands,
         False,
         contract.WITHHELD not in facts.shape_forms,
-        frozenset(range(folded, total)) if 0 < folded < total else frozenset(),
     )
     worn = _number_forms(facts, groups, lengths, kinds, bands, carriers)
     for place in sorted(worn):
@@ -47579,6 +47619,9 @@ def _text_cells(
         for place in range(folded):
             if form_asks[place] and not _form_holds_a_letter(form_asks[place]):
                 barred += [place]
+        barred = _barred_kept(
+            barred, families, lengths, (folded, total), facts.length.maximum
+        )
     asked_families = list(families)
     for place in barred:
         asked_families[place] = f"{families[place]}/no letter place"
