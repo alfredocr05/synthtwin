@@ -14515,8 +14515,7 @@ def _unit_heap_live(
             continue
         seen[entry] = 1
         kept += [entry]
-    kept.sort()
-    return kept
+    return sorted(kept)
 
 
 def _unit_heap_pop(heap: "list[tuple[int, int]]", size: int) -> int:
