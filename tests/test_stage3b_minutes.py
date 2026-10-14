@@ -1568,13 +1568,24 @@ STEP_MUTANTS = {
     ),
     "a payer taken off the unit a run joins": (
         "field_paid_put_back_avoid",
-        "                if avoid >= 0 and state.moved[rank] // state.step == avoid:\n",
+        "                if avoid is not None and state.moved[rank] // state.step == avoid:\n",
         "                if False:\n",
     ),
     "a payer placed on the unit a run leaves": (
         "field_paid_put_back_leaving",
-        "                if leaving >= 0 and place // state.step == leaving:\n",
+        "                if leaving is not None and place // state.step == leaving:\n",
         "                if False:\n",
+    ),
+    # Codex's review of lane J2, item 1: -1 for no unit reads every unit before 1970 as none.
+    "the unit a run joins excluded only after 1970": (
+        "field_paid_put_back_avoid_1947",
+        "                if avoid is not None and state.moved[rank] // state.step == avoid:\n",
+        "                if avoid is not None and avoid >= 0 and state.moved[rank] // state.step == avoid:\n",
+    ),
+    "the unit a run leaves excluded only after 1970": (
+        "field_paid_put_back_leaving_1947",
+        "                if leaving is not None and place // state.step == leaving:\n",
+        "                if leaving is not None and leaving >= 0 and place // state.step == leaving:\n",
     ),
     "no SPREAD by substitute": (
         "field_spread_substitute",
@@ -1670,6 +1681,25 @@ def test_each_drawing_unit_case_is_red_on_its_mutant(mutant: str) -> None:
     name, before, after = CLOCK_MUTANTS[mutant]
     case = _FILE["cases"][name]
     assert _answer(case, clock=_Clock(before, after).module) != case["answer"], mutant
+
+
+def test_the_payer_exclusions_hold_before_1970() -> None:
+    """Codex's review of lane J2, item 1: file 20's two exclusion cases moved back 28,000 days
+    (4,000 weeks: every weekday, clock and gap kept, every written unit negative). Each answer
+    is derived here from the 2024 case's frozen answer, moved back with it, not from the
+    oracle; it holds as many values as asked (4 and 5) and is the file's 1947 case's. With -1
+    for no unit (e69e534), a negative unit read as none and the two held 5 and 6."""
+    shift = 28000 * DAY
+    for name in ("field_paid_put_back_avoid", "field_paid_put_back_leaving"):
+        frozen = _FILE["cases"][name]
+        case = copy.deepcopy(frozen)
+        for key in ("ordinals", "lows", "highs"):
+            case[key] = [value - shift for value in frozen[key]]
+        assert max(case["ordinals"]) < 0, name
+        answer = _answer(case)
+        assert answer == [value - shift for value in frozen["answer"]], name
+        assert len({value // case["written_unit"] for value in answer}) == case["wanted"], name
+        assert _FILE["cases"][name + "_1947"]["answer"] == answer, name
 
 
 # -- by hand -----------------------------------------------------------------------------------

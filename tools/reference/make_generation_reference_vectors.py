@@ -11169,7 +11169,7 @@ def clock_payer_candidates(walk, centre, standing, into, home):
         away += 1
 
 
-def clock_payers(walk, unit, origin, into, standing, home, strict=False, avoid=-1, leaving=-1):
+def clock_payers(walk, unit, origin, into, standing, home, strict=False, avoid=None, leaving=None):
     """THE PAYERS of a unit's move from a day of standing ``origin`` to
     one of ``into``: one for each of its ranks, each a movable body rank
     not of the unit, still on the day it stood on as the round began, of
@@ -11199,9 +11199,9 @@ def clock_payers(walk, unit, origin, into, standing, home, strict=False, avoid=-
             place = clock_payer_place(walk, rank, origin, standing)
             if place is None:
                 continue
-            if avoid >= 0 and walk.days[rank] // walk.step == avoid:
+            if avoid is not None and walk.days[rank] // walk.step == avoid:
                 continue
-            if leaving >= 0 and place // walk.step == leaving:
+            if leaving is not None and place // walk.step == leaving:
                 continue
             alone = walk.holding(walk.days[rank]) == 1
             if alone != (walk.holding(place) > 0):
@@ -11659,7 +11659,7 @@ def clock_whole_runs(walk, first, last, pinned):
     return whole, by_kind
 
 
-def clock_substitute(walk, whole, by_kind, group, size, into, leaving, avoid=-1):
+def clock_substitute(walk, whole, by_kind, group, size, into, leaving, avoid=None):
     """Runs of ``group`` holding ``size`` ranks together, each moved to the free
     place of group ``into`` on its own parent nearest its own inside its gap:
     the longest first, each length's runs in rank order, of at most
@@ -11676,7 +11676,7 @@ def clock_substitute(walk, whole, by_kind, group, size, into, leaving, avoid=-1)
             swap = whole[index]
             spot = walk.days[swap[0]]
             if (
-                swap[0] in leaving or spot // walk.step == avoid
+                swap[0] in leaving or (avoid is not None and spot // walk.step == avoid)
                 or walk.holding(spot) != length or walk.group(spot) != group
             ):
                 continue
@@ -19201,6 +19201,45 @@ def field_paid_put_back_leaving_case():
     )
 
 
+# 28,000 days are 4,000 weeks: a case moved back by them keeps every weekday,
+# clock and gap, its days now in 1947, its written units negative (Codex's
+# review of lane J2, item 1).
+BEFORE_1970_DAYS = 28000
+
+
+def before_1970(case, why):
+    """A case of the field passes moved back BEFORE_1970_DAYS days: every
+    ordinal and gap bound with it, nothing else changed."""
+    shift = BEFORE_1970_DAYS * HOUR_DAY
+    moved = dict(case)
+    moved["why"] = why
+    for key in ("ordinals", "lows", "highs"):
+        moved[key] = [value - shift for value in case[key]]
+    return moved
+
+
+def field_paid_put_back_avoid_1947_case():
+    return before_1970(
+        field_paid_put_back_avoid_case(),
+        "The run's unit excluded before 1970 too (Codex's review of lane J2, item 1): "
+        "field_paid_put_back_avoid moved back 28,000 days, every weekday, clock and gap "
+        "kept, every written unit negative. Tuesday's 09:25 is still passed over and 10:40 "
+        "still pays, four values. With -1 for no unit, a negative unit read as none, 09:25 "
+        "paid, vacating the unit the run joined, and five values stayed.",
+    )
+
+
+def field_paid_put_back_leaving_1947_case():
+    return before_1970(
+        field_paid_put_back_leaving_case(),
+        "The unit the run leaves excluded before 1970 too (Codex's review of lane J2, item "
+        "1): field_paid_put_back_leaving moved back 28,000 days, every weekday, clock and gap "
+        "kept, every written unit negative. A payer placed on the run's unit is still passed "
+        "over, and the count is met. With -1 for no unit, it paid, and the count stayed one "
+        "long.",
+    )
+
+
 def field_spread_substitute_case():
     m = HOUR_MONDAY
     ordinals = [
@@ -19546,6 +19585,8 @@ CLOCK_FIELD_STEP_CASES = {
     "field_paid_put_back_avoid": field_paid_put_back_avoid_case,
     "field_paid_put_back_standing": field_paid_put_back_standing_case,
     "field_paid_put_back_leaving": field_paid_put_back_leaving_case,
+    "field_paid_put_back_avoid_1947": field_paid_put_back_avoid_1947_case,
+    "field_paid_put_back_leaving_1947": field_paid_put_back_leaving_1947_case,
     "field_midnight_tails": field_midnight_tails_case,
     "field_midnight_kin": field_midnight_kin_case,
     "field_midnight_share": field_midnight_share_case,

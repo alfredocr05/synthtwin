@@ -28811,8 +28811,8 @@ def _clock_payers(
     into: int,
     standing: "tuple[int, ...]",
     strict: bool = False,
-    avoid: int = -1,
-    leaving: int = -1,
+    avoid: "int | None" = None,
+    leaving: "int | None" = None,
 ) -> int:
     """THE PAYERS of a unit's move from a day of standing `origin` to one of `into`.
 
@@ -28854,7 +28854,10 @@ def _clock_payers(
     unit the run leaves (lane J2's skeptic, item 2): the run holds it while
     the payers are asked, so a sharing payer there read as keeping the
     count, and once the run had gone the unit stayed held -- a merge that
-    removed no value, counted as one.
+    removed no value, counted as one. None, never a written unit, says
+    there is no such unit: a written unit before 1970 is negative (Codex's
+    review of lane J2, item 1: `-1` for none disabled both exclusions there,
+    and a 1947 payer vacated the very unit its run joined).
     """
     taken: "list[tuple[int, int]]" = []
     asked = set(unit)
@@ -28904,9 +28907,9 @@ def _clock_payers(
                         skipped = index
                     continue
                 leading = False
-                if avoid >= 0 and state.moved[rank] // state.step == avoid:
+                if avoid is not None and state.moved[rank] // state.step == avoid:
                     continue
-                if leaving >= 0 and place // state.step == leaving:
+                if leaving is not None and place // state.step == leaving:
                     continue
                 alone = state.held[state.moved[rank] // state.step] == 1
                 if alone != _weekday_holds(state, place):
@@ -30338,7 +30341,7 @@ def _clock_substitute(
     size: int,
     into: int,
     leaving: "list[int]",
-    avoid: int = -1,
+    avoid: "int | None" = None,
 ) -> "list[tuple[list[int], int]] | None":
     """Runs of `group` holding `size` ranks together, each moved to the free
     place of group `into` on its own parent nearest its own, inside its gap
@@ -30346,7 +30349,8 @@ def _clock_substitute(
     order, of at most `_SUBSTITUTE_TRIES` asked, a run longer than what is
     left passed over. A run that has moved since it was listed, holds a
     rank of `leaving` or stands on the written unit `avoid` -- the unit a run
-    is joining -- is passed over. Each run moves as it is found; where the
+    is joining; None, never a written unit, where there is none -- is
+    passed over. Each run moves as it is found; where the
     runs found do not reach `size`, every one goes back to where it stood
     and None is handed back; else each run moved, with where it stood.
 
@@ -30370,7 +30374,7 @@ def _clock_substitute(
             spot = state.moved[swap[0]]
             if (
                 swap[0] in leaving
-                or spot // state.step == avoid
+                or (avoid is not None and spot // state.step == avoid)
                 or _weekday_there(state, spot) != length
                 or state.where[_clock_bin(state, spot)] != group
             ):
