@@ -706,6 +706,53 @@ def test_days_beside_a_few_timed_cells_withhold_their_minutes(tmp_path: pathlib.
     assert "days:minute_heaps.counts" in kpi_shapes.missed(kpi_shapes.measure(described, written, "m.csv"))
 
 
+def _regular_series(step: int, rows: int, every: int = 0) -> "list[str]":
+    """Lane J2's skeptic, item 1: one stamp every `step` minutes from 2015-01-01, as vital signs
+    or scheduled observations are written; every `every`-th written twice where it is given."""
+    start = datetime.datetime(2015, 1, 1)
+    cells: "list[str]" = []
+    place = 0
+    while len(cells) < rows:
+        text = (start + datetime.timedelta(minutes=step * place)).strftime("%Y-%m-%d %H:%M:%S")
+        cells += [text] * (2 if every and place % every == every - 1 else 1)
+        place = place + 1
+    return cells[:rows]
+
+
+def test_a_regular_series_withholds_the_clock_facts_it_crowds(tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Lane J2's skeptic, item 1 (NF121, NF122): stamps one, five, fifteen and sixty minutes
+    apart, every one different, at 1,000 and 3,800 rows, and five minutes apart at 3,800 rows
+    with every tenth written twice, crowd the lattice their minute's and second's facts would
+    pin: those facts are withheld, said once a field, and the twins miss nothing -- as on the
+    pushed head 45191fa, where no minute fact was published. Mutant: the rule withdrawn, the
+    five-minute series at 1,000 rows publishes its heaps, its twin comes back 903 values of
+    1,000, and the report names the clock pass's short count as the cause."""
+    shapes_asked = [(step, rows, LINE, 0) for step in (1, 5, 15, 60) for rows in (1000, 3800)]
+    shapes_asked += [(5, 3800, 36, 0), (5, 3800, LINE, 10)]
+    for step, rows, floor, every in shapes_asked:
+        described = _one_column(tmp_path / f"s{step}-{rows}-{floor}-{every}", "c", _regular_series(step, rows, every), floor)
+        block = described.block("c")
+        for key in ("minute_census", "minute_heaps", "second_census", "second_heaps"):
+            assert block[key] == [], (step, rows, floor, every, key)
+        said = [note["note"] for note in described.document["publication_notes"] if note["column"] == "c"]
+        assert taxonomy.rendered(taxonomy.NOTE_SECOND_WITHHELD_CROWDED, ()) in said, (step, rows, floor, every)
+        written = kpi_shapes.twin_text(described, 0)
+        assert kpi_shapes.missed(kpi_shapes.measure(described, written, "t.csv")) == [], (step, rows, floor, every)
+    assert calendar_clock.lattice_crowded(300, 0, 299_700, 500)
+    assert not calendar_clock.lattice_crowded(300, 0, 299_700, 499)
+    assert calendar_clock.lattice_crowded(300, 0, 299_700, 334, True)
+    assert not calendar_clock.lattice_crowded(300, 0, 299_700, 333, True)
+    assert not calendar_clock.lattice_crowded(1, 0, 299_700, 1000, True)
+    monkeypatch.setattr(calendar_clock, "lattice_crowded", lambda *_arguments: False)
+    described = _one_column(tmp_path / "withdrawn", "c", _regular_series(5, 1000))
+    assert described.block("c")["second_heaps"] == [{"value": 0, "count": 978}]
+    twin = generation.generate(described.loaded, 0)
+    written = rendering.twin_csv(twin)
+    assert "c:distinct.n_distinct" in kpi_shapes.missed(kpi_shapes.measure(described, written, "m.csv"))
+    causes = [note.note for note in twin.deviations if note.fact == "n_distinct"]
+    assert generation._CLOCK_FIELDS_LEFT_SHORT in causes, causes
+
+
 def test_minutes_on_the_hour_publish_where_one_count_is_closer(tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """Mornings 70 per cent on :00 or :30 beside afternoons at 40 depend on the
     hour, yet one count over every hour is closer to each than a flat field:
@@ -1402,6 +1449,11 @@ STEP_MUTANTS = {
         "                if avoid >= 0 and state.moved[rank] // state.step == avoid:\n",
         "                if False:\n",
     ),
+    "a payer placed on the unit a run leaves": (
+        "field_paid_put_back_leaving",
+        "                if leaving >= 0 and place // state.step == leaving:\n",
+        "                if False:\n",
+    ),
     "no SPREAD by substitute": (
         "field_spread_substitute",
         "                if into is None:\n                    continue\n                _weekday_step(state, swap, into)\n",
@@ -1657,11 +1709,33 @@ def _paid_state(weeks: int, merging: bool):
     takes one on the Sunday before, paid by a Sunday rank moving a whole day onto Monday."""
     moved: "list[int]" = []
     for week in range(weeks):
-        sunday = 19725 + 7 * week  # 2024-01-07, a Sunday
+        sunday = 19729 + 7 * week  # 2024-01-07, a Sunday
         for hour in range(1, 7):
             moved += [sunday * DAY + hour * 3600 + minute * 60 for minute in ((20, 40) if merging else (40,))]
         for hour in range(1, 7):
             moved += [(sunday + 1) * DAY + hour * 3600 + (20 * 60 if merging else 0)] * (1 if merging else 2)
+    moved = sorted(moved)
+    rows = len(moved)
+    state = generation._WeekdayPass(
+        moved=moved, held={}, where=tuple([1] + [0] * 59), facts=None, word="", widths=False,
+        kinds={}, holes=frozenset(), lows=[moved[0] - 3600] * rows, highs=[moved[-1] + 3600] * rows,
+        keep_units=True, unit=60, step=60, day=DAY, bins="minute", period=60, keeps="hour",
+        count_steps=False, kin=tuple(range(24)),
+    )
+    for ordinal in moved:
+        generation._weekday_tally(state.held, ordinal // 60, 1)
+    return state, rows
+
+
+def _paid_spread_failing_state(weeks: int):
+    """Lane J2's skeptic, item 4: `weeks` weeks in one gap, each Monday's hours 1 to 6 holding
+    two ranks sharing minute 0 and no other rank anywhere, so SPREAD PAID BACK finds no payer
+    for any of them -- the search that fails, asked once for each group, place and gap."""
+    moved: "list[int]" = []
+    for week in range(weeks):
+        monday = 19730 + 7 * week  # 2024-01-08, a Monday
+        for hour in range(1, 7):
+            moved += [monday * DAY + hour * 3600] * 2
     moved = sorted(moved)
     rows = len(moved)
     state = generation._WeekdayPass(
@@ -1746,6 +1820,20 @@ def test_the_paid_count_steps_grow_with_the_rows() -> None:
             assert generation._weekday_count(state) == wanted, (merging, weeks)
             assert collections.Counter((ordinal // DAY + 3) % 7 for ordinal in state.moved) == weekdays, (merging, weeks)
         assert spent[1] <= 1.25 * 9 * spent[0], (merging, spent)
+    # ...AND WHERE SPREAD PAID BACK FINDS NOTHING (lane J2's skeptic, item 4): Monday pairs at
+    # minute 0 with no payer anywhere, every search failing. Its failed-search memo keeps the
+    # lines linear (measured 10,396 and 82,732); without it they grew 40 times (15,364 and
+    # 616,612), and the passing states above never failed a search to show it.
+    spent = []
+    for weeks in (3, 27):
+        state, rows = _paid_spread_failing_state(weeks)
+        count = generation._weekday_count(state)
+        spent += [_lines_run(
+            generation._clock_paid_spread, state, 0, rows - 1, [False] * rows, count + 6 * weeks,
+            tuple(range(7)),
+        )]
+        assert generation._weekday_count(state) == count, weeks
+    assert spent[1] <= 1.25 * 9 * spent[0], ("failing", spent)
 
 
 def _substitute_state(days: int):

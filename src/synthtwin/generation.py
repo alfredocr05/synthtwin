@@ -23597,6 +23597,13 @@ _CLOCK_FIELDS_LEFT_LONG = (
     "values, so the twin kept the published counts per minute or second "
     "and holds more different values than the description records."
 )
+# ...and where the field's steps left it short (lane J2's skeptic, item 1).
+_CLOCK_FIELDS_LEFT_SHORT = (
+    "The clock pass moved the twin's moments onto the minutes or seconds "
+    "the description counts, and the places it found wrote some of them "
+    "alike, so the twin kept the published counts per minute or second "
+    "and holds fewer different values than the description records."
+)
 _CLOCK_FOLDED_LEFT_LONG = (
     "The twin holds MORE different values, ignoring case and edge "
     "spacing, than the description records, for the same reason: the "
@@ -28805,6 +28812,7 @@ def _clock_payers(
     standing: "tuple[int, ...]",
     strict: bool = False,
     avoid: int = -1,
+    leaving: int = -1,
 ) -> int:
     """THE PAYERS of a unit's move from a day of standing `origin` to one of `into`.
 
@@ -28842,6 +28850,11 @@ def _clock_payers(
     it, so a step that counts its own moves counts them exactly; and a rank
     standing on the written unit `avoid` -- the unit a run is joining -- is
     never a payer, so the unit it joins is still held when it gets there.
+    Nor is a payer whose place stands on the written unit `leaving` -- the
+    unit the run leaves (lane J2's skeptic, item 2): the run holds it while
+    the payers are asked, so a sharing payer there read as keeping the
+    count, and once the run had gone the unit stayed held -- a merge that
+    removed no value, counted as one.
     """
     taken: "list[tuple[int, int]]" = []
     asked = set(unit)
@@ -28892,6 +28905,8 @@ def _clock_payers(
                     continue
                 leading = False
                 if avoid >= 0 and state.moved[rank] // state.step == avoid:
+                    continue
+                if leaving >= 0 and place // state.step == leaving:
                     continue
                 alone = state.held[state.moved[rank] // state.step] == 1
                 if alone != _weekday_holds(state, place):
@@ -29741,6 +29756,7 @@ def _clock_fields_settled(
             if field == calendar_clock.MINUTE:
                 minute_where = where
             continue
+        handed = len({value // step for value in moved})
         _clock_field_settled(
             state, counts, body_low, body_high, pinned, wanted,
             _clock_day_standing(facts), not facts.weekday_census, kin, column.n_distinct,
@@ -29750,8 +29766,24 @@ def _clock_fields_settled(
             written, max(written, layout.tail_unit), wanted, _clock_day_standing(facts),
             not facts.weekday_census, kin,
         )
+        count_now = len({value // step for value in moved})
         if _clock_found(state, len(counts), body_low, body_high) != counts:
             notes += [_clock_field_deviation(column.name, field)]
+        elif state.keep_units and count_now < wanted and count_now < handed:
+            # ...AND A COUNT THE FIELD'S STEPS LOWERED, named with its own
+            # cause (lane J2's skeptic, item 1): 1,000 stamps five minutes
+            # apart, every one different, handed to the second's steps at
+            # 1,000 values, came back 893, and the report blamed the ways of
+            # writing a value.
+            notes += [
+                _deviation(
+                    column.name,
+                    "n_distinct",
+                    f"{wanted} different values",
+                    f"{count_now} different values",
+                    _CLOCK_FIELDS_LEFT_SHORT,
+                )
+            ]
         elif state.keep_units and _weekday_count(state) > wanted:
             # THE CENSUS STOOD AND THE COUNT GAVE WAY, named (the lane's
             # second skeptic, item 1; the plan's RESIDUAL, as the day
@@ -30675,7 +30707,8 @@ def _clock_paid_merge_target(
     tie, no hole and of its width kind, whose standing is another; on each,
     PUT BACK's place at the run's own parent's place in that day
     (`_clock_merge_on`), taken only where as many STRICT PAYERS as the run
-    has ranks -- none standing on the unit it joins -- are found and moved
+    has ranks -- none standing on the unit it joins, none placed on the
+    unit it leaves -- are found and moved
     (`_clock_payers`), each keeping the count of different values. A
     standing is asked once for the run; a pair of standings no payer at all
     was found for goes into `refused` and is not asked again in the step.
@@ -30706,7 +30739,8 @@ def _clock_paid_merge_target(
             if target is None:
                 continue
             found = _clock_payers(
-                state, book, members, own, into, standing, True, target // state.step
+                state, book, members, own, into, standing, True, target // state.step,
+                ordinal // state.step,
             )
             if found == len(members):
                 return target
@@ -53802,8 +53836,12 @@ def generate(profile: contract.Profile, seed: int) -> Twin:
             # ...and the clock pass's, where no day pass named one (3b.T3)
             if note.note == _CLOCK_FIELDS_LEFT_LONG and not cause:
                 cause = note.note
+            # ...its short one too (lane J2's skeptic, item 1)
+            if note.note == _CLOCK_FIELDS_LEFT_SHORT and not cause:
+                cause = note.note
         notes = [note for note in notes if note.note not in _WEEKDAY_CAUSES]
         notes = [note for note in notes if note.note != _CLOCK_FIELDS_LEFT_LONG]
+        notes = [note for note in notes if note.note != _CLOCK_FIELDS_LEFT_SHORT]
         notes = (
             list(each.notes)
             + notes
@@ -54287,6 +54325,11 @@ def _recount_notes(
             # THE CLOCK PASS'S CAUSE IS A LONG ONE (3b.T3): over a long
             # count only.
             if counted[2] > column.n_distinct:
+                reason = cause
+        elif cause == _CLOCK_FIELDS_LEFT_SHORT:
+            # ...ITS SHORT ONE over a short count only (lane J2's skeptic,
+            # item 1).
+            if counted[2] < column.n_distinct:
                 reason = cause
         elif cause and (cause == _WEEKDAY_DAYS_LEFT_LONG) == (
             counted[2] > column.n_distinct

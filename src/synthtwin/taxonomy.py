@@ -1058,6 +1058,10 @@ NOTE_SECOND_WITHHELD_FEW_VALUES = "second_census_withheld_few_values"
 # cells off a midnight to hold (`calendar_clock.off_midnight_short`).
 NOTE_MINUTE_WITHHELD_OFF_MIDNIGHT = "minute_census_withheld_off_midnight"
 NOTE_SECOND_WITHHELD_OFF_MIDNIGHT = "second_census_withheld_off_midnight"
+# NF121 and NF122: a lattice of the clock the column's different values
+# crowd (`calendar_clock.lattice_crowded`; lane J2's skeptic, item 1).
+NOTE_MINUTE_WITHHELD_CROWDED = "minute_census_withheld_crowded_lattice"
+NOTE_SECOND_WITHHELD_CROWDED = "second_census_withheld_crowded_lattice"
 # anchor 3b-C1 (P4-D373)
 # THE CLOCK CENSUS'S TWO SENTENCES (landing 3b.5, plan P4-D373; contract
 # NF106 and NF107), each naming the census line and no count of rows.
@@ -1274,6 +1278,8 @@ NOTE_ARITY: "dict[str, int]" = {
     NOTE_SECOND_WITHHELD_FEW_VALUES: 0,
     NOTE_MINUTE_WITHHELD_OFF_MIDNIGHT: 0,
     NOTE_SECOND_WITHHELD_OFF_MIDNIGHT: 0,
+    NOTE_MINUTE_WITHHELD_CROWDED: 0,
+    NOTE_SECOND_WITHHELD_CROWDED: 0,
     # anchor 3b-C1 (P4-D373)
     NOTE_CLOCK_CENSUS_LEFT_OUT: 1,
     REMARK_CLOCK_CODES_WRITTEN: 1,
@@ -2374,6 +2380,17 @@ def rendered(form: str, arguments: "tuple[object, ...]") -> str:
             f"between the two tail boundaries, fewer values off a midnight "
             f"would be left there than its counts at each {one} other than 0 "
             f"name"
+        )
+    if form in (NOTE_MINUTE_WITHHELD_CROWDED, NOTE_SECOND_WITHHELD_CROWDED):
+        # NF121, NF122.
+        values, _one, _whole_word = _clock_field_words(form)
+        return (
+            f"the {values} this column's values fall on are not counted: its "
+            f"different values stand so close together on the clock -- "
+            f"filling half or more of the places those counts would leave "
+            f"them between the two tail boundaries, or a third where every "
+            f"value is different -- that a twin keeping its percentiles could "
+            f"not keep them apart there"
         )
     if form in (NOTE_MINUTE_WITHHELD_WITH_THE_HOUR, NOTE_SECOND_WITHHELD_WITH_THE_HOUR):
         values, _one, _whole_word = _clock_field_words(form)
@@ -18557,6 +18574,7 @@ def _clock_field_words(form: str) -> "tuple[str, str, str]":
         NOTE_SECOND_WITHHELD_WITH_THE_HOUR,
         NOTE_SECOND_WITHHELD_OFF_MIDNIGHT,
         NOTE_SECOND_WITHHELD_FEW_VALUES,
+        NOTE_SECOND_WITHHELD_CROWDED,
     ):
         return "seconds of the minute", "second", "minute"
     return "minutes of the hour", "minute", "hour"
@@ -18579,7 +18597,62 @@ _FIELD_WITHHELD_NOTES = {
     (calendar_clock.SECOND, calendar_clock.FIELD_REASON_FEW_VALUES): NOTE_SECOND_WITHHELD_FEW_VALUES,
     (calendar_clock.MINUTE, calendar_clock.FIELD_REASON_OFF_MIDNIGHT): NOTE_MINUTE_WITHHELD_OFF_MIDNIGHT,
     (calendar_clock.SECOND, calendar_clock.FIELD_REASON_OFF_MIDNIGHT): NOTE_SECOND_WITHHELD_OFF_MIDNIGHT,
+    (calendar_clock.MINUTE, calendar_clock.FIELD_REASON_CROWDED): NOTE_MINUTE_WITHHELD_CROWDED,
+    (calendar_clock.SECOND, calendar_clock.FIELD_REASON_CROWDED): NOTE_SECOND_WITHHELD_CROWDED,
 }
+
+
+def clock_lattice_crowded(
+    details: "dict[str, object]",
+    minute: "ClockFieldDecision",
+    second: "ClockFieldDecision",
+    parsed: int,
+    fresh: "tuple[bool, ...]",
+    line: int,
+) -> bool:
+    """Whether the lattice the two fields' decisions pin is crowded (NF121, NF122).
+
+    Lane J2's skeptic, item 1. The lattice is the body's drawing unit the
+    decided facts give (`calendar_clock.drawing_unit`, read off the block's
+    published body values, its body's cells and the census `line`); the
+    column's different values -- the parsed cells written differently from
+    the one before them (`fresh`), in rank order -- crowd it where they
+    fill half or more of its points between the two tail boundaries, a
+    third or more where every parsed cell is one
+    (`calendar_clock.lattice_crowded`). False where neither
+    field publishes, or where the block has no two tails.
+
+    Guarantees: a function of the arguments; raises nothing. No I/O.
+    """
+    if not (minute.groups or minute.heaps or second.groups or second.heaps):
+        return False
+    low_tail = details["low_tail"]
+    high_tail = details["high_tail"]
+    if not isinstance(low_tail, dict) or not isinstance(high_tail, dict):
+        return False
+    rows_low = low_tail["rows"]
+    rows_high = high_tail["rows"]
+    if not isinstance(rows_low, int) or not isinstance(rows_high, int) or len(fresh) != parsed:
+        return False
+    texts = [text for _rank, text in hour_published_values(details, parsed)]
+    if not texts:
+        return False
+    unit = calendar_clock.drawing_unit(
+        str(details["time_precision"]),
+        (minute.groups, minute.heaps),
+        (second.groups, second.heaps),
+        texts,
+        parsed - rows_low - rows_high,
+        line,
+    )
+    distinct = 0
+    for flag in fresh:
+        if flag:
+            distinct = distinct + 1
+    instants = [calendar_clock.seconds_of(text) for text in texts]
+    return calendar_clock.lattice_crowded(
+        unit, min(instants), max(instants), distinct, parsed > 1 and distinct == parsed
+    )
 
 
 def _clock_fields_published(
@@ -18615,11 +18688,22 @@ def _clock_fields_published(
     line = parsing.census_floor(settings.small_cell_floor)
     notes: "list[Note]" = []
     remarks: "list[Note]" = []
+    decisions: "dict[str, ClockFieldDecision]" = {}
     for field in (calendar_clock.MINUTE, calendar_clock.SECOND):
-        decided = clock_field_decision(
+        decisions[field] = clock_field_decision(
             block, verdict.hours, verdict.minutes, verdict.seconds, field,
             settings, stored_one_way, verdict.fresh, verdict.fresh_written,
         )
+    # A LATTICE THE DIFFERENT VALUES CROWD withholds both fields (lane J2's
+    # skeptic, item 1; `clock_lattice_crowded`).
+    crowded = clock_lattice_crowded(
+        block, decisions[calendar_clock.MINUTE], decisions[calendar_clock.SECOND],
+        len(verdict.hours), verdict.fresh, line,
+    )
+    for field in (calendar_clock.MINUTE, calendar_clock.SECOND):
+        decided = decisions[field]
+        if crowded and (decided.groups or decided.heaps):
+            decided = ClockFieldDecision((), (), calendar_clock.FIELD_REASON_CROWDED)
         census_key, heaps_key = calendar_clock.FIELD_KEYS[field]
         if decided.groups or decided.heaps:
             block[census_key] = [

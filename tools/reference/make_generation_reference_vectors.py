@@ -11169,7 +11169,7 @@ def clock_payer_candidates(walk, centre, standing, into, home):
         away += 1
 
 
-def clock_payers(walk, unit, origin, into, standing, home, strict=False, avoid=-1):
+def clock_payers(walk, unit, origin, into, standing, home, strict=False, avoid=-1, leaving=-1):
     """THE PAYERS of a unit's move from a day of standing ``origin`` to
     one of ``into``: one for each of its ranks, each a movable body rank
     not of the unit, still on the day it stood on as the round began, of
@@ -11183,7 +11183,9 @@ def clock_payers(walk, unit, origin, into, standing, home, strict=False, avoid=-
 
     STRICT PAYERS (lane J2): where ``strict``, only a payer keeping the
     count is taken, among the first with a place and the CLOCK_PAYER_REACH
-    after it; and no rank on the written unit ``avoid`` is a payer."""
+    after it; and no rank on the written unit ``avoid`` is a payer, nor one
+    whose place stands on the written unit ``leaving``, the one the run
+    leaves (lane J2's skeptic, item 2)."""
     taken = []
     asked = set(unit)
     centre = walk.days[unit[0]] // walk.day
@@ -11198,6 +11200,8 @@ def clock_payers(walk, unit, origin, into, standing, home, strict=False, avoid=-
             if place is None:
                 continue
             if avoid >= 0 and walk.days[rank] // walk.step == avoid:
+                continue
+            if leaving >= 0 and place // walk.step == leaving:
                 continue
             alone = walk.holding(walk.days[rank]) == 1
             if alone != (walk.holding(place) > 0):
@@ -11971,9 +11975,9 @@ def clock_paid_merge_place(walk, members, held, standing, refused, home):
     nearest first, the earlier on a tie, no hole and of its width kind, whose
     standing is another; on each, PUT BACK's place at the run's own parent's
     place in that day, taken only where as many strict payers as the run has
-    ranks, none on the unit it joins, are found and moved. A standing is
-    asked once for the run; a pair no payer at all was found for is refused
-    for the step."""
+    ranks, none on the unit it joins and none placed on the unit it leaves,
+    are found and moved. A standing is asked once for the run; a pair no
+    payer at all was found for is refused for the step."""
     first = members[0]
     ordinal = walk.days[first]
     group = walk.group(ordinal)
@@ -12010,7 +12014,10 @@ def clock_paid_merge_place(walk, members, held, standing, refused, home):
             target = nearest_on(other * per_day + seat)
             if target is None:
                 continue
-            found = clock_payers(walk, members, own, into, standing, home, True, target // walk.step)
+            found = clock_payers(
+                walk, members, own, into, standing, home, True, target // walk.step,
+                ordinal // walk.step,
+            )
             if found == len(members):
                 return target
             asked.add(into)
@@ -19130,6 +19137,34 @@ def field_paid_put_back_standing_case():
     )
 
 
+def field_paid_put_back_leaving_case():
+    m = HOUR_MONDAY
+    cells = []
+    for block, day in enumerate((m, m + 21)):
+        low, high = (day - 1) * HOUR_DAY, (day + 1) * HOUR_DAY - 1
+        if block == 1:
+            cells += [(hour_at(day - 1, 5, 20), low, high)] * 2
+            cells += [(hour_at(day - 1, 5, 40), low, high), (hour_at(day, 5, 20), low, high)]
+        else:
+            cells += [(hour_at(day - 1, 7, 40), low, high), (hour_at(day - 1, 9, 0), low, high)]
+            cells += [(hour_at(day, 7, 20), low, high)]
+    cells.sort()
+    ordinals = [cell[0] for cell in cells]
+    return field_case(
+        "PUT BACK PAID BACK's payers are placed off the unit the run leaves (lane J2's skeptic, "
+        "item 2): two gaps of a Sunday and a Monday, three weeks apart, one value too many. In "
+        "the later, a pair at Sunday 05:20 stands beside a lone 05:40 and the run alone at "
+        "Monday 05:20. A rank of the pair, sharing its unit, would move a whole day onto Monday "
+        "05:20, the unit the run holds, and read as keeping the count; once the run had gone to "
+        "Sunday the unit stayed held, and the step counted a merge that removed no value, the "
+        "count left one long. Passed over, the payer is another, and the count is met.",
+        "paid_put_back", ordinals, {0, len(ordinals) - 1}, [len(ordinals) - 1, 1], HEAP_ZERO, 60,
+        wanted=len({o // 60 for o in ordinals}) - 1, kin=list(range(24)),
+        pinned=[False] * len(ordinals), lows=[cell[1] for cell in cells],
+        highs=[cell[2] for cell in cells],
+    )
+
+
 def field_spread_substitute_case():
     m = HOUR_MONDAY
     ordinals = [
@@ -19437,6 +19472,7 @@ CLOCK_FIELD_STEP_CASES = {
     "field_spread_substitute": field_spread_substitute_case,
     "field_paid_put_back_avoid": field_paid_put_back_avoid_case,
     "field_paid_put_back_standing": field_paid_put_back_standing_case,
+    "field_paid_put_back_leaving": field_paid_put_back_leaving_case,
     "field_midnight_tails": field_midnight_tails_case,
     "field_midnight_kin": field_midnight_kin_case,
     "field_midnight_share": field_midnight_share_case,

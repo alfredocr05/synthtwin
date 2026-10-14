@@ -500,6 +500,9 @@ FIELD_REASON_FLAT = "flat"
 FIELD_REASON_HOUR = "hour"
 FIELD_REASON_FEW_VALUES = "few_values"
 FIELD_REASON_OFF_MIDNIGHT = "off_midnight"
+# ...and, for both fields at once, a lattice the column's different values
+# crowd (`lattice_crowded`; lane J2's skeptic, item 1).
+FIELD_REASON_CROWDED = "crowded"
 FIELD_REASONS = (
     HOUR_REASON_NO_TAILS,
     HOUR_REASON_SPAN,
@@ -510,6 +513,7 @@ FIELD_REASONS = (
     FIELD_REASON_HOUR,
     FIELD_REASON_FEW_VALUES,
     FIELD_REASON_OFF_MIDNIGHT,
+    FIELD_REASON_CROWDED,
 )
 # The reasons said in a sentence of the field's own.
 FIELD_REASONS_SAID = (
@@ -518,6 +522,7 @@ FIELD_REASONS_SAID = (
     FIELD_REASON_HOUR,
     FIELD_REASON_FEW_VALUES,
     FIELD_REASON_OFF_MIDNIGHT,
+    FIELD_REASON_CROWDED,
 )
 
 # The names `calendar_rules.census_breach` reports each field's census
@@ -1290,6 +1295,53 @@ def drawing_unit(
     if minutes <= 0:
         return 1 if precision == "minute" else FIELD_VALUES
     return FIELD_VALUES * minutes
+
+
+# THE SHARE OF A LATTICE'S POINTS a column's different values may fill
+# before its minute and second facts are withheld (`lattice_crowded`), as
+# a fraction: half; a third where every value is different, so no repeat
+# can take up a collision.
+CROWDED_SHARE = (1, 2)
+CROWDED_SHARE_ALL_DIFFERENT = (1, 3)
+
+
+def lattice_crowded(
+    unit: int, low: int, high: int, distinct: int, all_different: bool = False
+) -> bool:
+    """Whether a column's different values crowd the lattice its clock facts pin.
+
+    METHOD G7.3's DRAWING RULE MEETS THE COUNT (lane J2's skeptic, item 1).
+    `unit` is the lattice the minute's and second's facts would pin the
+    body to (`drawing_unit`), `low` and `high` the two tail boundaries in
+    seconds (`seconds_of`), `distinct` the column's count of different
+    values and `all_different` whether every parsed cell is one. Where the
+    unit is above one and the different values fill at least
+    `CROWDED_SHARE` of the lattice's points from `low` to `high` -- at
+    least `CROWDED_SHARE_ALL_DIFFERENT` where every value is different --
+    the facts are crowded: drawn on the lattice the values collide, the count
+    pass keeps them apart a second at a time, and the field passes, moving
+    them back onto it, find too few free points inside their gaps -- a gap
+    between two interpolated rungs of a regular series holds one rank
+    more than lattice points -- so the lattice, the ladder and the count
+    cannot all hold. Measured on stamps five minutes apart, every one
+    different, at 1,000 rows: 998 values met the count drawn a second at a
+    time; the minute's and the second's passes left 893. Every 10th of
+    3,800 such stamps written twice (91 % of the points held) came back
+    3,090 of 3,455; each point kept at random with chance one half, 3,751
+    of 3,800, with chance 0.4, 3,798; with 0.35 and less, every value. A
+    column with repeats takes collisions up in them: T2's grids on the
+    hour and on half hours at 10,000 rows, 7,334 values filling more than
+    a third of their points and less than half, meet their heaps.
+
+    Guarantees: a function of the arguments; raises nothing. No I/O.
+    """
+    if unit <= 1:
+        return False
+    if high < low:
+        return False
+    points = (high - low) // unit + 1
+    share, whole = CROWDED_SHARE_ALL_DIFFERENT if all_different else CROWDED_SHARE
+    return distinct * whole >= points * share
 
 # anchor 3b-C1 (P4-D373)
 # THE CENSUS OF A COLUMN OF CLOCK TIMES (landing 3b.5, lane C1, plan

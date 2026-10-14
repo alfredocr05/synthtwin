@@ -2407,6 +2407,32 @@ def test_c4_longer_counts_carrying_the_time_of_day_are_read_with_the_rest(tmp_pa
     assert named <= {"'midnight_g15_10'", "'midnight_repr_10'"}, named
 
 
+@pytest.mark.xfail(
+    strict=True,
+    reason=(
+        "A carried limit of landing 3b.4 (plan P4-D372), measured by lane J2's repair (plan "
+        "P4-D391): the count at midnight withheld because 10 of 1,000 stand off one, the heap "
+        "on minute 0 held exactly, and both tails' ends drawn off their midnights leave the "
+        "twin 11 cells off a midnight (g15) and 17 (repr), on the line -- 989 and 983 at "
+        "midnight at seeds 0 to 2, on 71ff1b0 alone as on the merge."
+    ),
+)
+def test_c4_columns_mostly_at_midnight_keep_their_withheld_count(tmp_path: pathlib.Path) -> None:
+    """Lane J2's skeptic, item 3: the two columns nine in ten at midnight, written `%.15g` and
+    `repr`, generate, and their twin and source both pass. Measured on the pushed head 45191fa,
+    the same moments written as ISO text, where no minute fact is published: they passed only
+    because the twin wrote 9 of its 1,000 cells at midnight for the column's 990 at five seeds
+    of six (seeds 0 to 2 of each) -- the check of a count withheld
+    for its size reads either side -- so the head's 989 and 983 are the nearer twins, one heap
+    and two ends from the line."""
+    columns = {
+        f"midnight_{writer}_10": _time_carried_by_the_few("midnight", writer, 0.01)
+        for writer in ("g15", "repr")
+    }
+    came = _trip_of(tmp_path / "declared", columns, {name: "excel-1900" for name in columns})
+    assert (came["generate"], came["twin"], came["source"]) == (0, 0, 0), came
+
+
 def test_c5_a_placeholder_count_is_set_aside_whole_or_not(
     tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

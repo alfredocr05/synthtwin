@@ -633,6 +633,19 @@ def test_at_the_floor_of_11_a_census_that_leaves_its_twins_long_is_withheld(tmp_
     for seed, held in long.items():
         values, missed = _twin_values(described, seed)
         assert len(set(values)) == held and "visit:distinct.n_distinct" in missed, (seed, len(set(values)), missed)
+    if clock == "12:00:00":
+        # THE RULE'S REASON WAS MEASURED BEFORE LANDING 3b.4 (lane J2's skeptic, item 5): read
+        # with its minute's and second's facts, as the merged head describes it, the noon census
+        # put back is met -- the field passes' count steps paid back hold 24 at every seed, and
+        # nothing is missed -- so the unit-room rule now withholds a census these twins can meet.
+        # It stands, a carried limit of plan P4-D391, until it is asked beside the clock facts;
+        # the midnight variant's count rules stand on their own measurement (25 to 27 values).
+        kept = _described(tmp_path / "withdrawn-kept", "visit", cells)
+        assert [group["count"] for group in kept.block("visit")["weekday_census"]] == [73, 31]
+        assert kept.block("visit")["minute_heaps"] and kept.block("visit")["second_heaps"]
+        for seed in (0, 1, 2, 3, 17):
+            values, missed = _twin_values(kept, seed)
+            assert missed == [] and len(set(values)) == 24, (seed, missed, len(set(values)))
 
 
 @pytest.mark.parametrize("floor", (11, 20))

@@ -312,12 +312,16 @@ cannot get worse unseen.
   Beside a weekday census the hour pass leaves a small bursty table's
   count of different values long: 85 of 105 twins of T3's bursty tables
   on 45191fa, 83 since the minute and second passes pay their count steps
-  back (P4-D391); owner lane J's family (G7.3g step 6). And a column nine
-  in ten at midnight, its count there withheld for its size, beside a heap
-  at minute 0, writes one midnight fewer (989 of 990), and 3,800
-  all-different stamps five minutes apart come back 3,420 to 3,473
-  different values, missing the second's heap -- both lane T3's own
-  (P4-D372), named in R4's c4 and R2c's partial-step tests.
+  back (P4-D391); owner lane J's family (G7.3g step 6). A column nine in
+  ten at midnight, its count there withheld for its size, beside a heap at
+  minute 0, writes 989 and 983 midnights of 990 -- lane T3's own (P4-D372),
+  a strict xfail in R4's c4 tests; 45191fa passed it only with twins
+  writing 9 at midnight, the withheld check reading either side. Regular
+  stamps crowding the lattice their clock facts pin -- every series
+  measured one to sixty minutes apart, 1,000 to 100,000 rows, short of its
+  count and from 3,800 rows off the second's heap -- now withhold those
+  facts (NF121, NF122) and miss nothing. NF74's unit-room rule, measured
+  before 3b.4, withholds a noon census the twins now meet.
 - **Codes and tables written or read unlike the source, older than this
   week** (recorded 2026-10-09; `K-S3-61`'s note carries them). Made-up
   figure codes lose their leading zeros, and exponent-shaped codes

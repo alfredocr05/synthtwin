@@ -28,9 +28,19 @@ off a column of counted dates' placeholder days. Three limits older than
 this change are measured and carried: beside a weekday census the hour
 pass leaves small bursty tables' count long (85 of 105 such twins before
 this change, 83 after); a column nine in ten at midnight with a heap at
-minute 0 writes one fewer midnight than its count withheld for its size;
-and 3,800 all-different stamps five minutes apart come back 327 to 380
-values short and miss their heap at second 0. `K-S3-41`, `K-S3-42` and `K-S3-62` are restamped.
+minute 0 writes 989 or 983 midnights where its count withheld for its
+size asks 990; and the unit-room rule withholds a noon census these twins
+now meet. **Stamps at a regular step whose different values crowd the
+lattice their minutes and seconds would pin** -- vital signs every five
+minutes, hourly observations, filling half of that lattice or more, a
+third where every value differs --
+**publish no minute or second facts** (contract NF121, NF122):
+with them, every such series measured from one minute to an hour apart
+and 1,000 to 100,000 rows came back short of its count (903 to 947 of
+1,000 five minutes apart) and, from 3,800 rows, missed its heap at second
+0; without them the 160 twins measured miss nothing, as before lane T3. A
+count the clock pass still leaves short is reported with that cause.
+`K-S3-41`, `K-S3-42` and `K-S3-62` are restamped.
 
 ### Partial dates are read at their own precision, and a column mostly of dates is asked (2026-10-09)
 

@@ -7900,9 +7900,13 @@ steps ask STRICT PAYERS: G7.3g step
 nearest day of the unit's own, every field of their clocks kept -- but
 only one whose move keeps the count of different values, among the first
 with a place and the 1,024 asked after it, none standing on the written
-unit a run joins, and every payer given back where fewer are found than
-the unit has ranks; so every weekday count is kept and each step counts
-its own moves exactly.
+unit a run joins and, for PUT BACK PAID BACK, none whose place stands on
+the written unit the run leaves (its skeptic's item 2: the run still holds
+it while its payers are asked, so a sharing rank there read as keeping the
+count, and once the run had gone the unit stayed held -- a merge counted
+that removed no value), and every payer given back where fewer are found
+than the unit has ranks; so every weekday count is kept and each step
+counts its own moves exactly.
 - *PUT BACK PAID BACK*, after step 2, where the count is still long and
   reachable: PUT BACK's runs, the fewest ranks first and in proportional
   order within a size, each ASKED AS IT STANDS (its ranks still on the
@@ -7949,7 +7953,15 @@ sentence: no placement keeping each burst of cells written alike together
 met both (the plan's RESIDUAL; a burst holding a tail's pinned boundary
 cannot move whole, and bursts larger than what a group owes cannot be
 carried in whole units -- 7 of the 90 twins above, against 2341173,
-which publishes no minute census).
+which publishes no minute census); and where they hold and the steps left
+the reachable count below both the count they keep and the count they
+were handed, the report names the clock pass as its cause in place of
+the short sentence (lane J2's skeptic, item 1: stamps five minutes apart,
+every one different, were moved onto their heaps at 893 values of 1,000,
+and the report blamed the ways of writing a value). A column whose
+different values crowd the lattice its minute's and second's facts would
+pin publishes neither (contract NF121 and NF122), so no field pass runs
+on it.
 Last, where the column publishes its count at midnight -- or withholds it
 for its size, and so still owes the count it held before these passes
 (plan P4-D191) -- THE TAILS KEEP IT:
